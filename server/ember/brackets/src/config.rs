@@ -52,6 +52,11 @@ pub struct Config {
     /// https to its own site (or service) and nowhere else.
     #[serde(default)]
     pub allow_loopback_http: bool,
+    /// The requests a start.gg token may make, and in how many seconds:
+    /// `startgg::RATE` when absent. Never read from the file; tests raise it
+    /// so that many requests do not wait on the clock.
+    #[serde(skip)]
+    pub startgg_rate: Option<(usize, u64)>,
 }
 
 /// The `direct` bridge connection the matches are created on.
@@ -676,9 +681,7 @@ mod tests {
 
     #[test]
     fn a_file_reads_with_defaults_and_its_own_directory() {
-        let dir =
-            std::env::temp_dir().join(format!("ember-brackets-config-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::test_dir("config");
         let path = dir.join("brackets.json");
         let text = serde_json::json!({
             "bridge": {

@@ -109,9 +109,7 @@ mod tests {
 
     #[test]
     fn requests_that_can_wait_stop_at_the_budget_and_others_go_on() {
-        let dir =
-            std::env::temp_dir().join(format!("ember-brackets-budget-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::test_dir("budget");
         let store = Arc::new(Store::open(&dir.join("brackets.sqlite3")).unwrap());
         let clock = Clock::frozen(1_792_350_000);
         let budget =

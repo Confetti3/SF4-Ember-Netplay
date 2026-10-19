@@ -1,21 +1,8 @@
-//! Plays bracket sites' sets in Ember (README.md; adapters in ADAPTERS.md).
-//!
-//! For each configured tournament it reads the open sets, finds both
-//! players on the bridge by an account the site shows for them (the one
-//! they connected on that site, or a Discord account), and creates each
-//! set as an `ember-room-v1` match on its `direct` connection. The bridge
-//! sends each finished match to the connector's results URL; the connector
-//! reads the bracket at once and reports the score if the site still has the
-//! set open without one, or makes a fresh attempt at a set that restarted or
-//! expired. A set the organizer changed by hand has its Ember match
-//! cancelled. Reads back off while nothing changes, stay inside the
-//! tournament's window, and stop once the bracket is finished: Challonge's
-//! free tier allows 500 requests a month, and start.gg 80 a minute.
-//!
-//! Sites sit behind `site::Site` (ADAPTERS.md): Challonge, start.gg, and an
-//! organizer's own service through the `http` adapter. Everything the
-//! connector decides survives a restart in its SQLite file, and each
-//! attempt's `external_match_id` is fixed, so it never makes a match twice.
+//! Plays bracket sites' sets in Ember: README.md says what it does, and
+//! ADAPTERS.md how a site is added. This module builds the connector from
+//! its configuration (one worker per tournament, sharing the bridge client,
+//! the database and each start.gg token's rate limit) and serves the
+//! results URL.
 mod bracket;
 mod bridge;
 mod budget;
@@ -24,6 +11,7 @@ mod config;
 mod http;
 mod limit;
 mod results;
+mod roster;
 mod schedule;
 mod service;
 mod sets;
@@ -75,6 +63,19 @@ pub(crate) fn printable(line: &str) -> String {
     line.chars()
         .map(|c| if c.is_control() { '?' } else { c })
         .collect()
+}
+
+/// A new, empty folder of its own for one test, so no two runs share one.
+#[cfg(test)]
+pub(crate) fn test_dir(name: &str) -> std::path::PathBuf {
+    let mut bytes = [0u8; 8];
+    getrandom::fill(&mut bytes).unwrap();
+    let dir = std::env::temp_dir().join(format!(
+        "ember-brackets-{name}-{}",
+        ember_protocol::encoding::b64u(&bytes)
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
 }
 
 #[cfg(test)]
@@ -166,7 +167,7 @@ impl Connector {
             max_poll_secs: config.max_poll_secs,
             pointed_out: Default::default(),
         });
-        let (count, secs) = startgg::RATE;
+        let (count, secs) = config.startgg_rate.unwrap_or(startgg::RATE);
         let mut limiters = Limiters::new(count, Duration::from_secs(secs));
         let brackets = config
             .tournaments
@@ -192,6 +193,7 @@ impl Connector {
                             config.monthly_request_budget,
                             clock.clone(),
                         ),
+                        clock.clone(),
                     )?),
                     Adapter::Http => Box::new(Service::new(
                         tournament.api_base.as_deref().unwrap_or_default(),

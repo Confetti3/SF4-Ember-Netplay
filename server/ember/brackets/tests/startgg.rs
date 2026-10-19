@@ -18,24 +18,24 @@ use support::{
     startgg::{EVENT_SLUG, FakeEntrant, FakeSet, FakeStartgg, STARTGG_TOKEN},
 };
 
-const KATE_USER: u64 = 5_001;
-const SAM_DISCORD: &str = "274220342558756145";
+const PLAYER1_USER: u64 = 5_001;
+const PLAYER2_DISCORD: &str = "274220342558756145";
 
-/// Kate's entrant (2401411) has her start.gg account connected in Ember;
-/// Sam's (2401412) is found by the Discord account he linked on start.gg.
+/// Player 1's entrant (2401411) has its start.gg account connected in Ember;
+/// Player 2's (2401412) is found by the Discord account linked on start.gg.
 /// They play set 65089253; set 65089254 waits on another entrant.
 async fn fake() -> FakeStartgg {
     FakeStartgg::start(
         vec![
             FakeEntrant {
                 id: 2_401_411,
-                user: Some(KATE_USER),
+                user: Some(PLAYER1_USER),
                 discord: None,
             },
             FakeEntrant {
                 id: 2_401_412,
                 user: Some(5_002),
-                discord: Some(SAM_DISCORD.into()),
+                discord: Some(PLAYER2_DISCORD.into()),
             },
             FakeEntrant {
                 id: 2_401_413,
@@ -67,8 +67,8 @@ async fn world(fake: &FakeStartgg, challonge: bool) -> World {
         ..Setup::default()
     })
     .await;
-    world.bridge.connect_startgg(1, KATE_USER).await;
-    world.bridge.connect_discord(2, SAM_DISCORD).await;
+    world.bridge.connect_startgg(1, PLAYER1_USER).await;
+    world.bridge.connect_discord(2, PLAYER2_DISCORD).await;
     world
 }
 
@@ -94,7 +94,7 @@ async fn a_set_is_found_by_startgg_and_discord_accounts_and_reported_game_by_gam
     assert_eq!(players, [json!(0), json!(1)]);
     assert_eq!(fake.set(65_089_253).state, 2);
 
-    // Sam wins 2-1, losing the second game.
+    // Player 2 wins 2-1, losing the second game.
     world.play(match_id, &[1, 0, 1]).await;
     world.bridge.deliver().await;
     world.connector.pass(false).await;
@@ -177,8 +177,8 @@ async fn long_lists_are_read_page_by_page() {
 async fn one_connector_runs_a_challonge_and_a_startgg_tournament() {
     let fake = fake().await;
     let world = world(&fake, true).await;
-    world.bridge.connect(3, "Kate").await;
-    world.bridge.connect(4, "sam_99").await;
+    world.bridge.connect(3, "Player1").await;
+    world.bridge.connect(4, "player_2").await;
 
     world.connector.pass(true).await;
     let mut externals: Vec<String> = world
@@ -226,7 +226,7 @@ async fn one_connector_runs_a_challonge_and_a_startgg_tournament() {
 
 const BRACKET: &str = "startgg:tournament/ember-weekly/event/usf4";
 
-/// Creates set 65089253's match and plays it to Sam's 2-1 win, delivered.
+/// Creates set 65089253's match and plays it to Player 2's 2-1 win, delivered.
 async fn played(fake: &FakeStartgg, world: &World) -> String {
     world.connector.pass(true).await;
     let match_id = world.bridge.matches().await[0].1.clone();
@@ -320,13 +320,13 @@ async fn a_completed_event_is_not_read_again() {
         vec![
             FakeEntrant {
                 id: 2_401_411,
-                user: Some(KATE_USER),
+                user: Some(PLAYER1_USER),
                 discord: None,
             },
             FakeEntrant {
                 id: 2_401_412,
                 user: Some(5_002),
-                discord: Some(SAM_DISCORD.into()),
+                discord: Some(PLAYER2_DISCORD.into()),
             },
         ],
         vec![FakeSet::open(65_089_253, 1, [2_401_411, 2_401_412])],
@@ -397,14 +397,14 @@ async fn games_that_do_not_add_up_to_the_score_are_not_reported() {
 #[tokio::test]
 async fn entrants_are_read_again_for_accounts_linked_since() {
     let fake = fake().await;
-    // Sam has not linked Discord on start.gg yet.
+    // Player 2 has not linked Discord on start.gg yet.
     fake.state.lock().unwrap().entrants[1].discord = None;
     let world = world(&fake, false).await;
     world.connector.pass(true).await;
     assert_eq!(fake.operations(), ["Event", "Sets", "Entrants"]);
     assert!(world.bridge.matches().await.is_empty());
 
-    fake.state.lock().unwrap().entrants[1].discord = Some(SAM_DISCORD.into());
+    fake.state.lock().unwrap().entrants[1].discord = Some(PLAYER2_DISCORD.into());
     world.advance(600);
     world.connector.pass(true).await;
     assert_eq!(fake.operations(), ["Sets"]);
@@ -424,11 +424,11 @@ async fn a_set_whose_report_is_refused_waits_alone() {
     };
     let fake = FakeStartgg::start(
         vec![
-            entrant(2_401_411, KATE_USER),
+            entrant(2_401_411, PLAYER1_USER),
             FakeEntrant {
                 id: 2_401_412,
                 user: Some(5_002),
-                discord: Some(SAM_DISCORD.into()),
+                discord: Some(PLAYER2_DISCORD.into()),
             },
             entrant(2_401_414, 5_003),
             entrant(2_401_415, 5_004),
@@ -557,7 +557,7 @@ async fn private_discord_accounts_still_leave_start_gg_accounts_to_find() {
     let fake = fake().await;
     fake.state.lock().unwrap().private_discord = true;
     let world = world(&fake, false).await;
-    // Sam can only be found by his start.gg account now.
+    // Player 2 can only be found by a start.gg account now.
     world.bridge.connect_startgg(3, 5_002).await;
     world.connector.pass(true).await;
     assert_eq!(fake.operations(), ["Event", "Sets", "Entrants", "Underway"]);

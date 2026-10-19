@@ -30,99 +30,90 @@ impl Window {
     }
 }
 
-/// When the bracket is next read, and how long the wait grows while reads
-/// find nothing new: from `min` it doubles after each read without a
-/// change, up to `max`, and is back at `min` after any change.
+/// A time something waits for, and a wait that doubles from `min` up to
+/// `max` each time it grows, and is back at `min` after a reset. It times
+/// the scheduled reads (from `poll_secs`, doubling while reads find
+/// nothing new), the reads after a failed pass and each result whose report
+/// waits on its own (a minute, doubling up to an hour).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Schedule {
-    pub next_read: u64,
-    pub interval: u64,
+pub struct Backoff {
+    at: u64,
+    /// The last wait, or `min` before any.
+    wait: u64,
     min: u64,
     max: u64,
-}
-
-impl Schedule {
-    pub fn new(min: u64, max: u64) -> Self {
-        Self {
-            next_read: 0,
-            interval: min,
-            min,
-            max,
-        }
-    }
-
-    pub fn due(&self, now: u64) -> bool {
-        now >= self.next_read
-    }
-
-    /// Before a read: a read that fails is not tried again sooner than the
-    /// current interval.
-    pub fn reading(&mut self, now: u64) {
-        self.next_read = now + self.interval;
-    }
-
-    /// After a read that worked.
-    pub fn read(&mut self, now: u64, changed: bool) {
-        self.interval = if changed {
-            self.min
-        } else {
-            (self.interval * 2).min(self.max)
-        };
-        self.next_read = now + self.interval;
-    }
-
-    /// After a read that found the bracket played out: the longest wait.
-    pub fn slow(&mut self, now: u64) {
-        self.interval = self.max;
-        self.next_read = now + self.interval;
-    }
-}
-
-/// Reads after a failure: the first again after `RETRY_MIN_SECS`, each
-/// later one after twice the wait, at most an hour, so a site that keeps
-/// failing costs a handful of requests an hour.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Retry {
-    at: u64,
-    delay: u64,
-    failures: u32,
+    /// Times it grew since it was made or reset.
+    count: u32,
 }
 
 pub const RETRY_MIN_SECS: u64 = 60;
 pub const RETRY_MAX_SECS: u64 = 60 * 60;
 
-impl Default for Retry {
-    fn default() -> Self {
+impl Backoff {
+    pub fn new(min: u64, max: u64) -> Self {
         Self {
             at: 0,
-            delay: RETRY_MIN_SECS,
-            failures: 0,
+            wait: min,
+            min,
+            max,
+            count: 0,
         }
     }
-}
 
-impl Retry {
+    /// After a failure: a minute, doubling up to an hour, so a site that
+    /// keeps failing costs a handful of requests an hour.
+    pub fn retry() -> Self {
+        Self::new(RETRY_MIN_SECS, RETRY_MAX_SECS)
+    }
+
     pub fn ready(&self, now: u64) -> bool {
         now >= self.at
     }
 
-    /// Records a failure. Returns whether it starts a run of them, the one
-    /// worth a log line.
-    pub fn failed(&mut self, now: u64) -> bool {
-        self.at = now + self.delay;
-        self.delay = (self.delay * 2).min(RETRY_MAX_SECS);
-        self.failures += 1;
-        self.failures == 1
+    /// Waits from `now`: `min` the first time since a reset, then twice the
+    /// last wait, at most `max`. Returns how many times it has grown since
+    /// the reset, so the first of a run can be logged.
+    pub fn grow(&mut self, now: u64) -> u32 {
+        self.wait = if self.count == 0 {
+            self.min
+        } else {
+            (self.wait * 2).min(self.max)
+        };
+        self.at = now + self.wait;
+        self.count += 1;
+        self.count
     }
 
-    /// The failures recorded so far.
-    pub fn failures(&self) -> u32 {
-        self.failures
+    /// Back to `min` for the next wait, leaving the time waited for as it
+    /// is. Returns how many times it had grown.
+    pub fn reset(&mut self) -> u32 {
+        self.wait = self.min;
+        std::mem::take(&mut self.count)
     }
 
-    /// Records a success. Returns how many failures it ends.
-    pub fn succeeded(&mut self) -> u32 {
-        std::mem::take(self).failures
+    /// Waits the last wait again from `now`, without growing it: a read
+    /// that fails is not tried again sooner on the schedule.
+    pub fn hold(&mut self, now: u64) {
+        self.at = now + self.wait;
+    }
+
+    /// Waits `max` from `now`.
+    pub fn longest(&mut self, now: u64) {
+        self.wait = self.max;
+        self.at = now + self.wait;
+    }
+
+    /// After a scheduled read that worked: `min` after a change, else the
+    /// next, longer wait.
+    pub fn read(&mut self, now: u64, changed: bool) {
+        if changed {
+            self.reset();
+        }
+        self.grow(now);
+    }
+
+    pub fn count(&self) -> u32 {
+        self.count
     }
 }
 
@@ -151,32 +142,34 @@ mod tests {
 
     #[test]
     fn quiet_reads_back_off_and_a_change_resets() {
-        let mut schedule = Schedule::new(120, 600);
-        assert!(schedule.due(0));
+        let mut schedule = Backoff::new(120, 600);
+        assert!(schedule.ready(0));
         let mut waits = Vec::new();
         for changed in [true, false, false, false, false, true, false] {
             schedule.read(1_000, changed);
-            waits.push(schedule.interval);
+            waits.push(schedule.wait);
         }
         assert_eq!(waits, [120, 240, 480, 600, 600, 120, 240]);
-        assert_eq!(schedule.next_read, 1_240);
-        assert!(!schedule.due(1_239));
-        assert!(schedule.due(1_240));
+        assert_eq!(schedule.at, 1_240);
+        assert!(!schedule.ready(1_239));
+        assert!(schedule.ready(1_240));
         // A failing read waits the current interval, without growing it.
-        schedule.reading(2_000);
-        assert_eq!((schedule.next_read, schedule.interval), (2_240, 240));
-        schedule.slow(3_000);
-        assert_eq!((schedule.next_read, schedule.interval), (3_600, 600));
+        schedule.hold(2_000);
+        assert_eq!((schedule.at, schedule.wait), (2_240, 240));
+        schedule.longest(3_000);
+        assert_eq!((schedule.at, schedule.wait), (3_600, 600));
+        schedule.read(4_000, false);
+        assert_eq!((schedule.at, schedule.wait), (4_600, 600));
     }
 
     #[test]
     fn failures_wait_longer_each_time_up_to_an_hour() {
-        let mut retry = Retry::default();
+        let mut retry = Backoff::retry();
         assert!(retry.ready(0));
         let mut waits = Vec::new();
         let mut now = 0;
-        for failure in 0..9 {
-            assert_eq!(retry.failed(now), failure == 0);
+        for failure in 1..=9 {
+            assert_eq!(retry.grow(now), failure);
             let at = retry.at;
             assert!(!retry.ready(at - 1));
             assert!(retry.ready(at));
@@ -184,8 +177,12 @@ mod tests {
             now = at;
         }
         assert_eq!(waits, [60, 120, 240, 480, 960, 1_920, 3_600, 3_600, 3_600]);
-        assert_eq!(retry.succeeded(), 9);
-        assert_eq!(retry, Retry::default());
-        assert_eq!(retry.succeeded(), 0);
+        assert_eq!(retry.count(), 9);
+        assert_eq!(retry.reset(), 9);
+        assert_eq!(retry.reset(), 0);
+        // Ready as it was, and the next failure waits a minute again.
+        assert!(retry.ready(now));
+        retry.grow(now);
+        assert_eq!(retry.at - now, 60);
     }
 }

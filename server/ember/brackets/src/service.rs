@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 use crate::{
     config::is_slug,
-    http::{bearer, bounded_body, http_client},
+    http::{bearer, exchange, http_client},
     log,
     site::{
         Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
@@ -26,7 +26,7 @@ use crate::{
 
 /// The contract version, sent on every request. A service that changes a
 /// shape in a way an older connector would misread answers a request of an
-/// older version with 400.
+/// older version with 426 (`failure`), which is waited out.
 pub const CONTRACT: &str = "1";
 const CONTRACT_HEADER: &str = "ember-brackets-contract";
 /// The same on every delivery of one result.
@@ -306,14 +306,7 @@ impl Service {
         if let Kind::Report { key } = kind {
             request = request.header(IDEMPOTENCY_HEADER, key);
         }
-        let response = request
-            .send()
-            .await
-            .map_err(|_| SiteError::Unavailable("the service could not be reached".into()))?;
-        let status = response.status();
-        let body = bounded_body(response, MAX_ANSWER).await.ok_or_else(|| {
-            SiteError::Unavailable("the service's answer was cut off or too long".into())
-        })?;
+        let (status, body) = exchange(request, MAX_ANSWER, "the service").await?;
         match status {
             StatusCode::NOT_FOUND => Ok(None),
             status if status.is_success() => Ok(Some(body)),

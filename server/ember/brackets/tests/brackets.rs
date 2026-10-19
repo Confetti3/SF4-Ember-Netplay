@@ -17,8 +17,8 @@ const PARTICIPANTS: &str = "GET /participants.json?page=1&per_page=25";
 async fn a_set_is_played_in_ember_and_its_score_goes_back() {
     let world = World::start(Setup::default()).await;
     // Usernames are matched without case.
-    let kate = world.bridge.connect(1, "kate").await;
-    let sam = world.bridge.connect(2, "Sam_99").await;
+    let player1 = world.bridge.connect(1, "player1").await;
+    let player2 = world.bridge.connect(2, "Player_2").await;
 
     world.connector.pass(true).await;
     let log = world.challonge.log();
@@ -53,7 +53,10 @@ async fn a_set_is_played_in_ember_and_its_score_goes_back() {
         .collect();
     assert_eq!(
         roster,
-        [(kate.as_str().to_owned(), 0), (sam.as_str().to_owned(), 1)]
+        [
+            (player1.as_str().to_owned(), 0),
+            (player2.as_str().to_owned(), 1)
+        ]
     );
 
     // Reading again makes nothing new.
@@ -61,7 +64,7 @@ async fn a_set_is_played_in_ember_and_its_score_goes_back() {
     assert_eq!(lines(&world.challonge.log()), [LIST]);
     assert_eq!(world.bridge.matches().await.len(), 1);
 
-    // Sam wins 2-1. The result is read against the bracket at once, though
+    // Player 2 wins 2-1. The result is read against the bracket at once, though
     // no read is due, and reported.
     world.play(match_id, &[1, 0, 1]).await;
     world.bridge.deliver().await;
@@ -81,13 +84,13 @@ async fn a_set_is_played_in_ember_and_its_score_goes_back() {
     world.connector.pass(false).await;
     assert_eq!(lines(&world.challonge.log()), Vec::<String>::new());
 
-    // The organizer decides 1002 by hand: 1003 opens, Sam against Ryu, who
+    // The organizer decides 1002 by hand: 1003 opens, Player 2 against Player 3, who
     // has not connected Challonge in Ember yet.
     world.challonge.decide("1002", 0);
     world.connector.pass(true).await;
     assert_eq!(lines(&world.challonge.log()), [LIST]);
     assert_eq!(world.bridge.matches().await.len(), 1);
-    let ryu = world.bridge.connect(3, "ryu").await;
+    let player3 = world.bridge.connect(3, "player3").await;
     world.connector.pass(true).await;
     let matches = world.bridge.matches().await;
     let (external, match_id, _) = &matches[1];
@@ -96,15 +99,15 @@ async fn a_set_is_played_in_ember_and_its_score_goes_back() {
     // Round 2 is first to 3.
     assert_eq!(found["games_to_win"], 3);
     assert_eq!(found["metadata"]["round_label"], "Round 2");
-    assert_eq!(found["participants"][0]["ember_id"], sam.as_str());
-    assert_eq!(found["participants"][1]["ember_id"], ryu.as_str());
+    assert_eq!(found["participants"][0]["ember_id"], player2.as_str());
+    assert_eq!(found["participants"][1]["ember_id"], player3.as_str());
 }
 
 #[tokio::test]
 async fn a_restarted_connector_carries_on_without_making_a_match_twice() {
     let world = World::start(Setup::default()).await;
-    world.bridge.connect(1, "Kate").await;
-    world.bridge.connect(2, "sam_99").await;
+    world.bridge.connect(1, "Player1").await;
+    world.bridge.connect(2, "player_2").await;
     world.connector.pass(true).await;
     let match_id = world.bridge.matches().await[0].1.clone();
 
@@ -127,8 +130,8 @@ async fn a_restarted_connector_carries_on_without_making_a_match_twice() {
 #[tokio::test]
 async fn a_restart_makes_a_fresh_attempt_and_a_set_changed_by_hand_is_cancelled() {
     let world = World::start(Setup::default()).await;
-    world.bridge.connect(1, "Kate").await;
-    world.bridge.connect(2, "sam_99").await;
+    world.bridge.connect(1, "Player1").await;
+    world.bridge.connect(2, "player_2").await;
     world.connector.pass(true).await;
     let first = world.bridge.matches().await[0].1.clone();
     world.challonge.log();
@@ -165,8 +168,8 @@ async fn a_restart_makes_a_fresh_attempt_and_a_set_changed_by_hand_is_cancelled(
 #[tokio::test]
 async fn a_set_that_keeps_restarting_is_left_to_the_organizer() {
     let world = World::start(Setup::default()).await;
-    world.bridge.connect(1, "Kate").await;
-    world.bridge.connect(2, "sam_99").await;
+    world.bridge.connect(1, "Player1").await;
+    world.bridge.connect(2, "player_2").await;
     world.connector.pass(true).await;
     for attempt in 1..=5 {
         let matches = world.bridge.matches().await;
@@ -185,8 +188,8 @@ async fn a_set_that_keeps_restarting_is_left_to_the_organizer() {
 #[tokio::test]
 async fn a_set_the_organizer_already_reported_is_not_reported_again() {
     let world = World::start(Setup::default()).await;
-    world.bridge.connect(1, "Kate").await;
-    world.bridge.connect(2, "sam_99").await;
+    world.bridge.connect(1, "Player1").await;
+    world.bridge.connect(2, "player_2").await;
     world.connector.pass(true).await;
     let match_id = world.bridge.matches().await[0].1.clone();
     world.play(&match_id, &[0, 0]).await;
@@ -251,4 +254,98 @@ async fn long_lists_are_read_page_by_page_with_an_oauth_token() {
     // Sixty usernames take two lookups (the bridge refuses more than 32 in
     // one), and every set gets its match.
     assert_eq!(world.bridge.matches().await.len(), 30);
+}
+
+#[tokio::test]
+async fn a_set_reopened_for_the_same_players_is_left_to_the_organizer() {
+    let world = World::start(Setup::default()).await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "player_2").await;
+    world.bridge.connect(3, "player3").await;
+    // 1001 is played in Ember (Player 2 wins), 1002 decided by hand, and
+    // 1003, Player 2 against Player 3, played in Ember too.
+    world.connector.pass(true).await;
+    let first = world.bridge.matches().await[0].1.clone();
+    world.play(&first, &[1, 1]).await;
+    world.bridge.deliver().await;
+    world.connector.pass(false).await;
+    world.challonge.decide("1002", 0);
+    world.advance(601);
+    world.connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 2);
+    world.play(&matches[1].1, &[1, 1, 1]).await;
+    world.bridge.deliver().await;
+    world.connector.pass(false).await;
+    assert_eq!(world.progress("challonge:ember_weekly", "1003"), "reported");
+
+    // The organizer reopens 1001 to correct it, which reopens 1003 after
+    // it once 1001 is decided again, for the same two players: both are the
+    // organizer's, and no Ember match is made for either.
+    world.challonge.reopen("1001");
+    world.advance(601);
+    world.connector.pass(true).await;
+    world.challonge.decide("1001", 1);
+    assert_eq!(world.challonge.find("1003").state, "open");
+    world.advance(601);
+    world.connector.pass(true).await;
+    assert_eq!(world.bridge.matches().await.len(), 2);
+    assert_eq!(world.progress("challonge:ember_weekly", "1001"), "reported");
+    assert_eq!(world.progress("challonge:ember_weekly", "1003"), "reported");
+
+    // Corrected the other way, 1003 has other players: a new attempt.
+    world.challonge.reopen("1001");
+    world.challonge.decide("1001", 0);
+    world.advance(601);
+    world.connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 3);
+    assert_eq!(matches[2].0, "challonge:ember_weekly:1003:2");
+}
+
+#[tokio::test]
+async fn a_set_listed_twice_is_started_once() {
+    let world = World::start(Setup::default()).await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "player_2").await;
+    world
+        .challonge
+        .state
+        .lock()
+        .unwrap()
+        .listed_twice
+        .insert("1001".into());
+    world.connector.pass(true).await;
+    assert_eq!(
+        lines(&world.challonge.log()),
+        [LIST, PARTICIPANTS, "PUT /matches/1001/change_state.json"]
+    );
+    assert_eq!(world.bridge.matches().await.len(), 1);
+}
+
+#[tokio::test]
+async fn a_score_challonge_refuses_for_its_format_is_sent_again() {
+    let world = World::start(Setup::default()).await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "player_2").await;
+    world.connector.pass(true).await;
+    let match_id = world.bridge.matches().await[0].1.clone();
+    world.play(&match_id, &[0, 0]).await;
+    world.bridge.deliver().await;
+    world.challonge.log();
+    // 415 says the request's format was wrong, not that this set cannot
+    // take a score: the score waits, and is not given up.
+    world.challonge.state.lock().unwrap().report_failures = vec![415, 406];
+    world.connector.pass(false).await;
+    assert_eq!(
+        lines(&world.challonge.log()),
+        [LIST, "PUT /matches/1001.json"]
+    );
+    assert_eq!(world.progress("challonge:ember_weekly", "1001"), "live");
+    world.advance(61);
+    world.connector.pass(false).await;
+    world.advance(121);
+    world.connector.pass(false).await;
+    assert_eq!(world.progress("challonge:ember_weekly", "1001"), "reported");
+    assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("355"));
 }

@@ -30,7 +30,7 @@ rely on.
 | Method | Returns | The adapter promises |
 |---|---|---|
 | `open_sets(purpose)` | every set the site lists as open | Each playable set it can see, entries player 1 first. A set it cannot see may simply be missing: the connector never acts on a set's absence. |
-| `set(id, purpose)` | one set, or `None` | `None` only when the site itself says the set does not exist. |
+| `set(id, purpose)` | one set, or `None` | `None` only when the site itself says the set does not exist: Challonge answers 404 for the match's own URL (any 404 there, including one from a proxy in front of it), start.gg `Set not found for id: <id>`, an `http` service `{"set": null}`. |
 | `standing()` | `Finished`, `PlayedOut` or `Running` | `Finished` only when the site says the event is over: the connector then stops reading it for good. `PlayedOut` when every set looks played but more may come (a later stage, a reopened set). |
 | `mark_underway(id)` | nothing | May be called again for a set already underway. A failure is only logged. |
 | `report(id, report)` | `Sent` or `AlreadyHeld` | Records the winner and each entry's games won. May be called again for a report already recorded (see Delivery below): answer `AlreadyHeld` when the set already holds this winner, so the log does not claim the connector wrote it. If the site can tell, refuse (`Refused`) rather than write over a set that has a different result. |
@@ -71,9 +71,12 @@ A `Set` carries:
 
 Errors:
 
-- `Unavailable`: the site as a whole cannot be used now. It is down,
-  rate-limits, or refuses the credential. The pass stops, and the whole
-  tournament waits under the growing wait below.
+- `Unavailable`: the site cannot be used now. It is down, rate-limits, or
+  refuses the credential. From a read, the pass stops (the matches are
+  still brought in line with what was read), and the whole tournament waits
+  under the growing wait below. From a report, after a read that worked in
+  the same pass, it is taken as a failure on that set alone, and the result
+  waits like a `Deferred` one.
 - `Deferred` (from `report` only): this one report cannot be taken now, for
   a reason of its own set, which may pass (start.gg refusing it with an
   error it does not explain while the set is still open and unchanged, or
@@ -94,7 +97,12 @@ Errors:
   before it is sent and sent again unchanged until the bridge answers, so a
   restart never makes a second match.
 - **Attempts.** A match that restarts (a disputed game) or expires unplayed
-  is played again as a new attempt, up to 5; then the organizer decides.
+  is played again as a new attempt, up to 5; then the organizer decides. A
+  set the organizer opens again after its score was reported or decided is
+  the organizer's while it has the same two players: no new match is made
+  (on Challonge, reopening a set to correct it reopens the sets after it,
+  which are left the same way). Only a set that opens for other players
+  gets a new attempt.
 - **Evidence.** A match is cancelled, or a result set aside, only after the
   set itself, read on its own, shows it decided, changed or gone. A report
   goes out only for the two players its attempt was made for, and only while
@@ -109,10 +117,11 @@ Errors:
   unless the next read already shows the set decided with that result. The
   same result always carries the same key (`report.key`, the Ember match
   ID).
-- **Retries.** After a failure of the site as a whole nothing is asked of
-  it, for any reason, until a wait of a minute, doubling up to an hour, has
-  passed. One log line per run of failures. A deferred report waits the
-  same way on its own, and holds nothing else back.
+- **Retries.** After a read fails nothing is asked of the site, for any
+  reason, until a wait of a minute, doubling up to an hour, has passed. One
+  log line per run of failures. A report that waits on its own (deferred,
+  or failing after a read that worked) waits the same way, and holds
+  nothing else back.
 - **Pace.** Reads back off while nothing changes (`poll_secs` doubling up
   to `max_poll_secs`), stay inside the tournament's window, and stop once
   the site says the event is over.
@@ -175,8 +184,8 @@ fields in your answers are ignored, so you may add fields freely.
       "round_label": "Winners round 2",
       "status": "open",
       "entries": [
-        { "id": "kate", "accounts": [{ "site": "challonge", "id": "Kate_99" }] },
-        { "id": "sam", "accounts": [{ "site": "startgg", "id": "1234567" }, { "discord": "274220342558756145" }] }
+        { "id": "player1", "accounts": [{ "site": "challonge", "id": "Player_1" }] },
+        { "id": "player2", "accounts": [{ "site": "startgg", "id": "1234567" }, { "discord": "274220342558756145" }] }
       ],
       "underway": false
     }
@@ -222,9 +231,9 @@ tournament for good.
 
 ```json
 {
-  "winner": "sam",
-  "scores": [{ "entry": "kate", "games": 1 }, { "entry": "sam", "games": 2 }],
-  "games": ["sam", "kate", "sam"]
+  "winner": "player2",
+  "scores": [{ "entry": "player1", "games": 1 }, { "entry": "player2", "games": 2 }],
+  "games": ["player2", "player1", "player2"]
 }
 ```
 
@@ -263,7 +272,7 @@ on. After 12 deferrals (about 6 hours) the set is left to the organizer. A
 | `200` with `{ "set": null }` | the set is gone |
 | `200` from a read whose JSON is out of shape (`{}` from `/sets/{id}`, say) | tries again later, after the growing wait above |
 | `404` on `/standing` | the tournament is running |
-| `401`, `403`, `404` (anywhere but `/standing`), `426`, `429`, `5xx`, no answer | tries again later, after the growing wait above |
+| `401`, `403`, `404` (anywhere but `/standing`), `426`, `429`, `5xx`, no answer | on a read, tries again later, after the growing wait above; on a report, sends that report again later, on its own |
 | `409` on a report | leaves the set to the organizer |
 | `423` with `{ "retry": true }` on a report | sends that report again later, on its own |
 | other `4xx` | on a report, leaves the set to the organizer; on a read, tries again later |
@@ -271,9 +280,9 @@ on. After 12 deferrals (about 6 hours) the set is left to the organizer. A
 A failed `/underway` is only logged, whatever the answer: the match is
 played all the same.
 
-These answers are about your service as a whole. A `5xx`, `429` or no
-answer to one set's report stops the pass and holds back every other
-result and read of the tournament until the growing wait is over, so
-answer `5xx` only when the service itself is failing. A report you cannot
-take yet is a `423` as above; one you will never take is a `409` or
-another `4xx`.
+A failing answer to a read holds back the whole tournament until the
+growing wait is over. A failing answer to one set's report, after a read
+that worked, holds back only that result: it is sent again on its own, like
+a `423`, up to 12 times. A report you cannot take yet is best answered `423`
+as above, which says so; one you will never take is a `409` or another
+`4xx`.

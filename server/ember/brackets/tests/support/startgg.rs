@@ -15,7 +15,6 @@ use axum::{
     routing::post,
 };
 use serde_json::{Value, json};
-use tokio::net::TcpListener;
 
 pub const STARTGG_TOKEN: &str = "test-startgg-token";
 pub const EVENT_SLUG: &str = "tournament/ember-weekly/event/usf4";
@@ -110,16 +109,8 @@ pub struct FakeStartgg {
 }
 
 fn page<T: Clone>(items: &[T], variables: &Value) -> (Vec<T>, usize) {
-    let page = variables["page"].as_u64().unwrap_or(1) as usize;
-    let per_page = variables["perPage"].as_u64().unwrap_or(40) as usize;
-    let total = items.len().div_ceil(per_page).max(1);
-    let slice = items
-        .iter()
-        .skip((page - 1) * per_page)
-        .take(per_page)
-        .cloned()
-        .collect();
-    (slice, total)
+    let number = |key: &str, default: u64| variables[key].as_u64().unwrap_or(default) as usize;
+    super::page(items, number("page", 1), number("perPage", 40))
 }
 
 fn answer(status: StatusCode, body: Value) -> Response {
@@ -313,9 +304,7 @@ impl FakeStartgg {
         let app = Router::new()
             .route("/gql/alpha", post(graphql))
             .with_state(state.clone());
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let origin = format!("http://{}", listener.local_addr().unwrap());
-        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let origin = super::serve(app).await;
         Self { origin, state }
     }
 

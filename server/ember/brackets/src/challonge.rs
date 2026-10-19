@@ -5,7 +5,7 @@
 //! against the credential's monthly budget before it is sent: scheduled
 //! reads and underway marks can wait for next month, everything a result
 //! needs cannot.
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 
 use reqwest::{
     Method,
@@ -16,9 +16,11 @@ use serde_json::{Value, json};
 use zeroize::Zeroizing;
 
 use crate::{
+    Clock,
     budget::{Budget, Priority},
     config::{CredentialKind, is_slug},
-    http::{self, bounded_body, http_client},
+    http::{self, http_client},
+    roster::Roster,
     site::{
         Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
         Status,
@@ -49,9 +51,10 @@ pub(crate) struct Challonge {
     /// Every request's headers, with the credential marked sensitive.
     headers: HeaderMap,
     budget: Budget,
-    /// Participant ID to Challonge username, refreshed when a set names a
-    /// participant not in it.
-    usernames: Mutex<HashMap<String, Option<String>>>,
+    /// Participant ID to the Challonge account behind it, read again when
+    /// a set names a participant not in it: an entry the organizer gives an
+    /// account later is found after a restart.
+    roster: Roster,
     /// The bridge sign-in site players' Challonge accounts are under.
     bridge_site: String,
 }
@@ -78,6 +81,7 @@ impl Challonge {
         kind: CredentialKind,
         credential: &str,
         budget: Budget,
+        clock: Clock,
     ) -> Result<Self, String> {
         let (version, value) = match kind {
             CredentialKind::V1Key => ("v1", Zeroizing::new(credential.to_owned())),
@@ -97,7 +101,7 @@ impl Challonge {
             base: format!("{origin}{API_PATH}/tournaments/{tournament}"),
             headers,
             budget,
-            usernames: Mutex::default(),
+            roster: Roster::new(clock, None),
             bridge_site: bridge_site.to_owned(),
         })
     }
@@ -118,14 +122,7 @@ impl Challonge {
         if let Some(body) = body {
             request = request.body(body.to_string());
         }
-        let response = request
-            .send()
-            .await
-            .map_err(|_| SiteError::Unavailable("Challonge could not be reached".into()))?;
-        let status = response.status();
-        let body = bounded_body(response, MAX_ANSWER).await.ok_or_else(|| {
-            SiteError::Unavailable("Challonge's answer was cut off or too long".into())
-        })?;
+        let (status, body) = http::exchange(request, MAX_ANSWER, "Challonge").await?;
         if status.is_success() {
             return if body.is_empty() {
                 Ok(Some(Value::Null))
@@ -147,7 +144,9 @@ impl Challonge {
                 self.budget.refund();
                 Err(SiteError::Unavailable(message))
             }
-            429 => Err(SiteError::Unavailable(message)),
+            // 406 and 415 say the request's format was wrong, not this set:
+            // waited out, so a fixed connector still reports.
+            406 | 415 | 429 => Err(SiteError::Unavailable(message)),
             _ if status.is_server_error() => Err(SiteError::Unavailable(message)),
             _ => Err(SiteError::Refused(message)),
         }
@@ -196,49 +195,37 @@ impl Challonge {
         Ok(!items.is_empty())
     }
 
-    async fn refresh_usernames(&self, priority: Priority) -> Result<(), SiteError> {
+    /// Reads the participants: each one's Challonge username, when it has
+    /// one. The bridge's Challonge site decides which usernames it looks
+    /// up; one it refuses holds back only its own entry.
+    async fn refresh_participants(
+        &self,
+        priority: Priority,
+        asked: &[&String],
+    ) -> Result<(), SiteError> {
         let participants: Vec<Resource<ParticipantAttributes>> =
             self.list(priority, "/participants.json").await?;
-        let usernames = participants
+        let accounts: HashMap<String, Vec<Account>> = participants
             .into_iter()
             .map(|participant| {
-                let username = participant
+                let account = participant
                     .attributes
                     .username
-                    .filter(|name| !name.is_empty());
-                (participant.id, username)
+                    .filter(|name| !name.is_empty())
+                    .map(|username| Account::Site {
+                        site: self.bridge_site.clone(),
+                        id: username,
+                    });
+                (participant.id, account.into_iter().collect())
             })
             .collect();
-        *self.usernames.lock().unwrap_or_else(|e| e.into_inner()) = usernames;
+        self.roster.replace(accounts, asked.iter().copied());
         Ok(())
     }
 
     fn set_of(&self, raw: RawSet) -> Set {
-        let usernames = self.usernames.lock().unwrap_or_else(|e| e.into_inner());
-        // The bridge's Challonge site decides which usernames it looks up;
-        // one it refuses holds back only its own entry.
-        let entry = |id: &String| Entry {
-            participant_id: id.clone(),
-            accounts: usernames
-                .get(id)
-                .cloned()
-                .flatten()
-                .map(|username| Account::Site {
-                    site: self.bridge_site.clone(),
-                    id: username,
-                })
-                .into_iter()
-                .collect(),
-        };
-        let entries = raw.players.as_ref().map(|[a, b]| [entry(a), entry(b)]);
+        let entries = self.roster.entries(raw.players.as_ref());
         raw.into_set(entries)
-    }
-
-    fn knows(&self, id: &str) -> bool {
-        self.usernames
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .contains_key(id)
     }
 
     async fn read_open_sets(&self, purpose: Purpose) -> Result<Vec<Set>, SiteError> {
@@ -246,12 +233,12 @@ impl Challonge {
         let matches: Vec<Resource<MatchAttributes>> =
             self.list(priority, "/matches.json?state=open").await?;
         let raw: Vec<RawSet> = matches.into_iter().map(RawSet::from).collect();
-        let unknown = raw
+        let ids: Vec<&String> = raw
             .iter()
             .flat_map(|set| set.players.iter().flatten())
-            .any(|id| !self.knows(id));
-        if unknown {
-            self.refresh_usernames(priority).await?;
+            .collect();
+        if self.roster.stale(ids.iter().copied()) {
+            self.refresh_participants(priority, &ids).await?;
         }
         Ok(raw.into_iter().map(|raw| self.set_of(raw)).collect())
     }

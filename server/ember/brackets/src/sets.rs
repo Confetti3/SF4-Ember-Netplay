@@ -258,16 +258,21 @@ fn next_attempt(attempt: u32) -> Option<u32> {
     (attempt < MAX_ATTEMPTS).then_some(attempt + 1)
 }
 
-/// A set the site lists as playable. A live set whose entries changed was
-/// cancelled before this is asked, so a live one is the same set.
-pub fn on_open(tracked: Option<&Tracked>) -> OnOpen {
+/// A set the site lists as playable, with these entries. A live set whose
+/// entries changed was cancelled before this is asked, so a live one is the
+/// same set.
+pub fn on_open(tracked: Option<&Tracked>, entries: [&str; 2]) -> OnOpen {
     let Some(tracked) = tracked else {
         return OnOpen::Start(1);
     };
     match tracked.progress {
         Progress::Waiting => OnOpen::Start(tracked.attempt),
         Progress::Live | Progress::Stuck => OnOpen::Leave,
-        // Open again without a result: the organizer reopened or reset it.
+        // Open again, after a report or the organizer's decision, for the
+        // same two players: the organizer reopened it to correct it, and
+        // decides it (on Challonge, reopening a set reopens the sets after
+        // it too). Ember plays it again only for other players.
+        Progress::Reported | Progress::Closed if tracked.entry_ids() == entries => OnOpen::Leave,
         Progress::Reported | Progress::Closed => {
             next_attempt(tracked.attempt).map_or(OnOpen::GiveUp, OnOpen::Start)
         }
@@ -372,20 +377,26 @@ mod tests {
 
     #[test]
     fn a_read_starts_new_sets_and_reopened_ones_and_leaves_the_rest() {
-        assert_eq!(on_open(None), OnOpen::Start(1));
+        let same = ["355", "354"];
+        let other = ["355", "353"];
+        assert_eq!(on_open(None, same), OnOpen::Start(1));
         let cases = [
-            (Progress::Waiting, 2, OnOpen::Start(2)),
-            (Progress::Live, 1, OnOpen::Leave),
-            (Progress::Stuck, 5, OnOpen::Leave),
-            (Progress::Reported, 1, OnOpen::Start(2)),
-            (Progress::Closed, 4, OnOpen::Start(5)),
-            (Progress::Closed, MAX_ATTEMPTS, OnOpen::GiveUp),
+            (Progress::Waiting, 2, same, OnOpen::Start(2)),
+            (Progress::Live, 1, same, OnOpen::Leave),
+            (Progress::Stuck, 5, other, OnOpen::Leave),
+            // Reopened for the same players: the organizer's.
+            (Progress::Reported, 1, same, OnOpen::Leave),
+            (Progress::Closed, 4, same, OnOpen::Leave),
+            // Open for other players: a new attempt.
+            (Progress::Reported, 1, other, OnOpen::Start(2)),
+            (Progress::Closed, 4, other, OnOpen::Start(5)),
+            (Progress::Closed, MAX_ATTEMPTS, other, OnOpen::GiveUp),
         ];
-        for (progress, attempt, step) in cases {
+        for (progress, attempt, entries, step) in cases {
             assert_eq!(
-                on_open(Some(&tracked(progress, attempt))),
+                on_open(Some(&tracked(progress, attempt)), entries),
                 step,
-                "{progress:?}"
+                "{progress:?} {entries:?}"
             );
         }
     }

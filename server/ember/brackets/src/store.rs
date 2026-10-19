@@ -196,20 +196,36 @@ impl Store {
             .collect()
     }
 
-    /// Saves the set, keeping its note, with the creation about to be sent
-    /// for it, if any: a creation saved here is sent again as it was until
-    /// the bridge has answered it.
-    pub fn save(
+    /// Saves the set, keeping its note, and forgets any creation saved for
+    /// it: what is saved now replaces the attempt that creation was for.
+    pub fn save(&self, bracket: &str, set: &str, tracked: &Tracked) -> rusqlite::Result<()> {
+        self.save_with(bracket, set, tracked, None)
+    }
+
+    /// Saves the set with the creation about to be sent for it: a creation
+    /// saved here is sent again as it was until the bridge has answered it.
+    pub fn save_creating(
         &self,
         bracket: &str,
         set: &str,
         tracked: &Tracked,
-        command: Option<&CreateMatch>,
+        command: &CreateMatch,
+    ) -> rusqlite::Result<()> {
+        let text = serde_json::to_string(command)
+            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
+        self.save_with(bracket, set, tracked, Some(text))
+    }
+
+    fn save_with(
+        &self,
+        bracket: &str,
+        set: &str,
+        tracked: &Tracked,
+        command: Option<String>,
     ) -> rusqlite::Result<()> {
         let [ember1, ember2] = tracked.players.as_ref().map_or([None, None], |[one, two]| {
             [Some(one.as_str()), Some(two.as_str())]
         });
-        let command = command.map(|command| serde_json::to_string(command).unwrap_or_default());
         self.db().execute(
             "INSERT INTO sets (bracket, set_id, player1, player2, ember1, ember2, attempt,
                  match_id, progress, command)
@@ -244,7 +260,18 @@ impl Store {
             )
             .optional()?
             .flatten();
-        Ok(text.and_then(|text| serde_json::from_str(&text).ok()))
+        // One that no longer reads is an error, not a creation to make
+        // afresh: the bridge may already have made its match.
+        text.map(|text| {
+            serde_json::from_str(&text).map_err(|error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(error),
+                )
+            })
+        })
+        .transpose()
     }
 
     /// Records why a saved set waits, or that it no longer does. Returns
@@ -399,8 +426,7 @@ mod tests {
 
     #[test]
     fn months_are_calendar_months_in_utc() {
-        let dir = std::env::temp_dir().join(format!("ember-brackets-store-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::test_dir("store");
         let store = Store::open(&dir.join("brackets.sqlite3")).unwrap();
         // 2000-02-29 is in February; 2027-01-01 starts a new year's count.
         for now in [

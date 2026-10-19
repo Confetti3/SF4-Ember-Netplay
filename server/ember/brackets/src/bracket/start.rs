@@ -10,7 +10,7 @@ use ember_protocol::{
     play,
 };
 
-use super::{Bracket, Trouble};
+use super::Bracket;
 use crate::{
     bridge::{BridgeError, Found, Player},
     log,
@@ -26,7 +26,7 @@ const OLD_CONNECTION_SECS: u64 = 30 * 24 * 60 * 60;
 impl Bracket {
     /// Creates the match of each attempt whose two players are found.
     /// Returns whether it created any.
-    pub(super) async fn start(&self, starts: &[(&Set, u32)]) -> Result<bool, Trouble> {
+    pub(super) async fn start(&self, starts: &[(&Set, u32)]) -> Result<bool, SiteError> {
         if starts.is_empty() {
             return Ok(false);
         }
@@ -60,7 +60,7 @@ impl Bracket {
         Ok(created)
     }
 
-    async fn start_one(&self, set: &Set, attempt: u32, found: &Found) -> Result<bool, Trouble> {
+    async fn start_one(&self, set: &Set, attempt: u32, found: &Found) -> Result<bool, SiteError> {
         // A creation sent for this attempt and never answered is sent again
         // as it was: the bridge answers with the match it made, if it made
         // one, and that match's set is then judged like any live one. If the
@@ -128,7 +128,7 @@ impl Bracket {
         // recognised, and the creation repeated, even if the connector
         // stops before the bridge's answer is saved.
         self.store()
-            .save(&self.key, &set.id, &tracked, Some(&command))?;
+            .save_creating(&self.key, &set.id, &tracked, &command)?;
         self.create(set, tracked, &command).await
     }
 
@@ -138,7 +138,7 @@ impl Bracket {
         set: &Set,
         mut tracked: Tracked,
         command: &CreateMatch,
-    ) -> Result<bool, Trouble> {
+    ) -> Result<bool, SiteError> {
         let match_id = match self.context.bridge.create(command).await {
             Ok(match_id) => match_id,
             // Kept, and sent again as it is: the bridge may have made it.
@@ -152,9 +152,10 @@ impl Bracket {
             // Another request already made this attempt's match: whatever
             // it is, the set is played as a new attempt. That match is not
             // known here, so it stays on the bridge, for its players to see,
-            // until it is played or expires. It takes a refused creation
-            // followed by a different one (the configuration or a lookup
-            // changed in between) to get here.
+            // until it is played or expires. The bridge keeps nothing for a
+            // creation it refused, so a refusal does not lead here: a lost
+            // or replaced database does, whose saved creation is gone while
+            // the bridge still has its match.
             Err(BridgeError::Refused {
                 code: ErrorCode::IdempotencyConflict,
                 ..
@@ -166,7 +167,7 @@ impl Bracket {
                     return Ok(false);
                 }
                 tracked.attempt = attempt;
-                self.store().save(&self.key, &set.id, &tracked, None)?;
+                self.store().save(&self.key, &set.id, &tracked)?;
                 return self.note(
                     set,
                     attempt,
@@ -176,7 +177,7 @@ impl Bracket {
             // Nothing was made: the next read builds the creation afresh.
             Err(error) => {
                 tracked.players = None;
-                self.store().save(&self.key, &set.id, &tracked, None)?;
+                self.store().save(&self.key, &set.id, &tracked)?;
                 return self.note(
                     set,
                     tracked.attempt,
@@ -186,7 +187,7 @@ impl Bracket {
         };
         tracked.match_id = Some(match_id.clone());
         tracked.progress = Progress::Live;
-        self.store().save(&self.key, &set.id, &tracked, None)?;
+        self.store().save(&self.key, &set.id, &tracked)?;
         self.store().note(&self.key, &set.id, None)?;
         log!(
             "{} set {}: Ember match {match_id} created ({}, first to {}, attempt {})",
@@ -209,7 +210,7 @@ impl Bracket {
     /// Records why a set waits, logging each reason once. A set seen for
     /// the first time is saved, so its reason has a row to go on. Nothing
     /// was created.
-    fn note(&self, set: &Set, attempt: u32, why: Option<&str>) -> Result<bool, Trouble> {
+    fn note(&self, set: &Set, attempt: u32, why: Option<&str>) -> Result<bool, SiteError> {
         if self.store().tracked(&self.key, &set.id)?.is_none()
             && let Some(entries) = set.entry_ids()
         {
@@ -220,7 +221,7 @@ impl Bracket {
                 match_id: None,
                 progress: Progress::Waiting,
             };
-            self.store().save(&self.key, &set.id, &tracked, None)?;
+            self.store().save(&self.key, &set.id, &tracked)?;
         }
         if self.store().note(&self.key, &set.id, why)?
             && let Some(why) = why

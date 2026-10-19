@@ -5,18 +5,16 @@
 //! good.
 mod support;
 
-use ember_brackets::{
-    Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Results, Tournament,
-};
+use ember_brackets::{Clock, Connector, CredentialKind};
 use ember_protocol::{
     partner::result_id,
     webhook::{self, Headers, Secret},
 };
 use reqwest::StatusCode;
 use serde_json::{Value, json};
-use support::{CONNECTION, TOURNAMENT, result_secret, rounds, temp};
+use support::{CONNECTION, challonge_tournament, config, result_secret, temp};
 
-const KATE: &str = "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";
+const PLAYER1: &str = "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";
 const MATCH: &str = "emt_8RGUvPxAAZ0V9oj_D-yBDg";
 const NOW: u64 = 1_792_350_000;
 
@@ -26,47 +24,19 @@ fn previous_secret() -> Secret {
 
 /// A connector whose bridge and Challonge are never called here.
 fn connector(dir: &std::path::Path, clock: Clock) -> Connector {
-    std::fs::write(dir.join("provider.token"), "emk_test").unwrap();
-    std::fs::write(dir.join("result.secret"), result_secret().reveal().as_str()).unwrap();
     std::fs::write(
         dir.join("previous.secret"),
         previous_secret().reveal().as_str(),
     )
     .unwrap();
-    std::fs::write(dir.join("challonge.key"), "key").unwrap();
-    let config = Config {
-        bridge: Bridge {
-            api: "http://127.0.0.1:9".into(),
-            credential_file: dir.join("provider.token"),
-            connection_id: CONNECTION.into(),
-            build_id: "test-build".into(),
-        },
-        results: Results {
-            listen: "127.0.0.1:0".into(),
-            path: "/ember/results".into(),
-            secret_file: dir.join("result.secret"),
-            previous_secret_file: Some(dir.join("previous.secret")),
-        },
-        database: dir.join("brackets.sqlite3"),
-        poll_secs: 120,
-        max_poll_secs: 600,
-        monthly_request_budget: 500,
-        allow_loopback_http: true,
-        tournaments: vec![Tournament {
-            adapter: Adapter::Challonge,
-            bridge_site: None,
-            tournament: TOURNAMENT.into(),
-            credential: Credential {
-                kind: CredentialKind::V1Key,
-                file: dir.join("challonge.key"),
-            },
-            rounds: rounds(),
-            active_from: None,
-            active_until: None,
-            mark_underway: true,
-            api_base: Some("http://127.0.0.1:9".into()),
-        }],
-    };
+    let mut config = config(dir, "http://127.0.0.1:9", "emk_test");
+    config.results.path = "/ember/results".into();
+    config.results.previous_secret_file = Some(dir.join("previous.secret"));
+    config.tournaments = vec![challonge_tournament(
+        dir,
+        CredentialKind::V1Key,
+        "http://127.0.0.1:9",
+    )];
     Connector::new(config, clock).unwrap()
 }
 
@@ -80,8 +50,8 @@ fn result(external: &str, match_id: &str) -> Value {
         "outcome": "completed",
         "revision": "6",
         "participants": [
-            { "participant_id": "epl_a", "ember_id": KATE, "slot": 0, "score": 2 },
-            { "participant_id": "epl_b", "ember_id": KATE, "slot": 1, "score": 0 },
+            { "participant_id": "epl_a", "ember_id": PLAYER1, "slot": 0, "score": 2 },
+            { "participant_id": "epl_b", "ember_id": PLAYER1, "slot": 1, "score": 0 },
         ],
         "winner_participant_id": "epl_a",
     })

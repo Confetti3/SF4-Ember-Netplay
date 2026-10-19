@@ -18,8 +18,8 @@ const FROM: u64 = 1_893_456_000;
 
 async fn connected(setup: Setup) -> World {
     let world = World::start(setup).await;
-    world.bridge.connect(1, "Kate").await;
-    world.bridge.connect(2, "sam_99").await;
+    world.bridge.connect(1, "Player1").await;
+    world.bridge.connect(2, "player_2").await;
     world
 }
 
@@ -43,7 +43,7 @@ async fn outside_the_window_only_results_are_read_for_and_reported() {
         active_until: Some("2030-01-01T03:00:00Z".into()),
         ..Setup::default()
     };
-    setup.participants[3].1 = Some("ken".into());
+    setup.participants[3].1 = Some("player4".into());
     let world = connected(setup).await;
     assert!(read(&world).await.is_empty());
     assert!(world.bridge.matches().await.is_empty());
@@ -58,8 +58,8 @@ async fn outside_the_window_only_results_are_read_for_and_reported() {
 
     // A result that arrives is still read for and reported. 1002's players
     // have connected meanwhile, but no match is created any more.
-    world.bridge.connect(3, "ryu").await;
-    world.bridge.connect(4, "ken").await;
+    world.bridge.connect(3, "player3").await;
+    world.bridge.connect(4, "player4").await;
     world.play(&match_id, &[0, 0]).await;
     world.bridge.deliver().await;
     world.connector.pass(false).await;

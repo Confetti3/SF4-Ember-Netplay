@@ -32,8 +32,6 @@ const MAX_ANSWER: usize = 256 * 1024;
 /// read. An operator who fixes the bridge's configuration sees it within
 /// this.
 const REFUSAL_SECS: u64 = 15 * 60;
-/// Refused accounts remembered at most; past it the soonest to expire go.
-const MAX_REFUSALS: usize = 4096;
 
 #[derive(Debug)]
 pub(crate) enum BridgeError {
@@ -114,19 +112,10 @@ impl Refusals {
             .map(|(why, _)| why.as_str())
     }
 
+    /// Remembers a refusal, and forgets those expired: the accounts of
+    /// the configured events bound the rest.
     fn remember(&mut self, account: Account, why: String, now: u64) {
-        if self.0.len() >= MAX_REFUSALS {
-            self.0.retain(|_, (_, until)| now < *until);
-        }
-        if self.0.len() >= MAX_REFUSALS
-            && let Some(soonest) = self
-                .0
-                .iter()
-                .min_by_key(|(_, (_, until))| *until)
-                .map(|(account, _)| account.clone())
-        {
-            self.0.remove(&soonest);
-        }
+        self.0.retain(|_, (_, until)| now < *until);
         self.0.insert(account, (why, now + REFUSAL_SECS));
     }
 }
@@ -245,8 +234,6 @@ struct MatchView {
     state: MatchState,
     revision: String,
     #[serde(default)]
-    games_to_win: u8,
-    #[serde(default)]
     participants: Vec<Seat>,
     #[serde(default)]
     scores: Vec<Wins>,
@@ -320,7 +307,13 @@ impl MatchView {
                         .map(|score| score.wins)
                 };
                 let games = [wins(&players[0])?, wins(&players[1])?];
-                let winner = games.iter().position(|&won| won >= self.games_to_win)?;
+                // The one with more games won: also a winner the organizer
+                // adjudicated short of the set length.
+                let winner = match games {
+                    [one, two] if one > two => 0,
+                    [one, two] if two > one => 1,
+                    _ => return None,
+                };
                 Ended::Completed { games, winner }
             }
         };
@@ -451,26 +444,23 @@ impl BridgeClient {
     /// How the match ended, if it has, read the way the bridge's result
     /// would give it, with how the result's delivery is going.
     pub async fn over(&self, match_id: &str) -> Result<Option<Over>, BridgeError> {
-        let found: MatchView = self
-            .answer(self.get(&format!("/v1/matches/{match_id}")))
-            .await?;
-        Ok(found.over())
+        Ok(self.read_match(match_id).await?.over())
+    }
+
+    async fn read_match(&self, match_id: &str) -> Result<MatchView, BridgeError> {
+        self.answer(self.get(&format!("/v1/matches/{match_id}")))
+            .await
     }
 
     /// The winning slot of each game of the match that counts, in the order
     /// they were played.
     pub async fn sequence(&self, match_id: &str) -> Result<Vec<usize>, BridgeError> {
-        let found: MatchView = self
-            .answer(self.get(&format!("/v1/matches/{match_id}")))
-            .await?;
-        Ok(found.sequence())
+        Ok(self.read_match(match_id).await?.sequence())
     }
 
     /// Cancels the match unless it has already ended.
     pub async fn cancel(&self, match_id: &str, reason: &str) -> Result<(), BridgeError> {
-        let found: MatchView = self
-            .answer(self.get(&format!("/v1/matches/{match_id}")))
-            .await?;
+        let found = self.read_match(match_id).await?;
         if found.state.is_terminal() {
             return Ok(());
         }
@@ -557,9 +547,17 @@ mod tests {
                 None
             ]
         );
-        // A completed match without a winner at the set length is not read.
+        // A completed match without a leader is not read.
         assert!(view("completed", [1, 1]).over().is_none());
-        // A winner past the set length, as the bridge itself allows.
+        // A winner short of the set length (an adjudicated forfeit), or past
+        // it, as the bridge itself allows.
+        assert_eq!(
+            view("completed", [1, 0]).over().map(|over| over.ended),
+            Some(Ended::Completed {
+                games: [1, 0],
+                winner: 0
+            })
+        );
         assert_eq!(
             view("completed", [1, 3]).over().map(|over| over.ended),
             Some(Ended::Completed {
@@ -571,10 +569,10 @@ mod tests {
 
     #[test]
     fn answers_are_read_past_fields_a_later_bridge_adds() {
-        let kate = "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";
+        let player1 = "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";
         let answer: LookupView = serde_json::from_value(json!({
-            "players": [{ "discord_user_id": "274220342558756145", "ember_id": kate, "participant_id": "epl_a", "since": 1 }],
-            "accounts": [{ "site": "startgg", "id": "77", "user_id": "77", "ember_id": kate, "participant_id": "epl_b", "connected_at": 5, "verified": true }],
+            "players": [{ "discord_user_id": "274220342558756145", "ember_id": player1, "participant_id": "epl_a", "since": 1 }],
+            "accounts": [{ "site": "startgg", "id": "77", "user_id": "77", "ember_id": player1, "participant_id": "epl_b", "connected_at": 5, "verified": true }],
             "next": null,
         }))
         .unwrap();
@@ -597,7 +595,7 @@ mod tests {
     }
 
     #[test]
-    fn a_refused_account_is_remembered_for_a_while_and_within_bounds() {
+    fn a_refused_account_is_remembered_for_a_while() {
         let account = |n: usize| Account::Site {
             site: "startgg".into(),
             id: format!("user{n}"),
@@ -611,21 +609,13 @@ mod tests {
         );
         assert_eq!(refusals.get(&account(0), 1_000 + REFUSAL_SECS), None);
         assert_eq!(refusals.get(&account(1), 1_000), None);
-        // Full: the expired go first, then the soonest to expire.
-        refusals.remember(account(1), "forbidden".into(), 1_999);
-        for n in 2..=MAX_REFUSALS {
-            refusals.remember(account(n), "forbidden".into(), 2_000);
-        }
-        // Account 0 expired, making room for the last; then account 1,
-        // the soonest to expire, makes room for account 0 again.
-        assert_eq!(refusals.get(&account(0), 2_000), None);
-        assert_eq!(refusals.0.len(), MAX_REFUSALS);
-        assert_eq!(refusals.get(&account(1), 2_100), Some("forbidden"));
-        refusals.remember(account(0), "forbidden".into(), 2_100);
-        assert_eq!(refusals.0.len(), MAX_REFUSALS);
-        assert_eq!(refusals.get(&account(1), 2_100), None);
-        assert_eq!(refusals.get(&account(2), 2_100), Some("forbidden"));
-        assert_eq!(refusals.get(&account(0), 2_100), Some("forbidden"));
+        // A later refusal forgets the expired ones.
+        refusals.remember(account(1), "forbidden".into(), 1_000 + REFUSAL_SECS);
+        assert_eq!(refusals.0.len(), 1);
+        assert_eq!(
+            refusals.get(&account(1), 1_000 + REFUSAL_SECS),
+            Some("forbidden")
+        );
     }
 
     #[test]
@@ -664,7 +654,7 @@ mod tests {
         // An account the bridge would not look up is the reason given.
         let refused = Account::Site {
             site: "startgg".into(),
-            id: "kate".into(),
+            id: "player1".into(),
         };
         found
             .refused

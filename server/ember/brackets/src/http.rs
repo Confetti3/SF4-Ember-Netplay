@@ -2,8 +2,28 @@
 //! site adapters share in reading and sending.
 use std::time::Duration;
 
-use reqwest::header::HeaderValue;
+use reqwest::{RequestBuilder, StatusCode, header::HeaderValue};
 use serde::{Deserialize, Deserializer};
+
+use crate::site::SiteError;
+
+/// Sends a site's request and reads its answer, at most `limit` bytes, for
+/// the adapter to read by its status. `who` names the site in an error.
+pub(crate) async fn exchange(
+    request: RequestBuilder,
+    limit: usize,
+    who: &str,
+) -> Result<(StatusCode, Vec<u8>), SiteError> {
+    let response = request
+        .send()
+        .await
+        .map_err(|_| SiteError::Unavailable(format!("{who} could not be reached")))?;
+    let status = response.status();
+    let body = bounded_body(response, limit)
+        .await
+        .ok_or_else(|| SiteError::Unavailable(format!("{who}'s answer was cut off or too long")))?;
+    Ok((status, body))
+}
 
 /// A credential as a header value, kept out of debug output. `what` names
 /// it in the error.

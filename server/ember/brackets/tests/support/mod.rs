@@ -8,9 +8,12 @@ pub mod challonge;
 pub mod service;
 pub mod startgg;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use axum::http::{Method, StatusCode};
+use axum::{
+    Router,
+    http::{Method, StatusCode},
+};
 use ember_brackets::{
     Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Results, RoundRule,
     Rounds, Side, Tournament,
@@ -25,6 +28,73 @@ use challonge::{FakeChallonge, FakeMatch};
 pub const TOURNAMENT: &str = "ember_weekly";
 pub const CHALLONGE_KEY: &str = "test-challonge-api-key";
 pub const CONNECTION: &str = "brackets";
+
+/// Serves `app` on a loopback port of its own; returns its origin.
+pub async fn serve(app: Router) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    origin
+}
+
+/// Page `page` (from 1) of `per_page` items, and how many pages there are.
+pub fn page<T: Clone>(items: &[T], page: usize, per_page: usize) -> (Vec<T>, usize) {
+    let slice = items
+        .iter()
+        .skip(page.saturating_sub(1) * per_page)
+        .take(per_page)
+        .cloned()
+        .collect();
+    (slice, items.len().div_ceil(per_page).max(1))
+}
+
+/// A connector's configuration over `dir`, with no tournament yet: its
+/// provider credential, result secret and Challonge key written there, and
+/// start.gg's rate raised so that no test waits on it.
+pub fn config(dir: &Path, bridge_api: &str, provider: &str) -> Config {
+    std::fs::write(dir.join("provider.token"), format!("{provider}\n")).unwrap();
+    std::fs::write(dir.join("result.secret"), result_secret().reveal().as_str()).unwrap();
+    std::fs::write(dir.join("challonge.key"), CHALLONGE_KEY).unwrap();
+    Config {
+        bridge: Bridge {
+            api: bridge_api.into(),
+            credential_file: dir.join("provider.token"),
+            connection_id: CONNECTION.into(),
+            build_id: "test-build".into(),
+        },
+        results: Results {
+            listen: "127.0.0.1:0".into(),
+            path: "/results".into(),
+            secret_file: dir.join("result.secret"),
+            previous_secret_file: None,
+        },
+        database: dir.join("brackets.sqlite3"),
+        poll_secs: 120,
+        max_poll_secs: 600,
+        monthly_request_budget: 500,
+        allow_loopback_http: true,
+        tournaments: Vec::new(),
+        startgg_rate: Some((10_000, 60)),
+    }
+}
+
+/// The Challonge tournament, on the key `config` wrote.
+pub fn challonge_tournament(dir: &Path, kind: CredentialKind, api_base: &str) -> Tournament {
+    Tournament {
+        adapter: Adapter::Challonge,
+        bridge_site: None,
+        tournament: TOURNAMENT.into(),
+        credential: Credential {
+            kind,
+            file: dir.join("challonge.key"),
+        },
+        rounds: rounds(),
+        active_from: None,
+        active_until: None,
+        mark_underway: true,
+        api_base: Some(api_base.into()),
+    }
+}
 
 pub fn temp(name: &str) -> PathBuf {
     let mut bytes = [0u8; 8];
@@ -100,7 +170,7 @@ pub struct Setup {
 }
 
 impl Default for Setup {
-    /// Kate (355) and Sam (354) play set 1001; Ryu (353) and an entry with
+    /// Player 1 (355) and Player 2 (354) play set 1001; Player 3 (353) and an entry with
     /// no account (352) play 1002; their winners meet in 1003.
     fn default() -> Self {
         Self {
@@ -112,9 +182,9 @@ impl Default for Setup {
             active_until: None,
             serve_results: true,
             participants: [
-                ("355", Some("Kate")),
-                ("354", Some("sam_99")),
-                ("353", Some("ryu")),
+                ("355", Some("Player1")),
+                ("354", Some("player_2")),
+                ("353", Some("player3")),
                 ("352", None),
             ]
             .map(|(id, username)| (id.to_owned(), username.map(str::to_owned)))
@@ -137,43 +207,13 @@ impl World {
         let bridge = TestBridge::start(&results_url).await;
         let provider = bridge.provider().await;
         let organizer = bridge.organizer().await;
-        std::fs::write(dir.join("provider.token"), format!("{provider}\n")).unwrap();
-        std::fs::write(dir.join("result.secret"), result_secret().reveal().as_str()).unwrap();
-        std::fs::write(dir.join("challonge.key"), CHALLONGE_KEY).unwrap();
-        let mut config = Config {
-            bridge: Bridge {
-                api: bridge.origin.clone(),
-                credential_file: dir.join("provider.token"),
-                connection_id: CONNECTION.into(),
-                build_id: "test-build".into(),
-            },
-            results: Results {
-                listen: "127.0.0.1:0".into(),
-                path: "/results".into(),
-                secret_file: dir.join("result.secret"),
-                previous_secret_file: None,
-            },
-            database: dir.join("brackets.sqlite3"),
-            poll_secs: 120,
-            max_poll_secs: 600,
-            monthly_request_budget: setup.budget,
-            allow_loopback_http: true,
-            tournaments: Vec::new(),
-        };
+        let mut config = config(&dir, &bridge.origin, &provider);
+        config.monthly_request_budget = setup.budget;
         if setup.challonge {
             config.tournaments.push(Tournament {
-                adapter: Adapter::Challonge,
-                bridge_site: None,
-                tournament: TOURNAMENT.into(),
-                credential: Credential {
-                    kind: setup.kind,
-                    file: dir.join("challonge.key"),
-                },
-                rounds: rounds(),
                 active_from: setup.active_from.clone(),
                 active_until: setup.active_until.clone(),
-                mark_underway: true,
-                api_base: Some(challonge.api.clone()),
+                ..challonge_tournament(&dir, setup.kind, &challonge.api)
             });
         }
         for extra in setup.extra {

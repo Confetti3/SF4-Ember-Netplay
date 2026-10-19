@@ -33,7 +33,14 @@ For each configured tournament the connector:
 4. Leaves a set the organizer reported, reset or changed by hand to the
    organizer: its live Ember match is cancelled, and a result that arrives
    for it anyway is not reported. A result is reported only for the two
-   players its attempt was made for.
+   players its attempt was made for. A set the organizer reopens after its
+   score went in (to correct it), with the same two players, stays the
+   organizer's: no new Ember match is made for it, nor, on Challonge, for
+   the sets after it that reopening resets and that open again for the same
+   players. A set that opens for other players is played as a new attempt.
+   A score that fails to go in while the site is otherwise answering waits
+   on its own and is sent again, up to 12 times (about 6 hours), while the
+   rest of the tournament goes on.
 5. Stops for good once a read finds no open set and the site says the
    tournament is over: Challonge's `state` is `complete` or `ended`,
    start.gg's event is `COMPLETED`, or the service's `/standing` is
@@ -305,7 +312,9 @@ What a request is spent on:
 
 - A read of the bracket: one request per 25 open sets.
 - The participant list, when a set names an entry the connector does not
-  know: one request per 25 entries, so once per event in practice.
+  know: one request per 25 entries, so once per event in practice. An ID
+  the list does not show is remembered as an entry without an account, so
+  it costs that one read, not one on every read.
 - One report per set played in Ember, and one underway mark per new set.
 - One read of a single set when it is missing from a list, or before a
   second report in one pass. Rare.

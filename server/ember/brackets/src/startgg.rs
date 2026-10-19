@@ -14,7 +14,7 @@
 //! same entrants that one result waits and is sent again (`Deferred`), as
 //! the connector counts. Only a set that is gone, changed or decided
 //! otherwise is left to the organizer at once.
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 
 use reqwest::{
     StatusCode,
@@ -26,11 +26,11 @@ use tokio::sync::OnceCell;
 
 use crate::{
     Clock,
-    http::{bearer, bounded_body, http_client, id, optional_id},
+    http::{bearer, exchange, http_client, id, optional_id},
     limit::Limiter,
+    roster::Roster,
     site::{
-        Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
-        Status,
+        Account, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing, Status,
     },
 };
 
@@ -73,18 +73,11 @@ pub(crate) struct Startgg {
     limiter: Limiter,
     slug: String,
     bridge_site: String,
-    clock: Clock,
     /// The event's ID, read once.
     event: OnceCell<String>,
-    entrants: Mutex<Entrants>,
-}
-
-/// Entrant ID to the accounts behind it, read again when a set names an
-/// entrant not in it, or every `ENTRANTS_FRESH_SECS`.
-#[derive(Default)]
-struct Entrants {
-    accounts: HashMap<String, Vec<Account>>,
-    read_at: Option<u64>,
+    /// Entrant ID to the accounts behind it, read again when a set names an
+    /// entrant not in it, or every `ENTRANTS_FRESH_SECS`.
+    roster: Roster,
 }
 
 /// How a query's answer is read when it carries `errors`.
@@ -350,9 +343,8 @@ impl Startgg {
             limiter,
             slug: slug.to_owned(),
             bridge_site: bridge_site.to_owned(),
-            clock,
             event: OnceCell::new(),
-            entrants: Mutex::default(),
+            roster: Roster::new(clock, Some(ENTRANTS_FRESH_SECS)),
         })
     }
 
@@ -360,18 +352,12 @@ impl Startgg {
     /// the answer are the caller's to read.
     async fn post(&self, query: &str, variables: Value) -> Result<Envelope, SiteError> {
         self.limiter.admit().await;
-        let response = self
+        let request = self
             .http
             .post(&self.url)
             .headers(self.headers.clone())
-            .json(&json!({ "query": query, "variables": variables }))
-            .send()
-            .await
-            .map_err(|_| SiteError::Unavailable("start.gg could not be reached".into()))?;
-        let status = response.status();
-        let body = bounded_body(response, MAX_ANSWER).await.ok_or_else(|| {
-            SiteError::Unavailable("start.gg's answer was cut off or too long".into())
-        })?;
+            .json(&json!({ "query": query, "variables": variables }));
+        let (status, body) = exchange(request, MAX_ANSWER, "start.gg").await?;
         let envelope: Option<Envelope> = serde_json::from_slice(&body).ok();
         if let Some(Envelope {
             success: Some(false),
@@ -503,42 +489,23 @@ impl Startgg {
         )))
     }
 
-    async fn refresh_entrants(&self) -> Result<(), SiteError> {
+    async fn refresh_entrants(&self, asked: &[&String]) -> Result<(), SiteError> {
         let entrants: Vec<WireEntrant> = self
             .pages(ENTRANTS, Errors::Partial, |data: EntrantsData| {
                 data.event.map(|event| event.entrants)
             })
             .await?;
-        let accounts = entrants
+        let accounts: HashMap<String, Vec<Account>> = entrants
             .into_iter()
             .map(|entrant| entrant.accounts(&self.bridge_site))
             .collect();
-        *self.entrants.lock().unwrap_or_else(|e| e.into_inner()) = Entrants {
-            accounts,
-            read_at: Some(self.clock.now()),
-        };
+        self.roster.replace(accounts, asked.iter().copied());
         Ok(())
     }
 
-    /// Whether the entrants must be read again for these sets: one names an
-    /// entrant not known, or the last read is old.
-    fn entrants_stale(&self, sets: &[RawSet]) -> bool {
-        let known = self.entrants.lock().unwrap_or_else(|e| e.into_inner());
-        let old = known
-            .read_at
-            .is_none_or(|at| self.clock.now().saturating_sub(at) >= ENTRANTS_FRESH_SECS);
-        let mut ids = sets.iter().flat_map(|set| set.entrants.iter().flatten());
-        ids.any(|id| old || !known.accounts.contains_key(id))
-    }
-
     fn set_of(&self, raw: RawSet) -> Set {
-        let known = self.entrants.lock().unwrap_or_else(|e| e.into_inner());
-        let entry = |id: &String| Entry {
-            participant_id: id.clone(),
-            accounts: known.accounts.get(id).cloned().unwrap_or_default(),
-        };
         Set {
-            entries: raw.entrants.as_ref().map(|[a, b]| [entry(a), entry(b)]),
+            entries: self.roster.entries(raw.entrants.as_ref()),
             id: raw.id,
             round: raw.round,
             round_label: raw.round_label,
@@ -555,8 +522,12 @@ impl Startgg {
             })
             .await?;
         let raw: Vec<RawSet> = sets.into_iter().filter_map(WireSet::into_raw).collect();
-        if self.entrants_stale(&raw) {
-            self.refresh_entrants().await?;
+        let ids: Vec<&String> = raw
+            .iter()
+            .flat_map(|set| set.entrants.iter().flatten())
+            .collect();
+        if self.roster.stale(ids.iter().copied()) {
+            self.refresh_entrants(&ids).await?;
         }
         Ok(raw.into_iter().map(|raw| self.set_of(raw)).collect())
     }

@@ -15,8 +15,8 @@ const REPORT_1001: &str = "PUT /matches/1001.json";
 
 async fn connected(setup: Setup) -> World {
     let world = World::start(setup).await;
-    world.bridge.connect(1, "Kate").await;
-    world.bridge.connect(2, "sam_99").await;
+    world.bridge.connect(1, "Player1").await;
+    world.bridge.connect(2, "player_2").await;
     world
 }
 
@@ -108,9 +108,9 @@ async fn an_expired_match_is_played_again() {
 #[tokio::test]
 async fn a_changed_entry_ends_the_match_and_its_late_result_is_ignored() {
     let (world, first) = playing().await;
-    let ryu = world.bridge.connect(3, "ryu").await;
+    let player3 = world.bridge.connect(3, "player3").await;
 
-    // The organizer puts Ryu in Sam's place.
+    // The organizer puts Player 3 in Player 2's place.
     world.challonge.state.lock().unwrap().matches[0].players[1] = Some("353".into());
     world.connector.pass(true).await;
     assert_eq!(world.snapshot(&first).await["state"], "cancelled");
@@ -118,7 +118,7 @@ async fn a_changed_entry_ends_the_match_and_its_late_result_is_ignored() {
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[1].0, "challonge:ember_weekly:1001:2");
     let second = world.snapshot(&matches[1].1).await;
-    assert_eq!(second["participants"][1]["ember_id"], ryu.as_str());
+    assert_eq!(second["participants"][1]["ember_id"], player3.as_str());
 
     // The first match's restart arrives after the second attempt exists.
     world.challonge.log();
@@ -210,8 +210,8 @@ async fn a_creation_the_bridge_never_received_is_sent_after_a_restart() {
             Method::POST,
             "/v1/players/lookup",
             Some(json!({ "accounts": [
-                { "site": "challonge", "id": "Kate" },
-                { "site": "challonge", "id": "sam_99" },
+                { "site": "challonge", "id": "Player1" },
+                { "site": "challonge", "id": "player_2" },
             ] })),
             None,
         )
@@ -263,7 +263,7 @@ async fn a_match_made_before_a_crash_is_found_not_doubled_and_ended_if_its_set_c
     // not taken for the new pair's.
     stage_waiting(&world, ["355", "354"], &command);
     world.challonge.state.lock().unwrap().matches[0].players[1] = Some("353".into());
-    world.bridge.connect(3, "ryu").await;
+    world.bridge.connect(3, "player3").await;
     let restarted = world.restarted();
     restarted.pass(true).await;
     restarted.pass(true).await;

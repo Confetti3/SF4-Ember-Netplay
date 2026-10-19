@@ -44,11 +44,26 @@ async fn serve(path: PathBuf) -> Result<(), String> {
         "Ember brackets running {tournaments} tournament(s), receiving results on http://{address}{}",
         connector.results_path()
     );
-    tokio::signal::ctrl_c()
-        .await
-        .map_err(|error| error.to_string())?;
+    // A worker that stops (a panic) stops the connector, so that its
+    // service manager starts it again, rather than leave a tournament
+    // unread while results are still taken.
+    let aborts: Vec<_> = tasks.iter().map(|task| task.abort_handle()).collect();
+    let (stopped, mut first_stopped) = tokio::sync::mpsc::channel(1);
     for task in tasks {
-        task.abort();
+        let stopped = stopped.clone();
+        tokio::spawn(async move {
+            let _ = stopped.send(task.await).await;
+        });
     }
-    Ok(())
+    let outcome = tokio::select! {
+        signal = tokio::signal::ctrl_c() => signal.map_err(|error| error.to_string()),
+        Some(ended) = first_stopped.recv() => Err(match ended {
+            Err(error) if error.is_panic() => "a worker panicked; stopping".to_owned(),
+            _ => "a worker stopped; stopping".to_owned(),
+        }),
+    };
+    for abort in aborts {
+        abort.abort();
+    }
+    outcome
 }

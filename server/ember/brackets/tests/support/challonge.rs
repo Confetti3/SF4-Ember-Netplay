@@ -15,7 +15,6 @@ use axum::{
 };
 use ember_brackets::CredentialKind;
 use serde_json::{Value, json};
-use tokio::net::TcpListener;
 
 use super::{CHALLONGE_KEY, TOURNAMENT};
 
@@ -109,6 +108,11 @@ pub struct ChallongeState {
     pub refuse_reports: bool,
     /// Scores are recorded, and the answer is lost (a 502).
     pub lose_report_answers: bool,
+    /// The next scores are answered with these statuses, and not recorded.
+    pub report_failures: Vec<u16>,
+    /// Sets listed twice, as a page that shifted between two requests can
+    /// list a set on both.
+    pub listed_twice: HashSet<String>,
 }
 
 impl ChallongeState {
@@ -134,6 +138,34 @@ impl ChallongeState {
         }
     }
 
+    /// The organizer reopens a set to correct it: it is open again with no
+    /// result, and every set after it that it fed goes back to pending,
+    /// without its players, as Challonge resets a bracket.
+    pub fn reopen(&mut self, id: &str) {
+        let found = self.find(id).unwrap();
+        found.state = "open";
+        found.winner = None;
+        found.score_sets = None;
+        found.underway = false;
+        let mut reset = vec![id.to_owned()];
+        while let Some(fed) = reset.pop() {
+            for found in &mut self.matches {
+                if found
+                    .fed_by
+                    .as_ref()
+                    .is_some_and(|from| from.contains(&fed))
+                {
+                    found.state = "pending";
+                    found.players = [None, None];
+                    found.winner = None;
+                    found.score_sets = None;
+                    found.underway = false;
+                    reset.push(found.id.clone());
+                }
+            }
+        }
+    }
+
     /// The organizer reports a set by hand.
     pub fn decide(&mut self, id: &str, winner: usize) {
         let found = self.find(id).unwrap();
@@ -155,13 +187,7 @@ fn page<T: Clone>(items: &[T], query: &HashMap<String, String>) -> Vec<T> {
             .and_then(|value| value.parse().ok())
             .unwrap_or(default)
     };
-    let (page, per_page) = (number("page", 1), number("per_page", 25));
-    items
-        .iter()
-        .skip((page - 1) * per_page)
-        .take(per_page)
-        .cloned()
-        .collect()
+    super::page(items, number("page", 1), number("per_page", 25)).0
 }
 
 fn answer(status: u16, body: Value) -> Response {
@@ -251,7 +277,14 @@ async fn challonge(
                         .is_none_or(|wanted| wanted == found.state)
                         && !state.hidden.contains(&found.id)
                 })
-                .map(FakeMatch::to_json)
+                .flat_map(|found| {
+                    let times = if state.listed_twice.contains(&found.id) {
+                        2
+                    } else {
+                        1
+                    };
+                    std::iter::repeat_n(found.to_json(), times)
+                })
                 .collect();
             answer(200, json!({ "data": page(&listed, &query) }))
         }
@@ -305,6 +338,10 @@ async fn challonge(
                 .unwrap_or_default();
             if state.refuse_reports {
                 return refusal(422, "Scores cannot be reported for this match");
+            }
+            if !state.report_failures.is_empty() {
+                let status = state.report_failures.remove(0);
+                return refusal(status, "Unsupported Media Type");
             }
             let lose_answer = state.lose_report_answers;
             let Some(found) = state.find(id) else {
@@ -361,12 +398,12 @@ impl FakeChallonge {
             failing: None,
             refuse_reports: false,
             lose_report_answers: false,
+            report_failures: Vec::new(),
+            listed_twice: HashSet::new(),
             log: Vec::new(),
         }));
         let app = Router::new().fallback(challonge).with_state(state.clone());
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let api = format!("http://{}", listener.local_addr().unwrap());
-        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let api = super::serve(app).await;
         Self { api, state }
     }
 
@@ -380,6 +417,10 @@ impl FakeChallonge {
 
     pub fn decide(&self, id: &str, winner: usize) {
         self.state.lock().unwrap().decide(id, winner);
+    }
+
+    pub fn reopen(&self, id: &str) {
+        self.state.lock().unwrap().reopen(id);
     }
 }
 

@@ -15,7 +15,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::{Value, json};
-use tokio::net::TcpListener;
 
 pub const SERVICE_TOKEN: &str = "test-service-token";
 
@@ -208,9 +207,7 @@ impl FakeService {
             ..ServiceState::default()
         }));
         let app = Router::new().fallback(handle).with_state(state.clone());
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let base = format!("http://{}/svc", listener.local_addr().unwrap());
-        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let base = format!("{}/svc", super::serve(app).await);
         Self { base, state }
     }
 
