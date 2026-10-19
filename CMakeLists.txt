@@ -337,6 +337,12 @@ if(BUILD_TESTING)
     # budget, then random player text through many rebuilds.
     add_test(NAME UiRenderAtlas COMMAND UiRenderTest)
     set_tests_properties(UiRenderAtlas PROPERTIES TIMEOUT 300 ENVIRONMENT "SF4E_UI_RENDER_ATLAS_STRESS=150")
+    # Every fighter's costume and color galleries with the packaged previews,
+    # English at one size. No game folder: a portrait falls back to the
+    # original costume's first color, and the game's Random stage tile is not
+    # checked. A folder in place of "-" keeps each page.
+    add_test(NAME UiRenderGallery COMMAND UiRenderTest - "${CMAKE_BINARY_DIR}/no-game" "${CMAKE_SOURCE_DIR}/assets/selection")
+    set_tests_properties(UiRenderGallery PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_GALLERY=1;SF4E_UI_RENDER_QUICK=1")
     add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
     target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")
