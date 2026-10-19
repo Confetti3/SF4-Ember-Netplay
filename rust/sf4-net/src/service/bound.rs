@@ -18,27 +18,42 @@ pub(super) struct BoundRoster {
     pub watchers: BTreeSet<EndpointId>,
 }
 
+/// What a committed envelope says about a tournament binding.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum Binding {
+    /// The room is not bound: the object is absent or empty, as the native
+    /// side writes an unbound room.
+    Unbound,
+    Bound(BoundRoster),
+    /// A binding is there, but not in the shape the native side writes.
+    Unreadable,
+}
+
 impl BoundRoster {
     /// The binding in a committed envelope, at
-    /// `checkpoint.room.snapshot.tournament`. None when the room is not bound:
-    /// the object is absent or empty, as the native side writes an unbound
-    /// room. A binding not in the shape the native side writes is read the
-    /// same way, so the room keeps the rules it has without one; the native
-    /// side checks that shape before it commits a binding.
+    /// `checkpoint.room.snapshot.tournament`. A binding not in the shape the
+    /// native side writes is `Unreadable`, not `Unbound`: the native side
+    /// checks that shape before it commits a binding, so it means the writer
+    /// and this reader have drifted. The room then keeps the last binding it
+    /// could read (`Actor::keep_last_binding`) rather than lose its rules.
     ///
     /// An endpoint is caller-chosen hex the bridge does not check is a key.
     /// One that is not can never be a peer's, so it names no one and the
     /// binding still holds for the rest: a watcher cannot unbind a room by
     /// registering such an endpoint.
-    pub(super) fn read(envelope: &Value) -> Option<Self> {
-        let tournament = envelope
-            .get("checkpoint")?
-            .get("room")?
-            .get("snapshot")?
-            .get("tournament")?
-            .as_object()?;
+    pub(super) fn read(envelope: &Value) -> Binding {
+        let Some(tournament) = envelope.pointer("/checkpoint/room/snapshot/tournament") else {
+            return Binding::Unbound;
+        };
+        let Some(tournament) = tournament.as_object() else {
+            return if tournament.is_null() {
+                Binding::Unbound
+            } else {
+                Binding::Unreadable
+            };
+        };
         if tournament.is_empty() {
-            return None;
+            return Binding::Unbound;
         }
         let endpoints = |list: &Value, count: std::ops::RangeInclusive<usize>| {
             let list = list.as_array().filter(|list| count.contains(&list.len()))?;
@@ -53,12 +68,15 @@ impl BoundRoster {
                     .collect::<BTreeSet<EndpointId>>(),
             )
         };
-        let fighters = endpoints(tournament.get("fighters")?, 2..=2)?;
-        let watchers = match tournament.get("watchers") {
-            Some(watchers) => endpoints(watchers, 0..=MAX_WATCHERS)?,
-            None => BTreeSet::new(),
+        let read = || {
+            let fighters = endpoints(tournament.get("fighters")?, 2..=2)?;
+            let watchers = match tournament.get("watchers") {
+                Some(watchers) => endpoints(watchers, 0..=MAX_WATCHERS)?,
+                None => BTreeSet::new(),
+            };
+            Some(Self { fighters, watchers })
         };
-        Some(Self { fighters, watchers })
+        read().map_or(Binding::Unreadable, Binding::Bound)
     }
 
     /// Whether the binding names `endpoint`, as a fighter or a watcher.
@@ -73,6 +91,9 @@ impl BoundRoster {
 pub(super) struct CommittedRoom {
     pub members: BTreeSet<EndpointId>,
     pub bound: Option<BoundRoster>,
+    /// The checkpoint carries a binding that could not be read, so `bound`
+    /// is empty for want of one. Cleared once `keep_last_binding` has seen it.
+    pub unreadable: bool,
 }
 
 /// Who may hold a vote: anyone in a room without a binding, and only the
@@ -90,22 +111,10 @@ impl VoterPolicy {
 
     /// Whether the member with incarnation `id` may vote. In a bound room an
     /// incarnation with no admission on record never does.
-    pub(super) fn allows_member(&self, admissions: &[Admission], id: u64) -> bool {
-        admissions
-            .iter()
-            .find(|admission| admission.incarnation == id)
-            .map_or(self.0.is_none(), |admission| {
-                self.allows(&admission.primary_endpoint)
-            })
-    }
-
-    /// The members of `retained` that may vote, which sets the room's voter
-    /// count: two fighters keep one voter however many watch.
-    pub(super) fn voting(&self, retained: &BTreeSet<EndpointId>) -> usize {
-        retained
-            .iter()
-            .filter(|endpoint| self.allows(endpoint))
-            .count()
+    pub(super) fn allows_member(&self, admissions: &BTreeMap<u64, Admission>, id: u64) -> bool {
+        admissions.get(&id).map_or(self.0.is_none(), |admission| {
+            self.allows(&admission.primary_endpoint)
+        })
     }
 }
 
@@ -124,6 +133,42 @@ impl Actor {
         VoterPolicy(self.bound_roster().map(|bound| bound.fighters.clone()))
     }
 
+    /// `room`, a commit just read, with the binding this actor last read in
+    /// its place when the commit's own could not be read. Fencing on it would
+    /// retire members by a guess, and treating the room as unbound would let
+    /// watchers into the vote, so the last good binding keeps ruling until a
+    /// readable one, or an empty one, replaces it. One line to stderr says so,
+    /// once per such commit, since the commit is read once.
+    pub(super) fn keep_last_binding(&self, room: Option<CommittedRoom>) -> Option<CommittedRoom> {
+        let mut room = room?;
+        if room.unreadable {
+            eprintln!(
+                "sf4-net: a room commit carries a tournament binding this helper cannot read; keeping the last one"
+            );
+            room.bound = self.bound_roster().cloned();
+            room.unreadable = false;
+        }
+        Some(room)
+    }
+
+    /// The voters a room of `endpoints` should have. Only the members that
+    /// may vote count, so two fighters keep one voter however many watch, and
+    /// a server-owned room keeps its host alone. The one place the count is
+    /// made: callers pass the roster they mean, the committed one or the
+    /// admitted one, and the membership tasks take the number.
+    pub(super) fn desired_voters(&self, endpoints: &BTreeSet<EndpointId>) -> usize {
+        if self.server_owned() {
+            return 1;
+        }
+        let policy = self.voter_policy();
+        recovery::stable_voter_count(
+            endpoints
+                .iter()
+                .filter(|endpoint| policy.allows(endpoint))
+                .count(),
+        )
+    }
+
     /// Whether a control from `peer` may open: in a bound room only from an
     /// endpoint the binding names.
     pub(super) fn admits_control(&self, peer: &EndpointId) -> bool {
@@ -139,6 +184,14 @@ impl Actor {
     /// Admission is still being applied is left to that operation, which
     /// either refuses it, closing it, or binds it, and the next read fences
     /// it like any other.
+    ///
+    /// The local incarnation `own` is never fenced, named or not. A leader the
+    /// binding does not name (leadership moved to an unnamed member while the
+    /// room still held three voters) therefore keeps the room and its seat.
+    /// Fencing it would take a handoff like a leaving leader's, which the
+    /// fence does not make. The same bind kicks an honest unnamed member
+    /// natively, and it leaves, so the room hands off through the filtered
+    /// departure path; a hostile one runs no code of this helper.
     pub(super) fn retire_unnamed(&mut self, own: u64) -> io::Result<()> {
         let Some(bound) = self.bound_roster().cloned() else {
             return Ok(());

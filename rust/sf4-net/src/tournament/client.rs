@@ -321,6 +321,12 @@ pub(super) fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value
             .and_then(|value| json::from_value::<Value>(&value))
             .map_err(|_| Failure::new("bridge_invalid_response"));
     }
+    Err(refusal(status, body))
+}
+
+/// The failure for a bridge's refusal: its error code, or `http_<status>`
+/// when the body names none.
+pub(super) fn refusal(status: u16, body: &[u8]) -> Failure {
     let code = serde_json::from_slice::<ApiError>(body)
         .map(|error| {
             serde_json::to_value(error.error.code)
@@ -330,7 +336,7 @@ pub(super) fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value
         .ok()
         .flatten()
         .unwrap_or_else(|| format!("http_{status}"));
-    Err(Failure(code))
+    Failure(code)
 }
 
 /// Whether this build pins `bridge_id` (builtin.rs).

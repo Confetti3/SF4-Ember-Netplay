@@ -91,7 +91,10 @@ async fn the_host_stays_the_only_voter_as_sixteen_members_are_admitted() {
                 "{count} members"
             );
             assert_eq!(recovery.applied_member_ids().await.len(), count + 1);
-            assert_eq!(actor.desired_voters(count), 1);
+            let roster = (0..count)
+                .map(|_| iroh::SecretKey::generate().public())
+                .collect::<BTreeSet<_>>();
+            assert_eq!(actor.desired_voters(&roster), 1);
             learners.push(learner);
         }
         assert_eq!(recovery.state().await.voter_count, 1);

@@ -400,7 +400,7 @@ impl Actor {
             return Ok(());
         }
         match result {
-            Ok(invitation) => self.join_invitation(id, &invitation, build, Some(&code)),
+            Ok(invitation) => self.join_invitation(id, &invitation, build, Some(&code), false),
             Err(error) => {
                 self.clear_room();
                 self.error_because(

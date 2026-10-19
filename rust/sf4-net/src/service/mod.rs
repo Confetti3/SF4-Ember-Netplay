@@ -157,7 +157,7 @@ mod stall;
 #[cfg(test)]
 mod tests;
 
-use bound::{BoundRoster, CommittedRoom};
+use bound::{Binding, BoundRoster, CommittedRoom};
 use entry::TaskScope;
 pub use entry::{run, run_on_port};
 use events::EventOutbox;
@@ -1002,15 +1002,17 @@ impl Actor {
                 // watcher always has the full invitation from its bridge.
                 match crate::short_invite::parse(&invitation) {
                     Some(_) if observer => {
+                        // The invitation is well formed; the request is not, so
+                        // the refusal names that rather than a malformed link.
                         self.clear_room();
                         self.error_because(
                             id,
                             "invalid_or_incompatible_invitation",
-                            Some("malformed"),
+                            Some("observer_short_link"),
                         )?;
                     }
                     Some(code) => self.join_short(id, epoch, code, build)?,
-                    None => self.join_invitation_as(id, &invitation, build, None, observer)?,
+                    None => self.join_invitation(id, &invitation, build, None, observer)?,
                 }
             }
             Command::ShortInvite { epoch } => self.short_invite_command(epoch)?,
@@ -1248,19 +1250,9 @@ impl Actor {
 
     /// Joins the room `invitation` names. `short_code` is the code a short
     /// link was opened with; the invitation must derive that same code, so a
-    /// record cannot stand in for another room.
+    /// record cannot stand in for another room. `observer` joins as a watcher
+    /// of a tournament match.
     fn join_invitation(
-        &mut self,
-        id: u64,
-        invitation: &str,
-        build: String,
-        short_code: Option<&str>,
-    ) -> io::Result<()> {
-        self.join_invitation_as(id, invitation, build, short_code, false)
-    }
-
-    /// `join_invitation`, as a watcher of a tournament match when `observer`.
-    fn join_invitation_as(
         &mut self,
         id: u64,
         invitation: &str,
@@ -1310,7 +1302,10 @@ impl Actor {
             let (result, latency) = latency::beside(latency, async {
                 match &ticket {
                     Some(ticket) => crate::public_room::connect_public(&endpoint, &invite, ticket).await,
-                    None => transport::connect_control_as(&endpoint, &invite, observer).await,
+                    None => {
+                        let proof = invite.proof_for(observer);
+                        transport::connect_control_with(&endpoint, &invite, &proof, false).await
+                    }
                 }
             })
             .await;

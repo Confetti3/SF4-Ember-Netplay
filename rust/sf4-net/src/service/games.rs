@@ -34,8 +34,11 @@ impl Actor {
                         if let (Some(incarnation), Some(recovery)) = (member, recovery) {
                             let result =
                                 if recovery.applied_member_ids().await.contains(&incarnation) {
-                                    transport::accept_control_member(
-                                        connection, &invite, peer, observers,
+                                    transport::accept_control_for(
+                                        connection,
+                                        &invite,
+                                        Some(peer),
+                                        observers,
                                     )
                                     .await
                                 } else {
@@ -46,7 +49,8 @@ impl Actor {
                         } else {
                             Completion::Control(
                                 epoch,
-                                transport::accept_control_in(connection, &invite, observers).await,
+                                transport::accept_control_for(connection, &invite, None, observers)
+                                    .await,
                             )
                         }
                     });

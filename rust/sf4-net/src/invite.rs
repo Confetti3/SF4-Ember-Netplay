@@ -462,12 +462,18 @@ impl Invite {
     }
 
     pub(crate) fn proof(&self) -> RoomProof {
+        self.proof_for(false)
+    }
+
+    /// The proof of a joiner that only watches a tournament match when
+    /// `observer`, which only a room bound to one takes.
+    pub(crate) fn proof_for(&self, observer: bool) -> RoomProof {
         RoomProof {
             version: VERSION,
             room: self.room,
             capability: self.capability,
             build: self.build.clone(),
-            observer: false,
+            observer,
         }
     }
 

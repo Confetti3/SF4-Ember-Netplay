@@ -9,15 +9,15 @@ use std::sync::Arc;
 use ember_protocol::{
     api::ApiError,
     challenge::Action,
-    play::{WATCH_FEATURE, WatchAnswer, WatchRequest},
+    play::{WatchAnswer, WatchRequest},
 };
 use serde_json::{Value, json};
 
 use super::{
     Failure, Outcome, Shared,
     bridges::Approved,
-    client::{self, answer},
-    play::{check_match_id, play_state, send_proven},
+    client::{self, answer, refusal},
+    play::{check_match_id, features, send_proven},
 };
 
 /// The refusals the game words apart, from the bridge's `details.reason`:
@@ -59,9 +59,13 @@ pub async fn watch_match(
 }
 
 /// Stops watching `match_id`, so the bridge drops this watcher at once
-/// rather than when its polls stop.
+/// rather than when its polls stop. A bridge that does not serve watching
+/// was never asked to watch, so there is nothing to stop and it is not asked.
 pub async fn unwatch_match(shared: &Arc<Shared>, bridge_id: &str, match_id: &str) -> Outcome {
     check_match_id(match_id)?;
+    if !serves_watch(shared, &client::approved(shared, bridge_id)?).await? {
+        return Ok(Some(json!({})));
+    }
     client::with_session(shared, bridge_id, |bridge, token| async move {
         let path = format!("/v1/matches/{match_id}/watch/leave");
         let (status, body) = send_proven(
@@ -79,59 +83,11 @@ pub async fn unwatch_match(shared: &Arc<Shared>, bridge_id: &str, match_id: &str
     .await
 }
 
-/// Whether the bridge serves the watch routes. One that does is remembered
-/// for the rest of the run; one that does not is asked again next time, since
-/// it may be upgraded meanwhile.
+/// Whether the bridge serves the watch routes, from the capabilities this run
+/// keeps for it (`play::features`). One that does not is asked again next
+/// time, since it may be upgraded meanwhile.
 async fn serves_watch(shared: &Arc<Shared>, bridge: &Approved) -> Result<bool, Failure> {
-    if play_state(shared)?
-        .watch_bridges
-        .contains(&bridge.bridge_id)
-    {
-        return Ok(true);
-    }
-    let serves = shared
-        .client
-        .capabilities(&bridge.origin)
-        .await?
-        .capabilities
-        .features
-        .iter()
-        .any(|feature| feature == WATCH_FEATURE);
-    if serves {
-        play_state(shared)?
-            .watch_bridges
-            .insert(bridge.bridge_id.clone());
-    }
-    Ok(serves)
-}
-
-/// Whether a fighter's claim for `match_id` says this helper reads a binding
-/// that names watchers: whenever the bridge serves watching, since the bridge
-/// names watchers only while both fighters' claims say so. A bridge that does
-/// not is not asked again for the match. A capabilities read that fails fails
-/// the claim, which the game retries, rather than sending one without it,
-/// which would take the match's watchers out of its binding.
-pub(super) async fn claims_watch(
-    shared: &Arc<Shared>,
-    bridge: &Approved,
-    match_id: &str,
-) -> Result<bool, Failure> {
-    if play_state(shared)?.plain_claims.contains(match_id) {
-        return Ok(false);
-    }
-    let serves = serves_watch(shared, bridge).await?;
-    if !serves {
-        play_state(shared)?.plain_claims.insert(match_id.to_owned());
-    }
-    Ok(serves)
-}
-
-/// Forgets that the bridge serves watching, after a claim saying the helper
-/// reads watchers failed: the bridge may have been put back to one that
-/// refuses the field, so the next claim asks its capabilities again.
-pub(super) fn unlearn_watch(shared: &Shared, bridge: &Approved) -> Result<(), Failure> {
-    play_state(shared)?.watch_bridges.remove(&bridge.bridge_id);
-    Ok(())
+    Ok(features(shared, bridge, |known| known.watch).await?.watch)
 }
 
 /// The bridge's answer as JSON when it is a success. A refusal is the
@@ -152,7 +108,7 @@ fn reply(status: u16, body: &[u8]) -> Result<Value, Failure> {
                 .map(str::to_owned)
         })
         .filter(|reason| REASONS.contains(&reason.as_str()));
-    Err(reason.map_or_else(|| answer(status, body, &[]).unwrap_err(), Failure))
+    Err(reason.map_or_else(|| refusal(status, body), Failure))
 }
 
 /// The watch answer for the game, in the claim answer's `role` shape.
@@ -264,8 +220,9 @@ mod tests {
     }
 
     // A bridge that does not list the feature is asked nothing past its
-    // capabilities, and is asked again next time. One that lists it is
-    // remembered, and the watch request goes on to the session it needs.
+    // capabilities, to watch or to stop, and is asked again next time. One
+    // that lists it is remembered, and the request goes on to the session it
+    // needs.
     #[tokio::test]
     async fn a_bridge_without_the_watch_feature_is_sent_nothing() {
         let mut seed = [0; 16];
@@ -294,22 +251,32 @@ mod tests {
         let count = || asked.load(Ordering::SeqCst);
         let match_id = ember_protocol::encoding::prefixed_id("emt", [2; 16]);
         let watch = || watch_match(&shared, &pin.bridge_id, &match_id, "b1");
+        let unwatch = || unwatch_match(&shared, &pin.bridge_id, &match_id);
 
         assert_eq!(watch().await.unwrap_err().0, "watch_unsupported");
         assert_eq!(watch().await.unwrap_err().0, "watch_unsupported");
         assert_eq!(count(), 2, "only the capabilities were read");
+        // Nothing to stop, and no session opened to say so.
+        assert_eq!(unwatch().await.unwrap(), Some(json!({})));
+        assert_eq!(count(), 3, "only the capabilities were read");
 
         mode.store(2, Ordering::SeqCst);
         assert_ne!(watch().await.unwrap_err().0, "watch_unsupported");
         let after = count();
-        assert!(after > 3, "the watch went on to open a session");
+        assert!(after > 4, "the watch went on to open a session");
         mode.store(1, Ordering::SeqCst);
         assert_ne!(watch().await.unwrap_err().0, "watch_unsupported");
+        // The bridge that was seen to serve it is not asked again to stop.
+        let before = count();
+        let _ = unwatch().await;
+        assert!(count() > before, "the stop went on to open a session");
         let _ = std::fs::remove_dir_all(dir);
     }
 
     // A fighter's claim says its helper reads watchers to a bridge that
-    // serves watching, and to no other: an older bridge refuses the field.
+    // serves watching, and to no other: an older bridge refuses the field. The
+    // bridge is asked once, and again after a claim to it fails, which is how
+    // an upgrade or a rollback shows.
     #[tokio::test]
     async fn a_claim_says_it_reads_watchers_only_to_a_bridge_that_serves_watching() {
         let dir = std::env::temp_dir().join(ember_protocol::encoding::prefixed_id(
@@ -345,42 +312,45 @@ mod tests {
                 }
             }
         };
-        let claimed = |match_id: &'static str, fails: bool| {
-            send_claim(
-                &shared,
-                &bridge,
-                match_id,
-                claim.clone(),
-                false,
-                send(fails),
-            )
-        };
+        let claimed = |fails: bool| send_claim(&shared, &bridge, claim.clone(), false, send(fails));
         let count = || asked.load(Ordering::SeqCst);
         let set = |value| mode.store(value, Ordering::SeqCst);
 
-        // Not served: the match's claims say nothing, and ask once.
-        assert!(claimed("emt_a", false).await.is_ok());
-        assert!(claimed("emt_a", false).await.is_ok());
+        // Not served: the claims say nothing, and ask once.
+        assert!(claimed(false).await.is_ok());
+        assert!(claimed(false).await.is_ok());
         assert_eq!(count(), 1);
-        // Upgraded: that match stays as it was; a new one says it, asking once.
+        // Upgraded: not heard until a claim fails, as one does while the
+        // bridge restarts; the next then asks and says it.
         set(2);
-        assert!(claimed("emt_a", false).await.is_ok());
-        assert!(claimed("emt_b", false).await.is_ok());
-        assert!(claimed("emt_b", false).await.is_ok());
+        assert!(claimed(false).await.is_ok());
+        assert_eq!(count(), 1);
+        assert!(claimed(true).await.is_err());
+        assert!(claimed(false).await.is_ok());
+        assert!(claimed(false).await.is_ok());
         assert_eq!(count(), 2);
-        // A claim saying it that fails forgets, and the next asks again: a
-        // capabilities read that fails fails the claim rather than sending
-        // one that drops the watchers.
-        assert!(claimed("emt_b", true).await.is_err());
+        // A claim saying it that fails forgets, and a capabilities read that
+        // fails fails the claim rather than sending one that drops the
+        // watchers.
+        assert!(claimed(true).await.is_err());
         set(0);
-        assert!(claimed("emt_b", false).await.is_err());
+        assert!(claimed(false).await.is_err());
         set(2);
-        assert!(claimed("emt_b", false).await.is_ok());
+        assert!(claimed(false).await.is_ok());
         assert_eq!(count(), 4);
         let yes = Some(json!(true));
         assert_eq!(
             *sent.lock().unwrap(),
-            vec![None, None, None, yes.clone(), yes.clone(), yes.clone(), yes]
+            vec![
+                None,
+                None,
+                None,
+                None,
+                yes.clone(),
+                yes.clone(),
+                yes.clone(),
+                yes
+            ]
         );
         let _ = std::fs::remove_dir_all(dir);
     }

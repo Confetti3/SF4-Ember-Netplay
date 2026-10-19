@@ -446,6 +446,18 @@ impl Actor {
                     self.emit_coordination_state().await?;
                     return Ok(true);
                 };
+                // A bound room takes an Admission only from an endpoint its
+                // binding names. The handshake gate covers new connections;
+                // a control opened before the bind is not covered by it, and
+                // would otherwise keep presenting fresh incarnations, each
+                // superseding the fenced one so its retirement never closes
+                // the control. The first incarnation it was admitted under
+                // stays fenced and is retired. Ignored, not refused: an
+                // error would close the control before that retirement
+                // commits, and a voter's control must stay open until then.
+                if self.bound_roster().is_some_and(|bound| !bound.names(&peer)) {
+                    return Ok(true);
+                }
                 // An Admission describes the presenting peer's own process:
                 // never this process's identity, and never an incarnation or
                 // coordination key that another accepted admission holds. The

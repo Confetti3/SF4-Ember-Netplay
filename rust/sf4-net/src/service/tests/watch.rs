@@ -5,7 +5,11 @@ use iroh::endpoint::ConnectionError;
 use serde_json::{Value, json};
 
 use super::*;
-use crate::{invite::RoomProof, recovery::RecoverySession, service::bound::VoterPolicy};
+use crate::{
+    invite::RoomProof,
+    recovery::RecoverySession,
+    service::bound::{Binding, VoterPolicy},
+};
 
 /// The tournament object the room model writes into its snapshot
 /// (`RoomModelTournament.cxx`), naming `fighters` and `watchers`.
@@ -53,7 +57,7 @@ fn bound(fighters: &[EndpointId], watchers: &[EndpointId]) -> BoundRoster {
     }
 }
 
-fn read(text: &str) -> Option<BoundRoster> {
+fn read(text: &str) -> Binding {
     BoundRoster::read(&serde_json::from_str(text).unwrap())
 }
 
@@ -66,37 +70,47 @@ fn the_binding_is_read_from_the_committed_room_snapshot() {
     let (a, b, w) = (key(), key(), key());
     assert_eq!(
         read(&checkpoint(&[a], tournament(&[a, b], &[w]))),
-        Some(bound(&[a, b], &[w]))
+        Binding::Bound(bound(&[a, b], &[w]))
     );
     assert_eq!(
         read(&checkpoint(&[a], tournament(&[a, b], &[]))),
-        Some(bound(&[a, b], &[]))
+        Binding::Bound(bound(&[a, b], &[]))
     );
     // An unbound room writes an empty object, and an older one none at all.
-    assert_eq!(read(&checkpoint(&[a], json!({}))), None);
+    assert_eq!(read(&checkpoint(&[a], json!({}))), Binding::Unbound);
+    assert_eq!(read(&checkpoint(&[a], Value::Null)), Binding::Unbound);
     let mut bare: Value = serde_json::from_str(&checkpoint(&[a], json!({}))).unwrap();
     bare["checkpoint"]["room"]["snapshot"]
         .as_object_mut()
         .unwrap()
         .remove("tournament");
-    assert_eq!(BoundRoster::read(&bare), None);
-    // Not the shape the room model writes: the room is as without a binding.
+    assert_eq!(BoundRoster::read(&bare), Binding::Unbound);
+    // Not the shape the room model writes: a binding, but not one to read,
+    // which is not the same as no binding.
     let unreadable = [
         tournament(&[a], &[]),
         tournament(&[a, b, w], &[]),
         tournament(&[a, b], &(0..9).map(|_| key()).collect::<Vec<_>>()),
         json!({ "fighters": [{ "ember_id": "emb_1" }, { "endpoint": b.to_string() }] }),
         json!({ "fighters": "both" }),
+        json!("bound"),
     ];
     for binding in unreadable {
-        assert_eq!(read(&checkpoint(&[a], binding.clone())), None, "{binding}");
+        assert_eq!(
+            read(&checkpoint(&[a], binding.clone())),
+            Binding::Unreadable,
+            "{binding}"
+        );
     }
     // Hex that is no key names no one, and the binding holds for the rest.
     let not_a_key = "d".repeat(64);
     assert!(not_a_key.parse::<EndpointId>().is_err());
     let mut binding = tournament(&[a, b], &[w, w]);
     binding["watchers"][1]["endpoint"] = json!(not_a_key);
-    assert_eq!(read(&checkpoint(&[a], binding)), Some(bound(&[a, b], &[w])));
+    assert_eq!(
+        read(&checkpoint(&[a], binding)),
+        Binding::Bound(bound(&[a, b], &[w]))
+    );
 }
 
 // The contract with the room model, whose to_json test writes this file.
@@ -117,7 +131,7 @@ fn the_room_models_bound_checkpoint_reads_as_it_was_written() {
     assert_eq!(watchers.len(), 2);
     assert_eq!(
         read(fixture),
-        Some(bound(&[endpoint('a'), endpoint('b')], &watchers))
+        Binding::Bound(bound(&[endpoint('a'), endpoint('b')], &watchers))
     );
 }
 
@@ -127,13 +141,11 @@ fn only_a_bound_rooms_fighters_vote() {
     let everyone = BTreeSet::from([a, b, w]);
     let unbound = VoterPolicy(None);
     assert!(everyone.iter().all(|endpoint| unbound.allows(endpoint)));
-    assert_eq!(unbound.voting(&everyone), 3);
-    assert!(unbound.allows_member(&[], 7));
+    assert!(unbound.allows_member(&BTreeMap::new(), 7));
     let fighters = VoterPolicy(Some(BTreeSet::from([a, b])));
     assert!(fighters.allows(&a) && fighters.allows(&b) && !fighters.allows(&w));
-    assert_eq!(fighters.voting(&everyone), 2);
     // An incarnation with no admission on record never votes in a bound room.
-    assert!(!fighters.allows_member(&[], 7));
+    assert!(!fighters.allows_member(&BTreeMap::new(), 7));
     let route = iroh::SecretKey::generate().public();
     let admission = |incarnation, primary_endpoint| Admission {
         room: [1; 16],
@@ -143,11 +155,70 @@ fn only_a_bound_rooms_fighters_vote() {
         coordination_address: EndpointAddr::new(route),
         primary_endpoint,
     };
-    let admissions = [admission(1, a), admission(2, w)];
+    let admissions = BTreeMap::from([(1, admission(1, a)), (2, admission(2, w))]);
     assert!(fighters.allows_member(&admissions, 1));
     assert!(!fighters.allows_member(&admissions, 2));
 }
 
+/// Binds `actor`'s room to `fighters` the way a refresh leaves it: in the
+/// roster cache the gate and the voter policy read.
+fn bind(actor: &mut Actor, fighters: &[EndpointId], watchers: &[EndpointId]) {
+    let room = [9; 16];
+    actor.room = Some(room);
+    actor.refresh_roster = Some((
+        room,
+        Arc::new(crate::coordination::Committed::default()),
+        Some(CommittedRoom {
+            members: BTreeSet::new(),
+            bound: Some(bound(fighters, watchers)),
+            unreadable: false,
+        }),
+    ));
+}
+
+// The one count every site uses: a room that is not bound counts everyone, as
+// it always did, and a bound one counts only its fighters, however many
+// watch.
+#[tokio::test]
+async fn the_voter_count_is_made_in_one_place_and_counts_only_voters() {
+    let own = endpoint().await;
+    let (events, _events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(own.clone(), events);
+    let (a, b) = (key(), key());
+    let watchers = (0..14).map(|_| key()).collect::<Vec<_>>();
+    let everyone = [a, b]
+        .into_iter()
+        .chain(watchers.iter().copied())
+        .collect::<BTreeSet<_>>();
+    for count in 0..=everyone.len() {
+        let roster = everyone
+            .iter()
+            .copied()
+            .take(count)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            actor.desired_voters(&roster),
+            crate::recovery::stable_voter_count(count),
+            "{count} members"
+        );
+    }
+    bind(&mut actor, &[a, b], &watchers);
+    for count in 0..=everyone.len() {
+        let roster = everyone
+            .iter()
+            .copied()
+            .take(count)
+            .collect::<BTreeSet<_>>();
+        let fighters = roster.iter().filter(|id| [a, b].contains(id)).count();
+        assert_eq!(
+            actor.desired_voters(&roster),
+            crate::recovery::stable_voter_count(fighters),
+            "{count} members"
+        );
+        assert_eq!(actor.desired_voters(&roster), 1, "{count} members");
+    }
+    own.close().await;
+}
 #[tokio::test]
 async fn a_server_owned_room_is_never_bound() {
     let own = endpoint().await;
@@ -250,7 +321,7 @@ async fn a_watcher_joins_with_the_full_invitation_only() {
     match refused.expect("an answer").unwrap() {
         Event::Error { code, reason, .. } => {
             assert_eq!(code, "invalid_or_incompatible_invitation");
-            assert_eq!(reason.as_deref(), Some("malformed"));
+            assert_eq!(reason.as_deref(), Some("observer_short_link"));
         }
         _ => panic!("expected the join to be refused"),
     }

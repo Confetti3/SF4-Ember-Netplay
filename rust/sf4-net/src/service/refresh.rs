@@ -213,6 +213,7 @@ impl Actor {
             }
             _ => {
                 let roster = self.committed_room(committed.checkpoint().as_bytes());
+                let roster = self.keep_last_binding(roster);
                 self.refresh_roster = Some((recovery.room, committed.clone(), roster.clone()));
                 roster
             }
@@ -230,9 +231,8 @@ impl Actor {
             // count to the one the room should have from here until it
             // matches. A joint membership counts the voters of both halves, so
             // it is finished whatever the count says.
-            let voting = self.voter_policy().voting(&retained);
-            let restore_voters =
-                state.leader_local && (joint || state.voter_count != self.desired_voters(voting));
+            let restore_voters = state.leader_local
+                && (joint || state.voter_count != self.desired_voters(&retained));
             self.schedule_membership_reconciliation(
                 retained,
                 state.term,

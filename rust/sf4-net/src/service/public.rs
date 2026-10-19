@@ -88,7 +88,7 @@ impl Actor {
         }
         // Set before the join so a refused one clears it with the room.
         self.public = Some(PublicRoom::Member { ticket });
-        self.join_invitation(id, invitation, build, None)
+        self.join_invitation(id, invitation, build, None, false)
     }
 
     /// The accounts of the live and waiting controls and the endpoint each

@@ -170,7 +170,6 @@ impl Actor {
             // In a bound room only a fighter may take the vote; with none
             // left the room ends for its watchers.
             let policy = self.voter_policy();
-            let admissions = self.admissions.values().cloned().collect::<Vec<_>>();
             let mut successors = if learner_handoff {
                 applied_members
                     .iter()
@@ -187,8 +186,9 @@ impl Actor {
             } else {
                 voters.clone()
             };
-            successors
-                .retain(|id| *id == recovery.incarnation || policy.allows_member(&admissions, *id));
+            successors.retain(|id| {
+                *id == recovery.incarnation || policy.allows_member(&self.admissions, *id)
+            });
             if !self.server_owned()
                 && voters.contains(&recovery.incarnation)
                 && successors.iter().any(|id| *id != recovery.incarnation)

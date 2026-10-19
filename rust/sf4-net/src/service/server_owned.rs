@@ -27,16 +27,6 @@ impl Actor {
         }
     }
 
-    /// The voters a room of `members` should have: a server-owned room has
-    /// its host and nobody else.
-    pub(super) fn desired_voters(&self, members: usize) -> usize {
-        if self.server_owned() {
-            1
-        } else {
-            recovery::stable_voter_count(members)
-        }
-    }
-
     /// The members a committed checkpoint names. A server-owned host is the
     /// room's leader but not one of its members, so it is added to the roster
     /// here: reconciliation never treats it as departed for being absent from
@@ -51,9 +41,17 @@ impl Actor {
     pub(super) fn committed_room(&self, checkpoint: &[u8]) -> Option<CommittedRoom> {
         let envelope: serde_json::Value = serde_json::from_slice(checkpoint).ok()?;
         if !self.is_public_host() {
+            let members = primary_endpoints(&envelope, false)?;
+            let (bound, unreadable) = match BoundRoster::read(&envelope) {
+                _ if self.server_owned() => (None, false),
+                Binding::Bound(bound) => (Some(bound), false),
+                Binding::Unbound => (None, false),
+                Binding::Unreadable => (None, true),
+            };
             return Some(CommittedRoom {
-                members: primary_endpoints(&envelope, false)?,
-                bound: BoundRoster::read(&envelope).filter(|_| !self.server_owned()),
+                members,
+                bound,
+                unreadable,
             });
         }
         let mut members = primary_endpoints(&envelope, true)?;
@@ -61,6 +59,7 @@ impl Actor {
         Some(CommittedRoom {
             members,
             bound: None,
+            unreadable: false,
         })
     }
 

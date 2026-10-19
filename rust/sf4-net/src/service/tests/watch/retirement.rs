@@ -396,11 +396,15 @@ async fn a_named_member_that_left_keeps_its_control_for_the_rejoin() {
 }
 
 // Case 1 of 5.4: a fighter back on a new endpoint before the first bind, and
-// a bind that still names the old one.
+// a bind that still names the old one. The order is the claim: the fenced
+// member's control stays open through the removal, so the shrink to the leader
+// commits through it, and closes only once the tombstone is in. How long the
+// fighter then waits for its game's rejoin is not measured here: it is the
+// leader's claim interval (at most 10 s), the commit of the bind, and the
+// game's 30 s `OpenTimeoutMs` retry.
 #[tokio::test]
 async fn a_fighter_back_on_a_new_endpoint_before_the_bind_leaves_the_room_committing() {
     timeout(Duration::from_secs(90), async {
-        let started = Instant::now();
         let mut room = open_room().await;
         let own = room.own.id();
         let gone = room.member(false).await;
@@ -424,23 +428,40 @@ async fn a_fighter_back_on_a_new_endpoint_before_the_bind_leaves_the_room_commit
                 .contains(&back.incarnation)
         );
         // Only the leader and the fenced member answer: the shrink to the
-        // leader commits through them, with the fenced control still open.
+        // leader commits through them, with the fenced control open at every
+        // step until the tombstone is in.
         assert!(room.actor.controls.contains_key(&back.id()));
         while room.actor.controls.contains_key(&back.id()) {
+            assert!(!room.actor.retired_incarnations.contains(&back.incarnation));
+            assert!(!room.closed(back.id()));
             room.step().await;
         }
+        assert!(room.actor.retired_incarnations.contains(&back.incarnation));
+        assert!(room.closed(back.id()));
+        assert!(
+            !room
+                .recovery
+                .applied_member_ids()
+                .await
+                .contains(&back.incarnation)
+        );
         assert_eq!(
             room.voters().await,
             BTreeSet::from([room.recovery.incarnation])
         );
-        assert!(room.actor.retired_incarnations.contains(&back.incarnation));
 
-        // The fighter's next claim brings a bind naming its new endpoint, and
-        // its game's rejoin comes in with a fresh incarnation.
+        // Until the fighter's claim brings a bind naming its new endpoint, the
+        // gate refuses it.
+        assert!(!room.actor.admits_control(&back.id()));
         room.commit(&[own, back.id()], tournament(&[own, back.id()], &[]))
             .await;
         room.settle().await;
+        // The bind admits the new endpoint, and the old one, which the bind no
+        // longer names, is retired.
         assert!(room.actor.admits_control(&back.id()));
+        assert!(!room.actor.admits_control(&gone.id()));
+        assert!(room.actor.retired_incarnations.contains(&gone.incarnation));
+        // The game's rejoin comes in with a fresh incarnation.
         let rejoined = RecoverySession::join(
             room.invite.room(),
             back.id(),
@@ -458,8 +479,6 @@ async fn a_fighter_back_on_a_new_endpoint_before_the_bind_leaves_the_room_commit
         while !room.actor.admissions.contains_key(&admission.incarnation) {
             room.step().await;
         }
-        // Well inside the game's 30 s join retry.
-        assert!(started.elapsed() < Duration::from_secs(30));
         rejoined.stop().await;
         room.stop(vec![gone, back]).await;
     })
@@ -604,6 +623,229 @@ async fn a_leaving_leader_hands_its_vote_to_a_fighter_and_never_to_a_watcher() {
         assert_eq!(room.voters().await, BTreeSet::from([fighter.incarnation]));
         room.actor.clear_room();
         room.stop(vec![watcher, fighter]).await;
+    })
+    .await
+    .unwrap();
+}
+
+// A control opened before the bind is not covered by the handshake gate. A
+// stranger on one keeps presenting fresh Admissions, as a modified client
+// would: each is ignored, the incarnation it was admitted under stays fenced,
+// and once that retirement is confirmed its control closes. Were one taken, it
+// would supersede the fenced incarnation and bind the control to a new one
+// that the confirmation never names, and the control would stay for good.
+#[tokio::test]
+async fn a_stranger_that_keeps_presenting_admissions_is_still_retired_and_closed() {
+    timeout(Duration::from_secs(90), async {
+        let mut room = open_room().await;
+        let own = room.own.id();
+        let mut fighter = room.member(true).await;
+        let stranger = room.member(true).await;
+        let members = [own, fighter.id(), stranger.id()];
+        room.commit(&members, json!({})).await;
+        room.settle().await;
+        while fighter.frame(Duration::from_millis(200)).await.is_some() {}
+
+        let mut offers = Vec::new();
+        room.commit(&members, tournament(&[own, fighter.id()], &[]))
+            .await;
+        room.refresh().await;
+        assert!(
+            room.actor
+                .pending_retired_incarnations
+                .contains(&stranger.incarnation)
+        );
+
+        // A fresh Admission in every round, from a process of the stranger's
+        // that never stops offering one. The control has to close all the same
+        // (with nothing offered it takes one round) within the cap.
+        let mut rounds = 0;
+        let mut fresh = Vec::new();
+        while room.actor.controls.contains_key(&stranger.id()) && rounds < 16 {
+            let session = RecoverySession::join(
+                room.invite.room(),
+                stranger.id(),
+                room.recovery.incarnation,
+                room.recovery.coordination_address.clone(),
+                false,
+            )
+            .await
+            .unwrap();
+            let admission = session.advertise().await;
+            offers.push(session);
+            let payload = serde_json::to_string(&CoordinationControl::Admission {
+                admission: admission.clone(),
+            })
+            .unwrap();
+            // Taken as handled, so the control is not closed early.
+            assert!(
+                room.actor
+                    .accept_coordination_control(stranger.id(), &payload)
+                    .await
+                    .unwrap()
+            );
+            fresh.push(admission.incarnation);
+            if room.actor.tasks.is_empty() {
+                room.refresh().await;
+            } else {
+                room.step().await;
+            }
+            rounds += 1;
+        }
+        assert!(
+            !room.actor.controls.contains_key(&stranger.id()),
+            "still open after {rounds} rounds"
+        );
+        assert!(room.closed(stranger.id()));
+        assert!(
+            room.actor
+                .retired_incarnations
+                .contains(&stranger.incarnation)
+        );
+        for incarnation in fresh {
+            assert!(!room.actor.admissions.contains_key(&incarnation));
+            assert!(
+                !room
+                    .recovery
+                    .applied_member_ids()
+                    .await
+                    .contains(&incarnation)
+            );
+        }
+        assert_eq!(
+            room.voters().await,
+            BTreeSet::from([room.recovery.incarnation])
+        );
+        assert!(room.actor.controls.contains_key(&fighter.id()));
+        for session in offers {
+            session.stop().await;
+        }
+        room.stop(vec![fighter, stranger]).await;
+    })
+    .await
+    .unwrap();
+}
+
+// A binding that stops reading (the writer and this reader have drifted) does
+// not unbind the room: the last binding it read keeps ruling, so watchers stay
+// out of the vote and strangers out of the room. An empty binding, which is
+// what the native side writes to unbind, does unbind it, and a readable one
+// replaces the old.
+#[tokio::test]
+async fn a_binding_that_stops_reading_leaves_the_last_one_in_force() {
+    timeout(Duration::from_secs(60), async {
+        let mut room = open_room().await;
+        let own = room.own.id();
+        let (fighter, stranger) = (key(), key());
+        let members = [own];
+        room.commit(&members, tournament(&[own, fighter], &[]))
+            .await;
+        room.refresh().await;
+        let rule = bound(&[own, fighter], &[]);
+        assert_eq!(room.actor.bound_roster(), Some(&rule));
+        assert!(!room.actor.admits_control(&stranger));
+
+        for unreadable in [
+            tournament(&[own, fighter, key()], &[]),
+            json!({ "fighters": "both" }),
+            json!({ "fighters": [{ "ember_id": "emb_1" }, { "ember_id": "emb_2" }] }),
+        ] {
+            room.commit(&members, unreadable).await;
+            room.refresh().await;
+            assert_eq!(room.actor.bound_roster(), Some(&rule));
+            assert!(room.actor.admits_control(&fighter));
+            assert!(!room.actor.admits_control(&stranger));
+            let roster = BTreeSet::from([own, fighter, stranger]);
+            assert_eq!(room.actor.desired_voters(&roster), 1);
+        }
+
+        let moved = tournament(&[own, stranger], &[]);
+        room.commit(&members, moved).await;
+        room.refresh().await;
+        assert_eq!(
+            room.actor.bound_roster(),
+            Some(&bound(&[own, stranger], &[]))
+        );
+
+        room.commit(&members, json!({})).await;
+        room.refresh().await;
+        assert_eq!(room.actor.bound_roster(), None);
+        room.stop(Vec::new()).await;
+    })
+    .await
+    .unwrap();
+}
+
+// The grow path of the voter restore, driven with a count that would make
+// every member a voter: the watcher that has a control and a seat is still
+// not promoted.
+#[tokio::test]
+async fn restoring_voters_never_promotes_a_watcher_whatever_the_count() {
+    timeout(Duration::from_secs(60), async {
+        let mut room = open_room().await;
+        let own = room.own.id();
+        let fighter = room.member(true).await;
+        let watcher = room.member(true).await;
+        let bind = tournament(&[own, fighter.id()], &[watcher.id()]);
+        let members = [own, fighter.id(), watcher.id()];
+        room.commit(&members, bind).await;
+        room.settle().await;
+        let policy = room.actor.voter_policy();
+        assert!(!policy.allows(&watcher.id()));
+        let revision = room.recovery.committed().await.revision();
+        let retained = members.into_iter().collect::<BTreeSet<_>>();
+        let reachable = room.actor.controls.keys().copied().collect::<BTreeSet<_>>();
+        crate::service::members::restore_stable_voters(
+            &room.recovery,
+            &retained,
+            &reachable,
+            &room.actor.admissions,
+            &BTreeSet::new(),
+            revision,
+            3,
+            &policy,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            room.voters().await,
+            BTreeSet::from([room.recovery.incarnation, fighter.incarnation])
+        );
+        room.stop(vec![fighter, watcher]).await;
+    })
+    .await
+    .unwrap();
+}
+
+// A leader the binding does not name is not fenced: the fence skips the
+// local incarnation, so the room keeps its leader and its vote until the
+// native side removes that member, which hands the room off like any leaving
+// leader.
+#[tokio::test]
+async fn a_leader_the_binding_does_not_name_is_not_fenced() {
+    timeout(Duration::from_secs(60), async {
+        let mut room = open_room().await;
+        let own = room.own.id();
+        let (first, second) = (room.member(true).await, room.member(true).await);
+        let members = [own, first.id(), second.id()];
+        room.commit(&members, tournament(&[first.id(), second.id()], &[]))
+            .await;
+        room.settle().await;
+        assert!(!room.actor.admits_control(&own));
+        assert!(
+            !room
+                .actor
+                .pending_retired_incarnations
+                .contains(&room.recovery.incarnation)
+        );
+        assert!(room.actor.retired_incarnations.is_empty());
+        assert!(room.actor.controls.contains_key(&first.id()));
+        assert!(room.actor.controls.contains_key(&second.id()));
+        assert_eq!(
+            room.voters().await,
+            BTreeSet::from([room.recovery.incarnation])
+        );
+        room.stop(vec![first, second]).await;
     })
     .await
     .unwrap();

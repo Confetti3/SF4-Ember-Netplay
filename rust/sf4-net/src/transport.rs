@@ -322,20 +322,7 @@ pub fn is_handshake_timeout(error: &io::Error) -> bool {
 }
 
 pub async fn connect_control(endpoint: &Endpoint, invite: &Invite) -> io::Result<ControlChannel> {
-    connect_control_as(endpoint, invite, false).await
-}
-
-/// `connect_control`, saying whether this joiner only watches.
-pub(crate) async fn connect_control_as(
-    endpoint: &Endpoint,
-    invite: &Invite,
-    observer: bool,
-) -> io::Result<ControlChannel> {
-    let proof = RoomProof {
-        observer,
-        ..invite.proof()
-    };
-    connect_control_with(endpoint, invite, &proof, false).await
+    connect_control_with(endpoint, invite, &invite.proof(), false).await
 }
 
 /// `connect_control` presenting `proof` in place of the invitation's own.
@@ -470,26 +457,19 @@ pub(crate) async fn connect_control_on_proof<P: Serialize + Sync>(
 
 /// Accept a control into a room that takes no watchers.
 pub async fn accept_control(connection: Connection, room: &Invite) -> io::Result<ControlChannel> {
-    accept_control_in(connection, room, false).await
+    accept_control_for(connection, room, None, false).await
 }
 
-/// Accept a control; a joiner that asks to watch is refused unless
-/// `observers`, which only a room bound to a tournament match allows.
-pub(crate) async fn accept_control_in(
+/// Accept a control, from `member` when it is a returning one. A joiner that
+/// asks to watch is refused unless `observers`, which only a room bound to a
+/// tournament match allows.
+pub(crate) async fn accept_control_for(
     connection: Connection,
     room: &Invite,
+    member: Option<EndpointId>,
     observers: bool,
 ) -> io::Result<ControlChannel> {
-    accept_control_policy(connection, room, None, observers, now()?).await
-}
-
-pub(crate) async fn accept_control_member(
-    connection: Connection,
-    room: &Invite,
-    member: EndpointId,
-    observers: bool,
-) -> io::Result<ControlChannel> {
-    accept_control_policy(connection, room, Some(member), observers, now()?).await
+    accept_control_policy(connection, room, member, observers, now()?).await
 }
 
 async fn accept_control_policy(
