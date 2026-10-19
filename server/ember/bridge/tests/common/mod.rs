@@ -95,6 +95,7 @@ impl Bridge {
             integration_secrets: None,
             rooms: None,
             match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
+            replay_retention: None,
             tenants: vec![
                 config::Tenant {
                     id: "t1".into(),

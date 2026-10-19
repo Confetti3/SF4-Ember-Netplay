@@ -10,7 +10,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ember_protocol::replays;
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -20,7 +20,7 @@ use crate::{
     error::{ApiFailure, Result},
     http::{Body, json as respond},
     routes::{
-        ledger::{load, participants, scores},
+        ledger::{Match, load, participants, scores},
         matches::{viewer_of, visible},
         play::{fighter, playing},
     },
@@ -94,62 +94,7 @@ pub async fn pack(
             if !visible(tx, &viewer, &found)? {
                 return Err(ApiFailure::not_found());
             }
-            let (wins, _) = scores(tx, &found.id)?;
-            let metadata: String = tx.query_row(
-                "SELECT metadata FROM matches WHERE id = ?1",
-                [&found.id],
-                |row| row.get(0),
-            )?;
-            let metadata: serde_json::Value = serde_json::from_str(&metadata).unwrap_or_default();
-            // A bracket set's external ID is `<site>:<tournament>:<set>:<attempt>`;
-            // its desk event names the tournament.
-            let tournament: Option<String> = tx
-                .query_row(
-                    "SELECT title FROM organizer_events WHERE tournament IS NOT NULL
-                       AND substr(?1, 1, length(site) + length(tournament) + 2) = site || ':' || tournament || ':'
-                     ORDER BY created_at DESC LIMIT 1",
-                    [&found.external_match_id],
-                    |row| row.get(0),
-                )
-                .optional()?;
-            let games = tx
-                .prepare(
-                    "SELECT crc, revision, saved_at, replay FROM match_replays
-                     WHERE match_id = ?1 ORDER BY saved_at, received_at",
-                )?
-                .query_map([&found.id], |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, u64>(1)?,
-                        row.get::<_, u64>(2)?,
-                        row.get::<_, Vec<u8>>(3)?,
-                    ))
-                })?
-                .collect::<rusqlite::Result<Vec<_>>>()?;
-            let mut rooms: Vec<u64> = games.iter().map(|game| game.1).collect();
-            rooms.sort_unstable();
-            rooms.dedup();
-            let header = serde_json::to_vec(&json!({
-                "match_id": found.id,
-                "tournament": tournament,
-                "round_label": metadata.get("round_label"),
-                "round": metadata.get("round"),
-                "phase": metadata.get("phase"),
-                "players": participants(tx, &found.id, found.generation)?,
-                "score": wins,
-                "rooms": rooms.len(),
-                "games": games.iter().map(|(crc, revision, saved_at, replay)| json!({
-                    "crc": crc, "revision": revision, "saved_at": saved_at, "size": replay.len(),
-                })).collect::<Vec<_>>(),
-            }))
-            .map_err(|_| ApiFailure::unavailable())?;
-            let mut out = replays::PACK_MAGIC.to_vec();
-            out.extend_from_slice(&(header.len() as u32).to_le_bytes());
-            out.extend_from_slice(&header);
-            for (_, _, _, replay) in &games {
-                out.extend_from_slice(replay);
-            }
-            Ok(out)
+            packed(tx, &found)
         })
         .await?;
     Ok((
@@ -163,4 +108,103 @@ pub async fn pack(
         bytes,
     )
         .into_response())
+}
+
+/// A set's pack, as `pack` serves it.
+fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
+    let (wins, _) = scores(tx, &found.id)?;
+    let metadata: String = tx.query_row(
+        "SELECT metadata FROM matches WHERE id = ?1",
+        [&found.id],
+        |row| row.get(0),
+    )?;
+    let metadata: serde_json::Value = serde_json::from_str(&metadata).unwrap_or_default();
+    // A bracket set's external ID is `<site>:<tournament>:<set>:<attempt>`;
+    // its desk event names the tournament.
+    let tournament: Option<String> = tx
+        .query_row(
+            "SELECT title FROM organizer_events WHERE tournament IS NOT NULL
+               AND substr(?1, 1, length(site) + length(tournament) + 2) = site || ':' || tournament || ':'
+             ORDER BY created_at DESC LIMIT 1",
+            [&found.external_match_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let games = tx
+        .prepare(
+            "SELECT crc, revision, saved_at, replay FROM match_replays
+             WHERE match_id = ?1 ORDER BY saved_at, received_at",
+        )?
+        .query_map([&found.id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, u64>(1)?,
+                row.get::<_, u64>(2)?,
+                row.get::<_, Vec<u8>>(3)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut rooms: Vec<u64> = games.iter().map(|game| game.1).collect();
+    rooms.sort_unstable();
+    rooms.dedup();
+    let header = serde_json::to_vec(&json!({
+        "match_id": found.id,
+        "tournament": tournament,
+        "round_label": metadata.get("round_label"),
+        "round": metadata.get("round"),
+        "phase": metadata.get("phase"),
+        "players": participants(tx, &found.id, found.generation)?,
+        "score": wins,
+        "rooms": rooms.len(),
+        "games": games.iter().map(|(crc, revision, saved_at, replay)| json!({
+            "crc": crc, "revision": revision, "saved_at": saved_at, "size": replay.len(),
+        })).collect::<Vec<_>>(),
+    }))
+    .map_err(|_| ApiFailure::unavailable())?;
+    let mut out = replays::PACK_MAGIC.to_vec();
+    out.extend_from_slice(&(header.len() as u32).to_le_bytes());
+    out.extend_from_slice(&header);
+    for (_, _, _, replay) in &games {
+        out.extend_from_slice(replay);
+    }
+    Ok(out)
+}
+
+/// Sets pruned per maintenance pass, so a first pass after retention is
+/// turned on holds the database only briefly.
+const PRUNED_PER_PASS: i64 = 4;
+
+/// Removes the replays of sets that last changed more than
+/// `replay_retention.days` ago, after writing each set's pack to the backup
+/// folder when one is set. A set whose backup cannot be written keeps its
+/// replays and is tried again next pass. Runs with the bridge's maintenance.
+pub fn prune(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
+    let Some(retention) = &ctx.config.replay_retention else {
+        return Ok(());
+    };
+    let cutoff = ctx.now.saturating_sub(retention.days * 24 * 60 * 60);
+    let old = tx
+        .prepare(
+            "SELECT id FROM matches WHERE updated_at <= ?1
+               AND EXISTS (SELECT 1 FROM match_replays WHERE match_id = matches.id)
+             ORDER BY updated_at LIMIT ?2",
+        )?
+        .query_map(params![cutoff, PRUNED_PER_PASS], |row| {
+            row.get::<_, String>(0)
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for id in old {
+        if let Some(folder) = &retention.backup {
+            let found = load(tx, &id)?.ok_or_else(ApiFailure::not_found)?;
+            let pack = packed(tx, &found)?;
+            let written = std::fs::create_dir_all(folder)
+                .and_then(|()| std::fs::write(folder.join(format!("{id}.emberpack")), pack));
+            if let Err(error) = written {
+                eprintln!("maintenance: could not back up the replays of {id}: {error}");
+                continue;
+            }
+        }
+        tx.execute("DELETE FROM match_replays WHERE match_id = ?1", [&id])?;
+    }
+    Ok(())
 }

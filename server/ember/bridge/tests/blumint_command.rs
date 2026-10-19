@@ -48,6 +48,7 @@ async fn registration_works_without_a_running_bridge() {
         integration_secrets: None,
         rooms: None,
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
+        replay_retention: None,
         tenants: vec![config::Tenant {
             id: "bm".into(),
             name: "BluMint".into(),
