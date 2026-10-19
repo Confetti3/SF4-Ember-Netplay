@@ -3374,6 +3374,84 @@ msgstr "Usar outra conta do Discord"
 msgid "connect.change_detail"
 msgstr "Abre o Discord no navegador para conectar outra conta. Seu site de torneio precisará usar essa conta."
 
+msgid "site.title"
+msgstr "Conectar {0}"
+
+msgid "site.row_detail"
+msgstr "Conecte sua conta do {0} para que torneios no {0} encontrem seu Ember ID."
+
+msgid "site.go_detail"
+msgstr "Conectar o {0} permite que torneios no {0} encontrem seu Ember ID. O Ember abre o {0} no navegador: aprove lá com a conta que seu torneio usa."
+
+msgid "site.setting_up_detail"
+msgstr "O Ember está abrindo o {0} no navegador."
+
+msgid "site.waiting"
+msgstr "Aprove no navegador. Esta tela é atualizada quando o {0} for conectado."
+
+msgid "site.waiting_label"
+msgstr "Aguardando o {0}"
+
+msgid "site.waiting_detail"
+msgstr "Aprove no navegador com a conta do {0} que seu torneio usa. Esta tela é atualizada sozinha."
+
+msgid "site.connected"
+msgstr "{0} conectado"
+
+msgid "site.connected_detail"
+msgstr "Torneios no {0} agora encontram você por esta conta."
+
+msgid "site.change"
+msgstr "Usar outra conta do {0}"
+
+msgid "site.change_detail"
+msgstr "Abre o {0} no navegador para conectar outra conta. Seu torneio precisará usar essa conta."
+
+msgid "site.remove_detail"
+msgstr "Desconecta esta conta do {0} do seu Ember ID neste serviço. Torneios no {0} não vão mais encontrar você por ela."
+
+msgid "site.cancel_detail"
+msgstr "Para de esperar. Escolha Conectar {0} novamente quando estiver pronto."
+
+msgid "site.off"
+msgstr "Login com {0} desativado"
+
+msgid "site.off_detail"
+msgstr "Este serviço de torneios não oferece login com {0} no momento. Tente novamente mais tarde."
+
+msgid "site.retry_detail"
+msgstr "Lê sua conta do {0} novamente."
+
+msgid "site.opened"
+msgstr "Termine o login no {0} no navegador."
+
+msgid "site.done"
+msgstr "{0} conectado como {1}."
+
+msgid "site.removed"
+msgstr "Conta do {0} desconectada."
+
+msgid "site.cancelled"
+msgstr "A espera pelo {0} foi interrompida."
+
+msgid "site.busy"
+msgstr "O login com {0} está ocupado no momento. Tente novamente mais tarde."
+
+msgid "site.gone"
+msgstr "Este serviço de torneios não oferece mais login com {0}."
+
+msgid "site.no_service"
+msgstr "O serviço de torneios do Ember não está configurado"
+
+msgid "site.no_service_detail"
+msgstr "O {0} se conecta pelo serviço de torneios do Ember. Primeiro procure o serviço em Contas vinculadas e depois volte aqui."
+
+msgid "site.screen"
+msgstr "Conta do site"
+
+msgid "identity.failure.browser"
+msgstr "O Ember não conseguiu abrir o navegador."
+
 msgid "connect.link_waiting"
 msgstr "Um site de torneio pediu para você conectar o Discord. O Ember abre Conectar Discord quando você sair da sala."
 

@@ -51,6 +51,7 @@ fn direct(
         enabled: true,
         api_base: None,
         discord_lookup: lookup,
+        lookup_sites: Vec::new(),
         disputes,
         results_url: results_url.map(str::to_owned),
         rooms: None,

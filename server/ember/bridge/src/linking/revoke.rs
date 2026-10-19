@@ -3,13 +3,13 @@ use ember_protocol::{EmberId, event::Kind};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::json;
 
-use super::intent::Owner;
+use super::{intent::Owner, site};
 use crate::{
     audit::audit,
     ctx::Ctx,
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
-    routes::{discord, matches},
+    routes::matches,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -100,7 +100,7 @@ pub fn unlink(
         &format!("unlinked_by_{}", actor.0),
     )?;
     if !matches!(by, Unlinker::Account(Owner::Provider { .. })) {
-        discord::withdraw(tx, link_id)?;
+        site::withdraw(tx, link_id)?;
     }
     audit(tx, ctx.now, actor, "link.remove", link_id, "ok", None)?;
     Ok(json!({ "link_id": link_id, "state": "removed" }))

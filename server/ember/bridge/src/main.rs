@@ -101,6 +101,7 @@ fn init(dir: PathBuf) -> Result<(), String> {
         allow_private_webhooks: true,
         mock_browser: true,
         discord: None,
+        sign_in_sites: Vec::new(),
         integration_secrets: None,
         rooms: None,
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
@@ -115,6 +116,7 @@ fn init(dir: PathBuf) -> Result<(), String> {
                 enabled: true,
                 api_base: None,
                 discord_lookup: false,
+                lookup_sites: Vec::new(),
                 disputes: None,
                 results_url: None,
                 rooms: None,
@@ -152,6 +154,14 @@ fn open(path: &Path) -> Result<AppState, String> {
     let integrations = ember_bridge::integrations::Secrets::load(&config)?;
     if config.discord.is_some() && integrations.discord_client_secret.is_none() {
         eprintln!("ember-bridge: Discord sign-in is off until its client secret is stored");
+    }
+    for site in &config.sign_in_sites {
+        if !integrations.site_client_secrets.contains_key(&site.id) {
+            eprintln!(
+                "ember-bridge: sign-in on {} is off until its client secret is stored",
+                site.id
+            );
+        }
     }
     let db =
         Db::open(&config.database).map_err(|error| format!("cannot open database: {error}"))?;

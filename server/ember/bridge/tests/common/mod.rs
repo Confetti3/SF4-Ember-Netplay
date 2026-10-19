@@ -9,6 +9,8 @@ pub mod play;
 pub mod public_rooms;
 pub mod receiver;
 pub mod results;
+pub mod sign_in;
+pub mod sites;
 pub mod supervisor;
 
 use std::path::PathBuf;
@@ -51,6 +53,7 @@ fn connection(id: &str) -> config::Connection {
         enabled: true,
         api_base: None,
         discord_lookup: false,
+        lookup_sites: Vec::new(),
         disputes: None,
         results_url: None,
         rooms: None,
@@ -87,6 +90,7 @@ impl Bridge {
             allow_private_webhooks: true,
             mock_browser: true,
             discord: None,
+            sign_in_sites: Vec::new(),
             integration_secrets: None,
             rooms: None,
             match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
@@ -132,9 +136,21 @@ impl Bridge {
     /// bridge's origin is the new port's, so proofs made after it hold. It
     /// returns once the new one serves, so it has recorded its restart.
     pub async fn restart(&mut self, integrations: ember_bridge::integrations::Secrets) {
+        self.restart_with(|_| {}, integrations).await;
+    }
+
+    /// `restart`, with the configuration `adjust` changes first, as an
+    /// operator's edit before a restart.
+    pub async fn restart_with(
+        &mut self,
+        adjust: impl FnOnce(&mut Config),
+        integrations: ember_bridge::integrations::Secrets,
+    ) {
         let running = self.running.take().unwrap();
         let mut config = (*running.state.config).clone();
         running.abort();
+        adjust(&mut config);
+        config.validate().unwrap();
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         self.origin = format!("http://{}", listener.local_addr().unwrap());
         config.origin = self.origin.clone();

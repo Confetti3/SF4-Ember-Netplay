@@ -3848,6 +3848,84 @@ msgstr "Utiliser un autre compte Discord"
 msgid "connect.change_detail"
 msgstr "Ouvre Discord dans votre navigateur pour connecter un autre compte à la place. Votre site de tournoi devra alors utiliser ce compte."
 
+msgid "site.title"
+msgstr "Connecter {0}"
+
+msgid "site.row_detail"
+msgstr "Connectez votre compte {0} pour que les tournois sur {0} trouvent votre Ember ID."
+
+msgid "site.go_detail"
+msgstr "Connecter {0} permet aux tournois sur {0} de trouver votre Ember ID. Ember ouvre {0} dans votre navigateur : approuvez-y avec le compte qu'utilise votre tournoi."
+
+msgid "site.setting_up_detail"
+msgstr "Ember ouvre {0} dans votre navigateur."
+
+msgid "site.waiting"
+msgstr "Approuvez dans votre navigateur. Cet écran se met à jour quand {0} est connecté."
+
+msgid "site.waiting_label"
+msgstr "En attente de {0}"
+
+msgid "site.waiting_detail"
+msgstr "Approuvez dans votre navigateur avec le compte {0} qu'utilise votre tournoi. Cet écran se met à jour tout seul."
+
+msgid "site.connected"
+msgstr "{0} connecté"
+
+msgid "site.connected_detail"
+msgstr "Les tournois sur {0} peuvent maintenant vous trouver grâce à ce compte."
+
+msgid "site.change"
+msgstr "Utiliser un autre compte {0}"
+
+msgid "site.change_detail"
+msgstr "Ouvre {0} dans votre navigateur pour connecter un autre compte à la place. Votre tournoi devra alors utiliser ce compte."
+
+msgid "site.remove_detail"
+msgstr "Déconnecte ce compte {0} de votre Ember ID sur ce service. Les tournois sur {0} ne pourront plus vous trouver grâce à lui."
+
+msgid "site.cancel_detail"
+msgstr "Arrête l'attente. Choisissez à nouveau Connecter {0} quand vous êtes prêt."
+
+msgid "site.off"
+msgstr "Connexion {0} désactivée"
+
+msgid "site.off_detail"
+msgstr "Ce service de tournoi ne propose pas la connexion {0} pour le moment. Réessayez plus tard."
+
+msgid "site.retry_detail"
+msgstr "Relit votre compte {0}."
+
+msgid "site.opened"
+msgstr "Terminez la connexion à {0} dans votre navigateur."
+
+msgid "site.done"
+msgstr "{0} connecté en tant que {1}."
+
+msgid "site.removed"
+msgstr "Compte {0} déconnecté."
+
+msgid "site.cancelled"
+msgstr "L'attente de {0} a été arrêtée."
+
+msgid "site.busy"
+msgstr "La connexion {0} est saturée pour le moment. Réessayez plus tard."
+
+msgid "site.gone"
+msgstr "Ce service de tournoi ne propose plus la connexion {0}."
+
+msgid "site.no_service"
+msgstr "Le service de tournoi d'Ember n'est pas configuré"
+
+msgid "site.no_service_detail"
+msgstr "{0} se connecte via le service de tournoi d'Ember. Recherchez-le d'abord dans Comptes associés, puis revenez ici."
+
+msgid "site.screen"
+msgstr "Compte du site"
+
+msgid "identity.failure.browser"
+msgstr "Ember n'a pas pu ouvrir votre navigateur."
+
 msgid "connect.link_waiting"
 msgstr "Un site de tournoi vous demande de connecter Discord. Ember ouvre Connecter Discord quand vous quittez le salon."
 

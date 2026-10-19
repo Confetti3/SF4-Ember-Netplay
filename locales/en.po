@@ -3489,6 +3489,84 @@ msgstr "Use a different Discord account"
 msgid "connect.change_detail"
 msgstr "Opens Discord in your browser to connect another account instead. Your tournament site must then use that account."
 
+msgid "site.title"
+msgstr "Connect {0}"
+
+msgid "site.row_detail"
+msgstr "Connect your {0} account so tournaments on {0} can find your Ember ID."
+
+msgid "site.go_detail"
+msgstr "Connecting {0} lets tournaments on {0} find your Ember ID. Ember opens {0} in your browser: approve there with the account your tournament uses."
+
+msgid "site.setting_up_detail"
+msgstr "Ember is opening {0} in your browser."
+
+msgid "site.waiting"
+msgstr "Approve in your browser. This screen updates when {0} is connected."
+
+msgid "site.waiting_label"
+msgstr "Waiting for {0}"
+
+msgid "site.waiting_detail"
+msgstr "Approve in your browser with the {0} account your tournament uses. This screen updates by itself."
+
+msgid "site.connected"
+msgstr "{0} connected"
+
+msgid "site.connected_detail"
+msgstr "Tournaments on {0} can now find you by this account."
+
+msgid "site.change"
+msgstr "Use a different {0} account"
+
+msgid "site.change_detail"
+msgstr "Opens {0} in your browser to connect another account instead. Your tournament must then use that account."
+
+msgid "site.remove_detail"
+msgstr "Disconnects this {0} account from your Ember ID on this service. Tournaments on {0} can no longer find you by it."
+
+msgid "site.cancel_detail"
+msgstr "Stops waiting. Choose Connect {0} again when you are ready."
+
+msgid "site.off"
+msgstr "{0} sign-in is off"
+
+msgid "site.off_detail"
+msgstr "This tournament service does not offer {0} sign-in right now. Try again later."
+
+msgid "site.retry_detail"
+msgstr "Reads your {0} account again."
+
+msgid "site.opened"
+msgstr "Finish signing in to {0} in your browser."
+
+msgid "site.done"
+msgstr "{0} connected as {1}."
+
+msgid "site.removed"
+msgstr "{0} account disconnected."
+
+msgid "site.cancelled"
+msgstr "Stopped waiting for {0}."
+
+msgid "site.busy"
+msgstr "{0} sign-in is busy right now. Try again later."
+
+msgid "site.gone"
+msgstr "This tournament service no longer offers {0} sign-in."
+
+msgid "site.no_service"
+msgstr "Ember's tournament service is not set up"
+
+msgid "site.no_service_detail"
+msgstr "{0} connects through Ember's tournament service. Look it up under Linked accounts first, then come back here."
+
+msgid "site.screen"
+msgstr "Site account"
+
+msgid "identity.failure.browser"
+msgstr "Ember could not open your browser."
+
 msgid "connect.link_waiting"
 msgstr "A tournament site asked you to connect Discord. Ember opens Connect Discord when you leave the room."
 

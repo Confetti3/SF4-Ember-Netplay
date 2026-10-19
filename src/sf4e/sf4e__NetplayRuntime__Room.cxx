@@ -63,9 +63,8 @@ void DispatchIdentity(netplay::IdentityRequest& request, bool helperReady) {
 	using netplay::IdentityOp;
 	runtime->identityTicket = request.ticket; runtime->identityRequest = 0; runtime->identityRefusal = "";
 	const auto op = request.op;
-	const bool readOnly = op == IdentityOp::Status || op == IdentityOp::BridgeList ||
-		op == IdentityOp::BridgeInspect || op == IdentityOp::LinkList || op == IdentityOp::DiscordStatus;
-	const bool changesKey = op == IdentityOp::Enable || op == IdentityOp::Import || op == IdentityOp::Reset;
+	const bool readOnly = netplay::EffectOf(op) == netplay::IdentityEffect::Read;
+	const bool changesKey = netplay::EffectOf(op) == netplay::IdentityEffect::KeyChange;
 	if (!helperReady || !runtime->room) { runtime->identityRefusal = "identity.refused.helper"; return; }
 	if (changesKey && !GetRuntimeSnapshotShared()->canEditPreferences) { runtime->identityRefusal = "identity.refused.leave_room"; return; }
 	if (!readOnly && !changesKey && Game::Battle::System::ggpo) { runtime->identityRefusal = "identity.refused.match"; return; }

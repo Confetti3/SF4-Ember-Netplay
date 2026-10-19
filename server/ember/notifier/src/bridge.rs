@@ -66,6 +66,7 @@ impl BridgeClient {
     ) -> Result<Option<FoundPlayer>, BridgeError> {
         let body = Lookup {
             discord: vec![discord_id.to_owned()],
+            ..Lookup::default()
         };
         let request = self
             .http

@@ -3849,6 +3849,84 @@ msgstr "Использовать другой аккаунт Discord"
 msgid "connect.change_detail"
 msgstr "Открывает Discord в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнирный сайт должен использовать этот аккаунт."
 
+msgid "site.title"
+msgstr "Подключить {0}"
+
+msgid "site.row_detail"
+msgstr "Подключите аккаунт {0}, чтобы турниры на {0} находили ваш Ember ID."
+
+msgid "site.go_detail"
+msgstr "Подключив {0}, вы позволите турнирам на {0} находить ваш Ember ID. Ember откроет {0} в браузере: подтвердите там вход аккаунтом, который использует ваш турнир."
+
+msgid "site.setting_up_detail"
+msgstr "Ember открывает {0} в браузере."
+
+msgid "site.waiting"
+msgstr "Подтвердите в браузере. Этот экран обновится, когда {0} будет подключён."
+
+msgid "site.waiting_label"
+msgstr "Ожидание {0}"
+
+msgid "site.waiting_detail"
+msgstr "Подтвердите в браузере вход аккаунтом {0}, который использует ваш турнир. Этот экран обновится сам."
+
+msgid "site.connected"
+msgstr "{0} подключён"
+
+msgid "site.connected_detail"
+msgstr "Теперь турниры на {0} найдут вас по этому аккаунту."
+
+msgid "site.change"
+msgstr "Использовать другой аккаунт {0}"
+
+msgid "site.change_detail"
+msgstr "Открывает {0} в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнир должен использовать этот аккаунт."
+
+msgid "site.remove_detail"
+msgstr "Отключает этот аккаунт {0} от вашего Ember ID в этом сервисе. Турниры на {0} больше не найдут вас по нему."
+
+msgid "site.cancel_detail"
+msgstr "Прекращает ожидание. Когда будете готовы, снова выберите «Подключить {0}»."
+
+msgid "site.off"
+msgstr "Вход через {0} отключён"
+
+msgid "site.off_detail"
+msgstr "Этот турнирный сервис сейчас не предлагает вход через {0}. Повторите попытку позже."
+
+msgid "site.retry_detail"
+msgstr "Снова получает данные аккаунта {0}."
+
+msgid "site.opened"
+msgstr "Завершите вход в {0} в браузере."
+
+msgid "site.done"
+msgstr "{0} подключён как {1}."
+
+msgid "site.removed"
+msgstr "Аккаунт {0} отключён."
+
+msgid "site.cancelled"
+msgstr "Ожидание {0} прекращено."
+
+msgid "site.busy"
+msgstr "Вход через {0} сейчас перегружен. Повторите попытку позже."
+
+msgid "site.gone"
+msgstr "Этот турнирный сервис больше не предлагает вход через {0}."
+
+msgid "site.no_service"
+msgstr "Турнирный сервис Ember не настроен"
+
+msgid "site.no_service_detail"
+msgstr "{0} подключается через турнирный сервис Ember. Сначала найдите его в разделе «Привязанные аккаунты», затем вернитесь сюда."
+
+msgid "site.screen"
+msgstr "Аккаунт сайта"
+
+msgid "identity.failure.browser"
+msgstr "Ember не удалось открыть браузер."
+
 msgid "connect.link_waiting"
 msgstr "Турнирный сайт просит подключить Discord. Ember откроет «Подключить Discord», когда вы выйдете из лобби."
 
