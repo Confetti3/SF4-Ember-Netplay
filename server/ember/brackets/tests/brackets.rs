@@ -419,3 +419,33 @@ async fn a_saved_creation_that_cannot_be_read_ends_only_its_set() {
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].0, "challonge:ember_weekly:1002:1");
 }
+
+#[tokio::test]
+async fn a_score_challonge_does_not_show_recorded_is_checked() {
+    let world = World::start(Setup::default()).await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "player_2").await;
+    world.connector.pass(true).await;
+    let match_id = world.bridge.matches().await[0].1.clone();
+    world.play(&match_id, &[0, 0]).await;
+    world.bridge.deliver().await;
+    world.challonge.log();
+    // Challonge answers 200 without the match, and the score did not go
+    // in: read on its own, the match is still open, so the score waits.
+    world.challonge.state.lock().unwrap().odd_report_answers = vec![(json!({}), false)];
+    world.connector.pass(false).await;
+    assert_eq!(
+        lines(&world.challonge.log()),
+        [LIST, "PUT /matches/1001.json", "GET /matches/1001.json"]
+    );
+    assert_eq!(world.progress("challonge:ember_weekly", "1001"), "live");
+    assert_eq!(world.challonge.find("1001").winner, None);
+
+    // Again without the match, but the score went in: the read shows it.
+    world.challonge.state.lock().unwrap().odd_report_answers =
+        vec![(json!({ "data": null }), true)];
+    world.advance(61);
+    world.connector.pass(false).await;
+    assert_eq!(world.progress("challonge:ember_weekly", "1001"), "reported");
+    assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("355"));
+}

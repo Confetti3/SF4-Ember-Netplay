@@ -63,6 +63,10 @@ impl FakeSet {
                 "slotIndex": index,
                 "entrant": entrant.map(|id| json!({ "id": id.to_string() })),
             })).collect::<Vec<_>>(),
+            "games": self.games.iter().enumerate().map(|(index, winner)| json!({
+                "orderNum": index + 1,
+                "winnerId": winner,
+            })).collect::<Vec<_>>(),
         })
     }
 }
@@ -85,6 +89,12 @@ pub struct StartggState {
     pub report_errors: VecDeque<(StatusCode, String)>,
     /// Reports of these sets are refused with these texts, every time.
     pub refused_sets: HashMap<u64, String>,
+    /// The next reports are answered with this `data` instead of the set,
+    /// and recorded only when the flag says so.
+    pub report_answers: VecDeque<(Value, bool)>,
+    /// This set turns pending (state 5, its entrants kept) just as the
+    /// connector reads it again before reporting.
+    pub pend_on_reread: Option<u64>,
     /// Sets start.gg no longer has, as after the organizer reset their
     /// phase group: left out of lists and answered "Set not found".
     pub gone_sets: HashSet<u64>,
@@ -218,6 +228,11 @@ async fn graphql(
                 set.winner = set.entrants[0];
                 set.state = 3;
             }
+            if let Some(id) = state.pend_on_reread.take()
+                && let Some(set) = state.sets.iter_mut().find(|set| set.id == id)
+            {
+                set.state = 5;
+            }
             let id = variables["id"].as_str().unwrap_or_default().to_owned();
             if id
                 .parse::<u64>()
@@ -269,16 +284,24 @@ async fn graphql(
                 .iter()
                 .map(|game| game["winnerId"].as_str().unwrap().parse().unwrap())
                 .collect();
+            let odd = state.report_answers.pop_front();
             let Some(set) = state.find(&variables["setId"]) else {
                 return answer(
                     StatusCode::OK,
                     json!({ "errors": [{ "message": "Set not found" }] }),
                 );
             };
-            set.winner = winner;
-            set.games = games;
-            set.state = 3;
-            json!({ "reportBracketSet": [{ "id": set.id, "state": 3 }] })
+            if odd.as_ref().is_none_or(|(_, recorded)| *recorded) {
+                set.winner = winner;
+                set.games = games;
+                set.state = 3;
+            }
+            match odd {
+                Some((data, _)) => data,
+                None => {
+                    json!({ "reportBracketSet": [{ "id": set.id, "state": 3, "winnerId": set.winner }] })
+                }
+            }
         }
         other => panic!("unexpected start.gg operation {other}"),
     };
@@ -297,6 +320,8 @@ impl FakeStartgg {
             decide_on_reread: None,
             report_errors: VecDeque::new(),
             refused_sets: HashMap::new(),
+            report_answers: VecDeque::new(),
+            pend_on_reread: None,
             gone_sets: HashSet::new(),
             private_discord: false,
             start_after_list: None,

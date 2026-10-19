@@ -61,10 +61,10 @@ const CALLED: i64 = 6;
 const EVENT: &str = "query Event($slug: String) { event(slug: $slug) { id state } }";
 const ENTRANTS: &str = "query Entrants($id: ID!, $page: Int!, $perPage: Int!) { event(id: $id) { entrants(query: {page: $page, perPage: $perPage}) { pageInfo { totalPages } nodes { id participants { user { id authorizations(types: [DISCORD]) { externalId } } } } } } }";
 const SETS: &str = "query Sets($id: ID!, $page: Int!, $perPage: Int!) { event(id: $id) { sets(page: $page, perPage: $perPage, sortType: ROUND, filters: {state: [1, 2, 6], hideEmpty: true}) { pageInfo { totalPages } nodes { id state round fullRoundText winnerId slots { slotIndex entrant { id } } } } } }";
-const SET: &str = "query Set($id: ID!) { set(id: $id) { id state round fullRoundText winnerId slots { slotIndex entrant { id } } } }";
+const SET: &str = "query Set($id: ID!) { set(id: $id) { id state round fullRoundText winnerId slots { slotIndex entrant { id } } games { orderNum winnerId } } }";
 const UNDERWAY: &str =
     "mutation Underway($setId: ID!) { markSetInProgress(setId: $setId) { id state } }";
-const REPORT: &str = "mutation Report($setId: ID!, $winnerId: ID!, $gameData: [BracketSetGameDataInput]) { reportBracketSet(setId: $setId, winnerId: $winnerId, gameData: $gameData) { id state } }";
+const REPORT: &str = "mutation Report($setId: ID!, $winnerId: ID!, $gameData: [BracketSetGameDataInput]) { reportBracketSet(setId: $setId, winnerId: $winnerId, gameData: $gameData) { id state winnerId } }";
 
 pub(crate) struct Startgg {
     http: reqwest::Client,
@@ -205,6 +205,17 @@ struct WireSet {
     winner_id: Option<String>,
     #[serde(default)]
     slots: Vec<WireSlot>,
+    /// The games entered so far: read only before a report.
+    #[serde(default)]
+    games: Option<Vec<WireGame>>,
+}
+
+#[derive(Deserialize)]
+struct WireGame {
+    #[serde(rename = "orderNum", default)]
+    order_num: Option<u32>,
+    #[serde(rename = "winnerId", default, deserialize_with = "optional_id")]
+    winner_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -251,6 +262,9 @@ struct RawSet {
     winner: Option<String>,
     /// Entrant IDs, slot 0 first.
     entrants: Option<[String; 2]>,
+    /// Each game entered so far with a winner: its number, from 1, and
+    /// its winning entrant.
+    games: Vec<(u32, String)>,
 }
 
 impl WireSet {
@@ -280,6 +294,12 @@ impl WireSet {
             _ => Status::Pending,
         };
         let round = self.round.unwrap_or(0);
+        let games = self
+            .games
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|game| Some((game.order_num?, game.winner_id?)))
+            .collect();
         Some(RawSet {
             round_label: self
                 .full_round_text
@@ -291,6 +311,7 @@ impl WireSet {
             underway: state == STARTED,
             winner: self.winner_id,
             entrants,
+            games,
         })
     }
 }
@@ -428,9 +449,13 @@ impl Startgg {
         }
     }
 
-    /// A mutation; `Ok(Err(message))` when start.gg refused it. Its one
-    /// stated server fault is `Unavailable`.
-    async fn mutate(&self, query: &str, variables: Value) -> Result<Result<(), String>, SiteError> {
+    /// A mutation's data, as start.gg answered it; `Ok(Err(message))` when
+    /// start.gg refused it. Its one stated server fault is `Unavailable`.
+    async fn mutate(
+        &self,
+        query: &str,
+        variables: Value,
+    ) -> Result<Result<Option<Value>, String>, SiteError> {
         let envelope = self.post(query, variables).await?;
         Ok(match envelope.errors.into_iter().next() {
             Some(error) if error.message == "An unknown error has occurred" => {
@@ -440,7 +465,7 @@ impl Startgg {
                 )));
             }
             Some(error) => Err(error.message),
-            None => Ok(()),
+            None => Ok(envelope.data),
         })
     }
 
@@ -567,7 +592,7 @@ impl Startgg {
 
     async fn send_underway(&self, id: &str) -> Result<(), SiteError> {
         match self.mutate(UNDERWAY, json!({ "setId": id })).await? {
-            Ok(()) => Ok(()),
+            Ok(_) => Ok(()),
             // Started already, by its players or an earlier attempt.
             Err(message) if message == "Set is already started" => Ok(()),
             Err(message) => Err(SiteError::Refused(format!("start.gg: {message}"))),
@@ -575,8 +600,11 @@ impl Startgg {
     }
 
     /// Reports the winner and each game's winner in the order played,
-    /// after reading the set again: a set with a result is never written
-    /// over, since `reportBracketSet` would replace it.
+    /// after reading the set again: a set with a result, or with games
+    /// entered that Ember's do not match, is never written over, since
+    /// `reportBracketSet` replaces both. The score counts as sent only when
+    /// start.gg's answer shows the set decided for this winner, or, when
+    /// the answer does not, a fresh read of the set does.
     async fn send_report(&self, id: &str, report: &Report) -> Result<Reported, SiteError> {
         if !self.reportable(id, report).await? {
             return Ok(Reported::AlreadyHeld);
@@ -589,13 +617,26 @@ impl Startgg {
                 json!({ "gameNum": index + 1, "winnerId": report.entries[winner] })
             })
             .collect();
+        let winner = &report.entries[report.winner];
         let variables = json!({
             "setId": id,
-            "winnerId": report.entries[report.winner],
+            "winnerId": winner,
             "gameData": game_data,
         });
         match self.mutate(REPORT, variables).await? {
-            Ok(()) => Ok(Reported::Sent),
+            Ok(answer) if shows_recorded(answer.as_ref(), id, winner) => Ok(Reported::Sent),
+            // No error, but no sign of the score either (no set, another
+            // set, a set without this winner): the set itself decides.
+            Ok(_) => {
+                if self.reportable(id, report).await? {
+                    Err(SiteError::Deferred(
+                        "start.gg's answer did not show the score recorded, and the set is still open"
+                            .into(),
+                    ))
+                } else {
+                    Ok(Reported::Sent)
+                }
+            }
             Err(message) => self.refused(id, report, &message).await,
         }
     }
@@ -610,15 +651,38 @@ impl Startgg {
         if current.entrants.as_ref() != Some(&report.entries) {
             return Err(SiteError::Refused("the set's entrants have changed".into()));
         }
-        if current.status != Status::Decided {
-            return Ok(true);
+        match current.status {
+            Status::Open => {}
+            Status::Decided if current.winner.as_ref() == Some(&report.entries[report.winner]) => {
+                return Ok(false);
+            }
+            Status::Decided => {
+                return Err(SiteError::Refused(
+                    "the set already has a different result".into(),
+                ));
+            }
+            // Not open now, though its entrants are the same: the next read
+            // of the bracket decides what becomes of it.
+            Status::Pending => {
+                return Err(SiteError::Deferred(
+                    "the set is not open on start.gg now".into(),
+                ));
+            }
         }
-        if current.winner.as_ref() == Some(&report.entries[report.winner]) {
-            return Ok(false);
+        // Games the organizer entered are kept when Ember's agree with them;
+        // a report would replace them, so one that disagrees is theirs.
+        for (order, entered) in &current.games {
+            let ours = (*order as usize)
+                .checked_sub(1)
+                .and_then(|index| report.sequence.get(index))
+                .map(|&slot| &report.entries[slot]);
+            if ours != Some(entered) {
+                return Err(SiteError::Refused(format!(
+                    "start.gg already has game {order} entered with another winner than Ember's, which a report would replace"
+                )));
+            }
         }
-        Err(SiteError::Refused(
-            "the set already has a different result".into(),
-        ))
+        Ok(true)
     }
 
     /// A report start.gg refused with `message`. Only a preview ID is a
@@ -677,12 +741,49 @@ fn unexpected() -> SiteError {
     SiteError::Unavailable("start.gg answered something unexpected".into())
 }
 
+/// Whether start.gg's answer to `reportBracketSet` shows set `id` decided
+/// for `winner`.
+fn shows_recorded(answer: Option<&Value>, id: &str, winner: &str) -> bool {
+    let Some(sets) = answer
+        .and_then(|data| data.get("reportBracketSet"))
+        .and_then(Value::as_array)
+    else {
+        return false;
+    };
+    sets.iter()
+        .filter_map(|set| WireSet::deserialize(set).ok())
+        .any(|set| set.id == id && set.winner_id.as_deref() == Some(winner))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn raw(value: Value) -> Option<RawSet> {
         serde_json::from_value::<WireSet>(value).unwrap().into_raw()
+    }
+
+    #[test]
+    fn a_report_counts_only_when_the_answer_shows_it() {
+        let shows = |answer: Value| shows_recorded(Some(&answer), "65089253", "2401412");
+        assert!(shows(
+            json!({ "reportBracketSet": [{ "id": 65089253, "state": 3, "winnerId": 2401412 }] })
+        ));
+        assert!(shows(json!({ "reportBracketSet": [
+            { "id": "65089254", "state": 1, "winnerId": null },
+            { "id": "65089253", "state": 3, "winnerId": "2401412" },
+        ] })));
+        assert!(!shows_recorded(None, "65089253", "2401412"));
+        for answer in [
+            json!({}),
+            json!({ "reportBracketSet": null }),
+            json!({ "reportBracketSet": [] }),
+            json!({ "reportBracketSet": [{ "id": 65089254, "state": 3, "winnerId": 2401412 }] }),
+            json!({ "reportBracketSet": [{ "id": 65089253, "state": 2, "winnerId": null }] }),
+            json!({ "reportBracketSet": [{ "id": 65089253, "state": 3, "winnerId": 2401411 }] }),
+        ] {
+            assert!(!shows(answer.clone()), "{answer}");
+        }
     }
 
     #[test]

@@ -604,3 +604,90 @@ async fn a_connection_that_may_not_look_up_discord_still_finds_start_gg_players(
     assert_eq!(matches[0].0, format!("startgg:{EVENT_SLUG}:65089255:1"));
     assert_eq!(world.progress(BRACKET, "65089253"), "waiting");
 }
+
+#[tokio::test]
+async fn games_the_organizer_entered_that_differ_are_not_written_over() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    played(&fake, &world).await;
+    // The organizer entered game 1 for Player 1; in Ember, Player 2 won it.
+    fake.state.lock().unwrap().sets[0].games = vec![2_401_411];
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets", "Set"]);
+    assert_eq!(world.progress(BRACKET, "65089253"), "stuck");
+    let set = fake.set(65_089_253);
+    assert_eq!((set.winner, set.games), (None, vec![2_401_411]));
+}
+
+#[tokio::test]
+async fn games_the_organizer_entered_that_agree_are_kept() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    played(&fake, &world).await;
+    // Game 1 entered for Player 2, as in Ember: the report sends every game.
+    fake.state.lock().unwrap().sets[0].games = vec![2_401_412];
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets", "Set", "Report"]);
+    assert_eq!(world.progress(BRACKET, "65089253"), "reported");
+    let set = fake.set(65_089_253);
+    assert_eq!(set.winner, Some(2_401_412));
+    assert_eq!(set.games, [2_401_412, 2_401_411, 2_401_412]);
+}
+
+#[tokio::test]
+async fn a_report_whose_answer_does_not_show_it_is_checked() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    played(&fake, &world).await;
+    // No errors, and no sign of the score: no answer, no sets, another
+    // set, a set still open. None was recorded, so each waits.
+    fake.state.lock().unwrap().report_answers.extend([
+        (json!({}), false),
+        (json!({ "reportBracketSet": null }), false),
+        (json!({ "reportBracketSet": [] }), false),
+        (
+            json!({ "reportBracketSet": [{ "id": 65089254, "state": 3, "winnerId": 2401412 }] }),
+            false,
+        ),
+        (
+            json!({ "reportBracketSet": [{ "id": 65089253, "state": 2, "winnerId": null }] }),
+            false,
+        ),
+    ]);
+    for _ in 0..5 {
+        world.connector.pass(false).await;
+        // The entrants are read again too, once they are a quarter of an
+        // hour old.
+        let operations: Vec<String> = fake
+            .operations()
+            .into_iter()
+            .filter(|operation| operation != "Entrants")
+            .collect();
+        assert_eq!(operations, ["Sets", "Set", "Report", "Set"]);
+        assert_eq!(world.progress(BRACKET, "65089253"), "live");
+        assert_eq!(fake.set(65_089_253).winner, None);
+        world.advance(3_601);
+    }
+    // No sign in the answer, but the score went in: the read shows it.
+    fake.state
+        .lock()
+        .unwrap()
+        .report_answers
+        .push_back((json!({ "reportBracketSet": null }), true));
+    world.connector.pass(false).await;
+    assert_eq!(world.progress(BRACKET, "65089253"), "reported");
+    assert_eq!(fake.set(65_089_253).winner, Some(2_401_412));
+}
+
+#[tokio::test]
+async fn a_set_that_turns_pending_before_its_report_is_not_reported() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    played(&fake, &world).await;
+    // Open in the list, pending (its entrants kept) when read again.
+    fake.state.lock().unwrap().pend_on_reread = Some(65_089_253);
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets", "Set"]);
+    assert_eq!(world.progress(BRACKET, "65089253"), "live");
+    assert_eq!(fake.set(65_089_253).winner, None);
+}

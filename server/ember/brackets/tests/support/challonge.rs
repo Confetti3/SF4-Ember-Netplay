@@ -110,6 +110,9 @@ pub struct ChallongeState {
     pub lose_report_answers: bool,
     /// The next scores are answered with these statuses, and not recorded.
     pub report_failures: Vec<u16>,
+    /// The next scores are answered 200 with this body instead of the
+    /// match, and recorded only when the flag says so.
+    pub odd_report_answers: Vec<(Value, bool)>,
     /// Sets listed twice, as a page that shifted between two requests can
     /// list a set on both.
     pub listed_twice: HashSet<String>,
@@ -343,6 +346,11 @@ async fn challonge(
                 let status = state.report_failures.remove(0);
                 return refusal(status, "Unsupported Media Type");
             }
+            let odd =
+                (!state.odd_report_answers.is_empty()).then(|| state.odd_report_answers.remove(0));
+            if let Some((body, false)) = &odd {
+                return answer(200, body.clone());
+            }
             let lose_answer = state.lose_report_answers;
             let Some(found) = state.find(id) else {
                 return refusal(404, "Match not found");
@@ -373,7 +381,10 @@ async fn challonge(
             if lose_answer {
                 return refusal(502, "Bad gateway");
             }
-            answer(200, json!({ "data": found }))
+            match odd {
+                Some((body, _)) => answer(200, body),
+                None => answer(200, json!({ "data": found })),
+            }
         }
         _ => refusal(404, "Not found"),
     }
@@ -399,6 +410,7 @@ impl FakeChallonge {
             refuse_reports: false,
             lose_report_answers: false,
             report_failures: Vec::new(),
+            odd_report_answers: Vec::new(),
             listed_twice: HashSet::new(),
             log: Vec::new(),
         }));

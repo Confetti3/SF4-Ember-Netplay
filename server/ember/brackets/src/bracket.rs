@@ -236,6 +236,56 @@ impl Bracket {
         Ok(())
     }
 
+    /// Ends the attempt of a creation never answered, whose set the
+    /// organizer decided or changed (`seen`). The creation is sent again
+    /// as it was: the bridge answers with the match it made for it, or, if
+    /// it never had it, makes it now. Either way that match is cancelled,
+    /// as a live one would be. Returns whether the attempt ended.
+    async fn withdraw(
+        &self,
+        set_id: &str,
+        mut tracked: Tracked,
+        seen: Seen,
+    ) -> Result<bool, SiteError> {
+        let command = match self.store().command(&self.key, set_id)? {
+            Some(Ok(command)) => command,
+            Some(Err(why)) => {
+                self.end(
+                    set_id,
+                    tracked,
+                    Progress::Stuck,
+                    format_args!(
+                        "its saved creation cannot be read ({why}); its Ember match may exist, and the organizer decides this set"
+                    ),
+                )?;
+                return Ok(true);
+            }
+            None => return Ok(false),
+        };
+        match self.context.bridge.create(&command).await {
+            Ok(match_id) => {
+                tracked.match_id = Some(match_id);
+                self.close(set_id, tracked, seen).await
+            }
+            // Tried again on the next read.
+            Err(BridgeError::Unavailable) => Ok(false),
+            // No match of this attempt is known to cancel: the bridge made
+            // none, or holds another under its ID.
+            Err(error) => {
+                let why = format!(
+                    "its creation was never answered, and the bridge now refuses it ({error})"
+                );
+                match seen {
+                    Seen::Decided { .. } => {
+                        self.end(set_id, tracked, Progress::Closed, format_args!("{why}"))?
+                    }
+                    _ => self.play_again_later(set_id, tracked, format_args!("{why}"))?,
+                }
+                Ok(true)
+            }
+        }
+    }
+
     /// Ends an attempt whose set changed, or went away, before it was
     /// decided: the set is played as a new attempt when it opens again, for
     /// whichever players, until its last attempt.
@@ -400,6 +450,27 @@ impl Bracket {
             match seen(set.as_ref(), &tracked.entries) {
                 Seen::Unchanged => {}
                 seen => changed |= self.close(&set_id, tracked, seen).await?,
+            }
+        }
+        // A creation never answered, whose set is not open as it was: the
+        // bridge may have made its match, which is ended here rather than
+        // left until it expires. One whose set is listed as it was is sent
+        // again below.
+        for (set_id, tracked) in self.store().unanswered(&self.key)? {
+            if playable.get(set_id.as_str()) == Some(&tracked.entry_ids()) {
+                continue;
+            }
+            let set = match self.site.set(&set_id, purpose).await {
+                Ok(set) => set,
+                Err(SiteError::BudgetSpent) => continue,
+                Err(error) => {
+                    failure.get_or_insert(error);
+                    continue;
+                }
+            };
+            match seen(set.as_ref(), &tracked.entries) {
+                Seen::Unchanged => {}
+                seen => changed |= self.withdraw(&set_id, tracked, seen).await?,
             }
         }
         if create {

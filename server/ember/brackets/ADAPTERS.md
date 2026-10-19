@@ -33,7 +33,7 @@ rely on.
 | `set(id, purpose)` | one set, or `None` | `None` only when the site itself says the set does not exist: Challonge answers 404 for the match's own URL (any 404 there, including one from a proxy in front of it), start.gg `Set not found for id: <id>`, an `http` service `{"set": null}`. |
 | `standing()` | `Finished`, `PlayedOut` or `Running` | `Finished` only when the site says the event is over: the connector then stops reading it for good. `PlayedOut` when every set looks played but more may come (a later stage, a reopened set). |
 | `mark_underway(id)` | nothing | May be called again for a set already underway. A failure is only logged. |
-| `report(id, report)` | `Sent` or `AlreadyHeld` | Records the winner and each entry's games won. May be called again for a report already recorded (see Delivery below): answer `AlreadyHeld` when the set already holds this winner, so the log does not claim the connector wrote it. If the site can tell, refuse (`Refused`) rather than write over a set that has a different result. |
+| `report(id, report)` | `Sent` or `AlreadyHeld` | Records the winner and each entry's games won. May be called again for a report already recorded (see Delivery below): answer `AlreadyHeld` when the set already holds this winner, so the log does not claim the connector wrote it. Answer `Sent` only on positive evidence: the site's answer shows the set decided for this winner, or, when it does not, a fresh read of the set does (one still open is `Deferred`). Report only a set that reads open now, not one gone pending. If the site can tell, refuse (`Refused`) rather than write over a set that has a different result, or games entered that disagree with `report.sequence`. |
 | `wants_games()` | `bool`, `false` unless overridden | Whether `report` uses each game's winner, in the order played (`report.sequence`). Only then does the connector read the games from the bridge before reporting, and check that they add up to the score. |
 
 `purpose` says why a read is made, `Scheduled` or `Result`: a site with a
@@ -102,7 +102,9 @@ Errors:
 - **One live Ember match per set.** Each attempt at a set has the fixed
   match ID `<adapter>:<tournament>:<set>:<attempt>`. A creation is saved
   before it is sent and sent again unchanged until the bridge answers, so a
-  restart never makes a second match.
+  restart never makes a second match. A creation never answered whose set
+  is then decided, changed or removed is sent again once and its match
+  cancelled, whether or not the set is listed open.
 - **Attempts.** A match that restarts (a disputed game) or expires unplayed
   is played again as a new attempt, up to 5; then the organizer decides. A
   set the organizer opens again after its score was reported or decided is

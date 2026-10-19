@@ -71,7 +71,12 @@ for the connection, and then settles nothing.
 What it has decided is kept in its SQLite file, so a restart carries on where
 it stopped and never makes a set's match twice: a creation is saved before it
 is sent, and one the bridge has not answered is sent again unchanged, which
-finds the match if the bridge made it. Keep that file for as long as its
+finds the match if the bridge made it. If the organizer decides, changes or
+removes that set before the creation is answered, the creation is still
+sent again once, on the next read, and the match it gives is cancelled, so
+no match is left waiting for its players until it expires (when the bridge
+never had the creation, this makes the match only to cancel it: the bridge
+has no way to find a match by its external ID). Keep that file for as long as its
 tournaments run, and keep each tournament's `tournament` value as it is:
 with another file or value the connector no longer knows which sets it
 already played.
@@ -115,7 +120,15 @@ Players are found by the start.gg account they connected in Ember, or else
 by the Discord account linked to their start.gg profile, if start.gg shows it
 to the organizer's token. Each set is reported with its winner and every
 game's winner in the order played, after reading the set again: a set that
-already has a result is never written over. Requests wait their turn under
+already has a result is never written over, and neither are games the
+organizer already entered that disagree with Ember's (start.gg replaces
+them all on a report), which leave the set to the organizer; games that
+agree are sent again with the rest. A set that reads pending at that moment
+is not reported, and the next read decides what becomes of it. A score
+counts as sent only when start.gg's answer shows the set decided for its
+winner, or, when the answer shows nothing, a fresh read of the set does;
+otherwise it waits and is sent again. Challonge's answer to a score is
+checked the same way. Requests wait their turn under
 start.gg's limit of 80 a minute (the connector keeps to 70), shared by every
 tournament using the same token. Sets of a phase that has not started (start.gg
 "preview" sets) and sets with a bye are never played. The entrants are read

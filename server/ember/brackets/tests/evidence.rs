@@ -277,3 +277,53 @@ async fn a_match_made_before_a_crash_is_found_not_doubled_and_ended_if_its_set_c
     let log = lines(&world.challonge.log());
     assert!(!log.iter().any(|line| line.starts_with("PUT")), "{log:?}");
 }
+
+/// A world where 1001's match was made, and the bridge's answer to its
+/// creation was lost: the attempt waits, with its creation saved.
+async fn unanswered() -> (World, String) {
+    let (world, first) = playing().await;
+    let found = world.snapshot(&first).await;
+    let players: Vec<Value> = found["participants"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|player| {
+            json!({ "participant_id": player["participant_id"], "ember_id": player["ember_id"], "slot": player["slot"] })
+        })
+        .collect();
+    stage_waiting(
+        &world,
+        ["355", "354"],
+        &creation("challonge:ember_weekly:1001:1", &players),
+    );
+    (world, first)
+}
+
+#[tokio::test]
+async fn an_unanswered_creation_whose_set_was_decided_has_its_match_cancelled() {
+    let (world, first) = unanswered().await;
+    // The organizer decides 1001 while the connector is down: it is no
+    // longer listed open, and the match the bridge made for it would wait
+    // for players until it expired.
+    world.challonge.decide("1001", 0);
+    world.restarted().pass(true).await;
+    assert_eq!(world.snapshot(&first).await["state"], "cancelled");
+    assert_eq!(world.progress("challonge:ember_weekly", "1001"), "closed");
+    assert_eq!(world.bridge.matches().await.len(), 1);
+}
+
+#[tokio::test]
+async fn an_unanswered_creation_whose_set_was_removed_has_its_match_cancelled() {
+    let (world, first) = unanswered().await;
+    world
+        .challonge
+        .state
+        .lock()
+        .unwrap()
+        .matches
+        .retain(|found| found.id != "1001");
+    world.restarted().pass(true).await;
+    assert_eq!(world.snapshot(&first).await["state"], "cancelled");
+    // Played again, as a new attempt, if it ever opens again.
+    assert_eq!(world.progress("challonge:ember_weekly", "1001"), "waiting");
+}

@@ -293,6 +293,9 @@ impl Challonge {
         Ok(())
     }
 
+    /// Sends the score. It counts as sent only when Challonge's answer (the
+    /// match, as Challonge documents) shows the match decided for this
+    /// winner, or, when the answer does not, a fresh read of the match does.
     async fn send_report(&self, id: &str, report: &Report) -> Result<(), SiteError> {
         let path = format!("/matches/{}.json", checked(id)?);
         let scored: Vec<Value> = (0..2)
@@ -307,9 +310,39 @@ impl Challonge {
             })
             .collect();
         let body = json!({ "data": { "type": "match", "attributes": { "match": scored } } });
-        self.call_found(Priority::Always, Method::PUT, &path, Some(body))
+        let answer = self
+            .call_found(Priority::Always, Method::PUT, &path, Some(body))
             .await?;
-        Ok(())
+        let winner = &report.entries[report.winner];
+        let decided_for = |set: &RawSet| {
+            set.id == id && set.status == Status::Decided && set.winner.as_ref() == Some(winner)
+        };
+        let answered = parse::<Data<Resource<MatchAttributes>>>(answer)
+            .ok()
+            .map(|found| RawSet::from(found.data));
+        if answered.as_ref().is_some_and(decided_for) {
+            return Ok(());
+        }
+        // No sign of the score in the answer: the match itself decides.
+        match self.read_set(id, Purpose::Result).await? {
+            Some(set) if set.status == Status::Decided && set.winner.as_ref() == Some(winner) => {
+                Ok(())
+            }
+            Some(set)
+                if set.status == Status::Open
+                    && set.entry_ids()
+                        == Some([report.entries[0].as_str(), report.entries[1].as_str()]) =>
+            {
+                Err(SiteError::Deferred(
+                    "Challonge's answer did not show the score recorded, and the match is still open"
+                        .into(),
+                ))
+            }
+            _ => Err(SiteError::Refused(
+                "after the score was sent, Challonge shows the match decided otherwise or changed"
+                    .into(),
+            )),
+        }
     }
 }
 
