@@ -3857,14 +3857,8 @@ msgstr "关联 {0}"
 msgid "site.row_detail"
 msgstr "关联你的 {0} 账号后，{0} 上的赛事就能找到你的 Ember ID。"
 
-msgid "site.none"
-msgstr "未关联"
-
 msgid "site.go_detail"
 msgstr "关联 {0} 后，{0} 上的赛事就能找到你的 Ember ID。Ember 会在浏览器中打开 {0}：请在那里使用你的赛事所用的账号进行批准。"
-
-msgid "site.setting_up"
-msgstr "正在设置"
 
 msgid "site.setting_up_detail"
 msgstr "Ember 正在浏览器中打开 {0}。"
@@ -3901,9 +3895,6 @@ msgstr "{0} 登录已关闭"
 
 msgid "site.off_detail"
 msgstr "此赛事服务目前不提供 {0} 登录。请稍后再试。"
-
-msgid "site.retry"
-msgstr "重试"
 
 msgid "site.retry_detail"
 msgstr "重新读取你的 {0} 账号。"

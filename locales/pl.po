@@ -3857,14 +3857,8 @@ msgstr "Połącz {0}"
 msgid "site.row_detail"
 msgstr "Połącz konto {0}, aby turnieje na {0} mogły znaleźć Twoje Ember ID."
 
-msgid "site.none"
-msgstr "Niepołączone"
-
 msgid "site.go_detail"
 msgstr "Połączenie {0} pozwala turniejom na {0} znaleźć Twoje Ember ID. Ember otworzy {0} w przeglądarce: zatwierdź tam kontem, którego używa Twój turniej."
-
-msgid "site.setting_up"
-msgstr "Konfigurowanie"
 
 msgid "site.setting_up_detail"
 msgstr "Ember otwiera {0} w przeglądarce."
@@ -3901,9 +3895,6 @@ msgstr "Logowanie przez {0} jest wyłączone"
 
 msgid "site.off_detail"
 msgstr "Ten serwis turniejowy nie oferuje teraz logowania przez {0}. Spróbuj ponownie później."
-
-msgid "site.retry"
-msgstr "Spróbuj ponownie"
 
 msgid "site.retry_detail"
 msgstr "Ponownie odczytuje Twoje konto {0}."

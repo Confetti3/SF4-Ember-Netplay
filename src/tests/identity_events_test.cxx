@@ -3,7 +3,6 @@
 // sign-ins Discord and the listed sign-in sites share, each into its own fields.
 #include "../session/IdentityEvents.hxx"
 #include <nlohmann/json.hpp>
-#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -49,17 +48,15 @@ void Answers() {
              "authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize"},
             {"id":"startgg","display_name":"start.gg","sign_in":false,"lookup_by":"user_id",
              "authorize_origin":"https://start.gg","authorize_path":"/oauth/authorize"},
-            {"display_name":"No ID"}, 7, {"id":"Bad/Id","display_name":"Bad","sign_in":true},
-            {"id":"","display_name":"Empty"}, {"id":"abcdefghijklmnopqrstuvwxyz0123456","display_name":"Too long"},
-            {"id":"challonge","display_name":"Second Challonge","sign_in":false},
+            {"display_name":"No ID"}, 7, {"id":"","display_name":"Empty"},
             {"id":"later","display_name":"Later","sign_in":"yes","lookup_by":"email"}]}}})"), view);
     Check(!view.inspectedDiscord && view.inspectedDiscordAccounts, "Discord's features were not read");
     Check(view.signInSites.size() == 3 && view.signInSites[0].id == "challonge" && view.signInSites[0].name == "Challonge" &&
         view.signInSites[0].signIn &&
         view.signInSites[1].id == "startgg" && view.signInSites[1].name == "start.gg" && !view.signInSites[1].signIn,
         "The sign-in sites were not read");
-    // Only IDs a site can have, each once; a site whose sign_in is not a yes offers none.
-    Check(view.signInSites[2].id == "later" && !view.signInSites[2].signIn, "A site entry was not checked");
+    // An entry without an ID is skipped; a site whose sign_in is not a yes offers none.
+    Check(view.signInSites[2].id == "later" && !view.signInSites[2].signIn, "A site entry was not read");
     nlohmann::json many = nlohmann::json::array();
     for (int n = 0; n < 40; ++n) many.push_back({{"id", "site-" + std::to_string(n)}, {"display_name", "Site"}, {"sign_in", true}});
     {
@@ -69,17 +66,17 @@ void Answers() {
         Check(listed.signInSites.size() == sf4e::netplay::MaxSignInSites && listed.signInSites.back().id == "site-15",
             "A long site list was not cut to the kept sites");
     }
-    view.discordUser = "274220342558756145"; view.discordName = "kate";
+    view.discordUser = "274220342558756145"; view.discordName = "player1";
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"site_status","ok":true,"data":{
-        "account":{"user_id":"1001","username":"Kate_99","connected_at":10}}})"), view);
-    Check(view.siteUser == "1001" && view.siteName == "Kate_99", "The site's account was not read");
-    Check(view.discordUser == "274220342558756145" && view.discordName == "kate", "A site's answer changed the Discord account");
+        "account":{"user_id":"1001","username":"Player_1","connected_at":10}}})"), view);
+    Check(view.siteUser == "1001" && view.siteName == "Player_1", "The site's account was not read");
+    Check(view.discordUser == "274220342558756145" && view.discordName == "player1", "A site's answer changed the Discord account");
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"site_remove","ok":true,"data":{"account":null}})"), view);
-    Check(view.siteUser.empty() && view.siteName.empty() && view.discordName == "kate", "Unlinking a site's account was not read");
+    Check(view.siteUser.empty() && view.siteName.empty() && view.discordName == "player1", "Unlinking a site's account was not read");
     // A failed read changes neither account.
-    view.siteName = "Kate_99";
+    view.siteName = "Player_1";
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":4,"op":"site_status","ok":false,"reason":"rate_limited"})"), view);
-    Check(view.siteName == "Kate_99" && view.failure == "rate_limited", "A failed read changed the account");
+    Check(view.siteName == "Player_1" && view.failure == "rate_limited", "A failed read changed the account");
     // A later profile without sites lists none.
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":5,"op":"bridge_inspect","ok":true,"data":{
         "profile":{"bridge_id":"brg_1","origin":"https://bridge.embernetplay.link","display_name":"Ember"},
@@ -126,22 +123,6 @@ nlohmann::json SiteEntry(const std::string& id, const std::string& name) {
     return {{"id", id}, {"display_name", name}, {"sign_in", true}};
 }
 
-// A site ID is kept exactly when the helper and the bridge take it: the
-// cases are the ones the helper's tests read too.
-void SharedSiteIds() {
-    std::ifstream file(SF4E_SITE_IDS);
-    Check(file.good(), "The shared site IDs could not be read");
-    const auto cases = nlohmann::json::parse(file);
-    const auto listed = [](const std::string& id) {
-        sf4e::netplay::IdentityView view;
-        sf4e::session::ApplyTournamentEvent(Inspected(nlohmann::json::array({SiteEntry(id, "Site")})), view);
-        return view.signInSites.size() == 1 && view.signInSites[0].id == id;
-    };
-    Check(!cases.at("valid").empty() && !cases.at("invalid").empty(), "The shared site IDs are empty");
-    for (const auto& id : cases.at("valid")) Check(listed(id.get<std::string>()), "A valid site ID was skipped");
-    for (const auto& id : cases.at("invalid")) Check(!listed(id.get<std::string>()), "An invalid site ID was kept");
-}
-
 // Names are kept to 64 characters, as the helper counts them, and never cut
 // inside a character.
 void Names() {
@@ -161,7 +142,7 @@ void Names() {
 
 int main() {
     try {
-        Requests(); Answers(); Effects(); SharedSiteIds(); Names();
+        Requests(); Answers(); Effects(); Names();
         std::cout << "Identity events passed.\n";
         return 0;
     } catch (const std::exception& error) {

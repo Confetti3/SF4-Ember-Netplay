@@ -3857,14 +3857,8 @@ msgstr "Připojit {0}"
 msgid "site.row_detail"
 msgstr "Připojte svůj účet {0}, aby vaše Ember ID našly turnaje na {0}."
 
-msgid "site.none"
-msgstr "Nepřipojeno"
-
 msgid "site.go_detail"
 msgstr "Po připojení {0} mohou turnaje na {0} najít vaše Ember ID. Ember otevře {0} ve vašem prohlížeči: tam schvalte účet, který používá váš turnaj."
-
-msgid "site.setting_up"
-msgstr "Nastavování"
 
 msgid "site.setting_up_detail"
 msgstr "Ember otevírá {0} ve vašem prohlížeči."
@@ -3901,9 +3895,6 @@ msgstr "Přihlášení přes {0} je vypnuté"
 
 msgid "site.off_detail"
 msgstr "Tato turnajová služba teď přihlášení přes {0} nenabízí. Zkuste to později."
-
-msgid "site.retry"
-msgstr "Zkusit znovu"
 
 msgid "site.retry_detail"
 msgstr "Znovu načte váš účet {0}."

@@ -3498,14 +3498,8 @@ msgstr "Connect {0}"
 msgid "site.row_detail"
 msgstr "Connect your {0} account so tournaments on {0} can find your Ember ID."
 
-msgid "site.none"
-msgstr "Not connected"
-
 msgid "site.go_detail"
 msgstr "Connecting {0} lets tournaments on {0} find your Ember ID. Ember opens {0} in your browser: approve there with the account your tournament uses."
-
-msgid "site.setting_up"
-msgstr "Setting up"
 
 msgid "site.setting_up_detail"
 msgstr "Ember is opening {0} in your browser."
@@ -3542,9 +3536,6 @@ msgstr "{0} sign-in is off"
 
 msgid "site.off_detail"
 msgstr "This tournament service does not offer {0} sign-in right now. Try again later."
-
-msgid "site.retry"
-msgstr "Try again"
 
 msgid "site.retry_detail"
 msgstr "Reads your {0} account again."

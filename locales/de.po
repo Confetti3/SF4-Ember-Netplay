@@ -3857,14 +3857,8 @@ msgstr "{0} verbinden"
 msgid "site.row_detail"
 msgstr "Verbinden Sie Ihr {0}-Konto, damit Turniere auf {0} Ihre Ember ID finden."
 
-msgid "site.none"
-msgstr "Nicht verbunden"
-
 msgid "site.go_detail"
 msgstr "Wenn Sie {0} verbinden, können Turniere auf {0} Ihre Ember ID finden. Ember öffnet {0} in Ihrem Browser: Bestätigen Sie dort mit dem Konto, das Ihr Turnier verwendet."
-
-msgid "site.setting_up"
-msgstr "Einrichtung"
 
 msgid "site.setting_up_detail"
 msgstr "Ember öffnet {0} in Ihrem Browser."
@@ -3902,9 +3896,6 @@ msgstr "{0}-Anmeldung ist deaktiviert"
 msgid "site.off_detail"
 msgstr "Dieser Turnierdienst bietet die {0}-Anmeldung gerade nicht an. Versuchen Sie es später erneut."
 
-msgid "site.retry"
-msgstr "Erneut versuchen"
-
 msgid "site.retry_detail"
 msgstr "Liest Ihr {0}-Konto erneut."
 
@@ -3933,7 +3924,7 @@ msgid "site.no_service_detail"
 msgstr "{0} wird über Embers Turnierdienst verbunden. Suchen Sie ihn zuerst unter Verknüpfte Konten und kehren Sie dann hierher zurück."
 
 msgid "site.screen"
-msgstr "Seitenkonto"
+msgstr "Konto bei der Website"
 
 msgid "identity.failure.browser"
 msgstr "Ember konnte Ihren Browser nicht öffnen."

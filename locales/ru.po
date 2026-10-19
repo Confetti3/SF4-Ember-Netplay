@@ -3858,14 +3858,8 @@ msgstr "Подключить {0}"
 msgid "site.row_detail"
 msgstr "Подключите аккаунт {0}, чтобы турниры на {0} находили ваш Ember ID."
 
-msgid "site.none"
-msgstr "Не подключён"
-
 msgid "site.go_detail"
 msgstr "Подключив {0}, вы позволите турнирам на {0} находить ваш Ember ID. Ember откроет {0} в браузере: подтвердите там вход аккаунтом, который использует ваш турнир."
-
-msgid "site.setting_up"
-msgstr "Настройка"
 
 msgid "site.setting_up_detail"
 msgstr "Ember открывает {0} в браузере."
@@ -3902,9 +3896,6 @@ msgstr "Вход через {0} отключён"
 
 msgid "site.off_detail"
 msgstr "Этот турнирный сервис сейчас не предлагает вход через {0}. Повторите попытку позже."
-
-msgid "site.retry"
-msgstr "Повторить"
 
 msgid "site.retry_detail"
 msgstr "Снова получает данные аккаунта {0}."

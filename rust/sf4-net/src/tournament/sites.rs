@@ -275,24 +275,6 @@ mod tests {
         assert!(super::listed(Some(&twice)).is_empty());
     }
 
-    /// A site ID is taken exactly when the game keeps it: the cases are the
-    /// ones the game's IdentityEvents test reads too.
-    #[test]
-    fn site_ids_match_the_games() {
-        let cases: serde_json::Value =
-            serde_json::from_str(include_str!("../../../../src/tests/data/site_ids.json")).unwrap();
-        let ids =
-            |kind: &str| -> Vec<String> { serde_json::from_value(cases[kind].clone()).unwrap() };
-        let (valid, invalid) = (ids("valid"), ids("invalid"));
-        assert!(!valid.is_empty() && !invalid.is_empty());
-        for id in valid {
-            assert!(routes(&id).is_ok(), "{id}");
-        }
-        for id in invalid {
-            assert!(routes(&id).is_err(), "{id}");
-        }
-    }
-
     #[test]
     fn site_ids_are_checked_before_any_request() {
         assert!(routes("challonge").is_ok() && routes("brackets-plus").is_ok());

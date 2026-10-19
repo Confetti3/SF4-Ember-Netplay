@@ -3857,14 +3857,8 @@ msgstr "Connecter {0}"
 msgid "site.row_detail"
 msgstr "Connectez votre compte {0} pour que les tournois sur {0} trouvent votre Ember ID."
 
-msgid "site.none"
-msgstr "Non connecté"
-
 msgid "site.go_detail"
 msgstr "Connecter {0} permet aux tournois sur {0} de trouver votre Ember ID. Ember ouvre {0} dans votre navigateur : approuvez-y avec le compte qu'utilise votre tournoi."
-
-msgid "site.setting_up"
-msgstr "Préparation"
 
 msgid "site.setting_up_detail"
 msgstr "Ember ouvre {0} dans votre navigateur."
@@ -3901,9 +3895,6 @@ msgstr "Connexion {0} désactivée"
 
 msgid "site.off_detail"
 msgstr "Ce service de tournoi ne propose pas la connexion {0} pour le moment. Réessayez plus tard."
-
-msgid "site.retry"
-msgstr "Réessayer"
 
 msgid "site.retry_detail"
 msgstr "Relit votre compte {0}."

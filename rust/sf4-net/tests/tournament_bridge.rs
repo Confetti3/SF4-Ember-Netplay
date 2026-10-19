@@ -3,225 +3,14 @@
 //! keep the same Ember ID across a worker restart.
 #![cfg(windows)]
 
-use std::{path::PathBuf, time::Duration};
+mod tournament_support;
 
-use ember_bridge::{AppState, Clock, Config, Db, Keys, config, integrations::Secrets};
 use serde_json::{Value, json};
 use sf4_net::{
-    service::{Command, Event},
+    service::Command,
     tournament::{self, Request},
 };
-use tokio::sync::mpsc;
-use zeroize::Zeroizing;
-
-struct Dirs(PathBuf);
-
-impl Drop for Dirs {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-fn random16() -> [u8; 16] {
-    let mut bytes = [0; 16];
-    getrandom::fill(&mut bytes).unwrap();
-    bytes
-}
-
-async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
-    bridge_with_sites(dir, Vec::new()).await
-}
-
-/// A loopback bridge with these sign-in sites, each with a client secret.
-async fn bridge_with_sites(
-    dir: &std::path::Path,
-    sites: Vec<config::SignInSite>,
-) -> (ember_bridge::Running, String) {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let origin = format!("http://{}", listener.local_addr().unwrap());
-    let running = start_bridge(dir, sites, false, &origin, listener).await;
-    (running, origin)
-}
-
-/// A bridge on `listener` that names `origin` as its own, with these
-/// sign-in sites and, with `discord`, Discord sign-in whose pages are on
-/// loopback rather than discord.com.
-async fn start_bridge(
-    dir: &std::path::Path,
-    sites: Vec<config::SignInSite>,
-    discord: bool,
-    origin: &str,
-    listener: tokio::net::TcpListener,
-) -> ember_bridge::Running {
-    let secrets = Secrets {
-        site_client_secrets: sites
-            .iter()
-            .map(|site| (site.id.clone(), Zeroizing::new("site-secret".to_owned())))
-            .collect(),
-        discord_client_secret: discord.then(|| Zeroizing::new("discord-secret".to_owned())),
-        ..Default::default()
-    };
-    let integration_secrets = (!sites.is_empty() || discord).then(|| dir.join("integrations.json"));
-    let config = Config {
-        bridge_id: ember_protocol::encoding::prefixed_id("brg", random16()),
-        display_name: "Loopback bridge".into(),
-        origin: origin.to_owned(),
-        listen: "127.0.0.1:0".into(),
-        database: dir.join("bridge.sqlite3"),
-        secrets: dir.join("secrets.json"),
-        allow_loopback_http: true,
-        allow_private_webhooks: true,
-        mock_browser: false,
-        discord: discord.then(|| config::Discord {
-            client_id: "1546980049692135514".into(),
-            api_base: "http://127.0.0.1:9/api".into(),
-        }),
-        sign_in_sites: sites,
-        integration_secrets,
-        rooms: None,
-        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
-        tenants: vec![config::Tenant {
-            id: "local".into(),
-            name: "Local".into(),
-            connections: vec![config::Connection {
-                id: "mock-local".into(),
-                kind: "mock".into(),
-                environment: "local".into(),
-                display_name: "Mock provider".into(),
-                enabled: true,
-                api_base: None,
-                discord_lookup: false,
-                lookup_sites: Vec::new(),
-                disputes: None,
-                results_url: None,
-                rooms: None,
-            }],
-        }],
-    };
-    let db = Db::open(&config.database).unwrap();
-    let state = AppState::new(config, Keys::generate(), secrets, db, Clock::default());
-    ember_bridge::sync_config(&state).await.unwrap();
-    ember_bridge::start(state, listener).unwrap()
-}
-
-/// What a front saw, and a switch that makes its capabilities unavailable.
-struct Front {
-    seen: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
-    down: std::sync::Arc<std::sync::atomic::AtomicBool>,
-}
-
-/// A front at `listener` for the bridge at `inner`: each request passes
-/// through as it was sent, except that the bridge's capabilities document
-/// is changed by `change` on its way back, or answered 503 while `down` is
-/// set. Notes the method and path of every request, in order.
-fn front(listener: tokio::net::TcpListener, inner: String, change: fn(&mut Value)) -> Front {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-    let down = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let (log, unavailable) = (seen.clone(), down.clone());
-    tokio::spawn(async move {
-        let client = reqwest::Client::new();
-        while let Ok((mut socket, _)) = listener.accept().await {
-            let mut request = Vec::new();
-            let mut buffer = [0; 4096];
-            let head_end = loop {
-                if let Some(at) = request.windows(4).position(|end| end == b"\r\n\r\n") {
-                    break at + 4;
-                }
-                match socket.read(&mut buffer).await {
-                    Ok(0) | Err(_) => break 0,
-                    Ok(read) => request.extend_from_slice(&buffer[..read]),
-                }
-            };
-            if head_end == 0 {
-                continue;
-            }
-            let head = String::from_utf8_lossy(&request[..head_end]).into_owned();
-            let mut lines = head.lines();
-            let mut first = lines.next().unwrap_or("").split(' ');
-            let (method, path) = (
-                first.next().unwrap_or("").to_owned(),
-                first.next().unwrap_or("").to_owned(),
-            );
-            let headers: Vec<(String, String)> = lines
-                .filter_map(|line| line.split_once(':'))
-                .map(|(name, value)| (name.trim().to_ascii_lowercase(), value.trim().to_owned()))
-                .collect();
-            let length = headers
-                .iter()
-                .find(|(name, _)| name == "content-length")
-                .and_then(|(_, value)| value.parse::<usize>().ok())
-                .unwrap_or(0);
-            while request.len() < head_end + length {
-                match socket.read(&mut buffer).await {
-                    Ok(0) | Err(_) => break,
-                    Ok(read) => request.extend_from_slice(&buffer[..read]),
-                }
-            }
-            log.lock().unwrap().push(format!("{method} {path}"));
-            if path == "/v1/capabilities" && unavailable.load(std::sync::atomic::Ordering::SeqCst) {
-                let _ = socket
-                    .write_all(b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
-                    .await;
-                continue;
-            }
-            let mut forward = client.request(
-                reqwest::Method::from_bytes(method.as_bytes()).unwrap(),
-                format!("{inner}{path}"),
-            );
-            for (name, value) in &headers {
-                if !matches!(name.as_str(), "host" | "content-length" | "connection") {
-                    forward = forward.header(name, value);
-                }
-            }
-            let response = forward
-                .body(request[head_end..].to_vec())
-                .send()
-                .await
-                .unwrap();
-            let status = response.status();
-            let kind = response
-                .headers()
-                .get("content-type")
-                .map(|value| value.to_str().unwrap().to_owned())
-                .unwrap_or_else(|| "application/json".into());
-            let mut body = response.bytes().await.unwrap().to_vec();
-            if path == "/v1/capabilities" && status == 200 {
-                let mut document: Value = serde_json::from_slice(&body).unwrap();
-                change(&mut document);
-                body = serde_json::to_vec(&document).unwrap();
-            }
-            let head = format!(
-                "HTTP/1.1 {status}\r\ncontent-type: {kind}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
-                body.len()
-            );
-            let _ = socket.write_all(head.as_bytes()).await;
-            let _ = socket.write_all(&body).await;
-        }
-    });
-    Front { seen, down }
-}
-
-/// The site `deploy/sites/<file>.json` defines, listed as `id` and named
-/// `name`, with every page it would use at `origin`.
-fn site(file: &str, id: &str, name: &str, origin: &str) -> config::SignInSite {
-    let path = format!(
-        "{}/../../server/ember/bridge/deploy/sites/{file}.json",
-        env!("CARGO_MANIFEST_DIR")
-    );
-    let mut site: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-    let local = |url: &Value| {
-        let url = reqwest::Url::parse(url.as_str().unwrap()).unwrap();
-        json!(format!("{origin}{}", url.path()))
-    };
-    site["id"] = json!(id);
-    site["display_name"] = json!(name);
-    site["authorize_url"] = local(&site["authorize_url"]);
-    site["token_url"] = local(&site["token_url"]);
-    site["user"]["url"] = local(&site["user"]["url"]);
-    site["hosts"] = json!(["127.0.0.1"]);
-    serde_json::from_value(site).unwrap()
-}
+use tournament_support::*;
 
 /// Sign-in sites are only what the bridge lists: the helper reads, cancels
 /// and disconnects an account on each by its ID, and opens a sign-in page
@@ -230,18 +19,14 @@ fn site(file: &str, id: &str, name: &str, origin: &str) -> config::SignInSite {
 /// browser opens. A site the bridge does not list is not found.
 #[tokio::test]
 async fn sign_in_sites_through_the_helper() {
-    let dirs = Dirs(std::env::temp_dir().join(format!(
-        "sf4-tournament-sites-{}",
-        ember_protocol::encoding::b64u(&random16())
-    )));
-    std::fs::create_dir_all(&dirs.0).unwrap();
+    let dirs = Dirs::new("sites");
     let pages = "http://127.0.0.1:9";
     let sites = vec![
         site("challonge", "challonge", "Challonge", pages),
         site("startgg", "startgg", "start.gg", pages),
         site("challonge", "brackets-plus", "Brackets Plus", pages),
     ];
-    let (running, origin) = bridge_with_sites(&dirs.0, sites).await;
+    let (running, origin) = bridge(&dirs.0, sites).await;
     let mut worker = Worker::start(&dirs);
     worker.next_answer(0).await;
     let (ok, reason, _, _) = worker.ask(json!({ "op": "identity_enable" })).await;
@@ -301,11 +86,7 @@ async fn sign_in_sites_through_the_helper() {
 /// Discord's refused page is left as it always was.
 #[tokio::test]
 async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
-    let dirs = Dirs(std::env::temp_dir().join(format!(
-        "sf4-tournament-mixed-{}",
-        ember_protocol::encoding::b64u(&random16())
-    )));
-    std::fs::create_dir_all(&dirs.0).unwrap();
+    let dirs = Dirs::new("mixed");
     let public = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", public.local_addr().unwrap());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -381,9 +162,12 @@ async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
     let (ok, reason, _, connection) = worker.ask(ask("site_status", "challonge")).await;
     assert!(ok, "{reason:?}");
     assert_eq!(connection, json!({ "account": null }));
-    let (ok, reason, _, _) = worker.ask(ask("site_connect", "challonge")).await;
-    assert!(!ok);
-    assert_eq!(reason.as_deref(), Some("bridge_invalid_response"));
+    // Pressed twice: each press is its own proven start.
+    for _ in 0..2 {
+        let (ok, reason, _, _) = worker.ask(ask("site_connect", "challonge")).await;
+        assert!(!ok);
+        assert_eq!(reason.as_deref(), Some("bridge_invalid_response"));
+    }
     for dropped in ["missing", "retyped"] {
         let (ok, reason, _, _) = worker.ask(ask("site_connect", dropped)).await;
         assert!(!ok, "{dropped}");
@@ -403,14 +187,21 @@ async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
     down(false);
 
     // Only the test cancelled Discord's sign-in; the helper itself ended
-    // Challonge's, which the test never cancelled.
+    // Challonge's, which the test never cancelled. Every proven request
+    // follows a challenge of its own: a proof is never sent twice, so a start
+    // the bridge refused (which uses its proof up) is never sent again as is.
     let seen = front.seen.lock().unwrap().clone();
     let count = |request: &str| seen.iter().filter(|seen| *seen == request).count();
     let discord_start = ember_protocol::discord::START_PATH;
     assert_eq!(count(&format!("POST {discord_start}")), 1, "{seen:?}");
     assert_eq!(count(&format!("DELETE {discord_start}")), 1, "{seen:?}");
-    assert_eq!(count("POST /v1/sites/challonge/start"), 1, "{seen:?}");
-    assert_eq!(count("DELETE /v1/sites/challonge/start"), 1, "{seen:?}");
+    assert_eq!(count("POST /v1/sites/challonge/start"), 2, "{seen:?}");
+    assert_eq!(count("DELETE /v1/sites/challonge/start"), 2, "{seen:?}");
+    for (at, request) in seen.iter().enumerate() {
+        if request.ends_with("/start") {
+            assert_eq!(seen[at - 1], "POST /v1/auth/challenges", "{seen:?}");
+        }
+    }
     for unasked in ["missing", "retyped", "paused"] {
         assert!(
             !seen
@@ -420,83 +211,6 @@ async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
         );
     }
     running.abort();
-}
-
-struct Worker {
-    handle: tournament::Handle,
-    events: mpsc::Receiver<Event>,
-    task: tokio::task::JoinHandle<()>,
-    next: u64,
-}
-
-impl Worker {
-    fn start(dirs: &Dirs) -> Self {
-        Self::start_as(dirs, "a".repeat(64))
-    }
-
-    /// A worker whose helper run has the Iroh endpoint `endpoint`.
-    fn start_as(dirs: &Dirs, endpoint: String) -> Self {
-        Self::start_pinning(dirs, endpoint, Vec::new())
-    }
-
-    /// A worker that trusts `builtins` as a build pinning them does.
-    fn start_pinning(dirs: &Dirs, endpoint: String, builtins: Vec<tournament::Builtin>) -> Self {
-        let (sender, events) = mpsc::channel(64);
-        let (handle, task) = tournament::spawn_in(
-            sender,
-            dirs.0.join("identity"),
-            dirs.0.join("tournament"),
-            false,
-            endpoint,
-            Box::new(|| None),
-            builtins,
-        );
-        Self {
-            handle,
-            events,
-            task,
-            next: 100,
-        }
-    }
-
-    async fn next_answer(&mut self, request_id: u64) -> (bool, Option<String>, Value, Value) {
-        loop {
-            let event = tokio::time::timeout(Duration::from_secs(30), self.events.recv())
-                .await
-                .expect("an answer")
-                .expect("worker running");
-            if let Event::Tournament {
-                request_id: id,
-                ok,
-                reason,
-                identity,
-                data,
-                ..
-            } = event
-                && id == request_id
-            {
-                return (
-                    ok,
-                    reason,
-                    identity.unwrap_or(Value::Null),
-                    data.unwrap_or(Value::Null),
-                );
-            }
-        }
-    }
-
-    /// Sends `request` the way the native side does, as IPC JSON.
-    async fn ask(&mut self, request: Value) -> (bool, Option<String>, Value, Value) {
-        self.next += 1;
-        let id = self.next;
-        let command: Command =
-            serde_json::from_value(json!({ "type": "tournament", "request": request })).unwrap();
-        let Command::Tournament { request } = command else {
-            unreachable!()
-        };
-        self.handle.submit(id, request);
-        self.next_answer(id).await
-    }
 }
 
 async fn provider_call(origin: &str, token: &str, path: &str, body: Value) -> Value {
@@ -520,12 +234,8 @@ async fn provider_call(origin: &str, token: &str, path: &str, body: Value) -> Va
 
 #[tokio::test]
 async fn link_an_identity_through_the_helper() {
-    let dirs = Dirs(std::env::temp_dir().join(format!(
-        "sf4-tournament-e2e-{}",
-        ember_protocol::encoding::b64u(&random16())
-    )));
-    std::fs::create_dir_all(&dirs.0).unwrap();
-    let (running, origin) = bridge(&dirs.0).await;
+    let dirs = Dirs::new("e2e");
+    let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let provider = ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "e2e")
         .await
         .unwrap();
@@ -705,67 +415,14 @@ async fn bridge_document(origin: &str, path: &str) -> Value {
     serde_json::from_str(&text).unwrap()
 }
 
-/// An origin whose well-known document names another bridge, and the paths
-/// of every request it was sent.
-async fn foreign_origin() -> (String, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let origin = format!("http://{}", listener.local_addr().unwrap());
-    let paths = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-    let (served, profile) = (
-        paths.clone(),
-        json!({
-            "bridge_id": ember_protocol::encoding::prefixed_id("brg", random16()),
-            "origin": origin, "display_name": "Another bridge", "api_versions": ["v1"],
-            "capabilities_url": format!("{origin}/v1/capabilities"),
-            "signing_keys_url": format!("{origin}/v1/signing-keys"),
-        }),
-    );
-    tokio::spawn(async move {
-        while let Ok((mut socket, _)) = listener.accept().await {
-            let mut request = Vec::new();
-            let mut buffer = [0; 1024];
-            while !request.windows(4).any(|end| end == b"\r\n\r\n") {
-                match socket.read(&mut buffer).await {
-                    Ok(0) | Err(_) => break,
-                    Ok(read) => request.extend_from_slice(&buffer[..read]),
-                }
-            }
-            let line = String::from_utf8_lossy(&request)
-                .lines()
-                .next()
-                .unwrap_or("")
-                .to_owned();
-            let path = line.split(' ').nth(1).unwrap_or("").to_owned();
-            served.lock().unwrap().push(path.clone());
-            let (status, body) = if path == "/.well-known/ember-bridge.json" {
-                ("200 OK", serde_json::to_vec(&profile).unwrap())
-            } else {
-                ("404 Not Found", Vec::new())
-            };
-            let head = format!(
-                "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
-                body.len()
-            );
-            let _ = socket.write_all(head.as_bytes()).await;
-            let _ = socket.write_all(&body).await;
-        }
-    });
-    (origin, paths)
-}
-
 // A bridge the build pins is trusted with no approval while its origin
 // serves the pinned ID. Forgotten, it is not trusted until the player
 // approves it again by its address. Pinned at an origin that serves another
 // bridge, it is not trusted at all, and is sent nothing past the check.
 #[tokio::test]
 async fn a_pinned_bridge_is_trusted_without_an_approval() {
-    let dirs = Dirs(std::env::temp_dir().join(format!(
-        "sf4-tournament-pinned-{}",
-        ember_protocol::encoding::b64u(&random16())
-    )));
-    std::fs::create_dir_all(&dirs.0).unwrap();
-    let (running, origin) = bridge(&dirs.0).await;
+    let dirs = Dirs::new("pinned");
+    let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let profile = bridge_document(&origin, "/.well-known/ember-bridge.json").await;
     let bridge_id = profile["bridge_id"].as_str().unwrap().to_owned();
     let keys = bridge_document(&origin, "/v1/signing-keys").await;
@@ -893,12 +550,8 @@ async fn linked_worker(
 
 #[tokio::test]
 async fn play_a_set_through_two_helpers() {
-    let dirs = Dirs(std::env::temp_dir().join(format!(
-        "sf4-tournament-play-{}",
-        ember_protocol::encoding::b64u(&random16())
-    )));
-    std::fs::create_dir_all(&dirs.0).unwrap();
-    let (running, origin) = bridge(&dirs.0).await;
+    let dirs = Dirs::new("play");
+    let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let provider = ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "play")
         .await
         .unwrap();

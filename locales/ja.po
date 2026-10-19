@@ -3857,14 +3857,8 @@ msgstr "{0}を連携"
 msgid "site.row_detail"
 msgstr "{0}アカウントを連携すると、{0}の大会があなたのEmber IDを見つけられるようになります。"
 
-msgid "site.none"
-msgstr "未連携"
-
 msgid "site.go_detail"
 msgstr "{0}を連携すると、{0}の大会があなたのEmber IDを見つけられるようになります。Emberがブラウザーで{0}を開きます。そこで、大会で使うアカウントで承認してください。"
-
-msgid "site.setting_up"
-msgstr "設定中"
 
 msgid "site.setting_up_detail"
 msgstr "Emberがブラウザーで{0}を開いています。"
@@ -3901,9 +3895,6 @@ msgstr "{0}でのサインインは無効です"
 
 msgid "site.off_detail"
 msgstr "この大会サービスでは現在{0}でのサインインを利用できません。しばらくしてからもう一度お試しください。"
-
-msgid "site.retry"
-msgstr "再試行"
 
 msgid "site.retry_detail"
 msgstr "{0}アカウントをもう一度読み込みます。"

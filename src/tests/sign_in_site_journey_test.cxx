@@ -56,9 +56,9 @@ void SiteRows(const Case& site){
  Check(h.count(IdentityOp::SiteStatus)==0,"An account was read from a site the service does not list");
  h.Screen("home");h.Screen("identity");Profile(h,{site},false);
  Check(ReadsSite(h,site),"The site's account was not read");
- h.view.identity.siteUser="1001";h.view.identity.siteName="kate";h.answer();
+ h.view.identity.siteUser="1001";h.view.identity.siteName="player1";h.answer();
  const auto* row=h.row(RowId(site).c_str());
- Check(row&&row->label==site.name&&row->value=="kate"&&h.index(RowId(site).c_str())==h.index("discord-connect")+1,
+ Check(row&&row->label==site.name&&row->value=="player1"&&h.index(RowId(site).c_str())==h.index("discord-connect")+1,
   "The Ember ID screen does not show the site's account after Discord");
  h.Choose(RowId(site).c_str());
  Check(h.trail()=="home>identity>sign-in-site","The site's row did not open its Connect screen");
@@ -86,8 +86,8 @@ void SiteConnects(const Case& site){
  Check(h.sent().size()>polled&&ReadsSite(h,site),"The account was not read again while waiting");
  h.answer();h.Frame(0,1900);
  Check(h.status==Words("site.waiting",site),"The waiting line is not shown once the first notice ends");
- id.siteUser="1001";id.siteName="kate";h.until(IdentityOp::SiteStatus);h.answer();
- Check(h.status==Words("site.done",site,"kate")&&h.row("st-connected")&&h.row("st-connected")->value=="kate","A connected account was not shown");
+ id.siteUser="1001";id.siteName="player1";h.until(IdentityOp::SiteStatus);h.answer();
+ Check(h.status==Words("site.done",site,"player1")&&h.row("st-connected")&&h.row("st-connected")->value=="player1","A connected account was not shown");
  Check(h.row("st-connect")&&h.row("st-remove")&&!h.row("st-cancel"),"A connected account offers no other account or Unlink");
  const auto settled=h.sent().size();h.Frame(0,300);
  Check(h.sent().size()==settled,"The account was still read again after it connected");
@@ -124,10 +124,10 @@ void SiteStops(const Case& site){
  Check(h.count(IdentityOp::SiteCancel)==cancels,"Leaving a sign-in that waits for the browser ended it");
  h.Screen(SiteConnectScreen);for(int i=0;i<6;++i)h.answer();
  Check(h.row("st-waiting")!=nullptr,"Coming back no longer showed the sign-in waiting");
- id.siteUser="1001";id.siteName="kate";h.Frame(0,300);
+ id.siteUser="1001";id.siteName="player1";h.Frame(0,300);
  Check(h.until(IdentityOp::SiteStatus),"The waiting sign-in was not read again");
  h.answer();
- Check(h.status==Words("site.done",site,"kate"),"The waiting sign-in did not finish");
+ Check(h.status==Words("site.done",site,"player1"),"The waiting sign-in did not finish");
 }
 
 // Sign-in off with an account kept: it can be unlinked, none connected. A
@@ -139,9 +139,10 @@ void SiteOffAndRetry(const Case& site){
  OpenSite(h,site,false);
  id.siteUser.clear();id.siteName.clear();h.answer();
  Check(h.row("st-off")&&h.row("st-off")->label==Words("site.off",site)&&!h.row("st-connect"),"Connect is offered where sign-in is off");
- id.siteUser="1001";id.siteName="kate";
+ id.siteUser="1001";id.siteName="player1";
  h.Screen("home");h.Screen(SiteConnectScreen);Profile(h,{site},false);h.answer();
  Check(h.row("st-connected")&&h.row("st-remove"),"An account kept without sign-in cannot be unlinked");
+ Check(h.row("st-connect")&&!h.row("st-connect")->enabled,"Another account is offered where sign-in is off");
  h.Screen("home");h.Screen(SiteConnectScreen);Profile(h,{site});
  Check(ReadsSite(h,site),"The account was not read");
  h.answer(false,"service_unavailable");
@@ -184,7 +185,7 @@ void SiteGone(const Case& site){
  {
   Journey h;Ready(h);auto& id=h.view.identity;
   OpenSite(h,site);
-  id.siteUser="1001";id.siteName="kate";h.answer();
+  id.siteUser="1001";id.siteName="player1";h.answer();
   Check(h.row("st-connected")&&h.row("st-remove"),"The site's account was not shown");
   h.Screen("home");h.Screen(SiteConnectScreen);Profile(h,{});for(int i=0;i<4;++i)h.answer();
   Check(!h.row("st-connected")&&!h.row("st-remove"),"A site the service no longer lists still showed its account");
@@ -207,6 +208,7 @@ void SiteGone(const Case& site){
   Check(h.sent().back()->op==IdentityOp::SiteConnect,"Connect did not ask the helper to open the site");
   h.answer(false,"not_found");
   Check(h.status==Words("site.gone",site),"A site the service no longer has was not said so");
+  Check(h.row("st-off")&&!h.row("st-connect"),"A site the service no longer has still offers Connect");
  }
  {
   // Its sign-in switched off since the list was read: said so, and shown off.
@@ -235,7 +237,7 @@ void ManySites(){
  Check(read.size()==netplay::MaxSignInSites,"Not every listed site's account was read");
  for(std::size_t n=0;n<netplay::MaxSignInSites;++n){
   const auto row=h.row((std::string(SiteRowPrefix)+"site-"+std::to_string(n)).c_str());
-  Check(row&&row->value==loc::Tf("site.none","Site "+std::to_string(n)),"A listed site's row did not show its account");
+  Check(row&&row->value==loc::T("identity.discord_none"),"A listed site's row did not show its account");
  }
 }
 
@@ -273,11 +275,11 @@ void TwoSites(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;Ready(h);
  List(h,{Challonge,Startgg},true);
- Accounts accounts{{Challonge.id,{"1001","Kate_99"}},{Startgg.id,{"2002","kate.gg"}}};
+ Accounts accounts{{Challonge.id,{"1001","Player_1"}},{Startgg.id,{"2002","player1.gg"}}};
  h.Screen("identity");Settle(h,accounts);
  Check(h.count(IdentityOp::SiteStatus)>=2,"The two sites' accounts were not read");
- Check(h.row(RowId(Challonge).c_str())&&h.row(RowId(Challonge).c_str())->value=="Kate_99"&&
-  h.row(RowId(Startgg).c_str())&&h.row(RowId(Startgg).c_str())->value=="kate.gg"&&
+ Check(h.row(RowId(Challonge).c_str())&&h.row(RowId(Challonge).c_str())->value=="Player_1"&&
+  h.row(RowId(Startgg).c_str())&&h.row(RowId(Startgg).c_str())->value=="player1.gg"&&
   h.index(RowId(Startgg).c_str())==h.index(RowId(Challonge).c_str())+1,"Two sites' rows do not show their own accounts");
  // Unlinking one leaves the other.
  h.Choose(RowId(Startgg).c_str());Settle(h,accounts);
@@ -285,8 +287,8 @@ void TwoSites(){
  Check(h.sent().back()->op==IdentityOp::SiteRemove&&h.sent().back()->site==Startgg.id,"Unlink did not name its site");
  accounts.erase(Startgg.id);Settle(h,accounts);
  h.Screen("identity");Settle(h,accounts);
- Check(h.row(RowId(Challonge).c_str())&&h.row(RowId(Challonge).c_str())->value=="Kate_99"&&
-  h.row(RowId(Startgg).c_str())&&h.row(RowId(Startgg).c_str())->value==loc::Tf("site.none",Startgg.name),
+ Check(h.row(RowId(Challonge).c_str())&&h.row(RowId(Challonge).c_str())->value=="Player_1"&&
+  h.row(RowId(Startgg).c_str())&&h.row(RowId(Startgg).c_str())->value==loc::T("identity.discord_none"),
   "Unlinking one site changed the other's account");
  // One sign-in at a time: start.gg's Connect ends Challonge's waiting sign-in first.
  accounts.erase(Challonge.id);
@@ -316,11 +318,11 @@ void DiscordFirst(){
  Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"The Ember ID screen did not read Ember's service");
  Both(h);h.answer();
  Check(h.until(IdentityOp::DiscordStatus)&&h.count(IdentityOp::SiteStatus)==0,"Discord's account was not read first");
- id.discordUser="274220342558756145";id.discordName="kate";h.answer();
- Check(h.row("discord-connect")&&h.row("discord-connect")->value=="kate","Discord's account waited for the site's");
+ id.discordUser="274220342558756145";id.discordName="player1";h.answer();
+ Check(h.row("discord-connect")&&h.row("discord-connect")->value=="player1","Discord's account waited for the site's");
  Check(ReadsSite(h,Challonge),"The site's account was not read after Discord's");
- id.siteUser="1001";id.siteName="Kate_99";h.answer();
- Check(h.row(RowId(Challonge).c_str())&&h.row(RowId(Challonge).c_str())->value=="Kate_99","The site's account is not shown");
+ id.siteUser="1001";id.siteName="Player_1";h.answer();
+ Check(h.row(RowId(Challonge).c_str())&&h.row(RowId(Challonge).c_str())->value=="Player_1","The site's account is not shown");
  id.discordUser.clear();id.discordName.clear();
  const auto siteReads=h.count(IdentityOp::SiteStatus);
  h.Screen("home");h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=1;h.Frame(0,2);
@@ -470,10 +472,10 @@ void LookingAtDiscordKeepsSite(){
  Check(h.count(IdentityOp::SiteCancel)==0,"Opening Connect Discord ended the site's sign-in");
  h.Screen(SiteConnectScreen);for(int i=0;i<6;++i)h.answer();
  Check(h.row("st-waiting")&&h.row("st-cancel"),"The site's sign-in no longer waits after a look at Connect Discord");
- id.siteUser="1001";id.siteName="kate";h.Frame(0,300);
+ id.siteUser="1001";id.siteName="player1";h.Frame(0,300);
  Check(h.until(IdentityOp::SiteStatus),"The site's sign-in was not read again");
  h.answer();
- Check(h.status==Words("site.done",Challonge,"kate"),"The site's sign-in did not finish");
+ Check(h.status==Words("site.done",Challonge,"player1"),"The site's sign-in did not finish");
 }
 
 // A failed site read says nothing off its own screen, and Settings > Discord
@@ -487,12 +489,12 @@ void SiteReadsQuietly(){
  Check(h.until(IdentityOp::BridgeInspect),"The Ember ID screen did not read Ember's service");
  Both(h);h.answer();
  Check(h.until(IdentityOp::DiscordStatus),"The Ember ID screen did not read Discord's account");
- id.discordUser="274220342558756145";id.discordName="kate";h.answer();
+ id.discordUser="274220342558756145";id.discordName="player1";h.answer();
  Check(ReadsSite(h,Challonge),"The Ember ID screen did not read the site's account");
  h.answer(false,"service_unavailable");
  for(int i=0;i<120;++i){h.Frame();Check(tone!=Tone::Error,"A failed site read showed an error on the Ember ID screen");}
  Check(h.status.empty()||h.status==loc::T("identity.working"),"A failed site read left a status on the Ember ID screen");
- Check(h.row("discord-connect")&&h.row("discord-connect")->value=="kate","A failed site read changed Discord's row");
+ Check(h.row("discord-connect")&&h.row("discord-connect")->value=="player1","A failed site read changed Discord's row");
  Check(h.row(RowId(Challonge).c_str())&&h.row(RowId(Challonge).c_str())->value.empty(),"A failed site read still showed an account");
  for(int i=0;i<6;++i){h.answer();Check(tone!=Tone::Error,"A failed site read showed an error on the Ember ID screen");}
  h.Choose(RowId(Challonge).c_str());Profile(h,{Challonge});h.answer(false,"service_unavailable");
@@ -506,7 +508,104 @@ void SiteReadsQuietly(){
  Check(h.count(IdentityOp::SiteStatus)==siteReads,"Settings > Discord read a site's account");
 }
 }
+// A site's sign-in waits ten minutes for the browser, then stops: no wait,
+// no Cancel, no more reads, and Connect again.
+void SiteDeadline(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);
+ SiteWaiting(h,Challonge);
+ h.Wait(590);h.Frame();
+ Check(h.row("st-waiting")&&h.row("st-cancel"),"The site's sign-in stopped before its deadline");
+ for(int i=0;i<4;++i)h.answer();
+ h.Wait(30);h.Frame(0,2);
+ Check(!h.row("st-waiting")&&!h.row("st-cancel")&&h.row("st-connect")&&h.row("st-connect")->enabled,
+  "The site's sign-in still waits past its deadline");
+ const auto reads=h.count(IdentityOp::SiteStatus);h.Frame(0,600);
+ Check(h.count(IdentityOp::SiteStatus)==reads,"The site was still read past its deadline");
+}
+
+// Hiding Ember leaves a site's sign-in that waits for the browser: nothing is
+// sent to end it, and it is still waited for when Ember shows again.
+void SiteWaitsWhileHidden(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+ SiteWaiting(h,Challonge);
+ for(int i=0;i<30;++i)Hidden(h);
+ Check(h.count(IdentityOp::SiteCancel)==0,"Hiding Ember ended the site's sign-in");
+ h.Screen(SiteConnectScreen);for(int i=0;i<6;++i)h.answer();
+ Check(h.row("st-waiting")&&h.row("st-cancel"),"The site's sign-in no longer waits after Ember was hidden");
+ id.siteUser="1001";id.siteName="player1";h.Frame(0,300);
+ Check(h.until(IdentityOp::SiteStatus),"The site's sign-in was not read again");
+ h.answer();
+ Check(h.status==Words("site.done",Challonge,"player1"),"The site's sign-in did not finish after Ember was hidden");
+}
+
+// A tournament site's link while a site's sign-in waits for the browser: that
+// sign-in ends on the service, and the link runs as always.
+void LinkWhileSiteWaits(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+ SiteWaiting(h,Challonge);
+ h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+ Check(h.sent().back()->op==IdentityOp::SiteCancel&&h.sent().back()->site==Challonge.id,"A connect link left the site's waiting sign-in open");
+ h.answer();
+ Check(h.until(IdentityOp::BridgeInspect),"The connect link did not read its service");
+ Both(h);h.answer();
+ Check(h.until(IdentityOp::DiscordStatus),"The connect link did not read Discord's account");
+ id.discordUser.clear();id.discordName.clear();h.answer();
+ Check(h.sent().back()->op==IdentityOp::DiscordConnect,"The connect link did not open Discord");
+ Check(h.count(IdentityOp::SiteCancel)==1,"The site's sign-in was ended more than once");
+}
+
+// A site's sign-in under way can be stopped while the Ember ID is not ready.
+void CancelWithoutReadyId(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);
+ SiteWaiting(h,Challonge);
+ h.view.identity.state="locked";h.Frame(0,2);
+ Check(h.row("id-linked-unavailable")&&h.row("st-cancel"),"A site's sign-in cannot be stopped while the Ember ID is locked");
+ h.Choose("st-cancel");h.Frame(0,2);
+ Check(h.sent().back()->op==IdentityOp::SiteCancel&&!h.row("st-cancel"),"Cancel did not end the site's sign-in");
+}
+
+// Connect Discord started again while Discord's own page is waited for ends
+// that sign-in on its service first.
+void DiscordGoEndsItsWait(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+ DiscordWaiting(h);
+ // The service is forgotten, so Connect Discord offers to set it up again.
+ id.bridges.clear();h.Screen("home");h.Screen(DiscordConnectScreen);
+ Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Connect Discord did not look Ember's service up");
+ id.inspected={"brg_1",ember,"Ember"};h.answer();for(int i=0;i<4;++i)h.answer();
+ Check(h.row("dc-go")!=nullptr,"Connect Discord does not offer to start again");
+ const auto cancels=h.count(IdentityOp::DiscordCancel);
+ h.Choose("dc-go");h.Frame(0,2);
+ Check(h.count(IdentityOp::DiscordCancel)==cancels+1,"Starting again did not end Discord's waiting sign-in");
+}
+
+// A link for the service Discord's page was opened for, from Linked
+// accounts, shows that sign-in rather than opening a second page.
+void LinkForTheWaitedService(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+ h.Screen("linked-accounts");
+ Check(h.until(IdentityOp::BridgeInspect),"Linked accounts did not read the service");
+ id.inspected=id.bridges[0];id.inspectedDiscord=true;id.signInSites.clear();h.answer();
+ Check(h.until(IdentityOp::DiscordStatus),"Linked accounts did not read Discord's account");
+ id.discordUser.clear();id.discordName.clear();h.answer();for(int i=0;i<4;++i)h.answer();
+ h.Choose("id-discord-connect");
+ Check(h.sent().back()->op==IdentityOp::DiscordConnect,"Connect did not open Discord");
+ h.answer();
+ const auto opened=h.count(IdentityOp::DiscordConnect);
+ h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+ for(int i=0;i<8;++i)h.answer();
+ Check(h.count(IdentityOp::DiscordConnect)==opened&&h.count(IdentityOp::DiscordCancel)==0,
+  "A link for the service Discord's page waits on started the sign-in again");
+}
+
 void RunSignInSiteJourneys(){
  for(const auto& site:{Challonge,Startgg,Other}){SiteRows(site);SiteConnects(site);SiteStops(site);SiteOffAndRetry(site);SiteBusy(site);SiteGone(site);}
  ManySites();LongSiteName();TwoSites();DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsSite();SiteReadsQuietly();
+ SiteDeadline();SiteWaitsWhileHidden();LinkWhileSiteWaits();CancelWithoutReadyId();DiscordGoEndsItsWait();LinkForTheWaitedService();
 }

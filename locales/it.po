@@ -3857,14 +3857,8 @@ msgstr "Collega {0}"
 msgid "site.row_detail"
 msgstr "Collega il tuo account {0} così i tornei su {0} possono trovare il tuo Ember ID."
 
-msgid "site.none"
-msgstr "Non collegato"
-
 msgid "site.go_detail"
 msgstr "Collegando {0}, i tornei su {0} possono trovare il tuo Ember ID. Ember apre {0} nel browser: approva lì con l'account che usa il tuo torneo."
-
-msgid "site.setting_up"
-msgstr "Configurazione"
 
 msgid "site.setting_up_detail"
 msgstr "Ember sta aprendo {0} nel browser."
@@ -3901,9 +3895,6 @@ msgstr "Accesso con {0} disattivato"
 
 msgid "site.off_detail"
 msgstr "Questo servizio tornei al momento non offre l'accesso con {0}. Riprova più tardi."
-
-msgid "site.retry"
-msgstr "Riprova"
 
 msgid "site.retry_detail"
 msgstr "Legge di nuovo il tuo account {0}."

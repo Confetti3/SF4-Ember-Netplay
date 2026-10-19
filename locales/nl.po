@@ -3857,14 +3857,8 @@ msgstr "{0} koppelen"
 msgid "site.row_detail"
 msgstr "Koppel je {0}-account zodat toernooien op {0} je Ember ID kunnen vinden."
 
-msgid "site.none"
-msgstr "Niet gekoppeld"
-
 msgid "site.go_detail"
 msgstr "Als je {0} koppelt, kunnen toernooien op {0} je Ember ID vinden. Ember opent {0} in je browser: keur daar goed met het account dat je toernooi gebruikt."
-
-msgid "site.setting_up"
-msgstr "Instellen"
 
 msgid "site.setting_up_detail"
 msgstr "Ember opent {0} in je browser."
@@ -3901,9 +3895,6 @@ msgstr "Aanmelden met {0} staat uit"
 
 msgid "site.off_detail"
 msgstr "Deze toernooidienst biedt nu geen aanmelden met {0} aan. Probeer het later opnieuw."
-
-msgid "site.retry"
-msgstr "Opnieuw proberen"
 
 msgid "site.retry_detail"
 msgstr "Leest je {0}-account opnieuw."

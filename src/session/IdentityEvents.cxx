@@ -1,5 +1,4 @@
 #include "IdentityEvents.hxx"
-#include <algorithm>
 #include <nlohmann/json.hpp>
 
 namespace sf4e { namespace session {
@@ -14,16 +13,6 @@ std::string Text(const nlohmann::json& object, const char* key, std::size_t limi
     for (std::size_t characters = 0; end < value.size() && characters < limit; ++characters)
         do ++end; while (end < value.size() && (static_cast<unsigned char>(value[end]) & 0xC0) == 0x80);
     return value.substr(0, end);
-}
-
-// A site ID as the helper and bridge take it: 1 to 32 lowercase ASCII
-// letters, digits or '-'. Anything else could only fail every request.
-bool IsSiteId(const nlohmann::json& site) {
-    const auto it = site.find("id");
-    if (it == site.end() || !it->is_string()) return false;
-    const auto& id = it->get_ref<const std::string&>();
-    return !id.empty() && id.size() <= 32
-        && std::all_of(id.begin(), id.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; });
 }
 }
 
@@ -78,18 +67,14 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
             view.inspectedDiscord = view.inspectedDiscord || feature == "discord";
             view.inspectedDiscordAccounts = view.inspectedDiscordAccounts || feature == "discord.accounts";
         }
-        // Each site once, in the order listed; an entry with an ID no site
-        // can have is skipped rather than shown as a row that cannot work.
+        // The helper has already checked each site's ID and dropped repeats.
         view.signInSites.clear();
         const auto sites = capabilities.value("sign_in_sites", nlohmann::json::array());
         if (sites.is_array())
             for (const auto& site : sites) {
                 if (view.signInSites.size() == netplay::MaxSignInSites) break;
-                if (!site.is_object() || !IsSiteId(site)) continue;
-                const auto id = Text(site, "id", 32);
-                const auto seen = std::find_if(view.signInSites.begin(), view.signInSites.end(),
-                    [&](const netplay::IdentitySignInSite& listed) { return listed.id == id; });
-                if (seen != view.signInSites.end()) continue;
+                const auto id = site.is_object() ? Text(site, "id", 32) : std::string();
+                if (id.empty()) continue;
                 const auto signIn = site.find("sign_in");
                 view.signInSites.push_back({id, Text(site, "display_name", 64),
                     signIn != site.end() && signIn->is_boolean() && signIn->get<bool>()});

@@ -187,8 +187,6 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play)
     sf4e_add_unit_test(NAME IdentityEvents SOURCES "src/tests/identity_events_test.cxx" "src/session/IdentityEvents.cxx"
         LIBS nlohmann_json::nlohmann_json STD 17)
-    # The site IDs the helper's tests check too.
-    target_compile_definitions(IdentityEventsTest PRIVATE SF4E_SITE_IDS="${CMAKE_SOURCE_DIR}/src/tests/data/site_ids.json")
     sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
         LIBS sf4e_tournament_play nlohmann_json::nlohmann_json TIMEOUT 300)
     sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30)

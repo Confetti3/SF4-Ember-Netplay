@@ -213,10 +213,8 @@ private:
     // Connect Discord's own rows: true when `a` was one of them.
     bool ConnectActivate(const MenuAction& a, const ShellView& view);
     // Connect Discord's steps start, or start again, from wherever they stand,
-    // ending another site's sign-in first.
+    // ending a sign-in under way on its service first.
     void StartSteps();
-    // Connect Discord's steps run, which only Discord has.
-    bool StepsRunFor(const SignInTarget& target) const;
     // A Discord account was read: running steps open Discord's page for a
     // service with none connected, and stop for one already connected.
     void ConnectAccountRead(const ShellView& view);
@@ -224,13 +222,13 @@ private:
     // What Discord and the listed sign-in sites share (IdentitySignIn.cxx).
     // A listed site by its ID on `bridge`, as the service's profile last listed it; null when not.
     const netplay::IdentitySignInSite* ListedSite(const std::string& bridge, const std::string& site) const;
-    // A listed site's name to show: as `bridge` last named it, even once it
-    // no longer lists it, or its ID. With no service, any name it was given.
-    std::string SiteName(const std::string& bridge, const std::string& site) const;
+    // A listed site's name to show: as its service last named it, even once
+    // it no longer lists it, or its ID.
+    std::string SiteName(const std::string& site) const;
     // One of the target's words: Discord's as they are, a listed site's with
-    // its name on `bridge` as {0}; `value` follows as the next placeholder.
-    std::string Word(const SignInTarget& target, const std::string& bridge, const char* id) const;
-    std::string Word(const SignInTarget& target, const std::string& bridge, const char* id, const std::string& value) const;
+    // its name as {0}; `value` follows as the next placeholder.
+    std::string Word(const SignInTarget& target, const char* id) const;
+    std::string Word(const SignInTarget& target, const char* id, const std::string& value) const;
     // The target of the sign-in request in flight.
     SignInTarget SentTarget() const;
     // The service the target's rows connect on: Ember's own, or the selected one.
@@ -251,9 +249,9 @@ private:
     // it has them (over its request limits, or no longer on the service);
     // none otherwise.
     std::optional<std::string> SiteFailureText(const std::string& code) const;
-    // Connect Discord's steps run, or a site's page is being opened.
+    // Connect Discord's steps run, or a sign-in's page is being opened.
     bool Starting() const;
-    // The site has steps or a sign-in under way, which Cancel stops.
+    // The target has steps or a sign-in under way, which Cancel stops.
     bool ActiveFor(const SignInTarget& target) const;
     // The target's sign-in on `bridge` waits for the browser, and its last read worked.
     bool WaitingOn(const SignInTarget& target, const std::string& bridge) const;
@@ -263,9 +261,13 @@ private:
     // The site's account read in flight failed: its account is not trusted,
     // and a sign-in waiting on it pauses its polls.
     void SiteReadFailed();
-    // The service refused a site's Connect because its sign-in is off now:
-    // the site's screen shows it off without reading the list again.
+    // The service refused a site's request: its sign-in is off now, or (on
+    // Connect) it no longer has the site. The site's screen shows it off
+    // without reading the list again.
     void SiteRefused(const std::string& code);
+    // A listed site its service no longer has: its row and what was read of
+    // it go, and a sign-in on it ends. Its name is kept for its screen.
+    void DropSite(const std::string& site);
     // The Ember ID screen's rows on Ember's own service: Discord's, and one
     // per sign-in site it lists.
     MenuEntry DiscordIdentityRow(const ShellView& view) const;
@@ -329,37 +331,34 @@ private:
     std::map<std::tuple<SignInSource, std::string, std::string>, SiteAccount> accounts_;
     SiteAccount& Account(const SignInTarget& target, const std::string& bridge);
     const SiteAccount* FindAccount(const SignInTarget& target, const std::string& bridge) const;
-    // The sign-in sites each service lists, as its profile last said; the
-    // name each service gave each site, kept after it stops listing one so
-    // the site's screen still names it; and the site the listed site's
-    // Connect screen shows.
-    std::map<std::string, std::vector<netplay::IdentitySignInSite>> sites_;
-    std::map<std::pair<std::string, std::string>, std::string> siteNames_;
+    // The sign-in sites Ember's own service (sitesBridge_) lists, as its
+    // profile last said; the name it gave each, kept after it stops listing
+    // one so the site's screen still names it; and the site the listed
+    // site's Connect screen shows.
+    std::string sitesBridge_;
+    std::vector<netplay::IdentitySignInSite> sites_;
+    std::map<std::string, std::string> siteNames_;
     std::string siteScreen_;
-    // The service a connect link named; empty for Ember's own. Whether this
-    // visit already looked Ember's own service up.
-    std::string connectBridge_;
+    // The service a connect link named, empty for Ember's own, and the one
+    // Discord's page last opened for in this journey: a link for either
+    // shows the journey rather than starting it again. Whether this visit
+    // already looked Ember's own service up.
+    std::string connectBridge_, discordService_;
     bool connectLookedUp_ = false;
-    // Connect Discord's own steps up to Discord's page (IdentityConnect.cxx):
-    // running by themselves, or stopped by a failure or Cancel, which only
-    // Connect or Try again restarts. A link for the same service shows them
-    // rather than starting again.
-    // Invariant: steps_ and signIn_ never both hold an attempt. The steps
-    // start with no sign-in (StartSteps), and a sign-in starts with no steps
-    // (OpenSignIn); Starting() asserts it.
-    enum class Steps { None, Running, Stopped };
-    Steps steps_ = Steps::None;
-    // A site's sign-in in the browser, one at a time (IdentitySignIn.cxx):
-    // the site and service it is for, the account connected when its page
-    // was opened (only another one finishes it), and whether the page is
-    // being opened, is open and waited for, or the sign-in stopped by a
-    // failure, Cancel or its deadline. Its wait for the browser: until when
-    // it can finish (0 when none runs), when its account is read next, and
-    // whether a failed read paused the reads until Try again; a new page for
-    // the same site and service keeps the wait running. Replaced as a whole,
-    // never edited field by field into another site's or service's sign-in.
+    // The sign-in under way, Discord's or a listed site's, one at a time
+    // (IdentitySignIn.cxx): the site and service it is for, the account
+    // connected when its page was opened (only another one finishes it), and
+    // its phase. Steps: Connect Discord's own steps up to Discord's page
+    // (IdentityConnect.cxx), Discord only and with no service yet. Opening:
+    // its page is being opened. Waiting: the page is open and waited for.
+    // Stopped: by a failure, Cancel or its deadline; only Connect or Try
+    // again starts it again. Its wait for the browser: until when it can
+    // finish (0 when none runs), when its account is read next, and whether
+    // a failed read paused the reads until Try again; a new page for the same
+    // site and service keeps the wait running. Replaced as a whole, never
+    // edited field by field into another site's or service's sign-in.
     struct SignInAttempt {
-        enum class Phase { Opening, Waiting, Stopped };
+        enum class Phase { Steps, Opening, Waiting, Stopped };
         SignInTarget target;
         std::string bridge, before;
         Phase phase = Phase::Opening;

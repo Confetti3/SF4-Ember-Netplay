@@ -40,16 +40,12 @@ struct SignInSiteInfo {
     // its account, or null.
     const char* screen = nullptr;
     const char* alsoOn = nullptr;
-    // It connects on Ember's own service, not the one the screens selected.
-    bool embersService = false;
-    // A failed read of its account is said only on its Connect screen.
-    bool quietElsewhere = false;
-    // Its sign-in belongs to the Connect Discord journey: a new journey no
-    // longer waits for it. Otherwise it goes on until its own screen or
-    // another sign-in ends it.
-    bool followsJourney = false;
-    // Its words take the site's name as {0}.
-    bool named = false;
+    // A sign-in site the service lists, not Discord: it connects on Ember's
+    // own service rather than the one the screens selected, a failed read of
+    // its account is said only on its own Connect screen, its words take its
+    // name as {0}, and its sign-in goes on past a new Connect Discord journey
+    // until its own screen or another sign-in ends it.
+    bool listed = false;
     // The view's fields for the account last read.
     std::string netplay::IdentityView::* user = nullptr;
     std::string netplay::IdentityView::* name = nullptr;
@@ -82,7 +78,6 @@ struct SignInSiteInfo {
         const char* changeDetail = nullptr;
         const char* removeLabel = nullptr;
         const char* removeDetail = nullptr;
-        const char* cancelDetail = nullptr;
         const char* off = nullptr;
         const char* offDetail = nullptr;
         const char* retry = nullptr;
@@ -91,9 +86,6 @@ struct SignInSiteInfo {
         const char* done = nullptr;             // the account's name: {0} for Discord, {1} for a listed site
         const char* removed = nullptr;
         const char* cancelled = nullptr;
-        const char* busy = nullptr;             // over the site's request limits; null: the general words
-        const char* gone = nullptr;             // the service no longer has the site; null: the general words
-        const char* refusedOff = nullptr;       // its sign-in was switched off since the list was read; null: the general words
     } words;
 };
 
@@ -101,7 +93,7 @@ inline const SignInSiteInfo& Site(SignInSource source) {
     using netplay::IdentityView;
     static const SignInSiteInfo discord = [] {
         SignInSiteInfo d;
-        d.screen = DiscordConnectScreen; d.alsoOn = "linked-accounts"; d.followsJourney = true;
+        d.screen = DiscordConnectScreen; d.alsoOn = "linked-accounts";
         d.user = &IdentityView::discordUser; d.name = &IdentityView::discordName;
         auto& r = d.rows;
         r.service = "dc-service"; r.waiting = "dc-waiting"; r.progress = "dc-progress"; r.connected = "dc-connected";
@@ -114,7 +106,7 @@ inline const SignInSiteInfo& Site(SignInSource source) {
         w.connected = "connect.connected"; w.connectedDetail = "connect.connected_detail";
         w.change = "connect.change"; w.changeDetail = "connect.change_detail";
         w.removeLabel = "identity.unlink"; w.removeDetail = "identity.discord_remove_detail";
-        w.cancelDetail = "connect.cancel_detail"; w.off = "connect.off"; w.offDetail = "connect.off_detail";
+        w.off = "connect.off"; w.offDetail = "connect.off_detail";
         w.retry = "connect.retry"; w.retryDetail = "connect.retry_detail";
         w.opened = "identity.done.discord_opened"; w.done = "connect.done";
         w.removed = "identity.done.discord_removed"; w.cancelled = "connect.cancelled";
@@ -122,24 +114,24 @@ inline const SignInSiteInfo& Site(SignInSource source) {
     }();
     static const SignInSiteInfo listed = [] {
         SignInSiteInfo s;
-        s.screen = SiteConnectScreen; s.embersService = s.quietElsewhere = s.named = true;
+        s.screen = SiteConnectScreen; s.listed = true;
         s.user = &IdentityView::siteUser; s.name = &IdentityView::siteName;
         auto& r = s.rows;
         r.service = "st-service"; r.waiting = "st-waiting"; r.progress = "st-progress"; r.connected = "st-connected";
         r.connect = "st-connect"; r.remove = "st-remove"; r.off = "st-off"; r.retry = "st-retry"; r.cancel = "st-cancel";
         auto& w = s.words;
         w.title = "site.title"; w.rowDetail = "site.row_detail";
-        w.none = "site.none"; w.connectDetail = "site.go_detail";
-        w.settingUp = "site.setting_up"; w.settingUpDetail = "site.setting_up_detail";
+        // Words the same as Discord's are Discord's.
+        w.none = "identity.discord_none"; w.connectDetail = "site.go_detail";
+        w.settingUp = "connect.setting_up"; w.settingUpDetail = "site.setting_up_detail";
         w.waiting = "site.waiting"; w.waitingLabel = "site.waiting_label"; w.waitingDetail = "site.waiting_detail";
         w.connected = "site.connected"; w.connectedDetail = "site.connected_detail";
         w.change = "site.change"; w.changeDetail = "site.change_detail";
         w.removeLabel = "identity.unlink"; w.removeDetail = "site.remove_detail";
-        w.cancelDetail = "site.cancel_detail"; w.off = "site.off"; w.offDetail = "site.off_detail";
-        w.retry = "site.retry"; w.retryDetail = "site.retry_detail";
+        w.off = "site.off"; w.offDetail = "site.off_detail";
+        w.retry = "connect.retry"; w.retryDetail = "site.retry_detail";
         w.opened = "site.opened"; w.done = "site.done";
-        w.removed = "site.removed"; w.cancelled = "site.cancelled"; w.busy = "site.busy";
-        w.gone = "site.gone"; w.refusedOff = "site.off_detail";
+        w.removed = "site.removed"; w.cancelled = "site.cancelled";
         return s;
     }();
     switch (source) {

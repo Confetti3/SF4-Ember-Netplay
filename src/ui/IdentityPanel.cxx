@@ -99,10 +99,7 @@ bool IdentityPanel::Superseded() const {
 void IdentityPanel::ReadFailed() {
     // A background read on Home is tried again a little later.
     if (!Owns(lastScreen_) && Retirable(sentOp_)) backgroundAt_ = now_ + BackgroundRetrySeconds;
-    if (sentJourney_ == journey_) {
-        if (steps_ == Steps::Running) steps_ = Steps::Stopped;
-        if (signIn_ && signIn_->phase == SignInAttempt::Phase::Opening) signIn_->phase = SignInAttempt::Phase::Stopped;
-    }
+    if (sentJourney_ == journey_ && Starting()) signIn_->phase = SignInAttempt::Phase::Stopped;
     if (const auto signIn = netplay::SignInOf(sentOp_); signIn && signIn->step == SignInStep::Status) {
         SiteReadFailed();
     } else if (sentOp_ == IdentityOp::BridgeInspect && !sentLookUp_) {
@@ -127,7 +124,7 @@ void IdentityPanel::DropQueue() {
 void IdentityPanel::NewJourney() {
     RetireSignIn();
     ++journey_;
-    steps_ = Steps::None;
+    discordService_.clear();
     // The public rooms setup's requests are not the journey's.
     queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) {
         return q.owner == Owner::Screens && Retirable(q.request.op);
@@ -242,10 +239,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     const bool entered = (owned || screen == AccountScreen) && screen != lastScreen_;
     // Leaving the Connect screen while it sets up stops it: nothing opens a
     // browser page behind the player's back.
-    if (Starting()) {
-        const auto target = signIn_ ? signIn_->target : SignInTarget::Discord();
-        if (AtScreenOf(target, lastScreen_) && !AtScreenOf(target, screen)) CancelAttempt();
-    }
+    if (Starting() && AtScreenOf(signIn_->target, lastScreen_) && !AtScreenOf(signIn_->target, screen)) CancelAttempt();
     onScreens_ = owned; lastScreen_ = screen;
     if (screen != "public-rooms") setup_.Unseen();
     if (entered) Refresh(v, screen);
@@ -372,8 +366,8 @@ void IdentityPanel::Finish(const ShellView& v) {
             IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
             return;
         }
-        SiteRefused(id.failure);
         ReadFailed();
+        SiteRefused(id.failure);
         // A background read on Home fails quietly; it is tried again.
         if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(SiteFailureText(id.failure).value_or(FailureText(id.failure)), true);
         DropQueue(); return;
@@ -388,8 +382,8 @@ void IdentityPanel::Finish(const ShellView& v) {
         }
         // A running Connect creates the Ember ID itself when nothing must be typed.
         // A passphrase (Wine and Proton) waits for the player's Connect.
-        if (steps_ == Steps::Running && lastScreen_ == DiscordConnectScreen && id.state == "disabled") {
-            if (id.passphraseRequired || !v.canEditPreferences) steps_ = Steps::None;
+        if (signIn_ && signIn_->phase == SignInAttempt::Phase::Steps && lastScreen_ == DiscordConnectScreen && id.state == "disabled") {
+            if (id.passphraseRequired || !v.canEditPreferences) signIn_.reset();
             else { IdentityRequest r; r.op = IdentityOp::Enable; Queue(std::move(r)); }
         }
         break;
@@ -444,12 +438,12 @@ void IdentityPanel::Finish(const ShellView& v) {
     case IdentityOp::BridgeInspect:
         if (sentLookUp_) found_ = id.inspected;
         // A running Connect trusts Ember's own service, unless the player removed it.
-        if (sentLookUp_ && steps_ == Steps::Running && lastScreen_ == DiscordConnectScreen) {
+        if (sentLookUp_ && signIn_ && signIn_->phase == SignInAttempt::Phase::Steps && lastScreen_ == DiscordConnectScreen) {
             if (EmberOffered() && !Removed(v, found_.id)) {
                 IdentityRequest r; r.op = IdentityOp::BridgeApprove; r.origin = found_.origin; r.bridge = found_.id; Queue(std::move(r));
             } else {
                 // Not Ember's own, or removed by the player: theirs to trust.
-                steps_ = Steps::None;
+                signIn_.reset();
             }
         }
         // Only an account to read: the selection stays.
@@ -513,7 +507,7 @@ bool IdentityPanel::Status(std::string& status, Tone& tone, double now) const {
     // The account is read again while the player approves in the browser.
     if (signIn_ && WaitingOn(signIn_->target, signIn_->bridge) && ShowsWait(lastScreen_) && queue_.empty() &&
         (!sent_ || sentOp_ == netplay::SignInRequest(signIn_->target.source, SignInStep::Status))) {
-        status = Word(signIn_->target, signIn_->bridge, Site(signIn_->target.source).words.waiting); tone = Tone::Pending; return true;
+        status = Word(signIn_->target, Site(signIn_->target.source).words.waiting); tone = Tone::Pending; return true;
     }
     if (sent_ || !queue_.empty()) {
         const bool slow = sentOp_ == IdentityOp::Enable || sentOp_ == IdentityOp::Unlock || sentOp_ == IdentityOp::Export ||
@@ -696,7 +690,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         rows.back().hint = loc::T("menu.hint.paste");
     } else if (screen == SiteConnectScreen) {
         const auto site = SignInTarget::Listed(siteScreen_);
-        title = Word(site, SiteBridge(v, site), Site(SignInSource::Site).words.title);
+        title = Word(site, Site(SignInSource::Site).words.title);
         ListedSiteRows(v, rows, busy);
     } else if (screen == "tournament-matches") {
         title = loc::T("screen.tournament_matches");

@@ -17,8 +17,8 @@ void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
     // A link for the attempt under way, or one that stopped, shows it: no
     // second page, and no restart without Connect or Try again.
     const bool discord = signIn_ && signIn_->target.source == SignInSource::Discord;
-    const bool same = bridge == connectBridge_ || (discord && bridge == signIn_->bridge);
-    if ((steps_ != Steps::None || discord) && same) { lastScreen_.clear(); return; }
+    const bool same = bridge == connectBridge_ || (!discordService_.empty() && bridge == discordService_);
+    if (discord && same) { lastScreen_.clear(); return; }
     // A link the player just clicked runs the steps by itself (which end
     // another site's sign-in); one that waited for a room asks first.
     NewJourney();
@@ -89,22 +89,21 @@ void IdentityPanel::ConnectGo(const ShellView& v) {
 }
 
 void IdentityPanel::StartSteps() {
-    EndOtherSignIn(SignInTarget::Discord());
-    signIn_.reset();
-    steps_ = Steps::Running;
+    // A sign-in under way ends on its service first, Discord's own wait too.
+    using Phase = SignInAttempt::Phase;
+    if (signIn_ && (signIn_->phase == Phase::Opening || signIn_->phase == Phase::Waiting)) CancelAttempt();
+    signIn_ = SignInAttempt{SignInTarget::Discord(), {}, {}, Phase::Steps};
 }
 
-bool IdentityPanel::StepsRunFor(const SignInTarget& target) const { return target.source == SignInSource::Discord && steps_ == Steps::Running; }
-
 void IdentityPanel::ConnectAccountRead(const ShellView& v) {
-    if (steps_ != Steps::Running || lastScreen_ != DiscordConnectScreen) return;
+    if (!signIn_ || signIn_->phase != SignInAttempt::Phase::Steps || lastScreen_ != DiscordConnectScreen) return;
     const auto* target = ConnectTarget(v);
     if (!target || target->id != sentBridge_) return;
     // None yet, on a service that offers sign-in: Discord's page opens. A
     // connected account is only shown.
     const auto& id = v.identity;
     if (id.discordUser.empty() && id.inspected.id == target->id && id.inspectedDiscord) OpenSignIn(SignInTarget::Discord(), sentBridge_);
-    else steps_ = Steps::None;
+    else signIn_.reset();
 }
 
 // Steps 2 and 3 of Connect Discord, with the Ember ID ready: trust the
@@ -142,8 +141,7 @@ bool IdentityPanel::ConnectActivate(const MenuAction& a, const ShellView& v) {
     if (a.id == "id-approve" && lastScreen_ == DiscordConnectScreen) StartSteps();
     // Try again restarts stopped steps or a stopped sign-in; the shared row
     // then reads everything again (SignInActivate).
-    const bool stopped = steps_ == Steps::Stopped ||
-        (signIn_ && signIn_->target.source == SignInSource::Discord && signIn_->phase == SignInAttempt::Phase::Stopped);
+    const bool stopped = signIn_ && signIn_->target.source == SignInSource::Discord && signIn_->phase == SignInAttempt::Phase::Stopped;
     if (a.id == Site(SignInSource::Discord).rows.retry && stopped) StartSteps();
     if (a.id == "dc-paste") {
         // The tournament site's link names its service; the journey starts over for it.

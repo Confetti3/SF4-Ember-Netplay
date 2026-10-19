@@ -3383,14 +3383,8 @@ msgstr "Conectar {0}"
 msgid "site.row_detail"
 msgstr "Conecte sua conta do {0} para que torneios no {0} encontrem seu Ember ID."
 
-msgid "site.none"
-msgstr "Não conectado"
-
 msgid "site.go_detail"
 msgstr "Conectar o {0} permite que torneios no {0} encontrem seu Ember ID. O Ember abre o {0} no navegador: aprove lá com a conta que seu torneio usa."
-
-msgid "site.setting_up"
-msgstr "Configurando"
 
 msgid "site.setting_up_detail"
 msgstr "O Ember está abrindo o {0} no navegador."
@@ -3427,9 +3421,6 @@ msgstr "Login com {0} desativado"
 
 msgid "site.off_detail"
 msgstr "Este serviço de torneios não oferece login com {0} no momento. Tente novamente mais tarde."
-
-msgid "site.retry"
-msgstr "Tentar novamente"
 
 msgid "site.retry_detail"
 msgstr "Lê sua conta do {0} novamente."
