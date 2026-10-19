@@ -5,9 +5,14 @@
 // the bracket come from sets.js, loaded before this file.
 "use strict";
 
-const STEPS = ["Accounts", "Tournament", "Bracket service", "Links", "Discord post", "Live"];
+const STEPS = ["Details", "Service and rules", "Discord and sign-ups", "Ready", "Live"];
 const LINK_ICONS = { bracket: "🏆", "sign up": "📝", signup: "📝", stream: "📺", twitch: "📺", matcherino: "💰", rules: "📜", discord: "💬" };
-const NEXT = ["Continue", "Save", "Save", "Save links", "Mark ready", "Your tournaments"];
+const NEXT = ["Save", "Save", "Save", "Mark ready", "Your tournaments"];
+// The tops a set length can start from, by players left; 2 is the finals.
+const TOPS = [[0, "Off"], [16, "Top 16"], [8, "Top 8"], [6, "Top 6"], [4, "Top 4"], [2, "Finals"]];
+// Words for a site's creation settings, by field and value.
+const FIELD_NAMES = { format: "Format", grand_final: "Grand final", third_place_match: "Third place match", open_signup: "The site's own sign-up page" };
+const VALUE_NAMES = { "": "Normal, with a reset", "single match": "One match", skip: "No grand final", 3: "Yes", true: "Yes", false: "No" };
 
 const desk = { session: null, accounts: [], events: [], event: null, step: 1, picks: {} };
 const $ = (id) => document.getElementById(id);
@@ -25,6 +30,7 @@ async function api(method, path, body) {
   if (!response.ok) {
     const error = new Error((data.error && data.error.message) || "The desk could not do that (" + response.status + ").");
     error.status = response.status;
+    error.reason = data.error && data.error.details && data.error.details.reason;
     throw error;
   }
   return data;
@@ -37,6 +43,14 @@ function toast(text, good) {
   box.hidden = !text;
 }
 
+/** An error where the organizer is looking: at the top of the open step. */
+function stepError(text) {
+  const box = $("step-error");
+  box.textContent = text || "";
+  box.hidden = !text;
+  if (text) box.scrollIntoView({ block: "nearest" });
+}
+
 function show(page) {
   for (const id of ["signed-out", "home", "wizard"]) $(id).hidden = id !== page;
   $("sign-out").hidden = page === "signed-out";
@@ -45,9 +59,9 @@ function show(page) {
 /** The Discord post for an event: one message, lines without a value left out. */
 function discordPost(event, siteName) {
   const rounds = (event.settings && event.settings.rounds) || {};
-  const longest = Math.max(rounds.games_to_win || 0, ...(rounds.rules || []).map((rule) => rule.games_to_win || 0));
+  const top = rounds.top ? (TOPS.find(([n]) => n === rounds.top.top) || [0, "Top " + rounds.top.top])[1] + " FT" + rounds.top.games_to_win : "";
   const ft = rounds.games_to_win
-    ? "🎮 " + [siteName, "FT" + rounds.games_to_win, longest > rounds.games_to_win ? "later rounds up to FT" + longest : ""].filter(Boolean).join(" · ")
+    ? "🎮 " + [siteName, "FT" + rounds.games_to_win, top, rounds.grand_final ? "grand final FT" + rounds.grand_final : ""].filter(Boolean).join(" · ")
     : siteName ? "🎮 " + siteName : "";
   const when = event.starts_at ? "📅 <t:" + event.starts_at + ":F> (<t:" + event.starts_at + ":R>)" : "";
   const links = (event.links || []).map((link) => (LINK_ICONS[link.label.toLowerCase()] || "🔗") + " " + link.label + ": " + link.url);
@@ -76,8 +90,48 @@ function whenText(seconds) {
 
 // --- Signed out and the tournaments list.
 
+// Signing in on this device from Ember: the bridge gives this browser a code
+// and a secret cookie; once the code is approved in Ember, this browser (and
+// only it) is signed in.
+const device = { timer: 0, until: 0 };
+
+async function newCode() {
+  clearInterval(device.timer);
+  $("device-error").hidden = true;
+  try {
+    const made = await api("POST", "/web/device");
+    $("device-code").textContent = made.code.slice(0, 4) + " " + made.code.slice(4);
+    device.until = made.expires_at;
+    device.timer = setInterval(pollCode, 3000);
+    pollCode();
+  } catch (error) {
+    $("device-error").textContent = error.status === 429 ? "Too many codes. Wait a few minutes." : error.message;
+    $("device-error").hidden = false;
+  }
+}
+
+async function pollCode() {
+  const left = Math.max(0, device.until - Math.floor(Date.now() / 1000));
+  $("device-left").textContent = left ? "Works for " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0") + " more." : "";
+  if ($("signed-out").hidden || document.hidden) return;
+  try {
+    const read = await api("GET", "/web/device");
+    if (read.signed_in) {
+      clearInterval(device.timer);
+      start();
+    }
+  } catch {
+    clearInterval(device.timer);
+    $("device-code").textContent = "····\u00a0····";
+    $("device-left").textContent = "That code expired. Get a new one.";
+  }
+}
+
+$("device-new").addEventListener("click", newCode);
+
 async function signedOut() {
   show("signed-out");
+  newCode();
   const list = $("sign-in-sites");
   list.replaceChildren();
   const capabilities = await api("GET", "/v1/capabilities").catch(() => ({}));
@@ -91,6 +145,7 @@ async function signedOut() {
 async function home() {
   show("home");
   $("brand-sub").textContent = "Tournament desk";
+  accounts().catch((error) => toast(error.message));
   desk.events = (await api("GET", "/v1/organizer/events")).events;
   const list = $("events");
   list.replaceChildren(
@@ -107,7 +162,7 @@ function open(event) {
   desk.event = event;
   desk.picks = {};
   show("wizard");
-  go(!event ? 1 : event.status === "draft" ? 2 : 6);
+  go(!event || event.status === "draft" ? 1 : 5);
 }
 
 async function refreshEvent() {
@@ -120,10 +175,11 @@ async function refreshEvent() {
 
 function go(step) {
   clearInterval(view.timer);
-  desk.step = Math.min(6, Math.max(1, step));
+  desk.step = Math.min(STEPS.length, Math.max(1, step));
   toast("");
+  stepError("");
   for (const section of document.querySelectorAll("[data-step]")) section.hidden = Number(section.dataset.step) !== desk.step;
-  $("step-now").replaceChildren("Step " + desk.step + " of 6 · ", el("b", {}, STEPS[desk.step - 1]));
+  $("step-now").replaceChildren("Step " + desk.step + " of " + STEPS.length + " · ", el("b", {}, STEPS[desk.step - 1]));
   $("steps").replaceChildren(
     ...STEPS.map((label, index) =>
       el("button", {
@@ -131,14 +187,15 @@ function go(step) {
         class: "wd-step" + (index + 1 < desk.step ? " done" : ""),
         "aria-label": label,
         "aria-current": index + 1 === desk.step ? "step" : false,
-        disabled: !desk.event && index > 1,
+        disabled: !desk.event && index > 0,
         onclick: () => go(index + 1),
       }, el("span", { class: "dot" }, String(index + 1)), el("span", { class: "label" }, label))),
   );
   $("brand-sub").textContent = desk.event ? "Tournament desk · " + desk.event.title : "Tournament desk · New tournament";
-  $("next").textContent = desk.step === 5 && desk.event && desk.event.status !== "draft" ? "Continue" : NEXT[desk.step - 1];
+  $("next").textContent = desk.step === 4 && desk.event && desk.event.status !== "draft" ? "Continue" : NEXT[desk.step - 1];
+  $("next").disabled = false;
   summary();
-  [accounts, tournament, service, links, post, live][desk.step - 1]().catch((error) => toast(error.message));
+  [details, service, liveSettings, post, live][desk.step - 1]().catch((error) => stepError(error.message));
 }
 
 function summary() {
@@ -183,13 +240,15 @@ async function allow(site) {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && desk.step === 1 && !$("wizard").hidden) accounts().catch(() => {});
+  if (document.visibilityState === "visible" && !$("home").hidden) accounts().catch(() => {});
 });
 
-async function tournament() {
+async function details() {
   const event = desk.event;
   $("title").value = event ? event.title : "";
   [$("date").value, $("time").value] = localParts(event && event.starts_at);
+  const kept = (event && event.links) || [];
+  $("links").replaceChildren(...(kept.length ? kept : [{ label: "Stream", url: "" }, { label: "Matcherino", url: "" }]).map(linkRow));
 }
 
 function startsAt() {
@@ -200,16 +259,17 @@ function startsAt() {
   return Math.floor(new Date(date + "T" + time).getTime() / 1000);
 }
 
-async function saveTournament() {
+async function saveDetails() {
   const title = $("title").value.trim();
   if (!title) throw new Error("Give the tournament a title.");
   const starts_at = startsAt();
+  const links = linksFromForm();
   if (!desk.event) {
     const made = await api("POST", "/v1/organizer/drafts", { title });
     desk.event = { id: made.id };
-    await api("POST", "/v1/organizer/events/" + made.id, { starts_at });
+    await api("POST", "/v1/organizer/events/" + made.id, { starts_at, links });
   } else {
-    await api("POST", "/v1/organizer/events/" + desk.event.id, { title, starts_at });
+    await api("POST", "/v1/organizer/events/" + desk.event.id, { title, starts_at, links });
   }
   await refreshEvent();
 }
@@ -226,7 +286,7 @@ async function service() {
   const chosen = (event && event.site) || desk.picks.site || (usable[0] && usable[0].id);
   desk.picks.site = chosen;
   $("services").replaceChildren(
-    el("legend", {}, "Service"),
+    el("legend", {}, "Bracket service"),
     ...usable.map((site) =>
       el("label", { class: "choice" },
         el("input", { type: "radio", name: "service", value: site.id, checked: site.id === chosen, disabled: !!(event && event.tournament), onchange: () => { desk.picks.site = site.id; service(); } }),
@@ -234,20 +294,20 @@ async function service() {
           el("span", { class: "small" }, site.create ? "Ember creates it for you" : "Create it on " + site.display_name + ", then pick it here")))),
   );
   const site = usable.find((site) => site.id === chosen);
+  // Only the chosen service's own settings: Challonge's creation fields,
+  // or start.gg's event and stream holding.
   const detail = $("service-detail");
   detail.replaceChildren();
   if (event && event.tournament) {
     detail.append(el("span", { class: "name" }, "Linked to " + (event.name || event.tournament)), el("span", { class: "small" }, siteName(event.site)));
   } else if (site && site.create) {
-    detail.append(el("span", { class: "small" }, "Settings for the new " + site.display_name + " tournament"));
+    detail.append(el("span", { class: "small" }, "Settings for the new " + site.display_name + " tournament. Saving creates it there."));
     for (const [name, values] of Object.entries(site.create)) {
-      const label = name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
       const select = el("select", { class: "wd-input", "data-field": name },
-        el("option", { value: "" }, "Site default"),
-        ...values.map((value) => el("option", { value: JSON.stringify(value) }, value === "" ? "Standard" : String(value))));
-      detail.append(el("label", { class: "wd-field" }, label, select));
+        el("option", { value: "" }, "As " + site.display_name + " sets it"),
+        ...values.map((value) => el("option", { value: JSON.stringify(value) }, VALUE_NAMES[String(value)] || String(value).replace(/^./, (c) => c.toUpperCase()))));
+      detail.append(el("label", { class: "wd-field" }, FIELD_NAMES[name] || name.replace(/_/g, " "), select));
     }
-    $("next").textContent = "Create on " + site.display_name;
   } else if (site) {
     const picker = el("select", { class: "wd-input", id: "pick" }, el("option", { value: "" }, "Loading your events…"));
     detail.append(
@@ -258,38 +318,34 @@ async function service() {
       .then((listed) => picker.replaceChildren(
         el("option", { value: "" }, listed.tournaments.length ? "Pick an event" : "No events found: create one first"),
         ...listed.tournaments.map((found) => el("option", { value: found.id }, found.name))))
-      .catch((error) => toast(error.message));
+      .catch((error) => stepError(error.message));
   }
-  const rounds = (event && event.settings && event.settings.rounds) || { games_to_win: 2, rules: [] };
+  $("next").textContent = site && site.create && !(event && event.tournament) ? "Create on " + site.display_name : "Save";
+  const settings = (event && event.settings) || {};
+  const rounds = settings.rounds || { games_to_win: 2 };
   $("games").replaceChildren(...gamesOptions(rounds.games_to_win || 2));
-  $("rules").replaceChildren(...(rounds.rules || []).map(ruleRow));
-  $("hold").checked = !!(event && event.settings && event.settings.hold && event.settings.hold.streamed);
+  $("top").replaceChildren(...TOPS.map(([n, label]) => el("option", { value: n, selected: n === (rounds.top ? rounds.top.top : 8) }, label)));
+  $("top-games").replaceChildren(...gamesOptions(rounds.top ? rounds.top.games_to_win : 3));
+  $("final-games").replaceChildren(...gamesOptions(rounds.grand_final || (rounds.top ? rounds.top.games_to_win : 3)));
+  // ponytail: holding sets on stream is start.gg's, the one service Ember
+  // attaches to rather than creates on; a flag in /web/accounts if another such site comes.
+  $("hold-row").replaceChildren(...(site && !site.create
+    ? [el("label", { class: "check" }, "Hold sets " + site.display_name + " puts on a stream", el("input", { type: "checkbox", id: "hold", checked: !!(settings.hold && settings.hold.streamed) }))]
+    : []));
 }
 
-function ruleRow(rule = {}) {
-  const row = el("div", { class: "rule" },
-    el("label", { class: "wd-field" }, "Side",
-      el("select", { class: "wd-input", "data-rule": "side" },
-        ...["any", "winners", "losers"].map((side) => el("option", { value: side, selected: (rule.side || "any") === side }, side)))),
-    el("label", { class: "wd-field" }, "From round", el("input", { class: "wd-input", "data-rule": "from_round", type: "number", min: 1, value: rule.from_round || 1 })),
-    el("label", { class: "wd-field" }, "Phase (start.gg)", el("input", { class: "wd-input", "data-rule": "phase", maxlength: 64, value: rule.phase || "", placeholder: "Top 8" })),
-    el("label", { class: "wd-field" }, "Games to win", el("select", { class: "wd-input", "data-rule": "games_to_win" }, ...gamesOptions(rule.games_to_win || 3))),
-  );
-  row.append(el("button", { type: "button", class: "wd-btn", onclick: () => row.remove() }, "Remove rule"));
-  return row;
+function gamesOptions(selected) {
+  return [1, 2, 3, 4, 5, 7, 10].map((n) => el("option", { value: n, selected: n === selected }, "FT" + n));
 }
-
-$("add-rule").addEventListener("click", () => $("rules").append(ruleRow()));
 
 function settingsFromForm() {
-  const rules = [...$("rules").children].map((row) => {
-    const value = (name) => row.querySelector('[data-rule="' + name + '"]').value;
-    const rule = { side: value("side"), from_round: Number(value("from_round")) || 1, games_to_win: Number(value("games_to_win")) };
-    if (value("phase").trim()) rule.phase = value("phase").trim();
-    return rule;
-  });
-  const settings = { rounds: { games_to_win: Number($("games").value), rules } };
-  if ($("hold").checked) settings.hold = { streamed: true };
+  const kept = (desk.event && desk.event.settings && desk.event.settings.rounds) || {};
+  const rounds = { games_to_win: Number($("games").value), rules: kept.rules || [] };
+  const top = Number($("top").value);
+  if (top) rounds.top = { top, games_to_win: Number($("top-games").value) };
+  rounds.grand_final = Number($("final-games").value);
+  const settings = { rounds };
+  if ($("hold") && $("hold").checked) settings.hold = { streamed: true };
   return settings;
 }
 
@@ -323,14 +379,9 @@ function linkRow(link = { label: "", url: "" }) {
   return row;
 }
 
-async function links() {
-  const kept = (desk.event && desk.event.links) || [];
-  $("links").replaceChildren(...(kept.length ? kept : [{ label: "Stream", url: "" }, { label: "Matcherino", url: "" }]).map(linkRow));
-}
-
 $("add-link").addEventListener("click", () => $("links").append(linkRow()));
 
-async function saveLinks() {
+function linksFromForm() {
   const list = [...$("links").children]
     .map((row) => ({ label: row.querySelector('[data-link="label"]').value.trim(), url: row.querySelector('[data-link="url"]').value.trim() }))
     .filter((link) => link.url);
@@ -338,16 +389,17 @@ async function saveLinks() {
     if (!link.url.startsWith("https://")) throw new Error(link.url + " is not an https address.");
     if (!link.label) throw new Error("Give " + link.url + " a label.");
   }
-  await api("POST", "/v1/organizer/events/" + desk.event.id, { links: list });
-  await refreshEvent();
+  return list;
 }
 
 async function post() {
   const event = desk.event;
   $("post").value = discordPost(event, siteName(event.site));
-  $("ready-note").textContent = event.status === "draft"
-    ? "Mark ready when the date, service and links are right: Ember runs it from its start time."
-    : event.status === "ready" ? "Ready: Ember runs it from " + whenText(event.starts_at) + "." : "Running now.";
+  const missing = [!event.starts_at && "a start date", !event.tournament && "its bracket event (step 2)"].filter(Boolean);
+  $("ready-note").textContent = event.status !== "draft"
+    ? event.status === "ready" ? "Ready: Ember runs it from " + whenText(event.starts_at) + "." : "Running now."
+    : missing.length ? "To mark it ready it still needs " + missing.join(" and ") + "." : "Mark ready when everything is right: Ember runs it from its start time.";
+  $("next").disabled = event.status === "draft" && missing.length > 0;
 }
 
 $("copy").addEventListener("click", async () => {
@@ -368,7 +420,6 @@ const view = { tab: "Sets", filter: "All", phase: null, sets: [], timer: 0 };
 
 async function live() {
   clearInterval(view.timer);
-  liveSettings();
   $("stop").textContent = desk.event.status === "draft" ? "Delete this draft" : "Stop this tournament";
   if (desk.event.status !== "running") {
     $("live").replaceChildren(el("div", { class: "wd-kpi" }, el("b", {}, desk.event.status), el("span", { class: "small" }, whenText(desk.event.starts_at))));
@@ -378,7 +429,7 @@ async function live() {
   }
   await readSets();
   view.timer = setInterval(() => {
-    if (desk.step === 6 && !$("wizard").hidden && !document.hidden) readSets().catch(() => {});
+    if (desk.step === 5 && !$("wizard").hidden && !document.hidden) readSets().catch(() => {});
   }, 10000);
 }
 
@@ -484,7 +535,7 @@ function decide(set) {
 
 // --- The event's settings: Discord, results, the public page and sign-ups.
 
-function liveSettings() {
+async function liveSettings() {
   const event = desk.event;
   const page = location.origin + "/t/" + event.id;
   const hook = el("input", { class: "wd-input", type: "url", inputmode: "url", placeholder: event.discord_webhook ? "Set: " + event.discord_webhook : "https://discord.com/api/webhooks/…", "aria-label": "Discord webhook" });
@@ -502,12 +553,13 @@ function liveSettings() {
     resultsRow, publicRow,
     event.public ? el("a", { href: page, target: "_blank", rel: "noopener", class: "small" }, page) : null,
     signRow,
-    el("button", { type: "button", class: "wd-btn primary", onclick: () => {
-      const change = { post_results: results.checked, public: open.checked || signs.checked, sign_ups: signs.checked };
-      if (hook.value.trim()) change.discord_webhook = hook.value.trim();
-      saveLive(change);
-    } }, "Save settings"),
+    el("p", { class: "note" }, "Sign-ups put the public page on too, since players sign up there."),
   );
+  desk.settingsForm = () => {
+    const change = { post_results: results.checked, public: open.checked || signs.checked, sign_ups: signs.checked };
+    if (hook.value.trim()) change.discord_webhook = hook.value.trim();
+    return change;
+  };
 }
 
 async function saveLive(change) {
@@ -517,8 +569,13 @@ async function saveLive(change) {
     toast("Saved.", true);
     liveSettings();
   } catch (error) {
-    toast(error.message);
+    stepError(error.message);
   }
+}
+
+async function saveSettings() {
+  await api("POST", "/v1/organizer/events/" + desk.event.id, desk.settingsForm());
+  await refreshEvent();
 }
 
 $("stop").addEventListener("click", async () => {
@@ -531,22 +588,22 @@ $("stop").addEventListener("click", async () => {
 
 // --- The bar.
 
-const SAVE = [null, saveTournament, saveService, saveLinks, null, null];
+const SAVE = [saveDetails, saveService, saveSettings, null, null];
 
 $("next").addEventListener("click", async () => {
   const button = $("next");
   button.disabled = true;
   try {
     if (SAVE[desk.step - 1]) await SAVE[desk.step - 1]();
-    if (desk.step === 5 && desk.event.status === "draft") {
+    if (desk.step === 4 && desk.event.status === "draft") {
       await api("POST", "/v1/organizer/events/" + desk.event.id + "/ready");
       await refreshEvent();
-      return go(5);
+      return go(4);
     }
-    if (desk.step === 6) return home();
+    if (desk.step === 5) return home();
     go(desk.step + 1);
   } catch (error) {
-    toast(error.message);
+    stepError(error.reason === "needs_game_proof" ? error.message + " Then open the web desk from there." : error.message);
   } finally {
     button.disabled = false;
   }
@@ -560,26 +617,8 @@ $("sign-out").addEventListener("click", async () => {
   signedOut();
 });
 
-// A code shown in Ember, typed here: the bridge signs this browser in to
-// the desk as opened from the game.
-$("code-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const box = $("code-error");
-  box.hidden = true;
-  try {
-    await api("POST", "/web/handoff", { code: $("code").value });
-    $("code").value = "";
-    await start();
-  } catch (error) {
-    box.textContent = error.status === 429
-      ? "Too many tries. Wait a few minutes, then get a new code in Ember."
-      : "That code is wrong or expired. Codes last two minutes: get a new one in Ember.";
-    box.hidden = false;
-    $("code").focus();
-  }
-});
-
 async function start() {
+  clearInterval(device.timer);
   try {
     desk.session = await api("GET", "/web/session");
   } catch (error) {
