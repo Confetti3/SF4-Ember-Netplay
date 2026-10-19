@@ -38,10 +38,14 @@ struct IdentityView {
     bool inspectedDiscord = false, inspectedDiscordAccounts = false;
     // The sign-in sites the bridge last inspected lists.
     std::vector<IdentitySignInSite> signInSites;
-    // The Discord account connected on the bridge last asked; empty when none.
+    // The Discord account connected on the bridge last asked, and when it
+    // connected (each sign-in, the same account's again too, connects it
+    // anew); empty and 0 when none.
     std::string discordUser, discordName;
-    // The account connected on the sign-in site last asked; empty when none.
+    std::uint64_t discordConnectedAt = 0;
+    // The account connected on the sign-in site last asked, likewise.
     std::string siteUser, siteName;
+    std::uint64_t siteConnectedAt = 0;
     // Links and pending claims on the bridge last listed.
     std::vector<IdentityLink> links, pending;
     // The last answer: which request, what it did, and a stable failure code.

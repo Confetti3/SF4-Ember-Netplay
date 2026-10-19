@@ -69,10 +69,14 @@ void Answers() {
     view.discordUser = "274220342558756145"; view.discordName = "player1";
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"site_status","ok":true,"data":{
         "account":{"user_id":"1001","username":"Player_1","connected_at":10}}})"), view);
-    Check(view.siteUser == "1001" && view.siteName == "Player_1", "The site's account was not read");
+    Check(view.siteUser == "1001" && view.siteName == "Player_1" && view.siteConnectedAt == 10, "The site's account was not read");
     Check(view.discordUser == "274220342558756145" && view.discordName == "player1", "A site's answer changed the Discord account");
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"site_remove","ok":true,"data":{"account":null}})"), view);
     Check(view.siteUser.empty() && view.siteName.empty() && view.discordName == "player1", "Unlinking a site's account was not read");
+    Check(view.siteConnectedAt == 0, "Unlinking a site's account kept when it connected");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":6,"op":"discord_status","ok":true,"data":{
+        "account":{"user_id":"274220342558756145","username":"player1","connected_at":30}}})"), view);
+    Check(view.discordConnectedAt == 30 && view.siteConnectedAt == 0, "When Discord's account connected was not read");
     // A failed read changes neither account.
     view.siteName = "Player_1";
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":4,"op":"site_status","ok":false,"reason":"rate_limited"})"), view);

@@ -137,6 +137,7 @@ void IdentityPanel::OpenSignIn(const SignInTarget& target, const std::string& br
     EndOtherSignIn(target);
     const auto* account = FindAccount(target, bridge);
     SignInAttempt next{target, bridge, account ? account->user : std::string()};
+    next.beforeAt = account ? account->connectedAt : 0;
     // The same site again on the same service (Discord's change of account):
     // the wait already running goes on as it always has, still shown and
     // still read every few seconds, until the new page's answer starts it again.
@@ -334,10 +335,12 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
         // A site its service stopped listing since the read was asked keeps nothing.
         if (info.listed && !ListedSite(sentBridge_, target.site)) break;
         auto& account = Account(target, sentBridge_);
-        account.user = user; account.name = name; account.read = true; account.failed = false;
+        const auto connectedAt = id.*info.connectedAt;
+        account.user = user; account.name = name; account.connectedAt = connectedAt; account.read = true; account.failed = false;
         // Only the service and site the sign-in is for end the wait, and only
-        // with an account other than the one connected when the page opened.
-        if (waitedFor && signIn_->until > 0 && !user.empty() && user != signIn_->before) {
+        // with an account connected since the page opened: another one, or
+        // the same one again, which the service connects anew.
+        if (waitedFor && signIn_->until > 0 && !user.empty() && (user != signIn_->before || connectedAt != signIn_->beforeAt)) {
             signIn_.reset();
             Say(Word(target, info.words.done, name), false, 20);
         }
@@ -352,7 +355,7 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
         break;
     case SignInStep::Remove: {
         auto& account = Account(target, sentBridge_);
-        account.user.clear(); account.name.clear(); account.read = true; account.failed = false;
+        account.user.clear(); account.name.clear(); account.connectedAt = 0; account.read = true; account.failed = false;
         if (waitedFor) signIn_.reset();
         Say(Word(target, info.words.removed), false);
         break;

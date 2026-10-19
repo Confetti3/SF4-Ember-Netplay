@@ -14,6 +14,12 @@ std::string Text(const nlohmann::json& object, const char* key, std::size_t limi
         do ++end; while (end < value.size() && (static_cast<unsigned char>(value[end]) & 0xC0) == 0x80);
     return value.substr(0, end);
 }
+
+// When an account connected; 0 when unknown.
+std::uint64_t ConnectedAt(const nlohmann::json& account) {
+    const auto it = account.is_object() ? account.find("connected_at") : account.end();
+    return it != account.end() && it->is_number_unsigned() ? it->get<std::uint64_t>() : 0;
+}
 }
 
 void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& live) {
@@ -91,10 +97,12 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         const auto account = data.value("account", nlohmann::json());
         view.discordUser = account.is_object() ? Text(account, "user_id", 20) : std::string();
         view.discordName = account.is_object() ? Text(account, "username", 64) : std::string();
+        view.discordConnectedAt = ConnectedAt(account);
     } else if (view.op == "site_status" || view.op == "site_remove") {
         const auto account = data.value("account", nlohmann::json());
         view.siteUser = account.is_object() ? Text(account, "user_id", 64) : std::string();
         view.siteName = account.is_object() ? Text(account, "username", 64) : std::string();
+        view.siteConnectedAt = ConnectedAt(account);
     } else if (view.op == "link_claim") {
         view.claimFingerprint = Text(data, "fingerprint", 32);
     } else if (view.op == "identity_preview_import") {

@@ -622,9 +622,58 @@ void DiscordChangeNeedsSignIn(){
  }
 }
 
+// Signing in again with the account already connected finishes at once: the
+// service connects it anew, which its read says, so the wait does not run to
+// its deadline. A read of the connection the page started from does not.
+void SameAccountAgain(const Case& site){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+ OpenSite(h,site);
+ Check(ReadsSite(h,site),"The site's Connect screen did not read the account");
+ id.siteUser="1001";id.siteName="player1";id.siteConnectedAt=10;h.answer();
+ Check(h.row("st-connected")&&h.row("st-connect")&&h.row("st-connect")->enabled,"Another account is not offered");
+ h.Choose("st-connect");
+ Check(h.sent().back()->op==IdentityOp::SiteConnect,"Connect did not ask the helper to open the site");
+ h.answer();
+ Check(h.row("st-waiting")!=nullptr,"The site is not waited for");
+ h.Frame(0,300);
+ Check(ReadsSite(h,site),"The account was not read again while waiting");
+ h.answer();
+ Check(h.row("st-waiting")!=nullptr,"The connection the page started from ended the wait");
+ id.siteConnectedAt=20;h.Frame(0,300);
+ Check(h.until(IdentityOp::SiteStatus),"The account was not read again while waiting");
+ h.answer();
+ Check(h.status==Words("site.done",site,"player1")&&!h.row("st-waiting")&&h.row("st-connected"),
+  "Signing in again with the same account did not finish");
+}
+
+// The same for Discord, which shares the sign-in.
+void SameDiscordAccountAgain(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+ h.Screen(DiscordConnectScreen);
+ Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Connect Discord did not read Ember's service");
+ id.inspected=id.bridges[0];id.inspectedDiscord=id.inspectedDiscordAccounts=true;id.signInSites.clear();h.answer();
+ Check(h.until(IdentityOp::DiscordStatus),"Connect Discord did not read Discord's account");
+ id.discordUser="274220342558756145";id.discordName="player1";id.discordConnectedAt=10;h.answer();for(int i=0;i<4;++i)h.answer();
+ h.Choose("id-discord-connect");
+ Check(h.sent().back()->op==IdentityOp::DiscordConnect,"Connect did not open Discord");
+ h.answer();
+ Check(h.row("dc-waiting")!=nullptr,"Discord is not waited for");
+ h.Frame(0,300);
+ Check(h.sent().back()->op==IdentityOp::DiscordStatus,"Discord's account was not read again while waiting");
+ h.answer();
+ Check(h.row("dc-waiting")!=nullptr,"The connection the page started from ended Discord's wait");
+ id.discordConnectedAt=20;h.Frame(0,300);
+ Check(h.until(IdentityOp::DiscordStatus),"Discord's account was not read again while waiting");
+ h.answer();
+ Check(h.status==loc::Tf("connect.done","player1")&&!h.row("dc-waiting")&&h.row("dc-connected"),
+  "Signing in to Discord again with the same account did not finish");
+}
+
 void RunSignInSiteJourneys(){
- for(const auto& site:{Challonge,Startgg,Other}){SiteRows(site);SiteConnects(site);SiteStops(site);SiteOffAndRetry(site);SiteBusy(site);SiteGone(site);}
+ for(const auto& site:{Challonge,Startgg,Other}){SiteRows(site);SiteConnects(site);SiteStops(site);SiteOffAndRetry(site);SiteBusy(site);SiteGone(site);SameAccountAgain(site);}
  ManySites();LongSiteName();TwoSites();DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsSite();SiteReadsQuietly();
  SiteDeadline();SiteWaitsWhileHidden();LinkWhileSiteWaits();CancelWithoutReadyId();DiscordGoEndsItsWait();LinkForTheWaitedService();
- DiscordChangeNeedsSignIn();
+ DiscordChangeNeedsSignIn();SameDiscordAccountAgain();
 }
