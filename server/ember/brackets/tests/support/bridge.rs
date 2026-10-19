@@ -41,8 +41,9 @@ fn rand16() -> [u8; 16] {
 }
 
 impl TestBridge {
-    /// A bridge whose `brackets` connection sends results to `results_url`.
-    pub async fn start(results_url: &str) -> Self {
+    /// A bridge whose `brackets` connection sends results to `results_url`,
+    /// and looks players up by Discord account when `discord_lookup`.
+    pub async fn start(results_url: &str, discord_lookup: bool) -> Self {
         let dir = temp("bridge");
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -75,7 +76,7 @@ impl TestBridge {
                     "environment": "local",
                     "display_name": "Brackets",
                     "lookup_sites": ["challonge", "startgg"],
-                    "discord_lookup": true,
+                    "discord_lookup": discord_lookup,
                     "disputes": "restart",
                     "results_url": results_url,
                 }],

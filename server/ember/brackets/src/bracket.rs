@@ -481,7 +481,8 @@ impl Bracket {
 
     /// Settles the waiting results in order, against a read made for them.
     /// A result whose report waits does so on its own, and the others go
-    /// on. A failure stops it, and is returned beside what was settled.
+    /// on. A failure stops it, and is returned beside what was settled; a
+    /// refused token or version is returned once every result was tried.
     async fn settle(
         &self,
         pending: &[(String, Received)],
@@ -491,6 +492,10 @@ impl Bracket {
         phase: Phase,
     ) -> (Settled, Option<SiteError>) {
         let mut settled = Settled::default();
+        // A refused token or contract version stops nothing here: every
+        // result is still tried (each is refused the same way, or goes in),
+        // and the refusal is returned at the end, so the tournament waits.
+        let mut denied = None;
         for (webhook_id, received) in pending {
             let tries = deferred.get(webhook_id).map_or(0, Backoff::count);
             let outcome = self
@@ -511,6 +516,10 @@ impl Bracket {
                         .grow(now);
                     false
                 }
+                Err(SiteError::Denied(why)) => {
+                    denied.get_or_insert(SiteError::Denied(why));
+                    false
+                }
                 Err(error) => return (settled, Some(error)),
             };
             if done {
@@ -520,7 +529,7 @@ impl Bracket {
                 }
             }
         }
-        (settled, None)
+        (settled, denied)
     }
 
     /// `tries`: how often this result's report waited before.

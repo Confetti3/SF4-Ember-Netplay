@@ -35,7 +35,8 @@ impl Bracket {
             .flat_map(|(set, _)| set.entries.iter().flatten())
             .flat_map(|entry| &entry.accounts)
             .collect();
-        let found = match self.context.bridge.lookup(&accounts).await {
+        let now = self.context.clock.now();
+        let found = match self.context.bridge.lookup(&accounts, now).await {
             Ok(found) => {
                 if self.lookup_failing.swap(false, Ordering::Relaxed) {
                     log!("{}: players can be looked up again", self.key);
@@ -92,18 +93,29 @@ impl Bracket {
         };
         let players = entries.each_ref().map(|entry| {
             found.player(entry).ok_or_else(|| {
-                if let Some(account) = found.unknown_site(entry) {
-                    return format!("the bridge has no sign-in site for {account}");
-                }
-                match entry.accounts.as_slice() {
-                    [] => format!(
+                // The accounts asked found nobody; the others say why not.
+                let (asked, reasons): (Vec<_>, Vec<_>) = entry
+                    .accounts
+                    .iter()
+                    .map(|account| (account, found.not_asked(account)))
+                    .partition(|(_, reason)| reason.is_none());
+                let reasons: Vec<String> = reasons.into_iter().filter_map(|(_, why)| why).collect();
+                let asked: Vec<String> = asked
+                    .iter()
+                    .map(|(account, _)| account.to_string())
+                    .collect();
+                match (asked.as_slice(), reasons.as_slice()) {
+                    ([], []) => format!(
                         "entry {} has no account to find its player by",
                         entry.participant_id
                     ),
-                    accounts => {
-                        let names: Vec<String> = accounts.iter().map(Account::to_string).collect();
-                        format!("{} has not connected in Ember", names.join(" or "))
-                    }
+                    ([], reasons) => reasons.join("; "),
+                    (asked, []) => format!("{} has not connected in Ember", asked.join(" or ")),
+                    (asked, reasons) => format!(
+                        "{} has not connected in Ember; {}",
+                        asked.join(" or "),
+                        reasons.join("; ")
+                    ),
                 }
             })
         });
@@ -286,7 +298,7 @@ impl Bracket {
         if !players.iter().any(|(_, player)| old(player)) {
             return;
         }
-        let Some(sites) = self.context.bridge.sign_in_sites().await else {
+        let Some(sites) = self.context.bridge.sign_in_sites(now).await else {
             return;
         };
         let mut pointed_out = self

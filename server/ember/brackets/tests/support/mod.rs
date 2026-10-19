@@ -169,6 +169,8 @@ pub struct Setup {
     /// Whether the connector answers on its results URL. Without it every
     /// delivery fails, as one lost in the network would.
     pub serve_results: bool,
+    /// Whether the bridge connection may look players up by Discord account.
+    pub discord_lookup: bool,
     pub participants: Vec<(String, Option<String>)>,
     pub matches: Vec<FakeMatch>,
 }
@@ -185,6 +187,7 @@ impl Default for Setup {
             active_from: None,
             active_until: None,
             serve_results: true,
+            discord_lookup: true,
             participants: [
                 ("355", Some("Player1")),
                 ("354", Some("player_2")),
@@ -208,7 +211,7 @@ impl World {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let results_url = format!("http://{}/results", listener.local_addr().unwrap());
         let challonge = FakeChallonge::start(setup.kind, setup.participants, setup.matches).await;
-        let bridge = TestBridge::start(&results_url).await;
+        let bridge = TestBridge::start(&results_url, setup.discord_lookup).await;
         let provider = bridge.provider().await;
         let organizer = bridge.organizer().await;
         let mut config = config(&dir, &bridge.origin, &provider);

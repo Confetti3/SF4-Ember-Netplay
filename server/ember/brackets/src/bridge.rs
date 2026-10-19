@@ -5,6 +5,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt,
+    sync::Mutex,
 };
 
 use ember_protocol::{
@@ -16,7 +17,6 @@ use ember_protocol::{
     sites::SiteAccount,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use tokio::sync::OnceCell;
 use zeroize::Zeroizing;
 
 use crate::{
@@ -26,6 +26,10 @@ use crate::{
 };
 
 const MAX_ANSWER: usize = 256 * 1024;
+/// How long the bridge's sign-in sites, and a kind of account the
+/// connection may not look up, are taken as read: a change on the bridge
+/// is seen within this, without a restart.
+const BRIDGE_FRESH_SECS: u64 = 15 * 60;
 
 #[derive(Debug)]
 pub(crate) enum BridgeError {
@@ -66,13 +70,31 @@ pub(crate) struct Over {
     pub delivery: DeliveryState,
 }
 
+/// The accounts the bridge's connection settings allow or refuse as one:
+/// Discord's (`discord_lookup`), or one site's (`lookup_sites`).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum Kind {
+    Discord,
+    Site(String),
+}
+
+impl Kind {
+    fn of(account: &Account) -> Self {
+        match account {
+            Account::Site { site, .. } => Self::Site(site.clone()),
+            Account::Discord { .. } => Self::Discord,
+        }
+    }
+}
+
 /// The players found for a lookup's accounts, by the account as asked,
-/// and the accounts on a site the bridge has no sign-in site for, which
-/// are not asked.
+/// and why the others could not be asked: a site the bridge does not have,
+/// or a kind of account the connection may not look up.
 #[derive(Default)]
 pub(crate) struct Found {
     players: HashMap<Account, Player>,
     unknown: HashSet<Account>,
+    refused: HashSet<Account>,
 }
 
 impl Found {
@@ -84,13 +106,39 @@ impl Found {
             .find_map(|account| Some((account, self.players.get(account)?)))
     }
 
-    /// The first of the entry's accounts on a site the bridge does not have.
-    pub fn unknown_site<'a>(&'a self, entry: &'a Entry) -> Option<&'a Account> {
-        entry
-            .accounts
-            .iter()
-            .find(|account| self.unknown.contains(*account))
+    /// Why this account was not asked, if it was not.
+    pub fn not_asked(&self, account: &Account) -> Option<String> {
+        if self.unknown.contains(account) {
+            return Some(format!("the bridge has no sign-in site for {account}"));
+        }
+        self.refused
+            .contains(account)
+            .then(|| match Kind::of(account) {
+                Kind::Discord => "this connection may not look up Discord accounts".to_owned(),
+                Kind::Site(site) => format!("this connection may not look up {site} accounts"),
+            })
     }
+}
+
+/// What the client knows of the bridge for a while: its sign-in sites, and
+/// the kinds of account the connection was refused, each with when it was
+/// learnt.
+#[derive(Default)]
+struct Known {
+    sites: Option<(HashMap<String, bool>, u64)>,
+    refused: HashMap<Kind, u64>,
+}
+
+/// A refusal that names no one account: the connection may not look up a
+/// kind of account the lookup holds.
+fn is_forbidden(error: &BridgeError) -> bool {
+    matches!(
+        error,
+        BridgeError::Refused {
+            code: ErrorCode::Forbidden,
+            ..
+        }
+    )
 }
 
 /// A lookup of these accounts, in the bridge's request form.
@@ -295,8 +343,7 @@ pub(crate) struct BridgeClient {
     http: reqwest::Client,
     api: String,
     credential: Zeroizing<String>,
-    /// Read once, when first needed (`sign_in_sites`).
-    sign_in_sites: OnceCell<HashMap<String, bool>>,
+    known: Mutex<Known>,
 }
 
 impl BridgeClient {
@@ -305,7 +352,7 @@ impl BridgeClient {
             http: http_client()?,
             api: api.trim_end_matches('/').to_owned(),
             credential,
-            sign_in_sites: OnceCell::new(),
+            known: Mutex::default(),
         })
     }
 
@@ -323,44 +370,94 @@ impl BridgeClient {
 
     /// The players connected to these accounts, asked for in lookups of at
     /// most `MAX_LOOKUP` accounts, Discord's and sites' together. The
-    /// bridge finds nothing for an ID its site's accounts cannot have, but
-    /// refuses a whole lookup that names a site it does not have: an
-    /// account on such a site is not asked, so only its own entry waits.
-    /// Bridge requests cost no site budget.
-    pub async fn lookup(&self, accounts: &[&Account]) -> Result<Found, BridgeError> {
+    /// bridge finds nothing for an ID its site's accounts cannot have. It
+    /// refuses a whole lookup that names a site it does not have, which is
+    /// therefore not asked, or a kind of account the connection may not
+    /// look up (Discord's, or a site's): a refused lookup is asked again
+    /// kind by kind, and a refused kind is left out for a while. Either way
+    /// only the entries with such an account wait. Bridge requests cost no
+    /// site budget.
+    pub async fn lookup(&self, accounts: &[&Account], now: u64) -> Result<Found, BridgeError> {
         let mut asked = accounts.to_vec();
         asked.sort_by_key(|account| account.to_string());
         asked.dedup();
         let mut found = Found::default();
-        if let Some(sites) = self.sign_in_sites().await {
-            asked.retain(|&account| match account {
-                Account::Site { site, .. } if !sites.contains_key(site) => {
+        let sites = self.sign_in_sites(now).await;
+        {
+            let known = self.known();
+            asked.retain(|&account| {
+                if let (Account::Site { site, .. }, Some(sites)) = (account, &sites)
+                    && !sites.contains_key(site)
+                {
                     found.unknown.insert(account.clone());
-                    false
+                    return false;
                 }
-                _ => true,
+                let refused = known
+                    .refused
+                    .get(&Kind::of(account))
+                    .is_some_and(|&at| now.saturating_sub(at) < BRIDGE_FRESH_SECS);
+                if refused {
+                    found.refused.insert(account.clone());
+                }
+                !refused
             });
         }
         for chunk in asked.chunks(MAX_LOOKUP) {
-            found
-                .players
-                .extend(found_in(self.lookup_once(chunk).await?));
+            match self.lookup_once(chunk).await {
+                Ok(answer) => found.players.extend(found_in(answer)),
+                Err(error) if is_forbidden(&error) => {
+                    // The bridge's sites may have changed too.
+                    self.known().sites = None;
+                    let mut kinds: Vec<Kind> = Vec::new();
+                    for &account in chunk {
+                        let kind = Kind::of(account);
+                        if !kinds.contains(&kind) {
+                            kinds.push(kind);
+                        }
+                    }
+                    for kind in kinds {
+                        let group: Vec<&Account> = chunk
+                            .iter()
+                            .copied()
+                            .filter(|&account| Kind::of(account) == kind)
+                            .collect();
+                        match self.lookup_once(&group).await {
+                            Ok(answer) => found.players.extend(found_in(answer)),
+                            Err(error) if is_forbidden(&error) => {
+                                self.known().refused.insert(kind, now);
+                                found.refused.extend(group.into_iter().cloned());
+                            }
+                            Err(error) => return Err(error),
+                        }
+                    }
+                }
+                Err(error) => return Err(error),
+            }
         }
         Ok(found)
     }
 
+    fn known(&self) -> std::sync::MutexGuard<'_, Known> {
+        self.known
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     /// The bridge's sign-in sites, and whether each looks accounts up by
-    /// username, read from its capabilities once. `None` while they cannot
-    /// be read.
-    pub async fn sign_in_sites(&self) -> Option<&HashMap<String, bool>> {
-        self.sign_in_sites
-            .get_or_try_init(|| async {
-                let capabilities: CapabilitiesView =
-                    self.answer(self.get("/v1/capabilities")).await?;
-                Ok::<_, BridgeError>(sites_of(capabilities))
-            })
-            .await
-            .ok()
+    /// username, from its capabilities: read again every
+    /// `BRIDGE_FRESH_SECS` and after a refused lookup. `None` while they
+    /// cannot be read.
+    pub async fn sign_in_sites(&self, now: u64) -> Option<HashMap<String, bool>> {
+        if let Some((sites, at)) = &self.known().sites
+            && now.saturating_sub(*at) < BRIDGE_FRESH_SECS
+        {
+            return Some(sites.clone());
+        }
+        let capabilities: CapabilitiesView =
+            self.answer(self.get("/v1/capabilities")).await.ok()?;
+        let sites = sites_of(capabilities);
+        self.known().sites = Some((sites.clone(), now));
+        Some(sites)
     }
 
     async fn lookup_once(&self, accounts: &[&Account]) -> Result<LookupView, BridgeError> {
@@ -571,17 +668,21 @@ mod tests {
             accounts: Vec::new(),
         };
         assert!(found.player(&none).is_none());
-        // An account on a site the bridge does not have is the reason given.
+        // Why an account was not asked.
         let unknown = Account::Site {
             site: "smashgg".into(),
             id: "12".into(),
         };
         found.unknown.insert(unknown.clone());
-        let waiting = Entry {
-            participant_id: "353".into(),
-            accounts: vec![unknown.clone()],
-        };
-        assert!(found.player(&waiting).is_none());
-        assert_eq!(found.unknown_site(&waiting), Some(&unknown));
+        found.refused.insert(discord.clone());
+        assert_eq!(
+            found.not_asked(&unknown).as_deref(),
+            Some("the bridge has no sign-in site for smashgg account 12")
+        );
+        assert_eq!(
+            found.not_asked(&discord).as_deref(),
+            Some("this connection may not look up Discord accounts")
+        );
+        assert_eq!(found.not_asked(&site), None);
     }
 }

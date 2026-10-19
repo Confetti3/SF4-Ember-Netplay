@@ -563,3 +563,44 @@ async fn private_discord_accounts_still_leave_start_gg_accounts_to_find() {
     assert_eq!(fake.operations(), ["Event", "Sets", "Entrants", "Underway"]);
     assert_eq!(world.bridge.matches().await.len(), 1);
 }
+
+#[tokio::test]
+async fn a_connection_that_may_not_look_up_discord_still_finds_start_gg_players() {
+    let entrant = |id: u64, user: u64, discord: Option<&str>| FakeEntrant {
+        id,
+        user: Some(user),
+        discord: discord.map(str::to_owned),
+    };
+    let fake = FakeStartgg::start(
+        vec![
+            entrant(2_401_411, PLAYER1_USER, None),
+            entrant(2_401_412, 5_002, Some(PLAYER2_DISCORD)),
+            entrant(2_401_414, 5_003, None),
+            entrant(2_401_415, 5_004, None),
+        ],
+        vec![
+            FakeSet::open(65_089_253, 1, [2_401_411, 2_401_412]),
+            FakeSet::open(65_089_255, 1, [2_401_414, 2_401_415]),
+        ],
+    )
+    .await;
+    // The bridge connection does not look players up by Discord account,
+    // and Player 2 can only be found by one.
+    let world = World::start(Setup {
+        challonge: false,
+        extra: vec![startgg(&fake)],
+        discord_lookup: false,
+        ..Setup::default()
+    })
+    .await;
+    world.bridge.connect_startgg(1, PLAYER1_USER).await;
+    world.bridge.connect_discord(2, PLAYER2_DISCORD).await;
+    world.bridge.connect_startgg(3, 5_003).await;
+    world.bridge.connect_startgg(4, 5_004).await;
+    world.connector.pass(true).await;
+    // Only the set whose players need a Discord lookup waits.
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].0, format!("startgg:{EVENT_SLUG}:65089255:1"));
+    assert_eq!(world.progress(BRACKET, "65089253"), "waiting");
+}

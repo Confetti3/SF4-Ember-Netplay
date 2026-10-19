@@ -463,3 +463,49 @@ async fn a_token_refused_on_a_report_holds_the_whole_tournament() {
     assert_eq!(service.reports(), [player1_wins(&match_id)]);
     assert_eq!(world.progress(BRACKET, "s-1"), "reported");
 }
+
+#[tokio::test]
+async fn a_refused_token_on_one_report_still_tries_the_others() {
+    let mut second = player1_and_player2();
+    second["id"] = json!("s-2");
+    second["entries"][0] =
+        json!({ "id": "player3", "accounts": [{ "site": "challonge", "id": "player3" }] });
+    second["entries"][1] =
+        json!({ "id": "player4", "accounts": [{ "site": "challonge", "id": "player4" }] });
+    let (service, world, _) = world(vec![player1_and_player2(), second]).await;
+    world.bridge.connect(3, "player3").await;
+    world.bridge.connect(4, "player4").await;
+    world.connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    for set in ["s-1", "s-2"] {
+        let (_, match_id, _) = matches
+            .iter()
+            .find(|(external, _, _)| external.ends_with(&format!(":{set}:1")))
+            .unwrap();
+        world.play(match_id, &[0, 0]).await;
+        world.bridge.deliver().await;
+        world.advance(1);
+    }
+    service.log();
+    // s-1's report is refused for the token, s-2's goes in: nothing waits
+    // behind the refusal, and nothing is given up for it.
+    service.with(|state| state.fail_reports.push_back(StatusCode::FORBIDDEN));
+    world.connector.pass(false).await;
+    assert_eq!(
+        service.log(),
+        [
+            "GET /svc/sets?state=open",
+            "POST /svc/sets/s-1/report",
+            "POST /svc/sets/s-2/report",
+        ]
+    );
+    assert_eq!(world.progress(BRACKET, "s-1"), "live");
+    assert_eq!(world.progress(BRACKET, "s-2"), "reported");
+    // The whole tournament waits out the refusal, then s-1 goes in.
+    world.advance(30);
+    world.connector.pass(true).await;
+    assert!(service.log().is_empty());
+    world.advance(31);
+    world.connector.pass(false).await;
+    assert_eq!(world.progress(BRACKET, "s-1"), "reported");
+}

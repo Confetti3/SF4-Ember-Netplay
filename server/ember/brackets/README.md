@@ -158,11 +158,22 @@ A `direct` connection on the bridge for the connector, with:
 
 `lookup_sites` names the bridge's sign-in sites whose accounts the
 connector may look players up by; `discord_lookup` lets it fall back to
-Discord accounts. The bridge refuses a lookup that names a site not listed,
-so every `bridge_site` the connector's tournaments use must be in it. An ID
-in the wrong form for its site finds nobody, and an account on a site the
-bridge does not have at all is not asked: either way only that entry's set
-waits, with the reason logged once, and every other set is played.
+Discord accounts. Every `bridge_site` the connector's tournaments use
+should be in `lookup_sites`. An ID in the wrong form for its site finds
+nobody; an account on a site the bridge does not have at all is not asked;
+and a site not listed, or Discord without `discord_lookup`, is refused by
+the bridge, so the connector asks again kind by kind and leaves that kind
+out for 15 minutes. In each case only the entries that need such an account
+wait, with the reason logged once ("this connection may not look up Discord
+accounts", say), and every other set is played. The connector reads the
+bridge's sign-in sites from its capabilities every 15 minutes, and again
+after a refused lookup, so a site added or removed on the bridge is seen
+without a restart.
+
+Deploy the bridge from this branch (0cf64544 or later) before the
+connector. An older bridge refuses a whole lookup that names an ID in the
+wrong form for its site (a username where start.gg needs a user ID, from an
+`http` service, say), and then no set of that tournament gets a match.
 
 The connector also needs the connection's provider credential
 (`ember-bridge credential <bridge.json> provider <connection> "<label>"`) and
@@ -349,6 +360,15 @@ rest falls with fewer, longer quiet spells. Nothing is spent before
 on results that arrive. One such
 event fits the free tier per month; regular events need Challonge's paid tier,
 with `monthly_request_budget` set to match.
+
+## Known limitations
+
+- A match that finishes while its set is briefly pending (the organizer
+  re-entering an earlier set, say) has its result dropped: the set reads as
+  changed, and the result is not reported. The set is played again, as a
+  new attempt, when it opens, even for the same two players who already
+  played it. Holding the result until the set reopens unchanged would need
+  a state the connector does not keep yet.
 
 ## Not yet checked against Challonge
 

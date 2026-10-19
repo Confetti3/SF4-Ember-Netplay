@@ -62,9 +62,12 @@ A `Set` carries:
     its entry waits. A site the bridge has no sign-in site for is not asked
     at all (the connector reads the bridge's sites from its capabilities),
     and the set's log line says so once. A site the bridge has but the
-    connection may not look up makes the bridge refuse the whole lookup, so
-    no match is created until the operator lists it;
+    connection may not look up (not in its `lookup_sites`) makes the bridge
+    refuse the lookup: the connector asks again kind by kind, so only the
+    entries that need that site wait, with the reason in their log line;
   - `Account::Discord { user_id }`: a Discord account linked to the entry.
+    A connection without `discord_lookup` refuses these the same way, and
+    only the entries that need one wait.
 - `status`: `Pending` (waiting on an earlier set), `Open` (can be played,
   no result) or `Decided`.
 - `underway`, when the site says so, and `winner` (the winning entry's
@@ -207,7 +210,7 @@ fields in your answers are ignored, so you may add fields freely.
 | `round_label` | no (`Round <round>`) | Shown to the players, at most 1024 bytes |
 | `entries` | no | Player 1 and player 2, once both are known, else `null` or absent |
 | `entries[].id` | yes | Same rule as `id` |
-| `entries[].accounts` | no | In the order to try: `{ "site": "<bridge site>", "id": "<what that site looks up>" }` or `{ "discord": "<Discord user ID>" }`. An ID in the wrong form finds nobody, and a site the bridge does not have is not asked: either way only that entry's set waits. A site the bridge has but the connection may not look up stops every lookup, so send only sites the operator listed. |
+| `entries[].accounts` | no | In the order to try: `{ "site": "<bridge site>", "id": "<what that site looks up>" }` or `{ "discord": "<Discord user ID>" }`. An ID in the wrong form finds nobody, a site the bridge does not have is not asked, and a site (or Discord) the connection may not look up is refused: in each case only that entry's set waits, with the reason logged once. |
 | `underway` | no (`false`) | |
 | `winner` | no | The winning entry's `id`, once decided |
 
