@@ -525,12 +525,15 @@ int main(int argc, char** argv) {
         // SF4E_UI_RENDER_QUICK=1 is for a quick look at a change: English at 1920x1080 only.
         const char* quickRun = std::getenv("SF4E_UI_RENDER_QUICK");
         const std::string quickMode = quickRun ? quickRun : "";
-        const bool quick = quickMode == "1" || quickMode == "narrow" || quickMode == "720";
+        // =WxH or =WxH@scale draws that one viewport, English only (a fit study across resolutions).
+        int chosenW = 0, chosenH = 0; float chosenScale = 1;
+        if (quickMode.find('x') != std::string::npos) std::sscanf(quickMode.c_str(), "%dx%d@%f", &chosenW, &chosenH, &chosenScale);
+        const bool quick = quickMode == "1" || quickMode == "narrow" || quickMode == "720" || chosenW > 0;
         // SF4E_UI_RENDER_QUICK=narrow is the same at 640x720, =720 at 1280x720 and 100%, and SF4E_UI_RENDER_SHOTS=text writes only the shots whose name has it.
         const char* shotFilter = std::getenv("SF4E_UI_RENDER_SHOTS");
         const bool galleryRun = std::getenv("SF4E_UI_RENDER_GALLERY") != nullptr;
         bool galleryShown = false;
-        const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
+        const std::vector<Size> sizes = chosenW > 0 ? std::vector<Size>{{chosenW,chosenH,chosenScale}} : quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
             std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}};
         std::printf("UI backend: %s\n", headless ? "headless ImGui geometry" :
