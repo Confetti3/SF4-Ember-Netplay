@@ -1116,6 +1116,12 @@ msgstr "更快显示（减少 1 帧延迟）"
 msgid "player.faster_display_detail"
 msgstr "游戏在每一帧准备好后立即显示，而不是晚 1 帧显示。如果游戏在这台电脑上低于 60 fps，请关闭此选项。只影响这台电脑：对方玩家无需开启。更改将在下次启动游戏时生效。"
 
+msgid "player.borderless"
+msgstr "无边框"
+
+msgid "player.borderless_detail"
+msgstr "游戏以无边框窗口填满屏幕，按屏幕原生分辨率以 16:9 绘制，在更宽或更高的屏幕上显示黑边。开启时，Alt+Enter 以及游戏自带的分辨率和全屏选项都不起作用；你在那里的选择会保留到关闭时使用。只影响这台电脑。更改将在下次启动游戏时生效。"
+
 
 
 msgid "settings.interface_title"

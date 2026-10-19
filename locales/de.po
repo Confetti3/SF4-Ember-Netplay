@@ -1116,6 +1116,12 @@ msgstr "Schnellere Anzeige (1 Frame weniger)"
 msgid "player.faster_display_detail"
 msgstr "Das Spiel zeigt jeden Frame, sobald er fertig ist, statt einen Frame später. Schalten Sie es aus, wenn das Spiel auf diesem PC unter 60 fps fällt. Es betrifft nur diesen PC: Der andere Spieler muss es nicht einschalten. Änderungen gelten ab dem nächsten Spielstart."
 
+msgid "player.borderless"
+msgstr "Randlos"
+
+msgid "player.borderless_detail"
+msgstr "Das Spiel füllt den Bildschirm in einem Fenster ohne Rahmen, gerendert in der eigenen Auflösung des Bildschirms im Format 16:9, mit schwarzen Balken auf breiteren oder höheren Bildschirmen. Solange es an ist, bewirken Alt+Enter und die spieleigenen Optionen für Auflösung und Vollbild nichts; das Spiel behält deine Wahl dort für die Zeit, in der es aus ist. Betrifft nur diesen PC. Änderungen gelten ab dem nächsten Spielstart."
+
 
 
 msgid "settings.interface_title"

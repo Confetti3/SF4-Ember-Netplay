@@ -1116,6 +1116,12 @@ msgstr "Immagine più rapida (1 frame in meno)"
 msgid "player.faster_display_detail"
 msgstr "Il gioco mostra ogni frame appena è pronto, invece di un frame dopo. Disattivalo se il gioco scende sotto i 60 fps su questo PC. Riguarda solo questo PC: l'altro giocatore non deve attivarlo. Le modifiche valgono dal prossimo avvio del gioco."
 
+msgid "player.borderless"
+msgstr "Senza bordi"
+
+msgid "player.borderless_detail"
+msgstr "Il gioco riempie lo schermo in una finestra senza cornice, disegnato alla risoluzione dello schermo in 16:9, con bande nere su schermi più larghi o più alti. Finché è attivo, Alt+Invio e le opzioni di risoluzione e schermo intero del gioco non fanno nulla; il gioco conserva la tua scelta per quando sarà disattivato. Riguarda solo questo PC. Le modifiche si applicano al prossimo avvio del gioco."
+
 
 
 msgid "settings.interface_title"

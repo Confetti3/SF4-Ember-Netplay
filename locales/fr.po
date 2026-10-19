@@ -1116,6 +1116,12 @@ msgstr "Affichage plus rapide (1 trame en moins)"
 msgid "player.faster_display_detail"
 msgstr "Le jeu affiche chaque trame dès qu'elle est prête, au lieu d'une trame plus tard. Désactivez-le si le jeu descend sous 60 fps sur ce PC. Cela ne touche que ce PC : l'autre joueur n'a pas besoin de l'activer. Les changements s'appliquent au prochain lancement du jeu."
 
+msgid "player.borderless"
+msgstr "Sans bordure"
+
+msgid "player.borderless_detail"
+msgstr "Le jeu remplit l'écran dans une fenêtre sans cadre, rendu à la résolution propre de l'écran en 16:9, avec des bandes noires sur un écran plus large ou plus haut. Tant que c'est activé, Alt+Entrée et les options de résolution et de plein écran du jeu ne font rien ; le jeu garde votre choix pour quand ce sera désactivé. Cela ne concerne que ce PC. Les changements s'appliquent au prochain lancement du jeu."
+
 
 
 msgid "settings.interface_title"
