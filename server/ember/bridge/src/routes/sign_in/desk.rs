@@ -14,7 +14,11 @@ use axum::{
     http::{HeaderMap, HeaderValue, header},
     response::{IntoResponse, Redirect, Response},
 };
-use ember_protocol::{encoding::b64u, sign_in::SIGN_IN_SECS};
+use ember_protocol::{
+    challenge::{Action, Method},
+    encoding::b64u,
+    sign_in::SIGN_IN_SECS,
+};
 use rusqlite::params;
 use serde_json::json;
 use subtle::ConstantTimeEq;
@@ -25,10 +29,11 @@ use super::{
 };
 use crate::{
     AppState,
-    auth::{self, DESK_COOKIE, DESK_SECS},
+    auth::{self, DESK_COOKIE, DESK_IDLE_SECS, DESK_SECS},
     error::{ApiFailure, Result},
-    http::{cookie, ok, page},
+    http::{Body, PROOF_BODY, cookie, ok, page},
     linking::Site,
+    routes::{rooms::Address, sessions},
     util::{html, random},
 };
 
@@ -38,8 +43,10 @@ pub(super) const WEB: &str = "web.";
 /// The cookie that ties a sign-in to the browser that started it.
 const STATE_COOKIE: &str = "ember_desk_state";
 
-/// Web sign-ins started on one site per hour, across the bridge.
+/// Web sign-ins started on one site per hour, across the bridge, and from
+/// one network address.
 const STARTS_PER_HOUR: usize = 60;
+const STARTS_PER_ADDRESS: usize = 10;
 
 /// Where a signed-in browser goes.
 const DESK: &str = "/desk";
@@ -51,12 +58,25 @@ fn state_hash(state: &AppState, site: &Site, secret: &str) -> [u8; 32] {
 }
 
 /// `GET /web/sign-in/{site}`: sends the browser to the site to sign in.
-pub async fn start(State(state): State<AppState>, Path(id): Path<String>) -> Result<Response> {
+pub async fn start(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Address(address): Address,
+) -> Result<Response> {
     let site = configured(&state, &id)?;
     let oauth = OAuth::of(&state, &site)
         .filter(|_| offered(&state, &site))
         .ok_or_else(ApiFailure::not_found)?;
     let now = state.now();
+    state
+        .rate
+        .check(
+            &format!("desk-start:{address}"),
+            STARTS_PER_ADDRESS,
+            3600,
+            now,
+        )
+        .map_err(ApiFailure::rate_limited)?;
     state
         .rate
         .check(&site.domain("desk-start"), STARTS_PER_HOUR, 3600, now)
@@ -147,10 +167,13 @@ pub(super) async fn callback(
         );
     };
     let keys = state.keys.clone();
+    let agent = agent(headers);
     let session = state
         .db
         .write(move |tx| match site.owner(tx, &user.id)? {
-            Some(ember_id) => auth::start_desk_session(tx, &keys, &ember_id, now).map(Some),
+            Some(ember_id) => {
+                auth::start_desk_session(tx, &keys, &ember_id, site.id(), agent, now).map(Some)
+            }
             None => Ok(None),
         })
         .await;
@@ -307,4 +330,110 @@ fn set_cookie(state: &AppState, response: &mut Response, name: &str, value: &str
     )) {
         response.headers_mut().append(header::SET_COOKIE, cookie);
     }
+}
+
+/// The browser a sign-in came from, as the game lists it: a short name
+/// read from its user agent, nothing that tells one browser from another.
+fn agent(headers: &HeaderMap) -> &'static str {
+    let agent = headers
+        .get(header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    let has = |text: &str| agent.contains(text);
+    let phone = has("Android") || has("iPhone") || has("iPad");
+    match (
+        phone,
+        has("Firefox"),
+        has("Edg/"),
+        has("Chrome"),
+        has("Safari"),
+    ) {
+        (true, true, ..) => "Firefox on a phone",
+        (true, _, _, true, _) => "Chrome on a phone",
+        (true, ..) => "Safari on a phone",
+        (false, true, ..) => "Firefox",
+        (false, _, true, ..) => "Edge",
+        (false, _, _, true, _) => "Chrome",
+        (false, _, _, _, true) => "Safari",
+        _ => "A browser",
+    }
+}
+
+/// Where the game lists and ends an Ember ID's web desk sessions.
+pub const WEB_SESSIONS_PATH: &str = "/v1/web-sessions";
+
+/// `GET /v1/web-sessions` (player session): the Ember ID's web desk
+/// sessions still open, newest first, and how many the game has not told
+/// the player about yet.
+pub async fn web_sessions(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    let now = state.now();
+    let sessions = state
+        .db
+        .read(move |tx| {
+            let mut statement = tx.prepare(
+                "SELECT site, agent, created_at, last_seen, noticed FROM desk_sessions
+                 WHERE ember_id = ?1 AND expires_at > ?2 AND last_seen > ?3
+                 ORDER BY created_at DESC LIMIT 20",
+            )?;
+            let rows = statement.query_map(
+                params![
+                    player.ember_id.as_str(),
+                    now,
+                    now.saturating_sub(DESK_IDLE_SECS)
+                ],
+                |row| {
+                    Ok(json!({
+                        "site": row.get::<_, String>(0)?,
+                        "browser": row.get::<_, String>(1)?,
+                        "started_at": row.get::<_, u64>(2)?,
+                        "last_used_at": row.get::<_, u64>(3)?,
+                        "new": !row.get::<_, bool>(4)?,
+                    }))
+                },
+            )?;
+            Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+        })
+        .await?;
+    Ok(ok(&json!({ "sessions": sessions })))
+}
+
+/// `POST /v1/web-sessions/seen` (player session): the game has told the
+/// player about the sessions it listed.
+pub async fn web_sessions_seen(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    state
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE desk_sessions SET noticed = 1 WHERE ember_id = ?1",
+                [player.ember_id.as_str()],
+            )?;
+            Ok(())
+        })
+        .await?;
+    Ok(ok(&json!({})))
+}
+
+/// `DELETE /v1/web-sessions` (player session, `site.remove` proof): signs
+/// the Ember ID out of the web desk everywhere.
+pub async fn end_web_sessions(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Body<PROOF_BODY>,
+) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    let target = (
+        Action::SiteRemove,
+        Method::Delete,
+        WEB_SESSIONS_PATH.to_owned(),
+    );
+    let ended = sessions::as_proven(&state, player, &body, target, |tx, _, ember_id| {
+        Ok(tx.execute("DELETE FROM desk_sessions WHERE ember_id = ?1", [ember_id])?)
+    })
+    .await?;
+    Ok(ok(&json!({ "ended": ended })))
 }

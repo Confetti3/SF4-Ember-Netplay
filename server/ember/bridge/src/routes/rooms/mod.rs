@@ -109,7 +109,7 @@ fn supervisor(state: &AppState) -> Result<Supervisor<'_>> {
 /// turned back into an address: an IPv4 address, or an IPv6 /64. The service listens on loopback behind nginx, which sets `X-Real-IP`;
 /// only a local process could forge it. Without the header (tests, a direct
 /// loopback connection) every caller shares the key `local`.
-pub struct Address(String);
+pub struct Address(pub(crate) String);
 
 impl FromRequestParts<AppState> for Address {
     type Rejection = Infallible;

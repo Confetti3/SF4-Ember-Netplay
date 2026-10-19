@@ -36,7 +36,7 @@
 //! requests has its starts limited across the bridge too, and its exchanges
 //! counted in `budget`.
 mod budget;
-mod desk;
+pub(crate) mod desk;
 mod pages;
 mod provider;
 
@@ -187,6 +187,11 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
     .route("/web/sign-out", post(desk::sign_out))
     .route("/web/accounts", get(desk::accounts))
     .route("/web/organize/{site}", post(desk::organize))
+    .route(
+        desk::WEB_SESSIONS_PATH,
+        get(desk::web_sessions).delete(desk::end_web_sessions),
+    )
+    .route("/v1/web-sessions/seen", post(desk::web_sessions_seen))
 }
 
 /// The configured site `id` names, or `not_found`.

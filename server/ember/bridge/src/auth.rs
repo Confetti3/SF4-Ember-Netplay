@@ -18,7 +18,14 @@ pub const SERVICE_PREFIX: &str = "emk";
 pub const BROWSER_COOKIE: &str = "ember_mock_session";
 /// The web desk's session cookie (`routes::sign_in::desk`).
 pub const DESK_COOKIE: &str = "ember_desk";
-pub const DESK_SECS: u64 = 30 * 24 * 60 * 60;
+/// A web desk session ends this long after its sign-in, and sooner when
+/// unused for `DESK_IDLE_SECS`: the desk changes nothing that needs the
+/// game's proof, but it still acts for the organizer.
+pub const DESK_SECS: u64 = 12 * 60 * 60;
+pub const DESK_IDLE_SECS: u64 = 2 * 60 * 60;
+/// How stale a desk session's last use may be before a request writes it
+/// again, so a busy desk does not write on every read.
+const DESK_TOUCH_SECS: u64 = 5 * 60;
 pub const SESSION_SECS: u64 = 10 * 60;
 pub const BROWSER_SECS: u64 = 60 * 60;
 /// Replacing a link needs an external sign-in this recent (LINK-08).
@@ -247,19 +254,39 @@ pub async fn desk(state: &AppState, headers: &HeaderMap) -> Result<Option<Desk>>
     let token_hash = hash(&state.keys, "desk", &token);
     let csrf = csrf_token(&state.keys, &token);
     let now = state.now();
-    state
+    let found: Option<(String, u64)> = state
         .db
         .read(move |tx| {
             Ok(tx
                 .query_row(
-                    "SELECT ember_id FROM desk_sessions WHERE token_hash = ?1 AND expires_at > ?2",
-                    params![token_hash.as_slice(), now],
-                    |row| row.get(0),
+                    "SELECT ember_id, last_seen FROM desk_sessions
+                     WHERE token_hash = ?1 AND expires_at > ?2 AND last_seen > ?3",
+                    params![
+                        token_hash.as_slice(),
+                        now,
+                        now.saturating_sub(DESK_IDLE_SECS)
+                    ],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
                 )
-                .optional()?
-                .map(|ember_id| Desk { ember_id, csrf }))
+                .optional()?)
         })
-        .await
+        .await?;
+    let Some((ember_id, last_seen)) = found else {
+        return Ok(None);
+    };
+    if last_seen + DESK_TOUCH_SECS <= now {
+        state
+            .db
+            .write(move |tx| {
+                tx.execute(
+                    "UPDATE desk_sessions SET last_seen = ?2 WHERE token_hash = ?1",
+                    params![token_hash.as_slice(), now],
+                )?;
+                Ok(())
+            })
+            .await?;
+    }
+    Ok(Some(Desk { ember_id, csrf }))
 }
 
 impl Desk {
@@ -274,20 +301,31 @@ impl Desk {
 
 /// Starts a web desk session for `ember_id` and returns the cookie value,
 /// which is stored only as a keyed hash.
+/// `site` is the site it signed in with and `agent` the browser's own
+/// short name, both kept so the game can list the sessions.
 pub fn start_desk_session(
     tx: &Transaction<'_>,
     keys: &Keys,
     ember_id: &str,
+    site: &str,
+    agent: &str,
     now: u64,
 ) -> Result<String> {
     let token = new_token("emd");
-    tx.execute("DELETE FROM desk_sessions WHERE expires_at <= ?1", [now])?;
     tx.execute(
-        "INSERT INTO desk_sessions (token_hash, ember_id, expires_at) VALUES (?1, ?2, ?3)",
+        "DELETE FROM desk_sessions WHERE expires_at <= ?1 OR last_seen <= ?2",
+        params![now, now.saturating_sub(DESK_IDLE_SECS)],
+    )?;
+    tx.execute(
+        "INSERT INTO desk_sessions (token_hash, ember_id, expires_at, created_at, last_seen, site, agent)
+         VALUES (?1, ?2, ?3, ?4, ?4, ?5, ?6)",
         params![
             hash(keys, "desk", &token).as_slice(),
             ember_id,
-            now + DESK_SECS
+            now + DESK_SECS,
+            now,
+            site,
+            agent
         ],
     )?;
     Ok(token)

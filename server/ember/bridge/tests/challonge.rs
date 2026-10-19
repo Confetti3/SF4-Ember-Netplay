@@ -1522,3 +1522,139 @@ async fn an_organizer_holds_calls_and_decides_from_the_desk() {
     let (status, _) = decide(&player1, "emt_00000000-0000-4000-8000-000000000000").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+// A web desk session is short and narrow: it ends after two idle hours or
+// twelve in all, the game lists and ends it, and it cannot make the changes
+// that need the game's proof.
+#[tokio::test]
+async fn a_web_desk_session_is_short_listed_and_ended_from_the_game() {
+    let fake = fake_challonge();
+    fake.lists("/v2.1/tournaments.json", |_| json!({ "data": [] }));
+    let bridge = desk_bridge(&fake).await;
+    let mut player1 = player(&bridge, 1).await;
+    CHALLONGE.connect(&bridge, &player1, "good-player1").await;
+    let signed_in = || async {
+        let back = web_sign_in(&bridge, "good-player1", true).await;
+        format!("ember_desk={}", set_cookie(&back, "ember_desk").unwrap())
+    };
+    let session = |desk: String| {
+        let bridge = &bridge;
+        async move {
+            bridge
+                .client
+                .get(bridge.url("/web/session"))
+                .header("cookie", desk)
+                .send()
+                .await
+                .unwrap()
+        }
+    };
+
+    // A draft's title is the web's to change; its webhook, who may read it
+    // and its sign-ups are not.
+    let desk = signed_in().await;
+    let me: Json =
+        serde_json::from_str(&session(desk.clone()).await.text().await.unwrap()).unwrap();
+    let csrf = me["csrf"].as_str().unwrap().to_owned();
+    let post = |path: String, body: Json| {
+        bridge
+            .client
+            .post(bridge.url(&path))
+            .header("cookie", desk.clone())
+            .header("x-ember-csrf", csrf.clone())
+            .header("content-type", "application/json")
+            .body(body.to_string())
+    };
+    let made: Json = serde_json::from_str(
+        &post("/v1/organizer/drafts".into(), json!({ "title": "Web Cup" }))
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    let event = format!("/v1/organizer/events/{}", made["id"].as_str().unwrap());
+    let retitled = post(event.clone(), json!({ "title": "Web Cup 2" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(retitled.status(), StatusCode::OK);
+    for change in [
+        json!({ "public": true }),
+        json!({ "sign_ups": true }),
+        json!({ "discord_webhook": null }),
+    ] {
+        let refused = post(event.clone(), change).send().await.unwrap();
+        assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+        let refused: Json = serde_json::from_str(&refused.text().await.unwrap()).unwrap();
+        assert_eq!(refused["error"]["details"]["reason"], "needs_game_proof");
+    }
+    let ready = post(format!("{event}/ready"), json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(ready.status(), StatusCode::FORBIDDEN);
+
+    // The game lists it once as new.
+    let (status, listed) = bridge.get(player1.token(), "/v1/web-sessions").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(listed["sessions"].as_array().unwrap().len(), 1);
+    assert_eq!(listed["sessions"][0]["site"], "challonge");
+    assert_eq!(listed["sessions"][0]["new"], true);
+    let (status, _) = bridge
+        .post(player1.token(), "/v1/web-sessions/seen", json!({}))
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, listed) = bridge.get(player1.token(), "/v1/web-sessions").await;
+    assert_eq!(listed["sessions"][0]["new"], false);
+
+    // Two idle hours end it.
+    bridge.clock.advance(2 * 3600 + 1);
+    assert_eq!(
+        session(desk.clone()).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+
+    // Used every hour, it still ends twelve hours after its sign-in.
+    let desk = signed_in().await;
+    for _ in 0..11 {
+        bridge.clock.advance(3600);
+        assert_eq!(session(desk.clone()).await.status(), StatusCode::OK);
+    }
+    bridge.clock.advance(3600);
+    assert_eq!(
+        session(desk.clone()).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+
+    // The game signs it out everywhere, with its proof.
+    let desk = signed_in().await;
+    bridge.open_session(&mut player1).await;
+    let (status, ended) = sign_in::send(
+        &bridge,
+        &player1,
+        Action::SiteRemove,
+        Method::Delete,
+        "/v1/web-sessions",
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(ended["ended"], 1);
+    assert_eq!(session(desk).await.status(), StatusCode::UNAUTHORIZED);
+
+    // One address starts only so many web sign-ins an hour.
+    let mut limited = false;
+    for _ in 0..12 {
+        let started = bridge
+            .client
+            .get(bridge.url("/web/sign-in/challonge"))
+            .send()
+            .await
+            .unwrap();
+        limited |= started.status() == StatusCode::TOO_MANY_REQUESTS;
+    }
+    assert!(limited);
+}

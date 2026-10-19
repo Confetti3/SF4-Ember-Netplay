@@ -151,6 +151,7 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
                 || sites::site_of(path, "/organize").is_some()
                 || id_between("/v1/organizer/events/", "oev", "")
                 || id_between("/v1/events/", "oev", "/sign-up")
+                || path == crate::routes::sign_in::desk::WEB_SESSIONS_PATH
         }
         _ => false,
     }
