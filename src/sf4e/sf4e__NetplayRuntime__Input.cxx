@@ -178,20 +178,22 @@ bool CanEditButtonLayoutNow() {
         (view->canEditPreferences || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle);
 }
 
+// The settings a room leaves open (PlayerPreferences::CopyRoomSettings), when
+// the menu may change button layouts now.
+void SaveRoomSettings(const netplay::PlayerPreferences& from) {
+    if (!CanEditButtonLayoutNow()) return;
+    auto preferences = runtime->preferences;
+    preferences.CopyRoomSettings(from);
+    if (!preferences.Valid()) return;
+    if (OverlayPrefs::SavePlayerPreferences(preferences)) {
+        runtime->preferences = std::move(preferences);
+        Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+    } else runtime->error = loc::T("runtime.preferences_queue_failed");
+}
+
 void HandleControllerRequest(const gamepads::ControllerRequest& request) {
     using Kind = gamepads::ControllerRequest::Kind;
     if (request.kind == Kind::LayoutLog) { spdlog::info("Input: {}", request.log); return; }
-    if (request.kind == Kind::SaveLayouts) {
-        if (!CanEditButtonLayoutNow()) return;
-        auto preferences = runtime->preferences;
-        preferences.buttonLayouts = request.layouts;
-        if (!preferences.Valid()) return;
-        if (OverlayPrefs::SavePlayerPreferences(preferences)) {
-            runtime->preferences = std::move(preferences);
-            Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
-        } else runtime->error = loc::T("runtime.preferences_queue_failed");
-        return;
-    }
     if (request.kind == Kind::DeclinePrompt) { spdlog::info("Input: setup prompt declined"); return; }
     if (request.kind == Kind::SetupControl) {
         const auto current = Gamepads::ReadFrame().setup;

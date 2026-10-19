@@ -7,12 +7,13 @@ namespace sf4e { namespace ui {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&
-        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
+        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&a.roomSideWidth==b.roomSideWidth&&a.roomMemberShare==b.roomMemberShare&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.country==b.country;
 }
-inline bool OnlyLayoutsChanged(const netplay::PlayerPreferences& a, const netplay::PlayerPreferences& b) {
+// Only what a room leaves open changed: button layouts and the room board's column.
+inline bool OnlyRoomSettingsChanged(const netplay::PlayerPreferences& a, const netplay::PlayerPreferences& b) {
     auto compared = a;
-    compared.buttonLayouts = b.buttonLayouts;
+    compared.CopyRoomSettings(b);
     return SamePreferences(compared, b);
 }
 inline MenuEntry Row(std::string id,std::string label,std::string detail,bool enabled=true) {

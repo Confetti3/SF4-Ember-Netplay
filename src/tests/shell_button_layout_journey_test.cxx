@@ -64,7 +64,7 @@ void LayoutRoom() {
     room.Choose("fn-lp"); room.view.pads[0].held = {"RB"}; room.Frame(); room.view.pads[0].held.clear(); room.Frame();
     Check(LastLayout(room).buttons[5] == 0x10, "Room layout edit was locked");
     room.Wait(.5f);
-    Check(room.actions.back().padAction.kind == ControllerRequest::Kind::SaveLayouts, "Room edit did not autosave through the layout-only request");
+    Check(room.actions.back().roomSettings, "Room edit did not autosave through the room settings request");
 }
 void LayoutCancelsAndEdges() {
     for (const auto* cancel : {"Start", "up"}) {

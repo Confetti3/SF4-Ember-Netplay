@@ -28,6 +28,10 @@ struct LobbySettings {
 constexpr int MaxMatchHudNameOffset = 60;
 // The match HUD positions run from 0 (bottom center) to this one (top center).
 constexpr int MaxMatchHudAnchor = 5;
+constexpr int MinRoomSideWidth = 35;
+constexpr int MaxRoomSideWidth = 60;
+constexpr int MinRoomMemberShare = 20;
+constexpr int MaxRoomMemberShare = 80;
 
 struct PlayerPreferences {
     std::string displayName = "Player";
@@ -100,6 +104,20 @@ struct PlayerPreferences {
     // on in Settings, Problem reports, or chooses Always send after a crash.
     bool sendProblemReports = false;
     float interfaceScale = 1.f;
+    // The room board's members and chat column: its share of the board's width
+    // in percent (MinRoomSideWidth to MaxRoomSideWidth) and the members' share
+    // of its height (MinRoomMemberShare to MaxRoomMemberShare), as the player
+    // dragged them, and which of the two they hid.
+    int roomSideWidth = 50;
+    int roomMemberShare = 56;
+    bool roomMembersHidden = false, roomChatHidden = false;
+    // Takes `from`'s button layouts and room board column, the settings a room
+    // leaves open, as they change nothing about play (ShellAction::roomSettings).
+    void CopyRoomSettings(const PlayerPreferences& from) {
+        buttonLayouts = from.buttonLayouts;
+        roomSideWidth = from.roomSideWidth; roomMemberShare = from.roomMemberShare;
+        roomMembersHidden = from.roomMembersHidden; roomChatHidden = from.roomChatHidden;
+    }
     LobbySettings lobby;
     std::string roomName = "Private room";
     int roomCapacity = 16;
@@ -114,7 +132,8 @@ struct PlayerPreferences {
     bool Valid() const {
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidMenuBinding(layout.menu); })) return false;
         if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
+            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || roomSideWidth < MinRoomSideWidth || roomSideWidth > MaxRoomSideWidth ||
+            roomMemberShare < MinRoomMemberShare || roomMemberShare > MaxRoomMemberShare || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
