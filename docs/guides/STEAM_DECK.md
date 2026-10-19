@@ -33,6 +33,20 @@ Start Ultra Street Fighter IV once from Steam, wait for the main menu, then quit
 
 The installer downloads the latest stable release, checks its SHA-256 and extracts it into the game's Proton folder as `C:\Ember`, replacing any earlier copy. On the Deck's internal storage that is `~/.local/share/Steam/steamapps/compatdata/45760/pfx/drive_c/Ember`. Deleting the game's Proton files, for example by uninstalling USF4, also removes Ember. It adds the SF4 Ember Netplay tile with Ember artwork and puts that folder's `steam-launch.sh` in front of USF4's launch option, keeping anything already there. The tile starts USF4 with `-ember`, and only then does that script start Ember. Steam is closed while the installer changes its settings and then started again. Playtime, friends and achievements count for Ultra Street Fighter IV, since that is the game that runs.
 
+## Typing without a keyboard
+
+Hold the Steam button and press X to show the on-screen keyboard, for your player name, invitations, chat and passphrases. With an external controller, hold the Guide button and press X on an Xbox-style pad, or hold the PS button and press Square on a PlayStation pad.
+
+## Ember ID passphrase
+
+Rooms work without an Ember ID. You need one for tournaments and to connect Discord, under **Online play > Ember ID**. Wine and Proton cannot use Windows' own key protection, so on the Deck a passphrase protects your Ember ID instead:
+
+1. Type a passphrase in **Passphrase for this PC**, then the same one in **Repeat passphrase**.
+2. Choose **Create Ember ID**.
+3. Each time the game starts, Ember asks for the passphrase once. Enter it under **Unlock**.
+
+Keep the passphrase somewhere safe. A backup of your Ember ID can restore it with a new passphrase if you forget it.
+
 ## Updating
 
 Run the installer again. Your Ember settings, replays and logs live in the game's Proton folder and are kept. Ember's own updater has not been tested under Proton.
@@ -51,6 +65,7 @@ Ember's settings and logs are in the game's Proton folder; [Saving logs](SAVING_
 - **Nothing seems to happen after Play in Desktop Mode:** the game window can open behind Steam's window; click the game in the taskbar. Game Mode always shows it full screen.
 - **"Quit USF4 first.":** close the game, then run the installer again.
 - **"Steam did not close":** quit Steam yourself, run the installer again, then start Steam.
+- **Ember asks for a passphrase every time the game starts:** this is expected under Proton; see [Ember ID passphrase](#ember-id-passphrase).
 - **SF4 Ember Netplay starts the game without Ember:** check that USF4's **Launch Options** still has the quoted `.../Ember/steam-launch.sh` before `%command%`, or run the installer again.
 
 For everything else, see [Troubleshooting](TROUBLESHOOTING.md).
