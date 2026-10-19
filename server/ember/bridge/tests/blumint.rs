@@ -633,15 +633,11 @@ async fn a_closed_match_sends_nothing() {
     assert_eq!(matches(&f).await, made);
     assert!(reports(&f, &id).await.is_empty());
 
-    // A close names the key, never the match.
+    // A close names the key, never the match. (Any reason, or none, and a key
+    // the bridge can hold nothing under, still answer 200: blumint_contract.rs.)
     for body in [
         json!({ "matchId": id, "reason": "decided" }),
         json!({ "reason": "decided" }),
-        json!({ "idempotencyKey": "set-4" }),
-        json!({ "idempotencyKey": "set-4", "reason": "" }),
-        json!({ "idempotencyKey": "set-4", "reason": "r".repeat(65) }),
-        json!({ "idempotencyKey": "", "reason": "decided" }),
-        json!({ "idempotencyKey": "k".repeat(129), "reason": "decided" }),
         json!({ "idempotencyKey": "set-4", "reason": "decided", "padding": "p".repeat(70 * 1024) }),
     ] {
         let (status, refused) = close(&f, body.clone()).await;

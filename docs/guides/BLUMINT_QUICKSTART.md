@@ -189,8 +189,8 @@ Authorization: Bearer <credential>
 
 The match that key made ends, its players are free, and nothing more is
 posted for it. Every reason closes the match, `decided`, `replaced`,
-`removed` and `hostOverride` as well as one the bridge does not know; it is
-kept for the log. A match that already ended answers `200` too, and a second
+`removed` and `hostOverride` as well as one the bridge does not know, or none;
+the first 64 characters of its text are kept for the log. A match that already ended answers `200` too, and a second
 close answers what the first did. The close also closes the key: every later
 creation under it answers `409 idempotency_key_reused`, also when the bridge
 never made a match under it, so a creation still on its way makes nothing. A creation
@@ -206,7 +206,8 @@ does, every time you send it. The close's own `Idempotency-Key` is not read.
 | Situation | Status | Body |
 |---|---|---|
 | Closed, or already ended; or the key made no match, its creations refused or none received | `200` | `{ "closed": true }` |
-| No `idempotencyKey` (a `matchId` alone included), or one empty or longer than 128 bytes; `reason` missing, empty or longer than 64 bytes | `400` | `{ "code": "invalid_request" }` |
+| A key the bridge cannot hold a match under (empty, longer than 128 bytes, or not printable ASCII), which holds nothing and records nothing; any `reason`, or none | `200` | `{ "closed": true }` |
+| Not JSON, or no `idempotencyKey` at all (a `matchId` alone included): not a close, and BluMint never sends one | `400` | `{ "code": "invalid_request" }` |
 | The credential is missing, unknown or revoked (`401`), its connection is disabled or it is not a provider credential (`403`), or its connection is not a BluMint one (`404`) | `401`, `403` or `404` | the bridge's own error, which you read as final |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 
