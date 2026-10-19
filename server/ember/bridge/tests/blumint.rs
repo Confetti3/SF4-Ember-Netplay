@@ -369,9 +369,9 @@ async fn blumint_refusals_carry_the_registry_code_at_the_top_level() {
         .as_array_mut()
         .unwrap()
         .push(json!({ "inGameId": f.sam.id() }));
+    // A player with no identity to name, which BluMint never sends.
     let mut nameless = request(&f, 2);
-    nameless["teams"][1]["players"][0]["identities"] =
-        json!([{ "provider": "discord", "inGameId": SAM }]);
+    nameless["teams"][1]["players"][0]["identities"] = json!([]);
     // The host's match settings are free-form, so a body can outgrow even
     // the creation's own cap.
     let mut oversized = request(&f, 2);

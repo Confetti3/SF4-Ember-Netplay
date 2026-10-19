@@ -75,16 +75,43 @@ struct Identity {
     in_game_id: String,
 }
 
-/// The one Ember ID among a player's identities.
-fn ember_id(player: &TeamPlayer) -> Result<EmberId, BluMintRefusal> {
+/// Who a seat is, from the identities BluMint names its player by.
+enum Seat {
+    /// The one Ember ID among the identities.
+    Ember(EmberId),
+    /// None of the identities is an Ember ID, so the bridge cannot match the
+    /// player: BluMint asks again with the ids as it sent them.
+    Unmatched(Vec<String>),
+}
+
+/// The seat a player's identities name. A player with no identity, or with
+/// two Ember IDs, is not what BluMint's guide describes, and is refused.
+fn seat(player: &TeamPlayer) -> Result<Seat, BluMintRefusal> {
+    if player.identities.is_empty() {
+        return Err(BluMintRefusal::InvalidRequest);
+    }
     let mut found = player
         .identities
         .iter()
         .filter_map(|identity| EmberId::parse(&identity.in_game_id).ok());
     match (found.next(), found.next()) {
-        (Some(id), None) => Ok(id),
+        (Some(id), None) => Ok(Seat::Ember(id)),
+        (None, _) => Ok(Seat::Unmatched(
+            player
+                .identities
+                .iter()
+                .map(|identity| identity.in_game_id.clone())
+                .collect(),
+        )),
         _ => Err(BluMintRefusal::InvalidRequest),
     }
+}
+
+/// What BluMint asks for: a set to make, or one the bridge cannot seat
+/// because it cannot match a player.
+enum Asked {
+    Set(Set, String),
+    Unmatched([Seat; 2]),
 }
 
 /// The set's length: a whole number of games from 1 up. Above the longest
@@ -138,7 +165,7 @@ pub async fn create(
 ) -> std::result::Result<Response, BluMintRefusal> {
     let connection_id = connection(&state, &headers).await?;
     let key = idempotency_key(&headers)?;
-    let requested = body
+    let asked = body
         .map_err(BluMintRefusal::from)
         .and_then(|body| requested(&body));
     let ctx = Ctx::of(&state);
@@ -146,8 +173,10 @@ pub async fn create(
         .db
         .write(move |tx| {
             outcome(|| {
-                requested
-                    .and_then(|(set, digest)| make(tx, &ctx, &connection_id, &key, &set, &digest))
+                asked.and_then(|asked| match asked {
+                    Asked::Set(set, digest) => make(tx, &ctx, &connection_id, &key, &set, &digest),
+                    Asked::Unmatched(seats) => Err(unmatched(tx, &connection_id, &seats)),
+                })
             })
         })
         .await??;
@@ -156,7 +185,7 @@ pub async fn create(
 }
 
 /// The set BluMint asks for, and the digest a key's requests are compared by.
-fn requested(body: &Body<CREATE_BODY>) -> std::result::Result<(Set, String), BluMintRefusal> {
+fn requested(body: &Body<CREATE_BODY>) -> std::result::Result<Asked, BluMintRefusal> {
     let request: CreateRequest = parse(body)?;
     let [first, second] = request.teams.as_slice() else {
         return Err(BluMintRefusal::MatchUnsupported);
@@ -164,18 +193,22 @@ fn requested(body: &Body<CREATE_BODY>) -> std::result::Result<(Set, String), Blu
     let ([a], [b]) = (first.players.as_slice(), second.players.as_slice()) else {
         return Err(BluMintRefusal::MatchUnsupported);
     };
-    let players = [ember_id(a)?, ember_id(b)?];
-    if players[0] == players[1] {
+    let seats = [seat(a)?, seat(b)?];
+    if matches!(&seats, [Seat::Ember(a), Seat::Ember(b)] if a == b) {
         return Err(BluMintRefusal::InvalidRequest);
     }
     let games_to_win = games_to_win(request.series.as_ref())?;
+    let starting_wins = starting_wins([first, second], games_to_win)?;
+    let [Seat::Ember(a), Seat::Ember(b)] = seats else {
+        return Ok(Asked::Unmatched(seats));
+    };
     let set = Set {
-        players,
+        players: [a, b],
         games_to_win,
-        starting_wins: starting_wins([first, second], games_to_win)?,
+        starting_wins,
     };
     let digest = wire::digest(&set).map_err(ApiFailure::from)?;
-    Ok((set, digest))
+    Ok(Asked::Set(set, digest))
 }
 
 /// The answer under `key`: the match it made, or a new one. A key whose
@@ -250,7 +283,7 @@ fn seats(
                 ember_id: ember_id.clone(),
                 slot: slot as u8,
             }),
-            None => unlinked.push(ember_id.clone()),
+            None => unlinked.push(ember_id.as_str().to_owned()),
         }
     }
     if !unlinked.is_empty() {
@@ -266,6 +299,30 @@ fn seats(
         return Err(BluMintRefusal::PlayerBusy(playing));
     }
     Ok(roster)
+}
+
+/// The refusal for a creation with a player the bridge cannot match: every id
+/// from the request it does not recognise, as BluMint sent it, the ids of a
+/// seat with no Ember ID among them and any Ember ID with no current link.
+/// BluMint tells each named player, and asks again under the key.
+fn unmatched(tx: &Transaction<'_>, connection_id: &str, seats: &[Seat; 2]) -> BluMintRefusal {
+    let mut named: Vec<String> = Vec::new();
+    for seat in seats {
+        let ids = match seat {
+            Seat::Unmatched(ids) => ids.clone(),
+            Seat::Ember(ember_id) => match participant(tx, connection_id, ember_id) {
+                Ok(Some(_)) => continue,
+                Ok(None) => vec![ember_id.as_str().to_owned()],
+                Err(error) => return error.into(),
+            },
+        };
+        for id in ids {
+            if !named.contains(&id) {
+                named.push(id);
+            }
+        }
+    }
+    BluMintRefusal::PlayerUnlinked(named)
 }
 
 /// The participant an Ember ID is linked as on the connection, if it is.

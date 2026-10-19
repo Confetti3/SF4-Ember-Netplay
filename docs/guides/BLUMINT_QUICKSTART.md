@@ -136,8 +136,11 @@ Idempotency-Key: tA1b2-round-1-match-1
   from. Send it when you ask for a set again: after a `retryable: true` abort
   it is the games each team had won, and after a host reset it is 0 on every
   team. Each is below `gamesToWin`. Every report counts it.
-- The bridge reads the one identity whose `inGameId` is an Ember ID. Team
-  names, `matchSettings` and `spectators` are yours, and are not read yet.
+- The bridge reads the one identity whose `inGameId` is an Ember ID. A player
+  none of whose identities is one is a player it cannot match, which BluMint's
+  guide answers with `player_unlinked`, so every such id is named in the
+  answer, as you sent it. Team names, `matchSettings` and `spectators` are
+  yours, and are not read yet.
 
 The answer:
 
@@ -162,12 +165,12 @@ free.
 
 | Situation | Status | Body |
 |---|---|---|
-| Not JSON, or not this shape; a player with no Ember ID, or with two; the same player on both teams | `400` | `{ "code": "invalid_request" }` |
+| Not JSON, or not this shape; a player with no identity, or with two Ember IDs; the same player on both teams | `400` | `{ "code": "invalid_request" }` |
 | No `Idempotency-Key` | `400` | `{ "code": "invalid_request" }` |
 | `series` missing, or `gamesToWin` not a whole number of 1 or more | `400` | `{ "code": "invalid_request" }` |
 | `startingWins` on some teams only, or not a whole number below `gamesToWin` | `400` | `{ "code": "invalid_request" }` |
 | Not two teams of one player, or `gamesToWin` above 10 | `400` | `{ "code": "match_unsupported" }` |
-| Players with no link on your connection, all of them named | `400` | `{ "code": "player_unlinked", "players": ["emb1_..."] }` |
+| Players with no link on your connection, or whose ids are not Ember IDs (such as an account of BluMint's), all of them named as you sent them | `400` | `{ "code": "player_unlinked", "players": ["emb1_..."] }` |
 | Players still in another match on your connection, all of them named | `423` | `{ "code": "player_busy", "players": ["emb1_..."] }` |
 | The key already made a different set (other players, length or starting wins), made its match over a day ago, or a close named it | `409` | `{ "code": "idempotency_key_reused" }` |
 | The credential is missing, unknown or revoked (`401`), its connection is disabled or it is not a provider credential (`403`), or its connection is not a BluMint one (`404`) | `401`, `403` or `404` | the bridge's own error, which you read as final |
