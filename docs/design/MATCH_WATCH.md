@@ -1235,8 +1235,8 @@ can play.").
   forced through the relay without forcing the fighters' own links too.
 - **Decision.** Accept the exposure for staff (approved people), and state
   it plainly in `PUT /v1/connections/{id}/watch`, in INTEGRATIONS.md and in
-  the organizer guide, as the cost of turning `link_holders` on. To be
-  confirmed in §12 Q2.
+  the organizer guide, as the cost of turning `link_holders` on. This is
+  settled in §12 (2).
 - **Ember-level floods are already bounded.** Strangers are refused at the
   handshake, and only named watchers get game links.
 
@@ -1540,36 +1540,19 @@ and read by B.
 - per-match allow entries, a cap knob and staff labels;
 - watcher catch-up into a game already under way.
 
-## 12. Open questions
+## 12. Decisions on the open questions
 
-1. **Watcher numbers.**
-   - Recommended: 4 link holders and a ceiling of 8 watchers in all, staff
-     included, both as constants.
-   - Confirm them after the §6.6 measurement. Lower them to 2 and 6 if the
-     leader's replication cost turns out high.
-2. **Address exposure for link holders.**
-   - Recommended: accept it and document it on the setting. Staff are
-     approved people.
-   - The alternative is to hold `link_holders` back until a relay-only
-     watcher path exists, which needs per-peer relay work in the helper.
-3. **Watcher chat.**
-   - Recommended: none in phase 1, which prevents coaching.
-   - Watchers still read the fighters' chat.
-4. **The watch link.**
-   - Recommended: reuse the existing `/m` match link, which matches "anyone
-     else holding the match link" and needs no link, page or launcher
-     changes.
-   - A separate `/w` form would touch:
-     - `TournamentLink.hxx`;
-     - the nginx regex (`server/ember-short/deploy/nginx/ember-short-locations.conf:44`);
-     - `open.js`;
-     - `launcher.cxx`;
-     - the mailbox and `SF4E_MATCH_LINK`.
-5. **BluMint.**
-   - Recommended: BluMint connections stay closed to watchers in phase 1, and
-     `spectators` stays ignored.
-   - Opening them later, for example turning `spectators` into staff for the
-     match, is your choice and needs BluMint's agreement.
+Settled on 2026-10-19:
+
+1. **Watcher numbers:** 4 link holders and a ceiling of 8 watchers in all,
+   staff included, both as constants. They are lowered to 2 and 6 if the
+   §6.6 measurement shows the leader's replication cost is high.
+2. **Address exposure for link holders:** accepted and documented on the
+   setting, in INTEGRATIONS.md and in the organizer guide.
+3. **Watcher chat:** none in phase 1. Watchers read the fighters' chat.
+4. **The watch link:** the existing `/m` match link, with no new link form.
+5. **BluMint:** connections stay closed to watchers in phase 1, and
+   `spectators` stays ignored.
 
 ## 13. Review response
 
@@ -1584,7 +1567,7 @@ Each finding of the design review, and where it is resolved:
 | 5 | Checkpoint cadence | Taken: confirmed and cited (§2.4). The fallback is deleted, and the shared fixture is owned by C (§5.4, §11). |
 | 6 | Partial leaked-invitation closure | Taken: stranger retirement on each committed-roster read in bound rooms (§5.4); a Discord gate on runtime state (§7.6); `observer` stated as a courtesy (§8). |
 | 7 | Watcher load under-counted | Taken: load on both fighters is described, the bound-table sync deadline is 2 s, and the numbers are gated on a measurement (§6.6, §12 Q1). |
-| 8 | Direct path to P1 | Decided: documented, because per-peer relay is not available (`main.rs:20-38`). To be confirmed in §12 Q2 (§8). |
+| 8 | Direct path to P1 | Decided: documented, because per-peer relay is not available (`main.rs:20-38`). Settled in §12 (2) (§8). |
 | 9 | Caller-chosen endpoint | Taken in part: the Ember ID is shown with the name, and there is a conflict rule plus an audit (§4.2, §7.3, §8). Proof of possession is phase 2, as it also applies to fighters. |
 | 10 | Signed binding to watchers | Taken: deleted (§5.2). |
 | 11 | `Claim.watch` redundant | Taken: DLL and helper pairing is by packaging, and already relied on (§2.2). Replaced by the build rule in `rewatch`. |
