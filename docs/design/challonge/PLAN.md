@@ -53,24 +53,16 @@ Lookup: a connection whose `lookup_sites` names a site may send `{ site, id }` e
 
 ### 4. Connector (`server/ember/brackets`, binary `ember-brackets`)
 
-A small service with one adapter per site behind a common interface:
-
-| Operation | Challonge v2.1 |
-|---|---|
-| Open sets | `GET /tournaments/{id}/matches.json?state=open` |
-| Who is in a set | participants' `username` |
-| Mark underway | `PUT .../matches/{id}/change_state.json` `mark_as_underway` |
-| Report | `PUT .../matches/{id}.json` with `score_set`, `rank`, `advancing` |
-| Reopen | `change_state` `reopen` |
+A small service with one adapter per site behind a common interface (the `Site` trait, documented with the connector's guarantees in `server/ember/brackets/ADAPTERS.md`): `challonge`, `startgg`, and `http` for an organizer's own service. Each adapter reads open sets and single sets, marks a set underway, reports a score, and says whether the event is over; the connector does everything else the same way for every site. `server/ember/brackets/README.md` describes how it runs.
 
 For each configured tournament it:
 
-1. Reads open sets, looks the two entries' usernames up on the bridge, and creates an `ember-room-v1` match for every set where both players have Ember IDs. `external_match_id` is `challonge:<tournament>:<match>:<attempt>`, so a restart or an expired match gets a fresh one.
-2. Takes games to win from its config per round group (Challonge does not say), for example first to 2, first to 3 from a given round on.
-3. Receives the bridge's signed result at its `results_url`, re-reads the set, and reports the set score only if Challonge has no result yet. A set the organizer reported, reset or removed by hand cancels the Ember match instead.
-4. Re-reads the bracket right after each report (that is when new sets open) and otherwise only every couple of minutes, because Challonge's free API tier allows 500 requests a month. It counts requests and warns before the budget runs out.
+1. Reads the open sets, looks each entry up on the bridge by the first of its accounts the bridge knows (its account on the tournament's bridge site, then a Discord account the site shows for it), and creates an `ember-room-v1` match for every set where both players have Ember IDs, marking the set underway. `external_match_id` is `<adapter>:<tournament>:<set>:<attempt>`, so a restart or an expired match gets a fresh one, up to 5 attempts.
+2. Takes games to win from its config per round group (the sites do not say), for example first to 2, first to 3 from a given round on.
+3. Receives the bridge's signed result at its `results_url`, reads the bracket at once, and reports the set score only if the set is still open with the same two entries and no score. A set the organizer reported, reset or changed by hand cancels the Ember match instead. Sets a report opens are found by the next read, at most `poll_secs` later or at the next result.
+4. Reads each bracket `poll_secs` after a change, doubling the wait up to `max_poll_secs` with each read that finds nothing new, and stops for good once the site says the event is over. Challonge's free API tier allows 500 requests a month, so the connector counts its Challonge requests against `monthly_request_budget`: it warns at 80%, and at 100% stops reading brackets but still reports results. start.gg's own rate limit is kept to.
 
-The organizer's Challonge access is the connector's own config (a v1 API key used against v2.1, or an OAuth token), never the bridge's.
+The organizer's access to a site is the connector's own config (for Challonge a v1 API key used against v2.1 or an OAuth token, for start.gg a token, for `http` a bearer token from a file), never the bridge's.
 
 Disputes use the connection's `disputes: "restart"` for now: a disputed game is played again rather than waiting for an organizer screen we do not have yet.
 

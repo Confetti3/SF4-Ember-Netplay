@@ -363,10 +363,12 @@ and refuses one it cannot use. Every configured site is listed in the capabiliti
 (`id`, `display_name`, `sign_in`, `lookup_by`, `authorize_origin`,
 `authorize_path`), with `sign_in` false while the integration secrets lack
 its client secret. Every bridge lists the `sites` feature, so Ember knows
-it has these routes, with or without sites. A site taken out of the
-configuration offers no sign-in and drops out of `sign_in_sites` and of
-lookups, but while accounts are still connected on it, `GET` and `DELETE
-/v1/sites/<id>` keep working, so a player can still see and disconnect one
+it has these routes, with or without sites. To take a site out, remove it
+from `sign_in_sites` and from every connection's `lookup_sites` in the same
+edit: the bridge refuses to start while a connection still names a site it
+does not have. The site then offers no sign-in and drops out of
+`sign_in_sites` and of lookups, but while accounts are still connected on
+it, `GET` and `DELETE /v1/sites/<id>` keep working for the signed-in player, so a player can still see and disconnect one
 (Ember lists only the configured sites, so that is through the API; the
 links it approved can also be removed from the player's links). Once none is
 left, its routes answer 404. Its rows come back into use if the site is

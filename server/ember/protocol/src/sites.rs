@@ -54,6 +54,58 @@ pub fn is_site_id(text: &str) -> bool {
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
+/// Whether `host` is a DNS name on the public internet: the rule a bridge
+/// holds a sign-in site's hosts to, and Ember a sign-in page's origin. That
+/// is two or more labels of 1 to 63 ASCII letters, digits and `-`, none
+/// starting or ending with `-`, at most 253 bytes in all; the last label not
+/// a number a browser reads as part of an IPv4 address (decimal digits, or
+/// `0x` and hex digits), so no IP address in any form; and not a name kept
+/// for local or private networks (`localhost`, `.local`, `.internal`,
+/// `home.arpa` and the like). Letters may be in either case.
+pub fn is_public_host(host: &str) -> bool {
+    const PRIVATE: [&str; 11] = [
+        "localhost",
+        "local",
+        "localdomain",
+        "internal",
+        "intranet",
+        "private",
+        "corp",
+        "lan",
+        "home",
+        "home.arpa",
+        "invalid",
+    ];
+    let labels: Vec<&str> = host.split('.').collect();
+    let named = host.len() <= 253
+        && labels.len() >= 2
+        && labels.iter().all(|label| {
+            (1..=63).contains(&label.len())
+                && !label.starts_with('-')
+                && !label.ends_with('-')
+                && label
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        });
+    let host = host.to_ascii_lowercase();
+    named
+        && labels.last().is_some_and(|last| !is_number(last))
+        && !PRIVATE
+            .iter()
+            .any(|private| host == *private || host.ends_with(&format!(".{private}")))
+}
+
+/// A label a browser reads as part of an IPv4 address.
+fn is_number(label: &str) -> bool {
+    match label
+        .strip_prefix("0x")
+        .or_else(|| label.strip_prefix("0X"))
+    {
+        Some(digits) => digits.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        None => label.bytes().all(|byte| byte.is_ascii_digit()),
+    }
+}
+
 /// What a lookup's `id` is matched against.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -131,6 +183,51 @@ mod tests {
             assert_eq!(site_of(path, "/start"), None, "{path}");
         }
         assert!(is_site_id("challonge-staging") && !is_site_id(&"x".repeat(33)));
+    }
+
+    #[test]
+    fn only_public_names_are_public_hosts() {
+        for host in [
+            "api.challonge.com",
+            "start.gg",
+            "API.Example.org",
+            "a-b.c0.io",
+            "1.example.com",
+            "x.0xyz",
+        ] {
+            assert!(is_public_host(host), "{host}");
+        }
+        for host in [
+            "",
+            "localhost",
+            "intranet",
+            "10.0.0.1",
+            "169.254.169.254",
+            "127.1",
+            "0x7f.0x1",
+            "0X7F.0X1",
+            "example.0x",
+            "auth.localhost",
+            "Auth.LocalHost",
+            "metadata.google.internal",
+            "printer.local",
+            "router.home.arpa",
+            "nas.lan",
+            "x.invalid",
+            "-a.example.com",
+            "a-.example.com",
+            "a..example.com",
+            "example.com.",
+            "a_b.example.com",
+            "[::1]",
+            "user@example.com",
+            "example.com:443",
+        ] {
+            assert!(!is_public_host(host), "{host}");
+        }
+        assert!(!is_public_host(&format!("{}.com", "a".repeat(64))));
+        let long = vec!["a".repeat(63); 4].join(".");
+        assert!(long.len() > 253 && !is_public_host(&long));
     }
 
     #[test]

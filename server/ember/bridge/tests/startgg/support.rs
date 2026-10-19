@@ -26,6 +26,9 @@ pub const TWIN: User = ("7654321", "Kate");
 pub const NAMELESS: User = ("2000", "");
 /// Signs in, but the GraphQL API answers with errors and no user.
 pub const REFUSED: User = ("0", "");
+/// Signs in, but the GraphQL API answers more than the bridge reads (a valid
+/// user padded past 64 KiB).
+pub const HUGE: User = ("3000", "huge");
 pub const CLIENT_ID: &str = "ember-startgg-client";
 pub const CLIENT_SECRET: &str = "startgg-test-secret";
 /// Finds players by start.gg user ID only.
@@ -35,7 +38,8 @@ pub const GG: &str = "gg-bot";
 pub const CALLBACK: &str = "/v1/sites/startgg/callback";
 
 /// A stand-in for start.gg's token endpoint and GraphQL API. Codes
-/// `good-kate`, `good-twin`, `good-nameless` and `good-refused` sign those
+/// `good-kate`, `good-twin`, `good-nameless`, `good-refused` and `good-huge`
+/// sign those
 /// users in; anything else is refused. The API gives the user ID as a
 /// number, as start.gg's does.
 pub fn fake_startgg() -> Arc<FakeSite> {
@@ -49,11 +53,15 @@ pub fn fake_startgg() -> Arc<FakeSite> {
             ("good-twin", Code::SignsIn(TWIN)),
             ("good-nameless", Code::SignsIn(NAMELESS)),
             ("good-refused", Code::SignsIn(REFUSED)),
+            ("good-huge", Code::SignsIn(HUGE)),
         ],
         &[],
         |(id, tag)| match (id, tag) {
             ("0", _) => json!({ "data": { "currentUser": null },
                                 "errors": [{ "message": "Invalid authentication token" }] }),
+            ("3000", tag) => json!({ "data": { "currentUser": {
+                                 "id": 3000, "player": { "gamerTag": tag } } },
+                                 "extensions": { "padding": "x".repeat(70 * 1024) } }),
             (id, "") => json!({ "data": { "currentUser": {
                                  "id": id.parse::<u64>().unwrap(), "player": null } } }),
             (id, tag) => json!({ "data": { "currentUser": {

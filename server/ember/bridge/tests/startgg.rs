@@ -139,9 +139,12 @@ async fn a_user_without_a_tag_shows_the_id_and_an_api_error_connects_nothing() {
         page.contains("start.gg connected") && page.contains(NAMELESS.0),
         "{page}"
     );
-    let page = connect_on(&bridge, SITE, &sam, "good-refused").await;
-    assert!(page.contains("start.gg did not answer"), "{page}");
-    assert_eq!(account_on(&bridge, SITE, &sam).await, None);
+    // An error answer, or one larger than the bridge reads, connects nothing.
+    for code in ["good-refused", "good-huge"] {
+        let page = connect_on(&bridge, SITE, &sam, code).await;
+        assert!(page.contains("start.gg did not answer"), "{code}: {page}");
+        assert_eq!(account_on(&bridge, SITE, &sam).await, None);
+    }
     assert_eq!(
         stored(&bridge, SITE).await,
         [(NAMELESS.0.to_owned(), NAMELESS.0.to_owned(), None)]
@@ -596,6 +599,18 @@ async fn an_account_on_a_site_taken_out_of_the_configuration_can_still_go() {
         Some(KATE.0)
     );
     assert!(link_of(&bridge, GG, &kate).await.is_some());
+    // Without a session, a removed site with accounts answers as one never
+    // configured does, so nobody learns which removed sites have accounts.
+    for path in ["/v1/sites/startgg", "/v1/sites/nope"] {
+        let (status, body) = bridge.get("", path).await;
+        assert_eq!(
+            (status, code(&body)),
+            (StatusCode::UNAUTHORIZED, "unauthenticated"),
+            "{path}"
+        );
+        let response = bridge.client.delete(bridge.url(path)).send().await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{path}");
+    }
     let (status, body) = sign_in::disconnect(&bridge, &kate, &sign_in::Routes::site(SITE)).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(link_of(&bridge, GG, &kate).await, None);

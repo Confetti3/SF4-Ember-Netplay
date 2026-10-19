@@ -92,3 +92,41 @@ pub fn outbound_client() -> reqwest::ClientBuilder {
         .user_agent(concat!("ember-bridge/", env!("CARGO_PKG_VERSION")))
         .no_proxy()
 }
+
+/// The body of `response`, read chunk by chunk: the read stops as soon as it
+/// would pass `limit` bytes, so a large answer is never held in memory. None
+/// past the limit or when the read fails.
+pub async fn read_bounded(mut response: reqwest::Response, limit: usize) -> Option<Vec<u8>> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > limit as u64)
+    {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await.ok()? {
+        if chunk.len() > limit - bytes.len() {
+            return None;
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Some(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn response(body: Vec<u8>) -> reqwest::Response {
+        axum::http::Response::new(body).into()
+    }
+
+    #[tokio::test]
+    async fn a_body_is_read_up_to_the_limit_and_refused_past_it() {
+        let at_limit = read_bounded(response(vec![b'a'; 64]), 64).await;
+        assert_eq!(at_limit.unwrap().len(), 64);
+        let empty = read_bounded(response(Vec::new()), 0).await;
+        assert_eq!(empty.unwrap().len(), 0);
+        assert_eq!(read_bounded(response(vec![b'a'; 65]), 64).await, None);
+    }
+}

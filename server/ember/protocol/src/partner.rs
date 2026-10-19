@@ -66,6 +66,10 @@ impl TryFrom<NamedLists> for Lookup {
 
 /// The players found, in the order asked. An account with no connected
 /// Ember ID, or whose link the player removed, is left out.
+///
+/// Its readers refuse fields they do not know (`deny_unknown_fields`, as
+/// ember-brackets reads it), so a field added later must be left out while
+/// empty, as `accounts` is, or every older reader stops matching players.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LookupAnswer {

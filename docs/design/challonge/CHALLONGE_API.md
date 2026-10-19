@@ -181,7 +181,7 @@ Example request (built from the spec):
 POST https://api.challonge.com/v2.1/oauth/token?grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=DEVICE_CODE&client_id=CLIENT_ID
 ```
 
-Which token URL to use: the docs do not resolve the conflict. Both `/oauth/token` and `/v2.1/oauth/token` appear. What the bridge does: its `token_path` setting defaults to `/oauth/token`, the URL the OAuth security scheme and the authorization-code samples (section 2.4) use, with no fallback probe. An operator changes the setting if a live sign-in shows the other path is the one.
+Which token URL to use: the docs do not resolve the conflict. Both `/oauth/token` and `/v2.1/oauth/token` appear. What the bridge does: the shipped definition `server/ember/bridge/deploy/sites/challonge.json` sets `token_url` to `https://api.challonge.com/oauth/token`, the URL the OAuth security scheme and the authorization-code samples (section 2.4) use, with no fallback probe. An operator changes `token_url` in their copy if a live sign-in shows the other path is the one.
 
 Success, HTTP 200 (published example):
 
@@ -562,7 +562,7 @@ Resolve each against the real server before relying on it. Rows 3 to 7 are about
 
 | # | Item | Status |
 |---|---|---|
-| 1 | Token URL: `/v2.1/oauth/token` (device pages) or `/oauth/token` (OAuth scheme, code samples) | Docs conflict; the bridge's `token_path` defaults to `/oauth/token`, no probe |
+| 1 | Token URL: `/v2.1/oauth/token` (device pages) or `/oauth/token` (OAuth scheme, code samples) | Docs conflict; the shipped `challonge.json` uses `/oauth/token` as its `token_url`, no probe |
 | 2 | `/me.json` (endpoint page) versus `/me` (Game Integration) | Docs conflict; use `/me.json` |
 | 3 | Device grant (not used): parameters sent as query string (spec) versus form body (other flows' samples) | Spec says query; form unverified |
 | 4 | Device grant (not used): `client_secret` for token polling | Not stated; docs list no such parameter |

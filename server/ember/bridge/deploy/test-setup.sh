@@ -466,6 +466,8 @@ check "a site's exits 0" succeeded
 check "a site's stored for staging" python3 -c 'import json, sys; sys.exit(json.load(open(sys.argv[1]))["site_client_secrets"] != {"startgg": "startgg-secret"})' "$R/var/lib/$S/integrations.json"
 run "$SDIR/set-integration-secret.sh" -- site Start.gg
 check "a site ID that cannot be one exits 2" exited 2
+run "$SDIR/set-integration-secret.sh" -- site discord
+check "discord as a site ID exits 2" exited 2
 check "beside discord's" config_is "$R/var/lib/$S/integrations.json" discord_client_secret '"staging-secret"'
 run "$SDIR/set-integration-secret.sh" INSTANCE= -- discord
 check "a disagreeing INSTANCE exits 2" exited 2

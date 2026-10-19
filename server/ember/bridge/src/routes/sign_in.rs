@@ -87,8 +87,8 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
     )
     .route(
         discord::ACCOUNT_PATH,
-        get(|state, headers| account(state, headers, Site::Discord))
-            .delete(|state, headers, body| remove(state, headers, body, Site::Discord)),
+        get(|state, headers| account(state, headers, None))
+            .delete(|state, headers, body| remove(state, headers, body, None)),
     )
     .route(
         "/v1/sites/{site}/start",
@@ -124,17 +124,8 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
     )
     .route(
         "/v1/sites/{site}",
-        get(
-            |state: State<AppState>, Path(id): Path<String>, headers| async move {
-                let site = held(&state, &id).await?;
-                account(state, headers, site).await
-            },
-        )
-        .delete(
-            |state: State<AppState>, Path(id): Path<String>, headers, body| async move {
-                let site = held(&state, &id).await?;
-                remove(state, headers, body, site).await
-            },
+        get(|state, Path(id): Path<String>, headers| account(state, headers, Some(id))).delete(
+            |state, Path(id): Path<String>, headers, body| remove(state, headers, body, Some(id)),
         ),
     )
 }
@@ -148,11 +139,16 @@ fn configured(state: &AppState, id: &str) -> Result<Site> {
         .ok_or_else(ApiFailure::not_found)
 }
 
-/// The site `id` names for reading and disconnecting accounts: a configured
-/// one, or one taken out of the configuration while accounts are still
-/// connected on it, so its players can still see and disconnect them (as
-/// Discord's can with its sign-in off). Otherwise `not_found`.
-async fn held(state: &AppState, id: &str) -> Result<Site> {
+/// The site an account route names, for reading and disconnecting accounts:
+/// Discord (`None`), a configured site, or one taken out of the configuration
+/// while accounts are still connected on it, so its players can still see
+/// and disconnect them (as Discord's can with its sign-in off). Otherwise
+/// `not_found`. Called only once the caller is authenticated, so whether a
+/// removed site still has accounts is no one else's to learn.
+async fn held(state: &AppState, id: Option<&str>) -> Result<Site> {
+    let Some(id) = id else {
+        return Ok(Site::Discord);
+    };
     if let Ok(site) = configured(state, id) {
         return Ok(site);
     }
@@ -207,6 +203,17 @@ async fn proven<T: Send + 'static>(
     work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<T> + Send + 'static,
 ) -> Result<T> {
     let player = auth::player(state, headers).await?;
+    proven_by(state, player, body, target, work).await
+}
+
+/// `proven`, for a player already authenticated.
+async fn proven_by<T: Send + 'static>(
+    state: &AppState,
+    player: auth::Player,
+    body: &Body<PROOF_BODY>,
+    target: (ember_protocol::challenge::Action, Method, String),
+    work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<T> + Send + 'static,
+) -> Result<T> {
     let (request, _): (_, Nothing) = sessions::proven(&body.0)?;
     sessions::as_proven(state, player, request, target, work).await
 }
@@ -303,9 +310,10 @@ async fn cancel(
 async fn account(
     State(state): State<AppState>,
     headers: HeaderMap,
-    site: Site,
+    site: Option<String>,
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
+    let site = held(&state, site.as_deref()).await?;
     let account = state
         .db
         .read(move |tx| site.account(tx, player.ember_id.as_str()))
@@ -318,11 +326,13 @@ async fn remove(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: Body<PROOF_BODY>,
-    site: Site,
+    site: Option<String>,
 ) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    let site = held(&state, site.as_deref()).await?;
     let profile = Profile::of(&state.config, &site);
     let target = (profile.remove, Method::Delete, profile.account);
-    proven(&state, &headers, &body, target, move |tx, ctx, ember_id| {
+    proven_by(&state, player, &body, target, move |tx, ctx, ember_id| {
         site.disconnect(tx, ctx, ember_id)
     })
     .await?;

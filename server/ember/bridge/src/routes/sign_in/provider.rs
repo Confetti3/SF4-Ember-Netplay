@@ -24,7 +24,7 @@ use crate::{
         sites::{Encoding, Method, UsernameRule},
     },
     linking::Site,
-    util::outbound_client,
+    util::{outbound_client, read_bounded},
 };
 
 /// What a sign-in is called, where its routes are, the proof actions that
@@ -83,6 +83,11 @@ impl Profile {
         }
     }
 }
+
+/// The most of a site's token or user answer the bridge reads. A site is a
+/// third party even when its definition is trusted, and both answers are a
+/// few hundred bytes.
+const MAX_ANSWER: usize = 64 * 1024;
 
 /// A sign-in's OAuth application as this bridge is configured for it.
 pub struct OAuth {
@@ -293,7 +298,8 @@ impl OAuth {
         if !response.status().is_success() {
             return None;
         }
-        let token: Token = serde_json::from_slice(&response.bytes().await.ok()?).ok()?;
+        let token: Token =
+            serde_json::from_slice(&read_bounded(response, MAX_ANSWER).await?).ok()?;
         let token = Zeroizing::new(token.access_token);
         let request = match self.user.method {
             Method::Get => client.get(&self.user.url),
@@ -327,7 +333,7 @@ impl OAuth {
         if !response.status().is_success() {
             return None;
         }
-        let body = response.bytes().await.ok()?;
+        let body = read_bounded(response, MAX_ANSWER).await?;
         match &self.read {
             Read::Discord => discord_user(&body),
             Read::Pointers {

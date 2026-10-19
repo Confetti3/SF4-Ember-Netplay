@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use ember_protocol::{
     encoding::OriginPolicy,
-    sites::{LookupBy, is_site_id},
+    sites::{LookupBy, is_public_host, is_site_id},
 };
 use serde::{Deserialize, Serialize};
 
@@ -187,7 +187,8 @@ impl SignInSite {
         // go, so outside local tests its hosts are public DNS names: no IP
         // address, localhost or private name the bridge's own network may
         // answer.
-        if policy == OriginPolicy::HttpsOnly && !self.hosts.iter().all(|host| is_public(host)) {
+        if policy == OriginPolicy::HttpsOnly && !self.hosts.iter().all(|host| is_public_host(host))
+        {
             return fail(
                 "hosts must be public DNS names, not IP addresses, localhost or internal names",
             );
@@ -313,33 +314,6 @@ impl SignInSite {
 /// 1 to `max` visible ASCII characters.
 fn is_token(text: &str, max: usize) -> bool {
     !text.is_empty() && text.len() <= max && text.bytes().all(|b| b.is_ascii_graphic())
-}
-
-/// A DNS name on the public internet: at least two labels, the last not a
-/// number (so no IPv4 address in any form), and not under a name reserved
-/// for local or private networks.
-fn is_public(host: &str) -> bool {
-    const PRIVATE: [&str; 11] = [
-        "localhost",
-        "local",
-        "localdomain",
-        "internal",
-        "intranet",
-        "private",
-        "corp",
-        "lan",
-        "home",
-        "home.arpa",
-        "invalid",
-    ];
-    let Some((_, last)) = host.rsplit_once('.') else {
-        return false;
-    };
-    !last.bytes().all(|b| b.is_ascii_digit())
-        && !last.starts_with("0x")
-        && !PRIVATE
-            .iter()
-            .any(|private| host == *private || host.ends_with(&format!(".{private}")))
 }
 
 /// A lowercase DNS name.

@@ -32,7 +32,7 @@ FILE=$STATE/integrations.json
 case "${1:-}" in
     discord) what="Discord client secret"; key=discord ;;
     site)
-        [[ "${2:-}" =~ ^[a-z0-9-]{1,32}$ ]] || { echo "usage: set-integration-secret.sh site <site-id>" >&2; exit 2; }
+        [[ "${2:-}" =~ ^[a-z0-9-]{1,32}$ && "$2" != discord ]] || { echo "usage: set-integration-secret.sh site <site-id> (not discord, which has its own)" >&2; exit 2; }
         what="client secret of sign-in site $2"; key="site_client_secrets/$2" ;;
     rooms) what="room supervisor secret"; key=rooms ;;
     blumint)

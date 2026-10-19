@@ -6,7 +6,7 @@ Status: design for the rework on `feat/challonge`. Replaces the Challonge-specif
 
 Ember exposes only what the bridge needs, with nothing service-specific in it: who a player is (an Ember ID linked to an account on some site), what to play (two players, first to N), and where the result goes (a signed result, events, webhooks). Adapters translate a particular service to and from that, and anyone can write one: a sign-in provider is data in the bridge's config, and a bracket adapter is either a Rust adapter in the connector or the connector's `http` adapter calling a service of the organizer's own. People who want full control drive the bridge's generic API directly with the SDK.
 
-Challonge and start.gg ship as the first two of each: example provider definitions and connector adapters. Discord stays exactly as it is, because BluMint depends on its tables, routes, wire and lookup. BluMint's push contract stays built into the bridge.
+Challonge and start.gg ship as the first two of each: example provider definitions and connector adapters. Discord behaves exactly as it did, because BluMint depends on its tables, routes, wire and lookup: its sign-in now runs on the code every site shares, with its own tables, paths, proof actions, key domains and lookup bytes kept as they were. BluMint's push contract stays built into the bridge.
 
 ## Bridge
 
@@ -24,7 +24,7 @@ Challonge and start.gg ship as the first two of each: example provider definitio
   - optional `limits`: `monthly_request_budget`, `daily_request_budget`, `starts_per_hour`.
 - Client secrets live in `integrations.json` keyed by site ID (`site_client_secrets`), set with `set-integration-secret.sh site <id>`. A site without its secret is listed for accounts but not offered for sign-in, as Discord is today.
 - Example definitions for Challonge and start.gg ship in `server/ember/bridge/deploy/sites/` and are what the tests load.
-- Discord is not a configured site. It keeps its own `discord` config block, tables, routes, actions, features and lookup list, untouched.
+- Discord is not a configured site. It keeps its own `discord` config block, tables, routes, actions, features and lookup list, with the same behaviour and wire as before; the code is shared with the configured sites.
 
 ### Storage (migration 027, rewritten)
 
@@ -68,11 +68,11 @@ Capabilities gain `sign_in_sites: [{ "id", "display_name", "sign_in": bool, "loo
 
 - One generic row per entry in `sign_in_sites` under Online play > Ember ID, after Discord, using generic strings with the site's display name (`Connect {0}`, `Waiting for {0}`, `{0} connected as {1}`, and so on) so a new site needs no translation.
 - Helper IPC: `site_status`, `site_connect`, `site_cancel`, `site_remove` with `{bridge_id, site}`. The helper opens a sign-in page only when it is https on the site's declared `authorize_origin` with its `authorize_path`, as the bridge's capabilities list them for that site. The bridge the player trusts is the authority on its sites; Ember's own service is the default.
-- Discord's row, screen, IPC, strings, links and tests are untouched.
+- Discord's row, screen, IPC, strings and links behave as before, and its journey tests are unchanged; the helper's Discord calls run on the sign-in code the sites share.
 
 ## Verification
 
-- **BluMint:** BluMint, Discord and partner test files byte-identical and passing; migration 027 on a BluMint-shaped database keeps every link, account and withdrawal; Discord lookup and BluMint lookup bytes unchanged; the game's Discord journey tests untouched and passing.
+- **BluMint:** BluMint, Discord and partner tests passing, with `tests/discord.rs`, `tests/blumint.rs` and `tests/blumint_reports.rs` byte-identical, the others changed only where a struct literal names the new settings (`partner.rs`, `blumint_command.rs`, `common/blumint.rs`) and `tests/discord/support.rs` rebuilt on the shared sign-in helpers; migration 027 on a BluMint-shaped database keeps every link, account and withdrawal; Discord lookup and BluMint lookup bytes unchanged; the game's Discord journey tests untouched and passing.
 - **Challonge:** bridge sign-in and lookup tests against a fake Challonge; connector end to end against a fake Challonge and the real bridge; game journey for a Challonge row.
 - **start.gg:** bridge sign-in tests against a fake start.gg (OAuth plus GraphQL `currentUser`) loaded from the shipped definition; lookup by start.gg user ID; connector end to end against a fake start.gg GraphQL and the real bridge, finding one player by start.gg account and the other by Discord; game journey with two site rows.
 - **Any service:** connector end to end through the `http` adapter against a small fake service; a bridge test with a third site defined only in config.
