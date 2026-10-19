@@ -26,7 +26,9 @@ Organizer access can be taken away from the same row; your account stays connect
 In Ember, open **Online play › Ember ID › Tournament desk**:
 
 - **Open in browser** opens the desk on this PC, signed in.
-- **Open on phone** shows an eight-letter code for two minutes. On your phone, open the desk address and type it under **Have a code from Ember?**. **New code** makes another one.
+- **Sign in on another device** shows an eight-letter code for two minutes. On that device, open the desk address and type it under **Have a code from Ember?**. **New code** makes another one.
+
+Once organizer access is allowed, the site's screen under Linked accounts also has **Open the desk in your browser**, which does the same as **Open in browser**.
 
 A desk opened from Ember can do everything. The web session ends after 12 hours, or after 2 hours you don't use it; **Sign out** ends it sooner.
 

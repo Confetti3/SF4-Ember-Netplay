@@ -3955,13 +3955,16 @@ msgid "site.organizer_held_detail"
 msgstr "Ember 正在 {0} 上运营你的比赛。选择以撤销；你的账号仍保持连接。"
 
 msgid "site.organizer_opened"
-msgstr "请在浏览器中批准主办方权限，然后回到此界面。"
+msgstr "请在浏览器中允许组织者权限。此界面会自动更新。"
+
+msgid "site.organizer_now"
+msgstr "已允许组织者权限。赛事台位于 Ember ID 下。"
 
 msgid "site.desk"
-msgstr "赛事控制台"
+msgstr "在浏览器中打开赛事台"
 
 msgid "site.desk_detail"
-msgstr "在手机或电脑上打开此地址，即可创建和运营你的比赛。"
+msgstr "在此电脑的浏览器中打开赛事台，已使用此 Ember ID 登录。"
 
 msgid "screen.tournament_desk"
 msgstr "赛事台"
@@ -4159,10 +4162,10 @@ msgid "desk.open_browser_detail"
 msgstr "在本机浏览器中打开网页赛事台，以此 Ember ID 登录，允许所有更改。"
 
 msgid "desk.open_phone"
-msgstr "在手机上打开"
+msgstr "在其他设备上登录"
 
 msgid "desk.open_phone_detail"
-msgstr "显示一个代码，在手机或其他设备的赛事台页面输入。"
+msgstr "显示一个代码，可在任何设备的赛事台页面输入。"
 
 msgid "desk.code_at"
 msgstr "输入位置"

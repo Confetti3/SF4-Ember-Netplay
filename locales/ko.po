@@ -3955,13 +3955,16 @@ msgid "site.organizer_held_detail"
 msgstr "Ember가 {0}에서 대회를 운영합니다. 선택하면 권한을 취소합니다. 계정 연결은 유지됩니다."
 
 msgid "site.organizer_opened"
-msgstr "브라우저에서 주최자 권한을 승인한 뒤 이 화면으로 돌아오세요."
+msgstr "브라우저에서 주최자 접근을 허용하세요. 이 화면은 자동으로 갱신됩니다."
+
+msgid "site.organizer_now"
+msgstr "주최자 접근이 허용되었습니다. 대회 데스크는 Ember ID에 있습니다."
 
 msgid "site.desk"
-msgstr "대회 데스크"
+msgstr "브라우저에서 대회 데스크 열기"
 
 msgid "site.desk_detail"
-msgstr "휴대폰이나 컴퓨터에서 이 주소를 열어 대회를 만들고 운영하세요."
+msgstr "이 PC의 브라우저에서 대회 데스크를 엽니다. 이 Ember ID로 이미 로그인되어 있습니다."
 
 msgid "screen.tournament_desk"
 msgstr "대회 데스크"
@@ -4159,10 +4162,10 @@ msgid "desk.open_browser_detail"
 msgstr "이 PC의 브라우저에서 이 Ember ID로 로그인된 웹 데스크를 엽니다. 모든 변경이 허용됩니다."
 
 msgid "desk.open_phone"
-msgstr "휴대폰에서 열기"
+msgstr "다른 기기에서 로그인"
 
 msgid "desk.open_phone_detail"
-msgstr "휴대폰이나 다른 기기의 데스크 페이지에 입력할 코드를 보여 줍니다."
+msgstr "어떤 기기에서든 대회 데스크 페이지에 입력할 코드를 표시합니다."
 
 msgid "desk.code_at"
 msgstr "입력할 곳"

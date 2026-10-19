@@ -3955,13 +3955,16 @@ msgid "site.organizer_held_detail"
 msgstr "Ember vede tvé turnaje na {0}. Vyber pro odebrání; účet zůstane připojený."
 
 msgid "site.organizer_opened"
-msgstr "Schval přístup organizátora v prohlížeči a pak se vrať na tuto obrazovku."
+msgstr "Povolte přístup organizátora v prohlížeči. Tato obrazovka se obnoví sama."
+
+msgid "site.organizer_now"
+msgstr "Přístup organizátora povolen. Turnajový stůl je v Ember ID."
 
 msgid "site.desk"
-msgstr "Turnajový stůl"
+msgstr "Otevřít stůl v prohlížeči"
 
 msgid "site.desk_detail"
-msgstr "Otevři tuto adresu v telefonu nebo počítači a vytvářej a veď své turnaje."
+msgstr "Otevře turnajový stůl v prohlížeči tohoto PC, už přihlášený tímto Ember ID."
 
 msgid "screen.tournament_desk"
 msgstr "Turnajový stůl"
@@ -4159,10 +4162,10 @@ msgid "desk.open_browser_detail"
 msgstr "Otevře webový pult v prohlížeči tohoto PC, přihlášený tímto Ember ID, se všemi povolenými změnami."
 
 msgid "desk.open_phone"
-msgstr "Otevřít v telefonu"
+msgstr "Přihlásit se na jiném zařízení"
 
 msgid "desk.open_phone_detail"
-msgstr "Ukáže kód k zadání na stránce pultu v telefonu nebo jiném zařízení."
+msgstr "Zobrazí kód k zadání na stránce stolu na libovolném zařízení."
 
 msgid "desk.code_at"
 msgstr "Zadej na"

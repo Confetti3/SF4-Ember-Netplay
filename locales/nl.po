@@ -3955,13 +3955,16 @@ msgid "site.organizer_held_detail"
 msgstr "Ember runt je toernooien op {0}. Selecteer om dit in te trekken; je account blijft gekoppeld."
 
 msgid "site.organizer_opened"
-msgstr "Keur organisatortoegang goed in je browser en kom dan terug naar dit scherm."
+msgstr "Sta organisatortoegang toe in je browser. Dit scherm werkt zichzelf bij."
+
+msgid "site.organizer_now"
+msgstr "Organisatortoegang toegestaan. De toernooitafel staat onder Ember ID."
 
 msgid "site.desk"
-msgstr "Toernooibalie"
+msgstr "Toernooitafel openen in je browser"
 
 msgid "site.desk_detail"
-msgstr "Open dit adres op je telefoon of computer om je toernooien te maken en te runnen."
+msgstr "Opent de toernooitafel in de browser van deze pc, al aangemeld met deze Ember ID."
 
 msgid "screen.tournament_desk"
 msgstr "Toernooitafel"
@@ -4159,10 +4162,10 @@ msgid "desk.open_browser_detail"
 msgstr "Opent de webdesk in de browser van deze pc, aangemeld als deze Ember ID, met alle wijzigingen toegestaan."
 
 msgid "desk.open_phone"
-msgstr "Openen op telefoon"
+msgstr "Aanmelden op een ander apparaat"
 
 msgid "desk.open_phone_detail"
-msgstr "Toont een code om op de deskpagina van je telefoon of een ander toestel in te typen."
+msgstr "Toont een code om op de pagina van de toernooitafel in te typen, op elk apparaat."
 
 msgid "desk.code_at"
 msgstr "Typ hem op"

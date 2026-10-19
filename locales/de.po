@@ -3955,13 +3955,16 @@ msgid "site.organizer_held_detail"
 msgstr "Ember führt deine Turniere auf {0}. Auswählen, um den Zugriff zu entziehen; dein Konto bleibt verbunden."
 
 msgid "site.organizer_opened"
-msgstr "Erlaube den Organisatorzugriff im Browser und kehre dann zu diesem Bildschirm zurück."
+msgstr "Erlaube den Organisatorzugriff im Browser. Dieser Bildschirm aktualisiert sich von selbst."
+
+msgid "site.organizer_now"
+msgstr "Organisatorzugriff erlaubt. Der Turniertisch ist unter Ember-ID."
 
 msgid "site.desk"
-msgstr "Turniertisch"
+msgstr "Turniertisch im Browser öffnen"
 
 msgid "site.desk_detail"
-msgstr "Öffne diese Adresse auf Handy oder Computer, um deine Turniere zu erstellen und zu führen."
+msgstr "Öffnet den Turniertisch im Browser dieses PCs, bereits mit dieser Ember-ID angemeldet."
 
 msgid "screen.tournament_desk"
 msgstr "Turniertisch"
@@ -4159,10 +4162,10 @@ msgid "desk.open_browser_detail"
 msgstr "Öffnet den Web-Desk im Browser dieses PCs, angemeldet mit dieser Ember-ID, mit allen Änderungen erlaubt."
 
 msgid "desk.open_phone"
-msgstr "Auf dem Handy öffnen"
+msgstr "Auf einem anderen Gerät anmelden"
 
 msgid "desk.open_phone_detail"
-msgstr "Zeigt einen Code, den du auf der Desk-Seite deines Handys oder eines anderen Geräts eingibst."
+msgstr "Zeigt einen Code, den du auf der Seite des Turniertischs auf einem beliebigen Gerät eingibst."
 
 msgid "desk.code_at"
 msgstr "Eingeben bei"

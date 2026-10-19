@@ -666,9 +666,39 @@ void ConnectedAgain(const Case* site){
  }
 }
 
+// Organizer access: Allow opens the site's organizer page, the grant is read
+// again every few seconds until it shows, without leaving the screen, and the
+// desk then opens in the browser from the site's own screen.
+void SiteOrganizer(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;
+ const auto organizerRead=[&]{const auto* r=h.sent().back();return r->op==IdentityOp::SiteStatus&&r->organizer&&r->site==Challonge.id;};
+ h.Screen("identity");Profile(h,{Challonge});for(int i=0;i<6;++i)h.answer();
+ h.Choose(RowId(Challonge).c_str());
+ Check(h.until(IdentityOp::BridgeInspect),"The site's screen did not read Ember's service");
+ List(h,{Challonge},true);id.signInSites[0].organizer=true;h.answer();
+ id.siteUser="1001";id.siteName="player1";
+ for(int i=0;i<4&&!organizerRead();++i)h.answer();
+ Check(organizerRead(),"The organizer access was not read");
+ id.siteOrganizer=false;h.answer();
+ Check(h.row("st-organizer")&&h.row("st-organizer")->enabled&&!h.row("dk-open"),"Organizer access is not offered");
+ h.Choose("st-organizer");
+ Check(h.sent().back()->op==IdentityOp::SiteConnect&&h.sent().back()->organizer,"Allow did not open the organizer page");
+ h.answer();
+ Check(h.status==loc::T("site.organizer_opened"),"Approving in the browser is not asked for");
+ h.Frame(0,300);
+ Check(organizerRead(),"The organizer access was not read again while waiting");
+ id.siteOrganizer=true;h.answer();
+ Check(h.status==loc::T("site.organizer_now")&&h.row("dk-open")&&h.row("dk-open")->enabled,"Allowed organizer access was not shown by itself");
+ const auto settled=h.sent().size();h.Frame(0,300);
+ Check(h.sent().size()==settled,"The organizer access was still read after it showed");
+ h.Choose("dk-open");
+ Check(h.sent().back()->op==IdentityOp::DeskOpen&&h.sent().back()->bridge=="brg_1","The site's desk row did not open the desk in the browser");
+}
+
 void RunSignInSiteJourneys(){
  for(const auto& site:{Challonge,Startgg,Other}){SiteRows(site);SiteConnects(site);SiteStops(site);SiteOffAndRetry(site);SiteBusy(site);SiteGone(site);ConnectedAgain(&site);}
  ManySites();LongSiteName();TwoSites();DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsSite();SiteReadsQuietly();
  SiteDeadline();SiteWaitsWhileHidden();LinkWhileSiteWaits();CancelWithoutReadyId();DiscordGoEndsItsWait();LinkForTheWaitedService();
- DiscordChangeNeedsSignIn();ConnectedAgain(nullptr);
+ DiscordChangeNeedsSignIn();ConnectedAgain(nullptr);SiteOrganizer();
 }

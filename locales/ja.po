@@ -3955,13 +3955,16 @@ msgid "site.organizer_held_detail"
 msgstr "Emberが{0}で大会を運営しています。選択すると取り消します。アカウントの接続はそのままです。"
 
 msgid "site.organizer_opened"
-msgstr "ブラウザで主催者アクセスを承認してから、この画面に戻ってください。"
+msgstr "ブラウザで主催者アクセスを承認してください。この画面は自動で更新されます。"
+
+msgid "site.organizer_now"
+msgstr "主催者アクセスが許可されました。大会デスクはEmber IDにあります。"
 
 msgid "site.desk"
-msgstr "大会デスク"
+msgstr "ブラウザで大会デスクを開く"
 
 msgid "site.desk_detail"
-msgstr "スマホやPCでこのアドレスを開くと、大会の作成と運営ができます。"
+msgstr "このPCのブラウザで大会デスクを開きます。このEmber IDでサインイン済みです。"
 
 msgid "screen.tournament_desk"
 msgstr "大会デスク"
@@ -4159,10 +4162,10 @@ msgid "desk.open_browser_detail"
 msgstr "このPCのブラウザーでWebデスクを開きます。この Ember ID でサインインし、すべての変更ができます。"
 
 msgid "desk.open_phone"
-msgstr "スマホで開く"
+msgstr "別のデバイスでサインイン"
 
 msgid "desk.open_phone_detail"
-msgstr "スマホや別の端末のデスクページで入力するコードを表示します。"
+msgstr "どのデバイスでも大会デスクのページに入力するコードを表示します。"
 
 msgid "desk.code_at"
 msgstr "入力先"

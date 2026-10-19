@@ -16,7 +16,7 @@ using netplay::IdentityRequest;
 namespace {
 // While a site's page is open in the browser, the account is read this
 // often, for as long as the bridge keeps the sign-in.
-constexpr double PollSeconds = 4, SignInSeconds = 600;
+constexpr double PollSeconds = 4, SignInSeconds = 600, OrganizerSeconds = 180;
 constexpr const char* OrganizerRow = "st-organizer";
 constexpr const char* OrganizerRemoveRow = "st-organizer-remove";
 
@@ -290,8 +290,8 @@ void IdentityPanel::SignInRows(const ShellView& v, const SignInTarget& site, con
             if (account->organizer) {
                 auto held = ConfirmRow(OrganizerRemoveRow, loc::T("site.organizer"), word("site.organizer_held_detail"), !busy);
                 held.value = loc::T("site.organizer_held"); rows.push_back(std::move(held));
-                auto desk = InfoRow("st-desk", loc::T("site.desk"), target.origin + "/desk", loc::T("site.desk_detail"));
-                desk.userText = true; rows.push_back(std::move(desk));
+                // The desk screen's own row: the browser opens signed in.
+                rows.push_back(Row("dk-open", loc::T("site.desk"), loc::T("site.desk_detail"), !busy));
             } else {
                 rows.push_back(Row(OrganizerRow, loc::T("site.organizer"), word("site.organizer_allow_detail"), !busy && offered));
             }
@@ -357,11 +357,19 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
     const auto read = (id.*info.account)();
     using Phase = SignInAttempt::Phase;
     const bool waitedFor = signIn_ && signIn_->target == target && signIn_->bridge == sentBridge_;
-    // The organizer sign-in waits for nothing here: the player comes back to
-    // this screen, which reads the grant again.
+    // The organizer sign-in: once its page opened, the grant is read again
+    // every few seconds (SignInPoll) until it shows or three minutes pass.
     if (sentOrganizer_) {
-        if (signIn->step == SignInStep::Connect) Say(loc::T("site.organizer_opened"), false, 30);
-        else if (ListedSite(sentBridge_, target.site)) Account(target, sentBridge_).organizer = id.siteOrganizer;
+        if (signIn->step == SignInStep::Connect) {
+            Say(loc::T("site.organizer_opened"), false, 30);
+            organizerWait_ = {target.site, sentBridge_, now_ + OrganizerSeconds, now_ + PollSeconds};
+        } else if (ListedSite(sentBridge_, target.site)) {
+            Account(target, sentBridge_).organizer = id.siteOrganizer;
+            if (signIn->step == SignInStep::Remove || id.siteOrganizer) {
+                if (id.siteOrganizer && organizerWait_ && organizerWait_->until > 0) Say(loc::T("site.organizer_now"), false, 20);
+                organizerWait_.reset();
+            }
+        }
         return;
     }
     switch (signIn->step) {
@@ -396,6 +404,16 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
 
 void IdentityPanel::SignInPoll(const std::string& screen, double now) {
     using Phase = SignInAttempt::Phase;
+    if (organizerWait_ && !sent_ && queue_.empty() && now >= organizerWait_->pollAt
+        && AtScreenOf(SignInTarget::Listed(organizerWait_->site), screen)) {
+        if (now > organizerWait_->until) {
+            organizerWait_.reset();
+        } else {
+            organizerWait_->pollAt = now + PollSeconds;
+            Queue(Organizer(organizerWait_->site, SignInStep::Status, organizerWait_->bridge));
+        }
+        return;
+    }
     if (!signIn_ || signIn_->until <= 0 || signIn_->paused || sent_ || !queue_.empty() || now < signIn_->pollAt || !ShowsWait(screen)) return;
     if (now > signIn_->until) { signIn_->phase = Phase::Stopped; signIn_->until = 0; return; }
     signIn_->pollAt = now + PollSeconds;

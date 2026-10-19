@@ -394,6 +394,10 @@ private:
         bool paused = false;
     };
     std::optional<SignInAttempt> signIn_;
+    // An organizer sign-in whose page opened: its site and service, and until
+    // when (and next when) its grant is read again while its screen is open.
+    struct OrganizerWait { std::string site, bridge; double until = 0, pollAt = 0; };
+    std::optional<OrganizerWait> organizerWait_;
     // The backup the view's preview describes, while the path still names it.
     std::string previewPath_;
     // A service the player looked up and may now trust.

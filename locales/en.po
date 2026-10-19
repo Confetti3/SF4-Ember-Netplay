@@ -3596,13 +3596,16 @@ msgid "site.organizer_held_detail"
 msgstr "Ember runs your tournaments on {0}. Select to take this away; your account stays connected."
 
 msgid "site.organizer_opened"
-msgstr "Approve organizer access in your browser, then come back to this screen."
+msgstr "Approve organizer access in your browser. This screen updates by itself."
+
+msgid "site.organizer_now"
+msgstr "Organizer access is allowed. The tournament desk is under Ember ID."
 
 msgid "site.desk"
-msgstr "Tournament desk"
+msgstr "Open the desk in your browser"
 
 msgid "site.desk_detail"
-msgstr "Open this address on your phone or computer to create and run your tournaments."
+msgstr "Opens the tournament desk in this PC's browser, already signed in as this Ember ID."
 
 msgid "screen.tournament_desk"
 msgstr "Tournament desk"
@@ -3800,10 +3803,10 @@ msgid "desk.open_browser_detail"
 msgstr "Opens the web desk in this PC's browser, signed in as this Ember ID, with every change allowed."
 
 msgid "desk.open_phone"
-msgstr "Open on phone"
+msgstr "Sign in on another device"
 
 msgid "desk.open_phone_detail"
-msgstr "Shows a code to type on the desk page of your phone or another device."
+msgstr "Shows a code to type on the desk page of any device."
 
 msgid "desk.code_at"
 msgstr "Type it at"

@@ -3955,13 +3955,16 @@ msgid "site.organizer_held_detail"
 msgstr "Ember gestisce i tuoi tornei su {0}. Seleziona per revocarlo; il tuo account resta collegato."
 
 msgid "site.organizer_opened"
-msgstr "Approva l'accesso organizzatore nel browser, poi torna a questa schermata."
+msgstr "Consenti l'accesso da organizzatore nel browser. Questa schermata si aggiorna da sola."
+
+msgid "site.organizer_now"
+msgstr "Accesso da organizzatore consentito. Il banco del torneo è in Ember ID."
 
 msgid "site.desk"
-msgstr "Banco del torneo"
+msgstr "Apri il banco nel browser"
 
 msgid "site.desk_detail"
-msgstr "Apri questo indirizzo sul telefono o sul computer per creare e gestire i tuoi tornei."
+msgstr "Apre il banco del torneo nel browser di questo PC, già con l'accesso a questo Ember ID."
 
 msgid "screen.tournament_desk"
 msgstr "Banco del torneo"
@@ -4159,10 +4162,10 @@ msgid "desk.open_browser_detail"
 msgstr "Apre il banco web nel browser di questo PC, con l'accesso di questo Ember ID e tutte le modifiche consentite."
 
 msgid "desk.open_phone"
-msgstr "Apri sul telefono"
+msgstr "Accedi da un altro dispositivo"
 
 msgid "desk.open_phone_detail"
-msgstr "Mostra un codice da digitare nella pagina del banco sul telefono o su un altro dispositivo."
+msgstr "Mostra un codice da digitare nella pagina del banco su qualsiasi dispositivo."
 
 msgid "desk.code_at"
 msgstr "Digitalo su"
