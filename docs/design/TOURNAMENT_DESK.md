@@ -241,8 +241,25 @@ hangs off that id.
   file; opening a `.emberpack` imports every game. The desk's set panel
   links to the same pack.
 
-Open: how long the bridge keeps packs, and whether spectators' copies may
-fill a gap when neither player's upload arrives.
+- **Retention.** Replays are small, so the bridge keeps them forever by
+  default. `bridge.json` `replay_retention` turns pruning on: `days`, at
+  least 30 (a smaller value is refused when the configuration loads), counted
+  from the set's last change, and an optional `backup` folder. With a backup
+  folder, the set's whole pack (the bytes `replays.pack` serves) is written
+  there as `<matchId>.emberpack` first, and the replays are removed only once
+  that write succeeded; a failed write keeps them for the next pass. Pruning
+  runs with the bridge's maintenance.
+
+Open: whether spectators' copies may fill a gap when neither player's upload
+arrives, and player names for imported pack games, which show only the set.
+
+To do:
+
+- **Batch video export.** Export every game of a set, or of many sets, as
+  videos in one go, for organisers and content creators; built on the
+  existing replay video export.
+- **Translations.** The new strings are English only for now; the other 13
+  locale files carry English placeholders until translators fill them in.
 
 ## 5. Commits
 
