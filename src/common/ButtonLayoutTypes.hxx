@@ -20,7 +20,7 @@ inline bool ValidLayout(const ButtonLayout& layout) {
     return std::all_of(layout.begin(), layout.end(), [](std::uint32_t mask) { return !(mask & ~FightMask); });
 }
 // The buttons the player chose to confirm and go back in Ember's menus, as
-// indexes into LayoutGlyphs; -1 keeps what the game's own menus use
+// indexes into LayoutGlyphs; -1 keeps A and B
 // (input::ResolveMenuButtons). Start, View and the directions are never bound.
 struct MenuBinding {
     int confirm = -1, back = -1;

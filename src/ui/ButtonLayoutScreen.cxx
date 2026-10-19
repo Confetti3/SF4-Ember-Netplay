@@ -72,7 +72,7 @@ std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable, const
         if (row.value.empty()) row.value = loc::T("button_layout.no_button");
         row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
     }
-    // Ember's menu buttons: the player's choice, else the game's own (input::ResolveMenuButtons).
+    // Ember's menu buttons: the player's choice, else A and B (input::ResolveMenuButtons).
     const struct { const char* id; const char* label; const char* detail; std::uint32_t mask; const char* glyph; } menuRows[] = {
         {"menu-confirm", loc::T("button_layout.menu_confirm"), loc::T("button_layout.menu_confirm_detail"), pad.menuButtons.confirm, pad.menuButtons.confirmGlyph},
         {"menu-back", loc::T("button_layout.menu_back"), loc::T("button_layout.menu_back_detail"), pad.menuButtons.back, pad.menuButtons.backGlyph}};

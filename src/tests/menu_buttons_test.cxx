@@ -39,7 +39,8 @@ void Resolver() {
     auto buttons = ResolveMenuButtons(PadXInput, menu.data(), fight.data());
     CHECK(buttons.confirm == xinput::A && buttons.back == xinput::B && Same(buttons.confirmGlyph, "A") && Same(buttons.backGlyph, "B"));
     GlyphMatchesAction(PadXInput, buttons);
-    // LK and MK moved in the game's own button screen: Ember follows to X and Y.
+    // LK and MK moved in the game's own button screen: the tables follow to X
+    // and Y. MenuButtonsFor passes no tables for an XInput pad, only a stick's.
     menu[18] = 0x10; menu[19] = 0x40; menu[16] = 0x80; menu[17] = 0x20;
     buttons = ResolveMenuButtons(PadXInput, menu.data(), fight.data());
     CHECK(buttons.confirm == xinput::X && buttons.back == xinput::Y && Same(buttons.confirmGlyph, "X") && Same(buttons.backGlyph, "Y"));
@@ -112,8 +113,6 @@ void Adapter() {
     CHECK(buttons.confirm == 1u << 20 && buttons.back == 1u << 21 && Same(buttons.confirmGlyph, "LK") && Same(buttons.backGlyph, "MK"));
     CHECK(ui::ControllerButtons(0, PadDirectInput, 1u << 20, buttons) == ui::ControllerSample::Confirm);
     CHECK(ui::ControllerButtons(0, PadDirectInput, 1u << 18, buttons) == 0);
-    buttons = Dimps::Pad::MenuButtons(PadXInput, 1, xinput::Y, 0);
-    CHECK(buttons.confirm == xinput::Y && buttons.back == xinput::B);
     CHECK(nativeRecords == before);
     // An unknown device or a record past the vector's end: the game's generic default.
     *reinterpret_cast<BYTE**>(nativeSystem.data() + 0xd8) = nativeRecords.data() + 3 * 0x27c;
