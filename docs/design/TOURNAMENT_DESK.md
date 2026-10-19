@@ -118,5 +118,12 @@ the token the bridge hands it (never written to its own database).
 2. Bridge: organizer events and the TO's tournament list.
 3. ember-brackets: run the desk's events.
 4. Game: organizer access and event pick.
-5. Game: the desk's sets queue and actions.
-6. Manual: the tournament mode guide.
+5. Game: the desk's sets queue, bracket view and actions.
+6. Web desk: pages on the bridge in the embernetplay.link style
+   (`server/ember-short/deploy/site/assets/site.css`) where a TO signs in
+   with a site account, creates an event (Challonge; start.gg's public API
+   has no tournament creation, so there it picks an existing one),
+   configures and manages it with the game desk's actions.
+7. Mobile mini-viewer: the bracket and live sets as a read-only phone
+   layout of the web desk.
+8. Manual: the tournament mode guide.
