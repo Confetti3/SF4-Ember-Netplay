@@ -21,13 +21,16 @@ Organizer access can be taken away from the same row; your account stays connect
 
 ![Linked accounts](../design/tournament-desk/03-link-accounts.webp)
 
-### 2. Sign in on the web desk
+### 2. Open the web desk from Ember
 
-1. Open the desk address on your phone or computer.
-2. Select **Sign in with Challonge** or **Sign in with start.gg** and approve on the site.
-3. You come back signed in. The web session ends after 12 hours, or after 2 hours you don't use it; **Sign out** ends it sooner.
+In Ember, open **Online play › Ember ID › Tournament desk**:
 
-What the web can and can't do: calls, holds, deciding games and editing a draft work on the web. Running or ending an event, marking it ready, creating it on Challonge, and changing its Discord webhook, public page or sign-ups need the game (Online play › Ember ID › Tournament desk), because they need your Ember key, not just a browser cookie.
+- **Open in browser** opens the desk on this PC, signed in.
+- **Open on phone** shows an eight-letter code for two minutes. On your phone, open the desk address and type it under **Have a code from Ember?**. **New code** makes another one.
+
+A desk opened from Ember can do everything. The web session ends after 12 hours, or after 2 hours you don't use it; **Sign out** ends it sooner.
+
+You can also **Sign in with Challonge** or **Sign in with start.gg** on the desk page, without Ember. That desk can call players, hold sets, decide games and edit a draft, but not create or ready a tournament or change its Discord webhook, public page or sign-ups: for those it says *Open the desk from Ember*, because a site account alone is not your Ember key.
 
 In the game, **Tournament desk** shows **Signed in on the web**: how many browsers are signed in and the newest. **Sign out everywhere** ends them all. The first time you open the desk after a new web sign-in, Ember tells you, so you can sign it out if it wasn't you.
 

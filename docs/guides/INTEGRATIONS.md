@@ -559,14 +559,25 @@ take that cookie in place of a player session; every change also sends the
 session's CSRF token in `X-Ember-CSRF`, which `GET /web/session` gives with
 the Ember ID, and needs no proof. `POST /web/sign-out` ends it.
 
-A cookie is not the game's key, so the changes a stolen browser must not
-make refuse it with 403 and `details.reason` `needs_game_proof`: starting,
+The game opens the desk too: `POST /v1/web-sessions/handoff` (player
+session, `site.connect` proof) answers a one-time `token` and an
+eight-letter `code` (no 0, 1, I or O), both lasting two minutes and kept
+only as keyed hashes. The browser trades the token at `GET /desk/h/<token>`,
+or the code typed on another device at `POST /web/handoff` with
+`{"code": …}`, for the same session cookie, marked `from_game` in
+`GET /web/session`. Either uses the handoff up; one address tries at most
+10 in ten minutes, one code 5.
+
+A session from a site sign-in alone is only as safe as the site account, so
+the changes a stolen one must not make refuse it with 403 and
+`details.reason` `needs_game_proof` ("Open the desk from Ember"): starting,
 ending or readying an event, creating it on the site, and changing its
-`discord_webhook`, `public` or `sign_ups`. The game makes those with its
-proof. Calls, holds, game decisions and draft edits work from the web.
+`discord_webhook`, `public` or `sign_ups`. A session opened from the game,
+and the game itself, make them. Calls, holds, game decisions and draft
+edits work from either.
 
 The game lists the Ember ID's web sessions with `GET /v1/web-sessions`
-(site, browser, `started_at`, `last_used_at`, and `new` until
+(site, browser, `origin` `game` or `site`, `started_at`, `last_used_at`, and `new` until
 `POST /v1/web-sessions/seen`), and `DELETE /v1/web-sessions` with a
 `site.remove` proof signs them all out.
 
