@@ -5,7 +5,6 @@
 namespace sf4e { namespace GamepadLayouts {
 // Called under the controller layer's lock, on the game thread only.
 void Load();
-void FlushLogs();
 void Started(const gamepads::Inventory& inventory, bool active);
 void Set(std::vector<gamepads::StoredLayout> layouts);
 const std::vector<gamepads::StoredLayout>& Stored();

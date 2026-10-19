@@ -503,7 +503,6 @@ void Shutdown() {
 void LogInventory() {
     std::unique_lock lock(mutex);
     logReady = true;
-    GamepadLayouts::FlushLogs();
     LogLocked();
 }
 
