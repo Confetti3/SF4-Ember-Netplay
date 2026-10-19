@@ -223,7 +223,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         auto next = runtime->preferences;
         next.lobbyMusic = command.preferences.lobbyMusic;
         next.matchMusic = command.preferences.matchMusic;
-        if (OverlayPrefs::SavePlayerPreferences(next)) { runtime->preferences = std::move(next); Music::RetryLobby(); runtime->error.clear(); }
+        if (OverlayPrefs::SavePlayerPreferences(next)) { runtime->preferences = std::move(next); Music::RetryMenu(); runtime->error.clear(); }
         else runtime->error = loc::T("runtime.preferences_queue_failed");
         return DispatchOutcome::Dispatched;
     }

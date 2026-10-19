@@ -6256,13 +6256,13 @@ msgid "music.detail"
 msgstr "Wähle Stage- oder Charakterthemen. Beide Einstellungen werden auf diesem PC gespeichert."
 
 msgid "music.lobby"
-msgstr "Lobby-Musik"
+msgstr "Menü- und Lobbymusik"
 
 msgid "music.lobby_default"
-msgstr "Standardmusik der Lobby"
+msgstr "Standard-Menümusik"
 
 msgid "music.lobby_detail"
-msgstr "Wähle die Musik für die Lobby. Die Auswahl wird automatisch gespeichert."
+msgstr "Wähle die Musik für Titelbildschirm, Menüs und Lobby. Die Auswahl wird automatisch gespeichert und beim Start wiederhergestellt."
 
 msgid "music.match"
 msgstr "Kampfmusik"
@@ -6277,7 +6277,7 @@ msgid "music.reset"
 msgstr "Standardmusik wiederherstellen"
 
 msgid "music.reset_detail"
-msgstr "Stelle die ursprüngliche Lobby-Musik und die Musik der jeweiligen Stage wieder her."
+msgstr "Stellt die ursprüngliche Menümusik und die Musik jeder Stage wieder her."
 
 msgid "music.random"
 msgstr "Zufällig (Stages und Charaktere)"
@@ -6289,13 +6289,13 @@ msgid "music.stage_theme"
 msgstr "Stage: {0}"
 
 msgid "music.error_fallback"
-msgstr "Die gewählte Lobby-Musik konnte nicht geladen werden. Die Standardmusik wurde wiederhergestellt."
+msgstr "Die gewählte Menümusik konnte nicht geladen werden. Standardmusik wiederhergestellt."
 
 msgid "music.error_retry_default"
-msgstr "Die gewählte Lobby-Musik konnte nicht geladen werden. Die Standardmusik wird versucht."
+msgstr "Die gewählte Menümusik konnte nicht geladen werden. Standardmusik wird versucht."
 
 msgid "music.error_load_failed"
-msgstr "Die Lobby-Musik konnte nicht geladen werden. Wähle Standard, um es erneut zu versuchen."
+msgstr "Menümusik konnte nicht geladen werden. Wähle Standard, um es erneut zu versuchen."
 
 msgid "music.error_disabled"
 msgstr "Die Musikauswahl ist für diesen Programmstart deaktiviert."

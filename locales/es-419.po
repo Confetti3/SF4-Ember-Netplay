@@ -5782,13 +5782,13 @@ msgid "music.detail"
 msgstr "Elige temas de escenarios o personajes. Ambas opciones se guardan en esta PC."
 
 msgid "music.lobby"
-msgstr "Música del lobby"
+msgstr "Música de los menús y la sala"
 
 msgid "music.lobby_default"
-msgstr "Música predeterminada del lobby"
+msgstr "Música predeterminada de los menús"
 
 msgid "music.lobby_detail"
-msgstr "Elige la música del lobby. Tu elección se guarda automáticamente."
+msgstr "Elige la música de la pantalla de título, los menús y la sala. Se guarda automáticamente y se restaura al iniciar."
 
 msgid "music.match"
 msgstr "Música de las partidas"
@@ -5803,7 +5803,7 @@ msgid "music.reset"
 msgstr "Restaurar música predeterminada"
 
 msgid "music.reset_detail"
-msgstr "Restaura la música original del lobby y la de cada escenario."
+msgstr "Restaura la música original de los menús y de cada escenario."
 
 msgid "music.random"
 msgstr "Aleatorio (escenarios y personajes)"
@@ -5815,13 +5815,13 @@ msgid "music.stage_theme"
 msgstr "Escenario: {0}"
 
 msgid "music.error_fallback"
-msgstr "No se pudo cargar la música elegida para el lobby. Se restauró la música predeterminada."
+msgstr "No se pudo cargar la música elegida para los menús. Música predeterminada restaurada."
 
 msgid "music.error_retry_default"
-msgstr "No se pudo cargar la música elegida para el lobby. Se intentará con la música predeterminada."
+msgstr "No se pudo cargar la música elegida para los menús. Se probará la música predeterminada."
 
 msgid "music.error_load_failed"
-msgstr "No se pudo cargar la música del lobby. Elige Predeterminada para reintentar."
+msgstr "No se pudo cargar la música de los menús. Elige Predeterminada para volver a intentar."
 
 msgid "music.error_disabled"
 msgstr "La selección de música está desactivada en este inicio."

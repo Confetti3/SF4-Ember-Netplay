@@ -6256,13 +6256,13 @@ msgid "music.detail"
 msgstr "ステージやキャラクターの曲を選びます。両方の設定はこのPCに保存されます。"
 
 msgid "music.lobby"
-msgstr "ロビーの音楽"
+msgstr "メニューとロビーの音楽"
 
 msgid "music.lobby_default"
-msgstr "既定のロビー音楽"
+msgstr "既定のメニュー音楽"
 
 msgid "music.lobby_detail"
-msgstr "ロビーで流す曲を選びます。選択は自動的に保存されます。"
+msgstr "タイトル画面、メニュー、ロビーの曲を選びます。選択は自動保存され、起動時に復元されます。"
 
 msgid "music.match"
 msgstr "対戦の音楽"
@@ -6277,7 +6277,7 @@ msgid "music.reset"
 msgstr "既定の音楽に戻す"
 
 msgid "music.reset_detail"
-msgstr "ロビーと各ステージの音楽をゲーム本来の曲に戻します。"
+msgstr "メニューと各ステージの音楽をゲーム本来の曲に戻します。"
 
 msgid "music.random"
 msgstr "ランダム（ステージとキャラクター）"
@@ -6289,13 +6289,13 @@ msgid "music.stage_theme"
 msgstr "ステージ：{0}"
 
 msgid "music.error_fallback"
-msgstr "選択したロビーの曲を読み込めませんでした。既定の曲に戻しました。"
+msgstr "選択したメニューの曲を読み込めませんでした。既定の曲に戻しました。"
 
 msgid "music.error_retry_default"
-msgstr "選択したロビーの曲を読み込めませんでした。既定の曲を試します。"
+msgstr "選択したメニューの曲を読み込めませんでした。既定の曲を試します。"
 
 msgid "music.error_load_failed"
-msgstr "ロビーの曲を読み込めませんでした。既定を選んで再試行してください。"
+msgstr "メニューの曲を読み込めませんでした。既定を選んで再試行してください。"
 
 msgid "music.error_disabled"
 msgstr "今回の起動では音楽の選択が無効です。"

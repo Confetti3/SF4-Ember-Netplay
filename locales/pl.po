@@ -6256,13 +6256,13 @@ msgid "music.detail"
 msgstr "Wybierz motywy aren lub postaci. Oba ustawienia są zapisywane na tym komputerze."
 
 msgid "music.lobby"
-msgstr "Muzyka w pokoju"
+msgstr "Muzyka menu i pokoju"
 
 msgid "music.lobby_default"
-msgstr "Domyślna muzyka w pokoju"
+msgstr "Domyślna muzyka menu"
 
 msgid "music.lobby_detail"
-msgstr "Wybierz muzykę w pokoju. Wybór jest zapisywany automatycznie."
+msgstr "Wybierz muzykę ekranu tytułowego, menu i pokoju. Wybór jest zapisywany automatycznie i przywracany przy uruchomieniu."
 
 msgid "music.match"
 msgstr "Muzyka podczas walki"
@@ -6277,7 +6277,7 @@ msgid "music.reset"
 msgstr "Przywróć domyślną muzykę"
 
 msgid "music.reset_detail"
-msgstr "Przywraca oryginalną muzykę pokoju i muzykę każdej areny."
+msgstr "Przywraca oryginalną muzykę menu i muzykę każdej areny."
 
 msgid "music.random"
 msgstr "Losowo (areny i postacie)"
@@ -6289,13 +6289,13 @@ msgid "music.stage_theme"
 msgstr "Arena: {0}"
 
 msgid "music.error_fallback"
-msgstr "Nie udało się wczytać wybranej muzyki pokoju. Przywrócono muzykę domyślną."
+msgstr "Nie udało się wczytać wybranej muzyki menu. Przywrócono muzykę domyślną."
 
 msgid "music.error_retry_default"
-msgstr "Nie udało się wczytać wybranej muzyki pokoju. Próba wczytania muzyki domyślnej."
+msgstr "Nie udało się wczytać wybranej muzyki menu. Próba wczytania muzyki domyślnej."
 
 msgid "music.error_load_failed"
-msgstr "Nie udało się wczytać muzyki pokoju. Wybierz Domyślna, aby spróbować ponownie."
+msgstr "Nie udało się wczytać muzyki menu. Wybierz Domyślna, aby spróbować ponownie."
 
 msgid "music.error_disabled"
 msgstr "Wybór muzyki jest wyłączony podczas tego uruchomienia."

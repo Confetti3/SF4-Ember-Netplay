@@ -5898,13 +5898,13 @@ msgid "music.detail"
 msgstr "Choose stage or character themes. Both choices are saved on this PC."
 
 msgid "music.lobby"
-msgstr "Lobby music"
+msgstr "Menu and lobby music"
 
 msgid "music.lobby_default"
-msgstr "Default lobby music"
+msgstr "Default menu music"
 
 msgid "music.lobby_detail"
-msgstr "Choose the music for the lobby. Your choice is saved automatically."
+msgstr "Choose the music for the title screen, menus and lobby. It is saved automatically and restored on startup."
 
 msgid "music.match"
 msgstr "Match music"
@@ -5919,7 +5919,7 @@ msgid "music.reset"
 msgstr "Restore default music"
 
 msgid "music.reset_detail"
-msgstr "Restore the game's own lobby music and each arena's stage music."
+msgstr "Restore the original menu music and each stage's music."
 
 msgid "music.random"
 msgstr "Random (stages and characters)"
@@ -5931,13 +5931,13 @@ msgid "music.stage_theme"
 msgstr "Stage: {0}"
 
 msgid "music.error_fallback"
-msgstr "The selected lobby music could not load. Default music restored."
+msgstr "Could not load the selected menu music. Default music restored."
 
 msgid "music.error_retry_default"
-msgstr "The selected lobby music could not load. Trying the default music."
+msgstr "Could not load the selected menu music. Trying the default music."
 
 msgid "music.error_load_failed"
-msgstr "Lobby music could not load. Choose Default to retry."
+msgstr "Could not load menu music. Choose Default to try again."
 
 msgid "music.error_disabled"
 msgstr "Music selection is disabled for this launch."

@@ -38,9 +38,9 @@ MenuPlay menuPlay = nullptr;
 std::uintptr_t base = 0;
 std::atomic<bool> available{false}, matchArmed{false};
 std::atomic<int> matchChoice{music::Default};
-bool attached = false, initialized = false, safe = false, room = false;
+bool attached = false, initialized = false, safe = false;
 thread_local bool reloading = false;
-int lobbyChoice = music::Default;
+int menuChoice = music::Default;
 int configuredMatch = music::Default;
 thread_local int loadingChoice = music::Default;
 std::array<std::string, music::CharacterBase + selection::FighterCount> paths;
@@ -49,7 +49,7 @@ std::vector<int> installedTracks;
 std::mt19937 randomMusic;
 enum class ErrorCode { None, fallback, retry_default, load_failed, disabled, unsupported, hook_failed, files_unavailable, missing };
 ErrorCode error=ErrorCode::None;
-music::LobbyPlaybackState playback;
+music::MenuPlaybackState playback;
 void* lastManager = nullptr;
 ULONGLONG loadStarted = 0;
 bool fallingBack = false, loadFailed = false;
@@ -103,17 +103,17 @@ void __fastcall Update(void* self, void*) {
     menuUpdate(self);
     if (self != lastManager) { lastManager = self; playback.Reset(); }
     if (!available || !initialized || !safe) return;
-    const int wanted = room ? InstalledChoice(lobbyChoice) : music::Default;
+    const int wanted = InstalledChoice(menuChoice);
     if (playback.Request(wanted, safe)) {
         fallingBack = false;
-        spdlog::info("Music: loading lobby track {}", wanted);
+        spdlog::info("Music: loading menu track {}", wanted);
         Reload(self, wanted);
     }
     if (!playback.pending) return;
     if (menuReady(self)) {
         menuPlay(self, 0);
         playback.pending = false;
-        spdlog::info("Music: lobby bank ready (track={}, fallback={})", playback.applied, fallingBack);
+        spdlog::info("Music: menu bank ready (track={}, fallback={})", playback.applied, fallingBack);
         if (fallingBack) error = ErrorCode::fallback;
     } else if (GetTickCount64() - loadStarted >= 10000) {
         loadFailed = true;
@@ -182,15 +182,15 @@ void InitializeContent() {
     spdlog::info("Music: found {}/{} stock tracks", installedTracks.size(), music::TrackCount);
     initialized = true;
 }
-void Configure(int lobby, int match, bool safeMenu, bool inRoom) {
-    lobby = music::Normalize(lobby, false); match = music::Normalize(match);
-    if (lobby != lobbyChoice || match != configuredMatch) {
+void Configure(int menu, int match, bool safeMenu) {
+    menu = music::Normalize(menu, false); match = music::Normalize(match);
+    if (menu != menuChoice || match != configuredMatch) {
         if (available) error=ErrorCode::None;
-        if (initialized && ((lobby != music::Default && InstalledChoice(lobby) == music::Default) ||
+        if (initialized && ((menu != music::Default && InstalledChoice(menu) == music::Default) ||
             (match != music::Default && match != music::Random && InstalledChoice(match) == music::Default)))
             error = ErrorCode::missing;
     }
-    lobbyChoice = lobby; configuredMatch = match; safe = safeMenu; room = inRoom;
+    menuChoice = menu; configuredMatch = match; safe = safeMenu;
 }
 void EnterMatch() {
     // Independent of gameplay/room RNG. Never store the resolved track over
@@ -202,7 +202,7 @@ void EnterMatch() {
     matchArmed = true; safe = false;
 }
 void LeaveMatch() { matchArmed = false; }
-void RetryLobby() {
+void RetryMenu() {
     if (loadFailed) { playback.Retry(); loadFailed = false; error=ErrorCode::None; }
 }
 std::string Error() {

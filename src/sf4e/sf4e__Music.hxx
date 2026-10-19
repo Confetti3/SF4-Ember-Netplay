@@ -10,12 +10,12 @@ bool Available();
 // Startup only, after DllMain. Inventory owned game's stock BGM files.
 void InitializeContent();
 // Game thread only, once per outer tick, never during rollback playback.
-void Configure(int lobbyChoice, int matchChoice, bool safeMenu, bool inRoom);
+void Configure(int menuChoice, int matchChoice, bool safeMenu);
 // Arm only on an authorized online match entry, cleared on cancellation/end.
 void EnterMatch();
 void LeaveMatch();
 // A same-choice save retries a bank that previously failed to load.
-void RetryLobby();
+void RetryMenu();
 // Copied to the immutable presentation snapshot on the game thread.
 std::string Error();
 } }

@@ -6256,13 +6256,13 @@ msgid "music.detail"
 msgstr "Vyberte hudbu scén nebo postav. Obě volby se ukládají na tomto PC."
 
 msgid "music.lobby"
-msgstr "Hudba v lobby"
+msgstr "Hudba menu a lobby"
 
 msgid "music.lobby_default"
-msgstr "Výchozí hudba v lobby"
+msgstr "Výchozí hudba menu"
 
 msgid "music.lobby_detail"
-msgstr "Vyberte hudbu pro lobby. Volba se uloží automaticky."
+msgstr "Vyberte hudbu pro úvodní obrazovku, menu a lobby. Volba se uloží automaticky a obnoví při spuštění."
 
 msgid "music.match"
 msgstr "Hudba zápasu"
@@ -6277,7 +6277,7 @@ msgid "music.reset"
 msgstr "Obnovit výchozí hudbu"
 
 msgid "music.reset_detail"
-msgstr "Obnoví původní hudbu lobby a hudbu jednotlivých scén."
+msgstr "Obnoví původní hudbu menu a hudbu jednotlivých scén."
 
 msgid "music.random"
 msgstr "Náhodně (scény a postavy)"
@@ -6289,13 +6289,13 @@ msgid "music.stage_theme"
 msgstr "Scéna: {0}"
 
 msgid "music.error_fallback"
-msgstr "Vybranou hudbu lobby se nepodařilo načíst. Výchozí hudba byla obnovena."
+msgstr "Vybranou hudbu menu se nepodařilo načíst. Výchozí hudba byla obnovena."
 
 msgid "music.error_retry_default"
-msgstr "Vybranou hudbu lobby se nepodařilo načíst. Zkouší se výchozí hudba."
+msgstr "Vybranou hudbu menu se nepodařilo načíst. Zkouší se výchozí hudba."
 
 msgid "music.error_load_failed"
-msgstr "Hudbu lobby se nepodařilo načíst. Pro další pokus vyberte Výchozí."
+msgstr "Hudbu menu se nepodařilo načíst. Pro další pokus vyberte Výchozí."
 
 msgid "music.error_disabled"
 msgstr "Výběr hudby je pro toto spuštění vypnutý."

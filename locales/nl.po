@@ -6256,13 +6256,13 @@ msgid "music.detail"
 msgstr "Kies muziek van stages of personages. Beide keuzes worden op deze pc opgeslagen."
 
 msgid "music.lobby"
-msgstr "Lobbymuziek"
+msgstr "Menu- en lobbymuziek"
 
 msgid "music.lobby_default"
-msgstr "Standaard lobbymuziek"
+msgstr "Standaard menumuziek"
 
 msgid "music.lobby_detail"
-msgstr "Kies de muziek voor de lobby. Je keuze wordt automatisch opgeslagen."
+msgstr "Kies muziek voor het titelscherm, de menu's en de lobby. De keuze wordt automatisch opgeslagen en bij het opstarten hersteld."
 
 msgid "music.match"
 msgstr "Wedstrijdmuziek"
@@ -6277,7 +6277,7 @@ msgid "music.reset"
 msgstr "Standaardmuziek herstellen"
 
 msgid "music.reset_detail"
-msgstr "Herstel de oorspronkelijke lobbymuziek en de muziek van elke stage."
+msgstr "Herstelt de oorspronkelijke menumuziek en de muziek van elke arena."
 
 msgid "music.random"
 msgstr "Willekeurig (stages en personages)"
@@ -6289,13 +6289,13 @@ msgid "music.stage_theme"
 msgstr "Stage: {0}"
 
 msgid "music.error_fallback"
-msgstr "De gekozen lobbymuziek kon niet worden geladen. De standaardmuziek is hersteld."
+msgstr "De gekozen menumuziek kon niet worden geladen. Standaardmuziek hersteld."
 
 msgid "music.error_retry_default"
-msgstr "De gekozen lobbymuziek kon niet worden geladen. De standaardmuziek wordt geprobeerd."
+msgstr "De gekozen menumuziek kon niet worden geladen. De standaardmuziek wordt geprobeerd."
 
 msgid "music.error_load_failed"
-msgstr "De lobbymuziek kon niet worden geladen. Kies Standaard om het opnieuw te proberen."
+msgstr "Menumuziek kon niet worden geladen. Kies Standaard om opnieuw te proberen."
 
 msgid "music.error_disabled"
 msgstr "Muziekkeuze is uitgeschakeld voor deze start."

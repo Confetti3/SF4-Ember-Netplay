@@ -6256,13 +6256,13 @@ msgid "music.detail"
 msgstr "选择场景或角色主题曲。两项设置都会保存在本机。"
 
 msgid "music.lobby"
-msgstr "房间音乐"
+msgstr "菜单和房间音乐"
 
 msgid "music.lobby_default"
-msgstr "默认房间音乐"
+msgstr "默认菜单音乐"
 
 msgid "music.lobby_detail"
-msgstr "选择房间播放的音乐。选择会自动保存。"
+msgstr "选择标题画面、菜单和房间的音乐。选择会自动保存，并在启动时恢复。"
 
 msgid "music.match"
 msgstr "对战音乐"
@@ -6277,7 +6277,7 @@ msgid "music.reset"
 msgstr "恢复默认音乐"
 
 msgid "music.reset_detail"
-msgstr "恢复游戏原本的房间音乐和各场景音乐。"
+msgstr "恢复游戏原本的菜单音乐和各场景音乐。"
 
 msgid "music.random"
 msgstr "随机（场景和角色）"
@@ -6289,13 +6289,13 @@ msgid "music.stage_theme"
 msgstr "场景：{0}"
 
 msgid "music.error_fallback"
-msgstr "无法加载所选房间音乐。已恢复默认音乐。"
+msgstr "无法加载所选菜单音乐。已恢复默认音乐。"
 
 msgid "music.error_retry_default"
-msgstr "无法加载所选房间音乐。正在尝试默认音乐。"
+msgstr "无法加载所选菜单音乐。正在尝试默认音乐。"
 
 msgid "music.error_load_failed"
-msgstr "无法加载房间音乐。请选择默认以重试。"
+msgstr "无法加载菜单音乐。请选择默认以重试。"
 
 msgid "music.error_disabled"
 msgstr "本次启动已禁用音乐选择。"

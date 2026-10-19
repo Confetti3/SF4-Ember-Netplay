@@ -6256,13 +6256,13 @@ msgid "music.detail"
 msgstr "Choisissez des thèmes de stages ou de personnages. Les deux choix sont enregistrés sur ce PC."
 
 msgid "music.lobby"
-msgstr "Musique du salon"
+msgstr "Musique des menus et du salon"
 
 msgid "music.lobby_default"
-msgstr "Musique du salon par défaut"
+msgstr "Musique des menus par défaut"
 
 msgid "music.lobby_detail"
-msgstr "Choisissez la musique du salon. Votre choix est enregistré automatiquement."
+msgstr "Choisissez la musique de l'écran titre, des menus et du salon. Le choix est enregistré automatiquement et rétabli au démarrage."
 
 msgid "music.match"
 msgstr "Musique des matchs"
@@ -6277,7 +6277,7 @@ msgid "music.reset"
 msgstr "Rétablir la musique par défaut"
 
 msgid "music.reset_detail"
-msgstr "Rétablir la musique d'origine du salon et celle de chaque stage."
+msgstr "Rétablit la musique originale des menus et de chaque stage."
 
 msgid "music.random"
 msgstr "Aléatoire (stages et personnages)"
@@ -6289,13 +6289,13 @@ msgid "music.stage_theme"
 msgstr "Stage : {0}"
 
 msgid "music.error_fallback"
-msgstr "Impossible de charger la musique choisie pour le salon. Musique par défaut rétablie."
+msgstr "Impossible de charger la musique choisie pour les menus. Musique par défaut rétablie."
 
 msgid "music.error_retry_default"
-msgstr "Impossible de charger la musique choisie pour le salon. Essai avec la musique par défaut."
+msgstr "Impossible de charger la musique choisie pour les menus. Essai avec la musique par défaut."
 
 msgid "music.error_load_failed"
-msgstr "Impossible de charger la musique du salon. Choisissez Par défaut pour réessayer."
+msgstr "Impossible de charger la musique des menus. Choisissez Par défaut pour réessayer."
 
 msgid "music.error_disabled"
 msgstr "La sélection musicale est désactivée pour ce lancement."

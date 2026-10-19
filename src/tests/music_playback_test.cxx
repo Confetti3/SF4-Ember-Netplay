@@ -3,17 +3,40 @@
 
 int main() {
     using namespace sf4e::music;
-    LobbyPlaybackState state;
+    // Saved menu music starts before a room exists. Entering/leaving a room
+    // uses the same MainMenu bank without restarting it on every page.
+    MenuPlaybackState startup;
+    const int savedTheme = CharacterBase + 23;
+    CHECK(!startup.Request(savedTheme, MenuPlaybackAllowed("", false)));
+    CHECK(startup.Request(savedTheme, MenuPlaybackAllowed("Title", false)));
+    startup.pending = false;
+    for (const auto screen : {"MainMenu", "Option", "PlayerData",
+                              "PlayerTitleSetting", "PlayerIconSetting", "Manual", "Marketplace"}) {
+        CHECK(MenuPlaybackAllowed(screen, false));
+        CHECK(!startup.Request(savedTheme, MenuPlaybackAllowed(screen, false)));
+        CHECK(!MenuPlaybackAllowed(screen, true));
+    }
+    for (const auto screen : {"", "Boot", "LogoCapcom", "Opening", "DemoBattle", "VSMode",
+                              "TrainingMode", "ArcadeMode", "TrialMode", "LocalBattleLog", "ReplayChannel", "Unknown"})
+        CHECK(!MenuPlaybackAllowed(screen, false));
+    CHECK(!MenuPlaybackAllowed("Title", true));
+    startup.Reset(); // The native fight owns teardown; return loads the saved menu bank.
+    CHECK(!startup.Request(savedTheme, MenuPlaybackAllowed("VSMode", false)));
+    CHECK(startup.Request(savedTheme, MenuPlaybackAllowed("MainMenu", false)));
+    startup.Reset();
+    CHECK(startup.Request(savedTheme, MenuPlaybackAllowed("Title", false))); // Next launch.
+
+    MenuPlaybackState state;
     CHECK(!state.Request(Default, true)); // Native music keeps playing untouched.
     CHECK(state.Request(1, true));
     CHECK(state.pending);
     state.pending = false;
-    CHECK(!state.Request(1, true)); // No reload on each frame in the same room.
+    CHECK(!state.Request(1, true)); // No reload on each frame in the same menu.
     CHECK(!state.Request(Default, false)); // Never restart menu audio in a fight.
     CHECK(state.applied == 1);
     CHECK(state.Request(2, true)); // The next safe menu accepts a new choice.
     state.pending = false;
-    CHECK(state.Request(Default, true)); // Leaving restores native music.
+    CHECK(state.Request(Default, true)); // Resetting the preference restores native music.
     state.Reset(); // Native scene teardown invalidates its banks.
     CHECK(!state.pending && state.applied == Default);
     CHECK(state.Request(2, true)); // Rematch return reloads the saved theme.

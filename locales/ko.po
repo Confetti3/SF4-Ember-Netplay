@@ -6256,13 +6256,13 @@ msgid "music.detail"
 msgstr "스테이지 또는 캐릭터 테마를 선택합니다. 두 설정 모두 이 PC에 저장됩니다."
 
 msgid "music.lobby"
-msgstr "로비 음악"
+msgstr "메뉴 및 로비 음악"
 
 msgid "music.lobby_default"
-msgstr "기본 로비 음악"
+msgstr "기본 메뉴 음악"
 
 msgid "music.lobby_detail"
-msgstr "로비에서 재생할 음악을 선택합니다. 선택은 자동으로 저장됩니다."
+msgstr "타이틀 화면, 메뉴 및 로비의 음악을 선택합니다. 선택은 자동으로 저장되며 시작할 때 복원됩니다."
 
 msgid "music.match"
 msgstr "대전 음악"
@@ -6277,7 +6277,7 @@ msgid "music.reset"
 msgstr "기본 음악 복원"
 
 msgid "music.reset_detail"
-msgstr "로비와 각 스테이지의 음악을 게임의 원래 음악으로 복원합니다."
+msgstr "메뉴와 각 스테이지의 음악을 게임의 원래 음악으로 복원합니다."
 
 msgid "music.random"
 msgstr "무작위 (스테이지 및 캐릭터)"
@@ -6289,13 +6289,13 @@ msgid "music.stage_theme"
 msgstr "스테이지: {0}"
 
 msgid "music.error_fallback"
-msgstr "선택한 로비 음악을 불러올 수 없습니다. 기본 음악으로 복원했습니다."
+msgstr "선택한 메뉴 음악을 불러올 수 없습니다. 기본 음악으로 복원했습니다."
 
 msgid "music.error_retry_default"
-msgstr "선택한 로비 음악을 불러올 수 없습니다. 기본 음악을 시도합니다."
+msgstr "선택한 메뉴 음악을 불러올 수 없습니다. 기본 음악을 시도합니다."
 
 msgid "music.error_load_failed"
-msgstr "로비 음악을 불러올 수 없습니다. 기본값을 선택하여 다시 시도하세요."
+msgstr "메뉴 음악을 불러올 수 없습니다. 기본값을 선택하여 다시 시도하세요."
 
 msgid "music.error_disabled"
 msgstr "이번 실행에서는 음악 선택이 비활성화되어 있습니다."

@@ -11,6 +11,7 @@
 #include "sf4e__Steam.hxx"
 #include "sf4e__Music.hxx"
 #include "../netplay/MusicPreferences.hxx"
+#include "../common/MusicPlaybackState.hxx"
 #include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
@@ -278,7 +279,7 @@ void StartHelper() {
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             netplay::ReadMusicPreferences(saved, runtime->preferences);
-            spdlog::info("Music: restored lobby={} match={}", runtime->preferences.lobbyMusic, runtime->preferences.matchMusic);
+            spdlog::info("Music: restored menu={} match={}", runtime->preferences.lobbyMusic, runtime->preferences.matchMusic);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
             runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
@@ -790,9 +791,10 @@ void TickRuntime() {
 	SettleRoomState(helperReady);
 	{
 		const auto state = runtime->controller.GetSnapshot();
-		const bool safeMenu = AtMainMenu() && !Game::Battle::System::ggpo && !netplay::Fighting(state.match);
+		const bool safeMenu = music::MenuPlaybackAllowed(NativeForegroundName(),
+			Game::Battle::System::ggpo != nullptr || netplay::Fighting(state.match));
 		sf4e::Music::Configure(runtime->preferences.lobbyMusic, runtime->preferences.matchMusic,
-			safeMenu, state.room == netplay::RoomState::Joined && !runtime->offlineRequested);
+			safeMenu);
 	}
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
