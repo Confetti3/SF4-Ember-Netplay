@@ -161,14 +161,16 @@ bool CanChooseControllerNow() {
 }
 
 input::MenuButtons MenuButtonsFor(int deviceType, int deviceIndex) {
+    if (deviceType != input::PadXInput) return Dimps::Pad::MenuButtons(deviceType, deviceIndex);
+    // An XInput pad reads no tables, so A and B unless bound: the game's button
+    // screen moves LK and MK in its menu table along with the fight layout.
     // Only a pad the layer serves carries an Ember layout, and so a binding.
     const auto pad = std::find_if(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) {
-        return deviceType == input::PadXInput && pad.slot == deviceIndex &&
-            (pad.state == gamepads::RowState::Recognised || pad.state == gamepads::RowState::Steam);
+        return pad.slot == deviceIndex && (pad.state == gamepads::RowState::Recognised || pad.state == gamepads::RowState::Steam);
     });
-    if (pad == runtime->pads.end()) return Dimps::Pad::MenuButtons(deviceType, deviceIndex);
-    return Dimps::Pad::MenuButtons(deviceType, deviceIndex, gamepads::MenuBindingMask(pad->menu.confirm, pad->has),
-        gamepads::MenuBindingMask(pad->menu.back, pad->has));
+    if (pad == runtime->pads.end()) return input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr);
+    return input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr, input::MenuConfirmFunction, input::MenuBackFunction,
+        gamepads::MenuBindingMask(pad->menu.confirm, pad->has), gamepads::MenuBindingMask(pad->menu.back, pad->has));
 }
 
 bool CanEditButtonLayoutNow() {

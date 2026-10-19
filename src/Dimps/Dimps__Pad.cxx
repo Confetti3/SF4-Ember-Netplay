@@ -49,7 +49,7 @@ bool Pad::ReadController(int deviceType, int deviceIndex, unsigned int& held, un
 	return true;
 }
 
-sf4e::input::MenuButtons Pad::MenuButtons(int deviceType, int deviceIndex, std::uint32_t boundConfirm, std::uint32_t boundBack) {
+sf4e::input::MenuButtons Pad::MenuButtons(int deviceType, int deviceIndex) {
     // The game's decide and cancel functions, System+0xCC and +0xD0 (getters
     // 0x517210 and 0x517220). Nothing in this build changes them, but its own
     // prompt code (0x6503F0) allows a swap, so they are read, not assumed.
@@ -61,7 +61,7 @@ sf4e::input::MenuButtons Pad::MenuButtons(int deviceType, int deviceIndex, std::
         deviceType == (deviceIndex < 4 ? PADTYPE_XINPUT : PADTYPE_DIRECTINPUT);
     const auto index = static_cast<unsigned>(deviceIndex);
     return sf4e::input::ResolveMenuButtons(deviceType, valid ? records.MenuTable(index) : nullptr, valid ? records.FightTable(index) : nullptr,
-        confirm, back, boundConfirm, boundBack);
+        confirm, back);
 }
 
 sf4e::gamepads::PadBindingRecords Pad::BindingRecords() {

@@ -69,7 +69,7 @@ struct PadView {
     ButtonLayout table = DefaultLayout;
     std::optional<ButtonLayout> layout;
     // The stored menu binding, and the buttons that confirm and go back for
-    // this pad with it (Pad::MenuButtons; A and B while it has no game slot).
+    // this pad with it (MenuButtonsFor; A and B while it has no game slot).
     MenuBinding menu;
     input::MenuButtons menuButtons;
 };

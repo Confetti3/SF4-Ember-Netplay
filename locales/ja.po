@@ -5463,10 +5463,10 @@ msgid "button_layout.menu_back"
 msgstr "メニュー戻る"
 
 msgid "button_layout.menu_confirm_detail"
-msgstr "選択してから、Emberのメニューで決定するボタンを押してください。選ぶまでは、ゲーム本体のメニューで決定するボタンです。"
+msgstr "選択してから、Emberのメニューで決定するボタンを押してください。選ぶまでは、4つのボタンのうち下のボタンです。"
 
 msgid "button_layout.menu_back_detail"
-msgstr "選択してから、Emberのメニューで戻るボタンを押してください。選ぶまでは、ゲーム本体のメニューで戻るボタンです。"
+msgstr "選択してから、Emberのメニューで戻るボタンを押してください。選ぶまでは、4つのボタンのうち右のボタンです。"
 
 msgid "button_layout.menu_taken"
 msgstr "{0}はすでに{1}です。別のボタンを選んでください。"

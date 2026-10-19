@@ -22,10 +22,10 @@ namespace Dimps {
 		// Game thread, main menu or offline training; never assigns a side.
 		bool ReadController(int deviceType, int deviceIndex, unsigned int& held, unsigned int* physicalButtons = nullptr);
         // The buttons that confirm and go back in Ember's menus for a device
-        // (input::ResolveMenuButtons): the player's binding (physical masks, 0
-        // for none), else what the game's own menus use. Reads only; a device
-        // that is disconnected or has no valid record still gets an answer.
-        sf4e::input::MenuButtons MenuButtons(int deviceType, int deviceIndex, std::uint32_t boundConfirm = 0, std::uint32_t boundBack = 0);
+        // the game reads (input::ResolveMenuButtons): what the game's own
+        // menus use. Reads only; a device that is disconnected or has no
+        // valid record still gets an answer.
+        sf4e::input::MenuButtons MenuButtons(int deviceType, int deviceIndex);
 		struct System {
 			static const int BUTTON_MAPPING_FIGHT;
 			static const int BUTTON_MAPPING_MENU;

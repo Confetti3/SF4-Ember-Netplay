@@ -5463,10 +5463,10 @@ msgid "button_layout.menu_back"
 msgstr "Powrót w menu"
 
 msgid "button_layout.menu_confirm_detail"
-msgstr "Wybierz, a potem naciśnij przycisk, który potwierdza w menu Embera. Dopóki go nie wybierzesz, jest to przycisk, którym potwierdzają menu gry."
+msgstr "Wybierz, a potem naciśnij przycisk, który potwierdza w menu Embera. Dopóki go nie wybierzesz, jest to dolny z czterech przycisków."
 
 msgid "button_layout.menu_back_detail"
-msgstr "Wybierz, a potem naciśnij przycisk, który cofa w menu Embera. Dopóki go nie wybierzesz, jest to przycisk, którym cofają menu gry."
+msgstr "Wybierz, a potem naciśnij przycisk, który cofa w menu Embera. Dopóki go nie wybierzesz, jest to prawy z czterech przycisków."
 
 msgid "button_layout.menu_taken"
 msgstr "{0} to już: {1}. Wybierz inny przycisk."

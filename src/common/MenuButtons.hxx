@@ -40,10 +40,11 @@ inline std::uint32_t PhysicalFunction(std::uint32_t function, const std::uint32_
 }
 // The one answer to "which buttons confirm and go back for this device".
 // menu and fight are the device's binding record tables (+0x1FC and +0x17C),
-// null when the record fails its bounds check. In order: the player's binding
-// (boundConfirm, boundBack: a physical mask, 0 for none), the button holding
-// the function in the game's menu table, the one holding it in the fight
-// table, then bits 18 and 17. A zero function reads as the game's default.
+// null when the record fails its bounds check and for an XInput pad. In
+// order: the player's binding (boundConfirm, boundBack: a physical mask, 0 for
+// none), the button holding the function in the game's menu table, the one
+// holding it in the fight table, then bits 18 and 17. A zero function reads
+// as the game's default.
 inline MenuButtons ResolveMenuButtons(int deviceType, const std::uint32_t* menu, const std::uint32_t* fight,
     std::uint32_t confirmFunction = MenuConfirmFunction, std::uint32_t backFunction = MenuBackFunction,
     std::uint32_t boundConfirm = 0, std::uint32_t boundBack = 0) {
@@ -60,8 +61,8 @@ inline MenuButtons ResolveMenuButtons(int deviceType, const std::uint32_t* menu,
     MenuButtons result;
     result.confirm = boundConfirm ? boundConfirm : gameConfirm;
     result.back = boundBack ? boundBack : gameBack;
-    // One bound to the other's game button (the game's table changed since):
-    // the other takes this one's game button, so the two never share one.
+    // One bound to the other's default button (back bound to A, say): the
+    // other takes this one's default, so the two never share one.
     if (result.confirm == result.back) {
         if (boundConfirm) result.back = gameConfirm; else result.confirm = gameBack;
         if (result.confirm == result.back) { result.confirm = gameConfirm; result.back = gameBack; }

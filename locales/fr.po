@@ -5463,10 +5463,10 @@ msgid "button_layout.menu_back"
 msgstr "Retour (menus)"
 
 msgid "button_layout.menu_confirm_detail"
-msgstr "Sélectionnez, puis appuyez sur le bouton qui valide dans les menus d'Ember. Tant que vous n'en choisissez pas, c'est le bouton qui valide dans les menus du jeu."
+msgstr "Sélectionnez, puis appuyez sur le bouton qui valide dans les menus d'Ember. Tant que vous n'en choisissez pas, c'est le bouton du bas parmi les quatre."
 
 msgid "button_layout.menu_back_detail"
-msgstr "Sélectionnez, puis appuyez sur le bouton qui revient en arrière dans les menus d'Ember. Tant que vous n'en choisissez pas, c'est le bouton qui revient en arrière dans les menus du jeu."
+msgstr "Sélectionnez, puis appuyez sur le bouton qui revient en arrière dans les menus d'Ember. Tant que vous n'en choisissez pas, c'est le bouton de droite parmi les quatre."
 
 msgid "button_layout.menu_taken"
 msgstr "{0} est déjà {1}. Choisissez un autre bouton."
