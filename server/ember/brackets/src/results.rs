@@ -106,16 +106,30 @@ impl Connector {
         let inner = &self.0;
         let now = inner.clock.now();
         let received = inner.gate.check(headers, body, now)?;
+        let desk = inner
+            .desk
+            .as_ref()
+            .map(|desk| desk.brackets())
+            .unwrap_or_default();
         let bracket = inner
             .brackets
             .iter()
+            .chain(&desk)
             .find(|bracket| bracket.key == received.id.bracket);
+        // With the desk on, a result for no bracket here may be for an
+        // event whose worker has not started yet: it waits for one.
         let fresh = inner
             .store
-            .receive(&headers.id, &received, now, bracket.is_none())
+            .receive(
+                &headers.id,
+                &received,
+                now,
+                bracket.is_none() && inner.desk.is_none(),
+            )
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         match bracket {
             Some(bracket) => bracket.wake.notify_one(),
+            None if inner.desk.is_some() => {}
             None if fresh => log!(
                 "result of Ember match {} ({}) is for no tournament configured here; ignored",
                 received.match_id,

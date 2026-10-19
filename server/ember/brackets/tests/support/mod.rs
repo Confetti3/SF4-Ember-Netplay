@@ -73,6 +73,7 @@ pub fn config(dir: &Path, bridge_api: &str, provider: &str) -> Config {
         monthly_request_budget: 500,
         allow_loopback_http: true,
         tournaments: Vec::new(),
+        desk: None,
     }
 }
 

@@ -8,6 +8,7 @@ mod bridge;
 mod budget;
 mod challonge;
 mod config;
+mod desk;
 mod http;
 mod limit;
 mod results;
@@ -32,8 +33,9 @@ use std::{
 use axum::{Router, extract::DefaultBodyLimit, routing::post};
 use ember_protocol::webhook::Secret;
 use tokio::{net::TcpListener, task::JoinHandle};
+use zeroize::Zeroizing;
 
-pub use config::{Adapter, Bridge, Config, Credential, CredentialKind, Results, Tournament};
+pub use config::{Adapter, Bridge, Config, Credential, CredentialKind, Desk, Results, Tournament};
 pub use rounds::{Hold, RoundRule, Rounds, Side};
 
 use bracket::{Bracket, Context};
@@ -41,6 +43,7 @@ use bridge::BridgeClient;
 use budget::Budget;
 use challonge::Challonge;
 use config::read_secret;
+use desk::Desk as DeskEvents;
 use limit::Limiters;
 use results::Gate;
 use service::Service;
@@ -137,6 +140,75 @@ struct Inner {
     store: Arc<Store>,
     clock: Clock,
     brackets: Vec<Arc<Bracket>>,
+    desk: Option<DeskEvents>,
+}
+
+/// Builds each tournament's site, sharing the database, the Challonge
+/// budget and each start.gg token's rate limit.
+pub(crate) struct Sites {
+    store: Arc<Store>,
+    monthly_request_budget: u32,
+    clock: Clock,
+    limiters: std::sync::Mutex<Limiters>,
+}
+
+impl Sites {
+    /// The site of `tournament`, reached with `credential`. Its Challonge
+    /// budget is kept under `budget` (the credential itself, so tournaments
+    /// sharing one share it) and named `name` in the log.
+    fn site(
+        &self,
+        tournament: &Tournament,
+        credential: &Zeroizing<String>,
+        budget: &str,
+        name: String,
+    ) -> Result<Box<dyn site::Site>, String> {
+        let clock = self.clock.clone();
+        Ok(match tournament.adapter {
+            Adapter::Challonge => Box::new(Challonge::new(
+                tournament
+                    .api_base
+                    .as_deref()
+                    .unwrap_or(challonge::API_ORIGIN),
+                &tournament.tournament,
+                tournament.bridge_site(),
+                tournament.credential.kind,
+                credential,
+                // Challonge's free tier counts requests a month.
+                Budget::new(
+                    self.store.clone(),
+                    budget,
+                    name,
+                    self.monthly_request_budget,
+                    clock.clone(),
+                ),
+                clock,
+            )?),
+            Adapter::Http => Box::new(Service::new(
+                tournament.api_base.as_deref().unwrap_or_default(),
+                credential,
+            )?),
+            Adapter::Startgg => Box::new(Startgg::new(
+                tournament
+                    .api_base
+                    .as_deref()
+                    .unwrap_or(startgg::API_ORIGIN),
+                &tournament.tournament,
+                tournament.bridge_site(),
+                credential,
+                // One limit for everything that uses this token.
+                self.limiters
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .for_token(credential),
+                clock,
+                startgg::Wanted {
+                    phases: tournament.rounds.names_phases(),
+                    streams: tournament.hold.streamed,
+                },
+            )?),
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -178,63 +250,44 @@ impl Connector {
             pointed_out: Default::default(),
         });
         let (count, secs) = rate;
-        let mut limiters = Limiters::new(count, Duration::from_secs(secs));
-        let brackets = config
+        let sites = Sites {
+            store: store.clone(),
+            monthly_request_budget: config.monthly_request_budget,
+            clock: clock.clone(),
+            limiters: std::sync::Mutex::new(Limiters::new(count, Duration::from_secs(secs))),
+        };
+        let brackets: Vec<Arc<Bracket>> = config
             .tournaments
             .iter()
             .map(|tournament| {
                 let file = &tournament.credential.file;
                 let credential = read_secret(file)?;
-                let site: Box<dyn site::Site> = match tournament.adapter {
-                    Adapter::Challonge => Box::new(Challonge::new(
-                        tournament
-                            .api_base
-                            .as_deref()
-                            .unwrap_or(challonge::API_ORIGIN),
-                        &tournament.tournament,
-                        tournament.bridge_site(),
-                        tournament.credential.kind,
-                        &credential,
-                        // Challonge's free tier counts requests a month.
-                        Budget::new(
-                            store.clone(),
-                            &credential,
-                            file.display().to_string(),
-                            config.monthly_request_budget,
-                            clock.clone(),
-                        ),
-                        clock.clone(),
-                    )?),
-                    Adapter::Http => Box::new(Service::new(
-                        tournament.api_base.as_deref().unwrap_or_default(),
-                        &credential,
-                    )?),
-                    Adapter::Startgg => Box::new(Startgg::new(
-                        tournament
-                            .api_base
-                            .as_deref()
-                            .unwrap_or(startgg::API_ORIGIN),
-                        &tournament.tournament,
-                        tournament.bridge_site(),
-                        &credential,
-                        // One limit for everything that uses this token.
-                        limiters.for_token(&credential),
-                        clock.clone(),
-                        startgg::Wanted {
-                            phases: tournament.rounds.names_phases(),
-                            streams: tournament.hold.streamed,
-                        },
-                    )?),
-                };
+                let site = sites.site(
+                    tournament,
+                    &credential,
+                    &credential,
+                    file.display().to_string(),
+                )?;
                 Ok(Arc::new(Bracket::new(tournament, site, context.clone())?))
             })
             .collect::<Result<_, String>>()?;
+        let desk = config.desk.map(|desk| {
+            let configured = brackets.iter().map(|bracket| bracket.key.clone()).collect();
+            DeskEvents::new(
+                sites,
+                context.clone(),
+                desk,
+                config.allow_loopback_http,
+                configured,
+            )
+        });
         Ok(Self(Arc::new(Inner {
             gate: Gate::new(secrets, config.bridge.connection_id),
             results_path: config.results.path,
             store,
             clock,
             brackets,
+            desk,
         })))
     }
 
@@ -264,6 +317,16 @@ impl Connector {
                 .iter()
                 .map(|bracket| tokio::spawn(bracket.clone().run())),
         );
+        if self.0.desk.is_some() {
+            let connector = self.clone();
+            tasks.push(tokio::spawn(async move {
+                let desk = connector.0.desk.as_ref().expect("checked above");
+                loop {
+                    desk.sync(true).await;
+                    tokio::time::sleep(Duration::from_secs(desk.context.poll_secs)).await;
+                }
+            }));
+        }
         Ok((address, tasks))
     }
 
@@ -271,7 +334,12 @@ impl Connector {
     /// bracket if a result is waiting, if `poll`, or if it is due, and act
     /// on it.
     pub async fn pass(&self, poll: bool) {
-        for bracket in &self.0.brackets {
+        let mut brackets = self.0.brackets.clone();
+        if let Some(desk) = &self.0.desk {
+            desk.sync(false).await;
+            brackets.extend(desk.brackets());
+        }
+        for bracket in &brackets {
             bracket.pass(poll).await;
         }
     }

@@ -67,6 +67,7 @@ impl TestBridge {
             "allow_private_webhooks": true,
             "integration_secrets": dir.join("integrations.json"),
             "sign_in_sites": [site("challonge"), site("startgg")],
+            "desk": { "connection": CONNECTION },
             "tenants": [{
                 "id": "organizers",
                 "name": "Organizers",

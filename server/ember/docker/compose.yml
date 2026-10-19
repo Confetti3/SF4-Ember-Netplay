@@ -6,6 +6,14 @@
 #   BRIDGE_PORT  host port the proxy forwards to
 #   BRIDGE_DATA  host folder for bridge.json, its secrets and database (0700)
 #   BRIDGE_USER  uid:gid that owns BRIDGE_DATA (default 4784:4784, the image's)
+#   BRACKETS_PORT, BRACKETS_DATA  the same for ember-brackets (default 8791
+#                and ./brackets), whose brackets.json listens on 0.0.0.0:8791
+#                (results.listen); it runs with `--profile brackets`
+#
+# The bridge sends finished matches only to an https results_url, so the
+# proxy serves the connector's results path too (say
+# https://<bridge host>/ember/results to BRACKETS_PORT) and the desk
+# connection's results_url names it.
 #
 # First run:
 #   docker compose run --rm bridge ember-bridge init /var/lib/ember
@@ -26,6 +34,21 @@ services:
       - "${BRIDGE_PORT:?set BRIDGE_PORT}:8470"
     volumes:
       - "${BRIDGE_DATA:?set BRIDGE_DATA}:/var/lib/ember"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+  brackets:
+    image: ember-bridge
+    profiles: ["brackets"]
+    command: ["ember-brackets", "serve", "/var/lib/ember/brackets.json"]
+    restart: unless-stopped
+    user: "${BRIDGE_USER:-4784:4784}"
+    ports:
+      - "${BRACKETS_PORT:-8791}:8791"
+    volumes:
+      - "${BRACKETS_DATA:-./brackets}:/var/lib/ember"
     read_only: true
     cap_drop:
       - ALL

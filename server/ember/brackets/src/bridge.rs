@@ -339,6 +339,31 @@ struct Cancel<'a> {
     expected_revision: &'a str,
 }
 
+/// One of the desk's running events (`/v1/desk/brackets`).
+#[derive(Deserialize)]
+pub(crate) struct DeskEvent {
+    pub id: String,
+    /// The bridge sign-in site the event is on, which names its adapter.
+    pub site: String,
+    pub tournament: String,
+    /// Its round rules, holds and window, as a configured tournament's.
+    #[serde(default)]
+    pub settings: serde_json::Map<String, serde_json::Value>,
+    /// Kept in memory only, and dropped when a newer one comes.
+    pub access_token: String,
+}
+
+impl Drop for DeskEvent {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.access_token);
+    }
+}
+
+#[derive(Deserialize)]
+struct DeskView {
+    brackets: Vec<DeskEvent>,
+}
+
 pub(crate) struct BridgeClient {
     http: reqwest::Client,
     api: String,
@@ -463,6 +488,12 @@ impl BridgeClient {
     async fn lookup_once(&self, accounts: &[&Account]) -> Result<LookupView, BridgeError> {
         let request = self.post(LOOKUP_PATH).json(&lookup_of(accounts));
         self.answer(request).await
+    }
+
+    /// The desk's running events, each with a fresh access token.
+    pub async fn desk(&self) -> Result<Vec<DeskEvent>, BridgeError> {
+        let view: DeskView = self.answer(self.get("/v1/desk/brackets")).await?;
+        Ok(view.brackets)
     }
 
     /// Creates the match, or finds the one this `external_match_id` already

@@ -522,6 +522,9 @@ Routes, all with the organizer's player session:
 lists every running event whose organizer still holds a grant, with the
 site, the event, its settings and a fresh `access_token`. An event whose
 organizer dropped their grant waits there until they sign in again.
+`ember-brackets` with `"desk": {}` in its `brackets.json` runs them
+(its README, "Configure"); under Docker it is the `brackets` service in
+`server/ember/docker/compose.yml`.
 
 ## Bracket sites (Challonge, start.gg, your own)
 

@@ -288,6 +288,17 @@ Secrets are only ever read from files, never written to the log.
   challonge.com or start.gg respectively; for `http` it is required, and is
   the service's https base URL. A loopback http origin is accepted only with
   `allow_loopback_http: true`, which is for local tests.
+- `desk`: optional, `{}` to run organizers' own events as well
+  (docs/design/TOURNAMENT_DESK.md). Each poll the connector reads them from
+  the bridge's `/v1/desk/brackets`, so `bridge.connection_id` and its
+  credential must be the bridge's desk connection. An event runs as a
+  tournament here would, from its `rounds`, `hold`, `active_from`,
+  `active_until` and `mark_underway`, with the access token the bridge
+  hands out with it as a bearer credential, kept in memory only. An event
+  the bridge stops listing is no longer read, its sets left as they are; one
+  a tournament here already runs is left to that tournament.
+  `desk.api_bases` maps `challonge` or `startgg` to an API origin, as
+  `api_base` does, for local tests.
 - `mark_underway`: per tournament, default `true`. Marking each set underway
   costs one request a set; `false` saves them.
 - `rounds`: `games_to_win` (1 to 10) unless a rule covers the set. Rules are

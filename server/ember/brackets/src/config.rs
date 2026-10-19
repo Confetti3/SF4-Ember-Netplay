@@ -49,6 +49,11 @@ pub struct Config {
     #[serde(default = "default_budget")]
     pub monthly_request_budget: u32,
     pub tournaments: Vec<Tournament>,
+    /// Organizers' own events, read from the bridge's desk connection
+    /// (`/v1/desk/brackets`, docs/design/TOURNAMENT_DESK.md), which must be
+    /// `bridge.connection_id`. Off when absent.
+    #[serde(default)]
+    pub desk: Option<Desk>,
     /// Lets a tournament's `api_base` be a loopback `http` origin. Local
     /// tests only: in a deployment each organizer's credential goes over
     /// https to its own site (or service) and nowhere else.
@@ -69,6 +74,17 @@ pub struct Bridge {
     /// `required_build_id` of every match: a label for the build the
     /// players use, not checked against the game.
     pub build_id: String,
+}
+
+/// The desk's events: each runs as a configured tournament on its site,
+/// with the access token the bridge hands out with it.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Desk {
+    /// A site's API origin by adapter name (`challonge`, `startgg`), when
+    /// not its public one, as a tournament's `api_base`. For local tests.
+    #[serde(default)]
+    pub api_bases: std::collections::BTreeMap<String, String>,
 }
 
 /// Where the bridge sends each finished match (the connection's
@@ -215,7 +231,7 @@ impl Tournament {
             .unwrap_or_else(|| self.adapter.name())
     }
 
-    fn check(&self, allow_loopback_http: bool) -> Result<(), String> {
+    pub(crate) fn check(&self, allow_loopback_http: bool) -> Result<(), String> {
         let key = self.key();
         if !self.adapter.names(&self.tournament) {
             return Err(match self.adapter {
@@ -442,6 +458,18 @@ impl Config {
         }
         if self.monthly_request_budget == 0 {
             return Err("monthly_request_budget is at least 1".into());
+        }
+        for (adapter, origin) in self.desk.iter().flat_map(|desk| &desk.api_bases) {
+            let domain = match adapter.as_str() {
+                "challonge" => "challonge.com",
+                "startgg" => "start.gg",
+                _ => return Err(format!("desk.api_bases: {adapter} is challonge or startgg")),
+            };
+            if !is_site_origin(origin, domain, self.allow_loopback_http) {
+                return Err(format!(
+                    "desk.api_bases: {adapter} is an https origin on {domain}"
+                ));
+            }
         }
         let mut keys = std::collections::BTreeSet::new();
         for tournament in &self.tournaments {
