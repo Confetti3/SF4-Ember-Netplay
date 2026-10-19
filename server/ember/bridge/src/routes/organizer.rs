@@ -19,6 +19,7 @@ use axum::{
     response::Response,
 };
 use ember_protocol::{
+    api::ErrorCode,
     challenge::{Action, Method, ProvenRequest},
     encoding::is_prefixed_id,
 };
@@ -135,6 +136,20 @@ impl Caller {
         Ok((Self::Player { player, request }, command))
     }
 
+    /// Refuses the web desk for a change that needs the game's signed
+    /// proof: one a stolen browser session must not make (the event's
+    /// webhook, who may read it or sign up, running or ending it).
+    pub(crate) fn require_game(&self) -> Result<()> {
+        match self {
+            Self::Player { .. } => Ok(()),
+            Self::Desk(_) => Err(ApiFailure::new(
+                ErrorCode::Forbidden,
+                "Make this change in Ember: Online play, Ember ID, Tournament desk.",
+            )
+            .detail("reason", "needs_game_proof")),
+        }
+    }
+
     pub(crate) fn ember_id(&self) -> &str {
         match self {
             Self::Player { player, .. } => player.ember_id.as_str(),
@@ -207,6 +222,7 @@ pub async fn start(
         return Err(ApiFailure::not_found());
     }
     let (caller, command): (_, Start) = Caller::of(&state, &headers, &body).await?;
+    caller.require_game()?;
     let settings = settings_of(command.settings)?;
     let site = Site::Configured(command.site.clone());
     let event = listed(&state, &site, caller.ember_id())
@@ -316,6 +332,7 @@ pub async fn stop(
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
     let (caller, sessions::Nothing {}) = Caller::of(&state, &headers, &body).await?;
+    caller.require_game()?;
     let path = format!("{EVENTS_PATH}/{id}");
     let ctx = Ctx::of(&state);
     let stopped = state
@@ -449,6 +466,9 @@ pub async fn change(
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
     let (caller, change): (_, Change) = Caller::of(&state, &headers, &body).await?;
+    if change.discord_webhook.is_some() || change.public.is_some() || change.sign_ups.is_some() {
+        caller.require_game()?;
+    }
     let title = change.title.as_deref().map(title_of).transpose()?;
     let starts_at = match change.starts_at {
         None => None,
@@ -604,6 +624,7 @@ pub async fn create(
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
     let (caller, command): (_, Create) = Caller::of(&state, &headers, &body).await?;
+    caller.require_game()?;
     let site = Site::Configured(command.site.clone());
     let oauth = OAuth::organizer(&state, &site).ok_or_else(ApiFailure::not_found)?;
     let (reading, owner) = (id.clone(), caller.ember_id().to_owned());
@@ -694,6 +715,7 @@ pub async fn ready(
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
     let (caller, sessions::Nothing {}) = Caller::of(&state, &headers, &body).await?;
+    caller.require_game()?;
     let path = format!("{EVENTS_PATH}/{id}/ready");
     let ctx = Ctx::of(&state);
     let done = state
