@@ -75,16 +75,16 @@
       parts[0].slice(0, 4) !== 'brg_' || parts[1].slice(0, 4) !== 'emt_') return null;
     return {
       bridge: parts[0],
-      title: 'Play or watch a tournament match',
-      lead: 'This tournament match is played in SF4 Ember Netplay. Its two players press Play. Anyone else can watch it when the organizer allows.',
+      title: 'Play your tournament match',
+      lead: 'Your tournament match is ready to play in SF4 Ember Netplay.',
       code: null,
       ember: 'ember://tournament/open?bridge=' + parts[0] + '&match=' + parts[1],
       link: 'https://embernetplay.link/m#' + parts[0] + '/' + parts[1],
-      after: 'Ember opens the match on its Tournament matches screen. Players press Play there; everyone else presses Watch this match. Your browser may ask first whether to open Ember.',
+      after: 'Ember opens the match on its Tournament matches screen; press Play there. Your browser may ask first whether to open Ember.',
       steps: ['Start SF4 Ember Netplay.',
         'Choose <strong>Online play</strong>, then <strong>Ember ID</strong>, then <strong>Tournament matches</strong>.',
-        'Choose <strong>Paste match link</strong>, then <strong>Play</strong>, or <strong>Watch this match</strong> if you are not one of the players.'],
-      lasts: 'Only the two players in this match can play it. The organizer decides who may watch: its own staff only, or everyone who holds this link. A watcher joins the room of the two players, so a watcher can see their network addresses. You need an Ember ID to watch.'
+        'Choose <strong>Paste match link</strong>, then <strong>Play</strong>.'],
+      lasts: 'Only the two players in this match can play it, so it is safe to share this link with them.'
     };
   }
 

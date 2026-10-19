@@ -686,7 +686,7 @@ export class BridgeClient {
 
   /** Organizer credentials only. Removes an Ember ID from one match's watchers, staff or not, and keeps it out. */
   denyWatcher(matchId: string, emberId: string): Promise<{ ember_id: string; set_at: number }> {
-    return this.#json("PUT", `/v1/matches/${encodeURIComponent(matchId)}/watch/denials/${encodeURIComponent(emberId)}`);
+    return this.#json("PUT", `/v1/matches/${encodeURIComponent(matchId)}/watch/denials/${encodeURIComponent(emberId)}`, {});
   }
 
   /** Organizer credentials only. Lifts a denial. */

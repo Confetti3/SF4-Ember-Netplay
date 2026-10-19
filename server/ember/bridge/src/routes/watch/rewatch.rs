@@ -1,8 +1,9 @@
 //! Which of a match's watchers its binding names. `match_watchers` is the
 //! source: every watcher who asked and is still asking. The bound set is
 //! derived from it and the match's watch policy, never edited in place, and
-//! every fighter claim and watcher call re-derives it, so a revocation, a
-//! policy change or a watcher who went quiet reaches the room within a claim.
+//! every fighter claim and watcher call re-derives it (`play::rebind` calls
+//! `named`), so a revocation, a policy change or a watcher who went quiet
+//! reaches the room within a claim.
 use std::collections::BTreeMap;
 
 use ember_protocol::{
@@ -16,7 +17,7 @@ use crate::{
     audit::audit,
     ctx::Ctx,
     error::{ApiFailure, Result},
-    routes::play::{ClaimRow, Fighter, endpoints, room},
+    routes::play::{ClaimRow, PlayedMatch},
 };
 
 /// Watchers who hold the match link and nothing more, at most.
@@ -33,11 +34,17 @@ pub struct Row {
     pub last_seen_at: u64,
 }
 
-/// The rows of `match_id` seen after `after`, oldest arrival first.
-pub fn rows(tx: &Transaction<'_>, match_id: &str, after: i64) -> Result<Vec<Row>> {
+/// A watcher whose last ask is not newer than this has gone quiet.
+pub fn live_after(now: u64) -> u64 {
+    now.saturating_sub(LIVE_SECS)
+}
+
+/// The rows of `match_id` last seen after `after` (all of them for `None`),
+/// oldest arrival first.
+pub fn rows(tx: &Transaction<'_>, match_id: &str, after: Option<u64>) -> Result<Vec<Row>> {
     tx.prepare(
         "SELECT ember_id, endpoint_id, build_id, first_seen_at, last_seen_at FROM match_watchers
-         WHERE match_id = ?1 AND last_seen_at > ?2 ORDER BY first_seen_at, ember_id",
+         WHERE match_id = ?1 AND (?2 IS NULL OR last_seen_at > ?2) ORDER BY first_seen_at, ember_id",
     )?
     .query_map(params![match_id, after], |row| {
         Ok((
@@ -61,22 +68,26 @@ pub fn rows(tx: &Transaction<'_>, match_id: &str, after: i64) -> Result<Vec<Row>
     .collect()
 }
 
-/// The watchers a binding names, from the text `rewatch` stores.
+/// The watchers a binding names, from the text `named` stores.
 pub fn bound(text: Option<&str>) -> Result<Vec<BoundWatcher>> {
-    let Some(text) = text else {
-        return Ok(vec![]);
-    };
-    let pairs: Vec<(String, String)> =
-        serde_json::from_str(text).map_err(|_| ApiFailure::unavailable())?;
-    pairs
-        .into_iter()
-        .map(|(ember_id, endpoint_id)| {
-            Ok(BoundWatcher {
-                ember_id: EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?,
-                endpoint_id,
-            })
-        })
+    text.map_or_else(
+        || Ok(vec![]),
+        |text| serde_json::from_str(text).map_err(|_| ApiFailure::unavailable()),
+    )
+}
+
+/// The claims of the match's two fighters, leaving out any left by an Ember ID
+/// that has since been reassigned.
+pub fn fighter_claims<'a>(played: &PlayedMatch, claimed: &'a [ClaimRow]) -> Vec<&'a ClaimRow> {
+    claimed
+        .iter()
+        .filter(|claim| played.roster.iter().any(|p| p.ember_id == claim.ember_id))
         .collect()
+}
+
+/// Whether both fighters' latest claims say their helpers read watchers.
+pub fn attested(fighters: &[&ClaimRow]) -> bool {
+    fighters.len() == 2 && fighters.iter().all(|claim| claim.watch)
 }
 
 /// Two watchers asking for one endpoint: the lower-ranked is dropped.
@@ -87,22 +98,22 @@ struct Conflict {
 }
 
 /// The watchers the match may name, oldest first, and the endpoint conflicts
-/// that kept some out.
+/// that kept some out. `fighters` are the two fighters' claims.
 fn select(
     rows: Vec<Row>,
     policy: &Policy,
-    fighter: &Fighter,
+    played: &PlayedMatch,
     seated: &[String; 2],
-    builds: &[ClaimRow],
+    fighters: &[&ClaimRow],
 ) -> (Vec<Row>, Vec<Conflict>) {
     let mut candidates: Vec<(Admission, Row)> = rows
         .into_iter()
         .map(|row| (policy.admission(&row.ember_id), row))
         .filter(|(admission, row)| {
             matches!(admission, Admission::Staff | Admission::LinkHolder)
-                && fighter.roster.iter().all(|p| p.ember_id != row.ember_id)
+                && played.roster.iter().all(|p| p.ember_id != row.ember_id)
                 && !seated.contains(&row.endpoint_id)
-                && builds.iter().all(|claim| claim.build_id == row.build_id)
+                && fighters.iter().all(|claim| claim.build_id == row.build_id)
         })
         .collect();
     // Staff beat link holders, and the latest arrival beats an earlier one.
@@ -158,43 +169,48 @@ fn select(
     (chosen, conflicts)
 }
 
-/// Derives the watchers the match's binding names, and moves the binding
-/// revision, but not the fighters' revision, when they changed. A match nobody
-/// ever asked to watch is never touched.
-pub fn rewatch(
+/// The text `match_rooms.bound_watchers` should hold: the watchers the
+/// binding names, or `None` for none.
+///
+/// A fighter's helper reads `watchers` only if its own latest claim says so
+/// (`Claim::watch`), so the binding names nobody unless both fighters' claims
+/// do. A watcher's `build_id` is self-declared and vouches for nothing: it
+/// only has to equal the fighters' build. `seated` is the fighters' endpoints,
+/// once the room is published and both have claimed.
+pub fn named(
     tx: &Transaction<'_>,
     ctx: &Ctx,
-    fighter: &Fighter,
+    played: &PlayedMatch,
     claimed: &[ClaimRow],
-) -> Result<()> {
-    let match_id = &fighter.found.id;
-    let current = room(tx, match_id)?;
-    let asked = rows(
-        tx,
-        match_id,
-        ctx.now.saturating_sub(LIVE_SECS).try_into().unwrap_or(0),
-    )?;
-    if asked.is_empty() && current.bound_watchers.is_none() {
-        return Ok(());
-    }
-    let (chosen, conflicts) = match endpoints(fighter, claimed) {
-        Some(seated) if current.room_id.is_some() => {
-            let policy = Policy::load(tx, &fighter.found.connection_id, match_id)?;
-            select(asked, &policy, fighter, &seated, claimed)
-        }
-        _ => (vec![], vec![]),
+    seated: Option<&[String; 2]>,
+) -> Result<Option<String>> {
+    let Some(seated) = seated else {
+        return Ok(None);
     };
+    let match_id = &played.found.id;
+    let asked = rows(tx, match_id, Some(live_after(ctx.now)))?;
+    let fighters = fighter_claims(played, claimed);
+    if asked.is_empty() || !attested(&fighters) {
+        return Ok(None);
+    }
+    let policy = Policy::load(tx, &played.found.connection_id, match_id)?;
+    let (chosen, conflicts) = select(asked, &policy, played, seated, &fighters);
     for conflict in &conflicts {
-        let reason = format!(
-            "{} lost endpoint {} to {}",
-            conflict.loser, conflict.endpoint_id, conflict.winner
-        );
-        let known: bool = tx.query_row(
-            "SELECT EXISTS (SELECT 1 FROM audit_entries WHERE action = 'watch.endpoint_conflict' AND target = ?1 AND reason = ?2)",
-            params![match_id, reason],
-            |row| row.get(0),
+        // Once per pair and endpoint, however often they keep asking.
+        let fresh = tx.execute(
+            "INSERT OR IGNORE INTO match_watch_conflicts (match_id, loser, winner, endpoint_id) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                match_id,
+                conflict.loser.as_str(),
+                conflict.winner.as_str(),
+                conflict.endpoint_id
+            ],
         )?;
-        if !known {
+        if fresh == 1 {
+            let reason = format!(
+                "{} lost endpoint {} to {}",
+                conflict.loser, conflict.endpoint_id, conflict.winner
+            );
             audit(
                 tx,
                 ctx.now,
@@ -206,18 +222,12 @@ pub fn rewatch(
             )?;
         }
     }
-    let text = (!chosen.is_empty()).then(|| {
-        let pairs: Vec<_> = chosen
-            .iter()
-            .map(|row| (row.ember_id.as_str(), row.endpoint_id.as_str()))
-            .collect();
-        serde_json::to_string(&pairs).unwrap_or_default()
-    });
-    if text != current.bound_watchers {
-        tx.execute(
-            "UPDATE match_rooms SET binding_revision = binding_revision + 1, bound_watchers = ?1 WHERE match_id = ?2",
-            params![text, match_id],
-        )?;
-    }
-    Ok(())
+    let named: Vec<BoundWatcher> = chosen
+        .into_iter()
+        .map(|row| BoundWatcher {
+            ember_id: row.ember_id,
+            endpoint_id: row.endpoint_id,
+        })
+        .collect();
+    Ok((!named.is_empty()).then(|| serde_json::to_string(&named).unwrap_or_default()))
 }

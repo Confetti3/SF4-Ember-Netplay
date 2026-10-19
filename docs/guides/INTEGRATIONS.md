@@ -227,9 +227,13 @@ picks the match from the list.
 
 An organizer, a caster or another approved viewer can watch a match played in
 Ember (`ember-room-v1`) from inside the match's own room, without being able
-to affect the set. The bridge names a watcher only when the watcher's Ember
-build is the one both players run, and a bridge that serves watching lists
-`matches.watch` in its capabilities `features`.
+to affect the set. The bridge names a watcher only when both players' games
+say they can read one (a current Ember's claim carries `"watch": true`, which
+a game sends only to a bridge that lists `matches.watch`) and the watcher's
+Ember build is the one both players run. Matches played on an Ember that
+cannot read watchers, such as Stable 1.3.0, never get a watcher, whatever a
+watcher declares. A bridge that serves watching lists `matches.watch` in its
+capabilities `features`.
 
 **Who may watch** is the organizer's choice, and the default is nobody, so a
 connection that does nothing changes nothing:
@@ -264,8 +268,12 @@ moment, with no linked account.
 **How a watcher gets in.** The match's Play link opens Ember, which offers
 Watch to anyone who is not one of the players. The game asks the bridge every
 10 seconds (`POST /v1/matches/{id}/watch`, a `match.watch` proof from the
-watcher's own session) and is answered `waiting` with a `reason` (`no_room`,
-`not_bound`, `full`), or `room` with the room and its invitation. It joins that
+watcher's own session) and is answered `waiting` with a `reason`, or `room`
+with the room and its invitation. The reasons are `no_room` (no room is
+published yet), `not_bound` (a player has not claimed, or the players' games
+do not both read watchers) and `full` (the cap or ceiling is reached, another
+watcher holds the same endpoint, or the endpoint is a player's own; ask
+again). It joins that
 room, and the players' next claims carry a binding that names it, so a change
 of policy, a denial or a watcher who goes quiet (60 seconds) reaches the room
 within about one claim interval of the players (10 seconds). A watcher is never
@@ -280,11 +288,14 @@ connection's provider credential may read):
 |---|---|
 | `GET /v1/connections/{id}/watch` | `link_holders`, `link_holder_cap` (4), `ceiling` (8) and the staff list |
 | `PUT /v1/connections/{id}/watch` | `{"link_holders": true}`. Read the address exposure above first. |
-| `PUT` and `DELETE /v1/connections/{id}/watch/staff/{ember_id}` | Approve, or stop approving, an Ember ID (the `PUT` body is `{}`) |
-| `PUT` and `DELETE /v1/matches/{id}/watch/denials/{ember_id}` | Deny, or allow again, one Ember ID for one match |
+| `PUT` and `DELETE /v1/connections/{id}/watch/staff/{ember_id}` | Approve, or stop approving, an Ember ID. The `PUT` body is `{}` and the answer `{"ember_id", "added_at"}`; `DELETE` answers `204`. |
+| `PUT` and `DELETE /v1/matches/{id}/watch/denials/{ember_id}` | Deny, or allow again, one Ember ID for one match. The `PUT` body is `{}` and the answer `{"ember_id", "set_at"}`; `DELETE` answers `204`. |
 | `GET /v1/matches/{id}/watchers` | Everyone who asked to watch: `via` (`staff`, `link_holders`, `denied`, `none`), whether the binding names them (`bound`), first and last seen, and the denials |
 
-Every write is audited. The `play_url` of the match is the link watchers open,
+Every write is audited with the Ember ID it names (`on` or `off` for
+`link_holders`). Two watchers who ask for one endpoint get one place, the
+staff one or else the later arrival, and the loss is audited as
+`watch.endpoint_conflict`. The `play_url` of the match is the link watchers open,
 and no event kinds were added. The TypeScript SDK has `watchPolicy`,
 `setWatchLinkHolders`, `addWatchStaff`, `removeWatchStaff`, `denyWatcher`,
 `clearWatchDenial` and `matchWatchers`, and `TestPlayer` has `watchMatch` and

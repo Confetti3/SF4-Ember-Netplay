@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use super::{BoundFighter, check_helper, is_hex};
 use crate::{EmberId, Error, Result};
 
-/// The capabilities feature of a bridge that serves the watch routes and may
-/// sign bindings that name watchers.
+/// The capabilities feature of a bridge that serves the watch routes, may sign
+/// bindings that name watchers and reads a claim's `watch`.
 pub const WATCH_FEATURE: &str = "matches.watch";
 /// Watchers one binding names, staff included; the room's `MaxWatchers`.
 pub const MAX_WATCHERS: usize = 8;
@@ -72,10 +72,13 @@ impl WatchRequest {
 pub enum WaitReason {
     /// No room is published yet.
     NoRoom,
-    /// A fighter has not claimed, so the bridge has no binding to name the
-    /// watcher in.
+    /// The bridge has no binding that can name the watcher yet: a fighter has
+    /// not claimed, or the fighters' helpers have not both said they read
+    /// watchers (`Claim::watch`).
     NotBound,
-    /// The link-holder cap or the ceiling is reached; a place may free up.
+    /// The binding has no place for this watcher now, and one may free up:
+    /// the link-holder cap or the ceiling is reached, another watcher holds
+    /// the same endpoint, or the endpoint is a fighter's own.
     Full,
 }
 

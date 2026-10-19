@@ -128,29 +128,32 @@ The fix is bridge-only, and leaves the helpers and the protocol's
     and `:309-310` for publish), failing with `bridge_invalid_response`;
   - `Final()` does not list that code (`TournamentPlay.cxx:25-28`), so the
     fighter retries every 5 s and never gets the room again.
-- **Why the design needs no per-claim `watch` field** (review finding 11):
-  - The build ID is the game DLL's hash (`src/sf4e/sf4e.cxx:46-71, 232`),
-    sent as `build` with every claim (`src/sf4e/sf4e__NetplayRuntime__Tournament.cxx:21-23`).
-  - The bridge already requires both fighters to claim the same build
-    (`play.rs:331-345`).
-  - The helper is not hashed or version-checked at run time. The bootstrap
-    `version` is a constant set by the launcher (`src/platform/HelperProcess.hxx:14`).
-    But the launcher always starts `sf4-net.exe` from its own install root,
-    beside the DLL it injects (`src/launcher/launcher.cxx:773-776`), and
-    packages stage both together.
-  - The project already depends on this pairing. The game sends `ready` in
-    `match_claim` (`sf4e__NetplayRuntime__Tournament.cxx:22-23`), and the
-    helper's `Request` is `deny_unknown_fields` (`rust/sf4-net/src/tournament/mod.rs:45-47, 122-129`).
-    A DLL newer than its helper already fails every claim.
-  - So a watcher can reach the watch route only with a build whose DLL
-    sends `match_watch`, and its paired helper parses `watchers`. The bridge
-    adds a watcher to the bound set only when the watcher's `build_id`
-    equals both fighters' current claimed build (§4.2). Fighters on that
-    build parse `watchers`.
-  - That one rule replaces `Claim.watch`, the `match_claims.watch` column,
-    the generalized capability cache and the `players_updating` state.
-  - A hand-mixed install (new DLL, old helper) is already unsupported, and
-    fails today on `ready`.
+- **Why each fighter's claim says it reads watchers** (review finding 11
+  reversed, after the bridge review of part A):
+  - The first design deleted `Claim.watch`, arguing that a watcher can reach
+    the watch route only with a build whose DLL sends `match_watch`, and that
+    build's paired helper parses `watchers`. That holds for an honest watcher
+    only. The route needs a player session and a proof, Ember IDs are free,
+    and the build ID of a released build is public: every install of it sends
+    it in its own claims. A staff member, or any link holder once a
+    connection turns `link_holders` on, could send the Stable build as its
+    `build_id`. The bridge would then name the watcher in a binding that
+    Stable fighters' helpers refuse as an unknown field, so the fighters'
+    claim answers would fail and a set on Stable 1.3.0 could not start.
+  - The party at risk is the fighter, so the fighter vouches. A claim gains an
+    optional `"watch": true`, meaning this fighter's helper reads a binding
+    that names watchers. It is the `ready` precedent: `Option<bool>`, serde
+    default, left out when unset (so a claim from a helper that predates it is
+    byte for byte what an older bridge accepts), sent only to a bridge that
+    lists `matches.watch`, and stored per fighter in `match_claims.watch`
+    (default 0).
+  - The bridge names watchers in a binding only when both fighters' latest
+    claims say `watch: true` and the watcher's `build_id` equals both
+    fighters' claimed build (§4.2). A fighter who claims again without it
+    takes the watchers out of the binding at that claim.
+  - The helper is not hashed or version-checked at run time, so the claim
+    field, not the build ID, is what carries the pairing of a helper with the
+    bridge's `watchers`.
 - **No room-snapshot compatibility issue.** A room admits one build: the
   native join refuses another sidecar hash (`src/session/sf4e__SessionServer.cxx:504-506`).
 
@@ -356,8 +359,9 @@ All bodies are strict JSON (`protocol/src/json.rs`). Request types are
 - Add the feature `matches.watch` (`ember_protocol::play::WATCH_FEATURE`) to
   `capabilities()` (`bridge/src/routes/discovery.rs:28-55`). It means the
   bridge serves the watch routes and may sign bindings with `watchers`.
-- The helper reads it before sending `match_watch` (§5.3).
-- Claims are unchanged (§2.2).
+- It also means the bridge reads `watch` in a claim.
+- The helper reads it before sending `match_watch` (§5.3), and before putting
+  `watch: true` in a claim (§5.1).
 
 ### 3.2 Binding
 
@@ -411,9 +415,14 @@ The answer is `200`, tagged by `state` (`WatchAnswer`):
 `reason` is one of:
 
 - `no_room`: no room is published yet;
-- `not_bound`: a fighter has not claimed yet, so the bridge has no binding;
-- `full`: the link-holder cap or the ceiling is reached. This is transient,
-  so it is a waiting state, not an error.
+- `not_bound`: the bridge has no binding that can name the watcher yet. A
+  fighter has not claimed, or the fighters' claims do not both say their
+  helpers read watchers (§2.2);
+- `full`: the binding has no place for this watcher now, and one may free up.
+  The link-holder cap or the ceiling is reached, another watcher holds the
+  same endpoint (§4.2 step 3), or the endpoint is a fighter's own. This is
+  transient, so it is a waiting state, not an error. A client cannot tell
+  these apart, and does not need to: it asks again.
 
 Refusals use existing codes with `details.reason`, as public rooms do
 (`bridge/src/routes/rooms/mod.rs:175-200`):
@@ -433,14 +442,14 @@ Refusals use existing codes with `details.reason`, as public rooms do
 On every allowed call, the route:
 
 1. upserts the caller into `match_watchers` (`last_seen_at = now`);
-2. runs `rewatch` (§4.2);
-3. answers `room` if `rewatch` placed the caller in the bound set, and
+2. runs `rebind` (§4.2);
+3. answers `room` if `rebind` placed the caller in the bound set, and
    `waiting` otherwise.
 
 **`POST /v1/matches/{match_id}/watch/leave`**
 
 - Proof `Action::MatchUnwatch` (`"match.unwatch"`), with the command `{}`.
-- It deletes the caller's row and runs `rewatch`.
+- It deletes the caller's row and runs `rebind`.
 - Answer: `200 {"left": true}`.
 
 ### 3.4 Policy routes (organizer)
@@ -480,25 +489,35 @@ exposure of §8.
 **Staff (approved for every match of the connection)**
 
 - `PUT /v1/connections/{connection_id}/watch/staff/{ember_id}`, with the
-  body `{}`. Answer: `200`.
+  body `{}`. Answer: `200 {"ember_id", "added_at"}`. Putting an Ember ID
+  that is already staff answers `200` with its original `added_at`.
 - `DELETE` on the same path. Answer: `204`.
 - A TO who wants to watch adds their own Ember ID.
 
 **Revocation for one match**
 
-- `PUT /v1/matches/{match_id}/watch/denials/{ember_id}` and `DELETE` on the
-  same path. Answers: `200` and `204`.
+- `PUT /v1/matches/{match_id}/watch/denials/{ember_id}`, with the body `{}`
+  like the staff `PUT` (one contract for both). Answer:
+  `200 {"ember_id", "set_at"}`. `DELETE` on the same path answers `204`.
 - A denial overrides both staff and link-holder access.
 
 **The organizer's view**
 
-`GET /v1/matches/{match_id}/watchers` answers:
+`GET /v1/matches/{match_id}/watchers` answers (`via` is how the policy treats
+that Ember ID now: `staff`, `link_holders`, `denied`, or `none` when the
+connection is closed to link holders and the Ember ID is not staff; rows
+outlive denials and policy changes, so all four occur):
 
 ```json
 { "match_id": "emt_...", "link_holders": false,
   "watchers": [ { "ember_id": "...", "via": "staff", "bound": true, "first_seen_at": 1760000000, "last_seen_at": 1760000300 } ],
   "denied": [ "..." ] }
 ```
+
+Every write is audited under the organizer's credential, with the Ember ID it
+approved, removed, denied or allowed again as the entry's `reason`, or `on` /
+`off` for `link_holders`. The organizer routes check the caller before they
+check the path and body, so an unauthenticated caller gets `401`.
 
 `GET /v1/matches/{id}` and the created-match body are unchanged. The
 existing `play_url` is the link watchers open (§12 Q4).
@@ -528,7 +547,7 @@ provisional until the load measurement in §6.6 (§12 Q1).
 
 ## 4. Bridge storage
 
-### 4.1 Migration `027_match_watch.sql`
+### 4.1 Migration `028_match_watch.sql`
 
 ```sql
 -- Anyone holding the match link may watch (the organizer's choice).
@@ -565,8 +584,19 @@ CREATE TABLE match_watchers (
 );
 CREATE INDEX match_watchers_endpoint ON match_watchers (match_id, endpoint_id);
 
--- The watcher set the current binding names. NULL means none, which is
--- every row today, so deploying changes no live match.
+-- Two watchers who asked for one endpoint, once per pair and endpoint, so
+-- the audit log records a loss when it first happens.
+CREATE TABLE match_watch_conflicts (
+    match_id TEXT NOT NULL REFERENCES matches(id),
+    loser TEXT NOT NULL,
+    winner TEXT NOT NULL,
+    endpoint_id TEXT NOT NULL,
+    PRIMARY KEY (match_id, loser, winner, endpoint_id)
+);
+
+-- The watcher set the current binding names, as a JSON list of
+-- {"ember_id", "endpoint_id"}. NULL means none, which is every row today,
+-- so deploying changes no live match.
 ALTER TABLE match_rooms ADD COLUMN bound_watchers TEXT;
 
 -- The binding revision of the last fighter-endpoint change; prepares are
@@ -574,63 +604,85 @@ ALTER TABLE match_rooms ADD COLUMN bound_watchers TEXT;
 -- check exactly.
 ALTER TABLE match_rooms ADD COLUMN fighters_revision INTEGER NOT NULL DEFAULT 0;
 UPDATE match_rooms SET fighters_revision = binding_revision;
+
+-- Whether a fighter's latest claim said its helper reads a binding that
+-- names watchers. A claim that does not say reads false.
+ALTER TABLE match_claims ADD COLUMN watch INTEGER NOT NULL DEFAULT 0;
 ```
 
-Register it with `include_str!` in `bridge/src/db.rs`, after 026.
+The number is 028, not 027: 027 is taken on `feat/challonge`, and `migrate`
+applies per version, so the gap is safe. Register it with `include_str!` in
+`bridge/src/db.rs`, after 026.
 
-### 4.2 `rewatch`: how watchers are kept per match
+### 4.2 How watchers are kept per match
 
 `match_watchers` is the source. The bound set is derived, never edited in
-place. One function, `rewatch(tx, ctx, match)`, lives in a new
-`bridge/src/routes/watch.rs`.
+place. One derivation serves the whole binding: `rebind` in
+`bridge/src/routes/play.rs` works out both the fighters' endpoints and the
+watchers, and `room_answer` calls it, so every answer that carries a room or a
+binding is derived afresh. The watcher half is `named` in
+`bridge/src/routes/watch/rewatch.rs`, which returns the text `bound_watchers`
+should hold.
 
-1. **Short-circuit.** If the match has no `match_watchers` rows and
-   `bound_watchers` is NULL, return. Deploying therefore touches nothing,
-   and BluMint and Stable matches never get past this step (review
-   finding 2).
+1. **Short-circuit.** `named` returns none when the room is not published or a
+   fighter has not claimed, and when no watcher row is live. Deploying
+   therefore touches nothing, and BluMint and Stable matches never get past
+   this step (review finding 2).
 2. **Select.** Read the rows with `last_seen_at > now - 60`, oldest
    `first_seen_at` first. Keep a row only when all of these hold:
+   - both fighters' latest claims say `watch: true` (§2.2). Otherwise nobody
+     is named, whatever the watchers declare;
    - its Ember ID has no denial for the match;
    - it is staff, or the connection has `watch_link_holders = 1`;
-   - it is not a fighter;
-   - its `build_id` equals both fighters' current claimed `build_id`, and
-     both fighters have claimed. This is the rule that replaces `Claim.watch`
-     (§2.2).
+   - it is not a fighter, by Ember ID or by endpoint (a fighter who was
+     reassigned, or who claimed a watcher's endpoint, takes precedence);
+   - its `build_id` equals both fighters' current claimed `build_id`.
 3. **Endpoint conflicts.** Two kept rows naming one endpoint (review
    finding 9):
    - a staff row beats a link-holder row;
-   - between equals, the most recent `last_seen_at` wins;
-   - the loser is dropped, and the conflict is audited (`watch.endpoint_conflict`)
-     so the organizer can deny the other Ember ID.
+   - between equals the later `first_seen_at` wins, the newest occupant. The
+     first design said the most recent `last_seen_at`, but two watchers
+     polling every 10 s would then swap the endpoint on every poll, moving
+     `binding_revision` and forcing a leader bind each time. `first_seen_at`
+     is not moved by polling. A watcher whose row had gone quiet (over 60 s)
+     starts a new arrival when it asks again, so a returning watcher does not
+     jump ahead of one who took its place;
+   - the loser is dropped, and the conflict is audited once per pair and
+     endpoint (`watch.endpoint_conflict`, keyed in `match_watch_conflicts`)
+     so the organizer can deny the other Ember ID. The cost: an allowed link
+     holder who registers another link holder's endpoint takes it at once and
+     keeps it. The organizer sees it in the audit and can deny the squatter
+     (§12 Q6).
 4. **Cap.** Take staff first, then link holders up to `LINK_HOLDER_CAP`,
    stopping at `MAX_WATCHERS`.
    - A staff arrival can therefore push a link holder out when the ceiling
      is reached. That evicts the link holder at the next bind, even
      mid-game. This is intended: staff "can always watch".
 5. **Compare and store.** An empty result is NULL. A non-empty result
-   serializes as `[[ember_id, endpoint_id], ...]`. If it differs from
-   `bound_watchers`, bump `binding_revision` and store the new value.
-   `fighters_revision` is not touched.
+   serializes as `[{"ember_id", "endpoint_id"}, ...]`. `rebind` compares both
+   derived values with the stored ones in one step:
+   - a change of the fighters' endpoints bumps `binding_revision` and sets
+     `fighters_revision` to it;
+   - a change of watchers alone bumps `binding_revision` and leaves
+     `fighters_revision` alone.
 
-Where `rewatch` runs, inside the existing write transactions:
+`rebind` runs, inside the existing write transactions:
 
 - the watch route and the leave route;
-- `seat()` before `room_answer` (`bridge/src/routes/play.rs:377-380`);
-- `publish()` before `room_answer` (`play.rs:514-515`).
+- every fighter claim and every room publish, through `room_answer`, including
+  the refresh of the current room's invitation.
 
-Every fighter claim therefore applies revocations, policy changes and
-liveness expiry within one claim interval. The organizer routes only write
-rows.
+Every fighter claim therefore applies revocations, policy changes, liveness
+expiry and a fighter's change of `watch` within one claim interval. The
+organizer routes only write rows.
 
 Other bridge changes:
 
-- `binding()` (`play.rs:218-259`) adds `watchers` from `bound_watchers`.
-- `rebind` (`play.rs:196-199`) sets `fighters_revision` to the new
-  `binding_revision` whenever it bumps.
+- `binding()` adds `watchers` from `bound_watchers`.
 - `check_descriptor` and `prepare()` change as described in §2.1.
-- **A replaced room keeps its watchers.** `publish` resets `bound_endpoints`
-  (`play.rs:508-513`), not `match_watchers`. The new room's binding names
-  the same watchers, and their next poll returns the new room.
+- **A replaced room keeps its watchers.** `publish` resets `bound_endpoints`,
+  not `match_watchers`. The new room's binding names the same watchers, and
+  their next poll returns the new room.
 - **Rows persist with the match.** Matches are never deleted (§2.6). Rows
   are bounded by the distinct Ember IDs that asked to watch, and they serve
   the organizer's view afterwards. A later cleanup job is out of scope.
@@ -639,7 +691,10 @@ Other bridge changes:
 
 ### 5.1 Claims and fighter bindings
 
-- Claims are unchanged.
+- A claim gains `"watch": true`, sent only to a bridge that lists
+  `matches.watch` (the `ready` precedent), so the bridge names watchers only
+  for helpers that parse them (§2.2). The game's claim request carries it from
+  the same capability check.
 - `accept_binding` (`rust/sf4-net/src/tournament/play.rs:78-115`) checks
   what it checks today. Its view adds `"watchers": [{"ember_id", "endpoint_id"}]`,
   so the game can name watchers.
@@ -1189,7 +1244,7 @@ can play.").
 **Revocation.**
 
 - A denial, a staff removal, or turning `link_holders` off drops the watcher
-  at the next `rewatch`.
+  at the next `rebind`.
 - At most one leader claim interval (10 s) later, plus the bind commit, the
   room evicts it. Its helper admission is retired at the next committed
   roster read (§5.4).
@@ -1277,13 +1332,16 @@ binding: it never receives one, and `WatchPlay` never emits Bind.
 ## 9. Compatibility
 
 - **Old fighter clients (Stable 1.3.0, older Nightlies).**
-  - Their build differs from any build that can watch, so `rewatch` never
-    binds a watcher for their matches (§4.2 step 2).
-  - Their `bound_watchers` stays NULL and `rewatch` returns at step 1.
+  - Their claims do not say `watch`, so the bridge never names a watcher for
+    their matches, whatever build a watcher declares (§4.2 step 2). A
+    watcher's build ID is self-declared and the Stable one is public, so the
+    build alone would not be safe.
+  - Their `bound_watchers` stays NULL and `named` returns at step 1.
   - Their bindings, revisions and prepares are exactly today's: the
     migration backfills `fighters_revision = binding_revision`.
-- **Old bridge.** The new helper sends `match_watch` only to a bridge
-  listing `matches.watch` (§5.3). Fighter claims are unchanged.
+- **Old bridge.** The new helper sends `match_watch`, and `watch` in a
+  claim, only to a bridge listing `matches.watch` (§5.3, §5.1). An old
+  bridge's claims are unchanged.
 - **BluMint unchanged.**
   - Its connections can't be opened in phase 1 (§3.4), and it gets no new
     event kinds and no response changes.
@@ -1350,6 +1408,18 @@ binding: it never receives one, and `WatchPlay` never emits Bind.
 - **Builds.** A watcher on another build gets `incompatible_build`. A
   fighter rebuilding drops every watcher row on the old build from the bound
   set.
+- **Claims that attest.**
+  - A watcher declaring the fighters' (public) build, with fighters whose
+    claims lack `watch`, is never named, and the fighters' binding and
+    revisions are unchanged.
+  - With both claims saying `watch: true`, the watcher is named.
+  - One fighter claiming again without `watch` drops the watchers.
+- **Endpoints.** A watcher asking from a fighter's endpoint is not named. A
+  fighter reconnecting on a bound watcher's endpoint takes it, and the
+  binding still signs. A watcher who becomes a fighter after a reassignment
+  is not named.
+- **A returning watcher** does not push out one who took its place.
+- **Audit.** Each organizer write records the Ember ID, or `on` / `off`.
 - **Link holders.** With `link_holders` on, the fifth link holder waits with
   `full`. Staff fill to 8, pushing a link holder out at the ceiling.
 - **Revocation.** A denial gives a fighter's next binding without the
@@ -1478,7 +1548,7 @@ and read by B.
     `WATCH_FEATURE`, `MAX_WATCHERS`, `WatchRequest`, `WatchAnswer`;
   - `challenge.rs`: `MatchWatch`, `MatchUnwatch`.
 - **A2, bridge:**
-  - `bridge/migrations/027_match_watch.sql` and `bridge/src/db.rs`;
+  - `bridge/migrations/028_match_watch.sql` and `bridge/src/db.rs`;
   - `bridge/src/routes/{play.rs, discovery.rs, sessions.rs, mod.rs}`, where
     `mod.rs` registers the routes;
   - `bridge/src/auth.rs`: an organizer-of-connection helper;
@@ -1493,6 +1563,8 @@ and read by B.
   - a "Match watch" section in `docs/guides/INTEGRATIONS.md`, including the
     address exposure;
   - the `/m` page text in `server/ember-short/deploy/site/assets/open.js`.
+    This is held for the release that ships Watch (part D): the page is
+    served to everyone, and Stable 1.3.0 has no Watch button.
 
 **B. Helper**
 
@@ -1553,6 +1625,11 @@ Settled on 2026-10-19:
 4. **The watch link:** the existing `/m` match link, with no new link form.
 5. **BluMint:** connections stay closed to watchers in phase 1, and
    `spectators` stays ignored.
+6. **Endpoint ties (for the design owner):** the later arrival wins between
+   equals (§4.2 step 3), which stops two watchers swapping an endpoint on
+   every poll. It lets an allowed link holder take another's endpoint and keep
+   it. Earliest-wins would close that, at the cost of a stale row blocking its
+   endpoint for up to 60 s. Not decided; the audit and denial are the remedy.
 
 ## 13. Review response
 
@@ -1561,7 +1638,7 @@ Each finding of the design review, and where it is resolved:
 | # | Finding | Resolution |
 |---|---|---|
 | 1 | Watcher churn fails prepares | Taken: `fighters_revision`, with a bridge-only check and agreement (§2.1, §4.2). A test covers 20 churn cycles. |
-| 2 | NULL `bound_watchers` bumps on deploy | Taken: NULL is empty, empty is stored as NULL, `rewatch` short-circuits, and `fighters_revision` is backfilled. A deploy test is added (§4.1, §4.2, §10). |
+| 2 | NULL `bound_watchers` bumps on deploy | Taken: NULL is empty, empty is stored as NULL, `named` short-circuits, and `fighters_revision` is backfilled. A deploy test is added (§4.1, §4.2, §10). |
 | 3 | SetCapacity is not refused | Taken: the claim is corrected (§2.4, §6.3). Capacity is never mutated, and named members bypass the capacity check with a hard `MaximumMembers` check. |
 | 4 | Watcher table actions and re-placing | Taken: watchers have no table actions and are placed once, at Join (§6.3, §6.5). Partly kept: a bind-time normalization for named watchers who joined before the bind without `observer`, which finding 6 shows is possible. It is a no-op for cooperative watchers. Join and leave churn cannot disturb a Ready, because watcher-only changes do not move table 0's revision (round 2, R2-3 below; §6.5). |
 | 5 | Checkpoint cadence | Taken: confirmed and cited (§2.4). The fallback is deleted, and the shared fixture is owned by C (§5.4, §11). |
@@ -1570,7 +1647,7 @@ Each finding of the design review, and where it is resolved:
 | 8 | Direct path to P1 | Decided: documented, because per-peer relay is not available (`main.rs:20-38`). Settled in §12 (2) (§8). |
 | 9 | Caller-chosen endpoint | Taken in part: the Ember ID is shown with the name, and there is a conflict rule plus an audit (§4.2, §7.3, §8). Proof of possession is phase 2, as it also applies to fighters. |
 | 10 | Signed binding to watchers | Taken: deleted (§5.2). |
-| 11 | `Claim.watch` redundant | Taken: DLL and helper pairing is by packaging, and already relied on (§2.2). Replaced by the build rule in `rewatch`. |
+| 11 | `Claim.watch` redundant | Taken first, then reversed by the bridge review of part A: a watcher's build ID is self-declared and the Stable one is public, so the fighters' claims must vouch. `Claim.watch` and `match_claims.watch` are back, as an additive optional field like `ready` (§2.2, §4.2). |
 | 12 | Policy surface | Taken: a flag column, staff, and per-match denials. Per-match allow, `max_watchers`, labels, `watchable` and the 1:1 table are removed. `full` is now a waiting reason. Writes are organizer only, and refused for BluMint (§3.4). Staff preemption is stated (§4.2). |
 | 13 | Factual errors | Taken: rows persist (matches are never deleted); the `PublishAndTickDiscordInvite` role is corrected (§2.6, §7.4); the wait-for-one-voter rule is dropped (§2.4). |
 | 14 | Work split | Taken: CMake, route registration and `auth.rs` are owned; helper tests go in a new module; bound-room rules sit in `RoomModelTournament.cxx` (§6, §11). |

@@ -90,6 +90,14 @@ pub struct Claim {
     /// refuses a field it does not know; a claim without it is not ready.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ready: Option<bool>,
+    /// Whether this fighter's helper reads a binding that names watchers.
+    /// Sent as `true` only to a bridge that lists `WATCH_FEATURE`, since an
+    /// older one refuses a field it does not know, and only by a helper that
+    /// parses `Binding::watchers`. The bridge names watchers only when both
+    /// fighters' latest claims say so; a claim without it, or `false`, takes
+    /// them out of the binding at once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub watch: Option<bool>,
 }
 
 impl Claim {
@@ -197,7 +205,8 @@ pub struct Binding {
     /// Endpoints admitted to watch, oldest first. Left out when empty, so a
     /// binding without watchers is the bytes every released helper accepts.
     /// A helper that predates the field refuses one that names a watcher, so
-    /// the bridge names watchers only for builds that read it.
+    /// the bridge names watchers only when both fighters' claims say their
+    /// helpers read it (`Claim::watch`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub watchers: Vec<BoundWatcher>,
 }
@@ -323,8 +332,14 @@ impl Prepare {
 
     /// The fields both fighters must agree on (the endpoint is each one's own).
     pub fn same_game(&self, other: &Prepare) -> bool {
+        self.binding_revision == other.binding_revision && self.same_game_at_any_revision(other)
+    }
+
+    /// `same_game` without the binding revision, for a caller that checks the
+    /// revisions itself: watchers joining or leaving move the revision a
+    /// fighter reads between its claims without changing the game.
+    pub fn same_game_at_any_revision(&self, other: &Prepare) -> bool {
         self.assignment_generation == other.assignment_generation
-            && self.binding_revision == other.binding_revision
             && self.room_id == other.room_id
             && self.table_id == other.table_id
             && self.match_generation == other.match_generation
@@ -730,7 +745,7 @@ mod tests {
     }
 
     #[test]
-    fn a_claim_carries_ready_only_when_its_helper_sets_it() {
+    fn a_claim_carries_ready_and_watch_only_when_its_helper_sets_them() {
         let older = serde_json::json!({
             "endpoint_id": "a".repeat(64),
             "helper_instance_id": "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01",
@@ -740,13 +755,25 @@ mod tests {
         assert_eq!(claim.ready, None);
         // Unset, the claim is byte for byte what an older bridge reads.
         assert_eq!(serde_json::to_value(&claim).unwrap(), older);
+        assert_eq!(claim.watch, None);
         let ready = Claim {
             ready: Some(true),
-            ..claim
+            ..claim.clone()
         };
         let sent = serde_json::to_value(&ready).unwrap();
         assert_eq!(sent["ready"], true);
+        assert!(sent.get("watch").is_none());
         assert_eq!(serde_json::from_value::<Claim>(sent).unwrap(), ready);
+        // A claim that attests its helper reads watchers carries `watch`, and
+        // only then.
+        let watching = Claim {
+            watch: Some(true),
+            ..claim
+        };
+        let sent = serde_json::to_value(&watching).unwrap();
+        assert_eq!(sent["watch"], true);
+        assert!(sent.get("ready").is_none());
+        assert_eq!(serde_json::from_value::<Claim>(sent).unwrap(), watching);
         let mut unknown = older;
         unknown["seat"] = 0.into();
         assert!(serde_json::from_value::<Claim>(unknown).is_err());

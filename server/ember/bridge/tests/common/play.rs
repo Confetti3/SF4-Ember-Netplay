@@ -47,7 +47,8 @@ pub async fn act(
         .await
 }
 
-/// A claim from a helper that does not say whether its fighter is ready.
+/// A claim from a helper that does not say whether its fighter is ready, or
+/// that it reads watchers: what every released helper sends.
 pub async fn claim(
     f: &impl Table,
     player: &Player,
@@ -55,13 +56,24 @@ pub async fn claim(
     endpoint: &str,
     build: &str,
 ) -> (StatusCode, Json) {
-    claim_with(
-        f,
-        player,
-        id,
-        json!({ "endpoint_id": endpoint, "build_id": build }),
-    )
-    .await
+    claim_as(f, player, id, endpoint, build, false).await
+}
+
+/// A claim that says its helper reads a binding that names watchers, when
+/// `watch` is set; otherwise `claim`.
+pub async fn claim_as(
+    f: &impl Table,
+    player: &Player,
+    id: &str,
+    endpoint: &str,
+    build: &str,
+    watch: bool,
+) -> (StatusCode, Json) {
+    let mut command = json!({ "endpoint_id": endpoint, "build_id": build });
+    if watch {
+        command["watch"] = json!(true);
+    }
+    claim_with(f, player, id, command).await
 }
 
 /// A claim saying whether the fighter has pressed Ready at the table.
@@ -233,13 +245,19 @@ pub async fn report(
 
 /// Claims and publishes the room; returns the binding JSON both fighters hold.
 pub async fn bound(f: &impl Table, id: &str) -> Json {
-    let (status, host) = claim(f, f.a(), id, &endpoint(f.a()), BUILD).await;
+    bound_as(f, id, false).await
+}
+
+/// `bound`, with both fighters' claims saying whether their helpers read
+/// watchers.
+pub async fn bound_as(f: &impl Table, id: &str, watch: bool) -> Json {
+    let (status, host) = claim_as(f, f.a(), id, &endpoint(f.a()), BUILD, watch).await;
     assert_eq!(
         (status, host["role"].as_str()),
         (StatusCode::OK, Some("host")),
         "{host}"
     );
-    let (status, wait) = claim(f, f.b(), id, &endpoint(f.b()), BUILD).await;
+    let (status, wait) = claim_as(f, f.b(), id, &endpoint(f.b()), BUILD, watch).await;
     assert_eq!(
         (status, wait["role"].as_str()),
         (StatusCode::OK, Some("wait")),
@@ -254,7 +272,7 @@ pub async fn bound(f: &impl Table, id: &str) -> Json {
         (StatusCode::OK, Some("room")),
         "{room}"
     );
-    let (_, joined) = claim(f, f.b(), id, &endpoint(f.b()), BUILD).await;
+    let (_, joined) = claim_as(f, f.b(), id, &endpoint(f.b()), BUILD, watch).await;
     assert_eq!(joined["invitation"], format!("sf4e3:{ROOM}"));
     let signed: SignedBinding = serde_json::from_value(joined["binding"].clone()).unwrap();
     let (key, kid) = bridge_key(f).await;

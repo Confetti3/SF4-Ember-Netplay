@@ -7,7 +7,7 @@ use serde_json::{Value as Json, json};
 
 use super::{
     Bridge, Player,
-    play::{BUILD, Table, act, bridge_key, claim, endpoint},
+    play::{BUILD, Table, act, bound_as, bridge_key, claim_as, endpoint},
     read,
 };
 
@@ -203,13 +203,44 @@ pub async fn waiting(f: &impl Table, id: &str, who: &Player) -> String {
     answer["reason"].as_str().unwrap().to_owned()
 }
 
-/// The binding the fighter's claim answers with, its signature checked.
+/// A claim from a helper that reads watchers, as a current Ember's does.
+pub async fn claim_watching(
+    f: &impl Table,
+    player: &Player,
+    id: &str,
+    endpoint: &str,
+    build: &str,
+) -> (StatusCode, Json) {
+    claim_as(f, player, id, endpoint, build, true).await
+}
+
+/// Claims and publishes the room with both fighters' helpers reading watchers.
+pub async fn bound_watching(f: &impl Table, id: &str) -> Json {
+    bound_as(f, id, true).await
+}
+
+/// The binding the fighter's claim answers with, its signature checked. The
+/// fighter's helper reads watchers.
 pub async fn binding_for(f: &impl Table, id: &str, fighter: &Player) -> Json {
-    let (status, answer) = claim(f, fighter, id, &endpoint(fighter), BUILD).await;
-    assert_eq!(status, StatusCode::OK, "{answer}");
+    let (status, answer) = claim_watching(f, fighter, id, &endpoint(fighter), BUILD).await;
+    verified_binding(f, &status, &answer).await
+}
+
+/// The binding of a claim's answer, its signature checked.
+pub async fn verified_binding(f: &impl Table, status: &StatusCode, answer: &Json) -> Json {
+    assert_eq!(*status, StatusCode::OK, "{answer}");
     let signed: SignedBinding = serde_json::from_value(answer["binding"].clone()).unwrap();
     let (key, kid) = bridge_key(f).await;
     serde_json::to_value(signed.verify(&key, &kid).unwrap()).unwrap()
+}
+
+/// A binding's `binding_revision`.
+pub fn revision(binding: &Json) -> u64 {
+    binding["binding_revision"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap()
 }
 
 /// The Ember IDs a binding names as watchers, in its order.
@@ -267,7 +298,7 @@ pub async fn open_to_link_holders(f: &Match, on: bool) -> StatusCode {
 
 pub async fn deny(f: &Match, who: &Player) -> StatusCode {
     let path = format!("/v1/matches/{}/watch/denials/{}", f.id, who.id());
-    send(&f.bridge, &f.organizer, Method::PUT, &path, None)
+    send(&f.bridge, &f.organizer, Method::PUT, &path, Some(json!({})))
         .await
         .0
 }
@@ -292,6 +323,25 @@ pub async fn room_row(bridge: &Bridge, id: &str) -> (u64, u64, Option<String>) {
                 [&id],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )?)
+        })
+        .await
+        .unwrap()
+}
+
+/// The organizer audit entries of watch changes, oldest first, as action and
+/// reason.
+pub async fn audited(bridge: &Bridge) -> Vec<(String, String)> {
+    bridge
+        .state()
+        .db
+        .read(|tx| {
+            Ok(tx
+                .prepare(
+                    "SELECT action, COALESCE(reason, '') FROM audit_entries
+                     WHERE action LIKE 'watch.%' AND action != 'watch.endpoint_conflict' ORDER BY id",
+                )?
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<rusqlite::Result<_>>()?)
         })
         .await
         .unwrap()

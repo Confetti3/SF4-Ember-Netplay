@@ -102,7 +102,7 @@ The package also implements the identity and signature rules shared with
 Ember (`emberIdFromPublicKey`, `verifyProof`, `verifyReport`, `canonicalize`).
 Its tests check them against the specification's public fixtures.
 `TestPlayer` stands in for a player's game in tests: it links, claims a match,
-publishes a room, asks for game permits and signs reports the way Ember does. `watchMatch` and `stopWatching` do what a watcher's game does.
+publishes a room, asks for game permits and signs reports the way Ember does. `watchMatch` and `stopWatching` do what a watcher's game does. `claimMatch(id, build, { watch: true })` is the claim a current Ember sends: the bridge names watchers only when both fighters' claims say their games read them.
 
 ## Tests
 

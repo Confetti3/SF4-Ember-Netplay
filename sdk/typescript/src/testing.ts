@@ -175,9 +175,19 @@ export class TestPlayer {
    * Claims an `ember-room-v1` match. The first fighter gets the provisioning
    * lease (`host`), the other waits; once a room is published both get it,
    * with the bridge's binding when both have claimed. Claim again to renew.
+   *
+   * `watch: true` says this stand-in's helper reads a binding that names
+   * watchers, as a current Ember's claim does. The bridge names watchers only
+   * when both fighters say so; a claim without it is what an older Ember
+   * sends, and takes the watchers out of the binding.
    */
-  async claimMatch(matchId: string, buildId = "test-build"): Promise<ClaimAnswer> {
-    const command = { endpoint_id: this.endpointId, helper_instance_id: this.helperInstanceId, build_id: buildId };
+  async claimMatch(matchId: string, buildId = "test-build", options: { watch?: boolean } = {}): Promise<ClaimAnswer> {
+    const command = {
+      endpoint_id: this.endpointId,
+      helper_instance_id: this.helperInstanceId,
+      build_id: buildId,
+      ...(options.watch ? { watch: true } : {}),
+    };
     return (await this.#act("match.claim", `/v1/matches/${matchId}/claims`, command)) as unknown as ClaimAnswer;
   }
 

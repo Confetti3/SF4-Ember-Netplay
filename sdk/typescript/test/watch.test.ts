@@ -36,12 +36,12 @@ test("watch policy: staff, link holders and denials decide who is named in the b
       native_rules_profile: "ember-room-v1",
     });
     const id = match.match_id;
-    const lease = await host!.claimMatch(id);
-    await guest!.claimMatch(id);
+    const lease = await host!.claimMatch(id, undefined, { watch: true });
+    await guest!.claimMatch(id, undefined, { watch: true });
     if (lease.role !== "host") throw new Error("no lease");
     await host!.publishRoom(id, { leaseId: lease.lease_id, fence: lease.fence });
-    const named = async (fighter: TestPlayer): Promise<string[]> => {
-      const answer = await fighter.claimMatch(id);
+    const named = async (fighter: TestPlayer, watch = true): Promise<string[]> => {
+      const answer = await fighter.claimMatch(id, undefined, { watch });
       if (answer.role !== "room" || !answer.binding) throw new Error("no binding");
       const binding: Binding = answer.binding.binding;
       return (binding.watchers ?? []).map((watcher) => watcher.ember_id);
@@ -85,6 +85,12 @@ test("watch policy: staff, link holders and denials decide who is named in the b
     assert.deepEqual((await organizer.matchWatchers(id)).denied, [caster!.emberId]);
     await organizer.clearWatchDenial(id, caster!.emberId);
     assert.equal((await caster!.watchMatch(id)).state, "room");
+
+    // A fighter whose Ember does not say it reads watchers gets none named.
+    assert.deepEqual(await named(host!), [caster!.emberId]);
+    assert.deepEqual(await named(host!, false), []);
+    assert.equal((await caster!.watchMatch(id)).state, "waiting");
+    assert.deepEqual(await named(host!), [caster!.emberId]);
 
     // Stopping, and taking the approval back, both free the place.
     await caster!.stopWatching(id);

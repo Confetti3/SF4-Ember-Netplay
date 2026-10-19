@@ -594,7 +594,9 @@ mod tests {
                    delivery_state, created_at, updated_at)
                    VALUES ('emt_live', 't', 'c', 'live', '', 1, 1, 'ready', 2, '{}', '', '{}', 'not_required', 1000, 1000);
                  INSERT INTO match_rooms (match_id, binding_revision, bound_endpoints)
-                   VALUES ('emt_live', 3, '[]');",
+                   VALUES ('emt_live', 3, '[]');
+                 INSERT INTO match_claims (match_id, ember_id, endpoint_id, helper_instance_id, build_id, claimed_at)
+                   VALUES ('emt_live', 'emb_p1', 'e', 'ins_x', 'build', 1000);",
             )
             .unwrap();
         migrate(&mut connection, MIGRATIONS).unwrap();
@@ -607,5 +609,11 @@ mod tests {
             )
             .unwrap();
         assert_eq!((fighters, watchers, link_holders), (3, None, 0));
+        // A claim made before watching existed does not say its helper reads
+        // watchers.
+        let watch: bool = connection
+            .query_row("SELECT watch FROM match_claims", [], |row| row.get(0))
+            .unwrap();
+        assert!(!watch);
     }
 }

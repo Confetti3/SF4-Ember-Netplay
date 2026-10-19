@@ -1,6 +1,6 @@
 //! The organizer's side of watching: whether anyone holding a match link may
 //! watch, who is always approved, and who is denied one match. These routes
-//! only write rows; the next `rewatch` applies them to the binding. Provider
+//! only write rows; the next claim or watcher call applies them to the binding. Provider
 //! credentials of the connection may read; connections whose kind fixes their
 //! settings (BluMint) refuse every write.
 use axum::{
@@ -69,14 +69,23 @@ impl Scope {
     }
 }
 
+/// What a route does to its scope.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Read,
+    Write,
+}
+
 /// Runs `work` for the credential's standing to `scope`: any matching
 /// credential reads it, only an organizer of its tenant writes, and a
-/// connection fixed by its kind is never written.
+/// connection fixed by its kind is never written. The path and body are
+/// checked by `work`, after the caller is known: an unauthenticated caller is
+/// told so, not what is wrong with the request.
 async fn scoped<T: Send + 'static>(
     state: &AppState,
     headers: &HeaderMap,
     scope: Scope,
-    write: bool,
+    mode: Mode,
     work: impl FnOnce(&Transaction<'_>, &Ctx, &Service, &Resolved) -> Result<T> + Send + 'static,
 ) -> Result<T> {
     let service = auth::service(state, headers).await?;
@@ -84,7 +93,7 @@ async fn scoped<T: Send + 'static>(
     let run = move |tx: &Transaction<'_>| {
         let resolved = scope.resolve(tx)?;
         let access = service.access_to(&resolved.tenant_id, &resolved.connection_id)?;
-        if write {
+        if mode == Mode::Write {
             access.manage()?;
             let kind: String = tx.query_row(
                 "SELECT kind FROM provider_connections WHERE id = ?1",
@@ -101,7 +110,7 @@ async fn scoped<T: Send + 'static>(
         }
         work(tx, &ctx, &service, &resolved)
     };
-    if write {
+    if mode == Mode::Write {
         state.db.write(run).await
     } else {
         state.db.read(run).await
@@ -112,12 +121,15 @@ fn ember_id(text: &str) -> Result<EmberId> {
     EmberId::parse(text).map_err(|_| ApiFailure::invalid("That is not an Ember ID."))
 }
 
+/// Audits a write that went through. `subject` is what it changed: the Ember
+/// ID approved or denied, or the new value of a setting.
 fn written(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     by: &Service,
     action: &str,
     at: &Resolved,
+    subject: &str,
 ) -> Result<()> {
     audit(
         tx,
@@ -126,7 +138,7 @@ fn written(
         action,
         &at.id,
         "ok",
-        None,
+        Some(subject),
     )
 }
 
@@ -169,7 +181,7 @@ pub async fn connection_policy(
         &state,
         &headers,
         Scope::Connection(connection_id),
-        false,
+        Mode::Read,
         |tx, _, _, at| policy_body(tx, &at.connection_id),
     )
     .await?;
@@ -185,18 +197,19 @@ pub async fn set_link_holders(
     Path(connection_id): Path<String>,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let command: LinkHolders = body.parse()?;
     let body = scoped(
         &state,
         &headers,
         Scope::Connection(connection_id),
-        true,
+        Mode::Write,
         move |tx, ctx, by, at| {
+            let command: LinkHolders = body.parse()?;
             tx.execute(
                 "UPDATE provider_connections SET watch_link_holders = ?1 WHERE id = ?2",
                 params![command.link_holders, at.connection_id],
             )?;
-            written(tx, ctx, by, "watch.link_holders.set", at)?;
+            let value = if command.link_holders { "on" } else { "off" };
+            written(tx, ctx, by, "watch.link_holders.set", at, value)?;
             policy_body(tx, &at.connection_id)
         },
     )
@@ -211,20 +224,20 @@ pub async fn set_staff(
     Path((connection_id, who)): Path<(String, String)>,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    body.parse::<Nothing>()?;
-    let who = ember_id(&who)?;
     let body = scoped(
         &state,
         &headers,
         Scope::Connection(connection_id),
-        true,
+        Mode::Write,
         move |tx, ctx, by, at| {
+            body.parse::<Nothing>()?;
+            let who = ember_id(&who)?;
             tx.execute(
                 "INSERT OR IGNORE INTO connection_watch_staff (connection_id, ember_id, added_at, added_by)
                  VALUES (?1, ?2, ?3, ?4)",
                 params![at.connection_id, who.as_str(), ctx.now, by.id],
             )?;
-            written(tx, ctx, by, "watch.staff.add", at)?;
+            written(tx, ctx, by, "watch.staff.add", at, who.as_str())?;
             Ok(tx.query_row(
                 "SELECT added_at FROM connection_watch_staff WHERE connection_id = ?1 AND ember_id = ?2",
                 params![at.connection_id, who.as_str()],
@@ -242,18 +255,18 @@ pub async fn remove_staff(
     headers: HeaderMap,
     Path((connection_id, who)): Path<(String, String)>,
 ) -> Result<Response> {
-    let who = ember_id(&who)?;
     scoped(
         &state,
         &headers,
         Scope::Connection(connection_id),
-        true,
+        Mode::Write,
         move |tx, ctx, by, at| {
+            let who = ember_id(&who)?;
             tx.execute(
                 "DELETE FROM connection_watch_staff WHERE connection_id = ?1 AND ember_id = ?2",
                 params![at.connection_id, who.as_str()],
             )?;
-            written(tx, ctx, by, "watch.staff.remove", at)
+            written(tx, ctx, by, "watch.staff.remove", at, who.as_str())
         },
     )
     .await?;
@@ -266,20 +279,22 @@ pub async fn deny(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path((match_id, who)): Path<(String, String)>,
+    body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let who = ember_id(&who)?;
     let body = scoped(
         &state,
         &headers,
         Scope::Match(match_id),
-        true,
+        Mode::Write,
         move |tx, ctx, by, at| {
+            body.parse::<Nothing>()?;
+            let who = ember_id(&who)?;
             tx.execute(
                 "INSERT OR IGNORE INTO match_watch_denials (match_id, ember_id, set_at, set_by)
                  VALUES (?1, ?2, ?3, ?4)",
                 params![at.id, who.as_str(), ctx.now, by.id],
             )?;
-            written(tx, ctx, by, "watch.deny.set", at)?;
+            written(tx, ctx, by, "watch.deny.set", at, who.as_str())?;
             Ok(tx.query_row(
                 "SELECT set_at FROM match_watch_denials WHERE match_id = ?1 AND ember_id = ?2",
                 params![at.id, who.as_str()],
@@ -297,18 +312,18 @@ pub async fn clear_denial(
     headers: HeaderMap,
     Path((match_id, who)): Path<(String, String)>,
 ) -> Result<Response> {
-    let who = ember_id(&who)?;
     scoped(
         &state,
         &headers,
         Scope::Match(match_id),
-        true,
+        Mode::Write,
         move |tx, ctx, by, at| {
+            let who = ember_id(&who)?;
             tx.execute(
                 "DELETE FROM match_watch_denials WHERE match_id = ?1 AND ember_id = ?2",
                 params![at.id, who.as_str()],
             )?;
-            written(tx, ctx, by, "watch.deny.clear", at)
+            written(tx, ctx, by, "watch.deny.clear", at, who.as_str())
         },
     )
     .await?;
@@ -326,7 +341,7 @@ pub async fn match_watchers(
         &state,
         &headers,
         Scope::Match(match_id),
-        false,
+        Mode::Read,
         |tx, _, _, at| {
             let policy = Policy::load(tx, &at.connection_id, &at.id)?;
             let named = bound(
@@ -339,7 +354,7 @@ pub async fn match_watchers(
                 .flatten()
                 .as_deref(),
             )?;
-            let watchers: Vec<_> = rows(tx, &at.id, -1)?
+            let watchers: Vec<_> = rows(tx, &at.id, None)?
                 .into_iter()
                 .map(|row| {
                     json!({
