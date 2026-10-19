@@ -24,6 +24,8 @@ pwsh -NoProfile -File ./scripts/build-current.ps1 `
 Visual Studio is discovered with `vswhere`; override it with `-VisualStudioPath`.
 `VCPKG_ROOT`, `SF4E_VISUAL_STUDIO_PATH` and `SF4E_DISCORD_SDK_ARCHIVE` can supply these paths through the environment.
 
+For faster rebuilds, install [ccache](https://ccache.dev) 4.6 or newer (`winget install Ccache.Ccache`) and add `-CompilerCache`.
+
 The repository's `build-target.json` selects `build/current` and `build/current/stage`.
 Inside a managed multi-checkout workspace, a parent `build-target.json` takes precedence and must designate this checkout. The guard rejects another checkout and rejects build paths outside the source root.
 
