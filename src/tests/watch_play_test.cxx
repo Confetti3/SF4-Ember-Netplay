@@ -397,6 +397,17 @@ static void TestNeverActsOnAForeignRoom() {
 	Tick(stale, 20);
 	stale.Stop();
 	CHECK(Count(Tick(stale, 20 + WatchIntervalMs, Opening()), Kind::Leave) == 0);
+	// A join that failed leaves nothing under way: the room that opens next (an accepted
+	// Discord invitation, drained the frame after the watch stopped) is not the watch's.
+	WatchPlay failed;
+	failed.Start("brg_1", "emt_1", 0);
+	Tick(failed, 0);
+	failed.OnReply(Room(RoomA), 10);
+	CHECK(Count(Tick(failed, 20), Kind::Join) == 1);
+	CHECK(Tick(failed, 1000).empty());
+	failed.Stop();
+	CHECK(Count(Tick(failed, 2000, Opening()), Kind::Leave) == 0);
+	CHECK(Count(Tick(failed, 3000, Joined(HandRoom)), Kind::Leave) == 0);
 }
 
 int main() {

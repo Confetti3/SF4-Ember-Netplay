@@ -286,7 +286,7 @@ connection's provider credential may read):
 
 | Route | Does |
 |---|---|
-| `GET /v1/connections/{id}/watch` | `link_holders`, `link_holder_cap` (4), `ceiling` (8) and the staff list |
+| `GET /v1/connections/{id}/watch` | `link_holders`, `link_holder_cap` (2), `ceiling` (6) and the staff list |
 | `PUT /v1/connections/{id}/watch` | `{"link_holders": true}`. Read the address exposure above first. |
 | `PUT` and `DELETE /v1/connections/{id}/watch/staff/{ember_id}` | Approve, or stop approving, an Ember ID. The `PUT` body is `{}` and the answer `{"ember_id", "added_at"}`; `DELETE` answers `204`. |
 | `PUT` and `DELETE /v1/matches/{id}/watch/denials/{ember_id}` | Deny, or allow again, one Ember ID for one match. The `PUT` body is `{}` and the answer `{"ember_id", "set_at"}`; `DELETE` answers `204`. |

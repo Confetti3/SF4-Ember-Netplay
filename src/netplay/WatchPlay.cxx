@@ -70,8 +70,9 @@ void WatchPlay::End(WatchPhase phase, const std::string& reason, WatchNotice not
 
 bool WatchPlay::HoldsOwnRoom(std::uint64_t nowMs, const RoomView& room) const {
 	if (room.joined) return std::find(ownRooms_.begin(), ownRooms_.end(), room.roomId) != ownRooms_.end();
-	// Opening: this watch's join, while it can still be under way.
-	return room.opening && joinRequested_ && nowMs - openedAtMs_ < WatchIntervalMs;
+	// Opening: this watch's join, while it is under way. A join that failed is
+	// not: the room that opens next is someone else's.
+	return room.opening && joinUnderWay_ && nowMs - openedAtMs_ < WatchIntervalMs;
 }
 
 // Leaves the room this watch joined, when it should, and never any other: the
@@ -93,6 +94,8 @@ std::vector<WatchOutput> WatchPlay::Tick(std::uint64_t nowMs, const RoomView& ro
 	std::vector<WatchOutput> out = std::move(pending_);
 	pending_.clear();
 	ReleaseRoom(nowMs, room, out);
+	// The join this watch made has landed or failed once no room is opening.
+	if (!room.opening) joinUnderWay_ = false;
 	if (!Active()) return out;
 	if (!pollInFlight_ && nowMs >= nextPollMs_) {
 		out.push_back(Make(WatchOutput::Kind::Watch));
@@ -114,7 +117,7 @@ void WatchPlay::Follow(std::uint64_t nowMs, const RoomView& room, std::vector<Wa
 	if (room.joined && room.roomId == targetRoom_) {
 		phase_ = WatchPhase::Watching;
 		wasWatching_ = true;
-		joinRequested_ = leaving_ = false;
+		joinRequested_ = leaving_ = joinUnderWay_ = false;
 	} else if (room.joined) {
 		// In the room of the match's that the bridge no longer names.
 		if (!leaving_) { out.push_back(Make(WatchOutput::Kind::Leave)); leaving_ = true; }
@@ -122,7 +125,7 @@ void WatchPlay::Follow(std::uint64_t nowMs, const RoomView& room, std::vector<Wa
 		auto join = Make(WatchOutput::Kind::Join);
 		join.invitation = targetInvitation_;
 		out.push_back(join);
-		joinRequested_ = true;
+		joinRequested_ = joinUnderWay_ = true;
 		leaving_ = false;
 		openedAtMs_ = nowMs;
 		phase_ = WatchPhase::Joining;
@@ -163,7 +166,7 @@ void WatchPlay::OnRoomEnded(WatchRoomEnd end, std::uint64_t nowMs) {
 	// room, a wait, or that this watcher is gone.
 	targetRoom_.clear();
 	targetInvitation_.clear();
-	joinRequested_ = leaving_ = false;
+	joinRequested_ = leaving_ = joinUnderWay_ = false;
 	nextPollMs_ = nowMs;
 	phase_ = WatchPhase::Waiting;
 	if (end == WatchRoomEnd::Closed) Say(WatchNotice::RoomClosed);

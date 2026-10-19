@@ -112,6 +112,11 @@ private:
 	// The room the bridge names for the match.
 	std::string targetRoom_, targetInvitation_;
 	bool joinRequested_ = false, leaving_ = false;
+	// A join this watch sent is under way: set with the Join, cleared by the
+	// first tick that shows no room opening. Unlike joinRequested_, which only
+	// paces the retry, it ends when the join fails, so a stopped watch never
+	// leaves the room that opens after its own failed join.
+	bool joinUnderWay_ = false;
 	// Every room this watch asked to join or was seen in as the match's: the
 	// only rooms it leaves. A room the player opened or joined by hand is not
 	// among them.

@@ -385,7 +385,8 @@ pub struct Binding {
 
 - `version` stays 1. `roster_digest` still covers only the fighters.
 - New checks in `Binding::check`:
-  - at most `MAX_WATCHERS` (8) watchers;
+  - at most `MAX_WATCHERS` (8) watchers. This is the wire maximum; the
+    bridge binds at most 6 (`WATCHER_CEILING`, §3.6);
   - each `endpoint_id` is 64 lowercase hex;
   - endpoints and Ember IDs are distinct among watchers, and none equals a
     fighter's.
@@ -419,7 +420,7 @@ The answer is `200`, tagged by `state` (`WatchAnswer`):
   fighter has not claimed, or the fighters' claims do not both say their
   helpers read watchers (§2.2);
 - `full`: the binding has no place for this watcher now, and one may free up.
-  The link-holder cap or the ceiling is reached, another watcher holds the
+  The link-holder cap (2) or the ceiling (6 in all) is reached, another watcher holds the
   same endpoint (§4.2 step 3), or the endpoint is a fighter's own. This is
   transient, so it is a waiting state, not an error. A client cannot tell
   these apart, and does not need to: it asks again.
@@ -478,7 +479,7 @@ The actions are `watch.link_holders.set`, `watch.staff.add`,
 `GET /v1/connections/{connection_id}/watch` answers:
 
 ```json
-{ "connection_id": "...", "link_holders": false, "link_holder_cap": 4, "ceiling": 8,
+{ "connection_id": "...", "link_holders": false, "link_holder_cap": 2, "ceiling": 6,
   "staff": [ { "ember_id": "...", "added_at": 1760000000 } ] }
 ```
 
@@ -536,14 +537,17 @@ in phase 1.
 
 | Name | Value | Where |
 |---|---|---|
-| `MAX_WATCHERS` (ceiling) | 8 | protocol `play.rs`; room `MaxWatchers` |
-| `LINK_HOLDER_CAP` | 4 | bridge constant |
+| `MAX_WATCHERS` (wire maximum) | 8 | protocol `play.rs`; room `MaxWatchers` |
+| `WATCHER_CEILING` (watchers in all, staff included) | 6 | bridge constant |
+| `LINK_HOLDER_CAP` | 2 | bridge constant |
 | watch poll | 10 s | game `WatchIntervalMs` |
 | watcher liveness | 60 s since `last_seen_at` | bridge |
 | watcher GGPO sync deadline at a bound table | 2 s | `SpectatorPolicy` (§6.6) |
 
 The cap and ceiling are constants until an organizer needs a knob. They are
-provisional until the load measurement in §6.6 (§12 Q1).
+lower than the 4 and 8 first designed, because of the load measurement in §6.6
+(§12 Q1). The wire and room maximum stays 8, so the ceiling can be raised again
+without a protocol change.
 
 ## 4. Bridge storage
 
@@ -645,8 +649,11 @@ should hold.
      polling every 10 s would then swap the endpoint on every poll, moving
      `binding_revision` and forcing a leader bind each time. `first_seen_at`
      is not moved by polling. A watcher whose row had gone quiet (over 60 s)
-     starts a new arrival when it asks again, so a returning watcher does not
-     jump ahead of one who took its place;
+     starts a new arrival when it asks again (its `first_seen_at` is reset). For
+     the cap, a returning watcher does not push out one who took its place: it
+     waits with `full` (`bridge/tests/watch_claims.rs`). For an endpoint tie it
+     is the other way round: the returning watcher is now the later arrival,
+     so it takes its endpoint back (the cost is in §12 Q6);
    - the loser is dropped, and the conflict is audited once per pair and
      endpoint (`watch.endpoint_conflict`, keyed in `match_watch_conflicts`)
      so the organizer can deny the other Ember ID. The cost: an allowed link
@@ -654,7 +661,7 @@ should hold.
      keeps it. The organizer sees it in the audit and can deny the squatter
      (§12 Q6).
 4. **Cap.** Take staff first, then link holders up to `LINK_HOLDER_CAP`,
-   stopping at `MAX_WATCHERS`.
+   stopping at `WATCHER_CEILING`.
    - A staff arrival can therefore push a link holder out when the ceiling
      is reached. That evicts the link holder at the next bind, even
      mid-game. This is intended: staff "can always watch".
@@ -927,8 +934,10 @@ In `TournamentAnswers.cxx`:
   kicked (`sf4e__SessionServer__Tournament.cxx:46-61`).
 - Capacity is not changed (review finding 3; §6.3).
 - Table 0's revision moves only when the bind starts the set or changes the
-  fighters, `gamesToWin` or `startingWins`. A watcher-only bind touches the
-  room only (§6.5).
+  fighters, `gamesToWin`, `startingWins` or `assignmentGeneration`. An
+  organizer's reassignment that keeps the same fighters must still stale a
+  Ready, so a new generation counts as a change of the set. A watcher-only
+  bind touches the room only (§6.5).
 - **One normalization, for a modified client.**
   - A named watcher who is already a member is moved into table 0's
     spectators if it holds a seat, a queue place or no spectator place.
@@ -1450,8 +1459,8 @@ binding: it never receives one, and `WatchPlay` never emits Bind.
   is not named.
 - **A returning watcher** does not push out one who took its place.
 - **Audit.** Each organizer write records the Ember ID, or `on` / `off`.
-- **Link holders.** With `link_holders` on, the fifth link holder waits with
-  `full`. Staff fill to 8, pushing a link holder out at the ceiling.
+- **Link holders.** With `link_holders` on, the third link holder waits with
+  `full`. Staff fill to 6, pushing a link holder out at the ceiling.
 - **Revocation.** A denial gives a fighter's next binding without the
   watcher, and the watcher's poll answers `revoked`.
 - **Liveness.** A watcher silent for 61 s is dropped at the next claim.
@@ -1549,7 +1558,7 @@ binding: it never receives one, and `WatchPlay` never emits Bind.
     while watching.
   - An invite accepted while watching stops `WatchPlay`.
 - **Measurement (§6.6).** Checkpoint append size and commits per game with
-  0, 4 and 8 watchers, recorded in the test output.
+  0, 2, 4, 6 and 8 watchers, recorded in the test output.
 - **Protected tests.** The protected journey tests run unchanged.
 
 ### Manual, after build validation and only with the maintainer's go
