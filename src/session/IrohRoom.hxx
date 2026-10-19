@@ -1,4 +1,6 @@
 #pragma once
+#include "../netplay/RoomTransport.hxx"
+#include "../netplay/LanRooms.hxx"
 
 #include "SessionTransport.hxx"
 #include "../platform/HelperClient.hxx"
@@ -107,7 +109,7 @@ public:
 	// IrohMatchSessionTest; the destructor follows them so a subclass is never
 	// deleted through this base without running its own.
 	virtual ~IrohRoom() = default;
-	bool Host(const std::string& build);
+	bool Host(const std::string& build,netplay::RoomTransport transport=netplay::RoomTransport::Online);
 	// `observer`: the join is a tournament match's watcher, which the room's
 	// helper admits only into a room that names it (the helper's `join` type).
 	bool Join(const std::string& invitation, const std::string& build, bool observer = false);
@@ -143,6 +145,11 @@ public:
 	// invitation instead. Returns false, and counts a failure, when no
 	// request could be sent.
 	bool RequestShortInvitation();
+    void WatchLan(bool wanted);
+    void PublishLanRoom(const std::string& name,unsigned members,unsigned capacity);
+    netplay::RoomTransport Transport() const { return transport_; }
+    bool IsLan() const { return transport_==netplay::RoomTransport::Lan; }
+    const netplay::LanRooms& LanRooms() const { return lanRooms_; }
 	const std::string& ShortInvitation() const { return state_ == State::Degraded ? NoInvitation() : shortInvitation_; }
 	bool ShortInvitationPending() const { return shortPending_; }
 	std::uint64_t ShortInvitationFailures() const { return shortFailures_; }
@@ -398,6 +405,11 @@ private:
 	void ReadLocalLatency(const nlohmann::json& event);
 	std::optional<std::uint16_t> localUdpPort_;
 	NetworkSummary network_;
+    netplay::LanRooms lanRooms_;
+    LatencySubscription lanSubscription_;
+    std::uint64_t lanReceivedAt_=0;
+    netplay::RoomTransport transport_=netplay::RoomTransport::Online;
+    std::uint64_t lanPublishAt_=0;
 	netplay::IdentityView identity_;
 	// Bounded: a runtime that stopped draining cannot grow it without limit.
 	std::deque<TournamentAnswer> tournamentAnswers_;

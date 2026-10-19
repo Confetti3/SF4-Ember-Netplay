@@ -241,19 +241,19 @@ async fn banning_on_a_private_room_or_with_bad_input_is_an_error() {
         },
     };
     // A private room.
-    assert!(actor.command(ban(1, &account)).unwrap());
+    assert!(actor.command(ban(1, &account)).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { request_id: 8, ref code, .. } if code == "invalid_room_state"
     ));
     // A public host, with a stale epoch and with something that is no ID.
     actor.public = Some(PublicRoom::Host(host_state()));
-    assert!(actor.command(ban(2, &account)).unwrap());
+    assert!(actor.command(ban(2, &account)).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { ref code, .. } if code == "stale_epoch"
     ));
-    assert!(actor.command(ban(1, "not an id")).unwrap());
+    assert!(actor.command(ban(1, "not an id")).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { ref code, .. } if code == "invalid_request"
@@ -286,7 +286,7 @@ async fn a_ban_past_the_limit_is_an_error_and_keeps_every_ban() {
             account: account.to_string(),
         },
     };
-    assert!(actor.command(ban(extra.ember_id())).unwrap());
+    assert!(actor.command(ban(extra.ember_id())).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { request_id: 9, ref code, .. } if code == "ban_limit"
@@ -297,7 +297,7 @@ async fn a_ban_past_the_limit_is_an_error_and_keeps_every_ban() {
     assert!(!host.is_banned(extra.ember_id()));
     assert!(host.is_banned(first.ember_id()));
     // A repeat of a held ban is not an error.
-    assert!(actor.command(ban(first.ember_id())).unwrap());
+    assert!(actor.command(ban(first.ember_id())).await.unwrap());
     assert!(events.try_recv().is_err());
     own.close().await;
 }
@@ -320,7 +320,7 @@ async fn host_public_marks_the_room_server_owned_and_refuses_a_bad_key() {
         },
     };
     let host_public = |epoch, key: &str| host_public_in(epoch, key, [5; 16]);
-    assert!(actor.command(host_public(1, "not a key")).unwrap());
+    assert!(actor.command(host_public(1, "not a key")).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { epoch: 1, request_id: 3, ref code, .. } if code == "invalid_request"
@@ -329,14 +329,19 @@ async fn host_public_marks_the_room_server_owned_and_refuses_a_bad_key() {
 
     // An all-zero room id is refused like a bad key, and the epoch is free.
     let key = identity(9).public_key().to_b64u();
-    assert!(actor.command(host_public_in(2, &key, [0; 16])).unwrap());
+    assert!(
+        actor
+            .command(host_public_in(2, &key, [0; 16]))
+            .await
+            .unwrap()
+    );
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { epoch: 2, request_id: 3, ref code, .. } if code == "invalid_request"
     ));
     assert!(!actor.server_owned() && !actor.opening);
 
-    assert!(actor.command(host_public(3, &key)).unwrap());
+    assert!(actor.command(host_public(3, &key)).await.unwrap());
     assert!(actor.server_owned() && actor.opening);
     assert!(actor.is_public_host());
     assert!(events.try_recv().is_err());
@@ -350,10 +355,12 @@ async fn host_public_marks_the_room_server_owned_and_refuses_a_bad_key() {
             .command(Request {
                 id: 4,
                 command: Command::Host {
+                    transport: crate::transport::Transport::Online,
                     epoch: 4,
                     build: BUILD.into(),
                 },
             })
+            .await
             .unwrap()
     );
     assert!(!actor.server_owned() && actor.opening);
@@ -380,6 +387,7 @@ async fn join_public_marks_the_room_server_owned_and_keeps_the_ticket() {
     assert!(
         actor
             .command(join_public(1, invite.encode().unwrap()))
+            .await
             .unwrap()
     );
     assert!(actor.server_owned() && !actor.is_public_host());
@@ -389,7 +397,12 @@ async fn join_public_marks_the_room_server_owned_and_keeps_the_ticket() {
     assert!(!actor.server_owned() && actor.member_ticket().is_none());
 
     // A refused invitation clears the marker and names the epoch asked for.
-    assert!(actor.command(join_public(2, "sf4e3:bad".into())).unwrap());
+    assert!(
+        actor
+            .command(join_public(2, "sf4e3:bad".into()))
+            .await
+            .unwrap()
+    );
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { epoch: 2, request_id: 6, ref code, .. }
@@ -490,9 +503,10 @@ async fn the_coordination_endpoint_binds_the_given_port_or_hosting_fails() {
 }
 
 #[test]
-fn connected_serializes_as_before_without_an_account() {
+fn connected_reports_transport_and_omits_an_absent_account() {
     let peer = iroh::SecretKey::generate().public();
     let event = Event::Connected {
+        transport: transport::Transport::Online,
         epoch: 4,
         peer,
         room: [7; 16],
@@ -505,10 +519,11 @@ fn connected_serializes_as_before_without_an_account() {
     let room = serde_json::to_string(&[7u8; 16]).unwrap();
     assert_eq!(
         serde_json::to_string(&event).unwrap(),
-        format!(r#"{{"type":"connected","epoch":4,"peer":{peer_text},"room":{room},"control":9}}"#)
+        format!(r#"{{"type":"connected","transport":"online","epoch":4,"peer":{peer_text},"room":{room},"control":9}}"#)
     );
     let account = identity(1).ember_id().to_string();
     let event = Event::Connected {
+        transport: transport::Transport::Online,
         epoch: 4,
         peer,
         room: [7; 16],
@@ -520,7 +535,7 @@ fn connected_serializes_as_before_without_an_account() {
     assert_eq!(
         serde_json::to_string(&event).unwrap(),
         format!(
-            r#"{{"type":"connected","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}"}}"#
+            r#"{{"type":"connected","transport":"online","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}"}}"#
         )
     );
 }
@@ -555,7 +570,15 @@ fn the_public_commands_round_trip_and_keep_their_names() {
             bridge_id.as_str(),
             creator.as_str()
         ),
-        (3, "b", [9; 16], key.as_str(), "k1", BRIDGE, account.as_str())
+        (
+            3,
+            "b",
+            [9; 16],
+            key.as_str(),
+            "k1",
+            BRIDGE,
+            account.as_str()
+        )
     );
     let again = serde_json::to_string(&Command::HostPublic {
         epoch,
@@ -569,7 +592,10 @@ fn the_public_commands_round_trip_and_keep_their_names() {
     .unwrap();
     assert_eq!(again, host);
     // `creator` is required, and a creator that is no Ember ID is refused.
-    assert!(serde_json::from_str::<Command>(&host.replace(&format!(r#","creator":"{account}""#), "")).is_err());
+    assert!(
+        serde_json::from_str::<Command>(&host.replace(&format!(r#","creator":"{account}""#), ""))
+            .is_err()
+    );
 
     let ban = format!(r#"{{"type":"ban_account","epoch":3,"account":"{account}"}}"#);
     let Ok(Command::BanAccount {
@@ -632,13 +658,9 @@ fn the_public_commands_round_trip_and_keep_their_names() {
 async fn a_public_host_opens_its_room_under_the_id_it_was_asked_for() {
     let own = endpoint().await;
     let requested = [0x42; 16];
-    let invite = crate::service::public::host_invite(
-        own.id(),
-        test_relay(),
-        BUILD.into(),
-        Some(requested),
-    )
-    .unwrap();
+    let invite =
+        crate::service::public::host_invite(own.id(), test_relay(), BUILD.into(), Some(requested))
+            .unwrap();
     assert_eq!(invite.room(), requested);
     // A private host keeps generating its own, and the capability is random
     // either way.

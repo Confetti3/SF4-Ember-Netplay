@@ -24,6 +24,41 @@ pub mod fixed_port;
 mod with_proof;
 pub(crate) use with_proof::{accept_control_with, connect_public_on_proof};
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Transport {
+    #[default]
+    Online,
+    RelayOnly,
+    Lan,
+}
+impl From<bool> for Transport {
+    fn from(relay_only: bool) -> Self {
+        if relay_only {
+            Self::RelayOnly
+        } else {
+            Self::Online
+        }
+    }
+}
+/// Network policy only; each endpoint owner supplies its own ALPN and limits.
+pub fn endpoint_builder(transport: Transport) -> iroh::endpoint::Builder {
+    match transport {
+        Transport::Online => Endpoint::builder(presets::N0),
+        Transport::RelayOnly => Endpoint::builder(presets::N0)
+            .clear_ip_transports()
+            .portmapper_config(PortmapperConfig::Disabled),
+        Transport::Lan => crate::lan::local_builder(),
+    }
+}
+pub(crate) fn primary_builder(transport: Transport) -> iroh::endpoint::Builder {
+    let mut alpns = vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()];
+    if transport == Transport::Lan {
+        alpns.push(crate::lan::ALPN.to_vec());
+    }
+    endpoint_builder(transport).alpns(alpns)
+}
+
 pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 /// A prepared listener precedes the separately committed game-connect phase.
 /// Keep that authorization bounded, while allowing the room journal enough
@@ -71,11 +106,7 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
     // because that diagnostic clears the IP transports anyway.
     let builder = production_builder;
     let bound = if relay_only {
-        builder()
-            .clear_ip_transports()
-            .portmapper_config(PortmapperConfig::Disabled)
-            .bind()
-            .await
+        primary_builder(Transport::RelayOnly).bind().await
     } else {
         fixed_port::bind(builder, &fixed_port::PORTS).await
     };
@@ -83,7 +114,7 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
 }
 
 fn production_builder() -> iroh::endpoint::Builder {
-    Endpoint::builder(presets::N0).alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()])
+    primary_builder(Transport::Online)
 }
 
 /// Binds the primary endpoint's IPv4 socket on exactly this UDP port, with no

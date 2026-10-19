@@ -18,7 +18,8 @@ if(WIN32)
         set(SF4E_HELPER_SOURCE "${CMAKE_SOURCE_DIR}/rust/sf4-net")
         set(SF4E_HELPER_EXECUTABLE "${CMAKE_BINARY_DIR}/sf4-net.exe")
         file(GLOB_RECURSE SF4E_HELPER_RUST_SOURCES CONFIGURE_DEPENDS "${SF4E_HELPER_SOURCE}/src/*.rs"
-            "${CMAKE_SOURCE_DIR}/server/ember/protocol/src/*.rs")
+            "${CMAKE_SOURCE_DIR}/server/ember/protocol/src/*.rs"
+            "${CMAKE_SOURCE_DIR}/rust/vendor/swarm-discovery/src/*.rs")
         set(SF4E_HELPER_FEATURE_LIST "")
         if(SF4E_STAGING_BRIDGE)
             list(APPEND SF4E_HELPER_FEATURE_LIST staging-bridge)
@@ -49,6 +50,7 @@ if(WIN32)
             DEPENDS ${SF4E_HELPER_RUST_SOURCES} "${SF4E_HELPER_SOURCE}/Cargo.toml"
                 "${SF4E_HELPER_SOURCE}/Cargo.lock" "${SF4E_HELPER_SOURCE}/rust-toolchain.toml"
                 "${CMAKE_SOURCE_DIR}/server/ember/protocol/Cargo.toml"
+                "${CMAKE_SOURCE_DIR}/rust/vendor/swarm-discovery/Cargo.toml"
                 "${SF4E_HELPER_SOURCE}/build.rs" "${SF4E_HELPER_SOURCE}/resource.rc" "${CMAKE_SOURCE_DIR}/src/ui/ember.ico"
                 "${SF4E_HELPER_FEATURES_FILE}"
             VERBATIM COMMENT "Build the pinned x64 Iroh helper")

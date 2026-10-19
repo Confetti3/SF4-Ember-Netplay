@@ -4,11 +4,11 @@ use crate::coordination::{
     AuthorityClaim, Coordinator, MAX_PROPOSE_REQUEST, MAX_RPC_RESPONSE, MAX_SNAPSHOT,
     MAX_SNAPSHOT_REQUEST, MAX_VOTE_REQUEST, Ownership, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
 };
-use retired::RetiredFilter;
 use iroh::{
     Endpoint, EndpointAddr, EndpointId,
-    endpoint::{Connection, PortmapperConfig, presets},
+    endpoint::{Connection, PortmapperConfig},
 };
+use retired::RetiredFilter;
 use std::{
     collections::BTreeMap,
     future::Future,
@@ -60,6 +60,7 @@ fn failure() -> io::Error {
 
 pub struct IrohRpc {
     endpoint: Endpoint,
+    transport: crate::transport::Transport,
     room: [u8; 16],
     incarnation: u64,
     // Populated by authenticated admission, never by an incoming RPC. Routes
@@ -224,14 +225,22 @@ impl IrohRpc {
         relay_only: bool,
         port: Option<u16>,
     ) -> io::Result<Arc<Self>> {
-        Self::bind_owned(room, incarnation, relay_only, port, Ownership::Private).await
+        Self::bind_owned(
+            room,
+            incarnation,
+            relay_only.into(),
+            port,
+            Ownership::Private,
+        )
+        .await
     }
 
-    /// `bind_on` for a node that takes part in its room as `ownership`.
+    /// `bind_on` for a node that takes part in its room as `ownership`, using
+    /// local discovery with no relay when `lan`.
     pub async fn bind_owned(
         room: [u8; 16],
         incarnation: u64,
-        relay_only: bool,
+        transport: crate::transport::Transport,
         port: Option<u16>,
         ownership: Ownership,
     ) -> io::Result<Arc<Self>> {
@@ -241,14 +250,8 @@ impl IrohRpc {
         // Same reasoning as the gameplay endpoint in transport.rs: take iroh's
         // default port mapping so coordination can also form a direct path
         // behind NATs that need a gateway mapping.
-        let builder = Endpoint::builder(presets::N0).alpns(vec![ALPN.to_vec()]);
-        let builder = if relay_only {
-            builder
-                .clear_ip_transports()
-                .portmapper_config(PortmapperConfig::Disabled)
-        } else if port.is_some() {
-            // An exact port is a headless room host's, on a server with a
-            // public address and no gateway to map it on (transport.rs).
+        let builder = crate::transport::endpoint_builder(transport).alpns(vec![ALPN.to_vec()]);
+        let builder = if port.is_some() {
             builder.portmapper_config(PortmapperConfig::Disabled)
         } else {
             builder
@@ -265,7 +268,7 @@ impl IrohRpc {
         // learner's first Raft RPC pays relay selection, registration, and
         // QUIC setup inside OpenRaft's heartbeat deadline. Wait until Iroh has
         // completed a relay handshake before publishing this endpoint.
-        if relay_only
+        if transport == crate::transport::Transport::RelayOnly
             && timeout(RELAY_READY_TIMEOUT, endpoint.online())
                 .await
                 .is_err()
@@ -275,6 +278,7 @@ impl IrohRpc {
         }
         Ok(Arc::new(Self {
             endpoint,
+            transport,
             room,
             incarnation,
             members: RwLock::new(BTreeMap::new()),
@@ -294,7 +298,9 @@ impl IrohRpc {
     /// This endpoint's address for a peer to dial: as it is once the relay
     /// route is in, or after `ADVERTISE_READY_TIMEOUT` as it is then.
     pub async fn advertised_address(&self) -> EndpointAddr {
-        let _ = timeout(ADVERTISE_READY_TIMEOUT, self.endpoint.online()).await;
+        if self.transport != crate::transport::Transport::Lan {
+            let _ = timeout(ADVERTISE_READY_TIMEOUT, self.endpoint.online()).await;
+        }
         self.endpoint.addr()
     }
     pub fn identity(&self) -> EndpointId {

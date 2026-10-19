@@ -6,7 +6,21 @@ use super::*;
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
     Status,
+    /// Display metadata from the native room's committed snapshot.
+    LanRoom {
+        epoch: u64,
+        name: String,
+        capacity: u8,
+        members: u8,
+    },
+    /// Renewed by the visible browser, expires if the UI stops asking.
+    LanWatch {
+        view: u64,
+        on: bool,
+    },
     Host {
+        #[serde(default)]
+        transport: transport::Transport,
         epoch: u64,
         build: String,
     },
@@ -162,10 +176,15 @@ pub enum Command {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Event {
+    LanRooms {
+        view: u64,
+        status: String,
+        rooms: Vec<crate::lan::Room>,
+    },
     DiscordInvite {
         epoch: u64,
         invitation: String,
-        secret: String,
+        secret: Option<String>,
     },
     /// The answer to `Command::ShortInvite`: `status` is `ready` with the
     /// link, or `unavailable` with an empty link when the link service could
@@ -283,6 +302,7 @@ pub enum Event {
         captive_portal: bool,
     },
     Hosted {
+        transport: transport::Transport,
         epoch: u64,
         invitation: String,
         room: [u8; 16],
@@ -294,6 +314,7 @@ pub enum Event {
         latency_relay: Option<String>,
     },
     Connected {
+        transport: transport::Transport,
         epoch: u64,
         peer: EndpointId,
         room: [u8; 16],
@@ -625,7 +646,10 @@ mod tests {
         ];
         for (row, wire) in cases {
             assert_eq!(serde_json::to_value(row).unwrap(), wire);
-            assert_eq!(serde_json::from_value::<MemberLatencyRow>(wire).unwrap(), row);
+            assert_eq!(
+                serde_json::from_value::<MemberLatencyRow>(wire).unwrap(),
+                row
+            );
         }
         for (reason, name) in [
             (LatencyUnavailable::Unreachable, "unreachable"),
@@ -635,16 +659,23 @@ mod tests {
             (LatencyUnavailable::RoomUnavailable, "room_unavailable"),
         ] {
             let row = row(LatencyState::Unavailable { reason });
-            let wire = json!({"member": 2, "incarnation": 7, "state": "unavailable", "reason": name});
+            let wire =
+                json!({"member": 2, "incarnation": 7, "state": "unavailable", "reason": name});
             assert_eq!(serde_json::to_value(row).unwrap(), wire);
-            assert_eq!(serde_json::from_value::<MemberLatencyRow>(wire).unwrap(), row);
+            assert_eq!(
+                serde_json::from_value::<MemberLatencyRow>(wire).unwrap(),
+                row
+            );
         }
     }
 
     #[test]
     fn the_field_order_of_a_row_is_unchanged() {
         let text = serde_json::to_string(&row(LatencyState::Value { rtt_ms: 5 })).unwrap();
-        assert_eq!(text, r#"{"member":2,"incarnation":7,"state":"value","rtt_ms":5}"#);
+        assert_eq!(
+            text,
+            r#"{"member":2,"incarnation":7,"state":"value","rtt_ms":5}"#
+        );
     }
 
     #[test]

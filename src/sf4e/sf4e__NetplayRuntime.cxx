@@ -598,6 +598,7 @@ static void SettleRoomState(bool helperReady) {
         replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
         replacement.preferences=runtime->preferences;
         replacement.practiceRoom=runtime->practiceRoom;
+        replacement.transport=runtime->room?runtime->room->Transport():netplay::RoomTransport::Online;
         replacement.delayPolicy=runtime->delayPolicy;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
@@ -792,6 +793,7 @@ void TickRuntime() {
 	SayTraining();
 	TakeJoinLink();
 	TickMemberLatency();
+    TickLan();
 	PublishAndTickDiscordInvite();
 }
 

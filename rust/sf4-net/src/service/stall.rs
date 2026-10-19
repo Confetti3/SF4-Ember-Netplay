@@ -24,7 +24,12 @@ pub(super) struct Step<'a>(&'a Busy);
 
 impl Busy {
     pub(super) fn new(events: mpsc::Sender<Event>) -> Arc<Self> {
-        Arc::new(Self { origin: Instant::now(), since: AtomicU64::new(0), stage: Mutex::new(""), events })
+        Arc::new(Self {
+            origin: Instant::now(),
+            since: AtomicU64::new(0),
+            stage: Mutex::new(""),
+            events,
+        })
     }
 
     pub(super) fn enter(&self, stage: &'static str) -> Step<'_> {
@@ -35,7 +40,10 @@ impl Busy {
 
     /// Renames the running step without restarting its clock.
     pub(super) fn stage(&self, stage: &'static str) {
-        *self.stage.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = stage;
+        *self
+            .stage
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = stage;
     }
 
     /// Reports a step stuck past `STALL_REPORT`, while it is still stuck.
@@ -77,7 +85,10 @@ impl Busy {
         if self.events.capacity() <= LIFECYCLE_EVENT_RESERVE {
             return;
         }
-        let stage = *self.stage.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let stage = *self
+            .stage
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let _ = self.events.try_send(Event::HelperStall {
             stage: stage.into(),
             stalled_ms: u64::try_from(stalled.as_millis()).unwrap_or(u64::MAX),
@@ -102,6 +113,8 @@ impl Drop for Step<'_> {
 pub(super) fn command_stage(command: &Command) -> &'static str {
     match command {
         Command::Status => "command:status",
+        Command::LanRoom { .. } => "command:lan_room",
+        Command::LanWatch { .. } => "command:lan_watch",
         Command::Host { .. } => "command:host",
         Command::Join { .. } => "command:join",
         Command::HostPublic { .. } => "command:host_public",
@@ -127,6 +140,7 @@ pub(super) fn command_stage(command: &Command) -> &'static str {
 
 pub(super) fn completion_stage(completion: &Completion) -> &'static str {
     match completion {
+        Completion::LanInvitation(..) => "task:lan_invitation",
         Completion::GuestControl(..) => "task:guest_control",
         Completion::Incoming(..) => "task:incoming",
         Completion::ClassifiedGame(..) => "task:classified_game",
@@ -215,20 +229,42 @@ mod tests {
         load.body(Duration::from_micros(300));
         load.control_queue(3);
         let Event::HelperLoad {
-            actor_tick_lag_max_us, actor_tick_body_max_us, event_queue_free_min, control_queue_peak, ..
+            actor_tick_lag_max_us,
+            actor_tick_body_max_us,
+            event_queue_free_min,
+            control_queue_peak,
+            ..
         } = load.report(3, 128)
         else {
             unreachable!()
         };
-        assert_eq!((actor_tick_lag_max_us, actor_tick_body_max_us, event_queue_free_min), (40_000, 7_000, 90));
+        assert_eq!(
+            (
+                actor_tick_lag_max_us,
+                actor_tick_body_max_us,
+                event_queue_free_min
+            ),
+            (40_000, 7_000, 90)
+        );
         assert_eq!(control_queue_peak, 47);
         // The next window starts over; with no tick it reports the queue as it is.
-        let Event::HelperLoad { actor_tick_lag_max_us, event_queue_free_min, control_queue_peak, .. } =
-            load.report(3, 128)
+        let Event::HelperLoad {
+            actor_tick_lag_max_us,
+            event_queue_free_min,
+            control_queue_peak,
+            ..
+        } = load.report(3, 128)
         else {
             unreachable!()
         };
-        assert_eq!((actor_tick_lag_max_us, event_queue_free_min, control_queue_peak), (0, 128, 0));
+        assert_eq!(
+            (
+                actor_tick_lag_max_us,
+                event_queue_free_min,
+                control_queue_peak
+            ),
+            (0, 128, 0)
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -243,12 +279,22 @@ mod tests {
         }
         let mut seen = Vec::new();
         while let Ok(event) = receiver.try_recv() {
-            if let Event::HelperStall { stage, stalled_ms, ended } = event {
+            if let Event::HelperStall {
+                stage,
+                stalled_ms,
+                ended,
+            } = event
+            {
                 seen.push((stage, stalled_ms, ended));
             }
         }
-        assert!(seen.iter().any(|(stage, ms, ended)| stage == "tick:poll_controls" && !ended && *ms >= 1000));
-        assert!(matches!(seen.last(), Some((stage, ms, true)) if stage == "tick:poll_controls" && *ms >= 1000));
+        assert!(
+            seen.iter()
+                .any(|(stage, ms, ended)| stage == "tick:poll_controls" && !ended && *ms >= 1000)
+        );
+        assert!(
+            matches!(seen.last(), Some((stage, ms, true)) if stage == "tick:poll_controls" && *ms >= 1000)
+        );
         // A quick step says nothing.
         drop(busy.enter("statistics"));
         tokio::time::sleep(Duration::from_millis(600)).await;

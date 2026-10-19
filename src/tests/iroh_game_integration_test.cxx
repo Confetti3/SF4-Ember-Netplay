@@ -42,10 +42,11 @@ struct LocalUdp {
 
 int wmain(int argc, wchar_t** argv) {
 	CHECK(argc >= 2 && argc <= 4);
-	bool relayOnly = false;
+	bool relayOnly = false, lan = false;
 	for (int i = 2; i < argc; ++i) {
 		const std::wstring option = argv[i];
 		if (option == L"--relay-only") relayOnly = true;
+        else if(option==L"--lan")lan=true;
 		else CHECK(sf4e::test::ParseNetworkCaseOption(option));
 	}
     session::IrohRoom::GameSnapshot routeSnapshot;
@@ -109,7 +110,7 @@ int wmain(int argc, wchar_t** argv) {
 		CHECK(false);
 	};
 	wait([&]() { return hostHelper.State() == platform::HelperState::Connected && guestHelper.State() == platform::HelperState::Connected; });
-	CHECK(host->Host("cpp-game-test"));
+	CHECK(lan?host->Host("cpp-game-test",netplay::RoomTransport::Lan):host->Host("cpp-game-test"));
 	wait([&]() { return host->GetState() == session::IrohRoom::State::Ready; });
 	CHECK(guest->Join(host->Invitation(), "cpp-game-test"));
 	wait([&]() { return guest->GetState() == session::IrohRoom::State::Ready; });
@@ -133,6 +134,7 @@ int wmain(int argc, wchar_t** argv) {
 		SecureZeroMemory(capability.data(), capability.size());
 		wait([&]() { return host->Game(guestId).state == GameState::Ready && guest->Game(hostId).state == GameState::Ready; });
 		CHECK(!host->Game(guestId).route.empty() && !guest->Game(hostId).route.empty());
+        if(lan) CHECK(host->Game(guestId).route=="direct" && guest->Game(hostId).route=="direct");
 		if(relayOnly) CHECK(host->Game(guestId).route.rfind("relay:",0)==0 && guest->Game(hostId).route.rfind("relay:",0)==0);
 		std::cout << "Raw bridge generation " << generation << " selected routes=" << host->Game(guestId).route
 			<< "," << guest->Game(hostId).route << '\n';

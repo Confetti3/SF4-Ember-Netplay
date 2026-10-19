@@ -6,6 +6,39 @@ msgstr ""
 msgid "app.name"
 msgstr "SF4 Ember Netplay"
 
+msgid "lan.title"
+msgstr "局域网游戏"
+
+msgid "lan.detail"
+msgstr "查找同一局域网中的房间，无需互联网连接。"
+
+msgid "lan.host"
+msgstr "创建局域网房间"
+
+msgid "lan.host_detail"
+msgstr "同一局域网中的任何人都可以找到并加入此房间。仍然需要 Steam 和受支持的游戏。"
+
+msgid "lan.incompatible"
+msgstr "Ember 版本不同，双方需要使用相同的软件包。"
+
+msgid "lan.full"
+msgstr "房间已满"
+
+msgid "lan.join_detail"
+msgstr "通过局域网加入此房间。"
+
+msgid "lan.unavailable"
+msgstr "无法搜索局域网，请检查网络和防火墙。"
+
+msgid "lan.searching"
+msgstr "正在搜索局域网房间"
+
+msgid "lan.search_detail"
+msgstr "将两台电脑连接到同一网络或热点。访客网络隔离或防火墙可能阻止搜索。"
+
+msgid "lan.join_failed"
+msgstr "无法加入局域网房间。房主可能已经离开，或连接被阻止。"
+
 msgid "common.back"
 msgstr "返回"
 

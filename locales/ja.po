@@ -6,6 +6,39 @@ msgstr ""
 msgid "app.name"
 msgstr "SF4 Ember Netplay"
 
+msgid "lan.title"
+msgstr "LANプレイ"
+
+msgid "lan.detail"
+msgstr "同じローカルネットワークのルームを検索します。インターネット接続は不要です。"
+
+msgid "lan.host"
+msgstr "LANルームを作成"
+
+msgid "lan.host_detail"
+msgstr "同じネットワークの誰でもこのルームを検索して参加できます。Steamと対応ゲームは必要です。"
+
+msgid "lan.incompatible"
+msgstr "Emberのバージョンが異なります。両方のプレイヤーに同じパッケージが必要です。"
+
+msgid "lan.full"
+msgstr "ルームが満員です"
+
+msgid "lan.join_detail"
+msgstr "ローカルネットワークでこのルームに参加します。"
+
+msgid "lan.unavailable"
+msgstr "LAN検索を利用できません。ネットワークとファイアウォールを確認してください。"
+
+msgid "lan.searching"
+msgstr "LANルームを検索中"
+
+msgid "lan.search_detail"
+msgstr "両方のPCを同じネットワークやホットスポットに接続してください。ゲストネットワークの分離設定やファイアウォールにより検索できない場合があります。"
+
+msgid "lan.join_failed"
+msgstr "LANルームに参加できませんでした。ホストが退出したか、接続がブロックされています。"
+
 msgid "common.back"
 msgstr "戻る"
 

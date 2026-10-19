@@ -250,8 +250,8 @@ async fn a_private_room_measures_an_idle_member_a_spectator_and_another_table() 
 async fn strangers_wrong_incarnations_old_incarnations_and_rowless_members_are_refused() {
     let infra = Infra::start().await;
     let members = infra.members(3, false).await;
-    let stranger = bind_latency(&infra.net(), false).await.unwrap();
-    let old = bind_latency(&infra.net(), false).await.unwrap();
+    let stranger = bind_latency(&infra.net(), false.into()).await.unwrap();
+    let old = bind_latency(&infra.net(), false.into()).await.unwrap();
     infra.published(&[stranger.id(), old.id()]).await;
     let (first, second, third) = (
         members[0].incarnation(),
@@ -308,14 +308,19 @@ async fn strangers_wrong_incarnations_old_incarnations_and_rowless_members_are_r
         .table(1, Duration::from_secs(10), |rows| !rows.is_empty())
         .await;
     assert!(
-        rows.iter()
-            .all(|row| row.state == LatencyState::Unavailable { reason: LatencyUnavailable::RoomUnavailable }),
+        rows.iter().all(|row| row.state
+            == LatencyState::Unavailable {
+                reason: LatencyUnavailable::RoomUnavailable
+            }),
         "{rows:?}"
     );
     nodes[0].watch(1, true).await;
     let rows = nodes[0]
         .table(1, Duration::from_secs(20), |rows| {
-            state_of(rows, 3) == Some(LatencyState::Unavailable { reason: LatencyUnavailable::Refused })
+            state_of(rows, 3)
+                == Some(LatencyState::Unavailable {
+                    reason: LatencyUnavailable::Refused,
+                })
         })
         .await;
     assert_eq!(
@@ -342,7 +347,7 @@ async fn latency_endpoints_take_no_control_or_game_connection_and_touch_nothing_
         .await;
     // A primary-style endpoint on the same relay reaches the latency
     // endpoint on its ALPN, and on no other.
-    let caller = bind_latency(&infra.net(), false).await.unwrap();
+    let caller = bind_latency(&infra.net(), false.into()).await.unwrap();
     let target = EndpointAddr::new(nodes[0].latency.id()).with_relay_url(infra.relay_url.clone());
     let reached = caller
         .connect(target.clone(), LATENCY_ALPN)
@@ -482,7 +487,10 @@ async fn departure_rejoin_a_match_and_leaving_the_room() {
     let rows = nodes[0]
         .table(1, Duration::from_secs(10), |rows| {
             state_of(rows, 2).is_some_and(is_value)
-                || state_of(rows, 2) == Some(LatencyState::Unavailable { reason: LatencyUnavailable::InMatch })
+                || state_of(rows, 2)
+                    == Some(LatencyState::Unavailable {
+                        reason: LatencyUnavailable::InMatch,
+                    })
         })
         .await;
     assert!(state_of(&rows, 3).is_some());
@@ -625,7 +633,7 @@ async fn a_join_never_waits_for_the_latency_relay() {
     // The join's own work ends after half a second: it is not held for the
     // relay, which the endpoint never reaches.
     let started = Instant::now();
-    let (done, latency) = beside(Some((net.clone(), false)), async {
+    let (done, latency) = beside(Some((net.clone(), false.into())), async {
         sleep(Duration::from_millis(500)).await;
         7
     })
@@ -639,7 +647,7 @@ async fn a_join_never_waits_for_the_latency_relay() {
     let latency = latency.expect("bound while the work ran");
     assert!(crate::service::network::known_home_region(latency.endpoint()).is_none());
     // Work that is done at once leaves no route: the bind is dropped.
-    let (_, none) = beside(Some((net.clone(), false)), async {}).await;
+    let (_, none) = beside(Some((net.clone(), false.into())), async {}).await;
     assert!(none.is_none());
     drop(latency);
 

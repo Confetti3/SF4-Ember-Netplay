@@ -202,7 +202,10 @@ impl Actor {
     /// Close and forget every parked replacement control.
     pub(super) fn clear_parked_controls(&mut self) {
         for parked in std::mem::take(&mut self.parked_controls).into_values() {
-            parked.channel.connection.close(1u32.into(), b"room unavailable");
+            parked
+                .channel
+                .connection
+                .close(1u32.into(), b"room unavailable");
         }
     }
 
@@ -254,7 +257,10 @@ impl Actor {
         // own reservation nor the worker it replaces counted, and becomes a
         // member only here. Nothing is awaited between this and the install.
         if self.refuse_public_control(&parked.channel) {
-            parked.channel.connection.close(1u32.into(), b"admission ended");
+            parked
+                .channel
+                .connection
+                .close(1u32.into(), b"admission ended");
             // The replaced worker was announced and will not be replaced.
             if let Some(old) = replaced {
                 self.emit(Event::ControlClosed {
@@ -433,7 +439,7 @@ impl Actor {
                         self.endpoint.id(),
                         admission.incarnation,
                         admission.coordination_address.clone(),
-                        self.relay_only,
+                        self.transport,
                         self.server_owned(),
                     )
                     .await?;
@@ -962,6 +968,7 @@ impl Actor {
             .map(ToString::to_string);
         let (latency, latency_relay) = self.latency_route();
         self.emit(Event::Connected {
+            transport: self.transport,
             epoch,
             peer,
             room,

@@ -8,6 +8,7 @@
 #include "NetworkFeedback.hxx"
 #include "MenuPresentation.hxx"
 #include "PublicRoomsCards.hxx"
+#include "LanRoomsPanel.hxx"
 #include "RoomControls.hxx"
 #include "VersionLine.hxx"
 #include "../session/TrainingCall.hxx"
@@ -112,6 +113,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
+    action.transport = kind == netplay::CommandKind::HostRoom && createKind_==CreateKind::Lan ? netplay::RoomTransport::Lan : netplay::RoomTransport::Online;
     if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
     // A room opened here is not the public one the panel joined.
@@ -237,11 +239,15 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   const auto open=[&](const char* id,const std::string& label,const char* detail){auto r=Row(id,label,blocked?blocked:detail,v.canOpenRoom);r.quiet=blocked!=nullptr;return r;};
   title=loc::T("online.title");rows={open("create",loc::T("online.create"),loc::T("online.create_detail")),open("join",loc::T("online.join"),loc::T("online.join_detail")),
    open("public-rooms",loc::T("screen.public_rooms"),loc::T("online.public_detail")),
+   open("lan",loc::T("lan.title"),loc::T("lan.detail")),
    Row("identity",loc::T("screen.identity"),identity_.EntryDetail(v))};
   // Where this PC connects and how its network treats a direct path, for information only.
   auto relay=Row("relay",loc::T("network.relay"),loc::T("network.relay_detail"));relay.info=true;relay.value=DescribeRelay(v.netReport);
   auto network=Row("network",loc::T("network.status"),DescribeNatDetail(v.netReport));network.info=true;network.value=DescribeNat(v.netReport.nat);
   rows.push_back(std::move(relay));rows.push_back(std::move(network));
+ }else if(screen=="lan"){
+  title=loc::T("lan.title");rows=LanRoomRows(v.lanRooms,v.build,v.canOpenRoom);
+  if(opening)rows.insert(rows.begin(),ConfirmRow("cancel-open",loc::T("room.stop_joining_action"),loc::T("room.stop_joining"),true));
  }else if(screen=="create"||screen=="defaults"){
   rows=RoomSetupRows(v,screen,opening,reason,title);
  }else if(screen=="join"){
@@ -482,6 +488,14 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
 }
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
+ if(a.id=="lan"){nav.Push("lan");return;}
+ if(a.id=="lan-host"&&v.canOpenRoom){OpenCreate();createKind_=CreateKind::Lan;return;}
+ if(screen=="lan"&&a.id.compare(0,9,"lan-join-")==0){
+  for(const auto& room:v.lanRooms.rooms)if(a.id=="lan-join-"+room.endpoint&&v.canOpenRoom&&room.build==v.build&&room.members<room.capacity){
+   const auto text=netplay::LanInvitation(room);std::strcpy(invitation_,text.c_str());Send(CommandKind::JoinInvite,v,submit);break;
+  }
+  return;
+ }
  // The retry row a failed save adds to every screen stays the shell's.
  if(IdentityPanel::Owns(screen)&&a.id!="retry-save"){identity_.Activate(a,v,nav);return;}
  if(PublicRoomsPanel::Owns(screen)){
@@ -573,7 +587,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
   else if(a.id=="send-reports")preferences_.sendProblemReports=a.delta>0;
-  else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
+  else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;createKind_=preferences_.roomPublic?CreateKind::Public:CreateKind::Private;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else if(a.id=="delay-policy")preferences_.roomDelayPolicy=a.delta>0?room::DelayPolicy::Own:room::DelayPolicy::Shared;
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
@@ -621,7 +635,7 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  CancelLayoutCapture(v,submit);
  if(preferencesDirty_&&OnlyLayoutsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
- Conceal();hidden_=true;
+ Conceal();hidden_=true;lanDrawn_=false;
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
@@ -644,7 +658,7 @@ static void DrawWatchedPicture(ImTextureID picture) {
 }
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
- boardDrawn_=false;selectionDrawn_=false;
+ boardDrawn_=false;selectionDrawn_=false;lanDrawn_=false;
  const double now = ImGui::GetTime();
  UpdatePadSetup(v,submit,true);
  if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
@@ -715,6 +729,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
  publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),identity_.Waiting(),submit,now);
+ lanDrawn_=nav.Screen()=="lan"&&v.session.room==RoomState::Idle;
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.

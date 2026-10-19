@@ -86,6 +86,8 @@ No VPS account or manual port configuration is required. Iroh can use public rel
 
 Back returns through menus, and from Home it hides Ember. On your own table card in a room, Back leaves your seat or queue place at once. Leaving the room itself requires the explicit **Leave room** action. Use **Play offline** for native game menus. More detail: [controller guide](docs/guides/CONTROLLER_MENUS.md).
 
+**Online → LAN play** finds rooms on the same local network. Host a LAN room or select one from the list; the room transport uses direct local connections without an internet relay. See [LAN setup, design and test coverage](docs/design/LAN_ROOMS.md).
+
 ## Settings, updates and legacy builds
 
 Existing Ember preferences remain under `%APPDATA%\sf4e`. Help & About provides the version, update checking, attribution and redacted diagnostic exports. Ember updates use the renamed repository and verify the downloaded ZIP's SHA-256 before installation.

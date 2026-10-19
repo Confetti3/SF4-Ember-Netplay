@@ -6,6 +6,39 @@ msgstr ""
 msgid "app.name"
 msgstr "SF4 Ember Netplay"
 
+msgid "lan.title"
+msgstr "LAN play"
+
+msgid "lan.detail"
+msgstr "Find rooms on the same local network. Internet is not required."
+
+msgid "lan.host"
+msgstr "Host LAN room"
+
+msgid "lan.host_detail"
+msgstr "Anyone on this local network can find and join this room. Steam and the supported game are still required."
+
+msgid "lan.incompatible"
+msgstr "Different Ember build. Both players need the same package."
+
+msgid "lan.full"
+msgstr "Room full"
+
+msgid "lan.join_detail"
+msgstr "Join this room over the local network."
+
+msgid "lan.unavailable"
+msgstr "LAN discovery is unavailable. Check your network and firewall."
+
+msgid "lan.searching"
+msgstr "Searching for LAN rooms"
+
+msgid "lan.search_detail"
+msgstr "Connect both PCs to the same network or hotspot. Guest-network isolation or a firewall can prevent discovery."
+
+msgid "lan.join_failed"
+msgstr "Could not join the LAN room. The host may have left, or the connection is blocked."
+
 msgid "common.back"
 msgstr "Back"
 

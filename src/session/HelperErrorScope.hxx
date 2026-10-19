@@ -61,7 +61,7 @@ inline HelperErrorVerdict ClassifyHelperError(const std::string& code, bool coor
 	// registration it cannot honour. The match's own deadlines end that
 	// match; the room and the other tables are untouched.
 	if (code == "stale_match" || code == "invalid_game_registration") return { HelperErrorScope::Match, true };
-	const bool protocolLabel = code == "invalid_or_incompatible_invitation" || code == "join_failed" ||
+	const bool protocolLabel = code == "lan_unavailable" || code == "lan_join_failed" || code == "invalid_or_incompatible_invitation" || code == "join_failed" ||
 		code == "host_unavailable" || code == "invalid_room_state" || code == "leave_in_progress" ||
 		code == "control_send_failed" || code == "invalid_control_size";
 	return { HelperErrorScope::RoomFatal, protocolLabel };

@@ -256,7 +256,9 @@ async fn a_fifth_concurrent_incoming_is_refused_before_tls() {
     }
     assert_eq!(a.actor.latency.openings_in.len(), MAX_PENDING);
     assert_eq!(permits(&a.actor), 0);
-    let stranger = bind_latency(&local_net(&lookup), false).await.unwrap();
+    let stranger = bind_latency(&local_net(&lookup), false.into())
+        .await
+        .unwrap();
     let to = loopback(a.latency_endpoint());
     let dial = tokio::spawn(connect(stranger.clone(), to, dialer()));
     accept_one(&mut a.actor).await;
@@ -284,7 +286,9 @@ async fn a_stranger_is_closed_right_after_tls_and_the_permit_waits_for_the_slot(
     let (lookup, mut members) = room(2).await;
     let (a, b) = members.split_at_mut(1);
     let (a, b) = (&mut a[0], &b[0]);
-    let stranger = bind_latency(&local_net(&lookup), false).await.unwrap();
+    let stranger = bind_latency(&local_net(&lookup), false.into())
+        .await
+        .unwrap();
     let connection = dial_into(&mut a.actor, &stranger, dialer()).await;
     assert!(
         refused(&connection).await,
@@ -326,7 +330,7 @@ async fn preparing_a_game_refuses_fresh_openings_and_rejects_completed_ones() {
                 .is_some()
         );
         sleep(Duration::from_millis(100)).await;
-        prepare_game(&mut a.actor, peer);
+        prepare_game(&mut a.actor, peer).await;
         assert!(reap_inbound(&mut a.actor).await, "it had completed");
         assert!(a.actor.latency.inbound.is_empty());
         assert!(closed(&connection).await);
@@ -362,7 +366,7 @@ async fn preparing_a_game_refuses_fresh_openings_and_rejects_completed_ones() {
         .connection
         .clone();
     sleep(Duration::from_millis(100)).await;
-    prepare_game(&mut members[0].actor, peer);
+    prepare_game(&mut members[0].actor, peer).await;
     assert!(reap_outbound(&mut members[0].actor).await);
     assert!(members[0].actor.latency.outbound.is_empty());
     assert!(closed(&remote).await);
@@ -459,7 +463,7 @@ async fn a_stale_attempt_or_revocation_is_not_installed() {
     let remote = queue_outbound(&mut members).await;
     let peer = members[1].primary();
     let revocation = members[0].actor.latency.authority().revocation;
-    prepare_game(&mut members[0].actor, peer);
+    prepare_game(&mut members[0].actor, peer).await;
     members[0].actor.games.clear();
     members[0].actor.latency_games_changed();
     assert_eq!(
@@ -531,7 +535,11 @@ async fn a_completion_queued_before_a_departure_and_rejoin_is_never_installed() 
     members[0].latency_events();
     members[0].actor.latency_report();
     let rows = members[0].latency_events().pop().unwrap().1;
-    assert!(rows.iter().all(|row| !matches!(row.state, LatencyState::Value { .. })), "{rows:?}");
+    assert!(
+        rows.iter()
+            .all(|row| !matches!(row.state, LatencyState::Value { .. })),
+        "{rows:?}"
+    );
     for member in members {
         member.stop().await;
     }
@@ -667,7 +675,7 @@ async fn reservations_are_cancellation_safe_and_the_budget_reopens() {
             .is_some()
     );
     sleep(Duration::from_millis(100)).await;
-    prepare_game(&mut a.actor, peer);
+    prepare_game(&mut a.actor, peer).await;
     a.actor.games.clear();
     a.actor.latency_games_changed();
     assert!(reap_inbound(&mut a.actor).await);

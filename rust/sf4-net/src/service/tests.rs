@@ -222,8 +222,9 @@ async fn next(events: &mut mpsc::Receiver<Event>, kind: &str) -> Event {
 
 pub(super) fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
     Actor {
+        lan: Default::default(),
         endpoint,
-        relay_only: false,
+        transport: transport::Transport::Online,
         epoch: 0,
         opening: false,
         room: None,
@@ -878,10 +879,16 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
     let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(own.clone(), events_tx);
     // A former leader holding a copy taken while it still led the room.
-    let invitation = Invite::create(own.id(), test_relay(), "test-build".into(), now().unwrap(), 3600)
-        .unwrap()
-        .encode()
-        .unwrap();
+    let invitation = Invite::create(
+        own.id(),
+        test_relay(),
+        "test-build".into(),
+        now().unwrap(),
+        3600,
+    )
+    .unwrap()
+    .encode()
+    .unwrap();
     assert!(
         actor
             .command(Request {
@@ -893,6 +900,7 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
                     observer: false,
                 },
             })
+            .await
             .unwrap()
     );
     assert!(matches!(
@@ -908,7 +916,14 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
 fn a_copied_invitation_lasts_a_week() {
     let id = iroh::SecretKey::generate().public();
     let start = now().unwrap();
-    let invite = Invite::create(id, test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
+    let invite = Invite::create(
+        id,
+        test_relay(),
+        "test-build".into(),
+        start,
+        INVITE_LIFETIME,
+    )
+    .unwrap();
     let text = invite.encode().unwrap();
     // A link copied today still opens the room six days from now, and not
     // after its week.
@@ -924,22 +939,41 @@ async fn an_open_room_renews_its_invitation_before_it_expires() {
     let mut actor = test_actor(own.clone(), events_tx);
     actor.epoch = 4;
     let start = now().unwrap();
-    let invite = Invite::create(own.id(), test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
+    let invite = Invite::create(
+        own.id(),
+        test_relay(),
+        "test-build".into(),
+        start,
+        INVITE_LIFETIME,
+    )
+    .unwrap();
     actor.hosted = Some(invite.clone());
     actor.room_invite = Some(invite.clone());
     // Less than a tenth of its lifetime gone: nothing to do.
     actor.renew_invitation(start + INVITE_LIFETIME / 20);
     assert!(events.try_recv().is_err());
-    assert_eq!(actor.room_invite.as_ref().unwrap().expires(), invite.expires());
+    assert_eq!(
+        actor.room_invite.as_ref().unwrap().expires(),
+        invite.expires()
+    );
     // Past a tenth: both copies move on and the native side hears of it.
     let later = start + INVITE_LIFETIME / 4;
     actor.renew_invitation(later);
-    let Event::DiscordInvite { epoch, invitation, .. } = events.recv().await.unwrap() else {
+    let Event::DiscordInvite {
+        epoch, invitation, ..
+    } = events.recv().await.unwrap()
+    else {
         panic!("expected a refreshed invitation");
     };
     assert_eq!(epoch, 4);
-    assert_eq!(actor.room_invite.as_ref().unwrap().expires(), later + INVITE_LIFETIME);
-    assert_eq!(actor.hosted.as_ref().unwrap().expires(), later + INVITE_LIFETIME);
+    assert_eq!(
+        actor.room_invite.as_ref().unwrap().expires(),
+        later + INVITE_LIFETIME
+    );
+    assert_eq!(
+        actor.hosted.as_ref().unwrap().expires(),
+        later + INVITE_LIFETIME
+    );
     let parsed = Invite::parse_for_build(&invitation, invite.expires() + 1, "test-build").unwrap();
     assert_eq!(parsed.room(), invite.room());
     // Out of a room there is nothing to renew.
@@ -973,6 +1007,7 @@ async fn a_refused_join_names_the_epoch_it_asked_for() {
                 id: 5,
                 command: join(2),
             })
+            .await
             .unwrap()
     );
     assert!(matches!(
@@ -993,11 +1028,19 @@ async fn a_refused_join_names_the_epoch_it_asked_for() {
         Event::Error { epoch: 1, ref code, .. } if code == "stale_epoch"
     ));
     assert!(!actor.departure_failed);
-    assert!(!actor.begin(3, "test-build"));
+    assert!(
+        !actor
+            .begin(3, "test-build", transport::Transport::Online)
+            .await
+    );
     assert_eq!(actor.room, Some([7; 16]));
     // An invalid request never releases retained state either.
     actor.departure_failed = true;
-    assert!(!actor.begin(1, "test-build"));
+    assert!(
+        !actor
+            .begin(1, "test-build", transport::Transport::Online)
+            .await
+    );
     assert_eq!(actor.room, Some([7; 16]));
     host.close().await;
 }
@@ -1082,7 +1125,11 @@ async fn an_unconfirmed_departure_is_released_by_the_next_epoch() {
         // The native client has left locally; its next room releases this one,
         // but the departed vote lingers for the grace: the host can still
         // commit the removal that the departure never got.
-        assert!(follower.begin(2, "test-build"));
+        assert!(
+            follower
+                .begin(2, "test-build", transport::Transport::Online)
+                .await
+        );
         assert_eq!(follower.room, None);
         assert!(!follower.departure_failed);
         assert!(follower.recovery.is_none());
@@ -1139,7 +1186,11 @@ async fn an_abandoned_coordinated_room_keeps_its_vote_for_the_grace() {
         assert!(actor.recovery.is_some());
         assert!(actor.controls.is_empty() && actor.hosted.is_none());
         // The next room begins at once; the old route lingers on its own.
-        assert!(actor.begin(2, "test-build"));
+        assert!(
+            actor
+                .begin(2, "test-build", transport::Transport::Online)
+                .await
+        );
         assert!(actor.recovery.is_none() && actor.room.is_none());
         assert!(actor.retirement_started.is_none());
         assert!(recovery.coordinator.current_leader().is_some());
@@ -1824,6 +1875,7 @@ async fn incomplete_game_marker_does_not_block_actor_commands() {
                 id: 17,
                 command: Command::Status
             })
+            .await
             .unwrap()
     );
     assert!(matches!(
@@ -1839,6 +1891,7 @@ async fn incomplete_game_marker_does_not_block_actor_commands() {
                     generation: 3
                 }
             })
+            .await
             .unwrap()
     );
     assert!(actor.pending_game_admissions.is_empty());
@@ -1890,6 +1943,7 @@ async fn incomplete_game_marker_does_not_block_actor_commands() {
                 id: 18,
                 command: Command::Shutdown
             })
+            .await
             .unwrap()
     );
     drop(client);
@@ -2586,7 +2640,7 @@ async fn fresh_learner_accepts_membership_only_from_invitation_authority() {
         // coordination incarnation. Its authenticated Admission bootstrap
         // has already bound the host's process to invite.endpoint().
         let compact = Invite::parse_for_build(
-            &seed.encode_discord().unwrap(),
+            &seed.encode_discord().unwrap().unwrap(),
             now().unwrap(),
             "test-build",
         )
@@ -3960,9 +4014,14 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
                 abandon: false,
             },
         })
+        .await
         .unwrap();
     let _ = next(&mut events, "room_closed").await;
-    assert!(actor.begin(2, "test-build"));
+    assert!(
+        actor
+            .begin(2, "test-build", transport::Transport::Online)
+            .await
+    );
     actor
         .completed(Completion::Hosted(2, Ok(replacement.clone()), None))
         .await
@@ -3979,6 +4038,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
                 abandon: false,
             },
         })
+        .await
         .unwrap();
     assert!(
         matches!(events.recv().await, Some(Event::Error { code, .. }) if code == "stale_epoch")
@@ -4264,6 +4324,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             .send(Request {
                 id: 10,
                 command: Command::Host {
+                    transport: crate::transport::Transport::Online,
                     epoch: 2,
                     build: "test-build".into(),
                 },
@@ -4676,15 +4737,17 @@ async fn failed_attempts_say_at_which_stage_they_failed() {
     ));
     // A public host's refusal, and a handshake that ran out of time, each have
     // their own reason, apart from the generic close above and from each other.
-    let invite = Invite::create(local.id(), test_relay(), "stage".into(), now().unwrap(), 3600)
-        .unwrap();
+    let invite = Invite::create(
+        local.id(),
+        test_relay(),
+        "stage".into(),
+        now().unwrap(),
+        3600,
+    )
+    .unwrap();
     let ticket = public_support::ticket_for(&invite, &public_support::identity(1), &local);
     for (epoch, error, expected) in [
-        (
-            4,
-            transport::admission_refused(),
-            "refused",
-        ),
+        (4, transport::admission_refused(), "refused"),
         (
             5,
             io::Error::new(io::ErrorKind::TimedOut, transport::HANDSHAKE_TIMED_OUT),
@@ -4758,7 +4821,9 @@ async fn the_actor_reports_its_network_without_a_room() {
         else {
             unreachable!()
         };
-        assert!(relay.is_empty() || ["use1", "usw1", "euc1", "aps1", "other"].contains(&relay.as_str()));
+        assert!(
+            relay.is_empty() || ["use1", "usw1", "euc1", "aps1", "other"].contains(&relay.as_str())
+        );
         assert!(["checking", "open", "strict", "no_udp"].contains(&nat.as_str()));
         local.close().await;
     })
@@ -4788,7 +4853,9 @@ async fn a_join_that_is_never_admitted_ends_in_join_failed() {
     // count spread over the give-up window does.
     assert!(!actor.join_control_lost(authority.id()).await.unwrap());
     assert!(actor.room.is_some());
-    actor.join_first_loss = actor.join_first_loss.map(|first| first - JOIN_GIVE_UP_AFTER);
+    actor.join_first_loss = actor
+        .join_first_loss
+        .map(|first| first - JOIN_GIVE_UP_AFTER);
     assert!(actor.join_control_lost(authority.id()).await.unwrap());
     assert!(actor.room.is_none());
     assert!(matches!(
@@ -6731,10 +6798,8 @@ async fn a_rejected_candidate_leaves_the_slot_waiting_for_a_valid_dial() {
 
 /// A link service on loopback, the same code as the one deployed.
 async fn short_service() -> (String, ember_short::AppState) {
-    let state = ember_short::AppState::new(
-        ember_short::Limits::default(),
-        ember_short::system_clock(),
-    );
+    let state =
+        ember_short::AppState::new(ember_short::Limits::default(), ember_short::system_clock());
     let listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
         .await
         .unwrap();
@@ -6784,11 +6849,26 @@ fn short_join(epoch: u64, invitation: &str, build: &str) -> Request {
     }
 }
 
-async fn joined_reason(guest: &mut Actor, events: &mut mpsc::Receiver<Event>, epoch: u64, text: &str, build: &str) -> Option<String> {
-    assert!(guest.command(short_join(epoch, text, build)).unwrap());
+async fn joined_reason(
+    guest: &mut Actor,
+    events: &mut mpsc::Receiver<Event>,
+    epoch: u64,
+    text: &str,
+    build: &str,
+) -> Option<String> {
+    assert!(guest.command(short_join(epoch, text, build)).await.unwrap());
     complete_short(guest).await;
-    match timeout(Duration::from_secs(5), events.recv()).await.unwrap().unwrap() {
-        Event::Error { epoch: refused, ref code, reason, .. } => {
+    match timeout(Duration::from_secs(5), events.recv())
+        .await
+        .unwrap()
+        .unwrap()
+    {
+        Event::Error {
+            epoch: refused,
+            ref code,
+            reason,
+            ..
+        } => {
             assert_eq!(refused, epoch);
             assert_eq!(code, "invalid_or_incompatible_invitation");
             assert_eq!(guest.room, None);
@@ -6803,7 +6883,9 @@ async fn joined_reason(guest: &mut Actor, events: &mut mpsc::Receiver<Event>, ep
 fn short_invite_ipc_round_trips() {
     let command: Command = serde_json::from_str(r#"{"type":"short_invite","epoch":3}"#).unwrap();
     assert!(matches!(command, Command::ShortInvite { epoch: 3 }));
-    assert!(serde_json::from_str::<Command>(r#"{"type":"short_invite","epoch":3,"extra":1}"#).is_err());
+    assert!(
+        serde_json::from_str::<Command>(r#"{"type":"short_invite","epoch":3,"extra":1}"#).is_err()
+    );
     let event = serde_json::to_value(Event::ShortInvite {
         epoch: 3,
         link: "https://embernetplay.link/j#0000-0000-0000".into(),
@@ -6827,18 +6909,32 @@ async fn a_short_link_opens_the_room_it_was_made_for() {
     guest.short.service = service.clone();
     host.epoch = 4;
     let start = now().unwrap();
-    let invite = Invite::create(host_endpoint.id(), test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
+    let invite = Invite::create(
+        host_endpoint.id(),
+        test_relay(),
+        "test-build".into(),
+        start,
+        INVITE_LIFETIME,
+    )
+    .unwrap();
     host.hosted = Some(invite.clone());
     host.room_invite = Some(invite.clone());
 
     // A stale epoch, or no room, is answered without a link.
     host.short_invite_command(3).unwrap();
-    assert!(matches!(host_events.recv().await.unwrap(), Event::ShortInvite { epoch: 3, ref link, ref status } if link.is_empty() && status == "unavailable"));
+    assert!(
+        matches!(host_events.recv().await.unwrap(), Event::ShortInvite { epoch: 3, ref link, ref status } if link.is_empty() && status == "unavailable")
+    );
     assert!(host.tasks.is_empty());
 
     host.short_invite_command(4).unwrap();
     complete_short(&mut host).await;
-    let Event::ShortInvite { epoch, link, status } = host_events.recv().await.unwrap() else {
+    let Event::ShortInvite {
+        epoch,
+        link,
+        status,
+    } = host_events.recv().await.unwrap()
+    else {
         panic!("expected the short link");
     };
     assert_eq!((epoch, status.as_str()), (4, "ready"));
@@ -6849,24 +6945,43 @@ async fn a_short_link_opens_the_room_it_was_made_for() {
     // Asked again, the same link comes back at once.
     host.short_invite_command(4).unwrap();
     assert!(host.tasks.is_empty());
-    assert!(matches!(host_events.recv().await.unwrap(), Event::ShortInvite { link: ref again, .. } if *again == link));
+    assert!(
+        matches!(host_events.recv().await.unwrap(), Event::ShortInvite { link: ref again, .. } if *again == link)
+    );
 
     // The guest opens it, in any of the forms a player might paste, and
     // goes on to dial the host the record names.
     let code = crate::short_invite::display_code(&invite.short_code());
-    for (epoch, pasted) in [(1, link.clone()), (2, code.to_lowercase()), (3, format!(" {code}\r\n"))] {
-        assert!(guest.command(short_join(epoch, &pasted, "test-build")).unwrap());
+    for (epoch, pasted) in [
+        (1, link.clone()),
+        (2, code.to_lowercase()),
+        (3, format!(" {code}\r\n")),
+    ] {
+        assert!(
+            guest
+                .command(short_join(epoch, &pasted, "test-build"))
+                .await
+                .unwrap()
+        );
         assert_eq!(guest.room, None);
         complete_short(&mut guest).await;
         assert_eq!(guest.room, Some(invite.room()));
-        assert_eq!(guest.host_address.as_ref().map(|address| address.id), Some(host_endpoint.id()));
+        assert_eq!(
+            guest.host_address.as_ref().map(|address| address.id),
+            Some(host_endpoint.id())
+        );
         assert!(guest.opening);
         assert!(guest_events.try_recv().is_err());
         guest.clear_room();
     }
 
     // The joiner still checks its own build against the record.
-    assert_eq!(joined_reason(&mut guest, &mut guest_events, 5, &link, "other-build").await.as_deref(), Some("other_build"));
+    assert_eq!(
+        joined_reason(&mut guest, &mut guest_events, 5, &link, "other-build")
+            .await
+            .as_deref(),
+        Some("other_build")
+    );
 
     // A renewed invitation is stored again under the same link.
     let renewed_at = start + INVITE_LIFETIME * 3 / 4;
@@ -6903,7 +7018,14 @@ async fn a_new_leader_keeps_a_shared_short_link_current() {
     host.epoch = 4;
     guest.epoch = 7;
     let start = now().unwrap();
-    let invite = Invite::create(host_endpoint.id(), test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
+    let invite = Invite::create(
+        host_endpoint.id(),
+        test_relay(),
+        "test-build".into(),
+        start,
+        INVITE_LIFETIME,
+    )
+    .unwrap();
     // The guest leads the room now: its invitation names its own endpoint.
     let coordination = iroh::SecretKey::generate().public();
     let led = invite
@@ -6926,7 +7048,9 @@ async fn a_new_leader_keeps_a_shared_short_link_current() {
     host.room_invite = Some(invite.clone());
     host.short_invite_command(4).unwrap();
     complete_short(&mut host).await;
-    assert!(matches!(host_events.recv().await.unwrap(), Event::ShortInvite { ref status, .. } if status == "ready"));
+    assert!(
+        matches!(host_events.recv().await.unwrap(), Event::ShortInvite { ref status, .. } if status == "ready")
+    );
     host.clear_room();
 
     // The new leader takes the link over and stores its own invitation under
@@ -6944,7 +7068,9 @@ async fn a_new_leader_keeps_a_shared_short_link_current() {
     // Asked for the link, the leader gives the same one at once.
     guest.short_invite_command(7).unwrap();
     assert!(guest.tasks.is_empty());
-    assert!(matches!(guest_events.recv().await.unwrap(), Event::ShortInvite { ref link, .. } if crate::short_invite::parse(link) == Some(invite.short_code())));
+    assert!(
+        matches!(guest_events.recv().await.unwrap(), Event::ShortInvite { ref link, .. } if crate::short_invite::parse(link) == Some(invite.short_code()))
+    );
     // Leaving forgets it.
     guest.clear_room();
     assert!(guest.short.room.is_none() && !guest.short.adopting);
@@ -6977,7 +7103,12 @@ fn leads(actor: &mut Actor, term: u64) {
 fn led_by(invite: &Invite, leader: &Endpoint, term: u64) -> Invite {
     invite
         .clone()
-        .with_authority_route(leader.id(), iroh::SecretKey::generate().public(), term, term)
+        .with_authority_route(
+            leader.id(),
+            iroh::SecretKey::generate().public(),
+            term,
+            term,
+        )
         .unwrap()
 }
 
@@ -7041,12 +7172,20 @@ async fn the_host_keeps_a_link_a_departed_member_shared() {
     let mut guest = test_actor(guest_endpoint.clone(), guest_events_tx);
     host.short.service = service.clone();
     guest.short.service = service.clone();
-    let invite = Invite::create(host_endpoint.id(), test_relay(), "test-build".into(), now().unwrap(), INVITE_LIFETIME).unwrap();
+    let invite = Invite::create(
+        host_endpoint.id(),
+        test_relay(),
+        "test-build".into(),
+        now().unwrap(),
+        INVITE_LIFETIME,
+    )
+    .unwrap();
     host.epoch = 4;
     host.hosted = Some(invite.clone());
     host.room_invite = Some(invite.clone());
     leads(&mut host, 1);
-    host.short.follow_leader(true, 1, false, true, now().unwrap());
+    host.short
+        .follow_leader(true, 1, false, true, now().unwrap());
     guest.epoch = 7;
     guest.room_invite = Some(invite.clone());
 
@@ -7074,7 +7213,9 @@ async fn the_host_keeps_a_link_a_departed_member_shared() {
     // The guest shares a link, then leaves while the host leads on.
     guest.short_invite_command(7).unwrap();
     complete_short(&mut guest).await;
-    assert!(matches!(guest_events.recv().await.unwrap(), Event::ShortInvite { ref status, .. } if status == "ready"));
+    assert!(
+        matches!(guest_events.recv().await.unwrap(), Event::ShortInvite { ref status, .. } if status == "ready")
+    );
     guest.clear_room();
     host.apply_confirmed_retirements(BTreeSet::from([22]), &history);
     assert!(pump_adopt(&mut host).await);
@@ -7084,7 +7225,10 @@ async fn the_host_keeps_a_link_a_departed_member_shared() {
     assert!(pump_adopt(&mut host).await);
     let renewed = host.room_invite.clone().unwrap();
     assert_ne!(renewed.encode().unwrap(), invite.encode().unwrap());
-    assert_eq!(stored_link(&service, &invite).await, renewed.encode().unwrap());
+    assert_eq!(
+        stored_link(&service, &invite).await,
+        renewed.encode().unwrap()
+    );
     // Holding the link, the host looks nothing up for later departures.
     host.apply_confirmed_retirements(BTreeSet::from([23]), &history);
     assert_eq!(host.short.adopt_at, 0);
@@ -7109,30 +7253,46 @@ async fn the_host_takes_a_shared_link_back_with_the_lead() {
     let mut guest = test_actor(guest_endpoint.clone(), guest_events_tx);
     host.short.service = service.clone();
     guest.short.service = service.clone();
-    let invite = Invite::create(host_endpoint.id(), test_relay(), "test-build".into(), now().unwrap(), INVITE_LIFETIME).unwrap();
+    let invite = Invite::create(
+        host_endpoint.id(),
+        test_relay(),
+        "test-build".into(),
+        now().unwrap(),
+        INVITE_LIFETIME,
+    )
+    .unwrap();
     host.hosted = Some(invite.clone());
     host.room_invite = Some(invite.clone());
-    host.short.follow_leader(true, 1, false, true, now().unwrap());
+    host.short
+        .follow_leader(true, 1, false, true, now().unwrap());
 
     // The guest leads for a while and shares a link under its own route.
-    host.short.follow_leader(false, 2, true, true, now().unwrap());
+    host.short
+        .follow_leader(false, 2, true, true, now().unwrap());
     let guest_route = led_by(&invite, &guest_endpoint, 2);
     guest.epoch = 7;
     guest.room_invite = Some(guest_route.clone());
     guest.short_invite_command(7).unwrap();
     complete_short(&mut guest).await;
-    assert_eq!(stored_link(&service, &invite).await, guest_route.encode().unwrap());
+    assert_eq!(
+        stored_link(&service, &invite).await,
+        guest_route.encode().unwrap()
+    );
     guest.clear_room();
 
     // The lead comes back to the host, which takes the link over.
     let host_route = led_by(&invite, &host_endpoint, 3);
     host.room_invite = Some(host_route.clone());
     leads(&mut host, 3);
-    host.short.follow_leader(true, 3, false, true, now().unwrap());
+    host.short
+        .follow_leader(true, 3, false, true, now().unwrap());
     assert!(pump_adopt(&mut host).await);
     assert!(host.short.room.is_some());
     assert!(pump_adopt(&mut host).await);
-    assert_eq!(stored_link(&service, &invite).await, host_route.encode().unwrap());
+    assert_eq!(
+        stored_link(&service, &invite).await,
+        host_route.encode().unwrap()
+    );
     host_endpoint.close().await;
     guest_endpoint.close().await;
 }
@@ -7140,7 +7300,12 @@ async fn the_host_takes_a_shared_link_back_with_the_lead() {
 #[tokio::test]
 async fn a_shared_link_follows_the_lead_through_every_handoff() {
     let (service, _store) = short_service().await;
-    let endpoints = [endpoint().await, endpoint().await, endpoint().await, endpoint().await];
+    let endpoints = [
+        endpoint().await,
+        endpoint().await,
+        endpoint().await,
+        endpoint().await,
+    ];
     let (mut members, mut _events) = (Vec::new(), Vec::new());
     for member in &endpoints {
         let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
@@ -7150,14 +7315,23 @@ async fn a_shared_link_follows_the_lead_through_every_handoff() {
         actor.epoch = 5;
         members.push(actor);
     }
-    let invite = Invite::create(endpoints[0].id(), test_relay(), "test-build".into(), now().unwrap(), INVITE_LIFETIME).unwrap();
+    let invite = Invite::create(
+        endpoints[0].id(),
+        test_relay(),
+        "test-build".into(),
+        now().unwrap(),
+        INVITE_LIFETIME,
+    )
+    .unwrap();
     members[0].hosted = Some(invite.clone());
     for member in &mut members {
         member.room_invite = Some(invite.clone());
     }
     // The host leads and a member that joined shares the link, then the host
     // leaves.
-    members[0].short.follow_leader(true, 1, false, true, now().unwrap());
+    members[0]
+        .short
+        .follow_leader(true, 1, false, true, now().unwrap());
     members[1].short_invite_command(5).unwrap();
     complete_short(&mut members[1]).await;
     members[0].clear_room();
@@ -7166,18 +7340,25 @@ async fn a_shared_link_follows_the_lead_through_every_handoff() {
     for (term, index) in [(2u64, 1usize), (3, 2), (4, 3)] {
         for (other, member) in members.iter_mut().enumerate().skip(1) {
             if other != index {
-                member.short.follow_leader(false, term, true, false, now().unwrap());
+                member
+                    .short
+                    .follow_leader(false, term, true, false, now().unwrap());
             }
         }
         let route = led_by(&invite, &endpoints[index], term);
         let leader = &mut members[index];
         leader.room_invite = Some(route.clone());
         leads(leader, term);
-        leader.short.follow_leader(true, term, false, false, now().unwrap());
+        leader
+            .short
+            .follow_leader(true, term, false, false, now().unwrap());
         // The member that published already holds the link; the others take it over.
         while pump_adopt(leader).await {}
         assert!(leader.short.room.is_some());
-        assert_eq!(stored_link(&service, &invite).await, route.encode().unwrap());
+        assert_eq!(
+            stored_link(&service, &invite).await,
+            route.encode().unwrap()
+        );
         leader.clear_room();
     }
     for member in endpoints {
@@ -7198,42 +7379,81 @@ async fn a_short_link_that_cannot_be_opened_says_why() {
     // Nothing stored under this code: mistyped, or its room has closed.
     let missing = Invite::create(host_id, test_relay(), "test-build".into(), start, 3600).unwrap();
     let missing_link = crate::short_invite::link(&missing.short_code());
-    assert_eq!(joined_reason(&mut guest, &mut events, 1, &missing_link, "test-build").await.as_deref(), Some("short_unknown"));
+    assert_eq!(
+        joined_reason(&mut guest, &mut events, 1, &missing_link, "test-build")
+            .await
+            .as_deref(),
+        Some("short_unknown")
+    );
 
     // An invitation that has expired since it was stored.
-    let expired = Invite::create(host_id, test_relay(), "test-build".into(), start - 4000, 3600).unwrap();
+    let expired = Invite::create(
+        host_id,
+        test_relay(),
+        "test-build".into(),
+        start - 4000,
+        3600,
+    )
+    .unwrap();
     let keys = crate::short_invite::derive(&expired.short_code()).unwrap();
-    crate::short_invite::publish(&service, &keys, &expired.encode().unwrap(), 600).await.unwrap();
+    crate::short_invite::publish(&service, &keys, &expired.encode().unwrap(), 600)
+        .await
+        .unwrap();
     let expired_link = crate::short_invite::link(&expired.short_code());
-    assert_eq!(joined_reason(&mut guest, &mut events, 2, &expired_link, "test-build").await.as_deref(), Some("expired"));
+    assert_eq!(
+        joined_reason(&mut guest, &mut events, 2, &expired_link, "test-build")
+            .await
+            .as_deref(),
+        Some("expired")
+    );
 
     // A record whose invitation belongs to another room is refused, even
     // though it opens with the code.
     let other = Invite::create(host_id, test_relay(), "test-build".into(), start, 3600).unwrap();
     let wanted = Invite::create(host_id, test_relay(), "test-build".into(), start, 3600).unwrap();
     let keys = crate::short_invite::derive(&wanted.short_code()).unwrap();
-    crate::short_invite::publish(&service, &keys, &other.encode().unwrap(), 600).await.unwrap();
+    crate::short_invite::publish(&service, &keys, &other.encode().unwrap(), 600)
+        .await
+        .unwrap();
     let wanted_link = crate::short_invite::link(&wanted.short_code());
-    assert_eq!(joined_reason(&mut guest, &mut events, 3, &wanted_link, "test-build").await.as_deref(), Some("malformed"));
+    assert_eq!(
+        joined_reason(&mut guest, &mut events, 3, &wanted_link, "test-build")
+            .await
+            .as_deref(),
+        Some("malformed")
+    );
 
     // The service is down: the player is told to use the full invitation.
     guest.short.service = "http://127.0.0.1:9/s/v1/".into();
-    assert_eq!(joined_reason(&mut guest, &mut events, 4, &missing_link, "test-build").await.as_deref(), Some("short_unavailable"));
+    assert_eq!(
+        joined_reason(&mut guest, &mut events, 4, &missing_link, "test-build")
+            .await
+            .as_deref(),
+        Some("short_unavailable")
+    );
 
     // A host whose service is down hears so once and keeps no link.
     let (host_events_tx, mut host_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut host = test_actor(own.clone(), host_events_tx);
     host.short.service = "http://127.0.0.1:9/s/v1/".into();
     host.epoch = 6;
-    host.hosted = Some(Invite::create(own.id(), test_relay(), "test-build".into(), start, 3600).unwrap());
+    host.hosted =
+        Some(Invite::create(own.id(), test_relay(), "test-build".into(), start, 3600).unwrap());
     host.short_invite_command(6).unwrap();
     complete_short(&mut host).await;
-    assert!(matches!(host_events.recv().await.unwrap(), Event::ShortInvite { epoch: 6, ref link, ref status } if link.is_empty() && status == "unavailable"));
+    assert!(
+        matches!(host_events.recv().await.unwrap(), Event::ShortInvite { epoch: 6, ref link, ref status } if link.is_empty() && status == "unavailable")
+    );
     assert!(host.short.room.is_none());
 
     // A Leave while the lookup runs drops its answer.
     guest.short.service = service;
-    assert!(guest.command(short_join(7, &missing_link, "test-build")).unwrap());
+    assert!(
+        guest
+            .command(short_join(7, &missing_link, "test-build"))
+            .await
+            .unwrap()
+    );
     guest.clear_room();
     while let Some(finished) = guest.tasks.join_next().await {
         if let Ok(completion) = finished {
@@ -7258,7 +7478,9 @@ fn json_nested_past_the_native_limit_is_not_handed_on() {
     // Brackets inside strings, escaped quotes included, are text.
     let quoted = format!("{{\"name\":\"\\\"{}\"}}", "[".repeat(1000));
     assert!(ok(&quoted));
-    assert!(ok(r#"{"kind":"room","members":[{"data":{"name":"a]]]"}}]}"#));
+    assert!(ok(
+        r#"{"kind":"room","members":[{"data":{"name":"a]]]"}}]}"#
+    ));
 }
 
 /// Both paths that find a committed checkpoint, the watcher and the
@@ -7284,7 +7506,11 @@ async fn a_checkpoint_nested_past_the_native_limit_is_passed_over_once() {
     actor.start_outgoing_checkpoint(next);
     assert!(matches!(
         receiver.recv().await,
-        Some(Event::CheckpointBegin { transfer: 18, revision: 9, .. })
+        Some(Event::CheckpointBegin {
+            transfer: 18,
+            revision: 9,
+            ..
+        })
     ));
     endpoint.close().await;
 }
@@ -7340,7 +7566,10 @@ async fn a_control_message_nested_past_the_native_limit_is_dropped() {
                 .unwrap();
         }
         let mut delivered = Vec::new();
-        while !delivered.iter().any(|payload: &String| payload == "[\"after\"]") {
+        while !delivered
+            .iter()
+            .any(|payload: &String| payload == "[\"after\"]")
+        {
             fixture.actor.poll_controls().await.unwrap();
             while let Ok(event) = fixture.events.try_recv() {
                 match event {

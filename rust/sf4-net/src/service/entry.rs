@@ -94,7 +94,8 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     ]);
     let mut actor = Actor {
         endpoint: endpoint.clone(),
-        relay_only,
+        lan: Default::default(),
+        transport: relay_only.into(),
         epoch: 0,
         opening: false,
         room: None,
@@ -158,6 +159,7 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     let result = actor.run(receiver, failure).await;
     actor.clear_room();
     actor.tasks.shutdown().await;
+    actor.stop_lan().await;
     endpoint.close().await;
     if result.is_ok() {
         let _ = actor.events.flush();
