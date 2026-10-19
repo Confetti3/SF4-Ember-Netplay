@@ -1,4 +1,5 @@
 pub mod blumint;
+pub mod desk_pages;
 pub mod discovery;
 pub mod events;
 pub mod expiry;
@@ -114,6 +115,8 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/organizer/events/{id}/create", post(organizer::create))
         .route("/v1/organizer/events/{id}/ready", post(organizer::ready))
         .route("/v1/desk/brackets", get(organizer::brackets))
+        .route("/desk", get(desk_pages::page))
+        .route("/desk/{file}", get(desk_pages::file))
         .route("/v1/events", get(events::list))
         .route("/v1/events/stream", get(events::stream))
         .route(

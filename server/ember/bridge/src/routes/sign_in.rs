@@ -58,6 +58,7 @@ use ember_protocol::{
     sign_in::{Connection, SIGN_IN_SECS, SignInStarted},
     sites,
 };
+use rusqlite::Transaction;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -184,6 +185,8 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
     .route("/web/sign-in/{site}", get(desk::start))
     .route("/web/session", get(desk::session))
     .route("/web/sign-out", post(desk::sign_out))
+    .route("/web/accounts", get(desk::accounts))
+    .route("/web/organize/{site}", post(desk::organize))
 }
 
 /// The configured site `id` names, or `not_found`.
@@ -269,26 +272,49 @@ async fn start(
     site: Site,
     organizer: bool,
 ) -> Result<Response> {
-    let oauth = if organizer {
-        OAuth::organizer(&state, &site).ok_or_else(ApiFailure::not_found)?
-    } else {
-        enabled(&state, &site)?
-    };
     let player = auth::player(&state, &headers).await?;
+    begin(&state, site, organizer, Starter::Player(player, body)).await
+}
+
+/// Who starts a sign-in: the session player, with the proof that
+/// authorizes it, or the organizer signed in to the web desk, whose CSRF
+/// token the caller has checked (`desk::organize`).
+pub(super) enum Starter {
+    Player(auth::Player, Body<PROOF_BODY>),
+    Desk(String),
+}
+
+/// Starts `starter`'s sign-in on `site`, an organizer sign-in when
+/// `organizer`: the site's authorize page and when the sign-in lapses.
+pub(super) async fn begin(
+    state: &AppState,
+    site: Site,
+    organizer: bool,
+    starter: Starter,
+) -> Result<Response> {
+    let oauth = if organizer {
+        OAuth::organizer(state, &site).ok_or_else(ApiFailure::not_found)?
+    } else {
+        enabled(state, &site)?
+    };
+    let starting = match &starter {
+        Starter::Player(player, _) => player.ember_id.as_str().to_owned(),
+        Starter::Desk(ember_id) => ember_id.clone(),
+    };
     state
         .rate
         .check(
-            &format!("{}:{}", site.domain("start"), player.ember_id),
+            &format!("{}:{starting}", site.domain("start")),
             STARTS_PER_HOUR,
             3600,
             state.now(),
         )
         .map_err(ApiFailure::rate_limited)?;
     let secret = b64u(&random::<32>());
-    let hash = state_hash(&state, &site, &secret);
+    let hash = state_hash(state, &site, &secret);
     let expires_at = state.now() + SIGN_IN_SECS;
     let authorize_url = oauth
-        .authorize_url(&redirect_uri(&state, &site), &secret)
+        .authorize_url(&redirect_uri(state, &site), &secret)
         .ok_or_else(ApiFailure::unavailable)?;
     let (rate, limits, starts) = (state.rate.clone(), oauth.limits, site.domain("starts"));
     let stored = site.clone();
@@ -297,7 +323,7 @@ async fn start(
     } else {
         Step::Connect
     });
-    let started = sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
+    let work = move |tx: &Transaction<'_>, ctx: &Ctx, ember_id: &str| {
         // Once the proof holds, in the same write: the site's request
         // budget must have room for the exchange, and the start takes a
         // bridge-wide slot, given back unless the start commits, so requests
@@ -319,12 +345,22 @@ async fn start(
         sign_ins::end(tx, &stored, ember_id)?;
         sign_ins::insert(tx, &stored, &hash, ember_id, expires_at, organizer)?;
         Ok(Ok(slot))
-    })
-    .await?;
+    };
+    let started = match starter {
+        Starter::Player(player, body) => {
+            sessions::as_proven(state, player, &body, target, work).await?
+        }
+        Starter::Desk(ember_id) => {
+            let ctx = Ctx::of(state);
+            let started = state.db.write(move |tx| work(tx, &ctx, &ember_id)).await?;
+            state.committed();
+            started
+        }
+    };
     match started {
         Ok(slot) => slot.into_iter().for_each(Slot::keep),
         Err((cap, retry_after)) => {
-            budget::refused(&state, site.id(), cap);
+            budget::refused(state, site.id(), cap);
             return Err(ApiFailure::sign_in_busy(retry_after));
         }
     }

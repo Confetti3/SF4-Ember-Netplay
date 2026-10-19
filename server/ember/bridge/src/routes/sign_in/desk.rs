@@ -19,7 +19,10 @@ use rusqlite::params;
 use serde_json::json;
 use subtle::ConstantTimeEq;
 
-use super::{Answer, OAuth, SignedIn, budget, configured, offered, redirect_uri};
+use super::{
+    Answer, OAuth, SignedIn, Starter, begin, budget, configured, offered, organizer_grant,
+    redirect_uri,
+};
 use crate::{
     AppState,
     auth::{self, DESK_COOKIE, DESK_SECS},
@@ -182,6 +185,75 @@ pub async fn session(State(state): State<AppState>, headers: HeaderMap) -> Resul
         .await?
         .ok_or_else(ApiFailure::unauthenticated)?;
     Ok(ok(&json!({ "ember_id": desk.ember_id, "csrf": desk.csrf })))
+}
+
+/// `GET /web/accounts`: the desk organizer's account on each sign-in site
+/// the bridge offers; whether the site offers organizer sign-in and the
+/// organizer grant they hold there; the settings a new event on the site
+/// takes (`create`, none where events are made on the site itself, whose
+/// pages are at `home`).
+pub async fn accounts(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
+    let desk = auth::desk(&state, &headers)
+        .await?
+        .ok_or_else(ApiFailure::unauthenticated)?;
+    let mut sites = Vec::new();
+    for defined in &state.config.sign_in_sites {
+        let site = Site::Configured(defined.id.clone());
+        if !offered(&state, &site) {
+            continue;
+        }
+        let (reading, ember_id) = (site.clone(), desk.ember_id.clone());
+        let account = state
+            .db
+            .read(move |tx| reading.account(tx, &ember_id))
+            .await?;
+        let organizer = OAuth::organizer(&state, &site).is_some();
+        let grant = match (organizer, &account) {
+            (true, Some(_)) => organizer_grant(&state, &site, &desk.ember_id).await?,
+            _ => None,
+        };
+        let create = defined
+            .organizer
+            .as_ref()
+            .and_then(|organizer| organizer.create.as_ref())
+            .map(|create| {
+                create
+                    .fields
+                    .iter()
+                    .map(|(name, field)| (name.clone(), json!(field.values)))
+                    .collect::<serde_json::Map<_, _>>()
+            });
+        let home = url::Url::parse(&defined.authorize_url)
+            .map(|url| url.origin().ascii_serialization())
+            .unwrap_or_default();
+        sites.push(json!({
+            "id": defined.id,
+            "display_name": defined.display_name,
+            "home": home,
+            "account": account,
+            "organizer_offered": organizer,
+            "organizer": grant.map(|grant| json!({ "scope": grant.scope, "expires_at": grant.expires_at })),
+            "create": create,
+        }));
+    }
+    Ok(ok(&json!({ "sites": sites })))
+}
+
+/// `POST /web/organize/{site}`: starts the desk organizer's organizer
+/// sign-in on the site, as `/v1/sites/{site}/organize` does for the game.
+pub async fn organize(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response> {
+    let desk = auth::desk(&state, &headers)
+        .await?
+        .ok_or_else(ApiFailure::unauthenticated)?;
+    if !desk.csrf_ok(&headers) {
+        return Err(ApiFailure::forbidden());
+    }
+    let site = configured(&state, &id)?;
+    begin(&state, site, true, Starter::Desk(desk.ember_id)).await
 }
 
 /// `POST /web/sign-out`: ends the desk's browser session.

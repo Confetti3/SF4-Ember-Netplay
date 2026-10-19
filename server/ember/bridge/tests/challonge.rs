@@ -1334,6 +1334,39 @@ async fn an_organizer_signs_in_to_the_web_desk_with_a_linked_account() {
     let (_, events) = bridge.get(player1.token(), "/v1/organizer/events").await;
     assert_eq!(events["events"][0]["title"], "Web Cup");
 
+    // The desk lists the accounts, with what a new Challonge event takes,
+    // and starts an organizer sign-in with the CSRF token.
+    let sites: Json = serde_json::from_str(
+        &with_desk(bridge.client.get(bridge.url("/web/accounts")))
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    let challonge = &sites["sites"][0];
+    assert_eq!(challonge["id"], "challonge");
+    assert_eq!(challonge["account"]["user_id"], PLAYER1.0);
+    assert_eq!(challonge["organizer_offered"], true);
+    assert_eq!(challonge["organizer"], Json::Null);
+    assert!(challonge["create"]["format"].is_array());
+    let organize = || with_desk(bridge.client.post(bridge.url("/web/organize/challonge")));
+    assert_eq!(
+        organize().send().await.unwrap().status(),
+        StatusCode::FORBIDDEN
+    );
+    let started = organize()
+        .header("x-ember-csrf", &csrf)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(started.status(), StatusCode::CREATED);
+    let started: Json = serde_json::from_str(&started.text().await.unwrap()).unwrap();
+    let url = url::Url::parse(started["authorize_url"].as_str().unwrap()).unwrap();
+    assert!(sign_in::query(&url)["scope"].contains("tournaments:write"));
+
     // Signed out, the cookie works nothing.
     let out = with_desk(bridge.client.post(bridge.url("/web/sign-out")))
         .header("x-ember-csrf", &csrf)

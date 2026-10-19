@@ -185,7 +185,8 @@ key.
 5. Game: the desk's sets queue, bracket view and actions.
 6. Bridge: tournament drafts (title, optional date, service, settings,
    links, status) and creating a Challonge tournament with the TO's grant.
-7. Web desk: pages on the bridge in the embernetplay.link style
+7. Web desk (`/desk`, `bridge/desk/`; `GET /web/accounts` and
+   `POST /web/organize/{site}` added for it): pages on the bridge in the embernetplay.link style
    (`server/ember-short/deploy/site/assets/site.css`) for §4a: linked
    accounts, new tournament, service and settings, links, ready, and the
    Discord announcement to copy; then managing it with the game desk's

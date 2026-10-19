@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Ember tournament desk</title>
+<link rel="stylesheet" href="/desk/desk.css">
+<script src="/desk/desk.js" defer></script>
+</head>
+<body>
+<div class="wd">
+  <header class="wd-top">
+    <img src="/desk/ember-emblem.png" alt="" width="36" height="36">
+    <div class="brand">
+      <span class="brand-name">EMBER</span>
+      <span class="brand-sub" id="brand-sub">Tournament desk</span>
+    </div>
+    <button type="button" class="wd-btn quiet" id="sign-out" hidden>Sign out</button>
+  </header>
+
+  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+
+  <section class="page" id="signed-out" hidden>
+    <h1 class="wd-h">Tournament desk</h1>
+    <p class="note">Run your USF4 tournament on Ember: create it, call players and keep every link in one place. Sign in with an account you linked in Ember.</p>
+    <div class="wd-grid" id="sign-in-sites"></div>
+    <p class="note">No linked account yet? In Ember, open Online play, Ember ID, and connect start.gg or Challonge first.</p>
+  </section>
+
+  <section class="page" id="home" hidden>
+    <div class="head-row">
+      <h1 class="wd-h">Your tournaments</h1>
+      <button type="button" class="wd-btn primary" id="new-tournament">New tournament</button>
+    </div>
+    <p class="note" id="no-events" hidden>No tournaments yet. Start one with New tournament.</p>
+    <div class="wd-grid" id="events"></div>
+  </section>
+
+  <div class="wd-body" id="wizard" hidden>
+    <nav class="wd-side" aria-label="Steps">
+      <p class="wd-side-title">Set up</p>
+      <p class="wd-now" id="step-now"></p>
+      <div class="wd-steps" id="steps"></div>
+    </nav>
+
+    <main class="wd-main">
+      <section data-step="1" hidden>
+        <h1 class="wd-h">Linked accounts</h1>
+        <p class="note">A bracket service with organizer access lets Ember create, call and score your tournament.</p>
+        <div class="wd-grid" id="accounts"></div>
+      </section>
+
+      <section data-step="2" hidden>
+        <h1 class="wd-h">Tournament</h1>
+        <div class="wd-grid">
+          <div class="wd-card">
+            <label class="wd-field">Title<input class="wd-input" id="title" maxlength="100" autocomplete="off"></label>
+            <div class="wd-row">
+              <label class="wd-field">Date<input class="wd-input" id="date" type="date"></label>
+              <label class="wd-field">Start<input class="wd-input" id="time" type="time"></label>
+            </div>
+            <p class="note">Saved as a draft. Leave the date empty until you know it.</p>
+          </div>
+        </div>
+      </section>
+
+      <section data-step="3" hidden>
+        <h1 class="wd-h">Bracket service</h1>
+        <p class="note" id="no-service" hidden>Allow organizer access on start.gg or Challonge first (step 1).</p>
+        <div class="wd-grid">
+          <fieldset class="wd-card" id="services"><legend>Service</legend></fieldset>
+          <div class="wd-card" id="service-detail"></div>
+          <div class="wd-card">
+            <label class="wd-field">Games to win<select class="wd-input" id="games"></select></label>
+            <p class="note">Longer sets for later rounds or a phase such as Top 8:</p>
+            <div id="rules"></div>
+            <button type="button" class="wd-btn dashed" id="add-rule">+ Add round rule</button>
+            <label class="check">Hold sets assigned to a stream (start.gg)<input type="checkbox" id="hold"></label>
+          </div>
+        </div>
+      </section>
+
+      <section data-step="4" hidden>
+        <h1 class="wd-h">Links</h1>
+        <p class="note">Everything about the tournament in one place: bracket, stream, Matcherino, sign-up, rules, Discord.</p>
+        <div class="wd-grid" id="links"></div>
+        <button type="button" class="wd-btn dashed" id="add-link">+ Add link</button>
+      </section>
+
+      <section data-step="5" hidden>
+        <h1 class="wd-h">Discord post</h1>
+        <p class="note">Copy it into your announcements channel. Times show in each reader's own time zone.</p>
+        <textarea class="post" id="post" readonly rows="9" aria-label="Discord post"></textarea>
+        <div class="wd-row">
+          <button type="button" class="wd-btn" id="copy">Copy message</button>
+        </div>
+        <p class="note" id="ready-note"></p>
+      </section>
+
+      <section data-step="6" hidden>
+        <h1 class="wd-h">Live</h1>
+        <div class="wd-kpis" id="live"></div>
+        <p class="note">The sets queue and bracket follow in the next desk update; Ember already creates, calls and scores the sets of a running event.</p>
+        <button type="button" class="wd-btn danger" id="stop">Stop this tournament</button>
+      </section>
+
+      <div class="wd-bar">
+        <button type="button" class="wd-btn" id="back">Back</button>
+        <button type="button" class="wd-btn primary" id="next">Continue</button>
+      </div>
+    </main>
+
+    <aside class="wd-aside" aria-label="Tournament summary">
+      <span class="wd-side-title">Summary</span>
+      <div class="wd-card" id="summary"></div>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

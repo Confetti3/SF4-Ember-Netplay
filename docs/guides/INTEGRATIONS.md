@@ -551,6 +551,15 @@ session; every change also sends the session's CSRF token in
 `X-Ember-CSRF`, which `GET /web/session` gives with the Ember ID, and needs
 no proof. `POST /web/sign-out` ends it.
 
+The desk itself is the page at `/desk` on the bridge, built in (`bridge/desk/`:
+one page, its style and script, the emblem and Inter; no outside requests,
+and a policy that allows none). It takes a TO from their linked accounts
+(`GET /web/accounts`: each site's account, organizer grant and what a new
+event there takes; `POST /web/organize/<site>` starts the organizer sign-in
+in a new tab) through a draft, the bracket service and its settings, links
+and ready, to the Discord post to copy. It is laid out for a phone first and
+widens on a tablet or desktop.
+
 `GET /v1/desk/brackets`, with the desk connection's provider credential,
 lists every running event whose organizer still holds a grant, with the
 site, the event, its settings and a fresh `access_token`. An event whose
