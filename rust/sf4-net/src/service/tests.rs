@@ -889,6 +889,7 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
                     epoch: 1,
                     invitation,
                     build: "test-build".into(),
+                    observer: false,
                 },
             })
             .unwrap()
@@ -963,6 +964,7 @@ async fn a_refused_join_names_the_epoch_it_asked_for() {
         epoch,
         invitation: "not-an-invitation".into(),
         build: "test-build".into(),
+        observer: false,
     };
     assert!(
         actor
@@ -7013,6 +7015,7 @@ fn short_join(epoch: u64, invitation: &str, build: &str) -> Request {
             epoch,
             invitation: invitation.into(),
             build: build.into(),
+            observer: false,
         },
     }
 }
@@ -7597,3 +7600,5 @@ mod public_admission;
 mod public_rooms;
 mod public_support;
 mod server_owned;
+#[path = "tests/watch.rs"]
+mod match_watch;

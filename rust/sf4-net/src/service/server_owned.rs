@@ -43,12 +43,25 @@ impl Actor {
     /// the native member list, and a room whose members have all left still
     /// has a roster to retire them against.
     pub(super) fn committed_roster(&self, checkpoint: &[u8]) -> Option<BTreeSet<EndpointId>> {
+        self.committed_room(checkpoint).map(|room| room.members)
+    }
+
+    /// `committed_roster`, with the tournament binding read from the same
+    /// parse. A server-owned room is never bound.
+    pub(super) fn committed_room(&self, checkpoint: &[u8]) -> Option<CommittedRoom> {
+        let envelope: serde_json::Value = serde_json::from_slice(checkpoint).ok()?;
         if !self.is_public_host() {
-            return committed_primary_endpoints(checkpoint);
+            return Some(CommittedRoom {
+                members: primary_endpoints(&envelope, false)?,
+                bound: BoundRoster::read(&envelope).filter(|_| !self.server_owned()),
+            });
         }
-        let mut roster = primary_endpoints(checkpoint, true)?;
-        roster.insert(self.endpoint.id());
-        Some(roster)
+        let mut members = primary_endpoints(&envelope, true)?;
+        members.insert(self.endpoint.id());
+        Some(CommittedRoom {
+            members,
+            bound: None,
+        })
     }
 
     /// The records a member of a server-owned room is told about. Members

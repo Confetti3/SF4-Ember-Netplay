@@ -206,26 +206,33 @@ impl Actor {
         self.pending_retired_incarnations.extend(unconfirmed);
         self.applied_admission_members
             .extend(applied_history.iter().copied());
-        let retired_for_broadcast = self.pending_retired_incarnations.clone();
         // The roster is parsed once per commit; the refresh runs every second.
         let roster = match &self.refresh_roster {
             Some((room, seen, roster)) if *room == recovery.room && seen.same_commit(&committed) => {
                 roster.clone()
             }
             _ => {
-                let roster = self.committed_roster(committed.checkpoint().as_bytes());
+                let roster = self.committed_room(committed.checkpoint().as_bytes());
                 self.refresh_roster = Some((recovery.room, committed.clone(), roster.clone()));
                 roster
             }
         };
-        if let Some(retained) = roster {
+        // Fenced before the snapshot below, so the leader publishes this
+        // read's retirements now rather than at the next refresh.
+        self.retire_unnamed(recovery.incarnation)?;
+        let retired_for_broadcast = self.pending_retired_incarnations.clone();
+        if let Some(CommittedRoom {
+            members: retained, ..
+        }) = roster
+        {
             // A leave hands authority to a single voter, and a room that
             // shrinks keeps the voters it had; the leader moves the voter
             // count to the one the room should have from here until it
             // matches. A joint membership counts the voters of both halves, so
             // it is finished whatever the count says.
-            let restore_voters = state.leader_local
-                && (joint || state.voter_count != self.desired_voters(retained.len()));
+            let voting = self.voter_policy().voting(&retained);
+            let restore_voters =
+                state.leader_local && (joint || state.voter_count != self.desired_voters(voting));
             self.schedule_membership_reconciliation(
                 retained,
                 state.term,

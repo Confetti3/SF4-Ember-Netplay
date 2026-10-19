@@ -467,6 +467,7 @@ impl Invite {
             room: self.room,
             capability: self.capability,
             build: self.build.clone(),
+            observer: false,
         }
     }
 
@@ -499,6 +500,12 @@ pub(crate) struct RoomProof {
     pub room: [u8; 16],
     pub capability: [u8; 32],
     pub build: String,
+    /// The joiner watches a tournament match, so only a room bound to one
+    /// takes it. A courtesy, not a security property: a bound room admits by
+    /// endpoint whatever this says. Left out when false, so every other
+    /// proof is the bytes it always was.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub observer: bool,
 }
 
 #[cfg(test)]

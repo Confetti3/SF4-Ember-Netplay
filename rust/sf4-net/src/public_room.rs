@@ -63,6 +63,7 @@ impl PublicRoomProof {
             room: self.room,
             capability: self.capability,
             build: self.build.clone(),
+            observer: false,
         }
     }
 }

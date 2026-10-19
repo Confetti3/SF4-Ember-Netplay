@@ -24,18 +24,24 @@ use super::{
     bridges::Approved,
     client::{self, answer, now},
     spool::Entry,
+    watch::{claims_watch, unlearn_watch},
 };
 
-/// What this helper run has verified for each match it plays.
+/// What this helper run has verified for each match it plays or watches.
 #[derive(Default)]
 pub struct State {
     bindings: HashMap<String, Binding>,
     permits: HashMap<(String, u64), Permit>,
     /// The matches whose bridge reads a claim's `ready`.
     reads_ready: HashSet<String>,
+    /// The bridges that serve watching (`watch.rs`).
+    pub(super) watch_bridges: HashSet<String>,
+    /// The matches whose bridge did not serve watching when their first
+    /// claim asked (`watch.rs`).
+    pub(super) plain_claims: HashSet<String>,
 }
 
-fn check_match_id(match_id: &str) -> Result<(), Failure> {
+pub(super) fn check_match_id(match_id: &str) -> Result<(), Failure> {
     if is_prefixed_id(match_id, "emt") {
         Ok(())
     } else {
@@ -96,7 +102,16 @@ async fn accept_binding(
     {
         return Err(Failure::new("binding_mismatch"));
     }
-    let view = json!({
+    let view = binding_view(binding, slot);
+    let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
+    state.bindings.insert(match_id.to_owned(), binding.clone());
+    Ok(view)
+}
+
+/// The checked fields of a binding the game reads, `local_slot` being this
+/// fighter's. The watchers let it name each one in the room.
+fn binding_view(binding: &Binding, slot: Option<u8>) -> Value {
+    json!({
         "match_id": binding.match_id,
         "assignment_generation": binding.assignment_generation,
         "binding_revision": binding.binding_revision,
@@ -107,11 +122,9 @@ async fn accept_binding(
         "rules_digest": binding.rules_digest,
         "roster_digest": binding.roster_digest,
         "fighters": binding.fighters,
+        "watchers": binding.watchers,
         "local_slot": slot,
-    });
-    let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
-    state.bindings.insert(match_id.to_owned(), binding.clone());
-    Ok(view)
+    })
 }
 
 /// The claim answer for the game, with the binding checked.
@@ -149,6 +162,19 @@ async fn proven(
     path: &str,
     command: Value,
 ) -> Result<Value, Failure> {
+    let (status, response) = send_proven(shared, bridge, token, action, path, command).await?;
+    answer(status, &response, &[200])
+}
+
+/// Sends one proven player operation, answering its status and body.
+pub(super) async fn send_proven(
+    shared: &Arc<Shared>,
+    bridge: &Approved,
+    token: &str,
+    action: Action,
+    path: &str,
+    command: Value,
+) -> Result<(u16, Vec<u8>), Failure> {
     let body = client::prove(
         shared,
         bridge,
@@ -159,7 +185,7 @@ async fn proven(
         command,
     )
     .await?;
-    let (status, response) = shared
+    shared
         .client
         .call(
             reqwest::Method::POST,
@@ -167,8 +193,7 @@ async fn proven(
             Some(token),
             Some(body),
         )
-        .await?;
-    answer(status, &response, &[200])
+        .await
 }
 
 pub async fn assignments(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
@@ -203,6 +228,7 @@ pub async fn claim_match(
         helper_instance_id: shared.instance_id.clone(),
         build_id: build.to_owned(),
         ready: None,
+        watch: None,
     };
     claim.check().map_err(|_| Failure::new("invalid_request"))?;
     client::with_session(shared, bridge_id, |bridge, token| {
@@ -225,7 +251,9 @@ pub async fn claim_match(
 /// and the bridge reads it. A claim without `ready` reads not ready on every
 /// bridge, so only a Ready fighter's claim needs the bridge to read it, and
 /// one carrying it that fails forgets that the bridge does (`unlearn_ready`).
-async fn send_claim<F, Sent>(
+/// Every claim says this helper reads watchers to a bridge that serves
+/// watching (`watch::claims_watch`).
+pub(super) async fn send_claim<F, Sent>(
     shared: &Arc<Shared>,
     bridge: &Approved,
     match_id: &str,
@@ -238,8 +266,10 @@ where
     Sent: std::future::Future<Output = Result<Value, Failure>>,
 {
     let says_ready = ready && reads_ready(shared, bridge, match_id).await?;
+    let says_watch = claims_watch(shared, bridge, match_id).await?;
     let claim = Claim {
         ready: says_ready.then_some(true),
+        watch: says_watch.then_some(true),
         ..claim
     };
     let command = serde_json::to_value(&claim).map_err(|_| Failure::new("internal"))?;
@@ -247,10 +277,13 @@ where
     if sent.is_err() && says_ready {
         unlearn_ready(shared, match_id)?;
     }
+    if sent.is_err() && says_watch {
+        unlearn_watch(shared, bridge)?;
+    }
     sent
 }
 
-fn play_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>, Failure> {
+pub(super) fn play_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>, Failure> {
     shared.play.lock().map_err(|_| Failure::new("internal"))
 }
 
@@ -544,6 +577,7 @@ pub fn forget(shared: &Shared, match_id: &str) -> Outcome {
     state.bindings.remove(match_id);
     state.permits.retain(|(id, _), _| id != match_id);
     state.reads_ready.remove(match_id);
+    state.plain_claims.remove(match_id);
     Ok(None)
 }
 
@@ -554,7 +588,7 @@ fn random() -> Result<[u8; 16], Failure> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use crate::tournament::{Request, builtin::Builtin};
 
@@ -594,8 +628,9 @@ mod tests {
     }
 
     /// A bridge origin on loopback whose `/v1/capabilities` answers as
-    /// `mode` says: 0 fails, 1 lists no `ready`, 2 lists it.
-    async fn capabilities_server(
+    /// `mode` says: 0 fails, 1 lists neither `ready` nor watching, 2 lists
+    /// both. It answers every path so, and counts each request.
+    pub(in crate::tournament) async fn capabilities_server(
         mode: Arc<std::sync::atomic::AtomicU8>,
     ) -> (String, Arc<std::sync::atomic::AtomicUsize>) {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -619,7 +654,11 @@ mod tests {
                 counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 let features: &[&str] = match mode.load(std::sync::atomic::Ordering::SeqCst) {
                     1 => &["matches.play"],
-                    2 => &["matches.play", CLAIM_READY_FEATURE],
+                    2 => &[
+                        "matches.play",
+                        CLAIM_READY_FEATURE,
+                        ember_protocol::play::WATCH_FEATURE,
+                    ],
                     _ => {
                         let _ = socket
                             .write_all(b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
@@ -643,7 +682,7 @@ mod tests {
         shared_pinning(dir, &[])
     }
 
-    fn shared_pinning(dir: &std::path::Path, builtins: &[Builtin]) -> Arc<Shared> {
+    pub(in crate::tournament) fn shared_pinning(dir: &std::path::Path, builtins: &[Builtin]) -> Arc<Shared> {
         Arc::new(Shared {
             identity: std::sync::Mutex::new(crate::identity::Identity::open(
                 dir.join("identity"),
@@ -659,7 +698,7 @@ mod tests {
             play: std::sync::Mutex::new(State::default()),
             spool: super::super::spool::Spool::open(dir.join("reports")),
             endpoint_id: "a".repeat(64),
-            instance_id: "ins_test".into(),
+            instance_id: prefixed_id("ins", [1; 16]),
             home_region: Box::new(|| None),
         })
     }
@@ -706,7 +745,14 @@ mod tests {
             helper_instance_id: "ins_test".into(),
             build_id: "b1".into(),
             ready: None,
+            watch: None,
         };
+        // This test is about `ready` alone: the match's claims ask nothing
+        // about watching.
+        play_state(&shared)
+            .unwrap()
+            .plain_claims
+            .insert("emt_x".into());
         let sent = std::sync::Mutex::new(Vec::new());
         let send = |fails: bool| {
             let sent = &sent;
@@ -778,6 +824,48 @@ mod tests {
         let fetched = bridge_key(&shared, &bridge, "k5").await.unwrap_err();
         assert_eq!(fetched.0, "bridge_unreachable");
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // The game names each watcher in the room from the binding it applies.
+    #[test]
+    fn the_game_sees_the_watchers_its_binding_names() {
+        let id = |byte: u8| {
+            ember_protocol::SigningIdentity::from_seed(&zeroize::Zeroizing::new([byte; 32]))
+                .unwrap()
+                .ember_id()
+                .clone()
+        };
+        let fighter = |byte: u8| ember_protocol::play::BoundFighter {
+            ember_id: id(byte),
+            endpoint_id: format!("{byte:02x}").repeat(32),
+        };
+        let mut binding = Binding {
+            version: ember_protocol::play::VERSION,
+            bridge_id: prefixed_id("brg", [1; 16]),
+            match_id: prefixed_id("emt", [2; 16]),
+            assignment_generation: Counter(1),
+            binding_revision: Counter(3),
+            room_id: "0123456789abcdef0123456789abcdef".into(),
+            build_id: "b1".into(),
+            games_to_win: 2,
+            rules_digest: String::new(),
+            roster_digest: String::new(),
+            fighters: [fighter(1), fighter(2)],
+            issued_at: 100,
+            starting_wins: [0, 0],
+            watchers: Vec::new(),
+        };
+        assert_eq!(binding_view(&binding, Some(0))["watchers"], json!([]));
+        binding.watchers = vec![ember_protocol::play::BoundWatcher {
+            ember_id: id(3),
+            endpoint_id: "03".repeat(32),
+        }];
+        let view = binding_view(&binding, Some(1));
+        assert_eq!(
+            view["watchers"],
+            json!([{ "ember_id": id(3).to_string(), "endpoint_id": "03".repeat(32) }])
+        );
+        assert_eq!(view["local_slot"], json!(1));
     }
 
     #[test]

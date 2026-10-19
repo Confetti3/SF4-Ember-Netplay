@@ -137,6 +137,7 @@ fn native_json_depth_ok(text: &[u8]) -> bool {
     true
 }
 
+mod bound;
 mod checkpoints;
 mod controls;
 mod departure;
@@ -156,6 +157,7 @@ mod stall;
 #[cfg(test)]
 mod tests;
 
+use bound::{BoundRoster, CommittedRoom};
 use entry::TaskScope;
 pub use entry::{run, run_on_port};
 use events::EventOutbox;
@@ -546,15 +548,13 @@ fn status(request_id: u64, endpoint: &Endpoint, epoch: u64, peers: usize, games:
 /// Extract the primary Iroh identities from the committed native
 /// `SessionProposal` envelope. The C++ side binds these values from its
 /// authenticated room-member map; Rust only uses a complete, validated list
-/// to reconcile Raft membership after commit.
-fn committed_primary_endpoints(bytes: &[u8]) -> Option<BTreeSet<EndpointId>> {
-    primary_endpoints(bytes, false)
-}
-
-/// `committed_primary_endpoints`, with an empty roster accepted when
-/// `allow_empty`: a server-owned room can stand with no member in it.
-fn primary_endpoints(bytes: &[u8], allow_empty: bool) -> Option<BTreeSet<EndpointId>> {
-    let envelope: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+/// to reconcile Raft membership after commit. An empty roster is accepted
+/// only when `allow_empty`: a server-owned room can stand with no member in
+/// it.
+fn primary_endpoints(
+    envelope: &serde_json::Value,
+    allow_empty: bool,
+) -> Option<BTreeSet<EndpointId>> {
     let members = envelope.get("checkpoint")?.get("members")?.as_array()?;
     // A recovery checkpoint may retain started spectator tombstones in
     // addition to the sixteen active room members. Bound the total separately
@@ -727,13 +727,13 @@ struct Actor {
     public: Option<crate::public_room::PublicRoom>,
     /// Exact UDP port for this process's coordination endpoint when hosting.
     coordination_port: Option<u16>,
-    /// The roster the committed checkpoint named the last time a
+    /// The roster and binding the committed checkpoint named the last time a
     /// coordination refresh parsed one, with the room and the commit it came
     /// from, so a refresh of the same commit parses nothing.
     refresh_roster: Option<(
         [u8; 16],
         Arc<crate::coordination::Committed>,
-        Option<BTreeSet<EndpointId>>,
+        Option<CommittedRoom>,
     )>,
     /// Signalled when work arrives that no other arm of the actor's loop
     /// sees: a control's reader queued a frame, or the room's Raft store
@@ -988,6 +988,7 @@ impl Actor {
                 epoch,
                 invitation,
                 build,
+                observer,
             } => {
                 // Consume an accepted room epoch before parsing the invitation.
                 // Rejection then belongs to the caller's attempt and Leave can
@@ -997,11 +998,19 @@ impl Actor {
                     return Ok(true);
                 }
                 // A short link is looked up first; the full invitation it
-                // stands for then takes the same path as a pasted one.
-                if let Some(code) = crate::short_invite::parse(&invitation) {
-                    self.join_short(id, epoch, code, build)?;
-                } else {
-                    self.join_invitation(id, &invitation, build, None)?;
+                // stands for then takes the same path as a pasted one. A
+                // watcher always has the full invitation from its bridge.
+                match crate::short_invite::parse(&invitation) {
+                    Some(_) if observer => {
+                        self.clear_room();
+                        self.error_because(
+                            id,
+                            "invalid_or_incompatible_invitation",
+                            Some("malformed"),
+                        )?;
+                    }
+                    Some(code) => self.join_short(id, epoch, code, build)?,
+                    None => self.join_invitation_as(id, &invitation, build, None, observer)?,
                 }
             }
             Command::ShortInvite { epoch } => self.short_invite_command(epoch)?,
@@ -1247,6 +1256,18 @@ impl Actor {
         build: String,
         short_code: Option<&str>,
     ) -> io::Result<()> {
+        self.join_invitation_as(id, invitation, build, short_code, false)
+    }
+
+    /// `join_invitation`, as a watcher of a tournament match when `observer`.
+    fn join_invitation_as(
+        &mut self,
+        id: u64,
+        invitation: &str,
+        build: String,
+        short_code: Option<&str>,
+        observer: bool,
+    ) -> io::Result<()> {
         let epoch = self.epoch;
         let time = now().ok();
         let invite = time.and_then(|time| Invite::parse_for_build(invitation, time, &build).ok());
@@ -1289,7 +1310,7 @@ impl Actor {
             let (result, latency) = latency::beside(latency, async {
                 match &ticket {
                     Some(ticket) => crate::public_room::connect_public(&endpoint, &invite, ticket).await,
-                    None => transport::connect_control(&endpoint, &invite).await,
+                    None => transport::connect_control_as(&endpoint, &invite, observer).await,
                 }
             })
             .await;

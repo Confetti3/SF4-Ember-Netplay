@@ -197,6 +197,12 @@ impl Actor {
         let pending = self.pending_retired_incarnations.clone();
         let admissions = self.admissions.values().cloned().collect::<Vec<_>>();
         let reachable = self.controls.keys().copied().collect::<BTreeSet<_>>();
+        // Go straight to the stable count for the retained roster. Shrinking
+        // to two members through a commit of two voters first would leave a
+        // window in which the other one dropping freezes the room. Only the
+        // members that may vote count, so a bound room keeps one voter: its
+        // leader, who comes first in every set below.
+        let desired = crate::recovery::stable_voter_count(self.voter_policy().voting(&retained));
         // A server-owned room's voter is its host, so no voter is ever restored.
         let restore = !self.server_owned();
         self.pending_membership_operation = Some(key.clone());
@@ -235,11 +241,6 @@ impl Actor {
                                         })
                             })
                             .collect::<BTreeSet<_>>();
-                        // Go straight to the stable count for the retained
-                        // roster. Shrinking to two members through a commit of
-                        // two voters first would leave a window in which the
-                        // other one dropping freezes the room.
-                        let desired = crate::recovery::stable_voter_count(retained.len());
                         let replacement = std::iter::once(recovery.incarnation)
                             .filter(|id| answering.contains(id))
                             .chain(
@@ -271,10 +272,14 @@ impl Actor {
                     // Only members the coordination group does not hold yet are
                     // added. Adding a learner waits for it to catch up, so
                     // repeating it for one that has gone away would hold this
-                    // operation until its timeout.
+                    // operation until its timeout. A fenced member is never
+                    // added back: a bound room fences members the native
+                    // roster still lists, and a retry after a stale completion
+                    // finds them already removed.
                     let members_before = recovery.applied_member_ids().await;
                     for admission in admissions.iter().filter(|admission| {
                         retained.contains(&admission.primary_endpoint)
+                            && !pending.contains(&admission.incarnation)
                             && !voters_after.contains(&admission.incarnation)
                             && !members_before.contains(&admission.incarnation)
                     }) {
@@ -295,6 +300,7 @@ impl Actor {
                             &admissions,
                             &pending,
                             revision,
+                            desired,
                         )
                         .await?;
                     }
@@ -405,11 +411,15 @@ impl Actor {
                 candidates.push(admission.incarnation);
             }
         }
+        // Only members that may vote count toward the room's voters, so a
+        // bound room's watchers never raise it past its single voter.
+        let policy = self.voter_policy();
         let desired = self.desired_voters(
             self.admissions
-                .keys()
-                .copied()
-                .chain(admissions.iter().map(|admission| admission.incarnation))
+                .values()
+                .chain(admissions.iter())
+                .filter(|admission| policy.allows(&admission.primary_endpoint))
+                .map(|admission| admission.incarnation)
                 .collect::<BTreeSet<_>>()
                 .len(),
         );
@@ -501,7 +511,11 @@ impl Actor {
             && committed_revision == key.revision;
         if current && let Ok(result) = result {
             let (_, history) = recovery.applied_membership_provenance().await;
-            self.apply_confirmed_retirements(result.confirmed_retirements, &history);
+            let confirmed = result.confirmed_retirements;
+            self.apply_confirmed_retirements(confirmed.clone(), &history);
+            // Only now, with the old quorum no longer needing it, does a
+            // bound room close what it retired.
+            self.close_retired_strangers(&confirmed)?;
         }
         // Stale completions leave the pre-write retirement fences in
         // place. The next exact committed-roster refresh retries the
@@ -590,7 +604,8 @@ impl Actor {
 /// two members would otherwise keep two voters and freeze when either one
 /// drops. `retained` is the committed roster at `revision`; a newer commit may
 /// have removed a candidate, so the change is skipped then and the next
-/// refresh retries from the newer roster.
+/// refresh retries from the newer roster. `desired` is the stable count for
+/// the members of `retained` that may vote.
 async fn restore_stable_voters(
     recovery: &crate::recovery::RecoverySession,
     retained: &BTreeSet<EndpointId>,
@@ -598,8 +613,8 @@ async fn restore_stable_voters(
     admissions: &[Admission],
     pending: &BTreeSet<u64>,
     revision: u64,
+    desired: usize,
 ) -> io::Result<()> {
-    let desired = crate::recovery::stable_voter_count(retained.len());
     let current = recovery.applied_voter_ids().await;
     if current.len() > desired {
         // The leader keeps its vote, then the voters that still answer. The

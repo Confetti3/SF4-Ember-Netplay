@@ -15,6 +15,8 @@ impl Actor {
             let peer = connection.remote_id();
             if connection.alpn() == CONTROL_ALPN && self.server_owned() {
                 self.accept_public_incoming(epoch, connection);
+            } else if connection.alpn() == CONTROL_ALPN && !self.admits_control(&peer) {
+                connection.close(1u32.into(), b"not admitted");
             } else if connection.alpn() == CONTROL_ALPN {
                 if let Some(invite) = self
                     .room_invite
@@ -26,12 +28,16 @@ impl Actor {
                 {
                     let member = self.control_rejoin_member(peer);
                     let recovery = self.recovery.clone();
+                    // Only a bound room has watchers to take.
+                    let observers = self.bound_roster().is_some();
                     self.tasks.spawn(async move {
                         if let (Some(incarnation), Some(recovery)) = (member, recovery) {
                             let result =
                                 if recovery.applied_member_ids().await.contains(&incarnation) {
-                                    transport::accept_control_member(connection, &invite, peer)
-                                        .await
+                                    transport::accept_control_member(
+                                        connection, &invite, peer, observers,
+                                    )
+                                    .await
                                 } else {
                                     connection.close(1u32.into(), b"member retired");
                                     Err(failed("member retired"))
@@ -40,7 +46,7 @@ impl Actor {
                         } else {
                             Completion::Control(
                                 epoch,
-                                transport::accept_control(connection, &invite).await,
+                                transport::accept_control_in(connection, &invite, observers).await,
                             )
                         }
                     });
