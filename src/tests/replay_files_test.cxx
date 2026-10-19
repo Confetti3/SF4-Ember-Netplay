@@ -197,17 +197,18 @@ static void TestBodyBoundProvenance() {
  Bytes corrupt = note; corrupt[20] = 2;
  CHECK(!files::NamesForBody(corrupt, body, read));
  CHECK(!files::NamesForBody({}, body, read)); // old time-only notes have no identity
- CHECK(read.matchId.empty() && read.revision == 0);
- // A set's game keeps its match and room revision.
- names.matchId = "emt_set"; names.revision = (std::uint64_t{1} << 32) + 3;
- CHECK(files::NamesForBody(files::BindNames(body, names), body, read) && read.matchId == "emt_set" && read.revision == names.revision);
- names.matchId.assign(files::kMostMatchId + 1, 'x'); CHECK(files::BindNames(body, names).empty());
+ CHECK(!read.set.Tagged() && read.set.revision == 0);
+ // A set's game keeps its bridge, match and room revision.
+ names.set = {"brg_bridge", "emt_set", (std::uint64_t{1} << 32) + 3};
+ CHECK(files::NamesForBody(files::BindNames(body, names), body, read) && read.set.bridgeId == "brg_bridge" &&
+  read.set.matchId == "emt_set" && read.set.revision == names.set.revision && read.players[1] == "Bob");
+ names.set.bridgeId.assign(files::kMostId + 1, 'x'); CHECK(files::BindNames(body, names).empty());
  // A version 1 note, written before sets were tagged, still reads.
  Bytes v1{'E','M','B','R','N','A','M','1'}; v1.resize(20);
  WriteU32(v1.data()+8, static_cast<std::uint32_t>(body.size())); WriteU32(v1.data()+12, 3); WriteU32(v1.data()+16, 3);
  v1.push_back(1); v1.insert(v1.end(), body.begin(), body.end());
  for (char c : std::string("AnnBob")) v1.push_back(static_cast<std::uint8_t>(c));
- CHECK(files::NamesForBody(v1, body, read) && read.players[0] == "Ann" && read.players[1] == "Bob" && read.spectated && read.matchId.empty() && read.revision == 0);
+ CHECK(files::NamesForBody(v1, body, read) && read.players[0] == "Ann" && read.players[1] == "Bob" && read.spectated && !read.set.Tagged() && read.set.revision == 0);
  v1[7] = '3'; CHECK(!files::NamesForBody(v1, body, read));
 }
 static void TestNamesPublicationRefusesExistingTargets() {

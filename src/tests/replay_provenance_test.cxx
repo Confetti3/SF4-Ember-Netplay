@@ -242,14 +242,14 @@ static void TestOnlyConfirmedGamesKeepTheirSet() {
  const auto before = std::make_shared<const RecordingSnapshot>(Slots(Saved(1)));
  std::vector<ReplayNames> notes;
  const auto publish = [&](const std::filesystem::path&, const Bytes&, const ReplayNames& note) { notes.push_back(note); return NamePublication::Published; };
- auto game = Start(10, "Cut"); game.names.matchId = "emt_set"; game.names.revision = 2;
+ auto game = Start(10, "Cut"); game.names.set = {"brg_bridge", "emt_set", 2};
  owner.Begin(game, before); owner.End(20, false);
  owner.ObserveSave(Slots(Saved(20))); owner.PublishIdentified(publish);
- game = Start(30, "Played"); game.names.matchId = "emt_set"; game.names.revision = 3;
+ game = Start(30, "Played"); game.names.set = {"brg_bridge", "emt_set", 3};
  owner.Begin(game, std::make_shared<const RecordingSnapshot>(Slots(Saved(20)))); owner.End(40, true);
  owner.ObserveSave(Slots(Saved(40))); owner.PublishIdentified(publish);
- CHECK(notes.size() == 2 && notes[0].players[0] == "Cut" && notes[0].matchId.empty() && notes[0].revision == 0);
- CHECK(notes[1].matchId == "emt_set" && notes[1].revision == 3);
+ CHECK(notes.size() == 2 && notes[0].players[0] == "Cut" && !notes[0].set.Tagged() && notes[0].set.revision == 0);
+ CHECK(notes[1].set.bridgeId == "brg_bridge" && notes[1].set.matchId == "emt_set" && notes[1].set.revision == 3);
 }
 int main() {
  TestOnlyConfirmedGamesKeepTheirSet();

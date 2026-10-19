@@ -52,7 +52,7 @@ public:
   previousEnd_ = time;
   if (!open_.before) return;
   open_.ended = time;
-  if (!confirmed) { open_.start.names.matchId.clear(); open_.start.names.revision = 0; }
+  if (!confirmed) open_.start.names.set = {};
   if (pending_.size() == kPendingLimit) { LogDrop("waiting save evicted at recording limit"); pending_.pop_front(); }
   pending_.push_back(std::move(open_)); open_ = {};
  }

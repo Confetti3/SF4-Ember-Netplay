@@ -257,11 +257,16 @@ static RuntimeGgpoStart StartRuntimeGgpo() {
         auto* const root = App::GetRootEvent();
         auto* const progress = root ? *RootEvent::GetProgressData(root) : nullptr;
         const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0;
-        // A fighter's game at a tournament table is a game of the bound set.
-        const bool setGame = !netplay->spectating && table && table->id == sf4e::room::TournamentTable && room.tournament.Active();
+        // A fighter's game at a tournament table is a game of the bound set,
+        // on the bridge this PC plays it through.
+        sf4e::replayfiles::SetTag set;
+        const auto published = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
+        if (!netplay->spectating && table && table->id == sf4e::room::TournamentTable && room.tournament.Active() &&
+            published->tournament.matchId == room.tournament.matchId)
+            set = {published->tournament.bridgeId, room.tournament.matchId, room.tournament.bindingRevision};
         sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name, netplay->spectating,
             netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID,
-            recordingEnabled, setGame ? room.tournament.matchId : std::string(), setGame ? room.tournament.bindingRevision : 0);
+            recordingEnabled, set);
     }
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
     sf4e::NetplayFacade::ResetGgpoBattleWatch();

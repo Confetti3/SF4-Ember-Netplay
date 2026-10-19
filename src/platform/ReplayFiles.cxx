@@ -58,7 +58,7 @@ slots::Bytes LoadFile(const fs::path& path, std::size_t most = replayfiles::kMos
 void ReadNames(const fs::path& archive, const slots::Bytes& body, ArchivedReplay& replay) {
  const auto names = replayfiles::ReadBodyNames(archive, body);
  replay.names[0] = names.players[0]; replay.names[1] = names.players[1]; replay.spectated = names.spectated;
- replay.matchId = names.matchId; replay.revision = names.revision;
+ replay.set = names.set;
 }
 std::atomic<replayfiles::RecordingWorker*> provenanceWorker{nullptr};
 std::atomic<replayfiles::ArchiveWorker*> archiveWorker{nullptr};
@@ -450,15 +450,15 @@ replayfiles::ArchiveWorker& Archiver() {
 }
 
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
- const std::string& matchId, std::uint64_t revision) {
+ const replayfiles::SetTag& set) {
  try { Archiver().Want(); } catch (...) {}
  try {
-  if (p1.size() > 1024 || p2.size() > 1024 || matchId.size() > replayfiles::kMostMatchId) { Provenance().Invalidate(); return; }
+  if (p1.size() > 1024 || p2.size() > 1024 || set.matchId.size() > replayfiles::kMostId || set.bridgeId.size() > replayfiles::kMostId) { Provenance().Invalidate(); return; }
   replayfiles::RecordingBoundary event;
   event.kind = replayfiles::RecordingBoundary::Kind::Start;
   event.time = static_cast<std::uint64_t>(_time64(nullptr));
   event.recordingEnabled = recordingEnabled;
-  event.names = {{p1, p2}, spectating, matchId, revision}; event.fighters[0] = fighter1; event.fighters[1] = fighter2;
+  event.names = {{p1, p2}, spectating, set}; event.fighters[0] = fighter1; event.fighters[1] = fighter2;
   Provenance().Post(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }

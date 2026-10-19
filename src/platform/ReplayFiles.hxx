@@ -17,6 +17,7 @@
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplaySlots.hxx"
 #include "../common/ReplayFileSafety.hxx"
+#include "../common/ReplayProvenance.hxx"
 
 namespace sf4e { namespace platform { namespace replays {
 
@@ -106,11 +107,11 @@ ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write
 // join is performed. Native metadata has no verified Ember player/session ID,
 // so initial attribution uses account, slot change, fighters and native save
 // time within this match's lifetime. Body-bound notes thereafter are exact.
-// A tournament game passes its set's matchId and room revision; the names
-// keep them only when NoteMatchEnd says its result was confirmed.
+// A tournament game passes its set (SetTag); the names keep it only when
+// NoteMatchEnd says its result was confirmed.
 // Both also ask for an archive pass (Archive).
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
-	const std::string& matchId = {}, std::uint64_t revision = 0);
+	const replayfiles::SetTag& set = {});
 void NoteMatchEnd(bool confirmed);
 
 // Remembers that an archived replay was played with Watch now (watched.txt in
@@ -129,9 +130,8 @@ struct ArchivedReplay {
 	int fighters[2] = {-1, -1};
 	std::string names[2];
 	bool spectated = false, watched = false;
-	// The tournament set it was a game of (ReplayNames), or empty.
-	std::string matchId;
-	std::uint64_t revision = 0;
+	// The tournament set it was a game of, or none.
+	replayfiles::SetTag set;
 	// An exported video (<name>.mp4) is beside it.
 	bool video = false;
 	// What the replay itself says of the match (common/ReplayInputs.hxx);
