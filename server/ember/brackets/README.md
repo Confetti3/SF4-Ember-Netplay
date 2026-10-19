@@ -119,27 +119,28 @@ On start.gg:
 - How long sets are, by round, as for Challonge.
 
 Players are found by the start.gg account they connected in Ember, or else
-by the Discord account linked to their start.gg profile, if start.gg shows it
-to the organizer's token. Each set is reported with its winner and every
-game's winner in the order played, after reading the set again: a set that
-already has a result is never written over. start.gg replaces every game
-entered when a set is reported, so games the organizer already entered are
-kept only when nothing would be lost: a game that gives only its winner,
-the same as Ember's, is sent again with the rest. A game with another
-winner, with no winner, or with anything more (a score above 0, a
-stage or characters) leaves the set to the organizer; a score of 0 or none,
-and a stage or characters without an ID, count as empty, since start.gg may
-fill them for a game entered with only its winner. A set that reads pending
-at that moment is not reported, and the next read decides what becomes of it. A score
-counts as sent only when start.gg's answer shows the set decided for its
-winner, or, when the answer shows nothing, a fresh read of the set does;
-otherwise it waits and is sent again. Challonge's answer to a score is
-checked the same way. Requests wait their turn under
-start.gg's limit of 80 a minute (the connector keeps to 70), shared by every
-tournament using the same token. Sets of a phase that has not started (start.gg
-"preview" sets) and sets with a bye are never played. The entrants are read
-again every 15 minutes, so a Discord account a player links on start.gg
-after the first read is found within that.
+by the Discord account linked to their start.gg profile, if start.gg shows
+it to the organizer's token. Each set is reported with its winner and
+every game's winner in the order played, after reading the set again: a
+set that already has a result is never written over. start.gg replaces
+every game entered when a set is reported, so games the organizer already
+entered are kept only when nothing would be lost: a game that gives only
+its winner, the same as Ember's, is sent again with the rest. A game with
+another winner, with no winner, or with anything more (a score other than
+0, such as a DQ's -1, a stage or characters) leaves the set to the
+organizer; a score of 0 or none, and a stage or characters without an ID,
+count as empty, since start.gg may fill them for a game entered with only
+its winner. A set that reads pending at that moment is not reported, and
+the next read decides what becomes of it. A score counts as sent only when
+start.gg's answer shows the set decided for its winner, or, when the
+answer shows nothing, a fresh read of the set does; otherwise it waits and
+is sent again. Challonge's answer to a score is checked the same way.
+Requests wait their turn under start.gg's limit of 80 a minute (the
+connector keeps to 70), shared by every tournament using the same token.
+Sets of a phase that has not started (start.gg "preview" sets) and sets
+with a bye are never played. The entrants are read again every 15 minutes,
+so a Discord account a player links on start.gg after the first read is
+found within that.
 
 A token start.gg refuses (an HTTP 400 or 401) is waited out like any other
 failure, until the organizer fixes it; no set is given up for it. A score

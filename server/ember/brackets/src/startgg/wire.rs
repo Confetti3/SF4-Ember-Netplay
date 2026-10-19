@@ -209,14 +209,15 @@ pub(super) struct WireGame {
 }
 
 impl WireGame {
-    /// Whether the game holds anything but its winner: a score above zero, a
-    /// stage, or characters. Zero and null scores are empty, since start.gg
-    /// may give them for a game entered with only a winner (STARTGG_API.md,
-    /// section 8, item 20).
+    /// Whether the game holds anything but its winner: a score other than
+    /// zero, a stage, or characters. Zero and null scores are empty, since
+    /// start.gg may give them for a game entered with only a winner
+    /// (STARTGG_API.md, section 8, item 20). A negative score is kept: start.gg
+    /// records a DQ as -1.
     fn has_details(&self) -> bool {
         let score = |value: &Option<Value>| match value {
             None | Some(Value::Null) => false,
-            Some(Value::Number(number)) => number.as_f64().is_none_or(|score| score > 0.0),
+            Some(Value::Number(number)) => number.as_f64().is_none_or(|score| score != 0.0),
             Some(_) => true,
         };
         let stage = self.stage.as_ref().is_some_and(has_id);
@@ -568,7 +569,7 @@ mod tests {
     }
 
     #[test]
-    fn a_game_holds_more_than_its_winner_only_with_a_score_above_zero_a_stage_or_characters() {
+    fn a_game_holds_more_than_its_winner_only_with_a_nonzero_score_a_stage_or_characters() {
         let game = |extra: Value| {
             let mut game = json!({ "orderNum": 1, "winnerId": 2 });
             for (key, value) in extra.as_object().unwrap() {
@@ -592,6 +593,7 @@ mod tests {
         for filled in [
             json!({ "entrant1Score": 1 }),
             json!({ "entrant2Score": 3 }),
+            json!({ "entrant1Score": -1, "entrant2Score": 0 }),
             json!({ "stage": { "id": 4 } }),
             json!({ "selections": [{ "id": 9 }] }),
         ] {
