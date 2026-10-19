@@ -10,7 +10,7 @@
 // closes itself at the end. Without the variable nothing here runs.
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training, RoomHost, RoomGuest };
+enum class Test { None, Training, RoomHost, RoomGuest, Replay };
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.
@@ -18,6 +18,7 @@ inline Test Parse(const std::wstring& name) {
 	if (name == L"training") return Test::Training;
 	if (name == L"room-host") return Test::RoomHost;
 	if (name == L"room-guest") return Test::RoomGuest;
+	if (name == L"replay") return Test::Replay;
 	return Test::None;
 }
 
@@ -72,6 +73,12 @@ void TickTraining();
 // The room test (sf4e__SelfTest__Room.cxx), both of its sides.
 bool StartRoom();
 void TickRoom();
+
+// The replay test (sf4e__SelfTest__Replay.cxx). It starts once the main menu
+// is in front and ReplayReady, the game's replay table is.
+bool ReplayReady();
+bool StartReplay();
+void TickReplay(bool atMainMenu);
 
 // The cells the meter draws for one side, by kind.
 struct Cells { int startup = 0, active = 0, recovery = 0; };

@@ -65,7 +65,10 @@ struct RemoteStorage {
 };
 RemoteStorage* Storage() { return static_cast<RemoteStorage*>(sf4e::steam::RemoteStorage()); }
 
+int s_failWriteAfter = -1;
+
 bool WriteThroughSteam(const std::string& name, const sf4e::replayslots::Bytes& contents) {
+	if (s_failWriteAfter >= 0 && s_failWriteAfter-- == 0) { spdlog::warn("Replay: the write of {} fails for the self-test", name); return false; }
 	RemoteStorage* const storage = Storage();
 	if (!storage) { spdlog::warn("Replay: Steam's remote storage is not available"); return false; }
 	bool (RemoteStorage::* fileWrite)(const char*, const void*, std::int32_t);
@@ -260,6 +263,8 @@ void sf4e::replaystore::Install() {
  void (SaveController::* start)(int) = &SaveController::Start;
  DetourAttach(reinterpret_cast<PVOID*>(&SaveDataController::publicMethods.Start), *reinterpret_cast<PVOID*>(&start));
 }
+
+void sf4e::replaystore::FailWriteForTest(int after) { s_failWriteAfter = after; }
 
 bool sf4e::replaystore::Ready() { return s_entries != nullptr && sf4e::Game::Battle::MatchReplayListWidened(); }
 

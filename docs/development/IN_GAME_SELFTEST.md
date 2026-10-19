@@ -77,6 +77,25 @@ to go live. The host then ends the game and both leave the room. Hosting,
 the names the two sides take and the controller a room needs write Ember's
 settings, so the script copies them first and puts them back after the run.
 
+## The replay test
+
+`-Test replay` needs at least one Ember replay in the archive. From the main
+menu, once the game's replay table is ready, it takes the archive's smallest
+replay and sends the requests the Replays screen sends:
+
+- an import whose third write fails (`replaystore::FailWriteForTest`): the
+  import has to say the game's replays are as they were, and every save file
+  an import may touch has to be;
+- the same import again: exactly one match slot changes, it holds the replay
+  and its checksum file is there, and the replay is not marked watched;
+- Watch: the battle log plays it, the test leaves it after half a minute, and
+  the main menu comes back to Ember. Watching imports it into one more slot
+  and marks it watched once.
+
+Unlike the training test it writes into the signed-in account's replay slots,
+as an import does: the replay a slot held is in the archive first, as always,
+and the saves were copied before the run.
+
 ## The title screen
 
 The title screen learns from its Start which device, and so which profile,

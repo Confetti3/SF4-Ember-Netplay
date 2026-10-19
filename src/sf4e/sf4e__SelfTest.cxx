@@ -52,13 +52,15 @@ bool StartTest() {
 	switch (Requested()) {
 	case Test::Training: return StartTraining();
 	case Test::RoomHost: case Test::RoomGuest: return StartRoom();
+	case Test::Replay: return StartReplay();
 	default: return false;
 	}
 }
-void TickTest() {
+void TickTest(bool atMainMenu) {
 	switch (Requested()) {
 	case Test::Training: TickTraining(); break;
 	case Test::RoomHost: case Test::RoomGuest: TickRoom(); break;
+	case Test::Replay: TickReplay(atMainMenu); break;
 	default: break;
 	}
 }
@@ -112,14 +114,14 @@ void Tick(bool atMainMenu, const std::string& screen) {
 		// profile, plays, so a real key is sent from outside
 		// (scripts/run-selftest.ps1); nothing here answers the title screen.
 		WatchScreen(screen);
-		if (atMainMenu) {
+		if (atMainMenu && (Requested() != Test::Replay || ReplayReady())) {
 			Say(true, "main menu");
 			if (StartTest()) run.Enter(Stage::Testing); else Finish();
 		}
-		else if (run.Late(180)) { Say(false, "main menu", "never reached"); Finish(); }
+		else if (run.Late(180)) { Say(false, "main menu", atMainMenu ? "the game's replay table was never ready: the game may have found no save" : "never reached"); Finish(); }
 		break;
 	case Stage::Testing:
-		TickTest();
+		TickTest(atMainMenu);
 		break;
 	case Stage::Closing:
 		// A game that does not close on being asked is ended. It ends with 0,
