@@ -6,6 +6,7 @@
 <meta name="color-scheme" content="dark">
 <title>Ember tournament desk</title>
 <link rel="stylesheet" href="/desk/desk.css">
+<script src="/desk/sets.js" defer></script>
 <script src="/desk/desk.js" defer></script>
 </head>
 <body>
@@ -101,7 +102,9 @@
       <section data-step="6" hidden>
         <h1 class="wd-h">Live</h1>
         <div class="wd-kpis" id="live"></div>
-        <p class="note">The sets queue and bracket follow in the next desk update; Ember already creates, calls and scores the sets of a running event.</p>
+        <div class="chips" id="live-tabs" role="tablist"></div>
+        <div id="live-body"></div>
+        <div class="wd-card" id="live-settings"></div>
         <button type="button" class="wd-btn danger" id="stop">Stop this tournament</button>
       </section>
 
@@ -117,5 +120,6 @@
     </aside>
   </div>
 </div>
+<dialog class="decide" id="decide" aria-label="Games of the set"></dialog>
 </body>
 </html>

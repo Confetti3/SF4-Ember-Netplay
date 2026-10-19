@@ -121,6 +121,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/desk/brackets", get(organizer::brackets))
         .route("/desk", get(desk_pages::page))
         .route("/desk/{file}", get(desk_pages::file))
+        .route("/t/{id}", get(desk_pages::public))
         .route("/v1/events", get(events::list))
         .route("/v1/desk/events/{id}/sets", put(organizer::put_sets))
         .route("/v1/organizer/events/{id}/sets", get(organizer::sets))

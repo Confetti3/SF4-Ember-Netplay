@@ -1,7 +1,8 @@
 // The web desk (docs/design/TOURNAMENT_DESK.md, 4a): an organizer signed in
 // with a linked site account sets up a tournament, step by step, through the
 // bridge's /web and /v1/organizer routes. Every change carries the session's
-// CSRF token. Nothing from the bridge is ever written as HTML.
+// CSRF token. Nothing from the bridge is ever written as HTML. Set cards and
+// the bracket come from sets.js, loaded before this file.
 "use strict";
 
 const STEPS = ["Accounts", "Tournament", "Bracket service", "Links", "Discord post", "Live"];
@@ -10,20 +11,6 @@ const NEXT = ["Continue", "Save", "Save", "Save links", "Mark ready", "Your tour
 
 const desk = { session: null, accounts: [], events: [], event: null, step: 1, picks: {} };
 const $ = (id) => document.getElementById(id);
-
-/** An element with attributes and children (strings become text). */
-function el(tag, attrs = {}, ...children) {
-  const node = document.createElement(tag);
-  for (const [name, value] of Object.entries(attrs)) {
-    if (value === false || value == null) continue;
-    if (name.startsWith("on")) node.addEventListener(name.slice(2), value);
-    else node.setAttribute(name, value === true ? "" : value);
-  }
-  for (const child of children.flat()) {
-    if (child != null && child !== false) node.append(child);
-  }
-  return node;
-}
 
 async function api(method, path, body) {
   const init = { method, credentials: "same-origin", headers: {} };
@@ -64,7 +51,9 @@ function discordPost(event, siteName) {
     : siteName ? "🎮 " + siteName : "";
   const when = event.starts_at ? "📅 <t:" + event.starts_at + ":F> (<t:" + event.starts_at + ":R>)" : "";
   const links = (event.links || []).map((link) => (LINK_ICONS[link.label.toLowerCase()] || "🔗") + " " + link.label + ": " + link.url);
-  return ["**" + event.title + "** — USF4 on Ember", when, ft, ...links, "Play on Ember: https://embernetplay.link"]
+  const page = event.public ? location.origin + "/t/" + event.id : "";
+  const follow = page ? (event.sign_ups ? "📝 Sign up and follow it live: " : "👀 Follow it live: ") + page : "";
+  return ["**" + event.title + "** — USF4 on Ember", when, ft, ...links, follow, "Play on Ember: https://embernetplay.link"]
     .filter(Boolean)
     .join("\n");
 }
@@ -130,6 +119,7 @@ async function refreshEvent() {
 // --- The steps.
 
 function go(step) {
+  clearInterval(view.timer);
   desk.step = Math.min(6, Math.max(1, step));
   toast("");
   for (const section of document.querySelectorAll("[data-step]")) section.hidden = Number(section.dataset.step) !== desk.step;
@@ -371,14 +361,164 @@ $("copy").addEventListener("click", async () => {
   toast("Copied. Paste it in Discord.", true);
 });
 
+// --- Live: the sets, the bracket and the event's settings, read again every
+// ten seconds while the step is open.
+
+const view = { tab: "Sets", filter: "All", phase: null, sets: [], timer: 0 };
+
 async function live() {
-  const event = desk.event;
+  clearInterval(view.timer);
+  liveSettings();
+  $("stop").textContent = desk.event.status === "draft" ? "Delete this draft" : "Stop this tournament";
+  if (desk.event.status !== "running") {
+    $("live").replaceChildren(el("div", { class: "wd-kpi" }, el("b", {}, desk.event.status), el("span", { class: "small" }, whenText(desk.event.starts_at))));
+    $("live-tabs").replaceChildren();
+    $("live-body").replaceChildren(el("p", { class: "note" }, "The sets show here once the tournament runs."));
+    return;
+  }
+  await readSets();
+  view.timer = setInterval(() => {
+    if (desk.step === 6 && !$("wizard").hidden && !document.hidden) readSets().catch(() => {});
+  }, 10000);
+}
+
+async function readSets() {
+  const read = await api("GET", "/v1/organizer/events/" + desk.event.id + "/sets");
+  view.sets = read.sets;
+  const count = tally(view.sets);
   $("live").replaceChildren(
-    el("div", { class: "wd-kpi" }, el("b", {}, event.status), el("span", { class: "small" }, "status")),
-    el("div", { class: "wd-kpi" }, el("b", {}, whenText(event.starts_at)), el("span", { class: "small" }, "start")),
-    el("div", { class: "wd-kpi" }, el("b", {}, siteName(event.site) || "—"), el("span", { class: "small" }, event.name || "no event yet")),
+    el("div", { class: "wd-kpi bad" }, el("b", {}, String(count.action)), el("span", { class: "small" }, "need you")),
+    el("div", { class: "wd-kpi live" }, el("b", {}, String(count.live)), el("span", { class: "small" }, "live")),
+    el("div", { class: "wd-kpi ok" }, el("b", {}, count.done + "/" + count.total), el("span", { class: "small" }, "done")),
   );
-  $("stop").textContent = event.status === "draft" ? "Delete this draft" : "Stop this tournament";
+  drawLive();
+}
+
+function drawLive() {
+  $("live-tabs").replaceChildren(...["Sets", "Bracket"].map((tab) =>
+    el("button", { type: "button", class: "chip", role: "tab", "aria-selected": String(view.tab === tab), onclick: () => { view.tab = tab; drawLive(); } }, tab)));
+  if (view.tab === "Bracket") {
+    const picked = { phase: view.phase, redraw: (phase) => { view.phase = phase; drawLive(); } };
+    $("live-body").replaceChildren(bracketView(view.sets, picked));
+    return;
+  }
+  const shown = view.sets.filter(FILTERS[view.filter]);
+  $("live-body").replaceChildren(
+    el("div", { class: "chips" }, Object.keys(FILTERS).map((name) =>
+      el("button", { type: "button", class: "chip", "aria-pressed": String(view.filter === name), onclick: () => { view.filter = name; drawLive(); } }, name))),
+    shown.length ? el("div", { class: "wd-grid" }, shown.map(liveCard)) : el("p", { class: "note" }, "No sets here."),
+  );
+}
+
+function liveCard(set) {
+  const actions = [];
+  const done = set.desk_state === "done";
+  if (!done) {
+    const held = set.desk_state === "held";
+    actions.push(el("button", { type: "button", class: "wd-btn", onclick: () => mark(set, { held: !held }, held ? "Let this set be played in Ember?" : "Hold this set? Ember stops creating its match.") }, held ? "Release" : "Hold"));
+    actions.push(el("button", { type: "button", class: "wd-btn", onclick: () => mark(set, { call: true }, "Call this set again on Discord?") }, "Call again"));
+  }
+  if (set.match_id) actions.push(el("button", { type: "button", class: "wd-btn" + (NEEDS_ACTION.includes(set.desk_state) ? " primary" : ""), onclick: () => decide(set) }, "Games"));
+  const card = setCard(set, ...actions);
+  if (set.called_at || set.call) {
+    const posted = set.call ? { delivered: "posted on Discord", pending: "posting to Discord", failed: "Discord refused it" }[set.call.posted] : "";
+    card.insertBefore(el("span", { class: "small" }, "Called " + whenText(set.called_at || set.call.at) + (posted ? ", " + posted : "")), card.lastChild);
+  }
+  return card;
+}
+
+async function mark(set, change, question) {
+  if (!window.confirm(question)) return;
+  try {
+    await api("POST", "/v1/organizer/events/" + desk.event.id + "/sets/" + encodeURIComponent(set.id), change);
+    await readSets();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+// --- Deciding a set's games: a played game waiting for a result gets a
+// winner, an accepted one can be voided, and a missing one added.
+
+const OUTCOMES = { p1_win: 0, p2_win: 1 };
+
+function decide(set) {
+  const box = $("decide");
+  const [p1, p2] = players(set);
+  const reason = el("input", { class: "wd-input", maxlength: 200, value: "Decided by the organizer", "aria-label": "Reason" });
+  const send = async (command, question) => {
+    if (!window.confirm(question)) return;
+    try {
+      await api("POST", "/v1/organizer/events/" + desk.event.id + "/matches/" + set.match_id + "/adjudications",
+        { ...command, reason: reason.value.trim() || "Decided by the organizer", expected_revision: set.revision });
+      box.close();
+      await readSets();
+    } catch (error) {
+      toast(error.message);
+      box.close();
+    }
+  };
+  const games = (set.games || []).map((game, index) => {
+    const label = "Game " + (index + 1);
+    if (game.state !== "accepted") {
+      return el("div", { class: "wd-card" }, el("span", { class: "name" }, label + ": waiting for a result"),
+        el("div", { class: "wd-row" }, [p1, p2].map((name, slot) =>
+          el("button", { type: "button", class: "wd-btn", onclick: () => send({ kind: "game_result", winner_slot: slot, attempt_id: game.attempt_id }, name + " wins " + label.toLowerCase() + "?") }, name + " wins"))));
+    }
+    const winner = OUTCOMES[game.outcome] === 1 ? p2 : OUTCOMES[game.outcome] === 0 ? p1 : "Draw";
+    return el("div", { class: "wd-card" }, el("div", { class: "set-row" }, el("span", { class: "name" }, label), el("span", {}, winner)),
+      el("button", { type: "button", class: "wd-btn danger", onclick: () => send({ kind: "void_game", attempt_id: game.attempt_id }, "Void " + label.toLowerCase() + "? It no longer counts.") }, "Void"));
+  });
+  const waiting = (set.games || []).some((game) => game.state !== "accepted");
+  box.replaceChildren(
+    el("h2", { class: "wd-h" }, p1 + " vs " + p2),
+    el("label", { class: "wd-field" }, "Reason (kept with the decision)", reason),
+    ...games,
+    waiting || set.desk_state === "done" ? null : el("div", { class: "wd-card" }, el("span", { class: "name" }, "Add a game"),
+      el("div", { class: "wd-row" }, [p1, p2].map((name, slot) =>
+        el("button", { type: "button", class: "wd-btn", onclick: () => send({ kind: "game_result", winner_slot: slot }, "Add a game won by " + name + "?") }, name + " won")))),
+    el("button", { type: "button", class: "wd-btn", onclick: () => box.close() }, "Close"),
+  );
+  box.showModal();
+}
+
+// --- The event's settings: Discord, results, the public page and sign-ups.
+
+function liveSettings() {
+  const event = desk.event;
+  const page = location.origin + "/t/" + event.id;
+  const hook = el("input", { class: "wd-input", type: "url", inputmode: "url", placeholder: event.discord_webhook ? "Set: " + event.discord_webhook : "https://discord.com/api/webhooks/…", "aria-label": "Discord webhook" });
+  const check = (label, on) => {
+    const box = el("input", { type: "checkbox", checked: on });
+    return [el("label", { class: "check" }, label, box), box];
+  };
+  const [resultsRow, results] = check("Post each set's score on Discord", event.post_results);
+  const [publicRow, open] = check("Public page anyone can follow", event.public);
+  const [signRow, signs] = check("Players sign up through Ember (" + (event.signed_up || 0) + " signed up)", event.sign_ups);
+  $("live-settings").replaceChildren(
+    el("h2", { class: "name" }, "Settings"),
+    el("label", { class: "wd-field" }, "Discord channel webhook (calls are posted there)", hook),
+    event.discord_webhook ? el("button", { type: "button", class: "wd-btn", onclick: () => saveLive({ discord_webhook: null }) }, "Remove the webhook") : null,
+    resultsRow, publicRow,
+    event.public ? el("a", { href: page, target: "_blank", rel: "noopener", class: "small" }, page) : null,
+    signRow,
+    el("button", { type: "button", class: "wd-btn primary", onclick: () => {
+      const change = { post_results: results.checked, public: open.checked || signs.checked, sign_ups: signs.checked };
+      if (hook.value.trim()) change.discord_webhook = hook.value.trim();
+      saveLive(change);
+    } }, "Save settings"),
+  );
+}
+
+async function saveLive(change) {
+  try {
+    await api("POST", "/v1/organizer/events/" + desk.event.id, change);
+    await refreshEvent();
+    toast("Saved.", true);
+    liveSettings();
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
 $("stop").addEventListener("click", async () => {
@@ -426,6 +566,12 @@ async function start() {
   } catch (error) {
     if (error.status === 401) return signedOut();
     return toast(error.message);
+  }
+  // Signed in from an event's public page: back to it.
+  const back = sessionStorage.getItem("ember.return");
+  if (back && back.startsWith("/t/")) {
+    sessionStorage.removeItem("ember.return");
+    return location.replace(back);
   }
   desk.accounts = (await api("GET", "/web/accounts").catch(() => ({ sites: [] }))).sites;
   home().catch((error) => toast(error.message));

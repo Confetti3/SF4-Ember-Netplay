@@ -265,7 +265,8 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
             let mut query = tx.prepare(
                 "SELECT id, title, status, starts_at, site, tournament, name, settings, links,
                      created_at, discord_webhook, post_results, sign_ups,
-                     (SELECT COUNT(*) FROM event_sign_ups s WHERE s.event_id = organizer_events.id)
+                     (SELECT COUNT(*) FROM event_sign_ups s WHERE s.event_id = organizer_events.id),
+                     public
                  FROM organizer_events
                  WHERE ember_id = ?1 AND ended_at IS NULL ORDER BY created_at DESC, id",
             )?;
@@ -296,6 +297,7 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
                     "post_results": row.get::<_, bool>(11)?,
                     "sign_ups": row.get::<_, bool>(12)?,
                     "signed_up": row.get::<_, u64>(13)?,
+                    "public": row.get::<_, bool>(14)?,
                 }))
             })?;
             Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -1021,8 +1023,9 @@ pub async fn sets(
     view.map(|view| ok(&view)).ok_or_else(ApiFailure::not_found)
 }
 
-/// `GET /v1/public/events/{id}`: an event its organizer made public: its
-/// title, start, links and sets, without Ember IDs.
+/// `GET /v1/public/events/{id}`: an event its organizer made public and has
+/// not stopped: its title, start, links and sets, without Ember IDs, and
+/// whether it takes sign-ups now.
 pub async fn public(State(state): State<AppState>, Path(id): Path<String>) -> Result<Response> {
     let view = state
         .db
@@ -1034,11 +1037,14 @@ pub async fn public(State(state): State<AppState>, Path(id): Path<String>) -> Re
                 String,
                 Option<String>,
                 Option<u64>,
+                bool,
             );
             let found: Option<Row> = tx
                 .query_row(
-                    "SELECT title, starts_at, site, links, sets, sets_at FROM organizer_events
-                     WHERE id = ?1 AND public = 1",
+                    "SELECT title, starts_at, site, links, sets, sets_at,
+                         sign_ups = 1 AND status = 'draft' AND tournament IS NOT NULL
+                     FROM organizer_events
+                     WHERE id = ?1 AND public = 1 AND ended_at IS NULL",
                     [&id],
                     |row| {
                         Ok((
@@ -1048,11 +1054,12 @@ pub async fn public(State(state): State<AppState>, Path(id): Path<String>) -> Re
                             row.get(3)?,
                             row.get(4)?,
                             row.get(5)?,
+                            row.get(6)?,
                         ))
                     },
                 )
                 .optional()?;
-            let Some((title, starts_at, site, links, stored, at)) = found else {
+            let Some((title, starts_at, site, links, stored, at, sign_ups_open)) = found else {
                 return Ok(None);
             };
             Ok(Some(json!({
@@ -1062,6 +1069,7 @@ pub async fn public(State(state): State<AppState>, Path(id): Path<String>) -> Re
                 "links": settings(&links),
                 "sets": desk_sets(tx, &id, site.as_deref(), stored.as_deref(), false)?,
                 "updated_at": at,
+                "sign_ups_open": sign_ups_open,
             })))
         })
         .await?;
@@ -1280,6 +1288,10 @@ fn desk_sets(
                 set["players"] = json!(found.names);
                 if with_ids {
                     set["ember_ids"] = json!(found.ember_ids);
+                    // What a decision from the desk names as its
+                    // `expected_revision`.
+                    set["revision"] = json!(found.revision.to_string());
+                    set["games"] = json!(found.games);
                 }
             }
             set["side"] = json!(side(&set));
@@ -1294,6 +1306,10 @@ fn desk_sets(
 
 struct DeskMatch {
     state: String,
+    revision: u64,
+    /// The games played or decided, oldest first: what the desk can void,
+    /// and a game waiting for a result it can decide.
+    games: Vec<Value>,
     metadata: Value,
     wins: [u8; 2],
     ember_ids: Vec<String>,
@@ -1301,14 +1317,14 @@ struct DeskMatch {
 }
 
 fn desk_match(tx: &Transaction<'_>, id: &str, site: Option<&str>) -> Result<Option<DeskMatch>> {
-    let found: Option<(String, String, i64)> = tx
+    let found: Option<(String, String, i64, u64)> = tx
         .query_row(
-            "SELECT state, metadata, assignment_generation FROM matches WHERE id = ?1",
+            "SELECT state, metadata, assignment_generation, revision FROM matches WHERE id = ?1",
             [id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()?;
-    let Some((state, metadata, generation)) = found else {
+    let Some((state, metadata, generation, revision)) = found else {
         return Ok(None);
     };
     let (wins, _) = crate::routes::ledger::scores(tx, id)?;
@@ -1319,6 +1335,19 @@ fn desk_match(tx: &Transaction<'_>, id: &str, site: Option<&str>) -> Result<Opti
         )?
         .query_map(params![id, generation], |row| row.get(0))?
         .collect::<rusqlite::Result<Vec<String>>>()?;
+    let games = tx
+        .prepare(
+            "SELECT id, outcome, state FROM attempts
+             WHERE match_id = ?1 AND state IN ('accepted', 'review', 'permitted') ORDER BY seq",
+        )?
+        .query_map([id], |row| {
+            Ok(json!({
+                "attempt_id": row.get::<_, String>(0)?,
+                "outcome": row.get::<_, Option<String>>(1)?,
+                "state": row.get::<_, String>(2)?,
+            }))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
     let mut names = Vec::new();
     for ember_id in &ember_ids {
         names.push(
@@ -1332,6 +1361,8 @@ fn desk_match(tx: &Transaction<'_>, id: &str, site: Option<&str>) -> Result<Opti
     }
     Ok(Some(DeskMatch {
         state,
+        revision,
+        games,
         metadata: serde_json::from_str(&metadata).unwrap_or_else(|_| json!({})),
         wins,
         ember_ids,

@@ -117,6 +117,38 @@ button.wd-card:hover { border-color: var(--ember); }
 .status.ready { background: var(--header); color: var(--pending); }
 .status.running { background: var(--header); color: var(--ember); }
 
+/* Live: chips, set cards, the bracket and the games dialog. */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 44px; padding: 0 16px; border-radius: 4px; border: 1px solid var(--border); background: var(--frame); color: var(--muted); font-weight: 600; cursor: pointer; }
+.chip[aria-selected="true"], .chip[aria-pressed="true"] { background: var(--ember); border-color: var(--ember); color: var(--ink); }
+.set { gap: 6px; }
+.set-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.set-row b { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.set .wd-row .wd-btn { flex: 1 1 120px; }
+.status.ok { background: #22291f; color: var(--success); }
+.status.bad { background: #3a2120; color: var(--error); }
+.status.wait { background: var(--header); color: var(--pending); }
+.status.live { background: var(--header); color: var(--ember); }
+.wd-kpi.bad b { color: var(--error); }
+.wd-kpi.live b { color: var(--ember); }
+.wd-kpi.ok b { color: var(--success); }
+.bracket { display: flex; flex-direction: column; gap: 12px; }
+.rounds { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+.round { border: 1px solid var(--border); border-radius: 4px; background: var(--frame); }
+.round > summary { min-height: 48px; padding: 0 14px; display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; list-style: none; }
+.round > summary::-webkit-details-marker { display: none; }
+.round > summary::after { content: "+"; margin-left: auto; color: var(--muted); }
+.round[open] > summary::after { content: "–"; }
+.round > .wd-card { margin: 0 10px 10px; }
+.round .side { color: var(--muted); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+.round.losers .side { color: var(--ember); }
+.round.grand_final .side { color: var(--pending); }
+.decide { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 16px; border: 1px solid var(--border); border-radius: 4px; background: var(--ink); color: var(--ivory); }
+.decide[open] { display: flex; flex-direction: column; gap: 12px; }
+.decide::backdrop { background: rgba(20, 19, 18, .8); }
+.links { display: flex; flex-wrap: wrap; gap: 8px; }
+.links .wd-btn { flex: 1 1 140px; }
+
 .wd-aside { display: none; flex-direction: column; gap: 12px; padding: 24px 32px 24px 16px; border-left: 1px solid var(--line); align-self: start; position: sticky; top: 73px; }
 
 @container (min-width: 900px) {
@@ -133,6 +165,9 @@ button.wd-card:hover { border-color: var(--ember); }
   .wd-main { padding: 24px 32px 0; }
   .wd-bar { position: static; margin: 8px 0 32px; border: 0; background: transparent; padding: 0; justify-content: flex-end; }
   .wd-bar .wd-btn, .wd-bar #next { flex: 0 0 auto; min-width: 160px; }
+}
+@container (min-width: 900px) {
+  .rounds { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-items: start; }
 }
 @container (min-width: 1400px) {
   .wd-body { grid-template-columns: 280px minmax(0, 1fr) 340px; }

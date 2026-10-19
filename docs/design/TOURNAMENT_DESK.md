@@ -251,7 +251,8 @@ fill a gap when neither player's upload arrives.
    Discord announcement to copy; then managing it with the game desk's
    actions.
 8. Mobile mini-viewer: the bracket and live sets as a read-only phone
-   layout of the web desk.
+   layout of the web desk, at `/t/{id}` for a public event, with sign-up
+   (built with the web desk's Live step: sets, bracket, actions, settings).
 9. Game: tag tournament replays with the set's `matchId` and room revision
    (`EMBRNAM2`), only for games with a confirmed result.
 10. Bridge: replay upload per set and the set pack.

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>{{title}} · Ember</title>
+<meta name="description" content="USF4 on Ember · {{when}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ember">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="USF4 on Ember · {{when}}">
+<meta name="theme-color" content="#ff8738">
+<link rel="stylesheet" href="/desk/desk.css">
+<script src="/desk/sets.js" defer></script>
+<script src="/desk/public.js" defer></script>
+</head>
+<body>
+<div class="wd">
+  <header class="wd-top">
+    <img src="/desk/ember-emblem.png" alt="" width="36" height="36">
+    <div class="brand">
+      <span class="brand-name">EMBER</span>
+      <span class="brand-sub">Tournament</span>
+    </div>
+  </header>
+
+  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+
+  <main class="page">
+    <h1 class="wd-h" id="title">{{title}}</h1>
+    <p class="note" id="when">{{when}}</p>
+    <div class="wd-row" id="sign-up" hidden></div>
+    <div class="links" id="links"></div>
+    <div class="wd-kpis" id="counts"></div>
+    <div class="chips" id="tabs" role="tablist"></div>
+    <div id="body"></div>
+    <p class="note" id="updated"></p>
+  </main>
+</div>
+</body>
+</html>

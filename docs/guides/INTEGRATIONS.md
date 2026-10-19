@@ -580,9 +580,19 @@ and players (by their account on the event's site):
   session or web desk), with Ember IDs and match IDs, and each set's
   `desk_state`: `waiting`, `not_ready`, `called`, `playing`,
   `needs_review`, `reporting`, `done`, `held` or `needs_organizer`.
+  Each set with an Ember match also has the match's `revision` and its
+  `games` (`attempt_id`, `outcome`, `state`), which a decision from the desk
+  names (`POST .../matches/{match}/adjudications`).
 - `GET /v1/public/events/{id}`, to anyone, only while the organizer has set
-  `"public": true` on the event: its title, start, links and sets without
-  Ember IDs or match IDs.
+  `"public": true` on the event and has not stopped it: its title, start,
+  links and sets without Ember IDs or match IDs, and `sign_ups_open`.
+
+`/t/{id}` is that event's public page, a phone viewer of its live sets and
+bracket that also lets a signed-in player sign up while sign-ups are open.
+Its title and start (in UTC) are in the page itself for Discord's link
+preview, and the desk's Discord post links to it once the event is public.
+The web desk's Live step shows the same sets with the organizer's actions:
+hold or let go, call again, and the games of a set to decide or void.
 
 The whole bracket is read every 10 minutes (Challonge and start.gg; an
 `http` service shows only its open sets), the open sets at every poll in
