@@ -574,7 +574,7 @@ async fn callback(
     match stored {
         Ok(Stored::Connected(ember_id)) => {
             state.committed();
-            pages.connected(&shown, &ember_id)
+            pages.connected(&shown, &ember_id, organizer)
         }
         Ok(Stored::Asking {
             from,
@@ -612,8 +612,9 @@ pub struct MoveAnswer {
 
 /// What the player's answer did.
 enum Decided {
-    /// Connected, or left where it was: the Ember ID asked about and the account.
-    Answered(String, String),
+    /// Connected, or left where it was: the Ember ID asked about, the account,
+    /// and whether it was an organizer sign-in.
+    Answered(String, String, bool),
     /// The account was connected or moved elsewhere after the page asked.
     Changed,
 }
@@ -659,14 +660,18 @@ async fn decide(
                     grants::save(tx, site.id(), &question.user_id, grant, ctx.now)?;
                 }
             }
+            let organizer = question.grant.is_some();
             Ok(Some(Decided::Answered(
                 question.ember_id,
                 question.username,
+                organizer,
             )))
         })
         .await;
-    let (ember_id, username) = match decided {
-        Ok(Some(Decided::Answered(ember_id, username))) => (ember_id, username),
+    let (ember_id, username, organizer) = match decided {
+        Ok(Some(Decided::Answered(ember_id, username, organizer))) => {
+            (ember_id, username, organizer)
+        }
         Ok(Some(Decided::Changed)) => {
             state.committed();
             return pages.changed();
@@ -676,7 +681,7 @@ async fn decide(
     };
     state.committed();
     if moves {
-        pages.connected(&username, &ember_id)
+        pages.connected(&username, &ember_id, organizer)
     } else if refused {
         pages.refused(&username)
     } else {

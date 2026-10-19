@@ -933,7 +933,10 @@ async fn an_organizer_sign_in_keeps_its_tokens_sealed_and_refreshes_them() {
         participants:write";
     assert_eq!(query(&url)["scope"], scope);
     let page = CHALLONGE.organize(&bridge, &player1, "good-player1").await;
-    assert!(page.contains("Challonge connected"), "{page}");
+    assert!(
+        page.contains("Organizer access for Challonge allowed"),
+        "{page}"
+    );
     assert_eq!(
         CHALLONGE.account(&bridge, &player1).await.as_deref(),
         Some(PLAYER1.0)

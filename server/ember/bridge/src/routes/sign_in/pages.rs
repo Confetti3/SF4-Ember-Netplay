@@ -115,8 +115,23 @@ impl Pages {
         restarting.into_iter().chain(reviewing).collect()
     }
 
-    pub(super) fn connected(&self, username: &str, ember_id: &str) -> Response {
+    /// The account is this Ember ID's now; an organizer sign-in also says
+    /// that the organizer access is allowed.
+    pub(super) fn connected(&self, username: &str, ember_id: &str, organizer: bool) -> Response {
         let label = &self.label;
+        if organizer {
+            return finished(
+                &format!("Organizer access for {} allowed", self.name),
+                &format!(
+                    "Organizer access for {label} is allowed for your Ember ID <strong>{}</strong>, \
+                     through your {label} account <strong>{}</strong>. \
+                     You can close this tab; {} shows it when you go back.",
+                    html(&fingerprint(ember_id)),
+                    html(username),
+                    self.back()
+                ),
+            );
+        }
         finished(
             &format!("{} connected", self.name),
             &format!(
