@@ -250,7 +250,14 @@ impl Store {
     }
 
     /// The creation saved for the set's current attempt and not answered yet.
-    pub fn command(&self, bracket: &str, set: &str) -> rusqlite::Result<Option<CreateMatch>> {
+    /// One that no longer reads (an upgrade changed its form) is given
+    /// as the reason it does not, never as a creation to make afresh: the
+    /// bridge may already have made its match.
+    pub fn command(
+        &self,
+        bracket: &str,
+        set: &str,
+    ) -> rusqlite::Result<Option<Result<CreateMatch, String>>> {
         let text: Option<String> = self
             .db()
             .query_row(
@@ -260,18 +267,7 @@ impl Store {
             )
             .optional()?
             .flatten();
-        // One that no longer reads is an error, not a creation to make
-        // afresh: the bridge may already have made its match.
-        text.map(|text| {
-            serde_json::from_str(&text).map_err(|error| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    0,
-                    rusqlite::types::Type::Text,
-                    Box::new(error),
-                )
-            })
-        })
-        .transpose()
+        Ok(text.map(|text| serde_json::from_str(&text).map_err(|error| error.to_string())))
     }
 
     /// Records why a saved set waits, or that it no longer does. Returns

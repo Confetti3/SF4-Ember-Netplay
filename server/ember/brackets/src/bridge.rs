@@ -5,7 +5,6 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt,
-    sync::Mutex,
 };
 
 use ember_protocol::{
@@ -27,11 +26,6 @@ use crate::{
 };
 
 const MAX_ANSWER: usize = 256 * 1024;
-/// How long an account the bridge refused to look up is not asked again,
-/// so one that stays refused does not cost a lookup of its own on every
-/// read. An operator who fixes the bridge's configuration sees it within
-/// this.
-const REFUSAL_SECS: u64 = 15 * 60;
 
 #[derive(Debug)]
 pub(crate) enum BridgeError {
@@ -73,11 +67,12 @@ pub(crate) struct Over {
 }
 
 /// The players found for a lookup's accounts, by the account as asked,
-/// and the accounts the bridge would not look up, with its reason.
+/// and the accounts on a site the bridge has no sign-in site for, which
+/// are not asked.
 #[derive(Default)]
 pub(crate) struct Found {
     players: HashMap<Account, Player>,
-    refused: HashMap<Account, String>,
+    unknown: HashSet<Account>,
 }
 
 impl Found {
@@ -89,47 +84,13 @@ impl Found {
             .find_map(|account| Some((account, self.players.get(account)?)))
     }
 
-    /// The first of the entry's accounts the bridge would not look up, and
-    /// why.
-    pub fn refusal<'a>(&'a self, entry: &'a Entry) -> Option<(&'a Account, &'a str)> {
+    /// The first of the entry's accounts on a site the bridge does not have.
+    pub fn unknown_site<'a>(&'a self, entry: &'a Entry) -> Option<&'a Account> {
         entry
             .accounts
             .iter()
-            .find_map(|account| Some((account, self.refused.get(account)?.as_str())))
+            .find(|account| self.unknown.contains(*account))
     }
-}
-
-/// Accounts the bridge refused to look up, with its reason and until when
-/// they are not asked again.
-#[derive(Default)]
-struct Refusals(HashMap<Account, (String, u64)>);
-
-impl Refusals {
-    fn get(&self, account: &Account, now: u64) -> Option<&str> {
-        self.0
-            .get(account)
-            .filter(|(_, until)| now < *until)
-            .map(|(why, _)| why.as_str())
-    }
-
-    /// Remembers a refusal, and forgets those expired: the accounts of
-    /// the configured events bound the rest.
-    fn remember(&mut self, account: Account, why: String, now: u64) {
-        self.0.retain(|_, (_, until)| now < *until);
-        self.0.insert(account, (why, now + REFUSAL_SECS));
-    }
-}
-
-/// A refusal of a whole lookup for what one of its accounts is: an ID not
-/// in its site's form, or a site the connection may not find players by.
-fn names_an_account(error: &BridgeError) -> bool {
-    matches!(
-        error,
-        BridgeError::Refused {
-            code: ErrorCode::InvalidRequest | ErrorCode::Forbidden,
-            ..
-        }
-    )
 }
 
 /// A lookup of these accounts, in the bridge's request form.
@@ -188,14 +149,13 @@ struct SiteView {
     lookup_by: String,
 }
 
-/// The sign-in sites whose lookups go by username, a name an account can
-/// change.
-fn username_sites_of(capabilities: CapabilitiesView) -> HashSet<String> {
+/// The bridge's sign-in sites, by ID, and whether each looks accounts up
+/// by username (a name an account can change).
+fn sites_of(capabilities: CapabilitiesView) -> HashMap<String, bool> {
     capabilities
         .sign_in_sites
         .into_iter()
-        .filter(|site| site.lookup_by == "username")
-        .map(|site| site.id)
+        .map(|site| (site.id, site.lookup_by == "username"))
         .collect()
 }
 
@@ -335,9 +295,8 @@ pub(crate) struct BridgeClient {
     http: reqwest::Client,
     api: String,
     credential: Zeroizing<String>,
-    refusals: Mutex<Refusals>,
-    /// Read once, when first needed (`username_sites`).
-    username_sites: OnceCell<HashSet<String>>,
+    /// Read once, when first needed (`sign_in_sites`).
+    sign_in_sites: OnceCell<HashMap<String, bool>>,
 }
 
 impl BridgeClient {
@@ -346,8 +305,7 @@ impl BridgeClient {
             http: http_client()?,
             api: api.trim_end_matches('/').to_owned(),
             credential,
-            refusals: Mutex::default(),
-            username_sites: OnceCell::new(),
+            sign_in_sites: OnceCell::new(),
         })
     }
 
@@ -365,58 +323,41 @@ impl BridgeClient {
 
     /// The players connected to these accounts, asked for in lookups of at
     /// most `MAX_LOOKUP` accounts, Discord's and sites' together. The
-    /// bridge refuses a whole lookup that names one account it will not
-    /// look up; that lookup's accounts are then asked one by one, so only
-    /// that account's entry waits. A refused account is not asked again for
-    /// `REFUSAL_SECS`. Bridge requests cost no site budget.
-    pub async fn lookup(&self, accounts: &[&Account], now: u64) -> Result<Found, BridgeError> {
+    /// bridge finds nothing for an ID its site's accounts cannot have, but
+    /// refuses a whole lookup that names a site it does not have: an
+    /// account on such a site is not asked, so only its own entry waits.
+    /// Bridge requests cost no site budget.
+    pub async fn lookup(&self, accounts: &[&Account]) -> Result<Found, BridgeError> {
         let mut asked = accounts.to_vec();
         asked.sort_by_key(|account| account.to_string());
         asked.dedup();
         let mut found = Found::default();
-        {
-            let refusals = self.refusals.lock().unwrap_or_else(|e| e.into_inner());
-            asked.retain(|&account| match refusals.get(account, now) {
-                Some(why) => {
-                    found.refused.insert(account.clone(), why.to_owned());
+        if let Some(sites) = self.sign_in_sites().await {
+            asked.retain(|&account| match account {
+                Account::Site { site, .. } if !sites.contains_key(site) => {
+                    found.unknown.insert(account.clone());
                     false
                 }
-                None => true,
+                _ => true,
             });
         }
         for chunk in asked.chunks(MAX_LOOKUP) {
-            match self.lookup_once(chunk).await {
-                Ok(answer) => found.players.extend(found_in(answer)),
-                Err(error) if names_an_account(&error) => {
-                    for &account in chunk {
-                        match self.lookup_once(&[account]).await {
-                            Ok(answer) => found.players.extend(found_in(answer)),
-                            Err(error) if names_an_account(&error) => {
-                                let why = error.to_string();
-                                self.refusals
-                                    .lock()
-                                    .unwrap_or_else(|e| e.into_inner())
-                                    .remember(account.clone(), why.clone(), now);
-                                found.refused.insert(account.clone(), why);
-                            }
-                            Err(error) => return Err(error),
-                        }
-                    }
-                }
-                Err(error) => return Err(error),
-            }
+            found
+                .players
+                .extend(found_in(self.lookup_once(chunk).await?));
         }
         Ok(found)
     }
 
-    /// The bridge's sign-in sites that look accounts up by username, read
-    /// from its capabilities once. `None` while they cannot be read.
-    pub async fn username_sites(&self) -> Option<&HashSet<String>> {
-        self.username_sites
+    /// The bridge's sign-in sites, and whether each looks accounts up by
+    /// username, read from its capabilities once. `None` while they cannot
+    /// be read.
+    pub async fn sign_in_sites(&self) -> Option<&HashMap<String, bool>> {
+        self.sign_in_sites
             .get_or_try_init(|| async {
                 let capabilities: CapabilitiesView =
                     self.answer(self.get("/v1/capabilities")).await?;
-                Ok::<_, BridgeError>(username_sites_of(capabilities))
+                Ok::<_, BridgeError>(sites_of(capabilities))
             })
             .await
             .ok()
@@ -589,32 +530,11 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(
-            username_sites_of(capabilities),
-            HashSet::from(["challonge".to_owned()])
-        );
-    }
-
-    #[test]
-    fn a_refused_account_is_remembered_for_a_while() {
-        let account = |n: usize| Account::Site {
-            site: "startgg".into(),
-            id: format!("user{n}"),
-        };
-        let mut refusals = Refusals::default();
-        refusals.remember(account(0), "forbidden".into(), 1_000);
-        assert_eq!(refusals.get(&account(0), 1_000), Some("forbidden"));
-        assert_eq!(
-            refusals.get(&account(0), 1_000 + REFUSAL_SECS - 1),
-            Some("forbidden")
-        );
-        assert_eq!(refusals.get(&account(0), 1_000 + REFUSAL_SECS), None);
-        assert_eq!(refusals.get(&account(1), 1_000), None);
-        // A later refusal forgets the expired ones.
-        refusals.remember(account(1), "forbidden".into(), 1_000 + REFUSAL_SECS);
-        assert_eq!(refusals.0.len(), 1);
-        assert_eq!(
-            refusals.get(&account(1), 1_000 + REFUSAL_SECS),
-            Some("forbidden")
+            sites_of(capabilities),
+            HashMap::from([
+                ("challonge".to_owned(), true),
+                ("startgg".to_owned(), false)
+            ])
         );
     }
 
@@ -651,22 +571,17 @@ mod tests {
             accounts: Vec::new(),
         };
         assert!(found.player(&none).is_none());
-        // An account the bridge would not look up is the reason given.
-        let refused = Account::Site {
-            site: "startgg".into(),
-            id: "player1".into(),
+        // An account on a site the bridge does not have is the reason given.
+        let unknown = Account::Site {
+            site: "smashgg".into(),
+            id: "12".into(),
         };
-        found
-            .refused
-            .insert(refused.clone(), "invalid_request (no ID)".into());
+        found.unknown.insert(unknown.clone());
         let waiting = Entry {
             participant_id: "353".into(),
-            accounts: vec![refused.clone()],
+            accounts: vec![unknown.clone()],
         };
         assert!(found.player(&waiting).is_none());
-        assert_eq!(
-            found.refusal(&waiting),
-            Some((&refused, "invalid_request (no ID)"))
-        );
+        assert_eq!(found.unknown_site(&waiting), Some(&unknown));
     }
 }

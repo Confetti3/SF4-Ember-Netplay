@@ -52,11 +52,6 @@ pub struct Config {
     /// https to its own site (or service) and nowhere else.
     #[serde(default)]
     pub allow_loopback_http: bool,
-    /// The requests a start.gg token may make, and in how many seconds:
-    /// `startgg::RATE` when absent. Never read from the file; tests raise it
-    /// so that many requests do not wait on the clock.
-    #[serde(skip)]
-    pub startgg_rate: Option<(usize, u64)>,
 }
 
 /// The `direct` bridge connection the matches are created on.

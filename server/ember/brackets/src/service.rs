@@ -147,13 +147,14 @@ fn failure(status: StatusCode, body: &[u8], kind: Kind<'_>) -> SiteError {
                     format!(", it speaks {version}")
                 })
                 .unwrap_or_default();
-            SiteError::Unavailable(format!(
+            SiteError::Denied(format!(
                 "the service does not take contract version {CONTRACT} (426{speaks}); results wait until the connector or the service is upgraded"
             ))
         }
-        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
-            SiteError::Unavailable(message())
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+            SiteError::Denied(format!("{}; check the service's token", message()))
         }
+        StatusCode::TOO_MANY_REQUESTS => SiteError::Unavailable(message()),
         status if status.is_server_error() => SiteError::Unavailable(message()),
         StatusCode::LOCKED if matches!(kind, Kind::Report { .. }) => {
             match serde_json::from_slice::<WireDeferral>(body) {
@@ -477,26 +478,31 @@ mod tests {
                 SiteError::Refused(_)
             ));
         }
-        for status in [
-            StatusCode::UNAUTHORIZED,
-            StatusCode::TOO_MANY_REQUESTS,
-            StatusCode::BAD_GATEWAY,
-            StatusCode::UPGRADE_REQUIRED,
-        ] {
+        // A moment's trouble: a report waits on its own.
+        for status in [StatusCode::TOO_MANY_REQUESTS, StatusCode::BAD_GATEWAY] {
             assert!(matches!(read(status, b""), SiteError::Unavailable(_)));
             assert!(matches!(
                 failure(status, b"", report),
                 SiteError::Unavailable(_)
             ));
         }
+        // A token or contract version refused: the whole tournament waits.
+        for status in [
+            StatusCode::UNAUTHORIZED,
+            StatusCode::FORBIDDEN,
+            StatusCode::UPGRADE_REQUIRED,
+        ] {
+            assert!(matches!(read(status, b""), SiteError::Denied(_)));
+            assert!(matches!(failure(status, b"", report), SiteError::Denied(_)));
+        }
         // A contract mismatch names the version the service speaks.
         assert!(matches!(
             failure(StatusCode::UPGRADE_REQUIRED, br#"{"contract": "2"}"#, report),
-            SiteError::Unavailable(why) if why.contains("it speaks 2")
+            SiteError::Denied(why) if why.contains("it speaks 2")
         ));
         assert!(matches!(
             failure(StatusCode::UPGRADE_REQUIRED, br#"{"contract": 2}"#, report),
-            SiteError::Unavailable(why) if why.contains("it speaks 2")
+            SiteError::Denied(why) if why.contains("it speaks 2")
         ));
         assert!(matches!(
             failure(StatusCode::CONFLICT, b"", report),

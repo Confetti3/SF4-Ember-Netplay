@@ -135,8 +135,9 @@ pub enum Reported {
 
 #[derive(Debug)]
 pub enum SiteError {
-    /// Not reached, or failing on its side (including rate limits and a
-    /// credential it refuses): try again later.
+    /// Not reached, or failing on its side for a moment (a timeout, a rate
+    /// limit, a 5xx): try again later. A report that fails so after a read
+    /// that worked waits on its own, like `Deferred`.
     Unavailable(String),
     /// The site refused the request as it stands. A refused read is tried
     /// again under the same growing wait as `Unavailable`; a refused report
@@ -147,6 +148,11 @@ pub enum SiteError {
     /// result alone waits and is tried again, while the rest of the
     /// tournament carries on. Only `report` returns it.
     Deferred(String),
+    /// The site refuses the credential, or the contract version: no one set
+    /// is at fault, so none is given up for it. Whatever asked, the pass
+    /// stops and the whole tournament waits under the growing wait until
+    /// the operator or organizer fixes it.
+    Denied(String),
     /// A scheduled read would go past the site's request budget.
     BudgetSpent,
 }
@@ -154,9 +160,10 @@ pub enum SiteError {
 impl fmt::Display for SiteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Unavailable(message) | Self::Refused(message) | Self::Deferred(message) => {
-                f.write_str(message)
-            }
+            Self::Unavailable(message)
+            | Self::Refused(message)
+            | Self::Deferred(message)
+            | Self::Denied(message) => f.write_str(message),
             Self::BudgetSpent => f.write_str("this month's request budget is spent"),
         }
     }

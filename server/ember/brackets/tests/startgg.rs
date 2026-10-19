@@ -543,7 +543,7 @@ async fn a_set_start_gg_no_longer_has_has_its_match_cancelled() {
     world.connector.pass(true).await;
     assert_eq!(fake.operations(), ["Sets", "Set"]);
     assert_eq!(world.snapshot(&match_id).await["state"], "cancelled");
-    assert_eq!(world.progress(BRACKET, "65089253"), "closed");
+    assert_eq!(world.progress(BRACKET, "65089253"), "waiting");
 
     // And the tournament is read as before, its entrants included, a
     // quarter of an hour after they were last read.

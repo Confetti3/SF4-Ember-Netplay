@@ -58,11 +58,12 @@ A `Set` carries:
   first first:
   - `Account::Site { site, id }`: an account on the bridge's sign-in site
     `site`, by the ID that site looks up (a Challonge username, a start.gg
-    user ID). The bridge refuses a whole lookup that names an ID the site
-    cannot have, or a site the connection may not look up. The connector
-    then asks for each account alone, so only the entry with that account
-    waits, and the reason is logged once for its set. Give IDs in the site's
-    form and only sites the operator listed all the same;
+    user ID). An ID the site's accounts cannot have finds nobody, so only
+    its entry waits. A site the bridge has no sign-in site for is not asked
+    at all (the connector reads the bridge's sites from its capabilities),
+    and the set's log line says so once. A site the bridge has but the
+    connection may not look up makes the bridge refuse the whole lookup, so
+    no match is created until the operator lists it;
   - `Account::Discord { user_id }`: a Discord account linked to the entry.
 - `status`: `Pending` (waiting on an earlier set), `Open` (can be played,
   no result) or `Decided`.
@@ -71,12 +72,15 @@ A `Set` carries:
 
 Errors:
 
-- `Unavailable`: the site cannot be used now. It is down, rate-limits, or
-  refuses the credential. From a read, the pass stops (the matches are
-  still brought in line with what was read), and the whole tournament waits
-  under the growing wait below. From a report, after a read that worked in
-  the same pass, it is taken as a failure on that set alone, and the result
-  waits like a `Deferred` one.
+- `Denied`: the site refuses the credential or the contract version. No
+  one set is at fault, so none is given up for it: whatever asked, the pass
+  stops (the matches are still brought in line with what was read) and the
+  whole tournament waits under the growing wait below, until the token or
+  version is fixed.
+- `Unavailable`: the site cannot be used for a moment: it is down, times
+  out or rate-limits. From a read, the pass stops as for `Denied`. From a
+  report, after a read that worked in the same pass, it is taken as a
+  failure on that set alone, and the result waits like a `Deferred` one.
 - `Deferred` (from `report` only): this one report cannot be taken now, for
   a reason of its own set, which may pass (start.gg refusing it with an
   error it does not explain while the set is still open and unchanged, or
@@ -102,7 +106,9 @@ Errors:
   the organizer's while it has the same two players: no new match is made
   (on Challonge, reopening a set to correct it reopens the sets after it,
   which are left the same way). Only a set that opens for other players
-  gets a new attempt.
+  gets a new attempt. A set whose match was cancelled because the set
+  changed or went away before it was decided (a reopen sending it back to
+  pending, say) gets a new attempt when it opens again, whoever plays it.
 - **Evidence.** A match is cancelled, or a result set aside, only after the
   set itself, read on its own, shows it decided, changed or gone. A report
   goes out only for the two players its attempt was made for, and only while
@@ -201,7 +207,7 @@ fields in your answers are ignored, so you may add fields freely.
 | `round_label` | no (`Round <round>`) | Shown to the players, at most 1024 bytes |
 | `entries` | no | Player 1 and player 2, once both are known, else `null` or absent |
 | `entries[].id` | yes | Same rule as `id` |
-| `entries[].accounts` | no | In the order to try: `{ "site": "<bridge site>", "id": "<what that site looks up>" }` or `{ "discord": "<Discord user ID>" }`. Send only IDs in the site's form and sites the bridge connection may look up: an entry with one the bridge refuses waits, and its set is not played, until it is fixed. |
+| `entries[].accounts` | no | In the order to try: `{ "site": "<bridge site>", "id": "<what that site looks up>" }` or `{ "discord": "<Discord user ID>" }`. An ID in the wrong form finds nobody, and a site the bridge does not have is not asked: either way only that entry's set waits. A site the bridge has but the connection may not look up stops every lookup, so send only sites the operator listed. |
 | `underway` | no (`false`) | |
 | `winner` | no | The winning entry's `id`, once decided |
 
@@ -272,7 +278,8 @@ on. After 12 deferrals (about 6 hours) the set is left to the organizer. A
 | `200` with `{ "set": null }` | the set is gone |
 | `200` from a read whose JSON is out of shape (`{}` from `/sets/{id}`, say) | tries again later, after the growing wait above |
 | `404` on `/standing` | the tournament is running |
-| `401`, `403`, `404` (anywhere but `/standing`), `426`, `429`, `5xx`, no answer | on a read, tries again later, after the growing wait above; on a report, sends that report again later, on its own |
+| `401`, `403`, `426` | tries again later, after the growing wait above, whatever asked: nothing is given up for a token or version refused |
+| `404` (anywhere but `/standing`), `429`, `5xx`, no answer | on a read, tries again later, after the growing wait above; on a report, sends that report again later, on its own |
 | `409` on a report | leaves the set to the organizer |
 | `423` with `{ "retry": true }` on a report | sends that report again later, on its own |
 | other `4xx` | on a report, leaves the set to the organizer; on a read, tries again later |
@@ -280,9 +287,10 @@ on. After 12 deferrals (about 6 hours) the set is left to the organizer. A
 A failed `/underway` is only logged, whatever the answer: the match is
 played all the same.
 
-A failing answer to a read holds back the whole tournament until the
-growing wait is over. A failing answer to one set's report, after a read
-that worked, holds back only that result: it is sent again on its own, like
-a `423`, up to 12 times. A report you cannot take yet is best answered `423`
+A failing answer to a read, or a refused token or version on any request,
+holds back the whole tournament until the growing wait is over. Any other
+failing answer to one set's report, after a read that worked, holds back
+only that result: it is sent again on its own, like a `423`, up to 12
+times. A report you cannot take yet is best answered `423`
 as above, which says so; one you will never take is a `409` or another
 `4xx`.

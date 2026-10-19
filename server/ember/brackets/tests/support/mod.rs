@@ -49,8 +49,7 @@ pub fn page<T: Clone>(items: &[T], page: usize, per_page: usize) -> (Vec<T>, usi
 }
 
 /// A connector's configuration over `dir`, with no tournament yet: its
-/// provider credential, result secret and Challonge key written there, and
-/// start.gg's rate raised so that no test waits on it.
+/// provider credential, result secret and Challonge key written there.
 pub fn config(dir: &Path, bridge_api: &str, provider: &str) -> Config {
     std::fs::write(dir.join("provider.token"), format!("{provider}\n")).unwrap();
     std::fs::write(dir.join("result.secret"), result_secret().reveal().as_str()).unwrap();
@@ -74,8 +73,13 @@ pub fn config(dir: &Path, bridge_api: &str, provider: &str) -> Config {
         monthly_request_budget: 500,
         allow_loopback_http: true,
         tournaments: Vec::new(),
-        startgg_rate: Some((10_000, 60)),
     }
+}
+
+/// A connector over `config`, with start.gg's rate raised so that no test
+/// waits on it.
+pub fn connector(config: &Config, clock: &Clock) -> Connector {
+    Connector::with_startgg_rate(config.clone(), clock.clone(), (10_000, 60)).unwrap()
 }
 
 /// The Challonge tournament, on the key `config` wrote.
@@ -237,7 +241,7 @@ impl World {
         // Both clocks stand still from here until a test moves them.
         bridge.clock.freeze();
         let clock = Clock::frozen(bridge.clock.now());
-        let connector = Connector::new(config.clone(), clock.clone()).unwrap();
+        let connector = connector(&config, &clock);
         if setup.serve_results {
             connector.serve(listener).unwrap();
         }
@@ -280,7 +284,7 @@ impl World {
 
     /// A connector over the same files, as after a restart.
     pub fn restarted(&self) -> Connector {
-        Connector::new(self.config.clone(), self.clock.clone()).unwrap()
+        connector(&self.config, &self.clock)
     }
 
     /// The organizer records each slot in turn as a game's winner.

@@ -37,10 +37,14 @@ For each configured tournament the connector:
    score went in (to correct it), with the same two players, stays the
    organizer's: no new Ember match is made for it, nor, on Challonge, for
    the sets after it that reopening resets and that open again for the same
-   players. A set that opens for other players is played as a new attempt.
-   A score that fails to go in while the site is otherwise answering waits
-   on its own and is sent again, up to 12 times (about 6 hours), while the
-   rest of the tournament goes on.
+   players. A set that opens for other players is played as a new attempt,
+   and so is a set whose live match was cancelled because the set changed
+   or went back to pending before it was decided, whoever plays it when it
+   opens again. A score that fails to go in for a moment while the site is
+   otherwise answering waits on its own and is sent again, up to 12 times
+   (about 6 hours), while the rest of the tournament goes on; a refused
+   token or contract version holds the whole tournament instead, and gives
+   no set up.
 5. Stops for good once a read finds no open set and the site says the
    tournament is over: Challonge's `state` is `complete` or `ended`,
    start.gg's event is `COMPLETED`, or the service's `/standing` is
@@ -155,9 +159,10 @@ A `direct` connection on the bridge for the connector, with:
 `lookup_sites` names the bridge's sign-in sites whose accounts the
 connector may look players up by; `discord_lookup` lets it fall back to
 Discord accounts. The bridge refuses a lookup that names a site not listed,
-so every `bridge_site` the connector's tournaments use must be in it. An
-entry with an account the bridge refuses waits, with the reason logged once,
-and every other set is played.
+so every `bridge_site` the connector's tournaments use must be in it. An ID
+in the wrong form for its site finds nobody, and an account on a site the
+bridge does not have at all is not asked: either way only that entry's set
+waits, with the reason logged once, and every other set is played.
 
 The connector also needs the connection's provider credential
 (`ember-bridge credential <bridge.json> provider <connection> "<label>"`) and
@@ -293,7 +298,9 @@ When something fails the log says so once, not on every try:
   the bridge within about ten minutes, but fix the cause.
 - When Challonge cannot be read or refuses the credential, the bracket is
   read again after a minute, then after twice as long each time, up to an
-  hour, whether a result or the schedule asks for the read. Requests Challonge refuses with 401 or 403 are not counted.
+  hour, whether a result or the schedule asks for the read. A credential
+  refused on a report waits the same way, and no set is given up for it.
+  Requests Challonge refuses with 401 or 403 are not counted.
 
 ## Request budget
 

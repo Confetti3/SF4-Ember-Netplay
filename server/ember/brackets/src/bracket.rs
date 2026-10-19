@@ -236,6 +236,30 @@ impl Bracket {
         Ok(())
     }
 
+    /// Ends an attempt whose set changed, or went away, before it was
+    /// decided: the set is played as a new attempt when it opens again, for
+    /// whichever players, until its last attempt.
+    fn play_again_later(
+        &self,
+        set_id: &str,
+        mut tracked: Tracked,
+        why: fmt::Arguments<'_>,
+    ) -> Result<(), SiteError> {
+        if tracked.attempt >= MAX_ATTEMPTS {
+            log!("{} set {set_id}: {why}", self.key);
+            return self.give_up(set_id, tracked);
+        }
+        tracked.attempt += 1;
+        tracked.players = None;
+        tracked.match_id = None;
+        self.end(
+            set_id,
+            tracked,
+            Progress::Waiting,
+            format_args!("{why}; a new attempt is played when it opens"),
+        )
+    }
+
     fn give_up(&self, set_id: &str, tracked: Tracked) -> Result<(), SiteError> {
         self.end(
             set_id,
@@ -373,8 +397,9 @@ impl Bracket {
                     continue;
                 }
             };
-            if seen(set.as_ref(), &tracked.entries) != Seen::Unchanged {
-                changed |= self.close(&set_id, tracked).await?;
+            match seen(set.as_ref(), &tracked.entries) {
+                Seen::Unchanged => {}
+                seen => changed |= self.close(&set_id, tracked, seen).await?,
             }
         }
         if create {
@@ -400,10 +425,10 @@ impl Bracket {
         self.start(&starts).await
     }
 
-    /// Cancels the Ember match of a set the organizer changed. A cancel that
-    /// fails is tried again on the next read, and logged once. Returns
-    /// whether it ended.
-    async fn close(&self, set_id: &str, tracked: Tracked) -> Result<bool, SiteError> {
+    /// Cancels the Ember match of a set the organizer decided or changed
+    /// (`seen`). A cancel that fails is tried again on the next read, and
+    /// logged once. Returns whether it ended.
+    async fn close(&self, set_id: &str, tracked: Tracked, seen: Seen) -> Result<bool, SiteError> {
         let Some(match_id) = tracked.match_id.clone() else {
             return Ok(false);
         };
@@ -427,12 +452,19 @@ impl Bracket {
         };
         match cancelled {
             Ok(()) => {
-                self.end(
-                    set_id,
-                    tracked,
-                    Progress::Closed,
-                    format_args!("changed by the organizer; Ember match {match_id} ended"),
-                )?;
+                match seen {
+                    Seen::Decided { .. } => self.end(
+                        set_id,
+                        tracked,
+                        Progress::Closed,
+                        format_args!("decided by the organizer; Ember match {match_id} ended"),
+                    )?,
+                    _ => self.play_again_later(
+                        set_id,
+                        tracked,
+                        format_args!("changed by the organizer; Ember match {match_id} ended"),
+                    )?,
+                }
                 Ok(true)
             }
             Err(error) => {
@@ -525,7 +557,8 @@ impl Bracket {
             Some(set) => Some(set.clone()),
             None => self.site.set(set_id, Purpose::Result).await?,
         };
-        match on_result(received, &tracked, seen(set.as_ref(), &tracked.entries)) {
+        let seen = seen(set.as_ref(), &tracked.entries);
+        match on_result(received, &tracked, seen) {
             OnResult::Report { games, winner } => {
                 // The games one by one, for a site that takes them, which
                 // must add up to the score.
@@ -553,9 +586,11 @@ impl Bracket {
                     key: match_id.clone(),
                 };
                 let outcome = self.report(set_id, tracked, &report, tries).await?;
+                // Even a report that waits may have gone in: the read is no
+                // longer evidence for a later result.
+                settled.stale = true;
                 if outcome == Settle::Done {
                     settled.reported.insert(set_id.clone());
-                    settled.stale = true;
                 }
                 return Ok(outcome);
             }
@@ -585,12 +620,19 @@ impl Bracket {
                 )?;
             }
             OnResult::GiveUp => self.give_up(set_id, tracked)?,
-            OnResult::Close => self.end(
+            OnResult::Close if matches!(seen, Seen::Decided { .. }) => self.end(
                 set_id,
                 tracked,
                 Progress::Closed,
                 format_args!(
-                    "the organizer already decided or changed it; Ember match {match_id} not reported"
+                    "the organizer already decided it; Ember match {match_id} not reported"
+                ),
+            )?,
+            OnResult::Close => self.play_again_later(
+                set_id,
+                tracked,
+                format_args!(
+                    "the organizer changed it before its result; Ember match {match_id} not reported"
                 ),
             )?,
             OnResult::Mismatch => self.end(

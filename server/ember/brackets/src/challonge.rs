@@ -142,7 +142,7 @@ impl Challonge {
             // request it never served does not count.
             401 | 403 => {
                 self.budget.refund();
-                Err(SiteError::Unavailable(message))
+                Err(SiteError::Denied(message))
             }
             // 406 and 415 say the request's format was wrong, not this set:
             // waited out, so a fixed connector still reports.

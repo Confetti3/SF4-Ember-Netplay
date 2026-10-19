@@ -372,22 +372,22 @@ impl Startgg {
             (status, Some(envelope)) if status.is_success() => Ok(envelope),
             // A 400 or 401 is how start.gg is seen to refuse a bad or expired
             // token (STARTGG_API.md section 4.4 states no text for it): the
-            // organizer can fix it, so it is waited out, never final.
+            // organizer can fix it, so the whole tournament waits, and no
+            // set is given up for it.
             (status, envelope) => {
                 let error = envelope
                     .and_then(|envelope| envelope.errors.into_iter().next())
                     .map(|error| format!(": {}", error.message))
                     .unwrap_or_default();
-                let hint = match status {
+                let message = format!("start.gg answered {}{error}", status.as_u16());
+                Err(match status {
                     StatusCode::BAD_REQUEST | StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                        "; check the organizer's token and its access to the event"
+                        SiteError::Denied(format!(
+                            "{message}; check the organizer's token and its access to the event"
+                        ))
                     }
-                    _ => "",
-                };
-                Err(SiteError::Unavailable(format!(
-                    "start.gg answered {}{error}{hint}",
-                    status.as_u16()
-                )))
+                    _ => SiteError::Unavailable(message),
+                })
             }
         }
     }

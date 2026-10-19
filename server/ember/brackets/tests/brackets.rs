@@ -349,3 +349,73 @@ async fn a_score_challonge_refuses_for_its_format_is_sent_again() {
     assert_eq!(world.progress("challonge:ember_weekly", "1001"), "reported");
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("355"));
 }
+
+#[tokio::test]
+async fn a_live_set_reset_by_a_reopen_is_played_again_when_it_opens() {
+    let world = World::start(Setup::default()).await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "player_2").await;
+    world.bridge.connect(3, "player3").await;
+    // 1001 is played in Ember (Player 2 wins), 1002 decided by hand, and
+    // 1003, Player 2 against Player 3, is live.
+    world.connector.pass(true).await;
+    let first = world.bridge.matches().await[0].1.clone();
+    world.play(&first, &[1, 1]).await;
+    world.bridge.deliver().await;
+    world.connector.pass(false).await;
+    world.challonge.decide("1002", 0);
+    world.advance(601);
+    world.connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 2);
+    let live = matches[1].1.clone();
+
+    // Reopening 1001 sends 1003 back to pending: its match is cancelled
+    // before anyone played it.
+    world.challonge.reopen("1001");
+    world.advance(601);
+    world.connector.pass(true).await;
+    assert_eq!(world.snapshot(&live).await["state"], "cancelled");
+    assert_eq!(world.progress("challonge:ember_weekly", "1003"), "waiting");
+
+    // 1001 is entered again with the same winner: 1003 opens for the same
+    // two players, who have not played it, so it gets a new attempt.
+    world.challonge.decide("1001", 1);
+    world.advance(601);
+    world.connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 3);
+    assert_eq!(matches[2].0, "challonge:ember_weekly:1003:2");
+}
+
+#[tokio::test]
+async fn a_saved_creation_that_cannot_be_read_ends_only_its_set() {
+    let mut setup = Setup::default();
+    setup.participants[3].1 = Some("player4".into());
+    let world = World::start(setup).await;
+    for (byte, name) in [
+        (1, "player1"),
+        (2, "player_2"),
+        (3, "player3"),
+        (4, "player4"),
+    ] {
+        world.bridge.connect(byte, name).await;
+    }
+    // What an upgrade that changed the creation's form leaves: 1001's
+    // creation was saved, never answered, and no longer reads.
+    world
+        .database()
+        .execute(
+            "INSERT INTO sets (bracket, set_id, player1, player2, attempt, progress, command)
+             VALUES ('challonge:ember_weekly', '1001', '355', '354', 1, 'waiting',
+                     '{\"not\": \"a creation\"}')",
+            [],
+        )
+        .unwrap();
+    world.connector.pass(true).await;
+    // 1001 goes to the organizer; 1002, after it, is played all the same.
+    assert_eq!(world.progress("challonge:ember_weekly", "1001"), "stuck");
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].0, "challonge:ember_weekly:1002:1");
+}

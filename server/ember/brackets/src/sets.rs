@@ -271,7 +271,9 @@ pub fn on_open(tracked: Option<&Tracked>, entries: [&str; 2]) -> OnOpen {
         // Open again, after a report or the organizer's decision, for the
         // same two players: the organizer reopened it to correct it, and
         // decides it (on Challonge, reopening a set reopens the sets after
-        // it too). Ember plays it again only for other players.
+        // it too). Ember plays it again only for other players. A set whose
+        // match ended because the set changed is `Waiting` instead, and is
+        // played again whoever its players are.
         Progress::Reported | Progress::Closed if tracked.entry_ids() == entries => OnOpen::Leave,
         Progress::Reported | Progress::Closed => {
             next_attempt(tracked.attempt).map_or(OnOpen::GiveUp, OnOpen::Start)

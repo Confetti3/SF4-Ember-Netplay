@@ -35,8 +35,7 @@ impl Bracket {
             .flat_map(|(set, _)| set.entries.iter().flatten())
             .flat_map(|entry| &entry.accounts)
             .collect();
-        let now = self.context.clock.now();
-        let found = match self.context.bridge.lookup(&accounts, now).await {
+        let found = match self.context.bridge.lookup(&accounts).await {
             Ok(found) => {
                 if self.lookup_failing.swap(false, Ordering::Relaxed) {
                     log!("{}: players can be looked up again", self.key);
@@ -71,15 +70,30 @@ impl Bracket {
             self.store().command(&self.key, &set.id)?,
         ) && tracked.attempt == attempt
         {
-            return self.create(set, tracked, &command).await;
+            return match command {
+                Ok(command) => self.create(set, tracked, &command).await,
+                // Not made afresh, which could make a second match: this
+                // set alone goes to the organizer.
+                Err(why) => {
+                    self.end(
+                        &set.id,
+                        tracked,
+                        Progress::Stuck,
+                        format_args!(
+                            "its saved creation cannot be read ({why}); its Ember match may exist, and the organizer decides this set"
+                        ),
+                    )?;
+                    Ok(false)
+                }
+            };
         }
         let Some(entries) = &set.entries else {
             return Ok(false);
         };
         let players = entries.each_ref().map(|entry| {
             found.player(entry).ok_or_else(|| {
-                if let Some((account, why)) = found.refusal(entry) {
-                    return format!("the bridge will not look up {account}: {why}");
+                if let Some(account) = found.unknown_site(entry) {
+                    return format!("the bridge has no sign-in site for {account}");
                 }
                 match entry.accounts.as_slice() {
                     [] => format!(
@@ -272,7 +286,7 @@ impl Bracket {
         if !players.iter().any(|(_, player)| old(player)) {
             return;
         }
-        let Some(username_sites) = self.context.bridge.username_sites().await else {
+        let Some(sites) = self.context.bridge.sign_in_sites().await else {
             return;
         };
         let mut pointed_out = self
@@ -282,7 +296,7 @@ impl Bracket {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         for (account, player) in players {
             if let Account::Site { site, .. } = account
-                && username_sites.contains(site)
+                && sites.get(site) == Some(&true)
                 && let Some(at) = player.connected_at
                 && old(player)
                 && pointed_out.insert(player.ember_id.clone())

@@ -145,6 +145,17 @@ pub struct Connector(Arc<Inner>);
 
 impl Connector {
     pub fn new(config: Config, clock: Clock) -> Result<Self, String> {
+        Self::with_startgg_rate(config, clock, startgg::RATE)
+    }
+
+    /// As `new`, with each start.gg token allowed `rate.0` requests in any
+    /// `rate.1` seconds. For tests, which make many requests in a moment.
+    #[doc(hidden)]
+    pub fn with_startgg_rate(
+        config: Config,
+        clock: Clock,
+        rate: (usize, u64),
+    ) -> Result<Self, String> {
         let _ = rustls::crypto::ring::default_provider().install_default();
         config.check()?;
         let secrets = std::iter::once(&config.results.secret_file)
@@ -167,7 +178,7 @@ impl Connector {
             max_poll_secs: config.max_poll_secs,
             pointed_out: Default::default(),
         });
-        let (count, secs) = config.startgg_rate.unwrap_or(startgg::RATE);
+        let (count, secs) = rate;
         let mut limiters = Limiters::new(count, Duration::from_secs(secs));
         let brackets = config
             .tournaments

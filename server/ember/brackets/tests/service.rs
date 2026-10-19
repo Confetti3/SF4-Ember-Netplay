@@ -3,7 +3,7 @@
 //! service, a match created and marked underway, and the result reported
 //! with each game in the order played; a report delivered again, a
 //! conflicting one, a bare 404, refusals and rate limits, and an account
-//! the bridge will not look up.
+//! nobody can be found by.
 mod support;
 
 use axum::http::StatusCode;
@@ -212,7 +212,8 @@ async fn only_a_set_the_service_says_is_gone_has_its_match_cancelled() {
         ]
     );
     assert_eq!(world.snapshot(&match_id).await["state"], "cancelled");
-    assert_eq!(world.progress(BRACKET, "s-1"), "closed");
+    // Gone before it was decided: played again if it ever opens again.
+    assert_eq!(world.progress(BRACKET, "s-1"), "waiting");
 }
 
 #[tokio::test]
@@ -244,11 +245,11 @@ async fn a_refused_token_and_a_rate_limit_are_waited_out() {
 }
 
 #[tokio::test]
-async fn an_account_the_bridge_will_not_look_up_holds_only_its_own_set() {
+async fn an_account_nobody_can_be_found_by_holds_only_its_own_set() {
     let (service, world, _) = world(vec![
         player1_and_player2(),
-        // A start.gg username where start.gg needs a user ID, and a site
-        // the connection may not find players by.
+        // A start.gg username where start.gg needs a user ID, which finds
+        // nobody, and a site the bridge does not have, which is not asked.
         json!({
             "id": "s-3",
             "round": 1,
@@ -396,6 +397,8 @@ async fn a_report_that_fails_for_a_moment_waits_alone() {
         [
             "GET /svc/sets?state=open",
             "POST /svc/sets/s-1/report",
+            // s-1's report may have gone in: s-2 is read again first.
+            "GET /svc/sets/s-2",
             "POST /svc/sets/s-2/report",
             "POST /svc/sets/s-3/underway",
         ]
@@ -435,4 +438,28 @@ async fn a_result_that_cannot_be_settled_does_not_stop_new_matches() {
     );
     assert_eq!(world.progress(BRACKET, "s-1"), "live");
     assert_eq!(world.bridge.matches().await.len(), 2);
+}
+
+#[tokio::test]
+async fn a_token_refused_on_a_report_holds_the_whole_tournament() {
+    let (service, world, _) = world(vec![player1_and_player2()]).await;
+    let match_id = played(&service, &world).await;
+    // A token the service takes for reads but refuses for writes: no one
+    // set is at fault, so none waits on its own or is given up.
+    service.with(|state| state.fail_reports.push_back(StatusCode::UNAUTHORIZED));
+    world.connector.pass(false).await;
+    assert_eq!(
+        service.log(),
+        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+    );
+    assert_eq!(world.progress(BRACKET, "s-1"), "live");
+    // The whole tournament waits out the growing wait: not even a forced
+    // read is made.
+    world.advance(30);
+    world.connector.pass(true).await;
+    assert!(service.log().is_empty());
+    world.advance(31);
+    world.connector.pass(false).await;
+    assert_eq!(service.reports(), [player1_wins(&match_id)]);
+    assert_eq!(world.progress(BRACKET, "s-1"), "reported");
 }
