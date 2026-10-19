@@ -560,6 +560,25 @@ $("sign-out").addEventListener("click", async () => {
   signedOut();
 });
 
+// A code shown in Ember, typed here: the bridge signs this browser in to
+// the desk as opened from the game.
+$("code-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const box = $("code-error");
+  box.hidden = true;
+  try {
+    await api("POST", "/web/handoff", { code: $("code").value });
+    $("code").value = "";
+    await start();
+  } catch (error) {
+    box.textContent = error.status === 429
+      ? "Too many tries. Wait a few minutes, then get a new code in Ember."
+      : "That code is wrong or expired. Codes last two minutes: get a new one in Ember.";
+    box.hidden = false;
+    $("code").focus();
+  }
+});
+
 async function start() {
   try {
     desk.session = await api("GET", "/web/session");

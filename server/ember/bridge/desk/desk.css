@@ -54,6 +54,9 @@ a:hover { color: var(--ember-light); }
 .note { margin: 0; color: var(--muted); font-size: 15px; }
 .toast { margin: 12px 16px 0; padding: 12px 14px; border-radius: 4px; background: #3a2120; color: var(--error); }
 .toast.good { background: #22291f; color: var(--success); }
+.code-form { gap: 12px; }
+.code-input { font-size: 22px; letter-spacing: 0.2em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.code-error { margin: 0; padding: 10px 12px; border-radius: 4px; background: #3a2120; color: var(--error); font-size: 15px; }
 
 .wd-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); }
 .wd-side { padding: 10px 16px 12px; border-bottom: 1px solid var(--line); }
