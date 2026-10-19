@@ -536,13 +536,16 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  };
  const auto button=[&](const MenuEntry& e,float width){
   const auto p=ImGui::GetCursorScreenPos();press(e,ImVec2(width,40*s));
+  // Leaving the room reads as the one action that cannot be taken back.
+  const bool danger=e.id=="leave";
+  if(danger&&e.id!=focus)ImGui::GetWindowDrawList()->AddRect(p,ImVec2(p.x+width,p.y+40*s),(ImGui::GetColorU32(ToneColor(Tone::Error))&0x00FFFFFF)|0x73000000,0,0,s);
   // The unread count rides the Chat row's right edge, and the label leaves room for it.
   const float badge=e.id=="room-chat"&&unread?UnreadBadgeWidth(unread)+8*s:0;
   if(badge)DrawUnreadBadge(p.x+width-8*s,p.y+11*s,unread);
   // Our own action labels must fit; only player-supplied text may elide.
   ReportMenuText(("board-"+e.id).c_str(),16*s,40*s,
    ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,e.label.c_str()).x,width-24*s-badge);
-  text(ImVec2(p.x+12*s,p.y+11*s),width-24*s-badge,e.label,16*s,shown(e)?palette::Ivory:palette::Muted);
+  text(ImVec2(p.x+12*s,p.y+11*s),width-24*s-badge,e.label,16*s,!shown(e)?palette::Muted:danger?ImGui::GetColorU32(ToneColor(Tone::Error)):palette::Ivory);
   tip();
  };
  // The column's parts are shown or hidden from their headings, not with the room's actions.
@@ -568,7 +571,11 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float rightWidth=anyOpen?(width-gap)*preferences_.roomSideWidth/100.f:(std::min)(width*.3f,200*s),leftWidth=width-gap-rightWidth;
   // A column dragged too narrow for two buttons a row takes one.
   const int toolColumns=!anyOpen?1:rightWidth>=3*180*s?3:rightWidth>=2*125*s+8*s?2:1;
-  const float toolsHeight=(std::min)(boardHeight,std::ceil(toolbar.size()/float(toolColumns))*48*s+8*s);
+  // Leaving the room is set apart on a row of its own under the other actions.
+  const auto leave=std::find_if(toolbar.begin(),toolbar.end(),[](const MenuEntry* e){return e->id=="leave";});
+  const MenuEntry* leaveRow=leave==toolbar.end()?nullptr:*leave;
+  if(leaveRow)toolbar.erase(leave);
+  const float toolsHeight=(std::min)(boardHeight,(std::ceil(toolbar.size()/float(toolColumns))+(leaveRow?1:0))*48*s+(leaveRow?20*s:8*s));
   const float heading=ImGui::GetFontSize()+8*s,grip=12*s,chatLeast=90*s;
   const float communityHeight=anyOpen?(std::max)(120*s,boardHeight-toolsHeight-gap):2*heading+12*s;
   ImGui::BeginChild("Battle slots",ImVec2(leftWidth,boardHeight),0,ImGuiWindowFlags_NoNavInputs);
@@ -632,6 +639,11 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    // Follow new messages only while the reader is already at the bottom.
    if(ImGui::GetScrollY()>=ImGui::GetScrollMaxY()-1||chatShown_==0)ImGui::SetScrollHereY(1.f);
    chatShown_=transcript_.Lines().size();
+   // A message cut by the card's top edge fades into it instead.
+   if(ImGui::GetScrollY()>0){
+    const auto top=ImGui::GetWindowPos();const ImU32 card=ImGui::GetColorU32(ImGuiCol_ChildBg),clear=card&0x00FFFFFF;
+    ImGui::GetWindowDrawList()->AddRectFilledMultiColor(top,ImVec2(top.x+ImGui::GetWindowWidth(),top.y+18*s),card,card,clear,clear);
+   }
    endCard();
   }
   ImGui::EndChild();
@@ -639,6 +651,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   ImGui::BeginChild("Room actions",ImVec2(rightWidth,toolsHeight),0,ImGuiWindowFlags_NoNavInputs);
   const float w=(ImGui::GetContentRegionAvail().x-(toolColumns-1)*8*s)/toolColumns;
   for(std::size_t i=0;i<toolbar.size();++i){if(i%toolColumns)ImGui::SameLine(0,8*s);button(*toolbar[i],w);}
+  if(leaveRow){ImGui::Dummy(ImVec2(0,4*s));button(*leaveRow,ImGui::GetContentRegionAvail().x);}
   ImGui::EndChild();
   ImGui::SetCursorScreenPos(ImVec2(origin.x,origin.y+boardHeight+gap));
   ImGui::BeginChild("Room explanation",ImVec2(width,explanationHeight),0,ImGuiWindowFlags_NoNavInputs|ImGuiWindowFlags_NoScrollbar);
