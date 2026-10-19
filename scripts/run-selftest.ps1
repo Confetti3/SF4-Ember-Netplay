@@ -158,6 +158,7 @@ try {
             if ($game) { Stop-Process -Id $game.Id -Force -ErrorAction SilentlyContinue }
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             Write-Host "FAIL timeout: the game was still running after $TimeoutMinutes minutes"
+            Remove-Item $result -ErrorAction SilentlyContinue
             exit 2
         }
         Start-Sleep -Seconds 1
@@ -236,6 +237,7 @@ finally {
 
 if (-not (Test-Path $result) -or -not (Get-Content $result | Select-String -Quiet '^RESULT ')) {
     Write-Host "FAIL no result: the game closed without writing one. See $env:APPDATA\sf4e\logs\sf4e.log"
+    Remove-Item $result -ErrorAction SilentlyContinue
     exit 2
 }
 $lines = Get-Content $result
