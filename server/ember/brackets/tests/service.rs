@@ -541,6 +541,8 @@ async fn a_set_s_phase_names_the_rule_for_its_length() {
                 side: Side::Any,
                 games_to_win: 3,
             }],
+            top: None,
+            grand_final: None,
         },
         ..Setup::default()
     })
@@ -588,6 +590,8 @@ async fn a_blank_phase_is_none_and_a_phase_over_64_characters_leaves_the_set_out
                 side: Side::Any,
                 games_to_win: 3,
             }],
+            top: None,
+            grand_final: None,
         },
         ..Setup::default()
     })

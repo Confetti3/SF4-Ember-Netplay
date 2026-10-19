@@ -473,6 +473,8 @@ async fn challonge_group_and_final_stages_take_their_own_length() {
                 side: Side::Any,
                 games_to_win: 3,
             }],
+            top: None,
+            grand_final: None,
         },
         ..Setup::default()
     };

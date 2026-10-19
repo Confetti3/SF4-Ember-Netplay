@@ -150,6 +150,8 @@ pub fn rounds() -> Rounds {
             side: Side::Any,
             games_to_win: 3,
         }],
+        top: None,
+        grand_final: None,
     }
 }
 

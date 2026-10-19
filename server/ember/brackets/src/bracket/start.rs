@@ -14,6 +14,7 @@ use super::Bracket;
 use crate::{
     bridge::{BridgeError, Found, Player},
     log,
+    rounds::Shape,
     sets::{ExternalId, MAX_ATTEMPTS, Progress, Seen, Tracked},
     site::{Account, Set, SiteError},
 };
@@ -325,7 +326,7 @@ impl Bracket {
                     slot,
                 })
                 .into(),
-            rules: Rules::standard(self.rounds.length(set), play::PROFILE),
+            rules: Rules::standard(self.rounds.length(set, self.shape(set)), play::PROFILE),
             observer_policy: "authorized_only".into(),
             result_policy: "two_player_agreement_or_review".into(),
             required_build_id: self.context.build_id.clone(),
@@ -402,6 +403,18 @@ fn round_label(label: &str) -> &str {
         end -= 1;
     }
     &label[..end]
+}
+
+impl Bracket {
+    /// The shape of `set`'s bracket, as the last read showed it.
+    fn shape(&self, set: &Set) -> Option<Shape> {
+        self.shapes
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .iter()
+            .find(|(phase, _)| *phase == set.extras.phase)
+            .map(|&(_, shape)| shape)
+    }
 }
 
 #[cfg(test)]

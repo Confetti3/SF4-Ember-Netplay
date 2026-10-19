@@ -28,7 +28,7 @@ use crate::{
     bridge::{BridgeClient, BridgeError},
     config::Tournament,
     log,
-    rounds::{Hold, PhaseWatch, Rounds},
+    rounds::{Hold, PhaseWatch, Rounds, Shape},
     schedule::{Backoff, Phase, Window},
     sets::{
         MAX_ATTEMPTS, OnOpen, OnResult, Progress, Received, Seen, Tracked, adds_up, on_open,
@@ -82,6 +82,9 @@ pub(crate) struct Bracket {
     /// The desk event this bracket is, whose sets go to the bridge after
     /// each read (`snapshot`); none for a configured tournament.
     desk_event: Option<String>,
+    /// Each phase's bracket shape from the sets read, for the top and grand
+    /// final lengths (`Rounds::needs_shape`).
+    shapes: std::sync::Mutex<Vec<(Option<crate::site::Phase>, Shape)>>,
     /// The sets its organizer holds from the desk, by ID.
     desk_held: Vec<String>,
     /// Whether the last snapshot failed to reach the bridge, logged once.
@@ -187,6 +190,7 @@ impl Bracket {
             lookup_failing: AtomicBool::new(false),
             cancel_failing: std::sync::Mutex::default(),
             desk_event: None,
+            shapes: std::sync::Mutex::default(),
             desk_held: Vec::new(),
             snapshot_failing: AtomicBool::new(false),
             state: Mutex::new(State {
@@ -425,6 +429,25 @@ impl Bracket {
         }
         for set in &sets {
             state.seen.insert(set.id.clone(), set.clone());
+        }
+        if self.rounds.needs_shape() {
+            let mut phases: Vec<Option<crate::site::Phase>> = Vec::new();
+            for set in state.seen.values() {
+                if !phases.contains(&set.extras.phase) {
+                    phases.push(set.extras.phase.clone());
+                }
+            }
+            let shapes = phases
+                .into_iter()
+                .map(|phase| {
+                    let shape = Shape::of(state.seen.values(), phase.as_ref());
+                    (phase, shape)
+                })
+                .collect();
+            *self
+                .shapes
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = shapes;
         }
         let read = fingerprint(&sets);
         let mut changed = state.last_read.as_ref() != Some(&read);
