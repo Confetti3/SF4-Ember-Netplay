@@ -149,6 +149,12 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // itself and keeps everyone else out; the room refuses seat, watch, rules
   // and kick changes there, so they are not offered.
   const bool tournamentRoom=s.tournament.Active();
+  // A short wide board folds the room's settings and invitation copies into
+  // one More… row, so members and chat keep their height; each is one of its choices.
+  MenuEntry more=Row("more",loc::T("room.more"),loc::T("room.more.detail"));
+  const auto share=[&](MenuEntry e){
+   if(boardLayout_==BoardLayout::WideShort)more.choices.push_back({e.id,e.label,e.detail,e.enabled});else rows.push_back(std::move(e));
+  };
   const bool boundTable=tournamentRoom&&selectedTable_==room::TournamentTable;
  const auto* local=Member(s,s.localMember);
  const auto& t=s.tables[selectedTable_];
@@ -229,7 +235,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    if(boardLayout_!=BoardLayout::Stacked)rows.push_back(Row("chat-part",loc::T(preferences_.roomChatHidden?"room.show_chat":"room.hide_chat"),loc::T("room.part_detail")));
    // Changing fighter needs a seat, so it lives in the table options (and X).
    rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
-   rows.push_back(Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
+   share(Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
   }else{
    rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
   }
@@ -237,14 +243,15 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // tournament service, so there is no invitation to hand out. A public room
   // admits by the service's ticket, so its invitation would admit nobody.
   if(!tournamentRoom&&!s.serverOwned){
-   rows.push_back(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
+   share(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
    // Once made, the detail shows the link itself so it can be read out.
-   rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
+   share(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
     v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
   }
   // A public room is shared by its page link, which opens it in Ember from a browser or Discord.
   if(s.serverOwned){const auto link=publicRooms_.RoomLink();if(!link.empty())rows.push_back(Row("copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)));}
   if(s.roomEpoch)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
+  if(!more.choices.empty())rows.push_back(more);
   rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
    LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
   // A public room has no replacement: when its host is gone the room closes.
@@ -557,7 +564,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  const auto choose=[&](const MenuEntry* e){if(e&&!nav.Asking()&&!nav.Editing()){nav.Focus(e->id,rows);action=nav.Choose(rows);}};
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
  ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.SeeThrough()));
- boardLayout_=wide?BoardLayout::Wide:BoardLayout::Stacked;
+ boardLayout_=!wide?BoardLayout::Stacked:ImGui::GetIO().DisplaySize.y<820*s?BoardLayout::WideShort:BoardLayout::Wide;
  if(wide){
   // The battle slots fill the left. The right column holds members and chat,
   // each under a heading that hides or shows it, and the room's actions; the
@@ -571,8 +578,10 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float rightWidth=anyOpen?(width-gap)*preferences_.roomSideWidth/100.f:(std::min)(width*.3f,200*s),leftWidth=width-gap-rightWidth;
   // A column dragged too narrow for two buttons a row takes one.
   const int toolColumns=!anyOpen?1:rightWidth>=3*180*s?3:rightWidth>=2*125*s+8*s?2:1;
-  // Leaving the room is set apart on a row of its own under the other actions.
-  const auto leave=std::find_if(toolbar.begin(),toolbar.end(),[](const MenuEntry* e){return e->id=="leave";});
+  // Leaving the room is set apart on a row of its own under the other actions,
+  // unless the screen is short (1280x720, 1366x768, a Steam Deck's 1280x800),
+  // where members and chat need that height more; it is drawn red either way.
+  const auto leave=boardLayout_==BoardLayout::WideShort?toolbar.end():std::find_if(toolbar.begin(),toolbar.end(),[](const MenuEntry* e){return e->id=="leave";});
   const MenuEntry* leaveRow=leave==toolbar.end()?nullptr:*leave;
   if(leaveRow)toolbar.erase(leave);
   const float toolsHeight=(std::min)(boardHeight,(std::ceil(toolbar.size()/float(toolColumns))+(leaveRow?1:0))*48*s+(leaveRow?20*s:8*s));
@@ -605,7 +614,11 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    ImGui::BeginChild(name,size,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoNavInputs);
   };
   const auto endCard=[]{ImGui::EndChild();ImGui::PopStyleVar(2);ImGui::PopStyleColor();};
-  if(membersPart&&DrawPartHeading("##members-part",loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity),membersOpen,
+  // Hidden, the members' heading still says who is playing and who watches.
+  std::size_t playing=0,watching=0;
+  for(const auto& m:v.room.members){playing+=m.status==room::MemberStatus::Playing;watching+=m.status==room::MemberStatus::Watching||m.status==room::MemberStatus::WatchingNext;}
+  const auto membersTitle=loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity)+(membersOpen?std::string():"  \xC2\xB7  "+loc::Tf("room.members_summary",playing,watching));
+  if(membersPart&&DrawPartHeading("##members-part",membersTitle,membersOpen,
    membersPart->id==focus,membersPart->label,titleRight))choose(membersPart);
   // Whole cards only. A free fraction of the board height always clipped the
   // bottom card through its portrait.
@@ -650,7 +663,17 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   ImGui::SetCursorScreenPos(ImVec2(origin.x+leftWidth+gap,origin.y+communityHeight+gap));
   ImGui::BeginChild("Room actions",ImVec2(rightWidth,toolsHeight),0,ImGuiWindowFlags_NoNavInputs);
   const float w=(ImGui::GetContentRegionAvail().x-(toolColumns-1)*8*s)/toolColumns;
-  for(std::size_t i=0;i<toolbar.size();++i){if(i%toolColumns)ImGui::SameLine(0,8*s);button(*toolbar[i],w);}
+  // More…'s choices open in place of the actions, as a table's seats open on its card.
+  const auto more=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="more";});
+  if(nav.Choosing()&&nav.DialogId()=="more"&&more!=rows.end())
+   for(std::size_t i=0;i<more->choices.size();++i){
+    if(i%toolColumns)ImGui::SameLine(0,8*s);
+    const auto p=ImGui::GetCursorScreenPos();const auto& c=more->choices[i];
+    if(DrawCardButton("more-"+c.id,ImVec2(w,40*s),i==nav.ChoiceIndex(),false,!c.enabled))action=nav.Pick(i,rows);
+    text(ImVec2(p.x+12*s,p.y+11*s),w-24*s,c.label,16*s,c.enabled?palette::Ivory:palette::Muted);
+    tip();
+   }
+  else for(std::size_t i=0;i<toolbar.size();++i){if(i%toolColumns)ImGui::SameLine(0,8*s);button(*toolbar[i],w);}
   if(leaveRow){ImGui::Dummy(ImVec2(0,4*s));button(*leaveRow,ImGui::GetContentRegionAvail().x);}
   ImGui::EndChild();
   ImGui::SetCursorScreenPos(ImVec2(origin.x,origin.y+boardHeight+gap));

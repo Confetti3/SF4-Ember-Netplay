@@ -418,9 +418,10 @@ private:
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
     // How the board last laid itself out, which the next frame's rows follow:
-    // stacked in one list, or wide with its column. Only a wide board shows the
-    // chat as a part of its column.
-    enum class BoardLayout { Stacked, Wide } boardLayout_=BoardLayout::Wide;
+    // stacked in one list, wide with its column, or wide on a screen under 820
+    // lines, which folds its sharing and settings into More…. Only a wide
+    // board shows the chat as a part of its column.
+    enum class BoardLayout { Stacked, Wide, WideShort } boardLayout_=BoardLayout::Wide;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.

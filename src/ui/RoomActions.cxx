@@ -46,6 +46,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  };
  // A seat chooser's option, exactly as the player saw it.
  if(a.kind==MenuAction::Chosen){
+  // More…'s choice is the row it stands for.
+  if(a.id=="more"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
   if(a.id.compare(0,6,"table-"))return;
   selectedTable_=std::stoi(a.id.substr(6));
   if(a.text=="options"){OpenTableOptions(v,selectedTable_);return;}
