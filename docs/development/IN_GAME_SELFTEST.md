@@ -7,8 +7,15 @@ happened.
 
 ## Running it
 
-The self-test is built only when CMake is configured with
-`-DSF4E_SELFTEST=ON`; a build without it, as every package is, has none of it.
+The self-test is built only by `scripts\build-current.ps1 -SelfTest`, which
+configures CMake with `-DSF4E_SELFTEST=ON`. Every other run of the script
+passes `-DSF4E_SELFTEST=OFF`, so a build directory that once held a self-test
+build does not keep it, and its receipt (`build-provenance.json`) says
+`selfTest`. `Assert-BuildReceipt` refuses a receipt that is not `false`, and a
+cache that says ON, so `package-team.ps1` and the Nightly publisher will not
+package or publish one. A self-test build stages into the same directory as
+the build a package comes from: build it again without `-SelfTest` before
+packaging.
 
 ```powershell
 scripts\run-selftest.ps1 -PackageDir <a built package or stage folder>
@@ -18,7 +25,8 @@ The game has to be closed, and Steam running with an account signed in. The
 script:
 
 1. copies the account's whole save folder to
-   `%APPDATA%\sf4e\selftest-backups\<time>` and stops if it cannot;
+   `%APPDATA%\sf4e\selftest-backups\<time>` and stops if it cannot (the
+   newest five copies stay);
 2. starts the package's `Launcher.exe` with `SF4E_SELFTEST=training`;
 3. sends one Enter key to the game's window when the test says the title
    screen is up, and gives the focus back to the window that had it;
@@ -97,6 +105,19 @@ its Ember ID and trusted services in a temp folder of its own, never the
 player's, and its settings are put back after the run.
 `docs/design/TOURNAMENT_SELFTEST.md` has the details.
 
+Unlike the other tests it plays a game to its end, and a finished game saves
+its replay into the game's own slots (the ring of the last ten matches, which
+would push out one of the player's), the launcher archives that replay into
+Ember's replay archive (`%APPDATA%\sf4e\replays`, by way of
+`%LOCALAPPDATA%\sf4e\replay-outbox`), and the game may update the account's
+online record. So when a tournament test's game has closed, `run-selftest.ps1`
+makes the save folder match its copy again (files the run added go, changed
+ones come back), deletes the copy once the folder matches, and removes the
+files the run added to the archive and the outbox. If the folder does not
+match, the copy stays and the script says so. Steam Cloud syncs the game's
+saves around its runs, so the restored folder is
+seen as an ordinary local change; nothing else changes it in between.
+
 ## The replay test
 
 `-Test replay` needs at least one Ember replay in the archive. From the main
@@ -134,4 +155,6 @@ beside it, like `sf4e__SelfTest__Training.cxx`, with its own stages
 (`Steps<Stage>` in `sf4e__SelfTest.hxx`) and a start and a tick that the
 shared part calls from the main menu on. It reports with `Say` and ends the
 run with `Finish`. Its name goes into `selftest::Parse` and the script's
-`-Test` check.
+`-Test` check. A test that plays in a room takes the runtime's commands, its
+setup, Ready as Ryu and the files two PCs pass lines through from
+`sf4e__SelfTest__Online.hxx`, as the room and tournament tests do.

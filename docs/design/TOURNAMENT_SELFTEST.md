@@ -8,7 +8,9 @@ runner then checks on the bridge that the match completed and that the
 signed result was delivered.
 
 It builds on the in-game self-test (`docs/development/IN_GAME_SELFTEST.md`)
-and is compiled in only with CMake option `SF4E_SELFTEST=ON`.
+and is compiled in only by `scripts\build-current.ps1 -SelfTest` (CMake
+option `SF4E_SELFTEST=ON`). No other build has it, and a package or Nightly
+publication refuses a build that does.
 
 ## Reaching one bridge from both PCs
 
@@ -78,16 +80,33 @@ The helper keeps the Ember ID and trusted services under
 helper has a `selftest` cargo feature, which `cmake/sf4e_helper.cmake` turns
 on only with `SF4E_SELFTEST`. With it, `identity::default_directory` takes
 the folder `SF4E_SELFTEST_EMBER_DIR` names (an absolute path) as the `Ember`
-folder. `run-selftest.ps1` points it at a fresh temp folder for a
-tournament test and deletes it afterwards, so each run creates its own
-Ember ID. The helper inherits the launcher's environment.
+folder; a value that is set but not absolute is an error, which leaves the
+identity unavailable, never the player's folder. `run-selftest.ps1` points it
+at a fresh temp folder for a tournament test and deletes it afterwards, so
+each run creates its own Ember ID. The helper inherits the launcher's
+environment.
+
+The helper does not report which folder it opened, so the test proves it
+twice. The folder is new, so an ID that is already ready when the game has not
+yet asked for one is the player's: the game fails the step before it trusts
+anything. And a run that passed is failed by `run-selftest.ps1` when the helper
+never made the `Identity` folder inside the test's folder, as it does when it
+makes the ID. A helper built without the feature fails the first.
 
 The other is the fighters' input during the game. A game nobody plays ends in a draw on time, and an ember-room-v1
 draw scores nobody and is played again, so the host's fighter has to deal
-damage. `ReadRuntimeMatchInput` asks `selftest::MatchInput` first; a build
-without the self-test has the inline stub that returns false, so the
-normal path is unchanged. The pattern (hold forward, press heavy punch for
-two frames out of every twenty) is a pure function with a unit test.
+damage. After `ReadRuntimeMatchInput` has read the controller it calls
+`selftest::MatchInput`, which replaces the input of the fighter this PC plays;
+a build without the self-test has the inline stub that does nothing, so the
+normal path is unchanged. The runtime reads the controller on every frame it
+runs, including one GGPO then stalls and repeats, so the test counts reads
+and not frames. The pattern (hold forward, press heavy punch for two reads out
+of every twenty) is a pure function in `sf4e__SelfTest__Attack.hxx` with a unit
+test, kept out of the header the game includes.
+
+The folder rule has a unit test that exists only with the feature: a build
+made with `-SelfTest` runs it in its `HelperRust` test, and the Windows suite
+runs it on its own (`.github/workflows/windows-suite.yml`).
 
 ## The runner
 
@@ -95,15 +114,15 @@ two frames out of every twenty) is a pure function with a unit test.
 desktop), with the other PC (the laptop) as the host:
 
 1. Checks the ports are free on both PCs, the games closed and the other
-   PC's package there.
+   PC's package and host script there.
 2. Starts the bridge side, `sdk/typescript/tools/selftest-bridge.ts`. It
    initialises a bridge in a fresh folder, sets its port and result
    delivery, issues the provider credential, starts the bridge and the
    result receiver, and holds the ssh tunnel, checking the other PC reaches
    the bridge through it.
-3. Starts the host through the other PC's "Ember Interactive" task, with a
-   job and log of its own, and the guest here, both through
-   `run-selftest.ps1`.
+3. Starts the host through the other PC's task, with a job and log of its
+   own (`run-tournament-selftest-host.ps1`, which runs `run-selftest.ps1`),
+   and the guest here, through `run-selftest.ps1`.
 4. The bridge side, for each game: on `ember-id`, creates a link intent for
    subject `player1` or `player2` and writes `link-code`; on `claim`, reads
    the intent, checks its pending claim is by that game's Ember ID with the
@@ -122,3 +141,56 @@ The other PC's exchange files go through ssh. The decisions the bridge side
 makes (an `ember-id` line, the claim to approve, a finished match) are
 pure functions in `tools/selftest-checks.ts`, tested in
 `test/selftest-checks.test.ts`.
+
+```powershell
+scripts\run-tournament-selftest.ps1 -PackageDir <stage> -BridgeExe <ember-bridge.exe> `
+    -RemoteHost <ssh name> -RemoteCheckout <checkout there> -RemoteJobs <folder there>
+```
+
+The runner assumes nothing of one person's machines: the other PC, its
+checkout (this branch, `scripts\build-current.ps1 -SelfTest` built, staged in
+its `build\current\stage`) and the jobs folder are all arguments.
+
+### The other PC's task
+
+A process started over ssh has no desktop, so the host game starts through a
+scheduled task the other PC provides. The runner needs of it:
+
+- a task named `-RemoteTask` (default `Ember Interactive`) that runs
+  `<jobs>\job.cmd` as the signed-in user, in that user's session and without
+  elevation, with the output going wherever the task puts it (for example
+  `cmd /d /c <jobs>\job.cmd > <jobs>\job.log 2>&1`);
+- `<jobs>` writable by the ssh user, and `pwsh` (PowerShell 7) on its `PATH`;
+- the task is `Ready` when idle. The runner writes its own job as
+  `tourney-host.cmd` and copies it to `job.cmd` only in the ssh call that has
+  just seen `Ready`, so another job cannot be taken over; it stops with an
+  error when the task is busy.
+
+The job runs `scripts\run-tournament-selftest-host.ps1` from the other PC's
+checkout. It writes its own PID to `tourney-host.pid`, and its last line to
+`tourney-host.log` is `tourney-host done`, which the runner waits for. A job
+that died without that line is noticed when the task is `Ready` again after the
+PID file was written. A failed ssh call while waiting is tried again, six times
+in a row at most.
+
+### An aborted run
+
+Every wait is bounded: each game stops itself after `-TimeoutMinutes`, the
+runner after two minutes more and the bridge side after five.
+
+- A timeout, an error or Ctrl+C in the runner ends the games it started by
+  PID, not by name: the guest's game is ended and its script then restores the
+  settings, saves and Ember folder (the runner waits two minutes for that), and
+  the host's game is ended through the PID in `tourney-host.pid`, found with the
+  parent links Windows keeps (a child counts only when it was created after its
+  parent, as PIDs are reused). A run killed outright, with no `finally`, leaves
+  the games to their own timeouts; the other PC then reports busy until its game
+  closes.
+- Ctrl+C reaches the bridge side with the runner's; it stops its bridge,
+  tunnel and receiver and deletes its work folder, which holds the provider
+  token and the result secret, before it exits. A killed one leaves that folder
+  in `%TEMP%\ember-tourney-*\bridge`: delete it.
+- A failed run keeps its logs, and says where, in `%TEMP%\ember-tourney-*`.
+- Settings are restored by each game's own script from `*.selftest` copies next
+  to `settings.json` and `ui-preferences.json`; if one is left, the script
+  that died did not finish and the copy is the original.

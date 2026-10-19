@@ -1,33 +1,37 @@
 # Runs the two-PC tournament self-test (docs/design/TOURNAMENT_SELFTEST.md):
 # a local test bridge, the host game on the other PC and the guest game here,
-# each run by run-selftest.ps1 from a build with SF4E_SELFTEST=ON. The bridge
-# side (sdk/typescript/tools/selftest-bridge.ts) links both games, creates
-# the match and checks its signed result. Prints every side's PASS and FAIL
+# each run by run-selftest.ps1 from a build made with
+# scripts\build-current.ps1 -SelfTest. The bridge side
+# (sdk/typescript/tools/selftest-bridge.ts) links both games, creates the
+# match and checks its signed result. Prints every side's PASS and FAIL
 # lines; exit code 0 when all passed, 1 when one failed.
 #
 # The other PC is reached with ssh (key sign-in, default shell PowerShell) and
 # starts its game through a scheduled task that runs in the signed-in user's
-# session ("Ember Interactive"): a process started over ssh has no desktop.
-# The game has to be closed and Steam signed in on both PCs. Needs Node.js 22.18
-# or later here, and a free -Port and -Port + 1 on this PC and -Port on the other.
+# session: a process started over ssh has no desktop. The task's contract is
+# in the design document. The game has to be closed and Steam signed in on both
+# PCs. Needs Node.js 22.18 or later here, and a free -Port and -Port + 1 on
+# this PC and -Port on the other.
 param(
     # This PC's package, the guest's.
     [Parameter(Mandatory)] [string]$PackageDir,
     # ember-bridge.exe built from the same checkout.
     [Parameter(Mandatory)] [string]$BridgeExe,
     # The other PC: its ssh name and the checkout there, with this branch and
-    # its staged build in build\current\stage.
-    [string]$RemoteHost = "director",
-    [string]$RemoteCheckout = "D:\sf4\prs\tourney-selftest",
-    # The scheduled task, and the folder its jobs and logs live in.
+    # its self-test build staged in build\current\stage.
+    [Parameter(Mandatory)] [string]$RemoteHost,
+    [Parameter(Mandatory)] [string]$RemoteCheckout,
+    # The scheduled task, and the folder it runs job.cmd from; the runner's
+    # own job, log and exchange files go there too.
     [string]$RemoteTask = "Ember Interactive",
-    [string]$RemoteJobs = "D:\sf4\interactive",
+    [Parameter(Mandatory)] [string]$RemoteJobs,
     [int]$Port = 18787,
     [int]$TimeoutMinutes = 30
 )
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot "SelfTestProcesses.ps1")
 
 # A script run on the other PC, passed whole so nothing in it needs quoting
 # for the command line.
@@ -41,14 +45,27 @@ function Invoke-Remote([string]$Script) {
 
 function Test-PortFree([int]$Number) { -not (Get-NetTCPConnection -LocalPort $Number -State Listen -ErrorAction SilentlyContinue) }
 
+# The lines a side printed, labelled with the side.
+function Get-Steps([string]$Side, [string]$Log) {
+    if (-not (Test-Path $Log)) { return @("FAIL $($Side): no output") }
+    @(Get-Content $Log | Where-Object { $_ -match '^(PASS|FAIL|RESULT) ' } | ForEach-Object { "$Side $_" })
+}
+
 if (Get-Process SSFIV -ErrorAction SilentlyContinue) { throw "Close Ultra Street Fighter IV first." }
 if (-not (Test-Path $BridgeExe)) { throw "ember-bridge.exe not found at $BridgeExe" }
 if (-not (Test-PortFree $Port) -or -not (Test-PortFree ($Port + 1))) { throw "Port $Port or $($Port + 1) is in use on this PC." }
+# The remote paths go into single-quoted strings and a batch line.
+foreach ($path in $RemoteCheckout, $RemoteJobs) { if ($path -match "['`"%]") { throw "The remote path $path has a quote or percent sign in it." } }
 $remoteExchange = "$RemoteJobs\tourney-exchange"
+$remoteLog = "$RemoteJobs\tourney-host.log"
+$remotePid = "$RemoteJobs\tourney-host.pid"
+$remoteJob = "$RemoteJobs\tourney-host.cmd"
 $remoteState = Invoke-Remote @"
 if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) { 'port-busy' }
 if (Get-Process SSFIV -ErrorAction SilentlyContinue) { 'game-running' }
 if (-not (Test-Path '$RemoteCheckout\build\current\stage\Launcher.exe')) { 'no-package' }
+if (-not (Test-Path '$RemoteCheckout\scripts\run-tournament-selftest-host.ps1')) { 'no-host-script' }
+if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) { 'no-pwsh' }
 "@
 if ($remoteState) { throw "$RemoteHost is not ready: $($remoteState -join ', ')" }
 
@@ -60,22 +77,18 @@ $coordinatorLog = Join-Path $work "bridge.log"
 $guestLog = Join-Path $work "guest.log"
 $hostLog = Join-Path $work "host.log"
 $origin = "http://127.0.0.1:$Port"
-$coordinator = $null; $guest = $null; $hostStarted = $false; $timedOut = $false
-
-# The lines a side printed, labelled with the side.
-function Get-Steps([string]$Side, [string]$Log) {
-    if (-not (Test-Path $Log)) { return @("FAIL $($Side): no output") }
-    @(Get-Content $Log | Where-Object { $_ -match '^(PASS|FAIL|RESULT) ' } | ForEach-Object { "$Side $_" })
-}
+$coordinator = $null; $guest = $null; $hostStarted = $false; $hostDone = $false; $timedOut = $false; $runnerError = $null
 
 try {
     # The bridge side first: its bridge, result receiver and tunnel are up
-    # when it prints READY.
+    # when it prints READY. Its own deadline is later than the games' (and the
+    # runner's), so it never tears the bridge down under a game still inside
+    # its timeout.
     $node = (Get-Command node).Source
     $coordinator = Start-Process -FilePath $node -PassThru -NoNewWindow -RedirectStandardOutput $coordinatorLog -RedirectStandardError "$coordinatorLog.err" -WorkingDirectory "$repo\sdk\typescript" -ArgumentList @(
         "tools/selftest-bridge.ts", "--bridge", "`"$BridgeExe`"", "--work", "`"$bridgeWork`"",
         "--host", "`"ssh:$($RemoteHost):$remoteExchange`"", "--guest", "`"$guestExchange`"",
-        "--port", $Port, "--minutes", $TimeoutMinutes)
+        "--port", $Port, "--minutes", ($TimeoutMinutes + 5))
     $ready = (Get-Date).AddMinutes(2)
     while (-not ((Test-Path $coordinatorLog) -and (Select-String -Path $coordinatorLog -Pattern '^READY$' -Quiet))) {
         if ($coordinator.HasExited -or (Get-Date) -gt $ready) { throw "The bridge side did not start: $(Get-Content $coordinatorLog, "$coordinatorLog.err" -ErrorAction SilentlyContinue)" }
@@ -84,31 +97,16 @@ try {
     Write-Host "bridge side ready"
 
     # The host, through the other PC's task: a job of its own, its own log,
-    # started in the same call that sees the task free.
-    $hostJob = @"
-`$ErrorActionPreference = 'Stop'
-`$began = Get-Date
-& '$RemoteCheckout\scripts\run-selftest.ps1' -PackageDir '$RemoteCheckout\build\current\stage' -Test tournament-host -Exchange '$remoteExchange' -Bridge '$origin' -Connection mock-local -TimeoutMinutes $TimeoutMinutes
-`$code = `$LASTEXITCODE
-"run-selftest tournament-host exit `$code"
-`$log = Join-Path `$env:APPDATA 'sf4e\logs\sf4e.log'
-if (Test-Path `$log) {
-    '--- sf4e.log lines from this run:'
-    Get-Content `$log | Where-Object { `$_ -match '^\[(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)' -and [datetime]`$Matches[1] -ge `$began.AddSeconds(-5) } |
-        Where-Object { `$_ -match 'SelfTest|Tournament|error|fail|crash|exception' } | Select-Object -Last 80
-}
-exit `$code
-"@
+    # started in the same call that sees the task free. The host script is
+    # this checkout's, there; the line it ends the log with says it is done.
     $started = Invoke-Remote @"
+if ((schtasks /query /tn '$RemoteTask' /fo csv /nh) -notmatch '"Ready"') { 'busy'; return }
 Remove-Item '$remoteExchange' -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path '$remoteExchange' -Force | Out-Null
-Set-Content -LiteralPath '$RemoteJobs\tourney-host.ps1' -Value @'
-$hostJob
-'@
-Set-Content -LiteralPath '$RemoteJobs\tourney-host.cmd' -Value '@"%ProgramFiles%\PowerShell\7\pwsh.exe" -NoProfile -ExecutionPolicy Bypass -File $RemoteJobs\tourney-host.ps1 > $RemoteJobs\tourney-host.log 2>&1'
-Remove-Item '$RemoteJobs\tourney-host.log' -ErrorAction SilentlyContinue
-if ((schtasks /query /tn '$RemoteTask' /fo csv /nh) -notmatch '"Ready"') { 'busy'; return }
-Copy-Item '$RemoteJobs\tourney-host.cmd' '$RemoteJobs\job.cmd' -Force
+Remove-Item '$remoteLog','$remotePid' -ErrorAction SilentlyContinue
+`$pwsh = (Get-Command pwsh).Source
+Set-Content -LiteralPath '$remoteJob' -Encoding ASCII -Value ('@"{0}" -NoProfile -ExecutionPolicy Bypass -File "$RemoteCheckout\scripts\run-tournament-selftest-host.ps1" -PackageDir "$RemoteCheckout\build\current\stage" -Exchange "$remoteExchange" -Bridge "$origin" -PidFile "$remotePid" -TimeoutMinutes $TimeoutMinutes > "$remoteLog" 2>&1' -f `$pwsh)
+Copy-Item '$remoteJob' '$RemoteJobs\job.cmd' -Force
 schtasks /run /tn '$RemoteTask' | Out-Null
 'started'
 "@
@@ -124,35 +122,70 @@ schtasks /run /tn '$RemoteTask' | Out-Null
         "-TimeoutMinutes", $TimeoutMinutes)
     Write-Host "guest started here"
 
-    # Both games close by themselves; the task is Ready again once the host's has.
+    # Both games close by themselves, and the host's job says when it is done:
+    # its log ends with a line, or its task is Ready again after its PID file
+    # was written (a job that died). A failed ssh call is tried again.
+    $hostStatus = @"
+if ((Test-Path '$remoteLog') -and (Select-String -LiteralPath '$remoteLog' -Pattern '^tourney-host done`$' -Quiet)) { 'done' }
+elseif ((Test-Path '$remotePid') -and ((schtasks /query /tn '$RemoteTask' /fo csv /nh) -match '"Ready"')) { 'done' }
+"@
     $deadline = (Get-Date).AddMinutes($TimeoutMinutes + 2)
-    $hostDone = $false
+    $failedPolls = 0
     while (-not ($guest.HasExited -and $hostDone)) {
         if ((Get-Date) -gt $deadline) { $timedOut = $true; break }
         Start-Sleep -Seconds 10
-        if (-not $hostDone) { $hostDone = (Invoke-Remote "schtasks /query /tn '$RemoteTask' /fo csv /nh") -match '"Ready"' }
+        if ($hostDone) { continue }
+        try { $hostDone = (Invoke-Remote $hostStatus) -contains "done"; $failedPolls = 0 }
+        catch {
+            if (++$failedPolls -ge 6) { throw "The host could not be asked six times in a row: $_" }
+            Write-Host "The host could not be asked ($failedPolls): $_"
+        }
     }
 }
+catch { $runnerError = $_.Exception.Message }
 finally {
+    # A game still running is ended, not its wrapper: the wrapper then puts
+    # back the settings, saves and Ember folder it changed. A wrapper that has
+    # not finished after two minutes is ended too, and says what it left.
+    if ($guest -and -not $guest.HasExited) {
+        Stop-Descendants $guest.Id
+        if (-not $guest.WaitForExit(120000)) {
+            Write-Host "The guest's script did not finish; settings.json.selftest and ui-preferences.json.selftest in %APPDATA%\sf4e may need putting back."
+            Stop-Process -Id $guest.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+    if ($hostStarted -and -not $hostDone) {
+        try {
+            Invoke-Remote @"
+. '$RemoteCheckout\scripts\SelfTestProcesses.ps1'
+if (Test-Path '$remotePid') { Stop-Descendants ([int](Get-Content '$remotePid')) }
+foreach (`$try in 1..24) {
+    if ((Test-Path '$remoteLog') -and (Select-String -LiteralPath '$remoteLog' -Pattern '^tourney-host done`$' -Quiet)) { break }
+    Start-Sleep -Seconds 5
+}
+"@ | Out-Null
+        }
+        catch { Write-Host "The host's game could not be ended: $_" }
+    }
     # Nothing more comes from the games: the bridge side checks the match,
     # stops its bridge, receiver and tunnel and deletes its folder.
     if ($coordinator) {
         New-Item -ItemType File -Path (Join-Path $bridgeWork "stop") -Force | Out-Null
         if (-not $coordinator.WaitForExit(90000)) {
-            # Its children by PID: the bridge and the tunnel it started.
-            Get-CimInstance Win32_Process -Filter "ParentProcessId=$($coordinator.Id)" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            # Its children: the bridge and the tunnel it started.
+            Stop-Descendants $coordinator.Id
             Stop-Process -Id $coordinator.Id -Force -ErrorAction SilentlyContinue
         }
     }
-    if ($guest -and -not $guest.HasExited) { Stop-Process -Id $guest.Id -Force -ErrorAction SilentlyContinue }
     if ($hostStarted) {
-        try { Invoke-Remote "Get-Content -LiteralPath '$RemoteJobs\tourney-host.log' -ErrorAction SilentlyContinue; Remove-Item '$remoteExchange' -Recurse -Force -ErrorAction SilentlyContinue" | Set-Content $hostLog }
+        try { Invoke-Remote "Get-Content -LiteralPath '$remoteLog' -ErrorAction SilentlyContinue; Remove-Item '$remoteExchange' -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item '$remoteLog','$remotePid','$remoteJob' -ErrorAction SilentlyContinue" | Set-Content $hostLog }
         catch { Write-Host "The host's log could not be read: $_" }
     }
 }
 
 $steps = @(Get-Steps "host" $hostLog) + @(Get-Steps "guest" $guestLog) + @(Get-Steps "bridge" $coordinatorLog)
 if ($timedOut) { $steps += "runner FAIL timeout: the games were still running after $TimeoutMinutes minutes" }
+if ($runnerError) { $steps += "runner FAIL $runnerError" }
 $steps | Write-Host
 $passed = ($steps -match '^\w+ RESULT pass$').Count -eq 3 -and -not ($steps -match '^\w+ (FAIL|RESULT fail)')
 # The logs stay for a failed run.
