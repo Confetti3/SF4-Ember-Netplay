@@ -68,6 +68,28 @@ Failure inside a callback uses the existing deferred abort mechanism. The
 normal save-state pool contains the rematch state; no extra checkpoint pool
 or replacement GGPO session is created.
 
+## Match recordings
+
+Versus has one outer replay-save task. Its result check serializes the native
+recorder, waits for the save controller, releases the serialized buffer and
+becomes idle. A normal rematch reinstalls the check; a continuous reset does
+not. Reusing that idle callback's original check for each confirmed game
+keeps one native replay per match without recreating the battle or session.
+
+`ReplayMatchBoundary.hxx` gives that task a monotonic session/game token.
+Only a confirmed result permits the check, and a non-null pending native
+replay buffer marks its submission once. The original check still decides
+whether recording is enabled and the recorder has stopped. Ordinary games
+retain their original callbacks. Both callback signatures must match before
+the continuous capability is advertised; unsupported code uses ordinary
+room rematches. The async save and its buffer cleanup remain native.
+
+The outer tick posts a recording end for each confirmed result and a new
+start for each confirmed rematch, reusing the existing player-name and
+spectator attribution worker. These irreversible events are not replayed
+by rollback. The recorder's streams and codecs still use the existing save
+state capture/restore; this change neither resets nor reallocates them.
+
 ## Review boundaries
 
 This is an experimental draft, not a general stability claim. The adapter
@@ -83,6 +105,12 @@ not to this revised nightly contribution. This branch removes obsolete
 offline/reconnect experiments, diagnostic reports and the fake-engine probe.
 It uses private-room capability negotiation and translates the new messages
 in all 14 catalogs. Native speakers should review the wording.
+
+On a7316c87, Flavio confirmed the requested FT3 test on the revised branch;
+the local log records three accepted results and normal series closure.
+That run exposed a replay regression: only the first match was saved.
+The replay-task change above has a three-game/two-set regression test, but
+still needs native playback validation for every game, with distinct inputs.
 
 Before leaving draft, repeat native two-PC and three-PC matches on this exact
 branch, including a non-host winner, both choices, timeout, FT rotation,

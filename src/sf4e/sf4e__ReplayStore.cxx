@@ -11,6 +11,7 @@
 #include "../Dimps/Dimps.hxx"
 #include "../Dimps/Dimps__Event.hxx"
 #include "../Dimps/Dimps__Game.hxx"
+#include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Game__Battle.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../common/Localization.hxx"
@@ -22,6 +23,8 @@
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Steam.hxx"
+#include "sf4e__ContinuousRematch.hxx"
+#include "sf4e__UserApp.hxx"
 
 namespace {
 
@@ -29,6 +32,72 @@ using Dimps::Game::ReplayBattle;
 using Dimps::Game::SaveDataController;
 using Table = Dimps::Game::ReplayInfoList;
 using sf4e::replaystore::Step;
+
+using NativeVsBattle = Dimps::GameEvents::VsBattle;
+using Task = Dimps::Eva::Task;
+sf4e::replay::MatchRecording s_recording;
+bool s_continuousRecordingAvailable = false;
+
+sf4e::replay::MatchBoundary ObserveRecording() {
+ const auto match = sf4e::continuousrematch::RecordingMatch();
+ const auto events = s_recording.Observe(match);
+ if (events.start) sf4e::UserApp::NoteReplayMatchStart();
+ if (events.end) sf4e::platform::replays::NoteMatchEnd();
+ return match;
+}
+
+struct ReplaySave : NativeVsBattle {
+ void Check(Task** task);
+ void Idle(Task** task);
+ void Advance(Task** task, bool idle);
+};
+void ReplaySave::Check(Task** task) { Advance(task, false); }
+void ReplaySave::Idle(Task** task) { Advance(task, true); }
+void ReplaySave::Advance(Task** task, bool idle) {
+ const auto match = ObserveRecording();
+ switch (s_recording.Route(match, idle)) {
+ case sf4e::replay::SaveRoute::Check:
+  (this->*NativeVsBattle::privateMethods.CheckReplaySave)(task);
+  // The original check owns eligibility, serialization and the async save.
+  // A pending buffer proves it accepted the result; otherwise try again.
+  if (match.continuous && *NativeVsBattle::GetPendingReplay(this)) {
+   s_recording.Submitted(match);
+   spdlog::info("Replay: submitted continuous game {} to the native save", match.token);
+  }
+  break;
+ case sf4e::replay::SaveRoute::Idle:
+  (this->*NativeVsBattle::privateMethods.ReplayIdle)(task);
+  break;
+ case sf4e::replay::SaveRoute::Wait: break;
+ }
+}
+
+template<std::size_t N> bool CallbackMatches(const void* address, const unsigned char (&expected)[N]) {
+ MEMORY_BASIC_INFORMATION region{};
+ if (!address || !VirtualQuery(address, &region, sizeof(region)) || region.State != MEM_COMMIT ||
+     (region.Protect & (PAGE_GUARD | PAGE_NOACCESS))) return false;
+ const auto at = reinterpret_cast<std::uintptr_t>(address);
+ const auto start = reinterpret_cast<std::uintptr_t>(region.BaseAddress);
+ const auto access = region.Protect & 0xff;
+ return (access == PAGE_EXECUTE_READ || access == PAGE_EXECUTE_READWRITE || access == PAGE_EXECUTE_WRITECOPY) &&
+     at >= start && N <= region.RegionSize && at - start <= region.RegionSize - N && !std::memcmp(address, expected, N);
+}
+
+void InstallRecordingCallbacks() {
+ // Steam 1.05: 0x63CA40 checks the result, then 0x63C9C0 starts a save.
+ // Its completion task 0x63C8A0 releases the serialized buffer and installs
+ // 0x63BB60, which otherwise never checks for another match's result.
+ auto& native = NativeVsBattle::privateMethods;
+ const unsigned char check[] = {0x55,0x8b,0xec,0x53,0x56,0x57,0x8b,0xd9,0xe8,0xe3,0xef,0xf9,0xff};
+ const unsigned char idle[] = {0x55,0x8b,0xec,0x83,0x79,0x4c,0x00,0x74,0x1c};
+ if (!CallbackMatches(*reinterpret_cast<void**>(&native.CheckReplaySave), check) ||
+     !CallbackMatches(*reinterpret_cast<void**>(&native.ReplayIdle), idle)) return;
+ void (ReplaySave::* checkHook)(Task**) = &ReplaySave::Check;
+ void (ReplaySave::* idleHook)(Task**) = &ReplaySave::Idle;
+ const auto first = DetourAttach(reinterpret_cast<PVOID*>(&native.CheckReplaySave), *reinterpret_cast<PVOID*>(&checkHook));
+ const auto second = DetourAttach(reinterpret_cast<PVOID*>(&native.ReplayIdle), *reinterpret_cast<PVOID*>(&idleHook));
+ s_continuousRecordingAvailable = first == NO_ERROR && second == NO_ERROR;
+}
 
 // The stream an entry is filled from (Dimps__Game.hxx, ReplayInfoList): four
 // words, of which only the base, cursor and size are read.
@@ -259,7 +328,10 @@ void sf4e::replaystore::Install() {
 	DetourAttach(reinterpret_cast<PVOID*>(&Table::publicMethods.Read), *reinterpret_cast<PVOID*>(&detour));
  void (SaveController::* start)(int) = &SaveController::Start;
  DetourAttach(reinterpret_cast<PVOID*>(&SaveDataController::publicMethods.Start), *reinterpret_cast<PVOID*>(&start));
+ InstallRecordingCallbacks();
 }
+
+bool sf4e::replaystore::ContinuousRecordingAvailable() { return s_continuousRecordingAvailable; }
 
 bool sf4e::replaystore::Ready() { return s_entries != nullptr && sf4e::Game::Battle::MatchReplayListWidened(); }
 
@@ -316,6 +388,7 @@ bool sf4e::replaystore::ExportPlaying() {
 }
 
 void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
+	ObserveRecording();
 	Operation& op = s_operation;
 	// An export's file closes on the encoder's time; its outcome is the notice.
 	if (op.awaited) {

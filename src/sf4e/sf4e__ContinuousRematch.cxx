@@ -1,6 +1,7 @@
 #include "sf4e__ContinuousRematch.hxx"
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__ReplayStore.hxx"
 #include <array>
 
 namespace sf4e { namespace continuousrematch {
@@ -107,7 +108,7 @@ void Initialize() {
     const unsigned char victoryFinal[]={0x55,0x8b,0xec,0x56,0x8b,0x75,0x08,0x56,0xe8,0x33,0xf3,0xff,0xff};
     const bool layout=Signature(0x1db480,reset)&&Signature(0x1da220,queue)&&Signature(0x1db58c,call)&&
         Signature(0x1db540,seed)&&Signature(0x1dddc0,victoryFinal);
-    configured=layout&&sidecarHash.size()==64&&!EnvFlag("SF4E_START_OFFLINE")&&
+    configured=layout&&replaystore::ContinuousRecordingAvailable()&&sidecarHash.size()==64&&!EnvFlag("SF4E_START_OFFLINE")&&
         !EnvFlag("SF4E_ROLLBACK_STRESS")&&!EnvFlag("SF4E_LEGACY_SAVESTATE_FREE");
     if(configured)restart=reinterpret_cast<Restart>(base+0x1db480);
     spdlog::info("Continuous rematch: startup capability={} native_layout={}",configured,layout);
@@ -232,6 +233,18 @@ void Restore(const State& saved,int frame) {
     if(frame>=0)history[frame%history.size()]={frame,state};
 }
 bool DeferResultPublication(){return Active();}
+replay::MatchBoundary RecordingMatch() {
+    replay::MatchBoundary view;
+    // Offline Versus after leaving a room uses the ordinary save callbacks.
+    view.continuous=Active()&&!ended&&!failed&&fSystem::ggpo;
+    if(!view.continuous)return view;
+    const auto confirmed=ConfirmedState();
+    if(confirmed.frame<0)return view;
+    view.token=OfferToken(confirmed.state.choices.epoch);
+    view.firstGame=confirmed.state.choices.epoch==1;
+    view.decided=confirmed.state.resultFrame>=0;
+    return view;
+}
 void SessionRetiring(){if(Active())ended=true;}
 void CloseBattle(){if(Active())ended=true;}
 bool SimulateNative(){return !Active()||ended||!state.choices.holding;}

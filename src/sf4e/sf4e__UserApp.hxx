@@ -52,6 +52,7 @@ namespace sf4e {
         static void ShutdownNetplay(bool closeGgpo = true);
         static void ResetLobbyForRematch();
         static void TryStartPendingMatch();
+        static void NoteReplayMatchStart();
         static void _OnVsPreBattleTasksRegistered();
         static void _OnVsBattleTasksRegistered();
     };

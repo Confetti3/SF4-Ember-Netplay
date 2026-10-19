@@ -2,6 +2,7 @@
 #include "../common/ContinuousRematch.hxx"
 #include "sf4e__Pad.hxx"
 #include "../common/QuickRematch.hxx"
+#include "../common/ReplayMatchBoundary.hxx"
 namespace Dimps { namespace Game { namespace Battle { struct System; } } }
 namespace sf4e { namespace continuousrematch {
 void Initialize(); // once at startup, before any room Ready
@@ -17,6 +18,7 @@ void AfterFrame(int stateFrame);
 State Capture();
 void Restore(const State&,int stateFrame);
 bool DeferResultPublication();
+replay::MatchBoundary RecordingMatch(); // confirmed state, outside rollback callbacks
 void SessionRetiring();
 void CloseBattle();
 } }

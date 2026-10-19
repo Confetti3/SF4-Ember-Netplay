@@ -69,6 +69,8 @@ void VsBattle::Locate(HMODULE peRoot) {
 	vt_IsTerminationComplete = (BOOL(VsBattle::**)())(peRootOffset + 0x55f878);
 	*(PVOID*)&privateMethods.CheckAndMaybeExitBasedOnExitType = (PVOID)(peRootOffset + 0x23b9f0);
 	*(PVOID*)&privateMethods.PrepareBattleRequest = (PVOID)(peRootOffset + 0x23c6a0);
+	*(PVOID*)&privateMethods.CheckReplaySave = (PVOID)(peRootOffset + 0x23ca40);
+	*(PVOID*)&privateMethods.ReplayIdle = (PVOID)(peRootOffset + 0x23bb60);
 	*(PVOID*)&publicMethods.HasInitialized = (PVOID)(peRootOffset + 0x23bd90);
 	*(PVOID*)&publicMethods.RegisterTasks = (PVOID)(peRootOffset + 0x23cad0);
 	*(PVOID*)&publicMethods.ExitForeground = (PVOID)(peRootOffset + 0x23bdf0);
@@ -76,6 +78,12 @@ void VsBattle::Locate(HMODULE peRoot) {
 
 Request** VsBattle::GetRequest(VsBattle* battleEvent) {
 	return (Request**)((unsigned int)battleEvent + 0x50);
+}
+
+void** VsBattle::GetPendingReplay(VsBattle* battleEvent) {
+	// 0x63C410 assigns the serialized replay; 0x63C8A0 releases it only
+	// after the save controller finishes. Neither is a rollback task.
+	return reinterpret_cast<void**>(reinterpret_cast<char*>(battleEvent) + 0x48);
 }
 
 void GameEvents::Flow::Request(Flow* flow, int row) {
