@@ -10,11 +10,11 @@
 // It runs a fresh local bridge whose mock connection sends results to a
 // receiver here, links each game the way a platform does (a link intent, the
 // code to the game, the claim checked against the fingerprint the game shows
-// and approved), creates a first-to-1 match with the host in slot 0, and
-// waits for the bridge to complete it with the host as the winner and deliver
-// its signed result. Prints PASS and FAIL lines; exits 0 when all passed.
-// The runner writes `stop` in the work folder once both games have closed:
-// nothing more will come from them, so whatever is still awaited has failed.
+// and approved), and creates a first-to-1 match with the host in slot 0.
+// The bridge serves until the runner writes `stop` in the work folder, once
+// both games have closed: the games learn from it that the match is over.
+// Then the match has to be completed with the host as the winner, and its
+// signed result delivered. Prints PASS and FAIL lines; exits 0 when all passed.
 // Test identities and subjects only; everything it starts is stopped and the
 // work folder deleted at the end.
 import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
@@ -236,21 +236,11 @@ async function main(): Promise<void> {
   await Promise.all([host.exchange.write("match", match.match_id), guest.exchange.write("match", match.match_id)]);
   say(true, "match created", match.match_id);
 
-  // Done once the bridge says so and its signed result has arrived. After
-  // the games close, the result has a few more seconds to arrive.
-  const finished = async () => {
-    const current = await provider.getMatch(match.match_id);
-    return { current, done: current.state === "completed" && receiver.result() !== null };
-  };
-  let { current, done } = await finished();
-  while (!done && !over()) {
-    await sleep(3_000);
-    ({ current, done } = await finished());
-  }
-  if (!done) {
-    await sleep(10_000);
-    ({ current } = await finished());
-  }
+  // The games learn the match is over from the bridge, whose answer to their
+  // next claim says it finished, so it serves until both have closed. The
+  // match and its signed result, sent when it completed, are checked then.
+  while (!over()) await sleep(2_000);
+  const current = await provider.getMatch(match.match_id);
   const problems = finishedProblems(current, receiver.result(), { participantId: p1.participantId, emberId: p1.emberId });
   for (const problem of problems) say(false, "match result", problem);
   if (problems.length === 0) say(true, "match result", `completed, ${p1.emberId} won, signed result verified`);

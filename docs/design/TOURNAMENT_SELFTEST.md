@@ -110,12 +110,13 @@ desktop), with the other PC (the laptop) as the host:
    fingerprint the game showed, and approves exactly that claim.
 5. With both linked, it creates the match (`ember-room-v1`, `games_to_win`
    1, the host in slot 0, the host's build) and writes `match` to both.
-6. It waits for the bridge to say the match is `completed` with the host
-   ahead, and for the receiver to have verified the signed result
+6. The bridge serves until both games have closed, when the runner writes
+   `stop`: each game learns the match is over from the bridge's answer to
+   its next claim. The bridge side then checks the match is `completed`
+   with the host ahead, and that the receiver verified the signed result
    (`verifyResult`, `webhook-id` `res_<match id>`) naming the host.
-7. Once both games have closed the runner writes `stop`; the bridge side
-   makes its last check, stops the bridge, receiver and tunnel and deletes
-   the bridge's folder. The runner prints every side's steps.
+7. It stops the bridge, receiver and tunnel and deletes the bridge's
+   folder. The runner prints every side's steps.
 
 The other PC's exchange files go through ssh. The decisions the bridge side
 makes (an `ember-id` line, the claim to approve, a finished match) are
