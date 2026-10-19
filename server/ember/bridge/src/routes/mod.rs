@@ -8,6 +8,7 @@ pub mod links;
 pub mod lobbies;
 pub mod lookup;
 pub mod matches;
+pub mod organizer;
 pub mod play;
 pub mod policy;
 pub mod records;
@@ -100,6 +101,13 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/v1/tournaments/{id}/start", post(tournaments::start))
         .route("/v1/tournaments/{id}/cancel", post(tournaments::cancel))
+        .route("/v1/organizer/tournaments", get(organizer::tournaments))
+        .route(
+            organizer::EVENTS_PATH,
+            post(organizer::start).get(organizer::list),
+        )
+        .route("/v1/organizer/events/{id}", delete(organizer::stop))
+        .route("/v1/desk/brackets", get(organizer::brackets))
         .route("/v1/events", get(events::list))
         .route("/v1/events/stream", get(events::stream))
         .route(

@@ -31,6 +31,18 @@
     "starts_per_hour": 30
   },
   "organizer": {
-    "scope": "me tournaments:read matches:read matches:write participants:read"
+    "scope": "me tournaments:read matches:read matches:write participants:read",
+    "tournaments": {
+      "method": "GET",
+      "url": "https://api.challonge.com/v2.1/tournaments.json?per_page=50",
+      "headers": {
+        "Accept": "application/json",
+        "Content-Type": "application/vnd.api+json",
+        "Authorization-Type": "v2"
+      },
+      "list_pointer": "/data",
+      "id_pointer": "/id",
+      "name_pointer": "/attributes/name"
+    }
   }
 }

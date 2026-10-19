@@ -68,11 +68,11 @@ in each authorize request.
 | Route | Does |
 |---|---|
 | `POST /v1/sites/{site}/organize` | Starts an organizer sign-in; answers `authorize_url` like `start` |
-| `DELETE /v1/sites/{site}/organize` | Deletes the grant and ends the TO's events on that site |
+| `DELETE /v1/sites/{site}/organize` | Deletes the grant; the TO's events wait until they sign in again |
 | `GET /v1/sites/{site}/organize` | Whether a grant is held, its scope and when it was refreshed |
 | `GET /v1/organizer/tournaments?site=` | The TO's tournaments on the site, read with their token |
 | `POST /v1/organizer/events` | Runs an event: site, tournament, round rules, hold |
-| `GET /v1/organizer/events` | The TO's events and their state |
+| `GET /v1/organizer/events` | The TO's running events |
 | `DELETE /v1/organizer/events/{id}` | Stops running it |
 
 The callback stays `/v1/sites/{site}/callback`; the sign-in row says whether
@@ -84,13 +84,14 @@ For `ember-brackets` (provider credential of `desk.connection`):
 |---|---|
 | `GET /v1/desk/brackets` | Running events, each with a fresh access token for its site |
 
-### 2.3 Storage (migration 029; 028 is match watch)
+### 2.3 Storage (migrations 029 and 030; 028 is match watch)
 
 - `sign_ins.organizer` (0/1) and `sign_ins.grant` (sealed token, held only
   while the browser asks to move an account).
 - `organizer_grants (site, ember_id, sealed, scope, expires_at, refreshed_at)`.
-- `organizer_events (id, ember_id, site, tournament, settings, created_at,
-  ended_at)`.
+- `organizer_events (id, ember_id, site, tournament, name, settings,
+  created_at, ended_at)` (migration 030), one running event per site and
+  event.
 
 ## 3. ember-brackets
 

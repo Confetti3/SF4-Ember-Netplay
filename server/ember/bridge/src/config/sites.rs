@@ -58,6 +58,35 @@ pub struct Organizer {
     /// Where a refresh token is exchanged, when not at `token_url`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refresh_url: Option<String>,
+    /// How to list the events the organizer runs on the site, with their
+    /// access token as a bearer. None lists none, so none can be run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournaments: Option<TournamentsRead>,
+}
+
+/// The request that lists an organizer's events, and JSON pointers into its
+/// answer: `list_pointer` to the array of tournaments; `events_pointer`,
+/// when a tournament holds its events in an array of its own (start.gg),
+/// into each tournament; `id_pointer` and `name_pointer` into each event
+/// (each tournament without `events_pointer`), the ID being what the
+/// bracket connector's `tournament` takes; `tournament_name_pointer` into
+/// each tournament, shown before the event's name.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TournamentsRead {
+    pub method: Method,
+    pub url: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    #[serde(default)]
+    pub body: Option<serde_json::Value>,
+    pub list_pointer: String,
+    #[serde(default)]
+    pub events_pointer: Option<String>,
+    pub id_pointer: String,
+    pub name_pointer: String,
+    #[serde(default)]
+    pub tournament_name_pointer: Option<String>,
 }
 
 /// How the token request's body is encoded.
@@ -211,11 +240,16 @@ impl SignInSite {
             );
         }
         let refresh_url = self.organizer.as_ref().and_then(|o| o.refresh_url.as_ref());
+        let tournaments = self.organizer.as_ref().and_then(|o| o.tournaments.as_ref());
         for (name, url) in [
             ("authorize_url", Some(&self.authorize_url)),
             ("token_url", Some(&self.token_url)),
             ("user.url", Some(&self.user.url)),
             ("organizer.refresh_url", refresh_url),
+            (
+                "organizer.tournaments.url",
+                tournaments.map(|read| &read.url),
+            ),
         ]
         .into_iter()
         .filter_map(|(name, url)| Some((name, url?)))
@@ -273,15 +307,16 @@ impl SignInSite {
                 && value.len() <= 256
                 && value.bytes().all(|b| b == b' ' || b.is_ascii_graphic())
         };
-        let mut names: Vec<String> = self
-            .user
-            .headers
-            .keys()
-            .map(|name| name.to_ascii_lowercase())
-            .collect();
-        names.sort();
-        names.dedup();
-        if !self.user.headers.iter().all(header_ok) || names.len() != self.user.headers.len() {
+        let headers_ok = |headers: &BTreeMap<String, String>| {
+            let mut names: Vec<String> = headers
+                .keys()
+                .map(|name| name.to_ascii_lowercase())
+                .collect();
+            names.sort();
+            names.dedup();
+            headers.iter().all(header_ok) && names.len() == headers.len()
+        };
+        if !headers_ok(&self.user.headers) {
             return fail(
                 "user.headers must be visible ASCII, each named once, without authorization, \
                  host, content-length, transfer-encoding or connection",
@@ -295,6 +330,25 @@ impl SignInSite {
             || !self.user.username_pointer.as_deref().is_none_or(pointer_ok)
         {
             return fail("user pointers must be JSON pointers starting with /");
+        }
+        if let Some(read) = tournaments {
+            let optional = |pointer: &Option<String>| pointer.as_deref().is_none_or(pointer_ok);
+            // The list may be the whole answer.
+            if !(read.list_pointer.is_empty() || pointer_ok(&read.list_pointer))
+                || !pointer_ok(&read.id_pointer)
+                || !pointer_ok(&read.name_pointer)
+                || !optional(&read.events_pointer)
+                || !optional(&read.tournament_name_pointer)
+            {
+                return fail(
+                    "organizer.tournaments pointers must be JSON pointers starting with /",
+                );
+            }
+            if !headers_ok(&read.headers) || (read.method == Method::Get && read.body.is_some()) {
+                return fail(
+                    "organizer.tournaments needs headers as user.headers, and a body with POST only",
+                );
+            }
         }
         if self.lookup_by == LookupBy::Username && self.user.username_pointer.is_none() {
             return fail("lookup_by username needs user.username_pointer");
@@ -406,6 +460,12 @@ mod tests {
             json!({ "scope": "me\nall" }),
             json!({ "organizer": { "scope": "me\nall" } }),
             json!({ "organizer": { "scope": "me", "refresh_url": "https://evil.example/oauth/token" } }),
+            json!({ "organizer": { "scope": "me", "tournaments": { "method": "GET",
+                "url": "https://evil.example/tournaments.json", "list_pointer": "/data",
+                "id_pointer": "/id", "name_pointer": "/name" } } }),
+            json!({ "organizer": { "scope": "me", "tournaments": { "method": "GET",
+                "url": "https://api.challonge.com/v2.1/tournaments.json", "list_pointer": "/data",
+                "id_pointer": "id", "name_pointer": "/name" } } }),
             json!({ "limits": { "monthly_request_budget": 1, "daily_request_budget": 2, "starts_per_hour": 1 } }),
         ] {
             assert!(refused(change.clone()), "{change}");
@@ -429,6 +489,9 @@ mod tests {
             site.authorize_url = format!("https://{host}/oauth/authorize");
             site.token_url = format!("https://{host}/oauth/token");
             site.user.url = format!("https://{host}/me");
+            if let Some(read) = site.organizer.as_mut().and_then(|o| o.tournaments.as_mut()) {
+                read.url = format!("https://{host}/tournaments.json");
+            }
             let refused = site.validate(OriginPolicy::HttpsOnly).unwrap_err();
             assert!(refused.contains("public DNS names"), "{host}: {refused}");
             // Local tests may use them, where a URL keeps its host as written

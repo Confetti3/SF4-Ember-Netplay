@@ -44,6 +44,7 @@ async fn registration_works_without_a_running_bridge() {
         mock_browser: false,
         discord: None,
         sign_in_sites: Vec::new(),
+        desk: None,
         integration_secrets: None,
         rooms: None,
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,

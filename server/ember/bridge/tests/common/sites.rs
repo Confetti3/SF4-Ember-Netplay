@@ -50,8 +50,23 @@ pub async fn bridge_with_sites(
     secrets: Secrets,
     connections: Vec<config::Connection>,
 ) -> Bridge {
+    bridge_with_desk(sites, secrets, connections, None).await
+}
+
+/// As `bridge_with_sites`, with organizers' events running on the
+/// connection `desk`.
+pub async fn bridge_with_desk(
+    sites: Vec<SignInSite>,
+    secrets: Secrets,
+    connections: Vec<config::Connection>,
+    desk: Option<&str>,
+) -> Bridge {
+    let desk = desk.map(|connection| config::Desk {
+        connection: connection.into(),
+    });
     let bridge = Bridge::start_with(
         |config| {
+            config.desk = desk;
             config.sign_in_sites = sites;
             config.integration_secrets = Some("unused-in-tests.json".into());
             config.tenants.push(config::Tenant {
@@ -65,6 +80,20 @@ pub async fn bridge_with_sites(
     .await;
     bridge.clock.freeze();
     bridge
+}
+
+/// Stops `player`'s running event `id`.
+pub async fn stop_event(bridge: &Bridge, player: &Player, id: &str) -> (StatusCode, Json) {
+    let path = format!("/v1/organizer/events/{id}");
+    sign_in::send(
+        bridge,
+        player,
+        Action::SiteRemove,
+        Method::Delete,
+        &path,
+        json!({}),
+    )
+    .await
 }
 
 /// The limits Challonge's shipped definition sets, for tests to change one
@@ -257,6 +286,37 @@ impl TestSite {
         let (status, answer) = bridge.get(player.token(), &self.organize_path()).await;
         assert_eq!(status, StatusCode::OK, "{answer}");
         answer["organizer"].clone()
+    }
+
+    /// The events `player` runs on the site, as their organizer grant lists
+    /// them.
+    pub async fn tournaments(self, bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
+        bridge
+            .get(
+                player.token(),
+                &format!("/v1/organizer/tournaments?site={}", self.0),
+            )
+            .await
+    }
+
+    /// Has the bridge run `player`'s event `tournament` with `settings`.
+    pub async fn start_event(
+        self,
+        bridge: &Bridge,
+        player: &Player,
+        tournament: &str,
+        settings: Json,
+    ) -> (StatusCode, Json) {
+        let command = json!({ "site": self.0, "tournament": tournament, "settings": settings });
+        sign_in::send(
+            bridge,
+            player,
+            Action::SiteConnect,
+            Method::Post,
+            "/v1/organizer/events",
+            command,
+        )
+        .await
     }
 
     pub async fn withdraw(self, bridge: &Bridge, player: &Player) -> (StatusCode, Json) {

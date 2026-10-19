@@ -13,13 +13,13 @@ use serde_json::{Value as Json, json};
 use crate::common::{
     Bridge, Player,
     sign_in::{Code, FakeSite, definition},
-    sites::{self, bridge_with_sites},
+    sites::{self, bridge_with_desk, bridge_with_sites},
 };
 pub use crate::common::{
     sign_in::{Gate, User, confirmation, player, query},
     sites::{
         LIMITS, TestSite, connect_discord, database_holds, direct, insert_account, link_of,
-        remove_link, secrets,
+        remove_link, secrets, stop_event,
     },
 };
 
@@ -105,6 +105,17 @@ pub async fn bridge_with(fake: &Arc<FakeSite>, limits: Limits, secrets: Secrets)
         ],
     )
     .await
+}
+
+/// As `bridge`, with organizers' events running on `BRACKETS`.
+pub async fn desk_bridge(fake: &Arc<FakeSite>) -> Bridge {
+    let mut site = challonge_site(&fake.serve().await);
+    site.limits = Some(LIMITS);
+    let connections = vec![
+        direct(BRACKETS, false, &[SITE]),
+        direct(BOTH, true, &[SITE]),
+    ];
+    bridge_with_desk(vec![site], with_secret(), connections, Some(BRACKETS)).await
 }
 
 pub async fn bridge(fake: &Arc<FakeSite>) -> Bridge {

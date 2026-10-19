@@ -47,6 +47,10 @@ pub struct Config {
     /// their account on each to their Ember ID.
     #[serde(default)]
     pub sign_in_sites: Vec<SignInSite>,
+    /// Organizers' own events (docs/design/TOURNAMENT_DESK.md): the
+    /// connection they run on. None runs none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desk: Option<Desk>,
     /// An owner-only file with the secrets of the services this bridge calls
     /// (`integrations::Secrets`). Needed when `discord` or a sign-in site is
     /// set.
@@ -62,6 +66,15 @@ pub struct Config {
     #[serde(default = "default_match_expiry_hours")]
     pub match_expiry_hours: u64,
     pub tenants: Vec<Tenant>,
+}
+
+/// Where organizers' own events run.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Desk {
+    /// A `direct` connection; the bracket connector holds its provider
+    /// credential and reads the events from `/v1/desk/brackets`.
+    pub connection: String,
 }
 
 pub const DEFAULT_MATCH_EXPIRY_HOURS: u64 = 24;
@@ -415,6 +428,13 @@ impl Config {
                     _ => {}
                 }
             }
+        }
+        if let Some(desk) = &self.desk
+            && !self
+                .connection(&desk.connection)
+                .is_some_and(|(_, connection)| connection.kind == "direct")
+        {
+            return Err("desk.connection must name a direct connection".into());
         }
         Ok(())
     }

@@ -23,6 +23,16 @@
   "hosts": ["start.gg", "api.start.gg"],
   "organizer": {
     "scope": "user.identity tournament.reporter",
-    "refresh_url": "https://api.start.gg/oauth/refresh"
+    "refresh_url": "https://api.start.gg/oauth/refresh",
+    "tournaments": {
+      "method": "POST",
+      "url": "https://api.start.gg/gql/alpha",
+      "body": { "query": "query OrganizerEvents { currentUser { tournaments(query: { perPage: 50, filter: { tournamentView: \"admin\" } }) { nodes { name events { name slug } } } } }" },
+      "list_pointer": "/data/currentUser/tournaments/nodes",
+      "events_pointer": "/events",
+      "id_pointer": "/slug",
+      "name_pointer": "/name",
+      "tournament_name_pointer": "/name"
+    }
   }
 }

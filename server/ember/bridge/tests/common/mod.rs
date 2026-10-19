@@ -91,6 +91,7 @@ impl Bridge {
             mock_browser: true,
             discord: None,
             sign_in_sites: Vec::new(),
+            desk: None,
             integration_secrets: None,
             rooms: None,
             match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,

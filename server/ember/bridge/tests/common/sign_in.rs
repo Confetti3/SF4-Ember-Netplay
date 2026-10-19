@@ -29,6 +29,9 @@ use super::{Bridge, Player};
 /// A user on the stand-in site: ID and username.
 pub type User = (&'static str, &'static str);
 
+/// Where a site lists an organizer's tournaments, and its answer for a user.
+type Listing = (&'static str, fn(User) -> Json);
+
 /// A code the stand-in holds until the test lets it go: `arrived` says the
 /// site has it, `release` lets it answer. One per test, so tests holding a
 /// code run side by side.
@@ -82,6 +85,7 @@ pub struct FakeSite {
     pub codes: Vec<(&'static str, Code)>,
     pub me_headers: &'static [(&'static str, &'static str)],
     pub me_body: fn(User) -> Json,
+    listing: Mutex<Option<Listing>>,
     seen: Mutex<Vec<Seen>>,
     tokens: Mutex<HashMap<String, User>>,
     refreshes: Mutex<HashMap<String, User>>,
@@ -116,6 +120,7 @@ impl FakeSite {
             codes,
             me_headers,
             me_body,
+            listing: Mutex::default(),
             seen: Mutex::default(),
             tokens: Mutex::default(),
             refreshes: Mutex::default(),
@@ -124,14 +129,23 @@ impl FakeSite {
 
     /// Serves the stand-in on a loopback port; its origin.
     pub async fn serve(self: &Arc<Self>) -> String {
-        let app = Router::new()
+        let mut app = Router::new()
             .route(self.token_path, post(token))
-            .route(self.me_path, get(me).post(me))
-            .with_state(self.clone());
+            .route(self.me_path, get(me).post(me));
+        if let Some((path, _)) = *self.listing.lock().unwrap() {
+            app = app.route(path, get(listing).post(listing));
+        }
+        let app = app.with_state(self.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
         tokio::spawn(async move { axum::serve(listener, app).await });
         origin
+    }
+
+    /// Lists tournaments at `path`, answering `answer` for the user whose
+    /// access token comes with the request. Set before `serve`.
+    pub fn lists(&self, path: &'static str, answer: fn(User) -> Json) {
+        *self.listing.lock().unwrap() = Some((path, answer));
     }
 
     /// The requests received at `path`, oldest first.
@@ -257,6 +271,25 @@ async fn me(State(site): State<Arc<FakeSite>>, headers: HeaderMap, body: Bytes) 
     }
 }
 
+async fn listing(
+    State(site): State<Arc<FakeSite>>,
+    RawQuery(query): RawQuery,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Reply {
+    let (path, answer) = site.listing.lock().unwrap().expect("set by lists");
+    site.record(path, query, &body, headers.clone());
+    let user = headers
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .and_then(|token| site.tokens.lock().unwrap().get(token).copied());
+    match user {
+        Some(user) => reply(AxumStatus::OK, answer(user)),
+        None => reply(AxumStatus::UNAUTHORIZED, json!({})),
+    }
+}
+
 /// A site's sign-in routes on the bridge and the proof actions they take.
 pub struct Routes {
     pub start: String,
@@ -307,6 +340,15 @@ pub fn definition(name: &str, origin: &str, client_id: &str) -> SignInSite {
     site.user.url = local(&site.user.url);
     if let Some(organizer) = &mut site.organizer {
         organizer.refresh_url = organizer.refresh_url.as_deref().map(local);
+        if let Some(read) = &mut organizer.tournaments {
+            let url = url::Url::parse(&read.url).unwrap();
+            read.url = format!(
+                "{}{}",
+                local(&read.url),
+                url.query()
+                    .map_or(String::new(), |query| format!("?{query}"))
+            );
+        }
     }
     site.client_id = client_id.into();
     site

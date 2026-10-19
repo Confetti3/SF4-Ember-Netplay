@@ -39,6 +39,11 @@ mod budget;
 mod pages;
 mod provider;
 
+pub use self::{
+    budget::spend,
+    provider::{OAuth, Tournament},
+};
+
 use axum::{
     Form, Router,
     extract::{Path, Query, State},
@@ -57,7 +62,7 @@ use serde_json::json;
 
 use self::{
     pages::Pages,
-    provider::{OAuth, SignedIn, Step, Tokens},
+    provider::{SignedIn, Step, Tokens},
 };
 use crate::{
     AppState, auth,

@@ -13,7 +13,7 @@ use ember_protocol::{
     sites::{self, LookupBy},
 };
 use reqwest::header;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use zeroize::Zeroizing;
 
@@ -22,7 +22,7 @@ use crate::{
     AppState,
     config::{
         Config,
-        sites::{Encoding, Method, UsernameRule},
+        sites::{Encoding, Method, TournamentsRead, UsernameRule},
     },
     linking::Site,
     util::{outbound_client, read_bounded},
@@ -141,6 +141,12 @@ impl Site {
 /// few hundred bytes.
 const MAX_ANSWER: usize = 64 * 1024;
 
+/// An organizer's events, a few hundred bytes each.
+const MAX_LISTING: usize = 512 * 1024;
+
+/// The most events a listing gives.
+pub const MAX_TOURNAMENTS: usize = 100;
+
 /// A sign-in's OAuth application as this bridge is configured for it.
 pub struct OAuth {
     authorize_url: String,
@@ -157,6 +163,8 @@ pub struct OAuth {
     scope: String,
     user: UserRequest,
     read: Read,
+    /// How an organizer sign-in's site lists the organizer's events.
+    tournaments: Option<(UserRequest, TournamentsRead)>,
     /// For a site that limits its requests; a sign-in's exchange spends two.
     pub limits: Option<Limits>,
 }
@@ -181,6 +189,14 @@ enum Read {
         username: Option<String>,
         username_rule: Option<UsernameRule>,
     },
+}
+
+/// An event an organizer runs, as the site lists it: the ID the bracket
+/// connector takes, and the name shown.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Tournament {
+    pub id: String,
+    pub name: String,
 }
 
 /// Who signed in.
@@ -236,17 +252,12 @@ impl OAuth {
                         body: None,
                     },
                     read: Read::Discord,
+                    tournaments: None,
                     limits: None,
                 })
             }
             Site::Configured(id) => {
                 let site = config.sign_in_site(id)?;
-                let pairs = |params: &std::collections::BTreeMap<String, String>| {
-                    params
-                        .iter()
-                        .map(|(name, value)| (name.clone(), value.clone()))
-                        .collect()
-                };
                 Some(Self {
                     authorize_url: site.authorize_url.clone(),
                     authorize_params: pairs(&site.authorize_params),
@@ -269,6 +280,7 @@ impl OAuth {
                         username_rule: (site.lookup_by == LookupBy::Username)
                             .then(|| site.username_rule.clone()),
                     },
+                    tournaments: None,
                     limits: site.limits,
                 })
             }
@@ -297,6 +309,15 @@ impl OAuth {
         if let Some(url) = &organizer.refresh_url {
             oauth.refresh_url = url.clone();
         }
+        oauth.tournaments = organizer.tournaments.as_ref().map(|read| {
+            let request = UserRequest {
+                method: read.method,
+                url: read.url.clone(),
+                headers: pairs(&read.headers),
+                body: read.body.clone(),
+            };
+            (request, read.clone())
+        });
         Some(oauth)
     }
 
@@ -350,40 +371,7 @@ impl OAuth {
                 ],
             )
             .await?;
-        let token = &tokens.access;
-        let request = match self.user.method {
-            Method::Get => client.get(&self.user.url),
-            Method::Post => client.post(&self.user.url),
-        };
-        // A body is JSON unless the definition's own `Content-Type` says
-        // otherwise: its headers replace the default, so none goes twice.
-        let mut headers = header::HeaderMap::new();
-        if self.user.body.is_some() {
-            headers.insert(
-                header::CONTENT_TYPE,
-                header::HeaderValue::from_static("application/json"),
-            );
-        }
-        for (name, value) in &self.user.headers {
-            headers.insert(
-                header::HeaderName::from_bytes(name.as_bytes()).ok()?,
-                header::HeaderValue::from_str(value).ok()?,
-            );
-        }
-        let request = match &self.user.body {
-            Some(body) => request.body(body.to_string()),
-            None => request,
-        };
-        let response = request
-            .headers(headers)
-            .bearer_auth(token.as_str())
-            .send()
-            .await
-            .ok()?;
-        if !response.status().is_success() {
-            return None;
-        }
-        let body = read_bounded(response, MAX_ANSWER).await?;
+        let body = send(&client, &self.user, &tokens.access, MAX_ANSWER).await?;
         let user = match &self.read {
             Read::Discord => discord_user(&body),
             Read::Pointers {
@@ -393,6 +381,16 @@ impl OAuth {
             } => pointed_user(&body, id, username.as_deref(), username_rule.as_ref()),
         }?;
         Some((user, tokens))
+    }
+
+    /// The events the organizer whose access token is `token` runs, at
+    /// most `MAX_TOURNAMENTS`, or None on any failure or when the site
+    /// lists none.
+    pub async fn tournaments(&self, token: &str) -> Option<Vec<Tournament>> {
+        let (request, read) = self.tournaments.as_ref()?;
+        let client = outbound_client().build().ok()?;
+        let body = send(&client, request, token, MAX_LISTING).await?;
+        Some(listed(&serde_json::from_slice(&body).ok()?, read))
     }
 
     /// Exchanges an organizer's refresh token for fresh tokens, or None on
@@ -475,6 +473,107 @@ impl OAuth {
     }
 }
 
+/// A definition's parameters or headers, in order.
+fn pairs(params: &std::collections::BTreeMap<String, String>) -> Vec<(String, String)> {
+    params
+        .iter()
+        .map(|(name, value)| (name.clone(), value.clone()))
+        .collect()
+}
+
+/// Sends `request` with `token` as a bearer; the answer's body, at most
+/// `limit` bytes, if the site answers with success.
+async fn send(
+    client: &reqwest::Client,
+    request: &UserRequest,
+    token: &str,
+    limit: usize,
+) -> Option<Vec<u8>> {
+    let builder = match request.method {
+        Method::Get => client.get(&request.url),
+        Method::Post => client.post(&request.url),
+    };
+    // A body is JSON unless the definition's own `Content-Type` says
+    // otherwise: its headers replace the default, so none goes twice.
+    let mut headers = header::HeaderMap::new();
+    if request.body.is_some() {
+        headers.insert(
+            header::CONTENT_TYPE,
+            header::HeaderValue::from_static("application/json"),
+        );
+    }
+    for (name, value) in &request.headers {
+        headers.insert(
+            header::HeaderName::from_bytes(name.as_bytes()).ok()?,
+            header::HeaderValue::from_str(value).ok()?,
+        );
+    }
+    let builder = match &request.body {
+        Some(body) => builder.body(body.to_string()),
+        None => builder,
+    };
+    let response = builder
+        .headers(headers)
+        .bearer_auth(token)
+        .send()
+        .await
+        .ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    read_bounded(response, limit).await
+}
+
+/// Text at `pointer` in `value`: a string, or a whole number of zero or
+/// more as its decimal digits.
+fn text_at(value: &Value, pointer: &str) -> Option<String> {
+    match value.pointer(pointer)? {
+        Value::String(text) => Some(text.clone()),
+        Value::Number(number) if number.is_u64() => Some(number.to_string()),
+        _ => None,
+    }
+}
+
+/// The events a listing's answer holds, read through `read`'s pointers.
+/// One without an ID of 1 to 128 visible characters, or a name, is left
+/// out; names are kept as usernames are shown.
+fn listed(answer: &Value, read: &TournamentsRead) -> Vec<Tournament> {
+    let tournaments = answer
+        .pointer(&read.list_pointer)
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let mut found = Vec::new();
+    for tournament in tournaments {
+        let events = match &read.events_pointer {
+            Some(pointer) => tournament
+                .pointer(pointer)
+                .and_then(Value::as_array)
+                .map(Vec::as_slice)
+                .unwrap_or_default(),
+            None => std::slice::from_ref(tournament),
+        };
+        let prefix = read
+            .tournament_name_pointer
+            .as_deref()
+            .and_then(|pointer| text_at(tournament, pointer));
+        for event in events {
+            let id = text_at(event, &read.id_pointer)
+                .filter(|id| id.len() <= 128 && id.bytes().all(|b| b.is_ascii_graphic()));
+            let name = text_at(event, &read.name_pointer).map(|name| shown(&name));
+            if let (Some(id), Some(name)) = (id, name.filter(|name| !name.is_empty())) {
+                let name = match &prefix {
+                    Some(prefix) => shown(&format!("{}: {name}", shown(prefix))),
+                    None => name,
+                };
+                found.push(Tournament { id, name });
+            }
+        }
+    }
+    found.truncate(MAX_TOURNAMENTS);
+    found
+}
+
 /// Kept for the page: control characters dropped, at most 64 characters.
 fn shown(username: &str) -> String {
     username
@@ -513,11 +612,7 @@ fn pointed_user(
     rule: Option<&UsernameRule>,
 ) -> Option<SignedIn> {
     let answer: Value = serde_json::from_slice(body).ok()?;
-    let text = |pointer: &str| match answer.pointer(pointer)? {
-        Value::String(text) => Some(text.clone()),
-        Value::Number(number) if number.is_u64() => Some(number.to_string()),
-        _ => None,
-    };
+    let text = |pointer: &str| text_at(&answer, pointer);
     let id = text(id).filter(|id| sites::is_user_id(id))?;
     let username = username
         .and_then(text)
@@ -546,6 +641,36 @@ mod tests {
             SignedIn::User(user) => Ok((user.id, user.username)),
             SignedIn::Unusable(username) => Err(username),
         })
+    }
+
+    #[test]
+    fn a_listing_reads_events_inside_tournaments_and_skips_what_it_cannot_read() {
+        let read: TournamentsRead = serde_json::from_value(serde_json::json!({
+            "method": "POST",
+            "url": "https://api.start.gg/gql/alpha",
+            "list_pointer": "/data/currentUser/tournaments/nodes",
+            "events_pointer": "/events",
+            "id_pointer": "/slug",
+            "name_pointer": "/name",
+            "tournament_name_pointer": "/name",
+        }))
+        .unwrap();
+        let answer = serde_json::json!({ "data": { "currentUser": { "tournaments": { "nodes": [
+            { "name": "Ember Weekly 12", "events": [
+                { "name": "USF4 Singles", "slug": "tournament/ember-weekly-12/event/usf4-singles" },
+                { "name": "No slug" },
+                { "name": "", "slug": "tournament/ember-weekly-12/event/blank" },
+            ] },
+            { "name": "No events" },
+        ] } } } });
+        assert_eq!(
+            listed(&answer, &read),
+            [Tournament {
+                id: "tournament/ember-weekly-12/event/usf4-singles".into(),
+                name: "Ember Weekly 12: USF4 Singles".into(),
+            }]
+        );
+        assert!(listed(&serde_json::json!({ "errors": [] }), &read).is_empty());
     }
 
     #[test]

@@ -485,8 +485,43 @@ key, as the account's grant, and refreshes them a day before they lapse
 when they are used; a refresh spends from a limited site's budget like a
 sign-in. `GET` on the same path shows the grant's scope and expiry (never
 the tokens), and `DELETE` (proof action `site.remove`) drops it and keeps
-the account. Disconnecting the account, moving it to another Ember ID or
-signing in with it again removes the grant.
+the account. Disconnecting the account or moving it to another Ember ID
+removes the grant; a player sign-in with the same account keeps it.
+
+#### Organizers' own events
+
+With `desk` in `bridge.json` naming a `direct` connection
+(`"desk": { "connection": "desk" }`), an organizer holding a grant runs
+their events on that connection, and `ember-brackets` holds its provider
+credential. The `organizer` block's `tournaments` says how the site lists
+the organizer's events (both shipped definitions have one):
+
+- `method`, `url`, `headers`, `body`: the request, as `user`'s, with the
+  organizer's access token.
+- `list_pointer` (empty for the whole answer), `events_pointer` (optional,
+  each tournament's events), `id_pointer` and `name_pointer` (each event's),
+  `tournament_name_pointer` (optional, shown before the event's name). The
+  ID is what `ember-brackets` takes as `tournament`.
+
+Routes, all with the organizer's player session:
+
+- `GET /v1/organizer/tournaments?site=<id>`: the events the site lists for
+  them (at most 100), each `{ "id", "name" }`. One request to the site,
+  spent from a limited site's budget.
+- `POST /v1/organizer/events` (proof action `site.connect` on that path),
+  command `{ "site", "tournament", "settings" }`: runs a listed event.
+  `settings` takes `rounds`, `hold`, `active_from`, `active_until` and
+  `mark_underway` as `brackets.json` does, in at most 4096 bytes; the
+  connector checks their values. An event runs once at a time, and an
+  organizer runs at most 8.
+- `GET /v1/organizer/events`: their running events.
+- `DELETE /v1/organizer/events/<id>` (proof action `site.remove` on that
+  path): stops one.
+
+`GET /v1/desk/brackets`, with the desk connection's provider credential,
+lists every running event whose organizer still holds a grant, with the
+site, the event, its settings and a fresh `access_token`. An event whose
+organizer dropped their grant waits there until they sign in again.
 
 ## Bracket sites (Challonge, start.gg, your own)
 

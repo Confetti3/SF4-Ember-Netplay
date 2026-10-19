@@ -978,3 +978,108 @@ async fn an_organizer_sign_in_keeps_its_tokens_sealed_and_refreshes_them() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(CHALLONGE.organizer(&bridge, &player1).await, json!(null));
 }
+
+// An organizer lists the Challonge events they run, has Ember run one, and
+// the desk connection's bracket connector gets it with a fresh token, for as
+// long as the organizer runs it and keeps their organizer access.
+#[tokio::test]
+async fn an_organizer_runs_their_own_event_on_the_desk() {
+    let fake = fake_challonge();
+    fake.lists("/v2.1/tournaments.json", |(id, _)| {
+        if id == PLAYER1.0 {
+            json!({ "data": [
+                { "id": "9001", "type": "tournament", "attributes": { "name": "Ember Weekly 12" } },
+                { "id": 9002, "type": "tournament", "attributes": { "name": "Ember Weekly 13" } },
+            ] })
+        } else {
+            json!({ "data": [] })
+        }
+    });
+    let bridge = desk_bridge(&fake).await;
+    let player1 = player(&bridge, 1).await;
+    let player2 = player(&bridge, 2).await;
+
+    // Without organizer access there is nothing to list.
+    let (status, _) = CHALLONGE.tournaments(&bridge, &player1).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    CHALLONGE.organize(&bridge, &player1, "good-player1").await;
+    let (status, listed) = CHALLONGE.tournaments(&bridge, &player1).await;
+    assert_eq!(status, StatusCode::OK, "{listed}");
+    assert_eq!(
+        listed["tournaments"],
+        json!([
+            { "id": "9001", "name": "Ember Weekly 12" },
+            { "id": "9002", "name": "Ember Weekly 13" },
+        ])
+    );
+    let seen = fake.seen("/v2.1/tournaments.json").pop().unwrap();
+    assert_eq!(seen.query["per_page"], "50");
+    assert_eq!(seen.headers["authorization-type"], "v2");
+
+    // Only an event the site lists for them, with settings the connector reads.
+    let (status, _) = CHALLONGE
+        .start_event(&bridge, &player1, "9999", json!({}))
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let credential = json!({ "credential": { "kind": "bearer" } });
+    let (status, _) = CHALLONGE
+        .start_event(&bridge, &player1, "9001", credential)
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let settings = json!({ "rounds": { "games_to_win": 2 }, "hold": { "streamed": true } });
+    let (status, started) = CHALLONGE
+        .start_event(&bridge, &player1, "9001", settings.clone())
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{started}");
+    let id = started["id"].as_str().unwrap().to_owned();
+    // An event runs once.
+    let (status, _) = CHALLONGE
+        .start_event(&bridge, &player1, "9001", json!({}))
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, events) = bridge.get(player1.token(), "/v1/organizer/events").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(events["events"][0]["id"], id.as_str());
+    assert_eq!(events["events"][0]["name"], "Ember Weekly 12");
+    assert_eq!(events["events"][0]["settings"], settings);
+
+    // The desk connection's provider gets it with the organizer's token; no
+    // other connection does.
+    let desk = bridge.provider(BRACKETS).await;
+    let (status, running) = bridge.get(&desk, "/v1/desk/brackets").await;
+    assert_eq!(status, StatusCode::OK, "{running}");
+    let bracket = &running["brackets"][0];
+    assert_eq!(
+        (&bracket["site"], &bracket["tournament"]),
+        (&json!(SITE), &json!("9001"))
+    );
+    assert!(
+        bracket["access_token"]
+            .as_str()
+            .unwrap()
+            .starts_with("access-token-1001")
+    );
+    let other = bridge.provider(BOTH).await;
+    let (status, _) = bridge.get(&other, "/v1/desk/brackets").await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    // Nobody else stops it.
+    let (status, _) = stop_event(&bridge, &player2, &id).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    // Without organizer access it waits, and comes back with it.
+    CHALLONGE.withdraw(&bridge, &player1).await;
+    let (_, running) = bridge.get(&desk, "/v1/desk/brackets").await;
+    assert_eq!(running["brackets"], json!([]));
+    CHALLONGE.organize(&bridge, &player1, "good-player1").await;
+    let (_, running) = bridge.get(&desk, "/v1/desk/brackets").await;
+    assert_eq!(running["brackets"][0]["id"], id.as_str());
+
+    // Stopped, it is gone.
+    let (status, _) = stop_event(&bridge, &player1, &id).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, running) = bridge.get(&desk, "/v1/desk/brackets").await;
+    assert_eq!(running["brackets"], json!([]));
+    let (_, events) = bridge.get(player1.token(), "/v1/organizer/events").await;
+    assert_eq!(events["events"], json!([]));
+}
