@@ -552,11 +552,23 @@ The web desk signs organizers in without the game: `GET
 `scope`), which comes back through the site's usual callback with its state
 marked `web.`, so no second redirect URI is registered. The account must
 already be connected to an Ember ID from the game; then the browser keeps a
-30-day session cookie (`ember_desk`, HttpOnly, SameSite=Lax, Secure over
-https). The organizer routes above take that cookie in place of a player
-session; every change also sends the session's CSRF token in
-`X-Ember-CSRF`, which `GET /web/session` gives with the Ember ID, and needs
-no proof. `POST /web/sign-out` ends it.
+session cookie (`ember_desk`, HttpOnly, SameSite=Lax, Secure over https)
+that ends 12 hours after the sign-in, or after 2 hours unused. One network
+address starts at most 10 web sign-ins an hour. The organizer routes above
+take that cookie in place of a player session; every change also sends the
+session's CSRF token in `X-Ember-CSRF`, which `GET /web/session` gives with
+the Ember ID, and needs no proof. `POST /web/sign-out` ends it.
+
+A cookie is not the game's key, so the changes a stolen browser must not
+make refuse it with 403 and `details.reason` `needs_game_proof`: starting,
+ending or readying an event, creating it on the site, and changing its
+`discord_webhook`, `public` or `sign_ups`. The game makes those with its
+proof. Calls, holds, game decisions and draft edits work from the web.
+
+The game lists the Ember ID's web sessions with `GET /v1/web-sessions`
+(site, browser, `started_at`, `last_used_at`, and `new` until
+`POST /v1/web-sessions/seen`), and `DELETE /v1/web-sessions` with a
+`site.remove` proof signs them all out.
 
 The desk itself is the page at `/desk` on the bridge, built in (`bridge/desk/`:
 one page, its style and script, the emblem and Inter; no outside requests,

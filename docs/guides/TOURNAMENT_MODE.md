@@ -25,7 +25,13 @@ Organizer access can be taken away from the same row; your account stays connect
 
 1. Open the desk address on your phone or computer.
 2. Select **Sign in with Challonge** or **Sign in with start.gg** and approve on the site.
-3. You come back signed in for 30 days. **Sign out** ends it.
+3. You come back signed in. The web session ends after 12 hours, or after 2 hours you don't use it; **Sign out** ends it sooner.
+
+What the web can and can't do: calls, holds, deciding games and editing a draft work on the web. Running or ending an event, marking it ready, creating it on Challonge, and changing its Discord webhook, public page or sign-ups need the game (Online play › Ember ID › Tournament desk), because they need your Ember key, not just a browser cookie.
+
+In the game, **Tournament desk** shows **Signed in on the web**: how many browsers are signed in and the newest. **Sign out everywhere** ends them all. The first time you open the desk after a new web sign-in, Ember tells you, so you can sign it out if it wasn't you.
+
+Turn on two-factor sign-in on your start.gg and Challonge accounts: whoever gets into them can sign in to your web desk.
 
 Only an account already linked in Ember can sign in. If the desk says the account is not linked, do step 1 first.
 
