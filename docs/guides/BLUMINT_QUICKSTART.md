@@ -323,7 +323,7 @@ which is called off.
 | `503 match_not_ready` with `Retry-After` | tries again, no sooner than `Retry-After` |
 | `500`, another `5xx`, `429`, a timeout or no connection | tries again |
 | `401` or `403` (a key you rotated, or bound to no game) | tries again, so the reports go out once the key is fixed |
-| `404 unknown_match` | stops, except for a status, which it tries again |
+| `404 unknown_match` | stops, a status report included (BluMint says to stop without alerting) |
 | Another `4xx` | stops |
 
 The bridge tries again on a schedule from a second to an hour, for a day.

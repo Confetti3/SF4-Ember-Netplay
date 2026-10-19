@@ -242,12 +242,10 @@ impl Queue for Status {
             }
         }
         match destination.post(item.body.to_string().into_bytes()).await {
-            // BluMint asks a partner to keep sending a status it does not
-            // know the match for yet.
-            Ok(answered) if answered.status == 404 => Outcome::Retry {
-                error: "http 404".into(),
-                retry_after: answered.retry_after,
-            },
+            // A 404 `unknown_match` is final, as it is for a result: BluMint
+            // has no lobby under the match and says to stop without alerting.
+            // A status sent before it recorded the create answers 503
+            // `match_not_ready` instead, which is retried.
             Ok(answered) => BluMint::outcome(&answered),
             Err(outcome) => outcome,
         }
