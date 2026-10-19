@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <cstring>
 #include <fstream>
@@ -28,6 +29,9 @@
 #include "ReplayArchiveIndex.hxx"
 #include "ReplayArchivePass.hxx"
 #include "ReplayArchiveWorker.hxx"
+#include "ReplaySets.hxx"
+
+#include <nlohmann/json.hpp>
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplaySummaryCache.hxx"
@@ -473,20 +477,59 @@ void NoteMatchEnd(bool confirmed) {
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
 
-void MarkWatched(const fs::path& file) {
+namespace {
+void MarkIn(const wchar_t* list, const fs::path& file) {
 	try {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return;
-		std::ofstream out(folders.archive / L"watched.txt", std::ios::app);
+		std::ofstream out(folders.archive / list, std::ios::app);
 		out << WideToUtf8(file.filename().wstring()) << '\n';
 	}
 	catch (const std::exception& e) {
-		spdlog::warn("Replays: the watched list was not written: {}", e.what());
+		spdlog::warn("Replays: {} was not written: {}", WideToUtf8(list), e.what());
 	}
+}
+}
+void MarkWatched(const fs::path& file) { MarkIn(L"watched.txt", file); }
+void MarkSent(const fs::path& file) { MarkIn(L"sent.txt", file); }
+
+fs::path SetPackPath(const std::string& matchId) {
+	if (matchId.empty() || matchId.size() > replayfiles::kMostId ||
+		!std::all_of(matchId.begin(), matchId.end(), [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-'; })) return {};
+	const Folders folders = FindFolders();
+	if (folders.archive.empty()) return {};
+	std::error_code error;
+	fs::create_directories(folders.archive / L"packs", error);
+	return error ? fs::path() : folders.archive / L"packs" / fs::path(matchId + ".emberpack");
+}
+
+std::size_t ImportSetPack(const fs::path& pack) {
+	try {
+		const Folders folders = FindFolders();
+		const auto bytes = replayfiles::ReadFile(pack, kMostPackBytes);
+		std::vector<slots::Bytes> games;
+		std::string header;
+		if (folders.archive.empty() || !bytes || !UnpackSet(*bytes, games, header)) return 0;
+		replayfiles::ReplayNames names;
+		names.spectated = true;
+		const auto said = nlohmann::json::parse(header, nullptr, false);
+		if (said.is_object() && said.contains("match_id") && said["match_id"].is_string()) names.set.matchId = said["match_id"].get<std::string>();
+		std::size_t held = 0;
+		for (const auto& game : games) {
+			const fs::path path = folders.archive / slots::ArchiveName(game);
+			const slots::Bytes body(game.begin() + slots::kExportHeaderBytes, game.end());
+			if (!replayfiles::PublishArchive(body, game, [&](replayfiles::ArchiveFile& existing) { return replayfiles::ReadArchive(path, true, existing); },
+				[&](const slots::Bytes& exported) { return PublishFile(path, exported); })) continue;
+			++held;
+			if (!names.set.matchId.empty()) PublishNames(folders.archive, body, names);
+		}
+		WantListing();
+		return held;
+	} catch (...) { return 0; }
 }
 
 namespace {
-std::vector<std::string> WatchedNames(const fs::path& file) {
+std::vector<std::string> NotedNames(const fs::path& file) {
 	std::vector<std::string> names;
 	auto bytes = replayfiles::ReadFile(file, 1 << 20);
  if (!bytes) return names;
@@ -499,24 +542,29 @@ std::vector<std::string> WatchedNames(const fs::path& file) {
 	return names;
 }
 
-// Watched markers are read again when their bounded file changes.
+// A list of marked replays, read again when its bounded file changes.
 struct NotesCache {
-	fs::file_time_type watchedWritten{};
-	std::vector<std::string> watched;
+	fs::file_time_type written{};
+	std::vector<std::string> names;
+	void Read(const fs::path& file) {
+		std::error_code ignored;
+		const auto at = fs::last_write_time(file, ignored);
+		if (ignored) names.clear(); else if (at != written) names = NotedNames(file);
+		written = at;
+	}
+	bool Has(const fs::path& replay) const { return std::find(names.begin(), names.end(), WideToUtf8(replay.filename().wstring())) != names.end(); }
 };
 
-std::vector<ArchivedReplay> List(NotesCache& cache) {
+std::vector<ArchivedReplay> List(NotesCache (&cache)[2]) {
 	const Folders folders = FindFolders();
 	if (folders.archive.empty()) return {};
-	std::error_code ignored;
- const fs::path watchedFile = folders.archive / L"watched.txt";
-	const auto watchedWritten = fs::last_write_time(watchedFile, ignored);
-	if (ignored) cache.watched.clear(); else if (watchedWritten != cache.watchedWritten) cache.watched = WatchedNames(watchedFile);
-	cache.watchedWritten = watchedWritten;
+	cache[0].Read(folders.archive / L"watched.txt");
+	cache[1].Read(folders.archive / L"sent.txt");
 
 	std::vector<ArchivedReplay> archived = Index().Refresh(folders.archive);
 	for (ArchivedReplay& replay : archived) {
-		replay.watched = std::find(cache.watched.begin(), cache.watched.end(), WideToUtf8(replay.path.filename().wstring())) != cache.watched.end();
+		replay.watched = cache[0].Has(replay.path);
+		replay.sent = cache[1].Has(replay.path);
 		fs::path video = replay.path;
 		std::error_code failed;
 		replay.video = fs::exists(video.replace_extension(L".mp4"), failed);
@@ -541,7 +589,7 @@ struct Lister {
 Lister& TheLister() { static Lister* const lister = new Lister; return *lister; }
 
 void ListUntilStopped(Lister& lister) {
-	NotesCache cache;
+	NotesCache cache[2];
  replayinputs::DetailCache details;
 	// Two seconds between listings, however often one is asked for. One
 	// replay's detail does not wait for that.

@@ -5,6 +5,8 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "../session/TournamentAnswers.hxx"
 #include "../common/HexText.hxx"
+#include "../platform/ReplaySets.hxx"
+#include "../platform/Utf8.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -143,8 +145,56 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 	runtime->assignmentList.items = std::move(*list);
 }
 
+// A set's replays go to its bridge one at a time, the oldest first, as the
+// archive lists them. One the bridge took, or refused for good, is noted in
+// the archive (MarkSent); any other failure, or no answer, is tried again a
+// minute later.
+// ponytail: the archive is listed once a minute for this, whether or not a set was played.
+void SendSetReplays(bool helperReady, std::uint64_t nowMs) {
+	auto& sending = runtime->replaySend;
+	if (!helperReady || nowMs < sending.nextMs) return;
+	sending.request = 0;
+	sending.nextMs = nowMs + 60000;
+	platform::replays::WantListing();
+	const auto listing = platform::replays::LatestListing();
+	const auto* next = listing ? platform::replays::NextToSend(*listing) : nullptr;
+	if (!next) return;
+	std::string text;
+	try {
+		text = json{{"op", "replay_send"}, {"bridge_id", next->set.bridgeId}, {"match_id", next->set.matchId},
+			{"revision", std::to_string(next->set.revision)}, {"path", platform::WideToUtf8(next->path.wstring())}}.dump();
+	} catch (const json::exception&) { return; }
+	std::uint64_t id = 0;
+	if (runtime->room->SendTournament(text, &id)) { sending.request = id; sending.path = next->path; }
+}
+
+bool TakeReplaySent(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
+	auto& sending = runtime->replaySend;
+	if (!answer.requestId || answer.requestId != sending.request) return false;
+	sending.request = 0;
+	if (answer.ok || platform::replays::SendSettled(answer.reason)) {
+		if (!answer.ok) spdlog::info("Replays: the set's bridge refused {}: {}", platform::WideToUtf8(sending.path.filename().wstring()), answer.reason);
+		platform::replays::MarkSent(sending.path);
+		// The next one once the archive is listed again with this one marked.
+		sending.nextMs = nowMs + 5000;
+	}
+	return true;
+}
+
+bool TakePackSaved(const session::TournamentAnswer& answer) {
+	if (!answer.requestId || answer.requestId != runtime->packRequest) return false;
+	runtime->packRequest = 0;
+	if (answer.ok) SaySet(loc::Tf("replays.set_pack_saved", platform::WideToUtf8(runtime->packPath.wstring())), false);
+	else {
+		spdlog::info("Replays: the set pack was not saved: {}", answer.reason);
+		SaySet(loc::T("replays.set_pack_failed"), true);
+	}
+	return true;
+}
+
 void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	if (answer.requestId && answer.requestId == runtime->assignmentRequest) { TakeAssignments(answer); return; }
+	if (TakeReplaySent(answer, nowMs) || TakePackSaved(answer)) return;
 	if (TakePublicRoomsAnswer(answer)) return;
 	const auto found = runtime->tournamentRequests.find(answer.requestId);
 	if (found == runtime->tournamentRequests.end()) return;
@@ -197,6 +247,11 @@ netplay::tournament::RoomView View(bool helperReady) {
 }
 
 namespace internal {
+void SaySet(std::string text, bool error) {
+	auto& notice = runtime->setNotice;
+	notice.text = std::move(text); notice.error = error; ++notice.count;
+}
+
 void OpenMatchLink(const tournament_link::MatchLink& link) {
 	if (!link.Valid()) return;
 	auto& opened = runtime->openedLink;
@@ -279,6 +334,23 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 	case Op::RoomTicket:
 		DispatchPublicRooms(command, helperReady);
 		return;
+	case Op::SavePack: {
+		const auto path = platform::replays::SetPackPath(command.matchId);
+		std::string text;
+		try {
+			text = json{{"op", "replay_pack"}, {"bridge_id", command.bridgeId}, {"match_id", command.matchId},
+				{"path", platform::WideToUtf8(path.wstring())}}.dump();
+		} catch (const json::exception&) { text.clear(); }
+		std::uint64_t id = 0;
+		if (path.empty() || command.bridgeId.empty() || runtime->packRequest || !helperReady || !runtime->room ||
+			text.empty() || !runtime->room->SendTournament(text, &id)) {
+			SaySet(loc::T("replays.set_pack_unavailable"), true);
+			return;
+		}
+		runtime->packRequest = id;
+		runtime->packPath = path;
+		return;
+	}
 	default:
 		return;
 	}
@@ -300,6 +372,7 @@ void TickTournament(bool helperReady) {
 	if (runtime->match && runtime->matchEntered && !LocalIsSpectator() && Game::Battle::System::DisconnectCountdownMs() >= 0)
 		runtime->tournament.OnConnectionLost(runtime->match->Generation());
 	for (const auto& answer : runtime->room->TakeTournamentAnswers()) TakeAnswer(answer, now);
+	SendSetReplays(helperReady, now);
 	const auto before = runtime->tournament.GetPhase();
 	for (const auto& output : runtime->tournament.Tick(now, View(helperReady))) Execute(output, now);
 	const auto after = runtime->tournament.GetPhase();

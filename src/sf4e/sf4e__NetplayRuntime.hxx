@@ -200,6 +200,14 @@ struct Runtime {
     std::map<std::uint64_t, TournamentRequest> tournamentRequests;
     std::uint64_t assignmentRequest=0;
     netplay::tournament::AssignmentList assignmentList;
+    // The set replay being sent to its bridge (SendSetReplays): its helper
+    // request (0 when none is in flight), its file, and when to look again.
+    struct ReplaySend { std::uint64_t request = 0; std::filesystem::path path; std::uint64_t nextMs = 0; } replaySend;
+    // Save set pack's helper request (0 when none) and its file, and what the
+    // Replays screen is told of the last pack saved or imported.
+    std::uint64_t packRequest = 0;
+    std::filesystem::path packPath;
+    struct SetNotice { std::string text; bool error = false; std::uint64_t count = 0; } setNotice;
     // The public room list and the last create or ticket request: their helper
     // request ids (0 when none is in flight), when each was sent, and what
     // the interface sees.
@@ -424,6 +432,8 @@ void OpenConnectLink(const std::string& bridge, bool launched = false);
 // replay operation on (sf4e__ReplayStore.hxx).
 void RunReplayRequest(const replay::Request& request);
 void TickReplays();
+// What the Replays screen is told of the last set pack saved or imported.
+void SaySet(std::string text, bool error);
 // Hands a public room link to the interface, which asks for the room's ticket
 // when the player is free. `launched` as for OpenConnectLink.
 void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);

@@ -42,5 +42,10 @@ struct ReplaysView {
 	std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
 	// Completion of the last requested entry (platform::replays::WantDetail).
 	replayinputs::DetailCompletion detail;
+	// The last set pack saved or imported: what to say, whether it failed,
+	// and how many have been said, so a new one can be told from the last.
+	std::string setNotice;
+	bool setNoticeError = false;
+	std::uint64_t setNotices = 0;
 };
 } }

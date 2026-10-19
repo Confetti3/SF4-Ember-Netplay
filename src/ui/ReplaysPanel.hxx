@@ -22,7 +22,7 @@ enum class Tone;
 class ReplaysPanel {
 public:
     using Submit = std::function<bool(ShellAction)>;
-    static bool Owns(const std::string& screen) { return screen == "replays" || screen == "replay-inputs" || screen == "replay-export"; }
+    static bool Owns(const std::string& screen) { return screen == "replays" || screen == "replay-inputs" || screen == "replay-export" || screen == "replay-sets" || screen == "replay-set"; }
     // Home, then the Replays screen: a replay link's question, and the way
     // back once the game's battle log returns to the main menu.
     static void Show(MenuNavigation& navigation) { navigation.Home(); navigation.Push("replays"); }
@@ -36,6 +36,8 @@ public:
     Wants Wanted(const std::string& screen) const;
     // Every frame, before the rows: a new replay link takes the menu to its
     // question, only with no room open; in a room it waits until it is left.
+    // Tournaments (replay-sets) lists the sets the archive holds, and a set's
+    // own screen (replay-set) its games (platform/ReplaySets.hxx).
     void Update(const ShellView& view, MenuNavigation& navigation);
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool idle, std::string& title) const;
     // True when the row was the panel's own. `error` is what the shell shows
@@ -54,6 +56,8 @@ public:
     std::uint64_t InputsRevision() const { return inputsRevision_; }
 private:
     void InputsRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
+    MenuEntry ReplayRow(const ShellView& view, const platform::replays::ArchivedReplay& replay, bool idle) const;
+    void Watch(const ShellView& view, const std::string& path, bool meter, const Submit& submit, std::string& error);
     void OpenExport(const ShellView& view, const platform::replays::ArchivedReplay& replay);
     // The replay the Inputs and stats screen is of, as its row was when it
     // was chosen. The lister hands over its match, summary and round logs;
@@ -70,5 +74,15 @@ private:
     bool folderAsked_ = false;
     // The replay link last seen, so its question opens the Replays screen once.
     std::string linkSeen_;
+    // Watch set: the set's games still to play, each started from the Next
+    // game row on Replays, and how many the set has.
+    std::vector<std::string> setQueue_;
+    std::size_t setGames_ = 0;
+    // The set whose games replay-set lists.
+    std::string setShown_;
+    // A set pack was last asked for here (Save set pack, a pack link's Import):
+    // the status line has its answer once the notice count passes this one.
+    bool setAsked_ = false;
+    std::uint64_t setNoticeAsked_ = 0;
 };
 } }

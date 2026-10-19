@@ -4,7 +4,7 @@
 //   ember://replay/open?file=<percent-encoded path>
 // Another program on this PC (usf4-replay-saver) opens it; the launcher hands
 // it to the running game, or starts the game with it. Only a plain path to a
-// .emberreplay or .usf4replay file on a drive of this PC is accepted
+// .emberreplay, .usf4replay or .emberpack file on a drive of this PC is accepted
 // ("C:\\..."). ParseReplayLink checks syntax; ResolveReplayPath checks the
 // actual target before delivery and import. The player is asked before play.
 
@@ -37,7 +37,11 @@ inline bool IsReplayPath(const std::string& path) {
  const auto dot=path.rfind('.');
  std::string ext=dot==std::string::npos?std::string():path.substr(dot);
  for(char& c:ext)c=static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
- return ext==".emberreplay"||ext==".usf4replay";
+ return ext==".emberreplay"||ext==".usf4replay"||ext==".emberpack";
+}
+// A set's pack (platform/ReplaySets.hxx), which is imported rather than played.
+inline bool IsSetPack(const std::string& path) {
+ return path.size()>10&&StartsWithFoldedReplay(path.substr(path.size()-10),".emberpack");
 }
 struct ReplayTarget {
  std::string file;

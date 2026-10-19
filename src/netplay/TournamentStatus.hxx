@@ -50,7 +50,8 @@ struct Assignment {
 // are bridge requests the helper answers by request id, and their answers
 // reach the runtime beside the assignment list's (PublicRooms.hxx).
 struct Command {
-	enum class Op : std::uint8_t { None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket } op = Op::None;
+	// SavePack: the set matchId's pack from its bridge, into the archive's packs folder.
+	enum class Op : std::uint8_t { None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket, SavePack } op = Op::None;
 	std::string bridgeId, matchId;
 	// RoomCreate names and sizes the new room; RoomTicket names the room to join.
 	std::string roomName, roomId;

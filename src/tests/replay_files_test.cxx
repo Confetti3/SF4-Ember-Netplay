@@ -2,6 +2,7 @@
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayProvenance.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../platform/ReplaySets.hxx"
 #include <algorithm>
 #include <chrono>
 #include <cwctype>
@@ -442,7 +443,38 @@ static void TestArchiveFolderContainment() {
  fs::remove_all(folder);
 }
 #endif
+// A set's games: sent oldest first, never one this PC only watched, and
+// grouped by set with the rooms they took; a pack splits back into them.
+static void TestSetReplays() {
+ namespace sets = sf4e::platform::replays;
+ const auto game = [](const char* match, std::uint64_t revision, const char* file) {
+  sets::ArchivedReplay replay; replay.path = file; replay.set = {"brg_bridge", match, revision}; return replay;
+ };
+ // A listing is newest first.
+ std::vector<sets::ArchivedReplay> archive{game("emt_b", 1, "b1"), sets::ArchivedReplay{"casual"}, game("emt_a", 2, "a3"), game("emt_a", 1, "a2"), game("emt_a", 1, "a1"), game("emt_c", 1, "c1")};
+ // A set imported from a pack is listed, and never sent.
+ archive[5].set.bridgeId.clear();
+ archive[4].sent = true; archive[3].spectated = true;
+ CHECK(sets::NextToSend(archive) == &archive[2]);
+ archive[2].sent = true; CHECK(sets::NextToSend(archive) == &archive[0]);
+ archive[0].sent = true; CHECK(!sets::NextToSend(archive));
+ CHECK(sets::SendSettled("not_found") && !sets::SendSettled("bridge_unreachable") && !sets::SendSettled("unauthenticated"));
+ const auto listed = sets::Sets(archive);
+ CHECK(listed.size() == 3 && listed[0].matchId == "emt_b" && listed[0].rooms == 1 && listed[2].matchId == "emt_c");
+ CHECK(listed[1].games.size() == 3 && listed[1].games[0] == &archive[4] && listed[1].games[2] == &archive[2] && listed[1].rooms == 2);
+ Bytes one, two;
+ CHECK(ExportFromReplayAlone(Replay(2, 800), one) && ExportFromReplayAlone(Replay(3, 900), two));
+ Bytes pack{'E','M','B','R','P','A','K','1',2,0,0,0,'{','}'};
+ pack.insert(pack.end(), one.begin(), one.end()); pack.insert(pack.end(), two.begin(), two.end());
+ std::vector<Bytes> games;
+ std::string header;
+ CHECK(sets::UnpackSet(pack, games, header) && games.size() == 2 && games[0] == one && games[1] == two && header == "{}");
+ CHECK(!sets::UnpackSet(Bytes(pack.begin(), pack.end() - 1), games, header) && games.size() == 2);
+ Bytes torn = pack; torn.back() ^= 1; CHECK(!sets::UnpackSet(torn, games, header));
+ Bytes huge = pack; WriteU32(huge.data() + 8, 0xFFFFFFFFu); CHECK(!sets::UnpackSet(huge, games, header));
+}
 int main() {
+ TestSetReplays();
  TestNamesPublicationRefusesExistingTargets();
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();

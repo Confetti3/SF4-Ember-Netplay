@@ -921,6 +921,64 @@ msgstr "Sale del menú de Ember y abre el Battle Log del juego, donde se ven las
 
 msgid "replays.open_log_room"
 msgstr "Primero sal de la sala."
+
+msgid "replays.tournaments"
+msgstr "Tournaments"
+
+msgid "replays.tournaments_detail"
+msgstr "The sets you played in tournaments, each with all of its games."
+
+msgid "replays.set_detail"
+msgstr "Select to watch the set's games in order, pick one of them, or save the set as one file."
+
+msgid "replays.set_value"
+msgstr "{0} replays · {1} rooms"
+
+msgid "replays.watch_set"
+msgstr "Watch set"
+
+msgid "replays.watch_set_detail"
+msgstr "Plays the first game now. When it ends, Next game at the top of Replays plays the next one."
+
+msgid "replays.pick_game"
+msgstr "Pick a game"
+
+msgid "replays.pick_game_detail"
+msgstr "Lists the set's games in the order they were played."
+
+msgid "replays.save_pack"
+msgstr "Save set pack"
+
+msgid "replays.save_pack_detail"
+msgstr "Saves every game of the set that its service holds in one .emberpack file in the replay folder."
+
+msgid "replays.next_game"
+msgstr "Next game of the set ({0} of {1})"
+
+msgid "replays.link_import"
+msgstr "Import set"
+
+msgid "replays.link_import_detail"
+msgstr "Puts every game of this set pack into Replays."
+
+msgid "replays.set_pack_working"
+msgstr "Saving the set pack..."
+
+msgid "replays.set_pack_saved"
+msgstr "Set pack saved: {0}"
+
+msgid "replays.set_pack_failed"
+msgstr "The set pack could not be saved. Its service may not have the games yet; try again later."
+
+msgid "replays.set_pack_unavailable"
+msgstr "The set pack cannot be saved now. Ember needs a connection to the set's service."
+
+msgid "replays.set_imported"
+msgstr "{0} games of the set are in Replays."
+
+msgid "replays.set_import_failed"
+msgstr "That file is not a whole set pack, so nothing was imported."
+
 msgid "settings.training_auto_ready"
 msgstr "Ponerme listo al llamarme del Entrenamiento"
 

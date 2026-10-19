@@ -449,6 +449,8 @@ PostPublishState Publish() {
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
 	snapshot.replays.archive = platform::replays::LatestListing();
 	snapshot.replays.detail = platform::replays::LatestDetail();
+	snapshot.replays.setNotice = runtime->setNotice.text; snapshot.replays.setNoticeError = runtime->setNotice.error;
+	snapshot.replays.setNotices = runtime->setNotice.count;
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;

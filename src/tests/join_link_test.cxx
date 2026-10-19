@@ -342,6 +342,9 @@ static void TestReplayLinks() {
 	CHECK(link.compare(0, 25, "ember://replay/open?file=") == 0 && link.find(' ') == std::string::npos);
 	CHECK(ParseReplayLink(link) == path);
 	CHECK(ParseReplayLink("EMBER://REPLAY/OPEN?file=D%3A%5Cr%5Cmatch.emberreplay") == "D:\\r\\match.emberreplay");
+	// A set's pack is imported, not played.
+	CHECK(ParseReplayLink("ember://replay/open?file=D%3A%5Cr%5Cset.EMBERPACK") == "D:\\r\\set.EMBERPACK");
+	CHECK(IsSetPack("D:\\r\\set.EMBERPACK") && !IsSetPack("D:\\r\\match.emberreplay") && !IsSetPack(".emberpack"));
 	CHECK(ParseReplayLink("ember://replay/open?file=D%3A%5Cr%5Cmatch.txt").empty());
 	CHECK(ParseReplayLink("ember://replay/open?file=").empty());
 	CHECK(ParseReplayLink("ember://replay/open?file=a%0A.emberreplay").empty());
