@@ -203,17 +203,21 @@ finally {
         # The saves become the copy again: files the run added go, the rest are copied back, and
         # only a folder that then matches the copy lets the copy go.
         $copy = Get-FileTree $backup
-        foreach ($name in (Get-FileTree $saves).Keys | Where-Object { -not $copy.ContainsKey($_) }) { Remove-Item (Join-Path $saves $name) -Force }
+        $current = Get-FileTree $saves
+        $added = @($current.Keys | Where-Object { -not $copy.ContainsKey($_) })
+        $changed = @($copy.Keys | Where-Object { $current.ContainsKey($_) -and $current[$_] -ne $copy[$_] })
+        foreach ($name in $added) { Remove-Item (Join-Path $saves $name) -Force }
         Copy-Item -Path (Join-Path $backup "*") -Destination $saves -Recurse -Force
         $now = Get-FileTree $saves
         if ($now.Count -eq $copy.Count -and -not ($copy.Keys | Where-Object { $now[$_] -ne $copy[$_] })) {
             Remove-Item $backup -Recurse -Force
-            Write-Host "Saves put back from the copy."
+            Write-Host "Saves put back from the copy. The run changed $($changed.Count) file(s) ($(($changed | Sort-Object | Select-Object -First 12) -join ', ')) and added $($added.Count)."
         }
         else { Write-Host "The saves could not be put back; the copy is in $backup" }
         for ($i = 0; $i -lt $archives.Count; $i++) {
-            $after = Get-FileTree $archives[$i]
-            foreach ($name in $after.Keys | Where-Object { -not $archiveBefore[$i].ContainsKey($_) }) { Remove-Item (Join-Path $archives[$i] $name) -Force -ErrorAction SilentlyContinue }
+            $leftBehind = @((Get-FileTree $archives[$i]).Keys | Where-Object { -not $archiveBefore[$i].ContainsKey($_) })
+            foreach ($name in $leftBehind) { Remove-Item (Join-Path $archives[$i] $name) -Force -ErrorAction SilentlyContinue }
+            Write-Host "Removed $($leftBehind.Count) file(s) the run added to $($archives[$i])."
         }
     }
     # The helper goes with the game; its folder once it has. The helper makes
