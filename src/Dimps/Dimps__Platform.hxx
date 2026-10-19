@@ -7,7 +7,6 @@
 #include <d3d9.h>
 
 #include "Dimps__Eva.hxx"
-#include "../common/DisplayBlock.hxx"
 
 // These are derived from address 0x9670f0- GfxApp::Initialize is not called
 // with a pointer to the various sizes that define the app, so the app uses
@@ -78,7 +77,19 @@ namespace Dimps {
 
 		void Locate(HMODULE peRoot);
 
-		using sf4e::gameconfig::DisplayBlock;
+		// The game's block of display settings, 13 dwords. The graphics device
+		// keeps one, which BuildPresentParameters builds from (0x7719D0), and
+		// Main another, which WriteDisplayConfig saves (0x77D5F0); the
+		// framework's setter copies a whole block (0x77FF30).
+		struct DisplayBlock {
+			uint32_t unknown0[3];
+			uint32_t width, height;
+			float refresh;
+			uint32_t unknown6[6];
+			// 1 for exclusive fullscreen, 0 for a window.
+			uint32_t fullScreen;
+		};
+		static_assert(sizeof(DisplayBlock) == 0x34, "13 dwords");
 
 		struct D3D
 		{

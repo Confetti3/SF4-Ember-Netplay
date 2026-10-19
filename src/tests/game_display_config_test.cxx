@@ -1,5 +1,6 @@
 #include "../common/GameDisplayConfig.hxx"
 #include <cstdio>
+#include <functional>
 #include <cstdlib>
 #include <initializer_list>
 
@@ -7,18 +8,28 @@
 using sf4e::gameconfig::ParseDisplaySettings;
 using sf4e::gameconfig::RenderingThreadOverride;
 using sf4e::gameconfig::BorderlessOverride;
+using sf4e::gameconfig::DisplayConfigOverrides;
+using sf4e::gameconfig::DisplayMode;
 using sf4e::gameconfig::Fit16By9;
+
+// Main's display block in the tests: the config write puts modes here.
+struct FakeMain {
+	DisplayMode mode;
+	void operator()(const DisplayMode& put) { mode = put; }
+};
 
 // Faster display on: the game's live flag is kept off whatever config.ini
 // asked, and the game's config write sees the player's own value, then off again.
 static void FasterDisplayKeepsTheFlagOffButWritesItAsAsked() {
 	for (const int asked : {1, 0}) {
-		RenderingThreadOverride override_;
+		DisplayConfigOverrides overrides;
+		RenderingThreadOverride& override_ = overrides.renderingThread;
 		int live = asked;
 		override_.Apply(true, live);
 		CHECK(live == 0 && override_.Applied() && !override_.RenderThread());
 		int written = -1;
-		override_.WriteRequested(live, [&] { written = live; });
+		FakeMain main;
+		overrides.WriteRequested(live, main.mode, std::ref(main), [&] { written = live; });
 		CHECK(written == asked);
 		CHECK(live == 0);
 		CHECK(override_.Describe() == std::string("rendering thread forced off (Faster display on; game setting asked for ") + (asked ? "ON" : "OFF") + ")");
@@ -28,12 +39,14 @@ static void FasterDisplayKeepsTheFlagOffButWritesItAsAsked() {
 // Faster display off: the flag and its write are the game's alone.
 static void FasterDisplayOffLeavesTheFlagToTheGame() {
 	for (const int asked : {1, 0}) {
-		RenderingThreadOverride override_;
+		DisplayConfigOverrides overrides;
+		RenderingThreadOverride& override_ = overrides.renderingThread;
 		int live = asked;
 		override_.Apply(false, live);
 		CHECK(live == asked && override_.Applied() && override_.RenderThread() == (asked != 0));
 		int written = -1;
-		override_.WriteRequested(live, [&] { written = live; });
+		FakeMain main;
+		overrides.WriteRequested(live, main.mode, std::ref(main), [&] { written = live; });
 		CHECK(written == asked && live == asked);
 		CHECK(override_.Describe() == std::string("rendering thread left to the game (Faster display off; RenderingThread=") + (asked ? "ON" : "OFF") + ")");
 	}
@@ -41,10 +54,11 @@ static void FasterDisplayOffLeavesTheFlagToTheGame() {
 
 // A write before Apply is the game's own and untouched.
 static void RenderingThreadWriteBeforeApplyIsTheGames() {
-	const RenderingThreadOverride override_;
-	CHECK(!override_.Applied());
+	const DisplayConfigOverrides overrides;
+	CHECK(!overrides.renderingThread.Applied());
 	int live = 1, written = -1;
-	override_.WriteRequested(live, [&] { written = live; });
+	FakeMain main;
+	overrides.WriteRequested(live, main.mode, std::ref(main), [&] { written = live; });
 	CHECK(written == 1 && live == 1);
 }
 
@@ -100,12 +114,13 @@ static void RepeatedConfigWritesRestoreTheEffectiveFlag() {
 		for (const int asked : {1, 0}) {
 			FakeNative game;
 			game.startupFlag = asked;
-			RenderingThreadOverride override_;
-			override_.ApplyThenStart(faster, game.startupFlag, [&] { return game.ApplyStartupParams(); });
+			DisplayConfigOverrides overrides;
+			overrides.renderingThread.ApplyThenStart(faster, game.startupFlag, [&] { return game.ApplyStartupParams(); });
 			const int expected = faster ? 0 : asked;
 			for (int i = 0; i < 3; ++i) {
 				int written = -1;
-				override_.WriteRequested(game.mainFlag, [&] { written = game.mainFlag; });
+				FakeMain main;
+				overrides.WriteRequested(game.mainFlag, main.mode, std::ref(main), [&] { written = game.mainFlag; });
 				CHECK(written == asked);
 				CHECK(game.mainFlag == expected);
 				CHECK(game.devicePolicy == expected);
@@ -137,56 +152,70 @@ static void BorderlessAreaIsTheLargestWhole16By9() {
 	CHECK(!Fit16By9(15, 9).Valid() && !Fit16By9(0, 0).Valid());
 }
 
-static sf4e::gameconfig::DisplayBlock Block(uint32_t width, uint32_t height, uint32_t fullScreen) {
-	sf4e::gameconfig::DisplayBlock block = {};
-	block.width = width; block.height = height; block.fullScreen = fullScreen;
-	return block;
-}
-static bool Holds(const sf4e::gameconfig::DisplayBlock& block, uint32_t width, uint32_t height, uint32_t fullScreen) {
-	return block.width == width && block.height == height && block.fullScreen == fullScreen;
+static bool Holds(const DisplayMode& mode, uint32_t width, uint32_t height, uint32_t fullScreen) {
+	return mode == DisplayMode{width, height, fullScreen};
 }
 
 // Borderless builds the device windowed at its monitor's size, Main's copy
 // with it, and the game's config write sees the player's mode, then the
 // Borderless one again.
 static void BorderlessWritesThePlayersModeAsAsked() {
-	BorderlessOverride override_;
-	auto device = Block(1280, 720, 1), main = device;
-	override_.Apply(device, main, 3440, 1440);
-	CHECK(Holds(device, 3440, 1440, 0) && Holds(main, 3440, 1440, 0));
+	DisplayConfigOverrides overrides;
+	FakeMain main;
+	main.mode = overrides.borderless.Apply({1280, 720, 1}, 3440, 1440);
+	CHECK(Holds(main.mode, 3440, 1440, 0));
 	// Each Reset builds the parameters again; the player's mode is kept.
-	override_.Apply(device, main, 3440, 1440);
-	sf4e::gameconfig::DisplayBlock written = {};
-	override_.WriteRequested(main, [&] { written = main; });
-	CHECK(Holds(written, 1280, 720, 1) && Holds(main, 3440, 1440, 0));
+	main.mode = overrides.borderless.Apply(main.mode, 3440, 1440);
+	DisplayMode written;
+	int flag = 0;
+	overrides.WriteRequested(flag, main.mode, std::ref(main), [&] { written = main.mode; });
+	CHECK(Holds(written, 1280, 720, 1) && Holds(main.mode, 3440, 1440, 0));
 }
 
 // A mode the game's display options put in the device is the player's new
 // choice: it is saved, and the device is built at the monitor's size again.
 static void BorderlessSavesAModeChosenInTheGamesOptions() {
-	BorderlessOverride override_;
-	auto device = Block(1280, 720, 0), main = device;
-	override_.Apply(device, main, 1920, 1080);
-	device = Block(1600, 900, 1);
-	override_.Apply(device, main, 1920, 1080);
-	CHECK(Holds(device, 1920, 1080, 0));
-	sf4e::gameconfig::DisplayBlock written = {};
-	override_.WriteRequested(main, [&] { written = main; });
+	DisplayConfigOverrides overrides;
+	overrides.borderless.Apply({1280, 720, 0}, 1920, 1080);
+	FakeMain main;
+	main.mode = overrides.borderless.Apply({1600, 900, 1}, 1920, 1080);
+	CHECK(Holds(main.mode, 1920, 1080, 0));
+	DisplayMode written;
+	int flag = 0;
+	overrides.WriteRequested(flag, main.mode, std::ref(main), [&] { written = main.mode; });
 	CHECK(Holds(written, 1600, 900, 1));
 }
 
-// When Borderless gives up, both copies get the player's mode back and later
-// writes are the game's alone, as they are without Borderless.
+// When Borderless gives up, both copies get the player's mode back once and
+// later writes are the game's alone, as they are without Borderless.
 static void BorderlessRestoreHandsTheModeBack() {
-	BorderlessOverride override_;
-	auto device = Block(1280, 720, 1), main = device;
-	override_.Apply(device, main, 1920, 1080);
-	override_.Restore(device, main);
-	CHECK(Holds(device, 1280, 720, 1) && Holds(main, 1280, 720, 1));
-	main.width = 1600;
-	uint32_t written = 0;
-	override_.WriteRequested(main, [&] { written = main.width; });
-	CHECK(written == 1600);
+	DisplayConfigOverrides overrides;
+	CHECK(!overrides.borderless.Restore());
+	overrides.borderless.Apply({1280, 720, 1}, 1920, 1080);
+	const auto player = overrides.borderless.Restore();
+	CHECK(player && Holds(*player, 1280, 720, 1));
+	CHECK(!overrides.borderless.Restore());
+	FakeMain main;
+	main.mode = {1600, 900, 0};
+	DisplayMode written;
+	int flag = 0;
+	overrides.WriteRequested(flag, main.mode, std::ref(main), [&] { written = main.mode; });
+	CHECK(Holds(written, 1600, 900, 0));
+}
+
+// Both overrides at once: the write sees the player's flag and mode
+// together, and both live values are back after it.
+static void OneWriteGivesBothOverridesThePlayersValues() {
+	DisplayConfigOverrides overrides;
+	int flag = 1;
+	overrides.renderingThread.Apply(true, flag);
+	FakeMain main;
+	main.mode = overrides.borderless.Apply({1280, 720, 1}, 1920, 1080);
+	int writtenFlag = -1;
+	DisplayMode writtenMode;
+	overrides.WriteRequested(flag, main.mode, std::ref(main), [&] { writtenFlag = flag; writtenMode = main.mode; });
+	CHECK(writtenFlag == 1 && Holds(writtenMode, 1280, 720, 1));
+	CHECK(flag == 0 && Holds(main.mode, 1920, 1080, 0));
 }
 
 int main() {
@@ -194,6 +223,7 @@ int main() {
 	BorderlessWritesThePlayersModeAsAsked();
 	BorderlessSavesAModeChosenInTheGamesOptions();
 	BorderlessRestoreHandsTheModeBack();
+	OneWriteGivesBothOverridesThePlayersValues();
 	FasterDisplayKeepsTheFlagOffButWritesItAsAsked();
 	FasterDisplayOffLeavesTheFlagToTheGame();
 	RenderingThreadWriteBeforeApplyIsTheGames();

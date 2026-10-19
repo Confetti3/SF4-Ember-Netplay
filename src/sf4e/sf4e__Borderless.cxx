@@ -5,7 +5,7 @@
 #include "spdlog/spdlog.h"
 
 #include "../Dimps/Dimps__Platform.hxx"
-#include "../common/GameDisplayConfig.hxx"
+#include "sf4e__StartupLog.hxx"
 
 namespace sf4e { namespace borderless {
 namespace {
@@ -16,8 +16,6 @@ struct State {
 	// monitor and the 16:9 area of it the game renders to.
 	RECT monitor = {};
 	gameconfig::Area area;
-	// The player's mode while the Borderless one is in the device.
-	gameconfig::BorderlessOverride mode;
 	// The game's window thread only: the black bars beside a 16:9 area on a
 	// monitor of another shape, and a layout asked for while minimized.
 	HWND bars = nullptr;
@@ -26,7 +24,7 @@ struct State {
 
 void Fail(const char* what, DWORD error) {
 	if (state.phase.exchange(Phase::Off) == Phase::Off) return;
-	spdlog::error("Borderless: {} (Win32 {}); the game keeps its own mode and window", what, error);
+	StartupLog::Log(spdlog::level::err, fmt::format("Borderless: {} (Win32 {}); the game keeps its own mode and window", what, error));
 }
 
 // Registered, not WM_APP: the window procedure is the game's own.
@@ -99,7 +97,11 @@ void Layout(HWND window) {
 	SetWindowLongPtrW(window, GWL_EXSTYLE, exStyle & ~static_cast<LONG_PTR>(WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_DLGMODALFRAME));
 	if (!SetWindowPos(window, nullptr, monitor.left + area.x, monitor.top + area.y, area.width, area.height,
 		SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED)) {
-		Fail("the window could not be laid out", GetLastError());
+		const DWORD error = GetLastError();
+		SetWindowLongPtrW(window, GWL_STYLE, style);
+		SetWindowLongPtrW(window, GWL_EXSTYLE, exStyle);
+		SetWindowPos(window, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED);
+		Fail("the window could not be laid out", error);
 		return;
 	}
 	const bool wider = area.width < monitor.right - monitor.left || area.height < monitor.bottom - monitor.top;
@@ -115,24 +117,37 @@ void Choose(bool chosen) {
 	state.phase.store(chosen ? Phase::Chosen : Phase::Off);
 	// Before the game makes its window (ApplyStartupParams runs first), so the
 	// window and the monitor are in physical pixels and a scaled desktop does
-	// not stretch the picture. The game is not DPI aware without it.
+	// not stretch the picture. The game is not DPI aware without it. Ember's
+	// overlay then reads the desktop's scale itself (ApplyTheme) where Windows
+	// would otherwise stretch it, so it keeps its size on screen.
 	if (chosen && !SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
-		spdlog::warn("Borderless: the game could not be made DPI aware ({}); a scaled desktop may stretch it", GetLastError());
+		StartupLog::Log(spdlog::level::warn, fmt::format("Borderless: the game could not be made DPI aware ({}); a scaled desktop may stretch it", GetLastError()));
 }
 
-void BeforePresentParameters(Dimps::Platform::D3D* device, Dimps::Platform::Main* main) {
+void BeforePresentParameters(Dimps::Platform::D3D* device, Dimps::Platform::Main* main, gameconfig::BorderlessOverride& mode) {
 	if (state.phase.load() == Phase::Chosen) Plan(device);
 	auto& display = *Dimps::Platform::D3D::GetDisplay(device);
 	auto& saved = *Dimps::Platform::Main::GetDisplay(main);
-	if (state.phase.load() != Phase::Planned) { state.mode.Restore(display, saved); return; }
-	state.mode.Apply(display, saved, static_cast<uint32_t>(state.area.width), static_cast<uint32_t>(state.area.height));
+	if (state.phase.load() != Phase::Planned) {
+		if (const auto player = mode.Restore()) { PutMode(*player, display); PutMode(*player, saved); }
+		return;
+	}
+	const auto borderless = mode.Apply(ModeOf(display), static_cast<uint32_t>(state.area.width), static_cast<uint32_t>(state.area.height));
+	PutMode(borderless, display);
+	PutMode(borderless, saved);
 	// Handled once the game's display change returns, after it has sized the
 	// window itself (0x782CF0 comes before the device build).
 	if (!PostMessageW(device->hFocusWindow, LayoutMessage(), 0, 0)) Fail("the window layout could not be queued", GetLastError());
 }
 
-void WriteConfig(Dimps::Platform::Main* main, const std::function<void()>& write) {
-	state.mode.WriteRequested(*Dimps::Platform::Main::GetDisplay(main), write);
+gameconfig::DisplayMode ModeOf(const Dimps::Platform::DisplayBlock& block) {
+	return {block.width, block.height, block.fullScreen};
+}
+
+void PutMode(const gameconfig::DisplayMode& mode, Dimps::Platform::DisplayBlock& block) {
+	block.width = mode.width;
+	block.height = mode.height;
+	block.fullScreen = mode.fullScreen;
 }
 
 bool WindowMessage(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {

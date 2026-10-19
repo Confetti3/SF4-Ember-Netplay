@@ -105,11 +105,11 @@ void LogVSyncForced() {
 // (ApplyStartupParams), so every part of the game that reads the flag sees
 // the same value all session, as with RenderingThread=OFF in config.ini.
 // StartHelper loaded the preferences before that. The player's file keeps its
-// own value (WriteDisplayConfig).
-sf4e::gameconfig::RenderingThreadOverride s_renderingThread;
+// own value (WriteDisplayConfig), as Borderless's mode is.
+sf4e::gameconfig::DisplayConfigOverrides s_display;
 
 void LogRenderingThread() {
-    if (s_renderingThread.Applied()) spdlog::info("Display: {}", s_renderingThread.Describe());
+    if (s_display.renderingThread.Applied()) spdlog::info("Display: {}", s_display.renderingThread.Describe());
 }
 
 // Holds the calling thread in the multithreaded COM apartment for its scope.
@@ -188,7 +188,7 @@ void NoteFrame(unsigned long long previousExit, unsigned long long exit, float p
     if (window.Add((double)(exit - previousExit) * QpcTickMs(), periodSeconds * 1000.0, minute)) {
         spdlog::info("Frame rate: {:.2f} fps over {:.0f} s, {} of {} frames late (over {:.1f} ms), longest {:.1f} ms; render thread {}",
             minute.fps, minute.seconds, minute.late, minute.frames, minute.lateMs, minute.longestMs,
-            s_renderingThread.RenderThread() ? "on" : "off");
+            s_display.renderingThread.RenderThread() ? "on" : "off");
     }
 }
 
@@ -277,7 +277,7 @@ int fD3D::LimitPacedFrame(float frameDelta) {
 // waits for a vblank, so a pacing shift of a few milliseconds costs a whole
 // refresh and the controller overcorrects. It also adds input latency.
 void fD3D::BuildPresentParameters() {
-    sf4e::borderless::BeforePresentParameters(this, rMain::staticMethods.GetSingleton());
+    sf4e::borderless::BeforePresentParameters(this, rMain::staticMethods.GetSingleton(), s_display.borderless);
     (this->*rD3D::privateMethods.BuildPresentParameters)();
     D3DPRESENT_PARAMETERS* parameters = rD3D::GetPresentParameters(this);
     if (parameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE) {
@@ -468,7 +468,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
 int fMain::ApplyStartupParams(void* params) {
     const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
     sf4e::borderless::Choose(snapshot->preferences.borderless);
-    return s_renderingThread.ApplyThenStart(snapshot->preferences.fasterDisplay,
+    return s_display.renderingThread.ApplyThenStart(snapshot->preferences.fasterDisplay,
         *rMain::StartupRenderingThread(params),
         [&] { return (this->*rMain::privateMethods.ApplyStartupParams)(params); });
 }
@@ -484,10 +484,10 @@ void fMain::Destroy() {
 }
 
 void fMain::WriteDisplayConfig() {
-    sf4e::borderless::WriteConfig(this, [this] {
-        s_renderingThread.WriteRequested(*rMain::GetRenderingThread(this),
-            [this] { (this->*rMain::privateMethods.WriteDisplayConfig)(); });
-    });
+    auto& display = *rMain::GetDisplay(this);
+    s_display.WriteRequested(*rMain::GetRenderingThread(this), sf4e::borderless::ModeOf(display),
+        [&](const sf4e::gameconfig::DisplayMode& mode) { sf4e::borderless::PutMode(mode, display); },
+        [this] { (this->*rMain::privateMethods.WriteDisplayConfig)(); });
 }
 
 void WINAPI fMain::RunWindowFunc(rMain* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
