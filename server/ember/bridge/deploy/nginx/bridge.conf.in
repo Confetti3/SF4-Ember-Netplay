@@ -56,11 +56,26 @@ server {
         proxy_read_timeout 1h;
     }
 
-    # BluMint's match creation carries the host's free-form match settings,
-    # so the bridge takes up to 256 KiB there (routes::blumint::CREATE_BODY).
+    # BluMint's three callbacks. BluMint sends a whole round at once with no
+    # limit of its own (a 256-player round is about 256 lookups and 128
+    # creations in the same moment), and reads a 429 as an outage that holds
+    # every match. So each has a zone of its own, off the general one, with a
+    # burst past a 512-player round start from one address.
+    location = /v1/blumint/lookup {
+        limit_req zone=ember_bridge_blumint_lookup burst=1000 nodelay;
+        proxy_pass http://127.0.0.1:@PORT@;
+    }
+
+    # Match creation carries the host's free-form match settings, so the
+    # bridge takes up to 256 KiB there (routes::blumint::CREATE_BODY).
     location = /v1/blumint/matches {
         client_max_body_size 512k;
-        limit_req zone=ember_bridge burst=100 nodelay;
+        limit_req zone=ember_bridge_blumint_create burst=1000 nodelay;
+        proxy_pass http://127.0.0.1:@PORT@;
+    }
+
+    location = /v1/blumint/matches/close {
+        limit_req zone=ember_bridge_blumint_close burst=1000 nodelay;
         proxy_pass http://127.0.0.1:@PORT@;
     }
 

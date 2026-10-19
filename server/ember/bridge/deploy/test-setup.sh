@@ -151,6 +151,34 @@ lacks_key() { python3 -c 'import json, sys; sys.exit(sys.argv[2] in json.load(op
 connections_are() { python3 -c 'import json, sys; sys.exit(sorted(c["id"] for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]) != sys.argv[2:])' "$@"; }
 bridge_id() { python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["bridge_id"])' "$1"; }
 links_to() { [ "$(readlink "$1")" = "$2" ]; }
+# Every zone the site's limit_req and limit_conn name is defined in the zone
+# file, or nginx -t fails on the real server.
+zones_defined() {
+    local name
+    for name in $(grep -oE 'limit_req zone=[a-z_]+' "$1" | sed 's/.*=//') \
+        $(grep -oE 'limit_conn [a-z_]+' "$1" | cut -d' ' -f2); do
+        grep -qE "^limit_(req|conn)_zone .* zone=$name:" "$2" || { echo "no zone $name" >&2; return 1; }
+    done
+}
+# The request zone <site> gives the exact location <path>.
+zone_of() {
+    awk -v at="    location = $2 {" '$0 == at { inside = 1 } inside && /limit_req zone=/ { print $2; exit }' "$1" | sed 's/^zone=//'
+}
+# BluMint reads a 429 as an outage, so each of its three callbacks has a zone
+# of its own (none is the general one) and a burst past a 512-player round.
+blumint_callbacks_budgeted() {
+    local site=$1 zone=$2 path name
+    local names=()
+    for path in /v1/blumint/lookup /v1/blumint/matches /v1/blumint/matches/close; do
+        name=$(zone_of "$site" "$path")
+        case "$name" in ember_bridge_blumint_*) ;; *) echo "$path: zone '$name'" >&2; return 1 ;; esac
+        grep -qE "^limit_req_zone .* zone=$name:[0-9]+m rate=[1-9][0-9]{2,}r/s;" "$zone" || { echo "$name: rate" >&2; return 1; }
+        awk -v at="    location = $path {" '$0 == at { inside = 1 } inside && /limit_req/ { print; exit }' "$site" |
+            grep -qE 'burst=[1-9][0-9]{3,} nodelay;' || { echo "$path: burst" >&2; return 1; }
+        names+=("$name")
+    done
+    [ "$(printf '%s\n' "${names[@]}" | sort -u | wc -l)" -eq 3 ]
+}
 
 # An operator folder: the deploy files and a stand-in binary of that version.
 stage() {
@@ -275,6 +303,8 @@ check "backup timer as before" same "$GOLDEN/ember-bridge-backup.timer" "$PUNITS
 check "site as before" same "$GOLDEN/$PSITE" "$R/etc/nginx/sites-available/$PSITE"
 check "site enabled" links_to "$R/etc/nginx/sites-enabled/$PSITE" "$R/etc/nginx/sites-available/$PSITE"
 check "zone as shipped" same "$HERE/nginx/ember-bridge-zone.conf" "$R/etc/nginx/conf.d/ember-bridge.conf"
+check "every zone the site names is defined" zones_defined "$R/etc/nginx/sites-available/$PSITE" "$R/etc/nginx/conf.d/ember-bridge.conf"
+check "BluMint's callbacks have a zone each" blumint_callbacks_budgeted "$R/etc/nginx/sites-available/$PSITE" "$R/etc/nginx/conf.d/ember-bridge.conf"
 check "origin" config_is "$PSTATE" origin '"https://bridge.embernetplay.link"'
 check "listen" config_is "$PSTATE" listen '"127.0.0.1:47820"'
 check "display name" config_is "$PSTATE" display_name '"Ember bridge"'
@@ -423,6 +453,23 @@ check "says production's setup owns it" mentions "install it with production's s
 check "nothing ran" nothing_logged
 check "production files and zone unchanged" unchanged "$P" "$PSITE" production
 cp "$T/zone" "$SDIR/nginx/ember-bridge-zone.conf"
+
+echo "7b. a changed zone file reaches the server through production's setup, then staging takes it"
+echo "limit_req_zone \$binary_remote_addr zone=ember_bridge_later:1m rate=1r/s;" | tee -a "$PDIR/nginx/ember-bridge-zone.conf" >> "$SDIR/nginx/ember-bridge-zone.conf"
+run "$SDIR/setup.sh"
+check "staging first is refused" failed
+check "says production's setup owns it" mentions "install it with production's setup.sh first"
+check "the installed zone file is still the old one" bash -c '! grep -q ember_bridge_later "$1"' _ "$R/etc/nginx/conf.d/ember-bridge.conf"
+run "$PDIR/setup.sh"
+check "production's setup exits 0" succeeded
+check "the changed zone file is installed" same "$PDIR/nginx/ember-bridge-zone.conf" "$R/etc/nginx/conf.d/ember-bridge.conf"
+check "every zone the site names is defined" zones_defined "$R/etc/nginx/sites-available/$PSITE" "$R/etc/nginx/conf.d/ember-bridge.conf"
+run "$SDIR/setup.sh"
+check "staging then exits 0" succeeded
+check "the zone file is the one installed" same "$SDIR/nginx/ember-bridge-zone.conf" "$R/etc/nginx/conf.d/ember-bridge.conf"
+check "staging's site names only defined zones" zones_defined "$R/etc/nginx/sites-available/$SSITE" "$R/etc/nginx/conf.d/ember-bridge.conf"
+snapshot "$P" "$PSITE" production
+snapshot "$S" "$SSITE" staging
 
 echo "8. backups and restores stay with their own bridge"
 make_database "$R/var/lib/$P/bridge.sqlite3" production

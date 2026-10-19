@@ -178,6 +178,12 @@ free.
 
 Players are named exactly as you sent them, P1 first.
 
+BluMint sends a round's lookups and creations at the same moment and reads a
+`429` as an outage, so nginx in front of the bridge budgets the lookup, the
+creation and the close separately, each at 100 requests a second per address
+with a burst of 1000, which covers a 512-player round start. The general
+budget (20 a second, burst 100) does not apply to them.
+
 ## Match close
 
 When you no longer need a match, close it by the `Idempotency-Key` you

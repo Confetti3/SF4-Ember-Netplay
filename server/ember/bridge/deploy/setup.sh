@@ -29,7 +29,10 @@
 #   /etc/nginx/conf.d/ember-bridge.conf                request rate zones, shared by every instance
 #                                                      (an address's budget counts both bridges);
 #                                                      another instance installs it only when absent,
-#                                                      and refuses to replace a different one
+#                                                      and refuses to replace a different one, so a
+#                                                      changed zone file (and the site that names
+#                                                      its zones) reaches the server when production's
+#                                                      setup.sh runs, before any other instance's
 #   /etc/nginx/sites-available/bridge.embernetplay.link (and its sites-enabled link)
 # Nothing is opened in ufw: the bridge listens on loopback, nginx already serves 80 and 443.
 #
