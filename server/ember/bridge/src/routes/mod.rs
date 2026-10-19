@@ -16,6 +16,7 @@ pub mod rooms;
 pub mod sessions;
 pub mod sign_in;
 pub mod tournaments;
+pub mod watch;
 pub mod webhooks;
 
 use std::time::{Duration, Instant};
@@ -25,7 +26,7 @@ use axum::{
     extract::{DefaultBodyLimit, Request},
     middleware::{self, Next},
     response::Response,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
 };
 use rusqlite::params;
 
@@ -74,6 +75,21 @@ pub fn router(state: AppState) -> Router {
             post(play::prepare_route),
         )
         .route("/v1/matches/{id}/reports", post(reports::submit_route))
+        .route("/v1/matches/{id}/watch", post(watch::watch_route))
+        .route("/v1/matches/{id}/watch/leave", post(watch::leave_route))
+        .route(
+            "/v1/matches/{id}/watch/denials/{ember_id}",
+            put(watch::deny).delete(watch::clear_denial),
+        )
+        .route("/v1/matches/{id}/watchers", get(watch::match_watchers))
+        .route(
+            "/v1/connections/{id}/watch",
+            get(watch::connection_policy).put(watch::set_link_holders),
+        )
+        .route(
+            "/v1/connections/{id}/watch/staff/{ember_id}",
+            put(watch::set_staff).delete(watch::remove_staff),
+        )
         .route("/v1/assignments", get(matches::assignments))
         .route(blumint::LOOKUP_PATH, post(blumint::lookup))
         .route(blumint::MATCHES_PATH, post(blumint::create))

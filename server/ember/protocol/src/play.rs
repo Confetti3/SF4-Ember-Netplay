@@ -9,6 +9,9 @@
 //! game receives the checked fields, never a token to judge.
 use serde::{Deserialize, Serialize};
 
+mod watch;
+pub use watch::{BoundWatcher, MAX_WATCHERS, WATCH_FEATURE, WaitReason, WatchAnswer, WatchRequest};
+
 use crate::{
     EmberId, Error, PublicKey, Result, SigningIdentity,
     encoding::{Counter, decode_b64u, is_prefixed_id},
@@ -37,6 +40,21 @@ pub fn is_hex(text: &str, len: usize) -> bool {
         && text
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+/// The three fields every helper command about an endpoint carries.
+pub(crate) fn check_helper(
+    endpoint_id: &str,
+    helper_instance_id: &str,
+    build_id: &str,
+) -> Result<()> {
+    if !is_hex(endpoint_id, 64) {
+        return Err(Error::InvalidField("endpoint_id"));
+    }
+    if !is_prefixed_id(helper_instance_id, "ins") {
+        return Err(Error::InvalidField("helper_instance_id"));
+    }
+    check_build(build_id)
 }
 
 pub(crate) fn check_build(build_id: &str) -> Result<()> {
@@ -76,13 +94,7 @@ pub struct Claim {
 
 impl Claim {
     pub fn check(&self) -> Result<()> {
-        if !is_hex(&self.endpoint_id, 64) {
-            return Err(Error::InvalidField("endpoint_id"));
-        }
-        if !is_prefixed_id(&self.helper_instance_id, "ins") {
-            return Err(Error::InvalidField("helper_instance_id"));
-        }
-        check_build(&self.build_id)
+        check_helper(&self.endpoint_id, &self.helper_instance_id, &self.build_id)
     }
 }
 
@@ -182,6 +194,12 @@ pub struct Binding {
     /// as an unknown field rather than seat the set at 0-0.
     #[serde(default, skip_serializing_if = "starts_at_zero")]
     pub starting_wins: [u8; 2],
+    /// Endpoints admitted to watch, oldest first. Left out when empty, so a
+    /// binding without watchers is the bytes every released helper accepts.
+    /// A helper that predates the field refuses one that names a watcher, so
+    /// the bridge names watchers only for builds that read it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub watchers: Vec<BoundWatcher>,
 }
 
 impl Binding {
@@ -221,7 +239,7 @@ impl Binding {
         if roster_digest(&p1.ember_id, &p2.ember_id)? != self.roster_digest {
             return Err(Error::Mismatch("roster_digest"));
         }
-        Ok(())
+        watch::check_watchers(&self.fighters, &self.watchers)
     }
 
     pub fn sign(&self, key: &SigningIdentity, kid: &str) -> Result<SignedBinding> {
@@ -611,6 +629,7 @@ mod tests {
             ],
             issued_at: 100,
             starting_wins: [0, 0],
+            watchers: vec![],
         };
         assert!(binding.check().is_ok());
         assert_eq!(binding.slot_of(&"b".repeat(64)), Some(1));
@@ -651,6 +670,7 @@ mod tests {
             ],
             issued_at: 100,
             starting_wins: [0, 0],
+            watchers: vec![],
         };
         let at_zero = json::to_value(&binding).unwrap();
         let mut released = serde_json::to_value(&binding).unwrap();
@@ -802,6 +822,10 @@ mod tests {
                 ],
                 issued_at: 100,
                 starting_wins: [0, 0],
+                watchers: vec![BoundWatcher {
+                    ember_id: key(3).ember_id().clone(),
+                    endpoint_id: "c".repeat(64),
+                }],
             }
         }
 
@@ -882,6 +906,8 @@ mod tests {
                 let _ = ProvenRequest::parse(&bytes);
                 let _ = json::parse_as::<Claim>(&bytes, 8192).map(|claim| claim.check());
                 let _ = json::parse_as::<PublishRoom>(&bytes, 8192).map(|room| room.check());
+                let _ = json::parse_as::<WatchRequest>(&bytes, 8192).map(|watch| watch.check());
+                let _ = json::parse_as::<WatchAnswer>(&bytes, 8192);
             }
         }
 

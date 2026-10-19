@@ -12,6 +12,7 @@ pub mod results;
 pub mod sign_in;
 pub mod sites;
 pub mod supervisor;
+pub mod watch;
 
 use std::path::PathBuf;
 

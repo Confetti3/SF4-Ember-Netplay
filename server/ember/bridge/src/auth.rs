@@ -274,6 +274,35 @@ impl Service {
     }
 }
 
+/// How a service credential stands to one connection's settings.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Access {
+    Read,
+    Manage,
+}
+
+impl Access {
+    /// Refuses a credential that may only read.
+    pub fn manage(self) -> Result<()> {
+        match self {
+            Self::Manage => Ok(()),
+            Self::Read => Err(ApiFailure::forbidden()),
+        }
+    }
+}
+
+impl Service {
+    /// Organizers of the connection's tenant manage it and its matches; its
+    /// own provider reads them. Anyone else is told it does not exist.
+    pub fn access_to(&self, tenant_id: &str, connection_id: &str) -> Result<Access> {
+        match (self.role, self.connection_id.as_deref()) {
+            (Role::Organizer, _) if self.tenant_id == tenant_id => Ok(Access::Manage),
+            (Role::Provider, Some(own)) if own == connection_id => Ok(Access::Read),
+            _ => Err(ApiFailure::not_found()),
+        }
+    }
+}
+
 /// Issues a provider or organizer credential, returning its id and its token.
 /// The token is returned once and stored only as a keyed hash.
 pub fn issue_credential(

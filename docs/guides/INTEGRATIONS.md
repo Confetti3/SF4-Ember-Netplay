@@ -223,6 +223,73 @@ open Ember (Linux browsers, or a PC where Ember has not been started yet), the
 page's Copy link and Paste match link on that screen do the same, or the player
 picks the match from the list.
 
+## Match watch
+
+An organizer, a caster or another approved viewer can watch a match played in
+Ember (`ember-room-v1`) from inside the match's own room, without being able
+to affect the set. The bridge names a watcher only when the watcher's Ember
+build is the one both players run, and a bridge that serves watching lists
+`matches.watch` in its capabilities `features`.
+
+**Who may watch** is the organizer's choice, and the default is nobody, so a
+connection that does nothing changes nothing:
+
+- **Staff.** Ember IDs you approve for every match of your connection, such as
+  a TO or a caster. They can always watch.
+- **Link holders.** Off by default. When you turn it on, anyone who holds the
+  match's Play link and has an Ember ID may watch, up to 4 of them.
+- **Denials.** An Ember ID you deny for one match is out of it, staff or not.
+- At most 8 watchers watch one match, staff included. A staff watcher can take
+  the place of a link holder when the match is full.
+
+BluMint's connections cannot be opened to watchers: every write below answers
+`403 forbidden` with `details.reason` `connection_fixed`, and `spectators` in
+BluMint's create request stays ignored.
+
+**Address exposure.** A watcher joins the players' room, and the members of a
+room can learn each other's public IP addresses when Iroh finds a direct path.
+A watcher reaches player 1 (the game host) and the room's coordination leader,
+which is either player. With `link_holders` on, anyone who has the match link
+and a free Ember ID can learn a competing player's address in the middle of
+your event, which invites a flood from outside Ember. Staff, whom you approve
+by name, have the same reach. Ember cannot send only a watcher's links through
+its relay. Turn `link_holders` on only if you accept that, and tell your
+players.
+
+**What a watcher can do.** Nothing in the room but watch: no seat, queue,
+rules, chat, host powers or vote, and they never hold a game start. They
+leave by leaving the room. Each needs an Ember ID, made in the game in a
+moment, with no linked account.
+
+**How a watcher gets in.** The match's Play link opens Ember, which offers
+Watch to anyone who is not one of the players. The game asks the bridge every
+10 seconds (`POST /v1/matches/{id}/watch`, a `match.watch` proof from the
+watcher's own session) and is answered `waiting` with a `reason` (`no_room`,
+`not_bound`, `full`), or `room` with the room and its invitation. It joins that
+room, and the players' next claims carry a binding that names it, so a change
+of policy, a denial or a watcher who goes quiet (60 seconds) reaches the room
+within about one claim interval of the players (10 seconds). A watcher is never
+given a binding. Refusals are `forbidden` with `details.reason` `not_allowed`,
+`revoked` or `fighter`, `incompatible_build` when the players run another
+Ember build, and `rate_limited` above 30 calls a minute.
+
+**Organizer routes** (organizer credential of the connection's tenant; the
+connection's provider credential may read):
+
+| Route | Does |
+|---|---|
+| `GET /v1/connections/{id}/watch` | `link_holders`, `link_holder_cap` (4), `ceiling` (8) and the staff list |
+| `PUT /v1/connections/{id}/watch` | `{"link_holders": true}`. Read the address exposure above first. |
+| `PUT` and `DELETE /v1/connections/{id}/watch/staff/{ember_id}` | Approve, or stop approving, an Ember ID (the `PUT` body is `{}`) |
+| `PUT` and `DELETE /v1/matches/{id}/watch/denials/{ember_id}` | Deny, or allow again, one Ember ID for one match |
+| `GET /v1/matches/{id}/watchers` | Everyone who asked to watch: `via` (`staff`, `link_holders`, `denied`, `none`), whether the binding names them (`bound`), first and last seen, and the denials |
+
+Every write is audited. The `play_url` of the match is the link watchers open,
+and no event kinds were added. The TypeScript SDK has `watchPolicy`,
+`setWatchLinkHolders`, `addWatchStaff`, `removeWatchStaff`, `denyWatcher`,
+`clearWatchDenial` and `matchWatchers`, and `TestPlayer` has `watchMatch` and
+`stopWatching`.
+
 ## Discord sign-in (optional)
 
 A bridge whose configuration has `discord` (the Discord application's

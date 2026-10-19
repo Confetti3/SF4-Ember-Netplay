@@ -37,6 +37,7 @@ use crate::{
         expiry,
         ledger::{Match, Participant, bump, load, match_event, participants},
         sessions::{self, Target},
+        watch,
     },
     util::new_id,
 };
@@ -61,6 +62,17 @@ pub fn fighter(tx: &Transaction<'_>, match_id: &str, ember_id: &EmberId) -> Resu
     if !roster.iter().any(|p| p.ember_id == *ember_id) {
         return Err(ApiFailure::not_found());
     }
+    with_rules(tx, found, roster)
+}
+
+/// Loads `match_id` for whoever asks, a fighter or not.
+pub fn played(tx: &Transaction<'_>, match_id: &str) -> Result<Fighter> {
+    let found = load(tx, match_id)?.ok_or_else(ApiFailure::not_found)?;
+    let roster = participants(tx, &found.id, found.generation)?;
+    with_rules(tx, found, roster)
+}
+
+fn with_rules(tx: &Transaction<'_>, found: Match, roster: Vec<Participant>) -> Result<Fighter> {
     let text: String = tx.query_row(
         "SELECT rules FROM matches WHERE id = ?1",
         [&found.id],
@@ -103,13 +115,13 @@ pub fn require_play(player: Player) -> Result<Player> {
     Ok(player)
 }
 
-struct ClaimRow {
-    ember_id: EmberId,
-    endpoint_id: String,
-    build_id: String,
+pub struct ClaimRow {
+    pub(super) ember_id: EmberId,
+    pub(super) endpoint_id: String,
+    pub(super) build_id: String,
 }
 
-fn claims(tx: &Transaction<'_>, match_id: &str) -> Result<Vec<ClaimRow>> {
+pub fn claims(tx: &Transaction<'_>, match_id: &str) -> Result<Vec<ClaimRow>> {
     tx.prepare("SELECT ember_id, endpoint_id, build_id FROM match_claims WHERE match_id = ?1")?
         .query_map([match_id], |row| {
             Ok((
@@ -130,25 +142,31 @@ fn claims(tx: &Transaction<'_>, match_id: &str) -> Result<Vec<ClaimRow>> {
 }
 
 #[derive(Default)]
-struct Room {
+pub struct Room {
     lease_id: Option<String>,
     lease_holder: Option<String>,
     lease_fence: u64,
     lease_expires_at: Option<u64>,
-    room_id: Option<String>,
+    pub(super) room_id: Option<String>,
     invitation_sealed: Option<Vec<u8>>,
-    binding_revision: u64,
+    pub(super) binding_revision: u64,
     bound_endpoints: Option<String>,
+    /// The `binding_revision` of the last fighter-endpoint change: a prepare
+    /// is checked between it and `binding_revision`, so watcher changes in
+    /// between never fail one.
+    fighters_revision: u64,
+    /// The watchers the binding names, as `rewatch` stores them.
+    pub(super) bound_watchers: Option<String>,
 }
 
-fn room(tx: &Transaction<'_>, match_id: &str) -> Result<Room> {
+pub fn room(tx: &Transaction<'_>, match_id: &str) -> Result<Room> {
     tx.execute(
         "INSERT OR IGNORE INTO match_rooms (match_id) VALUES (?1)",
         [match_id],
     )?;
     Ok(tx.query_row(
         "SELECT lease_id, lease_holder, lease_fence, lease_expires_at, room_id, invitation_sealed,
-                binding_revision, bound_endpoints
+                binding_revision, bound_endpoints, fighters_revision, bound_watchers
          FROM match_rooms WHERE match_id = ?1",
         [match_id],
         |row| {
@@ -161,13 +179,15 @@ fn room(tx: &Transaction<'_>, match_id: &str) -> Result<Room> {
                 invitation_sealed: row.get(5)?,
                 binding_revision: row.get(6)?,
                 bound_endpoints: row.get(7)?,
+                fighters_revision: row.get(8)?,
+                bound_watchers: row.get(9)?,
             })
         },
     )?)
 }
 
 /// The two claimed endpoints by slot, once both fighters have claimed.
-fn endpoints(fighter: &Fighter, claimed: &[ClaimRow]) -> Option<[String; 2]> {
+pub fn endpoints(fighter: &Fighter, claimed: &[ClaimRow]) -> Option<[String; 2]> {
     let of = |slot: usize| {
         claimed
             .iter()
@@ -194,7 +214,8 @@ fn rebind(
         return Ok(());
     }
     tx.execute(
-        "UPDATE match_rooms SET binding_revision = binding_revision + 1, bound_endpoints = ?1 WHERE match_id = ?2",
+        "UPDATE match_rooms SET binding_revision = binding_revision + 1,
+            fighters_revision = binding_revision + 1, bound_endpoints = ?1 WHERE match_id = ?2",
         params![text, fighter.found.id],
     )?;
     if matches!(
@@ -250,6 +271,7 @@ fn binding(
         ],
         issued_at: ctx.now,
         starting_wins,
+        watchers: watch::bound(current.bound_watchers.as_deref())?,
     };
     Ok(Some(
         ctx.keys
@@ -264,17 +286,23 @@ fn room_answer(
     fighter: &Fighter,
     claimed: &[ClaimRow],
 ) -> Result<ClaimAnswer> {
-    let current = room(tx, &fighter.found.id)?;
-    let (Some(room_id), Some(sealed)) = (current.room_id, current.invitation_sealed) else {
-        return Err(ApiFailure::unavailable());
-    };
-    let invitation = ctx.keys.open(&sealed).ok_or_else(ApiFailure::unavailable)?;
+    let (room_id, invitation) = invitation(ctx, &room(tx, &fighter.found.id)?)?;
     Ok(ClaimAnswer::Room {
         room_id,
-        invitation: String::from_utf8(invitation.to_vec())
-            .map_err(|_| ApiFailure::unavailable())?,
+        invitation,
         binding: binding(tx, ctx, fighter, claimed)?.map(Box::new),
     })
+}
+
+/// The published room's id and its current invitation.
+pub fn invitation(ctx: &Ctx, room: &Room) -> Result<(String, String)> {
+    let (Some(room_id), Some(sealed)) = (&room.room_id, &room.invitation_sealed) else {
+        return Err(ApiFailure::unavailable());
+    };
+    let invitation = ctx.keys.open(sealed).ok_or_else(ApiFailure::unavailable)?;
+    let invitation =
+        String::from_utf8(invitation.to_vec()).map_err(|_| ApiFailure::unavailable())?;
+    Ok((room_id.clone(), invitation))
 }
 
 /// `POST /v1/matches/{id}/claims`: a `match.claim` proof.
@@ -376,6 +404,7 @@ fn seat(
     let current = room(tx, match_id)?;
     if current.room_id.is_some() {
         rebind(tx, ctx, &mut fighter, &claimed)?;
+        watch::rewatch(tx, ctx, &fighter, &claimed)?;
         return room_answer(tx, ctx, &fighter, &claimed);
     }
     let live = current.lease_expires_at.is_some_and(|at| at > ctx.now);
@@ -512,6 +541,7 @@ fn publish(
         params![command.room_id, sealed, ember_id.as_str(), ctx.now, match_id],
     )?;
     rebind(tx, ctx, &mut fighter, &claimed)?;
+    watch::rewatch(tx, ctx, &fighter, &claimed)?;
     room_answer(tx, ctx, &fighter, &claimed)
 }
 
@@ -641,9 +671,10 @@ fn prepare(
             |row| row.get(0),
         )
         .optional()?;
+    let floor = room(tx, match_id)?.fighters_revision;
     let agreed = other
         .and_then(|text| serde_json::from_str::<Prepare>(&text).ok())
-        .is_some_and(|other| other.same_game(command));
+        .is_some_and(|other| same_game(&other, command, floor));
     if !agreed {
         return Ok(PrepareAnswer::Pending {
             retry_after: RETRY_SECS,
@@ -653,6 +684,18 @@ fn prepare(
     Ok(PrepareAnswer::Permitted {
         permit: Box::new(permit),
     })
+}
+
+/// Whether two descriptors, both at or above `floor` (the revision of the
+/// last fighter-endpoint change), describe the same game. A watcher joining
+/// or leaving moves the revision a fighter reads between its claims, and
+/// must not keep two fighters from agreeing.
+fn same_game(a: &Prepare, b: &Prepare, floor: u64) -> bool {
+    let at_a_revision = Prepare {
+        binding_revision: a.binding_revision,
+        ..b.clone()
+    };
+    a.binding_revision.0 >= floor && b.binding_revision.0 >= floor && a.same_game(&at_a_revision)
 }
 
 /// A descriptor must name the match's current binding, room and rules, and
@@ -673,7 +716,8 @@ fn check_descriptor(
         |row| row.get(0),
     )?;
     let current_binding = current.room_id.as_deref() == Some(command.room_id.as_str())
-        && current.binding_revision == command.binding_revision.0
+        && (current.fighters_revision..=current.binding_revision)
+            .contains(&command.binding_revision.0)
         && current.bound_endpoints.is_some()
         && fighter.found.generation == command.assignment_generation.0
         && mine.is_some_and(|claim| {

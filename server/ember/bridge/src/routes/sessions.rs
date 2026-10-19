@@ -131,6 +131,8 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
         (Action::AttemptPrepare, Method::Post) => {
             id_between("/v1/matches/", "emt", "/attempts/prepare")
         }
+        (Action::MatchWatch, Method::Post) => id_between("/v1/matches/", "emt", "/watch"),
+        (Action::MatchUnwatch, Method::Post) => id_between("/v1/matches/", "emt", "/watch/leave"),
         (Action::DiscordConnect, Method::Post) => path == ember_protocol::discord::START_PATH,
         (Action::DiscordRemove, Method::Delete) => path == ember_protocol::discord::ACCOUNT_PATH,
         (Action::DiscordCancel, Method::Delete) => path == ember_protocol::discord::START_PATH,
