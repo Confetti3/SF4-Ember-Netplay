@@ -85,6 +85,22 @@ to go live. The host then ends the game and both leave the room. Hosting,
 the names the two sides take and the controller a room needs write Ember's
 settings, so the script copies them first and puts them back after the run.
 
+## The room layout test
+
+One PC checks that the room board's column settings (its width, the
+members' share and which part is hidden) are saved from inside a room,
+where the player's other settings are locked:
+
+```powershell
+scripts\run-selftest.ps1 -PackageDir <stage> -Test room-layout
+```
+
+It opens a private room, sends the column's settings the way the board
+sends them, and checks that the runtime takes them and that `settings.json`,
+which the next start reads, holds them. It then puts the old values back
+and leaves. Like the other room tests, the script copies Ember's settings
+first and puts them back after the run.
+
 ## The tournament test
 
 Two PCs play one match of a local test bridge end to end: each creates an

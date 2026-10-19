@@ -52,6 +52,7 @@ bool StartTest() {
 	switch (Requested()) {
 	case Test::Training: return StartTraining();
 	case Test::RoomHost: case Test::RoomGuest: return StartRoom();
+	case Test::RoomLayout: return StartRoomLayout();
 	case Test::Replay: return StartReplay();
 	case Test::TournamentHost: case Test::TournamentGuest: return StartTournament();
 	default: return false;
@@ -61,6 +62,7 @@ void TickTest(bool atMainMenu) {
 	switch (Requested()) {
 	case Test::Training: TickTraining(); break;
 	case Test::RoomHost: case Test::RoomGuest: TickRoom(); break;
+	case Test::RoomLayout: TickRoomLayout(); break;
 	case Test::Replay: TickReplay(atMainMenu); break;
 	case Test::TournamentHost: case Test::TournamentGuest: TickTournament(); break;
 	default: break;
