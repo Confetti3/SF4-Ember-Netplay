@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 use crate::{
     config::is_slug,
-    http::{bounded_body, http_client},
+    http::{bearer, bounded_body, http_client},
     log,
     site::{
         Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
@@ -116,12 +116,41 @@ enum Kind<'a> {
     Report { key: &'a str },
 }
 
-/// A failing answer as the connector reads it: `401`, `403`, `429` and
-/// `5xx` are the service failing as a whole; `423` with `{"retry": true}`
-/// defers a report, and only a report; any other answer is a refusal.
+/// `426 Upgrade Required`, optionally with `{"contract": "<version>"}`: the
+/// service does not speak this connector's contract version.
+#[derive(Deserialize)]
+struct WireMismatch {
+    #[serde(deserialize_with = "crate::http::id")]
+    contract: String,
+}
+
+/// A failing answer as the connector reads it: `401`, `403`, `426`, `429`
+/// and `5xx` are the service failing as a whole; `423` with
+/// `{"retry": true}` defers a report, and only a report; any other answer
+/// is a refusal.
 fn failure(status: StatusCode, body: &[u8], kind: Kind<'_>) -> SiteError {
     let message = || format!("the service answered {}", status.as_u16());
     match status {
+        // Waited out, and said once per run of failures: an operator
+        // upgrades the connector, or the service answers the old version
+        // again.
+        StatusCode::UPGRADE_REQUIRED => {
+            let speaks = serde_json::from_slice::<WireMismatch>(body)
+                .ok()
+                .map(|mismatch| {
+                    let version: String = mismatch
+                        .contract
+                        .chars()
+                        .filter(|c| !c.is_control())
+                        .take(16)
+                        .collect();
+                    format!(", it speaks {version}")
+                })
+                .unwrap_or_default();
+            SiteError::Unavailable(format!(
+                "the service does not take contract version {CONTRACT} (426{speaks}); results wait until the connector or the service is upgraded"
+            ))
+        }
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
             SiteError::Unavailable(message())
         }
@@ -244,9 +273,7 @@ impl WireSet {
 impl Service {
     /// `base` is the service's base URL, checked by the configuration.
     pub fn new(base: &str, token: &str) -> Result<Self, String> {
-        let mut authorization = HeaderValue::from_str(&format!("Bearer {token}"))
-            .map_err(|_| "the service's token is not a valid header value")?;
-        authorization.set_sensitive(true);
+        let authorization = bearer(token, "the service's token")?;
         let mut headers = HeaderMap::new();
         headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
         headers.insert(CONTRACT_HEADER, HeaderValue::from_static(CONTRACT));
@@ -259,15 +286,16 @@ impl Service {
         })
     }
 
-    /// One request. `None` when the service answers 404, which the caller
-    /// reads: it is never taken as a set being gone.
-    async fn call<T: DeserializeOwned>(
+    /// One request, and its answer's body on a `2xx`. `None` when the
+    /// service answers 404, which the caller reads: it is never taken as a
+    /// set being gone.
+    async fn fetch(
         &self,
         method: Method,
         path: &str,
         body: Option<Value>,
         kind: Kind<'_>,
-    ) -> Result<Option<T>, SiteError> {
+    ) -> Result<Option<Vec<u8>>, SiteError> {
         let mut request = self
             .http
             .request(method, format!("{}{path}", self.base))
@@ -288,31 +316,23 @@ impl Service {
         })?;
         match status {
             StatusCode::NOT_FOUND => Ok(None),
-            status if status.is_success() => {
-                // An answer with no body reads as JSON null, which `()` takes.
-                let value: Value = if body.is_empty() {
-                    Value::Null
-                } else {
-                    serde_json::from_slice(&body).map_err(|_| unexpected())?
-                };
-                serde_json::from_value(value)
-                    .map(Some)
-                    .map_err(|_| unexpected())
-            }
+            status if status.is_success() => Ok(Some(body)),
             status => Err(failure(status, &body, kind)),
         }
     }
 
-    /// A request whose 404 is the service not answering as it should (a
-    /// route moved, a proxy in between): try again later.
-    async fn call_found<T: DeserializeOwned>(
-        &self,
-        method: Method,
-        path: &str,
-        body: Option<Value>,
-        kind: Kind<'_>,
-    ) -> Result<T, SiteError> {
-        self.call(method, path, body, kind)
+    /// A read: its answer is JSON in the contract's shape.
+    async fn read<T: DeserializeOwned>(&self, path: &str) -> Result<Option<T>, SiteError> {
+        self.fetch(Method::GET, path, None, Kind::Plain)
+            .await?
+            .map(|body| serde_json::from_slice(&body).map_err(|_| unexpected()))
+            .transpose()
+    }
+
+    /// A read whose 404 is the service not answering as it should (a route
+    /// moved, a proxy in between): try again later.
+    async fn read_found<T: DeserializeOwned>(&self, path: &str) -> Result<T, SiteError> {
+        self.read(path)
             .await?
             .ok_or_else(|| SiteError::Unavailable(format!("the service answered 404 to {path}")))
     }
@@ -320,9 +340,7 @@ impl Service {
     /// The open sets. A set not in the contract's shape is left out, and
     /// said once, rather than failing the read for every other set.
     async fn read_open_sets(&self) -> Result<Vec<Set>, SiteError> {
-        let list: SetList = self
-            .call_found(Method::GET, "/sets?state=open", None, Kind::Plain)
-            .await?;
+        let list: SetList = self.read_found("/sets?state=open").await?;
         let mut left_out = self.left_out.lock().unwrap_or_else(|e| e.into_inner());
         Ok(list
             .sets
@@ -350,9 +368,7 @@ impl Service {
         if !is_slug(id) {
             return Ok(None);
         }
-        let found: OneSet = self
-            .call_found(Method::GET, &format!("/sets/{id}"), None, Kind::Plain)
-            .await?;
+        let found: OneSet = self.read_found(&format!("/sets/{id}")).await?;
         match found.set {
             None => Ok(None),
             Some(set) => set.into_set().map(Some).ok_or_else(|| {
@@ -365,9 +381,7 @@ impl Service {
 
     /// A service without `/standing` (404) is taken as running.
     async fn read_standing(&self) -> Result<Standing, SiteError> {
-        let found: Option<WireStanding> = self
-            .call(Method::GET, "/standing", None, Kind::Plain)
-            .await?;
+        let found: Option<WireStanding> = self.read("/standing").await?;
         Ok(match found.map(|found| found.standing) {
             Some(StandingName::Finished) => Standing::Finished,
             Some(StandingName::PlayedOut) => Standing::PlayedOut,
@@ -375,6 +389,8 @@ impl Service {
         })
     }
 
+    /// A write: any `2xx` is taken, whatever its body (empty, JSON or
+    /// text), since nothing is read from it.
     async fn post(
         &self,
         id: &str,
@@ -385,15 +401,13 @@ impl Service {
         if !is_slug(id) {
             return Err(SiteError::Refused(format!("{id:?} is not a set ID")));
         }
-        let _: Value = self
-            .call_found(
-                Method::POST,
-                &format!("/sets/{id}/{action}"),
-                Some(body),
-                kind,
-            )
-            .await?;
-        Ok(())
+        let path = format!("/sets/{id}/{action}");
+        match self.fetch(Method::POST, &path, Some(body), kind).await? {
+            Some(_) => Ok(()),
+            None => Err(SiteError::Unavailable(format!(
+                "the service answered 404 to {path}"
+            ))),
+        }
     }
 
     /// Sent at least once: a report whose answer is lost is sent again
@@ -474,9 +488,23 @@ mod tests {
             StatusCode::UNAUTHORIZED,
             StatusCode::TOO_MANY_REQUESTS,
             StatusCode::BAD_GATEWAY,
+            StatusCode::UPGRADE_REQUIRED,
         ] {
             assert!(matches!(read(status, b""), SiteError::Unavailable(_)));
+            assert!(matches!(
+                failure(status, b"", report),
+                SiteError::Unavailable(_)
+            ));
         }
+        // A contract mismatch names the version the service speaks.
+        assert!(matches!(
+            failure(StatusCode::UPGRADE_REQUIRED, br#"{"contract": "2"}"#, report),
+            SiteError::Unavailable(why) if why.contains("it speaks 2")
+        ));
+        assert!(matches!(
+            failure(StatusCode::UPGRADE_REQUIRED, br#"{"contract": 2}"#, report),
+            SiteError::Unavailable(why) if why.contains("it speaks 2")
+        ));
         assert!(matches!(
             failure(StatusCode::CONFLICT, b"", report),
             SiteError::Refused(_)

@@ -55,6 +55,10 @@ pub struct ServiceState {
     /// Reports of these sets are deferred (423 with `{"retry": true}`),
     /// with these reasons.
     pub deferred_reports: HashMap<String, String>,
+    /// The next reports are answered with these statuses, and not recorded.
+    pub fail_reports: VecDeque<StatusCode>,
+    /// Reports and `/underway` are answered `200` with a text body.
+    pub text_answers: bool,
 }
 
 pub struct FakeService {
@@ -72,6 +76,20 @@ fn json_answer(body: Value) -> Response {
         .into_response()
 }
 
+/// A write's answer: `204`, or `200` with a text body.
+fn written(state: &ServiceState) -> Response {
+    if state.text_answers {
+        (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "text/plain")],
+            "OK, recorded",
+        )
+            .into_response()
+    } else {
+        StatusCode::NO_CONTENT.into_response()
+    }
+}
+
 async fn handle(
     State(state): State<Arc<Mutex<ServiceState>>>,
     method: Method,
@@ -83,8 +101,9 @@ async fn handle(
     if header("authorization") != Some(&format!("Bearer {SERVICE_TOKEN}")) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
+    // A version mismatch, answered as the contract says.
     if header("ember-brackets-contract") != Some("1") {
-        return StatusCode::BAD_REQUEST.into_response();
+        return StatusCode::UPGRADE_REQUIRED.into_response();
     }
     let body: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
     let mut state = state.lock().unwrap();
@@ -130,11 +149,14 @@ async fn handle(
         (Method::POST, ["sets", id, "underway"]) => match find(&mut state, id) {
             Some(index) => {
                 state.sets[index]["underway"] = json!(true);
-                StatusCode::NO_CONTENT.into_response()
+                written(&state)
             }
             None => StatusCode::NOT_FOUND.into_response(),
         },
         (Method::POST, ["sets", id, "report"]) => {
+            if let Some(status) = state.fail_reports.pop_front() {
+                return status.into_response();
+            }
             if let Some(reason) = state.deferred_reports.get(*id) {
                 return (
                     StatusCode::LOCKED,
@@ -172,7 +194,7 @@ async fn handle(
             if std::mem::take(&mut state.lose_report_answer) {
                 return StatusCode::SERVICE_UNAVAILABLE.into_response();
             }
-            StatusCode::NO_CONTENT.into_response()
+            written(&state)
         }
         // `/standing` is optional; this service has none.
         _ => StatusCode::NOT_FOUND.into_response(),

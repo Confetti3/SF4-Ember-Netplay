@@ -4,10 +4,8 @@
 //! out.
 use std::fmt;
 
-use ember_protocol::{
-    EmberId,
-    partner::{MatchResult, Outcome},
-};
+use ember_protocol::{EmberId, partner::Outcome};
+use serde::Deserialize;
 
 use crate::site::{Set, Status};
 
@@ -132,10 +130,35 @@ pub enum Ended {
     Expired,
 }
 
+/// A result body as the connector reads it: the fields it uses, and
+/// anything else ignored, so a field a later bridge adds does not make
+/// every result unreadable. The signature still covers the whole body.
+#[derive(Debug, Deserialize)]
+pub struct ResultView {
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub connection_id: String,
+    pub match_id: String,
+    pub external_match_id: String,
+    pub outcome: Outcome,
+    pub participants: Vec<SeatView>,
+    #[serde(default)]
+    pub winner_participant_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SeatView {
+    pub participant_id: String,
+    pub ember_id: EmberId,
+    pub slot: u8,
+    /// Games won that count.
+    pub score: u8,
+}
+
 impl Received {
     /// A result body's meaning, or `None` when it is not two participants in
     /// slots 0 and 1 with a winner among them exactly when it completed.
-    pub fn from_result(result: &MatchResult) -> Option<Self> {
+    pub fn from_result(result: &ResultView) -> Option<Self> {
         let id = ExternalId::parse(&result.external_match_id)?;
         let mut participants: Vec<_> = result.participants.iter().collect();
         participants.sort_by_key(|participant| participant.slot);
@@ -274,7 +297,7 @@ pub fn on_result(received: &Received, tracked: &Tracked, seen: Seen) -> OnResult
 
 #[cfg(test)]
 mod tests {
-    use ember_protocol::partner::{RESULT_TYPE, ResultParticipant};
+    use ember_protocol::partner::RESULT_TYPE;
 
     use super::*;
     use crate::site::Entry;
@@ -476,25 +499,45 @@ mod tests {
     }
 
     #[test]
+    fn a_result_body_is_read_past_fields_a_later_bridge_adds() {
+        let body = serde_json::json!({
+            "type": RESULT_TYPE, "bridge_id": "brg_x", "connection_id": "brackets",
+            "match_id": "emt_1", "external_match_id": "challonge:t:1001:1",
+            "outcome": "completed", "revision": "5", "ended_at": "2026-10-18T00:00:00Z",
+            "participants": [
+                { "participant_id": "epl_a", "ember_id": ember(), "slot": 0, "score": 2, "rating": 1500 },
+                { "participant_id": "epl_b", "ember_id": player(2), "slot": 1, "score": 0 },
+            ],
+            "winner_participant_id": "epl_a",
+        });
+        let result: ResultView = serde_json::from_value(body).unwrap();
+        assert_eq!(
+            Received::from_result(&result).unwrap().ended,
+            Ended::Completed {
+                games: [2, 0],
+                winner: 0
+            }
+        );
+    }
+
+    #[test]
     fn a_result_body_is_read_by_slot_once() {
         let second = player(2);
-        let mut result = MatchResult {
+        let mut result = ResultView {
             kind: RESULT_TYPE.into(),
-            bridge_id: "brg_x".into(),
             connection_id: "brackets".into(),
             match_id: "emt_1".into(),
             external_match_id: "challonge:t:1001:2".into(),
             outcome: Outcome::Completed,
-            revision: "5".into(),
             // Listed slot 1 first: order on the wire does not matter.
             participants: vec![
-                ResultParticipant {
+                SeatView {
                     participant_id: "epl_b".into(),
                     ember_id: second.clone(),
                     slot: 1,
                     score: 2,
                 },
-                ResultParticipant {
+                SeatView {
                     participant_id: "epl_a".into(),
                     ember_id: ember(),
                     slot: 0,

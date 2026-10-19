@@ -302,3 +302,39 @@ async fn a_report_the_service_defers_waits_alone_and_is_sent_again() {
     assert_eq!(service.reports(), [kate_wins(&match_id)]);
     assert_eq!(world.progress(BRACKET, "s-1"), "reported");
 }
+
+#[tokio::test]
+async fn any_2xx_answer_to_a_write_is_taken() {
+    let (service, world, _) = world(vec![kate_and_sam()]).await;
+    // A service that answers its writes with `200 OK, recorded`.
+    service.with(|state| state.text_answers = true);
+    let match_id = played(&service, &world).await;
+    assert!(service.with(|state| state.sets[0]["underway"] == true));
+    world.connector.pass(false).await;
+    assert_eq!(
+        service.log(),
+        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+    );
+    assert_eq!(service.reports(), [kate_wins(&match_id)]);
+    assert_eq!(world.progress(BRACKET, "s-1"), "reported");
+}
+
+#[tokio::test]
+async fn a_contract_mismatch_holds_results_until_it_is_fixed() {
+    let (service, world, _) = world(vec![kate_and_sam()]).await;
+    let match_id = played(&service, &world).await;
+    // The service moved to another contract version for a moment.
+    service.with(|state| state.fail_reports.push_back(StatusCode::UPGRADE_REQUIRED));
+    world.connector.pass(false).await;
+    assert_eq!(
+        service.log(),
+        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+    );
+    assert_eq!(world.progress(BRACKET, "s-1"), "live");
+    assert!(service.reports().is_empty());
+
+    world.advance(61);
+    world.connector.pass(false).await;
+    assert_eq!(service.reports(), [kate_wins(&match_id)]);
+    assert_eq!(world.progress(BRACKET, "s-1"), "reported");
+}

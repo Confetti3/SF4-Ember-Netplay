@@ -1,6 +1,6 @@
 [package]
 name = "ember-brackets"
-description = "Plays the sets of Challonge brackets in Ember and reports their scores back"
+description = "Plays the sets of brackets on Challonge, start.gg or an organizer's own service in Ember and reports their scores back"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

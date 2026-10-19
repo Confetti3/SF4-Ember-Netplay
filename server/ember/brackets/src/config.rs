@@ -40,15 +40,16 @@ pub struct Config {
     /// doubles the wait from `poll_secs` up to this.
     #[serde(default = "default_max_poll_secs")]
     pub max_poll_secs: u64,
-    /// Requests each site credential may make in a calendar month (UTC).
-    /// At 80% the connector warns; at 100% it stops reading brackets but
-    /// still reports results.
+    /// Requests each Challonge credential may make in a calendar month
+    /// (UTC); start.gg keeps to its own rate (`startgg::RATE`) and an `http`
+    /// service to its own limits. At 80% the connector warns; at 100% it
+    /// stops reading brackets but still reports results.
     #[serde(default = "default_budget")]
     pub monthly_request_budget: u32,
     pub tournaments: Vec<Tournament>,
     /// Lets a tournament's `api_base` be a loopback `http` origin. Local
-    /// tests only: in a deployment the organizer's credential goes to
-    /// Challonge over https and nowhere else.
+    /// tests only: in a deployment each organizer's credential goes over
+    /// https to its own site (or service) and nowhere else.
     #[serde(default)]
     pub allow_loopback_http: bool,
 }

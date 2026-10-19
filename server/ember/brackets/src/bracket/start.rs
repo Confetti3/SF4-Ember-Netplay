@@ -95,9 +95,7 @@ impl Bracket {
         });
         let command = match players {
             [Ok(one), Ok(two)] => {
-                if self.site.names_can_change() {
-                    self.point_out_old_connections(set, [one, two]);
-                }
+                self.point_out_old_connections(set, [one, two]).await;
                 self.command(set, attempt, [one.1, two.1])
             }
             [Err(why), _] | [_, Err(why)] => return self.note(set, attempt, Some(&why)),
@@ -260,17 +258,32 @@ impl Bracket {
     }
 
     /// Says once per player, while the connector runs, that the site
-    /// account they were found by was connected long ago.
-    fn point_out_old_connections(&self, set: &Set, players: [(&Account, &Player); 2]) {
+    /// account they were found by was connected long ago, when that site
+    /// looks accounts up by username (the bridge's `lookup_by`), which an
+    /// account can change.
+    async fn point_out_old_connections(&self, set: &Set, players: [(&Account, &Player); 2]) {
         let now = self.context.clock.now();
+        let old = |player: &Player| {
+            player
+                .connected_at
+                .is_some_and(|at| now.saturating_sub(at) > OLD_CONNECTION_SECS)
+        };
+        if !players.iter().any(|(_, player)| old(player)) {
+            return;
+        }
+        let Some(username_sites) = self.context.bridge.username_sites().await else {
+            return;
+        };
         let mut pointed_out = self
             .context
             .pointed_out
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         for (account, player) in players {
-            if let Some(at) = player.connected_at
-                && now.saturating_sub(at) > OLD_CONNECTION_SECS
+            if let Account::Site { site, .. } = account
+                && username_sites.contains(site)
+                && let Some(at) = player.connected_at
+                && old(player)
                 && pointed_out.insert(player.ember_id.clone())
             {
                 log!(

@@ -20,13 +20,13 @@ use reqwest::{
     StatusCode,
     header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue},
 };
-use serde::{Deserialize, Deserializer, de::DeserializeOwned};
+use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use tokio::sync::OnceCell;
 
 use crate::{
     Clock,
-    http::{bounded_body, http_client},
+    http::{bearer, bounded_body, http_client, id, optional_id},
     limit::Limiter,
     site::{
         Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
@@ -87,29 +87,30 @@ struct Entrants {
     read_at: Option<u64>,
 }
 
-/// An ID given as a string or as a number.
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum WireId {
-    Number(i64),
-    Text(String),
+/// How a query's answer is read when it carries `errors`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Errors {
+    /// Any error is the query failing.
+    Fail,
+    /// The data is used when every field asked at the top is there and it
+    /// parses: an error on one field deeper down (an entrant's Discord
+    /// authorizations, whose visibility STARTGG_API.md does not state)
+    /// nulls only that field, and the rest still counts.
+    Partial,
 }
 
-impl WireId {
-    fn into_text(self) -> String {
-        match self {
-            Self::Number(number) => number.to_string(),
-            Self::Text(text) => text,
-        }
-    }
+/// Whether every top-level field of a GraphQL `data` object is there.
+fn is_whole(data: &Value) -> bool {
+    data.as_object()
+        .is_some_and(|fields| !fields.is_empty() && fields.values().all(|value| !value.is_null()))
 }
 
-fn id<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
-    WireId::deserialize(deserializer).map(WireId::into_text)
-}
-
-fn optional_id<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
-    Ok(Option::<WireId>::deserialize(deserializer)?.map(WireId::into_text))
+/// start.gg's "no such set" for this ID: `Set not found for id: <id>`.
+fn is_set_not_found(message: &str, id: &str) -> bool {
+    message.strip_prefix("Set not found").is_some_and(|rest| {
+        rest.split(|c: char| !c.is_ascii_digit())
+            .any(|word| word == id)
+    })
 }
 
 /// A real set's ID: decimal digits. Preview sets carry other IDs.
@@ -338,9 +339,7 @@ impl Startgg {
         limiter: Limiter,
         clock: Clock,
     ) -> Result<Self, String> {
-        let mut authorization = HeaderValue::from_str(&format!("Bearer {token}"))
-            .map_err(|_| "the start.gg token is not a valid header value")?;
-        authorization.set_sensitive(true);
+        let authorization = bearer(token, "the start.gg token")?;
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         headers.insert(AUTHORIZATION, authorization);
@@ -413,17 +412,34 @@ impl Startgg {
         query: &str,
         variables: Value,
     ) -> Result<T, SiteError> {
+        self.query_as(query, variables, Errors::Fail)
+            .await?
+            .map_err(|message| SiteError::Unavailable(format!("start.gg: {message}")))
+    }
+
+    /// A query's data, or the first GraphQL error's message for the caller
+    /// to read.
+    async fn query_as<T: DeserializeOwned>(
+        &self,
+        query: &str,
+        variables: Value,
+        errors: Errors,
+    ) -> Result<Result<T, String>, SiteError> {
         let envelope = self.post(query, variables).await?;
-        if let Some(error) = envelope.errors.first() {
-            return Err(SiteError::Unavailable(format!(
-                "start.gg: {}",
-                error.message
-            )));
-        }
-        envelope
+        let error = envelope
+            .errors
+            .into_iter()
+            .next()
+            .map(|error| error.message);
+        let data = envelope
             .data
-            .and_then(|data| serde_json::from_value(data).ok())
-            .ok_or_else(unexpected)
+            .filter(|data| error.is_none() || (errors == Errors::Partial && is_whole(data)))
+            .and_then(|data| serde_json::from_value(data).ok());
+        match (data, error) {
+            (Some(data), _) => Ok(Ok(data)),
+            (None, Some(message)) => Ok(Err(message)),
+            (None, None) => Err(unexpected()),
+        }
     }
 
     /// A mutation; `Ok(Err(message))` when start.gg refused it. Its one
@@ -458,13 +474,17 @@ impl Startgg {
     async fn pages<T: DeserializeOwned, P: DeserializeOwned>(
         &self,
         query: &str,
+        errors: Errors,
         page_of: impl Fn(P) -> Option<Page<T>>,
     ) -> Result<Vec<T>, SiteError> {
         let event = self.event_id().await?.to_owned();
         let mut items = Vec::new();
         for page in 1..=MAX_PAGES {
             let variables = json!({ "id": event, "page": page, "perPage": PER_PAGE });
-            let data: P = self.query(query, variables).await?;
+            let data: P = self
+                .query_as(query, variables, errors)
+                .await?
+                .map_err(|message| SiteError::Unavailable(format!("start.gg: {message}")))?;
             let found = page_of(data).ok_or_else(|| {
                 SiteError::Refused(format!("start.gg has no event {}", self.slug))
             })?;
@@ -485,7 +505,7 @@ impl Startgg {
 
     async fn refresh_entrants(&self) -> Result<(), SiteError> {
         let entrants: Vec<WireEntrant> = self
-            .pages(ENTRANTS, |data: EntrantsData| {
+            .pages(ENTRANTS, Errors::Partial, |data: EntrantsData| {
                 data.event.map(|event| event.entrants)
             })
             .await?;
@@ -530,7 +550,9 @@ impl Startgg {
 
     async fn read_open_sets(&self) -> Result<Vec<Set>, SiteError> {
         let sets: Vec<WireSet> = self
-            .pages(SETS, |data: SetsData| data.event.map(|event| event.sets))
+            .pages(SETS, Errors::Fail, |data: SetsData| {
+                data.event.map(|event| event.sets)
+            })
             .await?;
         let raw: Vec<RawSet> = sets.into_iter().filter_map(WireSet::into_raw).collect();
         if self.entrants_stale(&raw) {
@@ -543,8 +565,20 @@ impl Startgg {
         if !is_set_id(id) {
             return Ok(None);
         }
-        let found: SetData = self.query(SET, json!({ "id": id })).await?;
-        Ok(found.set.and_then(WireSet::into_raw))
+        match self
+            .query_as::<SetData>(SET, json!({ "id": id }), Errors::Fail)
+            .await?
+        {
+            Ok(found) => Ok(found.set.and_then(WireSet::into_raw)),
+            // How start.gg answers for a set it no longer has: one of a
+            // phase group the organizer reset or reseeded, whose sets get
+            // new IDs. The text is the one STARTGG_API.md section 4.4 gives
+            // for preview IDs; that start.gg answers a removed real set the
+            // same way is not stated, and awaits a live check. Any other
+            // error, or a `set` nulled beside one, is start.gg failing.
+            Err(message) if is_set_not_found(&message, id) => Ok(None),
+            Err(message) => Err(SiteError::Unavailable(format!("start.gg: {message}"))),
+        }
     }
 
     async fn read_set(&self, id: &str) -> Result<Option<Set>, SiteError> {
@@ -678,6 +712,27 @@ mod tests {
 
     fn raw(value: Value) -> Option<RawSet> {
         serde_json::from_value::<WireSet>(value).unwrap().into_raw()
+    }
+
+    #[test]
+    fn only_start_gg_naming_the_set_says_it_is_not_found() {
+        assert!(is_set_not_found(
+            "Set not found for id: 65089253",
+            "65089253"
+        ));
+        assert!(!is_set_not_found(
+            "Set not found for id: 650892530",
+            "65089253"
+        ));
+        assert!(!is_set_not_found("Set not found", "65089253"));
+        assert!(!is_set_not_found(
+            "An unknown error has occurred",
+            "65089253"
+        ));
+        // Partial data is used only when nothing at the top was nulled.
+        assert!(is_whole(&json!({ "event": { "entrants": {} } })));
+        assert!(!is_whole(&json!({ "event": null })));
+        assert!(!is_whole(&json!({})));
     }
 
     #[test]

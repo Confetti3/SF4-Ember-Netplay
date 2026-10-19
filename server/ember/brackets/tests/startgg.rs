@@ -527,3 +527,39 @@ async fn retrying_a_deferred_result_does_not_quicken_the_schedule() {
     // retry a change, reads would come after 120, 240 and 480 s again.
     assert_eq!(reads, 1);
 }
+
+#[tokio::test]
+async fn a_set_start_gg_no_longer_has_has_its_match_cancelled() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    world.connector.pass(true).await;
+    let match_id = world.bridge.matches().await[0].1.clone();
+    fake.log();
+
+    // The organizer resets the phase group: start.gg answers the old set's
+    // ID with "Set not found".
+    fake.state.lock().unwrap().gone_sets.insert(65_089_253);
+    world.advance(601);
+    world.connector.pass(true).await;
+    assert_eq!(fake.operations(), ["Sets", "Set"]);
+    assert_eq!(world.snapshot(&match_id).await["state"], "cancelled");
+    assert_eq!(world.progress(BRACKET, "65089253"), "closed");
+
+    // And the tournament is read as before, its entrants included, a
+    // quarter of an hour after they were last read.
+    world.advance(601);
+    world.connector.pass(true).await;
+    assert_eq!(fake.operations(), ["Sets", "Entrants"]);
+}
+
+#[tokio::test]
+async fn private_discord_accounts_still_leave_start_gg_accounts_to_find() {
+    let fake = fake().await;
+    fake.state.lock().unwrap().private_discord = true;
+    let world = world(&fake, false).await;
+    // Sam can only be found by his start.gg account now.
+    world.bridge.connect_startgg(3, 5_002).await;
+    world.connector.pass(true).await;
+    assert_eq!(fake.operations(), ["Event", "Sets", "Entrants", "Underway"]);
+    assert_eq!(world.bridge.matches().await.len(), 1);
+}

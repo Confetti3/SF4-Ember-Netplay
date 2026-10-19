@@ -18,7 +18,7 @@ use zeroize::Zeroizing;
 use crate::{
     budget::{Budget, Priority},
     config::{CredentialKind, is_slug},
-    http::{bounded_body, http_client},
+    http::{self, bounded_body, http_client},
     site::{
         Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
         Status,
@@ -83,9 +83,7 @@ impl Challonge {
             CredentialKind::V1Key => ("v1", Zeroizing::new(credential.to_owned())),
             CredentialKind::Bearer => ("v2", Zeroizing::new(format!("Bearer {credential}"))),
         };
-        let mut authorization = HeaderValue::from_str(&value)
-            .map_err(|_| "the Challonge credential is not a valid header value")?;
-        authorization.set_sensitive(true);
+        let authorization = http::secret_header(&value, "the Challonge credential")?;
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
@@ -217,14 +215,14 @@ impl Challonge {
 
     fn set_of(&self, raw: RawSet) -> Set {
         let usernames = self.usernames.lock().unwrap_or_else(|e| e.into_inner());
-        // Only a username the bridge's Challonge lookup takes is asked for.
+        // The bridge's Challonge site decides which usernames it looks up;
+        // one it refuses holds back only its own entry.
         let entry = |id: &String| Entry {
             participant_id: id.clone(),
             accounts: usernames
                 .get(id)
                 .cloned()
                 .flatten()
-                .filter(|username| is_username(username))
                 .map(|username| Account::Site {
                     site: self.bridge_site.clone(),
                     id: username,
@@ -351,12 +349,6 @@ impl Site for Challonge {
             Ok(Reported::Sent)
         })
     }
-
-    /// Players are found by username, which Challonge lets an account
-    /// change.
-    fn names_can_change(&self) -> bool {
-        true
-    }
 }
 
 fn unexpected() -> SiteError {
@@ -365,21 +357,6 @@ fn unexpected() -> SiteError {
 
 fn parse<T: DeserializeOwned>(value: Value) -> Result<T, SiteError> {
     serde_json::from_value(value).map_err(|_| unexpected())
-}
-
-/// The longest Challonge username the bridge's Challonge site takes.
-const MAX_USERNAME: usize = 64;
-
-/// A Challonge username in the form the bridge's Challonge site looks up
-/// (its shipped definition's `username_rule`): 1 to 64 ASCII letters,
-/// digits, `_`, `-` or `.`. Only such a username is asked for, since one
-/// the bridge refuses fails the whole lookup.
-fn is_username(text: &str) -> bool {
-    !text.is_empty()
-        && text.len() <= MAX_USERNAME
-        && text
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
 }
 
 /// A set ID taken from Challonge, before it goes back into a URL.
@@ -465,25 +442,9 @@ struct ParticipantAttributes {
     username: Option<String>,
 }
 
-/// An ID given as a string or as an integer.
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum RawId {
-    Text(String),
-    Number(u64),
-}
-
-impl RawId {
-    fn into_text(self) -> String {
-        match self {
-            Self::Text(text) => text,
-            Self::Number(number) => number.to_string(),
-        }
-    }
-}
-
+/// A Challonge ID, string or integer, which goes back into URLs.
 fn id<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
-    let text = RawId::deserialize(deserializer)?.into_text();
+    let text = http::id(deserializer)?;
     if is_slug(&text) {
         Ok(text)
     } else {
@@ -492,9 +453,7 @@ fn id<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
 }
 
 fn optional_id<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
-    Ok(Option::<RawId>::deserialize(deserializer)?
-        .map(RawId::into_text)
-        .filter(|text| !text.is_empty()))
+    Ok(http::optional_id(deserializer)?.filter(|text| !text.is_empty()))
 }
 
 /// A match before its participants' usernames are attached.
@@ -636,17 +595,6 @@ mod tests {
         ));
         assert!(!underway(json!({ "state": "open", "underway_at": null })));
         assert!(!underway(json!({ "state": "open" })));
-    }
-
-    #[test]
-    fn only_usernames_the_bridge_takes_are_asked_for() {
-        for text in ["kate", "Kate_99", "a.b-c", &"x".repeat(MAX_USERNAME)] {
-            assert!(is_username(text), "{text}");
-        }
-        let too_long = "x".repeat(MAX_USERNAME + 1);
-        for text in ["", "has space", "kate@example.com", "\u{fc}n", &too_long] {
-            assert!(!is_username(text), "{text}");
-        }
     }
 
     #[test]

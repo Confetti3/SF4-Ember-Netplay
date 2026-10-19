@@ -27,12 +27,6 @@ pub trait Site: Send + Sync {
     fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()>;
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, Reported>;
 
-    /// Whether the site accounts this adapter gives are names an account
-    /// can change, so one connected long ago may now be someone else's.
-    fn names_can_change(&self) -> bool {
-        false
-    }
-
     /// Whether `report` uses each game's winner (`Report::sequence`), which
     /// the connector then reads from the bridge before reporting.
     fn wants_games(&self) -> bool {

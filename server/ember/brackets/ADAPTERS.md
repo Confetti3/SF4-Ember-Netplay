@@ -34,12 +34,17 @@ rely on.
 | `standing()` | `Finished`, `PlayedOut` or `Running` | `Finished` only when the site says the event is over: the connector then stops reading it for good. `PlayedOut` when every set looks played but more may come (a later stage, a reopened set). |
 | `mark_underway(id)` | nothing | May be called again for a set already underway. A failure is only logged. |
 | `report(id, report)` | `Sent` or `AlreadyHeld` | Records the winner and each entry's games won. May be called again for a report already recorded (see Delivery below): answer `AlreadyHeld` when the set already holds this winner, so the log does not claim the connector wrote it. If the site can tell, refuse (`Refused`) rather than write over a set that has a different result. |
-| `names_can_change()` | `bool`, `false` unless overridden | Whether the site accounts given are names an account can change (Challonge usernames). The connector then points out, once per player, an account connected more than 30 days ago. |
 | `wants_games()` | `bool`, `false` unless overridden | Whether `report` uses each game's winner, in the order played (`report.sequence`). Only then does the connector read the games from the bridge before reporting, and check that they add up to the score. |
 
 `purpose` says why a read is made, `Scheduled` or `Result`: a site with a
 request budget may refuse a scheduled read with `BudgetSpent`, but never a
 read for a result.
+
+An adapter does not say whether its accounts are names an account can
+change: the bridge does. For a player found by an account on a sign-in site
+the bridge looks up by username (its capabilities' `lookup_by`), the
+connector points out, once per player, an account connected more than 30
+days ago, whichever adapter named it.
 
 A `Set` carries:
 
@@ -138,8 +143,13 @@ The connector calls your service. Configure it as a tournament:
 
 Every request carries `Accept: application/json` and
 `Ember-Brackets-Contract: 1`. If you change a shape below in a way an older
-connector would misread, answer a request of the older version with 400.
-Unknown fields in your answers are ignored, so you may add fields freely.
+connector would misread, answer a request of the older version with
+`426 Upgrade Required`, and optionally `{ "contract": "<the version you
+speak>" }`. The connector reads that as your service being unavailable as a
+whole: nothing is given up, results wait, and it says so once in its log
+until the connector or your service is upgraded. Never answer a version
+mismatch with `400`, which would make each pending report final. Unknown
+fields in your answers are ignored, so you may add fields freely.
 
 ### Limits
 
@@ -221,6 +231,9 @@ tournament for good.
 `games` is each game's winning entry, in the order played. Answer `2xx` once
 recorded.
 
+The body of a `2xx` to a write (`/report` or `/underway`) is not read: empty,
+JSON or text are all taken. Only reads must answer JSON in the shapes above.
+
 Reports are delivered at least once: when your answer is lost, the same
 report is sent again, with the same `Idempotency-Key` and the same body.
 Answer a repeat `2xx`, as you did the first time. If the set has a
@@ -248,9 +261,9 @@ on. After 12 deferrals (about 6 hours) the set is left to the organizer. A
 |---|---|
 | `2xx` | carries on |
 | `200` with `{ "set": null }` | the set is gone |
+| `200` from a read whose JSON is out of shape (`{}` from `/sets/{id}`, say) | tries again later, after the growing wait above |
 | `404` on `/standing` | the tournament is running |
-| `404` anywhere else | tries again later |
-| `401`, `403`, `429`, `5xx`, no answer | tries again later, after the growing wait above |
+| `401`, `403`, `404` (anywhere but `/standing`), `426`, `429`, `5xx`, no answer | tries again later, after the growing wait above |
 | `409` on a report | leaves the set to the organizer |
 | `423` with `{ "retry": true }` on a report | sends that report again later, on its own |
 | other `4xx` | on a report, leaves the set to the organizer; on a read, tries again later |

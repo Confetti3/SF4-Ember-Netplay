@@ -9,8 +9,8 @@
 //! set open without one, or makes a fresh attempt at a set that restarted or
 //! expired. A set the organizer changed by hand has its Ember match
 //! cancelled. Reads back off while nothing changes, stay inside the
-//! tournament's window, and stop once the bracket is finished, since
-//! Challonge's free tier allows 500 requests a month.
+//! tournament's window, and stop once the bracket is finished: Challonge's
+//! free tier allows 500 requests a month, and start.gg 80 a minute.
 //!
 //! Sites sit behind `site::Site` (ADAPTERS.md): Challonge, start.gg, and an
 //! organizer's own service through the `http` adapter. Everything the
@@ -61,12 +61,33 @@ use startgg::Startgg;
 use store::Store;
 
 /// One human-readable line on standard error. Never given a secret.
+/// Control characters (from a site's or service's text) are shown as `?`,
+/// so no answer can forge a line.
 macro_rules! log {
     ($($arg:tt)*) => {
-        eprintln!("ember-brackets: {}", format_args!($($arg)*))
+        eprintln!("ember-brackets: {}", $crate::printable(&format!($($arg)*)))
     };
 }
 pub(crate) use log;
+
+/// `line` with each control character replaced by `?`.
+pub(crate) fn printable(line: &str) -> String {
+    line.chars()
+        .map(|c| if c.is_control() { '?' } else { c })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_log_line_stays_one_line() {
+        assert_eq!(
+            super::printable("set s-1: round\nember-brackets: forged\u{1b}[2J"),
+            "set s-1: round?ember-brackets: forged?[2J"
+        );
+        assert_eq!(super::printable("Pools \u{fc}"), "Pools \u{fc}");
+    }
+}
 
 /// Unix seconds: the wall clock, or for tests a clock that stands still
 /// until it is moved.

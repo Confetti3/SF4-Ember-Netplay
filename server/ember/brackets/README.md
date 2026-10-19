@@ -23,21 +23,24 @@ For each configured tournament the connector:
    then a Discord account the site shows linked to it.
 2. Receives the bridge's signed result at its results URL and reads the
    bracket at once. A completed match is reported (each player's games won,
-   the winner advancing) if Challonge still has the set open with the same
-   two entries and no score. Sets the report opens are found by the next
-   read, at most `poll_secs` later or at the next result.
+   the winner advancing, and for start.gg and `http` each game's winner) if
+   the site still has the set open with the same two entries and no score.
+   Sets the report opens are found by the next read, at most `poll_secs`
+   later or at the next result.
 3. Plays a set again, as a new attempt, when its match restarts (a disputed
    game) or expires unplayed, up to 5 attempts. After that it logs that the
-   organizer decides the set, as it does when Challonge refuses a score.
+   organizer decides the set, as it does when the site refuses a score.
 4. Leaves a set the organizer reported, reset or changed by hand to the
    organizer: its live Ember match is cancelled, and a result that arrives
    for it anyway is not reported. A result is reported only for the two
    players its attempt was made for.
-5. Stops for good once a read finds no open set and Challonge says the
-   tournament is over (its `state` is `complete` or `ended`). When Challonge
-   does not say, says it is awaiting the organizer's review (a set can still
-   be reopened), and every set looks played, it only reads at the longest
-   interval, since a later stage or swiss round may still be added.
+5. Stops for good once a read finds no open set and the site says the
+   tournament is over: Challonge's `state` is `complete` or `ended`,
+   start.gg's event is `COMPLETED`, or the service's `/standing` is
+   `finished`. When Challonge does not say, says it is awaiting the
+   organizer's review (a set can still be reopened), and every set looks
+   played, it only reads at the longest interval, since a later stage or
+   swiss round may still be added.
 
 Only what a set shows is evidence. A list read in pages can miss a set that
 moved between two pages, so a set missing from it is asked for on its own
@@ -45,7 +48,7 @@ before its match is cancelled or its result set aside, and a report after
 another one in the same pass reads its set first.
 
 Every five minutes the connector also asks the bridge about each live match
-(bridge requests cost nothing against Challonge's budget). A finished match
+(bridge requests cost nothing against a site's budget). A finished match
 whose result the bridge has started sending (and so can no longer be
 corrected) is settled from that, under the same ID as the delivery, so the
 delivery, if it gets through, is a repeat. A result the bridge has not
@@ -81,7 +84,8 @@ so once in the log, until both of its players have. The connector learns
 each entry's account when it first sees the entry: an entry the organizer
 gives an account after that is picked up when the connector restarts. A
 player whose Challonge account was connected more than 30 days before a match
-is pointed out in the log once, since Challonge lets an account rename. The
+is pointed out in the log once, since Challonge lets an account rename (so
+is one on any sign-in site the bridge looks up by username). The
 bridge finds the player who last connected under a username, so a username
 given up and taken by someone who has not connected in Ember still finds the
 old player; for an event, ask players to connect again shortly before it.
@@ -115,6 +119,15 @@ again, a minute later and then doubling up to an hour, up to 12 times
 (about 6 hours) before the organizer decides the set. The tournament's other
 results and reads go on meanwhile.
 
+A set start.gg answers with "Set not found for id: <its ID>" (one of a phase
+group the organizer reset or reseeded) is taken as gone: its live Ember match
+is cancelled, and the rest of the tournament goes on. Any other error, or a
+set left empty beside an error, is waited out. start.gg's documents give that
+text only for preview sets; that it answers a removed set the same way is
+not stated, and needs a live check. When the Discord accounts behind
+entrants come back with an error (STARTGG_API.md does not say whether every
+token may read them), the entrants' start.gg accounts are still used.
+
 A service of the organizer's own: see [ADAPTERS.md](ADAPTERS.md).
 
 ## What the Ember team provides
@@ -139,7 +152,7 @@ so every `bridge_site` the connector's tournaments use must be in it. An
 entry with an account the bridge refuses waits, with the reason logged once,
 and every other set is played.
 
-its provider credential
+The connector also needs the connection's provider credential
 (`ember-bridge credential <bridge.json> provider <connection> "<label>"`) and
 its result secret (`ember-bridge result-secret`, stored on the bridge with
 `set-integration-secret.sh result <connection>`). The results URL is served by
@@ -155,7 +168,7 @@ Secrets are only ever read from files, never written to the log.
   "bridge": {
     "api": "https://bridge.embernetplay.link",
     "credential_file": "provider.token",
-    "connection_id": "challonge-brackets",
+    "connection_id": "brackets",
     "build_id": "ember-1.4"
   },
   "results": {
@@ -254,7 +267,14 @@ sed -e 's/@NAME@/ember-brackets/g' -e 's/@LABEL@//g' brackets/deploy/ember-brack
 ```
 
 `brackets.json` and the secret files go in `/var/lib/ember-brackets`, owned by
-that account. Each decision is one line on standard error
+that account. Then start it, and have it start with the server:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now ember-brackets
+```
+
+ Each decision is one line on standard error
 (`journalctl -u ember-brackets`). A new credential takes effect on restart.
 
 When something fails the log says so once, not on every try:

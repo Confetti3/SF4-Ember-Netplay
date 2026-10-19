@@ -2,7 +2,7 @@
 //! and mutations the connector sends, by operation name, checks the token,
 //! and logs each operation with its variables.
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     sync::{Arc, Mutex},
 };
 
@@ -86,6 +86,12 @@ pub struct StartggState {
     pub report_errors: VecDeque<(StatusCode, String)>,
     /// Reports of these sets are refused with these texts, every time.
     pub refused_sets: HashMap<u64, String>,
+    /// Sets start.gg no longer has, as after the organizer reset their
+    /// phase group: left out of lists and answered "Set not found".
+    pub gone_sets: HashSet<u64>,
+    /// Discord authorizations are private to the token: each comes back
+    /// null, with an error naming the field.
+    pub private_discord: bool,
     /// Its players start this set on start.gg just after a list of sets
     /// shows it not started.
     pub start_after_list: Option<u64>,
@@ -172,20 +178,37 @@ async fn graphql(
                             .iter()
                             .map(|external| json!({ "externalId": external }))
                             .collect();
+                        let authorizations = if state.private_discord {
+                            Value::Null
+                        } else {
+                            json!(authorizations)
+                        };
                         json!({ "id": id, "authorizations": authorizations })
                     });
                     json!({ "id": entrant.id, "participants": [{ "user": user }] })
                 })
                 .collect();
             let (nodes, total) = page(&nodes, &variables);
-            json!({ "event": { "entrants": { "pageInfo": { "totalPages": total }, "nodes": nodes } } })
+            let data = json!({ "event": { "entrants": { "pageInfo": { "totalPages": total }, "nodes": nodes } } });
+            if state.private_discord {
+                return answer(
+                    StatusCode::OK,
+                    json!({
+                        "data": data,
+                        "errors": [{ "message": "Cannot query field externalId", "path": ["event", "entrants", "nodes", 0, "participants", 0, "user", "authorizations"] }],
+                    }),
+                );
+            }
+            data
         }
         "Sets" => {
             let open: Vec<Value> = state
                 .sets
                 .iter()
                 .filter(|set| {
-                    [1, 2, 6].contains(&set.state) && set.entrants.iter().any(Option::is_some)
+                    [1, 2, 6].contains(&set.state)
+                        && set.entrants.iter().any(Option::is_some)
+                        && !state.gone_sets.contains(&set.id)
                 })
                 .map(FakeSet::to_json)
                 .collect();
@@ -203,6 +226,19 @@ async fn graphql(
             {
                 set.winner = set.entrants[0];
                 set.state = 3;
+            }
+            let id = variables["id"].as_str().unwrap_or_default().to_owned();
+            if id
+                .parse::<u64>()
+                .is_ok_and(|id| state.gone_sets.contains(&id))
+            {
+                return answer(
+                    StatusCode::OK,
+                    json!({
+                        "data": { "set": null },
+                        "errors": [{ "message": format!("Set not found for id: {id}"), "path": ["set"] }],
+                    }),
+                );
             }
             let found = state.find(&variables["id"]).map(|set| set.to_json());
             json!({ "set": found })
@@ -270,6 +306,8 @@ impl FakeStartgg {
             decide_on_reread: None,
             report_errors: VecDeque::new(),
             refused_sets: HashMap::new(),
+            gone_sets: HashSet::new(),
+            private_discord: false,
             start_after_list: None,
         }));
         let app = Router::new()

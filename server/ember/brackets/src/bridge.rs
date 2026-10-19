@@ -2,17 +2,22 @@
 //! credential: finding players by the account a site entry stands for,
 //! creating a set's match, reading how one ended, and cancelling one.
 //! Bridge requests cost nothing against a site's budget.
-use std::{collections::HashMap, fmt, sync::Mutex};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    sync::Mutex,
+};
 
 use ember_protocol::{
     EmberId,
     api::{ApiError, ErrorCode},
     json,
     matches::{CreateMatch, DeliveryState, MatchState},
-    partner::{LOOKUP_PATH, Lookup, LookupAnswer, MAX_LOOKUP},
+    partner::{LOOKUP_PATH, Lookup, MAX_LOOKUP},
     sites::SiteAccount,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use tokio::sync::OnceCell;
 use zeroize::Zeroizing;
 
 use crate::{
@@ -153,8 +158,60 @@ fn lookup_of(accounts: &[&Account]) -> Lookup {
     lookup
 }
 
+/// A lookup answer as the connector reads it: the fields it uses, and
+/// anything else ignored, so a field a later bridge adds does not stop an
+/// older connector finding players.
+#[derive(Deserialize)]
+struct LookupView {
+    #[serde(default)]
+    players: Vec<PlayerView>,
+    #[serde(default)]
+    accounts: Vec<AccountView>,
+}
+
+#[derive(Deserialize)]
+struct PlayerView {
+    discord_user_id: String,
+    ember_id: EmberId,
+    participant_id: String,
+}
+
+#[derive(Deserialize)]
+struct AccountView {
+    site: String,
+    /// As the lookup named it.
+    id: String,
+    ember_id: EmberId,
+    participant_id: String,
+    connected_at: u64,
+}
+
+/// `GET /v1/capabilities`, as far as the connector reads it.
+#[derive(Deserialize)]
+struct CapabilitiesView {
+    #[serde(default)]
+    sign_in_sites: Vec<SiteView>,
+}
+
+#[derive(Deserialize)]
+struct SiteView {
+    id: String,
+    lookup_by: String,
+}
+
+/// The sign-in sites whose lookups go by username, a name an account can
+/// change.
+fn username_sites_of(capabilities: CapabilitiesView) -> HashSet<String> {
+    capabilities
+        .sign_in_sites
+        .into_iter()
+        .filter(|site| site.lookup_by == "username")
+        .map(|site| site.id)
+        .collect()
+}
+
 /// The players a lookup answer names, by the account they were asked as.
-fn found_in(answer: LookupAnswer) -> impl Iterator<Item = (Account, Player)> {
+fn found_in(answer: LookupView) -> impl Iterator<Item = (Account, Player)> {
     let sites = answer.accounts.into_iter().map(|found| {
         let account = Account::Site {
             site: found.site,
@@ -263,7 +320,7 @@ impl MatchView {
                         .map(|score| score.wins)
                 };
                 let games = [wins(&players[0])?, wins(&players[1])?];
-                let winner = games.iter().position(|&won| won == self.games_to_win)?;
+                let winner = games.iter().position(|&won| won >= self.games_to_win)?;
                 Ended::Completed { games, winner }
             }
         };
@@ -286,6 +343,8 @@ pub(crate) struct BridgeClient {
     api: String,
     credential: Zeroizing<String>,
     refusals: Mutex<Refusals>,
+    /// Read once, when first needed (`username_sites`).
+    username_sites: OnceCell<HashSet<String>>,
 }
 
 impl BridgeClient {
@@ -295,6 +354,7 @@ impl BridgeClient {
             api: api.trim_end_matches('/').to_owned(),
             credential,
             refusals: Mutex::default(),
+            username_sites: OnceCell::new(),
         })
     }
 
@@ -356,7 +416,20 @@ impl BridgeClient {
         Ok(found)
     }
 
-    async fn lookup_once(&self, accounts: &[&Account]) -> Result<LookupAnswer, BridgeError> {
+    /// The bridge's sign-in sites that look accounts up by username, read
+    /// from its capabilities once. `None` while they cannot be read.
+    pub async fn username_sites(&self) -> Option<&HashSet<String>> {
+        self.username_sites
+            .get_or_try_init(|| async {
+                let capabilities: CapabilitiesView =
+                    self.answer(self.get("/v1/capabilities")).await?;
+                Ok::<_, BridgeError>(username_sites_of(capabilities))
+            })
+            .await
+            .ok()
+    }
+
+    async fn lookup_once(&self, accounts: &[&Account]) -> Result<LookupView, BridgeError> {
         let request = self.post(LOOKUP_PATH).json(&lookup_of(accounts));
         self.answer(request).await
     }
@@ -486,6 +559,41 @@ mod tests {
         );
         // A completed match without a winner at the set length is not read.
         assert!(view("completed", [1, 1]).over().is_none());
+        // A winner past the set length, as the bridge itself allows.
+        assert_eq!(
+            view("completed", [1, 3]).over().map(|over| over.ended),
+            Some(Ended::Completed {
+                games: [1, 3],
+                winner: 1
+            })
+        );
+    }
+
+    #[test]
+    fn answers_are_read_past_fields_a_later_bridge_adds() {
+        let kate = "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";
+        let answer: LookupView = serde_json::from_value(json!({
+            "players": [{ "discord_user_id": "274220342558756145", "ember_id": kate, "participant_id": "epl_a", "since": 1 }],
+            "accounts": [{ "site": "startgg", "id": "77", "user_id": "77", "ember_id": kate, "participant_id": "epl_b", "connected_at": 5, "verified": true }],
+            "next": null,
+        }))
+        .unwrap();
+        assert_eq!(found_in(answer).count(), 2);
+        // A Discord-only answer leaves `accounts` out.
+        let answer: LookupView = serde_json::from_value(json!({ "players": [] })).unwrap();
+        assert_eq!(found_in(answer).count(), 0);
+        let capabilities: CapabilitiesView = serde_json::from_value(json!({
+            "api_version": "1",
+            "sign_in_sites": [
+                { "id": "challonge", "lookup_by": "username", "display_name": "Challonge" },
+                { "id": "startgg", "lookup_by": "user_id" },
+            ],
+        }))
+        .unwrap();
+        assert_eq!(
+            username_sites_of(capabilities),
+            HashSet::from(["challonge".to_owned()])
+        );
     }
 
     #[test]
