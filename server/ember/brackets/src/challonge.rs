@@ -430,7 +430,9 @@ struct MatchAttributes {
     timestamps: Option<Value>,
     /// Each participant of the match, first player first. The live answer
     /// has no `player1` and `player2`; this is where it names the players
-    /// (`listed_players`).
+    /// (`listed_players`). A loose value on purpose: a strict type would
+    /// fail the whole page of matches on one entry it did not expect, and
+    /// `listed_players` checks what it needs.
     #[serde(default)]
     points_by_participant: Option<Value>,
     /// Set on a group stage match of a two stage tournament, as Challonge's
@@ -522,20 +524,29 @@ fn in_group(group_id: Option<&Value>) -> bool {
 
 /// The two players a match's `points_by_participant` lists, first player
 /// first: exactly two entries, each with a participant ID Challonge can have
-/// (a number or a string of one). A match whose players are not known yet
-/// lists fewer, or none with an ID.
+/// (a number or a string of one), and two different players. A match whose
+/// players are not known yet lists fewer, or none with an ID (not read live:
+/// only a match with both players has been).
 fn listed_players(points: Option<&Value>) -> Option<[String; 2]> {
     let entries = points?.as_array()?;
-    let id = |entry: &Value| match entry.get("participant_id")? {
-        Value::Number(number) => number.as_u64().map(|id| id.to_string()),
-        Value::String(text) => Some(text.clone()),
-        _ => None,
-    }
-    .filter(|text| is_slug(text));
+    let id = |entry: &Value| {
+        match entry.get("participant_id")? {
+            Value::Number(number) => number.as_u64().map(|id| id.to_string()),
+            Value::String(text) => Some(text.clone()),
+            _ => None,
+        }
+        .filter(|text| is_slug(text))
+    };
     match entries.as_slice() {
-        [one, two] => Some([id(one)?, id(two)?]),
+        [one, two] => distinct([id(one)?, id(two)?]),
         _ => None,
     }
+}
+
+/// The pair when it names two different players: a set is never a player
+/// against themselves.
+fn distinct(pair: [String; 2]) -> Option<[String; 2]> {
+    (pair[0] != pair[1]).then_some(pair)
 }
 
 impl From<Resource<MatchAttributes>> for RawSet {
@@ -546,15 +557,14 @@ impl From<Resource<MatchAttributes>> for RawSet {
             ("open", None) => Status::Open,
             _ => Status::Pending,
         };
-        let listed = listed_players(attributes.points_by_participant.as_ref());
         let players = attributes
             .relationships
             .or(resource.relationships)
             .and_then(|players| {
                 let id = |slot: Option<Related>| Some(slot?.data?.id);
-                Some([id(players.player1)?, id(players.player2)?])
+                distinct([id(players.player1)?, id(players.player2)?])
             })
-            .or(listed);
+            .or_else(|| listed_players(attributes.points_by_participant.as_ref()));
         let in_group = in_group(attributes.group_id.as_ref());
         let underway = attributes.underway_at.is_some()
             || attributes
@@ -731,7 +741,10 @@ mod tests {
             "relationships": { "attachments": { "data": [] } },
         }));
         assert_eq!(open.players, Some(["555001".into(), "555002".into()]));
-        assert_eq!((open.status, open.underway, open.round), (Status::Open, false, 1));
+        assert_eq!(
+            (open.status, open.underway, open.round),
+            (Status::Open, false, 1)
+        );
 
         // A match not fed yet lists fewer players, or none with an ID.
         for points in [
@@ -739,6 +752,8 @@ mod tests {
             json!([{ "participant_id": 555001, "scores": [] }]),
             json!([{ "participant_id": 555001 }, { "participant_id": null }]),
             json!([{ "participant_id": 555001 }, { "participant_id": "a/b" }]),
+            // The same player twice is no set.
+            json!([{ "participant_id": 5 }, { "participant_id": "5" }]),
             json!([{ "participant_id": 1 }, { "participant_id": 2 }, { "participant_id": 3 }]),
             json!("555001"),
         ] {
@@ -758,6 +773,15 @@ mod tests {
             },
         }));
         assert_eq!(both.players, Some(["7".into(), "8".into()]));
+        // The same player twice in the relationships is no set either.
+        let twice = raw(json!({
+            "id": "4",
+            "attributes": {
+                "state": "open",
+                "relationships": { "player1": { "data": { "id": "7" } }, "player2": { "data": { "id": "7" } } },
+            },
+        }));
+        assert_eq!(twice.players, None);
     }
 
     #[test]

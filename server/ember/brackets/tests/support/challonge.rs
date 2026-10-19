@@ -62,28 +62,67 @@ impl FakeMatch {
         }
     }
 
-    fn to_json(&self) -> Value {
-        let player = |slot: &Option<String>| match slot {
-            Some(id) => json!({ "data": { "id": id, "type": "participant" } }),
-            None => json!({ "data": null }),
-        };
+    /// The match as Challonge sends it. By default that is the shape the live
+    /// v2.1 API answered with (read 2026-10-19): the players only in
+    /// `attributes.points_by_participant`, first player first, with the
+    /// participant ID as a number; `underway_at` in `attributes.timestamps`;
+    /// the document's own `relationships` holding only attachments. A slot
+    /// not filled yet is left out of the list (how the live API shows a set
+    /// that is not fed is not known, and the connector takes only a list of
+    /// exactly two). With `documented`, the shape the published schema
+    /// describes instead: `attributes.relationships.player1` and `player2`
+    /// and a top-level `underway_at`.
+    fn to_json(&self, documented: bool) -> Value {
+        // An integer here too, as Challonge sends it.
+        let winner = self.winner.as_ref().map(|id| id.parse::<u64>().unwrap());
+        let underway_at = self.underway.then_some("2026-10-18T19:05:00.000Z");
+        let mut attributes = json!({
+            "state": self.state,
+            "round": self.round,
+            "identifier": "A",
+            "scores": "",
+            "winner_id": winner,
+            "group_id": self.group_id,
+        });
+        let fields = attributes.as_object_mut().unwrap();
+        if documented {
+            let player = |slot: &Option<String>| match slot {
+                Some(id) => json!({ "data": { "id": id, "type": "participant" } }),
+                None => json!({ "data": null }),
+            };
+            fields.insert("underway_at".into(), json!(underway_at));
+            fields.insert(
+                "relationships".into(),
+                json!({
+                    "player1": player(&self.players[0]),
+                    "player2": player(&self.players[1]),
+                }),
+            );
+            return json!({ "id": self.id, "type": "match", "attributes": attributes });
+        }
+        let points: Vec<Value> = self
+            .players
+            .iter()
+            .flatten()
+            .map(|id| json!({ "participant_id": id.parse::<u64>().unwrap(), "scores": [] }))
+            .collect();
+        fields.insert("points_by_participant".into(), json!(points));
+        fields.insert("score_in_sets".into(), json!([]));
+        fields.insert("tie".into(), json!(false));
+        fields.insert(
+            "timestamps".into(),
+            json!({
+                "started_at": "2026-10-18T19:00:00.000Z",
+                "created_at": "2026-10-18T19:00:00.000Z",
+                "updated_at": "2026-10-18T19:00:00.000Z",
+                "underway_at": underway_at,
+            }),
+        );
         json!({
             "id": self.id,
             "type": "match",
-            "attributes": {
-                "state": self.state,
-                "round": self.round,
-                "identifier": "A",
-                "scores": "",
-                // An integer here, as Challonge's schema has it.
-                "winner_id": self.winner.as_ref().map(|id| id.parse::<u64>().unwrap()),
-                "underway_at": self.underway.then_some("2026-10-18T19:05:00.000Z"),
-                "group_id": self.group_id,
-                "relationships": {
-                    "player1": player(&self.players[0]),
-                    "player2": player(&self.players[1]),
-                },
-            },
+            "attributes": attributes,
+            "relationships": { "attachments": { "data": [] } },
         })
     }
 }
@@ -104,6 +143,9 @@ pub struct ChallongeState {
     pub participants: Vec<(String, Option<String>)>,
     pub matches: Vec<FakeMatch>,
     pub log: Vec<Logged>,
+    /// Matches are sent in the shape the published schema describes, not the
+    /// one the live API sends (`FakeMatch::to_json`).
+    pub documented_shape: bool,
     /// Sets left out of list reads, as a page that shifted between two
     /// requests would leave them out. Read one by one, they are there.
     pub hidden: HashSet<String>,
@@ -274,6 +316,7 @@ async fn challonge(
         return refusal(404, "Not found");
     };
     let rest = rest.to_owned();
+    let documented = state.documented_shape;
     match (method, rest.as_str()) {
         (Method::GET, "matches.json") => {
             let listed: Vec<Value> = state
@@ -291,7 +334,7 @@ async fn challonge(
                     } else {
                         1
                     };
-                    std::iter::repeat_n(found.to_json(), times)
+                    std::iter::repeat_n(found.to_json(documented), times)
                 })
                 .collect();
             answer(200, json!({ "data": page(&listed, &query) }))
@@ -315,7 +358,7 @@ async fn challonge(
                 .trim_start_matches("matches/")
                 .trim_end_matches(".json");
             match state.find(id) {
-                Some(found) => answer(200, json!({ "data": found.to_json() })),
+                Some(found) => answer(200, json!({ "data": found.to_json(documented) })),
                 None => refusal(404, "Match not found"),
             }
         }
@@ -333,7 +376,7 @@ async fn challonge(
                 "mark_as_underway" if found.state == "open" => found.underway = true,
                 _ => return refusal(422, "That state change is not possible"),
             }
-            let found = found.to_json();
+            let found = found.to_json(documented);
             answer(200, json!({ "data": found }))
         }
         (Method::PUT, path) => {
@@ -381,7 +424,7 @@ async fn challonge(
                 .and_then(|entry| entry["participant_id"].as_str())
                 .map(str::to_owned);
             found.state = "complete";
-            let found = found.to_json();
+            let found = found.to_json(documented);
             state.advance();
             if lose_answer {
                 return refusal(502, "Bad gateway");
@@ -418,6 +461,7 @@ impl FakeChallonge {
             odd_report_answers: Vec::new(),
             listed_twice: HashSet::new(),
             log: Vec::new(),
+            documented_shape: false,
         }));
         let app = Router::new().fallback(challonge).with_state(state.clone());
         let api = super::serve(app).await;

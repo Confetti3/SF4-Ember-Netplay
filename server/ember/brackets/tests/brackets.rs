@@ -13,6 +13,9 @@ use support::{
 const LIST: &str = "GET /matches.json?state=open&page=1&per_page=25";
 const PARTICIPANTS: &str = "GET /participants.json?page=1&per_page=25";
 
+// The fake Challonge answers in the shape the live v2.1 API sends by default
+// (players in `points_by_participant`, no `player1` or `player2`), so this
+// and every other test here runs the connector against that shape.
 #[tokio::test]
 async fn a_set_is_played_in_ember_and_its_score_goes_back() {
     let world = World::start(Setup::default()).await;
@@ -508,4 +511,53 @@ async fn challonge_group_and_final_stages_take_their_own_length() {
             ),
         ]
     );
+}
+
+#[tokio::test]
+async fn a_set_whose_players_are_in_relationships_is_played_too() {
+    // The shape Challonge's published schema describes, which the connector
+    // still reads: the players in `attributes.relationships`.
+    let world = World::start(Setup {
+        documented_shape: true,
+        ..Setup::default()
+    })
+    .await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "Player_2").await;
+
+    world.connector.pass(true).await;
+    assert_eq!(
+        lines(&world.challonge.log()),
+        [LIST, PARTICIPANTS, "PUT /matches/1001/change_state.json"]
+    );
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].0, "challonge:ember_weekly:1001:1");
+
+    world.play(&matches[0].1, &[0, 0]).await;
+    world.bridge.deliver().await;
+    world.connector.pass(false).await;
+    assert_eq!(
+        lines(&world.challonge.log()),
+        [LIST, "PUT /matches/1001.json"]
+    );
+    assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("355"));
+}
+
+#[tokio::test]
+async fn an_open_set_listing_one_player_is_not_made() {
+    // In the live shape a set lists the players it has; with fewer than two
+    // it is left until Challonge feeds it.
+    let mut half = FakeMatch::open("1001", 1, ["355", "354"]);
+    half.players[1] = None;
+    let world = World::start(Setup {
+        matches: vec![half],
+        ..Setup::default()
+    })
+    .await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "Player_2").await;
+
+    world.connector.pass(true).await;
+    assert_eq!(world.bridge.matches().await.len(), 0);
 }

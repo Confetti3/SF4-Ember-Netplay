@@ -2,7 +2,7 @@
 
 Source: the official docs at https://challonge.apidog.io, read on 2026-10-18 through the `.md` page variants and the `llms.txt` index. Every statement below comes from those pages unless it is under a heading or in a row marked **NOT STATED** or **INFERENCE**. Where the docs contradict themselves, both versions are given.
 
-Method note: the pages were read through a summarizing fetch tool, so JSON examples that the docs do not publish (many of them) are labeled "derived from schema defaults". No live API call was made, so nothing here is confirmed against real server behavior.
+Method note: the pages were read through a summarizing fetch tool, so JSON examples that the docs do not publish (many of them) are labeled "derived from schema defaults". No live API call was made for the first version of this file, so nothing here was confirmed against real server behavior until 2026-10-19, when one open match of a started single elimination tournament was read with the v2.1 API. What that read settled is marked "Read live" below (the shape of a match, in section 4 and in the open-questions table); everything else is still unverified live.
 
 What Ember uses: the bridge signs players in with the authorization-code flow (section 2.4) and reads `/me` (section 3); ember-brackets reads and reports tournaments, participants and matches (sections 4 to 6) with the organizer's key. The device grant (section 2.3) was the first plan and is not used; it is kept below as reference only.
 
@@ -32,11 +32,11 @@ The docs mix representations. Model them leniently.
 | `participant.attributes.tournament_id` | integer | Example `21` |
 | `participant.attributes.group_id` | integer | Placeholder text in the schema, so nullable in practice (**INFERENCE**) |
 | `match.attributes.winner_id` | integer | Example `355` |
-| `match.relationships.player1.data.id` | string | Example `"355"` |
-| `points_by_participant[].participant_id` | integer | Example `355` |
+| `match.relationships.player1.data.id` | string | Example `"355"`. Documented only: the live answer has no `player1` (read 2026-10-19) |
+| `points_by_participant[].participant_id` | integer | Example `355`. Confirmed live 2026-10-19: a number |
 | Update Match request `participant_id` | string | Example `"76"` |
 
-**INFERENCE for implementers:** the same participant id appears as a string in `data.id` and `relationships.*.data.id` and as an integer in `winner_id` and `points_by_participant`. Parse ids as strings and accept integer or string with a custom serde deserializer.
+**Confirmed live (2026-10-19) for `points_by_participant`; the rest still INFERENCE for implementers:** the same participant id appears as a string in `data.id` and `relationships.*.data.id` and as an integer in `winner_id` and `points_by_participant`. Parse ids as strings and accept integer or string with a custom serde deserializer.
 
 ### 1.2 Error response format (JSON:API errors)
 
@@ -439,7 +439,7 @@ Response 200: `{"data":[MatchModel, ...]}`.
 
 ### MatchModel
 
-Derived from schema defaults, no published example:
+Derived from schema defaults, no published example. **The live API differs from this example in where it names the players** (the "Read live" paragraph below, and the example after it): it sends `points_by_participant` and no `player1` or `player2`.
 
 ```json
 {
@@ -481,12 +481,38 @@ Derived from schema defaults, no published example:
 | `attributes.suggested_play_order` | integer | |
 | `attributes.scores` | string | Display text such as `2 - 0` |
 | `attributes.score_in_sets` | declared `object`, default is an array of `[a, b]` pairs | Treat as `serde_json::Value` |
-| `attributes.points_by_participant` | declared `object`, default is an array of objects | Treat as `serde_json::Value` |
-| `attributes.timestamps.created_at`, `.updated_at` | string | |
+| `attributes.points_by_participant` | declared `object`, default is an array of objects | Treat as `serde_json::Value`. **Read live 2026-10-19: an array with one `{ "participant_id": <number>, "scores": [] }` per player, first player first, and the only place the live answer names a match's players.** What it lists for a match not fed yet was not read: ember-brackets takes only exactly two entries with IDs, two different players, and otherwise holds the set (**INFERENCE**). |
+| `attributes.timestamps.created_at`, `.updated_at` | string | Live also sends `started_at` and `underway_at` (null on an open match not marked underway), read 2026-10-19 |
 | `attributes.winner_id` | integer | "The participant ID of the winner". Renamed from `winners` in v2.0. Null or absent before completion (**INFERENCE**). |
-| `attributes.relationships.player1.data`, `player2.data` | object with `id` (string) and `type` (`participant`) | Note: `relationships` sits inside `attributes` per this schema, unlike standard JSON:API. Player slots can be empty before a match is fed (**INFERENCE**, not stated). |
+| `attributes.relationships.player1.data`, `player2.data` | object with `id` (string) and `type` (`participant`) | Note: `relationships` sits inside `attributes` per this schema, unlike standard JSON:API. **Documented but not sent by the live API** (read 2026-10-19: neither `player1` nor `player2` is anywhere in the answer); ember-brackets still reads it first when present. Player slots can be empty before a match is fed (**INFERENCE**, not stated). |
 
-**Read live (2026-10-19, an open match of a started single elimination tournament):** the attributes carry `scores` ("0 - 0"), `score_in_sets` (`[]`), `points_by_participant` (one `{ "participant_id": <number>, "scores": [] }` per player, first player first, and the only place the players are named: there is no `player1` or `player2`), `winner_id` (null), `tie`, `location`, `scheduled_time`, and `timestamps` with `started_at`, `created_at`, `updated_at` and `underway_at` (null). The document's own `relationships` holds only `attachments`.
+**Read live (2026-10-19, an open match of a started single elimination tournament):** the attributes carry `scores` ("0 - 0"), `score_in_sets` (`[]`), `points_by_participant` (one `{ "participant_id": <number>, "scores": [] }` per player, first player first, and the only place the players are named: there is no `player1` or `player2`), `winner_id` (null), `tie`, `location`, `scheduled_time`, and `timestamps` with `started_at`, `created_at`, `updated_at` and `underway_at` (null). The document's own `relationships` holds only `attachments`. The live shape, with made-up ids:
+
+```json
+{
+  "data": {
+    "id": "100200300",
+    "type": "match",
+    "attributes": {
+      "state": "open",
+      "round": 1,
+      "identifier": "A",
+      "scores": "0 - 0",
+      "score_in_sets": [],
+      "points_by_participant": [
+        { "participant_id": 555001, "scores": [] },
+        { "participant_id": 555002, "scores": [] }
+      ],
+      "timestamps": { "started_at": "2026-10-19T17:17:55.208Z", "created_at": "2026-10-19T17:17:55.175Z", "updated_at": "2026-10-19T17:17:55.208Z", "underway_at": null },
+      "winner_id": null,
+      "tie": false,
+      "location": null,
+      "scheduled_time": null
+    },
+    "relationships": { "attachments": { "data": [] } }
+  }
+}
+```
 
 **NOT STATED:** `group_id` on matches (the Upgrading page says group stage matches carry a `group_id`, the schema does not list it; ember-brackets reads a number, or a string of digits, as "in a group stage" and anything else, including the schema's placeholder text, as not, and gives a group stage match the round label "Group stage, Round N" and the round-rule stage `group`), the loser id, per-player scores as separate fields, `underway_at`, and `scheduled_time`/`location` in the output (they exist only in the Update request).
 
@@ -544,6 +570,8 @@ No `required` array on `MatchInput`. Example values above (the second participan
 | `state` values | `reopen`, `mark_as_underway`, `unmark_as_underway` |
 | Responses | 200 (MatchModel), 401, 404, 406, 415, 422 |
 
+**Not run live:** `reopen` has not been sent to the real API. Whether the match comes back with its earlier scores and winner is unknown, and so is what it does to the sets that follow. The tournament self-test's reopen helper (`tools/selftest-challonge.ts reopen`) reads the match back afterwards, fails unless it is open, and prints the score it shows, so the first real reopen answers this.
+
 ## 7. Pagination summary
 
 All list endpoints take `page` (default 1) and `per_page` (default 25). Both are declared integer with a stray `format: string`, so send them as plain numbers in the query string. The response carries no totals, links, or meta. **NOT STATED:** maximum `per_page`, behavior past the last page (empty array assumed), and whether `Link` headers are returned.
@@ -578,7 +606,7 @@ Resolve each against the real server before relying on it. Rows 3 to 7 are about
 | 12 | Tournament `state` attribute on the Tournament response | Not in the schema |
 | 13 | User `email` presence and nullability, `username` nullability | Not stated |
 | 14 | Participant has no Challonge user id field | Only `username` |
-| 15 | Match `group_id`, empty player slots, `winner_id` null before completion | Not in schema |
+| 15 | Match `group_id`, empty player slots, `winner_id` null before completion | Not in schema. Read live 2026-10-19: `winner_id` is null on an open match. Still unread: `group_id`, and what the players list holds for a match not fed yet |
 | 16 | `score_set` semantics for 2-player matches (one entry versus two) | Complement values implied; unverified |
 | 17 | Change Match State content type (`application/json` versus `application/vnd.api+json`) | Spec inconsistent |
 | 18 | Whether `.json` suffix is optional | Not stated |
@@ -589,6 +617,8 @@ Resolve each against the real server before relying on it. Rows 3 to 7 are about
 | 23 | Whether a Connect app may use the authorization-code flow with the bridge's redirect URI (`<origin>/v1/sites/challonge/callback`) | Documented for websites; registering the URI is unverified |
 | 24 | Whether `/oauth/authorize` carries `state` back to the redirect with the `code` | Standard OAuth, not stated by Challonge's pages; the bridge relies on it |
 | 25 | Whether the token endpoint takes the authorization-code exchange as a form body with `client_secret` | The Authorization page's samples do; unverified live |
+| 26 | Where a match names its players | Resolved live 2026-10-19: `attributes.points_by_participant`, not `player1`/`player2` (section 4) |
+| 27 | What `reopen` does to a match's earlier scores, winner and later sets | Not run live |
 
 ## 10. Page index
 
