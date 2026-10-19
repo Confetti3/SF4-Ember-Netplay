@@ -9,6 +9,7 @@
 #include "../ui/NetworkFeedback.hxx"
 #include "sf4e__AwayAlert.hxx"
 #include "sf4e__Steam.hxx"
+#include "sf4e__SelfTest.hxx"
 #include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
@@ -62,9 +63,11 @@ bool AtMainMenu() {
 }
 
 // The native screen in front ("MainMenu", "Option", ...), empty while the
-// foreground is changing or before the event system is up. Game thread.
+// foreground is changing or before the event system is up. It asks the event
+// system itself (Dimps::App::RootEventReady), so it also answers on the title
+// screen, before the main menu publishes eventSystemReady. Game thread.
 static std::string NativeForegroundName() {
-	if (!runtime || !runtime->ready || !runtime->eventSystemReady) return {};
+	if (!runtime || !runtime->ready || !Dimps::App::RootEventReady()) return {};
 	auto* root = Dimps::App::GetRootEvent();
 	if (!root) return {};
 	using Dimps::Event::EventController;
@@ -755,8 +758,7 @@ void TickRuntime() {
 	}
 	if (runtime->services.Snapshot().closeGame && !runtime->updateClosing) {
 		runtime->updateClosing = true;
-		auto* main = Dimps::Platform::Main::staticMethods.GetSingleton();
-		if (main) PostMessageW((*Dimps::Platform::Main::GetWindowData(main))->hWnd, WM_CLOSE, 0, 0);
+		Dimps::Platform::Main::Close();
 	}
 	// Advance the host authority before the following SessionServer::Step()
 	// consumes room actions. This drives result-dispute and chat-rate deadlines
@@ -769,6 +771,7 @@ void TickRuntime() {
 	DrainRoomEvents();
 	TickTournament(helperReady);
 	TickReplays();
+	if (selftest::Running()) selftest::Tick(AtMainMenu(), NativeForegroundName());
 	PersistTerminalOutcome();
 	DrainActionReplies();
 	RetryPendingAbort();
