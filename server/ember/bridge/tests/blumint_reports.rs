@@ -573,6 +573,54 @@ async fn a_progress_report_follows_each_game_that_does_not_end_the_set() {
     );
 }
 
+// BluMint asks every report to name the creation that made its match by that
+// creation's Idempotency-Key, so a report that reaches it before it has
+// recorded the creation's answer waits instead of reading as a match it does
+// not know. The stand-in BluMint refuses a report without one, as BluMint
+// does; each kind the bridge sends carries its own match's key.
+#[tokio::test]
+async fn every_report_names_the_creation_that_made_its_match() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "tA1b2-round-1-match-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    assert!(reports(&f, &id).await.is_empty());
+    assert!(!statuses(&f, &id).is_empty());
+    win(&f, &id, 0, "game-1").await;
+    win(&f, &id, 0, "game-2").await;
+    assert_eq!(
+        reports(&f, &id).await,
+        vec![progressed(&f, &id, [1, 0]), result(&f, &id, [2, 0])]
+    );
+
+    let (_, created) = create(&f, "tA1b2-round-1-match-2", 2).await;
+    let next = created["matchId"].as_str().unwrap().to_owned();
+    cancel(&f, &next, "cancel-1").await;
+    assert_eq!(
+        reports(&f, &next).await,
+        vec![restart(&f, &next, "serverFailure", [0, 0])]
+    );
+
+    for (id, key, modes) in [
+        (
+            &id,
+            "tA1b2-round-1-match-1",
+            &["status", "progress", "result"][..],
+        ),
+        (&next, "tA1b2-round-1-match-2", &["abort"][..]),
+    ] {
+        let sent = report_keys(&f, id);
+        assert!(sent.iter().all(|(_, sent)| sent == key), "{sent:?}");
+        for mode in modes {
+            assert!(
+                sent.iter().any(|(sent, _)| sent == mode),
+                "{mode}: {sent:?}"
+            );
+        }
+    }
+}
+
 // BluMint keeps the wins a progress report gave a team and refuses any later
 // report below them, the result included. So once one has been sent, a game
 // it may count cannot be voided, mid-set or in a correction.

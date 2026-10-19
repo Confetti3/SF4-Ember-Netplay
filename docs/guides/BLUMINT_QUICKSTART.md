@@ -214,7 +214,10 @@ does, every time you send it. The close's own `Idempotency-Key` is not read.
 
 Each bridge posts to its BluMint API's `/tournaments/match/submit`, such as
 `https://staging.blumint.io/api/tournaments/match/submit` from the staging
-bridge, with that environment's BluMint API key. Every report names each
+bridge, with that environment's BluMint API key. Every report names the
+creation that made the match by its `Idempotency-Key`, as `idempotencyKey`,
+so a report that reaches you before you have recorded the creation's answer
+gets `503 match_not_ready` and is sent again. Every report names each
 player by the Ember ID you sent. Each team's `wins`, in a progress report, a
 result and an abort, is the set's running total after that game, counting
 the `startingWins` the match was created with, never that one game's outcome
@@ -226,7 +229,8 @@ each game starts, and as each game ends with another to come. A match nobody
 has opened has none.
 
 ```json
-{ "mode": "status", "matchId": "emt_...", "status": "running",
+{ "mode": "status", "matchId": "emt_...", "idempotencyKey": "tA1b2-round-1-match-1",
+  "status": "running",
   "revision": 3, "observedAt": "2026-10-16T18:04:12Z", "players": [
   { "inGameId": "emb1_...", "status": "present-ready" },
   { "inGameId": "emb1_...", "status": "present-ready" } ] }
@@ -266,7 +270,8 @@ After each game won that does not end the set. In a first to 3, once the
 first team has won two games and the second one:
 
 ```json
-{ "mode": "progress", "matchId": "emt_...", "teams": [
+{ "mode": "progress", "matchId": "emt_...", "idempotencyKey": "tA1b2-round-1-match-1",
+  "teams": [
   { "players": [ { "inGameId": "emb1_..." } ], "wins": 2 },
   { "players": [ { "inGameId": "emb1_..." } ], "wins": 1 } ] }
 ```
@@ -274,7 +279,8 @@ first team has won two games and the second one:
 When the set is won, here by the first team's third game:
 
 ```json
-{ "mode": "result", "matchId": "emt_...", "teams": [
+{ "mode": "result", "matchId": "emt_...", "idempotencyKey": "tA1b2-round-1-match-1",
+  "teams": [
   { "players": [ { "inGameId": "emb1_..." } ], "wins": 3 },
   { "players": [ { "inGameId": "emb1_..." } ], "wins": 1 } ] }
 ```
@@ -288,7 +294,8 @@ an earlier one gave a team, and the set could never be reported again. When a ma
 the bridge posts an abort with the wins so far:
 
 ```json
-{ "mode": "abort", "matchId": "emt_...", "reason": "disputed", "retryable": true, "teams": [
+{ "mode": "abort", "matchId": "emt_...", "idempotencyKey": "tA1b2-round-1-match-1",
+  "reason": "disputed", "retryable": true, "teams": [
   { "players": [ { "inGameId": "emb1_..." } ], "wins": 1 },
   { "players": [ { "inGameId": "emb1_..." } ], "wins": 0 } ] }
 ```
