@@ -26,7 +26,11 @@ struct Fixture {
 }
 
 async fn fixture() -> Fixture {
-    let bridge = Bridge::start().await;
+    fixture_with(|_| {}).await
+}
+
+async fn fixture_with(adjust: impl FnOnce(&mut ember_bridge::Config)) -> Fixture {
+    let bridge = Bridge::start_with(adjust, Default::default()).await;
     let provider = bridge.provider("mock-a").await;
     let organizer = bridge.organizer("t1").await;
     let mut a = bridge.player(31);
@@ -205,6 +209,98 @@ async fn a_sets_replays_are_kept_once_and_packed_by_save_time() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+/// The replays the bridge holds for set `id`.
+async fn held(f: &Fixture, id: &str) -> i64 {
+    let id = id.to_owned();
+    f.bridge
+        .state()
+        .db
+        .read(move |tx| {
+            Ok(tx.query_row(
+                "SELECT COUNT(*) FROM match_replays WHERE match_id = ?1",
+                [id],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap()
+}
+
+/// A bridge that keeps replays `days` days, backing packs up to `backup`.
+async fn retained(days: u64, backup: &std::path::Path) -> (Fixture, String) {
+    let backup = backup.to_owned();
+    let f = fixture_with(move |config| {
+        config.replay_retention = Some(ember_bridge::config::ReplayRetention {
+            days,
+            backup: Some(backup),
+        })
+    })
+    .await;
+    let id = create(&f, "play-retained", "ember-room-v1", 2).await;
+    for n in [1, 2] {
+        send_replay(&f, &f.a, &id, &replay(n), 1).await;
+    }
+    (f, id)
+}
+
+#[tokio::test]
+async fn replays_are_kept_forever_by_default() {
+    let f = fixture().await;
+    let id = create(&f, "play-forever", "ember-room-v1", 2).await;
+    send_replay(&f, &f.a, &id, &replay(1), 1).await;
+    for _ in 0..3 {
+        f.bridge.clock.advance(3650 * DAY as i64);
+        ember_bridge::maintain(f.bridge.state()).await;
+    }
+    assert_eq!(held(&f, &id).await, 1);
+}
+
+/// With a retention, a set untouched that long is written to the backup
+/// folder as its pack, then its replays go.
+#[tokio::test]
+async fn old_sets_are_backed_up_then_pruned() {
+    let backup = std::env::temp_dir().join(format!("ember-replay-backup-{}", std::process::id()));
+    let (f, id) = retained(30, &backup).await;
+    let served = f
+        .bridge
+        .client
+        .get(f.bridge.url(&format!("/v1/matches/{id}/replays.pack")))
+        .bearer_auth(&f.provider)
+        .send()
+        .await
+        .unwrap()
+        .bytes()
+        .await
+        .unwrap();
+    // Unplayed, the set expires after a day, which is its last change.
+    f.bridge.clock.advance(DAY as i64 + 1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    f.bridge.clock.advance(29 * DAY as i64);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(held(&f, &id).await, 2, "kept within the retention");
+    f.bridge.clock.advance(DAY as i64 + 1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(held(&f, &id).await, 0);
+    let saved = std::fs::read(backup.join(format!("{id}.emberpack"))).unwrap();
+    assert_eq!(saved, served);
+    std::fs::remove_dir_all(&backup).unwrap();
+}
+
+/// A backup that cannot be written keeps the set's replays.
+#[tokio::test]
+async fn a_failed_backup_keeps_the_replays() {
+    // A file where the folder should be.
+    let backup = std::env::temp_dir().join(format!("ember-replay-blocked-{}", std::process::id()));
+    std::fs::write(&backup, b"").unwrap();
+    let (f, id) = retained(30, &backup).await;
+    for _ in 0..2 {
+        f.bridge.clock.advance(31 * DAY as i64);
+        ember_bridge::maintain(f.bridge.state()).await;
+    }
+    assert_eq!(held(&f, &id).await, 2);
+    std::fs::remove_file(&backup).unwrap();
 }
 
 #[tokio::test]

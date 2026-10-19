@@ -65,6 +65,9 @@ pub struct Config {
     /// tournament sets never expire this way.
     #[serde(default = "default_match_expiry_hours")]
     pub match_expiry_hours: u64,
+    /// How long a set's replays are kept. Forever when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replay_retention: Option<ReplayRetention>,
     pub tenants: Vec<Tenant>,
 }
 
@@ -76,6 +79,21 @@ pub struct Desk {
     /// credential and reads the events from `/v1/desk/brackets`.
     pub connection: String,
 }
+
+/// Pruning of old sets' replays (`routes::replays::prune`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReplayRetention {
+    /// Days a set's replays are kept after the set last changed, at least
+    /// `MIN_REPLAY_RETENTION_DAYS`.
+    pub days: u64,
+    /// A folder each set's pack is written to, as `<match id>.emberpack`,
+    /// before its replays are removed; they stay until that write succeeds.
+    #[serde(default)]
+    pub backup: Option<PathBuf>,
+}
+
+pub const MIN_REPLAY_RETENTION_DAYS: u64 = 30;
 
 pub const DEFAULT_MATCH_EXPIRY_HOURS: u64 = 24;
 pub const MIN_MATCH_EXPIRY_HOURS: u64 = 1;
@@ -322,6 +340,12 @@ impl Config {
         for file in [&mut config.database, &mut config.secrets]
             .into_iter()
             .chain(config.integration_secrets.as_mut())
+            .chain(
+                config
+                    .replay_retention
+                    .as_mut()
+                    .and_then(|retention| retention.backup.as_mut()),
+            )
         {
             if file.is_relative() {
                 *file = base.join(&*file);
@@ -387,6 +411,13 @@ impl Config {
         if !(MIN_MATCH_EXPIRY_HOURS..=MAX_MATCH_EXPIRY_HOURS).contains(&self.match_expiry_hours) {
             return Err(format!(
                 "match_expiry_hours must be {MIN_MATCH_EXPIRY_HOURS} to {MAX_MATCH_EXPIRY_HOURS}"
+            ));
+        }
+        if let Some(retention) = &self.replay_retention
+            && retention.days < MIN_REPLAY_RETENTION_DAYS
+        {
+            return Err(format!(
+                "replay_retention.days must be at least {MIN_REPLAY_RETENTION_DAYS}"
             ));
         }
         let mut seen = std::collections::BTreeSet::new();
@@ -641,6 +672,27 @@ mod tests {
         };
         assert!(config(json!(["challonge"])).is_ok());
         assert!(config(json!(["startgg"])).is_err());
+    }
+
+    #[test]
+    fn replays_are_kept_at_least_thirty_days() {
+        let retention = |days: u64| {
+            let mut config: Config = serde_json::from_value(json!({
+                "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
+                "display_name": "Test bridge", "origin": "https://bridge.example", "listen": "127.0.0.1:0",
+                "database": "bridge.sqlite3", "secrets": "secrets.json", "tenants": [],
+            }))
+            .unwrap();
+            assert!(config.replay_retention.is_none(), "kept forever by default");
+            config.replay_retention = Some(ReplayRetention { days, backup: None });
+            config.validate()
+        };
+        for accepted in [30, 365] {
+            assert!(retention(accepted).is_ok(), "{accepted}");
+        }
+        for refused in [0, 29] {
+            assert!(retention(refused).is_err(), "{refused}");
+        }
     }
 
     #[test]

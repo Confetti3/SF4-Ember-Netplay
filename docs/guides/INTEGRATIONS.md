@@ -77,6 +77,11 @@ nginx site, a daily backup and `setup.sh`.
 stays open (24 when absent; 1 to 336, which is 14 days). See "Matches nobody
 plays" below.
 
+`replay_retention` prunes old sets' replays, which are kept forever when it
+is absent: `{ "days": 90, "backup": "replay-backup" }` removes a set's replays
+once the set has not changed for `days` (at least 30), after writing its pack
+to `backup` when set. See `docs/design/TOURNAMENT_DESK.md` 4b.
+
 ## Link a player
 
 1. Your service, having verified who the user is, creates a link intent:

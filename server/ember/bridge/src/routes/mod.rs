@@ -224,7 +224,8 @@ pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<
 /// Expires link intents, holds games whose reports did not arrive, expires
 /// matches nobody played, observes the fighters whose claims lapsed, and
 /// removes sign-ins no site answered, stale challenges, sessions, replay
-/// records and refused BluMint keys. Durable domain records (links, matches, attempts, reports, events)
+/// records, refused BluMint keys and old sets' replays when the bridge prunes
+/// them. Durable domain records (links, matches, attempts, reports, events)
 /// stay, and with each BluMint match the key it was made under, its
 /// `external_match_id`.
 pub async fn maintenance_once(state: &AppState) {
@@ -253,6 +254,7 @@ pub async fn maintenance_once(state: &AppState) {
                 "DELETE FROM idempotency_records WHERE created_at <= ?1",
                 params![cutoff],
             )?;
+            replays::prune(tx, &ctx)?;
             Ok(())
         })
         .await;
