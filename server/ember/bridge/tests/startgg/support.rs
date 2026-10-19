@@ -11,17 +11,20 @@ use crate::common::Bridge;
 pub use crate::common::{
     sign_in::{Code, FakeSite, User, definition, player, send},
     sites::{
-        account_on, bridge_with_sites, connect_on, database_holds, direct, found, link_of, lookup,
-        requests_spent, secrets, start_on, with_limits,
+        LIMITS, TestSite, bridge_with_sites, connect_discord, database_holds, direct, link_of,
+        lookup, remove_link, secrets,
     },
 };
 
-/// The site ID the definition gives start.gg.
-pub const SITE: &str = "startgg";
-/// start.gg user IDs are numbers, and gamer tags are no one's own: Kate's
-/// twin has her tag.
-pub const KATE: User = ("1234567", "Kate");
-pub const TWIN: User = ("7654321", "Kate");
+/// start.gg, by the site ID its definition gives it.
+pub const STARTGG: TestSite = TestSite("startgg");
+pub const SITE: &str = STARTGG.0;
+/// A site with no code of its own, defined only in the test (`bracketeer`).
+pub const BRACKETEER: TestSite = TestSite("bracketeer");
+/// start.gg user IDs are numbers, and gamer tags are no one's own: Player 1's
+/// twin has the same tag.
+pub const PLAYER1: User = ("1234567", "Player 1");
+pub const TWIN: User = ("7654321", "Player 1");
 /// A user with no player profile, so no gamer tag.
 pub const NAMELESS: User = ("2000", "");
 /// Signs in, but the GraphQL API answers with errors and no user.
@@ -38,7 +41,7 @@ pub const GG: &str = "gg-bot";
 pub const CALLBACK: &str = "/v1/sites/startgg/callback";
 
 /// A stand-in for start.gg's token endpoint and GraphQL API. Codes
-/// `good-kate`, `good-twin`, `good-nameless`, `good-refused` and `good-huge`
+/// `good-player1`, `good-twin`, `good-nameless`, `good-refused` and `good-huge`
 /// sign those
 /// users in; anything else is refused. The API gives the user ID as a
 /// number, as start.gg's does.
@@ -49,7 +52,7 @@ pub fn fake_startgg() -> Arc<FakeSite> {
         (CLIENT_ID, CLIENT_SECRET),
         CALLBACK,
         vec![
-            ("good-kate", Code::SignsIn(KATE)),
+            ("good-player1", Code::SignsIn(PLAYER1)),
             ("good-twin", Code::SignsIn(TWIN)),
             ("good-nameless", Code::SignsIn(NAMELESS)),
             ("good-refused", Code::SignsIn(REFUSED)),
@@ -91,7 +94,8 @@ pub async fn bridge(fake: &Arc<FakeSite>) -> Bridge {
 /// The user IDs a lookup on `connection` found on start.gg, with the
 /// Ember IDs they are connected to.
 pub async fn found_ids(bridge: &Bridge, connection: &str, ids: &[&str]) -> Vec<(String, String)> {
-    found(bridge, connection, SITE, ids)
+    STARTGG
+        .found(bridge, connection, ids)
         .await
         .into_iter()
         .map(|(asked, user_id, ember_id)| {
@@ -146,15 +150,15 @@ pub fn bracketeer(origin: &str) -> Json {
     })
 }
 
-/// A stand-in for Bracketeer: `good-kate` signs in user `b-17`, whose
-/// handle is `KateB`, and its whoami answers only with its own `Accept`.
+/// A stand-in for Bracketeer: `good-player1` signs in user `b-17`, whose
+/// handle is `Player1B`, and its whoami answers only with its own `Accept`.
 pub fn fake_bracketeer() -> Arc<FakeSite> {
     FakeSite::new(
         "/login/oauth/access_token",
         "/api/v3/whoami",
         ("bracketeer-client", "bracketeer-secret"),
         "/v1/sites/bracketeer/callback",
-        vec![("good-kate", Code::SignsIn(("b-17", "KateB")))],
+        vec![("good-player1", Code::SignsIn(("b-17", "Player1B")))],
         &[("accept", "application/vnd.bracketeer+json")],
         |(id, handle)| json!({ "account": { "uid": id, "handle": handle, "plan": "free" } }),
     )

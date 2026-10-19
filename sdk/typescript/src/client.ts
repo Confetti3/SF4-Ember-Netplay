@@ -354,9 +354,9 @@ export class BridgeClient {
    * Finds players by their accounts on sign-in sites, as a tournament entry
    * shows them, for a connection whose `lookup_sites` name each site asked.
    * Each `id` is matched as the site's `lookup_by` and username rule say
-   * (Challonge usernames without case, start.gg user IDs exactly). Linked
-   * and answered like `lookupPlayers`, once per site and player; at most 32
-   * accounts.
+   * (Challonge usernames without case, start.gg user IDs exactly); one the
+   * site's accounts cannot have finds no one. Linked and answered like
+   * `lookupPlayers`, once per site and player; at most 32 accounts.
    */
   async lookupAccounts(accounts: SiteAccount[]): Promise<FoundAccount[]> {
     const asked = accounts.map(({ site, id }) => ({ site, id }));

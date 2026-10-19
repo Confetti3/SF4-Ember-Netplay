@@ -41,8 +41,10 @@ A connection in `bridge.json` may carry, besides `id`, `kind`,
 - `discord_lookup` (default false): the connection may find players by
   Discord user ID (`POST /v1/players/lookup`). A player who connected their
   Discord account to their Ember ID is found, and linked on the connection
-  (`approved_via` `discord`), exactly as BluMint's lookup does: a link the
-  player removed is not made again until they sign in with Discord again.
+  (`approved_via` `discord`), exactly as BluMint's lookup does. A link the
+  player removed is not made again by any account they connected (Discord's
+  or a sign-in site's) until they sign in again with one of them, which
+  gives that account's consent back.
 - `lookup_sites` (default empty): the sign-in sites, by site ID, whose
   accounts the connection may find players by, the same way (`approved_via`
   `site`), for players who connected those accounts. Each must be a site in
@@ -171,11 +173,11 @@ not ask for the match again and its host takes it.
 
 `POST /v1/players/lookup` (provider credential, `discord_lookup` or kind
 `blumint` for `discord`, `lookup_sites` naming each site in `accounts`;
-either list may be left out, but not both, so `{}` is `invalid_request` as
-it always was, and `null` is refused):
+a list left out or empty asks nothing, so `{}` answers `{"players": []}`;
+`null` and unknown fields are refused):
 
 ```json
-{ "discord": ["80351110224678912"], "accounts": [ { "site": "challonge", "id": "Kate_99" }, { "site": "startgg", "id": "1234567" } ] }
+{ "discord": ["80351110224678912"], "accounts": [ { "site": "challonge", "id": "Player_1" }, { "site": "startgg", "id": "1234567" } ] }
 ```
 
 answers, for each account connected to an Ember ID and linked (or now
@@ -185,7 +187,7 @@ lists together:
 ```json
 {
   "players": [ { "discord_user_id": "80351110224678912", "ember_id": "emb1_...", "participant_id": "par_..." } ],
-  "accounts": [ { "site": "challonge", "id": "Kate_99", "user_id": "1001", "ember_id": "emb1_...", "participant_id": "par_...", "connected_at": 1792000000 } ]
+  "accounts": [ { "site": "challonge", "id": "Player_1", "user_id": "1001", "ember_id": "emb1_...", "participant_id": "par_...", "connected_at": 1792000000 } ]
 }
 ```
 
@@ -194,7 +196,8 @@ answer is as it always was. Each `id` is matched as its site's `lookup_by`
 and `username_rule` say: with the shipped definitions, Challonge usernames
 without case and start.gg user IDs exactly. It is answered as asked, and one
 the site's accounts cannot have (a username its rule does not allow, or a
-user ID that is not 1 to 64 visible ASCII characters) is `invalid_request`.
+user ID that is not 1 to 64 visible ASCII characters) finds no one, as a
+Discord ID that is no snowflake does.
 An account with no connected Ember ID is left out, and an Ember ID found
 twice by one site (or twice in `discord`) is answered once for it; one found
 on two sites, or by Discord ID and on a site, is answered for each, as one

@@ -89,8 +89,15 @@ fn passes_warning(before: u64, after: u64, monthly: u64) -> bool {
     before * 5 < monthly * 4 && after * 5 >= monthly * 4
 }
 
+/// The budget, today's or this month's, without room for a sign-in's
+/// exchange at `now`, if any, read in the caller's write.
+pub fn full(tx: &Transaction<'_>, site: &str, now: u64, limits: Limits) -> Result<Option<Cap>> {
+    let (_, today, month) = spent(tx, site, now)?;
+    Ok(cap(today, month, limits))
+}
+
 /// The budget without room for a sign-in's exchange, if any.
-fn full(today: u64, month: u64, limits: Limits) -> Option<Cap> {
+fn cap(today: u64, month: u64, limits: Limits) -> Option<Cap> {
     if month + PER_SIGN_IN > limits.monthly_request_budget {
         Some(Cap::Month)
     } else if today + PER_SIGN_IN > limits.daily_request_budget {
@@ -98,23 +105,6 @@ fn full(today: u64, month: u64, limits: Limits) -> Option<Cap> {
     } else {
         None
     }
-}
-
-/// The budget, today's or this month's, without room for a sign-in's
-/// exchange now, if any. A refusal is logged.
-pub async fn refusing(state: &AppState, site: &str, limits: Limits) -> Result<Option<Cap>> {
-    let (now, id) = (state.now(), site.to_owned());
-    let full = state
-        .db
-        .read(move |tx| {
-            let (_, today, month) = spent(tx, &id, now)?;
-            Ok(full(today, month, limits))
-        })
-        .await?;
-    if let Some(cap) = full {
-        refused(state, site, cap);
-    }
-    Ok(full)
 }
 
 /// Takes a sign-in's exchange from today's and this month's budgets, or
@@ -126,7 +116,7 @@ pub async fn spend(state: &AppState, site: &str, limits: Limits) -> Result<bool>
         .db
         .write(move |tx| {
             let (day, today, month) = spent(tx, &id, now)?;
-            if let Some(cap) = full(today, month, limits) {
+            if let Some(cap) = cap(today, month, limits) {
                 return Ok(Err(cap));
             }
             tx.execute(
@@ -172,9 +162,9 @@ mod tests {
             daily_request_budget: 40,
             starts_per_hour: 30,
         };
-        assert_eq!(full(38, 100, limits), None);
-        assert_eq!(full(39, 100, limits), Some(Cap::Day));
-        assert_eq!(full(0, 399, limits), Some(Cap::Month));
-        assert_eq!(full(39, 399, limits), Some(Cap::Month));
+        assert_eq!(cap(38, 100, limits), None);
+        assert_eq!(cap(39, 100, limits), Some(Cap::Day));
+        assert_eq!(cap(0, 399, limits), Some(Cap::Month));
+        assert_eq!(cap(39, 399, limits), Some(Cap::Month));
     }
 }

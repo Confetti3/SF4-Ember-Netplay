@@ -18,50 +18,17 @@ pub const RESULTS_FEATURE: &str = "results.signed";
 pub const MAX_LOOKUP: usize = 32;
 
 /// `POST /v1/players/lookup`. Each list needs its connection's setting
-/// (`discord_lookup`; `lookup_sites` for each site in `accounts`). A lookup
-/// names at least one list, so `{}` is refused as it was before `accounts`
-/// existed, and an empty list asks nothing.
+/// (`discord_lookup`; `lookup_sites` for each site in `accounts`). A list
+/// left out or empty asks nothing.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(try_from = "NamedLists")]
+#[serde(deny_unknown_fields)]
 pub struct Lookup {
+    #[serde(default)]
     pub discord: Vec<String>,
     /// Accounts on sign-in sites, each named the way its site is looked up
     /// (`sites::SignInSite::lookup_by`).
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub accounts: Vec<SiteAccount>,
-}
-
-/// `Lookup` as it arrives, before it is checked to name a list. A list left
-/// out is `None`; a list given as `null` is refused, as it was before
-/// `accounts` existed.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct NamedLists {
-    #[serde(default, deserialize_with = "list")]
-    discord: Option<Vec<String>>,
-    #[serde(default, deserialize_with = "list")]
-    accounts: Option<Vec<SiteAccount>>,
-}
-
-/// A list that is there, which `null` is not.
-fn list<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
-    lists: D,
-) -> Result<Option<Vec<T>>, D::Error> {
-    Vec::deserialize(lists).map(Some)
-}
-
-impl TryFrom<NamedLists> for Lookup {
-    type Error = &'static str;
-
-    fn try_from(lists: NamedLists) -> Result<Self, Self::Error> {
-        if lists.discord.is_none() && lists.accounts.is_none() {
-            return Err("a lookup names discord, accounts or both");
-        }
-        Ok(Self {
-            discord: lists.discord.unwrap_or_default(),
-            accounts: lists.accounts.unwrap_or_default(),
-        })
-    }
 }
 
 /// The players found, in the order asked. An account with no connected
@@ -140,17 +107,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_lookup_names_at_least_one_list() {
+    fn a_lookup_names_its_lists() {
         let parse = |text: &str| serde_json::from_str::<Lookup>(text);
-        assert!(parse("{}").is_err());
-        assert!(
-            parse(r#"{"discord": null, "accounts": [{"site": "challonge", "id": "kate"}]}"#)
-                .is_err()
-        );
-        assert!(parse(r#"{"discord": [], "accounts": null}"#).is_err());
-        assert!(parse(r#"{"discord": [], "challonge": []}"#).is_err());
-        assert!(parse(r#"{"accounts": [{"site": "startgg", "id": "1", "extra": 1}]}"#).is_err());
+        assert_eq!(parse("{}").unwrap(), Lookup::default());
         assert_eq!(parse(r#"{"discord": []}"#).unwrap(), Lookup::default());
+        for refused in [
+            r#"{"discord": null}"#,
+            r#"{"discord": [], "accounts": null}"#,
+            r#"{"discord": [], "challonge": []}"#,
+            r#"{"accounts": [{"site": "startgg", "id": "1", "extra": 1}]}"#,
+        ] {
+            assert!(parse(refused).is_err(), "{refused}");
+        }
         let sites = parse(r#"{"accounts": [{"site": "startgg", "id": "1234"}]}"#).unwrap();
         assert_eq!(
             sites.accounts,

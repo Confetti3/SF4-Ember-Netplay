@@ -358,16 +358,18 @@ pub fn proven<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<(ProvenReq
 #[serde(deny_unknown_fields)]
 pub struct Nothing {}
 
-/// Consumes the session player's proof of `request` for `action` on
-/// `method` and `path`, and runs `work` in the same write, with the Ember ID
-/// the proof names.
+/// Consumes the session player's proof in `body`, an action the route
+/// alone describes (its command is empty), for `action` on `method` and
+/// `path`, and runs `work` in the same write, with the Ember ID the proof
+/// names.
 pub async fn as_proven<T: Send + 'static>(
     state: &AppState,
     player: auth::Player,
-    request: ProvenRequest,
+    body: &Body<PROOF_BODY>,
     (action, method, path): (Action, Method, String),
     work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<T> + Send + 'static,
 ) -> Result<T> {
+    let (request, Nothing {}) = proven(&body.0)?;
     let ctx = Ctx::of(state);
     let done = state
         .db

@@ -23,7 +23,7 @@ pub use claim::{ClaimCommand, cancel_claim, claim};
 pub use code::{CODE_LIFETIME_SECS, check_subject};
 pub use intent::{IntentCreated, Owner, browser_intent, cancel_intent, create_intent, view_intent};
 pub use revoke::{Unlinker, revoke_link, unlink};
-pub use site::{Ask, Site, discord_asks, find_and_link};
+pub use site::{Ask, Site, find_and_link, site_has_accounts};
 
 use rusqlite::{Transaction, params};
 

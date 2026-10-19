@@ -51,7 +51,7 @@ use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
-    linking::{discord_asks, find_and_link},
+    linking::{Ask, find_and_link},
     routes::policy,
     util::outbound_client,
 };
@@ -132,8 +132,8 @@ pub async fn lookup(
     let found = state
         .db
         .write(move |tx| {
-            let asks = discord_asks(&user_ids);
-            let found = find_and_link(tx, &ctx, &connection_id, &asks)?;
+            let asks = user_ids.iter().map(|id| Ask::discord(id)).collect();
+            let found = find_and_link(tx, &ctx, &connection_id, asks)?;
             Ok(found
                 .into_iter()
                 .map(|player| player.ember_id)

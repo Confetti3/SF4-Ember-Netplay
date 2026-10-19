@@ -277,11 +277,12 @@ latest sign-in replaces both, once the player confirms moving an account
 from another Ember ID. A platform's links that a sign-in approved
 (`approved_via` `discord`) end when that account moves to another Ember ID or
 is disconnected, and the platform's next lookup links it where it now
-belongs. A link the player removes stays removed: lookups do not make it
-again until the player signs in with Discord again. Nothing else from Discord
-is stored. Without the client secret the
-bridge offers no sign-in and says so in its log, but every bridge lists
-`discord.accounts` and keeps `GET` and `DELETE /v1/discord`, so a player can
+belongs. A link the player removes stays removed: no account the
+player has connected (Discord's or a sign-in site's) makes it again on that
+connection, until the player signs in again with one of them, which gives
+that account's consent back. Nothing else from Discord is stored. Without
+the client secret the bridge offers no sign-in and says so in its log, but
+every bridge lists `discord.accounts` and keeps `GET` and `DELETE /v1/discord`, so a player can
 always see and disconnect an account connected earlier.
 
 ## Sign-in sites (optional)
@@ -341,13 +342,14 @@ definitions ship in `server/ember/bridge/deploy/sites/` (`challonge.json`,
   `Content-Type: application/json` unless `headers` names its own
   `Content-Type`, which replaces it. `headers` names each header once and
   cannot set `Authorization`, `Host`, `Content-Length`, `Transfer-Encoding`
-  or `Connection`. A number is read as its decimal digits. Without a
-  username (no pointer, or nothing there) the user ID is shown instead.
+  or `Connection`. A whole number of zero or more is read as its decimal
+  digits. Without a username (no pointer, or nothing there to show) the
+  user ID is shown instead.
 - `username_rule`: `characters` (`letters_digits`, with ASCII punctuation in
   `also`, or `printable`, anything but control characters), `max_length`, and
   `case_insensitive`.
 - `lookup_by`: `username` or `user_id`, what a lookup's `id` names (see
-  "Connection settings").
+  "Connection settings"). `username` needs a `username_pointer`.
 - `hosts`: every URL above must be https on one of these hosts, with no port,
   credentials or fragment. Each host is a public DNS name: an IP address,
   `localhost`, a single-label name or one under a private suffix such as
@@ -394,7 +396,8 @@ the same pages naming the Ember ID and the site:
 
 Proofs are bound to the exact path, so a proof for one site's route is
 refused on another's. A site the bridge does not have answers 404
-`not_found`. Each site keeps its own accounts, sign-ins, withdrawals and
+`not_found`, and its callback shows the browser a page saying the bridge
+does not offer that sign-in. Each site keeps its own accounts, sign-ins, withdrawals and
 request budget. Links a site's sign-in approved (`approved_via` `site`,
 claim `<id>:<user ID>`) follow the account exactly as Discord's do.
 
@@ -567,15 +570,19 @@ this, can run their own bridge and room supervisor. The contract is
 - `discord_lookup`: `POST /v1/players/lookup` with `{"discord": [...]}` (at
   most 32 Discord user IDs) answers the players connected to them, with their
   Ember ID and `participant_id`, and links them on the connection the way
-  BluMint's lookup does. A link the player removed is not made again until
-  they sign in with Discord again.
+  BluMint's lookup does. A link the player removes stays removed: no
+  account the player has connected (Discord's or a sign-in site's) makes it
+  again on that connection, until the player signs in again with one of
+  them, which gives that account's consent back.
 - `lookup_sites`: the sign-in sites (by ID) whose accounts the connection
   may find players by. The same lookup takes `{"accounts": [{"site": "...",
   "id": "..."}]}`, each `id` a username or user ID as that site's
   `lookup_by` says (Challonge usernames without case, start.gg user IDs
   exactly), and answers them in `accounts` (`site`, `id`, `user_id`,
-  `ember_id`, `participant_id`, `connected_at`), left out when empty. Each
-  list, and each site, needs its own setting; together they name at most 32
+  `ember_id`, `participant_id`, `connected_at`), left out when empty. An
+  `id` the site's accounts cannot have finds no one, as a Discord ID that is
+  no snowflake does, and the rest of the lookup still answers. Each list,
+  and each site, needs its own setting; together they name at most 32
   accounts.
 - `disputes`: `"review"` (the default) or `"restart"`, which cancels a match
   that would wait in `needs_review`. It is recorded with the connection the

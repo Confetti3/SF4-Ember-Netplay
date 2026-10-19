@@ -1,13 +1,14 @@
 //! What differs between sign-ins: Discord's, built into the bridge, and each
-//! configured site's, read from its definition (`config::sites`). `Profile`
-//! is what the routes and pages need (the name, paths, proof actions and
-//! key domains); `OAuth` is the sign-in itself (where the browser goes, the
-//! code exchange, how to read who signed in, and the request limits).
+//! configured site's, read from its definition (`config::sites`). `Site`'s
+//! methods here are what the routes and pages need (the name, paths, proof
+//! targets and key domains); `OAuth` is the sign-in itself (where the
+//! browser goes, the code exchange, how to read who signed in, and the
+//! request limits).
 //! Nothing here logs or formats an error: the requests carry the client
 //! secret, the code and the access token, and a reqwest error's text
 //! includes the URL.
 use ember_protocol::{
-    challenge::Action,
+    challenge::{Action, Method as ProofMethod},
     discord,
     sites::{self, LookupBy},
 };
@@ -27,49 +28,81 @@ use crate::{
     util::{outbound_client, read_bounded},
 };
 
-/// What a sign-in is called, where its routes are, the proof actions that
-/// authorize them, how long a sign-in waits, and the names its keys live
-/// under.
-pub struct Profile {
-    site: Site,
-    /// The name the browser pages show.
-    pub label: String,
-    pub start: String,
-    pub callback: String,
-    pub account: String,
-    pub connect: Action,
-    pub cancel: Action,
-    pub remove: Action,
-    pub sign_in_secs: u64,
+/// What a proof authorizes on a sign-in's routes.
+#[derive(Clone, Copy)]
+pub enum Step {
+    /// `POST <start>`.
+    Connect,
+    /// `DELETE <start>`.
+    Cancel,
+    /// `DELETE <account>`.
+    Remove,
 }
 
-impl Profile {
-    pub fn of(config: &Config, site: &Site) -> Self {
-        match site {
-            Site::Discord => Self {
-                site: Site::Discord,
-                label: "Discord".into(),
-                start: discord::START_PATH.into(),
-                callback: discord::CALLBACK_PATH.into(),
-                account: discord::ACCOUNT_PATH.into(),
-                connect: Action::DiscordConnect,
-                cancel: Action::DiscordCancel,
-                remove: Action::DiscordRemove,
-                sign_in_secs: discord::SIGN_IN_SECS,
-            },
-            Site::Configured(id) => Self {
-                site: site.clone(),
-                label: config
-                    .sign_in_site(id)
-                    .map_or_else(|| id.clone(), |site| site.display_name.clone()),
-                start: sites::start_path(id),
-                callback: sites::callback_path(id),
-                account: sites::account_path(id),
-                connect: Action::SiteConnect,
-                cancel: Action::SiteCancel,
-                remove: Action::SiteRemove,
-                sign_in_secs: sites::SIGN_IN_SECS,
-            },
+impl Site {
+    pub fn start_path(&self) -> String {
+        match self {
+            Self::Discord => discord::START_PATH.into(),
+            Self::Configured(id) => sites::start_path(id),
+        }
+    }
+
+    pub fn callback_path(&self) -> String {
+        match self {
+            Self::Discord => discord::CALLBACK_PATH.into(),
+            Self::Configured(id) => sites::callback_path(id),
+        }
+    }
+
+    pub fn account_path(&self) -> String {
+        match self {
+            Self::Discord => discord::ACCOUNT_PATH.into(),
+            Self::Configured(id) => sites::account_path(id),
+        }
+    }
+
+    /// The action, method and path a proof for `step` names.
+    pub fn target(&self, step: Step) -> (Action, ProofMethod, String) {
+        let discord = *self == Self::Discord;
+        match step {
+            Step::Connect => (
+                if discord {
+                    Action::DiscordConnect
+                } else {
+                    Action::SiteConnect
+                },
+                ProofMethod::Post,
+                self.start_path(),
+            ),
+            Step::Cancel => (
+                if discord {
+                    Action::DiscordCancel
+                } else {
+                    Action::SiteCancel
+                },
+                ProofMethod::Delete,
+                self.start_path(),
+            ),
+            Step::Remove => (
+                if discord {
+                    Action::DiscordRemove
+                } else {
+                    Action::SiteRemove
+                },
+                ProofMethod::Delete,
+                self.account_path(),
+            ),
+        }
+    }
+
+    /// The name the browser pages show: the site's display name, or its ID
+    /// once it is out of the configuration.
+    pub fn label(&self, config: &Config) -> String {
+        match self {
+            Self::Discord => "Discord".into(),
+            Self::Configured(id) => config
+                .sign_in_site(id)
+                .map_or_else(|| id.clone(), |site| site.display_name.clone()),
         }
     }
 
@@ -77,9 +110,9 @@ impl Profile {
     /// limits): Discord's as they always were, a configured site's apart
     /// from every other site's.
     pub fn domain(&self, purpose: &str) -> String {
-        match &self.site {
-            Site::Discord => format!("discord-{purpose}"),
-            Site::Configured(id) => format!("site-{purpose}:{id}"),
+        match self {
+            Self::Discord => format!("discord-{purpose}"),
+            Self::Configured(id) => format!("site-{purpose}:{id}"),
         }
     }
 }
@@ -118,14 +151,14 @@ struct UserRequest {
 /// How the user endpoint's answer says who signed in.
 enum Read {
     Discord,
-    /// A configured site's JSON pointers. `username_rule` is enforced when
-    /// lookups match usernames (`enforced`); otherwise the username is only
-    /// shown, and kept to 64 visible characters.
+    /// A configured site's JSON pointers. `username_rule` is the site's
+    /// when its lookups match usernames, and the username must keep to it;
+    /// otherwise there is none, and the username is only shown, kept to 64
+    /// visible characters.
     Pointers {
         id: String,
         username: Option<String>,
-        username_rule: UsernameRule,
-        enforced: bool,
+        username_rule: Option<UsernameRule>,
     },
 }
 
@@ -202,8 +235,8 @@ impl OAuth {
                     read: Read::Pointers {
                         id: site.user.id_pointer.clone(),
                         username: site.user.username_pointer.clone(),
-                        username_rule: site.username_rule.clone(),
-                        enforced: site.lookup_by == LookupBy::Username,
+                        username_rule: (site.lookup_by == LookupBy::Username)
+                            .then(|| site.username_rule.clone()),
                     },
                     limits: site.limits,
                 })
@@ -217,10 +250,9 @@ impl OAuth {
     pub fn username_key(&self, username: &str) -> Option<String> {
         match &self.read {
             Read::Pointers {
-                username_rule,
-                enforced: true,
+                username_rule: Some(rule),
                 ..
-            } => Some(username_rule.key(username)),
+            } => Some(rule.key(username)),
             _ => None,
         }
     }
@@ -267,31 +299,29 @@ impl OAuth {
                 .iter()
                 .map(|(name, value)| (name.as_str(), value.as_str())),
         );
+        // The body carries the client secret and the code. It goes to the
+        // request by value, without a copy left behind here.
         let (content_type, body) = match self.token_encoding {
             Encoding::Form => (
                 "application/x-www-form-urlencoded",
-                Zeroizing::new(
-                    url::form_urlencoded::Serializer::new(String::new())
-                        .extend_pairs(fields)
-                        .finish(),
-                ),
+                url::form_urlencoded::Serializer::new(String::new())
+                    .extend_pairs(fields)
+                    .finish(),
             ),
             Encoding::Json => (
                 "application/json",
-                Zeroizing::new(
-                    serde_json::to_string(
-                        &fields
-                            .map(|(name, value)| (name.to_owned(), Value::from(value)))
-                            .collect::<serde_json::Map<String, Value>>(),
-                    )
-                    .ok()?,
-                ),
+                serde_json::to_string(
+                    &fields
+                        .map(|(name, value)| (name.to_owned(), Value::from(value)))
+                        .collect::<serde_json::Map<String, Value>>(),
+                )
+                .ok()?,
             ),
         };
         let response = client
             .post(&self.token_url)
             .header(header::CONTENT_TYPE, content_type)
-            .body(body.as_str().to_owned())
+            .body(body)
             .send()
             .await
             .ok()?;
@@ -340,16 +370,9 @@ impl OAuth {
                 id,
                 username,
                 username_rule,
-                enforced,
-            } => pointed_user(&body, id, username.as_deref(), username_rule, *enforced),
+            } => pointed_user(&body, id, username.as_deref(), username_rule.as_ref()),
         }
     }
-}
-
-/// A site's user ID, as a lookup may name it: 1 to 64 visible ASCII
-/// characters.
-pub fn is_user_id(text: &str) -> bool {
-    !text.is_empty() && text.len() <= 64 && text.bytes().all(|b| b.is_ascii_graphic())
 }
 
 /// Kept for the page: control characters dropped, at most 64 characters.
@@ -377,27 +400,31 @@ fn discord_user(body: &[u8]) -> Option<SignedIn> {
     }))
 }
 
-/// A configured site's answer, read through its pointers. A string or a
-/// whole number is read as text; without a username the user ID is shown.
+/// A configured site's answer, read through its pointers. A string, or a
+/// whole number of zero or more read as its decimal digits, is text; without
+/// a username (none, or nothing shown of it) the user ID is shown. With a
+/// `rule` (lookups match usernames) the username must keep to it.
 fn pointed_user(
     body: &[u8],
     id: &str,
     username: Option<&str>,
-    rule: &UsernameRule,
-    enforced: bool,
+    rule: Option<&UsernameRule>,
 ) -> Option<SignedIn> {
     let answer: Value = serde_json::from_slice(body).ok()?;
     let text = |pointer: &str| match answer.pointer(pointer)? {
         Value::String(text) => Some(text.clone()),
-        Value::Number(number) if number.is_u64() || number.is_i64() => Some(number.to_string()),
+        Value::Number(number) if number.is_u64() => Some(number.to_string()),
         _ => None,
     };
-    let id = text(id).filter(|id| is_user_id(id))?;
-    let username = username.and_then(text).unwrap_or_else(|| id.clone());
-    Some(match enforced {
-        true if !rule.allows(&username) => SignedIn::Unusable(shown(&username)),
-        true => SignedIn::User(User { id, username }),
-        false => SignedIn::User(User {
+    let id = text(id).filter(|id| sites::is_user_id(id))?;
+    let username = username
+        .and_then(text)
+        .filter(|name| !shown(name).is_empty())
+        .unwrap_or_else(|| id.clone());
+    Some(match rule {
+        Some(rule) if !rule.allows(&username) => SignedIn::Unusable(shown(&username)),
+        Some(_) => SignedIn::User(User { id, username }),
+        None => SignedIn::User(User {
             username: shown(&username),
             id,
         }),
@@ -421,12 +448,12 @@ mod tests {
     fn discord_says_who_signed_in_as_it_always_did() {
         assert_eq!(
             read(discord_user(
-                br#"{"id":"274220342558756145","username":"kate\u0007"}"#
+                br#"{"id":"274220342558756145","username":"player1\u0007"}"#
             )),
-            Some(Ok(("274220342558756145".into(), "kate".into())))
+            Some(Ok(("274220342558756145".into(), "player1".into())))
         );
         assert_eq!(
-            read(discord_user(br#"{"id":"0123","username":"kate"}"#)),
+            read(discord_user(br#"{"id":"0123","username":"player1"}"#)),
             None
         );
     }
@@ -439,23 +466,22 @@ mod tests {
             max_length: 64,
             case_insensitive: true,
         };
-        let user = |body: &[u8], enforced| {
+        let user = |body: &[u8], by_username: bool| {
             read(pointed_user(
                 body,
                 "/data/id",
                 Some("/data/name"),
-                &rule,
-                enforced,
+                by_username.then_some(&rule),
             ))
         };
         // A string ID, or a number read as its digits.
         assert_eq!(
-            user(br#"{"data":{"id":"1001","name":"Kate_99"}}"#, true),
-            Some(Ok(("1001".into(), "Kate_99".into())))
+            user(br#"{"data":{"id":"1001","name":"Player_1"}}"#, true),
+            Some(Ok(("1001".into(), "Player_1".into())))
         );
         assert_eq!(
-            user(br#"{"data":{"id":1002,"name":"Kate_99"}}"#, true),
-            Some(Ok(("1002".into(), "Kate_99".into())))
+            user(br#"{"data":{"id":1002,"name":"Player_1"}}"#, true),
+            Some(Ok(("1002".into(), "Player_1".into())))
         );
         // A username lookups cannot match is told apart from no answer,
         // where lookups match usernames; elsewhere it is only shown.
@@ -467,15 +493,20 @@ mod tests {
             user(br#"{"data":{"id":"1","name":"has space"}}"#, false),
             Some(Ok(("1".into(), "has space".into())))
         );
-        // No username: the ID is shown. No ID: no answer.
-        assert_eq!(
-            user(br#"{"data":{"id":7,"name":null}}"#, false),
-            Some(Ok(("7".into(), "7".into())))
-        );
+        // No username, or one with nothing to show: the ID is shown. No ID:
+        // no answer.
         for body in [
-            &br#"{"data":{"name":"kate"}}"#[..],
-            br#"{"data":{"id":1.5,"name":"kate"}}"#,
-            br#"{"data":{"id":"has space","name":"kate"}}"#,
+            &br#"{"data":{"id":7,"name":null}}"#[..],
+            br#"{"data":{"id":7,"name":""}}"#,
+            br#"{"data":{"id":7,"name":"\u0007"}}"#,
+        ] {
+            assert_eq!(user(body, false), Some(Ok(("7".into(), "7".into()))));
+        }
+        for body in [
+            &br#"{"data":{"name":"player1"}}"#[..],
+            br#"{"data":{"id":1.5,"name":"player1"}}"#,
+            br#"{"data":{"id":-5,"name":"player1"}}"#,
+            br#"{"data":{"id":"has space","name":"player1"}}"#,
             br#"not json"#,
         ] {
             assert!(user(body, true).is_none());

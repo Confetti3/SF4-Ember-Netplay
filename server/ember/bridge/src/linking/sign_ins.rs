@@ -164,6 +164,17 @@ pub fn end(tx: &Transaction<'_>, site: &Site, ember_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Ends the Ember ID's sign-ins in flight on every site, Discord's included.
+pub fn end_everywhere(tx: &Transaction<'_>, ember_id: &str) -> Result<()> {
+    for table in [SIGN_INS.discord, SIGN_INS.sites] {
+        tx.execute(
+            &format!("DELETE FROM {table} WHERE ember_id = ?1"),
+            [ember_id],
+        )?;
+    }
+    Ok(())
+}
+
 /// Drops the sign-ins no site answered in time, on every site.
 pub fn expire(tx: &Transaction<'_>, now: u64) -> Result<()> {
     for table in [SIGN_INS.discord, SIGN_INS.sites] {

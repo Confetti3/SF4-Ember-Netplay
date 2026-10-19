@@ -105,7 +105,7 @@ const CHALLONGE_CLIENT = "sdk-challonge-client";
 const CHALLONGE_SECRET = "sdk-challonge-secret";
 const ACCESS_TOKEN = "sdk-access-token-secret";
 
-/** A Challonge that signs every code in as `Kate_99`. */
+/** A Challonge that signs every code in as `Player_1`. */
 async function startChallonge(): Promise<{ origin: string; close(): void }> {
   const server = createServer((request, response) => {
     request.resume();
@@ -115,7 +115,7 @@ async function startChallonge(): Promise<{ origin: string; close(): void }> {
       if (path === "/oauth/token") {
         reply(200, { access_token: ACCESS_TOKEN, token_type: "Bearer", expires_in: 604800, scope: "me" });
       } else if (path === "/v2.1/me.json" && request.headers.authorization === `Bearer ${ACCESS_TOKEN}`) {
-        reply(200, { data: { id: "1001", type: "user", attributes: { username: "Kate_99" } } });
+        reply(200, { data: { id: "1001", type: "user", attributes: { username: "Player_1" } } });
       } else {
         reply(404, {});
       }
@@ -142,7 +142,7 @@ test("a connection without the site in lookup_sites is refused a lookup on it", 
   });
   try {
     const provider = new BridgeClient({ origin: bridge.origin, credential: bridge.providerToken });
-    await assert.rejects(provider.lookupAccounts([{ site: "challonge", id: "Kate_99" }]), (error: BridgeError) => error.status === 403 && error.code === "forbidden");
+    await assert.rejects(provider.lookupAccounts([{ site: "challonge", id: "Player_1" }]), (error: BridgeError) => error.status === 403 && error.code === "forbidden");
   } finally {
     challonge.close();
     await bridge.stop();
@@ -164,7 +164,7 @@ test("a connection finds players by their connected Challonge account", { timeou
       id: "challonge", display_name: "Challonge", sign_in: true, lookup_by: "username",
       authorize_origin: challonge.origin, authorize_path: "/oauth/authorize",
     }]);
-    assert.deepEqual(await provider.lookupAccounts([{ site: "challonge", id: "Kate_99" }]), []);
+    assert.deepEqual(await provider.lookupAccounts([{ site: "challonge", id: "Player_1" }]), []);
 
     // The player connects Challonge from Ember: the browser goes to
     // Challonge, comes back with a code, and the bridge's page asks first.
@@ -181,19 +181,19 @@ test("a connection finds players by their connected Challonge account", { timeou
     assert.equal((await player.siteAccount("challonge")).account, null);
     const confirmed = await fetch(`${origin}/v1/sites/challonge/callback`, { method: "POST", body: new URLSearchParams({ confirmation, choice: "connect" }) });
     assert.match(await confirmed.text(), /Challonge connected/);
-    assert.equal((await player.siteAccount("challonge")).account?.username, "Kate_99");
+    assert.equal((await player.siteAccount("challonge")).account?.username, "Player_1");
 
     // Found without case, as asked; a name nobody connected is left out.
-    const found = await provider.lookupAccounts([{ site: "challonge", id: "nobody" }, { site: "challonge", id: "KATE_99" }]);
-    assert.deepEqual(found.map((account) => [account.site, account.id, account.user_id, account.ember_id]), [["challonge", "KATE_99", "1001", player.emberId]]);
+    const found = await provider.lookupAccounts([{ site: "challonge", id: "nobody" }, { site: "challonge", id: "PLAYER_1" }]);
+    assert.deepEqual(found.map((account) => [account.site, account.id, account.user_id, account.ember_id]), [["challonge", "PLAYER_1", "1001", player.emberId]]);
     assert.ok(found[0]!.participant_id);
     assert.ok(Math.abs(found[0]!.connected_at - Date.now() / 1000) < 60);
-    assert.deepEqual(await provider.lookupAccounts([{ site: "challonge", id: "kate_99" }]), [{ ...found[0]!, id: "kate_99" }]);
+    assert.deepEqual(await provider.lookupAccounts([{ site: "challonge", id: "player_1" }]), [{ ...found[0]!, id: "player_1" }]);
     // Discord lookup is a setting of its own, and a site the bridge does not
     // have is no site this connection may ask.
     await assert.rejects(provider.lookupPlayers(["274220342558756145"]), (error: BridgeError) => error.status === 403);
     await assert.rejects(provider.lookupAccounts([{ site: "startgg", id: "1234" }]), (error: BridgeError) => error.status === 403);
-    await assert.rejects(provider.lookupAccounts([{ site: "challonge", id: "not a name" }]), (error: BridgeError) => error.status === 400);
+    assert.deepEqual(await provider.lookupAccounts([{ site: "challonge", id: "not a name" }]), []);
 
     // Neither the client secret nor the token reached the bridge's output.
     const output = bridge.output();

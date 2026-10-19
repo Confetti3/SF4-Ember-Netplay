@@ -13,8 +13,6 @@ use crate::EmberId;
 /// and takes `accounts` in a lookup. Which sites it has is
 /// `Capabilities::sign_in_sites`.
 pub const FEATURE: &str = "sites";
-/// How long a started sign-in waits for the site's answer.
-pub const SIGN_IN_SECS: u64 = 10 * 60;
 /// The longest site ID.
 pub const MAX_SITE_ID: usize = 32;
 const PREFIX: &str = "/v1/sites/";
@@ -52,6 +50,13 @@ pub fn is_site_id(text: &str) -> bool {
         && text
             .bytes()
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+}
+
+/// A site's user ID, as a lookup may name it and as the bridge stores it: 1
+/// to 64 visible ASCII characters. (Discord's are snowflakes,
+/// `discord::is_user_id`.)
+pub fn is_user_id(text: &str) -> bool {
+    !text.is_empty() && text.len() <= 64 && text.bytes().all(|b| b.is_ascii_graphic())
 }
 
 /// Whether `host` is a DNS name on the public internet: the rule a bridge

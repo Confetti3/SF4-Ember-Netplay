@@ -37,24 +37,21 @@ use axum::{
     Form, Router,
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
+    response::Response,
     routing::{get, post},
 };
 use ember_protocol::{
-    challenge::Method,
     discord,
     encoding::b64u,
-    sign_in::{Connection, SignInStarted},
+    sign_in::{Connection, SIGN_IN_SECS, SignInStarted},
     sites,
 };
-use rusqlite::Transaction;
 use serde::Deserialize;
 use serde_json::json;
 
-pub use self::provider::{Profile, is_user_id};
 use self::{
     pages::Pages,
-    provider::{OAuth, SignedIn},
+    provider::{OAuth, SignedIn, Step},
 };
 use crate::{
     AppState, auth,
@@ -64,9 +61,10 @@ use crate::{
     linking::{
         Site,
         sign_ins::{self, Question},
+        site_has_accounts,
     },
     rate::Slot,
-    routes::sessions::{self, Nothing},
+    routes::sessions,
     util::random,
 };
 
@@ -109,7 +107,7 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
             |state: State<AppState>, Path(id): Path<String>, answer| async move {
                 match configured(&state, &id) {
                     Ok(site) => callback(state, answer, site).await,
-                    Err(failure) => failure.into_response(),
+                    Err(_) => pages::unknown(),
                 }
             },
         )
@@ -117,7 +115,7 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
             |state: State<AppState>, Path(id): Path<String>, answer| async move {
                 match configured(&state, &id) {
                     Ok(site) => decide(state, answer, site).await,
-                    Err(failure) => failure.into_response(),
+                    Err(_) => pages::unknown(),
                 }
             },
         ),
@@ -139,83 +137,69 @@ fn configured(state: &AppState, id: &str) -> Result<Site> {
         .ok_or_else(ApiFailure::not_found)
 }
 
-/// The site an account route names, for reading and disconnecting accounts:
-/// Discord (`None`), a configured site, or one taken out of the configuration
-/// while accounts are still connected on it, so its players can still see
-/// and disconnect them (as Discord's can with its sign-in off). Otherwise
-/// `not_found`. Called only once the caller is authenticated, so whether a
-/// removed site still has accounts is no one else's to learn.
-async fn held(state: &AppState, id: Option<&str>) -> Result<Site> {
+/// The site an account route names, for `player` to read or disconnect
+/// their account on: Discord (`None`), a configured site, or one taken out
+/// of the configuration while accounts are still connected on it, so its
+/// players can still see and disconnect them (as Discord's can with its
+/// sign-in off). Otherwise `not_found`. It takes the authenticated player
+/// so that only one learns whether a removed site still has accounts.
+async fn held(state: &AppState, _player: &auth::Player, id: Option<String>) -> Result<Site> {
     let Some(id) = id else {
         return Ok(Site::Discord);
     };
-    if let Ok(site) = configured(state, id) {
+    if let Ok(site) = configured(state, &id) {
         return Ok(site);
     }
-    if !sites::is_site_id(id) || id == "discord" {
+    if !sites::is_site_id(&id) || id == "discord" {
         return Err(ApiFailure::not_found());
     }
-    let site = Site::Configured(id.to_owned());
-    let lookup = site.clone();
-    if state.db.read(move |tx| lookup.has_accounts(tx)).await? {
-        Ok(site)
+    let lookup = id.clone();
+    if state
+        .db
+        .read(move |tx| site_has_accounts(tx, &lookup))
+        .await?
+    {
+        Ok(Site::Configured(id))
     } else {
         Err(ApiFailure::not_found())
     }
 }
 
-/// Whether `site`'s sign-in is offered. Reading and disconnecting a
+/// Whether `site`'s sign-in is offered: the configuration has it and the
+/// integration secrets hold its client secret. Reading and disconnecting a
 /// connected account need no offer, so a player can always withdraw one.
 pub fn offered(state: &AppState, site: &Site) -> bool {
-    OAuth::of(state, site).is_some()
+    match site {
+        Site::Discord => {
+            state.config.discord.is_some() && state.integrations.discord_client_secret.is_some()
+        }
+        Site::Configured(id) => {
+            state.config.sign_in_site(id).is_some()
+                && state.integrations.site_client_secrets.contains_key(id)
+        }
+    }
 }
 
 fn enabled(state: &AppState, site: &Site) -> Result<OAuth> {
     OAuth::of(state, site).ok_or_else(ApiFailure::not_found)
 }
 
-fn state_hash(state: &AppState, profile: &Profile, text: &str) -> [u8; 32] {
+fn state_hash(state: &AppState, site: &Site, text: &str) -> [u8; 32] {
     state
         .keys
-        .keyed_hash(&profile.domain("sign-in"), text.as_bytes())
+        .keyed_hash(&site.domain("sign-in"), text.as_bytes())
 }
 
 /// The key of a sign-in waiting on the page's question: a secret of its own,
 /// made when the question is asked and shown only on that page. The sign-in's
 /// state was handed to the Ember that started it, so it does not answer the
 /// question.
-fn confirmation_hash(state: &AppState, profile: &Profile, text: &str) -> [u8; 32] {
-    state
-        .keys
-        .keyed_hash(&profile.domain("move"), text.as_bytes())
+fn confirmation_hash(state: &AppState, site: &Site, text: &str) -> [u8; 32] {
+    state.keys.keyed_hash(&site.domain("move"), text.as_bytes())
 }
 
-fn redirect_uri(state: &AppState, profile: &Profile) -> String {
-    format!("{}{}", state.config.origin, profile.callback)
-}
-
-/// Runs the session player's proof of `action` on `method` and `path`.
-async fn proven<T: Send + 'static>(
-    state: &AppState,
-    headers: &HeaderMap,
-    body: &Body<PROOF_BODY>,
-    target: (ember_protocol::challenge::Action, Method, String),
-    work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<T> + Send + 'static,
-) -> Result<T> {
-    let player = auth::player(state, headers).await?;
-    proven_by(state, player, body, target, work).await
-}
-
-/// `proven`, for a player already authenticated.
-async fn proven_by<T: Send + 'static>(
-    state: &AppState,
-    player: auth::Player,
-    body: &Body<PROOF_BODY>,
-    target: (ember_protocol::challenge::Action, Method, String),
-    work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<T> + Send + 'static,
-) -> Result<T> {
-    let (request, _): (_, Nothing) = sessions::proven(&body.0)?;
-    sessions::as_proven(state, player, request, target, work).await
+fn redirect_uri(state: &AppState, site: &Site) -> String {
+    format!("{}{}", state.config.origin, site.callback_path())
 }
 
 /// `POST <start>`: where to send the player's browser.
@@ -226,45 +210,42 @@ async fn start(
     site: Site,
 ) -> Result<Response> {
     let oauth = enabled(&state, &site)?;
-    let profile = Profile::of(&state.config, &site);
     let player = auth::player(&state, &headers).await?;
     state
         .rate
         .check(
-            &format!("{}:{}", profile.domain("start"), player.ember_id),
+            &format!("{}:{}", site.domain("start"), player.ember_id),
             STARTS_PER_HOUR,
             3600,
             state.now(),
         )
         .map_err(ApiFailure::rate_limited)?;
-    if let Some(limits) = oauth.limits
-        && let Some(cap) = budget::refusing(&state, site.id(), limits).await?
-    {
-        return Err(ApiFailure::sign_in_busy(cap.retry_after(state.now())));
-    }
     let secret = b64u(&random::<32>());
-    let hash = state_hash(&state, &profile, &secret);
-    let expires_at = state.now() + profile.sign_in_secs;
+    let hash = state_hash(&state, &site, &secret);
+    let expires_at = state.now() + SIGN_IN_SECS;
     let authorize_url = oauth
-        .authorize_url(&redirect_uri(&state, &profile), &secret)
+        .authorize_url(&redirect_uri(&state, &site), &secret)
         .ok_or_else(ApiFailure::unavailable)?;
-    let (request, _): (_, Nothing) = sessions::proven(&body.0)?;
-    let target = (profile.connect, Method::Post, profile.start.clone());
-    let (rate, per_hour, starts) = (
-        state.rate.clone(),
-        oauth.limits.map(|limits| limits.starts_per_hour),
-        profile.domain("starts"),
-    );
+    let (rate, limits, starts) = (state.rate.clone(), oauth.limits, site.domain("starts"));
     let stored = site.clone();
-    let started = sessions::as_proven(&state, player, request, target, move |tx, ctx, ember_id| {
-        // A start counts against the bridge-wide limit only once its proof
-        // holds, so requests with bad proofs cannot hold everyone's sign-in,
-        // and only if it commits: the slot is given back otherwise.
-        let slot = match per_hour.map(|per_hour| rate.take(&starts, per_hour, 3600, ctx.now)) {
-            Some(Err(retry_after)) => return Ok(Err(retry_after)),
-            Some(Ok(slot)) => Some(slot),
-            None => None,
-        };
+    let target = site.target(Step::Connect);
+    let started = sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
+        // Once the proof holds, in the same write: the site's request
+        // budget must have room for the exchange, and the start takes a
+        // bridge-wide slot, given back unless the start commits, so requests
+        // with bad proofs cannot hold everyone's sign-in.
+        let mut slot = None;
+        if let Some(limits) = limits {
+            if let Some(cap) = budget::full(tx, stored.id(), ctx.now, limits)? {
+                return Ok(Err((cap, cap.retry_after(ctx.now))));
+            }
+            match rate.take(&starts, limits.starts_per_hour, 3600, ctx.now) {
+                Ok(taken) => slot = Some(taken),
+                Err(retry_after) => {
+                    return Ok(Err((budget::Cap::StartsPerHour, Some(retry_after))));
+                }
+            }
+        }
         sign_ins::expire(tx, ctx.now)?;
         // Only the latest sign-in can connect an account.
         sign_ins::end(tx, &stored, ember_id)?;
@@ -274,9 +255,9 @@ async fn start(
     .await?;
     match started {
         Ok(slot) => slot.into_iter().for_each(Slot::keep),
-        Err(retry_after) => {
-            budget::refused(&state, site.id(), budget::Cap::StartsPerHour);
-            return Err(ApiFailure::sign_in_busy(Some(retry_after)));
+        Err((cap, retry_after)) => {
+            budget::refused(&state, site.id(), cap);
+            return Err(ApiFailure::sign_in_busy(retry_after));
         }
     }
     Ok(json(
@@ -297,9 +278,9 @@ async fn cancel(
     body: Body<PROOF_BODY>,
     site: Site,
 ) -> Result<Response> {
-    let profile = Profile::of(&state.config, &site);
-    let target = (profile.cancel, Method::Delete, profile.start);
-    proven(&state, &headers, &body, target, move |tx, _, ember_id| {
+    let player = auth::player(&state, &headers).await?;
+    let target = site.target(Step::Cancel);
+    sessions::as_proven(&state, player, &body, target, move |tx, _, ember_id| {
         sign_ins::end(tx, &site, ember_id)
     })
     .await?;
@@ -313,7 +294,7 @@ async fn account(
     site: Option<String>,
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
-    let site = held(&state, site.as_deref()).await?;
+    let site = held(&state, &player, site).await?;
     let account = state
         .db
         .read(move |tx| site.account(tx, player.ember_id.as_str()))
@@ -329,10 +310,9 @@ async fn remove(
     site: Option<String>,
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
-    let site = held(&state, site.as_deref()).await?;
-    let profile = Profile::of(&state.config, &site);
-    let target = (profile.remove, Method::Delete, profile.account);
-    proven_by(&state, player, &body, target, move |tx, ctx, ember_id| {
+    let site = held(&state, &player, site).await?;
+    let target = site.target(Step::Remove);
+    sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
         site.disconnect(tx, ctx, ember_id)
     })
     .await?;
@@ -376,14 +356,13 @@ async fn callback(
     let Ok(oauth) = enabled(&state, &site) else {
         return pages.off();
     };
-    let profile = Profile::of(&state.config, &site);
     // Only a sign-in Ember is waiting for reaches the site, and only for the
     // first answer that claims it; another answer for it is turned away. The
     // claimer takes it, whatever the site answered, in the same write that
     // stores the account, so a sign-in a disconnect ended meanwhile connects
     // nothing.
     let secret = answer.state.unwrap_or_default();
-    let hash = state_hash(&state, &profile, &secret);
+    let hash = state_hash(&state, &site, &secret);
     let now = state.now();
     let claiming = site.clone();
     let claimed = state
@@ -406,7 +385,7 @@ async fn callback(
         end_claimed(&state, &site, hash, now).await;
         return pages.busy();
     }
-    let user = match oauth.user(&redirect_uri(&state, &profile), &code).await {
+    let user = match oauth.user(&redirect_uri(&state, &site), &code).await {
         Some(SignedIn::User(user)) => user,
         Some(SignedIn::Unusable(username)) => {
             end_claimed(&state, &site, hash, now).await;
@@ -419,7 +398,7 @@ async fn callback(
     };
     let shown = user.username.clone();
     let confirmation = b64u(&random::<32>());
-    let confirmation_key = confirmation_hash(&state, &profile, &confirmation);
+    let confirmation_key = confirmation_hash(&state, &site, &confirmation);
     let username_key = oauth.username_key(&user.username);
     let ctx = Ctx::of(&state);
     let stored = state
@@ -517,14 +496,13 @@ async fn decide(
     let Ok(oauth) = enabled(&state, &site) else {
         return pages.off();
     };
-    let profile = Profile::of(&state.config, &site);
     let moves = match answer.choice.as_str() {
         "move" | "connect" => true,
         "keep" | "refuse" => false,
         _ => return pages.not_waiting(),
     };
     let refused = answer.choice == "refuse";
-    let hash = confirmation_hash(&state, &profile, &answer.confirmation);
+    let hash = confirmation_hash(&state, &site, &answer.confirmation);
     let ctx = Ctx::of(&state);
     let decided = state
         .db

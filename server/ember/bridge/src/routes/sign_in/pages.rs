@@ -4,7 +4,6 @@
 use axum::response::Response;
 use ember_protocol::EmberId;
 
-use super::provider::Profile;
 use crate::{
     config::{Config, Disputes},
     http::page,
@@ -50,7 +49,7 @@ impl Pages {
                 }
             }
         }
-        let profile = Profile::of(config, site);
+        let label = site.label(config);
         let usernames = match site {
             Site::Configured(id) => config
                 .sign_in_site(id)
@@ -58,9 +57,9 @@ impl Pages {
             Site::Discord => None,
         };
         Self {
-            label: html(&profile.label),
-            name: profile.label,
-            callback: html(&profile.callback),
+            label: html(&label),
+            name: label,
+            callback: html(&site.callback_path()),
             usernames,
             named,
         }
@@ -333,6 +332,15 @@ impl Pages {
             ),
         )
     }
+}
+
+/// The page for a sign-in this bridge has no site for: a callback URL
+/// typed or kept from a site taken out of the configuration.
+pub(super) fn unknown() -> Response {
+    finished(
+        "Sign-in is off",
+        "This Ember service does not offer this sign-in, so nothing was connected. You can close this tab.",
+    )
 }
 
 fn finished(title: &str, body: &str) -> Response {

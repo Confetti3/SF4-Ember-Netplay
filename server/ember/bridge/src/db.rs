@@ -384,15 +384,15 @@ mod tests {
                 "INSERT INTO tenants (id, name) VALUES ('t', 'Tenant');
                  INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
                    VALUES ('c', 't', 'direct', 'staging', 'Site', 1);
-                 INSERT INTO identities (ember_id, public_key, created_at) VALUES ('emb_kate', 'kate-key', 0), ('emb_sam', 'sam-key', 0);
+                 INSERT INTO identities (ember_id, public_key, created_at) VALUES ('emb_player1', 'player1-key', 0), ('emb_player2', 'player2-key', 0);
                  INSERT INTO external_accounts (id, connection_id, subject, participant_id, display_label, created_at)
-                   VALUES ('ext_kate', 'c', 'kate', 'epl_kate', 'kate', 0), ('ext_sam', 'c', 'discord:2', 'epl_sam', 'sam', 0);
+                   VALUES ('ext_player1', 'c', 'player1', 'epl_player1', 'player1', 0), ('ext_player2', 'c', 'discord:2', 'epl_player2', 'player2', 0);
                  INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at, revoked_at, revoked_by)
-                   VALUES ('lnk_old', 'ext_kate', 'c', 'emb_kate', 'browser', 'lkc_1', 10, 10, 20, 'unlinked_by_player'),
-                          ('lnk_kate', 'ext_kate', 'c', 'emb_kate', 'provider_proxy', 'lkc_2', 30, 30, NULL, NULL),
-                          ('lnk_sam', 'ext_sam', 'c', 'emb_sam', 'discord', 'discord:2', 40, 40, NULL, NULL),
-                          ('lnk_gone', 'ext_sam', 'c', 'emb_sam', 'discord', 'discord:2', 5, 5, 8, 'unlinked_by_player');
-                 INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES ('2', 'emb_sam', 'sam', 1);
+                   VALUES ('lnk_old', 'ext_player1', 'c', 'emb_player1', 'browser', 'lkc_1', 10, 10, 20, 'unlinked_by_player'),
+                          ('lnk_player1', 'ext_player1', 'c', 'emb_player1', 'provider_proxy', 'lkc_2', 30, 30, NULL, NULL),
+                          ('lnk_player2', 'ext_player2', 'c', 'emb_player2', 'discord', 'discord:2', 40, 40, NULL, NULL),
+                          ('lnk_gone', 'ext_player2', 'c', 'emb_player2', 'discord', 'discord:2', 5, 5, 8, 'unlinked_by_player');
+                 INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES ('2', 'emb_player2', 'player2', 1);
                  INSERT INTO discord_withdrawals (user_id, connection_id) VALUES ('2', 'c');",
             )
             .unwrap();
@@ -442,33 +442,36 @@ mod tests {
             rows,
             [
                 ("lnk_gone".into(), "discord".into(), Some(8)),
-                ("lnk_kate".into(), "provider_proxy".into(), None),
                 ("lnk_old".into(), "browser".into(), Some(20)),
-                ("lnk_sam".into(), "discord".into(), None),
+                ("lnk_player1".into(), "provider_proxy".into(), None),
+                ("lnk_player2".into(), "discord".into(), None),
             ]
         );
         // The Discord consent BluMint's lookups read is untouched.
         let withdrawn: i64 = connection
             .query_row(
                 "SELECT COUNT(*) FROM discord_withdrawals w JOIN discord_accounts a ON a.user_id = w.user_id
-                 WHERE w.connection_id = 'c' AND a.ember_id = 'emb_sam'",
+                 WHERE w.connection_id = 'c' AND a.ember_id = 'emb_player2'",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
         assert_eq!(withdrawn, 1);
         // A second active link for the same Ember ID is still refused, and a
-        // sign-in site's link is accepted once Kate's ends.
+        // sign-in site's link is accepted once Player 1's ends.
         let insert = |id: &str, via: &str| {
             connection.execute(
                 "INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at)
-                 VALUES (?1, 'ext_kate', 'c', 'emb_kate', ?2, 'startgg:5', 50, 50)",
+                 VALUES (?1, 'ext_player1', 'c', 'emb_player1', ?2, 'startgg:5', 50, 50)",
                 [id, via],
             )
         };
         assert!(insert("lnk_twice", "site").is_err());
         connection
-            .execute("UPDATE links SET revoked_at = 60 WHERE id = 'lnk_kate'", [])
+            .execute(
+                "UPDATE links SET revoked_at = 60 WHERE id = 'lnk_player1'",
+                [],
+            )
             .unwrap();
         assert!(insert("lnk_other", "elsewhere").is_err());
         insert("lnk_site", "site").unwrap();
@@ -500,7 +503,7 @@ mod tests {
         connection
             .execute_batch(
                 "INSERT INTO site_accounts (site, user_id, ember_id, username, username_key, connected_at)
-                   VALUES ('a', '1', 'emb_kate', 'kate', 'kate', 1), ('b', '1', 'emb_kate', 'kate', 'kate', 1);
+                   VALUES ('a', '1', 'emb_player1', 'player1', 'player1', 1), ('b', '1', 'emb_player1', 'player1', 'player1', 1);
                  INSERT INTO site_withdrawals (site, user_id, connection_id) VALUES ('a', '1', 'c'), ('b', '1', 'c');
                  DELETE FROM site_accounts WHERE site = 'a';",
             )
@@ -545,6 +548,16 @@ mod tests {
         let count = |connection: &Connection, sql: &str| -> i64 {
             connection.query_row(sql, [], |row| row.get(0)).unwrap()
         };
+        // Both links came through the rebuild of `links` as they were.
+        assert_eq!(
+            count(
+                &connection,
+                "SELECT COUNT(*) FROM links WHERE connection_id = 'bm-partner' AND approved_via = 'discord'
+                   AND claim_id IN ('discord:1', 'discord:2') AND revoked_at = 200
+                   AND revoked_by = 'unlinked_by_player'"
+            ),
+            2
+        );
         let withdrawn = "SELECT COUNT(*) FROM discord_withdrawals WHERE connection_id = 'bm-partner' AND user_id = ";
         assert_eq!(count(&connection, &format!("{withdrawn}'1'")), 1);
         assert_eq!(count(&connection, &format!("{withdrawn}'2'")), 0);

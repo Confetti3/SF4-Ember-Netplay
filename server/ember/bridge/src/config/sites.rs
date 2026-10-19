@@ -274,6 +274,9 @@ impl SignInSite {
         {
             return fail("user pointers must be JSON pointers starting with /");
         }
+        if self.lookup_by == LookupBy::Username && self.user.username_pointer.is_none() {
+            return fail("lookup_by username needs user.username_pointer");
+        }
         let rule = &self.username_rule;
         if !(1..=256).contains(&rule.max_length)
             || !rule.also.bytes().all(|b| b.is_ascii_punctuation())
@@ -426,6 +429,13 @@ mod tests {
             site.user.headers = serde_json::from_value(headers.clone()).unwrap();
             assert!(site.validate(OriginPolicy::HttpsOnly).is_err(), "{headers}");
         }
+        // Lookups by username need a username to match; by user ID, not.
+        let mut site = example("challonge");
+        site.user.username_pointer = None;
+        assert!(site.validate(OriginPolicy::HttpsOnly).is_err());
+        let mut site = example("startgg");
+        site.user.username_pointer = None;
+        assert_eq!(site.validate(OriginPolicy::HttpsOnly), Ok(()));
         // Loopback http only where the policy allows it.
         let mut site = example("challonge");
         site.token_url = "http://127.0.0.1:9000/oauth/token".into();
@@ -436,8 +446,8 @@ mod tests {
     #[test]
     fn a_username_rule_is_the_sites_own() {
         let rule = example("challonge").username_rule;
-        assert!(rule.allows("Kate_99") && !rule.allows("has space") && !rule.allows(""));
-        assert_eq!(rule.key("Kate_99"), "kate_99");
+        assert!(rule.allows("Player_1") && !rule.allows("has space") && !rule.allows(""));
+        assert_eq!(rule.key("Player_1"), "player_1");
         assert_eq!(
             rule.describe(),
             "letters, digits, '_', '-' and '.', at most 64 characters"
@@ -449,8 +459,8 @@ mod tests {
         assert!(rule.case_insensitive);
         let long = "x".repeat(65);
         assert!(rule.allows("a.b-c") && rule.allows(&long[1..]));
-        assert!(!rule.allows(&long) && !rule.allows("kate@x") && !rule.allows("K\u{e9}t"));
-        assert_eq!(rule.key("KATE_99"), "kate_99");
+        assert!(!rule.allows(&long) && !rule.allows("player1@x") && !rule.allows("K\u{e9}t"));
+        assert_eq!(rule.key("PLAYER_1"), "player_1");
         let printable = UsernameRule {
             characters: Characters::Printable,
             also: String::new(),
@@ -462,7 +472,7 @@ mod tests {
                 && !printable.allows("long1")
                 && !printable.allows("a\nb")
         );
-        assert_eq!(printable.key("Kate"), "Kate");
+        assert_eq!(printable.key("Player 1"), "Player 1");
         assert_eq!(
             printable.describe(),
             "at most 4 characters, none of them control characters"

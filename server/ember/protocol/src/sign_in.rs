@@ -5,6 +5,9 @@
 //! username.
 use serde::{Deserialize, Serialize};
 
+/// How long a started sign-in waits for the site's answer, on every site.
+pub const SIGN_IN_SECS: u64 = 10 * 60;
+
 /// `POST <site start path>`: where to send the player's browser.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

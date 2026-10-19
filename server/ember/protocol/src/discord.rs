@@ -3,7 +3,7 @@
 //! `discord` feature, and a player connects it only if they choose to.
 //! Platforms that find players by their Discord account (BluMint's player
 //! lookup) then get the Ember ID, and Discord features can mention the player.
-pub use crate::sign_in::{Account, Connection, SignInStarted};
+pub use crate::sign_in::{Account, Connection, SIGN_IN_SECS, SignInStarted};
 
 /// The `discord` capabilities feature: the bridge offers Discord sign-in.
 pub const FEATURE: &str = "discord";
@@ -11,8 +11,6 @@ pub const FEATURE: &str = "discord";
 /// disconnect their connected account (`ACCOUNT_PATH`), whether or not
 /// sign-in is offered now.
 pub const ACCOUNTS_FEATURE: &str = "discord.accounts";
-/// How long a started sign-in waits for Discord's answer.
-pub const SIGN_IN_SECS: u64 = 10 * 60;
 pub const START_PATH: &str = "/v1/discord/start";
 pub const CALLBACK_PATH: &str = "/v1/discord/callback";
 pub const ACCOUNT_PATH: &str = "/v1/discord";
