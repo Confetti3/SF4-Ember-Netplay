@@ -23,6 +23,7 @@
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__Borderless.hxx"
+#include "sf4e__StartupLog.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
@@ -430,6 +431,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             sf4e::crash::WatchGameExit();
             LogVSyncForced();
             LogRenderingThread();
+            sf4e::StartupLog::Flush();
             spdlog::info("Sidecar logging initialized; install hooks are active");
             spdlog::info("{}", Game::Battle::MatchReplayListNote());
             Pad::Keyboards::LogFirstScan();
