@@ -92,6 +92,11 @@ namespace sf4e {
 	};
 
 	namespace NetplayFacade {
+		// How the room being opened was entered: a private invitation or a host, a
+		// public room's ticket (a refusal or failure is worded for it), or a
+		// tournament match's watcher (the room admits it only if it names it).
+		enum class JoinKind : std::uint8_t { Private, Public, Observer };
+
 		struct RuntimeCommand {
 			netplay::Command command;
             platform::ServiceAction service = platform::ServiceAction::None;
@@ -127,6 +132,9 @@ namespace sf4e {
             netplay::tournament::Command tournament;
             // With JoinInvite: the signed ticket (JSON) of a public room's admission, or empty for a private room.
             std::string publicTicket;
+            // With JoinInvite: Observer for a tournament match's watcher, which the room admits only when it
+            // names it. Public is never set here: a public room's join is the one with a publicTicket.
+            JoinKind join = JoinKind::Private;
             // With the JoinInvite of a public room just created: the table rules chosen on Create.
             std::optional<room::Rules> createdRules;
             // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).

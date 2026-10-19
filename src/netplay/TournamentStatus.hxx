@@ -5,7 +5,9 @@
 #include <string>
 #include <vector>
 
+#include "SessionController.hxx"
 #include "TournamentPlay.hxx"
+#include "WatchPlay.hxx"
 
 // What the interface sees of tournament play and asks of it: the player's
 // assigned matches from the last refresh, the match being played, and the
@@ -48,9 +50,10 @@ struct Assignment {
 
 // The three public room ops ride the same channel as the tournament ones: they
 // are bridge requests the helper answers by request id, and their answers
-// reach the runtime beside the assignment list's (PublicRooms.hxx).
+// reach the runtime beside the assignment list's (PublicRooms.hxx). Watch asks
+// to watch a match, and Stop ends whichever of playing or watching is under way.
 struct Command {
-	enum class Op : std::uint8_t { None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket } op = Op::None;
+	enum class Op : std::uint8_t { None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket, Watch } op = Op::None;
 	std::string bridgeId, matchId;
 	// RoomCreate names and sizes the new room; RoomTicket names the room to join.
 	std::string roomName, roomId;
@@ -103,6 +106,35 @@ struct OpenedRoomLink {
 	bool free = false;
 };
 
+// Playing a match or watching one: the room is the tournament's, whose
+// invitation is never handed out (Discord presence, the room's copy rows),
+// whatever the room's own snapshot shows yet. Playing counts from its first
+// claim, so the window before the room is bound is covered.
+inline bool HoldsMatchRoom(Phase play, WatchPhase watch) { return PlayUnderWay(play) || WatchUnderWay(watch); }
+
+// Whether `kind`, a command from the player, is refused because it would open a
+// room by hand beside the match: Host, and Join (an invitation pasted or
+// accepted from Discord). The match acts only on its own room and never leaves
+// one the player opened, so a hand-opened room would hold it, and the opponent
+// waiting for it, for good. Every other command passes.
+inline bool RefusesHandOpenedRoom(CommandKind kind, Phase play, WatchPhase watch) {
+	return (kind == CommandKind::HostRoom || kind == CommandKind::JoinInvite) && HoldsMatchRoom(play, watch);
+}
+
+// The match being watched, and how far it got.
+struct WatchStatus {
+	WatchPhase phase = WatchPhase::Idle;
+	std::string bridgeId, matchId;
+	// Why the watch was refused or finished: a stable code, empty otherwise.
+	std::string reason;
+	// The organizer's watcher limit is reached: waiting for a place.
+	bool full = false;
+	// The last way a joined room ended for the watcher, and a count that moves
+	// with each one.
+	WatchNotice notice = WatchNotice::None;
+	std::uint64_t noticeSequence = 0;
+};
+
 struct Status {
 	// The match being played, and how far it got.
 	Phase phase = Phase::Idle;
@@ -110,9 +142,11 @@ struct Status {
 	// Why it finished or failed: a stable code, empty otherwise.
 	std::string reason;
 	bool waitingForOpponent = false, waitingForPermit = false;
+	WatchStatus watch;
 	AssignmentList list;
 	OpenedLink link, connect;
 	OpenedRoomLink roomLink;
+	bool MatchRoomActive() const { return HoldsMatchRoom(phase, watch.phase); }
 };
 
 } } }

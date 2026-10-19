@@ -1347,7 +1347,13 @@ msgid "room.private_status"
 msgstr "Soukromá místnost / jen s pozvánkou"
 
 msgid "room.tournament_status"
-msgstr "Turnajový zápas, hraje se na {0} výhry. Připojit se mohou jen jeho dva hráči."
+msgstr "Turnajový zápas, hraje se na {0} výhry. Hrát mohou jen jeho dva hráči."
+
+msgid "room.tournament_status_watched"
+msgstr "Turnajový zápas, hraje se na {0} výhry. Diváků: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Sledujete turnajový zápas. Hrát mohou jen jeho dva hráči."
 
 msgid "room.reconnecting"
 msgstr "Obnovování spojení..."
@@ -2652,6 +2658,8 @@ msgstr "{0} / HOSTITEL"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Divák"
 
 msgid "room.members"
 msgstr "Členové"
@@ -3344,6 +3352,12 @@ msgstr "Akci diváka se nepodařilo odeslat; zkouší se znovu."
 
 msgid "runtime.return_main_menu"
 msgstr "Před otevřením místnosti se vraťte do hlavní nabídky hry."
+
+msgid "runtime.in_tournament_match"
+msgstr "Hrajete nebo sledujete turnajový zápas. Dokončete ho nebo ho ukončete v části Turnajové zápasy, než otevřete jinou místnost nebo se do ní připojíte."
+
+msgid "runtime.watch_leave_room"
+msgstr "Před sledováním turnajového zápasu opusťte svou místnost."
 
 msgid "runtime.tournament_result_saving"
 msgstr "Ukládá se výsledek poslední hry. Zkuste to znovu za několik sekund."
@@ -4268,6 +4282,63 @@ msgstr "Tento zápas není ve vašem seznamu. Patří jiným hráčům, nebo tat
 
 msgid "tournament.failure.link_service"
 msgstr "Důvěřujte této turnajové službě v části Propojené účty a pak odkaz na zápas otevřete znovu."
+
+msgid "tournament.watch.row"
+msgstr "Sledovat tento zápas"
+
+msgid "tournament.watch.row_detail"
+msgstr "Diváci sledují zápas z jeho místnosti. Nemohou hrát ani psát do chatu a o tom, kdo smí sledovat, rozhoduje organizátor."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Opustí místnost zápasu. Zápas můžete znovu sledovat z tohoto seznamu."
+
+msgid "tournament.watch.needs_id"
+msgstr "Sledování zápasu vyžaduje Ember ID. Vytvořte si ho tady, trvá to chvilku."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Turnajová služba tohoto zápasu zatím není důvěryhodná. Přidejte ji v části Propojené účty."
+
+msgid "tournament.watch.state.asking"
+msgstr "Dotaz na turnajovou službu."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Čekání, až hráči otevřou místnost zápasu."
+
+msgid "tournament.watch.state.full"
+msgstr "Tento zápas má tolik diváků, kolik organizátor povoluje. Čeká se na volné místo."
+
+msgid "tournament.watch.state.joining"
+msgstr "Připojování do místnosti zápasu."
+
+msgid "tournament.watch.state.watching"
+msgstr "Sledujete {0} vs {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "Organizátor tohoto zápasu ho divákům neotevřel."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "Organizátor vás odebral z diváků tohoto zápasu."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "V tomto zápase hrajete. Použijte místo toho Hrát."
+
+msgid "tournament.watch.refused.build"
+msgstr "Hráči mají jinou verzi Ember. Sledování vyžaduje stejnou."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Tato turnajová služba sledování nenabízí."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Sledování skončilo, protože jste v jiné místnosti. Opusťte ji a pak zápas začněte sledovat znovu."
+
+msgid "tournament.watch.finished_notice"
+msgstr "Zápas, který jste sledovali, skončil."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Přestali jste sledovat: organizátor vás odebral."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "Místnost zápasu se zavřela."
 
 msgid "rules.set_length"
 msgstr "Délka setu"

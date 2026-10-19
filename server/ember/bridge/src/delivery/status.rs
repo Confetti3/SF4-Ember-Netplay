@@ -143,7 +143,8 @@ impl Queue for Status {
         let connections: Vec<&String> = self.destinations.keys().collect();
         let rows = tx
             .prepare(
-                "SELECT s.match_id, m.connection_id, s.revision, s.body, s.observed_at, s.attempts, s.first_at
+                "SELECT s.match_id, m.connection_id, s.revision, s.body, s.observed_at, s.attempts, s.first_at,
+                        m.external_match_id
                  FROM blumint_status s JOIN matches m ON m.id = s.match_id
                    JOIN provider_connections c ON c.id = m.connection_id
                  WHERE s.state IN ('queued', 'retrying', 'delivering') AND s.next_at <= ?1
@@ -159,11 +160,14 @@ impl Queue for Status {
                     row.get::<_, u64>(4)?,
                     row.get::<_, u32>(5)?,
                     row.get::<_, Option<u64>>(6)?,
+                    row.get::<_, String>(7)?,
                 ))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         let mut leased = Vec::with_capacity(rows.len());
-        for (match_id, connection_id, revision, body, observed_at, attempts, first_at) in rows {
+        for (match_id, connection_id, revision, body, observed_at, attempts, first_at, external) in
+            rows
+        {
             // A body the bridge cannot read fails on its own, so the rest of
             // the queue goes on. The match's next change writes it again
             // (`observe`).
@@ -192,7 +196,13 @@ impl Queue for Status {
             )?;
             leased.push(Leased {
                 item: Due {
-                    body: blumint::status_report(&match_id, &status, revision, observed_at),
+                    body: blumint::status_report(
+                        &match_id,
+                        &external,
+                        &status,
+                        revision,
+                        observed_at,
+                    ),
                     match_id,
                     connection_id,
                     revision,

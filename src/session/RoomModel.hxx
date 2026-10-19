@@ -106,6 +106,8 @@ enum class ActionKind : std::uint8_t {
 	// kind.
 	SetTraining,
 };
+// The last kind, the wire's upper bound: a kind appended after it moves this too.
+constexpr ActionKind LastActionKind = ActionKind::SetTraining;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -149,6 +151,10 @@ struct MemberProfile {
 	SteamId steamId;
 	// The country the player shows, or none when it is Hidden or unknown.
 	CountryCode country;
+	// The joiner asks to watch a bound tournament match: a room that does not
+	// name its endpoint as a watcher refuses it. A courtesy of a cooperating
+	// game, never part of a snapshot.
+	bool observer = false;
 };
 
 struct ConnectionRef {
@@ -473,6 +479,20 @@ inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
 	return found == snapshot.members.end() ? nullptr : &*found;
 }
 
+// A member the room's tournament binding names as a watcher: it only watches,
+// with no table action, host power or chat.
+inline bool IsWatcher(const Snapshot& snapshot, MemberId id) {
+	const auto* member = FindMember(snapshot, id);
+	return member && snapshot.tournament.WatcherOf(member->connection.user);
+}
+// The member with the host's powers: the host field's holder, or none (0) when
+// that is a watcher, which a bound room can leave holding the field.
+inline MemberId ActingHost(const Snapshot& snapshot) { return IsWatcher(snapshot, snapshot.host) ? 0 : snapshot.host; }
+inline std::size_t WatcherCount(const Snapshot& snapshot) {
+	return static_cast<std::size_t>(std::count_if(snapshot.members.begin(), snapshot.members.end(),
+		[&](const Member& member) { return snapshot.tournament.WatcherOf(member.connection.user); }));
+}
+
 // Where a member holds a place in the room: a seat at one table, a place in one
 // table's queue, or neither. Watching is not a place, because Queue and Watch
 // both end it.
@@ -759,6 +779,31 @@ private:
 	Result ApplyPermitReady(MemberId member, const Action& action, Table* table);
 	// Table 0 of a room bound to a tournament match.
 	bool BoundTable(const Table& table) const;
+	// What a bound room makes of a join (RoomModelTournament.cxx): Unbound is an
+	// ordinary room, Named a fighter or watcher the binding names, Stranger
+	// anyone else in a bound room, and Refuse an observer the room does not name.
+	enum class BoundAdmission { Unbound, Named, Stranger, Refuse };
+	BoundAdmission BoundJoin(const ConnectionRef& connection, const MemberProfile& profile) const;
+	// Who takes the host field when its holder leaves: the oldest member, a
+	// bound room's fighters before its watchers.
+	const Member* HostSuccessor(MemberId leaving) const;
+	// Everything a bound room adds to a join once the member is in: fighters
+	// seated, a fighter taking the host field back from a watcher, a watcher
+	// placed as a spectator of table 0.
+	void SettleBoundJoin(MemberId joined);
+	// Places `member` as a spectator of table 0 (watching next during a game):
+	// the room's revision moves, table 0's does not.
+	void PlaceWatcher(MemberId member);
+	// Puts every named watcher of the binding that is not already a spectator
+	// of table 0 there, off any seat or queue place it took.
+	void NormalizeBoundWatchers();
+	// A change confined to a table's spectator lists: at a bound table only the
+	// room's revision moves, so a fighter's Ready is never made stale by one.
+	void TouchSpectators(Table& table);
+	// What a bound watcher may do, and nothing else: leave, acknowledge a game's
+	// end, and say it is in Training. ApplyAction asks it before any kind is
+	// dispatched, so a kind added later is refused to a watcher until listed here.
+	static bool WatcherMay(ActionKind kind);
 	// Seats each bound fighter in its slot at table 0, unless a game is being
 	// started, played or resolved there.
 	void SeatBoundFighters();

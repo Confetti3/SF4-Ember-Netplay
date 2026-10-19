@@ -25,6 +25,10 @@ int main() {
     in.room.locked=true; CHECK(discord::Describe(in).secret.empty()); in.room.locked=false;
     in.room.capacity=1; CHECK(discord::Describe(in).secret.empty()); in.room.capacity=16;
     in.invites=false; CHECK(discord::Describe(in).secret.empty()); in.invites=true;
+    // A room whose snapshot is bound to a tournament match is never offered to friends.
+    in.room.tournament.matchId="emt_1";
+    CHECK(in.room.tournament.Active() && discord::Describe(in).secret.empty() && discord::Describe(in).activity=="Ready");
+    in.room.tournament=room::TournamentBinding{}; CHECK(discord::Describe(in).secret==in.secret);
     in.show=false; CHECK(!discord::Describe(in).show && discord::Describe(in).party.empty()); in.show=true;
     in.now=200; CHECK(discord::Describe(in).secret.empty()); in.now=100;
     in.session.control=netplay::Health::Lost; CHECK(discord::Describe(in).secret.empty());

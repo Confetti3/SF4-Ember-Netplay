@@ -321,16 +321,25 @@ pub(super) fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value
             .and_then(|value| json::from_value::<Value>(&value))
             .map_err(|_| Failure::new("bridge_invalid_response"));
     }
-    let code = serde_json::from_slice::<ApiError>(body)
-        .map(|error| {
-            serde_json::to_value(error.error.code)
-                .ok()
-                .and_then(|v| v.as_str().map(str::to_owned))
-        })
-        .ok()
-        .flatten()
-        .unwrap_or_else(|| format!("http_{status}"));
-    Err(Failure(code))
+    Err(refusal(status, body, &[]))
+}
+
+/// The failure for a bridge's refusal: its `details.reason` when that is one
+/// of `reasons`, which a caller words apart, else its error code, or
+/// `http_<status>` when the body names none.
+pub(super) fn refusal(status: u16, body: &[u8], reasons: &[&str]) -> Failure {
+    let error = serde_json::from_slice::<ApiError>(body).ok();
+    let reason = error.as_ref().and_then(|error| {
+        let reason = error.error.details.get("reason")?.as_str()?;
+        reasons.contains(&reason).then(|| reason.to_owned())
+    });
+    let code = || {
+        error
+            .and_then(|error| serde_json::to_value(error.error.code).ok())
+            .and_then(|code| code.as_str().map(str::to_owned))
+            .unwrap_or_else(|| format!("http_{status}"))
+    };
+    Failure(reason.unwrap_or_else(code))
 }
 
 /// Whether this build pins `bridge_id` (builtin.rs).

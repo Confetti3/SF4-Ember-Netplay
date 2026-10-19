@@ -1,9 +1,10 @@
 //! What the bridge reports to BluMint about a match, at
 //! `/tournaments/match/submit`: its status and each player's presence, its
 //! score after each game that did not end it, its result once the set is
-//! won, or an abort when it ended without one. Every report names each
-//! player by the Ember ID BluMint sent, and every report on the score carries
-//! every team's wins so far, so a game an abort overtook is never lost.
+//! won, or an abort when it ended without one. Every report names the
+//! creation that made the match by its `Idempotency-Key`, and each player by
+//! the Ember ID BluMint sent, and every report on the score carries every
+//! team's wins so far, so a game an abort overtook is never lost.
 use ember_protocol::{
     event::{Kind, rfc3339},
     matches::MatchState,
@@ -11,7 +12,7 @@ use ember_protocol::{
 use rusqlite::{OptionalExtension, Transaction};
 use serde_json::{Value, json};
 
-use super::liveness;
+use super::{keys, liveness};
 use crate::{
     error::Result,
     routes::ledger::{Match, participants, scores},
@@ -42,7 +43,7 @@ pub fn submission(tx: &Transaction<'_>, found: &Match) -> Result<Option<Value>> 
     let mut body = ended;
     body["matchId"] = json!(found.id);
     body["teams"] = json!(teams(tx, found)?);
-    Ok(Some(body))
+    Ok(Some(keyed(body, &found.external_match_id)))
 }
 
 /// A match's status at `now` (`delivery::status`): `pending` until its
@@ -88,21 +89,40 @@ fn status_of(started: bool, players: Vec<Value>) -> Value {
     json!({ "status": if started { "running" } else { "pending" }, "players": players })
 }
 
-/// The report of `status`, the match's `revision`th, observed at
-/// `observed_at`. The revision rises with each change, so BluMint can drop a
-/// report that reaches it after a later one.
-pub fn status_report(match_id: &str, status: &Value, revision: u64, observed_at: u64) -> Value {
+/// The report of `status` on the match `match_id`, made under
+/// `external_match_id`: the match's `revision`th, observed at `observed_at`.
+/// The revision rises with each change, so BluMint can drop a report that
+/// reaches it after a later one.
+pub fn status_report(
+    match_id: &str,
+    external_match_id: &str,
+    status: &Value,
+    revision: u64,
+    observed_at: u64,
+) -> Value {
     let mut body = status.clone();
     body["mode"] = json!("status");
     body["matchId"] = json!(match_id);
     body["revision"] = json!(revision);
     body["observedAt"] = json!(rfc3339(observed_at));
-    body
+    keyed(body, external_match_id)
 }
 
 /// The score of a set still being played (`delivery::progress`).
 pub fn progress(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
-    Ok(json!({ "mode": "progress", "matchId": found.id, "teams": teams(tx, found)? }))
+    let body = json!({ "mode": "progress", "matchId": found.id, "teams": teams(tx, found)? });
+    Ok(keyed(body, &found.external_match_id))
+}
+
+/// A report naming the creation that made its match. BluMint asks for the
+/// key on every report: one that reaches it before it has recorded the
+/// creation's answer then waits (`503 match_not_ready`) rather than reading
+/// as a match it does not know.
+fn keyed(mut body: Value, external_match_id: &str) -> Value {
+    if let Some(key) = keys::key_of(external_match_id) {
+        body["idempotencyKey"] = json!(key);
+    }
+    body
 }
 
 /// What the bridge knows of a player: whether their Ember is connected to

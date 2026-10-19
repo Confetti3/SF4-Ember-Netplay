@@ -72,7 +72,9 @@ void ChatTranscript::Diff(const room::Snapshot& snapshot) {
     // A member who left and one who was removed read the same: the snapshot does not say which.
     for (const auto id : present_) if (!now.count(id)) Append(EventLine(ChatLine::Kind::Left, id));
     for (const auto& member : snapshot.members) if (!present_.count(member.id)) Append(EventLine(ChatLine::Kind::Joined, member.id));
-    if (host_ && snapshot.host && snapshot.host != host_) Append(EventLine(ChatLine::Kind::NewHost, snapshot.host));
+    // Only a member with the host's powers is announced, never a watcher left holding the field.
+    const auto host = room::ActingHost(snapshot);
+    if (host_ && host && host != host_) Append(EventLine(ChatLine::Kind::NewHost, host));
     for (std::size_t i = 0; i < snapshot.tables.size(); ++i) {
         const auto& table = snapshot.tables[i];
         const auto& seen = tables_[i];

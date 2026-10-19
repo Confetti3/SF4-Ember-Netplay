@@ -1,0 +1,24 @@
+{
+  "bridge": {
+    "api": "https://bridge-staging.embernetplay.link",
+    "credential_file": "provider.token",
+    "connection_id": "challonge-staging",
+    "build_id": "ember-nightly"
+  },
+  "results": {
+    "listen": "127.0.0.1:47881",
+    "path": "/ember/results",
+    "secret_file": "result.secret"
+  },
+  "database": "brackets.sqlite3",
+  "poll_secs": 120,
+  "max_poll_secs": 1800,
+  "tournaments": [
+    {
+      "adapter": "challonge",
+      "tournament": "18643720",
+      "credential": { "kind": "v1_key", "file": "challonge.key" },
+      "rounds": { "games_to_win": 1 }
+    }
+  ]
+}

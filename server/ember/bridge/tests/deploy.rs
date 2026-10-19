@@ -83,7 +83,17 @@ async fn the_deployed_tenants_apply_over_the_first_deployment() {
 
 #[tokio::test]
 async fn the_staging_tenants_apply_to_a_new_bridge() {
-    let bridge = Bridge::start().await;
+    // The staging file also names the sign-in sites its connections look up,
+    // which setup.sh writes into the same configuration.
+    let sites = deployed_config(STAGING).sign_in_sites;
+    let bridge = Bridge::start_with(
+        |config| {
+            config.sign_in_sites = sites;
+            config.integration_secrets = Some("unused-in-tests.json".into());
+        },
+        Default::default(),
+    )
+    .await;
     assert!(sync(&bridge, tenants(STAGING)).await);
 }
 

@@ -1347,7 +1347,13 @@ msgid "room.private_status"
 msgstr "비공개 방 / 초대 전용"
 
 msgid "room.tournament_status"
-msgstr "대회 경기, {0}선승. 이 경기의 두 플레이어만 참가할 수 있습니다."
+msgstr "대회 경기, {0}선승. 이 경기의 두 플레이어만 플레이할 수 있습니다."
+
+msgid "room.tournament_status_watched"
+msgstr "대회 경기, {0}선승. {1}명 관전 중."
+
+msgid "room.tournament_watching"
+msgstr "대회 경기를 관전 중입니다. 이 경기의 두 플레이어만 플레이할 수 있습니다."
 
 msgid "room.reconnecting"
 msgstr "방에 다시 연결 중..."
@@ -2653,6 +2659,9 @@ msgstr "{0} / 방장"
 msgid "room.member_status"
 msgstr "{0}"
 
+msgid "room.member.watcher"
+msgstr "관전자"
+
 msgid "room.members"
 msgstr "참가자"
 
@@ -3344,6 +3353,12 @@ msgstr "관전 작업을 보내지 못해 다시 시도합니다."
 
 msgid "runtime.return_main_menu"
 msgstr "방을 열기 전에 게임의 메인 메뉴로 돌아가세요."
+
+msgid "runtime.in_tournament_match"
+msgstr "대회 경기를 하고 있거나 관전 중입니다. 다른 방을 열거나 참가하기 전에 경기를 끝내거나 '대회 경기'에서 중지하세요."
+
+msgid "runtime.watch_leave_room"
+msgstr "대회 경기를 관전하기 전에 현재 방에서 나가세요."
 
 msgid "runtime.tournament_result_saving"
 msgstr "지난 경기 결과를 저장하는 중입니다. 몇 초 후에 다시 시도하세요."
@@ -4268,6 +4283,63 @@ msgstr "이 경기는 목록에 없습니다. 다른 플레이어의 경기이�
 
 msgid "tournament.failure.link_service"
 msgstr "연동된 계정에서 이 대회 서비스를 신뢰한 다음 경기 링크를 다시 여세요."
+
+msgid "tournament.watch.row"
+msgstr "이 경기 관전"
+
+msgid "tournament.watch.row_detail"
+msgstr "관전자는 경기가 열린 방에서 경기를 볼 수 있습니다. 플레이와 채팅은 할 수 없으며, 누가 관전할 수 있는지는 주최자가 정합니다."
+
+msgid "tournament.watch.stop_detail"
+msgstr "경기 방에서 나갑니다. 이 목록에서 경기를 다시 관전할 수 있습니다."
+
+msgid "tournament.watch.needs_id"
+msgstr "경기를 관전하려면 Ember ID가 필요합니다. 여기서 만들 수 있으며 금방 끝납니다."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "이 경기의 대회 서비스를 아직 신뢰하지 않습니다. 연동된 계정에서 추가하세요."
+
+msgid "tournament.watch.state.asking"
+msgstr "대회 서비스에 확인하는 중입니다."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "플레이어가 경기 방을 열기를 기다리는 중입니다."
+
+msgid "tournament.watch.state.full"
+msgstr "이 경기는 주최자가 허용한 관전자 수가 가득 찼습니다. 자리가 나기를 기다리는 중입니다."
+
+msgid "tournament.watch.state.joining"
+msgstr "경기 방에 참가하는 중입니다."
+
+msgid "tournament.watch.state.watching"
+msgstr "{0} vs {1} 관전 중입니다."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "이 경기의 주최자가 관전을 열지 않았습니다."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "주최자에 의해 이 경기의 관전자에서 제외되었습니다."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "이 경기의 플레이어입니다. 대신 플레이를 사용하세요."
+
+msgid "tournament.watch.refused.build"
+msgstr "플레이어의 Ember 버전이 다릅니다. 관전하려면 같은 버전이어야 합니다."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "이 대회 서비스는 관전을 지원하지 않습니다."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "다른 방에 있어서 관전이 중단되었습니다. 방에서 나간 뒤 경기를 다시 관전하세요."
+
+msgid "tournament.watch.finished_notice"
+msgstr "관전하던 경기가 끝났습니다."
+
+msgid "tournament.watch.removed_notice"
+msgstr "관전을 중단했습니다. 주최자가 제외했습니다."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "경기 방이 닫혔습니다."
 
 msgid "rules.set_length"
 msgstr "세트 길이"

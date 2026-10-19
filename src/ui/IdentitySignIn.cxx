@@ -310,7 +310,7 @@ bool IdentityPanel::SignInActivate(const MenuAction& a, const ShellView& v) {
         } else if (a.id == info.rows.remove) {
             message_.clear(); Queue(Request(target, SignInStep::Remove, SiteBridge(v, target)));
         } else if (a.id == info.rows.cancel) {
-            CancelAttempt(); Say(Word(target, info.words.cancelled), false);
+            CancelAttempt(); Say(Word(target, info.words.cancelled), Tone::Success);
         } else if (a.id == info.rows.retry) {
             // Reading again also resumes a paused wait's polls.
             message_.clear(); Refresh(v, info.screen);
@@ -338,21 +338,21 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
         // with an account connected since the page opened.
         if (waitedFor && signIn_->until > 0 && read.ConnectedSince(signIn_->before)) {
             signIn_.reset();
-            Say(Word(target, info.words.done, read.name), false, 20);
+            Say(Word(target, info.words.done, read.name), Tone::Success, 20);
         }
         break;
     }
     case SignInStep::Connect:
         // A cancelled attempt does not wait, though its page may have opened.
         if (!waitedFor || signIn_->phase != Phase::Opening) break;
-        Say(Word(target, info.words.opened), false, 30);
+        Say(Word(target, info.words.opened), Tone::Success, 30);
         signIn_->phase = Phase::Waiting;
         signIn_->until = now_ + SignInSeconds; signIn_->pollAt = now_ + PollSeconds; signIn_->paused = false;
         break;
     case SignInStep::Remove: {
         Account(target, sentBridge_).Set({});
         if (waitedFor) signIn_.reset();
-        Say(Word(target, info.words.removed), false);
+        Say(Word(target, info.words.removed), Tone::Success);
         break;
     }
     case SignInStep::Cancel: break;

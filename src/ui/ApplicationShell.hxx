@@ -240,8 +240,9 @@ struct ShellAction {
 };
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
-// CatchingUp hold one the player entered (queuedChat_) until the room can take it.
-enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable };
+// CatchingUp hold one the player entered (queuedChat_) until the room can take it. ReadOnly is a
+// tournament match's watcher: it reads the chat and has no box to write in.
+enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable, ReadOnly };
 
 class ApplicationShell {
 public:
@@ -433,6 +434,11 @@ private:
     void DrawChatLog(const ShellView& view,bool compact);
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
+    // The Chat screen's message box, and the room left in the message at the right of the note line
+    // under it (`noteHeight` tall). A tournament match's watcher has neither.
+    void DrawChatBox(float x,float width,bool typable,float noteHeight);
+    // The room left in the message, in bytes, which the counter says.
+    int ChatBytesLeft() const;
     ChatTranscript transcript_;
     // A message sent and not yet seen in the room's chat. The draft stays in the box until it is, however
     // late, or until the room changes; `after` is the newest message already looked at. For 8 seconds
@@ -496,6 +502,8 @@ private:
     netplay::tournament::Phase tournamentPhase_ = netplay::tournament::Phase::Idle;
     // The last match link outcome announced.
     std::uint64_t matchLinkSequence_ = 0;
+    // The last watch notice shown (a match over, the watcher removed, the room closed).
+    std::uint64_t watchNoticeSequence_ = 0;
     // The last Discord connect link seen, and its service until Connect
     // Discord can open (not in a room).
     std::uint64_t connectLinkSequence_ = 0;

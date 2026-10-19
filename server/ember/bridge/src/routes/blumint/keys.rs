@@ -12,10 +12,19 @@ pub fn owner(connection_id: &str) -> String {
     format!("connection:{connection_id}")
 }
 
-/// The `external_match_id` of the match a creation under `key` makes. The
-/// prefix keeps it apart from the lobby and tournament sets' own.
+/// What sets a BluMint match's `external_match_id` apart from the lobby and
+/// tournament sets' own.
+const PREFIX: &str = "blumint:";
+
+/// The `external_match_id` of the match a creation under `key` makes.
 pub fn external_id(key: &str) -> String {
-    format!("blumint:{key}")
+    format!("{PREFIX}{key}")
+}
+
+/// The creation key a match's `external_match_id` holds, or None for a match
+/// no BluMint creation made.
+pub fn key_of(external_match_id: &str) -> Option<&str> {
+    external_match_id.strip_prefix(PREFIX)
 }
 
 /// The match the connection's key made, if it made one.

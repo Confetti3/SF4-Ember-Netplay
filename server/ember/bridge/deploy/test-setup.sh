@@ -312,7 +312,10 @@ check "origin" config_is "$SSTATE" origin '"https://bridge-staging.embernetplay.
 check "listen" config_is "$SSTATE" listen '"127.0.0.1:47821"'
 check "display name" config_is "$SSTATE" display_name '"Ember bridge (staging)"'
 check "no public rooms" lacks_key "$SSTATE" rooms
-check "staging connections" connections_are "$SSTATE" blumint-partner-staging ember-test
+check "staging connections" connections_are "$SSTATE" blumint-partner-staging challonge-staging ember-test
+check "the Challonge sign-in site is configured" python3 -c 'import json, sys; sites = json.load(open(sys.argv[1]))["sign_in_sites"]; sys.exit([s["id"] for s in sites] != ["challonge"] or sites[0]["client_id"] != sys.argv[2])' "$SSTATE" cab6fdeece228047e113681a3cabe8c62ecdef4ffed992f411d5f27589607ee7
+check "the connector connection looks players up on it and restarts disputes" python3 -c 'import json, sys; c = {c["id"]: c for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]}["challonge-staging"]; sys.exit(c["kind"] != "direct" or c["lookup_sites"] != ["challonge"] or c["disputes"] != "restart" or c["results_url"] != "https://brackets-staging.embernetplay.link/ember/results")' "$SSTATE"
+check "BluMint's connection is the one it was" python3 -c 'import json, sys; c = {c["id"]: c for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]}["blumint-partner-staging"]; sys.exit(c != {"id": "blumint-partner-staging", "kind": "blumint", "environment": "staging", "display_name": "BluMint partner API (staging)"})' "$SSTATE"
 check "development switches off" config_is "$SSTATE" allow_private_webhooks false
 SID=$(bridge_id "$SSTATE")
 check "its own bridge ID" test "$SID" != "$PID"

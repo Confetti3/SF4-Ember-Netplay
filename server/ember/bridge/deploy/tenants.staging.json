@@ -6,6 +6,43 @@
     "client_id": "1546980049692135514"
   },
   "integration_secrets": "integrations.json",
+  "sign_in_sites": [
+    {
+      "id": "challonge",
+      "display_name": "Challonge",
+      "client_id": "cab6fdeece228047e113681a3cabe8c62ecdef4ffed992f411d5f27589607ee7",
+      "scope": "me",
+      "authorize_url": "https://api.challonge.com/oauth/authorize",
+      "token_url": "https://api.challonge.com/oauth/token",
+      "token_encoding": "form",
+      "user": {
+        "method": "GET",
+        "url": "https://api.challonge.com/v2.1/me.json",
+        "headers": {
+          "Accept": "application/json",
+          "Content-Type": "application/vnd.api+json",
+          "Authorization-Type": "v2"
+        },
+        "id_pointer": "/data/id",
+        "username_pointer": "/data/attributes/username"
+      },
+      "username_rule": {
+        "characters": "letters_digits",
+        "also": "_-.",
+        "max_length": 64,
+        "case_insensitive": true
+      },
+      "lookup_by": "username",
+      "hosts": [
+        "api.challonge.com"
+      ],
+      "limits": {
+        "monthly_request_budget": 400,
+        "daily_request_budget": 40,
+        "starts_per_hour": 30
+      }
+    }
+  ],
   "tenants": [
     {
       "id": "blumint",
@@ -28,6 +65,23 @@
           "kind": "direct",
           "environment": "staging",
           "display_name": "Ember test"
+        }
+      ]
+    },
+    {
+      "id": "brackets",
+      "name": "Ember brackets",
+      "connections": [
+        {
+          "id": "challonge-staging",
+          "kind": "direct",
+          "environment": "staging",
+          "display_name": "Challonge brackets (staging)",
+          "lookup_sites": [
+            "challonge"
+          ],
+          "disputes": "restart",
+          "results_url": "https://brackets-staging.embernetplay.link/ember/results"
         }
       ]
     }

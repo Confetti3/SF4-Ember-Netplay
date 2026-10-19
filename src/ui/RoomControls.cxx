@@ -69,7 +69,7 @@ std::string LeaveRoomDetail(const ShellView& v) {
         else detail += loc::T("room.leave.seat");
     } else if (place.kind == room::Place::Kind::Queue) detail += loc::T("room.leave.queue");
     if (v.watchedGame.Active()) detail += loc::T("room.leave.watching");
-    if (local && local->host && v.room.members.size() > 1) detail += loc::T("room.leave.host");
+    if (local && local->id == room::ActingHost(v.room) && v.room.members.size() > 1) detail += loc::T("room.leave.host");
     return detail;
 }
 const SeatOption* FindSeatOption(const std::string& id) {

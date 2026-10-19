@@ -15,6 +15,9 @@ mod rooms;
 mod sign_in;
 mod sites;
 mod spool;
+#[cfg(test)]
+mod test_support;
+mod watch;
 
 use std::{
     path::{Path, PathBuf},
@@ -192,6 +195,17 @@ pub enum Request {
     MatchLeave {
         match_id: String,
     },
+    /// Asks to watch a match this player does not play in: the room and its
+    /// invitation, or why to wait (docs/design/MATCH_WATCH.md 5.3).
+    MatchWatch {
+        bridge_id: String,
+        match_id: String,
+        build: String,
+    },
+    MatchUnwatch {
+        bridge_id: String,
+        match_id: String,
+    },
 }
 
 impl Request {
@@ -229,6 +243,8 @@ impl Request {
             Self::GamePrepare { .. } => "game_prepare",
             Self::GameReport { .. } => "game_report",
             Self::MatchLeave { .. } => "match_leave",
+            Self::MatchWatch { .. } => "match_watch",
+            Self::MatchUnwatch { .. } => "match_unwatch",
         }
     }
 
@@ -751,6 +767,15 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             .await
         }
         Request::MatchLeave { match_id } => play::forget(shared, &match_id),
+        Request::MatchWatch {
+            bridge_id,
+            match_id,
+            build,
+        } => watch::watch_match(shared, &bridge_id, &match_id, &build).await,
+        Request::MatchUnwatch {
+            bridge_id,
+            match_id,
+        } => watch::unwatch_match(shared, &bridge_id, &match_id).await,
         _ => Err(Failure::new("invalid_request")),
     }
 }

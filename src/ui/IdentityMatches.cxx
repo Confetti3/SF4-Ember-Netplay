@@ -19,10 +19,7 @@ constexpr double AssignmentsSeconds = 60;
 // the matches are read this often, from any screen, for this long.
 constexpr double RestartPollSeconds = 5, RestartWatchSeconds = 180;
 
-bool Playing(const netplay::tournament::Status& t) {
-    using netplay::tournament::Phase;
-    return t.phase == Phase::Claiming || t.phase == Phase::Opening || t.phase == Phase::InRoom;
-}
+bool Playing(const netplay::tournament::Status& t) { return netplay::tournament::PlayUnderWay(t.phase); }
 std::string PlayState(const netplay::tournament::Status& t) {
     using netplay::tournament::Phase;
     switch (t.phase) {
@@ -42,7 +39,8 @@ std::string PlayState(const netplay::tournament::Status& t) {
 void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match) {
     bridge_ = bridge;
     wantAssignments_ = true;
-    opened_ = OpenedMatch{bridge, "tm-play:" + match, std::nullopt};
+    opened_ = OpenedMatch{bridge, "tm-play:" + match, std::nullopt, match};
+    watchBridge_.clear(); watchMatch_.clear();
     // The fresh service list says whether the player trusts this one.
     IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
 }
@@ -73,14 +71,18 @@ void IdentityPanel::CheckOpenedMatch(const netplay::tournament::AssignmentList& 
     const bool listed = std::any_of(list.items.begin(), list.items.end(),
         [&](const netplay::tournament::Assignment& item) { return "tm-play:" + item.matchId == opened_->row; });
     if (listed) return;
-    // A failed refresh was said already.
-    if (list.error.empty()) Say(loc::T("tournament.failure.not_yours"), true, 12);
-    opened_.reset();
+    // A failed refresh was said already. A match that is not the player's is theirs
+    // to watch (the Watch row is offered), so for an organizer or a caster saying
+    // so is not an error.
+    if (!list.error.empty()) { opened_.reset(); return; }
+    Say(loc::T("tournament.failure.not_yours"), Tone::Neutral, 12);
+    watchBridge_ = opened_->bridge; watchMatch_ = opened_->match;
+    opened_->row = "tm-watch:" + opened_->match;
 }
 
 bool IdentityPanel::CanPlay(const ShellView& v, const std::string& id) const {
     const auto& t = v.tournament;
-    if (t.list.bridge != bridge_ || v.session.room != netplay::RoomState::Idle || Playing(t)) return false;
+    if (t.list.bridge != bridge_ || v.session.room != netplay::RoomState::Idle || t.MatchRoomActive()) return false;
     return std::any_of(t.list.items.begin(), t.list.items.end(),
         [&](const netplay::tournament::Assignment& match) { return match.matchId == id && match.Playable(v.unixNow); });
 }
@@ -95,7 +97,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     // A refresh's failure is said once; the runtime clears it when the next one is sent.
     if (t.list.error != assignmentsError_) {
         assignmentsError_ = t.list.error;
-        if (!assignmentsError_.empty() && screen == "tournament-matches") Say(TournamentFailure(assignmentsError_), true);
+        if (!assignmentsError_.empty() && screen == "tournament-matches") Say(TournamentFailure(assignmentsError_), Tone::Error);
     }
     // A match that ended has a new score to show.
     if (t.phase != phase_) {
@@ -124,7 +126,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     } else {
         return;
     }
-    if (!submit(std::move(action))) Say(loc::T("error.queue_failed"), true);
+    if (!submit(std::move(action))) Say(loc::T("error.queue_failed"), Tone::Error);
 }
 
 void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows) const {
@@ -133,6 +135,8 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
         rows.push_back(InfoRow("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
         // Connect Discord creates the Ember ID on the way.
         rows.push_back(Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
+        // A match link waits for one: the Ember ID screen makes it, and the match stays selected.
+        if (opened_) rows.push_back(Row("identity", loc::T("screen.identity"), loc::T("tournament.watch.needs_id")));
         return;
     }
     const auto& t = v.tournament;
@@ -143,17 +147,20 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
             failed ? TournamentFailure(t.reason) : std::string(loc::T("tournament.current_detail"))));
         if (playing) rows.push_back(ConfirmRow("tm-stop", loc::T("tournament.stop"), loc::T("tournament.stop_detail")));
     }
+    AppendWatchState(v, rows);
     const auto* bridge = FindBridge(v, bridge_);
     if (!bridge) {
         rows.push_back(InfoRow("tm-no-service", loc::T("tournament.needs_service"), {}, loc::T("tournament.needs_discord_detail")));
         // Connect Discord sets up Ember's own service; Linked accounts any other.
         rows.push_back(Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
         rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
+        // A match link to a service that is not trusted yet cannot be watched until it is.
+        if (const auto watch = WatchEntry(v)) rows.push_back(*watch);
         return;
     }
     rows.push_back(ServiceRow(v, *bridge));
     if (t.list.bridge == bridge_) {
-        const bool free = v.session.room == netplay::RoomState::Idle && !playing;
+        const bool free = v.session.room == netplay::RoomState::Idle && !t.MatchRoomActive();
         for (const auto& match : t.list.items) {
             const bool slotKnown = match.slot == 0 || match.slot == 1;
             const auto own = slotKnown ? match.wins[static_cast<std::size_t>(match.slot)] : 0u;
@@ -176,6 +183,7 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
             if (!playable) row.info = true;
             rows.push_back(std::move(row));
         }
+        if (const auto watch = WatchEntry(v)) rows.push_back(*watch);
         if (t.list.items.empty() && !t.list.loading && t.list.error.empty())
             rows.push_back(InfoRow("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
     }
@@ -190,12 +198,13 @@ bool IdentityPanel::MatchesActivate(const MenuAction& a, const ShellView& v) {
         // The match link the tournament site gave: its page or the ember: link.
         const char* text = ImGui::GetClipboardText();
         const auto link = tournament_link::ParsePasted(text ? text : "");
-        if (!link.Valid()) { Say(loc::T("tournament.failure.link"), true); return true; }
+        if (!link.Valid()) { Say(loc::T("tournament.failure.link"), Tone::Error); return true; }
         message_.clear();
         OpenMatch(link.bridgeId, link.matchId);
         return true;
     }
     if (a.id == "tm-stop") { play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Stop, {}, {}}; return true; }
+    if (ActivateWatch(a, v)) return true;
     if (a.id.compare(0, 8, "tm-play:") == 0) {
         // The row may be older than the list: the match is played only if it still can be.
         if (!CanPlay(v, a.id.substr(8))) return true;
