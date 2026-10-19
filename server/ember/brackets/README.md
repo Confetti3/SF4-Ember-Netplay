@@ -274,7 +274,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now ember-brackets
 ```
 
- Each decision is one line on standard error
+Each decision is one line on standard error
 (`journalctl -u ember-brackets`). A new credential takes effect on restart.
 
 When something fails the log says so once, not on every try:
