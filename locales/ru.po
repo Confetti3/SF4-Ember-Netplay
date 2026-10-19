@@ -1351,7 +1351,13 @@ msgid "room.private_status"
 msgstr "Закрытое лобби / вход по приглашению"
 
 msgid "room.tournament_status"
-msgstr "Турнирный матч, до {0} побед. Войти могут только два его игрока."
+msgstr "Турнирный матч, до {0} побед. Играть могут только два его игрока."
+
+msgid "room.tournament_status_watched"
+msgstr "Турнирный матч, до {0} побед. Зрителей: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Вы смотрите турнирный матч. Играть могут только два его игрока."
 
 msgid "room.reconnecting"
 msgstr "Переподключение..."
@@ -2656,6 +2662,8 @@ msgstr "{0} / ВЕДУЩИЙ"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Зритель"
 
 msgid "room.members"
 msgstr "Участники"
@@ -4256,6 +4264,63 @@ msgstr "Этого матча нет в вашем списке. Он прина
 
 msgid "tournament.failure.link_service"
 msgstr "Доверьтесь этому турнирному сервису в разделе «Привязанные аккаунты» и снова откройте ссылку на матч."
+
+msgid "tournament.watch.row"
+msgstr "Смотреть этот матч"
+
+msgid "tournament.watch.row_detail"
+msgstr "Зрители смотрят матч из его лобби. Они не могут играть и писать в чат, а кто может смотреть, решает организатор."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Выход из лобби матча. Смотреть матч снова можно из этого списка."
+
+msgid "tournament.watch.needs_id"
+msgstr "Чтобы смотреть матч, нужен Ember ID. Создайте его здесь, это займёт минуту."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Турнирный сервис этого матча пока не доверенный. Добавьте его в разделе «Привязанные аккаунты»."
+
+msgid "tournament.watch.state.asking"
+msgstr "Запрос к турнирному сервису."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Ожидание, пока игроки откроют лобби матча."
+
+msgid "tournament.watch.state.full"
+msgstr "У этого матча уже столько зрителей, сколько разрешил организатор. Ожидание свободного места."
+
+msgid "tournament.watch.state.joining"
+msgstr "Вход в лобби матча."
+
+msgid "tournament.watch.state.watching"
+msgstr "Вы смотрите {0} против {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "Организатор этого матча не открыл его для зрителей."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "Организатор исключил вас из зрителей этого матча."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Вы играете в этом матче. Нажмите «Играть»."
+
+msgid "tournament.watch.refused.build"
+msgstr "У игроков другая версия Ember. Чтобы смотреть, нужна такая же."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Этот турнирный сервис не поддерживает просмотр."
+
+msgid "tournament.watch.finished"
+msgstr "Матч окончен."
+
+msgid "tournament.watch.finished_notice"
+msgstr "Матч, который вы смотрели, окончен."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Вы больше не смотрите матч: организатор исключил вас."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "Лобби матча закрыто."
 
 msgid "rules.set_length"
 msgstr "Длина поединка"

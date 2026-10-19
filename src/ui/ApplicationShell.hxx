@@ -234,8 +234,9 @@ struct ShellAction {
 };
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
-// CatchingUp hold one the player entered (queuedChat_) until the room can take it.
-enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable };
+// CatchingUp hold one the player entered (queuedChat_) until the room can take it. ReadOnly is a
+// tournament match's watcher: it reads the chat and has no box to write in.
+enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable, ReadOnly };
 
 class ApplicationShell {
 public:
@@ -483,6 +484,8 @@ private:
     netplay::tournament::Phase tournamentPhase_ = netplay::tournament::Phase::Idle;
     // The last match link outcome announced.
     std::uint64_t matchLinkSequence_ = 0;
+    // The last watch notice shown (a match over, the watcher removed, the room closed).
+    std::uint64_t watchNoticeSequence_ = 0;
     // The last Discord connect link seen, and its service until Connect
     // Discord can open (not in a room).
     std::uint64_t connectLinkSequence_ = 0;

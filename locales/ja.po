@@ -1350,7 +1350,13 @@ msgid "room.private_status"
 msgstr "プライベートルーム / 招待者のみ"
 
 msgid "room.tournament_status"
-msgstr "大会の試合、{0}本先取。参加できるのはこの試合の2人だけです。"
+msgstr "大会の試合、{0}本先取。プレイできるのはこの試合の2人だけです。"
+
+msgid "room.tournament_status_watched"
+msgstr "大会の試合、{0}本先取。{1}人が観戦中です。"
+
+msgid "room.tournament_watching"
+msgstr "大会の試合を観戦中です。プレイできるのはこの試合の2人だけです。"
 
 msgid "room.reconnecting"
 msgstr "ルームに再接続中..."
@@ -2655,6 +2661,9 @@ msgstr "{0} / ホスト"
 
 msgid "room.member_status"
 msgstr "{0}"
+
+msgid "room.member.watcher"
+msgstr "観戦者"
 
 msgid "room.members"
 msgstr "メンバー"
@@ -4255,6 +4264,63 @@ msgstr "この試合は一覧にありません。別のプレイヤーの試合
 
 msgid "tournament.failure.link_service"
 msgstr "連携アカウントでこの大会サービスを信頼してから、試合リンクをもう一度開いてください。"
+
+msgid "tournament.watch.row"
+msgstr "この試合を観戦"
+
+msgid "tournament.watch.row_detail"
+msgstr "観戦者はルームから試合を見られます。プレイやチャットはできず、観戦できる人は主催者が決めます。"
+
+msgid "tournament.watch.stop_detail"
+msgstr "試合のルームから退出します。この一覧からもう一度観戦できます。"
+
+msgid "tournament.watch.needs_id"
+msgstr "試合を観戦するにはEmber IDが必要です。ここで作成できます。すぐに終わります。"
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "この試合の大会サービスはまだ信頼されていません。連携アカウントで追加してください。"
+
+msgid "tournament.watch.state.asking"
+msgstr "大会サービスに問い合わせ中です。"
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "プレイヤーが試合のルームを開くのを待っています。"
+
+msgid "tournament.watch.state.full"
+msgstr "この試合は主催者が許可した観戦者数に達しています。空きを待っています。"
+
+msgid "tournament.watch.state.joining"
+msgstr "試合のルームに参加中です。"
+
+msgid "tournament.watch.state.watching"
+msgstr "{0} vs {1}を観戦中です。"
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "この試合の主催者は観戦を許可していません。"
+
+msgid "tournament.watch.refused.revoked"
+msgstr "主催者によってこの試合の観戦者から外されました。"
+
+msgid "tournament.watch.refused.fighter"
+msgstr "あなたはこの試合のプレイヤーです。代わりに「プレイ」を使ってください。"
+
+msgid "tournament.watch.refused.build"
+msgstr "プレイヤーが使っているEmberのバージョンが異なります。観戦には同じバージョンが必要です。"
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "この大会サービスは観戦に対応していません。"
+
+msgid "tournament.watch.finished"
+msgstr "試合は終了しました。"
+
+msgid "tournament.watch.finished_notice"
+msgstr "観戦していた試合が終了しました。"
+
+msgid "tournament.watch.removed_notice"
+msgstr "観戦を終了しました。主催者により外されました。"
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "試合のルームが閉じられました。"
 
 msgid "rules.set_length"
 msgstr "セットの長さ"

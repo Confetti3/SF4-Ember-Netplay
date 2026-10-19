@@ -23,6 +23,25 @@ int main() {
 		CHECK((policy.Handles() == std::vector<int>{1001}));
 	}
 	{
+		// At a tournament match's bound table the deadline is two seconds: a
+		// watcher that has not synchronized then is dropped, one that has is
+		// kept, and any other table keeps the five.
+		CHECK(SpectatorPolicy::SyncDeadlineFor(false) == SpectatorPolicy::SyncDeadlineMs && SpectatorPolicy::SyncDeadlineMs == 5000);
+		CHECK(SpectatorPolicy::SyncDeadlineFor(true) == SpectatorPolicy::BoundSyncDeadlineMs && SpectatorPolicy::BoundSyncDeadlineMs == 2000);
+		SpectatorPolicy policy;
+		policy.Start(0, {1000, 1001}, SpectatorPolicy::SyncDeadlineFor(true));
+		policy.OnFighterSynchronized(1000);
+		policy.OnSynchronized(1001);
+		CHECK(policy.SyncOverdue(1000 + SpectatorPolicy::BoundSyncDeadlineMs - 1).empty());
+		CHECK((policy.SyncOverdue(1000 + SpectatorPolicy::BoundSyncDeadlineMs) == std::vector<int>{1000}));
+		CHECK((policy.Handles() == std::vector<int>{1001}));
+		// The next session, at an ordinary table, waits the whole five.
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineFor(false));
+		policy.OnFighterSynchronized(1000);
+		CHECK(policy.SyncOverdue(1000 + SpectatorPolicy::SyncDeadlineMs - 1).empty());
+		CHECK((policy.SyncOverdue(1000 + SpectatorPolicy::SyncDeadlineMs) == std::vector<int>{1000}));
+	}
+	{
 		// No fighter has synchronized yet: the fight cannot start, so a
 		// spectator that is still loading is never dropped for sync.
 		SpectatorPolicy policy;

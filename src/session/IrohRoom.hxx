@@ -108,7 +108,9 @@ public:
 	// deleted through this base without running its own.
 	virtual ~IrohRoom() = default;
 	bool Host(const std::string& build);
-	bool Join(const std::string& invitation, const std::string& build);
+	// `observer`: the join is a tournament match's watcher, which the room's
+	// helper admits only into a room that names it (the helper's `join` type).
+	bool Join(const std::string& invitation, const std::string& build, bool observer = false);
 	// Join a server-owned room: like Join, with the bridge's signed ticket as received.
 	bool JoinPublic(const std::string& invitation, const nlohmann::json& ticket, const std::string& build);
 	// Host a server-owned room under the id the bridge issued its tickets for.

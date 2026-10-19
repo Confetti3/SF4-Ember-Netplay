@@ -153,6 +153,10 @@ endif()
 add_library(sf4e_tournament_play STATIC "src/netplay/TournamentPlay.cxx")
 target_compile_features(sf4e_tournament_play PUBLIC cxx_std_17)
 target_link_libraries(sf4e_tournament_play PUBLIC sf4e_room_model)
+# Watching one: the same, a pure state machine the runtime ticks beside it.
+add_library(sf4e_watch_play STATIC "src/netplay/WatchPlay.cxx")
+target_compile_features(sf4e_watch_play PUBLIC cxx_std_17)
+target_link_libraries(sf4e_watch_play PUBLIC sf4e_room_model)
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME RoomMessageQueue SOURCES "src/tests/room_message_queue_test.cxx" LIBS sf4e_room_model)
     sf4e_add_unit_test(NAME MatchResultOutbox SOURCES "src/tests/match_result_outbox_test.cxx" LIBS sf4e_netplay_core sf4e_room_model TIMEOUT 15)
@@ -191,8 +195,10 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play)
     sf4e_add_unit_test(NAME IdentityEvents SOURCES "src/tests/identity_events_test.cxx" "src/session/IdentityEvents.cxx"
         LIBS nlohmann_json::nlohmann_json STD 17)
+    sf4e_add_unit_test(NAME WatchPlay SOURCES "src/tests/watch_play_test.cxx" LIBS sf4e_watch_play)
+    sf4e_add_unit_test(NAME RoomWatch SOURCES "src/tests/room_watch_test.cxx" LIBS sf4e_room_model)
     sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
-        LIBS sf4e_tournament_play nlohmann_json::nlohmann_json TIMEOUT 300)
+        LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300)
     sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomServerOwned SOURCES "src/tests/room_server_owned_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomPrivateGolden SOURCES "src/tests/room_private_golden_test.cxx" LIBS sf4e_room_model)
@@ -315,6 +321,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx
         src/tests/builtin_service_journey_test.cxx src/tests/sign_in_site_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME WatchJourney SOURCES src/tests/watch_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
@@ -550,7 +557,7 @@ target_compile_features(Session PUBLIC cxx_std_17)
 target_link_libraries(
     Session
     PRIVATE Dimps sf4e_common sf4e_helper_platform sf4e_room_model
-    PUBLIC sf4e_iroh_room nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
+    PUBLIC sf4e_iroh_room nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play sf4e_watch_play
 )
 
 # The public room host: the room authority with no game. It links the session
@@ -730,6 +737,9 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME PracticeRoomProjection SOURCES "src/tests/practice_room_projection_test.cxx" LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME DelayPolicyProjection SOURCES "src/tests/delay_policy_projection_test.cxx" LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME SessionServerTournament SOURCES "src/tests/session_server_tournament_test.cxx" LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME SessionServerWatch SOURCES "src/tests/session_server_watch_test.cxx" LIBS sf4e_session_server)
+    # The fixture the helper's own test parses too (rust/sf4-net, service/tests/watch.rs).
+    target_compile_definitions(SessionServerWatchTest PRIVATE SF4E_TEST_FIXTURES="${CMAKE_SOURCE_DIR}/src/tests/fixtures")
     # Explicitly invoked host-cost benchmark; not a CTest (see the source).
     add_executable(RoomHostBench "src/tests/room_host_bench.cxx")
     target_link_libraries(RoomHostBench PRIVATE sf4e_session_server)

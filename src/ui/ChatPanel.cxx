@@ -34,6 +34,7 @@ int CaretToEnd(ImGuiInputTextCallbackData* data) {
 const char* ChatGateName(ChatGate gate) {
     switch (gate) {
     case ChatGate::NotJoined: return "not joined";
+    case ChatGate::ReadOnly: return "read only";
     case ChatGate::Recovering: return "recovering, rebind pending";
     case ChatGate::CatchingUp: return "catching up";
     default: return "writable";
@@ -104,7 +105,7 @@ void ApplicationShell::UpdateChat(const ShellView& v, const Submit& submit) {
 void ApplicationShell::FlushChat(const ShellView& v, const Submit& submit) {
     if (!queuedChat_) return;
     const ChatGate gate = ChatGateOf(v);
-    if (gate == ChatGate::NotJoined) { queuedChat_.reset(); return; }
+    if (gate == ChatGate::NotJoined || gate == ChatGate::ReadOnly) { queuedChat_.reset(); return; }
     const double now = ImGui::GetTime();
     // A clock that went back (the device was reset) does not hold a retry for longer than its wait.
     if (gate != ChatGate::Writable || (now < queuedChat_->retryAt && queuedChat_->retryAt - now <= MaximumChatRetrySeconds)) return;
@@ -205,7 +206,9 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
                                       const MenuVisualFeedback&) {
     const float s = Scale(), spacing = ImGui::GetStyle().ItemSpacing.y;
     const ChatGate gate = ChatGateOf(v);
-    const bool typable = gate != ChatGate::NotJoined;
+    // A tournament match's watcher reads: no box, no counter, and a note that says why.
+    const bool readOnly = gate == ChatGate::ReadOnly;
+    const bool typable = gate != ChatGate::NotJoined && !readOnly;
     const float available = ImGui::GetContentRegionAvail().x, width = (std::min)(available, 900 * s);
     const float x = ImGui::GetCursorPosX() + (available - width) * .5f;
     // What goes under the conversation: the box, then one wrapped line of help
@@ -219,18 +222,19 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     // (roomUpdateVisible_), so a brief catch-up says nothing and a fence flickering open does not flicker it.
     const bool sending = queuedChat_ || ChatInFlight(ImGui::GetTime());
     const bool waiting = gate == ChatGate::Recovering || roomUpdateVisible_;
-    if (!typable || (waiting && !sending)) { note = RoomWaitReason(v); noteTone = Tone::Pending; }
+    if (readOnly) note = loc::T("room.tournament_watching");
+    else if (!typable || (waiting && !sending)) { note = RoomWaitReason(v); noteTone = Tone::Pending; }
     else if (sending) { note = loc::T("chat.sending"); noteTone = Tone::Pending; }
     const float wrap = (std::max)(1.f, width - counterWidth - 12 * s);
     const float lineHeight = ImGui::GetTextLineHeight();
-    const float boxHeight = ImGui::GetFrameHeight();
+    const float boxHeight = readOnly ? 0.f : ImGui::GetFrameHeight();
     const float rest = height - boxHeight - 2 * spacing - 2 * s;
     float noteHeight = (std::min)(4 * lineHeight, (std::max)(2 * lineHeight, (std::max)(
         ImGui::CalcTextSize(loc::T("chat.detail"), nullptr, false, wrap).y, ImGui::CalcTextSize(note.c_str(), nullptr, false, wrap).y)));
     // In a window too short for both, the help gives way to the conversation, down to the counter's line.
     if (rest - noteHeight < 90 * s) noteHeight = lineHeight;
     const float logHeight = (std::max)(1.f, rest - noteHeight);
-    ReportMenuText("chat-remaining", lineHeight, lineHeight, counterWidth, width * .4f);
+    if (!readOnly) ReportMenuText("chat-remaining", lineHeight, lineHeight, counterWidth, width * .4f);
     const ImVec2 noteSize = ImGui::CalcTextSize(note.c_str(), nullptr, false, wrap);
     // A short window clips the help to its line by design, so only what is drawn is reported.
     ReportMenuText("chat-note", (std::min)(noteSize.y, noteHeight), noteHeight, noteSize.x, wrap);
@@ -260,6 +264,7 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     // The message box keeps the keyboard whenever nothing else holds it. It edits
     // a copy, so Escape (which ImGui answers by restoring the text from when the
     // box was last entered) cannot take the draft back with it.
+    if (!readOnly) {
     ImGui::SetCursorPosX(x);
     ImGui::SetNextItemWidth(width);
     char buffer[sizeof(chat_)];
@@ -279,6 +284,7 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     if (edited && !ImGui::IsKeyPressed(ImGuiKey_Escape, false)) std::snprintf(chat_, sizeof(chat_), "%s", buffer);
     chatBoxText_ = chat_;
     NoteUserText(chat_, UserTextRole::Draft);
+    }
 
     ImGui::SetCursorPosX(x);
     const ImVec2 at = ImGui::GetCursorScreenPos();
@@ -286,7 +292,7 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
         left <= 32 ? ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)) : palette::Muted;
     auto* draw = ImGui::GetWindowDrawList();
     draw->PushClipRect(at, ImVec2(at.x + width, at.y + noteHeight), true);
-    draw->AddText(ImVec2(at.x + width - counterWidth, at.y), counterColor, counter.c_str());
+    if (!readOnly) draw->AddText(ImVec2(at.x + width - counterWidth, at.y), counterColor, counter.c_str());
     draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), at, ImGui::ColorConvertFloat4ToU32(ToneColor(noteTone)), note.c_str(), nullptr, wrap);
     draw->PopClipRect();
     ImGui::Dummy(ImVec2(width, noteHeight));

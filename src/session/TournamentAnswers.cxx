@@ -11,6 +11,7 @@ using nlohmann::json;
 using netplay::tournament::Binding;
 using netplay::tournament::ClaimReply;
 using netplay::tournament::PrepareReply;
+using netplay::tournament::WatchReply;
 using netplay::publicrooms::Room;
 
 // A bounded string field, or an exception the decoder turns into "malformed".
@@ -174,6 +175,12 @@ Binding DecodeBinding(const json& view) {
 			binding.room.startingWins[slot] = static_cast<std::uint8_t>(wins.get<std::uint64_t>());
 		}
 	}
+	// A helper without match watch sends none: nobody watches.
+	if (const auto found = view.find("watchers"); found != view.end()) {
+		if (!found->is_array() || found->size() > room::MaxWatchers) throw std::invalid_argument("watchers");
+		for (const auto& watcher : *found)
+			binding.room.watchers.push_back({Text(watcher, "endpoint_id", 64), Text(watcher, "ember_id", 64)});
+	}
 	const auto& slot = view.at("local_slot");
 	if (!slot.is_number_unsigned() || slot.get<std::uint64_t>() > 1) throw std::invalid_argument("local_slot");
 	binding.localSlot = static_cast<int>(slot.get<std::uint64_t>());
@@ -184,7 +191,7 @@ Binding DecodeBinding(const json& view) {
 
 bool IsTournamentPlayOp(const std::string& op) {
 	return op == "match_claim" || op == "room_publish" || op == "game_prepare" || op == "game_report" ||
-		op == "match_leave" || op == "assignment_list" ||
+		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket";
 }
 
@@ -227,6 +234,28 @@ std::optional<ClaimReply> DecodeClaimReply(const nlohmann::json& data) {
 			const auto& binding = data.at("binding");
 			if (!binding.is_null()) reply.binding = DecodeBinding(binding);
 			if (reply.binding && reply.binding->roomId != reply.roomId) return std::nullopt;
+		} else {
+			return std::nullopt;
+		}
+		return reply;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+std::optional<WatchReply> DecodeWatchReply(const nlohmann::json& data) {
+	try {
+		WatchReply reply;
+		const auto role = Text(data, "role", 16);
+		if (role == "waiting") {
+			reply.role = WatchReply::Role::Waiting;
+			reply.retryAfterMs = (std::min)(Seconds(data, "retry_after"), std::uint64_t(60)) * 1000;
+			reply.reason = Text(data, "reason", 32);
+		} else if (role == "room") {
+			reply.role = WatchReply::Role::Room;
+			reply.roomId = Text(data, "room_id", 32);
+			reply.invitation = Text(data, "invitation", 4096);
+			if (!IsHex(reply.roomId, 32) || reply.invitation.empty()) return std::nullopt;
 		} else {
 			return std::nullopt;
 		}

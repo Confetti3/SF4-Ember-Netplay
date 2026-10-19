@@ -329,7 +329,10 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	if (kind == netplay::CommandKind::ReplaceRoom && !CanBeginReplacement()) return DispatchOutcome::Dropped;
 	// Leaving the room by hand stops the tournament match too, or it would
 	// only open the room again.
-	if (kind == netplay::CommandKind::LeaveRoom && attempt != Attempt::Tournament) runtime->tournament.Stop();
+	if (kind == netplay::CommandKind::LeaveRoom && attempt != Attempt::Tournament) {
+		runtime->tournament.Stop();
+		runtime->watch.Stop();
+	}
 	const auto decision = runtime->controller.Execute(command.command);
 	if (!decision.accepted) {
 		// The authority checkpoint fence is transient. Dropping a fenced command
@@ -400,6 +403,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
 		runtime->publicJoin = decision.effect == netplay::Effect::JoinInvite && !command.publicTicket.empty();
+		runtime->observerJoin = decision.effect == netplay::Effect::JoinInvite && command.observer;
 		// Only the join of a public room just created carries rules for its tables.
 		if (runtime->publicJoin && command.createdRules) {
 			runtime->createdRules.Start(*command.createdRules, GetTickCount64());
@@ -407,7 +411,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 				static_cast<int>(command.createdRules->format), static_cast<int>(command.createdRules->rotation));
 		} else runtime->createdRules.Cancel("other_room");
 		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
-			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash) :
+			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->observerJoin) :
 			ticket.is_object() && runtime->room->JoinPublic(decision.invitation, ticket, sf4e::sidecarHash);
 		if (!started) Apply(netplay::EventKind::RoomFailed, loc::T("runtime.room_open_failed"));
 		break;
@@ -538,9 +542,10 @@ void FailReady(const char* reason) {
 	spdlog::warn("Ready failed: {}", reason);
 }
 
-DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command) {
+DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command, bool observer) {
 	RuntimeCommand runtimeCommand;
 	runtimeCommand.command = std::move(command);
+	runtimeCommand.observer = observer;
 	runtimeCommand.command.generation = runtime->controller.GetSnapshot().generation;
 	runtimeCommand.preferences = runtime->preferences;
 	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;

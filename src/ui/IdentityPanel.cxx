@@ -405,6 +405,7 @@ void IdentityPanel::Finish(const ShellView& v) {
         // Without an Ember ID the matches screen already says to create one first.
         if (opened_ && !FindBridge(v, opened_->bridge)) {
             if (id.state == "ready") Say(loc::T("tournament.failure.link_service"), true, 12);
+            watchBridge_ = opened_->bridge; watchMatch_ = opened_->match;
             opened_.reset();
         }
         servicesKnown_ = true;
@@ -548,8 +549,10 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             discord.value = loc::T("identity.discord_none"); rows.push_back(std::move(discord));
             if (id.passphraseRequired) local(rows);
             const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
+            // A match link waits for the ID: it is what watching needs.
             rows.push_back(ConfirmRow("id-enable", loc::T("identity.enable"),
-                canEdit ? loc::T("identity.enable_detail") : loc::T("identity.leave_room"), canEdit && !busy && secretOk));
+                canEdit ? loc::T(opened_ ? "tournament.watch.needs_id" : "identity.enable_detail") : loc::T("identity.leave_room"),
+                canEdit && !busy && secretOk));
         }
         if (id.state == "locked") {
             rows.push_back(Secret("id-unlock", loc::T("identity.unlock"), {}, loc::T("identity.unlock_detail"), true));

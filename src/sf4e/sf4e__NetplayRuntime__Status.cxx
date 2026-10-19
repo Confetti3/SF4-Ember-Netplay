@@ -206,6 +206,9 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
         input.show = runtime->preferences.discordPresence; input.invites = runtime->preferences.discordInvites;
         input.session = snapshot.session; input.room = snapshot.room;
         input.now = static_cast<std::uint64_t>(std::time(nullptr));
+        // Keyed to what this game is doing, not the room's binding: it also covers
+        // the window where the match's room is open but the opponent has not claimed.
+        input.matchRoom = netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase());
         // A public room admits by ticket, so its invitation alone would admit nobody.
         if (runtime->room && !snapshot.room.serverOwned) {
             input.secret = runtime->room->DiscordInvitation();
@@ -603,6 +606,8 @@ void PublishAndTickDiscordInvite() {
     if (next==discord::Next::Expired) { runtime->error=loc::T("discord.invitation_expired"); spdlog::info("Discord: invitation expired before it could be used"); }
     else if (next==discord::Next::Leave || next==discord::Next::Join) {
         spdlog::info("Discord: submitting {} for the pending invitation", next==discord::Next::Leave ? "leave" : "join");
+        // Another room replaces the one being watched, as Leave does.
+        runtime->watch.Stop();
         RuntimeCommand invite;
         invite.command={next==discord::Next::Leave ? netplay::CommandKind::LeaveRoom : netplay::CommandKind::JoinInvite,
             view.session.generation,next==discord::Next::Join ? runtime->discordInvite.Secret() : std::string()};

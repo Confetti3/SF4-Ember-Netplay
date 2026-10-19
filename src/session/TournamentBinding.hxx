@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json_fwd.hpp>
 
@@ -30,12 +31,26 @@ constexpr std::uint64_t PermitStartMarginMs = 5000;
 constexpr std::uint64_t PermitHoldMs = 105000;
 // Longest permit ID the room carries (`per_` and a UUID).
 constexpr std::size_t MaximumPermitBytes = 64;
+// Most watchers a bound room names: the bridge's ceiling (MAX_WATCHERS). With
+// the two fighters they fit the room's member limit.
+constexpr std::size_t MaxWatchers = 8;
 
 struct TournamentFighter {
 	// 64 lowercase hex digits, the member's authenticated room identity.
 	std::string endpoint;
 	std::string emberId;
 	bool operator==(const TournamentFighter& other) const {
+		return endpoint == other.endpoint && emberId == other.emberId;
+	}
+};
+
+// An endpoint the bridge admitted to watch the match: it joins the room as a
+// spectator and has no table action. Its Ember ID is the one accountable for
+// the place.
+struct TournamentWatcher {
+	std::string endpoint;
+	std::string emberId;
+	bool operator==(const TournamentWatcher& other) const {
 		return endpoint == other.endpoint && emberId == other.emberId;
 	}
 };
@@ -51,14 +66,22 @@ struct TournamentBinding {
 	// its platform asked for again after its match was cut short carries on
 	// from that score. Each is below gamesToWin.
 	std::array<std::uint8_t, 2> startingWins{};
+	// Endpoints admitted to watch, oldest first; none for most matches.
+	std::vector<TournamentWatcher> watchers;
 
 	bool Active() const { return !matchId.empty(); }
 	// Well formed: a match, two distinct 64-hex endpoints and Ember IDs, a
-	// set of first to 1 through room::MaxSetLength, and starting wins short
-	// of it.
+	// set of first to 1 through room::MaxSetLength, starting wins short of
+	// it, and at most MaxWatchers watchers whose endpoints and Ember IDs are
+	// distinct from each other and from the fighters'.
 	bool Valid() const;
 	// The slot `endpoint` holds, or -1.
 	int SlotOf(const std::string& endpoint) const;
+	// True when `endpoint` is a named watcher of an active match.
+	bool WatcherOf(const std::string& endpoint) const;
+	// The Ember ID the binding names for `endpoint`, fighter or watcher; empty
+	// for anyone else.
+	std::string EmberIdOf(const std::string& endpoint) const;
 	// True when `other` names the same match and is not older than this one.
 	bool SupersededBy(const TournamentBinding& other) const;
 };

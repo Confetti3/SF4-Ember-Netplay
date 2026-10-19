@@ -101,6 +101,7 @@ void CloseRoom() {
     runtime->observedAuthorityTerm=0;
     runtime->leaveRequested=runtime->leaveAcknowledged=false;
     runtime->publicJoin=false;
+    runtime->observerJoin=false;
     runtime->leaveActionId=runtime->leaveRetryAt=runtime->leaveDeadline=0;
     runtime->matchInput={};runtime->matchInputSide=-1;runtime->matchInputFault=false;
 	runtime->match.reset();
@@ -220,6 +221,7 @@ void AttachRoom() {
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
 	UserApp::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
 	UserApp::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
+	UserApp::netplay->client.SetProfileObserver(runtime->observerJoin);
     runtime->selectedDelay=runtime->preferences.inputDelay;
     UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;
@@ -519,7 +521,7 @@ static void ObserveCoordination() {
 
 // The room is over for this player: say so, leave, and tear the session down.
 static void EndClosedRoom(const netplay::Snapshot& state) {
-	runtime->error=loc::T("runtime.room_closed");
+	if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Closed)) runtime->error=loc::T("runtime.room_closed");
 	runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
 	CloseRoom();
 }
@@ -584,7 +586,7 @@ static void SettleRoomState(bool helperReady) {
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().roomEpoch &&
 		!UserApp::netplay->client.GetRoomSnapshot().localMember) {
-        runtime->error=loc::T("runtime.removed_from_room");
+        if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Removed)) runtime->error=loc::T("runtime.removed_from_room");
         runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
         CloseRoom();
     }

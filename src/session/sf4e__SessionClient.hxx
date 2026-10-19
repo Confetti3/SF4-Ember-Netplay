@@ -102,6 +102,8 @@ namespace sf4e {
 		void SetProfileSteam(const SteamId& id) { _profile.steamId = id; }
 		// None sends no country.
 		void SetProfileCountry(const CountryCode& country) { _profile.country = country; }
+		// The join watches a tournament match, which admits only its named watchers.
+		void SetProfileObserver(bool observer) { _profile.observer = observer; }
 		bool IsCustomRoom() const { return _customRoomsSeen; }
 		const std::string& RoomError() const { return _roomError; }
 		bool TakeRoomEvent(room::Event& event);

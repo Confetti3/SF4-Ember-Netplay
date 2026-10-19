@@ -1350,7 +1350,13 @@ msgid "room.private_status"
 msgstr "Sala privada / somente por convite"
 
 msgid "room.tournament_status"
-msgstr "Partida de torneio, primeiro a {0}. Só os dois jogadores podem entrar."
+msgstr "Partida de torneio, primeiro a {0}. Só os dois jogadores podem jogar."
+
+msgid "room.tournament_status_watched"
+msgstr "Partida de torneio, primeiro a {0}. {1} assistindo."
+
+msgid "room.tournament_watching"
+msgstr "Assistindo a uma partida de torneio. Só os dois jogadores podem jogar."
 
 msgid "room.reconnecting"
 msgstr "Reconectando à sala..."
@@ -2452,6 +2458,8 @@ msgid "room.member_status_host"
 msgstr "{0} / ANFITRIÃO"
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Espectador"
 msgid "room.members"
 msgstr "Membros"
 msgid "room.member_count"
@@ -3781,6 +3789,63 @@ msgstr "Essa partida não está na sua lista. Ela é de outros jogadores, ou est
 
 msgid "tournament.failure.link_service"
 msgstr "Confie neste serviço de torneios em Contas vinculadas e abra o link da partida de novo."
+
+msgid "tournament.watch.row"
+msgstr "Assistir a esta partida"
+
+msgid "tournament.watch.row_detail"
+msgstr "Os espectadores veem a partida a partir da sala dela. Não podem jogar nem usar o chat, e o organizador decide quem pode assistir."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Sai da sala da partida. Você pode assistir à partida de novo por esta lista."
+
+msgid "tournament.watch.needs_id"
+msgstr "Para assistir a uma partida é preciso ter um Ember ID. Crie um aqui; leva só um instante."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "O serviço de torneios desta partida ainda não é confiável. Adicione-o em Contas vinculadas."
+
+msgid "tournament.watch.state.asking"
+msgstr "Consultando o serviço de torneios."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Aguardando os jogadores abrirem a sala da partida."
+
+msgid "tournament.watch.state.full"
+msgstr "Esta partida já tem todos os espectadores que o organizador permite. Aguardando uma vaga."
+
+msgid "tournament.watch.state.joining"
+msgstr "Entrando na sala da partida."
+
+msgid "tournament.watch.state.watching"
+msgstr "Assistindo a {0} vs {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "O organizador desta partida não a abriu para espectadores."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "O organizador removeu você dos espectadores desta partida."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Você joga nesta partida. Use Jogar em vez disso."
+
+msgid "tournament.watch.refused.build"
+msgstr "Os jogadores usam uma versão do Ember diferente. Para assistir é preciso ter a mesma."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Este serviço de torneios não oferece a opção de assistir."
+
+msgid "tournament.watch.finished"
+msgstr "A partida acabou."
+
+msgid "tournament.watch.finished_notice"
+msgstr "A partida a que você assistia acabou."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Você parou de assistir: o organizador removeu você."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "A sala da partida foi fechada."
 
 msgid "rules.set_length"
 msgstr "Duração do set"

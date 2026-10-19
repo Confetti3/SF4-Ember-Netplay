@@ -13,6 +13,8 @@
 //    late load costs the fighters nothing. If no fighter ever synchronizes,
 //    the fighters' own GGPO disconnect tolerance ends the session, so no
 //    spectator drop is needed.
+//    At a tournament match's bound table the deadline is shorter
+//    (BoundSyncDeadlineMs): a watcher is never worth more than that to a set.
 //  - backlog: send_queue_len is the spectator's count of unacknowledged
 //    frames. GGPO itself gives up at 63 (its pending-output ring). Sampling
 //    starts SyncDeadlineMs after RUNNING: each end of a GGPO link
@@ -37,6 +39,11 @@ namespace sf4e {
 class SpectatorPolicy {
 public:
 	static constexpr std::uint64_t SyncDeadlineMs = 5000;
+	// A watcher of a tournament match's bound table: the fighters' set waits at
+	// most this long for it to synchronize, so a slow or hostile watcher costs a
+	// game start no more.
+	static constexpr std::uint64_t BoundSyncDeadlineMs = 2000;
+	static constexpr std::uint64_t SyncDeadlineFor(bool boundTable) { return boundTable ? BoundSyncDeadlineMs : SyncDeadlineMs; }
 	static constexpr std::uint64_t SampleIntervalMs = 200;
 	static constexpr int SlowQueueFrames = 32;
 	static constexpr int DropQueueFrames = 48;
@@ -76,8 +83,8 @@ public:
 		return spectator && waitedMs >= SyncDeadlineMs ? EntryStep::SitOut : EntryStep::Wait;
 	}
 
-	void Start(std::uint64_t nowMs, const std::vector<int>& spectators) {
-		lastSampleMs_ = nowMs; fightersSyncedMs_ = 0; runningMs_ = 0;
+	void Start(std::uint64_t nowMs, const std::vector<int>& spectators, std::uint64_t syncDeadlineMs = SyncDeadlineMs) {
+		lastSampleMs_ = nowMs; fightersSyncedMs_ = 0; runningMs_ = 0; syncDeadlineMs_ = syncDeadlineMs;
 		spectators_.clear();
 		for (const auto handle : spectators) spectators_[handle] = State{};
 	}
@@ -95,7 +102,7 @@ public:
 	// Spectators to drop now because initial sync overran its deadline.
 	std::vector<int> SyncOverdue(std::uint64_t nowMs) {
 		std::vector<int> drop;
-		if (runningMs_ || fightersSyncedMs_ == 0 || nowMs < fightersSyncedMs_ + SyncDeadlineMs) return drop;
+		if (runningMs_ || fightersSyncedMs_ == 0 || nowMs < fightersSyncedMs_ + syncDeadlineMs_) return drop;
 		for (const auto& entry : spectators_) if (!entry.second.synchronized) drop.push_back(entry.first);
 		for (const auto handle : drop) spectators_.erase(handle);
 		return drop;
@@ -132,6 +139,7 @@ private:
 	std::map<int, State> spectators_;
 	// Zero until a fighter synchronizes, and until RUNNING, in this session.
 	std::uint64_t fightersSyncedMs_ = 0, runningMs_ = 0, lastSampleMs_ = 0;
+	std::uint64_t syncDeadlineMs_ = SyncDeadlineMs;
 };
 
 // A spectator client's watch over its own link to P1: the stream ends once,

@@ -12,6 +12,9 @@ struct PresenceInput {
     room::Snapshot room;
     std::string party, secret;
     std::uint64_t expires = 0, now = 0;
+    // The room is a tournament match's, played or watched: its invitation is
+    // for the bridge and the fighters alone, never a friend's.
+    bool matchRoom = false;
 };
 struct Presence {
     bool show = true;
@@ -44,7 +47,7 @@ inline Presence Describe(const PresenceInput& in) {
     out.party = in.party;
     out.size = static_cast<int>(in.room.members.size());
     out.capacity = in.room.capacity;
-    if (in.invites && in.session.control == netplay::Health::Healthy && !in.room.locked &&
+    if (in.invites && !in.matchRoom && in.session.control == netplay::Health::Healthy && !in.room.locked &&
         out.size < out.capacity && !out.party.empty() && in.expires > in.now && in.secret.size() == 127) {
         out.secret = in.secret;
         out.expires = in.expires;

@@ -37,12 +37,42 @@ std::string PlayState(const netplay::tournament::Status& t) {
     default: return {};
     }
 }
+// What watching a match is doing, in words: the phase line, the bridge's
+// refusal, or who plays when the room is joined.
+std::string WatchState(const netplay::tournament::Status& t, const room::Snapshot& room) {
+    using netplay::tournament::WatchPhase;
+    switch (t.watch.phase) {
+    case WatchPhase::Asking: return loc::T("tournament.watch.state.asking");
+    case WatchPhase::Waiting: return loc::T(t.watch.full ? "tournament.watch.state.full" : "tournament.watch.state.waiting_room");
+    case WatchPhase::Joining: return loc::T("tournament.watch.state.joining");
+    case WatchPhase::Watching: {
+        const auto& table = room.tables[room::TournamentTable];
+        const auto name = [&](room::MemberId id) {
+            const auto* member = room::FindMember(room, id);
+            return member ? member->name : std::string(loc::T("room.player"));
+        };
+        return loc::Tf("tournament.watch.state.watching", name(table.p1), name(table.p2));
+    }
+    case WatchPhase::Finished: return loc::T("tournament.watch.finished");
+    case WatchPhase::Refused: {
+        const auto& code = t.watch.reason;
+        if (code == "not_allowed") return loc::T("tournament.watch.refused.not_allowed");
+        if (code == "revoked") return loc::T("tournament.watch.refused.revoked");
+        if (code == "fighter") return loc::T("tournament.watch.refused.fighter");
+        if (code == "incompatible_build") return loc::T("tournament.watch.refused.build");
+        if (code == "watch_unsupported") return loc::T("tournament.watch.refused.unsupported");
+        return IdentityPanel::TournamentFailure(code);
+    }
+    default: return {};
+    }
+}
 }
 
 void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match) {
     bridge_ = bridge;
     wantAssignments_ = true;
-    opened_ = OpenedMatch{bridge, "tm-play:" + match, std::nullopt};
+    opened_ = OpenedMatch{bridge, "tm-play:" + match, std::nullopt, match};
+    watchBridge_.clear(); watchMatch_.clear();
     // The fresh service list says whether the player trusts this one.
     IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
 }
@@ -73,14 +103,33 @@ void IdentityPanel::CheckOpenedMatch(const netplay::tournament::AssignmentList& 
     const bool listed = std::any_of(list.items.begin(), list.items.end(),
         [&](const netplay::tournament::Assignment& item) { return "tm-play:" + item.matchId == opened_->row; });
     if (listed) return;
-    // A failed refresh was said already.
-    if (list.error.empty()) Say(loc::T("tournament.failure.not_yours"), true, 12);
-    opened_.reset();
+    // A failed refresh was said already. A match that is not the player's is theirs to watch.
+    if (!list.error.empty()) { opened_.reset(); return; }
+    Say(loc::T("tournament.failure.not_yours"), true, 12);
+    watchBridge_ = opened_->bridge; watchMatch_ = opened_->match;
+    opened_->row = "tm-watch:" + opened_->match;
+}
+
+bool IdentityPanel::CanWatch(const ShellView& v) const {
+    const auto& t = v.tournament;
+    return !watchMatch_.empty() && watchBridge_ == bridge_ && v.identity.state == "ready" && FindBridge(v, bridge_) &&
+        v.session.room == netplay::RoomState::Idle && !t.MatchRoomActive();
+}
+
+std::optional<MenuEntry> IdentityPanel::WatchEntry(const ShellView& v) const {
+    if (watchMatch_.empty()) return std::nullopt;
+    const std::string id = "tm-watch:" + watchMatch_;
+    // A service the player does not trust cannot be asked; it is shown wherever the player is looking.
+    if (!FindBridge(v, watchBridge_)) return InfoRow(id, loc::T("tournament.watch.row"), {}, loc::T("tournament.watch.untrusted_bridge"));
+    if (watchBridge_ != bridge_) return std::nullopt;
+    auto watch = Row(id, loc::T("tournament.watch.row"), loc::T("tournament.watch.row_detail"), CanWatch(v));
+    watch.hint = loc::T("room.choice.watch");
+    return watch;
 }
 
 bool IdentityPanel::CanPlay(const ShellView& v, const std::string& id) const {
     const auto& t = v.tournament;
-    if (t.list.bridge != bridge_ || v.session.room != netplay::RoomState::Idle || Playing(t)) return false;
+    if (t.list.bridge != bridge_ || v.session.room != netplay::RoomState::Idle || t.MatchRoomActive()) return false;
     return std::any_of(t.list.items.begin(), t.list.items.end(),
         [&](const netplay::tournament::Assignment& match) { return match.matchId == id && match.Playable(v.unixNow); });
 }
@@ -133,6 +182,8 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
         rows.push_back(InfoRow("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
         // Connect Discord creates the Ember ID on the way.
         rows.push_back(Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
+        // A match link waits for one: the Ember ID screen makes it, and the match stays selected.
+        if (opened_) rows.push_back(Row("identity", loc::T("screen.identity"), loc::T("tournament.watch.needs_id")));
         return;
     }
     const auto& t = v.tournament;
@@ -143,17 +194,24 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
             failed ? TournamentFailure(t.reason) : std::string(loc::T("tournament.current_detail"))));
         if (playing) rows.push_back(ConfirmRow("tm-stop", loc::T("tournament.stop"), loc::T("tournament.stop_detail")));
     }
+    if (!t.watch.matchId.empty() && t.watch.phase != netplay::tournament::WatchPhase::Idle) {
+        rows.push_back(InfoRow("tm-watching", loc::T("tournament.current"), WatchState(t, v.room), loc::T("tournament.watch.row_detail")));
+        if (netplay::tournament::WatchUnderWay(t.watch.phase))
+            rows.push_back(ConfirmRow("tm-stop", loc::T("room.stop_watching"), loc::T("tournament.watch.stop_detail")));
+    }
     const auto* bridge = FindBridge(v, bridge_);
     if (!bridge) {
         rows.push_back(InfoRow("tm-no-service", loc::T("tournament.needs_service"), {}, loc::T("tournament.needs_discord_detail")));
         // Connect Discord sets up Ember's own service; Linked accounts any other.
         rows.push_back(Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
         rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
+        // A match link to a service that is not trusted yet cannot be watched until it is.
+        if (const auto watch = WatchEntry(v)) rows.push_back(*watch);
         return;
     }
     rows.push_back(ServiceRow(v, *bridge));
     if (t.list.bridge == bridge_) {
-        const bool free = v.session.room == netplay::RoomState::Idle && !playing;
+        const bool free = v.session.room == netplay::RoomState::Idle && !t.MatchRoomActive();
         for (const auto& match : t.list.items) {
             const bool slotKnown = match.slot == 0 || match.slot == 1;
             const auto own = slotKnown ? match.wins[static_cast<std::size_t>(match.slot)] : 0u;
@@ -176,6 +234,7 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
             if (!playable) row.info = true;
             rows.push_back(std::move(row));
         }
+        if (const auto watch = WatchEntry(v)) rows.push_back(*watch);
         if (t.list.items.empty() && !t.list.loading && t.list.error.empty())
             rows.push_back(InfoRow("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
     }
@@ -196,6 +255,13 @@ bool IdentityPanel::MatchesActivate(const MenuAction& a, const ShellView& v) {
         return true;
     }
     if (a.id == "tm-stop") { play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Stop, {}, {}}; return true; }
+    if (a.id.compare(0, 9, "tm-watch:") == 0) {
+        // The row may be older than the screen: a match is watched only if it still can be.
+        if (!CanWatch(v) || a.id.substr(9) != watchMatch_) return true;
+        play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Watch, bridge_, watchMatch_};
+        message_.clear();
+        return true;
+    }
     if (a.id.compare(0, 8, "tm-play:") == 0) {
         // The row may be older than the list: the match is played only if it still can be.
         if (!CanPlay(v, a.id.substr(8))) return true;

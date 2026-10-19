@@ -395,7 +395,16 @@ private:
     struct OpenedMatch {
         std::string bridge, row;
         std::optional<std::uint64_t> finishedBefore;
+        std::string match;
     };
     std::optional<OpenedMatch> opened_;
+    // The match a link named that the player may only watch: it is not in their
+    // list, or its service is not trusted. Its row stays until another link opens.
+    std::string watchBridge_, watchMatch_;
+    // The player can start watching a match now (CanWatch).
+    bool CanWatch(const ShellView& v) const;
+    // The row for the match a link named that the player may only watch: Watch itself, or why
+    // it cannot be used yet. None when no link named one, or it names another service than the one shown.
+    std::optional<MenuEntry> WatchEntry(const ShellView& v) const;
 };
 } }

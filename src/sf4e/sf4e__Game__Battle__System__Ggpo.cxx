@@ -355,7 +355,7 @@ bool fSystem::DrainPendingAbort() {
     return true;
 }
 
-void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay) {
+void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, std::uint64_t spectatorSyncDeadlineMs) {
     matchTelemetry.Reset();
     rollbackHud.Reset();
     if (!inPlayers || numPlayers < 2 || numPlayers > static_cast<int>(sf4e::room::MaxMatchParticipants)) {
@@ -465,7 +465,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
             spectatorSlots[players[i].handle] = static_cast<std::size_t>(inPlayers[i].player_num - 1);
         }
     }
-    s_spectatorPolicy.Start(GetTickCount64(), spectatorHandles);
+    s_spectatorPolicy.Start(GetTickCount64(), spectatorHandles, spectatorSyncDeadlineMs);
     s_spectatorLinks.Start(std::move(spectatorSlots));
 
     nNextBattleStartFlowTarget = BF__MATCH_START;

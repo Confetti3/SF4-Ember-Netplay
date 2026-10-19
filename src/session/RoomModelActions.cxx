@@ -437,6 +437,8 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	// The bound fighters keep their seats; nobody is kicked from a match room.
 	if (action.kind == ActionKind::Kick && snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::Kick) return ApplyKick(member, action);
+	// A bound match's watchers read the room and say nothing.
+	if (WatcherBarred(action, member)) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::Chat) return ApplyChat(member, action);
 	if (action.kind == ActionKind::Rename) return ApplyRename(member, action);
 	if (action.kind == ActionKind::SetTraining) return ApplySetTraining(member, action);
@@ -476,7 +478,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	// Seating and rules at a bound table come from the binding alone.
 	const bool seatingOrRules = action.kind == ActionKind::Queue || action.kind == ActionKind::Unqueue ||
 		action.kind == ActionKind::Watch || action.kind == ActionKind::Unwatch || action.kind == ActionKind::SetRules;
-	if (BoundTable(*table) && seatingOrRules) return Reject(RejectReason::Unauthorized);
+	if (BoundTable(*table) && seatingOrRules && !LeavesGameOnly(action)) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::PermitReady) return ApplyPermitReady(member, action, table);
 	if (generationScopedUnwatch && (table->phase != TablePhase::Playing && table->phase != TablePhase::Paused ||
 		action.matchGeneration != table->matchGeneration)) return Reject(RejectReason::WrongGeneration);

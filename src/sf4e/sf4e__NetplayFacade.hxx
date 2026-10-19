@@ -123,6 +123,8 @@ namespace sf4e {
             netplay::tournament::Command tournament;
             // With JoinInvite: the signed ticket (JSON) of a public room's admission, or empty for a private room.
             std::string publicTicket;
+            // With JoinInvite: the join is a tournament match's watcher, which the room admits only when it names it.
+            bool observer = false;
             // With the JoinInvite of a public room just created: the table rules chosen on Create.
             std::optional<room::Rules> createdRules;
             // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
