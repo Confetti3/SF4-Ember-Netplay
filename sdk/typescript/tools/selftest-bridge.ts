@@ -41,7 +41,6 @@ import {
   finishedProblems,
   parseAccountLine,
   parseIdentityLine,
-  participantOf,
   type GameIdentity,
   type SiteAccount,
 } from "./selftest-checks.ts";
@@ -50,6 +49,7 @@ import {
   connectorConfig,
   openProblems,
   parseChallongeConfig,
+  participantFor,
   readSecret,
   reportedProblems,
   signInSite,
@@ -484,23 +484,28 @@ async function siteMain(options: ChallongeConfig, connectorExe: string, connecti
   // completes and the connector answers it after verifying the signature;
   // it then reports the set to Challonge.
   while (!over()) await sleep(2_000);
-  const winner = { emberId: hostGame.emberId, participantId: participantOf(created, hostGame.emberId) ?? "" };
-  const loser = participantOf(created, guestGame.emberId) ?? "";
+  const winner = { emberId: hostGame.emberId };
   const finished = await until(() => provider.getMatch(hostMatch), (current) => current.state !== "completed" || current.provider_delivery_state === "delivered", 90);
   const problems = [...completedProblems(finished, winner), ...deliveryProblems(finished)];
   for (const problem of problems) say(false, "match result", problem);
   if (problems.length === 0) say(true, "match result", `completed, ${winner.emberId} won, the signed result was delivered`);
 
   // And the set on Challonge, read with the organizer's key, once the
-  // connector has had time to report it.
+  // connector has had time to report it. The bridge knows its players by its
+  // own participant IDs, so the winner is the participant Challonge shows
+  // under the account the host's game connected, and the loser the guest's.
+  const names = await organizer.participants();
+  const winnerId = participantFor(names, hostAccount.name);
+  const loserId = participantFor(names, guestAccount.name);
+  if (winnerId === null || loserId === null) throw new Error(`Challonge's participants (${[...names.values()].join(", ")}) do not name both connected accounts once each`);
   let reported = await organizer.match(options.match);
   for (let tries = 0; tries < 3 && reported.state !== "complete"; tries++) {
     await sleep(20_000);
     reported = await organizer.match(options.match);
   }
-  const unreported = reportedProblems(reported, winner.participantId, loser);
+  const unreported = reportedProblems(reported, winnerId, loserId);
   for (const problem of unreported) say(false, "challonge result", problem);
-  if (unreported.length === 0) say(true, "challonge result", `match ${options.match} is complete, participant ${winner.participantId} won ${reported.scores ?? ""}`);
+  if (unreported.length === 0) say(true, "challonge result", `match ${options.match} is complete, ${hostAccount.name} won ${reported.scores ?? ""}`);
   say(true, "challonge requests", `${organizer.requests} made by this tool, none of them writes`);
 }
 

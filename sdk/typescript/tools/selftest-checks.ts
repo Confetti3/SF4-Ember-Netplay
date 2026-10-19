@@ -75,13 +75,6 @@ export function finishedProblems(match: Body, result: MatchResult | null, winner
   return problems;
 }
 
-/** The participant ID the match gives `emberId`, or null when that Ember ID is not in it. */
-export function participantOf(match: Body, emberId: string): string | null {
-  const participants = (Array.isArray(match.participants) ? match.participants : []).filter(isBody);
-  const found = participants.find((participant) => participant.ember_id === emberId)?.participant_id;
-  return typeof found === "string" ? found : null;
-}
-
 /**
  * What is wrong with the match a bracket connector made for the two games,
  * empty when nothing is: it is on the connector's set (`external_match_id`

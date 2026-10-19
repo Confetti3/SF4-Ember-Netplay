@@ -180,6 +180,30 @@ export function parseMatch(document: Json): ChallongeMatch {
   };
 }
 
+/**
+ * The usernames in a `GET .../participants.json` document, by participant ID
+ * (lower case). A tournament of this test has two participants, so its first
+ * page is all of them. A participant with no username is left out.
+ */
+export function parseParticipants(document: Json): Map<string, string> {
+  const list = isBody(document) ? document.data : undefined;
+  if (!Array.isArray(list)) throw new Error("Challonge's answer is not a list of participants");
+  const names = new Map<string, string>();
+  for (const participant of list) {
+    const id = isBody(participant) ? idText(participant.id) : null;
+    const attributes = isBody(participant) ? participant.attributes : undefined;
+    const username = isBody(attributes) ? attributes.username : undefined;
+    if (id !== null && typeof username === "string" && username !== "") names.set(id, username.toLowerCase());
+  }
+  return names;
+}
+
+/** The one participant ID whose username is `account` (Challonge compares usernames without case), or null. */
+export function participantFor(names: Map<string, string>, account: string): string | null {
+  const found = [...names].filter(([, username]) => username === account.toLowerCase());
+  return found.length === 1 ? found[0]![0] : null;
+}
+
 /** What stops a run from starting: the match has to be open with both players in it. */
 export function openProblems(match: ChallongeMatch, id: string): string[] {
   const problems: string[] = [];
@@ -253,6 +277,11 @@ export class ChallongeApi {
 
   async match(id: string): Promise<ChallongeMatch> {
     return parseMatch(await this.#send("GET", `/matches/${encodeURIComponent(id)}.json`));
+  }
+
+  /** The tournament's participants by ID, with their usernames. */
+  async participants(): Promise<Map<string, string>> {
+    return parseParticipants(await this.#send("GET", "/participants.json"));
   }
 
   /** Puts a decided or underway match back to open. */

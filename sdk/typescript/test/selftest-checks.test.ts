@@ -12,7 +12,6 @@ import {
   finishedProblems,
   parseAccountLine,
   parseIdentityLine,
-  participantOf,
 } from "../tools/selftest-checks.ts";
 
 const PLAYER1 = new TestPlayer({ origin: "http://127.0.0.1:1", seed: Buffer.alloc(32, 1) });
@@ -113,10 +112,7 @@ test("the connector's match is for its set and between the two games, and its re
   assert.match(connectorMatchProblems(match({ participants: [] }), prefix, ids).join("\n"), /not between the two games/);
   assert.match(connectorMatchProblems(match(), prefix, [PLAYER1.emberId, PLAYER1.emberId]).join("\n"), /not between the two games/);
 
-  // The host's fighter (PLAYER1) is in the second slot and wins; its participant ID is the bridge's.
-  assert.equal(participantOf(match(), PLAYER1.emberId), "22");
-  assert.equal(participantOf(match(), PLAYER2.emberId), "11");
-  assert.equal(participantOf(match({ participants: [] }), PLAYER1.emberId), null);
+  // The host's fighter (PLAYER1) is in the second slot and wins.
   assert.deepEqual(completedProblems(match(), { emberId: PLAYER1.emberId }), []);
   assert.match(completedProblems(match(), { emberId: PLAYER2.emberId }).join("\n"), /do not put .* ahead/);
   assert.match(completedProblems(match({ state: "in_progress" }), { emberId: PLAYER1.emberId }).join("\n"), /not completed/);

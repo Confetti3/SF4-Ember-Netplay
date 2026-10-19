@@ -13,6 +13,8 @@ import {
   openProblems,
   parseChallongeConfig,
   parseMatch,
+  parseParticipants,
+  participantFor,
   readSecret,
   reportedProblems,
   signInSite,
@@ -148,4 +150,21 @@ test("the live answer names a match's players in points_by_participant, first pl
   assert.equal(notFed.player1, "555001");
   assert.equal(notFed.player2, null);
   assert.equal(parseMatch(document({ state: "pending", points_by_participant: [] })).player1, null);
+});
+
+test("a connected account is the one participant of that username, whatever its case", () => {
+  const names = parseParticipants({
+    data: [
+      { id: 555001, type: "participant", attributes: { username: "Player_One", name: "x" } },
+      { id: "555002", type: "participant", attributes: { username: "player_two" } },
+      { id: "555003", type: "participant", attributes: { username: null } },
+      { id: "555004", type: "participant", attributes: {} },
+    ],
+  } as never);
+  assert.deepEqual([...names], [["555001", "player_one"], ["555002", "player_two"]]);
+  assert.equal(participantFor(names, "PLAYER_ONE"), "555001");
+  assert.equal(participantFor(names, "player_two"), "555002");
+  assert.equal(participantFor(names, "player_three"), null);
+  assert.equal(participantFor(new Map([["1", "same"], ["2", "same"]]), "same"), null);
+  assert.throws(() => parseParticipants({ errors: [] } as never), /not a list/);
 });

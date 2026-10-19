@@ -283,15 +283,17 @@ it names, read when they are used and never printed.
   `completed` with the host ahead and its result `delivered` to the connector
   (which answers a delivery only once its signature verified); and Challonge,
   read once more with the organizer's key, has the match `complete` with
-  the host's participant as the winner and 1 - 0. The participant is the
-  one the bridge holds for the host's Ember ID, which is the ID the connector
-  took from Challonge, so no account name is written down anywhere.
+  the host's participant as the winner and 1 - 0. The bridge knows the
+  players by its own IDs, so the participants are found by the accounts the
+  two games reported connecting (the participant list, read once, shows each
+  one's username); no account name is written down anywhere.
 - **Output.** A failed run prints the bridge's and the connector's own logs.
 
 ### Request budget
 
 Challonge's free tier is 500 requests a month. A run makes, here, one read of
-the set before and one after (a few more only if the report is slow), and the
+the set before, and after it one of the participants and one of the set (a few
+more of the set only if the report is slow), and the
 connector about ten (the open sets, the participants, the mark underway, a read
 and the report for the result, a check that the tournament is not over, and at
 most a scheduled read or two while the game is played), capped at 40. The two
