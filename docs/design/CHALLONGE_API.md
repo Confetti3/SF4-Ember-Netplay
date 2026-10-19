@@ -486,6 +486,8 @@ Derived from schema defaults, no published example:
 | `attributes.winner_id` | integer | "The participant ID of the winner". Renamed from `winners` in v2.0. Null or absent before completion (**INFERENCE**). |
 | `attributes.relationships.player1.data`, `player2.data` | object with `id` (string) and `type` (`participant`) | Note: `relationships` sits inside `attributes` per this schema, unlike standard JSON:API. Player slots can be empty before a match is fed (**INFERENCE**, not stated). |
 
+**Read live (2026-10-19, an open match of a started single elimination tournament):** the attributes carry `scores` ("0 - 0"), `score_in_sets` (`[]`), `points_by_participant` (one `{ "participant_id": <number>, "scores": [] }` per player, first player first, and the only place the players are named: there is no `player1` or `player2`), `winner_id` (null), `tie`, `location`, `scheduled_time`, and `timestamps` with `started_at`, `created_at`, `updated_at` and `underway_at` (null). The document's own `relationships` holds only `attachments`.
+
 **NOT STATED:** `group_id` on matches (the Upgrading page says group stage matches carry a `group_id`, the schema does not list it; ember-brackets reads a number, or a string of digits, as "in a group stage" and anything else, including the schema's placeholder text, as not, and gives a group stage match the round label "Group stage, Round N" and the round-rule stage `group`), the loser id, per-player scores as separate fields, `underway_at`, and `scheduled_time`/`location` in the output (they exist only in the Update request).
 
 ### Update Match (report scores)

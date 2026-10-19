@@ -32,7 +32,7 @@ const isBody = (value: Json | undefined): value is Body => typeof value === "obj
  *   tournament        the tournament's ID or URL slug
  *   match             the one open match the run plays
  *   redirectUri       the redirect URI registered for the app, which has to be
- *                     \`<bridge origin>/v1/sites/challonge/callback\`
+ *                     `<bridge origin>/v1/sites/challonge/callback`
  */
 export interface ChallongeConfig {
   clientId: string;
@@ -86,7 +86,7 @@ export function readSecret(path: string): string {
 
 /**
  * The bridge's Challonge sign-in site: the definition the repository ships
- * (\`server/ember/bridge/deploy/sites/challonge.json\`) with the app's client ID.
+ * (`server/ember/bridge/deploy/sites/challonge.json`) with the app's client ID.
  */
 export function signInSite(template: Json, clientId: string): { id: string; [key: string]: Json } {
   if (!isBody(template) || template.id !== "challonge") throw new Error("the shipped site definition is not Challonge's");
@@ -109,7 +109,7 @@ export interface ConnectorSetup {
   apiKeyFile: string;
 }
 
-/** The connector's \`brackets.json\` for the run: one Challonge tournament, every set first to 1. */
+/** The connector's `brackets.json` for the run: one Challonge tournament, every set first to 1. */
 export function connectorConfig(setup: ConnectorSetup): Body {
   return {
     bridge: {
@@ -145,25 +145,37 @@ export interface ChallongeMatch {
 
 const idText = (value: Json | undefined): string | null => (typeof value === "string" && value !== "" ? value : typeof value === "number" ? String(value) : null);
 
-/** The player a \`relationships\` object names in \`slot\`, wherever the document puts it. */
+/** The player a `relationships` object names in `slot`, wherever the document puts it. */
 function playerOf(relationships: Json | undefined, slot: "player1" | "player2"): string | null {
   const related = isBody(relationships) ? relationships[slot] : undefined;
   return isBody(related) && isBody(related.data) ? idText(related.data.id) : null;
 }
 
-/** The match in a \`GET .../matches/<id>.json\` document. Challonge's players sit in its attributes, or beside them in standard JSON:API. */
+/** The participant `points_by_participant` lists at `index`, which is where the live answer names a match's players. */
+function listedPlayer(points: Json | undefined, index: 0 | 1): string | null {
+  const entry = Array.isArray(points) && points.length === 2 ? points[index] : undefined;
+  return isBody(entry) ? idText(entry.participant_id) : null;
+}
+
+/**
+ * The match in a `GET .../matches/<id>.json` document. The live answer names
+ * the players only in `points_by_participant`, first player first; the
+ * documented `player1` and `player2` relationships are read too, in its
+ * attributes or beside them.
+ */
 export function parseMatch(document: Json): ChallongeMatch {
   const data = isBody(document) ? document.data : undefined;
   const attributes = isBody(data) ? data.attributes : undefined;
   const id = isBody(data) ? idText(data.id) : null;
   if (!isBody(data) || !isBody(attributes) || id === null || typeof attributes.state !== "string") throw new Error("Challonge's answer is not a match");
-  const player = (slot: "player1" | "player2") => playerOf(attributes.relationships, slot) ?? playerOf(data.relationships, slot);
+  const player = (slot: "player1" | "player2", index: 0 | 1) =>
+    playerOf(attributes.relationships, slot) ?? playerOf(data.relationships, slot) ?? listedPlayer(attributes.points_by_participant, index);
   return {
     id,
     state: attributes.state,
     winner: idText(attributes.winner_id),
-    player1: player("player1"),
-    player2: player("player2"),
+    player1: player("player1", 0),
+    player2: player("player2", 1),
     scores: typeof attributes.scores === "string" ? attributes.scores : null,
   };
 }
@@ -179,7 +191,7 @@ export function openProblems(match: ChallongeMatch, id: string): string[] {
 
 /**
  * What is wrong with the match after the run, empty when nothing is: it is
- * complete, between the same two players, with \`winner\` ahead 1 to 0.
+ * complete, between the same two players, with `winner` ahead 1 to 0.
  */
 export function reportedProblems(match: ChallongeMatch, winner: string, loser: string): string[] {
   const problems: string[] = [];

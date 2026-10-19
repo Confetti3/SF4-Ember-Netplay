@@ -449,11 +449,16 @@ described there and need one check against the real API:
 
 - `score_set` sent as each participant's set score (`"2"` and `"1"`), one
   entry per participant, with `rank` and `advancing`.
-- Where a match's players appear: inside `attributes.relationships` per the
-  schema, or in the standard JSON:API `relationships`. Both are read.
+- Where a match's players appear: the live answer (read 2026-10-19 for a
+  started single elimination tournament) has no `player1` and `player2`, and
+  names them only in `attributes.points_by_participant`, first player first.
+  That, `attributes.relationships` per the schema, and the standard JSON:API
+  `relationships` are all read.
 - Pages of 25 (the documented default); a shorter page is the last.
 - A tournament's `state` and a match's `underway_at`, which the schema does
   not list: read when present, and otherwise worked out as described above.
+  The live match answer has `underway_at` in `attributes.timestamps`, which is
+  read too.
 - A match's `group_id` on group stage matches, which the schema does not
   list either (the upgrading notes say it is there): a number there, or a
   string of digits, makes the match part of the `group` stage for round

@@ -132,3 +132,20 @@ test("the reported match is complete, between the same players, with the winner 
   assert.match(reportedProblems(reported("11", null), "11", "22").join("\n"), /score reads null/);
   assert.match(reportedProblems(reported("11", "1 - 0", { player2: "33" }), "11", "22").join("\n"), /players are 11 and 33/);
 });
+
+test("the live answer names a match's players in points_by_participant, first player first", () => {
+  const live = document({
+    state: "open",
+    scores: "0 - 0",
+    points_by_participant: [
+      { participant_id: 555001, scores: [] },
+      { participant_id: 555002, scores: [] },
+    ],
+    winner_id: null,
+  });
+  assert.deepEqual(parseMatch(live), { id: "1234567", state: "open", winner: null, player1: "555001", player2: "555002", scores: "0 - 0" });
+  const notFed = parseMatch(document({ state: "pending", points_by_participant: [{ participant_id: 555001 }, { participant_id: null }] }));
+  assert.equal(notFed.player1, "555001");
+  assert.equal(notFed.player2, null);
+  assert.equal(parseMatch(document({ state: "pending", points_by_participant: [] })).player1, null);
+});
