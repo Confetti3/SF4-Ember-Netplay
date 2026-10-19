@@ -73,7 +73,7 @@ void _OnPreBattleTasksRegistered() {
 	rVsMode::ConfirmedPlayerConditions* conditions = rVsMode::GetConfirmedPlayerConditions(mode);
 	size_t charaConditionSize = sizeof(rVsMode::ConfirmedCharaConditions);
 	for (int i = 0; i < mainMenuJumpCharaCount; i++) {
-		*(rVsMode::ConfirmedPlayerConditions::GetCharaID(&conditions[i])) = mainMenuJumpCharaConditions->charaID;
+		*(rVsMode::ConfirmedPlayerConditions::GetCharaID(&conditions[i])) = mainMenuJumpCharaConditions[i].charaID;
 		*(rVsMode::ConfirmedPlayerConditions::GetSideActive(&conditions[i])) = 1;
 		rVsMode::ConfirmedCharaConditions* charaConditions = rVsMode::ConfirmedPlayerConditions::GetCharaConditions(&conditions[i]);
 		memcpy_s(charaConditions, charaConditionSize, &mainMenuJumpCharaConditions[i], charaConditionSize);
