@@ -405,7 +405,8 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
 // blue recovery, yellow block, orange hit, pink meaty frames.
 ImU32 ClassicColor(MeterKind kind) {
     switch (kind) {
-    case MeterKind::Neutral: return IM_COL32(70, 74, 78, 150);
+    // Free frames stand out from the dim cells still to come, so the gap a hit or block leaves reads off the bars.
+    case MeterKind::Neutral: return IM_COL32(150, 156, 162, 200);
     case MeterKind::Movement: return IM_COL32(120, 150, 160, 245);
     case MeterKind::Startup: return IM_COL32(60, 196, 110, 245);
     case MeterKind::Active: return IM_COL32(236, 56, 96, 245);
