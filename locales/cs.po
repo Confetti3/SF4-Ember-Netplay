@@ -1877,6 +1877,9 @@ msgstr "Aktivní"
 msgid "training.meter.recovery"
 msgstr "Zotavení"
 
+msgid "training.meter.total"
+msgstr "Celkem"
+
 msgid "training.meter.hit"
 msgstr "Zásah"
 
@@ -4627,6 +4630,9 @@ msgstr "Náběh {0} sn."
 
 msgid "training.start_unknown"
 msgstr "Náběh --"
+
+msgid "training.start_total_frames"
+msgstr "Náběh {0} sn. / {1}"
 
 msgid "settings.training_replays"
 msgstr "Trénink a záznamy"

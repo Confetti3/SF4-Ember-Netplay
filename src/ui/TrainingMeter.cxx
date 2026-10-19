@@ -193,7 +193,8 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
     const float gap = 10 * hudScale;
     const auto measure=[&](const char* value){return ImGui::CalcTextSize(value).x;};
     // The startup and recovery columns are sized from the translated text they will show.
-    const float startup=(std::max)(measure(loc::Tf("training.start_frames",999).c_str()),measure(loc::T("training.start_unknown")));
+    // No startup reaches three digits; a total can.
+    const float startup=(std::max)(measure(loc::Tf("training.start_total_frames",99,999).c_str()),measure(loc::T("training.start_unknown")));
     const float recovery=options.recovery?(std::max)({measure(loc::Tf("training.recovery_frames",999).c_str()),measure(loc::T("training.recovery_unknown")),
         measure(loc::T("training.recovery_cancelled"))})+gap:0;
     const float label = options.numbers ? measure("P2") + gap + measure("+999 f") + gap + startup + gap + recovery : 0;
@@ -214,7 +215,9 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
             // A focus cancel's move keeps its startup through the focus and the dash.
             const auto* chain = ChainOf(meter.advantage, side);
             const int startup = chain ? chain->startup : meter.startupFrames[side];
-            if (startup >= 0) ImGui::TextUnformatted(loc::Tf("training.start_frames", startup).c_str());
+            const int total = MoveTotal(meter, side);
+            if (total > 0) ImGui::TextUnformatted(loc::Tf("training.start_total_frames", startup, total).c_str());
+            else if (startup >= 0) ImGui::TextUnformatted(loc::Tf("training.start_frames", startup).c_str());
             else {
                 ImGui::TextDisabled("%s", loc::T("training.start_unknown"));
                 if (ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), false))
@@ -262,7 +265,7 @@ std::string MeasurementReason(const MeterView& meter) {
     return {};
 }
 // What a reading is, so a reader of it need not go by its place or its words.
-enum class ReadingKind { Startup, Active, Recovery, Cancel, Meaty, Result, Last };
+enum class ReadingKind { Startup, Active, Recovery, Total, Cancel, Meaty, Result, Last };
 struct Reading { std::string label, value; ReadingKind kind; };
 std::vector<Reading> Readings(const MeterView& meter, int side) {
     const auto& move = meter.moves[side];
@@ -274,7 +277,8 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
     std::vector<Reading> readings{
         {loc::T("training.startup"), number(chain ? chain->startup : meter.startupFrames[side]), ReadingKind::Startup},
         {loc::T("training.meter.active"), number(chain ? chain->active : move.seen ? move.active : 0), ReadingKind::Active},
-        {loc::T("training.meter.recovery"), chain ? std::string(loc::T("training.meter.cancelled")) : number(move.seen && !move.live ? move.recovery : 0), ReadingKind::Recovery}};
+        {loc::T("training.meter.recovery"), chain ? std::string(loc::T("training.meter.cancelled")) : number(move.seen && !move.live ? move.recovery : 0), ReadingKind::Recovery},
+        {loc::T("training.meter.total"), number(MoveTotal(meter, side)), ReadingKind::Total}};
     if (chain) readings.push_back({ChainName(*chain), std::string(), ReadingKind::Cancel});
     // What the move met, and the frames it left its user ahead or behind:
     // this exchange's, so it is never told of another's move.
@@ -334,7 +338,7 @@ ImU32 ReadingColor(const Reading& reading) {
     case ReadingKind::Active: return ClassicColor(MeterKind::Active);
     case ReadingKind::Recovery: return ClassicColor(MeterKind::Recovery);
     case ReadingKind::Meaty: return ClassicColor(MeterKind::Meaty);
-    case ReadingKind::Cancel: return palette::Ivory;
+    case ReadingKind::Total: case ReadingKind::Cancel: return palette::Ivory;
     case ReadingKind::Result: case ReadingKind::Last: break;
     }
     const auto sign = reading.value.find_first_of("+-");
@@ -380,7 +384,7 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
                     draw->AddRectFilled(ImVec2(x, at.y + line * .25f), ImVec2(x + 3 * hudScale, at.y + line * .85f), colour);
                     x += 5 * hudScale;
                 }
-                const bool move = reading.kind == ReadingKind::Startup || reading.kind == ReadingKind::Active || reading.kind == ReadingKind::Recovery;
+                const bool move = reading.kind == ReadingKind::Startup || reading.kind == ReadingKind::Active || reading.kind == ReadingKind::Recovery || reading.kind == ReadingKind::Total;
                 Edged(draw, line, ImVec2(x, at.y), move ? IM_COL32(255, 255, 255, 255) : colour, reading.value.c_str());
                 x += ImGui::CalcTextSize(reading.value.c_str()).x + gap;
             }

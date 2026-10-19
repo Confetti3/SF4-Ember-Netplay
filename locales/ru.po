@@ -1878,6 +1878,9 @@ msgstr "Активные"
 msgid "training.meter.recovery"
 msgstr "Восстановление"
 
+msgid "training.meter.total"
+msgstr "Всего"
+
 msgid "training.meter.hit"
 msgstr "Попадание"
 
@@ -4628,6 +4631,9 @@ msgstr "Начало: {0} к."
 
 msgid "training.start_unknown"
 msgstr "Начало: --"
+
+msgid "training.start_total_frames"
+msgstr "Начало: {0} к. / {1}"
 
 msgid "settings.training_replays"
 msgstr "Тренировка и повторы"

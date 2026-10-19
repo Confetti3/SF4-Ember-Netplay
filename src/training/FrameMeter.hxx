@@ -377,6 +377,15 @@ struct MeterView {
     // exchange until that one's reading replaces it; only a reset clears it.
     FrameAdvantage lastAdvantage;
 };
+// A side's last move's total once it is over and its startup is known, unless
+// a focus cancel cut it short; -1 otherwise. Counted, as the startup, active and
+// recovery beside it are, so the four always add up, rather than read from the
+// script (MoveRecoveryEnd).
+inline int MoveTotal(const MeterView& meter, int side) {
+    const auto& move = meter.moves[side];
+    const int startup = meter.startupFrames[side];
+    return !ChainOf(meter.advantage, side) && move.seen && !move.live && move.recovery > 0 && startup > 0 ? startup - 1 + move.active + move.recovery : -1;
+}
 // The reading the HUD and Frame data show: the exchange's own once it is
 // measured, until then the last one.
 inline const FrameAdvantage& ShownAdvantage(const MeterView& meter) {

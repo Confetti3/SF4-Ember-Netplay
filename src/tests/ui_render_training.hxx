@@ -404,6 +404,10 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         }
         runs.startupFrames={{5,-1}};runs.moves[0].seen=true;runs.moves[0].active=4;runs.moves[0].recovery=25;
         runs.advantage.valid=true;runs.advantage.frames={{3,-3}};runs.advantage.attacker=0;
+        // Startup 5, active 4 and recovery 25 total 33; with no startup there is no total.
+        {auto unknown=runs;unknown.startupFrames={{-1,-1}};
+        Require(TrainingFrameData(runs,0).find(std::string(loc::T("training.meter.total"))+": 33")!=std::string::npos&&
+            TrainingFrameData(unknown,0).find(std::string(loc::T("training.meter.total"))+": --")!=std::string::npos,"Frame data lost the move's total");}
         training.meter=runs;SetTrainingMeterOptions({training::MeterStyle::Angled,true,60});draw("training-hud-markers");
         SetTrainingMeterOptions({training::MeterStyle::Angled,true,120});draw("training-hud-runs");
         // The next exchange is being measured: the last reading stays, dimmed,

@@ -1877,6 +1877,9 @@ msgstr "持续"
 msgid "training.meter.recovery"
 msgstr "硬直"
 
+msgid "training.meter.total"
+msgstr "全长"
+
 msgid "training.meter.hit"
 msgstr "命中"
 
@@ -4627,6 +4630,9 @@ msgstr "起手 {0} 帧"
 
 msgid "training.start_unknown"
 msgstr "起手 --"
+
+msgid "training.start_total_frames"
+msgstr "起手 {0} 帧 / {1}"
 
 msgid "settings.training_replays"
 msgstr "训练和录像"
