@@ -49,9 +49,11 @@ link without it, as the page's **Copy link** gives it. The bridge's own
 Discord pages take the name from your tenant's `name` in the bridge's
 configuration.
 
-`ember-bridge blumint-register` calls `setLookupPlayer`, `match/setCreate`
-and `match/setClose`, registering the three callback URLs with a new
-credential as `authentication.secret`. BluMint calls them with
+`ember-bridge blumint-register` calls `setLookupPlayer`, `match/setClose`
+and then `match/setCreate`, registering the three callback URLs with a new
+credential as `authentication.secret`. The create URL goes last because
+registering it turns on automatic lobbies for the game's tournaments, so a
+registration that fails before it leaves lobbies off. BluMint calls them with
 `Authorization: Bearer <credential the bridge issued>`. Once all three calls
 succeed, the bridge revokes the callback credential any earlier registration
 handed over; a registration that fails partway revokes nothing, and running

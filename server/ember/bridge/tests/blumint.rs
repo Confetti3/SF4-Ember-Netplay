@@ -235,12 +235,13 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
                 f.bridge.url("/v1/blumint/lookup")
             ),
             (
-                "/api/tournaments/match/setCreate",
-                f.bridge.url("/v1/blumint/matches")
-            ),
-            (
                 "/api/tournaments/match/setClose",
                 f.bridge.url("/v1/blumint/matches/close")
+            ),
+            // Last: registering it turns on automatic lobbies.
+            (
+                "/api/tournaments/match/setCreate",
+                f.bridge.url("/v1/blumint/matches")
             ),
         ]
     );
@@ -290,7 +291,7 @@ async fn a_new_registration_retires_the_credential_an_earlier_one_handed_over() 
             .await
             .0
     };
-    // BluMint's close route is not there yet.
+    // BluMint's create route is not there yet.
     f.blumint
         .lock()
         .unwrap()

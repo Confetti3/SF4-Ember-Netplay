@@ -1,7 +1,7 @@
 //! The places the bridge's BluMint answers follow BluMint's partner docs
 //! rather than the bridge's own habits: a close is answered `200` whatever
-//! its reason, and a creation naming an id the bridge cannot match is
-//! `player_unlinked`.
+//! its reason, the create URL is registered last, and a creation naming an
+//! id the bridge cannot match is `player_unlinked`.
 mod common;
 
 use common::blumint::*;
@@ -98,4 +98,38 @@ async fn a_close_naming_a_key_the_bridge_cannot_hold_answers_200() {
     let (status, refused) = close(&f, json!({ "reason": "decided" })).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
     assert_eq!(refused, json!({ "code": "invalid_request" }));
+}
+
+// Registering the create URL turns on automatic lobbies for the game's
+// tournaments, so BluMint is told where to look players up and close lobbies
+// first, and a registration that stops short of the create URL leaves them
+// off.
+#[tokio::test]
+async fn a_registration_that_fails_before_the_create_url_leaves_lobbies_off() {
+    let f = fixture().await;
+    f.blumint
+        .lock()
+        .unwrap()
+        .answers
+        .extend([(200, None), (404, None)]);
+    assert!(
+        ember_bridge::register_blumint(f.bridge.state(), CONNECTION)
+            .await
+            .is_err()
+    );
+    let paths: Vec<String> = f
+        .blumint
+        .lock()
+        .unwrap()
+        .calls
+        .iter()
+        .map(|(path, ..)| path.clone())
+        .collect();
+    assert_eq!(
+        paths,
+        [
+            "/api/tournaments/setLookupPlayer",
+            "/api/tournaments/match/setClose"
+        ]
+    );
 }
