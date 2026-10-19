@@ -131,4 +131,9 @@ struct TableBanner {
     int seat = -1;
 };
 TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t);
+// The table the options open without a card to say otherwise: your own
+// place's, else `selected`, the last table card the player was on.
+int OptionsTable(const ShellView& v, int selected);
+// A draft with something in it besides spaces.
+bool HasChatText(const char* text);
 } } }

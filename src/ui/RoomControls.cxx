@@ -4,6 +4,7 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
+#include <cctype>
 
 namespace sf4e { namespace ui { namespace room_controls {
 namespace {
@@ -268,5 +269,13 @@ std::string SelectionBlocker(const ShellView& v) {
     }
     if (!mutableRoom) return RoomWaitReason(v);
     return !v.selectionLockReason.empty() ? v.selectionLockReason : std::string(loc::T("room.change_fighter.waiting"));
+}
+int OptionsTable(const ShellView& v, int selected) {
+    const auto* local = room::FindMember(v.room, v.room.localMember);
+    return local && local->table >= 0 && local->table < static_cast<int>(v.room.tables.size()) ? local->table : selected;
+}
+bool HasChatText(const char* text) {
+    for (; *text; ++text) if (!std::isspace(static_cast<unsigned char>(*text))) return true;
+    return false;
 }
 } } }
