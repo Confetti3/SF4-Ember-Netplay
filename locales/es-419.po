@@ -3413,6 +3413,27 @@ msgstr "Abre {0} en tu navegador para conectar otra cuenta. Tu torneo deberá us
 msgid "site.remove_detail"
 msgstr "Desconecta esta cuenta de {0} de tu Ember ID en este servicio. Los torneos de {0} ya no podrán encontrarte con ella."
 
+msgid "site.organizer"
+msgstr "Acceso de organizador"
+
+msgid "site.organizer_allow_detail"
+msgstr "Abre {0} en tu navegador para que Ember gestione tus torneos allí: leer tus eventos y reportar los marcadores."
+
+msgid "site.organizer_held"
+msgstr "Permitido"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember gestiona tus torneos en {0}. Selecciona para quitarlo; tu cuenta sigue conectada."
+
+msgid "site.organizer_opened"
+msgstr "Aprueba el acceso de organizador en tu navegador y vuelve a esta pantalla."
+
+msgid "site.desk"
+msgstr "Mesa del torneo"
+
+msgid "site.desk_detail"
+msgstr "Abre esta dirección en tu celular o computadora para crear y gestionar tus torneos."
+
 msgid "site.cancel_detail"
 msgstr "Deja de esperar. Elige Conectar {0} de nuevo cuando estés listo."
 

@@ -197,10 +197,12 @@ void IdentityPanel::Queue(IdentityRequest request, bool lookUp, std::string acco
     // adds nothing: its answer is handled for whichever screen is open when it comes.
     if (netplay::EffectOf(request.op) == netplay::IdentityEffect::Read) {
         if (sent_ && sentOwner_ == Owner::Screens && sentJourney_ == owner && sentOp_ == request.op && sentBridge_ == request.bridge &&
-            sentOrigin_ == request.origin && sentSite_ == request.site && sentLookUp_ == lookUp && sentAccount_ == account && sentReads_ == reads) return;
+            sentOrigin_ == request.origin && sentSite_ == request.site && sentOrganizer_ == request.organizer && sentLookUp_ == lookUp &&
+            sentAccount_ == account && sentReads_ == reads) return;
         const bool waiting = std::any_of(queue_.begin(), queue_.end(), [&](const Queued& q) {
             return q.owner == Owner::Screens && q.journey == owner && q.request.op == request.op && q.request.bridge == request.bridge &&
-                q.request.origin == request.origin && q.request.site == request.site && q.lookUp == lookUp && q.account == account && q.reads == reads;
+                q.request.origin == request.origin && q.request.site == request.site && q.request.organizer == request.organizer &&
+                q.lookUp == lookUp && q.account == account && q.reads == reads;
         });
         if (waiting) return;
     }
@@ -307,6 +309,7 @@ void IdentityPanel::Send(const ShellView& v, const Submit& submit, double now) {
     action.identity.ticket = ++nextTicket_;
     const auto ticket = action.identity.ticket;
     sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge; sentOrigin_ = action.identity.origin; sentSite_ = action.identity.site;
+    sentOrganizer_ = action.identity.organizer;
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
     else if (sentOwner_ == Owner::PublicSetup) setup_.Fail(loc::T("error.queue_failed"));
     else if (QuietRead()) SiteReadFailed();

@@ -15,10 +15,10 @@ struct IdentityBridge { std::string id, origin, name; bool builtin = false, acti
 struct IdentityConnection { std::string id, name; };
 // A linked account (id is the link) or a claim waiting for approval (id is the claim).
 struct IdentityLink { std::string id, connection, provider, account; };
-// A sign-in site a service lists: its ID, its name to show, and whether it
-// offers sign-in now. Which pages its sign-in may open is the helper's to
-// check, from the same list.
-struct IdentitySignInSite { std::string id, name; bool signIn = false; };
+// A sign-in site a service lists: its ID, its name to show, whether it
+// offers sign-in now, and whether it offers an organizer sign-in too. Which
+// pages its sign-in may open is the helper's to check, from the same list.
+struct IdentitySignInSite { std::string id, name; bool signIn = false, organizer = false; };
 // The most sign-in sites kept from one service's list.
 constexpr std::size_t MaxSignInSites = 16;
 // An account connected on a sign-in service: its user ID (empty when none),
@@ -53,6 +53,9 @@ struct IdentityView {
     // connected on the sign-in site last asked; empty when none.
     std::string discordUser, discordName, siteUser, siteName;
     std::uint64_t discordConnectedAt = 0, siteConnectedAt = 0;
+    // Whether the sign-in site last asked holds this Ember ID's organizer
+    // grant, from an organizer read.
+    bool siteOrganizer = false;
     IdentityAccount Discord() const { return {discordUser, discordName, discordConnectedAt}; }
     IdentityAccount Site() const { return {siteUser, siteName, siteConnectedAt}; }
     // Links and pending claims on the bridge last listed.

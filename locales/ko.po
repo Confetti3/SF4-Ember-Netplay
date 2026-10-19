@@ -3887,6 +3887,27 @@ msgstr "브라우저에서 {0}를 열어 다른 계정을 대신 연결합니다
 msgid "site.remove_detail"
 msgstr "이 서비스에서 이 {0} 계정과 Ember ID의 연결을 끊습니다. {0}의 대회가 이 계정으로 더 이상 찾을 수 없습니다."
 
+msgid "site.organizer"
+msgstr "주최자 권한"
+
+msgid "site.organizer_allow_detail"
+msgstr "브라우저에서 {0}을(를) 열어 Ember가 그곳에서 대회를 운영하게 합니다. 이벤트를 읽고 점수를 보고합니다."
+
+msgid "site.organizer_held"
+msgstr "허용됨"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember가 {0}에서 대회를 운영합니다. 선택하면 권한을 취소합니다. 계정 연결은 유지됩니다."
+
+msgid "site.organizer_opened"
+msgstr "브라우저에서 주최자 권한을 승인한 뒤 이 화면으로 돌아오세요."
+
+msgid "site.desk"
+msgstr "대회 데스크"
+
+msgid "site.desk_detail"
+msgstr "휴대폰이나 컴퓨터에서 이 주소를 열어 대회를 만들고 운영하세요."
+
 msgid "site.cancel_detail"
 msgstr "기다리기를 멈춥니다. 준비되면 {0} 연결을 다시 선택하세요."
 

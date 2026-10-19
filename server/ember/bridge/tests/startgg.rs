@@ -32,7 +32,7 @@ async fn a_player_connects_startgg_and_platforms_find_them_by_user_id() {
         json!([{
             "id": "startgg", "display_name": "start.gg", "sign_in": true, "lookup_by": "user_id",
             "authorize_origin": origin.origin().ascii_serialization(),
-            "authorize_path": "/oauth/authorize",
+            "authorize_path": "/oauth/authorize", "organizer": true,
         }])
     );
     let player1 = player(&bridge, 1).await;
@@ -549,7 +549,7 @@ async fn a_site_defined_only_in_configuration_signs_in_and_finds_players() {
         json!([{
             "id": "bracketeer", "display_name": "Bracketeer", "sign_in": true,
             "lookup_by": "username", "authorize_origin": origin,
-            "authorize_path": "/login/oauth/authorize",
+            "authorize_path": "/login/oauth/authorize", "organizer": false,
         }])
     );
     let player1 = player(&bridge, 1).await;

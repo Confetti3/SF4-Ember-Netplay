@@ -97,13 +97,15 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
             .iter()
             .map(|site| {
                 let (authorize_origin, authorize_path) = site.authorize_page();
+                let sign_in = sign_in::offered(&state, &Site::Configured(site.id.clone()));
                 SignInSite {
                     id: site.id.clone(),
                     display_name: site.display_name.clone(),
-                    sign_in: sign_in::offered(&state, &Site::Configured(site.id.clone())),
+                    sign_in,
                     lookup_by: site.lookup_by,
                     authorize_origin,
                     authorize_path,
+                    organizer: sign_in && site.organizer.is_some(),
                 }
             })
             .collect(),

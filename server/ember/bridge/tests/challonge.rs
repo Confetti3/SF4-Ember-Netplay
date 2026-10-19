@@ -33,7 +33,7 @@ async fn a_player_connects_challonge_through_the_bridge_page() {
         json!([{
             "id": "challonge", "display_name": "Challonge", "sign_in": true, "lookup_by": "username",
             "authorize_origin": origin.origin().ascii_serialization(),
-            "authorize_path": "/oauth/authorize",
+            "authorize_path": "/oauth/authorize", "organizer": true,
         }])
     );
     let player1 = player(&bridge, 1).await;

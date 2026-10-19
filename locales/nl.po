@@ -3887,6 +3887,27 @@ msgstr "Opent {0} in je browser om in plaats daarvan een ander account te koppel
 msgid "site.remove_detail"
 msgstr "Ontkoppelt dit {0}-account van je Ember ID bij deze dienst. Toernooien op {0} kunnen je er dan niet meer mee vinden."
 
+msgid "site.organizer"
+msgstr "Organisatortoegang"
+
+msgid "site.organizer_allow_detail"
+msgstr "Opent {0} in je browser zodat Ember daar je toernooien kan runnen: je events lezen en scores doorgeven."
+
+msgid "site.organizer_held"
+msgstr "Toegestaan"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember runt je toernooien op {0}. Selecteer om dit in te trekken; je account blijft gekoppeld."
+
+msgid "site.organizer_opened"
+msgstr "Keur organisatortoegang goed in je browser en kom dan terug naar dit scherm."
+
+msgid "site.desk"
+msgstr "Toernooibalie"
+
+msgid "site.desk_detail"
+msgstr "Open dit adres op je telefoon of computer om je toernooien te maken en te runnen."
+
 msgid "site.cancel_detail"
 msgstr "Stopt met wachten. Kies {0} koppelen opnieuw als je klaar bent."
 

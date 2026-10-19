@@ -162,7 +162,7 @@ test("a connection finds players by their connected Challonge account", { timeou
     assert.ok(((await provider.getCapabilities()).features as string[]).includes("sites"));
     assert.deepEqual(await provider.getSignInSites(), [{
       id: "challonge", display_name: "Challonge", sign_in: true, lookup_by: "username",
-      authorize_origin: challonge.origin, authorize_path: "/oauth/authorize",
+      authorize_origin: challonge.origin, authorize_path: "/oauth/authorize", organizer: true,
     }]);
     assert.deepEqual(await provider.lookupAccounts([{ site: "challonge", id: "Player_1" }]), []);
 

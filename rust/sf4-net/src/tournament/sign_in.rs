@@ -45,6 +45,35 @@ pub async fn status(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> O
     .await
 }
 
+/// The player's organizer grant on the bridge: `organizer` is its scope and
+/// expiry, or null when none is held. The tokens never leave the bridge.
+pub async fn grant(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> Outcome {
+    #[derive(serde::Deserialize, serde::Serialize)]
+    struct Grant {
+        scope: String,
+        expires_at: u64,
+    }
+    #[derive(serde::Deserialize)]
+    struct Held {
+        organizer: Option<Grant>,
+    }
+    with_session(shared, bridge_id, |bridge, token| async move {
+        let (status, body) = shared
+            .client
+            .call(
+                reqwest::Method::GET,
+                &format!("{}{}", bridge.origin, routes.account_path),
+                Some(&token),
+                None,
+            )
+            .await?;
+        let held: Held = serde_json::from_value(answer(status, &body, &[200])?)
+            .map_err(|_| Failure::new("bridge_invalid_response"))?;
+        Ok(Some(json!({ "organizer": held.organizer })))
+    })
+    .await
+}
+
 /// Starts a sign-in and opens the site's page in the browser, if
 /// `is_sign_in_page` says it is the site's own; anything else the bridge
 /// answers is not opened. The account appears once the player finishes

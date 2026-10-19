@@ -230,6 +230,7 @@ pub async fn bridge_at(
         discord: None,
         sign_in_sites: Vec::new(),
         integration_secrets: rooms.then(|| "unused-in-tests.json".into()),
+        desk: None,
         rooms: supervisor.map(|supervisor_url| config::Rooms { supervisor_url }),
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {

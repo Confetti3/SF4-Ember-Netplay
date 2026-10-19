@@ -3887,6 +3887,27 @@ msgstr "Ouvre {0} dans votre navigateur pour connecter un autre compte à la pla
 msgid "site.remove_detail"
 msgstr "Déconnecte ce compte {0} de votre Ember ID sur ce service. Les tournois sur {0} ne pourront plus vous trouver grâce à lui."
 
+msgid "site.organizer"
+msgstr "Accès organisateur"
+
+msgid "site.organizer_allow_detail"
+msgstr "Ouvre {0} dans ton navigateur pour qu'Ember gère tes tournois là-bas : lire tes événements et envoyer les scores."
+
+msgid "site.organizer_held"
+msgstr "Autorisé"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember gère tes tournois sur {0}. Sélectionne pour retirer l'accès ; ton compte reste connecté."
+
+msgid "site.organizer_opened"
+msgstr "Autorise l'accès organisateur dans ton navigateur, puis reviens sur cet écran."
+
+msgid "site.desk"
+msgstr "Table du tournoi"
+
+msgid "site.desk_detail"
+msgstr "Ouvre cette adresse sur ton téléphone ou ton ordinateur pour créer et gérer tes tournois."
+
 msgid "site.cancel_detail"
 msgstr "Arrête l'attente. Choisissez à nouveau Connecter {0} quand vous êtes prêt."
 

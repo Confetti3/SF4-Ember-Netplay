@@ -141,6 +141,10 @@ pub struct SignInSite {
     /// page on this origin and path that the bridge it trusts names.
     pub authorize_origin: String,
     pub authorize_path: String,
+    /// Whether an organizer sign-in (`organize_path`) is offered too. Left
+    /// out by bridges older than organizer sign-in, which offer none.
+    #[serde(default)]
+    pub organizer: bool,
 }
 
 /// An account a lookup asks for: on site `site`, the one `id` names

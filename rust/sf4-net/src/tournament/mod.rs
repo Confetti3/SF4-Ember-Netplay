@@ -120,17 +120,26 @@ pub enum Request {
         bridge_id: String,
     },
     /// A sign-in site's requests, for the site the bridge lists under `site`.
+    /// With `organizer`, the first three are for the organizer sign-in
+    /// instead: its grant, a sign-in asking for the site's organizer scopes,
+    /// and dropping the grant (the account stays).
     SiteStatus {
         bridge_id: String,
         site: String,
+        #[serde(default)]
+        organizer: bool,
     },
     SiteConnect {
         bridge_id: String,
         site: String,
+        #[serde(default)]
+        organizer: bool,
     },
     SiteRemove {
         bridge_id: String,
         site: String,
+        #[serde(default)]
+        organizer: bool,
     },
     SiteCancel {
         bridge_id: String,
@@ -697,9 +706,21 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::DiscordCancel { bridge_id } => {
             sign_in::cancel(shared, &bridge_id, &discord::routes()).await
         }
-        Request::SiteStatus { bridge_id, site } => sites::status(shared, &bridge_id, &site).await,
-        Request::SiteConnect { bridge_id, site } => sites::connect(shared, &bridge_id, &site).await,
-        Request::SiteRemove { bridge_id, site } => sites::remove(shared, &bridge_id, &site).await,
+        Request::SiteStatus {
+            bridge_id,
+            site,
+            organizer,
+        } => sites::status(shared, &bridge_id, &site, organizer).await,
+        Request::SiteConnect {
+            bridge_id,
+            site,
+            organizer,
+        } => sites::connect(shared, &bridge_id, &site, organizer).await,
+        Request::SiteRemove {
+            bridge_id,
+            site,
+            organizer,
+        } => sites::remove(shared, &bridge_id, &site, organizer).await,
         Request::SiteCancel { bridge_id, site } => sites::cancel(shared, &bridge_id, &site).await,
         Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
         Request::MatchClaim {

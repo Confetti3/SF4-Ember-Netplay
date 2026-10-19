@@ -3528,6 +3528,27 @@ msgstr "Opens {0} in your browser to connect another account instead. Your tourn
 msgid "site.remove_detail"
 msgstr "Disconnects this {0} account from your Ember ID on this service. Tournaments on {0} can no longer find you by it."
 
+msgid "site.organizer"
+msgstr "Organizer access"
+
+msgid "site.organizer_allow_detail"
+msgstr "Opens {0} in your browser so Ember can run your tournaments there: read your events and report the scores."
+
+msgid "site.organizer_held"
+msgstr "Allowed"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember runs your tournaments on {0}. Select to take this away; your account stays connected."
+
+msgid "site.organizer_opened"
+msgstr "Approve organizer access in your browser, then come back to this screen."
+
+msgid "site.desk"
+msgstr "Tournament desk"
+
+msgid "site.desk_detail"
+msgstr "Open this address on your phone or computer to create and run your tournaments."
+
 msgid "site.cancel_detail"
 msgstr "Stops waiting. Choose Connect {0} again when you are ready."
 

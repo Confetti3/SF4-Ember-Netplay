@@ -97,6 +97,7 @@ pub async fn start_bridge(
         }),
         sign_in_sites: sites,
         integration_secrets,
+        desk: None,
         rooms: None,
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {

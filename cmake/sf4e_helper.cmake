@@ -5,6 +5,12 @@ option(SF4E_BUILD_IROH_HELPER "Build the bundled x64 Iroh helper" ON)
 # (rust/sf4-net/src/tournament/builtin.rs). scripts/build-current.ps1 sets it
 # for the nightly channel and turns it off for every other.
 option(SF4E_STAGING_BRIDGE "Build the helper trusting Ember's staging bridge" OFF)
+# Ember's own service in the game's Linked accounts, when not production's:
+# a test build for the tournament desk names its nightly bridge here.
+set(SF4E_EMBER_SERVICE "" CACHE STRING "Origin of Ember's own service, empty for https://bridge.embernetplay.link")
+if(SF4E_EMBER_SERVICE)
+    add_compile_definitions(SF4E_EMBER_SERVICE="${SF4E_EMBER_SERVICE}")
+endif()
 if(WIN32)
     add_library(sf4e_helper_platform STATIC
         "${CMAKE_SOURCE_DIR}/src/platform/HelperProcess.cxx"

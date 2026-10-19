@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use ember_protocol::{
     challenge::Action,
-    sites::{account_path, is_public_host, is_site_id, start_path},
+    sites::{account_path, is_public_host, is_site_id, organize_path, start_path},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
@@ -33,6 +33,9 @@ pub struct Listed {
     pub sign_in: bool,
     pub authorize_origin: String,
     pub authorize_path: String,
+    /// Whether it offers an organizer sign-in; older bridges leave it out.
+    #[serde(default)]
+    pub organizer: bool,
 }
 
 /// The sites in a capabilities document's `sign_in_sites`, as written,
@@ -64,27 +67,43 @@ pub(super) fn listed(sites: Option<&RawValue>) -> Vec<Listed> {
     kept
 }
 
-fn routes(site: &str) -> Result<Routes, Failure> {
+/// The site's routes; with `organizer`, its organizer sign-in's, where one
+/// path starts the sign-in, reads the grant and drops it.
+fn routes(site: &str, organizer: bool) -> Result<Routes, Failure> {
     if !is_site_id(site) {
         return Err(Failure::new("invalid_request"));
     }
+    let (start, account) = if organizer {
+        (organize_path(site), organize_path(site))
+    } else {
+        (start_path(site), account_path(site))
+    };
     Ok(Routes {
-        start_path: start_path(site),
-        account_path: account_path(site),
+        start_path: start,
+        account_path: account,
         connect: Action::SiteConnect,
         remove: Action::SiteRemove,
         cancel: Action::SiteCancel,
     })
 }
 
-pub async fn status(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcome {
-    sign_in::status(shared, bridge_id, &routes(site)?).await
+pub async fn status(shared: &Arc<Shared>, bridge_id: &str, site: &str, organizer: bool) -> Outcome {
+    let routes = routes(site, organizer)?;
+    if organizer {
+        return sign_in::grant(shared, bridge_id, &routes).await;
+    }
+    sign_in::status(shared, bridge_id, &routes).await
 }
 
 /// Starts a sign-in on `site` and opens its page, which must be on the
 /// authorize origin and path the bridge's capabilities declare for it.
-pub async fn connect(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcome {
-    let routes = routes(site)?;
+pub async fn connect(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    site: &str,
+    organizer: bool,
+) -> Outcome {
+    let routes = routes(site, organizer)?;
     let origin = approved(shared, bridge_id)?.origin;
     // The bridge is trusted already, so capabilities it does not serve now
     // mean it is down for the moment, not that it is no tournament service.
@@ -102,25 +121,27 @@ pub async fn connect(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outco
         .find(|listed| listed.id == site)
         .ok_or_else(|| Failure::new("not_found"))?;
     // Listed with its sign-in off: the bridge would refuse the start.
-    if !listed.sign_in {
+    if !listed.sign_in || (organizer && !listed.organizer) {
         return Err(Failure::new("sign_in_off"));
     }
+    // An organizer sign-in's path drops the grant on DELETE, so one whose
+    // page did not open is left to lapse rather than ended.
     sign_in::connect(
         shared,
         bridge_id,
         &routes,
         |url| is_declared_page(url, &listed.authorize_origin, &listed.authorize_path),
-        true,
+        !organizer,
     )
     .await
 }
 
-pub async fn remove(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcome {
-    sign_in::remove(shared, bridge_id, &routes(site)?).await
+pub async fn remove(shared: &Arc<Shared>, bridge_id: &str, site: &str, organizer: bool) -> Outcome {
+    sign_in::remove(shared, bridge_id, &routes(site, organizer)?).await
 }
 
 pub async fn cancel(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcome {
-    sign_in::cancel(shared, bridge_id, &routes(site)?).await
+    sign_in::cancel(shared, bridge_id, &routes(site, false)?).await
 }
 
 /// `url` is the page at `path` on `origin`, with nothing after it but a
@@ -277,9 +298,38 @@ mod tests {
 
     #[test]
     fn site_ids_are_checked_before_any_request() {
-        assert!(routes("challonge").is_ok() && routes("brackets-plus").is_ok());
+        assert!(routes("challonge", false).is_ok() && routes("brackets-plus", true).is_ok());
         for site in ["", "Challonge", "a/b", "../discord", &"x".repeat(33)] {
-            assert!(routes(site).is_err(), "{site}");
+            assert!(
+                routes(site, false).is_err() && routes(site, true).is_err(),
+                "{site}"
+            );
         }
+    }
+
+    #[test]
+    fn an_organizer_sign_in_uses_its_own_path_for_all_three() {
+        let organizer = routes("challonge", true).unwrap();
+        assert_eq!(organizer.start_path, "/v1/sites/challonge/organize");
+        assert_eq!(organizer.account_path, organizer.start_path);
+        let player = routes("challonge", false).unwrap();
+        assert_ne!(player.start_path, organizer.start_path);
+    }
+
+    #[test]
+    fn an_older_bridge_offers_no_organizer_sign_in() {
+        let site = |extra: serde_json::Value| {
+            let mut entry = serde_json::json!({
+                "id": "challonge", "display_name": "Challonge", "sign_in": true,
+                "authorize_origin": "https://api.challonge.com", "authorize_path": "/oauth/authorize",
+            });
+            entry
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            listed(Some(serde_json::json!([entry])))[0].organizer
+        };
+        assert!(!site(serde_json::json!({})));
+        assert!(site(serde_json::json!({ "organizer": true })));
     }
 }

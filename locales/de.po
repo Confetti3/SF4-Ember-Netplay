@@ -3887,6 +3887,27 @@ msgstr "Öffnet {0} in Ihrem Browser, um stattdessen ein anderes Konto zu verbin
 msgid "site.remove_detail"
 msgstr "Trennt dieses {0}-Konto in diesem Dienst von Ihrer Ember ID. Turniere auf {0} finden Sie dann nicht mehr darüber."
 
+msgid "site.organizer"
+msgstr "Organisatorzugriff"
+
+msgid "site.organizer_allow_detail"
+msgstr "Öffnet {0} im Browser, damit Ember dort deine Turniere führt: deine Events lesen und Ergebnisse melden."
+
+msgid "site.organizer_held"
+msgstr "Erlaubt"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember führt deine Turniere auf {0}. Auswählen, um den Zugriff zu entziehen; dein Konto bleibt verbunden."
+
+msgid "site.organizer_opened"
+msgstr "Erlaube den Organisatorzugriff im Browser und kehre dann zu diesem Bildschirm zurück."
+
+msgid "site.desk"
+msgstr "Turniertisch"
+
+msgid "site.desk_detail"
+msgstr "Öffne diese Adresse auf Handy oder Computer, um deine Turniere zu erstellen und zu führen."
+
 msgid "site.cancel_detail"
 msgstr "Beendet das Warten. Wählen Sie {0} verbinden erneut, wenn Sie bereit sind."
 

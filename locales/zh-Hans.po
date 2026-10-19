@@ -3887,6 +3887,27 @@ msgstr "在浏览器中打开 {0}，改为关联另一个账号。之后你的�
 msgid "site.remove_detail"
 msgstr "在此服务中解除此 {0} 账号与你的 Ember ID 的关联。{0} 上的赛事将无法再通过它找到你。"
 
+msgid "site.organizer"
+msgstr "主办方权限"
+
+msgid "site.organizer_allow_detail"
+msgstr "在浏览器中打开 {0}，让 Ember 在那里运营你的比赛：读取你的赛事并上报比分。"
+
+msgid "site.organizer_held"
+msgstr "已允许"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember 正在 {0} 上运营你的比赛。选择以撤销；你的账号仍保持连接。"
+
+msgid "site.organizer_opened"
+msgstr "请在浏览器中批准主办方权限，然后回到此界面。"
+
+msgid "site.desk"
+msgstr "赛事控制台"
+
+msgid "site.desk_detail"
+msgstr "在手机或电脑上打开此地址，即可创建和运营你的比赛。"
+
 msgid "site.cancel_detail"
 msgstr "停止等待。准备好后，请再次选择“关联 {0}”。"
 

@@ -3887,6 +3887,27 @@ msgstr "Apre {0} nel browser per collegare invece un altro account. Il tuo torne
 msgid "site.remove_detail"
 msgstr "Scollega questo account {0} dal tuo Ember ID su questo servizio. I tornei su {0} non potranno più trovarti tramite esso."
 
+msgid "site.organizer"
+msgstr "Accesso organizzatore"
+
+msgid "site.organizer_allow_detail"
+msgstr "Apre {0} nel browser perché Ember gestisca lì i tuoi tornei: leggere i tuoi eventi e inviare i punteggi."
+
+msgid "site.organizer_held"
+msgstr "Consentito"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember gestisce i tuoi tornei su {0}. Seleziona per revocarlo; il tuo account resta collegato."
+
+msgid "site.organizer_opened"
+msgstr "Approva l'accesso organizzatore nel browser, poi torna a questa schermata."
+
+msgid "site.desk"
+msgstr "Banco del torneo"
+
+msgid "site.desk_detail"
+msgstr "Apri questo indirizzo sul telefono o sul computer per creare e gestire i tuoi tornei."
+
 msgid "site.cancel_detail"
 msgstr "Smette di aspettare. Scegli di nuovo Collega {0} quando sei pronto."
 

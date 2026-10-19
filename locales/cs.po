@@ -3887,6 +3887,27 @@ msgstr "Otevře {0} ve vašem prohlížeči a připojí místo toho jiný účet
 msgid "site.remove_detail"
 msgstr "Odpojí tento účet {0} od vašeho Ember ID v této službě. Turnaje na {0} vás podle něj už nenajdou."
 
+msgid "site.organizer"
+msgstr "Přístup organizátora"
+
+msgid "site.organizer_allow_detail"
+msgstr "Otevře {0} v prohlížeči, aby tam Ember vedl tvé turnaje: četl tvé akce a hlásil výsledky."
+
+msgid "site.organizer_held"
+msgstr "Povoleno"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember vede tvé turnaje na {0}. Vyber pro odebrání; účet zůstane připojený."
+
+msgid "site.organizer_opened"
+msgstr "Schval přístup organizátora v prohlížeči a pak se vrať na tuto obrazovku."
+
+msgid "site.desk"
+msgstr "Turnajový stůl"
+
+msgid "site.desk_detail"
+msgstr "Otevři tuto adresu v telefonu nebo počítači a vytvářej a veď své turnaje."
+
 msgid "site.cancel_detail"
 msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit {0}."
 

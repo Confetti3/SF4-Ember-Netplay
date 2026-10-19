@@ -17,9 +17,16 @@ namespace {
 // While a site's page is open in the browser, the account is read this
 // often, for as long as the bridge keeps the sign-in.
 constexpr double PollSeconds = 4, SignInSeconds = 600;
+constexpr const char* OrganizerRow = "st-organizer";
+constexpr const char* OrganizerRemoveRow = "st-organizer-remove";
 
 IdentityRequest Request(const SignInTarget& target, SignInStep step, const std::string& bridge) {
     IdentityRequest r; r.op = netplay::SignInRequest(target.source, step); r.bridge = bridge; r.site = target.site; return r;
+}
+
+// The organizer sign-in of a listed site: a status, a sign-in, or dropping the grant.
+IdentityRequest Organizer(const std::string& site, SignInStep step, const std::string& bridge) {
+    auto r = Request(SignInTarget::Listed(site), step, bridge); r.organizer = true; return r;
 }
 }
 
@@ -193,7 +200,9 @@ void IdentityPanel::ReadSiteAccounts(const netplay::IdentityView& id, const std:
     sites_ = id.signInSites;
     for (const auto& site : sites_) {
         if (!site.name.empty()) siteNames_[site.id] = site.name;
-        if (reads.Reads(site.id)) Queue(Request(SignInTarget::Listed(site.id), SignInStep::Status, bridge));
+        if (!reads.Reads(site.id)) continue;
+        Queue(Request(SignInTarget::Listed(site.id), SignInStep::Status, bridge));
+        if (site.organizer) Queue(Organizer(site.id, SignInStep::Status, bridge));
     }
 }
 
@@ -211,7 +220,8 @@ bool IdentityPanel::QuietRead() const {
 }
 
 void IdentityPanel::SiteReadFailed() {
-    if (!netplay::SignInOf(sentOp_)) return;
+    // An organizer read that failed leaves the account as it was read.
+    if (!netplay::SignInOf(sentOp_) || sentOrganizer_) return;
     const auto target = SentTarget();
     Account(target, sentBridge_).failed = true;
     if (signIn_ && signIn_->target == target && signIn_->bridge == sentBridge_) signIn_->paused = true;
@@ -274,6 +284,18 @@ void IdentityPanel::SignInRows(const ShellView& v, const SignInTarget& site, con
         rows.push_back(named(Row(ids.connect, word(words.change), word(words.changeDetail), !busy && (offered || !offKnown))));
         auto remove = ConfirmRow(ids.remove, loc::T(words.removeLabel), word(words.removeDetail), !busy);
         remove.hint = loc::T(words.removeLabel); rows.push_back(std::move(remove));
+        // A site that also runs tournaments through Ember: its organizer access,
+        // and once held, where the tournament desk is.
+        if (listed && listed->organizer) {
+            if (account->organizer) {
+                auto held = ConfirmRow(OrganizerRemoveRow, loc::T("site.organizer"), word("site.organizer_held_detail"), !busy);
+                held.value = loc::T("site.organizer_held"); rows.push_back(std::move(held));
+                auto desk = InfoRow("st-desk", loc::T("site.desk"), target.origin + "/desk", loc::T("site.desk_detail"));
+                desk.userText = true; rows.push_back(std::move(desk));
+            } else {
+                rows.push_back(Row(OrganizerRow, loc::T("site.organizer"), word("site.organizer_allow_detail"), !busy && offered));
+            }
+        }
     } else if (offKnown && !offered && !failed) {
         // Off as the latest read said; a failed read offers Try again below.
         rows.push_back(named(InfoRow(ids.off, word(words.off), {}, word(words.offDetail))));
@@ -300,6 +322,12 @@ void IdentityPanel::ListedSiteRows(const ShellView& v, std::vector<MenuEntry>& r
 }
 
 bool IdentityPanel::SignInActivate(const MenuAction& a, const ShellView& v) {
+    if (a.id == OrganizerRow || a.id == OrganizerRemoveRow) {
+        message_.clear();
+        const auto bridge = SiteBridge(v, SignInTarget::Listed(siteScreen_));
+        if (!bridge.empty()) Queue(Organizer(siteScreen_, a.id == OrganizerRow ? SignInStep::Connect : SignInStep::Remove, bridge));
+        return true;
+    }
     for (const auto source : SignInSources) {
         const auto& info = Site(source);
         const auto target = source == SignInSource::Discord ? SignInTarget::Discord() : SignInTarget::Listed(siteScreen_);
@@ -329,6 +357,13 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
     const auto read = (id.*info.account)();
     using Phase = SignInAttempt::Phase;
     const bool waitedFor = signIn_ && signIn_->target == target && signIn_->bridge == sentBridge_;
+    // The organizer sign-in waits for nothing here: the player comes back to
+    // this screen, which reads the grant again.
+    if (sentOrganizer_) {
+        if (signIn->step == SignInStep::Connect) Say(loc::T("site.organizer_opened"), false, 30);
+        else if (ListedSite(sentBridge_, target.site)) Account(target, sentBridge_).organizer = id.siteOrganizer;
+        return;
+    }
     switch (signIn->step) {
     case SignInStep::Status: {
         // A site its service stopped listing since the read was asked keeps nothing.

@@ -3888,6 +3888,27 @@ msgstr "Открывает {0} в браузере, чтобы вместо эт
 msgid "site.remove_detail"
 msgstr "Отключает этот аккаунт {0} от вашего Ember ID в этом сервисе. Турниры на {0} больше не найдут вас по нему."
 
+msgid "site.organizer"
+msgstr "Доступ организатора"
+
+msgid "site.organizer_allow_detail"
+msgstr "Открывает {0} в браузере, чтобы Ember вёл там ваши турниры: читал события и отправлял счёт."
+
+msgid "site.organizer_held"
+msgstr "Разрешён"
+
+msgid "site.organizer_held_detail"
+msgstr "Ember ведёт ваши турниры на {0}. Выберите, чтобы отозвать доступ; аккаунт останется подключённым."
+
+msgid "site.organizer_opened"
+msgstr "Разрешите доступ организатора в браузере и вернитесь на этот экран."
+
+msgid "site.desk"
+msgstr "Стол турнира"
+
+msgid "site.desk_detail"
+msgstr "Откройте этот адрес на телефоне или компьютере, чтобы создавать и вести турниры."
+
 msgid "site.cancel_detail"
 msgstr "Прекращает ожидание. Когда будете готовы, снова выберите «Подключить {0}»."
 

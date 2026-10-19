@@ -35,6 +35,10 @@ void Requests() {
         Check(Request(op, "brg_1", "startgg") == nlohmann::json({{"op", name}, {"bridge_id", "brg_1"}, {"site", "startgg"}}),
             "A site request was not built for the helper");
         Check(Request(op, "brg_1").is_null() && Request(op, "", "startgg").is_null(), "A site request without its site or service was built");
+        // The organizer sign-in says so; it has no cancel of its own.
+        sf4e::netplay::IdentityRequest organizer; organizer.op = op; organizer.bridge = "brg_1"; organizer.site = "startgg"; organizer.organizer = true;
+        const auto built = nlohmann::json::parse(sf4e::session::BuildTournamentRequest(organizer));
+        Check(built.value("organizer", false) == (op != IdentityOp::SiteCancel), "An organizer request was not marked for the helper");
     }
 }
 
@@ -45,14 +49,14 @@ void Answers() {
         "profile":{"bridge_id":"brg_1","origin":"https://bridge.embernetplay.link","display_name":"Ember"},
         "capabilities":{"connections":[],"features":["discord.accounts","sites"],"sign_in_sites":[
             {"id":"challonge","display_name":"Challonge","sign_in":true,"lookup_by":"username",
-             "authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize"},
+             "authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize","organizer":true},
             {"id":"startgg","display_name":"start.gg","sign_in":false,"lookup_by":"user_id",
              "authorize_origin":"https://start.gg","authorize_path":"/oauth/authorize"},
             {"display_name":"No ID"}, 7, {"id":"","display_name":"Empty"},
             {"id":"later","display_name":"Later","sign_in":"yes","lookup_by":"email"}]}}})"), view);
     Check(!view.inspectedDiscord && view.inspectedDiscordAccounts, "Discord's features were not read");
     Check(view.signInSites.size() == 3 && view.signInSites[0].id == "challonge" && view.signInSites[0].name == "Challonge" &&
-        view.signInSites[0].signIn &&
+        view.signInSites[0].signIn && view.signInSites[0].organizer && !view.signInSites[1].organizer &&
         view.signInSites[1].id == "startgg" && view.signInSites[1].name == "start.gg" && !view.signInSites[1].signIn,
         "The sign-in sites were not read");
     // An entry without an ID is skipped; a site whose sign_in is not a yes offers none.
@@ -71,6 +75,12 @@ void Answers() {
         "account":{"user_id":"1001","username":"Player_1","connected_at":10}}})"), view);
     Check(view.siteUser == "1001" && view.siteName == "Player_1" && view.siteConnectedAt == 10, "The site's account was not read");
     Check(view.discordUser == "274220342558756145" && view.discordName == "player1", "A site's answer changed the Discord account");
+    // An organizer read says whether the grant is held and leaves the account as read.
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":8,"op":"site_status","ok":true,"data":{
+        "organizer":{"scope":"me","expires_at":99}}})"), view);
+    Check(view.siteOrganizer && view.siteUser == "1001", "An organizer read was not read apart from the account");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":9,"op":"site_remove","ok":true,"data":{"organizer":null}})"), view);
+    Check(!view.siteOrganizer && view.siteUser == "1001", "Dropping organizer access was not read, or it unlinked the account");
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"site_remove","ok":true,"data":{"account":null}})"), view);
     Check(view.siteUser.empty() && view.siteName.empty() && view.discordName == "player1", "Unlinking a site's account was not read");
     Check(view.siteConnectedAt == 0, "Unlinking a site's account kept when it connected");

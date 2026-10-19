@@ -221,6 +221,8 @@ export interface SignInSite {
   /** Where the site's sign-in page is, which Ember checks before opening it. */
   authorize_origin: string;
   authorize_path: string;
+  /** Whether an organizer can also sign in to let Ember run their events there (tournament desk). */
+  organizer?: boolean;
 }
 
 /** An account on a sign-in site, as a lookup names it. */

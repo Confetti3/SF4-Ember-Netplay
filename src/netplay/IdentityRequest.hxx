@@ -78,8 +78,10 @@ struct IdentityRequest {
     std::string origin, bridge, connection, code;
     // The claim or link to cancel or remove.
     std::string target;
-    // The sign-in site the site requests are for, by its ID.
+    // The sign-in site the site requests are for, by its ID, and whether its
+    // status, connect and remove are the organizer sign-in's.
     std::string site;
+    bool organizer = false;
     // Import: the ID its preview showed; Reset: the ID being retired.
     std::string emberId;
     bool replace = false;

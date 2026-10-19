@@ -1,4 +1,7 @@
 #pragma once
+#ifndef SF4E_EMBER_SERVICE
+#define SF4E_EMBER_SERVICE "https://bridge.embernetplay.link"
+#endif
 #include "MenuNavigation.hxx"
 #include "MatchAnnouncements.hxx"
 #include "PublicRoomsSetup.hxx"
@@ -34,7 +37,10 @@ class IdentityPanel {
 public:
     using Submit = std::function<bool(ShellAction)>;
     // Ember's own tournament service, the one most players trust.
-    static constexpr const char* EmberService = "https://bridge.embernetplay.link";
+    // Ember's own service, whose sign-in sites Linked accounts shows. A test
+    // build may name another (CMake SF4E_EMBER_SERVICE), such as the
+    // tournament desk's nightly bridge.
+    static constexpr const char* EmberService = SF4E_EMBER_SERVICE;
     static bool Owns(const std::string& screen);
     // Why a tournament match stopped, from its stable code, in words.
     static std::string TournamentFailure(const std::string& code);
@@ -301,6 +307,7 @@ private:
     Owner sentOwner_ = Owner::Screens;
     bool sentLookUp_ = false;
     std::string sentAccount_, sentSite_;
+    bool sentOrganizer_ = false;
     AccountReads sentReads_;
     // The Connect Discord journey, and the one the request in flight was
     // queued in. While its answer is handled, what it queues belongs to that
@@ -327,6 +334,8 @@ private:
     // Try again succeeds).
     struct SiteAccount : netplay::IdentityAccount {
         bool read = false, failed = false;
+        // Whether the Ember ID holds the site's organizer grant, as last read.
+        bool organizer = false;
         void Set(const netplay::IdentityAccount& now) { IdentityAccount::operator=(now); read = true; failed = false; }
     };
     std::map<std::tuple<SignInSource, std::string, std::string>, SiteAccount> accounts_;

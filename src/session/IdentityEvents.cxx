@@ -85,9 +85,11 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
                 if (view.signInSites.size() == netplay::MaxSignInSites) break;
                 const auto id = site.is_object() ? Text(site, "id", 32) : std::string();
                 if (id.empty()) continue;
-                const auto signIn = site.find("sign_in");
-                view.signInSites.push_back({id, Text(site, "display_name", 64),
-                    signIn != site.end() && signIn->is_boolean() && signIn->get<bool>()});
+                const auto flag = [&](const char* name) {
+                    const auto it = site.find(name);
+                    return it != site.end() && it->is_boolean() && it->get<bool>();
+                };
+                view.signInSites.push_back({id, Text(site, "display_name", 64), flag("sign_in"), flag("organizer")});
             }
     } else if (view.op == "link_list") {
         view.links.clear(); view.pending.clear();
@@ -100,6 +102,9 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
     } else if (view.op == "discord_status" || view.op == "discord_remove") {
         const auto account = AccountOf(data, 20);
         view.discordUser = account.user; view.discordName = account.name; view.discordConnectedAt = account.connectedAt;
+    } else if (data.contains("organizer")) {
+        // An organizer read: the grant held or not; the account read stays.
+        view.siteOrganizer = data["organizer"].is_object();
     } else if (view.op == "site_status" || view.op == "site_remove") {
         const auto account = AccountOf(data, 64);
         view.siteUser = account.user; view.siteName = account.name; view.siteConnectedAt = account.connectedAt;
@@ -170,6 +175,9 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
     case IdentityOp::SiteCancel: body["op"] = "site_cancel"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
     default: complete = false; break;
     }
+    // The organizer sign-in has no cancel: its path drops the grant instead.
+    if (r.organizer && (r.op == IdentityOp::SiteStatus || r.op == IdentityOp::SiteConnect || r.op == IdentityOp::SiteRemove))
+        body["organizer"] = true;
     std::string text;
     if (complete) {
         try { text = body.dump(); } catch (const nlohmann::json::exception&) { text.clear(); }

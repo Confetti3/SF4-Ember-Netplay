@@ -3887,6 +3887,27 @@ msgstr "ブラウザーで{0}を開き、代わりに別のアカウントを連
 msgid "site.remove_detail"
 msgstr "このサービスでこの{0}アカウントとEmber IDの連携を解除します。{0}の大会はこのアカウントからあなたを見つけられなくなります。"
 
+msgid "site.organizer"
+msgstr "主催者アクセス"
+
+msgid "site.organizer_allow_detail"
+msgstr "ブラウザで{0}を開き、Emberがそこで大会を運営できるようにします（イベントの読み取りとスコアの報告）。"
+
+msgid "site.organizer_held"
+msgstr "許可済み"
+
+msgid "site.organizer_held_detail"
+msgstr "Emberが{0}で大会を運営しています。選択すると取り消します。アカウントの接続はそのままです。"
+
+msgid "site.organizer_opened"
+msgstr "ブラウザで主催者アクセスを承認してから、この画面に戻ってください。"
+
+msgid "site.desk"
+msgstr "大会デスク"
+
+msgid "site.desk_detail"
+msgstr "スマホやPCでこのアドレスを開くと、大会の作成と運営ができます。"
+
 msgid "site.cancel_detail"
 msgstr "待機をやめます。準備ができたら、もう一度「{0}を連携」を選んでください。"
 
