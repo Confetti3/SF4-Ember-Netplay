@@ -60,7 +60,7 @@ $coordinatorLog = Join-Path $work "bridge.log"
 $guestLog = Join-Path $work "guest.log"
 $hostLog = Join-Path $work "host.log"
 $origin = "http://127.0.0.1:$Port"
-$coordinator = $null; $guest = $null; $hostStarted = $false
+$coordinator = $null; $guest = $null; $hostStarted = $false; $timedOut = $false
 
 # The lines a side printed, labelled with the side.
 function Get-Steps([string]$Side, [string]$Log) {
@@ -81,14 +81,14 @@ try {
         if ($coordinator.HasExited -or (Get-Date) -gt $ready) { throw "The bridge side did not start: $(Get-Content $coordinatorLog, "$coordinatorLog.err" -ErrorAction SilentlyContinue)" }
         Start-Sleep -Seconds 1
     }
-    Get-Steps "bridge" $coordinatorLog | Write-Host
+    Write-Host "bridge side ready"
 
     # The host, through the other PC's task: a job of its own, its own log,
     # started in the same call that sees the task free.
     $hostJob = @"
 `$ErrorActionPreference = 'Stop'
 `$began = Get-Date
-& '$RemoteCheckout\scripts\run-selftest.ps1' -PackageDir '$RemoteCheckout\build\current\stage' -Test tournament-host -Exchange '$remoteExchange' -Bridge '$origin' -Connection mock-local
+& '$RemoteCheckout\scripts\run-selftest.ps1' -PackageDir '$RemoteCheckout\build\current\stage' -Test tournament-host -Exchange '$remoteExchange' -Bridge '$origin' -Connection mock-local -TimeoutMinutes $TimeoutMinutes
 `$code = `$LASTEXITCODE
 "run-selftest tournament-host exit `$code"
 `$log = Join-Path `$env:APPDATA 'sf4e\logs\sf4e.log'
@@ -128,7 +128,7 @@ schtasks /run /tn '$RemoteTask' | Out-Null
     $deadline = (Get-Date).AddMinutes($TimeoutMinutes + 2)
     $hostDone = $false
     while (-not ($guest.HasExited -and $hostDone)) {
-        if ((Get-Date) -gt $deadline) { Write-Host "FAIL timeout: the games were still running after $TimeoutMinutes minutes"; break }
+        if ((Get-Date) -gt $deadline) { $timedOut = $true; break }
         Start-Sleep -Seconds 10
         if (-not $hostDone) { $hostDone = (Invoke-Remote "schtasks /query /tn '$RemoteTask' /fo csv /nh") -match '"Ready"' }
     }
@@ -152,6 +152,7 @@ finally {
 }
 
 $steps = @(Get-Steps "host" $hostLog) + @(Get-Steps "guest" $guestLog) + @(Get-Steps "bridge" $coordinatorLog)
+if ($timedOut) { $steps += "runner FAIL timeout: the games were still running after $TimeoutMinutes minutes" }
 $steps | Write-Host
 $passed = ($steps -match '^\w+ RESULT pass$').Count -eq 3 -and -not ($steps -match '^\w+ (FAIL|RESULT fail)')
 # The logs stay for a failed run.
