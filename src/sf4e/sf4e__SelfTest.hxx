@@ -10,11 +10,16 @@
 // closes itself at the end. Without the variable nothing here runs.
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training };
+enum class Test { None, Training, RoomHost, RoomGuest };
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.
-inline Test Parse(const std::wstring& name) { return name == L"training" ? Test::Training : Test::None; }
+inline Test Parse(const std::wstring& name) {
+	if (name == L"training") return Test::Training;
+	if (name == L"room-host") return Test::RoomHost;
+	if (name == L"room-guest") return Test::RoomGuest;
+	return Test::None;
+}
 
 #ifdef SF4E_SELFTEST
 // The test SF4E_SELFTEST names, read once. A name no test has is logged.
@@ -38,6 +43,8 @@ inline bool Running() { return Requested() != Test::None; }
 // then hands every tick to the requested test until the test calls Finish.
 // Ticks are the runtime's, sixty a second.
 constexpr int kSecond = 60;
+// An environment variable, empty when it is not set.
+std::wstring Environment(const wchar_t* name);
 // A step's outcome, to the log and the result file.
 void Say(bool pass, const std::string& step, const std::string& detail = {});
 // The run is over: the outcome is written and the game asked to close.
@@ -61,6 +68,10 @@ template <class Stage> struct Steps {
 // is false when the test could not begin; Tick then runs every tick.
 bool StartTraining();
 void TickTraining();
+
+// The room test (sf4e__SelfTest__Room.cxx), both of its sides.
+bool StartRoom();
+void TickRoom();
 
 // The cells the meter draws for one side, by kind.
 struct Cells { int startup = 0, active = 0, recovery = 0; };
