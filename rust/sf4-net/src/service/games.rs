@@ -15,6 +15,8 @@ impl Actor {
             let peer = connection.remote_id();
             if connection.alpn() == CONTROL_ALPN && self.server_owned() {
                 self.accept_public_incoming(epoch, connection);
+            } else if connection.alpn() == CONTROL_ALPN && !self.admits_control(&peer) {
+                connection.close(1u32.into(), b"not admitted");
             } else if connection.alpn() == CONTROL_ALPN {
                 if let Some(invite) = self
                     .room_invite
@@ -26,11 +28,16 @@ impl Actor {
                 {
                     let member = self.control_rejoin_member(peer);
                     let recovery = self.recovery.clone();
+                    let watchers = self.takes_observers();
                     self.tasks.spawn(async move {
                         if let (Some(incarnation), Some(recovery)) = (member, recovery) {
                             let result =
                                 if recovery.applied_member_ids().await.contains(&incarnation) {
-                                    transport::accept_control_member(connection, &invite, peer)
+                                    let accepting = transport::Accepting {
+                                        member: Some(peer),
+                                        watchers,
+                                    };
+                                    transport::accept_control_for(connection, &invite, accepting)
                                         .await
                                 } else {
                                     connection.close(1u32.into(), b"member retired");
@@ -38,9 +45,13 @@ impl Actor {
                                 };
                             Completion::MemberControl(epoch, incarnation, result)
                         } else {
+                            let accepting = transport::Accepting {
+                                member: None,
+                                watchers,
+                            };
                             Completion::Control(
                                 epoch,
-                                transport::accept_control(connection, &invite).await,
+                                transport::accept_control_for(connection, &invite, accepting).await,
                             )
                         }
                     });

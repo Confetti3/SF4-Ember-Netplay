@@ -1350,7 +1350,13 @@ msgid "room.private_status"
 msgstr "Salon privé / sur invitation"
 
 msgid "room.tournament_status"
-msgstr "Match de tournoi, premier à {0}. Seuls ses deux joueurs peuvent entrer."
+msgstr "Match de tournoi, premier à {0}. Seuls ses deux joueurs peuvent jouer."
+
+msgid "room.tournament_status_watched"
+msgstr "Match de tournoi, premier à {0}. Spectateurs : {1}."
+
+msgid "room.tournament_watching"
+msgstr "Vous regardez un match de tournoi. Seuls ses deux joueurs peuvent jouer."
 
 msgid "room.reconnecting"
 msgstr "Reconnexion au salon..."
@@ -2655,6 +2661,8 @@ msgstr "{0} / HÔTE"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Spectateur"
 
 msgid "room.members"
 msgstr "Membres"
@@ -3331,6 +3339,12 @@ msgstr "Impossible d'envoyer l'action spectateur ; nouvelle tentative."
 
 msgid "runtime.return_main_menu"
 msgstr "Revenez au menu principal du jeu avant d'ouvrir un salon."
+
+msgid "runtime.in_tournament_match"
+msgstr "Vous jouez ou regardez un match du tournoi. Terminez-le ou arrêtez-le dans Matchs du tournoi avant d'ouvrir un autre salon ou d'en rejoindre un."
+
+msgid "runtime.watch_leave_room"
+msgstr "Quittez votre salon avant de regarder un match du tournoi."
 
 msgid "runtime.tournament_result_saving"
 msgstr "Enregistrement du résultat de la dernière partie. Réessayez dans quelques secondes."
@@ -4255,6 +4269,63 @@ msgstr "Ce match n'est pas dans votre liste. Il appartient à d'autres joueurs, 
 
 msgid "tournament.failure.link_service"
 msgstr "Faites confiance à ce service de tournoi dans Comptes associés, puis rouvrez le lien du match."
+
+msgid "tournament.watch.row"
+msgstr "Regarder ce match"
+
+msgid "tournament.watch.row_detail"
+msgstr "Les spectateurs suivent le match depuis son salon. Ils ne peuvent ni jouer ni discuter, et l'organisateur décide qui peut regarder."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Quitte le salon du match. Vous pourrez regarder à nouveau le match depuis cette liste."
+
+msgid "tournament.watch.needs_id"
+msgstr "Pour regarder un match, il faut un Ember ID. Créez-en un ici, cela ne prend qu'un instant."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Vous ne faites pas encore confiance au service de tournoi de ce match. Ajoutez-le dans Comptes associés."
+
+msgid "tournament.watch.state.asking"
+msgstr "Interrogation du service de tournoi."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "En attente que les joueurs ouvrent le salon du match."
+
+msgid "tournament.watch.state.full"
+msgstr "Ce match a déjà tous les spectateurs que son organisateur autorise. En attente d'une place."
+
+msgid "tournament.watch.state.joining"
+msgstr "Entrée dans le salon du match."
+
+msgid "tournament.watch.state.watching"
+msgstr "Vous regardez {0} contre {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "L'organisateur de ce match ne l'a pas ouvert aux spectateurs."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "L'organisateur vous a retiré des spectateurs de ce match."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Vous jouez dans ce match. Utilisez plutôt Jouer."
+
+msgid "tournament.watch.refused.build"
+msgstr "Les joueurs utilisent une autre version d'Ember. Pour regarder, il faut la même."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Ce service de tournoi ne permet pas de regarder les matchs."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Vous ne regardez plus le match, car vous êtes dans un autre salon. Quittez-le, puis regardez de nouveau le match."
+
+msgid "tournament.watch.finished_notice"
+msgstr "Le match que vous regardiez est terminé."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Vous avez arrêté de regarder : l'organisateur vous a retiré."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "Le salon du match a été fermé."
 
 msgid "rules.set_length"
 msgstr "Longueur du set"

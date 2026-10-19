@@ -18,6 +18,7 @@
 #include "../common/MatchTelemetry.hxx"
 #include "../common/ReusableRecords.hxx"
 #include "../common/RoomLimits.hxx"
+#include "../common/SpectatorPolicy.hxx"
 #include "../common/sf4e__PacingController.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
@@ -302,7 +303,9 @@ namespace sf4e {
 				// Milliseconds until GGPO drops the interrupted peer, or -1
 				// when no connection warning is active. HUD only.
 				static int DisconnectCountdownMs();
-				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay);
+				// `spectatorSyncDeadlineMs`: how long the fighters wait for a spectator to synchronize.
+				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay,
+					std::uint64_t spectatorSyncDeadlineMs);
 				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port);
 				static bool ggpo_on_event_callback(GGPOEvent* info);
 				static bool ggpo_begin_game_callback(const char*);

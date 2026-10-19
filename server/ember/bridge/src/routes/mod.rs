@@ -25,7 +25,7 @@ use axum::{
     extract::{DefaultBodyLimit, Request},
     middleware::{self, Next},
     response::Response,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
 };
 use rusqlite::params;
 
@@ -74,6 +74,27 @@ pub fn router(state: AppState) -> Router {
             post(play::prepare_route),
         )
         .route("/v1/matches/{id}/reports", post(reports::submit_route))
+        .route("/v1/matches/{id}/watch", post(play::watch::watch_route))
+        .route(
+            "/v1/matches/{id}/watch/leave",
+            post(play::watch::leave_route),
+        )
+        .route(
+            "/v1/matches/{id}/watch/denials/{ember_id}",
+            put(play::watch::deny).delete(play::watch::clear_denial),
+        )
+        .route(
+            "/v1/matches/{id}/watchers",
+            get(play::watch::match_watchers),
+        )
+        .route(
+            "/v1/connections/{id}/watch",
+            get(play::watch::connection_policy).put(play::watch::set_link_holders),
+        )
+        .route(
+            "/v1/connections/{id}/watch/staff/{ember_id}",
+            put(play::watch::set_staff).delete(play::watch::remove_staff),
+        )
         .route("/v1/assignments", get(matches::assignments))
         .route(blumint::LOOKUP_PATH, post(blumint::lookup))
         .route(blumint::MATCHES_PATH, post(blumint::create))

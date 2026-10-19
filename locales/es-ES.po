@@ -1350,7 +1350,13 @@ msgid "room.private_status"
 msgstr "Sala privada / solo con invitación"
 
 msgid "room.tournament_status"
-msgstr "Partida de torneo, primero a {0}. Solo pueden entrar sus dos jugadores."
+msgstr "Partida de torneo, primero a {0}. Solo pueden jugar sus dos jugadores."
+
+msgid "room.tournament_status_watched"
+msgstr "Partida de torneo, primero a {0}. {1} viendo."
+
+msgid "room.tournament_watching"
+msgstr "Viendo una partida de torneo. Solo pueden jugar sus dos jugadores."
 
 msgid "room.reconnecting"
 msgstr "Reconectando a la sala..."
@@ -2656,6 +2662,9 @@ msgstr "{0} / ANFIT."
 msgid "room.member_status"
 msgstr "{0}"
 
+msgid "room.member.watcher"
+msgstr "Espectador"
+
 msgid "room.members"
 msgstr "Miembros"
 
@@ -3331,6 +3340,12 @@ msgstr "No se pudo enviar la acción de espectador; reintentando."
 
 msgid "runtime.return_main_menu"
 msgstr "Vuelve al menú principal del juego antes de abrir una sala."
+
+msgid "runtime.in_tournament_match"
+msgstr "Estás jugando o viendo una partida del torneo. Termínala o detenla en Partidas del torneo antes de abrir otra sala o unirte a una."
+
+msgid "runtime.watch_leave_room"
+msgstr "Sal de tu sala antes de ver una partida del torneo."
 
 msgid "runtime.tournament_result_saving"
 msgstr "Guardando el resultado de la última partida. Vuelve a intentarlo en unos segundos."
@@ -4255,6 +4270,63 @@ msgstr "Esa partida no está en tu lista. Es de otros jugadores, o este servicio
 
 msgid "tournament.failure.link_service"
 msgstr "Confía en este servicio de torneos en Cuentas vinculadas y vuelve a abrir el enlace de la partida."
+
+msgid "tournament.watch.row"
+msgstr "Ver esta partida"
+
+msgid "tournament.watch.row_detail"
+msgstr "Los espectadores ven la partida desde su sala. No pueden jugar ni usar el chat, y el organizador decide quién puede verla."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Sale de la sala de la partida. Puedes volver a ver la partida desde esta lista."
+
+msgid "tournament.watch.needs_id"
+msgstr "Para ver una partida hace falta un Ember ID. Crea uno aquí; solo lleva un momento."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "El servicio de torneos de esta partida aún no es de confianza. Añádelo en Cuentas vinculadas."
+
+msgid "tournament.watch.state.asking"
+msgstr "Consultando el servicio de torneos."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Esperando a que los jugadores abran la sala de la partida."
+
+msgid "tournament.watch.state.full"
+msgstr "Esta partida ya tiene todos los espectadores que permite su organizador. Esperando un hueco."
+
+msgid "tournament.watch.state.joining"
+msgstr "Entrando en la sala de la partida."
+
+msgid "tournament.watch.state.watching"
+msgstr "Viendo {0} vs {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "El organizador de esta partida no la ha abierto a espectadores."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "El organizador te ha quitado de los espectadores de esta partida."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Juegas en esta partida. Usa Jugar en su lugar."
+
+msgid "tournament.watch.refused.build"
+msgstr "Los jugadores usan otra versión de Ember. Para ver la partida hace falta la misma."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Este servicio de torneos no ofrece ver partidas."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Has dejado de ver la partida porque estás en otra sala. Sal de ella y vuelve a ver la partida."
+
+msgid "tournament.watch.finished_notice"
+msgstr "La partida que veías ha terminado."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Has dejado de ver la partida: el organizador te ha quitado."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "La sala de la partida se ha cerrado."
 
 msgid "rules.set_length"
 msgstr "Duración del set"

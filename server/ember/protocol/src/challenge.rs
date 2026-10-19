@@ -37,6 +37,10 @@ pub enum Action {
     LeaseRenew,
     #[serde(rename = "attempt.prepare")]
     AttemptPrepare,
+    #[serde(rename = "match.watch")]
+    MatchWatch,
+    #[serde(rename = "match.unwatch")]
+    MatchUnwatch,
     #[serde(rename = "discord.connect")]
     DiscordConnect,
     #[serde(rename = "discord.remove")]
@@ -64,6 +68,8 @@ impl Action {
             Self::RoomPublish => "room.publish",
             Self::LeaseRenew => "lease.renew",
             Self::AttemptPrepare => "attempt.prepare",
+            Self::MatchWatch => "match.watch",
+            Self::MatchUnwatch => "match.unwatch",
             Self::DiscordConnect => "discord.connect",
             Self::DiscordRemove => "discord.remove",
             Self::DiscordCancel => "discord.cancel",

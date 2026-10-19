@@ -82,6 +82,13 @@ if (isRoomEvent(event) && event.type === eventType("room.closed")) reply(`closed
 const result = verifyResult(rawBody, request.headers, [resultSecret]);
 if (result.outcome === "completed") advance(result.external_match_id, result.winner_participant_id);
 else replay(result.external_match_id); // cancelled or failed: play it again
+
+// Who may watch your connection's matches (docs/guides/INTEGRATIONS.md, "Match
+// watch"). Organizer credentials write, and turning on link holders puts a
+// player's network address within reach of anyone with the match link.
+await bridge.addWatchStaff(connectionId, caster.emberId);
+await bridge.denyWatcher(matchId, viewer.emberId);
+const { watchers } = await bridge.matchWatchers(matchId);
 ```
 
 `lookupPlayers` needs `discord_lookup` on the connection, `lookupAccounts`
@@ -95,7 +102,7 @@ The package also implements the identity and signature rules shared with
 Ember (`emberIdFromPublicKey`, `verifyProof`, `verifyReport`, `canonicalize`).
 Its tests check them against the specification's public fixtures.
 `TestPlayer` stands in for a player's game in tests: it links, claims a match,
-publishes a room, asks for game permits and signs reports the way Ember does.
+publishes a room, asks for game permits and signs reports the way Ember does. `watchMatch` and `stopWatching` do what a watcher's game does. `claimMatch(id, build, { watch: true })` is the claim a current Ember sends: the bridge names watchers only when both fighters' claims say their games read them.
 
 ## Tests
 
@@ -106,7 +113,7 @@ export EMBER_BRIDGE_TEST_BINARY=/absolute/path/to/tested/ember-bridge
 npm test
 ```
 
-The tests that use a bridge (`bridge`, `play`, `lookup`, `rooms` and `results`)
+The tests that use a bridge (`bridge`, `play`, `lookup`, `rooms`, `results` and `watch`)
 require the real binary named by `EMBER_BRIDGE_TEST_BINARY` and fail if it is
 missing. The default Windows build's `BridgeSdk` CTest builds that binary in
 its own build tree, runs `npm ci`, compiles the SDK and runs all tests. Node 22.18 or later runs the TypeScript sources

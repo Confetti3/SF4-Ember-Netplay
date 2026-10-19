@@ -95,7 +95,7 @@ jobs:
           mkdir -p build/room
           g++ -std=c++17 -O1 -pthread -o build/room/room_tournament_test src/tests/room_tournament_test.cxx $RM &
           room=$!
-          g++ -std=c++17 -O1 -pthread -o build/room/tournament_fuzz_test src/tests/tournament_fuzz_test.cxx src/session/TournamentAnswers.cxx src/netplay/TournamentPlay.cxx $RM &
+          g++ -std=c++17 -O1 -pthread -o build/room/tournament_fuzz_test src/tests/tournament_fuzz_test.cxx src/session/TournamentAnswers.cxx src/netplay/TournamentPlay.cxx src/netplay/WatchPlay.cxx $RM &
           fuzz=$!
           g++ -std=c++17 -O1 -pthread -o build/room/tournament_play_test src/tests/tournament_play_test.cxx src/netplay/TournamentPlay.cxx $RM &
           play=$!

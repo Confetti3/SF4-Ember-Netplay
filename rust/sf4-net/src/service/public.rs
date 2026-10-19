@@ -87,8 +87,10 @@ impl Actor {
             return self.error_at(id, epoch, "invalid_room_state");
         }
         // Set before the join so a refused one clears it with the room.
-        self.public = Some(PublicRoom::Member { ticket });
-        self.join_invitation(id, invitation, build, None)
+        self.public = Some(PublicRoom::Member {
+            ticket: ticket.clone(),
+        });
+        self.join_invitation(id, invitation, build, JoinVia::Public(ticket))
     }
 
     /// The accounts of the live and waiting controls and the endpoint each

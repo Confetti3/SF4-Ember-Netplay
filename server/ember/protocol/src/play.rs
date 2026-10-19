@@ -9,6 +9,9 @@
 //! game receives the checked fields, never a token to judge.
 use serde::{Deserialize, Serialize};
 
+mod watch;
+pub use watch::{BoundWatcher, MAX_WATCHERS, WATCH_FEATURE, WaitReason, WatchAnswer, WatchRequest};
+
 use crate::{
     EmberId, Error, PublicKey, Result, SigningIdentity,
     encoding::{Counter, decode_b64u, is_prefixed_id},
@@ -37,6 +40,21 @@ pub fn is_hex(text: &str, len: usize) -> bool {
         && text
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+/// The three fields every helper command about an endpoint carries.
+pub(crate) fn check_helper(
+    endpoint_id: &str,
+    helper_instance_id: &str,
+    build_id: &str,
+) -> Result<()> {
+    if !is_hex(endpoint_id, 64) {
+        return Err(Error::InvalidField("endpoint_id"));
+    }
+    if !is_prefixed_id(helper_instance_id, "ins") {
+        return Err(Error::InvalidField("helper_instance_id"));
+    }
+    check_build(build_id)
 }
 
 pub(crate) fn check_build(build_id: &str) -> Result<()> {
@@ -72,17 +90,19 @@ pub struct Claim {
     /// refuses a field it does not know; a claim without it is not ready.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ready: Option<bool>,
+    /// Whether this fighter's helper reads a binding that names watchers.
+    /// Sent as `true` only to a bridge that lists `WATCH_FEATURE`, since an
+    /// older one refuses a field it does not know, and only by a helper that
+    /// parses `Binding::watchers`. The bridge names watchers only when both
+    /// fighters' latest claims say so; a claim without it, or `false`, takes
+    /// them out of the binding at once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub watch: Option<bool>,
 }
 
 impl Claim {
     pub fn check(&self) -> Result<()> {
-        if !is_hex(&self.endpoint_id, 64) {
-            return Err(Error::InvalidField("endpoint_id"));
-        }
-        if !is_prefixed_id(&self.helper_instance_id, "ins") {
-            return Err(Error::InvalidField("helper_instance_id"));
-        }
-        check_build(&self.build_id)
+        check_helper(&self.endpoint_id, &self.helper_instance_id, &self.build_id)
     }
 }
 
@@ -182,6 +202,13 @@ pub struct Binding {
     /// as an unknown field rather than seat the set at 0-0.
     #[serde(default, skip_serializing_if = "starts_at_zero")]
     pub starting_wins: [u8; 2],
+    /// Endpoints admitted to watch, oldest first. Left out when empty, so a
+    /// binding without watchers is the bytes every released helper accepts.
+    /// A helper that predates the field refuses one that names a watcher, so
+    /// the bridge names watchers only when both fighters' claims say their
+    /// helpers read it (`Claim::watch`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub watchers: Vec<BoundWatcher>,
 }
 
 impl Binding {
@@ -221,7 +248,7 @@ impl Binding {
         if roster_digest(&p1.ember_id, &p2.ember_id)? != self.roster_digest {
             return Err(Error::Mismatch("roster_digest"));
         }
-        Ok(())
+        watch::check_watchers(&self.fighters, &self.watchers)
     }
 
     pub fn sign(&self, key: &SigningIdentity, kid: &str) -> Result<SignedBinding> {
@@ -611,6 +638,7 @@ mod tests {
             ],
             issued_at: 100,
             starting_wins: [0, 0],
+            watchers: vec![],
         };
         assert!(binding.check().is_ok());
         assert_eq!(binding.slot_of(&"b".repeat(64)), Some(1));
@@ -651,6 +679,7 @@ mod tests {
             ],
             issued_at: 100,
             starting_wins: [0, 0],
+            watchers: vec![],
         };
         let at_zero = json::to_value(&binding).unwrap();
         let mut released = serde_json::to_value(&binding).unwrap();
@@ -710,7 +739,7 @@ mod tests {
     }
 
     #[test]
-    fn a_claim_carries_ready_only_when_its_helper_sets_it() {
+    fn a_claim_carries_ready_and_watch_only_when_its_helper_sets_them() {
         let older = serde_json::json!({
             "endpoint_id": "a".repeat(64),
             "helper_instance_id": "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01",
@@ -720,13 +749,25 @@ mod tests {
         assert_eq!(claim.ready, None);
         // Unset, the claim is byte for byte what an older bridge reads.
         assert_eq!(serde_json::to_value(&claim).unwrap(), older);
+        assert_eq!(claim.watch, None);
         let ready = Claim {
             ready: Some(true),
-            ..claim
+            ..claim.clone()
         };
         let sent = serde_json::to_value(&ready).unwrap();
         assert_eq!(sent["ready"], true);
+        assert!(sent.get("watch").is_none());
         assert_eq!(serde_json::from_value::<Claim>(sent).unwrap(), ready);
+        // A claim that attests its helper reads watchers carries `watch`, and
+        // only then.
+        let watching = Claim {
+            watch: Some(true),
+            ..claim
+        };
+        let sent = serde_json::to_value(&watching).unwrap();
+        assert_eq!(sent["watch"], true);
+        assert!(sent.get("ready").is_none());
+        assert_eq!(serde_json::from_value::<Claim>(sent).unwrap(), watching);
         let mut unknown = older;
         unknown["seat"] = 0.into();
         assert!(serde_json::from_value::<Claim>(unknown).is_err());
@@ -802,6 +843,10 @@ mod tests {
                 ],
                 issued_at: 100,
                 starting_wins: [0, 0],
+                watchers: vec![BoundWatcher {
+                    ember_id: key(3).ember_id().clone(),
+                    endpoint_id: "c".repeat(64),
+                }],
             }
         }
 
@@ -882,6 +927,8 @@ mod tests {
                 let _ = ProvenRequest::parse(&bytes);
                 let _ = json::parse_as::<Claim>(&bytes, 8192).map(|claim| claim.check());
                 let _ = json::parse_as::<PublishRoom>(&bytes, 8192).map(|room| room.check());
+                let _ = json::parse_as::<WatchRequest>(&bytes, 8192).map(|watch| watch.check());
+                let _ = json::parse_as::<WatchAnswer>(&bytes, 8192);
             }
         }
 

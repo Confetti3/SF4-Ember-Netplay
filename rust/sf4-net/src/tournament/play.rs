@@ -4,7 +4,7 @@
 //! does the parts that need the key and the bridge: proofs, checking the
 //! bridge's signed binding and permits against the approved bridge's key, and
 //! signing reports into the spool. The game receives checked fields only.
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ember_protocol::{
@@ -13,7 +13,7 @@ use ember_protocol::{
     encoding::{Counter, is_prefixed_id, prefixed_id},
     play::{
         Binding, CLAIM_READY_FEATURE, Claim, ClaimAnswer, Observation, Permit, Prepare,
-        PrepareAnswer, PublishRoom, SignedBinding, SignedPermit, TABLE,
+        PrepareAnswer, PublishRoom, SignedBinding, SignedPermit, TABLE, WATCH_FEATURE,
     },
     report::Outcome as GameOutcome,
 };
@@ -26,16 +26,93 @@ use super::{
     spool::Entry,
 };
 
-/// What this helper run has verified for each match it plays.
+/// What this helper run has verified for each match it plays or watches, and
+/// what each bridge offered when its capabilities were last read.
 #[derive(Default)]
 pub struct State {
     bindings: HashMap<String, Binding>,
     permits: HashMap<(String, u64), Permit>,
-    /// The matches whose bridge reads a claim's `ready`.
-    reads_ready: HashSet<String>,
+    features: HashMap<String, Features>,
 }
 
-fn check_match_id(match_id: &str) -> Result<(), Failure> {
+/// The optional features of a bridge that a claim or a watch request depends
+/// on, from its capabilities.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct Features {
+    /// It reads a claim's `ready`.
+    pub ready: bool,
+    /// It serves the watch routes and reads a claim's `watch`.
+    pub watch: bool,
+}
+
+impl Features {
+    fn of(capabilities: &Capabilities) -> Self {
+        let lists = |name: &str| capabilities.features.iter().any(|feature| feature == name);
+        Self {
+            ready: lists(CLAIM_READY_FEATURE),
+            watch: lists(WATCH_FEATURE),
+        }
+    }
+}
+
+/// The feature a caller cannot do without, if any.
+#[derive(Clone, Copy)]
+pub(super) enum Need {
+    /// None: whatever the bridge was last seen to offer will do.
+    Nothing,
+    /// A claim's `ready`.
+    Ready,
+    /// The watch routes.
+    Watch,
+}
+
+impl Need {
+    fn met_by(self, offered: Features) -> bool {
+        match self {
+            Self::Nothing => true,
+            Self::Ready => offered.ready,
+            Self::Watch => offered.watch,
+        }
+    }
+}
+
+/// What the bridge offers, from the one capabilities read this run keeps for
+/// it. A bridge that lacked what `need` names is asked again, since it may be
+/// upgraded meanwhile, and one that has it is remembered until a claim to it
+/// fails (`forget_features`), since it may have been put back to one that
+/// refuses the field. A read that fails fails the caller, which the game
+/// retries, rather than carrying on without a field the bridge would have
+/// read.
+pub(super) async fn features(
+    shared: &Arc<Shared>,
+    bridge: &Approved,
+    need: Need,
+) -> Result<Features, Failure> {
+    let known = play_state(shared)?.features.get(&bridge.bridge_id).copied();
+    if let Some(known) = known.filter(|known| need.met_by(*known)) {
+        return Ok(known);
+    }
+    let read = Features::of(
+        &shared
+            .client
+            .capabilities(&bridge.origin)
+            .await?
+            .capabilities,
+    );
+    play_state(shared)?
+        .features
+        .insert(bridge.bridge_id.clone(), read);
+    Ok(read)
+}
+
+/// Forgets what the bridge offered, so the next claim or watch request reads
+/// its capabilities again.
+fn forget_features(shared: &Shared, bridge: &Approved) -> Result<(), Failure> {
+    play_state(shared)?.features.remove(&bridge.bridge_id);
+    Ok(())
+}
+
+pub(super) fn check_match_id(match_id: &str) -> Result<(), Failure> {
     if is_prefixed_id(match_id, "emt") {
         Ok(())
     } else {
@@ -96,7 +173,16 @@ async fn accept_binding(
     {
         return Err(Failure::new("binding_mismatch"));
     }
-    let view = json!({
+    let view = binding_view(binding, slot);
+    let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
+    state.bindings.insert(match_id.to_owned(), binding.clone());
+    Ok(view)
+}
+
+/// The checked fields of a binding the game reads, `local_slot` being this
+/// fighter's. The watchers let it name each one in the room.
+fn binding_view(binding: &Binding, slot: Option<u8>) -> Value {
+    json!({
         "match_id": binding.match_id,
         "assignment_generation": binding.assignment_generation,
         "binding_revision": binding.binding_revision,
@@ -107,11 +193,9 @@ async fn accept_binding(
         "rules_digest": binding.rules_digest,
         "roster_digest": binding.roster_digest,
         "fighters": binding.fighters,
+        "watchers": binding.watchers,
         "local_slot": slot,
-    });
-    let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
-    state.bindings.insert(match_id.to_owned(), binding.clone());
-    Ok(view)
+    })
 }
 
 /// The claim answer for the game, with the binding checked.
@@ -149,6 +233,19 @@ async fn proven(
     path: &str,
     command: Value,
 ) -> Result<Value, Failure> {
+    let (status, response) = send_proven(shared, bridge, token, action, path, command).await?;
+    answer(status, &response, &[200])
+}
+
+/// Sends one proven player operation, answering its status and body.
+pub(super) async fn send_proven(
+    shared: &Arc<Shared>,
+    bridge: &Approved,
+    token: &str,
+    action: Action,
+    path: &str,
+    command: Value,
+) -> Result<(u16, Vec<u8>), Failure> {
     let body = client::prove(
         shared,
         bridge,
@@ -159,7 +256,7 @@ async fn proven(
         command,
     )
     .await?;
-    let (status, response) = shared
+    shared
         .client
         .call(
             reqwest::Method::POST,
@@ -167,8 +264,7 @@ async fn proven(
             Some(token),
             Some(body),
         )
-        .await?;
-    answer(status, &response, &[200])
+        .await
 }
 
 pub async fn assignments(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
@@ -203,13 +299,14 @@ pub async fn claim_match(
         helper_instance_id: shared.instance_id.clone(),
         build_id: build.to_owned(),
         ready: None,
+        watch: None,
     };
     claim.check().map_err(|_| Failure::new("invalid_request"))?;
     client::with_session(shared, bridge_id, |bridge, token| {
         let claim = claim.clone();
         async move {
             let path = format!("/v1/matches/{match_id}/claims");
-            let value = send_claim(shared, &bridge, match_id, claim, ready, |command| {
+            let value = send_claim(shared, &bridge, claim, ready, |command| {
                 proven(shared, &bridge, &token, Action::MatchClaim, &path, command)
             })
             .await?;
@@ -221,14 +318,19 @@ pub async fn claim_match(
     .await
 }
 
-/// Sends `claim` through `send`, carrying `ready` when the fighter is Ready
-/// and the bridge reads it. A claim without `ready` reads not ready on every
-/// bridge, so only a Ready fighter's claim needs the bridge to read it, and
-/// one carrying it that fails forgets that the bridge does (`unlearn_ready`).
-async fn send_claim<F, Sent>(
+/// Sends `claim` through `send`, carrying what the bridge reads of it
+/// (`features`): `ready` when the fighter is Ready, since a claim without it
+/// reads not ready on every bridge, and `watch` always, since the bridge names
+/// watchers only while both fighters' claims say so. An older bridge refuses a
+/// claim carrying a field it does not know, hence the capabilities read. A
+/// claim that fails makes the next one read them again.
+///
+/// Only a Ready claim needs a feature. A claim never needs `watch`: one to a
+/// bridge last seen without it goes without, and an upgrade is heard once a
+/// claim to the bridge fails, as one does while it restarts.
+pub(super) async fn send_claim<F, Sent>(
     shared: &Arc<Shared>,
     bridge: &Approved,
-    match_id: &str,
     claim: Claim,
     ready: bool,
     send: F,
@@ -237,58 +339,23 @@ where
     F: FnOnce(Value) -> Sent,
     Sent: std::future::Future<Output = Result<Value, Failure>>,
 {
-    let says_ready = ready && reads_ready(shared, bridge, match_id).await?;
+    let need = if ready { Need::Ready } else { Need::Nothing };
+    let offered = features(shared, bridge, need).await?;
     let claim = Claim {
-        ready: says_ready.then_some(true),
+        ready: (ready && offered.ready).then_some(true),
+        watch: offered.watch.then_some(true),
         ..claim
     };
     let command = serde_json::to_value(&claim).map_err(|_| Failure::new("internal"))?;
     let sent = send(command).await;
-    if sent.is_err() && says_ready {
-        unlearn_ready(shared, match_id)?;
+    if sent.is_err() {
+        forget_features(shared, bridge)?;
     }
     sent
 }
 
-fn play_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>, Failure> {
+pub(super) fn play_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>, Failure> {
     shared.play.lock().map_err(|_| Failure::new("internal"))
-}
-
-/// Whether the bridge reads a claim's `ready`. An older bridge refuses a
-/// claim carrying it, so the helper asks the bridge's capabilities. A bridge
-/// that reads it is remembered for the match; one that does not is asked
-/// again on the next Ready claim, since it may be upgraded meanwhile. A
-/// capabilities read that fails fails the claim, which the game retries,
-/// rather than sending a Ready fighter's claim that reads not ready.
-async fn reads_ready(
-    shared: &Arc<Shared>,
-    bridge: &Approved,
-    match_id: &str,
-) -> Result<bool, Failure> {
-    if play_state(shared)?.reads_ready.contains(match_id) {
-        return Ok(true);
-    }
-    let offered = shared.client.capabilities(&bridge.origin).await?;
-    let reads = lists_ready(&offered.capabilities);
-    if reads {
-        play_state(shared)?.reads_ready.insert(match_id.to_owned());
-    }
-    Ok(reads)
-}
-
-/// Forgets that the match's bridge reads `ready`, after a claim carrying it
-/// failed: the bridge may have been put back to one that refuses the field,
-/// so the next Ready claim asks its capabilities again.
-fn unlearn_ready(shared: &Shared, match_id: &str) -> Result<(), Failure> {
-    play_state(shared)?.reads_ready.remove(match_id);
-    Ok(())
-}
-
-fn lists_ready(capabilities: &Capabilities) -> bool {
-    capabilities
-        .features
-        .iter()
-        .any(|feature| feature == CLAIM_READY_FEATURE)
 }
 
 /// Publishes the room this game hosts for `match_id`.
@@ -543,7 +610,6 @@ pub fn forget(shared: &Shared, match_id: &str) -> Outcome {
     let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
     state.bindings.remove(match_id);
     state.permits.retain(|(id, _), _| id != match_id);
-    state.reads_ready.remove(match_id);
     Ok(None)
 }
 
@@ -556,19 +622,11 @@ fn random() -> Result<[u8; 16], Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tournament::{Request, builtin::Builtin};
-
-    fn capabilities_json(features: &[&str]) -> Value {
-        json!({
-            "api_version": "v1", "event_version": "v1", "games": ["usf4"], "games_to_win": [1],
-            "native_rules_profiles": [], "native_play": true, "result_sources": [],
-            "features": features,
-            "limits": {
-                "max_body_bytes": 1, "max_proof_body_bytes": 1, "max_json_depth": 1,
-                "challenge_lifetime_secs": 1, "session_lifetime_secs": 1, "link_code_lifetime_secs": 1,
-            },
-        })
-    }
+    use crate::tournament::{
+        Request,
+        builtin::Builtin,
+        test_support::{capabilities_json, capabilities_server, shared_pinning},
+    };
 
     fn capabilities(features: &[&str]) -> Capabilities {
         serde_json::from_value(capabilities_json(features)).unwrap()
@@ -593,83 +651,16 @@ mod tests {
         assert!(claim(json!({ "ready": "yes" })).is_err());
     }
 
-    /// A bridge origin on loopback whose `/v1/capabilities` answers as
-    /// `mode` says: 0 fails, 1 lists no `ready`, 2 lists it.
-    async fn capabilities_server(
-        mode: Arc<std::sync::atomic::AtomicU8>,
-    ) -> (String, Arc<std::sync::atomic::AtomicUsize>) {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let origin = format!("http://{}", listener.local_addr().unwrap());
-        let asked = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let counted = asked.clone();
-        tokio::spawn(async move {
-            loop {
-                let Ok((mut socket, _)) = listener.accept().await else {
-                    return;
-                };
-                let mut request = Vec::new();
-                let mut buffer = [0; 1024];
-                while !request.windows(4).any(|end| end == b"\r\n\r\n") {
-                    match socket.read(&mut buffer).await {
-                        Ok(0) | Err(_) => break,
-                        Ok(read) => request.extend_from_slice(&buffer[..read]),
-                    }
-                }
-                counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                let features: &[&str] = match mode.load(std::sync::atomic::Ordering::SeqCst) {
-                    1 => &["matches.play"],
-                    2 => &["matches.play", CLAIM_READY_FEATURE],
-                    _ => {
-                        let _ = socket
-                            .write_all(b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
-                            .await;
-                        continue;
-                    }
-                };
-                let body = serde_json::to_vec(&capabilities_json(features)).unwrap();
-                let head = format!(
-                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
-                    body.len()
-                );
-                let _ = socket.write_all(head.as_bytes()).await;
-                let _ = socket.write_all(&body).await;
-            }
-        });
-        (origin, asked)
-    }
-
     fn shared_in(dir: &std::path::Path) -> Arc<Shared> {
         shared_pinning(dir, &[])
-    }
-
-    fn shared_pinning(dir: &std::path::Path, builtins: &[Builtin]) -> Arc<Shared> {
-        Arc::new(Shared {
-            identity: std::sync::Mutex::new(crate::identity::Identity::open(
-                dir.join("identity"),
-                false,
-                crate::identity::Cost::DEFAULT,
-            )),
-            bridges: std::sync::Mutex::new(super::super::bridges::Store::open(
-                dir.join("bridges"),
-                builtins,
-            )),
-            client: client::Client::new(),
-            http: Arc::new(tokio::sync::Semaphore::new(1)),
-            play: std::sync::Mutex::new(State::default()),
-            spool: super::super::spool::Spool::open(dir.join("reports")),
-            endpoint_id: "a".repeat(64),
-            instance_id: "ins_test".into(),
-            home_region: Box::new(|| None),
-        })
     }
 
     // A Ready claim is not sent without its `ready` when the capabilities
     // read fails: the claim fails and the game retries it. A bridge that does
     // not read the field is asked again on the next Ready claim, so one
     // upgraded while the match is played is heard; one that reads it is
-    // remembered, until a claim carrying it fails, since the bridge may have
-    // been put back to one that refuses it.
+    // remembered, until a claim to it fails, since the bridge may have been
+    // put back to one that refuses it.
     #[tokio::test]
     async fn a_ready_claim_asks_until_the_bridge_is_known_to_read_ready() {
         let dir = std::env::temp_dir().join(prefixed_id("sf4-net-ready", random().unwrap()));
@@ -683,7 +674,11 @@ mod tests {
             approved_at: 0,
             keys: Vec::new(),
         };
-        let reads = || reads_ready(&shared, &bridge, "emt_x");
+        let reads = || async {
+            features(&shared, &bridge, Need::Ready)
+                .await
+                .map(|offered| offered.ready)
+        };
         let count = || asked.load(std::sync::atomic::Ordering::SeqCst);
         let set = |value| mode.store(value, std::sync::atomic::Ordering::SeqCst);
 
@@ -699,13 +694,14 @@ mod tests {
         assert_eq!(count(), 4);
 
         // The claims themselves: a Ready claim to a bridge known to read
-        // `ready` carries it without asking again; once one carrying it
-        // fails, the next asks again and, the bridge put back, sends none.
+        // `ready` carries it without asking again; once a claim to it fails,
+        // the next asks again and, the bridge put back, sends none.
         let claim = Claim {
             endpoint_id: "a".repeat(64),
             helper_instance_id: "ins_test".into(),
             build_id: "b1".into(),
             ready: None,
+            watch: None,
         };
         let sent = std::sync::Mutex::new(Vec::new());
         let send = |fails: bool| {
@@ -720,7 +716,7 @@ mod tests {
             }
         };
         let claimed = |ready: bool, fails: bool| {
-            send_claim(&shared, &bridge, "emt_x", claim.clone(), ready, send(fails))
+            send_claim(&shared, &bridge, claim.clone(), ready, send(fails))
         };
         assert!(claimed(true, false).await.is_ok());
         assert!(claimed(true, true).await.is_err());
@@ -728,13 +724,20 @@ mod tests {
         set(1);
         assert!(claimed(true, false).await.is_ok());
         assert_eq!(count(), 5);
-        // A claim that is not Ready asks nothing, and its failure forgets nothing.
+        // One that is not Ready asks nothing of a bridge it knows.
         set(2);
         assert!(claimed(true, false).await.is_ok());
+        assert!(claimed(false, false).await.is_ok());
+        assert_eq!(count(), 6);
+        // Its failure forgets, so the next claim asks, and one asking fails
+        // when the read does rather than going out without its `ready`.
         assert!(claimed(false, true).await.is_err());
         set(0);
+        assert!(claimed(true, false).await.is_err());
+        assert_eq!(count(), 7);
+        set(2);
         assert!(claimed(true, false).await.is_ok());
-        assert_eq!(count(), 6);
+        assert_eq!(count(), 8);
         assert_eq!(
             *sent.lock().unwrap(),
             vec![
@@ -742,6 +745,7 @@ mod tests {
                 Some(json!(true)),
                 None,
                 Some(json!(true)),
+                None,
                 None,
                 Some(json!(true)),
             ]
@@ -780,12 +784,69 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+    // The game names each watcher in the room from the binding it applies.
     #[test]
-    fn a_claim_says_ready_only_to_a_bridge_that_reads_it() {
-        assert!(lists_ready(&capabilities(&[
-            "matches.play",
-            CLAIM_READY_FEATURE
-        ])));
-        assert!(!lists_ready(&capabilities(&["matches.play"])));
+    fn the_game_sees_the_watchers_its_binding_names() {
+        let id = |byte: u8| {
+            ember_protocol::SigningIdentity::from_seed(&zeroize::Zeroizing::new([byte; 32]))
+                .unwrap()
+                .ember_id()
+                .clone()
+        };
+        let fighter = |byte: u8| ember_protocol::play::BoundFighter {
+            ember_id: id(byte),
+            endpoint_id: format!("{byte:02x}").repeat(32),
+        };
+        let mut binding = Binding {
+            version: ember_protocol::play::VERSION,
+            bridge_id: prefixed_id("brg", [1; 16]),
+            match_id: prefixed_id("emt", [2; 16]),
+            assignment_generation: Counter(1),
+            binding_revision: Counter(3),
+            room_id: "0123456789abcdef0123456789abcdef".into(),
+            build_id: "b1".into(),
+            games_to_win: 2,
+            rules_digest: String::new(),
+            roster_digest: String::new(),
+            fighters: [fighter(1), fighter(2)],
+            issued_at: 100,
+            starting_wins: [0, 0],
+            watchers: Vec::new(),
+        };
+        assert_eq!(binding_view(&binding, Some(0))["watchers"], json!([]));
+        binding.watchers = vec![ember_protocol::play::BoundWatcher {
+            ember_id: id(3),
+            endpoint_id: "03".repeat(32),
+        }];
+        let view = binding_view(&binding, Some(1));
+        assert_eq!(
+            view["watchers"],
+            json!([{ "ember_id": id(3).to_string(), "endpoint_id": "03".repeat(32) }])
+        );
+        assert_eq!(view["local_slot"], json!(1));
+    }
+
+    #[test]
+    fn a_bridge_offers_what_its_capabilities_list() {
+        let ready = Features::of(&capabilities(&["matches.play", CLAIM_READY_FEATURE]));
+        assert_eq!(
+            ready,
+            Features {
+                ready: true,
+                watch: false
+            }
+        );
+        let watch = Features::of(&capabilities(&["matches.play", WATCH_FEATURE]));
+        assert_eq!(
+            watch,
+            Features {
+                ready: false,
+                watch: true
+            }
+        );
+        assert_eq!(
+            Features::of(&capabilities(&["matches.play"])),
+            Features::default()
+        );
     }
 }

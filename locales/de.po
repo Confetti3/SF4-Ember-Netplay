@@ -1350,7 +1350,13 @@ msgid "room.private_status"
 msgstr "Privater Raum / nur mit Einladung"
 
 msgid "room.tournament_status"
-msgstr "Turnierspiel, Ziel {0} Siege. Nur seine zwei Spieler können beitreten."
+msgstr "Turnierspiel, Ziel {0} Siege. Nur seine zwei Spieler können spielen."
+
+msgid "room.tournament_status_watched"
+msgstr "Turnierspiel, Ziel {0} Siege. Zuschauer: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Zuschauen bei einem Turnierspiel. Nur seine zwei Spieler können spielen."
 
 msgid "room.reconnecting"
 msgstr "Verbinde erneut..."
@@ -2655,6 +2661,8 @@ msgstr "{0} / HOST"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Zuschauer"
 
 msgid "room.members"
 msgstr "Mitglieder"
@@ -3331,6 +3339,12 @@ msgstr "Zuschaueraktion konnte nicht gesendet werden; erneuter Versuch."
 
 msgid "runtime.return_main_menu"
 msgstr "Kehren Sie vor dem Öffnen eines Raums zum Hauptmenü zurück."
+
+msgid "runtime.in_tournament_match"
+msgstr "Sie spielen ein Turnierspiel oder schauen zu. Beenden Sie es unter Turnierspiele, bevor Sie einen anderen Raum öffnen oder betreten."
+
+msgid "runtime.watch_leave_room"
+msgstr "Verlassen Sie Ihren Raum, bevor Sie einem Turnierspiel zuschauen."
 
 msgid "runtime.tournament_result_saving"
 msgstr "Das Ergebnis des letzten Spiels wird gespeichert. Versuchen Sie es in ein paar Sekunden erneut."
@@ -4255,6 +4269,63 @@ msgstr "Dieses Spiel steht nicht in Ihrer Liste. Es gehört anderen Spielern, od
 
 msgid "tournament.failure.link_service"
 msgstr "Vertrauen Sie diesem Turnierdienst unter Verknüpfte Konten und öffnen Sie den Spiel-Link dann erneut."
+
+msgid "tournament.watch.row"
+msgstr "Diesem Spiel zuschauen"
+
+msgid "tournament.watch.row_detail"
+msgstr "Zuschauer sehen das Spiel aus seinem Raum. Sie können weder spielen noch chatten, und der Veranstalter entscheidet, wer zuschauen darf."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Verlässt den Raum des Spiels. Sie können dem Spiel über diese Liste erneut zuschauen."
+
+msgid "tournament.watch.needs_id"
+msgstr "Um einem Spiel zuzuschauen, brauchen Sie eine Ember ID. Erstellen Sie hier eine, das dauert nur einen Moment."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Sie vertrauen dem Turnierdienst dieses Spiels noch nicht. Fügen Sie ihn unter Verknüpfte Konten hinzu."
+
+msgid "tournament.watch.state.asking"
+msgstr "Der Turnierdienst wird gefragt."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Warten, bis die Spieler den Raum des Spiels öffnen."
+
+msgid "tournament.watch.state.full"
+msgstr "Für dieses Spiel sind schon so viele Zuschauer eingetreten, wie der Veranstalter erlaubt. Warten auf einen Platz."
+
+msgid "tournament.watch.state.joining"
+msgstr "Dem Raum des Spiels wird beigetreten."
+
+msgid "tournament.watch.state.watching"
+msgstr "Zuschauen bei {0} gegen {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "Der Veranstalter dieses Spiels hat es nicht für Zuschauer geöffnet."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "Der Veranstalter hat Sie von den Zuschauern dieses Spiels ausgeschlossen."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Sie spielen in diesem Spiel mit. Nutzen Sie stattdessen „Spielen“."
+
+msgid "tournament.watch.refused.build"
+msgstr "Die Spieler nutzen eine andere Ember-Version. Zum Zuschauen wird dieselbe benötigt."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Dieser Turnierdienst bietet kein Zuschauen an."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Das Zuschauen wurde beendet, weil Sie in einem anderen Raum sind. Verlassen Sie ihn und schauen Sie dem Spiel dann erneut zu."
+
+msgid "tournament.watch.finished_notice"
+msgstr "Das Spiel, dem Sie zugeschaut haben, ist vorbei."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Sie schauen nicht mehr zu: Der Veranstalter hat Sie entfernt."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "Der Raum des Spiels wurde geschlossen."
 
 msgid "rules.set_length"
 msgstr "Satzlänge"

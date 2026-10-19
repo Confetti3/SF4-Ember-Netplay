@@ -1,5 +1,5 @@
 //! Admission and retirement of room members.
-use super::*;
+use super::{seats::Voters, *};
 
 impl Actor {
     pub(super) fn remember_admission(&mut self, admission: Admission) {
@@ -194,14 +194,30 @@ impl Actor {
             term,
             revision,
         };
-        let pending = self.pending_retired_incarnations.clone();
-        let admissions = self.admissions.values().cloned().collect::<Vec<_>>();
-        let reachable = self.controls.keys().copied().collect::<BTreeSet<_>>();
-        // A server-owned room's voter is its host, so no voter is ever restored.
-        let restore = !self.server_owned();
+        let snapshot = MembershipSnapshot {
+            reachable: self.controls.keys().copied().collect(),
+            admissions: self.admissions.clone(),
+            pending: self.pending_retired_incarnations.clone(),
+            revision,
+            voters: self.voters(),
+            retained,
+        };
+        // Go straight to the stable count for the retained roster. Shrinking
+        // to two members through a commit of two voters first would leave a
+        // window in which the other one dropping freezes the room. Only the
+        // members that may vote count, so a match room keeps one voter: its
+        // leader, who comes first in every set below.
+        let desired = snapshot.desired();
         self.pending_membership_operation = Some(key.clone());
         self.tasks.spawn(async move {
             let operation = async {
+                let MembershipSnapshot {
+                    retained,
+                    reachable,
+                    admissions,
+                    pending,
+                    ..
+                } = &snapshot;
                 if recovery.coordinator.current_term() != term {
                     return Err(failed("obsolete membership operation"));
                 }
@@ -227,29 +243,15 @@ impl Actor {
                             .copied()
                             .filter(|id| {
                                 *id == recovery.incarnation
-                                    || admissions
-                                        .iter()
-                                        .find(|admission| admission.incarnation == *id)
-                                        .is_none_or(|admission| {
-                                            reachable.contains(&admission.primary_endpoint)
-                                        })
+                                    || admissions.get(id).is_none_or(|admission| {
+                                        reachable.contains(&admission.primary_endpoint)
+                                    })
                             })
                             .collect::<BTreeSet<_>>();
-                        // Go straight to the stable count for the retained
-                        // roster. Shrinking to two members through a commit of
-                        // two voters first would leave a window in which the
-                        // other one dropping freezes the room.
-                        let desired = crate::recovery::stable_voter_count(retained.len());
-                        let replacement = std::iter::once(recovery.incarnation)
-                            .filter(|id| answering.contains(id))
-                            .chain(
-                                answering
-                                    .iter()
-                                    .copied()
-                                    .filter(|id| *id != recovery.incarnation),
-                            )
-                            .take(desired)
-                            .collect::<BTreeSet<_>>();
+                        let replacement =
+                            replacement_voters(recovery.incarnation, &answering, desired, |id| {
+                                snapshot.may_vote(id)
+                            });
                         if replacement.is_empty() {
                             return Err(failed("empty replacement membership"));
                         }
@@ -271,10 +273,14 @@ impl Actor {
                     // Only members the coordination group does not hold yet are
                     // added. Adding a learner waits for it to catch up, so
                     // repeating it for one that has gone away would hold this
-                    // operation until its timeout.
+                    // operation until its timeout. A fenced member is never
+                    // added back: a match room fences members the native
+                    // roster still lists, and a retry after a stale completion
+                    // finds them already removed.
                     let members_before = recovery.applied_member_ids().await;
-                    for admission in admissions.iter().filter(|admission| {
+                    for admission in admissions.values().filter(|admission| {
                         retained.contains(&admission.primary_endpoint)
+                            && !pending.contains(&admission.incarnation)
                             && !voters_after.contains(&admission.incarnation)
                             && !members_before.contains(&admission.incarnation)
                     }) {
@@ -287,16 +293,8 @@ impl Actor {
                         .copied()
                         .collect::<BTreeSet<_>>();
                     recovery.remove_nodes(learner_removals).await?;
-                    if restore {
-                        restore_stable_voters(
-                            &recovery,
-                            &retained,
-                            &reachable,
-                            &admissions,
-                            &pending,
-                            revision,
-                        )
-                        .await?;
+                    if snapshot.voters.changes_voters() {
+                        restore_stable_voters(&recovery, &snapshot).await?;
                     }
                 }
                 let members = recovery.applied_member_ids().await;
@@ -400,21 +398,27 @@ impl Actor {
         let pending_retired = self.pending_retired_incarnations.clone();
         let retired = self.retired_incarnations.clone();
         let mut candidates = self.admission_order.clone();
+        // Every admission on record and the ones now presented. The leader
+        // has superseded an endpoint's older incarnation before it queues a
+        // new one, so each endpoint holds one.
+        let mut known = self.admissions.clone();
+        known.extend(
+            admissions
+                .iter()
+                .map(|admission| (admission.incarnation, admission.clone())),
+        );
         for admission in self.admissions.values().chain(admissions.iter()) {
             if !candidates.contains(&admission.incarnation) {
                 candidates.push(admission.incarnation);
             }
         }
-        let desired = self.desired_voters(
-            self.admissions
-                .keys()
-                .copied()
-                .chain(admissions.iter().map(|admission| admission.incarnation))
-                .collect::<BTreeSet<_>>()
-                .len(),
+        let eligible = self.voters();
+        let desired = eligible.desired(
+            &known
+                .values()
+                .map(|admission| admission.primary_endpoint)
+                .collect(),
         );
-        // Members of a server-owned room are learners for good.
-        let promote = !self.server_owned();
         self.pending_admission_operation = Some(key.clone());
         self.tasks.spawn(async move {
             let operation = async {
@@ -431,23 +435,18 @@ impl Actor {
                         && recovery.coordinator.current_leader() == key.leader
                     {
                         let current = recovery.applied_voter_ids().await;
-                        let mut voters = current
-                            .iter()
-                            .copied()
-                            .filter(|id| !pending_retired.contains(id) && !retired.contains(id))
-                            .collect::<BTreeSet<_>>();
-                        for id in candidates {
-                            if voters.len() >= desired {
-                                break;
-                            }
-                            if !pending_retired.contains(&id) && !retired.contains(&id) {
-                                voters.insert(id);
-                            }
-                        }
+                        let voters = admission_voters(
+                            &current,
+                            candidates,
+                            desired,
+                            |id| pending_retired.contains(&id) || retired.contains(&id),
+                            |id| eligible.may_vote_member(&known, id),
+                        );
                         // A room of two keeps its single voter, so the set is
                         // often unchanged; an identical change would only add
-                        // a membership entry.
-                        if promote
+                        // a membership entry. Members of a server-owned room
+                        // are learners for good.
+                        if eligible.changes_voters()
                             && !voters.is_empty()
                             && voters.len() <= crate::recovery::MAX_VOTERS
                             && voters != current
@@ -501,7 +500,11 @@ impl Actor {
             && committed_revision == key.revision;
         if current && let Ok(result) = result {
             let (_, history) = recovery.applied_membership_provenance().await;
-            self.apply_confirmed_retirements(result.confirmed_retirements, &history);
+            let confirmed = result.confirmed_retirements;
+            self.apply_confirmed_retirements(confirmed.clone(), &history);
+            // Only now, with the old quorum no longer needing it, does a
+            // bound room close what it retired.
+            self.close_retired_strangers(&confirmed)?;
         }
         // Stale completions leave the pre-write retirement fences in
         // place. The next exact committed-roster refresh retries the
@@ -584,6 +587,78 @@ impl Actor {
     }
 }
 
+/// The voters an admission leaves the room with: the `current` ones that
+/// `excluded` (retired) does not name, then `candidates` in order up to
+/// `desired`, only those that `may_vote` takes. A room of two keeps its single
+/// voter, so the set is often what it was.
+fn admission_voters(
+    current: &BTreeSet<u64>,
+    candidates: Vec<u64>,
+    desired: usize,
+    excluded: impl Fn(u64) -> bool,
+    may_vote: impl Fn(u64) -> bool,
+) -> BTreeSet<u64> {
+    let mut voters = current
+        .iter()
+        .copied()
+        .filter(|id| !excluded(*id))
+        .collect::<BTreeSet<_>>();
+    for id in candidates {
+        if voters.len() >= desired {
+            break;
+        }
+        if !excluded(id) && may_vote(id) {
+            voters.insert(id);
+        }
+    }
+    voters
+}
+
+/// The voters a joint change keeps: the leader `own` first, when it answers,
+/// then the other `answering` voters that `may_vote`, up to `desired`.
+fn replacement_voters(
+    own: u64,
+    answering: &BTreeSet<u64>,
+    desired: usize,
+    may_vote: impl Fn(u64) -> bool,
+) -> BTreeSet<u64> {
+    std::iter::once(own)
+        .filter(|id| answering.contains(id))
+        .chain(
+            answering
+                .iter()
+                .copied()
+                .filter(|id| *id != own && may_vote(*id)),
+        )
+        .take(desired)
+        .collect()
+}
+
+/// What a membership operation reads of the actor when it starts: it runs on
+/// its own task, so it takes this by value.
+struct MembershipSnapshot {
+    /// The committed roster at `revision`.
+    retained: BTreeSet<EndpointId>,
+    /// The endpoints with a control link.
+    reachable: BTreeSet<EndpointId>,
+    admissions: BTreeMap<u64, Admission>,
+    /// The fenced incarnations.
+    pending: BTreeSet<u64>,
+    revision: u64,
+    voters: Voters,
+}
+
+impl MembershipSnapshot {
+    /// The stable voter count for the members of `retained` that may vote.
+    fn desired(&self) -> usize {
+        self.voters.desired(&self.retained)
+    }
+
+    fn may_vote(&self, id: u64) -> bool {
+        self.voters.may_vote_member(&self.admissions, id)
+    }
+}
+
 /// A departing leader hands authority to a single voter so it can elect itself
 /// at once. The new leader brings the retained members back up to the stable
 /// voter count, or down to it once the room has shrunk: a room that falls to
@@ -593,13 +668,17 @@ impl Actor {
 /// refresh retries from the newer roster.
 async fn restore_stable_voters(
     recovery: &crate::recovery::RecoverySession,
-    retained: &BTreeSet<EndpointId>,
-    reachable: &BTreeSet<EndpointId>,
-    admissions: &[Admission],
-    pending: &BTreeSet<u64>,
-    revision: u64,
+    snapshot: &MembershipSnapshot,
 ) -> io::Result<()> {
-    let desired = crate::recovery::stable_voter_count(retained.len());
+    let MembershipSnapshot {
+        retained,
+        reachable,
+        admissions,
+        pending,
+        revision,
+        voters: eligible,
+    } = snapshot;
+    let desired = snapshot.desired();
     let current = recovery.applied_voter_ids().await;
     if current.len() > desired {
         // The leader keeps its vote, then the voters that still answer. The
@@ -607,22 +686,21 @@ async fn restore_stable_voters(
         // keeps only reachable ones adds no new way to stall.
         let own = recovery.incarnation;
         let answers = |id: u64| {
-            admissions
-                .iter()
-                .find(|admission| admission.incarnation == id)
-                .is_some_and(|admission| {
-                    retained.contains(&admission.primary_endpoint)
-                        && reachable.contains(&admission.primary_endpoint)
-                        && !pending.contains(&id)
-                })
+            admissions.get(&id).is_some_and(|admission| {
+                retained.contains(&admission.primary_endpoint)
+                    && reachable.contains(&admission.primary_endpoint)
+                    && !pending.contains(&id)
+            })
         };
-        let voters = std::iter::once(own)
-            .chain(current.iter().copied().filter(|id| *id != own && answers(*id)))
-            .take(desired)
+        let answering = current
+            .iter()
+            .copied()
+            .filter(|id| *id == own || answers(*id))
             .collect::<BTreeSet<_>>();
+        let voters = replacement_voters(own, &answering, desired, |id| snapshot.may_vote(id));
         if current.contains(&own) && voters.len() < current.len() {
             recovery
-                .promote_voters_at_revision(revision, voters)
+                .promote_voters_at_revision(*revision, voters)
                 .await?;
         }
         return Ok(());
@@ -634,8 +712,9 @@ async fn restore_stable_voters(
     // Only promote members with a live control link. A voter that cannot
     // acknowledge the joint membership freezes every later commit; the next
     // refresh retries once the member reconnects or leaves the roster.
-    let candidates = admissions.iter().filter(|admission| {
-        retained.contains(&admission.primary_endpoint)
+    let candidates = admissions.values().filter(|admission| {
+        eligible.may_vote(&admission.primary_endpoint)
+            && retained.contains(&admission.primary_endpoint)
             && reachable.contains(&admission.primary_endpoint)
             && members.contains(&admission.incarnation)
             && !pending.contains(&admission.incarnation)
@@ -649,8 +728,68 @@ async fn restore_stable_voters(
         .collect::<BTreeSet<_>>();
     if voters.len() > current.len() {
         recovery
-            .promote_voters_at_revision(revision, voters)
+            .promote_voters_at_revision(*revision, voters)
             .await?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // However many voters the count asks for, a member that may not vote is
+    // never chosen: the filter holds without the count agreeing.
+    #[test]
+    fn only_voters_that_may_vote_are_chosen_whatever_the_count_says() {
+        // Incarnations 1 and 2 are the fighters, 3 to 9 watch; 1 leads.
+        let may_vote = |id: u64| id <= 2;
+        let current = BTreeSet::from([1]);
+        let candidates = (2..=9).rev().collect::<Vec<_>>();
+        for desired in [1, 3, 5, 9] {
+            let voters =
+                admission_voters(&current, candidates.clone(), desired, |_| false, may_vote);
+            assert!(
+                voters.iter().all(|id| may_vote(*id)),
+                "{desired}: {voters:?}"
+            );
+            assert_eq!(voters.len(), desired.min(2), "{desired}");
+            let answering = (1..=9).collect::<BTreeSet<_>>();
+            let kept = replacement_voters(1, &answering, desired, may_vote);
+            assert!(kept.iter().all(|id| may_vote(*id)), "{desired}: {kept:?}");
+            assert_eq!(kept.len(), desired.min(2), "{desired}");
+        }
+        // The leader is kept even when the binding does not name it, and an
+        // unanswering one is not kept.
+        assert_eq!(
+            replacement_voters(7, &BTreeSet::from([2, 7, 8]), 3, may_vote),
+            BTreeSet::from([2, 7])
+        );
+        assert_eq!(
+            replacement_voters(1, &BTreeSet::from([2]), 3, may_vote),
+            BTreeSet::from([2])
+        );
+    }
+
+    // Without a binding everyone may vote, and the sets are what they were.
+    #[test]
+    fn a_room_without_a_binding_picks_voters_as_it_always_did() {
+        let candidates = vec![5, 3, 9, 4];
+        let voters = admission_voters(
+            &BTreeSet::from([1, 2]),
+            candidates,
+            4,
+            |id| id == 3,
+            |_| true,
+        );
+        assert_eq!(voters, BTreeSet::from([1, 2, 5, 9]));
+        let answering = BTreeSet::from([2, 3, 4, 8]);
+        assert_eq!(
+            replacement_voters(8, &answering, 3, |_| true),
+            BTreeSet::from([2, 3, 8])
+        );
+        // The set is kept whole when it already has the count.
+        let voters = admission_voters(&BTreeSet::from([1, 2, 3]), vec![4], 2, |_| false, |_| true);
+        assert_eq!(voters, BTreeSet::from([1, 2, 3]));
+    }
 }

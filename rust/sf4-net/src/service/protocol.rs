@@ -14,6 +14,11 @@ pub enum Command {
         epoch: u64,
         invitation: String,
         build: String,
+        /// The joiner watches a tournament match (docs/design/MATCH_WATCH.md
+        /// 5.3), with the full invitation the bridge gave it. Sent only when
+        /// true.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        observer: bool,
     },
     /// Host a public (server-owned) room. `ticket_key` is the bridge's public
     /// key as `/v1/signing-keys` publishes it; members are admitted by tickets

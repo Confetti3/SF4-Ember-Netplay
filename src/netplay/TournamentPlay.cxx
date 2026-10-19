@@ -21,12 +21,6 @@ Output Make(Output::Kind kind) {
 	return output;
 }
 
-// Answers after which claiming the match again cannot help.
-bool Final(const std::string& code) {
-	return code == "stale_revision" || code == "not_found" || code == "unsupported_rules" ||
-		code == "incompatible_build" || code == "forbidden" || code == "bridge_not_approved";
-}
-
 // Report answers after which handing the same report over again cannot help.
 bool ReportRefused(const std::string& code) {
 	return code == "unknown_permit" || code == "invalid_request" || code == "identity_unavailable";
@@ -44,24 +38,21 @@ void TournamentPlay::Start(std::string bridgeId, std::string matchId, std::uint6
 void TournamentPlay::Stop() {
 	if (phase_ == Phase::Idle) return;
 	// A Leave held for the last game's battle goes now.
-	if (leaveHeld_) {
-		pending_.push_back(Make(Output::Kind::Leave));
-		leaveHeld_ = false;
-	}
+	if (room_.Holding()) room_.Release();
 	Fail(Phase::Idle, {});
 }
 
 void TournamentPlay::Abandon(const std::string& reason) {
-	if (phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom) Fail(Phase::Failed, reason);
+	if (PlayUnderWay(phase_)) Fail(Phase::Failed, reason);
 }
 
 void TournamentPlay::Fail(Phase phase, const std::string& reason) {
-	const bool active = phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom;
-	const bool inRoom = active && (hostRequested_ || joinRequested_ || !targetRoom_.empty());
+	const bool active = PlayUnderWay(phase_);
 	// A finished match's last game may still be on screen: its room is left
-	// once that battle has closed (ReleaseHeldLeave). Anything else leaves at once.
-	if (inRoom && phase == Phase::Finished) leaveHeld_ = true;
-	else if (inRoom) pending_.push_back(Make(Output::Kind::Leave));
+	// once that battle has closed. Anything else leaves at once. Either way
+	// only a room this match opened is left.
+	if (active && phase == Phase::Finished) room_.Hold();
+	else if (active) room_.Release();
 	// A report the helper has not saved needs the permit it would forget.
 	if (active && !unsaved_.empty()) forgetAfterReports_ = true;
 	else if (active) pending_.push_back(Make(Output::Kind::Forget));
@@ -76,8 +67,8 @@ std::vector<Output> TournamentPlay::Tick(std::uint64_t nowMs, const RoomView& ro
 	// A report is the game's result: it is handed over again whatever the
 	// match does meanwhile.
 	ResendReports(nowMs, out);
-	if (leaveHeld_) ReleaseHeldLeave(nowMs, room, out);
-	if (phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom) {
+	if (room_.Tick(nowMs, room)) out.push_back(Make(Output::Kind::Leave));
+	if (PlayUnderWay(phase_)) {
 		// The bridge tells the tournament who has not pressed Ready, so a
 		// change goes out with a claim now rather than the next one.
 		const bool ready = SeatReady(room);
@@ -95,14 +86,6 @@ std::vector<Output> TournamentPlay::Tick(std::uint64_t nowMs, const RoomView& ro
 		TrackPermits(nowMs, room, out);
 	}
 	return out;
-}
-
-void TournamentPlay::ReleaseHeldLeave(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out) {
-	if (!leaveHeldUntilMs_) leaveHeldUntilMs_ = nowMs + FinalBattleHoldMs;
-	// A battle that never closes must not keep the player in the room.
-	if (room.fighting && nowMs < leaveHeldUntilMs_) return;
-	out.push_back(Make(Output::Kind::Leave));
-	leaveHeld_ = false;
 }
 
 void TournamentPlay::OnConnectionLost(std::uint64_t generation) {
@@ -147,7 +130,7 @@ void TournamentPlay::OnReportFailed(std::uint64_t generation, const std::string&
 	// no further official game starts until the organizer has reconciled
 	// it, and the player sees why. The other fighter's report sends the
 	// game to review on the bridge.
-	if (phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom) Fail(Phase::Failed, "report_not_saved");
+	if (PlayUnderWay(phase_)) Fail(Phase::Failed, "report_not_saved");
 	ReportsSettled();
 }
 
@@ -159,8 +142,7 @@ void TournamentPlay::ReportsSettled() {
 }
 
 bool TournamentPlay::SeatReady(const RoomView& room) const {
-	if (!room.joined || !room.snapshot || targetRoom_.empty() || room.roomId != targetRoom_ ||
-		!room.snapshot->tournament.Active()) return false;
+	if (!room_.InTarget(room) || !room.snapshot || !room.snapshot->tournament.Active()) return false;
 	const auto& snapshot = *room.snapshot;
 	const auto place = room::PlaceOf(snapshot, snapshot.localMember);
 	return place.kind == room::Place::Kind::Seat && place.table == room::TournamentTable &&
@@ -168,33 +150,42 @@ bool TournamentPlay::SeatReady(const RoomView& room) const {
 }
 
 void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out) {
-	const bool inTarget = room.joined && !targetRoom_.empty() && room.roomId == targetRoom_;
+	using Step = MatchRoomFollower::Step;
 	waitingForOpponent_ = false;
-	if (!targetRoom_.empty()) {
-		if (inTarget) {
-			phase_ = Phase::InRoom;
-			joinRequested_ = leaving_ = false;
-		} else if (room.joined) {
-			// In another room: one this game hosted while the lease moved on.
-			if (!leaving_) { out.push_back(Make(Output::Kind::Leave)); leaving_ = true; }
-		} else if (!room.opening && (!joinRequested_ || nowMs - openedAtMs_ >= OpenTimeoutMs)) {
-			auto join = Make(Output::Kind::Join);
-			join.invitation = targetInvitation_;
-			out.push_back(join);
-			joinRequested_ = true;
-			leaving_ = false;
-			openedAtMs_ = nowMs;
-			phase_ = Phase::Opening;
-		}
-	} else if (!leaseId_.empty()) {
-		if (!room.joined && !room.opening && (!hostRequested_ || nowMs - openedAtMs_ >= OpenTimeoutMs)) {
+	const auto step = room_.Follow(nowMs, room);
+	switch (step) {
+	case Step::Foreign:
+		// The player is in a room of their own: it is not left, joined over or
+		// published. The match goes on claiming and opens its room once they leave.
+		return;
+	case Step::InTarget:
+		phase_ = Phase::InRoom;
+		break;
+	case Step::Join: {
+		auto join = Make(Output::Kind::Join);
+		join.invitation = room_.Invitation();
+		out.push_back(join);
+		phase_ = Phase::Opening;
+		break;
+	}
+	case Step::Leave:
+		// In another room: one this game hosted while the lease moved on.
+		out.push_back(Make(Output::Kind::Leave));
+		break;
+	case Step::None:
+		break;
+	}
+	// No room named yet: the fighter holding the lease hosts and publishes one;
+	// the other waits for it.
+	if (!room_.Aimed() && leaseId_.empty()) {
+		waitingForOpponent_ = true;
+	} else if (!room_.Aimed()) {
+		if (room_.Host(nowMs, room)) {
 			out.push_back(Make(Output::Kind::Host));
-			hostRequested_ = true;
-			openedAtMs_ = nowMs;
 			phase_ = Phase::Opening;
-		} else if (room.joined && hostRequested_ && !publishInFlight_ && nowMs >= nextPublishMs_ &&
+		} else if (room.joined && !publishInFlight_ && nowMs >= nextPublishMs_ &&
 			!room.roomId.empty() && !room.invitation.empty()) {
-			// Only a room this game opened for the match is published.
+			// The room this game hosted for the match (a room of the player's own is Foreign).
 			auto publish = Make(Output::Kind::Publish);
 			publish.roomId = room.roomId;
 			publish.invitation = room.invitation;
@@ -204,10 +195,8 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 			publishingInvitation_ = room.invitation;
 			publishInFlight_ = true;
 		}
-	} else {
-		waitingForOpponent_ = true;
 	}
-	if (!inTarget) return;
+	if (step != Step::InTarget) return;
 	// The room renews its invitation as it ages; the bridge keeps the latest.
 	if (published_ && !room.invitation.empty() && room.invitation != publishedInvitation_ &&
 		!publishInFlight_ && nowMs >= nextPublishMs_) {
@@ -291,10 +280,10 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 	} else {
 		publishInFlight_ = false;
 	}
-	if (phase_ != Phase::Claiming && phase_ != Phase::Opening && phase_ != Phase::InRoom) return;
+	if (!PlayUnderWay(phase_)) return;
 	switch (reply.role) {
 	case ClaimReply::Role::Host:
-		if (targetRoom_.empty()) { leaseId_ = reply.leaseId; fence_ = reply.fence; }
+		if (!room_.Aimed()) { leaseId_ = reply.leaseId; fence_ = reply.fence; }
 		break;
 	case ClaimReply::Role::Wait:
 		// The other fighter holds the lease now; a room opened late is not the match's.
@@ -311,12 +300,7 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 		}
 		leaseId_.clear();
 		fence_.clear();
-		if (targetRoom_ != reply.roomId) {
-			targetRoom_ = reply.roomId;
-			joinRequested_ = false;
-			if (request == Output::Kind::Claim) published_ = false;
-		}
-		targetInvitation_ = reply.invitation;
+		if (room_.Aim(reply.roomId, reply.invitation) && request == Output::Kind::Claim) published_ = false;
 		if (reply.binding && reply.binding->roomId == reply.roomId &&
 			(!binding_ || binding_->roomId != reply.binding->roomId || binding_->room.SupersededBy(reply.binding->room)))
 			binding_ = reply.binding;
@@ -343,7 +327,7 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 		// whose last game was aborted for a lost connection may be set up
 		// again by the bridge as a new match.
 		if (code == "stale_revision") Fail(Phase::Finished, lastLostConnection_ ? ConnectionLostReason : code);
-		else if (Final(code)) Fail(Phase::Failed, code);
+		else if (BridgeGaveUp(code)) Fail(Phase::Failed, code);
 		else nextClaimMs_ = nowMs + RetryMs;
 		break;
 	case Output::Kind::Publish:

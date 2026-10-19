@@ -148,6 +148,7 @@ Result RoomAuthority::TransferHost(MemberId actor, MemberId successor) {
     if (snapshot_.closed) return Reject(RejectReason::Closed);
     if (!IsHost(actor)) return Reject(RejectReason::NotHost);
     if (!Find(successor)) return Reject(RejectReason::UnknownMember);
+    if (IsWatcher(snapshot_, successor)) return Reject(RejectReason::Unauthorized);
     if (successor == actor) return Accept();
     for (auto& member : snapshot_.members) member.host = member.id == successor;
     snapshot_.host = successor;
@@ -174,7 +175,7 @@ const Table* RoomAuthority::FindTable(std::uint8_t table) const {
 
 bool RoomAuthority::ValidTable(std::uint8_t table) const { return table < TableCount; }
 
-bool RoomAuthority::IsHost(MemberId member) const { return member != 0 && member == snapshot_.host; }
+bool RoomAuthority::IsHost(MemberId member) const { return member != 0 && member == ActingHost(snapshot_); }
 
 bool RoomAuthority::CanEditRules(MemberId member) const { return IsHost(member); }
 
@@ -408,11 +409,14 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	// No process hosts a server-owned room as a player: the first joiner is host.
 	if (snapshot_.serverOwned) host = false;
 	if (snapshot_.closed) return Reject(RejectReason::Closed);
-	if (snapshot_.members.size() >= snapshot_.capacity) return Reject(RejectReason::RoomFull);
-	// A bound fighter comes back to the set whatever the lock: a bound room
-	// admits nobody else anyway.
-	const bool boundFighter = snapshot_.tournament.Active() && snapshot_.tournament.SlotOf(connection.user) >= 0;
-	if (snapshot_.locked && !host && !boundFighter) return Reject(RejectReason::AdmissionLocked);
+	const auto admission = BoundJoin(connection, profile);
+	if (admission == BoundAdmission::Refuse) return Reject(RejectReason::Unauthorized);
+	// A member the binding names comes whatever the capacity or the lock (a
+	// returning fighter always fits among the watchers); only the room's own
+	// member limit holds.
+	const bool named = admission == BoundAdmission::Named;
+	if (snapshot_.members.size() >= (named ? MaximumMembers : snapshot_.capacity)) return Reject(RejectReason::RoomFull);
+	if (snapshot_.locked && !host && !named) return Reject(RejectReason::AdmissionLocked);
 	if (snapshot_.host == 0 && !host && !snapshot_.serverOwned) return Reject(RejectReason::Unauthorized);
 	if (name.empty() || name.size() > 32 || !IsValidUtf8(name) || !IsSingleLineText(name)) return Reject(RejectReason::NameTaken);
 	if (kicked_.count(connection)) return Reject(RejectReason::MemberKicked);
@@ -425,9 +429,8 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 		if (member.connection == connection) return Reject(RejectReason::UnknownMember);
 	}
 	if (host && snapshot_.host != 0) return Reject(RejectReason::Unauthorized);
-	// A room bound to a tournament match admits only its two fighters.
-	if (snapshot_.tournament.Active() && snapshot_.tournament.SlotOf(connection.user) < 0)
-		return Reject(RejectReason::Unauthorized);
+	// A room bound to a tournament match admits only the endpoints it names.
+	if (admission == BoundAdmission::Stranger) return Reject(RejectReason::Unauthorized);
 	if (nextMemberId_ == 0 || nextMemberId_ == (std::numeric_limits<MemberId>::max)()) return Reject(RejectReason::RoomFull);
 	Member member;
 	member.id = nextMemberId_++;
@@ -444,7 +447,7 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	snapshot_.members.push_back(member);
 	NoteActive(member.id);
 	if (snapshot_.serverOwned) RememberAccount(member.id, profile.account);
-	if (snapshot_.tournament.Active()) SeatBoundFighters();
+	if (snapshot_.tournament.Active()) SettleBoundJoin(member.id);
 	TouchRoom();
 	return Accept({Event{Event::Kind::SnapshotChanged, 0, 0, member.id, MatchResult::Abort}});
 }
@@ -585,12 +588,13 @@ void RoomAuthority::CloseLiveGeneration(Table& table) {
 void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 	for (auto& table : snapshot_.tables) {
 		bool changed = false;
-		bool ancillaryChanged = false;
+		bool queueChanged = false;
+		bool spectatorsChanged = false;
 		if (table.p1 == member) { table.p1 = 0; table.ready[0] = false; changed = true; }
 		if (table.p2 == member) { table.p2 = 0; table.ready[1] = false; changed = true; }
 		const auto oldQueueSize = table.queue.size();
 		table.queue.erase(std::remove(table.queue.begin(), table.queue.end(), member), table.queue.end());
-		ancillaryChanged = ancillaryChanged || oldQueueSize != table.queue.size();
+		queueChanged = oldQueueSize != table.queue.size();
 		if (!preserveSpectator) {
 			const auto oldSpectatorSize = table.spectators.size();
 			table.spectators.erase(std::remove(table.spectators.begin(), table.spectators.end(), member), table.spectators.end());
@@ -598,7 +602,7 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			table.watchingNext.erase(std::remove(table.watchingNext.begin(), table.watchingNext.end(), member), table.watchingNext.end());
 			const auto oldEndingSize = table.endingWatchers.size();
 			table.endingWatchers.erase(std::remove(table.endingWatchers.begin(), table.endingWatchers.end(), member), table.endingWatchers.end());
-			ancillaryChanged = ancillaryChanged || oldSpectatorSize != table.spectators.size() ||
+			spectatorsChanged = oldSpectatorSize != table.spectators.size() ||
 				oldNextSize != table.watchingNext.size() || oldEndingSize != table.endingWatchers.size();
 		}
 		if (changed) {
@@ -622,7 +626,8 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			Touch(table);
 			SeatQueued(table);
 			NormalizeTableMembers(table);
-		} else if (ancillaryChanged) Touch(table);
+		} else if (queueChanged) Touch(table);
+		else if (spectatorsChanged) TouchSpectators(table);
 	}
 	NormalizeMemberStatus(member);
 }
@@ -678,11 +683,7 @@ Result RoomAuthority::Leave(MemberId member) {
 	// leader is kept separately by SessionServer/helper and is never inferred
 	// from this field.
 	if (wasHost) {
-		const Member* successor = nullptr;
-		for (const auto& other : snapshot_.members) {
-			if (other.id == member) continue;
-			if (!successor || other.joinOrder < successor->joinOrder) successor = &other;
-		}
+		const Member* successor = HostSuccessor(member);
 		if (successor) {
 			snapshot_.host = successor->id;
 			for (auto& other : snapshot_.members) other.host = other.id == successor->id;

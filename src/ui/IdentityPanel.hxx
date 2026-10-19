@@ -180,7 +180,7 @@ private:
     void DropQueue();
     void Collect(const ShellView& view, double now);
     void Send(const ShellView& view, const Submit& submit, double now);
-    void Say(std::string text, bool error, double seconds = 6);
+    void Say(std::string text, Tone tone, double seconds = 6);
     void Wipe();
     void Refresh(const ShellView& view, const std::string& screen);
     void SelectBridge(const ShellView& view, const std::string& bridge);
@@ -311,7 +311,7 @@ private:
     bool onScreens_ = false;
     std::string lastScreen_;
     std::string message_;
-    bool messageError_ = false;
+    Tone messageTone_{};
     double messageUntil_ = 0;
     // What the player typed. The passphrase fields are secrets.
     std::string newPassphrase_, newConfirm_, backupPassphrase_, backupConfirm_, restorePassphrase_;
@@ -395,7 +395,20 @@ private:
     struct OpenedMatch {
         std::string bridge, row;
         std::optional<std::uint64_t> finishedBefore;
+        std::string match;
     };
     std::optional<OpenedMatch> opened_;
+    // The match a link named that the player may only watch: it is not in their
+    // list, or its service is not trusted. Its row stays until another link opens.
+    std::string watchBridge_, watchMatch_;
+    // The player can start watching a match now (CanWatch).
+    bool CanWatch(const ShellView& v) const;
+    // The row for the match a link named that the player may only watch: Watch itself, or why
+    // it cannot be used yet. None when no link named one, or it names another service than the one shown.
+    std::optional<MenuEntry> WatchEntry(const ShellView& v) const;
+    // How the watch is going, and Stop while it is under way (IdentityPanel__Watch.cxx).
+    void AppendWatchState(const ShellView& v, std::vector<MenuEntry>& rows) const;
+    // True when `action` is Watch on the Watch row, which then starts the watch if it still can.
+    bool ActivateWatch(const MenuAction& action, const ShellView& v);
 };
 } }

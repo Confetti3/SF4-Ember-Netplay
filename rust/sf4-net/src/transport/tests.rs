@@ -94,7 +94,11 @@ async fn expired_invite_reauthenticates_only_the_admitted_endpoint_after_handoff
             },
             async {
                 let connection = server.accept().await.unwrap().await.unwrap();
-                accept_control_policy(connection, &invite, member, clock).await
+                let accepting = Accepting {
+                    member,
+                    watchers: false,
+                };
+                accept_control_policy(connection, &invite, accepting, clock).await
             }
         );
         assert_eq!(client.is_ok(), allowed);

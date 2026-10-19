@@ -55,6 +55,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
         include_str!("../migrations/026_blumint_refused_keys_dropped.sql"),
     ),
     (27, include_str!("../migrations/027_sign_in_sites.sql")),
+    (28, include_str!("../migrations/028_match_watch.sql")),
 ];
 
 #[derive(Clone)]
@@ -182,7 +183,8 @@ mod tests {
             .unwrap()
             .collect::<rusqlite::Result<_>>()
             .unwrap();
-        assert_eq!(versions, (1..=MIGRATIONS.len() as i64).collect::<Vec<_>>());
+        let listed: Vec<i64> = MIGRATIONS.iter().map(|(version, _)| *version).collect();
+        assert_eq!(versions, listed);
     }
 
     #[test]
@@ -573,5 +575,51 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count(&connection, &format!("{withdrawn}'1'")), 0);
+    }
+
+    #[test]
+    fn rooms_from_before_watching_existed_keep_their_revision_as_the_fighters_revision() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        // The schema as it stood before watching (028).
+        let before_watching: Vec<_> = MIGRATIONS
+            .iter()
+            .take_while(|(version, _)| *version < 28)
+            .copied()
+            .collect();
+        migrate(&mut connection, &before_watching).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO tenants (id, name) VALUES ('t', 'Tenant');
+                 INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
+                   VALUES ('c', 't', 'direct', 'staging', 'Site', 1);
+                 INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
+                   assignment_generation, state, games_to_win, rules, required_build_id, metadata,
+                   delivery_state, created_at, updated_at)
+                   VALUES ('emt_live', 't', 'c', 'live', '', 1, 1, 'ready', 2, '{}', '', '{}', 'not_required', 1000, 1000);
+                 INSERT INTO match_rooms (match_id, binding_revision, bound_endpoints)
+                   VALUES ('emt_live', 3, '[]');
+                 INSERT INTO match_claims (match_id, ember_id, endpoint_id, helper_instance_id, build_id, claimed_at)
+                   VALUES ('emt_live', 'emb_p1', 'e', 'ins_x', 'build', 1000);",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let (fighters, watchers, link_holders): (i64, Option<String>, i64) = connection
+            .query_row(
+                "SELECT r.fighters_revision, r.bound_watchers, c.watch_link_holders
+                 FROM match_rooms r, provider_connections c WHERE r.match_id = 'emt_live' AND c.id = 'c'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!((fighters, watchers, link_holders), (3, None, 0));
+        // A claim made before watching existed does not say its helper reads
+        // watchers.
+        let watch: bool = connection
+            .query_row("SELECT watch FROM match_claims", [], |row| row.get(0))
+            .unwrap();
+        assert!(!watch);
     }
 }

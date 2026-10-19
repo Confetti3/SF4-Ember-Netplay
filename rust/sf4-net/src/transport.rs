@@ -455,22 +455,33 @@ pub(crate) async fn connect_control_on_proof<P: Serialize + Sync>(
     result
 }
 
-pub async fn accept_control(connection: Connection, room: &Invite) -> io::Result<ControlChannel> {
-    accept_control_policy(connection, room, None, now()?).await
+/// What a room takes on a control's handshake.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Accepting {
+    /// A returning member's endpoint, the only one the control may come from.
+    pub member: Option<EndpointId>,
+    /// Whether a joiner that only watches is taken, which only a room bound
+    /// to a tournament match does.
+    pub watchers: bool,
 }
 
-pub(crate) async fn accept_control_member(
+/// Accept a control into a room that takes no watchers.
+pub async fn accept_control(connection: Connection, room: &Invite) -> io::Result<ControlChannel> {
+    accept_control_for(connection, room, Accepting::default()).await
+}
+
+pub(crate) async fn accept_control_for(
     connection: Connection,
     room: &Invite,
-    member: EndpointId,
+    accepting: Accepting,
 ) -> io::Result<ControlChannel> {
-    accept_control_policy(connection, room, Some(member), now()?).await
+    accept_control_policy(connection, room, accepting, now()?).await
 }
 
 async fn accept_control_policy(
     connection: Connection,
     room: &Invite,
-    member: Option<EndpointId>,
+    accepting: Accepting,
     clock: u64,
 ) -> io::Result<ControlChannel> {
     let mut pending = PendingConnection(Some(connection.clone()));
@@ -480,7 +491,10 @@ async fn accept_control_policy(
         }
         let (mut send, mut recv) = connection.accept_bi().await.map_err(|_| failed())?;
         let proof: RoomProof = read_handshake(&mut recv).await?;
-        if let Some(member) = member {
+        if proof.observer && !accepting.watchers {
+            return Err(failed());
+        }
+        if let Some(member) = accepting.member {
             if connection.remote_id() != member {
                 return Err(failed());
             }
