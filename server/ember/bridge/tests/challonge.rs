@@ -1687,9 +1687,9 @@ async fn a_web_desk_session_is_short_listed_and_ended_from_the_game() {
     assert!(limited);
 }
 
-// The game opens the web desk with a one-time handoff, by link or by an
-// eight-letter code; a desk opened so may make the changes that a desk
-// signed in with a site alone may not.
+// The game opens the web desk with a one-time link, or approves the code
+// another device's browser shows; a desk opened so may make the changes
+// that a desk signed in with a site alone may not.
 #[tokio::test]
 async fn the_game_opens_the_web_desk_with_a_one_time_handoff() {
     let fake = fake_challonge();
@@ -1697,20 +1697,27 @@ async fn the_game_opens_the_web_desk_with_a_one_time_handoff() {
     let bridge = desk_bridge(&fake).await;
     let mut player1 = player(&bridge, 1).await;
     CHALLONGE.connect(&bridge, &player1, "good-player1").await;
-    let code_in = |code: &str| {
+    let device = || async {
+        let made = bridge
+            .client
+            .post(bridge.url("/web/device"))
+            .send()
+            .await
+            .unwrap();
+        let secret = set_cookie(&made, "ember_desk_device");
+        (made.status(), secret, made.text().await.unwrap())
+    };
+    let polled = |secret: String| {
         bridge
             .client
-            .post(bridge.url("/web/handoff"))
-            .header("content-type", "application/json")
-            .body(json!({ "code": code }).to_string())
+            .get(bridge.url("/web/device"))
+            .header("cookie", format!("ember_desk_device={secret}"))
             .send()
     };
 
     // The link signs a browser in once.
     let made = handoff(&bridge, &player1).await;
-    let code = made["code"].as_str().unwrap().to_owned();
-    assert_eq!(code.len(), 8);
-    assert!(code.bytes().all(|b| !b"01IO".contains(&b)));
+    assert!(made.get("code").is_none());
     let link = format!("/desk/h/{}", made["token"].as_str().unwrap());
     let opened = bridge.client.get(bridge.url(&link)).send().await.unwrap();
     assert_eq!(opened.status(), StatusCode::SEE_OTHER);
@@ -1718,11 +1725,6 @@ async fn the_game_opens_the_web_desk_with_a_one_time_handoff() {
     let again = bridge.client.get(bridge.url(&link)).send().await.unwrap();
     assert!(set_cookie(&again, "ember_desk").is_none());
     assert!(again.text().await.unwrap().contains("Link expired"));
-    // Its code went with it.
-    assert_eq!(
-        code_in(&code).await.unwrap().status(),
-        StatusCode::NOT_FOUND
-    );
 
     // That desk may make a change a site sign-in may not.
     let me: Json = serde_json::from_str(
@@ -1821,37 +1823,88 @@ async fn the_game_opens_the_web_desk_with_a_one_time_handoff() {
         "{origins:?}"
     );
 
-    // A typed code works once, in any case and with spaces; a wrong one and
-    // a lapsed one do not.
-    let made = handoff(&bridge, &player1).await;
-    let code = made["code"].as_str().unwrap().to_lowercase();
+    // Another device shows a code; the game approves it, typed in any case
+    // and with spaces, and only the browser that showed it signs in.
+    let (status, secret, shown) = device().await;
+    assert_eq!(status, StatusCode::CREATED);
+    let secret = secret.unwrap();
+    let code = serde_json::from_str::<Json>(&shown).unwrap()["code"]
+        .as_str()
+        .unwrap()
+        .to_lowercase();
+    assert_eq!(code.len(), 8);
+    assert!(code.bytes().all(|b| !b"01io".contains(&b)));
+    let waiting = polled(secret.clone()).await.unwrap();
+    assert!(waiting.text().await.unwrap().contains("waiting"));
+    let (status, _) = approve(&bridge, &player1, "ABCD-EFGH").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = approve(&bridge, &player1, &format!("{} {}", &code[..4], &code[4..])).await;
+    assert_eq!(status, StatusCode::OK);
+    let other = polled("someone-else".into()).await.unwrap();
+    assert_eq!(other.status(), StatusCode::NOT_FOUND);
+    let signed_in = polled(secret.clone()).await.unwrap();
+    assert_eq!(signed_in.status(), StatusCode::OK);
+    let device_desk = format!(
+        "ember_desk={}",
+        set_cookie(&signed_in, "ember_desk").unwrap()
+    );
+    let device_me: Json = serde_json::from_str(
+        &bridge
+            .client
+            .get(bridge.url("/web/session"))
+            .header("cookie", device_desk)
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(device_me["from_game"], true);
+    // Once: neither the code nor the secret works again.
     assert_eq!(
-        code_in("ABCD-EFGH").await.unwrap().status(),
+        approve(&bridge, &player1, &code).await.0,
         StatusCode::NOT_FOUND
     );
-    let typed = code_in(&format!("{} {}", &code[..4], &code[4..]))
-        .await
-        .unwrap();
-    assert_eq!(typed.status(), StatusCode::OK);
-    assert!(set_cookie(&typed, "ember_desk").is_some());
     assert_eq!(
-        code_in(&code).await.unwrap().status(),
+        polled(secret).await.unwrap().status(),
         StatusCode::NOT_FOUND
     );
-    let made = handoff(&bridge, &player1).await;
+    // A lapsed code is no use.
+    let (_, _, shown) = device().await;
+    let code = serde_json::from_str::<Json>(&shown).unwrap()["code"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     bridge.clock.advance(121);
-    let late = code_in(made["code"].as_str().unwrap()).await.unwrap();
-    assert_eq!(late.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        approve(&bridge, &player1, &code).await.0,
+        StatusCode::NOT_FOUND
+    );
 
-    // One address tries only so many.
+    // One address asks for only so many codes.
     let mut limited = false;
     for _ in 0..12 {
-        limited |= code_in("ZZZZZZZZ").await.unwrap().status() == StatusCode::TOO_MANY_REQUESTS;
+        limited |= device().await.0 == StatusCode::TOO_MANY_REQUESTS;
     }
     assert!(limited);
 }
 
-/// A handoff from the game for `player`: its token and code.
+/// The game approving the code another device shows, for `player`.
+async fn approve(bridge: &Bridge, player: &common::Player, code: &str) -> (StatusCode, Json) {
+    sign_in::send(
+        bridge,
+        player,
+        Action::SiteConnect,
+        Method::Post,
+        "/v1/web-sessions/approve",
+        json!({ "code": code }),
+    )
+    .await
+}
+
+/// A handoff from the game for `player`: its link's token.
 async fn handoff(bridge: &Bridge, player: &common::Player) -> Json {
     let (status, made) = sign_in::send(
         bridge,

@@ -30,10 +30,11 @@ use super::{
 use crate::{
     AppState,
     auth::{self, DESK_COOKIE, DESK_IDLE_SECS, DESK_SECS},
+    ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, cookie, json as answer, ok, page},
     linking::Site,
-    routes::{rooms::Address, sessions},
+    routes::{organizer::Caller, rooms::Address, sessions},
     util::{html, random},
 };
 
@@ -444,21 +445,23 @@ pub async fn end_web_sessions(
     Ok(ok(&json!({ "ended": ended })))
 }
 
-/// A handoff from the game lives this long.
+/// A handoff from the game, and a device's code, live this long.
 const HANDOFF_SECS: u64 = 120;
-/// Handoffs one Ember ID asks for, and exchanges one network address or one
-/// code tries, in ten minutes.
+/// Handoffs and approvals one Ember ID asks for, codes and exchanges one
+/// network address asks for, and approvals one code gets, in ten minutes.
 const HANDOFFS_PER_PLAYER: usize = 10;
 const EXCHANGES_PER_ADDRESS: usize = 10;
 const TRIES_PER_CODE: usize = 5;
 /// A code's letters: no 0, 1, I or O, which read alike. 32 of them, so a
 /// random byte's low five bits pick one evenly.
 const CODE_LETTERS: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+/// The cookie holding a device's secret while its code waits.
+const DEVICE_COOKIE: &str = "ember_desk_device";
 pub const HANDOFF_PATH: &str = "/v1/web-sessions/handoff";
+pub const APPROVE_PATH: &str = "/v1/web-sessions/approve";
 
 /// `POST /v1/web-sessions/handoff` (player session, `site.connect` proof):
-/// a one-time handoff that opens the web desk from the game, as a link's
-/// token and as an eight-letter code to type on a phone.
+/// a one-time link's token that opens the web desk in this PC's browser.
 pub async fn handoff(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -466,75 +469,41 @@ pub async fn handoff(
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
     let now = state.now();
-    state
-        .rate
-        .check(
-            &format!("desk-handoff:{}", player.ember_id.as_str()),
-            HANDOFFS_PER_PLAYER,
-            600,
-            now,
-        )
-        .map_err(ApiFailure::rate_limited)?;
+    per_player(&state, &player)?;
     let token = b64u(&random::<32>());
-    let code: String = random::<8>()
-        .iter()
-        .map(|byte| char::from(CODE_LETTERS[usize::from(byte & 31)]))
-        .collect();
     let token_hash = auth::hash(&state.keys, "desk-handoff", &token);
-    let code_hash = auth::hash(&state.keys, "desk-code", &code);
     let target = (Action::SiteConnect, Method::Post, HANDOFF_PATH.to_owned());
     sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
-        tx.execute("DELETE FROM desk_handoffs WHERE expires_at <= ?1", [ctx.now])?;
         tx.execute(
-            "INSERT INTO desk_handoffs (token_hash, code_hash, ember_id, expires_at) VALUES (?1, ?2, ?3, ?4)",
-            params![
-                token_hash.as_slice(),
-                code_hash.as_slice(),
-                ember_id,
-                ctx.now + HANDOFF_SECS
-            ],
+            "DELETE FROM desk_handoffs WHERE expires_at <= ?1",
+            [ctx.now],
+        )?;
+        tx.execute(
+            "INSERT INTO desk_handoffs (token_hash, ember_id, expires_at) VALUES (?1, ?2, ?3)",
+            params![token_hash.as_slice(), ember_id, ctx.now + HANDOFF_SECS],
         )?;
         Ok(())
     })
     .await?;
     Ok(answer(
         StatusCode::CREATED,
-        &json!({ "token": token, "code": code, "expires_at": now + HANDOFF_SECS }),
+        &json!({ "token": token, "expires_at": now + HANDOFF_SECS }),
     ))
 }
 
-/// Uses up the handoff whose `column` hash is `hash` and opens a desk
-/// session from the game for it: the cookie, or None when there is none
-/// or it lapsed.
-async fn exchange(
-    state: &AppState,
-    headers: &HeaderMap,
-    column: &'static str,
-    hash: [u8; 32],
-) -> Result<Option<String>> {
-    let keys = state.keys.clone();
-    let agent = agent(headers);
-    let now = state.now();
+fn per_player(state: &AppState, player: &auth::Player) -> Result<()> {
     state
-        .db
-        .write(move |tx| {
-            let ember_id: Option<String> = tx
-                .query_row(
-                    &format!(
-                        "DELETE FROM desk_handoffs WHERE {column} = ?1 AND expires_at > ?2 RETURNING ember_id"
-                    ),
-                    params![hash.as_slice(), now],
-                    |row| row.get(0),
-                )
-                .optional()?;
-            ember_id
-                .map(|ember_id| auth::start_desk_session(tx, &keys, &ember_id, "", agent, true, now))
-                .transpose()
-        })
-        .await
+        .rate
+        .check(
+            &format!("desk-handoff:{}", player.ember_id.as_str()),
+            HANDOFFS_PER_PLAYER,
+            600,
+            state.now(),
+        )
+        .map_err(ApiFailure::rate_limited)
 }
 
-/// A browser's tries at a handoff, limited per network address.
+/// A browser's tries at a handoff or a code, limited per network address.
 fn exchange_allowed(state: &AppState, address: &str) -> Result<()> {
     state
         .rate
@@ -557,7 +526,26 @@ pub async fn handoff_link(
 ) -> Result<Response> {
     exchange_allowed(&state, &address)?;
     let hash = auth::hash(&state.keys, "desk-handoff", &token);
-    match exchange(&state, &headers, "token_hash", hash).await? {
+    let (keys, agent, now) = (state.keys.clone(), agent(&headers), state.now());
+    let session = state
+        .db
+        .write(move |tx| {
+            let ember_id: Option<String> = tx
+                .query_row(
+                    "DELETE FROM desk_handoffs WHERE token_hash = ?1 AND expires_at > ?2
+                     RETURNING ember_id",
+                    params![hash.as_slice(), now],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            ember_id
+                .map(|ember_id| {
+                    auth::start_desk_session(tx, &keys, &ember_id, "", agent, true, now)
+                })
+                .transpose()
+        })
+        .await?;
+    match session {
         Some(session) => {
             let mut response = Redirect::to(DESK).into_response();
             set_cookie(&state, &mut response, DESK_COOKIE, &session, DESK_SECS);
@@ -571,30 +559,123 @@ pub async fn handoff_link(
     }
 }
 
+/// A code as typed: letters and digits, upper case.
+fn typed(code: &str) -> String {
+    code.chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|letter| letter.to_ascii_uppercase())
+        .collect()
+}
+
+/// `POST /web/device`: a new code for this browser to show, to be typed in
+/// Ember, and the secret (a cookie) that only this browser holds.
+pub async fn device(State(state): State<AppState>, Address(address): Address) -> Result<Response> {
+    exchange_allowed(&state, &address)?;
+    let secret = b64u(&random::<32>());
+    let code: String = random::<8>()
+        .iter()
+        .map(|byte| char::from(CODE_LETTERS[usize::from(byte & 31)]))
+        .collect();
+    let secret_hash = auth::hash(&state.keys, "desk-device", &secret);
+    let code_hash = auth::hash(&state.keys, "desk-code", &code);
+    let expires_at = state.now() + HANDOFF_SECS;
+    state
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "DELETE FROM desk_devices WHERE expires_at <= ?1",
+                [expires_at - HANDOFF_SECS],
+            )?;
+            tx.execute(
+                "INSERT INTO desk_devices (secret_hash, code_hash, expires_at) VALUES (?1, ?2, ?3)",
+                params![secret_hash.as_slice(), code_hash.as_slice(), expires_at],
+            )?;
+            Ok(())
+        })
+        .await?;
+    let mut response = answer(
+        StatusCode::CREATED,
+        &json!({ "code": code, "expires_at": expires_at }),
+    );
+    set_cookie(&state, &mut response, DEVICE_COOKIE, &secret, HANDOFF_SECS);
+    Ok(response)
+}
+
+/// `GET /web/device`: whether this browser's code was approved in Ember;
+/// once it is, signs the browser in to the desk as opened from the game.
+pub async fn device_signed_in(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response> {
+    let secret = cookie(&headers, DEVICE_COOKIE).unwrap_or_default();
+    let hash = auth::hash(&state.keys, "desk-device", &secret);
+    let (keys, agent, now) = (state.keys.clone(), agent(&headers), state.now());
+    let found = state
+        .db
+        .write(move |tx| {
+            let row: Option<(Option<String>, u64)> = tx
+                .query_row(
+                    "SELECT ember_id, expires_at FROM desk_devices WHERE secret_hash = ?1 AND expires_at > ?2",
+                    params![hash.as_slice(), now],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?;
+            match row {
+                Some((Some(ember_id), _)) => {
+                    tx.execute("DELETE FROM desk_devices WHERE secret_hash = ?1", [hash.as_slice()])?;
+                    let session = auth::start_desk_session(tx, &keys, &ember_id, "", agent, true, now)?;
+                    Ok(Some(Ok(session)))
+                }
+                Some((None, expires_at)) => Ok(Some(Err(expires_at))),
+                None => Ok(None),
+            }
+        })
+        .await?;
+    match found {
+        Some(Ok(session)) => {
+            let mut response = ok(&json!({ "signed_in": true }));
+            set_cookie(&state, &mut response, DESK_COOKIE, &session, DESK_SECS);
+            set_cookie(&state, &mut response, DEVICE_COOKIE, "", 0);
+            Ok(response)
+        }
+        Some(Err(expires_at)) => Ok(ok(&json!({ "waiting": true, "expires_at": expires_at }))),
+        None => Err(ApiFailure::new(
+            ember_protocol::api::ErrorCode::NotFound,
+            "This code expired. Get a new one.",
+        )
+        .detail("reason", "code_refused")),
+    }
+}
+
 #[derive(serde::Deserialize)]
 struct Code {
     code: String,
 }
 
-/// `POST /web/handoff` with `{"code": …}`: the code shown in the game,
-/// typed on another device; signs that browser in to the desk.
-pub async fn handoff_code(
+/// `POST /v1/web-sessions/approve` (player session, `site.connect` proof):
+/// approves the code another device's browser shows, so that browser, and
+/// only it, signs in to the desk as opened from the game.
+pub async fn approve(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Address(address): Address,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
-    exchange_allowed(&state, &address)?;
-    let Code { code } = ember_protocol::json::parse_as(&body.0, PROOF_BODY)?;
-    let code: String = code
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .map(|letter| letter.to_ascii_uppercase())
-        .collect();
+    let (caller, Code { code }): (_, Code) = Caller::of(&state, &headers, &body).await?;
+    caller.require_game()?;
+    state
+        .rate
+        .check(
+            &format!("desk-handoff:{}", caller.ember_id()),
+            HANDOFFS_PER_PLAYER,
+            600,
+            state.now(),
+        )
+        .map_err(ApiFailure::rate_limited)?;
+    let code = typed(&code);
     let refused = || {
         ApiFailure::new(
             ember_protocol::api::ErrorCode::NotFound,
-            "That code is wrong or expired. Get a new one in Ember.",
+            "That code is wrong or expired. Get a new one on the other device.",
         )
         .detail("reason", "code_refused")
     };
@@ -611,10 +692,21 @@ pub async fn handoff_code(
         )
         .map_err(ApiFailure::rate_limited)?;
     let hash = auth::hash(&state.keys, "desk-code", &code);
-    let session = exchange(&state, &headers, "code_hash", hash)
-        .await?
-        .ok_or_else(refused)?;
-    let mut response = ok(&json!({}));
-    set_cookie(&state, &mut response, DESK_COOKIE, &session, DESK_SECS);
-    Ok(response)
+    let ctx = Ctx::of(&state);
+    let approved = state
+        .db
+        .write(move |tx| {
+            caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, APPROVE_PATH)?;
+            Ok(tx.execute(
+                "UPDATE desk_devices SET ember_id = ?1
+                 WHERE code_hash = ?2 AND expires_at > ?3 AND ember_id IS NULL",
+                params![caller.ember_id(), hash.as_slice(), ctx.now],
+            )?)
+        })
+        .await?;
+    state.committed();
+    if approved == 0 {
+        return Err(refused());
+    }
+    Ok(ok(&json!({ "approved": true })))
 }

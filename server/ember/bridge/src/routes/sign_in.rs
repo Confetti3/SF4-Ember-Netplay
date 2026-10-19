@@ -194,7 +194,11 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
     .route("/v1/web-sessions/seen", post(desk::web_sessions_seen))
     .route(desk::HANDOFF_PATH, post(desk::handoff))
     .route("/desk/h/{token}", get(desk::handoff_link))
-    .route("/web/handoff", post(desk::handoff_code))
+    .route(desk::APPROVE_PATH, post(desk::approve))
+    .route(
+        "/web/device",
+        post(desk::device).get(desk::device_signed_in),
+    )
 }
 
 /// The configured site `id` names, or `not_found`.
