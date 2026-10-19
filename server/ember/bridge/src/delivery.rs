@@ -9,7 +9,9 @@
 //! results sent to the platform that created the match (`results`), and,
 //! for a platform that hears how a set stands while it is played
 //! (`Policy::reports_progress`, BluMint), the set's score (`progress`) and
-//! the match's status (`status`).
+//! the match's status (`status`). A fifth sends desk events' Discord calls
+//! (`calls`).
+pub mod calls;
 pub mod progress;
 pub mod results;
 pub mod status;

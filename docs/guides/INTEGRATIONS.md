@@ -520,7 +520,9 @@ Routes, all with the organizer's player session:
 - `POST /v1/organizer/events/<id>` (`site.connect`): changes what the
   command gives: `title`, `starts_at` (seconds, or null), `links` (at most
   12 `{ "label", "url" }`, https only), `settings`, and for a draft
-  `site` with `tournament`, an event the site lists for them.
+  `site` with `tournament`, an event the site lists for them. Also
+  `discord_webhook` (a Discord channel webhook URL, or null) and
+  `post_results` (see Discord calls below).
 - `POST /v1/organizer/events/<id>/create` (`site.connect`), command
   `{ "site", "fields" }`: creates a draft's event on the site with the
   organizer's grant, when its definition has `organizer.create`, and gives
@@ -587,6 +589,19 @@ The whole bracket is read every 10 minutes (Challonge and start.gg; an
 between, so a set decided on the site shows its new state within 10
 minutes. On a paged site the whole read costs a request per page of
 decided sets as well.
+
+Discord calls: with a `discord_webhook` on the event (Server Settings,
+Integrations, Webhooks in Discord; no bot to install), the bridge posts a
+set's call to that channel when the desk creates the set's Ember match and
+each time the organizer calls it again (`POST .../sets/{set}` with
+`"call": true`): the round and phase, first to N, both players (pinged when
+their Discord account is connected to their Ember ID; nobody else can be
+pinged) and the match link. With `post_results`, the score of each set it
+called is posted once the set is done. The webhook is kept sealed and read
+back only masked (`{ "host", "id": "…1234" }`); each set's `call` says when
+it was last posted and whether Discord has it (`pending`, `delivered`,
+`failed`). A 429 is retried after Discord's `Retry-After`; a webhook
+Discord no longer knows fails without retries.
 
 ## Bracket sites (Challonge, start.gg, your own)
 

@@ -29,6 +29,7 @@ use serde_json::{Value, json};
 use crate::{
     AppState, auth,
     ctx::Ctx,
+    delivery::calls::{self, Called},
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, bearer, json, ok},
     linking::Site,
@@ -257,12 +258,13 @@ pub async fn start(
 pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
     let ember_id = reader(&state, &headers).await?;
     let now = state.now();
+    let keys = state.keys.clone();
     let events = state
         .db
         .read(move |tx| {
             let mut query = tx.prepare(
                 "SELECT id, title, status, starts_at, site, tournament, name, settings, links,
-                     created_at
+                     created_at, discord_webhook, post_results
                  FROM organizer_events
                  WHERE ember_id = ?1 AND ended_at IS NULL ORDER BY created_at DESC, id",
             )?;
@@ -284,6 +286,13 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
                     "settings": settings(&row.get::<_, String>(7)?),
                     "links": settings(&row.get::<_, String>(8)?),
                     "created_at": row.get::<_, u64>(9)?,
+                    // Never the URL itself: it posts to the channel.
+                    "discord_webhook": row
+                        .get::<_, Option<Vec<u8>>>(10)?
+                        .and_then(|sealed| keys.open(&sealed))
+                        .and_then(|url| String::from_utf8(url.to_vec()).ok())
+                        .map(|url| calls::masked(&url)),
+                    "post_results": row.get::<_, bool>(11)?,
                 }))
             })?;
             Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -389,7 +398,7 @@ struct Change {
     #[serde(default)]
     title: Option<String>,
     /// A time in seconds, or null to take the start time away.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "given")]
     starts_at: Option<Value>,
     #[serde(default)]
     links: Option<Vec<Link>>,
@@ -404,6 +413,21 @@ struct Change {
     /// (`GET /v1/public/events/{id}`).
     #[serde(default)]
     public: Option<bool>,
+    /// The Discord channel webhook the desk posts calls to
+    /// (`delivery::calls`), or null to take it away.
+    #[serde(default, deserialize_with = "given")]
+    discord_webhook: Option<Value>,
+    /// Whether a finished set's score is posted there too.
+    #[serde(default)]
+    post_results: Option<bool>,
+}
+
+/// A field that was given, null included; serde's own `Option` reads a
+/// null as not given.
+fn given<'de, D: serde::Deserializer<'de>>(
+    field: D,
+) -> std::result::Result<Option<Value>, D::Error> {
+    Value::deserialize(field).map(Some)
 }
 
 /// `POST /v1/organizer/events/{id}`: changes what is given of one of the
@@ -426,6 +450,22 @@ pub async fn change(
     };
     let links = change.links.map(|links| links_of(&links)).transpose()?;
     let settings = change.settings.map(settings_of).transpose()?;
+    let webhook = match change.discord_webhook {
+        None => None,
+        Some(Value::Null) => Some(None),
+        Some(url) => {
+            let url = url
+                .as_str()
+                .and_then(|url| calls::check_webhook(url, state.config.allow_loopback_http))
+                .ok_or_else(|| {
+                    ApiFailure::invalid(
+                        "discord_webhook is a Discord channel webhook URL \
+                         (https://discord.com/api/webhooks/...), or null.",
+                    )
+                })?;
+            Some(Some(state.keys.seal(url.as_bytes())))
+        }
+    };
     let event = match (change.site, change.tournament) {
         (None, None) => None,
         (Some(site), Some(tournament)) => {
@@ -490,6 +530,18 @@ pub async fn change(
                 tx.execute(
                     "UPDATE organizer_events SET public = ?1 WHERE id = ?2",
                     params![public, id],
+                )?;
+            }
+            if let Some(webhook) = webhook {
+                tx.execute(
+                    "UPDATE organizer_events SET discord_webhook = ?1 WHERE id = ?2",
+                    params![webhook, id],
+                )?;
+            }
+            if let Some(post_results) = change.post_results {
+                tx.execute(
+                    "UPDATE organizer_events SET post_results = ?1 WHERE id = ?2",
+                    params![post_results, id],
                 )?;
             }
             Ok(Ok(()))
@@ -830,14 +882,19 @@ pub async fn put_sets(
     }
     let stored = serde_json::to_string(&snapshot.sets).map_err(|_| ApiFailure::unavailable())?;
     let now = state.now();
+    let bridge_id = state.config.bridge_id.clone();
     let kept = state
         .db
         .write(move |tx| {
-            Ok(tx.execute(
+            let kept = tx.execute(
                 "UPDATE organizer_events SET sets = ?1, sets_at = ?2
                  WHERE id = ?3 AND ended_at IS NULL AND status = 'ready'",
                 params![stored, now, id],
-            )?)
+            )?;
+            if kept == 1 {
+                post_news(tx, now, &bridge_id, &id, &stored)?;
+            }
+            Ok(kept)
         })
         .await?;
     if kept == 0 {
@@ -845,6 +902,65 @@ pub async fn put_sets(
     }
     state.committed();
     Ok(ok(&json!({})))
+}
+
+/// Calls each set whose Ember match the desk made since its last call, and
+/// posts the score of each finished set the desk called, once per match
+/// (`delivery::calls`).
+fn post_news(
+    tx: &Transaction<'_>,
+    now: u64,
+    bridge_id: &str,
+    id: &str,
+    stored: &str,
+) -> Result<()> {
+    let site: Option<String> = tx.query_row(
+        "SELECT site FROM organizer_events WHERE id = ?1",
+        [id],
+        |row| row.get(0),
+    )?;
+    for set in desk_sets(tx, id, site.as_deref(), Some(stored), true)? {
+        let (Some(set_id), Some(match_id)) = (set["id"].as_str(), set["match_id"].as_str()) else {
+            continue;
+        };
+        let (called, reported): (Option<String>, Option<String>) = tx
+            .query_row(
+                "SELECT called_match, result_match FROM desk_marks
+                 WHERE event_id = ?1 AND set_id = ?2",
+                params![id, set_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?
+            .unwrap_or_default();
+        let called_set = Called {
+            event_id: id,
+            set: &set,
+        };
+        let state = set["desk_state"].as_str().unwrap_or_default();
+        if called.as_deref() != Some(match_id)
+            && matches!(state, "called" | "playing")
+            && calls::call(tx, now, bridge_id, &called_set)?
+        {
+            tx.execute(
+                "INSERT INTO desk_marks (event_id, set_id, called_match, called_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT (event_id, set_id)
+                 DO UPDATE SET called_match = ?3, called_at = ?4",
+                params![id, set_id, match_id, now],
+            )?;
+        }
+        if called.as_deref() == Some(match_id)
+            && reported.as_deref() != Some(match_id)
+            && matches!(state, "reporting" | "done")
+            && calls::result(tx, now, &called_set)?
+        {
+            tx.execute(
+                "UPDATE desk_marks SET result_match = ?1 WHERE event_id = ?2 AND set_id = ?3",
+                params![match_id, id, set_id],
+            )?;
+        }
+    }
+    Ok(())
 }
 
 /// `GET /v1/organizer/events/{id}/sets`: the organizer's event's sets, each
@@ -1007,6 +1123,20 @@ pub async fn mark(
                     "UPDATE desk_marks SET called_at = ?1 WHERE event_id = ?2 AND set_id = ?3",
                     params![ctx.now, id, set],
                 )?;
+                let (site, stored): (Option<String>, Option<String>) = tx.query_row(
+                    "SELECT site, sets FROM organizer_events WHERE id = ?1",
+                    [&id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?;
+                let found = desk_sets(tx, &id, site.as_deref(), stored.as_deref(), true)?
+                    .into_iter()
+                    .find(|shown| shown["id"] == json!(set))
+                    .unwrap_or_else(|| json!({ "id": set }));
+                let called = Called {
+                    event_id: &id,
+                    set: &found,
+                };
+                calls::call(tx, ctx.now, &ctx.config.bridge_id, &called)?;
             }
             Ok(true)
         })
@@ -1092,6 +1222,7 @@ fn desk_sets(
     let sets: Vec<Value> = stored
         .and_then(|stored| serde_json::from_str(stored).ok())
         .unwrap_or_default();
+    let posted = calls::calls(tx, event)?;
     let marks: std::collections::HashMap<String, (bool, Option<u64>)> = tx
         .prepare("SELECT set_id, held, called_at FROM desk_marks WHERE event_id = ?1")?
         .query_map([event], |row| Ok((row.get(0)?, (row.get(1)?, row.get(2)?))))?
@@ -1104,6 +1235,9 @@ fn desk_sets(
                     set["held"] = json!(true);
                 }
                 set["called_at"] = json!(called_at);
+            }
+            if let Some(call) = set["id"].as_str().and_then(|id| posted.get(id)) {
+                set["call"] = call.clone();
             }
             let found = match set["match_id"].as_str() {
                 Some(match_id) => desk_match(tx, match_id, site)?,

@@ -174,7 +174,7 @@ impl Destination {
                         retry_after: None,
                     });
                 };
-                post_signed(state, url, &headers, body, async { true }).await
+                post_signed(state, url, Some(&headers), body, async { true }).await
             }
         }
     }

@@ -160,7 +160,7 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
     let Ok(headers) = webhook::sign(&secrets, &item.event_id, now, &item.body) else {
         return retry("cannot sign");
     };
-    let answer = post_signed(state, &item.url, &headers, item.body.clone(), async {
+    let answer = post_signed(state, &item.url, Some(&headers), item.body.clone(), async {
         // A delete or a revoked owner since the lease, including while the
         // destination resolved, cancels the delivery.
         still_due(state, item.outbox_id).await
@@ -184,15 +184,16 @@ pub struct Answer {
     pub retry_after: Option<u64>,
 }
 
-/// POSTs a signed JSON body to a destination a platform chose: a webhook
-/// subscription's URL or a connection's `results_url`. The destination is
+/// POSTs a JSON body to a destination a platform or an organizer chose: a
+/// webhook subscription's URL or a connection's `results_url`, signed with
+/// `headers`, or a desk event's Discord webhook, unsigned. The destination is
 /// resolved and checked now and the connection pinned to the address that
 /// passed; `still_due` is asked as late as possible, just before sending, and
 /// false cancels. The answer's body is drained through a byte cap.
 pub async fn post_signed(
     state: &AppState,
     url: &str,
-    headers: &webhook::Headers,
+    headers: Option<&webhook::Headers>,
     body: Vec<u8>,
     still_due: impl std::future::Future<Output = bool>,
 ) -> std::result::Result<Answer, Outcome> {
@@ -223,15 +224,14 @@ pub async fn post_signed(
     if !still_due.await {
         return Err(Outcome::Cancelled);
     }
-    let response = client
-        .post(url)
-        .header("content-type", "application/json")
-        .header(webhook::HEADER_ID, &headers.id)
-        .header(webhook::HEADER_TIMESTAMP, &headers.timestamp)
-        .header(webhook::HEADER_SIGNATURE, &headers.signature)
-        .body(body)
-        .send()
-        .await;
+    let mut request = client.post(url).header("content-type", "application/json");
+    if let Some(headers) = headers {
+        request = request
+            .header(webhook::HEADER_ID, &headers.id)
+            .header(webhook::HEADER_TIMESTAMP, &headers.timestamp)
+            .header(webhook::HEADER_SIGNATURE, &headers.signature);
+    }
+    let response = request.body(body).send().await;
     match response {
         Ok(response) => Ok(answer(response).await),
         Err(error) => Err(retry(if error.is_timeout() {

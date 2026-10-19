@@ -85,6 +85,11 @@ For `ember-brackets` (provider credential of `desk.connection`):
 | `GET /v1/desk/brackets` | Running events, each with a fresh access token for its site |
 | `PUT /v1/desk/events/{id}/sets` | The connector's latest view of an event's sets (033) |
 
+Discord calls (036): an event's `discord_webhook` (sealed) gets each set's
+call when the desk makes its match or the TO calls it again, with players
+pinged by their Ember-connected Discord and the match link; `post_results`
+adds the score of each called set when it is done (`delivery::calls`).
+
 To the organizer, `GET /v1/organizer/events/{id}/sets` serves those sets
 with each Ember match's score, state and players; `GET /v1/public/events/{id}`
 serves them to anyone while the event is `public` (the mobile viewer).
