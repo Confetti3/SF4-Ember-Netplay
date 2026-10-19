@@ -40,6 +40,11 @@ function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$S
     Assert-CMakeSource $SourceRoot $BuildRoot
     $receipt = Get-Content -LiteralPath (Join-Path $BuildRoot 'build-provenance.json') -Raw | ConvertFrom-Json
     if ($receipt.sourceRoot -ne $SourceRoot -or $receipt.buildRoot -ne $BuildRoot -or $receipt.stageRoot -ne $StageRoot) { throw 'Build receipt path mismatch' }
+    # The in-game self-tests let environment variables drive the game and move the helper's Ember folder.
+    # A receipt without the field predates the check, and a cache left ON by hand is as unsafe as one the script wrote.
+    if ($receipt.selfTest -ne $false -or (Select-String -LiteralPath (Join-Path $BuildRoot 'CMakeCache.txt') -Pattern '^SF4E_SELFTEST:BOOL=ON' -Quiet)) {
+        throw 'The build has the in-game self-test; rebuild with scripts/build-current.ps1 without -SelfTest'
+    }
     if ($receipt.sourceFingerprint -ne (Get-SourceFingerprint $SourceRoot)) { throw 'Source changed since verified build; rebuild with scripts/build-current.ps1' }
     foreach ($binary in $receipt.binaries) {
         if ((Get-FileHash -LiteralPath (Join-Path $StageRoot $binary.path)).Hash -ne $binary.sha256) { throw "Staged binary changed: $($binary.path)" }

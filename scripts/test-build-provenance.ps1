@@ -20,7 +20,7 @@ $originalCulture = [cultureinfo]::CurrentCulture
 try {
     [cultureinfo]::CurrentCulture = 'en-US'
     $fingerprint = Get-SourceFingerprint $source
-    $record = @{sourceRoot=$source;buildRoot=$build;stageRoot=$stage;sourceFingerprint=$fingerprint;binaries=@(@{path='Sidecar.dll';sha256=(Get-FileHash (Join-Path $stage 'Sidecar.dll')).Hash})}
+    $record = @{sourceRoot=$source;buildRoot=$build;stageRoot=$stage;sourceFingerprint=$fingerprint;selfTest=$false;binaries=@(@{path='Sidecar.dll';sha256=(Get-FileHash (Join-Path $stage 'Sidecar.dll')).Hash})}
     $record | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $build 'build-provenance.json')
     foreach ($culture in @('en-US','th-TH','tr-TR','sv-SE','nl-BE')) {
         [cultureinfo]::CurrentCulture = $culture
@@ -48,6 +48,21 @@ Expect-Rejection 'CMake source mismatch*'
 [IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
 [IO.File]::WriteAllText((Join-Path $stage 'Sidecar.dll'), 'stale other build')
 Expect-Rejection 'Staged binary changed*'
+[IO.File]::WriteAllText((Join-Path $stage 'Sidecar.dll'), 'fixture only - not executable')
+# A self-test build is refused whether its receipt says so, omits the field, or the cache was seeded ON afterwards.
+$goodReceipt = Get-Content (Join-Path $build 'build-provenance.json') -Raw
+foreach ($selfTest in @($true, $null)) {
+    $tampered = $goodReceipt | ConvertFrom-Json
+    if ($null -eq $selfTest) { $tampered.PSObject.Properties.Remove('selfTest') } else { $tampered.selfTest = $selfTest }
+    $tampered | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $build 'build-provenance.json')
+    Expect-Rejection 'The build has the in-game self-test*'
+}
+Set-Content (Join-Path $build 'build-provenance.json') $goodReceipt
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source`nSF4E_SELFTEST:BOOL=ON")
+Expect-Rejection 'The build has the in-game self-test*'
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
+Assert-BuildReceipt $source $build $stage | Out-Null
+Write-Output 'PASS self-test build refused by receipt, missing field and cache'
 Write-Output "Fixtures retained at $fixture"
 
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
