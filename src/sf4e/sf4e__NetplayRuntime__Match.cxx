@@ -128,11 +128,14 @@ static void ObserveDeferredEntry() {
 		runtime->entryDeferredSinceMs = now;
 		spdlog::info("Match: entry deferred, not at the main menu generation={} spectator={}", generation, LocalIsSpectator());
 	}
-	if (SpectatorPolicy::EntryGate(false, LocalIsSpectator(), now - runtime->entryDeferredSinceMs) !=
+	// P1 waits for a watcher of a tournament match's bound table a shorter time
+	// (SyncDeadlineFor), so this one gives up on the same clock.
+	const auto deadline = SpectatorPolicy::SyncDeadlineFor(UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().tournament.Active());
+	if (SpectatorPolicy::EntryGate(false, LocalIsSpectator(), now - runtime->entryDeferredSinceMs, deadline) !=
 		SpectatorPolicy::EntryStep::SitOut) return;
 	// P1 has stopped waiting for this spectator, and entering later would join
 	// a stream it no longer serves. The room still lists it for the next game.
-	spdlog::info("Match: spectator sits out generation {} (not at the main menu within {} ms)", generation, SpectatorPolicy::SyncDeadlineMs);
+	spdlog::info("Match: spectator sits out generation {} (not at the main menu within {} ms)", generation, deadline);
 	runtime->match->End();
 	PushAlert(loc::T("runtime.spectator_sat_out"), NoticeSeverity::Info);
 }

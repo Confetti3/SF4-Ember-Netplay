@@ -2920,6 +2920,10 @@ msgid "runtime.spectator_action_retrying"
 msgstr "A ação de espectador não pôde ser enviada; tentando novamente."
 msgid "runtime.return_main_menu"
 msgstr "Volte ao menu principal do jogo antes de abrir uma sala."
+msgid "runtime.watching_match"
+msgstr "Você está assistindo a uma partida do torneio. Pare de assistir em Partidas do torneio antes de abrir ou entrar em outra sala."
+msgid "runtime.watch_leave_room"
+msgstr "Saia da sua sala antes de assistir a uma partida do torneio."
 msgid "runtime.tournament_result_saving"
 msgstr "Salvando o resultado da última partida. Tente novamente em alguns segundos."
 msgid "runtime.room_action_failed"
@@ -3834,6 +3838,9 @@ msgstr "Os jogadores usam uma versão do Ember diferente. Para assistir é preci
 
 msgid "tournament.watch.refused.unsupported"
 msgstr "Este serviço de torneios não oferece a opção de assistir."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Você parou de assistir porque está em outra sala. Saia dela e assista à partida de novo."
 
 msgid "tournament.watch.finished"
 msgstr "A partida acabou."

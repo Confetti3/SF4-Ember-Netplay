@@ -158,6 +158,21 @@ static void TestBindMovesAModifiedWatcher() {
 	const MemberId fighterB = Fighter(seated, 'b');
 	CHECK(fighterB && seated.SnapshotView().tables[0].p1 == host && seated.SnapshotView().tables[0].p2 == fighterB);
 	CHECK(Listed(seated.SnapshotView().tables[0].spectators, intruder));
+	// One that watched and locked in before the bind holds no lock-in once it is named, so it
+	// can never hold the fighters' start (it has no Lock to release).
+	RoomAuthority locked("Match", 8, 1);
+	const MemberId lockedA = Fighter(locked, 'a', true);
+	const MemberId lockedW = Enter(locked, "Watcher 1", WatcherEndpoint(1), false, {});
+	CHECK(lockedA && lockedW);
+	CHECK(locked.Apply(lockedW, TableAction(locked, lockedW, TournamentTable, ActionKind::Watch)).accepted);
+	auto lockIn = TableAction(locked, lockedW, TournamentTable, ActionKind::LockSpectating);
+	lockIn.locked = true;
+	CHECK(locked.Apply(lockedW, lockIn).accepted && FindMember(locked.SnapshotView(), lockedW)->spectatorLocked);
+	CHECK(locked.BindTournament(Binding(1, {1})).accepted);
+	CHECK(!FindMember(locked.SnapshotView(), lockedW)->spectatorLocked && Listed(locked.SnapshotView().tables[0].spectators, lockedW));
+	const MemberId lockedB = Fighter(locked, 'b');
+	for (const auto member : {lockedA, lockedB}) CHECK(locked.Apply(member, TableAction(locked, member, TournamentTable, ActionKind::Ready)).accepted);
+	CHECK(locked.SnapshotView().tables[0].phase == TablePhase::Ready && !locked.SnapshotView().tables[0].spectatorHold);
 	// A cooperative watcher already spectates, so a rebind that keeps it touches nothing at the table.
 	Match match({1});
 	Watcher(match.authority, 1);
@@ -263,6 +278,54 @@ static void TestWatchersTakeNoAction() {
 	CHECK(match.Table0().phase == TablePhase::Ready && !match.Table0().spectatorHold && PermitPending(match.Table0()));
 	CHECK(match.authority.Apply(w, TableAction(match.authority, w, TournamentTable, ActionKind::Leave)).accepted);
 	CHECK(!match.Find(w) && !match.Spectates(w));
+}
+
+// A watcher may do what the allow-list names and nothing else: every other kind
+// of action, one added later included, is refused, at any phase of the table.
+static void TestWatcherAllowList() {
+	Match match({1});
+	const MemberId w = Watcher(match.authority, 1);
+	CHECK(w);
+	const auto last = static_cast<int>(ActionKind::SetTraining);
+	for (const bool playing : {false, true}) {
+		const auto generation = playing ? match.Begin() : 0;
+		for (int value = 0; value <= last; ++value) {
+			const auto kind = static_cast<ActionKind>(value);
+			// What a watcher does: leave, acknowledge a game's end, and say it is in Training.
+			if (kind == ActionKind::Leave || kind == ActionKind::AcknowledgeTerminal || kind == ActionKind::SetTraining) continue;
+			auto action = RoomAction(match.authority, w, kind);
+			action.matchGeneration = generation;
+			action.text = "per_one";
+			action.startWindowMs = PermitStartMs;
+			action.result = MatchResult::P1Win;
+			action.target = match.a;
+			action.capacity = 4;
+			const auto revision = match.View().revision;
+			const auto result = match.authority.Apply(w, action);
+			CHECK(!result.accepted && match.View().revision == revision && match.Spectates(w));
+			// The host's own powers answer NotHost (or Unauthorized for the room's name); the rest are
+			// refused outright.
+			const bool hostKind = kind == ActionKind::Close || kind == ActionKind::SetCapacity || kind == ActionKind::Lock ||
+				kind == ActionKind::TransferHost;
+			if (!hostKind) CHECK(result.reason == RejectReason::Unauthorized);
+		}
+		if (playing) match.End(generation);
+	}
+	// The fighters' own PermitReady and Ready are refused to a watcher by the list, not only by the seat it lacks.
+	match.ReadyBoth();
+	CHECK(!match.authority.Apply(w, Permit(match.authority, w, "per_one")).accepted);
+}
+
+// A bind that keeps the fighters but is a new assignment (an organizer's reset) moves
+// table 0's revision, so a Ready stamped before it is stale; one that only changes the
+// watchers does not.
+static void TestReassignmentTouchesTheTable() {
+	Match match({1});
+	const auto revision = match.Table0().revision;
+	CHECK(match.authority.BindTournament(Binding(2, {1, 2})).accepted && match.Table0().revision == revision);
+	auto reset = Binding(3, {1, 2});
+	reset.assignmentGeneration = 2;
+	CHECK(match.authority.BindTournament(reset).accepted && match.Table0().revision > revision);
 }
 
 // Watchers coming, going and being sent away never move table 0's revision, so
@@ -420,6 +483,8 @@ int main() {
 	TestJoin();
 	TestFighterReturnsToACrowd();
 	TestWatchersTakeNoAction();
+	TestWatcherAllowList();
+	TestReassignmentTouchesTheTable();
 	TestReadyUnderChurn();
 	TestSpectatorListAtStart();
 	TestHostStaysWithTheFighters();

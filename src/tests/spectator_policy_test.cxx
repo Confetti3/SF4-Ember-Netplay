@@ -196,13 +196,18 @@ int main() {
 		// elsewhere waits until P1's sync window has passed, then sits the game
 		// out; a fighter keeps waiting, and anyone at the menu enters.
 		using Step = SpectatorPolicy::EntryStep;
-		CHECK(SpectatorPolicy::EntryGate(true, true, 0) == Step::Enter);
-		CHECK(SpectatorPolicy::EntryGate(true, false, SpectatorPolicy::SyncDeadlineMs * 10) == Step::Enter);
-		CHECK(SpectatorPolicy::EntryGate(false, true, 0) == Step::Wait);
-		CHECK(SpectatorPolicy::EntryGate(false, true, SpectatorPolicy::SyncDeadlineMs - 1) == Step::Wait);
-		CHECK(SpectatorPolicy::EntryGate(false, true, SpectatorPolicy::SyncDeadlineMs) == Step::SitOut);
-		CHECK(SpectatorPolicy::EntryGate(false, false, 0) == Step::Wait);
-		CHECK(SpectatorPolicy::EntryGate(false, false, SpectatorPolicy::SyncDeadlineMs * 10) == Step::Wait);
+		const auto open = SpectatorPolicy::SyncDeadlineMs, bound = SpectatorPolicy::BoundSyncDeadlineMs;
+		CHECK(SpectatorPolicy::EntryGate(true, true, 0, open) == Step::Enter);
+		CHECK(SpectatorPolicy::EntryGate(true, false, open * 10, open) == Step::Enter);
+		CHECK(SpectatorPolicy::EntryGate(false, true, 0, open) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, true, open - 1, open) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, true, open, open) == Step::SitOut);
+		CHECK(SpectatorPolicy::EntryGate(false, false, 0, open) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, false, open * 10, open) == Step::Wait);
+		// At a tournament match's bound table the watcher gives up when P1 does.
+		CHECK(SpectatorPolicy::EntryGate(false, true, bound - 1, SpectatorPolicy::SyncDeadlineFor(true)) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, true, bound, SpectatorPolicy::SyncDeadlineFor(true)) == Step::SitOut);
+		CHECK(SpectatorPolicy::EntryGate(false, true, bound, SpectatorPolicy::SyncDeadlineFor(false)) == Step::Wait);
 	}
 	{
 		// A spectator client's own link: the stream ends once, exactly

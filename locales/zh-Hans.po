@@ -3341,6 +3341,12 @@ msgstr "观战操作发送失败，正在重试。"
 msgid "runtime.return_main_menu"
 msgstr "请返回游戏主菜单，再打开房间。"
 
+msgid "runtime.watching_match"
+msgstr "你正在观战一场赛事对局。请先在“赛事对局”中停止观战，再打开或加入其他房间。"
+
+msgid "runtime.watch_leave_room"
+msgstr "请先退出当前房间，再观战赛事对局。"
+
 msgid "runtime.tournament_result_saving"
 msgstr "正在保存上一局的结果。请几秒后再试。"
 
@@ -4309,6 +4315,9 @@ msgstr "玩家使用的 Ember 版本不同。观战需要相同版本。"
 
 msgid "tournament.watch.refused.unsupported"
 msgstr "此赛事服务不支持观战。"
+
+msgid "tournament.watch.refused.other_room"
+msgstr "你在另一个房间中，观战已停止。请退出该房间，然后重新观战。"
 
 msgid "tournament.watch.finished"
 msgstr "对局已结束。"

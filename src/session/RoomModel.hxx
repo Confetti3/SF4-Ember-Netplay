@@ -565,12 +565,6 @@ struct Action {
 	bool keepWatching = false;
 };
 
-// A spectator's leave of the one game whose stream or setup failed, which keeps
-// its place for later ones: the one watching action a bound watcher may take.
-inline bool LeavesGameOnly(const Action& action) {
-	return action.kind == ActionKind::Unwatch && action.matchGeneration != 0 && action.keepWatching;
-}
-
 struct Event {
 	enum class Kind : std::uint8_t {
 	SnapshotChanged = 0,
@@ -804,9 +798,10 @@ private:
 	// A change confined to a table's spectator lists: at a bound table only the
 	// room's revision moves, so a fighter's Ready is never made stale by one.
 	void TouchSpectators(Table& table);
-	// True for an action a bound watcher may not take, at any table: seating,
-	// watching, rules, lock-in and chat.
-	bool WatcherBarred(const Action& action, MemberId member) const;
+	// What a bound watcher may do, and nothing else: leave, acknowledge a game's
+	// end, and say it is in Training. A kind added later is refused to it until
+	// it is listed here.
+	static bool WatcherMay(ActionKind kind);
 	// Seats each bound fighter in its slot at table 0, unless a game is being
 	// started, played or resolved there.
 	void SeatBoundFighters();

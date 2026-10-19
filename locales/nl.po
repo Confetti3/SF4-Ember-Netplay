@@ -3340,6 +3340,12 @@ msgstr "Toeschouwersactie niet verzonden; nieuwe poging."
 msgid "runtime.return_main_menu"
 msgstr "Ga naar het spelhoofdmenu voordat je een kamer opent."
 
+msgid "runtime.watching_match"
+msgstr "Je kijkt naar een toernooiwedstrijd. Stop met kijken bij Toernooiwedstrijden voordat je een andere kamer opent of binnengaat."
+
+msgid "runtime.watch_leave_room"
+msgstr "Verlaat je kamer voordat je naar een toernooiwedstrijd gaat kijken."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Het resultaat van het laatste spel wordt opgeslagen. Probeer het over een paar seconden opnieuw."
 
@@ -4308,6 +4314,9 @@ msgstr "De spelers gebruiken een andere Ember-versie. Om te kijken is dezelfde n
 
 msgid "tournament.watch.refused.unsupported"
 msgstr "Deze toernooidienst ondersteunt kijken niet."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Het kijken is gestopt omdat je in een andere kamer zit. Verlaat die kamer en kijk daarna opnieuw naar de wedstrijd."
 
 msgid "tournament.watch.finished"
 msgstr "De wedstrijd is voorbij."

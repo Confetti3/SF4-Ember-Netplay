@@ -64,12 +64,21 @@ const char* KindName(Output::Kind kind) {
 	}
 }
 
-void SendRequest(const Output& output, std::uint64_t nowMs) {
-	const auto request = Request(output);
-	std::uint64_t id = 0;
+// Hands `request` to the helper, and says under which id its answer comes.
+bool SendToHelper(const json& request, std::uint64_t& id) {
 	std::string text;
 	try { text = request.dump(); } catch (const json::exception&) { text.clear(); }
-	if (!text.empty() && runtime->room && runtime->room->SendTournament(text, &id)) {
+	return !text.empty() && runtime->room && runtime->room->SendTournament(text, &id);
+}
+
+// Why a helper request failed, as the state machines are told.
+std::string FailureCode(const session::TournamentAnswer& answer) {
+	return answer.reason.empty() ? std::string("unavailable") : answer.reason;
+}
+
+void SendRequest(const Output& output, std::uint64_t nowMs) {
+	std::uint64_t id = 0;
+	if (SendToHelper(Request(output), id)) {
 		runtime->tournamentRequests[id] = {output.kind, output.generation};
 		return;
 	}
@@ -81,11 +90,8 @@ void SendRequest(const Output& output, std::uint64_t nowMs) {
 }
 
 void SendWatchRequest(const WatchOutput& output, std::uint64_t nowMs) {
-	const auto request = WatchRequest(output);
 	std::uint64_t id = 0;
-	std::string text;
-	try { text = request.dump(); } catch (const json::exception&) { text.clear(); }
-	if (!text.empty() && runtime->room && runtime->room->SendTournament(text, &id)) {
+	if (SendToHelper(WatchRequest(output), id)) {
 		runtime->watchRequests[id] = output.kind;
 		return;
 	}
@@ -198,7 +204,7 @@ bool TakeWatchAnswer(const session::TournamentAnswer& answer, std::uint64_t nowM
 	if (kind != WatchOutput::Kind::Watch) return true;
 	auto& watch = runtime->watch;
 	if (!answer.ok) {
-		const auto code = answer.reason.empty() ? std::string("unavailable") : answer.reason;
+		const auto code = FailureCode(answer);
 		spdlog::info("Watch: refused: {}", code);
 		watch.OnFailure(code, nowMs);
 	} else if (const auto reply = session::DecodeWatchReply(answer.data)) {
@@ -219,7 +225,7 @@ void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	runtime->tournamentRequests.erase(found);
 	auto& play = runtime->tournament;
 	if (!answer.ok) {
-		const auto code = answer.reason.empty() ? std::string("unavailable") : answer.reason;
+		const auto code = FailureCode(answer);
 		spdlog::info("Tournament: {} refused: {}", KindName(kind), code);
 		if (kind == Output::Kind::Report) play.OnReportFailed(generation, code, nowMs);
 		else play.OnFailure(kind, code, nowMs);
@@ -339,7 +345,12 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 	case Op::Watch: {
 		if (command.bridgeId.empty() || command.matchId.empty() ||
 			netplay::tournament::HoldsMatchRoom(play.GetPhase(), runtime->watch.GetPhase())) return;
-		if (!helperReady || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) {
+		// A watch acts only on the match's room, so it starts from no room at all.
+		if (runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) {
+			runtime->error = loc::T("runtime.watch_leave_room");
+			return;
+		}
+		if (!helperReady) {
 			runtime->error = loc::T("runtime.return_main_menu");
 			return;
 		}
@@ -385,12 +396,7 @@ void TickTournament(bool helperReady) {
 	const auto before = runtime->tournament.GetPhase();
 	const auto view = View(helperReady);
 	for (const auto& output : runtime->tournament.Tick(now, view)) Execute(output, now);
-	netplay::tournament::WatchRoomView watched;
-	watched.joined = view.joined;
-	watched.opening = view.opening;
-	watched.roomId = view.roomId;
-	watched.fighting = view.fighting;
-	for (const auto& output : runtime->watch.Tick(now, watched)) ExecuteWatch(output, now);
+	for (const auto& output : runtime->watch.Tick(now, view)) ExecuteWatch(output, now);
 	const auto after = runtime->tournament.GetPhase();
 	if (after != before && (after == netplay::tournament::Phase::Finished || after == netplay::tournament::Phase::Failed))
 		spdlog::info("Tournament: match {} ended: {}", runtime->tournament.MatchId(), runtime->tournament.Reason());

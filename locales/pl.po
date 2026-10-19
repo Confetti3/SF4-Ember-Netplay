@@ -3340,6 +3340,12 @@ msgstr "Nie udało się wysłać działania widza; ponawianie próby."
 msgid "runtime.return_main_menu"
 msgstr "Wróć do menu głównego gry przed otwarciem pokoju."
 
+msgid "runtime.watching_match"
+msgstr "Oglądasz mecz turniejowy. Przed otwarciem innego pokoju lub dołączeniem do niego przestań oglądać w sekcji Mecze turniejowe."
+
+msgid "runtime.watch_leave_room"
+msgstr "Opuść swój pokój, zanim zaczniesz oglądać mecz turniejowy."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Zapisywanie wyniku ostatniej gry. Spróbuj ponownie za kilka sekund."
 
@@ -4280,7 +4286,7 @@ msgid "tournament.watch.untrusted_bridge"
 msgstr "Serwis turniejowy tego meczu nie jest jeszcze zaufany. Dodaj go w sekcji Powiązane konta."
 
 msgid "tournament.watch.state.asking"
-msgstr "Pytanie serwisu turniejowego."
+msgstr "Łączenie z serwisem turniejowym."
 
 msgid "tournament.watch.state.waiting_room"
 msgstr "Czekanie, aż gracze otworzą pokój meczu."
@@ -4308,6 +4314,9 @@ msgstr "Gracze mają inną wersję Ember. Oglądanie wymaga tej samej."
 
 msgid "tournament.watch.refused.unsupported"
 msgstr "Ten serwis turniejowy nie umożliwia oglądania."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Oglądanie zakończyło się, bo jesteś w innym pokoju. Opuść go i obejrzyj mecz ponownie."
 
 msgid "tournament.watch.finished"
 msgstr "Mecz się zakończył."

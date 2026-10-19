@@ -9,6 +9,9 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
+
+#include <zlib.h>
 
 #include "server_transport_support.hxx"
 
@@ -26,14 +29,26 @@ static std::string Endpoint(session::Connection connection) {
 	return std::string(64, "0abcedf123456789"[static_cast<std::size_t>(connection) % 16]);
 }
 
+// A checkpoint append as the helper compresses it (coordination.rs, Compression::fast()).
+static std::size_t FastZlibSize(const std::string& text) {
+	uLongf size = compressBound(static_cast<uLong>(text.size()));
+	std::vector<Bytef> out(size);
+	CHECK(compress2(out.data(), &size, reinterpret_cast<const Bytef*>(text.data()), static_cast<uLong>(text.size()), Z_BEST_SPEED) == Z_OK);
+	return size;
+}
+
 // A writable server leading a room whose two fighters are connections 1 and 2;
 // watchers join as connections 3 and up. Every change is committed.
 struct WatchRoom {
 	MockTransport* transport = new MockTransport();
 	SessionServer server{"tournament", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
 	const std::uint64_t term = 3;
-	std::uint64_t request = 1, revision = 0;
+	std::uint64_t request = 1, revision = 0, actionId = 0;
 	std::shared_ptr<const session::SessionProposal> committed;
+	// What the leader has appended so far: the commits, and the bytes of each
+	// proposal as it is and as the helper sends it (zlib, fastest level).
+	std::uint64_t commits = 0;
+	std::size_t rawBytes = 0, wireBytes = 0;
 
 	WatchRoom() {
 		std::array<std::uint8_t, 16> roomId = {};
@@ -48,6 +63,10 @@ struct WatchRoom {
 		CHECK(server.HasRecoveryCandidate());
 		CHECK(server.ProposeCheckpoint(request, term, revision, nullptr));
 		committed = server.PendingProposal();
+		const auto text = json(*committed).dump();
+		++commits;
+		rawBytes += text.size();
+		wireBytes += FastZlibSize(text);
 		CHECK(server.ApplyCommit(request, term, revision + 1, committed->checkpoint, committed->effectsDigest));
 		++request; ++revision;
 	}
@@ -82,6 +101,51 @@ struct WatchRoom {
 		for (std::size_t i = 0; i < watchers; ++i) Admit(static_cast<session::Connection>(3 + i), "Watcher " + std::to_string(i + 1), true);
 	}
 	const room::Snapshot& Snapshot() const { return *server.RoomSnapshot(); }
+	const room::Table& Table() const { return server._roomAuthority->SnapshotView().tables[room::TournamentTable]; }
+	// A room action from a member's connection, committed when it changes the room.
+	void Act(session::Connection by, room::ActionKind kind, std::uint64_t generation, room::MatchResult result = room::MatchResult::Abort) {
+		const auto& snapshot = server._roomAuthority->SnapshotView();
+		room::Action action;
+		action.kind = kind; action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
+		action.table = room::TournamentTable; action.tableRevision = snapshot.tables[room::TournamentTable].revision;
+		action.actionId = ++actionId;
+		action.matchGeneration = generation;
+		action.text = "per_one";
+		action.startWindowMs = room::PermitStartMs;
+		action.result = result;
+		protocol::RoomActionMessage message; message.action = action;
+		transport->Push(by, json(message));
+		CHECK(server.Step() == 0);
+		if (server.HasRecoveryCandidate()) Commit();
+	}
+	// Every member's connection says `type` of the game being set up; whatever it leads to is committed.
+	void Acknowledge(const char* type, std::uint64_t generation, std::size_t members) {
+		for (session::Connection connection = 1; connection <= members; ++connection) {
+			transport->Push(connection, json{{"type", type}, {"generation", generation}});
+			CHECK(server.Step() == 0);
+			if (server.HasRecoveryCandidate()) Commit();
+		}
+	}
+	// One game, from the fighters' Ready to every recipient's acknowledgment of
+	// its end: the room's whole traffic between two games. The members are the
+	// connections 1 to `members`, the fighters first.
+	void PlayOneGame(std::size_t members) {
+		server.AdvanceCustomRoom(1000);
+		Act(1, room::ActionKind::Ready, 0);
+		Act(2, room::ActionKind::Ready, 0);
+		const auto generation = Table().permitGeneration;
+		CHECK(generation != 0);
+		Act(1, room::ActionKind::PermitReady, generation);
+		Act(2, room::ActionKind::PermitReady, generation);
+		Acknowledge("game_prepared", generation, members);
+		Acknowledge("game_ready", generation, members);
+		CHECK(Table().phase == room::TablePhase::Playing && Table().matchGeneration == generation);
+		Act(1, room::ActionKind::RecordResult, generation, room::MatchResult::P1Win);
+		Act(2, room::ActionKind::RecordResult, generation, room::MatchResult::P1Win);
+		CHECK(Table().phase != room::TablePhase::Playing);
+		for (session::Connection connection = 1; connection <= members; ++connection)
+			Act(connection, room::ActionKind::AcknowledgeTerminal, generation);
+	}
 	std::size_t SentTo(session::Connection connection, const char* type) const {
 		std::size_t count = 0;
 		for (const auto& sent : transport->outgoing)
@@ -187,22 +251,74 @@ static void TestRevokedWatcherIsSentAway() {
 	CHECK(room.SentTo(1, "room_snapshot") > 0);
 }
 
-// What the leader commits grows with each watcher: the raw proposal at 0, 4
-// and 8 watchers, and the commits it took to open the room. The helper
-// compresses it (zlib, coordination.rs), so its own test measures the wire
-// bytes; this is the input the helper replicates to each watcher.
-static void TestProposalSizeByWatchers() {
-	std::size_t sizes[3] = {};
-	const std::size_t counts[3] = {0, 4, 8};
-	for (int i = 0; i < 3; ++i) {
-		WatchRoom room;
-		room.BindAndWatch(counts[i]);
-		const auto before = room.revision;
-		sizes[i] = json(*room.committed).dump().size();
-		std::printf("watch measurement: %zu watchers, proposal %zu bytes, %llu commits to open the room\n",
-			counts[i], sizes[i], static_cast<unsigned long long>(before));
+// What the leader commits grows with each watcher: every append carries the
+// whole checkpoint, and every watcher is a learner of it. This measures, for 0
+// to 8 watchers, the commits and bytes that open the room, and the commits and
+// bytes of one game from Ready to the last acknowledgment of its end. The bytes
+// are the helper's wire form of each append (zlib, fastest level), so the
+// leader's upload is that times the learners (the other fighter and each
+// watcher). MATCH_WATCH.md section 6.6 records the numbers. The limits are the
+// measured values with a margin: a change that makes the traffic or the append
+// larger fails here, to be looked at, not raised without a reason.
+struct Cost {
+	std::size_t watchers = 0;
+	// Opening the room: the last append raw and on the wire, the commits, and all their wire bytes.
+	std::size_t openRaw = 0, openWire = 0, openTotalWire = 0;
+	std::uint64_t openCommits = 0;
+	// One game on top of it.
+	std::uint64_t gameCommits = 0;
+	std::size_t gameWire = 0;
+};
+// Measured (section 6.6). The counts are the measured ones: they are structural
+// (one commit to admit each watcher, three more per watcher for each game), so
+// one more is a change to look at. The bytes are the measured ones plus a quarter,
+// rounded up.
+// watchers, open: last append, on the wire, all on the wire, commits; game: commits, on the wire
+static const Cost Limits[] = {
+	{0, 39000, 4000, 9500, 3, 12, 110500},
+	{2, 96500, 7500, 22500, 5, 18, 327000},
+	{4, 204500, 13500, 46000, 7, 24, 555000},
+	{6, 378000, 22500, 86500, 9, 30, 717500},
+	{8, 476500, 26500, 140000, 11, 36, 887000},
+};
+
+static Cost Measure(std::size_t watchers) {
+	WatchRoom room;
+	room.BindAndWatch(watchers);
+	CHECK(room.Snapshot().members.size() == 2 + watchers);
+	Cost cost;
+	cost.watchers = watchers;
+	const auto text = json(*room.committed).dump();
+	cost.openRaw = text.size();
+	cost.openWire = FastZlibSize(text);
+	cost.openCommits = room.commits;
+	cost.openTotalWire = room.wireBytes;
+	const auto commitsBefore = room.commits;
+	const auto wireBefore = room.wireBytes;
+	room.PlayOneGame(2 + watchers);
+	cost.gameCommits = room.commits - commitsBefore;
+	cost.gameWire = room.wireBytes - wireBefore;
+	return cost;
+}
+
+static void TestTrafficByWatchers() {
+	std::vector<Cost> costs;
+	for (const auto& limit : Limits) {
+		costs.push_back(Measure(limit.watchers));
+		const auto& cost = costs.back();
+		std::printf("watch measurement: %zu watchers: room open %llu commits, last append %zu bytes (%zu on the wire), %zu on the wire in all; "
+			"one game %llu commits, %zu bytes on the wire\n",
+			cost.watchers, static_cast<unsigned long long>(cost.openCommits), cost.openRaw, cost.openWire, cost.openTotalWire,
+			static_cast<unsigned long long>(cost.gameCommits), cost.gameWire);
 	}
-	CHECK(sizes[0] < sizes[1] && sizes[1] < sizes[2]);
+	for (std::size_t i = 0; i < costs.size(); ++i) {
+		const auto& cost = costs[i];
+		const auto& limit = Limits[i];
+		CHECK(cost.openRaw <= limit.openRaw && cost.openWire <= limit.openWire && cost.openTotalWire <= limit.openTotalWire);
+		CHECK(cost.openCommits <= limit.openCommits && cost.gameCommits <= limit.gameCommits && cost.gameWire <= limit.gameWire);
+		// More watchers never cost less.
+		if (i) CHECK(cost.openRaw >= costs[i - 1].openRaw && cost.openCommits >= costs[i - 1].openCommits && cost.gameWire >= costs[i - 1].gameWire);
+	}
 }
 
 int main() {
@@ -210,7 +326,7 @@ int main() {
 	TestWatchersJoinAsObservers();
 	TestObserverFlagOnTheWire();
 	TestRevokedWatcherIsSentAway();
-	TestProposalSizeByWatchers();
+	TestTrafficByWatchers();
 	std::printf("session server watch tests passed\n");
 	return 0;
 }

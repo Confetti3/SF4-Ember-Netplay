@@ -305,7 +305,7 @@ namespace sf4e {
 				static int DisconnectCountdownMs();
 				// `spectatorSyncDeadlineMs`: how long the fighters wait for a spectator to synchronize.
 				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay,
-					std::uint64_t spectatorSyncDeadlineMs = sf4e::SpectatorPolicy::SyncDeadlineMs);
+					std::uint64_t spectatorSyncDeadlineMs);
 				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port);
 				static bool ggpo_on_event_callback(GGPOEvent* info);
 				static bool ggpo_begin_game_callback(const char*);

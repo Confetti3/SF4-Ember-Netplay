@@ -326,6 +326,14 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		(!helperReady || !AtMainMenu() || UserApp::netplay || UserApp::server || Game::Battle::System::ggpo)) {
 		runtime->error = loc::T("runtime.return_main_menu"); return DispatchOutcome::Dropped;
 	}
+	// Watching a match waits for the match's room and acts only on that one. A
+	// room opened or joined by hand meanwhile is the player's own, and is left
+	// alone: the player stops watching first. The watch's own join, and a Discord
+	// invitation (which stops the watch before it is submitted), pass.
+	if ((kind == netplay::CommandKind::HostRoom || kind == netplay::CommandKind::JoinInvite) &&
+		attempt != Attempt::Tournament && runtime->watch.Active()) {
+		runtime->error = loc::T("runtime.watching_match"); return DispatchOutcome::Dropped;
+	}
 	if (kind == netplay::CommandKind::ReplaceRoom && !CanBeginReplacement()) return DispatchOutcome::Dropped;
 	// Leaving the room by hand stops the tournament match too, or it would
 	// only open the room again.

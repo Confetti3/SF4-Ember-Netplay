@@ -31,8 +31,8 @@ static WatchReply Waiting(const std::string& reason, std::uint64_t retryAfterMs 
 	return reply;
 }
 
-static WatchRoomView Joined(const std::string& roomId) {
-	WatchRoomView view;
+static RoomView Joined(const std::string& roomId) {
+	RoomView view;
 	view.joined = true;
 	view.roomId = roomId;
 	return view;
@@ -44,14 +44,8 @@ static std::size_t Count(const std::vector<WatchOutput>& outputs, Kind kind) {
 	return count;
 }
 
-// Outputs seen over a scenario, to show a watcher asks and joins and leaves, and nothing else.
-static std::size_t outputsSeen = 0;
-static std::vector<WatchOutput> Tick(WatchPlay& play, std::uint64_t nowMs, const WatchRoomView& view = {}) {
-	auto outputs = play.Tick(nowMs, view);
-	for (const auto& output : outputs)
-		CHECK(output.kind == Kind::Watch || output.kind == Kind::Unwatch || output.kind == Kind::Join || output.kind == Kind::Leave);
-	outputsSeen += outputs.size();
-	return outputs;
+static std::vector<WatchOutput> Tick(WatchPlay& play, std::uint64_t nowMs, const RoomView& view = {}) {
+	return play.Tick(nowMs, view);
 }
 
 // It asks at once, and again only after the answer, every ten seconds or when
@@ -95,7 +89,7 @@ static void TestJoiningTheRoom() {
 	auto outputs = Tick(play, 20);
 	CHECK(Count(outputs, Kind::Join) == 1 && outputs[0].invitation == "sf4e3:" + RoomA);
 	CHECK(play.GetPhase() == WatchPhase::Joining);
-	WatchRoomView opening;
+	RoomView opening;
 	opening.opening = true;
 	CHECK(Count(Tick(play, 30, opening), Kind::Join) == 0 && Count(Tick(play, 9000, opening), Kind::Join) == 0);
 	CHECK(Tick(play, 9500, Joined(RoomA)).empty() && play.GetPhase() == WatchPhase::Watching);
@@ -321,6 +315,90 @@ static void TestRestart() {
 	CHECK(outputs.size() == 1 && outputs[0].kind == Kind::Watch);
 }
 
+// A room the player opened or joined by hand is not the match's. Whatever the
+// bridge answers, and however the watch ends, it is not left, joined over or
+// taken for the match's room; the watch ends and says why.
+static const std::string HandRoom(32, 'c');
+
+static RoomView Opening() {
+	RoomView view;
+	view.opening = true;
+	return view;
+}
+
+static void TestNeverActsOnAForeignRoom() {
+	// The sequence that tore a hand-made room down: a watch waits (no room yet),
+	// the player hosts a room of their own, and the bridge then names the match's.
+	WatchPlay play;
+	play.Start("brg_1", "emt_1", 0);
+	Tick(play, 0);
+	play.OnReply(Waiting("no_room"), 10);
+	CHECK(play.GetPhase() == WatchPhase::Waiting);
+	CHECK(Tick(play, 20, Opening()).empty());
+	// The room opens with guests in it. Nothing is said to the runtime but the bridge, once.
+	auto outputs = Tick(play, 30, Joined(HandRoom));
+	CHECK(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0 && Count(outputs, Kind::Unwatch) == 1);
+	CHECK(play.GetPhase() == WatchPhase::Refused && play.Reason() == "other_room" && !play.Active());
+	// A late answer does not bring it back, and the room is never left.
+	play.OnReply(Room(RoomA), 40);
+	for (std::uint64_t now = 50; now < 200000; now += 5000) {
+		outputs = Tick(play, now, Joined(HandRoom));
+		CHECK(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0 && Count(outputs, Kind::Watch) == 0);
+	}
+	// The same when the answer names the room before the hand-made one is seen.
+	WatchPlay answered;
+	answered.Start("brg_1", "emt_1", 0);
+	Tick(answered, 0);
+	answered.OnReply(Room(RoomA), 10);
+	outputs = Tick(answered, 15, Joined(HandRoom));
+	CHECK(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0 && answered.GetPhase() == WatchPhase::Refused);
+	CHECK(Tick(answered, 20, Joined(HandRoom)).empty());
+	// Stopping a watch that is waiting, or has a room named but not joined, leaves nothing of the player's.
+	for (const bool named : {false, true}) {
+		WatchPlay stopped;
+		stopped.Start("brg_1", "emt_1", 0);
+		Tick(stopped, 0);
+		stopped.OnReply(named ? Room(RoomA) : Waiting("not_bound"), 10);
+		stopped.Stop();
+		outputs = Tick(stopped, 20, Joined(HandRoom));
+		CHECK(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0);
+		CHECK(Tick(stopped, 30, Joined(HandRoom)).empty());
+	}
+	// A watch that ended by itself (revoked while it waited to retry a join) leaves nothing either.
+	WatchPlay revoked;
+	revoked.Start("brg_1", "emt_1", 0);
+	Tick(revoked, 0);
+	revoked.OnReply(Room(RoomA), 10);
+	CHECK(Count(Tick(revoked, 20), Kind::Join) == 1);
+	revoked.OnFailure("revoked", 30);
+	CHECK(Count(Tick(revoked, 40, Joined(HandRoom)), Kind::Leave) == 0);
+	// What it did join it still leaves: stopped in the match's room, stopped while its join is
+	// under way, and the match's old room once the bridge names another.
+	WatchPlay own;
+	own.Start("brg_1", "emt_1", 0);
+	Tick(own, 0);
+	own.OnReply(Room(RoomA), 10);
+	Tick(own, 20);
+	Tick(own, 30, Joined(RoomA));
+	own.Stop();
+	CHECK(Count(Tick(own, 40, Joined(RoomA)), Kind::Leave) == 1);
+	WatchPlay joining;
+	joining.Start("brg_1", "emt_1", 0);
+	Tick(joining, 0);
+	joining.OnReply(Room(RoomA), 10);
+	Tick(joining, 20);
+	joining.Stop();
+	CHECK(Count(Tick(joining, 30, Opening()), Kind::Leave) == 1);
+	// A join long abandoned (the handshake closed, the retry not yet due) is not one under way.
+	WatchPlay stale;
+	stale.Start("brg_1", "emt_1", 0);
+	Tick(stale, 0);
+	stale.OnReply(Room(RoomA), 10);
+	Tick(stale, 20);
+	stale.Stop();
+	CHECK(Count(Tick(stale, 20 + WatchIntervalMs, Opening()), Kind::Leave) == 0);
+}
+
 int main() {
 	TestAsking();
 	TestJoiningTheRoom();
@@ -332,7 +410,7 @@ int main() {
 	TestFailures();
 	TestFinished();
 	TestRestart();
-	CHECK(outputsSeen > 20);
+	TestNeverActsOnAForeignRoom();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("watch play tests passed\n");
 	return failures ? 1 : 0;

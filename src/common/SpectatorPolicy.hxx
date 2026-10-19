@@ -73,14 +73,14 @@ public:
 	static constexpr std::uint64_t StreamSyncTimeoutMs = 30000;
 
 	// A player enters a started match only from the main menu. A spectator that
-	// is elsewhere (Training, Options) for SyncDeadlineMs has missed the window
-	// in which P1 waits for it, and sits that game out instead of entering a
-	// stream P1 dropped. A fighter keeps waiting: its opponent's GGPO
-	// disconnect tolerance bounds that.
+	// is elsewhere (Training, Options) for `deadlineMs` (SyncDeadlineFor, the
+	// same one P1 waits by) has missed the window in which P1 waits for it, and
+	// sits that game out instead of entering a stream P1 dropped. A fighter
+	// keeps waiting: its opponent's GGPO disconnect tolerance bounds that.
 	enum class EntryStep { Enter, Wait, SitOut };
-	static EntryStep EntryGate(bool atMainMenu, bool spectator, std::uint64_t waitedMs) {
+	static EntryStep EntryGate(bool atMainMenu, bool spectator, std::uint64_t waitedMs, std::uint64_t deadlineMs) {
 		if (atMainMenu) return EntryStep::Enter;
-		return spectator && waitedMs >= SyncDeadlineMs ? EntryStep::SitOut : EntryStep::Wait;
+		return spectator && waitedMs >= deadlineMs ? EntryStep::SitOut : EntryStep::Wait;
 	}
 
 	void Start(std::uint64_t nowMs, const std::vector<int>& spectators, std::uint64_t syncDeadlineMs = SyncDeadlineMs) {

@@ -28,6 +28,10 @@ int main() {
     // A tournament match's room, played or watched, is never offered to friends.
     in.matchRoom=true; CHECK(discord::Describe(in).secret.empty() && discord::Describe(in).activity=="Ready"); in.matchRoom=false;
     CHECK(discord::Describe(in).secret==in.secret);
+    // Nor is a room whose snapshot is bound, even where the runtime did not take part in the match.
+    in.room.tournament.matchId="emt_1";
+    CHECK(in.room.tournament.Active() && discord::Describe(in).secret.empty() && discord::Describe(in).activity=="Ready");
+    in.room.tournament=room::TournamentBinding{}; CHECK(discord::Describe(in).secret==in.secret);
     in.show=false; CHECK(!discord::Describe(in).show && discord::Describe(in).party.empty()); in.show=true;
     in.now=200; CHECK(discord::Describe(in).secret.empty()); in.now=100;
     in.session.control=netplay::Health::Lost; CHECK(discord::Describe(in).secret.empty());

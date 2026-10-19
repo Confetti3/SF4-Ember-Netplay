@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "../session/RoomModel.hxx"
+#include "TournamentPlay.hxx"
 
 // Watching one bridge-run tournament match (match watch, spec 14.6), as a pure
 // state machine the runtime ticks beside TournamentPlay. It asks the bridge
@@ -12,8 +12,10 @@
 // watches (that keeps the watcher live on the bridge, and picks up a replaced
 // room or a revocation), and leaves when told to or when the match is over.
 // It only ever watches: it never hosts, publishes, binds, prepares or reports,
-// so its outputs are the four below and nothing else. The runtime turns each
-// Output into the real call and feeds every answer back.
+// so its outputs are the four below and nothing else. It also acts only on the
+// room it joined for the match: a room the player is in for another reason is
+// never left, joined over or hidden by it. The runtime turns each Output into
+// the real call and feeds every answer back.
 namespace sf4e { namespace netplay { namespace tournament {
 
 // How often a watcher asks the bridge, and how long it waits before joining a
@@ -39,16 +41,6 @@ struct WatchOutput {
 		Join, Leave,     // room commands: join as an observer, leave
 	} kind = Kind::Watch;
 	std::string invitation;  // Join
-};
-
-// The room as the runtime sees it this tick.
-struct WatchRoomView {
-	// In an open room. `opening` while a join is under way.
-	bool joined = false;
-	bool opening = false;
-	std::string roomId;
-	// A game is being prepared or played on this PC (netplay::Fighting).
-	bool fighting = false;
 };
 
 enum class WatchPhase { Idle, Asking, Waiting, Joining, Watching, Finished, Refused };
@@ -77,7 +69,7 @@ public:
 	// Gives the watch up for a reason outside it (the helper is gone): Refused
 	// with `reason`. Nothing when it is not under way.
 	void Abandon(const std::string& reason);
-	std::vector<WatchOutput> Tick(std::uint64_t nowMs, const WatchRoomView& room);
+	std::vector<WatchOutput> Tick(std::uint64_t nowMs, const RoomView& room);
 
 	// The answer to a Watch.
 	void OnReply(const WatchReply& reply, std::uint64_t nowMs);
@@ -104,7 +96,10 @@ public:
 
 private:
 	void End(WatchPhase phase, const std::string& reason, WatchNotice notice);
-	void Follow(std::uint64_t nowMs, const WatchRoomView& room, std::vector<WatchOutput>& out);
+	void Follow(std::uint64_t nowMs, const RoomView& room, std::vector<WatchOutput>& out);
+	void ReleaseRoom(std::uint64_t nowMs, const RoomView& room, std::vector<WatchOutput>& out);
+	// The room the player is in, or is opening, is one this watch joined.
+	bool HoldsOwnRoom(std::uint64_t nowMs, const RoomView& room) const;
 	void Say(WatchNotice notice);
 
 	WatchPhase phase_ = WatchPhase::Idle;
@@ -117,6 +112,12 @@ private:
 	// The room the bridge names for the match.
 	std::string targetRoom_, targetInvitation_;
 	bool joinRequested_ = false, leaving_ = false;
+	// Every room this watch asked to join or was seen in as the match's: the
+	// only rooms it leaves. A room the player opened or joined by hand is not
+	// among them.
+	std::vector<std::string> ownRooms_;
+	// The watch ended: leave the room it joined, once the next tick shows it.
+	bool leaveWanted_ = false;
 	// A finished match's room is left once its last game's battle has closed
 	// by itself, bounded as TournamentPlay's is (FinalBattleHoldMs).
 	bool leaveHeld_ = false;

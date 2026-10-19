@@ -3340,6 +3340,12 @@ msgstr "Impossible d'envoyer l'action spectateur ; nouvelle tentative."
 msgid "runtime.return_main_menu"
 msgstr "Revenez au menu principal du jeu avant d'ouvrir un salon."
 
+msgid "runtime.watching_match"
+msgstr "Vous regardez un match du tournoi. Arrêtez de regarder dans Matchs du tournoi avant d'ouvrir un autre salon ou d'en rejoindre un."
+
+msgid "runtime.watch_leave_room"
+msgstr "Quittez votre salon avant de regarder un match du tournoi."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Enregistrement du résultat de la dernière partie. Réessayez dans quelques secondes."
 
@@ -4308,6 +4314,9 @@ msgstr "Les joueurs utilisent une autre version d'Ember. Pour regarder, il faut 
 
 msgid "tournament.watch.refused.unsupported"
 msgstr "Ce service de tournoi ne permet pas de regarder les matchs."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Vous ne regardez plus le match, car vous êtes dans un autre salon. Quittez-le, puis regardez de nouveau le match."
 
 msgid "tournament.watch.finished"
 msgstr "Le match est terminé."

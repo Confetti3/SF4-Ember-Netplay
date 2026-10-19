@@ -3341,6 +3341,12 @@ msgstr "No se pudo enviar la acción de espectador; reintentando."
 msgid "runtime.return_main_menu"
 msgstr "Vuelve al menú principal del juego antes de abrir una sala."
 
+msgid "runtime.watching_match"
+msgstr "Estás viendo una partida del torneo. Deja de ver la partida en Partidas del torneo antes de abrir otra sala o unirte a una."
+
+msgid "runtime.watch_leave_room"
+msgstr "Sal de tu sala antes de ver una partida del torneo."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Guardando el resultado de la última partida. Vuelve a intentarlo en unos segundos."
 
@@ -4310,11 +4316,14 @@ msgstr "Los jugadores usan otra versión de Ember. Para ver la partida hace falt
 msgid "tournament.watch.refused.unsupported"
 msgstr "Este servicio de torneos no ofrece ver partidas."
 
+msgid "tournament.watch.refused.other_room"
+msgstr "Has dejado de ver la partida porque estás en otra sala. Sal de ella y vuelve a ver la partida."
+
 msgid "tournament.watch.finished"
-msgstr "La partida terminó."
+msgstr "La partida ha terminado."
 
 msgid "tournament.watch.finished_notice"
-msgstr "La partida que veías terminó."
+msgstr "La partida que veías ha terminado."
 
 msgid "tournament.watch.removed_notice"
 msgstr "Has dejado de ver la partida: el organizador te ha quitado."

@@ -185,8 +185,8 @@ bool IdentityPanel::Answered(const ShellView& v) const {
 }
 bool IdentityPanel::Busy(const ShellView&) const { return sent_ != 0 || !queue_.empty(); }
 
-void IdentityPanel::Say(std::string text, bool error, double seconds) {
-    message_ = std::move(text); messageError_ = error; messageUntil_ = now_ + seconds;
+void IdentityPanel::Say(std::string text, bool error, double seconds, bool neutral) {
+    message_ = std::move(text); messageError_ = error; messageNeutral_ = neutral; messageUntil_ = now_ + seconds;
 }
 
 void IdentityPanel::Queue(IdentityRequest request, bool lookUp, std::string account, AccountReads reads) {
@@ -504,7 +504,7 @@ void IdentityPanel::ReadIfFirstUse(const ShellView& v, const std::string& bridge
 }
 
 bool IdentityPanel::Status(std::string& status, Tone& tone, double now) const {
-    if (!message_.empty() && now < messageUntil_) { status = message_; tone = messageError_ ? Tone::Error : Tone::Success; return true; }
+    if (!message_.empty() && now < messageUntil_) { status = message_; tone = messageError_ ? Tone::Error : messageNeutral_ ? Tone::Neutral : Tone::Success; return true; }
     // The account is read again while the player approves in the browser.
     if (signIn_ && WaitingOn(signIn_->target, signIn_->bridge) && ShowsWait(lastScreen_) && queue_.empty() &&
         (!sent_ || sentOp_ == netplay::SignInRequest(signIn_->target.source, SignInStep::Status))) {

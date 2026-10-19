@@ -10,6 +10,9 @@
 namespace sf4e { namespace room {
 using namespace detail;
 
+// The two fighters and every watcher a binding can name always fit in a room.
+static_assert(2 + MaxWatchers <= MaximumMembers, "a bound room must hold its fighters and all its watchers");
+
 namespace {
 bool IsLowerHex(const std::string& text, std::size_t length) {
 	return text.size() == length && std::all_of(text.begin(), text.end(),
@@ -264,11 +267,12 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 			current.watchers == binding.watchers) return Accept();
 	}
 	const bool starting = !current.Active();
-	// Table 0's revision moves only for a change to the set itself. A bind that
-	// only adds, drops or revokes watchers touches the room alone, so it never
-	// makes a fighter's Ready stale.
+	// Table 0's revision moves only for a change to the set itself, an organizer's
+	// reassignment included. A bind that only adds, drops or revokes watchers
+	// touches the room alone, so it never makes a fighter's Ready stale.
 	const bool setChanged = starting || current.fighters != binding.fighters ||
-		current.gamesToWin != binding.gamesToWin || current.startingWins != binding.startingWins;
+		current.gamesToWin != binding.gamesToWin || current.startingWins != binding.startingWins ||
+		current.assignmentGeneration != binding.assignmentGeneration;
 	Table& table = snapshot_.tables[TournamentTable];
 	// A casual game still under way at the table is not the set's, so the
 	// first binding waits for it to end; the state machine offers it again.
@@ -308,10 +312,7 @@ RoomAuthority::BoundAdmission RoomAuthority::BoundJoin(const ConnectionRef& conn
 	return watcher || binding.SlotOf(connection.user) >= 0 ? BoundAdmission::Named : BoundAdmission::Stranger;
 }
 
-bool RoomAuthority::IsBoundWatcher(MemberId member) const {
-	const auto* item = Find(member);
-	return item && snapshot_.tournament.WatcherOf(item->connection.user);
-}
+bool RoomAuthority::IsBoundWatcher(MemberId member) const { return IsWatcher(snapshot_, member); }
 
 const Member* RoomAuthority::HostSuccessor(MemberId leaving) const {
 	const Member* successor = nullptr;
@@ -346,8 +347,11 @@ void RoomAuthority::NormalizeBoundWatchers() {
 		return std::find(list.begin(), list.end(), member) != list.end();
 	};
 	for (const auto& member : std::vector<Member>(snapshot_.members)) {
-		if (!snapshot_.tournament.WatcherOf(member.connection.user) ||
-			listed(table.spectators, member.id) || listed(table.watchingNext, member.id)) continue;
+		if (!snapshot_.tournament.WatcherOf(member.connection.user)) continue;
+		// A watcher never holds a start, whatever a modified client did before the
+		// bind: its lock-in ends here, and the start hold with it at the next step.
+		if (auto* item = Find(member.id)) item->spectatorLocked = false;
+		if (listed(table.spectators, member.id) || listed(table.watchingNext, member.id)) continue;
 		RemoveFromTable(member.id);
 		PlaceWatcher(member.id);
 	}
@@ -358,14 +362,12 @@ void RoomAuthority::TouchSpectators(Table& table) {
 	else Touch(table);
 }
 
-bool RoomAuthority::WatcherBarred(const Action& action, MemberId member) const {
-	// Seating and watching are refused at the bound table for everyone
-	// (seatingOrRules); a watcher takes them at no table, or it would give up
-	// the place it was put in. Leaving a game whose stream failed gives up nothing.
-	const auto kind = action.kind;
-	const bool barred = kind == ActionKind::LockSpectating || kind == ActionKind::Chat || kind == ActionKind::Queue ||
-		kind == ActionKind::Unqueue || kind == ActionKind::Watch || kind == ActionKind::Unwatch || kind == ActionKind::SetRules;
-	return barred && !LeavesGameOnly(action) && IsBoundWatcher(member);
+bool RoomAuthority::WatcherMay(ActionKind kind) {
+	// A watcher is put in its place at Join and keeps it: no seat, queue, watch
+	// choice, rules, lock-in or chat, and none of the host's powers (IsHost).
+	// The generation-scoped leave of a game whose stream failed is not one of
+	// these actions; it is taken for everyone before this list is asked.
+	return kind == ActionKind::Leave || kind == ActionKind::AcknowledgeTerminal || kind == ActionKind::SetTraining;
 }
 
 Result RoomAuthority::ApplyPermitReady(MemberId member, const Action& action, Table* table) {

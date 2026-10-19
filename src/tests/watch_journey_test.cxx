@@ -3,6 +3,8 @@
 // going and can stop it, a watcher in the match's room sees no seat chooser,
 // no chat box and no host powers, and nobody offers the match room's invitation.
 #include "identity_journey_support.hxx"
+#include "../ui/ChatTranscript.hxx"
+#include "../ui/RoomControls.hxx"
 #include "../ui/RoomFeedback.hxx"
 namespace {
 using namespace sf4e;
@@ -14,7 +16,9 @@ std::string Endpoint(char digit) { return std::string(64, digit); }
 
 // A player with an Ember ID and one trusted service, on the matches screen.
 struct Watching : Journey {
+ ui::Tone tone = ui::Tone::Success;
  Watching() {
+  SetMenuStatusProbe([this](const char* text, ui::Tone shown) { status = text; tone = shown; });
   view.identity.known = true;
   ready();
   view.identity.bridges = {{"brg_1", "https://bridge.example", "Example"}};
@@ -50,6 +54,7 @@ void WatchRow() {
  for (int i = 0; i < 4; ++i) h.answer();
  h.RefreshWithout();
  Check(h.status == loc::T("tournament.failure.not_yours"), "A match that is not the player's was not said");
+ Check(h.tone == ui::Tone::Neutral, "A match offered for watching was reported as an error");
  const auto* watch = h.row("tm-watch:emt_9");
  Check(watch && watch->enabled && watch->label == loc::T("tournament.watch.row") && watch->hint == loc::T("room.choice.watch"),
   "A match that is not the player's has no Watch row");
@@ -270,6 +275,19 @@ void WatcherRoom() {
   h.view.room.host = 3; h.view.room.members[0].host = false; h.view.room.members[2].host = true;
   h.Frame(0, 2);
   Check(h.row("room-admin") && !h.row("room-admin")->enabled, "A watcher holding the host field can change the room");
+  // Nor is it told it hosts when it leaves.
+  Check(room_controls::LeaveRoomDetail(h.view).find(loc::T("room.leave.host")) == std::string::npos, "A watcher holding the host field is warned it hosts the room");
+ }
+ {
+  // The chat does not announce a watcher that is left holding the host field.
+  Bound h(true);
+  ui::ChatTranscript transcript;
+  std::vector<ui::RoomNotice> notices;
+  transcript.Update(h.view.room, notices);
+  const auto lines = transcript.Lines().size();
+  h.view.room.host = 3; h.view.room.members[0].host = false; h.view.room.members[2].host = true;
+  transcript.Update(h.view.room, notices);
+  Check(transcript.Lines().size() == lines, "A watcher was announced as the new host");
  }
  {
   Bound h(false);

@@ -3341,6 +3341,12 @@ msgstr "관전 작업을 보내지 못해 다시 시도합니다."
 msgid "runtime.return_main_menu"
 msgstr "방을 열기 전에 게임의 메인 메뉴로 돌아가세요."
 
+msgid "runtime.watching_match"
+msgstr "대회 경기를 관전 중입니다. 다른 방을 열거나 참가하기 전에 '대회 경기'에서 관전을 중지하세요."
+
+msgid "runtime.watch_leave_room"
+msgstr "대회 경기를 관전하기 전에 현재 방에서 나가세요."
+
 msgid "runtime.tournament_result_saving"
 msgstr "지난 경기 결과를 저장하는 중입니다. 몇 초 후에 다시 시도하세요."
 
@@ -4299,7 +4305,7 @@ msgid "tournament.watch.refused.not_allowed"
 msgstr "이 경기의 주최자가 관전을 열지 않았습니다."
 
 msgid "tournament.watch.refused.revoked"
-msgstr "주최자가 이 경기의 관전자에서 나를 제외했습니다."
+msgstr "주최자에 의해 이 경기의 관전자에서 제외되었습니다."
 
 msgid "tournament.watch.refused.fighter"
 msgstr "이 경기의 플레이어입니다. 대신 플레이를 사용하세요."
@@ -4309,6 +4315,9 @@ msgstr "플레이어의 Ember 버전이 다릅니다. 관전하려면 같은 버
 
 msgid "tournament.watch.refused.unsupported"
 msgstr "이 대회 서비스는 관전을 지원하지 않습니다."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "다른 방에 있어서 관전이 중단되었습니다. 방에서 나간 뒤 경기를 다시 관전하세요."
 
 msgid "tournament.watch.finished"
 msgstr "경기가 끝났습니다."

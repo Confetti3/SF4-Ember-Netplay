@@ -3340,6 +3340,12 @@ msgstr "Zuschaueraktion konnte nicht gesendet werden; erneuter Versuch."
 msgid "runtime.return_main_menu"
 msgstr "Kehren Sie vor dem Öffnen eines Raums zum Hauptmenü zurück."
 
+msgid "runtime.watching_match"
+msgstr "Sie schauen einem Turnierspiel zu. Beenden Sie das Zuschauen unter Turnierspiele, bevor Sie einen anderen Raum öffnen oder betreten."
+
+msgid "runtime.watch_leave_room"
+msgstr "Verlassen Sie Ihren Raum, bevor Sie einem Turnierspiel zuschauen."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Das Ergebnis des letzten Spiels wird gespeichert. Versuchen Sie es in ein paar Sekunden erneut."
 
@@ -4301,13 +4307,16 @@ msgid "tournament.watch.refused.revoked"
 msgstr "Der Veranstalter hat Sie von den Zuschauern dieses Spiels ausgeschlossen."
 
 msgid "tournament.watch.refused.fighter"
-msgstr "Sie spielen in diesem Spiel mit. Nutzen Sie stattdessen Spielen."
+msgstr "Sie spielen in diesem Spiel mit. Nutzen Sie stattdessen „Spielen“."
 
 msgid "tournament.watch.refused.build"
 msgstr "Die Spieler nutzen eine andere Ember-Version. Zum Zuschauen wird dieselbe benötigt."
 
 msgid "tournament.watch.refused.unsupported"
 msgstr "Dieser Turnierdienst bietet kein Zuschauen an."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Das Zuschauen wurde beendet, weil Sie in einem anderen Raum sind. Verlassen Sie ihn und schauen Sie dem Spiel dann erneut zu."
 
 msgid "tournament.watch.finished"
 msgstr "Das Spiel ist vorbei."

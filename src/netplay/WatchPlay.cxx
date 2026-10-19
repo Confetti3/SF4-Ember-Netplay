@@ -39,10 +39,11 @@ void WatchPlay::Stop() {
 	// The bridge forgets a watcher that said it was leaving; one it already
 	// refused or finished has nothing to forget.
 	if (Active() && polled_) pending_.push_back(Make(WatchOutput::Kind::Unwatch));
-	if (leaveHeld_ || (Active() && !targetRoom_.empty())) pending_.push_back(Make(WatchOutput::Kind::Leave));
+	// Whether there is a room of this watch's to leave is the next tick's to say.
+	if (leaveHeld_ || Active()) leaveWanted_ = true;
+	leaveHeld_ = false;
 	phase_ = WatchPhase::Idle;
 	reason_.clear();
-	leaveHeld_ = false;
 	full_ = false;
 }
 
@@ -59,27 +60,39 @@ void WatchPlay::End(WatchPhase phase, const std::string& reason, WatchNotice not
 	// A finished match's last game may still be on screen: its room is left
 	// once that battle has closed. Any other end leaves at once. The notice is
 	// for a watcher that had been in the room; the phase line says the rest.
-	if (!targetRoom_.empty()) {
-		if (phase == WatchPhase::Finished) leaveHeld_ = true;
-		else pending_.push_back(Make(WatchOutput::Kind::Leave));
-	}
+	if (phase == WatchPhase::Finished) leaveHeld_ = true;
+	else leaveWanted_ = true;
 	phase_ = phase;
 	reason_ = reason;
 	full_ = false;
 	if (wasWatching_ && notice != WatchNotice::None) Say(notice);
 }
 
-std::vector<WatchOutput> WatchPlay::Tick(std::uint64_t nowMs, const WatchRoomView& room) {
+bool WatchPlay::HoldsOwnRoom(std::uint64_t nowMs, const RoomView& room) const {
+	if (room.joined) return std::find(ownRooms_.begin(), ownRooms_.end(), room.roomId) != ownRooms_.end();
+	// Opening: this watch's join, while it can still be under way.
+	return room.opening && joinRequested_ && nowMs - openedAtMs_ < WatchIntervalMs;
+}
+
+// Leaves the room this watch joined, when it should, and never any other: the
+// player may be in a room of their own.
+void WatchPlay::ReleaseRoom(std::uint64_t nowMs, const RoomView& room, std::vector<WatchOutput>& out) {
+	if (leaveWanted_) {
+		leaveWanted_ = false;
+		if (HoldsOwnRoom(nowMs, room)) out.push_back(Make(WatchOutput::Kind::Leave));
+	}
+	if (!leaveHeld_) return;
+	if (!leaveHeldUntilMs_) leaveHeldUntilMs_ = nowMs + FinalBattleHoldMs;
+	// A battle that never closes must not keep the watcher in the room.
+	if (room.fighting && nowMs < leaveHeldUntilMs_) return;
+	if (HoldsOwnRoom(nowMs, room)) out.push_back(Make(WatchOutput::Kind::Leave));
+	leaveHeld_ = false;
+}
+
+std::vector<WatchOutput> WatchPlay::Tick(std::uint64_t nowMs, const RoomView& room) {
 	std::vector<WatchOutput> out = std::move(pending_);
 	pending_.clear();
-	if (leaveHeld_) {
-		if (!leaveHeldUntilMs_) leaveHeldUntilMs_ = nowMs + FinalBattleHoldMs;
-		// A battle that never closes must not keep the watcher in the room.
-		if (!room.fighting || nowMs >= leaveHeldUntilMs_) {
-			out.push_back(Make(WatchOutput::Kind::Leave));
-			leaveHeld_ = false;
-		}
-	}
+	ReleaseRoom(nowMs, room, out);
 	if (!Active()) return out;
 	if (!pollInFlight_ && nowMs >= nextPollMs_) {
 		out.push_back(Make(WatchOutput::Kind::Watch));
@@ -89,14 +102,21 @@ std::vector<WatchOutput> WatchPlay::Tick(std::uint64_t nowMs, const WatchRoomVie
 	return out;
 }
 
-void WatchPlay::Follow(std::uint64_t nowMs, const WatchRoomView& room, std::vector<WatchOutput>& out) {
+void WatchPlay::Follow(std::uint64_t nowMs, const RoomView& room, std::vector<WatchOutput>& out) {
+	// The player is in a room this watch did not join: theirs. It is not left,
+	// joined over or taken for the match's; the watch ends and says why.
+	if (room.joined && !HoldsOwnRoom(nowMs, room)) {
+		if (polled_) out.push_back(Make(WatchOutput::Kind::Unwatch));
+		End(WatchPhase::Refused, "other_room", WatchNotice::None);
+		return;
+	}
 	if (targetRoom_.empty()) return;
 	if (room.joined && room.roomId == targetRoom_) {
 		phase_ = WatchPhase::Watching;
 		wasWatching_ = true;
 		joinRequested_ = leaving_ = false;
 	} else if (room.joined) {
-		// In another room: the one the bridge no longer names.
+		// In the room of the match's that the bridge no longer names.
 		if (!leaving_) { out.push_back(Make(WatchOutput::Kind::Leave)); leaving_ = true; }
 	} else if (!room.opening && (!joinRequested_ || nowMs - openedAtMs_ >= WatchIntervalMs)) {
 		auto join = Make(WatchOutput::Kind::Join);
@@ -106,6 +126,8 @@ void WatchPlay::Follow(std::uint64_t nowMs, const WatchRoomView& room, std::vect
 		leaving_ = false;
 		openedAtMs_ = nowMs;
 		phase_ = WatchPhase::Joining;
+		// Whatever this join lands in is the match's room, and the watch's to leave.
+		if (std::find(ownRooms_.begin(), ownRooms_.end(), targetRoom_) == ownRooms_.end()) ownRooms_.push_back(targetRoom_);
 	}
 }
 

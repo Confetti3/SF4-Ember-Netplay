@@ -1086,14 +1086,44 @@ Decisions:
     `ApplyLeaveGame` keeps it watching.
   - Not waiting at all is not possible: GGPO itself withholds RUNNING until
     spectators sync, and dropping them is the only release.
-- **Measure before the numbers are final.** This is a precondition for
-  the §12 Q1 answer, using only synthetic tests:
-  - part C records the compressed checkpoint append size for 2 fighters plus
-    0, 4 and 8 watchers, and the commits per game, from the session-server
-    tests;
-  - part B records learner replication bytes per commit.
-  - Bytes per second on the leader is then append size, times commit rate,
-    times watchers.
+- **Measured.** This was the precondition for the §12 Q1 answer. The numbers
+  come from `SessionServerWatch` (`src/tests/session_server_watch_test.cxx`),
+  which uses only synthetic traffic. For 0, 2, 4, 6 and 8 watchers it opens a
+  bound room, then plays one game from both fighters' Ready to every
+  recipient's acknowledgment of its end, committing each change. Every
+  recipient acknowledges the game's set-up, which is the conservative path.
+  "Wire" is the game's JSON of the proposal compressed with zlib at the
+  fastest level, as the helper compresses an append (`coordination.rs`,
+  `Compression::fast()`); the helper frames it a little differently, so it is
+  close to the wire bytes and not exact. One learner receives each append, and
+  the leader sends it to every learner: the other fighter and each watcher.
+
+  | Watchers | Room open: commits | Last append, raw | Last append, wire | All open commits, wire | One game: commits | One game: wire, per learner | One game: leader upload (wire x learners) |
+  |---|---|---|---|---|---|---|---|
+  | 0 | 3 | 31,045 | 3,147 | 7,521 | 12 | 88,193 | 88,193 |
+  | 2 | 5 | 76,900 | 5,959 | 17,992 | 18 | 261,399 | 784,197 |
+  | 4 | 7 | 163,357 | 10,517 | 36,549 | 24 | 443,617 | 2,218,085 |
+  | 6 | 9 | 302,126 | 17,657 | 68,971 | 30 | 573,694 | 4,015,858 |
+  | 8 | 11 | 381,018 | 21,190 | 111,777 | 36 | 709,130 | 6,382,170 |
+
+  What the numbers say:
+  - **Commits are linear.** Opening takes 3 plus one per watcher. A game takes
+    12 plus three per watcher (its set-up acknowledgment, its ready
+    acknowledgment and its acknowledgment of the game's end).
+  - **The raw append is superlinear, the wire form much less.** Each commit
+    carries a room snapshot per recipient, so the raw size grows with the
+    square of the room (31 KB at none, 302 KB at 6, 381 KB at 8). The
+    snapshots are alike, so zlib shrinks the append 10 to 18 times: 17.7 KB at
+    6 and 21.2 KB at 8.
+  - **The leader's upload per game is the figure to weigh against an uplink.**
+    It is 0.8 MB at 2 watchers, 4.0 MB at 6 and 6.4 MB at 8. The commits fall
+    in the window between games, so spread over 10 s that is 0.6 Mbit/s at 2,
+    3.2 Mbit/s at 6 and 5.1 Mbit/s at 8, on top of the fighter's GGPO link.
+  - Part B has not recorded learner bytes per commit yet; these numbers are
+    its input.
+  - The test bounds all of this. The commit counts are the measured ones, and
+    the byte sizes are the measured ones plus a quarter. A change that makes
+    the traffic larger fails the test and has to be looked at.
 
 ## 7. Game UX
 
@@ -1616,9 +1646,12 @@ and read by B.
 
 Settled on 2026-10-19:
 
-1. **Watcher numbers:** 4 link holders and a ceiling of 8 watchers in all,
-   staff included, both as constants. They are lowered to 2 and 6 if the
-   §6.6 measurement shows the leader's replication cost is high.
+1. **Watcher numbers:** 2 link holders and a ceiling of 6 watchers in all,
+   staff included, both bridge constants (`LINK_HOLDER_CAP`,
+   `WATCHER_CEILING`). The decision was 4 and 8, lowered to 2 and 6 if the
+   §6.6 measurement showed a high replication cost for the leader; it did
+   (about 6.4 MB uploaded per game at 8 watchers), so the lower numbers
+   apply. The wire limit `MAX_WATCHERS` stays 8.
 2. **Address exposure for link holders:** accepted and documented on the
    setting, in INTEGRATIONS.md and in the organizer guide.
 3. **Watcher chat:** none in phase 1. Watchers read the fighters' chat.

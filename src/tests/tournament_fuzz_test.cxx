@@ -616,7 +616,7 @@ static void FuzzWatch(Random& random) {
 			default: break;
 			}
 			// The room this game is in follows what the machine asked for.
-			WatchRoomView view;
+			RoomView view;
 			view.joined = inRoom;
 			view.opening = opening;
 			view.roomId = roomId;

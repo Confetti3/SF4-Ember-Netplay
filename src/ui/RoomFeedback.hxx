@@ -42,7 +42,9 @@ inline bool ChatTypable(const ShellView& view) {
 
 // A watcher's Ember ID, short enough for a member row: the fingerprint the
 // Ember ID screen shows (the first and last eight characters of the key), or
-// the identifier whole when it has no such shape.
+// the identifier whole when it has no such shape. The same rule as
+// EmberId::fingerprint (server/ember/protocol/src/id.rs), which the game
+// cannot call: the binding carries the identifier alone.
 inline std::string ShortEmberId(const std::string& id) {
     const std::string prefix = "emb1_";
     const bool keyed = id.compare(0, prefix.size(), prefix) == 0 && id.size() >= prefix.size() + 16;

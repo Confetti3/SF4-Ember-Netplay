@@ -3341,6 +3341,12 @@ msgstr "観戦の操作を送信できませんでした。再試行中です。
 msgid "runtime.return_main_menu"
 msgstr "ルームを開く前にゲーム本体のメインメニューに戻ってください。"
 
+msgid "runtime.watching_match"
+msgstr "大会の試合を観戦中です。別のルームを開いたり参加したりする前に、「大会の試合」で観戦をやめてください。"
+
+msgid "runtime.watch_leave_room"
+msgstr "大会の試合を観戦する前に、今いるルームから退出してください。"
+
 msgid "runtime.tournament_result_saving"
 msgstr "前の試合の結果を保存しています。数秒後にもう一度お試しください。"
 
@@ -4309,6 +4315,9 @@ msgstr "プレイヤーが使っているEmberのバージョンが異なりま�
 
 msgid "tournament.watch.refused.unsupported"
 msgstr "この大会サービスは観戦に対応していません。"
+
+msgid "tournament.watch.refused.other_room"
+msgstr "別のルームにいるため、観戦を終了しました。ルームから退出して、もう一度観戦してください。"
 
 msgid "tournament.watch.finished"
 msgstr "試合は終了しました。"
