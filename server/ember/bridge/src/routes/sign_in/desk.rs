@@ -11,7 +11,7 @@
 //! account no Ember ID holds signs no one in: it is linked from the game.
 use axum::{
     extract::{Path, State},
-    http::{HeaderMap, HeaderValue, header},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Redirect, Response},
 };
 use ember_protocol::{
@@ -19,7 +19,7 @@ use ember_protocol::{
     encoding::b64u,
     sign_in::SIGN_IN_SECS,
 };
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 use serde_json::json;
 use subtle::ConstantTimeEq;
 
@@ -31,7 +31,7 @@ use crate::{
     AppState,
     auth::{self, DESK_COOKIE, DESK_IDLE_SECS, DESK_SECS},
     error::{ApiFailure, Result},
-    http::{Body, PROOF_BODY, cookie, ok, page},
+    http::{Body, PROOF_BODY, cookie, json as answer, ok, page},
     linking::Site,
     routes::{rooms::Address, sessions},
     util::{html, random},
@@ -172,7 +172,8 @@ pub(super) async fn callback(
         .db
         .write(move |tx| match site.owner(tx, &user.id)? {
             Some(ember_id) => {
-                auth::start_desk_session(tx, &keys, &ember_id, site.id(), agent, now).map(Some)
+                auth::start_desk_session(tx, &keys, &ember_id, site.id(), agent, false, now)
+                    .map(Some)
             }
             None => Ok(None),
         })
@@ -207,7 +208,11 @@ pub async fn session(State(state): State<AppState>, headers: HeaderMap) -> Resul
     let desk = auth::desk(&state, &headers)
         .await?
         .ok_or_else(ApiFailure::unauthenticated)?;
-    Ok(ok(&json!({ "ember_id": desk.ember_id, "csrf": desk.csrf })))
+    Ok(ok(&json!({
+        "ember_id": desk.ember_id,
+        "csrf": desk.csrf,
+        "from_game": desk.from_game,
+    })))
 }
 
 /// `GET /web/accounts`: the desk organizer's account on each sign-in site
@@ -372,7 +377,7 @@ pub async fn web_sessions(State(state): State<AppState>, headers: HeaderMap) -> 
         .db
         .read(move |tx| {
             let mut statement = tx.prepare(
-                "SELECT site, agent, created_at, last_seen, noticed FROM desk_sessions
+                "SELECT site, agent, created_at, last_seen, noticed, from_game FROM desk_sessions
                  WHERE ember_id = ?1 AND expires_at > ?2 AND last_seen > ?3
                  ORDER BY created_at DESC LIMIT 20",
             )?;
@@ -389,6 +394,7 @@ pub async fn web_sessions(State(state): State<AppState>, headers: HeaderMap) -> 
                         "started_at": row.get::<_, u64>(2)?,
                         "last_used_at": row.get::<_, u64>(3)?,
                         "new": !row.get::<_, bool>(4)?,
+                        "origin": if row.get::<_, bool>(5)? { "game" } else { "site" },
                     }))
                 },
             )?;
@@ -436,4 +442,179 @@ pub async fn end_web_sessions(
     })
     .await?;
     Ok(ok(&json!({ "ended": ended })))
+}
+
+/// A handoff from the game lives this long.
+const HANDOFF_SECS: u64 = 120;
+/// Handoffs one Ember ID asks for, and exchanges one network address or one
+/// code tries, in ten minutes.
+const HANDOFFS_PER_PLAYER: usize = 10;
+const EXCHANGES_PER_ADDRESS: usize = 10;
+const TRIES_PER_CODE: usize = 5;
+/// A code's letters: no 0, 1, I or O, which read alike. 32 of them, so a
+/// random byte's low five bits pick one evenly.
+const CODE_LETTERS: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+pub const HANDOFF_PATH: &str = "/v1/web-sessions/handoff";
+
+/// `POST /v1/web-sessions/handoff` (player session, `site.connect` proof):
+/// a one-time handoff that opens the web desk from the game, as a link's
+/// token and as an eight-letter code to type on a phone.
+pub async fn handoff(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Body<PROOF_BODY>,
+) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    let now = state.now();
+    state
+        .rate
+        .check(
+            &format!("desk-handoff:{}", player.ember_id.as_str()),
+            HANDOFFS_PER_PLAYER,
+            600,
+            now,
+        )
+        .map_err(ApiFailure::rate_limited)?;
+    let token = b64u(&random::<32>());
+    let code: String = random::<8>()
+        .iter()
+        .map(|byte| char::from(CODE_LETTERS[usize::from(byte & 31)]))
+        .collect();
+    let token_hash = auth::hash(&state.keys, "desk-handoff", &token);
+    let code_hash = auth::hash(&state.keys, "desk-code", &code);
+    let target = (Action::SiteConnect, Method::Post, HANDOFF_PATH.to_owned());
+    sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
+        tx.execute("DELETE FROM desk_handoffs WHERE expires_at <= ?1", [ctx.now])?;
+        tx.execute(
+            "INSERT INTO desk_handoffs (token_hash, code_hash, ember_id, expires_at) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                token_hash.as_slice(),
+                code_hash.as_slice(),
+                ember_id,
+                ctx.now + HANDOFF_SECS
+            ],
+        )?;
+        Ok(())
+    })
+    .await?;
+    Ok(answer(
+        StatusCode::CREATED,
+        &json!({ "token": token, "code": code, "expires_at": now + HANDOFF_SECS }),
+    ))
+}
+
+/// Uses up the handoff whose `column` hash is `hash` and opens a desk
+/// session from the game for it: the cookie, or None when there is none
+/// or it lapsed.
+async fn exchange(
+    state: &AppState,
+    headers: &HeaderMap,
+    column: &'static str,
+    hash: [u8; 32],
+) -> Result<Option<String>> {
+    let keys = state.keys.clone();
+    let agent = agent(headers);
+    let now = state.now();
+    state
+        .db
+        .write(move |tx| {
+            let ember_id: Option<String> = tx
+                .query_row(
+                    &format!(
+                        "DELETE FROM desk_handoffs WHERE {column} = ?1 AND expires_at > ?2 RETURNING ember_id"
+                    ),
+                    params![hash.as_slice(), now],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            ember_id
+                .map(|ember_id| auth::start_desk_session(tx, &keys, &ember_id, "", agent, true, now))
+                .transpose()
+        })
+        .await
+}
+
+/// A browser's tries at a handoff, limited per network address.
+fn exchange_allowed(state: &AppState, address: &str) -> Result<()> {
+    state
+        .rate
+        .check(
+            &format!("desk-exchange:{address}"),
+            EXCHANGES_PER_ADDRESS,
+            600,
+            state.now(),
+        )
+        .map_err(ApiFailure::rate_limited)
+}
+
+/// `GET /desk/h/{token}`: the link the game opens; signs the browser in to
+/// the desk from the game.
+pub async fn handoff_link(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(token): Path<String>,
+    Address(address): Address,
+) -> Result<Response> {
+    exchange_allowed(&state, &address)?;
+    let hash = auth::hash(&state.keys, "desk-handoff", &token);
+    match exchange(&state, &headers, "token_hash", hash).await? {
+        Some(session) => {
+            let mut response = Redirect::to(DESK).into_response();
+            set_cookie(&state, &mut response, DESK_COOKIE, &session, DESK_SECS);
+            Ok(response)
+        }
+        None => Ok(finished(
+            "Link expired",
+            "This link from Ember was used already or is more than two minutes old. \
+             Open the desk from Ember again.",
+        )),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct Code {
+    code: String,
+}
+
+/// `POST /web/handoff` with `{"code": …}`: the code shown in the game,
+/// typed on another device; signs that browser in to the desk.
+pub async fn handoff_code(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Address(address): Address,
+    body: Body<PROOF_BODY>,
+) -> Result<Response> {
+    exchange_allowed(&state, &address)?;
+    let Code { code } = ember_protocol::json::parse_as(&body.0, PROOF_BODY)?;
+    let code: String = code
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|letter| letter.to_ascii_uppercase())
+        .collect();
+    let refused = || {
+        ApiFailure::new(
+            ember_protocol::api::ErrorCode::NotFound,
+            "That code is wrong or expired. Get a new one in Ember.",
+        )
+        .detail("reason", "code_refused")
+    };
+    if code.len() != 8 {
+        return Err(refused());
+    }
+    state
+        .rate
+        .check(
+            &format!("desk-code:{code}"),
+            TRIES_PER_CODE,
+            600,
+            state.now(),
+        )
+        .map_err(ApiFailure::rate_limited)?;
+    let hash = auth::hash(&state.keys, "desk-code", &code);
+    let session = exchange(&state, &headers, "code_hash", hash)
+        .await?
+        .ok_or_else(refused)?;
+    let mut response = ok(&json!({}));
+    set_cookie(&state, &mut response, DESK_COOKIE, &session, DESK_SECS);
+    Ok(response)
 }

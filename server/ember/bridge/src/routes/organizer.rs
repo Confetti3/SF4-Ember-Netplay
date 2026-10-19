@@ -112,7 +112,9 @@ pub(crate) enum Caller {
         player: auth::Player,
         request: ProvenRequest,
     },
-    Desk(String),
+    /// The web desk's organizer, and whether the session was opened from
+    /// the game.
+    Desk { ember_id: String, from_game: bool },
 }
 
 impl Caller {
@@ -129,22 +131,30 @@ impl Caller {
                 return Err(ApiFailure::forbidden());
             }
             let command = ember_protocol::json::parse_as(&body.0, PROOF_BODY)?;
-            return Ok((Self::Desk(desk.ember_id), command));
+            let caller = Self::Desk {
+                ember_id: desk.ember_id,
+                from_game: desk.from_game,
+            };
+            return Ok((caller, command));
         }
         let player = auth::player(state, headers).await?;
         let (request, command) = sessions::proven(&body.0)?;
         Ok((Self::Player { player, request }, command))
     }
 
-    /// Refuses the web desk for a change that needs the game's signed
-    /// proof: one a stolen browser session must not make (the event's
-    /// webhook, who may read it or sign up, running or ending it).
+    /// Refuses a web desk signed in with a site alone for a change that
+    /// needs the game: one a stolen site account must not make (the
+    /// event's webhook, who may read it or sign up, running or ending it).
+    /// A desk opened from the game makes it.
     pub(crate) fn require_game(&self) -> Result<()> {
         match self {
-            Self::Player { .. } => Ok(()),
-            Self::Desk(_) => Err(ApiFailure::new(
+            Self::Player { .. }
+            | Self::Desk {
+                from_game: true, ..
+            } => Ok(()),
+            Self::Desk { .. } => Err(ApiFailure::new(
                 ErrorCode::Forbidden,
-                "Make this change in Ember: Online play, Ember ID, Tournament desk.",
+                "Open the desk from Ember (Ember ID › Tournament desk).",
             )
             .detail("reason", "needs_game_proof")),
         }
@@ -153,7 +163,7 @@ impl Caller {
     pub(crate) fn ember_id(&self) -> &str {
         match self {
             Self::Player { player, .. } => player.ember_id.as_str(),
-            Self::Desk(ember_id) => ember_id,
+            Self::Desk { ember_id, .. } => ember_id,
         }
     }
 

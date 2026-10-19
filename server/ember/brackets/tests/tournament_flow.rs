@@ -21,7 +21,10 @@ use common::{
 };
 use ember_brackets::{Clock, Connector, Desk};
 use ember_bridge::config::{Connection, Disputes};
-use ember_protocol::report::Outcome::{self, Abort, P1Win, P2Win};
+use ember_protocol::{
+    challenge::{Action, Method},
+    report::Outcome::{self, Abort, P1Win, P2Win},
+};
 use reqwest::{StatusCode, header};
 use serde_json::{Value as Json, json};
 use support::{
@@ -373,21 +376,22 @@ impl WebDesk {
 
 /// The organizer signs in to the web desk with their Challonge account.
 async fn web_sign_in(flow: &Flow) -> WebDesk {
+    // The organizer opens the desk from the game: a site sign-in alone may
+    // not create or ready an event.
     let bridge = &flow.bridge;
-    flow.browse_as(CHALLONGE, (ORGANIZER.0.into(), ORGANIZER.1.into()));
-    let started = bridge
-        .client
-        .get(bridge.url("/web/sign-in/challonge"))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(started.status(), StatusCode::SEE_OTHER);
-    let state_cookie = cookie(&started, "ember_desk_state");
-    let back = approve(started.headers()["location"].to_str().unwrap()).await;
+    let (status, made) = sign_in::send(
+        bridge,
+        &flow.organizer,
+        Action::SiteConnect,
+        Method::Post,
+        "/v1/web-sessions/handoff",
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{made}");
     let signed_in = bridge
         .client
-        .get(bridge.url(&format!("/v1/sites/challonge/callback?{back}")))
-        .header("cookie", format!("ember_desk_state={state_cookie}"))
+        .get(bridge.url(&format!("/desk/h/{}", made["token"].as_str().unwrap())))
         .send()
         .await
         .unwrap();

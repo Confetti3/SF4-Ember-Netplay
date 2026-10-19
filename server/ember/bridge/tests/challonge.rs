@@ -1658,3 +1658,182 @@ async fn a_web_desk_session_is_short_listed_and_ended_from_the_game() {
     }
     assert!(limited);
 }
+
+// The game opens the web desk with a one-time handoff, by link or by an
+// eight-letter code; a desk opened so may make the changes that a desk
+// signed in with a site alone may not.
+#[tokio::test]
+async fn the_game_opens_the_web_desk_with_a_one_time_handoff() {
+    let fake = fake_challonge();
+    fake.lists("/v2.1/tournaments.json", |_| json!({ "data": [] }));
+    let bridge = desk_bridge(&fake).await;
+    let mut player1 = player(&bridge, 1).await;
+    CHALLONGE.connect(&bridge, &player1, "good-player1").await;
+    let code_in = |code: &str| {
+        bridge
+            .client
+            .post(bridge.url("/web/handoff"))
+            .header("content-type", "application/json")
+            .body(json!({ "code": code }).to_string())
+            .send()
+    };
+
+    // The link signs a browser in once.
+    let made = handoff(&bridge, &player1).await;
+    let code = made["code"].as_str().unwrap().to_owned();
+    assert_eq!(code.len(), 8);
+    assert!(code.bytes().all(|b| !b"01IO".contains(&b)));
+    let link = format!("/desk/h/{}", made["token"].as_str().unwrap());
+    let opened = bridge.client.get(bridge.url(&link)).send().await.unwrap();
+    assert_eq!(opened.status(), StatusCode::SEE_OTHER);
+    let desk = format!("ember_desk={}", set_cookie(&opened, "ember_desk").unwrap());
+    let again = bridge.client.get(bridge.url(&link)).send().await.unwrap();
+    assert!(set_cookie(&again, "ember_desk").is_none());
+    assert!(again.text().await.unwrap().contains("Link expired"));
+    // Its code went with it.
+    assert_eq!(
+        code_in(&code).await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+
+    // That desk may make a change a site sign-in may not.
+    let me: Json = serde_json::from_str(
+        &bridge
+            .client
+            .get(bridge.url("/web/session"))
+            .header("cookie", desk.clone())
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(me["from_game"], true);
+    let post = |cookie: String, csrf: String, path: String, body: Json| {
+        bridge
+            .client
+            .post(bridge.url(&path))
+            .header("cookie", cookie)
+            .header("x-ember-csrf", csrf)
+            .header("content-type", "application/json")
+            .body(body.to_string())
+            .send()
+    };
+    let csrf = me["csrf"].as_str().unwrap().to_owned();
+    let made_draft: Json = serde_json::from_str(
+        &post(
+            desk.clone(),
+            csrf.clone(),
+            "/v1/organizer/drafts".into(),
+            json!({ "title": "Cup" }),
+        )
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap(),
+    )
+    .unwrap();
+    let event = format!(
+        "/v1/organizer/events/{}",
+        made_draft["id"].as_str().unwrap()
+    );
+    let public = post(desk.clone(), csrf, event.clone(), json!({ "public": true }))
+        .await
+        .unwrap();
+    assert_eq!(public.status(), StatusCode::OK);
+
+    // A site sign-in alone is told to open the desk from Ember.
+    let back = web_sign_in(&bridge, "good-player1", true).await;
+    let site_desk = format!("ember_desk={}", set_cookie(&back, "ember_desk").unwrap());
+    let site_me: Json = serde_json::from_str(
+        &bridge
+            .client
+            .get(bridge.url("/web/session"))
+            .header("cookie", site_desk.clone())
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(site_me["from_game"], false);
+    let refused = post(
+        site_desk,
+        site_me["csrf"].as_str().unwrap().into(),
+        event,
+        json!({ "public": false }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+    assert!(
+        refused
+            .text()
+            .await
+            .unwrap()
+            .contains("Open the desk from Ember")
+    );
+
+    // The game lists where each came from.
+    bridge.open_session(&mut player1).await;
+    let (_, listed) = bridge.get(player1.token(), "/v1/web-sessions").await;
+    let origins: Vec<&str> = listed["sessions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["origin"].as_str().unwrap())
+        .collect();
+    assert!(
+        origins.contains(&"game") && origins.contains(&"site"),
+        "{origins:?}"
+    );
+
+    // A typed code works once, in any case and with spaces; a wrong one and
+    // a lapsed one do not.
+    let made = handoff(&bridge, &player1).await;
+    let code = made["code"].as_str().unwrap().to_lowercase();
+    assert_eq!(
+        code_in("ABCD-EFGH").await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+    let typed = code_in(&format!("{} {}", &code[..4], &code[4..]))
+        .await
+        .unwrap();
+    assert_eq!(typed.status(), StatusCode::OK);
+    assert!(set_cookie(&typed, "ember_desk").is_some());
+    assert_eq!(
+        code_in(&code).await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+    let made = handoff(&bridge, &player1).await;
+    bridge.clock.advance(121);
+    let late = code_in(made["code"].as_str().unwrap()).await.unwrap();
+    assert_eq!(late.status(), StatusCode::NOT_FOUND);
+
+    // One address tries only so many.
+    let mut limited = false;
+    for _ in 0..12 {
+        limited |= code_in("ZZZZZZZZ").await.unwrap().status() == StatusCode::TOO_MANY_REQUESTS;
+    }
+    assert!(limited);
+}
+
+/// A handoff from the game for `player`: its token and code.
+async fn handoff(bridge: &Bridge, player: &common::Player) -> Json {
+    let (status, made) = sign_in::send(
+        bridge,
+        player,
+        Action::SiteConnect,
+        Method::Post,
+        "/v1/web-sessions/handoff",
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{made}");
+    made
+}

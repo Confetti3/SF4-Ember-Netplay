@@ -244,6 +244,9 @@ pub async fn browser(state: &AppState, headers: &HeaderMap) -> Result<Option<Bro
 pub struct Desk {
     pub ember_id: String,
     pub csrf: String,
+    /// Opened from the game (`routes::sign_in::desk` handoff), which may
+    /// make the changes a site sign-in alone may not.
+    pub from_game: bool,
 }
 
 /// The web desk's session, if a valid cookie is present.
@@ -254,24 +257,24 @@ pub async fn desk(state: &AppState, headers: &HeaderMap) -> Result<Option<Desk>>
     let token_hash = hash(&state.keys, "desk", &token);
     let csrf = csrf_token(&state.keys, &token);
     let now = state.now();
-    let found: Option<(String, u64)> = state
+    let found: Option<(String, u64, bool)> = state
         .db
         .read(move |tx| {
             Ok(tx
                 .query_row(
-                    "SELECT ember_id, last_seen FROM desk_sessions
+                    "SELECT ember_id, last_seen, from_game FROM desk_sessions
                      WHERE token_hash = ?1 AND expires_at > ?2 AND last_seen > ?3",
                     params![
                         token_hash.as_slice(),
                         now,
                         now.saturating_sub(DESK_IDLE_SECS)
                     ],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()?)
         })
         .await?;
-    let Some((ember_id, last_seen)) = found else {
+    let Some((ember_id, last_seen, from_game)) = found else {
         return Ok(None);
     };
     if last_seen + DESK_TOUCH_SECS <= now {
@@ -286,7 +289,11 @@ pub async fn desk(state: &AppState, headers: &HeaderMap) -> Result<Option<Desk>>
             })
             .await?;
     }
-    Ok(Some(Desk { ember_id, csrf }))
+    Ok(Some(Desk {
+        ember_id,
+        csrf,
+        from_game,
+    }))
 }
 
 impl Desk {
@@ -301,14 +308,16 @@ impl Desk {
 
 /// Starts a web desk session for `ember_id` and returns the cookie value,
 /// which is stored only as a keyed hash.
-/// `site` is the site it signed in with and `agent` the browser's own
-/// short name, both kept so the game can list the sessions.
+/// `site` is the site it signed in with (empty when opened from the game)
+/// and `agent` the browser's own short name, both kept so the game can list
+/// the sessions.
 pub fn start_desk_session(
     tx: &Transaction<'_>,
     keys: &Keys,
     ember_id: &str,
     site: &str,
     agent: &str,
+    from_game: bool,
     now: u64,
 ) -> Result<String> {
     let token = new_token("emd");
@@ -317,15 +326,16 @@ pub fn start_desk_session(
         params![now, now.saturating_sub(DESK_IDLE_SECS)],
     )?;
     tx.execute(
-        "INSERT INTO desk_sessions (token_hash, ember_id, expires_at, created_at, last_seen, site, agent)
-         VALUES (?1, ?2, ?3, ?4, ?4, ?5, ?6)",
+        "INSERT INTO desk_sessions (token_hash, ember_id, expires_at, created_at, last_seen, site, agent, from_game)
+         VALUES (?1, ?2, ?3, ?4, ?4, ?5, ?6, ?7)",
         params![
             hash(keys, "desk", &token).as_slice(),
             ember_id,
             now + DESK_SECS,
             now,
             site,
-            agent
+            agent,
+            from_game
         ],
     )?;
     Ok(token)
