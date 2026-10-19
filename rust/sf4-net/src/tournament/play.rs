@@ -55,20 +55,41 @@ impl Features {
     }
 }
 
+/// The feature a caller cannot do without, if any.
+#[derive(Clone, Copy)]
+pub(super) enum Need {
+    /// None: whatever the bridge was last seen to offer will do.
+    Nothing,
+    /// A claim's `ready`.
+    Ready,
+    /// The watch routes.
+    Watch,
+}
+
+impl Need {
+    fn met_by(self, offered: Features) -> bool {
+        match self {
+            Self::Nothing => true,
+            Self::Ready => offered.ready,
+            Self::Watch => offered.watch,
+        }
+    }
+}
+
 /// What the bridge offers, from the one capabilities read this run keeps for
-/// it. `needs` says whether that answer will do: a bridge that lacked what a
-/// caller needs is asked again, since it may be upgraded meanwhile, and one
-/// that has it is remembered until a claim to it fails (`forget_features`),
-/// since it may have been put back to one that refuses the field. A read that
-/// fails fails the caller, which the game retries, rather than carrying on
-/// without a field the bridge would have read.
+/// it. A bridge that lacked what `need` names is asked again, since it may be
+/// upgraded meanwhile, and one that has it is remembered until a claim to it
+/// fails (`forget_features`), since it may have been put back to one that
+/// refuses the field. A read that fails fails the caller, which the game
+/// retries, rather than carrying on without a field the bridge would have
+/// read.
 pub(super) async fn features(
     shared: &Arc<Shared>,
     bridge: &Approved,
-    needs: impl Fn(Features) -> bool,
+    need: Need,
 ) -> Result<Features, Failure> {
     let known = play_state(shared)?.features.get(&bridge.bridge_id).copied();
-    if let Some(known) = known.filter(|known| needs(*known)) {
+    if let Some(known) = known.filter(|known| need.met_by(*known)) {
         return Ok(known);
     }
     let read = Features::of(
@@ -303,6 +324,10 @@ pub async fn claim_match(
 /// watchers only while both fighters' claims say so. An older bridge refuses a
 /// claim carrying a field it does not know, hence the capabilities read. A
 /// claim that fails makes the next one read them again.
+///
+/// Only a Ready claim needs a feature. A claim never needs `watch`: one to a
+/// bridge last seen without it goes without, and an upgrade is heard once a
+/// claim to the bridge fails, as one does while it restarts.
 pub(super) async fn send_claim<F, Sent>(
     shared: &Arc<Shared>,
     bridge: &Approved,
@@ -314,7 +339,8 @@ where
     F: FnOnce(Value) -> Sent,
     Sent: std::future::Future<Output = Result<Value, Failure>>,
 {
-    let offered = features(shared, bridge, |known| !ready || known.ready).await?;
+    let need = if ready { Need::Ready } else { Need::Nothing };
+    let offered = features(shared, bridge, need).await?;
     let claim = Claim {
         ready: (ready && offered.ready).then_some(true),
         watch: offered.watch.then_some(true),
@@ -594,21 +620,13 @@ fn random() -> Result<[u8; 16], Failure> {
 }
 
 #[cfg(test)]
-pub(super) mod tests {
+mod tests {
     use super::*;
-    use crate::tournament::{Request, builtin::Builtin};
-
-    fn capabilities_json(features: &[&str]) -> Value {
-        json!({
-            "api_version": "v1", "event_version": "v1", "games": ["usf4"], "games_to_win": [1],
-            "native_rules_profiles": [], "native_play": true, "result_sources": [],
-            "features": features,
-            "limits": {
-                "max_body_bytes": 1, "max_proof_body_bytes": 1, "max_json_depth": 1,
-                "challenge_lifetime_secs": 1, "session_lifetime_secs": 1, "link_code_lifetime_secs": 1,
-            },
-        })
-    }
+    use crate::tournament::{
+        Request,
+        builtin::Builtin,
+        test_support::{capabilities_json, capabilities_server, shared_pinning},
+    };
 
     fn capabilities(features: &[&str]) -> Capabilities {
         serde_json::from_value(capabilities_json(features)).unwrap()
@@ -633,80 +651,8 @@ pub(super) mod tests {
         assert!(claim(json!({ "ready": "yes" })).is_err());
     }
 
-    /// A bridge origin on loopback whose `/v1/capabilities` answers as
-    /// `mode` says: 0 fails, 1 lists neither `ready` nor watching, 2 lists
-    /// both. It answers every path so, and counts each request.
-    pub(in crate::tournament) async fn capabilities_server(
-        mode: Arc<std::sync::atomic::AtomicU8>,
-    ) -> (String, Arc<std::sync::atomic::AtomicUsize>) {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let origin = format!("http://{}", listener.local_addr().unwrap());
-        let asked = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let counted = asked.clone();
-        tokio::spawn(async move {
-            loop {
-                let Ok((mut socket, _)) = listener.accept().await else {
-                    return;
-                };
-                let mut request = Vec::new();
-                let mut buffer = [0; 1024];
-                while !request.windows(4).any(|end| end == b"\r\n\r\n") {
-                    match socket.read(&mut buffer).await {
-                        Ok(0) | Err(_) => break,
-                        Ok(read) => request.extend_from_slice(&buffer[..read]),
-                    }
-                }
-                counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                let features: &[&str] = match mode.load(std::sync::atomic::Ordering::SeqCst) {
-                    1 => &["matches.play"],
-                    2 => &[
-                        "matches.play",
-                        CLAIM_READY_FEATURE,
-                        ember_protocol::play::WATCH_FEATURE,
-                    ],
-                    _ => {
-                        let _ = socket
-                            .write_all(b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
-                            .await;
-                        continue;
-                    }
-                };
-                let body = serde_json::to_vec(&capabilities_json(features)).unwrap();
-                let head = format!(
-                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
-                    body.len()
-                );
-                let _ = socket.write_all(head.as_bytes()).await;
-                let _ = socket.write_all(&body).await;
-            }
-        });
-        (origin, asked)
-    }
-
     fn shared_in(dir: &std::path::Path) -> Arc<Shared> {
         shared_pinning(dir, &[])
-    }
-
-    pub(in crate::tournament) fn shared_pinning(dir: &std::path::Path, builtins: &[Builtin]) -> Arc<Shared> {
-        Arc::new(Shared {
-            identity: std::sync::Mutex::new(crate::identity::Identity::open(
-                dir.join("identity"),
-                false,
-                crate::identity::Cost::DEFAULT,
-            )),
-            bridges: std::sync::Mutex::new(super::super::bridges::Store::open(
-                dir.join("bridges"),
-                builtins,
-            )),
-            client: client::Client::new(),
-            http: Arc::new(tokio::sync::Semaphore::new(1)),
-            play: std::sync::Mutex::new(State::default()),
-            spool: super::super::spool::Spool::open(dir.join("reports")),
-            endpoint_id: "a".repeat(64),
-            instance_id: prefixed_id("ins", [1; 16]),
-            home_region: Box::new(|| None),
-        })
     }
 
     // A Ready claim is not sent without its `ready` when the capabilities
@@ -729,7 +675,7 @@ pub(super) mod tests {
             keys: Vec::new(),
         };
         let reads = || async {
-            features(&shared, &bridge, |known| known.ready)
+            features(&shared, &bridge, Need::Ready)
                 .await
                 .map(|offered| offered.ready)
         };

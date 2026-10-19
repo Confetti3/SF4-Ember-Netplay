@@ -299,7 +299,7 @@ impl Actor {
             // The one copy: the transfer owns its bytes.
             committed.checkpoint().as_bytes().to_vec(),
         )?;
-        if let Some(retained) = self.committed_roster(&transfer.bytes) {
+        if let Some(retained) = self.observe_commit(recovery.room, &committed) {
             self.schedule_membership_reconciliation(
                 retained,
                 committed.term(),
@@ -570,7 +570,7 @@ impl Actor {
             && transfer.bytes.len() == key.length
             && transfer.digest == key.digest;
         if committed_exact {
-            if let Some(retained) = self.committed_roster(&transfer.bytes) {
+            if let Some(retained) = self.observe_commit(recovery.room, &committed) {
                 self.schedule_membership_reconciliation(
                     retained,
                     committed.term(),

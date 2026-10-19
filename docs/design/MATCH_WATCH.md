@@ -889,6 +889,12 @@ applied at (a) to (d) of §2.4:
   retries on the same `OpenTimeoutMs` (30 s, `TournamentPlay.cxx:180-187`),
   so the design does not lengthen it.
 
+**As built.** `observe_commit` sets the actor's `Seats` once per commit, and
+an unreadable binding keeps the last seats. Only the coordination leader
+fences and retires unnamed members; a follower accepts its leader's Admission
+even when the binding does not name it, so a follower never cuts a fighter's
+link to an unnamed leader.
+
 ### 5.5 Files
 
 - `rust/sf4-net/src/tournament/{play.rs, mod.rs}`.

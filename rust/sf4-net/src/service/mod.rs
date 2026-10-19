@@ -137,13 +137,13 @@ fn native_json_depth_ok(text: &[u8]) -> bool {
     true
 }
 
-mod bound;
 mod checkpoints;
 mod controls;
 mod departure;
 mod entry;
 mod events;
 mod games;
+mod join;
 mod latency;
 mod members;
 mod network;
@@ -151,16 +151,17 @@ mod probes;
 mod protocol;
 mod public;
 mod refresh;
+mod seats;
 mod server_owned;
 mod short_links;
 mod stall;
 #[cfg(test)]
 mod tests;
 
-use bound::{Binding, BoundRoster, CommittedRoom};
 use entry::TaskScope;
 pub use entry::{run, run_on_port};
 use events::EventOutbox;
+use join::JoinVia;
 use probes::{selected_probe_route, serve_probe};
 use protocol::NativeControlMessage;
 pub use protocol::{Command, Event};
@@ -727,14 +728,12 @@ struct Actor {
     public: Option<crate::public_room::PublicRoom>,
     /// Exact UDP port for this process's coordination endpoint when hosting.
     coordination_port: Option<u16>,
-    /// The roster and binding the committed checkpoint named the last time a
-    /// coordination refresh parsed one, with the room and the commit it came
-    /// from, so a refresh of the same commit parses nothing.
-    refresh_roster: Option<(
-        [u8; 16],
-        Arc<crate::coordination::Committed>,
-        Option<CommittedRoom>,
-    )>,
+    /// The roster the committed checkpoint named the last time one was
+    /// parsed (`observe_commit`), with the room and the commit it came from,
+    /// so a read of the same commit parses nothing.
+    refresh_roster: Option<seats::SeenCommit>,
+    /// Who the room seats, from the last commit that said so readably.
+    seats: seats::Seats,
     /// Signalled when work arrives that no other arm of the actor's loop
     /// sees: a control's reader queued a frame, or the room's Raft store
     /// committed (`install_recovery`). The loop ticks at once.
@@ -870,6 +869,7 @@ impl Actor {
         self.room = None;
         // The cached roster holds the room's whole checkpoint.
         self.refresh_roster = None;
+        self.seats = seats::Seats::Open;
         self.opening = false;
         self.controls.clear();
         self.clear_parked_controls();
@@ -989,32 +989,7 @@ impl Actor {
                 invitation,
                 build,
                 observer,
-            } => {
-                // Consume an accepted room epoch before parsing the invitation.
-                // Rejection then belongs to the caller's attempt and Leave can
-                // acknowledge cancellation even though no connection was made.
-                if !self.begin(epoch, &build) {
-                    self.error_at(id, epoch, "invalid_room_state")?;
-                    return Ok(true);
-                }
-                // A short link is looked up first; the full invitation it
-                // stands for then takes the same path as a pasted one. A
-                // watcher always has the full invitation from its bridge.
-                match crate::short_invite::parse(&invitation) {
-                    Some(_) if observer => {
-                        // The invitation is well formed; the request is not, so
-                        // the refusal names that rather than a malformed link.
-                        self.clear_room();
-                        self.error_because(
-                            id,
-                            "invalid_or_incompatible_invitation",
-                            Some("observer_short_link"),
-                        )?;
-                    }
-                    Some(code) => self.join_short(id, epoch, code, build)?,
-                    None => self.join_invitation(id, &invitation, build, None, observer)?,
-                }
-            }
+            } => self.join_command(id, epoch, &invitation, build, observer)?,
             Command::ShortInvite { epoch } => self.short_invite_command(epoch)?,
             Command::LatencyWatch { epoch, room, view, on } => self.latency_watch(epoch, room, view, on),
             Command::Leave { epoch, abandon } => {
@@ -1093,12 +1068,7 @@ impl Actor {
                     return Ok(true);
                 }
                 if self.controls.contains_key(&peer) {
-                    let control = self.remove_control(peer);
-                    self.emit(Event::ControlClosed {
-                        epoch,
-                        peer,
-                        control,
-                    })?;
+                    self.close_control(peer)?;
                 }
                 // Never closes separately authorized gameplay connections.
             }
@@ -1246,72 +1216,6 @@ impl Actor {
             }
         }
         Ok(true)
-    }
-
-    /// Joins the room `invitation` names. `short_code` is the code a short
-    /// link was opened with; the invitation must derive that same code, so a
-    /// record cannot stand in for another room. `observer` joins as a watcher
-    /// of a tournament match.
-    fn join_invitation(
-        &mut self,
-        id: u64,
-        invitation: &str,
-        build: String,
-        short_code: Option<&str>,
-        observer: bool,
-    ) -> io::Result<()> {
-        let epoch = self.epoch;
-        let time = now().ok();
-        let invite = time.and_then(|time| Invite::parse_for_build(invitation, time, &build).ok());
-        let invite = match invite {
-            Some(invite)
-                if invite.build() == build
-                    && short_code.is_none_or(|code| invite.short_code() == code) =>
-            {
-                invite
-            }
-            Some(_) => {
-                self.clear_room();
-                return self.error_because(
-                    id,
-                    "invalid_or_incompatible_invitation",
-                    Some("malformed"),
-                );
-            }
-            None => {
-                let reason = time.map_or("malformed", |time| {
-                    Invite::rejection_reason(invitation, time, &build)
-                });
-                self.clear_room();
-                return self.error_because(id, "invalid_or_incompatible_invitation", Some(reason));
-            }
-        };
-        // A copy taken while this helper still led the room names this
-        // endpoint. Iroh refuses to dial itself, which would otherwise
-        // read as an unreachable host.
-        if invite.endpoint() == self.endpoint.id() {
-            self.clear_room();
-            return self.error_because(id, "invalid_or_incompatible_invitation", Some("own_room"));
-        }
-        self.room = Some(invite.room());
-        self.host_address = Some(invite.address());
-        let endpoint = self.endpoint.clone();
-        let ticket = self.member_ticket();
-        let latency = self.latency_binding();
-        self.tasks.spawn(async move {
-            let (result, latency) = latency::beside(latency, async {
-                match &ticket {
-                    Some(ticket) => crate::public_room::connect_public(&endpoint, &invite, ticket).await,
-                    None => {
-                        let proof = invite.proof_for(observer);
-                        transport::connect_control_with(&endpoint, &invite, &proof, false).await
-                    }
-                }
-            })
-            .await;
-            Completion::GuestControl(epoch, invite, result, latency)
-        });
-        Ok(())
     }
 
     async fn completed(&mut self, completion: Completion) -> io::Result<()> {

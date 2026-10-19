@@ -15,6 +15,8 @@ mod rooms;
 mod sign_in;
 mod sites;
 mod spool;
+#[cfg(test)]
+mod test_support;
 mod watch;
 
 use std::{

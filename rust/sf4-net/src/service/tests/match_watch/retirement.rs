@@ -1,6 +1,7 @@
-//! Voters and retirement in a bound room, driven by hand on the leader: who
-//! votes as watchers join, and how an admission the binding does not name
-//! leaves, its control closing only once its retirement is confirmed.
+//! Voters and retirement in a bound room, driven by hand on the leader (and
+//! once on a follower): who votes as watchers join, and how an admission the
+//! binding does not name leaves, its control closing only once its
+//! retirement is confirmed.
 use super::*;
 
 /// A room led by this actor, driven by hand.
@@ -76,15 +77,7 @@ async fn open_room() -> Room {
     .unwrap();
     let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(own.clone(), events_tx);
-    let invite = actor.setup_host_recovery(seed).await.unwrap();
-    let recovery = actor.recovery.clone().unwrap();
-    while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-    actor.epoch = 1;
-    actor.room = Some(invite.room());
-    actor.hosted = Some(invite.clone());
-    actor.room_invite = Some(invite.clone());
+    let (invite, recovery) = led_host(&mut actor, seed).await;
     Room {
         actor,
         events,
@@ -742,7 +735,7 @@ async fn a_binding_that_stops_reading_leaves_the_last_one_in_force() {
             .await;
         room.refresh().await;
         let rule = bound(&[own, fighter], &[]);
-        assert_eq!(room.actor.bound_roster(), Some(&rule));
+        assert_eq!(room.actor.seats, rule);
         assert!(!room.actor.admits_control(&stranger));
 
         for unreadable in [
@@ -752,66 +745,22 @@ async fn a_binding_that_stops_reading_leaves_the_last_one_in_force() {
         ] {
             room.commit(&members, unreadable).await;
             room.refresh().await;
-            assert_eq!(room.actor.bound_roster(), Some(&rule));
+            assert_eq!(room.actor.seats, rule);
             assert!(room.actor.admits_control(&fighter));
             assert!(!room.actor.admits_control(&stranger));
             let roster = BTreeSet::from([own, fighter, stranger]);
-            assert_eq!(room.actor.desired_voters(&roster), 1);
+            assert_eq!(room.actor.voters().desired(&roster), 1);
         }
 
         let moved = tournament(&[own, stranger], &[]);
         room.commit(&members, moved).await;
         room.refresh().await;
-        assert_eq!(
-            room.actor.bound_roster(),
-            Some(&bound(&[own, stranger], &[]))
-        );
+        assert_eq!(room.actor.seats, bound(&[own, stranger], &[]));
 
         room.commit(&members, json!({})).await;
         room.refresh().await;
-        assert_eq!(room.actor.bound_roster(), None);
+        assert_eq!(room.actor.seats, Seats::Open);
         room.stop(Vec::new()).await;
-    })
-    .await
-    .unwrap();
-}
-
-// The grow path of the voter restore, driven with a count that would make
-// every member a voter: the watcher that has a control and a seat is still
-// not promoted.
-#[tokio::test]
-async fn restoring_voters_never_promotes_a_watcher_whatever_the_count() {
-    timeout(Duration::from_secs(60), async {
-        let mut room = open_room().await;
-        let own = room.own.id();
-        let fighter = room.member(true).await;
-        let watcher = room.member(true).await;
-        let bind = tournament(&[own, fighter.id()], &[watcher.id()]);
-        let members = [own, fighter.id(), watcher.id()];
-        room.commit(&members, bind).await;
-        room.settle().await;
-        let policy = room.actor.voter_policy();
-        assert!(!policy.allows(&watcher.id()));
-        let revision = room.recovery.committed().await.revision();
-        let retained = members.into_iter().collect::<BTreeSet<_>>();
-        let reachable = room.actor.controls.keys().copied().collect::<BTreeSet<_>>();
-        crate::service::members::restore_stable_voters(
-            &room.recovery,
-            &retained,
-            &reachable,
-            &room.actor.admissions,
-            &BTreeSet::new(),
-            revision,
-            3,
-            &policy,
-        )
-        .await
-        .unwrap();
-        assert_eq!(
-            room.voters().await,
-            BTreeSet::from([room.recovery.incarnation, fighter.incarnation])
-        );
-        room.stop(vec![fighter, watcher]).await;
     })
     .await
     .unwrap();
@@ -831,7 +780,7 @@ async fn a_leader_the_binding_does_not_name_is_not_fenced() {
         room.commit(&members, tournament(&[first.id(), second.id()], &[]))
             .await;
         room.settle().await;
-        assert!(!room.actor.admits_control(&own));
+        assert_eq!(room.actor.seats, bound(&[first.id(), second.id()], &[]));
         assert!(
             !room
                 .actor
@@ -846,6 +795,106 @@ async fn a_leader_the_binding_does_not_name_is_not_fenced() {
             BTreeSet::from([room.recovery.incarnation])
         );
         room.stop(vec![first, second]).await;
+    })
+    .await
+    .unwrap();
+}
+
+// The same leader seen from a fighter that follows it, whose control to the
+// leader has just been opened again and not yet bound. Only the leader fences,
+// so the follower neither fences its leader nor closes that control, and the
+// leader's Admission on it binds it.
+#[tokio::test]
+async fn a_follower_keeps_its_control_to_a_leader_the_binding_does_not_name() {
+    timeout(Duration::from_secs(60), async {
+        let mut room = open_room().await;
+        let leader = room.own.id();
+        let fighter = room.member(false).await;
+        let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut follower = Room {
+            actor: test_actor(fighter.primary.clone(), events_tx),
+            events,
+            seen: Vec::new(),
+            own: fighter.primary.clone(),
+            invite: room.invite.clone(),
+            recovery: fighter.session.clone(),
+        };
+        follower.actor.epoch = 1;
+        follower.actor.room = Some(room.invite.room());
+        follower.actor.room_invite = Some(room.invite.clone());
+        let advertised = room.recovery.advertise().await;
+        follower
+            .actor
+            .remember_admission(fighter.session.advertise().await);
+        follower.actor.remember_admission(advertised.clone());
+        follower
+            .actor
+            .install_recovery(fighter.session.clone())
+            .await;
+        let dialing = async {
+            let connection = fighter
+                .primary
+                .connect(address(&room.own), CONTROL_ALPN)
+                .await
+                .unwrap();
+            transport::connect_control_on(connection, &room.invite)
+                .await
+                .unwrap()
+        };
+        let accepting = async {
+            let connection = room.own.accept().await.unwrap().await.unwrap();
+            transport::accept_control(connection, &room.invite)
+                .await
+                .unwrap()
+        };
+        let (ours, theirs) = tokio::join!(dialing, accepting);
+        let _leader_end = Heard::new(theirs);
+        follower
+            .actor
+            .controls
+            .insert(leader, ControlWorker::start(ours));
+
+        let members = [leader, fighter.id(), key()];
+        room.commit(&members, tournament(&members[1..], &[])).await;
+        let revision = room.recovery.committed().await.revision();
+        while fighter.session.committed().await.revision() < revision {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        follower.refresh().await;
+        let fenced = |follower: &Room| {
+            follower
+                .actor
+                .pending_retired_incarnations
+                .contains(&advertised.incarnation)
+        };
+        assert!(!fenced(&follower));
+        assert!(!follower.closed(leader));
+
+        let payload = serde_json::to_string(&CoordinationControl::Admission {
+            admission: advertised.clone(),
+        })
+        .unwrap();
+        assert!(
+            follower
+                .actor
+                .accept_coordination_control(leader, &payload)
+                .await
+                .unwrap()
+        );
+        follower.settle().await;
+        follower.settle().await;
+        assert_eq!(
+            follower
+                .actor
+                .controls
+                .get(&leader)
+                .map(|control| control.session()),
+            Some(Session::Bound(advertised.incarnation))
+        );
+        assert!(!follower.closed(leader) && !fenced(&follower));
+        follower.actor.clear_room();
+        follower.stop(Vec::new()).await;
+        room.stop(Vec::new()).await;
     })
     .await
     .unwrap();

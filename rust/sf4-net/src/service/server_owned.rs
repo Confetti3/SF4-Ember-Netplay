@@ -27,40 +27,21 @@ impl Actor {
         }
     }
 
-    /// The members a committed checkpoint names. A server-owned host is the
-    /// room's leader but not one of its members, so it is added to the roster
-    /// here: reconciliation never treats it as departed for being absent from
-    /// the native member list, and a room whose members have all left still
-    /// has a roster to retire them against.
-    pub(super) fn committed_roster(&self, checkpoint: &[u8]) -> Option<BTreeSet<EndpointId>> {
-        self.committed_room(checkpoint).map(|room| room.members)
-    }
-
-    /// `committed_roster`, with the tournament binding read from the same
-    /// parse. A server-owned room is never bound.
-    pub(super) fn committed_room(&self, checkpoint: &[u8]) -> Option<CommittedRoom> {
-        let envelope: serde_json::Value = serde_json::from_slice(checkpoint).ok()?;
+    /// The members a committed checkpoint's `envelope` names. A server-owned
+    /// host is the room's leader but not one of its members, so it is added
+    /// to the roster here: reconciliation never treats it as departed for
+    /// being absent from the native member list, and a room whose members
+    /// have all left still has a roster to retire them against.
+    pub(super) fn committed_roster(
+        &self,
+        envelope: &serde_json::Value,
+    ) -> Option<BTreeSet<EndpointId>> {
         if !self.is_public_host() {
-            let members = primary_endpoints(&envelope, false)?;
-            let (bound, unreadable) = match BoundRoster::read(&envelope) {
-                _ if self.server_owned() => (None, false),
-                Binding::Bound(bound) => (Some(bound), false),
-                Binding::Unbound => (None, false),
-                Binding::Unreadable => (None, true),
-            };
-            return Some(CommittedRoom {
-                members,
-                bound,
-                unreadable,
-            });
+            return primary_endpoints(envelope, false);
         }
-        let mut members = primary_endpoints(&envelope, true)?;
-        members.insert(self.endpoint.id());
-        Some(CommittedRoom {
-            members,
-            bound: None,
-            unreadable: false,
-        })
+        let mut roster = primary_endpoints(envelope, true)?;
+        roster.insert(self.endpoint.id());
+        Some(roster)
     }
 
     /// The records a member of a server-owned room is told about. Members

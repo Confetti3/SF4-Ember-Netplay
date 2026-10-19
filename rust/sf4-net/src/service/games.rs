@@ -28,29 +28,30 @@ impl Actor {
                 {
                     let member = self.control_rejoin_member(peer);
                     let recovery = self.recovery.clone();
-                    // Only a bound room has watchers to take.
-                    let observers = self.bound_roster().is_some();
+                    let watchers = self.takes_observers();
                     self.tasks.spawn(async move {
                         if let (Some(incarnation), Some(recovery)) = (member, recovery) {
                             let result =
                                 if recovery.applied_member_ids().await.contains(&incarnation) {
-                                    transport::accept_control_for(
-                                        connection,
-                                        &invite,
-                                        Some(peer),
-                                        observers,
-                                    )
-                                    .await
+                                    let accepting = transport::Accepting {
+                                        member: Some(peer),
+                                        watchers,
+                                    };
+                                    transport::accept_control_for(connection, &invite, accepting)
+                                        .await
                                 } else {
                                     connection.close(1u32.into(), b"member retired");
                                     Err(failed("member retired"))
                                 };
                             Completion::MemberControl(epoch, incarnation, result)
                         } else {
+                            let accepting = transport::Accepting {
+                                member: None,
+                                watchers,
+                            };
                             Completion::Control(
                                 epoch,
-                                transport::accept_control_for(connection, &invite, None, observers)
-                                    .await,
+                                transport::accept_control_for(connection, &invite, accepting).await,
                             )
                         }
                     });

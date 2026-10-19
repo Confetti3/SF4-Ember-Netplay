@@ -167,10 +167,11 @@ impl Actor {
             let learner_handoff = state.leader_local
                 && voters.len() == 1
                 && voters.contains(&recovery.incarnation);
-            // In a bound room only a fighter may take the vote; with none
-            // left the room ends for its watchers.
-            let policy = self.voter_policy();
-            let mut successors = if learner_handoff {
+            // In a match room only a fighter may take the vote; with none
+            // left the room ends for its watchers. Only the successors other
+            // than this member are read below.
+            let may_vote = self.voters();
+            let successors = if learner_handoff {
                 applied_members
                     .iter()
                     .copied()
@@ -182,14 +183,16 @@ impl Actor {
                                 self.controls.contains_key(&admission.primary_endpoint)
                             })
                     })
+                    .filter(|id| may_vote.may_vote_member(&self.admissions, *id))
                     .collect::<BTreeSet<_>>()
             } else {
-                voters.clone()
+                voters
+                    .iter()
+                    .copied()
+                    .filter(|id| may_vote.may_vote_member(&self.admissions, *id))
+                    .collect()
             };
-            successors.retain(|id| {
-                *id == recovery.incarnation || policy.allows_member(&self.admissions, *id)
-            });
-            if !self.server_owned()
+            if may_vote.changes_voters()
                 && voters.contains(&recovery.incarnation)
                 && successors.iter().any(|id| *id != recovery.incarnation)
             {

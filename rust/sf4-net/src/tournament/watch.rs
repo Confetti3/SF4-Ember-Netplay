@@ -7,7 +7,6 @@
 use std::sync::Arc;
 
 use ember_protocol::{
-    api::ApiError,
     challenge::Action,
     play::{WatchAnswer, WatchRequest},
 };
@@ -17,7 +16,7 @@ use super::{
     Failure, Outcome, Shared,
     bridges::Approved,
     client::{self, answer, refusal},
-    play::{check_match_id, features, send_proven},
+    play::{Need, check_match_id, features, send_proven},
 };
 
 /// The refusals the game words apart, from the bridge's `details.reason`:
@@ -87,7 +86,7 @@ pub async fn unwatch_match(shared: &Arc<Shared>, bridge_id: &str, match_id: &str
 /// keeps for it (`play::features`). One that does not is asked again next
 /// time, since it may be upgraded meanwhile.
 async fn serves_watch(shared: &Arc<Shared>, bridge: &Approved) -> Result<bool, Failure> {
-    Ok(features(shared, bridge, |known| known.watch).await?.watch)
+    Ok(features(shared, bridge, Need::Watch).await?.watch)
 }
 
 /// The bridge's answer as JSON when it is a success. A refusal is the
@@ -97,18 +96,7 @@ fn reply(status: u16, body: &[u8]) -> Result<Value, Failure> {
     if status == 200 {
         return answer(status, body, &[200]);
     }
-    let reason = serde_json::from_slice::<ApiError>(body)
-        .ok()
-        .and_then(|error| {
-            error
-                .error
-                .details
-                .get("reason")?
-                .as_str()
-                .map(str::to_owned)
-        })
-        .filter(|reason| REASONS.contains(&reason.as_str()));
-    Err(reason.map_or_else(|| refusal(status, body), Failure))
+    Err(refusal(status, body, &REASONS))
 }
 
 /// The watch answer for the game, in the claim answer's `role` shape.
@@ -141,10 +129,8 @@ mod tests {
         tournament::{
             Request,
             builtin::Builtin,
-            play::{
-                send_claim,
-                tests::{capabilities_server, shared_pinning},
-            },
+            play::send_claim,
+            test_support::{capabilities_server, shared_pinning},
         },
     };
 

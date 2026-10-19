@@ -45,6 +45,16 @@ impl Actor {
             .unwrap_or(0)
     }
 
+    /// Close a control and tell the native side.
+    pub(super) fn close_control(&mut self, peer: EndpointId) -> io::Result<()> {
+        let control = self.remove_control(peer);
+        self.emit(Event::ControlClosed {
+            epoch: self.epoch,
+            peer,
+            control,
+        })
+    }
+
     /// Bind a control to its accepted incarnation and tell the native side.
     /// Every accepted Admission is published; the native record ignores a
     /// repeat for the incarnation it already holds.
@@ -446,8 +456,8 @@ impl Actor {
                     self.emit_coordination_state().await?;
                     return Ok(true);
                 };
-                // A bound room takes an Admission only from an endpoint its
-                // binding names. The handshake gate covers new connections;
+                // A match room takes an Admission only from an endpoint it
+                // seats (`admits_control`). The handshake gate covers new connections;
                 // a control opened before the bind is not covered by it, and
                 // would otherwise keep presenting fresh incarnations, each
                 // superseding the fenced one so its retirement never closes
@@ -455,7 +465,7 @@ impl Actor {
                 // stays fenced and is retired. Ignored, not refused: an
                 // error would close the control before that retirement
                 // commits, and a voter's control must stay open until then.
-                if self.bound_roster().is_some_and(|bound| !bound.names(&peer)) {
+                if !self.admits_control(&peer) {
                     return Ok(true);
                 }
                 // An Admission describes the presenting peer's own process:
