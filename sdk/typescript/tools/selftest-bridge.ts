@@ -113,9 +113,12 @@ async function awaitFile(exchange: Exchange, file: string, what: string): Promis
 
 // Everything started here, stopped in reverse order at the end.
 const stops: (() => Promise<void> | void)[] = [];
+// A child is stopped and waited for: its files stay open until it has exited.
 function own(child: ChildProcess, what: string): ChildProcess {
-  stops.push(() => {
-    if (child.exitCode === null) child.kill();
+  const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+  stops.push(async () => {
+    if (child.exitCode === null && child.signalCode === null) child.kill();
+    await Promise.race([exited, sleep(10_000)]);
   });
   child.on("exit", (code) => {
     if (code !== null && code !== 0) console.log(`${what} exited with ${code}`);
@@ -251,7 +254,8 @@ try {
 } catch (error) {
   say(false, "bridge side", (error as Error).message);
 } finally {
-  for (const stop of stops.reverse()) await stop();
+  // What could not be cleaned up is said, and the rest still goes.
+  for (const stop of stops.reverse()) await Promise.resolve().then(stop).catch((error: Error) => console.log(`cleanup: ${error.message}`));
 }
 console.log(failed ? "RESULT fail" : "RESULT pass");
 process.exit(failed ? 1 : 0);
