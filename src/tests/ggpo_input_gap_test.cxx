@@ -5,6 +5,8 @@
 // input-gap-disconnect port patch turns it into the ordinary "disconnected from
 // peer" event. This test runs a real spectator session against a fake host that
 // syncs, sends frame 0 and then skips to frame 5.
+// A second spectator session then gets what a host that drops it sends: its
+// whole 63-frame window with disconnect_requested set, in one packet.
 #include <ggponet.h>
 #include <winsock2.h>
 #include <cstdint>
@@ -25,6 +27,8 @@ static bool __cdecl Event(GGPOEvent* event) {
     if (event->code == GGPO_EVENTCODE_DISCONNECTED_FROM_PEER) ++disconnects;
     return true;
 }
+// GGPO exits the process after this returns; print the assertion instead of a message box.
+static void __cdecl AssertFailed(const char* message) { std::printf("%s\n", message); std::fflush(stdout); }
 static SOCKET BindLoopback(unsigned short* port) {
     SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); CHECK(s != INVALID_SOCKET);
     sockaddr_in address = {}; address.sin_family = AF_INET; address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -54,21 +58,27 @@ static void ServeSync(SOCKET s, unsigned short spectatorPort) {
         SendToSpectator(s, spectatorPort, reply, sizeof(reply));
     }
 }
-// One Input message holding a single unchanged frame (delta bit 1, end bit 0).
-// Layout after the header: connect_status[4], start_frame u32, ack u32, num_bits u16, input_size u8, bits.
-static void SendInputFrame(SOCKET s, unsigned short spectatorPort, std::uint32_t startFrame) {
-    unsigned char packet[5 + 16 + 4 + 4 + 2 + 1 + 1] = {}; const std::uint16_t seq = sequence++;
+// One Input message holding unchanged frames (delta bit 1, end bit 0 each).
+// Layout after the header: connect_status[4], start_frame u32, ack u32 whose low
+// bit is disconnect_requested, num_bits u16, input_size u8, bits.
+// 63 frames: PENDING_OUTPUT_SIZE - 1 in the event-queue-size port patch, the
+// most one input packet carries.
+static const int WindowFrames = 63;
+static void SendInputFrames(SOCKET s, unsigned short spectatorPort, std::uint32_t startFrame, int frames = 1, bool disconnect = false) {
+    unsigned char packet[5 + 16 + 4 + 4 + 2 + 1 + (WindowFrames * 2 + 7) / 8] = {}; const std::uint16_t seq = sequence++;
     std::memcpy(packet, &Magic, 2); std::memcpy(packet + 2, &seq, 2); packet[4] = 3;
     std::memcpy(packet + 21, &startFrame, 4);
-    const std::uint16_t numBits = 2; std::memcpy(packet + 29, &numBits, 2);
-    packet[31] = 2; packet[32] = 1;
-    SendToSpectator(s, spectatorPort, packet, sizeof(packet));
+    packet[25] = disconnect ? 1 : 0;
+    const std::uint16_t numBits = static_cast<std::uint16_t>(frames * 2); std::memcpy(packet + 29, &numBits, 2);
+    packet[31] = 2; std::memset(packet + 32, 0x55, (numBits + 7) / 8);
+    SendToSpectator(s, spectatorPort, packet, 32 + (numBits + 7) / 8);
 }
 
 int main() {
     GGPOSessionCallbacks callbacks = {};
     callbacks.begin_game = Begin; callbacks.save_game_state = Save; callbacks.load_game_state = Load;
     callbacks.log_game_state = Log; callbacks.free_buffer = Free; callbacks.advance_frame = Advance; callbacks.on_event = Event;
+    ggpo_set_assert_handler(AssertFailed);
     WSADATA winsock{}; CHECK(WSAStartup(MAKEWORD(2, 2), &winsock) == 0);
     unsigned short hostPort = 0; const SOCKET host = BindLoopback(&hostPort);
     auto spectatorPort = ReservePort();
@@ -82,7 +92,7 @@ int main() {
     pump(5000, running, 1);
     CHECK(running == 1);
     unsigned char inputs[2]; int disconnected = 0;
-    SendInputFrame(host, spectatorPort, 0);
+    SendInputFrames(host, spectatorPort, 0);
     const auto frameDeadline = GetTickCount64() + 2000;
     while (ggpo_synchronize_input(spectator, inputs, sizeof(inputs), &disconnected) != GGPO_OK && GetTickCount64() < frameDeadline) {
         CHECK(ggpo_idle(spectator, 0) == GGPO_OK); Sleep(1);
@@ -90,13 +100,28 @@ int main() {
     CHECK(ggpo_advance_frame(spectator) == GGPO_OK);
     CHECK(disconnects == 0);
     // Frames 1 to 4 never arrive. Before the patch this exited the process.
-    SendInputFrame(host, spectatorPort, 5);
+    SendInputFrames(host, spectatorPort, 5);
     pump(2000, disconnects, 1);
     CHECK(disconnects == 1);
-    SendInputFrame(host, spectatorPort, 9);
+    SendInputFrames(host, spectatorPort, 9);
     int none = 2; pump(200, none, 3);
     CHECK(disconnects == 1);
     CHECK(ggpo_close_session(spectator) == GGPO_OK);
+
+    // A fresh spectator gets the dropped host's whole window in one packet.
+    running = disconnects = 0;
+    CHECK(ggpo_start_spectating(&spectator, &callbacks, "input-gap", 2, 1, spectatorPort, loopback, hostPort) == GGPO_OK);
+    pump(5000, running, 1);
+    CHECK(running == 1);
+    SendInputFrames(host, spectatorPort, 0, WindowFrames, true);
+    pump(2000, disconnects, 1);
+    CHECK(disconnects == 1);
+    int frames = 0;
+    while (ggpo_synchronize_input(spectator, inputs, sizeof(inputs), &disconnected) == GGPO_OK) {
+        CHECK(ggpo_advance_frame(spectator) == GGPO_OK); ++frames;
+    }
+    CHECK(frames == WindowFrames);
+    CHECK(ggpo_close_session(spectator) == GGPO_OK);
     closesocket(host); WSACleanup();
-    std::printf("GGPO input gap disconnected the spectator and the process survived\n");
+    std::printf("GGPO input gap and a full disconnect window reached the spectator and the process survived\n");
 }
