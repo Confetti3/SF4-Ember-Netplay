@@ -3341,8 +3341,8 @@ msgstr "观战操作发送失败，正在重试。"
 msgid "runtime.return_main_menu"
 msgstr "请返回游戏主菜单，再打开房间。"
 
-msgid "runtime.watching_match"
-msgstr "你正在观战一场赛事对局。请先在“赛事对局”中停止观战，再打开或加入其他房间。"
+msgid "runtime.in_tournament_match"
+msgstr "你正在进行或观战一场赛事对局。请先将其结束，或在“赛事对局”中停止，再打开或加入其他房间。"
 
 msgid "runtime.watch_leave_room"
 msgstr "请先退出当前房间，再观战赛事对局。"

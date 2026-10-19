@@ -120,7 +120,7 @@ void SendPermitReady(const Output& output) {
 
 // A room command the runtime would not carry out leaves the state machine
 // waiting out its open timeout; the log says why the room never came.
-void RoomCommand(netplay::Command command, const char* what, JoinKind join) {
+void RoomCommand(netplay::Command command, const char* what, JoinKind join = JoinKind::Private) {
 	const auto outcome = DispatchTournamentRoomCommand(std::move(command), join);
 	if (outcome == netplay::DispatchOutcome::Dispatched) spdlog::info("Tournament: {}", what);
 	else spdlog::warn("Tournament: {} not started (outcome {})", what, static_cast<int>(outcome));
@@ -136,16 +136,16 @@ void Execute(const Output& output, std::uint64_t nowMs) {
 		SendRequest(output, nowMs);
 		break;
 	case Output::Kind::Host:
-		RoomCommand({netplay::CommandKind::HostRoom, {}, {}}, "opening the match's room", JoinKind::Private);
+		RoomCommand({netplay::CommandKind::HostRoom, {}, {}}, "opening the match's room");
 		break;
 	case Output::Kind::Join:
-		RoomCommand({netplay::CommandKind::JoinInvite, {}, output.invitation}, "joining the match's room", JoinKind::Private);
+		RoomCommand({netplay::CommandKind::JoinInvite, {}, output.invitation}, "joining the match's room");
 		break;
 	case Output::Kind::Leave: {
 		// Not in a room, or already leaving it (the player left by hand).
 		const auto room = runtime->controller.GetSnapshot().room;
 		if (room == netplay::RoomState::Idle || room == netplay::RoomState::Closing) break;
-		RoomCommand({netplay::CommandKind::LeaveRoom, {}, {}}, "leaving the room", JoinKind::Private);
+		RoomCommand({netplay::CommandKind::LeaveRoom, {}, {}}, "leaving the room");
 		break;
 	}
 	case Output::Kind::Bind:
@@ -171,7 +171,7 @@ void ExecuteWatch(const WatchOutput& output, std::uint64_t nowMs) {
 	case WatchOutput::Kind::Leave: {
 		const auto room = runtime->controller.GetSnapshot().room;
 		if (room == netplay::RoomState::Idle || room == netplay::RoomState::Closing) break;
-		RoomCommand({netplay::CommandKind::LeaveRoom, {}, {}}, "leaving the watched room", JoinKind::Private);
+		RoomCommand({netplay::CommandKind::LeaveRoom, {}, {}}, "leaving the watched room");
 		break;
 	}
 	}

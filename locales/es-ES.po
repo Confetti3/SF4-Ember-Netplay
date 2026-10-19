@@ -3341,8 +3341,8 @@ msgstr "No se pudo enviar la acción de espectador; reintentando."
 msgid "runtime.return_main_menu"
 msgstr "Vuelve al menú principal del juego antes de abrir una sala."
 
-msgid "runtime.watching_match"
-msgstr "Estás viendo una partida del torneo. Deja de ver la partida en Partidas del torneo antes de abrir otra sala o unirte a una."
+msgid "runtime.in_tournament_match"
+msgstr "Estás jugando o viendo una partida del torneo. Termínala o detenla en Partidas del torneo antes de abrir otra sala o unirte a una."
 
 msgid "runtime.watch_leave_room"
 msgstr "Sal de tu sala antes de ver una partida del torneo."

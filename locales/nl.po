@@ -3340,8 +3340,8 @@ msgstr "Toeschouwersactie niet verzonden; nieuwe poging."
 msgid "runtime.return_main_menu"
 msgstr "Ga naar het spelhoofdmenu voordat je een kamer opent."
 
-msgid "runtime.watching_match"
-msgstr "Je kijkt naar een toernooiwedstrijd. Stop met kijken bij Toernooiwedstrijden voordat je een andere kamer opent of binnengaat."
+msgid "runtime.in_tournament_match"
+msgstr "Je speelt of bekijkt een toernooiwedstrijd. Rond hem af of stop hem bij Toernooiwedstrijden voordat je een andere kamer opent of binnengaat."
 
 msgid "runtime.watch_leave_room"
 msgstr "Verlaat je kamer voordat je naar een toernooiwedstrijd gaat kijken."

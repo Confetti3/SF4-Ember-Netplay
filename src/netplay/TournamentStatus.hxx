@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "SessionController.hxx"
 #include "TournamentPlay.hxx"
 #include "WatchPlay.hxx"
 
@@ -110,6 +111,15 @@ struct OpenedRoomLink {
 // whatever the room's own snapshot shows yet. Playing counts from its first
 // claim, so the window before the room is bound is covered.
 inline bool HoldsMatchRoom(Phase play, WatchPhase watch) { return PlayUnderWay(play) || WatchUnderWay(watch); }
+
+// Whether `kind`, a command from the player, is refused because it would open a
+// room by hand beside the match: Host, and Join (an invitation pasted or
+// accepted from Discord). The match acts only on its own room and never leaves
+// one the player opened, so a hand-opened room would hold it, and the opponent
+// waiting for it, for good. Every other command passes.
+inline bool RefusesHandOpenedRoom(CommandKind kind, Phase play, WatchPhase watch) {
+	return (kind == CommandKind::HostRoom || kind == CommandKind::JoinInvite) && HoldsMatchRoom(play, watch);
+}
 
 // The match being watched, and how far it got.
 struct WatchStatus {

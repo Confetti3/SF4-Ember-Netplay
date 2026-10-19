@@ -3341,8 +3341,8 @@ msgstr "관전 작업을 보내지 못해 다시 시도합니다."
 msgid "runtime.return_main_menu"
 msgstr "방을 열기 전에 게임의 메인 메뉴로 돌아가세요."
 
-msgid "runtime.watching_match"
-msgstr "대회 경기를 관전 중입니다. 다른 방을 열거나 참가하기 전에 '대회 경기'에서 관전을 중지하세요."
+msgid "runtime.in_tournament_match"
+msgstr "대회 경기를 하고 있거나 관전 중입니다. 다른 방을 열거나 참가하기 전에 경기를 끝내거나 '대회 경기'에서 중지하세요."
 
 msgid "runtime.watch_leave_room"
 msgstr "대회 경기를 관전하기 전에 현재 방에서 나가세요."

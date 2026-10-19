@@ -3340,8 +3340,8 @@ msgstr "Nie udało się wysłać działania widza; ponawianie próby."
 msgid "runtime.return_main_menu"
 msgstr "Wróć do menu głównego gry przed otwarciem pokoju."
 
-msgid "runtime.watching_match"
-msgstr "Oglądasz mecz turniejowy. Przed otwarciem innego pokoju lub dołączeniem do niego przestań oglądać w sekcji Mecze turniejowe."
+msgid "runtime.in_tournament_match"
+msgstr "Grasz lub oglądasz mecz turniejowy. Zakończ go lub zatrzymaj w sekcji Mecze turniejowe, zanim otworzysz inny pokój lub do niego dołączysz."
 
 msgid "runtime.watch_leave_room"
 msgstr "Opuść swój pokój, zanim zaczniesz oglądać mecz turniejowy."

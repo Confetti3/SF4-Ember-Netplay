@@ -1226,7 +1226,18 @@ ticks it (`src/sf4e/sf4e__NetplayRuntime__Tournament.cxx`).
 - **A closed room** shows `tournament.watch.room_closed_notice`.
 - **A Discord invite** accepted while watching
   (`PublishAndTickDiscordInvite`, `Status.cxx:590-605`) stops `WatchPlay`
-  first, as Leave does. Fighters' behaviour there is unchanged.
+  first, as Leave does.
+- **Opening or joining a room by hand** is refused while a match is played
+  or watched. `Dispatch` (`Room.cxx`) asks
+  `netplay::tournament::RefusesHandOpenedRoom` for Host and Join, which
+  covers both followers (`HoldsMatchRoom`) and the Discord invitation of a
+  fighter. A refused fighter's invitation is cancelled, so it is not
+  submitted again each tick, and the player sees `runtime.in_tournament_match`.
+  The match's own room commands pass (`Attempt::Tournament`), and so does the
+  invitation of someone watching, because it stops the watch first. Without
+  this, a fighter still claiming could join a room of their own, and the
+  follower, which never leaves a room the player opened, would leave the
+  match waiting in it with the opponent.
 
 ### 7.5 What fighters see
 
@@ -1289,7 +1300,7 @@ New keys are in `locales/en.po` and translated in the other 13 catalogs
 | `room.tournament_watching` | Watching a tournament match. Only its two players can play. |
 | `room.tournament_status_watched` | Tournament match, first to {0}. {1} watching. |
 | `room.member.watcher` | Watcher |
-| `runtime.watching_match` | You are watching a tournament match. Stop watching under Tournament matches before you open or join another room. |
+| `runtime.in_tournament_match` | You are playing or watching a tournament match. Finish it or stop it under Tournament matches before you open or join another room. |
 | `runtime.watch_leave_room` | Leave your room before you watch a tournament match. |
 
 Changed text, same key: `room.tournament_status` ("...Only its two players

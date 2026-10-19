@@ -108,11 +108,6 @@ using Intent = netplay::ParkedIntent<RuntimeCommand>;
 // raised and again when the language changes.
 enum class StickyError { None, StartFailed, HelperUnavailable };
 
-// How the room being opened was entered: a private invitation or a host, a
-// public room's ticket (a refusal or failure is worded for it), or a
-// tournament match's watcher (the room admits it only if it names it).
-enum class JoinKind : std::uint8_t { Private, Public, Observer };
-
 struct Runtime {
     StickyError stickyError = StickyError::None;
     std::uint32_t stickyCode = 0;

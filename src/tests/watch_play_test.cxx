@@ -2,6 +2,7 @@
 // as an observer, asking on for as long as it watches, and leaving.
 #include "../netplay/TournamentPlay.hxx"
 #include "../netplay/WatchPlay.hxx"
+#include "../netplay/TournamentStatus.hxx"
 
 #include <cstdio>
 #include <string>
@@ -410,6 +411,50 @@ static void TestNeverActsOnAForeignRoom() {
 	CHECK(Count(Tick(failed, 3000, Joined(HandRoom)), Kind::Leave) == 0);
 }
 
+// A room opened or joined by hand beside a match would be left alone by the
+// match, which then waits for its own room for good. So Host and Join, which a
+// Discord invitation is, are refused for a fighter from the first claim and for a
+// watcher, and for nothing else: not after the match, not for other commands.
+static void TestHandOpenedRoomsAreRefused() {
+	using sf4e::netplay::CommandKind;
+	const auto refused = [](CommandKind kind, const TournamentPlay& play, const WatchPlay& watch) {
+		return RefusesHandOpenedRoom(kind, play.GetPhase(), watch.GetPhase());
+	};
+	const CommandKind opening[] = {CommandKind::HostRoom, CommandKind::JoinInvite};
+	const CommandKind others[] = {CommandKind::LeaveRoom, CommandKind::Ready, CommandKind::Rematch, CommandKind::StartOffline,
+		CommandKind::SavePreferences, CommandKind::RoomAction, CommandKind::ReplaceRoom};
+	TournamentPlay idlePlay;
+	WatchPlay idleWatch;
+	for (const auto kind : opening) CHECK(!refused(kind, idlePlay, idleWatch));
+	// A fighter who is still claiming has no room yet, which can last minutes
+	// while the opponent claims: the case that stalled the match.
+	TournamentPlay fighter;
+	fighter.Start("brg_1", "emt_1", 0);
+	CHECK(fighter.GetPhase() == Phase::Claiming);
+	for (const auto kind : opening) CHECK(refused(kind, fighter, idleWatch));
+	for (const auto kind : others) CHECK(!refused(kind, fighter, idleWatch));
+	// Every phase of a played match that holds its room, and none that does not.
+	for (const auto phase : {Phase::Claiming, Phase::Opening, Phase::InRoom})
+		for (const auto kind : opening) CHECK(RefusesHandOpenedRoom(kind, phase, WatchPhase::Idle));
+	for (const auto phase : {Phase::Idle, Phase::Finished, Phase::Failed})
+		for (const auto kind : opening) CHECK(!RefusesHandOpenedRoom(kind, phase, WatchPhase::Idle));
+	// Stopping the match gives the player the menu back.
+	fighter.Stop();
+	for (const auto kind : opening) CHECK(!refused(kind, fighter, idleWatch));
+	// A watcher is held from the first ask, until it stops.
+	WatchPlay watcher;
+	watcher.Start("brg_1", "emt_1", 0);
+	Tick(watcher, 0);
+	for (const auto kind : opening) CHECK(refused(kind, idlePlay, watcher));
+	for (const auto kind : others) CHECK(!refused(kind, idlePlay, watcher));
+	for (const auto phase : {WatchPhase::Asking, WatchPhase::Waiting, WatchPhase::Joining, WatchPhase::Watching})
+		for (const auto kind : opening) CHECK(RefusesHandOpenedRoom(kind, Phase::Idle, phase));
+	for (const auto phase : {WatchPhase::Idle, WatchPhase::Finished, WatchPhase::Refused})
+		for (const auto kind : opening) CHECK(!RefusesHandOpenedRoom(kind, Phase::Idle, phase));
+	watcher.Stop();
+	for (const auto kind : opening) CHECK(!refused(kind, idlePlay, watcher));
+}
+
 int main() {
 	TestAsking();
 	TestJoiningTheRoom();
@@ -422,6 +467,7 @@ int main() {
 	TestFinished();
 	TestRestart();
 	TestNeverActsOnAForeignRoom();
+	TestHandOpenedRoomsAreRefused();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("watch play tests passed\n");
 	return failures ? 1 : 0;

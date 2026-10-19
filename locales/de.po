@@ -3340,8 +3340,8 @@ msgstr "Zuschaueraktion konnte nicht gesendet werden; erneuter Versuch."
 msgid "runtime.return_main_menu"
 msgstr "Kehren Sie vor dem Öffnen eines Raums zum Hauptmenü zurück."
 
-msgid "runtime.watching_match"
-msgstr "Sie schauen einem Turnierspiel zu. Beenden Sie das Zuschauen unter Turnierspiele, bevor Sie einen anderen Raum öffnen oder betreten."
+msgid "runtime.in_tournament_match"
+msgstr "Sie spielen ein Turnierspiel oder schauen zu. Beenden Sie es unter Turnierspiele, bevor Sie einen anderen Raum öffnen oder betreten."
 
 msgid "runtime.watch_leave_room"
 msgstr "Verlassen Sie Ihren Raum, bevor Sie einem Turnierspiel zuschauen."

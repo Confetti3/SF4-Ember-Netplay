@@ -326,13 +326,17 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		(!helperReady || !AtMainMenu() || UserApp::netplay || UserApp::server || Game::Battle::System::ggpo)) {
 		runtime->error = loc::T("runtime.return_main_menu"); return DispatchOutcome::Dropped;
 	}
-	// Watching a match waits for the match's room and acts only on that one. A
-	// room opened or joined by hand meanwhile is the player's own, and is left
-	// alone: the player stops watching first. The watch's own join, and a Discord
-	// invitation (which stops the watch before it is submitted), pass.
-	if ((kind == netplay::CommandKind::HostRoom || kind == netplay::CommandKind::JoinInvite) &&
-		attempt != Attempt::Tournament && runtime->watch.Active()) {
-		runtime->error = loc::T("runtime.watching_match"); return DispatchOutcome::Dropped;
+	// Playing or watching a match waits for the match's room and acts only on
+	// that one. A room opened or joined by hand meanwhile is the player's own,
+	// and is left alone, so the match would wait for its room for good: the
+	// player stops the match first. The match's own commands pass, and so does
+	// a Discord invitation to someone watching (which stops the watch before it
+	// is submitted). A fighter's invitation ends here, or it would be submitted
+	// again on every tick.
+	if (attempt != Attempt::Tournament &&
+		netplay::tournament::RefusesHandOpenedRoom(kind, runtime->tournament.GetPhase(), runtime->watch.GetPhase())) {
+		if (command.discordRevision) runtime->discordInvite.Cancel();
+		runtime->error = loc::T("runtime.in_tournament_match"); return DispatchOutcome::Dropped;
 	}
 	if (kind == netplay::CommandKind::ReplaceRoom && !CanBeginReplacement()) return DispatchOutcome::Dropped;
 	// Leaving the room by hand stops the tournament match too, or it would
@@ -411,7 +415,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
 		runtime->join = decision.effect != netplay::Effect::JoinInvite ? JoinKind::Private :
-			!command.publicTicket.empty() ? JoinKind::Public : command.observer ? JoinKind::Observer : JoinKind::Private;
+			!command.publicTicket.empty() ? JoinKind::Public : command.join;
 		// Only the join of a public room just created carries rules for its tables.
 		if (runtime->join == JoinKind::Public && command.createdRules) {
 			runtime->createdRules.Start(*command.createdRules, GetTickCount64());
@@ -553,7 +557,7 @@ void FailReady(const char* reason) {
 DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command, JoinKind join) {
 	RuntimeCommand runtimeCommand;
 	runtimeCommand.command = std::move(command);
-	runtimeCommand.observer = join == JoinKind::Observer;
+	runtimeCommand.join = join;
 	runtimeCommand.command.generation = runtime->controller.GetSnapshot().generation;
 	runtimeCommand.preferences = runtime->preferences;
 	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
