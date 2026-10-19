@@ -105,12 +105,14 @@ its Ember ID and trusted services in a temp folder of its own, never the
 player's, and its settings are put back after the run.
 `docs/design/TOURNAMENT_SELFTEST.md` has the details.
 
-Unlike the other tests it plays a game to its end, and a finished game saves
+Unlike the other tests it plays a game to its end. A finished game saves
 its replay into the game's own slots (the ring of the last ten matches, which
-would push out one of the player's), the launcher archives that replay into
-Ember's replay archive (`%APPDATA%\sf4e\replays`, by way of
-`%LOCALAPPDATA%\sf4e\replay-outbox`), and the game may update the account's
-online record. So when a tournament test's game has closed, `run-selftest.ps1`
+would push out one of the player's), changes the replay index files (`LIST`,
+`replays-swan.dat`) and `save.dat`, the account's record; runs made before the
+script put the saves back were seen to change exactly those. The launcher
+archives the replay into Ember's replay archive (`%APPDATA%\sf4e\replays`, by
+way of `%LOCALAPPDATA%\sf4e\replay-outbox`). So when a tournament test's game
+has closed, `run-selftest.ps1`
 makes the save folder match its copy again (files the run added go, changed
 ones come back), deletes the copy once the folder matches, and removes the
 files the run added to the archive and the outbox. If the folder does not
