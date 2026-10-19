@@ -45,7 +45,8 @@ pub static HELD: Gate = Gate::new();
 /// A stand-in for Challonge's token and `/me` endpoints. Codes `good-player1`,
 /// `good-player2` and `good-player3` sign those users in, `held-player1` waits for
 /// `HELD`, `busy` answers 429, `odd-name` signs in a user whose username
-/// lookups cannot match, and anything else is refused. `/me` answers only
+/// lookups cannot match, `no-name` one with an empty username, and anything
+/// else is refused. `/me` answers only
 /// with Challonge's `Authorization-Type: v2`, giving Player 1's ID as a string
 /// and the others' as numbers, both of which Challonge's API uses.
 pub fn fake_challonge() -> Arc<FakeSite> {
@@ -59,6 +60,7 @@ pub fn fake_challonge() -> Arc<FakeSite> {
             ("good-player2", Code::SignsIn(PLAYER2)),
             ("good-player3", Code::SignsIn(PLAYER3)),
             ("odd-name", Code::SignsIn(("1003", "has space"))),
+            ("no-name", Code::SignsIn(("1005", ""))),
             ("held-player1", Code::Held(&HELD, PLAYER1)),
             ("busy", Code::Fails(429)),
         ],

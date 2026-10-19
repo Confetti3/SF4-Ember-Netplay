@@ -277,10 +277,11 @@ latest sign-in replaces both, once the player confirms moving an account
 from another Ember ID. A platform's links that a sign-in approved
 (`approved_via` `discord`) end when that account moves to another Ember ID or
 is disconnected, and the platform's next lookup links it where it now
-belongs. A link the player removes stays removed: no account the
-player has connected (Discord's or a sign-in site's) makes it again on that
-connection, until the player signs in again with one of them, which gives
-that account's consent back. Nothing else from Discord is stored. Without
+belongs. A link a sign-in approved that the player removes stays removed:
+no account the player has connected (Discord's or a sign-in site's) makes
+it again on that connection, until the player signs in again with one of
+them, which gives that account's consent back. Removing a link made from a
+code withdraws nothing, as before. Nothing else from Discord is stored. Without
 the client secret the bridge offers no sign-in and says so in its log, but
 every bridge lists `discord.accounts` and keeps `GET` and `DELETE /v1/discord`, so a player can
 always see and disconnect an account connected earlier.
@@ -570,10 +571,11 @@ this, can run their own bridge and room supervisor. The contract is
 - `discord_lookup`: `POST /v1/players/lookup` with `{"discord": [...]}` (at
   most 32 Discord user IDs) answers the players connected to them, with their
   Ember ID and `participant_id`, and links them on the connection the way
-  BluMint's lookup does. A link the player removes stays removed: no
-  account the player has connected (Discord's or a sign-in site's) makes it
-  again on that connection, until the player signs in again with one of
-  them, which gives that account's consent back.
+  BluMint's lookup does. A link a sign-in approved that the player removes
+  stays removed: no account the player has connected (Discord's or a
+  sign-in site's) makes it again on that connection, until the player signs
+  in again with one of them, which gives that account's consent back.
+  Removing a link made from a code withdraws nothing, as before.
 - `lookup_sites`: the sign-in sites (by ID) whose accounts the connection
   may find players by. The same lookup takes `{"accounts": [{"site": "...",
   "id": "..."}]}`, each `id` a username or user ID as that site's

@@ -41,10 +41,11 @@ A connection in `bridge.json` may carry, besides `id`, `kind`,
 - `discord_lookup` (default false): the connection may find players by
   Discord user ID (`POST /v1/players/lookup`). A player who connected their
   Discord account to their Ember ID is found, and linked on the connection
-  (`approved_via` `discord`), exactly as BluMint's lookup does. A link the
-  player removed is not made again by any account they connected (Discord's
-  or a sign-in site's) until they sign in again with one of them, which
-  gives that account's consent back.
+  (`approved_via` `discord`), exactly as BluMint's lookup does. A link a
+  sign-in approved that the player removed is not made again by any account
+  they connected (Discord's or a sign-in site's) until they sign in again
+  with one of them, which gives that account's consent back. Removing a link
+  made from a code withdraws nothing, as before.
 - `lookup_sites` (default empty): the sign-in sites, by site ID, whose
   accounts the connection may find players by, the same way (`approved_via`
   `site`), for players who connected those accounts. Each must be a site in

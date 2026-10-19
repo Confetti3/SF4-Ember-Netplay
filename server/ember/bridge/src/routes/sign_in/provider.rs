@@ -63,36 +63,33 @@ impl Site {
 
     /// The action, method and path a proof for `step` names.
     pub fn target(&self, step: Step) -> (Action, ProofMethod, String) {
-        let discord = *self == Self::Discord;
-        match step {
+        // Discord's action, a configured site's, the method and the path.
+        let (discord, site, method, path) = match step {
             Step::Connect => (
-                if discord {
-                    Action::DiscordConnect
-                } else {
-                    Action::SiteConnect
-                },
+                Action::DiscordConnect,
+                Action::SiteConnect,
                 ProofMethod::Post,
                 self.start_path(),
             ),
             Step::Cancel => (
-                if discord {
-                    Action::DiscordCancel
-                } else {
-                    Action::SiteCancel
-                },
+                Action::DiscordCancel,
+                Action::SiteCancel,
                 ProofMethod::Delete,
                 self.start_path(),
             ),
             Step::Remove => (
-                if discord {
-                    Action::DiscordRemove
-                } else {
-                    Action::SiteRemove
-                },
+                Action::DiscordRemove,
+                Action::SiteRemove,
                 ProofMethod::Delete,
                 self.account_path(),
             ),
-        }
+        };
+        let action = if *self == Self::Discord {
+            discord
+        } else {
+            site
+        };
+        (action, method, path)
     }
 
     /// The name the browser pages show: the site's display name, or its ID
@@ -401,9 +398,11 @@ fn discord_user(body: &[u8]) -> Option<SignedIn> {
 }
 
 /// A configured site's answer, read through its pointers. A string, or a
-/// whole number of zero or more read as its decimal digits, is text; without
-/// a username (none, or nothing shown of it) the user ID is shown. With a
-/// `rule` (lookups match usernames) the username must keep to it.
+/// whole number of zero or more read as its decimal digits, is text. With a
+/// `rule` (lookups match usernames) the account needs a username that keeps
+/// to it: one that does not is unusable, and none (or nothing shown of it)
+/// is no answer. Without one, the username is only shown, and the user ID
+/// is shown when there is none.
 fn pointed_user(
     body: &[u8],
     id: &str,
@@ -419,13 +418,15 @@ fn pointed_user(
     let id = text(id).filter(|id| sites::is_user_id(id))?;
     let username = username
         .and_then(text)
-        .filter(|name| !shown(name).is_empty())
-        .unwrap_or_else(|| id.clone());
-    Some(match rule {
-        Some(rule) if !rule.allows(&username) => SignedIn::Unusable(shown(&username)),
-        Some(_) => SignedIn::User(User { id, username }),
-        None => SignedIn::User(User {
-            username: shown(&username),
+        .filter(|name| !shown(name).is_empty());
+    Some(match (rule, username) {
+        (Some(_), None) => return None,
+        (Some(rule), Some(username)) if !rule.allows(&username) => {
+            SignedIn::Unusable(shown(&username))
+        }
+        (Some(_), Some(username)) => SignedIn::User(User { id, username }),
+        (None, username) => SignedIn::User(User {
+            username: username.map_or_else(|| id.clone(), |name| shown(&name)),
             id,
         }),
     })
@@ -493,14 +494,17 @@ mod tests {
             user(br#"{"data":{"id":"1","name":"has space"}}"#, false),
             Some(Ok(("1".into(), "has space".into())))
         );
-        // No username, or one with nothing to show: the ID is shown. No ID:
-        // no answer.
+        // No username, or one with nothing to show: the ID is shown where
+        // lookups match IDs, and it is no answer where they match usernames.
+        // No ID: no answer.
         for body in [
-            &br#"{"data":{"id":7,"name":null}}"#[..],
+            &br#"{"data":{"id":7}}"#[..],
+            br#"{"data":{"id":7,"name":null}}"#,
             br#"{"data":{"id":7,"name":""}}"#,
             br#"{"data":{"id":7,"name":"\u0007"}}"#,
         ] {
             assert_eq!(user(body, false), Some(Ok(("7".into(), "7".into()))));
+            assert!(user(body, true).is_none());
         }
         for body in [
             &br#"{"data":{"name":"player1"}}"#[..],

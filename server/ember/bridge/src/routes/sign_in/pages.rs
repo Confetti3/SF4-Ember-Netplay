@@ -1,7 +1,7 @@
 //! The pages a sign-in shows in the player's browser: what it connected, or
 //! the question it asks before connecting or moving an account, naming the
 //! sites that find the player by it.
-use axum::response::Response;
+use axum::{http::StatusCode, response::Response};
 use ember_protocol::EmberId;
 
 use crate::{
@@ -337,10 +337,12 @@ impl Pages {
 /// The page for a sign-in this bridge has no site for: a callback URL
 /// typed or kept from a site taken out of the configuration.
 pub(super) fn unknown() -> Response {
-    finished(
+    let mut response = finished(
         "Sign-in is off",
         "This Ember service does not offer this sign-in, so nothing was connected. You can close this tab.",
-    )
+    );
+    *response.status_mut() = StatusCode::NOT_FOUND;
+    response
 }
 
 fn finished(title: &str, body: &str) -> Response {

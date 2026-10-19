@@ -218,6 +218,8 @@ async fn challonge_refusing_or_failing_connects_nothing() {
             "username <strong>has space</strong> cannot be used to find you",
         ),
         ("made-up", "Challonge did not answer"),
+        // Lookups match usernames, so an account without one is no answer.
+        ("no-name", "Challonge did not answer"),
     ] {
         let page = CHALLONGE.sign_in(&bridge, &player1, code).await;
         assert!(page.contains(says), "{code}: {page}");
@@ -237,7 +239,7 @@ async fn challonge_refusing_or_failing_connects_nothing() {
     assert!(page.contains("Sign-in expired"), "{page}");
     assert_eq!(CHALLONGE.account(&bridge, &player1).await, None);
     // A 429 is one of the exchanges Challonge saw.
-    assert_eq!(fake.seen("/oauth/token").len(), 3);
+    assert_eq!(fake.seen("/oauth/token").len(), 4);
 }
 
 #[tokio::test]

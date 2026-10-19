@@ -512,14 +512,14 @@ async fn an_unknown_site_is_not_found() {
             (StatusCode::NOT_FOUND, "not_found"),
             "{site}: {body}"
         );
-        // The browser gets a page, as from every other callback.
+        // The browser gets a page, as from every other callback, with a 404.
         let response = bridge
             .client
             .get(bridge.url(&format!("/v1/sites/{site}/callback?code=x&state=y")))
             .send()
             .await
             .unwrap();
-        assert_eq!(response.status(), StatusCode::OK, "{site}");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{site}");
         let page = response.text().await.unwrap();
         assert!(
             page.contains("does not offer this sign-in"),
