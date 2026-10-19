@@ -397,6 +397,10 @@ struct Change {
     site: Option<String>,
     #[serde(default)]
     tournament: Option<String>,
+    /// Whether anyone may read the event and its sets
+    /// (`GET /v1/public/events/{id}`).
+    #[serde(default)]
+    public: Option<bool>,
 }
 
 /// `POST /v1/organizer/events/{id}`: changes what is given of one of the
@@ -477,6 +481,12 @@ pub async fn change(
                 tx.execute(
                     "UPDATE organizer_events SET settings = ?1 WHERE id = ?2",
                     params![settings, id],
+                )?;
+            }
+            if let Some(public) = change.public {
+                tx.execute(
+                    "UPDATE organizer_events SET public = ?1 WHERE id = ?2",
+                    params![public, id],
                 )?;
             }
             Ok(Ok(()))
@@ -769,4 +779,317 @@ pub async fn brackets(State(state): State<AppState>, headers: HeaderMap) -> Resu
 /// `links_of`.
 fn settings(stored: &str) -> Value {
     serde_json::from_str(stored).unwrap_or_else(|_| json!({}))
+}
+
+/// The largest set snapshot the connector sends: `MAX_SETS` sets of a few
+/// hundred bytes each.
+const SETS_BODY: usize = 512 * 1024;
+
+/// The most sets a snapshot keeps (the connector's `snapshot::MAX_SETS`).
+const MAX_SETS: usize = 1024;
+
+#[derive(Deserialize)]
+struct Snapshot {
+    sets: Vec<Value>,
+}
+
+/// `PUT /v1/desk/events/{id}/sets`: the bracket connector's latest view of
+/// a running event's sets, kept as sent until the next.
+pub async fn put_sets(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    body: Body<SETS_BODY>,
+) -> Result<Response> {
+    let service = auth::service(&state, &headers).await?;
+    let desk = state
+        .config
+        .desk
+        .as_ref()
+        .ok_or_else(ApiFailure::not_found)?;
+    if service.provider_connection()? != desk.connection {
+        return Err(ApiFailure::forbidden());
+    }
+    let snapshot: Snapshot = body.parse()?;
+    if snapshot.sets.len() > MAX_SETS || snapshot.sets.iter().any(|set| !set.is_object()) {
+        return Err(ApiFailure::invalid(
+            "sets is a list of at most 1024 objects.",
+        ));
+    }
+    let stored = serde_json::to_string(&snapshot.sets).map_err(|_| ApiFailure::unavailable())?;
+    let now = state.now();
+    let kept = state
+        .db
+        .write(move |tx| {
+            Ok(tx.execute(
+                "UPDATE organizer_events SET sets = ?1, sets_at = ?2
+                 WHERE id = ?3 AND ended_at IS NULL AND status = 'ready'",
+                params![stored, now, id],
+            )?)
+        })
+        .await?;
+    if kept == 0 {
+        return Err(ApiFailure::not_found());
+    }
+    state.committed();
+    Ok(ok(&json!({})))
+}
+
+/// `GET /v1/organizer/events/{id}/sets`: the organizer's event's sets, each
+/// with its Ember match's score and state and the desk state they make.
+pub async fn sets(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Response> {
+    let ember_id = reader(&state, &headers).await?;
+    let view = state
+        .db
+        .read(move |tx| {
+            let found: Option<(Option<String>, Option<String>, Option<u64>)> = tx
+                .query_row(
+                    "SELECT site, sets, sets_at FROM organizer_events
+                     WHERE id = ?1 AND ember_id = ?2",
+                    params![id, ember_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            let Some((site, stored, at)) = found else {
+                return Ok(None);
+            };
+            Ok(Some(json!({
+                "sets": desk_sets(tx, site.as_deref(), stored.as_deref(), true)?,
+                "updated_at": at,
+            })))
+        })
+        .await?;
+    view.map(|view| ok(&view)).ok_or_else(ApiFailure::not_found)
+}
+
+/// `GET /v1/public/events/{id}`: an event its organizer made public: its
+/// title, start, links and sets, without Ember IDs.
+pub async fn public(State(state): State<AppState>, Path(id): Path<String>) -> Result<Response> {
+    let view = state
+        .db
+        .read(move |tx| {
+            type Row = (
+                String,
+                Option<u64>,
+                Option<String>,
+                String,
+                Option<String>,
+                Option<u64>,
+            );
+            let found: Option<Row> = tx
+                .query_row(
+                    "SELECT title, starts_at, site, links, sets, sets_at FROM organizer_events
+                     WHERE id = ?1 AND public = 1",
+                    [&id],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            let Some((title, starts_at, site, links, stored, at)) = found else {
+                return Ok(None);
+            };
+            Ok(Some(json!({
+                "title": title,
+                "starts_at": starts_at,
+                "site": site,
+                "links": settings(&links),
+                "sets": desk_sets(tx, site.as_deref(), stored.as_deref(), false)?,
+                "updated_at": at,
+            })))
+        })
+        .await?;
+    view.map(|view| ok(&view)).ok_or_else(ApiFailure::not_found)
+}
+
+/// A kept snapshot's sets with what the bridge knows of each one's Ember
+/// match: score, players (by their account on the event's site, and their
+/// Ember IDs when `with_ids`), the round its metadata names when the
+/// snapshot has none, and the desk state.
+fn desk_sets(
+    tx: &Transaction<'_>,
+    site: Option<&str>,
+    stored: Option<&str>,
+    with_ids: bool,
+) -> Result<Vec<Value>> {
+    let sets: Vec<Value> = stored
+        .and_then(|stored| serde_json::from_str(stored).ok())
+        .unwrap_or_default();
+    sets.into_iter()
+        .map(|mut set| {
+            let found = match set["match_id"].as_str() {
+                Some(match_id) => desk_match(tx, match_id, site)?,
+                None => None,
+            };
+            if let Some(found) = &found {
+                for key in ["round_label", "round", "phase"] {
+                    if set[key].is_null() {
+                        set[key] = found.metadata[key].clone();
+                    }
+                }
+                set["score"] = json!(found.wins);
+                set["players"] = json!(found.names);
+                if with_ids {
+                    set["ember_ids"] = json!(found.ember_ids);
+                }
+            }
+            set["side"] = json!(side(&set));
+            set["desk_state"] = json!(desk_state(&set, found.as_ref().map(|f| f.state.as_str())));
+            if !with_ids {
+                set.as_object_mut().map(|set| set.remove("match_id"));
+            }
+            Ok(set)
+        })
+        .collect()
+}
+
+struct DeskMatch {
+    state: String,
+    metadata: Value,
+    wins: [u8; 2],
+    ember_ids: Vec<String>,
+    names: Vec<Option<String>>,
+}
+
+fn desk_match(tx: &Transaction<'_>, id: &str, site: Option<&str>) -> Result<Option<DeskMatch>> {
+    let found: Option<(String, String, i64)> = tx
+        .query_row(
+            "SELECT state, metadata, assignment_generation FROM matches WHERE id = ?1",
+            [id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let Some((state, metadata, generation)) = found else {
+        return Ok(None);
+    };
+    let (wins, _) = crate::routes::ledger::scores(tx, id)?;
+    let ember_ids = tx
+        .prepare(
+            "SELECT ember_id FROM match_participants
+             WHERE match_id = ?1 AND assignment_generation = ?2 ORDER BY slot",
+        )?
+        .query_map(params![id, generation], |row| row.get(0))?
+        .collect::<rusqlite::Result<Vec<String>>>()?;
+    let mut names = Vec::new();
+    for ember_id in &ember_ids {
+        names.push(
+            tx.query_row(
+                "SELECT username FROM site_accounts WHERE site = ?1 AND ember_id = ?2",
+                params![site, ember_id],
+                |row| row.get(0),
+            )
+            .optional()?,
+        );
+    }
+    Ok(Some(DeskMatch {
+        state,
+        metadata: serde_json::from_str(&metadata).unwrap_or_else(|_| json!({})),
+        wins,
+        ember_ids,
+        names,
+    }))
+}
+
+/// Which part of the bracket a set is in: a grand final by its label, the
+/// losers bracket below round 0, else winners.
+fn side(set: &Value) -> &'static str {
+    let label = set["round_label"].as_str().unwrap_or_default();
+    if label.to_ascii_lowercase().contains("grand final") {
+        "grand_final"
+    } else if set["round"].as_i64().is_some_and(|round| round < 0) {
+        "losers"
+    } else {
+        "winners"
+    }
+}
+
+/// What the desk shows for a set: what the connector and the set's Ember
+/// match say together.
+fn desk_state(set: &Value, match_state: Option<&str>) -> &'static str {
+    if set["held"] == json!(true) {
+        return "held";
+    }
+    match (set["progress"].as_str(), match_state) {
+        (Some("stuck"), _) => "needs_organizer",
+        (Some("reported" | "closed"), _) => "done",
+        (_, Some("needs_review")) => "needs_review",
+        (_, Some("running" | "between_games" | "awaiting_reports")) => "playing",
+        (_, Some("created" | "awaiting_players" | "provisioning" | "ready")) => "called",
+        (_, Some("completed")) => "reporting",
+        _ => match set["status"].as_str() {
+            Some("decided") => "done",
+            Some("pending") => "not_ready",
+            _ => "waiting",
+        },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_sets_desk_state_and_side_come_from_the_connector_and_its_match() {
+        let set = |fields: Value| fields;
+        assert_eq!(
+            desk_state(&set(json!({ "held": true })), Some("running")),
+            "held"
+        );
+        assert_eq!(
+            desk_state(&set(json!({ "progress": "stuck" })), None),
+            "needs_organizer"
+        );
+        assert_eq!(
+            desk_state(&set(json!({ "progress": "reported" })), Some("completed")),
+            "done"
+        );
+        assert_eq!(
+            desk_state(&set(json!({ "progress": "live" })), Some("needs_review")),
+            "needs_review"
+        );
+        assert_eq!(
+            desk_state(&set(json!({ "progress": "live" })), Some("between_games")),
+            "playing"
+        );
+        assert_eq!(
+            desk_state(
+                &set(json!({ "progress": "live" })),
+                Some("awaiting_players")
+            ),
+            "called"
+        );
+        assert_eq!(
+            desk_state(&set(json!({ "progress": "live" })), Some("completed")),
+            "reporting"
+        );
+        assert_eq!(
+            desk_state(&set(json!({ "progress": "live" })), Some("cancelled")),
+            "waiting"
+        );
+        assert_eq!(
+            desk_state(&set(json!({ "status": "pending" })), None),
+            "not_ready"
+        );
+        assert_eq!(
+            desk_state(&set(json!({ "status": "decided" })), None),
+            "done"
+        );
+        assert_eq!(side(&json!({ "round": -2 })), "losers");
+        assert_eq!(
+            side(&json!({ "round": 5, "round_label": "Grand Final Reset" })),
+            "grand_final"
+        );
+        assert_eq!(side(&json!({ "round": 3 })), "winners");
+    }
 }

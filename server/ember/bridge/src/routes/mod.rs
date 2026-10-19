@@ -27,7 +27,7 @@ use axum::{
     extract::{DefaultBodyLimit, Request},
     middleware::{self, Next},
     response::Response,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
 };
 use rusqlite::params;
 
@@ -118,6 +118,9 @@ pub fn router(state: AppState) -> Router {
         .route("/desk", get(desk_pages::page))
         .route("/desk/{file}", get(desk_pages::file))
         .route("/v1/events", get(events::list))
+        .route("/v1/desk/events/{id}/sets", put(organizer::put_sets))
+        .route("/v1/organizer/events/{id}/sets", get(organizer::sets))
+        .route("/v1/public/events/{id}", get(organizer::public))
         .route("/v1/events/stream", get(events::stream))
         .route(
             "/v1/webhook-subscriptions",

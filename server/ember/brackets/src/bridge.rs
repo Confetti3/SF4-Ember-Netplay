@@ -496,6 +496,21 @@ impl BridgeClient {
         Ok(view.brackets)
     }
 
+    /// Gives the bridge a desk event's sets (`bracket::snapshot`).
+    pub async fn desk_sets(
+        &self,
+        event: &str,
+        sets: &serde_json::Value,
+    ) -> Result<(), BridgeError> {
+        let request = self
+            .http
+            .put(format!("{}/v1/desk/events/{event}/sets", self.api))
+            .bearer_auth(self.credential.as_str())
+            .json(sets);
+        let _: serde_json::Value = self.answer(request).await?;
+        Ok(())
+    }
+
     /// Creates the match, or finds the one this `external_match_id` already
     /// made with the same request, and returns its ID.
     pub async fn create(&self, command: &CreateMatch) -> Result<String, BridgeError> {

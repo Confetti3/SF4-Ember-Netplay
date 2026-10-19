@@ -138,6 +138,7 @@ impl Desk {
                 let name = format!("desk event {}", event.id);
                 let site = self.sites.site(&tournament, &token, &name, name.clone())?;
                 Bracket::new(&tournament, site, self.context.clone())
+                    .map(|bracket| bracket.for_desk(event.id.clone()))
             });
             let bracket = match made {
                 Ok(bracket) => Arc::new(bracket),

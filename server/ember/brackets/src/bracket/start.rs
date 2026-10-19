@@ -72,7 +72,7 @@ impl Bracket {
     }
 
     /// The stream the set is assigned to, if the tournament holds such sets.
-    fn held<'a>(&self, set: &'a Set) -> Option<&'a str> {
+    pub(super) fn held<'a>(&self, set: &'a Set) -> Option<&'a str> {
         self.hold
             .streamed
             .then_some(set.extras.stream.as_deref())

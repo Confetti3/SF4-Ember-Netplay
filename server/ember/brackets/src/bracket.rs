@@ -7,12 +7,16 @@
 //! Creating a set's match is in `start`, and reading back from the bridge a
 //! result whose delivery is failing in `reconcile`.
 mod reconcile;
+mod snapshot;
 mod start;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fmt,
-    sync::{Arc, atomic::AtomicBool},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
@@ -71,6 +75,11 @@ pub(crate) struct Bracket {
     /// Ember matches whose cancel the bridge has refused, each logged once
     /// until it is cancelled.
     cancel_failing: std::sync::Mutex<HashSet<String>>,
+    /// The desk event this bracket is, whose sets go to the bridge after
+    /// each read (`snapshot`); none for a configured tournament.
+    desk_event: Option<String>,
+    /// Whether the last snapshot failed to reach the bridge, logged once.
+    snapshot_failing: AtomicBool,
     /// Held for a whole pass.
     state: Mutex<State>,
     pub wake: Notify,
@@ -92,6 +101,8 @@ struct State {
     phases: PhaseWatch,
     /// The playable sets the last read found, by ID and entries.
     last_read: Option<Vec<(String, [String; 2])>>,
+    /// Every set the reads have shown, as last shown, for the desk.
+    seen: BTreeMap<String, Set>,
     /// Kept in the database too, so a restart does not read it again.
     finished: bool,
     /// Every set looks played but the site does not say it is over: read
@@ -167,6 +178,8 @@ impl Bracket {
             context,
             lookup_failing: AtomicBool::new(false),
             cancel_failing: std::sync::Mutex::default(),
+            desk_event: None,
+            snapshot_failing: AtomicBool::new(false),
             state: Mutex::new(State {
                 schedule,
                 retry: Backoff::retry(),
@@ -174,12 +187,19 @@ impl Bracket {
                 reconcile: reconcile::Memory::default(),
                 phases: PhaseWatch::default(),
                 last_read: None,
+                seen: BTreeMap::new(),
                 finished,
                 played_out: false,
                 window_end_logged: false,
             }),
             wake: Notify::new(),
         })
+    }
+
+    /// This bracket as the desk's event `event`.
+    pub fn for_desk(mut self, event: String) -> Self {
+        self.desk_event = Some(event);
+        self
     }
 
     pub async fn run(self: Arc<Self>) {
@@ -372,6 +392,9 @@ impl Bracket {
         for line in state.phases.read(&self.rounds, &sets) {
             log!("{}: {line}", self.key);
         }
+        for set in &sets {
+            state.seen.insert(set.id.clone(), set.clone());
+        }
         let read = fingerprint(&sets);
         let mut changed = state.last_read.as_ref() != Some(&read);
         state.last_read = Some(read);
@@ -416,7 +439,30 @@ impl Bracket {
         if state.played_out {
             state.schedule.longest(now);
         }
+        self.send_snapshot(&state.seen).await?;
         Ok(true)
+    }
+
+    /// Sends a desk event's sets to the bridge. A refusal is logged once
+    /// and fails nothing: the next read sends them again.
+    async fn send_snapshot(&self, seen: &BTreeMap<String, Set>) -> Result<(), SiteError> {
+        let Some(event) = &self.desk_event else {
+            return Ok(());
+        };
+        let body = self.snapshot(seen, &self.store().sets(&self.key)?);
+        match self.context.bridge.desk_sets(event, &body).await {
+            Ok(()) => {
+                if self.snapshot_failing.swap(false, Ordering::Relaxed) {
+                    log!("{}: its sets reach the bridge again", self.key);
+                }
+            }
+            Err(error) => {
+                if !self.snapshot_failing.swap(true, Ordering::Relaxed) {
+                    log!("{}: cannot send its sets to the bridge ({error})", self.key);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Brings the Ember matches in line with a read: cancels those whose set

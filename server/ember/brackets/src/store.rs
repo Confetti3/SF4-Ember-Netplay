@@ -196,6 +196,17 @@ impl Store {
             .collect()
     }
 
+    /// Every set of the bracket the connector tracks, by set ID.
+    pub fn sets(&self, bracket: &str) -> rusqlite::Result<Vec<(String, Tracked)>> {
+        let db = self.db();
+        let mut statement = db.prepare(&format!(
+            "SELECT {TRACKED}, set_id FROM sets WHERE bracket = ?1 ORDER BY set_id"
+        ))?;
+        statement
+            .query_map([bracket], |row| Ok((row.get(7)?, tracked_of(row)?)))?
+            .collect()
+    }
+
     /// The bracket's sets with a creation sent and never answered, by set
     /// ID: the bridge may have made their match.
     pub fn unanswered(&self, bracket: &str) -> rusqlite::Result<Vec<(String, Tracked)>> {

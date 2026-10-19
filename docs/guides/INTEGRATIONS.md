@@ -568,6 +568,24 @@ organizer dropped their grant waits there until they sign in again.
 (its README, "Configure"); under Docker it is the `brackets` service in
 `server/ember/docker/compose.yml`.
 
+After each read of a running event, `ember-brackets` sends its sets with
+`PUT /v1/desk/events/{id}/sets` (at most 1024): every set its reads have
+shown open and every set it tracks, with what it is doing about each. The
+bridge keeps the latest and serves it with each Ember match's score, state
+and players (by their account on the event's site):
+
+- `GET /v1/organizer/events/{id}/sets`, to the event's organizer (game
+  session or web desk), with Ember IDs and match IDs, and each set's
+  `desk_state`: `waiting`, `not_ready`, `called`, `playing`,
+  `needs_review`, `reporting`, `done`, `held` or `needs_organizer`.
+- `GET /v1/public/events/{id}`, to anyone, only while the organizer has set
+  `"public": true` on the event: its title, start, links and sets without
+  Ember IDs or match IDs.
+
+Sets the reads never showed open (later rounds, sets decided on the site
+before the connector ran) are not there yet: reading the whole bracket each
+poll would cost more of the site's request budget.
+
 ## Bracket sites (Challonge, start.gg, your own)
 
 The bridge knows players, matches and results, and names no site. Everything
