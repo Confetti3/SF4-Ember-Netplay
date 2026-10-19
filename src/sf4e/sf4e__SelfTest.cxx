@@ -25,14 +25,6 @@ struct Run : Steps<Stage> {
 	std::vector<std::string> lines;
 } s_run;
 
-std::wstring Environment(const wchar_t* name) {
-	const DWORD size = GetEnvironmentVariableW(name, nullptr, 0);
-	if (!size) return {};
-	std::wstring value(size, L'\0');
-	value.resize(GetEnvironmentVariableW(name, value.data(), size));
-	return value;
-}
-
 // Every change of the screen in front, arrival and departure alike, goes to
 // the log: the script sends its one Enter only while the newest line names the
 // title screen.
@@ -51,7 +43,7 @@ void Begin() {
 		Finish();
 		return;
 	}
-	spdlog::info("SelfTest: result to '{}'", platform::WideToUtf8(s_run.resultFile));
+	spdlog::info("SelfTest: {}, result to '{}'", platform::WideToUtf8(Environment(L"SF4E_SELFTEST")), platform::WideToUtf8(s_run.resultFile));
 	s_run.Enter(Stage::ToMainMenu);
 }
 
@@ -59,16 +51,26 @@ void Begin() {
 bool StartTest() {
 	switch (Requested()) {
 	case Test::Training: return StartTraining();
+	case Test::RoomHost: case Test::RoomGuest: return StartRoom();
 	default: return false;
 	}
 }
 void TickTest() {
 	switch (Requested()) {
 	case Test::Training: TickTraining(); break;
+	case Test::RoomHost: case Test::RoomGuest: TickRoom(); break;
 	default: break;
 	}
 }
 
+}
+
+std::wstring Environment(const wchar_t* name) {
+	const DWORD size = GetEnvironmentVariableW(name, nullptr, 0);
+	if (!size) return {};
+	std::wstring value(size, L'\0');
+	value.resize(GetEnvironmentVariableW(name, value.data(), size));
+	return value;
 }
 
 void Say(bool pass, const std::string& step, const std::string& detail) {

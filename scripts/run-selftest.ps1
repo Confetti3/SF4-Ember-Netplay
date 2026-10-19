@@ -12,8 +12,11 @@
 param(
     [string]$PackageDir = "",
     # The names sf4e__SelfTest.hxx knows (selftest::Test).
-    [ValidateSet("training")]
+    [ValidateSet("training", "room-host", "room-guest")]
     [string]$Test = "training",
+    # The room tests: the file the host writes its invitation to, and the
+    # guest reads it from once the runner has copied it across.
+    [string]$Invite = "",
     [int]$TimeoutMinutes = 20
 )
 
@@ -80,6 +83,16 @@ function Get-RunLog([string]$pattern, [datetime]$since) {
     @(Select-String -Path $log -Pattern $pattern | Where-Object { $_.Line -match '^\[(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)' -and [datetime]$Matches[1] -ge $since })
 }
 
+# Hosting, joining and the controller a room needs write Ember's settings, so
+# a room test puts them back as they were.
+$settings = @()
+if ($Test -like "room-*") {
+    if (-not $Invite) { throw "-Invite is needed for $Test" }
+    $settings = @("settings.json", "ui-preferences.json") | ForEach-Object { Join-Path $env:APPDATA "sf4e\$_" }
+    $settings | Where-Object { Test-Path $_ } | ForEach-Object { Copy-Item $_ "$_.selftest" -Force }
+    $env:SF4E_SELFTEST_INVITE = $Invite
+}
+
 $result = Join-Path $env:TEMP ("ember-selftest-" + [guid]::NewGuid().ToString("N") + ".txt")
 $env:SF4E_SELFTEST = $Test
 $env:SF4E_SELFTEST_RESULT = $result
@@ -131,7 +144,9 @@ try {
     if (-not $process.WaitForExit(10000)) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
 }
 finally {
-    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT -ErrorAction SilentlyContinue
+    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE -ErrorAction SilentlyContinue
+    # A file the run created is removed; one it changed is put back.
+    $settings | ForEach-Object { if (Test-Path "$_.selftest") { Move-Item "$_.selftest" $_ -Force } else { Remove-Item $_ -ErrorAction SilentlyContinue } }
 }
 
 if (-not (Test-Path $result) -or -not (Get-Content $result | Select-String -Quiet '^RESULT ')) {
