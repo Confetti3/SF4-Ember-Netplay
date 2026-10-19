@@ -235,7 +235,24 @@ static void TestWorkerFencesSameSecondRematchBaseline() {
  wait(80); worker.Post(end); wait(85);
  worker.Stop(); CHECK(publications == 0);
 }
+// Only a game whose result was confirmed keeps its set's tag: a cut-off one
+// is played again and never counts, but its names are still bound.
+static void TestOnlyConfirmedGamesKeepTheirSet() {
+ RecordingAttribution owner;
+ const auto before = std::make_shared<const RecordingSnapshot>(Slots(Saved(1)));
+ std::vector<ReplayNames> notes;
+ const auto publish = [&](const std::filesystem::path&, const Bytes&, const ReplayNames& note) { notes.push_back(note); return NamePublication::Published; };
+ auto game = Start(10, "Cut"); game.names.matchId = "emt_set"; game.names.revision = 2;
+ owner.Begin(game, before); owner.End(20, false);
+ owner.ObserveSave(Slots(Saved(20))); owner.PublishIdentified(publish);
+ game = Start(30, "Played"); game.names.matchId = "emt_set"; game.names.revision = 3;
+ owner.Begin(game, std::make_shared<const RecordingSnapshot>(Slots(Saved(20)))); owner.End(40, true);
+ owner.ObserveSave(Slots(Saved(40))); owner.PublishIdentified(publish);
+ CHECK(notes.size() == 2 && notes[0].players[0] == "Cut" && notes[0].matchId.empty() && notes[0].revision == 0);
+ CHECK(notes[1].matchId == "emt_set" && notes[1].revision == 3);
+}
 int main() {
+ TestOnlyConfirmedGamesKeepTheirSet();
  TestWorkerFencesSameSecondRematchBaseline();
  TestIdentifiedBodyRetriesWithoutScanning(); TestInvalidExistingNamesLifecycle();
  TestDisabledAndDormantRecordings(); TestPermanentRefusalAndBoundedRetries();

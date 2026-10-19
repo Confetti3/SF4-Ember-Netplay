@@ -8,7 +8,9 @@
 #include <utility>
 
 namespace sf4e { namespace replayfiles {
-struct ReplayNames { std::string players[2]; bool spectated = false; };
+// matchId and revision: the bridge set and room binding of a tournament game
+// whose result was confirmed; empty and 0 for any other game.
+struct ReplayNames { std::string players[2]; bool spectated = false; std::string matchId; std::uint64_t revision = 0; };
 struct RecordedSlot { replayslots::Bytes body, checksum; };
 
 // Native metadata has no verified Ember session/player identity. At the
@@ -32,25 +34,43 @@ inline const replayslots::Bytes* RecordedBody(const std::vector<RecordedSlot>& b
  }
  return found;
 }
+// EMBRNAM2: magic, body size, the two name sizes, spectated (byte 20), the
+// match ID's size and the revision (low, high), then body, names and match ID.
+// EMBRNAM1 is the same without the match ID and revision (a 21-byte head).
+constexpr std::size_t kNamesHead = 33, kMostMatchId = 64, kMostNamesBytes = replayslots::kLargestReplay + kNamesHead + 2048 + kMostMatchId;
 inline replayslots::Bytes BindNames(const replayslots::Bytes& body, const ReplayNames& names) {
- if (body.size() > replayslots::kLargestReplay || names.players[0].size() > 1024 || names.players[1].size() > 1024) return {};
- replayslots::Bytes out{'E','M','B','R','N','A','M','1'};
- out.resize(20);
+ if (body.size() > replayslots::kLargestReplay || names.players[0].size() > 1024 || names.players[1].size() > 1024 ||
+  names.matchId.size() > kMostMatchId) return {};
+ replayslots::Bytes out{'E','M','B','R','N','A','M','2'};
+ out.resize(kNamesHead);
  replayslots::WriteU32(out.data()+8, static_cast<std::uint32_t>(body.size()));
  for(int side=0;side<2;++side) replayslots::WriteU32(out.data()+12+side*4, static_cast<std::uint32_t>(names.players[side].size()));
- out.push_back(names.spectated ? 1 : 0);
+ out[20] = names.spectated ? 1 : 0;
+ replayslots::WriteU32(out.data()+21, static_cast<std::uint32_t>(names.matchId.size()));
+ replayslots::WriteU32(out.data()+25, static_cast<std::uint32_t>(names.revision));
+ replayslots::WriteU32(out.data()+29, static_cast<std::uint32_t>(names.revision >> 32));
  out.insert(out.end(),body.begin(),body.end());
  for(const auto& name:names.players) out.insert(out.end(),name.begin(),name.end());
+ out.insert(out.end(),names.matchId.begin(),names.matchId.end());
  return out;
 }
 inline bool NamesForBody(const replayslots::Bytes& note, const replayslots::Bytes& body, ReplayNames& out) {
- if(note.size()<21 || std::memcmp(note.data(),"EMBRNAM1",8) || replayslots::ReadU32(note.data()+8)!=body.size() || note[20]>1) return false;
+ if(note.size()<21 || std::memcmp(note.data(),"EMBRNAM",7) || (note[7]!='1' && note[7]!='2') ||
+  replayslots::ReadU32(note.data()+8)!=body.size() || note[20]>1) return false;
+ const bool tagged=note[7]=='2';
+ const std::size_t head=tagged?kNamesHead:21;
+ if(note.size()<head) return false;
  const auto p1=replayslots::ReadU32(note.data()+12),p2=replayslots::ReadU32(note.data()+16);
- if(p1>1024 || p2>1024 || body.size()>replayslots::kLargestReplay || note.size()!=21+body.size()+p1+p2 ||
-  std::memcmp(note.data()+21,body.data(),body.size())) return false;
+ const auto id=tagged?replayslots::ReadU32(note.data()+21):0;
+ if(p1>1024 || p2>1024 || id>kMostMatchId || body.size()>replayslots::kLargestReplay || note.size()!=head+body.size()+p1+p2+id ||
+  std::memcmp(note.data()+head,body.data(),body.size())) return false;
  ReplayNames names;
- const auto* text=reinterpret_cast<const char*>(note.data()+21+body.size());
+ const auto* text=reinterpret_cast<const char*>(note.data()+head+body.size());
  names.players[0].assign(text,p1);names.players[1].assign(text+p1,p2);names.spectated=note[20]!=0;
+ if(tagged){
+  names.matchId.assign(text+p1+p2,id);
+  names.revision=replayslots::ReadU32(note.data()+25)|std::uint64_t{replayslots::ReadU32(note.data()+29)}<<32;
+ }
  out=std::move(names);return true;
 }
 inline std::filesystem::path NamesPath(const std::filesystem::path& archive, const replayslots::Bytes& body) {
@@ -61,7 +81,7 @@ inline std::filesystem::path NamesPath(const std::filesystem::path& archive, con
 inline ReplayNames ReadBodyNames(const std::filesystem::path& archive, const replayslots::Bytes& body) {
  ReplayNames names;
  if (archive.empty()) return names;
- auto note = ReadFile(NamesPath(archive, body), replayslots::kLargestReplay + 21 + 2048);
+ auto note = ReadFile(NamesPath(archive, body), kMostNamesBytes);
  if (note) NamesForBody(*note, body, names);
  return names;
 }
@@ -77,7 +97,7 @@ template<class CreateOnly>
 NamePublication PublishBodyNames(const std::filesystem::path& path, const replayslots::Bytes& body,
  const ReplayNames& names, const CreateOnly& createOnly) {
  Change existing;
- if (!Snapshot(path, replayslots::kLargestReplay + 21 + 2048, existing)) return NamePublication::Refused;
+ if (!Snapshot(path, kMostNamesBytes, existing)) return NamePublication::Refused;
  if (existing.existed) {
   ReplayNames bound;
   return NamesForBody(existing.before, body, bound) ? NamePublication::Published : NamePublication::Refused;

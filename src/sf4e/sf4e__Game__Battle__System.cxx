@@ -697,7 +697,7 @@ void fSystem::CloseBattle() {
     if (!summaryEmitted) {
         EmitRollbackDiagSummary("battle_close_deferred");
     }
-    sf4e::platform::replays::NoteMatchEnd();
+    sf4e::platform::replays::NoteMatchEnd(s_nativeResultEmitted);
     (_this->*rSystem::publicMethods.CloseBattle)();
     sf4e::memento::LogCounters("battle_close_exit");
     sf4e::memento::ResetCounters();
