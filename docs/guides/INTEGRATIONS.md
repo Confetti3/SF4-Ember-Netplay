@@ -500,7 +500,7 @@ the connection's provider credential as `Authorization: Bearer`:
   is the match's `external_match_id` (`blumint:<key>`), so it makes no other
   match for as long as the bridge keeps that one. Refusals answer
   BluMint's registry codes at the top level (`invalid_request`,
-  `match_unsupported`, `key_reused`, `player_unlinked` and `423`
+  `match_unsupported`, `idempotency_key_reused`, `player_unlinked` and `423`
   `player_busy`), never the bridge's error envelope.
 - `POST /v1/blumint/matches/close` takes `{ idempotencyKey, reason }`: it
   ends the match made under that creation key, however old, and closes the

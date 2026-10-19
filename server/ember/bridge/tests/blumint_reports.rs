@@ -1482,7 +1482,7 @@ async fn starting_wins_continue_the_set() {
     );
     assert_eq!(
         create_with(&f, "set-3", carried(&f, 2, [1, 0])).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (StatusCode::CONFLICT, json!({ "code": "idempotency_key_reused" }))
     );
     let id = created["matchId"].as_str().unwrap().to_owned();
     let binding = bound(&f, &id).await;
