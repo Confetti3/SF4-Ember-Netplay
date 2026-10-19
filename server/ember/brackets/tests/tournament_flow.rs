@@ -288,7 +288,8 @@ impl Flow {
     }
 
     /// The set's two players play its games in Ember, each reporting every
-    /// one. An `Abort` is a game cut off before its end, which both report so.
+    /// one and sending the replay of each that counts. An `Abort` is a game
+    /// cut off before its end, which both report so.
     /// Each set starts a while after the last, its players signed in to
     /// Ember afresh.
     async fn play(&mut self, external: &str, games: &[Outcome]) {
@@ -313,6 +314,7 @@ impl Flow {
         );
         let binding = play::bound(&seats, &match_id).await;
         for (n, &game) in games.iter().enumerate() {
+            let replay = play::replay(n as u8);
             self.generation += 1;
             let permit = play::permit(&seats, &match_id, &binding, self.generation).await;
             for player in [seats.1, seats.2] {
@@ -320,6 +322,11 @@ impl Flow {
                 let (status, sent) =
                     play::report(&seats, player, player, &match_id, &permit, n, game).await;
                 assert_eq!(status, StatusCode::CREATED, "{sent}");
+                // Each fighter's game sends the replay of a game that counts.
+                if game != Abort {
+                    let status = play::send_replay(&seats, player, &match_id, &replay, 1).await;
+                    assert!(status.is_success(), "{status}");
+                }
             }
         }
         let played = self.snapshot(&match_id).await;
@@ -557,6 +564,24 @@ async fn an_organizer_runs_a_double_elimination_bracket_and_a_startgg_event() {
         (&first["scores"][0]["wins"], &first["scores"][1]["wins"]),
         (&json!(2), &json!(1)),
         "{first}"
+    );
+    // Its pack holds the three games played to the end, in the order played.
+    let p1 = &flow.players[first["participants"][0]["ember_id"].as_str().unwrap()];
+    let seats = Seats(&flow.bridge, p1, p1);
+    let (header, games) = play::pack(&seats, p1.token(), first["match_id"].as_str().unwrap()).await;
+    assert_eq!(
+        games,
+        vec![play::replay(0), play::replay(2), play::replay(3)]
+    );
+    assert_eq!(
+        (&header["score"], &header["rooms"]),
+        (&json!([2, 1]), &json!(1)),
+        "{header}"
+    );
+    assert_eq!(
+        (&header["tournament"], &header["round_label"]),
+        (&json!("Ember Cup"), &json!("Round 1")),
+        "{header}"
     );
     flow.pass().await;
     let one = flow.challonge.find("1");

@@ -19,6 +19,7 @@ pub mod matches;
 pub mod partner;
 pub mod play;
 pub mod relay;
+pub mod replays;
 pub mod report;
 pub mod rooms;
 pub mod sign;

@@ -5,8 +5,8 @@ mod common;
 use common::{
     Bridge, Player, code,
     play::{
-        BUILD, ROOM, Table, act, bound, claim, descriptor, endpoint, observation, permit, prepare,
-        publish, report,
+        BUILD, ROOM, Table, act, bound, claim, descriptor, endpoint, observation, pack, permit,
+        prepare, publish, replay, report, send_replay,
     },
 };
 use ember_protocol::{
@@ -154,6 +154,57 @@ async fn agreeing_reports_score_a_set() {
     assert_eq!(row["games_to_win"], 2);
     assert_eq!(row["wins"], json!([2, 1]));
     assert_eq!(row["opponent"]["fingerprint"], f.b.id().fingerprint());
+}
+
+/// Both fighters send each game's replay; the set keeps one of each, packs
+/// them by save time, and takes nothing from anyone else.
+#[tokio::test]
+async fn a_sets_replays_are_kept_once_and_packed_by_save_time() {
+    let f = fixture().await;
+    let id = create(&f, "play-replays", "ember-room-v1", 2).await;
+    // The third game was played in a second room, so under revision 2.
+    for (n, revision) in [(3u8, 2), (1, 1), (2, 1)] {
+        for sender in [&f.a, &f.b] {
+            let status = send_replay(&f, sender, &id, &replay(n), revision).await;
+            assert_eq!(
+                status,
+                if sender.id() == f.a.id() {
+                    StatusCode::CREATED
+                } else {
+                    StatusCode::OK
+                }
+            );
+        }
+    }
+    let mut torn = replay(4);
+    torn.pop();
+    assert_eq!(
+        send_replay(&f, &f.a, &id, &torn, 1).await,
+        StatusCode::BAD_REQUEST
+    );
+    let mut outsider = f.bridge.player(33);
+    f.bridge.open_session(&mut outsider).await;
+    assert_eq!(
+        send_replay(&f, &outsider, &id, &replay(4), 1).await,
+        StatusCode::NOT_FOUND
+    );
+    let (header, games) = pack(&f, &f.provider, &id).await;
+    assert_eq!(games, vec![replay(1), replay(2), replay(3)]);
+    assert_eq!(header["rooms"], 2, "{header}");
+    assert_eq!(header["score"], json!([0, 0]));
+    assert_eq!(header["players"][1]["ember_id"], f.b.id().as_str());
+    assert_eq!(header["games"][2]["revision"], 2);
+    // A player of the set reads it too; nobody else finds it.
+    assert_eq!(pack(&f, f.b.token(), &id).await.1.len(), 3);
+    let response = f
+        .bridge
+        .client
+        .get(f.bridge.url(&format!("/v1/matches/{id}/replays.pack")))
+        .bearer_auth(outsider.token())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

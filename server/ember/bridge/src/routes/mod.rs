@@ -13,6 +13,7 @@ pub mod organizer;
 pub mod play;
 pub mod policy;
 pub mod records;
+pub mod replays;
 pub mod reports;
 pub mod rooms;
 pub mod sessions;
@@ -76,6 +77,8 @@ pub fn router(state: AppState) -> Router {
             post(play::prepare_route),
         )
         .route("/v1/matches/{id}/reports", post(reports::submit_route))
+        .route("/v1/matches/{id}/replays/{crc}", put(replays::put))
+        .route("/v1/matches/{id}/replays.pack", get(replays::pack))
         .route("/v1/assignments", get(matches::assignments))
         .route(blumint::LOOKUP_PATH, post(blumint::lookup))
         .route(blumint::MATCHES_PATH, post(blumint::create))

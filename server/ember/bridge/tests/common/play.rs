@@ -264,3 +264,61 @@ pub async fn bound(f: &impl Table, id: &str) -> Json {
     assert_eq!(binding.games_to_win, 2);
     serde_json::to_value(binding).unwrap()
 }
+
+/// Game `n`'s replay, as the game archives it, saved `n` seconds after the
+/// set's first.
+pub fn replay(n: u8) -> Vec<u8> {
+    ember_protocol::replays::wrap(&[n; 64], 1_800_000_000 + u32::from(n))
+}
+
+/// `sender` sends a game's replay, played under room revision `revision`.
+pub async fn send_replay(
+    f: &impl Table,
+    sender: &Player,
+    id: &str,
+    replay: &[u8],
+    revision: u64,
+) -> StatusCode {
+    let crc = ember_protocol::replays::crc_name(replay);
+    f.bridge()
+        .client
+        .put(f.bridge().url(&format!(
+            "/v1/matches/{id}/replays/{crc}?revision={revision}"
+        )))
+        .bearer_auth(sender.token())
+        .body(replay.to_vec())
+        .send()
+        .await
+        .unwrap()
+        .status()
+}
+
+/// The set's pack, read as `token`: its header and each game's bytes.
+pub async fn pack(f: &impl Table, token: &str, id: &str) -> (Json, Vec<Vec<u8>>) {
+    let response = f
+        .bridge()
+        .client
+        .get(f.bridge().url(&format!("/v1/matches/{id}/replays.pack")))
+        .bearer_auth(token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = response.bytes().await.unwrap();
+    assert_eq!(&bytes[..8], ember_protocol::replays::PACK_MAGIC);
+    let length = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
+    let header: Json = serde_json::from_slice(&bytes[12..12 + length]).unwrap();
+    let mut at = 12 + length;
+    let games = header["games"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|game| {
+            let size = game["size"].as_u64().unwrap() as usize;
+            at += size;
+            bytes[at - size..at].to_vec()
+        })
+        .collect();
+    assert_eq!(at, bytes.len());
+    (header, games)
+}
