@@ -37,6 +37,13 @@ pub struct FakeSet {
     pub winner: Option<u64>,
     /// Each reported game's winning entrant, in order.
     pub games: Vec<u64>,
+    /// Merged into each game as start.gg answers it: what else the
+    /// organizer entered for it.
+    pub game_extra: Value,
+    /// Its phase's ID and name.
+    pub phase: Option<(u64, &'static str)>,
+    /// The name of the stream it is assigned to.
+    pub stream: Option<&'static str>,
 }
 
 impl FakeSet {
@@ -48,6 +55,9 @@ impl FakeSet {
             entrants: entrants.map(Some),
             winner: None,
             games: Vec::new(),
+            game_extra: json!({}),
+            phase: None,
+            stream: None,
         }
     }
 
@@ -63,10 +73,15 @@ impl FakeSet {
                 "slotIndex": index,
                 "entrant": entrant.map(|id| json!({ "id": id.to_string() })),
             })).collect::<Vec<_>>(),
-            "games": self.games.iter().enumerate().map(|(index, winner)| json!({
-                "orderNum": index + 1,
-                "winnerId": winner,
-            })).collect::<Vec<_>>(),
+            "games": self.games.iter().enumerate().map(|(index, winner)| {
+                let mut game = json!({ "orderNum": index + 1, "winnerId": winner });
+                for (key, value) in self.game_extra.as_object().into_iter().flatten() {
+                    game[key] = value.clone();
+                }
+                game
+            }).collect::<Vec<_>>(),
+            "phaseGroup": self.phase.map(|(id, name)| json!({ "phase": { "id": id, "name": name } })),
+            "stream": self.stream.map(|name| json!({ "id": 501, "streamName": name })),
         })
     }
 }

@@ -352,6 +352,8 @@ mod tests {
             status,
             underway: false,
             winner: winner.map(str::to_owned),
+            phase: None,
+            stream: None,
         }
     }
 

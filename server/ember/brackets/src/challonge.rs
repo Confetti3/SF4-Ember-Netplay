@@ -22,8 +22,8 @@ use crate::{
     http::{self, http_client},
     roster::Roster,
     site::{
-        Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
-        Status,
+        Account, Entry, Phase, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture,
+        Standing, Status,
     },
 };
 
@@ -425,6 +425,11 @@ struct MatchAttributes {
     /// Not in the documented schema; read when Challonge sends it.
     #[serde(default)]
     underway_at: Option<Value>,
+    /// Set on a group stage match of a two stage tournament, as Challonge's
+    /// upgrading notes say. Not in the documented schema, whose default is
+    /// placeholder text, so only a number counts: unverified live.
+    #[serde(default)]
+    group_id: Option<Value>,
     /// Where Challonge's schema puts them.
     #[serde(default)]
     relationships: Option<Players>,
@@ -484,7 +489,15 @@ struct RawSet {
     underway: bool,
     winner: Option<String>,
     players: Option<[String; 2]>,
+    /// A group stage match, as `group_id` says.
+    in_group: bool,
 }
+
+/// The stages of a Challonge tournament as round rules name them: the
+/// group stage of a two stage tournament, and the final stage (or the only
+/// one).
+pub const GROUP_STAGE: &str = "group";
+pub const FINAL_STAGE: &str = "final";
 
 impl From<Resource<MatchAttributes>> for RawSet {
     fn from(resource: Resource<MatchAttributes>) -> Self {
@@ -501,6 +514,13 @@ impl From<Resource<MatchAttributes>> for RawSet {
                 let id = |slot: Option<Related>| Some(slot?.data?.id);
                 Some([id(players.player1)?, id(players.player2)?])
             });
+        let in_group = match &attributes.group_id {
+            Some(Value::Number(_)) => true,
+            Some(Value::String(text)) => {
+                !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
+            }
+            _ => false,
+        };
         Self {
             id: resource.id,
             round: attributes.round.unwrap_or(0),
@@ -508,20 +528,31 @@ impl From<Resource<MatchAttributes>> for RawSet {
             underway: attributes.underway_at.is_some(),
             winner: attributes.winner_id,
             players,
+            in_group,
         }
     }
 }
 
 impl RawSet {
     fn into_set(self, entries: Option<[Entry; 2]>) -> Set {
+        let (round_label, stage) = if self.in_group {
+            (
+                format!("Group stage, {}", round_label(self.round)),
+                GROUP_STAGE,
+            )
+        } else {
+            (round_label(self.round), FINAL_STAGE)
+        };
         Set {
-            round_label: round_label(self.round),
+            round_label,
             id: self.id,
             round: self.round,
             entries,
             status: self.status,
             underway: self.underway,
             winner: self.winner,
+            phase: Some(Phase::named(stage)),
+            stream: None,
         }
     }
 }

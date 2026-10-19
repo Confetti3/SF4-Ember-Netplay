@@ -19,8 +19,8 @@ use crate::{
     http::{bearer, exchange, http_client},
     log,
     site::{
-        Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
-        Status,
+        Account, Entry, Phase, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture,
+        Standing, Status,
     },
 };
 
@@ -34,6 +34,8 @@ const IDEMPOTENCY_HEADER: &str = "idempotency-key";
 /// How much of a service's reason for deferring a report goes into the log.
 const MAX_REASON: usize = 200;
 const MAX_ANSWER: usize = 1024 * 1024;
+/// The longest `phase` a set may give.
+const MAX_PHASE: usize = 64;
 
 pub(crate) struct Service {
     http: reqwest::Client,
@@ -74,6 +76,9 @@ struct WireSet {
     /// The winning entry's ID, once decided.
     #[serde(default)]
     winner: Option<String>,
+    /// The stage of the event, which round rules can name.
+    #[serde(default)]
+    phase: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -246,7 +251,11 @@ impl WireSet {
                 .iter()
                 .flatten()
                 .all(|entry| is_slug(&entry.id));
-        if !ids_valid {
+        let phase_valid = self.phase.as_deref().is_none_or(|phase| {
+            let phase = phase.trim();
+            !phase.is_empty() && phase.chars().count() <= MAX_PHASE
+        });
+        if !ids_valid || !phase_valid {
             return None;
         }
         let entry = |wire: WireEntry| Entry {
@@ -267,6 +276,8 @@ impl WireSet {
             },
             underway: self.underway,
             winner: self.winner,
+            phase: self.phase.map(|phase| Phase::named(phase.trim())),
+            stream: None,
         })
     }
 }

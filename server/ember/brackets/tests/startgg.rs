@@ -8,7 +8,7 @@
 mod support;
 
 use axum::http::StatusCode;
-use ember_brackets::Adapter;
+use ember_brackets::{Adapter, Hold, RoundRule, Rounds, Side};
 use ember_protocol::{partner::result_id, webhook};
 use serde_json::{Value, json};
 use support::{
@@ -690,4 +690,152 @@ async fn a_set_that_turns_pending_before_its_report_is_not_reported() {
     assert_eq!(fake.operations(), ["Sets", "Set"]);
     assert_eq!(world.progress(BRACKET, "65089253"), "live");
     assert_eq!(fake.set(65_089_253).winner, None);
+}
+
+#[tokio::test]
+async fn a_game_entered_with_more_than_its_winner_is_left_to_the_organizer() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    played(&fake, &world).await;
+    // Game 1's winner agrees with Ember's, but the organizer also entered
+    // its stage, which a report would replace.
+    {
+        let mut state = fake.state.lock().unwrap();
+        state.sets[0].games = vec![2_401_412];
+        state.sets[0].game_extra = json!({ "stage": { "id": 4 } });
+    }
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets", "Set"]);
+    assert_eq!(world.progress(BRACKET, "65089253"), "stuck");
+    assert_eq!(fake.set(65_089_253).winner, None);
+}
+
+#[tokio::test]
+async fn a_game_entered_without_a_winner_is_left_to_the_organizer() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    played(&fake, &world).await;
+    {
+        let mut state = fake.state.lock().unwrap();
+        state.sets[0].games = vec![2_401_412];
+        state.sets[0].game_extra = json!({ "winnerId": null });
+    }
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets", "Set"]);
+    assert_eq!(world.progress(BRACKET, "65089253"), "stuck");
+}
+
+/// Four entrants with start.gg accounts connected: Player 1 and Player 2
+/// in set 65089253, Player 3 and Player 4 in set 65089255.
+async fn four(sets: Vec<FakeSet>, setup: Setup) -> (FakeStartgg, World) {
+    let entrant = |id: u64, user: u64| FakeEntrant {
+        id,
+        user: Some(user),
+        discord: None,
+    };
+    let fake = FakeStartgg::start(
+        vec![
+            entrant(2_401_411, PLAYER1_USER),
+            entrant(2_401_412, 5_002),
+            entrant(2_401_414, 5_003),
+            entrant(2_401_415, 5_004),
+        ],
+        sets,
+    )
+    .await;
+    let world = World::start(Setup {
+        challonge: false,
+        extra: vec![startgg(&fake)],
+        ..setup
+    })
+    .await;
+    world.bridge.connect_startgg(1, PLAYER1_USER).await;
+    world.bridge.connect_startgg(2, 5_002).await;
+    world.bridge.connect_startgg(3, 5_003).await;
+    world.bridge.connect_startgg(4, 5_004).await;
+    (fake, world)
+}
+
+#[tokio::test]
+async fn phases_that_reuse_round_numbers_take_their_own_length() {
+    // Both sets are round 1: one of pools, first to 2, one of top 8, first
+    // to 3 by the rule naming that phase.
+    let mut pools = FakeSet::open(65_089_253, 1, [2_401_411, 2_401_412]);
+    pools.phase = Some((1_300_001, "Pools"));
+    let mut top = FakeSet::open(65_089_255, 1, [2_401_414, 2_401_415]);
+    top.phase = Some((1_300_002, "Top 8"));
+    let rounds = Rounds {
+        games_to_win: 2,
+        rules: vec![RoundRule {
+            phase: Some("top 8".into()),
+            from_round: 1,
+            to_round: None,
+            side: Side::Any,
+            games_to_win: 3,
+        }],
+    };
+    let (_fake, world) = four(
+        vec![pools, top],
+        Setup {
+            rounds,
+            ..Setup::default()
+        },
+    )
+    .await;
+    world.connector.pass(true).await;
+    let mut lengths = Vec::new();
+    for (external, match_id, _) in world.bridge.matches().await {
+        let set = external.rsplit(':').nth(1).unwrap().to_owned();
+        lengths.push((set, world.snapshot(&match_id).await["games_to_win"].clone()));
+    }
+    lengths.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        lengths,
+        [
+            ("65089253".to_owned(), json!(2)),
+            ("65089255".to_owned(), json!(3))
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_set_on_stream_waits_until_it_is_taken_off_the_stream() {
+    let mut streamed = FakeSet::open(65_089_253, 1, [2_401_411, 2_401_412]);
+    streamed.stream = Some("Main stage");
+    let other = FakeSet::open(65_089_255, 1, [2_401_414, 2_401_415]);
+    let (fake, world) = four(
+        vec![streamed, other],
+        Setup {
+            hold: Hold { streamed: true },
+            ..Setup::default()
+        },
+    )
+    .await;
+    world.connector.pass(true).await;
+    // The set on stream waits; the other is played.
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].0, format!("startgg:{EVENT_SLUG}:65089255:1"));
+    assert_eq!(world.progress(BRACKET, "65089253"), "waiting");
+
+    // Taken off the stream, it is played in Ember.
+    fake.state.lock().unwrap().sets[0].stream = None;
+    world.advance(601);
+    world.connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 2);
+    assert!(
+        matches
+            .iter()
+            .any(|(external, _, _)| external == &format!("startgg:{EVENT_SLUG}:65089253:1"))
+    );
+}
+
+#[tokio::test]
+async fn a_set_on_stream_is_played_when_holding_is_off() {
+    let mut streamed = FakeSet::open(65_089_253, 1, [2_401_411, 2_401_412]);
+    streamed.stream = Some("Main stage");
+    let (_fake, world) = four(vec![streamed], Setup::default()).await;
+    world.connector.pass(true).await;
+    assert_eq!(world.bridge.matches().await.len(), 1);
 }

@@ -734,3 +734,6 @@ Use `Option<WireId>` on every nullable id field and `#[serde(default)]` for fiel
 15. How the 1000 object count is computed, and the maximum `perPage`. NOT STATED. Measure with `extensions.queryComplexity`.
 16. Default behavior of `SetFilters` when `hideEmpty` and `showByes` are omitted, and whether `updatedAfter` is unix seconds. INFERENCE.
 17. Paging stability while sets change, and `Timestamp` units. INFERENCE (unix seconds).
+18. `Set.stream`: that it is filled (`stream { id streamName }`) for a set the organizer assigned to a stream (`assignStream` or the stream queue page), and null otherwise. The schema lists the field; its contents for an assigned set are NOT STATED. ember-brackets holds such a set when a tournament's `hold.streamed` is on, so this needs one live check.
+19. `Set.phaseGroup { phase { id name } }`: that `phase.name` is the name the event's bracket page shows (such as "Pools" or "Top 8"). The schema lists both fields (section 3.2); ember-brackets' round rules match on that name or the ID. INFERENCE until checked live.
+20. `Set.games { entrant1Score entrant2Score stage { id } selections { id } }` on a set with organizer-entered game data and no winner: which of these are filled when only a winner was entered. ember-brackets leaves the set to the organizer when any is filled. INFERENCE.

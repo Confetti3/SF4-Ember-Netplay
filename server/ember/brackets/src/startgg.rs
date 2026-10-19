@@ -30,7 +30,8 @@ use crate::{
     limit::Limiter,
     roster::Roster,
     site::{
-        Account, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing, Status,
+        Account, Phase, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
+        Status,
     },
 };
 
@@ -60,8 +61,8 @@ const CALLED: i64 = 6;
 
 const EVENT: &str = "query Event($slug: String) { event(slug: $slug) { id state } }";
 const ENTRANTS: &str = "query Entrants($id: ID!, $page: Int!, $perPage: Int!) { event(id: $id) { entrants(query: {page: $page, perPage: $perPage}) { pageInfo { totalPages } nodes { id participants { user { id authorizations(types: [DISCORD]) { externalId } } } } } } }";
-const SETS: &str = "query Sets($id: ID!, $page: Int!, $perPage: Int!) { event(id: $id) { sets(page: $page, perPage: $perPage, sortType: ROUND, filters: {state: [1, 2, 6], hideEmpty: true}) { pageInfo { totalPages } nodes { id state round fullRoundText winnerId slots { slotIndex entrant { id } } } } } }";
-const SET: &str = "query Set($id: ID!) { set(id: $id) { id state round fullRoundText winnerId slots { slotIndex entrant { id } } games { orderNum winnerId } } }";
+const SETS: &str = "query Sets($id: ID!, $page: Int!, $perPage: Int!) { event(id: $id) { sets(page: $page, perPage: $perPage, sortType: ROUND, filters: {state: [1, 2, 6], hideEmpty: true}) { pageInfo { totalPages } nodes { id state round fullRoundText winnerId slots { slotIndex entrant { id } } phaseGroup { phase { id name } } stream { id streamName } } } } }";
+const SET: &str = "query Set($id: ID!) { set(id: $id) { id state round fullRoundText winnerId slots { slotIndex entrant { id } } phaseGroup { phase { id name } } stream { id streamName } games { orderNum winnerId entrant1Score entrant2Score stage { id } selections { id } } } }";
 const UNDERWAY: &str =
     "mutation Underway($setId: ID!) { markSetInProgress(setId: $setId) { id state } }";
 const REPORT: &str = "mutation Report($setId: ID!, $winnerId: ID!, $gameData: [BracketSetGameDataInput]) { reportBracketSet(setId: $setId, winnerId: $winnerId, gameData: $gameData) { id state winnerId } }";
@@ -208,6 +209,34 @@ struct WireSet {
     /// The games entered so far: read only before a report.
     #[serde(default)]
     games: Option<Vec<WireGame>>,
+    #[serde(rename = "phaseGroup", default)]
+    phase_group: Option<WirePhaseGroup>,
+    #[serde(default)]
+    stream: Option<WireStream>,
+}
+
+#[derive(Deserialize)]
+struct WirePhaseGroup {
+    #[serde(default)]
+    phase: Option<WirePhase>,
+}
+
+#[derive(Deserialize)]
+struct WirePhase {
+    #[serde(default, deserialize_with = "optional_id")]
+    id: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+}
+
+/// The stream a set is assigned to. Its fields are read from the schema;
+/// that start.gg fills them for a set given a stream awaits a live check.
+#[derive(Deserialize)]
+struct WireStream {
+    #[serde(default, deserialize_with = "optional_id")]
+    id: Option<String>,
+    #[serde(rename = "streamName", default)]
+    stream_name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -216,6 +245,43 @@ struct WireGame {
     order_num: Option<u32>,
     #[serde(rename = "winnerId", default, deserialize_with = "optional_id")]
     winner_id: Option<String>,
+    /// Anything else the organizer entered for the game, which a report
+    /// replaces: its score, stage or characters.
+    #[serde(rename = "entrant1Score", default)]
+    entrant1_score: Option<Value>,
+    #[serde(rename = "entrant2Score", default)]
+    entrant2_score: Option<Value>,
+    #[serde(default)]
+    stage: Option<Value>,
+    #[serde(default)]
+    selections: Option<Value>,
+}
+
+impl WireGame {
+    /// Whether the game holds anything but its winner.
+    fn has_details(&self) -> bool {
+        let filled = |value: &Option<Value>| match value {
+            None | Some(Value::Null) => false,
+            Some(Value::Array(items)) => !items.is_empty(),
+            Some(_) => true,
+        };
+        [
+            &self.entrant1_score,
+            &self.entrant2_score,
+            &self.stage,
+            &self.selections,
+        ]
+        .into_iter()
+        .any(filled)
+    }
+}
+
+/// A game the organizer entered, as far as a report's check reads it.
+struct EnteredGame {
+    order: Option<u32>,
+    winner: Option<String>,
+    /// It holds more than its winner (a score, stage or characters).
+    details: bool,
 }
 
 #[derive(Deserialize)]
@@ -262,9 +328,11 @@ struct RawSet {
     winner: Option<String>,
     /// Entrant IDs, slot 0 first.
     entrants: Option<[String; 2]>,
-    /// Each game entered so far with a winner: its number, from 1, and
-    /// its winning entrant.
-    games: Vec<(u32, String)>,
+    /// Each game entered so far.
+    games: Vec<EnteredGame>,
+    phase: Option<Phase>,
+    /// The name (or ID) of the stream the set is assigned to.
+    stream: Option<String>,
 }
 
 impl WireSet {
@@ -298,8 +366,31 @@ impl WireSet {
             .games
             .unwrap_or_default()
             .into_iter()
-            .filter_map(|game| Some((game.order_num?, game.winner_id?)))
+            .map(|game| EnteredGame {
+                details: game.has_details(),
+                order: game.order_num,
+                winner: game.winner_id,
+            })
             .collect();
+        let phase = self
+            .phase_group
+            .and_then(|group| group.phase)
+            .and_then(|phase| {
+                let name = phase.name.filter(|name| !name.trim().is_empty());
+                match (name, phase.id) {
+                    (None, None) => None,
+                    (name, id) => Some(Phase {
+                        name: name.unwrap_or_default(),
+                        id,
+                    }),
+                }
+            });
+        let stream = self.stream.and_then(|stream| {
+            stream
+                .stream_name
+                .filter(|name| !name.trim().is_empty())
+                .or(stream.id)
+        });
         Some(RawSet {
             round_label: self
                 .full_round_text
@@ -312,6 +403,8 @@ impl WireSet {
             winner: self.winner_id,
             entrants,
             games,
+            phase,
+            stream,
         })
     }
 }
@@ -537,6 +630,8 @@ impl Startgg {
             status: raw.status,
             underway: raw.underway,
             winner: raw.winner,
+            phase: raw.phase,
+            stream: raw.stream,
         }
     }
 
@@ -669,10 +764,22 @@ impl Startgg {
                 ));
             }
         }
-        // Games the organizer entered are kept when Ember's agree with them;
-        // a report would replace them, so one that disagrees is theirs.
-        for (order, entered) in &current.games {
-            let ours = (*order as usize)
+        // A report replaces every game entered. One that holds only its
+        // winner, the same as Ember's, loses nothing; any other is the
+        // organizer's to keep, so the set is left to them.
+        for game in &current.games {
+            let (Some(order), Some(entered)) = (game.order, &game.winner) else {
+                return Err(SiteError::Refused(
+                    "start.gg has a game entered without a winner, which a report would replace"
+                        .into(),
+                ));
+            };
+            if game.details {
+                return Err(SiteError::Refused(format!(
+                    "start.gg has game {order} entered with its score, stage or characters, which a report would replace"
+                )));
+            }
+            let ours = (order as usize)
                 .checked_sub(1)
                 .and_then(|index| report.sequence.get(index))
                 .map(|&slot| &report.entries[slot]);

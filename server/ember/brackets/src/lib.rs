@@ -33,7 +33,7 @@ use ember_protocol::webhook::Secret;
 use tokio::{net::TcpListener, task::JoinHandle};
 
 pub use config::{
-    Adapter, Bridge, Config, Credential, CredentialKind, Results, RoundRule, Rounds, Side,
+    Adapter, Bridge, Config, Credential, CredentialKind, Hold, Results, RoundRule, Rounds, Side,
     Tournament,
 };
 

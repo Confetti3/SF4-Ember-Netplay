@@ -74,9 +74,11 @@ is sent, and one the bridge has not answered is sent again unchanged, which
 finds the match if the bridge made it. If the organizer decides, changes or
 removes that set before the creation is answered, the creation is still
 sent again once, on the next read, and the match it gives is cancelled, so
-no match is left waiting for its players until it expires (when the bridge
-never had the creation, this makes the match only to cancel it: the bridge
-has no way to find a match by its external ID). Keep that file for as long as its
+no match is left waiting for its players until it expires. When the bridge
+never had the creation, this makes the match only to cancel it at once (the
+bridge has no way to find a match by its external ID), so the bridge's
+announcement channel and the two players may see a match appear and be
+cancelled straight away. Keep that file for as long as its
 tournaments run, and keep each tournament's `tournament` value as it is:
 with another file or value the connector no longer knows which sets it
 already played.
@@ -120,10 +122,12 @@ Players are found by the start.gg account they connected in Ember, or else
 by the Discord account linked to their start.gg profile, if start.gg shows it
 to the organizer's token. Each set is reported with its winner and every
 game's winner in the order played, after reading the set again: a set that
-already has a result is never written over, and neither are games the
-organizer already entered that disagree with Ember's (start.gg replaces
-them all on a report), which leave the set to the organizer; games that
-agree are sent again with the rest. A set that reads pending at that moment
+already has a result is never written over. start.gg replaces every game
+entered when a set is reported, so games the organizer already entered are
+kept only when nothing would be lost: a game that gives only its winner,
+the same as Ember's, is sent again with the rest. A game with another
+winner, with no winner, or with anything more (its score, stage or
+characters) leaves the set to the organizer. A set that reads pending at that moment
 is not reported, and the next read decides what becomes of it. A score
 counts as sent only when start.gg's answer shows the set decided for its
 winner, or, when the answer shows nothing, a fresh read of the set does;
@@ -236,7 +240,14 @@ Secrets are only ever read from files, never written to the log.
       "adapter": "startgg",
       "tournament": "tournament/ember-weekly-12/event/ultra-street-fighter-iv",
       "credential": { "kind": "bearer", "file": "startgg.token" },
-      "rounds": { "games_to_win": 2 }
+      "rounds": {
+        "games_to_win": 2,
+        "rules": [
+          { "phase": "Top 8", "from_round": 3, "side": "winners", "games_to_win": 5 },
+          { "phase": "Top 8", "games_to_win": 3 }
+        ]
+      },
+      "hold": { "streamed": true }
     }
   ]
 }
@@ -276,11 +287,32 @@ Secrets are only ever read from files, never written to the log.
   `allow_loopback_http: true`, which is for local tests.
 - `mark_underway`: per tournament, default `true`. Marking each set underway
   costs one request a set; `false` saves them.
-- `rounds`: `games_to_win` (1 to 10) unless a rule covers the round; the first
-  rule that does sets it. A rule covers `from_round` to `to_round` (no end when
-  absent) on its `side`: `winners` (every round Challonge numbers above zero,
-  which includes single elimination, round robin and swiss), `losers` (the
-  losers bracket, which Challonge numbers below zero) or `any` (the default).
+- `rounds`: `games_to_win` (1 to 10) unless a rule covers the set. Rules are
+  read in order and the first that covers a set sets its length, so put a
+  narrower rule before a wider one. A rule covers `from_round` (1 when
+  absent) to `to_round` (no end when absent) on its `side`: `winners` (every
+  round Challonge numbers above zero, which includes single elimination,
+  round robin and swiss), `losers` (the losers bracket, which Challonge
+  numbers below zero) or `any` (the default). With `phase`, it covers only
+  sets of that stage of the event, since each stage numbers its rounds from
+  1 again; a rule without `phase` covers every stage. The start.gg example
+  above is first to 2 in every phase, first to 3 in top 8, and first to 5
+  from top 8's winners round 3 on (the first rule comes first because it is
+  narrower).
+  - start.gg: the phase's name as the event's bracket page shows it (its
+    tabs, such as "Pools" or "Top 8"), compared without case and the spaces
+    around it, or the phase's ID, which tells apart two phases with one name.
+  - Challonge: `group` for the group stage of a two stage tournament, and
+    `final` for the final stage, or the only one.
+  - `http`: the `phase` the service gives each set (ADAPTERS.md).
+- `hold`: sets left to the organizer for now, each kind off by default.
+  `"streamed": true` holds a start.gg set assigned to a stream: it gets no
+  Ember match, logged once, until the organizer takes it off the stream, and
+  is then played as usual. A set already live in Ember is left as it is.
+  Challonge's documented match has no stream or schedule to read, and an
+  `http` service holds a set by not listing it open. start.gg's `startAt` is
+  not used: it falls back to the round's configured time, so it cannot tell
+  a set held for later from any other.
 
 ## Run
 
@@ -396,6 +428,13 @@ described there and need one check against the real API:
 - Pages of 25 (the documented default); a shorter page is the last.
 - A tournament's `state` and a match's `underway_at`, which the schema does
   not list: read when present, and otherwise worked out as described above.
+- A match's `group_id` on group stage matches, which the schema does not
+  list either (the upgrading notes say it is there): a number there makes
+  the match part of the `group` stage for round rules.
+- The answer to a score: the documented match, with `winner_id` set. The
+  connector counts a score sent from that answer; without it, each report
+  costs one more read of the match, about 127 more requests for the 64
+  player event above, which is past the free tier.
 - `change_state.json` sent with `application/vnd.api+json`, as every other
   request.
 - 429 and its headers: treated as "try again later".

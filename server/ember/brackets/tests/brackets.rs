@@ -3,7 +3,7 @@
 //! the organizer changes are left to the organizer.
 mod support;
 
-use ember_brackets::CredentialKind;
+use ember_brackets::{CredentialKind, RoundRule, Rounds, Side};
 use serde_json::json;
 use support::{
     Setup, World,
@@ -448,4 +448,62 @@ async fn a_score_challonge_does_not_show_recorded_is_checked() {
     world.connector.pass(false).await;
     assert_eq!(world.progress("challonge:ember_weekly", "1001"), "reported");
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("355"));
+}
+
+#[tokio::test]
+async fn challonge_group_and_final_stages_take_their_own_length() {
+    // A two stage tournament: 1001 is in a group, 1002 in the final stage,
+    // both round 1. The final stage is first to 3.
+    let mut group = FakeMatch::open("1001", 1, ["355", "354"]);
+    group.group_id = Some(7_001);
+    let mut setup = Setup {
+        matches: vec![group, FakeMatch::open("1002", 1, ["353", "352"])],
+        rounds: Rounds {
+            games_to_win: 2,
+            rules: vec![RoundRule {
+                phase: Some("final".into()),
+                from_round: 1,
+                to_round: None,
+                side: Side::Any,
+                games_to_win: 3,
+            }],
+        },
+        ..Setup::default()
+    };
+    setup.participants[3].1 = Some("player4".into());
+    let world = World::start(setup).await;
+    for (byte, name) in [
+        (1, "player1"),
+        (2, "player_2"),
+        (3, "player3"),
+        (4, "player4"),
+    ] {
+        world.bridge.connect(byte, name).await;
+    }
+    world.connector.pass(true).await;
+    let mut found = Vec::new();
+    for (external, match_id, _) in world.bridge.matches().await {
+        let snapshot = world.snapshot(&match_id).await;
+        found.push((
+            external,
+            snapshot["games_to_win"].clone(),
+            snapshot["metadata"]["round_label"].clone(),
+        ));
+    }
+    found.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        found,
+        [
+            (
+                "challonge:ember_weekly:1001:1".to_owned(),
+                json!(2),
+                json!("Group stage, Round 1")
+            ),
+            (
+                "challonge:ember_weekly:1002:1".to_owned(),
+                json!(3),
+                json!("Round 1")
+            ),
+        ]
+    );
 }

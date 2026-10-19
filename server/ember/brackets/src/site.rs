@@ -76,6 +76,37 @@ pub struct Set {
     pub underway: bool,
     /// The winning entry's participant ID, once decided.
     pub winner: Option<String>,
+    /// The stage of the event the set is in, when the site says: a start.gg
+    /// phase, Challonge's group or final stage, an http service's `phase`.
+    /// Round rules can name it, since stages number their rounds afresh.
+    pub phase: Option<Phase>,
+    /// The stream the set is assigned to, when the site says (start.gg).
+    pub stream: Option<String>,
+}
+
+/// A stage of an event, by the name the organizer sees and, where the site
+/// has one, its ID.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Phase {
+    pub name: String,
+    pub id: Option<String>,
+}
+
+impl Phase {
+    pub fn named(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            id: None,
+        }
+    }
+
+    /// Whether a round rule's `phase` names this one: its name, ignoring
+    /// case and the spaces around it, or its ID.
+    pub fn is(&self, wanted: &str) -> bool {
+        let wanted = wanted.trim();
+        self.name.trim().to_lowercase() == wanted.to_lowercase()
+            || self.id.as_deref() == Some(wanted)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

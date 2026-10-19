@@ -7,7 +7,7 @@
 mod support;
 
 use axum::http::StatusCode;
-use ember_brackets::Adapter;
+use ember_brackets::{Adapter, RoundRule, Rounds, Side};
 use ember_protocol::EmberId;
 use serde_json::{Value, json};
 use support::{
@@ -508,4 +508,61 @@ async fn a_refused_token_on_one_report_still_tries_the_others() {
     world.advance(31);
     world.connector.pass(false).await;
     assert_eq!(world.progress(BRACKET, "s-1"), "reported");
+}
+
+#[tokio::test]
+async fn a_set_s_phase_names_the_rule_for_its_length() {
+    // Two round 1 sets, one of pools and one of top 8, where top 8 is
+    // first to 3.
+    let mut pools = player1_and_player2();
+    pools["phase"] = json!("Pools");
+    let mut top = player1_and_player2();
+    top["id"] = json!("s-2");
+    top["phase"] = json!("Top 8");
+    top["entries"][0] =
+        json!({ "id": "player3", "accounts": [{ "site": "challonge", "id": "player3" }] });
+    top["entries"][1] =
+        json!({ "id": "player4", "accounts": [{ "site": "challonge", "id": "player4" }] });
+    let service = FakeService::start(vec![pools, top]).await;
+    let world = World::start(Setup {
+        challonge: false,
+        extra: vec![Extra {
+            adapter: Adapter::Http,
+            tournament: "pools".into(),
+            api_base: service.base.clone(),
+            token: SERVICE_TOKEN,
+        }],
+        rounds: Rounds {
+            games_to_win: 2,
+            rules: vec![RoundRule {
+                phase: Some("Top 8".into()),
+                from_round: 1,
+                to_round: None,
+                side: Side::Any,
+                games_to_win: 3,
+            }],
+        },
+        ..Setup::default()
+    })
+    .await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect_discord(2, PLAYER2_DISCORD).await;
+    world.bridge.connect(3, "player3").await;
+    world.bridge.connect(4, "player4").await;
+    world.connector.pass(true).await;
+    let mut lengths = Vec::new();
+    for (external, match_id, _) in world.bridge.matches().await {
+        lengths.push((
+            external,
+            world.snapshot(&match_id).await["games_to_win"].clone(),
+        ));
+    }
+    lengths.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        lengths,
+        [
+            ("http:pools:s-1:1".to_owned(), json!(2)),
+            ("http:pools:s-2:1".to_owned(), json!(3)),
+        ]
+    );
 }

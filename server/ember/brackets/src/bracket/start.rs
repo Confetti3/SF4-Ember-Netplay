@@ -91,6 +91,17 @@ impl Bracket {
         let Some(entries) = &set.entries else {
             return Ok(false);
         };
+        if self.hold.streamed
+            && let Some(stream) = &set.stream
+        {
+            return self.note(
+                set,
+                attempt,
+                Some(&format!(
+                    "held: it is assigned to stream {stream}; it is played in Ember once it is taken off the stream"
+                )),
+            );
+        }
         let players = entries.each_ref().map(|entry| {
             found.player(entry).ok_or_else(|| {
                 // The accounts asked found nobody; the others say why not.
@@ -273,7 +284,10 @@ impl Bracket {
                     slot,
                 })
                 .into(),
-            rules: Rules::standard(self.rounds.games_to_win(set.round), play::PROFILE),
+            rules: Rules::standard(
+                self.rounds.games_to_win(set.round, set.phase.as_ref()),
+                play::PROFILE,
+            ),
             observer_policy: "authorized_only".into(),
             result_policy: "two_player_agreement_or_review".into(),
             required_build_id: self.context.build_id.clone(),

@@ -22,7 +22,7 @@ use tokio::sync::{Mutex, Notify};
 use crate::{
     Clock,
     bridge::{BridgeClient, BridgeError},
-    config::{Rounds, Tournament},
+    config::{Hold, Rounds, Tournament},
     log,
     schedule::{Backoff, Phase, Window},
     sets::{
@@ -62,6 +62,7 @@ pub(crate) struct Bracket {
     rounds: Rounds,
     window: Window,
     mark_underway: bool,
+    hold: Hold,
     context: Arc<Context>,
     /// Whether the last lookup of players failed, so a failure is logged
     /// once until lookups work again.
@@ -159,6 +160,7 @@ impl Bracket {
             rounds: tournament.rounds.clone(),
             window: tournament.window()?,
             mark_underway: tournament.mark_underway,
+            hold: tournament.hold,
             context,
             lookup_failing: AtomicBool::new(false),
             cancel_failing: std::sync::Mutex::default(),

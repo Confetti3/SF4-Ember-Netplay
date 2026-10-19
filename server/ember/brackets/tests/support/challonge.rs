@@ -29,6 +29,8 @@ pub struct FakeMatch {
     pub underway: bool,
     /// The sets whose winners become player 1 and player 2.
     pub fed_by: Option<[String; 2]>,
+    /// The group of a group stage match.
+    pub group_id: Option<u64>,
 }
 
 impl FakeMatch {
@@ -42,6 +44,7 @@ impl FakeMatch {
             score_sets: None,
             underway: false,
             fed_by: None,
+            group_id: None,
         }
     }
 
@@ -55,6 +58,7 @@ impl FakeMatch {
             score_sets: None,
             underway: false,
             fed_by: Some(from.map(str::to_owned)),
+            group_id: None,
         }
     }
 
@@ -74,6 +78,7 @@ impl FakeMatch {
                 // An integer here, as Challonge's schema has it.
                 "winner_id": self.winner.as_ref().map(|id| id.parse::<u64>().unwrap()),
                 "underway_at": self.underway.then_some("2026-10-18T19:05:00.000Z"),
+                "group_id": self.group_id,
                 "relationships": {
                     "player1": player(&self.players[0]),
                     "player2": player(&self.players[1]),

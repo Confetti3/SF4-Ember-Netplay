@@ -15,8 +15,8 @@ use axum::{
     http::{Method, StatusCode},
 };
 use ember_brackets::{
-    Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Results, RoundRule,
-    Rounds, Side, Tournament,
+    Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Hold, Results,
+    RoundRule, Rounds, Side, Tournament,
 };
 use ember_protocol::webhook::Secret;
 use serde_json::{Value, json};
@@ -93,6 +93,7 @@ pub fn challonge_tournament(dir: &Path, kind: CredentialKind, api_base: &str) ->
             file: dir.join("challonge.key"),
         },
         rounds: rounds(),
+        hold: Hold::default(),
         active_from: None,
         active_until: None,
         mark_underway: true,
@@ -141,6 +142,7 @@ pub fn rounds() -> Rounds {
     Rounds {
         games_to_win: 2,
         rules: vec![RoundRule {
+            phase: None,
             from_round: 2,
             to_round: None,
             side: Side::Any,
@@ -171,6 +173,9 @@ pub struct Setup {
     pub serve_results: bool,
     /// Whether the bridge connection may look players up by Discord account.
     pub discord_lookup: bool,
+    /// Every tournament's set lengths and held sets.
+    pub rounds: Rounds,
+    pub hold: Hold,
     pub participants: Vec<(String, Option<String>)>,
     pub matches: Vec<FakeMatch>,
 }
@@ -188,6 +193,8 @@ impl Default for Setup {
             active_until: None,
             serve_results: true,
             discord_lookup: true,
+            rounds: rounds(),
+            hold: Hold::default(),
             participants: [
                 ("355", Some("Player1")),
                 ("354", Some("player_2")),
@@ -220,6 +227,8 @@ impl World {
             config.tournaments.push(Tournament {
                 active_from: setup.active_from.clone(),
                 active_until: setup.active_until.clone(),
+                rounds: setup.rounds.clone(),
+                hold: setup.hold,
                 ..challonge_tournament(&dir, setup.kind, &challonge.api)
             });
         }
@@ -234,7 +243,8 @@ impl World {
                     kind: CredentialKind::Bearer,
                     file,
                 },
-                rounds: rounds(),
+                rounds: setup.rounds.clone(),
+                hold: setup.hold,
                 active_from: setup.active_from.clone(),
                 active_until: setup.active_until.clone(),
                 mark_underway: true,
