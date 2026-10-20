@@ -11,7 +11,7 @@
 //! seed file, the control address) to `EMBER_E2E_OUT` (default the temp
 //! folder). The organizer's game side is `examples/desk_game.rs` with that
 //! seed. The control address stands in for the players and Challonge:
-//! `POST /start/<tournament>` enters the four players and starts it,
+//! `POST /join/<tournament>` enters the four players (the desk starts it),
 //! `POST /dispute` has the first set's players report game 1 both ways,
 //! `POST /pass` lets the connector act, `GET /posts` lists the Discord posts.
 #[path = "../../bridge/tests/common/mod.rs"]
@@ -114,7 +114,9 @@ impl Stack {
             .status()
     }
 
-    async fn start(&self, tournament: &str) -> Json {
+    /// Four players join the tournament; the organizer starts it from the
+    /// desk.
+    async fn join(&self, tournament: &str) -> Json {
         for byte in 1..=4 {
             self.on_challonge(
                 reqwest::Method::POST,
@@ -124,15 +126,7 @@ impl Stack {
             )
             .await;
         }
-        let status = self
-            .on_challonge(
-                reqwest::Method::PUT,
-                &format!("tournaments/{tournament}/change_state.json"),
-                json!({ "data": { "type": "TournamentState", "attributes": { "state": "start" } } }),
-            )
-            .await;
-        self.pass().await;
-        json!({ "started": status.as_u16() })
+        json!({ "joined": 4 })
     }
 
     /// The first Ember match's players each report game 1 as their own win.
@@ -277,10 +271,10 @@ async fn serve_a_desk_for_the_browser() {
             }),
         )
         .route(
-            "/start/{tournament}",
+            "/join/{tournament}",
             post(
                 |State(stack): State<Arc<Stack>>, Path(tournament): Path<String>| async move {
-                    reply(stack.start(&tournament).await)
+                    reply(stack.join(&tournament).await)
                 },
             ),
         )
