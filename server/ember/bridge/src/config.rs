@@ -94,6 +94,10 @@ pub struct Rooms {
     /// Its bearer secret is `rooms_supervisor_secret` in the integration
     /// secrets.
     pub supervisor_url: String,
+    /// Room tickets carry the joiner's skill badge. Games are rated either
+    /// way, so the bands can be calibrated before anyone sees one.
+    #[serde(default)]
+    pub skill_badges: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

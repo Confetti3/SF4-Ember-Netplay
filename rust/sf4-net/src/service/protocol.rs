@@ -303,6 +303,9 @@ pub enum Event {
         /// under. Absent in a private room.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         account: Option<String>,
+        /// The skill badge in that ticket, when the bridge gave one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        badge: Option<ember_protocol::skill::SkillBadge>,
         /// As in `Hosted`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         latency: Option<EndpointId>,

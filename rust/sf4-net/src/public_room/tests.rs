@@ -87,6 +87,7 @@ fn mint(
         endpoint_id: endpoint.into(),
         issued_at,
         expires_at: issued_at + TICKET_SECS,
+        badge: None,
     }
     .sign(&identity(signer), kid)
     .unwrap()
@@ -128,6 +129,7 @@ impl World {
             endpoint_id: self.guest.id().to_string(),
             issued_at: self.now,
             expires_at: 0,
+            badge: None,
         };
         change(&mut ticket);
         ticket.expires_at = ticket.issued_at + TICKET_SECS;
@@ -203,8 +205,8 @@ async fn a_ticket_for_this_endpoint_is_admitted_and_names_its_account() {
     let (server, client) = world
         .attempt(&ticket, policy(), BTreeMap::new(), world.now)
         .await;
-    assert_eq!(server.unwrap().account, Some(world.account.clone()));
-    assert_eq!(client.unwrap().account, None);
+    assert_eq!(server.unwrap().account(), Some(&world.account));
+    assert_eq!(client.unwrap().account(), None);
     world.close().await;
 }
 
@@ -329,7 +331,7 @@ async fn an_account_held_by_another_endpoint_is_refused_but_a_reconnect_is_not()
     );
     let held_here = BTreeMap::from([(world.account.clone(), world.guest.id())]);
     let (server, _client) = world.attempt(&ticket, policy(), held_here, now).await;
-    assert_eq!(server.unwrap().account, Some(world.account.clone()));
+    assert_eq!(server.unwrap().account(), Some(&world.account));
     world.close().await;
 }
 
@@ -498,7 +500,7 @@ async fn a_public_host_reads_only_a_public_proof_and_a_private_host_only_a_priva
             transport::connect_control_on(connection, &world.invite).await
         }
     );
-    assert_eq!(server.unwrap().account, None);
+    assert_eq!(server.unwrap().account(), None);
     assert!(client.is_ok());
     world.close().await;
 }
@@ -518,6 +520,7 @@ fn the_two_proofs_are_not_readable_as_each_other() {
         endpoint_id: "a".repeat(64),
         issued_at: 1000,
         expires_at: 1000 + TICKET_SECS,
+        badge: None,
     }
     .sign(&identity(9), "k1")
     .unwrap();
@@ -635,7 +638,7 @@ async fn a_member_returns_with_its_ticket_after_the_ticket_has_expired() {
     let (server, _client) = world
         .attempt(&stale, host_holding(&world, false), BTreeMap::new(), now)
         .await;
-    assert_eq!(server.unwrap().account, Some(world.account.clone()));
+    assert_eq!(server.unwrap().account(), Some(&world.account));
     // The same ticket from an endpoint the room does not hold is refused.
     assert_refused(
         world
@@ -789,6 +792,7 @@ fn ticket_of(account: &EmberId, endpoint: EndpointId, room: &str, issued_at: u64
         endpoint_id: endpoint.to_string(),
         issued_at,
         expires_at: issued_at + TICKET_SECS,
+        badge: None,
     }
 }
 

@@ -21,10 +21,14 @@ const MAX_ANSWER: usize = 1024 * 1024;
 /// The most a room's `details` can weigh in `GET /rooms` (`MAX_DETAILS_BYTES`
 /// in ember-rooms, a separate crate; keep them equal).
 const MAX_DETAILS_REPORT: usize = 2048;
+/// The most a room's `games` can weigh in `GET /rooms` (`MAX_GAMES_BYTES` in
+/// ember-rooms; keep them equal).
+const MAX_GAMES_REPORT: usize = 6144;
 /// The most one room can weigh in `GET /rooms`: `MAX_ROOM_BANS` Ember IDs (57
-/// bytes, 60 with quotes and a comma), its invitation, its details and about
-/// 300 bytes for the other fields.
-const MAX_ROOM_REPORT: usize = MAX_ROOM_BANS * 60 + MAX_INVITATION + MAX_DETAILS_REPORT + 300;
+/// bytes, 60 with quotes and a comma), its invitation, its details, its games
+/// and about 300 bytes for the other fields.
+const MAX_ROOM_REPORT: usize =
+    MAX_ROOM_BANS * 60 + MAX_INVITATION + MAX_DETAILS_REPORT + MAX_GAMES_REPORT + 300;
 /// The most rooms a supervisor can be configured for (`MAX_ROOMS_LIMIT` in
 /// ember-rooms).
 const MAX_ROOMS_REPORTED: usize = 1024;
@@ -89,6 +93,11 @@ pub struct Reported {
     /// field later (`details`) and never fails the report.
     #[serde(default)]
     pub details: Option<serde_json::Value>,
+    /// The room's recent won games for the skill rating, as the room host
+    /// sent them. Any JSON value parses, so each game is judged on its own
+    /// later (`skill::record_games`) and none fails the report.
+    #[serde(default)]
+    pub games: Option<serde_json::Value>,
 }
 
 /// A refusal's body: `{"reason": "..."}`, or `{"error": "..."}`.
