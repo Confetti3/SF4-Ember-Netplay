@@ -377,6 +377,10 @@ so BluMint never receives a second, different result for a match.
   two-PC match on real hardware has not been done yet.
 - **Watching.** `spectators` is sent and not read yet; the listed staff
   cannot watch a match through Ember.
+- **Forfeits.** Ember sends no `termination` report, because it has no
+  concede action. A player who quits is not reported as a forfeit; the match
+  ends as an abort, and BluMint's own hold decides what happens to a player
+  who does not come back.
 
 ## Answers from BluMint
 
