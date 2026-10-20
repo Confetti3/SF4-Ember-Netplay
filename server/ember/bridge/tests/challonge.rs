@@ -1252,9 +1252,34 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+    // Ember deletes on Challonge only the events it created there.
+    let on_site = |path: String| {
+        let (bridge, player) = (&bridge, &player1);
+        async move {
+            sign_in::send(
+                bridge,
+                player,
+                Action::SiteRemove,
+                Method::Delete,
+                &path,
+                json!({ "on_site": true }),
+            )
+            .await
+        }
+    };
+    assert_eq!(listed["events"][0]["created_on_site"], true);
+    let (status, _) = on_site(other_path.clone()).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(fake.seen("/v2.1/tournaments/9001.json").is_empty());
     let (status, _) = stop_event(&bridge, &player1, &other).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(events().await["events"].as_array().unwrap().len(), 1);
+
+    // Stopped with its site's event, it is gone from both.
+    let (status, stopped) = on_site(path("")).await;
+    assert_eq!(status, StatusCode::OK, "{stopped}");
+    assert_eq!(fake.seen("/v2.1/tournaments/777.json").len(), 1);
+    assert_eq!(events().await["events"], json!([]));
 }
 
 /// The value of cookie `name` that `response` sets.

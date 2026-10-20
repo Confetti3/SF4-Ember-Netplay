@@ -542,7 +542,10 @@ Routes, all with the organizer's player session:
   its `status` (`draft`, `ready` or `running`), title, start time, event,
   settings and links.
 - `DELETE /v1/organizer/events/<id>` (proof action `site.remove` on that
-  path): deletes a draft, or stops an event.
+  path): deletes a draft, or stops an event. With `{"on_site": true}` it
+  first deletes the site's event, only one Ember created there
+  (`created_on_site` in the listing); when the site refuses, nothing changes
+  and the error carries the site's words.
 
 `organizer.create` in a site definition (Challonge's has one; start.gg's
 API creates no events): `url`, `headers`, the JSON `body` to POST,
@@ -551,7 +554,8 @@ body and the `values` it takes; every pointer's parent object is in the
 body; an empty value leaves the field to the site; `with` maps a value to
 more pointers to set alongside it, such as the options object Challonge
 requires with round robin and swiss), `id_pointer` into the answer for the event's ID as `tournaments`
-lists it, and optionally `link_pointer` with `link_prefix` for its page.
+lists it, and optionally `link_pointer` with `link_prefix` for its page and
+`delete_url` (with `{tournament}`) to DELETE an event it created.
 
 The web desk signs organizers in without the game: `GET
 /web/sign-in/<site>` sends the browser to the site's sign-in (its plain
@@ -701,7 +705,7 @@ Three layers, from fastest:
   in), creates a Challonge tournament in the four steps with tiers, sets the
   webhook and sign-ups, readies it, starts the bracket, decides a disputed game
   as a draw, gives one to player 1 and voids it, opens the bracket and the
-  public page, and checks at 390 and 1440 px that nothing scrolls sideways
+  public page, stops it and deletes it on Challonge, and checks at 390 and 1440 px that nothing scrolls sideways
   and every button is at least 44 px. Pictures go to the out folder. Start a
   fresh stack for each run: sign-in rate limits are per bridge.
   `examples/desk_game.rs` plays the game's side: an Ember ID from a seed file
@@ -710,8 +714,8 @@ Three layers, from fastest:
   bridge and real Challonge. Its Ember ID seed lives in
   `~/tournament-lab/e2e/ember-id.seed`. Once, `--setup` prints the organizer
   sign-in to approve with the organizer's Challonge account. A run creates one
-  Challonge tournament named `ember-e2e <time>` and removes its event
-  afterwards; delete the Challonge tournament by hand. A Discord webhook in
+  Challonge tournament named `ember-e2e <time>` and deletes it again at the
+  end, with its event. A Discord webhook in
   `~/tournament-lab/e2e/discord-webhook` is used when present.
 
 ## Bracket sites (Challonge, start.gg, your own)

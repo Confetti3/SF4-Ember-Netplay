@@ -157,6 +157,7 @@ button.wd-card:hover { border-color: var(--ember); }
 .decide { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 16px; border: 1px solid var(--border); border-radius: 4px; background: var(--ink); color: var(--ivory); }
 .decide[open] { display: flex; flex-direction: column; gap: 12px; }
 .decide::backdrop { background: rgba(20, 19, 18, .8); }
+.decide > .wd-btn.danger { align-self: stretch; }
 .links { display: flex; flex-wrap: wrap; gap: 8px; }
 .links .wd-btn { flex: 1 1 140px; }
 

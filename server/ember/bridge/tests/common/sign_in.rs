@@ -141,7 +141,7 @@ impl FakeSite {
         if let Some((path, _)) = *self.listing.lock().unwrap() {
             app = app.route(path, get(listing).post(listing));
         }
-        let app = app.with_state(self.clone());
+        let app = app.fallback(deleting).with_state(self.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
         tokio::spawn(async move { axum::serve(listener, app).await });
@@ -319,6 +319,27 @@ async fn listing(
     }
 }
 
+/// Deletes whatever a DELETE names, for a user whose access token comes
+/// with it; recorded at its path.
+async fn deleting(
+    State(site): State<Arc<FakeSite>>,
+    method: axum::http::Method,
+    uri: axum::http::Uri,
+    headers: HeaderMap,
+) -> Reply {
+    site.record(uri.path(), None, &[], headers.clone());
+    let known = headers
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .is_some_and(|token| site.tokens.lock().unwrap().contains_key(token));
+    match (method, known) {
+        (axum::http::Method::DELETE, true) => reply(AxumStatus::OK, json!({})),
+        (axum::http::Method::DELETE, false) => reply(AxumStatus::UNAUTHORIZED, json!({})),
+        _ => reply(AxumStatus::NOT_FOUND, json!({})),
+    }
+}
+
 /// A site's sign-in routes on the bridge and the proof actions they take.
 pub struct Routes {
     pub start: String,
@@ -384,6 +405,10 @@ pub fn definition(name: &str, origin: &str, client_id: &str) -> SignInSite {
         }
         if let Some(create) = &mut organizer.create {
             create.url = local(&create.url);
+            create.delete_url = create
+                .delete_url
+                .as_deref()
+                .map(|url| local(url).replace("%7B", "{").replace("%7D", "}"));
         }
     }
     site.client_id = client_id.into();

@@ -99,11 +99,15 @@ pub struct ParticipantsRequest {
 /// sets at its pointer, one of its `values`. Every pointer's parent is in
 /// `body`. In the answer, `id_pointer` is the ID the bracket connector's
 /// `tournament` takes (as `tournaments` lists it), and the text at
-/// `link_pointer` after `link_prefix` is the event's page.
+/// `link_pointer` after `link_prefix` is the event's page. `delete_url`,
+/// with `{tournament}` the event's ID, is DELETEd to delete an event it
+/// created; None deletes none.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateRequest {
     pub url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delete_url: Option<String>,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
     pub body: serde_json::Value,
@@ -328,6 +332,10 @@ impl SignInSite {
             ),
             ("organizer.create.url", create.map(|create| &create.url)),
             (
+                "organizer.create.delete_url",
+                create.and_then(|create| create.delete_url.as_ref()),
+            ),
+            (
                 "organizer.participants.url",
                 participants.map(|add| &add.url),
             ),
@@ -477,9 +485,14 @@ impl SignInSite {
             let prefix_ok = create.link_prefix.as_deref().is_none_or(|prefix| {
                 url::Url::parse(prefix).is_ok_and(|url| url.scheme() == "https")
             });
-            if !headers_ok(&create.headers) || !prefix_ok {
+            let delete_ok = create
+                .delete_url
+                .as_ref()
+                .is_none_or(|url| url.contains("{tournament}"));
+            if !headers_ok(&create.headers) || !prefix_ok || !delete_ok {
                 return fail(
-                    "organizer.create needs headers as user.headers, and an https link_prefix",
+                    "organizer.create needs headers as user.headers, an https link_prefix, \
+                     and {tournament} in delete_url",
                 );
             }
         }
@@ -654,6 +667,11 @@ mod tests {
                 "url": "https://api.challonge.com/v2.1/tournaments.json",
                 "body": { "data": {} }, "name_pointer": "/data/name", "id_pointer": "/data/id",
                 "fields": { "format": { "pointer": "/data/options/type", "values": ["swiss"] } } } } }),
+            // A delete names the event it deletes.
+            json!({ "organizer": { "scope": "me", "create": {
+                "url": "https://api.challonge.com/v2.1/tournaments.json",
+                "delete_url": "https://api.challonge.com/v2.1/tournaments.json",
+                "body": { "data": {} }, "name_pointer": "/data/name", "id_pointer": "/data/id" } } }),
         ] {
             assert!(refused(change.clone()), "{change}");
         }
@@ -684,6 +702,9 @@ mod tests {
                     .chain(organizer.create.iter_mut().map(|create| &mut create.url))
                 {
                     *url = format!("https://{host}/tournaments.json");
+                }
+                if let Some(create) = organizer.create.as_mut() {
+                    create.delete_url = Some(format!("https://{host}/{{tournament}}.json"));
                 }
                 if let Some(add) = organizer.participants.as_mut() {
                     add.url = format!("https://{host}/{{tournament}}/participants.json");

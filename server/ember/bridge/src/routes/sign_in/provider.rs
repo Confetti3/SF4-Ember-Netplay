@@ -452,6 +452,33 @@ impl OAuth {
         }))
     }
 
+    /// Whether the site deletes the events Ember created there.
+    pub fn deletes_created(&self) -> bool {
+        self.create
+            .as_ref()
+            .is_some_and(|create| create.delete_url.is_some())
+    }
+
+    /// Deletes the organizer's event `tournament`, one Ember created:
+    /// `Ok` when the site did, why it refused (`refusal`), or `Err(None)` on
+    /// any other failure or when the site deletes none.
+    pub async fn delete_created(
+        &self,
+        token: &str,
+        tournament: &str,
+    ) -> Result<(), Option<String>> {
+        let create = self.create.as_ref().ok_or(None)?;
+        let url = create.delete_url.as_ref().ok_or(None)?;
+        let request = UserRequest {
+            method: Method::Delete,
+            url: url.replace("{tournament}", path_id(tournament).ok_or(None)?),
+            headers: pairs(&create.headers),
+            body: None,
+        };
+        let client = outbound_client().build().map_err(|_| None)?;
+        sent(&client, &request, token, MAX_ANSWER).await.map(drop)
+    }
+
     /// Whether the site takes players who sign up through Ember.
     pub fn takes_sign_ups(&self) -> bool {
         self.participants.is_some()

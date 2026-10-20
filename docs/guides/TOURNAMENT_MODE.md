@@ -52,7 +52,7 @@ Only an account already linked in Ember can sign in. If the desk says the accoun
 3. **Discord and sign-ups.** The Discord channel webhook for calls, posting each set's score, the public page, and players signing up through Ember.
 4. **Ready.** The Discord post, and **Mark ready**. It says what is still missing (a start date, the bracket event) until it can be marked.
 
-Ember runs a ready event from its start time: it creates each set's match as soon as both players are known. **Live** is where you run it. **Delete this draft** removes a draft; **Stop this tournament** stops a ready or running one.
+Ember runs a ready event from its start time: it creates each set's match as soon as both players are known. **Live** is where you run it. **Delete this draft** removes a draft; **Stop this tournament** stops a ready or running one. When Ember created the tournament on Challonge, you choose each time whether it goes on Challonge too: deleting it there removes its bracket and results for everyone. A tournament you picked from your Challonge list is never deleted there.
 
 ![Web desk on a phone, a tablet and a computer](../design/tournament-desk/07-web-desk-390.webp)
 

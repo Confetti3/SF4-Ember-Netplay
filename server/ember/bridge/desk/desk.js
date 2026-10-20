@@ -605,12 +605,34 @@ async function saveSettings() {
   await refreshEvent();
 }
 
-$("stop").addEventListener("click", async () => {
-  const draft = desk.event.status === "draft";
-  if (!window.confirm(draft ? "Delete this draft?" : "Stop this tournament? Ember stops creating its sets.")) return;
-  await api("DELETE", "/v1/organizer/events/" + desk.event.id).catch((error) => toast(error.message));
-  desk.event = null;
-  home().catch((error) => toast(error.message));
+// Deleting a draft or stopping an event; one Ember created on its site
+// can go there too, which the organizer chooses each time.
+$("stop").addEventListener("click", () => {
+  const event = desk.event;
+  const box = $("decide");
+  const draft = event.status === "draft";
+  const site = siteName(event.site);
+  const end = async (onSite) => {
+    try {
+      await api("DELETE", "/v1/organizer/events/" + event.id, onSite ? { on_site: true } : {});
+    } catch (error) {
+      return toast(error.message);
+    }
+    box.close();
+    desk.event = null;
+    home().catch((error) => toast(error.message));
+  };
+  const button = (label, onSite, danger) =>
+    el("button", { type: "button", class: danger ? "wd-btn danger" : "wd-btn", onclick: () => end(onSite) }, label);
+  box.replaceChildren(...[
+    el("h2", { class: "wd-h" }, draft ? "Delete this draft?" : "Stop this tournament?"),
+    el("p", { class: "small" }, draft ? "Its settings and links go." : "Ember stops creating its sets."),
+    event.created_on_site ? el("p", { class: "small" }, "Ember created it on " + site + ". Deleting it there too removes its bracket and results for everyone.") : null,
+    button(draft ? "Delete the draft" : "Stop it", false, !event.created_on_site),
+    event.created_on_site ? button((draft ? "Delete it" : "Stop it") + " and delete it on " + site, true, true) : null,
+    el("button", { type: "button", class: "wd-btn", onclick: () => box.close() }, "Keep it"),
+  ].filter(Boolean));
+  box.showModal();
 });
 
 // --- The bar.

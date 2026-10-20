@@ -292,7 +292,7 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
                 "SELECT id, title, status, starts_at, site, tournament, name, settings, links,
                      created_at, discord_webhook, post_results, sign_ups,
                      (SELECT COUNT(*) FROM event_sign_ups s WHERE s.event_id = organizer_events.id),
-                     public
+                     public, created_on_site
                  FROM organizer_events
                  WHERE ember_id = ?1 AND ended_at IS NULL ORDER BY created_at DESC, id",
             )?;
@@ -324,6 +324,7 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
                     "sign_ups": row.get::<_, bool>(12)?,
                     "signed_up": row.get::<_, u64>(13)?,
                     "public": row.get::<_, bool>(14)?,
+                    "created_on_site": row.get::<_, bool>(15)?,
                 }))
             })?;
             Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -332,33 +333,85 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
     Ok(ok(&json!({ "events": events })))
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Stop {
+    /// Also deletes the site's event, one Ember created there.
+    #[serde(default)]
+    on_site: bool,
+}
+
 /// `DELETE /v1/organizer/events/{id}`: deletes one of the session player's
-/// drafts, or stops one of their events. Takes a `site.remove` proof for
-/// this path.
+/// drafts, or stops one of their events; with `on_site`, first deletes the
+/// event Ember created for it on its site, and changes nothing here when
+/// the site does not. Takes a `site.remove` proof for this path.
 pub async fn stop(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<String>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
-    let (caller, sessions::Nothing {}) = Caller::of(&state, &headers, &body).await?;
+    let (caller, command): (_, Stop) = Caller::of(&state, &headers, &body).await?;
     caller.require_game()?;
     let path = format!("{EVENTS_PATH}/{id}");
     let ctx = Ctx::of(&state);
+    if command.on_site {
+        let (reading, owner) = (id.clone(), caller.ember_id().to_owned());
+        let created: Option<(String, String)> = state
+            .db
+            .read(move |tx| {
+                Ok(tx
+                    .query_row(
+                        "SELECT site, tournament FROM organizer_events WHERE id = ?1
+                             AND ember_id = ?2 AND ended_at IS NULL AND created_on_site = 1",
+                        params![reading, owner],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )
+                    .optional()?)
+            })
+            .await?;
+        let (site, tournament) = created
+            .ok_or_else(|| ApiFailure::invalid("Ember deletes only the events it created."))?;
+        let site = Site::Configured(site);
+        let oauth = OAuth::organizer(&state, &site)
+            .filter(OAuth::deletes_created)
+            .ok_or_else(|| ApiFailure::invalid("This site's events are deleted on the site."))?;
+        let grant = organizer_grant(&state, &site, caller.ember_id())
+            .await?
+            .ok_or_else(ApiFailure::not_found)?;
+        // As with creating: the proof is spent before the site is asked.
+        let owner = caller.ember_id().to_owned();
+        let proving = ctx.clone();
+        state
+            .db
+            .write(move |tx| caller.prove(tx, &proving, Action::SiteRemove, Method::Delete, &path))
+            .await?;
+        state.committed();
+        if let Some(limits) = oauth.limits
+            && !spend(&state, site.id(), limits).await?
+        {
+            return Err(ApiFailure::sign_in_busy(None));
+        }
+        oauth
+            .delete_created(&grant.access, &tournament)
+            .await
+            .map_err(|refused| site_refused(&state, site.id(), "to delete the event", refused))?;
+        let stopped = state
+            .db
+            .write(move |tx| end(tx, &id, &owner, ctx.now))
+            .await?;
+        state.committed();
+        return if stopped {
+            Ok(ok(&json!({})))
+        } else {
+            Err(ApiFailure::not_found())
+        };
+    }
     let stopped = state
         .db
         .write(move |tx| {
             let ember_id = caller.prove(tx, &ctx, Action::SiteRemove, Method::Delete, &path)?;
-            let deleted = tx.execute(
-                "DELETE FROM organizer_events WHERE id = ?1 AND ember_id = ?2 AND status = 'draft'",
-                params![id, ember_id],
-            )?;
-            Ok(deleted == 1
-                || tx.execute(
-                    "UPDATE organizer_events SET ended_at = ?1
-                     WHERE id = ?2 AND ember_id = ?3 AND ended_at IS NULL",
-                    params![ctx.now, id, ember_id],
-                )? == 1)
+            end(tx, &id, &ember_id, ctx.now)
         })
         .await?;
     state.committed();
@@ -366,6 +419,36 @@ pub async fn stop(
         return Err(ApiFailure::not_found());
     }
     Ok(ok(&json!({})))
+}
+
+/// Deletes `ember_id`'s draft `id`, or ends their event `id`; whether
+/// there was one.
+fn end(tx: &Transaction<'_>, id: &str, ember_id: &str, now: u64) -> Result<bool> {
+    let deleted = tx.execute(
+        "DELETE FROM organizer_events WHERE id = ?1 AND ember_id = ?2 AND status = 'draft'",
+        params![id, ember_id],
+    )?;
+    Ok(deleted == 1
+        || tx.execute(
+            "UPDATE organizer_events SET ended_at = ?1
+             WHERE id = ?2 AND ember_id = ?3 AND ended_at IS NULL",
+            params![now, id, ember_id],
+        )? == 1)
+}
+
+/// What a site's refusal of `what` becomes: its own words, or unavailable
+/// when it gave none.
+fn site_refused(state: &AppState, site: &str, what: &str, refused: Option<String>) -> ApiFailure {
+    let Some(said) = refused else {
+        return ApiFailure::unavailable();
+    };
+    eprintln!("organizer: {site} refused {what}: {said}");
+    ApiFailure::new(
+        ErrorCode::InvalidRequest,
+        format!("{} refused {what}: {said}", site_name(state, site)),
+    )
+    .detail("reason", "site_refused")
+    .detail("site_said", said)
 }
 
 #[derive(Deserialize)]
@@ -673,24 +756,10 @@ pub async fn create(
     {
         return Err(ApiFailure::sign_in_busy(None));
     }
-    let created = creation.send(&grant.access).await.map_err(|refused| {
-        let Some(said) = refused else {
-            return ApiFailure::unavailable();
-        };
-        eprintln!(
-            "organizer: {} refused to create an event: {said}",
-            site.id()
-        );
-        ApiFailure::new(
-            ErrorCode::InvalidRequest,
-            format!(
-                "{} refused the settings: {said}",
-                site_name(&state, site.id())
-            ),
-        )
-        .detail("reason", "site_refused")
-        .detail("site_said", said)
-    })?;
+    let created = creation
+        .send(&grant.access)
+        .await
+        .map_err(|refused| site_refused(&state, site.id(), "the settings", refused))?;
     let link = created.link.clone();
     let tournament = created.id.clone();
     let site_id = site.id().to_owned();
@@ -715,7 +784,8 @@ pub async fn create(
                 );
             }
             tx.execute(
-                "UPDATE organizer_events SET site = ?1, tournament = ?2, name = title, links = ?3
+                "UPDATE organizer_events SET site = ?1, tournament = ?2, name = title, links = ?3,
+                     created_on_site = 1
                  WHERE id = ?4 AND status = 'draft' AND tournament IS NULL",
                 params![site_id, tournament, json!(links).to_string(), id],
             )?;

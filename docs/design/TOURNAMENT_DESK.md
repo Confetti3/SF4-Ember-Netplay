@@ -82,7 +82,7 @@ in each authorize request.
 | `GET /v1/organizer/tournaments?site=` | The TO's tournaments on the site, read with their token |
 | `POST /v1/organizer/events` | Runs an event: site, tournament, round rules, hold |
 | `GET /v1/organizer/events` | The TO's running events |
-| `DELETE /v1/organizer/events/{id}` | Stops running it |
+| `DELETE /v1/organizer/events/{id}` | Stops running it (`on_site`: also deletes the site event Ember created) |
 
 The callback stays `/v1/sites/{site}/callback`; the sign-in row says whether
 it is an organizer sign-in.
