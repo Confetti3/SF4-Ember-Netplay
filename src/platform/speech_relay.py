@@ -6,7 +6,9 @@
 #       where the key "wav" plays the WAV file named by the text instead
 #   RENDER <rate> <language tag> (<key> <text>)...
 #   STOP
-# It speaks with a Piper voice for the language, downloaded once into
+# It speaks from the language's voice pack, every line rendered ahead with one voice, where it
+# has one; what a pack lacks (names, chat) and languages without a pack it speaks
+# with a Piper voice for the language, downloaded once into
 # ~/.cache/ember-speech and checked against its pinned SHA-256, and until then
 # (or for a language without a voice) through speech-dispatcher. Every clip
 # Piper makes is kept under Ember's key for it, so a part said once is ready at
@@ -15,7 +17,7 @@
 # downloading <percent>, natural or failed; and that it reads the FIFO by
 # making <fifo>.ready. It leaves when Ember closes the FIFO, and after 15
 # seconds when Ember never writes.
-import hashlib, json, os, queue, select, signal, socket, subprocess, sys, tarfile, threading, time, urllib.request
+import hashlib, json, os, queue, select, signal, socket, subprocess, sys, tarfile, threading, time, urllib.request, zipfile
 
 FIFO = sys.argv[1]
 READY, STATUS = FIFO + ".ready", FIFO + ".status"
@@ -41,6 +43,55 @@ VOICES = {
     "ru": ("ru/ru_RU/denis/medium/ru_RU-denis-medium", 63201294, "15fab56e11a097858ee115545d0f697fc2a316c41a291a5362349fb870411b0a", "831c860dac0b5073eaa81610a0a638ec23d90a6cf8e5f871b4485c2cec3767c8"),
     "cs": ("cs/cs_CZ/jirka/medium/cs_CZ-jirka-medium", 63201294, "cbd5c900acacc8e8cbecd64347abb8de39c00a9d3104bed06fee92e4f319efc8", "fb38b1799b7354808227c065efa97b1ffa2b0cde59505babb56a36d35af9c637"),
 }
+
+
+# Ember's language tag to its voice pack: every line speech can say, rendered once with one voice
+# (docs/design/ACCESSIBILITY_SPEC.md, "Pre-rendered voice packs"): url, size, SHA-256. A pack already in
+# ~/.cache/ember-speech/packs/<tag> is used whether or not it is listed here.
+PACKS = {}
+
+
+def pack_key(language, text):
+    """Ember's ClipKey(language, 0, text) (SpeechLinux.hxx): a pack's clips are named by it."""
+    h = 14695981039346656037
+    for b in (language + "\0" + "0" + "\0" + text).encode("utf-8"):
+        h = ((h ^ b) * 1099511628211) & 0xFFFFFFFFFFFFFFFF
+    return "%016x" % h
+
+
+def pack(language):
+    """The language's pack folder once it is there, starting its download the first time."""
+    folder = os.path.join(CACHE, "packs", language)
+    if os.path.exists(os.path.join(folder, "manifest.json")):
+        return folder
+    if language in PACKS and language not in downloading:
+        downloading.add(language)
+        threading.Thread(target=download_pack, args=(language, folder), daemon=True).start()
+    return None
+
+
+def download_pack(language, folder):
+    url, size, sha256 = PACKS[language]
+    done = [0]
+    def progress(count):
+        done[0] += count
+        status("downloading %d" % min(99, done[0] * 100 // size))
+    status("downloading 0")
+    try:
+        archive = folder + ".zip"
+        os.makedirs(os.path.dirname(folder), exist_ok=True)
+        fetch(url, archive, size, sha256, progress)
+        with zipfile.ZipFile(archive) as z:
+            for name in z.namelist():
+                # Only flat clip and manifest names: nothing in a pack may write elsewhere.
+                if os.path.basename(name) == name and (name.endswith(".opus") or name == "manifest.json"):
+                    z.extract(name, folder + ".part")
+        os.replace(folder + ".part", folder)
+        os.unlink(archive)
+        status("natural")
+    except Exception as error:
+        print("Ember speech: no voice pack download:", error, file=sys.stderr)
+        status("failed")
 
 
 def status(text):
@@ -167,10 +218,13 @@ def stop():
 
 
 def voice(language):
-    """The model to speak the language with now, starting its download the first time."""
+    """The Piper model to speak the language with now, starting its download the first time;
+    with a voice pack, only what the pack lacks needs it."""
     path = None if language in broken else model(language)
     if path:
         status("natural")
+    elif language in PACKS:
+        pass
     elif language in VOICES and language not in broken and language not in downloading:
         downloading.add(language)
         threading.Thread(target=download, args=(language,), daemon=True).start()
@@ -184,19 +238,24 @@ def speak():
     piper = None
     while True:
         heard, rate, volume, language, parts = said.get()
-        path = voice(language)
+        folder, path = pack(language), voice(language)
+        if folder:
+            status("natural")
         sounds = [text for key, text in parts if key == "wav"]
         parts = [(key, text) for key, text in parts if key != "wav"]
-        if not path:
+        # A part the pack has plays from it; the rest Piper makes, or with neither the system voice says it all.
+        packed = {text: os.path.join(folder, pack_key(language, text) + ".opus") for _, text in parts} if folder else {}
+        packed = {text: clip for text, clip in packed.items() if os.path.exists(clip)}
+        if not path and not (parts and len(packed) == len(parts)):
             text = ", ".join(text for _, text in parts)
             dispatcher.sendall(("SET SELF RATE %d\r\nSET SELF VOLUME %d\r\nSET SELF LANGUAGE %s\r\nSPEAK\r\n%s%s\r\n.\r\n" % (
                 rate * 10, volume * 2 - 100, language.split("-")[0], "." if text.startswith(".") else "", text)).encode())
             continue
         parts += [("wav", sound) for sound in sounds]
-        if not piper or piper.key != (path, rate):
+        if path and (not piper or piper.key != (path, rate)):
             piper = Piper(path, rate, False)
         for key, text in parts:
-            clip = text if key == "wav" else clip_path(path, key)
+            clip = text if key == "wav" else packed.get(text) or clip_path(path, key)
             if heard != generation:
                 break
             if key != "wav" and not os.path.exists(clip) and not piper.make(text, clip):
@@ -217,7 +276,7 @@ def render():
     while True:
         rate, language, parts = renders.get()
         path = None if language in broken else model(language)
-        if not path:
+        if not path or os.path.exists(os.path.join(CACHE, "packs", language, "manifest.json")):
             continue
         if not piper or piper.key != (path, rate):
             piper = Piper(path, rate, True)
