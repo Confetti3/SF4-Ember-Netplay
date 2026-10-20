@@ -143,7 +143,7 @@ void fSystem::UpdateInputs() {
     // once, so the press is cleared below before the game or the fight reads it.
     static bool mainArmed=false;
     static int ownerType=-1,ownerIndex=-1;
-    if(!connected||!sf4e::input::ControllerOpensMenu(snapshot.menuContext)||snapshot.inputCapture!=sf4e::input::Capture::Idle||
+    if(snapshot.matchLoading||!connected||!sf4e::input::ControllerOpensMenu(snapshot.menuContext)||snapshot.inputCapture!=sf4e::input::Capture::Idle||
         ownerType!=device.type||ownerIndex!=device.index) mainArmed=false;
     else if(!physical)mainArmed=true;
     else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {

@@ -496,6 +496,12 @@ msgstr "假想对手录制"
 msgid "screen.input_history"
 msgstr "输入记录"
 
+msgid "match.loading_title"
+msgstr "正在开始对战……"
+
+msgid "match.loading_detail"
+msgstr "请稍候。对战将自动开始，无需按任何按钮。"
+
 msgid "room.wait.leaving"
 msgstr "正在离开房间，等待连接关闭..."
 

@@ -496,6 +496,12 @@ msgstr "ダミーレコーディング"
 msgid "screen.input_history"
 msgstr "入力履歴"
 
+msgid "match.loading_title"
+msgstr "対戦を開始しています…"
+
+msgid "match.loading_detail"
+msgstr "お待ちください。対戦は自動で始まります。ボタン操作は不要です。"
+
 msgid "room.wait.leaving"
 msgstr "ルームから退出中。接続の終了を待っています..."
 

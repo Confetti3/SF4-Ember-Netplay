@@ -496,6 +496,12 @@ msgstr "Grabación del muñeco"
 msgid "screen.input_history"
 msgstr "Historial de entradas"
 
+msgid "match.loading_title"
+msgstr "Iniciando partida…"
+
+msgid "match.loading_detail"
+msgstr "Espera. La partida comenzará automáticamente; no necesitas presionar botones."
+
 msgid "room.wait.leaving"
 msgstr "Saliendo de la sala. Esperando a que se cierre la conexión..."
 

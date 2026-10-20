@@ -155,6 +155,7 @@ bool IsRuntimeMatchLive() {
 }
 
 void NotifyRuntimeBattleClosedWithoutSession() {
+	if (runtime) runtime->automaticMatchEntry = false;
 	// Called from battle teardown: only record it. TickMatch acts on it.
 	if (!runtime || !runtime->match || !runtime->matchEntered) return;
 	runtime->sessionlessCloseGeneration = runtime->enteredGeneration;
@@ -181,7 +182,12 @@ void EndRuntimeSpectatorStream(std::size_t slot) {
 
 bool IsRuntimeSpectator() { return LocalIsSpectator(); }
 
+void NotifyRuntimeNativeBattleReady() {
+	if (runtime) runtime->automaticMatchEntry = false;
+}
+
 void NotifyRuntimeMatchEnded() {
+	if (runtime) runtime->automaticMatchEntry = false;
 	// Called from battle teardown: defer owning-object changes until TickRuntime.
 	if (!runtime || !runtime->match) return;
 	runtime->matchEnded = true;
@@ -290,6 +296,7 @@ namespace internal {
 // match is ReportMatchAbort; this is the local half, and every caller needs
 // both deferral state and the session torn down in the same order.
 void CancelLocalMatch(GgpoEnd end) {
+	runtime->automaticMatchEntry = false;
 	// A game this PC left before its battle was prepared gives that battle,
 	// or any later one, nothing of the match.
 	sf4e::GameEvents::VsBattle::nextRequest = {};
@@ -544,6 +551,20 @@ void PumpResultOutbox() {
 	}
 }
 
+// Apply the native route's answer in one place, including deferred/rejected entry.
+void ApplyMatchEntry(UserApp::MatchEntry entry) {
+	runtime->matchEntered = entry == UserApp::MatchEntry::Entered;
+	if (runtime->matchEntered) {
+		runtime->automaticMatchEntry = true;
+		runtime->enteredGeneration = runtime->match->Generation();
+		const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+		const auto* local = room::FindMember(room, room.localMember);
+		runtime->enteredTable = local ? local->table : -1;
+	}
+	else if (entry == UserApp::MatchEntry::Rejected) RejectMatchEntry();
+	else if (!AtMainMenu()) ObserveDeferredEntry();
+}
+
 void TickMatch() {
 	if (runtime->match) {
 		diag::ScopedTimer lifecycleTimer(diag::OP_MATCH_LIFECYCLE);
@@ -606,23 +627,22 @@ void TickMatch() {
 			if (sessionLive && (state.match == netplay::MatchState::None || state.match == netplay::MatchState::PostMatch)) {
 				Apply(netplay::EventKind::MatchPreparing); ResetMatchEntry();
 			}
+			// Preparing already hides Ember's room screen. Cover the native
+			// menu in that same publication, before transport setup can spend
+			// seconds connecting. Latch through brief foreground-query drops;
+			// Training/Options stays visible until the player returns here.
+			if (sessionLive && !runtime->matchEntered && !runtime->recoveringMatch && AtMainMenu())
+				runtime->automaticMatchEntry = true;
 			// A grant withdrawn before the battle was entered (a spectator whose
 			// link came up after the start) has no battle to close; this ends
 			// Preparing so the shell reopens.
-			if (!sessionLive && !runtime->matchEntered && state.match == netplay::MatchState::Preparing)
+			if (!sessionLive && !runtime->matchEntered && state.match == netplay::MatchState::Preparing) {
+				ResetMatchEntry();
 				Apply(netplay::EventKind::MatchEnded);
+			}
 			if (phase == session::IrohMatchSession::Phase::Started && !runtime->matchEntered) {
 				Apply(netplay::EventKind::GameplayReady);
-				const auto entry = UserApp::EnterAuthorizedMatch();
-				runtime->matchEntered = entry == UserApp::MatchEntry::Entered;
-				if (runtime->matchEntered) {
-					runtime->enteredGeneration = runtime->match->Generation();
-					const auto& room = UserApp::netplay->client.GetRoomSnapshot();
-					const auto* local = room::FindMember(room, room.localMember);
-					runtime->enteredTable = local ? local->table : -1;
-				}
-				else if (entry == UserApp::MatchEntry::Rejected) RejectMatchEntry();
-				else if (!AtMainMenu()) ObserveDeferredEntry();
+				ApplyMatchEntry(UserApp::EnterAuthorizedMatch());
 			}
 			if (runtime->matchEntered && GetGgpoSyncPhase() == GgpoSyncPhase::Running) Apply(netplay::EventKind::MatchStarted);
 			if (runtime->match && runtime->controller.GetSnapshot().room == netplay::RoomState::Joined &&

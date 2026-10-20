@@ -148,6 +148,9 @@ struct Runtime {
 	std::shared_ptr<session::IrohRoom> room;
 	std::unique_ptr<session::IrohMatchSession> match;
 	bool matchEntered = false;
+	// Automatic startup from main-menu preparation through the loaded barrier. Game thread.
+	// Independent of matchEntered: preparation covers before entry; an abort uncovers during teardown.
+		bool automaticMatchEntry = false;
 	// The generation whose battle the runtime entered, while matchEntered, and
 	// the table this member was at when it entered (the game WatchedGameNow names).
 	std::uint64_t enteredGeneration = 0;
@@ -415,6 +418,7 @@ void RetrySpectatorLockRelease();
 void PlayChallengerCall(int volumePercent);
 void RetryMatchFinished();
 void PumpResultOutbox();
+void ApplyMatchEntry(UserApp::MatchEntry entry);
 void TickMatch();
 void ReleaseFinishedMatch();
 

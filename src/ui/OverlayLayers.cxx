@@ -5,10 +5,13 @@
 
 namespace sf4e { namespace ui {
 TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training::View& training) {
-    ChallengerBanner(training, view.challenger);
-    bool passive = PassiveOverlayShown(view.shellVisible, view.trainingControlsOpen, view.nativePaused);
+    if (view.matchLoading) DrawMatchLoading();
+    else ChallengerBanner(training, view.challenger);
+    bool passive = !view.matchLoading && PassiveOverlayShown(view.shellVisible, view.trainingControlsOpen, view.nativePaused);
     TrainingHudInput hud;
-    if (passive && view.focused && training.available && view.trainingHud) {
+    const bool trainingHud=training.available&&view.trainingHud;
+    const bool matchHud=view.matchActive&&view.showMatchHud;
+    if (passive && view.focused && trainingHud) {
         DrawTrainingRoomStatus(view.trainingRoom);
         hud = DrawTrainingHud(training, view.challenger.called);
         if (hud.open) passive = false;
@@ -28,29 +31,31 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
         hint("Ember shortcut", loc::T("runtime.open_shortcut"), 12, view.shortcutHintAlpha);
     if (passive && view.matchWaitsForMenu) hint("Ember match waiting", loc::T("runtime.return_menu_to_join"), 44);
     if (passive && !view.matchActive && !view.padHint.empty()) hint("Ember controller", view.padHint.c_str(), 76);
-    if (view.captionShown) DrawExportCaption(view.caption);
+    if (!view.matchLoading && view.captionShown) DrawExportCaption(view.caption);
     // A replay has no GGPO session, so its meter is drawn here, not with the
     // match's below. An export's stays drawn under a window, since it is in
     // the video; the strip and lanes are never drawn over an export.
-    if (!view.matchActive && (passive || view.exporting) && view.replay.meter && training.watching) DrawMatchMeter(training);
+    if (!view.matchActive && (passive || (!view.matchLoading && view.exporting)) && view.replay.meter && training.watching) DrawMatchMeter(training);
     if (passive && view.replay.shown) {
         DrawReplayStrip(view.replay);
         if (view.replay.lanes) DrawReplayLanes(view.replay);
     }
-    if (view.matchActive) {
+    if (view.matchActive || view.matchLoading) {
         DrawControllerWarning(view.controllerWarning);
         if (passive && training.watching) DrawMatchMeter(training);
         const auto& match = view.match;
-        if (passive && view.showMatchHud) DrawMatchStrip(match);
-        else if (passive || (match.noticeSeverity >= 2 && !match.notice.empty()) ||
-            match.predictionStalled || (match.connectionWarning && match.disconnectCountdownMs >= 0)) {
+        if (passive && matchHud) DrawMatchStrip(match);
+        else if (match.HasAlert() && (passive || match.NeedsAttention())) {
             // An open window suppresses telemetry, but a stalled or ending
             // fight still explains itself using the strip's own state line.
             const auto line = MatchStripStateLine(match);
-            const int severity = match.noticeSeverity >= 2 ? 2 :
-                (match.connectionWarning || match.predictionStalled) ? 1 : match.noticeSeverity;
-            DrawMatchNotice(line, severity);
+            DrawMatchNotice(line, match.AlertSeverity());
         }
+    }
+    if (view.matchActive && passive && view.focused) {
+        if (!view.match.spectator && view.practiceMatch)
+            DrawMatchKeysNotice({"training.match.checkpoint_disabled", "training.match.end_hint"});
+        else if (view.watchingHint) DrawMatchKeysNotice({"runtime.watching_hint"});
     }
     return hud;
 }

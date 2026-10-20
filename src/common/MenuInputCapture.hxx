@@ -14,7 +14,8 @@ namespace sf4e { namespace input {
 // WatchedMatch: a room game this PC only watches, under rollback. Start or
 // F10 opens Ember's menu over it, where the spectator leaves the game (Stop
 // watching); the game keeps running underneath, as it does for the fighters.
-enum class MenuContext { Unavailable, MainMenu, OfflineTraining, ReplayExport, PracticeMatch, WatchedMatch };
+// Loading owns physical input while the automatic native route advances.
+enum class MenuContext { Unavailable, MatchLoading, MainMenu, OfflineTraining, ReplayExport, PracticeMatch, WatchedMatch };
 // A room game Ember's menu is shown over: the one place a fight does not keep it away.
 inline bool MenuOverFight(MenuContext context) {
     return context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch;
@@ -23,7 +24,7 @@ inline bool MenuOverFight(MenuContext context) {
 // offline Training (opened there by Back and Start, TrainingPad.hxx), and the
 // menu opened over an export or a fight. Start opens Ember at the main menu
 // and over a fight.
-inline bool ControllerMenuAvailable(MenuContext context) { return context != MenuContext::Unavailable; }
+inline bool ControllerMenuAvailable(MenuContext context) { return context != MenuContext::Unavailable && context != MenuContext::MatchLoading; }
 inline bool ControllerOpensMenu(MenuContext context) {
     return context == MenuContext::MainMenu || MenuOverFight(context);
 }
@@ -34,7 +35,7 @@ inline bool MenuShownIn(MenuContext context) {
 // A room game being prepared or played keeps Ember's menu away, except one
 // where the menu is shown over the fight itself.
 inline bool FightKeepsMenuAway(bool fighting, MenuContext context) {
-    return fighting && !MenuOverFight(context);
+    return context == MenuContext::MatchLoading || (fighting && !MenuOverFight(context));
 }
 // Native Pad::System publishes five adjacent uint32 input caches per player.
 // Keep assignment metadata and provider input untouched for overlay polling.
