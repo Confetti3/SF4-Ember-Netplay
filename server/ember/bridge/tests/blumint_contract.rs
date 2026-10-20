@@ -234,3 +234,100 @@ async fn a_creation_naming_an_id_the_bridge_cannot_match_is_player_unlinked() {
     let (_, refused) = create_with(&f, "set-2", same).await;
     assert_eq!(refusal(&refused), "invalid_request");
 }
+
+/// The digest a creation was stored with, which a repeat of it is compared by.
+async fn create_digest(f: &Fixture, key: &str) -> String {
+    let external_id = format!("blumint:{key}");
+    f.bridge
+        .state()
+        .db
+        .read(move |tx| {
+            Ok(tx.query_row(
+                "SELECT create_digest FROM matches WHERE external_match_id = ?1",
+                [external_id],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap()
+}
+
+// A key's repeats are compared with the digest its first request stored, and
+// matches made by a bridge already running keep theirs through an upgrade. So
+// the digest of a known creation is pinned: if these bytes ever change, every
+// live match's repeat under its key would answer 409 idempotency_key_reused.
+// Kate and Sam are the fixture's players 1 and 2, and a whole set of two games
+// starts from 0-0.
+#[tokio::test]
+async fn a_creations_digest_is_the_one_stored_with_live_matches() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (status, created) = create(&f, "set-1", 2).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    assert_eq!(
+        create_digest(&f, "set-1").await,
+        "e_X3PLqjNU72v1lsjMrPsFxYZkvgukS8F_aUCsKBYdY"
+    );
+    // A set that starts from a score has it in the digest too, once the first
+    // is closed and its players are free.
+    close(
+        &f,
+        json!({ "idempotencyKey": "set-1", "reason": "decided" }),
+    )
+    .await;
+    let mut resumed = request(&f, 3);
+    resumed["teams"][0]["startingWins"] = json!(2);
+    resumed["teams"][1]["startingWins"] = json!(1);
+    let (status, created) = create_with(&f, "set-2", resumed).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    assert_eq!(
+        create_digest(&f, "set-2").await,
+        "g_MhxCNtSwDfbzUV8w5tYIcmXv3h3S-iD_-Fl72pWJQ"
+    );
+}
+
+// The key is answered before the players are looked at. A key a close
+// refused, or one that already made a different set, is a 409 whatever the
+// creation names; "a lobby made from it would have no players and might never
+// be closed", and BluMint must not be told to look the players up again.
+#[tokio::test]
+async fn a_key_is_answered_before_the_players_are_matched() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let reused = (
+        StatusCode::CONFLICT,
+        json!({ "code": "idempotency_key_reused" }),
+    );
+    let stranger = || {
+        naming(
+            &f,
+            json!([{ "inGameId": f.kate.id() }]),
+            json!([{ "inGameId": "not-an-ember-id" }]),
+        )
+    };
+
+    // A key that made a match, asked again for a set it cannot seat.
+    let (status, created) = create(&f, "set-1", 2).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    assert_eq!(create(&f, "set-1", 2).await, (status, created));
+    assert_eq!(create_with(&f, "set-1", stranger()).await, reused);
+
+    // A key a close refused, with a set it can seat and one it cannot.
+    let (closed, _) = close(
+        &f,
+        json!({ "idempotencyKey": "set-1", "reason": "decided" }),
+    )
+    .await;
+    assert_eq!(closed, StatusCode::OK);
+    assert_eq!(create_with(&f, "set-1", stranger()).await, reused);
+    assert_eq!(create(&f, "set-1", 2).await, reused);
+
+    // A key the close met first, before any creation.
+    close(
+        &f,
+        json!({ "idempotencyKey": "set-2", "reason": "decided" }),
+    )
+    .await;
+    assert_eq!(create_with(&f, "set-2", stranger()).await, reused);
+    assert_eq!(matches(&f).await, 1);
+}
