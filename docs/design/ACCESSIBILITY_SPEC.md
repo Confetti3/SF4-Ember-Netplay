@@ -219,22 +219,24 @@ SteamOS ships only espeak-ng behind speech-dispatcher, which players found robot
 
 Only voices whose recordings are public domain, CC0 or CC BY may be used (they are downloaded by the player's PC, and guide audio is published, so research-only or non-commercial voices are out). Licences are from each voice's MODEL_CARD at the pinned revision, and for paola from its dataset page.
 
-| Ember language | Piper voice | Licence of the recordings | Notes |
-|---|---|---|---|
-| en | en_US-ljspeech-medium | public domain (LJ Speech) | female; picked by the user by ear over kristin and cori (both LibriVox, PD); also the fastest on the Deck |
-| de | de_DE-thorsten-medium | CC0 | male |
-| fr | fr_FR-siwis-medium | CC BY 4.0 | female; credit "SIWIS French Speech Synthesis Database" in the guide and notices |
-| es-ES | es_ES-davefx-medium | CC0 | male |
-| es-419 | es_MX-ald-medium | Unlicense (public domain dedication) | male |
-| it | it_IT-paola-medium | CC0 (dataset page; MODEL_CARD says "see URL") | female |
-| nl | nl_BE-nathalie-medium | CC0 | female, Flemish |
-| pl | pl_PL-gosia-medium | CC0 | female |
-| pt-BR | pt_BR-faber-medium | CC0 | male |
-| ru | ru_RU-denis-medium | CC0 | male; irina's licence is unknown |
-| cs | cs_CZ-jirka-medium | CC0 | male |
-| zh-Hans | none | | huayan's licence is unknown; chaowen (CC0) needs pinyin phonemes, which this Piper lacks; speech-dispatcher |
-| ja | none | | ja_JP-hi_fi_captain needs a newer Piper; speech-dispatcher |
-| ko | none | | ko_KR-kss crashes this Piper; speech-dispatcher |
+| Ember language | Piper voice | Licence of the recordings | Base model | Notes |
+|---|---|---|---|---|
+| en | en_US-ljspeech-medium | public domain (LJ Speech) | trained from scratch (MODEL_CARD and brycebeattie.com/files/tts) | female; picked by the user by ear over kristin and cori (both LibriVox, PD); also the fastest on the Deck |
+| de | de_DE-thorsten-medium | CC0 | finetuned from lessac | male |
+| fr | fr_FR-siwis-medium | CC BY 4.0 | finetuned from lessac | female; credit "SIWIS French Speech Synthesis Database" in the guide and notices |
+| es-ES | es_ES-davefx-medium | CC0 | finetuned from lessac | male |
+| es-419 | es_MX-ald-medium | Unlicense (public domain dedication) | finetuned from davefx (so from lessac) | male |
+| it | it_IT-paola-medium | CC0 (dataset page; MODEL_CARD says "see URL") | finetuned from lessac | female |
+| nl | nl_BE-nathalie-medium | CC0 | finetuned from lessac | female, Flemish |
+| pl | pl_PL-gosia-medium | CC0 | finetuned from lessac | female |
+| pt-BR | pt_BR-faber-medium | CC0 | finetuned from lessac | male |
+| ru | ru_RU-denis-medium | CC0 | finetuned from lessac | male; irina's licence is unknown |
+| cs | cs_CZ-jirka-medium | CC0 | finetuned from lessac | male |
+| zh-Hans | none | |  | huayan's licence is unknown; chaowen (CC0) needs pinyin phonemes, which this Piper lacks; speech-dispatcher |
+| ja | none | |  | ja_JP-hi_fi_captain needs a newer Piper; speech-dispatcher |
+| ko | none | |  | ko_KR-kss crashes this Piper; speech-dispatcher |
+
+Open licence risk (for the user and Katie to decide, code unchanged): every non-English voice in this table is finetuned from the en_US-lessac model (es-419's from davefx, itself from lessac), so its weights derive from a model trained on the research-only Blizzard 2013 Lessac corpus, even where its own recordings are CC0 or CC BY. Only the English voices by Bryce Beattie (ljspeech, kristin, cori) are trained from scratch, and he publishes them as public domain. Options: keep them with that risk written down, drop them and speak those languages with speech-dispatcher, or move to an engine with clean weights (Kokoro-82M, Apache-2.0, is being evaluated).
 
 Removed: en_US-lessac (Blizzard 2013 Lessac corpus, research purposes only, no redistribution), zh_CN-huayan and ru_RU-irina (licence unknown). A newer Piper would open zh (chaowen) and ja; check its licences first.
 
