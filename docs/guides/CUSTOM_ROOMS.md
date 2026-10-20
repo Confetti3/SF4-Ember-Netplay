@@ -156,9 +156,12 @@ extra frames to catch up and can trail by up to 1024 frames (about 17 seconds).
 
 ## Manage the room
 
-The host can rename the room, lock admission, change its capacity, edit a waiting
-table's battle rules, and kick members. Capacity cannot be reduced below current
-membership. A kicked peer cannot rejoin the same room under another name.
+The host can rename the room, lock admission and change its capacity in **Room
+settings** on the room board, edit a waiting table's battle rules, and kick
+members. Capacity cannot be reduced below current membership. A kicked peer
+cannot rejoin the same room under another name.
+
+![Room settings](../images/guides/custom_rooms/room-settings.webp)
 
 Room chat retains the latest 100 messages, with a limit of 256 UTF-8 bytes per
 message. The room removes a member's messages when they leave, but your own Chat screen keeps the messages it has already received (the latest 200 lines, with the room's join, leave, host and result lines among them) under the name the member had. **Mute member** hides that member's messages on your screen only.
@@ -169,9 +172,18 @@ leave the game unresolved. The host can **Cancel unresolved game** to allow the
 fighters to ready again without awarding a win or removing previously counted
 wins. This keeps a disagreement from becoming an automatic result.
 
-The member menu offers **Transfer host** to the current host. Normal host
-departure transfers moderation to the oldest eligible remaining member. The
-room's technical coordination leader is separate from that moderation role.
+To hand the room to another member:
+
+1. Open **Members** and select the member.
+
+   ![Members list](../images/guides/custom_rooms/members.webp)
+
+2. Choose **Transfer host** and confirm; the question starts on Cancel.
+
+   ![Transfer host confirmation](../images/guides/custom_rooms/transfer-host.webp)
+
+Normal host departure transfers moderation to the oldest eligible remaining
+member. The room's technical coordination leader is separate from that moderation role.
 
 ## Recover room control
 

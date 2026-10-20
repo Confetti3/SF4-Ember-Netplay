@@ -20,6 +20,12 @@ composited or retouched.
 The normal UI regression suite retains its long-name and long-chat stress cases;
 the README option substitutes readable sample names and chat for presentation.
 
+## Guide pictures
+
+The step pictures under `guides/` are captured by the same run, from the same
+English 1280 x 720 renders, and written as WebP with libwebp's `cwebp -q 85`
+(`cwebp` must be on `PATH`). `capture-readme.ps1` lists which render each one is.
+
 ## In-game frame meter
 
 `ember-frame-meter.png` is an in-game training screenshot supplied by the project

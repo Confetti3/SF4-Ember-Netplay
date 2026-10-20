@@ -6,6 +6,8 @@ Ember adds an offline training overlay. Its frame meter shows native fighter sta
 
 Offline, choose **Play offline** on Ember's Home, then Training in the game's own menu. The lab comes on with the game's Training mode, however it was entered. In a room, **Wait in Training** sends the game straight into Training mode without the main menu's Fight Request question, while the room stays joined (see TRAINING_IN_ROOMS.md in docs/design).
 
+![Training controls](../images/guides/training_lab/controls.webp)
+
 ## Open the lab
 
 Use the game's main menu to enter **Training** and select both fighters and a stage. The meter appears at the bottom of the screen once the fight is ready. The viewer and its F6 controls exist only inside native offline Training. There is no Training page in the main Ember overlay.
@@ -140,7 +142,14 @@ For Waldo's report, capture both sides and each light/medium/heavy/EX Ryu or Ken
 
 Nothing needs setting in the game first, and Player 2 needs no controller: while Ember is on standby, records or plays a slot on Player 2, or plays the dummy's reply, the dummy plays from Player 2's input, which Ember supplies, for exactly those frames, and the dummy's Training-menu action is left as the player set it. Outside them the game's own dummy plays, so its action and guard settings apply as usual. Picking another action in the pause menu meanwhile stops the recording or playback, and the new action stands.
 
-Choose one of eight slots with Left and Right on **Record** (Select on an empty slot chooses it too), then close the controls or select **Record**. Recording takes three presses of F7, as in SF6. The first puts the dummy on standby: P1's controller operates P2 while P1 stays neutral, and nothing is recorded yet, so the dummy can be walked into place. The second starts recording and the third stops it. On a pad, Back held while Start is pressed starts the recording from standby, where it does not open the controls; while recording it opens them, which stops the recording and keeps it. The HUD names both ways. The slot keeps its old recording until the new one stops, and then the new one replaces it. Escape, opening the controls or the game losing focus leaves standby with nothing recorded, and stops a recording, keeping what was recorded. F7 on a slot that already holds a recording first asks whether to overwrite it. Each slot holds at most 7,200 accepted simulation frames (120 seconds at 60 fps).
+1. In the training controls, open **Dummy recording** and pick a slot with Left and Right on **Record**.
+
+   ![Dummy recording](../images/guides/training_lab/dummy-recording.webp)
+
+2. Close the controls and press F7 three times: standby, record, stop.
+3. Press F8 to play the recording.
+
+Select on an empty slot chooses it too, and selecting **Record** works like closing the controls. As in SF6, the first F7 puts the dummy on standby: P1's controller operates P2 while P1 stays neutral, and nothing is recorded yet, so the dummy can be walked into place. The second starts recording and the third stops it. On a pad, Back held while Start is pressed starts the recording from standby, where it does not open the controls; while recording it opens them, which stops the recording and keeps it. The HUD names both ways. The slot keeps its old recording until the new one stops, and then the new one replaces it. Escape, opening the controls or the game losing focus leaves standby with nothing recorded, and stops a recording, keeping what was recorded. F7 on a slot that already holds a recording first asks whether to overwrite it. Each slot holds at most 7,200 accepted simulation frames (120 seconds at 60 fps).
 
 A slot with a recording is on; Select on its row turns it off and on. F8 or **Play** plays a slot that is on, picked by **Playback order**: **Random** or **In order**. Playback can loop: Left and Right on **Play** choose once or looped, and each repeat picks a slot again. F8, Escape or opening the controls stops a playback. A recording follows the side the dummy faces: it is kept as if the dummy faced right and played for the way the dummy faces on each frame, so a dragon punch recorded on the left comes out on the right too, and a side switch inside a sequence plays correctly. Facing is taken from which fighter stands further left, one frame old; the game turns a fighter a few frames later, after a jump lands, so a recording that changes sides in the air may turn early. Input history shows the directions actually pressed or played.
 
@@ -165,6 +174,9 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 1. Press F6 and open **Dummy reply**.
 2. On **Dummy reply**, choose when it replies: **After a dropped combo**, **After blocking**, **On Wake-Up** or **Whenever it recovers**.
 3. On **Reply preset**, pick a common reply with Left and Right, or press Select to type your own into **Reply moves**.
+
+   ![Reply preset set to 623P](../images/guides/training_lab/reply-preset.webp)
+
 4. Close the controls and knock the dummy down, or hit it, as the reply needs.
 
 The first time the dummy sees a given knockdown or stun, it measures it and replies as it ends, often a little late. Every time after that, the reply comes out on the first free frame, as a reversal. **Reply timing** moves it up to five frames earlier or later.
