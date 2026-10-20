@@ -6,8 +6,10 @@ Discord, plays the sets in Ember rooms and reports each score back to the
 site. You run it from the **tournament desk**, a web page that works on a
 phone, a tablet or a computer.
 
-On the nightly service the desk is at `https://ember-bridge.fraccie.be/desk`.
-Every event also gets a public page at `/t/<event>` on the same address.
+On the nightly service the desk is at `https://desk.ember.fraccie.be`
+(`https://ember-bridge.fraccie.be/desk`). Every event also gets a public page
+at `https://tournament.ember.fraccie.be/<event>` (`/t/<event>` on the
+bridge's address).
 
 The pictures on this page come from the automated test of a whole tournament
 (docs/guides/TOURNAMENT_TEST.md), so they show what you will see.

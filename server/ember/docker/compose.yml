@@ -15,6 +15,10 @@
 # https://<bridge host>/ember/results to BRACKETS_PORT) and the desk
 # connection's results_url names it.
 #
+# Public rooms need the room supervisor's loopback API (rooms.supervisor_url),
+# and the container's loopback is its own, not the host's: leave `rooms` out
+# of bridge.json here, or the bridge logs that the supervisor did not answer.
+#
 # First run:
 #   docker compose run --rm bridge ember-bridge init /var/lib/ember
 #   then merge the instance's tenants file into $BRIDGE_DATA/bridge.json as
