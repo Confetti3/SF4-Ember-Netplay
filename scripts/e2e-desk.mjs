@@ -127,7 +127,7 @@ async function chrome() {
       }
     },
     async width(px) {
-      await send("Emulation.setDeviceMetricsOverride", { width: px, height: px < 600 ? 844 : 900, deviceScaleFactor: 1, mobile: px < 600 });
+      await send("Emulation.setDeviceMetricsOverride", { width: px, height: px < 600 ? 844 : px >= 1920 ? 1080 : 900, deviceScaleFactor: 1, mobile: px < 600 });
     },
     async shot(name) {
       const { data } = await send("Page.captureScreenshot", { format: "png" });
@@ -152,21 +152,26 @@ function must(condition, text) {
   if (!condition) throw new Error(text);
 }
 
-/** At this width: nothing scrolls sideways, and every shown button is 44px tall. */
-async function layout(page, label) {
-  for (const px of [390, 1440]) {
+/** At each width: nothing scrolls sideways, and every shown button is 44px
+ *  tall; with `fits`, the page fits a desktop screen without scrolling. */
+async function layout(page, label, fits = false) {
+  for (const px of [390, 1440, 1920]) {
     await page.width(px);
     await sleep(200);
     const check = await page.eval(`(() => {
       const wide = document.documentElement.scrollWidth > innerWidth + 1;
+      const tall = document.documentElement.scrollHeight > innerHeight + 1;
+      const empty = /\b(null|undefined|NaN)\b/.test(document.body.innerText);
       const small = [...document.querySelectorAll("button, a.wd-btn, .chip")]
         .filter((b) => b.offsetParent && b.getBoundingClientRect().height < 44)
         .map((b) => (b.textContent || b.getAttribute("aria-label") || "").trim().slice(0, 30));
-      return { wide, small };
+      return { wide, tall, small, empty };
     })()`);
     await page.shot(label + "-" + px);
     must(!check.wide, label + " scrolls sideways at " + px + "px");
+    must(!check.empty, label + " shows null, undefined or NaN");
     must(!check.small.length, label + " has buttons under 44px at " + px + "px: " + check.small.join(", "));
+    must(!(fits && px >= 1440 && check.tall), label + " scrolls at " + px + "px wide");
   }
 }
 
@@ -179,7 +184,7 @@ try {
   await step("signed-out page", async () => {
     await page.go(bridge + "/desk");
     await page.until("!document.getElementById('signed-out').hidden");
-    await layout(page, "signed-out");
+    await layout(page, "signed-out", true);
   });
 
   // Sign in from Ember: a wrong number turns the code down, the right one signs in.
@@ -207,7 +212,7 @@ try {
     const approved = play("approve", shown, number);
     must(approved.status < 300, "approve: " + JSON.stringify(approved));
     await page.until("!document.getElementById('home').hidden");
-    await layout(page, "home");
+    await layout(page, "home", true);
   });
 
   await step("details: a title over 60 characters is refused, a draft is saved", async () => {
@@ -220,11 +225,12 @@ try {
       (() => { const now = new Date(Date.now() - 60000), pad = (n) => String(n).padStart(2, '0');
         document.getElementById('date').value = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
         document.getElementById('time').value = pad(now.getHours()) + ':' + pad(now.getMinutes()); })();
-      document.getElementById('next').click()`);
+      document.getElementById('step-error').hidden = true`);
+    await layout(page, "details", true);
+    await page.eval("document.getElementById('next').click()");
     await page.until("/Service/.test(document.getElementById('step-now').textContent)");
     event = await page.eval("desk.event && desk.event.id");
     must(event, "no event id");
-    await layout(page, "details");
   });
 
   await step("service and rules: Challonge, tiers, created on Challonge", async () => {
@@ -233,7 +239,7 @@ try {
       rows[0].querySelector('[data-tier=from]').value = 'finals';
       rows[1].querySelector('[data-tier=from]').value = 'grand_final'; rows[1].querySelector('[data-tier=games]').value = '5'; })()`);
     // Four players: the first round is the winners semi-finals, so it stays FT2.
-    await layout(page, "service");
+    await layout(page, "service", true);
     await page.eval("document.getElementById('next').click()");
     challongeCalls++;
     await page.until("/Discord/.test(document.getElementById('step-now').textContent)", 15000);
@@ -246,11 +252,11 @@ try {
   await step("Discord and sign-ups", async () => {
     await page.eval(`(() => {
       const hook = document.querySelector('#live-settings input[type=url]'); if (${JSON.stringify(Boolean(webhook))}) hook.value = ${JSON.stringify(webhook)};
-      const boxes = document.querySelectorAll('#live-settings input[type=checkbox]'); boxes.forEach((box) => box.checked = true);
-      document.getElementById('next').click(); })()`);
+      const boxes = document.querySelectorAll('#live-settings input[type=checkbox]'); boxes.forEach((box) => box.checked = true); })()`);
+    await layout(page, "discord", true);
+    await page.eval("document.getElementById('next').click()");
     await page.until("/Ready/.test(document.getElementById('step-now').textContent)");
     must(await page.eval("desk.event.sign_ups && desk.event.public"), "sign-ups and public not on");
-    await layout(page, "discord");
   });
 
   await step("the Discord post has the title, tiers and public page", async () => {
@@ -259,6 +265,7 @@ try {
   });
 
   await step("Ready", async () => {
+    await layout(page, "ready", true);
     await page.eval("document.getElementById('next').click()");
     await page.until("desk.event.status !== 'draft'");
   });
