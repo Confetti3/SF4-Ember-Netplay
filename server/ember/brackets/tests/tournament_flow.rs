@@ -421,7 +421,10 @@ async fn an_organizer_runs_a_double_elimination_bracket_and_a_startgg_event() {
         .start_organizing(&flow.bridge, &flow.organizer)
         .await;
     let page = sign_in_at(&flow.bridge, CHALLONGE, &authorize).await;
-    assert!(page.contains("Organizer access for Challonge allowed"), "{page}");
+    assert!(
+        page.contains("Organizer access for Challonge allowed"),
+        "{page}"
+    );
     flow.browse_as(STARTGG, (ORGANIZER_STARTGG.into(), "TO".into()));
     let authorize = STARTGG
         .start_organizing(&flow.bridge, &flow.organizer)
