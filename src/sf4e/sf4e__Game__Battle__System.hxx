@@ -304,6 +304,11 @@ namespace sf4e {
 				static int DisconnectCountdownMs();
 				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay);
 				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port);
+				// A match steps the battle one frame at a time whatever the
+				// player's FrameRate setting (BattleStep.hxx); the setting
+				// comes back when the battle closes.
+				static void FixBattleStepForMatch();
+				static void RestoreBattleStep();
 				static bool ggpo_on_event_callback(GGPOEvent* info);
 				static bool ggpo_begin_game_callback(const char*);
 				static unsigned RecentRollbackFrames();

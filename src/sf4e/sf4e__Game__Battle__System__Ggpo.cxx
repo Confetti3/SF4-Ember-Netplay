@@ -4,6 +4,8 @@
 #include "sf4e__MementoGuards.hxx"
 #include "../common/GgpoDisconnectTolerance.hxx"
 #include "../common/SpectatorCatchUp.hxx"
+#include "../common/BattleStep.hxx"
+#include "../Dimps/Dimps.hxx"
 #include <atomic>
 #include <map>
 
@@ -355,6 +357,22 @@ bool fSystem::DrainPendingAbort() {
     return true;
 }
 
+static sf4e::battlestep::MatchStep s_matchStep;
+
+void fSystem::FixBattleStepForMatch() {
+    if (!Dimps::App::battleStepSetting || !Dimps::App::SetBattleStepSetting) return;
+    const float setting = *Dimps::App::battleStepSetting;
+    if (!s_matchStep.Begin(setting)) return;
+    Dimps::App::SetBattleStepSetting(sf4e::battlestep::OneFrame);
+    spdlog::info("Battle step: one frame at a time for this match; the game's setting was {} (0: FrameRate=SMOOTH or no FrameRate line)", setting);
+}
+
+void fSystem::RestoreBattleStep() {
+    if (!s_matchStep.End() || !Dimps::App::SetBattleStepSetting) return;
+    Dimps::App::SetBattleStepSetting(s_matchStep.Saved());
+    spdlog::info("Battle step: the game's setting {} is back", s_matchStep.Saved());
+}
+
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay) {
     matchTelemetry.Reset();
     rollbackHud.Reset();
@@ -362,6 +380,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.invalid_roster"));
         return;
     }
+    FixBattleStepForMatch();
     diag::InitFromEnvironment();
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
     if (ggpo) {
@@ -474,6 +493,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
 
 void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port) {
     rollbackHud.Reset();
+    FixBattleStepForMatch();
     diag::InitFromEnvironment();
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
     if (ggpo) {

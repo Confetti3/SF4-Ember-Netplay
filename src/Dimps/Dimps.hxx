@@ -37,5 +37,17 @@ namespace Dimps {
 		static BYTE* activeFocusCheck;
 		static BYTE* iconicChecks[2];
 		static DWORD iconicImport;
+
+		// The battle's step setting (0xAACA44, a float). Each frame the app
+		// (0x402DC0) sets the battle's time scale from it: below 0 one frame,
+		// 0 the last frame's measured length times 60 (at most 2), above 0
+		// that many frames. config.ini FrameRate=SMOOTH leaves it 0; any
+		// other FrameRate sets -1 (AppSettings_Read 0x402A50). The game's own
+		// online battles set -1 at battle open (0x5DAD40), which saves the
+		// value in System+0x58, and put it back at close (0x5D8470).
+		static float* battleStepSetting;
+		// The setter (0x6B2530, cdecl): stores the value and derives the
+		// step and the frame limiter's period from it (0x6B2170).
+		static void (__cdecl* SetBattleStepSetting)(float setting);
 	};
 }
