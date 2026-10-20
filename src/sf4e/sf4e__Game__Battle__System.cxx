@@ -638,8 +638,6 @@ static void NoteHeapParticleNames(rSystem* system) {
     spdlog::warn("VFX: {} live particles have names on the heap (longest {}); rollback copies them raw", heapNames, longest);
 }
 
-
-
 void fSystem::CloseBattle() {
     sf4e::continuousrematch::CloseBattle();
     rSystem* _this = (rSystem*)this;
