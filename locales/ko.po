@@ -1898,6 +1898,9 @@ msgstr "다운"
 msgid "training.meter.meaty"
 msgstr "깔아두기"
 
+msgid "training.meter.hitstop"
+msgstr "히트스톱"
+
 msgid "training.meter.throw"
 msgstr "잡기 / 연출"
 

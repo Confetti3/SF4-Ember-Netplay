@@ -143,17 +143,21 @@ void DrawHitMarks(ImDrawList* draw, const std::vector<HitMark>& marks, const flo
         for (const float bold : {0.f, 1.f}) Edged(draw, size, ImVec2(mark.from + bold, textTop), colour, mark.text.c_str());
     }
 }
+constexpr ImU32 StopColor = IM_COL32(120, 200, 255, 235);
+// The stop line's dashes, slanted by slant, over a box from origin height tall.
+void StopLine(ImDrawList* draw, ImVec2 origin, float height, float slant) {
+    for (int dash = 0; dash < 3; ++dash) {
+        const float a = dash / 3.f, b = a + 1 / 6.f;
+        draw->AddLine(ImVec2(origin.x + slant * (1 - a), origin.y + height * a), ImVec2(origin.x + slant * (1 - b), origin.y + height * b), StopColor, (std::max)(1.f, height / 10));
+    }
+}
 // On a bar: a dotted line where frames left out of the bars (hitstop, a
 // super's freeze) were.
 void DrawStops(ImDrawList* draw, const MeterView& meter, int side, BarWindow window, ImVec2 origin, float cell, float height, float slant) {
     for (int i = 0; i < window.cells; ++i) {
         const int index = CellFrame(meter, window, i);
         if (index < 0 || !meter.frames[index].cells[side].afterStop) continue;
-        const float x = origin.x + i * cell;
-        for (int dash = 0; dash < 3; ++dash) {
-            const float a = dash / 3.f, b = a + 1 / 6.f;
-            draw->AddLine(ImVec2(x + slant * (1 - a), origin.y + height * a), ImVec2(x + slant * (1 - b), origin.y + height * b), IM_COL32(120, 200, 255, 235), (std::max)(1.f, height / 10));
-        }
+        StopLine(draw, ImVec2(origin.x + i * cell, origin.y), height, slant);
     }
 }
 // Stable's flat bars: a cell's colour is its state group, so an attack is one
@@ -577,14 +581,21 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
         auto entries = TrainingColorKeyEntries(true);
         // Meaty frames are pink only in Street Fighter 6's colours.
         if (options.classicColors) entries.push_back({"training.meter.meaty", Phase::Attack, MeterKind::Meaty, ClassicColor(MeterKind::Meaty)});
-        for (const auto& entry : entries) {
-            const char* name = loc::T(entry.label);
+        // Places an entry's name and returns where its swatch goes.
+        const auto place = [&](const char* name) {
             const float w = box + 3 * hudScale + ImGui::GetFont()->CalcTextSizeA(small, FLT_MAX, 0, name).x + gap;
             if (x > left && x + w > top.x + full) { x = left; yKey += line; ++lines; }
-            draw->AddRectFilled(ImVec2(x, yKey + (line - box) / 2), ImVec2(x + box, yKey + (line + box) / 2), options.classicColors ? ClassicColor(entry.kind) : entry.color);
             draw->AddText(ImGui::GetFont(), small, ImVec2(x + box + 3 * hudScale, yKey + line - small - 1), palette::Ivory, name);
+            const ImVec2 at(x, yKey + (line - box) / 2);
             x += w;
+            return at;
+        };
+        for (const auto& entry : entries) {
+            const ImVec2 at = place(loc::T(entry.label));
+            draw->AddRectFilled(at, ImVec2(at.x + box, at.y + box), options.classicColors ? ClassicColor(entry.kind) : entry.color);
         }
+        const ImVec2 at = place(loc::T("training.meter.hitstop"));
+        StopLine(draw, ImVec2(at.x + box * .25f, at.y), box, options.classicSlant ? box * .35f : 0.f);
         ImGui::Dummy(ImVec2(full, lines * line));
     }
 }
@@ -628,6 +639,11 @@ void DrawTrainingColorKey(bool angled) {
         ImGui::Dummy(ImVec2(h * .6f, h)); ImGui::SameLine(0, 4 * Scale());
         ImGui::TextUnformatted(loc::T(entry.label));
     }
+    // Not a colour: the dotted line where hitstop was left out of the bars.
+    const ImVec2 at = ImGui::GetCursorScreenPos();
+    StopLine(ImGui::GetWindowDrawList(), ImVec2(at.x + h * .15f, at.y + h * .2f), h * .6f, angled ? h * .21f : 0);
+    ImGui::Dummy(ImVec2(h * .6f, h)); ImGui::SameLine(0, 4 * Scale());
+    ImGui::TextUnformatted(loc::T("training.meter.hitstop"));
 }
 // The match is ready: across the middle of the screen while the battle is
 // about to be taken away, while the call stands. Under it, smaller: who sat

@@ -1898,6 +1898,9 @@ msgstr "ダウン"
 msgid "training.meter.meaty"
 msgstr "重ね"
 
+msgid "training.meter.hitstop"
+msgstr "ヒットストップ"
+
 msgid "training.meter.throw"
 msgstr "投げ / 演出"
 
