@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
+. (Join-Path $PSScriptRoot 'PackageGuide.ps1')
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('sf4-build-guard-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $fixture | Out-Null
 $source = Join-Path $fixture 'source'
@@ -103,3 +104,12 @@ $designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-
 try { Get-EmberBuildTarget $standalone | Out-Null; throw 'Unexpected acceptance' }
 catch { if ($_.Exception.Message -notlike 'Ambiguous build target:*') { throw } }
 Write-Output 'PASS duplicate checkout designation rejected'
+# The packaged guides drop every picture, and one they cannot drop stops the build.
+$repo = Split-Path $PSScriptRoot -Parent
+$docs = [string[]]@(& git -C $repo ls-files '*.md')
+if ($LASTEXITCODE -or !$docs) { throw 'No tracked Markdown files to check' }
+foreach ($doc in $docs) { Get-PackageGuide (Join-Path $repo $doc) | Out-Null }
+[IO.File]::WriteAllText((Join-Path $fixture 'inline.md'), 'Step one ![Home](../images/home.webp)')
+try { Get-PackageGuide (Join-Path $fixture 'inline.md') | Out-Null; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike '*keeps a picture*') { throw } }
+Write-Output 'PASS package guide drops its pictures'
