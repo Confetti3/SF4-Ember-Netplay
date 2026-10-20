@@ -564,6 +564,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="lower-keyboard-lag")preferences_.lowerKeyboardLag=a.delta>0;
   else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
   else if(a.id=="faster-display")preferences_.fasterDisplay=a.delta>0;
+  else if(a.id=="borderless")preferences_.borderless=a.delta>0;
   else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;

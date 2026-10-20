@@ -1116,6 +1116,12 @@ msgstr "Szybszy obraz (1 klatka mniej)"
 msgid "player.faster_display_detail"
 msgstr "Gra pokazuje każdą klatkę, gdy tylko jest gotowa, zamiast klatkę później. Wyłącz to, jeśli gra na tym komputerze spada poniżej 60 kl./s. Dotyczy tylko tego komputera: drugi gracz nie musi tego włączać. Zmiana zadziała przy następnym uruchomieniu gry."
 
+msgid "player.borderless"
+msgstr "Bez ramki"
+
+msgid "player.borderless_detail"
+msgstr "Gra wypełnia ekran w oknie bez ramki, rysowana w natywnej rozdzielczości ekranu w proporcjach 16:9, z czarnymi pasami na szerszym lub wyższym ekranie. Gdy to jest włączone, Alt+Enter oraz własne opcje rozdzielczości i pełnego ekranu w grze nic nie robią; gra zachowuje tam twój wybór na czas, gdy będzie wyłączone. Dotyczy tylko tego komputera. Zmiany zadziałają przy następnym uruchomieniu gry."
+
 
 
 msgid "settings.interface_title"

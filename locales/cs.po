@@ -1116,6 +1116,12 @@ msgstr "Rychlejší obraz (o 1 snímek dříve)"
 msgid "player.faster_display_detail"
 msgstr "Hra zobrazí každý snímek, jakmile je hotový, ne o snímek později. Pokud hra na tomto počítači klesne pod 60 snímků za sekundu, vypněte to. Týká se jen tohoto počítače: druhý hráč to zapínat nemusí. Změna se projeví při příštím spuštění hry."
 
+msgid "player.borderless"
+msgstr "Bez okraje"
+
+msgid "player.borderless_detail"
+msgstr "Hra vyplní obrazovku v okně bez rámečku, vykreslená v nativním rozlišení obrazovky v poměru 16:9, s černými pruhy na širší nebo vyšší obrazovce. Když je zapnuto, Alt+Enter ani vlastní volby rozlišení a celé obrazovky ve hře nic nedělají; hra si tam vaši volbu ponechá na dobu, kdy bude vypnuto. Týká se jen tohoto PC. Změny se projeví při dalším spuštění hry."
+
 
 
 msgid "settings.interface_title"

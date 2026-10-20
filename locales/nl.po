@@ -1116,6 +1116,12 @@ msgstr "Sneller beeld (1 frame minder)"
 msgid "player.faster_display_detail"
 msgstr "Het spel toont elk frame zodra het klaar is, in plaats van een frame later. Zet het uit als het spel op deze pc onder 60 fps zakt. Het geldt alleen op deze pc: de andere speler hoeft het niet aan te zetten. Wijzigingen gelden vanaf de volgende keer dat het spel start."
 
+msgid "player.borderless"
+msgstr "Randloos"
+
+msgid "player.borderless_detail"
+msgstr "Het spel vult het scherm in een venster zonder rand, getekend op de eigen resolutie van het scherm in 16:9, met zwarte balken op een breder of hoger scherm. Zolang dit aan staat, doen Alt+Enter en de eigen resolutie- en volledig-schermopties van het spel niets; het spel bewaart je keuze daar voor wanneer dit uit staat. Het geldt alleen voor deze pc. Wijzigingen gelden vanaf de volgende keer dat het spel start."
+
 
 
 msgid "settings.interface_title"
