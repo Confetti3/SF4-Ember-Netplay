@@ -24,6 +24,7 @@ struct Session {
     State state;
     std::array<History,128> history;
     Native* battle=nullptr;
+    GameManager* manager=nullptr;
     GGPOSession* ggpo=nullptr;
     Objects objects{};
     std::array<unsigned char,0x648> request{};
@@ -74,7 +75,7 @@ bool Bind(Native* system) {
         !native::Accessible(reinterpret_cast<void*>(current.objects[1]),current.request.size()))return false;
     std::memcpy(current.request.data(),reinterpret_cast<void*>(current.objects[1]),current.request.size());
     std::memcpy(current.menu.data(),reinterpret_cast<char*>(system)+0x6d8,current.menu.size());
-    current.battle=system;current.phase=Phase::Running;
+    current.battle=system;current.manager=reinterpret_cast<GameManager*>(current.objects[7]);current.phase=Phase::Running;
     spdlog::info("Continuous rematch: bound table={} generation={}",current.table,current.generation);
     return true;
 }
@@ -172,12 +173,22 @@ bool BeforeFrame(Native* system,Pad::System::Inputs inputs[2],const FrameControl
     auto& state=current.state;
     const int frame=fSystem::SimulatedStateFrame();
     cc::ObserveFallback(state.choices,frame,wire.data());
-    if(current.phase==Phase::Binding&&!Bind(system))return Abort(loc::T("quick_rematch.context_invalid"));
+    if(current.phase==Phase::Binding&&!Bind(system))Refuse();
     // Frozen-roster negotiation handles unsupported spectators before launch.
     // An unexpected runtime object failure still uses the existing abort path.
-    if(current.phase==Phase::Refused&&!Bound())return Abort(loc::T("quick_rematch.context_invalid"));
+    if(current.phase==Phase::Refused&&!Bound()) {
+        if(fSystem::localPlayerHandle==GGPO_INVALID_HANDLE||
+            !native::Accessible(system,0xe44)||*reinterpret_cast<std::uintptr_t*>(system)!=adapter.base+0x5550ec)
+            return Abort(loc::T("quick_rematch.context_invalid"));
+        // A refused restart can still finish this match normally. Retain only
+        // the validated result owner, so the streamed No does not lose the
+        // ordinary result/replay receipt or disable the fighter's controls.
+        auto* manager=(system->*Native::publicMethods.GetGameManager)();
+        if(!native::Accessible(manager,sizeof(*manager)))return Abort(loc::T("quick_rematch.context_invalid"));
+        current.battle=system;current.manager=manager;
+    }
     if(system!=current.battle||current.ggpo!=fSystem::ggpo)return Abort(loc::T("quick_rematch.interrupted"));
-    auto* manager=reinterpret_cast<GameManager*>(current.objects[7]);
+    auto* manager=current.manager;
     const auto flow=*Native::staticVars.CurrentBattleFlow;
     const auto substate=*Native::staticVars.CurrentBattleFlowSubstate;
     const auto callback=reinterpret_cast<std::uintptr_t>(*Native::staticVars.BattleFlowSubstateCallable_aa9258);

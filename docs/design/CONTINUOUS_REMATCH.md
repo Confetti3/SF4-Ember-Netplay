@@ -51,6 +51,11 @@ request and menu bytes captured at bind; it does not run every frame. A
 spectator checks its own context once per restart and can end only its view
 on failure. It never changes the fighters' accepted decision.
 
+A fighter whose per-battle bind refuses retains only the validated native
+result owner and sends No. Its current game, result and replay can finish
+normally. Only a missing/invalid native result owner requires the existing
+abort path; the opt-out itself does not remove ordinary gameplay inputs.
+
 The reset waits nine input frames after both Commit bits are observed, past
 the pinned GGPO maximum prediction of eight frames (asserted at compile time).
 This alone would confirm only the Commit edge, not the future reset frame.
