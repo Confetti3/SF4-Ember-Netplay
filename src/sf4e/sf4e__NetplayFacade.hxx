@@ -235,7 +235,6 @@ namespace sf4e {
             // The ping to each other member while the room board is open.
             session::MemberLatencyTable memberLatency;
 			netplay::PlayerPreferences preferences;
-
 			netplay::LobbySettings lobbySettings;
 			std::string settingsError;
 			std::string languagePreference = "auto";

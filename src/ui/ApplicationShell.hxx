@@ -48,7 +48,6 @@ struct ShellView {
     // The room events the chat shows that no snapshot carries (ChatTranscript).
     std::vector<RoomNotice> roomNotices;
     netplay::PlayerPreferences preferences;
-
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
     bool canReplaceRoom = false;

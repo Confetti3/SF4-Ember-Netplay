@@ -91,7 +91,6 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	}
 	// Validate ownership before even a deferred GGPO teardown side effect.
 	if (!(command.command.generation == runtime->controller.GetSnapshot().generation)) return DispatchOutcome::Dropped;
-
 	// Training from a room sends no room command: the game alone moves, and only
 	// if the room allows it now, not as it was when the player pressed.
 	if (command.training == TrainingEntry::Room) {
