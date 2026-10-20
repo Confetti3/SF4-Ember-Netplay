@@ -55,6 +55,9 @@ safe: it also changes native replay, sound and memento owners.
 
 The contribution instead holds the decision past GGPO's prediction window
 and retains identical Commit inputs until the reset epoch is confirmed.
+A monotonic native reset boundary also refuses loads from earlier frames
+before any native restore, covering GGPO's terminal-disconnect adjustment
+which can replace a disconnected fighter's retained input with zeros.
 The complete input argument and its limits are in
 [CONTINUOUS_REMATCH.md](CONTINUOUS_REMATCH.md). Synthetic vote/latch tests
 cannot certify native ownership or presentation; current-revision multi-PC

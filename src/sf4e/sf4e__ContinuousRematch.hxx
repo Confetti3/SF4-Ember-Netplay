@@ -19,6 +19,7 @@ FrameControl PrepareFrameInputs(Pad::System::Inputs inputs[2]);
 bool BeforeFrame(Dimps::Game::Battle::System*,Pad::System::Inputs inputs[2],const FrameControl&);
 void AfterFrame(int stateFrame);
 State Capture();
+int MinimumRestoreFrame(); // Never load native owners from before the last reset.
 void Restore(const State&,int stateFrame);
 bool DeferResultPublication();
 replay::MatchBoundary RecordingMatch(); // confirmed state, outside rollback callbacks

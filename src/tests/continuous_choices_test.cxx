@@ -1,6 +1,7 @@
 #include "../common/ContinuousRematchChoices.hxx"
 #include "test_support.hxx"
 #include "../common/ButtonLayoutTypes.hxx"
+#include "../common/GgpoTimeline.hxx"
 #include <array>
 #include <cstdio>
 namespace cc=sf4e::continuousrematch::choices;
@@ -81,6 +82,27 @@ void CommittedTransmission() {
         CHECK(cc::WireEpoch(epoch)==cc::WireEpoch(epoch+15));
         CHECK(!input.Retain(epoch+15,output));
     }
+}
+void TerminalDisconnectCannotRewindNativeReset() {
+    sf4e::statehash::GgpoTimeline timeline;
+    timeline.Saved(109); // The restart has produced native state 109.
+    unsigned nativeWrites=0;
+    const auto restore=[&] {++nativeWrites;return true;};
+    // GGPO's terminal-disconnect path adjusts to the last remote frame before
+    // reporting the event, even if connected peers retained Commit perfectly.
+    CHECK(!timeline.Load(101,restore,109));
+    CHECK(nativeWrites==0&&timeline.Held()==109);
+    CHECK(!timeline.Load(108,restore,109)&&nativeWrites==0);
+    // Buffers produced by the restart and later ordinary rollback stay usable.
+    CHECK(timeline.Load(109,restore,109)&&nativeWrites==1);
+    timeline.Saved(117);
+    CHECK(timeline.Load(111,restore,109)&&nativeWrites==2&&timeline.Held()==111);
+    // A subsequent rematch raises the unsaved boundary; restoring the saved
+    // vote state must not reopen a previous native owner's lifetime.
+    timeline.Saved(200);
+    CHECK(!timeline.Load(199,restore,200)&&nativeWrites==2&&timeline.Held()==200);
+    // The default has no reset boundary, preserving ordinary matches.
+    CHECK(timeline.Load(4,restore)&&nativeWrites==3&&timeline.Held()==4);
 }
 int main() {
     static_assert((sf4e::gamepads::FightMask & cc::WireMask)==0,"Controller layouts overlap rematch votes");
@@ -188,5 +210,6 @@ int main() {
     cc::FinishNative(refused,20); CHECK(refused.nativeFinish && refused.nativeFinishFrame==20 && !refused.holding);
     DelayedControlAndRollback();
     CommittedTransmission();
+    TerminalDisconnectCannotRewindNativeReset();
     std::puts("Continuous rematch choices: prediction barrier, immutable input, epoch, rollback, decline, timeout and scored limit passed");
 }

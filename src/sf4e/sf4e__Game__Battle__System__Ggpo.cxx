@@ -713,9 +713,12 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
     ++s_window.rollbacks;
     s_window.depth = 0;
     SaveState* state = (SaveState*)buffer;
-    if (!ggpoTimeline.Load(state->ggpoFrame, [&] { return SaveState::Load(state); })) {
-        // The engine now holds a partly restored timeline; re-simulating
-        // from it would desync, so end the match instead (ledger A-001).
+    if (!ggpoTimeline.Load(state->ggpoFrame, [&] { return SaveState::Load(state); },
+        sf4e::continuousrematch::MinimumRestoreFrame())) {
+        // A disconnect may request a state before an irreversible native
+        // reset, even with constant Commit inputs. Reject that before any
+        // native write; a failed native restore likewise ends the session.
+        // Fatal callbacks still advance GGPO with inert saves until it unwinds.
         AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
         return false;
     }

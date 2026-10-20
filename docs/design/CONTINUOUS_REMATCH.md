@@ -68,6 +68,17 @@ barrier and prevent reset. Local observations cannot replace an already
 sent Commit by No. The native reset branch has no fighter-local refusal
 check that could diverge from the agreed input tape.
 
+Terminal disconnect is a separate case: GGPO can replace the disconnected
+fighter's future inputs with zeros and request an older state before raising
+its disconnect event. A monotonic, unsaved native reset boundary therefore
+rejects any older load before SaveState::Load can write engine objects.
+The callback uses the existing deferred fatal path. GGPO ignores the load
+callback's return value, but the remaining callbacks then only advance its
+frame count with inert saves; the outer tick closes the failed session.
+Loads at the reset state or later remain valid, and ordinary matches have
+no boundary. This guard also catches any violation of the connected-input
+argument instead of replaying an irreversible native transition.
+
 This relies on the pinned GGPO prediction/input-confirmation contract, the
 main-thread ownership of battle objects while held, and the immutable
 Commit producer. It does not assert that arbitrary forced rollback across
@@ -168,7 +179,9 @@ to verify that the whole table instead uses the ordinary path before launch.
 Also verify ordinary rooms with the option off, spectator departure, Stop
 watching, WAN/relay delay, room-only recovery at victory and changes to table
 rules. Inspect confirmed hashes, GGPO return codes and memory/key counts
-through a sustained series. Existing network fixtures and model tests do not
+through a sustained series. Disconnect a fighter at the restart boundary
+and check the controlled exit; a spectator disconnect must still leave the
+fighters playing. Existing network fixtures and model tests do not
 prove native reset safety or these live scenarios. A draw after previous wins
 must preserve those scores and return normally, without a native reset.
 

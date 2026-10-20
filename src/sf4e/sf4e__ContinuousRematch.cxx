@@ -34,6 +34,7 @@ struct Session {
     rematchpanel::Choice localChoice=rematchpanel::Choice::None;
     unsigned localChoiceEpoch=0,scoredGameReady=0,setGoal=0;
     cc::CommittedInput committed;
+    int lastResetStateFrame=-1; // Native ownership boundary, never rolled back.
 } current;
 bool Active(){return current.phase!=Phase::Inactive;}
 bool Live(){return Active()&&current.phase!=Phase::Closed&&current.phase!=Phase::Failed;}
@@ -228,6 +229,7 @@ bool BeforeFrame(Native* system,Pad::System::Inputs inputs[2],const FrameControl
         // the new epoch is confirmed, and the decision outlives prediction.
         // No process-local check can change the accepted decision here.
         state.resultFrame=-1;state.choiceWinner=-1;state.victoryFrames=0;
+        current.lastResetStateFrame=(std::max)(current.lastResetStateFrame,frame);
         adapter.restart(system,nullptr,true);
     }
     return true;
@@ -236,6 +238,7 @@ void AfterFrame(int frame) {
     if(Live()&&frame>=0)current.history[frame%current.history.size()]={frame,current.state};
 }
 State Capture(){return current.state;}
+int MinimumRestoreFrame(){return current.lastResetStateFrame;}
 void Restore(const State& saved,int frame) {
     if(!Live())return;
     current.state=saved;
