@@ -55,5 +55,10 @@ inline std::vector<std::uint8_t> Tones(const std::vector<Tone>& tones, int volum
 }
 // The chime: two short rising tones.
 inline std::vector<std::uint8_t> Chime(int volumePercent) { return Tones({{880.0, .12}, {1318.5, .22}}, volumePercent); }
+// Speech's sounds (platform/Speech.cxx): the chime before a notice that
+// opened by itself, two falling tones; and the soft tick after an item that
+// has a description, one very short high tone.
+inline std::vector<std::uint8_t> NoticeChime(int volumePercent) { return Tones({{1318.5, .08}, {987.8, .16}}, volumePercent); }
+inline std::vector<std::uint8_t> DescriptionTick() { return Tones({{2093.0, .015}}, 40); }
 
 } }

@@ -29,9 +29,6 @@ std::atomic<Missing> missing{Missing::Nothing};
 std::atomic<Voice> voice{Voice::System};
 std::atomic<int> percent{0};
 
-// The tick: one soft, very short high tone. The notice chime: two falling tones.
-std::vector<std::uint8_t> TickWave() { return away_alert::Tones({{2093.0, .015}}, 40); }
-std::vector<std::uint8_t> ChimeWave(int volume) { return away_alert::Tones({{1318.5, .08}, {987.8, .16}}, volume); }
 // Through winmm, which reads the sound while it plays: it stays alive here,
 // and the one playing is stopped before it is replaced. Speech thread only.
 void PlayWave(std::vector<std::uint8_t> sound) {
@@ -89,7 +86,7 @@ void RunLinux(UnixSpawn spawn) {
     const std::wstring ready = path + L".ready", status = path + L".status";
     // The tick as a file in the same folder, for the relay to play after the parts.
     const std::wstring tick = std::wstring(folder) + L"ember-speech-tick.wav";
-    const auto tickWave = TickWave();
+    const auto tickWave = away_alert::DescriptionTick();
     const HANDLE tickFile = CreateFileW(tick.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
     DWORD tickWritten = 0;
     if (tickFile != INVALID_HANDLE_VALUE) { WriteFile(tickFile, tickWave.data(), static_cast<DWORD>(tickWave.size()), &tickWritten, nullptr); CloseHandle(tickFile); }
@@ -122,7 +119,7 @@ void RunLinux(UnixSpawn spawn) {
     for (;;) {
         // Once a second at least, for the relay's status while it downloads.
         for (const auto& request : Next(std::chrono::seconds(1))) {
-            if (request.chime) { PlayWave(ChimeWave(request.volume)); continue; }
+            if (request.chime) { PlayWave(away_alert::NoticeChime(request.volume)); continue; }
             if (missing != Missing::Nothing) break;
             write(request.render ? RenderLine(request.parts, request.rate, request.language) :
                 request.parts.empty() ? std::string("STOP\n") :
@@ -151,7 +148,7 @@ void Run() {
     }
     for (;;) {
         for (const auto& request : Next(std::chrono::hours(1))) {
-            if (request.chime) { PlayWave(ChimeWave(request.volume)); continue; }
+            if (request.chime) { PlayWave(away_alert::NoticeChime(request.volume)); continue; }
             if (missing != Missing::Nothing || request.render) continue;
             const DWORD flags = SPF_ASYNC | SPF_IS_NOT_XML | (request.interrupt ? SPF_PURGEBEFORESPEAK : 0);
             if (request.parts.empty()) { sapi->Speak(nullptr, flags, nullptr); continue; }
@@ -166,7 +163,7 @@ void Run() {
             // The tick waits for the words, unless something new is to be said.
             if (request.tick) {
                 while (sapi->WaitUntilDone(20) == S_FALSE && !Waiting()) {}
-                if (!Waiting()) PlayWave(TickWave());
+                if (!Waiting()) PlayWave(away_alert::DescriptionTick());
             }
         }
     }
