@@ -4763,6 +4763,27 @@ msgstr "朗读位置"
 msgid "speech.read_position_detail"
 msgstr "在项目名称和值之后，朗读其在列表中的位置，例如第3项，共12项。"
 
+msgid "speech.more"
+msgstr "按{0}了解更多"
+
+msgid "speech.help"
+msgstr "按{0}获取任一项的帮助"
+
+msgid "speech.remind"
+msgstr "提醒说明按键"
+
+msgid "speech.remind_detail"
+msgstr "在有说明的项目名称之后，告知哪个按键可朗读说明。自动模式在你使用该按键三次后停止。"
+
+msgid "speech.remind_auto"
+msgstr "直到使用3次"
+
+msgid "speech.tick"
+msgstr "说明提示音"
+
+msgid "speech.tick_detail"
+msgstr "提醒停止后，项目名称后的轻柔提示音表示它有说明。"
+
 msgid "speech.notice"
 msgstr "通知。按{0}收听。"
 

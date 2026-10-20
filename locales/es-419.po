@@ -4286,6 +4286,27 @@ msgstr "Leer posición"
 msgid "speech.read_position_detail"
 msgstr "Después del nombre y el valor de una fila, dice su posición en la lista, como 3 de 12."
 
+msgid "speech.more"
+msgstr "{0} para más"
+
+msgid "speech.help"
+msgstr "{0} para ayuda sobre cualquier opción"
+
+msgid "speech.remind"
+msgstr "Recordarme el botón de descripción"
+
+msgid "speech.remind_detail"
+msgstr "Después del nombre de una fila con descripción, dice qué botón la lee. Automático deja de hacerlo cuando usas el botón tres veces."
+
+msgid "speech.remind_auto"
+msgstr "Hasta usarlo 3 veces"
+
+msgid "speech.tick"
+msgstr "Sonido de descripción"
+
+msgid "speech.tick_detail"
+msgstr "Cuando el recordatorio se detiene, un sonido suave después del nombre de una fila indica que tiene descripción."
+
 msgid "speech.notice"
 msgstr "Aviso. Presiona {0} para oírlo."
 

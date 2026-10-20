@@ -4286,6 +4286,27 @@ msgstr "Ler posição"
 msgid "speech.read_position_detail"
 msgstr "Depois do nome e do valor de uma linha, diz a posição dela na lista, como 3 de 12."
 
+msgid "speech.more"
+msgstr "{0} para mais"
+
+msgid "speech.help"
+msgstr "{0} para ajuda em qualquer item"
+
+msgid "speech.remind"
+msgstr "Lembrar do botão de descrição"
+
+msgid "speech.remind_detail"
+msgstr "Depois do nome de uma linha com descrição, diz qual botão a lê. Automático para depois que você usar o botão três vezes."
+
+msgid "speech.remind_auto"
+msgstr "Até usar 3 vezes"
+
+msgid "speech.tick"
+msgstr "Som de descrição"
+
+msgid "speech.tick_detail"
+msgstr "Quando o lembrete para, um som suave depois do nome de uma linha indica que ela tem descrição."
+
 msgid "speech.notice"
 msgstr "Aviso. Pressione {0} para ouvi-lo."
 

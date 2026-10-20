@@ -36,9 +36,12 @@ inline std::string RelayLine(std::vector<std::string> fields, const std::vector<
     return line + "\n";
 }
 // Say the parts in order; interrupt drops what Ember is still saying first.
-// rate is -10 to 10, volume 0 to 100, language the interface's tag.
-inline std::string SayLine(const std::vector<std::string>& parts, bool interrupt, int rate, int volume, const std::string& language) {
-    return RelayLine({"SAY", interrupt ? "1" : "0", std::to_string(rate), std::to_string(volume), language}, parts, rate, language);
+// rate is -10 to 10, volume 0 to 100, language the interface's tag. sound,
+// a WAV file's Unix path, plays after the parts (the key "wav" marks it).
+inline std::string SayLine(const std::vector<std::string>& parts, bool interrupt, int rate, int volume, const std::string& language, const std::string& sound = {}) {
+    auto line = RelayLine({"SAY", interrupt ? "1" : "0", std::to_string(rate), std::to_string(volume), language}, parts, rate, language);
+    if (!sound.empty()) line.insert(line.size() - 1, "\twav\t" + sound);
+    return line;
 }
 // Make the parts' clips ahead, at low priority, for a screen that just opened.
 inline std::string RenderLine(const std::vector<std::string>& parts, int rate, const std::string& language) {

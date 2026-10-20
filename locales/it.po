@@ -4762,6 +4762,27 @@ msgstr "Leggi la posizione"
 msgid "speech.read_position_detail"
 msgstr "Dopo il nome e il valore di una riga, ne dice la posizione nell'elenco, ad esempio 3 di 12."
 
+msgid "speech.more"
+msgstr "{0} per saperne di più"
+
+msgid "speech.help"
+msgstr "{0} per l'aiuto su ogni voce"
+
+msgid "speech.remind"
+msgstr "Ricordami il tasto descrizione"
+
+msgid "speech.remind_detail"
+msgstr "Dopo il nome di una riga con descrizione, dice quale tasto la legge. Automatico smette dopo che hai usato il tasto tre volte."
+
+msgid "speech.remind_auto"
+msgstr "Fino a 3 usi"
+
+msgid "speech.tick"
+msgstr "Suono di descrizione"
+
+msgid "speech.tick_detail"
+msgstr "Quando il promemoria si ferma, un suono leggero dopo il nome di una riga indica che ha una descrizione."
+
 msgid "speech.notice"
 msgstr "Avviso. Premi {0} per sentirlo."
 

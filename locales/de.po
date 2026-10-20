@@ -4762,6 +4762,27 @@ msgstr "Position vorlesen"
 msgid "speech.read_position_detail"
 msgstr "Nennt nach Name und Wert einer Zeile ihre Position in der Liste, etwa 3 von 12."
 
+msgid "speech.more"
+msgstr "{0} für mehr"
+
+msgid "speech.help"
+msgstr "{0} für Hilfe zu jedem Eintrag"
+
+msgid "speech.remind"
+msgstr "An die Beschreibungstaste erinnern"
+
+msgid "speech.remind_detail"
+msgstr "Nennt nach dem Namen einer Zeile mit Beschreibung die Taste, die sie vorliest. Automatisch hört auf, sobald du die Taste dreimal benutzt hast."
+
+msgid "speech.remind_auto"
+msgstr "Bis 3-mal benutzt"
+
+msgid "speech.tick"
+msgstr "Beschreibungston"
+
+msgid "speech.tick_detail"
+msgstr "Sobald die Erinnerung aufhört, zeigt ein leiser Ton nach dem Namen einer Zeile an, dass sie eine Beschreibung hat."
+
 msgid "speech.notice"
 msgstr "Hinweis. Drücke {0}, um ihn zu hören."
 

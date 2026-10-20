@@ -22,6 +22,8 @@ void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,
 void SetMenuGlyphs(int deviceType,const input::MenuButtons& buttons,gamepads::PromptBrand brand={});
 // The player's speech settings, which every menu reads as it draws.
 void SetMenuSpeech(const netplay::SpeechPreferences& speech);
+// How many descriptions the accessibility button has read since the last call.
+int TakeMenuDescribes();
 // The accessibility button's name on the device the player last used ("RT", "R2", "F2").
 std::string AccessibilityKeyName();
 struct PlayerCardView {

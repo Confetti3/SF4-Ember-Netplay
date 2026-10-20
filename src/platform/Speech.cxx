@@ -6,6 +6,7 @@
 #include <sapi.h>
 #include <mmsystem.h>
 #include <spdlog/spdlog.h>
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -17,7 +18,9 @@
 namespace sf4e { namespace speech {
 namespace {
 // No parts with interrupt is Stop; render asks only for clips made ahead.
-struct Request { std::vector<std::string> parts; bool interrupt, render; int rate, volume; std::string language; };
+// tick: the description tick plays once the parts are said. chime: only the
+// notice chime, at volume. Sounds play on the speech thread alone.
+struct Request { std::vector<std::string> parts; bool interrupt, render; int rate, volume; std::string language; bool tick, chime; };
 std::mutex lock;
 std::condition_variable wake;
 std::vector<Request> pending;
@@ -25,6 +28,19 @@ bool started = false;
 std::atomic<Missing> missing{Missing::Nothing};
 std::atomic<Voice> voice{Voice::System};
 std::atomic<int> percent{0};
+
+// The tick: one soft, very short high tone. The notice chime: two falling tones.
+std::vector<std::uint8_t> TickWave() { return away_alert::Tones({{2093.0, .015}}, 40); }
+std::vector<std::uint8_t> ChimeWave(int volume) { return away_alert::Tones({{1318.5, .08}, {987.8, .16}}, volume); }
+// Through winmm, which reads the sound while it plays: it stays alive here,
+// and the one playing is stopped before it is replaced. Speech thread only.
+void PlayWave(std::vector<std::uint8_t> sound) {
+    static std::vector<std::uint8_t> wave;
+    PlaySoundW(nullptr, nullptr, 0);
+    wave = std::move(sound);
+    PlaySoundW(reinterpret_cast<LPCWSTR>(wave.data()), nullptr, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
+}
+bool Waiting() { std::lock_guard<std::mutex> held(lock); return !pending.empty(); }
 
 std::vector<Request> Next(std::chrono::milliseconds wait) {
     std::vector<Request> next;
@@ -71,6 +87,13 @@ void RunLinux(UnixSpawn spawn) {
     const bool container = GetFileAttributesW(L"Z:\\run\\host\\usr\\bin\\busctl") != INVALID_FILE_ATTRIBUTES;
     const std::wstring path = std::wstring(folder) + platform::Utf8ToWide(name.c_str()) + L".fifo";
     const std::wstring ready = path + L".ready", status = path + L".status";
+    // The tick as a file in the same folder, for the relay to play after the parts.
+    const std::wstring tick = std::wstring(folder) + L"ember-speech-tick.wav";
+    const auto tickWave = TickWave();
+    const HANDLE tickFile = CreateFileW(tick.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+    DWORD tickWritten = 0;
+    if (tickFile != INVALID_HANDLE_VALUE) { WriteFile(tickFile, tickWave.data(), static_cast<DWORD>(tickWave.size()), &tickWritten, nullptr); CloseHandle(tickFile); }
+    const std::string unixTick = unixFolder + "/ember-speech-tick.wav";
     const auto relayReady = [&] { return GetFileAttributesW(ready.c_str()) != INVALID_FILE_ATTRIBUTES; };
     HANDLE fifo = INVALID_HANDLE_VALUE;
     if (spawn && !unixFolder.empty() && !script.empty() && (*bus || !container)) {
@@ -99,9 +122,11 @@ void RunLinux(UnixSpawn spawn) {
     for (;;) {
         // Once a second at least, for the relay's status while it downloads.
         for (const auto& request : Next(std::chrono::seconds(1))) {
+            if (request.chime) { PlayWave(ChimeWave(request.volume)); continue; }
             if (missing != Missing::Nothing) break;
             write(request.render ? RenderLine(request.parts, request.rate, request.language) :
-                request.parts.empty() ? std::string("STOP\n") : SayLine(request.parts, request.interrupt, request.rate, request.volume, request.language));
+                request.parts.empty() ? std::string("STOP\n") :
+                SayLine(request.parts, request.interrupt, request.rate, request.volume, request.language, request.tick ? unixTick : std::string()));
         }
         const HANDLE file = CreateFileW(status.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, 0, nullptr);
         char text[64] = {};
@@ -126,6 +151,7 @@ void Run() {
     }
     for (;;) {
         for (const auto& request : Next(std::chrono::hours(1))) {
+            if (request.chime) { PlayWave(ChimeWave(request.volume)); continue; }
             if (missing != Missing::Nothing || request.render) continue;
             const DWORD flags = SPF_ASYNC | SPF_IS_NOT_XML | (request.interrupt ? SPF_PURGEBEFORESPEAK : 0);
             if (request.parts.empty()) { sapi->Speak(nullptr, flags, nullptr); continue; }
@@ -137,14 +163,19 @@ void Run() {
                 spdlog::warn("Speech: SAPI has no voice to speak with ({:08x})", static_cast<unsigned long>(spoken));
                 missing = Missing::WindowsVoice;
             }
+            // The tick waits for the words, unless something new is to be said.
+            if (request.tick) {
+                while (sapi->WaitUntilDone(20) == S_FALSE && !Waiting()) {}
+                if (!Waiting()) PlayWave(TickWave());
+            }
         }
     }
 }
 void Queue(Request request) {
     {
         std::lock_guard<std::mutex> held(lock);
-        // An interruption makes everything still waiting moot.
-        if (request.interrupt) pending.clear();
+        // An interruption makes everything still waiting moot, but a chime that leads it.
+        if (request.interrupt) pending.erase(std::remove_if(pending.begin(), pending.end(), [](const Request& r) { return !r.chime; }), pending.end());
         pending.push_back(std::move(request));
         if (!started) { started = true; std::thread(Run).detach(); }
     }
@@ -152,21 +183,14 @@ void Queue(Request request) {
 }
 }
 
-void Say(const std::vector<std::string>& parts, bool interrupt, int rate, int volume) {
-    if (!parts.empty()) Queue({parts, interrupt, false, rate, volume, loc::Tag(loc::Active())});
+void Say(const std::vector<std::string>& parts, bool interrupt, int rate, int volume, bool tick) {
+    if (!parts.empty()) Queue({parts, interrupt, false, rate, volume, loc::Tag(loc::Active()), tick, false});
 }
 void Render(const std::vector<std::string>& parts, int rate) {
-    if (!parts.empty()) Queue({parts, false, true, rate, 0, loc::Tag(loc::Active())});
+    if (!parts.empty()) Queue({parts, false, true, rate, 0, loc::Tag(loc::Active()), false, false});
 }
-void Stop() { Queue({{}, true, false, 0, 0, {}}); }
-void Chime(int volume) {
-    // PlaySoundW reads the sound while it plays, so it stays alive here, and
-    // the one playing is stopped before it is replaced.
-    static std::vector<std::uint8_t> wave;
-    PlaySoundW(nullptr, nullptr, 0);
-    wave = away_alert::Tones({{1318.5, .08}, {987.8, .16}}, volume);
-    PlaySoundW(reinterpret_cast<LPCWSTR>(wave.data()), nullptr, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
-}
+void Stop() { Queue({{}, true, false, 0, 0, {}, false, false}); }
+void Chime(int volume) { Queue({{}, false, false, 0, volume, {}, false, true}); }
 Missing Unavailable() { return missing; }
 VoiceStatus NaturalVoice() { return {voice, percent}; }
 } }

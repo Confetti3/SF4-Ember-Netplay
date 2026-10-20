@@ -4763,6 +4763,27 @@ msgstr "위치 읽기"
 msgid "speech.read_position_detail"
 msgstr "항목 이름과 값 다음에 목록에서의 위치를 읽습니다(예: 12개 중 3번째)."
 
+msgid "speech.more"
+msgstr "{0}로 자세히"
+
+msgid "speech.help"
+msgstr "{0}로 각 항목 도움말"
+
+msgid "speech.remind"
+msgstr "설명 버튼 알림"
+
+msgid "speech.remind_detail"
+msgstr "설명이 있는 항목 이름 다음에 그것을 읽는 버튼을 알려 줍니다. 자동은 버튼을 세 번 사용하면 멈춥니다."
+
+msgid "speech.remind_auto"
+msgstr "3번 사용할 때까지"
+
+msgid "speech.tick"
+msgstr "설명 알림음"
+
+msgid "speech.tick_detail"
+msgstr "알림이 멈춘 뒤에는 항목 이름 다음의 작은 소리로 설명이 있음을 알립니다."
+
 msgid "speech.notice"
 msgstr "알림입니다. {0}을(를) 누르면 들을 수 있습니다."
 

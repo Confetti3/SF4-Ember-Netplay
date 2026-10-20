@@ -4762,6 +4762,27 @@ msgstr "Positie voorlezen"
 msgid "speech.read_position_detail"
 msgstr "Zegt na de naam en waarde van een rij de plaats in de lijst, zoals 3 van 12."
 
+msgid "speech.more"
+msgstr "{0} voor meer"
+
+msgid "speech.help"
+msgstr "{0} voor hulp bij elk item"
+
+msgid "speech.remind"
+msgstr "Herinner me aan de beschrijfknop"
+
+msgid "speech.remind_detail"
+msgstr "Zegt na de naam van een rij met een beschrijving welke knop die voorleest. Automatisch stopt zodra je de knop drie keer hebt gebruikt."
+
+msgid "speech.remind_auto"
+msgstr "Tot 3 keer gebruikt"
+
+msgid "speech.tick"
+msgstr "Beschrijvingstik"
+
+msgid "speech.tick_detail"
+msgstr "Zodra de herinnering stopt, zegt een zachte tik na de naam van een rij dat die een beschrijving heeft."
+
 msgid "speech.notice"
 msgstr "Melding. Druk op {0} om ze te horen."
 

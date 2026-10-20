@@ -4,6 +4,7 @@
 #include "../netplay/PlayerPreferences.hxx"
 #include "../platform/Speech.hxx"
 #include <algorithm>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -37,8 +38,10 @@ struct Utterance {
     bool interrupt = true;
     // The accessibility button pressed again on what it is reading: be quiet.
     bool stop = false;
-    // A notice opened by itself: its chime comes first.
-    bool chime = false;
+    // A notice opened by itself: its chime comes first. tick: a soft tick
+    // follows the parts, for a row with a description once the player knows
+    // the accessibility button reads it.
+    bool chime = false, tick = false;
     std::string Text() const { return speech::Line(parts); }
 };
 // The voice speech uses, as the Accessibility page shows it.
@@ -60,6 +63,9 @@ inline std::string VoiceText(speech::VoiceStatus status) {
 // accessibility button (describe), and a second press on the same row stops
 // it; or DetailDelay seconds after a stop when the player wants that. Its
 // button hint and place in the list are read only if the player wants them.
+// Until the player knows the button, a row with a description names it after
+// its name, and a screen's first visit says it reads help on any item; after
+// that a soft tick marks such a row.
 class MenuNarrator {
 public:
     static constexpr double DetailDelay = 1.5;
@@ -79,12 +85,19 @@ public:
         } else if (!dialog && (titled || id != id_ || !button_.empty())) {
             if (titled) {
                 Add(said.parts, frame.title);
+                // The first time a screen opens, it says how to get help on its rows.
+                if (speech.remind != netplay::SpeechPreferences::Never && visited_.insert(frame.title).second) said.parts.push_back(loc::Tf("speech.help", frame.accessKey));
                 if (frame.entries) for (const auto& entry : *frame.entries) { Add(said.render, entry.label); if (Changes(entry)) Add(said.render, entry.value); }
             }
             if (frame.focus) {
                 Add(said.parts, frame.focus->label);
                 Add(said.parts, value);
                 if (speech.position) said.parts.push_back(loc::Tf("speech.position", frame.index + 1, frame.count));
+                // A row that has more to say says so, until the player knows the button.
+                if (!frame.focus->detail.empty()) {
+                    if (speech.Reminds()) said.parts.push_back(loc::Tf("speech.more", frame.accessKey));
+                    else said.tick = speech.tick;
+                }
             }
         } else if (!dialog && value != value_) {
             Add(said.parts, value);
@@ -114,6 +127,7 @@ private:
         if (!part.empty() && std::find(parts.begin(), parts.end(), part) == parts.end()) parts.push_back(part);
     }
     std::string title_, id_, value_, question_, button_;
+    std::set<std::string> visited_;
     double since_ = 0;
     bool rest_ = false, described_ = false;
 };

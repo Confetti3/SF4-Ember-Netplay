@@ -16,6 +16,8 @@ int main() {
     CHECK(ClipKey("e", 10, "x") != ClipKey("e1", 0, "x"));
     CHECK(SayLine({"Lower input lag", "On"}, true, -4, 60, "pt-BR") == "SAY\t1\t-4\t60\tpt-BR\t" + ClipKey("pt-BR", -4, "Lower input lag") +
         "\tLower input lag\t" + ClipKey("pt-BR", -4, "On") + "\tOn\n");
+    // A sound after the parts goes last, under the key "wav".
+    CHECK(SayLine({"On"}, false, 0, 100, "en", "/tmp/tick.wav") == "SAY\t0\t0\t100\ten\t" + ClipKey("en", 0, "On") + "\tOn\twav\t/tmp/tick.wav\n");
     CHECK(RenderLine({"Speech"}, 0, "en") == "RENDER\t0\ten\t" + ClipKey("en", 0, "Speech") + "\tSpeech\n");
     // A part cannot break the line or its fields; its key is of the text as written.
     CHECK(SayLine({"a\tb\nc"}, false, 0, 100, "en") == "SAY\t0\t0\t100\ten\t" + ClipKey("en", 0, "a\tb\nc") + "\ta b c\n");

@@ -171,8 +171,9 @@ void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFall
 void SetMenuGlyphs(int type,const input::MenuButtons& buttons,gamepads::PromptBrand brand){
     SetMenuGlyphs(type,buttons.confirm,buttons.back,buttons.confirmGlyph,buttons.backGlyph,brand);
 }
-namespace { netplay::SpeechPreferences menuSpeech; }
+namespace { netplay::SpeechPreferences menuSpeech; int menuDescribes=0; }
 void SetMenuSpeech(const netplay::SpeechPreferences& speech){ menuSpeech=speech; }
+int TakeMenuDescribes(){ return std::exchange(menuDescribes,0); }
 std::string AccessibilityKeyName(){ return KeyboardPrompts()?std::string("F2"):SpokenButton("RT"); }
 gamepads::PromptBrand MenuPromptBrand(){ return promptBrand; }
 const gamepads::FightNames* MenuPromptNames(){ return &promptNames; }
@@ -719,7 +720,8 @@ void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,c
     if(!menuSpeech.enabled)return;
     if(said.stop||ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
     if(said.chime&&menuSpeech.chime)speech::Chime(menuSpeech.chimeVolume);
-    if(!said.parts.empty())speech::Say(said.parts,said.interrupt,menuSpeech.rate,menuSpeech.volume);
+    if(!said.parts.empty())speech::Say(said.parts,said.interrupt,menuSpeech.rate,menuSpeech.volume,said.tick);
+    if(describe&&!said.parts.empty())++menuDescribes;
     speech::Render(said.render,menuSpeech.rate);
 }
 } }

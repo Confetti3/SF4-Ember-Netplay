@@ -311,7 +311,7 @@ static void SpeechRoundTrips(const Path& root) {
     const auto folder=root/L"speech";
     CHECK(std::filesystem::create_directory(folder));
     SettingsStore store(folder.wstring()); std::string error;
-    netplay::PlayerPreferences prefs; prefs.speech={true,-4,60,false,true,true,false,30}; CHECK(prefs.Valid());
+    netplay::PlayerPreferences prefs; prefs.speech={true,-4,60,false,true,true,false,30,true,false,2,netplay::SpeechPreferences::Never}; CHECK(prefs.Valid());
     Json saved; netplay::WriteSpeechPreferences(prefs,saved);
     CHECK(store.SaveLauncher(saved,error));
     CHECK(Json::parse(Read(folder/L"settings.json"))["netplay"]["speech"]["rate"]==-4);
@@ -320,7 +320,7 @@ static void SpeechRoundTrips(const Path& root) {
     CHECK(netplay::ReadSpeechPreferences(Json::object())==netplay::SpeechPreferences());
     CHECK(!netplay::SpeechPreferences().enabled);
     const auto odd=netplay::ReadSpeechPreferences({{"speech",{{"enabled",1},{"rate",11},{"volume",55},{"details",false}}}});
-    CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&!odd.hints&&!odd.position&&odd.chime&&odd.chimeVolume==60);
+    CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&!odd.hints&&!odd.position&&odd.chime&&odd.chimeVolume==60&&!odd.introHeard&&odd.tick&&odd.describeUsed==0&&odd.Reminds());
     netplay::PlayerPreferences invalid; invalid.speech.volume=0; CHECK(!invalid.Valid());
 }
 

@@ -4762,6 +4762,27 @@ msgstr "Czytaj pozycję"
 msgid "speech.read_position_detail"
 msgstr "Po nazwie i wartości wiersza podaje jego miejsce na liście, na przykład 3 z 12."
 
+msgid "speech.more"
+msgstr "{0}, aby dowiedzieć się więcej"
+
+msgid "speech.help"
+msgstr "{0}, aby uzyskać pomoc dla każdej pozycji"
+
+msgid "speech.remind"
+msgstr "Przypominaj o przycisku opisu"
+
+msgid "speech.remind_detail"
+msgstr "Po nazwie wiersza z opisem mówi, który przycisk go czyta. Automatycznie przestaje po trzykrotnym użyciu przycisku."
+
+msgid "speech.remind_auto"
+msgstr "Do 3 użyć"
+
+msgid "speech.tick"
+msgstr "Dźwięk opisu"
+
+msgid "speech.tick_detail"
+msgstr "Gdy przypomnienie ustanie, cichy dźwięk po nazwie wiersza oznacza, że ma on opis."
+
 msgid "speech.notice"
 msgstr "Powiadomienie. Naciśnij {0}, aby je usłyszeć."
 

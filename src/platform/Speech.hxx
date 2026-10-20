@@ -19,7 +19,8 @@ inline std::string Line(const std::vector<std::string>& parts) {
 }
 // interrupt drops whatever Ember is still saying first. rate is -10 to 10,
 // volume 0 to 100. The voice speaks the interface's language where it can.
-void Say(const std::vector<std::string>& parts, bool interrupt, int rate, int volume);
+// tick: a soft tick follows the words (a row with a description).
+void Say(const std::vector<std::string>& parts, bool interrupt, int rate, int volume, bool tick = false);
 // Parts a screen that just opened may soon say, for a voice that keeps what
 // it has said to make ahead; others let them go.
 void Render(const std::vector<std::string>& parts, int rate);

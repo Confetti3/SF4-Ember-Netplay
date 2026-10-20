@@ -4763,6 +4763,27 @@ msgstr "Читать позицию"
 msgid "speech.read_position_detail"
 msgstr "После названия и значения строки называет её место в списке, например 3 из 12."
 
+msgid "speech.more"
+msgstr "{0}, чтобы узнать больше"
+
+msgid "speech.help"
+msgstr "{0} для справки по любому пункту"
+
+msgid "speech.remind"
+msgstr "Напоминать о кнопке описания"
+
+msgid "speech.remind_detail"
+msgstr "После названия строки с описанием говорит, какая кнопка его читает. Автоматически перестаёт после трёх нажатий кнопки."
+
+msgid "speech.remind_auto"
+msgstr "До 3 нажатий"
+
+msgid "speech.tick"
+msgstr "Звук описания"
+
+msgid "speech.tick_detail"
+msgstr "Когда напоминание прекратится, тихий щелчок после названия строки сообщит, что у неё есть описание."
+
 msgid "speech.notice"
 msgstr "Уведомление. Нажмите {0}, чтобы прослушать его."
 

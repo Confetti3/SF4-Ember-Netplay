@@ -4401,6 +4401,27 @@ msgstr "Read position"
 msgid "speech.read_position_detail"
 msgstr "After a row's name and value, says its place in the list, such as 3 of 12."
 
+msgid "speech.more"
+msgstr "{0} for more"
+
+msgid "speech.help"
+msgstr "{0} for help on any item"
+
+msgid "speech.remind"
+msgstr "Remind me of the describe button"
+
+msgid "speech.remind_detail"
+msgstr "After the name of a row that has a description, says which button reads it. Automatic stops once you have used the button three times."
+
+msgid "speech.remind_auto"
+msgstr "Until used 3 times"
+
+msgid "speech.tick"
+msgstr "Description tick"
+
+msgid "speech.tick_detail"
+msgstr "Once the reminder has stopped, a soft tick after a row's name says it has a description."
+
 msgid "speech.notice"
 msgstr "Notice. Press {0} to hear it."
 

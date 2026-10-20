@@ -3,6 +3,7 @@
 # Ember starts it on the host once a session with the FIFO to read, and talks
 # to it in lines of tab-separated fields:
 #   SAY <interrupt 0|1> <rate -10..10> <volume 0..100> <language tag> (<key> <text>)...
+#       where the key "wav" plays the WAV file named by the text instead
 #   RENDER <rate> <language tag> (<key> <text>)...
 #   STOP
 # It speaks with a Piper voice for the language, downloaded once into
@@ -183,18 +184,21 @@ def speak():
     while True:
         heard, rate, volume, language, parts = said.get()
         path = voice(language)
+        sounds = [text for key, text in parts if key == "wav"]
+        parts = [(key, text) for key, text in parts if key != "wav"]
         if not path:
             text = ", ".join(text for _, text in parts)
             dispatcher.sendall(("SET SELF RATE %d\r\nSET SELF VOLUME %d\r\nSET SELF LANGUAGE %s\r\nSPEAK\r\n%s%s\r\n.\r\n" % (
                 rate * 10, volume * 2 - 100, language.split("-")[0], "." if text.startswith(".") else "", text)).encode())
             continue
+        parts += [("wav", sound) for sound in sounds]
         if not piper or piper.key != (path, rate):
             piper = Piper(path, rate, False)
         for key, text in parts:
-            clip = clip_path(path, key)
+            clip = text if key == "wav" else clip_path(path, key)
             if heard != generation:
                 break
-            if not os.path.exists(clip) and not piper.make(text, clip):
+            if key != "wav" and not os.path.exists(clip) and not piper.make(text, clip):
                 broken.add(language)
                 piper = None
                 said.put((heard, rate, volume, language, parts))

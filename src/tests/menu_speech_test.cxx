@@ -21,7 +21,9 @@ int main() {
     rows[0].adjustable = rows[1].adjustable = true;
     rows[1].enabled = false;
     netplay::SpeechPreferences speech;
-    CHECK(!speech.details && !speech.hints && !speech.position);
+    CHECK(!speech.details && !speech.hints && !speech.position && speech.Reminds() && speech.tick);
+    // The reminders have their own checks at the end.
+    speech.remind = netplay::SpeechPreferences::Never;
     MenuNarrator narrator;
     SpokenFrame frame{"Player", &rows[0], 0, 3};
     frame.hint = "A: Select";
@@ -93,6 +95,33 @@ int main() {
 
     // A new screen says its title before its row.
     frame.title = "Interface";
-    CHECK(narrator.Update(frame, 31, speech).Text() == "Interface, Lower input lag, On");
+    said = narrator.Update(frame, 31, speech);
+    CHECK(said.Text() == "Interface, Lower input lag, On");
+    // Past the reminders, a row with a description ticks; one without does not.
+    CHECK(said.tick);
+    frame.focus = &rows[2]; rows[2].detail.clear();
+    CHECK(!narrator.Update(frame, 32, speech).tick);
+
+    // Until the player knows the accessibility button, a row with a
+    // description names it, and a screen's first visit says it gives help.
+    rows[2].detail = "The version this PC runs.";
+    speech = {};
+    MenuNarrator learning;
+    frame.title = "Player"; frame.focus = &rows[0]; frame.index = 0;
+    CHECK(learning.Update(frame, 40, speech).Text() == "Player, RT for help on any item, Lower input lag, On, RT for more");
+    frame.focus = &rows[2];
+    said = learning.Update(frame, 41, speech);
+    CHECK(said.Text() == "Installed version, RT for more" && !said.tick);
+    frame.title = "Interface"; learning.Update(frame, 42, speech);
+    frame.title = "Player";
+    CHECK(learning.Update(frame, 43, speech).Text() == "Player, Installed version, RT for more");
+    // Three descriptions later it is a tick; Always keeps the words, and Never drops the help too.
+    speech.describeUsed = 3;
+    frame.focus = &rows[0];
+    said = learning.Update(frame, 44, speech);
+    CHECK(said.Text() == "Lower input lag, On" && said.tick);
+    speech.remind = netplay::SpeechPreferences::Always;
+    frame.focus = &rows[2];
+    CHECK(learning.Update(frame, 45, speech).Text() == "Installed version, RT for more");
     return 0;
 }

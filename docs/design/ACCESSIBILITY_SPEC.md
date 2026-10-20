@@ -73,6 +73,15 @@ One accessibility button, the same on every device: RT on a pad, the same RT inp
 
 Turning speech on (the Accessibility row now, the first-run prompt later) says once, aloud and on screen: "Speech is on. Move to hear each item. Press RT to hear what it does; press it again to stop. More options are in Settings, Accessibility.", with the button named as the player's device prints it (Cross pad: R2, stick: its own name for that button, keyboard: F2).
 
+## Discoverability
+
+Tokon, as documented, reads from the first launch, reads an item's description after its name and speaks contextual button hints. Ember chose on-demand descriptions (the accessibility button) to keep moves short, which leaves the button to be discovered; the first Deck test said so ("it never states the fact you have to use the button"). So Ember teaches it until it is learned:
+
+1. **Intro on first use.** Whenever speech is on and the player has not heard the intro (`speech.introHeard`), the first menu says it once: speech is on, move to hear items, the button (device name) reads what an item does and stops it, more in Settings, Accessibility. Turning Speech on in Settings says it too.
+2. **Teach until learned.** After a row's name, a row that has a description adds "RT for more" until the player has read three descriptions with the button (`speech.describeUsed`). The Accessibility page's "Remind me of the describe button" is Automatic (that rule), On (always) or Off.
+3. **Then a tick.** Past the reminder, a very short soft tick (one tone from the chime's generator) follows the name of a row that has a description (`speech.tick`, default on). Under Proton the relay plays it as a WAV after the spoken parts, so it lands right after the name; on Windows it plays once SAPI has finished the name.
+4. **Screen help once.** The first time a screen opens in a session, its title is followed by "RT for help on any item" (not with the reminder Off).
+
 ## Audio and speech settings
 
 Two sources: SF4's own channels, filtered per cue ID at the existing hook, and Ember's cue layer with its own buses.

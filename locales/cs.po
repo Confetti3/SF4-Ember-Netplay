@@ -4762,6 +4762,27 @@ msgstr "Číst pozici"
 msgid "speech.read_position_detail"
 msgstr "Po názvu a hodnotě řádku řekne jeho pozici v seznamu, například 3 z 12."
 
+msgid "speech.more"
+msgstr "{0} pro více"
+
+msgid "speech.help"
+msgstr "{0} pro nápovědu ke každé položce"
+
+msgid "speech.remind"
+msgstr "Připomínat tlačítko popisu"
+
+msgid "speech.remind_detail"
+msgstr "Po názvu řádku, který má popis, řekne, které tlačítko ho přečte. Automaticky přestane, jakmile tlačítko použijete třikrát."
+
+msgid "speech.remind_auto"
+msgstr "Do 3 použití"
+
+msgid "speech.tick"
+msgstr "Zvuk popisu"
+
+msgid "speech.tick_detail"
+msgstr "Jakmile připomínka skončí, tiché cvaknutí po názvu řádku oznámí, že má popis."
+
 msgid "speech.notice"
 msgstr "Oznámení. Stiskněte {0} a uslyšíte ho."
 

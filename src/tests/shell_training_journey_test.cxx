@@ -38,7 +38,7 @@ void TrainingSettingsAndHome() {
  // Speech starts off, and its other rows wait for it. (Turning it on here
  // would speak through the PC's voice.)
  h.Screen("settings");h.Choose("accessibility");
- Check(rows.size()==9&&rows[0].id=="speech"&&rows[0].enabled&&rows[0].adjustable&&!rows[1].enabled&&!rows[5].enabled,"Accessibility rows wrong while speech is off");
+ Check(rows.size()==11&&rows[0].id=="speech"&&rows[0].enabled&&rows[0].adjustable&&!rows[1].enabled&&!rows[5].enabled,"Accessibility rows wrong while speech is off");
  // Country opens its picker on the saved choice; a country saves and goes back to Settings.
  h.Screen("settings");h.Choose("country");
  Check(h.shell.Navigation().Screen()=="country"&&h.shell.Navigation().Focus()=="country-auto","The country picker did not open on Automatic");

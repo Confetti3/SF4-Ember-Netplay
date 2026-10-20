@@ -4763,6 +4763,27 @@ msgstr "位置を読み上げ"
 msgid "speech.read_position_detail"
 msgstr "項目の名前と値の後に、一覧での位置を読み上げます（例：12件中3件目）。"
 
+msgid "speech.more"
+msgstr "{0}で詳細"
+
+msgid "speech.help"
+msgstr "{0}で各項目のヘルプ"
+
+msgid "speech.remind"
+msgstr "説明ボタンを案内"
+
+msgid "speech.remind_detail"
+msgstr "説明がある項目の名前の後に、それを読み上げるボタンを伝えます。自動では、ボタンを3回使うと案内しなくなります。"
+
+msgid "speech.remind_auto"
+msgstr "3回使うまで"
+
+msgid "speech.tick"
+msgstr "説明の合図音"
+
+msgid "speech.tick_detail"
+msgstr "案内が止まった後は、項目名の後の小さな音で説明があることを知らせます。"
+
 msgid "speech.notice"
 msgstr "お知らせです。{0}を押すと読み上げます。"
 
