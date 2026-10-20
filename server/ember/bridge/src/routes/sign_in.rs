@@ -219,7 +219,7 @@ async fn start(
         .authorize_url(&redirect_uri(&state, &site), &secret)
         .ok_or_else(ApiFailure::unavailable)?;
     let (rate, limits, starts) = (state.rate.clone(), oauth.limits, site.domain("starts"));
-    let stored = site.clone();
+    let (stored, logged) = (site.clone(), state.clone());
     let call = Call::from(site.target(Step::Connect)).limited(Rate {
         scope: site.domain("start").into(),
         calls: STARTS_PER_HOUR,
@@ -229,16 +229,19 @@ async fn start(
         // Once the proof holds, in the same write: the site's request
         // budget must have room for the exchange, and the start takes a
         // bridge-wide slot, given back unless the start commits, so requests
-        // with bad proofs cannot hold everyone's sign-in.
+        // with bad proofs cannot hold everyone's sign-in. A refusal is an
+        // error, so the write rolls back and the proof is not spent.
         let mut slot = None;
         if let Some(limits) = limits {
             if let Some(cap) = budget::full(tx, stored.id(), ctx.now, limits)? {
-                return Ok(Err((cap, cap.retry_after(ctx.now))));
+                budget::refused(&logged, stored.id(), cap);
+                return Err(ApiFailure::sign_in_busy(cap.retry_after(ctx.now)));
             }
             match rate.take(&starts, limits.starts_per_hour, 3600, ctx.now) {
                 Ok(taken) => slot = Some(taken),
                 Err(retry_after) => {
-                    return Ok(Err((budget::Cap::StartsPerHour, Some(retry_after))));
+                    budget::refused(&logged, stored.id(), budget::Cap::StartsPerHour);
+                    return Err(ApiFailure::sign_in_busy(Some(retry_after)));
                 }
             }
         }
@@ -246,18 +249,12 @@ async fn start(
         // Only the latest sign-in can connect an account.
         sign_ins::end(tx, &stored, ember_id.as_str())?;
         sign_ins::insert(tx, &stored, &hash, ember_id.as_str(), expires_at)?;
-        Ok(Ok(slot))
+        Ok(slot)
     };
-    let started = call
+    let slot = call
         .run(&state, &player, &body, Nothing::check, work)
         .await?;
-    match started {
-        Ok(slot) => slot.into_iter().for_each(Slot::keep),
-        Err((cap, retry_after)) => {
-            budget::refused(&state, site.id(), cap);
-            return Err(ApiFailure::sign_in_busy(retry_after));
-        }
-    }
+    slot.into_iter().for_each(Slot::keep);
     Ok(json(
         StatusCode::CREATED,
         &SignInStarted {

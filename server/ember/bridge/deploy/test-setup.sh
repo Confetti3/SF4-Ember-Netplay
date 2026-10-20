@@ -70,7 +70,11 @@ cat > "$T/stubs/systemctl" <<'EOF'
 #!/usr/bin/env bash
 echo "systemctl $*" >> "$STUB/log"
 case "$1" in
-    restart) touch "$STUB/up/$2" ;;
+    restart)
+        # One restart fails when a test asks for it.
+        [ -e "$STUB/fail-restart" ] && { rm -f "$STUB/fail-restart"; exit 1; }
+        touch "$STUB/up/$2"
+        ;;
     is-active)
         [ "$2" = --quiet ] && shift
         [ -e "$STUB/up/$2" ] || { echo inactive; exit 3; }
@@ -144,6 +148,11 @@ failed() { [ "$RC" -ne 0 ]; }
 succeeded() { [ "$RC" -eq 0 ]; }
 exited() { [ "$RC" -eq "$1" ]; }
 absent() { [ ! -e "$1" ]; }
+# Nothing a run stages or backs up is left behind: no .new file next to an
+# installed one, and no mktemp folder in TMPDIR besides the test root.
+no_leftovers() {
+    [ -z "$(find "$R" -name '*.new' -o -name '.bridge.json.*')" ] && [ "$(ls "$TMPDIR")" = root ]
+}
 account() { grep -qx -- "$1" "$STUB/users"; }
 # config_is <bridge.json> <key> <JSON value>
 config_is() { python3 -c 'import json, sys; sys.exit(json.load(open(sys.argv[1])).get(sys.argv[2]) != json.loads(sys.argv[3]))' "$@"; }
@@ -198,9 +207,11 @@ stage() {
 stage_binary() {
     cat > "$1/bin/ember-bridge" <<EOF
 #!/usr/bin/env bash
-# stand-in ember-bridge $2
-[ "\$1" = init ] || exit 1
-python3 - "\$2" <<'PY'
+# stand-in ember-bridge $2: init, and apply-tenants as far as setup.sh
+# relies on it, a plain update of bridge.json with the tenants file. The real
+# one, with the deployment's rules, is tested by tests/deploy.rs.
+case "\$1" in
+init) python3 - "\$2" <<'PY' ;;
 import json, sys, uuid
 json.dump({"bridge_id": f"brg_{uuid.uuid4()}", "display_name": "Local Ember bridge",
            "origin": "http://127.0.0.1:8787", "listen": "127.0.0.1:8787",
@@ -209,6 +220,16 @@ json.dump({"bridge_id": f"brg_{uuid.uuid4()}", "display_name": "Local Ember brid
            "tenants": []}, open(f"{sys.argv[1]}/bridge.json", "w"))
 open(f"{sys.argv[1]}/bridge-secrets.json", "w").write("{}")
 PY
+apply-tenants)
+    [ -e "$STUB/refuse-tenants" ] && { echo "ember-bridge: stand-in refused the tenants file" >&2; exit 1; }
+    python3 /dev/fd/3 "\$2" "\$3" 3<<'PY' ;;
+import json, sys
+config = json.load(open(sys.argv[1]))
+config.update(json.load(sys.stdin))
+json.dump(config, open(sys.argv[2], "w"), indent=2)
+PY
+*) exit 1 ;;
+esac
 EOF
     chmod +x "$1/bin/ember-bridge"
 }
@@ -306,7 +327,7 @@ check "instance.sh installed" same "$HERE/instance.sh" "$R/usr/local/lib/$P/inst
 check "backup.sh installed" same "$HERE/backup.sh" "$R/usr/local/lib/$P/backup.sh"
 check "restore.sh installed" same "$HERE/restore.sh" "$R/usr/local/lib/$P/restore.sh"
 check "state and backups owned by the account" logged "install -d -o $P -g $P -m 0700 $R/var/lib/$P $R/var/backups/$P"
-check "init runs as the account" logged "sudo -u $P $R/usr/local/lib/$P/ember-bridge"
+check "init runs as the account, with the staged binary" logged "sudo -u $P $R/usr/local/lib/$P/ember-bridge.new"
 check "service unit as before the templates" same "$GOLDEN/ember-bridge.service" "$PUNITS.service"
 check "backup service as before" same "$GOLDEN/ember-bridge-backup.service" "$PUNITS-backup.service"
 check "backup timer as before" same "$GOLDEN/ember-bridge-backup.timer" "$PUNITS-backup.timer"
@@ -319,12 +340,12 @@ check "the shared zone file defines none of them" bash -c '! grep -q blumint "$1
 check "origin" config_is "$PSTATE" origin '"https://bridge.embernetplay.link"'
 check "listen" config_is "$PSTATE" listen '"127.0.0.1:47820"'
 check "display name" config_is "$PSTATE" display_name '"Ember bridge"'
-check "development switches off" config_is "$PSTATE" mock_browser false
 check "units enabled" logged "systemctl enable $P $P-backup.timer"
 check "service restarted" logged "systemctl restart $P"
 PID=$(bridge_id "$PSTATE")
 check "answers on 47820" mentions "service: ok ($PID)"
 check "answers through nginx" mentions "public: ok ($PID)"
+check "no staged file or backup folder left" no_leftovers
 snapshot "$P" "$PSITE" production
 
 echo "2. staging first install beside it, from its folder alone"
@@ -334,7 +355,7 @@ check "account ember-bridge-staging created" account "$S"
 check "own binary" same "$SDIR/bin/ember-bridge" "$R/usr/local/lib/$S/ember-bridge"
 check "own backup.sh" same "$HERE/backup.sh" "$R/usr/local/lib/$S/backup.sh"
 check "state and backups owned by its account" logged "install -d -o $S -g $S -m 0700 $R/var/lib/$S $R/var/backups/$S"
-check "init runs as its account" logged "sudo -u $S $R/usr/local/lib/$S/ember-bridge"
+check "init runs as its account, with the staged binary" logged "sudo -u $S $R/usr/local/lib/$S/ember-bridge.new"
 check "service runs its binary on its config" has_line "$SUNITS.service" "ExecStart=/usr/local/lib/$S/ember-bridge serve /var/lib/$S/bridge.json"
 check "service runs as its account" has_line "$SUNITS.service" "User=$S"
 check "service group" has_line "$SUNITS.service" "Group=$S"
@@ -361,7 +382,6 @@ check "staging connections" connections_are "$SSTATE" blumint-partner-staging ch
 check "the Challonge sign-in site is configured" python3 -c 'import json, sys; sites = json.load(open(sys.argv[1]))["sign_in_sites"]; sys.exit([s["id"] for s in sites] != ["challonge"] or sites[0]["client_id"] != sys.argv[2])' "$SSTATE" cab6fdeece228047e113681a3cabe8c62ecdef4ffed992f411d5f27589607ee7
 check "the connector connection looks players up on it and restarts disputes" python3 -c 'import json, sys; c = {c["id"]: c for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]}["challonge-staging"]; sys.exit(c["kind"] != "direct" or c["lookup_sites"] != ["challonge"] or c["disputes"] != "restart" or c["results_url"] != "https://brackets-staging.embernetplay.link/ember/results")' "$SSTATE"
 check "BluMint's connection is the one it was" python3 -c 'import json, sys; c = {c["id"]: c for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]}["blumint-partner-staging"]; sys.exit(c != {"id": "blumint-partner-staging", "kind": "blumint", "environment": "staging", "display_name": "BluMint partner API (staging)"})' "$SSTATE"
-check "development switches off" config_is "$SSTATE" allow_private_webhooks false
 SID=$(bridge_id "$SSTATE")
 check "its own bridge ID" test "$SID" != "$PID"
 check "units enabled" logged "systemctl enable $S $S-backup.timer"
@@ -369,6 +389,7 @@ check "answers on 47821" mentions "service: ok ($SID)"
 check "answers through nginx" mentions "public: ok ($SID)"
 check "production files unchanged" unchanged "$P" "$PSITE" production
 check "production units never touched" production_untouched_by_systemctl
+check "no staged file or backup folder left" no_leftovers
 snapshot "$S" "$SSITE" staging
 
 echo "3. a newer staging binary, INSTANCE given and agreeing"
@@ -447,17 +468,59 @@ run "$SDIR/setup.sh" "EMBER_BRIDGE_ROOT=$T/elsewhere"
 check "a root outside TMPDIR exits 2" exited 2
 check "nothing ran" nothing_logged
 
-echo "6. a staging site nginx rejects"
+echo "6. a staging site nginx rejects, with a newer binary, config and units staged"
 cp "$SDIR/nginx/bridge.conf.in" "$T/site-template"
+cp "$SDIR/ember-bridge.service.in" "$T/service-template"
+cp "$SDIR/tenants.staging.json" "$T/staging-tenants"
+cp -p "$SDIR/bin/ember-bridge" "$T/staging-binary"
 echo "# BADNGINX" >> "$SDIR/nginx/bridge.conf.in"
+echo "# newer unit" >> "$SDIR/ember-bridge.service.in"
+sed -i 's/Ember bridge (staging)/Ember bridge (staging, newer)/' "$SDIR/tenants.staging.json"
+stage_binary "$SDIR" v3
 run "$SDIR/setup.sh"
 check "fails" failed
 check "says it restored nginx" mentions "restored the previous files"
-check "staging site back byte for byte" same "$T/snap-staging/site" "$R/etc/nginx/sites-available/$SSITE"
+check "says the rest was not replaced" mentions "binary, bridge.json and units were not replaced"
+check "the staged binary differs" bash -c '! cmp -s "$1" "$2"' _ "$SDIR/bin/ember-bridge" "$T/staging-binary"
+check "staging binary, bridge.json, units, site and zone back as they were" unchanged "$S" "$SSITE" staging
 check "staging still enabled" links_to "$R/etc/nginx/sites-enabled/$SSITE" "$R/etc/nginx/sites-available/$SSITE"
-check "nothing restarted" bash -c '! grep -q "^systemctl restart" "$1"' _ "$STUB/log"
+check "no staged file or backup folder left" no_leftovers
+check "nothing reloaded or restarted" bash -c '! grep -q "^systemctl" "$1"' _ "$STUB/log"
 check "production files unchanged" unchanged "$P" "$PSITE" production
 cp "$T/site-template" "$SDIR/nginx/bridge.conf.in"
+cp "$T/service-template" "$SDIR/ember-bridge.service.in"
+
+echo "6b. a tenants file the new binary refuses changes nothing"
+# The stand-in refuses on a marker file; what the real binary refuses is
+# tested by tests/deploy.rs (a_tenants_file_the_bridge_would_not_load_is_refused).
+sed -i 's/Ember bridge (staging)/Ember bridge (staging, refused)/' "$SDIR/tenants.staging.json"
+touch "$STUB/refuse-tenants"
+run "$SDIR/setup.sh"
+rm -f "$STUB/refuse-tenants"
+check "fails" failed
+check "names the refusal" mentions "stand-in refused the tenants file"
+check "staging binary, bridge.json, units, site and zone as they were" unchanged "$S" "$SSITE" staging
+check "no staged file or backup folder left" no_leftovers
+check "nothing reloaded or restarted" bash -c '! grep -q "^systemctl" "$1"' _ "$STUB/log"
+cp "$T/staging-tenants" "$SDIR/tenants.staging.json"
+cp -p "$T/staging-binary" "$SDIR/bin/ember-bridge"
+
+echo "6c. a bridge that fails to restart gets the previous files back"
+echo "# newer unit" >> "$SDIR/ember-bridge.service.in"
+sed -i 's/Ember bridge (staging)/Ember bridge (staging, restart fails)/' "$SDIR/tenants.staging.json"
+stage_binary "$SDIR" v4
+touch "$STUB/fail-restart"
+run "$SDIR/setup.sh"
+check "fails" failed
+check "says the previous files are back and the bridge restarted" mentions "put back the previous binary, bridge.json, units, site and zone, and restarted it"
+check "the staged binary differs" bash -c '! cmp -s "$1" "$2"' _ "$SDIR/bin/ember-bridge" "$T/staging-binary"
+check "staging binary, bridge.json, units, site and zone back as they were" unchanged "$S" "$SSITE" staging
+check "no staged file or backup folder left" no_leftovers
+check "the previous bridge was restarted" test "$(grep -cx "systemctl restart $S" "$STUB/log")" = 2
+check "production units never touched" production_untouched_by_systemctl
+cp "$T/service-template" "$SDIR/ember-bridge.service.in"
+cp "$T/staging-tenants" "$SDIR/tenants.staging.json"
+cp -p "$T/staging-binary" "$SDIR/bin/ember-bridge"
 
 echo "7. staging never replaces production's request limits"
 cp "$SDIR/nginx/ember-bridge-zone.conf" "$T/zone"

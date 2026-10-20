@@ -31,7 +31,7 @@ pub use config::Config;
 pub use db::Db;
 pub use routes::blumint::liveness::LEASE_SECS as PRESENCE_LEASE_SECS;
 pub use secrets::Keys;
-pub use util::Clock;
+pub use util::{Clock, create_private};
 
 /// Shared state of one running bridge.
 #[derive(Clone)]

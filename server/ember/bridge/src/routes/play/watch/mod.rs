@@ -34,7 +34,7 @@ use self::{
     rewatch::{fighter_claims, live_after, on_fighters_build},
 };
 use super::{
-    finished, played, playing, rebind,
+    finished, playing, rebind,
     room::{claims, invitation, room},
     roster_of, with_rules,
 };
@@ -86,7 +86,6 @@ fn watch(
     // A stranger is told what the watch policy says before anything about the
     // match's rules.
     let (found, roster) = roster_of(tx, match_id)?;
-    finished(&found)?;
     if roster.iter().any(|p| p.ember_id == *ember_id) {
         return Err(
             ApiFailure::new(ErrorCode::Forbidden, "You play in this match.")
@@ -110,6 +109,8 @@ fn watch(
         }
         Admission::Staff | Admission::LinkHolder => {}
     }
+    // Only someone admitted learns how a finished match ended.
+    finished(&found)?;
     let mut game = with_rules(tx, found, roster)?;
     let claimed = claims(tx, match_id)?;
     if !on_fighters_build(&fighter_claims(&game, &claimed), &command.build_id) {
@@ -168,11 +169,20 @@ pub async fn leave_route(
         &body,
         Nothing::check,
         move |tx, ctx, ember_id, _: Nothing| {
-            let mut game = played(tx, &id)?;
-            tx.execute(
+            let left = tx.execute(
                 "DELETE FROM match_watchers WHERE match_id = ?1 AND ember_id = ?2",
                 params![id, ember_id.as_str()],
             )?;
+            // Only a watcher's leaving changes the binding, and a finished
+            // match's is no longer kept.
+            if left == 0 {
+                return Ok(());
+            }
+            let (found, roster) = roster_of(tx, &id)?;
+            if found.state.is_terminal() {
+                return Ok(());
+            }
+            let mut game = with_rules(tx, found, roster)?;
             rebind(tx, ctx, &mut game, &claims(tx, &id)?)?;
             Ok(())
         },

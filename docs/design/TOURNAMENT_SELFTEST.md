@@ -193,7 +193,10 @@ runner after two minutes more and the bridge side after five.
 - Ctrl+C reaches the bridge side with the runner's; it stops its bridge,
   tunnel and receiver and deletes its work folder, which holds the provider
   token and the result secret, before it exits. A killed one leaves that folder
-  in `%TEMP%\ember-tourney-*\bridge`: delete it.
+  in `%TEMP%\ember-tourney-*\bridge`: delete it. Run by hand, `--work` has to
+  be a missing or empty folder, or the tool refuses to start; it deletes only
+  what it created there (the folder itself if it made it, otherwise its
+  `bridge` and `connector` subfolders and the `stop` file).
 - A failed run keeps its logs, and says where, in `%TEMP%\ember-tourney-*`.
 - Settings are restored by each game's own script from `*.selftest` copies next
   to `settings.json` and `ui-preferences.json`; if one is left, the script
