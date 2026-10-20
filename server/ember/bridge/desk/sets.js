@@ -70,6 +70,7 @@ function setCard(set, ...actions) {
     el("span", { class: "small" }, [roundName(set), set.phase].filter(Boolean).join(" · ")),
     el("div", { class: "set-row" }, el("span", { class: "name" }, p1), el("b", {}, score.length ? String(score[0]) : "")),
     el("div", { class: "set-row" }, el("span", { class: "name" }, p2), el("b", {}, score.length ? String(score[1]) : "")),
+    set.draws ? el("span", { class: "small" }, set.draws === 1 ? "1 draw, replayed" : set.draws + " draws, replayed") : null,
     el("span", { class: "status " + tone }, state),
     actions.length ? el("div", { class: "wd-row" }, actions) : null);
 }

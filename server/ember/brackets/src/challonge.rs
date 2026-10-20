@@ -754,6 +754,27 @@ mod tests {
         ));
     }
 
+    /// A round robin or swiss set the organizer entered as a tie on
+    /// Challonge: decided, with nobody advancing. Ember never ends a set
+    /// drawn (a drawn game is replayed), so it is the organizer's and kept.
+    #[test]
+    fn a_tied_set_is_decided_with_no_winner() {
+        let tied = raw(json!({
+            "id": "7",
+            "attributes": {
+                "state": "complete",
+                "round": 1,
+                "winner_id": null,
+                "tie": true,
+                "points_by_participant": [
+                    { "participant_id": 1, "scores": [1] },
+                    { "participant_id": 2, "scores": [1] },
+                ],
+            },
+        }));
+        assert_eq!((tied.status, tied.winner), (Status::Decided, None));
+    }
+
     /// A match as Challonge's v2.1 API answered for a started single
     /// elimination tournament (read live, ids changed): the players are only
     /// in `points_by_participant`, and `underway_at` is in `timestamps`.

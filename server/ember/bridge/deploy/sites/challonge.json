@@ -60,7 +60,9 @@
             "game_name": "Ultra Street Fighter IV",
             "registration_options": {},
             "double_elimination_options": {},
-            "match_options": {}
+            "match_options": {},
+            "round_robin_options": {},
+            "swiss_options": {}
           }
         }
       },
@@ -71,15 +73,26 @@
           "values": ["single elimination", "double elimination", "round robin", "swiss"],
           "with": {
             "round robin": {
-              "/data/attributes/round_robin_options": { "iterations": 1, "ranking": "match wins" }
+              "/data/attributes/round_robin_options": {
+                "iterations": 1, "ranking": "custom", "pts_for_game_win": "0.0", "pts_for_game_tie": "0.0",
+                "pts_for_match_win": "1.0", "pts_for_match_tie": "0.5"
+              }
             },
             "swiss": {
               "/data/attributes/swiss_options": {
-                "rounds": 3, "pts_for_bye": 1, "pts_for_game_win": 0, "pts_for_game_tie": 0,
-                "pts_for_match_win": 1, "pts_for_match_tie": 0
+                "rounds": 3, "pts_for_bye": "1.0", "pts_for_game_win": "0.0", "pts_for_game_tie": "0.0",
+                "pts_for_match_win": "1.0", "pts_for_match_tie": "0.5"
               }
             }
           }
+        },
+        "round_robin_match_tie": {
+          "pointer": "/data/attributes/round_robin_options/pts_for_match_tie",
+          "values": ["0.0", "0.5", "1.0"]
+        },
+        "swiss_match_tie": {
+          "pointer": "/data/attributes/swiss_options/pts_for_match_tie",
+          "values": ["0.0", "0.5", "1.0"]
         },
         "grand_final": {
           "pointer": "/data/attributes/double_elimination_options/grand_finals_modifier",

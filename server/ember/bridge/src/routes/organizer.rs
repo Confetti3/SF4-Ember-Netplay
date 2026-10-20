@@ -1338,6 +1338,15 @@ fn desk_sets(
                     }
                 }
                 set["score"] = json!(found.wins);
+                // Drawn games are replayed and never scored, so the score
+                // alone would hide them.
+                set["draws"] = json!(
+                    found
+                        .games
+                        .iter()
+                        .filter(|game| game["state"] == "accepted" && game["outcome"] == "draw")
+                        .count()
+                );
                 for (slot, name) in found.names.iter().enumerate() {
                     if let (Some(name), Some(player)) = (name, players.get_mut(slot)) {
                         *player = json!(name);

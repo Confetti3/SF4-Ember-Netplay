@@ -14,8 +14,12 @@ const STAGES = [["top_32", "Top 32"], ["top_24", "Top 24"], ["top_16", "Top 16"]
   ["grand_final", "Grand final"]];
 const stageName = (from) => (STAGES.find(([id]) => id === from) || [from, from])[1];
 // Words for a site's creation settings, by field and value.
-const FIELD_NAMES = { format: "Format", grand_final: "Grand final", third_place_match: "Third place match", open_signup: "The site's own sign-up page" };
-const VALUE_NAMES = { "": "Normal, with a reset", "single match": "One match", skip: "No grand final", 3: "Yes", true: "Yes", false: "No" };
+const FIELD_NAMES = { format: "Format", grand_final: "Grand final", third_place_match: "Third place match", open_signup: "The site's own sign-up page",
+  round_robin_match_tie: "Points for a drawn set", swiss_match_tie: "Points for a drawn set" };
+const VALUE_NAMES = { "": "Normal, with a reset", "single match": "One match", skip: "No grand final", 3: "Yes", true: "Yes", false: "No",
+  "0.0": "0 points", "0.5": "½ point", "1.0": "1 point" };
+// A setting that only goes with one format, by its name's start.
+const ONLY_WITH = { round_robin_: "round robin", swiss_: "swiss" };
 
 const desk = { session: null, accounts: [], events: [], event: null, step: 1, picks: {} };
 const $ = (id) => document.getElementById(id);
@@ -323,11 +327,24 @@ async function service() {
   } else if (site && site.create) {
     detail.append(el("span", { class: "small" }, "Settings for the new " + site.display_name + " tournament. Saving creates it there."));
     for (const [name, values] of Object.entries(site.create)) {
-      const select = el("select", { class: "wd-input", "data-field": name },
-        el("option", { value: "" }, "As " + site.display_name + " sets it"),
-        ...values.map((value) => el("option", { value: JSON.stringify(value) }, VALUE_NAMES[String(value)] || String(value).replace(/^./, (c) => c.toUpperCase()))));
-      detail.append(el("label", { class: "wd-field" }, FIELD_NAMES[name] || name.replace(/_/g, " "), select));
+      const only = Object.entries(ONLY_WITH).find(([start]) => name.startsWith(start));
+      // Draw points default to half a point, which Ember sends with the format.
+      const first = only ? el("option", { value: "" }, "½ point") : el("option", { value: "" }, "As " + site.display_name + " sets it");
+      const select = el("select", { class: "wd-input", "data-field": name }, first,
+        ...values.filter((value) => !only || value !== "0.5").map((value) => el("option", { value: JSON.stringify(value) }, VALUE_NAMES[String(value)] || String(value).replace(/^./, (c) => c.toUpperCase()))));
+      const label = el("label", { class: "wd-field", "data-only": only ? only[1] : "" }, FIELD_NAMES[name] || name.replace(/_/g, " "), select);
+      detail.append(label);
     }
+    // Draw points belong to round robin and swiss alone: shown with them.
+    const format = detail.querySelector('[data-field="format"]');
+    const showOnly = () => detail.querySelectorAll("[data-only]").forEach((label) => {
+      const wanted = label.dataset.only;
+      const shown = !wanted || (format && format.value === JSON.stringify(wanted));
+      label.hidden = !shown;
+      if (!shown) label.querySelector("select").value = "";
+    });
+    if (format) format.addEventListener("change", showOnly);
+    showOnly();
   } else if (site) {
     const picker = el("select", { class: "wd-input", id: "pick" }, el("option", { value: "" }, "Loading your events…"));
     detail.append(
@@ -534,9 +551,10 @@ function decide(set) {
     if (game.state !== "accepted") {
       return el("div", { class: "wd-card" }, el("span", { class: "name" }, label + ": waiting for a result"),
         el("div", { class: "wd-row" }, [p1, p2].map((name, slot) =>
-          el("button", { type: "button", class: "wd-btn", onclick: () => send({ kind: "game_result", winner_slot: slot, attempt_id: game.attempt_id }, name + " wins " + label.toLowerCase() + "?") }, name + " wins"))));
+          el("button", { type: "button", class: "wd-btn", onclick: () => send({ kind: "game_result", winner_slot: slot, attempt_id: game.attempt_id }, name + " wins " + label.toLowerCase() + "?") }, name + " wins")),
+          el("button", { type: "button", class: "wd-btn", onclick: () => send({ kind: "game_result", draw: true, attempt_id: game.attempt_id }, label + " is a draw? It is replayed and scores for nobody.") }, "Draw")));
     }
-    const winner = OUTCOMES[game.outcome] === 1 ? p2 : OUTCOMES[game.outcome] === 0 ? p1 : "Draw";
+    const winner = OUTCOMES[game.outcome] === 1 ? p2 : OUTCOMES[game.outcome] === 0 ? p1 : "Draw (replayed)";
     return el("div", { class: "wd-card" }, el("div", { class: "set-row" }, el("span", { class: "name" }, label), el("span", {}, winner)),
       el("button", { type: "button", class: "wd-btn danger", onclick: () => send({ kind: "void_game", attempt_id: game.attempt_id }, "Void " + label.toLowerCase() + "? It no longer counts.") }, "Void"));
   });

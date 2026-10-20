@@ -115,6 +115,19 @@ Actions on a set:
 
 ![Score correction](../design/tournament-desk/02-score-correction.webp)
 
+### Draws
+
+- **A drawn game** (double KO, or a time out with equal life) scores for
+  nobody. Ember plays it again, so a set can never end drawn: it always goes
+  on until someone reaches its first-to. The desk, the public page and the
+  Discord score post show the draws beside the score ("2 – 1, 1 draw").
+- **Deciding a game as a draw** at the desk (web or in Ember) has the same
+  effect: the game is replayed.
+- **A drawn set** exists only in round robin and swiss, and only if you
+  enter it on Challonge yourself. Ember keeps it as you entered it. When you
+  create a round robin or swiss tournament from Ember, choose what a drawn
+  set is worth: 0, ½ (the default) or 1 point.
+
 ### 8. Public page and phone viewer
 
 Turn on **Public page anyone can follow** in the event's settings. The page at `/t/<event>` shows the title, the date in each viewer's own time, the links, the live sets and the bracket, refreshing every 15 seconds. It shows players by name only. While sign-ups are open it has a **Sign up** button. Turn public off and the page is gone.

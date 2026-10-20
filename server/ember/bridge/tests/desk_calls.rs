@@ -244,6 +244,27 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
     assert_eq!(discord.posts().len(), 3);
     assert_eq!(sets().await["call"]["posted"], "delivered");
 
+    // A drawn game, decided at the desk, scores for nobody: the set's score
+    // stays, and the draw is counted beside it.
+    let adjudicate = |command: Json| {
+        let path = format!("{event_path}/matches/{match_id}/adjudications");
+        let (bridge, player1) = (&bridge, &player1);
+        async move { send(bridge, player1, &path, command).await }
+    };
+    let revision = sets().await["revision"].clone();
+    let (status, decided) = adjudicate(json!({ "kind": "game_result", "draw": true,
+        "reason": "both died", "expected_revision": revision }))
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{decided}");
+    let revision = sets().await["revision"].clone();
+    let (status, _) = adjudicate(json!({ "kind": "game_result", "winner_slot": 0,
+        "reason": "won", "expected_revision": revision }))
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let set = sets().await;
+    assert_eq!(set["score"], json!([1, 0]));
+    assert_eq!(set["draws"], 1);
+
     // Done: the score is posted once, with nobody pinged.
     assert_eq!(put(snapshot("reported")).await, StatusCode::OK);
     assert_eq!(put(snapshot("reported")).await, StatusCode::OK);
@@ -256,6 +277,10 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
             .as_str()
             .unwrap()
             .starts_with("**Losers Quarter-Final · Top 8**:"),
+        "{result}"
+    );
+    assert!(
+        result["content"].as_str().unwrap().ends_with("(1 draw)"),
         "{result}"
     );
     assert_eq!(result["allowed_mentions"], json!({ "parse": [] }));

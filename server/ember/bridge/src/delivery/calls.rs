@@ -118,8 +118,13 @@ pub fn result(tx: &Transaction<'_>, now: u64, called: &Called) -> Result<bool> {
     let set = called.set;
     let names = names(set);
     let score = &set["score"];
+    let draws = match set["draws"].as_u64().unwrap_or(0) {
+        0 => String::new(),
+        1 => " (1 draw)".to_owned(),
+        n => format!(" ({n} draws)"),
+    };
     let content = format!(
-        "**{}**: {} {} – {} {}",
+        "**{}**: {} {} – {} {}{draws}",
         heading(set, None),
         names[0],
         score[0].as_u64().unwrap_or(0),
