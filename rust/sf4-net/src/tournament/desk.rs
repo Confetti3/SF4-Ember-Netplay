@@ -89,7 +89,8 @@ pub async fn act(shared: &Arc<Shared>, bridge_id: &str, path: &str, command: Val
                     Some(body),
                 )
                 .await?;
-            answer(status, &response, &[200])?;
+            // A sign-up the bridge took is 201 Created; a set's action 200.
+            answer(status, &response, &[200, 201])?;
             Ok(None)
         }
     })
