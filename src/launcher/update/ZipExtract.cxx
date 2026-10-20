@@ -43,9 +43,13 @@ std::string Copy(std::ifstream& in, std::uint64_t at, const Entry& e, std::ofstr
         } else {
             stream.next_in = buffer.data(); stream.avail_in = static_cast<uInt>(take);
             int code = Z_OK;
-            while (stream.avail_in > 0 && code != Z_STREAM_END) {
+            // inflate can take the last input bytes while output is still
+            // pending, so a call that fills the whole buffer is followed by
+            // another even when no input is left.
+            while ((stream.avail_in > 0 || stream.avail_out == 0) && code != Z_STREAM_END) {
                 stream.next_out = inflated.data(); stream.avail_out = static_cast<uInt>(inflated.size());
                 code = inflate(&stream, Z_NO_FLUSH);
+                if (code == Z_BUF_ERROR) break; // nothing was pending: the next chunk is needed
                 if (code != Z_OK && code != Z_STREAM_END) { error = "inflate failed"; break; }
                 if (!put(inflated.data(), inflated.size() - stream.avail_out)) { error = "write failed"; break; }
             }
