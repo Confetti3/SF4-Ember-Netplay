@@ -25,7 +25,7 @@ void RetireLegacy(Json& document) {
     for (const char* key : {"host", "join", "mainMenu", "windows", "debug"}) overlay.erase(key);
 }
 // With the on/off preferences (BoolPreferences), the keys kept in the netplay section.
-const char* NetplayKeys[] = { "inputDelay", "buttonPrompts", "controllerMappings", "buttonLayouts", "autoInputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "matchHudSize", "matchHudAnchor", "matchHudLayout", "matchHudNameOffset", "readySoundVolume", "interfaceScale", "roomDefaults", "country" };
+const char* NetplayKeys[] = { "inputDelay", "buttonPrompts", "controllerMappings", "buttonLayouts", "autoInputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "matchHudSize", "matchHudAnchor", "matchHudLayout", "matchHudNameOffset", "readySoundVolume", "interfaceScale", "roomDefaults", "country", "speech" };
 
 void MergeLauncher(Json& document, const Json& launcher) {
     // Only durable preferences enter the new store. Originals/backups retain

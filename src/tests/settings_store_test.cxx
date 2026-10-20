@@ -10,6 +10,7 @@
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
+#include "../netplay/SpeechPreferenceJson.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -301,6 +302,26 @@ static void CountryRoundTrips(const Path& root) {
     for (const Json& bad : {Json("nz"),Json("XK"),Json(""),Json(64),Json(nullptr),Json::array({"NZ"})})
         CHECK(netplay::ReadCountryPreference({{"country",bad}})==CountryPreference::Automatic());
     netplay::PlayerPreferences invalid; invalid.country.kind=CountryPreference::Kind::Code; CHECK(!invalid.Valid());
+}
+
+// Speech is one object in the netplay section; an older profile has none, and
+// a field out of range or of another type loads as its default alone.
+static void SpeechRoundTrips(const Path& root) {
+    using namespace sf4e;
+    const auto folder=root/L"speech";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    netplay::PlayerPreferences prefs; prefs.speech={true,-4,60,false,true}; CHECK(prefs.Valid());
+    Json saved; netplay::WriteSpeechPreferences(prefs,saved);
+    CHECK(store.SaveLauncher(saved,error));
+    CHECK(Json::parse(Read(folder/L"settings.json"))["netplay"]["speech"]["rate"]==-4);
+    Json loaded; CHECK(store.LoadLauncher(loaded,error));
+    CHECK(netplay::ReadSpeechPreferences(loaded)==prefs.speech);
+    CHECK(netplay::ReadSpeechPreferences(Json::object())==netplay::SpeechPreferences());
+    CHECK(!netplay::SpeechPreferences().enabled);
+    const auto odd=netplay::ReadSpeechPreferences({{"speech",{{"enabled",1},{"rate",11},{"volume",55},{"details",false}}}});
+    CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&odd.hints);
+    netplay::PlayerPreferences invalid; invalid.speech.volume=0; CHECK(!invalid.Valid());
 }
 
 static void ControllerLayerRoundTrip(const Path& root) {
@@ -638,6 +659,7 @@ int main() {
     BoolPreferenceRoundTrips(root);
     ButtonPromptRoundTrips(root);
     CountryRoundTrips(root);
+    SpeechRoundTrips(root);
     ControllerLayerRoundTrip(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";

@@ -24,6 +24,21 @@ struct LobbySettings {
     }
 };
 
+// Ember's own speech for its menus (platform/Speech.hxx), off until the
+// player turns it on. rate is the voice's, -10 to 10 around its normal pace;
+// volume is percent in steps of ten. details and hints: a row's detail and its
+// button hint are read after the row's name, once the player stays on it.
+struct SpeechPreferences {
+    bool enabled = false;
+    int rate = 0;
+    int volume = 100;
+    bool details = true, hints = true;
+    bool operator==(const SpeechPreferences& other) const {
+        return enabled == other.enabled && rate == other.rate && volume == other.volume && details == other.details && hints == other.hints;
+    }
+    bool Valid() const { return rate >= -10 && rate <= 10 && volume >= 10 && volume <= 100 && volume % 10 == 0; }
+};
+
 // How far the name plates move either way, in 720p game units.
 constexpr int MaxMatchHudNameOffset = 60;
 // The match HUD positions run from 0 (bottom center) to this one (top center).
@@ -100,6 +115,7 @@ struct PlayerPreferences {
     // on in Settings, Problem reports, or chooses Always send after a crash.
     bool sendProblemReports = false;
     float interfaceScale = 1.f;
+    SpeechPreferences speech;
     LobbySettings lobby;
     std::string roomName = "Private room";
     int roomCapacity = 16;
@@ -118,7 +134,7 @@ struct PlayerPreferences {
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        return country.Valid() && tableRules.Valid() && publicTableRules.Valid();
+        return country.Valid() && speech.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
 

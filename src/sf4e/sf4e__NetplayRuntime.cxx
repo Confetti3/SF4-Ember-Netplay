@@ -275,6 +275,7 @@ void StartHelper() {
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
             runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
             runtime->preferences.country = netplay::ReadCountryPreference(saved);
+            runtime->preferences.speech = netplay::ReadSpeechPreferences(saved);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
