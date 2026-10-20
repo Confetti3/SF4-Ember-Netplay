@@ -8,6 +8,7 @@
 
 #include <windows.h>
 #include <d3d9.h>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -28,6 +29,33 @@ int FighterId(const char* code) {
 void Write(const fs::path& path, const std::string& bytes) {
     fs::create_directories(path.parent_path());
     std::ofstream(path, std::ios::binary) << bytes;
+}
+void Put32(std::string& bytes, std::size_t at, std::uint32_t value) { std::memcpy(&bytes[at], &value, 4); }
+// A Ranking.emz like the game's: one EMB entry `name` holding a plain 32-bit
+// BGRA DDS of `side` pixels, which Windows' DDS codec cannot read. The EMZ
+// holds it in one stored deflate block.
+std::string RankingArchive(const std::string& name, std::uint32_t side) {
+    std::string dds(128 + side * side * 4, '\x7f');
+    std::memcpy(&dds[0], "DDS ", 4);
+    Put32(dds, 4, 124); Put32(dds, 8, 0x81007); Put32(dds, 12, side); Put32(dds, 16, side); Put32(dds, 20, side * side * 4);
+    std::memset(&dds[24], 0, 104);
+    Put32(dds, 76, 32); Put32(dds, 80, 0x41); Put32(dds, 88, 32);
+    Put32(dds, 92, 0xff0000); Put32(dds, 96, 0xff00); Put32(dds, 100, 0xff); Put32(dds, 104, 0xff000000); Put32(dds, 108, 0x1000);
+    std::string emb(64, '\0');
+    std::memcpy(&emb[0], "#EMB", 4);
+    Put32(emb, 12, 1); Put32(emb, 24, 32); Put32(emb, 28, 40);
+    Put32(emb, 32, 64 - 32); Put32(emb, 36, static_cast<std::uint32_t>(dds.size()));
+    Put32(emb, 40, 44); std::memcpy(&emb[44], name.c_str(), name.size() + 1);
+    emb += dds;
+    const auto length = static_cast<std::uint16_t>(emb.size());
+    std::string emz(16, '\0');
+    std::memcpy(&emz[0], "#EMZ", 4);
+    Put32(emz, 8, static_cast<std::uint32_t>(emb.size())); Put32(emz, 12, 16);
+    emz += '\x01';
+    emz.append(reinterpret_cast<const char*>(&length), 2);
+    const std::uint16_t inverse = static_cast<std::uint16_t>(~length);
+    emz.append(reinterpret_cast<const char*>(&inverse), 2);
+    return emz + emb;
 }
 // Pumps until `request` has settled or `frames` have passed.
 template <class Request> SelectionImage Settle(SelectionArt& art, Request request, int frames) {
@@ -125,6 +153,13 @@ int main() {
         CHECK(logged.size() == 4 && logged[3].find("stages/random") != std::string::npos &&
             logged[3].find("no game or package file") != std::string::npos);
         CHECK(art.Stage(sf4e::selection::RandomStageId).missing && logged.size() == 4);
+
+        // The game's class emblems are plain 32-bit DDS images inside
+        // Ranking.emz; they load at their own size without a log line.
+        Write(game / L"resource" / L"ui" / L"network_mode" / L"Ranking.emz", RankingArchive("class_B.dds", 32));
+        const auto emblem = Settle(art, [&] { return art.RankingEmblem("class_B.dds"); }, 2000);
+        CHECK(emblem.texture && !emblem.missing && emblem.width == 32 && emblem.height == 32);
+        CHECK(logged.size() == 4);
     }
     device->Release(); d3d->Release(); DestroyWindow(window);
     RemoveTempRoot(root);
