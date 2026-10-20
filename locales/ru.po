@@ -433,6 +433,9 @@ msgstr "Настроить"
 msgid "speech.position"
 msgstr "{0} из {1}"
 
+msgid "speech.items"
+msgstr "Пунктов: {0}"
+
 msgid "speech.change"
 msgstr "Влево или вправо, чтобы изменить"
 
@@ -4753,6 +4756,12 @@ msgstr "Читать подсказки кнопок"
 
 msgid "speech.hints_detail"
 msgstr "Читает, что делают ваши кнопки в строке, на которой вы задержались."
+
+msgid "speech.read_position"
+msgstr "Читать позицию"
+
+msgid "speech.read_position_detail"
+msgstr "После названия и значения строки называет её место в списке, например 3 из 12."
 
 msgid "speech.no_windows_voice"
 msgstr "Озвучивание включено, но в Windows нет голоса для речи. Добавьте его в параметрах Windows в разделе Время и язык, Речь."

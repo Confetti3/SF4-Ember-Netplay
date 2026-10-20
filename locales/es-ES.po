@@ -433,6 +433,9 @@ msgstr "Ajustar"
 msgid "speech.position"
 msgstr "{0} de {1}"
 
+msgid "speech.items"
+msgstr "{0} elementos"
+
 msgid "speech.change"
 msgstr "Izquierda o derecha para cambiar"
 
@@ -4753,6 +4756,12 @@ msgstr "Leer ayudas de botones"
 
 msgid "speech.hints_detail"
 msgstr "Lee qué hace cada uno de tus botones en la fila en la que te quedas."
+
+msgid "speech.read_position"
+msgstr "Leer posición"
+
+msgid "speech.read_position_detail"
+msgstr "Después del nombre y el valor de una fila, dice su posición en la lista, como 3 de 12."
 
 msgid "speech.no_windows_voice"
 msgstr "La voz está activada, pero Windows no tiene ninguna voz para hablar. Añade una en Configuración de Windows, en Hora e idioma, Voz."

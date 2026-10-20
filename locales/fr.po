@@ -433,6 +433,9 @@ msgstr "Régler"
 msgid "speech.position"
 msgstr "{0} sur {1}"
 
+msgid "speech.items"
+msgstr "{0} éléments"
+
 msgid "speech.change"
 msgstr "Gauche ou droite pour modifier"
 
@@ -4752,6 +4755,12 @@ msgstr "Lire les aides des boutons"
 
 msgid "speech.hints_detail"
 msgstr "Lit ce que font vos boutons sur la ligne où vous restez."
+
+msgid "speech.read_position"
+msgstr "Lire la position"
+
+msgid "speech.read_position_detail"
+msgstr "Après le nom et la valeur d'une ligne, indique sa place dans la liste, par exemple 3 sur 12."
 
 msgid "speech.no_windows_voice"
 msgstr "La voix est activée, mais Windows n'a aucune voix pour parler. Ajoutez-en une dans les Paramètres Windows, Heure et langue, Voix."

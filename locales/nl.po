@@ -433,6 +433,9 @@ msgstr "Aanpassen"
 msgid "speech.position"
 msgstr "{0} van {1}"
 
+msgid "speech.items"
+msgstr "{0} items"
+
 msgid "speech.change"
 msgstr "Links of rechts om te wijzigen"
 
@@ -4752,6 +4755,12 @@ msgstr "Knophints voorlezen"
 
 msgid "speech.hints_detail"
 msgstr "Leest voor wat je knoppen doen op de rij waarop je blijft staan."
+
+msgid "speech.read_position"
+msgstr "Positie voorlezen"
+
+msgid "speech.read_position_detail"
+msgstr "Zegt na de naam en waarde van een rij de plaats in de lijst, zoals 3 van 12."
 
 msgid "speech.no_windows_voice"
 msgstr "Spraak staat aan, maar Windows heeft geen stem om mee te spreken. Voeg er een toe via Windows-instellingen, Tijd en taal, Spraak."

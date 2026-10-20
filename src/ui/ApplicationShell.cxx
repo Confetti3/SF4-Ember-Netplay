@@ -319,7 +319,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("speech-rate",loc::T("speech.rate"),std::to_string(speech.rate),loc::T("speech.rate_detail"),speaking),
    Value("speech-volume",loc::T("speech.volume"),std::to_string(speech.volume)+"%",loc::T("speech.volume_detail"),speaking),
    Value("speech-details",loc::T("speech.details"),speech.details?loc::T("common.on"):loc::T("common.off"),loc::T("speech.details_detail"),speaking),
-   Value("speech-hints",loc::T("speech.hints"),speech.hints?loc::T("common.on"):loc::T("common.off"),loc::T("speech.hints_detail"),speaking)};
+   Value("speech-hints",loc::T("speech.hints"),speech.hints?loc::T("common.on"):loc::T("common.off"),loc::T("speech.hints_detail"),speaking),
+   Value("speech-position",loc::T("speech.read_position"),speech.position?loc::T("common.on"):loc::T("common.off"),loc::T("speech.read_position_detail"),speaking)};
  }else if(screen=="discord"){
   title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
    Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
@@ -581,6 +582,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="speech-volume")preferences_.speech.volume=(std::max)(10,(std::min)(100,preferences_.speech.volume+10*a.delta));
   else if(a.id=="speech-details")preferences_.speech.details=a.delta>0;
   else if(a.id=="speech-hints")preferences_.speech.hints=a.delta>0;
+  else if(a.id=="speech-position")preferences_.speech.position=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="shortcut-hint")preferences_.showShortcutHint=a.delta>0;

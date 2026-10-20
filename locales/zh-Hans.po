@@ -433,6 +433,9 @@ msgstr "调整"
 msgid "speech.position"
 msgstr "第{0}项，共{1}项"
 
+msgid "speech.items"
+msgstr "{0}项"
+
 msgid "speech.change"
 msgstr "左右键更改"
 
@@ -4753,6 +4756,12 @@ msgstr "朗读按键提示"
 
 msgid "speech.hints_detail"
 msgstr "朗读你停留的项目上各按键的作用。"
+
+msgid "speech.read_position"
+msgstr "朗读位置"
+
+msgid "speech.read_position_detail"
+msgstr "在项目名称和值之后，朗读其在列表中的位置，例如第3项，共12项。"
 
 msgid "speech.no_windows_voice"
 msgstr "语音已开启，但Windows没有可用于朗读的语音。请在Windows设置的“时间和语言”>“语音”中添加。"

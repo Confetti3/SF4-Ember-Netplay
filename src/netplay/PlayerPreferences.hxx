@@ -28,13 +28,15 @@ struct LobbySettings {
 // player turns it on. rate is the voice's, -10 to 10 around its normal pace;
 // volume is percent in steps of ten. details and hints: a row's detail and its
 // button hint are read after the row's name, once the player stays on it.
+// position: each row is followed by its place in the list ("3 of 12").
 struct SpeechPreferences {
     bool enabled = false;
     int rate = 0;
     int volume = 100;
-    bool details = true, hints = true;
+    bool details = true, hints = false, position = false;
     bool operator==(const SpeechPreferences& other) const {
-        return enabled == other.enabled && rate == other.rate && volume == other.volume && details == other.details && hints == other.hints;
+        return enabled == other.enabled && rate == other.rate && volume == other.volume && details == other.details && hints == other.hints &&
+            position == other.position;
     }
     bool Valid() const { return rate >= -10 && rate <= 10 && volume >= 10 && volume <= 100 && volume % 10 == 0; }
 };

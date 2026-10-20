@@ -18,12 +18,14 @@ struct SpokenFrame {
 };
 struct Utterance { std::string text; bool interrupt = true; };
 // Turns what a menu shows into speech, one utterance at a time: the screen's
-// title when it changes, then the focused row's name, value and place in the
-// list. Moving on interrupts. A row the player stays on for DetailDelay
-// seconds has its detail and button hint read, if the player wants them.
+// title and how many rows it has when it changes, then the focused row's name
+// and value, as Tokon reads its menus; its place in the list only if the
+// player wants it. Moving on interrupts. A row the player stays on for
+// DetailDelay seconds after moving to it has its detail and button hint read
+// once, if the player wants them; the pause keeps them clear of the name.
 class MenuNarrator {
 public:
-    static constexpr double DetailDelay = .4;
+    static constexpr double DetailDelay = 1.5;
     Utterance Update(const SpokenFrame& frame, double now, const netplay::SpeechPreferences& speech) {
         const std::string id = frame.focus ? frame.focus->id : std::string();
         const std::string value = frame.focus ? frame.focus->value : std::string();
@@ -33,11 +35,12 @@ public:
             // A dialog that just opened says its question first.
             said.text = button_.empty() || frame.question != question_ ? Join(frame.question, frame.button, ". ") : frame.button;
         } else if (!dialog && (titled || id != id_ || !button_.empty())) {
-            said.text = Join(titled ? frame.title : std::string(), Row(frame), ". ");
+            const std::string screen = titled && frame.count ? Join(frame.title, loc::Tf("speech.items", frame.count), ", ") : titled ? frame.title : std::string();
+            said.text = Join(screen, Row(frame, speech.position), ". ");
         } else if (!dialog && value != value_) {
             said.text = value;
         }
-        if (!said.text.empty() || titled || id != id_) { since_ = now; rest_ = true; }
+        if (titled || id != id_ || frame.button != button_) { since_ = now; rest_ = true; }
         title_ = frame.title; id_ = id; value_ = value; question_ = frame.question; button_ = frame.button;
         if (said.text.empty() && rest_ && now - since_ >= DetailDelay) {
             rest_ = false;
@@ -52,12 +55,13 @@ private:
         if (a.empty() || b.empty()) return a + b;
         return a + (between[0] == '.' && a.back() == '.' ? " " : between) + b;
     }
-    // "Lower input lag, On, 3 of 12"; an empty screen says only its title.
-    static std::string Row(const SpokenFrame& frame) {
+    // "Lower input lag, On", with ", 3 of 12" when position is wanted; an
+    // empty screen says only its title.
+    static std::string Row(const SpokenFrame& frame, bool position) {
         if (!frame.focus) return {};
         std::string text = Join(frame.focus->label, frame.focus->value, ", ");
         if (!frame.focus->enabled) text = Join(text, loc::T("common.unavailable"), ", ");
-        return Join(text, loc::Tf("speech.position", frame.index + 1, frame.count), ", ");
+        return position ? Join(text, loc::Tf("speech.position", frame.index + 1, frame.count), ", ") : text;
     }
     std::string title_, id_, value_, question_, button_;
     double since_ = 0;

@@ -433,6 +433,9 @@ msgstr "Regola"
 msgid "speech.position"
 msgstr "{0} di {1}"
 
+msgid "speech.items"
+msgstr "{0} voci"
+
 msgid "speech.change"
 msgstr "Sinistra o destra per cambiare"
 
@@ -4752,6 +4755,12 @@ msgstr "Leggi i suggerimenti dei tasti"
 
 msgid "speech.hints_detail"
 msgstr "Legge cosa fanno i tuoi tasti sulla riga su cui resti."
+
+msgid "speech.read_position"
+msgstr "Leggi la posizione"
+
+msgid "speech.read_position_detail"
+msgstr "Dopo il nome e il valore di una riga, ne dice la posizione nell'elenco, ad esempio 3 di 12."
 
 msgid "speech.no_windows_voice"
 msgstr "La voce è attiva, ma Windows non ha alcuna voce con cui parlare. Aggiungine una nelle Impostazioni di Windows, in Data/ora e lingua, Voce."

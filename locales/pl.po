@@ -433,6 +433,9 @@ msgstr "Dostosuj"
 msgid "speech.position"
 msgstr "{0} z {1}"
 
+msgid "speech.items"
+msgstr "Pozycje: {0}"
+
 msgid "speech.change"
 msgstr "W lewo lub w prawo, aby zmienić"
 
@@ -4752,6 +4755,12 @@ msgstr "Czytaj podpowiedzi przycisków"
 
 msgid "speech.hints_detail"
 msgstr "Czyta, co robią twoje przyciski w wierszu, na którym zostajesz."
+
+msgid "speech.read_position"
+msgstr "Czytaj pozycję"
+
+msgid "speech.read_position_detail"
+msgstr "Po nazwie i wartości wiersza podaje jego miejsce na liście, na przykład 3 z 12."
 
 msgid "speech.no_windows_voice"
 msgstr "Głos jest włączony, ale system Windows nie ma żadnego głosu do mówienia. Dodaj go w Ustawieniach systemu Windows, w sekcji Czas i język, Mowa."

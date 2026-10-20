@@ -433,6 +433,9 @@ msgstr "Anpassen"
 msgid "speech.position"
 msgstr "{0} von {1}"
 
+msgid "speech.items"
+msgstr "{0} Einträge"
+
 msgid "speech.change"
 msgstr "Links oder rechts zum Ändern"
 
@@ -4752,6 +4755,12 @@ msgstr "Tastenhinweise vorlesen"
 
 msgid "speech.hints_detail"
 msgstr "Liest vor, was deine Tasten in der Zeile tun, auf der du bleibst."
+
+msgid "speech.read_position"
+msgstr "Position vorlesen"
+
+msgid "speech.read_position_detail"
+msgstr "Nennt nach Name und Wert einer Zeile ihre Position in der Liste, etwa 3 von 12."
 
 msgid "speech.no_windows_voice"
 msgstr "Die Sprachausgabe ist an, aber Windows hat keine Stimme zum Sprechen. Füge in den Windows-Einstellungen unter Zeit und Sprache, Spracherkennung eine hinzu."

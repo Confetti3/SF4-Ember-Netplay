@@ -320,7 +320,7 @@ static void SpeechRoundTrips(const Path& root) {
     CHECK(netplay::ReadSpeechPreferences(Json::object())==netplay::SpeechPreferences());
     CHECK(!netplay::SpeechPreferences().enabled);
     const auto odd=netplay::ReadSpeechPreferences({{"speech",{{"enabled",1},{"rate",11},{"volume",55},{"details",false}}}});
-    CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&odd.hints);
+    CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&!odd.hints&&!odd.position);
     netplay::PlayerPreferences invalid; invalid.speech.volume=0; CHECK(!invalid.Valid());
 }
 

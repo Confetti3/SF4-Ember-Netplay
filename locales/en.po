@@ -433,6 +433,9 @@ msgstr "Adjust"
 msgid "speech.position"
 msgstr "{0} of {1}"
 
+msgid "speech.items"
+msgstr "{0} items"
+
 msgid "speech.change"
 msgstr "Left or Right to change"
 
@@ -4391,6 +4394,12 @@ msgstr "Read button hints"
 
 msgid "speech.hints_detail"
 msgstr "Reads which of your buttons does what on the row you stay on."
+
+msgid "speech.read_position"
+msgstr "Read position"
+
+msgid "speech.read_position_detail"
+msgstr "After a row's name and value, says its place in the list, such as 3 of 12."
 
 msgid "speech.no_windows_voice"
 msgstr "Speech is on, but Windows has no voice to speak with. Add one in Windows Settings under Time and language, Speech."

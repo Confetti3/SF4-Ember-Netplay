@@ -433,6 +433,9 @@ msgstr "Upravit"
 msgid "speech.position"
 msgstr "{0} z {1}"
 
+msgid "speech.items"
+msgstr "Položek: {0}"
+
 msgid "speech.change"
 msgstr "Vlevo nebo vpravo pro změnu"
 
@@ -4752,6 +4755,12 @@ msgstr "Číst nápovědu tlačítek"
 
 msgid "speech.hints_detail"
 msgstr "Přečte, co na řádku, na kterém zůstanete, dělají vaše tlačítka."
+
+msgid "speech.read_position"
+msgstr "Číst pozici"
+
+msgid "speech.read_position_detail"
+msgstr "Po názvu a hodnotě řádku řekne jeho pozici v seznamu, například 3 z 12."
 
 msgid "speech.no_windows_voice"
 msgstr "Hlas je zapnutý, ale Windows nemají žádný hlas, kterým by mluvily. Přidejte ho v Nastavení Windows v části Čas a jazyk, Řeč."

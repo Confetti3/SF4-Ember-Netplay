@@ -433,6 +433,9 @@ msgstr "調整"
 msgid "speech.position"
 msgstr "{1}件中{0}件目"
 
+msgid "speech.items"
+msgstr "{0}項目"
+
 msgid "speech.change"
 msgstr "左右で変更"
 
@@ -4753,6 +4756,12 @@ msgstr "ボタンのヒントを読み上げ"
 
 msgid "speech.hints_detail"
 msgstr "留まっている項目で、どのボタンが何をするかを読み上げます。"
+
+msgid "speech.read_position"
+msgstr "位置を読み上げ"
+
+msgid "speech.read_position_detail"
+msgstr "項目の名前と値の後に、一覧での位置を読み上げます（例：12件中3件目）。"
 
 msgid "speech.no_windows_voice"
 msgstr "音声読み上げはオンですが、Windowsに読み上げ用の音声がありません。Windowsの設定の「時刻と言語」の「音声」で追加してください。"
