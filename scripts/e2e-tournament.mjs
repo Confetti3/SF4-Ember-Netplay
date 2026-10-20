@@ -55,9 +55,12 @@ const write = (side, name, line) => {
   scp(file, remote.dir + "\\" + name);
   rmSync(file);
 };
+// A game that closed early ends every wait with its own words.
+const closed = [];
 async function wait(side, name, minutes, what) {
   const end = Date.now() + minutes * 60000;
   for (;;) {
+    if (closed.length) throw new Error(closed.join("; "));
     const line = read(side, name);
     if (line) return line;
     if (Date.now() > end) throw new Error("timed out waiting for " + (what || name));
@@ -162,7 +165,11 @@ const webhookFile = join(homedir(), "tournament-lab/e2e/discord-webhook");
 const webhook = existsSync(webhookFile) ? readFileSync(webhookFile, "utf8").trim() : "";
 
 log("starting both games against", bridge, webhook ? "with Discord calls" : "without Discord");
-const games = [startLocal(), startRemote()];
+const games = [startLocal(), startRemote()].map((game, index) => game.then((result) => {
+  const fails = (result.text.match(/FAIL.*/g) || []).join("; ");
+  closed.push((index ? "the other PC's game" : "this PC's game") + " closed: " + (fails || "exit " + result.code));
+  return result;
+}));
 const page = await chrome(out);
 let event = null;
 
