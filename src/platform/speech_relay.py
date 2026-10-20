@@ -104,6 +104,7 @@ class Piper:
              "--length_scale", "%.3f" % (1 / (1 + rate * 0.05))],
             cwd=PIPER_DIR, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             preexec_fn=(lambda: os.nice(10)) if low else None)
+        children.append(self.process)
 
     def make(self, text, clip):
         """Writes the clip; False when Piper has died."""
@@ -146,6 +147,8 @@ dispatcher = connect_dispatcher()
 said, renders = queue.Queue(), queue.Queue()
 lock = threading.Lock()
 generation, player, broken, downloading = 0, None, set(), set()
+# Piper and paplay end with the relay; a speech-dispatcher it started does not.
+children = []
 
 
 def stop():
@@ -200,6 +203,7 @@ def speak():
                 if heard != generation:
                     break
                 player = subprocess.Popen(["paplay", "--volume=%d" % (volume * 65536 // 100), clip])
+                children[:] = [child for child in children if child.poll() is None] + [player]
             player.wait()
 
 
@@ -252,6 +256,8 @@ try:
         for line in lines:
             handle(line.decode("utf-8", "replace").rstrip("\r"))
 finally:
+    for child in children:
+        child.kill()
     for name in (READY, STATUS, FIFO):
         if os.path.exists(name):
             os.unlink(name)
