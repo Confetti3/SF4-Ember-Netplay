@@ -72,6 +72,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  // End practice is about the member's own table, wherever the board's focus is.
  if(a.id=="end-practice")selectedTable_=OptionsTable(v,selectedTable_);
  if(a.id=="stop-watching"){LeaveWatchedGame(v,submit);return;}
+ if(a.id=="picture-swap"){watchedPicture_=!watchedPicture_;return;}
  if(a.id=="leave-place"){
   const auto exit=ExitFromPlace(v);if(exit.table<0)return;
   selectedTable_=exit.table;

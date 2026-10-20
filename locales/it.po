@@ -790,12 +790,6 @@ msgstr "Salva le partite che guardi"
 msgid "replays.save_watched_detail"
 msgstr "Salva anche le partite che segui da spettatore. Disattivato salva solo quelle che giochi."
 
-msgid "settings.watched_picture"
-msgstr "Partita seguita in un angolo"
-
-msgid "settings.watched_picture_detail"
-msgstr "Con il menu di Ember aperto su una partita che guardi, la mostra piccola in alto a destra (sulla bacheca larga della stanza, in cima alla colonna di membri e chat) su un menu opaco invece che attenuata dietro."
-
 msgid "replays.link"
 msgstr "Riproduci il replay del link"
 
@@ -3047,6 +3041,15 @@ msgstr "Entra in coda"
 
 msgid "room.stop_watching"
 msgstr "Smetti di guardare"
+
+msgid "room.picture_behind"
+msgstr "Partita dietro il menu"
+
+msgid "room.picture_show"
+msgstr "Partita come immagine"
+
+msgid "room.picture_swap.detail"
+msgstr "Alterna la partita seguita tra una piccola immagine e la partita attenuata dietro il menu, per questa sessione."
 
 msgid "room.stop_watching.detail"
 msgstr "Smette di guardare questo tavolo e ti riporta alla sala. I giocatori continuano a giocare."

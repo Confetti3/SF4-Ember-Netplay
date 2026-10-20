@@ -790,12 +790,6 @@ msgstr "Zapisuj oglądane mecze"
 msgid "replays.save_watched_detail"
 msgstr "Zapisuje także mecze oglądane w roli widza. Wyłączone zapisuje tylko mecze, w których grasz."
 
-msgid "settings.watched_picture"
-msgstr "Oglądana gra w rogu"
-
-msgid "settings.watched_picture_detail"
-msgstr "Gdy menu Embera jest otwarte nad oglądaną grą, pokazuje ją małą w prawym górnym rogu (na szerokiej tablicy pokoju na górze kolumny uczestników i czatu) nad nieprzezroczystym menu zamiast przyciemnionej za nim."
-
 msgid "replays.link"
 msgstr "Odtwórz powtórkę z linku"
 
@@ -3047,6 +3041,15 @@ msgstr "Do kolejki"
 
 msgid "room.stop_watching"
 msgstr "Przestań oglądać"
+
+msgid "room.picture_behind"
+msgstr "Gra za menu"
+
+msgid "room.picture_show"
+msgstr "Gra jako obraz"
+
+msgid "room.picture_swap.detail"
+msgstr "Przełącza oglądaną grę między małym obrazem a przyciemnioną grą za menu, na tę sesję."
 
 msgid "room.stop_watching.detail"
 msgstr "Przestaje oglądać ten stół i wraca do pokoju. Gracze grają dalej."

@@ -902,6 +902,18 @@ int main(int argc, char** argv) {
             {const auto phase=view.room.tables[0].phase;const auto match=view.session.match;const auto generation=view.room.tables[0].matchGeneration;
              view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;
              view.room.tables[0].matchGeneration=9;view.watchedGame={0,9};page("room");draw("room-watched-match");
+             // The board offers the picture over a watched game, folded into More... on a short screen.
+             {std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});draw();SetMenuEntriesProbe({});
+              const auto swap=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="picture-swap";});
+              const bool folded=std::any_of(rows.begin(),rows.end(),[](const MenuEntry& e){
+               return e.id=="more"&&std::any_of(e.choices.begin(),e.choices.end(),[](const MenuChoice& c){return c.id=="picture-swap";});});
+              Require(swap!=rows.end()||folded,"The room board offers no picture toggle over a watched game");
+              if(swap!=rows.end()){
+               Require(swap->label==loc::T("room.picture_show"),"The picture toggle does not offer the picture at first");
+               shell.Navigation().Focus("picture-swap",rows);draw(nullptr,MenuInput::Select);draw();
+               Require(shell.WatchedPictureWanted(),"Select on the picture toggle does not ask for the picture");
+               draw(nullptr,MenuInput::Select);draw();Require(!shell.WatchedPictureWanted(),"Select again does not put the game back behind the menu");
+              }}
              const bool column=WindowDrawn("Room community");const float membersTop=column?FindWindow("Member list")->Pos.y:0;
              view.watchedPicture=ImGui::GetIO().Fonts->TexID;page("room");draw("room-watched-picture");
              // The wide board shows it at the top of its column, above the members; the narrow one leaves it in the corner.

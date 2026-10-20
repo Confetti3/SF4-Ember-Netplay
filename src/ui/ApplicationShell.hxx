@@ -150,8 +150,8 @@ struct ShellView {
     // watching leaves it. Empty when nothing is watched.
     netplay::WatchedGame watchedGame;
     // That game's picture, for the top of the wide room board's column or the
-    // menu's top right corner, over an opaque menu (PlayerPreferences::watchedPicture); null when it is not wanted or
-    // could not be taken.
+    // menu's top right corner, over an opaque menu (WatchedPictureWanted);
+    // null when it is not wanted or could not be taken.
     ImTextureID watchedPicture{};
     // Ember's menu shows the watched game through itself, dimmed, instead.
     bool SeeThrough() const { return watchedGame.Active() && !watchedPicture; }
@@ -265,6 +265,9 @@ public:
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
     // The last Draw drew the room board, whose ping the runtime asks for only while it is drawn.
     bool BoardDrawn() const { return boardDrawn_; }
+    // The watched game is shown as a picture, as the board's toggle last left
+    // it this session; at first it shows dimmed behind the menu.
+    bool WatchedPictureWanted() const { return watchedPicture_; }
     // The last Draw drew the fighter selector.
     bool SelectionDrawn() const { return selectionDrawn_; }
     bool NoticeError() const { return menu_.NoticeError(); }
@@ -470,6 +473,8 @@ private:
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;
     bool boardDrawn_ = false;
+    // The board's toggle between the picture and the game behind the menu.
+    bool watchedPicture_ = false;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};

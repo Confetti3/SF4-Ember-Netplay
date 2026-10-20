@@ -790,12 +790,6 @@ msgstr "保存观战的对战"
 msgid "replays.save_watched_detail"
 msgstr "也保存你以观众身份观看的对战。关闭时只保存你参加的对战。"
 
-msgid "settings.watched_picture"
-msgstr "观战的对局显示在角落"
-
-msgid "settings.watched_picture_detail"
-msgstr "在观战的对局上打开 Ember 菜单时，将对局缩小显示在不透明菜单的右上角（在宽版房间面板上则显示在成员和聊天栏的顶部），而不是变暗显示在菜单后面。"
-
 msgid "replays.link"
 msgstr "播放链接中的录像"
 
@@ -3047,6 +3041,15 @@ msgstr "加入队列"
 
 msgid "room.stop_watching"
 msgstr "停止观战"
+
+msgid "room.picture_behind"
+msgstr "对局显示在菜单后面"
+
+msgid "room.picture_show"
+msgstr "对局以小画面显示"
+
+msgid "room.picture_swap.detail"
+msgstr "在本次会话中，将观战的对局在小画面和菜单后面的变暗画面之间切换。"
 
 msgid "room.stop_watching.detail"
 msgstr "停止观战此对战席并返回房间。双方继续对战。"
