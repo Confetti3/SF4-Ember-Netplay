@@ -138,7 +138,11 @@ New Webhook**, name it (for example *Ember calls*), pick the channel and
 
 - Each set's match is called when Ember creates it, and again with **Call
   again**: round, first to N, both players and the match link.
-- Players whose Discord is linked to their Ember ID are pinged.
+- Players whose Discord is linked to their Ember ID are pinged, and each
+  also gets the match link in a private message from the Ember bot. Discord
+  only lets the bot message someone who shares a server with it, such as the
+  Ember Discord. The set card says who got it: *sent*, *no Discord linked*,
+  or *Discord refused it*.
 - With **Post each set's score** on, the result is posted when the set ends.
 - The webhook is stored encrypted and shown only masked.
 
@@ -222,7 +226,8 @@ way.
 
 1. **Link your account.** In Ember, **Online play › Ember ID › Linked
    accounts**: connect the site the tournament uses (Challonge or start.gg),
-   and Discord if you want to be pinged. This is how the bracket finds you.
+   and Discord to be pinged and get your match link privately (be in the
+   Ember Discord for that). This is how the bracket finds you.
 2. **Sign up** on the tournament's public page, or in Ember, with that
    account. Without sign-ups through Ember, sign up on the bracket site with
    the same account.
@@ -275,6 +280,7 @@ make the event there and pick it in Step 3.
 | **The sign-in service is busy** | Ember spreads its Challonge requests over the day and the month to stay within Challonge's limit. Try again later; running many events in a month can reach it. |
 | The sets don't appear after **Start the bracket** | Ember reads the bracket every few minutes. Wait, then check the tournament started on Challonge. |
 | A player is never called | Ember finds players by the account they linked in Ember. Ask them to do For players, step 1. |
+| A player didn't get the private message | The set card says why. *No Discord linked*: the player links Discord in Ember. *Discord refused it*: the player joins a server the Ember bot is in, such as the Ember Discord, and allows messages from server members. **Call again** sends it again. |
 | No calls in Discord | Check the webhook still exists in Discord. A card says **Discord refused it** when Discord rejects a post; paste a new webhook. |
 | **Challonge refused to delete the event** | Ember resets a started bracket before deleting it. If Challonge still refuses, delete it on Challonge. |
 | **Organizer access** asks again | Sign-ins made before Challonge's write permissions were added must be done again. |
