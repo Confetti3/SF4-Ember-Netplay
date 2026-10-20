@@ -20,6 +20,7 @@ const EVENTS: &str = "/v1/organizer/events";
 const WEB: &str = "/v1/web-sessions";
 const HANDOFF: &str = "/v1/web-sessions/handoff";
 const APPROVE: &str = "/v1/web-sessions/approve";
+const DEVICE: &str = "/v1/web-sessions/device";
 
 /// The most sets an answer carries, and the longest text kept from one: an
 /// answer goes to the game in one 64 KiB message.
@@ -188,12 +189,76 @@ pub async fn handoff(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
     .await
 }
 
-/// Approves `code`, shown by another device's browser at the desk, proven
-/// with `site.connect`: that browser, and only it, signs in to the desk.
-pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
-    let code: String = code.chars().filter(char::is_ascii_alphanumeric).collect();
-    if code.len() != 8 {
+/// Another device's code as typed: its six digits, or nothing.
+fn code_of(code: &str) -> Option<String> {
+    let digits: String = code.chars().filter(char::is_ascii_digit).collect();
+    (digits.len() == 6
+        && code
+            .chars()
+            .all(|c| c.is_ascii_digit() || c == ' ' || c == '-'))
+    .then_some(digits)
+}
+
+/// What asked for `code`, another device's code at the desk, and when, with
+/// the three numbers the organizer picks from: that device shows one of them
+/// now.
+pub async fn code_info(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
+    let Some(code) = code_of(code) else {
         return Err(Failure::new("desk_code_refused"));
+    };
+    let code = &code;
+    with_session(shared, bridge_id, |bridge, token| async move {
+        let (status, body) = shared
+            .client
+            .call(
+                reqwest::Method::GET,
+                &format!("{}{DEVICE}?code={code}", bridge.origin),
+                Some(&token),
+                None,
+            )
+            .await?;
+        if status == 404 {
+            return Err(Failure::new("desk_code_refused"));
+        }
+        let found = answer(status, &body, &[200])?;
+        info(&found).map(Some)
+    })
+    .await
+}
+
+/// What the game shows of a device's code: its name kept short, when it
+/// asked, and exactly three numbers from 10 to 99.
+fn info(found: &Value) -> Result<Value, Failure> {
+    let choices: Vec<u64> = found["choices"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_u64)
+        .filter(|n| (10..100).contains(n))
+        .collect();
+    let Some(requested_at) = found["requested_at"].as_u64() else {
+        return Err(Failure::new("bridge_invalid_response"));
+    };
+    if choices.len() != 3 {
+        return Err(Failure::new("bridge_invalid_response"));
+    }
+    Ok(json!({
+        "device": text(&found["device"]),
+        "requested_at": requested_at,
+        "choices": choices,
+    }))
+}
+
+/// Approves `code`, shown by another device's browser at the desk, with
+/// `number`, the one that device shows now (`code_info`), proven with
+/// `site.connect`: that browser, and only it, signs in to the desk. A wrong
+/// number ends the code.
+pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str, number: u8) -> Outcome {
+    let Some(code) = code_of(code) else {
+        return Err(Failure::new("desk_code_refused"));
+    };
+    if !(10..100).contains(&number) {
+        return Err(Failure::new("desk_number_wrong"));
     }
     let code = &code;
     with_session(shared, bridge_id, |bridge, token| async move {
@@ -204,7 +269,7 @@ pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outco
             Action::SiteConnect,
             Method::Post,
             APPROVE,
-            json!({ "code": code }),
+            json!({ "code": code, "number": number }),
         )
         .await?;
         let (status, response) = shared
@@ -217,7 +282,13 @@ pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outco
             )
             .await?;
         if status == 404 {
-            return Err(Failure::new("desk_code_refused"));
+            let wrong = serde_json::from_slice::<Value>(&response)
+                .is_ok_and(|refused| refused["error"]["details"]["reason"] == "number_wrong");
+            return Err(Failure::new(if wrong {
+                "desk_number_wrong"
+            } else {
+                "desk_code_refused"
+            }));
         }
         answer(status, &response, &[200])?;
         Ok(Some(json!({ "approved": true })))
@@ -346,6 +417,32 @@ mod tests {
         ] {
             assert!(!is_action(&path), "{path}");
         }
+    }
+
+    #[test]
+    fn a_code_is_six_digits_however_spaced() {
+        assert_eq!(code_of("123 456").as_deref(), Some("123456"));
+        assert_eq!(code_of("123-456").as_deref(), Some("123456"));
+        for wrong in ["12345", "1234567", "ABCD EFGH", "12a456", "../123456"] {
+            assert!(code_of(wrong).is_none(), "{wrong}");
+        }
+    }
+
+    #[test]
+    fn a_device_shows_its_name_its_time_and_three_numbers() {
+        let shown = info(&json!({
+            "device": "Chrome on Android", "requested_at": 5, "choices": [47, 12, 83], "extra": 1,
+        }))
+        .unwrap();
+        assert_eq!(
+            shown,
+            json!({ "device": "Chrome on Android", "requested_at": 5, "choices": [47, 12, 83] })
+        );
+        assert!(info(&json!({ "device": "x", "requested_at": 5, "choices": [47, 12] })).is_err());
+        assert!(
+            info(&json!({ "device": "x", "requested_at": 5, "choices": [47, 12, 100] })).is_err()
+        );
+        assert!(info(&json!({ "device": "x", "choices": [47, 12, 83] })).is_err());
     }
 
     #[test]

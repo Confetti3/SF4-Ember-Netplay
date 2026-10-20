@@ -174,6 +174,15 @@ pub enum Request {
     DeskApprove {
         bridge_id: String,
         code: String,
+        /// The number the other device shows (from `DeskCodeInfo`).
+        #[serde(default)]
+        number: u8,
+    },
+    /// What asked for another device's code and when, and the numbers to
+    /// pick from before approving it.
+    DeskCodeInfo {
+        bridge_id: String,
+        code: String,
     },
     /// A desk action on one of an event's sets or matches, at `path`.
     DeskAct {
@@ -282,6 +291,7 @@ impl Request {
             Self::DeskWeb { .. } => "desk_web",
             Self::DeskHandoff { .. } => "desk_handoff",
             Self::DeskApprove { .. } => "desk_approve",
+            Self::DeskCodeInfo { .. } => "desk_code_info",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
             Self::RoomList { .. } => "room_list",
@@ -796,7 +806,14 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             end,
         } => desk::web(shared, &bridge_id, seen, end).await,
         Request::DeskHandoff { bridge_id } => desk::handoff(shared, &bridge_id).await,
-        Request::DeskApprove { bridge_id, code } => desk::approve(shared, &bridge_id, &code).await,
+        Request::DeskApprove {
+            bridge_id,
+            code,
+            number,
+        } => desk::approve(shared, &bridge_id, &code, number).await,
+        Request::DeskCodeInfo { bridge_id, code } => {
+            desk::code_info(shared, &bridge_id, &code).await
+        }
         Request::MatchClaim {
             bridge_id,
             match_id,
