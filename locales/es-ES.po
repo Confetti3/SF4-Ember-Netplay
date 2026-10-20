@@ -5630,6 +5630,36 @@ msgstr "Selecciona y pulsa el botón que vuelve atrás en los menús de Ember. H
 msgid "button_layout.menu_taken"
 msgstr "{0} ya es {1}. Elige otro botón."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Panel táctil"
+
+msgid "button_layout.extra.home"
+msgstr "Botón Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Botón de silencio"
+
+msgid "button_layout.extra.misc"
+msgstr "Botón adicional"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Pala derecha {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Pala izquierda {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Elige el botón que copia {0}. Al pulsar {0}, hace lo mismo que ese botón."
+
+msgid "button_layout.extra_copy"
+msgstr "Igual que {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} funciona ahora como {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} ya no hace nada."
+
 msgid "room.delay_policy"
 msgstr "Retraso de entrada de la sala"
 

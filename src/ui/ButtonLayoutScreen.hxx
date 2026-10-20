@@ -25,6 +25,14 @@ inline std::string LayoutCaptureRow(const std::optional<unsigned>& function) {
 std::string MenuButtonName(const gamepads::PadView& pad, std::uint32_t mask, const char* glyph);
 std::string AttackLongName(std::uint32_t mask);
 gamepads::FightNames LayoutButtonNames(const gamepads::PadView& pad, gamepads::ButtonPrompts prompts);
+// The pad's name for an extra button (gamepads::Extra), by the pad's own brand.
+std::string ExtraButtonName(const gamepads::PadView& pad, unsigned extra);
+// The row id of an extra button's copy choice, and the extra button a row id names.
+inline std::string ExtraRowId(unsigned extra) { return std::string("extra-") + gamepads::ExtraIds[extra]; }
+inline std::optional<unsigned> ExtraOfRow(const std::string& id) {
+    for (unsigned i = 0; i < gamepads::ExtraCount; ++i) if (id == ExtraRowId(i)) return i;
+    return {};
+}
 // How a capture shows on the rows: the row waiting for a press reads
 // button_layout.waiting in Ember and every other row dims; the row that just
 // took a press shows its value in Ember for a moment. Empty ids mark nothing.

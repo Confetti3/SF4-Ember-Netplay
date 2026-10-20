@@ -36,6 +36,27 @@ FightNames LayoutButtonNames(const PadView& pad, ButtonPrompts prompts) {
             if (auto raw = BoundInput(binding.input)) { raw->numberedHat = pad.numberedHats; names[i] = RawInputName(*raw); }
     return names;
 }
+std::string ExtraButtonName(const PadView& pad, unsigned extra) {
+    const auto brand = pad.brand.brand;
+    switch (static_cast<Extra>(extra)) {
+    case Extra::Touchpad: return loc::T("button_layout.extra.touchpad");
+    case Extra::Home:
+        if (brand == Brand::PlayStation) return "PS";
+        if (brand == Brand::Xbox) return "Xbox";
+        return loc::T("button_layout.extra.home");
+    case Extra::Share:
+        // SDL's misc1: Share on Xbox Series pads, the microphone button on a DualSense, Capture on Nintendo pads.
+        if (brand == Brand::Xbox) return "Share";
+        if (brand == Brand::PlayStation) return loc::T("button_layout.extra.mute");
+        if (brand == Brand::Nintendo) return "Capture";
+        return loc::T("button_layout.extra.misc");
+    case Extra::RightPaddle1: return loc::Tf("button_layout.extra.right_paddle", "1");
+    case Extra::LeftPaddle1: return loc::Tf("button_layout.extra.left_paddle", "1");
+    case Extra::RightPaddle2: return loc::Tf("button_layout.extra.right_paddle", "2");
+    case Extra::LeftPaddle2: return loc::Tf("button_layout.extra.left_paddle", "2");
+    default: return ExtraIds[extra];
+    }
+}
 namespace {
 void Mark(std::vector<MenuEntry>& rows, const LayoutRowMarks& marks) {
     for (auto& row : rows) {
@@ -45,6 +66,24 @@ void Mark(std::vector<MenuEntry>& rows, const LayoutRowMarks& marks) {
         }
         if (row.id == marks.flash) row.valueHighlighted = true;
     }
+}
+// An extra button's row: Off or the layout button it copies, chosen from the
+// buttons the pad has, as Steam Input binds a touchpad or paddle.
+MenuEntry ExtraButtonRow(const PadView& pad, unsigned extra, bool enabled, const std::string& unavailable) {
+    const auto name = ExtraButtonName(pad, extra);
+    auto row = Row(ExtraRowId(extra), name, enabled ? loc::Tf("button_layout.extra_detail", name) : unavailable, enabled);
+    const auto copy = CopiedButton(pad.extras, extra, pad.has);
+    row.value = copy ? loc::Tf("button_layout.extra_copy", pad.buttonNames[*copy]) : std::string(loc::T("common.off"));
+    row.chosen = copy ? LayoutGlyphs[*copy] : "off";
+    row.choices.push_back({"off", loc::T("common.off"), ""});
+    for (unsigned i = 0; i < pad.has.size(); ++i) if (pad.has[i]) {
+        const auto fight = FightName(pad.table[i]);
+        row.choices.push_back({LayoutGlyphs[i], loc::Tf("button_layout.extra_copy", pad.buttonNames[i]),
+            loc::Tf("button_layout.button_does", fight.empty() ? std::string(loc::T("button_layout.nothing")) : fight)});
+    }
+    row.valueHighlighted = std::find(pad.held.begin(), pad.held.end(), ExtraIds[extra]) != pad.held.end();
+    row.detailText = DetailText::Name; row.quiet = !row.enabled;
+    return row;
 }
 }
 std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable, const LayoutRowMarks& marks) {
@@ -81,6 +120,8 @@ std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable, const
         row.value = MenuButtonName(pad, menu.mask, menu.glyph);
         row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
     }
+    for (unsigned extra = 0; extra < ExtraCount; ++extra)
+        if (pad.hasExtras[extra]) rows.push_back(ExtraButtonRow(pad, extra, editable && !absent, unavailable));
     rows.push_back(Row("edit-button", loc::T("button_layout.edit_button"), editable && !absent ? loc::T("button_layout.edit_button_detail") : unavailable, editable && !absent));
     auto preset = Row("preset", loc::T("button_layout.preset"), editable && !absent ? loc::T("button_layout.preset_detail") : unavailable, editable && !absent);
     preset.value = LayoutName(pad.layout);
@@ -134,6 +175,8 @@ void Attacks(const PadView& pad) {
     ImGui::TextUnformatted(loc::T("button_layout.attacks"));
     std::uint32_t active = 0;
     for (unsigned i = 0; i < pad.has.size(); ++i) if (pad.has[i] && Held(pad, LayoutGlyphs[i])) active |= pad.table[i];
+    for (unsigned i = 0; i < ExtraCount; ++i)
+        if (const auto copy = CopiedButton(pad.extras, i, pad.has)) if (Held(pad, ExtraIds[i])) active |= pad.table[*copy];
     const float s = Scale(), height = ImGui::GetTextLineHeight(), gap = 6 * s;
     auto at = ImGui::GetCursorScreenPos(); auto* draw = ImGui::GetWindowDrawList();
     for (unsigned i = 0; i < AttackMasks.size(); ++i) {

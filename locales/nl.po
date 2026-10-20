@@ -5629,6 +5629,36 @@ msgstr "Selecteer en druk dan op de knop die teruggaat in de menu's van Ember. T
 msgid "button_layout.menu_taken"
 msgstr "{0} is al {1}. Kies een andere knop."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Home-knop"
+
+msgid "button_layout.extra.mute"
+msgstr "Dempknop"
+
+msgid "button_layout.extra.misc"
+msgstr "Extra knop"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Rechterpaddle {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Linkerpaddle {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Kies de knop die {0} nadoet. {0} werkt dan als die knop."
+
+msgid "button_layout.extra_copy"
+msgstr "Zelfde als {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} werkt nu als {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} doet nu niets."
+
 msgid "room.delay_policy"
 msgstr "Invoervertraging in de kamer"
 

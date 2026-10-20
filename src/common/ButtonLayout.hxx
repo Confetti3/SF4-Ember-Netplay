@@ -50,6 +50,12 @@ inline bool SetMask(ButtonLayout& layout, unsigned button, std::uint32_t mask) {
     layout[button] = mask;
     return true;
 }
+// The layout button an extra button copies, if the pad has that button.
+inline std::optional<unsigned> CopiedButton(const ExtraCopies& copies, unsigned extra, const ListedButtons& has) {
+    const int copy = copies[extra];
+    if (copy < 0 || copy >= static_cast<int>(has.size()) || !has[copy]) return {};
+    return static_cast<unsigned>(copy);
+}
 inline std::vector<std::uint32_t> MissingAttacks(const ButtonLayout& layout, const ListedButtons& listed) {
     std::vector<std::uint32_t> missing;
     for (auto attack : AttackMasks) {

@@ -5269,6 +5269,36 @@ msgstr "Select, then press the button that goes back in Ember's menus. Until you
 msgid "button_layout.menu_taken"
 msgstr "{0} is already {1}. Choose another button."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Home button"
+
+msgid "button_layout.extra.mute"
+msgstr "Mute button"
+
+msgid "button_layout.extra.misc"
+msgstr "Extra button"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Right paddle {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Left paddle {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Choose a button for {0} to copy. Pressing {0} then does what that button does."
+
+msgid "button_layout.extra_copy"
+msgstr "Same as {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} works as {1} now."
+
+msgid "button_layout.extra_off"
+msgstr "{0} does nothing now."
+
 msgid "room.delay_policy"
 msgstr "Room input delay"
 
