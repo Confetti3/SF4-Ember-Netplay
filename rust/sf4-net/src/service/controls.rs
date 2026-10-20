@@ -138,19 +138,13 @@ impl Actor {
     }
 
     pub(super) fn control_rejoin_member(&self, peer: EndpointId) -> Option<u64> {
-        if !self
-            .committed_native_members
-            .as_ref()
-            .is_some_and(|members| members.contains(&peer))
-        {
-            return None;
-        }
+        let incarnation = *self.committed_native_members.as_ref()?.get(&peer)?;
         self.admissions
             .values()
             .find(|admission| {
                 self.room == Some(admission.room)
                     && admission.primary_endpoint == peer
-                    && admission.incarnation != 0
+                    && admission.incarnation == incarnation
                     && !self.retired_incarnations.contains(&admission.incarnation)
                     && !self
                         .pending_retired_incarnations

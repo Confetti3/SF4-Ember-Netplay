@@ -127,25 +127,23 @@ impl Actor {
 
     pub(super) fn schedule_membership_reconciliation(
         &mut self,
-        retained: BTreeSet<EndpointId>,
+        retained: BTreeMap<EndpointId, u64>,
         term: u64,
         revision: u64,
         restore_voters: bool,
     ) {
-        if retained.is_empty() || !retained.contains(&self.endpoint.id()) {
+        if retained.is_empty() || !retained.contains_key(&self.endpoint.id()) {
             return;
         }
         let roster_changed = self.committed_native_members.as_ref() != Some(&retained);
         if roster_changed {
             let previous = self.committed_native_members.clone().unwrap_or_default();
-            let removed = self
-                .admissions
-                .values()
-                .filter(|admission| {
-                    previous.contains(&admission.primary_endpoint)
-                        && !retained.contains(&admission.primary_endpoint)
-                })
-                .map(|admission| admission.incarnation);
+            // A returning process can authenticate before the old departure
+            // is observed here. Retire the incarnation in that old checkpoint,
+            // never a newer admission which happens to use the same endpoint.
+            let removed = previous.iter().filter_map(|(endpoint, incarnation)| {
+                (retained.get(endpoint) != Some(incarnation)).then_some(*incarnation)
+            });
             // The roster is already committed. Fence every omitted identity
             // before any asynchronous membership write can stall or lose its
             // waiter during a leadership change.
@@ -155,7 +153,7 @@ impl Actor {
         if !roster_changed && self.pending_retired_incarnations.is_empty() && !restore_voters {
             return;
         }
-        self.spawn_membership_operation(retained, term, revision);
+        self.spawn_membership_operation(retained.into_keys().collect(), term, revision);
     }
 
     pub(super) fn schedule_pending_membership_reconciliation(&mut self, term: u64, revision: u64) {
@@ -165,11 +163,14 @@ impl Actor {
         let retained = self.committed_native_members.clone().unwrap_or_else(|| {
             self.admissions
                 .values()
-                .map(|admission| admission.primary_endpoint)
-                .chain(std::iter::once(self.endpoint.id()))
+                .map(|admission| (admission.primary_endpoint, admission.incarnation))
                 .collect()
         });
-        self.spawn_membership_operation(retained, term, revision);
+        let endpoints = retained
+            .into_keys()
+            .chain(std::iter::once(self.endpoint.id()))
+            .collect();
+        self.spawn_membership_operation(endpoints, term, revision);
     }
 
     pub(super) fn spawn_membership_operation(
