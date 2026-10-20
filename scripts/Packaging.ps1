@@ -7,6 +7,7 @@
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
 . (Join-Path $PSScriptRoot 'PackageFiles.ps1')
+. (Join-Path $PSScriptRoot 'PackageGuide.ps1')
 
 # Assemble only the shared product inventory. Never reuse or mirror a previous package.
 # Returns zipPath, folderPath, gitRev and the source fingerprint of the build receipt.
@@ -55,7 +56,8 @@ function New-EmberPackage([string]$BuildDir = '', [string]$InstallDir = '',
         if (!$source) { if ($entry.Required) { throw "Required package file missing: $($entry.Path)" }; continue }
         $target = Join-Path $destination $entry.Path
         New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
-        Copy-Item -LiteralPath $source -Destination $target
+        if ($entry.Path -like '*.md') { [IO.File]::WriteAllText($target, (Get-PackageGuide $source)) }
+        else { Copy-Item -LiteralPath $source -Destination $target }
     }
     Copy-Item -LiteralPath $inventory -Destination (Join-Path $destination 'PackageInventory.inc')
     Copy-Item -LiteralPath (Join-Path $BuildDir 'build-provenance.json') -Destination (Join-Path $destination 'build-provenance.json')
@@ -68,10 +70,10 @@ function New-EmberPackage([string]$BuildDir = '', [string]$InstallDir = '',
     if (!$QuickStartPath) { $QuickStartPath = Join-Path $repo 'docs/guides/USER_NETPLAY.md' }
     if (!(Test-Path -LiteralPath $QuickStartPath -PathType Leaf)) { throw "Quick-start guide missing: $QuickStartPath" }
     $quickStart = (Resolve-Path -LiteralPath $QuickStartPath).Path
-    # The guide is renamed inside the package. Keep it free of repository-relative
-    # links; maintainer references are carried separately through the optional docs
-    # in PackageInventory.inc.
-    Copy-Item -LiteralPath $quickStart -Destination (Join-Path $destination 'START_HERE.md')
+    # The guide is renamed inside the package and, like the docs, loses its step
+    # pictures. Maintainer references are carried separately through the optional
+    # docs in PackageInventory.inc.
+    [IO.File]::WriteAllText((Join-Path $destination 'START_HERE.md'), (Get-PackageGuide $quickStart))
     # Preserved photographs (color-N.jpg/.png) are masking inputs kept in the
     # repository for provenance. The runtime draws the cutout beside each one, so
     # only the cutouts ship; a photograph without its cutout stops packaging.
