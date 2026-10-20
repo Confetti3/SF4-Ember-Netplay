@@ -85,13 +85,10 @@
           <div class="wd-card" id="service-detail"></div>
           <div class="wd-card">
             <h2 class="name">Games to win</h2>
-            <p class="note">How long each set is. Ember counts the top from the bracket itself.</p>
-            <label class="wd-field">Every set first to<select class="wd-input" id="games"></select></label>
-            <div class="wd-row">
-              <label class="wd-field">From<select class="wd-input" id="top"></select></label>
-              <label class="wd-field">first to<select class="wd-input" id="top-games"></select></label>
-            </div>
-            <label class="wd-field">Grand final first to<select class="wd-input" id="final-games"></select></label>
+            <p class="note">Later stages can play longer sets. The latest stage that applies wins; Ember finds the stages in the bracket itself.</p>
+            <label class="wd-field">Everything first to<select class="wd-input" id="games"></select></label>
+            <div id="tiers"></div>
+            <button type="button" class="wd-btn dashed" id="add-tier">+ Add a tier</button>
             <div id="hold-row"></div>
           </div>
         </div>

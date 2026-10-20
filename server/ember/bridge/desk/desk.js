@@ -8,8 +8,11 @@
 const STEPS = ["Details", "Service and rules", "Discord and sign-ups", "Ready", "Live"];
 const LINK_ICONS = { bracket: "🏆", "sign up": "📝", signup: "📝", stream: "📺", twitch: "📺", matcherino: "💰", rules: "📜", discord: "💬" };
 const NEXT = ["Save", "Save", "Save", "Mark ready", "Your tournaments"];
-// The tops a set length can start from, by players left; 2 is the finals.
-const TOPS = [[0, "Off"], [16, "Top 16"], [8, "Top 8"], [6, "Top 6"], [4, "Top 4"], [2, "Finals"]];
+// The stages a longer set length can start from, widest first.
+const STAGES = [["top_32", "Top 32"], ["top_24", "Top 24"], ["top_16", "Top 16"], ["top_12", "Top 12"], ["top_8", "Top 8"],
+  ["quarter_finals", "Quarter-finals"], ["top_6", "Top 6"], ["top_4", "Top 4"], ["semi_finals", "Semi-finals"], ["finals", "Finals"],
+  ["grand_final", "Grand final"]];
+const stageName = (from) => (STAGES.find(([id]) => id === from) || [from, from])[1];
 // Words for a site's creation settings, by field and value.
 const FIELD_NAMES = { format: "Format", grand_final: "Grand final", third_place_match: "Third place match", open_signup: "The site's own sign-up page" };
 const VALUE_NAMES = { "": "Normal, with a reset", "single match": "One match", skip: "No grand final", 3: "Yes", true: "Yes", false: "No" };
@@ -59,9 +62,9 @@ function show(page) {
 /** The Discord post for an event: one message, lines without a value left out. */
 function discordPost(event, siteName) {
   const rounds = (event.settings && event.settings.rounds) || {};
-  const top = rounds.top ? (TOPS.find(([n]) => n === rounds.top.top) || [0, "Top " + rounds.top.top])[1] + " FT" + rounds.top.games_to_win : "";
+  const tiers = (rounds.tiers || []).map((tier) => stageName(tier.from) + " FT" + tier.games_to_win);
   const ft = rounds.games_to_win
-    ? "🎮 " + [siteName, "FT" + rounds.games_to_win, top, rounds.grand_final ? "grand final FT" + rounds.grand_final : ""].filter(Boolean).join(" · ")
+    ? "🎮 " + [siteName, "FT" + rounds.games_to_win, ...tiers].filter(Boolean).join(" · ")
     : siteName ? "🎮 " + siteName : "";
   const when = event.starts_at ? "📅 <t:" + event.starts_at + ":F> (<t:" + event.starts_at + ":R>)" : "";
   const links = (event.links || []).map((link) => (LINK_ICONS[link.label.toLowerCase()] || "🔗") + " " + link.label + ": " + link.url);
@@ -274,6 +277,23 @@ async function saveDetails() {
   await refreshEvent();
 }
 
+/** One tier: a stage and its first-to, mobile first: two selects and Remove. */
+function tierRow(tier = { from: "top_8", games_to_win: 3 }) {
+  const row = el("div", { class: "wd-row tier" },
+    el("label", { class: "wd-field" }, "From",
+      el("select", { class: "wd-input", "data-tier": "from" }, ...STAGES.map(([id, label]) => el("option", { value: id, selected: id === tier.from }, label)))),
+    el("label", { class: "wd-field" }, "first to", el("select", { class: "wd-input", "data-tier": "games" }, ...gamesOptions(tier.games_to_win))),
+  );
+  row.append(el("button", { type: "button", class: "wd-btn", "aria-label": "Remove this tier", onclick: () => row.remove() }, "Remove"));
+  return row;
+}
+
+$("add-tier").addEventListener("click", () => {
+  const used = [...$("tiers").querySelectorAll('[data-tier="from"]')].map((select) => select.value);
+  const next = ["top_8", "semi_finals", "finals", "grand_final", "top_16"].find((id) => !used.includes(id)) || "top_8";
+  $("tiers").append(tierRow({ from: next, games_to_win: 3 }));
+});
+
 function gamesOptions(selected) {
   return [1, 2, 3, 4, 5, 7, 10].map((n) => el("option", { value: n, selected: n === selected }, "FT" + n));
 }
@@ -324,9 +344,7 @@ async function service() {
   const settings = (event && event.settings) || {};
   const rounds = settings.rounds || { games_to_win: 2 };
   $("games").replaceChildren(...gamesOptions(rounds.games_to_win || 2));
-  $("top").replaceChildren(...TOPS.map(([n, label]) => el("option", { value: n, selected: n === (rounds.top ? rounds.top.top : 8) }, label)));
-  $("top-games").replaceChildren(...gamesOptions(rounds.top ? rounds.top.games_to_win : 3));
-  $("final-games").replaceChildren(...gamesOptions(rounds.grand_final || (rounds.top ? rounds.top.games_to_win : 3)));
+  $("tiers").replaceChildren(...(rounds.tiers || []).map(tierRow));
   // ponytail: holding sets on stream is start.gg's, the one service Ember
   // attaches to rather than creates on; a flag in /web/accounts if another such site comes.
   $("hold-row").replaceChildren(...(site && !site.create
@@ -340,10 +358,12 @@ function gamesOptions(selected) {
 
 function settingsFromForm() {
   const kept = (desk.event && desk.event.settings && desk.event.settings.rounds) || {};
-  const rounds = { games_to_win: Number($("games").value), rules: kept.rules || [] };
-  const top = Number($("top").value);
-  if (top) rounds.top = { top, games_to_win: Number($("top-games").value) };
-  rounds.grand_final = Number($("final-games").value);
+  const order = (from) => STAGES.findIndex(([id]) => id === from);
+  const tiers = [...$("tiers").children]
+    .map((row) => ({ from: row.querySelector('[data-tier="from"]').value, games_to_win: Number(row.querySelector('[data-tier="games"]').value) }))
+    .filter((tier, index, all) => all.findIndex((other) => other.from === tier.from) === index)
+    .sort((a, b) => order(a.from) - order(b.from));
+  const rounds = { games_to_win: Number($("games").value), rules: kept.rules || [], tiers };
   const settings = { rounds };
   if ($("hold") && $("hold").checked) settings.hold = { streamed: true };
   return settings;
