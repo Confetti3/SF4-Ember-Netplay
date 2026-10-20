@@ -1252,6 +1252,20 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+    // The organizer starts its bracket on Challonge from Ember.
+    assert_eq!(listed["events"][0]["starts_on_site"], true);
+    let (status, started) = organizer(path("/start"), json!({})).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+    let sent: Json = serde_json::from_str(
+        &fake
+            .seen("/v2.1/tournaments/777/change_state.json")
+            .pop()
+            .unwrap()
+            .body,
+    )
+    .unwrap();
+    assert_eq!(sent["data"]["attributes"]["state"], "start");
+
     // Ember deletes on Challonge only the events it created there.
     let on_site = |path: String| {
         let (bridge, player) = (&bridge, &player1);

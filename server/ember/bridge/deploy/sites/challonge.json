@@ -47,6 +47,8 @@
     "create": {
       "url": "https://api.challonge.com/v2.1/tournaments.json",
       "delete_url": "https://api.challonge.com/v2.1/tournaments/{tournament}.json",
+      "start_url": "https://api.challonge.com/v2.1/tournaments/{tournament}/change_state.json",
+      "start_body": { "data": { "type": "TournamentState", "attributes": { "state": "start" } } },
       "headers": {
         "Accept": "application/json",
         "Content-Type": "application/vnd.api+json",

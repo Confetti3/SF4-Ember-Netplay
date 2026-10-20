@@ -101,13 +101,18 @@ pub struct ParticipantsRequest {
 /// `tournament` takes (as `tournaments` lists it), and the text at
 /// `link_pointer` after `link_prefix` is the event's page. `delete_url`,
 /// with `{tournament}` the event's ID, is DELETEd to delete an event it
-/// created; None deletes none.
+/// created; None deletes none. `start_body` PUT to `start_url` (with
+/// `{tournament}`) starts an event's bracket; None leaves that to the site.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateRequest {
     pub url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delete_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_body: Option<serde_json::Value>,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
     pub body: serde_json::Value,
@@ -197,6 +202,9 @@ pub enum Method {
     /// POST.
     #[serde(rename = "DELETE")]
     Delete,
+    /// For starting an event's bracket only.
+    #[serde(rename = "PUT")]
+    Put,
 }
 
 /// What a username may be, and how lookups compare it.
@@ -336,6 +344,10 @@ impl SignInSite {
                 create.and_then(|create| create.delete_url.as_ref()),
             ),
             (
+                "organizer.create.start_url",
+                create.and_then(|create| create.start_url.as_ref()),
+            ),
+            (
                 "organizer.participants.url",
                 participants.map(|add| &add.url),
             ),
@@ -415,9 +427,8 @@ impl SignInSite {
                  host, content-length, transfer-encoding or connection",
             );
         }
-        if self.user.method == Method::Delete
-            || tournaments.is_some_and(|read| read.method == Method::Delete)
-        {
+        let write = |method: Method| matches!(method, Method::Delete | Method::Put);
+        if write(self.user.method) || tournaments.is_some_and(|read| write(read.method)) {
             return fail("user and organizer.tournaments are read with GET or POST");
         }
         if self.user.method == Method::Get && self.user.body.is_some() {
@@ -485,14 +496,23 @@ impl SignInSite {
             let prefix_ok = create.link_prefix.as_deref().is_none_or(|prefix| {
                 url::Url::parse(prefix).is_ok_and(|url| url.scheme() == "https")
             });
-            let delete_ok = create
-                .delete_url
-                .as_ref()
-                .is_none_or(|url| url.contains("{tournament}"));
-            if !headers_ok(&create.headers) || !prefix_ok || !delete_ok {
+            let named =
+                |url: &Option<String>| url.as_ref().is_none_or(|url| url.contains("{tournament}"));
+            let start_ok = create.start_url.is_some() == create.start_body.is_some()
+                && create
+                    .start_body
+                    .as_ref()
+                    .is_none_or(|body| body.is_object());
+            if !headers_ok(&create.headers)
+                || !prefix_ok
+                || !named(&create.delete_url)
+                || !named(&create.start_url)
+                || !start_ok
+            {
                 return fail(
                     "organizer.create needs headers as user.headers, an https link_prefix, \
-                     and {tournament} in delete_url",
+                     {tournament} in delete_url and start_url, and an object start_body \
+                     with start_url",
                 );
             }
         }
@@ -667,6 +687,11 @@ mod tests {
                 "url": "https://api.challonge.com/v2.1/tournaments.json",
                 "body": { "data": {} }, "name_pointer": "/data/name", "id_pointer": "/data/id",
                 "fields": { "format": { "pointer": "/data/options/type", "values": ["swiss"] } } } } }),
+            // A start names the event it starts, with a body.
+            json!({ "organizer": { "scope": "me", "create": {
+                "url": "https://api.challonge.com/v2.1/tournaments.json",
+                "start_url": "https://api.challonge.com/v2.1/tournaments/{tournament}/change_state.json",
+                "body": { "data": {} }, "name_pointer": "/data/name", "id_pointer": "/data/id" } } }),
             // A delete names the event it deletes.
             json!({ "organizer": { "scope": "me", "create": {
                 "url": "https://api.challonge.com/v2.1/tournaments.json",
@@ -705,6 +730,7 @@ mod tests {
                 }
                 if let Some(create) = organizer.create.as_mut() {
                     create.delete_url = Some(format!("https://{host}/{{tournament}}.json"));
+                    create.start_url = Some(format!("https://{host}/{{tournament}}/start.json"));
                 }
                 if let Some(add) = organizer.participants.as_mut() {
                     add.url = format!("https://{host}/{{tournament}}/participants.json");

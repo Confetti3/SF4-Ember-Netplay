@@ -446,6 +446,7 @@ const view = { tab: "Sets", filter: "All", phase: null, sets: [], timer: 0 };
 
 async function live() {
   clearInterval(view.timer);
+  $("start-bracket").hidden = true;
   $("stop").textContent = desk.event.status === "draft" ? "Delete this draft" : "Stop this tournament";
   if (desk.event.status !== "running") {
     fill($("live"), el("div", { class: "wd-kpi" }, el("b", {}, desk.event.status), el("span", { class: "small" }, whenText(desk.event.starts_at))));
@@ -462,6 +463,9 @@ async function live() {
 async function readSets() {
   const read = await api("GET", "/v1/organizer/events/" + desk.event.id + "/sets");
   view.sets = read.sets;
+  // Until the site has the bracket's sets, the organizer can start it here.
+  $("start-bracket").hidden = !desk.event.starts_on_site || view.sets.length > 0;
+  $("start-bracket").textContent = "Start the bracket on " + siteName(desk.event.site);
   const count = tally(view.sets);
   fill($("live"),
     el("div", { class: "wd-kpi bad" }, el("b", {}, String(count.action)), el("span", { class: "small" }, "need you")),
@@ -604,6 +608,17 @@ async function saveSettings() {
   await api("POST", "/v1/organizer/events/" + desk.event.id, desk.settingsForm());
   await refreshEvent();
 }
+
+$("start-bracket").addEventListener("click", async () => {
+  if (!window.confirm("Start the bracket on " + siteName(desk.event.site) + "? Its seeding is fixed from then on.")) return;
+  try {
+    await api("POST", "/v1/organizer/events/" + desk.event.id + "/start");
+    toast("Bracket started. Its sets show here once Ember reads them.", true);
+    await readSets();
+  } catch (error) {
+    toast(error.message);
+  }
+});
 
 // Deleting a draft or stopping an event; one Ember created on its site
 // can go there too, which the organizer chooses each time.

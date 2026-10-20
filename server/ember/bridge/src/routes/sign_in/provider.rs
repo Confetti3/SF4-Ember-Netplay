@@ -479,6 +479,31 @@ impl OAuth {
         sent(&client, &request, token, MAX_ANSWER).await.map(drop)
     }
 
+    /// Whether the organizer starts an event's bracket from Ember.
+    pub fn starts(&self) -> bool {
+        self.create
+            .as_ref()
+            .is_some_and(|create| create.start_url.is_some())
+    }
+
+    /// Starts the bracket of the organizer's event `tournament`: `Ok` when
+    /// the site did, why it refused (`refusal`), or `Err(None)` on any other
+    /// failure or when the site starts none from here.
+    pub async fn start(&self, token: &str, tournament: &str) -> Result<(), Option<String>> {
+        let create = self.create.as_ref().ok_or(None)?;
+        let (Some(url), Some(body)) = (&create.start_url, &create.start_body) else {
+            return Err(None);
+        };
+        let request = UserRequest {
+            method: Method::Put,
+            url: url.replace("{tournament}", path_id(tournament).ok_or(None)?),
+            headers: pairs(&create.headers),
+            body: Some(body.clone()),
+        };
+        let client = outbound_client().build().map_err(|_| None)?;
+        sent(&client, &request, token, MAX_ANSWER).await.map(drop)
+    }
+
     /// Whether the site takes players who sign up through Ember.
     pub fn takes_sign_ups(&self) -> bool {
         self.participants.is_some()
@@ -708,6 +733,7 @@ async fn sent(
         Method::Get => client.get(&request.url),
         Method::Post => client.post(&request.url),
         Method::Delete => client.delete(&request.url),
+        Method::Put => client.put(&request.url),
     };
     // A body is JSON unless the definition's own `Content-Type` says
     // otherwise: its headers replace the default, so none goes twice.

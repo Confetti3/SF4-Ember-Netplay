@@ -330,6 +330,17 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
             Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
         })
         .await?;
+    let events: Vec<Value> = events
+        .into_iter()
+        .map(|mut event| {
+            let starts = event["site"].as_str().is_some_and(|site| {
+                OAuth::organizer(&state, &Site::Configured(site.to_owned()))
+                    .is_some_and(|oauth| oauth.starts())
+            });
+            event["starts_on_site"] = json!(starts);
+            event
+        })
+        .collect();
     Ok(ok(&json!({ "events": events })))
 }
 
@@ -848,6 +859,59 @@ pub async fn ready(
         Err(None) => Err(ApiFailure::not_found()),
         Err(Some(refused)) => Err(ApiFailure::invalid(refused)),
     }
+}
+
+/// `POST /v1/organizer/events/{id}/start`: starts the bracket of a ready
+/// event on its site, with the session player's organizer grant, when the
+/// site starts brackets from Ember. Takes a `site.connect` proof for this
+/// path.
+pub async fn start_bracket(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    body: Body<PROOF_BODY>,
+) -> Result<Response> {
+    let (caller, sessions::Nothing {}) = Caller::of(&state, &headers, &body).await?;
+    caller.require_game()?;
+    let (reading, owner) = (id.clone(), caller.ember_id().to_owned());
+    let ready: Option<(String, String)> = state
+        .db
+        .read(move |tx| {
+            Ok(tx
+                .query_row(
+                    "SELECT site, tournament FROM organizer_events WHERE id = ?1
+                         AND ember_id = ?2 AND status = 'ready' AND ended_at IS NULL",
+                    params![reading, owner],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?)
+        })
+        .await?;
+    let (site, tournament) = ready.ok_or_else(ApiFailure::not_found)?;
+    let site = Site::Configured(site);
+    let oauth = OAuth::organizer(&state, &site)
+        .filter(OAuth::starts)
+        .ok_or_else(|| ApiFailure::invalid("This site's brackets are started on the site."))?;
+    let grant = organizer_grant(&state, &site, caller.ember_id())
+        .await?
+        .ok_or_else(ApiFailure::not_found)?;
+    let path = format!("{EVENTS_PATH}/{id}/start");
+    let ctx = Ctx::of(&state);
+    state
+        .db
+        .write(move |tx| caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, &path))
+        .await?;
+    state.committed();
+    if let Some(limits) = oauth.limits
+        && !spend(&state, site.id(), limits).await?
+    {
+        return Err(ApiFailure::sign_in_busy(None));
+    }
+    oauth
+        .start(&grant.access, &tournament)
+        .await
+        .map_err(|refused| site_refused(&state, site.id(), "to start the bracket", refused))?;
+    Ok(ok(&json!({})))
 }
 
 /// The status of `ember_id`'s event `id` that has not ended, if any.

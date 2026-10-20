@@ -140,7 +140,7 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
                     && (sites::site_of(path, "/organize").is_some()
                         || path == crate::routes::organizer::EVENTS_PATH
                         || path == crate::routes::organizer::DRAFTS_PATH
-                        || ["", "/create", "/ready"]
+                        || ["", "/create", "/ready", "/start"]
                             .iter()
                             .any(|suffix| id_between("/v1/organizer/events/", "oev", suffix))
                         || crate::routes::organizer::is_desk_action(path)
