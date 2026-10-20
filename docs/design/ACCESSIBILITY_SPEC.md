@@ -277,6 +277,8 @@ Engines for de, nl, pl, ru, ko, cs, on an RTX 3070, 20 real Ember lines per lang
 
 Only MOSS-TTS-Nano is faster than real time, and it is the only one with Czech; Dutch would need Chatterbox or VoxCPM2. The choice is the user's, by ear, from the samples.
 
+Voices provisional, revisit after native-speaker feedback: every non-English voice (the Kokoro native voices, and MOSS-TTS-Nano cloning kerstin, gosia, denis, nathalie and ronnie) was chosen by ear by the user, not by native speakers.
+
 #### Dutch: two voices, one interface language
 
 The interface stays one locale, "nl" (locales/nl.po), but Dutch gets two voice packs, because Netherlands and Flemish Dutch sound quite different: ember-voice-nl-NL-1.zip and ember-voice-nl-BE-1.zip. Ember picks one from the OS region: nl-BE gives the Flemish pack, every other region the Netherlands one. Planned, not built until the voices are approved: one Accessibility row, "Dutch voice: Netherlands / Flemish (Belgium)", shown only while the interface language is nl, that overrides the region. Reference clips (CC0, OHF-Voice/voice-datasets): nl_BE nathalie (female), nl_NL ronnie (male; alex and pim are the other Netherlands voices there).
