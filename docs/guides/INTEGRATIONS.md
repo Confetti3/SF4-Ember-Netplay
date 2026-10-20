@@ -712,7 +712,7 @@ Three layers, from fastest:
   signing what Ember signs, against any bridge.
 - **Staging**: the same script with `--staging https://<bridge>`, on a real
   bridge and real Challonge. Its Ember ID seed lives in
-  `~/tournament-lab/e2e/ember-id.seed`. Once, `--setup` prints the organizer
+  `~/tournament-lab/e2e/ember-id.seed`. Once, `--setup` opens the organizer
   sign-in to approve with the organizer's Challonge account. A run creates one
   Challonge tournament named `ember-e2e <time>` and deletes it again at the
   end, with its event. A Discord webhook in

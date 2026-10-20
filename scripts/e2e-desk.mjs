@@ -62,8 +62,15 @@ if (args.includes("--setup")) {
   console.log("Test Ember ID:", id);
   // One organizer sign-in links the Challonge account and allows organizer
   // access together; the refresh token keeps it from then on.
-  console.log("Open once in a browser, sign in to Challonge as the organizer and approve:");
-  console.log(organize.body.authorize_url || JSON.stringify(organize));
+  const url = organize.body.authorize_url;
+  if (!url) {
+    console.error("no sign-in link:", JSON.stringify(organize));
+    process.exit(1);
+  }
+  // Opened in the Windows browser; it works for ten minutes.
+  console.log("Sign in to Challonge as the organizer and approve, in the browser that opened:");
+  console.log(url);
+  spawn("powershell.exe", ["-NoProfile", "-Command", "Start-Process '" + url.replace(/'/g, "''") + "'"], { stdio: "ignore", detached: true }).unref();
   process.exit(0);
 }
 
