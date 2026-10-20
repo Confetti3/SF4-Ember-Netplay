@@ -32,6 +32,48 @@ phase 0, speech part only. Local only: not pushed, no PR.
    every non-English string is a machine draft (README says all are drafts).
    CJK subsets rerun: no new characters needed.
 
+## Steam Deck / Proton (2026-10-20)
+
+6. **Linux backend** (`platform/SpeechLinux.hxx`, `Speech.cxx` `RunLinux`): under
+   Wine (ntdll `wine_get_version`) SAPI is never touched. Ember starts one
+   python3 relay per session on the host through `__wine_unix_spawnvp` +
+   the host's busctl (host loader from `/run/host`) asking the host's systemd
+   for a transient unit `ember-speech-<pid>.service` (`KillMode=process`).
+   The relay connects to speech-dispatcher, then makes a FIFO in the
+   prefix's Temp folder; Ember writes SSIP to it (`SsipMessage`, tested in
+   `SpeechLinux`). `CANCEL SELF` only, so Orca / Steam's reader is never cut.
+7. **Notice** when speech is on but nothing can speak, per cause
+   (`speech.no_windows_voice`, `speech.no_speech_dispatcher`).
+8. Log lines in sf4e.log: `Speech: speech-dispatcher through a relay ...;
+   connected|the relay did not answer`, `Speech: SAPI ...`.
+
+Findings worth keeping (details in the spec's Linux section):
+- SAPI under Proton 11: `Speak` fails SPERR_NOT_FOUND and a try stalled the
+  Deck on Steam's loading screen. Never call it under Wine.
+- Wine: no AF_UNIX (WSAEAFNOSUPPORT); CreateProcess of an ELF fails (193);
+  `__wine_unix_spawnvp` works; `GetFileAttributesW` on a FIFO fails (203)
+  while `CreateFileW` + `WriteFile` on it work; `wine_get_unix_file_name`
+  works for folders, not for a FIFO.
+- The sniper container shares the session bus (`/run/pressure-vessel/bus`),
+  pipewire/pulse and home, not `$XDG_RUNTIME_DIR/speech-dispatcher`.
+- Killing an spd-say client does not stop its speech; `spd-say -C` cancels
+  everyone's (a screen reader's too).
+- Steam's screen reader is Orca on the same speech-dispatcher; its switch is
+  `config/config.vdf` "Accessibility" "ScreenReaderEnabled" "1"/"0".
+- Deck test rules: no Steam app ids on probes (Game Mode shows a loading
+  screen), `timeout -k 5 30` on every probe, short test lines (the user hears
+  the Deck), never `pkill -f` a pattern that matches the ssh command itself.
+- Lab: `lab\speechprobe\` (probe exe + `deck-probe.sh`), `lab\deck-a11y-install.sh`
+  (stage-a11y into the prefix's C:\Ember, old install kept as C:\Ember.bak,
+  speech turned on in settings.json, old file kept as settings.json.bak-a11y),
+  `lab\wav-peak.py` (level of a pw-record capture, per window).
+
+Relay lifetime (fixed after the first Deck run, where a relay waited 1h13m
+on a FIFO Ember never opened): the relay opens the FIFO without blocking,
+leaves 15 s after start if Ember never writes, and on EOF once Ember closes
+it or dies. Checked on the Deck host: no writer, exit after 16 s; writer
+killed with SIGKILL, exit at once; FIFO removed both times.
+
 ## Decisions
 
 - **Tolk not added now.** It needs a new x86 DLL (Tolk.dll plus the NVDA
@@ -75,3 +117,8 @@ junction `ember-build\src-a11y`, build `build\tests`), log `lab\logs\build-a11y.
   LocalizationTest and Sidecar.dll. ctest: MenuSpeech, GamepadPrompts,
   SettingsStore, ControllerNavigation, ShellJourney, Localization, 6/6 passed.
   Not run in the game yet.
+- 2026-10-20 14:10, 819c0c94e: SpeechLinux, MenuSpeech, ShellJourney,
+  Localization, SettingsStore, GamepadPrompts, ControllerNavigation: 7/7
+  passed. Stage built (Sidecar.dll md5 8fac5e6b...). On the Deck: the 12:50
+  build (md5 145ccceb..., FIFO fix, without the relay lifetime fix) is
+  installed; the 14:10 build waits for the user's game to close.

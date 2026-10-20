@@ -1,4 +1,4 @@
-# SF4 Ember Netplay — Accessibility Spec
+# SF4 Ember Netplay: Accessibility Spec
 
 Oct 10, 2026 · FRaccie · tracks upstream issue [#63](https://github.com/Confetti3/SF4-Ember-Netplay/issues/63)
 
@@ -176,6 +176,39 @@ Building blocks:
 ## Sound set
 
 Principle 6 means every cue is an original Ember asset: hundreds of cues (44 fighters × moves) plus lobby and menu cues. Biggest unowned task in this spec. Order: synthesised placeholder set first (one generator, parameters per strength/stance), authored set later. Owner: open.
+
+## Linux and Steam Deck (Proton)
+
+Checked on a Steam Deck (SteamOS 3.8, Proton 11.0, 2026-10-20). Ember's Sidecar runs inside Wine, inside Steam's container (pressure-vessel, "sniper"). The host has speech-dispatcher, spd-say, espeak-ng and Orca; `spd-say` speaks in Game Mode.
+
+| Route | Result |
+|---|---|
+| SAPI 5 under Wine | `SpVoice` is created, `Speak` fails with SPERR_NOT_FOUND (Wine ships no voice), and a try stalled the Deck on Steam's loading screen. Never touched under Wine. |
+| speech-dispatcher socket (SSIP) from Wine | Not possible: Wine's Winsock has no AF_UNIX (`socket` fails, WSAEAFNOSUPPORT), and the container does not share `$XDG_RUNTIME_DIR/speech-dispatcher`. |
+| `CreateProcess` of a Unix program | Fails (ERROR_BAD_EXE_FORMAT). |
+| `__wine_unix_spawnvp` (ntdll, what winebrowser uses) | Works: runs a Unix program from the Wine process. |
+| Host programs inside the container | Under `/run/host`, runnable only through the host's loader and libraries; speech-dispatcher's socket stays unreachable. |
+| Host `busctl` (host loader) asking the host's systemd, over the shared session bus, to start a transient unit | Works; the unit runs on the host with the player's own speech-dispatcher. |
+| Killing an `spd-say` client | Does not stop its speech; and `spd-say -C` cancels every client's speech, a screen reader's too. |
+| Wine writing to a host FIFO under the prefix | Works (the prefix is in the home folder, which the container shares). |
+
+So under Wine Ember starts one relay per session: `python3` with a short script (`SpeechLinux.hxx`), as a transient systemd unit on the host (`KillMode=process`, so the speech-dispatcher it may start outlives the unit). The relay connects to speech-dispatcher, starting it as its clients do, then makes a FIFO in the prefix's temporary folder. Ember writes SSIP into the FIFO: rate, volume and language as `SET SELF`, interrupt and Stop as `CANCEL SELF`, which touches only Ember's own connection. The relay ends when Ember closes the FIFO, so with the game. Outside a container (plain Wine) the relay is started directly. When no relay starts within five seconds, or SAPI has no voice on Windows, Ember shows a notice that speech is unavailable instead of staying silent.
+
+Limits: the container route assumes the host keeps its loader and libraries in `/usr/lib` (SteamOS, Arch); another layout gets the notice. Whether speech-dispatcher has a working output module is not reported back.
+
+### Steam's own screen reader
+
+Steam on the Deck has a screen reader (Settings, Accessibility). It is Orca: turning it on starts `orca` and `speech-dispatcher --spawn` (unix socket in `$XDG_RUNTIME_DIR/speech-dispatcher`, module espeak-ng), the same speech-dispatcher Ember's relay talks to. It cannot read Ember's menus, so Ember still speaks.
+
+- Stored in `~/.local/share/Steam/config/config.vdf`, section "Accessibility", `"ScreenReaderEnabled" "1"` when on, `"0"` after it was turned off, absent when never used. Per-user voice options are in `userdata/<id>/config/localconfig.vdf`, section "Accessibility" (`"ScreenReaderPitch" "0.45"` seen; rate and volume likely beside it). Readable from Wine through `Z:` and `STEAM_COMPAT_CLIENT_INSTALL_PATH`; Ember never writes it.
+- Ember never cancels speech that is not its own: CANCEL SELF on its one connection, never `spd-say -C` or CANCEL ALL. Done.
+- Next: "Steam reader on" counts like a screen reader on Windows, so the first run offers speech on; the reader's rate and pitch could seed Ember's defaults.
+- Next: with Steam's reader on, Ember should not talk over it: Ember's messages at SSIP priority `text` let Orca's `message`/`important` speech win; while Steam's overlay or on-screen keyboard is open, Ember stays quiet. Detecting the overlay cheaply is open.
+
+### Risks
+
+- `__wine_unix_spawnvp` and `wine_get_unix_file_name` are Wine internals, looked up at run time. A Wine without them gets the "speech unavailable" notice, never a crash, and SAPI is never tried under Wine.
+- A host without python3, busctl or speech-dispatcher, or with its loader outside `/usr/lib`, gets the same notice (no FIFO within five seconds).
 
 ## Roadmap
 
