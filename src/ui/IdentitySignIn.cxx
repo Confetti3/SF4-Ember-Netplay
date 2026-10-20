@@ -351,12 +351,12 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
     // every few seconds (SignInPoll) until it shows or three minutes pass.
     if (sentOrganizer_) {
         if (signIn->step == SignInStep::Connect) {
-            Say(loc::T("site.organizer_opened"), false, 30);
+            Say(loc::T("site.organizer_opened"), Tone::Success, 30);
             organizerWait_ = {target.site, sentBridge_, now_ + OrganizerSeconds, now_ + PollSeconds};
         } else if (ListedSite(sentBridge_, target.site)) {
             Account(target, sentBridge_).organizer = id.siteOrganizer;
             if (signIn->step == SignInStep::Remove || id.siteOrganizer) {
-                if (id.siteOrganizer && organizerWait_ && organizerWait_->until > 0) Say(loc::T("site.organizer_now"), false, 20);
+                if (id.siteOrganizer && organizerWait_ && organizerWait_->until > 0) Say(loc::T("site.organizer_now"), Tone::Success, 20);
                 deskReadAt_ = 0;
                 organizerWait_.reset();
             }

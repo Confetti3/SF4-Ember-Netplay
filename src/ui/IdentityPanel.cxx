@@ -467,21 +467,21 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::DeskAct:
         // The desk shows what the action changed at once.
-        Say(loc::T("desk.done"), false, 4); deskReadAt_ = 0; break;
+        Say(loc::T("desk.done"), Tone::Success, 4); deskReadAt_ = 0; break;
     case IdentityOp::DeskWeb:
         // A web sign-in the player has not heard of is told once.
         if (std::any_of(id.webSessions.begin(), id.webSessions.end(), [](const netplay::WebSession& w) { return w.fresh; })) {
-            Say(loc::T("desk.web_new"), false, 8);
+            Say(loc::T("desk.web_new"), Tone::Success, 8);
             IdentityRequest seen; seen.op = IdentityOp::DeskWebSeen; seen.bridge = sentBridge_; Queue(std::move(seen));
         }
         break;
     case IdentityOp::DeskOpen:
-        Say(loc::T("desk.opened"), false, 4); break;
+        Say(loc::T("desk.opened"), Tone::Success, 4); break;
     case IdentityOp::DeskApprove:
         deskCode_.clear();
-        Say(loc::T("desk.device_approved"), false, 8); break;
+        Say(loc::T("desk.device_approved"), Tone::Success, 8); break;
     case IdentityOp::DeskWebEnd:
-        Say(loc::T("desk.web_ended"), false, 4); deskReadAt_ = 0; break;
+        Say(loc::T("desk.web_ended"), Tone::Success, 4); deskReadAt_ = 0; break;
     case IdentityOp::DiscordStatus:
         SignInFinish(v);
         // Connect Discord's steps go on from the account read.
