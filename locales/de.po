@@ -2515,8 +2515,8 @@ msgstr "Im heruntergeladenen Paket fehlen Launcher.exe oder Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Staging-Pfad nicht lesbar."
 
-msgid "update.validation_failed"
-msgstr "Paketprüfung fehlgeschlagen (erforderliche Dateien fehlen)."
+msgid "update.validation_detail"
+msgstr "Update-Prüfung fehlgeschlagen: {0}\nInstallierte Dateien wurden nicht ersetzt."
 
 msgid "update.cancelled"
 msgstr "Update vor der Installation abgebrochen."

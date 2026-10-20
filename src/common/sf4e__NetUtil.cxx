@@ -160,6 +160,48 @@ namespace sf4e {
 		return HttpGetUtf8WithHeadersInternal(host, port, useHttps, path, timeoutMs, extraHeaders, outBody, outBodyLen);
 	}
 
+    bool HttpGetUpdateMetadata(const char* host, int port, bool https, const char* path,
+        int budgetMs, const std::function<bool()>& cancelled, std::string& body) {
+        body.clear();
+        if (!host || !path || budgetMs <= 0 || (cancelled && cancelled())) return false;
+        wchar_t wideHost[256]{}, widePath[512]{};
+        Utf8ToWide(host, wideHost, 256); Utf8ToWide(path, widePath, 512);
+        HINTERNET session = OpenHttpSession(budgetMs, WINHTTP_FLAG_ASYNC);
+        if (!session) return false;
+        HINTERNET connection = WinHttpConnect(session, wideHost, static_cast<INTERNET_PORT>(port), 0);
+        HINTERNET raw = connection ? WinHttpOpenRequest(connection, L"GET", widePath, nullptr,
+            WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, https ? WINHTTP_FLAG_SECURE : 0) : nullptr;
+        bool ok = false;
+        if (raw) {
+            detail::ReportHttpRequest request(raw, {}, std::chrono::milliseconds(budgetMs));
+            // Metadata never needs to redirect to a different host.
+            DWORD redirects = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
+            WinHttpSetOption(raw, WINHTTP_OPTION_REDIRECT_POLICY, &redirects, sizeof(redirects));
+            if (request.Initialize() && request.Send(L"Accept: application/vnd.github+json\r\n", 0, cancelled) &&
+                request.Receive(cancelled)) {
+                DWORD status = 0, length = sizeof(status);
+                if (WinHttpQueryHeaders(request.Handle(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                    WINHTTP_HEADER_NAME_BY_INDEX, &status, &length, WINHTTP_NO_HEADER_INDEX) && status == 200) {
+                    DWORD expected=0, expectedBytes=sizeof(expected);
+                    const bool declared=WinHttpQueryHeaders(request.Handle(),WINHTTP_QUERY_CONTENT_LENGTH|WINHTTP_QUERY_FLAG_NUMBER,
+                        WINHTTP_HEADER_NAME_BY_INDEX,&expected,&expectedBytes,WINHTTP_NO_HEADER_INDEX)!=FALSE;
+                    const bool validLength=declared ? expected<=1024*1024 : GetLastError()==ERROR_WINHTTP_HEADER_NOT_FOUND;
+                    char buffer[8192];
+                    while (validLength && request.Read(buffer, sizeof(buffer), cancelled)) {
+                        const auto count = request.Bytes();
+                        if (!count) { ok = !body.empty() && (!declared || body.size()==expected); break; }
+                        if (body.size() + count > 1024 * 1024) break;
+                        body.append(buffer, count);
+                    }
+                }
+            }
+        }
+        if (connection) WinHttpCloseHandle(connection);
+        WinHttpCloseHandle(session);
+        if (!ok) body.clear();
+        return ok;
+    }
+
 	static bool ParseHttpUrl(const char* url, char* outHost, int outHostLen, char* outPath, int outPathLen, bool& outHttps, int& outPort) {
 		if (!url || !outHost || !outPath) {
 			return false;

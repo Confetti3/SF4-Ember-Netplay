@@ -422,6 +422,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_video.cmake")
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME NetworkLink SOURCES "src/tests/network_link_test.cxx" LIBS sf4e_common TIMEOUT 30)
     sf4e_add_unit_test(NAME HttpPostCancel SOURCES "src/tests/http_post_cancel_test.cxx" STD 17 LIBS sf4e_common ws2_32 TIMEOUT 60)
+    sf4e_add_unit_test(NAME HttpUpdateMetadata SOURCES "src/tests/http_update_metadata_test.cxx" STD 17 LIBS sf4e_common ws2_32 TIMEOUT 60)
 endif()
 
 add_library(sf4e STATIC

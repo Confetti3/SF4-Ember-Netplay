@@ -2515,8 +2515,8 @@ msgstr "Il manque Launcher.exe ou Sidecar.dll dans le paquet téléchargé."
 msgid "update.staging_path_failed"
 msgstr "Chemin de préparation illisible."
 
-msgid "update.validation_failed"
-msgstr "Validation du paquet téléchargé échouée : fichiers requis absents."
+msgid "update.validation_detail"
+msgstr "Échec de la validation : {0}\nLes fichiers installés sont inchangés."
 
 msgid "update.cancelled"
 msgstr "Mise à jour annulée avant l'installation."

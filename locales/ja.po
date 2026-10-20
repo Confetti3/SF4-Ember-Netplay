@@ -2515,8 +2515,8 @@ msgstr "ダウンロードしたパッケージにLauncher.exeまたはSidecar.d
 msgid "update.staging_path_failed"
 msgstr "仮配置先のパスを読み取れませんでした。"
 
-msgid "update.validation_failed"
-msgstr "ダウンロードしたパッケージの検証に失敗しました（必須ファイルがありません）。"
+msgid "update.validation_detail"
+msgstr "更新の検証に失敗しました: {0}\nインストール済みのファイルは変更されていません。"
 
 msgid "update.cancelled"
 msgstr "インストール前に更新をキャンセルしました。"

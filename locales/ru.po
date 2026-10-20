@@ -2516,8 +2516,8 @@ msgstr "В загруженном пакете нет Launcher.exe или Sideca
 msgid "update.staging_path_failed"
 msgstr "Не удалось прочитать временный путь."
 
-msgid "update.validation_failed"
-msgstr "Загруженный пакет не прошёл проверку: отсутствуют нужные файлы."
+msgid "update.validation_detail"
+msgstr "Ошибка проверки обновления: {0}\nУстановленные файлы не заменены."
 
 msgid "update.cancelled"
 msgstr "Обновление отменено до установки."

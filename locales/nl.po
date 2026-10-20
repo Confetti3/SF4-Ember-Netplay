@@ -2515,8 +2515,8 @@ msgstr "Launcher.exe of Sidecar.dll ontbreekt in het gedownloade pakket."
 msgid "update.staging_path_failed"
 msgstr "Kon het stagingpad niet lezen."
 
-msgid "update.validation_failed"
-msgstr "Het gedownloade pakket is afgekeurd (vereiste bestanden ontbreken)."
+msgid "update.validation_detail"
+msgstr "Updatecontrole mislukt: {0}\nDe geïnstalleerde bestanden zijn niet vervangen."
 
 msgid "update.cancelled"
 msgstr "Update geannuleerd vóór installatie."
