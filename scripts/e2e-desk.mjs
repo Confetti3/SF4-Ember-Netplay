@@ -104,6 +104,8 @@ async function chrome() {
   });
   await send("Page.enable");
   await send("Runtime.enable");
+  // Signed out at the start, whatever an earlier run left.
+  await send("Network.clearBrowserCookies");
   return {
     send,
     close: () => { socket.close(); fetch("http://127.0.0.1:9222/json/close/" + target.id).catch(() => {}); },
