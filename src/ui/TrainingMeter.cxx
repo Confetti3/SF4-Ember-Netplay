@@ -84,6 +84,65 @@ void CountMarks(ImDrawList* draw, ImVec2 origin, float cell, float height, float
         draw->AddLine(ImVec2(x, origin.y + height), ImVec2(x, origin.y + height + (tenth ? 2.5f : 1.5f) * unit), colour, thickness);
     }
 }
+ImVec4 AdvantageColor(int frames) {
+    return ImGui::ColorConvertU32ToFloat4(frames > 0 ? IM_COL32(118, 224, 160, 255) :
+        frames < 0 ? IM_COL32(255, 121, 129, 255) : palette::Ivory);
+}
+// A hit's advantage (MeterCell::hitAdvantage) in the row between the bars:
+// whose hit, its bracket's cells, and the span its number takes. The bracket
+// is the advantage itself: ahead, the frames after the attacker's last
+// recovery frame (or the last before its next move) in which the other is
+// still stunned; behind, the attacker's last recovery frames, in which the
+// other could already act. Even, it is the frame they both act on.
+struct HitMark { int side, first, last, frames; float from, to; std::string text; };
+// Both fighters' hits. left: where each bar's first cell meets that row.
+// Where two numbers would overlap (a multi-hit move) the later hit's shows.
+std::vector<HitMark> HitMarks(const MeterView& meter, BarWindow window, const float (&left)[2], float cell, float size) {
+    std::vector<HitMark> marks;
+    for (int i = window.cells - 1; i >= 0; --i) {
+        const int index = CellFrame(meter, window, i);
+        for (int side = 0; side < 2 && index >= 0; ++side) {
+            const auto& shown = meter.frames[index].cells[side];
+            if (shown.hitAdvantage == NoHitAdvantage) continue;
+            int recovered = i;
+            while (recovered + 1 < window.cells) {
+                const int at = CellFrame(meter, window, recovered + 1);
+                if (at < 0 || meter.frames[at].cells[side].newAction || meter.frames[at].cells[side].phase != Phase::Attack) break;
+                ++recovered;
+            }
+            const int frames = shown.hitAdvantage;
+            const int first = frames < 0 ? (std::max)(i, recovered + frames + 1) : recovered + 1;
+            const int last = frames > 0 ? recovered + frames : frames < 0 ? recovered : recovered + 1;
+            char text[8];
+            std::snprintf(text, sizeof text, "%+d", frames);
+            const float w = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, text).x + 1, x = left[side] + (first + last + 1) * cell / 2 - w / 2;
+            if (!marks.empty() && x + w + 2 > marks.back().from) continue;
+            marks.push_back({side, first, last, frames, x, x + w, text});
+        }
+    }
+    return marks;
+}
+// The row between the bars holds a bracket and its number, size tall.
+inline float HitRow(float size) { return size * 1.2f; }
+// Each hit's bracket in its advantage's colour, its ends towards its bar and
+// its number on the other side, in the row from top; the first bar's above
+// its number, the second's under it. Numbers are drawn twice a pixel apart to
+// read bold.
+void DrawHitMarks(ImDrawList* draw, const std::vector<HitMark>& marks, const float (&left)[2], float cell, float top, float size) {
+    const float unit = size / 10, line = (std::max)(1.f, unit), bottom = top + HitRow(size);
+    for (const auto& mark : marks) {
+        const ImU32 colour = ImGui::ColorConvertFloat4ToU32(AdvantageColor(mark.frames));
+        const float from = left[mark.side] + mark.first * cell + line, to = left[mark.side] + (mark.last + 1) * cell - line, mid = (from + to) / 2;
+        const float edge = mark.side ? bottom : top, y = mark.side ? bottom - 2 * unit : top + 2 * unit, toward = mark.side ? -1.5f * unit : 1.5f * unit;
+        draw->AddLine(ImVec2(from, edge), ImVec2(from, y), colour, line);
+        draw->AddLine(ImVec2(from, y), ImVec2(to, y), colour, line);
+        draw->AddLine(ImVec2(to, y), ImVec2(to, edge), colour, line);
+        draw->AddLine(ImVec2(mid, y), ImVec2(mid, y + toward), colour, line);
+        // The number tucks into the font's own space above its digits.
+        const float textTop = mark.side ? top : y + toward - 1.5f * unit;
+        for (const float bold : {0.f, 1.f}) Edged(draw, size, ImVec2(mark.from + bold, textTop), colour, mark.text.c_str());
+    }
+}
 // On a bar: a dotted line where frames left out of the bars (hitstop, a
 // super's freeze) were.
 void DrawStops(ImDrawList* draw, const MeterView& meter, int side, BarWindow window, ImVec2 origin, float cell, float height, float slant) {
@@ -157,10 +216,6 @@ void AngledBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin
     CountMarks(draw, origin, cell, height, slant, window.cells);
     DrawStops(draw, meter, side, window, origin, cell, height, slant);
     for (const auto& run : runs) label(run.from, run.to, run.kind);
-}
-ImVec4 AdvantageColor(int frames) {
-    return ImGui::ColorConvertU32ToFloat4(frames > 0 ? IM_COL32(118, 224, 160, 255) :
-        frames < 0 ? IM_COL32(255, 121, 129, 255) : palette::Ivory);
 }
 // The last reading stays until the next one replaces it, dimmed while that
 // one is being measured.
@@ -251,6 +306,13 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
         else AngledBar(ImGui::GetWindowDrawList(), meter, side, origin, width, height, window);
         ReportMenuCard(side ? "training-bar-2" : "training-bar-1", origin, ImVec2(origin.x + width, origin.y + height));
         ImGui::Dummy(ImVec2(width, height));
+        // Between the bars, each hit's bracket and advantage.
+        if (side == 0) {
+            const float size = height * .82f, slant = options.style == MeterStyle::Flat ? 0 : height * .35f, left[2] = {bars.x, bars.x + slant};
+            const float cell = (width - slant) / window.cells;
+            DrawHitMarks(ImGui::GetWindowDrawList(), HitMarks(meter, window, left, cell, size), left, cell, ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y, size);
+            ImGui::Dummy(ImVec2(width, HitRow(size) - 2 * ImGui::GetStyle().ItemSpacing.y));
+        }
     }
 }
 // What a focus cancel was, from the reading it belongs to.
@@ -362,7 +424,7 @@ ImU32 ReadingColor(const Reading& reading) {
 // fifth bold. A cell keeps a width that reads, so more frames than fit show
 // the newest that do instead of squeezing them. The first bar is set forward
 // by the slant, so a frame's two cells meet straight across the row between
-// the bars.
+// the bars, and a hit's bracket there sits under both.
 void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& options) {
     auto* draw = ImGui::GetWindowDrawList();
     const float full = ImGui::GetContentRegionAvail().x;
@@ -408,8 +470,9 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
     // fives of cells as fit at the narrowest width that still reads, never
     // more than Frames shown.
     // Upright cells when the slant is off: the bars then sit straight over each other.
-    const float height = options.barHeight * hudScale, slant = options.classicSlant ? height * .35f : 0.f, dots = 6 * hudScale;
-    const float lane = 9 * hudScale, digits = height * .82f;
+    // The row between the bars holds the dots and each hit's bracket and advantage (HitRow).
+    const float height = options.barHeight * hudScale, digits = height * .82f, slant = options.classicSlant ? height * .35f : 0.f;
+    const float dots = HitRow(digits), lane = 9 * hudScale;
     const float usable = (std::max)(60.f, full - 2 * slant);
     const int fit = (std::max)(10, static_cast<int>(usable / (4 * hudScale)) / 5 * 5);
     const int cells = (std::min)(options.shown, fit);
@@ -498,6 +561,9 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
                 draw->AddCircleFilled(ImVec2(x0 + (i + .5f) * cell, mid), (fifth ? 1.6f : .9f) * hudScale,
                     fifth ? IM_COL32(255, 214, 72, 235) : IM_COL32(200, 200, 200, 150));
             }
+            // Over the dots, each hit's bracket and advantage.
+            const float left[2] = {x0, start.x + slant};
+            DrawHitMarks(draw, HitMarks(meter, window, left, cell, digits), left, cell, y, digits);
             y += dots;
         }
         if (options.classicInputs && side == 1) inputs(1, x0);

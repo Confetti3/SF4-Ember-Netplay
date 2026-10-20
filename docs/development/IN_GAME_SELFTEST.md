@@ -53,6 +53,10 @@ repeats by default, so it first turns Loop off, then:
   frame data's, startup 3, active 2 and recovery 7, and its bars have to
   draw 3, 2 and 6 cells (the last recovery frame has no cell; see
   `ClassifyMeter` in `FrameMeter.hxx`);
+- Player 1 walks up and hits the other Ryu with crouching LP. The advantage
+  the meter measures once both have recovered, and the one it marks on the
+  hit as it lands (`MeterCell::hitAdvantage`, from the game's frames until
+  each fighter can act), both have to be the frame data's +5;
 - the lab's record control is pressed three times: standby, recording for
   eight seconds, stop. The slot has to hold about that many frames, and its
   playback has to get into it. The HUD's recording and playback strip shows
