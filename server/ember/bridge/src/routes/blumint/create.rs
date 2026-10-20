@@ -8,7 +8,9 @@ use axum::{
     response::Response,
 };
 use ember_protocol::{
-    EmberId, json as wire,
+    EmberId,
+    api::ErrorCode,
+    json as wire,
     matches::{MAX_GAMES_TO_WIN, Participant, Rules},
     play::{PROFILE, play_url},
 };
@@ -16,9 +18,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{
-    BluMintBody, BluMintRefusal, CREATE_BODY, MATCHES_PATH, connection, keys, outcome, parse,
-};
+use super::{BluMintBody, BluMintRefusal, CREATE_BODY, MATCHES_PATH, connection, keys, parse};
 use crate::{
     AppState,
     ctx::Ctx,
@@ -163,27 +163,26 @@ pub async fn create(
     body: BluMintBody<CREATE_BODY>,
 ) -> std::result::Result<Response, BluMintRefusal> {
     let connection_id = connection(&state, &headers).await?;
-    let key = idempotency_key(&headers)?;
+    let key = idempotency_key(&headers).map_err(BluMintRefusal::classify)?;
     let asked = body
-        .map_err(BluMintRefusal::from)
+        .map_err(BluMintRefusal::classify)
         .and_then(|body| requested(&body));
     let ctx = Ctx::of(&state);
+    // A refusal is an `Err`, so the write rolls back and keeps nothing of it.
     let answer = state
         .db
-        .write(move |tx| {
-            outcome(|| {
-                let (set, digest) = asked?;
-                make(tx, &ctx, &connection_id, &key, &set, &digest)
-            })
+        .write_with(move |tx| {
+            let (set, digest) = asked?;
+            make(tx, &ctx, &connection_id, &key, &set, &digest)
         })
-        .await??;
+        .await?;
     state.committed();
     Ok(into_response(answer))
 }
 
 /// The set BluMint asks for, and the digest a key's requests are compared by.
 fn requested(body: &Body<CREATE_BODY>) -> std::result::Result<(Set, String), BluMintRefusal> {
-    let request: CreateRequest = parse(body)?;
+    let request: CreateRequest = parse(body).map_err(BluMintRefusal::classify)?;
     let [first, second] = request.teams.as_slice() else {
         return Err(BluMintRefusal::MatchUnsupported);
     };
@@ -201,7 +200,9 @@ fn requested(body: &Body<CREATE_BODY>) -> std::result::Result<(Set, String), Blu
         games_to_win,
         starting_wins,
     };
-    let digest = wire::digest(&set).map_err(ApiFailure::from)?;
+    let digest = wire::digest(&set)
+        .map_err(ApiFailure::from)
+        .map_err(BluMintRefusal::classify)?;
     Ok((set, digest))
 }
 
@@ -216,7 +217,7 @@ fn make(
     digest: &str,
 ) -> std::result::Result<(StatusCode, Value), BluMintRefusal> {
     let actor = keys::owner(connection_id);
-    idempotent(tx, &actor, MATCHES_PATH, key, digest, ctx.now, |tx| {
+    let answer = idempotent(tx, &actor, MATCHES_PATH, key, digest, ctx.now, |tx| {
         let tenant_id = ctx.tenant_of(connection_id)?;
         if keys::made_under(tx, &tenant_id, connection_id, key)?.is_some() {
             return Err(BluMintRefusal::KeyReused);
@@ -226,6 +227,14 @@ fn make(
             StatusCode::OK,
             json!({ "matchId": id, "matchUrl": play_url(&ctx.config.bridge_id, &id) }),
         ))
+    });
+    // A key used for a different request is refused by the generic code, as
+    // the failure it raises; BluMint reads it as its own refusal.
+    answer.map_err(|refusal| match refusal {
+        BluMintRefusal::Bridge(failure) if failure.code == ErrorCode::IdempotencyConflict => {
+            BluMintRefusal::KeyReused
+        }
+        refusal => refusal,
     })
 }
 
@@ -240,7 +249,7 @@ fn insert(
     digest: &str,
 ) -> std::result::Result<String, BluMintRefusal> {
     let roster = seats(tx, connection_id, &set.players)?;
-    Ok(insert_match(
+    insert_match(
         tx,
         ctx,
         &NewMatch {
@@ -256,7 +265,8 @@ fn insert(
             lobby_id: None,
             tournament_id: None,
         },
-    )?)
+    )
+    .map_err(BluMintRefusal::classify)
 }
 
 /// The two players as the participants they are linked as on the connection,

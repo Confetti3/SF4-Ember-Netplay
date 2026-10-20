@@ -82,6 +82,17 @@ impl Db {
         self.run(TransactionBehavior::Immediate, work).await
     }
 
+    /// `write` for a route with an error type of its own: any `Err` from
+    /// `work` rolls the write back, whatever the route answers it with.
+    pub async fn write_with<T, E, F>(&self, work: F) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<ApiFailure> + Send + 'static,
+        F: FnOnce(&Transaction<'_>) -> Result<T, E> + Send + 'static,
+    {
+        self.run(TransactionBehavior::Immediate, work).await
+    }
+
     /// Runs `work` in a read transaction, a consistent snapshot.
     pub async fn read<T, F>(&self, work: F) -> Result<T, ApiFailure>
     where
@@ -91,17 +102,20 @@ impl Db {
         self.run(TransactionBehavior::Deferred, work).await
     }
 
-    async fn run<T, F>(&self, behavior: TransactionBehavior, work: F) -> Result<T, ApiFailure>
+    async fn run<T, E, F>(&self, behavior: TransactionBehavior, work: F) -> Result<T, E>
     where
         T: Send + 'static,
-        F: FnOnce(&Transaction<'_>) -> Result<T, ApiFailure> + Send + 'static,
+        E: From<ApiFailure> + Send + 'static,
+        F: FnOnce(&Transaction<'_>) -> Result<T, E> + Send + 'static,
     {
         let db = self.0.clone();
         tokio::task::spawn_blocking(move || {
             let mut connection = db.lock().map_err(|_| ApiFailure::unavailable())?;
-            let transaction = connection.transaction_with_behavior(behavior)?;
+            let transaction = connection
+                .transaction_with_behavior(behavior)
+                .map_err(ApiFailure::from)?;
             let value = work(&transaction)?;
-            transaction.commit()?;
+            transaction.commit().map_err(ApiFailure::from)?;
             Ok(value)
         })
         .await
