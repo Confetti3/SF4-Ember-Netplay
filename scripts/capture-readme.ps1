@@ -9,7 +9,10 @@ $renderer = Join-Path $build 'UiRenderTest.exe'
 if (!(Test-Path -LiteralPath (Join-Path $GameRoot 'SSFIV.exe'))) { throw 'GameRoot must be the owned Steam USF4 installation.' }
 $captures = Join-Path $build ('readme-captures-' + (Get-Date).ToString('yyyyMMdd-HHmmss', [cultureinfo]::InvariantCulture))
 New-Item -ItemType Directory -Path $captures | Out-Null
-& $renderer "$captures/" $GameRoot (Join-Path $repo 'assets/selection') --readme-shots
+# Every capture below is English at 1280x720 and 100%, so the sweep renders only that size.
+$quick = $env:SF4E_UI_RENDER_QUICK; $env:SF4E_UI_RENDER_QUICK = '720'
+try { & $renderer "$captures/" $GameRoot (Join-Path $repo 'assets/selection') --readme-shots }
+finally { $env:SF4E_UI_RENDER_QUICK = $quick }
 if ($LASTEXITCODE) { throw 'README UI rendering failed.' }
 Add-Type -AssemblyName System.Drawing
 $destination = Join-Path $repo 'docs/images'
@@ -21,7 +24,7 @@ $shots = @(
     @{source='costumes';name='ember-costumes';crop=$null}
 )
 foreach ($shot in $shots) {
-    $bitmap = [Drawing.Bitmap]::new((Join-Path $captures "$($shot.source)-1280-100.bmp"))
+    $bitmap = [Drawing.Bitmap]::new((Join-Path $captures "$($shot.source)-en-1280-100.bmp"))
     try {
         $output = Join-Path $destination "$($shot.name).png"
         if ($shot.crop) {
