@@ -20,6 +20,73 @@ ImGuiWindow* ActiveWindow(const char* fragment){
  for(auto* window:GImGui->Windows)if(window->Active&&std::strstr(window->Name,fragment))found=window;
  return found;
 }
+void ChatNotificationTiming(){
+ using namespace sf4e;
+ room::Snapshot room;room.roomEpoch=800;room.localMember=1;
+ ui::ChatTranscript transcript;ui::ChatNotificationState notification;
+ std::set<room::MemberId> muted;
+ std::uint64_t sequence=0;
+ const auto say=[&](room::MemberId sender){room.chat.push_back({++sequence,sender,"New message"});transcript.Update(room,{});};
+ const auto tick=[&](double now){return notification.Update(transcript,muted,now);};
+ transcript.Update(room,{});Check(!tick(99).expanded,"Joining armed a chat notification");
+ say(2);Check(tick(100).expanded&&tick(103.999).expanded,"Chat notification ended before four seconds");
+ Check(!tick(104).expanded&&tick(104).unread==1,"Expiry lost unread chat or kept the expanded notice");
+ // Duplicate snapshots, our own messages, mute changes and mode changes do not rearm.
+ transcript.Update(room,{});Check(!tick(105).expanded,"A repeated snapshot rearmed chat");
+ muted.insert(3);say(3);Check(!tick(106).expanded&&tick(106).unread==1,"Muted chat raised a notification");
+ muted.clear();Check(!tick(107).expanded&&tick(107).unread==2,"Unmuting old chat raised a notification");
+ say(1);Check(!tick(108).expanded,"Our own message raised a notification");
+ say(2);Check(tick(110).expanded,"A later message did not raise a fresh notification");
+ say(2);Check(tick(112).expanded,"A burst lost its initial notification");
+ Check(!tick(114).expanded&&tick(114).unread==4,"A burst extended the notification or cleared unread");
+ say(2);Check(!tick(115).expanded,"Continuous chatter immediately reopened the notification");
+ say(2);Check(tick(119).expanded,"A quiet interval did not permit the next notification");
+ transcript.MarkRead();Check(!tick(119.1).expanded&&tick(119.1).unread==0,"Reading did not dismiss chat attention");
+ say(2);Check(tick(120).expanded,"A new message after reading did not notify");
+ // These supplied monotonic ticks keep advancing even when an ImGui context
+ // is recreated or the menu/fight hides the passive layer.
+ Check(!tick(124).expanded&&tick(124).unread==1,"A hidden notification stopped aging");
+ for(int i=0;i<210;++i)say(2);
+ Check(tick(130).expanded&&tick(130).unread==200,"A full transcript failed to notify on new sequences");
+ tick(134);say(2);
+ Check(tick(140).expanded&&tick(140).unread==200,"An unchanged capped count hid a new message");
+ room.roomEpoch=801;transcript.Update(room,{});
+ Check(!tick(141).expanded&&tick(141).unread==0,"The prior room leaked a notification");
+ say(2);Check(tick(142).expanded,"New room chat failed to notify");
+ transcript.Clear();Check(!tick(143).expanded&&tick(143).unread==0,"Leaving a room left an unread badge");
+}
+// Scrolling, focus and dialogs must not acknowledge text the player cannot see.
+void ChatReadVisibility(){
+ using namespace sf4e;
+ Harness h;JoinChatRoom(h,600);h.Screen("home");
+ std::uint64_t sequence=0;
+ const auto say=[&]{h.view.room.chat.push_back({++sequence,2,"A line of chat history"});};
+ for(int i=0;i<80;++i)say();
+ h.Frame();Check(h.shell.UnreadChat()==80,"Hidden chat was marked read");
+ h.Screen("room-chat");h.Frame(0,5);
+ Check(h.shell.UnreadChat()==0,"Visible newest chat was not marked read");
+ auto* log=ActiveWindow("Chat transcript");
+ Check(log&&log->ScrollMax.y>0,"Chat read test needs a scrolling transcript");
+ log->Scroll.y=0;log->ScrollTarget.y=FLT_MAX;h.Frame(0,2);
+ say();h.Frame(0,3);
+ Check(h.shell.UnreadChat()==1,"Chat scrolled into history read an offscreen arrival");
+ log->Scroll.y=log->ScrollMax.y;h.Frame(0,3);
+ Check(h.shell.UnreadChat()==0,"Returning to the newest message did not read it");
+ h.view.focused=false;ImGui::GetIO().AddFocusEvent(false);say();h.Frame(0,4);
+ Check(h.shell.UnreadChat()==1,"An unfocused game read chat");
+ h.view.focused=true;ImGui::GetIO().AddFocusEvent(true);h.Frame(0,3);
+ Check(h.shell.UnreadChat()==0,"Restoring focus did not read visible chat");
+ // A large arrival extends the scroll range. It is unread on that frame,
+ // even though the viewport was at the end before the arrival.
+ for(int i=0;i<20;++i)say();
+ h.Frame();Check(h.shell.UnreadChat()==20,"Previous-frame bottom read an offscreen burst");
+ h.Frame(0,4);Check(h.shell.UnreadChat()==0,"Following the newest burst did not read it");
+ h.view.readyFailure="Read test notice";h.view.readyFailureSequence=1;h.Frame(0,3);
+ Check(h.shell.NoticeOpen(),"Read test did not open a notice");say();h.Frame(0,3);
+ Check(h.shell.UnreadChat()==1,"A message behind a modal notice was marked read");
+ h.Press(MenuInput::Select);h.Frame(0,4);
+ Check(!h.shell.NoticeOpen()&&h.shell.UnreadChat()==0,"Dismissing the notice did not restore visible chat reading");
+}
 // What the transcript keeps, without a screen: messages by sequence, and a line for each change of the room.
 void TranscriptLogic(){
  using namespace sf4e;using ui::ChatLine;
@@ -92,9 +159,102 @@ void TranscriptLogic(){
  Check(t.Update(s,n)&&t.Lines().size()==1&&t.Lines()[0].text=="New room"&&t.Unread({})==0,"A different room kept the old transcript or counted its history as unread");
 }
 }
+void InlineChatJourneys(){
+ using namespace sf4e;
+ for(const int layout:{0,1,2,3}){
+  const bool narrow=layout!=0;
+  Harness h;auto& io=ImGui::GetIO();
+  if(narrow){io.DisplaySize=layout==3?ImVec2(1920,1080):ImVec2(layout==1?640:1280,720);ApplyTheme(layout==1?1.5f:2.f);}
+  h.Frame();JoinChatRoom(h,narrow?32:31);
+  h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
+  h.view.room.members[0].table=0;h.view.room.members[0].seat=0;
+  h.view.room.members[1].table=0;h.view.room.members[1].seat=1;
+  std::map<std::string,std::pair<ImVec2,ImVec2>> boxes;
+  std::vector<MenuEntry> rows;
+  SetMenuCardProbe([&](const char* id,ImVec2 a,ImVec2 b){boxes[id]={a,b};});
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& value){rows=value;});
+  const auto draft=[&]{for(const auto& row:rows)if(row.id=="inline-chat")return row.value;return std::string("missing");};
+  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame(0,2);};
+  const auto click=[&](const char* id){
+   Check(boxes.count(id)!=0,"Inline chat control was not drawn");
+   const auto box=boxes.at(id);
+   Check(box.first.y>=0&&box.second.y<=io.DisplaySize.y&&box.second.x<=io.DisplaySize.x,"Inline chat escaped the screen");
+   const auto* pane=ActiveWindow("Room inline chat");
+   if(!pane)pane=ActiveWindow("Room community");
+   if(pane&&std::strstr(pane->Name,"Recent chat"))pane=pane->ParentWindow;
+   Check(pane!=nullptr,"Inline chat pane is missing");
+   if(pane){
+    if(box.first.y<pane->InnerClipRect.Min.y||box.second.y>pane->InnerClipRect.Max.y)std::cerr<<"Inline layout "<<layout<<" box "<<box.first.y<<","<<box.second.y<<" clip "<<pane->InnerClipRect.Min.y<<","<<pane->InnerClipRect.Max.y<<"\n";
+    Check(box.first.y>=pane->InnerClipRect.Min.y&&box.second.y<=pane->InnerClipRect.Max.y&&box.first.x>=pane->InnerClipRect.Min.x&&box.second.x<=pane->InnerClipRect.Max.x,"Inline chat control was clipped by its pane");
+   }
+   io.AddMousePosEvent((box.first.x+box.second.x)*.5f,(box.first.y+box.second.y)*.5f);h.Frame();
+   io.AddMouseButtonEvent(0,true);h.Frame();io.AddMouseButtonEvent(0,false);h.Frame(0,3);
+  };
+  h.Screen("room");h.Frame(0,3);
+  Check(!rows.empty()&&rows.back().id=="inline-chat","Composer is not last in room navigation order");
+  if(narrow){
+   const auto* explanation=ActiveWindow("Room action explanation");
+   Check(explanation&&explanation->Size.y>=ImGui::GetTextLineHeight(),"Short board lost its explanation line");
+   const auto* stack=ActiveWindow("Room stacked");
+   Check(stack&&boxes.at("table-0").second.y-boxes.at("table-0").first.y>=136*ui::Scale()-1,
+    "A short scrolling board shrank a battle card");
+  }
+  Check(!io.WantTextInput,"The room stole typing focus before the player chose chat");
+  click("inline-chat");Check(io.WantTextInput,"Clicking the room's input did not allow typing");
+  h.actions.clear(); // Ignore joining-room preference synchronization.
+  io.AddInputCharactersUTF8("Hello from the main room");h.Frame(0,3);
+  Check(draft()=="Hello from the main room","Inline text did not reach the shared draft");
+  key(ImGuiKey_F);key(ImGuiKey_T);key(ImGuiKey_C);key(ImGuiKey_UpArrow);key(ImGuiKey_DownArrow);
+  if(h.shell.Navigation().Screen()!="room"||h.shell.Navigation().Focus()!="inline-chat"||!h.actions.empty())
+   std::cerr<<"Inline state: screen="<<h.shell.Navigation().Screen()<<" focus="<<h.shell.Navigation().Focus()<<" actions="<<h.actions.size()<<" typing="<<io.WantTextInput<<"\n";
+  Check(h.shell.Navigation().Screen()=="room"&&h.shell.Navigation().Focus()=="inline-chat"&&h.actions.empty(),"Typing triggered a room shortcut or seat action");
+  h.Frame(MenuInput::Down|MenuInput::Fighter,4);h.Frame(0,2);
+  Check(h.shell.Navigation().Focus()=="inline-chat"&&h.actions.empty(),"Pad navigation escaped the composer");
+  h.Press(MenuInput::Select);
+  Check(h.actions.size()==1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text==draft(),"Inline pad Select did not send only chat");
+  key(ImGuiKey_KeypadEnter);Check(h.actions.size()==1,"Inline Enter repeated an unacknowledged message");
+  h.view.room.chat.push_back({1,1,"Hello from the main room"});h.Frame(0,3);
+  Check(draft().empty(),"Acknowledged inline message stayed in the draft");
+  for(std::uint64_t sequence=2;sequence<=41;++sequence)h.view.room.chat.push_back({sequence,2,"An inline message"});
+  h.Frame(0,4);
+  Check(h.shell.UnreadChat()==0,"Attended visible inline chat was not read");
+  auto* recent=ActiveWindow("Recent chat");Check(recent&&recent->ScrollMax.y>0,"Inline read test needs history");
+  recent->Scroll.y=0;recent->ScrollTarget.y=FLT_MAX;h.Frame(0,2);
+  h.view.room.chat.push_back({42,2,"Below the visible inline history"});h.Frame(0,3);
+  Check(h.shell.UnreadChat()==1,"Inline chat read a message below the viewport");
+  recent->Scroll.y=recent->ScrollMax.y;h.Frame(0,4);
+  Check(h.shell.UnreadChat()==0,"Returning inline chat to the bottom did not read it");
+  h.view.focused=false;h.view.room.chat.push_back({43,2,"While the game was unfocused"});h.Frame(0,4);
+  Check(h.shell.UnreadChat()==1,"Inline chat bypassed the shared focus gate");
+  h.view.focused=true;h.Frame(0,4);Check(h.shell.UnreadChat()==0,"Focused inline chat did not read its newest text");
+  io.AddInputCharactersUTF8("Keep this draft");h.Frame(0,2);key(ImGuiKey_Escape);
+  Check(h.shell.Navigation().Screen()=="room"&&h.open&&draft()=="Keep this draft"&&!io.WantTextInput,"Inline Escape left the room or lost the draft");
+  h.Choose("inline-chat");h.Frame(0,3);io.AddInputCharactersUTF8(" again");h.Frame(0,3);
+  Check(draft()=="Keep this draft again","Returning to inline chat replaced the saved draft");
+  click("inline-chat-send");
+  Check(h.actions.size()==2&&h.actions.back().roomAction.text=="Keep this draft again","Inline Send button did not dispatch the draft");
+  h.view.session.control=netplay::Health::Lost;h.Frame(0,3);key(ImGuiKey_Enter);
+  Check(h.actions.size()==2&&draft()=="Keep this draft again","Lost control sent inline chat or lost its draft");
+  h.view.session.control=netplay::Health::Healthy;h.Frame(0,3);
+  // The normal navigation path can focus the composer without opening history.
+  h.Choose("inline-chat");h.Frame(0,3);
+  Check(h.shell.Navigation().Screen()=="room"&&io.WantTextInput,"Controller selection did not focus inline chat");
+  h.Press(MenuInput::Back);h.Frame(0,2);
+  Check(h.shell.Navigation().Screen()=="room"&&!io.WantTextInput&&h.actions.size()==2,"Controller Back escaped the composer into a seat action");
+  h.Choose("inline-chat");h.Frame(0,3);
+  Check(io.WantTextInput,"Replacement regression did not begin with an active editor");
+  io.AddInputCharactersUTF8("old room");h.Frame(0,2);
+  JoinChatRoom(h,34);h.Frame(0,3);
+  Check(draft().empty()&&!io.WantTextInput,"An active editor or draft survived room replacement");
+  io.AddInputCharactersUTF8("must not spill");h.Frame(0,3);
+  Check(draft().empty()&&!io.WantTextInput,"Typing entered a new room without selecting its composer");
+  SetMenuCardProbe({});SetMenuEntriesProbe({});
+ }
+}
 void ChatJourneys(){
  using namespace sf4e;
- TranscriptLogic();
+ TranscriptLogic();ChatReadVisibility();
+ InlineChatJourneys();
  Harness h;h.Frame();
  auto& io=ImGui::GetIO();
  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};
@@ -418,4 +578,5 @@ void ChatJourneys(){
   "A spectator's message during the game it watches was not sent");
  h.view.watchedGame={};h.view.session.match=netplay::MatchState::None;
  SetMenuEntriesProbe({});
+ ChatNotificationTiming();
 }

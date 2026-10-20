@@ -51,6 +51,7 @@ void ShootChat(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const
     view.room.chat.erase(std::remove_if(view.room.chat.begin(),view.room.chat.end(),[](const room::ChatMessage& m){return m.sender==5;}),view.room.chat.end());
     draw(nullptr,0,1);
     view.room.host=2;say(3,"Nice set!");draw(nullptr,0,1);
+    draw("chat-inline-board",0,3);
     open("room-chat");draw("chat-conversation",0,3);
     Require(shell.Transcript().Lines().size()>=12,"The chat transcript did not keep the room's events and messages");
     Require(FindWindow("Chat transcript")!=nullptr,"The Chat screen has no transcript");
@@ -79,8 +80,8 @@ void ShootChat(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const
     nav.Prefer("room-chat");
     draw("chat-unread-row",0,3);
     Require(nav.Focus()=="room-chat","The Chat row did not take the focus");
-    open("room-chat");draw(nullptr,0,1);
-    Require(shell.Transcript().Unread({})==0,"Opening Chat did not clear the count");
+    open("room-chat");draw(nullptr,0,4);
+    Require(shell.Transcript().Unread({})==0,"Showing the newest chat did not clear the count");
 
     // The board as the caller left it, with the first battle slot focused again.
     view.room=saved;open("room");nav.Prefer("table-0");

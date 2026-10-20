@@ -98,8 +98,7 @@ void DrawPanelBox(ImDrawList* draw,ImVec2 p,float w,float h,float s){
 void DrawStateLine(const MatchStripView& view,ImDrawList* draw,float x,float w,float top,float s){
     const auto state=MatchStripStateLine(view);
     if(state.empty())return;
-    const int severity=view.noticeSeverity>0||view.connectionWarning||view.predictionStalled?
-        (std::max)(view.noticeSeverity,view.connectionWarning||view.predictionStalled?1:0):0;
+    const int severity=view.AlertSeverity();
     const ImU32 colors[]={IM_COL32(181,169,155,255),IM_COL32(255,196,96,255),IM_COL32(255,118,96,255)};
     const float h=MatchStateHeight*s;
     draw->AddRectFilled(ImVec2(x,top),ImVec2(x+w,top+h),IM_COL32(20,19,18,235),4*s);

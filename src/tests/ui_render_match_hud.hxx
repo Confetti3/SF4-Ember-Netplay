@@ -76,6 +76,7 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
         Require(shown[0].value==loc::T("match.delay_own")&&shown[1].value==unavailable,"A spectator's Own delay or unknown backlog is shown wrongly");
         Require(MatchStripStateLine(watcher)==loc::Tf("training.room.queued",2,3),"A spectator's queue place is not on its state line");
         watcher.queuePosition=1;Require(MatchStripStateLine(watcher)==loc::T("match.up_next"),"A spectator next in the queue is not told so");
+
         watcher.queuePosition=0;Require(MatchStripStateLine(watcher).empty(),"A spectator with nothing to say shows a state line");
         watcher.notice="Connection restored.";Require(MatchStripStateLine(watcher)=="Connection restored.","A notice must outrank a spectator's room line");
     }
