@@ -155,8 +155,8 @@ links_to() { [ "$(readlink "$1")" = "$2" ]; }
 # file or the site itself, or nginx -t fails on the real server.
 zones_defined() {
     local name
-    for name in $(grep -oE 'limit_req zone=[a-z_]+' "$1" | sed 's/.*=//') \
-        $(grep -oE 'limit_conn [a-z_]+' "$1" | cut -d' ' -f2); do
+    for name in $(grep -oE 'limit_req zone=[a-z0-9_]+' "$1" | sed 's/.*=//') \
+        $(grep -oE 'limit_conn [a-z0-9_]+' "$1" | cut -d' ' -f2); do
         grep -hqE "^limit_(req|conn)_zone .* zone=$name:" "$1" "$2" || { echo "no zone $name" >&2; return 1; }
     done
 }
@@ -164,7 +164,7 @@ zones_defined() {
 no_zone_defined_twice() {
     local repeated
     repeated=$(cat "$R"/etc/nginx/conf.d/* "$R"/etc/nginx/sites-enabled/* |
-        grep -oE '^limit_(req|conn)_zone .* zone=[a-z_]+' | sed 's/.*zone=//' | sort | uniq -d)
+        grep -oE '^limit_(req|conn)_zone .* zone=[a-z0-9_]+' | sed 's/.*zone=//' | sort | uniq -d)
     [ -z "$repeated" ] || { echo "defined twice: $repeated" >&2; return 1; }
 }
 # The request zone <site> gives the exact location <path>.
