@@ -221,7 +221,7 @@ Only voices whose recordings are public domain, CC0 or CC BY may be used (they a
 
 | Ember language | Piper voice | Licence of the recordings | Notes |
 |---|---|---|---|
-| en | en_US-ljspeech-medium | public domain (LJ Speech) | female; pending the user's pick between ljspeech, kristin (LibriVox, PD) and cori (en_GB, LibriVox, PD); ljspeech is fastest on the Deck |
+| en | en_US-ljspeech-medium | public domain (LJ Speech) | female; picked by the user by ear over kristin and cori (both LibriVox, PD); also the fastest on the Deck |
 | de | de_DE-thorsten-medium | CC0 | male |
 | fr | fr_FR-siwis-medium | CC BY 4.0 | female; credit "SIWIS French Speech Synthesis Database" in the guide and notices |
 | es-ES | es_ES-davefx-medium | CC0 | male |
