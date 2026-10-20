@@ -802,15 +802,16 @@ fn running(tx: &Transaction<'_>, ember_id: &str) -> Result<u64> {
     )?)
 }
 
-/// A title as kept: 1 to 100 characters once the spaces around it are
-/// dropped, on one line.
+/// A title as kept: 1 to 60 characters once the spaces around it are
+/// dropped, on one line. Challonge refuses a longer tournament name, and the
+/// title is the name Ember creates it under.
 fn title_of(title: &str) -> Result<String> {
     let title = title.trim();
-    if (1..=100).contains(&title.chars().count()) && !title.chars().any(char::is_control) {
+    if (1..=60).contains(&title.chars().count()) && !title.chars().any(char::is_control) {
         Ok(title.to_owned())
     } else {
         Err(ApiFailure::invalid(
-            "A title is 1 to 100 characters on one line.",
+            "A title is 1 to 60 characters on one line.",
         ))
     }
 }

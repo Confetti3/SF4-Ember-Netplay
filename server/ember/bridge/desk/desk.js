@@ -6,13 +6,7 @@
 "use strict";
 
 const STEPS = ["Details", "Service and rules", "Discord and sign-ups", "Ready", "Live"];
-const LINK_ICONS = { bracket: "🏆", "sign up": "📝", signup: "📝", stream: "📺", twitch: "📺", matcherino: "💰", rules: "📜", discord: "💬" };
 const NEXT = ["Save", "Save", "Save", "Mark ready", "Your tournaments"];
-// The stages a longer set length can start from, widest first.
-const STAGES = [["top_32", "Top 32"], ["top_24", "Top 24"], ["top_16", "Top 16"], ["top_12", "Top 12"], ["top_8", "Top 8"],
-  ["quarter_finals", "Quarter-finals"], ["top_6", "Top 6"], ["top_4", "Top 4"], ["semi_finals", "Semi-finals"], ["finals", "Finals"],
-  ["grand_final", "Grand final"]];
-const stageName = (from) => (STAGES.find(([id]) => id === from) || [from, from])[1];
 // Words for a site's creation settings, by field and value.
 const FIELD_NAMES = { format: "Format", grand_final: "Grand final", third_place_match: "Third place match", open_signup: "The site's own sign-up page",
   round_robin_match_tie: "Points for a drawn set", swiss_match_tie: "Points for a drawn set" };
@@ -63,22 +57,6 @@ function show(page) {
   $("sign-out").hidden = page === "signed-out";
 }
 
-/** The Discord post for an event: one message, lines without a value left out. */
-function discordPost(event, siteName) {
-  const rounds = (event.settings && event.settings.rounds) || {};
-  const tiers = (rounds.tiers || []).map((tier) => stageName(tier.from) + " FT" + tier.games_to_win);
-  const ft = rounds.games_to_win
-    ? "🎮 " + [siteName, "FT" + rounds.games_to_win, ...tiers].filter(Boolean).join(" · ")
-    : siteName ? "🎮 " + siteName : "";
-  const when = event.starts_at ? "📅 <t:" + event.starts_at + ":F> (<t:" + event.starts_at + ":R>)" : "";
-  const links = (event.links || []).map((link) => (LINK_ICONS[link.label.toLowerCase()] || "🔗") + " " + link.label + ": " + link.url);
-  const page = event.public ? location.origin + "/t/" + event.id : "";
-  const follow = page ? (event.sign_ups ? "📝 Sign up and follow it live: " : "👀 Follow it live: ") + page : "";
-  return ["**" + event.title + "** — USF4 on Ember", when, ft, ...links, follow, "Play on Ember: https://embernetplay.link"]
-    .filter(Boolean)
-    .join("\n");
-}
-
 function siteName(id) {
   const site = desk.accounts.find((site) => site.id === id);
   return site ? site.display_name : id || "";
@@ -106,7 +84,7 @@ const device = { timer: 0, until: 0 };
 function deviceShows(code, number) {
   $("device-hidden").hidden = Boolean(code);
   $("device-code").hidden = !code || Boolean(number);
-  $("device-code").textContent = code ? code.slice(0, 3) + " " + code.slice(3) : "";
+  $("device-code").textContent = codeText(code);
   $("device-pick").hidden = !number;
   $("device-number").textContent = number || "";
   $("device-new").hidden = !code;
@@ -285,7 +263,8 @@ function startsAt() {
 
 async function saveDetails() {
   const title = $("title").value.trim();
-  if (!title) throw new Error("Give the tournament a title.");
+  const wrong = titleError(title);
+  if (wrong) throw new Error(wrong);
   const starts_at = startsAt();
   const links = linksFromForm();
   if (!desk.event) {
@@ -386,17 +365,10 @@ async function service() {
     : []));
 }
 
-function gamesOptions(selected) {
-  return [1, 2, 3, 4, 5, 7, 10].map((n) => el("option", { value: n, selected: n === selected }, "FT" + n));
-}
-
 function settingsFromForm() {
   const kept = (desk.event && desk.event.settings && desk.event.settings.rounds) || {};
-  const order = (from) => STAGES.findIndex(([id]) => id === from);
-  const tiers = [...$("tiers").children]
-    .map((row) => ({ from: row.querySelector('[data-tier="from"]').value, games_to_win: Number(row.querySelector('[data-tier="games"]').value) }))
-    .filter((tier, index, all) => all.findIndex((other) => other.from === tier.from) === index)
-    .sort((a, b) => order(a.from) - order(b.from));
+  const tiers = sortTiers([...$("tiers").children]
+    .map((row) => ({ from: row.querySelector('[data-tier="from"]').value, games_to_win: Number(row.querySelector('[data-tier="games"]').value) })));
   const rounds = { games_to_win: Number($("games").value), rules: kept.rules || [], tiers };
   const settings = { rounds };
   if ($("hold") && $("hold").checked) settings.hold = { streamed: true };
@@ -448,7 +420,7 @@ function linksFromForm() {
 
 async function post() {
   const event = desk.event;
-  $("post").value = discordPost(event, siteName(event.site));
+  $("post").value = discordPost(event, siteName(event.site), location.origin);
   const missing = [!event.starts_at && "a start date", !event.tournament && "its bracket event (step 2)"].filter(Boolean);
   $("ready-note").textContent = event.status !== "draft"
     ? event.status === "ready" ? "Ready: Ember runs it from " + whenText(event.starts_at) + "." : "Running now."
@@ -658,7 +630,7 @@ $("next").addEventListener("click", async () => {
     if (desk.step === 5) return home();
     go(desk.step + 1);
   } catch (error) {
-    stepError(error.reason === "needs_game_proof" ? error.message + " Then open the web desk from there." : error.message);
+    stepError(stepErrorText(error));
   } finally {
     button.disabled = false;
   }

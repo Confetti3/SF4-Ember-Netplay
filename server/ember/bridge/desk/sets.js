@@ -17,6 +17,57 @@ function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+// The stages a longer set length can start from, widest first.
+const STAGES = [["top_32", "Top 32"], ["top_24", "Top 24"], ["top_16", "Top 16"], ["top_12", "Top 12"], ["top_8", "Top 8"],
+  ["quarter_finals", "Quarter-finals"], ["top_6", "Top 6"], ["top_4", "Top 4"], ["semi_finals", "Semi-finals"], ["finals", "Finals"],
+  ["grand_final", "Grand final"]];
+const stageName = (from) => (STAGES.find(([id]) => id === from) || [from, from])[1];
+const LINK_ICONS = { bracket: "🏆", "sign up": "📝", signup: "📝", stream: "📺", twitch: "📺", matcherino: "💰", rules: "📜", discord: "💬" };
+// Challonge refuses a longer tournament name; the bridge holds titles to it too.
+const TITLE_MAX = 60;
+
+/** Why a title can't be saved, or "" when it can. */
+function titleError(title) {
+  const length = [...title.trim()].length;
+  if (!length) return "Give the tournament a title.";
+  if (length > TITLE_MAX) return "Keep the title to " + TITLE_MAX + " characters: Challonge refuses a longer name.";
+  return "";
+}
+
+/** Tiers once per stage, widest stage first. */
+function sortTiers(tiers) {
+  const order = (from) => STAGES.findIndex(([id]) => id === from);
+  return tiers
+    .filter((tier, index, all) => all.findIndex((other) => other.from === tier.from) === index)
+    .sort((a, b) => order(a.from) - order(b.from));
+}
+
+/** The Discord post for an event: one message, lines without a value left out. */
+function discordPost(event, siteName, origin) {
+  const rounds = (event.settings && event.settings.rounds) || {};
+  const tiers = (rounds.tiers || []).map((tier) => stageName(tier.from) + " FT" + tier.games_to_win);
+  const ft = rounds.games_to_win
+    ? "🎮 " + [siteName, "FT" + rounds.games_to_win, ...tiers].filter(Boolean).join(" · ")
+    : siteName ? "🎮 " + siteName : "";
+  const when = event.starts_at ? "📅 <t:" + event.starts_at + ":F> (<t:" + event.starts_at + ":R>)" : "";
+  const links = (event.links || []).map((link) => (LINK_ICONS[link.label.toLowerCase()] || "🔗") + " " + link.label + ": " + link.url);
+  const page = event.public ? origin + "/t/" + event.id : "";
+  const follow = page ? (event.sign_ups ? "📝 Sign up and follow it live: " : "👀 Follow it live: ") + page : "";
+  return ["**" + event.title + "** — USF4 on Ember", when, ft, ...links, follow, "Play on Ember: https://embernetplay.link"]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** A desk error as the open step shows it. */
+function stepErrorText(error) {
+  return error.reason === "needs_game_proof" ? error.message + " Then open the web desk from there." : error.message;
+}
+
+/** A sign-in code as shown: "123 456". */
+function codeText(code) {
+  return code ? code.slice(0, 3) + " " + code.slice(3) : "";
+}
+
 /** What each desk state reads as, and the tone it shows in. */
 const STATES = {
   needs_review: ["Needs review", "bad"],
@@ -111,4 +162,9 @@ function bracketView(sets, picked) {
         el("summary", {}, el("span", { class: "side" }, sides[round.side] || ""), " ", round.name),
         round.sets.map((set) => setCard(set)));
     })));
+}
+
+// Node's test runner loads this file too (desk/test); a browser has no module.
+if (typeof module !== "undefined") {
+  module.exports = { STAGES, stageName, TITLE_MAX, titleError, sortTiers, discordPost, stepErrorText, codeText, STATES, FILTERS, tally, players, roundName, bracketOf };
 }

@@ -1129,7 +1129,7 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
     // A title is all a draft needs.
     let (status, _) = organizer(
         "/v1/organizer/drafts".into(),
-        json!({ "title": "x".repeat(101) }),
+        json!({ "title": "x".repeat(61) }),
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
