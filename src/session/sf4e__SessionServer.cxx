@@ -207,7 +207,7 @@ int SessionServer::Step()
 	for (auto connection : closed) {
 		_departingConnections.insert(connection);
 		cidMap.erase(connection);
-		_connectionAccounts.erase(connection);
+		_connectionAdmissions.erase(connection);
 		if (_roomAuthority) {
 			const auto roomMember = roomMembers.find(connection);
 			const auto priorSnapshot = _roomAuthority->SnapshotCopy();
@@ -464,7 +464,7 @@ int SessionServer::Close()
 	roomFrozenMembers.clear();
 	roomBannedIdentities.clear();
 	_departingConnections.clear();
-	_connectionAccounts.clear();
+	_connectionAdmissions.clear();
 	return 0;
 }
 
@@ -525,9 +525,9 @@ SessionProtocol::JoinResult SessionServer::RegisterToWait(
 		const bool isHost = !serverOwned && conn == 1;
 		room::MemberProfile joinProfile = profile;
 		if (serverOwned) {
-			const auto account = _connectionAccounts.find(conn);
-			if (account == _connectionAccounts.end()) return SessionProtocol::JR_REQUEST_INVALID;
-			joinProfile.account = account->second;
+			const auto admission = _connectionAdmissions.find(conn);
+			if (admission == _connectionAdmissions.end()) return SessionProtocol::JR_REQUEST_INVALID;
+			joinProfile.admission = admission->second;
 		}
 		std::string peerIdentity = cid.user;
 		if (_matchAuthorizationConfigured && _matchAuthorizationIdentity) {

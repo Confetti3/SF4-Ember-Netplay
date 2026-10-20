@@ -9,6 +9,7 @@
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__Overlay.hxx"
 #include "sf4e__ReplayStore.hxx"
+#include "sf4e__SelfTest.hxx"
 #include "sf4e__UserApp.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "sf4e__NetplayFacade.hxx"
@@ -114,14 +115,15 @@ void fSystem::UpdateInputs() {
     sf4e::Overlay::PlaceResultModal(resultModal);
     auto& menuPads=sf4e::Overlay::MenuPads();
     menuPads.Place(snapshot.menuContext,sf4e::netplay::Fighting(snapshot.session.match));
-    // A replay exported as a video, and a room's match this PC only watches,
-    // run on behind another window whatever the player's setting says. Ember's
-    // menu reads the pads there too, while it holds them and where Start opens
-    // it, and so does go now while a call back from Training offers it.
+    // A replay exported as a video, a room's match this PC only watches and
+    // the in-game self-test keep running behind another window whatever the
+    // player's setting says. Ember's menu reads the pads there too, while it
+    // holds them and where Start opens it, and so does go now while a call
+    // back from Training offers it.
     const bool watching=sf4e::Game::Battle::System::ggpo&&sf4e::UserApp::netplay&&sf4e::UserApp::netplay->spectating;
     const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&offeredCall.Live();
     const auto policy=sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
-        sf4e::replaystore::Exporting(),watching,resultModal||menuPads.Takes()||callOffered);
+        sf4e::replaystore::Exporting(),watching,resultModal||menuPads.Takes()||callOffered,sf4e::selftest::Running());
     sf4e::BackgroundPlay::BeforePadUpdate(this,policy);
     sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();

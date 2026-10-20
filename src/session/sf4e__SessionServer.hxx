@@ -118,17 +118,24 @@ namespace sf4e {
 		// Server-owned mode, for a room host process with no player host: no
 		// connection is the local host, and every join names an account (the
 		// player's Ember ID) that the embedding process supplied for that
-		// connection with SetConnectionAccount before the join arrives. Kicks ban
+		// connection with SetConnectionAdmission before the join arrives. Kicks ban
 		// the account. False when the room could not be created in that mode.
 		bool EnableServerOwnedRooms(const std::string& name = "Public room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
 			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(),
 			room::DelayPolicy delayPolicy = room::DelayPolicy::Shared);
-		void SetConnectionAccount(session::Connection connection, std::string account);
-		// The moderation view: the accounts banned as of the last committed state.
-		// A kick still in an uncommitted recovery candidate is not in it, so what
-		// is reported or forwarded can never be taken back.
-		std::vector<std::string> BannedAccounts() const;
+		// What the room's ticket admitted `connection` as; an empty account forgets it.
+		void SetConnectionAdmission(session::Connection connection, Admission admission);
+		// What a server-owned room has done that leaves the process, as of the
+		// last committed state: the accounts banned and the games won between two
+		// accounts. A kick or a game still in an uncommitted recovery candidate is
+		// not in it, so what is reported or forwarded can never be taken back.
+		struct ServerOwnedRecord {
+			std::vector<std::string> banned;
+			std::vector<WonGame> wonGames;
+		};
+		ServerOwnedRecord CommittedServerOwned() const;
+		std::vector<std::string> BannedAccounts() const { return CommittedServerOwned().banned; }
 		// Closes a server-owned room in the model, as a private room's host does
 		// with the Close action: every member's snapshot shows it closed. False
 		// while the authority cannot take a mutation (retry next tick).
@@ -240,9 +247,10 @@ namespace sf4e {
 		std::array<std::set<room::MemberId>, room::TableCount> _recoveryPendingPunchReady{};
 		std::set<std::string> roomBannedIdentities;
 		std::set<session::Connection> _departingConnections;
-		// Server-owned rooms: the account the embedding process vouched for per
-		// connection. Local to this process and dropped when the connection closes.
-		std::map<session::Connection, std::string> _connectionAccounts;
+		// Server-owned rooms: the account and class the embedding process vouched
+		// for per connection. Local to this process and dropped when the
+		// connection closes.
+		std::map<session::Connection, Admission> _connectionAdmissions;
 		std::uint64_t _incarnation = 1;
 		session::SessionRecoveryGate _recovery;
 		mutable std::uint64_t _recoveryCheckpointBuilds = 0;
@@ -296,7 +304,7 @@ namespace sf4e {
 		bool _coordinationHealthy = false;
 		bool _hasRecoveryProjection = false;
 		room::Snapshot _recoveryProjection;
-		std::vector<std::string> _recoveryBanned; // the committed bans, beside _recoveryProjection
+		ServerOwnedRecord _recoveryServerOwned; // committed, beside _recoveryProjection
 		void BeginRecoveryCandidate();
 		void FinishRecoveryCandidate();
 		void JournalEffect(session::Connection client, const nlohmann::json& payload, bool retainPublicReplay = true);

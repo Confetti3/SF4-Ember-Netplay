@@ -122,6 +122,9 @@ static void CheckPolicy() {
         menuExporting.keepRunning && menuExporting.keepSoundMinimized);
     const auto menuWatching = PolicyFor(false, false, true, true);
     CHECK(menuWatching.menuOnly && !menuWatching.keepSound && menuWatching.keepRunning);
+    // Nobody at the machine (the in-game self-test): it runs on behind another window, muted, as a watched match does.
+    const auto unattended = PolicyFor(false, false, false, false, true);
+    CHECK(!unattended.backgroundInput && !unattended.keepSound && unattended.keepRunning && !unattended.keepSoundMinimized && !unattended.menuOnly);
     // What the game is given is decided where the update publishes, with the
     // window as it stands there. At the main menu with Ember hidden and the
     // setting off, the window is in front at the gate before the update, so

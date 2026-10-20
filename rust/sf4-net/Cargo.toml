@@ -9,6 +9,10 @@ publish = false
 # Trust Ember's staging bridge without an approval (tournament/builtin.rs).
 # Nightly builds turn it on through CMake's SF4E_STAGING_BRIDGE.
 staging-bridge = []
+# The in-game self-test's own data folder (identity/platform.rs). CMake turns
+# it on only with SF4E_SELFTEST. build-current.ps1 passes that only for
+# -SelfTest, and Assert-BuildReceipt refuses such a build for a package.
+selftest = []
 
 [dependencies]
 aes-gcm = { version = "=0.10.3", default-features = false, features = ["aes", "alloc"] }

@@ -38,6 +38,7 @@
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/ParkedIntent.hxx"
 #include "../netplay/TournamentPlay.hxx"
+#include "../netplay/WatchPlay.hxx"
 #include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -180,9 +181,8 @@ struct Runtime {
     // The delay policy of the room this PC hosts, chosen the same way.
     room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
     bool leaveRequested=false, leaveAcknowledged=false;
-    // The room being opened is a public one joined with a ticket, so a refusal or
-    // failure is worded for it. Set with the join, cleared when the room closes.
-    bool publicJoin=false;
+    // Set with the join, cleared when the room closes.
+    JoinKind join=JoinKind::Private;
     std::uint64_t leaveActionId=0, leaveRetryAt=0, leaveDeadline=0;
     int selectedDelay=2;
     std::uint64_t nextProbeRequest=1;
@@ -198,6 +198,9 @@ struct Runtime {
     netplay::tournament::OwedAbort owedAbort;
     struct TournamentRequest { netplay::tournament::Output::Kind kind; std::uint64_t generation = 0; };
     std::map<std::uint64_t, TournamentRequest> tournamentRequests;
+    // The tournament match being watched, and its helper requests awaiting an answer.
+    netplay::tournament::WatchPlay watch;
+    std::map<std::uint64_t, netplay::tournament::WatchOutput::Kind> watchRequests;
     std::uint64_t assignmentRequest=0;
     netplay::tournament::AssignmentList assignmentList;
     // The public room list and the last create or ticket request: their helper
@@ -361,7 +364,10 @@ void ConfirmLobbySettings();
 void ResolvePendingIntents(bool helperReady);
 // A room command (host, join, leave) on tournament play's behalf, through
 // the same checks as a press.
-netplay::DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command);
+netplay::DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command, JoinKind join);
+// A joined room ended for the player. True when watching a match took it as
+// its own news (a notice, then a fresh ask), so the generic error is not shown.
+bool EndWatchedRoom(netplay::tournament::WatchRoomEnd end);
 // The delay a Ready sends: the chosen one, or Auto's.
 int ReadyDelay();
 // Auto has a recommendation measured against the seated opponent.

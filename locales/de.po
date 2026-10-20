@@ -1116,6 +1116,12 @@ msgstr "Schnellere Anzeige (1 Frame weniger)"
 msgid "player.faster_display_detail"
 msgstr "Das Spiel zeigt jeden Frame, sobald er fertig ist, statt einen Frame später. Schalten Sie es aus, wenn das Spiel auf diesem PC unter 60 fps fällt. Es betrifft nur diesen PC: Der andere Spieler muss es nicht einschalten. Änderungen gelten ab dem nächsten Spielstart."
 
+msgid "player.borderless"
+msgstr "Randlos"
+
+msgid "player.borderless_detail"
+msgstr "Das Spiel füllt den Bildschirm in einem Fenster ohne Rahmen, gerendert in der eigenen Auflösung des Bildschirms im Format 16:9, mit schwarzen Balken auf breiteren oder höheren Bildschirmen. Solange es an ist, bewirken Alt+Enter und die spieleigenen Optionen für Auflösung und Vollbild nichts; das Spiel behält deine Wahl dort für die Zeit, in der es aus ist. Betrifft nur diesen PC. Änderungen gelten ab dem nächsten Spielstart."
+
 
 
 msgid "settings.interface_title"
@@ -1350,7 +1356,13 @@ msgid "room.private_status"
 msgstr "Privater Raum / nur mit Einladung"
 
 msgid "room.tournament_status"
-msgstr "Turnierspiel, Ziel {0} Siege. Nur seine zwei Spieler können beitreten."
+msgstr "Turnierspiel, Ziel {0} Siege. Nur seine zwei Spieler können spielen."
+
+msgid "room.tournament_status_watched"
+msgstr "Turnierspiel, Ziel {0} Siege. Zuschauer: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Zuschauen bei einem Turnierspiel. Nur seine zwei Spieler können spielen."
 
 msgid "room.reconnecting"
 msgstr "Verbinde erneut..."
@@ -2569,6 +2581,18 @@ msgstr "Am Tisch"
 msgid "room.status.ready"
 msgstr "Bereit"
 
+msgid "class.master"
+msgstr "Meister"
+
+msgid "class.grand_master"
+msgstr "Großmeister"
+
+msgid "class.tip"
+msgstr "Klasse {0}"
+
+msgid "class.unsettled"
+msgstr "Länger keine Spiele, sie kann sich geändert haben."
+
 msgid "room.status.playing"
 msgstr "Spielt"
 
@@ -2655,6 +2679,8 @@ msgstr "{0} / HOST"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Zuschauer"
 
 msgid "room.members"
 msgstr "Mitglieder"
@@ -3329,6 +3355,12 @@ msgstr "Zuschaueraktion konnte nicht gesendet werden; erneuter Versuch."
 msgid "runtime.return_main_menu"
 msgstr "Kehren Sie vor dem Öffnen eines Raums zum Hauptmenü zurück."
 
+msgid "runtime.in_tournament_match"
+msgstr "Sie spielen ein Turnierspiel oder schauen zu. Beenden Sie es unter Turnierspiele, bevor Sie einen anderen Raum öffnen oder betreten."
+
+msgid "runtime.watch_leave_room"
+msgstr "Verlassen Sie Ihren Raum, bevor Sie einem Turnierspiel zuschauen."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Das Ergebnis des letzten Spiels wird gespeichert. Versuchen Sie es in ein paar Sekunden erneut."
 
@@ -3615,7 +3647,7 @@ msgid "identity.local_passphrase"
 msgstr "Passphrase für diesen PC"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine und Proton können den Windows-Schlüsselschutz nicht nutzen, daher schützt eine Passphrase Ihren Schlüssel. Sie geben sie bei jedem Spielstart einmal ein."
+msgstr "Wine und Proton (etwa auf dem Steam Deck) können den üblichen Schlüsselschutz nicht nutzen, daher schützt eine Passphrase Ihren Schlüssel. Sie geben sie bei jedem Spielstart einmal ein."
 
 msgid "identity.repeat_passphrase"
 msgstr "Passphrase wiederholen"
@@ -3637,6 +3669,9 @@ msgstr "Ember ID erstellen"
 
 msgid "identity.enable_detail"
 msgstr "Erstellt Ihren Schlüssel auf diesem PC. Nur dieses Windows-Konto kann ihn nutzen."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Erstellt Ihren Schlüssel auf diesem PC, geschützt durch die Passphrase oben."
 
 msgid "identity.leave_room"
 msgstr "Verlassen Sie den Raum und kehren Sie zum Hauptmenü zurück, um Ihre Ember ID zu ändern."
@@ -3847,6 +3882,84 @@ msgstr "Anderes Discord-Konto verwenden"
 
 msgid "connect.change_detail"
 msgstr "Öffnet Discord in Ihrem Browser, um stattdessen ein anderes Konto zu verbinden. Ihre Turnierseite muss dann dieses Konto verwenden."
+
+msgid "site.title"
+msgstr "{0} verbinden"
+
+msgid "site.row_detail"
+msgstr "Verbinden Sie Ihr {0}-Konto, damit Turniere auf {0} Ihre Ember ID finden."
+
+msgid "site.go_detail"
+msgstr "Wenn Sie {0} verbinden, können Turniere auf {0} Ihre Ember ID finden. Ember öffnet {0} in Ihrem Browser: Bestätigen Sie dort mit dem Konto, das Ihr Turnier verwendet."
+
+msgid "site.setting_up_detail"
+msgstr "Ember öffnet {0} in Ihrem Browser."
+
+msgid "site.waiting"
+msgstr "Bestätigen Sie in Ihrem Browser. Diese Seite wird aktualisiert, sobald {0} verbunden ist."
+
+msgid "site.waiting_label"
+msgstr "Warten auf {0}"
+
+msgid "site.waiting_detail"
+msgstr "Bestätigen Sie in Ihrem Browser mit dem {0}-Konto, das Ihr Turnier verwendet. Diese Seite wird von selbst aktualisiert."
+
+msgid "site.connected"
+msgstr "{0} verbunden"
+
+msgid "site.connected_detail"
+msgstr "Turniere auf {0} finden Sie jetzt über dieses Konto."
+
+msgid "site.change"
+msgstr "Anderes {0}-Konto verwenden"
+
+msgid "site.change_detail"
+msgstr "Öffnet {0} in Ihrem Browser, um stattdessen ein anderes Konto zu verbinden. Ihr Turnier muss dann dieses Konto verwenden."
+
+msgid "site.remove_detail"
+msgstr "Trennt dieses {0}-Konto in diesem Dienst von Ihrer Ember ID. Turniere auf {0} finden Sie dann nicht mehr darüber."
+
+msgid "site.cancel_detail"
+msgstr "Beendet das Warten. Wählen Sie {0} verbinden erneut, wenn Sie bereit sind."
+
+msgid "site.off"
+msgstr "{0}-Anmeldung ist deaktiviert"
+
+msgid "site.off_detail"
+msgstr "Dieser Turnierdienst bietet die {0}-Anmeldung gerade nicht an. Versuchen Sie es später erneut."
+
+msgid "site.retry_detail"
+msgstr "Liest Ihr {0}-Konto erneut."
+
+msgid "site.opened"
+msgstr "Schließen Sie die {0}-Anmeldung im Browser ab."
+
+msgid "site.done"
+msgstr "{0} als {1} verbunden."
+
+msgid "site.removed"
+msgstr "{0}-Konto getrennt."
+
+msgid "site.cancelled"
+msgstr "Das Warten auf {0} wurde beendet."
+
+msgid "site.busy"
+msgstr "Die {0}-Anmeldung ist gerade ausgelastet. Versuchen Sie es später erneut."
+
+msgid "site.gone"
+msgstr "Dieser Turnierdienst bietet die {0}-Anmeldung nicht mehr an."
+
+msgid "site.no_service"
+msgstr "Embers Turnierdienst ist nicht eingerichtet"
+
+msgid "site.no_service_detail"
+msgstr "{0} wird über Embers Turnierdienst verbunden. Suchen Sie ihn zuerst unter Verknüpfte Konten und kehren Sie dann hierher zurück."
+
+msgid "site.screen"
+msgstr "Konto bei der Website"
+
+msgid "identity.failure.browser"
+msgstr "Ember konnte Ihren Browser nicht öffnen."
 
 msgid "connect.link_waiting"
 msgstr "Eine Turnierseite bittet Sie, Discord zu verbinden. Ember öffnet die Seite Discord verbinden, sobald Sie den Raum verlassen."
@@ -4174,6 +4287,63 @@ msgstr "Dieses Spiel steht nicht in Ihrer Liste. Es gehört anderen Spielern, od
 
 msgid "tournament.failure.link_service"
 msgstr "Vertrauen Sie diesem Turnierdienst unter Verknüpfte Konten und öffnen Sie den Spiel-Link dann erneut."
+
+msgid "tournament.watch.row"
+msgstr "Diesem Spiel zuschauen"
+
+msgid "tournament.watch.row_detail"
+msgstr "Zuschauer sehen das Spiel aus seinem Raum. Sie können weder spielen noch chatten, und der Veranstalter entscheidet, wer zuschauen darf."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Verlässt den Raum des Spiels. Sie können dem Spiel über diese Liste erneut zuschauen."
+
+msgid "tournament.watch.needs_id"
+msgstr "Um einem Spiel zuzuschauen, brauchen Sie eine Ember ID. Erstellen Sie hier eine, das dauert nur einen Moment."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Sie vertrauen dem Turnierdienst dieses Spiels noch nicht. Fügen Sie ihn unter Verknüpfte Konten hinzu."
+
+msgid "tournament.watch.state.asking"
+msgstr "Der Turnierdienst wird gefragt."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Warten, bis die Spieler den Raum des Spiels öffnen."
+
+msgid "tournament.watch.state.full"
+msgstr "Für dieses Spiel sind schon so viele Zuschauer eingetreten, wie der Veranstalter erlaubt. Warten auf einen Platz."
+
+msgid "tournament.watch.state.joining"
+msgstr "Dem Raum des Spiels wird beigetreten."
+
+msgid "tournament.watch.state.watching"
+msgstr "Zuschauen bei {0} gegen {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "Der Veranstalter dieses Spiels hat es nicht für Zuschauer geöffnet."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "Der Veranstalter hat Sie von den Zuschauern dieses Spiels ausgeschlossen."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Sie spielen in diesem Spiel mit. Nutzen Sie stattdessen „Spielen“."
+
+msgid "tournament.watch.refused.build"
+msgstr "Die Spieler nutzen eine andere Ember-Version. Zum Zuschauen wird dieselbe benötigt."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Dieser Turnierdienst bietet kein Zuschauen an."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Das Zuschauen wurde beendet, weil Sie in einem anderen Raum sind. Verlassen Sie ihn und schauen Sie dem Spiel dann erneut zu."
+
+msgid "tournament.watch.finished_notice"
+msgstr "Das Spiel, dem Sie zugeschaut haben, ist vorbei."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Sie schauen nicht mehr zu: Der Veranstalter hat Sie entfernt."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "Der Raum des Spiels wurde geschlossen."
 
 msgid "rules.set_length"
 msgstr "Satzlänge"
@@ -5467,6 +5637,36 @@ msgstr "Auswählen, dann die Taste drücken, die in Embers Menüs zurückgeht. B
 
 msgid "button_layout.menu_taken"
 msgstr "{0} ist bereits {1}. Wähle eine andere Taste."
+
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Home-Taste"
+
+msgid "button_layout.extra.mute"
+msgstr "Stummschalttaste"
+
+msgid "button_layout.extra.misc"
+msgstr "Zusatztaste"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Rechtes Paddle {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Linkes Paddle {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Wähle eine Taste, die {0} kopiert. {0} wirkt dann wie diese Taste."
+
+msgid "button_layout.extra_copy"
+msgstr "Wie {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} wirkt jetzt wie {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} hat jetzt keine Funktion."
 
 msgid "room.delay_policy"
 msgstr "Eingabeverzögerung im Raum"

@@ -105,12 +105,17 @@ pub struct ControlChannel {
     pub connection: Connection,
     pub sender: ControlSender,
     pub receiver: ControlReceiver,
-    /// The Ember ID a public room's ticket named for this connection. A
-    /// private room has none.
-    pub account: Option<EmberId>,
-    /// The verified ticket that admitted it, kept so the room can decide
-    /// again before the channel is installed.
+    /// The verified ticket a public room admitted it with, kept so the room
+    /// can decide again before the channel is installed. A private room has
+    /// none.
     pub ticket: Option<RoomTicket>,
+}
+
+impl ControlChannel {
+    /// The Ember ID the ticket named for this connection.
+    pub fn account(&self) -> Option<&EmberId> {
+        self.ticket.as_ref().map(|ticket| &ticket.ember_id)
+    }
 }
 
 pub struct ControlSender {
@@ -179,7 +184,6 @@ fn control_channel(connection: Connection, stream: (SendStream, RecvStream)) -> 
             last_id: 1,
             poisoned: false,
         },
-        account: None,
         ticket: None,
     }
 }
@@ -455,22 +459,33 @@ pub(crate) async fn connect_control_on_proof<P: Serialize + Sync>(
     result
 }
 
-pub async fn accept_control(connection: Connection, room: &Invite) -> io::Result<ControlChannel> {
-    accept_control_policy(connection, room, None, now()?).await
+/// What a room takes on a control's handshake.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Accepting {
+    /// A returning member's endpoint, the only one the control may come from.
+    pub member: Option<EndpointId>,
+    /// Whether a joiner that only watches is taken, which only a room bound
+    /// to a tournament match does.
+    pub watchers: bool,
 }
 
-pub(crate) async fn accept_control_member(
+/// Accept a control into a room that takes no watchers.
+pub async fn accept_control(connection: Connection, room: &Invite) -> io::Result<ControlChannel> {
+    accept_control_for(connection, room, Accepting::default()).await
+}
+
+pub(crate) async fn accept_control_for(
     connection: Connection,
     room: &Invite,
-    member: EndpointId,
+    accepting: Accepting,
 ) -> io::Result<ControlChannel> {
-    accept_control_policy(connection, room, Some(member), now()?).await
+    accept_control_policy(connection, room, accepting, now()?).await
 }
 
 async fn accept_control_policy(
     connection: Connection,
     room: &Invite,
-    member: Option<EndpointId>,
+    accepting: Accepting,
     clock: u64,
 ) -> io::Result<ControlChannel> {
     let mut pending = PendingConnection(Some(connection.clone()));
@@ -480,7 +495,10 @@ async fn accept_control_policy(
         }
         let (mut send, mut recv) = connection.accept_bi().await.map_err(|_| failed())?;
         let proof: RoomProof = read_handshake(&mut recv).await?;
-        if let Some(member) = member {
+        if proof.observer && !accepting.watchers {
+            return Err(failed());
+        }
+        if let Some(member) = accepting.member {
             if connection.remote_id() != member {
                 return Err(failed());
             }

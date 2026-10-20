@@ -122,11 +122,13 @@ bool IrohRoom::RequestShortInvitation() {
 	return true;
 }
 
-bool IrohRoom::Join(const std::string& invitation, const std::string& build) {
+bool IrohRoom::Join(const std::string& invitation, const std::string& build, bool observer) {
 	if (build.empty() || build.size() > 128) return false;
 	if (!Begin(false)) return false;
-	roomCommandQueued_ = Command(json{{"type", "join"}, {"epoch", epoch_},
-		{"invitation", invitation}, {"build", build}}.dump());
+	json request = {{"type", "join"}, {"epoch", epoch_}, {"invitation", invitation}, {"build", build}};
+	// Left out when false, so a plain join is the message every helper reads.
+	if (observer) request["observer"] = true;
+	roomCommandQueued_ = Command(request.dump());
 	return roomCommandQueued_;
 }
 

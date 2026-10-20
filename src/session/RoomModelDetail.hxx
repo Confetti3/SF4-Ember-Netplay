@@ -54,6 +54,11 @@ inline bool IsSingleLineText(const std::string& text) {
 	return true;
 }
 
+// A new spectator of `table`, from the next game while one is being played.
+inline void AddSpectator(Table& table, MemberId member) {
+	(table.phase == TablePhase::Playing ? table.watchingNext : table.spectators).push_back(member);
+}
+
 inline bool IsTableAction(ActionKind kind) {
 	return kind == ActionKind::Queue || kind == ActionKind::Unqueue ||
 		kind == ActionKind::Watch || kind == ActionKind::Unwatch ||

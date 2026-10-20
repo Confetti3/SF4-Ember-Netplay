@@ -161,6 +161,7 @@ fn ticket_request(shared: &Shared, build: &str) -> Result<TicketRequest, Failure
     let request = TicketRequest {
         endpoint_id: shared.endpoint_id.clone(),
         build_id: build.to_owned(),
+        skill_badge: true,
     };
     request.check().map_err(|_| invalid_request())?;
     Ok(request)

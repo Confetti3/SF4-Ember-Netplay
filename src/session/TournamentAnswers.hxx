@@ -11,7 +11,8 @@
 #include "../netplay/TournamentStatus.hxx"
 
 // The helper's answers to tournament play requests (match_claim,
-// room_publish, game_prepare, game_report, match_leave, assignment_list) and
+// room_publish, game_prepare, game_report, match_leave, match_watch,
+// match_unwatch, assignment_list) and
 // to public room requests (room_list, room_create, room_ticket),
 // held apart from the identity answers the Ember ID screens show. Each is
 // decoded completely into a typed reply, or not at all: a malformed answer
@@ -34,6 +35,8 @@ std::optional<TournamentAnswer> ReadTournamentAnswer(const nlohmann::json& event
 
 std::optional<netplay::tournament::ClaimReply> DecodeClaimReply(const nlohmann::json& data);
 std::optional<netplay::tournament::PrepareReply> DecodePrepareReply(const nlohmann::json& data);
+// A match_watch answer: the room to join, or a wait with the bridge's reason.
+std::optional<netplay::tournament::WatchReply> DecodeWatchReply(const nlohmann::json& data);
 
 using Assignment = netplay::tournament::Assignment;
 std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& data);

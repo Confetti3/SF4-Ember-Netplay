@@ -5,11 +5,17 @@ use ember_protocol::{
     challenge, json,
     lobby::Rotation,
     matches::MAX_GAMES_TO_WIN,
+    sites::SignInSite,
     tournament::Format,
 };
 use serde_json::json;
 
-use crate::{AppState, auth, http::ok, linking::CODE_LIFETIME_SECS};
+use crate::{
+    AppState, auth,
+    http::ok,
+    linking::{CODE_LIFETIME_SECS, Site},
+    routes::sign_in,
+};
 
 pub async fn well_known(State(state): State<AppState>) -> Response {
     let origin = &state.config.origin;
@@ -32,6 +38,7 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         "matches.adjudication".to_owned(),
         "matches.play".to_owned(),
         ember_protocol::play::CLAIM_READY_FEATURE.to_owned(),
+        ember_protocol::play::WATCH_FEATURE.to_owned(),
         "lobbies".to_owned(),
         "tournaments".to_owned(),
         "records".to_owned(),
@@ -43,9 +50,10 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         features.push("link.mock_browser".into());
     }
     features.push(ember_protocol::discord::ACCOUNTS_FEATURE.into());
-    if crate::routes::discord::sign_in(&state).is_some() {
+    if sign_in::offered(&state, &Site::Discord) {
         features.push(ember_protocol::discord::FEATURE.into());
     }
+    features.push(ember_protocol::sites::FEATURE.into());
     if crate::routes::rooms::enabled(&state) {
         features.push(crate::routes::rooms::FEATURE.into());
         features.push(crate::routes::rooms::CONNECTION_FEATURE.into());
@@ -82,6 +90,22 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
                 id: connection.id.clone(),
                 display_name: connection.display_name.clone(),
                 environment: connection.environment.clone(),
+            })
+            .collect(),
+        sign_in_sites: state
+            .config
+            .sign_in_sites
+            .iter()
+            .map(|site| {
+                let (authorize_origin, authorize_path) = site.authorize_page();
+                SignInSite {
+                    id: site.id.clone(),
+                    display_name: site.display_name.clone(),
+                    sign_in: sign_in::offered(&state, &Site::Configured(site.id.clone())),
+                    lookup_by: site.lookup_by,
+                    authorize_origin,
+                    authorize_path,
+                }
             })
             .collect(),
         limits: Limits {

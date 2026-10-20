@@ -311,7 +311,7 @@ void CreateWithRulesJourney(){
  // The service opened the room at the public default; the creator is in it first, as host.
  room::RoomAuthority authority("Open Mic",8,9,room::PublicRoomRules());
  Check(authority.SetServerOwned(),"The room is not server owned");
- room::MemberProfile profile;profile.account="emb1-creator";
+ room::MemberProfile profile;profile.admission.account="emb1-creator";
  const auto joined=authority.Join("Player",room::ConnectionRef{"host","1"},false,profile);
  Check(joined.accepted,"The creator could not join");
  const auto creator=joined.snapshot.members.back().id;

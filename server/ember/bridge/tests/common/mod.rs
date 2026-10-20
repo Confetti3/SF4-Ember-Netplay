@@ -9,7 +9,10 @@ pub mod play;
 pub mod public_rooms;
 pub mod receiver;
 pub mod results;
+pub mod sign_in;
+pub mod sites;
 pub mod supervisor;
+pub mod watch;
 
 use std::path::PathBuf;
 
@@ -51,6 +54,7 @@ fn connection(id: &str) -> config::Connection {
         enabled: true,
         api_base: None,
         discord_lookup: false,
+        lookup_sites: Vec::new(),
         disputes: None,
         results_url: None,
         rooms: None,
@@ -87,6 +91,7 @@ impl Bridge {
             allow_private_webhooks: true,
             mock_browser: true,
             discord: None,
+            sign_in_sites: Vec::new(),
             integration_secrets: None,
             rooms: None,
             match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
@@ -132,9 +137,21 @@ impl Bridge {
     /// bridge's origin is the new port's, so proofs made after it hold. It
     /// returns once the new one serves, so it has recorded its restart.
     pub async fn restart(&mut self, integrations: ember_bridge::integrations::Secrets) {
+        self.restart_with(|_| {}, integrations).await;
+    }
+
+    /// `restart`, with the configuration `adjust` changes first, as an
+    /// operator's edit before a restart.
+    pub async fn restart_with(
+        &mut self,
+        adjust: impl FnOnce(&mut Config),
+        integrations: ember_bridge::integrations::Secrets,
+    ) {
         let running = self.running.take().unwrap();
         let mut config = (*running.state.config).clone();
         running.abort();
+        adjust(&mut config);
+        config.validate().unwrap();
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         self.origin = format!("http://{}", listener.local_addr().unwrap());
         config.origin = self.origin.clone();
@@ -204,6 +221,35 @@ impl Bridge {
             request = request.header("idempotency-key", key);
         }
         read(request.send().await.unwrap()).await
+    }
+
+    /// A request with any method, with `body` as JSON when there is one.
+    pub async fn send(
+        &self,
+        token: &str,
+        method: reqwest::Method,
+        path: &str,
+        body: Option<Json>,
+    ) -> (StatusCode, Json) {
+        let mut request = self
+            .client
+            .request(method, self.url(path))
+            .bearer_auth(token);
+        if let Some(body) = body {
+            request = request
+                .header("content-type", "application/json")
+                .body(serde_json::to_vec(&body).unwrap());
+        }
+        read(request.send().await.unwrap()).await
+    }
+
+    pub async fn put(&self, token: &str, path: &str, body: Json) -> (StatusCode, Json) {
+        self.send(token, reqwest::Method::PUT, path, Some(body))
+            .await
+    }
+
+    pub async fn delete(&self, token: &str, path: &str) -> (StatusCode, Json) {
+        self.send(token, reqwest::Method::DELETE, path, None).await
     }
 
     pub fn player(&self, byte: u8) -> Player {

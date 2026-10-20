@@ -127,7 +127,7 @@ private:
 	void Supply(const std::vector<session::Message>& messages) {
 		if (!server_) return;
 		for (const auto& message : messages)
-			server_->SetConnectionAccount(message.connection, room_->PeerAccount(message.connection));
+			server_->SetConnectionAdmission(message.connection, room_->PeerAdmission(message.connection));
 	}
 	std::unique_ptr<session::ServerTransport> inner_;
 	std::shared_ptr<session::IrohRoom> room_;
@@ -212,21 +212,23 @@ void RoomHost::Report(std::uint64_t nowMs) {
 		!server_->PendingProposal() && (closing_ || !snapshot->closed)) return;
 	reportedSnapshotRevision_ = snapshot->revision;
 	reportedAppliedRevision_ = appliedRevision;
-	Reported current;
+	Status current;
 	current.members = snapshot->members.size();
 	for (const auto& table : snapshot->tables)
 		if (table.phase == room::TablePhase::Playing || table.phase == room::TablePhase::Paused) ++current.tablesPlaying;
 	current.invitation = invitation_;
 	// Committed bans only: a kick still in an uncommitted candidate could be
 	// discarded, and neither the bridge nor the helper can take a ban back.
-	current.banned = server_->BannedAccounts();
+	auto committed = server_->CommittedServerOwned();
+	current.banned = std::move(committed.banned);
 	current.details = DetailsOf(*snapshot);
+	current.games = std::move(committed.wonGames);
 	ForwardBans(current.banned, nowMs);
 	// The model can close the room on its own; treat it like a close request
 	// whose commit has already been applied.
 	if (snapshot->closed && !closing_) { closing_ = true; closeApplied_ = true; closeStartedMs_ = nowMs; closeReason_ = "room_closed"; }
 	if (haveReported_ && current == reported_) return;
-	const auto line = StatusLine(current.members, current.tablesPlaying, current.invitation, current.banned, current.details);
+	const auto line = StatusLine(current);
 	// The supervisor kills a child whose line is over its limit; end the room instead.
 	if (line.size() > MaximumStatusLineBytes) { Fail("status_too_large"); return; }
 	emit_(line);

@@ -16,7 +16,7 @@ use rusqlite::{Transaction, params};
 use super::{
     PENDING_SECS, announce, details::Details, load, supervisor::Reported, supervisor::Supervisor,
 };
-use crate::{AppState, Keys, config::Config, error::Result};
+use crate::{AppState, Keys, config::Config, error::Result, skill};
 
 /// How often the supervisor is asked which rooms are alive.
 const POLL_SECS: u64 = 5;
@@ -183,6 +183,7 @@ fn apply(
                 details.own_delay,
             ],
         )?;
+        skill::record_games(tx, &room.room_id, room.games.as_ref(), now)?;
         // Bans last for the room's life and are never evicted: the supervisor
         // reports at most `MAX_ROOM_BANS` per room, and the table keeps all.
         for banned in &room.banned {

@@ -27,27 +27,18 @@ impl Actor {
         }
     }
 
-    /// The voters a room of `members` should have: a server-owned room has
-    /// its host and nobody else.
-    pub(super) fn desired_voters(&self, members: usize) -> usize {
-        if self.server_owned() {
-            1
-        } else {
-            recovery::stable_voter_count(members)
-        }
-    }
-
-    /// The members a committed checkpoint names. A server-owned host is the
-    /// room's leader but not one of its members, so it is added to the roster
-    /// here: reconciliation never treats it as departed for being absent from
-    /// the native member list, and a room whose members have all left still
-    /// has a roster to retire them against.
-    pub(super) fn committed_roster(&self, checkpoint: &[u8]) -> Option<BTreeSet<EndpointId>> {
+    /// The members a committed checkpoint names, including their exact
+    /// process incarnations. A server-owned host leads without a native seat,
+    /// so keep its recovery incarnation even when every member has left.
+    pub(super) fn committed_roster(
+        &self,
+        envelope: &serde_json::Value,
+    ) -> Option<BTreeMap<EndpointId, u64>> {
         if !self.is_public_host() {
-            return committed_primary_endpoints(checkpoint);
+            return primary_members(envelope, false);
         }
-        let mut roster = primary_endpoints(checkpoint, true)?;
-        roster.insert(self.endpoint.id());
+        let mut roster = primary_members(envelope, true)?;
+        roster.insert(self.endpoint.id(), self.recovery.as_ref()?.incarnation);
         Some(roster)
     }
 

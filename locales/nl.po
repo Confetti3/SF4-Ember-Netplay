@@ -1116,6 +1116,12 @@ msgstr "Sneller beeld (1 frame minder)"
 msgid "player.faster_display_detail"
 msgstr "Het spel toont elk frame zodra het klaar is, in plaats van een frame later. Zet het uit als het spel op deze pc onder 60 fps zakt. Het geldt alleen op deze pc: de andere speler hoeft het niet aan te zetten. Wijzigingen gelden vanaf de volgende keer dat het spel start."
 
+msgid "player.borderless"
+msgstr "Randloos"
+
+msgid "player.borderless_detail"
+msgstr "Het spel vult het scherm in een venster zonder rand, getekend op de eigen resolutie van het scherm in 16:9, met zwarte balken op een breder of hoger scherm. Zolang dit aan staat, doen Alt+Enter en de eigen resolutie- en volledig-schermopties van het spel niets; het spel bewaart je keuze daar voor wanneer dit uit staat. Het geldt alleen voor deze pc. Wijzigingen gelden vanaf de volgende keer dat het spel start."
+
 
 
 msgid "settings.interface_title"
@@ -1350,7 +1356,13 @@ msgid "room.private_status"
 msgstr "Privékamer / alleen op uitnodiging"
 
 msgid "room.tournament_status"
-msgstr "Toernooiwedstrijd, eerst tot {0}. Alleen de twee spelers kunnen erin."
+msgstr "Toernooiwedstrijd, eerst tot {0}. Alleen de twee spelers kunnen spelen."
+
+msgid "room.tournament_status_watched"
+msgstr "Toernooiwedstrijd, eerst tot {0}. Kijkers: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Je kijkt naar een toernooiwedstrijd. Alleen de twee spelers kunnen spelen."
 
 msgid "room.reconnecting"
 msgstr "Kamer opnieuw verbinden..."
@@ -2569,6 +2581,18 @@ msgstr "Aan tafel"
 msgid "room.status.ready"
 msgstr "Klaar"
 
+msgid "class.master"
+msgstr "Meester"
+
+msgid "class.grand_master"
+msgstr "Grootmeester"
+
+msgid "class.tip"
+msgstr "Klasse {0}"
+
+msgid "class.unsettled"
+msgstr "Al een tijd geen potjes, dus die kan veranderd zijn."
+
 msgid "room.status.playing"
 msgstr "Speelt"
 
@@ -2655,6 +2679,8 @@ msgstr "{0} / HOST"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Kijker"
 
 msgid "room.members"
 msgstr "Leden"
@@ -3329,6 +3355,12 @@ msgstr "Toeschouwersactie niet verzonden; nieuwe poging."
 msgid "runtime.return_main_menu"
 msgstr "Ga naar het spelhoofdmenu voordat je een kamer opent."
 
+msgid "runtime.in_tournament_match"
+msgstr "Je speelt of bekijkt een toernooiwedstrijd. Rond hem af of stop hem bij Toernooiwedstrijden voordat je een andere kamer opent of binnengaat."
+
+msgid "runtime.watch_leave_room"
+msgstr "Verlaat je kamer voordat je naar een toernooiwedstrijd gaat kijken."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Het resultaat van het laatste spel wordt opgeslagen. Probeer het over een paar seconden opnieuw."
 
@@ -3615,7 +3647,7 @@ msgid "identity.local_passphrase"
 msgstr "Wachtwoordzin voor deze pc"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine en Proton kunnen de sleutelbeveiliging van Windows niet gebruiken, dus beschermt een wachtwoordzin je sleutel. Je voert hem één keer in bij elke start van het spel."
+msgstr "Wine en Proton (bijvoorbeeld op de Steam Deck) kunnen de gebruikelijke sleutelbeveiliging niet gebruiken, dus beschermt een wachtwoordzin je sleutel. Je voert hem één keer in bij elke start van het spel."
 
 msgid "identity.repeat_passphrase"
 msgstr "Wachtwoordzin herhalen"
@@ -3637,6 +3669,9 @@ msgstr "Ember ID maken"
 
 msgid "identity.enable_detail"
 msgstr "Maakt je sleutel aan op deze pc. Alleen dit Windows-account kan hem gebruiken."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Maakt je sleutel aan op deze pc, beschermd met de wachtwoordzin hierboven."
 
 msgid "identity.leave_room"
 msgstr "Verlaat de kamer en ga terug naar het hoofdmenu om je Ember ID te wijzigen."
@@ -3847,6 +3882,84 @@ msgstr "Een ander Discord-account gebruiken"
 
 msgid "connect.change_detail"
 msgstr "Opent Discord in je browser om in plaats daarvan een ander account te koppelen. Je toernooisite moet dan dat account gebruiken."
+
+msgid "site.title"
+msgstr "{0} koppelen"
+
+msgid "site.row_detail"
+msgstr "Koppel je {0}-account zodat toernooien op {0} je Ember ID kunnen vinden."
+
+msgid "site.go_detail"
+msgstr "Als je {0} koppelt, kunnen toernooien op {0} je Ember ID vinden. Ember opent {0} in je browser: keur daar goed met het account dat je toernooi gebruikt."
+
+msgid "site.setting_up_detail"
+msgstr "Ember opent {0} in je browser."
+
+msgid "site.waiting"
+msgstr "Keur het goed in je browser. Dit scherm wordt bijgewerkt zodra {0} gekoppeld is."
+
+msgid "site.waiting_label"
+msgstr "Wachten op {0}"
+
+msgid "site.waiting_detail"
+msgstr "Keur goed in je browser met het {0}-account dat je toernooi gebruikt. Dit scherm wordt vanzelf bijgewerkt."
+
+msgid "site.connected"
+msgstr "{0} gekoppeld"
+
+msgid "site.connected_detail"
+msgstr "Toernooien op {0} kunnen je nu via dit account vinden."
+
+msgid "site.change"
+msgstr "Een ander {0}-account gebruiken"
+
+msgid "site.change_detail"
+msgstr "Opent {0} in je browser om in plaats daarvan een ander account te koppelen. Je toernooi moet dan dat account gebruiken."
+
+msgid "site.remove_detail"
+msgstr "Ontkoppelt dit {0}-account van je Ember ID bij deze dienst. Toernooien op {0} kunnen je er dan niet meer mee vinden."
+
+msgid "site.cancel_detail"
+msgstr "Stopt met wachten. Kies {0} koppelen opnieuw als je klaar bent."
+
+msgid "site.off"
+msgstr "Aanmelden met {0} staat uit"
+
+msgid "site.off_detail"
+msgstr "Deze toernooidienst biedt nu geen aanmelden met {0} aan. Probeer het later opnieuw."
+
+msgid "site.retry_detail"
+msgstr "Leest je {0}-account opnieuw."
+
+msgid "site.opened"
+msgstr "Rond de aanmelding bij {0} af in je browser."
+
+msgid "site.done"
+msgstr "{0} gekoppeld als {1}."
+
+msgid "site.removed"
+msgstr "{0}-account ontkoppeld."
+
+msgid "site.cancelled"
+msgstr "Gestopt met wachten op {0}."
+
+msgid "site.busy"
+msgstr "Aanmelden met {0} is nu druk. Probeer het later opnieuw."
+
+msgid "site.gone"
+msgstr "Deze toernooidienst biedt geen aanmelden met {0} meer aan."
+
+msgid "site.no_service"
+msgstr "De toernooidienst van Ember is niet ingesteld"
+
+msgid "site.no_service_detail"
+msgstr "{0} wordt gekoppeld via de toernooidienst van Ember. Zoek die eerst op bij Gekoppelde accounts en kom dan hier terug."
+
+msgid "site.screen"
+msgstr "Site-account"
+
+msgid "identity.failure.browser"
+msgstr "Ember kon je browser niet openen."
 
 msgid "connect.link_waiting"
 msgstr "Een toernooisite vraagt je om Discord te koppelen. Ember opent Discord koppelen zodra je de kamer verlaat."
@@ -4174,6 +4287,63 @@ msgstr "Deze wedstrijd staat niet in je lijst. Hij is van andere spelers, of dez
 
 msgid "tournament.failure.link_service"
 msgstr "Vertrouw deze toernooidienst bij Gekoppelde accounts en open de wedstrijdlink dan opnieuw."
+
+msgid "tournament.watch.row"
+msgstr "Naar deze wedstrijd kijken"
+
+msgid "tournament.watch.row_detail"
+msgstr "Kijkers zien de wedstrijd vanuit de kamer. Ze kunnen niet spelen of chatten, en de organisator bepaalt wie mag kijken."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Verlaat de kamer van de wedstrijd. Je kunt vanuit deze lijst opnieuw naar de wedstrijd kijken."
+
+msgid "tournament.watch.needs_id"
+msgstr "Om naar een wedstrijd te kijken heb je een Ember ID nodig. Maak er hier een, het duurt maar even."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Je vertrouwt de toernooidienst van deze wedstrijd nog niet. Voeg die toe bij Gekoppelde accounts."
+
+msgid "tournament.watch.state.asking"
+msgstr "De toernooidienst wordt geraadpleegd."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Wachten tot de spelers de kamer van de wedstrijd openen."
+
+msgid "tournament.watch.state.full"
+msgstr "Deze wedstrijd heeft al evenveel kijkers als de organisator toestaat. Wachten op een plek."
+
+msgid "tournament.watch.state.joining"
+msgstr "Naar de kamer van de wedstrijd gaan."
+
+msgid "tournament.watch.state.watching"
+msgstr "Kijken naar {0} tegen {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "De organisator van deze wedstrijd heeft hem niet opengesteld voor kijkers."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "De organisator heeft je uit de kijkers van deze wedstrijd gehaald."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Je speelt in deze wedstrijd. Gebruik in plaats daarvan Spelen."
+
+msgid "tournament.watch.refused.build"
+msgstr "De spelers gebruiken een andere Ember-versie. Om te kijken is dezelfde nodig."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Deze toernooidienst ondersteunt kijken niet."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Het kijken is gestopt omdat je in een andere kamer zit. Verlaat die kamer en kijk daarna opnieuw naar de wedstrijd."
+
+msgid "tournament.watch.finished_notice"
+msgstr "De wedstrijd waarnaar je keek is voorbij."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Je kijkt niet meer mee: de organisator heeft je verwijderd."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "De kamer van de wedstrijd is gesloten."
 
 msgid "rules.set_length"
 msgstr "Setlengte"
@@ -5467,6 +5637,36 @@ msgstr "Selecteer en druk dan op de knop die teruggaat in de menu's van Ember. T
 
 msgid "button_layout.menu_taken"
 msgstr "{0} is al {1}. Kies een andere knop."
+
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Home-knop"
+
+msgid "button_layout.extra.mute"
+msgstr "Dempknop"
+
+msgid "button_layout.extra.misc"
+msgstr "Extra knop"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Rechterpaddle {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Linkerpaddle {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Kies de knop die {0} nadoet. {0} werkt dan als die knop."
+
+msgid "button_layout.extra_copy"
+msgstr "Zelfde als {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} werkt nu als {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} doet nu niets."
 
 msgid "room.delay_policy"
 msgstr "Invoervertraging in de kamer"

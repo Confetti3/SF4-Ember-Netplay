@@ -5,6 +5,7 @@
 // and SF4E_FUZZ_ROUNDS widen a local run.
 #include "../common/TournamentLink.hxx"
 #include "../netplay/TournamentPlay.hxx"
+#include "../netplay/WatchPlay.hxx"
 #include "../session/TournamentAnswers.hxx"
 #include "../session/RoomModel.hxx"
 
@@ -52,7 +53,7 @@ static int Rounds(int fallback) {
 }
 
 static const std::string Hex32 = "0123456789abcdef0123456789abcdef";
-static const std::string EndpointA(64, 'a'), EndpointB(64, 'b'), EndpointC(64, 'c');
+static const std::string EndpointA(64, 'a'), EndpointB(64, 'b'), EndpointC(64, 'c'), EndpointD(64, 'd'), EndpointE(64, 'e');
 
 // Strings that sit near the edges the decoders check.
 static std::string Text(Random& random) {
@@ -81,7 +82,7 @@ static json Value(Random& random, int depth = 0) {
 		static const std::vector<std::string> keys = {"role", "lease_id", "fence", "retry_after", "room_id", "invitation", "binding",
 			"state", "permit_id", "match_generation", "assignments", "match_id", "slot", "games_to_win", "wins", "opponent",
 			"fingerprint", "native_rules_profile", "provider", "round_label", "assignment_generation", "binding_revision",
-			"fighters", "endpoint_id", "ember_id", "local_slot", "starting_wins", "op", "request_id", "ok", "reason", "data"};
+			"fighters", "watchers", "endpoint_id", "ember_id", "local_slot", "starting_wins", "op", "request_id", "ok", "reason", "data"};
 		json object = json::object();
 		for (std::uint64_t i = random.Below(8); i; --i) object[random.Pick(keys)] = Value(random, depth + 1);
 		return object;
@@ -230,6 +231,54 @@ static void TestStartingWins() {
 		CHECK(!decode(refused));
 }
 
+// A binding names its watchers as the helper's view gives them; a helper
+// without match watch names none; anything that is not a list of distinct
+// endpoints and Ember IDs, at most eight, apart from the fighters, is refused.
+static void TestWatchers() {
+	const auto decode = [](const json& watchers) {
+		json room = GoodRoom();
+		room["binding"]["games_to_win"] = 2u;
+		room["binding"]["local_slot"] = 0u;
+		if (!watchers.is_null()) room["binding"]["watchers"] = watchers;
+		return session::DecodeClaimReply(room);
+	};
+	const auto watcher = [](const std::string& endpoint, const std::string& id) { return json{{"endpoint_id", endpoint}, {"ember_id", id}}; };
+	const auto none = decode(nullptr);
+	CHECK(none && none->binding && none->binding->room.watchers.empty());
+	const auto two = decode(json::array({watcher(EndpointC, "emb1_c"), watcher(EndpointD, "emb1_d")}));
+	CHECK(two && two->binding && two->binding->room.watchers.size() == 2 && two->binding->room.watchers[0].endpoint == EndpointC &&
+		two->binding->room.watchers[1].emberId == "emb1_d" && two->binding->room.WatcherOf(EndpointD));
+	CHECK(decode(json::array()) && decode(json::array())->binding->room.watchers.empty());
+	std::vector<json> eight;
+	for (char digit = '1'; digit <= '8'; ++digit) eight.push_back(watcher(std::string(64, digit), std::string("emb1_w") + digit));
+	CHECK(decode(json(eight)));
+	eight.push_back(watcher(std::string(64, '9'), "emb1_w9"));
+	CHECK(!decode(json(eight)));
+	for (const auto& refused : {json("none"), json(1u), json::object(),
+		json::array({watcher(EndpointC, "emb1_c"), watcher(EndpointC, "emb1_d")}),
+		json::array({watcher(EndpointC, "emb1_c"), watcher(EndpointD, "emb1_c")}),
+		json::array({watcher(EndpointA, "emb1_c")}), json::array({watcher(EndpointC, "emb1_a")}),
+		json::array({watcher("short", "emb1_c")}), json::array({json{{"endpoint_id", EndpointC}}}),
+		json::array({json{{"endpoint_id", 5}, {"ember_id", "emb1_c"}}}), json::array({"emb1_c"})})
+		CHECK(!decode(refused));
+	// The watch answer: a room to join, or a wait with the bridge's reason.
+	const auto room = session::DecodeWatchReply({{"role", "room"}, {"room_id", Hex32}, {"invitation", "sf4e3:x"}});
+	CHECK(room && room->role == netplay::tournament::WatchReply::Role::Room && room->roomId == Hex32 && room->invitation == "sf4e3:x");
+	const auto waiting = session::DecodeWatchReply({{"role", "waiting"}, {"retry_after", 10u}, {"reason", "full"}});
+	CHECK(waiting && waiting->role == netplay::tournament::WatchReply::Role::Waiting && waiting->reason == "full" && waiting->retryAfterMs == 10000);
+	CHECK(session::DecodeWatchReply({{"role", "waiting"}, {"retry_after", 900u}, {"reason", "no_room"}})->retryAfterMs == 60000);
+	for (const auto& refused : {json{{"role", "room"}, {"room_id", Hex32}}, json{{"role", "room"}, {"room_id", "xyz"}, {"invitation", "sf4e3:x"}},
+		json{{"role", "room"}, {"room_id", Hex32}, {"invitation", ""}}, json{{"role", "waiting"}, {"reason", "full"}},
+		json{{"role", "waiting"}, {"retry_after", -1}, {"reason", "full"}}, json{{"role", "waiting"}, {"retry_after", 10u}},
+		json{{"role", "host"}}, json{{"role", 3}}, json::array(), json(nullptr)})
+		CHECK(!session::DecodeWatchReply(refused));
+	// Both watch ops reach the runtime, as their answers do.
+	for (const char* op : {"match_watch", "match_unwatch"}) {
+		CHECK(session::IsTournamentPlayOp(op));
+		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 3u}, {"ok", true}, {"data", json::object()}}).has_value());
+	}
+}
+
 static void TestAssignmentTimes() {
 	using netplay::tournament::Assignment;
 	const auto decode = [](const json& extra) {
@@ -332,6 +381,10 @@ static void FuzzAnswers(Random& random) {
 			if (prepare->permitted) CHECK(prepare->generation && room::ValidPermitId(prepare->permitId) &&
 				prepare->startWindowMs && prepare->startWindowMs <= room::MaximumPermitWindowMs);
 			else CHECK(prepare->retryAfterMs <= 60000);
+		}
+		if (const auto watch = session::DecodeWatchReply(data)) {
+			if (watch->role == netplay::tournament::WatchReply::Role::Room) CHECK(IsHex(watch->roomId, 32) && !watch->invitation.empty());
+			else CHECK(watch->retryAfterMs <= 60000 && watch->reason.size() <= 32);
 		}
 		if (const auto list = session::DecodeAssignments(data)) {
 			CHECK(list->size() <= 50);
@@ -522,19 +575,90 @@ static void FuzzPlay(Random& random) {
 	CHECK(binds > 0 && sentReports > 0 && forgets > 0);
 }
 
-static room::MemberId JoinAs(room::RoomAuthority& authority, const std::string& endpoint, bool host = false) {
-	const auto result = authority.Join("M" + endpoint.substr(0, 2), room::ConnectionRef{"room", endpoint}, host);
+// The watch state machine under any order of answers, room views and stops:
+// it asks one at a time, joins only when there is no room to be in or to wait
+// for, and a watch that is over or stopped asks and joins no more.
+static void FuzzWatch(Random& random) {
+	using namespace netplay::tournament;
+	std::size_t asks = 0, joins = 0, leaves = 0;
+	for (int round = 0, rounds = Rounds(300); round < rounds; ++round) {
+		WatchPlay play;
+		std::uint64_t now = 1000;
+		bool inFlight = false, inRoom = false, opening = false;
+		std::string roomId;
+		if (random.Chance(90)) play.Start("brg_1", "emt_1", now);
+		for (int step = 0; step < 150; ++step) {
+			now += random.Chance(10) ? random.Below(WatchIntervalMs * 2) : random.Below(2500);
+			switch (random.Below(8)) {
+			case 0: case 1: if (inFlight) {
+				inFlight = false;
+				WatchReply reply;
+				if (random.Chance(60)) {
+					reply.role = WatchReply::Role::Room;
+					reply.roomId = random.Chance(70) ? Hex32 : std::string(32, 'b');
+					reply.invitation = "sf4e3:" + reply.roomId;
+				} else {
+					reply.reason = random.Chance(50) ? "full" : "not_bound";
+					reply.retryAfterMs = random.Below(70000);
+				}
+				play.OnReply(reply, now);
+			} break;
+			case 2: if (inFlight) {
+				inFlight = false;
+				static const std::vector<std::string> codes = {"helper_unavailable", "revoked", "not_allowed", "finished", "stale_revision",
+					"fighter", "incompatible_build", "rate_limited", "bridge_invalid_response", "unknown", ""};
+				play.OnFailure(random.Pick(codes), now);
+			} break;
+			case 3: if (random.Chance(30)) play.OnRoomEnded(random.Chance(50) ? WatchRoomEnd::Removed : WatchRoomEnd::Closed, now); break;
+			case 4: if (random.Chance(10)) play.Stop(); break;
+			case 5: if (random.Chance(5)) play.Abandon("helper_lost"); break;
+			case 6: if (random.Chance(10)) { play.Start("brg_1", "emt_1", now); inFlight = false; } break;
+			default: break;
+			}
+			// The room this game is in follows what the machine asked for.
+			RoomView view;
+			view.joined = inRoom;
+			view.opening = opening;
+			view.roomId = roomId;
+			view.fighting = random.Chance(30);
+			const bool wasUnderWay = play.Active();
+			for (const auto& output : play.Tick(now, view)) {
+				switch (output.kind) {
+				case WatchOutput::Kind::Watch: CHECK(!inFlight && wasUnderWay); inFlight = true; ++asks; break;
+				case WatchOutput::Kind::Unwatch: break;
+				case WatchOutput::Kind::Join:
+					CHECK(!inRoom && !opening && !output.invitation.empty() && wasUnderWay);
+					opening = true; roomId = output.invitation.substr(6); ++joins; break;
+				case WatchOutput::Kind::Leave: inRoom = opening = false; ++leaves; break;
+				}
+			}
+			if (!play.Active()) CHECK(play.GetPhase() != WatchPhase::Watching && play.GetPhase() != WatchPhase::Joining);
+			if (play.GetPhase() == WatchPhase::Watching) CHECK(view.joined);
+			// The join completes, or fails, a moment later; the room may be lost.
+			if (opening && random.Chance(40)) { opening = false; inRoom = random.Chance(70); }
+			if (inRoom && random.Chance(3)) inRoom = false;
+		}
+	}
+	CHECK(asks > 0 && joins > 0 && leaves > 0);
+}
+
+static room::MemberId JoinAs(room::RoomAuthority& authority, const std::string& endpoint, bool host = false, bool observer = false) {
+	room::MemberProfile profile;
+	profile.observer = observer;
+	const auto result = authority.Join("M" + endpoint.substr(0, 2), room::ConnectionRef{"room", endpoint}, host, profile);
 	if (!result.accepted) return 0;
 	for (const auto& member : result.snapshot.members) if (member.connection.user == endpoint) return member.id;
 	return 0;
 }
 
 // A bound room under any action from any member, and any binding offered:
-// the bound table only ever seats the bound endpoints, nobody else stays in
-// the room, a permit hold exists only while the table is Ready, and the room
+// the bound table only ever seats the bound fighters, nobody stays in the room
+// but the fighters and the watchers the binding names, those watchers only ever
+// spectate, a permit hold exists only while the table is Ready, and the room
 // survives a checkpoint unchanged.
 static void FuzzBoundRoom(Random& random) {
-	const std::vector<std::string> endpoints = {EndpointA, EndpointB, EndpointC};
+	const std::vector<std::string> fighters = {EndpointA, EndpointB, EndpointC};
+	const std::vector<std::string> endpoints = {EndpointA, EndpointB, EndpointC, EndpointD, EndpointE};
 	int started = 0, held = 0, rebound = 0;
 	for (int game = 0, games = Rounds(150); game < games; ++game) {
 		room::RoomAuthority authority("Match", 8, 1);
@@ -552,13 +676,19 @@ static void FuzzBoundRoom(Random& random) {
 		for (int step = 0; step < 200; ++step) {
 			const auto& view = authority.SnapshotView();
 			switch (random.Below(9)) {
-			case 0: case 8: JoinAs(authority, random.Pick(endpoints)); break;
+			case 0: case 8: JoinAs(authority, random.Pick(endpoints), false, random.Chance(60)); break;
 			// The last member leaving closes the room; a closed room teaches nothing.
 			case 1: if (view.members.size() > 1) authority.Leave(view.members[random.Below(view.members.size())].id); break;
 			case 2: {
 				auto offered = binding;
 				offered.bindingRevision = random.Below(4);
-				if (random.Chance(30)) offered.fighters[random.Below(2)].endpoint = random.Pick(endpoints);
+				if (random.Chance(30)) offered.fighters[random.Below(2)].endpoint = random.Pick(fighters);
+				// The watchers it names are never a fighter's endpoint, as the bridge keeps them apart.
+				if (random.Chance(50)) {
+					offered.watchers.clear();
+					for (const auto& endpoint : {EndpointD, EndpointE})
+						if (random.Chance(60)) offered.watchers.push_back({endpoint, "emb1_" + endpoint.substr(0, 1)});
+				}
 				if (random.Chance(10)) offered.matchId = "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a99";
 				if (authority.BindTournament(offered).accepted) { binding = authority.SnapshotView().tournament; ++rebound; }
 				break;
@@ -610,7 +740,7 @@ static void FuzzBoundRoom(Random& random) {
 			const auto& after = authority.SnapshotView();
 			if (!after.tournament.Active()) continue;
 			for (const auto& member : after.members)
-				CHECK(member.connection.user == after.tournament.fighters[0].endpoint || member.connection.user == after.tournament.fighters[1].endpoint);
+				CHECK(after.tournament.SlotOf(member.connection.user) >= 0 || after.tournament.WatcherOf(member.connection.user));
 			const auto& table = after.tables[room::TournamentTable];
 			for (int seat = 0; seat < 2; ++seat) {
 				const auto id = seat ? table.p2 : table.p1;
@@ -619,6 +749,15 @@ static void FuzzBoundRoom(Random& random) {
 				CHECK(found != after.members.end() && found->connection.user == after.tournament.fighters[seat].endpoint);
 			}
 			CHECK(table.queue.empty());
+			// A watcher spectates and holds no seat; a fighter is never a spectator.
+			for (const auto& member : after.members) {
+				const bool spectates = std::find(table.spectators.begin(), table.spectators.end(), member.id) != table.spectators.end() ||
+					std::find(table.watchingNext.begin(), table.watchingNext.end(), member.id) != table.watchingNext.end();
+				if (after.tournament.WatcherOf(member.connection.user)) {
+					CHECK(spectates && table.p1 != member.id && table.p2 != member.id);
+				}
+				else CHECK(!spectates);
+			}
 			CHECK(table.rules.format == static_cast<room::SetFormat>(after.tournament.gamesToWin));
 			if (table.permitGeneration) { ++held; CHECK(table.phase == room::TablePhase::Ready); }
 			if (random.Chance(5)) {
@@ -643,10 +782,12 @@ int main() {
 	TestAssignmentTimes();
 	TestPrepareWindow();
 	TestStartingWins();
+	TestWatchers();
 	FuzzAnswers(random);
 	FuzzLinks(random);
 	FuzzRoomLinks(random);
 	FuzzPlay(random);
+	FuzzWatch(random);
 	FuzzBoundRoom(random);
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("tournament fuzz tests passed\n");

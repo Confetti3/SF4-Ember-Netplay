@@ -11,7 +11,6 @@ static Dimps::GameEvents::VsMode::ConfirmedCharaConditions mainMenuJumpCharaCond
 	{ 0, 0, 0, 0, 0, 0, 0, 0, (BYTE)rBattle::ED_USF4 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0, (BYTE)rBattle::ED_USF4 },
 };
-static int mainMenuJumpCharaCount = 2;
 static int mainMenuJumpStageID = 0;
 static bool mainMenuEditionSelect = true;
 static int mainMenuRoundCountIdx = 1;
@@ -58,30 +57,11 @@ const char* GetRoundTimeLabel(void* options, int idx) {
 }
 
 void _OnPreBattleTasksRegistered() {
-	// XXX (adanducci): this is a little fragile- it's technically possible
-	// that the pre-battle event is constructed in another context, but
-	// practically speaking the VsPreBattle event will always be used in
-	// the context of VsMode.
-	char* vsModeQuery[] = { "VSMode" };
-	rVsMode* mode = (rVsMode*)EventBaseWithEC::FindForegroundEvent(App::GetRootEvent(), vsModeQuery, 1);
-	if (!mode) {
+	mainMenuJumpStageID = sf4e::selection::NormalizeStage(mainMenuJumpStageID);
+	if (!fVsPreBattle::SetSides(mainMenuJumpCharaConditions, mainMenuJumpStageID)) {
 		spdlog::error("Overlay: VsPreBattle tasks registered, but the current foreground event isn't VSMode!");
 		return;
 	}
-
-	Dimps::Platform::dString* stageName = rVsMode::GetStageName(mode);
-	rVsMode::ConfirmedPlayerConditions* conditions = rVsMode::GetConfirmedPlayerConditions(mode);
-	size_t charaConditionSize = sizeof(rVsMode::ConfirmedCharaConditions);
-	for (int i = 0; i < mainMenuJumpCharaCount; i++) {
-		*(rVsMode::ConfirmedPlayerConditions::GetCharaID(&conditions[i])) = mainMenuJumpCharaConditions->charaID;
-		*(rVsMode::ConfirmedPlayerConditions::GetSideActive(&conditions[i])) = 1;
-		rVsMode::ConfirmedCharaConditions* charaConditions = rVsMode::ConfirmedPlayerConditions::GetCharaConditions(&conditions[i]);
-		memcpy_s(charaConditions, charaConditionSize, &mainMenuJumpCharaConditions[i], charaConditionSize);
-	}
-
-	mainMenuJumpStageID = sf4e::selection::NormalizeStage(mainMenuJumpStageID);
-	(stageName->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[mainMenuJumpStageID], 4);
-	*(rVsMode::GetStageCode(mode)) = mainMenuJumpStageID;
 
 	// Force some default input handling
 	PadSystem* padSys = PadSystem::staticMethods.GetSingleton();
@@ -158,18 +138,12 @@ void DrawMainMenuWindow(bool* pOpen) {
     }
     ImGui::BeginDisabled(!selectionsAvailable);
 	if (Button("Go to versus mode")) {
-		if (mainMenuShouldJump) {
-			RootEvent* root = App::GetRootEvent();
-			ProgressData* progressData = *RootEvent::GetProgressData(root);
-			ProgressData::BattleTypeSettings* BattleTypeSettings = &(ProgressData::GetBattleTypeSettings(progressData)[ProgressData::NBT_PVP]);
-			*ProgressData::GetNextBattleType(progressData) = ProgressData::NBT_PVP;
-
-			BattleTypeSettings->editionSelect = mainMenuEditionSelect;
-			BattleTypeSettings->rounds = roundCountList[mainMenuRoundCountIdx].first;
-			BattleTypeSettings->timeLimit = roundTimeList[mainMenuRoundTimeIdx].first;
-			fVsPreBattle::bSkipToVersus = true;
-			fVsPreBattle::OnTasksRegistered = _OnPreBattleTasksRegistered;
-
+		if (!mainMenuShouldJump) {
+			char* mainMenuQuery[1] = { "MainMenu" };
+			rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(App::GetRootEvent(), mainMenuQuery, 1);
+			(rMainMenu::ToItemObserver(mainMenu)->*rMainMenu::itemObserverMethods.GoToVersusMode)();
+		}
+		else {
 			// Hack to configure inputs
 			PadSystem* padSys = Dimps::Pad::System::staticMethods.GetSingleton();
 			PadSystem::__publicMethods& padSysMethods = Dimps::Pad::System::publicMethods;
@@ -180,15 +154,12 @@ void DrawMainMenuWindow(bool* pOpen) {
 			(padSys->*padSysMethods.SetDeviceTypeForPlayer)(1, 1);
 			(padSys->*padSysMethods.SetSideHasAssignedController)(1, 1);
 			(padSys->*padSysMethods.SetActiveButtonMapping)(PadSystem::BUTTON_MAPPING_FIGHT);
+			fVsPreBattle::VersusSettings settings;
+			settings.editionSelect = mainMenuEditionSelect;
+			settings.rounds = roundCountList[mainMenuRoundCountIdx].first;
+			settings.timeLimit = roundTimeList[mainMenuRoundTimeIdx].first;
+			fVsPreBattle::GoToVersus(settings, _OnPreBattleTasksRegistered);
 		}
-
-		char* mainMenuQuery[1] = { "MainMenu" };
-		rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(
-			App::GetRootEvent(),
-			mainMenuQuery,
-			1
-		);
-		(rMainMenu::ToItemObserver(mainMenu)->*rMainMenu::itemObserverMethods.GoToVersusMode)();
 	}
 
     ImGui::EndDisabled();

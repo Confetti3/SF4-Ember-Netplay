@@ -31,6 +31,7 @@ A connection in `bridge.json` may carry, besides `id`, `kind`,
   "environment": "production",
   "display_name": "Fight Night bot",
   "discord_lookup": true,
+  "lookup_sites": ["challonge", "startgg"],
   "disputes": "restart",
   "results_url": "https://bot.example/ember/results",
   "rooms": { "max_open": 8 }
@@ -40,8 +41,16 @@ A connection in `bridge.json` may carry, besides `id`, `kind`,
 - `discord_lookup` (default false): the connection may find players by
   Discord user ID (`POST /v1/players/lookup`). A player who connected their
   Discord account to their Ember ID is found, and linked on the connection
-  (`approved_via` `discord`), exactly as BluMint's lookup does: a link the
-  player removed is not made again until they sign in with Discord again.
+  (`approved_via` `discord`), exactly as BluMint's lookup does. A link a
+  sign-in approved that the player removed is not made again by any account
+  they connected (Discord's or a sign-in site's) until they sign in again
+  with one of them, which gives that account's consent back. Removing a link
+  made from a code withdraws nothing, as before.
+- `lookup_sites` (default empty): the sign-in sites, by site ID, whose
+  accounts the connection may find players by, the same way (`approved_via`
+  `site`), for players who connected those accounts. Each must be a site in
+  the bridge's `sign_in_sites` (`docs/guides/INTEGRATIONS.md`, "Sign-in
+  sites").
 - `disputes` (`"review"` by default): what a match on the connection does
   when it would wait in `needs_review`. `"restart"` cancels it instead, and
   the platform replays it. Stored with the connection the first time it is
@@ -61,8 +70,9 @@ A connection in `bridge.json` may carry, besides `id`, `kind`,
 Kind `blumint` implies `discord_lookup: true` and `disputes: "restart"`,
 sends results in BluMint's own format to BluMint's API (its `api_base`), and
 keeps its rule that the generic match, lobby and tournament routes refuse it.
-It may not set `discord_lookup`, `disputes` or `results_url` itself. Kind
-`mock` may set all four, for local testing.
+It may not set `discord_lookup`, `lookup_sites`, `disputes` or
+`results_url` itself, and never finds players by a sign-in site's account. Kind
+`mock` may set all of them, for local testing.
 
 The policy code reads one model, `config::Policy`, derived from the stored
 connection record (`kind`, `disputes`) and the configuration:
@@ -163,21 +173,39 @@ not ask for the match again and its host takes it.
 ## Player lookup
 
 `POST /v1/players/lookup` (provider credential, `discord_lookup` or kind
-`blumint`):
+`blumint` for `discord`, `lookup_sites` naming each site in `accounts`;
+a list left out or empty asks nothing, so `{}` answers `{"players": []}`;
+`null` and unknown fields are refused):
 
 ```json
-{ "discord": ["80351110224678912"] }
+{ "discord": ["80351110224678912"], "accounts": [ { "site": "challonge", "id": "Player_1" }, { "site": "startgg", "id": "1234567" } ] }
 ```
 
-answers, for each ID connected to an Ember ID and linked (or now linked) on
-the connection, in the order asked, at most 32:
+answers, for each account connected to an Ember ID and linked (or now
+linked) on the connection, in the order asked, at most 32 accounts in both
+lists together:
 
 ```json
-{ "players": [ { "discord_user_id": "80351110224678912", "ember_id": "emb1_...", "participant_id": "par_..." } ] }
+{
+  "players": [ { "discord_user_id": "80351110224678912", "ember_id": "emb1_...", "participant_id": "par_..." } ],
+  "accounts": [ { "site": "challonge", "id": "Player_1", "user_id": "1001", "ember_id": "emb1_...", "participant_id": "par_...", "connected_at": 1792000000 } ]
+}
 ```
 
-An ID with no connected account is left out. Without permission the route
-answers `forbidden`. BluMint's `/v1/blumint/lookup` uses the same code.
+`accounts` is left out of the answer when it is empty, so a Discord-only
+answer is as it always was. Each `id` is matched as its site's `lookup_by`
+and `username_rule` say: with the shipped definitions, Challonge usernames
+without case and start.gg user IDs exactly. It is answered as asked, and one
+the site's accounts cannot have (a username its rule does not allow, or a
+user ID that is not 1 to 64 visible ASCII characters) finds no one, as a
+Discord ID that is no snowflake does.
+An account with no connected Ember ID is left out, and an Ember ID found
+twice by one site (or twice in `discord`) is answered once for it; one found
+on two sites, or by Discord ID and on a site, is answered for each, as one
+link. `connected_at` is when the account connected, the last time the bridge
+saw its username (see "Sign-in sites" in `docs/guides/INTEGRATIONS.md` for
+what a rename does). A list or site the connection may not use, or a site
+the bridge does not have, answers `forbidden`, even next to one it may. BluMint's `/v1/blumint/lookup` uses the same code.
 
 ## Rooms for a connection
 

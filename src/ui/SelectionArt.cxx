@@ -34,6 +34,9 @@ constexpr int MaximumAttempts = 3;
 constexpr std::uint64_t RetryFrames = 60;
 // A request's side that keeps the image at its own size.
 constexpr UINT NativeSide = 0;
+// A portrait archive holds the portrait and, for an asymmetric fighter, its
+// mirror; an archive read by entry name can hold the whole of a game screen.
+constexpr std::size_t MaximumPortraitEntries = 2, MaximumArchiveEntries = 1024;
 using platform::WideToUtf8;
 std::string Hex(HRESULT value) {
     char text[16];
@@ -46,8 +49,33 @@ std::uint32_t U32(const std::vector<unsigned char>& bytes, std::size_t offset) {
     if (offset + sizeof(value) <= bytes.size()) std::memcpy(&value, bytes.data() + offset, sizeof(value));
     return value;
 }
-// `opened` tells a missing file apart from one that exists but is unusable.
-std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened) {
+// The image of an EMB archive: the entry named `entry`, or with none the first
+// (the standard portrait in both portrait archive layouts, which hold one or two).
+std::vector<unsigned char> EmbImage(const std::vector<unsigned char>& emb, const std::string& entry) {
+    if (emb.size() < 40 || std::memcmp(emb.data(), "#EMB", 4) != 0) return {};
+    const std::size_t count = U32(emb, 12), table = U32(emb, 24), names = U32(emb, 28);
+    if (count < 1 || count > (entry.empty() ? MaximumPortraitEntries : MaximumArchiveEntries) || table + count * 8 > emb.size()) return {};
+    std::size_t index = 0;
+    if (!entry.empty()) {
+        if (!names || names + count * 4 > emb.size()) return {};
+        const auto named = [&](std::size_t i) {
+            const std::size_t name = U32(emb, names + i * 4);
+            return name < emb.size() && emb.size() - name > entry.size() &&
+                std::memcmp(emb.data() + name, entry.data(), entry.size()) == 0 && emb[name + entry.size()] == 0;
+        };
+        while (index < count && !named(index)) ++index;
+        if (index == count) return {};
+    }
+    // Each entry's offset counts from its own row of the table.
+    const std::size_t row = table + index * 8;
+    const std::size_t image = row + U32(emb, row), imageBytes = U32(emb, row + 4);
+    if (image > emb.size() || imageBytes > emb.size() - image || imageBytes < 128 ||
+        std::memcmp(emb.data() + image, "DDS ", 4) != 0) return {};
+    return std::vector<unsigned char>(emb.begin() + image, emb.begin() + image + imageBytes);
+}
+// `opened` tells a missing file apart from one that exists but is unusable. An
+// EMZ archive yields its image named `entry` (EmbImage).
+std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened, const std::string& entry) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     opened = static_cast<bool>(file);
     if (!file) return {};
@@ -67,18 +95,8 @@ std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened) {
         const int result = inflate(&stream, Z_FINISH);
         inflateEnd(&stream);
         if (result != Z_STREAM_END || stream.total_out != size) return {};
-        bytes.swap(expanded);
-        if (bytes.size() < 40 || std::memcmp(bytes.data(), "#EMB", 4) != 0) return {};
         // Asymmetric fighters also have sel_chara_rev.dds for the other side.
-        // The first entry is the standard portrait in both archive layouts.
-        const auto count = U32(bytes, 12);
-        if (count < 1 || count > 2) return {};
-        const std::size_t table = U32(bytes, 24);
-        if (table + count * 8 > bytes.size()) return {};
-        const std::size_t image = table + U32(bytes, table), imageBytes = U32(bytes, table + 4);
-        if (image > bytes.size() || imageBytes > bytes.size() - image || imageBytes < 128 ||
-            std::memcmp(bytes.data() + image, "DDS ", 4) != 0) return {};
-        return std::vector<unsigned char>(bytes.begin() + image, bytes.begin() + image + imageBytes);
+        return EmbImage(expanded, entry);
     }
     return bytes;
 }
@@ -98,11 +116,12 @@ struct Pixels {
         if (failure.empty()) failure = WideToUtf8(path) + ": " + reason;
     }
 };
-Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::vector<std::wstring>& paths, UINT side) {
+Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::vector<std::wstring>& paths, UINT side,
+    const std::string& entry) {
     Pixels pixels; pixels.key = key;
     for (const auto& path : paths) {
         bool opened = false;
-        auto bytes = ReadImage(path, opened);
+        auto bytes = ReadImage(path, opened, entry);
         if (bytes.empty()) {
             if (opened) pixels.Fail(path, "unreadable or unsupported container");
             continue;
@@ -155,7 +174,8 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
 }
 
 struct SelectionArt::Impl {
-    struct Job { std::string key; std::vector<std::wstring> paths; UINT side; };
+    // `entry` names the image inside an archive candidate; empty takes its first.
+    struct Job { std::string key; std::vector<std::wstring> paths; UINT side; std::string entry; };
     // Portraits fit their painted content rather than the transparent canvas,
     // and every fighter should have one, so an absent portrait is reported.
     // An atlas must decode to exactly its layout's size (exactWidth by exactHeight).
@@ -211,7 +231,7 @@ struct SelectionArt::Impl {
                   job = std::move(jobs.front()); jobs.pop_front(); }
                 Pixels pixels; pixels.key = job.key;
                 try {
-                    if (haveFactory) pixels = Decode(factory.Get(), job.key, job.paths, job.side);
+                    if (haveFactory) pixels = Decode(factory.Get(), job.key, job.paths, job.side, job.entry);
                     else { pixels.outcome = Outcome::Failed; pixels.failure = "image decoder unavailable"; }
                 } catch (const std::exception& error) {
                     pixels.bgra.clear(); pixels.outcome = Outcome::Failed;
@@ -225,7 +245,7 @@ struct SelectionArt::Impl {
     // `paths` builds the candidate files, and runs only when a decode is
     // queued: screens request every visible image on every frame.
     template <class Paths>
-    SelectionImage Request(const std::string& key, Paths paths, UINT side = 256, Policy policy = {}) {
+    SelectionImage Request(const std::string& key, Paths paths, UINT side = 256, Policy policy = {}, std::string archiveEntry = {}) {
         requested = true;
         auto found = entries.find(key);
         const bool due = found != entries.end() && found->second.state == State::Waiting && frame >= found->second.retryFrame;
@@ -235,7 +255,7 @@ struct SelectionArt::Impl {
             if (jobs.size() >= 128) return {};
             if (found == entries.end()) { found = entries.emplace(key, Entry{}).first; found->second.policy = policy; }
             found->second.state = State::Queued;
-            jobs.push_back({key, std::move(candidates), side}); wake.notify_one();
+            jobs.push_back({key, std::move(candidates), side, std::move(archiveEntry)}); wake.notify_one();
         }
         auto& entry = found->second; entry.lastUse = frame;
         SelectionImage result;
@@ -400,6 +420,13 @@ SelectionImage SelectionArt::Ultra(int fighterId, int ultra) {
     if (!fighter || ultra < 0 || ultra > 1) return {};
     const std::string key = std::string(fighter->code) + "/ultra-" + std::to_string(ultra);
     return impl_->Request(key, [&] { return impl_->ImagePaths(key); });
+}
+SelectionImage SelectionArt::RankingEmblem(const std::string& entry) {
+    // Read from the game at runtime like the portraits, and never repackaged.
+    Impl::Policy emblem; emblem.reportAbsence = true;
+    return impl_->Request("classes/" + entry, [&] {
+        return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/network_mode/Ranking.emz"};
+    }, NativeSide, emblem, entry);
 }
 SelectionImage SelectionArt::Stage(int nativeId) {
     // The Random card borrows the game's character-select random tile, read at

@@ -12,7 +12,7 @@ int main() {
 		// once the deadline, measured from the fighters' sync, has passed
 		// without RUNNING.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000, 1001, 1002});
+		policy.Start(0, {1000, 1001, 1002}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(1000);
 		policy.OnFighterSynchronized(1500); // only the first fighter sync counts
 		policy.OnSynchronized(1001);
@@ -23,10 +23,29 @@ int main() {
 		CHECK((policy.Handles() == std::vector<int>{1001}));
 	}
 	{
+		// At a tournament match's bound table the deadline is two seconds: a
+		// watcher that has not synchronized then is dropped, one that has is
+		// kept, and any other table keeps the five.
+		CHECK(SpectatorPolicy::SyncDeadlineFor(false) == SpectatorPolicy::SyncDeadlineMs && SpectatorPolicy::SyncDeadlineMs == 5000);
+		CHECK(SpectatorPolicy::SyncDeadlineFor(true) == SpectatorPolicy::BoundSyncDeadlineMs && SpectatorPolicy::BoundSyncDeadlineMs == 2000);
+		SpectatorPolicy policy;
+		policy.Start(0, {1000, 1001}, SpectatorPolicy::SyncDeadlineFor(true));
+		policy.OnFighterSynchronized(1000);
+		policy.OnSynchronized(1001);
+		CHECK(policy.SyncOverdue(1000 + SpectatorPolicy::BoundSyncDeadlineMs - 1).empty());
+		CHECK((policy.SyncOverdue(1000 + SpectatorPolicy::BoundSyncDeadlineMs) == std::vector<int>{1000}));
+		CHECK((policy.Handles() == std::vector<int>{1001}));
+		// The next session, at an ordinary table, waits the whole five.
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineFor(false));
+		policy.OnFighterSynchronized(1000);
+		CHECK(policy.SyncOverdue(1000 + SpectatorPolicy::SyncDeadlineMs - 1).empty());
+		CHECK((policy.SyncOverdue(1000 + SpectatorPolicy::SyncDeadlineMs) == std::vector<int>{1000}));
+	}
+	{
 		// No fighter has synchronized yet: the fight cannot start, so a
 		// spectator that is still loading is never dropped for sync.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		CHECK(policy.SyncOverdue(3000).empty());
 		CHECK(policy.SyncOverdue(SpectatorPolicy::SyncDeadlineMs).empty());
 		CHECK(policy.SyncOverdue(SpectatorPolicy::SyncDeadlineMs * 10).empty());
@@ -37,7 +56,7 @@ int main() {
 		// after them: it is kept, although it synchronized long after the
 		// session started.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		CHECK(policy.SyncOverdue(7999).empty());
 		policy.OnFighterSynchronized(8000);
 		CHECK(policy.SyncOverdue(11999).empty());
@@ -50,7 +69,7 @@ int main() {
 		// A spectator that never synchronizes is dropped exactly at the
 		// deadline after the fighters' sync, and only once.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(1000);
 		CHECK(policy.SyncOverdue(1000 + SpectatorPolicy::SyncDeadlineMs - 1).empty());
 		CHECK((policy.SyncOverdue(1000 + SpectatorPolicy::SyncDeadlineMs) == std::vector<int>{1000}));
@@ -60,9 +79,9 @@ int main() {
 	{
 		// A new session forgets the previous session's fighter sync time.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(1000);
-		policy.Start(20000, {1001});
+		policy.Start(20000, {1001}, SpectatorPolicy::SyncDeadlineMs);
 		CHECK(policy.SyncOverdue(20000 + SpectatorPolicy::SyncDeadlineMs * 2).empty());
 		CHECK((policy.Handles() == std::vector<int>{1001}));
 		policy.OnFighterSynchronized(30000);
@@ -72,7 +91,7 @@ int main() {
 	{
 		// RUNNING before the deadline means nobody is dropped for sync.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(100);
 		policy.OnRunning(200);
 		CHECK(policy.SyncOverdue(SpectatorPolicy::SyncDeadlineMs * 10).empty());
@@ -82,7 +101,7 @@ int main() {
 		// sample resets the count. Samples happen once per interval, only
 		// once SyncDeadlineMs has passed since RUNNING.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000, 1001});
+		policy.Start(0, {1000, 1001}, SpectatorPolicy::SyncDeadlineMs);
 		CHECK(!policy.SampleDue(5000)); // not running yet
 		policy.OnSynchronized(1000); policy.OnSynchronized(1001); policy.OnRunning(1000);
 		const auto due = 1000 + SpectatorPolicy::SyncDeadlineMs;
@@ -108,7 +127,7 @@ int main() {
 		// nothing while P1 streams. Inside the window after RUNNING no sample
 		// is taken, so that backlog never drops it; GGPO's ring is the bound.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnSynchronized(1000); policy.OnRunning(1000);
 		for (std::uint64_t now = 1000; now < 1000 + SpectatorPolicy::SyncDeadlineMs; now += 16)
 			CHECK(!policy.SampleDue(now));
@@ -130,12 +149,12 @@ int main() {
 		// A 650 ms spike keeps a healthy spectator 39 frames behind, which the
 		// floors alone would drop after SlowSamples samples.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnRunning(1);
 		for (int i = 0; i < SpectatorPolicy::SlowSamples * 4; ++i) CHECK(!policy.Sample(1000, 45, 650));
 		CHECK(!policy.Sample(1000, 62, 650));
 		CHECK(policy.Sample(1000, 63, 650));
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnRunning(1);
 		for (int i = 1; i < SpectatorPolicy::SlowSamples; ++i) CHECK(!policy.Sample(1000, 45, 215));
 		CHECK(policy.Sample(1000, 45, 215));
@@ -146,7 +165,7 @@ int main() {
 		// frame ring fills, from a near round trip and from Waldo's 215 ms.
 		for (const int pingMs : {0, 215}) {
 			SpectatorPolicy policy;
-			policy.Start(0, {1000});
+			policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 			policy.OnSynchronized(1000); policy.OnRunning(1000);
 			const auto stalledMs = 1000 + SpectatorPolicy::SyncDeadlineMs + 3000;
 			const int inFlight = SpectatorPolicy::InFlightFrames(pingMs);
@@ -160,14 +179,14 @@ int main() {
 	{
 		// A game-thread hitch that delays the poll still drops on one sample.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnRunning(1);
 		CHECK(policy.Sample(1000, SpectatorPolicy::DropQueueFrames, 0));
 	}
 	{
 		// A spectator GGPO dropped on its own is forgotten.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(100);
 		policy.OnDisconnected(1000);
 		CHECK(policy.SyncOverdue(100 + SpectatorPolicy::SyncDeadlineMs).empty());
@@ -177,13 +196,18 @@ int main() {
 		// elsewhere waits until P1's sync window has passed, then sits the game
 		// out; a fighter keeps waiting, and anyone at the menu enters.
 		using Step = SpectatorPolicy::EntryStep;
-		CHECK(SpectatorPolicy::EntryGate(true, true, 0) == Step::Enter);
-		CHECK(SpectatorPolicy::EntryGate(true, false, SpectatorPolicy::SyncDeadlineMs * 10) == Step::Enter);
-		CHECK(SpectatorPolicy::EntryGate(false, true, 0) == Step::Wait);
-		CHECK(SpectatorPolicy::EntryGate(false, true, SpectatorPolicy::SyncDeadlineMs - 1) == Step::Wait);
-		CHECK(SpectatorPolicy::EntryGate(false, true, SpectatorPolicy::SyncDeadlineMs) == Step::SitOut);
-		CHECK(SpectatorPolicy::EntryGate(false, false, 0) == Step::Wait);
-		CHECK(SpectatorPolicy::EntryGate(false, false, SpectatorPolicy::SyncDeadlineMs * 10) == Step::Wait);
+		const auto open = SpectatorPolicy::SyncDeadlineMs, bound = SpectatorPolicy::BoundSyncDeadlineMs;
+		CHECK(SpectatorPolicy::EntryGate(true, true, 0, open) == Step::Enter);
+		CHECK(SpectatorPolicy::EntryGate(true, false, open * 10, open) == Step::Enter);
+		CHECK(SpectatorPolicy::EntryGate(false, true, 0, open) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, true, open - 1, open) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, true, open, open) == Step::SitOut);
+		CHECK(SpectatorPolicy::EntryGate(false, false, 0, open) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, false, open * 10, open) == Step::Wait);
+		// At a tournament match's bound table the watcher gives up when P1 does.
+		CHECK(SpectatorPolicy::EntryGate(false, true, bound - 1, SpectatorPolicy::SyncDeadlineFor(true)) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, true, bound, SpectatorPolicy::SyncDeadlineFor(true)) == Step::SitOut);
+		CHECK(SpectatorPolicy::EntryGate(false, true, bound, SpectatorPolicy::SyncDeadlineFor(false)) == Step::Wait);
 	}
 	{
 		// A spectator client's own link: the stream ends once, exactly

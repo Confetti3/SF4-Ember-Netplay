@@ -128,11 +128,13 @@ static void ObserveDeferredEntry() {
 		runtime->entryDeferredSinceMs = now;
 		spdlog::info("Match: entry deferred, not at the main menu generation={} spectator={}", generation, LocalIsSpectator());
 	}
-	if (SpectatorPolicy::EntryGate(false, LocalIsSpectator(), now - runtime->entryDeferredSinceMs) !=
+	// The same deadline P1 waits by (a shorter one at a tournament match's bound table).
+	const auto deadline = UserApp::netplay ? UserApp::netplay->client.SpectatorSyncDeadlineMs() : SpectatorPolicy::SyncDeadlineMs;
+	if (SpectatorPolicy::EntryGate(false, LocalIsSpectator(), now - runtime->entryDeferredSinceMs, deadline) !=
 		SpectatorPolicy::EntryStep::SitOut) return;
 	// P1 has stopped waiting for this spectator, and entering later would join
 	// a stream it no longer serves. The room still lists it for the next game.
-	spdlog::info("Match: spectator sits out generation {} (not at the main menu within {} ms)", generation, SpectatorPolicy::SyncDeadlineMs);
+	spdlog::info("Match: spectator sits out generation {} (not at the main menu within {} ms)", generation, deadline);
 	runtime->match->End();
 	PushAlert(loc::T("runtime.spectator_sat_out"), NoticeSeverity::Info);
 }
@@ -457,15 +459,13 @@ void SettleOwedAbort() {
 	auto& owed = runtime->owedAbort;
 	const auto generation = owed.Generation();
 	if (!generation) return;
-	using netplay::tournament::Phase;
-	const auto phase = runtime->tournament.GetPhase();
 	netplay::tournament::OwedAbort::View view;
 	view.ended = runtime->committedEndGeneration == generation || (UserApp::netplay &&
 		GenerationFinished(UserApp::netplay->client.GetRoomSnapshot().tables[room::TournamentTable], generation));
 	const auto* capture = runtime->resultOutbox.Captured();
 	view.captured = capture && capture->generation == generation && capture->table == room::TournamentTable;
 	view.healthy = runtime->controller.GetSnapshot().control == netplay::Health::Healthy;
-	view.playing = phase == Phase::Claiming || phase == Phase::Opening || phase == Phase::InRoom;
+	view.playing = netplay::tournament::PlayUnderWay(runtime->tournament.GetPhase());
 	if (owed.Next(view, GetTickCount64()) != netplay::tournament::OwedAbort::Step::Report) return;
 	spdlog::info("Tournament: the room has not ended generation {}; reporting its abort to the bridge", generation);
 	runtime->tournament.OnTerminal(generation, room::MatchResult::Abort, 0, 0);

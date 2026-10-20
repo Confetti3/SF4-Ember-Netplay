@@ -123,6 +123,7 @@ std::vector<MenuEntry> PlayerControllerRows(const netplay::PlayerPreferences& p,
         Value("lower-input-lag", loc::T("player.lower_input_lag"), loc::T(p.lowerInputLag ? "common.on" : "common.off"), loc::T("player.lower_input_lag_detail"), canEdit),
         Value("lower-keyboard-lag", loc::T("player.lower_keyboard_lag"), loc::T(p.lowerKeyboardLag ? "common.on" : "common.off"), loc::T("player.lower_keyboard_lag_detail"), canEdit),
         Value("faster-display", loc::T("player.faster_display"), loc::T(p.fasterDisplay ? "common.on" : "common.off"), loc::T("player.faster_display_detail"), canEdit),
+        Value("borderless", loc::T("player.borderless"), loc::T(p.borderless ? "common.on" : "common.off"), loc::T("player.borderless_detail"), canEdit),
         Value("game-reads-pads", loc::T("player.game_reads"), loc::T(p.controllerLayer ? "common.off" : "common.on"), gameDetail, canEdit)};
 }
 namespace {

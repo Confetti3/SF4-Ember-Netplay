@@ -134,6 +134,10 @@ struct RemoteStorage {
 };
 RemoteStorage* Storage() { return static_cast<RemoteStorage*>(sf4e::steam::RemoteStorage()); }
 
+#ifdef SF4E_SELFTEST
+int s_failWriteAfter = -1;
+#endif
+
 bool WriteThroughSteam(const std::string& name, const sf4e::replayslots::Bytes& contents) {
 	RemoteStorage* const storage = Storage();
 	if (!storage) { spdlog::warn("Replay: Steam's remote storage is not available"); return false; }
@@ -211,7 +215,15 @@ ImportResult Import(const sf4e::platform::replays::ImportTransaction& prepared, 
 		std::memcpy(Table::GetEntrySlotBytes(entry), value.slotBytes.data(), 2);
 		return true;
 	};
-	const ImportResult result = sf4e::platform::replays::CommitImport(prepared, WriteThroughSteam, RemoveThroughSteam, publish, watched);
+	sf4e::platform::replays::Writer write = WriteThroughSteam;
+#ifdef SF4E_SELFTEST
+	// The self-test's failing write stands in for Steam's, here and not in WriteThroughSteam.
+	write = [](const std::string& name, const sf4e::replayslots::Bytes& contents) {
+		if (s_failWriteAfter >= 0 && s_failWriteAfter-- == 0) { spdlog::warn("Replay: the write of {} fails for the self-test", name); return false; }
+		return WriteThroughSteam(name, contents);
+	};
+#endif
+	const ImportResult result = sf4e::platform::replays::CommitImport(prepared, write, RemoveThroughSteam, publish, watched);
 	if (result != ImportResult::Done) return result;
 	spdlog::info("Replay: slot {} is in the game's table", prepared->imported.slot);
 	slot = prepared->imported.slot;
@@ -332,6 +344,9 @@ void sf4e::replaystore::Install() {
 }
 
 bool sf4e::replaystore::ContinuousRecordingAvailable() { return s_continuousRecordingAvailable; }
+#ifdef SF4E_SELFTEST
+void sf4e::replaystore::FailWriteForTest(int after) { s_failWriteAfter = after; }
+#endif
 
 bool sf4e::replaystore::Ready() { return s_entries != nullptr && sf4e::Game::Battle::MatchReplayListWidened(); }
 

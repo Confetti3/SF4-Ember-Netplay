@@ -1116,6 +1116,12 @@ msgstr "Faster display (1 frame less)"
 msgid "player.faster_display_detail"
 msgstr "The game shows each frame as soon as it is ready instead of a frame later. Turn it off if the game drops below 60 fps on this PC. It only affects this PC: the other player does not need it on. Changes apply the next time the game starts."
 
+msgid "player.borderless"
+msgstr "Borderless"
+
+msgid "player.borderless_detail"
+msgstr "The game fills the screen in a window without a frame, drawn at the screen's own resolution in 16:9, with black bars on a wider or taller screen. While it is on, Alt+Enter and the game's own resolution and fullscreen options do nothing; the game keeps your choice there for when it is off. It only affects this PC. Changes apply the next time the game starts."
+
 
 
 msgid "settings.interface_title"
@@ -1350,7 +1356,13 @@ msgid "room.private_status"
 msgstr "Private room / invitation only"
 
 msgid "room.tournament_status"
-msgstr "Tournament match, first to {0}. Only its two players can join."
+msgstr "Tournament match, first to {0}. Only its two players can play."
+
+msgid "room.tournament_status_watched"
+msgstr "Tournament match, first to {0}. {1} watching."
+
+msgid "room.tournament_watching"
+msgstr "Watching a tournament match. Only its two players can play."
 
 msgid "room.reconnecting"
 msgstr "Reconnecting to room..."
@@ -2506,6 +2518,14 @@ msgid "room.status.seated"
 msgstr "Seated"
 msgid "room.status.ready"
 msgstr "Ready"
+msgid "class.master"
+msgstr "Master"
+msgid "class.grand_master"
+msgstr "Grand Master"
+msgid "class.tip"
+msgstr "Class {0}"
+msgid "class.unsettled"
+msgstr "Not played lately, so it may have changed."
 msgid "room.status.playing"
 msgstr "Playing"
 msgid "room.status.watching"
@@ -2567,6 +2587,8 @@ msgid "room.member_status_host"
 msgstr "{0} / HOST"
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Watcher"
 msgid "room.members"
 msgstr "Members"
 msgid "room.member_count"
@@ -3025,6 +3047,10 @@ msgid "runtime.spectator_action_retrying"
 msgstr "The spectator action could not be sent; retrying."
 msgid "runtime.return_main_menu"
 msgstr "Return to the game main menu before opening a room."
+msgid "runtime.in_tournament_match"
+msgstr "You are playing or watching a tournament match. Finish it or stop it under Tournament matches before you open or join another room."
+msgid "runtime.watch_leave_room"
+msgstr "Leave your room before you watch a tournament match."
 msgid "runtime.tournament_result_saving"
 msgstr "Saving the last game's result. Try again in a few seconds."
 msgid "runtime.room_action_failed"
@@ -3257,7 +3283,7 @@ msgid "identity.local_passphrase"
 msgstr "Passphrase for this PC"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine and Proton cannot use Windows key protection, so a passphrase protects your key. You enter it once each time the game starts."
+msgstr "Wine and Proton, as used on the Steam Deck, cannot use the usual key protection, so a passphrase protects your key. You enter it once each time the game starts."
 
 msgid "identity.repeat_passphrase"
 msgstr "Repeat passphrase"
@@ -3279,6 +3305,9 @@ msgstr "Create Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "Creates your key on this PC. Only this Windows account can use it."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Creates your key on this PC, protected by the passphrase above."
 
 msgid "identity.leave_room"
 msgstr "Leave the room and return to the main menu to change your Ember ID."
@@ -3489,6 +3518,84 @@ msgstr "Use a different Discord account"
 
 msgid "connect.change_detail"
 msgstr "Opens Discord in your browser to connect another account instead. Your tournament site must then use that account."
+
+msgid "site.title"
+msgstr "Connect {0}"
+
+msgid "site.row_detail"
+msgstr "Connect your {0} account so tournaments on {0} can find your Ember ID."
+
+msgid "site.go_detail"
+msgstr "Connecting {0} lets tournaments on {0} find your Ember ID. Ember opens {0} in your browser: approve there with the account your tournament uses."
+
+msgid "site.setting_up_detail"
+msgstr "Ember is opening {0} in your browser."
+
+msgid "site.waiting"
+msgstr "Approve in your browser. This screen updates when {0} is connected."
+
+msgid "site.waiting_label"
+msgstr "Waiting for {0}"
+
+msgid "site.waiting_detail"
+msgstr "Approve in your browser with the {0} account your tournament uses. This screen updates by itself."
+
+msgid "site.connected"
+msgstr "{0} connected"
+
+msgid "site.connected_detail"
+msgstr "Tournaments on {0} can now find you by this account."
+
+msgid "site.change"
+msgstr "Use a different {0} account"
+
+msgid "site.change_detail"
+msgstr "Opens {0} in your browser to connect another account instead. Your tournament must then use that account."
+
+msgid "site.remove_detail"
+msgstr "Disconnects this {0} account from your Ember ID on this service. Tournaments on {0} can no longer find you by it."
+
+msgid "site.cancel_detail"
+msgstr "Stops waiting. Choose Connect {0} again when you are ready."
+
+msgid "site.off"
+msgstr "{0} sign-in is off"
+
+msgid "site.off_detail"
+msgstr "This tournament service does not offer {0} sign-in right now. Try again later."
+
+msgid "site.retry_detail"
+msgstr "Reads your {0} account again."
+
+msgid "site.opened"
+msgstr "Finish signing in to {0} in your browser."
+
+msgid "site.done"
+msgstr "{0} connected as {1}."
+
+msgid "site.removed"
+msgstr "{0} account disconnected."
+
+msgid "site.cancelled"
+msgstr "Stopped waiting for {0}."
+
+msgid "site.busy"
+msgstr "{0} sign-in is busy right now. Try again later."
+
+msgid "site.gone"
+msgstr "This tournament service no longer offers {0} sign-in."
+
+msgid "site.no_service"
+msgstr "Ember's tournament service is not set up"
+
+msgid "site.no_service_detail"
+msgstr "{0} connects through Ember's tournament service. Look it up under Linked accounts first, then come back here."
+
+msgid "site.screen"
+msgstr "Site account"
+
+msgid "identity.failure.browser"
+msgstr "Ember could not open your browser."
 
 msgid "connect.link_waiting"
 msgstr "A tournament site asked you to connect Discord. Ember opens Connect Discord when you leave the room."
@@ -3816,6 +3923,63 @@ msgstr "That match is not in your list. It belongs to other players, or this ser
 
 msgid "tournament.failure.link_service"
 msgstr "Trust this tournament service under Linked accounts, then open the match link again."
+
+msgid "tournament.watch.row"
+msgstr "Watch this match"
+
+msgid "tournament.watch.row_detail"
+msgstr "Watchers see the match from its room. They cannot play or chat, and the organizer decides who may watch."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Leaves the match room. You can watch the match again from this list."
+
+msgid "tournament.watch.needs_id"
+msgstr "Watching a match needs an Ember ID. Make one here; it takes a moment."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "This match's tournament service is not trusted yet. Add it on Linked accounts."
+
+msgid "tournament.watch.state.asking"
+msgstr "Asking the tournament service."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Waiting for the players to open the match room."
+
+msgid "tournament.watch.state.full"
+msgstr "This match has all the watchers its organizer allows. Waiting for a place."
+
+msgid "tournament.watch.state.joining"
+msgstr "Joining the match room."
+
+msgid "tournament.watch.state.watching"
+msgstr "Watching {0} vs {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "This match's organizer has not opened it to watchers."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "The organizer removed you from this match's watchers."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "You play in this match. Use Play instead."
+
+msgid "tournament.watch.refused.build"
+msgstr "The players run a different Ember version. Watching needs the same one."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "This tournament service does not offer watching."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Watching stopped because you are in another room. Leave it, then watch the match again."
+
+msgid "tournament.watch.finished_notice"
+msgstr "The match you watched is over."
+
+msgid "tournament.watch.removed_notice"
+msgstr "You stopped watching: the organizer removed you."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "The match room closed."
 
 msgid "rules.set_length"
 msgstr "Set length"
@@ -5110,6 +5274,36 @@ msgstr "Select, then press the button that goes back in Ember's menus. Until you
 
 msgid "button_layout.menu_taken"
 msgstr "{0} is already {1}. Choose another button."
+
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Home button"
+
+msgid "button_layout.extra.mute"
+msgstr "Mute button"
+
+msgid "button_layout.extra.misc"
+msgstr "Extra button"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Right paddle {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Left paddle {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Choose a button for {0} to copy. Pressing {0} then does what that button does."
+
+msgid "button_layout.extra_copy"
+msgstr "Same as {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} works as {1} now."
+
+msgid "button_layout.extra_off"
+msgstr "{0} does nothing now."
 
 msgid "room.delay_policy"
 msgstr "Room input delay"

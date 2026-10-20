@@ -4,12 +4,20 @@
 // session from the same endpoint agree on which handle owns queued work.
 #include "IrohRoom.hxx"
 #include "RoomMessageQueue.hxx"
+#include "../common/SkillBadgeJson.hxx"
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <limits>
 
 namespace sf4e { namespace session {
+
+namespace {
+// What a public host's helper says the ticket admitted, on "connected".
+Admission ReadAdmission(const nlohmann::json& event) {
+	return {event.value("account", std::string()), ReadSkillBadge(event)};
+}
+}
 using nlohmann::json;
 
 std::string IrohRoom::PeerTag(const std::string& peer) { return peer.substr(0, 8); }
@@ -169,8 +177,8 @@ bool IrohRoom::HandleConnected(const json& event) {
 	if (coordination_.active && (known != peers_.end() || (!localIdentity_.empty() && identity == localIdentity_))) {
 		if (known != peers_.end()) {
 			ControlOpened(known->second, control); // Its control is back.
-			const auto account = event.value("account", std::string());
-			if (!account.empty()) known->second.account = account;
+			auto admission = ReadAdmission(event);
+			if (!admission.account.empty()) known->second.admission = std::move(admission);
 		}
 		return true;
 	}
@@ -179,7 +187,7 @@ bool IrohRoom::HandleConnected(const json& event) {
 	auto* peer = AllocatePeer(identity);
 	if (!peer) { Fail("peer_limit"); return false; }
 	ControlOpened(*peer, control);
-	peer->account = event.value("account", std::string());
+	peer->admission = ReadAdmission(event);
 	room_ = room;
 	if (coordination_.writable && coordination_.rebound) state_ = State::Ready;
 	return true;
@@ -246,13 +254,13 @@ bool IrohRoom::BeginPeerSession(std::map<Connection, Peer>::iterator peer, std::
 	const auto identity = record.identity;
 	const auto nextId = record.nextId;
 	const auto control = record.control;
-	const auto account = record.account;
+	const auto admission = record.admission;
 	RetirePeer(peer);
 	auto* fresh = AllocatePeer(identity);
 	if (!fresh) { Fail("peer_limit"); return false; }
 	fresh->nextId = nextId;
 	fresh->incarnation = incarnation;
-	fresh->account = account;
+	fresh->admission = admission;
 	if (control) ControlOpened(*fresh, *control);
 	return true;
 }

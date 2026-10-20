@@ -1,5 +1,6 @@
 #include "RoomHostStatus.hxx"
 #include "../../src/common/FighterCatalog.hxx"
+#include "../../src/common/SkillBadgeJson.hxx"
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
@@ -87,17 +88,18 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot) {
 	return details;
 }
 
-std::string StatusLine(std::size_t members, std::size_t tablesPlaying, const std::string& invitation,
-	const std::vector<std::string>& banned, const RoomDetails& details) {
+std::string StatusLine(const Status& status) {
+	const auto& details = status.details;
 	nlohmann::json detail{{"name", details.name}, {"capacity", details.capacity}, {"locked", details.locked},
 		{"fighters", details.fighters}, {"set_format", details.setFormat}, {"rotation", details.rotation}};
 	if (!details.hostName.empty()) detail["host_name"] = details.hostName;
 	// Written only for the room that has it, so any other room's line is what it was.
 	if (details.ownDelay) detail["own_delay"] = true;
+	nlohmann::json line{{"type", "status"}, {"members", status.members}, {"tables_playing", status.tablesPlaying},
+		{"invitation", status.invitation}, {"banned", status.banned}, {"details", detail}};
+	if (!status.games.empty()) line["games"] = status.games;
 	// A room name that is not UTF-8 must not throw out of the host: replace it.
-	return nlohmann::json{{"type", "status"}, {"members", members}, {"tables_playing", tablesPlaying},
-		{"invitation", invitation}, {"banned", banned}, {"details", detail}}.dump(-1, ' ', false,
-		nlohmann::json::error_handler_t::replace);
+	return line.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 } }
