@@ -407,7 +407,7 @@ fn round_label(label: &str) -> &str {
 
 impl Bracket {
     /// The shape of `set`'s bracket, as the last read showed it.
-    fn shape(&self, set: &Set) -> Option<Shape> {
+    pub(super) fn shape(&self, set: &Set) -> Option<Shape> {
         self.shapes
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())

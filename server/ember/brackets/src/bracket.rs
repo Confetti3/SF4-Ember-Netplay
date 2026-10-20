@@ -85,6 +85,8 @@ pub(crate) struct Bracket {
     /// Each phase's bracket shape from the sets read, for the top and grand
     /// final lengths (`Rounds::needs_shape`).
     shapes: std::sync::Mutex<Vec<(Option<crate::site::Phase>, Shape)>>,
+    /// Whether sets wait for the bracket's shape, logged once.
+    shape_waiting: AtomicBool,
     /// The sets its organizer holds from the desk, by ID.
     desk_held: Vec<String>,
     /// Whether the last snapshot failed to reach the bridge, logged once.
@@ -114,6 +116,9 @@ struct State {
     seen: BTreeMap<String, Set>,
     /// When a desk event's whole bracket was last read.
     whole_at: Option<u64>,
+    /// The sets the last whole read showed, while a length follows the
+    /// bracket's shape (`Rounds::needs_shape`): none until a whole read.
+    shaped: Option<HashSet<String>>,
     /// Kept in the database too, so a restart does not read it again.
     finished: bool,
     /// Every set looks played but the site does not say it is over: read
@@ -191,6 +196,7 @@ impl Bracket {
             cancel_failing: std::sync::Mutex::default(),
             desk_event: None,
             shapes: std::sync::Mutex::default(),
+            shape_waiting: AtomicBool::new(false),
             desk_held: Vec::new(),
             snapshot_failing: AtomicBool::new(false),
             state: Mutex::new(State {
@@ -202,6 +208,7 @@ impl Bracket {
                 last_read: None,
                 seen: BTreeMap::new(),
                 whole_at: None,
+                shaped: None,
                 finished,
                 played_out: false,
                 window_end_logged: false,
@@ -401,24 +408,49 @@ impl Bracket {
         };
         state.schedule.hold(now);
         // A desk event's scheduled read takes the whole bracket now and
-        // then, which also gives the open sets the rest of the pass needs.
-        let whole_due = self.desk_event.is_some()
+        // then, which also gives the open sets the rest of the pass needs. A
+        // length that follows the bracket's shape needs a whole read before
+        // any match, and another when a set shows up that the last one did
+        // not have: the bracket was reset, or grew before its start.
+        let shaped = self.rounds.needs_shape();
+        let whole_due = (self.desk_event.is_some()
             && purpose == Purpose::Scheduled
-            && state.whole_at.is_none_or(|at| now >= at + WHOLE_SECS);
-        let whole = if whole_due {
+            && state.whole_at.is_none_or(|at| now >= at + WHOLE_SECS))
+            || (shaped && state.shaped.is_none());
+        let mut whole = if whole_due {
             self.site.whole_sets(purpose).await?
         } else {
             None
         };
-        let mut sets = match whole {
-            Some((open, rest)) => {
+        let mut open = None;
+        if whole.is_none() {
+            let read = self.site.open_sets(purpose).await?;
+            let unknown = shaped
+                && state
+                    .shaped
+                    .as_ref()
+                    .is_some_and(|known| read.iter().any(|set| !known.contains(&set.id)));
+            if unknown {
+                whole = self.site.whole_sets(purpose).await?;
+            }
+            if whole.is_none() {
+                open = Some(read);
+            }
+        }
+        let mut sets = match (whole, open) {
+            (Some((open, rest)), _) => {
                 state.whole_at = Some(now);
+                if shaped {
+                    self.reshape(&open, &rest);
+                    state.shaped =
+                        Some(open.iter().chain(&rest).map(|set| set.id.clone()).collect());
+                }
                 for set in rest {
                     state.seen.insert(set.id.clone(), set);
                 }
                 open
             }
-            None => self.site.open_sets(purpose).await?,
+            (None, open) => open.unwrap_or_default(),
         };
         // A paged list can show a set twice, when a set ahead of it opens
         // between two pages.
@@ -429,25 +461,6 @@ impl Bracket {
         }
         for set in &sets {
             state.seen.insert(set.id.clone(), set.clone());
-        }
-        if self.rounds.needs_shape() {
-            let mut phases: Vec<Option<crate::site::Phase>> = Vec::new();
-            for set in state.seen.values() {
-                if !phases.contains(&set.extras.phase) {
-                    phases.push(set.extras.phase.clone());
-                }
-            }
-            let shapes = phases
-                .into_iter()
-                .map(|phase| {
-                    let shape = Shape::of(state.seen.values(), phase.as_ref());
-                    (phase, shape)
-                })
-                .collect();
-            *self
-                .shapes
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner()) = shapes;
         }
         let read = fingerprint(&sets);
         let mut changed = state.last_read.as_ref() != Some(&read);
@@ -591,10 +604,43 @@ impl Bracket {
         }
     }
 
-    /// Creates the matches of the sets that are ready.
+    /// Each phase's shape from a whole read: the open sets and the rest.
+    fn reshape(&self, open: &[Set], rest: &[Set]) {
+        let mut phases: Vec<Option<crate::site::Phase>> = Vec::new();
+        for set in open.iter().chain(rest) {
+            if !phases.contains(&set.extras.phase) {
+                phases.push(set.extras.phase.clone());
+            }
+        }
+        let shapes = phases
+            .into_iter()
+            .map(|phase| {
+                (
+                    phase.clone(),
+                    Shape::of(open.iter().chain(rest), phase.as_ref()),
+                )
+            })
+            .collect();
+        *self
+            .shapes
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = shapes;
+    }
+
+    /// Creates the matches of the sets that are ready. A set whose length
+    /// follows its bracket's shape waits until a whole read gave it.
     async fn create_ready(&self, open: &[(&Set, [&str; 2])]) -> Result<bool, SiteError> {
         let mut starts = Vec::new();
         for &(set, entries) in open {
+            if self.rounds.needs_shape() && self.shape(set).is_none() {
+                if !self.shape_waiting.swap(true, Ordering::Relaxed) {
+                    log!(
+                        "{}: sets wait for a read of the whole bracket, which their top or grand final length needs",
+                        self.key
+                    );
+                }
+                continue;
+            }
             let tracked = self.store().tracked(&self.key, &set.id)?;
             match (on_open(tracked.as_ref(), entries), tracked) {
                 (OnOpen::Start(attempt), _) => starts.push((set, attempt)),
