@@ -10,9 +10,11 @@ them in.
 ## What you get
 
 Ember has two bridges on its server, each with its own bridge ID, keys and
-data, so no data on staging reaches production. They share nginx's request
-limits per address, so heavy staging traffic from one address can get that
-address's production calls refused with 429. Each has its own
+data, so no data on staging reaches production. They share nginx's general
+request limits per address, so heavy staging traffic from one address can get
+that address's production calls refused with 429; BluMint's three callbacks
+have limits of their own on each bridge, so a staging load test does not
+spend production's. Each has its own
 BluMint connection (tenant `blumint`, kind `blumint`), credentials and
 registration: production for BluMint's production, and staging for BluMint
 staging and its testers. The staging bridge is up; production's BluMint
@@ -49,9 +51,11 @@ link without it, as the page's **Copy link** gives it. The bridge's own
 Discord pages take the name from your tenant's `name` in the bridge's
 configuration.
 
-`ember-bridge blumint-register` calls `setLookupPlayer`, `match/setCreate`
-and `match/setClose`, registering the three callback URLs with a new
-credential as `authentication.secret`. BluMint calls them with
+`ember-bridge blumint-register` calls `setLookupPlayer`, `match/setClose`
+and then `match/setCreate`, registering the three callback URLs with a new
+credential as `authentication.secret`. The create URL goes last because
+registering it turns on automatic lobbies for the game's tournaments, so a
+registration that fails before it leaves lobbies off. BluMint calls them with
 `Authorization: Bearer <credential the bridge issued>`. Once all three calls
 succeed, the bridge revokes the callback credential any earlier registration
 handed over; a registration that fails partway revokes nothing, and running
@@ -134,8 +138,11 @@ Idempotency-Key: tA1b2-round-1-match-1
   from. Send it when you ask for a set again: after a `retryable: true` abort
   it is the games each team had won, and after a host reset it is 0 on every
   team. Each is below `gamesToWin`. Every report counts it.
-- The bridge reads the one identity whose `inGameId` is an Ember ID. Team
-  names, `matchSettings` and `spectators` are yours, and are not read yet.
+- The bridge reads the one identity whose `inGameId` is an Ember ID. A player
+  none of whose identities is one is a player it cannot match, which BluMint's
+  guide answers with `player_unlinked`, so every such id is named in the
+  answer, as you sent it. Team names, `matchSettings` and `spectators` are
+  yours, and are not read yet.
 
 The answer:
 
@@ -160,18 +167,24 @@ free.
 
 | Situation | Status | Body |
 |---|---|---|
-| Not JSON, or not this shape; a player with no Ember ID, or with two; the same player on both teams | `400` | `{ "code": "invalid_request" }` |
+| Not JSON, or not this shape; a player with no identity, or with two Ember IDs; the same player on both teams | `400` | `{ "code": "invalid_request" }` |
 | No `Idempotency-Key` | `400` | `{ "code": "invalid_request" }` |
 | `series` missing, or `gamesToWin` not a whole number of 1 or more | `400` | `{ "code": "invalid_request" }` |
 | `startingWins` on some teams only, or not a whole number below `gamesToWin` | `400` | `{ "code": "invalid_request" }` |
 | Not two teams of one player, or `gamesToWin` above 10 | `400` | `{ "code": "match_unsupported" }` |
-| Players with no link on your connection, all of them named | `400` | `{ "code": "player_unlinked", "players": ["emb1_..."] }` |
+| Players with no link on your connection, or whose ids are not Ember IDs (such as an account of BluMint's), all of them named as you sent them | `400` | `{ "code": "player_unlinked", "players": ["emb1_..."] }` |
 | Players still in another match on your connection, all of them named | `423` | `{ "code": "player_busy", "players": ["emb1_..."] }` |
 | The key already made a different set (other players, length or starting wins), made its match over a day ago, or a close named it | `409` | `{ "code": "idempotency_key_reused" }` |
 | The credential is missing, unknown or revoked (`401`), its connection is disabled or it is not a provider credential (`403`), or its connection is not a BluMint one (`404`) | `401`, `403` or `404` | the bridge's own error, which you read as final |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 
 Players are named exactly as you sent them, P1 first.
+
+BluMint sends a round's lookups and creations at the same moment and reads a
+`429` as an outage, so nginx in front of the bridge budgets the lookup, the
+creation and the close separately, each at 100 requests a second per address
+with a burst of 1000, which covers a 512-player round start. The general
+budget (20 a second, burst 100) does not apply to them.
 
 ## Match close
 
@@ -189,8 +202,8 @@ Authorization: Bearer <credential>
 
 The match that key made ends, its players are free, and nothing more is
 posted for it. Every reason closes the match, `decided`, `replaced`,
-`removed` and `hostOverride` as well as one the bridge does not know; it is
-kept for the log. A match that already ended answers `200` too, and a second
+`removed` and `hostOverride` as well as one the bridge does not know, or none;
+the first 64 characters of its text are kept for the log. A match that already ended answers `200` too, and a second
 close answers what the first did. The close also closes the key: every later
 creation under it answers `409 idempotency_key_reused`, also when the bridge
 never made a match under it, so a creation still on its way makes nothing. A creation
@@ -206,7 +219,8 @@ does, every time you send it. The close's own `Idempotency-Key` is not read.
 | Situation | Status | Body |
 |---|---|---|
 | Closed, or already ended; or the key made no match, its creations refused or none received | `200` | `{ "closed": true }` |
-| No `idempotencyKey` (a `matchId` alone included), or one empty or longer than 128 bytes; `reason` missing, empty or longer than 64 bytes | `400` | `{ "code": "invalid_request" }` |
+| A key the bridge cannot hold a match under (empty, longer than 128 bytes, or not printable ASCII), which holds nothing and records nothing; any `reason`, or none | `200` | `{ "closed": true }` |
+| Not JSON, or no `idempotencyKey` at all (a `matchId` alone included): not a close, and BluMint never sends one | `400` | `{ "code": "invalid_request" }` |
 | The credential is missing, unknown or revoked (`401`), its connection is disabled or it is not a provider credential (`403`), or its connection is not a BluMint one (`404`) | `401`, `403` or `404` | the bridge's own error, which you read as final |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 
@@ -323,7 +337,7 @@ which is called off.
 | `503 match_not_ready` with `Retry-After` | tries again, no sooner than `Retry-After` |
 | `500`, another `5xx`, `429`, a timeout or no connection | tries again |
 | `401` or `403` (a key you rotated, or bound to no game) | tries again, so the reports go out once the key is fixed |
-| `404 unknown_match` | stops, except for a status, which it tries again |
+| `404 unknown_match` | stops, a status report included (BluMint says to stop without alerting) |
 | Another `4xx` | stops |
 
 The bridge tries again on a schedule from a second to an hour, for a day.
@@ -363,6 +377,10 @@ so BluMint never receives a second, different result for a match.
   two-PC match on real hardware has not been done yet.
 - **Watching.** `spectators` is sent and not read yet; the listed staff
   cannot watch a match through Ember.
+- **Forfeits.** Ember sends no `termination` report, because it has no
+  concede action. A player who quits is not reported as a forfeit; the match
+  ends as an abort, and BluMint's own hold decides what happens to a player
+  who does not come back.
 
 ## Answers from BluMint
 
