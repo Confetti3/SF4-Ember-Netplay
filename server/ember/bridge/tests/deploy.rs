@@ -41,18 +41,8 @@ async fn sync(bridge: &Bridge, tenants: Vec<Tenant>) -> bool {
 
 /// A bridge.json as `ember-bridge init` writes it.
 fn initial() -> Value {
-    json!({
-        "bridge_id": "brg_0dbc0598-2312-4ce3-9df8-e160330565e6",
-        "display_name": "Local Ember bridge",
-        "origin": "http://127.0.0.1:8787",
-        "listen": "127.0.0.1:8787",
-        "database": "bridge.sqlite3",
-        "secrets": "bridge-secrets.json",
-        "allow_loopback_http": true,
-        "allow_private_webhooks": true,
-        "mock_browser": true,
-        "tenants": [],
-    })
+    let config = Config::initial("brg_0dbc0598-2312-4ce3-9df8-e160330565e6".into());
+    serde_json::to_value(config).unwrap()
 }
 
 fn deploy(installed: &Value, file: &str) -> Result<(Value, Config), String> {
@@ -145,7 +135,9 @@ fn a_deployment_keeps_the_bridge_and_turns_development_off() {
 }
 
 #[test]
-fn a_tenants_file_the_bridge_would_not_start_with_is_refused() {
+fn a_tenants_file_the_bridge_would_not_load_is_refused() {
+    // A change only the database refuses, a connection changing kind, shows
+    // at the restart instead (`the_deployed_tenants_apply_over_the_first_deployment`).
     let refused = |change: Value| {
         let mut file: Value = serde_json::from_str(STAGING).unwrap();
         file.as_object_mut()

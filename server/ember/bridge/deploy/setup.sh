@@ -42,7 +42,7 @@
 # previous bridge is restarted. Before changing anything it refuses a folder
 # that is not directly in the operator's home, a tenants file whose origin or
 # listen address another installed bridge has, and one the new binary would
-# not start with (ember-bridge apply-tenants). test-setup.sh moves every
+# not load (ember-bridge apply-tenants). test-setup.sh moves every
 # path above under a test folder (see instance.sh) and stands in for the
 # commands that need root.
 set -euo pipefail
@@ -163,7 +163,9 @@ fi
 # Apply the tenants file and the deployed settings, keeping bridge_id and
 # paths, with the new binary: it turns the development switches off, refuses
 # other database or secrets names than backup.sh and restore.sh work on, and
-# refuses a configuration it would not start with, before anything moves.
+# refuses a configuration it would not load, before anything moves. A change
+# only the database refuses at start (a connection changing kind) still shows
+# at the restart below, which puts the previous files back.
 # Root only opens the tenants file (katie's home is closed to the service
 # account) and hands it over on stdin; everything inside the service-owned
 # folder runs as the service account. The result is written as

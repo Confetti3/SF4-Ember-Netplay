@@ -1,4 +1,7 @@
 use std::{
+    fs::{File, OpenOptions},
+    io,
+    path::Path,
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -55,6 +58,17 @@ pub fn random<const N: usize>() -> [u8; N] {
     let mut bytes = [0u8; N];
     getrandom::fill(&mut bytes).expect("operating system RNG");
     bytes
+}
+
+/// Creates a new file for writing that only its owner can read, whatever the
+/// umask, and refuses an existing one. On Windows the file inherits the
+/// folder's ACL.
+pub fn create_private(path: &Path) -> io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    options.open(path)
 }
 
 pub fn new_id(prefix: &str) -> String {

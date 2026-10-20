@@ -208,7 +208,8 @@ stage_binary() {
     cat > "$1/bin/ember-bridge" <<EOF
 #!/usr/bin/env bash
 # stand-in ember-bridge $2: init, and apply-tenants as far as setup.sh
-# relies on it (tests/deploy.rs checks the real one).
+# relies on it, a plain update of bridge.json with the tenants file. The real
+# one, with the deployment's rules, is tested by tests/deploy.rs.
 case "\$1" in
 init) python3 - "\$2" <<'PY' ;;
 import json, sys, uuid
@@ -219,14 +220,12 @@ json.dump({"bridge_id": f"brg_{uuid.uuid4()}", "display_name": "Local Ember brid
            "tenants": []}, open(f"{sys.argv[1]}/bridge.json", "w"))
 open(f"{sys.argv[1]}/bridge-secrets.json", "w").write("{}")
 PY
-apply-tenants) python3 /dev/fd/3 "\$2" "\$3" 3<<'PY' ;;
+apply-tenants)
+    [ -e "$STUB/refuse-tenants" ] && { echo "ember-bridge: stand-in refused the tenants file" >&2; exit 1; }
+    python3 /dev/fd/3 "\$2" "\$3" 3<<'PY' ;;
 import json, sys
 config = json.load(open(sys.argv[1]))
 config.update(json.load(sys.stdin))
-for key, expected in (("database", "bridge.sqlite3"), ("secrets", "bridge-secrets.json")):
-    if config.get(key) != expected:
-        sys.exit(f'ember-bridge: bridge.json has {key} {json.dumps(config.get(key))}; this deployment expects "{expected}"')
-config.update(allow_loopback_http=False, allow_private_webhooks=False, mock_browser=False)
 json.dump(config, open(sys.argv[2], "w"), indent=2)
 PY
 *) exit 1 ;;
@@ -341,7 +340,6 @@ check "the shared zone file defines none of them" bash -c '! grep -q blumint "$1
 check "origin" config_is "$PSTATE" origin '"https://bridge.embernetplay.link"'
 check "listen" config_is "$PSTATE" listen '"127.0.0.1:47820"'
 check "display name" config_is "$PSTATE" display_name '"Ember bridge"'
-check "development switches off" config_is "$PSTATE" mock_browser false
 check "units enabled" logged "systemctl enable $P $P-backup.timer"
 check "service restarted" logged "systemctl restart $P"
 PID=$(bridge_id "$PSTATE")
@@ -384,7 +382,6 @@ check "staging connections" connections_are "$SSTATE" blumint-partner-staging ch
 check "the Challonge sign-in site is configured" python3 -c 'import json, sys; sites = json.load(open(sys.argv[1]))["sign_in_sites"]; sys.exit([s["id"] for s in sites] != ["challonge"] or sites[0]["client_id"] != sys.argv[2])' "$SSTATE" cab6fdeece228047e113681a3cabe8c62ecdef4ffed992f411d5f27589607ee7
 check "the connector connection looks players up on it and restarts disputes" python3 -c 'import json, sys; c = {c["id"]: c for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]}["challonge-staging"]; sys.exit(c["kind"] != "direct" or c["lookup_sites"] != ["challonge"] or c["disputes"] != "restart" or c["results_url"] != "https://brackets-staging.embernetplay.link/ember/results")' "$SSTATE"
 check "BluMint's connection is the one it was" python3 -c 'import json, sys; c = {c["id"]: c for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]}["blumint-partner-staging"]; sys.exit(c != {"id": "blumint-partner-staging", "kind": "blumint", "environment": "staging", "display_name": "BluMint partner API (staging)"})' "$SSTATE"
-check "development switches off" config_is "$SSTATE" allow_private_webhooks false
 SID=$(bridge_id "$SSTATE")
 check "its own bridge ID" test "$SID" != "$PID"
 check "units enabled" logged "systemctl enable $S $S-backup.timer"
@@ -493,12 +490,15 @@ check "production files unchanged" unchanged "$P" "$PSITE" production
 cp "$T/site-template" "$SDIR/nginx/bridge.conf.in"
 cp "$T/service-template" "$SDIR/ember-bridge.service.in"
 
-echo "6b. a tenants file the merge refuses changes nothing"
+echo "6b. a tenants file the new binary refuses changes nothing"
+# The stand-in refuses on a marker file; what the real binary refuses is
+# tested by tests/deploy.rs (a_tenants_file_the_bridge_would_not_load_is_refused).
 sed -i 's/Ember bridge (staging)/Ember bridge (staging, refused)/' "$SDIR/tenants.staging.json"
-sed -i 's/"listen": /"database": "elsewhere.sqlite3",\n  "listen": /' "$SDIR/tenants.staging.json"
+touch "$STUB/refuse-tenants"
 run "$SDIR/setup.sh"
+rm -f "$STUB/refuse-tenants"
 check "fails" failed
-check "names the database" mentions 'this deployment expects "bridge.sqlite3"'
+check "names the refusal" mentions "stand-in refused the tenants file"
 check "staging binary, bridge.json, units, site and zone as they were" unchanged "$S" "$SSITE" staging
 check "no staged file or backup folder left" no_leftovers
 check "nothing reloaded or restarted" bash -c '! grep -q "^systemctl" "$1"' _ "$STUB/log"

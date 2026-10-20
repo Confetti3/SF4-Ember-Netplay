@@ -9,7 +9,7 @@ use std::{
     process::ExitCode,
 };
 
-use ember_bridge::{AppState, Clock, Config, Db, Keys, config};
+use ember_bridge::{AppState, Clock, Config, Db, Keys, config, create_private};
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -94,39 +94,7 @@ fn init(dir: PathBuf) -> Result<(), String> {
     if config_path.exists() {
         return Err(format!("{} already exists", config_path.display()));
     }
-    let config = Config {
-        bridge_id: ember_protocol::encoding::prefixed_id("brg", random()),
-        display_name: "Local Ember bridge".into(),
-        origin: "http://127.0.0.1:8787".into(),
-        listen: "127.0.0.1:8787".into(),
-        database: "bridge.sqlite3".into(),
-        secrets: "bridge-secrets.json".into(),
-        allow_loopback_http: true,
-        allow_private_webhooks: true,
-        mock_browser: true,
-        discord: None,
-        sign_in_sites: Vec::new(),
-        integration_secrets: None,
-        rooms: None,
-        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
-        tenants: vec![config::Tenant {
-            id: "local".into(),
-            name: "Local tournaments".into(),
-            connections: vec![config::Connection {
-                id: "mock-local".into(),
-                kind: "mock".into(),
-                environment: "local".into(),
-                display_name: "Mock provider".into(),
-                enabled: true,
-                api_base: None,
-                discord_lookup: false,
-                lookup_sites: Vec::new(),
-                disputes: None,
-                results_url: None,
-                rooms: None,
-            }],
-        }],
-    };
+    let config = Config::initial(ember_protocol::encoding::prefixed_id("brg", random()));
     Keys::generate().save_new(&dir.join("bridge-secrets.json"))?;
     std::fs::write(
         &config_path,
@@ -169,11 +137,7 @@ fn write_atomically(path: &Path, text: &[u8]) -> Result<(), String> {
         name.to_string_lossy(),
         ember_protocol::encoding::b64u(&random())
     ));
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-    let written = options.open(&temporary).and_then(|mut file| {
+    let written = create_private(&temporary).and_then(|mut file| {
         file.write_all(text)?;
         file.sync_all()
     });
