@@ -26,8 +26,9 @@ pub enum BluMintRefusal {
     MatchUnsupported,
     /// The `Idempotency-Key` already names a different creation.
     KeyReused,
-    /// Players with no current link on the connection, as BluMint sent them.
-    PlayerUnlinked(Vec<EmberId>),
+    /// Players the bridge cannot match: ids that are not an Ember ID, or that
+    /// have no current link on the connection, as BluMint sent them.
+    PlayerUnlinked(Vec<String>),
     /// Players still in another match on the connection. BluMint asks again
     /// under the same key until they are free.
     PlayerBusy(Vec<EmberId>),

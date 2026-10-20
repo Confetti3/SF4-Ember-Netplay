@@ -15,7 +15,7 @@
 use axum::{extract::State, http::HeaderMap, response::Response};
 use rusqlite::Transaction;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{Value, json};
 
 use super::{BluMintBody, BluMintRefusal, MATCHES_PATH, caller, keys, outcome, parse};
 use crate::{
@@ -23,7 +23,7 @@ use crate::{
     audit::audit,
     ctx::Ctx,
     error::Result,
-    http::{GENERAL_BODY, ok},
+    http::{GENERAL_BODY, is_idempotency_key, ok},
     routes::{
         idempotency,
         ledger::{Match, load},
@@ -31,23 +31,45 @@ use crate::{
     },
 };
 
-/// Longest creation `Idempotency-Key` BluMint sends.
-const MAX_KEY: usize = 128;
-/// Longest reason the bridge keeps. BluMint's are short words.
+/// Most characters of a reason the bridge keeps. BluMint's are short words.
 const MAX_REASON: usize = 64;
 
 #[derive(Deserialize)]
 struct CloseRequest {
     #[serde(rename = "idempotencyKey")]
     idempotency_key: String,
-    reason: String,
+    /// For the log only, so any value is taken: a reason from a later BluMint,
+    /// or none, still closes the match.
+    #[serde(default)]
+    reason: Value,
+}
+
+/// The reason as the log keeps it: its text without control characters, cut
+/// to `MAX_REASON` characters, or "unspecified".
+fn logged(reason: &Value) -> String {
+    let text: String = reason
+        .as_str()
+        .unwrap_or_default()
+        .chars()
+        .filter(|c| !c.is_control())
+        .take(MAX_REASON)
+        .collect();
+    if text.trim().is_empty() {
+        "unspecified".to_owned()
+    } else {
+        text
+    }
 }
 
 /// `POST /v1/blumint/matches/close`. Every reason closes the match, including
-/// one the bridge does not know, as BluMint asks; it is kept for the log. The
-/// close's own `Idempotency-Key` is not read: closing is the same however
-/// often it is asked, and BluMint's close keys can be longer than any
-/// creation's.
+/// one the bridge does not know, and the answer is `200` for every key
+/// (BluMint's table has no other row that does not make it send the match to
+/// its host). A key the bridge cannot have made a match under, one longer
+/// than it takes, is a key it holds nothing under, so nothing is recorded.
+/// Only a body that is not a close at all, which BluMint never sends, is
+/// refused. The close's own `Idempotency-Key` is not read: closing is the
+/// same however often it is asked, and BluMint's close keys can be longer
+/// than any creation's.
 pub async fn close(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -55,13 +77,10 @@ pub async fn close(
 ) -> std::result::Result<Response, BluMintRefusal> {
     let (connection_id, credential) = caller(&state, &headers).await?;
     let request: CloseRequest = parse(&body?)?;
-    if request.reason.is_empty()
-        || request.reason.len() > MAX_REASON
-        || !(1..=MAX_KEY).contains(&request.idempotency_key.len())
-    {
-        return Err(BluMintRefusal::InvalidRequest);
+    if !is_idempotency_key(&request.idempotency_key) {
+        return Ok(ok(&json!({ "closed": true })));
     }
-    let reason = format!("closed by BluMint: {}", request.reason);
+    let reason = format!("closed by BluMint: {}", logged(&request.reason));
     let ctx = Ctx::of(&state);
     state
         .db

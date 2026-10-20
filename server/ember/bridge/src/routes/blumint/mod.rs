@@ -153,6 +153,11 @@ const CALLBACK_LABEL: &str = "BluMint callbacks";
 /// once every route has the new one, the ones earlier registrations handed
 /// over are revoked. A registration that fails partway revokes nothing,
 /// since BluMint may hold either credential on each route.
+///
+/// The create URL goes last: registering it turns on automatic lobbies for
+/// every tournament of the game (BluMint's "Register your callbacks"), so the
+/// lookup and close it depends on are registered, and a failure before it
+/// leaves lobbies off.
 pub async fn register(state: &AppState, connection_id: &str) -> std::result::Result<(), String> {
     let Some((_, connection)) = state
         .config
@@ -199,12 +204,12 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
             "lookupPlayerUrl",
             LOOKUP_PATH,
         ),
+        ("/tournaments/match/setClose", "closeMatchUrl", CLOSE_PATH),
         (
             "/tournaments/match/setCreate",
             "createMatchUrl",
             MATCHES_PATH,
         ),
-        ("/tournaments/match/setClose", "closeMatchUrl", CLOSE_PATH),
     ] {
         if !policy::stored_enabled(state, connection_id).await {
             return Err(partway(disabled()));
