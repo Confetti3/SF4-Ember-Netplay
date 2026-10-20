@@ -548,7 +548,7 @@ function decide(set) {
       el("button", { type: "button", class: "wd-btn danger", onclick: () => send({ kind: "void_game", attempt_id: game.attempt_id }, "Void " + label.toLowerCase() + "? It no longer counts.") }, "Void"));
   });
   const waiting = (set.games || []).some((game) => game.state !== "accepted");
-  box.replaceChildren(
+  box.replaceChildren(...[
     el("h2", { class: "wd-h" }, p1 + " vs " + p2),
     el("label", { class: "wd-field" }, "Reason (kept with the decision)", reason),
     ...games,
@@ -556,7 +556,7 @@ function decide(set) {
       el("div", { class: "wd-row" }, [p1, p2].map((name, slot) =>
         el("button", { type: "button", class: "wd-btn", onclick: () => send({ kind: "game_result", winner_slot: slot }, "Add a game won by " + name + "?") }, name + " won")))),
     el("button", { type: "button", class: "wd-btn", onclick: () => box.close() }, "Close"),
-  );
+  ].filter(Boolean));
   box.showModal();
 }
 
