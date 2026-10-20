@@ -116,10 +116,13 @@ inline bool EndsInCall(const uint8_t before[7]) {
 	const uint8_t* at = before + 7; // at[-n] is the byte n before the return address
 	if (at[-5] == 0xE8) return true;
 	if (at[-2] == 0xFF && ((at[-1] & 0xF8) == 0x10 || (at[-1] & 0xF8) == 0xD0) && at[-1] != 0x14 && at[-1] != 0x15) return true;
-	if (at[-3] == 0xFF && ((at[-2] & 0xF8) == 0x50 || at[-2] == 0x14) && at[-2] != 0x54) return true;
+	if (at[-3] == 0xFF && (at[-2] & 0xF8) == 0x50 && at[-2] != 0x54) return true;
+	// FF 14 SIB is 3 bytes, unless the SIB base is 101, which adds a disp32.
+	if (at[-3] == 0xFF && at[-2] == 0x14 && (at[-1] & 7) != 5) return true;
 	if (at[-4] == 0xFF && at[-3] == 0x54) return true;
 	if (at[-6] == 0xFF && (at[-5] == 0x15 || ((at[-5] & 0xF8) == 0x90 && at[-5] != 0x94))) return true;
 	if (at[-7] == 0xFF && at[-6] == 0x94) return true;
+	if (at[-7] == 0xFF && at[-6] == 0x14 && (at[-5] & 7) == 5) return true; // call [index*scale+disp32]
 	return false;
 }
 

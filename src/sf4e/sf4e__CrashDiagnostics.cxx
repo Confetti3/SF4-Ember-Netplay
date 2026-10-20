@@ -119,13 +119,15 @@ void NoteCodeRange(CodeRange& range, HMODULE module) {
 // a dump still names the calls that led to the fault. It scans rather than
 // unwinds: every stack word that points just past a call in the game or
 // Sidecar is listed, so a stale frame can appear among the live ones. Reads
-// only this thread's own committed stack and the two modules' images.
-const char* FormatCallers(const EXCEPTION_POINTERS* pointers) {
+// only this thread's own committed stack and the two modules' images. A
+// nonzero scanFrom starts the scan higher than the context's Esp.
+const char* FormatCallers(const EXCEPTION_POINTERS* pointers, uintptr_t scanFrom) {
 	s_callers[0] = '\0';
 	if (!pointers || !pointers->ContextRecord) return s_callers;
 	const NT_TIB* tib = reinterpret_cast<const NT_TIB*>(NtCurrentTeb());
 	const uintptr_t top = reinterpret_cast<uintptr_t>(tib->StackBase);
 	uintptr_t sp = pointers->ContextRecord->Esp;
+	if (scanFrom > sp) sp = scanFrom;
 	// A fault on another thread's stack, or a corrupt Esp, is not scanned.
 	if (sp < reinterpret_cast<uintptr_t>(tib->StackLimit) || sp >= top) return s_callers;
 	size_t length = (size_t)snprintf(s_callers, sizeof(s_callers), "callers:");
@@ -146,7 +148,7 @@ const char* FormatCallers(const EXCEPTION_POINTERS* pointers) {
 // dumpInProcess=false never falls back to MiniDumpWriteDump in this process,
 // which can deadlock on the loader lock; the launcher's bounded request is
 // the only dump then.
-void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* message, bool dumpInProcess = true) {
+void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* message, bool dumpInProcess = true, uintptr_t scanFrom = 0) {
 	if (s_recording.exchange(true)) return;
 	// With the heap corrupt, anything that allocates may fault again and end
 	// the process before the dump, so ask the launcher for it first; the
@@ -157,7 +159,7 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	const size_t headerLength = sf4e::crash::FormatCrashHeader(s_header, sizeof(s_header), facts);
 	HANDLE file = CreateFileW(s_recordPath, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file != INVALID_HANDLE_VALUE) WriteText(file, s_header, headerLength);
-	const char* callers = FormatCallers(pointers);
+	const char* callers = FormatCallers(pointers, scanFrom);
 	if (file != INVALID_HANDLE_VALUE && callers[0]) {
 		WriteText(file, callers, strlen(callers));
 		WriteText(file, "\n", 1);
@@ -230,7 +232,9 @@ __declspec(noinline) void WINAPI OnExitProcess(UINT code) {
 		EXCEPTION_POINTERS pointers = { &record, &context };
 		char message[32];
 		snprintf(message, sizeof(message), "ExitProcess(%u)", code);
-		WriteRecord("exit", &pointers, message, false);
+		// The captured Esp is this function's own, whose locals hold a return
+		// address into Sidecar: the callers start above the game's call instead.
+		WriteRecord("exit", &pointers, message, false, reinterpret_cast<uintptr_t>(_AddressOfReturnAddress()) + sizeof(void*));
 	}
 	void* original = s_exitProcess.load();
 	if (!original) original = (void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "ExitProcess");
