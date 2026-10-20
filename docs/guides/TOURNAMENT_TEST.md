@@ -80,6 +80,9 @@ any `ember-2p` tournament an earlier one left.
 - **The other PC**: ssh with a key, a folder for the run, and a user signed in
   at the desktop with Steam running: the game starts there through a
   scheduled task in that session.
+- **Discord, optional**: link Discord to each game's kept Ember ID once (start the self-test package with only
+  `SF4E_SELFTEST_EMBER_DIR` set to that folder, then Ember ID › Linked accounts › Discord). With the
+  bridge's Discord bot, each player then gets the match link privately, and the run checks it.
 - **Two Challonge accounts**: the organizer's (signed in to the browser on
   this PC) and a second player's (signed in to the browser on the other PC).
 - **A config file**, by default `~/tournament-lab/e2e/games.json`:
@@ -123,6 +126,8 @@ played (`*-organizer.png` and `*-player.png`), and each game's own output
 | `sign up: …` | The event is not taking sign-ups (it was marked ready already), or the player's Challonge account is not connected. |
 | `the connector never read the bracket` | Check the bracket connector runs next to the bridge and that its connection is the config's `connection`. |
 | `the set never finished` | Look at `*-playing-*.png` and the two game outputs: a game that did not reach `match live` names the step that failed. |
+| `*-player.png` pictures are black | Someone was connected to the other PC over Remote Desktop: Windows stops drawing the game for a session shown over RDP. Disconnect before a run. |
+| A private message says **Discord refused it** | The player's Discord shares no server with the Ember bot, or takes no messages from it. Join a server the bot is in (the Ember Discord). |
 | A game window stays open | The game stops itself after 45 minutes; its script then puts the settings and saves back. |
 
 The games change nothing of the player's own: each run uses its own Ember
