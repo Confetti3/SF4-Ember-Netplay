@@ -3639,7 +3639,7 @@ msgid "identity.local_passphrase"
 msgstr "此电脑的密码"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine 和 Proton 无法使用 Windows 密钥保护，因此改用密码保护您的密钥。每次启动游戏时需输入一次。"
+msgstr "Wine 和 Proton（例如 Steam Deck）无法使用常规的密钥保护，因此改用密码保护您的密钥。每次启动游戏时需输入一次。"
 
 msgid "identity.repeat_passphrase"
 msgstr "再次输入密码"
@@ -3661,6 +3661,9 @@ msgstr "创建 Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "在此电脑上创建密钥。只有当前 Windows 账户可以使用。"
+
+msgid "identity.enable_passphrase_detail"
+msgstr "在此电脑上创建密钥，由上方的密码保护。"
 
 msgid "identity.leave_room"
 msgstr "请离开房间并返回主菜单后再更改 Ember ID。"

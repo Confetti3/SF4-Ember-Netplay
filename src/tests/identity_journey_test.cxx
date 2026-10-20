@@ -16,6 +16,11 @@ void IdentityJourneys() {
  answer();
  // Under Wine the key needs a passphrase, typed twice, before it can be created.
  h.Frame();Check(h.row("id-enable")&&!h.row("id-enable")->enabled,"Create was offered before a passphrase");
+ Check(h.row("id-enable")->detail==loc::T("identity.enable_passphrase_detail"),"Create under Wine does not point to the passphrase");
+ // On Windows the key is tied to the Windows account and needs no passphrase.
+ id.passphraseRequired=false;h.Frame();
+ Check(!h.row("id-new-passphrase")&&h.row("id-enable")&&h.row("id-enable")->detail==loc::T("identity.enable_detail"),"Create on Windows does not describe the Windows account");
+ id.passphraseRequired=true;h.Frame();
  h.Choose("id-new-passphrase");
  Check(h.shell.Navigation().EditingSecret()&&h.shell.Navigation().Draft().empty(),"The passphrase editor is not secret or did not open empty");
  h.type("correct horse");

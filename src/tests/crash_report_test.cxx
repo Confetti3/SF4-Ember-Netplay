@@ -57,6 +57,9 @@ static void TestExitCodeNames() {
 	// Smart App Control or another code integrity policy: named, and not a crash to report.
 	CHECK(std::string(ExitCodeName(0xC0E90002u)).find("code integrity") != std::string::npos);
 	CHECK(!IsCrashExit(0xC0E90002u));
+	// A frozen game the player closed: named, and still reported.
+	CHECK(std::string(ExitCodeName(0xCFFFFFFFu)).find("Not Responding") != std::string::npos);
+	CHECK(IsCrashExit(0xCFFFFFFFu));
 	CHECK(std::string(ExitCodeName(0x12345678u)) == "unknown");
 	CHECK(IsCrashExit(0xC0000374u));
 	CHECK(IsCrashExit(0xC0000005u));
@@ -108,6 +111,50 @@ static void TestAddressSpaceFold() {
 	CHECK(summary.freeRegions == 3);
 }
 
+static void TestEndsInCall() {
+	// Each case is the 7 bytes before a return address.
+	const uint8_t direct[7] = {0x90, 0x90, 0xE8, 0x10, 0x20, 0x30, 0x40};       // call rel32
+	const uint8_t import[7] = {0x90, 0xFF, 0x15, 0x00, 0x10, 0x40, 0x00};       // call [disp32]
+	const uint8_t reg[7] = {0x90, 0x90, 0x90, 0x90, 0x90, 0xFF, 0xD0};          // call eax
+	const uint8_t member[7] = {0x90, 0x90, 0x90, 0x90, 0xFF, 0x50, 0x08};       // call [eax+8]
+	const uint8_t memberFar[7] = {0x90, 0xFF, 0x90, 0x00, 0x01, 0x00, 0x00};    // call [eax+0x100]
+	const uint8_t indirect[7] = {0x90, 0x90, 0x90, 0x90, 0x90, 0xFF, 0x12};     // call [edx]
+	const uint8_t sib[7] = {0x90, 0x90, 0x90, 0xFF, 0x54, 0x24, 0x04};          // call [esp+4]
+	CHECK(EndsInCall(direct));
+	CHECK(EndsInCall(import));
+	CHECK(EndsInCall(reg));
+	CHECK(EndsInCall(member));
+	CHECK(EndsInCall(memberFar));
+	CHECK(EndsInCall(indirect));
+	CHECK(EndsInCall(sib));
+	const uint8_t table[7] = {0xFF, 0x14, 0x85, 0x00, 0x10, 0x40, 0x00};       // call [eax*4+0x401000]
+	CHECK(EndsInCall(table));
+	const uint8_t sibShort[7] = {0x90, 0x90, 0x90, 0x90, 0xFF, 0x14, 0x24};    // call [esp]
+	CHECK(EndsInCall(sibShort));
+	// FF 14 with SIB base 101 needs a disp32, so as the last 3 bytes it is not a call.
+	const uint8_t sibNoDisp[7] = {0x90, 0x90, 0x90, 0x90, 0xFF, 0x14, 0x85};
+	CHECK(!EndsInCall(sibNoDisp));
+	const uint8_t data[7] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	const uint8_t jump[7] = {0x90, 0x90, 0x90, 0x90, 0x90, 0xFF, 0xE0};         // jmp eax
+	const uint8_t push[7] = {0x90, 0x90, 0x90, 0x90, 0x90, 0xFF, 0x30};         // push [eax]
+	CHECK(!EndsInCall(data));
+	CHECK(!EndsInCall(jump));
+	CHECK(!EndsInCall(push));
+}
+
+static void TestCallersLine() {
+	char line[48] = "callers:";
+	size_t length = strlen(line);
+	CHECK(AppendCaller(line, sizeof(line), length, "SSFIV.exe", 0x1DAAB0));
+	CHECK(std::string(line) == "callers: SSFIV.exe+0x1DAAB0");
+	CHECK(AppendCaller(line, sizeof(line), length, "", 0x10));
+	CHECK(std::string(line) == "callers: SSFIV.exe+0x1DAAB0 ?+0x10");
+	// One that does not fit leaves the line as it was.
+	CHECK(!AppendCaller(line, sizeof(line), length, "Sidecar.dll", 0x12345678));
+	CHECK(std::string(line) == "callers: SSFIV.exe+0x1DAAB0 ?+0x10");
+	CHECK(length == strlen(line));
+}
+
 int main() {
 	TestRingKeepsTheLastLinesInOrder();
 	TestRingCutsLongLines();
@@ -115,6 +162,8 @@ int main() {
 	TestHeaderNamesTheFault();
 	TestHeaderToleratesMissingFacts();
 	TestAddressSpaceFold();
+	TestEndsInCall();
+	TestCallersLine();
 	printf("crash_report_test: all tests passed\n");
 	return 0;
 }
