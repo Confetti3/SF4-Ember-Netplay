@@ -60,6 +60,13 @@ impl ApiFailure {
         )
     }
 
+    /// A site's sign-in refused for its own limits (`ErrorCode::SignInBusy`).
+    pub fn sign_in_busy(retry_after: Option<u64>) -> Self {
+        let mut failure = Self::new(ErrorCode::SignInBusy, "Sign-in is busy. Try again later.");
+        failure.retry_after = retry_after.map(|seconds| seconds.max(1));
+        failure
+    }
+
     pub fn rate_limited(retry_after: u64) -> Self {
         let mut failure = Self::new(
             ErrorCode::RateLimited,

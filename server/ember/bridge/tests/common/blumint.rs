@@ -32,7 +32,8 @@ pub const OTHER: &str = "blumint-other";
 /// What the stand-in BluMint was sent, how many calls to refuse with 500
 /// first (unrecorded, as if BluMint fell over), and the statuses to answer
 /// the next recorded calls with, each with its `Retry-After` if any. Every
-/// other recorded call answers 200.
+/// other recorded call answers 200. A report without the `idempotencyKey`
+/// BluMint requires is refused with 400 and not recorded, as BluMint does.
 #[derive(Default)]
 pub struct Received {
     pub calls: Vec<(String, String, Json)>,
@@ -54,16 +55,21 @@ pub async fn fake_blumint() -> (String, Shared) {
             received.fail -= 1;
             return AxumStatus::INTERNAL_SERVER_ERROR.into_response();
         }
+        let body: Json = serde_json::from_slice(&body).unwrap();
+        if uri.path() == "/api/tournaments/match/submit" && !creation_key(&body) {
+            return (
+                AxumStatus::BAD_REQUEST,
+                [("content-type", "application/json")],
+                r#"{ "code": "invalid_request", "message": "idempotencyKey is required." }"#,
+            )
+                .into_response();
+        }
         let key = headers
             .get("x-api-key")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("")
             .to_owned();
-        received.calls.push((
-            uri.path().to_owned(),
-            key,
-            serde_json::from_slice(&body).unwrap(),
-        ));
+        received.calls.push((uri.path().to_owned(), key, body));
         let Some((status, retry_after)) = received.answers.pop_front() else {
             return AxumStatus::OK.into_response();
         };
@@ -91,6 +97,14 @@ pub async fn fake_blumint() -> (String, Shared) {
     let base = format!("http://{}/api", listener.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(listener, app).await });
     (base, shared)
+}
+
+/// Whether a report carries a creation key in the form BluMint gives one.
+fn creation_key(body: &Json) -> bool {
+    body["idempotencyKey"].as_str().is_some_and(|key| {
+        (1..=128).contains(&key.len())
+            && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    })
 }
 
 pub struct Fixture {
@@ -219,6 +233,7 @@ fn connection(id: &str, api_base: Option<String>) -> config::Connection {
         enabled: true,
         api_base,
         discord_lookup: false,
+        lookup_sites: Vec::new(),
         disputes: None,
         results_url: None,
         rooms: None,
@@ -362,6 +377,25 @@ pub fn status(f: &Fixture, id: &str, revision: u64, status: &str, presence: [&st
 }
 
 fn sent_for(f: &Fixture, id: &str, keep: impl Fn(&Json) -> bool) -> Vec<Json> {
+    sent_keyed(f, id)
+        .into_iter()
+        .map(|(_, body)| body)
+        .filter(keep)
+        .collect()
+}
+
+/// The creation key each report BluMint was sent for the match carried,
+/// status reports included, in the order they arrived.
+pub fn report_keys(f: &Fixture, id: &str) -> Vec<(String, String)> {
+    sent_keyed(f, id)
+        .into_iter()
+        .map(|(key, body)| (body["mode"].as_str().unwrap().to_owned(), key))
+        .collect()
+}
+
+/// Each report BluMint was sent for the match, apart from its creation key,
+/// which the stand-in BluMint has checked is there and `report_keys` reads.
+fn sent_keyed(f: &Fixture, id: &str) -> Vec<(String, Json)> {
     let received = f.blumint.lock().unwrap();
     received
         .calls
@@ -369,9 +403,18 @@ fn sent_for(f: &Fixture, id: &str, keep: impl Fn(&Json) -> bool) -> Vec<Json> {
         .filter(|(path, key, body)| {
             path == "/api/tournaments/match/submit" && key == "bm-key" && body["matchId"] == id
         })
-        .map(|(_, _, body)| body.clone())
-        .filter(keep)
+        .map(|(_, _, body)| unkeyed(body.clone()))
         .collect()
+}
+
+/// A report without its creation key, and that key.
+fn unkeyed(mut body: Json) -> (String, Json) {
+    let key = body
+        .as_object_mut()
+        .and_then(|body| body.remove("idempotencyKey"))
+        .and_then(|key| key.as_str().map(str::to_owned))
+        .unwrap_or_default();
+    (key, body)
 }
 
 async fn settle(f: &Fixture, id: &str) {
@@ -430,7 +473,7 @@ pub fn submitted(f: &Fixture) -> Vec<Json> {
         .filter(|(path, key, body)| {
             path == "/api/tournaments/match/submit" && key == "bm-key" && body["mode"] != "status"
         })
-        .map(|(_, _, body)| body.clone())
+        .map(|(_, _, body)| unkeyed(body.clone()).1)
         .collect()
 }
 

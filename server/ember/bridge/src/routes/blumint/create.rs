@@ -8,7 +8,9 @@ use axum::{
     response::Response,
 };
 use ember_protocol::{
-    EmberId, json as wire,
+    EmberId,
+    api::ErrorCode,
+    json as wire,
     matches::{MAX_GAMES_TO_WIN, Participant, Rules},
     play::{PROFILE, play_url},
 };
@@ -16,9 +18,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{
-    BluMintBody, BluMintRefusal, CREATE_BODY, MATCHES_PATH, connection, keys, outcome, parse,
-};
+use super::{BluMintBody, BluMintRefusal, CREATE_BODY, MATCHES_PATH, connection, keys, parse};
 use crate::{
     AppState,
     ctx::Ctx,
@@ -55,7 +55,7 @@ struct Team {
 /// settings may change under one key without changing it.
 #[derive(Serialize)]
 struct Set {
-    players: [EmberId; 2],
+    players: [Seat; 2],
     #[serde(rename = "gamesToWin")]
     games_to_win: u8,
     #[serde(rename = "startingWins")]
@@ -75,14 +75,38 @@ struct Identity {
     in_game_id: String,
 }
 
-/// The one Ember ID among a player's identities.
-fn ember_id(player: &TeamPlayer) -> Result<EmberId, BluMintRefusal> {
+/// Who a seat is, from the identities BluMint names its player by. An Ember
+/// seat is its bare ID in the digest, as every seat was before an unmatched one
+/// could be asked for, so the digests stored with live matches still match.
+#[derive(Serialize)]
+#[serde(untagged)]
+enum Seat {
+    /// The one Ember ID among the identities.
+    Ember(EmberId),
+    /// None of the identities is an Ember ID, so the bridge cannot match the
+    /// player: BluMint asks again with the ids as it sent them.
+    Unmatched(Vec<String>),
+}
+
+/// The seat a player's identities name. A player with no identity, or with
+/// two Ember IDs, is not what BluMint's guide describes, and is refused.
+fn seat(player: &TeamPlayer) -> Result<Seat, BluMintRefusal> {
+    if player.identities.is_empty() {
+        return Err(BluMintRefusal::InvalidRequest);
+    }
     let mut found = player
         .identities
         .iter()
         .filter_map(|identity| EmberId::parse(&identity.in_game_id).ok());
     match (found.next(), found.next()) {
-        (Some(id), None) => Ok(id),
+        (Some(id), None) => Ok(Seat::Ember(id)),
+        (None, _) => Ok(Seat::Unmatched(
+            player
+                .identities
+                .iter()
+                .map(|identity| identity.in_game_id.clone())
+                .collect(),
+        )),
         _ => Err(BluMintRefusal::InvalidRequest),
     }
 }
@@ -129,52 +153,56 @@ fn starting_wins(teams: [&Team; 2], games_to_win: u8) -> Result<[u8; 2], BluMint
 /// BluMint sends a new key when it wants a new match. A key replays its match
 /// for a day (`routes::maintenance_once`), past the three hours BluMint
 /// needs, and refuses any other creation for as long as the match exists.
-/// Refusals answer in BluMint's format (`BluMintRefusal`), and are never
-/// stored against the key.
+/// The key is answered before the players: a stored answer, a key a close
+/// refused or one that made another match is settled before any player is
+/// looked at. Refusals answer in BluMint's format (`BluMintRefusal`), and are
+/// never stored against the key.
 pub async fn create(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: BluMintBody<CREATE_BODY>,
 ) -> std::result::Result<Response, BluMintRefusal> {
     let connection_id = connection(&state, &headers).await?;
-    let key = idempotency_key(&headers)?;
-    let requested = body
-        .map_err(BluMintRefusal::from)
+    let key = idempotency_key(&headers).map_err(BluMintRefusal::classify)?;
+    let asked = body
+        .map_err(BluMintRefusal::classify)
         .and_then(|body| requested(&body));
     let ctx = Ctx::of(&state);
+    // A refusal is an `Err`, so the write rolls back and keeps nothing of it.
     let answer = state
         .db
-        .write(move |tx| {
-            outcome(|| {
-                requested
-                    .and_then(|(set, digest)| make(tx, &ctx, &connection_id, &key, &set, &digest))
-            })
+        .write_with(move |tx| {
+            let (set, digest) = asked?;
+            make(tx, &ctx, &connection_id, &key, &set, &digest)
         })
-        .await??;
+        .await?;
     state.committed();
     Ok(into_response(answer))
 }
 
 /// The set BluMint asks for, and the digest a key's requests are compared by.
 fn requested(body: &Body<CREATE_BODY>) -> std::result::Result<(Set, String), BluMintRefusal> {
-    let request: CreateRequest = parse(body)?;
+    let request: CreateRequest = parse(body).map_err(BluMintRefusal::classify)?;
     let [first, second] = request.teams.as_slice() else {
         return Err(BluMintRefusal::MatchUnsupported);
     };
     let ([a], [b]) = (first.players.as_slice(), second.players.as_slice()) else {
         return Err(BluMintRefusal::MatchUnsupported);
     };
-    let players = [ember_id(a)?, ember_id(b)?];
-    if players[0] == players[1] {
+    let seats = [seat(a)?, seat(b)?];
+    if matches!(&seats, [Seat::Ember(a), Seat::Ember(b)] if a == b) {
         return Err(BluMintRefusal::InvalidRequest);
     }
     let games_to_win = games_to_win(request.series.as_ref())?;
+    let starting_wins = starting_wins([first, second], games_to_win)?;
     let set = Set {
-        players,
+        players: seats,
         games_to_win,
-        starting_wins: starting_wins([first, second], games_to_win)?,
+        starting_wins,
     };
-    let digest = wire::digest(&set).map_err(ApiFailure::from)?;
+    let digest = wire::digest(&set)
+        .map_err(ApiFailure::from)
+        .map_err(BluMintRefusal::classify)?;
     Ok((set, digest))
 }
 
@@ -189,7 +217,7 @@ fn make(
     digest: &str,
 ) -> std::result::Result<(StatusCode, Value), BluMintRefusal> {
     let actor = keys::owner(connection_id);
-    idempotent(tx, &actor, MATCHES_PATH, key, digest, ctx.now, |tx| {
+    let answer = idempotent(tx, &actor, MATCHES_PATH, key, digest, ctx.now, |tx| {
         let tenant_id = ctx.tenant_of(connection_id)?;
         if keys::made_under(tx, &tenant_id, connection_id, key)?.is_some() {
             return Err(BluMintRefusal::KeyReused);
@@ -199,6 +227,14 @@ fn make(
             StatusCode::OK,
             json!({ "matchId": id, "matchUrl": play_url(&ctx.config.bridge_id, &id) }),
         ))
+    });
+    // A key used for a different request is refused by the generic code, as
+    // the failure it raises; BluMint reads it as its own refusal.
+    answer.map_err(|refusal| match refusal {
+        BluMintRefusal::Bridge(failure) if failure.code == ErrorCode::IdempotencyConflict => {
+            BluMintRefusal::KeyReused
+        }
+        refusal => refusal,
     })
 }
 
@@ -213,7 +249,7 @@ fn insert(
     digest: &str,
 ) -> std::result::Result<String, BluMintRefusal> {
     let roster = seats(tx, connection_id, &set.players)?;
-    Ok(insert_match(
+    insert_match(
         tx,
         ctx,
         &NewMatch {
@@ -229,37 +265,51 @@ fn insert(
             lobby_id: None,
             tournament_id: None,
         },
-    )?)
+    )
+    .map_err(BluMintRefusal::classify)
 }
 
 /// The two players as the participants they are linked as on the connection,
-/// once neither is in another match there. Every player without a current
-/// link is named, so BluMint can look them all up again at once; then every
-/// player still playing, so BluMint holds the match until both are free.
+/// once neither is in another match there. Every id the bridge cannot match is
+/// named, as BluMint sent it: the ids of a seat with no Ember ID among them and
+/// any Ember ID with no current link, so BluMint can tell each player and ask
+/// again under the key; then every player still playing, so BluMint holds the
+/// match until both are free.
 fn seats(
     tx: &Transaction<'_>,
     connection_id: &str,
-    players: &[EmberId; 2],
+    players: &[Seat; 2],
 ) -> std::result::Result<Vec<Participant>, BluMintRefusal> {
     let mut roster = Vec::new();
-    let mut unlinked = Vec::new();
-    for (slot, ember_id) in players.iter().enumerate() {
-        match participant(tx, connection_id, ember_id)? {
-            Some(participant_id) => roster.push(Participant {
-                participant_id,
-                ember_id: ember_id.clone(),
-                slot: slot as u8,
-            }),
-            None => unlinked.push(ember_id.clone()),
+    let mut unmatched: Vec<String> = Vec::new();
+    for (slot, seat) in players.iter().enumerate() {
+        let ids = match seat {
+            Seat::Ember(ember_id) => match participant(tx, connection_id, ember_id)? {
+                Some(participant_id) => {
+                    roster.push(Participant {
+                        participant_id,
+                        ember_id: ember_id.clone(),
+                        slot: slot as u8,
+                    });
+                    continue;
+                }
+                None => vec![ember_id.as_str().to_owned()],
+            },
+            Seat::Unmatched(ids) => ids.clone(),
+        };
+        for id in ids {
+            if !unmatched.contains(&id) {
+                unmatched.push(id);
+            }
         }
     }
-    if !unlinked.is_empty() {
-        return Err(BluMintRefusal::PlayerUnlinked(unlinked));
+    if !unmatched.is_empty() {
+        return Err(BluMintRefusal::PlayerUnlinked(unmatched));
     }
     let mut playing = Vec::new();
-    for ember_id in players {
-        if busy(tx, connection_id, ember_id, "")? {
-            playing.push(ember_id.clone());
+    for seated in &roster {
+        if busy(tx, connection_id, &seated.ember_id, "")? {
+            playing.push(seated.ember_id.clone());
         }
     }
     if !playing.is_empty() {

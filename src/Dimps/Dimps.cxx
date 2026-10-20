@@ -16,12 +16,23 @@ char** Dimps::characterNames;
 char** Dimps::stageCodes;
 char** Dimps::stageNames;
 Dimps::GameEvents::RootEvent* (*Dimps::App::GetRootEvent)();
+static DWORD* eventSystemBuilt = nullptr;
+static void** eventSystemCurrent = nullptr;
+
+bool Dimps::App::RootEventReady() {
+	if (!eventSystemBuilt || !(*eventSystemBuilt & 1) || !*eventSystemCurrent) return false;
+	void* const current = *eventSystemCurrent;
+	using Event = void* (__thiscall*)(void*);
+	return (*reinterpret_cast<Event**>(current))[0xA8 / 4](current) != nullptr;
+}
 Dimps::App::__publicMethods Dimps::App::publicMethods;
 BYTE* Dimps::App::soundFocusCheck = nullptr;
 DWORD Dimps::App::foregroundWindowImport = 0;
 BYTE* Dimps::App::activeFocusCheck = nullptr;
 BYTE* Dimps::App::iconicChecks[2] = { nullptr, nullptr };
 DWORD Dimps::App::iconicImport = 0;
+float* Dimps::App::battleStepSetting = nullptr;
+void (__cdecl* Dimps::App::SetBattleStepSetting)(float) = nullptr;
 
 void Dimps::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
@@ -47,6 +58,8 @@ void Dimps::App::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
 	GetRootEvent = (GameEvents::RootEvent*(*)())(peRootOffset + 0x0299e0);
+	eventSystemBuilt = (DWORD*)(peRootOffset + 0x6856a0);
+	eventSystemCurrent = (void**)(peRootOffset + 0x685694);
 	*(PVOID*)&publicMethods.HandleMessage = (PVOID)(peRootOffset + 0x0033e0);
 	soundFocusCheck = (BYTE*)(peRootOffset + 0x0042f8);
 	foregroundWindowImport = peRootOffset + 0x5312ac;
@@ -54,4 +67,6 @@ void Dimps::App::Locate(HMODULE peRoot) {
 	iconicChecks[0] = (BYTE*)(peRootOffset + 0x0042d7);
 	iconicChecks[1] = (BYTE*)(peRootOffset + 0x004321);
 	iconicImport = peRootOffset + 0x531378;
+	battleStepSetting = (float*)(peRootOffset + 0x6aca44);
+	SetBattleStepSetting = (void(__cdecl*)(float))(peRootOffset + 0x2b2530);
 }

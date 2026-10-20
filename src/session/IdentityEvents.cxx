@@ -3,12 +3,26 @@
 
 namespace sf4e { namespace session {
 namespace {
+// The string at `key`, kept to `limit` characters, as the helper counts
+// them: a name is never cut inside a character.
 std::string Text(const nlohmann::json& object, const char* key, std::size_t limit = 256) {
     const auto it = object.find(key);
     if (it == object.end() || !it->is_string()) return {};
-    auto value = it->get<std::string>();
-    if (value.size() > limit) value.resize(limit);
-    return value;
+    const auto& value = it->get_ref<const std::string&>();
+    std::size_t end = 0;
+    for (std::size_t characters = 0; end < value.size() && characters < limit; ++characters)
+        do ++end; while (end < value.size() && (static_cast<unsigned char>(value[end]) & 0xC0) == 0x80);
+    return value.substr(0, end);
+}
+
+// The account at `data.account`, its user ID kept to `idLimit` characters;
+// empty when there is none, and 0 for a connection time not given as a number.
+netplay::IdentityAccount AccountOf(const nlohmann::json& data, std::size_t idLimit) {
+    const auto account = data.value("account", nlohmann::json());
+    if (!account.is_object()) return {};
+    const auto at = account.find("connected_at");
+    return {Text(account, "user_id", idLimit), Text(account, "username", 64),
+        at != account.end() && at->is_number_unsigned() ? at->get<std::uint64_t>() : 0};
 }
 }
 
@@ -63,6 +77,18 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
             view.inspectedDiscord = view.inspectedDiscord || feature == "discord";
             view.inspectedDiscordAccounts = view.inspectedDiscordAccounts || feature == "discord.accounts";
         }
+        // The helper has already checked each site's ID and dropped repeats.
+        view.signInSites.clear();
+        const auto sites = capabilities.value("sign_in_sites", nlohmann::json::array());
+        if (sites.is_array())
+            for (const auto& site : sites) {
+                if (view.signInSites.size() == netplay::MaxSignInSites) break;
+                const auto id = site.is_object() ? Text(site, "id", 32) : std::string();
+                if (id.empty()) continue;
+                const auto signIn = site.find("sign_in");
+                view.signInSites.push_back({id, Text(site, "display_name", 64),
+                    signIn != site.end() && signIn->is_boolean() && signIn->get<bool>()});
+            }
     } else if (view.op == "link_list") {
         view.links.clear(); view.pending.clear();
         for (const auto& link : data.value("links", nlohmann::json::array()))
@@ -72,9 +98,11 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
             if (claim.is_object() && view.pending.size() < 32)
                 view.pending.push_back({Text(claim, "claim_id", 64), Text(claim, "connection_id", 64), Text(claim, "provider", 64), {}});
     } else if (view.op == "discord_status" || view.op == "discord_remove") {
-        const auto account = data.value("account", nlohmann::json());
-        view.discordUser = account.is_object() ? Text(account, "user_id", 20) : std::string();
-        view.discordName = account.is_object() ? Text(account, "username", 64) : std::string();
+        const auto account = AccountOf(data, 20);
+        view.discordUser = account.user; view.discordName = account.name; view.discordConnectedAt = account.connectedAt;
+    } else if (view.op == "site_status" || view.op == "site_remove") {
+        const auto account = AccountOf(data, 64);
+        view.siteUser = account.user; view.siteName = account.name; view.siteConnectedAt = account.connectedAt;
     } else if (view.op == "link_claim") {
         view.claimFingerprint = Text(data, "fingerprint", 32);
     } else if (view.op == "identity_preview_import") {
@@ -136,6 +164,10 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
     case IdentityOp::DiscordConnect: body["op"] = "discord_connect"; complete = need({{"bridge_id", &r.bridge}}); break;
     case IdentityOp::DiscordRemove: body["op"] = "discord_remove"; complete = need({{"bridge_id", &r.bridge}}); break;
     case IdentityOp::DiscordCancel: body["op"] = "discord_cancel"; complete = need({{"bridge_id", &r.bridge}}); break;
+    case IdentityOp::SiteStatus: body["op"] = "site_status"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
+    case IdentityOp::SiteConnect: body["op"] = "site_connect"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
+    case IdentityOp::SiteRemove: body["op"] = "site_remove"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
+    case IdentityOp::SiteCancel: body["op"] = "site_cancel"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
     default: complete = false; break;
     }
     std::string text;

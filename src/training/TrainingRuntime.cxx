@@ -76,6 +76,22 @@ std::atomic<bool> meterContinuous{false};
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
 }
+#ifdef SF4E_SELFTEST
+// The in-game self-test's: the lab also runs in an offline Versus battle.
+bool versusForTest = false;
+#endif
+// Where the lab runs: a Training battle (and the self-test's Versus battle,
+// in a self-test build), not while the battle is being left. The one rule for
+// the lab and its controls.
+bool LabBattle(Native* system) {
+    const int gameMode = (system->*Native::publicMethods.GetGameMode)();
+#ifdef SF4E_SELFTEST
+    const bool lab = gameMode == Dimps::Game::Battle::GAMEMODE_TRAINING || (versusForTest && gameMode == Dimps::Game::Battle::GAMEMODE_VERSUS);
+#else
+    const bool lab = gameMode == Dimps::Game::Battle::GAMEMODE_TRAINING;
+#endif
+    return lab && !(system->*Native::publicMethods.IsLeavingBattle)();
+}
 bool matchShown = false;
 ConfirmedSamples confirmed;
 // A Practice room's match. It has no shared checkpoint: the
@@ -257,8 +273,7 @@ bool ChordStartsRecording() { std::lock_guard<std::mutex> lock(mutex); return Ch
 bool ControlsAvailable() {
     if(!session.GetView().available || Battle::ggpo) return false;
     auto* system=Native::staticMethods.GetSingleton();
-    return system && (system->*Native::publicMethods.GetGameMode)()==Dimps::Game::Battle::GAMEMODE_TRAINING &&
-        !(system->*Native::publicMethods.IsLeavingBattle)();
+    return system && LabBattle(system);
 }
 bool Submit(Command command) {
     std::lock_guard<std::mutex> lock(mutex);
@@ -315,9 +330,7 @@ static bool Dispatch(Native* system, const Command& command) {
 }
 void BeforeUpdate(Native* system, bool networkOwned) {
     overriding = false; sampling = false; commitInput = false; following = false;
-    const bool available = !networkOwned &&
-        (system->*Native::publicMethods.GetGameMode)() == Dimps::Game::Battle::GAMEMODE_TRAINING &&
-        !(system->*Native::publicMethods.IsLeavingBattle)();
+    const bool available = !networkOwned && LabBattle(system);
     if (!available) {
         if (session.GetView().available) CloseBattle();
         return;
@@ -544,6 +557,9 @@ bool MatchPracticeActive() { return matchPractice; }
 unsigned ClearReservedInputBits(unsigned raw) {
     return matchPractice ? raw & ~ReservedInputBits : raw;
 }
+#ifdef SF4E_SELFTEST
+void AllowOfflineVersusForTest() { versusForTest = true; }
+#endif
 void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {

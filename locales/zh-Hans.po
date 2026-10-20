@@ -1116,6 +1116,12 @@ msgstr "更快显示（减少 1 帧延迟）"
 msgid "player.faster_display_detail"
 msgstr "游戏在每一帧准备好后立即显示，而不是晚 1 帧显示。如果游戏在这台电脑上低于 60 fps，请关闭此选项。只影响这台电脑：对方玩家无需开启。更改将在下次启动游戏时生效。"
 
+msgid "player.borderless"
+msgstr "无边框"
+
+msgid "player.borderless_detail"
+msgstr "游戏以无边框窗口填满屏幕，按屏幕原生分辨率以 16:9 绘制，在更宽或更高的屏幕上显示黑边。开启时，Alt+Enter 以及游戏自带的分辨率和全屏选项都不起作用；你在那里的选择会保留到关闭时使用。只影响这台电脑。更改将在下次启动游戏时生效。"
+
 
 
 msgid "settings.interface_title"
@@ -1377,7 +1383,13 @@ msgid "room.private_status"
 msgstr "私人房间／仅限邀请"
 
 msgid "room.tournament_status"
-msgstr "赛事对局，先胜{0}局。只有本局的两名玩家可以加入。"
+msgstr "赛事对局，先胜{0}局。只有本局的两名玩家可以对战。"
+
+msgid "room.tournament_status_watched"
+msgstr "赛事对局，先胜{0}局。{1} 人观战中。"
+
+msgid "room.tournament_watching"
+msgstr "正在观战赛事对局。只有本局的两名玩家可以对战。"
 
 msgid "room.reconnecting"
 msgstr "正在重连房间..."
@@ -2596,6 +2608,18 @@ msgstr "已入座"
 msgid "room.status.ready"
 msgstr "已准备"
 
+msgid "class.master"
+msgstr "大师"
+
+msgid "class.grand_master"
+msgstr "宗师"
+
+msgid "class.tip"
+msgstr "等级 {0}"
+
+msgid "class.unsettled"
+msgstr "最近没有对战，等级可能已有变化。"
+
 msgid "room.status.playing"
 msgstr "对战中"
 
@@ -2682,6 +2706,9 @@ msgstr "{0}／房主"
 
 msgid "room.member_status"
 msgstr "{0}"
+
+msgid "room.member.watcher"
+msgstr "观战者"
 
 msgid "room.members"
 msgstr "成员"
@@ -3359,6 +3386,12 @@ msgstr "观战操作发送失败，正在重试。"
 msgid "runtime.return_main_menu"
 msgstr "请返回游戏主菜单，再打开房间。"
 
+msgid "runtime.in_tournament_match"
+msgstr "你正在进行或观战一场赛事对局。请先将其结束，或在“赛事对局”中停止，再打开或加入其他房间。"
+
+msgid "runtime.watch_leave_room"
+msgstr "请先退出当前房间，再观战赛事对局。"
+
 msgid "runtime.tournament_result_saving"
 msgstr "正在保存上一局的结果。请几秒后再试。"
 
@@ -3645,7 +3678,7 @@ msgid "identity.local_passphrase"
 msgstr "此电脑的密码"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine 和 Proton 无法使用 Windows 密钥保护，因此改用密码保护您的密钥。每次启动游戏时需输入一次。"
+msgstr "Wine 和 Proton（例如 Steam Deck）无法使用常规的密钥保护，因此改用密码保护您的密钥。每次启动游戏时需输入一次。"
 
 msgid "identity.repeat_passphrase"
 msgstr "再次输入密码"
@@ -3667,6 +3700,9 @@ msgstr "创建 Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "在此电脑上创建密钥。只有当前 Windows 账户可以使用。"
+
+msgid "identity.enable_passphrase_detail"
+msgstr "在此电脑上创建密钥，由上方的密码保护。"
 
 msgid "identity.leave_room"
 msgstr "请离开房间并返回主菜单后再更改 Ember ID。"
@@ -3877,6 +3913,84 @@ msgstr "使用其他 Discord 账号"
 
 msgid "connect.change_detail"
 msgstr "在浏览器中打开 Discord，改为关联另一个账号。之后你的赛事网站必须使用该账号。"
+
+msgid "site.title"
+msgstr "关联 {0}"
+
+msgid "site.row_detail"
+msgstr "关联你的 {0} 账号后，{0} 上的赛事就能找到你的 Ember ID。"
+
+msgid "site.go_detail"
+msgstr "关联 {0} 后，{0} 上的赛事就能找到你的 Ember ID。Ember 会在浏览器中打开 {0}：请在那里使用你的赛事所用的账号进行批准。"
+
+msgid "site.setting_up_detail"
+msgstr "Ember 正在浏览器中打开 {0}。"
+
+msgid "site.waiting"
+msgstr "请在浏览器中批准。{0} 关联后，此界面会更新。"
+
+msgid "site.waiting_label"
+msgstr "正在等待 {0}"
+
+msgid "site.waiting_detail"
+msgstr "请在浏览器中使用你的赛事所用的 {0} 账号进行批准。此界面会自动更新。"
+
+msgid "site.connected"
+msgstr "{0} 已关联"
+
+msgid "site.connected_detail"
+msgstr "{0} 上的赛事现在可以通过这个账号找到你。"
+
+msgid "site.change"
+msgstr "使用其他 {0} 账号"
+
+msgid "site.change_detail"
+msgstr "在浏览器中打开 {0}，改为关联另一个账号。之后你的赛事必须使用该账号。"
+
+msgid "site.remove_detail"
+msgstr "在此服务中解除此 {0} 账号与你的 Ember ID 的关联。{0} 上的赛事将无法再通过它找到你。"
+
+msgid "site.cancel_detail"
+msgstr "停止等待。准备好后，请再次选择“关联 {0}”。"
+
+msgid "site.off"
+msgstr "{0} 登录已关闭"
+
+msgid "site.off_detail"
+msgstr "此赛事服务目前不提供 {0} 登录。请稍后再试。"
+
+msgid "site.retry_detail"
+msgstr "重新读取你的 {0} 账号。"
+
+msgid "site.opened"
+msgstr "请在浏览器中完成 {0} 登录。"
+
+msgid "site.done"
+msgstr "已将 {0} 关联为 {1}。"
+
+msgid "site.removed"
+msgstr "已解除 {0} 账号关联。"
+
+msgid "site.cancelled"
+msgstr "已停止等待 {0}。"
+
+msgid "site.busy"
+msgstr "{0} 登录当前繁忙。请稍后再试。"
+
+msgid "site.gone"
+msgstr "此赛事服务已不再提供 {0} 登录。"
+
+msgid "site.no_service"
+msgstr "尚未设置 Ember 的赛事服务"
+
+msgid "site.no_service_detail"
+msgstr "{0} 通过 Ember 的赛事服务关联。请先在“已绑定账号”中查找该服务，然后回到这里。"
+
+msgid "site.screen"
+msgstr "站点账号"
+
+msgid "identity.failure.browser"
+msgstr "Ember 无法打开你的浏览器。"
 
 msgid "connect.link_waiting"
 msgstr "有赛事网站请求你关联 Discord。离开房间后，Ember 会打开“关联 Discord”。"
@@ -4204,6 +4318,63 @@ msgstr "此对局不在你的列表中。它属于其他玩家，或此服务将
 
 msgid "tournament.failure.link_service"
 msgstr "请先在已绑定账号中信任此赛事服务，然后再次打开对局链接。"
+
+msgid "tournament.watch.row"
+msgstr "观战此对局"
+
+msgid "tournament.watch.row_detail"
+msgstr "观战者在对局所在的房间观看对局，不能对战或聊天，谁可以观战由主办方决定。"
+
+msgid "tournament.watch.stop_detail"
+msgstr "离开对局房间。你可以从此列表再次观战该对局。"
+
+msgid "tournament.watch.needs_id"
+msgstr "观战对局需要 Ember ID。可以在这里创建，只需片刻。"
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "此对局的赛事服务尚未受信任。请在已绑定账号中添加。"
+
+msgid "tournament.watch.state.asking"
+msgstr "正在询问赛事服务。"
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "正在等待玩家打开对局房间。"
+
+msgid "tournament.watch.state.full"
+msgstr "此对局的观战人数已达主办方允许的上限。正在等待空位。"
+
+msgid "tournament.watch.state.joining"
+msgstr "正在加入对局房间。"
+
+msgid "tournament.watch.state.watching"
+msgstr "正在观战 {0} vs {1}。"
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "此对局的主办方未开放观战。"
+
+msgid "tournament.watch.refused.revoked"
+msgstr "主办方已将你移出此对局的观战者。"
+
+msgid "tournament.watch.refused.fighter"
+msgstr "你是此对局的玩家。请改用“开始”。"
+
+msgid "tournament.watch.refused.build"
+msgstr "玩家使用的 Ember 版本不同。观战需要相同版本。"
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "此赛事服务不支持观战。"
+
+msgid "tournament.watch.refused.other_room"
+msgstr "你在另一个房间中，观战已停止。请退出该房间，然后重新观战。"
+
+msgid "tournament.watch.finished_notice"
+msgstr "你观战的对局已结束。"
+
+msgid "tournament.watch.removed_notice"
+msgstr "你已停止观战：主办方将你移出。"
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "对局房间已关闭。"
 
 msgid "rules.set_length"
 msgstr "每组局数"
@@ -5497,6 +5668,36 @@ msgstr "选择后，按下在 Ember 菜单中用于返回的按钮。在你选�
 
 msgid "button_layout.menu_taken"
 msgstr "{0} 已经是{1}。请选择其他按钮。"
+
+msgid "button_layout.extra.touchpad"
+msgstr "触摸板"
+
+msgid "button_layout.extra.home"
+msgstr "Home 键"
+
+msgid "button_layout.extra.mute"
+msgstr "静音键"
+
+msgid "button_layout.extra.misc"
+msgstr "额外按键"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "右拨片 {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "左拨片 {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "选择 {0} 要复制的按键。按下 {0} 时，效果与该按键相同。"
+
+msgid "button_layout.extra_copy"
+msgstr "与 {0} 相同"
+
+msgid "button_layout.extra_set"
+msgstr "{0} 现在等同于 {1}。"
+
+msgid "button_layout.extra_off"
+msgstr "{0} 现在不起作用。"
 
 msgid "room.delay_policy"
 msgstr "房间输入延迟"

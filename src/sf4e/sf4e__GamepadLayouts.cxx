@@ -3,6 +3,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__StartupLog.hxx"
 #include <spdlog/spdlog.h>
 
 namespace sf4e { namespace GamepadLayouts {
@@ -15,22 +16,12 @@ GameTableSwap gameTables;
 bool returningTables = false;
 struct LastSlot { Identity identity; int slot; };
 std::vector<LastSlot> lastSlots;
-bool loggingReady = false;
-std::vector<std::pair<spdlog::level::level_enum, std::string>> pendingLogs;
-void Log(spdlog::level::level_enum level, std::string message) {
-    if (loggingReady) spdlog::log(level, message);
-    else pendingLogs.emplace_back(level, std::move(message));
-}
+using StartupLog::Log;
 std::vector<Identity> Connected(const Inventory& inventory) {
     std::vector<Identity> identities;
     for (const auto& pad : inventory.pads) identities.push_back(pad.identity);
     return identities;
 }
-}
-void FlushLogs() {
-    loggingReady = true;
-    for (const auto& message : pendingLogs) spdlog::log(message.first, message.second);
-    pendingLogs.clear();
 }
 void Load() {
     nlohmann::json values; std::string error;
@@ -101,7 +92,7 @@ void Update(const Inventory& inventory) {
 }
 void Read(PadFrame& frame, const Inventory& inventory) {
     const auto match = FindLayout(layouts, frame.pad.identity, Connected(inventory));
-    if (match.index) { frame.layout = layouts[*match.index].buttons; frame.menu = layouts[*match.index].menu; }
+    if (match.index) { frame.layout = layouts[*match.index].buttons; frame.menu = layouts[*match.index].menu; frame.extras = layouts[*match.index].extras; }
     frame.table = frame.layout.value_or(DefaultLayout);
     if (frame.pad.slot >= 0) ReadSlot(Dimps::Pad::BindingRecords(), frame.pad.slot, frame.table);
 }

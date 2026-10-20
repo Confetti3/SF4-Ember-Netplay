@@ -3,17 +3,49 @@
 #include "../common/ReleaseNotesText.hxx"
 #include "../ui/UpdateChannelPick.hxx"
 #include "../ui/VersionLine.hxx"
+#include "../launcher/update/ZipExtract.hxx"
+#include <zlib.h>
 #include <filesystem>
+#include <fstream>
 #include <initializer_list>
 #include <nlohmann/json.hpp>
 #include <atomic>
-#include <chrono>
-#include <thread>
 #include <cstdlib>
 #include <iostream>
 
 #include "test_support.hxx"
 #include "temp_root.hxx"
+
+namespace {
+std::string U16(unsigned v) { return std::string{char(v & 255), char(v >> 8)}; }
+std::string U32(unsigned long v) { return U16(unsigned(v & 0xffff)) + U16(unsigned(v >> 16)); }
+// A minimal zip writer: stored or raw-deflate entries, central directory, no zip64.
+struct ZipBuilder {
+    std::string bytes, directory; unsigned entries = 0;
+    void Add(const std::string& name, const std::string& data, bool deflated) {
+        std::string packed = data;
+        if (deflated) {
+            z_stream z{}; deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY);
+            packed.resize(deflateBound(&z, static_cast<uLong>(data.size())));
+            z.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(data.data())); z.avail_in = static_cast<uInt>(data.size());
+            z.next_out = reinterpret_cast<Bytef*>(packed.data()); z.avail_out = static_cast<uInt>(packed.size());
+            deflate(&z, Z_FINISH); packed.resize(z.total_out); deflateEnd(&z);
+        }
+        const auto crc = crc32(0, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size()));
+        const std::string common = U16(20) + U16(0) + U16(deflated ? 8 : 0) + U32(0) + U32(crc) + U32(packed.size()) + U32(data.size()) + U16(unsigned(name.size())) + U16(0);
+        directory += U32(0x02014b50) + U16(20) + common + U16(0) + U16(0) + U16(0) + U32(0) + U32(bytes.size()) + name;
+        bytes += U32(0x04034b50) + common + name + packed;
+        ++entries;
+    }
+    void Write(const std::filesystem::path& path) {
+        std::ofstream(path, std::ios::binary) << bytes << directory << U32(0x06054b50) << U16(0) << U16(0) << U16(entries) << U16(entries)
+            << U32(directory.size()) << U32(bytes.size()) << U16(0);
+    }
+};
+std::string Slurp(const std::filesystem::path& path) {
+    std::ifstream in(path, std::ios::binary); return std::string(std::istreambuf_iterator<char>(in), {});
+}
+}
 
 int main(int argc, char** argv) {
     using namespace sf4e::launcher;
@@ -343,23 +375,6 @@ int main(int argc, char** argv) {
     list[0]["prerelease"] = true;
     CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Stable).latestVersion == "v1.1.0");
     CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Beta).latestVersion == "v1.2.0");
-    // The extraction child stops when cancelled while it is being waited for,
-    // and a stopped child never counts as success.
-    {
-        wchar_t system[MAX_PATH] = {};
-        CHECK(GetSystemDirectoryW(system, MAX_PATH) > 0);
-        const std::wstring cmd = std::wstring(system) + L"\\cmd.exe";
-        DWORD exitCode = 1;
-        std::atomic<bool> cancel{false};
-        CHECK(detail::RunProcessAndWaitHidden(cmd.c_str(), (L"\"" + cmd + L"\" /c exit 0").c_str(), &exitCode, cancel));
-        CHECK(exitCode == 0);
-        const auto started = std::chrono::steady_clock::now();
-        std::thread canceller([&] { std::this_thread::sleep_for(std::chrono::milliseconds(600)); cancel = true; });
-        CHECK(detail::RunProcessAndWaitHidden(cmd.c_str(), (L"\"" + cmd + L"\" /c ping -n 60 127.0.0.1 >nul").c_str(), &exitCode, cancel));
-        canceller.join();
-        CHECK(exitCode != 0);
-        CHECK(std::chrono::steady_clock::now() - started < std::chrono::seconds(20));
-    }
     if (argc > 1 && std::string(argv[1]) == "--live") {
         result = CheckForUpdate(UpdateChannel::Stable);
         CHECK(result.ok && !result.installedVersion.empty());
@@ -368,5 +383,35 @@ int main(int argc, char** argv) {
         CHECK(result.zipDownloadUrl.find("sf4-ember-netplay-" + result.installedVersion + ".zip") != std::string::npos);
         CHECK(result.zipDownloadUrl.find("upgrade-sf4-ember-netplay-") == std::string::npos);
     }
-    std::cout << "Ember release identity, asset selection, version comparison, channels and checksum parsing passed\n";
+    {
+        const auto work = MakeTempRoot(L"ember-zip-extract-test-");
+        std::filesystem::create_directories(work);
+        const std::atomic<bool> keep{false}, cancel{true};
+        std::string error;
+        const auto extract = [&](const char* zip, const char* to, const std::atomic<bool>& stop) {
+            return ExtractZip((work / zip).wstring(), (work / to).wstring(), error, stop);
+        };
+        const std::string big(300000, 'x');
+        ZipBuilder zip; zip.Add("pkg/", "", false); zip.Add("pkg/a.txt", "stored", false);
+        zip.Add("pkg/sub/b.bin", big + "tail", true); zip.Add("pkg/empty", "", true);
+        // One byte past a 64 KiB output buffer: zlib 1.3.1 takes all of this
+        // entry's input while that byte is still pending.
+        const std::string edge = std::string(65533, 'x') + "tail";
+        zip.Add("pkg/edge.bin", edge, true);
+        zip.Write(work / "ok.zip");
+        CHECK(extract("ok.zip", "out", keep));
+        CHECK(Slurp(work / "out/pkg/a.txt") == "stored" && Slurp(work / "out/pkg/sub/b.bin") == big + "tail" && Slurp(work / "out/pkg/empty").empty());
+        CHECK(Slurp(work / "out/pkg/edge.bin") == edge);
+        CHECK(!extract("ok.zip", "cancel", cancel) && error == "cancelled: pkg/a.txt");
+        // Names the installer refuses are refused here too: a way out, and one Windows would alter.
+        ZipBuilder evil; evil.Add("../escape.txt", "x", false); evil.Write(work / "evil.zip");
+        CHECK(!extract("evil.zip", "out2", keep) && error.find("unsafe entry name") == 0);
+        CHECK(!std::filesystem::exists(work / "escape.txt"));
+        ZipBuilder dot; dot.Add("pkg/name.", "x", false); dot.Write(work / "dot.zip");
+        CHECK(!extract("dot.zip", "out3", keep) && error.find("unsafe entry name") == 0);
+        ZipBuilder bad; bad.Add("c.txt", "hello", true); bad.bytes[bad.bytes.size() - 1] ^= 1; bad.Write(work / "bad.zip");
+        CHECK(!extract("bad.zip", "out4", keep) && !error.empty());
+        RemoveTempRoot(work);
+    }
+    std::cout << "Ember release identity, asset selection, version comparison, channels and checksum parsing and zip extraction passed\n";
 }

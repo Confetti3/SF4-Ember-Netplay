@@ -4,6 +4,7 @@
 #include "../../platform/Elevation.hxx"
 #include "../../platform/Utf8.hxx"
 #include "../../common/ReleaseNotesText.hxx"
+#include "ZipExtract.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -20,67 +21,6 @@ namespace launcher {
 			}
 #endif
 			strncpy_s(outRepo, outRepoLen, UpdateChannelRepo(channel), _TRUNCATE);
-		}
-
-		// Waits in short slices so a cancel (launcher closing) or a hung process
-		// cannot hold the update worker, and with it shutdown, forever. The
-		// process runs in a kill-on-close job, so a cancel or timeout ends
-		// anything it started too (ledger A-013).
-		bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
-			const std::atomic<bool>& cancel) {
-			constexpr ULONGLONG kTimeoutMs = 5 * 60 * 1000;
-			HANDLE job = CreateJobObjectW(NULL, NULL);
-			JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {};
-			limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-			if (!job || !SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits))) {
-				if (job) CloseHandle(job);
-				AppendUpdateLog("process job setup failed");
-				return false;
-			}
-			STARTUPINFOW si = { 0 };
-			PROCESS_INFORMATION pi = { 0 };
-			si.cb = sizeof(si);
-			wchar_t mutableCmd[4096] = { 0 };
-			wcsncpy_s(mutableCmd, cmdLine, _TRUNCATE);
-			if (!CreateProcessW(application, mutableCmd, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_SUSPENDED,
-				NULL, NULL, &si, &pi)) {
-				char buf[64] = { 0 };
-				snprintf(buf, sizeof(buf), "CreateProcess failed (Win32 %lu)", GetLastError());
-				AppendUpdateLog(buf);
-				CloseHandle(job);
-				return false;
-			}
-			if (!AssignProcessToJobObject(job, pi.hProcess)) {
-				AppendUpdateLog("process job assignment failed");
-				TerminateProcess(pi.hProcess, 1);
-				CloseHandle(pi.hProcess);
-				CloseHandle(pi.hThread);
-				CloseHandle(job);
-				return false;
-			}
-			ResumeThread(pi.hThread);
-			const ULONGLONG started = GetTickCount64();
-			bool stopped = false;
-			while (WaitForSingleObject(pi.hProcess, 250) == WAIT_TIMEOUT) {
-				const bool cancelled = cancel;
-				if (cancelled || GetTickCount64() - started > kTimeoutMs) {
-					AppendUpdateLog(cancelled ? "process cancelled" : "process timed out");
-					TerminateJobObject(job, 1);
-					WaitForSingleObject(pi.hProcess, 5000);
-					stopped = true;
-					break;
-				}
-			}
-			DWORD exitCode = 1;
-			GetExitCodeProcess(pi.hProcess, &exitCode);
-			CloseHandle(pi.hProcess);
-			CloseHandle(pi.hThread);
-			CloseHandle(job);
-			if (outExitCode) {
-				// A stopped process never counts as success, whatever it reported.
-				*outExitCode = stopped && exitCode == 0 ? 1 : exitCode;
-			}
-			return true;
 		}
 
 		// Removes staging left by earlier updates: other tags' extract folders,
@@ -101,37 +41,6 @@ namespace launcher {
 				if (updateRoot && _wcsicmp(entry.path().c_str(), currentRoot) == 0) continue;
 				if (updateRoot || updaterCopy || packageZip) std::filesystem::remove_all(entry.path(), error);
 			}
-		}
-
-		static bool ExpandZipArchive(const wchar_t* zipPath, const wchar_t* destDir,
-			const std::atomic<bool>& cancel) {
-			// The system tar by full path: a bare name would be searched for in the
-			// application and current directories first.
-			wchar_t tarPath[MAX_PATH] = { 0 };
-			const UINT systemLength = GetSystemDirectoryW(tarPath, MAX_PATH);
-			if (systemLength == 0 || systemLength >= MAX_PATH || FAILED(PathCchAppend(tarPath, MAX_PATH, L"tar.exe"))) {
-				AppendUpdateLog("tar path failed");
-				return false;
-			}
-			wchar_t cmdLine[4096] = { 0 };
-			swprintf_s(cmdLine, L"\"%s\" -xf \"%s\" -C \"%s\"", tarPath, zipPath, destDir);
-
-			char cmdUtf8[4096] = { 0 };
-			WidePathToUtf8(cmdLine, cmdUtf8, sizeof(cmdUtf8));
-			AppendUpdateLog(cmdUtf8);
-
-			DWORD exitCode = 1;
-			if (!RunProcessAndWaitHidden(tarPath, cmdLine, &exitCode, cancel)) {
-				AppendUpdateLog("tar spawn failed");
-				return false;
-			}
-			if (exitCode != 0) {
-				char buf[64] = { 0 };
-				snprintf(buf, sizeof(buf), "tar failed with exit code %u", (unsigned)exitCode);
-				AppendUpdateLog(buf);
-				return false;
-			}
-			return true;
 		}
 
 		// The updater must not run from the directory it is about to rewrite:
@@ -774,13 +683,14 @@ namespace launcher {
 			result.error = loc::T("update.no_digest"); return result;
 		}
 
-		// tar reports nothing, so the stage keeps its (0, 0) and the bar moves
-		// without a total; each wait slice still reads `cancel`.
+		// In process rather than with the system tar.exe, which Wine and Proton
+		// do not ship. The stage keeps its (0, 0), so the bar moves without a total.
 		announce(UpdateStage::Extracting);
-		const bool extracted = ExpandZipArchive(zipPath, extractDir, cancel);
+		std::string extractError;
+		const bool extracted = ExtractZip(zipPath, extractDir, extractError, cancel);
 		DeleteFileW(zipPath);
 		if (!extracted) {
-			AppendUpdateLog("extract failed");
+			AppendUpdateLog(("extract failed: " + extractError).c_str());
 			std::error_code ignored;
 			std::filesystem::remove_all(extractDir, ignored);
 			return stopped(loc::T("update.extract_failed"));

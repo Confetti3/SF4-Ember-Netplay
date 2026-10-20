@@ -1,5 +1,4 @@
 pub mod blumint;
-pub mod discord;
 pub mod discovery;
 pub mod events;
 pub mod expiry;
@@ -15,6 +14,7 @@ pub mod records;
 pub mod reports;
 pub mod rooms;
 pub mod sessions;
+pub mod sign_in;
 pub mod tournaments;
 pub mod webhooks;
 
@@ -25,7 +25,7 @@ use axum::{
     extract::{DefaultBodyLimit, Request},
     middleware::{self, Next},
     response::Response,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
 };
 use rusqlite::params;
 
@@ -74,22 +74,31 @@ pub fn router(state: AppState) -> Router {
             post(play::prepare_route),
         )
         .route("/v1/matches/{id}/reports", post(reports::submit_route))
+        .route("/v1/matches/{id}/watch", post(play::watch::watch_route))
+        .route(
+            "/v1/matches/{id}/watch/leave",
+            post(play::watch::leave_route),
+        )
+        .route(
+            "/v1/matches/{id}/watch/denials/{ember_id}",
+            put(play::watch::deny).delete(play::watch::clear_denial),
+        )
+        .route(
+            "/v1/matches/{id}/watchers",
+            get(play::watch::match_watchers),
+        )
+        .route(
+            "/v1/connections/{id}/watch",
+            get(play::watch::connection_policy).put(play::watch::set_link_holders),
+        )
+        .route(
+            "/v1/connections/{id}/watch/staff/{ember_id}",
+            put(play::watch::set_staff).delete(play::watch::remove_staff),
+        )
         .route("/v1/assignments", get(matches::assignments))
         .route(blumint::LOOKUP_PATH, post(blumint::lookup))
         .route(blumint::MATCHES_PATH, post(blumint::create))
         .route(blumint::CLOSE_PATH, post(blumint::close))
-        .route(
-            discord::START_PATH,
-            post(discord::start).delete(discord::cancel),
-        )
-        .route(
-            discord::CALLBACK_PATH,
-            get(discord::callback).post(discord::decide),
-        )
-        .route(
-            discord::ACCOUNT_PATH,
-            get(discord::get).delete(discord::remove),
-        )
         .route("/v1/rooms", get(rooms::list).post(rooms::create))
         .route("/v1/rooms/public", get(rooms::public_list))
         .route("/v1/rooms/{room_id}", get(rooms::get))
@@ -123,6 +132,7 @@ pub fn router(state: AppState) -> Router {
             "/v1/webhook-subscriptions/{id}/rotate-secret",
             post(webhooks::rotate),
         );
+    app = sign_in::routes(app);
     if state.config.mock_browser {
         app = app
             .route(
@@ -197,8 +207,8 @@ pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<
 
 /// Expires link intents, holds games whose reports did not arrive, expires
 /// matches nobody played, observes the fighters whose claims lapsed, and
-/// removes stale challenges, sessions, replay records and refused BluMint
-/// keys. Durable domain records (links, matches, attempts, reports, events)
+/// removes sign-ins no site answered, stale challenges, sessions, replay
+/// records and refused BluMint keys. Durable domain records (links, matches, attempts, reports, events)
 /// stay, and with each BluMint match the key it was made under, its
 /// `external_match_id`.
 pub async fn maintenance_once(state: &AppState) {
@@ -213,7 +223,7 @@ pub async fn maintenance_once(state: &AppState) {
             expiry::expire_stale(tx, &ctx)?;
             delivery::status::observe_lapsed(tx, now)?;
             linking::expire(tx, now)?;
-            discord::expire(tx, now)?;
+            linking::sign_ins::expire(tx, now)?;
             tx.execute(
                 "DELETE FROM auth_challenges WHERE expires_at <= ?1",
                 [cutoff],

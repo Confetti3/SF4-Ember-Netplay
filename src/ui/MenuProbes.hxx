@@ -15,6 +15,10 @@ using MenuCardProbe = std::function<void(const char*,ImVec2,ImVec2)>;
 void SetMenuCardProbe(MenuCardProbe probe);
 // The room board reports its cards and their option strips the same way.
 void ReportMenuCard(const char* id,ImVec2 min,ImVec2 max);
+// A member card reports the status line it draws.
+using MenuCardTextProbe = std::function<void(const std::string&,const std::string&)>;
+void SetMenuCardTextProbe(MenuCardTextProbe probe);
+void ReportMenuCardText(const std::string& id,const std::string& text);
 using MenuStatusProbe = std::function<void(const char*,Tone)>;
 void SetMenuStatusProbe(MenuStatusProbe probe);
 using MenuEntriesProbe = std::function<void(const std::vector<MenuEntry>&)>;

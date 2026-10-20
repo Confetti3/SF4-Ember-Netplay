@@ -1117,6 +1117,12 @@ msgstr "Быстрый вывод кадров (на 1 кадр раньше)"
 msgid "player.faster_display_detail"
 msgstr "Игра показывает каждый кадр сразу, как он готов, а не на кадр позже. Выключите это, если игра на этом ПК опускается ниже 60 кадров/с. Влияет только на этот ПК: другому игроку включать не нужно. Изменение вступит в силу при следующем запуске игры."
 
+msgid "player.borderless"
+msgstr "Без рамки"
+
+msgid "player.borderless_detail"
+msgstr "Игра заполняет экран в окне без рамки и рисуется в собственном разрешении экрана в формате 16:9, с чёрными полосами на более широком или высоком экране. Пока это включено, Alt+Enter и собственные настройки разрешения и полноэкранного режима в игре ничего не делают; игра сохраняет ваш выбор там на случай, когда это будет выключено. Влияет только на этот ПК. Изменения вступят в силу при следующем запуске игры."
+
 
 
 msgid "settings.interface_title"
@@ -1378,7 +1384,13 @@ msgid "room.private_status"
 msgstr "Закрытое лобби / вход по приглашению"
 
 msgid "room.tournament_status"
-msgstr "Турнирный матч, до {0} побед. Войти могут только два его игрока."
+msgstr "Турнирный матч, до {0} побед. Играть могут только два его игрока."
+
+msgid "room.tournament_status_watched"
+msgstr "Турнирный матч, до {0} побед. Зрителей: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Вы смотрите турнирный матч. Играть могут только два его игрока."
 
 msgid "room.reconnecting"
 msgstr "Переподключение..."
@@ -2597,6 +2609,18 @@ msgstr "В ячейке"
 msgid "room.status.ready"
 msgstr "Готов"
 
+msgid "class.master"
+msgstr "Мастер"
+
+msgid "class.grand_master"
+msgstr "Грандмастер"
+
+msgid "class.tip"
+msgstr "Класс {0}"
+
+msgid "class.unsettled"
+msgstr "Давно нет игр, класс мог измениться."
+
 msgid "room.status.playing"
 msgstr "Играет"
 
@@ -2683,6 +2707,8 @@ msgstr "{0} / ВЕДУЩИЙ"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Зритель"
 
 msgid "room.members"
 msgstr "Участники"
@@ -3360,6 +3386,12 @@ msgstr "Не удалось отправить действие зрителя; 
 msgid "runtime.return_main_menu"
 msgstr "Вернитесь в главное меню игры, прежде чем открывать лобби."
 
+msgid "runtime.in_tournament_match"
+msgstr "Вы играете или смотрите матч турнира. Завершите его или остановите в разделе «Турнирные матчи», прежде чем открыть другое лобби или войти в него."
+
+msgid "runtime.watch_leave_room"
+msgstr "Выйдите из своего лобби, прежде чем смотреть матч турнира."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Сохраняется результат последней игры. Повторите попытку через несколько секунд."
 
@@ -3646,7 +3678,7 @@ msgid "identity.local_passphrase"
 msgstr "Пароль для этого ПК"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine и Proton не поддерживают защиту ключей Windows, поэтому ваш ключ защищает пароль. Его нужно вводить один раз при каждом запуске игры."
+msgstr "Wine и Proton (например, на Steam Deck) не поддерживают обычную защиту ключей, поэтому ваш ключ защищает пароль. Его нужно вводить один раз при каждом запуске игры."
 
 msgid "identity.repeat_passphrase"
 msgstr "Повторите пароль"
@@ -3668,6 +3700,9 @@ msgstr "Создать Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "Создаёт ваш ключ на этом ПК. Использовать его сможет только эта учётная запись Windows."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Создаёт ваш ключ на этом ПК, защищённый паролем выше."
 
 msgid "identity.leave_room"
 msgstr "Чтобы изменить Ember ID, выйдите из лобби и вернитесь в главное меню."
@@ -3878,6 +3913,84 @@ msgstr "Использовать другой аккаунт Discord"
 
 msgid "connect.change_detail"
 msgstr "Открывает Discord в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнирный сайт должен использовать этот аккаунт."
+
+msgid "site.title"
+msgstr "Подключить {0}"
+
+msgid "site.row_detail"
+msgstr "Подключите аккаунт {0}, чтобы турниры на {0} находили ваш Ember ID."
+
+msgid "site.go_detail"
+msgstr "Подключив {0}, вы позволите турнирам на {0} находить ваш Ember ID. Ember откроет {0} в браузере: подтвердите там вход аккаунтом, который использует ваш турнир."
+
+msgid "site.setting_up_detail"
+msgstr "Ember открывает {0} в браузере."
+
+msgid "site.waiting"
+msgstr "Подтвердите в браузере. Этот экран обновится, когда {0} будет подключён."
+
+msgid "site.waiting_label"
+msgstr "Ожидание {0}"
+
+msgid "site.waiting_detail"
+msgstr "Подтвердите в браузере вход аккаунтом {0}, который использует ваш турнир. Этот экран обновится сам."
+
+msgid "site.connected"
+msgstr "{0} подключён"
+
+msgid "site.connected_detail"
+msgstr "Теперь турниры на {0} найдут вас по этому аккаунту."
+
+msgid "site.change"
+msgstr "Использовать другой аккаунт {0}"
+
+msgid "site.change_detail"
+msgstr "Открывает {0} в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнир должен использовать этот аккаунт."
+
+msgid "site.remove_detail"
+msgstr "Отключает этот аккаунт {0} от вашего Ember ID в этом сервисе. Турниры на {0} больше не найдут вас по нему."
+
+msgid "site.cancel_detail"
+msgstr "Прекращает ожидание. Когда будете готовы, снова выберите «Подключить {0}»."
+
+msgid "site.off"
+msgstr "Вход через {0} отключён"
+
+msgid "site.off_detail"
+msgstr "Этот турнирный сервис сейчас не предлагает вход через {0}. Повторите попытку позже."
+
+msgid "site.retry_detail"
+msgstr "Снова получает данные аккаунта {0}."
+
+msgid "site.opened"
+msgstr "Завершите вход в {0} в браузере."
+
+msgid "site.done"
+msgstr "{0} подключён как {1}."
+
+msgid "site.removed"
+msgstr "Аккаунт {0} отключён."
+
+msgid "site.cancelled"
+msgstr "Ожидание {0} прекращено."
+
+msgid "site.busy"
+msgstr "Вход через {0} сейчас перегружен. Повторите попытку позже."
+
+msgid "site.gone"
+msgstr "Этот турнирный сервис больше не предлагает вход через {0}."
+
+msgid "site.no_service"
+msgstr "Турнирный сервис Ember не настроен"
+
+msgid "site.no_service_detail"
+msgstr "{0} подключается через турнирный сервис Ember. Сначала найдите его в разделе «Привязанные аккаунты», затем вернитесь сюда."
+
+msgid "site.screen"
+msgstr "Аккаунт сайта"
+
+msgid "identity.failure.browser"
+msgstr "Ember не удалось открыть браузер."
 
 msgid "connect.link_waiting"
 msgstr "Турнирный сайт просит подключить Discord. Ember откроет «Подключить Discord», когда вы выйдете из лобби."
@@ -4205,6 +4318,63 @@ msgstr "Этого матча нет в вашем списке. Он прина
 
 msgid "tournament.failure.link_service"
 msgstr "Доверьтесь этому турнирному сервису в разделе «Привязанные аккаунты» и снова откройте ссылку на матч."
+
+msgid "tournament.watch.row"
+msgstr "Смотреть этот матч"
+
+msgid "tournament.watch.row_detail"
+msgstr "Зрители смотрят матч из его лобби. Они не могут играть и писать в чат, а кто может смотреть, решает организатор."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Выход из лобби матча. Смотреть матч снова можно из этого списка."
+
+msgid "tournament.watch.needs_id"
+msgstr "Чтобы смотреть матч, нужен Ember ID. Создайте его здесь, это займёт секунду."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Турнирный сервис этого матча пока не доверенный. Добавьте его в разделе «Привязанные аккаунты»."
+
+msgid "tournament.watch.state.asking"
+msgstr "Запрос к турнирному сервису."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Ожидание, пока игроки откроют лобби матча."
+
+msgid "tournament.watch.state.full"
+msgstr "У этого матча уже столько зрителей, сколько разрешил организатор. Ожидание свободного места."
+
+msgid "tournament.watch.state.joining"
+msgstr "Вход в лобби матча."
+
+msgid "tournament.watch.state.watching"
+msgstr "Вы смотрите {0} против {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "Организатор этого матча не открыл его для зрителей."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "Организатор исключил вас из зрителей этого матча."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Вы играете в этом матче. Нажмите «Играть»."
+
+msgid "tournament.watch.refused.build"
+msgstr "У игроков другая версия Ember. Чтобы смотреть, нужна такая же."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Этот турнирный сервис не поддерживает просмотр."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Просмотр остановлен, потому что вы находитесь в другом лобби. Выйдите из него и снова начните смотреть матч."
+
+msgid "tournament.watch.finished_notice"
+msgstr "Матч, который вы смотрели, окончен."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Вы больше не смотрите матч: организатор исключил вас."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "Лобби матча закрыто."
 
 msgid "rules.set_length"
 msgstr "Длина поединка"
@@ -5498,6 +5668,36 @@ msgstr "Выберите, затем нажмите кнопку, которая
 
 msgid "button_layout.menu_taken"
 msgstr "{0} уже назначена: {1}. Выберите другую кнопку."
+
+msgid "button_layout.extra.touchpad"
+msgstr "Тачпад"
+
+msgid "button_layout.extra.home"
+msgstr "Кнопка Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Кнопка отключения звука"
+
+msgid "button_layout.extra.misc"
+msgstr "Дополнительная кнопка"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Правый лепесток {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Левый лепесток {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Выберите кнопку, которую повторяет {0}. Нажатие {0} сработает как эта кнопка."
+
+msgid "button_layout.extra_copy"
+msgstr "Как {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} теперь работает как {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} теперь ничего не делает."
 
 msgid "room.delay_policy"
 msgstr "Задержка ввода в лобби"

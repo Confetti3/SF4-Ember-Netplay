@@ -19,6 +19,7 @@ gamepads::PromptBrand promptBrand;
 gamepads::FightNames promptNames=gamepads::NamesOf(gamepads::DefaultLayout);
 MenuTextProbe textProbe;
 MenuCardProbe cardProbe;
+MenuCardTextProbe cardTextProbe;
 MenuStatusProbe statusProbe;
 MenuEntriesProbe entriesProbe;
 PortraitProbe portraitProbe;
@@ -119,6 +120,8 @@ void ReportMenuText(const char* id,float textHeight,float interiorHeight,float t
 }
 void SetMenuCardProbe(MenuCardProbe probe){cardProbe=std::move(probe);}
 void ReportMenuCard(const char* id,ImVec2 min,ImVec2 max){if(cardProbe)cardProbe(id,min,max);}
+void SetMenuCardTextProbe(MenuCardTextProbe probe){cardTextProbe=std::move(probe);}
+void ReportMenuCardText(const std::string& id,const std::string& text){if(cardTextProbe)cardTextProbe(id,text);}
 void SetMenuStatusProbe(MenuStatusProbe probe){statusProbe=std::move(probe);}
 void SetMenuEntriesProbe(MenuEntriesProbe probe){entriesProbe=std::move(probe);}
 void SetPortraitProbe(PortraitProbe probe){portraitProbe=std::move(probe);}

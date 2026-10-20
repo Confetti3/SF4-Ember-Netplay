@@ -47,7 +47,8 @@ pub async fn act(
         .await
 }
 
-/// A claim from a helper that does not say whether its fighter is ready.
+/// A claim from a helper that does not say whether its fighter is ready, or
+/// that it reads watchers: what every released helper sends.
 pub async fn claim(
     f: &impl Table,
     player: &Player,
@@ -55,13 +56,24 @@ pub async fn claim(
     endpoint: &str,
     build: &str,
 ) -> (StatusCode, Json) {
-    claim_with(
-        f,
-        player,
-        id,
-        json!({ "endpoint_id": endpoint, "build_id": build }),
-    )
-    .await
+    claim_as(f, player, id, endpoint, build, false).await
+}
+
+/// A claim that says its helper reads a binding that names watchers, when
+/// `watch` is set; otherwise `claim`.
+pub async fn claim_as(
+    f: &impl Table,
+    player: &Player,
+    id: &str,
+    endpoint: &str,
+    build: &str,
+    watch: bool,
+) -> (StatusCode, Json) {
+    let mut command = json!({ "endpoint_id": endpoint, "build_id": build });
+    if watch {
+        command["watch"] = json!(true);
+    }
+    claim_with(f, player, id, command).await
 }
 
 /// A claim saying whether the fighter has pressed Ready at the table.
@@ -233,13 +245,19 @@ pub async fn report(
 
 /// Claims and publishes the room; returns the binding JSON both fighters hold.
 pub async fn bound(f: &impl Table, id: &str) -> Json {
-    let (status, host) = claim(f, f.a(), id, &endpoint(f.a()), BUILD).await;
+    bound_as(f, id, false).await
+}
+
+/// `bound`, with both fighters' claims saying whether their helpers read
+/// watchers.
+pub async fn bound_as(f: &impl Table, id: &str, watch: bool) -> Json {
+    let (status, host) = claim_as(f, f.a(), id, &endpoint(f.a()), BUILD, watch).await;
     assert_eq!(
         (status, host["role"].as_str()),
         (StatusCode::OK, Some("host")),
         "{host}"
     );
-    let (status, wait) = claim(f, f.b(), id, &endpoint(f.b()), BUILD).await;
+    let (status, wait) = claim_as(f, f.b(), id, &endpoint(f.b()), BUILD, watch).await;
     assert_eq!(
         (status, wait["role"].as_str()),
         (StatusCode::OK, Some("wait")),
@@ -254,7 +272,7 @@ pub async fn bound(f: &impl Table, id: &str) -> Json {
         (StatusCode::OK, Some("room")),
         "{room}"
     );
-    let (_, joined) = claim(f, f.b(), id, &endpoint(f.b()), BUILD).await;
+    let (_, joined) = claim_as(f, f.b(), id, &endpoint(f.b()), BUILD, watch).await;
     assert_eq!(joined["invitation"], format!("sf4e3:{ROOM}"));
     let signed: SignedBinding = serde_json::from_value(joined["binding"].clone()).unwrap();
     let (key, kid) = bridge_key(f).await;
@@ -263,4 +281,47 @@ pub async fn bound(f: &impl Table, id: &str) -> Json {
     assert_eq!(binding.slot_of(&endpoint(f.b())), Some(1));
     assert_eq!(binding.games_to_win, 2);
     serde_json::to_value(binding).unwrap()
+}
+
+/// Makes a first-to-`games_to_win` match of `profile` between two linked
+/// players, `links` being what linking them answered; returns its ID.
+pub async fn create_match(
+    bridge: &Bridge,
+    provider: &str,
+    links: &[Json; 2],
+    players: [&Player; 2],
+    external: &str,
+    profile: &str,
+    games_to_win: u8,
+) -> String {
+    let (status, created) = bridge
+        .post_keyed(
+            provider,
+            "/v1/matches",
+            json!({
+                "external_match_id": external,
+                "game": "usf4",
+                "participants": [
+                    { "participant_id": links[0]["participant_id"], "ember_id": players[0].id(), "slot": 0 },
+                    { "participant_id": links[1]["participant_id"], "ember_id": players[1].id(), "slot": 1 },
+                ],
+                "rules": {
+                    "games_to_win": games_to_win,
+                    "draw_policy": "replay_no_score",
+                    "native_rules_profile": profile,
+                    "edition_policy": "ultra_only",
+                    "character_policy": "unrestricted_between_games",
+                    "stage_policy": "p1_selects",
+                    "input_delay_policy": "ember_existing_ready_policy",
+                },
+                "observer_policy": "authorized_only",
+                "result_policy": "two_player_agreement_or_review",
+                "required_build_id": "ember",
+                "metadata": {},
+            }),
+            Some(external),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    created["match_id"].as_str().unwrap().to_owned()
 }

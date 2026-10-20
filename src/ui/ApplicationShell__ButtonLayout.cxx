@@ -88,14 +88,17 @@ void ApplicationShell::LayoutLog(const ShellView& view, const Submit& submit, st
     submit(std::move(action));
 }
 bool ApplicationShell::ChangeLayout(const PadView& pad, const std::optional<ButtonLayout>& layout,
-    const ShellView& view, const Submit& submit, const std::string& log, const std::optional<MenuBinding>& menu) {
+    const ShellView& view, const Submit& submit, const std::string& log, const std::optional<MenuBinding>& menu,
+    const std::optional<ExtraCopies>& extras) {
     if (!CanEditLayout(view) || !Served(pad)) return false;
     const auto binding = menu.value_or(pad.menu);
+    const auto copies = extras.value_or(pad.extras);
     ShellAction action; action.command.generation = view.session.generation;
     action.padAction.kind = layout ? ControllerRequest::Kind::Layout : ControllerRequest::Kind::RemoveLayout;
-    action.padAction.id = pad.id; action.padAction.buttons = layout.value_or(DefaultLayout); action.padAction.menu = binding; action.padAction.log = log;
+    action.padAction.id = pad.id; action.padAction.buttons = layout.value_or(DefaultLayout); action.padAction.menu = binding;
+    action.padAction.extras = copies; action.padAction.log = log;
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
-    if (layout) UpsertLayout(preferences_.buttonLayouts, {pad.identity, *layout, static_cast<std::int64_t>(std::time(nullptr)), binding});
+    if (layout) UpsertLayout(preferences_.buttonLayouts, {pad.identity, *layout, static_cast<std::int64_t>(std::time(nullptr)), binding, copies});
     else RemoveLayout(preferences_.buttonLayouts, pad.identity);
     preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45; error_.clear();
     layoutChanged_ = layout.has_value();
@@ -117,6 +120,16 @@ void ApplicationShell::ChangeMenuButton(const PadView& pad, bool back, unsigned 
         fmt::format("layout for id {}: menu {} = {}", pad.id, back ? "back" : "confirm", LayoutGlyphs[button]), menu)) {
         notice_ = loc::Tf("button_layout.assigned", row, pad.buttonNames[button]); noticeTone_ = Tone::Success; noticeUntil_ = ImGui::GetTime() + 4;
     }
+}
+void ApplicationShell::ChangeExtraCopy(const PadView& pad, unsigned extra, const std::string& choice, const ShellView& view, const Submit& submit) {
+    auto copies = pad.extras; copies[extra] = -1;
+    for (unsigned i = 0; i < LayoutGlyphs.size(); ++i) if (pad.has[i] && choice == LayoutGlyphs[i]) copies[extra] = static_cast<int>(i);
+    if (copies == pad.extras) return;
+    const auto copy = CopiedButton(copies, extra, pad.has);
+    if (!ChangeLayout(pad, pad.table, view, submit, fmt::format("layout for id {}: {} copies {}", pad.id, ExtraIds[extra], copy ? LayoutGlyphs[*copy] : "nothing"), {}, copies)) return;
+    const auto name = ExtraButtonName(pad, extra);
+    notice_ = copy ? loc::Tf("button_layout.extra_set", name, pad.buttonNames[*copy]) : loc::Tf("button_layout.extra_off", name);
+    noticeTone_ = Tone::Success; noticeUntil_ = ImGui::GetTime() + 4;
 }
 bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& submit) {
     auto& nav = menu_.navigation;
@@ -142,6 +155,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     const auto stored = FindLayout(preferences_.buttonLayouts, pad.identity, ConnectedLayoutPads(view));
     pad.layout = stored.index ? std::make_optional(preferences_.buttonLayouts[*stored.index].buttons) : std::nullopt;
     pad.menu = stored.index ? preferences_.buttonLayouts[*stored.index].menu : MenuBinding{};
+    pad.extras = stored.index ? preferences_.buttonLayouts[*stored.index].extras : NoExtraCopies;
     if (pad.layout) pad.table = *pad.layout;
     pad.buttonNames = LayoutButtonNames(pad, preferences_.buttonPrompts);
     if (absent) pad.held.clear();
@@ -237,6 +251,8 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
             fmt::format("layout for id {} set to preset {}", pad.id, preset.id))) {
             notice_ = loc::Tf("button_layout.preset_applied", loc::T(preset.key)); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;
         }
+    } else if (editable && action.kind == MenuAction::Chosen && ExtraOfRow(action.id)) {
+        ChangeExtraCopy(pad, *ExtraOfRow(action.id), action.text, view, submit);
     } else if (editable && action.kind == MenuAction::Activate && action.id == "remove") {
         if (ChangeLayout(pad, {}, view, submit, fmt::format("layout for id {} removed", pad.id))) {
             nav.Focus("preset", rows); notice_ = loc::T("button_layout.removed"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;

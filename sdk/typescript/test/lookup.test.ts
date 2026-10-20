@@ -1,11 +1,14 @@
-// Player lookup by Discord account against the real ember-bridge (built by
-// `cargo build -p ember-bridge` in server/ember), with a stand-in for Discord's
-// token and user endpoints. Requires EMBER_BRIDGE_TEST_BINARY from the tested build.
+// Player lookup by Discord account and by an account on a sign-in site
+// (Challonge, from the shipped definition) against the real ember-bridge
+// (built by `cargo build -p ember-bridge` in server/ember), with stand-ins
+// for Discord's and Challonge's sign-in endpoints. Requires
+// EMBER_BRIDGE_TEST_BINARY from the tested build.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { test } from "node:test";
 
-import { BridgeClient, BridgeError, TestPlayer } from "../src/index.ts";
+import { BridgeClient, BridgeError, TestPlayer, type Json } from "../src/index.ts";
 import { startBridge } from "./bridge-process.ts";
 
 const CLIENT_ID = "1546980049692135514";
@@ -94,6 +97,110 @@ test("a connection finds players by their connected Discord account", { timeout:
     await assert.rejects(provider.lookupPlayers(Array.from({ length: 33 }, (_, i) => String(1000 + i))), (error: BridgeError) => error.status === 400);
   } finally {
     discord.close();
+    await bridge.stop();
+  }
+});
+
+const CHALLONGE_CLIENT = "sdk-challonge-client";
+const CHALLONGE_SECRET = "sdk-challonge-secret";
+const ACCESS_TOKEN = "sdk-access-token-secret";
+
+/** A Challonge that signs every code in as `Player_1`. */
+async function startChallonge(): Promise<{ origin: string; close(): void }> {
+  const server = createServer((request, response) => {
+    request.resume();
+    request.on("end", () => {
+      const path = new URL(request.url ?? "/", "http://challonge").pathname;
+      const reply = (status: number, body: Json) => response.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
+      if (path === "/oauth/token") {
+        reply(200, { access_token: ACCESS_TOKEN, token_type: "Bearer", expires_in: 604800, scope: "me" });
+      } else if (path === "/v2.1/me.json" && request.headers.authorization === `Bearer ${ACCESS_TOKEN}`) {
+        reply(200, { data: { id: "1001", type: "user", attributes: { username: "Player_1" } } });
+      } else {
+        reply(404, {});
+      }
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return { origin: `http://127.0.0.1:${(server.address() as { port: number }).port}`, close: () => server.close() };
+}
+
+/** The shipped Challonge definition, pointed at a stand-in at `origin`. */
+function challongeSite(origin: string): Json {
+  const site = JSON.parse(readFileSync(new URL("../../../server/ember/bridge/deploy/sites/challonge.json", import.meta.url), "utf8")) as { [key: string]: Json };
+  const local = (url: Json) => `${origin}${new URL(url as string).pathname}`;
+  const user = site.user as { [key: string]: Json };
+  return { ...site, client_id: CHALLONGE_CLIENT, authorize_url: local(site.authorize_url!), token_url: local(site.token_url!), user: { ...user, url: local(user.url!) } };
+}
+
+test("a connection without the site in lookup_sites is refused a lookup on it", { timeout: 60_000 }, async () => {
+  const challonge = await startChallonge();
+  const bridge = await startBridge({
+    config: { sign_in_sites: [challongeSite(challonge.origin)] },
+    connection: { discord_lookup: true },
+    secrets: { site_client_secrets: { challonge: CHALLONGE_SECRET } },
+  });
+  try {
+    const provider = new BridgeClient({ origin: bridge.origin, credential: bridge.providerToken });
+    await assert.rejects(provider.lookupAccounts([{ site: "challonge", id: "Player_1" }]), (error: BridgeError) => error.status === 403 && error.code === "forbidden");
+  } finally {
+    challonge.close();
+    await bridge.stop();
+  }
+});
+
+test("a connection finds players by their connected Challonge account", { timeout: 60_000 }, async () => {
+  const challonge = await startChallonge();
+  const bridge = await startBridge({
+    config: { sign_in_sites: [challongeSite(challonge.origin)] },
+    connection: { lookup_sites: ["challonge"] },
+    secrets: { site_client_secrets: { challonge: CHALLONGE_SECRET } },
+  });
+  try {
+    const { origin } = bridge;
+    const provider = new BridgeClient({ origin, credential: bridge.providerToken });
+    assert.ok(((await provider.getCapabilities()).features as string[]).includes("sites"));
+    assert.deepEqual(await provider.getSignInSites(), [{
+      id: "challonge", display_name: "Challonge", sign_in: true, lookup_by: "username",
+      authorize_origin: challonge.origin, authorize_path: "/oauth/authorize",
+    }]);
+    assert.deepEqual(await provider.lookupAccounts([{ site: "challonge", id: "Player_1" }]), []);
+
+    // The player connects Challonge from Ember: the browser goes to
+    // Challonge, comes back with a code, and the bridge's page asks first.
+    const player = new TestPlayer({ origin });
+    const started = await player.startSiteConnect("challonge");
+    const authorize = new URL(started.authorize_url);
+    assert.equal(authorize.pathname, "/oauth/authorize");
+    assert.equal(authorize.searchParams.get("redirect_uri"), `${origin}/v1/sites/challonge/callback`);
+    const state = authorize.searchParams.get("state");
+    assert.ok(state);
+    const callback = await fetch(`${origin}/v1/sites/challonge/callback?code=sdk-code&state=${encodeURIComponent(state)}`);
+    const confirmation = /name="confirmation" value="([^"]+)"/.exec(await callback.text())?.[1];
+    assert.ok(confirmation, "the callback asks before connecting");
+    assert.equal((await player.siteAccount("challonge")).account, null);
+    const confirmed = await fetch(`${origin}/v1/sites/challonge/callback`, { method: "POST", body: new URLSearchParams({ confirmation, choice: "connect" }) });
+    assert.match(await confirmed.text(), /Challonge connected/);
+    assert.equal((await player.siteAccount("challonge")).account?.username, "Player_1");
+
+    // Found without case, as asked; a name nobody connected is left out.
+    const found = await provider.lookupAccounts([{ site: "challonge", id: "nobody" }, { site: "challonge", id: "PLAYER_1" }]);
+    assert.deepEqual(found.map((account) => [account.site, account.id, account.user_id, account.ember_id]), [["challonge", "PLAYER_1", "1001", player.emberId]]);
+    assert.ok(found[0]!.participant_id);
+    assert.ok(Math.abs(found[0]!.connected_at - Date.now() / 1000) < 60);
+    assert.deepEqual(await provider.lookupAccounts([{ site: "challonge", id: "player_1" }]), [{ ...found[0]!, id: "player_1" }]);
+    // Discord lookup is a setting of its own, and a site the bridge does not
+    // have is no site this connection may ask.
+    await assert.rejects(provider.lookupPlayers(["274220342558756145"]), (error: BridgeError) => error.status === 403);
+    await assert.rejects(provider.lookupAccounts([{ site: "startgg", id: "1234" }]), (error: BridgeError) => error.status === 403);
+    assert.deepEqual(await provider.lookupAccounts([{ site: "challonge", id: "not a name" }]), []);
+
+    // Neither the client secret nor the token reached the bridge's output.
+    const output = bridge.output();
+    assert.ok(output.includes("GET /v1/sites/challonge/callback 200"), output);
+    assert.ok(!output.includes(CHALLONGE_SECRET) && !output.includes(ACCESS_TOKEN), output);
+  } finally {
+    challonge.close();
     await bridge.stop();
   }
 });

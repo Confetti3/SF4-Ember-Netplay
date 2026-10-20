@@ -26,12 +26,11 @@ function Test-UpdaterDownload {
         $result.bytes = (Get-Item -LiteralPath $archive).Length
         $result.sha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
         if ($result.sha256 -ne $ExpectedSha256) { throw 'Selected asset SHA-256 mismatch' }
-        # The same extractor, by full path, as the shipped updater
-        # (github_release_client.cxx ExpandZipArchive); the native validator
-        # then applies the shipped package rules to what it wrote.
+        # The shipped updater's own extractor (ZipExtract.cxx), then the
+        # shipped package rules applied to what it wrote.
         $extract = Join-Path $root 'extracted'
         $null = New-Item -ItemType Directory -Path $extract
-        & "$env:SystemRoot\System32\tar.exe" -xf $archive -C $extract
+        & $Validator --extract $archive $extract | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Archive extraction failed ($LASTEXITCODE)" }
         $entries = @(Get-ChildItem -LiteralPath $extract -Force)
         $package = $extract

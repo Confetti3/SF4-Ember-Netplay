@@ -42,7 +42,6 @@ use serde_json::{Value, json};
 pub use close::{close, end_unkeyed};
 pub use create::create;
 pub use refusal::BluMintRefusal;
-use refusal::outcome;
 pub use report::{progress, status, status_report, submission, unopened_status};
 
 use crate::{
@@ -51,7 +50,8 @@ use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
-    routes::{discord, policy},
+    linking::{Ask, find_and_link},
+    routes::policy,
     util::outbound_client,
 };
 
@@ -130,9 +130,15 @@ pub async fn lookup(
     let ctx = Ctx::of(&state);
     let found = state
         .db
-        .write(move |tx| discord::find_and_link(tx, &ctx, &connection_id, &user_ids))
+        .write(move |tx| {
+            let asks = user_ids.iter().map(|id| Ask::discord(id)).collect();
+            let found = find_and_link(tx, &ctx, &connection_id, asks)?;
+            Ok(found
+                .into_iter()
+                .map(|player| player.ember_id)
+                .collect::<Vec<EmberId>>())
+        })
         .await?;
-    let found: Vec<EmberId> = found.into_iter().map(|player| player.ember_id).collect();
     state.committed();
     Ok(ok(&json!({ "discord": found })))
 }
@@ -146,6 +152,11 @@ const CALLBACK_LABEL: &str = "BluMint callbacks";
 /// once every route has the new one, the ones earlier registrations handed
 /// over are revoked. A registration that fails partway revokes nothing,
 /// since BluMint may hold either credential on each route.
+///
+/// The create URL goes last: registering it turns on automatic lobbies for
+/// every tournament of the game (BluMint's "Register your callbacks"), so the
+/// lookup and close it depends on are registered, and a failure before it
+/// leaves lobbies off.
 pub async fn register(state: &AppState, connection_id: &str) -> std::result::Result<(), String> {
     let Some((_, connection)) = state
         .config
@@ -192,12 +203,12 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
             "lookupPlayerUrl",
             LOOKUP_PATH,
         ),
+        ("/tournaments/match/setClose", "closeMatchUrl", CLOSE_PATH),
         (
             "/tournaments/match/setCreate",
             "createMatchUrl",
             MATCHES_PATH,
         ),
-        ("/tournaments/match/setClose", "closeMatchUrl", CLOSE_PATH),
     ] {
         if !policy::stored_enabled(state, connection_id).await {
             return Err(partway(disabled()));

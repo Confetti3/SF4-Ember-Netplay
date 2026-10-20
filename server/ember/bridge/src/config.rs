@@ -6,6 +6,12 @@ use std::{fs, path::Path, path::PathBuf};
 use ember_protocol::encoding::{OriginPolicy, check_origin, is_prefixed_id};
 use serde::{Deserialize, Serialize};
 
+pub use self::sites::SignInSite;
+use crate::linking::Site;
+
+mod deployed;
+pub mod sites;
+
 /// Provider kinds this build can serve. `direct` is a platform that calls
 /// the generic API itself with its provider credential; `mock` also gets the
 /// mock login pages when `mock_browser` is set; `blumint` also gets BluMint's
@@ -38,8 +44,13 @@ pub struct Config {
     /// their Ember ID. Off when absent.
     #[serde(default)]
     pub discord: Option<Discord>,
+    /// Sign-in sites, defined as data (`sites`), so a player can connect
+    /// their account on each to their Ember ID.
+    #[serde(default)]
+    pub sign_in_sites: Vec<SignInSite>,
     /// An owner-only file with the secrets of the services this bridge calls
-    /// (`integrations::Secrets`). Needed when `discord` is set.
+    /// (`integrations::Secrets`). Needed when `discord` or a sign-in site is
+    /// set.
     #[serde(default)]
     pub integration_secrets: Option<PathBuf>,
     /// Public rooms, listed by this bridge and hosted by a supervisor on this
@@ -84,6 +95,10 @@ pub struct Rooms {
     /// Its bearer secret is `rooms_supervisor_secret` in the integration
     /// secrets.
     pub supervisor_url: String,
+    /// Room tickets carry the joiner's skill badge. Games are rated either
+    /// way, so the bands can be calibrated before anyone sees one.
+    #[serde(default)]
+    pub skill_badges: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -112,6 +127,10 @@ pub struct Connection {
     /// (`POST /v1/players/lookup`). Kind `blumint` always may.
     #[serde(default)]
     pub discord_lookup: bool,
+    /// The sign-in sites the connection may find players by
+    /// (`POST /v1/players/lookup` `accounts`). Kind `blumint` never may.
+    #[serde(default)]
+    pub lookup_sites: Vec<String>,
     /// What a disputed match does. Stored with the connection's record the
     /// first time it is seen and never changed. Kind `blumint` restarts.
     #[serde(default)]
@@ -175,6 +194,14 @@ impl Connection {
         self.is_blumint() || self.discord_lookup
     }
 
+    /// Whether the connection may find players by their account on `site`.
+    pub fn finds_by(&self, site: &Site) -> bool {
+        match site {
+            Site::Discord => self.discord_lookup(),
+            Site::Configured(id) => self.lookup_sites.contains(id),
+        }
+    }
+
     /// What its disputed matches do; recorded with the connection.
     pub fn disputes(&self) -> Disputes {
         match (self.is_blumint(), self.disputes) {
@@ -192,10 +219,23 @@ impl Connection {
     /// The settings a platform may ask for (`docs/design/INTEGRATION_PATHS.md`).
     /// BluMint's are fixed by its kind.
     fn validate_settings(&self, config: &Config) -> Result<(), String> {
-        let chosen = self.discord_lookup || self.disputes.is_some() || self.results_url.is_some();
+        let chosen = self.discord_lookup
+            || !self.lookup_sites.is_empty()
+            || self.disputes.is_some()
+            || self.results_url.is_some();
         if self.is_blumint() && chosen {
             return Err(format!(
                 "{}: a blumint connection's lookup, disputes and results are fixed by its kind",
+                self.id
+            ));
+        }
+        if let Some(unknown) = self
+            .lookup_sites
+            .iter()
+            .find(|id| config.sign_in_site(id).is_none())
+        {
+            return Err(format!(
+                "{}: lookup_sites names {unknown:?}, which is no sign-in site",
                 self.id
             ));
         }
@@ -242,6 +282,10 @@ pub struct Policy {
     /// (`matches.ends_by`). None when only `match_expiry_hours` applies.
     /// BluMint's is `BLUMINT_MATCH_LIFETIME_SECS`.
     pub max_lifetime_secs: Option<u64>,
+    /// The platform fixes who may watch its matches (BluMint), so its
+    /// organizer's watch settings are read-only: the routes that change them
+    /// refuse (`routes::play::watch`).
+    pub fixed_watchers: bool,
 }
 
 /// The longest a match on a BluMint connection lives,
@@ -259,16 +303,19 @@ impl Policy {
             reviews_disputes: disputes == Disputes::Review,
             reports_progress: kind == BLUMINT,
             max_lifetime_secs: (kind == BLUMINT).then_some(BLUMINT_MATCH_LIFETIME_SECS),
+            fixed_watchers: kind == BLUMINT,
         }
     }
 }
+
+/// The largest configuration file the bridge reads.
+pub const MAX_CONFIG_LEN: usize = 64 * 1024;
 
 impl Config {
     pub fn load(path: &Path) -> Result<Self, String> {
         let text =
             fs::read(path).map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-        let mut config: Self = ember_protocol::json::parse_as(&text, 64 * 1024)
-            .map_err(|error| format!("invalid configuration: {error}"))?;
+        let mut config = Self::parse(&text)?;
         // Relative paths are relative to the configuration file.
         let base = path.parent().unwrap_or(Path::new("."));
         for file in [&mut config.database, &mut config.secrets]
@@ -281,6 +328,49 @@ impl Config {
         }
         config.validate()?;
         Ok(config)
+    }
+
+    fn parse(text: &[u8]) -> Result<Self, String> {
+        ember_protocol::json::parse_as(text, MAX_CONFIG_LEN)
+            .map_err(|error| format!("invalid configuration: {error}"))
+    }
+
+    /// A local development configuration with a mock provider, as
+    /// `ember-bridge init` writes it.
+    pub fn initial(bridge_id: String) -> Self {
+        Self {
+            bridge_id,
+            display_name: "Local Ember bridge".into(),
+            origin: "http://127.0.0.1:8787".into(),
+            listen: "127.0.0.1:8787".into(),
+            database: "bridge.sqlite3".into(),
+            secrets: "bridge-secrets.json".into(),
+            allow_loopback_http: true,
+            allow_private_webhooks: true,
+            mock_browser: true,
+            discord: None,
+            sign_in_sites: Vec::new(),
+            integration_secrets: None,
+            rooms: None,
+            match_expiry_hours: DEFAULT_MATCH_EXPIRY_HOURS,
+            tenants: vec![Tenant {
+                id: "local".into(),
+                name: "Local tournaments".into(),
+                connections: vec![Connection {
+                    id: "mock-local".into(),
+                    kind: "mock".into(),
+                    environment: "local".into(),
+                    display_name: "Mock provider".into(),
+                    enabled: true,
+                    api_base: None,
+                    discord_lookup: false,
+                    lookup_sites: Vec::new(),
+                    disputes: None,
+                    results_url: None,
+                    rooms: None,
+                }],
+            }],
+        }
     }
 
     /// How long a match nobody plays stays open, in seconds.
@@ -315,6 +405,18 @@ impl Config {
             if self.integration_secrets.is_none() {
                 return Err("discord needs integration_secrets for its client secret".into());
             }
+        }
+        for (index, site) in self.sign_in_sites.iter().enumerate() {
+            site.validate(self.policy())?;
+            if self.sign_in_sites[..index]
+                .iter()
+                .any(|other| other.id == site.id)
+            {
+                return Err(format!("sign-in site {:?} is defined twice", site.id));
+            }
+        }
+        if !self.sign_in_sites.is_empty() && self.integration_secrets.is_none() {
+            return Err("sign_in_sites need integration_secrets for their client secrets".into());
         }
         if let Some(rooms) = &self.rooms {
             if !is_loopback_origin(&rooms.supervisor_url) {
@@ -377,6 +479,10 @@ impl Config {
     fn is_api_base(&self, base: &str) -> bool {
         base.strip_suffix("/api")
             .is_some_and(|origin| check_origin(origin, self.policy()).is_ok())
+    }
+
+    pub fn sign_in_site(&self, id: &str) -> Option<&SignInSite> {
+        self.sign_in_sites.iter().find(|site| site.id == id)
     }
 
     pub fn connection(&self, id: &str) -> Option<(&Tenant, &Connection)> {
@@ -501,6 +607,7 @@ mod tests {
         assert!(with_settings(BLUMINT, json!({})).is_ok());
         for chosen in [
             json!({ "discord_lookup": true }),
+            json!({ "lookup_sites": ["challonge"] }),
             json!({ "disputes": "restart" }),
             json!({ "disputes": "review" }),
             json!({ "results_url": "https://bot.example/results" }),
@@ -509,7 +616,8 @@ mod tests {
         }
         // A mock connection, for local testing, may set all of them.
         let all = json!({
-            "discord_lookup": true, "disputes": "restart", "results_url": "https://bot.example/results",
+            "discord_lookup": true, "disputes": "restart",
+            "results_url": "https://bot.example/results",
             "rooms": { "max_open": 8 },
         });
         for kind in ["direct", "mock"] {
@@ -539,6 +647,35 @@ mod tests {
         assert!(with_results_url("https://bot.example:8443/results", true).is_ok());
         assert!(with_results_url("http://169.254.169.254/results", true).is_err());
         assert!(with_results_url("http://user:secret@127.0.0.1:9000/results", true).is_err());
+    }
+
+    #[test]
+    fn a_connection_looks_up_only_sites_the_bridge_has() {
+        let config = |lookup_sites: serde_json::Value| -> Result<(), String> {
+            let site: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/deploy/sites/challonge.json"
+                ))
+                .unwrap(),
+            )
+            .unwrap();
+            let config: Config = serde_json::from_value(json!({
+                "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
+                "display_name": "Test bridge", "origin": "https://bridge.example", "listen": "127.0.0.1:0",
+                "database": "bridge.sqlite3", "secrets": "secrets.json",
+                "integration_secrets": "integrations.json",
+                "sign_in_sites": [site],
+                "tenants": [{ "id": "t", "name": "T", "connections": [{
+                    "id": "bot", "kind": "direct", "environment": "staging", "display_name": "Bot",
+                    "lookup_sites": lookup_sites,
+                }] }],
+            }))
+            .unwrap();
+            config.validate()
+        };
+        assert!(config(json!(["challonge"])).is_ok());
+        assert!(config(json!(["startgg"])).is_err());
     }
 
     #[test]

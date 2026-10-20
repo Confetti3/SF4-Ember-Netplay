@@ -228,8 +228,12 @@ pub async fn bridge_at(
         allow_private_webhooks: true,
         mock_browser: false,
         discord: None,
+        sign_in_sites: Vec::new(),
         integration_secrets: rooms.then(|| "unused-in-tests.json".into()),
-        rooms: supervisor.map(|supervisor_url| config::Rooms { supervisor_url }),
+        rooms: supervisor.map(|supervisor_url| config::Rooms {
+            supervisor_url,
+            skill_badges: false,
+        }),
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {
             id: "local".into(),
@@ -242,6 +246,7 @@ pub async fn bridge_at(
                 enabled: true,
                 api_base: None,
                 discord_lookup: false,
+                lookup_sites: Vec::new(),
                 disputes: None,
                 results_url: None,
                 rooms: None,

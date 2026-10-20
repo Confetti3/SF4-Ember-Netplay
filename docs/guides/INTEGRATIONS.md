@@ -32,7 +32,12 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
   testing. The `blumint` kind serves BluMint's game partner API instead (see
   "BluMint" below).
 - Optionally, a player connects their Discord account to their Ember ID, so a
-  platform that finds players by Discord account gets their Ember ID.
+  platform that finds players by Discord account gets their Ember ID. The
+  same goes for an account on any sign-in site the operator configures, such
+  as Challonge (found by username) or start.gg (found by user ID).
+- A bracket run on Challonge, start.gg or a service of your own plays in
+  Ember through `ember-brackets`, which turns each open set into a match and
+  reports the score back (see "Bracket sites" below).
 - A connection's settings give any platform what BluMint has: finding players
   by Discord account, results sent to it, and disputed matches restarted
   rather than reviewed. With rooms allowed, a platform or bot opens public
@@ -218,6 +223,83 @@ open Ember (Linux browsers, or a PC where Ember has not been started yet), the
 page's Copy link and Paste match link on that screen do the same, or the player
 picks the match from the list.
 
+## Match watch
+
+An organizer, a caster or another approved viewer can watch a match played in
+Ember (`ember-room-v1`) from inside the match's own room, without being able
+to affect the set. The bridge names a watcher only when both players' games
+say they can read one (a current Ember's claim carries `"watch": true`, which
+a game sends only to a bridge that lists `matches.watch`) and the watcher's
+Ember build is the one both players run. Matches played on an Ember that
+cannot read watchers, such as Stable 1.3.0, never get a watcher, whatever a
+watcher declares. A bridge that serves watching lists `matches.watch` in its
+capabilities `features`.
+
+**Who may watch** is the organizer's choice, and the default is nobody, so a
+connection that does nothing changes nothing:
+
+- **Staff.** Ember IDs you approve for every match of your connection, such as
+  a TO or a caster. They can always watch.
+- **Link holders.** Off by default. When you turn it on, anyone who holds the
+  match's Play link and has an Ember ID may watch, up to 2 of them.
+- **Denials.** An Ember ID you deny for one match is out of it, staff or not.
+- At most 6 watchers watch one match, staff included. A staff watcher can take
+  the place of a link holder when the match is full.
+
+BluMint's connections cannot be opened to watchers: every write below answers
+`403 forbidden` with `details.reason` `connection_fixed`, and `spectators` in
+BluMint's create request stays ignored.
+
+**Address exposure.** A watcher joins the players' room, and the members of a
+room can learn each other's public IP addresses when Iroh finds a direct path.
+A watcher reaches player 1 (the game host) and the room's coordination leader,
+which is either player. With `link_holders` on, anyone who has the match link
+and a free Ember ID can learn a competing player's address in the middle of
+your event, which invites a flood from outside Ember. Staff, whom you approve
+by name, have the same reach. Ember cannot send only a watcher's links through
+its relay. Turn `link_holders` on only if you accept that, and tell your
+players.
+
+**What a watcher can do.** Nothing in the room but watch: no seat, queue,
+rules, chat, host powers or vote, and they never hold a game start. They
+leave by leaving the room. Each needs an Ember ID, made in the game in a
+moment, with no linked account.
+
+**How a watcher gets in.** The match's Play link opens Ember, which offers
+Watch to anyone who is not one of the players. The game asks the bridge every
+10 seconds (`POST /v1/matches/{id}/watch`, a `match.watch` proof from the
+watcher's own session) and is answered `waiting` with a `reason`, or `room`
+with the room and its invitation. The reasons are `no_room` (no room is
+published yet), `not_bound` (a player has not claimed, or the players' games
+do not both read watchers) and `full` (the cap or ceiling is reached, another
+watcher holds the same endpoint, or the endpoint is a player's own; ask
+again). It joins that room, and the players' next claims carry a binding that
+names it, so a change of policy, a denial or a watcher who goes quiet (60
+seconds) reaches the room within about one claim interval of the players (10
+seconds). A watcher is never given a binding. Refusals are `forbidden` with
+`details.reason` `not_allowed`, `revoked` or `fighter`, `incompatible_build` when
+the players run another Ember build, and `rate_limited` above 30 calls a minute.
+
+**Organizer routes** (organizer credential of the connection's tenant; the
+connection's provider credential may read):
+
+| Route | Does |
+|---|---|
+| `GET /v1/connections/{id}/watch` | `link_holders`, `link_holder_cap` (2), `ceiling` (6) and the staff list |
+| `PUT /v1/connections/{id}/watch` | `{"link_holders": true}`. Read the address exposure above first. |
+| `PUT` and `DELETE /v1/connections/{id}/watch/staff/{ember_id}` | Approve, or stop approving, an Ember ID. The `PUT` body is `{}` and the answer `{"ember_id", "added_at"}`; `DELETE` answers `204`. |
+| `PUT` and `DELETE /v1/matches/{id}/watch/denials/{ember_id}` | Deny, or allow again, one Ember ID for one match. The `PUT` body is `{}` and the answer `{"ember_id", "set_at"}`; `DELETE` answers `204`. |
+| `GET /v1/matches/{id}/watchers` | Everyone who asked to watch: `via` (`staff`, `link_holders`, `denied`, `none`), whether the binding names them (`bound`), first and last seen, and the denials |
+
+Every write is audited with the Ember ID it names (`on` or `off` for
+`link_holders`). Two watchers who ask for one endpoint get one place, the
+staff one or else the later arrival, and the loss is audited as
+`watch.endpoint_conflict`. The `play_url` of the match is the link watchers open,
+and no event kinds were added. The TypeScript SDK has `watchPolicy`,
+`setWatchLinkHolders`, `addWatchStaff`, `removeWatchStaff`, `denyWatcher`,
+`clearWatchDenial` and `matchWatchers`, and `TestPlayer` has `watchMatch` and
+`stopWatching`.
+
 ## Discord sign-in (optional)
 
 A bridge whose configuration has `discord` (the Discord application's
@@ -272,12 +354,212 @@ latest sign-in replaces both, once the player confirms moving an account
 from another Ember ID. A platform's links that a sign-in approved
 (`approved_via` `discord`) end when that account moves to another Ember ID or
 is disconnected, and the platform's next lookup links it where it now
-belongs. A link the player removes stays removed: lookups do not make it
-again until the player signs in with Discord again. Nothing else from Discord
-is stored. Without the client secret the
-bridge offers no sign-in and says so in its log, but every bridge lists
-`discord.accounts` and keeps `GET` and `DELETE /v1/discord`, so a player can
+belongs. A link a sign-in approved that the player removes stays removed:
+no account the player has connected (Discord's or a sign-in site's) makes
+it again on that connection, until the player signs in again with one of
+them, which gives that account's consent back. Removing a link made from a
+code withdraws nothing, as before. Nothing else from Discord is stored. Without
+the client secret the bridge offers no sign-in and says so in its log, but
+every bridge lists `discord.accounts` and keeps `GET` and `DELETE /v1/discord`, so a player can
 always see and disconnect an account connected earlier.
+
+## Sign-in sites (optional)
+
+Besides Discord, a bridge can offer sign-in with any site that has an OAuth
+authorization-code flow, such as Challonge or start.gg. A site is data, not
+code: the operator defines it in `sign_in_sites` in `bridge.json`, and a new
+site needs no new bridge build, migration or game translation. Example
+definitions ship in `server/ember/bridge/deploy/sites/` (`challonge.json`,
+`startgg.json`); copy one into `sign_in_sites` and set `client_id`:
+
+```json
+"sign_in_sites": [
+  {
+    "id": "startgg",
+    "display_name": "start.gg",
+    "client_id": "<the start.gg application's client ID>",
+    "scope": "user.identity",
+    "authorize_url": "https://start.gg/oauth/authorize",
+    "token_url": "https://api.start.gg/oauth/access_token",
+    "token_encoding": "json",
+    "token_params": { "scope": "user.identity" },
+    "user": {
+      "method": "POST",
+      "url": "https://api.start.gg/gql/alpha",
+      "body": { "query": "query CurrentUser { currentUser { id player { gamerTag } } }" },
+      "id_pointer": "/data/currentUser/id",
+      "username_pointer": "/data/currentUser/player/gamerTag"
+    },
+    "username_rule": { "characters": "printable", "max_length": 64, "case_insensitive": false },
+    "lookup_by": "user_id",
+    "hosts": ["start.gg", "api.start.gg"]
+  }
+]
+```
+
+- `id`: the site ID, 1 to 32 of `a-z`, `0-9` and `-`, never `discord`. Routes,
+  storage, lookups and claims name the site by it, so keep it once players
+  connect (`challonge-staging` beside `challonge` is fine).
+- `display_name`: what the pages and Ember show (Ember's row says
+  "Connect start.gg").
+- `client_id`, `scope`: the OAuth application's. Its client secret is
+  `site_client_secrets.<id>` in the integration secrets
+  (`set-integration-secret.sh site <id>`), and its redirect list must hold
+  `<origin>/v1/sites/<id>/callback`.
+- `authorize_url` and optional `authorize_params`: where the browser goes,
+  with `response_type=code`, `client_id`, `scope` (left out when empty),
+  `redirect_uri` and `state`, plus those parameters.
+- `token_url`, `token_encoding` (`form` or `json`) and optional
+  `token_params`: the code exchange, with `grant_type=authorization_code`,
+  `code`, `redirect_uri`, `client_id` and `client_secret` in the body, plus
+  those fields.
+- `user`: how to read who signed in, with the token as a bearer: `method`
+  (`GET` or `POST`), `url`, extra `headers`, an optional JSON `body` (POST
+  only, such as start.gg's GraphQL query), and JSON pointers `id_pointer` and
+  optional `username_pointer` into the answer. A body goes as
+  `Content-Type: application/json` unless `headers` names its own
+  `Content-Type`, which replaces it. `headers` names each header once and
+  cannot set `Authorization`, `Host`, `Content-Length`, `Transfer-Encoding`
+  or `Connection`. A whole number of zero or more is read as its decimal
+  digits. Without a username (no pointer, or nothing there to show) the
+  user ID is shown instead.
+- `username_rule`: `characters` (`letters_digits`, with ASCII punctuation in
+  `also`, or `printable`, anything but control characters), `max_length`, and
+  `case_insensitive`.
+- `lookup_by`: `username` or `user_id`, what a lookup's `id` names (see
+  "Connection settings"). `username` needs a `username_pointer`.
+- `hosts`: every URL above must be https on one of these hosts, with no port,
+  credentials or fragment. Each host is a public DNS name: an IP address,
+  `localhost`, a single-label name or one under a private suffix such as
+  `.local` or `.internal` is refused (local tests aside). Ember opens a
+  sign-in page only on the `authorize_url`'s origin and path, as the
+  capabilities list them.
+- `limits` (optional): `monthly_request_budget`, `daily_request_budget` and
+  `starts_per_hour`, below.
+
+A definition is trusted configuration, like the rest of `bridge.json`: it
+receives the site's client secret and decides where players' sign-in codes
+and tokens go, and what the bridge stores and shows about them. Write your
+own or copy the shipped examples; never load one from someone you would not
+give the client secret to. The bridge checks each definition when it starts
+and refuses one it cannot use. Every configured site is listed in the capabilities' `sign_in_sites`
+(`id`, `display_name`, `sign_in`, `lookup_by`, `authorize_origin`,
+`authorize_path`), with `sign_in` false while the integration secrets lack
+its client secret. Every bridge lists the `sites` feature, so Ember knows
+it has these routes, with or without sites. To take a site out, remove it
+from `sign_in_sites` and from every connection's `lookup_sites` in the same
+edit: the bridge refuses to start while a connection still names a site it
+does not have. The site then offers no sign-in and drops out of
+`sign_in_sites` and of lookups, but while accounts are still connected on
+it, `GET` and `DELETE /v1/sites/<id>` keep working for the signed-in player, so a player can still see and disconnect one
+(Ember lists only the configured sites, so that is through the API; the
+links it approved can also be removed from the player's links). Once none is
+left, its routes answer 404. Its rows come back into use if the site is
+configured again under the same ID.
+
+Sign-in works as Discord's does (above), on the site's own routes and with
+the same pages naming the Ember ID and the site:
+
+1. Ember's helper calls `POST /v1/sites/<id>/start` with a `site.connect`
+   proof and opens the returned `authorize_url` in the browser.
+2. The site sends the browser to `GET /v1/sites/<id>/callback`. The bridge
+   exchanges the code, reads the user ID and username, and drops the token.
+3. The page asks before connecting, or before moving an account another
+   Ember ID holds (`POST /v1/sites/<id>/callback`). An account whose username
+   the site's `username_rule` does not allow is not connected when lookups
+   match usernames, since no lookup could find it.
+4. `GET /v1/sites/<id>` shows the connected account, `DELETE
+   /v1/sites/<id>/start` (`site.cancel`) ends a sign-in in flight, and `DELETE
+   /v1/sites/<id>` (`site.remove`) disconnects the account.
+
+Proofs are bound to the exact path, so a proof for one site's route is
+refused on another's. A site the bridge does not have answers 404
+`not_found`, and its callback shows the browser a page saying the bridge
+does not offer that sign-in. Each site keeps its own accounts, sign-ins, withdrawals and
+request budget. Links a site's sign-in approved (`approved_via` `site`,
+claim `<id>:<user ID>`) follow the account exactly as Discord's do.
+
+### Request limits
+
+A site with `limits` is held to them; one without has only each Ember ID's
+ten starts an hour. A sign-in costs two requests (the token exchange and the
+user read), and the bridge spends at most `monthly_request_budget` per
+calendar month and `daily_request_budget` per day, both in UTC and counted in
+the database: it takes a sign-in's two before the exchange, so one the site
+refuses still counts both. At either budget a start answers `sign_in_busy`
+(503, retryable, with `Retry-After` until the next UTC day for the daily
+budget) and a sign-in already started ends with a page asking the player to
+try again later. Starts are also limited to `starts_per_hour` across the
+bridge, counted only for starts whose proof holds and that are stored; a
+start it refuses answers `sign_in_busy` too. The bridge logs a warning when
+80% of the month's budget is spent, and one line when a limit refuses (at
+most once an hour for `starts_per_hour`, once a day for either budget).
+
+Challonge's free API tier allows 500 requests a month, so its example
+definition sets 400 a month, 40 a day and 30 starts an hour. These limits
+bound what one day can cost; they do not stop a drain. Ember IDs cost nothing
+to make, so a determined actor can make throwaway ones and spend the day's
+share every day, keeping that site's sign-in busy for real players until the
+next UTC day. The rest of the month keeps its room for as long as a day's
+share times the days left fits in it (10 days at Challonge's example
+limits). The operator's levers are a smaller `daily_request_budget` or
+`starts_per_hour`, a paid tier with a larger `monthly_request_budget`, and
+the refusal lines in the log.
+
+The bridge counts only its own requests, made with its OAuth application.
+ember-brackets, the bracket connector, counts the requests it makes with an
+organizer's key separately, in its own process. Whether a site counts the
+two against one allowance depends on the site.
+
+### Usernames
+
+For a site whose lookups match usernames (Challonge's), the bridge keeps the
+username the site gave when the account connected, compared as the
+`username_rule` says, and lookups match on it; the site does not tell the
+bridge when an account renames. When another account connects with a name
+the bridge already holds, the older account stops answering for that name
+(it stays connected, and answers for whatever name it next connects with).
+What this cannot catch: a player who renamed is still found under the old
+name, so if someone who never connected to Ember takes that name, a lookup
+for it finds the player who gave it up. Comparing the name with the site does
+not help, since both had it. Each answer carries `connected_at`, when the
+bridge last saw the account with that name: a connector can refuse names
+older than it trusts, or ask its players to connect again before an event.
+
+A site whose lookups name user IDs (start.gg's) has none of this: its
+usernames (start.gg gamer tags, which many players can share) are only
+shown, and lookups match the user ID exactly.
+
+The form a lookup matches is stored when an account connects. Changing a
+live site's `username_rule` (its characters, length or case) or its
+`lookup_by` therefore does not apply to accounts already connected: lookups
+by username miss them (a site switched to `username` stored no usernames to
+match) until each player connects that account again. Plan such a change
+like a new site, and ask players to reconnect.
+
+## Bracket sites (Challonge, start.gg, your own)
+
+The bridge knows players, matches and results, and names no site. Everything
+specific to a service is an adapter around it:
+
+- A sign-in site (above) lets players connect their account on that service,
+  so the service's entries can be matched to Ember IDs.
+- `ember-brackets` (`server/ember/brackets`) is a small service that runs as
+  a `direct` connection with `lookup_sites` (and `discord_lookup` for
+  start.gg's linked Discord accounts) and a `results_url`. For each
+  tournament in its config it reads the open sets, finds both players,
+  creates an `ember-room-v1` match with the round's games to win, marks the
+  set underway, and reports the score when the bridge sends the result. It
+  never writes over a set the organizer decided.
+- Its adapters are `challonge`, `startgg`, and `http`. The `http` adapter
+  calls a service of your own with a small JSON contract, so any bracket
+  tool written in any language can be played in Ember without changes to
+  Ember. The adapter interface and the `http` contract are in
+  `server/ember/brackets/ADAPTERS.md`; setup, request budgets and limits are
+  in its `README.md`.
+
+A platform that would rather create matches itself keeps using the API in
+this guide directly; the connector is one client of it.
 
 ## BluMint
 
@@ -295,7 +577,7 @@ the connection's provider credential as `Authorization: Bearer`:
   is the match's `external_match_id` (`blumint:<key>`), so it makes no other
   match for as long as the bridge keeps that one. Refusals answer
   BluMint's registry codes at the top level (`invalid_request`,
-  `match_unsupported`, `key_reused`, `player_unlinked` and `423`
+  `match_unsupported`, `idempotency_key_reused`, `player_unlinked` and `423`
   `player_busy`), never the bridge's error envelope.
 - `POST /v1/blumint/matches/close` takes `{ idempotencyKey, reason }`: it
   ends the match made under that creation key, however old, and closes the
@@ -311,7 +593,9 @@ game ends with another to come; a
 `progress` after each game won that does not end
 the set; and the `result`, each team with its `wins`. A cancelled match is an `abort` with
 the wins so far and `retryable: true`, which BluMint answers by asking for
-the set again with those wins as `startingWins`. BluMint has no review step,
+the set again with those wins as `startingWins`. Every report names the
+creation that made the match as `idempotencyKey` (its `external_match_id`
+without `blumint:`), which BluMint requires. BluMint has no review step,
 so a match that would go to `needs_review` (the two games disagree, a report
 never arrives, a player's link ends) is cancelled instead. A match nobody
 plays expires after a day at most and is an `abort` with `retryable: false`, so
@@ -356,6 +640,7 @@ this, can run their own bridge and room supervisor. The contract is
   "id": "night-bot", "kind": "direct", "environment": "production",
   "display_name": "Fight Night bot",
   "discord_lookup": true,
+  "lookup_sites": ["challonge", "startgg"],
   "disputes": "restart",
   "results_url": "https://bot.example/ember/results",
   "rooms": { "max_open": 8 }
@@ -365,8 +650,21 @@ this, can run their own bridge and room supervisor. The contract is
 - `discord_lookup`: `POST /v1/players/lookup` with `{"discord": [...]}` (at
   most 32 Discord user IDs) answers the players connected to them, with their
   Ember ID and `participant_id`, and links them on the connection the way
-  BluMint's lookup does. A link the player removed is not made again until
-  they sign in with Discord again.
+  BluMint's lookup does. A link a sign-in approved that the player removes
+  stays removed: no account the player has connected (Discord's or a
+  sign-in site's) makes it again on that connection, until the player signs
+  in again with one of them, which gives that account's consent back.
+  Removing a link made from a code withdraws nothing, as before.
+- `lookup_sites`: the sign-in sites (by ID) whose accounts the connection
+  may find players by. The same lookup takes `{"accounts": [{"site": "...",
+  "id": "..."}]}`, each `id` a username or user ID as that site's
+  `lookup_by` says (Challonge usernames without case, start.gg user IDs
+  exactly), and answers them in `accounts` (`site`, `id`, `user_id`,
+  `ember_id`, `participant_id`, `connected_at`), left out when empty. An
+  `id` the site's accounts cannot have finds no one, as a Discord ID that is
+  no snowflake does, and the rest of the lookup still answers. Each list,
+  and each site, needs its own setting; together they name at most 32
+  accounts.
 - `disputes`: `"review"` (the default) or `"restart"`, which cancels a match
   that would wait in `needs_review`. It is recorded with the connection the
   first time it is seen and never changes; use a new connection to change it.

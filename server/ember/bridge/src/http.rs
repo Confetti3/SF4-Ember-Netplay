@@ -69,13 +69,19 @@ pub fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
         })
 }
 
-/// The `Idempotency-Key` header: 1 to 128 visible ASCII characters.
+/// Whether `key` is one a write route takes as an `Idempotency-Key`: 1 to 128
+/// visible ASCII characters. A route handed any other key has nothing under it.
+pub fn is_idempotency_key(key: &str) -> bool {
+    (1..=128).contains(&key.len()) && key.bytes().all(|b| b.is_ascii_graphic())
+}
+
+/// The `Idempotency-Key` header, which must be `is_idempotency_key`.
 pub fn idempotency_key(headers: &HeaderMap) -> Result<String> {
     let key = headers
         .get("idempotency-key")
         .and_then(|value| value.to_str().ok())
         .ok_or_else(|| ApiFailure::invalid("An Idempotency-Key header is required."))?;
-    if key.is_empty() || key.len() > 128 || !key.bytes().all(|b| b.is_ascii_graphic()) {
+    if !is_idempotency_key(key) {
         return Err(ApiFailure::invalid(
             "The Idempotency-Key header is invalid.",
         ));

@@ -63,6 +63,7 @@ impl PublicRoomProof {
             room: self.room,
             capability: self.capability,
             build: self.build.clone(),
+            observer: false,
         }
     }
 }
@@ -381,7 +382,7 @@ pub(crate) async fn accept_public_control_at(
         let now = clock()?;
         policy
             .check(invite, &proof, connection.remote_id(), now, &held)
-            .map(|ticket| Some((ticket.ember_id.clone(), ticket)))
+            .map(Some)
     })
     .await
 }

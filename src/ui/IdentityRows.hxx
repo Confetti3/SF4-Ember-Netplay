@@ -27,6 +27,10 @@ inline const netplay::IdentityBridge* FirstService(const ShellView& v) {
     const auto it = std::find_if(v.identity.bridges.begin(), v.identity.bridges.end(), CountsAsService);
     return it == v.identity.bridges.end() ? nullptr : &*it;
 }
+// Why the runtime would not pass an identity request to the helper, in words.
+inline std::string RefusalText(const ShellView& v) {
+    return v.identityRefusal.empty() ? std::string(loc::T("identity.refused.helper")) : std::string(loc::T(v.identityRefusal.c_str()));
+}
 // A service's address, saying when it is built into this version of Ember.
 inline std::string ServiceDetail(const netplay::IdentityBridge& bridge) {
     return bridge.builtin ? loc::Tf("identity.service_builtin", bridge.origin) : bridge.origin;

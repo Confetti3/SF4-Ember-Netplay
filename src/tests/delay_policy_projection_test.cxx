@@ -36,7 +36,7 @@ struct Room {
 			join.username = "Member-" + std::to_string(connection); join.sidecarHash = "build"; join.port = 30000;
 			join.customRooms = true; join.roomProtocol = room::ProtocolVersion;
 			protocol::SessionHelloMsg hello; hello.admission = json(join);
-			if (serverOwned) server.SetConnectionAccount(connection, "ember-" + std::to_string(connection));
+			if (serverOwned) server.SetConnectionAdmission(connection, {"ember-" + std::to_string(connection)});
 			Send(connection, json(hello));
 		}
 		server.AdvanceCustomRoom(1000);

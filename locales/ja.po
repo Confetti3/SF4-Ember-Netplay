@@ -1116,6 +1116,12 @@ msgstr "表示の高速化（遅延1フレーム減）"
 msgid "player.faster_display_detail"
 msgstr "ゲームが各フレームを1フレーム遅れて表示する代わりに、準備ができしだい表示します。このPCでゲームが60fpsを下回る場合はオフにしてください。このPCだけに影響します。相手がオンにする必要はありません。変更は次にゲームを起動したときに反映されます。"
 
+msgid "player.borderless"
+msgstr "ボーダーレス"
+
+msgid "player.borderless_detail"
+msgstr "ゲームが枠のないウィンドウで画面を埋め、画面本来の解像度の16:9で描画されます。横長や縦長の画面では黒帯が表示されます。オンの間は、Alt+Enterとゲーム本体の解像度・フルスクリーン設定は効きません。そこでの選択はオフにしたときのために保存されます。このPCだけに影響します。変更は次回ゲーム起動時に反映されます。"
+
 
 
 msgid "settings.interface_title"
@@ -1377,7 +1383,13 @@ msgid "room.private_status"
 msgstr "プライベートルーム / 招待者のみ"
 
 msgid "room.tournament_status"
-msgstr "大会の試合、{0}本先取。参加できるのはこの試合の2人だけです。"
+msgstr "大会の試合、{0}本先取。プレイできるのはこの試合の2人だけです。"
+
+msgid "room.tournament_status_watched"
+msgstr "大会の試合、{0}本先取。{1}人が観戦中です。"
+
+msgid "room.tournament_watching"
+msgstr "大会の試合を観戦中です。プレイできるのはこの試合の2人だけです。"
 
 msgid "room.reconnecting"
 msgstr "ルームに再接続中..."
@@ -2596,6 +2608,18 @@ msgstr "着席中"
 msgid "room.status.ready"
 msgstr "準備完了"
 
+msgid "class.master"
+msgstr "マスター"
+
+msgid "class.grand_master"
+msgstr "グランドマスター"
+
+msgid "class.tip"
+msgstr "クラス {0}"
+
+msgid "class.unsettled"
+msgstr "最近の対戦がないため、変わっている可能性があります。"
+
 msgid "room.status.playing"
 msgstr "対戦中"
 
@@ -2682,6 +2706,9 @@ msgstr "{0} / ホスト"
 
 msgid "room.member_status"
 msgstr "{0}"
+
+msgid "room.member.watcher"
+msgstr "観戦者"
 
 msgid "room.members"
 msgstr "メンバー"
@@ -3359,6 +3386,12 @@ msgstr "観戦の操作を送信できませんでした。再試行中です。
 msgid "runtime.return_main_menu"
 msgstr "ルームを開く前にゲーム本体のメインメニューに戻ってください。"
 
+msgid "runtime.in_tournament_match"
+msgstr "大会の試合をプレイ中、または観戦中です。別のルームを開いたり参加したりする前に、試合を終えるか、「大会の試合」で中止してください。"
+
+msgid "runtime.watch_leave_room"
+msgstr "大会の試合を観戦する前に、今いるルームから退出してください。"
+
 msgid "runtime.tournament_result_saving"
 msgstr "前の試合の結果を保存しています。数秒後にもう一度お試しください。"
 
@@ -3645,7 +3678,7 @@ msgid "identity.local_passphrase"
 msgstr "このPCのパスフレーズ"
 
 msgid "identity.local_passphrase_detail"
-msgstr "WineとProtonではWindowsの鍵保護を使えないため、パスフレーズで鍵を保護します。ゲームを起動するたびに一度入力します。"
+msgstr "WineとProton（Steam Deckなど）では通常の鍵保護を使えないため、パスフレーズで鍵を保護します。ゲームを起動するたびに一度入力します。"
 
 msgid "identity.repeat_passphrase"
 msgstr "パスフレーズを再入力"
@@ -3667,6 +3700,9 @@ msgstr "Ember IDを作成"
 
 msgid "identity.enable_detail"
 msgstr "このPCに鍵を作成します。このWindowsアカウントだけが使用できます。"
+
+msgid "identity.enable_passphrase_detail"
+msgstr "上のパスフレーズで保護された鍵をこのPCに作成します。"
 
 msgid "identity.leave_room"
 msgstr "Ember IDを変更するには、ルームから退出してメインメニューに戻ってください。"
@@ -3877,6 +3913,84 @@ msgstr "別のDiscordアカウントを使う"
 
 msgid "connect.change_detail"
 msgstr "ブラウザーでDiscordを開き、代わりに別のアカウントを連携します。その後は、大会サイトでもそのアカウントを使う必要があります。"
+
+msgid "site.title"
+msgstr "{0}を連携"
+
+msgid "site.row_detail"
+msgstr "{0}アカウントを連携すると、{0}の大会があなたのEmber IDを見つけられるようになります。"
+
+msgid "site.go_detail"
+msgstr "{0}を連携すると、{0}の大会があなたのEmber IDを見つけられるようになります。Emberがブラウザーで{0}を開きます。そこで、大会で使うアカウントで承認してください。"
+
+msgid "site.setting_up_detail"
+msgstr "Emberがブラウザーで{0}を開いています。"
+
+msgid "site.waiting"
+msgstr "ブラウザーで承認してください。{0}が連携されると、この画面が更新されます。"
+
+msgid "site.waiting_label"
+msgstr "{0}を待っています"
+
+msgid "site.waiting_detail"
+msgstr "ブラウザーで、大会で使う{0}アカウントで承認してください。この画面は自動で更新されます。"
+
+msgid "site.connected"
+msgstr "{0}連携済み"
+
+msgid "site.connected_detail"
+msgstr "{0}の大会がこのアカウントからあなたを見つけられるようになりました。"
+
+msgid "site.change"
+msgstr "別の{0}アカウントを使う"
+
+msgid "site.change_detail"
+msgstr "ブラウザーで{0}を開き、代わりに別のアカウントを連携します。その後は、大会でもそのアカウントを使う必要があります。"
+
+msgid "site.remove_detail"
+msgstr "このサービスでこの{0}アカウントとEmber IDの連携を解除します。{0}の大会はこのアカウントからあなたを見つけられなくなります。"
+
+msgid "site.cancel_detail"
+msgstr "待機をやめます。準備ができたら、もう一度「{0}を連携」を選んでください。"
+
+msgid "site.off"
+msgstr "{0}でのサインインは無効です"
+
+msgid "site.off_detail"
+msgstr "この大会サービスでは現在{0}でのサインインを利用できません。しばらくしてからもう一度お試しください。"
+
+msgid "site.retry_detail"
+msgstr "{0}アカウントをもう一度読み込みます。"
+
+msgid "site.opened"
+msgstr "ブラウザーで{0}へのサインインを完了してください。"
+
+msgid "site.done"
+msgstr "{0}を{1}として連携しました。"
+
+msgid "site.removed"
+msgstr "{0}アカウントの連携を解除しました。"
+
+msgid "site.cancelled"
+msgstr "{0}の待機をやめました。"
+
+msgid "site.busy"
+msgstr "現在{0}でのサインインが混み合っています。しばらくしてからもう一度お試しください。"
+
+msgid "site.gone"
+msgstr "この大会サービスでは{0}でのサインインを利用できなくなりました。"
+
+msgid "site.no_service"
+msgstr "Emberの大会サービスが設定されていません"
+
+msgid "site.no_service_detail"
+msgstr "{0}はEmberの大会サービスを通じて連携します。先に「連携アカウント」でサービスを探してから、ここに戻ってください。"
+
+msgid "site.screen"
+msgstr "サイトアカウント"
+
+msgid "identity.failure.browser"
+msgstr "Emberはブラウザーを開けませんでした。"
 
 msgid "connect.link_waiting"
 msgstr "大会サイトからDiscordの連携を求められました。ルームから退出すると、Emberが「Discordを連携」を開きます。"
@@ -4204,6 +4318,63 @@ msgstr "この試合は一覧にありません。別のプレイヤーの試合
 
 msgid "tournament.failure.link_service"
 msgstr "連携アカウントでこの大会サービスを信頼してから、試合リンクをもう一度開いてください。"
+
+msgid "tournament.watch.row"
+msgstr "この試合を観戦"
+
+msgid "tournament.watch.row_detail"
+msgstr "観戦者はルームから試合を見られます。プレイやチャットはできず、観戦できる人は主催者が決めます。"
+
+msgid "tournament.watch.stop_detail"
+msgstr "試合のルームから退出します。この一覧からもう一度観戦できます。"
+
+msgid "tournament.watch.needs_id"
+msgstr "試合を観戦するにはEmber IDが必要です。ここで作成できます。すぐに終わります。"
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "この試合の大会サービスはまだ信頼されていません。連携アカウントで追加してください。"
+
+msgid "tournament.watch.state.asking"
+msgstr "大会サービスに問い合わせ中です。"
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "プレイヤーが試合のルームを開くのを待っています。"
+
+msgid "tournament.watch.state.full"
+msgstr "この試合は主催者が許可した観戦者数に達しています。空きを待っています。"
+
+msgid "tournament.watch.state.joining"
+msgstr "試合のルームに参加中です。"
+
+msgid "tournament.watch.state.watching"
+msgstr "{0} vs {1}を観戦中です。"
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "この試合の主催者は観戦を許可していません。"
+
+msgid "tournament.watch.refused.revoked"
+msgstr "主催者によってこの試合の観戦者から外されました。"
+
+msgid "tournament.watch.refused.fighter"
+msgstr "あなたはこの試合のプレイヤーです。代わりに「プレイ」を使ってください。"
+
+msgid "tournament.watch.refused.build"
+msgstr "プレイヤーが使っているEmberのバージョンが異なります。観戦には同じバージョンが必要です。"
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "この大会サービスは観戦に対応していません。"
+
+msgid "tournament.watch.refused.other_room"
+msgstr "別のルームにいるため、観戦を終了しました。ルームから退出して、もう一度観戦してください。"
+
+msgid "tournament.watch.finished_notice"
+msgstr "観戦していた試合が終了しました。"
+
+msgid "tournament.watch.removed_notice"
+msgstr "観戦を終了しました。主催者により外されました。"
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "試合のルームが閉じられました。"
 
 msgid "rules.set_length"
 msgstr "セットの長さ"
@@ -5497,6 +5668,36 @@ msgstr "選択してから、Emberのメニューで戻るボタンを押して�
 
 msgid "button_layout.menu_taken"
 msgstr "{0}はすでに{1}です。別のボタンを選んでください。"
+
+msgid "button_layout.extra.touchpad"
+msgstr "タッチパッド"
+
+msgid "button_layout.extra.home"
+msgstr "ホームボタン"
+
+msgid "button_layout.extra.mute"
+msgstr "ミュートボタン"
+
+msgid "button_layout.extra.misc"
+msgstr "追加ボタン"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "右パドル{0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "左パドル{0}"
+
+msgid "button_layout.extra_detail"
+msgstr "{0}がコピーするボタンを選んでください。{0}を押すと、そのボタンと同じ動作になります。"
+
+msgid "button_layout.extra_copy"
+msgstr "{0}と同じ"
+
+msgid "button_layout.extra_set"
+msgstr "{0}は{1}として動作します。"
+
+msgid "button_layout.extra_off"
+msgstr "{0}には何も割り当てられていません。"
 
 msgid "room.delay_policy"
 msgstr "ルームの入力遅延"

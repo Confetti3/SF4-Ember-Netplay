@@ -37,12 +37,14 @@ namespace sf4e {
 		// export is heard wherever the window is; a
 		// watched match runs on but stays muted behind as before. The menu
 		// changes only what is polled, never the sound or the running.
-		inline Policy PolicyFor(bool setting, bool exporting, bool watching, bool menu = false) {
+		// unattended: no person is at the machine (the in-game self-test), so
+		// the game runs on behind another window like a watched match.
+		inline Policy PolicyFor(bool setting, bool exporting, bool watching, bool menu = false, bool unattended = false) {
 			Policy policy;
 			policy.backgroundInput = setting || menu;
 			policy.menuOnly = menu && !setting;
 			policy.keepSound = setting || exporting;
-			policy.keepRunning = exporting || watching;
+			policy.keepRunning = exporting || watching || unattended;
 			policy.keepSoundMinimized = exporting;
 			return policy;
 		}

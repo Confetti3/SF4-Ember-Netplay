@@ -3,6 +3,7 @@
 #include "sf4e__Gamepads.hxx"
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__Overlay.hxx"
+#include "sf4e__SelfTest.hxx"
 #include <ctime>
 #include "../ui/ButtonLayoutScreen.hxx"
 
@@ -124,7 +125,7 @@ void CaptureMenuInput() {
     for (auto& pad : runtime->pads) {
         if (pad.state == gamepads::RowState::Absent) {
             const auto match = std::find_if(runtime->preferences.buttonLayouts.begin(), runtime->preferences.buttonLayouts.end(), [&](const gamepads::StoredLayout& layout) { return gamepads::Same(layout.identity, pad.identity); });
-            if (match != runtime->preferences.buttonLayouts.end()) { pad.layout = match->buttons; pad.table = match->buttons; pad.menu = match->menu; }
+            if (match != runtime->preferences.buttonLayouts.end()) { pad.layout = match->buttons; pad.table = match->buttons; pad.menu = match->menu; pad.extras = match->extras; }
         }
         pad.buttonNames = ui::LayoutButtonNames(pad, runtime->preferences.buttonPrompts);
         if (pad.name.empty() && pad.state == gamepads::RowState::Steam) pad.name = loc::T("controllers.steam_name");
@@ -215,9 +216,9 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
         if (!CanEditButtonLayoutNow() || runtime->padLayer != gamepads::Layer::Active ||
             (pad.state != gamepads::RowState::Recognised && pad.state != gamepads::RowState::Steam)) return;
         if (request.kind == Kind::Layout) {
-            if (!gamepads::ValidLayout(request.buttons) || !gamepads::ValidMenuBinding(request.menu)) return;
+            if (!gamepads::ValidLayout(request.buttons) || !gamepads::ValidMenuBinding(request.menu) || !gamepads::ValidExtraCopies(request.extras)) return;
             const auto dropped = gamepads::UpsertLayout(runtime->preferences.buttonLayouts,
-                {pad.identity, request.buttons, static_cast<std::int64_t>(std::time(nullptr)), request.menu});
+                {pad.identity, request.buttons, static_cast<std::int64_t>(std::time(nullptr)), request.menu, request.extras});
             if (dropped) spdlog::info("Input: layout for id {} dropped, oldest of 33", gamepads::IdentityHash(*dropped));
         } else gamepads::RemoveLayout(runtime->preferences.buttonLayouts, pad.identity);
         Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
@@ -283,6 +284,8 @@ bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     if(!runtime||!runtime->attached)return false;
     const bool valid=side==runtime->matchInputSide&&input::ReadAssignedInput(runtime->matchInput,side,mapped,raw);
     runtime->matchInputFault=!valid;
+    // The tournament self-test plays its own fighter; nothing without SF4E_SELFTEST.
+    selftest::MatchInput(side,mapped,raw);
     return valid;
 }
 

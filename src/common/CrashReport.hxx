@@ -72,6 +72,9 @@ inline const char* ExitCodeName(uint32_t code) {
 	case 0xC0000135u: return "DLL not found (STATUS_DLL_NOT_FOUND)";
 	case 0xC0000139u: return "entry point not found (STATUS_ENTRYPOINT_NOT_FOUND): a loaded DLL lacks an export, often a GGPO.dll outside the package";
 	case 0xC0E90002u: return "blocked by Windows code integrity (STATUS_SYSTEM_INTEGRITY_POLICY_VIOLATION): Smart App Control or an application control policy refused a file";
+	// Windows ends a window marked Not Responding with this code when the
+	// player closes it, so it is a hang rather than a fault.
+	case 0xCFFFFFFFu: return "ended by Windows as Not Responding: the game froze and its window was closed";
 	default: return "unknown";
 	}
 }
@@ -103,6 +106,34 @@ inline size_t FormatCrashHeader(char* out, size_t size, const CrashFacts& facts)
 		(unsigned long long)facts.moduleOffset, facts.threadId, facts.message ? facts.message : "");
 	if (written < 0) { out[0] = '\0'; return 0; }
 	return (size_t)written < size ? (size_t)written : size - 1;
+}
+
+// True when the 7 bytes before a return address end in an x86 call: E8
+// rel32, or FF /2 through a register, [register], [register+disp] or
+// [disp32], with or without a SIB byte. A stack word that passes is
+// probably a caller; one that fails is data or a pushed constant.
+inline bool EndsInCall(const uint8_t before[7]) {
+	const uint8_t* at = before + 7; // at[-n] is the byte n before the return address
+	if (at[-5] == 0xE8) return true;
+	if (at[-2] == 0xFF && ((at[-1] & 0xF8) == 0x10 || (at[-1] & 0xF8) == 0xD0) && at[-1] != 0x14 && at[-1] != 0x15) return true;
+	if (at[-3] == 0xFF && (at[-2] & 0xF8) == 0x50 && at[-2] != 0x54) return true;
+	// FF 14 SIB is 3 bytes, unless the SIB base is 101, which adds a disp32.
+	if (at[-3] == 0xFF && at[-2] == 0x14 && (at[-1] & 7) != 5) return true;
+	if (at[-4] == 0xFF && at[-3] == 0x54) return true;
+	if (at[-6] == 0xFF && (at[-5] == 0x15 || ((at[-5] & 0xF8) == 0x90 && at[-5] != 0x94))) return true;
+	if (at[-7] == 0xFF && at[-6] == 0x94) return true;
+	if (at[-7] == 0xFF && at[-6] == 0x14 && (at[-5] & 7) == 5) return true; // call [index*scale+disp32]
+	return false;
+}
+
+// Appends " Module+0xOffset" to a callers line of `size` bytes; false when
+// it no longer fits.
+inline bool AppendCaller(char* out, size_t size, size_t& length, const char* module, uint64_t offset) {
+	if (!out || length >= size) return false;
+	const int written = snprintf(out + length, size - length, " %s+0x%llX", module && module[0] ? module : "?", (unsigned long long)offset);
+	if (written < 0 || (size_t)written >= size - length) { out[length] = '\0'; return false; }
+	length += (size_t)written;
+	return true;
 }
 
 // Free virtual memory seen by a walk over the address space. For the

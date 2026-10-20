@@ -89,6 +89,27 @@ std::vector<json> Watches(FakeHelperPipe& pipe, std::size_t count = 1) {
 	return found;
 }
 
+// The join the room sends its helper says it watches a tournament match only
+// when it does: a plain join is the message every helper reads.
+void TestJoinWire() {
+	for (const bool observer : {false, true}) {
+		FakeHelperPipe pipe;
+		platform::HelperClient helper;
+		pipe.Connect(helper);
+		session::IrohRoom room(helper);
+		CHECK(room.Join("invitation", "build", observer));
+		json join;
+		for (int wait = 0; wait < 2000 && join.is_null(); ++wait) {
+			pipe.Drain();
+			for (const auto& command : pipe.received)
+				if (command.is_object() && command.value("type", std::string()) == "join") join = command;
+			if (join.is_null()) Sleep(1);
+		}
+		CHECK(join.is_object() && join.at("invitation") == "invitation" && join.at("build") == "build");
+		CHECK(join.contains("observer") == observer && (!observer || join.at("observer") == true));
+	}
+}
+
 void TestIrohRoom() {
 	FakeHelperPipe pipe;
 	platform::HelperClient helper;
@@ -189,6 +210,7 @@ void TestWanted() {
 
 int main() {
 	TestSubscription();
+	TestJoinWire();
 	TestIrohRoom();
 	TestPulse();
 	TestWanted();

@@ -27,16 +27,23 @@
 //! - `{ "type": "hosted", "invitation": "...", "region": "..." }`, exactly
 //!   once and before anything else. The supervisor waits 30 s for it.
 //! - `{ "type": "status", "members": 0, "tables_playing": 0,
-//!   "invitation": "...", "banned": ["emb_..."], "details": { ... } }`
+//!   "invitation": "...", "banned": ["emb_..."], "details": { ... },
+//!   "games": [ ... ] }`
 //!   whenever something changes. It always carries the current invitation,
-//!   which changes as it renews; `tables_playing`, `banned` and `details` may
-//!   be left out. `details` is the room as the room host sees it for the
+//!   which changes as it renews; `tables_playing`, `banned`, `details` and
+//!   `games` may be left out. `details` is the room as the room host sees it for the
 //!   listing: `{ "name", "capacity", "locked", "host_name", "fighters",
 //!   "set_format", "rotation", "own_delay" }` (`own_delay` only when true). The supervisor does not read it: it passes
 //!   a JSON object of at most 2 KB on to the bridge as it is, unknown keys
 //!   included, and drops anything else (another type, a larger object, one
 //!   nested deeper than the supervisor allows) without treating the line as
 //!   an error. It must still be well-formed JSON, like the rest of the line.
+//!   `games` is the room's recent won games for the skill rating, oldest
+//!   first: `[{ "table": 0, "generation": 7, "winner": "emb1_...",
+//!   "loser": "emb1_..." }]`. The supervisor treats it like `details`: it
+//!   does not read it, passes an array of at most `MAX_GAMES_BYTES` on as it
+//!   is, and drops anything else without treating the line as an error. The
+//!   bridge judges each game.
 //! - `{ "type": "closed", "reason": "..." }`, optionally, before the child
 //!   exits on its own (the room host says it when its last member leaves on
 //!   purpose, then takes a few seconds to close). The room leaves the list at
@@ -67,12 +74,20 @@ pub const MAX_DETAILS_BYTES: usize = 2048;
 /// level further down, from ever failing on a hostile value.
 pub const MAX_DETAILS_DEPTH: usize = 8;
 
+/// The most a status line's `games` may weigh as compact JSON: the room
+/// host's 32 newest won games (`MaximumWonGames` in `src/common/SkillBadge.hxx`),
+/// each two Ember IDs and two numbers in at most 186 bytes, about 6 000 in
+/// all. The bridge reads up to `MAX_GAMES_BYTES` of games per room; keep them
+/// equal.
+pub const MAX_GAMES_BYTES: usize = 6144;
+
 /// The longest status line, not counting the newline. The worst case a valid
 /// `status` can reach is `MAX_ROOM_BANS` Ember IDs (57 bytes each, 60 with
 /// quotes and a comma: 30 720 bytes) plus an invitation of at most 4096 bytes
 /// (`ember_protocol::play::MAX_INVITATION`, 4112 with its key and quotes) and
 /// about 100 bytes of the rest of the object, plus `MAX_DETAILS_BYTES` of
-/// details: roughly 37 000 bytes. 128 KiB is 3.5 times that.
+/// details, plus `MAX_GAMES_BYTES` of games: roughly 43 000 bytes. 128 KiB is
+/// 3 times that.
 pub const MAX_LINE_BYTES: usize = 128 * 1024;
 
 const MAX_TOKEN_BYTES: usize = 128;
@@ -164,6 +179,10 @@ pub enum ChildMessage {
         /// it is kept.
         #[serde(skip)]
         details: Option<serde_json::Value>,
+        /// Filled by `parse_line` the same way, from the line's `games`
+        /// member; `usable_games` decides whether it is kept.
+        #[serde(skip)]
+        games: Option<serde_json::Value>,
     },
     Closed {
         #[serde(default)]
@@ -173,12 +192,16 @@ pub enum ChildMessage {
     Unknown,
 }
 
-/// The `details` of a status as the supervisor keeps it: a JSON object whose
-/// compact form is at most `MAX_DETAILS_BYTES` and whose nesting is at most
-/// `MAX_DETAILS_DEPTH`. Anything else is dropped, and the room carries on
-/// without it. (`parse_line` has already left out a `details` too deeply
-/// nested to decode, so that is never the line's error.)
-pub fn usable_details(details: Option<serde_json::Value>) -> Option<serde_json::Value> {
+/// A raw member of a status as the supervisor keeps it: a JSON value of the
+/// right kind whose compact form is at most `max_bytes` and whose nesting is
+/// at most `MAX_DETAILS_DEPTH`. Anything else is dropped, and the room
+/// carries on without it. (`parse_line` has already left out a member too
+/// deeply nested to decode, so that is never the line's error.)
+fn bounded(
+    value: Option<serde_json::Value>,
+    kind: fn(&serde_json::Value) -> bool,
+    max_bytes: usize,
+) -> Option<serde_json::Value> {
     fn depth(value: &serde_json::Value) -> usize {
         match value {
             serde_json::Value::Array(items) => 1 + items.iter().map(depth).max().unwrap_or(0),
@@ -186,20 +209,32 @@ pub fn usable_details(details: Option<serde_json::Value>) -> Option<serde_json::
             _ => 0,
         }
     }
-    let details = details?;
-    let fits = details.is_object()
-        && depth(&details) <= MAX_DETAILS_DEPTH
-        && serde_json::to_vec(&details).is_ok_and(|bytes| bytes.len() <= MAX_DETAILS_BYTES);
-    fits.then_some(details)
+    let value = value?;
+    let fits = kind(&value)
+        && depth(&value) <= MAX_DETAILS_DEPTH
+        && serde_json::to_vec(&value).is_ok_and(|bytes| bytes.len() <= max_bytes);
+    fits.then_some(value)
 }
 
-/// A line's top-level members: `details` as raw text (the parser checks that
-/// it is well-formed JSON of any depth without decoding it), everything else
-/// decoded. A member named twice is an error, `details` included, whichever
-/// way its name is spelled.
+/// The `details` of a status: an object of at most `MAX_DETAILS_BYTES`.
+pub fn usable_details(details: Option<serde_json::Value>) -> Option<serde_json::Value> {
+    bounded(details, serde_json::Value::is_object, MAX_DETAILS_BYTES)
+}
+
+/// The `games` of a status: an array of at most `MAX_GAMES_BYTES`. The
+/// supervisor does not read the games; the bridge judges each one.
+pub fn usable_games(games: Option<serde_json::Value>) -> Option<serde_json::Value> {
+    bounded(games, serde_json::Value::is_array, MAX_GAMES_BYTES)
+}
+
+/// A line's top-level members: `details` and `games` as raw text (the parser
+/// checks that each is well-formed JSON of any depth without decoding it),
+/// everything else decoded. A member named twice is an error, those two
+/// included, whichever way its name is spelled.
 struct Envelope {
     rest: serde_json::Map<String, serde_json::Value>,
     details: Option<Box<serde_json::value::RawValue>>,
+    games: Option<Box<serde_json::value::RawValue>>,
 }
 
 impl<'de> Deserialize<'de> for Envelope {
@@ -219,20 +254,26 @@ impl<'de> Deserialize<'de> for Envelope {
                 let mut envelope = Envelope {
                     rest: serde_json::Map::new(),
                     details: None,
+                    games: None,
                 };
                 while let Some(key) = map.next_key::<String>()? {
-                    let duplicate = if key == "details" {
-                        envelope.details.is_some()
-                    } else {
-                        envelope.rest.contains_key(&key)
+                    let raw = match key.as_str() {
+                        "details" => Some(&mut envelope.details),
+                        "games" => Some(&mut envelope.games),
+                        _ => None,
+                    };
+                    let duplicate = match &raw {
+                        Some(slot) => slot.is_some(),
+                        None => envelope.rest.contains_key(&key),
                     };
                     if duplicate {
                         return Err(serde::de::Error::custom(format!("duplicate field `{key}`")));
                     }
-                    if key == "details" {
-                        envelope.details = Some(map.next_value()?);
-                    } else {
-                        envelope.rest.insert(key, map.next_value()?);
+                    match raw {
+                        Some(slot) => *slot = Some(map.next_value()?),
+                        None => {
+                            envelope.rest.insert(key, map.next_value()?);
+                        }
                     }
                 }
                 Ok(envelope)
@@ -243,20 +284,31 @@ impl<'de> Deserialize<'de> for Envelope {
 }
 
 /// Parses one line, without its newline. The parser owns the boundary: the
-/// line must be one well-formed JSON object, and its `details` member is read
-/// as raw text and decoded on its own. A `details` the decoder's own depth
-/// limit refuses is left out and the line is decoded without it, so what the
-/// room host says about its listing can never make a sound line an error.
+/// line must be one well-formed JSON object, and its `details` and `games`
+/// members are read as raw text and decoded on their own. A `details` the
+/// decoder's own depth limit refuses is left out and the line is decoded
+/// without it, and so is `games`, so what the room host says about its
+/// listing and its games can never make a sound line an error.
 pub fn parse_line(line: &[u8]) -> Result<ChildMessage, String> {
     let line = line.trim_ascii();
     if line.is_empty() {
         return Ok(ChildMessage::Unknown);
     }
     let text = |error: serde_json::Error| error.to_string();
-    let Envelope { rest, details } = serde_json::from_slice(line).map_err(text)?;
+    let Envelope {
+        rest,
+        details,
+        games,
+    } = serde_json::from_slice(line).map_err(text)?;
     let mut message = serde_json::from_value(serde_json::Value::Object(rest)).map_err(text)?;
-    if let ChildMessage::Status { details: slot, .. } = &mut message {
-        *slot = details.and_then(|raw| serde_json::from_str(raw.get()).ok());
+    if let ChildMessage::Status {
+        details: details_slot,
+        games: games_slot,
+        ..
+    } = &mut message
+    {
+        *details_slot = details.and_then(|raw| serde_json::from_str(raw.get()).ok());
+        *games_slot = games.and_then(|raw| serde_json::from_str(raw.get()).ok());
     }
     Ok(message)
 }
@@ -622,24 +674,63 @@ mod tests {
         }
     }
 
+    fn games_of(line: &[u8]) -> Option<serde_json::Value> {
+        let Ok(ChildMessage::Status { games, .. }) = parse_line(line) else {
+            panic!("a games member must never fail a sound line");
+        };
+        usable_games(games)
+    }
+
+    #[test]
+    fn games_pass_through_whole_and_anything_else_is_dropped() {
+        let line = br#"{"type":"status","members":1,"invitation":"i","games":[{"table":0,"generation":7,"winner":"a","loser":"b","future":1}]}"#;
+        assert_eq!(
+            games_of(line),
+            Some(
+                serde_json::json!([{ "table": 0, "generation": 7, "winner": "a", "loser": "b", "future": 1 }])
+            )
+        );
+        assert!(games_of(br#"{"type":"status","members":1,"invitation":"i"}"#).is_none());
+        for games in ["7", r#"{"a":1}"#, "[[[[[[[[[1]]]]]]]]]"] {
+            let line =
+                format!(r#"{{"type":"status","members":1,"invitation":"i","games":{games}}}"#);
+            assert!(games_of(line.as_bytes()).is_none(), "{games}");
+        }
+        let big = format!(
+            r#"{{"type":"status","members":1,"invitation":"i","games":["{}"]}}"#,
+            "g".repeat(MAX_GAMES_BYTES)
+        );
+        assert!(games_of(big.as_bytes()).is_none());
+        // Named twice is an error like any other member.
+        let line = br#"{"type":"status","members":1,"invitation":"i","games":[],"games":[]}"#;
+        assert!(
+            parse_line(line)
+                .expect_err("a duplicate")
+                .contains("duplicate field")
+        );
+    }
+
     #[test]
     fn the_line_limit_has_room_for_the_largest_status() {
-        // 512 Ember IDs of 57 bytes, an invitation of 4096 bytes and the
-        // largest details.
-        let id = format!("emb1_{}a", "q".repeat(51));
-        assert_eq!(id.len(), 57);
+        // 512 Ember IDs of 57 bytes, an invitation of 4096 bytes, the largest
+        // details and the largest games.
+        let banned_id = format!("emb1_{}a", "q".repeat(51));
+        assert_eq!(banned_id.len(), 57);
+        let games = vec!["g".repeat(MAX_GAMES_BYTES - 4)];
         let line = serde_json::to_string(&serde_json::json!({
             "type": "status", "members": u32::MAX, "tables_playing": u32::MAX,
-            "invitation": "i".repeat(4096), "banned": vec![id; MAX_ROOM_BANS],
+            "invitation": "i".repeat(4096), "banned": vec![banned_id; MAX_ROOM_BANS],
             "details": { "name": "n".repeat(MAX_DETAILS_BYTES - 11) },
+            "games": games,
         }))
         .unwrap();
-        assert!(line.len() > 36_000, "{}", line.len());
+        assert!(line.len() > 42_000, "{}", line.len());
         assert!(line.len() * 3 < MAX_LINE_BYTES, "{}", line.len());
-        let Ok(ChildMessage::Status { banned, .. }) = parse_line(line.as_bytes()) else {
+        let Ok(ChildMessage::Status { banned, games, .. }) = parse_line(line.as_bytes()) else {
             panic!("expected a status");
         };
         assert_eq!(banned.len(), MAX_ROOM_BANS);
+        assert!(usable_games(games).is_some());
     }
 
     #[tokio::test]
