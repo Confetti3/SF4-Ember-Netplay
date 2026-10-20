@@ -496,6 +496,12 @@ msgstr "Gravação do boneco"
 msgid "screen.input_history"
 msgstr "Histórico de comandos"
 
+msgid "match.loading_title"
+msgstr "Iniciando partida…"
+
+msgid "match.loading_detail"
+msgstr "Aguarde. A partida começará automaticamente; não é preciso apertar nenhum botão."
+
 msgid "room.wait.leaving"
 msgstr "Saindo da sala. Aguardando o encerramento da conexão..."
 

@@ -496,6 +496,12 @@ msgstr "Nagrywanie P2"
 msgid "screen.input_history"
 msgstr "Historia wejść"
 
+msgid "match.loading_title"
+msgstr "Uruchamianie meczu…"
+
+msgid "match.loading_detail"
+msgstr "Poczekaj. Mecz rozpocznie się automatycznie; nie musisz naciskać żadnych przycisków."
+
 msgid "room.wait.leaving"
 msgstr "Opuszczanie pokoju. Czekanie na zamknięcie połączenia..."
 

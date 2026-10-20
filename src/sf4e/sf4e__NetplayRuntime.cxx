@@ -30,6 +30,7 @@ Runtime* runtime = nullptr;
 void ResetMatchEntry() {
 	sf4e::GameEvents::VsBattle::nextRequest = {};
 	runtime->matchEntered = false;
+	runtime->automaticMatchEntry = false;
 	runtime->enteredGeneration = 0;
 	runtime->enteredTable = -1;
 	runtime->sessionlessCloseGeneration = 0;

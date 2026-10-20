@@ -10,7 +10,7 @@ namespace sf4e { namespace ui {
 struct ControllerSample {
     // Every button but Menu carries MenuInput's value, because the overlay
     // hands a sample's buttons to the menu unchanged; the asserts below hold
-    // the two enums together. Menu (Start) opens Ember and never reaches a menu.
+    // the two enums together. Menu (Start) is owned by the game thread and never reaches a menu.
     enum Button : std::uint32_t { Up = 1, Down = 2, Left = 4, Right = 8, Confirm = 16, Back = 32, Menu = 64,
         Fighter = 128, Options = 256, Chat = 512 };
     int deviceType = -1, deviceIndex = -1;
@@ -43,11 +43,11 @@ inline std::uint32_t ControllerButtons(std::uint32_t held,int deviceType=-1,std:
     if (physical & menu.back) result |= ControllerSample::Back;
     if(deviceType==input::PadXInput){
         const auto shortcuts=physical&~(menu.confirm|menu.back);
-        if(physical&input::xinput::Start)result|=ControllerSample::Menu;
         if(shortcuts&input::xinput::X)result|=ControllerSample::Fighter;
         if(shortcuts&input::xinput::Y)result|=ControllerSample::Options;
         if(shortcuts&input::xinput::View)result|=ControllerSample::Chat;
-    }else if (held & 0x1000) result |= ControllerSample::Menu;
+    }
+    if(input::StartHeld(deviceType,held,physical))result|=ControllerSample::Menu;
     return result;
 }
 
@@ -61,7 +61,6 @@ public:
     void Reset();
     bool MenuGuard() const { return menuGuard_; }
     bool BackRequested() const { return backRequested_; }
-    bool OpenRequested() const { return openRequested_; }
     bool FocusRequested() const { return focusRequested_; }
     bool Available() const { return available_; }
     std::uint32_t Buttons() const { return output_; }
@@ -71,7 +70,6 @@ private:
     bool armed_ = false, wasVisible_ = false, draining_ = false;
     bool menuGuard_ = false, backRequested_ = false, focusRequested_ = false, available_ = false;
     bool widgetBack_ = false;
-    bool menuArmed_ = false, openRequested_ = false;
     std::uint32_t previous_ = 0;
     std::uint32_t output_ = 0;
 };

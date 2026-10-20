@@ -9,10 +9,35 @@
 #include "../netplay/PlayerPreferences.hxx"
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <string>
 #include <vector>
 
 namespace sf4e { namespace ui {
+void DrawMatchLoading() {
+    const auto* vp = ImGui::GetMainViewport();
+    auto* draw = ImGui::GetBackgroundDrawList();
+    const ImVec2 end(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y);
+    draw->PushClipRect(vp->Pos, end, false);
+    draw->AddRectFilled(vp->Pos, end, IM_COL32(18, 16, 15, 255));
+    const float scale = (std::min)(Scale(), (std::min)(vp->Size.x / 640.f, vp->Size.y / 480.f));
+    const float width = (std::min)(640.f * scale, vp->Size.x - 48.f * scale);
+    const float cx = vp->Pos.x + vp->Size.x * .5f;
+    float y = vp->Pos.y + vp->Size.y * .5f - 48.f * scale;
+    const auto line = [&](ImFont* font, float size, const char* text, ImU32 color) {
+        const auto extent = font->CalcTextSizeA(size, FLT_MAX, width, text);
+        draw->AddText(font, size, ImVec2(cx - extent.x * .5f, y), color, text, nullptr, width);
+        return extent.y;
+    };
+    y += line(HeadingFont(), 28.f * scale, loc::T("match.loading_title"), palette::Ivory) + 16.f * scale;
+    y += line(ImGui::GetFont(), 17.f * scale, loc::T("match.loading_detail"), palette::Muted) + 28.f * scale;
+    const int pulse = static_cast<int>(std::fmod(ImGui::GetTime() * 3, 3));
+    for (int dot = 0; dot < 3; ++dot)
+        draw->AddCircleFilled(ImVec2(cx + (dot - 1) * 16.f * scale, y), 3.f * scale,
+            dot == pulse ? palette::Ember : IM_COL32(75, 57, 44, 255));
+    draw->PopClipRect();
+}
+
 namespace {
 // What the HUD shows for a value it does not have.
 const char* const Unavailable="\xe2\x80\x94";
@@ -98,8 +123,7 @@ void DrawPanelBox(ImDrawList* draw,ImVec2 p,float w,float h,float s){
 void DrawStateLine(const MatchStripView& view,ImDrawList* draw,float x,float w,float top,float s){
     const auto state=MatchStripStateLine(view);
     if(state.empty())return;
-    const int severity=view.noticeSeverity>0||view.connectionWarning||view.predictionStalled?
-        (std::max)(view.noticeSeverity,view.connectionWarning||view.predictionStalled?1:0):0;
+    const int severity=view.AlertSeverity();
     const ImU32 colors[]={IM_COL32(181,169,155,255),IM_COL32(255,196,96,255),IM_COL32(255,118,96,255)};
     const float h=MatchStateHeight*s;
     draw->AddRectFilled(ImVec2(x,top),ImVec2(x+w,top+h),IM_COL32(20,19,18,235),4*s);

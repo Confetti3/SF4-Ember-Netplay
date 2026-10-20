@@ -200,7 +200,7 @@ int main() {
     check(Capture::GetState() == Capture::State::Failed, "a suppressed capture reported a video");
     Capture::Clear(); Capture::Resume(device);
     Overlay::InitializeOverlay(window, device);
-    Overlay::RequestMainControls();
+    Overlay::RequestMenuStart();
     check(Overlay::CapturesMenuInput(), "overlay could not accept an open request after display reset");
 
     // Use the real message route and Win32 backend for the keyboard-only
@@ -240,7 +240,7 @@ int main() {
         check(SUCCEEDED(device->Reset(&params)), "repeated hidden DX9 reset failed");
         Overlay::InitializeOverlay(window, device);
         check(!Overlay::HasInputFocus(), "recreation stole focus from another application");
-        Overlay::RequestMainControls();
+        Overlay::RequestMenuStart();
         check(!Overlay::CapturesMenuInput(), "unfocused overlay captured native input");
         Overlay::OverlayWindowFunc(window, WM_ACTIVATEAPP, TRUE, 0);
         keyboardOpen();
