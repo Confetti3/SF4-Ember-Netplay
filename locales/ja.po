@@ -949,6 +949,18 @@ msgstr "サービスにあるセットの全試合を、リプレイフォルダ
 msgid "replays.next_game"
 msgstr "セットの次の試合（{0}/{1}）"
 
+msgid "replays.export_set"
+msgstr "セットの動画を書き出す"
+
+msgid "replays.export_set_detail"
+msgstr "各試合の動画を順に準備します。キャプションにはそこまでのセットの状況が入ります。1本できたら、リプレイ上部の「セットの次の動画」で次を準備します。"
+
+msgid "replays.next_video"
+msgstr "セットの次の動画（{0}/{1}）"
+
+msgid "replays.next_video_detail"
+msgstr "この試合の動画を準備します。キャプションを確認して「動画を作成」を選んでください。"
+
 msgid "replays.link_import"
 msgstr "セットを読み込む"
 

@@ -949,6 +949,18 @@ msgstr "Uloží všechny hry setu, které má jeho služba, do jednoho souboru .
 msgid "replays.next_game"
 msgstr "Další hra setu ({0} z {1})"
 
+msgid "replays.export_set"
+msgstr "Exportovat videa setu"
+
+msgid "replays.export_set_detail"
+msgstr "Postupně připraví video každé hry, s popiskem, který počítá dosavadní stav setu. Až je jedno hotové, další připraví Další video setu nahoře v Záznamech."
+
+msgid "replays.next_video"
+msgstr "Další video setu ({0} z {1})"
+
+msgid "replays.next_video_detail"
+msgstr "Připraví video této hry: zkontroluj popisek a pak Vytvořit video."
+
 msgid "replays.link_import"
 msgstr "Importovat set"
 

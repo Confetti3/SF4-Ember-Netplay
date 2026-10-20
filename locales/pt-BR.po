@@ -949,6 +949,18 @@ msgstr "Salva todas as partidas do set que o serviço dele tem em um arquivo .em
 msgid "replays.next_game"
 msgstr "Próxima partida do set ({0} de {1})"
 
+msgid "replays.export_set"
+msgstr "Exportar vídeos do set"
+
+msgid "replays.export_set_detail"
+msgstr "Prepara um vídeo de cada partida, uma por vez, com uma legenda que conta o set até ali. Quando um ficar pronto, Próximo vídeo do set, no topo de Replays, prepara o seguinte."
+
+msgid "replays.next_video"
+msgstr "Próximo vídeo do set ({0} de {1})"
+
+msgid "replays.next_video_detail"
+msgstr "Prepara o vídeo desta partida: confira a legenda e depois Gerar vídeo."
+
 msgid "replays.link_import"
 msgstr "Importar set"
 

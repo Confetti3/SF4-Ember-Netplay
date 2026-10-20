@@ -949,6 +949,18 @@ msgstr "将对局在其服务上的所有局保存为录像文件夹中的一个
 msgid "replays.next_game"
 msgstr "对局下一局（{0}/{1}）"
 
+msgid "replays.export_set"
+msgstr "导出对局视频"
+
+msgid "replays.export_set_detail"
+msgstr "依次为每一局准备视频，字幕会显示到该局为止的比分。一个完成后，回放顶部的“对局下一个视频”会准备下一个。"
+
+msgid "replays.next_video"
+msgstr "对局下一个视频（{0}/{1}）"
+
+msgid "replays.next_video_detail"
+msgstr "准备这一局的视频：检查字幕，然后选择“生成视频”。"
+
 msgid "replays.link_import"
 msgstr "导入对局"
 

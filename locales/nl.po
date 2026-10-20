@@ -949,6 +949,18 @@ msgstr "Bewaart elke game van de set die zijn dienst heeft in één .emberpack-b
 msgid "replays.next_game"
 msgstr "Volgende game van de set ({0} van {1})"
 
+msgid "replays.export_set"
+msgstr "Setvideo's exporteren"
+
+msgid "replays.export_set_detail"
+msgstr "Zet om de beurt een video van elke game klaar, met een onderschrift dat de set tot dan telt. Is er één gemaakt, dan zet Volgende video van de set bovenaan Replays de volgende klaar."
+
+msgid "replays.next_video"
+msgstr "Volgende video van de set ({0} van {1})"
+
+msgid "replays.next_video_detail"
+msgstr "Zet de video van deze game klaar: controleer het onderschrift en kies dan Video maken."
+
 msgid "replays.link_import"
 msgstr "Set importeren"
 

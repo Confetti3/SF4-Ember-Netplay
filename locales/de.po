@@ -949,6 +949,18 @@ msgstr "Speichert alle Spiele des Sets, die sein Dienst hat, in einer .emberpack
 msgid "replays.next_game"
 msgstr "Nächstes Spiel des Sets ({0} von {1})"
 
+msgid "replays.export_set"
+msgstr "Set-Videos exportieren"
+
+msgid "replays.export_set_detail"
+msgstr "Bereitet nacheinander ein Video jedes Spiels vor, die Beschriftung zählt den bisherigen Set-Stand. Ist eines fertig, bereitet Nächstes Video des Sets oben in Replays das nächste vor."
+
+msgid "replays.next_video"
+msgstr "Nächstes Video des Sets ({0} von {1})"
+
+msgid "replays.next_video_detail"
+msgstr "Bereitet das Video dieses Spiels vor: Beschriftung prüfen, dann Video erstellen."
+
 msgid "replays.link_import"
 msgstr "Set importieren"
 

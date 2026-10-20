@@ -949,6 +949,18 @@ msgstr "Сохраняет все игры сета, которые есть у 
 msgid "replays.next_game"
 msgstr "Следующая игра сета ({0} из {1})"
 
+msgid "replays.export_set"
+msgstr "Экспорт видео сета"
+
+msgid "replays.export_set_detail"
+msgstr "По очереди готовит видео каждой игры с подписью, где указан счёт сета на тот момент. Когда одно готово, Следующее видео сета вверху Записей готовит следующее."
+
+msgid "replays.next_video"
+msgstr "Следующее видео сета ({0} из {1})"
+
+msgid "replays.next_video_detail"
+msgstr "Готовит видео этой игры: проверьте подпись, затем Создать видео."
+
 msgid "replays.link_import"
 msgstr "Импортировать сет"
 

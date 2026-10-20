@@ -949,6 +949,18 @@ msgstr "Saves every game of the set that its service holds in one .emberpack fil
 msgid "replays.next_game"
 msgstr "Next game of the set ({0} of {1})"
 
+msgid "replays.export_set"
+msgstr "Export set videos"
+
+msgid "replays.export_set_detail"
+msgstr "Sets up a video of each game in turn, its caption counting the set so far. When one is made, Next video of the set at the top of Replays sets up the next."
+
+msgid "replays.next_video"
+msgstr "Next video of the set ({0} of {1})"
+
+msgid "replays.next_video_detail"
+msgstr "Sets up this game's video: check its caption, then Generate video."
+
 msgid "replays.link_import"
 msgstr "Import set"
 

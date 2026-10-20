@@ -949,6 +949,18 @@ msgstr "Zapisuje wszystkie gry setu, które ma jego usługa, w jednym pliku .emb
 msgid "replays.next_game"
 msgstr "Następna gra setu ({0} z {1})"
 
+msgid "replays.export_set"
+msgstr "Eksportuj wideo setu"
+
+msgid "replays.export_set_detail"
+msgstr "Po kolei przygotowuje wideo każdej gry, z podpisem liczącym dotychczasowy wynik setu. Gdy jedno jest gotowe, Następne wideo setu na górze Powtórek przygotuje kolejne."
+
+msgid "replays.next_video"
+msgstr "Następne wideo setu ({0} z {1})"
+
+msgid "replays.next_video_detail"
+msgstr "Przygotowuje wideo tej gry: sprawdź podpis, potem Utwórz wideo."
+
 msgid "replays.link_import"
 msgstr "Importuj set"
 

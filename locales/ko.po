@@ -949,6 +949,18 @@ msgstr "서비스에 있는 세트의 모든 경기를 리플레이 폴더의 .e
 msgid "replays.next_game"
 msgstr "세트 다음 경기 ({0}/{1})"
 
+msgid "replays.export_set"
+msgstr "세트 동영상 내보내기"
+
+msgid "replays.export_set_detail"
+msgstr "각 경기의 동영상을 차례로 준비합니다. 자막에는 그때까지의 세트 점수가 들어갑니다. 하나가 만들어지면 리플레이 상단의 세트 다음 동영상으로 다음을 준비합니다."
+
+msgid "replays.next_video"
+msgstr "세트 다음 동영상 ({0}/{1})"
+
+msgid "replays.next_video_detail"
+msgstr "이 경기의 동영상을 준비합니다. 자막을 확인한 뒤 동영상 만들기를 선택하세요."
+
 msgid "replays.link_import"
 msgstr "세트 가져오기"
 

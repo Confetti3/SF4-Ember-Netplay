@@ -59,6 +59,7 @@ private:
     MenuEntry ReplayRow(const ShellView& view, const platform::replays::ArchivedReplay& replay, bool idle) const;
     void Watch(const ShellView& view, const std::string& path, bool meter, const Submit& submit, std::string& error);
     void OpenExport(const ShellView& view, const platform::replays::ArchivedReplay& replay);
+    void NextVideo(const ShellView& view, MenuNavigation& nav);
     // The replay the Inputs and stats screen is of, as its row was when it
     // was chosen. The lister hands over its match, summary and round logs;
     // drawing the screen never reads, parses or counts the replay.
@@ -78,6 +79,8 @@ private:
     // game row on Replays, and how many the set has.
     std::vector<std::string> setQueue_;
     std::size_t setGames_ = 0;
+    // The queue makes videos (set-export), not watches.
+    bool setExport_ = false;
     // The set whose games replay-set lists.
     std::string setShown_;
     // A set pack was last asked for here (Save set pack, a pack link's Import):

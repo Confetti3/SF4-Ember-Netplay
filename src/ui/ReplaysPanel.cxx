@@ -64,6 +64,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    rows.back().value=loc::Tf("replays.set_value",set.games.size(),set.rooms);
    // A set imported from a pack has no service to ask for its pack.
    rows.back().choices={{"set-watch",loc::T("replays.watch_set"),loc::T("replays.watch_set_detail"),idle&&r.ready},{"set-pick",loc::T("replays.pick_game"),loc::T("replays.pick_game_detail")},
+    {"set-export",loc::T("replays.export_set"),loc::T("replays.export_set_detail"),idle},
     {"set-pack",loc::T("replays.save_pack"),loc::T("replays.save_pack_detail"),!set.bridgeId.empty()}};
    rows.back().chosen=idle&&r.ready?"set-watch":"set-pick";
   }
@@ -88,8 +89,10 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
     {"link-dismiss",loc::T("replays.link_dismiss"),loc::T("replays.link_dismiss_detail")}};
    rows.back().chosen=pack?"link-import":idle&&r.ready?"link-play":"link-dismiss";
   }
-  // Watch set plays a game at a time: the next one is a press away when the last one ends.
-  if(!setQueue_.empty())rows.push_back(Row("set-next",loc::Tf("replays.next_game",setGames_-setQueue_.size()+1,setGames_),loc::T("replays.watch_detail"),idle&&r.ready));
+  // Watch set plays a game at a time, and Export set videos sets one up at a
+  // time: the next one is a press away when the last one ends.
+  if(!setQueue_.empty())rows.push_back(Row("set-next",loc::Tf(setExport_?"replays.next_video":"replays.next_game",setGames_-setQueue_.size()+1,setGames_),
+   loc::T(setExport_?"replays.next_video_detail":"replays.watch_detail"),setExport_?idle:idle&&r.ready));
   rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&r.ready));
   rows.push_back(Row("replay-folder",loc::T("replays.open_folder"),v.services.lastAction==platform::ServiceAction::OpenReplayFolder&&!v.services.message.empty()?v.services.message:loc::T("replays.open_folder_detail"),!v.services.pending));
   const auto sets=SetsOf(v);
@@ -181,6 +184,12 @@ void ReplaysPanel::OpenExport(const ShellView& v,const platform::replays::Archiv
  }
  caption_.set=caption_.wins[0]+caption_.wins[1]>0;
 }
+// The set's next game's caption screen, its set score counted from the
+// games before it (OpenExport); Generate there makes its video.
+void ReplaysPanel::NextVideo(const ShellView& v,MenuNavigation& nav) {
+ const std::string path=setQueue_.front();setQueue_.erase(setQueue_.begin());
+ if(const auto* shown=Find(v,path)){OpenExport(v,*shown);nav.Push("replay-export");}
+}
 void ReplaysPanel::Watch(const ShellView& v,const std::string& path,bool meter,const Submit& submit,std::string& error) {
  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Watch,path};r.replay.meter=meter;
  if(!submit(std::move(r)))error=loc::T("error.queue_failed");
@@ -190,6 +199,7 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,MenuNavigatio
  if(a.id=="cap-generate"||a.id=="export-cancel"||a.id=="replay-log")folderAsked_=setAsked_=false;
  if(a.id=="replay-sets"){nav.Push("replay-sets");return true;}
  if(a.id=="set-next"){
+  if(setExport_&&!setQueue_.empty()){NextVideo(v,nav);return true;}
   if(!setQueue_.empty()&&v.replays.ready){Watch(v,setQueue_.front(),false,submit,error);setQueue_.erase(setQueue_.begin());}
   return true;
  }
@@ -235,10 +245,15 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation&
     ShellAction r;r.command.generation=v.session.generation;
     r.tournament.op=netplay::tournament::Command::Op::SavePack;r.tournament.bridgeId=set.bridgeId;r.tournament.matchId=set.matchId;
     if(!submit(std::move(r))){setAsked_=false;error=loc::T("error.queue_failed");}
+   }else if(a.text=="set-export"){
+    // The first game's caption now; each next one from the Next video row on Replays.
+    setQueue_.clear();for(const auto* game:set.games)setQueue_.push_back(PathOf(*game));
+    setGames_=setQueue_.size();setExport_=true;
+    NextVideo(v,nav);
    }else if(a.text=="set-watch"&&v.replays.ready){
     // The first game now; each next one from the Next game row on Replays, where the log comes back to.
     setQueue_.clear();for(const auto* game:set.games)setQueue_.push_back(PathOf(*game));
-    setGames_=setQueue_.size();
+    setGames_=setQueue_.size();setExport_=false;
     Watch(v,setQueue_.front(),false,submit,error);setQueue_.erase(setQueue_.begin());
    }
   }

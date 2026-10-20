@@ -949,6 +949,18 @@ msgstr "Enregistre toutes les manches du set que son service possède dans un fi
 msgid "replays.next_game"
 msgstr "Manche suivante du set ({0} sur {1})"
 
+msgid "replays.export_set"
+msgstr "Exporter les vidéos du set"
+
+msgid "replays.export_set_detail"
+msgstr "Prépare tour à tour une vidéo de chaque manche, sa légende comptant le set jusque-là. Quand l'une est faite, Vidéo suivante du set, en haut de Replays, prépare la suivante."
+
+msgid "replays.next_video"
+msgstr "Vidéo suivante du set ({0} sur {1})"
+
+msgid "replays.next_video_detail"
+msgstr "Prépare la vidéo de cette manche : vérifiez sa légende, puis Générer la vidéo."
+
 msgid "replays.link_import"
 msgstr "Importer le set"
 
