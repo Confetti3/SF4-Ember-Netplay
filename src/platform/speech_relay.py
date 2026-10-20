@@ -148,7 +148,7 @@ def download_pack(language):
         downloading.discard(language)
 
 
-voice_status, status_language = "system", ""
+voice_status, status_language, status_lock = "system", "", threading.Lock()
 
 
 def status_text(voice_line, language):
@@ -161,11 +161,13 @@ def status_text(voice_line, language):
 def status(text):
     """Records how the relay speaks (None keeps it) and writes the status file, when there is one."""
     global voice_status
-    voice_status = text or voice_status
-    if STATUS:
-        with open(STATUS + ".tmp", "w") as f:
-            f.write(status_text(voice_status, status_language))
-        os.replace(STATUS + ".tmp", STATUS)
+    # The speaking thread and a download write it; one at a time, or one's rename finds no file.
+    with status_lock:
+        voice_status = text or voice_status
+        if STATUS:
+            with open(STATUS + ".tmp", "w") as f:
+                f.write(status_text(voice_status, status_language))
+            os.replace(STATUS + ".tmp", STATUS)
 
 
 def model(language):
