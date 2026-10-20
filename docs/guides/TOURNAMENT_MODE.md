@@ -45,7 +45,10 @@ Only an account already linked in Ember can sign in. If the desk says the accoun
 2. **Service and rules.** Pick the bracket service; only that service's settings show:
    - **Challonge: Ember creates it for you.** Format (single or double elimination, round robin, swiss), grand final (normal with a reset, one match, or none), third place match and Challonge's own sign-up page. **Create on Challonge** makes the tournament on your account and adds its page as the first link. If Challonge refuses a setting, its own reason shows at the top of the step.
    - **start.gg: create it on start.gg, then pick it here.** start.gg does not let other apps create events, so make the tournament and event on start.gg first, then pick it. Here you can also hold sets start.gg puts on a stream.
-   - **Games to win**, for either service: *Every set first to 2, from Top 8 first to 3, grand final first to 3* (Top 16, 8, 6, 4 or the finals, or off). Ember works out which sets are in the top from the bracket itself, for single and double elimination.
+   - **Games to win**, for either service: **Everything first to 2**, then any number of tiers, each **From** a stage **first to** N: Top 32, 24, 16, 12, 8, 6 or 4, the quarter-finals, semi-finals, finals, or the grand final. **+ Add a tier** adds one. The latest stage that applies to a set wins, whatever the order. Ember finds the stages in the bracket itself, for single and double elimination, and names the rounds as start.gg does:
+     - *Top N*: the sets played once N players are left (in double elimination, the winners side from half of them, rounded down to 8, 4 or 2, and the losers side from the rest).
+     - *Quarter-finals*: the winners round with 8 players left and the losers round two before the losers final (4 left); *semi-finals*: 4 left in winners, the losers round before the losers final; *finals*: the winners final and the losers final. In single elimination: the last three rounds.
+     - *Grand final*: the grand final and its reset; in single elimination, the final.
 3. **Discord and sign-ups.** The Discord channel webhook for calls, posting each set's score, the public page, and players signing up through Ember.
 4. **Ready.** The Discord post, and **Mark ready**. It says what is still missing (a start date, the bracket event) until it can be marked.
 
