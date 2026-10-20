@@ -923,61 +923,61 @@ msgid "replays.open_log_room"
 msgstr "먼저 방에서 나가세요."
 
 msgid "replays.tournaments"
-msgstr "Tournaments"
+msgstr "대회"
 
 msgid "replays.tournaments_detail"
-msgstr "The sets you played in tournaments, each with all of its games."
+msgstr "대회에서 플레이한 세트입니다. 각 세트에 모든 경기가 들어 있습니다."
 
 msgid "replays.set_detail"
-msgstr "Select to watch the set's games in order, pick one of them, or save the set as one file."
+msgstr "선택하여 세트의 경기를 순서대로 보거나, 한 경기를 고르거나, 세트를 파일 하나로 저장하세요."
 
 msgid "replays.set_value"
-msgstr "{0} replays · {1} rooms"
+msgstr "리플레이 {0}개 · 룸 {1}개"
 
 msgid "replays.watch_set"
-msgstr "Watch set"
+msgstr "세트 보기"
 
 msgid "replays.watch_set_detail"
-msgstr "Plays the first game now. When it ends, Next game at the top of Replays plays the next one."
+msgstr "첫 경기를 지금 재생합니다. 끝나면 리플레이 상단의 세트 다음 경기로 다음 경기를 재생합니다."
 
 msgid "replays.pick_game"
-msgstr "Pick a game"
+msgstr "경기 선택"
 
 msgid "replays.pick_game_detail"
-msgstr "Lists the set's games in the order they were played."
+msgstr "세트의 경기를 플레이한 순서대로 보여 줍니다."
 
 msgid "replays.save_pack"
-msgstr "Save set pack"
+msgstr "세트 팩 저장"
 
 msgid "replays.save_pack_detail"
-msgstr "Saves every game of the set that its service holds in one .emberpack file in the replay folder."
+msgstr "서비스에 있는 세트의 모든 경기를 리플레이 폴더의 .emberpack 파일 하나로 저장합니다."
 
 msgid "replays.next_game"
-msgstr "Next game of the set ({0} of {1})"
+msgstr "세트 다음 경기 ({0}/{1})"
 
 msgid "replays.link_import"
-msgstr "Import set"
+msgstr "세트 가져오기"
 
 msgid "replays.link_import_detail"
-msgstr "Puts every game of this set pack into Replays."
+msgstr "이 세트 팩의 모든 경기를 리플레이에 추가합니다."
 
 msgid "replays.set_pack_working"
-msgstr "Saving the set pack..."
+msgstr "세트 팩 저장 중..."
 
 msgid "replays.set_pack_saved"
-msgstr "Set pack saved: {0}"
+msgstr "세트 팩 저장됨: {0}"
 
 msgid "replays.set_pack_failed"
-msgstr "The set pack could not be saved. Its service may not have the games yet; try again later."
+msgstr "세트 팩을 저장하지 못했습니다. 서비스에 아직 경기가 없을 수 있습니다. 나중에 다시 시도하세요."
 
 msgid "replays.set_pack_unavailable"
-msgstr "The set pack cannot be saved now. Ember needs a connection to the set's service."
+msgstr "지금은 세트 팩을 저장할 수 없습니다. 세트 서비스에 연결되어야 합니다."
 
 msgid "replays.set_imported"
-msgstr "{0} games of the set are in Replays."
+msgstr "세트의 {0}경기가 리플레이에 있습니다."
 
 msgid "replays.set_import_failed"
-msgstr "That file is not a whole set pack, so nothing was imported."
+msgstr "이 파일은 완전한 세트 팩이 아니므로 아무것도 가져오지 않았습니다."
 
 msgid "settings.training_auto_ready"
 msgstr "트레이닝에서 호출되면 자동 준비"
@@ -4001,10 +4001,10 @@ msgid "desk.filter.all"
 msgstr "전체"
 
 msgid "desk.filter.winners"
-msgstr "Winners"
+msgstr "승자조"
 
 msgid "desk.filter.losers"
-msgstr "Losers"
+msgstr "패자조"
 
 msgid "desk.filter.action"
 msgstr "처리 필요"
@@ -4049,10 +4049,10 @@ msgid "desk.state.held"
 msgstr "보류됨"
 
 msgid "desk.side.winners"
-msgstr "Winners"
+msgstr "승자조"
 
 msgid "desk.side.losers"
-msgstr "Losers"
+msgstr "패자조"
 
 msgid "desk.side.grand_final"
 msgstr "그랜드 파이널"

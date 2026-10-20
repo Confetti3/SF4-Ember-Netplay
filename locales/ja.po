@@ -923,61 +923,61 @@ msgid "replays.open_log_room"
 msgstr "先にルームから退出してください。"
 
 msgid "replays.tournaments"
-msgstr "Tournaments"
+msgstr "大会"
 
 msgid "replays.tournaments_detail"
-msgstr "The sets you played in tournaments, each with all of its games."
+msgstr "大会でプレイしたセット。各セットにすべての試合が入っています。"
 
 msgid "replays.set_detail"
-msgstr "Select to watch the set's games in order, pick one of them, or save the set as one file."
+msgstr "選択すると、セットの試合を順に再生、1試合を選択、またはセットを1つのファイルに保存できます。"
 
 msgid "replays.set_value"
-msgstr "{0} replays · {1} rooms"
+msgstr "リプレイ{0}件 · ルーム{1}件"
 
 msgid "replays.watch_set"
-msgstr "Watch set"
+msgstr "セットを見る"
 
 msgid "replays.watch_set_detail"
-msgstr "Plays the first game now. When it ends, Next game at the top of Replays plays the next one."
+msgstr "最初の試合を今すぐ再生します。終わったら、リプレイ上部の「セットの次の試合」で次を再生します。"
 
 msgid "replays.pick_game"
-msgstr "Pick a game"
+msgstr "試合を選ぶ"
 
 msgid "replays.pick_game_detail"
-msgstr "Lists the set's games in the order they were played."
+msgstr "セットの試合をプレイ順に一覧表示します。"
 
 msgid "replays.save_pack"
-msgstr "Save set pack"
+msgstr "セットパックを保存"
 
 msgid "replays.save_pack_detail"
-msgstr "Saves every game of the set that its service holds in one .emberpack file in the replay folder."
+msgstr "サービスにあるセットの全試合を、リプレイフォルダーの .emberpack ファイル1つに保存します。"
 
 msgid "replays.next_game"
-msgstr "Next game of the set ({0} of {1})"
+msgstr "セットの次の試合（{0}/{1}）"
 
 msgid "replays.link_import"
-msgstr "Import set"
+msgstr "セットを読み込む"
 
 msgid "replays.link_import_detail"
-msgstr "Puts every game of this set pack into Replays."
+msgstr "このセットパックの全試合をリプレイに追加します。"
 
 msgid "replays.set_pack_working"
-msgstr "Saving the set pack..."
+msgstr "セットパックを保存中..."
 
 msgid "replays.set_pack_saved"
-msgstr "Set pack saved: {0}"
+msgstr "セットパックを保存しました: {0}"
 
 msgid "replays.set_pack_failed"
-msgstr "The set pack could not be saved. Its service may not have the games yet; try again later."
+msgstr "セットパックを保存できませんでした。サービスにまだ試合がない可能性があります。後でもう一度お試しください。"
 
 msgid "replays.set_pack_unavailable"
-msgstr "The set pack cannot be saved now. Ember needs a connection to the set's service."
+msgstr "今はセットパックを保存できません。セットのサービスへの接続が必要です。"
 
 msgid "replays.set_imported"
-msgstr "{0} games of the set are in Replays."
+msgstr "セットの{0}試合がリプレイにあります。"
 
 msgid "replays.set_import_failed"
-msgstr "That file is not a whole set pack, so nothing was imported."
+msgstr "このファイルは完全なセットパックではないため、何も読み込まれませんでした。"
 
 msgid "settings.training_auto_ready"
 msgstr "トレーニングから呼ばれたら自動で準備完了"
@@ -4001,10 +4001,10 @@ msgid "desk.filter.all"
 msgstr "すべて"
 
 msgid "desk.filter.winners"
-msgstr "Winners"
+msgstr "勝者側"
 
 msgid "desk.filter.losers"
-msgstr "Losers"
+msgstr "敗者側"
 
 msgid "desk.filter.action"
 msgstr "要対応"
@@ -4049,10 +4049,10 @@ msgid "desk.state.held"
 msgstr "保留中"
 
 msgid "desk.side.winners"
-msgstr "Winners"
+msgstr "勝者側"
 
 msgid "desk.side.losers"
-msgstr "Losers"
+msgstr "敗者側"
 
 msgid "desk.side.grand_final"
 msgstr "グランドファイナル"

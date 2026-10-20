@@ -923,61 +923,61 @@ msgid "replays.open_log_room"
 msgstr "请先离开房间。"
 
 msgid "replays.tournaments"
-msgstr "Tournaments"
+msgstr "赛事"
 
 msgid "replays.tournaments_detail"
-msgstr "The sets you played in tournaments, each with all of its games."
+msgstr "你在赛事中打过的对局，每个都包含其所有局。"
 
 msgid "replays.set_detail"
-msgstr "Select to watch the set's games in order, pick one of them, or save the set as one file."
+msgstr "选择以按顺序观看对局的各局、挑选其中一局，或将对局保存为一个文件。"
 
 msgid "replays.set_value"
-msgstr "{0} replays · {1} rooms"
+msgstr "{0} 个回放 · {1} 个房间"
 
 msgid "replays.watch_set"
-msgstr "Watch set"
+msgstr "观看对局"
 
 msgid "replays.watch_set_detail"
-msgstr "Plays the first game now. When it ends, Next game at the top of Replays plays the next one."
+msgstr "立即播放第一局。结束后，回放顶部的“对局下一局”会播放下一局。"
 
 msgid "replays.pick_game"
-msgstr "Pick a game"
+msgstr "选择一局"
 
 msgid "replays.pick_game_detail"
-msgstr "Lists the set's games in the order they were played."
+msgstr "按比赛顺序列出对局的各局。"
 
 msgid "replays.save_pack"
-msgstr "Save set pack"
+msgstr "保存对局包"
 
 msgid "replays.save_pack_detail"
-msgstr "Saves every game of the set that its service holds in one .emberpack file in the replay folder."
+msgstr "将对局在其服务上的所有局保存为录像文件夹中的一个 .emberpack 文件。"
 
 msgid "replays.next_game"
-msgstr "Next game of the set ({0} of {1})"
+msgstr "对局下一局（{0}/{1}）"
 
 msgid "replays.link_import"
-msgstr "Import set"
+msgstr "导入对局"
 
 msgid "replays.link_import_detail"
-msgstr "Puts every game of this set pack into Replays."
+msgstr "将此对局包的所有局加入回放。"
 
 msgid "replays.set_pack_working"
-msgstr "Saving the set pack..."
+msgstr "正在保存对局包..."
 
 msgid "replays.set_pack_saved"
-msgstr "Set pack saved: {0}"
+msgstr "对局包已保存：{0}"
 
 msgid "replays.set_pack_failed"
-msgstr "The set pack could not be saved. Its service may not have the games yet; try again later."
+msgstr "无法保存对局包。其服务可能还没有这些局；请稍后再试。"
 
 msgid "replays.set_pack_unavailable"
-msgstr "The set pack cannot be saved now. Ember needs a connection to the set's service."
+msgstr "现在无法保存对局包。Ember 需要连接到对局的服务。"
 
 msgid "replays.set_imported"
-msgstr "{0} games of the set are in Replays."
+msgstr "对局的 {0} 局已在回放中。"
 
 msgid "replays.set_import_failed"
-msgstr "That file is not a whole set pack, so nothing was imported."
+msgstr "该文件不是完整的对局包，因此未导入任何内容。"
 
 msgid "settings.training_auto_ready"
 msgstr "从训练被叫回时自动准备"
@@ -4001,10 +4001,10 @@ msgid "desk.filter.all"
 msgstr "全部"
 
 msgid "desk.filter.winners"
-msgstr "Winners"
+msgstr "胜者组"
 
 msgid "desk.filter.losers"
-msgstr "Losers"
+msgstr "败者组"
 
 msgid "desk.filter.action"
 msgstr "需要处理"
@@ -4049,10 +4049,10 @@ msgid "desk.state.held"
 msgstr "已暂停"
 
 msgid "desk.side.winners"
-msgstr "Winners"
+msgstr "胜者组"
 
 msgid "desk.side.losers"
-msgstr "Losers"
+msgstr "败者组"
 
 msgid "desk.side.grand_final"
 msgstr "总决赛"

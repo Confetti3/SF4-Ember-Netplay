@@ -923,61 +923,61 @@ msgid "replays.open_log_room"
 msgstr "Verlaat eerst de kamer."
 
 msgid "replays.tournaments"
-msgstr "Tournaments"
+msgstr "Toernooien"
 
 msgid "replays.tournaments_detail"
-msgstr "The sets you played in tournaments, each with all of its games."
+msgstr "De sets die je in toernooien speelde, elk met al zijn games."
 
 msgid "replays.set_detail"
-msgstr "Select to watch the set's games in order, pick one of them, or save the set as one file."
+msgstr "Selecteer om de games van de set op volgorde te bekijken, er één te kiezen of de set als één bestand te bewaren."
 
 msgid "replays.set_value"
 msgstr "{0} replays · {1} rooms"
 
 msgid "replays.watch_set"
-msgstr "Watch set"
+msgstr "Set bekijken"
 
 msgid "replays.watch_set_detail"
-msgstr "Plays the first game now. When it ends, Next game at the top of Replays plays the next one."
+msgstr "Speelt nu de eerste game. Als die klaar is, speelt Volgende game van de set bovenaan Replays de volgende."
 
 msgid "replays.pick_game"
-msgstr "Pick a game"
+msgstr "Kies een game"
 
 msgid "replays.pick_game_detail"
-msgstr "Lists the set's games in the order they were played."
+msgstr "Toont de games van de set in de volgorde waarin ze gespeeld zijn."
 
 msgid "replays.save_pack"
-msgstr "Save set pack"
+msgstr "Setpakket bewaren"
 
 msgid "replays.save_pack_detail"
-msgstr "Saves every game of the set that its service holds in one .emberpack file in the replay folder."
+msgstr "Bewaart elke game van de set die zijn dienst heeft in één .emberpack-bestand in de replaymap."
 
 msgid "replays.next_game"
-msgstr "Next game of the set ({0} of {1})"
+msgstr "Volgende game van de set ({0} van {1})"
 
 msgid "replays.link_import"
-msgstr "Import set"
+msgstr "Set importeren"
 
 msgid "replays.link_import_detail"
-msgstr "Puts every game of this set pack into Replays."
+msgstr "Zet elke game van dit setpakket in Replays."
 
 msgid "replays.set_pack_working"
-msgstr "Saving the set pack..."
+msgstr "Setpakket bewaren..."
 
 msgid "replays.set_pack_saved"
-msgstr "Set pack saved: {0}"
+msgstr "Setpakket bewaard: {0}"
 
 msgid "replays.set_pack_failed"
-msgstr "The set pack could not be saved. Its service may not have the games yet; try again later."
+msgstr "Het setpakket kon niet bewaard worden. Zijn dienst heeft de games misschien nog niet; probeer het later opnieuw."
 
 msgid "replays.set_pack_unavailable"
-msgstr "The set pack cannot be saved now. Ember needs a connection to the set's service."
+msgstr "Het setpakket kan nu niet bewaard worden. Ember heeft een verbinding met de dienst van de set nodig."
 
 msgid "replays.set_imported"
-msgstr "{0} games of the set are in Replays."
+msgstr "{0} games van de set staan in Replays."
 
 msgid "replays.set_import_failed"
-msgstr "That file is not a whole set pack, so nothing was imported."
+msgstr "Dat bestand is geen volledig setpakket, dus er is niets geïmporteerd."
 
 msgid "settings.training_auto_ready"
 msgstr "Maak mij gereed bij oproep uit Training"

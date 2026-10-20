@@ -923,61 +923,61 @@ msgid "replays.open_log_room"
 msgstr "Nejdřív opusťte místnost."
 
 msgid "replays.tournaments"
-msgstr "Tournaments"
+msgstr "Turnaje"
 
 msgid "replays.tournaments_detail"
-msgstr "The sets you played in tournaments, each with all of its games."
+msgstr "Sety, které jsi hrál na turnajích, každý se všemi svými hrami."
 
 msgid "replays.set_detail"
-msgstr "Select to watch the set's games in order, pick one of them, or save the set as one file."
+msgstr "Vyber pro přehrání her setu popořadě, výběr jedné z nich nebo uložení setu jako jednoho souboru."
 
 msgid "replays.set_value"
-msgstr "{0} replays · {1} rooms"
+msgstr "{0} záznamů · {1} místností"
 
 msgid "replays.watch_set"
-msgstr "Watch set"
+msgstr "Přehrát set"
 
 msgid "replays.watch_set_detail"
-msgstr "Plays the first game now. When it ends, Next game at the top of Replays plays the next one."
+msgstr "Teď přehraje první hru. Až skončí, další přehraje Další hra setu nahoře v Záznamech."
 
 msgid "replays.pick_game"
-msgstr "Pick a game"
+msgstr "Vybrat hru"
 
 msgid "replays.pick_game_detail"
-msgstr "Lists the set's games in the order they were played."
+msgstr "Vypíše hry setu v pořadí, v jakém se hrály."
 
 msgid "replays.save_pack"
-msgstr "Save set pack"
+msgstr "Uložit balíček setu"
 
 msgid "replays.save_pack_detail"
-msgstr "Saves every game of the set that its service holds in one .emberpack file in the replay folder."
+msgstr "Uloží všechny hry setu, které má jeho služba, do jednoho souboru .emberpack ve složce záznamů."
 
 msgid "replays.next_game"
-msgstr "Next game of the set ({0} of {1})"
+msgstr "Další hra setu ({0} z {1})"
 
 msgid "replays.link_import"
-msgstr "Import set"
+msgstr "Importovat set"
 
 msgid "replays.link_import_detail"
-msgstr "Puts every game of this set pack into Replays."
+msgstr "Přidá všechny hry z tohoto balíčku setu do Záznamů."
 
 msgid "replays.set_pack_working"
-msgstr "Saving the set pack..."
+msgstr "Ukládám balíček setu..."
 
 msgid "replays.set_pack_saved"
-msgstr "Set pack saved: {0}"
+msgstr "Balíček setu uložen: {0}"
 
 msgid "replays.set_pack_failed"
-msgstr "The set pack could not be saved. Its service may not have the games yet; try again later."
+msgstr "Balíček setu se nepodařilo uložit. Služba možná ještě nemá jeho hry; zkus to později."
 
 msgid "replays.set_pack_unavailable"
-msgstr "The set pack cannot be saved now. Ember needs a connection to the set's service."
+msgstr "Balíček setu teď nejde uložit. Ember potřebuje spojení se službou setu."
 
 msgid "replays.set_imported"
-msgstr "{0} games of the set are in Replays."
+msgstr "{0} her setu je v Záznamech."
 
 msgid "replays.set_import_failed"
-msgstr "That file is not a whole set pack, so nothing was imported."
+msgstr "Tento soubor není celý balíček setu, nic se neimportovalo."
 
 msgid "settings.training_auto_ready"
 msgstr "Připravit mě při výzvě z Tréninku"
@@ -4001,10 +4001,10 @@ msgid "desk.filter.all"
 msgstr "Vše"
 
 msgid "desk.filter.winners"
-msgstr "Winners"
+msgstr "Vítězové"
 
 msgid "desk.filter.losers"
-msgstr "Losers"
+msgstr "Poražení"
 
 msgid "desk.filter.action"
 msgstr "Potřebuje tebe"
@@ -4049,10 +4049,10 @@ msgid "desk.state.held"
 msgstr "Pozastaven"
 
 msgid "desk.side.winners"
-msgstr "Winners"
+msgstr "Vítězové"
 
 msgid "desk.side.losers"
-msgstr "Losers"
+msgstr "Poražení"
 
 msgid "desk.side.grand_final"
 msgstr "Velké finále"

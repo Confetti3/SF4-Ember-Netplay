@@ -923,61 +923,61 @@ msgid "replays.open_log_room"
 msgstr "Primero sal de la sala."
 
 msgid "replays.tournaments"
-msgstr "Tournaments"
+msgstr "Torneos"
 
 msgid "replays.tournaments_detail"
-msgstr "The sets you played in tournaments, each with all of its games."
+msgstr "Los sets que jugaste en torneos, cada uno con todas sus partidas."
 
 msgid "replays.set_detail"
-msgstr "Select to watch the set's games in order, pick one of them, or save the set as one file."
+msgstr "Selecciona para ver las partidas del set en orden, elegir una o guardar el set como un solo archivo."
 
 msgid "replays.set_value"
-msgstr "{0} replays · {1} rooms"
+msgstr "{0} repeticiones · {1} salas"
 
 msgid "replays.watch_set"
-msgstr "Watch set"
+msgstr "Ver set"
 
 msgid "replays.watch_set_detail"
-msgstr "Plays the first game now. When it ends, Next game at the top of Replays plays the next one."
+msgstr "Reproduce ahora la primera partida. Al terminar, Siguiente partida del set, arriba en Repeticiones, reproduce la siguiente."
 
 msgid "replays.pick_game"
-msgstr "Pick a game"
+msgstr "Elegir una partida"
 
 msgid "replays.pick_game_detail"
-msgstr "Lists the set's games in the order they were played."
+msgstr "Muestra las partidas del set en el orden en que se jugaron."
 
 msgid "replays.save_pack"
-msgstr "Save set pack"
+msgstr "Guardar paquete del set"
 
 msgid "replays.save_pack_detail"
-msgstr "Saves every game of the set that its service holds in one .emberpack file in the replay folder."
+msgstr "Guarda todas las partidas del set que tiene su servicio en un archivo .emberpack en la carpeta de repeticiones."
 
 msgid "replays.next_game"
-msgstr "Next game of the set ({0} of {1})"
+msgstr "Siguiente partida del set ({0} de {1})"
 
 msgid "replays.link_import"
-msgstr "Import set"
+msgstr "Importar set"
 
 msgid "replays.link_import_detail"
-msgstr "Puts every game of this set pack into Replays."
+msgstr "Agrega todas las partidas de este paquete del set a Repeticiones."
 
 msgid "replays.set_pack_working"
-msgstr "Saving the set pack..."
+msgstr "Guardando el paquete del set..."
 
 msgid "replays.set_pack_saved"
-msgstr "Set pack saved: {0}"
+msgstr "Paquete del set guardado: {0}"
 
 msgid "replays.set_pack_failed"
-msgstr "The set pack could not be saved. Its service may not have the games yet; try again later."
+msgstr "No se pudo guardar el paquete del set. Puede que su servicio aún no tenga las partidas; inténtalo más tarde."
 
 msgid "replays.set_pack_unavailable"
-msgstr "The set pack cannot be saved now. Ember needs a connection to the set's service."
+msgstr "El paquete del set no se puede guardar ahora. Ember necesita conexión con el servicio del set."
 
 msgid "replays.set_imported"
-msgstr "{0} games of the set are in Replays."
+msgstr "{0} partidas del set están en Repeticiones."
 
 msgid "replays.set_import_failed"
-msgstr "That file is not a whole set pack, so nothing was imported."
+msgstr "Ese archivo no es un paquete de set completo, así que no se importó nada."
 
 msgid "settings.training_auto_ready"
 msgstr "Ponerme listo al llamarme del Entrenamiento"
