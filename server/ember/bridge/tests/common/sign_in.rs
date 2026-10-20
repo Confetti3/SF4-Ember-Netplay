@@ -94,6 +94,8 @@ pub struct FakeSite {
     seen: Mutex<Vec<Seen>>,
     tokens: Mutex<HashMap<String, User>>,
     refreshes: Mutex<HashMap<String, User>>,
+    /// Refuses the next DELETE, as Challonge refuses a started tournament's.
+    refuse_delete: std::sync::atomic::AtomicBool,
 }
 
 type Reply = (AxumStatus, [(header::HeaderName, &'static str); 1], String);
@@ -130,6 +132,7 @@ impl FakeSite {
             seen: Mutex::default(),
             tokens: Mutex::default(),
             refreshes: Mutex::default(),
+            refuse_delete: Default::default(),
         })
     }
 
@@ -158,6 +161,12 @@ impl FakeSite {
     /// for the user and the body sent.
     pub fn creates(&self, answer: Creating) {
         *self.creating.lock().unwrap() = Some(answer);
+    }
+
+    /// Refuses the next DELETE with 422.
+    pub fn refuses_next_delete(&self) {
+        self.refuse_delete
+            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// The requests received at `path`, oldest first.
@@ -334,6 +343,16 @@ async fn writing(
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.strip_prefix("Bearer "))
         .is_some_and(|token| site.tokens.lock().unwrap().contains_key(token));
+    if method == axum::http::Method::DELETE
+        && site
+            .refuse_delete
+            .swap(false, std::sync::atomic::Ordering::Relaxed)
+    {
+        return reply(
+            AxumStatus::UNPROCESSABLE_ENTITY,
+            json!({ "errors": { "detail": "Tournament is currently underway", "status": 422 } }),
+        );
+    }
     let writes = method == axum::http::Method::DELETE || method == axum::http::Method::PUT;
     match (writes, known) {
         (true, true) => reply(AxumStatus::OK, json!({})),

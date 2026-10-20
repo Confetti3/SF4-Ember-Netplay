@@ -103,6 +103,8 @@ pub struct ParticipantsRequest {
 /// with `{tournament}` the event's ID, is DELETEd to delete an event it
 /// created; None deletes none. `start_body` PUT to `start_url` (with
 /// `{tournament}`) starts an event's bracket; None leaves that to the site.
+/// `reset_body` PUT there takes a started bracket back to before its start,
+/// for a site that deletes only those (Challonge).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateRequest {
@@ -113,6 +115,8 @@ pub struct CreateRequest {
     pub start_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_body: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reset_body: Option<serde_json::Value>,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
     pub body: serde_json::Value,
@@ -502,7 +506,11 @@ impl SignInSite {
                 && create
                     .start_body
                     .as_ref()
-                    .is_none_or(|body| body.is_object());
+                    .is_none_or(|body| body.is_object())
+                && create
+                    .reset_body
+                    .as_ref()
+                    .is_none_or(|body| body.is_object() && create.start_url.is_some());
             if !headers_ok(&create.headers)
                 || !prefix_ok
                 || !named(&create.delete_url)

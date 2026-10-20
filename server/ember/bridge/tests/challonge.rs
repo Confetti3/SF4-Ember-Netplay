@@ -1289,10 +1289,21 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(events().await["events"].as_array().unwrap().len(), 1);
 
-    // Stopped with its site's event, it is gone from both.
+    // Stopped with its site's event, it is gone from both. Challonge deletes
+    // only a tournament that has not started: a started one is reset first.
+    fake.refuses_next_delete();
     let (status, stopped) = on_site(path("")).await;
     assert_eq!(status, StatusCode::OK, "{stopped}");
-    assert_eq!(fake.seen("/v2.1/tournaments/777.json").len(), 1);
+    assert_eq!(fake.seen("/v2.1/tournaments/777.json").len(), 2);
+    let reset: Json = serde_json::from_str(
+        &fake
+            .seen("/v2.1/tournaments/777/change_state.json")
+            .pop()
+            .unwrap()
+            .body,
+    )
+    .unwrap();
+    assert_eq!(reset["data"]["attributes"]["state"], "reset");
     assert_eq!(events().await["events"], json!([]));
 }
 

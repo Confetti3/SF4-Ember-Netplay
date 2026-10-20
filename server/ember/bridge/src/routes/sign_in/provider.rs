@@ -476,6 +476,22 @@ impl OAuth {
             body: None,
         };
         let client = outbound_client().build().map_err(|_| None)?;
+        let refused = match sent(&client, &request, token, MAX_ANSWER).await {
+            Ok(_) => return Ok(()),
+            Err(refused) => refused,
+        };
+        // A started bracket is taken back to before its start, when the site
+        // deletes only those, and deleted again.
+        let (Some(url), Some(body)) = (&create.start_url, &create.reset_body) else {
+            return Err(refused);
+        };
+        let reset = UserRequest {
+            method: Method::Put,
+            url: url.replace("{tournament}", path_id(tournament).ok_or(None)?),
+            headers: pairs(&create.headers),
+            body: Some(body.clone()),
+        };
+        sent(&client, &reset, token, MAX_ANSWER).await?;
         sent(&client, &request, token, MAX_ANSWER).await.map(drop)
     }
 
