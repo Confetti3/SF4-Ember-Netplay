@@ -139,6 +139,20 @@ What makes Ember speak, all of it (grep `speech::` outside tests):
 - 2026-10-20 ~16:00, d9b376b5a: 12 tests (SpeechWine skipped on Windows)
   pass; stage Sidecar md5 a4d5c766; SpeechWine on the Deck exit 0.
 
+## Discoverability, free voices, guide (2026-10-20 evening)
+
+19. Discoverability (46a540af7): intro at the first menu with speech on
+    (introHeard), "RT for more" until 3 descriptions read (describeUsed,
+    Remind setting Auto/On/Off), then a tick; screen help once per session.
+20. Licences (29077ddde, spec table): lessac out (research only); English
+    ljspeech (PD, user's pick by ear over kristin and cori), ru denis (CC0),
+    zh on speech-dispatcher. Only PD/CC0/CC BY voices.
+21. Guide docs/guides/ACCESSIBILITY.md with Opus recordings per section and
+    chime/tick samples (b4b27f5cc); scripts/guide-audio/make-guide-audio.sh
+    regenerates them (6394b26be). Todo: the guide and recordings in the
+    other 13 languages.
+22. Deck: 00c4793f installed (SpeechWine exit 0 first).
+
 ## Decisions
 
 - **Tolk not added now.** It needs a new x86 DLL (Tolk.dll plus the NVDA
