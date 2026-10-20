@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Checks for the wiki build that need no network: python3 scripts/wiki/test_wiki.py"""
+import tempfile
+from pathlib import Path
+
 import build
+import check
 
 # A changed paragraph keeps the current text and shows the new one below it, marked.
 doc = build.Doc("Intro.\n\nOld step.\nSecond line.\n\nOutro.")
@@ -39,4 +43,9 @@ assert out[0] == ("[a](Training-Lab#x) ![b](images/guides/lab/1.webp) "
                   f"[c](https://github.com/{build.UPSTREAM}/blob/nightly/docs/design/X.md)"), out
 assert out[2] == "[d](CUSTOM_ROOMS.md)" and images == {"docs/images/guides/lab/1.webp"}
 
+# The check fails on a dead page link or image and warns about steps without a screenshot.
+with tempfile.TemporaryDirectory() as folder:
+    Path(folder, "Home.md").write_text("[x](Missing) ![y](images/none.png)\n\n## Steps\n\n1. Do it.\n")
+    errors, warnings = check.check(Path(folder))
+    assert len(errors) == 2 and len(warnings) == 1, (errors, warnings)
 print("wiki checks passed")

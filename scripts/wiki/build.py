@@ -7,7 +7,7 @@ branch. Open pull requests on the main repository with the wiki label that
 change a guide add the paragraphs they add or change below the current text,
 marked "Coming soon" until they merge.
 
-The result goes to build/wiki.
+The result goes to build/wiki; check.py checks it.
 """
 import argparse
 import base64
