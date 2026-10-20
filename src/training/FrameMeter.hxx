@@ -421,7 +421,7 @@ public:
         history_ = (std::max)(MeterShown, frames);
         while (view_.frames.size() > history_) view_.frames.pop_front();
     }
-    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = stopped_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; cancelling_ = {}; }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; markedAt_ = -1; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = stopped_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; cancelling_ = {}; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -532,8 +532,10 @@ public:
             lastCells_[side] = cells[side];
             view_.current[side] = sample;
         }
-        if (struck >= 0 && fighters[struck].untilActionable < UntimedFrames)
+        if (struck >= 0 && fighters[struck].untilActionable < UntimedFrames) {
             cells[1 - struck].hitAdvantage = fighters[struck].untilActionable - fighters[1 - struck].untilActionable;
+            markedAt_ = now;
+        }
         // Both fighters quiet, as their cells show them: standing, crouching,
         // a jump or a guard in the air, or missing.
         bool neutral = true;
@@ -691,6 +693,9 @@ private:
             view_.advantage.valid = true; view_.advantage.pending = false;
             view_.advantage.unavailable = MeasurementUnavailable::None;
             view_.lastAdvantage = view_.advantage;
+            // The game's counts can stall a frame in a long stun, so the
+            // exchange's last hit takes what was measured once both were free.
+            if (markedAt_ == contactFrame_ && !view_.advantage.knockdown) Remark(view_.advantage.attacker, view_.advantage.frames[view_.advantage.attacker]);
         }
         return struck;
     }
@@ -741,6 +746,13 @@ private:
     bool continuous_ = false;
     // When the armed exchange began, on the clock of accepted observations.
     std::int64_t exchangeAt_ = 0;
+    // When the last hit's advantage was marked (Observe), for Remark.
+    std::int64_t markedAt_ = -1;
+    // The newest hit mark side's attack left on the bars becomes frames.
+    void Remark(int side, int frames) {
+        for (auto frame = view_.frames.rbegin(); frame != view_.frames.rend(); ++frame)
+            if (frame->cells[side].hitAdvantage != NoHitAdvantage) { frame->cells[side].hitAdvantage = frames; return; }
+    }
     // On the clock of accepted observations; -1 none.
     std::array<std::int64_t, 2> firstActiveAt_{{-1, -1}}, wakeAt_{{-1, -1}};
     std::array<bool, 2> armed_{};

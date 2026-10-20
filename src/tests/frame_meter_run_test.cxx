@@ -3,6 +3,7 @@
 // edge past their width, hold four quiet frames after it on its last active
 // frame, and any action after that starts the next exchange.
 #include "../training/FrameMeter.hxx"
+#include <algorithm>
 #include <cstdio>
 #include <stdexcept>
 using namespace sf4e::training;
@@ -226,6 +227,32 @@ int main() {
                 "The hit's mark was not on the frame it landed on");
             Require(after[0].hitAdvantage == NoHitAdvantage && after[1].newAction && after[0].afterStop && after[1].afterStop,
                 "The reaction's start and the hitstop line did not show on the frame after hitstop");
+        }
+        // The game's counts said -14 as Ryu's crouching HP landed, but the
+        // other's stun stalled a frame: it was free 13 frames before Ryu, and
+        // the exchange's last hit says what was measured.
+        {
+            FrameMeter meter;
+            const auto play = [&](int frame, unsigned own, float ownFrame, unsigned other, int otherAction, float otherFrame, int ownLeft, int otherLeft) {
+                std::array<FighterSample, 2> both;
+                for (auto& fighter : both) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; }
+                both[0].status = own; both[0].action = own ? 270 : 0; both[0].actionFrame = ownFrame; both[0].untilActionable = ownLeft;
+                both[1].status = other; both[1].action = otherAction; both[1].actionFrame = otherFrame; both[1].untilActionable = otherLeft;
+                meter.Observe(frame, both);
+            };
+            int at = 0;
+            play(at++, 0, 0, 0, 0, 0, 0, 0);
+            for (int f = 1; f <= 4; ++f) play(at++, 16, static_cast<float>(f), 0, 0, static_cast<float>(f), 0, 0);
+            play(at++, 16, 4, 21, 144, 0, 45, 31);
+            const int landed = at - 1;
+            for (int f = 1; f <= 20; ++f) play(at++, 16, 4.f + f, 21, 144, static_cast<float>(f), 0, 0);
+            for (int f = 1; f <= 13; ++f) play(at++, 16, 24.f + f, 0, 0, static_cast<float>(f), 0, 0);
+            for (int f = 1; f <= 3; ++f) play(at++, 0, static_cast<float>(f), 0, 0, 13.f + f, 0, 0);
+            const auto& advantage = meter.View().lastAdvantage;
+            Require(advantage.valid && advantage.frames[0] == -13, "The crouching HP's exchange was not measured at -13");
+            const auto& frames = meter.View().frames;
+            const auto marked = std::find_if(frames.begin(), frames.end(), [](const MeterFrame& frame) { return frame.cells[0].hitAdvantage != NoHitAdvantage; });
+            Require(marked != frames.end() && marked->frame < landed && marked->cells[0].hitAdvantage == -13, "The last hit did not take the measured advantage");
         }
         std::puts("Frame meter run tests passed");
         return 0;
