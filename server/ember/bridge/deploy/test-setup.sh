@@ -306,7 +306,7 @@ check "instance.sh installed" same "$HERE/instance.sh" "$R/usr/local/lib/$P/inst
 check "backup.sh installed" same "$HERE/backup.sh" "$R/usr/local/lib/$P/backup.sh"
 check "restore.sh installed" same "$HERE/restore.sh" "$R/usr/local/lib/$P/restore.sh"
 check "state and backups owned by the account" logged "install -d -o $P -g $P -m 0700 $R/var/lib/$P $R/var/backups/$P"
-check "init runs as the account" logged "sudo -u $P $R/usr/local/lib/$P/ember-bridge"
+check "init runs as the account, with the staged binary" logged "sudo -u $P $R/usr/local/lib/$P/ember-bridge.new"
 check "service unit as before the templates" same "$GOLDEN/ember-bridge.service" "$PUNITS.service"
 check "backup service as before" same "$GOLDEN/ember-bridge-backup.service" "$PUNITS-backup.service"
 check "backup timer as before" same "$GOLDEN/ember-bridge-backup.timer" "$PUNITS-backup.timer"
@@ -334,7 +334,7 @@ check "account ember-bridge-staging created" account "$S"
 check "own binary" same "$SDIR/bin/ember-bridge" "$R/usr/local/lib/$S/ember-bridge"
 check "own backup.sh" same "$HERE/backup.sh" "$R/usr/local/lib/$S/backup.sh"
 check "state and backups owned by its account" logged "install -d -o $S -g $S -m 0700 $R/var/lib/$S $R/var/backups/$S"
-check "init runs as its account" logged "sudo -u $S $R/usr/local/lib/$S/ember-bridge"
+check "init runs as its account, with the staged binary" logged "sudo -u $S $R/usr/local/lib/$S/ember-bridge.new"
 check "service runs its binary on its config" has_line "$SUNITS.service" "ExecStart=/usr/local/lib/$S/ember-bridge serve /var/lib/$S/bridge.json"
 check "service runs as its account" has_line "$SUNITS.service" "User=$S"
 check "service group" has_line "$SUNITS.service" "Group=$S"
@@ -447,17 +447,45 @@ run "$SDIR/setup.sh" "EMBER_BRIDGE_ROOT=$T/elsewhere"
 check "a root outside TMPDIR exits 2" exited 2
 check "nothing ran" nothing_logged
 
-echo "6. a staging site nginx rejects"
+# Nothing a run stages or backs up is left behind: no .new file next to an
+# installed one, and no mktemp folder in TMPDIR besides the test root.
+no_leftovers() {
+    [ -z "$(find "$R" -name '*.new' -o -name '.bridge.json.*')" ] && [ "$(ls "$TMPDIR")" = root ]
+}
+
+echo "6. a staging site nginx rejects, with a newer binary, config and units staged"
 cp "$SDIR/nginx/bridge.conf.in" "$T/site-template"
+cp "$SDIR/ember-bridge.service.in" "$T/service-template"
+cp "$SDIR/tenants.staging.json" "$T/staging-tenants"
+cp -p "$SDIR/bin/ember-bridge" "$T/staging-binary"
 echo "# BADNGINX" >> "$SDIR/nginx/bridge.conf.in"
+echo "# newer unit" >> "$SDIR/ember-bridge.service.in"
+sed -i 's/Ember bridge (staging)/Ember bridge (staging, newer)/' "$SDIR/tenants.staging.json"
+stage_binary "$SDIR" v3
 run "$SDIR/setup.sh"
 check "fails" failed
 check "says it restored nginx" mentions "restored the previous files"
-check "staging site back byte for byte" same "$T/snap-staging/site" "$R/etc/nginx/sites-available/$SSITE"
+check "says the rest was not changed" mentions "binary, bridge.json and units were not changed"
+check "the new config was meant to differ" bash -c '! cmp -s "$1" "$2"' _ "$SDIR/bin/ember-bridge" "$T/staging-binary"
+check "staging binary, bridge.json, units, site and zone back as they were" unchanged "$S" "$SSITE" staging
 check "staging still enabled" links_to "$R/etc/nginx/sites-enabled/$SSITE" "$R/etc/nginx/sites-available/$SSITE"
-check "nothing restarted" bash -c '! grep -q "^systemctl restart" "$1"' _ "$STUB/log"
+check "no staged file or backup folder left" no_leftovers
+check "nothing reloaded or restarted" bash -c '! grep -q "^systemctl" "$1"' _ "$STUB/log"
 check "production files unchanged" unchanged "$P" "$PSITE" production
 cp "$T/site-template" "$SDIR/nginx/bridge.conf.in"
+cp "$T/service-template" "$SDIR/ember-bridge.service.in"
+
+echo "6b. a tenants file the merge refuses changes nothing"
+sed -i 's/Ember bridge (staging)/Ember bridge (staging, refused)/' "$SDIR/tenants.staging.json"
+sed -i 's/"listen": /"database": "elsewhere.sqlite3",\n  "listen": /' "$SDIR/tenants.staging.json"
+run "$SDIR/setup.sh"
+check "fails" failed
+check "names the database" mentions "this deployment expects 'bridge.sqlite3'"
+check "staging binary, bridge.json, units, site and zone as they were" unchanged "$S" "$SSITE" staging
+check "no staged file or backup folder left" no_leftovers
+check "nothing reloaded or restarted" bash -c '! grep -q "^systemctl" "$1"' _ "$STUB/log"
+cp "$T/staging-tenants" "$SDIR/tenants.staging.json"
+cp -p "$T/staging-binary" "$SDIR/bin/ember-bridge"
 
 echo "7. staging never replaces production's request limits"
 cp "$SDIR/nginx/ember-bridge-zone.conf" "$T/zone"

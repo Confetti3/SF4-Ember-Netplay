@@ -35,10 +35,12 @@
 #                                                      request zones, named after the instance
 # Nothing is opened in ufw: the bridge listens on loopback, nginx already serves 80 and 443.
 #
-# Before changing anything it refuses a folder that is not directly in the
-# operator's home, and a tenants file whose origin or listen address another
-# installed bridge has. test-setup.sh moves every path above under a test
-# folder (see instance.sh) and stands in for the commands that need root.
+# Nothing but the nginx zone and site is moved until nginx -t accepts them; a
+# failed check puts those back and leaves the binary, bridge.json and units as
+# they were. Before changing anything it refuses a folder that is not directly
+# in the operator's home, and a tenants file whose origin or listen address
+# another installed bridge has. test-setup.sh moves every path above under a
+# test folder (see instance.sh) and stands in for the commands that need root.
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
@@ -122,25 +124,43 @@ if ! id "$NAME" >/dev/null 2>&1; then
 fi
 
 install -d -o root -g root -m 0755 "$LIB"
-install -o root -g root -m 0755 "$SRC/bin/ember-bridge" "$LIB/ember-bridge.new"
-mv -f "$LIB/ember-bridge.new" "$LIB/ember-bridge"
-install -o root -g root -m 0644 "$SRC/instance.sh" "$LIB/instance.sh"
-install -o root -g root -m 0755 "$SRC/backup.sh" "$LIB/backup.sh"
-install -o root -g root -m 0755 "$SRC/restore.sh" "$LIB/restore.sh"
 install -d -o "$NAME" -g "$NAME" -m 0700 "$STATE" "$BACKUPS"
 
+# Stage everything as <path>.new, check it, and only then move it all into
+# place, so a failure before that leaves the running bridge as it was. The
+# trap removes what was staged and the nginx backup on every way out.
+backup=$(mktemp -d)
+NEW=()
+cleanup() {
+    local path
+    for path in ${NEW[@]+"${NEW[@]}"}; do rm -f "$path.new"; done
+    rm -rf "$backup"
+}
+trap cleanup EXIT
+stage_install() {
+    install -o root -g root -m "$1" "$2" "$3.new"
+    NEW+=("$3")
+}
+stage_install 0755 "$SRC/bin/ember-bridge" "$LIB/ember-bridge"
+stage_install 0644 "$SRC/instance.sh" "$LIB/instance.sh"
+stage_install 0755 "$SRC/backup.sh" "$LIB/backup.sh"
+stage_install 0755 "$SRC/restore.sh" "$LIB/restore.sh"
+
 # First install: a fresh bridge ID and secrets, then the deployed settings.
+# The new binary makes them; if a later step fails they stay, and the next run
+# finds them and goes on.
 if [ ! -f "$STATE/bridge.json" ]; then
-    sudo -u "$NAME" "$LIB/ember-bridge" init "$STATE"
+    sudo -u "$NAME" "$LIB/ember-bridge.new" init "$STATE"
 fi
 # Apply the tenants file and the deployed settings, keeping bridge_id and
 # paths. Development switches are always off here. Root only opens the
 # tenants file (katie's home is closed to the service account) and hands it
 # over on stdin; everything inside the service-owned folder runs as the
-# service account.
+# service account. The result is written as bridge.json.new and replaces
+# bridge.json with the rest below.
 MERGE=$(cat <<'PY'
 import json, os, sys, tempfile
-path = sys.argv[1]
+path, target = sys.argv[1:]
 deployed = json.load(sys.stdin)
 with open(path) as file:
     config = json.load(file)
@@ -153,14 +173,18 @@ for key, expected in (("database", "bridge.sqlite3"), ("secrets", "bridge-secret
 config["allow_loopback_http"] = False
 config["allow_private_webhooks"] = False
 config["mock_browser"] = False
-handle, temporary = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".bridge.json.")
+handle, temporary = tempfile.mkstemp(dir=os.path.dirname(target), prefix=".bridge.json.")
 with os.fdopen(handle, "w") as file:
     json.dump(config, file, indent=2)
     file.write("\n")
-os.replace(temporary, path)
+os.replace(temporary, target)
 PY
 )
-sudo -u "$NAME" python3 -c "$MERGE" "$STATE/bridge.json" < "$SRC/$TENANTS"
+NEW+=("$STATE/bridge.json")
+sudo -u "$NAME" python3 -c "$MERGE" "$STATE/bridge.json" "$STATE/bridge.json.new" < "$SRC/$TENANTS"
+# ember-bridge has no command that checks a config without starting the
+# service, so a setting Config::validate rejects is not caught before the
+# restart below.
 
 # Every instance's units and site come from one template each: @NAME@ is the
 # account, unit and folder name, @HOST@ and @PORT@ come from the tenants
@@ -171,15 +195,18 @@ render() {
     sed -e "s/@NAME@/$NAME/g" -e "s/@HOST@/$HOST/g" -e "s/@PORT@/$PORT/g" \
         -e "s/@LABEL@/$LABEL/g" -e "s/@ZONE@/$ZONE_PREFIX/g" "$1" > "$2.new"
     chmod 0644 "$2.new"
-    mv -f "$2.new" "$2"
+    NEW+=("$2")
 }
 for unit in .service -backup.service -backup.timer; do
     render "$SRC/ember-bridge$unit.in" "$UNITS/$NAME$unit"
 done
+render "$SRC/nginx/bridge.conf.in" "$SITE"
+stage_install 0644 "$SRC/nginx/ember-bridge-zone.conf" "$ZONE"
 
-# nginx: keep copies of the zone, the site and the enabled entry (or note
-# that each was absent) so a failed check puts everything back as it was.
-backup=$(mktemp -d)
+# nginx reads the installed files, so the zone and the site go in first, with
+# copies of the zone, the site and the enabled entry (or a note that each was
+# absent) so a failed check puts everything back as it was. Nothing else has
+# been moved yet.
 [ -e "$ZONE" ] && cp -a "$ZONE" "$backup/zone"
 [ -e "$SITE" ] && cp -a "$SITE" "$backup/site"
 [ -e "$ENABLED" ] || [ -L "$ENABLED" ] && cp -a "$ENABLED" "$backup/enabled"
@@ -189,19 +216,23 @@ restore() {
     rm -f "$ENABLED"
     if [ -e "$backup/enabled" ] || [ -L "$backup/enabled" ]; then cp -a "$backup/enabled" "$ENABLED"; fi
 }
-install -o root -g root -m 0644 "$SRC/nginx/ember-bridge-zone.conf" "$ZONE"
-render "$SRC/nginx/bridge.conf.in" "$SITE"
+mv -f "$ZONE.new" "$ZONE"
+mv -f "$SITE.new" "$SITE"
 ln -sfn "$SITE" "$ENABLED"
 if ! nginx -t; then
     restore
     if nginx -t; then
-        echo "nginx rejected the new configuration; restored the previous files." >&2
+        echo "nginx rejected the new configuration; restored the previous files. The binary, bridge.json and units were not changed." >&2
     else
         echo "nginx rejected the new configuration, and the restored files fail too; fix nginx before reloading it." >&2
     fi
     exit 1
 fi
 
+# nginx accepts it: move the rest into place.
+for path in "${NEW[@]}"; do
+    [ ! -e "$path.new" ] || mv -f "$path.new" "$path"
+done
 systemctl daemon-reload
 systemctl enable "$NAME" "$NAME-backup.timer"
 systemctl restart "$NAME"
