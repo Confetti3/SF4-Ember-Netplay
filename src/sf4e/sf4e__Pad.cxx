@@ -135,20 +135,17 @@ void fSystem::UpdateInputs() {
     const auto& device=snapshot.inputDevice;
     unsigned mapped=0,physical=0;
     const bool connected=Dimps::Pad::ReadController(device.type,device.index,mapped,&physical);
-    constexpr unsigned PhysicalStart=sf4e::input::NativeStart;
     const bool focused=focus.focused;
     // Start opens Ember at the main menu, over a Practice match this PC
-    // fights in and over a game it only watches, with the window in front or
-    // behind: the pads are polled there for it. The request holds the pads at
-    // once, so the press is cleared below before the game or the fight reads it.
-    static bool mainArmed=false;
+    // fights in, and toggles the menu over a game it only watches, with the
+    // window in front or behind: the pads are polled there for it. The request
+    // holds the pads at once, so the press is cleared before the game reads it.
+    // Assigning or configuring a controller owns its buttons until completion.
+    static sf4e::input::MenuStartInput menuStart;
+    const bool menuStartPressed=menuStart.Update(snapshot.menuContext,device.type,device.index,connected,mapped,physical,
+        snapshot.inputCapture==sf4e::input::Capture::Idle&&!snapshot.padSetup.state.active);
+    if(menuStartPressed) sf4e::Overlay::RequestMenuStart();
     static int ownerType=-1,ownerIndex=-1;
-    if(snapshot.matchLoading||!connected||!sf4e::input::ControllerOpensMenu(snapshot.menuContext)||snapshot.inputCapture!=sf4e::input::Capture::Idle||
-        ownerType!=device.type||ownerIndex!=device.index) mainArmed=false;
-    else if(!physical)mainArmed=true;
-    else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {
-        mainArmed=false;sf4e::Overlay::RequestMainControls();
-    }
     // Offline Training: the pad's Back and Start (TrainingPad.hxx). Each press
     // keeps the battle and pad owner it went down under, and the position
     // events it makes are posted in order for the drawing thread with them.
@@ -200,7 +197,9 @@ void fSystem::UpdateInputs() {
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture gate;
-    const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
+    // The drawing thread may answer a hide before this poll clears native
+    // input. The press itself owns this poll even after that answer.
+    const bool blocked=gate.Update(menuStartPressed||sf4e::Overlay::CapturesMenuInput()||hidden,held);
     inputBlocked=blocked;
     // Native Start is untouched while Ember is closed; an open overlay,
     // including the training controls, captures all inputs until release,

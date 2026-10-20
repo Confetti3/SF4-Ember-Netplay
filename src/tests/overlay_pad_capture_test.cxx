@@ -59,7 +59,7 @@ int main() {
     // until the frame that takes it has shown the menu.
     pads.Place(MenuContext::MainMenu, false);
     CHECK(Overlay::HasInputFocus() && !Overlay::CapturesMenuInput());
-    Overlay::RequestMainControls();
+    Overlay::RequestMenuStart();
     CHECK(Overlay::CapturesMenuInput());
     pads.Publish(true, pads.Take());
     CHECK(Overlay::CapturesMenuInput());
@@ -74,7 +74,22 @@ int main() {
     CHECK(!Overlay::HasInputFocus());
     pads.Place(MenuContext::MainMenu, false); CHECK(Overlay::CapturesMenuInput());
     pads.Publish(false, pads.Take()); CHECK(!Overlay::CapturesMenuInput());
-    Overlay::RequestMainControls(); CHECK(Overlay::CapturesMenuInput());
+    Overlay::RequestMenuStart(); CHECK(Overlay::CapturesMenuInput());
+    // Start is also the way back to a watched game, through the real overlay
+    // request entry point, even when another window has focus. The hide holds
+    // the pads until the drawing thread answers it.
+    pads.Publish(true, pads.Take());
+    pads.Place(MenuContext::WatchedMatch, true);
+    Overlay::RequestMenuStart(); CHECK(Overlay::CapturesMenuInput());
+    const auto hide = pads.Take();
+    CHECK(hide.kind == sf4e::ui::MenuRequest::Toggle);
+    CHECK(Overlay::CapturesMenuInput());
+    pads.Publish(false, hide); CHECK(!Overlay::CapturesMenuInput());
+    Overlay::RequestMenuStart(); CHECK(Overlay::CapturesMenuInput());
+    const auto reopen = pads.Take();
+    CHECK(reopen.kind == sf4e::ui::MenuRequest::Toggle);
+    pads.Publish(true, reopen);
+    pads.Place(MenuContext::MainMenu, false);
     // A display reset while a frame is still drawing. The frame took Start's
     // open, another Start comes after it, and the frame publishes the menu
     // shown only once the teardown has begun. The teardown waits for the
@@ -84,7 +99,7 @@ int main() {
     std::thread frame([&] {
         const sf4e::ui::OverlayLifecycle::Frame guard(Overlay::Lifecycle());
         const auto taken = pads.Take();
-        Overlay::RequestMainControls();
+        Overlay::RequestMenuStart();
         drawing = true;
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         pads.Publish(true, taken);

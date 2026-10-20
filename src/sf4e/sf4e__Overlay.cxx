@@ -114,13 +114,13 @@ bool Overlay::CapturesMenuInput() { return sf4e::NetplayFacade::GetRuntimeSnapsh
 bool Overlay::HasInputFocus() { return focused.load(); }
 sf4e::ui::MenuPads& Overlay::MenuPads() { return s_menuPads; }
 sf4e::ui::OverlayLifecycle& Overlay::Lifecycle() { return s_lifecycle; }
-// Start at the main menu or over a fight (input::ControllerOpensMenu).
+// Start opens the menu, or hides it over a watched game.
 // The request holds the pads at once, until the frame that takes it has
 // shown the menu (MenuPads), so the press never reaches the native menu or
 // the fight. Behind another window it counts only where a pad update has
 // placed the game where Start opens the menu.
-void Overlay::RequestMainControls() {
-    if (focused || s_menuPads.StartOpens()) s_menuPads.Request(sf4e::ui::MenuPads::Kind::Controls);
+void Overlay::RequestMenuStart() {
+    if (focused || s_menuPads.StartOpens()) s_menuPads.RequestStart();
 }
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvent& event) {
     if(!focused) return;
@@ -149,7 +149,7 @@ static int OnMainMenuModeSelected(int mode) {
         return 1;
     }
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
-    s_menuPads.Request(sf4e::ui::MenuPads::Kind::Play); return 1;
+    s_menuPads.Request(sf4e::ui::MenuRequest::Play); return 1;
 }
 // Which thread creates and frees the overlay, against the one that draws it.
 // Freeing it on another thread while a frame draws would use a freed context;
@@ -493,10 +493,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     presentation.Update(snapshot.menuContext, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
     const auto openRequest = s_menuPads.Take();
-    if (openRequest.kind != sf4e::ui::MenuPads::Kind::None && presentation.Available()) {
-        presentation.Open(openRequest.kind == sf4e::ui::MenuPads::Kind::Play ? "the Network item" : "Start");
-        if (openRequest.kind == sf4e::ui::MenuPads::Kind::Play) shell.ShowPlay();
-    }
+    presentation.Apply(openRequest.kind, snapshot.menuContext);
+    if (openRequest.kind == sf4e::ui::MenuRequest::Play && presentation.Available()) shell.ShowPlay();
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open("a Discord invite"); inviteShown=true; }
     if (!snapshot.discordPending) inviteShown=false;
@@ -554,9 +552,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     });
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
         presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
-    // Start opens Ember at the main menu and over a fight (a Practice match
-    // or a watched game); in Training and over an export it is the game's pause.
-    if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open("Start");
+    // Start belongs to the game-thread request above. Reading it again from
+    // this snapshot could reopen a spectator's menu in the frame it closes.
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
     for (const auto& pad : snapshot.pads) if (pad.gameplay) sf4e::ui::SetMenuPromptBrand(snapshot.promptBrand, gamepads::NamesOf(pad.table));
