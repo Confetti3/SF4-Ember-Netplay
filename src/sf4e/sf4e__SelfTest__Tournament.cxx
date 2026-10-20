@@ -1,6 +1,7 @@
 #include "sf4e__SelfTest__Online.hxx"
 
 #include <cstdint>
+#include <cstdlib>
 #include <ctime>
 #include <string>
 #include <vector>
@@ -45,6 +46,16 @@ constexpr const wchar_t* kClaimFile = L"claim";
 constexpr const wchar_t* kMatchFile = L"match";
 constexpr const wchar_t* kSiteAccountFile = L"site-account";
 constexpr const wchar_t* kMatchIdFile = L"match-id";
+// The desk run (docs/guides/TOURNAMENT_TEST.md): the runner writes the code
+// the web desk shows and then the number it shows; the organizer's game
+// writes what asked and the numbers it offers, then that it approved. The
+// runner writes the event to sign up for; each game writes that it did.
+constexpr const wchar_t* kDeskCodeFile = L"desk-code";
+constexpr const wchar_t* kDeskDeviceFile = L"desk-device";
+constexpr const wchar_t* kDeskNumberFile = L"desk-number";
+constexpr const wchar_t* kDeskApprovedFile = L"desk-approved";
+constexpr const wchar_t* kEventFile = L"event";
+constexpr const wchar_t* kSignedUpFile = L"signed-up";
 
 // A person has this long to sign in and approve in the browser, on each PC in
 // turn. The connector links the players only once both have, so the wait for
@@ -52,7 +63,8 @@ constexpr const wchar_t* kMatchIdFile = L"match-id";
 constexpr int kSiteSignInSeconds = 300, kSiteLinkSeconds = 420;
 
 // Done: the outcome is written (Finish).
-enum class Stage { Setup, Settings, EmberId, Inspect, Approve, SiteRead, SiteOpen, SiteWait, Claim, Linked, Match, Room, Ready, Playing, Leaving, Done };
+enum class Stage { Setup, Settings, EmberId, Inspect, Approve, SiteRead, SiteOpen, SiteWait, OrganizerRead, OrganizerOpen, OrganizerWait,
+	DeskCode, DeskNumber, SignUp, Claim, Linked, Match, Room, Ready, Playing, Leaving, Done };
 
 // How a player is linked and finds the match, which is the one thing the two
 // modes do differently. It is chosen once, from SF4E_SELFTEST_SITE, so the
@@ -71,6 +83,12 @@ struct Flow {
 	// the bracket connector makes it and the test plays the one the bridge
 	// lists as playable and names it to the runner.
 	bool runnerNamesMatch = true;
+	// The desk run, against a running bridge such as staging: the Ember ID is
+	// kept between runs in a folder of the test's own (its accounts connect
+	// once, by a person), this game is the organizer who approves the web
+	// desk's code with its number, each game signs up for the event, and the
+	// first game is a draw.
+	bool kept = false, organizer = false, signUp = false, drawFirst = false;
 
 	bool SignIn() const { return !site.empty(); }
 };
@@ -103,6 +121,11 @@ struct Run : Steps<Stage> {
 } s_run;
 
 bool Host() { return Requested() == Test::TournamentHost; }
+
+// What follows a connected account: organizer access and the desk's code,
+// then the sign-up, then the link the connector makes.
+Stage AfterDesk() { return s_run.flow.signUp ? Stage::SignUp : Stage::Linked; }
+Stage AfterSite() { return s_run.flow.organizer ? Stage::OrganizerRead : AfterDesk(); }
 
 // The first line of an exchange file, empty until the runner has written it;
 // and the game's own, written whole.
@@ -208,7 +231,7 @@ void Step(const RuntimeSnapshot& now) {
 		// here, as Create does on the Ember ID screen. One that is ready before
 		// Enable was sent is somebody else's: the helper did not use the test's
 		// folder, and the test would trust the bridge in the player's own.
-		if (id.state == "ready" && !run.enableSent) {
+		if (id.state == "ready" && !run.enableSent && !run.flow.kept) {
 			run.Fail("ember id", "the helper is not using the test's Ember folder (it found an ID there before the test made one)");
 			break;
 		}
@@ -251,6 +274,14 @@ void Step(const RuntimeSnapshot& now) {
 		// reads it, so that the one that appears is known to be new.
 		if (!Asked(now, IdentityOp::SiteStatus, "site account")) break;
 		run.accountBefore = id.Site();
+		// A kept Ember ID connected its account on an earlier run.
+		if (run.flow.kept && !id.Site().user.empty()) {
+			const auto account = id.Site();
+			if (!WriteExchange(kSiteAccountFile, account.user + " " + (account.name.empty() ? account.user : account.name))) { run.Fail("site connected", "the account could not be written to the exchange folder"); break; }
+			Say(true, "site connected", "kept");
+			run.Enter(AfterSite());
+			break;
+		}
 		run.Enter(Stage::SiteOpen);
 		break;
 	case Stage::SiteOpen: {
@@ -283,7 +314,7 @@ void Step(const RuntimeSnapshot& now) {
 					const std::string name = account.name.empty() ? account.user : account.name;
 					if (!WriteExchange(kSiteAccountFile, account.user + " " + name)) { run.Fail("site connected", "the account could not be written to the exchange folder"); break; }
 					Say(true, "site connected");
-					run.Enter(Stage::Linked);
+					run.Enter(AfterSite());
 					break;
 				}
 			}
@@ -291,6 +322,94 @@ void Step(const RuntimeSnapshot& now) {
 		if (run.Every(4) && (!run.asked || run.Every(12))) Ask(Request(IdentityOp::SiteStatus));
 		if (run.Late(kSiteSignInSeconds))
 			run.Fail("site connected", "no account was connected in " + std::to_string(kSiteSignInSeconds / 60) + " minutes" + (run.lastRefusal.empty() ? "" : " (" + run.lastRefusal + ")"));
+		break;
+	}
+	case Stage::OrganizerRead: case Stage::OrganizerWait: {
+		// Organizer access, as Tournament organizer reads it; a kept Ember ID
+		// holds it from an earlier run. Without it, Allow opens the site's
+		// organizer sign-in once and a person approves.
+		if (run.asked) {
+			const auto answer = Answered(now);
+			if (answer.given) {
+				run.asked = false;
+				if (answer.ok && id.siteOrganizer) { Say(true, "organizer access", run.flow.site); run.Enter(Stage::DeskCode); break; }
+				if (run.stage == Stage::OrganizerRead) { run.Enter(Stage::OrganizerOpen); break; }
+			}
+		}
+		if (!run.asked && run.Every(4)) { IdentityRequest read = Request(IdentityOp::SiteStatus); read.organizer = true; Ask(std::move(read)); }
+		if (run.Late(run.stage == Stage::OrganizerRead ? 60 : kSiteSignInSeconds)) run.Fail("organizer access", "was never allowed");
+		break;
+	}
+	case Stage::OrganizerOpen: {
+		if (!run.asked) { IdentityRequest open = Request(IdentityOp::SiteConnect); open.organizer = true; Ask(std::move(open)); break; }
+		const auto answer = Answered(now);
+		if (!answer.given) { if (run.Late(60)) run.Fail("organizer sign-in", "the helper never opened the page"); break; }
+		run.asked = false;
+		if (!answer.ok) { run.Fail("organizer sign-in", answer.reason.empty() ? "refused" : answer.reason); break; }
+		Say(true, "organizer sign-in opened", run.flow.site);
+		run.Enter(Stage::OrganizerWait);
+		break;
+	}
+	case Stage::DeskCode: {
+		// The code the web desk shows, typed on Sign in on another device:
+		// read first, as that screen does, for what asked and the numbers.
+		if (!run.asked) {
+			const std::string code = ReadExchange(kDeskCodeFile);
+			if (code.empty()) { if (run.Late(600)) run.Fail("desk code", "no code arrived from the runner"); break; }
+			IdentityRequest info = Request(IdentityOp::DeskCodeInfo);
+			info.command = code;
+			Ask(std::move(info));
+			break;
+		}
+		const auto answer = Answered(now);
+		if (!answer.given) { if (run.Late(60)) run.Fail("desk code", "the helper never answered"); break; }
+		run.asked = false;
+		if (!answer.ok || id.deskDevice.choices.empty()) { run.Fail("desk code", answer.reason.empty() ? "no numbers to pick from" : answer.reason); break; }
+		std::string choices;
+		for (const int choice : id.deskDevice.choices) choices += (choices.empty() ? "" : ",") + std::to_string(choice);
+		if (!WriteExchange(kDeskDeviceFile, choices + " " + id.deskDevice.device)) { run.Fail("desk code", "could not be written to the exchange folder"); break; }
+		Say(true, "desk code read", id.deskDevice.device);
+		run.Enter(Stage::DeskNumber);
+		break;
+	}
+	case Stage::DeskNumber: {
+		// The number the person sees on the other device, picked from three.
+		if (!run.asked) {
+			const std::string number = ReadExchange(kDeskNumberFile);
+			if (number.empty()) { if (run.Late(120)) run.Fail("desk approve", "no number arrived from the runner"); break; }
+			IdentityRequest approve = Request(IdentityOp::DeskApprove);
+			approve.command = ReadExchange(kDeskCodeFile);
+			approve.number = static_cast<std::uint8_t>(std::atoi(number.c_str()));
+			Ask(std::move(approve));
+			break;
+		}
+		const auto answer = Answered(now);
+		if (!answer.given) { if (run.Late(60)) run.Fail("desk approve", "the helper never answered"); break; }
+		run.asked = false;
+		if (!answer.ok) { run.Fail("desk approve", answer.reason.empty() ? "refused" : answer.reason); break; }
+		if (!WriteExchange(kDeskApprovedFile, "approved")) { run.Fail("desk approve", "could not be written to the exchange folder"); break; }
+		Say(true, "desk approved");
+		run.Enter(AfterDesk());
+		break;
+	}
+	case Stage::SignUp: {
+		// Sign up for the event the runner names, as the event's Sign up does.
+		if (!run.asked) {
+			const std::string event = ReadExchange(kEventFile);
+			if (event.empty()) { if (run.Late(900)) run.Fail("sign up", "no event arrived from the runner"); break; }
+			IdentityRequest signUp = Request(IdentityOp::DeskAct);
+			signUp.target = "/v1/events/" + event + "/sign-up";
+			signUp.command = "{}";
+			Ask(std::move(signUp));
+			break;
+		}
+		const auto answer = Answered(now);
+		if (!answer.given) { if (run.Late(60)) run.Fail("sign up", "the helper never answered"); break; }
+		run.asked = false;
+		if (!answer.ok) { run.Fail("sign up", answer.reason.empty() ? "refused" : answer.reason); break; }
+		if (!WriteExchange(kSignedUpFile, "signed up")) { run.Fail("sign up", "could not be written to the exchange folder"); break; }
+		Say(true, "signed up");
+		run.Enter(Stage::Linked);
 		break;
 	}
 	case Stage::Claim: {
@@ -395,6 +514,11 @@ bool StartTournament() {
 	// Optional: the sign-in site to connect an account on instead of a code.
 	const std::string site = platform::WideToUtf8(Environment(L"SF4E_SELFTEST_SITE"));
 	s_run.flow = site.empty() ? CodeLink() : SiteLink(site);
+	const auto on = [](const wchar_t* name) { return Environment(name) == L"1"; };
+	s_run.flow.kept = on(L"SF4E_SELFTEST_EMBER_KEPT");
+	s_run.flow.organizer = on(L"SF4E_SELFTEST_ORGANIZER");
+	s_run.flow.signUp = on(L"SF4E_SELFTEST_SIGN_UP");
+	s_run.flow.drawFirst = on(L"SF4E_SELFTEST_DRAW_FIRST");
 	if (s_run.exchange.empty() || s_run.origin.empty() || s_run.connection.empty()) {
 		Say(false, "tournament", "SF4E_SELFTEST_EXCHANGE, SF4E_SELFTEST_BRIDGE and SF4E_SELFTEST_CONNECTION are needed");
 		return false;
@@ -412,7 +536,10 @@ void MatchInput(int side, unsigned& mapped, unsigned& raw) {
 	if (Requested() != Test::TournamentHost && Requested() != Test::TournamentGuest) return;
 	// The guest's fighter stands still, whatever the keyboard does; the host's
 	// attacks once the game is live, from the side it starts on.
-	const bool attacks = Host() && s_run.stage == Stage::Playing;
+	// With a draw first, the host stands still until the first game has
+	// ended on time (one round of 30 seconds) and the next has begun.
+	// ponytail: by time, not by game; count games if a round's length changes.
+	const bool attacks = Host() && s_run.stage == Stage::Playing && (!s_run.flow.drawFirst || s_run.Late(50));
 	mapped = raw = attacks ? AttackInput(s_run.frames++, side == 0) : 0u;
 }
 

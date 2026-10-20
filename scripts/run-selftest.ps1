@@ -31,6 +31,10 @@ param(
     # Optional: a sign-in site (its ID on the bridge) to connect an account on
     # in the browser, instead of linking with a code (the Challonge mode).
     [string]$Site = "",
+    # Optional: an Ember folder kept between runs (an absolute path), for a run
+    # against a running bridge whose accounts were connected once by a person
+    # (docs/guides/TOURNAMENT_TEST.md). Without it each run makes a fresh one.
+    [string]$KeptEmberDir = "",
     [int]$TimeoutMinutes = 20
 )
 
@@ -138,6 +142,12 @@ if ($Test -like "tournament-*") {
     if (-not $Exchange -or -not $Bridge -or -not $Connection) { throw "-Exchange, -Bridge and -Connection are needed for $Test" }
     if (-not (Test-Path $Exchange -PathType Container)) { throw "The exchange folder $Exchange does not exist" }
     $emberDir = Join-Path $env:TEMP ("ember-selftest-" + [guid]::NewGuid().ToString("N"))
+    if ($KeptEmberDir) {
+        if (-not [System.IO.Path]::IsPathRooted($KeptEmberDir)) { throw "-KeptEmberDir is an absolute path" }
+        New-Item -ItemType Directory -Force $KeptEmberDir | Out-Null
+        $emberDir = $KeptEmberDir
+        $env:SF4E_SELFTEST_EMBER_KEPT = "1"
+    }
     $env:SF4E_SELFTEST_EMBER_DIR = $emberDir
     $env:SF4E_SELFTEST_EXCHANGE = (Resolve-Path $Exchange).Path
     $env:SF4E_SELFTEST_BRIDGE = $Bridge
@@ -201,7 +211,7 @@ try {
     if (-not $process.WaitForExit(10000)) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
 }
 finally {
-    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE, Env:SF4E_SELFTEST_EMBER_DIR, Env:SF4E_SELFTEST_EXCHANGE, Env:SF4E_SELFTEST_BRIDGE, Env:SF4E_SELFTEST_CONNECTION, Env:SF4E_SELFTEST_SITE -ErrorAction SilentlyContinue
+    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE, Env:SF4E_SELFTEST_EMBER_DIR, Env:SF4E_SELFTEST_EXCHANGE, Env:SF4E_SELFTEST_BRIDGE, Env:SF4E_SELFTEST_CONNECTION, Env:SF4E_SELFTEST_SITE, Env:SF4E_SELFTEST_EMBER_KEPT -ErrorAction SilentlyContinue
     # Nothing is put back under a game that still writes: after a timeout the
     # processes were only asked to end.
     foreach ($running in $game, $process) { if ($running) { [void]$running.WaitForExit(15000) } }
@@ -234,11 +244,12 @@ finally {
     if ($emberDir -and (Test-Path $emberDir)) {
         $emberUsed = Test-Path (Join-Path $emberDir "Identity")
         foreach ($try in 1..20) {
+            if ($KeptEmberDir) { break }
             Remove-Item $emberDir -Recurse -Force -ErrorAction SilentlyContinue
             if (-not (Test-Path $emberDir)) { break }
             Start-Sleep -Milliseconds 500
         }
-        if (Test-Path $emberDir) { Write-Host "The test's Ember folder $emberDir could not be deleted." }
+        if (-not $KeptEmberDir -and (Test-Path $emberDir)) { Write-Host "The test's Ember folder $emberDir could not be deleted." }
     }
 }
 
