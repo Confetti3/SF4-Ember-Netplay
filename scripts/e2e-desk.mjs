@@ -309,14 +309,31 @@ try {
     await page.until("document.body.textContent.includes('ember-e2e')", 15000);
     await layout(page, "public");
   });
+
+  await step("stopped and deleted on Challonge too", async () => {
+    await page.go(bridge + "/desk");
+    await page.until("!document.getElementById('home').hidden", 15000);
+    await page.eval(`home().then(() => open(desk.events.find((e) => e.id === ${JSON.stringify(event)})))`);
+    await page.until("desk.event && desk.event.created_on_site");
+    const tournament = await page.eval("desk.event.tournament");
+    await page.eval("go(5); document.getElementById('stop').click()");
+    await page.until("document.getElementById('decide').open");
+    must(!/null/.test(await page.eval("document.getElementById('decide').textContent")), "the dialog says null");
+    await layout(page, "stop");
+    await page.eval("[...document.querySelectorAll('#decide button')].find((b) => /delete it on Challonge/.test(b.textContent)).click()");
+    await page.until("!document.getElementById('decide').open && !desk.event", 15000);
+    const listed = await page.eval("api('GET', '/v1/organizer/tournaments?site=challonge').then((r) => JSON.stringify(r.tournaments))");
+    must(!listed.includes(JSON.stringify(tournament)), "still on Challonge: " + listed.slice(0, 200));
+    event = null;
+  });
 } finally {
-  // Never leave an event behind; only this run's event is touched.
+  // Never leave an event behind; only this run's event is touched, with its
+  // Challonge tournament.
   if (event) {
     const left = await page.eval(`fetch('/web/session').then((r) => r.json()).then((session) =>
       fetch('/v1/organizer/events/${event}', { method: 'DELETE', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'X-Ember-CSRF': session.csrf }, body: '{}' })).then((r) => r.status)`).catch((error) => error.message);
-    console.log("event", event, "removed:", left);
-    if (staging) console.log("Delete the Challonge tournament it made by hand (ember-e2e …): the bridge has no delete for it.");
+        headers: { 'Content-Type': 'application/json', 'X-Ember-CSRF': session.csrf }, body: '{"on_site":true}' })).then((r) => r.status)`).catch((error) => error.message);
+    console.log("event", event, "removed with its Challonge tournament:", left);
   }
   page.close();
   const failed = results.filter(([state]) => state === "FAIL");

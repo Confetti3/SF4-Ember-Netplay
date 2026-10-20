@@ -409,6 +409,15 @@ async fn challonge(
         (&Method::GET, path) if path == format!("/v2.1/tournaments/{}.json", state.tournament) => {
             return answer(200, json!({ "data": state.tournament_json() }));
         }
+        // Its owner deletes it: it is no longer listed.
+        (&Method::DELETE, path)
+            if path == format!("/v2.1/tournaments/{}.json", state.tournament)
+                && state.owner.is_some()
+                && state.owner == user =>
+        {
+            state.owner = None;
+            return answer(200, json!({ "data": state.tournament_json() }));
+        }
         _ => {}
     }
     let prefix = format!("/v2.1/tournaments/{}/", state.tournament);
