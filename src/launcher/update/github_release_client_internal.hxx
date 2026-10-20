@@ -40,10 +40,6 @@ namespace launcher {
 		void AppendUpdateLog(const char* message);
 		bool WidePathToUtf8(const wchar_t* wide, char* out, int outLen);
 		bool EnsureParentDirectoryExistsW(const wchar_t* filePath, std::string& outError);
-		// Runs a hidden child in a kill-on-close job. `cancel` is read each 250 ms
-		// slice; it, or five minutes, ends the child and its children.
-		bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
-			const std::atomic<bool>& cancel);
 
 		// Defined in github_release_validation.cxx.
 		bool IsAllowedUpdateUrl(const char* url);
