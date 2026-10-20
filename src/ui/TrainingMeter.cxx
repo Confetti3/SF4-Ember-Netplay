@@ -360,8 +360,9 @@ ImU32 ReadingColor(const Reading& reading) {
 // (startup, active, recovery, meaty and the result), each fighter's presses on
 // a lane beside its bar, and dots between the bars counting frames, every
 // fifth bold. A cell keeps a width that reads, so more frames than fit show
-// the newest that do instead of squeezing them. The second bar is set back by
-// the slant, so a frame's two cells lean on one line.
+// the newest that do instead of squeezing them. The first bar is set forward
+// by the slant, so a frame's two cells meet straight across the row between
+// the bars.
 void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& options) {
     auto* draw = ImGui::GetWindowDrawList();
     const float full = ImGui::GetContentRegionAvail().x;
@@ -403,18 +404,18 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
         ImGui::Dummy(ImVec2(full, line));
     }
     if (!options.bars) return;
-    // Geometry: rows apart by pitch, the second set back by the slant's share
-    // of it, and as many whole fives of cells as fit at the narrowest width
-    // that still reads, never more than Frames shown.
+    // Geometry: the first bar set forward by the slant, and as many whole
+    // fives of cells as fit at the narrowest width that still reads, never
+    // more than Frames shown.
     // Upright cells when the slant is off: the bars then sit straight over each other.
-    const float height = options.barHeight * hudScale, slant = options.classicSlant ? height * .35f : 0.f, dots = 6 * hudScale, pitch = height + dots;
-    const float setBack = slant * pitch / height, lane = 13 * hudScale, digits = height * .82f;
-    const float usable = (std::max)(60.f, full - slant - setBack);
+    const float height = options.barHeight * hudScale, slant = options.classicSlant ? height * .35f : 0.f, dots = 6 * hudScale;
+    const float lane = 9 * hudScale, digits = height * .82f;
+    const float usable = (std::max)(60.f, full - 2 * slant);
     const int fit = (std::max)(10, static_cast<int>(usable / (4 * hudScale)) / 5 * 5);
     const int cells = (std::min)(options.shown, fit);
     const float cell = usable / cells;
     const ImVec2 start = ImGui::GetCursorScreenPos();
-    const float lanes = options.classicInputs ? 2 * (lane + 2 * hudScale) : 0;
+    const float lanes = options.classicInputs ? 2 * (lane + hudScale) : 0;
     const BarWindow window = HeldWindow(meter, cells, start, ImVec2(start.x + full, start.y + 2 * height + dots + lanes), options.smooth);
     const auto index = [&](int i) { return CellFrame(meter, window, i); };
     float y = start.y;
@@ -444,10 +445,10 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
             }
             before = now;
         }
-        y += lane + 2 * hudScale;
+        y += lane + hudScale;
     };
     for (int side = 0; side < 2; ++side) {
-        const float x0 = start.x + (side ? 0 : setBack);
+        const float x0 = start.x + (side ? 0 : slant);
         if (options.classicInputs && side == 0) inputs(0, x0);
         const ImVec2 origin(x0, y);
         // A cell leans as the game's gauges do: its top edge sits further right.
@@ -489,12 +490,12 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
         ReportMenuCard(side ? "training-bar-2" : "training-bar-1", origin, ImVec2(origin.x + cells * cell + slant, origin.y + height));
         y += height;
         if (side == 0) {
-            // Between the bars, a dot a frame on the line the cells lean on,
-            // every fifth bold, for counting.
-            const float mid = y + dots / 2, lean = slant * (dots / 2) / height;
+            // Between the bars, a dot a frame where its two cells meet, every
+            // fifth bold, for counting.
+            const float mid = y + dots / 2;
             for (int i = 0; i < cells; ++i) {
                 const bool fifth = (i + 1) % 5 == 0;
-                draw->AddCircleFilled(ImVec2(x0 + (i + .5f) * cell - lean, mid), (fifth ? 1.6f : .9f) * hudScale,
+                draw->AddCircleFilled(ImVec2(x0 + (i + .5f) * cell, mid), (fifth ? 1.6f : .9f) * hudScale,
                     fifth ? IM_COL32(255, 214, 72, 235) : IM_COL32(200, 200, 200, 150));
             }
             y += dots;
