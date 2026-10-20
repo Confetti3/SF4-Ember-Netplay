@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "Hráč a ovladač"
 
 msgid "screen.defaults"
-msgstr "Výchozí nastavení hry"
+msgstr "Výchozí hodnoty nové místnosti"
 
 msgid "screen.main_character"
 msgstr "Vybrat hlavní postavu"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "VYTVOŘIT MÍSTNOST"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "VÝCHOZÍ NASTAVENÍ HRY"
+msgstr "VÝCHOZÍ HODNOTY NOVÉ MÍSTNOSTI"
 
 msgid "settings.input_delay"
 msgstr "Zpoždění vstupu"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "Zobrazované jméno, přiřazení ovladače a hraní na pozadí."
 
 msgid "settings.defaults_detail"
-msgstr "Zpoždění a výchozí nastavení místností."
+msgstr "Název, kapacita a pravidla nových místností. Aktuální místnost se nezmění."
 
 msgid "settings.interface"
 msgstr "Rozhraní"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "Ovládání"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A vybírá a B se vrací. PlayStation: Kříž vybírá a Kruh se vrací. Switch: B vybírá a A se vrací, stejně jako v nabídce hry. Ovladač nastavený v Ember: Tlačítko zvolené pro Lehký kop vybírá a tlačítko pro Střední kop se vrací bez ohledu na rozložení tlačítek. Klávesnice: šipky, Enter a Escape. Směrový kříž pohybuje; Vlevo a Vpravo mění hodnotu. Návrat na Domů skryje Ember. F10 nebo Start na ovladači jej znovu otevře v hlavní nabídce hry.\n\nV místnosti vám A na stole umožní vybrat místo, A na vlastním místě vás připraví a B opustí místo nebo frontu (na jiných ovladačích tlačítka na stejných pozicích). Na Xbox X otevře Bojovníka, Y Možnosti a View Chat; dalším stiskem se vrátíte do místnosti. PlayStation používá Čtverec, Trojúhelník a Share nebo Create; Switch Y, X a Minus.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači držte View (Share, Create nebo Minus) a stiskněte Start."
+msgstr "Xbox: A vybírá a B se vrací. PlayStation: Kříž vybírá a Kruh se vrací. Switch: B vybírá a A se vrací, stejně jako v nabídce hry. Ovladač nastavený v Ember: Tlačítko zvolené pro Lehký kop vybírá a tlačítko pro Střední kop se vrací bez ohledu na rozložení tlačítek. Klávesnice: šipky, Enter a Escape. Směrový kříž pohybuje; Vlevo a Vpravo mění hodnotu. Návrat na Domů skryje Ember. F10 nebo Start na ovladači jej znovu otevře v hlavní nabídce hry.\n\nV místnosti vyberte svůj stůl a pak Připraven, Změnit bojovníka nebo Opustit místo. Zpět zachová vaše místo. Nastavení obsahuje zápas, pravidla stolů, správu místnosti a osobní volby. X, Y a View (F, T a C na klávesnici) otevřou bojovníka, akce stolu a chat; opakování zkratky vás vrátí.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači držte View (Share, Create nebo Minus) a stiskněte Start."
 
 msgid "about.controls_keyboard"
 msgstr "Na klávesnici také Mezerník vybírá a Backspace vrací zpět. V místnosti F otevře Bojovníka, T Možnosti a C Chat. Escape vždy vrací zpět, i na vašem vlastním místě; Delete opustí vaše místo nebo frontu."
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "Obnovování spojení..."
 
 msgid "room.table_setup_title"
-msgstr "STŮL {0} / PŘÍPRAVA ZÁPASU"
+msgstr "STŮL {0} / Akce stolu"
 
 msgid "room.waiting_opponent"
 msgstr "Čekání na soupeře"
@@ -3101,10 +3101,8 @@ msgid "room.rules_summary"
 msgstr "Kola: {0}, {1} s, výběr edice: {2}"
 
 msgid "room.table_options"
-msgstr "Možnosti stolu"
+msgstr "Akce stolu"
 
-msgid "room.table_options.detail"
-msgstr "Stůl {0}: Zpoždění, test připojení, pravidla stolu, fronta a sledování pro tento stůl."
 
 msgid "room.legend_fighter"
 msgstr "Bojovník"
@@ -4409,7 +4407,7 @@ msgid "public.create_detail"
 msgstr "Otevře místnost viditelnou pro všechny hráče s Ember ID, vy jste hostitel. Dále zvolte její název, velikost a pravidla stolu."
 
 msgid "public.create_requirements"
-msgstr "Otevře veřejnou místnost ve službě Ember ID, připojí vás do ní a nastaví tato pravidla na všech stolech. Později je změníte v Možnostech stolu."
+msgstr "Vytvoří veřejnou místnost ve službě Ember ID a připojí se s těmito pravidly na všech stolech. Později je změňte v Nastavení > Pravidla stolu."
 
 msgid "public.create_needs_id"
 msgstr "Veřejné místnosti vyžadují Ember ID a důvěryhodnou službu. Nastavíte je v části Veřejné místnosti."
@@ -6403,3 +6401,32 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "Akce"
+
+msgid "room.invite"
+msgstr "Pozvat"
+
+msgid "room.invite.detail"
+msgstr "Pozvěte někoho do této místnosti."
+
+
+
+
+msgid "room.rules_target"
+msgstr "Vyberte stůl a zobrazte jeho pravidla. Měnit je může pouze hostitel."
+
+
+msgid "room.more_actions"
+msgstr "Další"
+
+msgid "settings.delay_saved_detail"
+msgstr "Vaše uložené zpoždění vstupu pro budoucí zápasy. Změny zde aktualizují i výchozí hodnotu."
+
+msgid "settings.delay_future_detail"
+msgstr "Uložte si zpoždění vstupu ještě před usednutím. Použije se, až příště potvrdíte připravenost; sledovaný zápas se nezmění."
+
+msgid "settings.delay_check_seated"
+msgstr "Usaďte se ke stolu se soupeřem, abyste mohli otestovat připojení a získat doporučení."

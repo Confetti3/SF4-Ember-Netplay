@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "Jogador e controle"
 
 msgid "screen.defaults"
-msgstr "Padrões de jogo"
+msgstr "Padrões para novas salas"
 
 msgid "screen.main_character"
 msgstr "Escolher personagem principal"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "CRIAR SALA"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "PADRÕES DE JOGO"
+msgstr "PADRÕES PARA NOVAS SALAS"
 
 msgid "settings.input_delay"
 msgstr "Atraso de entrada"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "Nome exibido, atribuição de controle e jogo em segundo plano."
 
 msgid "settings.defaults_detail"
-msgstr "Atraso de entrada e padrões de novas salas."
+msgstr "Nome, capacidade e regras de novas salas. A sala atual não muda."
 
 msgid "settings.interface"
 msgstr "Interface"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A seleciona e B volta. PlayStation: Cruz seleciona e Círculo volta. Switch: B seleciona e A volta, como nos menus do jogo. Um controle configurado no Ember: O botão escolhido para Chute fraco seleciona e o de Chute médio volta, qualquer que seja o layout de botões. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start em um controle, abre-o novamente no menu principal do jogo.\n\nEm uma sala, A em uma mesa permite escolher um assento, A no seu assento indica que está pronto e B deixa seu assento ou lugar na fila (em outros controles, os botões nas mesmas posições). No Xbox, X abre Lutador, Y Opções e View Chat; pressione novamente para voltar à sala. PlayStation usa Quadrado, Triângulo e Share ou Create; Switch usa Y, X e Minus.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz. Em um controle, segure View (Share, Create ou Minus) e pressione Start."
+msgstr "Xbox: A seleciona e B volta. PlayStation: Cruz seleciona e Círculo volta. Switch: B seleciona e A volta, como nos menus do jogo. Um controle configurado no Ember: O botão escolhido para Chute fraco seleciona e o de Chute médio volta, qualquer que seja o layout de botões. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start em um controle, abre-o novamente no menu principal do jogo.\n\nSelecione sua mesa e escolha Pronto, Trocar lutador ou Sair do assento. Voltar mantém seu lugar. Configurações reúne opções da partida, regras das mesas, administração da sala e preferências pessoais. X, Y e View (F, T e C no teclado) abrem Lutador, Ações da mesa e Chat; repita o atalho para voltar.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz. Em um controle, segure View (Share, Create ou Minus) e pressione Start."
 
 msgid "about.controls_keyboard"
 msgstr "No teclado, Espaço também seleciona e Backspace também volta. Numa sala, F abre Lutador, T abre Opções e C abre Bate-papo. Esc sempre volta, mesmo no seu próprio lugar; Delete deixa seu lugar ou a fila."
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "Reconectando à sala..."
 
 msgid "room.table_setup_title"
-msgstr "MESA {0} / PREPARAÇÃO"
+msgstr "MESA {0} / Ações da mesa"
 
 msgid "room.waiting_opponent"
 msgstr "Aguardando oponente"
@@ -2764,9 +2764,7 @@ msgid "room.rules_summary"
 msgstr "{0} rounds, {1} s, seleção de edição {2}"
 
 msgid "room.table_options"
-msgstr "Opções da mesa"
-msgid "room.table_options.detail"
-msgstr "Mesa {0}: Atraso, teste de conexão, regras, fila e espectadores desta mesa."
+msgstr "Ações da mesa"
 msgid "room.legend_fighter"
 msgstr "Lutador"
 msgid "room.legend_options"
@@ -3933,7 +3931,7 @@ msgid "public.create_detail"
 msgstr "Abre uma sala listada para todos os jogadores com um Ember ID, com você como anfitrião. Depois escolha nome, tamanho e regras das mesas."
 
 msgid "public.create_requirements"
-msgstr "Abre uma sala pública no serviço do Ember ID, entra nela e aplica estas regras em todas as mesas. Mude depois em Opções da mesa."
+msgstr "Cria e entra em uma sala pública no serviço Ember ID com estas regras em todas as mesas. Altere depois em Configurações > Regras da mesa."
 
 msgid "public.create_needs_id"
 msgstr "As salas públicas exigem um Ember ID e um serviço confiável. Configure-os em Salas públicas."
@@ -5927,3 +5925,32 @@ msgid "country.ZW"
 msgstr "Zimbábue"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "Ações"
+
+msgid "room.invite"
+msgstr "Convidar"
+
+msgid "room.invite.detail"
+msgstr "Convide alguém para esta sala."
+
+
+
+
+msgid "room.rules_target"
+msgstr "Escolha uma mesa para ver as regras. Só o anfitrião pode alterá-las."
+
+
+msgid "room.more_actions"
+msgstr "Mais"
+
+msgid "settings.delay_saved_detail"
+msgstr "Seu atraso de entrada salvo para partidas futuras. As alterações aqui também atualizam seu valor padrão."
+
+msgid "settings.delay_future_detail"
+msgstr "Salve seu atraso de entrada antes de se sentar. Ele será aplicado na próxima vez que você ficar pronto; não altera a partida que está assistindo."
+
+msgid "settings.delay_check_seated"
+msgstr "Sente-se com um oponente para verificar a conexão e receber uma recomendação."

@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "Player & controller"
 
 msgid "screen.defaults"
-msgstr "Gameplay defaults"
+msgstr "New-room defaults"
 
 msgid "screen.main_character"
 msgstr "Choose your main"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "CREATE ROOM"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "GAMEPLAY DEFAULTS"
+msgstr "NEW-ROOM DEFAULTS"
 
 msgid "settings.input_delay"
 msgstr "Input delay"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "Display name, controller assignment and playing in the background."
 
 msgid "settings.defaults_detail"
-msgstr "Input delay and new-room defaults."
+msgstr "Name, capacity and rules used when creating a new room. Current rooms are unchanged."
 
 msgid "settings.interface"
 msgstr "Interface"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "Controls"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A selects and B goes back. PlayStation: Cross selects and Circle goes back. Switch: B selects and A goes back, as in the game's own menus. A controller set up in Ember: the button you chose for Light kick selects and the one you chose for Medium kick goes back, whatever its button layout. Keyboard: arrows, Enter and Escape. The D-pad moves; Left and Right change a value. Going back at Home hides Ember. F10, or Start on a controller, opens it again at the game's main menu.\n\nIn a room, A on a table lets you pick a seat, A on your own seat readies up, and B leaves your seat or queue place (on other controllers, the buttons in the same places). On Xbox, X opens Fighter, Y opens Options and View opens Chat; press it again to return to the room. PlayStation uses Square, Triangle and Share or Create; Switch uses Y, X and Minus.\n\nIn training, F6 opens the controls, F5 hides the HUD, F7 records and F8 plays. On a controller, hold View (Share, Create or Minus) and press Start."
+msgstr "Xbox: A selects and B goes back. PlayStation: Cross selects and Circle goes back. Switch: B selects and A goes back, as in the game's own menus. A controller set up in Ember: the button you chose for Light kick selects and the one you chose for Medium kick goes back, whatever its button layout. Keyboard: arrows, Enter and Escape. The D-pad moves; Left and Right change a value. Going back at Home hides Ember. F10, or Start on a controller, opens it again at the game's main menu.\n\nIn a room, select your table, then choose Ready, Change fighter or Leave seat. Back cancels without giving up your place. Settings contains match controls, table rules, room administration and personal settings. X, Y and View (F, T and C on a keyboard) open Fighter, Table actions and Chat; repeat the shortcut to return.\n\nIn training, F6 opens the controls, F5 hides the HUD, F7 records and F8 plays. On a controller, hold View (Share, Create or Minus) and press Start."
 
 msgid "about.controls_keyboard"
 msgstr "On the keyboard, Space also selects and Backspace also goes back. In a room, F opens Fighter, T opens Options and C opens Chat. Escape always goes back, even on your own seat; Delete leaves your seat or queue place."
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "Reconnecting to room..."
 
 msgid "room.table_setup_title"
-msgstr "TABLE {0} / BATTLE SETUP"
+msgstr "TABLE {0} / Table actions"
 
 msgid "room.waiting_opponent"
 msgstr "Waiting for opponent"
@@ -2879,9 +2879,7 @@ msgid "room.rules_summary"
 msgstr "{0} rounds, {1} s, Edition Select {2}"
 
 msgid "room.table_options"
-msgstr "Table options"
-msgid "room.table_options.detail"
-msgstr "Table {0}: Delay, connection check, table rules, queue and watching for this table."
+msgstr "Table actions"
 msgid "room.legend_fighter"
 msgstr "Fighter"
 msgid "room.legend_options"
@@ -4048,7 +4046,7 @@ msgid "public.create_detail"
 msgstr "Opens a room listed for every player with an Ember ID, with you as host. Next, choose its name, size and table rules."
 
 msgid "public.create_requirements"
-msgstr "Opens a public room on the Ember ID service, joins it and sets these table rules on every table. Change them later under Table options."
+msgstr "Creates and joins a public room on the Ember ID service with these rules on every table. Change rules later in Settings > Table rules."
 
 msgid "public.create_needs_id"
 msgstr "Public rooms need an Ember ID and a trusted service. Set them up under Public rooms."
@@ -5267,7 +5265,7 @@ msgid "button_layout.menu_taken"
 msgstr "{0} is already {1}. Choose another button."
 
 msgid "room.delay_policy"
-msgstr "Room input delay"
+msgstr "Delay policy"
 
 msgid "room.delay_policy.shared"
 msgstr "Same for both"
@@ -6043,3 +6041,32 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "Actions"
+
+msgid "room.invite"
+msgstr "Invite"
+
+msgid "room.invite.detail"
+msgstr "Invite someone to this room."
+
+
+
+
+msgid "room.rules_target"
+msgstr "Choose a table to view its rules. Only the host can change them."
+
+
+msgid "room.more_actions"
+msgstr "More"
+
+msgid "settings.delay_saved_detail"
+msgstr "Your saved input delay for future matches. Changes here also update your default."
+
+msgid "settings.delay_future_detail"
+msgstr "Save your input delay before taking a seat. This applies when you next ready up; it does not change the match you are watching."
+
+msgid "settings.delay_check_seated"
+msgstr "Take a seat with an opponent to check the connection and get a recommendation."

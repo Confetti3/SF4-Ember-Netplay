@@ -130,7 +130,7 @@ void ShootPublicRooms(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& vie
         view.session.room=netplay::RoomState::Opening;draw(nullptr,0,3);
         view.session.room=netplay::RoomState::Joined;view.room.serverOwned=true;
         std::vector<MenuEntry> boardRows;sf4e::ui::SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){boardRows=r;});
-        page("room");draw(nullptr,0,4);draw("room-public-link");sf4e::ui::SetMenuEntriesProbe({});
+        page("room-invite");draw(nullptr,0,4);draw("room-public-link");sf4e::ui::SetMenuEntriesProbe({});
         Require(std::any_of(boardRows.begin(),boardRows.end(),[](const MenuEntry& e){return e.id=="copy-room-link";}),"A public room's board has no room link row");
         view.room.serverOwned=false;view.session.room=netplay::RoomState::Idle;draw(nullptr,0,3);
     }

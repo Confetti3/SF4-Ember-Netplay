@@ -20,6 +20,7 @@
 #include <iterator>
 #include <iostream>
 #include <map>
+#include <queue>
 #include <set>
 #include <stdexcept>
 using namespace sf4e::ui;
@@ -52,7 +53,26 @@ struct Harness {
   const auto walk=[&](unsigned direction){
    for(int i=0;i<100&&!at();++i){const std::string before=shell.Navigation().Focus();Press(direction);if(shell.Navigation().Focus()==before)break;}
   };
-  Frame();walk(MenuInput::Up);walk(MenuInput::Down);
+  Frame();
+  if(shell.Navigation().Screen()=="room"){
+   // Explore the actual controller transitions. A pinned composer between
+   // columns and an action grid cannot be swept as one rectangular list.
+   std::set<std::string> seen;
+   std::queue<MenuNavigation> pending;pending.push(shell.Navigation());
+   while(!pending.empty()){
+    const auto from=pending.front();pending.pop();
+    if(!seen.insert(from.Focus()).second)continue;
+    for(unsigned direction:{MenuInput::Up,MenuInput::Down,MenuInput::Left,MenuInput::Right}){
+     shell.Navigation()=from;Frame();
+     if(at())return;
+     Press(direction);
+     if(at())return;
+     if(!seen.count(shell.Navigation().Focus()))pending.push(shell.Navigation());
+    }
+   }
+   throw std::runtime_error(std::string("Journey item not reachable with controller directions: ")+id);
+  }
+  walk(MenuInput::Up);walk(MenuInput::Down);
   // A grid's cells sit side by side, so Up and Down reach only some of them:
   // sweep each row sideways from the top.
   if(!at()){

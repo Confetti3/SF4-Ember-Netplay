@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "Spieler & Controller"
 
 msgid "screen.defaults"
-msgstr "Spielvorgaben"
+msgstr "Vorgaben für neue Räume"
 
 msgid "screen.main_character"
 msgstr "Hauptcharakter wählen"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "RAUM ERSTELLEN"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "SPIELVORGABEN"
+msgstr "VORGABEN FÜR NEUE RÄUME"
 
 msgid "settings.input_delay"
 msgstr "Eingabeverzögerung"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "Anzeigename, Controller-Zuweisung und Spielen im Hintergrund."
 
 msgid "settings.defaults_detail"
-msgstr "Eingabeverzögerung und neue Raumvorgaben."
+msgstr "Name, Kapazität und Regeln für neue Räume. Der aktuelle Raum bleibt unverändert."
 
 msgid "settings.interface"
 msgstr "Oberfläche"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "Steuerung"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A wählt aus und B geht zurück. PlayStation: Kreuz wählt aus und Kreis geht zurück. Switch: B wählt aus und A geht zurück, wie in den Menüs des Spiels. Ein in Ember eingerichteter Controller: Die für Leichter Tritt gewählte Taste wählt aus, die für Mittlerer Tritt geht zurück, unabhängig von der Tastenbelegung. Tastatur: Pfeile, Enter und Escape. Das Steuerkreuz bewegt; Links und Rechts ändern einen Wert. Zurück auf Home blendet Ember aus. F10 oder Start am Controller öffnet es wieder im Hauptmenü des Spiels.\n\nIm Raum lässt dich A auf einem Tisch einen Platz wählen, A auf deinem eigenen Platz meldet dich bereit und B verlässt deinen Platz oder die Warteschlange (auf anderen Controllern die Tasten an denselben Positionen). Auf Xbox öffnet X Kämpfer, Y Optionen und View Chat; erneut drücken kehrt zum Raum zurück. PlayStation nutzt Quadrat, Dreieck und Share oder Create; Switch nutzt Y, X und Minus.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab. Halte am Controller View (Share, Create oder Minus) und drücke Start."
+msgstr "Xbox: A wählt aus und B geht zurück. PlayStation: Kreuz wählt aus und Kreis geht zurück. Switch: B wählt aus und A geht zurück, wie in den Menüs des Spiels. Ein in Ember eingerichteter Controller: Die für Leichter Tritt gewählte Taste wählt aus, die für Mittlerer Tritt geht zurück, unabhängig von der Tastenbelegung. Tastatur: Pfeile, Enter und Escape. Das Steuerkreuz bewegt; Links und Rechts ändern einen Wert. Zurück auf Home blendet Ember aus. F10 oder Start am Controller öffnet es wieder im Hauptmenü des Spiels.\n\nWähle deinen Tisch und dann Bereit, Kämpfer wechseln oder Platz verlassen. Zurück behält deinen Platz. Einstellungen enthält Kampfoptionen, Tischregeln, Raumverwaltung und persönliche Optionen. X, Y und View (F, T und C auf der Tastatur) öffnen Kämpfer, Tischaktionen und Chat; erneut drücken führt zurück.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab. Halte am Controller View (Share, Create oder Minus) und drücke Start."
 
 msgid "about.controls_keyboard"
 msgstr "Auf der Tastatur wählt auch die Leertaste und Rücktaste geht ebenfalls zurück. Im Raum öffnet F den Kämpfer, T die Optionen und C den Chat. Escape geht immer zurück, auch auf dem eigenen Platz; Entf verlässt deinen Platz oder die Warteschlange."
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "Verbinde erneut..."
 
 msgid "room.table_setup_title"
-msgstr "TISCH {0} / KAMPFEINSTELLUNG"
+msgstr "TISCH {0} / Tischaktionen"
 
 msgid "room.waiting_opponent"
 msgstr "Warten auf Gegner"
@@ -3101,10 +3101,8 @@ msgid "room.rules_summary"
 msgstr "{0} Runden, {1} s, Editionsauswahl {2}"
 
 msgid "room.table_options"
-msgstr "Tischoptionen"
+msgstr "Tischaktionen"
 
-msgid "room.table_options.detail"
-msgstr "Tisch {0}: Verzögerung, Verbindungstest, Tischregeln, Warteschlange und Zuschauen für diesen Tisch."
 
 msgid "room.legend_fighter"
 msgstr "Kämpfer"
@@ -4409,7 +4407,7 @@ msgid "public.create_detail"
 msgstr "Eröffnet einen Raum, der für alle Spieler mit einer Ember ID gelistet ist, mit Ihnen als Host. Wählen Sie danach Name, Größe und Tischregeln."
 
 msgid "public.create_requirements"
-msgstr "Eröffnet einen öffentlichen Raum beim Ember-ID-Dienst, tritt ihm bei und setzt diese Regeln an allen Tischen. Später ändern Sie sie unter Tischoptionen."
+msgstr "Erstellt einen öffentlichen Raum beim Ember-ID-Dienst und tritt ihm bei. Diese Regeln gelten an allen Tischen. Ändere sie später unter Einstellungen > Tischregeln."
 
 msgid "public.create_needs_id"
 msgstr "Öffentliche Räume brauchen eine Ember ID und einen vertrauten Dienst. Richten Sie beides unter Öffentliche Räume ein."
@@ -6403,3 +6401,32 @@ msgid "country.ZW"
 msgstr "Simbabwe"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "Aktionen"
+
+msgid "room.invite"
+msgstr "Einladen"
+
+msgid "room.invite.detail"
+msgstr "Jemanden in diesen Raum einladen."
+
+
+
+
+msgid "room.rules_target"
+msgstr "Wähle einen Tisch, um seine Regeln anzusehen. Nur der Host kann sie ändern."
+
+
+msgid "room.more_actions"
+msgstr "Mehr"
+
+msgid "settings.delay_saved_detail"
+msgstr "Deine gespeicherte Eingabeverzögerung für künftige Matches. Änderungen hier aktualisieren auch deinen Standardwert."
+
+msgid "settings.delay_future_detail"
+msgstr "Speichere deine Eingabeverzögerung, bevor du Platz nimmst. Sie gilt, wenn du dich das nächste Mal bereit meldest; das beobachtete Match bleibt unverändert."
+
+msgid "settings.delay_check_seated"
+msgstr "Nimm mit einem Gegner Platz, um die Verbindung zu prüfen und eine Empfehlung zu erhalten."

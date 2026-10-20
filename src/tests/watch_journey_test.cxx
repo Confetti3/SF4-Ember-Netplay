@@ -284,9 +284,10 @@ void WatcherRoom() {
   h.view.room.host = 3; h.view.room.members[0].host = false; h.view.room.members[2].host = true;
   cards.clear();
   h.Frame(0, 2);
-  Check(h.row("room-admin") && !h.row("room-admin")->enabled, "A watcher holding the host field can change the room");
   Check(cards["member-3"] == watcherLine, "A watcher holding the host field shows as HOST on its card");
   SetMenuCardTextProbe({});
+  h.Choose("settings");
+  Check(h.row("room-admin") && !h.row("room-admin")->enabled, "A watcher holding the host field can change the room through Settings");
   // Nor is it told it hosts when it leaves.
   Check(room_controls::LeaveRoomDetail(h.view).find(loc::T("room.leave.host")) == std::string::npos, "A watcher holding the host field is warned it hosts the room");
  }
@@ -306,7 +307,7 @@ void WatcherRoom() {
   h.Screen("room");
   h.Frame(0, 2);
   Check(h.status == loc::Tf("room.tournament_status_watched", 2, 1), "A fighter's room does not count its watchers");
-  Check(h.row("table-0") && h.row("table-0")->choices.empty(), "A fighter is offered the seat chooser");
+  Check(h.row("table-0") && std::none_of(h.row("table-0")->choices.begin(),h.row("table-0")->choices.end(),[](const MenuChoice& c){return room_controls::FindSeatOption(c.id)!=nullptr;}), "A fighter is offered the seat chooser");
   Check(ChatGateOf(h.view) == ChatGate::Writable && ChatTypable(h.view), "A fighter cannot type in the chat");
   h.Choose("room-members");
   h.Choose("member-3");
@@ -336,6 +337,7 @@ void NoInvitationForAMatchRoom() {
  h.view.invitation = "sf4e3:invitation";
  h.Screen("room");
  h.Frame(0, 2);
+ h.Choose("room-invite");
  Check(h.has("copy") && h.has("copy-short"), "A casual room lost its invitation rows");
  for (const auto phase : {netplay::tournament::Phase::Claiming, netplay::tournament::Phase::Opening, netplay::tournament::Phase::InRoom}) {
   h.view.tournament.phase = phase;

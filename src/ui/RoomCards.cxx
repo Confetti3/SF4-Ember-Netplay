@@ -14,13 +14,20 @@ namespace {
 // card so they own the hover and popups still block them; the card is then
 // laid out from the same origin.
 struct Strip{std::vector<ImVec2> min,max;int clicked=-1,hovered=-1;};
-Strip StripButtons(const std::string& id,ImVec2 p,float width,float h,std::size_t count) {
+Strip StripButtons(const std::string& id,ImVec2 p,float width,float h,const std::vector<TableCardOption>& options) {
+ const auto count=options.size();
  const float s=Scale();
  Strip strip;strip.min.resize(count);strip.max.resize(count);
- const float stripHeight=26*s,y=p.y+h-stripHeight-3*s,optionWidth=(width-24*s-(count-1)*8*s)/count;
+ const float stripHeight=26*s,y=p.y+h-stripHeight-3*s,available=width-24*s-(count-1)*8*s;
+ // Reserve each translated label's width before sharing spare space. Equal
+ // columns waste space on short labels and clip the departure beside them.
+ std::vector<float> widths;float needed=0;
+ for(const auto& option:options){const float w=ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,option.label.c_str()).x+12*s;widths.push_back(w);needed+=w;}
+ float x=p.x+12*s;
  ImGui::PushID(id.c_str());
  for(int i=0;i<static_cast<int>(count);++i){
-  strip.min[i]=ImVec2(p.x+12*s+i*(optionWidth+8*s),y);strip.max[i]=ImVec2(strip.min[i].x+optionWidth,y+stripHeight);
+  const float optionWidth=needed<=available?widths[i]+(available-needed)/count:available/count;
+  strip.min[i]=ImVec2(x,y);strip.max[i]=ImVec2(x+optionWidth,y+stripHeight);x+=optionWidth+8*s;
   ImGui::SetCursorScreenPos(strip.min[i]);ImGui::PushID(i);
   if(ImGui::InvisibleButton("##strip",ImVec2(optionWidth,stripHeight)))strip.clicked=i;
   if(ImGui::IsItemHovered())strip.hovered=i;
@@ -96,7 +103,7 @@ CardInteraction DrawTableCard(const TableCardView& card) {
  // Names ask the atlas for glyphs only while their card is inside the clip.
  const bool cardVisible=ImGui::IsRectVisible(p,ImVec2(p.x+width,p.y+h));
  std::string elided;
- const Strip strip=card.options.empty()?Strip{}:StripButtons(card.id,p,width,h,card.options.size());
+ const Strip strip=card.options.empty()?Strip{}:StripButtons(card.id,p,width,h,card.options);
  const bool pressed=DrawCardButton(card.id,ImVec2(width,h),card.focused,card.focusChanged,card.disabled);
  const bool hovered=ImGui::IsItemHovered();
  ReportMenuCard(card.id.c_str(),p,ImVec2(p.x+width,p.y+h));

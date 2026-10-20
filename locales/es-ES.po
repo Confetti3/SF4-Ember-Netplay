@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "Jugador y mando"
 
 msgid "screen.defaults"
-msgstr "Ajustes de juego"
+msgstr "Valores para salas nuevas"
 
 msgid "screen.main_character"
 msgstr "Personaje principal"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "CREAR SALA"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "AJUSTES DE JUEGO"
+msgstr "VALORES PARA SALAS NUEVAS"
 
 msgid "settings.input_delay"
 msgstr "Retr. entrada"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "Nombre visible, asignación de mando y juego en segundo plano."
 
 msgid "settings.defaults_detail"
-msgstr "Retraso de entrada y ajustes de sala."
+msgstr "Nombre, capacidad y reglas para salas nuevas. La sala actual no cambia."
 
 msgid "settings.interface"
 msgstr "Interfaz"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A selecciona y B vuelve atrás. PlayStation: Cruz selecciona y Círculo vuelve atrás. Switch: B selecciona y A vuelve atrás, como en los menús del juego. Un mando configurado en Ember: El botón que elegiste para Patada débil selecciona y el de Patada media vuelve atrás, sea cual sea la distribución de botones. Teclado: flechas, Intro y Escape. La cruceta mueve; Izquierda y Derecha cambian un valor. Volver atrás en Inicio oculta Ember. F10, o Start en un mando, lo abre de nuevo en el menú principal del juego.\n\nEn una sala, A sobre una mesa permite elegir asiento, A en tu asiento te marca como listo y B abandona tu asiento o lugar en la cola (en otros mandos, los botones en las mismas posiciones). En Xbox, X abre Luchador, Y Opciones y View Chat; pulsa de nuevo para volver a la sala. PlayStation usa Cuadrado, Triángulo y Share o Create; Switch usa Y, X y Minus.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce. En un mando, mantén View (Share, Create o Minus) y pulsa Start."
+msgstr "Xbox: A selecciona y B vuelve atrás. PlayStation: Cruz selecciona y Círculo vuelve atrás. Switch: B selecciona y A vuelve atrás, como en los menús del juego. Un mando configurado en Ember: El botón que elegiste para Patada débil selecciona y el de Patada media vuelve atrás, sea cual sea la distribución de botones. Teclado: flechas, Intro y Escape. La cruceta mueve; Izquierda y Derecha cambian un valor. Volver atrás en Inicio oculta Ember. F10, o Start en un mando, lo abre de nuevo en el menú principal del juego.\n\nSelecciona tu mesa y elige Listo, Cambiar luchador o Dejar asiento. Atrás conserva tu sitio. Ajustes reúne las opciones de combate, reglas de mesa, administración de sala y preferencias personales. X, Y y View (F, T y C en teclado) abren Luchador, Acciones de mesa y Chat; repite el atajo para volver.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce. En un mando, mantén View (Share, Create o Minus) y pulsa Start."
 
 msgid "about.controls_keyboard"
 msgstr "En el teclado, Espacio también selecciona y Retroceso también vuelve atrás. En una sala, F abre Luchador, T abre Opciones y C abre Chat. Escape siempre vuelve atrás, incluso en tu propio asiento; Supr deja tu asiento o tu puesto en la cola."
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "Reconectando a la sala..."
 
 msgid "room.table_setup_title"
-msgstr "MESA {0} / PREPARAR COMBATE"
+msgstr "MESA {0} / Acciones de mesa"
 
 msgid "room.waiting_opponent"
 msgstr "Esperando oponente"
@@ -3102,10 +3102,8 @@ msgid "room.rules_summary"
 msgstr "{0} rondas, {1} s, selección de edición {2}"
 
 msgid "room.table_options"
-msgstr "Opciones de la mesa"
+msgstr "Acciones de mesa"
 
-msgid "room.table_options.detail"
-msgstr "Mesa {0}: Retardo, prueba de conexión, reglas, cola y espectadores de esta mesa."
 
 msgid "room.legend_fighter"
 msgstr "Luchador"
@@ -4410,7 +4408,7 @@ msgid "public.create_detail"
 msgstr "Abre una sala visible para todos los jugadores con un Ember ID, contigo como anfitrión. Después elige su nombre, tamaño y reglas de mesa."
 
 msgid "public.create_requirements"
-msgstr "Abre una sala pública en el servicio del Ember ID, entra en ella y aplica estas reglas en todas las mesas. Cámbialas luego en Opciones de la mesa."
+msgstr "Crea una sala pública en el servicio Ember ID y entra con estas reglas en todas las mesas. Después puedes cambiarlas en Ajustes > Reglas de mesa."
 
 msgid "public.create_needs_id"
 msgstr "Las salas públicas necesitan un Ember ID y un servicio de confianza. Configúralos en Salas públicas."
@@ -6404,3 +6402,32 @@ msgid "country.ZW"
 msgstr "Zimbabue"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "Acciones"
+
+msgid "room.invite"
+msgstr "Invitar"
+
+msgid "room.invite.detail"
+msgstr "Invita a alguien a esta sala."
+
+
+
+
+msgid "room.rules_target"
+msgstr "Elige una mesa para ver sus reglas. Solo el anfitrión puede cambiarlas."
+
+
+msgid "room.more_actions"
+msgstr "Más"
+
+msgid "settings.delay_saved_detail"
+msgstr "Tu retraso de entrada guardado para futuras partidas. Los cambios aquí también actualizan tu valor predeterminado."
+
+msgid "settings.delay_future_detail"
+msgstr "Guarda tu retraso de entrada antes de sentarte. Se aplicará la próxima vez que te marques como listo; no cambia la partida que estás observando."
+
+msgid "settings.delay_check_seated"
+msgstr "Siéntate con un rival para comprobar la conexión y obtener una recomendación."

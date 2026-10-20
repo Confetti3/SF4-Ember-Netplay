@@ -87,7 +87,7 @@ int main() try {
     };
     const auto focus = [&](const char* id) { shell.Navigation().Focus(id, rows); };
 
-    shell.Navigation().Home(); frame(); shell.Navigation().Push("room-table"); frame();
+    shell.Navigation().Home(); frame(); shell.Navigation().Push("room-match"); frame();
     Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& entry) { return entry.id == "benchmark-connection"; }),
         "The removed 30 second benchmark row is still offered");
     view.probeStatus = "checking"; frame();
@@ -109,8 +109,10 @@ int main() try {
     view.session.coordinated = true; view.session.authorityWritable = false; frame();
     // A checkpoint is the runtime's business: Ready stays pressable and the
     // seated table keeps its seat line instead of room-update chatter.
-    Check(row("ready").enabled && !row("check-connection").enabled,
+    Check(!row("check-connection").enabled,
         "Room update hid Ready, which the runtime parks and resubmits");
+    shell.Navigation().PushOrUnwind("room-table");frame();
+    Check(row("ready").enabled,"Checkpoint hid Ready");
     Check(menuStatus.find("Updating room")==std::string::npos,
         "A one-frame checkpoint delay flashed the room-update message");
     for(int i=0;i<20;++i)frame();
@@ -118,8 +120,10 @@ int main() try {
         "Checkpoint chatter replaced the seated table's status line");
     Check(row("ready").detail.find("Updating room") == std::string::npos,
         "Ready exposes the room update instead of the lock-in instruction");
+    shell.Navigation().PushOrUnwind("room-match");frame();
     Check(row("check-connection").detail.find("Updating room") != std::string::npos,
         "Room update has no player-facing explanation");
+    shell.Navigation().PushOrUnwind("room-table");frame();
     view.session.authorityWritable = true; view.session.room = netplay::RoomState::Closing; frame();
     Check(!row("ready").enabled && menuStatus.find("Leaving room") != std::string::npos,
         "Closing room still advertises playable actions");
@@ -238,6 +242,7 @@ int main() try {
     shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
     // One delay row: its value is yours, its detail names the recommendation
     // and the match delay, Left and Right choose, Select applies the recommendation.
+    shell.Navigation().PushOrUnwind("room-match");frame();
     Check(row("input-delay").enabled && row("input-delay").adjustable && row("input-delay").value == "2 frames",
         "Input delay was not adjustable");
     Check(row("input-delay").detail.find("Recommended: 4 frames") != std::string::npos &&
@@ -298,6 +303,7 @@ int main() try {
     // Fighter, Ultra and Appearance sit under Ready. Left and Right step the
     // Ultra and the color without leaving the page; Select opens their cards
     // in fighter select.
+    shell.Navigation().PushOrUnwind("room-table");frame();
     view.fighterName = "Ryu"; view.ultraName = "Ultra I: Metsu Hadoken"; view.ultraSteps = true;
     view.appearanceName = "Original / Color 1"; view.colorSteps = true; frame();
     Check(row("selection").value == "Ryu" && row("ultra").value == "Ultra I: Metsu Hadoken" && row("ultra").adjustable,
@@ -310,21 +316,20 @@ int main() try {
         for (std::size_t i = 0; i < rows.size(); ++i) if (rows[i].id == id) return static_cast<int>(i);
         return -1;
     };
-    const int rules = at("edition") >= 0 ? at("edition") : at("rules");
-    Check(rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "appearance" &&
-        rows[4].id == "fighter-options" && rows[5].id == "stage" && rules == 6 &&
-        at("input-delay") > rules && at("check-connection") == at("input-delay") + 1 && at("unqueue") > at("check-connection"),
-        "The table page is not ordered pick, match, connection, leave");
+    Check(rows[1].id=="selection"&&rows[2].id=="ultra"&&rows[3].id=="appearance"&&rows[4].id=="fighter-options"&&at("stage")==5&&at("room-match")==6&&at("unqueue")==7&&at("input-delay")==-1,
+        "Table actions still mix match settings with leaving");
     // Personal action, win quote and the other options are reachable from a seat
     // and shown on the row; the stage only for P1, who sends it.
     view.fighterOptionsName = "Action 1, Quote Random"; frame();
     Check(row("fighter-options").enabled && row("fighter-options").value == "Action 1, Quote Random" && !row("fighter-options").adjustable,
         "The table page does not show the fighter options, or advertises stepping them in place");
     view.localSlot = 1; view.stageName = "Random"; frame();
+    shell.Navigation().PushOrUnwind("room-table");frame();
     Check(!row("stage").enabled && row("stage").detail == loc::T("selection.only_p1_stage"), "P2 could change the stage");
     view.localSlot = 0; frame();
     Check(row("stage").enabled && row("stage").value == "Random" && !row("stage").adjustable,
         "P1 cannot change the stage from the table page, or it advertises stepping in place");
+    shell.Navigation().PushOrUnwind("room-table");frame();
     focus("ultra"); press(MenuInput::Right);
     using Field = ShellAction::SelectionStep::Field;
     Check(actions.back().selectionStep.field == Field::Ultra && actions.back().selectionStep.delta == 1, "Right on Ultra did not step it");
@@ -334,6 +339,7 @@ int main() try {
     Check(!row("ultra").adjustable, "A fighter with one Ultra still offers to step it");
     Check(!row("appearance").adjustable, "A costume with one color still offers to step it");
     view.ultraSteps = true; view.colorSteps = true; frame();
+    shell.Navigation().PushOrUnwind("room-table");frame();
     {
         const auto seatedView = view;
         view.room.members[0].seat = -1; view.localSlot = -1;
@@ -420,6 +426,7 @@ int main() try {
         view = seatedView;
         shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
     }
+    shell.Navigation().PushOrUnwind("room-rules");frame();
     // The host changes the rules in place; nothing is sent until Apply rules,
     // which only appears once something changed.
     Check(row("rounds").enabled && row("time").enabled && row("edition").enabled &&
@@ -448,6 +455,7 @@ int main() try {
         view.room.host = 1; frame();
     }
 
+    shell.Navigation().PushOrUnwind("room-table");frame();
     view.session.recovery = netplay::Recovery::Recovering;
     view.session.error = "Room control is recovering. Room actions are paused."; frame();
     Check(!row("ready").enabled && menuStatus.find("recovering") != std::string::npos,
@@ -670,6 +678,8 @@ int main() try {
         Check(!shell.NoticeOpen(), "The opponent's new fighter opened a modal notice");
         const auto beforeChangedPress = actions.size();
         focus("table-0"); press(MenuInput::Select);
+        Check(shell.Navigation().Choosing()&&actions.size()==beforeChangedPress,"Opening table actions readied while the banner was shown");
+        press(MenuInput::Select);
         Check(actions.size() == beforeChangedPress + 1, "The board did not take input while the opponent's new fighter was shown");
         shell.Navigation().Push("room-table"); frame();
         Check(row("ready").detail.compare(0, changed.size(), changed) == 0, "The Ready row did not start with the opponent's new fighter");
@@ -745,15 +755,15 @@ int main() try {
     });
     SetMenuGlyphs(3, 0x40000, 0x20000);
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); focus("table-0"); frame(); frame();
-    Check(strip == std::set<std::string>({std::string(sf4e::loc::T("room.unready.short")), std::string(sf4e::loc::T("room.cancel_start"))}),
+    Check(strip == std::set<std::string>({std::string(sf4e::loc::T("room.actions"))}),
         "During the held start the seat's two controls did not read differently");
-    Check(legend.count(sf4e::loc::T("room.unready")) && legend.count(sf4e::loc::T("room.cancel_start")),
-        "The legend did not name Unready for A and Cancel the start for B during the held start");
+    Check(legend.count(sf4e::loc::T("room.actions")) && legend.count(sf4e::loc::T("common.back")) && row("table-0").choices[2].id == "cancel-start",
+        "The held start lacks Unready, a normal Back, or the visible Cancel start action");
     SetMenuTextProbe({});
     const auto beforeHeldBack = actions.size();
-    press(MenuInput::Back);
+    press(MenuInput::Leave);
     Check(actions.size() == beforeHeldBack + 1 && actions.back().roomAction.kind == room::ActionKind::Unready &&
-        shell.Navigation().Screen() == "room", "B during the held start did not take Ready back");
+        shell.Navigation().Screen() == "room", "Delete during the held start did not take Ready back");
     view.canEditSelection = true;
     view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
     view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
@@ -907,13 +917,15 @@ int main() try {
         "Queue entry submitted zero or duplicate actions");
     view.room.tables[0].queue = {1}; ++view.room.revision; frame();
     for (int i = 0; i < 20; ++i) frame();
+    shell.Navigation().Push("room-rules");frame();
     Check(row("rounds").enabled, "The host lost the table's rules when not seated");
 
+    press(MenuInput::Back);
     // Keyboard Escape goes through the same input adapter as the real shell.
     io.AddKeyEvent(ImGuiKey_Escape, true); frame();
     io.AddKeyEvent(ImGuiKey_Escape, false); frame();
     Check(shell.Navigation().Screen() == "room", "Keyboard Back did not return to the room");
-    focus("table-0"); press(MenuInput::Select);
+    focus("table-0"); press(MenuInput::Options);
     const auto click = [&](ImVec2 point) {
         io.AddMousePosEvent(point.x, point.y); frame();
         io.AddMouseButtonEvent(0, true); frame();
@@ -1004,7 +1016,11 @@ int main() try {
             const char* selected = table ? "queue" : "table-0";
             focus(selected); frame(); frame();
             const auto panel = [&]() -> ImVec4 {
-                const char* name = table ? "Menu list" : size.x - 40 * Scale() >= 820 * Scale() ? "Battle slots" : "Room stacked";
+                const char* name = table ? "Menu list" : "Battle slots";
+                if(!table){
+                    for(const auto* window:ImGui::GetCurrentContext()->Windows)
+                        if(window->Active&&std::strstr(window->Name,"Room stacked"))name="Room stacked";
+                }
                 for (const auto* window : ImGui::GetCurrentContext()->Windows)
                     if (window->Active && std::strstr(window->Name, name))
                         return ImVec4(window->Pos.x, window->Pos.y, window->Size.x, window->Size.y);
@@ -1259,8 +1275,8 @@ int main() try {
     // A new game at a table closes a confirmation about the last one on the
     // table's own screen, but never a message or a name being typed elsewhere.
     shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
-    focus("leave"); press(MenuInput::Select);
-    Check(shell.Navigation().Confirming(), "Leave room did not ask for confirmation");
+    focus("cancel-result"); press(MenuInput::Select);
+    Check(shell.Navigation().Confirming(), "Cancelling the unresolved game did not ask for confirmation");
     for (auto& table : view.room.tables) ++table.matchGeneration;
     frame();
     Check(!shell.Navigation().Confirming(), "A new game left a confirmation about the last one open");
@@ -1390,7 +1406,7 @@ int main() try {
     };
     view.session.room = netplay::RoomState::Joined; view.canEditSelection = true;
     shell.Navigation().Home(); frame(); shell.Navigation().Push("room"); frame(); frame();
-    Check(offers("copy") && !offers("copy-room-link"), "A private room offers a room link or lost its invitation row");
+    Check(offers("room-invite") && !offers("copy-room-link"), "A private room offers a room link or lost its invitation row");
     view.room.serverOwned = true; frame(); frame();
     Check(!offers("copy") && !offers("copy-short") && !offers("copy-room-link") && offers("leave"),
         "A server-owned room not joined from the list offers an invitation or a room link");

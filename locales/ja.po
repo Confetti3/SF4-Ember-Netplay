@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "プレイヤーとコントローラー"
 
 msgid "screen.defaults"
-msgstr "対戦の初期設定"
+msgstr "新しいルームの初期設定"
 
 msgid "screen.main_character"
 msgstr "メインキャラを選択"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "ルームを作成"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "対戦の初期設定"
+msgstr "新しいルームの初期設定"
 
 msgid "settings.input_delay"
 msgstr "入力遅延"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "表示名、コントローラーの割り当て、バックグラウンドでのプレイ。"
 
 msgid "settings.defaults_detail"
-msgstr "入力遅延と新規ルームの初期設定。"
+msgstr "新しいルームの名前、定員、ルールです。現在のルームは変更されません。"
 
 msgid "settings.interface"
 msgstr "表示"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "操作方法"
 
 msgid "about.controls_detail"
-msgstr "Xbox: Aで選択、Bで戻ります。PlayStation: クロスで選択、サークルで戻ります。Switch: ゲームのメニューと同様、Bで選択、Aで戻ります。Emberで設定したコントローラー: 弱キック用に選んだボタンで選択、中キック用に選んだボタンで戻ります。ボタン配置を変更しても同じです。キーボード: 矢印、Enter、Escape。十字キーで移動し、左右で値を変えます。ホームで戻るとEmberが隠れます。ゲームのメインメニューでF10、またはコントローラーのStartを押すと再び開きます。\n\nルームでは、テーブル上でAを押すと席を選べます。自分の席でAを押すと準備完了になり、Bで席や順番待ちから抜けます。他のコントローラーでは同じ位置のボタンを使います。XboxではXでファイター、Yでオプション、Viewでチャットを開きます。もう一度押すとルームに戻ります。PlayStationはスクエア、トライアングル、ShareまたはCreate、SwitchはY、X、Minusを使います。\n\nトレーニングではF6で操作を開き、F5でHUDを隠し、F7で録画、F8で再生します。コントローラーではView（Share、Create、Minus）を押しながらStartを押してください。"
+msgstr "Xbox: Aで選択、Bで戻ります。PlayStation: クロスで選択、サークルで戻ります。Switch: ゲームのメニューと同様、Bで選択、Aで戻ります。Emberで設定したコントローラー: 弱キック用に選んだボタンで選択、中キック用に選んだボタンで戻ります。ボタン配置を変更しても同じです。キーボード: 矢印、Enter、Escape。十字キーで移動し、左右で値を変えます。ホームで戻るとEmberが隠れます。ゲームのメインメニューでF10、またはコントローラーのStartを押すと再び開きます。\n\n自分のテーブルを選び、準備完了、キャラクター変更、席を離れるを選択します。戻る操作では席は保持されます。設定には対戦設定、テーブルルール、ルーム管理、個人設定があります。X、Y、View（キーボードのF、T、C）でキャラクター、テーブル操作、チャットを開きます。同じボタンでもとに戻れます。\n\nトレーニングではF6で操作を開き、F5でHUDを隠し、F7で録画、F8で再生します。コントローラーではView（Share、Create、Minus）を押しながらStartを押してください。"
 
 msgid "about.controls_keyboard"
 msgstr "キーボードでは Space でも選択、Backspace でも戻ります。ルームでは F でキャラ、T で設定、C でチャットを開きます。Esc は自分の席の上でも常に戻ります。Delete で席や順番待ちから抜けます。"
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "ルームに再接続中..."
 
 msgid "room.table_setup_title"
-msgstr "対戦席{0} / 対戦準備"
+msgstr "対戦席{0} / テーブル操作"
 
 msgid "room.waiting_opponent"
 msgstr "対戦相手を待機中"
@@ -3102,10 +3102,8 @@ msgid "room.rules_summary"
 msgstr "{0}ラウンド、{1}秒、エディションセレクト{2}"
 
 msgid "room.table_options"
-msgstr "対戦席の設定"
+msgstr "テーブル操作"
 
-msgid "room.table_options.detail"
-msgstr "対戦席{0}：この対戦席の遅延、接続テスト、ルール、順番待ち、観戦。"
 
 msgid "room.legend_fighter"
 msgstr "キャラ"
@@ -4410,7 +4408,7 @@ msgid "public.create_detail"
 msgstr "Ember IDを持つ全員に表示されるルームを開き、あなたがホストになります。次に名前、人数、対戦席のルールを選びます。"
 
 msgid "public.create_requirements"
-msgstr "EmberのIDサービスに公開ルームを作成して入室し、すべての対戦席にこのルールを設定します。あとから対戦席の設定で変更できます。"
+msgstr "Ember IDサービスで公開ルームを作成して参加し、すべてのテーブルにこのルールを適用します。後で設定 > テーブルルールから変更できます。"
 
 msgid "public.create_needs_id"
 msgstr "公開ルームにはEmber IDと信頼済みのサービスが必要です。公開ルームの画面で設定してください。"
@@ -6404,3 +6402,32 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "操作"
+
+msgid "room.invite"
+msgstr "招待"
+
+msgid "room.invite.detail"
+msgstr "このルームにプレイヤーを招待します。"
+
+
+
+
+msgid "room.rules_target"
+msgstr "台を選んでルールを確認します。変更できるのはホストだけです。"
+
+
+msgid "room.more_actions"
+msgstr "その他"
+
+msgid "settings.delay_saved_detail"
+msgstr "今後の対戦用に保存された入力遅延です。ここで変更すると既定値も更新されます。"
+
+msgid "settings.delay_future_detail"
+msgstr "着席する前に入力遅延を保存できます。次に準備完了にしたときに適用され、観戦中の対戦には影響しません。"
+
+msgid "settings.delay_check_seated"
+msgstr "接続を確認して推奨値を取得するには、対戦相手と同じテーブルに着席してください。"

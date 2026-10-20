@@ -161,14 +161,14 @@ void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw,const Pag
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){ruleRows=rows;});
     const auto has=[&](const char* id){
         return std::any_of(ruleRows.begin(),ruleRows.end(),[&](const MenuEntry& row){return row.id==id;});};
-    view.room.practice=true;draw("table-practice-room");
+    page("room-rules");view.room.practice=true;draw("table-practice-room");
     Require(has("rounds")&&!has("time"),"A Practice room's table offered a round time");
     view.room.practice=false;draw();
     Require(has("rounds")&&has("time"),"A plain room's table lost its round time");
     // A room whose fighters each play at their own delay: the board's table cards and
     // the table page say so, and so does Create's row.
     view.room.delayPolicy=room::DelayPolicy::Own;
-    page("room");draw("room-own-delay");page("room-table");draw("table-own-delay");
+    page("room");draw("room-own-delay");page("room-match");draw("table-own-delay");
     view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");
     view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;view.room.delayPolicy=room::DelayPolicy::Shared;
     page("room-table");draw();

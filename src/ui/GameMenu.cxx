@@ -499,8 +499,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         }
     };
     if(body){
+        const float bodyHeight=(std::max)(60.f,available.y-footer);
         ImGui::BeginDisabled((modalAtStart&&!choosingAtStart)||navigation.Editing()||navigation.Confirming());
-        body(entries,navigation,action,(std::max)(60.f,available.y-footer),feedback_);
+        body(entries,navigation,action,bodyHeight,feedback_);
         ImGui::EndDisabled();
     }
     else if(navigation.Reading()) DrawReader(entries,detail,(std::max)(60.f,available.y-footer),menuInput.held);

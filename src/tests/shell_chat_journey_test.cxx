@@ -199,12 +199,27 @@ void InlineChatJourneys(){
    Check(stack&&boxes.at("table-0").second.y-boxes.at("table-0").first.y>=136*ui::Scale()-1,
     "A short scrolling board shrank a battle card");
   }
+  // Directions follow the controls actually drawn, including the height-driven
+  // stacked fallback. This catches a focus map based on width alone.
+  Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="leave-place"||row.id=="selection";}),
+   "The combined room has duplicate table actions");
+  h.shell.Navigation().Prefer("room-members");h.Frame(0,3);h.Press(MenuInput::Down);
+  const auto next=h.shell.Navigation().Focus();
+  if(ActiveWindow("Room stacked")){
+   Check(next=="room-chat","Down did not follow the stacked room actions");
+   h.FocusOn("leave");h.Press(MenuInput::Down);
+   Check(h.shell.Navigation().Focus()=="inline-chat","Down did not reach the pinned composer below the board");
+  }else{
+   Check(boxes.count(next)&&std::fabs(boxes.at(next).first.x-boxes.at("room-members").first.x)<1&&
+    boxes.at(next).first.y>boxes.at("room-members").first.y,"Down did not follow the rendered action column");
+  }
+  h.shell.Navigation().Prefer("table-0");h.Frame(0,3);
   Check(!io.WantTextInput,"The room stole typing focus before the player chose chat");
   click("inline-chat");Check(io.WantTextInput,"Clicking the room's input did not allow typing");
   h.actions.clear(); // Ignore joining-room preference synchronization.
   io.AddInputCharactersUTF8("Hello from the main room");h.Frame(0,3);
   Check(draft()=="Hello from the main room","Inline text did not reach the shared draft");
-  key(ImGuiKey_F);key(ImGuiKey_T);key(ImGuiKey_C);key(ImGuiKey_UpArrow);key(ImGuiKey_DownArrow);
+  key(ImGuiKey_F);key(ImGuiKey_T);key(ImGuiKey_C);key(ImGuiKey_Delete);key(ImGuiKey_UpArrow);key(ImGuiKey_DownArrow);
   if(h.shell.Navigation().Screen()!="room"||h.shell.Navigation().Focus()!="inline-chat"||!h.actions.empty())
    std::cerr<<"Inline state: screen="<<h.shell.Navigation().Screen()<<" focus="<<h.shell.Navigation().Focus()<<" actions="<<h.actions.size()<<" typing="<<io.WantTextInput<<"\n";
   Check(h.shell.Navigation().Screen()=="room"&&h.shell.Navigation().Focus()=="inline-chat"&&h.actions.empty(),"Typing triggered a room shortcut or seat action");

@@ -387,13 +387,13 @@ private:
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);
-    // What B does on the board while your own table card is focused: leave your
+    // What Delete does on the board while your own table card is focused: leave your
     // seat or queue place (or say why the seat cannot be left yet). Empty
     // (plain Back) otherwise.
     const char* PlaceExitLabel(const ShellView& view) const;
     void OpenTableOptions(const ShellView& view, int table);
     void ToggleReady(const ShellView& view, const Submit& submit);
-    // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
+    // Leaves our seat or queue place once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
     // Leaves the game this PC watches (Stop watching, or the table's own
     // Unwatch of it), once confirmed: the press names the game, and the
@@ -409,6 +409,7 @@ private:
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;
+    std::size_t roomBoardColumns_ = 1;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
@@ -506,7 +507,7 @@ private:
     std::string lastError_, errorScreen_, errorBlockedText_;
     double errorSince_=0;
     std::function<bool(const ShellView&)> errorBlocked_;
-    // B on a seat that would lose a score or hand the seat over asks first: the
+    // Leaving a seat that would lose a score or hand it over asks first: the
     // table whose card carries the question, and whether it is open yet.
     int leaveAsk_=-1;
     bool leaveAsked_=false;

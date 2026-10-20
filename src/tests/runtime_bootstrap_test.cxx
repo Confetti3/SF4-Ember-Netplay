@@ -71,7 +71,7 @@ int wmain(int argc, wchar_t** argv) {
 	// Exercise the real UI-to-runtime admission seam: these commands have
 	// handlers, even though the session controller rejects them outside a room.
 	const auto initialDelay = snapshot.selectedDelay;
-	for (auto kind : {netplay::CommandKind::CheckConnection, netplay::CommandKind::ApplyDelay,
+	for (auto kind : {netplay::CommandKind::CheckConnection, netplay::CommandKind::ApplyDelay, netplay::CommandKind::SaveInputDelay,
 		netplay::CommandKind::ReplaceRoom}) {
 		NetplayFacade::RuntimeCommand action;
 		action.command = {kind, snapshot.session.generation, {}};
