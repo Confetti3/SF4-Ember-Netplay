@@ -108,6 +108,31 @@ inline size_t FormatCrashHeader(char* out, size_t size, const CrashFacts& facts)
 	return (size_t)written < size ? (size_t)written : size - 1;
 }
 
+// True when the 7 bytes before a return address end in an x86 call: E8
+// rel32, or FF /2 through a register, [register], [register+disp] or
+// [disp32], with or without a SIB byte. A stack word that passes is
+// probably a caller; one that fails is data or a pushed constant.
+inline bool EndsInCall(const uint8_t before[7]) {
+	const uint8_t* at = before + 7; // at[-n] is the byte n before the return address
+	if (at[-5] == 0xE8) return true;
+	if (at[-2] == 0xFF && ((at[-1] & 0xF8) == 0x10 || (at[-1] & 0xF8) == 0xD0) && at[-1] != 0x14 && at[-1] != 0x15) return true;
+	if (at[-3] == 0xFF && ((at[-2] & 0xF8) == 0x50 || at[-2] == 0x14) && at[-2] != 0x54) return true;
+	if (at[-4] == 0xFF && at[-3] == 0x54) return true;
+	if (at[-6] == 0xFF && (at[-5] == 0x15 || ((at[-5] & 0xF8) == 0x90 && at[-5] != 0x94))) return true;
+	if (at[-7] == 0xFF && at[-6] == 0x94) return true;
+	return false;
+}
+
+// Appends " Module+0xOffset" to a callers line of `size` bytes; false when
+// it no longer fits.
+inline bool AppendCaller(char* out, size_t size, size_t& length, const char* module, uint64_t offset) {
+	if (!out || length >= size) return false;
+	const int written = snprintf(out + length, size - length, " %s+0x%llX", module && module[0] ? module : "?", (unsigned long long)offset);
+	if (written < 0 || (size_t)written >= size - length) { out[length] = '\0'; return false; }
+	length += (size_t)written;
+	return true;
+}
+
 // Free virtual memory seen by a walk over the address space. For the
 // 32-bit game the largest free region is the number that decides whether
 // the next texture, save state or thread stack can still be placed.
