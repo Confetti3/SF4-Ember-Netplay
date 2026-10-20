@@ -105,12 +105,17 @@ pub struct ControlChannel {
     pub connection: Connection,
     pub sender: ControlSender,
     pub receiver: ControlReceiver,
-    /// The Ember ID a public room's ticket named for this connection. A
-    /// private room has none.
-    pub account: Option<EmberId>,
-    /// The verified ticket that admitted it, kept so the room can decide
-    /// again before the channel is installed.
+    /// The verified ticket a public room admitted it with, kept so the room
+    /// can decide again before the channel is installed. A private room has
+    /// none.
     pub ticket: Option<RoomTicket>,
+}
+
+impl ControlChannel {
+    /// The Ember ID the ticket named for this connection.
+    pub fn account(&self) -> Option<&EmberId> {
+        self.ticket.as_ref().map(|ticket| &ticket.ember_id)
+    }
 }
 
 pub struct ControlSender {
@@ -179,7 +184,6 @@ fn control_channel(connection: Connection, stream: (SendStream, RecvStream)) -> 
             last_id: 1,
             poisoned: false,
         },
-        account: None,
         ticket: None,
     }
 }

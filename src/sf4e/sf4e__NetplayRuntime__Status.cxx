@@ -67,6 +67,11 @@ std::string RoomErrorText(const std::string& error) {
 static void FillRoomView(RuntimeSnapshot& snapshot) {
 	if (runtime->attached && UserApp::netplay) {
 		snapshot.room = UserApp::netplay->client.GetRoomSnapshot();
+		// A class is the bridge's word only in a room this client joined as
+		// public, which it knows from its own join; a private room's host
+		// writes its own snapshot, so any class in one is dropped here.
+		if (!runtime->room || !runtime->room->ServerOwned())
+			for (auto& member : snapshot.room.members) member.badge = SkillBadge();
 		snapshot.roomReceivedMs = UserApp::netplay->client.RoomSnapshotReceivedMs();
 		snapshot.roomNotices.assign(runtime->roomNotices.begin(), runtime->roomNotices.end());
 		if (snapshot.room.roomEpoch) {

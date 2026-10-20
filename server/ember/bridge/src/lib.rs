@@ -20,6 +20,7 @@ mod mock;
 mod rate;
 mod routes;
 mod secrets;
+mod skill;
 mod tournament;
 mod util;
 

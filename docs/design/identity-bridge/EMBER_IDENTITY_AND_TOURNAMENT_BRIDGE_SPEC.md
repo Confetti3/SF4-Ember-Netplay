@@ -81,6 +81,8 @@ Correctness takes precedence over apparent automation. An unresolved result MUST
 
 This work does not create a global ranked service, a public room directory, a payment system, an anti-cheat system, a global ban authority, or a universal account-recovery service. It does not replace GGPO, Iroh, existing room authority, or native match-result detection.
 
+Later scope, outside this specification: public rooms show a player's class, from a rating the bridge keeps per Discord account over public room games (`docs/design/SKILL_BADGE.md`). It has no ranking list and no mode of its own.
+
 It does not require another player-installed executable. It does not require an Ember-operated central cloud. A platform, organizer, or Ember operator may deploy the bridge.
 
 The first automated tournament mode is **one two-player bracket match on one reserved table in a dedicated room**. The protocol includes table identity from day one, but automated multi-table tournament scheduling is a later capability. Existing casual four-table rooms remain unchanged.

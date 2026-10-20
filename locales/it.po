@@ -2581,6 +2581,18 @@ msgstr "Seduto"
 msgid "room.status.ready"
 msgstr "Pronto"
 
+msgid "class.master"
+msgstr "Maestro"
+
+msgid "class.grand_master"
+msgstr "Gran Maestro"
+
+msgid "class.tip"
+msgstr "Classe {0}"
+
+msgid "class.unsettled"
+msgstr "Nessuna partita di recente, quindi potrebbe essere cambiata."
+
 msgid "room.status.playing"
 msgstr "In partita"
 

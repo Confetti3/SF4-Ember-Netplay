@@ -265,7 +265,7 @@ impl Actor {
             }
             return Ok(());
         }
-        if let Some(account) = parked.channel.account.as_ref() {
+        if let Some(account) = parked.channel.account() {
             self.remember_public_member(peer, account);
         }
         self.install_control(parked.epoch, parked.channel, parked.joined_invite)
@@ -955,11 +955,11 @@ impl Actor {
             return Ok(());
         };
         let control = self.controls.get(&peer).map(ControlWorker::id).unwrap_or(0);
-        let account = self
-            .controls
-            .get(&peer)
+        let worker = self.controls.get(&peer);
+        let account = worker
             .and_then(ControlWorker::account)
             .map(ToString::to_string);
+        let badge = worker.and_then(ControlWorker::badge);
         let (latency, latency_relay) = self.latency_route();
         self.emit(Event::Connected {
             epoch,
@@ -967,6 +967,7 @@ impl Actor {
             room,
             control,
             account,
+            badge,
             latency,
             latency_relay,
         })?;

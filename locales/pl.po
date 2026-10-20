@@ -2581,6 +2581,18 @@ msgstr "Przy stole"
 msgid "room.status.ready"
 msgstr "Gotów"
 
+msgid "class.master"
+msgstr "Mistrz"
+
+msgid "class.grand_master"
+msgstr "Arcymistrz"
+
+msgid "class.tip"
+msgstr "Klasa {0}"
+
+msgid "class.unsettled"
+msgstr "Brak niedawnych gier, więc mogła się zmienić."
+
 msgid "room.status.playing"
 msgstr "Walczy"
 

@@ -2582,6 +2582,18 @@ msgstr "В ячейке"
 msgid "room.status.ready"
 msgstr "Готов"
 
+msgid "class.master"
+msgstr "Мастер"
+
+msgid "class.grand_master"
+msgstr "Грандмастер"
+
+msgid "class.tip"
+msgstr "Класс {0}"
+
+msgid "class.unsettled"
+msgstr "Давно нет игр, класс мог измениться."
+
 msgid "room.status.playing"
 msgstr "Играет"
 

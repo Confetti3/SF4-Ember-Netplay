@@ -16,6 +16,7 @@ use crate::{
     play::{MAX_INVITATION, VERSION, check_build, is_hex},
     relay,
     sign::Domain,
+    skill::SkillBadge,
 };
 
 /// Refusal reasons of the room routes.
@@ -118,6 +119,11 @@ pub struct RoomTicket {
     pub endpoint_id: String,
     pub issued_at: u64,
     pub expires_at: u64,
+    /// The joiner's skill badge, for a joiner who asked for it
+    /// (`TicketRequest::skill_badge`) and has one. Written only when present,
+    /// so a ticket without one is byte for byte what it was before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub badge: Option<SkillBadge>,
 }
 
 impl RoomTicket {
@@ -132,10 +138,10 @@ impl RoomTicket {
                 "expires_at",
             ),
         ];
-        match fields.iter().find(|(valid, _)| !valid) {
-            Some((_, field)) => Err(Error::InvalidField(field)),
-            None => Ok(()),
+        if let Some((_, field)) = fields.iter().find(|(valid, _)| !valid) {
+            return Err(Error::InvalidField(field));
         }
+        self.badge.as_ref().map_or(Ok(()), SkillBadge::check)
     }
 
     pub fn sign(&self, key: &SigningIdentity, kid: &str) -> Result<SignedRoomTicket> {
@@ -338,6 +344,10 @@ impl CreateRoom {
 pub struct TicketRequest {
     pub endpoint_id: String,
     pub build_id: String,
+    /// The joiner's build shows skill badges and wants its own in the ticket.
+    /// A build that does not ask gets a ticket it can read.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub skill_badge: bool,
 }
 
 impl TicketRequest {
@@ -505,6 +515,7 @@ mod tests {
             endpoint_id: "a".repeat(64),
             issued_at: 1000,
             expires_at: 1000 + TICKET_SECS,
+            badge: None,
         }
     }
 
@@ -620,6 +631,14 @@ mod tests {
                 expires_at: good.issued_at,
                 ..good.clone()
             },
+            // A badge that is not one.
+            RoomTicket {
+                badge: Some(SkillBadge {
+                    band: 0,
+                    settled: true,
+                }),
+                ..good.clone()
+            },
         ];
         for ticket in broken {
             assert!(ticket.sign(&bridge, "k1").is_err(), "{ticket:?}");
@@ -718,6 +737,7 @@ mod tests {
         let request = TicketRequest {
             endpoint_id: "c".repeat(64),
             build_id: "build".into(),
+            skill_badge: false,
         };
         assert!(request.check().is_ok());
         let bad = TicketRequest {

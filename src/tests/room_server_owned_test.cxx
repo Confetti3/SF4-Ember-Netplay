@@ -5,7 +5,7 @@
 
 static MemberProfile Profile(const std::string& account) {
 	MemberProfile profile;
-	profile.account = account;
+	profile.admission.account = account;
 	return profile;
 }
 
@@ -317,6 +317,74 @@ static void TestCheckpointRoundTrip() {
 	CHECK(!untouched.SnapshotView().practice && !untouched.SnapshotView().serverOwned && untouched.SnapshotView().members.empty());
 }
 
+// Both fighters take game `generation`'s terminal receipt, which frees the table.
+static void Acknowledge(RoomAuthority& authority, std::uint64_t generation, MemberId p1, MemberId p2) {
+	for (const auto member : {p1, p2}) {
+		auto ack = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+		ack.matchGeneration = generation;
+		CHECK(authority.Apply(member, ack).accepted);
+	}
+}
+
+// Readies the two seated fighters at table 0, plays one game to `result`, has
+// both acknowledge it and returns its generation.
+static std::uint64_t PlayGame(RoomAuthority& authority, MatchResult result) {
+	const auto table = authority.SnapshotView().tables[0];
+	for (const auto member : {table.p1, table.p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	CHECK(authority.BeginMatch(0, table.p1, table.p2).accepted);
+	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
+	CHECK(authority.EndMatch(0, generation, result).accepted);
+	Acknowledge(authority, generation, table.p1, table.p2);
+	return generation;
+}
+
+// Games won between two accounts are kept for the skill rating, oldest first
+// and at most MaximumWonGames; draws count for nothing, and the list survives a
+// checkpoint that is refused when it does not fit.
+static void TestWonGamesAreKeptByAccount() {
+	MatchRoom room;
+	StartMatchRoom(room);
+	auto& authority = room.authority;
+	const auto first = authority.SnapshotView().tables[0].matchGeneration;
+	CHECK(authority.EndMatch(0, first, MatchResult::P2Win).accepted);
+	Acknowledge(authority, first, room.p1, room.p2);
+	const std::vector<sf4e::WonGame> won{{0, first, "ember-p2", "ember-p1"}};
+	CHECK(authority.WonGames() == won);
+	PlayGame(authority, MatchResult::Draw);
+	CHECK(authority.WonGames().size() == 1);
+	std::uint64_t last = 0;
+	for (int i = 0; i < 40; ++i) last = PlayGame(authority, i % 2 ? MatchResult::P1Win : MatchResult::P2Win);
+	const auto games = authority.WonGames();
+	CHECK(games.size() == sf4e::MaximumWonGames && games.back().generation == last && games.front().generation > first);
+	for (const auto& game : games) CHECK(game.winner != game.loser);
+
+	const auto checkpoint = authority.Checkpoint();
+	RoomAuthority restored("Other");
+	CHECK(restored.RestoreCheckpoint(checkpoint) && restored.WonGames() == games);
+	// A room from before won games restores with none.
+	auto older = checkpoint;
+	older.erase("won_games");
+	RoomAuthority upgraded("Other");
+	CHECK(upgraded.RestoreCheckpoint(older) && upgraded.WonGames().empty());
+	auto over = checkpoint;
+	over["won_games"].push_back(over["won_games"][0]);
+	CHECK(!RoomAuthority("Other").RestoreCheckpoint(over));
+	auto self = checkpoint;
+	self["won_games"][0]["loser"] = self["won_games"][0]["winner"];
+	CHECK(!RoomAuthority("Other").RestoreCheckpoint(self));
+	auto table = checkpoint;
+	table["won_games"][0]["table"] = TableCount;
+	CHECK(!RoomAuthority("Other").RestoreCheckpoint(table));
+
+	// A private room has no accounts and keeps no games.
+	RoomAuthority privateRoom("Private");
+	const auto a = MemberOf(privateRoom.Join("A", Peer(1), true));
+	const auto b = MemberOf(privateRoom.Join("B", Peer(2)));
+	for (const auto member : {a, b}) CHECK(privateRoom.Apply(member, TableAction(privateRoom, member, 0, ActionKind::Queue)).accepted);
+	PlayGame(privateRoom, MatchResult::P1Win);
+	CHECK(privateRoom.WonGames().empty() && !privateRoom.Checkpoint().contains("won_games"));
+}
+
 static bool Mentions(const nlohmann::json& value, const char* text) {
 	return value.dump().find(text) != std::string::npos;
 }
@@ -402,6 +470,7 @@ int main() {
 	TestSetServerOwnedNeedsAFreshRoom();
 	TestDelayPolicyIsKept();
 	TestCheckpointRoundTrip();
+	TestWonGamesAreKeptByAccount();
 	TestAccountsStayOutOfSnapshots();
 	TestPrivateRoomsAreUnchanged();
 	TestPublicRulesAndReopen();

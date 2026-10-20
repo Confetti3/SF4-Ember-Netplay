@@ -2581,6 +2581,18 @@ msgstr "Assis"
 msgid "room.status.ready"
 msgstr "Prêt"
 
+msgid "class.master"
+msgstr "Maître"
+
+msgid "class.grand_master"
+msgstr "Grand Maître"
+
+msgid "class.tip"
+msgstr "Classe {0}"
+
+msgid "class.unsettled"
+msgstr "Aucun match récent, elle a peut-être changé."
+
 msgid "room.status.playing"
 msgstr "En combat"
 
