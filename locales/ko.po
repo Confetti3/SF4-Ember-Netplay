@@ -2686,6 +2686,12 @@ msgstr "입력하려면 키보드가 필요합니다. Enter로 보내고, 위/�
 msgid "chat.hint"
 msgstr "메시지 입력"
 
+msgid "chat.history"
+msgstr "채팅 기록"
+
+msgid "chat.inline_detail"
+msgstr "여기에서 방 채팅을 입력하세요. Enter로 전송하고 Esc로 방 조작으로 돌아갑니다."
+
 msgid "chat.send"
 msgstr "보내기"
 

@@ -2685,6 +2685,12 @@ msgstr "Per scrivere serve una tastiera. Invio manda il messaggio; Su e Giù sco
 msgid "chat.hint"
 msgstr "Scrivi un messaggio"
 
+msgid "chat.history"
+msgstr "Cronologia della chat"
+
+msgid "chat.inline_detail"
+msgstr "Scrivi qui nella stanza. Invio invia il messaggio; Esc torna ai comandi della stanza."
+
 msgid "chat.send"
 msgstr "Invia"
 

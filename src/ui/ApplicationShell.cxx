@@ -156,7 +156,6 @@ bool ApplicationShell::UpdateRoomFeedback(const ShellView& v) {
  using namespace netplay;
  // Ignore brief checkpoint delays; hold visible feedback through short gaps.
  // Eligibility still uses the current snapshot on every frame.
- if(v.room.roomEpoch!=roomEpoch_){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
  const bool healthyRoom=v.session.room==RoomState::Joined&&v.session.control==Health::Healthy&&
   v.session.recovery==Recovery::None&&!v.room.closed;
  if(!healthyRoom){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
@@ -881,7 +880,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
  // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
- menu_.typesText=roomScreen&&screen=="room-chat"&&v.room.roomEpoch&&ChatTypable(v);
+ menu_.textOwner=roomScreen&&chatComposer_.Typing()&&ChatTypable(v);
+ menu_.typesText=roomScreen&&(screen=="room-chat"||chatComposer_.Typing())&&v.room.roomEpoch&&ChatTypable(v);
  // On the country picker a typed letter goes to a country, so letters are no shortcuts there.
  if(screen==CountryPicker::Screen){menu_.typesText=true;if(!nav.Editing())for(const ImWchar typed:ImGui::GetIO().InputQueueCharacters){const auto row=countryPicker_.Jump(typed,nav.Focus());if(!row.empty())nav.Focus(row,rows);}}
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
@@ -889,7 +889,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
- if(keys&&*placeExit)menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
+ if(keys&&*placeExit&&!chatComposer_.Typing())menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
  // Back names where it goes when that is not simply the previous screen:
  // from Home, out of Ember or back to the room; on the board, out of your seat.
  menu_.exitName.clear();menu_.backHint.clear();
