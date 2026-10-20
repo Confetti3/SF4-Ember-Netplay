@@ -4729,6 +4729,9 @@ msgstr "Głos"
 msgid "speech.setting_detail"
 msgstr "Czyta menu Embera na głos, gdy się po nich poruszasz. F1 zatrzymuje głos."
 
+msgid "speech.intro"
+msgstr "Głos jest włączony. Poruszaj się, aby usłyszeć każdą pozycję. Naciśnij {0}, aby usłyszeć, co robi; naciśnij ponownie, aby zatrzymać. Więcej opcji znajdziesz w Ustawieniach, Dostępność."
+
 msgid "speech.rate"
 msgstr "Tempo głosu"
 

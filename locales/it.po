@@ -4729,6 +4729,9 @@ msgstr "Voce"
 msgid "speech.setting_detail"
 msgstr "Legge ad alta voce i menu di Ember mentre li scorri. F1 ferma la voce."
 
+msgid "speech.intro"
+msgstr "La voce è attiva. Spostati per sentire ogni voce. Premi {0} per sentire cosa fa; premilo di nuovo per fermarla. Altre opzioni sono in Impostazioni, Accessibilità."
+
 msgid "speech.rate"
 msgstr "Velocità della voce"
 

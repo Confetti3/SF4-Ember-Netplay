@@ -4729,6 +4729,9 @@ msgstr "Voix"
 msgid "speech.setting_detail"
 msgstr "Lit à haute voix les menus d'Ember pendant que vous les parcourez. F1 arrête la voix."
 
+msgid "speech.intro"
+msgstr "La voix est activée. Déplacez-vous pour entendre chaque élément. Appuyez sur {0} pour entendre ce qu'il fait ; appuyez à nouveau pour arrêter. D'autres options se trouvent dans Paramètres, Accessibilité."
+
 msgid "speech.rate"
 msgstr "Débit de la voix"
 

@@ -345,9 +345,10 @@ private:
     bool updateNowReported_=false;
     // The Settings row's value, seeded from the view once and then the shell's own.
     bool launchCheck_=true,launchCheckSeeded_=false;
-    // Told once a session that speech is on but no voice could speak; and the
-    // natural voice's download state last told.
-    bool speechNoticeShown_=false;
+    // Told once a session that speech is on but no voice could speak; speech
+    // just turned on, to be told how it works; and the natural voice's
+    // download state last told.
+    bool speechNoticeShown_=false,speechIntro_=false;
     speech::Voice voiceTold_=speech::Voice::System;
     std::string launchCheckSaveError_;
     struct DialogContext {

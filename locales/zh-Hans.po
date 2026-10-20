@@ -4730,6 +4730,9 @@ msgstr "语音"
 msgid "speech.setting_detail"
 msgstr "在你浏览Ember菜单时朗读菜单。按F1停止朗读。"
 
+msgid "speech.intro"
+msgstr "语音已开启。移动即可听到每一项。按{0}可听到它的作用，再按一次停止。更多选项位于“设置”>“无障碍”。"
+
 msgid "speech.rate"
 msgstr "语速"
 

@@ -4729,6 +4729,9 @@ msgstr "Hlas"
 msgid "speech.setting_detail"
 msgstr "Čte nabídky Emberu nahlas, jak se jimi pohybujete. F1 hlas zastaví."
 
+msgid "speech.intro"
+msgstr "Hlas je zapnutý. Pohybem uslyšíte každou položku. Stiskněte {0} a uslyšíte, co dělá; dalším stiskem čtení zastavíte. Další možnosti najdete v Nastavení, Přístupnost."
+
 msgid "speech.rate"
 msgstr "Rychlost hlasu"
 

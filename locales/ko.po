@@ -4730,6 +4730,9 @@ msgstr "음성"
 msgid "speech.setting_detail"
 msgstr "Ember의 메뉴를 이동할 때마다 소리 내어 읽습니다. F1을 누르면 음성이 멈춥니다."
 
+msgid "speech.intro"
+msgstr "음성이 켜졌습니다. 이동하면 각 항목을 들을 수 있습니다. {0}을(를) 누르면 무엇을 하는지 듣고, 다시 누르면 멈춥니다. 더 많은 옵션은 설정, 접근성에 있습니다."
+
 msgid "speech.rate"
 msgstr "음성 속도"
 

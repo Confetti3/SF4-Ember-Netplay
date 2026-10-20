@@ -4729,6 +4729,9 @@ msgstr "Spraak"
 msgid "speech.setting_detail"
 msgstr "Leest de menu's van Ember voor terwijl je erdoorheen gaat. F1 stopt de stem."
 
+msgid "speech.intro"
+msgstr "Spraak staat aan. Beweeg om elk item te horen. Druk op {0} om te horen wat het doet; druk opnieuw om te stoppen. Meer opties staan in Instellingen, Toegankelijkheid."
+
 msgid "speech.rate"
 msgstr "Spreeksnelheid"
 

@@ -4729,6 +4729,9 @@ msgstr "Sprachausgabe"
 msgid "speech.setting_detail"
 msgstr "Liest Embers Menüs vor, während du dich durch sie bewegst. F1 hält die Stimme an."
 
+msgid "speech.intro"
+msgstr "Die Sprachausgabe ist an. Bewege dich, um jeden Eintrag zu hören. Drücke {0}, um zu hören, was er tut; drücke erneut, um aufzuhören. Weitere Optionen findest du unter Einstellungen, Barrierefreiheit."
+
 msgid "speech.rate"
 msgstr "Sprechtempo"
 

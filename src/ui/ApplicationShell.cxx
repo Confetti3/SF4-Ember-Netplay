@@ -577,7 +577,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
-  else if(a.id=="speech")preferences_.speech.enabled=a.delta>0;
+  else if(a.id=="speech"){speechIntro_=a.delta>0&&!preferences_.speech.enabled;preferences_.speech.enabled=a.delta>0;}
   else if(a.id=="speech-rate")preferences_.speech.rate=(std::max)(-10,(std::min)(10,preferences_.speech.rate+a.delta));
   else if(a.id=="speech-volume")preferences_.speech.volume=(std::max)(10,(std::min)(100,preferences_.speech.volume+10*a.delta));
   else if(a.id=="speech-details")preferences_.speech.details=a.delta>0;
@@ -927,6 +927,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Speech follows the row on screen, which may not be saved yet. Speech that
  // cannot be heard is said on screen instead, once.
  SetMenuSpeech(preferences_.speech);
+ // Turning speech on says once how it works, aloud and on screen, naming the
+ // accessibility button as the player's device prints it.
+ if(std::exchange(speechIntro_,false)){
+  const auto intro=loc::Tf("speech.intro",KeyboardPrompts()?std::string("F2"):SpokenButton("RT"));
+  menu_.ShowNotice(intro,loc::T("speech.setting"));
+  speech::Say({intro},true,preferences_.speech.rate,preferences_.speech.volume);
+ }
  const auto missing=speech::Unavailable();
  if(preferences_.speech.enabled&&missing!=speech::Missing::Nothing&&!speechNoticeShown_&&!menu_.NoticeOpen()){
   speechNoticeShown_=true;

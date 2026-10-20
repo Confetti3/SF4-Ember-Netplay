@@ -4730,6 +4730,9 @@ msgstr "音声読み上げ"
 msgid "speech.setting_detail"
 msgstr "Emberのメニューを移動に合わせて読み上げます。F1で読み上げを止めます。"
 
+msgid "speech.intro"
+msgstr "音声読み上げがオンになりました。移動すると各項目を読み上げます。{0}を押すと項目の説明を、もう一度押すと停止します。その他の設定は「設定」の「アクセシビリティ」にあります。"
+
 msgid "speech.rate"
 msgstr "読み上げ速度"
 
