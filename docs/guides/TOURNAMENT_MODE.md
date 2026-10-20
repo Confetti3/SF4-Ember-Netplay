@@ -139,7 +139,9 @@ New Webhook**, name it (for example *Ember calls*), pick the channel and
 - Each set's match is called when Ember creates it, and again with **Call
   again**: round, first to N, both players and the match link.
 - Players whose Discord is linked to their Ember ID are pinged, and each
-  also gets the match link in a private message from the Ember bot. Discord
+  also gets the match link in a private message from the Ember bot. On
+  start.gg, a player who linked Discord on their start.gg profile but not in
+  Ember is reached through that one. Discord
   only lets the bot message someone who shares a server with it, such as the
   Ember Discord. The set card says who got it: *sent*, *no Discord linked*,
   or *Discord refused it*.
@@ -292,4 +294,3 @@ make the event there and pick it in Step 3.
 - Signing up through Ember needs a Challonge account linked in Ember.
 - A player plays one match at a time; a set waits while one of its players is
   still in another.
-- Players whose Discord is known only through start.gg are not pinged.

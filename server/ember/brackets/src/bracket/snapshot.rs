@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 use super::Bracket;
 use crate::{
     sets::{Progress, Tracked},
-    site::{Set, Status},
+    site::{Account, Entry, Set, Status},
 };
 
 /// The most sets one snapshot carries; the bridge takes no more.
@@ -43,6 +43,9 @@ impl Bracket {
                     "phase": set.extras.phase.as_ref().map(ToString::to_string),
                     "entries": set.entry_ids(),
                     "names": set.entries.as_ref().map(|entries| entries.each_ref().map(|entry| entry.name.as_deref())),
+                    // The Discord account each entrant linked on the site
+                    // (start.gg's), pinged when their Ember ID has none.
+                    "discord": set.entries.as_ref().map(|entries| entries.each_ref().map(discord)),
                     "status": status,
                     "winner": set.winner,
                     "held": self.held(set).is_some(),
@@ -64,4 +67,11 @@ impl Bracket {
         }
         json!({ "sets": sets.into_values().take(MAX_SETS).collect::<Vec<_>>() })
     }
+}
+
+fn discord(entry: &Entry) -> Option<&str> {
+    entry.accounts.iter().find_map(|account| match account {
+        Account::Discord { user_id } => Some(user_id.as_str()),
+        _ => None,
+    })
 }

@@ -1536,6 +1536,7 @@ fn desk_sets(
             if !with_ids && let Some(set) = set.as_object_mut() {
                 set.remove("match_id");
                 set.remove("entries");
+                set.remove("discord");
             }
             Ok(set)
         })

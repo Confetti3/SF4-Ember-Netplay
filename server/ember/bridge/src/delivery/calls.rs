@@ -225,7 +225,8 @@ fn names(set: &Value) -> [String; 2] {
 }
 
 /// Each player as the call names them, with a ping when their Ember ID has
-/// a Discord account connected, and each player's Discord ID, if any.
+/// a Discord account connected, or else their bracket site has one, and
+/// each player's Discord ID, if any.
 fn players(tx: &Transaction<'_>, set: &Value) -> Result<(Vec<String>, Vec<Option<String>>)> {
     let names = names(set);
     let mut shown = Vec::new();
@@ -240,10 +241,17 @@ fn players(tx: &Transaction<'_>, set: &Value) -> Result<(Vec<String>, Vec<Option
                 )
                 .optional()?,
             None => None,
-        };
-        // ponytail: only Discord accounts connected in Ember are pinged; the
-        // Discord the connector finds through start.gg is not in the
-        // snapshot yet. Add it to the snapshot's entries when TOs ask.
+        }
+        // Else the Discord the player linked on the site, as the connector
+        // read it (start.gg's), when it is a Discord user ID.
+        .or_else(|| {
+            set["discord"][slot]
+                .as_str()
+                .filter(|id| {
+                    !id.is_empty() && id.len() <= 20 && id.bytes().all(|b| b.is_ascii_digit())
+                })
+                .map(str::to_owned)
+        });
         match &discord {
             Some(id) => shown.push(format!("**{name}** (<@{id}>)")),
             None => shown.push(format!("**{name}**")),

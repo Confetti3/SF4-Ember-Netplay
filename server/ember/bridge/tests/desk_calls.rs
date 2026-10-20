@@ -133,7 +133,8 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
     let (_, other) = bridge.get(player2.token(), "/v1/organizer/events").await;
     assert_eq!(other["events"], json!([]));
 
-    // Player 2 has Discord connected in Ember; player 3 has not.
+    // Player 2 has Discord connected in Ember; player 3 has not, only on
+    // the bracket site, which the connector's snapshot carries.
     connect_discord(&bridge, "222", &player2).await;
     let desk = bridge.provider(BRACKETS).await;
     let links = [
@@ -172,7 +173,8 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
     let match_id = created["match_id"].as_str().unwrap().to_owned();
     let snapshot = |progress: &str| {
         json!({ "sets": [{ "id": "s1", "round": -3, "phase": "Top 8", "status": "open",
-                           "progress": progress, "held": false, "match_id": match_id }] })
+                           "progress": progress, "held": false, "match_id": match_id,
+                           "discord": ["999", "333"] }] })
     };
     let put = |body: Json| {
         let bridge = &bridge;
@@ -206,6 +208,8 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
         "{content}"
     );
     assert!(content.contains("(<@222>)"), "{content}");
+    assert!(content.contains("(<@333>)"), "{content}");
+    assert!(!content.contains("999"), "{content}");
     assert!(
         content.contains(&format!(
             "/m#{}/{match_id}",
@@ -215,7 +219,7 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
     );
     assert_eq!(
         call["allowed_mentions"],
-        json!({ "parse": [], "users": ["222"] })
+        json!({ "parse": [], "users": ["222", "333"] })
     );
     let sets = || async {
         bridge

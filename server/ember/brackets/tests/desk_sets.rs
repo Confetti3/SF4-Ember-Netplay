@@ -198,7 +198,7 @@ async fn a_set_held_from_the_desk_is_not_played() {
         "{set}"
     );
     assert!(
-        set.get("entries").is_none() && set.get("names").is_none(),
+        set.get("entries").is_none() && set.get("names").is_none() && set.get("discord").is_none(),
         "{set}"
     );
 }
