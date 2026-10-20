@@ -790,12 +790,6 @@ msgstr "관전한 매치 저장"
 msgid "replays.save_watched_detail"
 msgstr "관전자로 시청한 대전도 저장합니다. 끄면 직접 플레이한 대전만 저장합니다."
 
-msgid "settings.watched_picture"
-msgstr "관전 중인 게임을 구석에"
-
-msgid "settings.watched_picture_detail"
-msgstr "관전 중인 게임 위에 Ember 메뉴를 열면 메뉴 뒤에 어둡게 보이는 대신 불투명한 메뉴의 오른쪽 위(넓은 방 보드에서는 참가자와 채팅 열의 맨 위)에 작게 표시합니다."
-
 msgid "replays.link"
 msgstr "링크의 리플레이 재생"
 
@@ -3053,6 +3047,15 @@ msgstr "대기열 참가"
 
 msgid "room.stop_watching"
 msgstr "관전 중지"
+
+msgid "room.picture_behind"
+msgstr "게임을 메뉴 뒤에"
+
+msgid "room.picture_show"
+msgstr "게임을 작은 화면으로"
+
+msgid "room.picture_swap.detail"
+msgstr "관전 중인 게임을 작은 화면과 메뉴 뒤의 어두운 화면 사이에서 전환합니다(이번 세션만)."
 
 msgid "room.stop_watching.detail"
 msgstr "이 테이블의 관전을 중지하고 방으로 돌아갑니다. 대전은 계속됩니다."

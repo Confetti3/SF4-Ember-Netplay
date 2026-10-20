@@ -790,12 +790,6 @@ msgstr "観戦した対戦を保存"
 msgid "replays.save_watched_detail"
 msgstr "観戦した対戦も保存します。オフでは自分がプレイした対戦だけを保存します。"
 
-msgid "settings.watched_picture"
-msgstr "観戦中の試合を隅に表示"
-
-msgid "settings.watched_picture_detail"
-msgstr "観戦中の試合の上でEmberのメニューを開くと、メニューの後ろに暗く表示する代わりに、不透明なメニューの右上（ルームの横長ボードではメンバーとチャットの列の上）に小さく表示します。"
-
 msgid "replays.link"
 msgstr "リンクのリプレイを再生"
 
@@ -3053,6 +3047,15 @@ msgstr "順番待ちに入る"
 
 msgid "room.stop_watching"
 msgstr "観戦をやめる"
+
+msgid "room.picture_behind"
+msgstr "試合をメニューの後ろに"
+
+msgid "room.picture_show"
+msgstr "試合を小画面で"
+
+msgid "room.picture_swap.detail"
+msgstr "観戦中の試合を、小さな画面とメニューの後ろの暗い表示とで切り替えます（このセッションのみ）。"
 
 msgid "room.stop_watching.detail"
 msgstr "この対戦席の観戦をやめてルームに戻ります。対戦は続きます。"

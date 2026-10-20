@@ -326,7 +326,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
     view.watchedGame = snapshot.watchedGame;
     // Taken before Ember draws anything this frame, so it holds the game's picture alone.
-    if (view.watchedGame.Active() && snapshot.preferences.watchedPicture) {
+    if (view.watchedGame.Active() && shell.WatchedPictureWanted()) {
         const auto& size = ImGui::GetMainViewport()->Size;
         view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * sf4e::ui::WatchedPictureTakenShare), static_cast<unsigned>(size.y * sf4e::ui::WatchedPictureTakenShare));
     }
