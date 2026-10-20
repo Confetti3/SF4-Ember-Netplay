@@ -407,10 +407,7 @@ pub async fn stop(
             .delete_created(&grant.access, &tournament)
             .await
             .map_err(|refused| site_refused(&state, site.id(), "to delete the event", refused))?;
-        let stopped = state
-            .db
-            .write(move |tx| end(tx, &id, &owner, ctx.now))
-            .await?;
+        let stopped = state.db.write(move |tx| end(tx, &ctx, &id, &owner)).await?;
         state.committed();
         return if stopped {
             Ok(ok(&json!({})))
@@ -422,7 +419,7 @@ pub async fn stop(
         .db
         .write(move |tx| {
             let ember_id = caller.prove(tx, &ctx, Action::SiteRemove, Method::Delete, &path)?;
-            end(tx, &id, &ember_id, ctx.now)
+            end(tx, &ctx, &id, &ember_id)
         })
         .await?;
     state.committed();
@@ -432,9 +429,37 @@ pub async fn stop(
     Ok(ok(&json!({})))
 }
 
-/// Deletes `ember_id`'s draft `id`, or ends their event `id`; whether
-/// there was one.
-fn end(tx: &Transaction<'_>, id: &str, ember_id: &str, now: u64) -> Result<bool> {
+/// Deletes `ember_id`'s draft `id`, or ends their event `id`, and cancels
+/// its matches on the desk connection that have not ended, so its players
+/// are free for other sets; whether there was one.
+fn end(tx: &Transaction<'_>, ctx: &Ctx, id: &str, ember_id: &str) -> Result<bool> {
+    let now = ctx.now;
+    let event: Option<(Option<String>, Option<String>)> = tx
+        .query_row(
+            "SELECT site, tournament FROM organizer_events
+             WHERE id = ?1 AND ember_id = ?2 AND ended_at IS NULL",
+            params![id, ember_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    if let (Some((Some(site), Some(tournament))), Some(desk)) = (&event, &ctx.config.desk) {
+        // The connector names a set's match `<site>:<tournament>:<set>:<attempt>`.
+        let prefix = format!("{site}:{tournament}:");
+        let ids: Vec<String> = tx
+            .prepare(
+                "SELECT id FROM matches WHERE connection_id = ?1
+                 AND substr(external_match_id, 1, length(?2)) = ?2",
+            )?
+            .query_map(params![desk.connection, prefix], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        for match_id in ids {
+            if let Some(found) = crate::routes::ledger::load(tx, &match_id)?
+                && !found.state.is_terminal()
+            {
+                crate::routes::matches::cancel_and_release(tx, ctx, &found, "event_stopped")?;
+            }
+        }
+    }
     let deleted = tx.execute(
         "DELETE FROM organizer_events WHERE id = ?1 AND ember_id = ?2 AND status = 'draft'",
         params![id, ember_id],

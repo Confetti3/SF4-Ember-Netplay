@@ -1599,6 +1599,13 @@ async fn an_organizer_holds_calls_and_decides_from_the_desk() {
     // Only a match of the event's sets.
     let (status, _) = decide(&player1, "emt_00000000-0000-4000-8000-000000000000").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
+
+    // Stopped, the event's open match is cancelled, so its players are free
+    // for another event's sets.
+    let (status, _) = stop_event(&bridge, &player1, &id).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, found) = bridge.get(&desk, &format!("/v1/matches/{match_id}")).await;
+    assert_eq!(found["state"], "cancelled", "{found}");
 }
 
 // A web desk session is short and narrow: it ends after two idle hours or
