@@ -5620,6 +5620,36 @@ msgstr "Auswählen, dann die Taste drücken, die in Embers Menüs zurückgeht. B
 msgid "button_layout.menu_taken"
 msgstr "{0} ist bereits {1}. Wähle eine andere Taste."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Home-Taste"
+
+msgid "button_layout.extra.mute"
+msgstr "Stummschalttaste"
+
+msgid "button_layout.extra.misc"
+msgstr "Zusatztaste"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Rechtes Paddle {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Linkes Paddle {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Wähle eine Taste, die {0} kopiert. {0} wirkt dann wie diese Taste."
+
+msgid "button_layout.extra_copy"
+msgstr "Wie {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} wirkt jetzt wie {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} hat jetzt keine Funktion."
+
 msgid "room.delay_policy"
 msgstr "Eingabeverzögerung im Raum"
 

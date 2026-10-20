@@ -5620,6 +5620,36 @@ msgstr "Vyberte a pak stiskněte tlačítko, které vrací zpět v nabídkách E
 msgid "button_layout.menu_taken"
 msgstr "{0} už je: {1}. Zvolte jiné tlačítko."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Tlačítko Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Tlačítko ztlumení"
+
+msgid "button_layout.extra.misc"
+msgstr "Další tlačítko"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Pravé pádlo {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Levé pádlo {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Vyberte tlačítko, které {0} kopíruje. {0} pak funguje jako toto tlačítko."
+
+msgid "button_layout.extra_copy"
+msgstr "Stejné jako {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} teď funguje jako {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} teď nic nedělá."
+
 msgid "room.delay_policy"
 msgstr "Zpoždění vstupu v místnosti"
 

@@ -5144,6 +5144,36 @@ msgstr "Selecione e aperte o botão que volta nos menus do Ember. Até você esc
 msgid "button_layout.menu_taken"
 msgstr "{0} já é {1}. Escolha outro botão."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Botão Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Botão de mudo"
+
+msgid "button_layout.extra.misc"
+msgstr "Botão extra"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Paddle direito {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Paddle esquerdo {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Escolha o botão que {0} copia. Ao apertar {0}, ele faz o mesmo que esse botão."
+
+msgid "button_layout.extra_copy"
+msgstr "Igual a {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} agora funciona como {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} não faz mais nada."
+
 msgid "room.delay_policy"
 msgstr "Atraso de entrada da sala"
 

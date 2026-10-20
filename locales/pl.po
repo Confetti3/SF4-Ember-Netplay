@@ -5620,6 +5620,36 @@ msgstr "Wybierz, a potem naciśnij przycisk, który cofa w menu Embera. Dopóki 
 msgid "button_layout.menu_taken"
 msgstr "{0} to już: {1}. Wybierz inny przycisk."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Przycisk Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Przycisk wyciszenia"
+
+msgid "button_layout.extra.misc"
+msgstr "Dodatkowy przycisk"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Prawa łopatka {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Lewa łopatka {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Wybierz przycisk, który kopiuje {0}. {0} działa wtedy jak ten przycisk."
+
+msgid "button_layout.extra_copy"
+msgstr "Jak {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} działa teraz jak {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} nic teraz nie robi."
+
 msgid "room.delay_policy"
 msgstr "Opóźnienie wejścia w pokoju"
 

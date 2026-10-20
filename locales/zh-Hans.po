@@ -5621,6 +5621,36 @@ msgstr "选择后，按下在 Ember 菜单中用于返回的按钮。在你选�
 msgid "button_layout.menu_taken"
 msgstr "{0} 已经是{1}。请选择其他按钮。"
 
+msgid "button_layout.extra.touchpad"
+msgstr "触摸板"
+
+msgid "button_layout.extra.home"
+msgstr "Home 键"
+
+msgid "button_layout.extra.mute"
+msgstr "静音键"
+
+msgid "button_layout.extra.misc"
+msgstr "额外按键"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "右拨片 {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "左拨片 {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "选择 {0} 要复制的按键。按下 {0} 时，效果与该按键相同。"
+
+msgid "button_layout.extra_copy"
+msgstr "与 {0} 相同"
+
+msgid "button_layout.extra_set"
+msgstr "{0} 现在等同于 {1}。"
+
+msgid "button_layout.extra_off"
+msgstr "{0} 现在不起作用。"
+
 msgid "room.delay_policy"
 msgstr "房间输入延迟"
 

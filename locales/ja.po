@@ -5621,6 +5621,36 @@ msgstr "選択してから、Emberのメニューで戻るボタンを押して�
 msgid "button_layout.menu_taken"
 msgstr "{0}はすでに{1}です。別のボタンを選んでください。"
 
+msgid "button_layout.extra.touchpad"
+msgstr "タッチパッド"
+
+msgid "button_layout.extra.home"
+msgstr "ホームボタン"
+
+msgid "button_layout.extra.mute"
+msgstr "ミュートボタン"
+
+msgid "button_layout.extra.misc"
+msgstr "追加ボタン"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "右パドル{0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "左パドル{0}"
+
+msgid "button_layout.extra_detail"
+msgstr "{0}がコピーするボタンを選んでください。{0}を押すと、そのボタンと同じ動作になります。"
+
+msgid "button_layout.extra_copy"
+msgstr "{0}と同じ"
+
+msgid "button_layout.extra_set"
+msgstr "{0}は{1}として動作します。"
+
+msgid "button_layout.extra_off"
+msgstr "{0}には何も割り当てられていません。"
+
 msgid "room.delay_policy"
 msgstr "ルームの入力遅延"
 

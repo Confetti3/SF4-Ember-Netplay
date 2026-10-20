@@ -5621,6 +5621,36 @@ msgstr "선택한 다음 Ember 메뉴에서 뒤로 갈 버튼을 누르세요. �
 msgid "button_layout.menu_taken"
 msgstr "{0}은(는) 이미 {1}입니다. 다른 버튼을 고르세요."
 
+msgid "button_layout.extra.touchpad"
+msgstr "터치패드"
+
+msgid "button_layout.extra.home"
+msgstr "홈 버튼"
+
+msgid "button_layout.extra.mute"
+msgstr "음소거 버튼"
+
+msgid "button_layout.extra.misc"
+msgstr "추가 버튼"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "오른쪽 패들 {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "왼쪽 패들 {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "{0}이(가) 따라 할 버튼을 고르세요. {0}을(를) 누르면 그 버튼과 같은 동작을 합니다."
+
+msgid "button_layout.extra_copy"
+msgstr "{0}과(와) 같음"
+
+msgid "button_layout.extra_set"
+msgstr "{0}이(가) 이제 {1}처럼 동작합니다."
+
+msgid "button_layout.extra_off"
+msgstr "{0}에는 이제 아무 기능도 없습니다."
+
 msgid "room.delay_policy"
 msgstr "방 입력 지연"
 

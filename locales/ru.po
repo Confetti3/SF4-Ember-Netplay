@@ -5621,6 +5621,36 @@ msgstr "Выберите, затем нажмите кнопку, которая
 msgid "button_layout.menu_taken"
 msgstr "{0} уже назначена: {1}. Выберите другую кнопку."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Тачпад"
+
+msgid "button_layout.extra.home"
+msgstr "Кнопка Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Кнопка отключения звука"
+
+msgid "button_layout.extra.misc"
+msgstr "Дополнительная кнопка"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Правый лепесток {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Левый лепесток {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Выберите кнопку, которую повторяет {0}. Нажатие {0} сработает как эта кнопка."
+
+msgid "button_layout.extra_copy"
+msgstr "Как {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} теперь работает как {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} теперь ничего не делает."
+
 msgid "room.delay_policy"
 msgstr "Задержка ввода в лобби"
 
