@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <set>
 #include <stdexcept>
@@ -356,7 +357,8 @@ int main(int argc, char** argv) {
         Require(!headless || argc == 1, "Headless UI checks cannot capture images");
         Renderer renderer(headless);
         if (const char* stress = std::getenv("SF4E_UI_RENDER_ATLAS_STRESS")) { StressAtlas(renderer, std::atoi(stress), 1); return 0; }
-        const std::string output = argc > 1 ? argv[1] : "";
+        // "-" draws without saving, for a run that also needs the game and asset arguments.
+        const std::string output = argc > 1 && std::string(argv[1]) != "-" ? argv[1] : "";
         const bool trainingShotsOnly = argc > 2 && std::string(argv[2]) == "--training-shots-only";
         const bool recoveryShotsOnly = argc > 2 && std::string(argv[2]) == "--recovery-shots-only";
         const bool matchShotsOnly = argc > 2 && std::string(argv[2]) == "--match-shots-only";
@@ -418,18 +420,21 @@ int main(int argc, char** argv) {
             Require(loaded == sf4e::selection::VersusStageCount, "Stage photo loading timed out");
             std::printf("All 28 stage photos decoded and uploaded to DX9.\n");
             // The Random card is the game's character-select random tile, cropped
-            // to its content, so it is not held to the 16:9 stage framing.
-            const auto randomDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-            sf4e::ui::SelectionImage randomTile;
-            do {
-                art->Pump();
-                randomTile = art->Stage(sf4e::selection::RandomStageId);
-                Require(!randomTile.missing, "Random stage tile decode failed");
-                if (randomTile.texture) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            } while (std::chrono::steady_clock::now() < randomDeadline);
-            Require(randomTile.texture && randomTile.width > 0 && randomTile.height > 0, "Random stage tile loading timed out");
-            std::printf("Random stage tile decoded and uploaded to DX9 (%dx%d).\n", randomTile.width, randomTile.height);
+            // to its content, so it is not held to the 16:9 stage framing. A run
+            // without a game folder (UiRenderGallery) has only the packaged art.
+            if (std::filesystem::is_directory(std::filesystem::path(root))) {
+                const auto randomDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+                sf4e::ui::SelectionImage randomTile;
+                do {
+                    art->Pump();
+                    randomTile = art->Stage(sf4e::selection::RandomStageId);
+                    Require(!randomTile.missing, "Random stage tile decode failed");
+                    if (randomTile.texture) break;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                } while (std::chrono::steady_clock::now() < randomDeadline);
+                Require(randomTile.texture && randomTile.width > 0 && randomTile.height > 0, "Random stage tile loading timed out");
+                std::printf("Random stage tile decoded and uploaded to DX9 (%dx%d).\n", randomTile.width, randomTile.height);
+            } else std::printf("No game folder: the Random stage tile is not checked.\n");
             std::vector<std::pair<int, int>> ultraPhotos;
             for (int id = 0; id < sf4e::selection::FighterCount; ++id) for (int ultra = 0; ultra < 2; ++ultra) {
                 const std::string path = assets + "/" + sf4e::selection::FindFighter(id)->code + "/ultra-" + std::to_string(ultra) + ".png";
@@ -523,6 +528,8 @@ int main(int argc, char** argv) {
         const bool quick = quickMode == "1" || quickMode == "narrow" || quickMode == "720";
         // SF4E_UI_RENDER_QUICK=narrow is the same at 640x720, =720 at 1280x720 and 100%, and SF4E_UI_RENDER_SHOTS=text writes only the shots whose name has it.
         const char* shotFilter = std::getenv("SF4E_UI_RENDER_SHOTS");
+        const bool galleryRun = std::getenv("SF4E_UI_RENDER_GALLERY") != nullptr;
+        bool galleryShown = false;
         const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
             std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1}, {3840,2160,1}, {3840,2160,1.5f}, {1280,720,2}};
@@ -725,29 +732,48 @@ int main(int argc, char** argv) {
             Require(shell.Navigation().Focus()=="retry-save","Portrait retry is unreachable");draw("portrait-save-error");
             view.settingsError.clear();shell=ApplicationShell{};
             page("selection");
-            for(const char* screen:{"roster","appearance","costumes","colors","ultra","stage","random-pool","options"}){
-                selector.Navigation().Home();selector.Navigation().Push(screen);
-                if(argc>2&&!trainingShotsOnly&&(std::string(screen)=="costumes"||std::string(screen)=="colors")){
+            // A gallery page once every preview on it has loaded, with its cards checked.
+            const auto showGallery=[&](const std::string& screen,const std::string& shot){
+                selector.Navigation().Home();selector.Navigation().Push(screen.c_str());
+                if(art){
                     const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
                     bool loaded=false;
                     do{
                         art->Pump();loaded=true;
                         const auto a=availability(pick.fighter);
-                        const auto options=std::string(screen)=="costumes"?selection::AllowedCostumes(pick.fighter,a):selection::AllowedColors(pick.fighter,pick.costume,a);
+                        const auto options=screen=="costumes"?selection::AllowedCostumes(pick.fighter,a):selection::AllowedColors(pick.fighter,pick.costume,a);
                         for(int option:options){
-                            const auto img=std::string(screen)=="costumes"?art->Appearance(pick.fighter,option,0):art->Appearance(pick.fighter,pick.costume,option);
-                            Require(!img.missing,"Gallery preview asset is missing");loaded=loaded&&img.texture!=0;
+                            const auto img=screen=="costumes"?art->Appearance(pick.fighter,option,0):art->Appearance(pick.fighter,pick.costume,option);
+                            if(img.missing)throw std::runtime_error("Gallery preview asset is missing: "+shot+" "+std::to_string(option));
+                            loaded=loaded&&img.texture!=0;
                         }
                         if(!loaded)std::this_thread::sleep_for(std::chrono::milliseconds(5));
                     }while(!loaded&&std::chrono::steady_clock::now()<deadline);
-                    Require(loaded,"Gallery preview loading timed out");
+                    if(!loaded)throw std::runtime_error("Gallery preview loading timed out: "+shot);
                 }
-                const bool gallery=std::string(screen)=="costumes"||std::string(screen)=="colors";
-                if(gallery)SetMenuCardProbe([](const char* id,ImVec2 min,ImVec2 max){
+                SetMenuCardProbe([](const char* id,ImVec2 min,ImVec2 max){
                     if(!std::strcmp(id,"menu-back"))return;
                     Require(max.y-min.y<=ImGui::GetWindowHeight()+.5f,"Gallery card taller than the scrolling pane");
                     Require(max.y-min.y>=100,"Gallery artwork collapsed to an unreadable thumbnail");});
-                draw(screen);SetMenuCardProbe({});
+                draw(shot.c_str());SetMenuCardProbe({});
+            };
+            // SF4E_UI_RENDER_GALLERY: once per run, every fighter's costumes and
+            // each costume's colors, so every preview is loaded and drawn.
+            if(art&&galleryRun&&!galleryShown){
+                galleryShown=true;const auto savedPick=pick;
+                for(int id=0;id<selection::FighterCount;++id){
+                    const std::string code=selection::FindFighter(id)->code;
+                    pick=selection::Pick{};pick.fighter=id;showGallery("costumes","gallery-"+code);
+                    for(int costume:selection::AllowedCostumes(id,availability(id))){
+                        pick.costume=costume;showGallery("colors","gallery-"+code+"-"+std::to_string(costume));
+                    }
+                }
+                pick=savedPick;std::printf("Every fighter's costume and color galleries drawn.\n");
+            }
+            for(const char* screen:{"roster","appearance","costumes","colors","ultra","stage","random-pool","options"}){
+                if(std::string(screen)=="costumes"||std::string(screen)=="colors"){showGallery(screen,screen);continue;}
+                selector.Navigation().Home();selector.Navigation().Push(screen);
+                draw(screen);
                 if(std::string(screen)=="ultra"){
                     const int savedUltra=pick.ultra;
                     for(int ultra:{0,1,2}){
