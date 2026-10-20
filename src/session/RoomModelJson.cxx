@@ -333,7 +333,7 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
     } catch (const std::exception&) { return false; }
 }
 
-void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}}; }
+void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}}; if (value.continuousRematch) json["continuous_rematch"] = true; }
 void from_json(const nlohmann::json& json, Rules& value) {
 	const auto format = ReadInt(json, "format", 0, MaxSetLength);
 	value.format = static_cast<SetFormat>(format);
@@ -342,6 +342,7 @@ void from_json(const nlohmann::json& json, Rules& value) {
 	value.editionSelect = json.at("edition_select").get<bool>();
 	value.roundCount = static_cast<std::uint8_t>(ReadInt(json, "round_count", 1, 99));
 	value.roundTime = static_cast<std::uint16_t>(ReadInt(json, "round_time", 30, 9999));
+	value.continuousRematch = json.contains("continuous_rematch") ? json.at("continuous_rematch").get<bool>() : false;
 	// "training" and "time_before_practice", from the per-table Practice match
 	// the room's own flag replaced, are not read.
 	if (!value.Valid()) throw std::invalid_argument("room rules");
@@ -351,6 +352,7 @@ void from_json(const nlohmann::json& json, ConnectionRef& value) { value.host = 
 void to_json(nlohmann::json& json, const Member& value) { json = nlohmann::json{{"id", value.id}, {"name", value.name}, {"connection", value.connection}, {"host", value.host}, {"status", static_cast<int>(value.status)}, {"table", value.table}, {"seat", value.seat}, {"join_order", value.joinOrder}, {"incarnation", value.incarnation},{"fighter",value.fighter},{"main_fighter",value.mainFighter}, {"selected_delay", value.selectedDelay}, {"frozen_delay", value.frozenDelay}, {"delay_locked", value.delayLocked}, {"spectator_locked", value.spectatorLocked}, {"link", static_cast<int>(value.link)}, {"nat", static_cast<int>(value.nat)}};
     if (value.idleSeconds) json["idle_s"] = value.idleSeconds;
     if (value.training) json["training"] = true;
+    if (value.continuousCapable) json["continuous_capable"] = true;
     // Only a member who showed the room a profile has the key; older readers skip it.
     if (value.steamId.Present()) json["steam_id"] = value.steamId.ToString();
     if (value.country.Present()) json["country"] = value.country.ToString();
@@ -373,6 +375,7 @@ void from_json(const nlohmann::json& json, Member& value) {
     if (value.delayLocked && value.frozenDelay > InputDelayWireCeiling) throw std::invalid_argument("room delay bounds");
     value.spectatorLocked = json.contains("spectator_locked") ? json.at("spectator_locked").get<bool>() : false;
     value.training = json.contains("training") ? json.at("training").get<bool>() : false;
+    value.continuousCapable = json.contains("continuous_capable") ? json.at("continuous_capable").get<bool>() : false;
     value.link = json.contains("link") ? NetworkLinkFromWire(json.at("link").get<long long>()) : NetworkLink::Unknown;
     value.nat = json.contains("nat") ? NatClassFromWire(json.at("nat").get<long long>()) : NatClass::Unknown;
     // Text that is not a SteamId reads as none, as an unknown link does.
@@ -514,7 +517,7 @@ void from_json(const nlohmann::json& json, Table& value) {
 			(series.games && series.lastResult != MatchResult::P1Win && series.lastResult != MatchResult::P2Win && series.lastResult != MatchResult::Draw))
 			throw std::invalid_argument("room continuous result");
 		if (!series.closed && ((value.phase != TablePhase::Playing && value.phase != TablePhase::Paused) ||
-			!value.continuousReady[0] || !value.continuousReady[1] || !value.p1 || !value.p2))
+			!value.rules.continuousRematch || !value.continuousReady[0] || !value.continuousReady[1] || !value.p1 || !value.p2))
 			throw std::invalid_argument("room continuous phase");
 		const auto goal = static_cast<std::uint32_t>(value.rules.format);
 		if (!series.closed && goal && (value.score[0] > goal || value.score[1] > goal ||
@@ -613,9 +616,9 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 	ReadMemberList(json, "chat", value.chat, MaximumChatMessages);
 	value.tournament = json.contains("tournament") ? json.at("tournament").get<TournamentBinding>() : TournamentBinding();
 	if (!PracticeKindValid(value)) throw std::invalid_argument("room practice kind");
-	if (value.serverOwned || value.practice || value.tournament.Active())
+	if (!ContinuousAllowed(value))
 		for (const auto& table : value.tables)
-			if (table.continuous.enabled || table.continuousReady[0] || table.continuousReady[1])
+			if (table.rules.continuousRematch || table.continuous.enabled || table.continuousReady[0] || table.continuousReady[1])
 				throw std::invalid_argument("room continuous kind");
 	if (value.host && !memberIds.count(value.host)) throw std::invalid_argument("room host member"); if (value.localMember && !memberIds.count(value.localMember)) throw std::invalid_argument("room local member");
 	// Older owners kept a departed member's chat. Drop those lines rather than

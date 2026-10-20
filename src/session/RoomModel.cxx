@@ -441,6 +441,7 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.nat = NatClassFromWire(static_cast<long long>(profile.nat));
 	member.steamId = profile.steamId;
 	member.country = profile.country;
+	member.continuousCapable = profile.continuousCapable;
 	member.badge = profile.admission.badge;
 	member.connection = connection;
 	member.host = snapshot_.host == 0 || host;
@@ -743,11 +744,6 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	if (timer.generation) permits_.tables[tableId] = timer;
 	table->phase = TablePhase::Playing;
 	table->continuous = {};
-	table->continuous.enabled = table->continuousReady[0] && table->continuousReady[1];
-	if (table->continuous.enabled) {
-		table->continuous.initialScore[0] = table->score[0];
-		table->continuous.initialScore[1] = table->score[1];
-	}
 	table->resultPending = false;
 	resultReporter_[tableId] = 0;
 	activeMatchRecipients_[tableId].clear();
@@ -777,6 +773,17 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	}
 	for (const auto spectator : table->spectators)
 		if (!HasOutstandingTerminalReceiptForMember(spectator)) freezeRecipient(spectator);
+	// Decide once on the complete frozen roster, including promoted queue
+	// watchers. An older or unavailable adapter keeps the ordinary flow for
+	// everyone before the native game begins, never a first-frame abort.
+	table->continuous.enabled = ContinuousAllowed(snapshot_) && table->rules.continuousRematch &&
+		table->continuousReady[0] && table->continuousReady[1] &&
+		std::all_of(activeMatchRecipients_[tableId].begin(), activeMatchRecipients_[tableId].end(),
+			[&](const TerminalRecipient& recipient) { return Find(recipient.member)->continuousCapable; });
+	if (table->continuous.enabled) {
+		table->continuous.initialScore[0] = table->score[0];
+		table->continuous.initialScore[1] = table->score[1];
+	}
 	Touch(*table);
 	NormalizeTableMembers(*table);
 	return Accept({Event{Event::Kind::MatchStarted, tableId, table->matchGeneration, 0, MatchResult::Abort}});
@@ -805,7 +812,7 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// ledger is backpressure, so a failed EndMatch must leave the live table
 	// untouched and retryable.
 	if (!StoreTerminalReceipt(tableId, *table, result)) return Reject(RejectReason::TerminalLedgerFull);
-// Continuous games were already scored by two agreeing reports. Closing
+	// Continuous games were already scored by two agreeing reports. Closing
 	// their one transport must not score the last game again, even on retry.
 	if (!alreadyScored) {
 		RecordWonGame(tableId, *table, result);

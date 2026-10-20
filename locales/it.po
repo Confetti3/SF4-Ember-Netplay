@@ -6485,6 +6485,12 @@ msgstr "L’altro giocatore ha confermato. Scegli un’opzione."
 msgid "quick_rematch.time_remaining"
 msgstr "Tempo rimasto: {0} s"
 
+msgid "room.continuous.rule"
+msgstr "Rivincita continua (sperimentale)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Mantiene la connessione per le rivincite. Disattivata di default; usa incontri normali se un giocatore o spettatore iniziale non la supporta."
+
 msgid "room.continuous.confirming"
 msgstr "Conferma del risultato in corso..."
 

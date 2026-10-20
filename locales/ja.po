@@ -6486,6 +6486,12 @@ msgstr "相手は再戦を希望しています。選択してください。"
 msgid "quick_rematch.time_remaining"
 msgstr "残り時間：{0}秒"
 
+msgid "room.continuous.rule"
+msgstr "連続再戦（実験的）"
+
+msgid "room.continuous.rule.detail"
+msgstr "再戦でも接続を維持します。初期設定はオフです。両プレイヤーと開始時の全観戦者が対応していない場合は通常の試合を行います。"
+
 msgid "room.continuous.confirming"
 msgstr "試合結果を確認中..."
 

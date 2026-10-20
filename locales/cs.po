@@ -6485,6 +6485,12 @@ msgstr "Druhý hráč potvrdil. Vyberte možnost."
 msgid "quick_rematch.time_remaining"
 msgstr "Zbývající čas: {0} s"
 
+msgid "room.continuous.rule"
+msgstr "Plynulá odveta (experimentální)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Ponechá spojení pro odvety. Ve výchozím stavu vypnuto; běžné zápasy se použijí, pokud funkci nepodporují oba hráči a všichni počáteční diváci."
+
 msgid "room.continuous.confirming"
 msgstr "Potvrzování výsledku..."
 

@@ -427,6 +427,14 @@ int main() try {
         "The host's rules are not on the table page, or Apply shows with nothing to apply");
     {
         const auto beforeRules = actions.size();
+        Check(row("continuous-rematch").enabled && row("continuous-rematch").value == loc::T("common.off"),
+            "The experimental rematch rule is not off by default");
+        focus("continuous-rematch"); press(MenuInput::Right);
+        Check(actions.size() == beforeRules && row("continuous-rematch").value == loc::T("common.on"),
+            "The rematch rule was sent without Apply");
+        press(MenuInput::Left);
+        Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "apply-rules"; }),
+            "Taking rematch opt-in back did not clear the draft");
         // Stepping a rule and back leaves nothing to apply, since applying clears Ready.
         focus("rounds"); press(MenuInput::Right); press(MenuInput::Left);
         Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "apply-rules"; }),
@@ -442,6 +450,7 @@ int main() try {
             "Apply rules stayed after the rules were applied");
         // Everyone else reads the rules on one line.
         view.room.host = 2; frame();
+        Check(!row("continuous-rematch").enabled, "A guest can edit the rematch opt-in");
         Check(row("rules").value == "5 rounds, 60 s, Edition Select On" && !row("rules").enabled &&
             std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "rounds"; }),
             "A guest does not see the table's rules as one line");

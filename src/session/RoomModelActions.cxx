@@ -127,7 +127,7 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
-	if (!action.rules.Valid()) return Reject(RejectReason::InvalidRules);
+	if (!action.rules.Valid() || (action.rules.continuousRematch && !ContinuousAllowed(snapshot_))) return Reject(RejectReason::InvalidRules);
 	if (action.rules == table->rules) return Accept();
 	std::vector<Event> events;
 	if (GameUnderWay(*table)) {
@@ -271,7 +271,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 	if (table->phase != TablePhase::Waiting && table->phase != TablePhase::Ready) return Reject(RejectReason::WrongPhase);
 	const int seat = table->p1 == member ? 0 : 1;
 	if (action.kind == ActionKind::Ready && action.continuous &&
-		(snapshot_.serverOwned || snapshot_.practice || snapshot_.tournament.Active())) return Reject(RejectReason::Unauthorized);
+		!ContinuousAllowed(snapshot_)) return Reject(RejectReason::Unauthorized);
 	if (action.inputDelay > InputDelayWireCeiling) return Reject(RejectReason::Unauthorized);
 	// What an earlier build could choose above the limit plays at the limit.
 	const auto delay = static_cast<std::uint8_t>((std::min)(static_cast<int>(action.inputDelay), MaximumInputDelay));
@@ -293,7 +293,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 		return Reject(RejectReason::TerminalLedgerFull);
 	if (action.kind == ActionKind::Ready) {
 		table->ready[seat] = true;
-		table->continuousReady[seat] = action.continuous;
+		table->continuousReady[seat] = action.continuous && table->rules.continuousRematch && item->continuousCapable;
 		item->selectedDelay = delay;
 		item->frozenDelay = delay;
 		item->delayLocked = true;
@@ -335,34 +335,40 @@ Result RoomAuthority::ApplyLockSpectating(MemberId member, const Action& action,
 	return Accept();
 }
 
+ReportAgreement RoomAuthority::ReportQuorum(Table& table, MemberId member, MatchResult result) {
+	if (resultReporter_[table.id] == member) return ReportAgreement::Duplicate;
+	if (table.resultPending && resultReporter_[table.id]) {
+		if (pendingResult_[table.id] == result) return ReportAgreement::Agreed;
+		table.phase = TablePhase::Paused;
+		Touch(table);
+		return ReportAgreement::Disputed;
+	}
+	// MatchFinished may already have opened the result window without a
+	// report. The first actual report establishes its value and reporter.
+	resultReporter_[table.id] = member;
+	pendingResult_[table.id] = result;
+	table.resultPending = true;
+	resultPendingSince_[table.id] = nowMs_;
+	Touch(table);
+	return ReportAgreement::First;
+}
+
 Result RoomAuthority::ApplyRecordResult(MemberId member, const Action& action, Table* table) {
 	if (table->continuous.enabled) return Reject(RejectReason::WrongPhase);
 	if (table->phase != TablePhase::Playing || !IsParticipant(*table, member)) return Reject(RejectReason::WrongPhase);
 	if (action.matchGeneration != table->matchGeneration) return Reject(RejectReason::WrongGeneration);
 	if (action.result != MatchResult::P1Win && action.result != MatchResult::P2Win && action.result != MatchResult::Draw) return Reject(RejectReason::WrongPhase);
-	if (resultReporter_[table->id] == member)
-		return pendingResult_[table->id] == action.result ? Reject(RejectReason::DuplicateResult) :
-			Reject(RejectReason::WrongPhase);
-	if (table->resultPending) {
-		if (resultReporter_[table->id] == 0 && pendingResult_[table->id] == MatchResult::Abort) {
-			resultReporter_[table->id] = member;
-			pendingResult_[table->id] = action.result;
-			resultPendingSince_[table->id] = nowMs_;
-			Touch(*table);
-			return Accept();
-		}
-		if (pendingResult_[table->id] != action.result) {
-			table->phase = TablePhase::Paused; Touch(*table);
-			return Accept({Event{Event::Kind::ResultDisputed, table->id, table->matchGeneration, member, action.result}});
-		}
+	switch (ReportQuorum(*table, member, action.result)) {
+	case ReportAgreement::Duplicate:
+		return Reject(pendingResult_[table->id] == action.result ? RejectReason::DuplicateResult : RejectReason::WrongPhase);
+	case ReportAgreement::Disputed:
+		return Accept({Event{Event::Kind::ResultDisputed, table->id, table->matchGeneration, member, action.result}});
+	case ReportAgreement::Agreed:
 		return EndMatch(table->id, table->matchGeneration, action.result);
+	case ReportAgreement::First:
+		return Accept();
 	}
-	resultReporter_[table->id] = member;
-	pendingResult_[table->id] = action.result;
-	table->resultPending = true;
-	resultPendingSince_[table->id] = nowMs_;
-	Touch(*table);
-	return Accept();
+	return Reject(RejectReason::WrongPhase);
 }
 
 Result RoomAuthority::ApplyMatchFinished(MemberId member, const Action& action, Table* table) {

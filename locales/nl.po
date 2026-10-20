@@ -6485,6 +6485,12 @@ msgstr "De andere speler heeft bevestigd. Kies een optie."
 msgid "quick_rematch.time_remaining"
 msgstr "Resterende tijd: {0} s"
 
+msgid "room.continuous.rule"
+msgstr "Directe revanche (experimenteel)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Behoudt de verbinding voor revanches. Standaard uit; gebruikt gewone wedstrijden tenzij beide spelers en alle beginnende toeschouwers dit ondersteunen."
+
 msgid "room.continuous.confirming"
 msgstr "Uitslag bevestigen..."
 

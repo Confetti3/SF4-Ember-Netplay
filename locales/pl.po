@@ -6485,6 +6485,12 @@ msgstr "Drugi gracz potwierdził. Wybierz opcję."
 msgid "quick_rematch.time_remaining"
 msgstr "Pozostały czas: {0} s"
 
+msgid "room.continuous.rule"
+msgstr "Ciągły rewanż (eksperymentalny)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Zachowuje połączenie do rewanżów. Domyślnie wyłączony; zwykłe mecze, jeśli obaj gracze i wszyscy początkowi widzowie nie obsługują tej funkcji."
+
 msgid "room.continuous.confirming"
 msgstr "Potwierdzanie wyniku..."
 

@@ -6486,6 +6486,12 @@ msgstr "Другой игрок подтвердил. Выберите дейс�
 msgid "quick_rematch.time_remaining"
 msgstr "Осталось времени: {0} с"
 
+msgid "room.continuous.rule"
+msgstr "Непрерывный реванш (экспериментально)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Сохраняет соединение для реваншей. По умолчанию выключено; обычные матчи, если оба игрока и все начальные зрители не поддерживают функцию."
+
 msgid "room.continuous.confirming"
 msgstr "Подтверждение результата..."
 

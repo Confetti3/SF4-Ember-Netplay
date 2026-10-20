@@ -6485,6 +6485,12 @@ msgstr "Der andere Spieler hat bestätigt. Wähle eine Option."
 msgid "quick_rematch.time_remaining"
 msgstr "Verbleibende Zeit: {0} s"
 
+msgid "room.continuous.rule"
+msgstr "Direkte Revanche (experimentell)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Behält die Verbindung für Revanchespiele. Standardmäßig aus; normale Spiele, sofern nicht beide Spieler und alle anfänglichen Zuschauer dies unterstützen."
+
 msgid "room.continuous.confirming"
 msgstr "Ergebnis wird bestätigt..."
 

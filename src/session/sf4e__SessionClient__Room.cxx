@@ -225,7 +225,20 @@ void SessionClient::ProjectSelectedRoomTable() {
 	_matchData.readyMessageNum[1] = table.ready[1] ? 0 : -1;
 }
 
+// Runtime callers describe a result or finish plus its numbered game. Only
+// this wire boundary chooses the ordinary or continuous action kind, so the
+// first send and every exact retry encode the same command.
+static sf4e::room::ActionKind ResultActionKind(sf4e::room::ActionKind kind, std::uint64_t game) {
+	using sf4e::room::ActionKind;
+	if (kind == ActionKind::RecordResult || kind == ActionKind::RecordContinuousResult)
+		return game ? ActionKind::RecordContinuousResult : ActionKind::RecordResult;
+	if (kind == ActionKind::MatchFinished || kind == ActionKind::FinishContinuousMatch)
+		return game ? ActionKind::FinishContinuousMatch : ActionKind::MatchFinished;
+	return kind;
+}
+
 session::SendResult SessionClient::SendRoomAction(room::Action action, std::uint64_t* actionId) {
+	action.kind = ResultActionKind(action.kind, action.continuousGame);
 	if (!_transport || !_customRoomsSeen || _nextRoomActionId == (std::numeric_limits<std::uint64_t>::max)()) return session::SendResult::NotConnected;
 	action.protocolVersion = room::ProtocolVersion;
 	action.actionId = _nextRoomActionId++;
@@ -292,15 +305,11 @@ void SessionClient::LogRejectedRoomAction(std::uint64_t actionId, room::RejectRe
 }
 
 session::SendResult SessionClient::RetryRoomResult(room::Action action, std::uint64_t actionId) {
-	const auto kind = action.continuousGame ? room::ActionKind::RecordContinuousResult : room::ActionKind::RecordResult;
-	return RetryRoomLifecycleAction(std::move(action),actionId,kind);
+	return RetryRoomLifecycleAction(std::move(action), actionId, room::ActionKind::RecordResult);
 }
 
-
-
 session::SendResult SessionClient::RetryMatchFinished(room::Action action, std::uint64_t actionId) {
-	const auto kind = action.continuousGame ? room::ActionKind::FinishContinuousMatch : room::ActionKind::MatchFinished;
-	return RetryRoomLifecycleAction(std::move(action),actionId,kind);
+	return RetryRoomLifecycleAction(std::move(action), actionId, room::ActionKind::MatchFinished);
 }
 
 SessionClient::RetainedRoomRetry* SessionClient::RetryRecord(room::ActionKind kind) {
@@ -312,6 +321,8 @@ SessionClient::RetainedRoomRetry* SessionClient::RetryRecord(room::ActionKind ki
 session::SendResult SessionClient::RetryRoomLifecycleAction(room::Action action,
 	std::uint64_t actionId, room::ActionKind expectedKind) {
 	if (!_transport || !_customRoomsSeen) return session::SendResult::NotConnected;
+	action.kind = ResultActionKind(action.kind, action.continuousGame);
+	expectedKind = ResultActionKind(expectedKind, action.continuousGame);
 	if (action.kind != expectedKind || !actionId || actionId >= _nextRoomActionId)
 		return session::SendResult::InvalidPayload;
 	action.protocolVersion = room::ProtocolVersion;

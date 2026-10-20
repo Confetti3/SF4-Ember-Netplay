@@ -16,14 +16,22 @@ static unsigned EndEvents(const Result& result) {
 	return static_cast<unsigned>(std::count_if(result.events.begin(), result.events.end(),
 		[](const Event& e) { return e.kind == Event::Kind::MatchEnded; }));
 }
+static MemberId JoinCapable(RoomAuthority& room, int index, bool host = false, bool capable = true) {
+	MemberProfile profile;
+	profile.continuousCapable = capable;
+	const auto joined = room.Join("Player" + std::to_string(index), Peer(index), host, profile);
+	CHECK(joined.accepted);
+	return joined.accepted ? joined.snapshot.members.back().id : 0;
+}
+
 struct Fixture {
 	RoomAuthority room;
-	MemberId a = Join(room, 0, true), b = Join(room, 1), c = Join(room, 2), d = Join(room, 3), watcher = Join(room, 4);
+	MemberId a = JoinCapable(room, 0, true), b = JoinCapable(room, 1), c = JoinCapable(room, 2), d = JoinCapable(room, 3), watcher = JoinCapable(room, 4);
 	std::uint64_t generation = 0;
 	Fixture(SetFormat format = SetFormat::Unlimited, RotationMode rotation = RotationMode::WinnerStays, DelayPolicy policy = DelayPolicy::Shared)
         : room("continuous",12,23,Rules{},false,policy) {
 		auto rules = TableAction(room, a, 0, ActionKind::SetRules);
-		rules.rules.format = format; rules.rules.rotation = rotation;
+		rules.rules.format = format; rules.rules.rotation = rotation; rules.rules.continuousRematch = true;
 		if (!(rules.rules == room.SnapshotView().tables[0].rules)) CHECK(Wire(room, a, rules).accepted);
 		for (auto member : {a, b, c, d}) CHECK(Wire(room, member, TableAction(room, member, 0, ActionKind::Queue)).accepted);
 		CHECK(Wire(room, watcher, TableAction(room, watcher, 0, ActionKind::Watch)).accepted);

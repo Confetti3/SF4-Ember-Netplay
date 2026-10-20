@@ -64,6 +64,7 @@ static void TestJoinRequestCarriesLatency() {
 	const auto route = LatencyRoute::Parsed(std::string(64, 'c'), "use1");
 	SessionClient room(callbacks, "build", 30000, name);
 	room.RequireCustomRooms();
+	room.SetContinuousRematchAvailable(true);
 	auto* roomTransport = new MockClient();
 	roomTransport->latency = route;
 	CHECK(room.Connect(std::unique_ptr<session::ClientTransport>(roomTransport), false) == 0);
@@ -71,6 +72,7 @@ static void TestJoinRequestCarriesLatency() {
 	CHECK(room.Step() == 0 && roomTransport->sent.size() == 1);
 	const auto admission = roomTransport->sent.back().at("admission").get<protocol::SessionJoinRequest>();
 	CHECK(admission.latency.endpoint == route.endpoint && admission.latency.relay == "use1" && admission.customRooms);
+	CHECK(admission.continuousCapable && admission.Profile().continuousCapable);
 	SessionClient legacy(callbacks, "build", 30000, name);
 	auto* legacyTransport = new MockClient();
 	legacyTransport->latency = route;
@@ -88,6 +90,12 @@ static void TestJoinRequestCarriesLatency() {
 	CHECK(none.Connect(std::unique_ptr<session::ClientTransport>(noneTransport), false) == 0);
 	noneTransport->state = session::ConnectionState::Connected;
 	CHECK(none.Step() == 0 && !noneTransport->sent.back().at("admission").contains("latency"));
+	CHECK(!noneTransport->sent.back().at("admission").contains("continuous_capable"));
+	for (const auto& malformed : {json(), json(1), json("true"), json(false)}) {
+		auto old = noneTransport->sent.back().at("admission");
+		old["continuous_capable"] = malformed;
+		CHECK(!old.get<protocol::SessionJoinRequest>().Profile().continuousCapable);
+	}
 }
 
 struct Observer { int ready = 0, synced = 0, error = 0; };
@@ -472,6 +480,13 @@ int main() {
         CHECK(!roomTransport->sent.back().at("action").get<room::Action>().continuous);
         roomClient.SetContinuousRematchAvailable(true);
         CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+        CHECK(!roomTransport->sent.back().at("action").get<room::Action>().continuous);
+        protocol::RoomSnapshotMessage optedIn;
+        optedIn.snapshot = roomClient.GetRoomSnapshot();
+        optedIn.snapshot.tables[0].rules.continuousRematch = true;
+        ++optedIn.snapshot.revision;
+        roomTransport->Push(json(optedIn)); CHECK(roomClient.Step() == 0);
+        CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
         CHECK(roomTransport->sent.back().at("action").get<room::Action>().continuous);
         roomClient.SetContinuousRematchAvailable(false);
 
@@ -782,20 +797,22 @@ int main() {
     // Replacing a game must reject its old retry and preserve the new bytes.
     for (std::uint64_t game : {1, 2}) {
         auto numbered = result;
-        numbered.kind = room::ActionKind::RecordContinuousResult;
+        numbered.kind = room::ActionKind::RecordResult;
         numbered.continuousGame = game;
         std::uint64_t id = 0;
         CHECK(roomClient.SendRoomAction(numbered, &id) == session::SendResult::Queued);
         const auto payload = roomTransport->sent.back();
+        CHECK(payload.at("action").get<room::Action>().kind == room::ActionKind::RecordContinuousResult);
         CHECK(roomClient.RetryRoomResult(result, resultId) == session::SendResult::InvalidPayload);
         CHECK(roomClient.RetryRoomResult(numbered, id) == session::SendResult::Queued);
         CHECK(roomTransport->sent.back() == payload);
         auto wrongGame = numbered; ++wrongGame.continuousGame;
         CHECK(roomClient.RetryRoomResult(wrongGame, id) == session::SendResult::InvalidPayload);
-        auto end = numbered; end.kind = room::ActionKind::FinishContinuousMatch;
+        auto end = numbered; end.kind = room::ActionKind::MatchFinished;
         std::uint64_t endId = 0;
         CHECK(roomClient.SendRoomAction(end, &endId) == session::SendResult::Queued);
         const auto endPayload = roomTransport->sent.back();
+        CHECK(endPayload.at("action").get<room::Action>().kind == room::ActionKind::FinishContinuousMatch);
         CHECK(roomClient.RetryMatchFinished(finished, finishedId) == session::SendResult::InvalidPayload);
         CHECK(roomClient.RetryMatchFinished(end, endId) == session::SendResult::Queued);
         CHECK(roomTransport->sent.back() == endPayload);

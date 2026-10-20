@@ -96,7 +96,7 @@ namespace sf4e {
 			// A later press for the same table replaced this one; its outcome is stale.
 			bool superseded=false; };
         bool TakeActionReply(ActionReply& reply);
-        void SetContinuousRematchAvailable(bool available) { _continuousRematchAvailable=available; }
+        void SetContinuousRematchAvailable(bool available) { _profile.continuousCapable=available; }
         void SetSelectedDelay(unsigned delay) { _selectedDelay=static_cast<std::uint8_t>((std::min)(delay,static_cast<unsigned>(MaximumInputDelay))); }
         void SetSelectedLowerLag(bool on) { _selectedLowerLag=on; }
 		void RequireCustomRooms() { _customRoomsRequired = true; }
@@ -243,7 +243,6 @@ namespace sf4e {
 		room::Action TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay, std::int8_t seat = -1) const;
 		void LogRejectedRoomAction(std::uint64_t actionId, room::RejectReason reason);
         std::uint8_t _selectedDelay=2;
-        bool _continuousRematchAvailable=false;
         bool _selectedLowerLag=false;
 		bool _customRoomsRequired = false;
 		room::MemberProfile _profile;

@@ -6,6 +6,10 @@
 
 namespace sf4e { namespace room {
 
+bool ContinuousAllowed(const Snapshot& snapshot) {
+	return !snapshot.serverOwned && !snapshot.practice && !snapshot.tournament.Active();
+}
+
 Result RoomAuthority::ApplyContinuousResult(MemberId member, const Action& action, Table& table) {
 	if (!IsParticipant(table, member)) return Reject(RejectReason::NotSeated);
 	if (!action.matchGeneration || action.matchGeneration != table.matchGeneration || !action.continuousGame)
@@ -30,16 +34,16 @@ Result RoomAuthority::ApplyContinuousResult(MemberId member, const Action& actio
 	const int winner = action.result == MatchResult::P1Win ? 0 : action.result == MatchResult::P2Win ? 1 : -1;
 	if (winner >= 0 && table.score[winner] == (std::numeric_limits<std::uint32_t>::max)())
 		return Reject(RejectReason::WrongPhase);
-	if (table.resultPending) {
-		if (resultReporter_[table.id] == member)
-			return Reject(pendingResult_[table.id] == action.result ? RejectReason::DuplicateResult : RejectReason::WrongPhase);
-		if (pendingResult_[table.id] != action.result) {
-			table.phase = TablePhase::Paused;
-			Touch(table);
-			return Accept({Event{Event::Kind::ResultDisputed, table.id, table.matchGeneration, member, action.result}});
-		}
-		// Commit a point once, but retain the generation, seats, readiness and
-		// native recipients until both players choose to leave the transport.
+	switch (ReportQuorum(table, member, action.result)) {
+	case ReportAgreement::Duplicate:
+		return Reject(pendingResult_[table.id] == action.result ? RejectReason::DuplicateResult : RejectReason::WrongPhase);
+	case ReportAgreement::Disputed:
+		return Accept({Event{Event::Kind::ResultDisputed, table.id, table.matchGeneration, member, action.result}});
+	case ReportAgreement::First:
+		return Accept();
+	case ReportAgreement::Agreed:
+		// Commit a point once, retaining seats, readiness and native recipients.
+		RecordWonGame(table.id, table, action.result);
 		if (winner >= 0) { ++table.score[winner]; ++series.wins[winner]; }
 		++series.games;
 		series.lastResult = action.result;
@@ -50,12 +54,7 @@ Result RoomAuthority::ApplyContinuousResult(MemberId member, const Action& actio
 		Touch(table);
 		return Accept();
 	}
-	resultReporter_[table.id] = member;
-	pendingResult_[table.id] = action.result;
-	table.resultPending = true;
-	resultPendingSince_[table.id] = nowMs_;
-	Touch(table);
-	return Accept();
+	return Reject(RejectReason::WrongPhase);
 }
 
 Result RoomAuthority::ApplyFinishContinuous(MemberId member, const Action& action, Table& table) {

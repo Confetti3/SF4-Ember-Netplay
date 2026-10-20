@@ -6122,6 +6122,12 @@ msgstr "The other player confirmed. Choose an option."
 msgid "quick_rematch.time_remaining"
 msgstr "Time remaining: {0} s"
 
+msgid "room.continuous.rule"
+msgstr "Continuous rematch (experimental)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Keep the connection for rematches. Off by default; uses normal matches unless both fighters and every starting spectator support it."
+
 msgid "room.continuous.confirming"
 msgstr "Confirming the game result..."
 

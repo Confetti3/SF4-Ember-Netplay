@@ -6486,6 +6486,12 @@ msgstr "另一位玩家已确认。请选择。"
 msgid "quick_rematch.time_remaining"
 msgstr "剩余时间：{0}秒"
 
+msgid "room.continuous.rule"
+msgstr "连续再战（实验性）"
+
+msgid "room.continuous.rule.detail"
+msgstr "再战时保持连接。默认关闭；如果双方玩家和开赛时的所有观众未全部支持此功能，则使用普通比赛。"
+
 msgid "room.continuous.confirming"
 msgstr "正在确认比赛结果..."
 

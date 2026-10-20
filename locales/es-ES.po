@@ -6486,6 +6486,12 @@ msgstr "El otro jugador ha confirmado. Elige una opción."
 msgid "quick_rematch.time_remaining"
 msgstr "Tiempo restante: {0} s"
 
+msgid "room.continuous.rule"
+msgstr "Revancha continua (experimental)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Mantiene la conexión para las revanchas. Desactivada por defecto; usa partidas normales si algún jugador o espectador inicial no la admite."
+
 msgid "room.continuous.confirming"
 msgstr "Confirmando el resultado..."
 

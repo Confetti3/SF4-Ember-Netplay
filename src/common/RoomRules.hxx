@@ -39,6 +39,8 @@ struct Rules {
     bool editionSelect = true;
     std::uint8_t roundCount = 3;
     std::uint16_t roundTime = DefaultRoundTime;
+    // Experimental and opt-in at each table; older rules leave it off.
+    bool continuousRematch = false;
     // The one test of a set of rules, for the room that applies them, the
     // wire and saved room defaults that read them, and the settings that
     // write them.
@@ -48,7 +50,7 @@ struct Rules {
     }
     bool operator==(const Rules& rhs) const {
         return format == rhs.format && rotation == rhs.rotation && editionSelect == rhs.editionSelect &&
-            roundCount == rhs.roundCount && roundTime == rhs.roundTime;
+            roundCount == rhs.roundCount && roundTime == rhs.roundTime && continuousRematch == rhs.continuousRematch;
     }
 };
 // A public room's tables start at first to 2, winner stays, so its queue

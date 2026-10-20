@@ -262,6 +262,7 @@ namespace sf4e {
 			bool observer = false;
 			// The client keeps its room chat when a snapshot says chat_unchanged.
 			bool roomChatDelta = false;
+			bool continuousCapable = false;
 			// The member's latency endpoint; absent from older clients and read as
 			// none when malformed.
 			LatencyRoute latency;
@@ -270,6 +271,7 @@ namespace sf4e {
 				profile.steamId = SteamId::Parsed(steamId);
 				profile.country = CountryCode::Parsed(country);
 				profile.observer = observer;
+				profile.continuousCapable = continuousCapable;
 				return profile;
 			}
 			void SetProfile(const room::MemberProfile& profile) {
@@ -277,6 +279,7 @@ namespace sf4e {
 				steamId = profile.steamId.Present() ? profile.steamId.ToString() : std::string();
 				country = profile.country.ToString();
 				observer = profile.observer;
+				continuousCapable = profile.continuousCapable;
 			}
 			AdmissionRequest Admission(const std::string& peerAddress) const {
 				return {sidecarHash, username, peerAddress, port, Profile(), latency};
@@ -481,6 +484,7 @@ namespace sf4e {
 			if (!value.steamId.empty()) j["steamId"] = value.steamId;
 			if (!value.country.empty()) j["country"] = value.country;
 			if (value.observer) j["observer"] = true;
+			if (value.continuousCapable) j["continuous_capable"] = true;
 			if (value.latency.Valid()) j["latency"] = value.latency;
 		}
 		inline void from_json(const nlohmann::json& j, SessionJoinRequest& value) {
@@ -495,6 +499,8 @@ namespace sf4e {
 			value.link = j.value("link", defaults.link);
 			value.nat = j.value("nat", defaults.nat);
 			value.roomChatDelta = j.value("roomChatDelta", defaults.roomChatDelta);
+			const auto capable = j.find("continuous_capable");
+			value.continuousCapable = capable != j.end() && capable->is_boolean() && capable->get<bool>();
 			// Not a string, or not a SteamId: no profile, the join itself is unaffected.
 			const auto steam = j.find("steamId");
 			value.steamId.clear();

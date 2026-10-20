@@ -688,7 +688,7 @@ struct BarrierRoom {
 	SessionServer server;
 	std::uint64_t nextAction = 0;
 
-	BarrierRoom(const char* name, std::uint8_t seed, int members)
+	BarrierRoom(const char* name, std::uint8_t seed, int members, bool continuousCapable = false)
 		: server(name, "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)) {
 		std::array<std::uint8_t, 16> authorizationRoom = {};
 		authorizationRoom[0] = seed;
@@ -705,6 +705,7 @@ struct BarrierRoom {
 			join.sidecarHash = "build";
 			join.port = static_cast<std::uint16_t>(36000 + connection);
 			join.customRooms = true;
+			join.continuousCapable = continuousCapable;
 			join.roomProtocol = room::ProtocolVersion;
 			protocol::SessionHelloMsg hello;
 			hello.admission = json(join);
@@ -758,7 +759,7 @@ struct BarrierRoom {
 }
 
 static void TestContinuousRoomScoringTransport() {
-    BarrierRoom fixture("continuous-scoring", 12, 3);
+    BarrierRoom fixture("continuous-scoring", 12, 3, true);
     auto act = [&](session::Connection connection, room::ActionKind kind, std::uint64_t game = 0) {
         const auto snapshot = *fixture.server.RoomSnapshot();
         room::Action action;
@@ -768,6 +769,7 @@ static void TestContinuousRoomScoringTransport() {
         action.continuous=kind==room::ActionKind::Ready; action.continuousGame=game;
         action.result=room::MatchResult::P2Win;
         action.rules.format=room::SetFormat::Ft3; action.rules.rotation=room::RotationMode::WinnerStays;
+        action.rules.continuousRematch=true;
         protocol::RoomActionMessage message;message.action=action;
         fixture.transport->Push(connection,json(message)); CHECK(fixture.server.Step()==0);
     };

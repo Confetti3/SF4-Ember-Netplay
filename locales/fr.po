@@ -6485,6 +6485,12 @@ msgstr "L’autre joueur a confirmé. Choisissez une option."
 msgid "quick_rematch.time_remaining"
 msgstr "Temps restant : {0} s"
 
+msgid "room.continuous.rule"
+msgstr "Revanche continue (expérimental)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Conserve la connexion pour les revanches. Désactivée par défaut ; utilise des matchs normaux si un joueur ou spectateur initial ne la prend pas en charge."
+
 msgid "room.continuous.confirming"
 msgstr "Confirmation du résultat..."
 
