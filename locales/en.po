@@ -4392,6 +4392,12 @@ msgstr "Read button hints"
 msgid "speech.hints_detail"
 msgstr "Reads which of your buttons does what on the row you stay on."
 
+msgid "speech.no_windows_voice"
+msgstr "Speech is on, but Windows has no voice to speak with. Add one in Windows Settings under Time and language, Speech."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Speech is on, but speech-dispatcher could not be reached. On Linux and the Steam Deck, Ember speaks through speech-dispatcher, which needs python3 too."
+
 msgid "room.table_footer_practice"
 msgstr "Practice match"
 

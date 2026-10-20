@@ -4754,6 +4754,12 @@ msgstr "ボタンのヒントを読み上げ"
 msgid "speech.hints_detail"
 msgstr "留まっている項目で、どのボタンが何をするかを読み上げます。"
 
+msgid "speech.no_windows_voice"
+msgstr "音声読み上げはオンですが、Windowsに読み上げ用の音声がありません。Windowsの設定の「時刻と言語」の「音声」で追加してください。"
+
+msgid "speech.no_speech_dispatcher"
+msgstr "音声読み上げはオンですが、speech-dispatcherに接続できませんでした。LinuxとSteam Deckでは、Emberはspeech-dispatcherで読み上げます。python3も必要です。"
+
 msgid "room.table_footer_practice"
 msgstr "練習対戦"
 

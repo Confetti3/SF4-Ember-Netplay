@@ -4754,6 +4754,12 @@ msgstr "Leer ayudas de botones"
 msgid "speech.hints_detail"
 msgstr "Lee qué hace cada uno de tus botones en la fila en la que te quedas."
 
+msgid "speech.no_windows_voice"
+msgstr "La voz está activada, pero Windows no tiene ninguna voz para hablar. Añade una en Configuración de Windows, en Hora e idioma, Voz."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "La voz está activada, pero no se ha podido acceder a speech-dispatcher. En Linux y en Steam Deck, Ember habla a través de speech-dispatcher, que también necesita python3."
+
 msgid "room.table_footer_practice"
 msgstr "Partida de práctica"
 

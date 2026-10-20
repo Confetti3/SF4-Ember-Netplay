@@ -4753,6 +4753,12 @@ msgstr "Tastenhinweise vorlesen"
 msgid "speech.hints_detail"
 msgstr "Liest vor, was deine Tasten in der Zeile tun, auf der du bleibst."
 
+msgid "speech.no_windows_voice"
+msgstr "Die Sprachausgabe ist an, aber Windows hat keine Stimme zum Sprechen. Füge in den Windows-Einstellungen unter Zeit und Sprache, Spracherkennung eine hinzu."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Die Sprachausgabe ist an, aber speech-dispatcher war nicht erreichbar. Unter Linux und auf dem Steam Deck spricht Ember über speech-dispatcher, wofür auch python3 nötig ist."
+
 msgid "room.table_footer_practice"
 msgstr "Übungskampf"
 

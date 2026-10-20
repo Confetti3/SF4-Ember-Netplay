@@ -4753,6 +4753,12 @@ msgstr "Knophints voorlezen"
 msgid "speech.hints_detail"
 msgstr "Leest voor wat je knoppen doen op de rij waarop je blijft staan."
 
+msgid "speech.no_windows_voice"
+msgstr "Spraak staat aan, maar Windows heeft geen stem om mee te spreken. Voeg er een toe via Windows-instellingen, Tijd en taal, Spraak."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Spraak staat aan, maar speech-dispatcher was niet bereikbaar. Op Linux en de Steam Deck spreekt Ember via speech-dispatcher, dat ook python3 nodig heeft."
+
 msgid "room.table_footer_practice"
 msgstr "Oefenwedstrijd"
 

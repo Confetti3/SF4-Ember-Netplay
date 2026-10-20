@@ -344,6 +344,8 @@ private:
     bool updateNowReported_=false;
     // The Settings row's value, seeded from the view once and then the shell's own.
     bool launchCheck_=true,launchCheckSeeded_=false;
+    // Told once a session that speech is on but no voice could speak.
+    bool speechNoticeShown_=false;
     std::string launchCheckSaveError_;
     struct DialogContext {
         // The pad the Button layout button opens.

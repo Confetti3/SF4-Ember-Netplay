@@ -4753,6 +4753,12 @@ msgstr "Číst nápovědu tlačítek"
 msgid "speech.hints_detail"
 msgstr "Přečte, co na řádku, na kterém zůstanete, dělají vaše tlačítka."
 
+msgid "speech.no_windows_voice"
+msgstr "Hlas je zapnutý, ale Windows nemají žádný hlas, kterým by mluvily. Přidejte ho v Nastavení Windows v části Čas a jazyk, Řeč."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Hlas je zapnutý, ale speech-dispatcher není dostupný. V Linuxu a na Steam Decku mluví Ember přes speech-dispatcher, který potřebuje také python3."
+
 msgid "room.table_footer_practice"
 msgstr "Cvičný zápas"
 

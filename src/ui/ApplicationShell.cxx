@@ -17,6 +17,7 @@
 #include "../common/NativeMenuLock.hxx"
 #include "../common/ReplayInputs.hxx"
 #include "../platform/LocaleWindows.hxx"
+#include "../platform/Speech.hxx"
 #include "ReplaySummaryText.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <imgui.h>
@@ -921,8 +922,14 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
  // An opening public room's card is information, so the cursor waits on its Stop row.
  if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
- // Speech follows the row on screen, which may not be saved yet.
+ // Speech follows the row on screen, which may not be saved yet. Speech that
+ // cannot be heard is said on screen instead, once.
  SetMenuSpeech(preferences_.speech);
+ const auto missing=speech::Unavailable();
+ if(preferences_.speech.enabled&&missing!=speech::Missing::Nothing&&!speechNoticeShown_&&!menu_.NoticeOpen()){
+  speechNoticeShown_=true;
+  menu_.ShowNotice(missing==speech::Missing::WindowsVoice?loc::T("speech.no_windows_voice"):loc::T("speech.no_speech_dispatcher"),loc::T("speech.setting"));
+ }
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home");
  AnswerDialog(submit);
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){

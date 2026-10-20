@@ -4754,6 +4754,12 @@ msgstr "Читать подсказки кнопок"
 msgid "speech.hints_detail"
 msgstr "Читает, что делают ваши кнопки в строке, на которой вы задержались."
 
+msgid "speech.no_windows_voice"
+msgstr "Озвучивание включено, но в Windows нет голоса для речи. Добавьте его в параметрах Windows в разделе Время и язык, Речь."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Озвучивание включено, но speech-dispatcher недоступен. В Linux и на Steam Deck Ember говорит через speech-dispatcher, которому также нужен python3."
+
 msgid "room.table_footer_practice"
 msgstr "Тренировочный матч"
 

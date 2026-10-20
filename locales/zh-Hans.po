@@ -4754,6 +4754,12 @@ msgstr "朗读按键提示"
 msgid "speech.hints_detail"
 msgstr "朗读你停留的项目上各按键的作用。"
 
+msgid "speech.no_windows_voice"
+msgstr "语音已开启，但Windows没有可用于朗读的语音。请在Windows设置的“时间和语言”>“语音”中添加。"
+
+msgid "speech.no_speech_dispatcher"
+msgstr "语音已开启，但无法连接speech-dispatcher。在Linux和Steam Deck上，Ember通过speech-dispatcher朗读，还需要python3。"
+
 msgid "room.table_footer_practice"
 msgstr "练习对战"
 

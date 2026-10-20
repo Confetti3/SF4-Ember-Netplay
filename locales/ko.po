@@ -4754,6 +4754,12 @@ msgstr "버튼 안내 읽기"
 msgid "speech.hints_detail"
 msgstr "머무르고 있는 항목에서 어떤 버튼이 무엇을 하는지 읽습니다."
 
+msgid "speech.no_windows_voice"
+msgstr "음성이 켜져 있지만 Windows에 말할 음성이 없습니다. Windows 설정의 시간 및 언어, 음성에서 추가하세요."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "음성이 켜져 있지만 speech-dispatcher에 연결할 수 없습니다. Linux와 Steam Deck에서는 Ember가 speech-dispatcher로 말하며, python3도 필요합니다."
+
 msgid "room.table_footer_practice"
 msgstr "연습 대전"
 

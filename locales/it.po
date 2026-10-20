@@ -4753,6 +4753,12 @@ msgstr "Leggi i suggerimenti dei tasti"
 msgid "speech.hints_detail"
 msgstr "Legge cosa fanno i tuoi tasti sulla riga su cui resti."
 
+msgid "speech.no_windows_voice"
+msgstr "La voce è attiva, ma Windows non ha alcuna voce con cui parlare. Aggiungine una nelle Impostazioni di Windows, in Data/ora e lingua, Voce."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "La voce è attiva, ma speech-dispatcher non è raggiungibile. Su Linux e Steam Deck, Ember parla tramite speech-dispatcher, che richiede anche python3."
+
 msgid "room.table_footer_practice"
 msgstr "Partita di pratica"
 
