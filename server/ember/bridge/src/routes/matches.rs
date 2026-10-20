@@ -688,7 +688,6 @@ pub async fn adjudicate(
     let viewer = service_viewer(&service)?;
     let key = idempotency_key(&headers)?;
     let command: AdjudicationCommand = body.parse()?;
-    check_command(&command)?;
     let expected = expected_revision(
         &headers,
         command.expected_revision.map(|revision| revision.0),
@@ -703,9 +702,6 @@ pub async fn adjudicate(
                 let found = load(tx, &id)?.ok_or_else(ApiFailure::not_found)?;
                 if !visible(tx, &viewer, &found)? {
                     return Err(ApiFailure::not_found());
-                }
-                if found.revision != expected {
-                    return Err(stale(found.revision));
                 }
                 apply_adjudication(tx, &ctx, &service.id, &found, &command, expected)
             })
@@ -730,9 +726,8 @@ fn check_command(command: &AdjudicationCommand) -> Result<()> {
     Ok(())
 }
 
-/// An adjudication the tournament desk sends for an organizer, `actor`, on
-/// a match of their own event (`routes::organizer` checks that): the checks
-/// and effects of `adjudicate`, at the revision the command names.
+/// `adjudicate` for organizer `actor` from the desk, on their own event's
+/// match (`routes::organizer` checks that), at the command's revision.
 pub(crate) fn adjudicate_for(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -740,15 +735,11 @@ pub(crate) fn adjudicate_for(
     id: &str,
     command: &AdjudicationCommand,
 ) -> Result<(StatusCode, serde_json::Value)> {
-    check_command(command)?;
     let expected = command
         .expected_revision
         .map(|revision| revision.0)
         .ok_or_else(|| ApiFailure::invalid("expected_revision is required."))?;
     let found = load(tx, id)?.ok_or_else(ApiFailure::not_found)?;
-    if found.revision != expected {
-        return Err(stale(found.revision));
-    }
     apply_adjudication(tx, ctx, actor, &found, command, expected)
 }
 
@@ -760,6 +751,10 @@ fn apply_adjudication(
     command: &AdjudicationCommand,
     expected: u64,
 ) -> Result<(StatusCode, serde_json::Value)> {
+    check_command(command)?;
+    if found.revision != expected {
+        return Err(stale(found.revision));
+    }
     let roster = participants(tx, &found.id, found.generation)?;
     let adjudication_id = crate::util::new_id("adj");
     let (wins_before, _) = scores(tx, &found.id)?;
