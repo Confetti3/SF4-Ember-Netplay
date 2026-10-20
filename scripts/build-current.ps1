@@ -32,10 +32,15 @@ $selfTestOption = if ($SelfTest) { 'ON' } else { 'OFF' }
 # -CompilerCache compiles through ccache, which serves compiles whose inputs it
 # has seen before, as after switching branches. It cannot cache /Zi, so the
 # objects then carry their debug information (/Z7). Every other configure clears
-# these options, so a build directory never keeps them.
+# these options, so a build directory never keeps them; turning the switch on or
+# off in one build directory recompiles everything once. The receipt records the
+# ccache version a build used.
+$ccacheVersion = $null
 $compilerCacheOptions = if ($CompilerCache) {
-    $ccache = (Get-Command ccache -ErrorAction SilentlyContinue).Source
+    $ccache = (Get-Command ccache -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
     if (!$ccache) { throw '-CompilerCache needs ccache on PATH.' }
+    $ccacheVersion = [regex]::Match((& $ccache --version | Select-Object -First 1), '\d+(\.\d+)+').Value
+    if (!$ccacheVersion -or [version]$ccacheVersion -lt [version]'4.6') { throw "-CompilerCache needs ccache 4.6 or newer; $ccache is '$ccacheVersion'." }
     "-DCMAKE_C_COMPILER_LAUNCHER=$ccache", "-DCMAKE_CXX_COMPILER_LAUNCHER=$ccache", '-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded'
 } else { '-UCMAKE_C_COMPILER_LAUNCHER', '-UCMAKE_CXX_COMPILER_LAUNCHER', '-UCMAKE_MSVC_DEBUG_INFORMATION_FORMAT' }
 & $cmake -S $repo -B $build -G Ninja '-U*_DIR' '-UZLIB_*' '-ULIB_DETOURS' '-USF4E_JSON_INCLUDE' '-UFIND_PACKAGE_MESSAGE_DETAILS_*' "-DCMAKE_MAKE_PROGRAM=$vs/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSF4E_DEVELOPER_UI=OFF "-DCMAKE_TOOLCHAIN_FILE=$($tools.VcpkgRoot)/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x86-windows-wchar-filenames "-DVCPKG_INSTALLED_DIR=$dependencies" -DVCPKG_MANIFEST_INSTALL=OFF -DSF4E_BUILD_IROH_HELPER=ON "-DSF4E_STAGING_BRIDGE=$stagingBridge" "-DSF4E_SELFTEST=$selfTestOption" -DSF4E_BUILD_DISCORD=ON "-DSF4E_DISCORD_SDK_ARCHIVE=$DiscordSdkArchive" "-DCMAKE_INSTALL_PREFIX=$stage" @compilerCacheOptions
@@ -74,4 +79,4 @@ $components = @(
     [ordered]@{name='Supplemental service, lint and Linux checks (scripts/test-full-quality.ps1)';platform='windows/linux';status='unexecuted'},
     [ordered]@{name='Public network matrix (scripts/test-current-network.ps1)';platform='windows';status='unexecuted'},
     [ordered]@{name='Live Discord and gameplay acceptance';platform='live';status='unexecuted'})
-[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');testsPassed=(!$SkipTests);testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
+[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');compilerCache=$ccacheVersion;testsPassed=(!$SkipTests);testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
