@@ -72,6 +72,9 @@ inline const char* ExitCodeName(uint32_t code) {
 	case 0xC0000135u: return "DLL not found (STATUS_DLL_NOT_FOUND)";
 	case 0xC0000139u: return "entry point not found (STATUS_ENTRYPOINT_NOT_FOUND): a loaded DLL lacks an export, often a GGPO.dll outside the package";
 	case 0xC0E90002u: return "blocked by Windows code integrity (STATUS_SYSTEM_INTEGRITY_POLICY_VIOLATION): Smart App Control or an application control policy refused a file";
+	// Windows ends a window marked Not Responding with this code when the
+	// player closes it, so it is a hang rather than a fault.
+	case 0xCFFFFFFFu: return "ended by Windows as Not Responding: the game froze and its window was closed";
 	default: return "unknown";
 	}
 }

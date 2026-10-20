@@ -57,6 +57,9 @@ static void TestExitCodeNames() {
 	// Smart App Control or another code integrity policy: named, and not a crash to report.
 	CHECK(std::string(ExitCodeName(0xC0E90002u)).find("code integrity") != std::string::npos);
 	CHECK(!IsCrashExit(0xC0E90002u));
+	// A frozen game the player closed: named, and still reported.
+	CHECK(std::string(ExitCodeName(0xCFFFFFFFu)).find("Not Responding") != std::string::npos);
+	CHECK(IsCrashExit(0xCFFFFFFFu));
 	CHECK(std::string(ExitCodeName(0x12345678u)) == "unknown");
 	CHECK(IsCrashExit(0xC0000374u));
 	CHECK(IsCrashExit(0xC0000005u));
