@@ -794,7 +794,7 @@ msgid "settings.watched_picture"
 msgstr "Oglądana gra w rogu"
 
 msgid "settings.watched_picture_detail"
-msgstr "Gdy menu Embera jest otwarte nad oglądaną grą, pokazuje ją małą w prawym górnym rogu nad nieprzezroczystym menu zamiast przyciemnionej za nim."
+msgstr "Gdy menu Embera jest otwarte nad oglądaną grą, pokazuje ją małą w prawym górnym rogu (na szerokiej tablicy pokoju na górze kolumny uczestników i czatu) nad nieprzezroczystym menu zamiast przyciemnionej za nim."
 
 msgid "replays.link"
 msgstr "Odtwórz powtórkę z linku"

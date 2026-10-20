@@ -794,7 +794,7 @@ msgid "settings.watched_picture"
 msgstr "Bekeken spel in een hoek"
 
 msgid "settings.watched_picture_detail"
-msgstr "Met het menu van Ember open boven een spel dat je bekijkt, toont het spel klein rechtsboven over een dicht menu in plaats van gedimd erachter."
+msgstr "Met het menu van Ember open boven een spel dat je bekijkt, toont het spel klein rechtsboven (op een breed kamerbord bovenaan de kolom met leden en chat) over een dicht menu in plaats van gedimd erachter."
 
 msgid "replays.link"
 msgstr "Replay uit de link afspelen"

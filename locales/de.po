@@ -794,7 +794,7 @@ msgid "settings.watched_picture"
 msgstr "Zugeschautes Spiel in der Ecke"
 
 msgid "settings.watched_picture_detail"
-msgstr "Öffnest du Embers Menü über einem Spiel, dem du zuschaust, erscheint es klein oben rechts über einem deckenden Menü statt abgedunkelt dahinter."
+msgstr "Öffnest du Embers Menü über einem Spiel, dem du zuschaust, erscheint es klein oben rechts (auf der breiten Raumübersicht oben in der Spalte mit Mitgliedern und Chat) über einem deckenden Menü statt abgedunkelt dahinter."
 
 msgid "replays.link"
 msgstr "Replay aus dem Link abspielen"

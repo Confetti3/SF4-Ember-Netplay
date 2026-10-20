@@ -794,7 +794,7 @@ msgid "settings.watched_picture"
 msgstr "Watched game in a corner"
 
 msgid "settings.watched_picture_detail"
-msgstr "With Ember's menu open over a game you watch, shows it small in the top right corner over a solid menu instead of dimmed behind the menu."
+msgstr "With Ember's menu open over a game you watch, shows it small in the top right corner (on a wide room board, at the top of the members and chat column) over a solid menu instead of dimmed behind the menu."
 
 msgid "replays.link"
 msgstr "Play the replay from the link"

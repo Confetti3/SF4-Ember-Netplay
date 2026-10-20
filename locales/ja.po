@@ -794,7 +794,7 @@ msgid "settings.watched_picture"
 msgstr "観戦中の試合を隅に表示"
 
 msgid "settings.watched_picture_detail"
-msgstr "観戦中の試合の上でEmberのメニューを開くと、メニューの後ろに暗く表示する代わりに、不透明なメニューの右上に小さく表示します。"
+msgstr "観戦中の試合の上でEmberのメニューを開くと、メニューの後ろに暗く表示する代わりに、不透明なメニューの右上（ルームの横長ボードではメンバーとチャットの列の上）に小さく表示します。"
 
 msgid "replays.link"
 msgstr "リンクのリプレイを再生"

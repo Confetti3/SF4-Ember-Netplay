@@ -794,7 +794,7 @@ msgid "settings.watched_picture"
 msgstr "Partida assistida no canto"
 
 msgid "settings.watched_picture_detail"
-msgstr "Com o menu do Ember aberto sobre uma partida que você assiste, mostra ela pequena no canto superior direito sobre um menu opaco em vez de escurecida atrás."
+msgstr "Com o menu do Ember aberto sobre uma partida que você assiste, mostra ela pequena no canto superior direito (no quadro largo da sala, no topo da coluna de membros e bate-papo) sobre um menu opaco em vez de escurecida atrás."
 
 msgid "replays.link"
 msgstr "Reproduzir o replay do link"

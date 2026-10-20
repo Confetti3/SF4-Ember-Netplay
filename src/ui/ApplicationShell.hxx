@@ -150,8 +150,8 @@ struct ShellView {
     // input::MenuContext::WatchedMatch): Ember's menu is open over it, and Stop
     // watching leaves it. Empty when nothing is watched.
     netplay::WatchedGame watchedGame;
-    // That game's picture, for the menu's top right corner over an opaque
-    // menu (PlayerPreferences::watchedPicture); null when it is not wanted or
+    // That game's picture, for the top of the wide room board's column or the
+    // menu's top right corner, over an opaque menu (PlayerPreferences::watchedPicture); null when it is not wanted or
     // could not be taken.
     ImTextureID watchedPicture{};
     // Ember's menu shows the watched game through itself, dimmed, instead.

@@ -794,7 +794,7 @@ msgid "settings.watched_picture"
 msgstr "Partie regardée dans un coin"
 
 msgid "settings.watched_picture_detail"
-msgstr "Avec le menu d'Ember ouvert sur une partie que vous regardez, l'affiche en petit en haut à droite sur un menu opaque au lieu d'assombrie derrière."
+msgstr "Avec le menu d'Ember ouvert sur une partie que vous regardez, l'affiche en petit en haut à droite (sur le tableau large du salon, en haut de la colonne des membres et du chat) sur un menu opaque au lieu d'assombrie derrière."
 
 msgid "replays.link"
 msgstr "Lire le replay du lien"
