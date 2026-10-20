@@ -179,6 +179,7 @@ async fn a_room_is_created_and_listed() {
     assert_eq!(rooms[0]["invitation"], expected);
     assert_eq!(rooms[0]["banned"], json!([]));
     assert_eq!(rooms[0]["opened"], false);
+    assert!(rooms[0].get("games").is_none(), "{}", rooms[0]);
 
     // A second room takes the next two ports and lists after the first.
     let (_, second) = harness.create(2, "normal").await;
@@ -233,6 +234,51 @@ async fn the_list_carries_the_hosts_details_whole() {
         json!({ "name": "Renamed", "capacity": 6, "locked": true, "host_name": "Kate",
             "fighters": [3, 255], "set_format": 3, "rotation": 1, "future": { "x": 1 } })
     );
+}
+
+/// The Ember ID the fake host makes for `index` below 32 (see `ember_id` there).
+fn fake_ember_id(index: usize) -> String {
+    format!(
+        "emb1_a{}{}a",
+        &"abcdefghijklmnopqrstuvwxyz234567"[index..=index],
+        "a".repeat(49)
+    )
+}
+
+/// The games of the host's latest status are listed as it sent them, and a
+/// room without games lists no `games` member at all.
+#[tokio::test]
+async fn the_list_carries_the_latest_statuss_games_and_omits_none() {
+    let harness = harness(|_, _| {});
+    harness.create(1, "games").await;
+    for _ in 0..200 {
+        if harness.list().await[0].get("games").is_some() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let rooms = harness.list().await;
+    assert_eq!(rooms[0]["members"], 1);
+    assert_eq!(
+        rooms[0]["games"],
+        json!([
+            { "table": 2, "generation": 5,
+              "winner": fake_ember_id(1), "loser": fake_ember_id(2) },
+            { "table": 0, "generation": 6,
+              "winner": fake_ember_id(2), "loser": fake_ember_id(1) },
+        ])
+    );
+    // A room that never reported any lists what it always did.
+    harness.create(2, "members:2").await;
+    for _ in 0..200 {
+        if harness.list().await[1]["members"] == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let rooms = harness.list().await;
+    assert_eq!(rooms[1]["members"], 2);
+    assert!(rooms[1].get("games").is_none(), "{}", rooms[1]);
 }
 
 /// Details that are not an object, or too big, are left out: the room stays up

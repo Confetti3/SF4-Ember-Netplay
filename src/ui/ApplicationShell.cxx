@@ -413,7 +413,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  if((screen=="room"||screen=="room-chat")&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
-   loc::Tf("room.tournament_status",static_cast<int>(v.room.tournament.gamesToWin)):
+   TournamentRoomStatus(v.room):
    std::string(loc::T(RoomStatusKey(v.room)));
   if(!healthy)statusTone=Tone::Pending;
  }
@@ -600,6 +600,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="lower-keyboard-lag")preferences_.lowerKeyboardLag=a.delta>0;
   else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
   else if(a.id=="faster-display")preferences_.fasterDisplay=a.delta>0;
+  else if(a.id=="borderless")preferences_.borderless=a.delta>0;
   else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
@@ -771,6 +772,17 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    notice_=loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason));noticeTone_=Tone::Error;noticeUntil_=now+20;
   }
   tournamentPhase_=v.tournament.phase;
+ }
+ // A match being watched says how the room it was in ended, once, wherever the player is.
+ if(v.tournament.watch.noticeSequence!=watchNoticeSequence_){
+  using netplay::tournament::WatchNotice;
+  watchNoticeSequence_=v.tournament.watch.noticeSequence;
+  switch(v.tournament.watch.notice){
+  case WatchNotice::Finished:notice_=loc::T("tournament.watch.finished_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;break;
+  case WatchNotice::Removed:notice_=loc::T("tournament.watch.removed_notice");noticeTone_=Tone::Error;noticeUntil_=now+20;break;
+  case WatchNotice::RoomClosed:notice_=loc::T("tournament.watch.room_closed_notice");noticeTone_=Tone::Pending;noticeUntil_=now+12;break;
+  default:break;
+  }
  }
  // A match link from the browser opens the match's row for the player to
  // press Play. It never leaves a room by itself: in one, it only says so.

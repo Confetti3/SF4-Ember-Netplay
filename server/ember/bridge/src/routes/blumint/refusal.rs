@@ -2,8 +2,9 @@
 //! only a `code` at the top level of the body (plus `players` where the code
 //! names players) and files any other 400 or 409 as an answer it cannot read,
 //! which is final. So these routes answer in BluMint's registry format
-//! instead of the bridge's `{ "error": ... }` envelope. A refusal is an `Err`, so
-//! `matches::idempotent` never stores it against the key.
+//! instead of the bridge's `{ "error": ... }` envelope. A refusal is an `Err`
+//! like any other, so the write it came from rolls back, and
+//! `idempotency::idempotent` never stores it against the key.
 //!
 //! The bridge's own failures (a database it cannot reach, a credential it
 //! does not know) keep the envelope: BluMint reads a 503 as an outage and
@@ -26,8 +27,9 @@ pub enum BluMintRefusal {
     MatchUnsupported,
     /// The `Idempotency-Key` already names a different creation.
     KeyReused,
-    /// Players with no current link on the connection, as BluMint sent them.
-    PlayerUnlinked(Vec<EmberId>),
+    /// Players the bridge cannot match: ids that are not an Ember ID, or that
+    /// have no current link on the connection, as BluMint sent them.
+    PlayerUnlinked(Vec<String>),
     /// Players still in another match on the connection. BluMint asks again
     /// under the same key until they are free.
     PlayerBusy(Vec<EmberId>),
@@ -35,13 +37,22 @@ pub enum BluMintRefusal {
     Bridge(ApiFailure),
 }
 
-impl From<ApiFailure> for BluMintRefusal {
-    fn from(failure: ApiFailure) -> Self {
+impl BluMintRefusal {
+    /// A failure the generic code raised for the request itself, which BluMint
+    /// is refused with, or the bridge's own failure. Applied where such code
+    /// runs for a BluMint route: the body, the digest and `insert_match`.
+    pub fn classify(failure: ApiFailure) -> Self {
         match failure.code {
             ErrorCode::InvalidRequest => Self::InvalidRequest,
             ErrorCode::IdempotencyConflict => Self::KeyReused,
             _ => Self::Bridge(failure),
         }
+    }
+}
+
+impl From<ApiFailure> for BluMintRefusal {
+    fn from(failure: ApiFailure) -> Self {
+        Self::Bridge(failure)
     }
 }
 
@@ -62,7 +73,10 @@ impl IntoResponse for BluMintRefusal {
                 StatusCode::BAD_REQUEST,
                 json!({ "code": "match_unsupported" }),
             ),
-            Self::KeyReused => (StatusCode::CONFLICT, json!({ "code": "key_reused" })),
+            Self::KeyReused => (
+                StatusCode::CONFLICT,
+                json!({ "code": "idempotency_key_reused" }),
+            ),
             Self::PlayerUnlinked(players) => (
                 StatusCode::BAD_REQUEST,
                 json!({ "code": "player_unlinked", "players": players }),
@@ -74,17 +88,5 @@ impl IntoResponse for BluMintRefusal {
             Self::Bridge(failure) => return failure.into_response(),
         };
         crate::http::json(status, &body)
-    }
-}
-
-/// Runs a BluMint route's write. A refusal commits as the answer, with
-/// whatever the route kept of it (a refused creation's key, a closed key);
-/// the bridge's own failure rolls the write back.
-pub fn outcome<T>(
-    work: impl FnOnce() -> Result<T, BluMintRefusal>,
-) -> crate::error::Result<Result<T, BluMintRefusal>> {
-    match work() {
-        Err(BluMintRefusal::Bridge(failure)) => Err(failure),
-        answer => Ok(answer),
     }
 }

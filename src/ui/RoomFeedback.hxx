@@ -31,10 +31,38 @@ inline bool RoomCheckpointPending(const ShellView& view) {
 // goes with every room update.
 inline ChatGate ChatGateOf(const ShellView& view) {
     if (view.session.room != netplay::RoomState::Joined || view.room.closed) return ChatGate::NotJoined;
+    if (room::IsWatcher(view.room, view.room.localMember)) return ChatGate::ReadOnly;
     if (RoomActionsAvailable(view)) return ChatGate::Writable;
     return RoomCheckpointPending(view) ? ChatGate::CatchingUp : ChatGate::Recovering;
 }
-inline bool ChatTypable(const ShellView& view) { return ChatGateOf(view) != ChatGate::NotJoined; }
+inline bool ChatTypable(const ShellView& view) {
+    const auto gate = ChatGateOf(view);
+    return gate != ChatGate::NotJoined && gate != ChatGate::ReadOnly;
+}
+
+// A watcher's Ember ID, short enough for a member row: the fingerprint the
+// Ember ID screen shows (the first and last eight characters of the key), or
+// the identifier whole when it has no such shape. The same rule as
+// EmberId::fingerprint (server/ember/protocol/src/id.rs), which the game
+// cannot call: the binding carries the identifier alone.
+inline std::string ShortEmberId(const std::string& id) {
+    const std::string prefix = "emb1_";
+    const bool keyed = id.compare(0, prefix.size(), prefix) == 0 && id.size() >= prefix.size() + 16;
+    return keyed ? id.substr(prefix.size(), 8) + "-" + id.substr(id.size() - 8) : id;
+}
+// What a watcher's row says after its name: the tag and the Ember ID the
+// binding gives for it, which stays accountable if the slot changes hands.
+inline std::string WatcherTag(const room::Snapshot& room, const room::Member& member) {
+    return std::string(loc::T("room.member.watcher")) + " / " + ShortEmberId(room.tournament.EmberIdOf(member.connection.user));
+}
+// The room status line of a bound room: a watcher's own, or the fighters'
+// with the watchers counted when there are any.
+inline std::string TournamentRoomStatus(const room::Snapshot& room) {
+    if (room::IsWatcher(room, room.localMember)) return loc::T("room.tournament_watching");
+    const int games = static_cast<int>(room.tournament.gamesToWin);
+    const auto watchers = room::WatcherCount(room);
+    return watchers ? loc::Tf("room.tournament_status_watched", games, watchers) : loc::Tf("room.tournament_status", games);
+}
 
 inline const char* RoomWaitReason(const ShellView& view) {
     if (view.session.room == netplay::RoomState::Closing)

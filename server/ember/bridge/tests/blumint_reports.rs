@@ -573,6 +573,54 @@ async fn a_progress_report_follows_each_game_that_does_not_end_the_set() {
     );
 }
 
+// BluMint asks every report to name the creation that made its match by that
+// creation's Idempotency-Key. The stand-in BluMint refuses a report without
+// one, as BluMint does; each kind carries its own match's key. A set that ends
+// drops a progress report still unsent, so game 1's is settled before game 2.
+#[tokio::test]
+async fn every_report_names_the_creation_that_made_its_match() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "tA1b2-round-1-match-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    assert!(reports(&f, &id).await.is_empty());
+    assert!(!statuses(&f, &id).is_empty());
+    win(&f, &id, 0, "game-1").await;
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
+    win(&f, &id, 0, "game-2").await;
+    assert_eq!(
+        reports(&f, &id).await,
+        vec![progressed(&f, &id, [1, 0]), result(&f, &id, [2, 0])]
+    );
+
+    let (_, created) = create(&f, "tA1b2-round-1-match-2", 2).await;
+    let next = created["matchId"].as_str().unwrap().to_owned();
+    cancel(&f, &next, "cancel-1").await;
+    assert_eq!(
+        reports(&f, &next).await,
+        vec![restart(&f, &next, "serverFailure", [0, 0])]
+    );
+
+    for (id, key, modes) in [
+        (
+            &id,
+            "tA1b2-round-1-match-1",
+            &["status", "progress", "result"][..],
+        ),
+        (&next, "tA1b2-round-1-match-2", &["abort"][..]),
+    ] {
+        let sent = report_keys(&f, id);
+        assert!(sent.iter().all(|(_, sent)| sent == key), "{sent:?}");
+        for mode in modes {
+            assert!(
+                sent.iter().any(|(sent, _)| sent == mode),
+                "{mode}: {sent:?}"
+            );
+        }
+    }
+}
+
 // BluMint keeps the wins a progress report gave a team and refuses any later
 // report below them, the result included. So once one has been sent, a game
 // it may count cannot be voided, mid-set or in a correction.
@@ -891,9 +939,10 @@ async fn a_ready_pressed_after_a_game_ended_outlasts_its_result() {
 }
 
 // A status BluMint has not taken is sent again as it stands, the same
-// revision observed at the same time; BluMint asks for that while it does not
-// know the match yet. One that changes before then is sent as it now
-// stands, under its next revision, and the earlier one is not sent again.
+// revision observed at the same time; BluMint asks for that (a 503
+// `match_not_ready`) while it has not recorded the create. One that changes
+// before then is sent as it now stands, under its next revision, and the
+// earlier one is not sent again.
 #[tokio::test]
 async fn a_status_is_sent_again_until_a_later_one_replaces_it() {
     let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
@@ -904,7 +953,7 @@ async fn a_status_is_sent_again_until_a_later_one_replaces_it() {
     f.bridge.clock.freeze();
     let start = f.bridge.clock.now();
 
-    f.blumint.lock().unwrap().answers.push_back((404, None));
+    f.blumint.lock().unwrap().answers.push_back((503, None));
     claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
     ember_bridge::deliver_results(&keyed).await;
     assert_eq!(status_row(&f, &id).await, Some((1, "retrying".into())));
@@ -940,6 +989,38 @@ async fn a_status_is_sent_again_until_a_later_one_replaces_it() {
     let observed = [start, start, start + 2, start + 2].map(ember_protocol::event::rfc3339);
     assert_eq!(times, observed);
     assert_eq!(status_row(&f, &id).await, Some((3, "delivered".into())));
+}
+
+// BluMint answers 404 `unknown_match` to a status for a match it has no
+// lobby under, and says to stop without alerting: that revision is not sent
+// again. A later change to the match is a new revision, sent as one.
+#[tokio::test]
+async fn a_status_on_a_match_blumint_does_not_know_is_not_sent_again() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    f.bridge.clock.freeze();
+
+    f.blumint.lock().unwrap().answers.push_back((404, None));
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(status_row(&f, &id).await, Some((1, "failed".into())));
+    f.bridge.clock.advance(2);
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(statuses(&f, &id).len(), 1);
+
+    bound(&f, &id).await;
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(
+        sent_statuses(&f, &id),
+        vec![
+            status(&f, &id, 1, "pending", [NOT_READY, ABSENT]),
+            status(&f, &id, 2, "pending", [NOT_READY, NOT_READY]),
+        ]
+    );
+    assert_eq!(status_row(&f, &id).await, Some((2, "delivered".into())));
 }
 
 /// The presence lease, as the clock's signed seconds.
@@ -1482,7 +1563,10 @@ async fn starting_wins_continue_the_set() {
     );
     assert_eq!(
         create_with(&f, "set-3", carried(&f, 2, [1, 0])).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (
+            StatusCode::CONFLICT,
+            json!({ "code": "idempotency_key_reused" })
+        )
     );
     let id = created["matchId"].as_str().unwrap().to_owned();
     let binding = bound(&f, &id).await;

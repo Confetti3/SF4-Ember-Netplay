@@ -70,7 +70,11 @@ cat > "$T/stubs/systemctl" <<'EOF'
 #!/usr/bin/env bash
 echo "systemctl $*" >> "$STUB/log"
 case "$1" in
-    restart) touch "$STUB/up/$2" ;;
+    restart)
+        # One restart fails when a test asks for it.
+        [ -e "$STUB/fail-restart" ] && { rm -f "$STUB/fail-restart"; exit 1; }
+        touch "$STUB/up/$2"
+        ;;
     is-active)
         [ "$2" = --quiet ] && shift
         [ -e "$STUB/up/$2" ] || { echo inactive; exit 3; }
@@ -144,6 +148,11 @@ failed() { [ "$RC" -ne 0 ]; }
 succeeded() { [ "$RC" -eq 0 ]; }
 exited() { [ "$RC" -eq "$1" ]; }
 absent() { [ ! -e "$1" ]; }
+# Nothing a run stages or backs up is left behind: no .new file next to an
+# installed one, and no mktemp folder in TMPDIR besides the test root.
+no_leftovers() {
+    [ -z "$(find "$R" -name '*.new' -o -name '.bridge.json.*')" ] && [ "$(ls "$TMPDIR")" = root ]
+}
 account() { grep -qx -- "$1" "$STUB/users"; }
 # config_is <bridge.json> <key> <JSON value>
 config_is() { python3 -c 'import json, sys; sys.exit(json.load(open(sys.argv[1])).get(sys.argv[2]) != json.loads(sys.argv[3]))' "$@"; }
@@ -151,6 +160,42 @@ lacks_key() { python3 -c 'import json, sys; sys.exit(sys.argv[2] in json.load(op
 connections_are() { python3 -c 'import json, sys; sys.exit(sorted(c["id"] for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]) != sys.argv[2:])' "$@"; }
 bridge_id() { python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["bridge_id"])' "$1"; }
 links_to() { [ "$(readlink "$1")" = "$2" ]; }
+# Every zone the site's limit_req and limit_conn name is defined, in the zone
+# file or the site itself, or nginx -t fails on the real server.
+zones_defined() {
+    local name
+    for name in $(grep -oE 'limit_req zone=[a-z0-9_]+' "$1" | sed 's/.*=//') \
+        $(grep -oE 'limit_conn [a-z0-9_]+' "$1" | cut -d' ' -f2); do
+        grep -hqE "^limit_(req|conn)_zone .* zone=$name:" "$1" "$2" || { echo "no zone $name" >&2; return 1; }
+    done
+}
+# nginx refuses a zone name defined twice, so no installed file repeats one.
+no_zone_defined_twice() {
+    local repeated
+    repeated=$(cat "$R"/etc/nginx/conf.d/* "$R"/etc/nginx/sites-enabled/* |
+        grep -oE '^limit_(req|conn)_zone .* zone=[a-z0-9_]+' | sed 's/.*zone=//' | sort | uniq -d)
+    [ -z "$repeated" ] || { echo "defined twice: $repeated" >&2; return 1; }
+}
+# The request zone <site> gives the exact location <path>.
+zone_of() {
+    awk -v at="    location = $2 {" '$0 == at { inside = 1 } inside && /limit_req zone=/ { print $2; exit }' "$1" | sed 's/^zone=//'
+}
+# BluMint reads a 429 as an outage, so each of its three callbacks has a zone
+# of its own (none is the general one), defined in the site itself with the
+# instance's prefix <prefix>, and a burst past a 512-player round.
+blumint_callbacks_budgeted() {
+    local site=$1 prefix=$2 path name
+    local names=()
+    for path in /v1/blumint/lookup /v1/blumint/matches /v1/blumint/matches/close; do
+        name=$(zone_of "$site" "$path")
+        case "$name" in "$prefix"_blumint_*) ;; *) echo "$path: zone '$name'" >&2; return 1 ;; esac
+        grep -qE "^limit_req_zone .* zone=$name:[0-9]+m rate=[1-9][0-9]{2,}r/s;" "$site" || { echo "$name: rate" >&2; return 1; }
+        awk -v at="    location = $path {" '$0 == at { inside = 1 } inside && /limit_req/ { print; exit }' "$site" |
+            grep -qE 'burst=[1-9][0-9]{3,} nodelay;' || { echo "$path: burst" >&2; return 1; }
+        names+=("$name")
+    done
+    [ "$(printf '%s\n' "${names[@]}" | sort -u | wc -l)" -eq 3 ]
+}
 
 # An operator folder: the deploy files and a stand-in binary of that version.
 stage() {
@@ -162,9 +207,11 @@ stage() {
 stage_binary() {
     cat > "$1/bin/ember-bridge" <<EOF
 #!/usr/bin/env bash
-# stand-in ember-bridge $2
-[ "\$1" = init ] || exit 1
-python3 - "\$2" <<'PY'
+# stand-in ember-bridge $2: init, and apply-tenants as far as setup.sh
+# relies on it, a plain update of bridge.json with the tenants file. The real
+# one, with the deployment's rules, is tested by tests/deploy.rs.
+case "\$1" in
+init) python3 - "\$2" <<'PY' ;;
 import json, sys, uuid
 json.dump({"bridge_id": f"brg_{uuid.uuid4()}", "display_name": "Local Ember bridge",
            "origin": "http://127.0.0.1:8787", "listen": "127.0.0.1:8787",
@@ -173,6 +220,16 @@ json.dump({"bridge_id": f"brg_{uuid.uuid4()}", "display_name": "Local Ember brid
            "tenants": []}, open(f"{sys.argv[1]}/bridge.json", "w"))
 open(f"{sys.argv[1]}/bridge-secrets.json", "w").write("{}")
 PY
+apply-tenants)
+    [ -e "$STUB/refuse-tenants" ] && { echo "ember-bridge: stand-in refused the tenants file" >&2; exit 1; }
+    python3 /dev/fd/3 "\$2" "\$3" 3<<'PY' ;;
+import json, sys
+config = json.load(open(sys.argv[1]))
+config.update(json.load(sys.stdin))
+json.dump(config, open(sys.argv[2], "w"), indent=2)
+PY
+*) exit 1 ;;
+esac
 EOF
     chmod +x "$1/bin/ember-bridge"
 }
@@ -228,9 +285,11 @@ renamed_from() {
 names_only_staging() {
     ! sed -e 's/ember-bridge-staging//g' -e 's#/ember-bridge serve #serve #' "$@" | grep -q ember-bridge
 }
-# The staging site is production's with staging's host and port.
+# The staging site is production's with staging's host, port and zone prefix.
 staging_site_from() {
-    sed -e 's/bridge\.embernetplay\.link/bridge-staging.embernetplay.link/g' -e 's/47820/47821/g' "$1" | cmp -s - "$2"
+    sed -e 's/bridge\.embernetplay\.link/bridge-staging.embernetplay.link/g' -e 's/47820/47821/g' \
+        -e 's/ember_bridge_blumint_/ember_bridge_staging_blumint_/g' \
+        -e 's/(ember_bridge here)/(ember_bridge_staging here)/' "$1" | cmp -s - "$2"
 }
 # A bridge database holding one row naming its bridge.
 make_database() {
@@ -268,22 +327,25 @@ check "instance.sh installed" same "$HERE/instance.sh" "$R/usr/local/lib/$P/inst
 check "backup.sh installed" same "$HERE/backup.sh" "$R/usr/local/lib/$P/backup.sh"
 check "restore.sh installed" same "$HERE/restore.sh" "$R/usr/local/lib/$P/restore.sh"
 check "state and backups owned by the account" logged "install -d -o $P -g $P -m 0700 $R/var/lib/$P $R/var/backups/$P"
-check "init runs as the account" logged "sudo -u $P $R/usr/local/lib/$P/ember-bridge"
+check "init runs as the account, with the staged binary" logged "sudo -u $P $R/usr/local/lib/$P/ember-bridge.new"
 check "service unit as before the templates" same "$GOLDEN/ember-bridge.service" "$PUNITS.service"
 check "backup service as before" same "$GOLDEN/ember-bridge-backup.service" "$PUNITS-backup.service"
 check "backup timer as before" same "$GOLDEN/ember-bridge-backup.timer" "$PUNITS-backup.timer"
 check "site as before" same "$GOLDEN/$PSITE" "$R/etc/nginx/sites-available/$PSITE"
 check "site enabled" links_to "$R/etc/nginx/sites-enabled/$PSITE" "$R/etc/nginx/sites-available/$PSITE"
 check "zone as shipped" same "$HERE/nginx/ember-bridge-zone.conf" "$R/etc/nginx/conf.d/ember-bridge.conf"
+check "every zone the site names is defined" zones_defined "$R/etc/nginx/sites-available/$PSITE" "$R/etc/nginx/conf.d/ember-bridge.conf"
+check "BluMint's callbacks have a zone each" blumint_callbacks_budgeted "$R/etc/nginx/sites-available/$PSITE" ember_bridge
+check "the shared zone file defines none of them" bash -c '! grep -q blumint "$1"' _ "$R/etc/nginx/conf.d/ember-bridge.conf"
 check "origin" config_is "$PSTATE" origin '"https://bridge.embernetplay.link"'
 check "listen" config_is "$PSTATE" listen '"127.0.0.1:47820"'
 check "display name" config_is "$PSTATE" display_name '"Ember bridge"'
-check "development switches off" config_is "$PSTATE" mock_browser false
 check "units enabled" logged "systemctl enable $P $P-backup.timer"
 check "service restarted" logged "systemctl restart $P"
 PID=$(bridge_id "$PSTATE")
 check "answers on 47820" mentions "service: ok ($PID)"
 check "answers through nginx" mentions "public: ok ($PID)"
+check "no staged file or backup folder left" no_leftovers
 snapshot "$P" "$PSITE" production
 
 echo "2. staging first install beside it, from its folder alone"
@@ -293,7 +355,7 @@ check "account ember-bridge-staging created" account "$S"
 check "own binary" same "$SDIR/bin/ember-bridge" "$R/usr/local/lib/$S/ember-bridge"
 check "own backup.sh" same "$HERE/backup.sh" "$R/usr/local/lib/$S/backup.sh"
 check "state and backups owned by its account" logged "install -d -o $S -g $S -m 0700 $R/var/lib/$S $R/var/backups/$S"
-check "init runs as its account" logged "sudo -u $S $R/usr/local/lib/$S/ember-bridge"
+check "init runs as its account, with the staged binary" logged "sudo -u $S $R/usr/local/lib/$S/ember-bridge.new"
 check "service runs its binary on its config" has_line "$SUNITS.service" "ExecStart=/usr/local/lib/$S/ember-bridge serve /var/lib/$S/bridge.json"
 check "service runs as its account" has_line "$SUNITS.service" "User=$S"
 check "service group" has_line "$SUNITS.service" "Group=$S"
@@ -306,14 +368,20 @@ check "service unit is production's renamed" renamed_from "$GOLDEN/ember-bridge.
 check "backup service is production's renamed" renamed_from "$GOLDEN/ember-bridge-backup.service" "$SUNITS-backup.service"
 check "backup timer is production's renamed" renamed_from "$GOLDEN/ember-bridge-backup.timer" "$SUNITS-backup.timer"
 check "no unit names production" names_only_staging "$SUNITS".service "$SUNITS"-backup.*
-check "site is production's with its host and port" staging_site_from "$GOLDEN/$PSITE" "$R/etc/nginx/sites-available/$SSITE"
+check "site is production's with its host, port and zone prefix" staging_site_from "$GOLDEN/$PSITE" "$R/etc/nginx/sites-available/$SSITE"
 check "site enabled" links_to "$R/etc/nginx/sites-enabled/$SSITE" "$R/etc/nginx/sites-available/$SSITE"
+check "its BluMint callbacks have a zone each, named after it" blumint_callbacks_budgeted "$R/etc/nginx/sites-available/$SSITE" ember_bridge_staging
+check "every zone its site names is defined" zones_defined "$R/etc/nginx/sites-available/$SSITE" "$R/etc/nginx/conf.d/ember-bridge.conf"
+check "no zone is defined twice across both bridges" no_zone_defined_twice
+check "the shared zone file is as production installed it" same "$T/snap-production/zone" "$R/etc/nginx/conf.d/ember-bridge.conf"
 check "origin" config_is "$SSTATE" origin '"https://bridge-staging.embernetplay.link"'
 check "listen" config_is "$SSTATE" listen '"127.0.0.1:47821"'
 check "display name" config_is "$SSTATE" display_name '"Ember bridge (staging)"'
 check "no public rooms" lacks_key "$SSTATE" rooms
-check "staging connections" connections_are "$SSTATE" blumint-partner-staging ember-test
-check "development switches off" config_is "$SSTATE" allow_private_webhooks false
+check "staging connections" connections_are "$SSTATE" blumint-partner-staging challonge-staging ember-test
+check "the Challonge sign-in site is configured" python3 -c 'import json, sys; sites = json.load(open(sys.argv[1]))["sign_in_sites"]; sys.exit([s["id"] for s in sites] != ["challonge"] or sites[0]["client_id"] != sys.argv[2])' "$SSTATE" cab6fdeece228047e113681a3cabe8c62ecdef4ffed992f411d5f27589607ee7
+check "the connector connection looks players up on it and restarts disputes" python3 -c 'import json, sys; c = {c["id"]: c for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]}["challonge-staging"]; sys.exit(c["kind"] != "direct" or c["lookup_sites"] != ["challonge"] or c["disputes"] != "restart" or c["results_url"] != "https://brackets-staging.embernetplay.link/ember/results")' "$SSTATE"
+check "BluMint's connection is the one it was" python3 -c 'import json, sys; c = {c["id"]: c for t in json.load(open(sys.argv[1]))["tenants"] for c in t["connections"]}["blumint-partner-staging"]; sys.exit(c != {"id": "blumint-partner-staging", "kind": "blumint", "environment": "staging", "display_name": "BluMint partner API (staging)"})' "$SSTATE"
 SID=$(bridge_id "$SSTATE")
 check "its own bridge ID" test "$SID" != "$PID"
 check "units enabled" logged "systemctl enable $S $S-backup.timer"
@@ -321,6 +389,7 @@ check "answers on 47821" mentions "service: ok ($SID)"
 check "answers through nginx" mentions "public: ok ($SID)"
 check "production files unchanged" unchanged "$P" "$PSITE" production
 check "production units never touched" production_untouched_by_systemctl
+check "no staged file or backup folder left" no_leftovers
 snapshot "$S" "$SSITE" staging
 
 echo "3. a newer staging binary, INSTANCE given and agreeing"
@@ -399,17 +468,59 @@ run "$SDIR/setup.sh" "EMBER_BRIDGE_ROOT=$T/elsewhere"
 check "a root outside TMPDIR exits 2" exited 2
 check "nothing ran" nothing_logged
 
-echo "6. a staging site nginx rejects"
+echo "6. a staging site nginx rejects, with a newer binary, config and units staged"
 cp "$SDIR/nginx/bridge.conf.in" "$T/site-template"
+cp "$SDIR/ember-bridge.service.in" "$T/service-template"
+cp "$SDIR/tenants.staging.json" "$T/staging-tenants"
+cp -p "$SDIR/bin/ember-bridge" "$T/staging-binary"
 echo "# BADNGINX" >> "$SDIR/nginx/bridge.conf.in"
+echo "# newer unit" >> "$SDIR/ember-bridge.service.in"
+sed -i 's/Ember bridge (staging)/Ember bridge (staging, newer)/' "$SDIR/tenants.staging.json"
+stage_binary "$SDIR" v3
 run "$SDIR/setup.sh"
 check "fails" failed
 check "says it restored nginx" mentions "restored the previous files"
-check "staging site back byte for byte" same "$T/snap-staging/site" "$R/etc/nginx/sites-available/$SSITE"
+check "says the rest was not replaced" mentions "binary, bridge.json and units were not replaced"
+check "the staged binary differs" bash -c '! cmp -s "$1" "$2"' _ "$SDIR/bin/ember-bridge" "$T/staging-binary"
+check "staging binary, bridge.json, units, site and zone back as they were" unchanged "$S" "$SSITE" staging
 check "staging still enabled" links_to "$R/etc/nginx/sites-enabled/$SSITE" "$R/etc/nginx/sites-available/$SSITE"
-check "nothing restarted" bash -c '! grep -q "^systemctl restart" "$1"' _ "$STUB/log"
+check "no staged file or backup folder left" no_leftovers
+check "nothing reloaded or restarted" bash -c '! grep -q "^systemctl" "$1"' _ "$STUB/log"
 check "production files unchanged" unchanged "$P" "$PSITE" production
 cp "$T/site-template" "$SDIR/nginx/bridge.conf.in"
+cp "$T/service-template" "$SDIR/ember-bridge.service.in"
+
+echo "6b. a tenants file the new binary refuses changes nothing"
+# The stand-in refuses on a marker file; what the real binary refuses is
+# tested by tests/deploy.rs (a_tenants_file_the_bridge_would_not_load_is_refused).
+sed -i 's/Ember bridge (staging)/Ember bridge (staging, refused)/' "$SDIR/tenants.staging.json"
+touch "$STUB/refuse-tenants"
+run "$SDIR/setup.sh"
+rm -f "$STUB/refuse-tenants"
+check "fails" failed
+check "names the refusal" mentions "stand-in refused the tenants file"
+check "staging binary, bridge.json, units, site and zone as they were" unchanged "$S" "$SSITE" staging
+check "no staged file or backup folder left" no_leftovers
+check "nothing reloaded or restarted" bash -c '! grep -q "^systemctl" "$1"' _ "$STUB/log"
+cp "$T/staging-tenants" "$SDIR/tenants.staging.json"
+cp -p "$T/staging-binary" "$SDIR/bin/ember-bridge"
+
+echo "6c. a bridge that fails to restart gets the previous files back"
+echo "# newer unit" >> "$SDIR/ember-bridge.service.in"
+sed -i 's/Ember bridge (staging)/Ember bridge (staging, restart fails)/' "$SDIR/tenants.staging.json"
+stage_binary "$SDIR" v4
+touch "$STUB/fail-restart"
+run "$SDIR/setup.sh"
+check "fails" failed
+check "says the previous files are back and the bridge restarted" mentions "put back the previous binary, bridge.json, units, site and zone, and restarted it"
+check "the staged binary differs" bash -c '! cmp -s "$1" "$2"' _ "$SDIR/bin/ember-bridge" "$T/staging-binary"
+check "staging binary, bridge.json, units, site and zone back as they were" unchanged "$S" "$SSITE" staging
+check "no staged file or backup folder left" no_leftovers
+check "the previous bridge was restarted" test "$(grep -cx "systemctl restart $S" "$STUB/log")" = 2
+check "production units never touched" production_untouched_by_systemctl
+cp "$T/service-template" "$SDIR/ember-bridge.service.in"
+cp "$T/staging-tenants" "$SDIR/tenants.staging.json"
+cp -p "$T/staging-binary" "$SDIR/bin/ember-bridge"
 
 echo "7. staging never replaces production's request limits"
 cp "$SDIR/nginx/ember-bridge-zone.conf" "$T/zone"
@@ -460,6 +571,15 @@ check "stored for staging" config_is "$R/var/lib/$S/integrations.json" discord_c
 check "restarts staging" logged "systemctl restart $S"
 check "production has no integrations.json" absent "$R/var/lib/$P/integrations.json"
 check "production units never touched" production_untouched_by_systemctl
+printf 'startgg-secret\n' > "$INPUT"
+run "$SDIR/set-integration-secret.sh" -- site startgg
+check "a site's exits 0" succeeded
+check "a site's stored for staging" python3 -c 'import json, sys; sys.exit(json.load(open(sys.argv[1]))["site_client_secrets"] != {"startgg": "startgg-secret"})' "$R/var/lib/$S/integrations.json"
+run "$SDIR/set-integration-secret.sh" -- site Start.gg
+check "a site ID that cannot be one exits 2" exited 2
+run "$SDIR/set-integration-secret.sh" -- site discord
+check "discord as a site ID exits 2" exited 2
+check "beside discord's" config_is "$R/var/lib/$S/integrations.json" discord_client_secret '"staging-secret"'
 run "$SDIR/set-integration-secret.sh" INSTANCE= -- discord
 check "a disagreeing INSTANCE exits 2" exited 2
 check "nothing ran" nothing_logged
@@ -493,7 +613,7 @@ before, after = (json.load(open(path)) for path in sys.argv[1:])
 changed = {key for key in before.keys() | after.keys() if before.get(key) != after.get(key)}
 sys.exit(changed != {"display_name"} or after["display_name"] != "Ember bridge")
 PY
-check "connections kept" connections_are "$PSTATE" blumint-partner-staging blumint-staging ember-test
+check "connections kept" connections_are "$PSTATE" blumint-partner-production blumint-partner-staging blumint-staging ember-test
 check "binary replaced" same "$PDIR/bin/ember-bridge" "$R/usr/local/lib/$P/ember-bridge"
 check "bridge ID kept" test "$(bridge_id "$PSTATE")" = "$PID"
 check "service unit still as before" same "$GOLDEN/ember-bridge.service" "$PUNITS.service"

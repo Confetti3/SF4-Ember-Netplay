@@ -44,7 +44,9 @@ inline Presence Describe(const PresenceInput& in) {
     out.party = in.party;
     out.size = static_cast<int>(in.room.members.size());
     out.capacity = in.room.capacity;
-    if (in.invites && in.session.control == netplay::Health::Healthy && !in.room.locked &&
+    // A bound match's room is never offered, whichever way the player came into it
+    // (before it is bound, the runtime passes no secret).
+    if (in.invites && !in.room.tournament.Active() && in.session.control == netplay::Health::Healthy && !in.room.locked &&
         out.size < out.capacity && !out.party.empty() && in.expires > in.now && in.secret.size() == 127) {
         out.secret = in.secret;
         out.expires = in.expires;

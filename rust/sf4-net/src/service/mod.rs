@@ -143,6 +143,7 @@ mod departure;
 mod entry;
 mod events;
 mod games;
+mod join;
 mod latency;
 mod members;
 mod network;
@@ -150,6 +151,7 @@ mod probes;
 mod protocol;
 mod public;
 mod refresh;
+mod seats;
 mod server_owned;
 mod short_links;
 mod stall;
@@ -159,6 +161,7 @@ mod tests;
 use entry::TaskScope;
 pub use entry::{run, run_on_port};
 use events::EventOutbox;
+use join::JoinVia;
 use probes::{selected_probe_route, serve_probe};
 use protocol::NativeControlMessage;
 pub use protocol::{Command, Event};
@@ -543,18 +546,15 @@ fn status(request_id: u64, endpoint: &Endpoint, epoch: u64, peers: usize, games:
     }
 }
 
-/// Extract the primary Iroh identities from the committed native
-/// `SessionProposal` envelope. The C++ side binds these values from its
+/// Extract the primary Iroh identities and exact process incarnations from
+/// the committed native `SessionProposal` envelope. C++ binds these from its
 /// authenticated room-member map; Rust only uses a complete, validated list
-/// to reconcile Raft membership after commit.
-fn committed_primary_endpoints(bytes: &[u8]) -> Option<BTreeSet<EndpointId>> {
-    primary_endpoints(bytes, false)
-}
-
-/// `committed_primary_endpoints`, with an empty roster accepted when
-/// `allow_empty`: a server-owned room can stand with no member in it.
-fn primary_endpoints(bytes: &[u8], allow_empty: bool) -> Option<BTreeSet<EndpointId>> {
-    let envelope: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+/// to reconcile Raft membership after commit. A server-owned room can
+/// stand with no member when `allow_empty`.
+fn primary_members(
+    envelope: &serde_json::Value,
+    allow_empty: bool,
+) -> Option<BTreeMap<EndpointId, u64>> {
     let members = envelope.get("checkpoint")?.get("members")?.as_array()?;
     // A recovery checkpoint may retain started spectator tombstones in
     // addition to the sixteen active room members. Bound the total separately
@@ -566,7 +566,7 @@ fn primary_endpoints(bytes: &[u8], allow_empty: bool) -> Option<BTreeSet<Endpoin
     {
         return None;
     }
-    let mut endpoints = BTreeSet::new();
+    let mut endpoints = BTreeMap::new();
     let mut active = 0usize;
     for member in members {
         if member.get("frozen").and_then(serde_json::Value::as_bool) == Some(true) {
@@ -582,7 +582,10 @@ fn primary_endpoints(bytes: &[u8], allow_empty: bool) -> Option<BTreeSet<Endpoin
             .or_else(|| data.get("authenticated_endpoint"))?
             .as_str()?;
         let endpoint = text.parse::<EndpointId>().ok()?;
-        endpoints.insert(endpoint);
+        let incarnation = member.get("incarnation")?.as_u64()?;
+        if incarnation == 0 || endpoints.insert(endpoint, incarnation).is_some() {
+            return None;
+        }
     }
     (allow_empty || !endpoints.is_empty()).then_some(endpoints)
 }
@@ -655,10 +658,10 @@ struct Actor {
     /// Raft task, so retries never allocate a second near-1 MiB buffer.
     pending_checkpoint_retry: Option<(CheckpointProposalKey, usize)>,
     outgoing_transfer: Option<OutgoingCheckpoint>,
-    /// Last native roster that was committed by C++. Admissions arriving
+    /// Exact endpoint/incarnation roster last committed by C++. Admissions arriving
     /// after that checkpoint are not treated as departures until a later
     /// checkpoint explicitly includes them first.
-    committed_native_members: Option<BTreeSet<EndpointId>>,
+    committed_native_members: Option<BTreeMap<EndpointId, u64>>,
     /// Incarnations omitted by a committed native roster or an authenticated
     /// membership update. Keep these IDs until the local applied Raft
     /// membership proves their exclusion; a leader can die after the native
@@ -727,14 +730,12 @@ struct Actor {
     public: Option<crate::public_room::PublicRoom>,
     /// Exact UDP port for this process's coordination endpoint when hosting.
     coordination_port: Option<u16>,
-    /// The roster the committed checkpoint named the last time a
-    /// coordination refresh parsed one, with the room and the commit it came
-    /// from, so a refresh of the same commit parses nothing.
-    refresh_roster: Option<(
-        [u8; 16],
-        Arc<crate::coordination::Committed>,
-        Option<BTreeSet<EndpointId>>,
-    )>,
+    /// The roster the committed checkpoint named the last time one was
+    /// parsed (`observe_commit`), with the room and the commit it came from,
+    /// so a read of the same commit parses nothing.
+    refresh_roster: Option<seats::SeenCommit>,
+    /// Who the room seats, from the last commit that said so readably.
+    seats: seats::Seats,
     /// Signalled when work arrives that no other arm of the actor's loop
     /// sees: a control's reader queued a frame, or the room's Raft store
     /// committed (`install_recovery`). The loop ticks at once.
@@ -870,6 +871,7 @@ impl Actor {
         self.room = None;
         // The cached roster holds the room's whole checkpoint.
         self.refresh_roster = None;
+        self.seats = seats::Seats::Open;
         self.opening = false;
         self.controls.clear();
         self.clear_parked_controls();
@@ -988,22 +990,8 @@ impl Actor {
                 epoch,
                 invitation,
                 build,
-            } => {
-                // Consume an accepted room epoch before parsing the invitation.
-                // Rejection then belongs to the caller's attempt and Leave can
-                // acknowledge cancellation even though no connection was made.
-                if !self.begin(epoch, &build) {
-                    self.error_at(id, epoch, "invalid_room_state")?;
-                    return Ok(true);
-                }
-                // A short link is looked up first; the full invitation it
-                // stands for then takes the same path as a pasted one.
-                if let Some(code) = crate::short_invite::parse(&invitation) {
-                    self.join_short(id, epoch, code, build)?;
-                } else {
-                    self.join_invitation(id, &invitation, build, None)?;
-                }
-            }
+                observer,
+            } => self.join_command(id, epoch, &invitation, build, observer)?,
             Command::ShortInvite { epoch } => self.short_invite_command(epoch)?,
             Command::LatencyWatch { epoch, room, view, on } => self.latency_watch(epoch, room, view, on),
             Command::Leave { epoch, abandon } => {
@@ -1082,12 +1070,7 @@ impl Actor {
                     return Ok(true);
                 }
                 if self.controls.contains_key(&peer) {
-                    let control = self.remove_control(peer);
-                    self.emit(Event::ControlClosed {
-                        epoch,
-                        peer,
-                        control,
-                    })?;
+                    self.close_control(peer)?;
                 }
                 // Never closes separately authorized gameplay connections.
             }
@@ -1237,67 +1220,6 @@ impl Actor {
         Ok(true)
     }
 
-    /// Joins the room `invitation` names. `short_code` is the code a short
-    /// link was opened with; the invitation must derive that same code, so a
-    /// record cannot stand in for another room.
-    fn join_invitation(
-        &mut self,
-        id: u64,
-        invitation: &str,
-        build: String,
-        short_code: Option<&str>,
-    ) -> io::Result<()> {
-        let epoch = self.epoch;
-        let time = now().ok();
-        let invite = time.and_then(|time| Invite::parse_for_build(invitation, time, &build).ok());
-        let invite = match invite {
-            Some(invite)
-                if invite.build() == build
-                    && short_code.is_none_or(|code| invite.short_code() == code) =>
-            {
-                invite
-            }
-            Some(_) => {
-                self.clear_room();
-                return self.error_because(
-                    id,
-                    "invalid_or_incompatible_invitation",
-                    Some("malformed"),
-                );
-            }
-            None => {
-                let reason = time.map_or("malformed", |time| {
-                    Invite::rejection_reason(invitation, time, &build)
-                });
-                self.clear_room();
-                return self.error_because(id, "invalid_or_incompatible_invitation", Some(reason));
-            }
-        };
-        // A copy taken while this helper still led the room names this
-        // endpoint. Iroh refuses to dial itself, which would otherwise
-        // read as an unreachable host.
-        if invite.endpoint() == self.endpoint.id() {
-            self.clear_room();
-            return self.error_because(id, "invalid_or_incompatible_invitation", Some("own_room"));
-        }
-        self.room = Some(invite.room());
-        self.host_address = Some(invite.address());
-        let endpoint = self.endpoint.clone();
-        let ticket = self.member_ticket();
-        let latency = self.latency_binding();
-        self.tasks.spawn(async move {
-            let (result, latency) = latency::beside(latency, async {
-                match &ticket {
-                    Some(ticket) => crate::public_room::connect_public(&endpoint, &invite, ticket).await,
-                    None => transport::connect_control(&endpoint, &invite).await,
-                }
-            })
-            .await;
-            Completion::GuestControl(epoch, invite, result, latency)
-        });
-        Ok(())
-    }
-
     async fn completed(&mut self, completion: Completion) -> io::Result<()> {
         let (completion, joined_invite) = match completion {
             Completion::GuestControl(epoch, invite, result, latency) => {
@@ -1364,7 +1286,9 @@ impl Actor {
             Completion::ProbeAuthorization(key, result) => {
                 self.completed_probe_authorization(key, result).await
             }
-            Completion::Hosted(epoch, result, latency) => self.completed_hosted(epoch, result, latency).await,
+            Completion::Hosted(epoch, result, latency) => {
+                self.completed_hosted(epoch, result, latency).await
+            }
             Completion::Incoming(epoch, result) => self.completed_incoming(epoch, result).await,
             Completion::ClassifiedGame(incoming, result) => {
                 self.completed_classified_game(incoming, result).await
@@ -1437,7 +1361,9 @@ impl Actor {
                 self.hosted = Some(invite);
                 self.room_invite = self.hosted.clone();
             }
-            Err(error) => self.error_because(0, "host_unavailable", network::host_failure_reason(&error))?,
+            Err(error) => {
+                self.error_because(0, "host_unavailable", network::host_failure_reason(&error))?
+            }
         }
         Ok(())
     }

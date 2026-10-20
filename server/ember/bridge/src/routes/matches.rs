@@ -56,13 +56,12 @@ const MAX_EVIDENCE: usize = 16;
 /// an organizer of its tenant. Anyone else gets `not_found`.
 pub fn visible(tx: &Transaction<'_>, actor: &Viewer, found: &Match) -> Result<bool> {
     Ok(match actor {
-        Viewer::Provider { connection_id, .. } => *connection_id == found.connection_id,
-        Viewer::Organizer { tenant_id } => *tenant_id == found.tenant_id,
         Viewer::Player { ember_id } => tx.query_row(
             "SELECT EXISTS (SELECT 1 FROM match_participants WHERE match_id = ?1 AND ember_id = ?2)",
             params![found.id, ember_id.as_str()],
             |row| row.get(0),
         )?,
+        service => service.sees(&found.tenant_id, &found.connection_id),
     })
 }
 

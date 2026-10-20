@@ -48,6 +48,8 @@ export interface Binding {
   issued_at: number;
   /** Games each slot had already won when the set started, P1 first. Absent at 0-0, and still version 1. */
   starting_wins?: [number, number];
+  /** Endpoints admitted to watch, oldest first. Absent when there are none, and still version 1. */
+  watchers?: { ember_id: string; endpoint_id: string }[];
 }
 
 /** One official game, signed by the bridge. */
@@ -78,6 +80,15 @@ export type ClaimAnswer =
 export type PrepareAnswer =
   | { state: "pending"; retry_after: number }
   | { state: "permitted"; permit: { permit: Permit; kid: string; signature: string } };
+
+/**
+ * What asking to watch a match answers: `waiting` until the players have a
+ * room and the watcher has a place in it, then the room to join. A watcher is
+ * never given a binding.
+ */
+export type WatchAnswer =
+  | { state: "waiting"; retry_after: number; reason: "no_room" | "not_bound" | "full" }
+  | { state: "room"; room_id: string; invitation: string };
 
 export type GameResult = "p1_win" | "p2_win" | "draw" | "abort" | "cancel";
 
@@ -132,6 +143,27 @@ export class TestPlayer {
     return (await this.#send(path, token, body, 201)) as unknown as { authorize_url: string; expires_at: number };
   }
 
+  /**
+   * Starts connecting an account on sign-in site `site` (such as
+   * `challonge`), as Ember's Connect row for that site does. Like
+   * `startDiscordConnect`, the bridge answers with the site's address the
+   * player's browser goes to; the account is connected when the site sends
+   * the browser back and the player confirms on the bridge's page.
+   */
+  async startSiteConnect(site: string): Promise<{ authorize_url: string; expires_at: number }> {
+    const token = await this.#sessionToken();
+    const path = `/v1/sites/${encodeURIComponent(site)}/start`;
+    const body = await this.#prove(token, "site.connect", path, {});
+    return (await this.#send(path, token, body, 201)) as unknown as { authorize_url: string; expires_at: number };
+  }
+
+  /** The player's connected account on sign-in site `site` (`GET /v1/sites/{site}`). */
+  async siteAccount(site: string): Promise<{ account: { user_id: string; username: string; connected_at: number } | null }> {
+    const token = await this.#sessionToken();
+    const response = await this.#fetch(`${this.origin}/v1/sites/${encodeURIComponent(site)}`, { headers: { authorization: `Bearer ${token}` } });
+    return (await this.#read(response, 200)) as unknown as { account: { user_id: string; username: string; connected_at: number } | null };
+  }
+
   /** The player's own links, as Ember lists them. */
   async links(): Promise<Json> {
     const token = await this.#sessionToken();
@@ -143,10 +175,36 @@ export class TestPlayer {
    * Claims an `ember-room-v1` match. The first fighter gets the provisioning
    * lease (`host`), the other waits; once a room is published both get it,
    * with the bridge's binding when both have claimed. Claim again to renew.
+   *
+   * `watch: true` says this stand-in's helper reads a binding that names
+   * watchers, as a current Ember's claim does. The bridge names watchers only
+   * when both fighters say so; a claim without it is what an older Ember
+   * sends, and takes the watchers out of the binding.
    */
-  async claimMatch(matchId: string, buildId = "test-build"): Promise<ClaimAnswer> {
-    const command = { endpoint_id: this.endpointId, helper_instance_id: this.helperInstanceId, build_id: buildId };
+  async claimMatch(matchId: string, buildId = "test-build", options: { watch?: boolean } = {}): Promise<ClaimAnswer> {
+    const command = {
+      endpoint_id: this.endpointId,
+      helper_instance_id: this.helperInstanceId,
+      build_id: buildId,
+      ...(options.watch ? { watch: true } : {}),
+    };
     return (await this.#act("match.claim", `/v1/matches/${matchId}/claims`, command)) as unknown as ClaimAnswer;
+  }
+
+  /**
+   * Asks to watch a match this player does not play in, as Ember's Watch does
+   * every ten seconds. Refusals carry `error.details.reason`: `not_allowed`,
+   * `revoked` or `fighter`; a build the players do not run is
+   * `incompatible_build`.
+   */
+  async watchMatch(matchId: string, buildId = "test-build"): Promise<WatchAnswer> {
+    const command = { endpoint_id: this.endpointId, helper_instance_id: this.helperInstanceId, build_id: buildId };
+    return (await this.#act("match.watch", `/v1/matches/${matchId}/watch`, command)) as unknown as WatchAnswer;
+  }
+
+  /** Stops watching: the player's place is free for the next watcher. */
+  async stopWatching(matchId: string): Promise<void> {
+    await this.#act("match.unwatch", `/v1/matches/${matchId}/watch/leave`, {});
   }
 
   /** Publishes the match's room: with the lease from a `host` claim for the
@@ -280,13 +338,13 @@ export class TestPlayer {
   async #read(response: Response, expected: number): Promise<Json> {
     const text = await response.text();
     if (response.status !== expected) {
-      let error: { code?: string; message?: string; retryable?: boolean; request_id?: string } = {};
+      let error: { code?: string; message?: string; retryable?: boolean; request_id?: string; details?: { [key: string]: Json } } = {};
       try {
         error = (parseStrict(text) as { error?: typeof error }).error ?? {};
       } catch {
         // Not the bridge's error shape.
       }
-      throw new BridgeError(response.status, error.code ?? `http_${response.status}`, error.message ?? response.statusText, error.retryable ?? response.status >= 500, error.request_id);
+      throw new BridgeError(response.status, error.code ?? `http_${response.status}`, error.message ?? response.statusText, error.retryable ?? response.status >= 500, error.request_id, error.details);
     }
     return parseStrict(text);
   }

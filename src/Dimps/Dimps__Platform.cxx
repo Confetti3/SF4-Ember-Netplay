@@ -10,6 +10,7 @@ using Platform::Allocator;
 using Platform::dDeque_0x10;
 using Platform::dString;
 using Platform::D3D;
+using Platform::DisplayBlock;
 using Platform::Main;
 using Platform::GFxApp;
 using Platform::Sound;
@@ -81,8 +82,17 @@ Main::Win32_WindowData** Main::GetWindowData(Main* m) {
     return (Win32_WindowData**)((unsigned int)m + 0x490);
 }
 
+void Main::Close() {
+    Main* main = staticMethods.GetSingleton();
+    if (main) PostMessageW((*GetWindowData(main))->hWnd, WM_CLOSE, 0, 0);
+}
+
 int* Main::GetRenderingThread(Main* m) {
     return (int*)((unsigned int)m + 0x110);
+}
+
+DisplayBlock* Main::GetDisplay(Main* m) {
+    return (DisplayBlock*)((unsigned int)m + 0xdc);
 }
 
 int* Main::StartupRenderingThread(void* params) {

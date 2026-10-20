@@ -144,7 +144,10 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     let (status, refused) = create(&f, "create-1", 4).await;
     assert_eq!(
         (status, refused),
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (
+            StatusCode::CONFLICT,
+            json!({ "code": "idempotency_key_reused" })
+        )
     );
     let (status, refused) = create(&f, "create-2", 4).await;
     assert_eq!(status, StatusCode::LOCKED, "{refused}");
@@ -232,12 +235,13 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
                 f.bridge.url("/v1/blumint/lookup")
             ),
             (
-                "/api/tournaments/match/setCreate",
-                f.bridge.url("/v1/blumint/matches")
-            ),
-            (
                 "/api/tournaments/match/setClose",
                 f.bridge.url("/v1/blumint/matches/close")
+            ),
+            // Last: registering it turns on automatic lobbies.
+            (
+                "/api/tournaments/match/setCreate",
+                f.bridge.url("/v1/blumint/matches")
             ),
         ]
     );
@@ -287,7 +291,7 @@ async fn a_new_registration_retires_the_credential_an_earlier_one_handed_over() 
             .await
             .0
     };
-    // BluMint's close route is not there yet.
+    // BluMint's create route is not there yet.
     f.blumint
         .lock()
         .unwrap()
@@ -365,9 +369,9 @@ async fn blumint_refusals_carry_the_registry_code_at_the_top_level() {
         .as_array_mut()
         .unwrap()
         .push(json!({ "inGameId": f.sam.id() }));
+    // A player with no identity to name, which BluMint never sends.
     let mut nameless = request(&f, 2);
-    nameless["teams"][1]["players"][0]["identities"] =
-        json!([{ "provider": "discord", "inGameId": SAM }]);
+    nameless["teams"][1]["players"][0]["identities"] = json!([]);
     // The host's match settings are free-form, so a body can outgrow even
     // the creation's own cap.
     let mut oversized = request(&f, 2);
@@ -561,7 +565,10 @@ async fn a_closed_match_sends_nothing() {
     assert_eq!(match_state(&f, &id).await, "cancelled");
     assert_eq!(
         create(&f, "set-4", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (
+            StatusCode::CONFLICT,
+            json!({ "code": "idempotency_key_reused" })
+        )
     );
     // A key whose every creation was refused made no match, and closes all
     // the same, so a creation still on its way makes nothing.
@@ -581,7 +588,10 @@ async fn a_closed_match_sends_nothing() {
     assert_eq!(status, StatusCode::OK, "{closed}");
     assert_eq!(
         create(&f, "set-5", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (
+            StatusCode::CONFLICT,
+            json!({ "code": "idempotency_key_reused" })
+        )
     );
     // A key the bridge holds nothing under is closed too, and answers as a
     // match already over does, since BluMint reads anything else as a
@@ -616,20 +626,19 @@ async fn a_closed_match_sends_nothing() {
     assert_eq!(status, StatusCode::OK, "{closed}");
     assert_eq!(
         create(&f, "set-6", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (
+            StatusCode::CONFLICT,
+            json!({ "code": "idempotency_key_reused" })
+        )
     );
     assert_eq!(matches(&f).await, made);
     assert!(reports(&f, &id).await.is_empty());
 
-    // A close names the key, never the match.
+    // A close names the key, never the match. (Any reason, or none, and a key
+    // the bridge can hold nothing under, still answer 200: blumint_contract.rs.)
     for body in [
         json!({ "matchId": id, "reason": "decided" }),
         json!({ "reason": "decided" }),
-        json!({ "idempotencyKey": "set-4" }),
-        json!({ "idempotencyKey": "set-4", "reason": "" }),
-        json!({ "idempotencyKey": "set-4", "reason": "r".repeat(65) }),
-        json!({ "idempotencyKey": "", "reason": "decided" }),
-        json!({ "idempotencyKey": "k".repeat(129), "reason": "decided" }),
         json!({ "idempotencyKey": "set-4", "reason": "decided", "padding": "p".repeat(70 * 1024) }),
     ] {
         let (status, refused) = close(&f, body.clone()).await;
@@ -689,7 +698,10 @@ async fn a_close_finds_its_match_once_the_creation_answer_is_forgotten() {
     assert_eq!(match_state(&f, &id).await, "awaiting_players");
     assert_eq!(
         create(&f, "set-1", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (
+            StatusCode::CONFLICT,
+            json!({ "code": "idempotency_key_reused" })
+        )
     );
 
     let (status, closed) = close(
@@ -701,7 +713,10 @@ async fn a_close_finds_its_match_once_the_creation_answer_is_forgotten() {
     assert_eq!(match_state(&f, &id).await, "cancelled");
     assert_eq!(
         create(&f, "set-1", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (
+            StatusCode::CONFLICT,
+            json!({ "code": "idempotency_key_reused" })
+        )
     );
     assert_eq!(matches(&f).await, 1);
 }

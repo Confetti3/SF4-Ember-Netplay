@@ -240,6 +240,14 @@ int main() {
             check(gameDowns == 8 && gate.Take().empty(), "Enter in a later Training battle went now for the old call");
             frame(); frame();
         }
+        {
+            const LPARAM alt = 1L << 29;
+            check(sf4e::ui::KeepsAltEnter(WM_SYSKEYDOWN, VK_RETURN, alt, true) && sf4e::ui::KeepsAltEnter(WM_SYSKEYUP, VK_RETURN, alt | 0xC0000000, true),
+                "A watcher's Alt+Enter reached the game");
+            check(!sf4e::ui::KeepsAltEnter(WM_SYSKEYDOWN, VK_RETURN, alt, false), "Alt+Enter was kept with no stream watched");
+            check(!sf4e::ui::KeepsAltEnter(WM_SYSKEYDOWN, VK_RETURN, 0, true) && !sf4e::ui::KeepsAltEnter(WM_SYSKEYDOWN, VK_F4, alt, true),
+                "A watcher's Enter in menu mode or Alt+F4 was kept from the game");
+        }
 
         // A real window procedure on the message thread: releasing the mouse
         // makes Windows send WM_CAPTURECHANGED back into it, and so into the

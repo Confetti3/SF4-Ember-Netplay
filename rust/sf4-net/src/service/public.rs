@@ -87,8 +87,10 @@ impl Actor {
             return self.error_at(id, epoch, "invalid_room_state");
         }
         // Set before the join so a refused one clears it with the room.
-        self.public = Some(PublicRoom::Member { ticket });
-        self.join_invitation(id, invitation, build, None)
+        self.public = Some(PublicRoom::Member {
+            ticket: ticket.clone(),
+        });
+        self.join_invitation(id, invitation, build, JoinVia::Public(ticket))
     }
 
     /// The accounts of the live and waiting controls and the endpoint each
@@ -101,8 +103,7 @@ impl Actor {
         let waiting = self.parked_controls.iter().filter_map(|(peer, parked)| {
             parked
                 .channel
-                .account
-                .as_ref()
+                .account()
                 .map(|account| (account.clone(), *peer))
         });
         live.chain(waiting).collect()
@@ -183,7 +184,7 @@ impl Actor {
         let parked: Vec<_> = self
             .parked_controls
             .iter()
-            .filter(|(_, parked)| parked.channel.account.as_ref() == Some(&account))
+            .filter(|(_, parked)| parked.channel.account() == Some(&account))
             .map(|(peer, _)| *peer)
             .collect();
         for peer in parked {

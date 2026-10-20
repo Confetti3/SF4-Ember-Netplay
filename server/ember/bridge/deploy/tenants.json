@@ -22,6 +22,12 @@
           "kind": "blumint",
           "environment": "staging",
           "display_name": "BluMint partner API (staging)"
+        },
+        {
+          "id": "blumint-partner-production",
+          "kind": "blumint",
+          "environment": "production",
+          "display_name": "BluMint partner API (production)"
         }
       ]
     },

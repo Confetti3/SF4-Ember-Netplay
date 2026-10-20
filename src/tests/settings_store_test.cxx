@@ -203,7 +203,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"watchedPicture", &PlayerPreferences::watchedPicture, false},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
-        {"fasterDisplay", &PlayerPreferences::fasterDisplay, true},
+        {"fasterDisplay", &PlayerPreferences::fasterDisplay, true}, {"borderless", &PlayerPreferences::borderless, false},
         {"controllerLayer", &PlayerPreferences::controllerLayer, true},
         {"recordWatched", &PlayerPreferences::recordWatched, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
         {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false},

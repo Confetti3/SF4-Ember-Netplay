@@ -5,8 +5,8 @@ mod common;
 use common::{
     Bridge, Player, code,
     play::{
-        BUILD, ROOM, Table, act, bound, claim, descriptor, endpoint, observation, permit, prepare,
-        publish, report,
+        BUILD, ROOM, Table, act, bound, claim, create_match, descriptor, endpoint, observation,
+        permit, prepare, publish, report,
     },
 };
 use ember_protocol::{
@@ -46,37 +46,16 @@ async fn fixture() -> Fixture {
 }
 
 async fn create(f: &Fixture, external: &str, profile: &str, games_to_win: u8) -> String {
-    let (status, created) = f
-        .bridge
-        .post_keyed(
-            &f.provider,
-            "/v1/matches",
-            json!({
-                "external_match_id": external,
-                "game": "usf4",
-                "participants": [
-                    { "participant_id": f.links[0]["participant_id"], "ember_id": f.a.id(), "slot": 0 },
-                    { "participant_id": f.links[1]["participant_id"], "ember_id": f.b.id(), "slot": 1 },
-                ],
-                "rules": {
-                    "games_to_win": games_to_win,
-                    "draw_policy": "replay_no_score",
-                    "native_rules_profile": profile,
-                    "edition_policy": "ultra_only",
-                    "character_policy": "unrestricted_between_games",
-                    "stage_policy": "p1_selects",
-                    "input_delay_policy": "ember_existing_ready_policy",
-                },
-                "observer_policy": "authorized_only",
-                "result_policy": "two_player_agreement_or_review",
-                "required_build_id": "ember",
-                "metadata": {},
-            }),
-            Some(external),
-        )
-        .await;
-    assert_eq!(status, StatusCode::CREATED, "{created}");
-    created["match_id"].as_str().unwrap().to_owned()
+    create_match(
+        &f.bridge,
+        &f.provider,
+        &f.links,
+        [&f.a, &f.b],
+        external,
+        profile,
+        games_to_win,
+    )
+    .await
 }
 
 impl Table for Fixture {

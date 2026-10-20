@@ -10,6 +10,7 @@
 #include "../common/NetworkRoute.hxx"
 #include "RoomFailure.hxx"
 #include "../common/RoomLimits.hxx"
+#include "Admission.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "TournamentAnswers.hxx"
 #include "MemberLatency.hxx"
@@ -108,7 +109,9 @@ public:
 	// deleted through this base without running its own.
 	virtual ~IrohRoom() = default;
 	bool Host(const std::string& build);
-	bool Join(const std::string& invitation, const std::string& build);
+	// `observer`: the join is a tournament match's watcher, which the room's
+	// helper admits only into a room that names it (the helper's `join` type).
+	bool Join(const std::string& invitation, const std::string& build, bool observer = false);
 	// Join a server-owned room: like Join, with the bridge's signed ticket as received.
 	bool JoinPublic(const std::string& invitation, const nlohmann::json& ticket, const std::string& build);
 	// Host a server-owned room under the id the bridge issued its tickets for.
@@ -116,9 +119,9 @@ public:
 	// the creator's ticket is the only one admitted while the room is empty.
 	bool HostPublic(const std::string& build, const std::string& ticketKey, const std::string& ticketKid,
 		const std::string& bridgeId, const std::array<std::uint8_t, 16>& roomId, const std::string& creator);
-	// The Ember ID a public host's helper admitted this connection under; empty
-	// in a private room.
-	std::string PeerAccount(Connection connection) const;
+	// The Ember ID and class a public host's helper admitted this connection
+	// under; empty in a private room.
+	Admission PeerAdmission(Connection connection) const;
 	// Public host only: refuse this Ember ID for the rest of the room.
 	bool BanAccount(const std::string& account);
 	virtual void Leave(bool abandon = false);
@@ -251,7 +254,7 @@ private:
 	struct Peer {
 		std::string identity;
 		// Set by a public host's helper from the admitting ticket.
-		std::string account;
+		Admission admission;
 		// The helper's process incarnation this session belongs to; 0 until
 		// its Admission was accepted.
 		std::uint64_t incarnation = 0;

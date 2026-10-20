@@ -257,6 +257,9 @@ namespace sf4e {
 			// The country the player shows, as its code; absent when none, and read
 			// as none when the table lacks it.
 			std::string country;
+			// The joiner watches a tournament match: its room admits only the
+			// watchers it names. Sent only when true, and read as false otherwise.
+			bool observer = false;
 			// The client keeps its room chat when a snapshot says chat_unchanged.
 			bool roomChatDelta = false;
 			// The member's latency endpoint; absent from older clients and read as
@@ -266,12 +269,14 @@ namespace sf4e {
 				room::MemberProfile profile{mainFighter, NetworkLinkFromWire(link), NatClassFromWire(nat)};
 				profile.steamId = SteamId::Parsed(steamId);
 				profile.country = CountryCode::Parsed(country);
+				profile.observer = observer;
 				return profile;
 			}
 			void SetProfile(const room::MemberProfile& profile) {
 				mainFighter = profile.mainFighter; link = static_cast<int>(profile.link); nat = static_cast<int>(profile.nat);
 				steamId = profile.steamId.Present() ? profile.steamId.ToString() : std::string();
 				country = profile.country.ToString();
+				observer = profile.observer;
 			}
 			AdmissionRequest Admission(const std::string& peerAddress) const {
 				return {sidecarHash, username, peerAddress, port, Profile(), latency};
@@ -475,6 +480,7 @@ namespace sf4e {
 				{"link", value.link}, {"nat", value.nat}, {"roomChatDelta", value.roomChatDelta}};
 			if (!value.steamId.empty()) j["steamId"] = value.steamId;
 			if (!value.country.empty()) j["country"] = value.country;
+			if (value.observer) j["observer"] = true;
 			if (value.latency.Valid()) j["latency"] = value.latency;
 		}
 		inline void from_json(const nlohmann::json& j, SessionJoinRequest& value) {
@@ -497,6 +503,9 @@ namespace sf4e {
 			const auto country = j.find("country");
 			value.country.clear();
 			if (country != j.end() && country->is_string() && CountryCode::Parsed(country->get<std::string>()).Present()) value.country = country->get<std::string>();
+			// Anything but a true is a plain join.
+			const auto observer = j.find("observer");
+			value.observer = observer != j.end() && observer->is_boolean() && observer->get<bool>();
 			// A malformed route is no route; the join itself is unaffected.
 			const auto latency = j.find("latency");
 			value.latency = {};

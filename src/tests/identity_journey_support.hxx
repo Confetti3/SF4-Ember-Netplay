@@ -47,3 +47,5 @@ struct Journey:Harness {
 void RunDiscordConnectJourneys();
 // The built-in service scenarios, in builtin_service_journey_test.cxx.
 void RunBuiltInServiceJourneys();
+// The sign-in site scenarios, in sign_in_site_journey_test.cxx.
+void RunSignInSiteJourneys();

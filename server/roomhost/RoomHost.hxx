@@ -100,16 +100,7 @@ private:
 	std::map<std::string, std::uint64_t> pendingBans_;
 	// The snapshot and applied revisions the last Report looked at; see Report.
 	std::uint64_t reportedSnapshotRevision_ = 0, reportedAppliedRevision_ = 0;
-	struct Reported {
-		std::size_t members = 0, tablesPlaying = 0;
-		std::string invitation;
-		std::vector<std::string> banned;
-		RoomDetails details;
-		bool operator==(const Reported& other) const {
-			return members == other.members && tablesPlaying == other.tablesPlaying &&
-				invitation == other.invitation && banned == other.banned && details == other.details;
-		}
-	} reported_;
+	Status reported_;
 	bool haveReported_ = false;
 };
 

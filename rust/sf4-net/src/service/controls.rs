@@ -45,6 +45,16 @@ impl Actor {
             .unwrap_or(0)
     }
 
+    /// Close a control and tell the native side.
+    pub(super) fn close_control(&mut self, peer: EndpointId) -> io::Result<()> {
+        let control = self.remove_control(peer);
+        self.emit(Event::ControlClosed {
+            epoch: self.epoch,
+            peer,
+            control,
+        })
+    }
+
     /// Bind a control to its accepted incarnation and tell the native side.
     /// Every accepted Admission is published; the native record ignores a
     /// repeat for the incarnation it already holds.
@@ -128,19 +138,13 @@ impl Actor {
     }
 
     pub(super) fn control_rejoin_member(&self, peer: EndpointId) -> Option<u64> {
-        if !self
-            .committed_native_members
-            .as_ref()
-            .is_some_and(|members| members.contains(&peer))
-        {
-            return None;
-        }
+        let incarnation = *self.committed_native_members.as_ref()?.get(&peer)?;
         self.admissions
             .values()
             .find(|admission| {
                 self.room == Some(admission.room)
                     && admission.primary_endpoint == peer
-                    && admission.incarnation != 0
+                    && admission.incarnation == incarnation
                     && !self.retired_incarnations.contains(&admission.incarnation)
                     && !self
                         .pending_retired_incarnations
@@ -261,7 +265,7 @@ impl Actor {
             }
             return Ok(());
         }
-        if let Some(account) = parked.channel.account.as_ref() {
+        if let Some(account) = parked.channel.account() {
             self.remember_public_member(peer, account);
         }
         self.install_control(parked.epoch, parked.channel, parked.joined_invite)
@@ -446,6 +450,18 @@ impl Actor {
                     self.emit_coordination_state().await?;
                     return Ok(true);
                 };
+                // A match room takes an Admission only from an endpoint it
+                // seats (`admits_control`). The handshake gate covers new connections;
+                // a control opened before the bind is not covered by it, and
+                // would otherwise keep presenting fresh incarnations, each
+                // superseding the fenced one so its retirement never closes
+                // the control. The first incarnation it was admitted under
+                // stays fenced and is retired. Ignored, not refused: an
+                // error would close the control before that retirement
+                // commits, and a voter's control must stay open until then.
+                if !self.admits_control(&peer) {
+                    return Ok(true);
+                }
                 // An Admission describes the presenting peer's own process:
                 // never this process's identity, and never an incarnation or
                 // coordination key that another accepted admission holds. The
@@ -939,11 +955,11 @@ impl Actor {
             return Ok(());
         };
         let control = self.controls.get(&peer).map(ControlWorker::id).unwrap_or(0);
-        let account = self
-            .controls
-            .get(&peer)
+        let worker = self.controls.get(&peer);
+        let account = worker
             .and_then(ControlWorker::account)
             .map(ToString::to_string);
+        let badge = worker.and_then(ControlWorker::badge);
         let (latency, latency_relay) = self.latency_route();
         self.emit(Event::Connected {
             epoch,
@@ -951,6 +967,7 @@ impl Actor {
             room,
             control,
             account,
+            badge,
             latency,
             latency_relay,
         })?;

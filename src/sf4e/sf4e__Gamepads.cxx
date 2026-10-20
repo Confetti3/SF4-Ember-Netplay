@@ -210,6 +210,10 @@ void Rebuild() {
     }
 }
 
+// SDL's buttons for the extra buttons, in Extra order.
+constexpr std::array<SDL_GamepadButton, ExtraCount> ExtraButtons = {
+    SDL_GAMEPAD_BUTTON_TOUCHPAD, SDL_GAMEPAD_BUTTON_GUIDE, SDL_GAMEPAD_BUTTON_MISC1, SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1,
+    SDL_GAMEPAD_BUTTON_LEFT_PADDLE1, SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2, SDL_GAMEPAD_BUTTON_LEFT_PADDLE2};
 State ReadState(SDL_Gamepad* pad) {
     constexpr std::array<SDL_GamepadButton, static_cast<unsigned>(Button::Count)> buttons = {
         SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH,
@@ -220,6 +224,7 @@ State ReadState(SDL_Gamepad* pad) {
     };
     State state;
     for (unsigned i = 0; i < buttons.size(); ++i) state.buttons[i] = SDL_GetGamepadButton(pad, buttons[i]);
+    for (unsigned i = 0; i < ExtraCount; ++i) state.extras[i] = SDL_GetGamepadButton(pad, ExtraButtons[i]);
     state.leftX = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_LEFTX);
     state.leftY = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_LEFTY);
     state.rightX = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_RIGHTX);
@@ -313,6 +318,7 @@ void UpdateLocked(bool rebuild) {
     RawState setupRaw; bool setupConnected = false;
     for (const auto& pad : inventory.pads) {
         PadFrame frame; frame.pad = pad;
+        GamepadLayouts::Read(frame, inventory);
         const bool settingUp = setup.state.active && Same(pad.identity, setup.identity);
         auto handle = handles.find(pad.id);
         if (handle != handles.end() && SDL_GamepadConnected(handle->second)) {
@@ -328,11 +334,15 @@ void UpdateLocked(bool rebuild) {
             frame.has[7] = SDL_GamepadHasAxis(handle->second, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
             frame.has[8] = SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_LEFT_STICK);
             frame.has[9] = SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
-            frame.pressed = std::any_of(frame.state.buttons.begin(), frame.state.buttons.end(), [](bool held) { return held; }) ||
+            for (unsigned i = 0; i < ExtraCount; ++i) frame.hasExtras[i] = SDL_GamepadHasButton(handle->second, ExtraButtons[i]);
+            const auto held = [](bool down) { return down; };
+            frame.pressed = std::any_of(frame.state.buttons.begin(), frame.state.buttons.end(), held) ||
+                std::any_of(frame.state.extras.begin(), frame.state.extras.end(), held) ||
                 frame.state.leftTrigger > 16383 || frame.state.rightTrigger > 16383;
             if (pad.slot >= 0) {
                 next[pad.slot].id = pad.id;
-                next[pad.slot].fields = settingUp ? XInputFields{} : MapToXInput(frame.state);
+                // The layout's extra button copies reach what the game reads, not the held glyphs.
+                next[pad.slot].fields = settingUp ? XInputFields{} : MapToXInput(WithExtraCopies(frame.state, frame.extras));
             }
         }
         RawState rawState;
@@ -351,7 +361,6 @@ void UpdateLocked(bool rebuild) {
             setupConnected = (handle != handles.end() && SDL_GamepadConnected(handle->second)) ||
                 (raw != rawHandles.end() && SDL_JoystickConnected(raw->second.handle));
         }
-        GamepadLayouts::Read(frame, inventory);
         frames.push_back(std::move(frame));
     }
     const bool wasSetupActive = setup.state.active;
@@ -503,7 +512,6 @@ void Shutdown() {
 void LogInventory() {
     std::unique_lock lock(mutex);
     logReady = true;
-    GamepadLayouts::FlushLogs();
     LogLocked();
 }
 

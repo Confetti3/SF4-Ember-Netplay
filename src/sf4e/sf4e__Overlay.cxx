@@ -85,6 +85,8 @@ static sf4e::input::TrainingControls s_trainingControls;
 static std::atomic<bool> trainingAvailable{false};
 // A replay plays with Ember's controls: the window procedure keeps their keys.
 static std::atomic<bool> replayPlayback{false};
+// This PC watches a room's match: the window procedure keeps Alt+Enter.
+static std::atomic<bool> watchingStream{false};
 // Go now's Enter on the Training call, taken where the key arrives (Win32Input.hxx).
 static sf4e::ui::GoNowKey s_goNowKey;
 static int lobbyStageID = 0, lobbyMenuCharaID = 0;
@@ -603,6 +605,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto& playback = snapshot.replays.playback;
     const bool replayKeys = playback.playback && !playback.exporting;
     replayPlayback = replayKeys;
+    watchingStream = snapshot.watchedGame.Active();
     if (focused && replayKeys && !presentation.Visible() && !nativePaused && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().KeyAlt) {
         using sf4e::replaytransport::Command;
         const auto send = [&playback](Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); };
@@ -815,7 +818,7 @@ void Overlay::FreeOverlay() {
     sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
     capture = false; pointerCapture = false;
     s_menuPads.Reset();
-    trainingAvailable = false; replayPlayback = false;
+    trainingAvailable = false; replayPlayback = false; watchingStream = false;
     fMainMenu::bOverrideItemObserverState = -1;
     if (!ImGui::GetCurrentContext()) return;
     controllerNavigation.Reset();
@@ -871,6 +874,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     // The position hotkeys only as plain keys, so Alt+F4 still reaches the game.
     const bool plainKey = message == WM_KEYDOWN || message == WM_KEYUP, systemKey = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
     if (sf4e::replaytransport::KeepsKey(replayPlayback, message, static_cast<unsigned>(w))) return 1;
+    if (sf4e::ui::KeepsAltEnter(message, w, l, watchingStream)) return 1;
     if (trainingAvailable && !replayPlayback && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
         (plainKey && w >= VK_F1 && w <= VK_F12 && sf4e::ui::TrainingHotkeyBound(static_cast<int>(w - VK_F1))))) return 1;
     return handled;

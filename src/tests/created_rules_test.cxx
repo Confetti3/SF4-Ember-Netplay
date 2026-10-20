@@ -36,7 +36,7 @@ struct Room {
 	}
 	room::MemberId Join(const char* account, int peer) {
 		room::MemberProfile profile;
-		profile.account = account;
+		profile.admission.account = account;
 		const auto joined = authority.Join(account, room::ConnectionRef{"host", std::to_string(peer)}, false, profile);
 		CHECK(joined.accepted);
 		return joined.accepted ? joined.snapshot.members.back().id : 0;
@@ -140,7 +140,7 @@ static void TestDeadlineAndHostChange() {
 		room::RoomAuthority authority("Open Mic", 8, 9, room::PublicRoomRules());
 		CHECK(authority.SetServerOwned());
 		room::MemberProfile first, second;
-		first.account = "emb1-first"; second.account = "emb1-creator";
+		first.admission.account = "emb1-first"; second.admission.account = "emb1-creator";
 		CHECK(authority.Join("First", room::ConnectionRef{"host", "1"}, false, first).accepted);
 		const auto joined = authority.Join("Creator", room::ConnectionRef{"host", "2"}, false, second);
 		CreatedRules rules;

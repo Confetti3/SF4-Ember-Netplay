@@ -1,0 +1,24 @@
+{
+  "id": "startgg",
+  "display_name": "start.gg",
+  "client_id": "your-startgg-client-id",
+  "scope": "user.identity",
+  "authorize_url": "https://start.gg/oauth/authorize",
+  "token_url": "https://api.start.gg/oauth/access_token",
+  "token_encoding": "json",
+  "token_params": { "scope": "user.identity" },
+  "user": {
+    "method": "POST",
+    "url": "https://api.start.gg/gql/alpha",
+    "body": { "query": "query CurrentUser { currentUser { id player { gamerTag } } }" },
+    "id_pointer": "/data/currentUser/id",
+    "username_pointer": "/data/currentUser/player/gamerTag"
+  },
+  "username_rule": {
+    "characters": "printable",
+    "max_length": 64,
+    "case_insensitive": false
+  },
+  "lookup_by": "user_id",
+  "hosts": ["start.gg", "api.start.gg"]
+}

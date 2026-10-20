@@ -1,0 +1,29 @@
+{
+  "checkpoint": {
+    "members": [
+      {"data": {"authenticatedEndpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+      {"data": {"authenticatedEndpoint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},
+      {"data": {"authenticatedEndpoint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}},
+      {"data": {"authenticatedEndpoint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}}
+    ],
+    "room": {
+      "version": 2,
+      "snapshot": {
+        "tournament": {
+          "match_id": "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12",
+          "assignment_generation": 1,
+          "binding_revision": 1,
+          "games_to_win": 3,
+          "fighters": [
+            {"endpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "ember_id": "emb1_player1"},
+            {"endpoint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "ember_id": "emb1_player2"}
+          ],
+          "watchers": [
+            {"endpoint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "ember_id": "emb1_watcher1"},
+            {"endpoint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "ember_id": "emb1_watcher2"}
+          ]
+        }
+      }
+    }
+  }
+}

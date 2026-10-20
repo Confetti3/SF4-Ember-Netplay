@@ -1116,6 +1116,12 @@ msgstr "Rychlejší obraz (o 1 snímek dříve)"
 msgid "player.faster_display_detail"
 msgstr "Hra zobrazí každý snímek, jakmile je hotový, ne o snímek později. Pokud hra na tomto počítači klesne pod 60 snímků za sekundu, vypněte to. Týká se jen tohoto počítače: druhý hráč to zapínat nemusí. Změna se projeví při příštím spuštění hry."
 
+msgid "player.borderless"
+msgstr "Bez okraje"
+
+msgid "player.borderless_detail"
+msgstr "Hra vyplní obrazovku v okně bez rámečku, vykreslená v nativním rozlišení obrazovky v poměru 16:9, s černými pruhy na širší nebo vyšší obrazovce. Když je zapnuto, Alt+Enter ani vlastní volby rozlišení a celé obrazovky ve hře nic nedělají; hra si tam vaši volbu ponechá na dobu, kdy bude vypnuto. Týká se jen tohoto PC. Změny se projeví při dalším spuštění hry."
+
 
 
 msgid "settings.interface_title"
@@ -1350,7 +1356,13 @@ msgid "room.private_status"
 msgstr "Soukromá místnost / jen s pozvánkou"
 
 msgid "room.tournament_status"
-msgstr "Turnajový zápas, hraje se na {0} výhry. Připojit se mohou jen jeho dva hráči."
+msgstr "Turnajový zápas, hraje se na {0} výhry. Hrát mohou jen jeho dva hráči."
+
+msgid "room.tournament_status_watched"
+msgstr "Turnajový zápas, hraje se na {0} výhry. Diváků: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Sledujete turnajový zápas. Hrát mohou jen jeho dva hráči."
 
 msgid "room.reconnecting"
 msgstr "Obnovování spojení..."
@@ -2569,6 +2581,18 @@ msgstr "U stolu"
 msgid "room.status.ready"
 msgstr "Připraven"
 
+msgid "class.master"
+msgstr "Mistr"
+
+msgid "class.grand_master"
+msgstr "Velmistr"
+
+msgid "class.tip"
+msgstr "Třída {0}"
+
+msgid "class.unsettled"
+msgstr "Žádné nedávné zápasy, takže se mohla změnit."
+
 msgid "room.status.playing"
 msgstr "Hraje"
 
@@ -2655,6 +2679,8 @@ msgstr "{0} / HOSTITEL"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Divák"
 
 msgid "room.members"
 msgstr "Členové"
@@ -3332,6 +3358,12 @@ msgstr "Akci diváka se nepodařilo odeslat; zkouší se znovu."
 msgid "runtime.return_main_menu"
 msgstr "Před otevřením místnosti se vraťte do hlavní nabídky hry."
 
+msgid "runtime.in_tournament_match"
+msgstr "Hrajete nebo sledujete turnajový zápas. Dokončete ho nebo ho ukončete v části Turnajové zápasy, než otevřete jinou místnost nebo se do ní připojíte."
+
+msgid "runtime.watch_leave_room"
+msgstr "Před sledováním turnajového zápasu opusťte svou místnost."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Ukládá se výsledek poslední hry. Zkuste to znovu za několik sekund."
 
@@ -3618,7 +3650,7 @@ msgid "identity.local_passphrase"
 msgstr "Heslo pro tento počítač"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine a Proton nemohou používat ochranu klíčů Windows, proto váš klíč chrání heslo. Zadáte ho jednou při každém spuštění hry."
+msgstr "Wine a Proton (například na Steam Decku) nemohou používat běžnou ochranu klíčů, proto váš klíč chrání heslo. Zadáte ho jednou při každém spuštění hry."
 
 msgid "identity.repeat_passphrase"
 msgstr "Zopakujte heslo"
@@ -3640,6 +3672,9 @@ msgstr "Vytvořit Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "Vytvoří váš klíč v tomto počítači. Použít ho může jen tento účet Windows."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Vytvoří váš klíč v tomto počítači, chráněný heslem výše."
 
 msgid "identity.leave_room"
 msgstr "Pro změnu Ember ID opusťte místnost a vraťte se do hlavní nabídky."
@@ -3850,6 +3885,84 @@ msgstr "Použít jiný účet Discord"
 
 msgid "connect.change_detail"
 msgstr "Otevře Discord ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnajový web pak musí používat tento účet."
+
+msgid "site.title"
+msgstr "Připojit {0}"
+
+msgid "site.row_detail"
+msgstr "Připojte svůj účet {0}, aby vaše Ember ID našly turnaje na {0}."
+
+msgid "site.go_detail"
+msgstr "Po připojení {0} mohou turnaje na {0} najít vaše Ember ID. Ember otevře {0} ve vašem prohlížeči: tam schvalte účet, který používá váš turnaj."
+
+msgid "site.setting_up_detail"
+msgstr "Ember otevírá {0} ve vašem prohlížeči."
+
+msgid "site.waiting"
+msgstr "Schvalte to v prohlížeči. Tato obrazovka se aktualizuje, jakmile bude {0} připojen."
+
+msgid "site.waiting_label"
+msgstr "Čekání na {0}"
+
+msgid "site.waiting_detail"
+msgstr "Schvalte v prohlížeči pomocí účtu {0}, který používá váš turnaj. Tato obrazovka se aktualizuje sama."
+
+msgid "site.connected"
+msgstr "{0} připojen"
+
+msgid "site.connected_detail"
+msgstr "Turnaje na {0} vás nyní podle tohoto účtu najdou."
+
+msgid "site.change"
+msgstr "Použít jiný účet {0}"
+
+msgid "site.change_detail"
+msgstr "Otevře {0} ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnaj pak musí používat tento účet."
+
+msgid "site.remove_detail"
+msgstr "Odpojí tento účet {0} od vašeho Ember ID v této službě. Turnaje na {0} vás podle něj už nenajdou."
+
+msgid "site.cancel_detail"
+msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit {0}."
+
+msgid "site.off"
+msgstr "Přihlášení přes {0} je vypnuté"
+
+msgid "site.off_detail"
+msgstr "Tato turnajová služba teď přihlášení přes {0} nenabízí. Zkuste to později."
+
+msgid "site.retry_detail"
+msgstr "Znovu načte váš účet {0}."
+
+msgid "site.opened"
+msgstr "Dokončete přihlášení k {0} v prohlížeči."
+
+msgid "site.done"
+msgstr "{0} připojen jako {1}."
+
+msgid "site.removed"
+msgstr "Účet {0} byl odpojen."
+
+msgid "site.cancelled"
+msgstr "Čekání na {0} bylo zastaveno."
+
+msgid "site.busy"
+msgstr "Přihlášení přes {0} je teď vytížené. Zkuste to později."
+
+msgid "site.gone"
+msgstr "Tato turnajová služba už přihlášení přes {0} nenabízí."
+
+msgid "site.no_service"
+msgstr "Turnajová služba Ember není nastavena"
+
+msgid "site.no_service_detail"
+msgstr "{0} se připojuje přes turnajovou službu Ember. Nejprve ji vyhledejte v části Propojené účty a pak se sem vraťte."
+
+msgid "site.screen"
+msgstr "Účet webu"
+
+msgid "identity.failure.browser"
+msgstr "Ember nemohl otevřít váš prohlížeč."
 
 msgid "connect.link_waiting"
 msgstr "Turnajový web vás žádá o připojení Discordu. Ember otevře obrazovku Připojit Discord, až opustíte místnost."
@@ -4177,6 +4290,63 @@ msgstr "Tento zápas není ve vašem seznamu. Patří jiným hráčům, nebo tat
 
 msgid "tournament.failure.link_service"
 msgstr "Důvěřujte této turnajové službě v části Propojené účty a pak odkaz na zápas otevřete znovu."
+
+msgid "tournament.watch.row"
+msgstr "Sledovat tento zápas"
+
+msgid "tournament.watch.row_detail"
+msgstr "Diváci sledují zápas z jeho místnosti. Nemohou hrát ani psát do chatu a o tom, kdo smí sledovat, rozhoduje organizátor."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Opustí místnost zápasu. Zápas můžete znovu sledovat z tohoto seznamu."
+
+msgid "tournament.watch.needs_id"
+msgstr "Sledování zápasu vyžaduje Ember ID. Vytvořte si ho tady, trvá to chvilku."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Turnajová služba tohoto zápasu zatím není důvěryhodná. Přidejte ji v části Propojené účty."
+
+msgid "tournament.watch.state.asking"
+msgstr "Dotaz na turnajovou službu."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Čekání, až hráči otevřou místnost zápasu."
+
+msgid "tournament.watch.state.full"
+msgstr "Tento zápas má tolik diváků, kolik organizátor povoluje. Čeká se na volné místo."
+
+msgid "tournament.watch.state.joining"
+msgstr "Připojování do místnosti zápasu."
+
+msgid "tournament.watch.state.watching"
+msgstr "Sledujete {0} vs {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "Organizátor tohoto zápasu ho divákům neotevřel."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "Organizátor vás odebral z diváků tohoto zápasu."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "V tomto zápase hrajete. Použijte místo toho Hrát."
+
+msgid "tournament.watch.refused.build"
+msgstr "Hráči mají jinou verzi Ember. Sledování vyžaduje stejnou."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Tato turnajová služba sledování nenabízí."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Sledování skončilo, protože jste v jiné místnosti. Opusťte ji a pak zápas začněte sledovat znovu."
+
+msgid "tournament.watch.finished_notice"
+msgstr "Zápas, který jste sledovali, skončil."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Přestali jste sledovat: organizátor vás odebral."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "Místnost zápasu se zavřela."
 
 msgid "rules.set_length"
 msgstr "Délka setu"
@@ -5470,6 +5640,36 @@ msgstr "Vyberte a pak stiskněte tlačítko, které vrací zpět v nabídkách E
 
 msgid "button_layout.menu_taken"
 msgstr "{0} už je: {1}. Zvolte jiné tlačítko."
+
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Tlačítko Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Tlačítko ztlumení"
+
+msgid "button_layout.extra.misc"
+msgstr "Další tlačítko"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Pravé pádlo {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Levé pádlo {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Vyberte tlačítko, které {0} kopíruje. {0} pak funguje jako toto tlačítko."
+
+msgid "button_layout.extra_copy"
+msgstr "Stejné jako {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} teď funguje jako {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} teď nic nedělá."
 
 msgid "room.delay_policy"
 msgstr "Zpoždění vstupu v místnosti"

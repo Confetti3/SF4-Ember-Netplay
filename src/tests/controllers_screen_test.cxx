@@ -57,7 +57,7 @@ static void Rows() {
     CHECK(ControllerRows(Layer::Failed, {pad}, true, true)[0].id == "pads-unavailable");
     CHECK(LayerPending(false, true) && LayerPending(true, false) && !LayerPending(true, true) && !LayerPending(false, false));
     auto player = PlayerControllerRows({}, "DualSense", input::PadXInput, {Brand::PlayStation}, pads, true, true, true, true);
-    const char* ids[] = {"name", "controllers", "capture", "keyboard", "button-prompts", "controls", "game-buttons", "background-play", "lower-input-lag", "lower-keyboard-lag", "faster-display", "game-reads-pads"};
+    const char* ids[] = {"name", "controllers", "capture", "keyboard", "button-prompts", "controls", "game-buttons", "background-play", "lower-input-lag", "lower-keyboard-lag", "faster-display", "borderless", "game-reads-pads"};
     CHECK(player.size() == std::size(ids));
     for (unsigned i = 0; i < player.size(); ++i) CHECK(player[i].id == ids[i]);
     CHECK(player[1].value == "7 connected" && !player[1].adjustable && player[1].detailText == DetailText::Name && player[2].detailText == DetailText::Name);

@@ -36,6 +36,7 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 constexpr const wchar_t* TransactionName = UpdateTransactionName;
 constexpr wchar_t LockName[] = L".ember-update.lock";
+}
 void CheckPath(const fs::path& root, const fs::path& relative) {
     if (relative.empty() || relative.is_absolute() || relative.has_root_name()) throw std::runtime_error("Invalid update path");
     auto path = root;
@@ -48,6 +49,7 @@ void CheckPath(const fs::path& root, const fs::path& relative) {
         if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) throw std::runtime_error("Reparse point in package destination");
     }
 }
+namespace {
 // A file the transaction changes, with the hash of its backup when the file
 // existed.
 struct Change { fs::path relative; std::optional<std::string> prior; };

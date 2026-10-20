@@ -2,6 +2,7 @@
 #include "../common/WipeText.hxx"
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace sf4e { namespace netplay {
@@ -13,7 +14,59 @@ enum class IdentityOp : std::uint8_t {
     BridgeList, BridgeInspect, BridgeApprove, BridgeForget,
     LinkList, LinkClaim, LinkCancel, LinkRemove,
     DiscordStatus, DiscordConnect, DiscordRemove, DiscordCancel,
+    SiteStatus, SiteConnect, SiteRemove, SiteCancel,
 };
+
+// Where a player connects an account to their Ember ID through a browser
+// sign-in on a tournament service: Discord, or one of the sign-in sites the
+// service lists (Challonge, start.gg and later ones, each named by its ID in
+// the request's `site`). Each has four requests: read the account, start a
+// sign-in (the helper opens the site's page), disconnect, and end a sign-in.
+enum class SignInSource : std::uint8_t { Discord, Site };
+enum class SignInStep : std::uint8_t { Status, Connect, Remove, Cancel };
+constexpr std::size_t SignInSourceCount = 2, SignInStepCount = 4;
+struct SignInOp { SignInSource source; SignInStep step; };
+constexpr IdentityOp SignInOps[SignInSourceCount][SignInStepCount] = {
+    {IdentityOp::DiscordStatus, IdentityOp::DiscordConnect, IdentityOp::DiscordRemove, IdentityOp::DiscordCancel},
+    {IdentityOp::SiteStatus, IdentityOp::SiteConnect, IdentityOp::SiteRemove, IdentityOp::SiteCancel},
+};
+constexpr IdentityOp SignInRequest(SignInSource source, SignInStep step) {
+    return SignInOps[static_cast<std::size_t>(source)][static_cast<std::size_t>(step)];
+}
+// The source and step a request is; none for any other request.
+constexpr std::optional<SignInOp> SignInOf(IdentityOp op) {
+    for (std::size_t source = 0; source < SignInSourceCount; ++source)
+        for (std::size_t step = 0; step < SignInStepCount; ++step)
+            if (SignInOps[source][step] == op) return SignInOp{static_cast<SignInSource>(source), static_cast<SignInStep>(step)};
+    return std::nullopt;
+}
+
+// What a request does, the one classification the runtime and the interface
+// both use. A read asks the helper or a service and changes nothing, so it
+// goes through during a live game. A preview is key work that only shows
+// something (a backup's contents). A key change creates, replaces or retires
+// the key, only outside a room. An open starts a site's sign-in in the
+// browser. A cleanup ends a sign-in the player cancelled or left, and nobody
+// waits for its answer. Anything else changes what the player asked to.
+enum class IdentityEffect : std::uint8_t { Read, Preview, KeyChange, Open, Cleanup, Change };
+constexpr IdentityEffect EffectOf(IdentityOp op) {
+    if (const auto signIn = SignInOf(op)) {
+        switch (signIn->step) {
+        case SignInStep::Status: return IdentityEffect::Read;
+        case SignInStep::Connect: return IdentityEffect::Open;
+        case SignInStep::Cancel: return IdentityEffect::Cleanup;
+        case SignInStep::Remove: return IdentityEffect::Change;
+        }
+    }
+    switch (op) {
+    case IdentityOp::Status: case IdentityOp::BridgeList: case IdentityOp::BridgeInspect: case IdentityOp::LinkList:
+        return IdentityEffect::Read;
+    case IdentityOp::PreviewImport: return IdentityEffect::Preview;
+    case IdentityOp::Enable: case IdentityOp::Import: case IdentityOp::Reset: return IdentityEffect::KeyChange;
+    default: return IdentityEffect::Change;
+    }
+}
+
 struct IdentityRequest {
     IdentityOp op = IdentityOp::None;
     // Chosen by the interface, so it can tell its request's answer apart.
@@ -25,6 +78,8 @@ struct IdentityRequest {
     std::string origin, bridge, connection, code;
     // The claim or link to cancel or remove.
     std::string target;
+    // The sign-in site the site requests are for, by its ID.
+    std::string site;
     // Import: the ID its preview showed; Reset: the ID being retired.
     std::string emberId;
     bool replace = false;
@@ -33,11 +88,11 @@ struct IdentityRequest {
     bool Valid() const {
         return passphrase.size() <= MaxSecret && localPassphrase.size() <= MaxSecret && path.size() <= MaxPath &&
             origin.size() <= MaxField && bridge.size() <= MaxField && connection.size() <= MaxField &&
-            code.size() <= MaxField && target.size() <= MaxField && emberId.size() <= MaxField;
+            code.size() <= MaxField && target.size() <= MaxField && emberId.size() <= MaxField && site.size() <= MaxField;
     }
     std::size_t Bytes() const {
         return passphrase.size() + localPassphrase.size() + path.size() + origin.size() + bridge.size() +
-            connection.size() + code.size() + target.size() + emberId.size();
+            connection.size() + code.size() + target.size() + emberId.size() + site.size();
     }
     // Every copy wipes its secrets when it goes, including one a full queue refused.
     IdentityRequest() = default;

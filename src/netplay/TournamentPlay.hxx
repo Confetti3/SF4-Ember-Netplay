@@ -10,6 +10,7 @@
 
 #include "../common/MatchResult.hxx"
 #include "../session/RoomModel.hxx"
+#include "MatchRoomFollower.hxx"
 
 // Playing one bridge-run tournament match (spec 14 to 16), as a pure state
 // machine the runtime ticks. It decides which helper request to send, when to
@@ -17,7 +18,8 @@
 // binding, when to fetch each game's permit and tell the room, and what to
 // report after each game. It never touches the game, the helper or the room
 // itself: the runtime turns each Output into the real call and feeds every
-// answer back.
+// answer back. Which room to join or leave is MatchRoomFollower's: a room the
+// player opened by hand is never left, joined over or published.
 namespace sf4e { namespace netplay { namespace tournament {
 
 // How often a fighter claims the match again: it renews a provisioning lease
@@ -35,9 +37,6 @@ constexpr std::uint64_t OpenTimeoutMs = 30000;
 // How many times a game's report is handed to the helper before the match
 // stops as unsaved; the tries are RetryMs apart.
 constexpr int MaxReportAttempts = 6;
-// How long a finished match's room waits for its last game's battle to close
-// by itself before it is left all the same.
-constexpr std::uint64_t FinalBattleHoldMs = 60000;
 // Why a match finished whose last game ended on a lost connection (Reason()).
 constexpr const char* ConnectionLostReason = "connection_lost";
 
@@ -67,21 +66,6 @@ struct PrepareReply {
 	std::uint64_t retryAfterMs = 0;
 };
 
-// The room as the runtime sees it this tick.
-struct RoomView {
-	// In an open room. `opening` while a host or join is under way.
-	bool joined = false;
-	bool opening = false;
-	// 32 lowercase hex digits, and the invitation another player joins with.
-	std::string roomId;
-	std::string invitation;
-	// This game applies the room's changes (the coordination leader).
-	bool authorityWritable = false;
-	const room::Snapshot* snapshot = nullptr;
-	// A game is being prepared or played on this PC (netplay::Fighting).
-	bool fighting = false;
-};
-
 struct Output {
 	enum class Kind {
 		Claim, Publish, Prepare, Report,  // helper requests
@@ -101,6 +85,10 @@ struct Output {
 };
 
 enum class Phase { Idle, Claiming, Opening, InRoom, Finished, Failed };
+
+// Claiming, opening or in the room: a match under way. Idle, finished and
+// failed ones hold nothing.
+inline bool PlayUnderWay(Phase phase) { return phase == Phase::Claiming || phase == Phase::Opening || phase == Phase::InRoom; }
 
 class TournamentPlay {
 public:
@@ -152,22 +140,23 @@ private:
 	void SendReport(Output report, std::vector<Output>& out);
 	void ResendReports(std::uint64_t nowMs, std::vector<Output>& out);
 	void ReportsSettled();
-	void ReleaseHeldLeave(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out);
 
 	Phase phase_ = Phase::Idle;
 	std::string bridgeId_, matchId_, reason_;
 	std::vector<Output> pending_;
 	bool claimInFlight_ = false, prepareInFlight_ = false, publishInFlight_ = false;
-	std::uint64_t nextClaimMs_ = 0, nextPrepareMs_ = 0, nextPublishMs_ = 0, openedAtMs_ = 0;
+	std::uint64_t nextClaimMs_ = 0, nextPrepareMs_ = 0, nextPublishMs_ = 0;
 	// The Ready the last claim said, and when it was sent. A claim that
 	// failed waits out its retry, whatever changed.
 	bool claimedReady_ = false, claimFailed_ = false;
 	std::uint64_t claimedAtMs_ = 0;
 	// The provisioning lease from a Host answer, until the room is published.
 	std::string leaseId_, fence_;
-	bool hostRequested_ = false, joinRequested_ = false, leaving_ = false, published_ = false;
-	// The room the bridge names for the match.
-	std::string targetRoom_, targetInvitation_, publishedInvitation_, publishingInvitation_;
+	bool published_ = false;
+	std::string publishedInvitation_, publishingInvitation_;
+	// The room the bridge names for the match, hosting or joining it, and
+	// leaving: at once, or after the last battle of a finished match.
+	MatchRoomFollower room_{OpenTimeoutMs};
 	// When the binding was last handed to the room. The room can refuse it for
 	// a moment (a quorum round in progress), so it is offered again, at most
 	// once a second, until the room shows it.
@@ -191,11 +180,6 @@ private:
 	// a result, clears it, and so does an abort for another reason.
 	std::uint64_t lostGeneration_ = 0;
 	bool lastLostConnection_ = false;
-	// A finished match's room is left once its last game's battle has closed
-	// by itself, so the result stays on screen and Ember's menu comes back
-	// after it. The wait is bounded from the first tick that holds it.
-	bool leaveHeld_ = false;
-	std::uint64_t leaveHeldUntilMs_ = 0;
 };
 
 // The wire name of a native result in a report.

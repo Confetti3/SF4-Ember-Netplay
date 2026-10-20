@@ -1853,13 +1853,13 @@ static void TestServerOwnedRoom() {
 	CHECK(!join(1, "NoAccount") && transport->Contains("join_rej") && server.RoomSnapshot()->members.empty());
 	// Connection 1 is not the hosting player here: whoever joins first moderates.
 	hello(2);
-	server.SetConnectionAccount(2, "ember-2");
+	server.SetConnectionAdmission(2, {"ember-2"});
 	CHECK(join(2, "First") && isHost(2) && server.RoomSnapshot()->serverOwned);
-	server.SetConnectionAccount(1, "ember-1");
+	server.SetConnectionAdmission(1, {"ember-1"});
 	CHECK(join(1, "Second") && !isHost(1) && isHost(2));
 	// One member per account, however it connects.
 	hello(3);
-	server.SetConnectionAccount(3, "ember-1");
+	server.SetConnectionAdmission(3, {"ember-1"});
 	CHECK(!join(3, "Twin") && transport->Contains("join_rej"));
 
 	// The host kicks the second member. The ban is the account.
@@ -1875,24 +1875,24 @@ static void TestServerOwnedRoom() {
 	CHECK(server.roomMembers.count(1) == 0);
 	CHECK(server.BannedAccounts() == std::vector<std::string>{"ember-1"} && server.roomBannedIdentities.empty());
 	hello(4);
-	server.SetConnectionAccount(4, "ember-1");
+	server.SetConnectionAdmission(4, {"ember-1"});
 	CHECK(!join(4, "Returned") && transport->Contains("join_rej"));
-	server.SetConnectionAccount(4, "ember-4");
+	server.SetConnectionAdmission(4, {"ember-4"});
 	CHECK(join(4, "Fresh") && !isHost(4));
 
 	// An account lives as long as its connection, and an empty room stays open.
-	CHECK(server._connectionAccounts.count(2) == 1);
+	CHECK(server._connectionAdmissions.count(2) == 1);
 	transport->disconnected.push_back(2);
 	step();
-	CHECK(server._connectionAccounts.count(2) == 0 && isHost(4));
+	CHECK(server._connectionAdmissions.count(2) == 0 && isHost(4));
 	transport->disconnected.push_back(4);
 	step();
 	CHECK(server.RoomSnapshot()->members.empty() && server.RoomSnapshot()->host == 0 && !server.RoomSnapshot()->closed);
 	hello(5);
-	server.SetConnectionAccount(5, "ember-5");
+	server.SetConnectionAdmission(5, {"ember-5"});
 	CHECK(join(5, "Next") && isHost(5));
 	server.Close();
-	CHECK(server._connectionAccounts.empty());
+	CHECK(server._connectionAdmissions.empty());
 }
 
 // Two fighters and a spectator at table 0 of a room whose replicas import

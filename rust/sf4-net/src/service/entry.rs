@@ -151,6 +151,7 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         public: None,
         coordination_port,
         refresh_roster: None,
+        seats: Default::default(),
         wake: Arc::new(Notify::new()),
         latency: Default::default(),
     };

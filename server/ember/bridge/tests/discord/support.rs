@@ -1,111 +1,47 @@
 //! The stand-in Discord, the bridge configured for it, and the requests the
-//! Discord sign-in tests make.
-use axum::{
-    Form, Router,
-    http::{HeaderMap, StatusCode as AxumStatus, header},
-    routing::{get, post},
-};
+//! Discord sign-in tests make, on the sign-in helpers both sites share
+//! (`common::sign_in`).
 use ember_bridge::{config, integrations::Secrets};
-use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
-use tokio::sync::Notify;
 use zeroize::Zeroizing;
 
-use crate::common::{Bridge, Player};
+pub use crate::common::sign_in::{Gate, confirmation, player};
+use crate::common::{
+    Bridge, Player,
+    sign_in::{self, Code, FakeSite, Routes},
+};
 
 pub const KATE: &str = "274220342558756145";
 pub const SAM: &str = "1725265127372152396";
 /// A platform that finds players by Discord account.
 pub const BLUMINT: &str = "bm-partner";
 
-/// A code the stand-in Discord holds until the test lets it go: `arrived`
-/// says Discord has it, `release` lets it sign Kate in. One per test, so
-/// tests holding a code run side by side.
-pub struct Gate {
-    pub arrived: Notify,
-    pub release: Notify,
-}
-
-impl Gate {
-    const fn new() -> Self {
-        Self {
-            arrived: Notify::const_new(),
-            release: Notify::const_new(),
-        }
-    }
-}
-
 pub static SLOW: Gate = Gate::new();
 pub static HELD: Gate = Gate::new();
 pub static LATE: Gate = Gate::new();
 
-/// A stand-in for Discord's token and user endpoints. Codes `good-kate`,
-/// `good-sam` and the gated `slow-kate`, `held-kate` and `late-kate` sign in
-/// those users; anything else is refused.
+/// A stand-in for Discord's token and user endpoints, and its API base.
+/// Codes `good-kate`, `good-sam` and the gated `slow-kate`, `held-kate` and
+/// `late-kate` sign in those users; anything else is refused.
 pub async fn fake_discord() -> String {
-    type Answer = (AxumStatus, [(header::HeaderName, &'static str); 1], String);
-    fn answer(status: AxumStatus, body: Json) -> Answer {
-        (
-            status,
-            [(header::CONTENT_TYPE, "application/json")],
-            body.to_string(),
-        )
-    }
-    async fn token(Form(form): Form<std::collections::HashMap<String, String>>) -> Answer {
-        let valid = form.get("grant_type").map(String::as_str) == Some("authorization_code")
-            && form.get("client_secret").map(String::as_str) == Some("test-secret")
-            && form.get("client_id").map(String::as_str) == Some("1546980049692135514")
-            && form
-                .get("redirect_uri")
-                .is_some_and(|uri| uri.ends_with("/v1/discord/callback"));
-        let code = form.get("code").map(String::as_str);
-        let gate = match code {
-            Some("slow-kate") => Some(&SLOW),
-            Some("held-kate") => Some(&HELD),
-            Some("late-kate") => Some(&LATE),
-            _ => None,
-        };
-        if let Some(gate) = gate {
-            gate.arrived.notify_one();
-            gate.release.notified().await;
-        }
-        let user = match code {
-            Some("good-kate") => "kate",
-            Some(_) if gate.is_some() => "kate",
-            Some("good-sam") => "sam",
-            _ => "",
-        };
-        if valid && !user.is_empty() {
-            answer(
-                AxumStatus::OK,
-                json!({ "access_token": format!("token-{user}"), "token_type": "Bearer", "scope": "identify" }),
-            )
-        } else {
-            answer(AxumStatus::BAD_REQUEST, json!({ "error": "invalid_grant" }))
-        }
-    }
-    async fn me(headers: HeaderMap) -> Answer {
-        match headers
-            .get("authorization")
-            .and_then(|value| value.to_str().ok())
-        {
-            Some("Bearer token-kate") => {
-                answer(AxumStatus::OK, json!({ "id": KATE, "username": "kate" }))
-            }
-            Some("Bearer token-sam") => {
-                answer(AxumStatus::OK, json!({ "id": SAM, "username": "sam" }))
-            }
-            _ => answer(AxumStatus::UNAUTHORIZED, json!({})),
-        }
-    }
-    let app = Router::new()
-        .route("/api/oauth2/token", post(token))
-        .route("/api/users/@me", get(me));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}/api", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, app).await });
-    base
+    let (kate, sam) = ((KATE, "kate"), (SAM, "sam"));
+    let site = FakeSite::new(
+        "/api/oauth2/token",
+        "/api/users/@me",
+        ("1546980049692135514", "test-secret"),
+        "/v1/discord/callback",
+        vec![
+            ("good-kate", Code::SignsIn(kate)),
+            ("good-sam", Code::SignsIn(sam)),
+            ("slow-kate", Code::Held(&SLOW, kate)),
+            ("held-kate", Code::Held(&HELD, kate)),
+            ("late-kate", Code::Held(&LATE, kate)),
+        ],
+        &[],
+        |(id, username)| json!({ "id": id, "username": username }),
+    );
+    format!("{}/api", site.serve().await)
 }
 
 pub async fn bridge_with_discord() -> Bridge {
@@ -135,6 +71,7 @@ pub fn reviewing_site(name: &str) -> config::Tenant {
             enabled: true,
             api_base: None,
             discord_lookup: true,
+            lookup_sites: Vec::new(),
             disputes: None,
             results_url: None,
             rooms: None,
@@ -164,6 +101,7 @@ pub async fn bridge_with_discord_sites(secrets: Secrets, others: Vec<config::Ten
                     enabled: true,
                     api_base: None,
                     discord_lookup: false,
+                    lookup_sites: Vec::new(),
                     disputes: None,
                     results_url: None,
                     rooms: None,
@@ -176,30 +114,11 @@ pub async fn bridge_with_discord_sites(secrets: Secrets, others: Vec<config::Ten
     .await
 }
 
-pub async fn player(bridge: &Bridge, byte: u8) -> Player {
-    let mut player = bridge.player(byte);
-    bridge.open_session(&mut player).await;
-    player
-}
-
 /// Starts a sign-in and returns the state Discord would hand back.
 pub async fn start(bridge: &Bridge, player: &Player) -> String {
-    let body = bridge
-        .prove(
-            player,
-            Action::DiscordConnect,
-            Method::Post,
-            "/v1/discord/start",
-            json!({}),
-        )
-        .await;
-    let (status, started) = bridge
-        .send_proof(player, Method::Post, "/v1/discord/start", body)
-        .await;
-    assert_eq!(status, StatusCode::CREATED, "{started}");
-    let url = url::Url::parse(started["authorize_url"].as_str().unwrap()).unwrap();
+    let url = sign_in::start(bridge, player, &Routes::discord()).await;
     assert_eq!(url.path(), "/oauth2/authorize");
-    let query: std::collections::HashMap<_, _> = url.query_pairs().into_owned().collect();
+    let query = sign_in::query(&url);
     assert_eq!(query["scope"], "identify");
     assert_eq!(query["client_id"], "1546980049692135514");
     assert_eq!(query["redirect_uri"], bridge.url("/v1/discord/callback"));
@@ -208,20 +127,11 @@ pub async fn start(bridge: &Bridge, player: &Player) -> String {
 
 /// What the browser sees when Discord sends it back.
 pub async fn back(bridge: &Bridge, query: &str) -> String {
-    let response = bridge
-        .client
-        .get(bridge.url(&format!("/v1/discord/callback?{query}")))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    response.text().await.unwrap()
+    sign_in::back(bridge, &Routes::discord(), query).await
 }
 
 pub async fn account(bridge: &Bridge, player: &Player) -> Json {
-    let (status, body) = bridge.get(player.token(), "/v1/discord").await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    body["account"].clone()
+    sign_in::account(bridge, player, &Routes::discord()).await
 }
 
 /// Signs `player` in as `who` (`kate` or `sam`), whose account no other
@@ -240,26 +150,9 @@ pub async fn answered(bridge: &Bridge, page: String) -> String {
     decide(bridge, &confirmation(&page), "connect").await
 }
 
-/// The confirmation secret on the page that asks before moving an account.
-pub fn confirmation(page: &str) -> String {
-    let marker = "name=\"confirmation\" value=\"";
-    let start = page.find(marker).expect("the page asks for a confirmation") + marker.len();
-    let end = page[start..].find('"').unwrap();
-    page[start..start + end].to_string()
-}
-
 /// The player's answer on the page that asks before moving an account.
 pub async fn decide(bridge: &Bridge, confirmation: &str, choice: &str) -> String {
-    let response = bridge
-        .client
-        .post(bridge.url("/v1/discord/callback"))
-        .header("content-type", "application/x-www-form-urlencoded")
-        .body(format!("confirmation={confirmation}&choice={choice}"))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    response.text().await.unwrap()
+    sign_in::decide(bridge, &Routes::discord(), confirmation, choice).await
 }
 
 /// Signs `player` in as `who`, whose account another Ember ID has, and moves it.
@@ -273,33 +166,11 @@ pub async fn move_here(bridge: &Bridge, player: &Player, who: &str) {
 
 /// Ends the player's sign-ins in flight, as Ember's Cancel does.
 pub async fn cancel(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    let body = bridge
-        .prove(
-            player,
-            Action::DiscordCancel,
-            Method::Delete,
-            "/v1/discord/start",
-            json!({}),
-        )
-        .await;
-    bridge
-        .send_proof(player, Method::Delete, "/v1/discord/start", body)
-        .await
+    sign_in::cancel(bridge, player, &Routes::discord()).await
 }
 
 pub async fn disconnect(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    let body = bridge
-        .prove(
-            player,
-            Action::DiscordRemove,
-            Method::Delete,
-            "/v1/discord",
-            json!({}),
-        )
-        .await;
-    bridge
-        .send_proof(player, Method::Delete, "/v1/discord", body)
-        .await
+    sign_in::disconnect(bridge, player, &Routes::discord()).await
 }
 
 /// BluMint's player lookup for these Discord users.

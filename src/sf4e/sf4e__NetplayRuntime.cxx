@@ -12,6 +12,7 @@
 #include "sf4e__Music.hxx"
 #include "../netplay/MusicPreferences.hxx"
 #include "../common/MusicPlaybackState.hxx"
+#include "sf4e__SelfTest.hxx"
 #include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
@@ -66,9 +67,11 @@ bool AtMainMenu() {
 }
 
 // The native screen in front ("MainMenu", "Option", ...), empty while the
-// foreground is changing or before the event system is up. Game thread.
+// foreground is changing or before the event system is up. It asks the event
+// system itself (Dimps::App::RootEventReady), so it also answers on the title
+// screen, before the main menu publishes eventSystemReady. Game thread.
 static std::string NativeForegroundName() {
-	if (!runtime || !runtime->ready || !runtime->eventSystemReady) return {};
+	if (!runtime || !runtime->ready || !Dimps::App::RootEventReady()) return {};
 	auto* root = Dimps::App::GetRootEvent();
 	if (!root) return {};
 	using Dimps::Event::EventController;
@@ -101,7 +104,7 @@ void CloseRoom() {
     runtime->recoveryProgress=session::RecoveryProgress{};
     runtime->observedAuthorityTerm=0;
     runtime->leaveRequested=runtime->leaveAcknowledged=false;
-    runtime->publicJoin=false;
+    runtime->join=JoinKind::Private;
     runtime->leaveActionId=runtime->leaveRetryAt=runtime->leaveDeadline=0;
     runtime->matchInput={};runtime->matchInputSide=-1;runtime->matchInputFault=false;
 	runtime->match.reset();
@@ -221,6 +224,7 @@ void AttachRoom() {
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
 	UserApp::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
 	UserApp::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
+	UserApp::netplay->client.SetProfileObserver(runtime->join==JoinKind::Observer);
     runtime->selectedDelay=runtime->preferences.inputDelay;
     UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;
@@ -465,7 +469,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
-bool IsRuntimePublicJoin() { return runtime && runtime->publicJoin; }
+bool IsRuntimePublicJoin() { return runtime && runtime->join == JoinKind::Public; }
 bool IsRuntimeRecoveryEnabled() { return runtime && runtime->room && runtime->room->Coordination().active; }
 
 // TickRuntime runs these phases in order on the game thread. Each one reads and
@@ -524,7 +528,7 @@ static void ObserveCoordination() {
 
 // The room is over for this player: say so, leave, and tear the session down.
 static void EndClosedRoom(const netplay::Snapshot& state) {
-	runtime->error=loc::T("runtime.room_closed");
+	if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Closed)) runtime->error=loc::T("runtime.room_closed");
 	runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
 	CloseRoom();
 }
@@ -570,8 +574,8 @@ static void SettleRoomState(bool helperReady) {
 			// Without a rejection, the helper's stage says where it failed; hosting has its own wording.
 			// A public room's join is worded for it: the host locking the room or turning the player away, and a failure no stage explains.
 			Apply(netplay::EventKind::RoomFailed, rejection ?
-				std::string(loc::T(runtime->publicJoin ? SessionClient::PublicJoinRejectionKey(*rejection) : SessionClient::JoinRejectionKey(*rejection))) :
-				runtime->publicJoin ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay) :
+				std::string(loc::T(runtime->join==JoinKind::Public ? SessionClient::PublicJoinRejectionKey(*rejection) : SessionClient::JoinRejectionKey(*rejection))) :
+				runtime->join==JoinKind::Public ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay) :
 				ui::DescribeOpeningFailure(state.isHost, runtime->room->Stage(), runtime->room->Network().relay));
 		}
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&
@@ -589,7 +593,7 @@ static void SettleRoomState(bool helperReady) {
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().roomEpoch &&
 		!UserApp::netplay->client.GetRoomSnapshot().localMember) {
-        runtime->error=loc::T("runtime.removed_from_room");
+        if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Removed)) runtime->error=loc::T("runtime.removed_from_room");
         runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
         CloseRoom();
     }
@@ -763,8 +767,7 @@ void TickRuntime() {
 	}
 	if (runtime->services.Snapshot().closeGame && !runtime->updateClosing) {
 		runtime->updateClosing = true;
-		auto* main = Dimps::Platform::Main::staticMethods.GetSingleton();
-		if (main) PostMessageW((*Dimps::Platform::Main::GetWindowData(main))->hWnd, WM_CLOSE, 0, 0);
+		Dimps::Platform::Main::Close();
 	}
 	// Advance the host authority before the following SessionServer::Step()
 	// consumes room actions. This drives result-dispute and chat-rate deadlines
@@ -777,6 +780,7 @@ void TickRuntime() {
 	DrainRoomEvents();
 	TickTournament(helperReady);
 	TickReplays();
+	if (selftest::Running()) selftest::Tick(AtMainMenu(), NativeForegroundName());
 	PersistTerminalOutcome();
 	DrainActionReplies();
 	RetryPendingAbort();

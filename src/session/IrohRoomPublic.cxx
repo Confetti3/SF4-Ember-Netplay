@@ -21,9 +21,9 @@ bool IrohRoom::HostPublic(const std::string& build, const std::string& ticketKey
 	return roomCommandQueued_;
 }
 
-std::string IrohRoom::PeerAccount(Connection connection) const {
+Admission IrohRoom::PeerAdmission(Connection connection) const {
 	const auto peer = peers_.find(connection);
-	return peer == peers_.end() ? std::string() : peer->second.account;
+	return peer == peers_.end() ? Admission() : peer->second.admission;
 }
 
 bool IrohRoom::BanAccount(const std::string& account) {

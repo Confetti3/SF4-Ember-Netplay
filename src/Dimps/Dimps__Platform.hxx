@@ -77,6 +77,20 @@ namespace Dimps {
 
 		void Locate(HMODULE peRoot);
 
+		// The game's block of display settings, 13 dwords. The graphics device
+		// keeps one, which BuildPresentParameters builds from (0x7719D0), and
+		// Main another, which WriteDisplayConfig saves (0x77D5F0); the
+		// framework's setter copies a whole block (0x77FF30).
+		struct DisplayBlock {
+			uint32_t unknown0[3];
+			uint32_t width, height;
+			float refresh;
+			uint32_t unknown6[6];
+			// 1 for exclusive fullscreen, 0 for a window.
+			uint32_t fullScreen;
+		};
+		static_assert(sizeof(DisplayBlock) == 0x34, "13 dwords");
+
 		struct D3D
 		{
 			typedef struct __privateMethods {
@@ -106,7 +120,8 @@ namespace Dimps {
 			// Instance values here
 			void* vtable;
 			HWND hFocusWindow;
-			DWORD workingMem;
+			// The adapter the device is created and reset on.
+			DWORD adapterOrdinal;
 			DWORD deviceType;
 			DWORD behaviorFlags;
 			IDirect3D9* lpD3D;
@@ -120,6 +135,10 @@ namespace Dimps {
 			}
 			static D3DPRESENT_PARAMETERS* GetPresentParameters(D3D* d) {
 				return (D3DPRESENT_PARAMETERS*)((unsigned int)d + 0x1c);
+			}
+			// The display settings BuildPresentParameters (0x7719D0) builds from.
+			static DisplayBlock* GetDisplay(D3D* d) {
+				return (DisplayBlock*)((unsigned int)d + 0x24c);
 			}
 		};
 
@@ -164,6 +183,9 @@ namespace Dimps {
 			} Win32_WindowData;
 
 			static Win32_WindowData** GetWindowData(Main* m);
+			// Asks the game to close, as its window's close button does; nothing
+			// before Main is up.
+			static void Close();
 			// SYSTEM/RenderingThread, set from config.ini inside Initialize
 			// (0x780380) and read only through the vtable's 0xA4 getter. Run
 			// (0x780600) starts the "Afx Rendering" thread when it is 1;
@@ -176,6 +198,10 @@ namespace Dimps {
 			// drains (0x405580). Changing Main's flag after Initialize leaves the
 			// releases queued for good.
 			static int* StartupRenderingThread(void* params);
+			// The display settings WriteDisplayConfig saves (0x77D5F0). The game
+			// refills them from the device's (D3D::GetDisplay) when it applies
+			// the brightness option (0x68F8E0), at startup and as its options close.
+			static DisplayBlock* GetDisplay(Main* m);
 		};
 
 		struct GFxApp

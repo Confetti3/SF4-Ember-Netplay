@@ -1,4 +1,5 @@
 #pragma once
+#include "ExtraButtons.hxx"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -11,6 +12,7 @@ enum class Button { South, East, West, North, Back, Guide, Start, LeftStick, Rig
 
 struct State {
     std::array<bool, static_cast<unsigned>(Button::Count)> buttons{};
+    std::array<bool, ExtraCount> extras{};
     int leftX = 0, leftY = 0, rightX = 0, rightY = 0, leftTrigger = 0, rightTrigger = 0;
 };
 
@@ -40,6 +42,23 @@ inline XInputFields MapToXInput(const State& state) {
     result.rightX = axis(state.rightX); result.rightY = inverted(state.rightY);
     result.leftTrigger = trigger(state.leftTrigger); result.rightTrigger = trigger(state.rightTrigger);
     return result;
+}
+
+// The state with each held extra button pressing the layout button it copies,
+// as Steam Input binds a touchpad or paddle to an Xbox button.
+inline State WithExtraCopies(State state, const ExtraCopies& copies) {
+    // The layout buttons in LayoutGlyphs order; LT and RT are axes, pressed fully.
+    constexpr int LeftTrigger = 6, RightTrigger = 7;
+    constexpr std::array<Button, 10> buttons = {Button::South, Button::East, Button::West, Button::North,
+        Button::LeftShoulder, Button::RightShoulder, Button::Count, Button::Count, Button::LeftStick, Button::RightStick};
+    for (unsigned i = 0; i < ExtraCount; ++i) {
+        const int copy = copies[i];
+        if (!state.extras[i] || copy < 0 || copy >= static_cast<int>(buttons.size())) continue;
+        if (copy == LeftTrigger) state.leftTrigger = 32767;
+        else if (copy == RightTrigger) state.rightTrigger = 32767;
+        else state.buttons[static_cast<unsigned>(buttons[copy])] = true;
+    }
+    return state;
 }
 
 } }

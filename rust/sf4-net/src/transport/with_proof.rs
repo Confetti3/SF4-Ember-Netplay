@@ -7,8 +7,8 @@ use super::*;
 const REFUSAL_FLUSH: Duration = Duration::from_secs(2);
 
 /// `check` sees the proof and the connection before `Accepted` is sent; an
-/// error refuses the peer exactly as `accept_control` does, and the account and
-/// ticket it returns are kept on the channel.
+/// error refuses the peer exactly as `accept_control` does, and the ticket it
+/// returns is kept on the channel.
 ///
 /// A proof that does not parse, and a connection on another ALPN, end in a
 /// silent close. A well-formed proof that `check` refuses is answered with
@@ -19,7 +19,7 @@ pub(crate) async fn accept_control_with<P, F>(
 ) -> io::Result<ControlChannel>
 where
     P: serde::de::DeserializeOwned,
-    F: FnOnce(P, &Connection) -> io::Result<Option<(EmberId, RoomTicket)>>,
+    F: FnOnce(P, &Connection) -> io::Result<Option<RoomTicket>>,
 {
     let mut pending = PendingConnection(Some(connection.clone()));
     let result = timeout(HANDSHAKE_TIMEOUT, async {
@@ -37,10 +37,7 @@ where
         };
         send_handshake(&mut send, &Accepted { version: VERSION }).await?;
         let mut channel = control_channel(connection, (send, recv));
-        if let Some((account, ticket)) = admitted {
-            channel.account = Some(account);
-            channel.ticket = Some(ticket);
-        }
+        channel.ticket = admitted;
         Ok(channel)
     })
     .await
