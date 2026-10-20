@@ -52,7 +52,13 @@ VOICES = {
 # a newer version; one already in packs/<tag> is used whether or not it is listed here.
 PACKS_URL = "https://github.com/Confetti3/SF4-Ember-Netplay-Nightly/releases/download/voice-packs/"
 PACKS = {
-    "en": (1, PACKS_URL + "ember-voice-en-1.zip", 18642574, "b602502e7c8c19e871622e9fb905294c4314b2dbecaa1cdd336879bb9f0e8461"),
+    "en": (1, PACKS_URL + "ember-voice-en-1.zip", 18642574, "b602502e7c8c19e871622e9fb905294c4314b2dbecaa1cdd336879bb9f0e8461"),    "es-ES": (1, PACKS_URL + "ember-voice-es-ES-1.zip", 19349023, "a769003def0ef674a5dc4a7d799ccd0630ed0a1f02904511ed13e4666bd7118a"),
+    "es-419": (1, PACKS_URL + "ember-voice-es-419-1.zip", 19598441, "32fcc06cfba01b2bc3ac3be043c7ad78f3285eaf33958b32789a778835935066"),
+    "fr": (1, PACKS_URL + "ember-voice-fr-1.zip", 19545896, "2968bee3345ce5dbcc7169b825766949c61ca2925ab624dfc479d541900427ba"),
+    "it": (1, PACKS_URL + "ember-voice-it-1.zip", 20973563, "16dd0abdd6dcb957ae158bc3012f59824377ee2cd34b192d22455790c7340549"),
+    "pt-BR": (1, PACKS_URL + "ember-voice-pt-BR-1.zip", 19414041, "d80f89482c2f2e61a614808867a7108e04db292670a09b95c4b2002c4d3778e1"),
+    "ja": (1, PACKS_URL + "ember-voice-ja-1.zip", 22562640, "d6fe7bbddb964b1bc36679a3ac4e6a4d61a4107367cedb16bf2ffb7e247e8e71"),
+    "zh-Hans": (1, PACKS_URL + "ember-voice-zh-Hans-1.zip", 23139670, "f4c690788673b48265e35ef09039f18faf28445ea1839de15c4bcbe021ecb1dd"),
 }
 PACKS_DIR = os.path.join(CACHE, "packs")
 
