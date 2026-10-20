@@ -4461,6 +4461,39 @@ msgstr "The natural voice is ready and speaks from now on."
 msgid "speech.voice_failed"
 msgstr "The natural voice could not be downloaded, so the system voice speaks. Ember tries again the next time it starts."
 
+msgid "speech.pack"
+msgstr "{0} voice pack"
+
+msgid "speech.pack_missing"
+msgstr "Not downloaded, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Downloaded, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Update available, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Removed"
+
+msgid "speech.pack_detail"
+msgstr "Every line Ember says, recorded once in a natural voice. It downloads by itself when speech is on; select to download it again or update it."
+
+msgid "speech.pack_download"
+msgstr "Download"
+
+msgid "speech.pack_remove"
+msgstr "Remove voice pack"
+
+msgid "speech.pack_remove_detail"
+msgstr "Deletes the voice pack from this PC. The system voice speaks until you download it again."
+
+msgid "speech.pack_downloading"
+msgstr "Downloading the {0} voice ({1} MB). The system voice speaks until it is ready."
+
+msgid "speech.pack_failed"
+msgstr "The voice pack could not be downloaded, so the system voice speaks. To try again, select the voice pack in Settings, Accessibility."
+
 msgid "speech.no_windows_voice"
 msgstr "Speech is on, but Windows has no voice to speak with. Add one in Windows Settings under Time and language, Speech."
 

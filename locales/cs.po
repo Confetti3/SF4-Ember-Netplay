@@ -4822,6 +4822,39 @@ msgstr "Přirozený hlas je připravený a od teď mluví on."
 msgid "speech.voice_failed"
 msgstr "Přirozený hlas se nepodařilo stáhnout, proto mluví systémový hlas. Ember to zkusí znovu při příštím spuštění."
 
+msgid "speech.pack"
+msgstr "Hlasový balíček: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Nestaženo, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Staženo, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Dostupná aktualizace, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Odebráno"
+
+msgid "speech.pack_detail"
+msgstr "Každý řádek, který Ember říká, nahraný jednou přirozeným hlasem. Stáhne se sám, když je hlas zapnutý; výběrem ho stáhnete znovu nebo aktualizujete."
+
+msgid "speech.pack_download"
+msgstr "Stáhnout"
+
+msgid "speech.pack_remove"
+msgstr "Odebrat hlasový balíček"
+
+msgid "speech.pack_remove_detail"
+msgstr "Odstraní hlasový balíček z tohoto počítače. Dokud ho znovu nestáhnete, mluví systémový hlas."
+
+msgid "speech.pack_downloading"
+msgstr "Stahuje se hlas pro jazyk {0} ({1} MB). Dokud není připravený, mluví systémový hlas."
+
+msgid "speech.pack_failed"
+msgstr "Hlasový balíček se nepodařilo stáhnout, proto mluví systémový hlas. Chcete-li to zkusit znovu, vyberte hlasový balíček v Nastavení, Přístupnost."
+
 msgid "speech.no_windows_voice"
 msgstr "Hlas je zapnutý, ale Windows nemají žádný hlas, kterým by mluvily. Přidejte ho v Nastavení Windows v části Čas a jazyk, Řeč."
 

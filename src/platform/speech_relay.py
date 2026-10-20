@@ -6,6 +6,7 @@
 #       where the key "wav" plays the WAV file named by the text instead
 #   RENDER <rate> <language tag> (<key> <text>)...
 #   STOP
+#   PACK <update|remove> <language tag>
 # It speaks from the language's voice pack, every line rendered ahead with one voice, where it
 # has one; what a pack lacks (names, chat) and languages without a pack it speaks
 # with a Piper voice for the language, downloaded once into
@@ -13,14 +14,14 @@
 # (or for a language without a voice) through speech-dispatcher. Every clip
 # Piper makes is kept under Ember's key for it, so a part said once is ready at
 # once; RENDER makes clips ahead at low priority. Stopping only ever stops
-# Ember's own speech. It tells Ember how it speaks in <fifo>.status: system,
-# downloading <percent>, natural or failed; and that it reads the FIFO by
-# making <fifo>.ready. It leaves when Ember closes the FIFO, and after 15
-# seconds when Ember never writes.
-import hashlib, json, os, queue, select, signal, socket, subprocess, sys, tarfile, threading, time, urllib.request, zipfile
+# Ember's own speech. It tells Ember how it speaks in <fifo>.status: a first line
+# system, downloading <percent>, natural or failed, and a second line
+# "pack <state> <bytes>" (status_text); and that it reads the FIFO by making
+# <fifo>.ready. It leaves when Ember closes the FIFO, and after 15 seconds when
+# Ember never writes.
+import hashlib, json, os, queue, select, shutil, signal, socket, subprocess, sys, tarfile, threading, time, urllib.request, zipfile
 
-FIFO = sys.argv[1]
-READY, STATUS = FIFO + ".ready", FIFO + ".status"
+STATUS = None
 CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "ember-speech")
 PIPER_DIR = os.path.join(CACHE, "piper")
 PIPER = ("https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz", 26460462,
@@ -46,9 +47,11 @@ VOICES = {
 
 
 # Ember's language tag to its voice pack: every line speech can say, rendered once with one voice
-# (docs/design/ACCESSIBILITY_SPEC.md, "Pre-rendered voice packs"): url, size, SHA-256. A pack already in
-# ~/.cache/ember-speech/packs/<tag> is used whether or not it is listed here.
+# (docs/design/ACCESSIBILITY_SPEC.md, "Pre-rendered voice packs"): version, url, size, SHA-256. A pack is
+# downloaded only while speech is on, the first time the language is spoken, and replaced when this lists
+# a newer version; one already in packs/<tag> is used whether or not it is listed here.
 PACKS = {}
+PACKS_DIR = os.path.join(CACHE, "packs")
 
 
 def pack_key(language, text):
@@ -59,45 +62,107 @@ def pack_key(language, text):
     return "%016x" % h
 
 
-def pack(language):
-    """The language's pack folder once it is there, starting its download the first time."""
-    folder = os.path.join(CACHE, "packs", language)
-    if os.path.exists(os.path.join(folder, "manifest.json")):
-        return folder
-    if language in PACKS and language not in downloading:
+def pack_version(folder):
+    """The version in an installed pack's manifest, 0 when there is none."""
+    try:
+        return int(json.load(open(os.path.join(folder, "manifest.json"), encoding="utf-8")).get("version", 0))
+    except (OSError, ValueError):
+        return 0
+
+
+def pack_state(language):
+    """removed (the player removed it), current, outdated (an older version than listed), missing
+    (listed, not downloaded) or none (not listed, not installed)."""
+    folder = os.path.join(PACKS_DIR, language)
+    if os.path.exists(folder + ".removed"):
+        return "removed"
+    installed, listed = pack_version(folder), PACKS.get(language, (0,))[0]
+    if installed:
+        return "outdated" if listed > installed else "current"
+    return "missing" if listed else "none"
+
+
+def pack(language, force=False):
+    """The language's pack folder when one is installed (an outdated one too, while its replacement
+    downloads), starting a download when it is missing or outdated, or when forced."""
+    folder, state = os.path.join(PACKS_DIR, language), pack_state(language)
+    if state == "removed" and not force:
+        return None
+    if language in PACKS and (force or state in ("missing", "outdated")) and language not in downloading:
         downloading.add(language)
-        threading.Thread(target=download_pack, args=(language, folder), daemon=True).start()
-    return None
+        threading.Thread(target=download_pack, args=(language,), daemon=True).start()
+    return folder if pack_version(folder) else None
 
 
-def download_pack(language, folder):
-    url, size, sha256 = PACKS[language]
+def install_pack(archive, folder):
+    """Unpacks archive as folder, replacing an older pack there whole: the new one is unpacked beside it
+    first, so a failure leaves the old one, and the old one is deleted after."""
+    os.makedirs(os.path.dirname(folder), exist_ok=True)
+    for leftover in (folder + ".part", folder + ".old"):
+        shutil.rmtree(leftover, ignore_errors=True)
+    with zipfile.ZipFile(archive) as z:
+        for name in z.namelist():
+            # Only flat clip and manifest names: nothing in a pack may write elsewhere.
+            if os.path.basename(name) == name and (name.endswith(".opus") or name == "manifest.json"):
+                z.extract(name, folder + ".part")
+    if not pack_version(folder + ".part"):
+        raise ValueError("the pack has no manifest")
+    if os.path.exists(folder):
+        os.replace(folder, folder + ".old")
+    os.replace(folder + ".part", folder)
+    shutil.rmtree(folder + ".old", ignore_errors=True)
+    if os.path.exists(folder + ".removed"):
+        os.unlink(folder + ".removed")
+
+
+def remove_pack(language):
+    folder = os.path.join(PACKS_DIR, language)
+    shutil.rmtree(folder, ignore_errors=True)
+    os.makedirs(PACKS_DIR, exist_ok=True)
+    open(folder + ".removed", "w").close()
+    status(None)
+
+
+def download_pack(language):
+    version, url, size, sha256 = PACKS[language]
+    folder = os.path.join(PACKS_DIR, language)
+    archive = "%s-%d.zip" % (folder, version)
     done = [0]
     def progress(count):
         done[0] += count
         status("downloading %d" % min(99, done[0] * 100 // size))
     status("downloading 0")
     try:
-        archive = folder + ".zip"
-        os.makedirs(os.path.dirname(folder), exist_ok=True)
-        fetch(url, archive, size, sha256, progress)
-        with zipfile.ZipFile(archive) as z:
-            for name in z.namelist():
-                # Only flat clip and manifest names: nothing in a pack may write elsewhere.
-                if os.path.basename(name) == name and (name.endswith(".opus") or name == "manifest.json"):
-                    z.extract(name, folder + ".part")
-        os.replace(folder + ".part", folder)
+        os.makedirs(PACKS_DIR, exist_ok=True)
+        fetch(url, archive, size, sha256, progress, resume=True)
+        install_pack(archive, folder)
         os.unlink(archive)
         status("natural")
     except Exception as error:
         print("Ember speech: no voice pack download:", error, file=sys.stderr)
         status("failed")
+    finally:
+        downloading.discard(language)
+
+
+voice_status, status_language = "system", ""
+
+
+def status_text(voice_line, language):
+    """What the status file says: how the relay speaks, then the language's pack and its size."""
+    entry = PACKS.get(language)
+    size = entry[2] if entry else 0
+    return "%s\npack %s %d\n" % (voice_line, pack_state(language) if language else "none", size)
 
 
 def status(text):
-    with open(STATUS + ".tmp", "w") as f:
-        f.write(text)
-    os.replace(STATUS + ".tmp", STATUS)
+    """Records how the relay speaks (None keeps it) and writes the status file, when there is one."""
+    global voice_status
+    voice_status = text or voice_status
+    if STATUS:
+        with open(STATUS + ".tmp", "w") as f:
+            f.write(status_text(voice_status, status_language))
+        os.replace(STATUS + ".tmp", STATUS)
 
 
 def model(language):
@@ -108,18 +173,33 @@ def model(language):
     return path if ok else None
 
 
-def fetch(url, path, size, sha256, progress):
-    """Downloads url to path through a .part file, checking its SHA-256."""
-    digest = hashlib.sha256()
-    with urllib.request.urlopen(url, timeout=30) as response, open(path + ".part", "wb") as out:
-        for chunk in iter(lambda: response.read(1 << 16), b""):
-            digest.update(chunk)
-            out.write(chunk)
-            progress(len(chunk))
+def fetch(url, path, size, sha256, progress, resume=False):
+    """Downloads url to path through a .part file, checking its SHA-256. With resume, a .part left by
+    a broken download continues where it stopped when the server allows; else it starts over.
+    Returns the bytes that were already there."""
+    part, digest, have = path + ".part", hashlib.sha256(), 0
+    request = urllib.request.Request(url)
+    if resume and os.path.exists(part) and url.startswith("http"):
+        have = os.path.getsize(part)
+        request.add_header("Range", "bytes=%d-" % have)
+    with urllib.request.urlopen(request, timeout=30) as response:
+        if have and response.status != 206:
+            have = 0
+        progress(have)
+        if have:
+            with open(part, "rb") as old:
+                for chunk in iter(lambda: old.read(1 << 16), b""):
+                    digest.update(chunk)
+        with open(part, "ab" if have else "wb") as out:
+            for chunk in iter(lambda: response.read(1 << 16), b""):
+                digest.update(chunk)
+                out.write(chunk)
+                progress(len(chunk))
     if digest.hexdigest() != sha256:
-        os.unlink(path + ".part")
+        os.unlink(part)
         raise ValueError("SHA-256 mismatch for " + url)
-    os.replace(path + ".part", path)
+    os.replace(part, path)
+    return have
 
 
 def download(language):
@@ -195,11 +275,9 @@ def connect_dispatcher():
     return s
 
 
-signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
-dispatcher = connect_dispatcher()
 said, renders = queue.Queue(), queue.Queue()
 lock = threading.Lock()
-generation, player, broken, downloading = 0, None, set(), set()
+generation, player, broken, downloading, dispatcher = 0, None, set(), set(), None
 # Piper and paplay end with the relay; a speech-dispatcher it started does not.
 children = []
 
@@ -234,10 +312,11 @@ def voice(language):
 
 
 def speak():
-    global player
+    global player, status_language
     piper = None
     while True:
         heard, rate, volume, language, parts = said.get()
+        status_language = language
         folder, path = pack(language), voice(language)
         if folder:
             status("natural")
@@ -298,30 +377,44 @@ def handle(line):
         said.put((generation, int(fields[2]), int(fields[3]), fields[4], pairs(5)))
     elif fields[0] == "RENDER" and len(fields) >= 3:
         renders.put((int(fields[1]), fields[2], pairs(3)))
+    elif fields[0] == "PACK" and len(fields) == 3:
+        if fields[1] == "remove":
+            remove_pack(fields[2])
+        elif fields[1] == "update":
+            pack(fields[2], force=True)
 
 
-threading.Thread(target=speak, daemon=True).start()
-threading.Thread(target=render, daemon=True).start()
-try:
-    os.mkfifo(FIFO, 0o600)
-    # A FIFO never written to does not read as closed, so it is opened without blocking and watched.
-    r = os.open(FIFO, os.O_RDONLY | os.O_NONBLOCK)
-    open(READY, "w").close()
-    opened, pending = False, b""
-    deadline = time.monotonic() + 15
-    while opened or time.monotonic() < deadline:
-        if not select.select([r], [], [], 1)[0]:
-            continue
-        data = os.read(r, 1 << 16)
-        if not data:
-            break
-        opened = True
-        *lines, pending = (pending + data).split(b"\n")
-        for line in lines:
-            handle(line.decode("utf-8", "replace").rstrip("\r"))
-finally:
-    for child in children:
-        child.kill()
-    for name in (READY, STATUS, FIFO):
-        if os.path.exists(name):
-            os.unlink(name)
+def main(fifo):
+    global STATUS, dispatcher
+    ready, STATUS = fifo + ".ready", fifo + ".status"
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    dispatcher = connect_dispatcher()
+    threading.Thread(target=speak, daemon=True).start()
+    threading.Thread(target=render, daemon=True).start()
+    try:
+        os.mkfifo(fifo, 0o600)
+        # A FIFO never written to does not read as closed, so it is opened without blocking and watched.
+        r = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
+        open(ready, "w").close()
+        opened, pending = False, b""
+        deadline = time.monotonic() + 15
+        while opened or time.monotonic() < deadline:
+            if not select.select([r], [], [], 1)[0]:
+                continue
+            data = os.read(r, 1 << 16)
+            if not data:
+                break
+            opened = True
+            *lines, pending = (pending + data).split(b"\n")
+            for line in lines:
+                handle(line.decode("utf-8", "replace").rstrip("\r"))
+    finally:
+        for child in children:
+            child.kill()
+        for name in (ready, STATUS, fifo):
+            if os.path.exists(name):
+                os.unlink(name)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])

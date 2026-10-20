@@ -8,10 +8,15 @@
 namespace sf4e { namespace ui {
 // Settings, Accessibility: speech and how it reads. Everything but Speech
 // itself waits for speech to be on, like the ready sound's volume.
+namespace {
+// The voice pack's size as the rows say it: whole megabytes, at least one.
+int Megabytes(long long bytes) { return static_cast<int>((std::max)(1LL,(bytes+500000)/1000000)); }
+}
 std::vector<MenuEntry> ApplicationShell::AccessibilityRows(const ShellView& v) const {
  const auto& speech=preferences_.speech;const bool speaking=v.canEditPreferences&&speech.enabled;
  const auto onOff=[](bool on){return std::string(on?loc::T("common.on"):loc::T("common.off"));};
- return {Value("speech",loc::T("speech.setting"),onOff(speech.enabled),loc::T("speech.setting_detail"),v.canEditPreferences),
+ const auto voice=speech::NaturalVoice();
+ std::vector<MenuEntry> rows={Value("speech",loc::T("speech.setting"),onOff(speech.enabled),loc::T("speech.setting_detail"),v.canEditPreferences),
   Value("speech-rate",loc::T("speech.rate"),std::to_string(speech.rate),loc::T("speech.rate_detail"),speaking),
   Value("speech-volume",loc::T("speech.volume"),std::to_string(speech.volume)+"%",loc::T("speech.volume_detail"),speaking),
   Value("speech-details",loc::T("speech.details"),onOff(speech.details),loc::T("speech.details_detail"),speaking),
@@ -21,7 +26,25 @@ std::vector<MenuEntry> ApplicationShell::AccessibilityRows(const ShellView& v) c
   Value("speech-tick",loc::T("speech.tick"),onOff(speech.tick),loc::T("speech.tick_detail"),speaking),
   Value("speech-chime",loc::T("speech.chime"),onOff(speech.chime),loc::T("speech.chime_detail"),speaking),
   Value("speech-chime-volume",loc::T("speech.chime_volume"),std::to_string(speech.chimeVolume)+"%",loc::T("speech.chime_volume_detail"),speaking&&speech.chime),
-  InfoRow("speech-voice",loc::T("speech.voice"),VoiceText(speech::NaturalVoice()),loc::T("speech.voice_detail"))};
+  InfoRow("speech-voice",loc::T("speech.voice"),VoiceText(voice),loc::T("speech.voice_detail"))};
+ // The language's voice pack, where the relay has one listed (under Proton): its size before the
+ // first download, an update, and its removal. Select on the pack row downloads it.
+ if(voice.pack!=speech::Pack::None){
+  const int mb=Megabytes(voice.packBytes);
+  const std::string state=voice.voice==speech::Voice::Downloading?VoiceText(voice):voice.pack==speech::Pack::Current?loc::Tf("speech.pack_current",mb):
+   voice.pack==speech::Pack::Outdated?loc::Tf("speech.pack_outdated",mb):voice.pack==speech::Pack::Removed?std::string(loc::T("speech.pack_removed")):loc::Tf("speech.pack_missing",mb);
+  rows.push_back(Row("speech-pack",loc::Tf("speech.pack",loc::NativeName(loc::Active())),loc::T("speech.pack_detail"),speaking&&voice.voice!=speech::Voice::Downloading));
+  rows.back().value=state;rows.back().hint=loc::T("speech.pack_download");
+  auto remove=Row("speech-pack-remove",loc::T("speech.pack_remove"),loc::T("speech.pack_remove_detail"),speaking&&(voice.pack==speech::Pack::Current||voice.pack==speech::Pack::Outdated));
+  remove.confirm=true;rows.push_back(remove);
+ }
+ return rows;
+}
+bool ApplicationShell::ActivateSpeech(const MenuAction& a) {
+ if(a.id=="speech-pack")speech::UpdatePack();
+ else if(a.id=="speech-pack-remove")speech::RemovePack();
+ else return false;
+ return true;
 }
 bool ApplicationShell::AdjustSpeech(const MenuAction& a) {
  auto& speech=preferences_.speech;
@@ -61,10 +84,12 @@ void ApplicationShell::UpdateSpeech() {
   menu_.ShowNotice(missing==speech::Missing::WindowsVoice?loc::T("speech.no_windows_voice"):loc::T("speech.no_speech_dispatcher"),loc::T("speech.setting"));
   return;
  }
- const auto voice=speech::NaturalVoice().voice;
+ const auto status=speech::NaturalVoice();const auto voice=status.voice;
  if(voice==voiceTold_||voice==speech::Voice::System)return;
- if(voice==speech::Voice::Downloading)menu_.ShowNotice(loc::T("speech.voice_detail"),loc::T("speech.voice"));
- else if(voice==speech::Voice::Failed)menu_.ShowNotice(loc::T("speech.voice_failed"),loc::T("speech.voice"));
+ // A voice pack's download says its size; it can be tried again from the Accessibility page.
+ const bool packed=status.pack!=speech::Pack::None;
+ if(voice==speech::Voice::Downloading)menu_.ShowNotice(packed?loc::Tf("speech.pack_downloading",loc::NativeName(loc::Active()),Megabytes(status.packBytes)):std::string(loc::T("speech.voice_detail")),loc::T("speech.voice"));
+ else if(voice==speech::Voice::Failed)menu_.ShowNotice(packed?loc::T("speech.pack_failed"):loc::T("speech.voice_failed"),loc::T("speech.voice"));
  else if(voiceTold_==speech::Voice::Downloading)menu_.ShowNotice(loc::T("speech.voice_ready"),loc::T("speech.voice"));
  voiceTold_=voice;
 }

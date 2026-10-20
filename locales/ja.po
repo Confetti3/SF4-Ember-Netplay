@@ -4823,6 +4823,39 @@ msgstr "自然な音声の準備ができました。これからはこの音声
 msgid "speech.voice_failed"
 msgstr "自然な音声をダウンロードできなかったため、システムの音声で読み上げます。Emberは次回の起動時に再試行します。"
 
+msgid "speech.pack"
+msgstr "音声パック（{0}）"
+
+msgid "speech.pack_missing"
+msgstr "未ダウンロード、{0} MB"
+
+msgid "speech.pack_current"
+msgstr "ダウンロード済み、{0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "更新あり、{0} MB"
+
+msgid "speech.pack_removed"
+msgstr "削除済み"
+
+msgid "speech.pack_detail"
+msgstr "Emberが話すすべての文を自然な音声で一度録音したものです。音声読み上げがオンのとき自動でダウンロードされます。選択すると再ダウンロードまたは更新します。"
+
+msgid "speech.pack_download"
+msgstr "ダウンロード"
+
+msgid "speech.pack_remove"
+msgstr "音声パックを削除"
+
+msgid "speech.pack_remove_detail"
+msgstr "このPCから音声パックを削除します。再びダウンロードするまでシステムの音声が読み上げます。"
+
+msgid "speech.pack_downloading"
+msgstr "{0}の音声をダウンロードしています（{1} MB）。準備ができるまでシステムの音声が読み上げます。"
+
+msgid "speech.pack_failed"
+msgstr "音声パックをダウンロードできなかったため、システムの音声で読み上げます。再試行するには、「設定」の「アクセシビリティ」で音声パックを選択してください。"
+
 msgid "speech.no_windows_voice"
 msgstr "音声読み上げはオンですが、Windowsに読み上げ用の音声がありません。Windowsの設定の「時刻と言語」の「音声」で追加してください。"
 

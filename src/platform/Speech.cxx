@@ -19,8 +19,9 @@ namespace sf4e { namespace speech {
 namespace {
 // No parts with interrupt is Stop; render asks only for clips made ahead.
 // tick: the description tick plays once the parts are said. chime: only the
-// notice chime, at volume. Sounds play on the speech thread alone.
-struct Request { std::vector<std::string> parts; bool interrupt, render; int rate, volume; std::string language; bool tick, chime; };
+// notice chime, at volume. Sounds play on the speech thread alone. pack: 1
+// downloads the voice pack again, 2 removes it.
+struct Request { std::vector<std::string> parts; bool interrupt, render; int rate, volume; std::string language; bool tick, chime; int pack; };
 std::mutex lock;
 std::condition_variable wake;
 std::vector<Request> pending;
@@ -28,6 +29,8 @@ bool started = false;
 std::atomic<Missing> missing{Missing::Nothing};
 std::atomic<Voice> voice{Voice::System};
 std::atomic<int> percent{0};
+std::atomic<Pack> pack{Pack::None};
+std::atomic<long long> packBytes{0};
 
 // Through winmm, which reads the sound while it plays: it stays alive here,
 // and the one playing is stopped before it is replaced. Speech thread only.
@@ -121,6 +124,7 @@ void RunLinux(UnixSpawn spawn) {
         for (const auto& request : Next(std::chrono::seconds(1))) {
             if (request.chime) { PlayWave(away_alert::NoticeChime(request.volume)); continue; }
             if (missing != Missing::Nothing) break;
+            if (request.pack) { write(PackLine(request.pack == 2, request.language)); continue; }
             write(request.render ? RenderLine(request.parts, request.rate, request.language) :
                 request.parts.empty() ? std::string("STOP\n") :
                 SayLine(request.parts, request.interrupt, request.rate, request.volume, request.language, request.tick ? unixTick : std::string()));
@@ -131,7 +135,7 @@ void RunLinux(UnixSpawn spawn) {
         if (file != INVALID_HANDLE_VALUE) { ReadFile(file, text, sizeof(text) - 1, &read, nullptr); CloseHandle(file); }
         const auto now = ParseRelayStatus(std::string(text, read));
         if (now.voice != voice) spdlog::info("Speech: relay voice {}", text);
-        voice = now.voice; percent = now.percent;
+        voice = now.voice; percent = now.percent; pack = now.pack; packBytes = now.packBytes;
     }
 }
 
@@ -149,7 +153,7 @@ void Run() {
     for (;;) {
         for (const auto& request : Next(std::chrono::hours(1))) {
             if (request.chime) { PlayWave(away_alert::NoticeChime(request.volume)); continue; }
-            if (missing != Missing::Nothing || request.render) continue;
+            if (missing != Missing::Nothing || request.render || request.pack) continue;
             const DWORD flags = SPF_ASYNC | SPF_IS_NOT_XML | (request.interrupt ? SPF_PURGEBEFORESPEAK : 0);
             if (request.parts.empty()) { sapi->Speak(nullptr, flags, nullptr); continue; }
             sapi->SetRate(request.rate);
@@ -181,13 +185,15 @@ void Queue(Request request) {
 }
 
 void Say(const std::vector<std::string>& parts, bool interrupt, int rate, int volume, bool tick) {
-    if (!parts.empty()) Queue({parts, interrupt, false, rate, volume, loc::Tag(loc::Active()), tick, false});
+    if (!parts.empty()) Queue({parts, interrupt, false, rate, volume, loc::Tag(loc::Active()), tick, false, 0});
 }
 void Render(const std::vector<std::string>& parts, int rate) {
-    if (!parts.empty()) Queue({parts, false, true, rate, 0, loc::Tag(loc::Active()), false, false});
+    if (!parts.empty()) Queue({parts, false, true, rate, 0, loc::Tag(loc::Active()), false, false, 0});
 }
-void Stop() { Queue({{}, true, false, 0, 0, {}, false, false}); }
-void Chime(int volume) { Queue({{}, false, false, 0, volume, {}, false, true}); }
+void Stop() { Queue({{}, true, false, 0, 0, {}, false, false, 0}); }
+void Chime(int volume) { Queue({{}, false, false, 0, volume, {}, false, true, 0}); }
+void UpdatePack() { Queue({{}, false, false, 0, 0, loc::Tag(loc::Active()), false, false, 1}); }
+void RemovePack() { Queue({{}, false, false, 0, 0, loc::Tag(loc::Active()), false, false, 2}); }
 Missing Unavailable() { return missing; }
-VoiceStatus NaturalVoice() { return {voice, percent}; }
+VoiceStatus NaturalVoice() { return {voice, percent, pack, packBytes}; }
 } }

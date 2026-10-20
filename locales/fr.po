@@ -4822,6 +4822,39 @@ msgstr "La voix naturelle est prête et parle désormais."
 msgid "speech.voice_failed"
 msgstr "La voix naturelle n'a pas pu être téléchargée, la voix du système parle donc. Ember réessaie au prochain démarrage."
 
+msgid "speech.pack"
+msgstr "Pack de voix : {0}"
+
+msgid "speech.pack_missing"
+msgstr "Non téléchargé, {0} Mo"
+
+msgid "speech.pack_current"
+msgstr "Téléchargé, {0} Mo"
+
+msgid "speech.pack_outdated"
+msgstr "Mise à jour disponible, {0} Mo"
+
+msgid "speech.pack_removed"
+msgstr "Supprimé"
+
+msgid "speech.pack_detail"
+msgstr "Chaque phrase dite par Ember, enregistrée une fois avec une voix naturelle. Elle se télécharge seule quand la voix est activée ; sélectionnez-la pour la retélécharger ou la mettre à jour."
+
+msgid "speech.pack_download"
+msgstr "Télécharger"
+
+msgid "speech.pack_remove"
+msgstr "Supprimer le pack de voix"
+
+msgid "speech.pack_remove_detail"
+msgstr "Supprime le pack de voix de ce PC. La voix du système parle jusqu'à ce que vous le retéléchargiez."
+
+msgid "speech.pack_downloading"
+msgstr "Téléchargement de la voix {0} ({1} Mo). La voix du système parle en attendant."
+
+msgid "speech.pack_failed"
+msgstr "Le pack de voix n'a pas pu être téléchargé, la voix du système parle donc. Pour réessayer, sélectionnez le pack de voix dans Paramètres, Accessibilité."
+
 msgid "speech.no_windows_voice"
 msgstr "La voix est activée, mais Windows n'a aucune voix pour parler. Ajoutez-en une dans les Paramètres Windows, Heure et langue, Voix."
 

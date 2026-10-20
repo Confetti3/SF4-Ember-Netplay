@@ -4822,6 +4822,39 @@ msgstr "Die natürliche Stimme ist bereit und spricht ab jetzt."
 msgid "speech.voice_failed"
 msgstr "Die natürliche Stimme konnte nicht heruntergeladen werden, daher spricht die Systemstimme. Ember versucht es beim nächsten Start erneut."
 
+msgid "speech.pack"
+msgstr "Sprachpaket {0}"
+
+msgid "speech.pack_missing"
+msgstr "Nicht geladen, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Geladen, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Update verfügbar, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Entfernt"
+
+msgid "speech.pack_detail"
+msgstr "Jede Zeile, die Ember sagt, einmal mit natürlicher Stimme aufgenommen. Sie wird von selbst geladen, wenn die Sprachausgabe an ist; wähle sie aus, um sie erneut zu laden oder zu aktualisieren."
+
+msgid "speech.pack_download"
+msgstr "Laden"
+
+msgid "speech.pack_remove"
+msgstr "Sprachpaket entfernen"
+
+msgid "speech.pack_remove_detail"
+msgstr "Löscht das Sprachpaket von diesem PC. Bis du es erneut lädst, spricht die Systemstimme."
+
+msgid "speech.pack_downloading"
+msgstr "Die Stimme für {0} wird geladen ({1} MB). Bis sie bereit ist, spricht die Systemstimme."
+
+msgid "speech.pack_failed"
+msgstr "Das Sprachpaket konnte nicht geladen werden, daher spricht die Systemstimme. Für einen neuen Versuch wähle das Sprachpaket unter Einstellungen, Barrierefreiheit."
+
 msgid "speech.no_windows_voice"
 msgstr "Die Sprachausgabe ist an, aber Windows hat keine Stimme zum Sprechen. Füge in den Windows-Einstellungen unter Zeit und Sprache, Spracherkennung eine hinzu."
 

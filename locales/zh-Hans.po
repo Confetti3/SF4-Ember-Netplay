@@ -4823,6 +4823,39 @@ msgstr "自然语音已就绪，从现在起由它朗读。"
 msgid "speech.voice_failed"
 msgstr "无法下载自然语音，因此由系统语音朗读。Ember会在下次启动时重试。"
 
+msgid "speech.pack"
+msgstr "语音包（{0}）"
+
+msgid "speech.pack_missing"
+msgstr "未下载，{0} MB"
+
+msgid "speech.pack_current"
+msgstr "已下载，{0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "有可用更新，{0} MB"
+
+msgid "speech.pack_removed"
+msgstr "已移除"
+
+msgid "speech.pack_detail"
+msgstr "Ember所说的每一句话，都用自然语音录制一次。开启语音时会自动下载；选择即可重新下载或更新。"
+
+msgid "speech.pack_download"
+msgstr "下载"
+
+msgid "speech.pack_remove"
+msgstr "移除语音包"
+
+msgid "speech.pack_remove_detail"
+msgstr "从此电脑删除语音包。重新下载之前由系统语音朗读。"
+
+msgid "speech.pack_downloading"
+msgstr "正在下载{0}语音（{1} MB）。就绪前由系统语音朗读。"
+
+msgid "speech.pack_failed"
+msgstr "无法下载语音包，因此由系统语音朗读。要重试，请在“设置”>“无障碍”中选择语音包。"
+
 msgid "speech.no_windows_voice"
 msgstr "语音已开启，但Windows没有可用于朗读的语音。请在Windows设置的“时间和语言”>“语音”中添加。"
 

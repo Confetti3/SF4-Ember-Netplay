@@ -4823,6 +4823,39 @@ msgstr "Естественный голос готов и теперь гово�
 msgid "speech.voice_failed"
 msgstr "Не удалось скачать естественный голос, поэтому говорит системный голос. Ember попробует снова при следующем запуске."
 
+msgid "speech.pack"
+msgstr "Голосовой пакет: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Не загружен, {0} МБ"
+
+msgid "speech.pack_current"
+msgstr "Загружен, {0} МБ"
+
+msgid "speech.pack_outdated"
+msgstr "Доступно обновление, {0} МБ"
+
+msgid "speech.pack_removed"
+msgstr "Удалён"
+
+msgid "speech.pack_detail"
+msgstr "Каждая фраза Ember, один раз записанная естественным голосом. Загружается сама, когда озвучивание включено; выберите, чтобы загрузить заново или обновить."
+
+msgid "speech.pack_download"
+msgstr "Загрузить"
+
+msgid "speech.pack_remove"
+msgstr "Удалить голосовой пакет"
+
+msgid "speech.pack_remove_detail"
+msgstr "Удаляет голосовой пакет с этого компьютера. Пока вы не загрузите его снова, говорит системный голос."
+
+msgid "speech.pack_downloading"
+msgstr "Загружается голос: {0} ({1} МБ). Пока он не готов, говорит системный голос."
+
+msgid "speech.pack_failed"
+msgstr "Не удалось загрузить голосовой пакет, поэтому говорит системный голос. Чтобы повторить, выберите голосовой пакет в разделе Настройки, Специальные возможности."
+
 msgid "speech.no_windows_voice"
 msgstr "Озвучивание включено, но в Windows нет голоса для речи. Добавьте его в параметрах Windows в разделе Время и язык, Речь."
 

@@ -4346,6 +4346,39 @@ msgstr "A voz natural está pronta e fala a partir de agora."
 msgid "speech.voice_failed"
 msgstr "Não foi possível baixar a voz natural, então fala a voz do sistema. O Ember tenta de novo na próxima vez que iniciar."
 
+msgid "speech.pack"
+msgstr "Pacote de voz: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Não baixado, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Baixado, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Atualização disponível, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Removido"
+
+msgid "speech.pack_detail"
+msgstr "Cada frase que o Ember diz, gravada uma vez com uma voz natural. É baixada sozinha quando a voz está ativada; selecione para baixar de novo ou atualizar."
+
+msgid "speech.pack_download"
+msgstr "Baixar"
+
+msgid "speech.pack_remove"
+msgstr "Remover pacote de voz"
+
+msgid "speech.pack_remove_detail"
+msgstr "Apaga o pacote de voz deste PC. A voz do sistema fala até você baixá-lo de novo."
+
+msgid "speech.pack_downloading"
+msgstr "Baixando a voz em {0} ({1} MB). A voz do sistema fala até ela ficar pronta."
+
+msgid "speech.pack_failed"
+msgstr "Não foi possível baixar o pacote de voz, então fala a voz do sistema. Para tentar de novo, selecione o pacote de voz em Configurações, Acessibilidade."
+
 msgid "speech.no_windows_voice"
 msgstr "A voz está ativada, mas o Windows não tem nenhuma voz para falar. Adicione uma nas Configurações do Windows, em Hora e idioma, Fala."
 

@@ -27,6 +27,12 @@ int main() {
     CHECK(ParseRelayStatus("natural").voice == Voice::Natural && ParseRelayStatus("failed").voice == Voice::Failed);
     const auto downloading = ParseRelayStatus("downloading 42");
     CHECK(downloading.voice == Voice::Downloading && downloading.percent == 42);
+    // The second line is the language's voice pack and its listed size.
+    const auto packed = ParseRelayStatus("natural\npack outdated 18642574\n");
+    CHECK(packed.voice == Voice::Natural && packed.pack == Pack::Outdated && packed.packBytes == 18642574);
+    CHECK(ParseRelayStatus("downloading 7\npack missing 100\n").pack == Pack::Missing && ParseRelayStatus("system\npack none 0\n").pack == Pack::None);
+    CHECK(ParseRelayStatus("natural").pack == Pack::None && ParseRelayStatus("natural\npack removed 5\n").pack == Pack::Removed);
+    CHECK(PackLine(false, "en") == "PACK\tupdate\ten\n" && PackLine(true, "pt-BR") == "PACK\tremove\tpt-BR\n");
     CHECK(ParseRelayStatus("").voice == Voice::System && ParseRelayStatus("system").voice == Voice::System && ParseRelayStatus("downloading 101").voice == Voice::System);
 
     CHECK(RelayCommand(false, "", "", "/e/speech_relay.py", "/tmp/e.fifo") == Arguments({"/usr/bin/python3", "/e/speech_relay.py", "/tmp/e.fifo"}));

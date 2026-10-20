@@ -49,13 +49,29 @@ inline std::string RenderLine(const std::vector<std::string>& parts, int rate, c
 }
 
 // The relay's status file: "system", "downloading <percent>", "natural" or
-// "failed". Anything else, a missing file included, is System.
+// "failed", then "pack <state> <bytes>". Anything else, a missing file
+// included, is System with no pack.
 inline VoiceStatus ParseRelayStatus(const std::string& text) {
-    if (text == "natural") return {Voice::Natural, 100};
-    if (text == "failed") return {Voice::Failed, 0};
+    VoiceStatus status;
+    const auto end = text.find('\n');
+    const std::string first = text.substr(0, end);
     int percent = 0;
-    if (std::sscanf(text.c_str(), "downloading %d", &percent) == 1 && percent >= 0 && percent <= 100) return {Voice::Downloading, percent};
-    return {};
+    if (first == "natural") status = {Voice::Natural, 100};
+    else if (first == "failed") status = {Voice::Failed, 0};
+    else if (std::sscanf(first.c_str(), "downloading %d", &percent) == 1 && percent >= 0 && percent <= 100) status = {Voice::Downloading, percent};
+    char state[16] = {};
+    long long bytes = 0;
+    if (end != std::string::npos && std::sscanf(text.c_str() + end + 1, "pack %15s %lld", state, &bytes) == 2 && bytes >= 0) {
+        const std::string name = state;
+        status.pack = name == "missing" ? Pack::Missing : name == "current" ? Pack::Current : name == "outdated" ? Pack::Outdated :
+            name == "removed" ? Pack::Removed : Pack::None;
+        status.packBytes = bytes;
+    }
+    return status;
+}
+// Ask the relay to download the language's voice pack again, or to remove it.
+inline std::string PackLine(bool remove, const std::string& language) {
+    return std::string("PACK\t") + (remove ? "remove" : "update") + "\t" + language + "\n";
 }
 
 // The Unix command line that starts the relay `script` reading `fifo`.

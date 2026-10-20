@@ -339,6 +339,7 @@ private:
     // Settings, Accessibility, and what speech tells as the shell draws (ApplicationShell__Accessibility.cxx).
     std::vector<MenuEntry> AccessibilityRows(const ShellView& view) const;
     bool AdjustSpeech(const MenuAction& action);
+    bool ActivateSpeech(const MenuAction& action);
     void UpdateSpeech();
     UpdatePrompt updatePrompt_;
     netplay::Generation updateGeneration_;

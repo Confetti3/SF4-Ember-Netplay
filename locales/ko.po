@@ -4823,6 +4823,39 @@ msgstr "자연스러운 음성이 준비되었습니다. 이제부터 이 음성
 msgid "speech.voice_failed"
 msgstr "자연스러운 음성을 내려받지 못해 시스템 음성이 말합니다. Ember는 다음에 시작할 때 다시 시도합니다."
 
+msgid "speech.pack"
+msgstr "음성 팩({0})"
+
+msgid "speech.pack_missing"
+msgstr "다운로드 안 됨, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "다운로드됨, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "업데이트 있음, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "제거됨"
+
+msgid "speech.pack_detail"
+msgstr "Ember가 말하는 모든 문장을 자연스러운 음성으로 한 번 녹음한 것입니다. 음성이 켜져 있으면 저절로 다운로드됩니다. 선택하면 다시 다운로드하거나 업데이트합니다."
+
+msgid "speech.pack_download"
+msgstr "다운로드"
+
+msgid "speech.pack_remove"
+msgstr "음성 팩 제거"
+
+msgid "speech.pack_remove_detail"
+msgstr "이 PC에서 음성 팩을 삭제합니다. 다시 다운로드할 때까지 시스템 음성이 말합니다."
+
+msgid "speech.pack_downloading"
+msgstr "{0} 음성을 다운로드하는 중입니다({1} MB). 준비될 때까지 시스템 음성이 말합니다."
+
+msgid "speech.pack_failed"
+msgstr "음성 팩을 다운로드하지 못해 시스템 음성이 말합니다. 다시 시도하려면 설정, 접근성에서 음성 팩을 선택하세요."
+
 msgid "speech.no_windows_voice"
 msgstr "음성이 켜져 있지만 Windows에 말할 음성이 없습니다. Windows 설정의 시간 및 언어, 음성에서 추가하세요."
 

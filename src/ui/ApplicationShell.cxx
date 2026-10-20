@@ -527,6 +527,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
  }
+ else if(ActivateSpeech(a)){}
  else if(a.id=="updates")Service(platform::ServiceAction::CheckUpdates,v,submit);
  else if(a.id=="updater")Service(platform::ServiceAction::OpenUpdater,v,submit);
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);

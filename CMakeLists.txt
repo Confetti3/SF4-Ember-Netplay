@@ -337,6 +337,11 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME MenuSpeech SOURCES src/tests/menu_speech_test.cxx LIBS sf4e_localization STD 17)
     sf4e_add_unit_test(NAME SpeechLinux SOURCES src/tests/speech_linux_test.cxx STD 17)
     sf4e_add_unit_test(NAME SpeechWine SOURCES src/tests/speech_wine_test.cxx LIBS sf4e_ui STD 17 SKIP_RETURN_CODE 77)
+    # The relay runs on the player's Linux host, so its own test needs a Python 3; skipped without one.
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME SpeechRelay COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/speech_relay_test.py" "${CMAKE_SOURCE_DIR}/src/platform/speech_relay.py")
+    endif()
     target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
     add_test(NAME UiRender COMMAND UiRenderTest)
     # Each sweep takes under a minute with the GPU transforming vertices. The

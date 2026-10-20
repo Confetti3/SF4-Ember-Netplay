@@ -37,6 +37,14 @@ Missing Unavailable();
 // downloading the natural (Piper) voice for the language, speaks with it, or
 // could not download it. Windows stays System.
 enum class Voice { System, Downloading, Natural, Failed };
-struct VoiceStatus { Voice voice = Voice::System; int percent = 0; };
+// The interface language's voice pack, every line it can say rendered ahead:
+// none listed, Missing (listed, not downloaded), Current, Outdated (a newer
+// version is listed) or Removed by the player; bytes is the listed pack's size.
+enum class Pack { None, Missing, Current, Outdated, Removed };
+struct VoiceStatus { Voice voice = Voice::System; int percent = 0; Pack pack = Pack::None; long long packBytes = 0; };
 VoiceStatus NaturalVoice();
+// Downloads the voice pack again (or for the first time, or after a removal or
+// a failed download), or removes it. Only under Proton for now.
+void UpdatePack();
+void RemovePack();
 } }

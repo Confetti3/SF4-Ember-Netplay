@@ -4822,6 +4822,39 @@ msgstr "De natuurlijke stem is klaar en spreekt vanaf nu."
 msgid "speech.voice_failed"
 msgstr "De natuurlijke stem kon niet worden gedownload, dus spreekt de systeemstem. Ember probeert het opnieuw bij de volgende start."
 
+msgid "speech.pack"
+msgstr "Stempakket {0}"
+
+msgid "speech.pack_missing"
+msgstr "Niet gedownload, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Gedownload, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Update beschikbaar, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Verwijderd"
+
+msgid "speech.pack_detail"
+msgstr "Elke zin die Ember zegt, één keer opgenomen met een natuurlijke stem. Wordt vanzelf gedownload als spraak aan staat; selecteer om opnieuw te downloaden of bij te werken."
+
+msgid "speech.pack_download"
+msgstr "Downloaden"
+
+msgid "speech.pack_remove"
+msgstr "Stempakket verwijderen"
+
+msgid "speech.pack_remove_detail"
+msgstr "Verwijdert het stempakket van deze pc. De systeemstem spreekt tot je het opnieuw downloadt."
+
+msgid "speech.pack_downloading"
+msgstr "De stem voor {0} wordt gedownload ({1} MB). Tot ze klaar is, spreekt de systeemstem."
+
+msgid "speech.pack_failed"
+msgstr "Het stempakket kon niet worden gedownload, dus spreekt de systeemstem. Selecteer het stempakket in Instellingen, Toegankelijkheid om het opnieuw te proberen."
+
 msgid "speech.no_windows_voice"
 msgstr "Spraak staat aan, maar Windows heeft geen stem om mee te spreken. Voeg er een toe via Windows-instellingen, Tijd en taal, Spraak."
 

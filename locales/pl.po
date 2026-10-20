@@ -4822,6 +4822,39 @@ msgstr "Naturalny głos jest gotowy i od teraz to on mówi."
 msgid "speech.voice_failed"
 msgstr "Nie udało się pobrać naturalnego głosu, więc mówi głos systemowy. Ember spróbuje ponownie przy następnym uruchomieniu."
 
+msgid "speech.pack"
+msgstr "Pakiet głosowy: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Nie pobrano, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Pobrano, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Dostępna aktualizacja, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Usunięto"
+
+msgid "speech.pack_detail"
+msgstr "Każde zdanie, które mówi Ember, nagrane raz naturalnym głosem. Pobiera się samo, gdy głos jest włączony; wybierz, aby pobrać ponownie lub zaktualizować."
+
+msgid "speech.pack_download"
+msgstr "Pobierz"
+
+msgid "speech.pack_remove"
+msgstr "Usuń pakiet głosowy"
+
+msgid "speech.pack_remove_detail"
+msgstr "Usuwa pakiet głosowy z tego komputera. Do ponownego pobrania mówi głos systemowy."
+
+msgid "speech.pack_downloading"
+msgstr "Pobieranie głosu: {0} ({1} MB). Do czasu, aż będzie gotowy, mówi głos systemowy."
+
+msgid "speech.pack_failed"
+msgstr "Nie udało się pobrać pakietu głosowego, więc mówi głos systemowy. Aby spróbować ponownie, wybierz pakiet głosowy w Ustawieniach, Dostępność."
+
 msgid "speech.no_windows_voice"
 msgstr "Głos jest włączony, ale system Windows nie ma żadnego głosu do mówienia. Dodaj go w Ustawieniach systemu Windows, w sekcji Czas i język, Mowa."
 
