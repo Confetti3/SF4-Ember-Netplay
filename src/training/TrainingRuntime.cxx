@@ -76,14 +76,21 @@ std::atomic<bool> meterContinuous{false};
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
 }
+#ifdef SF4E_SELFTEST
 // The in-game self-test's: the lab also runs in an offline Versus battle.
 bool versusForTest = false;
-// Where the lab runs: a Training battle, or the self-test's Versus battle, not
-// while the battle is being left. The one rule for the lab and its controls.
+#endif
+// Where the lab runs: a Training battle (and the self-test's Versus battle,
+// in a self-test build), not while the battle is being left. The one rule for
+// the lab and its controls.
 bool LabBattle(Native* system) {
     const int gameMode = (system->*Native::publicMethods.GetGameMode)();
-    return (gameMode == Dimps::Game::Battle::GAMEMODE_TRAINING || (versusForTest && gameMode == Dimps::Game::Battle::GAMEMODE_VERSUS)) &&
-        !(system->*Native::publicMethods.IsLeavingBattle)();
+#ifdef SF4E_SELFTEST
+    const bool lab = gameMode == Dimps::Game::Battle::GAMEMODE_TRAINING || (versusForTest && gameMode == Dimps::Game::Battle::GAMEMODE_VERSUS);
+#else
+    const bool lab = gameMode == Dimps::Game::Battle::GAMEMODE_TRAINING;
+#endif
+    return lab && !(system->*Native::publicMethods.IsLeavingBattle)();
 }
 bool matchShown = false;
 ConfirmedSamples confirmed;
@@ -550,7 +557,9 @@ bool MatchPracticeActive() { return matchPractice; }
 unsigned ClearReservedInputBits(unsigned raw) {
     return matchPractice ? raw & ~ReservedInputBits : raw;
 }
+#ifdef SF4E_SELFTEST
 void AllowOfflineVersusForTest() { versusForTest = true; }
+#endif
 void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
