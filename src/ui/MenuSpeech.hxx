@@ -31,6 +31,15 @@ struct Utterance {
     bool interrupt = true;
     std::string Text() const { return speech::Line(parts); }
 };
+// The voice speech uses, as the Accessibility page shows it.
+inline std::string VoiceText(speech::VoiceStatus status) {
+    switch (status.voice) {
+    case speech::Voice::Downloading: return loc::Tf("speech.voice_downloading", status.percent);
+    case speech::Voice::Natural: return loc::T("speech.voice_natural");
+    case speech::Voice::Failed: return loc::T("speech.voice_download_failed");
+    default: return loc::T("speech.voice_system");
+    }
+}
 // Turns what a menu shows into speech, one utterance at a time: the screen's
 // title and how many rows it has when it changes, then the focused row's name
 // and value, as Tokon reads its menus; its place in the list only if the

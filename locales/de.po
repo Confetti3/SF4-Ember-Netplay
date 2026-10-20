@@ -4762,6 +4762,30 @@ msgstr "Position vorlesen"
 msgid "speech.read_position_detail"
 msgstr "Nennt nach Name und Wert einer Zeile ihre Position in der Liste, etwa 3 von 12."
 
+msgid "speech.voice"
+msgstr "Stimme"
+
+msgid "speech.voice_detail"
+msgstr "Unter Linux und auf dem Steam Deck lädt Ember einmal eine natürliche Stimme für deine Sprache herunter (etwa 90 MB) und behält sie. Bis sie bereit ist, und für Sprachen ohne eine, spricht die Systemstimme."
+
+msgid "speech.voice_system"
+msgstr "Systemstimme"
+
+msgid "speech.voice_downloading"
+msgstr "Wird heruntergeladen, {0} %"
+
+msgid "speech.voice_natural"
+msgstr "Natürliche Stimme"
+
+msgid "speech.voice_download_failed"
+msgstr "Download fehlgeschlagen"
+
+msgid "speech.voice_ready"
+msgstr "Die natürliche Stimme ist bereit und spricht ab jetzt."
+
+msgid "speech.voice_failed"
+msgstr "Die natürliche Stimme konnte nicht heruntergeladen werden, daher spricht die Systemstimme. Ember versucht es beim nächsten Start erneut."
+
 msgid "speech.no_windows_voice"
 msgstr "Die Sprachausgabe ist an, aber Windows hat keine Stimme zum Sprechen. Füge in den Windows-Einstellungen unter Zeit und Sprache, Spracherkennung eine hinzu."
 

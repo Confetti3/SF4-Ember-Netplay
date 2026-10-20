@@ -4762,6 +4762,30 @@ msgstr "Číst pozici"
 msgid "speech.read_position_detail"
 msgstr "Po názvu a hodnotě řádku řekne jeho pozici v seznamu, například 3 z 12."
 
+msgid "speech.voice"
+msgstr "Hlas"
+
+msgid "speech.voice_detail"
+msgstr "V Linuxu a na Steam Decku Ember jednou stáhne přirozený hlas pro váš jazyk (asi 90 MB) a ponechá si ho. Dokud není připravený, a pro jazyky bez něj, mluví systémový hlas."
+
+msgid "speech.voice_system"
+msgstr "Systémový hlas"
+
+msgid "speech.voice_downloading"
+msgstr "Stahování, {0} %"
+
+msgid "speech.voice_natural"
+msgstr "Přirozený hlas"
+
+msgid "speech.voice_download_failed"
+msgstr "Stažení selhalo"
+
+msgid "speech.voice_ready"
+msgstr "Přirozený hlas je připravený a od teď mluví on."
+
+msgid "speech.voice_failed"
+msgstr "Přirozený hlas se nepodařilo stáhnout, proto mluví systémový hlas. Ember to zkusí znovu při příštím spuštění."
+
 msgid "speech.no_windows_voice"
 msgstr "Hlas je zapnutý, ale Windows nemají žádný hlas, kterým by mluvily. Přidejte ho v Nastavení Windows v části Čas a jazyk, Řeč."
 

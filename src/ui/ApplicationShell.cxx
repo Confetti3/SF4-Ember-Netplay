@@ -17,7 +17,6 @@
 #include "../common/NativeMenuLock.hxx"
 #include "../common/ReplayInputs.hxx"
 #include "../platform/LocaleWindows.hxx"
-#include "../platform/Speech.hxx"
 #include "ReplaySummaryText.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <imgui.h>
@@ -320,7 +319,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("speech-volume",loc::T("speech.volume"),std::to_string(speech.volume)+"%",loc::T("speech.volume_detail"),speaking),
    Value("speech-details",loc::T("speech.details"),speech.details?loc::T("common.on"):loc::T("common.off"),loc::T("speech.details_detail"),speaking),
    Value("speech-hints",loc::T("speech.hints"),speech.hints?loc::T("common.on"):loc::T("common.off"),loc::T("speech.hints_detail"),speaking),
-   Value("speech-position",loc::T("speech.read_position"),speech.position?loc::T("common.on"):loc::T("common.off"),loc::T("speech.read_position_detail"),speaking)};
+   Value("speech-position",loc::T("speech.read_position"),speech.position?loc::T("common.on"):loc::T("common.off"),loc::T("speech.read_position_detail"),speaking),
+   InfoRow("speech-voice",loc::T("speech.voice"),VoiceText(speech::NaturalVoice()),loc::T("speech.voice_detail"))};
  }else if(screen=="discord"){
   title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
    Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
@@ -931,6 +931,14 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(preferences_.speech.enabled&&missing!=speech::Missing::Nothing&&!speechNoticeShown_&&!menu_.NoticeOpen()){
   speechNoticeShown_=true;
   menu_.ShowNotice(missing==speech::Missing::WindowsVoice?loc::T("speech.no_windows_voice"):loc::T("speech.no_speech_dispatcher"),loc::T("speech.setting"));
+ }
+ // The natural voice's download is told when it starts, ends and fails (VoiceText has its progress).
+ const auto voice=speech::NaturalVoice().voice;
+ if(preferences_.speech.enabled&&voice!=voiceTold_&&voice!=speech::Voice::System&&!menu_.NoticeOpen()){
+  if(voice==speech::Voice::Downloading)menu_.ShowNotice(loc::T("speech.voice_detail"),loc::T("speech.voice"));
+  else if(voice==speech::Voice::Failed)menu_.ShowNotice(loc::T("speech.voice_failed"),loc::T("speech.voice"));
+  else if(voiceTold_==speech::Voice::Downloading)menu_.ShowNotice(loc::T("speech.voice_ready"),loc::T("speech.voice"));
+  voiceTold_=voice;
  }
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home");
  AnswerDialog(submit);

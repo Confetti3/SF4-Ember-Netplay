@@ -4401,6 +4401,30 @@ msgstr "Read position"
 msgid "speech.read_position_detail"
 msgstr "After a row's name and value, says its place in the list, such as 3 of 12."
 
+msgid "speech.voice"
+msgstr "Voice"
+
+msgid "speech.voice_detail"
+msgstr "On Linux and the Steam Deck, Ember downloads a natural voice for your language once (about 90 MB) and keeps it. Until it is ready, and for languages without one, the system voice speaks."
+
+msgid "speech.voice_system"
+msgstr "System voice"
+
+msgid "speech.voice_downloading"
+msgstr "Downloading, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Natural voice"
+
+msgid "speech.voice_download_failed"
+msgstr "Download failed"
+
+msgid "speech.voice_ready"
+msgstr "The natural voice is ready and speaks from now on."
+
+msgid "speech.voice_failed"
+msgstr "The natural voice could not be downloaded, so the system voice speaks. Ember tries again the next time it starts."
+
 msgid "speech.no_windows_voice"
 msgstr "Speech is on, but Windows has no voice to speak with. Add one in Windows Settings under Time and language, Speech."
 

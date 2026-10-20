@@ -4763,6 +4763,30 @@ msgstr "朗读位置"
 msgid "speech.read_position_detail"
 msgstr "在项目名称和值之后，朗读其在列表中的位置，例如第3项，共12项。"
 
+msgid "speech.voice"
+msgstr "语音"
+
+msgid "speech.voice_detail"
+msgstr "在Linux和Steam Deck上，Ember会为你的语言下载一次自然语音（约90 MB）并保留。在其就绪之前，以及没有对应语音的语言，由系统语音朗读。"
+
+msgid "speech.voice_system"
+msgstr "系统语音"
+
+msgid "speech.voice_downloading"
+msgstr "正在下载，{0}%"
+
+msgid "speech.voice_natural"
+msgstr "自然语音"
+
+msgid "speech.voice_download_failed"
+msgstr "下载失败"
+
+msgid "speech.voice_ready"
+msgstr "自然语音已就绪，从现在起由它朗读。"
+
+msgid "speech.voice_failed"
+msgstr "无法下载自然语音，因此由系统语音朗读。Ember会在下次启动时重试。"
+
 msgid "speech.no_windows_voice"
 msgstr "语音已开启，但Windows没有可用于朗读的语音。请在Windows设置的“时间和语言”>“语音”中添加。"
 

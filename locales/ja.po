@@ -4763,6 +4763,30 @@ msgstr "位置を読み上げ"
 msgid "speech.read_position_detail"
 msgstr "項目の名前と値の後に、一覧での位置を読み上げます（例：12件中3件目）。"
 
+msgid "speech.voice"
+msgstr "音声"
+
+msgid "speech.voice_detail"
+msgstr "LinuxとSteam Deckでは、Emberはお使いの言語の自然な音声を一度だけダウンロードし（約90 MB）、保存します。準備ができるまで、また対応する音声がない言語では、システムの音声が読み上げます。"
+
+msgid "speech.voice_system"
+msgstr "システムの音声"
+
+msgid "speech.voice_downloading"
+msgstr "ダウンロード中、{0}%"
+
+msgid "speech.voice_natural"
+msgstr "自然な音声"
+
+msgid "speech.voice_download_failed"
+msgstr "ダウンロード失敗"
+
+msgid "speech.voice_ready"
+msgstr "自然な音声の準備ができました。これからはこの音声で読み上げます。"
+
+msgid "speech.voice_failed"
+msgstr "自然な音声をダウンロードできなかったため、システムの音声で読み上げます。Emberは次回の起動時に再試行します。"
+
 msgid "speech.no_windows_voice"
 msgstr "音声読み上げはオンですが、Windowsに読み上げ用の音声がありません。Windowsの設定の「時刻と言語」の「音声」で追加してください。"
 

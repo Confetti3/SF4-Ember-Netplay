@@ -4763,6 +4763,30 @@ msgstr "위치 읽기"
 msgid "speech.read_position_detail"
 msgstr "항목 이름과 값 다음에 목록에서의 위치를 읽습니다(예: 12개 중 3번째)."
 
+msgid "speech.voice"
+msgstr "음성"
+
+msgid "speech.voice_detail"
+msgstr "Linux와 Steam Deck에서 Ember는 사용 중인 언어의 자연스러운 음성을 한 번 내려받아(약 90 MB) 보관합니다. 준비될 때까지, 그리고 해당 음성이 없는 언어에서는 시스템 음성이 말합니다."
+
+msgid "speech.voice_system"
+msgstr "시스템 음성"
+
+msgid "speech.voice_downloading"
+msgstr "다운로드 중, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "자연스러운 음성"
+
+msgid "speech.voice_download_failed"
+msgstr "다운로드 실패"
+
+msgid "speech.voice_ready"
+msgstr "자연스러운 음성이 준비되었습니다. 이제부터 이 음성으로 말합니다."
+
+msgid "speech.voice_failed"
+msgstr "자연스러운 음성을 내려받지 못해 시스템 음성이 말합니다. Ember는 다음에 시작할 때 다시 시도합니다."
+
 msgid "speech.no_windows_voice"
 msgstr "음성이 켜져 있지만 Windows에 말할 음성이 없습니다. Windows 설정의 시간 및 언어, 음성에서 추가하세요."
 

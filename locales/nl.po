@@ -4762,6 +4762,30 @@ msgstr "Positie voorlezen"
 msgid "speech.read_position_detail"
 msgstr "Zegt na de naam en waarde van een rij de plaats in de lijst, zoals 3 van 12."
 
+msgid "speech.voice"
+msgstr "Stem"
+
+msgid "speech.voice_detail"
+msgstr "Op Linux en de Steam Deck downloadt Ember één keer een natuurlijke stem voor je taal (ongeveer 90 MB) en bewaart die. Tot ze klaar is, en voor talen zonder zo'n stem, spreekt de systeemstem."
+
+msgid "speech.voice_system"
+msgstr "Systeemstem"
+
+msgid "speech.voice_downloading"
+msgstr "Downloaden, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Natuurlijke stem"
+
+msgid "speech.voice_download_failed"
+msgstr "Download mislukt"
+
+msgid "speech.voice_ready"
+msgstr "De natuurlijke stem is klaar en spreekt vanaf nu."
+
+msgid "speech.voice_failed"
+msgstr "De natuurlijke stem kon niet worden gedownload, dus spreekt de systeemstem. Ember probeert het opnieuw bij de volgende start."
+
 msgid "speech.no_windows_voice"
 msgstr "Spraak staat aan, maar Windows heeft geen stem om mee te spreken. Voeg er een toe via Windows-instellingen, Tijd en taal, Spraak."
 

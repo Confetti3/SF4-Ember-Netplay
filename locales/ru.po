@@ -4763,6 +4763,30 @@ msgstr "Читать позицию"
 msgid "speech.read_position_detail"
 msgstr "После названия и значения строки называет её место в списке, например 3 из 12."
 
+msgid "speech.voice"
+msgstr "Голос"
+
+msgid "speech.voice_detail"
+msgstr "В Linux и на Steam Deck Ember один раз скачивает естественный голос для вашего языка (около 90 МБ) и сохраняет его. Пока он не готов, а также для языков без такого голоса, говорит системный голос."
+
+msgid "speech.voice_system"
+msgstr "Системный голос"
+
+msgid "speech.voice_downloading"
+msgstr "Загрузка: {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Естественный голос"
+
+msgid "speech.voice_download_failed"
+msgstr "Ошибка загрузки"
+
+msgid "speech.voice_ready"
+msgstr "Естественный голос готов и теперь говорит он."
+
+msgid "speech.voice_failed"
+msgstr "Не удалось скачать естественный голос, поэтому говорит системный голос. Ember попробует снова при следующем запуске."
+
 msgid "speech.no_windows_voice"
 msgstr "Озвучивание включено, но в Windows нет голоса для речи. Добавьте его в параметрах Windows в разделе Время и язык, Речь."
 

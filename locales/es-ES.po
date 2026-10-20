@@ -4763,6 +4763,30 @@ msgstr "Leer posición"
 msgid "speech.read_position_detail"
 msgstr "Después del nombre y el valor de una fila, dice su posición en la lista, como 3 de 12."
 
+msgid "speech.voice"
+msgstr "Voz"
+
+msgid "speech.voice_detail"
+msgstr "En Linux y en Steam Deck, Ember descarga una sola vez una voz natural para tu idioma (unos 90 MB) y la conserva. Hasta que esté lista, y en los idiomas que no tienen una, habla la voz del sistema."
+
+msgid "speech.voice_system"
+msgstr "Voz del sistema"
+
+msgid "speech.voice_downloading"
+msgstr "Descargando, {0} %"
+
+msgid "speech.voice_natural"
+msgstr "Voz natural"
+
+msgid "speech.voice_download_failed"
+msgstr "Error en la descarga"
+
+msgid "speech.voice_ready"
+msgstr "La voz natural está lista y habla a partir de ahora."
+
+msgid "speech.voice_failed"
+msgstr "No se ha podido descargar la voz natural, así que habla la voz del sistema. Ember lo vuelve a intentar la próxima vez que se inicie."
+
 msgid "speech.no_windows_voice"
 msgstr "La voz está activada, pero Windows no tiene ninguna voz para hablar. Añade una en Configuración de Windows, en Hora e idioma, Voz."
 
