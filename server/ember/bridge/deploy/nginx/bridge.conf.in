@@ -2,6 +2,16 @@
 # the service on 127.0.0.1:@PORT@. The bridge logs method, path and status
 # itself, so nginx keeps no access log (requests carry bearer credentials).
 
+# BluMint's callbacks, one request zone each so a round of lookups does not
+# spend the creations' budget. BluMint sends every request of a round start at
+# once and reads a 429 as an outage, so these are sized for a 512-player round
+# (see the burst below) and are not meant to be reached. They belong to this
+# site and take their prefix from its instance (@ZONE@ here), so no other
+# instance's traffic spends them and no shared file has to change first.
+limit_req_zone $binary_remote_addr zone=@ZONE@_blumint_lookup:1m rate=100r/s;
+limit_req_zone $binary_remote_addr zone=@ZONE@_blumint_create:1m rate=100r/s;
+limit_req_zone $binary_remote_addr zone=@ZONE@_blumint_close:1m rate=100r/s;
+
 server {
     listen 80;
     listen [::]:80;
@@ -62,7 +72,7 @@ server {
     # every match. So each has a zone of its own, off the general one, with a
     # burst past a 512-player round start from one address.
     location = /v1/blumint/lookup {
-        limit_req zone=ember_bridge_blumint_lookup burst=1000 nodelay;
+        limit_req zone=@ZONE@_blumint_lookup burst=1000 nodelay;
         proxy_pass http://127.0.0.1:@PORT@;
     }
 
@@ -70,12 +80,12 @@ server {
     # bridge takes up to 256 KiB there (routes::blumint::CREATE_BODY).
     location = /v1/blumint/matches {
         client_max_body_size 512k;
-        limit_req zone=ember_bridge_blumint_create burst=1000 nodelay;
+        limit_req zone=@ZONE@_blumint_create burst=1000 nodelay;
         proxy_pass http://127.0.0.1:@PORT@;
     }
 
     location = /v1/blumint/matches/close {
-        limit_req zone=ember_bridge_blumint_close burst=1000 nodelay;
+        limit_req zone=@ZONE@_blumint_close burst=1000 nodelay;
         proxy_pass http://127.0.0.1:@PORT@;
     }
 
