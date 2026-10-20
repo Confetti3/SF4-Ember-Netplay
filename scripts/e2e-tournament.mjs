@@ -188,6 +188,13 @@ try {
     write(local, "desk-number", number);
     await wait(local, "desk-approved", 2, "the game approving");
     await page.until("!document.getElementById('home').hidden", 15000);
+    // A run that failed may have left its tournament: deleted here, on Challonge too.
+    const left = await page.eval(`api('GET', '/v1/organizer/events').then((r) => Promise.all(r.events
+      .filter((e) => e.title.startsWith('ember-2p ') && e.created_on_site)
+      .map((e) => api('DELETE', '/v1/organizer/events/' + e.id, { on_site: true }).then(() => 'deleted', (error) => error.message))))
+      .then((done) => done.join('; '))`).catch((error) => error.message);
+    if (left) log("tournaments an earlier run left:", left);
+    await page.eval("home()");
     await layout(page, "05-desk-home", true);
   });
 
@@ -286,7 +293,10 @@ try {
     });
   }
 } finally {
-  if (event && !args.includes("--keep")) log("left on the desk and Challonge:", event, "- stop it on the desk with Stop it and delete it on Challonge");
+  if (event && !args.includes("--keep")) {
+    const status = await page.eval(`api('DELETE', '/v1/organizer/events/${event}', { on_site: true }).then(() => 'deleted', (e) => e.message)`).catch((e) => e.message);
+    log("this run's tournament, with Challonge's:", status);
+  }
   page.close();
   const failed = results.filter(([state]) => state === "FAIL");
   console.log(`\n${results.length - failed.length} passed, ${failed.length} failed; pictures in ${out}`);
