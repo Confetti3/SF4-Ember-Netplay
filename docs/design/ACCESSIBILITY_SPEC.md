@@ -217,24 +217,26 @@ Limits: the container route assumes the host keeps its loader and libraries in `
 
 SteamOS ships only espeak-ng behind speech-dispatcher, which players found robotic. The first time speech is on under Wine, the relay downloads Piper (2023.11.14-2, MIT, 26 MB) and the interface language's medium voice (about 63 MB) into `~/.cache/ember-speech`, each checked against a pinned SHA-256 (voices pinned to piper-voices revision c10ece1a). speech-dispatcher speaks while it downloads, offline, and for languages without a voice. Each part Piper says (a row's name, its value) is kept as a WAV clip under Ember's key of language, rate and text, so a row named once plays at once; a screen that opens has its names and values made ahead by a second Piper at low priority. Warm Piper on the Deck takes 120 to 360 ms for a row name, 730 ms for a long detail, before the cache.
 
-| Ember language | Piper voice | Notes |
-|---|---|---|
-| en | en_US-lessac-medium | female; the user picked it by ear |
-| de | de_DE-thorsten-medium | male; best German medium |
-| fr | fr_FR-siwis-medium | female |
-| es-ES | es_ES-davefx-medium | male |
-| es-419 | es_MX-ald-medium | male |
-| it | it_IT-paola-medium | female |
-| nl | nl_BE-nathalie-medium | female, Flemish |
-| pl | pl_PL-gosia-medium | female |
-| pt-BR | pt_BR-faber-medium | male |
-| ru | ru_RU-irina-medium | female |
-| cs | cs_CZ-jirka-medium | male |
-| zh-Hans | zh_CN-huayan-medium | female |
-| ja | none | ja_JP-hi_fi_captain needs a newer Piper (Japanese phonemes); speech-dispatcher |
-| ko | none | ko_KR-kss crashes this Piper ("Phonemes must be one codepoint"); speech-dispatcher |
+Only voices whose recordings are public domain, CC0 or CC BY may be used (they are downloaded by the player's PC, and guide audio is published, so research-only or non-commercial voices are out). Licences are from each voice's MODEL_CARD at the pinned revision, and for paola from its dataset page.
 
-Open: the voices' own licences differ (lessac comes from the Blizzard 2013 corpus); Ember does not ship them, the player's PC downloads them from Hugging Face, but check each before a release. The download contacts github.com and huggingface.co, which the Voice row's detail should say.
+| Ember language | Piper voice | Licence of the recordings | Notes |
+|---|---|---|---|
+| en | en_US-ljspeech-medium | public domain (LJ Speech) | female; pending the user's pick between ljspeech, kristin (LibriVox, PD) and cori (en_GB, LibriVox, PD); ljspeech is fastest on the Deck |
+| de | de_DE-thorsten-medium | CC0 | male |
+| fr | fr_FR-siwis-medium | CC BY 4.0 | female; credit "SIWIS French Speech Synthesis Database" in the guide and notices |
+| es-ES | es_ES-davefx-medium | CC0 | male |
+| es-419 | es_MX-ald-medium | Unlicense (public domain dedication) | male |
+| it | it_IT-paola-medium | CC0 (dataset page; MODEL_CARD says "see URL") | female |
+| nl | nl_BE-nathalie-medium | CC0 | female, Flemish |
+| pl | pl_PL-gosia-medium | CC0 | female |
+| pt-BR | pt_BR-faber-medium | CC0 | male |
+| ru | ru_RU-denis-medium | CC0 | male; irina's licence is unknown |
+| cs | cs_CZ-jirka-medium | CC0 | male |
+| zh-Hans | none | | huayan's licence is unknown; chaowen (CC0) needs pinyin phonemes, which this Piper lacks; speech-dispatcher |
+| ja | none | | ja_JP-hi_fi_captain needs a newer Piper; speech-dispatcher |
+| ko | none | | ko_KR-kss crashes this Piper; speech-dispatcher |
+
+Removed: en_US-lessac (Blizzard 2013 Lessac corpus, research purposes only, no redistribution), zh_CN-huayan and ru_RU-irina (licence unknown). A newer Piper would open zh (chaowen) and ja; check its licences first.
 
 Windows, later: offer the same Piper voice as a choice beside SAPI (Piper has Windows builds), for players without a good SAPI voice.
 
