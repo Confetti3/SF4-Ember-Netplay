@@ -14,9 +14,6 @@ namespace sf4e {
         // Ember takes the game's input: the pads while its menu holds them, with
         // the window in front or not, and while the training controls are open.
         bool CapturesMenuInput();
-        // Game thread: the mandatory result modal owns input independently
-        // of shell visibility and survives display recreation.
-        void PlaceResultModal(bool shown);
         // The game window has the focus: the keyboard, the mouse and the
         // training controls need it; Ember's menu does not.
         bool HasInputFocus();

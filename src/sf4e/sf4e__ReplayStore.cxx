@@ -17,6 +17,7 @@
 #include "../common/Localization.hxx"
 #include "../common/ReplaySlots.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../platform/NativeSignature.hxx"
 #include "../platform/Utf8.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -72,17 +73,6 @@ void ReplaySave::Advance(Task** task, bool idle) {
  }
 }
 
-template<std::size_t N> bool CallbackMatches(const void* address, const unsigned char (&expected)[N]) {
- MEMORY_BASIC_INFORMATION region{};
- if (!address || !VirtualQuery(address, &region, sizeof(region)) || region.State != MEM_COMMIT ||
-     (region.Protect & (PAGE_GUARD | PAGE_NOACCESS))) return false;
- const auto at = reinterpret_cast<std::uintptr_t>(address);
- const auto start = reinterpret_cast<std::uintptr_t>(region.BaseAddress);
- const auto access = region.Protect & 0xff;
- return (access == PAGE_EXECUTE_READ || access == PAGE_EXECUTE_READWRITE || access == PAGE_EXECUTE_WRITECOPY) &&
-     at >= start && N <= region.RegionSize && at - start <= region.RegionSize - N && !std::memcmp(address, expected, N);
-}
-
 void InstallRecordingCallbacks() {
  // Steam 1.05: 0x63CA40 checks the result, then 0x63C9C0 starts a save.
  // Its completion task 0x63C8A0 releases the serialized buffer and installs
@@ -90,8 +80,8 @@ void InstallRecordingCallbacks() {
  auto& native = NativeVsBattle::privateMethods;
  const unsigned char check[] = {0x55,0x8b,0xec,0x53,0x56,0x57,0x8b,0xd9,0xe8,0xe3,0xef,0xf9,0xff};
  const unsigned char idle[] = {0x55,0x8b,0xec,0x83,0x79,0x4c,0x00,0x74,0x1c};
- if (!CallbackMatches(*reinterpret_cast<void**>(&native.CheckReplaySave), check) ||
-     !CallbackMatches(*reinterpret_cast<void**>(&native.ReplayIdle), idle)) return;
+ if (!sf4e::native::Signature(*reinterpret_cast<void**>(&native.CheckReplaySave), check) ||
+     !sf4e::native::Signature(*reinterpret_cast<void**>(&native.ReplayIdle), idle)) return;
  void (ReplaySave::* checkHook)(Task**) = &ReplaySave::Check;
  void (ReplaySave::* idleHook)(Task**) = &ReplaySave::Idle;
  const auto first = DetourAttach(reinterpret_cast<PVOID*>(&native.CheckReplaySave), *reinterpret_cast<PVOID*>(&checkHook));

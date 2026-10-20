@@ -1,5 +1,5 @@
 #pragma once
-#include "../common/QuickRematch.hxx"
+#include "../common/RematchPanel.hxx"
 #include "../common/Localization.hxx"
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
@@ -8,11 +8,11 @@
 namespace sf4e { namespace ui {
 // Presentation only: it never reads or changes the native battle. The caller
 // sends the returned choice together with the offer of the same snapshot.
-class QuickRematchPanel {
+class RematchPanel {
 public:
-    quickrematch::Choice Draw(const quickrematch::View& view) {
-        using quickrematch::Choice;
-        if (!quickrematch::Shown(view)) { Clear(); return Choice::None; }
+    rematchpanel::Choice Draw(const rematchpanel::View& view) {
+        using rematchpanel::Choice;
+        if (!rematchpanel::Shown(view)) { Clear(); return Choice::None; }
         if (offer_ != view.offer) {
             Clear(); offer_ = view.offer;
             menu_.navigation.Prefer("quick-rematch");
@@ -30,7 +30,7 @@ public:
         ImGui::SetNextWindowBgAlpha(.97f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*scale,16*scale));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,10*scale);
-        ImGui::Begin("###EmberQuickRematch",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoNavInputs);
+        ImGui::Begin("###EmberRematchPanel",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoNavInputs);
         menu_.backHint=back;menu_.rootName=loc::T("quick_rematch.title");
         menu_.cardRounding=6;menu_.compactDetailLines=2;
         const auto action=menu_.Draw(loc::T("quick_rematch.title"),entries,status.c_str(),{},1,{}, {},scale,64,true,

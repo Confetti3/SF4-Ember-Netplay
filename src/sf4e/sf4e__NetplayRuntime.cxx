@@ -436,9 +436,9 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		command.reportSubmission.comment.size() > 8000 ||
 		command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64 ||
 		(command.createdRules && !command.createdRules->Valid()) ||
-        (command.quickRematchChoice != quickrematch::Choice::None &&
-            (command.quickRematchOffer == 0 || (command.quickRematchChoice != quickrematch::Choice::Rematch &&
-                command.quickRematchChoice != quickrematch::Choice::Lobby)))) return false;
+        (command.rematchChoice != rematchpanel::Choice::None &&
+            (command.rematchOffer == 0 || (command.rematchChoice != rematchpanel::Choice::Rematch &&
+                command.rematchChoice != rematchpanel::Choice::Lobby)))) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
 		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes() + command.reportSubmission.comment.size();
 		return bridge::PushCommand(std::move(command), bytes);
@@ -450,7 +450,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
 	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
-		command.quickRematchChoice == quickrematch::Choice::None && command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+		command.rematchChoice == rematchpanel::Choice::None && command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&

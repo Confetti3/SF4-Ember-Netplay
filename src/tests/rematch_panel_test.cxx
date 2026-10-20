@@ -1,4 +1,4 @@
-#include "../ui/QuickRematchPanel.hxx"
+#include "../ui/RematchPanel.hxx"
 #include "imgui_test_support.hxx"
 #include "test_support.hxx"
 #include <iostream>
@@ -6,10 +6,10 @@
 int main() {
     using namespace sf4e;
     using namespace sf4e::ui;
-    using quickrematch::Choice;
+    using rematchpanel::Choice;
     HeadlessImGui context;
-    QuickRematchPanel panel;
-    quickrematch::View view;view.offer=41;view.visible=view.canRematch=true;
+    RematchPanel panel;
+    rematchpanel::View view;view.offer=41;view.visible=view.canRematch=true;
     std::vector<MenuEntry> rows;std::string status;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     SetMenuStatusProbe([&](const char* text,Tone){status=text;});
@@ -54,8 +54,8 @@ int main() {
     CHECK(rows.size()==2&&!rows[0].enabled&&rows[1].enabled&&rows[1].label==loc::T("quick_rematch.return_lobby"));
     CHECK(frame(MenuInput::Fighter)==Choice::None&&frame()==Choice::None);
     CHECK(frame(MenuInput::Back)==Choice::Lobby);
-    view.offer=0;CHECK(!quickrematch::Shown(view)&&frame()==Choice::None);
-    view.offer=52;view.visible=false;CHECK(!quickrematch::Shown(view)&&frame()==Choice::None);
+    view.offer=0;CHECK(!rematchpanel::Shown(view)&&frame()==Choice::None);
+    view.offer=52;view.visible=false;CHECK(!rematchpanel::Shown(view)&&frame()==Choice::None);
     SetMenuEntriesProbe({});SetMenuStatusProbe({});
-    std::cout<<"Quick rematch offer, held input, two actions, cancellation and queue retry passed\n";
+    std::cout<<"Rematch offer, held input, two actions, cancellation and queue retry passed\n";
 }

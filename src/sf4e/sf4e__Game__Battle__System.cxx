@@ -373,9 +373,8 @@ static bool PlayGgpoFrame(rSystem* system) {
     }
     NoteDisconnectFlags(disconnect_flags);
     // The game is never shown the reserved bits (TrainingRuntime.hxx).
-    ggpoInputs[0].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[0].rawOn);
-    ggpoInputs[1].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[1].rawOn);
-    if(!sf4e::continuousrematch::BeforeFrame(system,ggpoInputs))return false;
+    const auto control = sf4e::continuousrematch::PrepareFrameInputs(ggpoInputs);
+    if(!sf4e::continuousrematch::BeforeFrame(system,ggpoInputs,control))return false;
     const GGPOErrorCode err = sf4e::statehash::GgpoTimeline::Simulate(
         [&] {
             // Playback mode is off again (the guard) before

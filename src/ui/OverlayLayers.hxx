@@ -2,16 +2,16 @@
 #include "Theme.hxx"
 #include "TrainingPanel.hxx"
 #include "ReplayPlaybackHud.hxx"
+#include "OverlayPresentation.hxx"
 
 namespace sf4e { namespace ui {
-// Presentation inputs only. The overlay owns hotkeys, commands and capture;
-// this boundary owns which passive layers and alerts are drawn together.
-struct OverlayLayersView {
-    bool shellVisible = false, shellAvailable = false;
+// Presentation inputs only. The shared layer state owns visibility and input
+// policy; the overlay dispatches hotkeys and commands from the chosen layer.
+struct OverlayLayersView : OverlayLayersState {
+    using OverlayLayersState::OverlayLayersState;
     // How opaque "F10 or Start" is this frame (ShortcutHintAlpha); 0 hides it.
     float shortcutHintAlpha = 1;
-    bool trainingControlsOpen = false, nativePaused = false;
-    bool focused = true, trainingHud = true, matchActive = false;
+    bool trainingHud = true, matchActive = false;
     bool matchWaitsForMenu = false, showMatchHud = true;
     std::string controllerWarning;
     std::string padHint;

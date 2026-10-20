@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <string>
 
-namespace sf4e { namespace quickrematch {
+namespace sf4e { namespace rematchpanel {
 enum class Choice { None, Rematch, Lobby };
 // Immutable presentation data copied by the game thread. offer identifies
 // one result decision in a continuous set.

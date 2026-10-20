@@ -252,64 +252,69 @@ void PollSpectatorExit() {
 		PushAlert(loc::T("runtime.spectator_close_timeout"), NoticeSeverity::Warning);
 }
 
+namespace {
+const room::Table* LocalMatchTable() {
+    if(!runtime||!runtime->match||!runtime->attached||!UserApp::netplay)return nullptr;
+    const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
+    const auto generation=runtime->match->Generation();
+    if(!generation)return nullptr;
+    if(!snapshot.localMatchGenerationsSent) {
+        // Older hosts omit per-recipient grants. Keep their seated fighters'
+        // ordinary result path, but never infer a missing spectator grant.
+        const auto* member=room::FindMember(snapshot,snapshot.localMember);
+        if(LocalIsSpectator()||!member||member->table<0||member->table>=room::TableCount)return nullptr;
+        const auto& table=snapshot.tables[member->table];
+        return table.matchGeneration==generation?&table:nullptr;
+    }
+    for(std::size_t i=0;i<snapshot.tables.size();++i) {
+        const auto& table=snapshot.tables[i];
+        if(snapshot.localMatchGenerations[i]==generation&&table.matchGeneration==generation)return &table;
+    }
+    return nullptr;
+}
+}
+
 bool NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame,
     std::uint64_t confirmedFrame, std::uint64_t game) {
-    if (!runtime || !runtime->room || !runtime->match || !UserApp::netplay || LocalIsSpectator()) return false;
-    const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
-    const auto* member = room::FindMember(snapshot, snapshot.localMember);
-    if (!member || member->table < 0 || member->table >= room::TableCount) return false;
-    const auto generation = runtime->match->Generation();
+    const auto* table=LocalMatchTable();
+    if(!table||!runtime->room||LocalIsSpectator())return false;
+    const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
+    const auto generation=runtime->match->Generation();
     netplay::MatchResultCapture capture;
-    capture.roomId = runtime->room->RoomId(); capture.roomEpoch = snapshot.roomEpoch;
-    capture.generation = generation; capture.table = static_cast<std::uint8_t>(member->table);
-    capture.slot = static_cast<unsigned>(runtime->match->LocalSlot()); capture.result = result;
-    capture.captureFrame = captureFrame; capture.confirmedFrame = confirmedFrame; capture.continuousGame = game;
-    auto& outbox = runtime->resultOutbox;
-    if (outbox.Capture(capture))
+    capture.roomId=runtime->room->RoomId();capture.roomEpoch=snapshot.roomEpoch;
+    capture.generation=generation;capture.table=table->id;
+    capture.slot=static_cast<unsigned>(runtime->match->LocalSlot());capture.result=result;
+    capture.captureFrame=captureFrame;capture.confirmedFrame=confirmedFrame;capture.continuousGame=game;
+    auto& outbox=runtime->resultOutbox;
+    if(outbox.Capture(capture))
         spdlog::info("Match result: captured table={} generation={} game={} outcome={}",
-            capture.table, generation, game, static_cast<int>(result));
-    const auto* retained = outbox.Captured();
-    if (!game || !retained || retained->generation != generation || retained->continuousGame != game ||
-        retained->result != result || runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return false;
-    const auto& live = snapshot.tables[capture.table];
-    // An accepted first report is not a score receipt. Only the replicated
-    // two-report quorum permits a new offer, after the shared profile write.
-    return live.matchGeneration == generation && live.continuous.enabled && live.continuous.games == game &&
-        live.continuous.lastResult == result && !live.resultPending &&
-        (result == room::MatchResult::Draw || PersistResultProfile());
+            capture.table,generation,game,static_cast<int>(result));
+    const auto* retained=outbox.Captured();
+    if(!game||!retained||retained->generation!=generation||retained->continuousGame!=game||
+        retained->result!=result||runtime->controller.GetSnapshot().control!=netplay::Health::Healthy)return false;
+    // A first report is not a score receipt. The two-report quorum and profile
+    // write must complete before the fighters can make the next offer.
+    return table->continuous.enabled&&table->continuous.games==game&&table->continuous.lastResult==result&&
+        !table->resultPending&&(result==room::MatchResult::Draw||PersistResultProfile());
 }
 
 bool GetRuntimeContinuousTable(room::Table& result) {
-    if(!runtime||!runtime->match||!runtime->attached||!UserApp::netplay)return false;
-    // Query the live owner, not a presentation snapshot from an earlier tick.
-    const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
-    const auto generation=runtime->match->Generation();
-    if(!generation||!snapshot.localMatchGenerationsSent)return false;
-    for(std::size_t i=0;i<snapshot.tables.size();++i) {
-        const auto& table=snapshot.tables[i];
-        if(snapshot.localMatchGenerations[i]==generation&&table.matchGeneration==generation&&
-            table.continuous.enabled&&!table.continuous.closed){result=table;return true;}
-    }
-    return false;
+    const auto* table=LocalMatchTable();
+    if(!table||!table->continuous.enabled||table->continuous.closed)return false;
+    result=*table;return true;
 }
 
-
-
 void FinishRuntimeMatch(std::uint64_t game) {
-    if (!runtime || !runtime->match || !UserApp::netplay || LocalIsSpectator()) return;
-    const auto generation = runtime->match->Generation();
-    const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
-    const auto* member = room::FindMember(snapshot, snapshot.localMember);
-    if (!generation || !member || member->table < 0 || member->table >= room::TableCount) return;
-    const auto table = static_cast<std::uint8_t>(member->table);
-    if (snapshot.tables[table].matchGeneration != generation) return;
+    const auto* table=LocalMatchTable();
+    if(!table||LocalIsSpectator())return;
+    const auto generation=table->matchGeneration;
     // Repeated polls retain the original queued identity and retry deadline.
-    if (runtime->matchFinishedGeneration == generation && runtime->matchFinishedGame == game &&
-        runtime->matchFinishedTable == table) return;
-    runtime->matchFinishedPending = true;
-    runtime->matchFinishedGeneration = generation; runtime->matchFinishedTable = table;
-    runtime->matchFinishedGame = game;
-    runtime->finishActionId = runtime->finishRetryAt = 0; runtime->matchFinishedAction.reset();
+    if(runtime->matchFinishedGeneration==generation&&runtime->matchFinishedGame==game&&
+        runtime->matchFinishedTable==table->id)return;
+    runtime->matchFinishedPending=true;
+    runtime->matchFinishedGeneration=generation;runtime->matchFinishedTable=table->id;
+    runtime->matchFinishedGame=game;
+    runtime->finishActionId=runtime->finishRetryAt=0;runtime->matchFinishedAction.reset();
 }
 
 bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints) {
@@ -527,7 +532,7 @@ void RetryMatchFinished() {
 			room::Action action;
 			if(runtime->matchFinishedAction) action=*runtime->matchFinishedAction;
 			else {
-				action.kind = runtime->matchFinishedGame ? room::ActionKind::FinishContinuousMatch : room::ActionKind::MatchFinished;
+				action.kind = room::ActionKind::MatchFinished;
                 action.continuousGame = runtime->matchFinishedGame;
 				action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
 				action.table = runtime->matchFinishedTable;
@@ -574,7 +579,7 @@ void PumpResultOutbox() {
 				PushAlert(loc::T("runtime.result_not_recorded"), NoticeSeverity::Warning);
 			}
 			if (poll == netplay::MatchResultOutbox::PollResult::Ready) {
-			room::Action action; action.kind = submission.continuousGame ? room::ActionKind::RecordContinuousResult : room::ActionKind::RecordResult;
+			room::Action action; action.kind = room::ActionKind::RecordResult;
 			action.roomEpoch = submission.roomEpoch; action.revision = submission.revision;
 			action.table = submission.table; action.tableRevision = submission.tableRevision;
 			action.matchGeneration = submission.generation; action.result = submission.result;

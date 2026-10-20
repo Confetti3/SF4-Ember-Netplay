@@ -7,31 +7,73 @@ still happens in the lobby. A completed FT set offers only the return action.
 
 ## Session and simulation ownership
 
-Private, non-Practice, non-tournament tables negotiate `Ready.continuous`
-through both fighters. Public/server-owned rooms retain their existing
-match lifecycle. The usual identical-Sidecar admission check remains in place.
-Startup validates the native signatures and supported launch configuration
-before advertising this capability. If either fighter declines it, the room
-starts an ordinary match. A later Bind refusal sends an opt-out through the
-GGPO input stream: the current game continues and its confirmed result
-finishes normally, without entering the rematch menu.
+The host must enable the experimental continuous-rematch rule for the table;
+it is off by default. It is available only in private, non-Practice,
+non-tournament rooms, including private LAN rooms. Both fighters' Ready
+requests and every member of the frozen native roster must advertise native
+support. Queued members promoted to spectators are included before making
+that decision. A missing/false capability, including an older client,
+selects the ordinary lifecycle for the entire table before native launch.
+Unsupported spectators stay in the match; they are not dropped at frame one.
+Idle members and future watchers do not change an already frozen roster.
+The identical-Sidecar admission check remains in place.
+
+Startup checks executable signatures and replay callbacks. Play Offline is
+not a capability gate: an offline-started client can later join or watch a
+room. Debug modes that change the save-state contract remain unsupported
+and advertise that before admission. An unexpected object-lifetime failure
+after native launch uses the existing deferred abort path. A failed restart
+preflight before Commit sends an opt-out in the input stream; it cannot
+originate a successful Commit and later retract it.
 
 The game thread adapter in `sf4e__ContinuousRematch.cxx` observes the verified
 Steam 1.05 victory callbacks. It lets the animation finish, then holds the
 native simulation while GGPO continues to exchange inputs and save states.
 The menu sends a choice and an offer token back to that owner; rendering
 does not reset the engine or touch GGPO.
-The result panel owns its input capture independently of shell visibility.
-Its local request carries the choice and offer token, not a room command.
-F10, Start and renderer resets cannot dismiss the native result owner.
+The immutable RematchPanel view selects a modal in OverlayLayersState. That
+same layer policy owns visibility, keyboard capture, controller sampling and
+MenuPads' hold under its existing lock. Its local request carries the choice
+and offer token, not a room command. F10, Start and renderer resets cannot
+dismiss the game-thread result owner.
 
-Votes use the upper byte of `mappedOn`, stripped before native playback.
-`ContinuousChoices.hxx` stores readiness, consent, commit, epoch and timeout
-in the rollback state. A peer originates Commit only from confirmed consent.
-The native reset is invoked at the resulting deterministic input frame on
-forward simulation and rollback. The original request, menu data and seed
-are retained. GGPO frame numbers remain monotonic and the same session,
-helper connections and spectator stream survive the restart.
+Votes use the upper byte of `mappedOn`. One `PrepareFrameInputs` path removes
+it and the Practice raw-input reservation before both forward playback and
+resimulation, even when continuous rematches are inactive or closed.
+`ContinuousRematchChoices.hxx` saves readiness, consent, commit, epoch and
+timeouts with the normal GGPO state. The adapter's local Session groups the
+unsaved native ownership, history and presentation state; its phase is explicit.
+The existing SimulatedStateFrame supplies the timeline identity.
+
+A fighter originates Commit only after the consent is confirmed and its
+native preflight passes. The preflight checks the same object identities,
+request and menu bytes captured at bind; it does not run every frame. A
+spectator checks its own context once per restart and can end only its view
+on failure. It never changes the fighters' accepted decision.
+
+The reset waits nine input frames after both Commit bits are observed, past
+the pinned GGPO maximum prediction of eight frames (asserted at compile time).
+This alone would confirm only the Commit edge, not the future reset frame.
+Consequently each sender retains the complete Commit input (zero raw and
+zero low mapped bits) until the new epoch itself is confirmed. Prediction
+therefore repeats that same word across the reset. A changed gameplay input
+can first correct a frame after the confirmed reset, not a frame before it.
+A late No before Commit can still correct the saved decision during the
+barrier and prevent reset. Local observations cannot replace an already
+sent Commit by No. The native reset branch has no fighter-local refusal
+check that could diverge from the agreed input tape.
+
+This relies on the pinned GGPO prediction/input-confirmation contract, the
+main-thread ownership of battle objects while held, and the immutable
+Commit producer. It does not assert that arbitrary forced rollback across
+the native reset is safe. Pure model tests exercise delayed/corrected votes
+and input retention, not native mementos. Forced rollback stress is not
+advertised as a supported continuous-rematch configuration.
+
+The original request and menu data stay loaded. GGPO frames remain monotonic;
+the session, helper connections and spectator stream survive the restart.
+The native seed behavior and its limits are documented in
+[NATIVE_REMATCH_RESET.md](NATIVE_REMATCH_RESET.md).
 
 Spectators replay the two fighters' decisions; they never vote or hold the
 fighters' readiness quorum. Existing spectator catch-up and disconnect
@@ -41,7 +83,8 @@ implement joining a match already in progress or rejoining a lost stream.
 ## Room authority and scores
 
 `RecordContinuousResult` numbers each game within the existing table and
-transport generation. Two matching authenticated reports commit one point;
+transport generation. Ordinary and continuous results use the same ReportQuorum (first, agreed,
+disputed or duplicate). Two matching authenticated reports commit one point;
 duplicates cannot award it again. Each confirmed game has a separate local
 profile receipt. No intermediate game emits MatchEnded or rotates seats.
 
@@ -103,32 +146,26 @@ state capture/restore; this change neither resets nor reallocates them.
 This is an experimental draft, not a general stability claim. The adapter
 uses native instruction signatures, verified object identities and unchanged
 request bytes as refusal guards. A draw currently returns to the lobby;
-the native draw-to-rematch sequence has not been validated. The original
-music bank stays loaded across rematches, including a resolved Random choice.
+the native draw-to-rematch sequence has not been validated. This PR leaves native
+music selection to its owner; the optional music PR integrates at confirmed
+game boundaries and is reviewed separately.
 
-The predecessor was tested manually with two fighters, a spectator, FT3
-and seat rotation; the port to Ember 1.3.0 was confirmed with two fighters
-and repeated sets in one launch. Those reports apply to the predecessor,
-not to this revised nightly contribution. This branch removes obsolete
-offline/reconnect experiments, diagnostic reports and the fake-engine probe.
-It uses private-room capability negotiation and translates the new messages
-in all 14 catalogs. Native speakers should review the wording.
-
-On a7316c87, Flavio confirmed the requested FT3 test on the revised branch;
-the local log records three accepted results and normal series closure.
-That run exposed a replay regression: only the first match was saved.
-The replay-task change above has a three-game/two-set regression test, but
-still needs native playback validation for every game, with distinct inputs.
+Flavio tested predecessor builds with two fighters, a spectator, FT3,
+seat rotation, separate native replay recordings and repeated sets. Those
+reports do not validate this revised input barrier or the new admission rule.
 
 Before leaving draft, repeat native two-PC and three-PC matches on this exact
-branch, including a non-host winner, both choices, timeout, FT rotation,
-successive sets, spectator departure and the 1.3 Stop watching command.
-Review control-plane loss/recovery at the victory boundary, match recording
-and replay across a continuous set, and WAN/relay behavior. Existing network
-fixtures and model tests do not prove native reset rollback safety, native
-presentation, or those live scenarios. Also test a draw after earlier wins,
-an unavailable adapter on one PC, and room-only connection loss before either
-Ready arrives. Check the ordinary result, profile and return to the lobby.
+branch. Enable the table's experimental option, test a non-host winner,
+both choices, timeout, FT rotation, successive sets and replay of each match.
+Start a spectator with Play Offline, then join and watch an enabled table;
+it must stay through the continuous rematch. Use one unsupported configuration
+to verify that the whole table instead uses the ordinary path before launch.
+Also verify ordinary rooms with the option off, spectator departure, Stop
+watching, WAN/relay delay, room-only recovery at victory and changes to table
+rules. Inspect confirmed hashes, GGPO return codes and memory/key counts
+through a sustained series. Existing network fixtures and model tests do not
+prove native reset safety or these live scenarios. A draw after previous wins
+must preserve those scores and return normally, without a native reset.
 
 There is no optional trace engine or diagnostic reset limit in this branch.
 The only native history retained is rollback state needed to act on confirmed

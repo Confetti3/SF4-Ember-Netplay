@@ -3,7 +3,7 @@
 #include "../ui/ReplaysView.hxx"
 #include "../ui/ChatTranscript.hxx"
 #include "../common/MenuInputCapture.hxx"
-#include "../common/QuickRematch.hxx"
+#include "../common/RematchPanel.hxx"
 #include "../common/TrainingCallInput.hxx"
 #include "../common/InstalledContent.hxx"
 #include "../common/FighterCatalog.hxx"
@@ -147,8 +147,8 @@ namespace sf4e {
             // Leave this watched game (Stop watching); empty for every other
             // command. The runtime decides what leaving it takes when it runs.
             netplay::WatchedGame leaveWatchedGame;
-            quickrematch::Choice quickRematchChoice = quickrematch::Choice::None;
-            std::uint64_t quickRematchOffer = 0;
+            rematchpanel::Choice rematchChoice = rematchpanel::Choice::None;
+            std::uint64_t rematchOffer = 0;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -166,7 +166,7 @@ namespace sf4e {
             netplay::WatchedGame watchedGame;
             // Lock-ins lost to a failure of this member's spectator view (Runtime::lockInDrops).
             std::uint64_t lockInDrops = 0;
-            quickrematch::View quickRematch;
+            rematchpanel::View rematchPanel;
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
             // The custom content installed on this PC: built once at the scan and shared, never copied.
             selection::InstalledContentPtr installedContent;

@@ -1,12 +1,86 @@
-#include "../common/ContinuousChoices.hxx"
+#include "../common/ContinuousRematchChoices.hxx"
 #include "test_support.hxx"
 #include "../common/ButtonLayoutTypes.hxx"
 #include <array>
 #include <cstdio>
-namespace cc=sf4e::continuouschoices;
+namespace cc=sf4e::continuousrematch::choices;
 cc::Action Frame(cc::State& s,int frame,unsigned a,unsigned b) {
     const std::uint32_t wire[2]={cc::Encode(s.epoch,a)|0x123456,cc::Encode(s.epoch,b)|0x654321};
     return cc::Advance(s,frame,wire);
+}
+cc::Action CommitBarrier(cc::State& s,int firstCommit) {
+    for(int offset=0;offset<=cc::PredictionWindow;++offset) {
+        CHECK(Frame(s,firstCommit+offset,cc::Ready|cc::Commit,cc::Ready|cc::Commit)==cc::Action::Hold);
+        CHECK(s.commitFrame==firstCommit&&s.holding);
+    }
+    return Frame(s,firstCommit+cc::PredictionWindow+1,cc::Ready|cc::Commit,cc::Ready|cc::Commit);
+}
+void DelayedControlAndRollback() {
+    for(int delay=0;delay<=cc::PredictionWindow;++delay) {
+        // Only the second Commit starts the barrier, even if the other
+        // input has repeated its Commit for the whole prediction window.
+        cc::State staggered;cc::EnterVictory(staggered,1);
+        Frame(staggered,2,cc::Ready|cc::Yes,cc::Ready|cc::Yes);
+        for(int frame=3;frame<3+delay;++frame) {
+            CHECK(Frame(staggered,frame,cc::Ready|cc::Commit,cc::Ready|cc::Yes)==cc::Action::Hold);
+            CHECK(staggered.commitFrame<0&&staggered.epoch==1);
+        }
+        const auto savedCommit=staggered;
+        CHECK(CommitBarrier(staggered,3+delay)==cc::Action::Restart);
+        CHECK(staggered.epoch==2&&!staggered.holding);
+        auto replay=savedCommit;
+        CHECK(CommitBarrier(replay,3+delay)==cc::Action::Restart&&replay.epoch==staggered.epoch);
+
+        // The peer's real No can correct a predicted Yes, including the
+        // latest permitted correction before the barrier expires.
+        cc::State predicted;cc::EnterVictory(predicted,1);
+        Frame(predicted,2,cc::Ready,cc::Ready);
+        const auto beforeVote=predicted;
+        Frame(predicted,3,cc::Ready|cc::Yes,cc::Ready|cc::Yes);
+        for(int frame=4;frame<4+delay;++frame)
+            CHECK(Frame(predicted,frame,cc::Ready|cc::Commit,cc::Ready|cc::Commit)==cc::Action::Hold);
+        CHECK(predicted.epoch==1&&predicted.decision==cc::Decision::Rematch);
+        predicted=beforeVote;
+        Frame(predicted,3,cc::Ready|cc::Yes,cc::Ready|cc::No);
+        CHECK(predicted.decision==cc::Decision::Lobby);
+        for(int frame=4;frame<=4+cc::PredictionWindow+1;++frame)
+            CHECK(Frame(predicted,frame,cc::Ready|cc::Commit,cc::Ready|cc::Commit)==cc::Action::Hold);
+        CHECK(predicted.epoch==1&&predicted.exitFrame==4);
+
+        // A peer with no native adapter may replace a predicted Commit by
+        // the stream's opt-out. Restore the saved simulation before replay.
+        auto refused=savedCommit;
+        for(int frame=3+delay;frame<=3+delay+cc::PredictionWindow;++frame)
+            CHECK(Frame(refused,frame,cc::Ready|cc::Commit,cc::Ready|cc::Commit)==cc::Action::Hold);
+        refused=savedCommit;
+        CHECK(Frame(refused,3+delay,cc::Ready|cc::Commit,cc::No)==cc::Action::Hold);
+        CHECK(refused.nativeFinish&&!refused.holding&&refused.epoch==1);
+        CHECK(refused.nativeFinishFrame==3+delay);
+        CHECK(Frame(refused,4+delay+cc::PredictionWindow,cc::Ready|cc::Commit,cc::Ready|cc::Commit)==cc::Action::Hold);
+    }
+}
+void CommittedTransmission() {
+    for(unsigned epoch=1;epoch<=80;++epoch) {
+        cc::CommittedInput input;
+        std::uint32_t output=0x123456;
+        CHECK(!input.Retain(epoch,output)&&output==0x123456);
+        input.Set(epoch,cc::Ready|cc::Commit);
+        const auto committed=cc::Encode(epoch,cc::Ready|cc::Commit);
+        // New local buttons or a refusal cannot alter the transmitted word,
+        // even after a speculative reset, until the new epoch is confirmed.
+        for(int delay=0;delay<=cc::PredictionWindow+1;++delay) {
+            output=cc::Encode(epoch,cc::No)|0x654321;
+            CHECK(input.Retain(epoch,output)&&output==committed);
+            CHECK((output&~cc::WireMask)==0);
+        }
+        output=0x123456;
+        CHECK(!input.Retain(epoch+1,output)&&output==0x123456);
+        CHECK(!input.epoch&&!input.mapped);
+        // Unlocking compares the full epoch, not its repeated wire tag.
+        input.Set(epoch,cc::Ready|cc::Commit);
+        CHECK(cc::WireEpoch(epoch)==cc::WireEpoch(epoch+15));
+        CHECK(!input.Retain(epoch+15,output));
+    }
 }
 int main() {
     static_assert((sf4e::gamepads::FightMask & cc::WireMask)==0,"Controller layouts overlap rematch votes");
@@ -26,10 +100,10 @@ int main() {
     const auto beforeCommit=s;
     CHECK(Frame(s,105,cc::Ready|cc::Commit,cc::Ready|cc::Yes)==cc::Action::Hold);
     const auto beforeReset=s;
-    CHECK(Frame(s,106,cc::Ready|cc::Commit,cc::Ready|cc::Commit)==cc::Action::Restart);
+    CHECK(CommitBarrier(s,106)==cc::Action::Restart);
     CHECK(!s.holding&&s.epoch==2&&s.offerFrame<0);
     s=beforeReset;
-    CHECK(Frame(s,106,cc::Ready|cc::Commit,cc::Ready|cc::Commit)==cc::Action::Restart);
+    CHECK(CommitBarrier(s,106)==cc::Action::Restart);
     // Old epoch's predicted/late votes cannot answer the next result.
     cc::EnterVictory(s,200,true);
     std::uint32_t stale[2]={cc::Encode(1,15),cc::Encode(1,15)};
@@ -50,8 +124,8 @@ int main() {
     s=beforeCommit;auto reference=s;
     Frame(s,105,cc::Ready|cc::Commit,cc::Ready);CHECK(s.holding);
     s=beforeCommit;
-    const auto a=Frame(s,105,cc::Ready|cc::Commit,cc::Ready|cc::Commit);
-    const auto b=Frame(reference,105,cc::Ready|cc::Commit,cc::Ready|cc::Commit);
+    const auto a=CommitBarrier(s,105);
+    const auto b=CommitBarrier(reference,105);
     CHECK(a==b&&a==cc::Action::Restart&&s.epoch==reference.epoch);
     // A corrected vote before agreement can replace a predicted acceptance.
     cc::State vote;cc::EnterVictory(vote,1);Frame(vote,2,cc::Ready,cc::Ready);const auto saved=vote;
@@ -67,9 +141,9 @@ int main() {
         CHECK(scored.decision==(game==3?cc::Decision::Lobby:cc::Decision::Rematch));
         auto savedScored=scored;
         std::uint32_t commit[2]={cc::Encode(scored.epoch,cc::Ready|cc::Commit),cc::Encode(scored.epoch,cc::Ready|cc::Commit)};
-        const auto decision=cc::Advance(scored,1000*game+2,commit);
+        const auto decision=game==3?cc::Advance(scored,1000*game+2,commit):CommitBarrier(scored,1000*game+2);
         auto replay=savedScored;
-        CHECK(cc::Advance(replay,1000*game+2,commit)==decision);
+        CHECK((game==3?cc::Advance(replay,1000*game+2,commit):CommitBarrier(replay,1000*game+2))==decision);
         CHECK(replay.epoch==scored.epoch);
         CHECK(decision==(game==3?cc::Action::Hold:cc::Action::Restart));
     }
@@ -89,9 +163,8 @@ int main() {
         CHECK(cc::Advance(longSet,game*100+1,yes)==cc::Action::Hold);
         CHECK(longSet.decision==cc::Decision::Rematch&&!longSet.ruleLimit);
         auto rollback=longSet;
-        const std::uint32_t commit[2]={cc::Encode(game,cc::Ready|cc::Commit),cc::Encode(game,cc::Ready|cc::Commit)};
-        CHECK(cc::Advance(longSet,game*100+2,commit)==cc::Action::Restart);
-        CHECK(cc::Advance(rollback,game*100+2,commit)==cc::Action::Restart);
+        CHECK(CommitBarrier(longSet,game*100+2)==cc::Action::Restart);
+        CHECK(CommitBarrier(rollback,game*100+2)==cc::Action::Restart);
         CHECK(rollback.epoch==longSet.epoch);
     }
     // A room loss before either/both Ready bits cannot hold a result forever.
@@ -113,5 +186,7 @@ int main() {
     cc::ObserveFallback(refused,7,corrected); CHECK(!refused.nativeFinish);
     // A draw uses the normal finish, with no vote, reset or score award.
     cc::FinishNative(refused,20); CHECK(refused.nativeFinish && refused.nativeFinishFrame==20 && !refused.holding);
-    std::puts("ContinuousChoices: consent, commit, epoch, rollback, decline, timeout and scored set limit passed");
+    DelayedControlAndRollback();
+    CommittedTransmission();
+    std::puts("Continuous rematch choices: prediction barrier, immutable input, epoch, rollback, decline, timeout and scored limit passed");
 }

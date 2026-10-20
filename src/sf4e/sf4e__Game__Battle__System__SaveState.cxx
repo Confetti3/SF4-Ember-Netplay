@@ -186,7 +186,7 @@ void fSystem::CaptureMeterSample(rSystem* src, bool show) {
 // a signed 16-bit field and wraps during a long match; this frame identity
 // does not. A spectator has no save callback: the input it simulated is the
 // confirmed one it just consumed.
-static int SimulatedStateFrame() {
+int fSystem::SimulatedStateFrame() {
     if (fSystem::localPlayerHandle != GGPO_INVALID_HANDLE) {
         return fSystem::ggpoTimeline.Next();
     }

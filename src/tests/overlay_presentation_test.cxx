@@ -267,6 +267,47 @@ int main() {
         CHECK(alpha(true, 100) == 1 && alpha(true, 103.5) == 1 && alpha(true, 103.75) == .5f && alpha(true, 104) == 0 && alpha(true, 900) == 0);
         CHECK(alpha(false, 901) == 0 && alpha(true, 902) == 1);
     }
+    {
+        using sf4e::ui::OverlayLayersState;
+        using sf4e::ui::MenuPads;
+        using Modal = OverlayLayersState::Modal;
+        sf4e::rematchpanel::View result;
+        result.visible = true;
+        CHECK(!OverlayLayersState(result).ModalShown()); // no valid offer
+        result.offer = 31;
+        OverlayLayersState layers(result);
+        CHECK(layers.ModalShown() && layers.MenuShown() && layers.Shown() && !layers.Passive());
+        CHECK(layers.CapturesMenuKeys());
+        layers.focused = false;
+        CHECK(!layers.CapturesMenuKeys() && layers.Shown()); // alt-tab keeps the pad's modal
+        for (const auto context : {MenuContext::Unavailable, MenuContext::MainMenu, MenuContext::OfflineTraining,
+            MenuContext::ReplayExport, MenuContext::PracticeMatch, MenuContext::WatchedMatch}) {
+            CHECK(layers.ControllerAvailable(context));
+            CHECK(layers.SamplesController(context, true));
+            MenuPads pads;
+            pads.Place(context, true, layers.modal);
+            CHECK(pads.Holds() && pads.Takes() && !pads.StartOpens());
+            pads.Publish(false, pads.Take());
+            for (int reset = 0; reset < 3; ++reset) {
+                pads.Reset();
+                CHECK(pads.Holds() && pads.Takes()); // no rendered frame may release the game's modal
+            }
+            // A completed/aborted offer releases immediately on the game
+            // thread, even with no next rendered frame.
+            pads.Place(MenuContext::Unavailable, true, Modal::None);
+            CHECK(!pads.Holds() && !pads.Takes() && !pads.StartOpens());
+        }
+        result.visible = false;
+        layers = OverlayLayersState(result);
+        CHECK(!layers.ModalShown() && !layers.MenuShown() && !layers.Shown() && layers.Passive());
+        CHECK(!layers.ControllerAvailable(MenuContext::Unavailable));
+        CHECK(!layers.SamplesController(MenuContext::MainMenu, true));
+        CHECK(layers.SamplesController(MenuContext::MainMenu, false));
+        layers.shellVisible = true;
+        CHECK(layers.MenuShown() && layers.Shown() && !layers.Passive() && layers.CapturesMenuKeys());
+        layers.shellVisible = false; layers.trainingControlsOpen = true;
+        CHECK(!layers.MenuShown() && layers.Shown() && !layers.Passive() && !layers.CapturesMenuKeys());
+    }
     CheckHandoff();
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";
 }

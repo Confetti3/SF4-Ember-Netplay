@@ -661,9 +661,8 @@ bool fSystem::ggpo_advance_frame_callback(int)
     NoteDisconnectFlags(disconnect_flags);
     // As in a frame of the present (PlayGgpoFrame): the game is never shown
     // the reserved bits.
-    inputs[0].rawOn = sf4e::training::ClearReservedInputBits(inputs[0].rawOn);
-    inputs[1].rawOn = sf4e::training::ClearReservedInputBits(inputs[1].rawOn);
-    if(!sf4e::continuousrematch::BeforeFrame(rSystem::staticMethods.GetSingleton(),inputs)) {
+    const auto control = sf4e::continuousrematch::PrepareFrameInputs(inputs);
+    if(!sf4e::continuousrematch::BeforeFrame(rSystem::staticMethods.GetSingleton(),inputs,control)) {
         if(ggpo)ggpo_advance_frame(ggpo);
         return true;
     }

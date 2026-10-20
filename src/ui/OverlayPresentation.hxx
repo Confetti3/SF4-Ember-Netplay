@@ -4,12 +4,37 @@
 #include "../common/BattlePause.hxx"
 #include "../netplay/SessionController.hxx"
 #include "../common/MenuInputCapture.hxx"
+#include "../common/RematchPanel.hxx"
 
 namespace sf4e { namespace ui {
 
 inline bool PassiveOverlayShown(bool shellVisible, bool trainingControlsOpen, bool nativePaused) {
     return !shellVisible && !trainingControlsOpen && !nativePaused;
 }
+
+// One policy for the layers drawn over the game and their input ownership.
+// The modal comes only from a game-thread snapshot. Its hold survives a lost
+// focus or renderer reset; keys and the mouse still require focus.
+struct OverlayLayersState {
+    enum class Modal { None, Rematch };
+    Modal modal = Modal::None;
+    bool shellVisible = false, shellAvailable = false;
+    bool trainingControlsOpen = false, nativePaused = false, focused = true;
+    OverlayLayersState() = default;
+    explicit OverlayLayersState(const rematchpanel::View& result)
+        : modal(rematchpanel::Shown(result) ? Modal::Rematch : Modal::None) {}
+    bool ModalShown() const { return modal != Modal::None; }
+    bool MenuShown() const { return ModalShown() || shellVisible; }
+    bool Shown() const { return MenuShown() || trainingControlsOpen; }
+    bool Passive() const { return PassiveOverlayShown(MenuShown(), trainingControlsOpen, nativePaused); }
+    bool CapturesMenuKeys() const { return focused && MenuShown(); }
+    bool ControllerAvailable(input::MenuContext context) const {
+        return ModalShown() || input::ControllerMenuAvailable(context);
+    }
+    bool SamplesController(input::MenuContext context, bool fighting) const {
+        return ModalShown() || (context != input::MenuContext::Unavailable && !input::FightKeepsMenuAway(fighting, context));
+    }
+};
 
 // A hint for the first seconds of a state (a watched game): due from when the
 // state begins until `seconds` later, and again only once it has ended and
@@ -100,6 +125,8 @@ private:
 // The game's pads and Ember's menu: one owner, under one lock, for what both
 // threads touch. The menu holds the pads while it is shown or an open waits
 // for a frame's answer, and only where the game thread last placed it.
+// A mandatory modal is also placed by the game thread and holds them until
+// that thread withdraws it, independently of the rendered shell.
 //
 // The game thread asks for opens (the pad's Start wants the shell, the native
 // Network item its Play page; opens before the next frame coalesce, and Play
@@ -128,13 +155,14 @@ public:
         if (kind > kind_) kind_ = kind;
         ++posted_;
     }
-    void Place(input::MenuContext context, bool fighting) {
+    void Place(input::MenuContext context, bool fighting, OverlayLayersState::Modal modal = OverlayLayersState::Modal::None) {
         std::lock_guard<std::mutex> lock(mutex_);
+        modal_ = modal;
         const bool away = input::FightKeepsMenuAway(fighting, context);
         if (away) away_ = OverlayPresentation::AwayFrames;
         else if (input::MenuShownIn(context)) away_ = 0;
         else if (away_ < OverlayPresentation::AwayFrames) ++away_;
-        startOpens_ = !away && input::ControllerOpensMenu(context);
+        startOpens_ = modal_ == OverlayLayersState::Modal::None && !away && input::ControllerOpensMenu(context);
     }
     // Start opens the menu where the game was last placed.
     bool StartOpens() const { std::lock_guard<std::mutex> lock(mutex_); return startOpens_; }
@@ -149,8 +177,8 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         shown_ = shown; answered_ = taken.through;
     }
-    // The overlay is gone (a display reset): the opens waiting are dropped and
-    // nothing is shown until a frame says so again.
+    // A display reset drops rendered shell state and outstanding opens. The
+    // game-owned modal keeps its hold until a game-thread Place withdraws it.
     void Reset() {
         std::lock_guard<std::mutex> lock(mutex_);
         kind_ = Kind::None; answered_ = posted_; shown_ = false;
@@ -160,8 +188,12 @@ public:
     bool Holds() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked(); }
     bool Takes() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked() || startOpens_; }
 private:
-    bool HoldsLocked() const { return away_ < OverlayPresentation::AwayFrames && (shown_ || posted_ != answered_); }
+    bool HoldsLocked() const {
+        return modal_ != OverlayLayersState::Modal::None ||
+            (away_ < OverlayPresentation::AwayFrames && (shown_ || posted_ != answered_));
+    }
     mutable std::mutex mutex_;
+    OverlayLayersState::Modal modal_ = OverlayLayersState::Modal::None;
     Kind kind_ = Kind::None;
     std::uint32_t posted_ = 0, answered_ = 0;
     bool shown_ = false, startOpens_ = false;
