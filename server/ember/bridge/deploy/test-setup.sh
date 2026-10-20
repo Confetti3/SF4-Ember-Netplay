@@ -550,7 +550,7 @@ before, after = (json.load(open(path)) for path in sys.argv[1:])
 changed = {key for key in before.keys() | after.keys() if before.get(key) != after.get(key)}
 sys.exit(changed != {"display_name"} or after["display_name"] != "Ember bridge")
 PY
-check "connections kept" connections_are "$PSTATE" blumint-partner-staging blumint-staging ember-test
+check "connections kept" connections_are "$PSTATE" blumint-partner-production blumint-partner-staging blumint-staging ember-test
 check "binary replaced" same "$PDIR/bin/ember-bridge" "$R/usr/local/lib/$P/ember-bridge"
 check "bridge ID kept" test "$(bridge_id "$PSTATE")" = "$PID"
 check "service unit still as before" same "$GOLDEN/ember-bridge.service" "$PUNITS.service"
