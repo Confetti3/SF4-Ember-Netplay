@@ -57,7 +57,13 @@ std::string Position(const netplay::DeskSet& s) {
 }
 std::string Name(const std::string& player) { return player.empty() ? std::string(loc::T("desk.tbd")) : player; }
 std::string Players(const netplay::DeskSet& s) { return loc::Tf("desk.players", Name(s.players[0]), Name(s.players[1])); }
-std::string Score(const netplay::DeskSet& s) { return s.scored ? loc::Tf("desk.score", s.score[0], s.score[1]) : std::string(); }
+// Drawn games are replayed and never scored: said beside the score.
+std::string Score(const netplay::DeskSet& s) {
+    if (!s.scored) return {};
+    const auto draws = std::count_if(s.games.begin(), s.games.end(),
+        [](const netplay::DeskGame& g) { return g.state == "accepted" && g.outcome == "draw"; });
+    return draws ? loc::Tf("desk.score_draws", s.score[0], s.score[1], static_cast<int>(draws)) : loc::Tf("desk.score", s.score[0], s.score[1]);
+}
 // Brackets read winners, losers, then the grand final, each by round.
 int SideOrder(const std::string& side) { return side == "winners" ? 0 : side == "losers" ? 1 : 2; }
 }
@@ -218,6 +224,7 @@ void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std:
             for (int slot = 0; slot < 2; ++slot)
                 rows.push_back(ConfirmRow("dk-win:" + std::to_string(slot) + ":" + game.attempt,
                     loc::Tf("desk.decide", number, Name(s->players[slot])), loc::T("desk.decide_detail"), !busy));
+            rows.push_back(ConfirmRow("dk-draw:" + game.attempt, loc::Tf("desk.decide_draw", number), loc::T("desk.decide_draw_detail"), !busy));
         } else if (game.state == "accepted") {
             rows.push_back(ConfirmRow("dk-void:" + game.attempt, loc::Tf("desk.void", number), loc::T("desk.void_detail"), !busy));
         }
@@ -253,11 +260,14 @@ bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNa
     if (a.id == "dk-call" || a.id == "dk-hold") {
         r.target = EventsPath + deskEvent_ + "/sets/" + s->id;
         command = a.id == "dk-call" ? nlohmann::json{{"call", true}} : nlohmann::json{{"held", !s->held}};
-    } else if (a.id.compare(0, 7, "dk-win:") == 0 || a.id.compare(0, 8, "dk-void:") == 0 || a.id.compare(0, 7, "dk-add:") == 0) {
+    } else if (a.id.compare(0, 7, "dk-win:") == 0 || a.id.compare(0, 8, "dk-void:") == 0 || a.id.compare(0, 7, "dk-add:") == 0 ||
+               a.id.compare(0, 8, "dk-draw:") == 0) {
         r.target = EventsPath + deskEvent_ + "/matches/" + s->matchId + "/adjudications";
         command = {{"reason", "Decided at the tournament desk"}, {"expected_revision", s->revision}};
         if (a.id.compare(0, 8, "dk-void:") == 0) {
             command["kind"] = "void_game"; command["attempt_id"] = a.id.substr(8);
+        } else if (a.id.compare(0, 8, "dk-draw:") == 0) {
+            command["kind"] = "game_result"; command["draw"] = true; command["attempt_id"] = a.id.substr(8);
         } else {
             command["kind"] = "game_result"; command["winner_slot"] = a.id[7] - '0';
             if (a.id.compare(0, 7, "dk-win:") == 0) command["attempt_id"] = a.id.substr(9);

@@ -4066,6 +4066,9 @@ msgstr "{0} contre {1}"
 msgid "desk.score"
 msgstr "{0} – {1}"
 
+msgid "desk.score_draws"
+msgstr "{0} – {1}, égalités {2}"
+
 msgid "desk.set_gone"
 msgstr "Ce set ne fait plus partie de l'événement"
 
@@ -4110,6 +4113,12 @@ msgstr "Partie {0} : {1} gagne"
 
 msgid "desk.decide_detail"
 msgstr "Attribue cette partie, terminée sans résultat, à ce joueur."
+
+msgid "desk.decide_draw"
+msgstr "Partie {0} : égalité"
+
+msgid "desk.decide_draw_detail"
+msgstr "Une égalité ne compte pour personne et la partie est rejouée."
 
 msgid "desk.void"
 msgstr "Annuler la partie {0}"

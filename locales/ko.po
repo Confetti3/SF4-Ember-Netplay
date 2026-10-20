@@ -4066,6 +4066,9 @@ msgstr "{0} 대 {1}"
 msgid "desk.score"
 msgstr "{0} – {1}"
 
+msgid "desk.score_draws"
+msgstr "{0} – {1}, 무승부 {2}"
+
 msgid "desk.set_gone"
 msgstr "이 세트는 더 이상 이벤트에 없습니다"
 
@@ -4110,6 +4113,12 @@ msgstr "{0}번째 게임: {1} 승리"
 
 msgid "desk.decide_detail"
 msgstr "결과 없이 끝난 이 게임을 그 선수의 승리로 정합니다."
+
+msgid "desk.decide_draw"
+msgstr "게임 {0}: 무승부"
+
+msgid "desk.decide_draw_detail"
+msgstr "무승부는 누구의 점수도 되지 않으며 게임을 다시 합니다."
 
 msgid "desk.void"
 msgstr "{0}번째 게임 무효"

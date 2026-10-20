@@ -4066,6 +4066,9 @@ msgstr "{0} kontra {1}"
 msgid "desk.score"
 msgstr "{0} – {1}"
 
+msgid "desk.score_draws"
+msgstr "{0} – {1}, remisy {2}"
+
 msgid "desk.set_gone"
 msgstr "Ten set nie należy już do wydarzenia"
 
@@ -4110,6 +4113,12 @@ msgstr "Gra {0}: wygrywa {1}"
 
 msgid "desk.decide_detail"
 msgstr "Przyznaje tę grę, zakończoną bez wyniku, temu graczowi."
+
+msgid "desk.decide_draw"
+msgstr "Gra {0}: remis"
+
+msgid "desk.decide_draw_detail"
+msgstr "Remis nie liczy się nikomu, a gra jest rozgrywana ponownie."
 
 msgid "desk.void"
 msgstr "Unieważnij grę {0}"

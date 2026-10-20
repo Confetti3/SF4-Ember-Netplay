@@ -4066,6 +4066,9 @@ msgstr "{0} gegen {1}"
 msgid "desk.score"
 msgstr "{0} – {1}"
 
+msgid "desk.score_draws"
+msgstr "{0} – {1}, {2} unentschieden"
+
 msgid "desk.set_gone"
 msgstr "Dieses Set gehört nicht mehr zum Event"
 
@@ -4110,6 +4113,12 @@ msgstr "Spiel {0}: {1} gewinnt"
 
 msgid "desk.decide_detail"
 msgstr "Entscheidet dieses Spiel, das ohne Ergebnis endete, für diesen Spieler."
+
+msgid "desk.decide_draw"
+msgstr "Spiel {0}: Unentschieden"
+
+msgid "desk.decide_draw_detail"
+msgstr "Ein Unentschieden zählt für niemanden; das Spiel wird wiederholt."
 
 msgid "desk.void"
 msgstr "Spiel {0} annullieren"

@@ -3707,6 +3707,9 @@ msgstr "{0} vs {1}"
 msgid "desk.score"
 msgstr "{0} – {1}"
 
+msgid "desk.score_draws"
+msgstr "{0} – {1}, drawn {2}"
+
 msgid "desk.set_gone"
 msgstr "This set is no longer in the event"
 
@@ -3751,6 +3754,12 @@ msgstr "Game {0}: {1} wins"
 
 msgid "desk.decide_detail"
 msgstr "Decides this game, which ended without a result, for that player."
+
+msgid "desk.decide_draw"
+msgstr "Game {0}: a draw"
+
+msgid "desk.decide_draw_detail"
+msgstr "A drawn game scores for nobody and is played again."
 
 msgid "desk.void"
 msgstr "Void game {0}"

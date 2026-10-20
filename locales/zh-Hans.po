@@ -4066,6 +4066,9 @@ msgstr "{0} 对 {1}"
 msgid "desk.score"
 msgstr "{0} – {1}"
 
+msgid "desk.score_draws"
+msgstr "{0} – {1}，平局 {2}"
+
 msgid "desk.set_gone"
 msgstr "此对局已不在赛事中"
 
@@ -4110,6 +4113,12 @@ msgstr "第 {0} 局：{1} 获胜"
 
 msgid "desk.decide_detail"
 msgstr "将这局无结果结束的比赛判给该选手。"
+
+msgid "desk.decide_draw"
+msgstr "第{0}局：平局"
+
+msgid "desk.decide_draw_detail"
+msgstr "平局不计入任何一方，该局重赛。"
 
 msgid "desk.void"
 msgstr "作废第 {0} 局"

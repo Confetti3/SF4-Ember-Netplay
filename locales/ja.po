@@ -4066,6 +4066,9 @@ msgstr "{0} 対 {1}"
 msgid "desk.score"
 msgstr "{0} – {1}"
 
+msgid "desk.score_draws"
+msgstr "{0} – {1}、引き分け{2}"
+
 msgid "desk.set_gone"
 msgstr "このセットはイベントにありません"
 
@@ -4110,6 +4113,12 @@ msgstr "第 {0} ゲーム：{1} の勝ち"
 
 msgid "desk.decide_detail"
 msgstr "結果なしで終わったこのゲームを、そのプレイヤーの勝ちにします。"
+
+msgid "desk.decide_draw"
+msgstr "ゲーム{0}：引き分け"
+
+msgid "desk.decide_draw_detail"
+msgstr "引き分けはどちらの得点にもならず、そのゲームは再試合になります。"
 
 msgid "desk.void"
 msgstr "第 {0} ゲームを無効にする"

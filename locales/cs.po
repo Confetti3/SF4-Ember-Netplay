@@ -4066,6 +4066,9 @@ msgstr "{0} proti {1}"
 msgid "desk.score"
 msgstr "{0} – {1}"
 
+msgid "desk.score_draws"
+msgstr "{0} – {1}, remízy {2}"
+
 msgid "desk.set_gone"
 msgstr "Tento set už do události nepatří"
 
@@ -4110,6 +4113,12 @@ msgstr "Hra {0}: vítěz {1}"
 
 msgid "desk.decide_detail"
 msgstr "Přidělí tuto hru, která skončila bez výsledku, tomuto hráči."
+
+msgid "desk.decide_draw"
+msgstr "Hra {0}: remíza"
+
+msgid "desk.decide_draw_detail"
+msgstr "Remíza se nikomu nepočítá a hra se hraje znovu."
 
 msgid "desk.void"
 msgstr "Zrušit hru {0}"

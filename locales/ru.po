@@ -4066,6 +4066,9 @@ msgstr "{0} против {1}"
 msgid "desk.score"
 msgstr "{0} – {1}"
 
+msgid "desk.score_draws"
+msgstr "{0} – {1}, ничьих {2}"
+
 msgid "desk.set_gone"
 msgstr "Этого сета больше нет в событии"
 
@@ -4110,6 +4113,12 @@ msgstr "Игра {0}: побеждает {1}"
 
 msgid "desk.decide_detail"
 msgstr "Присуждает эту игру, закончившуюся без результата, этому игроку."
+
+msgid "desk.decide_draw"
+msgstr "Игра {0}: ничья"
+
+msgid "desk.decide_draw_detail"
+msgstr "Ничья никому не засчитывается, игра переигрывается."
 
 msgid "desk.void"
 msgstr "Отменить игру {0}"
