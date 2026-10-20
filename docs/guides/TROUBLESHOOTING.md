@@ -14,6 +14,58 @@
 - **Room still opening after 30 seconds:** Ember says the room has not finished opening. Check your connection, or choose **Stop creating** or **Stop joining** and try again.
 - **Connection lost:** check the status line on the room screen, or use Help & About > Export diagnostics to save the connection state. Leave and rejoin with a current invitation. A continuing fight may have unavailable control-plane verification; its health should not be inferred from the HUD alone.
 - **Check connection says Relayed:** your two networks could not connect directly, so match traffic goes through a relay server. Matches still work; use the recommended delay, which already accounts for the extra distance. A direct connection usually needs only one of the two players on a friendlier network: turn on UPnP (sometimes called automatic port forwarding) in the router, turn off any VPN, or play from a home connection instead of a mobile hotspot, school or work network. Matches and room control prefer UDP port 45760 (45761 to 45763 for extra copies on the same PC; Help & About > Export diagnostics shows the one in use). Forwarding UDP 45760 to your PC in the router and allowing `sf4-net.exe` in Windows Firewall usually gives other players a direct path for the match even when both networks are strict; a forwarded port does nothing while the firewall blocks it. Some internet providers share one public address between many customers; those players cannot forward a port and often stay relayed.
+- **Allowing Ember in Windows Firewall:** the Windows Security prompt at first launch usually does this. If it was dismissed, the folder was moved, or outbound connections are blocked by default on your PC, open PowerShell as Administrator in the Ember folder and run:
+
+  ```powershell
+  $ember = (Get-Location).Path
+  foreach ($exe in 'sf4-net.exe','Launcher.exe','Updater.exe','ember-discord.exe') {
+      foreach ($dir in 'Inbound','Outbound') {
+          New-NetFirewallRule -DisplayName "Ember $exe $dir" -Direction $dir -Program "$ember\$exe" -Action Allow -Profile Private,Public
+      }
+  }
+  New-NetFirewallRule -DisplayName 'Ember UDP 45760-45763 Inbound' -Direction Inbound -Protocol UDP -LocalPort 45760-45763 -Action Allow -Profile Private,Public
+  New-NetFirewallRule -DisplayName 'Ember UDP 45760-45763 Outbound' -Direction Outbound -Protocol UDP -LocalPort 45760-45763 -Action Allow -Profile Private,Public
+  ```
+
+  The program rules are enough on a default firewall, which already allows outbound traffic; the outbound rules matter only when the default outbound action was changed to Block, or a Block rule names `sf4-net.exe`. The port rules also keep a forwarded port working after Ember is moved to another folder. To review or remove the rules, or to find a Block rule:
+
+  ```powershell
+  Get-NetFirewallRule -DisplayName 'Ember*' | Format-Table DisplayName, Enabled, Direction, Action
+  Get-NetFirewallRule -DisplayName 'Ember*' | Remove-NetFirewallRule
+  Get-NetFirewallRule -Action Block -Enabled True | Get-NetFirewallApplicationFilter | Where Program -like '*sf4*'
+  ```
+- **Allowing Ember in Windows Defender:** first see whether Defender acted on an Ember file at all; if the lists are empty, Defender is not the cause:
+
+  ```powershell
+  Get-MpThreatDetection | Sort InitialDetectionTime -Descending | Select -First 10 InitialDetectionTime, ThreatID, Resources, ActionSuccess | Format-List
+  Get-MpThreat | Select ThreatName, SeverityID | Format-Table
+  ```
+
+  To bring a quarantined file back, allow it in Windows Security > Virus & threat protection > Protection history > Allow on device, or as Administrator list the quarantine and restore by the threat name it shows:
+
+  ```powershell
+  & "$env:ProgramFiles\Windows Defender\MpCmdRun.exe" -Restore -ListAll
+  & "$env:ProgramFiles\Windows Defender\MpCmdRun.exe" -Restore -Name '<ThreatName>'
+  ```
+
+  Defender blocks a file restored this way again unless it is allowed or excluded. See [Windows Defender](WINDOWS_DEFENDER.md) for why `Sidecar.dll` is flagged and how to verify the files first. If you decide to exclude the verified Ember folder, as Administrator in that folder:
+
+  ```powershell
+  $ember = (Get-Location).Path
+  Add-MpPreference -ExclusionPath $ember
+  foreach ($exe in 'sf4-net.exe','Launcher.exe','ember-discord.exe') { Add-MpPreference -ExclusionProcess "$ember\$exe" }
+  Get-MpPreference | Select ExclusionPath, ExclusionProcess
+  ```
+
+  To undo both, in the same folder:
+
+  ```powershell
+  $ember = (Get-Location).Path
+  Remove-MpPreference -ExclusionPath $ember
+  foreach ($exe in 'sf4-net.exe','Launcher.exe','ember-discord.exe') { Remove-MpPreference -ExclusionProcess "$ember\$exe" }
+  ```
+
+  If `Launcher.exe` shows "Windows protected your PC", choose More info > Run anyway, or run `Unblock-File .\*.exe, .\*.dll` in the folder. Exclusions do not fix a `relay_unreachable` error; for that, check Defender's network protection (`Get-MpPreference | Select EnableNetworkProtection`, 1 is block mode) together with any VPN adapter and Teredo (`netsh interface teredo show state`).
 - **Ready pending:** wait for the other player and preparation acknowledgement. Selections remain locked while readiness is pending. Leave is explicit.
 - **Preferences could not be saved:** keep the window open, resolve a read-only or busy settings directory, then choose **Retry saving**. Original settings and migration backups remain under `%APPDATA%\sf4e`.
 - **No update question at launch:** Ember asks only on Home, with no room or match, and checks at most once every 6 hours. Check that Help & About > **Check for updates at launch** is On, that you did not choose **Skip this version** for the release, and use **Check for updates** there to look right away. A check that could not reach GitHub is tried again the next time you start the game.
