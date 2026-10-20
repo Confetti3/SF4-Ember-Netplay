@@ -18,6 +18,10 @@ float Luminance(ImVec4 color) {
     const auto linear = [](float c) { return c <= .04045f ? c / 12.92f : std::pow((c + .055f) / 1.055f, 2.4f); };
     return .2126f * linear(color.x) + .7152f * linear(color.y) + .0722f * linear(color.z);
 }
+float Contrast(ImVec4 a, ImVec4 b) {
+    const auto left = Luminance(a), right = Luminance(b);
+    return ((std::max)(left, right) + .05f) / ((std::min)(left, right) + .05f);
+}
 }
 
 int main() {
@@ -70,8 +74,9 @@ int main() {
     const ImVec4 semantic[] = {ui::ToneColor(ui::Tone::Success), ui::ToneColor(ui::Tone::Pending), ui::ToneColor(ui::Tone::Error)};
     const ImVec4 focused(.40f,.23f,.12f,.9f), pale(1,.82f,.65f,.7f);
     ui::SetAccentColor(0x1267AB);
-    CHECK(ui::palette::Ember == IM_COL32(18, 103, 171, 255));
-    CHECK(ui::AccentAlpha(60) == IM_COL32(18, 103, 171, 60));
+    CHECK(Contrast(ImGui::ColorConvertU32ToFloat4(ui::palette::Ember), ImGui::GetStyle().Colors[ImGuiCol_ChildBg]) >= 4.5f);
+    CHECK((ui::AccentAlpha(60) & ~IM_COL32_A_MASK) == (ui::palette::Ember & ~IM_COL32_A_MASK));
+    CHECK((ui::AccentAlpha(60) & IM_COL32_A_MASK) == (60u << IM_COL32_A_SHIFT));
     CHECK(ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_NavCursor]) == ui::palette::Ember);
     CHECK(ImGui::GetIO().Fonts == atlas && atlas->Fonts.Size == fontCount);
     // A blue theme changes whole cards and text, not only their thin focus line.
@@ -90,7 +95,7 @@ int main() {
         if (vertex.col == expectedFill) foundFill = true;
     ImGui::End();ImGui::Render();
     CHECK(foundFill);
-    for (const unsigned chosen : {0x328DFFu, 0x004080u, 0xFFFF00u, 0xFFFFFFu, 0u}) {
+    for (const unsigned chosen : {0x328DFFu, 0x004080u, 0xFFFF00u, 0xFFFFFFu, 0xFFF4DDu, 0u}) {
         ui::SetAccentColor(chosen);
         for (const auto original : {focused, pale, ImVec4(.08f,.075f,.07f,.6f)}) {
             const auto mapped = ui::AccentShade(original);
@@ -99,6 +104,14 @@ int main() {
         const auto foreground = ImGui::GetStyle().Colors[ImGuiCol_Text];
         const auto background = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
         CHECK((Luminance(foreground)+.05f)/(Luminance(background)+.05f) > 7.f);
+        const auto primary = ImGui::ColorConvertU32ToFloat4(ui::palette::Ember);
+        CHECK(Contrast(primary, ImGui::GetStyle().Colors[ImGuiCol_ChildBg]) >= 4.5f);
+        CHECK(Contrast(primary, ui::AccentShade(focused)) >= 3.f);
+        // Public-room actions and chat badges use this same primary fill
+        // with dark ink, so selecting black cannot hide their text.
+        CHECK(Contrast(primary, ui::AccentShade(0x141312)) >= 4.5f);
+        CHECK(ImGui::ColorConvertFloat4ToU32(ui::AccentShade(accent::Default)) == ui::palette::Ember);
+        if (chosen == 0x328DFFu) CHECK(ui::palette::Ember == IM_COL32(50, 141, 255, 255));
         for (unsigned alpha = 0; alpha <= 255; ++alpha)
             CHECK((ui::AccentColor(IM_COL32(74,46,20,alpha)) & IM_COL32_A_MASK) == (alpha << IM_COL32_A_SHIFT));
         CHECK(Same(ui::ToneColor(ui::Tone::Success), semantic[0]));

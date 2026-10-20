@@ -41,6 +41,8 @@ Red, Green and Blue with Left/Right, or enter a six-digit color code such as
 `#328DFF`. The preview updates immediately and the accepted choice is saved.
 The chosen color also derives the pale text, dark cards, panels and borders,
 keeping their brightness and transparency so labels remain readable.
+Very dark selections use a lighter primary accent for labels, focus marks
+and filled badges; the chosen RGB remains saved exactly.
 Restore orange returns to the original accent. Error and success colors,
 network warnings, controller button artwork and the illustrated background
 keep their meaning and original colors.

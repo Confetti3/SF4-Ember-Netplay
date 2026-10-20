@@ -40,6 +40,33 @@ const unsigned Ink = 0x141312, Panel = 0x211E1B, Border = 0x443A31;
 const unsigned Ivory = 0xF3EBDD, Muted = 0xB5A99B;
 const float BodySize = 18.f;
 
+float Luminance(ImVec4 color) {
+    const auto linear = [](float value) {
+        return value <= .04045f ? value / 12.92f : std::pow((value + .055f) / 1.055f, 2.4f);
+    };
+    return .2126f * linear(color.x) + .7152f * linear(color.y) + .0722f * linear(color.z);
+}
+ImVec4 ReadableAccent(ImVec4 chosen) {
+    // The same primary accent draws labels, focus strokes and filled badges
+    // with dark text. Keep it legible on the normal panel (4.5:1) and the
+    // brighter focused card (3:1), without changing the saved RGB or panels.
+    // The small margin survives conversion to 8-bit draw-list colors.
+    const float target = (std::max)(4.5f * (Luminance(AccentShade(Panel)) + .05f) - .05f,
+        3.f * (Luminance(AccentShade(ImVec4(.40f,.23f,.12f,.9f))) + .05f) - .05f) + .002f;
+    if (Luminance(chosen) >= target) return chosen;
+    const auto mix = [&](float amount) {
+        return ImVec4(chosen.x + (1.f - chosen.x) * amount, chosen.y + (1.f - chosen.y) * amount,
+            chosen.z + (1.f - chosen.z) * amount, chosen.w);
+    };
+    float low = 0, high = 1;
+    for (int i = 0; i < 16; ++i) {
+        const float middle = (low + high) * .5f;
+        if (Luminance(mix(middle)) < target) low = middle;
+        else high = middle;
+    }
+    return mix(high);
+}
+
 constexpr std::size_t ScriptFontCount = std::size(fonts::ScriptFonts);
 
 // An atlas holds Inter's ranges and each script font's native language names,
@@ -171,8 +198,11 @@ ImVec4 AccentShade(unsigned orangeRgb, float alpha) {
 ImVec4 AccentShade(ImVec4 original) {
     if (accentRgb == accent::Default) return original;
     const auto reference = Color(accent::Default);
-    if (original.x == reference.x && original.y == reference.y && original.z == reference.z)
-        return Color(accentRgb, original.w);
+    if (original.x == reference.x && original.y == reference.y && original.z == reference.z) {
+        auto primary = ImGui::ColorConvertU32ToFloat4(palette::Ember);
+        primary.w = original.w;
+        return primary;
+    }
     float hue, saturation, value, referenceHue, referenceSaturation, referenceValue;
     const auto chosen = Color(accentRgb);
     ImGui::ColorConvertRGBtoHSV(chosen.x, chosen.y, chosen.z, hue, saturation, value);
@@ -195,7 +225,8 @@ void SetAccentColor(unsigned rgb) {
     if (rgb == accentRgb && accentStyleContext == ImGui::GetCurrentContext()) return;
     accentRgb = rgb;
     accentStyleContext = ImGui::GetCurrentContext();
-    palette::Ember = ImGui::ColorConvertFloat4ToU32(Color(accentRgb));
+    const auto selected = Color(accentRgb);
+    palette::Ember = ImGui::ColorConvertFloat4ToU32(rgb == accent::Default ? selected : ReadableAccent(selected));
     palette::Ivory = AccentColor(IM_COL32(243, 235, 221, 255));
     palette::Muted = AccentColor(IM_COL32(181, 169, 155, 255));
     auto* c = ImGui::GetStyle().Colors;

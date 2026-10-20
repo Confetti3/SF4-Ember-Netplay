@@ -27,6 +27,7 @@ extern ImU32 Ember, Ivory, Muted;
 constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
 }
 // Render-thread only. Accent changes update colors, without rebuilding fonts.
+// Very dark selections get a readable primary accent; the saved RGB is unchanged.
 void SetAccentColor(unsigned rgb);
 ImVec4 AccentShade(unsigned orangeRgb, float alpha = 1.f);
 // Decorative colors keep their original brightness and alpha. Floats and

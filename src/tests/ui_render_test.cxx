@@ -822,6 +822,10 @@ int main(int argc, char** argv) {
             view.preferences.uiAccent=0x328DFF;draw("palette-blue-room");
             Require(ImGui::GetStyle().Colors[ImGuiCol_ChildBg].z>ImGui::GetStyle().Colors[ImGuiCol_ChildBg].x,
                 "The room kept the default panel palette");
+            view.preferences.uiAccent=0;draw("palette-black-room");
+            view.preferences.uiAccent=0x004080;draw("palette-navy-room");
+            view.preferences.uiAccent=0xFFFFFF;draw("palette-white-room");
+            view.preferences.uiAccent=0xFFF4DD;draw("palette-pale-room");
             view.preferences.uiAccent=accent::Default;draw();
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
