@@ -379,6 +379,7 @@ pub enum Event {
         peer: EndpointId,
         generation: u64,
         /// Set when the link never formed: what this helper saw instead.
+        /// After a bridge ends, its connection's close reason.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reason: Option<String>,
     },
