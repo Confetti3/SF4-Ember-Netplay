@@ -24,19 +24,30 @@
 
   <section class="page" id="signed-out" hidden>
     <h1 class="wd-h">Tournament desk</h1>
-    <p class="note">Run your USF4 tournament on Ember: create it, call players and keep every link in one place.</p>
     <div class="wd-card device" aria-labelledby="device-title">
       <h2 class="name" id="device-title">Sign in from Ember</h2>
-      <p class="note">In Ember: Online play › Ember ID › Tournament organizer › Sign in on another device, then type this code there.</p>
-      <p class="code-show" id="device-code" aria-live="polite">····&nbsp;····</p>
+      <ol class="steps" id="device-steps">
+        <li>In Ember: Ember ID › Tournament organizer › Sign in on another device.</li>
+        <li>Type this code there, then pick the number this page shows.</li>
+      </ol>
+      <div id="device-hidden">
+        <p class="note">Do this off stream.</p>
+        <button type="button" class="wd-btn primary" id="device-show">Show code</button>
+      </div>
+      <p class="code-show" id="device-code" aria-live="polite" hidden></p>
+      <div id="device-pick" hidden>
+        <p class="note">Pick this number in Ember:</p>
+        <p class="pick-show" id="device-number" aria-live="polite"></p>
+      </div>
       <p class="note" id="device-left"></p>
-      <p class="note">Do this off stream. The code only signs in this browser, so anyone else who sees it can't use it.</p>
       <p class="code-error" id="device-error" role="alert" hidden></p>
-      <button type="button" class="wd-btn" id="device-new">New code</button>
+      <button type="button" class="wd-btn" id="device-new" hidden>New code</button>
     </div>
-    <p class="note">Or sign in with an account you linked in Ember. That can call players and decide games, but creating or readying a tournament and its webhook, public page and sign-ups need the desk opened from Ember.</p>
-    <div class="wd-grid" id="sign-in-sites"></div>
-    <p class="note">No linked account yet? In Ember, open Online play, Ember ID, and connect start.gg or Challonge first.</p>
+    <details class="more">
+      <summary>More options</summary>
+      <p class="note">Sign in with an account you linked in Ember. This is limited: it can call players and decide games, but creating or readying a tournament needs the desk opened from Ember.</p>
+      <div class="wd-grid" id="sign-in-sites"></div>
+    </details>
   </section>
 
   <section class="page" id="home" hidden>

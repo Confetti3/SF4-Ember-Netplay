@@ -25,7 +25,7 @@ Organizer access is only on the **Tournament organizer** screen; the site's own 
 In Ember, open **Online play › Ember ID › Tournament organizer**:
 
 - **Open in browser** opens the desk on this PC, signed in. No code is shown, so this is the safe one while you stream.
-- **Sign in on another device**: on that device (phone, tablet, laptop) open the desk address. It shows a code for two minutes. In Ember, type that code. Only the browser that showed the code signs in, so someone who sees it on your stream can't use it; still, do it off stream. **New code** on the device makes another one.
+- **Sign in on another device**: on that device (a tablet, a laptop, anything with a browser) open the desk address and press **Show code**, off stream. It shows a six-digit code for two minutes. In Ember, type that code: Ember shows which browser and system asked and when. If that is your device, the page on it now shows a two-digit number; pick the same number in Ember. Only the browser that showed the code signs in, and a wrong number ends the code, so a code someone sends you or sees on your stream is no use to them. **New code** on the device makes another one.
 
 A desk opened from Ember can do everything. The web session ends after 12 hours, or after 2 hours you don't use it; **Sign out** ends it sooner.
 
@@ -151,6 +151,7 @@ The event ends with the bracket on the site. **Stop this tournament** stops Embe
 ### Troubleshooting
 
 - **"That code is wrong or expired"** in Ember: codes last two minutes and work once. Make a new one on the other device.
+- **"That is not the number the other device shows"**: the code is ended. If the device and time Ember showed weren't yours, someone tried to get you to sign in their browser; otherwise make a new code and pick again.
 - **"Not linked: connect it in Ember first"** when signing in on the web: link that site's account in Ember (step 1), then sign in again.
 - **A player is never called.** Ember finds players by the bracket site account they linked in Ember. A player who has not linked their Challonge or start.gg account in Ember is skipped until they do; ask them to follow *For players* below.
 - **No calls in Discord.** Check the webhook is still there in Discord (deleting it there breaks it). A set's card says **Discord refused it** when Discord rejects the post; paste a new webhook.

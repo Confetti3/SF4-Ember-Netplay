@@ -97,17 +97,27 @@ function whenText(seconds) {
 
 // --- Signed out and the tournaments list.
 
-// Signing in on this device from Ember: the bridge gives this browser a code
-// and a secret cookie; once the code is approved in Ember, this browser (and
-// only it) is signed in.
+// Signing in on this device from Ember: the bridge gives this browser a
+// six-digit code and a secret cookie. The code stays hidden until asked for,
+// off stream. Once Ember has read the code, this page shows a number to pick
+// there; once it is approved, this browser (and only it) is signed in.
 const device = { timer: 0, until: 0 };
+
+function deviceShows(code, number) {
+  $("device-hidden").hidden = Boolean(code);
+  $("device-code").hidden = !code || Boolean(number);
+  $("device-code").textContent = code ? code.slice(0, 3) + " " + code.slice(3) : "";
+  $("device-pick").hidden = !number;
+  $("device-number").textContent = number || "";
+  $("device-new").hidden = !code;
+}
 
 async function newCode() {
   clearInterval(device.timer);
   $("device-error").hidden = true;
   try {
     const made = await api("POST", "/web/device");
-    $("device-code").textContent = made.code.slice(0, 4) + " " + made.code.slice(4);
+    deviceShows(made.code, 0);
     device.until = made.expires_at;
     device.timer = setInterval(pollCode, 3000);
     pollCode();
@@ -125,26 +135,33 @@ async function pollCode() {
     const read = await api("GET", "/web/device");
     if (read.signed_in) {
       clearInterval(device.timer);
+      toast("Signed in.", true);
       start();
+    } else if (read.pick) {
+      deviceShows($("device-code").textContent.replace(" ", ""), read.pick);
     }
   } catch {
     clearInterval(device.timer);
-    $("device-code").textContent = "····\u00a0····";
-    $("device-left").textContent = "That code expired. Get a new one.";
+    deviceShows("", 0);
+    $("device-new").hidden = false;
+    $("device-left").textContent = "That code expired or was turned down. Get a new one.";
   }
 }
 
+$("device-show").addEventListener("click", newCode);
 $("device-new").addEventListener("click", newCode);
 
 async function signedOut() {
   show("signed-out");
-  newCode();
+  clearInterval(device.timer);
+  deviceShows("", 0);
+  $("device-left").textContent = "";
   const list = $("sign-in-sites");
   list.replaceChildren();
   const capabilities = await api("GET", "/v1/capabilities").catch(() => ({}));
   for (const site of capabilities.sign_in_sites || []) {
     if (!site.sign_in) continue;
-    list.append(el("a", { class: "wd-btn primary", href: "/web/sign-in/" + encodeURIComponent(site.id) }, "Sign in with " + site.display_name));
+    list.append(el("a", { class: "wd-btn", href: "/web/sign-in/" + encodeURIComponent(site.id) }, "Sign in with " + site.display_name));
   }
   if (!list.children.length) list.append(el("p", { class: "note" }, "This Ember service offers no web sign-in."));
 }

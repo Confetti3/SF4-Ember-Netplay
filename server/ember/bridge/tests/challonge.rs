@@ -1823,22 +1823,49 @@ async fn the_game_opens_the_web_desk_with_a_one_time_handoff() {
         "{origins:?}"
     );
 
-    // Another device shows a code; the game approves it, typed in any case
-    // and with spaces, and only the browser that showed it signs in.
+    // Another device shows a code. The game reads what asked and when, and
+    // three numbers; the device then shows one of them, and the game
+    // approves the code with it. Only the browser that showed the code signs
+    // in.
     let (status, secret, shown) = device().await;
     assert_eq!(status, StatusCode::CREATED);
     let secret = secret.unwrap();
     let code = serde_json::from_str::<Json>(&shown).unwrap()["code"]
         .as_str()
         .unwrap()
-        .to_lowercase();
-    assert_eq!(code.len(), 8);
-    assert!(code.bytes().all(|b| !b"01io".contains(&b)));
+        .to_owned();
+    assert!(code.len() == 6 && code.bytes().all(|b| b.is_ascii_digit()));
     let waiting = polled(secret.clone()).await.unwrap();
     assert!(waiting.text().await.unwrap().contains("waiting"));
-    let (status, _) = approve(&bridge, &player1, "ABCD-EFGH").await;
+    let (status, _) = info(&bridge, &player1, "000000x").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    let (status, _) = approve(&bridge, &player1, &format!("{} {}", &code[..4], &code[4..])).await;
+    let (status, read) = info(&bridge, &player1, &format!("{} {}", &code[..3], &code[3..])).await;
+    assert_eq!(status, StatusCode::OK, "{read}");
+    assert_eq!(read["device"], "A browser");
+    assert_eq!(read["requested_at"], bridge.clock.now());
+    let choices: Vec<u64> = read["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n.as_u64().unwrap())
+        .collect();
+    assert_eq!(choices.len(), 3);
+    // Reading again gives the same choices; another Ember ID gets nothing.
+    assert_eq!(
+        info(&bridge, &player1, &code).await.1["choices"],
+        read["choices"]
+    );
+    let mut player2 = player(&bridge, 2).await;
+    bridge.open_session(&mut player2).await;
+    assert_eq!(
+        info(&bridge, &player2, &code).await.0,
+        StatusCode::NOT_FOUND
+    );
+    let showing: Json =
+        serde_json::from_str(&polled(secret.clone()).await.unwrap().text().await.unwrap()).unwrap();
+    let pick = showing["pick"].as_u64().unwrap();
+    assert!(choices.contains(&pick));
+    let (status, _) = approve(&bridge, &player1, &code, pick).await;
     assert_eq!(status, StatusCode::OK);
     let other = polled("someone-else".into()).await.unwrap();
     assert_eq!(other.status(), StatusCode::NOT_FOUND);
@@ -1864,22 +1891,55 @@ async fn the_game_opens_the_web_desk_with_a_one_time_handoff() {
     assert_eq!(device_me["from_game"], true);
     // Once: neither the code nor the secret works again.
     assert_eq!(
-        approve(&bridge, &player1, &code).await.0,
+        approve(&bridge, &player1, &code, pick).await.0,
         StatusCode::NOT_FOUND
     );
     assert_eq!(
         polled(secret).await.unwrap().status(),
         StatusCode::NOT_FOUND
     );
-    // A lapsed code is no use.
+    // A wrong number ends the code, and its browser is told so.
+    let (_, secret, shown) = device().await;
+    let secret = secret.unwrap();
+    let code = serde_json::from_str::<Json>(&shown).unwrap()["code"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let read = info(&bridge, &player1, &code).await.1;
+    let pick: Json =
+        serde_json::from_str(&polled(secret.clone()).await.unwrap().text().await.unwrap()).unwrap();
+    let wrong = read["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n.as_u64().unwrap())
+        .find(|n| Some(*n) != pick["pick"].as_u64())
+        .unwrap();
+    let (status, refused) = approve(&bridge, &player1, &code, wrong).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(refused["error"]["details"]["reason"], "number_wrong");
+    assert_eq!(
+        polled(secret).await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+    // A lapsed code is no use, even read in time. (Ten minutes on first:
+    // one Ember ID reads and approves only so many codes in that time.)
+    bridge.clock.advance(600);
+    bridge.open_session(&mut player1).await;
     let (_, _, shown) = device().await;
     let code = serde_json::from_str::<Json>(&shown).unwrap()["code"]
         .as_str()
         .unwrap()
         .to_owned();
+    let read = info(&bridge, &player1, &code).await.1;
     bridge.clock.advance(121);
+    let any = read["choices"][0].as_u64().unwrap();
     assert_eq!(
-        approve(&bridge, &player1, &code).await.0,
+        info(&bridge, &player1, &code).await.0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        approve(&bridge, &player1, &code, any).await.0,
         StatusCode::NOT_FOUND
     );
 
@@ -1891,17 +1951,33 @@ async fn the_game_opens_the_web_desk_with_a_one_time_handoff() {
     assert!(limited);
 }
 
-/// The game approving the code another device shows, for `player`.
-async fn approve(bridge: &Bridge, player: &common::Player, code: &str) -> (StatusCode, Json) {
+/// The game approving the code another device shows, with the number that
+/// device shows, for `player`.
+async fn approve(
+    bridge: &Bridge,
+    player: &common::Player,
+    code: &str,
+    number: u64,
+) -> (StatusCode, Json) {
     sign_in::send(
         bridge,
         player,
         Action::SiteConnect,
         Method::Post,
         "/v1/web-sessions/approve",
-        json!({ "code": code }),
+        json!({ "code": code, "number": number }),
     )
     .await
+}
+
+/// The game reading what asked for `code`, for `player`.
+async fn info(bridge: &Bridge, player: &common::Player, code: &str) -> (StatusCode, Json) {
+    bridge
+        .get(
+            player.token(),
+            &format!("/v1/web-sessions/device?code={}", code.replace(' ', "%20")),
+        )
+        .await
 }
 
 /// A handoff from the game for `player`: its link's token.

@@ -56,6 +56,11 @@ a:hover { color: var(--ember-light); }
 .toast.good { background: #22291f; color: var(--success); }
 .code-form { gap: 12px; }
 .code-show { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: 0.18em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pick-show { margin: 0; font-size: 64px; font-weight: 600; line-height: 1; color: var(--ember); font-variant-numeric: tabular-nums; }
+.steps { margin: 0; padding-left: 1.4em; color: var(--muted); font-size: 15px; }
+.steps li { margin: 0 0 4px; }
+.more summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--ivory); font-weight: 600; }
+.more[open] { display: flex; flex-direction: column; gap: 12px; }
 .code-input { font-size: 22px; letter-spacing: 0.2em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .code-error { margin: 0; padding: 10px 12px; border-radius: 4px; background: #3a2120; color: var(--error); font-size: 15px; }
 

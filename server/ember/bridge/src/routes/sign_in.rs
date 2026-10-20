@@ -195,6 +195,7 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
     .route(desk::HANDOFF_PATH, post(desk::handoff))
     .route("/desk/h/{token}", get(desk::handoff_link))
     .route(desk::APPROVE_PATH, post(desk::approve))
+    .route(desk::DEVICE_PATH, get(desk::device_info))
     .route(
         "/web/device",
         post(desk::device).get(desk::device_signed_in),

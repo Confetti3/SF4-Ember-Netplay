@@ -573,14 +573,21 @@ The game opens the desk too, in two ways, each marked `from_game` in
   kept only as a keyed hash; the browser trades it at `GET /desk/h/<token>`
   for the session cookie.
 - On another device, the other way round, so a code seen on a stream is no
-  use to anyone else: that browser's `POST /web/device` answers an
-  eight-letter `code` (no 0, 1, I or O) and sets a secret cookie, both for
-  two minutes. The game approves the code with `POST
-  /v1/web-sessions/approve` (`{"code": …}`, player session, `site.connect`
-  proof). The browser polls `GET /web/device`, which answers `waiting`
-  until then and then sets the session cookie, for the browser holding the
-  secret only. One address asks at most 10 codes or links in ten minutes,
-  one Ember ID 10 handoffs or approvals, one code 5 approvals.
+  use to anyone else: that browser's `POST /web/device` answers a six-digit
+  `code` and sets a secret cookie, both for two minutes, and keeps what the
+  browser is (browser and system, read from its user agent, which is not
+  kept) and when it asked. The game first reads `GET
+  /v1/web-sessions/device?code=…` (player session): `device`,
+  `requested_at` and three `choices` from 10 to 99. The first Ember ID to
+  read a code keeps it; from then on the browser's `GET /web/device`
+  answers `pick`, one of those numbers. The game approves with `POST
+  /v1/web-sessions/approve` (`{"code": …, "number": …}`, player session,
+  `site.connect` proof); a wrong number ends the code (404, `details.reason`
+  `number_wrong`). Once approved, the browser's next poll sets the session
+  cookie, for the browser holding the secret only. One address asks at most
+  10 codes or links in ten minutes, one Ember ID 10 handoffs, reads or
+  approvals, one code 5 reads or approvals. No country is shown: the bridge
+  has no address-to-country data, and looks nothing up elsewhere.
 
 A session from a site sign-in alone is only as safe as the site account, so
 the changes a stolen one must not make refuse it with 403 and

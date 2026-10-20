@@ -173,7 +173,7 @@ pub(super) async fn callback(
         .db
         .write(move |tx| match site.owner(tx, &user.id)? {
             Some(ember_id) => {
-                auth::start_desk_session(tx, &keys, &ember_id, site.id(), agent, false, now)
+                auth::start_desk_session(tx, &keys, &ember_id, site.id(), &agent, false, now)
                     .map(Some)
             }
             None => Ok(None),
@@ -338,31 +338,48 @@ fn set_cookie(state: &AppState, response: &mut Response, name: &str, value: &str
     }
 }
 
-/// The browser a sign-in came from, as the game lists it: a short name
-/// read from its user agent, nothing that tells one browser from another.
-fn agent(headers: &HeaderMap) -> &'static str {
+/// The browser a request came from, as the game shows it: its browser and
+/// system, read from its user agent, and nothing that tells one browser from
+/// another.
+fn agent(headers: &HeaderMap) -> String {
     let agent = headers
         .get(header::USER_AGENT)
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default();
     let has = |text: &str| agent.contains(text);
-    let phone = has("Android") || has("iPhone") || has("iPad");
-    match (
-        phone,
-        has("Firefox"),
-        has("Edg/"),
-        has("Chrome"),
-        has("Safari"),
-    ) {
-        (true, true, ..) => "Firefox on a phone",
-        (true, _, _, true, _) => "Chrome on a phone",
-        (true, ..) => "Safari on a phone",
-        (false, true, ..) => "Firefox",
-        (false, _, true, ..) => "Edge",
-        (false, _, _, true, _) => "Chrome",
-        (false, _, _, _, true) => "Safari",
-        _ => "A browser",
-    }
+    // Order matters: Edge, Opera and Samsung's browser also say Chrome, and
+    // every Chromium browser also says Safari.
+    let browser = if has("Firefox/") || has("FxiOS") {
+        "Firefox"
+    } else if has("Edg") {
+        "Edge"
+    } else if has("OPR/") {
+        "Opera"
+    } else if has("SamsungBrowser") {
+        "Samsung Internet"
+    } else if has("Chrome/") || has("CriOS") {
+        "Chrome"
+    } else if has("Safari/") {
+        "Safari"
+    } else {
+        "A browser"
+    };
+    let system = if has("Android") {
+        "Android"
+    } else if has("iPhone") || has("iPad") || has("iPod") {
+        "iOS"
+    } else if has("CrOS") {
+        "ChromeOS"
+    } else if has("Windows") {
+        "Windows"
+    } else if has("Macintosh") || has("Mac OS X") {
+        "macOS"
+    } else if has("Linux") {
+        "Linux"
+    } else {
+        return browser.to_owned();
+    };
+    format!("{browser} on {system}")
 }
 
 /// Where the game lists and ends an Ember ID's web desk sessions.
@@ -448,13 +465,11 @@ pub async fn end_web_sessions(
 /// A handoff from the game, and a device's code, live this long.
 const HANDOFF_SECS: u64 = 120;
 /// Handoffs and approvals one Ember ID asks for, codes and exchanges one
-/// network address asks for, and approvals one code gets, in ten minutes.
+/// network address asks for, and reads and approvals one code gets, in ten
+/// minutes.
 const HANDOFFS_PER_PLAYER: usize = 10;
 const EXCHANGES_PER_ADDRESS: usize = 10;
 const TRIES_PER_CODE: usize = 5;
-/// A code's letters: no 0, 1, I or O, which read alike. 32 of them, so a
-/// random byte's low five bits pick one evenly.
-const CODE_LETTERS: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 /// The cookie holding a device's secret while its code waits.
 const DEVICE_COOKIE: &str = "ember_desk_device";
 pub const HANDOFF_PATH: &str = "/v1/web-sessions/handoff";
@@ -540,7 +555,7 @@ pub async fn handoff_link(
                 .optional()?;
             ember_id
                 .map(|ember_id| {
-                    auth::start_desk_session(tx, &keys, &ember_id, "", agent, true, now)
+                    auth::start_desk_session(tx, &keys, &ember_id, "", &agent, true, now)
                 })
                 .transpose()
         })
@@ -559,38 +574,62 @@ pub async fn handoff_link(
     }
 }
 
-/// A code as typed: letters and digits, upper case.
+/// A code as typed: its digits alone, so spaces and dashes don't matter.
 fn typed(code: &str) -> String {
-    code.chars()
-        .filter(char::is_ascii_alphanumeric)
-        .map(|letter| letter.to_ascii_uppercase())
-        .collect()
+    code.chars().filter(char::is_ascii_digit).collect()
+}
+
+/// A code is six digits.
+const CODE_DIGITS: usize = 6;
+
+fn code_refused() -> ApiFailure {
+    ApiFailure::new(
+        ember_protocol::api::ErrorCode::NotFound,
+        "That code is wrong or expired. Get a new one on the other device.",
+    )
+    .detail("reason", "code_refused")
 }
 
 /// `POST /web/device`: a new code for this browser to show, to be typed in
-/// Ember, and the secret (a cookie) that only this browser holds.
-pub async fn device(State(state): State<AppState>, Address(address): Address) -> Result<Response> {
+/// Ember, and the secret (a cookie) that only this browser holds. What the
+/// browser is and when it asked are kept for the game to show.
+pub async fn device(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Address(address): Address,
+) -> Result<Response> {
     exchange_allowed(&state, &address)?;
     let secret = b64u(&random::<32>());
-    let code: String = random::<8>()
-        .iter()
-        .map(|byte| char::from(CODE_LETTERS[usize::from(byte & 31)]))
-        .collect();
     let secret_hash = auth::hash(&state.keys, "desk-device", &secret);
-    let code_hash = auth::hash(&state.keys, "desk-code", &code);
-    let expires_at = state.now() + HANDOFF_SECS;
-    state
+    let (keys, device, now) = (state.keys.clone(), agent(&headers), state.now());
+    let expires_at = now + HANDOFF_SECS;
+    let code = state
         .db
         .write(move |tx| {
-            tx.execute(
-                "DELETE FROM desk_devices WHERE expires_at <= ?1",
-                [expires_at - HANDOFF_SECS],
-            )?;
-            tx.execute(
-                "INSERT INTO desk_devices (secret_hash, code_hash, expires_at) VALUES (?1, ?2, ?3)",
-                params![secret_hash.as_slice(), code_hash.as_slice(), expires_at],
-            )?;
-            Ok(())
+            tx.execute("DELETE FROM desk_devices WHERE expires_at <= ?1", [now])?;
+            // A code another browser holds now is drawn again.
+            loop {
+                let code = format!(
+                    "{:06}",
+                    u64::from_le_bytes(random::<8>()) % 10u64.pow(CODE_DIGITS as u32)
+                );
+                let code_hash = auth::hash(&keys, "desk-code", &code);
+                let added = tx.execute(
+                    "INSERT OR IGNORE INTO desk_devices
+                         (secret_hash, code_hash, expires_at, device, requested_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        secret_hash.as_slice(),
+                        code_hash.as_slice(),
+                        expires_at,
+                        device,
+                        now
+                    ],
+                )?;
+                if added == 1 {
+                    return Ok(code);
+                }
+            }
         })
         .await?;
     let mut response = answer(
@@ -601,8 +640,9 @@ pub async fn device(State(state): State<AppState>, Address(address): Address) ->
     Ok(response)
 }
 
-/// `GET /web/device`: whether this browser's code was approved in Ember;
-/// once it is, signs the browser in to the desk as opened from the game.
+/// `GET /web/device`: where this browser's code is. Waiting for Ember; read
+/// in Ember, with the number to show (`pick`); or approved, which signs the
+/// browser in to the desk as opened from the game.
 pub async fn device_signed_in(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -613,20 +653,25 @@ pub async fn device_signed_in(
     let found = state
         .db
         .write(move |tx| {
-            let row: Option<(Option<String>, u64)> = tx
+            let row: Option<(Option<String>, Option<u8>, u64)> = tx
                 .query_row(
-                    "SELECT ember_id, expires_at FROM desk_devices WHERE secret_hash = ?1 AND expires_at > ?2",
+                    "SELECT ember_id, number, expires_at FROM desk_devices
+                     WHERE secret_hash = ?1 AND expires_at > ?2",
                     params![hash.as_slice(), now],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()?;
             match row {
-                Some((Some(ember_id), _)) => {
-                    tx.execute("DELETE FROM desk_devices WHERE secret_hash = ?1", [hash.as_slice()])?;
-                    let session = auth::start_desk_session(tx, &keys, &ember_id, "", agent, true, now)?;
+                Some((Some(ember_id), ..)) => {
+                    tx.execute(
+                        "DELETE FROM desk_devices WHERE secret_hash = ?1",
+                        [hash.as_slice()],
+                    )?;
+                    let session =
+                        auth::start_desk_session(tx, &keys, &ember_id, "", &agent, true, now)?;
                     Ok(Some(Ok(session)))
                 }
-                Some((None, expires_at)) => Ok(Some(Err(expires_at))),
+                Some((None, number, expires_at)) => Ok(Some(Err((number, expires_at)))),
                 None => Ok(None),
             }
         })
@@ -638,29 +683,141 @@ pub async fn device_signed_in(
             set_cookie(&state, &mut response, DEVICE_COOKIE, "", 0);
             Ok(response)
         }
-        Some(Err(expires_at)) => Ok(ok(&json!({ "waiting": true, "expires_at": expires_at }))),
+        Some(Err((Some(number), expires_at))) => {
+            Ok(ok(&json!({ "pick": number, "expires_at": expires_at })))
+        }
+        Some(Err((None, expires_at))) => {
+            Ok(ok(&json!({ "waiting": true, "expires_at": expires_at })))
+        }
         None => Err(ApiFailure::new(
             ember_protocol::api::ErrorCode::NotFound,
-            "This code expired. Get a new one.",
+            "This code expired or was turned down. Get a new one.",
         )
         .detail("reason", "code_refused")),
     }
 }
 
+/// Where the game reads another device's code before approving it.
+pub const DEVICE_PATH: &str = "/v1/web-sessions/device";
+
 #[derive(serde::Deserialize)]
-struct Code {
+pub struct CodeQuery {
     code: String,
 }
 
+/// The number a device shows and two others, in a random order, for the
+/// organizer to pick from in the game.
+fn number_and_choices() -> (u8, [u8; 3]) {
+    let draw = || 10 + random::<1>()[0] % 90;
+    let number = draw();
+    let mut choices = [number, 0, 0];
+    for at in 1..3 {
+        choices[at] = loop {
+            let other = draw();
+            if !choices[..at].contains(&other) {
+                break other;
+            }
+        };
+    }
+    let first = usize::from(random::<1>()[0] % 3);
+    choices.swap(0, first);
+    (number, choices)
+}
+
+/// `GET /v1/web-sessions/device?code=` (player session): what asked for
+/// `code` and when, and three numbers, one of which the device now shows.
+/// The first Ember ID to read a code keeps it: another's game gets no answer.
+pub async fn device_info(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Query(CodeQuery { code }): axum::extract::Query<CodeQuery>,
+) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    per_player(&state, &player)?;
+    let code = typed(&code);
+    if code.len() != CODE_DIGITS {
+        return Err(code_refused());
+    }
+    code_tries(&state, &code)?;
+    let hash = auth::hash(&state.keys, "desk-code", &code);
+    let (ember_id, now) = (player.ember_id.as_str().to_owned(), state.now());
+    let found = state
+        .db
+        .write(move |tx| {
+            let row: Option<(String, u64, Option<String>, Option<String>)> = tx
+                .query_row(
+                    "SELECT device, requested_at, claimed_by, choices FROM desk_devices
+                     WHERE code_hash = ?1 AND expires_at > ?2 AND ember_id IS NULL",
+                    params![hash.as_slice(), now],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .optional()?;
+            let Some((device, requested_at, claimed_by, choices)) = row else {
+                return Ok(None);
+            };
+            if claimed_by
+                .as_deref()
+                .is_some_and(|claimed| claimed != ember_id)
+            {
+                return Ok(None);
+            }
+            let choices = match choices {
+                Some(choices) => choices,
+                None => {
+                    let (number, choices) = number_and_choices();
+                    let choices = choices.map(|choice| choice.to_string()).join(",");
+                    tx.execute(
+                        "UPDATE desk_devices SET claimed_by = ?1, number = ?2, choices = ?3
+                         WHERE code_hash = ?4",
+                        params![ember_id, number, choices, hash.as_slice()],
+                    )?;
+                    choices
+                }
+            };
+            Ok(Some((device, requested_at, choices)))
+        })
+        .await?;
+    let Some((device, requested_at, choices)) = found else {
+        return Err(code_refused());
+    };
+    let choices: Vec<u8> = choices.split(',').filter_map(|n| n.parse().ok()).collect();
+    Ok(ok(&json!({
+        "device": device,
+        "requested_at": requested_at,
+        "choices": choices,
+    })))
+}
+
+/// A code's tries at being read or approved, however many games ask.
+fn code_tries(state: &AppState, code: &str) -> Result<()> {
+    state
+        .rate
+        .check(
+            &format!("desk-code:{code}"),
+            TRIES_PER_CODE,
+            600,
+            state.now(),
+        )
+        .map_err(ApiFailure::rate_limited)
+}
+
+#[derive(serde::Deserialize)]
+struct Approval {
+    code: String,
+    number: u8,
+}
+
 /// `POST /v1/web-sessions/approve` (player session, `site.connect` proof):
-/// approves the code another device's browser shows, so that browser, and
-/// only it, signs in to the desk as opened from the game.
+/// approves the code another device's browser shows, with the number that
+/// browser shows now (`device_info`), so that browser, and only it, signs in
+/// to the desk as opened from the game. A wrong number ends the code.
 pub async fn approve(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
-    let (caller, Code { code }): (_, Code) = Caller::of(&state, &headers, &body).await?;
+    let (caller, Approval { code, number }): (_, Approval) =
+        Caller::of(&state, &headers, &body).await?;
     caller.require_game()?;
     state
         .rate
@@ -672,41 +829,100 @@ pub async fn approve(
         )
         .map_err(ApiFailure::rate_limited)?;
     let code = typed(&code);
-    let refused = || {
-        ApiFailure::new(
-            ember_protocol::api::ErrorCode::NotFound,
-            "That code is wrong or expired. Get a new one on the other device.",
-        )
-        .detail("reason", "code_refused")
-    };
-    if code.len() != 8 {
-        return Err(refused());
+    if code.len() != CODE_DIGITS {
+        return Err(code_refused());
     }
-    state
-        .rate
-        .check(
-            &format!("desk-code:{code}"),
-            TRIES_PER_CODE,
-            600,
-            state.now(),
-        )
-        .map_err(ApiFailure::rate_limited)?;
+    code_tries(&state, &code)?;
     let hash = auth::hash(&state.keys, "desk-code", &code);
     let ctx = Ctx::of(&state);
     let approved = state
         .db
         .write(move |tx| {
             caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, APPROVE_PATH)?;
-            Ok(tx.execute(
-                "UPDATE desk_devices SET ember_id = ?1
-                 WHERE code_hash = ?2 AND expires_at > ?3 AND ember_id IS NULL",
-                params![caller.ember_id(), hash.as_slice(), ctx.now],
-            )?)
+            let shown: Option<u8> = tx
+                .query_row(
+                    "SELECT number FROM desk_devices
+                     WHERE code_hash = ?1 AND expires_at > ?2 AND ember_id IS NULL
+                         AND claimed_by = ?3",
+                    params![hash.as_slice(), ctx.now, caller.ember_id()],
+                    |row| row.get(0),
+                )
+                .optional()?
+                .flatten();
+            match shown {
+                None => Ok(None),
+                Some(shown) if shown != number => {
+                    tx.execute(
+                        "DELETE FROM desk_devices WHERE code_hash = ?1",
+                        [hash.as_slice()],
+                    )?;
+                    Ok(Some(false))
+                }
+                Some(_) => {
+                    tx.execute(
+                        "UPDATE desk_devices SET ember_id = ?1 WHERE code_hash = ?2",
+                        params![caller.ember_id(), hash.as_slice()],
+                    )?;
+                    Ok(Some(true))
+                }
+            }
         })
         .await?;
     state.committed();
-    if approved == 0 {
-        return Err(refused());
+    match approved {
+        Some(true) => Ok(ok(&json!({ "approved": true }))),
+        Some(false) => Err(ApiFailure::new(
+            ember_protocol::api::ErrorCode::NotFound,
+            "That is not the number the other device shows, so its code is ended. \
+             Get a new code there.",
+        )
+        .detail("reason", "number_wrong")),
+        None => Err(code_refused()),
     }
-    Ok(ok(&json!({ "approved": true })))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn read(agent: &str) -> String {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::USER_AGENT, HeaderValue::from_str(agent).unwrap());
+        super::agent(&headers)
+    }
+
+    #[test]
+    fn a_device_is_named_by_its_browser_and_system() {
+        assert_eq!(
+            read(
+                "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36"
+            ),
+            "Chrome on Android"
+        );
+        assert_eq!(
+            read(
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+            ),
+            "Safari on iOS"
+        );
+        assert_eq!(
+            read(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36 Edg/129.0"
+            ),
+            "Edge on Windows"
+        );
+        assert_eq!(read("curl/8"), "A browser");
+    }
+
+    #[test]
+    fn the_number_is_among_three_distinct_choices() {
+        for _ in 0..200 {
+            let (number, choices) = number_and_choices();
+            assert!(choices.contains(&number));
+            assert!(choices.iter().all(|choice| (10..100).contains(choice)));
+            assert!(
+                choices[0] != choices[1] && choices[1] != choices[2] && choices[0] != choices[2]
+            );
+        }
+    }
 }
