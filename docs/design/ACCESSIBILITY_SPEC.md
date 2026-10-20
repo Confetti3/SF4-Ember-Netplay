@@ -196,6 +196,31 @@ So under Wine Ember starts one relay per session: `python3` with a short script 
 
 Limits: the container route assumes the host keeps its loader and libraries in `/usr/lib` (SteamOS, Arch); another layout gets the notice. Whether speech-dispatcher has a working output module is not reported back.
 
+### Natural voice (Piper)
+
+SteamOS ships only espeak-ng behind speech-dispatcher, which players found robotic. The first time speech is on under Wine, the relay downloads Piper (2023.11.14-2, MIT, 26 MB) and the interface language's medium voice (about 63 MB) into `~/.cache/ember-speech`, each checked against a pinned SHA-256 (voices pinned to piper-voices revision c10ece1a). speech-dispatcher speaks while it downloads, offline, and for languages without a voice. Each part Piper says (a row's name, its value) is kept as a WAV clip under Ember's key of language, rate and text, so a row named once plays at once; a screen that opens has its names and values made ahead by a second Piper at low priority. Warm Piper on the Deck takes 120 to 360 ms for a row name, 730 ms for a long detail, before the cache.
+
+| Ember language | Piper voice | Notes |
+|---|---|---|
+| en | en_US-lessac-medium | female; the user picked it by ear |
+| de | de_DE-thorsten-medium | male; best German medium |
+| fr | fr_FR-siwis-medium | female |
+| es-ES | es_ES-davefx-medium | male |
+| es-419 | es_MX-ald-medium | male |
+| it | it_IT-paola-medium | female |
+| nl | nl_BE-nathalie-medium | female, Flemish |
+| pl | pl_PL-gosia-medium | female |
+| pt-BR | pt_BR-faber-medium | male |
+| ru | ru_RU-irina-medium | female |
+| cs | cs_CZ-jirka-medium | male |
+| zh-Hans | zh_CN-huayan-medium | female |
+| ja | none | ja_JP-hi_fi_captain needs a newer Piper (Japanese phonemes); speech-dispatcher |
+| ko | none | ko_KR-kss crashes this Piper ("Phonemes must be one codepoint"); speech-dispatcher |
+
+Open: the voices' own licences differ (lessac comes from the Blizzard 2013 corpus); Ember does not ship them, the player's PC downloads them from Hugging Face, but check each before a release. The download contacts github.com and huggingface.co, which the Voice row's detail should say.
+
+Windows, later: offer the same Piper voice as a choice beside SAPI (Piper has Windows builds), for players without a good SAPI voice.
+
 ### Steam's own screen reader
 
 Steam on the Deck has a screen reader (Settings, Accessibility). It is Orca: turning it on starts `orca` and `speech-dispatcher --spawn` (unix socket in `$XDG_RUNTIME_DIR/speech-dispatcher`, module espeak-ng), the same speech-dispatcher Ember's relay talks to. It cannot read Ember's menus, so Ember still speaks.

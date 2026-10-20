@@ -433,9 +433,6 @@ msgstr "Dostosuj"
 msgid "speech.position"
 msgstr "{0} z {1}"
 
-msgid "speech.items"
-msgstr "Pozycje: {0}"
-
 msgid "speech.change"
 msgstr "W lewo lub w prawo, aby zmienić"
 
@@ -4745,10 +4742,10 @@ msgid "speech.volume_detail"
 msgstr "Jak głośno mówi głos."
 
 msgid "speech.details"
-msgstr "Czytaj szczegóły"
+msgstr "Czytaj opisy automatycznie"
 
 msgid "speech.details_detail"
-msgstr "Po nazwie wiersza czyta jego objaśnienie, gdy na nim zostaniesz."
+msgstr "Czyta opis wiersza sam, gdy chwilę na nim zostaniesz. Gdy wyłączone, F2 czyta go na żądanie."
 
 msgid "speech.hints"
 msgstr "Czytaj podpowiedzi przycisków"

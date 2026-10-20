@@ -433,9 +433,6 @@ msgstr "Adjust"
 msgid "speech.position"
 msgstr "{0} of {1}"
 
-msgid "speech.items"
-msgstr "{0} items"
-
 msgid "speech.change"
 msgstr "Left or Right to change"
 
@@ -4384,10 +4381,10 @@ msgid "speech.volume_detail"
 msgstr "How loud the voice speaks."
 
 msgid "speech.details"
-msgstr "Read details"
+msgstr "Read descriptions automatically"
 
 msgid "speech.details_detail"
-msgstr "After a row's name, reads its explanation once you stay on it."
+msgstr "Reads a row's description by itself once you stay on it for a moment. Off, F2 reads it when you ask."
 
 msgid "speech.hints"
 msgstr "Read button hints"

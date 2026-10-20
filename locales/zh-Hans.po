@@ -433,9 +433,6 @@ msgstr "调整"
 msgid "speech.position"
 msgstr "第{0}项，共{1}项"
 
-msgid "speech.items"
-msgstr "{0}项"
-
 msgid "speech.change"
 msgstr "左右键更改"
 
@@ -4746,10 +4743,10 @@ msgid "speech.volume_detail"
 msgstr "语音的音量。"
 
 msgid "speech.details"
-msgstr "朗读详情"
+msgstr "自动朗读说明"
 
 msgid "speech.details_detail"
-msgstr "在项目名称之后，若你停留在该项目上，会朗读其说明。"
+msgstr "在项目上停留片刻后自动朗读其说明。关闭时，按F2朗读。"
 
 msgid "speech.hints"
 msgstr "朗读按键提示"

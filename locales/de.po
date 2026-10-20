@@ -433,9 +433,6 @@ msgstr "Anpassen"
 msgid "speech.position"
 msgstr "{0} von {1}"
 
-msgid "speech.items"
-msgstr "{0} Einträge"
-
 msgid "speech.change"
 msgstr "Links oder rechts zum Ändern"
 
@@ -4745,10 +4742,10 @@ msgid "speech.volume_detail"
 msgstr "Wie laut die Stimme spricht."
 
 msgid "speech.details"
-msgstr "Details vorlesen"
+msgstr "Beschreibungen automatisch vorlesen"
 
 msgid "speech.details_detail"
-msgstr "Liest nach dem Namen einer Zeile ihre Erklärung, wenn du auf ihr bleibst."
+msgstr "Liest die Beschreibung einer Zeile von selbst, wenn du kurz auf ihr bleibst. Aus liest F2 sie auf Wunsch."
 
 msgid "speech.hints"
 msgstr "Tastenhinweise vorlesen"

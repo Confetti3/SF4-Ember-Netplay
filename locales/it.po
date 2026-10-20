@@ -433,9 +433,6 @@ msgstr "Regola"
 msgid "speech.position"
 msgstr "{0} di {1}"
 
-msgid "speech.items"
-msgstr "{0} voci"
-
 msgid "speech.change"
 msgstr "Sinistra o destra per cambiare"
 
@@ -4745,10 +4742,10 @@ msgid "speech.volume_detail"
 msgstr "Quanto forte parla la voce."
 
 msgid "speech.details"
-msgstr "Leggi i dettagli"
+msgstr "Leggi le descrizioni automaticamente"
 
 msgid "speech.details_detail"
-msgstr "Dopo il nome di una riga, ne legge la spiegazione se ci resti sopra."
+msgstr "Legge da sola la descrizione di una riga quando ci resti sopra un momento. Se disattivato, F2 la legge su richiesta."
 
 msgid "speech.hints"
 msgstr "Leggi i suggerimenti dei tasti"

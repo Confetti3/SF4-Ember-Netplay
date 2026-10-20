@@ -433,9 +433,6 @@ msgstr "조정"
 msgid "speech.position"
 msgstr "{1}개 중 {0}번째"
 
-msgid "speech.items"
-msgstr "{0}개 항목"
-
 msgid "speech.change"
 msgstr "좌우로 변경"
 
@@ -4746,10 +4743,10 @@ msgid "speech.volume_detail"
 msgstr "음성의 크기입니다."
 
 msgid "speech.details"
-msgstr "세부 정보 읽기"
+msgstr "설명 자동으로 읽기"
 
 msgid "speech.details_detail"
-msgstr "항목 이름 다음에, 그 항목에 머무르면 설명을 읽습니다."
+msgstr "항목에 잠시 머무르면 설명을 저절로 읽습니다. 꺼져 있으면 F2를 누를 때 읽습니다."
 
 msgid "speech.hints"
 msgstr "버튼 안내 읽기"

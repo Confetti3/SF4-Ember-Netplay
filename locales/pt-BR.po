@@ -433,9 +433,6 @@ msgstr "Ajustar"
 msgid "speech.position"
 msgstr "{0} de {1}"
 
-msgid "speech.items"
-msgstr "{0} itens"
-
 msgid "speech.change"
 msgstr "Esquerda ou direita para alterar"
 
@@ -4269,10 +4266,10 @@ msgid "speech.volume_detail"
 msgstr "O volume com que a voz fala."
 
 msgid "speech.details"
-msgstr "Ler detalhes"
+msgstr "Ler descrições automaticamente"
 
 msgid "speech.details_detail"
-msgstr "Depois do nome de uma linha, lê sua explicação se você ficar nela."
+msgstr "Lê a descrição de uma linha sozinha quando você fica nela por um momento. Desativado, F2 a lê quando você pedir."
 
 msgid "speech.hints"
 msgstr "Ler dicas de botões"

@@ -74,6 +74,43 @@ leaves 15 s after start if Ember never writes, and on EOF once Ember closes
 it or dies. Checked on the Deck host: no writer, exit after 16 s; writer
 killed with SIGKILL, exit at once; FIFO removed both times.
 
+## Quieter narration and the Piper voice (2026-10-20, after the user's first Deck test)
+
+9. Narration as Tokon: a move says name and value (and Unavailable); a new
+   screen its title and row count; detail once, 1.5 s after the stop; hints
+   off by default; position behind Read position (off).
+10. Utterances in parts; `speech::Say(parts)`, `speech::Render(parts)`.
+11. `speech_relay.py` shipped beside Sidecar (PackageInventory), Ember's own
+   line protocol (`SayLine`, `RenderLine`, `ClipKey`, tested in SpeechLinux).
+   Piper + medium voice downloaded once, SHA-256 checked, clip cache in
+   `~/.cache/ember-speech/clips/<voice>/<key>.wav`, pre-render at nice 10.
+   Status file read by Ember: Voice row on the Accessibility page plus
+   notices (download started, ready, failed).
+12. Deck host test of the relay (no game): espeak spoke while downloading,
+   status went downloading 0, 2, 63, natural; Piper spoke; clips made for
+   SAY and RENDER parts; relay left and removed its files at EOF.
+13. pw-play cannot play raw PCM from stdin; the relay plays WAV clips with
+   paplay.
+
+## Tokon-strict defaults (after the user's second Deck test: "still reads everything")
+
+14. A move says the row's name; its value only for rows the player changes
+    (adjustable or with choices); no "Unavailable", no row count. A new
+    screen says its title. Descriptions only on F2, or after a 1.5 s stop
+    when "Read descriptions automatically" is on (off by default). A notice
+    that opens by itself stays quiet until the player moves in it or presses
+    F2. Pad describe button: open (no free menu button yet; X/Y/View are
+    screen shortcuts).
+
+What makes Ember speak, all of it (grep `speech::` outside tests):
+- `GameMenu::Narrate` (src/ui/GameMenu.cxx), called from `GameMenu::Draw`
+  for every Ember menu: `speech::Say` for a focus move, a value change the
+  player made, a dialog the player opened or moves in, F2, and descriptions
+  after a stop when wanted; `speech::Render` (silent, prepares clips) when a
+  screen opens; `speech::Stop` on F1.
+- Nothing else calls Say: no header, player card, news, status line, toast
+  or chat is spoken.
+
 ## Decisions
 
 - **Tolk not added now.** It needs a new x86 DLL (Tolk.dll plus the NVDA

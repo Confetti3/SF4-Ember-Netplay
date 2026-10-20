@@ -20,6 +20,8 @@ struct SpokenFrame {
     std::string hint;
     // Every row on the screen, for speech to prepare when the screen opens.
     const std::vector<MenuEntry>* entries = nullptr;
+    // The dialog is a notice that opened by itself, not one the player asked for.
+    bool notice = false;
 };
 // One utterance in parts: a row's name, its value, its state. A voice that
 // keeps what it has said (Piper on Linux) keeps each part on its own, so a
@@ -40,34 +42,34 @@ inline std::string VoiceText(speech::VoiceStatus status) {
     default: return loc::T("speech.voice_system");
     }
 }
-// Turns what a menu shows into speech, one utterance at a time: the screen's
-// title and how many rows it has when it changes, then the focused row's name
-// and value, as Tokon reads its menus; its place in the list only if the
-// player wants it. Moving on interrupts. A row the player stays on for
-// DetailDelay seconds after moving to it has its detail and button hint read
-// once, if the player wants them; the pause keeps them clear of the name.
+// Turns what a menu shows into speech, the way Tokon reads its menus: a new
+// screen says its title, a move says the row's name, and its value only where
+// the value is the point (a setting the player changes or chooses). Moving on
+// interrupts. A dialog the player opens says its question, then its button; a
+// notice that opens by itself stays quiet until the player moves in it. The
+// row's description (a notice's text) is read when the player asks (describe),
+// or DetailDelay seconds after a stop when the player wants that; its button
+// hint and place in the list only if the player wants them.
 class MenuNarrator {
 public:
     static constexpr double DetailDelay = 1.5;
-    Utterance Update(const SpokenFrame& frame, double now, const netplay::SpeechPreferences& speech) {
+    Utterance Update(const SpokenFrame& frame, double now, const netplay::SpeechPreferences& speech, bool describe = false) {
         const std::string id = frame.focus ? frame.focus->id : std::string();
-        const std::string value = frame.focus ? frame.focus->value : std::string();
+        const std::string value = frame.focus && Changes(*frame.focus) ? frame.focus->value : std::string();
         const bool titled = frame.title != title_, dialog = !frame.button.empty();
         Utterance said;
         if (dialog && (titled || frame.button != button_)) {
-            // A dialog that just opened says its question first.
-            if (button_.empty() || frame.question != question_) Add(said.parts, frame.question);
-            Add(said.parts, frame.button);
+            // A dialog that just opened says its question first, unless it opened by itself.
+            if ((button_.empty() || frame.question != question_) && !(frame.notice && button_.empty())) Add(said.parts, frame.question);
+            if (!frame.notice || !button_.empty()) Add(said.parts, frame.button);
         } else if (!dialog && (titled || id != id_ || !button_.empty())) {
             if (titled) {
                 Add(said.parts, frame.title);
-                if (frame.count) said.parts.push_back(loc::Tf("speech.items", frame.count));
-                if (frame.entries) for (const auto& entry : *frame.entries) { Add(said.render, entry.label); Add(said.render, entry.value); }
+                if (frame.entries) for (const auto& entry : *frame.entries) { Add(said.render, entry.label); if (Changes(entry)) Add(said.render, entry.value); }
             }
             if (frame.focus) {
                 Add(said.parts, frame.focus->label);
-                Add(said.parts, frame.focus->value);
-                if (!frame.focus->enabled) said.parts.push_back(loc::T("common.unavailable"));
+                Add(said.parts, value);
                 if (speech.position) said.parts.push_back(loc::Tf("speech.position", frame.index + 1, frame.count));
             }
         } else if (!dialog && value != value_) {
@@ -75,15 +77,18 @@ public:
         }
         if (titled || id != id_ || frame.button != button_) { since_ = now; rest_ = true; }
         title_ = frame.title; id_ = id; value_ = value; question_ = frame.question; button_ = frame.button;
-        if (said.parts.empty() && rest_ && now - since_ >= DetailDelay) {
+        const bool waited = speech.details && said.parts.empty() && rest_ && now - since_ >= DetailDelay;
+        if (describe || waited) {
             rest_ = false;
-            said.interrupt = false;
-            if (speech.details && frame.focus && !dialog) Add(said.parts, frame.focus->detail);
+            said.interrupt = describe;
+            Add(said.parts, dialog ? frame.question : frame.focus ? frame.focus->detail : std::string());
             if (speech.hints) Add(said.parts, frame.hint);
         }
         return said;
     }
 private:
+    // A setting the player changes in place or picks from a list.
+    static bool Changes(const MenuEntry& entry) { return entry.adjustable || !entry.choices.empty(); }
     static void Add(std::vector<std::string>& parts, const std::string& part) {
         if (!part.empty() && std::find(parts.begin(), parts.end(), part) == parts.end()) parts.push_back(part);
     }

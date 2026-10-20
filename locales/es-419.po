@@ -433,9 +433,6 @@ msgstr "Ajustar"
 msgid "speech.position"
 msgstr "{0} de {1}"
 
-msgid "speech.items"
-msgstr "{0} elementos"
-
 msgid "speech.change"
 msgstr "Izquierda o derecha para cambiar"
 
@@ -4269,10 +4266,10 @@ msgid "speech.volume_detail"
 msgstr "Qué tan fuerte habla la voz."
 
 msgid "speech.details"
-msgstr "Leer detalles"
+msgstr "Leer descripciones automáticamente"
 
 msgid "speech.details_detail"
-msgstr "Después del nombre de una fila, lee su explicación si te quedas en ella."
+msgstr "Lee la descripción de una fila por sí sola cuando te quedas un momento en ella. Desactivado, F2 la lee cuando lo pides."
 
 msgid "speech.hints"
 msgstr "Leer ayudas de botones"

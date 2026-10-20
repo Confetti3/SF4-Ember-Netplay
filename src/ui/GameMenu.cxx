@@ -693,10 +693,12 @@ void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 r
     ImGui::SetCursorScreenPos(cursor);
 }
 // The narrator follows every frame, so turning speech on says the new value
-// instead of the whole screen. F1 is the stop-speech key while a menu shows.
+// instead of the whole screen. F1 is the stop-speech key while a menu shows,
+// F2 the describe key.
 void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now) {
     SpokenFrame frame{title,focus};
     frame.entries=&entries;
+    frame.notice=!notice_.empty();
     // The focused entry may be a copy, so its place comes from its id.
     if(focus){frame.index=static_cast<std::size_t>(std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==focus->id;})-entries.begin());frame.count=entries.size();}
     frame.button=button;
@@ -707,7 +709,8 @@ void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,c
     }
     if(primary)frame.hint=SpokenButton(selectGlyph)+": "+primary;
     if(adjustable)frame.hint+=(frame.hint.empty()?"":". ")+std::string(loc::T("speech.change"));
-    const auto said=narrator_.Update(frame,now,menuSpeech);
+    // F2 asks for the row's description, or a notice's text.
+    const auto said=narrator_.Update(frame,now,menuSpeech,menuSpeech.enabled&&ImGui::IsKeyPressed(ImGuiKey_F2,false));
     if(!menuSpeech.enabled)return;
     if(ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
     if(!said.parts.empty())speech::Say(said.parts,said.interrupt,menuSpeech.rate,menuSpeech.volume);

@@ -433,9 +433,6 @@ msgstr "調整"
 msgid "speech.position"
 msgstr "{1}件中{0}件目"
 
-msgid "speech.items"
-msgstr "{0}項目"
-
 msgid "speech.change"
 msgstr "左右で変更"
 
@@ -4746,10 +4743,10 @@ msgid "speech.volume_detail"
 msgstr "音声の大きさです。"
 
 msgid "speech.details"
-msgstr "詳細を読み上げ"
+msgstr "説明を自動で読み上げ"
 
 msgid "speech.details_detail"
-msgstr "項目の名前の後、その項目に留まると説明を読み上げます。"
+msgstr "項目にしばらく留まると、その説明を自動で読み上げます。オフのときはF2で読み上げます。"
 
 msgid "speech.hints"
 msgstr "ボタンのヒントを読み上げ"

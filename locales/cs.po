@@ -433,9 +433,6 @@ msgstr "Upravit"
 msgid "speech.position"
 msgstr "{0} z {1}"
 
-msgid "speech.items"
-msgstr "Položek: {0}"
-
 msgid "speech.change"
 msgstr "Vlevo nebo vpravo pro změnu"
 
@@ -4745,10 +4742,10 @@ msgid "speech.volume_detail"
 msgstr "Jak hlasitě hlas mluví."
 
 msgid "speech.details"
-msgstr "Číst podrobnosti"
+msgstr "Číst popisy automaticky"
 
 msgid "speech.details_detail"
-msgstr "Po názvu řádku přečte jeho vysvětlení, když na něm zůstanete."
+msgstr "Přečte popis řádku sám, když na něm chvíli zůstanete. Když je vypnuto, přečte ho F2 na požádání."
 
 msgid "speech.hints"
 msgstr "Číst nápovědu tlačítek"

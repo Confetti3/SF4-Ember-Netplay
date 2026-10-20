@@ -433,9 +433,6 @@ msgstr "Aanpassen"
 msgid "speech.position"
 msgstr "{0} van {1}"
 
-msgid "speech.items"
-msgstr "{0} items"
-
 msgid "speech.change"
 msgstr "Links of rechts om te wijzigen"
 
@@ -4745,10 +4742,10 @@ msgid "speech.volume_detail"
 msgstr "Hoe luid de stem spreekt."
 
 msgid "speech.details"
-msgstr "Details voorlezen"
+msgstr "Beschrijvingen automatisch voorlezen"
 
 msgid "speech.details_detail"
-msgstr "Leest na de naam van een rij de uitleg als je erop blijft staan."
+msgstr "Leest de beschrijving van een rij vanzelf voor als je er even op blijft staan. Uit leest F2 ze op verzoek."
 
 msgid "speech.hints"
 msgstr "Knophints voorlezen"

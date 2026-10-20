@@ -433,9 +433,6 @@ msgstr "Настроить"
 msgid "speech.position"
 msgstr "{0} из {1}"
 
-msgid "speech.items"
-msgstr "Пунктов: {0}"
-
 msgid "speech.change"
 msgstr "Влево или вправо, чтобы изменить"
 
@@ -4746,10 +4743,10 @@ msgid "speech.volume_detail"
 msgstr "Насколько громко говорит голос."
 
 msgid "speech.details"
-msgstr "Читать подробности"
+msgstr "Читать описания автоматически"
 
 msgid "speech.details_detail"
-msgstr "После названия строки читает её пояснение, если вы на ней задержитесь."
+msgstr "Читает описание строки само, если вы ненадолго на ней задержитесь. Если выключено, описание читает F2 по запросу."
 
 msgid "speech.hints"
 msgstr "Читать подсказки кнопок"
