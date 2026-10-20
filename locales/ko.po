@@ -3612,7 +3612,7 @@ msgid "identity.local_passphrase"
 msgstr "이 PC의 암호"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine과 Proton에서는 Windows 키 보호를 사용할 수 없으므로 암호로 키를 보호합니다. 게임을 시작할 때마다 한 번 입력합니다."
+msgstr "Wine과 Proton(예: Steam Deck)에서는 일반적인 키 보호를 사용할 수 없으므로 암호로 키를 보호합니다. 게임을 시작할 때마다 한 번 입력합니다."
 
 msgid "identity.repeat_passphrase"
 msgstr "암호 다시 입력"
@@ -3634,6 +3634,9 @@ msgstr "Ember ID 만들기"
 
 msgid "identity.enable_detail"
 msgstr "이 PC에 키를 만듭니다. 이 Windows 계정만 사용할 수 있습니다."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "위 암호로 보호되는 키를 이 PC에 만듭니다."
 
 msgid "identity.leave_room"
 msgstr "Ember ID를 변경하려면 방을 나가 메인 메뉴로 돌아가세요."
