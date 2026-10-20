@@ -50,7 +50,10 @@ VOICES = {
 # (docs/design/ACCESSIBILITY_SPEC.md, "Pre-rendered voice packs"): version, url, size, SHA-256. A pack is
 # downloaded only while speech is on, the first time the language is spoken, and replaced when this lists
 # a newer version; one already in packs/<tag> is used whether or not it is listed here.
-PACKS = {}
+PACKS_URL = "https://github.com/Confetti3/SF4-Ember-Netplay-Nightly/releases/download/voice-packs/"
+PACKS = {
+    "en": (1, PACKS_URL + "ember-voice-en-1.zip", 18642574, "b602502e7c8c19e871622e9fb905294c4314b2dbecaa1cdd336879bb9f0e8461"),
+}
 PACKS_DIR = os.path.join(CACHE, "packs")
 
 

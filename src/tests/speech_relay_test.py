@@ -23,6 +23,7 @@ def make_pack(version, clips, extra=None, manifest=True):
             z.writestr(name, data)
     return path
 
+relay.PACKS.clear()
 assert relay.pack_state("en") == "none"
 relay.PACKS["en"] = (1, "unused", 100, "unused")
 assert relay.pack_state("en") == "missing"
