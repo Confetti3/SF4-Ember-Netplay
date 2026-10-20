@@ -430,6 +430,9 @@ msgstr "Navigieren"
 msgid "menu.adjust"
 msgstr "Anpassen"
 
+msgid "speech.position"
+msgstr "{0} von {1}"
+
 msgid "rules.edition_select"
 msgstr "Editionsauswahl"
 

@@ -430,6 +430,9 @@ msgstr "Перемещение"
 msgid "menu.adjust"
 msgstr "Настроить"
 
+msgid "speech.position"
+msgstr "{0} из {1}"
+
 msgid "rules.edition_select"
 msgstr "Выбор издания"
 

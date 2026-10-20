@@ -430,6 +430,9 @@ msgstr "导航"
 msgid "menu.adjust"
 msgstr "调整"
 
+msgid "speech.position"
+msgstr "第{0}项，共{1}项"
+
 msgid "rules.edition_select"
 msgstr "版本选择"
 
