@@ -1,6 +1,7 @@
 //! The tournament desk in the game: the organizer's events and one event's
 //! sets, read with the player's session, and the desk's actions on a set
-//! (hold or let go, call again, decide or void a game), each proven for its
+//! (hold or let go, call again, decide or void a game) and a player's
+//! sign-up for an event, each proven for its
 //! path as the bridge asks (`site.connect`). The bridge checks the event is
 //! the player's; the helper only keeps the paths to the desk's own.
 use std::sync::Arc;
@@ -17,6 +18,7 @@ use super::{
 };
 
 const EVENTS: &str = "/v1/organizer/events";
+const SIGN_UP: &str = "/v1/events/";
 const WEB: &str = "/v1/web-sessions";
 const HANDOFF: &str = "/v1/web-sessions/handoff";
 const APPROVE: &str = "/v1/web-sessions/approve";
@@ -296,9 +298,16 @@ pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str, number: 
     .await
 }
 
-/// `/v1/organizer/events/{event}/sets/{set}` or
-/// `/v1/organizer/events/{event}/matches/{match}/adjudications`.
+/// `/v1/organizer/events/{event}/sets/{set}`,
+/// `/v1/organizer/events/{event}/matches/{match}/adjudications`, or a
+/// player signing up for an event, `/v1/events/{event}/sign-up`.
 fn is_action(path: &str) -> bool {
+    if let Some(event) = path
+        .strip_prefix(SIGN_UP)
+        .and_then(|rest| rest.strip_suffix("/sign-up"))
+    {
+        return is_prefixed_id(event, "oev");
+    }
     let Some(rest) = path
         .strip_prefix(EVENTS)
         .and_then(|rest| rest.strip_prefix('/'))
@@ -408,7 +417,11 @@ mod tests {
         assert!(is_action(&format!(
             "{EVENTS}/{EVENT}/matches/{MATCH}/adjudications"
         )));
+        assert!(is_action(&format!("/v1/events/{EVENT}/sign-up")));
         for path in [
+            format!("/v1/events/{EVENT}/sign-up/x"),
+            format!("/v1/events/oev_1/sign-up"),
+            format!("/v1/events/{EVENT}/../x/sign-up"),
             format!("{EVENTS}/{EVENT}"),
             format!("{EVENTS}/{EVENT}/sets/../x"),
             format!("{EVENTS}/{EVENT}/matches/{MATCH}/cancel"),
