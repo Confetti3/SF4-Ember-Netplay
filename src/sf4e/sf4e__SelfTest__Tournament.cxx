@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "../Dimps/Dimps__Game__Battle.hxx"
 #include "../platform/Utf8.hxx"
 #include "../session/TournamentBinding.hxx"
 #include "sf4e.hxx"
@@ -89,6 +90,8 @@ struct Flow {
 	// desk's code with its number, each game signs up for the event, and the
 	// first game is a draw.
 	bool kept = false, organizer = false, signUp = false, drawFirst = false;
+	// Rematch sent after the drawn game, once.
+	bool rematched = false;
 
 	bool SignIn() const { return !site.empty(); }
 };
@@ -465,7 +468,8 @@ void Step(const RuntimeSnapshot& now) {
 			break;
 		}
 		if (run.Every(5)) SendTournament(netplay::tournament::Command::Op::Refresh);
-		if (run.Late(120)) run.Fail("match", now.tournament.list.error.empty() ? "never listed as playable" : now.tournament.list.error);
+		// The desk run's connector reads the bracket every few minutes.
+		if (run.Late(run.flow.signUp ? 600 : 120)) run.Fail("match", now.tournament.list.error.empty() ? "never listed as playable" : now.tournament.list.error);
 		break;
 	case Stage::Room:
 		// Claim, host or join, publish and bind are the runtime's own; the
@@ -488,8 +492,17 @@ void Step(const RuntimeSnapshot& now) {
 	}
 	case Stage::Playing:
 		// The game ends in the host's win (MatchInput); both report it, and
-		// the bridge's answer to the next claim says the match is over.
+		// the bridge's answer to the next claim says the match is over. A
+		// drawn game is played again once both players send Rematch, as
+		// Rematch on the room's screen does.
 		if (phase == Phase::Finished) { Say(true, "match finished", now.tournament.reason); run.Enter(Stage::Leaving); }
+		else if (run.flow.drawFirst && !run.flow.rematched && now.session.match == netplay::MatchState::PostMatch && !now.session.readyPending) {
+			RuntimeCommand rematch = Command(netplay::CommandKind::Rematch);
+			rematch.character.charaID = 0; rematch.character.unc_edition = Dimps::Game::Battle::ED_USF4;
+			NetplayFacade::SubmitRuntimeCommand(std::move(rematch));
+			run.flow.rematched = true;
+			Say(true, "drawn game, rematch");
+		}
 		else if (phase == Phase::Failed) run.Fail("match finished", now.tournament.reason, Stage::Leaving);
 		else if (run.Late(360)) run.Fail("match finished", "the match never ended", Stage::Leaving);
 		break;
@@ -519,6 +532,9 @@ bool StartTournament() {
 	s_run.flow.organizer = on(L"SF4E_SELFTEST_ORGANIZER");
 	s_run.flow.signUp = on(L"SF4E_SELFTEST_SIGN_UP");
 	s_run.flow.drawFirst = on(L"SF4E_SELFTEST_DRAW_FIRST");
+	// The organizer readies the event and starts its bracket after both have
+	// signed up, and the connector links players on its next read.
+	if (s_run.flow.signUp) s_run.flow.linkSeconds = 900;
 	if (s_run.exchange.empty() || s_run.origin.empty() || s_run.connection.empty()) {
 		Say(false, "tournament", "SF4E_SELFTEST_EXCHANGE, SF4E_SELFTEST_BRIDGE and SF4E_SELFTEST_CONNECTION are needed");
 		return false;
