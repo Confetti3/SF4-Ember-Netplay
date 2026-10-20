@@ -1226,6 +1226,33 @@ msgstr "Podpowiedź skrótu menu"
 msgid "settings.shortcut_hint_detail"
 msgstr "Po zamknięciu menu Ember przez kilka sekund pokazuje F10 lub Start, żeby było wiadomo, jak je ponownie otworzyć."
 
+msgid "settings.accent"
+msgstr "Kolor interfejsu"
+
+msgid "settings.accent_detail"
+msgstr "Wybierz kolor wyróżnień w menu i na HUD. Zmiany są widoczne od razu."
+
+msgid "settings.accent_red"
+msgstr "Czerwony"
+
+msgid "settings.accent_green"
+msgstr "Zielony"
+
+msgid "settings.accent_blue"
+msgstr "Niebieski"
+
+msgid "settings.accent_hex"
+msgstr "Kod koloru"
+
+msgid "settings.accent_hex_detail"
+msgstr "Wpisz sześć cyfr szesnastkowych, na przykład #FF8738."
+
+msgid "settings.accent_reset"
+msgstr "Przywróć pomarańczowy"
+
+msgid "settings.accent_invalid"
+msgstr "Wpisz kolor w formacie #RRGGBB, używając sześciu cyfr szesnastkowych."
+
 msgid "settings.interface_size"
 msgstr "Rozmiar interfejsu"
 

@@ -1226,6 +1226,33 @@ msgstr "Nápověda zkratky menu"
 msgid "settings.shortcut_hint_detail"
 msgstr "Po zavření menu Ember na pár sekund ukáže F10 nebo Start, abyste věděli, jak ho znovu otevřít."
 
+msgid "settings.accent"
+msgstr "Barva rozhraní"
+
+msgid "settings.accent_detail"
+msgstr "Vyber barvu zvýraznění v nabídkách a HUD. Změny se projeví okamžitě."
+
+msgid "settings.accent_red"
+msgstr "Červená"
+
+msgid "settings.accent_green"
+msgstr "Zelená"
+
+msgid "settings.accent_blue"
+msgstr "Modrá"
+
+msgid "settings.accent_hex"
+msgstr "Kód barvy"
+
+msgid "settings.accent_hex_detail"
+msgstr "Zadej šest šestnáctkových číslic, například #FF8738."
+
+msgid "settings.accent_reset"
+msgstr "Obnovit oranžovou"
+
+msgid "settings.accent_invalid"
+msgstr "Zadej barvu jako #RRGGBB pomocí šesti šestnáctkových číslic."
+
 msgid "settings.interface_size"
 msgstr "Velikost rozhraní"
 

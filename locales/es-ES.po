@@ -1226,6 +1226,33 @@ msgstr "Aviso del atajo del menú"
 msgid "settings.shortcut_hint_detail"
 msgstr "Muestra F10 o Start unos segundos al cerrarse el menú de Ember, para que sepas cómo volver a abrirlo."
 
+msgid "settings.accent"
+msgstr "Color de la interfaz"
+
+msgid "settings.accent_detail"
+msgstr "Elige el color de los elementos resaltados de los menús y del HUD. Los cambios se muestran al instante."
+
+msgid "settings.accent_red"
+msgstr "Rojo"
+
+msgid "settings.accent_green"
+msgstr "Verde"
+
+msgid "settings.accent_blue"
+msgstr "Azul"
+
+msgid "settings.accent_hex"
+msgstr "Código de color"
+
+msgid "settings.accent_hex_detail"
+msgstr "Introduce seis dígitos hexadecimales, por ejemplo #FF8738."
+
+msgid "settings.accent_reset"
+msgstr "Restaurar naranja"
+
+msgid "settings.accent_invalid"
+msgstr "Introduce un color como #RRGGBB con seis dígitos hexadecimales."
+
 msgid "settings.interface_size"
 msgstr "Tamaño interfaz"
 

@@ -364,7 +364,7 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x*.5f,vp->Pos.y+vp->Size.y*.5f),ImGuiCond_Always,ImVec2(.5f,.5f));
     ImGui::SetNextWindowSize(size,ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg,ImVec4(.075f,.07f,.065f,.97f));
-    ImGui::PushStyleColor(ImGuiCol_Border,ImVec4(1,.53f,.22f,.8f));
+    ImGui::PushStyleColor(ImGuiCol_Border,AccentShade(accent::Default,.8f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(16*unit,12*unit));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(10*unit,6*unit));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(8*unit,6*unit));

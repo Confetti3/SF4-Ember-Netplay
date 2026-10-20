@@ -1226,6 +1226,33 @@ msgstr "메뉴 단축키 안내"
 msgid "settings.shortcut_hint_detail"
 msgstr "Ember 메뉴가 닫힐 때 F10 또는 Start를 몇 초간 보여 주어 다시 여는 방법을 알려 줍니다."
 
+msgid "settings.accent"
+msgstr "인터페이스 색상"
+
+msgid "settings.accent_detail"
+msgstr "메뉴와 HUD의 강조 색상을 선택합니다. 변경 사항은 즉시 표시됩니다."
+
+msgid "settings.accent_red"
+msgstr "빨강"
+
+msgid "settings.accent_green"
+msgstr "초록"
+
+msgid "settings.accent_blue"
+msgstr "파랑"
+
+msgid "settings.accent_hex"
+msgstr "색상 코드"
+
+msgid "settings.accent_hex_detail"
+msgstr "16진수 여섯 자리를 입력하세요. 예: #FF8738"
+
+msgid "settings.accent_reset"
+msgstr "주황색으로 복원"
+
+msgid "settings.accent_invalid"
+msgstr "#RRGGBB 형식의 16진수 여섯 자리를 입력하세요."
+
 msgid "settings.interface_size"
 msgstr "화면 크기"
 

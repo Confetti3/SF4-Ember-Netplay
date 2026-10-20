@@ -16,7 +16,7 @@ namespace {
 using netplay::publicrooms::Room;
 constexpr ImU32 PillFill = IM_COL32(38, 34, 30, 255), TrackFill = IM_COL32(60, 54, 48, 255), ChipDark = IM_COL32(16, 15, 14, 230),
     NearFill = IM_COL32(30, 44, 30, 235), Ink = IM_COL32(20, 19, 18, 255), Dimmed = IM_COL32(8, 7, 6, 120),
-    Border = IM_COL32(255, 255, 255, 14), EmberFaint = IM_COL32(255, 135, 56, 40),
+    Border = IM_COL32(255, 255, 255, 14),
     StatusFill = IM_COL32(56, 51, 46, 255), MetaColor = IM_COL32(158, 147, 134, 255),
     FaceBacking = IM_COL32(88, 80, 72, 255), FaceBorder = IM_COL32(255, 255, 255, 46);
 // How many faces a room card shows before "+N".
@@ -108,7 +108,7 @@ void DrawBusyBar(ImVec2 min, ImVec2 max, double now) {
     const float s = Scale(), x0 = min.x + 8 * s, x1 = max.x - 8 * s, y1 = max.y - 4 * s, y0 = y1 - 3 * s, span = x1 - x0, segment = span * .3f;
     if (span <= 0) return;
     auto* d = ImGui::GetWindowDrawList();
-    d->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), EmberFaint, 1.5f * s);
+    d->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), AccentAlpha(40), 1.5f * s);
     const float t = static_cast<float>(std::fmod(now, 1.2) / 1.2), a = x0 + (span + segment) * t - segment;
     const float from = (std::max)(a, x0), to = (std::min)(a + segment, x1);
     if (to > from) d->AddRectFilled(ImVec2(from, y0), ImVec2(to, y1), palette::Ember, 1.5f * s);

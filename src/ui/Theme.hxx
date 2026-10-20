@@ -2,6 +2,7 @@
 #include <functional>
 #include <imgui.h>
 #include "../common/NetworkLink.hxx"
+#include "../common/UiAccent.hxx"
 #include "MenuNavigation.hxx"
 #include "FontMetrics.hxx"
 #include <array>
@@ -20,15 +21,19 @@ namespace sf4e { namespace ui {
 constexpr ImWchar UiGlyphRanges[] = {0x0020, 0x017F, 0x0400, 0x04FF, 0x2013, 0x2014, 0x2018, 0x201E, 0x2026, 0x2026, 0};
 enum class Tone { Neutral, Success, Pending, Error };
 namespace palette {
-constexpr ImU32 Ember = IM_COL32(255, 135, 56, 255);
+extern ImU32 Ember;
 constexpr ImU32 Ivory = IM_COL32(243, 235, 221, 255);
 constexpr ImU32 Muted = IM_COL32(181, 169, 155, 255);
 // Ready/confirmed. Matches ToneColor(Tone::Success) so a ready seat and a
 // success status are the same green rather than two near-identical ones.
 constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
 }
+// Render-thread only. Accent changes update colors, without rebuilding fonts.
+void SetAccentColor(unsigned rgb);
+ImVec4 AccentShade(unsigned orangeRgb, float alpha = 1.f);
+inline ImU32 AccentAlpha(unsigned alpha) { return (palette::Ember & ~IM_COL32_A_MASK) | ((alpha & 255u) << IM_COL32_A_SHIFT); }
 // The focused button of a modal dialog, and the other one.
-inline ImVec4 DialogButtonColor(bool selected) { return selected ? ImVec4(.5f,.25f,.1f,1) : ImVec4(.15f,.14f,.13f,1); }
+inline ImVec4 DialogButtonColor(bool selected) { return selected ? AccentShade(0x80401A) : ImVec4(.15f,.14f,.13f,1); }
 // Row and button text for an entry that can, or cannot, be activated right now.
 inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
 // Ember over a game the player watches (ShellView::SeeThrough) lets the game
@@ -43,7 +48,7 @@ inline ImVec4 BoardPanelColor(bool seeThrough) { return ImVec4(.08f,.075f,.07f,s
 // Call between frames. A true result requires backend font texture recreation.
 // Text is drawn at Windows' DPI scale for the window times the player's
 // Interface size (Scale()).
-bool ApplyTheme(float dpiScale, float interfaceScale = 1.f);
+bool ApplyTheme(float dpiScale, float interfaceScale = 1.f, unsigned accentRgb = accent::Default);
 // What player text is, from most to least worth atlas space when more distinct
 // characters are on screen than the atlas can hold.
 enum class UserTextRole { Name, Chat, Draft };

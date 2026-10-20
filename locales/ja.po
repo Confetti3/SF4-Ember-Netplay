@@ -1226,6 +1226,33 @@ msgstr "メニューのショートカット表示"
 msgid "settings.shortcut_hint_detail"
 msgstr "Emberのメニューを閉じたとき、F10またはStartを数秒間表示し、再び開く方法を示します。"
 
+msgid "settings.accent"
+msgstr "インターフェースの色"
+
+msgid "settings.accent_detail"
+msgstr "メニューとHUDの強調表示の色を選びます。変更はすぐに反映されます。"
+
+msgid "settings.accent_red"
+msgstr "赤"
+
+msgid "settings.accent_green"
+msgstr "緑"
+
+msgid "settings.accent_blue"
+msgstr "青"
+
+msgid "settings.accent_hex"
+msgstr "カラーコード"
+
+msgid "settings.accent_hex_detail"
+msgstr "6桁の16進数を入力してください。例：#FF8738"
+
+msgid "settings.accent_reset"
+msgstr "オレンジに戻す"
+
+msgid "settings.accent_invalid"
+msgstr "#RRGGBB形式で6桁の16進数を入力してください。"
+
 msgid "settings.interface_size"
 msgstr "画面サイズ"
 

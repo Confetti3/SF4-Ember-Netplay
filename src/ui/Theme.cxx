@@ -17,7 +17,10 @@
 #include <vector>
 
 namespace sf4e { namespace ui {
+namespace palette { ImU32 Ember = IM_COL32(255, 135, 56, 255); }
 namespace {
+unsigned accentRgb = accent::Default;
+ImGuiContext* accentStyleContext = nullptr;
 std::function<void(const char*)> atlasBuildLog;
 void ReportAtlasBuild(bool complete, int width, int height, std::size_t userGlyphs, bool forUserText) {
     if (!atlasBuildLog) return;
@@ -31,7 +34,7 @@ ImVec4 Color(unsigned rgb, float alpha = 1.0f) {
                   (rgb & 255) / 255.f, alpha);
 }
 const unsigned Ink = 0x141312, Panel = 0x211E1B, Border = 0x443A31;
-const unsigned Ivory = 0xF3EBDD, Muted = 0xB5A99B, Ember = 0xFF8738;
+const unsigned Ivory = 0xF3EBDD, Muted = 0xB5A99B;
 const float BodySize = 18.f;
 
 constexpr std::size_t ScriptFontCount = std::size(fonts::ScriptFonts);
@@ -159,7 +162,53 @@ void NoteUserText(const std::string& utf8, UserTextRole role) {
     }
 }
 void SetAtlasBuildLog(std::function<void(const char*)> log) { atlasBuildLog = std::move(log); }
-bool ApplyTheme(float dpiScale, float interfaceScale) {
+ImVec4 AccentShade(unsigned orangeRgb, float alpha) {
+    const auto original = Color(orangeRgb, alpha);
+    if (accentRgb == accent::Default) return original;
+    if (orangeRgb == accent::Default) return Color(accentRgb, alpha);
+    float hue, saturation, value, referenceHue, referenceSaturation, referenceValue;
+    const auto chosen = Color(accentRgb), reference = Color(accent::Default);
+    ImGui::ColorConvertRGBtoHSV(chosen.x, chosen.y, chosen.z, hue, saturation, value);
+    ImGui::ColorConvertRGBtoHSV(reference.x, reference.y, reference.z, referenceHue, referenceSaturation, referenceValue);
+    float oldHue, oldSaturation, oldValue;
+    ImGui::ColorConvertRGBtoHSV(original.x, original.y, original.z, oldHue, oldSaturation, oldValue);
+    ImVec4 result(0, 0, 0, alpha);
+    // Keep the dark controls' brightness so their ivory labels remain readable.
+    ImGui::ColorConvertHSVtoRGB(std::fmod(hue + oldHue - referenceHue + 1.f, 1.f),
+        (std::min)(1.f, oldSaturation * saturation / referenceSaturation), oldValue, result.x, result.y, result.z);
+    return result;
+}
+void SetAccentColor(unsigned rgb) {
+    rgb = accent::Normalize(rgb);
+    if (rgb == accentRgb && accentStyleContext == ImGui::GetCurrentContext()) return;
+    accentRgb = rgb;
+    accentStyleContext = ImGui::GetCurrentContext();
+    palette::Ember = ImGui::ColorConvertFloat4ToU32(Color(accentRgb));
+    auto* c = ImGui::GetStyle().Colors;
+    c[ImGuiCol_FrameBgHovered] = AccentShade(0x393027);
+    c[ImGuiCol_FrameBgActive] = AccentShade(0x4A3525);
+    c[ImGuiCol_TitleBgActive] = AccentShade(0x3A2A1F);
+    c[ImGuiCol_ScrollbarGrabHovered] = AccentShade(0x76583D);
+    c[ImGuiCol_ScrollbarGrabActive] = c[ImGuiCol_CheckMark] = c[ImGuiCol_SliderGrab] = AccentShade(accent::Default);
+    c[ImGuiCol_SliderGrabActive] = AccentShade(0xFFB16F);
+    c[ImGuiCol_Button] = c[ImGuiCol_TableHeaderBg] = AccentShade(0x382D24);
+    c[ImGuiCol_ButtonHovered] = c[ImGuiCol_HeaderHovered] = c[ImGuiCol_TabHovered] = AccentShade(0x59402B);
+    c[ImGuiCol_ButtonActive] = c[ImGuiCol_HeaderActive] = AccentShade(0x76502F);
+    c[ImGuiCol_Header] = AccentShade(0x3A2A1F);
+    c[ImGuiCol_SeparatorHovered] = c[ImGuiCol_SeparatorActive] = AccentShade(accent::Default);
+    c[ImGuiCol_ResizeGrip] = AccentShade(accent::Default, .25f);
+    c[ImGuiCol_ResizeGripHovered] = AccentShade(accent::Default, .65f);
+    c[ImGuiCol_ResizeGripActive] = AccentShade(accent::Default);
+    c[ImGuiCol_TabSelected] = c[ImGuiCol_TabDimmedSelected] = AccentShade(0x4A3525);
+    c[ImGuiCol_TabSelectedOverline] = c[ImGuiCol_TabDimmedSelectedOverline] = AccentShade(accent::Default);
+    c[ImGuiCol_TableRowBgAlt] = AccentShade(0x76614F, .09f);
+    c[ImGuiCol_TextSelectedBg] = AccentShade(accent::Default, .3f);
+    c[ImGuiCol_NavCursor] = c[ImGuiCol_PlotHistogram] = c[ImGuiCol_DragDropTarget] = AccentShade(accent::Default);
+    c[ImGuiCol_PlotLines] = AccentShade(0xF3C58B);
+    c[ImGuiCol_PlotLinesHovered] = c[ImGuiCol_PlotHistogramHovered] = AccentShade(0xFFB16F);
+}
+bool ApplyTheme(float dpiScale, float interfaceScale, unsigned rgb) {
+    SetAccentColor(rgb);
     interfaceSize = interfaceScale;
     dpiScale = (std::max)(1.f, (std::min)(dpiScale * interfaceScale, 3.f));
     auto& io = ImGui::GetIO();
@@ -283,45 +332,19 @@ bool ApplyTheme(float dpiScale, float interfaceScale) {
     c[ImGuiCol_Border] = Color(Border);
     c[ImGuiCol_BorderShadow] = Color(Ink, 0);
     c[ImGuiCol_FrameBg] = Color(0x191715);
-    c[ImGuiCol_FrameBgHovered] = Color(0x393027);
-    c[ImGuiCol_FrameBgActive] = Color(0x4A3525);
     c[ImGuiCol_TitleBg] = Color(Panel);
-    c[ImGuiCol_TitleBgActive] = Color(0x3A2A1F);
     c[ImGuiCol_TitleBgCollapsed] = Color(Ink, .95f);
     c[ImGuiCol_MenuBarBg] = Color(Panel, .98f);
     c[ImGuiCol_ScrollbarBg] = Color(Ink);
     c[ImGuiCol_ScrollbarGrab] = Color(Border);
-    c[ImGuiCol_ScrollbarGrabHovered] = Color(0x76583D);
-    c[ImGuiCol_ScrollbarGrabActive] = Color(Ember);
-    c[ImGuiCol_CheckMark] = c[ImGuiCol_SliderGrab] = Color(Ember);
-    c[ImGuiCol_SliderGrabActive] = Color(0xFFB16F);
-    c[ImGuiCol_Button] = Color(0x382D24);
-    c[ImGuiCol_ButtonHovered] = Color(0x59402B);
-    c[ImGuiCol_ButtonActive] = Color(0x76502F);
-    c[ImGuiCol_Header] = Color(0x3A2A1F);
-    c[ImGuiCol_HeaderHovered] = Color(0x59402B);
-    c[ImGuiCol_HeaderActive] = Color(0x76502F);
     c[ImGuiCol_Separator] = Color(Border);
-    c[ImGuiCol_SeparatorHovered] = c[ImGuiCol_SeparatorActive] = Color(Ember);
-    c[ImGuiCol_ResizeGrip] = Color(Ember, .25f);
-    c[ImGuiCol_ResizeGripHovered] = Color(Ember, .65f);
-    c[ImGuiCol_ResizeGripActive] = Color(Ember);
     c[ImGuiCol_Tab] = c[ImGuiCol_TabDimmed] = Color(Panel);
-    c[ImGuiCol_TabHovered] = Color(0x59402B);
-    c[ImGuiCol_TabSelected] = c[ImGuiCol_TabDimmedSelected] = Color(0x4A3525);
-    c[ImGuiCol_TabSelectedOverline] = c[ImGuiCol_TabDimmedSelectedOverline] = Color(Ember);
-    c[ImGuiCol_TableHeaderBg] = Color(0x382D24);
     c[ImGuiCol_TableBorderStrong] = c[ImGuiCol_TableBorderLight] = Color(Border);
     c[ImGuiCol_TableRowBg] = Color(Ink, 0);
-    c[ImGuiCol_TableRowBgAlt] = Color(0x76614F, .09f);
-    c[ImGuiCol_TextSelectedBg] = Color(Ember, .3f);
-    c[ImGuiCol_NavCursor] = Color(Ember);
-    c[ImGuiCol_PlotLines] = Color(0xF3C58B);
-    c[ImGuiCol_PlotHistogram] = Color(Ember);
-    c[ImGuiCol_PlotLinesHovered] = c[ImGuiCol_PlotHistogramHovered] = Color(0xFFB16F);
-    c[ImGuiCol_DragDropTarget] = Color(Ember);
     style.ScaleAllSizes(dpiScale);
     ImGui::GetStyle() = style;
+    accentStyleContext = nullptr;
+    SetAccentColor(rgb);
     return true;
 }
 
@@ -352,9 +375,9 @@ void Header(const char* title, const char* subtitle, bool brand) {
     auto* draw = ImGui::GetWindowDrawList();
     draw->AddLine(p, ImVec2(p.x + width, p.y), ImGui::GetColorU32(ImGuiCol_Border));
     draw->AddLine(p, ImVec2(p.x + (std::min)(72.f * s, width), p.y),
-                  ImGui::ColorConvertFloat4ToU32(Color(Ember)), 3.f * s);
+                  palette::Ember, 3.f * s);
     if (width > 100 * s) draw->AddLine(ImVec2(p.x + width - 10*s, p.y - 4*s),
-        ImVec2(p.x + width - 16*s, p.y + 4*s), ImGui::ColorConvertFloat4ToU32(Color(Ember)), 2*s);
+        ImVec2(p.x + width - 16*s, p.y + 4*s), palette::Ember, 2*s);
     ImGui::Dummy(ImVec2(0, 8*s));
 }
 void Section(const char* title) { ImGui::Spacing(); ImGui::SeparatorText(title); }
@@ -374,7 +397,7 @@ void MenuHeader(const char* title, bool home) {
     const float textHeight=home?(titleScreen?76:42)*s+ImGui::GetFont()->CalcTextSizeA(12*s,FLT_MAX,width,subtitle).y:
         HeadingFont()->CalcTextSizeA(font,FLT_MAX,width,label).y+8*s;
     const float height=(std::max)(titleScreen?102*s:home?64*s:56*s,textHeight);
-    if(!home)draw->AddLine(ImVec2(p.x,p.y+height),ImVec2(p.x+ImGui::GetContentRegionAvail().x,p.y+height),IM_COL32(255,135,56,70));
+    if(!home)draw->AddLine(ImVec2(p.x,p.y+height),ImVec2(p.x+ImGui::GetContentRegionAvail().x,p.y+height),AccentAlpha(70));
     ImGui::Dummy(ImVec2(0,height+8*s));
 }
 void Status(const char* text, Tone tone) {

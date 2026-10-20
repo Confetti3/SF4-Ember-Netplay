@@ -665,7 +665,10 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
-            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","accent","training-replays","discord","about"})page(screen);
+            view.preferences.uiAccent=0x328DFF;page("accent");draw("accent-blue");
+            Require(palette::Ember==IM_COL32(50,141,255,255),"Saved accent was not applied to the menu");
+            view.preferences.uiAccent=accent::Default;draw();
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);

@@ -542,7 +542,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const float innerWidth=rowWidth-2*lead;
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,0);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,card?cardRounding*unit:0);
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2(.03f,.5f));
-        ImGui::PushStyleColor(ImGuiCol_Button,focused?(card&&cardRounding>0?ImVec4(.30f,.17f,.09f,.55f):ImVec4(.47f,.28f,.16f,.6f)):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
+        ImGui::PushStyleColor(ImGuiCol_Button,focused?(card&&cardRounding>0?AccentShade(0x4D2B17,.55f):AccentShade(0x784729,.6f)):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
         ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(visualEnabled));
         if(home)ImGui::PushFont(HeadingFont());
         const float textWidth=innerWidth-2*ImGui::GetStyle().FramePadding.x;

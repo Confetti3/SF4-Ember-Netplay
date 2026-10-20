@@ -194,7 +194,7 @@ CardInteraction DrawTableCard(const TableCardView& card) {
   if(seat>=0){
    const float pulse=.55f+.45f*std::sin(static_cast<float>(ImGui::GetTime())*6.f);
    const float x=p.x+12*s+seat*(half+gap);
-   ImGui::GetWindowDrawList()->AddRect(ImVec2(x-4*s,p.y+26*s),ImVec2(x+half+4*s,p.y+h-32*s),ImGui::GetColorU32(ImVec4(1.f,.53f,.22f,pulse)),4*s,0,3*s);
+   ImGui::GetWindowDrawList()->AddRect(ImVec2(x-4*s,p.y+26*s),ImVec2(x+half+4*s,p.y+h-32*s),ImGui::GetColorU32(AccentShade(accent::Default,pulse)),4*s,0,3*s);
   }
   DrawStrip(elided,strip,card.options,chosen);
  }else if(!card.options.empty())DrawStrip(elided,strip,card.options,-1);

@@ -163,7 +163,7 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     auto x=p.x+(w-(glyphSpace+leftWidth+gap+vsWidth+gap+rightWidth+glyphSpace))*.5f;
     DrawNetworkLinkGlyph(draw,ImVec2(x,p.y+7*s),glyph,view.links[0]);x+=glyphSpace;
     text(x,p.y+4*s,left,20*s,IM_COL32(243,235,221,255));x+=leftWidth+gap;
-    text(x,p.y+6*s,versus,16*s,IM_COL32(255,135,56,230));x+=vsWidth+gap;
+    text(x,p.y+6*s,versus,16*s,AccentAlpha(230));x+=vsWidth+gap;
     text(x,p.y+4*s,right,20*s,IM_COL32(243,235,221,255));
     DrawNetworkLinkGlyph(draw,ImVec2(x+rightWidth+glyphGap,p.y+7*s),glyph,view.links[1]);
     const auto cells=MatchTelemetryCells(view);
@@ -227,7 +227,7 @@ Telemetry MakeTelemetry(const MatchStripView& view,float s,float maxWidth){
     Telemetry t;t.s=s;t.h=SplitHeight*s;
     struct Spec{MatchTelemetryCell text;ImU32 color=palette::Ivory;};
     std::vector<Spec> specs;
-    if(!view.score.empty())specs.push_back({{"",view.score,""},IM_COL32(255,135,56,230)});
+    if(!view.score.empty())specs.push_back({{"",view.score,""},AccentAlpha(230)});
     for(auto& cell:MatchTelemetryCells(view))specs.push_back({std::move(cell)});
     if(view.spectators>0)specs.push_back({{loc::T("room.status.watching"),std::to_string(view.spectators),"99"}});
     float total=0;

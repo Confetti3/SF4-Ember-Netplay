@@ -277,6 +277,7 @@ void StartHelper() {
             runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
+            runtime->preferences.uiAccent = netplay::ReadUiAccent(saved);
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
