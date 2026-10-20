@@ -30,7 +30,15 @@ The arcade roster previews the highlighted fighter. Select commits it; merely mo
 
 ## Change settings
 
-Home also includes Profile. Edit your name and choose a main from the portrait roster. Press A on Xbox (or click a portrait), then wait for Saving to finish. After the settings update is accepted, the menu returns to Profile and names the saved portrait. A failure stays visible with Retry. Merely highlighting a portrait does not save it. Your saved main supplies the player-card photo and name; it does not overwrite your next match's fighter. The card shows local confirmed online wins, losses and win percentage. Tracking started with v0.8.0, is local to this settings profile, and excludes offline/training, spectating, draws, cancellations, disconnects and unresolved results. It is not a Steam rank or historical record import. A native result must agree with the room's confirmed result, and repeated notifications are deduplicated. The profile persists through the existing asynchronous settings writer. Your name, main and personal settings cannot be changed while you are in a room; leave the room first.
+Home also includes Profile:
+
+1. On Home, choose **Profile**.
+
+   ![Profile](../images/guides/controller_menus/profile.webp)
+
+2. Select **Player name** to edit your name, or **Main character** to choose a main from the portrait roster: press A on Xbox (or click a portrait), then wait for Saving to finish.
+
+After the settings update is accepted, the menu returns to Profile and names the saved portrait. A failure stays visible with Retry. Merely highlighting a portrait does not save it. Your saved main supplies the player-card photo and name; it does not overwrite your next match's fighter. The card shows local confirmed online wins, losses and win percentage. Tracking started with v0.8.0, is local to this settings profile, and excludes offline/training, spectating, draws, cancellations, disconnects and unresolved results. It is not a Steam rank or historical record import. A native result must agree with the room's confirmed result, and repeated notifications are deduplicated. The profile persists through the existing asynchronous settings writer. Your name, main and personal settings cannot be changed while you are in a room; leave the room first.
 
 Prompts name the buttons that select and go back: A and B by default on XInput, or the buttons you chose for Menu confirm and Menu back. None of this rewrites your SF4 attack mappings or the game's own menus. DirectInput uses a generic button sprite with LK/MK labels instead of guessing another controller's labels. The launcher's recovery window, which runs before the game, keeps buttons 1 and 2 on a stick and says so in its prompts; it does not follow the game's tables or your Menu confirm and Menu back. While you set up a controller's buttons, the summary selects with the button you just recorded as Light kick and goes back with Medium kick, and its prompts name those buttons, until you save. Controller, direction and keyboard sprites are unmodified assets from Kenney Input Prompts 1.5A (CC0), not custom-drawn shapes or font-dependent Unicode symbols.
 

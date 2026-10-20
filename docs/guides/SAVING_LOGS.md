@@ -6,6 +6,9 @@ Save your SF4 Ember Netplay logs immediately after a problem, before launching a
 
 1. Note the approximate time the problem happened and what you were doing, such as joining a table, finishing a match or starting a rematch.
 2. If Ember is still responsive, use **Help & About → Export diagnostics** before leaving the session. Wait for the saved-file message. If the game crashed or the menu is unavailable, continue with the logs below.
+
+   ![Help and About](../images/guides/saving_logs/help-about.webp)
+
 3. Close the game and launcher. If `Launcher.exe` or `SSFIV.exe` is still listed in Task Manager, end it. Avoid starting another session until you have saved this one.
 4. Press **Windows + R**, paste the following path, and press **Enter**:
 
@@ -33,9 +36,20 @@ Some files may be absent or older than your latest session. Sending only `sf4e.l
 
 ## Sending a report from Ember
 
-Open **Help & About > Report a problem**, describe what happened, and review
-the preview before choosing **Send**. After a crash, the launcher's message
-offers **Send this report**, which opens the same preview for that crash.
+1. Open **Help & About > Report a problem**.
+2. Select **Comment** and describe what happened.
+
+   ![Report preview with a comment](../images/guides/saving_logs/report-comment.webp)
+
+3. Review every part of the preview, then choose **Send** and confirm.
+
+   ![Send confirmation](../images/guides/saving_logs/report-send.webp)
+
+4. Keep the report ID; **Copy report ID** copies it.
+
+   ![Report accepted with its report ID](../images/guides/saving_logs/report-sent.webp)
+
+After a crash, the launcher's message offers **Send this report**, which opens the same preview for that crash.
 The preview lists every part and its size, the version/build/Windows and crash
 facts, and the redacted log text. Reports include up to the last 192 KiB of
 each available `sf4e.log`, `launcher.log`, `sf4e-crash.log`, and `sf4-net.log`.
@@ -43,8 +57,7 @@ Invitations, tokens, network addresses, emails, your Windows user name and
 profile folder (including its short 8.3 form), your PC name and your player
 name are redacted; review the text for anything else you want to keep private.
 Problem reports require a comment, limited to 2000 characters. The comment is
-sent as written, and a report with a comment always waits for **Send**. Keep
-the copyable report ID after a successful submission.
+sent as written, and a report with a comment always waits for **Send**.
 
 A crash report can include a **Small dump**. It is off for every report until
 you turn it on in that report's preview. It contains unfiltered thread stack
