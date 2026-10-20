@@ -319,6 +319,19 @@ struct Bot {
     answers: Arc<Mutex<VecDeque<u16>>>,
 }
 
+/// The bot's messages once there are at least `count`, for at most ten
+/// seconds: the bridge's own delivery worker may be the one sending them.
+async fn bot_messages(bot: &Bot, count: usize) -> Vec<(String, String, Json)> {
+    for _ in 0..200 {
+        let messages = bot.messages.lock().unwrap().clone();
+        if messages.len() >= count {
+            return messages;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    panic!("expected {count} messages from the bot");
+}
+
 async fn bot() -> (String, Bot) {
     use axum::http::HeaderMap;
     let fake = Bot::default();
@@ -458,7 +471,7 @@ async fn a_called_set_messages_each_player_privately() {
     ember_bridge::deliver_results(bridge.state()).await;
 
     // Player 2 gets the link from the bot; player 3 has no Discord.
-    let messages = bot.messages.lock().unwrap().clone();
+    let messages = bot_messages(&bot, 1).await;
     assert_eq!(messages.len(), 1, "{messages:?}");
     let (user, auth, message) = &messages[0];
     assert_eq!(user, "222");
@@ -483,7 +496,17 @@ async fn a_called_set_messages_each_player_privately() {
             .1["sets"][0]
             .clone()
     };
-    assert_eq!(set().await["dms"], json!(["delivered", "no_discord"]));
+    // The bridge's own delivery worker may hold a message a moment longer.
+    let dms = |expected: Json| async move {
+        for _ in 0..200 {
+            if set().await["dms"] == expected {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        panic!("the desk never showed {expected}: {}", set().await);
+    };
+    dms(json!(["delivered", "no_discord"])).await;
 
     // Called again while player 2 takes no messages from the bot: not tried
     // again, and the desk says so.
@@ -497,9 +520,8 @@ async fn a_called_set_messages_each_player_privately() {
     .await;
     assert_eq!(status, StatusCode::OK);
     ember_bridge::deliver_results(bridge.state()).await;
+    dms(json!(["failed", "no_discord"])).await;
     assert_eq!(bot.messages.lock().unwrap().len(), 2);
-    let shown = set().await;
-    assert_eq!(shown["dms"], json!(["failed", "no_discord"]), "{shown}");
     bridge.clock.advance(600);
     ember_bridge::deliver_results(bridge.state()).await;
     assert_eq!(bot.messages.lock().unwrap().len(), 2);
