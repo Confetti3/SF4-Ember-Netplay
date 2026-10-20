@@ -150,10 +150,10 @@ try {
 
   const webhook = local ? stack.webhook : (existsSync(join(homedir(), "tournament-lab/e2e/discord-webhook")) ? readFileSync(join(homedir(), "tournament-lab/e2e/discord-webhook"), "utf8").trim() : "");
   await step("Discord and sign-ups", async () => {
-    await page.eval(`(() => {
-      const hook = document.querySelector('#live-settings input[type=url]'); if (${JSON.stringify(Boolean(webhook))}) hook.value = ${JSON.stringify(webhook)};
-      const boxes = document.querySelectorAll('#live-settings input[type=checkbox]'); boxes.forEach((box) => box.checked = true); })()`);
+    await page.eval("document.querySelectorAll('#live-settings input[type=checkbox]').forEach((box) => box.checked = true)");
+    // Pictured before the webhook is typed: on staging it is a real one.
     await layout(page, "discord", true);
+    if (webhook) await page.eval(`document.querySelector('#live-settings input[type=url]').value = ${JSON.stringify(webhook)}`);
     await page.eval("document.getElementById('next').click()");
     await page.until("/Ready/.test(document.getElementById('step-now').textContent)");
     must(await page.eval("desk.event.sign_ups && desk.event.public"), "sign-ups and public not on");
