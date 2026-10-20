@@ -3,50 +3,28 @@
 // protocol (no Puppeteer): sign in from Ember with the code and the number,
 // create a Challonge tournament in the four steps, tiers, Discord, sign-ups,
 // Ready, the live sets, deciding a game, the bracket and the public page, at
-// phone and desktop widths.
+// phone and desktop widths, against desk_e2e_stack: a real bridge and connector
+// with a fake Challonge and Discord. A running bridge and the real Challonge are
+// the two-PC run's (scripts/e2e-tournament.mjs).
 //
-//   node scripts/e2e-desk.mjs --local                     # against desk_e2e_stack (fakes)
-//   node scripts/e2e-desk.mjs --staging https://bridge     # against a real bridge and Challonge
-//   node scripts/e2e-desk.mjs --staging https://bridge --setup   # once: the organizer consent link
+//   node scripts/e2e-desk.mjs
 //
-// --local reads stack.json from the stack's out folder (EMBER_E2E_OUT, default
+// It reads stack.json from the stack's out folder (EMBER_E2E_OUT, default
 // /mnt/d/ember-build/e2e-out); start the stack first:
 //   EMBER_E2E_OUT=/mnt/d/ember-build/e2e-out cargo test -p ember-brackets --test desk_e2e_stack -- --ignored --nocapture
-// --staging takes its Ember ID seed and an optional Discord webhook from
-// ~/tournament-lab/e2e/ (ember-id.seed, discord-webhook).
 // Chrome: a running one on 127.0.0.1:9222, else a headless Windows Chrome is
 // started (profile C:\Users\Public\ember-e2e-chrome). Pictures go to the out folder.
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { chrome, layout, must, results, step } from "./e2e/cdp.mjs";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const args = process.argv.slice(2);
-const local = args.includes("--local");
-const staging = args.includes("--staging") ? args[args.indexOf("--staging") + 1] : null;
-if (!local && !staging) {
-  console.error("usage: e2e-desk.mjs --local | --staging <bridge origin> [--setup]");
-  process.exit(2);
-}
 const out = process.env.EMBER_E2E_OUT || "/mnt/d/ember-build/e2e-out";
 mkdirSync(out, { recursive: true });
-const repo = new URL("..", import.meta.url).pathname;
 const game = process.env.EMBER_DESK_GAME || "/mnt/d/ember-build/cargo-target/debug/examples/desk_game";
 
-let stack;
-let bridge;
-let seed;
-if (local) {
-  stack = JSON.parse(readFileSync(join(out, "stack.json"), "utf8"));
-  bridge = stack.bridge;
-  seed = stack.seed;
-} else {
-  bridge = staging.replace(/\/$/, "");
-  const dir = join(homedir(), "tournament-lab", "e2e");
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  seed = join(dir, "ember-id.seed");
-}
+const stack = JSON.parse(readFileSync(join(out, "stack.json"), "utf8"));
+const { bridge, seed } = stack;
 
 /** The game's side, signed with the test Ember ID (examples/desk_game.rs). */
 function play(...command) {
@@ -55,24 +33,6 @@ function play(...command) {
   } catch (error) {
     return JSON.parse(error.stdout || '{"status":0,"body":"desk_game failed"}');
   }
-}
-
-if (args.includes("--setup")) {
-  const id = play("id").body.ember_id;
-  const organize = play("organize", "challonge");
-  console.log("Test Ember ID:", id);
-  // One organizer sign-in links the Challonge account and allows organizer
-  // access together; the refresh token keeps it from then on.
-  const url = organize.body.authorize_url;
-  if (!url) {
-    console.error("no sign-in link:", JSON.stringify(organize));
-    process.exit(1);
-  }
-  // Opened in the Windows browser; it works for ten minutes.
-  console.log("Sign in to Challonge as the organizer and approve, in the browser that opened:");
-  console.log(url);
-  spawn("powershell.exe", ["-NoProfile", "-Command", "Start-Process '" + url.replace(/'/g, "''") + "'"], { stdio: "ignore", detached: true }).unref();
-  process.exit(0);
 }
 
 const control = (path) => fetch(stack.control + path, { method: "POST" }).then((r) => r.json());
@@ -148,12 +108,11 @@ try {
     must(await page.eval("Boolean(desk.event.tournament)"), "no Challonge tournament");
   });
 
-  const webhook = local ? stack.webhook : (existsSync(join(homedir(), "tournament-lab/e2e/discord-webhook")) ? readFileSync(join(homedir(), "tournament-lab/e2e/discord-webhook"), "utf8").trim() : "");
+  const webhook = stack.webhook;
   await step("Discord and sign-ups", async () => {
     await page.eval("document.querySelectorAll('#live-settings input[type=checkbox]').forEach((box) => box.checked = true)");
-    // Pictured before the webhook is typed: on staging it is a real one.
     await layout(page, "discord", true);
-    if (webhook) await page.eval(`document.querySelector('#live-settings input[type=url]').value = ${JSON.stringify(webhook)}`);
+    await page.eval(`document.querySelector('#live-settings input[type=url]').value = ${JSON.stringify(webhook)}`);
     await page.eval("document.getElementById('next').click()");
     await page.until("/Ready/.test(document.getElementById('step-now').textContent)");
     must(await page.eval("desk.event.sign_ups && desk.event.public"), "sign-ups and public not on");
@@ -170,58 +129,56 @@ try {
     await page.until("desk.event.status !== 'draft'");
   });
 
-  if (local) {
-    await step("the bracket starts from the desk: a set is called on Discord and shows live", async () => {
-      const tournament = await page.eval("desk.event.tournament");
-      await control("/join/" + tournament);
-      await page.eval("go(5)");
-      await page.until("!document.getElementById('start-bracket').hidden", 15000);
-      await layout(page, "start");
-      await page.eval("document.getElementById('start-bracket').click()");
-      await page.until("document.getElementById('start-bracket').hidden || /started/.test(document.body.textContent)", 15000);
-      // The connector reads the started bracket, then calls its first sets.
-      await control("/pass");
-      await control("/pass");
-      const posts = await (await fetch(stack.control + "/posts")).json();
-      must(posts.some((post) => JSON.stringify(post).includes("ember-e2e") || JSON.stringify(post).includes("Round")), "no call posted: " + JSON.stringify(posts).slice(0, 200));
-      await page.eval("go(5)");
-      await page.until("document.querySelectorAll('#live-body .set').length > 0", 15000);
-      await layout(page, "live");
-    });
+  await step("the bracket starts from the desk: a set is called on Discord and shows live", async () => {
+    const tournament = await page.eval("desk.event.tournament");
+    await control("/join/" + tournament);
+    await page.eval("go(5)");
+    await page.until("!document.getElementById('start-bracket').hidden", 15000);
+    await layout(page, "start");
+    await page.eval("document.getElementById('start-bracket').click()");
+    await page.until("document.getElementById('start-bracket').hidden || /started/.test(document.body.textContent)", 15000);
+    // The connector reads the started bracket, then calls its first sets.
+    await control("/pass");
+    await control("/pass");
+    const posts = await (await fetch(stack.control + "/posts")).json();
+    must(posts.some((post) => JSON.stringify(post).includes("ember-e2e") || JSON.stringify(post).includes("Round")), "no call posted: " + JSON.stringify(posts).slice(0, 200));
+    await page.eval("go(5)");
+    await page.until("document.querySelectorAll('#live-body .set').length > 0", 15000);
+    await layout(page, "live");
+  });
 
-    await step("a disputed game is decided as a draw, then for player 1, then voided", async () => {
-      await control("/dispute");
-      await page.eval("readSets()");
-      await page.until("/Needs/.test(document.getElementById('live-body').textContent)", 15000);
-      const open = "[...document.querySelectorAll('#live-body .set')].find((c) => /Needs/.test(c.textContent)).querySelector('.primary').click()";
-      const decideButton = (text) => `[...document.querySelectorAll('#decide button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}).click()`;
-      await page.eval(open);
-      await page.until("document.getElementById('decide').open");
-      await layout(page, "decide");
-      await page.eval(decideButton("Draw"));
-      await page.until("!document.getElementById('decide').open");
-      await page.until("/1 draw/.test(document.getElementById('live-body').textContent)", 15000);
-      // Player 1 is given a game, then it is voided again.
-      const games = "[...document.querySelectorAll('#live-body .set')].find((c) => /1 draw/.test(c.textContent))";
-      await page.eval(games + ".querySelector('.wd-row button:last-child').click()");
-      await page.until("document.getElementById('decide').open");
-      await page.eval("[...document.querySelectorAll('#decide button')].find((b) => / won$/.test(b.textContent)).click()");
-      await page.until("!document.getElementById('decide').open");
-      await page.until(games + " && /\\b1\\b/.test(" + games + ".querySelector('.set-row b').textContent)", 15000);
-      await page.eval(games + ".querySelector('.wd-row button:last-child').click()");
-      await page.until("document.getElementById('decide').open");
-      // The last game is player 1's: void that one, the draw stays.
-      await page.eval("[...document.querySelectorAll('#decide button')].filter((b) => b.textContent.trim() === 'Void').pop().click()");
-      await page.until("!document.getElementById('decide').open");
-      await page.until(games + " && " + games + ".querySelector('.set-row b').textContent === '0'", 15000);
-    });
+  await step("a disputed game is decided as a draw, then for player 1, then voided", async () => {
+    await control("/dispute");
+    await page.eval("readSets()");
+    await page.until("/Needs/.test(document.getElementById('live-body').textContent)", 15000);
+    const open = "[...document.querySelectorAll('#live-body .set')].find((c) => /Needs/.test(c.textContent)).querySelector('.primary').click()";
+    const decideButton = (text) => `[...document.querySelectorAll('#decide button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}).click()`;
+    await page.eval(open);
+    await page.until("document.getElementById('decide').open");
+    await layout(page, "decide");
+    await page.eval(decideButton("Draw"));
+    await page.until("!document.getElementById('decide').open");
+    await page.until("/1 draw/.test(document.getElementById('live-body').textContent)", 15000);
+    // Player 1 is given a game, then it is voided again.
+    const games = "[...document.querySelectorAll('#live-body .set')].find((c) => /1 draw/.test(c.textContent))";
+    await page.eval(games + ".querySelector('.wd-row button:last-child').click()");
+    await page.until("document.getElementById('decide').open");
+    await page.eval("[...document.querySelectorAll('#decide button')].find((b) => / won$/.test(b.textContent)).click()");
+    await page.until("!document.getElementById('decide').open");
+    await page.until(games + " && /\\b1\\b/.test(" + games + ".querySelector('.set-row b').textContent)", 15000);
+    await page.eval(games + ".querySelector('.wd-row button:last-child').click()");
+    await page.until("document.getElementById('decide').open");
+    // The last game is player 1's: void that one, the draw stays.
+    await page.eval("[...document.querySelectorAll('#decide button')].filter((b) => b.textContent.trim() === 'Void').pop().click()");
+    await page.until("!document.getElementById('decide').open");
+    await page.until(games + " && " + games + ".querySelector('.set-row b').textContent === '0'", 15000);
+  });
 
-    await step("the bracket view", async () => {
-      await page.eval("[...document.querySelectorAll('#live-tabs button')].find((b) => b.textContent === 'Bracket').click()");
-      await page.until("document.querySelector('#live-body .bracket')");
-      await layout(page, "bracket");
-    });
-  }
+  await step("the bracket view", async () => {
+    await page.eval("[...document.querySelectorAll('#live-tabs button')].find((b) => b.textContent === 'Bracket').click()");
+    await page.until("document.querySelector('#live-body .bracket')");
+    await layout(page, "bracket");
+  });
 
   await step("the public page and its preview tags", async () => {
     const html = await (await fetch(bridge + "/t/" + event)).text();

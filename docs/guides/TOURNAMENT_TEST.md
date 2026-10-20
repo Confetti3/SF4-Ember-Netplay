@@ -8,7 +8,6 @@ set up.
 |---|---|---|
 | Desk unit tests | The web desk's own logic (sets, tiers, counters) in Node | Node 22 |
 | Desk end to end, local | A real bridge and connector with a fake Challonge and Discord, the desk in Chrome, the game's side from a terminal | Rust, Node, Chrome on Windows |
-| Desk end to end, staging | The same against a running bridge and the real Challonge | A bridge with Challonge set up |
 | Tournament on two PCs | Two self-test games, the desk in Chrome and a running bridge: the whole event | Two Windows PCs with the game, Steam signed in on both |
 
 ## Desk unit tests
@@ -31,7 +30,7 @@ Local, from `server/ember` in WSL:
 export CARGO_TARGET_DIR=/mnt/d/ember-build/cargo-target CARGO_PROFILE_DEV_DEBUG=0
 EMBER_E2E_OUT=/mnt/d/ember-build/e2e-out cargo test -p ember-brackets --test desk_e2e_stack -- --ignored --nocapture &
 cargo build -p ember-bridge --example desk_game
-node ../../scripts/e2e-desk.mjs --local
+node ../../scripts/e2e-desk.mjs
 ```
 
 It signs in from Ember (a wrong number turned down, the right one signed in),
@@ -41,10 +40,11 @@ game as a draw, gives one to player 1 and voids it, opens the bracket and the
 public page, and stops it and deletes it on Challonge. Start a fresh stack for
 each run: sign-in rate limits are per bridge.
 
-Staging: `node scripts/e2e-desk.mjs --staging https://<bridge>`. Once,
-`--setup` opens the organizer's Challonge approval in the browser. A run
-creates one tournament named `ember-e2e <time>` and deletes it again at the
-end.
+A running bridge and the real Challonge are covered by the run on two PCs,
+below, which does all of this with real games. (The desk test once had a
+staging mode of its own, signed in as a terminal-made Ember ID; it could not
+share the organizer's Challonge account with the two-PC run, since an account
+belongs to one Ember ID.)
 
 ## Tournament on two PCs
 
@@ -126,7 +126,8 @@ played (`*-organizer.png` and `*-player.png`), and each game's own output
 | `sign up: …` | The event is not taking sign-ups (it was marked ready already), or the player's Challonge account is not connected. |
 | `the connector never read the bracket` | Check the bracket connector runs next to the bridge and that its connection is the config's `connection`. |
 | `the set never finished` | Look at `*-playing-*.png` and the two game outputs: a game that did not reach `match live` names the step that failed. |
-| `*-player.png` pictures are black | Someone was connected to the other PC over Remote Desktop: Windows stops drawing the game for a session shown over RDP. Disconnect before a run. |
+| The other PC's game never starts Ember (`Game initialization failed`) | Its user session is disconnected, left by Remote Desktop. Sign in at its screen, or run `tscon <session id> /dest:console` as administrator inside the RDP session. `lab/tournament-2p.sh` checks this first. |
+| `*-player.png` pictures are black | The other PC draws the game where a screen capture cannot see it, as without a monitor attached (its desktop at 1024×768 is the sign). Attach a monitor or a dummy display plug. |
 | A private message says **Discord refused it** | The player's Discord shares no server with the Ember bot, or takes no messages from it. Join a server the bot is in (the Ember Discord). |
 | A game window stays open | The game stops itself after 45 minutes; its script then puts the settings and saves back. |
 

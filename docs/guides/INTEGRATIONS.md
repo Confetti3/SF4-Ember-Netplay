@@ -705,7 +705,7 @@ Three layers, from fastest:
   EMBER_E2E_OUT=/mnt/d/ember-build/e2e-out \
     cargo test -p ember-brackets --test desk_e2e_stack -- --ignored --nocapture &
   cargo build -p ember-bridge --example desk_game
-  node ../../scripts/e2e-desk.mjs --local
+  node ../../scripts/e2e-desk.mjs
   ```
 
   It signs in from Ember (a wrong number turned down, the right one signed
@@ -717,13 +717,8 @@ Three layers, from fastest:
   fresh stack for each run: sign-in rate limits are per bridge.
   `examples/desk_game.rs` plays the game's side: an Ember ID from a seed file
   signing what Ember signs, against any bridge.
-- **Staging**: the same script with `--staging https://<bridge>`, on a real
-  bridge and real Challonge. Its Ember ID seed lives in
-  `~/tournament-lab/e2e/ember-id.seed`. Once, `--setup` opens the organizer
-  sign-in to approve with the organizer's Challonge account. A run creates one
-  Challonge tournament named `ember-e2e <time>` and deletes it again at the
-  end, with its event. A Discord webhook in
-  `~/tournament-lab/e2e/discord-webhook` is used when present.
+- **A running bridge**: `scripts/e2e-tournament.mjs` plays a whole event on
+  two PCs against it and the real Challonge (docs/guides/TOURNAMENT_TEST.md).
 
 ## Bracket sites (Challonge, start.gg, your own)
 
