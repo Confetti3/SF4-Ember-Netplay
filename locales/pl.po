@@ -790,12 +790,6 @@ msgstr "Zapisuj oglądane mecze"
 msgid "replays.save_watched_detail"
 msgstr "Zapisuje także mecze oglądane w roli widza. Wyłączone zapisuje tylko mecze, w których grasz."
 
-msgid "settings.watched_picture"
-msgstr "Oglądana gra w rogu"
-
-msgid "settings.watched_picture_detail"
-msgstr "Gdy menu Embera jest otwarte nad oglądaną grą, pokazuje ją małą w prawym górnym rogu nad nieprzezroczystym menu zamiast przyciemnionej za nim."
-
 msgid "replays.link"
 msgstr "Odtwórz powtórkę z linku"
 
@@ -1405,7 +1399,13 @@ msgid "room.private_status"
 msgstr "Pokój prywatny / tylko zaproszenia"
 
 msgid "room.tournament_status"
-msgstr "Mecz turniejowy, do {0} wygranych. Mogą dołączyć tylko jego dwaj gracze."
+msgstr "Mecz turniejowy, do {0} wygranych. Grać mogą tylko jego dwaj gracze."
+
+msgid "room.tournament_status_watched"
+msgstr "Mecz turniejowy, do {0} wygranych. Widzów: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Oglądasz mecz turniejowy. Grać mogą tylko jego dwaj gracze."
 
 msgid "room.reconnecting"
 msgstr "Ponowne łączenie z pokojem..."
@@ -1955,6 +1955,9 @@ msgstr "Powalenie"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"
+
+msgid "training.meter.hitstop"
+msgstr "Hitstop"
 
 msgid "training.meter.throw"
 msgstr "Rzut / sekwencja"
@@ -2710,6 +2713,8 @@ msgstr "{0} / HOST"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Widz"
 
 msgid "room.members"
 msgstr "Uczestnicy"
@@ -2717,6 +2722,22 @@ msgstr "Uczestnicy"
 msgid "room.member_count"
 msgstr "Uczestnicy: {0} / {1}."
 
+msgid "room.hide_members"
+msgstr "Ukryj uczestników"
+msgid "room.show_members"
+msgstr "Pokaż uczestników"
+msgid "room.hide_chat"
+msgstr "Ukryj czat"
+msgid "room.show_chat"
+msgstr "Pokaż czat"
+msgid "room.part_detail"
+msgstr "Ukrywa tę część kolumny albo ją przywraca. Przeciągnij linie między tablicą, uczestnikami i czatem, aby zmienić ich rozmiar."
+msgid "room.more"
+msgstr "Więcej…"
+msgid "room.more.detail"
+msgstr "Ustawienia pokoju i zaproszenie do niego."
+msgid "room.members_summary"
+msgstr "{0} gra · {1} ogląda"
 msgid "room.chat"
 msgstr "Czat"
 
@@ -3087,6 +3108,15 @@ msgstr "Do kolejki"
 msgid "room.stop_watching"
 msgstr "Przestań oglądać"
 
+msgid "room.picture_behind"
+msgstr "Gra za menu"
+
+msgid "room.picture_show"
+msgstr "Gra jako obraz"
+
+msgid "room.picture_swap.detail"
+msgstr "Przełącza oglądaną grę między małym obrazem a przyciemnioną grą za menu, na tę sesję."
+
 msgid "room.stop_watching.detail"
 msgstr "Przestaje oglądać ten stół i wraca do pokoju. Gracze grają dalej."
 
@@ -3386,6 +3416,12 @@ msgstr "Nie udało się wysłać działania widza; ponawianie próby."
 
 msgid "runtime.return_main_menu"
 msgstr "Wróć do menu głównego gry przed otwarciem pokoju."
+
+msgid "runtime.in_tournament_match"
+msgstr "Grasz lub oglądasz mecz turniejowy. Zakończ go lub zatrzymaj w sekcji Mecze turniejowe, zanim otworzysz inny pokój lub do niego dołączysz."
+
+msgid "runtime.watch_leave_room"
+msgstr "Opuść swój pokój, zanim zaczniesz oglądać mecz turniejowy."
 
 msgid "runtime.tournament_result_saving"
 msgstr "Zapisywanie wyniku ostatniej gry. Spróbuj ponownie za kilka sekund."
@@ -4550,6 +4586,63 @@ msgstr "Tego meczu nie ma na Twojej liście. Należy do innych graczy albo ten s
 
 msgid "tournament.failure.link_service"
 msgstr "Zaufaj temu serwisowi turniejowemu w sekcji Powiązane konta, a potem otwórz link meczu ponownie."
+
+msgid "tournament.watch.row"
+msgstr "Oglądaj ten mecz"
+
+msgid "tournament.watch.row_detail"
+msgstr "Widzowie oglądają mecz z jego pokoju. Nie mogą grać ani pisać na czacie, a o tym, kto może oglądać, decyduje organizator."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Opuszcza pokój meczu. Mecz można obejrzeć ponownie z tej listy."
+
+msgid "tournament.watch.needs_id"
+msgstr "Oglądanie meczu wymaga Ember ID. Utwórz je tutaj, to chwila."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Serwis turniejowy tego meczu nie jest jeszcze zaufany. Dodaj go w sekcji Powiązane konta."
+
+msgid "tournament.watch.state.asking"
+msgstr "Łączenie z serwisem turniejowym."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Czekanie, aż gracze otworzą pokój meczu."
+
+msgid "tournament.watch.state.full"
+msgstr "Ten mecz ma już tylu widzów, na ilu pozwala organizator. Czekanie na wolne miejsce."
+
+msgid "tournament.watch.state.joining"
+msgstr "Wchodzenie do pokoju meczu."
+
+msgid "tournament.watch.state.watching"
+msgstr "Oglądasz {0} vs {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "Organizator tego meczu nie udostępnił go widzom."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "Organizator usunął cię z widzów tego meczu."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Grasz w tym meczu. Użyj zamiast tego opcji Graj."
+
+msgid "tournament.watch.refused.build"
+msgstr "Gracze mają inną wersję Ember. Oglądanie wymaga tej samej."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Ten serwis turniejowy nie umożliwia oglądania."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Oglądanie zakończyło się, bo jesteś w innym pokoju. Opuść go i obejrzyj mecz ponownie."
+
+msgid "tournament.watch.finished_notice"
+msgstr "Mecz, który oglądałeś, się zakończył."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Przestałeś oglądać: organizator cię usunął."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "Pokój meczu został zamknięty."
 
 msgid "rules.set_length"
 msgstr "Długość seta"

@@ -279,7 +279,7 @@ namespace OverlayPrefs {
 			{"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
 			{"roundTimeIntegral", preferences.lobby.roundTime},
             {"matchHudSize",preferences.matchHudSize},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"matchHudNameOffset",preferences.matchHudNameOffset},{"readySoundVolume",preferences.readySoundVolume},
-            {"interfaceScale", preferences.interfaceScale}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
+            {"interfaceScale", preferences.interfaceScale}, {"roomSideWidth", preferences.roomSideWidth}, {"roomMemberShare", preferences.roomMemberShare}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
         netplay::WriteBoolPreferences(preferences, values);
         netplay::WriteButtonPrompts(preferences, values);
         netplay::WriteCountryPreference(preferences, values);

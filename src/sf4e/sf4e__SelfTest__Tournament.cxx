@@ -34,6 +34,7 @@ using NetplayFacade::RuntimeSnapshot;
 using netplay::IdentityOp;
 using netplay::IdentityRequest;
 using netplay::tournament::Phase;
+using netplay::tournament::PlayUnderWay;
 using online::Command;
 using online::Now;
 
@@ -211,8 +212,6 @@ std::vector<std::string> PlayableMatches(const RuntimeSnapshot& now) {
 	for (const auto& match : list.items) if (match.Playable(unixNow)) playable.push_back(match.matchId);
 	return playable;
 }
-
-bool Active(Phase phase) { return phase == Phase::Claiming || phase == Phase::Opening || phase == Phase::InRoom; }
 
 void Step(const RuntimeSnapshot& now) {
 	Run& run = s_run;
@@ -509,8 +508,8 @@ void Step(const RuntimeSnapshot& now) {
 	case Stage::Leaving:
 		// A finished match's room is left once its last battle has closed; a
 		// failed one is stopped, as Stop on the Matches screen does.
-		if (now.session.room == netplay::RoomState::Idle && !Active(phase)) { Say(true, "left the room"); run.Enter(Stage::Done); Finish(); break; }
-		if (Active(phase) && run.Every(5)) SendTournament(netplay::tournament::Command::Op::Stop);
+		if (now.session.room == netplay::RoomState::Idle && !PlayUnderWay(phase)) { Say(true, "left the room"); run.Enter(Stage::Done); Finish(); break; }
+		if (PlayUnderWay(phase) && run.Every(5)) SendTournament(netplay::tournament::Command::Op::Stop);
 		if (run.Late(150)) run.Fail("leave", "the room never let go");
 		break;
 	case Stage::Done:

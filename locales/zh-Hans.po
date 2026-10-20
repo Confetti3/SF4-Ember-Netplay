@@ -790,12 +790,6 @@ msgstr "保存观战的对战"
 msgid "replays.save_watched_detail"
 msgstr "也保存你以观众身份观看的对战。关闭时只保存你参加的对战。"
 
-msgid "settings.watched_picture"
-msgstr "观战的对局显示在角落"
-
-msgid "settings.watched_picture_detail"
-msgstr "在观战的对局上打开 Ember 菜单时，将对局缩小显示在不透明菜单的右上角，而不是变暗显示在菜单后面。"
-
 msgid "replays.link"
 msgstr "播放链接中的录像"
 
@@ -1405,7 +1399,13 @@ msgid "room.private_status"
 msgstr "私人房间／仅限邀请"
 
 msgid "room.tournament_status"
-msgstr "赛事对局，先胜{0}局。只有本局的两名玩家可以加入。"
+msgstr "赛事对局，先胜{0}局。只有本局的两名玩家可以对战。"
+
+msgid "room.tournament_status_watched"
+msgstr "赛事对局，先胜{0}局。{1} 人观战中。"
+
+msgid "room.tournament_watching"
+msgstr "正在观战赛事对局。只有本局的两名玩家可以对战。"
 
 msgid "room.reconnecting"
 msgstr "正在重连房间..."
@@ -1955,6 +1955,9 @@ msgstr "倒地"
 
 msgid "training.meter.meaty"
 msgstr "压起身"
+
+msgid "training.meter.hitstop"
+msgstr "顿帧"
 
 msgid "training.meter.throw"
 msgstr "投技 / 演出"
@@ -2711,12 +2714,31 @@ msgstr "{0}／房主"
 msgid "room.member_status"
 msgstr "{0}"
 
+msgid "room.member.watcher"
+msgstr "观战者"
+
 msgid "room.members"
 msgstr "成员"
 
 msgid "room.member_count"
 msgstr "成员：{0}／{1}。"
 
+msgid "room.hide_members"
+msgstr "隐藏成员"
+msgid "room.show_members"
+msgstr "显示成员"
+msgid "room.hide_chat"
+msgstr "隐藏聊天"
+msgid "room.show_chat"
+msgstr "显示聊天"
+msgid "room.part_detail"
+msgstr "隐藏这一部分或让它回来。用鼠标移动面板、成员和聊天之间的线，可改变它们的大小。"
+msgid "room.more"
+msgstr "更多…"
+msgid "room.more.detail"
+msgstr "房间设置和房间邀请。"
+msgid "room.members_summary"
+msgstr "{0} 人对战中 · {1} 人观战"
 msgid "room.chat"
 msgstr "聊天"
 
@@ -3087,6 +3109,15 @@ msgstr "加入队列"
 msgid "room.stop_watching"
 msgstr "停止观战"
 
+msgid "room.picture_behind"
+msgstr "对局显示在菜单后面"
+
+msgid "room.picture_show"
+msgstr "对局以小画面显示"
+
+msgid "room.picture_swap.detail"
+msgstr "在本次会话中，将观战的对局在小画面和菜单后面的变暗画面之间切换。"
+
 msgid "room.stop_watching.detail"
 msgstr "停止观战此对战席并返回房间。双方继续对战。"
 
@@ -3386,6 +3417,12 @@ msgstr "观战操作发送失败，正在重试。"
 
 msgid "runtime.return_main_menu"
 msgstr "请返回游戏主菜单，再打开房间。"
+
+msgid "runtime.in_tournament_match"
+msgstr "你正在进行或观战一场赛事对局。请先将其结束，或在“赛事对局”中停止，再打开或加入其他房间。"
+
+msgid "runtime.watch_leave_room"
+msgstr "请先退出当前房间，再观战赛事对局。"
 
 msgid "runtime.tournament_result_saving"
 msgstr "正在保存上一局的结果。请几秒后再试。"
@@ -4550,6 +4587,63 @@ msgstr "此对局不在你的列表中。它属于其他玩家，或此服务将
 
 msgid "tournament.failure.link_service"
 msgstr "请先在已绑定账号中信任此赛事服务，然后再次打开对局链接。"
+
+msgid "tournament.watch.row"
+msgstr "观战此对局"
+
+msgid "tournament.watch.row_detail"
+msgstr "观战者在对局所在的房间观看对局，不能对战或聊天，谁可以观战由主办方决定。"
+
+msgid "tournament.watch.stop_detail"
+msgstr "离开对局房间。你可以从此列表再次观战该对局。"
+
+msgid "tournament.watch.needs_id"
+msgstr "观战对局需要 Ember ID。可以在这里创建，只需片刻。"
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "此对局的赛事服务尚未受信任。请在已绑定账号中添加。"
+
+msgid "tournament.watch.state.asking"
+msgstr "正在询问赛事服务。"
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "正在等待玩家打开对局房间。"
+
+msgid "tournament.watch.state.full"
+msgstr "此对局的观战人数已达主办方允许的上限。正在等待空位。"
+
+msgid "tournament.watch.state.joining"
+msgstr "正在加入对局房间。"
+
+msgid "tournament.watch.state.watching"
+msgstr "正在观战 {0} vs {1}。"
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "此对局的主办方未开放观战。"
+
+msgid "tournament.watch.refused.revoked"
+msgstr "主办方已将你移出此对局的观战者。"
+
+msgid "tournament.watch.refused.fighter"
+msgstr "你是此对局的玩家。请改用“开始”。"
+
+msgid "tournament.watch.refused.build"
+msgstr "玩家使用的 Ember 版本不同。观战需要相同版本。"
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "此赛事服务不支持观战。"
+
+msgid "tournament.watch.refused.other_room"
+msgstr "你在另一个房间中，观战已停止。请退出该房间，然后重新观战。"
+
+msgid "tournament.watch.finished_notice"
+msgstr "你观战的对局已结束。"
+
+msgid "tournament.watch.removed_notice"
+msgstr "你已停止观战：主办方将你移出。"
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "对局房间已关闭。"
 
 msgid "rules.set_length"
 msgstr "每组局数"

@@ -53,7 +53,7 @@ use axum::{
     routing::{get, post},
 };
 use ember_protocol::{
-    discord,
+    EmberId, discord,
     encoding::b64u,
     sign_in::{Connection, SIGN_IN_SECS, SignInStarted},
     sites,
@@ -78,7 +78,7 @@ use crate::{
         site_has_accounts,
     },
     rate::Slot,
-    routes::sessions,
+    routes::sessions::{Call, Nothing},
     util::random,
 };
 
@@ -361,7 +361,15 @@ pub(super) async fn begin(
     };
     let started = match starter {
         Starter::Player(player, body) => {
-            sessions::as_proven(state, player, &body, target, work).await?
+            Call::from(target)
+                .run(
+                    state,
+                    &player,
+                    &body,
+                    Nothing::check,
+                    move |tx, ctx, id: &EmberId, _: Nothing| work(tx, ctx, id.as_str()),
+                )
+                .await?
         }
         Starter::Desk(ember_id) => {
             let ctx = Ctx::of(state);
@@ -396,11 +404,15 @@ async fn cancel(
     site: Site,
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
-    let target = site.target(Step::Cancel);
-    sessions::as_proven(&state, player, &body, target, move |tx, _, ember_id| {
-        sign_ins::end(tx, &site, ember_id)
-    })
-    .await?;
+    Call::from(site.target(Step::Cancel))
+        .run(
+            &state,
+            &player,
+            &body,
+            Nothing::check,
+            move |tx, _, ember_id, _: Nothing| sign_ins::end(tx, &site, ember_id.as_str()),
+        )
+        .await?;
     Ok(ok(&json!({})))
 }
 
@@ -428,11 +440,15 @@ async fn remove(
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
     let site = held(&state, &player, site).await?;
-    let target = site.target(Step::Remove);
-    sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
-        site.disconnect(tx, ctx, ember_id)
-    })
-    .await?;
+    Call::from(site.target(Step::Remove))
+        .run(
+            &state,
+            &player,
+            &body,
+            Nothing::check,
+            move |tx, ctx, ember_id, _: Nothing| site.disconnect(tx, ctx, ember_id.as_str()),
+        )
+        .await?;
     Ok(ok(&Connection { account: None }))
 }
 
@@ -714,11 +730,18 @@ async fn withdraw(
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
     let target = site.target(Step::Withdraw);
-    sessions::as_proven(&state, player, &body, target, move |tx, _, ember_id| {
-        sign_ins::end(tx, &site, ember_id)?;
-        grants::remove(tx, site.id(), ember_id)
-    })
-    .await?;
+    Call::from(target)
+        .run(
+            &state,
+            &player,
+            &body,
+            Nothing::check,
+            move |tx, _, ember_id, _: Nothing| {
+                sign_ins::end(tx, &site, ember_id.as_str())?;
+                grants::remove(tx, site.id(), ember_id.as_str())
+            },
+        )
+        .await?;
     Ok(ok(&json!({ "organizer": null })))
 }
 

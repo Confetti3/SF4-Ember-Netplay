@@ -153,6 +153,11 @@ endif()
 add_library(sf4e_tournament_play STATIC "src/netplay/TournamentPlay.cxx")
 target_compile_features(sf4e_tournament_play PUBLIC cxx_std_17)
 target_link_libraries(sf4e_tournament_play PUBLIC sf4e_room_model)
+# Watching one: the same, a pure state machine the runtime ticks beside it. It
+# reads the room through TournamentPlay's RoomView.
+add_library(sf4e_watch_play STATIC "src/netplay/WatchPlay.cxx")
+target_compile_features(sf4e_watch_play PUBLIC cxx_std_17)
+target_link_libraries(sf4e_watch_play PUBLIC sf4e_tournament_play)
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME RoomMessageQueue SOURCES "src/tests/room_message_queue_test.cxx" LIBS sf4e_room_model)
     sf4e_add_unit_test(NAME MatchResultOutbox SOURCES "src/tests/match_result_outbox_test.cxx" LIBS sf4e_netplay_core sf4e_room_model TIMEOUT 15)
@@ -191,8 +196,10 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play)
     sf4e_add_unit_test(NAME IdentityEvents SOURCES "src/tests/identity_events_test.cxx" "src/session/IdentityEvents.cxx"
         LIBS nlohmann_json::nlohmann_json STD 17)
+    sf4e_add_unit_test(NAME WatchPlay SOURCES "src/tests/watch_play_test.cxx" LIBS sf4e_watch_play)
+    sf4e_add_unit_test(NAME RoomWatch SOURCES "src/tests/room_watch_test.cxx" LIBS sf4e_room_model)
     sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
-        LIBS sf4e_tournament_play nlohmann_json::nlohmann_json TIMEOUT 300)
+        LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300)
     sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomServerOwned SOURCES "src/tests/room_server_owned_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomPrivateGolden SOURCES "src/tests/room_private_golden_test.cxx" LIBS sf4e_room_model)
@@ -268,7 +275,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME RecordingFileStore SOURCES "src/tests/recording_file_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
 endif()
 
-add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/ControllersScreen.cxx" "src/ui/ReplaysPanel.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
+add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/ControllersScreen.cxx" "src/ui/ReplaysPanel.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomActions.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
 target_sources(sf4e_ui PRIVATE src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatPanel.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")
@@ -276,7 +283,7 @@ install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.
 install(DIRECTORY "assets/flags" DESTINATION "assets" FILES_MATCHING PATTERN "flags.png" PATTERN "flags.json" PATTERN "LICENSE" PATTERN "README.md")
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
-target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/IdentityDesk.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/IdentityDesk.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
 target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx src/ui/ApplicationShell__Create.cxx src/ui/ApplicationShell__Links.cxx src/ui/RoomCards.cxx src/ui/ApplicationShell__Updates.cxx src/ui/UpdatePrompt.cxx src/ui/CountryFlag.cxx src/ui/CountryPicker.cxx)
@@ -315,6 +322,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx
         src/tests/builtin_service_journey_test.cxx src/tests/sign_in_site_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME WatchJourney SOURCES src/tests/watch_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
@@ -508,7 +516,7 @@ endif()
 # The in-game self-test (docs/development/IN_GAME_SELFTEST.md). Without it
 # selftest::Running is false and nothing of the test is built.
 if(SF4E_SELFTEST)
-    target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Online.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx")
+    target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__RoomLayout.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Online.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_SELFTEST=1)
 endif()
 target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
@@ -560,7 +568,7 @@ target_compile_features(Session PUBLIC cxx_std_17)
 target_link_libraries(
     Session
     PRIVATE Dimps sf4e_common sf4e_helper_platform sf4e_room_model
-    PUBLIC sf4e_iroh_room nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
+    PUBLIC sf4e_iroh_room nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play sf4e_watch_play
 )
 
 # The public room host: the room authority with no game. It links the session
@@ -740,6 +748,9 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME PracticeRoomProjection SOURCES "src/tests/practice_room_projection_test.cxx" LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME DelayPolicyProjection SOURCES "src/tests/delay_policy_projection_test.cxx" LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME SessionServerTournament SOURCES "src/tests/session_server_tournament_test.cxx" LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME SessionServerWatch SOURCES "src/tests/session_server_watch_test.cxx" LIBS sf4e_session_server ZLIB::ZLIB)
+    # The fixture the helper's own test parses too (rust/sf4-net, service/tests/watch.rs).
+    target_compile_definitions(SessionServerWatchTest PRIVATE SF4E_TEST_FIXTURES="${CMAKE_SOURCE_DIR}/src/tests/fixtures")
     # Explicitly invoked host-cost benchmark; not a CTest (see the source).
     add_executable(RoomHostBench "src/tests/room_host_bench.cxx")
     target_link_libraries(RoomHostBench PRIVATE sf4e_session_server)

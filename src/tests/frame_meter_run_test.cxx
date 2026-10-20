@@ -3,6 +3,7 @@
 // edge past their width, hold four quiet frames after it on its last active
 // frame, and any action after that starts the next exchange.
 #include "../training/FrameMeter.hxx"
+#include <algorithm>
 #include <cstdio>
 #include <stdexcept>
 using namespace sf4e::training;
@@ -167,6 +168,91 @@ int main() {
                 fireball.View().frames.front().cells[0].phase == Phase::Attack, "The projectile's guard and block did not show the exchange whole");
             fireball.Play(Quiet, Quiets);
             Require(fireball.View().frozen && fireball.View().frames.size() == 54, "The blocked projectile's exchange was not held");
+        }
+        // Each hit of a combo marks the attacker's cell with its advantage, from
+        // the game's counts of frames until each fighter can act; a knockdown
+        // (the game's 1000) marks nothing.
+        {
+            FrameMeter meter;
+            const auto play = [&](int frame, unsigned own, int ownAction, int ownLeft, unsigned other, float combo, int otherLeft) {
+                std::array<FighterSample, 2> both;
+                for (auto& fighter : both) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; }
+                both[0].status = own; both[0].action = ownAction; both[0].actionFrame = static_cast<float>(frame); both[0].untilActionable = ownLeft;
+                both[1].status = other; both[1].action = other ? 101 : 0; both[1].actionFrame = static_cast<float>(frame);
+                both[1].comboDamage = combo; both[1].untilActionable = otherLeft;
+                meter.Observe(frame, both);
+                return meter.View().frames.empty() ? MeterCell{} : meter.View().frames.back().cells[0];
+            };
+            play(0, 0, 0, 0, 0, 0, 0);
+            Require(play(1, 16, 100, 20, 0, 0, 0).hitAdvantage == NoHitAdvantage, "A whiffing frame was marked");
+            const auto first = play(2, 16, 100, 20, 21, 10, 23);
+            Require(first.hitAdvantage == 3, "A hit did not carry its advantage");
+            Require(play(3, 16, 100, 19, 21, 10, 22).hitAdvantage == NoHitAdvantage, "A frame after the hit was marked");
+            const auto second = play(4, 16, 102, 30, 21, 20, 26);
+            Require(second.hitAdvantage == -4, "A combo's next hit did not carry its own advantage");
+            Require(play(5, 16, 102, 29, 21, 30, 1000).hitAdvantage == NoHitAdvantage, "A knockdown was marked");
+        }
+        // Hitstop: frames where neither fighter's animation moves leave the bars.
+        {
+            Fight stop; stop.Play(Attack, 3);
+            std::array<FighterSample, 2> both = stop.View().current;
+            for (int i = 0; i < 8; ++i) stop.meter.Observe(stop.at++, both);
+            Require(stop.View().frames.size() == 3 && stop.View().length == 3, "Hitstop frames were drawn");
+            stop.Play(Attack);
+            Require(stop.View().frames.size() == 4, "The frame after hitstop was not drawn");
+        }
+        // As the game plays a hit: the attacker's frame repeats on the frame
+        // it lands and the one hit starts its reaction at 0, so hitstop takes
+        // that frame too. The hit's mark goes on the frame it landed on, the
+        // reaction's start and the hitstop line on the next frame drawn.
+        {
+            FrameMeter meter;
+            const auto play = [&](int frame, float own, int otherAction, float other, int ownLeft, int otherLeft) {
+                std::array<FighterSample, 2> both;
+                for (auto& fighter : both) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; }
+                both[0].status = own > 0 ? 16 : 0; both[0].action = own > 0 ? 268 : 0; both[0].actionFrame = own; both[0].untilActionable = ownLeft;
+                both[1].status = otherAction ? 21 : 0; both[1].action = otherAction; both[1].actionFrame = other; both[1].untilActionable = otherLeft;
+                meter.Observe(frame, both);
+            };
+            play(0, 0, 0, 40, 0, 0);
+            for (int f = 1; f <= 3; ++f) play(f, static_cast<float>(f), 0, 40.f + f, 0, 0);
+            const auto drawn = meter.View().frames.size();
+            play(4, 3, 131, 0, 15, 20);
+            for (int f = 5; f < 12; ++f) play(f, 3, 131, 0, 19 - f, 24 - f);
+            Require(meter.View().frames.size() == drawn, "The hit's own frame or its hitstop was drawn");
+            play(12, 4, 131, 1.25f, 7, 12);
+            const auto& landed = meter.View().frames[drawn - 1].cells[0];
+            const auto& after = meter.View().frames.back().cells;
+            Require(meter.View().frames.size() == drawn + 1 && landed.hitAdvantage == 5 && !landed.afterStop,
+                "The hit's mark was not on the frame it landed on");
+            Require(after[0].hitAdvantage == NoHitAdvantage && after[1].newAction && after[0].afterStop && after[1].afterStop,
+                "The reaction's start and the hitstop line did not show on the frame after hitstop");
+        }
+        // The game's counts said -14 as Ryu's crouching HP landed, but the
+        // other's stun stalled a frame: it was free 13 frames before Ryu, and
+        // the exchange's last hit says what was measured.
+        {
+            FrameMeter meter;
+            const auto play = [&](int frame, unsigned own, float ownFrame, unsigned other, int otherAction, float otherFrame, int ownLeft, int otherLeft) {
+                std::array<FighterSample, 2> both;
+                for (auto& fighter : both) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; }
+                both[0].status = own; both[0].action = own ? 270 : 0; both[0].actionFrame = ownFrame; both[0].untilActionable = ownLeft;
+                both[1].status = other; both[1].action = otherAction; both[1].actionFrame = otherFrame; both[1].untilActionable = otherLeft;
+                meter.Observe(frame, both);
+            };
+            int at = 0;
+            play(at++, 0, 0, 0, 0, 0, 0, 0);
+            for (int f = 1; f <= 4; ++f) play(at++, 16, static_cast<float>(f), 0, 0, static_cast<float>(f), 0, 0);
+            play(at++, 16, 4, 21, 144, 0, 45, 31);
+            const int landed = at - 1;
+            for (int f = 1; f <= 20; ++f) play(at++, 16, 4.f + f, 21, 144, static_cast<float>(f), 0, 0);
+            for (int f = 1; f <= 13; ++f) play(at++, 16, 24.f + f, 0, 0, static_cast<float>(f), 0, 0);
+            for (int f = 1; f <= 3; ++f) play(at++, 0, static_cast<float>(f), 0, 0, 13.f + f, 0, 0);
+            const auto& advantage = meter.View().lastAdvantage;
+            Require(advantage.valid && advantage.frames[0] == -13, "The crouching HP's exchange was not measured at -13");
+            const auto& frames = meter.View().frames;
+            const auto marked = std::find_if(frames.begin(), frames.end(), [](const MeterFrame& frame) { return frame.cells[0].hitAdvantage != NoHitAdvantage; });
+            Require(marked != frames.end() && marked->frame < landed && marked->cells[0].hitAdvantage == -13, "The last hit did not take the measured advantage");
         }
         std::puts("Frame meter run tests passed");
         return 0;

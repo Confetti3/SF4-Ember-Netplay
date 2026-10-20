@@ -790,12 +790,6 @@ msgstr "Salva le partite che guardi"
 msgid "replays.save_watched_detail"
 msgstr "Salva anche le partite che segui da spettatore. Disattivato salva solo quelle che giochi."
 
-msgid "settings.watched_picture"
-msgstr "Partita seguita in un angolo"
-
-msgid "settings.watched_picture_detail"
-msgstr "Con il menu di Ember aperto su una partita che guardi, la mostra piccola in alto a destra su un menu opaco invece che attenuata dietro."
-
 msgid "replays.link"
 msgstr "Riproduci il replay del link"
 
@@ -1405,7 +1399,13 @@ msgid "room.private_status"
 msgstr "Sala privata / solo inviti"
 
 msgid "room.tournament_status"
-msgstr "Partita del torneo, vince chi arriva a {0}. Possono entrare solo i suoi due giocatori."
+msgstr "Partita del torneo, vince chi arriva a {0}. Solo i suoi due giocatori possono giocare."
+
+msgid "room.tournament_status_watched"
+msgstr "Partita del torneo, vince chi arriva a {0}. Spettatori: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Stai guardando una partita del torneo. Solo i suoi due giocatori possono giocare."
 
 msgid "room.reconnecting"
 msgstr "Riconnessione alla sala..."
@@ -1955,6 +1955,9 @@ msgstr "Atterramento"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"
+
+msgid "training.meter.hitstop"
+msgstr "Hitstop"
 
 msgid "training.meter.throw"
 msgstr "Presa / filmato"
@@ -2710,6 +2713,8 @@ msgstr "{0} / HOST"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Spettatore"
 
 msgid "room.members"
 msgstr "Membri"
@@ -2717,6 +2722,22 @@ msgstr "Membri"
 msgid "room.member_count"
 msgstr "{0} / {1} membri."
 
+msgid "room.hide_members"
+msgstr "Nascondi membri"
+msgid "room.show_members"
+msgstr "Mostra membri"
+msgid "room.hide_chat"
+msgstr "Nascondi chat"
+msgid "room.show_chat"
+msgstr "Mostra chat"
+msgid "room.part_detail"
+msgstr "Nasconde questa parte della colonna o la mostra di nuovo. Trascina le linee tra il tabellone, i membri e la chat per ridimensionarli."
+msgid "room.more"
+msgstr "Altro…"
+msgid "room.more.detail"
+msgstr "Impostazioni della stanza e il suo invito."
+msgid "room.members_summary"
+msgstr "{0} in gioco · {1} spettatori"
 msgid "room.chat"
 msgstr "Chat"
 
@@ -3087,6 +3108,15 @@ msgstr "Entra in coda"
 msgid "room.stop_watching"
 msgstr "Smetti di guardare"
 
+msgid "room.picture_behind"
+msgstr "Partita dietro il menu"
+
+msgid "room.picture_show"
+msgstr "Partita come immagine"
+
+msgid "room.picture_swap.detail"
+msgstr "Alterna la partita seguita tra una piccola immagine e la partita attenuata dietro il menu, per questa sessione."
+
 msgid "room.stop_watching.detail"
 msgstr "Smette di guardare questo tavolo e ti riporta alla sala. I giocatori continuano a giocare."
 
@@ -3386,6 +3416,12 @@ msgstr "Impossibile inviare l'azione spettatore; nuovo tentativo."
 
 msgid "runtime.return_main_menu"
 msgstr "Torna al menu principale del gioco prima di aprire una sala."
+
+msgid "runtime.in_tournament_match"
+msgstr "Stai giocando o guardando una partita del torneo. Terminala o fermala da Partite del torneo prima di aprire un'altra sala o di entrare in una."
+
+msgid "runtime.watch_leave_room"
+msgstr "Esci dalla tua sala prima di guardare una partita del torneo."
 
 msgid "runtime.tournament_result_saving"
 msgstr "Salvataggio del risultato dell'ultima partita. Riprova tra qualche secondo."
@@ -4550,6 +4586,63 @@ msgstr "Questa partita non è nel tuo elenco. Appartiene ad altri giocatori, opp
 
 msgid "tournament.failure.link_service"
 msgstr "Dai fiducia a questo servizio tornei in Account collegati, poi apri di nuovo il link della partita."
+
+msgid "tournament.watch.row"
+msgstr "Guarda questa partita"
+
+msgid "tournament.watch.row_detail"
+msgstr "Gli spettatori vedono la partita dalla sua sala. Non possono giocare né scrivere in chat, e l'organizzatore decide chi può guardare."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Esce dalla sala della partita. Puoi guardare di nuovo la partita da questo elenco."
+
+msgid "tournament.watch.needs_id"
+msgstr "Per guardare una partita serve un Ember ID. Creane uno qui, ci vuole un attimo."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Non hai ancora dato fiducia al servizio tornei di questa partita. Aggiungilo in Account collegati."
+
+msgid "tournament.watch.state.asking"
+msgstr "Richiesta al servizio tornei in corso."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "In attesa che i giocatori aprano la sala della partita."
+
+msgid "tournament.watch.state.full"
+msgstr "Questa partita ha già tutti gli spettatori consentiti dal suo organizzatore. In attesa di un posto."
+
+msgid "tournament.watch.state.joining"
+msgstr "Ingresso nella sala della partita."
+
+msgid "tournament.watch.state.watching"
+msgstr "Guardi {0} contro {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "L'organizzatore di questa partita non l'ha aperta agli spettatori."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "L'organizzatore ti ha rimosso dagli spettatori di questa partita."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Giochi in questa partita. Usa invece Gioca."
+
+msgid "tournament.watch.refused.build"
+msgstr "I giocatori usano un'altra versione di Ember. Per guardare serve la stessa."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Questo servizio tornei non permette di guardare le partite."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Hai smesso di guardare la partita perché sei in un'altra sala. Esci dalla sala e guarda di nuovo la partita."
+
+msgid "tournament.watch.finished_notice"
+msgstr "La partita che guardavi è finita."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Hai smesso di guardare: l'organizzatore ti ha rimosso."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "La sala della partita è stata chiusa."
 
 msgid "rules.set_length"
 msgstr "Durata del set"

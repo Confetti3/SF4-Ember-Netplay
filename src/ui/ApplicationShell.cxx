@@ -182,7 +182,7 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
  if(!preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending)preferences_=v.preferences;
  SyncLayoutPaths(v);
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
- if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&(v.canEditPreferences||(v.atMainMenu&&v.session.room!=RoomState::Idle&&!netplay::Fighting(v.session.match)&&OnlyLayoutsChanged(v.preferences,preferences_)))&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
+ if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&(v.canEditPreferences||(v.atMainMenu&&v.session.room!=RoomState::Idle&&!netplay::Fighting(v.session.match)&&OnlyRoomSettingsChanged(v.preferences,preferences_)))&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
   if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
 }
@@ -309,8 +309,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows={Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),
     loc::T(match_frame_meter::Allowed(v.room.serverOwned)?"settings.match_frame_meter_detail":"settings.match_frame_meter_private"),v.canEditPreferences),
    Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
-   Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences),
-   Value("watched-picture",loc::T("settings.watched_picture"),preferences_.watchedPicture?loc::T("common.on"):loc::T("common.off"),loc::T("settings.watched_picture_detail"),v.canEditPreferences)};
+   Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences)};
  }else if(screen=="discord"){
   title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
    Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
@@ -387,7 +386,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  if((screen=="room"||screen=="room-chat")&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
-   loc::Tf("room.tournament_status",static_cast<int>(v.room.tournament.gamesToWin)):
+   TournamentRoomStatus(v.room):
    std::string(loc::T(RoomStatusKey(v.room)));
   if(!healthy)statusTone=Tone::Pending;
  }
@@ -572,7 +571,6 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,preferences_.matchHudAnchor+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
-  else if(a.id=="watched-picture")preferences_.watchedPicture=a.delta>0;
   else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
   else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
   else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
@@ -636,7 +634,7 @@ void ApplicationShell::SetLanguage(std::string preference) {
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
  CancelLayoutCapture(v,submit);
- if(preferencesDirty_&&OnlyLayoutsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
+ if(preferencesDirty_&&OnlyRoomSettingsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
@@ -751,6 +749,17 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   }
   tournamentPhase_=v.tournament.phase;
  }
+ // A match being watched says how the room it was in ended, once, wherever the player is.
+ if(v.tournament.watch.noticeSequence!=watchNoticeSequence_){
+  using netplay::tournament::WatchNotice;
+  watchNoticeSequence_=v.tournament.watch.noticeSequence;
+  switch(v.tournament.watch.notice){
+  case WatchNotice::Finished:notice_=loc::T("tournament.watch.finished_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;break;
+  case WatchNotice::Removed:notice_=loc::T("tournament.watch.removed_notice");noticeTone_=Tone::Error;noticeUntil_=now+20;break;
+  case WatchNotice::RoomClosed:notice_=loc::T("tournament.watch.room_closed_notice");noticeTone_=Tone::Pending;noticeUntil_=now+12;break;
+  default:break;
+  }
+ }
  // A match link from the browser opens the match's row for the player to
  // press Play. It never leaves a room by itself: in one, it only says so.
  if(v.tournament.link.sequence!=matchLinkSequence_){
@@ -790,7 +799,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
- if(v.watchedPicture)DrawWatchedPicture(v.watchedPicture);
+ // The wide room board shows the picture at the top of its column instead (DrawRoomBoard).
+ if(v.watchedPicture&&!(nav.Screen()=="room"&&boardLayout_!=BoardLayout::Stacked&&(!preferences_.roomMembersHidden||!preferences_.roomChatHidden)))
+  DrawWatchedPicture(v.watchedPicture);
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;

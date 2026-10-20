@@ -30,7 +30,9 @@
 #                                                      (an address's budget counts both bridges);
 #                                                      another instance installs it only when absent,
 #                                                      and refuses to replace a different one
-#   /etc/nginx/sites-available/bridge.embernetplay.link (and its sites-enabled link)
+#   /etc/nginx/sites-available/bridge.embernetplay.link (and its sites-enabled link);
+#                                                      the site also defines its own BluMint callback
+#                                                      request zones, named after the instance
 # Nothing is opened in ufw: the bridge listens on loopback, nginx already serves 80 and 443.
 #
 # Before changing anything it refuses a folder that is not directly in the
@@ -48,6 +50,9 @@ bridge_instance "$SRC" operator || exit 2
 TENANTS=tenants${INSTANCE:+.$INSTANCE}.json
 UNITS=$ROOT/etc/systemd/system
 ZONE=$ROOT/etc/nginx/conf.d/ember-bridge.conf
+# nginx zone names are global, so the zones a site defines for itself are named
+# after its instance.
+ZONE_PREFIX=${NAME//-/_}
 CERT=$ROOT/etc/ssl/certs/embernetplay.link.fullchain.pem
 KEY=$ROOT/etc/ssl/private/embernetplay.link.key
 
@@ -159,11 +164,12 @@ sudo -u "$NAME" python3 -c "$MERGE" "$STATE/bridge.json" < "$SRC/$TENANTS"
 
 # Every instance's units and site come from one template each: @NAME@ is the
 # account, unit and folder name, @HOST@ and @PORT@ come from the tenants
-# file, and @LABEL@ names an instance other than production in descriptions.
+# file, @ZONE@ prefixes the request zones the site defines, and @LABEL@
+# names an instance other than production in descriptions.
 LABEL=${INSTANCE:+ ($INSTANCE)}
 render() {
     sed -e "s/@NAME@/$NAME/g" -e "s/@HOST@/$HOST/g" -e "s/@PORT@/$PORT/g" \
-        -e "s/@LABEL@/$LABEL/g" "$1" > "$2.new"
+        -e "s/@LABEL@/$LABEL/g" -e "s/@ZONE@/$ZONE_PREFIX/g" "$1" > "$2.new"
     chmod 0644 "$2.new"
     mv -f "$2.new" "$2"
 }

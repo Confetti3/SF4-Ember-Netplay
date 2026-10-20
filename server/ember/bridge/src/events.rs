@@ -138,6 +138,21 @@ pub enum Viewer {
     },
 }
 
+impl Viewer {
+    /// Whether this viewer may see what belongs to `connection_id` of
+    /// `tenant_id`: the connection's own provider, or an organizer of the
+    /// tenant. A player sees no connection's matches this way.
+    pub fn sees(&self, tenant_id: &str, connection_id: &str) -> bool {
+        match self {
+            Self::Provider {
+                connection_id: own, ..
+            } => own == connection_id,
+            Self::Organizer { tenant_id: own } => own == tenant_id,
+            Self::Player { .. } => false,
+        }
+    }
+}
+
 pub const MAX_PAGE: usize = 200;
 
 /// Events after `after` visible to `viewer`, oldest first.

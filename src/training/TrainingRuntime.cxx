@@ -458,6 +458,7 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
         sample.comboDamage = Dimps::Math::FixedToFloat(&value);
         (actor->*Actor::publicMethods.GetVitalityAmt_FixedPoint)(&value);
         sample.health = Dimps::Math::FixedToFloat(&value);
+        sample.untilActionable = (actor->*Actor::publicMethods.GetFramesUntilActionable)();
         sample.valid = true;
     }
     return fighters;

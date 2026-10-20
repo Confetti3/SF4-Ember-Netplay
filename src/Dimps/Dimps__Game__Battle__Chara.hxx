@@ -155,6 +155,9 @@ namespace Dimps {
                         // The command (.bcm) move the actor's Skill plays (actor +0x2188),
                         // null on any other status; its category is at +0x28.
                         const unsigned char* (Actor::* GetCommandMove)();
+						// Frames until the actor can act again, hitstop included, as the
+						// game keeps them for its input buffer: the s16 at actor +0x6E7A.
+						int (Actor::* GetFramesUntilActionable)();
 
 						void (Actor::* GetVitalityAmt_FixedPoint)(Dimps::Math::FixedPoint* out);
 						void (Actor::* GetVitalityMax_FixedPoint)(Dimps::Math::FixedPoint* out);

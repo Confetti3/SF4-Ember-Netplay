@@ -790,12 +790,6 @@ msgstr "Save matches you watch"
 msgid "replays.save_watched_detail"
 msgstr "Also saves matches you watch as a spectator. Off saves only the matches you play."
 
-msgid "settings.watched_picture"
-msgstr "Watched game in a corner"
-
-msgid "settings.watched_picture_detail"
-msgstr "With Ember's menu open over a game you watch, shows it small in the top right corner over a solid menu instead of dimmed behind the menu."
-
 msgid "replays.link"
 msgstr "Play the replay from the link"
 
@@ -1405,7 +1399,13 @@ msgid "room.private_status"
 msgstr "Private room / invitation only"
 
 msgid "room.tournament_status"
-msgstr "Tournament match, first to {0}. Only its two players can join."
+msgstr "Tournament match, first to {0}. Only its two players can play."
+
+msgid "room.tournament_status_watched"
+msgstr "Tournament match, first to {0}. {1} watching."
+
+msgid "room.tournament_watching"
+msgstr "Watching a tournament match. Only its two players can play."
 
 msgid "room.reconnecting"
 msgstr "Reconnecting to room..."
@@ -1955,6 +1955,9 @@ msgstr "Knockdown"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"
+
+msgid "training.meter.hitstop"
+msgstr "Hitstop"
 
 msgid "training.meter.throw"
 msgstr "Throw / cinematic"
@@ -2622,10 +2625,28 @@ msgid "room.member_status_host"
 msgstr "{0} / HOST"
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Watcher"
 msgid "room.members"
 msgstr "Members"
 msgid "room.member_count"
 msgstr "{0} / {1} members."
+msgid "room.hide_members"
+msgstr "Hide members"
+msgid "room.show_members"
+msgstr "Show members"
+msgid "room.hide_chat"
+msgstr "Hide chat"
+msgid "room.show_chat"
+msgstr "Show chat"
+msgid "room.part_detail"
+msgstr "Hides this part of the column or brings it back. Drag the lines between the board, the members and the chat to resize them."
+msgid "room.more"
+msgstr "More…"
+msgid "room.more.detail"
+msgstr "Room settings and the room's invitation."
+msgid "room.members_summary"
+msgstr "{0} playing · {1} watching"
 msgid "room.chat"
 msgstr "Chat"
 msgid "room.chat.detail"
@@ -2882,6 +2903,12 @@ msgid "room.join_queue"
 msgstr "Join queue"
 msgid "room.stop_watching"
 msgstr "Stop watching"
+msgid "room.picture_behind"
+msgstr "Game behind menu"
+msgid "room.picture_show"
+msgstr "Game as picture"
+msgid "room.picture_swap.detail"
+msgstr "Swaps the watched game between a small picture and the dimmed game behind the menu, for this session."
 msgid "room.stop_watching.detail"
 msgstr "Stops watching this table and returns you to the room. The fighters keep playing."
 msgid "room.stop_watching.finished"
@@ -3082,6 +3109,10 @@ msgid "runtime.spectator_action_retrying"
 msgstr "The spectator action could not be sent; retrying."
 msgid "runtime.return_main_menu"
 msgstr "Return to the game main menu before opening a room."
+msgid "runtime.in_tournament_match"
+msgstr "You are playing or watching a tournament match. Finish it or stop it under Tournament matches before you open or join another room."
+msgid "runtime.watch_leave_room"
+msgstr "Leave your room before you watch a tournament match."
 msgid "runtime.tournament_result_saving"
 msgstr "Saving the last game's result. Try again in a few seconds."
 msgid "runtime.room_action_failed"
@@ -4191,6 +4222,63 @@ msgstr "That match is not in your list. It belongs to other players, or this ser
 
 msgid "tournament.failure.link_service"
 msgstr "Trust this tournament service under Linked accounts, then open the match link again."
+
+msgid "tournament.watch.row"
+msgstr "Watch this match"
+
+msgid "tournament.watch.row_detail"
+msgstr "Watchers see the match from its room. They cannot play or chat, and the organizer decides who may watch."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Leaves the match room. You can watch the match again from this list."
+
+msgid "tournament.watch.needs_id"
+msgstr "Watching a match needs an Ember ID. Make one here; it takes a moment."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "This match's tournament service is not trusted yet. Add it on Linked accounts."
+
+msgid "tournament.watch.state.asking"
+msgstr "Asking the tournament service."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Waiting for the players to open the match room."
+
+msgid "tournament.watch.state.full"
+msgstr "This match has all the watchers its organizer allows. Waiting for a place."
+
+msgid "tournament.watch.state.joining"
+msgstr "Joining the match room."
+
+msgid "tournament.watch.state.watching"
+msgstr "Watching {0} vs {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "This match's organizer has not opened it to watchers."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "The organizer removed you from this match's watchers."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "You play in this match. Use Play instead."
+
+msgid "tournament.watch.refused.build"
+msgstr "The players run a different Ember version. Watching needs the same one."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "This tournament service does not offer watching."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Watching stopped because you are in another room. Leave it, then watch the match again."
+
+msgid "tournament.watch.finished_notice"
+msgstr "The match you watched is over."
+
+msgid "tournament.watch.removed_notice"
+msgstr "You stopped watching: the organizer removed you."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "The match room closed."
 
 msgid "rules.set_length"
 msgstr "Set length"

@@ -11,6 +11,7 @@
 namespace sf4e { namespace NetplayFacade {
 namespace {
 using netplay::tournament::Output;
+using netplay::tournament::WatchOutput;
 using nlohmann::json;
 
 json Counter(std::uint64_t value) { return value ? json(std::to_string(value)) : json(nullptr); }
@@ -41,6 +42,19 @@ json Request(const Output& output) {
 	}
 }
 
+// The helper request for a watcher's output, or null for the room commands.
+json WatchRequest(const WatchOutput& output) {
+	const auto& watch = runtime->watch;
+	switch (output.kind) {
+	case WatchOutput::Kind::Watch:
+		return {{"op", "match_watch"}, {"bridge_id", watch.BridgeId()}, {"match_id", watch.MatchId()}, {"build", sf4e::sidecarHash}};
+	case WatchOutput::Kind::Unwatch:
+		return {{"op", "match_unwatch"}, {"bridge_id", watch.BridgeId()}, {"match_id", watch.MatchId()}};
+	default:
+		return nullptr;
+	}
+}
+
 const char* KindName(Output::Kind kind) {
 	switch (kind) {
 	case Output::Kind::Claim: return "claim";
@@ -52,12 +66,21 @@ const char* KindName(Output::Kind kind) {
 	}
 }
 
-void SendRequest(const Output& output, std::uint64_t nowMs) {
-	const auto request = Request(output);
-	std::uint64_t id = 0;
+// Hands `request` to the helper, and says under which id its answer comes.
+bool SendToHelper(const json& request, std::uint64_t& id) {
 	std::string text;
 	try { text = request.dump(); } catch (const json::exception&) { text.clear(); }
-	if (!text.empty() && runtime->room && runtime->room->SendTournament(text, &id)) {
+	return !text.empty() && runtime->room && runtime->room->SendTournament(text, &id);
+}
+
+// Why a helper request failed, as the state machines are told.
+std::string FailureCode(const session::TournamentAnswer& answer) {
+	return answer.reason.empty() ? std::string("unavailable") : answer.reason;
+}
+
+void SendRequest(const Output& output, std::uint64_t nowMs) {
+	std::uint64_t id = 0;
+	if (SendToHelper(Request(output), id)) {
 		runtime->tournamentRequests[id] = {output.kind, output.generation};
 		return;
 	}
@@ -66,6 +89,17 @@ void SendRequest(const Output& output, std::uint64_t nowMs) {
 	// match if it never gets saved.
 	if (output.kind == Output::Kind::Report) runtime->tournament.OnReportFailed(output.generation, "helper_unavailable", nowMs);
 	else if (output.kind != Output::Kind::Forget) runtime->tournament.OnFailure(output.kind, "helper_unavailable", nowMs);
+}
+
+void SendWatchRequest(const WatchOutput& output, std::uint64_t nowMs) {
+	std::uint64_t id = 0;
+	if (SendToHelper(WatchRequest(output), id)) {
+		runtime->watchRequests[id] = output.kind;
+		return;
+	}
+	spdlog::warn("Watch: request not sent");
+	// An unwatch nobody hears only leaves the bridge to drop the watcher itself.
+	if (output.kind == WatchOutput::Kind::Watch) runtime->watch.OnFailure("helper_unavailable", nowMs);
 }
 
 void SendPermitReady(const Output& output) {
@@ -88,8 +122,8 @@ void SendPermitReady(const Output& output) {
 
 // A room command the runtime would not carry out leaves the state machine
 // waiting out its open timeout; the log says why the room never came.
-void RoomCommand(netplay::Command command, const char* what) {
-	const auto outcome = DispatchTournamentRoomCommand(std::move(command));
+void RoomCommand(netplay::Command command, const char* what, JoinKind join = JoinKind::Private) {
+	const auto outcome = DispatchTournamentRoomCommand(std::move(command), join);
 	if (outcome == netplay::DispatchOutcome::Dispatched) spdlog::info("Tournament: {}", what);
 	else spdlog::warn("Tournament: {} not started (outcome {})", what, static_cast<int>(outcome));
 }
@@ -124,6 +158,24 @@ void Execute(const Output& output, std::uint64_t nowMs) {
 	case Output::Kind::PermitReady:
 		SendPermitReady(output);
 		break;
+	}
+}
+
+void ExecuteWatch(const WatchOutput& output, std::uint64_t nowMs) {
+	switch (output.kind) {
+	case WatchOutput::Kind::Watch:
+	case WatchOutput::Kind::Unwatch:
+		SendWatchRequest(output, nowMs);
+		break;
+	case WatchOutput::Kind::Join:
+		RoomCommand({netplay::CommandKind::JoinInvite, {}, output.invitation}, "joining the match's room as a watcher", JoinKind::Observer);
+		break;
+	case WatchOutput::Kind::Leave: {
+		const auto room = runtime->controller.GetSnapshot().room;
+		if (room == netplay::RoomState::Idle || room == netplay::RoomState::Closing) break;
+		RoomCommand({netplay::CommandKind::LeaveRoom, {}, {}}, "leaving the watched room");
+		break;
+	}
 	}
 }
 
@@ -192,10 +244,30 @@ bool TakePackSaved(const session::TournamentAnswer& answer) {
 	return true;
 }
 
+// The helper's answer to a watcher's ask. An unwatch has nothing awaiting it.
+bool TakeWatchAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
+	const auto found = runtime->watchRequests.find(answer.requestId);
+	if (found == runtime->watchRequests.end()) return false;
+	const auto kind = found->second;
+	runtime->watchRequests.erase(found);
+	if (kind != WatchOutput::Kind::Watch) return true;
+	auto& watch = runtime->watch;
+	if (!answer.ok) {
+		const auto code = FailureCode(answer);
+		spdlog::info("Watch: refused: {}", code);
+		watch.OnFailure(code, nowMs);
+	} else if (const auto reply = session::DecodeWatchReply(answer.data)) {
+		watch.OnReply(*reply, nowMs);
+	} else {
+		watch.OnFailure("bridge_invalid_response", nowMs);
+	}
+	return true;
+}
+
 void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	if (answer.requestId && answer.requestId == runtime->assignmentRequest) { TakeAssignments(answer); return; }
 	if (TakeReplaySent(answer, nowMs) || TakePackSaved(answer)) return;
-	if (TakePublicRoomsAnswer(answer)) return;
+	if (TakePublicRoomsAnswer(answer) || TakeWatchAnswer(answer, nowMs)) return;
 	const auto found = runtime->tournamentRequests.find(answer.requestId);
 	if (found == runtime->tournamentRequests.end()) return;
 	const auto kind = found->second.kind;
@@ -203,7 +275,7 @@ void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	runtime->tournamentRequests.erase(found);
 	auto& play = runtime->tournament;
 	if (!answer.ok) {
-		const auto code = answer.reason.empty() ? std::string("unavailable") : answer.reason;
+		const auto code = FailureCode(answer);
 		spdlog::info("Tournament: {} refused: {}", KindName(kind), code);
 		if (kind == Output::Kind::Report) play.OnReportFailed(generation, code, nowMs);
 		else play.OnFailure(kind, code, nowMs);
@@ -307,10 +379,8 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 		return;
 	}
 	case Op::Play: {
-		const auto phase = play.GetPhase();
-		const bool active = phase == netplay::tournament::Phase::Claiming || phase == netplay::tournament::Phase::Opening ||
-			phase == netplay::tournament::Phase::InRoom;
-		if (command.bridgeId.empty() || command.matchId.empty() || active) return;
+		if (command.bridgeId.empty() || command.matchId.empty() ||
+			netplay::tournament::HoldsMatchRoom(play.GetPhase(), runtime->watch.GetPhase())) return;
 		if (!helperReady || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) {
 			runtime->error = loc::T("runtime.return_main_menu");
 			return;
@@ -325,9 +395,27 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 		play.Start(command.bridgeId, command.matchId, now);
 		return;
 	}
+	case Op::Watch: {
+		if (command.bridgeId.empty() || command.matchId.empty() ||
+			netplay::tournament::HoldsMatchRoom(play.GetPhase(), runtime->watch.GetPhase())) return;
+		// A watch acts only on the match's room, so it starts from no room at all.
+		if (runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) {
+			runtime->error = loc::T("runtime.watch_leave_room");
+			return;
+		}
+		if (!helperReady) {
+			runtime->error = loc::T("runtime.return_main_menu");
+			return;
+		}
+		spdlog::info("Watch: watching match {}", command.matchId);
+		runtime->watchRequests.clear();
+		runtime->watch.Start(command.bridgeId, command.matchId, now);
+		return;
+	}
 	case Op::Stop:
 		spdlog::info("Tournament: stopped by the player");
 		play.Stop();
+		runtime->watch.Stop();
 		return;
 	case Op::RoomList:
 	case Op::RoomCreate:
@@ -365,7 +453,10 @@ void TickTournament(bool helperReady) {
 	const auto now = GetTickCount64();
 	// The helper is not restarted while the game runs, and the binding names
 	// its endpoint: without it the match cannot go on from this game.
-	if (runtime->helperLossReported) runtime->tournament.Abandon("helper_lost");
+	if (runtime->helperLossReported) {
+		runtime->tournament.Abandon("helper_lost");
+		runtime->watch.Abandon("helper_lost");
+	}
 	// The fighters' link dropped (GGPO warns before it gives up): a game that
 	// then ends in an abort ended for the lost connection, whichever fighter's
 	// abort the room takes first, so both fighters are told the same.
@@ -374,7 +465,9 @@ void TickTournament(bool helperReady) {
 	for (const auto& answer : runtime->room->TakeTournamentAnswers()) TakeAnswer(answer, now);
 	SendSetReplays(helperReady, now);
 	const auto before = runtime->tournament.GetPhase();
-	for (const auto& output : runtime->tournament.Tick(now, View(helperReady))) Execute(output, now);
+	const auto view = View(helperReady);
+	for (const auto& output : runtime->tournament.Tick(now, view)) Execute(output, now);
+	for (const auto& output : runtime->watch.Tick(now, view)) ExecuteWatch(output, now);
 	const auto after = runtime->tournament.GetPhase();
 	if (after != before && (after == netplay::tournament::Phase::Finished || after == netplay::tournament::Phase::Failed))
 		spdlog::info("Tournament: match {} ended: {}", runtime->tournament.MatchId(), runtime->tournament.Reason());
@@ -412,7 +505,21 @@ netplay::tournament::Status TournamentStatus() {
 	status.reason = play.Reason();
 	status.waitingForOpponent = play.WaitingForOpponent();
 	status.waitingForPermit = play.WaitingForPermit();
+	const auto& watch = runtime->watch;
+	status.watch.phase = watch.GetPhase();
+	status.watch.bridgeId = watch.BridgeId();
+	status.watch.matchId = watch.MatchId();
+	status.watch.reason = watch.Reason();
+	status.watch.full = watch.Full();
+	status.watch.notice = watch.Notice();
+	status.watch.noticeSequence = watch.NoticeSequence();
 	return status;
+}
+
+bool EndWatchedRoom(netplay::tournament::WatchRoomEnd end) {
+	if (!runtime->watch.Active()) return false;
+	runtime->watch.OnRoomEnded(end, GetTickCount64());
+	return true;
 }
 } // namespace internal
 } } // namespace sf4e::NetplayFacade

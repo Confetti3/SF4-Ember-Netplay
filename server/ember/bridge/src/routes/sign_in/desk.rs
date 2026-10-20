@@ -34,7 +34,11 @@ use crate::{
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, cookie, json as answer, ok, page},
     linking::Site,
-    routes::{organizer::Caller, rooms::Address, sessions},
+    routes::{
+        organizer::Caller,
+        rooms::Address,
+        sessions::{Call, Nothing},
+    },
     util::{html, random},
 };
 
@@ -455,10 +459,20 @@ pub async fn end_web_sessions(
         Method::Delete,
         WEB_SESSIONS_PATH.to_owned(),
     );
-    let ended = sessions::as_proven(&state, player, &body, target, |tx, _, ember_id| {
-        Ok(tx.execute("DELETE FROM desk_sessions WHERE ember_id = ?1", [ember_id])?)
-    })
-    .await?;
+    let ended = Call::from(target)
+        .run(
+            &state,
+            &player,
+            &body,
+            Nothing::check,
+            |tx, _, ember_id, _: Nothing| {
+                Ok(tx.execute(
+                    "DELETE FROM desk_sessions WHERE ember_id = ?1",
+                    [ember_id.as_str()],
+                )?)
+            },
+        )
+        .await?;
     Ok(ok(&json!({ "ended": ended })))
 }
 
@@ -488,18 +502,25 @@ pub async fn handoff(
     let token = b64u(&random::<32>());
     let token_hash = auth::hash(&state.keys, "desk-handoff", &token);
     let target = (Action::SiteConnect, Method::Post, HANDOFF_PATH.to_owned());
-    sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
-        tx.execute(
-            "DELETE FROM desk_handoffs WHERE expires_at <= ?1",
-            [ctx.now],
-        )?;
-        tx.execute(
-            "INSERT INTO desk_handoffs (token_hash, ember_id, expires_at) VALUES (?1, ?2, ?3)",
-            params![token_hash.as_slice(), ember_id, ctx.now + HANDOFF_SECS],
-        )?;
-        Ok(())
-    })
-    .await?;
+    Call::from(target)
+        .run(
+            &state,
+            &player,
+            &body,
+            Nothing::check,
+            move |tx, ctx, ember_id, _: Nothing| {
+                tx.execute(
+                    "DELETE FROM desk_handoffs WHERE expires_at <= ?1",
+                    [ctx.now],
+                )?;
+                tx.execute(
+                "INSERT INTO desk_handoffs (token_hash, ember_id, expires_at) VALUES (?1, ?2, ?3)",
+                params![token_hash.as_slice(), ember_id.as_str(), ctx.now + HANDOFF_SECS],
+            )?;
+                Ok(())
+            },
+        )
+        .await?;
     Ok(answer(
         StatusCode::CREATED,
         &json!({ "token": token, "expires_at": now + HANDOFF_SECS }),

@@ -14,6 +14,11 @@ pub enum Command {
         epoch: u64,
         invitation: String,
         build: String,
+        /// The joiner watches a tournament match (docs/design/MATCH_WATCH.md
+        /// 5.3), with the full invitation the bridge gave it. Sent only when
+        /// true.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        observer: bool,
     },
     /// Host a public (server-owned) room. `ticket_key` is the bridge's public
     /// key as `/v1/signing-keys` publishes it; members are admitted by tickets
@@ -374,6 +379,7 @@ pub enum Event {
         peer: EndpointId,
         generation: u64,
         /// Set when the link never formed: what this helper saw instead.
+        /// After a bridge ends, its connection's close reason.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reason: Option<String>,
     },

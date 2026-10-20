@@ -18,7 +18,7 @@
 param(
     [string]$PackageDir = "",
     # The names sf4e__SelfTest.hxx knows (selftest::Test).
-    [ValidateSet("training", "room-host", "room-guest", "replay", "tournament-host", "tournament-guest")]
+    [ValidateSet("training", "room-host", "room-guest", "room-layout", "replay", "tournament-host", "tournament-guest")]
     [string]$Test = "training",
     # The room tests: the file the host writes its invitation to, and the
     # guest reads it from once the runner has copied it across.
@@ -128,7 +128,7 @@ $settings = @()
 if ($Test -like "room-*" -or $Test -like "tournament-*") {
     $settings = @("settings.json", "ui-preferences.json") | ForEach-Object { Join-Path $env:APPDATA "sf4e\$_" }
 }
-if ($Test -like "room-*") {
+if ($Test -eq "room-host" -or $Test -eq "room-guest") {
     if (-not $Invite) { throw "-Invite is needed for $Test" }
     $env:SF4E_SELFTEST_INVITE = $Invite
 }

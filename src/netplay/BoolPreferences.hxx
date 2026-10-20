@@ -16,13 +16,13 @@ inline constexpr BoolPreference BoolPreferences[] = {
     {"showMatchHud", &PlayerPreferences::showMatchHud}, {"matchHudRaised", &PlayerPreferences::matchHudRaised},
     {"showShortcutHint", &PlayerPreferences::showShortcutHint},
     {"readySound", &PlayerPreferences::readySound}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady},
-    {"watchedPicture", &PlayerPreferences::watchedPicture},
     {"matchFrameMeter", &PlayerPreferences::matchFrameMeter}, {"backgroundPlay", &PlayerPreferences::backgroundPlay},
     {"lowerInputLag", &PlayerPreferences::lowerInputLag}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag},
     {"fasterDisplay", &PlayerPreferences::fasterDisplay}, {"borderless", &PlayerPreferences::borderless},
     {"controllerLayer", &PlayerPreferences::controllerLayer},
     {"recordWatched", &PlayerPreferences::recordWatched}, {"discordPresence", &PlayerPreferences::discordPresence},
     {"discordInvites", &PlayerPreferences::discordInvites}, {"shareSteamProfile", &PlayerPreferences::shareSteamProfile}, {"sendProblemReports", &PlayerPreferences::sendProblemReports},
+    {"roomMembersHidden", &PlayerPreferences::roomMembersHidden}, {"roomChatHidden", &PlayerPreferences::roomChatHidden},
 };
 
 } }

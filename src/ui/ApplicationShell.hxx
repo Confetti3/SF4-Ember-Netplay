@@ -150,9 +150,9 @@ struct ShellView {
     // input::MenuContext::WatchedMatch): Ember's menu is open over it, and Stop
     // watching leaves it. Empty when nothing is watched.
     netplay::WatchedGame watchedGame;
-    // That game's picture, for the menu's top right corner over an opaque
-    // menu (PlayerPreferences::watchedPicture); null when it is not wanted or
-    // could not be taken.
+    // That game's picture, for the top of the wide room board's column or the
+    // menu's top right corner, over an opaque menu (WatchedPictureWanted);
+    // null when it is not wanted or could not be taken.
     ImTextureID watchedPicture{};
     // Ember's menu shows the watched game through itself, dimmed, instead.
     bool SeeThrough() const { return watchedGame.Active() && !watchedPicture; }
@@ -204,6 +204,9 @@ struct ShellAction {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
+    // Saves only the settings a room leaves open, button layouts and the room
+    // board's column, from `preferences` (PlayerPreferences::CopyRoomSettings); sent alone.
+    bool roomSettings=false;
     // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
     // sent alone. The runtime decides whether it still holds.
     TrainingEntry training=TrainingEntry::None;
@@ -237,8 +240,9 @@ struct ShellAction {
 };
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
-// CatchingUp hold one the player entered (queuedChat_) until the room can take it.
-enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable };
+// CatchingUp hold one the player entered (queuedChat_) until the room can take it. ReadOnly is a
+// tournament match's watcher: it reads the chat and has no box to write in.
+enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable, ReadOnly };
 
 class ApplicationShell {
 public:
@@ -265,6 +269,9 @@ public:
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
     // The last Draw drew the room board, whose ping the runtime asks for only while it is drawn.
     bool BoardDrawn() const { return boardDrawn_; }
+    // The watched game is shown as a picture, as the board's toggle last left
+    // it this session; at first it shows dimmed behind the menu.
+    bool WatchedPictureWanted() const { return watchedPicture_; }
     // The last Draw drew the fighter selector.
     bool SelectionDrawn() const { return selectionDrawn_; }
     bool NoticeError() const { return menu_.NoticeError(); }
@@ -414,6 +421,11 @@ private:
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
+    // How the board last laid itself out, which the next frame's rows follow:
+    // stacked in one list, wide with its column, or wide on a screen under 820
+    // lines, which folds its sharing and settings into More…. Only a wide
+    // board shows the chat as a part of its column.
+    enum class BoardLayout { Stacked, Wide, WideShort } boardLayout_=BoardLayout::Wide;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.
@@ -425,6 +437,11 @@ private:
     void DrawChatLog(const ShellView& view,bool compact);
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
+    // The Chat screen's message box, and the room left in the message at the right of the note line
+    // under it (`noteHeight` tall). A tournament match's watcher has neither.
+    void DrawChatBox(float x,float width,bool typable,float noteHeight);
+    // The room left in the message, in bytes, which the counter says.
+    int ChatBytesLeft() const;
     ChatTranscript transcript_;
     // A message sent and not yet seen in the room's chat. The draft stays in the box until it is, however
     // late, or until the room changes; `after` is the newest message already looked at. For 8 seconds
@@ -467,6 +484,8 @@ private:
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;
     bool boardDrawn_ = false;
+    // The board's toggle between the picture and the game behind the menu.
+    bool watchedPicture_ = false;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
@@ -488,6 +507,8 @@ private:
     netplay::tournament::Phase tournamentPhase_ = netplay::tournament::Phase::Idle;
     // The last match link outcome announced.
     std::uint64_t matchLinkSequence_ = 0;
+    // The last watch notice shown (a match over, the watcher removed, the room closed).
+    std::uint64_t watchNoticeSequence_ = 0;
     // The last Discord connect link seen, and its service until Connect
     // Discord can open (not in a room).
     std::uint64_t connectLinkSequence_ = 0;

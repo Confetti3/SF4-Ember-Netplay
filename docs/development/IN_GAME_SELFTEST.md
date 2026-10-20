@@ -53,6 +53,12 @@ repeats by default, so it first turns Loop off, then:
   frame data's, startup 3, active 2 and recovery 7, and its bars have to
   draw 3, 2 and 6 cells (the last recovery frame has no cell; see
   `ClassifyMeter` in `FrameMeter.hxx`);
+- Player 1 walks up and hits the other Ryu with crouching LP. The advantage
+  the meter measures once both have recovered, and the one it marks on the
+  hit as it lands (`MeterCell::hitAdvantage`, from the game's frames until
+  each fighter can act), both have to be the frame data's +5;
+- it walks up again and hits with crouching HP, a move made to be
+  cancelled: both have to be -13;
 - the lab's record control is pressed three times: standby, recording for
   eight seconds, stop. The slot has to hold about that many frames, and its
   playback has to get into it. The HUD's recording and playback strip shows
@@ -84,6 +90,22 @@ Player 1 and the guest as Player 2, readies as Ryu and waits for the match
 to go live. The host then ends the game and both leave the room. Hosting,
 the names the two sides take and the controller a room needs write Ember's
 settings, so the script copies them first and puts them back after the run.
+
+## The room layout test
+
+One PC checks that the room board's column settings (its width, the
+members' share and which part is hidden) are saved from inside a room,
+where the player's other settings are locked:
+
+```powershell
+scripts\run-selftest.ps1 -PackageDir <stage> -Test room-layout
+```
+
+It opens a private room, sends the column's settings the way the board
+sends them, and checks that the runtime takes them and that `settings.json`,
+which the next start reads, holds them. It then puts the old values back
+and leaves. Like the other room tests, the script copies Ember's settings
+first and puts them back after the run.
 
 ## The tournament test
 

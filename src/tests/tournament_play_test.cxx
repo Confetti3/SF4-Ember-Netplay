@@ -59,6 +59,18 @@ static RoomView Joined(const std::string& roomId, const room::Snapshot* snapshot
 	return view;
 }
 
+static RoomView Opening() {
+	RoomView view;
+	view.opening = true;
+	return view;
+}
+
+// The join of the room the bridge named goes out. A match acts only on rooms
+// it opened, so a test puts it in the match's room this way.
+static void JoinNamed(TournamentPlay& play, std::uint64_t now) {
+	CHECK(Count(play.Tick(now, {}), Kind::Join) == 1);
+}
+
 // The first fighter to claim hosts, publishes its room with the lease, and,
 // leading the room, binds it once.
 static void TestHostPublishesAndBinds() {
@@ -160,13 +172,78 @@ static void TestLeaseMoved() {
 	TournamentPlay play;
 	play.Start("brg_x", "emt_x", 0);
 	play.Tick(0, {});
-	play.OnRoom(Kind::Claim, Room(RoomB, std::nullopt), 100);
+	ClaimReply lease;
+	lease.role = ClaimReply::Role::Host;
+	lease.leaseId = "lse_1";
+	lease.fence = "1";
+	play.OnRoom(Kind::Claim, lease, 50);
+	CHECK(Count(play.Tick(60, {}), Kind::Host) == 1);
 	room::Snapshot snapshot;
+	play.Tick(70, Opening());
+	play.Tick(80, Joined(RoomA, &snapshot));
+	play.OnRoom(Kind::Claim, Room(RoomB, std::nullopt), 100);
 	auto out = play.Tick(200, Joined(RoomA, &snapshot));
 	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Join) == 0);
 	CHECK(Count(play.Tick(300, Joined(RoomA, &snapshot)), Kind::Leave) == 0);
 	out = play.Tick(400, {});
 	CHECK(Count(out, Kind::Join) == 1);
+}
+
+// A room the player opened or joined by hand is the player's own: whatever the
+// bridge answers and however the match ends, it is never left, joined over or
+// published. The match waits, and opens its room once the player has left.
+static void TestNeverActsOnAForeignRoom() {
+	static const std::string HandRoom(32, 'c');
+	room::Snapshot snapshot;
+	const auto hand = Joined(HandRoom, &snapshot);
+	// The claim names the match's room while the player sits in theirs (the hole
+	// that left a hand-opened room).
+	TournamentPlay named;
+	named.Start("brg_x", "emt_x", 0);
+	named.Tick(0, {});
+	named.OnRoom(Kind::Claim, Room(RoomB, MakeBinding(RoomB, 0)), 100);
+	for (std::uint64_t now = 200; now < 100000; now += 5000) {
+		const auto out = named.Tick(now, hand);
+		CHECK(Count(out, Kind::Leave) == 0 && Count(out, Kind::Join) == 0 && Count(out, Kind::Bind) == 0);
+	}
+	CHECK(named.GetPhase() == Phase::Claiming);
+	CHECK(Count(named.Tick(100000, {}), Kind::Join) == 1);
+	// Holding the lease, it neither hosts over the player's room nor publishes it.
+	TournamentPlay leased;
+	leased.Start("brg_x", "emt_x", 0);
+	leased.Tick(0, {});
+	ClaimReply lease;
+	lease.role = ClaimReply::Role::Host;
+	lease.leaseId = "lse_1";
+	leased.OnRoom(Kind::Claim, lease, 100);
+	auto out = leased.Tick(200, hand);
+	CHECK(Count(out, Kind::Host) == 0 && Count(out, Kind::Publish) == 0 && Count(out, Kind::Leave) == 0);
+	// Ended in any way, it leaves nothing of the player's.
+	for (const char* code : {"stale_revision", "not_found"}) {
+		TournamentPlay ended;
+		ended.Start("brg_x", "emt_x", 0);
+		ended.Tick(0, {});
+		ended.OnRoom(Kind::Claim, Room(RoomB, std::nullopt), 100);
+		ended.Tick(200, hand);
+		ended.OnFailure(Kind::Claim, code, 300);
+		CHECK(Count(ended.Tick(400, hand), Kind::Leave) == 0);
+		CHECK(Count(ended.Tick(400 + FinalBattleHoldMs, hand), Kind::Leave) == 0);
+	}
+	TournamentPlay stopped;
+	stopped.Start("brg_x", "emt_x", 0);
+	stopped.Tick(0, {});
+	stopped.OnRoom(Kind::Claim, Room(RoomB, std::nullopt), 100);
+	stopped.Stop();
+	CHECK(Count(stopped.Tick(200, hand), Kind::Leave) == 0);
+	// A join that failed is not under way: the room that opens next is not the match's.
+	TournamentPlay failed;
+	failed.Start("brg_x", "emt_x", 0);
+	failed.Tick(0, {});
+	failed.OnRoom(Kind::Claim, Room(RoomB, std::nullopt), 100);
+	JoinNamed(failed, 200);
+	failed.Tick(300, {});
+	failed.Abandon("helper_lost");
+	CHECK(Count(failed.Tick(400, Opening()), Kind::Leave) == 0);
 }
 
 // The permit for a reserved game is fetched, told to the room until the
@@ -176,6 +253,7 @@ static void TestPermitsAndReports() {
 	play.Start("brg_x", "emt_x", 0);
 	play.Tick(0, {});
 	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 0);
+	JoinNamed(play, 50);
 	room::Snapshot snapshot;
 	snapshot.tournament = MakeBinding(RoomA, 1).room;
 	auto& table = snapshot.tables[room::TournamentTable];
@@ -226,6 +304,7 @@ static void TestCancelledStart() {
 	play.Start("brg_x", "emt_x", 0);
 	play.Tick(0, {});
 	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	JoinNamed(play, 50);
 	room::Snapshot snapshot;
 	snapshot.tournament = MakeBinding(RoomA, 0).room;
 	auto& table = snapshot.tables[room::TournamentTable];
@@ -253,13 +332,14 @@ static void TestFinishedAndFailed() {
 	play.Start("brg_x", "emt_x", 0);
 	play.Tick(0, {});
 	play.OnRoom(Kind::Claim, Room(RoomA, std::nullopt), 0);
-	play.Tick(100, {});
+	JoinNamed(play, 100);
 	play.OnFailure(Kind::Claim, "bridge_unreachable", 200);
 	CHECK(play.GetPhase() == Phase::Opening);
-	CHECK(Count(play.Tick(5200, {}), Kind::Claim) == 1);
+	CHECK(Count(play.Tick(5200, Opening()), Kind::Claim) == 1);
 	play.OnFailure(Kind::Claim, "stale_revision", 5300);
 	CHECK(play.GetPhase() == Phase::Finished && play.Reason() == "stale_revision");
-	auto out = play.Tick(5400, {});
+	// Its join is still under way: that is left.
+	auto out = play.Tick(5400, Opening());
 	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Forget) == 1);
 	CHECK(play.Tick(5500, {}).empty());
 	TournamentPlay other;
@@ -273,9 +353,10 @@ static void TestFinishedAndFailed() {
 	lost.Start("brg_x", "emt_x", 0);
 	lost.Tick(0, {});
 	lost.OnRoom(Kind::Claim, Room(RoomA, std::nullopt), 0);
+	JoinNamed(lost, 50);
 	lost.Abandon("helper_lost");
 	CHECK(lost.GetPhase() == Phase::Failed && lost.Reason() == "helper_lost");
-	CHECK(Count(lost.Tick(100, {}), Kind::Leave) == 1);
+	CHECK(Count(lost.Tick(100, Opening()), Kind::Leave) == 1);
 	other.Abandon("helper_lost");
 	CHECK(other.Reason() == "not_found");
 }
@@ -291,6 +372,7 @@ static void TestFinishedWaitsForTheLastBattle() {
 		play.Start("brg_x", "emt_x", 0);
 		play.Tick(0, {});
 		play.OnRoom(Kind::Claim, Room(RoomA, std::nullopt), 0);
+		JoinNamed(play, 50);
 		play.Tick(100, Joined(RoomA, &snapshot, false));
 		CHECK(play.GetPhase() == Phase::InRoom);
 	};
@@ -355,6 +437,7 @@ static void TestConnectionLost() {
 		play.Start("brg_x", "emt_x", 0);
 		play.Tick(0, {});
 		play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+		JoinNamed(play, 50);
 		play.Tick(100, Joined(RoomA, &snapshot, false));
 		play.OnPrepare(permit(3), 200);
 	};
@@ -466,6 +549,7 @@ static void TestOrderingAndLeases() {
 	play.Start("brg_x", "emt_x", 0);
 	play.Tick(0, {});
 	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	JoinNamed(play, 50);
 	room::Snapshot snapshot;
 	snapshot.tournament = MakeBinding(RoomA, 0).room;
 	auto& table = snapshot.tables[room::TournamentTable];
@@ -480,7 +564,7 @@ static void TestOrderingAndLeases() {
 	play.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
 	CHECK(Count(play.Tick(300, Joined(RoomA, &snapshot, false)), Kind::Report) == 1);
 	play.OnFailure(Kind::Claim, "stale_revision", 400);
-	auto out = play.Tick(500, {});
+	auto out = play.Tick(500, Joined(RoomA, &snapshot, false));
 	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Forget) == 0);
 	play.OnReported(3);
 	CHECK(Count(play.Tick(600, {}), Kind::Forget) == 1);
@@ -512,6 +596,7 @@ static void TestOrderingAndLeases() {
 	stopping.Start("brg_x", "emt_x", 0);
 	stopping.Tick(0, {});
 	stopping.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	JoinNamed(stopping, 50);
 	stopping.Tick(100, Joined(RoomA, &snapshot, false));
 	stopping.OnPrepare(permitted, 200);
 	stopping.OnTerminal(3, room::MatchResult::P2Win, 10, 9);
@@ -528,6 +613,7 @@ static void TestOrderingAndLeases() {
 	busy.Start("brg_x", "emt_x", 0);
 	busy.Tick(0, {});
 	busy.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	JoinNamed(busy, 50);
 	busy.Tick(100, Joined(RoomA, &snapshot, false));
 	busy.OnPrepare(permitted, 200);
 	busy.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
@@ -552,6 +638,7 @@ static void TestOrderingAndLeases() {
 	lost.Start("brg_x", "emt_x", 0);
 	lost.Tick(0, {});
 	lost.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	JoinNamed(lost, 50);
 	lost.Tick(100, Joined(RoomA, &snapshot, false));
 	lost.OnPrepare(permitted, 200);
 	lost.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
@@ -575,6 +662,7 @@ static void TestOrderingAndLeases() {
 	refused.Start("brg_x", "emt_x", 0);
 	refused.Tick(0, {});
 	refused.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	JoinNamed(refused, 50);
 	refused.Tick(100, Joined(RoomA, &snapshot, false));
 	refused.OnPrepare(permitted, 200);
 	refused.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
@@ -597,6 +685,7 @@ static void TestReadyGoesWithTheClaim() {
 	const auto first = claimed(play.Tick(0, {}));
 	CHECK(first && !*first);
 	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 100);
+	JoinNamed(play, 150);
 	room::Snapshot snapshot;
 	snapshot.tournament = MakeBinding(RoomA, 1).room;
 	snapshot.localMember = 2;
@@ -651,6 +740,7 @@ int main() {
 	TestACasualGameHoldsTheFirstBinding();
 	TestGuestJoins();
 	TestLeaseMoved();
+	TestNeverActsOnAForeignRoom();
 	TestPermitsAndReports();
 	TestCancelledStart();
 	TestFinishedAndFailed();

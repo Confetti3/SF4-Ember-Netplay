@@ -12,6 +12,8 @@ export {
   type LobbyStanding,
   type LobbySpec,
   type MatchSpec,
+  type MatchWatcher,
+  type MatchWatchers,
   type Participant,
   type PlayerRecord,
   type RecentMatch,
@@ -27,6 +29,7 @@ export {
   type TournamentSet,
   type TournamentSlot,
   type TournamentSpec,
+  type WatchPolicy,
 } from "./client.ts";
 export { canonicalize, parseStrict, StrictJsonError, type Json } from "./canonical.ts";
 export {
@@ -85,5 +88,6 @@ export {
   type PrepareAnswer,
   type ReportReceipt,
   type TestPlayerOptions,
+  type WatchAnswer,
 } from "./testing.ts";
 export { signWebhook, TOLERANCE_SECONDS, verifyWebhook, WebhookError, type WebhookHeaders } from "./webhook.ts";

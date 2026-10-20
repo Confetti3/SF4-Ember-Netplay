@@ -186,8 +186,8 @@ bool IdentityPanel::Answered(const ShellView& v) const {
 }
 bool IdentityPanel::Busy(const ShellView&) const { return sent_ != 0 || !queue_.empty(); }
 
-void IdentityPanel::Say(std::string text, bool error, double seconds) {
-    message_ = std::move(text); messageError_ = error; messageUntil_ = now_ + seconds;
+void IdentityPanel::Say(std::string text, Tone tone, double seconds) {
+    message_ = std::move(text); messageTone_ = tone; messageUntil_ = now_ + seconds;
 }
 
 void IdentityPanel::Queue(IdentityRequest request, bool lookUp, std::string account, AccountReads reads) {
@@ -287,7 +287,7 @@ void IdentityPanel::Collect(const ShellView& v, double now) {
         if (current && sentOwner_ == Owner::PublicSetup) setup_.Fail(loc::T("identity.failure.timeout"));
         else if (current && QuietRead()) SiteReadFailed();
         else if (current && !IsCleanup(sentOp_)) {
-            if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(loc::T("identity.failure.timeout"), true);
+            if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(loc::T("identity.failure.timeout"), Tone::Error);
             ReadFailed(); DropQueue();
         }
         sent_ = 0;
@@ -315,7 +315,7 @@ void IdentityPanel::Send(const ShellView& v, const Submit& submit, double now) {
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
     else if (sentOwner_ == Owner::PublicSetup) setup_.Fail(loc::T("error.queue_failed"));
     else if (QuietRead()) SiteReadFailed();
-    else if (!IsCleanup(sentOp_)) { Say(loc::T("error.queue_failed"), true); ReadFailed(); DropQueue(); }
+    else if (!IsCleanup(sentOp_)) { Say(loc::T("error.queue_failed"), Tone::Error); ReadFailed(); DropQueue(); }
 }
 
 MenuEntry IdentityPanel::ServiceRow(const ShellView& v, const netplay::IdentityBridge& bridge) const {
@@ -357,7 +357,7 @@ void IdentityPanel::Finish(const ShellView& v) {
     if ((!v.identityRequest || !id.ok) && QuietRead()) { SiteReadFailed(); return; }
     if (!v.identityRequest) {
         const std::string refusal = RefusalText(v);
-        if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(refusal, true);
+        if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(refusal, Tone::Error);
         ReadFailed(); DropQueue(); return;
     }
     if (!id.ok) {
@@ -366,7 +366,7 @@ void IdentityPanel::Finish(const ShellView& v) {
         // The site approved or refused the request before the cancellation
         // arrived: say so and show what it decided.
         if (sentOp_ == IdentityOp::LinkCancel && id.failure == "link_conflict") {
-            Say(loc::T("identity.failure.already_answered"), true);
+            Say(loc::T("identity.failure.already_answered"), Tone::Error);
             DropQueue();
             IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
             return;
@@ -374,7 +374,7 @@ void IdentityPanel::Finish(const ShellView& v) {
         ReadFailed();
         SiteRefused(id.failure);
         // A background read on Home fails quietly; it is tried again.
-        if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(SiteFailureText(id.failure).value_or(FailureText(id.failure)), true);
+        if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(SiteFailureText(id.failure).value_or(FailureText(id.failure)), Tone::Error);
         DropQueue(); return;
     }
     switch (sentOp_) {
@@ -394,22 +394,23 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::Enable: case IdentityOp::Unlock:
         if (sentOp_ == IdentityOp::Enable) { WipeText(newPassphrase_); WipeText(newConfirm_); }
-        Say(loc::T(sentOp_ == IdentityOp::Enable ? "identity.done.enabled" : "identity.done.unlocked"), false);
+        Say(loc::T(sentOp_ == IdentityOp::Enable ? "identity.done.enabled" : "identity.done.unlocked"), Tone::Success);
         // Connect Discord goes on to the next step with the ID ready.
         if (lastScreen_ == DiscordConnectScreen) { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
         break;
     case IdentityOp::Export:
         WipeText(backupPassphrase_); WipeText(backupConfirm_);
-        Say(loc::Tf("identity.done.exported", id.exportPath), false, 10); break;
+        Say(loc::Tf("identity.done.exported", id.exportPath), Tone::Success, 10); break;
     case IdentityOp::PreviewImport: previewPath_ = restorePath_; break;
     case IdentityOp::Import:
         WipeText(restorePassphrase_); WipeText(newPassphrase_); WipeText(newConfirm_); previewPath_.clear();
-        Say(loc::T("identity.done.imported"), false); break;
-    case IdentityOp::Reset: previewPath_.clear(); Say(loc::T("identity.done.reset"), false); break;
+        Say(loc::T("identity.done.imported"), Tone::Success); break;
+    case IdentityOp::Reset: previewPath_.clear(); Say(loc::T("identity.done.reset"), Tone::Success); break;
     case IdentityOp::BridgeList:
         // Without an Ember ID the matches screen already says to create one first.
         if (opened_ && !FindBridge(v, opened_->bridge)) {
-            if (id.state == "ready") Say(loc::T("tournament.failure.link_service"), true, 12);
+            if (id.state == "ready") Say(loc::T("tournament.failure.link_service"), Tone::Error, 12);
+            watchBridge_ = opened_->bridge; watchMatch_ = opened_->match;
             opened_.reset();
         }
         servicesKnown_ = true;
@@ -491,25 +492,25 @@ void IdentityPanel::Finish(const ShellView& v) {
         SignInFinish(v);
         break;
     case IdentityOp::BridgeApprove: {
-        Say(loc::Tf("identity.done.trusted", found_.name), false);
+        Say(loc::Tf("identity.done.trusted", found_.name), Tone::Success);
         bridge_ = found_.id; found_ = {}; WipeText(origin_);
         IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
         break;
     }
     case IdentityOp::BridgeForget: {
-        Say(loc::T("identity.done.forgotten"), false); bridge_.clear(); listedBridge_.clear();
+        Say(loc::T("identity.done.forgotten"), Tone::Success); bridge_.clear(); listedBridge_.clear();
         IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
         break;
     }
     case IdentityOp::LinkList: listedBridge_ = sentBridge_; break;
     case IdentityOp::LinkClaim: {
         code_.clear();
-        Say(loc::Tf("identity.done.claimed", id.claimFingerprint), false, 20);
+        Say(loc::Tf("identity.done.claimed", id.claimFingerprint), Tone::Success, 20);
         IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
         break;
     }
     case IdentityOp::LinkCancel: case IdentityOp::LinkRemove: {
-        Say(loc::T(sentOp_ == IdentityOp::LinkRemove ? "identity.done.unlinked" : "identity.done.cancelled"), false);
+        Say(loc::T(sentOp_ == IdentityOp::LinkRemove ? "identity.done.unlinked" : "identity.done.cancelled"), Tone::Success);
         IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
         break;
     }
@@ -525,7 +526,7 @@ void IdentityPanel::ReadIfFirstUse(const ShellView& v, const std::string& bridge
 }
 
 bool IdentityPanel::Status(std::string& status, Tone& tone, double now) const {
-    if (!message_.empty() && now < messageUntil_) { status = message_; tone = messageError_ ? Tone::Error : Tone::Success; return true; }
+    if (!message_.empty() && now < messageUntil_) { status = message_; tone = messageTone_; return true; }
     // The account is read again while the player approves in the browser.
     if (signIn_ && WaitingOn(signIn_->target, signIn_->bridge) && ShowsWait(lastScreen_) && queue_.empty() &&
         (!sent_ || sentOp_ == netplay::SignInRequest(signIn_->target.source, SignInStep::Status))) {
@@ -570,8 +571,10 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             discord.value = loc::T("identity.discord_none"); rows.push_back(std::move(discord));
             if (id.passphraseRequired) local(rows);
             const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
+            // A match link waits for the ID: it is what watching needs.
             rows.push_back(ConfirmRow("id-enable", loc::T("identity.enable"),
-                canEdit ? loc::T("identity.enable_detail") : loc::T("identity.leave_room"), canEdit && !busy && secretOk));
+                canEdit ? loc::T(opened_ ? "tournament.watch.needs_id" : "identity.enable_detail") : loc::T("identity.leave_room"),
+                canEdit && !busy && secretOk));
         }
         if (id.state == "locked") {
             rows.push_back(Secret("id-unlock", loc::T("identity.unlock"), {}, loc::T("identity.unlock_detail"), true));
@@ -739,7 +742,7 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     if (ConnectActivate(a, v) || SignInActivate(a, v)) return;
     if (MatchesActivate(a, v)) return;
     if (a.id == "id-copy") {
-        if (!id.emberId.empty()) { ImGui::SetClipboardText(id.emberId.c_str()); Say(loc::T("identity.done.copied"), false, 3); }
+        if (!id.emberId.empty()) { ImGui::SetClipboardText(id.emberId.c_str()); Say(loc::T("identity.done.copied"), Tone::Success, 3); }
         return;
     }
     if (a.id == "id-restore-paste") {
@@ -747,7 +750,7 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
         std::string path = text ? text : "";
         // Explorer's "Copy as path" wraps the path in quotes.
         if (path.size() >= 2 && path.front() == '"' && path.back() == '"') path = path.substr(1, path.size() - 2);
-        if (path.empty() || path.size() > IdentityRequest::MaxPath) Say(loc::T("identity.failure.paste"), true);
+        if (path.empty() || path.size() > IdentityRequest::MaxPath) Say(loc::T("identity.failure.paste"), Tone::Error);
         else restorePath_ = path;
         return;
     }

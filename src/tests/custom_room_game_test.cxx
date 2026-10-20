@@ -597,7 +597,7 @@ int wmain(int argc, wchar_t** argv) {
 			// P1's policy, as the game runs it; the fighters' sync is taken as now.
 			CHECK(slowHandle != GGPO_INVALID_HANDLE && slowSlot >= 2);
 			const auto now = GetTickCount64();
-			slowPolicy.Start(now, {slowHandle}); slowPolicy.OnFighterSynchronized(now);
+			slowPolicy.Start(now, {slowHandle}, SpectatorPolicy::SyncDeadlineMs); slowPolicy.OnFighterSynchronized(now);
 			frames[slow] = watchFrames;
 		}
 		// P1 drops the spectator that never synchronized, as PollSpectators does.

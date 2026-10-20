@@ -525,12 +525,15 @@ int main(int argc, char** argv) {
         // SF4E_UI_RENDER_QUICK=1 is for a quick look at a change: English at 1920x1080 only.
         const char* quickRun = std::getenv("SF4E_UI_RENDER_QUICK");
         const std::string quickMode = quickRun ? quickRun : "";
-        const bool quick = quickMode == "1" || quickMode == "narrow" || quickMode == "720";
+        // =WxH or =WxH@scale draws that one viewport, English only (a fit study across resolutions).
+        int chosenW = 0, chosenH = 0; float chosenScale = 1;
+        if (quickMode.find('x') != std::string::npos) std::sscanf(quickMode.c_str(), "%dx%d@%f", &chosenW, &chosenH, &chosenScale);
+        const bool quick = quickMode == "1" || quickMode == "narrow" || quickMode == "720" || chosenW > 0;
         // SF4E_UI_RENDER_QUICK=narrow is the same at 640x720, =720 at 1280x720 and 100%, and SF4E_UI_RENDER_SHOTS=text writes only the shots whose name has it.
         const char* shotFilter = std::getenv("SF4E_UI_RENDER_SHOTS");
         const bool galleryRun = std::getenv("SF4E_UI_RENDER_GALLERY") != nullptr;
         bool galleryShown = false;
-        const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
+        const std::vector<Size> sizes = chosenW > 0 ? std::vector<Size>{{chosenW,chosenH,chosenScale}} : quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
             std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}};
         std::printf("UI backend: %s\n", headless ? "headless ImGui geometry" :
@@ -812,6 +815,12 @@ int main(int argc, char** argv) {
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
             ShootMemberLatency(view,draw,page);
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
+            // The members and chat column dragged narrower, then hidden.
+            view.preferences.roomSideWidth=netplay::MinRoomSideWidth;page("room");draw("room-side-narrow");
+            view.preferences.roomMembersHidden=true;draw("room-members-hidden");
+            view.preferences.roomMembersHidden=false;view.preferences.roomChatHidden=true;draw("room-chat-hidden");
+            view.preferences.roomMembersHidden=true;draw("room-side-hidden");
+            view.preferences.roomMembersHidden=view.preferences.roomChatHidden=false;view.preferences.roomSideWidth=50;draw("room-fit");
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});
@@ -919,9 +928,28 @@ int main(int argc, char** argv) {
             {const auto phase=view.room.tables[0].phase;const auto match=view.session.match;const auto generation=view.room.tables[0].matchGeneration;
              view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;
              view.room.tables[0].matchGeneration=9;view.watchedGame={0,9};page("room");draw("room-watched-match");
+             // The board offers the picture over a watched game, folded into More... on a short screen.
+             {std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});draw();SetMenuEntriesProbe({});
+              const auto swap=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="picture-swap";});
+              const bool folded=std::any_of(rows.begin(),rows.end(),[](const MenuEntry& e){
+               return e.id=="more"&&std::any_of(e.choices.begin(),e.choices.end(),[](const MenuChoice& c){return c.id=="picture-swap";});});
+              Require(swap!=rows.end()||folded,"The room board offers no picture toggle over a watched game");
+              if(swap!=rows.end()){
+               Require(swap->label==loc::T("room.picture_show"),"The picture toggle does not offer the picture at first");
+               shell.Navigation().Focus("picture-swap",rows);draw(nullptr,MenuInput::Select);draw();
+               Require(shell.WatchedPictureWanted(),"Select on the picture toggle does not ask for the picture");
+               draw(nullptr,MenuInput::Select);draw();Require(!shell.WatchedPictureWanted(),"Select again does not put the game back behind the menu");
+              }}
+             const bool column=WindowDrawn("Room community");const float membersTop=column?FindWindow("Member list")->Pos.y:0;
              view.watchedPicture=ImGui::GetIO().Fonts->TexID;page("room");draw("room-watched-picture");
-             {auto* pip=FindWindow("Watched game");Require(pip&&pip->LastFrameActive==ImGui::GetFrameCount()&&pip->Pos.y<size.h*.2f&&pip->Pos.x+pip->Size.x<=size.w+1,"The watched game's picture is not in the top right corner");
-              Require(!(pip->Flags&ImGuiWindowFlags_NoMouseInputs)&&(pip->Flags&ImGuiWindowFlags_NoNav)==ImGuiWindowFlags_NoNav,"The watched game's picture lets the pointer through to the rows it hides, or takes navigation");}view.watchedPicture={};page("room-table");
+             // The wide board shows it at the top of its column, above the members; the narrow one leaves it in the corner.
+             {const bool corner=WindowDrawn("Watched game");
+              Require(corner!=column,column?"The wide room board shows the watched game's picture in the corner, not in its column":"The watched game's picture is missing from the narrow room board's corner");
+              if(column)Require(FindWindow("Member list")->Pos.y>membersTop+40*ImGui::GetIO().FontGlobalScale,"The wide room board's column does not show the watched game's picture above its members");
+              if(corner){auto* pip=FindWindow("Watched game");
+               Require(pip->Pos.y<size.h*.2f&&pip->Pos.x+pip->Size.x<=size.w+1,"The watched game's picture is not in the top right corner");
+               Require(!(pip->Flags&ImGuiWindowFlags_NoMouseInputs)&&(pip->Flags&ImGuiWindowFlags_NoNav)==ImGuiWindowFlags_NoNav,"The watched game's picture lets the pointer through to the rows it hides, or takes navigation");}}
+             view.watchedPicture={};page("room-table");
              view.watchedGame={};view.session.match=match;view.room.tables[0].phase=phase;view.room.tables[0].matchGeneration=generation;}
             // The start held for this locked-in spectator: the card and the
             // lock-in row say the game waits for them.

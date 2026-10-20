@@ -388,24 +388,44 @@ cargo run -p ember-brackets -- serve brackets.json
 ```
 
 On a server, build with `cargo build --release --locked -p ember-brackets`
-and install `deploy/ember-brackets.service.in` with `@NAME@` replaced by the
-service account and folder name (`ember-brackets`) and `@LABEL@` by an
-optional suffix for the description:
+and install it with the scripts in `deploy/`, the way the bridge's
+`deploy/setup.sh` installs the bridge. The folder name picks the connector:
+copy `deploy/` to `~/ember-brackets` (production) or `~/ember-brackets-<name>`
+(for example `~/ember-brackets-staging`, beside `~/ember-bridge-staging`), put
+the binary in its `bin/ember-brackets`, and add the instance's two files:
+
+- `brackets.json` (`brackets.<name>.json` for an instance): the configuration
+  above. `results.listen` is a loopback port of its own and `results.path` a
+  plain path; every file it names is a plain name in the state folder.
+- `site.json` (`site.<name>.json`): `{ "host": "brackets.embernetplay.link",
+  "bridge": "ember-bridge" }`, the public host of the results URL and the
+  installed bridge the connector connects to. `brackets.staging.json` and
+  `site.staging.json` are the staging pair.
+
+Add the connection to the bridge's tenants file first (see "What the Ember team
+provides", with `results_url` set to `https://<host><results.path>`), and apply
+it with the bridge's `setup.sh`. Then:
 
 ```sh
-sudo useradd --system --home-dir /var/lib/ember-brackets --shell /usr/sbin/nologin ember-brackets
-sudo install -D -m 0755 target/release/ember-brackets /usr/local/lib/ember-brackets/ember-brackets
-sed -e 's/@NAME@/ember-brackets/g' -e 's/@LABEL@//g' brackets/deploy/ember-brackets.service.in \
-    | sudo tee /etc/systemd/system/ember-brackets.service >/dev/null
+sudo bash ~/ember-brackets-staging/issue-secrets.sh
+# put the organizer's credential in ~/ember-brackets-staging/secrets/ (mode 0700),
+# in a file named as the configuration's credential.file
+sudo bash ~/ember-brackets-staging/setup.sh
 ```
 
-`brackets.json` and the secret files go in `/var/lib/ember-brackets`, owned by
-that account. Then start it, and have it start with the server:
-
-```sh
-sudo systemctl daemon-reload
-sudo systemctl enable --now ember-brackets
-```
+`issue-secrets.sh` issues the connection's provider credential and a new
+result secret, stores the result secret on the bridge, and leaves both in
+`secrets/` (neither is printed). `setup.sh` creates the service account
+(`ember-brackets` or `ember-brackets-<name>`), moves the secrets into
+`/var/lib/<name>` with mode 0600, installs the binary, the configuration, the
+unit from `deploy/ember-brackets.service.in` and an nginx site for the host
+that serves the results path and nothing else, enables the service, and
+checks that the path answers through nginx. A secret still missing leaves
+everything installed and the service stopped, with the missing files named.
+Running it again installs a newer binary and applies the configuration; the
+database and the secrets stay. `remove.sh` takes the installation away and
+keeps the state (`--purge` deletes it). `test-setup.sh` runs all of this
+against a mock server, with no root and no network.
 
 Each decision is one line on standard error
 (`journalctl -u ember-brackets`). A new credential takes effect on restart.

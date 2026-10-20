@@ -4,8 +4,16 @@
 #include "RoomModel.hxx"
 #include "RoomModelDetail.hxx"
 
+#include <set>
+#include <utility>
+
 namespace sf4e { namespace room {
 using namespace detail;
+
+// The two fighters and every watcher a binding can name always fit in a room.
+static_assert(2 + MaxWatchers <= MaximumMembers, "a bound room must hold its fighters and all its watchers");
+// Every watcher is placed as a spectator of table 0 without a capacity check.
+static_assert(MaxWatchers <= MaxSpectators, "table 0 must hold every watcher as a spectator");
 
 namespace {
 bool IsLowerHex(const std::string& text, std::size_t length) {
@@ -22,13 +30,21 @@ bool IsIdentifier(const std::string& text, std::size_t maximum) {
 }
 
 bool TournamentBinding::Valid() const {
-	const auto fighter = [](const TournamentFighter& value) {
+	const auto named = [](const auto& value) {
 		return IsLowerHex(value.endpoint, 64) && IsIdentifier(value.emberId, 64);
 	};
-	return IsIdentifier(matchId, 64) && assignmentGeneration && bindingRevision &&
+	if (!(IsIdentifier(matchId, 64) && assignmentGeneration && bindingRevision &&
 		ValidGamesToWin(gamesToWin) && startingWins[0] < gamesToWin && startingWins[1] < gamesToWin &&
-		fighter(fighters[0]) && fighter(fighters[1]) &&
-		fighters[0].endpoint != fighters[1].endpoint && fighters[0].emberId != fighters[1].emberId;
+		named(fighters[0]) && named(fighters[1]) &&
+		fighters[0].endpoint != fighters[1].endpoint && fighters[0].emberId != fighters[1].emberId &&
+		watchers.size() <= MaxWatchers)) return false;
+	// Every endpoint and Ember ID names one member: no watcher repeats another
+	// watcher or either fighter.
+	std::set<std::string> endpoints = {fighters[0].endpoint, fighters[1].endpoint};
+	std::set<std::string> emberIds = {fighters[0].emberId, fighters[1].emberId};
+	return std::all_of(watchers.begin(), watchers.end(), [&](const TournamentWatcher& watcher) {
+		return named(watcher) && endpoints.insert(watcher.endpoint).second && emberIds.insert(watcher.emberId).second;
+	});
 }
 
 int TournamentBinding::SlotOf(const std::string& endpoint) const {
@@ -36,6 +52,20 @@ int TournamentBinding::SlotOf(const std::string& endpoint) const {
 	for (int slot = 0; slot < 2; ++slot)
 		if (fighters[slot].endpoint == endpoint) return slot;
 	return -1;
+}
+
+bool TournamentBinding::WatcherOf(const std::string& endpoint) const {
+	return Active() && std::any_of(watchers.begin(), watchers.end(),
+		[&](const TournamentWatcher& watcher) { return watcher.endpoint == endpoint; });
+}
+
+std::string TournamentBinding::EmberIdOf(const std::string& endpoint) const {
+	if (!Active()) return {};
+	for (const auto& fighter : fighters)
+		if (fighter.endpoint == endpoint) return fighter.emberId;
+	for (const auto& watcher : watchers)
+		if (watcher.endpoint == endpoint) return watcher.emberId;
+	return {};
 }
 
 bool TournamentBinding::SupersededBy(const TournamentBinding& other) const {
@@ -59,6 +89,12 @@ void to_json(nlohmann::json& json, const TournamentBinding& value) {
 	// Left out at 0-0, so a set from the start keeps the snapshot it always had.
 	if (value.startingWins[0] || value.startingWins[1])
 		json["starting_wins"] = {value.startingWins[0], value.startingWins[1]};
+	// Left out when none, so a room without watchers keeps its snapshot bytes.
+	if (!value.watchers.empty()) {
+		json["watchers"] = nlohmann::json::array();
+		for (const auto& watcher : value.watchers)
+			json["watchers"].push_back({{"endpoint", watcher.endpoint}, {"ember_id", watcher.emberId}});
+	}
 }
 
 void from_json(const nlohmann::json& json, TournamentBinding& value) {
@@ -84,6 +120,12 @@ void from_json(const nlohmann::json& json, TournamentBinding& value) {
 				throw std::invalid_argument("room tournament starting wins");
 			value.startingWins[slot] = static_cast<std::uint8_t>(wins.get<std::uint64_t>());
 		}
+	}
+	const auto watchers = json.find("watchers");
+	if (watchers != json.end()) {
+		if (!watchers->is_array() || watchers->size() > MaxWatchers) throw std::invalid_argument("room tournament watchers");
+		for (const auto& watcher : *watchers)
+			value.watchers.push_back({ReadText(watcher, "endpoint", 64, false), ReadText(watcher, "ember_id", 64, false)});
 	}
 	if (!value.Valid()) throw std::invalid_argument("room tournament binding");
 }
@@ -223,9 +265,16 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 		if (current.matchId != binding.matchId) return Reject(RejectReason::Unauthorized);
 		if (!current.SupersededBy(binding)) return Reject(RejectReason::StaleRoom);
 		if (current.assignmentGeneration == binding.assignmentGeneration &&
-			current.bindingRevision == binding.bindingRevision && current.fighters == binding.fighters) return Accept();
+			current.bindingRevision == binding.bindingRevision && current.fighters == binding.fighters &&
+			current.watchers == binding.watchers) return Accept();
 	}
 	const bool starting = !current.Active();
+	// Table 0's revision moves only for a change to the set itself, an organizer's
+	// reassignment included. A bind that only adds, drops or revokes watchers
+	// touches the room alone, so it never makes a fighter's Ready stale.
+	const bool setChanged = starting || current.fighters != binding.fighters ||
+		current.gamesToWin != binding.gamesToWin || current.startingWins != binding.startingWins ||
+		current.assignmentGeneration != binding.assignmentGeneration;
 	Table& table = snapshot_.tables[TournamentTable];
 	// A casual game still under way at the table is not the set's, so the
 	// first binding waits for it to end; the state machine offers it again.
@@ -240,20 +289,83 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 		table.score[0] = binding.startingWins[0];
 		table.score[1] = binding.startingWins[1];
 	}
-	Touch(table);
+	if (setChanged) Touch(table);
 	std::vector<Event> events;
-	// Fighters only: anyone the binding does not name leaves the room.
+	// Fighters and named watchers only: anyone else leaves the room.
 	std::vector<MemberId> strangers;
 	for (const auto& member : snapshot_.members)
-		if (binding.SlotOf(member.connection.user) < 0) strangers.push_back(member.id);
+		if (binding.SlotOf(member.connection.user) < 0 && !binding.WatcherOf(member.connection.user)) strangers.push_back(member.id);
 	for (const auto stranger : strangers) {
 		auto left = Leave(stranger);
 		events.insert(events.end(), left.events.begin(), left.events.end());
 	}
 	SeatBoundFighters();
+	NormalizeBoundWatchers();
 	TouchRoom();
 	events.push_back(Event{Event::Kind::SnapshotChanged, TournamentTable, 0, 0, MatchResult::Abort});
 	return Accept(std::move(events));
+}
+
+RoomAuthority::BoundAdmission RoomAuthority::BoundJoin(const ConnectionRef& connection, const MemberProfile& profile) const {
+	const auto& binding = snapshot_.tournament;
+	const bool watcher = binding.WatcherOf(connection.user);
+	if (profile.observer && !watcher) return BoundAdmission::Refuse;
+	if (!binding.Active()) return BoundAdmission::Unbound;
+	return watcher || binding.SlotOf(connection.user) >= 0 ? BoundAdmission::Named : BoundAdmission::Stranger;
+}
+
+const Member* RoomAuthority::HostSuccessor(MemberId leaving) const {
+	const Member* successor = nullptr;
+	const auto rank = [&](const Member& value) { return std::make_pair(IsWatcher(snapshot_, value.id), value.joinOrder); };
+	for (const auto& other : snapshot_.members)
+		if (other.id != leaving && (!successor || rank(other) < rank(*successor))) successor = &other;
+	return successor;
+}
+
+void RoomAuthority::SettleBoundJoin(MemberId joined) {
+	SeatBoundFighters();
+	if (IsWatcher(snapshot_, joined)) {
+		PlaceWatcher(joined);
+	} else if (IsWatcher(snapshot_, snapshot_.host)) {
+		// A fighter back in a room whose host field a watcher holds takes it.
+		snapshot_.host = joined;
+		for (auto& other : snapshot_.members) other.host = other.id == joined;
+	}
+}
+
+void RoomAuthority::PlaceWatcher(MemberId member) {
+	// At most MaxWatchers of them, so the table's MaxSpectators always holds (asserted above).
+	AddSpectator(snapshot_.tables[TournamentTable], member);
+	NormalizeMemberStatus(member);
+}
+
+void RoomAuthority::NormalizeBoundWatchers() {
+	const Table& table = snapshot_.tables[TournamentTable];
+	const auto listed = [](const std::vector<MemberId>& list, MemberId member) {
+		return std::find(list.begin(), list.end(), member) != list.end();
+	};
+	for (const auto& member : std::vector<Member>(snapshot_.members)) {
+		if (!snapshot_.tournament.WatcherOf(member.connection.user)) continue;
+		// A watcher never holds a start, whatever a modified client did before the
+		// bind: its lock-in ends here, and the start hold with it at the next step.
+		if (auto* item = Find(member.id)) item->spectatorLocked = false;
+		if (listed(table.spectators, member.id) || listed(table.watchingNext, member.id)) continue;
+		RemoveFromTable(member.id);
+		PlaceWatcher(member.id);
+	}
+}
+
+void RoomAuthority::TouchSpectators(Table& table) {
+	if (BoundTable(table)) TouchRoom();
+	else Touch(table);
+}
+
+bool RoomAuthority::WatcherMay(ActionKind kind) {
+	// A watcher is put in its place at Join and keeps it: no seat, queue, watch
+	// choice, rules, lock-in or chat, and none of the host's room actions.
+	// The generation-scoped leave of a game whose stream failed is not one of
+	// these actions; it is taken for everyone before this list is asked.
+	return kind == ActionKind::Leave || kind == ActionKind::AcknowledgeTerminal || kind == ActionKind::SetTraining;
 }
 
 Result RoomAuthority::ApplyPermitReady(MemberId member, const Action& action, Table* table) {

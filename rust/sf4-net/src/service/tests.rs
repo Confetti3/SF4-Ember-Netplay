@@ -280,6 +280,7 @@ pub(super) fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Act
         public: None,
         coordination_port: None,
         refresh_roster: None,
+        seats: Default::default(),
         wake: Arc::new(Notify::new()),
         latency: super::latency::Latency::offline(),
     }
@@ -889,6 +890,7 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
                     epoch: 1,
                     invitation,
                     build: "test-build".into(),
+                    observer: false,
                 },
             })
             .unwrap()
@@ -963,6 +965,7 @@ async fn a_refused_join_names_the_epoch_it_asked_for() {
         epoch,
         invitation: "not-an-invitation".into(),
         build: "test-build".into(),
+        observer: false,
     };
     assert!(
         actor
@@ -1145,6 +1148,25 @@ async fn an_abandoned_coordinated_room_keeps_its_vote_for_the_grace() {
     .unwrap();
 }
 
+/// Hosts `seed`'s room on `actor` and opens it at epoch 1 once `actor` leads
+/// its coordination.
+pub(super) async fn led_host(
+    actor: &mut Actor,
+    seed: Invite,
+) -> (Invite, crate::recovery::RecoverySession) {
+    let room = seed.room();
+    let invite = actor.setup_host_recovery(seed).await.unwrap();
+    let recovery = actor.recovery.clone().unwrap();
+    while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    actor.epoch = 1;
+    actor.room = Some(room);
+    actor.hosted = Some(invite.clone());
+    actor.room_invite = Some(invite.clone());
+    (invite, recovery)
+}
+
 /// One host actor running its loop, one remote endpoint with a control to it.
 struct BoundHost {
     host: Endpoint,
@@ -1171,15 +1193,7 @@ async fn bound_host(prepare: impl FnOnce(&mut Actor)) -> BoundHost {
     let (commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let (fault, failure) = watch::channel(false);
     let mut actor = test_actor(host.clone(), events_tx);
-    let invite = actor.setup_host_recovery(seed).await.unwrap();
-    let recovery = actor.recovery.clone().unwrap();
-    while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-    actor.epoch = 1;
-    actor.room = Some(room);
-    actor.hosted = Some(invite.clone());
-    actor.room_invite = Some(invite.clone());
+    let (invite, recovery) = led_host(&mut actor, seed).await;
     prepare(&mut actor);
     let service = tokio::spawn(async move {
         let result = actor.run(command_rx, failure).await;
@@ -1416,15 +1430,7 @@ async fn a_completion_settles_only_the_control_pending_for_its_incarnation() {
         let room = seed.room();
         let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let mut actor = test_actor(host.clone(), events_tx);
-        let invite = actor.setup_host_recovery(seed).await.unwrap();
-        let recovery = actor.recovery.clone().unwrap();
-        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-        actor.epoch = 1;
-        actor.room = Some(room);
-        actor.hosted = Some(invite.clone());
-        actor.room_invite = Some(invite.clone());
+        let (invite, recovery) = led_host(&mut actor, seed).await;
         // The remote's current control; its predecessor's operation is still
         // in flight when it presents its own Admission.
         let accept = |invite: Invite| {
@@ -1607,15 +1613,7 @@ async fn a_rejected_admission_publishes_no_session() {
         let (_commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let (_fault, failure) = watch::channel(false);
         let mut actor = test_actor(host.clone(), events_tx);
-        let invite = actor.setup_host_recovery(seed).await.unwrap();
-        let recovery = actor.recovery.clone().unwrap();
-        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-        actor.epoch = 1;
-        actor.room = Some(room);
-        actor.hosted = Some(invite.clone());
-        actor.room_invite = Some(invite.clone());
+        let (invite, recovery) = led_host(&mut actor, seed).await;
         let retired = 0x7777;
         actor.retired_incarnations.insert(retired);
         let service = tokio::spawn(async move {
@@ -1677,15 +1675,7 @@ async fn departure_notice_retires_the_seat_at_the_leader() {
         let (_commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let (_fault, failure) = watch::channel(false);
         let mut actor = test_actor(host.clone(), events_tx);
-        let invite = actor.setup_host_recovery(seed).await.unwrap();
-        let recovery = actor.recovery.clone().unwrap();
-        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-        actor.epoch = 1;
-        actor.room = Some(room);
-        actor.hosted = Some(invite.clone());
-        actor.room_invite = Some(invite.clone());
+        let (invite, recovery) = led_host(&mut actor, seed).await;
         let incarnation = 0x5151;
         actor.remember_admission(Admission {
             room,
@@ -3714,68 +3704,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
         let (guest_commands, guest_command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let (_host_fault, host_failure) = watch::channel(false);
         let (_guest_fault, guest_failure) = watch::channel(false);
-        let make_actor = |endpoint: Endpoint, events: mpsc::Sender<Event>| Actor {
-            endpoint,
-            relay_only: false,
-            epoch: 0,
-            opening: false,
-            room: None,
-            hosted: None,
-            room_invite: None,
-            host_address: None,
-            controls: BTreeMap::new(),
-            parked_controls: BTreeMap::new(),
-            games: BTreeMap::new(),
-            closed_generation: 0,
-            tasks: JoinSet::new(),
-            events: EventOutbox::new(events),
-            recovery: None,
-            admissions: BTreeMap::new(),
-            admission_order: Vec::new(),
-            pending_admissions: BTreeMap::new(),
-            applied_admission_members: BTreeSet::new(),
-            incoming_transfer: None,
-            pending_checkpoint_proposal: None,
-            pending_checkpoint_retry: None,
-            outgoing_transfer: None,
-            committed_native_members: None,
-            pending_retired_incarnations: BTreeSet::new(),
-            retired_incarnations: BTreeSet::new(),
-            last_exported_revision: 0,
-            pending_checkpoint_ack: None,
-            pending_checkpoint_committed: None,
-            next_transport_message: TRANSPORT_MESSAGE_ID_BASE,
-            next_coordination_operation: 1,
-            pending_coordination_refresh: None,
-            pending_membership_operation: None,
-            pending_admission_operation: None,
-            pending_admission_bindings: Vec::new(),
-        deferred_admissions: VecDeque::new(),
-        pending_membership_publications: BTreeSet::new(),
-            last_coordination_state: None,
-            coordination_writable: false,
-            last_control_rebound: None,
-            unwritable_leader_since: None,
-            reconnect_target: None,
-            pending_game_admissions: BTreeMap::new(),
-            pending_probe_invalidations: BTreeMap::new(),
-            probe_peers: BTreeSet::new(),
-            probe_permissions: BTreeMap::new(),
-            own_probes: BTreeMap::new(),
-            pending_probe_authorizations: BTreeMap::new(),
-            pending_probe_reservations: BTreeMap::new(),
-            join_settled: false,
-            join_control_losses: 0,
-            join_first_loss: None,
-            retirement_started: None,
-            departure_failed: false,
-            short: ShortLinks::default(),
-            public: None,
-            coordination_port: None,
-            refresh_roster: None,
-            wake: Arc::new(Notify::new()),
-            latency: super::latency::Latency::offline(),
-        };
+        let make_actor = test_actor;
         let mut host_actor = make_actor(host.clone(), host_events_tx);
         let invite = host_actor.setup_host_recovery(seed).await.unwrap();
         host_actor.epoch = 1;
@@ -4009,66 +3938,12 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         .unwrap();
     let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = Actor {
-        endpoint: host.clone(),
-        relay_only: false,
         epoch: 1,
-        opening: false,
         room: Some(old.room()),
         hosted: Some(old.clone()),
         room_invite: Some(old.clone()),
-        host_address: None,
-        controls: BTreeMap::new(),
-        parked_controls: BTreeMap::new(),
-        games: BTreeMap::new(),
         closed_generation: 99,
-        tasks: JoinSet::new(),
-        events: EventOutbox::new(events_tx),
-        recovery: None,
-        admissions: BTreeMap::new(),
-        admission_order: Vec::new(),
-        pending_admissions: BTreeMap::new(),
-        applied_admission_members: BTreeSet::new(),
-        incoming_transfer: None,
-        pending_checkpoint_proposal: None,
-        pending_checkpoint_retry: None,
-        outgoing_transfer: None,
-        committed_native_members: None,
-        pending_retired_incarnations: BTreeSet::new(),
-        retired_incarnations: BTreeSet::new(),
-        last_exported_revision: 0,
-        pending_checkpoint_ack: None,
-        pending_checkpoint_committed: None,
-        next_transport_message: TRANSPORT_MESSAGE_ID_BASE,
-        next_coordination_operation: 1,
-        pending_coordination_refresh: None,
-        pending_membership_operation: None,
-        pending_admission_operation: None,
-        pending_admission_bindings: Vec::new(),
-        deferred_admissions: VecDeque::new(),
-        pending_membership_publications: BTreeSet::new(),
-        last_coordination_state: None,
-        coordination_writable: false,
-        last_control_rebound: None,
-        unwritable_leader_since: None,
-        reconnect_target: None,
-        pending_game_admissions: BTreeMap::new(),
-        pending_probe_invalidations: BTreeMap::new(),
-        probe_peers: BTreeSet::new(),
-        probe_permissions: BTreeMap::new(),
-        own_probes: BTreeMap::new(),
-        pending_probe_authorizations: BTreeMap::new(),
-        pending_probe_reservations: BTreeMap::new(),
-        join_settled: false,
-        join_control_losses: 0,
-        join_first_loss: None,
-        retirement_started: None,
-        departure_failed: false,
-        short: ShortLinks::default(),
-        public: None,
-        coordination_port: None,
-        refresh_roster: None,
-        wake: Arc::new(Notify::new()),
-        latency: super::latency::Latency::offline(),
+        ..test_actor(host.clone(), events_tx)
     };
     actor
         .command(Request {
@@ -4140,66 +4015,11 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
         let (commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let (_fault, failure) = watch::channel(false);
         let mut actor = Actor {
-            endpoint: host.clone(),
-            relay_only: false,
             epoch: 1,
-            opening: false,
             room: Some(room),
             hosted: Some(invite.clone()),
             room_invite: Some(invite.clone()),
-            host_address: None,
-            controls: BTreeMap::new(),
-            parked_controls: BTreeMap::new(),
-            games: BTreeMap::new(),
-            closed_generation: 0,
-            tasks: JoinSet::new(),
-            events: EventOutbox::new(events_tx),
-            recovery: None,
-            admissions: BTreeMap::new(),
-            admission_order: Vec::new(),
-            pending_admissions: BTreeMap::new(),
-            applied_admission_members: BTreeSet::new(),
-            incoming_transfer: None,
-            pending_checkpoint_proposal: None,
-            pending_checkpoint_retry: None,
-            outgoing_transfer: None,
-            committed_native_members: None,
-            pending_retired_incarnations: BTreeSet::new(),
-            retired_incarnations: BTreeSet::new(),
-            last_exported_revision: 0,
-            pending_checkpoint_ack: None,
-            pending_checkpoint_committed: None,
-            next_transport_message: TRANSPORT_MESSAGE_ID_BASE,
-            next_coordination_operation: 1,
-            pending_coordination_refresh: None,
-            pending_membership_operation: None,
-            pending_admission_operation: None,
-            pending_admission_bindings: Vec::new(),
-            deferred_admissions: VecDeque::new(),
-            pending_membership_publications: BTreeSet::new(),
-            last_coordination_state: None,
-            coordination_writable: false,
-            last_control_rebound: None,
-            unwritable_leader_since: None,
-            reconnect_target: None,
-            pending_game_admissions: BTreeMap::new(),
-            pending_probe_invalidations: BTreeMap::new(),
-            probe_peers: BTreeSet::new(),
-            probe_permissions: BTreeMap::new(),
-            own_probes: BTreeMap::new(),
-            pending_probe_authorizations: BTreeMap::new(),
-            pending_probe_reservations: BTreeMap::new(),
-            join_settled: false,
-            join_control_losses: 0,
-            join_first_loss: None,
-            retirement_started: None,
-            departure_failed: false,
-            short: ShortLinks::default(),
-            public: None,
-            coordination_port: None,
-            refresh_roster: None,
-            wake: Arc::new(Notify::new()),
-            latency: super::latency::Latency::offline(),
+            ..test_actor(host.clone(), events_tx)
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -4420,9 +4240,51 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             Event::Error { code, .. } => assert_eq!(code, "invalid_game_registration"),
             _ => unreachable!(),
         }
+        // A link the peer closes names the peer's own close reason.
         commands
             .send(Request {
                 id: 9,
+                command: Command::PrepareGame {
+                    epoch: 1,
+                    peer: remote.id(),
+                    room,
+                    generation: 3,
+                    capability: [10; 32],
+                    local_port: local_host.local_addr().unwrap().port(),
+                    max_packet: 1024,
+                    dial: false,
+                },
+            })
+            .await
+            .unwrap();
+        let _ = next(&mut events, "game_waiting").await;
+        let auth = GameAuthorization {
+            peer: host.id(),
+            key: MatchKey {
+                room,
+                generation: 3,
+            },
+            capability: [10; 32],
+            max_packet: 1024,
+        };
+        let game = transport::connect_game(&remote, address(&host), auth)
+            .await
+            .unwrap();
+        let _ = next(&mut events, "game_ready").await;
+        drop(game);
+        match next(&mut events, "game_closed").await {
+            Event::GameClosed { reason, .. } => {
+                let reason = reason.unwrap();
+                assert!(
+                    reason.starts_with("closed by peer") && reason.contains("match ended"),
+                    "{reason}"
+                );
+            }
+            _ => unreachable!(),
+        }
+        commands
+            .send(Request {
+                id: 10,
                 command: Command::Leave {
                     epoch: 1,
                     abandon: false,
@@ -4435,7 +4297,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
         // network work performed by the IPC reader or the game thread.
         commands
             .send(Request {
-                id: 10,
+                id: 11,
                 command: Command::Host {
                     epoch: 2,
                     build: "test-build".into(),
@@ -4445,7 +4307,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             .unwrap();
         commands
             .send(Request {
-                id: 11,
+                id: 12,
                 command: Command::Leave {
                     epoch: 2,
                     abandon: false,
@@ -4456,7 +4318,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
         let _ = next(&mut events, "room_closed").await;
         commands
             .send(Request {
-                id: 12,
+                id: 13,
                 command: Command::Shutdown,
             })
             .await
@@ -4496,66 +4358,11 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
         let (commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let (_fault, failure) = watch::channel(false);
         let mut actor = Actor {
-            endpoint: host.clone(),
-            relay_only: false,
             epoch: 1,
-            opening: false,
             room: Some(room),
             hosted: Some(invite.clone()),
             room_invite: Some(invite.clone()),
-            host_address: None,
-            controls: BTreeMap::new(),
-            parked_controls: BTreeMap::new(),
-            games: BTreeMap::new(),
-            closed_generation: 0,
-            tasks: JoinSet::new(),
-            events: EventOutbox::new(events_tx),
-            recovery: None,
-            admissions: BTreeMap::new(),
-            admission_order: Vec::new(),
-            pending_admissions: BTreeMap::new(),
-            applied_admission_members: BTreeSet::new(),
-            incoming_transfer: None,
-            pending_checkpoint_proposal: None,
-            pending_checkpoint_retry: None,
-            outgoing_transfer: None,
-            committed_native_members: None,
-            pending_retired_incarnations: BTreeSet::new(),
-            retired_incarnations: BTreeSet::new(),
-            last_exported_revision: 0,
-            pending_checkpoint_ack: None,
-            pending_checkpoint_committed: None,
-            next_transport_message: TRANSPORT_MESSAGE_ID_BASE,
-            next_coordination_operation: 1,
-            pending_coordination_refresh: None,
-            pending_membership_operation: None,
-            pending_admission_operation: None,
-            pending_admission_bindings: Vec::new(),
-            deferred_admissions: VecDeque::new(),
-            pending_membership_publications: BTreeSet::new(),
-            last_coordination_state: None,
-            coordination_writable: false,
-            last_control_rebound: None,
-            unwritable_leader_since: None,
-            reconnect_target: None,
-            pending_game_admissions: BTreeMap::new(),
-            pending_probe_invalidations: BTreeMap::new(),
-            probe_peers: BTreeSet::new(),
-            probe_permissions: BTreeMap::new(),
-            own_probes: BTreeMap::new(),
-            pending_probe_authorizations: BTreeMap::new(),
-            pending_probe_reservations: BTreeMap::new(),
-            join_settled: false,
-            join_control_losses: 0,
-            join_first_loss: None,
-            retirement_started: None,
-            departure_failed: false,
-            short: ShortLinks::default(),
-            public: None,
-            coordination_port: None,
-            refresh_roster: None,
-            wake: Arc::new(Notify::new()),
-            latency: super::latency::Latency::offline(),
+            ..test_actor(host.clone(), events_tx)
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -5302,15 +5109,7 @@ async fn a_probe_reservation_wait_does_not_block_the_actor() {
         let room = seed.room();
         let (events, _events_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let mut actor = test_actor(host.clone(), events);
-        let invite = actor.setup_host_recovery(seed).await.unwrap();
-        let recovery = actor.recovery.clone().unwrap();
-        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-        actor.epoch = 1;
-        actor.room = Some(room);
-        actor.hosted = Some(invite.clone());
-        actor.room_invite = Some(invite);
+        let (_, recovery) = led_host(&mut actor, seed).await;
         let source = crate::recovery::RecoverySession::join(
             room,
             remote.id(),
@@ -5666,15 +5465,7 @@ impl ReservationFixture {
         let room = seed.room();
         let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let mut actor = test_actor(host.clone(), events_tx);
-        let invite = actor.setup_host_recovery(seed).await.unwrap();
-        let recovery = actor.recovery.clone().unwrap();
-        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-        actor.epoch = 1;
-        actor.room = Some(room);
-        actor.hosted = Some(invite.clone());
-        actor.room_invite = Some(invite.clone());
+        let (invite, recovery) = led_host(&mut actor, seed).await;
         let source = crate::recovery::RecoverySession::join(
             room,
             remote.id(),
@@ -7013,6 +6804,7 @@ fn short_join(epoch: u64, invitation: &str, build: &str) -> Request {
             epoch,
             invitation: invitation.into(),
             build: build.into(),
+            observer: false,
         },
     }
 }
@@ -7593,6 +7385,7 @@ async fn a_control_message_nested_past_the_native_limit_is_dropped() {
 }
 
 mod join_deadline;
+mod match_watch;
 mod public_admission;
 mod public_rooms;
 mod public_support;

@@ -790,12 +790,6 @@ msgstr "Matches waar je naar kijkt opslaan"
 msgid "replays.save_watched_detail"
 msgstr "Slaat ook wedstrijden op die je als toeschouwer bekijkt. Uit slaat alleen wedstrijden op die je zelf speelt."
 
-msgid "settings.watched_picture"
-msgstr "Bekeken spel in een hoek"
-
-msgid "settings.watched_picture_detail"
-msgstr "Met het menu van Ember open boven een spel dat je bekijkt, toont het spel klein rechtsboven over een dicht menu in plaats van gedimd erachter."
-
 msgid "replays.link"
 msgstr "Replay uit de link afspelen"
 
@@ -1405,7 +1399,13 @@ msgid "room.private_status"
 msgstr "Privékamer / alleen op uitnodiging"
 
 msgid "room.tournament_status"
-msgstr "Toernooiwedstrijd, eerst tot {0}. Alleen de twee spelers kunnen erin."
+msgstr "Toernooiwedstrijd, eerst tot {0}. Alleen de twee spelers kunnen spelen."
+
+msgid "room.tournament_status_watched"
+msgstr "Toernooiwedstrijd, eerst tot {0}. Kijkers: {1}."
+
+msgid "room.tournament_watching"
+msgstr "Je kijkt naar een toernooiwedstrijd. Alleen de twee spelers kunnen spelen."
 
 msgid "room.reconnecting"
 msgstr "Kamer opnieuw verbinden..."
@@ -1955,6 +1955,9 @@ msgstr "Knockdown"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"
+
+msgid "training.meter.hitstop"
+msgstr "Hitstop"
 
 msgid "training.meter.throw"
 msgstr "Worp / filmpje"
@@ -2710,6 +2713,8 @@ msgstr "{0} / HOST"
 
 msgid "room.member_status"
 msgstr "{0}"
+msgid "room.member.watcher"
+msgstr "Kijker"
 
 msgid "room.members"
 msgstr "Leden"
@@ -2717,6 +2722,22 @@ msgstr "Leden"
 msgid "room.member_count"
 msgstr "{0} / {1} leden."
 
+msgid "room.hide_members"
+msgstr "Leden verbergen"
+msgid "room.show_members"
+msgstr "Leden tonen"
+msgid "room.hide_chat"
+msgstr "Chat verbergen"
+msgid "room.show_chat"
+msgstr "Chat tonen"
+msgid "room.part_detail"
+msgstr "Verbergt dit deel van de kolom of toont het weer. Sleep de lijnen tussen het bord, de leden en de chat om ze groter of kleiner te maken."
+msgid "room.more"
+msgstr "Meer…"
+msgid "room.more.detail"
+msgstr "Kamerinstellingen en de uitnodiging voor de kamer."
+msgid "room.members_summary"
+msgstr "{0} spelen · {1} kijken"
 msgid "room.chat"
 msgstr "Chat"
 
@@ -3087,6 +3108,15 @@ msgstr "In wachtrij"
 msgid "room.stop_watching"
 msgstr "Stoppen met kijken"
 
+msgid "room.picture_behind"
+msgstr "Spel achter het menu"
+
+msgid "room.picture_show"
+msgstr "Spel als beeld"
+
+msgid "room.picture_swap.detail"
+msgstr "Wisselt het bekeken spel tussen een klein beeld en het gedimde spel achter het menu, voor deze sessie."
+
 msgid "room.stop_watching.detail"
 msgstr "Stopt met kijken naar deze tafel en brengt je terug naar de kamer. De spelers blijven spelen."
 
@@ -3386,6 +3416,12 @@ msgstr "Toeschouwersactie niet verzonden; nieuwe poging."
 
 msgid "runtime.return_main_menu"
 msgstr "Ga naar het spelhoofdmenu voordat je een kamer opent."
+
+msgid "runtime.in_tournament_match"
+msgstr "Je speelt of bekijkt een toernooiwedstrijd. Rond hem af of stop hem bij Toernooiwedstrijden voordat je een andere kamer opent of binnengaat."
+
+msgid "runtime.watch_leave_room"
+msgstr "Verlaat je kamer voordat je naar een toernooiwedstrijd gaat kijken."
 
 msgid "runtime.tournament_result_saving"
 msgstr "Het resultaat van het laatste spel wordt opgeslagen. Probeer het over een paar seconden opnieuw."
@@ -4550,6 +4586,63 @@ msgstr "Deze wedstrijd staat niet in je lijst. Hij is van andere spelers, of dez
 
 msgid "tournament.failure.link_service"
 msgstr "Vertrouw deze toernooidienst bij Gekoppelde accounts en open de wedstrijdlink dan opnieuw."
+
+msgid "tournament.watch.row"
+msgstr "Naar deze wedstrijd kijken"
+
+msgid "tournament.watch.row_detail"
+msgstr "Kijkers zien de wedstrijd vanuit de kamer. Ze kunnen niet spelen of chatten, en de organisator bepaalt wie mag kijken."
+
+msgid "tournament.watch.stop_detail"
+msgstr "Verlaat de kamer van de wedstrijd. Je kunt vanuit deze lijst opnieuw naar de wedstrijd kijken."
+
+msgid "tournament.watch.needs_id"
+msgstr "Om naar een wedstrijd te kijken heb je een Ember ID nodig. Maak er hier een, het duurt maar even."
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "Je vertrouwt de toernooidienst van deze wedstrijd nog niet. Voeg die toe bij Gekoppelde accounts."
+
+msgid "tournament.watch.state.asking"
+msgstr "De toernooidienst wordt geraadpleegd."
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "Wachten tot de spelers de kamer van de wedstrijd openen."
+
+msgid "tournament.watch.state.full"
+msgstr "Deze wedstrijd heeft al evenveel kijkers als de organisator toestaat. Wachten op een plek."
+
+msgid "tournament.watch.state.joining"
+msgstr "Naar de kamer van de wedstrijd gaan."
+
+msgid "tournament.watch.state.watching"
+msgstr "Kijken naar {0} tegen {1}."
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "De organisator van deze wedstrijd heeft hem niet opengesteld voor kijkers."
+
+msgid "tournament.watch.refused.revoked"
+msgstr "De organisator heeft je uit de kijkers van deze wedstrijd gehaald."
+
+msgid "tournament.watch.refused.fighter"
+msgstr "Je speelt in deze wedstrijd. Gebruik in plaats daarvan Spelen."
+
+msgid "tournament.watch.refused.build"
+msgstr "De spelers gebruiken een andere Ember-versie. Om te kijken is dezelfde nodig."
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "Deze toernooidienst ondersteunt kijken niet."
+
+msgid "tournament.watch.refused.other_room"
+msgstr "Het kijken is gestopt omdat je in een andere kamer zit. Verlaat die kamer en kijk daarna opnieuw naar de wedstrijd."
+
+msgid "tournament.watch.finished_notice"
+msgstr "De wedstrijd waarnaar je keek is voorbij."
+
+msgid "tournament.watch.removed_notice"
+msgstr "Je kijkt niet meer mee: de organisator heeft je verwijderd."
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "De kamer van de wedstrijd is gesloten."
 
 msgid "rules.set_length"
 msgstr "Setlengte"

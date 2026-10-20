@@ -260,6 +260,37 @@ export interface RoomSpec {
   creator: { participantId: string; emberId: string };
 }
 
+/** Who may watch the matches of a connection, as its organizer set it. */
+export interface WatchPolicy {
+  connection_id: string;
+  /** Whether anyone who holds a match link may watch it, up to `link_holder_cap`. */
+  link_holders: boolean;
+  link_holder_cap: number;
+  /** The most watchers one match has, staff included. */
+  ceiling: number;
+  /** Ember IDs approved to watch every match of the connection. */
+  staff: { ember_id: string; added_at: number }[];
+}
+
+/** Someone who asked to watch a match. */
+export interface MatchWatcher {
+  ember_id: string;
+  /** What lets them in now: `staff`, `link_holders`, `denied` or `none`. */
+  via: "staff" | "link_holders" | "denied" | "none";
+  /** Whether the fighters' binding names them, so the room admits them. */
+  bound: boolean;
+  first_seen_at: number;
+  last_seen_at: number;
+}
+
+export interface MatchWatchers {
+  match_id: string;
+  link_holders: boolean;
+  watchers: MatchWatcher[];
+  /** Ember IDs denied this match, whatever the policy says. */
+  denied: string[];
+}
+
 type Body = { [key: string]: Json };
 
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -622,6 +653,52 @@ export class BridgeClient {
   /** Closes a room your connection opened (`reason` is 1 to 256 characters). Closing a closed room answers it again. */
   closeRoom(roomId: string, reason: string): Promise<ConnectionRoom> {
     return this.#json("POST", `/v1/rooms/${encodeURIComponent(roomId)}/close`, { reason });
+  }
+
+  /** Who may watch the matches of your connection. Provider and organizer credentials read it. */
+  watchPolicy(connectionId: string): Promise<WatchPolicy> {
+    return this.#json("GET", `/v1/connections/${encodeURIComponent(connectionId)}/watch`);
+  }
+
+  /**
+   * Organizer credentials only. Lets anyone who holds a match link watch it,
+   * up to `link_holder_cap` of them, or stops that. It is off by default.
+   *
+   * A watcher joins the fighters' room, and the room's members can learn each
+   * other's public IP addresses when Iroh finds a direct path. With this on,
+   * anyone with a match link and a free Ember ID can learn a competing
+   * fighter's address in the middle of your event. Staff, whom you approve by
+   * name, have the same reach; turn this on only if you accept that. A
+   * connection whose platform fixes its settings (BluMint's) refuses it with
+   * `error.details.reason` `connection_fixed`.
+   */
+  setWatchLinkHolders(connectionId: string, linkHolders: boolean): Promise<WatchPolicy> {
+    return this.#json("PUT", `/v1/connections/${encodeURIComponent(connectionId)}/watch`, { link_holders: linkHolders });
+  }
+
+  /** Organizer credentials only. Approves an Ember ID to watch every match of the connection, such as a caster or a TO. */
+  addWatchStaff(connectionId: string, emberId: string): Promise<{ ember_id: string; added_at: number }> {
+    return this.#json("PUT", `/v1/connections/${encodeURIComponent(connectionId)}/watch/staff/${encodeURIComponent(emberId)}`, {});
+  }
+
+  /** Organizer credentials only. Takes the approval back; the watcher leaves a room within about a claim interval (10 seconds). */
+  async removeWatchStaff(connectionId: string, emberId: string): Promise<void> {
+    await this.#request("DELETE", `/v1/connections/${encodeURIComponent(connectionId)}/watch/staff/${encodeURIComponent(emberId)}`);
+  }
+
+  /** Organizer credentials only. Removes an Ember ID from one match's watchers, staff or not, and keeps it out. */
+  denyWatcher(matchId: string, emberId: string): Promise<{ ember_id: string; set_at: number }> {
+    return this.#json("PUT", `/v1/matches/${encodeURIComponent(matchId)}/watch/denials/${encodeURIComponent(emberId)}`, {});
+  }
+
+  /** Organizer credentials only. Lifts a denial. */
+  async clearWatchDenial(matchId: string, emberId: string): Promise<void> {
+    await this.#request("DELETE", `/v1/matches/${encodeURIComponent(matchId)}/watch/denials/${encodeURIComponent(emberId)}`);
+  }
+
+  /** Everyone who asked to watch a match, whether they are let in and whether the room admits them, and the denials. */
+  matchWatchers(matchId: string): Promise<MatchWatchers> {
+    return this.#json("GET", `/v1/matches/${encodeURIComponent(matchId)}/watchers`);
   }
 
   /** Events after `after`, oldest first, with the cursor to continue from. */

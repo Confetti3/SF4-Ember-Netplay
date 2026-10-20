@@ -12,6 +12,7 @@ pub mod results;
 pub mod sign_in;
 pub mod sites;
 pub mod supervisor;
+pub mod watch;
 
 use std::path::PathBuf;
 
@@ -222,6 +223,35 @@ impl Bridge {
             request = request.header("idempotency-key", key);
         }
         read(request.send().await.unwrap()).await
+    }
+
+    /// A request with any method, with `body` as JSON when there is one.
+    pub async fn send(
+        &self,
+        token: &str,
+        method: reqwest::Method,
+        path: &str,
+        body: Option<Json>,
+    ) -> (StatusCode, Json) {
+        let mut request = self
+            .client
+            .request(method, self.url(path))
+            .bearer_auth(token);
+        if let Some(body) = body {
+            request = request
+                .header("content-type", "application/json")
+                .body(serde_json::to_vec(&body).unwrap());
+        }
+        read(request.send().await.unwrap()).await
+    }
+
+    pub async fn put(&self, token: &str, path: &str, body: Json) -> (StatusCode, Json) {
+        self.send(token, reqwest::Method::PUT, path, Some(body))
+            .await
+    }
+
+    pub async fn delete(&self, token: &str, path: &str) -> (StatusCode, Json) {
+        self.send(token, reqwest::Method::DELETE, path, None).await
     }
 
     pub fn player(&self, byte: u8) -> Player {

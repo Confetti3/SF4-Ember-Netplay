@@ -100,7 +100,7 @@ void CloseRoom() {
     runtime->recoveryProgress=session::RecoveryProgress{};
     runtime->observedAuthorityTerm=0;
     runtime->leaveRequested=runtime->leaveAcknowledged=false;
-    runtime->publicJoin=false;
+    runtime->join=JoinKind::Private;
     runtime->leaveActionId=runtime->leaveRetryAt=runtime->leaveDeadline=0;
     runtime->matchInput={};runtime->matchInputSide=-1;runtime->matchInputFault=false;
 	runtime->match.reset();
@@ -220,6 +220,7 @@ void AttachRoom() {
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
 	UserApp::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
 	UserApp::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
+	UserApp::netplay->client.SetProfileObserver(runtime->join==JoinKind::Observer);
     runtime->selectedDelay=runtime->preferences.inputDelay;
     UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;
@@ -280,6 +281,10 @@ void StartHelper() {
             runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
+            const int side = saved.contains("roomSideWidth") && saved["roomSideWidth"].is_number_integer() ? saved["roomSideWidth"].get<int>() : 50;
+            runtime->preferences.roomSideWidth = side >= netplay::MinRoomSideWidth && side <= netplay::MaxRoomSideWidth ? side : 50;
+            const int members = saved.contains("roomMemberShare") && saved["roomMemberShare"].is_number_integer() ? saved["roomMemberShare"].get<int>() : 56;
+            runtime->preferences.roomMemberShare = members >= netplay::MinRoomMemberShare && members <= netplay::MaxRoomMemberShare ? members : 56;
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
@@ -423,7 +428,7 @@ static void TakeJoinLink() {
 }
 
 bool SubmitRuntimeCommand(RuntimeCommand command) {
-	if (command.padAction.layouts.size() > 32 || command.padAction.log.size() > 2048 || command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
+	if (command.preferences.buttonLayouts.size() > 32 || command.padAction.log.size() > 2048 || command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
 		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
@@ -441,7 +446,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	}
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
-	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
+	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation && !command.roomSettings &&
 		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
@@ -453,14 +458,14 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		command.servicePath.size() + command.updateOffer.tag.size() + command.updateOffer.sha256.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size() +
 		command.reportSubmission.comment.size() + command.padAction.log.size();
     std::size_t layoutBytes = 0;
-    for (const auto& layout : command.padAction.layouts)
+    for (const auto& layout : command.preferences.buttonLayouts)
         layoutBytes += sizeof(layout) + layout.identity.guid.size() + layout.identity.serial.size() + layout.identity.path.size() + layout.identity.name.size();
 	return bridge::PushCommand(std::move(command), bytes + layoutBytes);
 }
 
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
-bool IsRuntimePublicJoin() { return runtime && runtime->publicJoin; }
+bool IsRuntimePublicJoin() { return runtime && runtime->join == JoinKind::Public; }
 bool IsRuntimeRecoveryEnabled() { return runtime && runtime->room && runtime->room->Coordination().active; }
 
 // TickRuntime runs these phases in order on the game thread. Each one reads and
@@ -519,7 +524,7 @@ static void ObserveCoordination() {
 
 // The room is over for this player: say so, leave, and tear the session down.
 static void EndClosedRoom(const netplay::Snapshot& state) {
-	runtime->error=loc::T("runtime.room_closed");
+	if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Closed)) runtime->error=loc::T("runtime.room_closed");
 	runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
 	CloseRoom();
 }
@@ -565,8 +570,8 @@ static void SettleRoomState(bool helperReady) {
 			// Without a rejection, the helper's stage says where it failed; hosting has its own wording.
 			// A public room's join is worded for it: the host locking the room or turning the player away, and a failure no stage explains.
 			Apply(netplay::EventKind::RoomFailed, rejection ?
-				std::string(loc::T(runtime->publicJoin ? SessionClient::PublicJoinRejectionKey(*rejection) : SessionClient::JoinRejectionKey(*rejection))) :
-				runtime->publicJoin ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay) :
+				std::string(loc::T(runtime->join==JoinKind::Public ? SessionClient::PublicJoinRejectionKey(*rejection) : SessionClient::JoinRejectionKey(*rejection))) :
+				runtime->join==JoinKind::Public ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay) :
 				ui::DescribeOpeningFailure(state.isHost, runtime->room->Stage(), runtime->room->Network().relay));
 		}
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&
@@ -584,7 +589,7 @@ static void SettleRoomState(bool helperReady) {
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().roomEpoch &&
 		!UserApp::netplay->client.GetRoomSnapshot().localMember) {
-        runtime->error=loc::T("runtime.removed_from_room");
+        if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Removed)) runtime->error=loc::T("runtime.removed_from_room");
         runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
         CloseRoom();
     }

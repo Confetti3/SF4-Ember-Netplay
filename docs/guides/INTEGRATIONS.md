@@ -228,6 +228,83 @@ open Ember (Linux browsers, or a PC where Ember has not been started yet), the
 page's Copy link and Paste match link on that screen do the same, or the player
 picks the match from the list.
 
+## Match watch
+
+An organizer, a caster or another approved viewer can watch a match played in
+Ember (`ember-room-v1`) from inside the match's own room, without being able
+to affect the set. The bridge names a watcher only when both players' games
+say they can read one (a current Ember's claim carries `"watch": true`, which
+a game sends only to a bridge that lists `matches.watch`) and the watcher's
+Ember build is the one both players run. Matches played on an Ember that
+cannot read watchers, such as Stable 1.3.0, never get a watcher, whatever a
+watcher declares. A bridge that serves watching lists `matches.watch` in its
+capabilities `features`.
+
+**Who may watch** is the organizer's choice, and the default is nobody, so a
+connection that does nothing changes nothing:
+
+- **Staff.** Ember IDs you approve for every match of your connection, such as
+  a TO or a caster. They can always watch.
+- **Link holders.** Off by default. When you turn it on, anyone who holds the
+  match's Play link and has an Ember ID may watch, up to 2 of them.
+- **Denials.** An Ember ID you deny for one match is out of it, staff or not.
+- At most 6 watchers watch one match, staff included. A staff watcher can take
+  the place of a link holder when the match is full.
+
+BluMint's connections cannot be opened to watchers: every write below answers
+`403 forbidden` with `details.reason` `connection_fixed`, and `spectators` in
+BluMint's create request stays ignored.
+
+**Address exposure.** A watcher joins the players' room, and the members of a
+room can learn each other's public IP addresses when Iroh finds a direct path.
+A watcher reaches player 1 (the game host) and the room's coordination leader,
+which is either player. With `link_holders` on, anyone who has the match link
+and a free Ember ID can learn a competing player's address in the middle of
+your event, which invites a flood from outside Ember. Staff, whom you approve
+by name, have the same reach. Ember cannot send only a watcher's links through
+its relay. Turn `link_holders` on only if you accept that, and tell your
+players.
+
+**What a watcher can do.** Nothing in the room but watch: no seat, queue,
+rules, chat, host powers or vote, and they never hold a game start. They
+leave by leaving the room. Each needs an Ember ID, made in the game in a
+moment, with no linked account.
+
+**How a watcher gets in.** The match's Play link opens Ember, which offers
+Watch to anyone who is not one of the players. The game asks the bridge every
+10 seconds (`POST /v1/matches/{id}/watch`, a `match.watch` proof from the
+watcher's own session) and is answered `waiting` with a `reason`, or `room`
+with the room and its invitation. The reasons are `no_room` (no room is
+published yet), `not_bound` (a player has not claimed, or the players' games
+do not both read watchers) and `full` (the cap or ceiling is reached, another
+watcher holds the same endpoint, or the endpoint is a player's own; ask
+again). It joins that room, and the players' next claims carry a binding that
+names it, so a change of policy, a denial or a watcher who goes quiet (60
+seconds) reaches the room within about one claim interval of the players (10
+seconds). A watcher is never given a binding. Refusals are `forbidden` with
+`details.reason` `not_allowed`, `revoked` or `fighter`, `incompatible_build` when
+the players run another Ember build, and `rate_limited` above 30 calls a minute.
+
+**Organizer routes** (organizer credential of the connection's tenant; the
+connection's provider credential may read):
+
+| Route | Does |
+|---|---|
+| `GET /v1/connections/{id}/watch` | `link_holders`, `link_holder_cap` (2), `ceiling` (6) and the staff list |
+| `PUT /v1/connections/{id}/watch` | `{"link_holders": true}`. Read the address exposure above first. |
+| `PUT` and `DELETE /v1/connections/{id}/watch/staff/{ember_id}` | Approve, or stop approving, an Ember ID. The `PUT` body is `{}` and the answer `{"ember_id", "added_at"}`; `DELETE` answers `204`. |
+| `PUT` and `DELETE /v1/matches/{id}/watch/denials/{ember_id}` | Deny, or allow again, one Ember ID for one match. The `PUT` body is `{}` and the answer `{"ember_id", "set_at"}`; `DELETE` answers `204`. |
+| `GET /v1/matches/{id}/watchers` | Everyone who asked to watch: `via` (`staff`, `link_holders`, `denied`, `none`), whether the binding names them (`bound`), first and last seen, and the denials |
+
+Every write is audited with the Ember ID it names (`on` or `off` for
+`link_holders`). Two watchers who ask for one endpoint get one place, the
+staff one or else the later arrival, and the loss is audited as
+`watch.endpoint_conflict`. The `play_url` of the match is the link watchers open,
+and no event kinds were added. The TypeScript SDK has `watchPolicy`,
+`setWatchLinkHolders`, `addWatchStaff`, `removeWatchStaff`, `denyWatcher`,
+`clearWatchDenial` and `matchWatchers`, and `TestPlayer` has `watchMatch` and
+`stopWatching`.
+
 ## Discord sign-in (optional)
 
 A bridge whose configuration has `discord` (the Discord application's
@@ -760,7 +837,7 @@ the connection's provider credential as `Authorization: Bearer`:
   is the match's `external_match_id` (`blumint:<key>`), so it makes no other
   match for as long as the bridge keeps that one. Refusals answer
   BluMint's registry codes at the top level (`invalid_request`,
-  `match_unsupported`, `key_reused`, `player_unlinked` and `423`
+  `match_unsupported`, `idempotency_key_reused`, `player_unlinked` and `423`
   `player_busy`), never the bridge's error envelope.
 - `POST /v1/blumint/matches/close` takes `{ idempotencyKey, reason }`: it
   ends the match made under that creation key, however old, and closes the
@@ -776,7 +853,9 @@ game ends with another to come; a
 `progress` after each game won that does not end
 the set; and the `result`, each team with its `wins`. A cancelled match is an `abort` with
 the wins so far and `retryable: true`, which BluMint answers by asking for
-the set again with those wins as `startingWins`. BluMint has no review step,
+the set again with those wins as `startingWins`. Every report names the
+creation that made the match as `idempotencyKey` (its `external_match_id`
+without `blumint:`), which BluMint requires. BluMint has no review step,
 so a match that would go to `needs_review` (the two games disagree, a report
 never arrives, a player's link ends) is cancelled instead. A match nobody
 plays expires after a day at most and is an `abort` with `retryable: false`, so

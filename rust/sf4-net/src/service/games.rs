@@ -15,6 +15,8 @@ impl Actor {
             let peer = connection.remote_id();
             if connection.alpn() == CONTROL_ALPN && self.server_owned() {
                 self.accept_public_incoming(epoch, connection);
+            } else if connection.alpn() == CONTROL_ALPN && !self.admits_control(&peer) {
+                connection.close(1u32.into(), b"not admitted");
             } else if connection.alpn() == CONTROL_ALPN {
                 if let Some(invite) = self
                     .room_invite
@@ -26,11 +28,16 @@ impl Actor {
                 {
                     let member = self.control_rejoin_member(peer);
                     let recovery = self.recovery.clone();
+                    let watchers = self.takes_observers();
                     self.tasks.spawn(async move {
                         if let (Some(incarnation), Some(recovery)) = (member, recovery) {
                             let result =
                                 if recovery.applied_member_ids().await.contains(&incarnation) {
-                                    transport::accept_control_member(connection, &invite, peer)
+                                    let accepting = transport::Accepting {
+                                        member: Some(peer),
+                                        watchers,
+                                    };
+                                    transport::accept_control_for(connection, &invite, accepting)
                                         .await
                                 } else {
                                     connection.close(1u32.into(), b"member retired");
@@ -38,9 +45,13 @@ impl Actor {
                                 };
                             Completion::MemberControl(epoch, incarnation, result)
                         } else {
+                            let accepting = transport::Accepting {
+                                member: None,
+                                watchers,
+                            };
                             Completion::Control(
                                 epoch,
-                                transport::accept_control(connection, &invite).await,
+                                transport::accept_control_for(connection, &invite, accepting).await,
                             )
                         }
                     });
@@ -314,49 +325,52 @@ impl Actor {
                 .games
                 .get(&peer)
                 .is_some_and(|slot| slot.auth.key.generation == generation)
+            && let Some(slot) = self.games.remove(&peer)
         {
-            if let Some(slot) = self.games.remove(&peer) {
-                let route = slot
-                    .route_connection
-                    .as_ref()
-                    .map(selected_probe_route)
-                    .unwrap_or_else(|| "unavailable".into());
-                if let Some(stats) = slot.stats.as_ref() {
-                    self.emit(Event::Statistics {
-                        epoch,
-                        peer,
-                        generation,
-                        sent_packets: stats.sent_packets.load(Ordering::Relaxed),
-                        received_packets: stats.received_packets.load(Ordering::Relaxed),
-                        sent_bytes: stats.sent_bytes.load(Ordering::Relaxed),
-                        received_bytes: stats.received_bytes.load(Ordering::Relaxed),
-                        rejected_packets: stats.rejected_packets.load(Ordering::Relaxed),
-                        congestion_events: stats.congestion_events.load(Ordering::Relaxed),
-                        local_drops: stats.local_drops.load(Ordering::Relaxed),
-                        route: route.clone(),
-                    })?;
-                }
-                if let Some(reason) = failure {
-                    self.emit(Event::GameFailed {
-                        epoch,
-                        peer,
-                        generation,
-                        reason,
-                        route,
-                        max_packet: slot.auth.max_packet,
-                        max_datagram: slot
-                            .route_connection
-                            .as_ref()
-                            .and_then(Connection::max_datagram_size)
-                            .unwrap_or(0),
-                    })?;
-                }
+            let route = slot
+                .route_connection
+                .as_ref()
+                .map(selected_probe_route)
+                .unwrap_or_else(|| "unavailable".into());
+            if let Some(stats) = slot.stats.as_ref() {
+                self.emit(Event::Statistics {
+                    epoch,
+                    peer,
+                    generation,
+                    sent_packets: stats.sent_packets.load(Ordering::Relaxed),
+                    received_packets: stats.received_packets.load(Ordering::Relaxed),
+                    sent_bytes: stats.sent_bytes.load(Ordering::Relaxed),
+                    received_bytes: stats.received_bytes.load(Ordering::Relaxed),
+                    rejected_packets: stats.rejected_packets.load(Ordering::Relaxed),
+                    congestion_events: stats.congestion_events.load(Ordering::Relaxed),
+                    local_drops: stats.local_drops.load(Ordering::Relaxed),
+                    route: route.clone(),
+                })?;
+            }
+            if let Some(reason) = failure {
+                self.emit(Event::GameFailed {
+                    epoch,
+                    peer,
+                    generation,
+                    reason,
+                    route,
+                    max_packet: slot.auth.max_packet,
+                    max_datagram: slot
+                        .route_connection
+                        .as_ref()
+                        .and_then(Connection::max_datagram_size)
+                        .unwrap_or(0),
+                })?;
             }
             self.emit(Event::GameClosed {
                 epoch,
                 peer,
                 generation,
-                reason: None,
+                reason: slot
+                    .route_connection
+                    .as_ref()
+                    .and_then(Connection::close_reason)
+                    .map(|error| error.to_string()),
             })?;
         }
         Ok(())

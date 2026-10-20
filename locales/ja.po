@@ -790,12 +790,6 @@ msgstr "観戦した対戦を保存"
 msgid "replays.save_watched_detail"
 msgstr "観戦した対戦も保存します。オフでは自分がプレイした対戦だけを保存します。"
 
-msgid "settings.watched_picture"
-msgstr "観戦中の試合を隅に表示"
-
-msgid "settings.watched_picture_detail"
-msgstr "観戦中の試合の上でEmberのメニューを開くと、メニューの後ろに暗く表示する代わりに、不透明なメニューの右上に小さく表示します。"
-
 msgid "replays.link"
 msgstr "リンクのリプレイを再生"
 
@@ -1405,7 +1399,13 @@ msgid "room.private_status"
 msgstr "プライベートルーム / 招待者のみ"
 
 msgid "room.tournament_status"
-msgstr "大会の試合、{0}本先取。参加できるのはこの試合の2人だけです。"
+msgstr "大会の試合、{0}本先取。プレイできるのはこの試合の2人だけです。"
+
+msgid "room.tournament_status_watched"
+msgstr "大会の試合、{0}本先取。{1}人が観戦中です。"
+
+msgid "room.tournament_watching"
+msgstr "大会の試合を観戦中です。プレイできるのはこの試合の2人だけです。"
 
 msgid "room.reconnecting"
 msgstr "ルームに再接続中..."
@@ -1955,6 +1955,9 @@ msgstr "ダウン"
 
 msgid "training.meter.meaty"
 msgstr "重ね"
+
+msgid "training.meter.hitstop"
+msgstr "ヒットストップ"
 
 msgid "training.meter.throw"
 msgstr "投げ / 演出"
@@ -2711,12 +2714,31 @@ msgstr "{0} / ホスト"
 msgid "room.member_status"
 msgstr "{0}"
 
+msgid "room.member.watcher"
+msgstr "観戦者"
+
 msgid "room.members"
 msgstr "メンバー"
 
 msgid "room.member_count"
 msgstr "メンバー{0}/{1}人。"
 
+msgid "room.hide_members"
+msgstr "メンバーを隠す"
+msgid "room.show_members"
+msgstr "メンバーを表示"
+msgid "room.hide_chat"
+msgstr "チャットを隠す"
+msgid "room.show_chat"
+msgstr "チャットを表示"
+msgid "room.part_detail"
+msgstr "列のこの部分を隠すか、元に戻します。ボード、メンバー、チャットの間の線をドラッグすると大きさを変えられます。"
+msgid "room.more"
+msgstr "その他…"
+msgid "room.more.detail"
+msgstr "ルームの設定と招待。"
+msgid "room.members_summary"
+msgstr "{0} 人がプレイ中 · {1} 人が観戦中"
 msgid "room.chat"
 msgstr "チャット"
 
@@ -3087,6 +3109,15 @@ msgstr "順番待ちに入る"
 msgid "room.stop_watching"
 msgstr "観戦をやめる"
 
+msgid "room.picture_behind"
+msgstr "試合をメニューの後ろに"
+
+msgid "room.picture_show"
+msgstr "試合を小画面で"
+
+msgid "room.picture_swap.detail"
+msgstr "観戦中の試合を、小さな画面とメニューの後ろの暗い表示とで切り替えます（このセッションのみ）。"
+
 msgid "room.stop_watching.detail"
 msgstr "この対戦席の観戦をやめてルームに戻ります。対戦は続きます。"
 
@@ -3386,6 +3417,12 @@ msgstr "観戦の操作を送信できませんでした。再試行中です。
 
 msgid "runtime.return_main_menu"
 msgstr "ルームを開く前にゲーム本体のメインメニューに戻ってください。"
+
+msgid "runtime.in_tournament_match"
+msgstr "大会の試合をプレイ中、または観戦中です。別のルームを開いたり参加したりする前に、試合を終えるか、「大会の試合」で中止してください。"
+
+msgid "runtime.watch_leave_room"
+msgstr "大会の試合を観戦する前に、今いるルームから退出してください。"
 
 msgid "runtime.tournament_result_saving"
 msgstr "前の試合の結果を保存しています。数秒後にもう一度お試しください。"
@@ -4550,6 +4587,63 @@ msgstr "この試合は一覧にありません。別のプレイヤーの試合
 
 msgid "tournament.failure.link_service"
 msgstr "連携アカウントでこの大会サービスを信頼してから、試合リンクをもう一度開いてください。"
+
+msgid "tournament.watch.row"
+msgstr "この試合を観戦"
+
+msgid "tournament.watch.row_detail"
+msgstr "観戦者はルームから試合を見られます。プレイやチャットはできず、観戦できる人は主催者が決めます。"
+
+msgid "tournament.watch.stop_detail"
+msgstr "試合のルームから退出します。この一覧からもう一度観戦できます。"
+
+msgid "tournament.watch.needs_id"
+msgstr "試合を観戦するにはEmber IDが必要です。ここで作成できます。すぐに終わります。"
+
+msgid "tournament.watch.untrusted_bridge"
+msgstr "この試合の大会サービスはまだ信頼されていません。連携アカウントで追加してください。"
+
+msgid "tournament.watch.state.asking"
+msgstr "大会サービスに問い合わせ中です。"
+
+msgid "tournament.watch.state.waiting_room"
+msgstr "プレイヤーが試合のルームを開くのを待っています。"
+
+msgid "tournament.watch.state.full"
+msgstr "この試合は主催者が許可した観戦者数に達しています。空きを待っています。"
+
+msgid "tournament.watch.state.joining"
+msgstr "試合のルームに参加中です。"
+
+msgid "tournament.watch.state.watching"
+msgstr "{0} vs {1}を観戦中です。"
+
+msgid "tournament.watch.refused.not_allowed"
+msgstr "この試合の主催者は観戦を許可していません。"
+
+msgid "tournament.watch.refused.revoked"
+msgstr "主催者によってこの試合の観戦者から外されました。"
+
+msgid "tournament.watch.refused.fighter"
+msgstr "あなたはこの試合のプレイヤーです。代わりに「プレイ」を使ってください。"
+
+msgid "tournament.watch.refused.build"
+msgstr "プレイヤーが使っているEmberのバージョンが異なります。観戦には同じバージョンが必要です。"
+
+msgid "tournament.watch.refused.unsupported"
+msgstr "この大会サービスは観戦に対応していません。"
+
+msgid "tournament.watch.refused.other_room"
+msgstr "別のルームにいるため、観戦を終了しました。ルームから退出して、もう一度観戦してください。"
+
+msgid "tournament.watch.finished_notice"
+msgstr "観戦していた試合が終了しました。"
+
+msgid "tournament.watch.removed_notice"
+msgstr "観戦を終了しました。主催者により外されました。"
+
+msgid "tournament.watch.room_closed_notice"
+msgstr "試合のルームが閉じられました。"
 
 msgid "rules.set_length"
 msgstr "セットの長さ"

@@ -143,7 +143,8 @@ impl Queue for Status {
         let connections: Vec<&String> = self.destinations.keys().collect();
         let rows = tx
             .prepare(
-                "SELECT s.match_id, m.connection_id, s.revision, s.body, s.observed_at, s.attempts, s.first_at
+                "SELECT s.match_id, m.connection_id, s.revision, s.body, s.observed_at, s.attempts, s.first_at,
+                        m.external_match_id
                  FROM blumint_status s JOIN matches m ON m.id = s.match_id
                    JOIN provider_connections c ON c.id = m.connection_id
                  WHERE s.state IN ('queued', 'retrying', 'delivering') AND s.next_at <= ?1
@@ -159,11 +160,14 @@ impl Queue for Status {
                     row.get::<_, u64>(4)?,
                     row.get::<_, u32>(5)?,
                     row.get::<_, Option<u64>>(6)?,
+                    row.get::<_, String>(7)?,
                 ))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         let mut leased = Vec::with_capacity(rows.len());
-        for (match_id, connection_id, revision, body, observed_at, attempts, first_at) in rows {
+        for (match_id, connection_id, revision, body, observed_at, attempts, first_at, external) in
+            rows
+        {
             // A body the bridge cannot read fails on its own, so the rest of
             // the queue goes on. The match's next change writes it again
             // (`observe`).
@@ -192,7 +196,13 @@ impl Queue for Status {
             )?;
             leased.push(Leased {
                 item: Due {
-                    body: blumint::status_report(&match_id, &status, revision, observed_at),
+                    body: blumint::status_report(
+                        &match_id,
+                        &external,
+                        &status,
+                        revision,
+                        observed_at,
+                    ),
                     match_id,
                     connection_id,
                     revision,
@@ -232,12 +242,10 @@ impl Queue for Status {
             }
         }
         match destination.post(item.body.to_string().into_bytes()).await {
-            // BluMint asks a partner to keep sending a status it does not
-            // know the match for yet.
-            Ok(answered) if answered.status == 404 => Outcome::Retry {
-                error: "http 404".into(),
-                retry_after: answered.retry_after,
-            },
+            // A 404 `unknown_match` is final, as it is for a result: BluMint
+            // has no lobby under the match and says to stop without alerting.
+            // A status sent before it recorded the create answers 503
+            // `match_not_ready` instead, which is retried.
             Ok(answered) => BluMint::outcome(&answered),
             Err(outcome) => outcome,
         }

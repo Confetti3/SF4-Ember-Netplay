@@ -233,7 +233,8 @@ static RuntimeGgpoStart StartRuntimeGgpo() {
         spdlog::info("Netplay: match delay seats={}/{} local_slot={} applied={}",
             netplay->client._matchData.inputDelay[0], netplay->client._matchData.inputDelay[1],
             endpoints.localSlot, netplay->delay);
-        fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay);
+        fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay,
+            netplay->client.SpectatorSyncDeadlineMs());
     }
     if (fSystem::ggpo != nullptr) {
         auto* const root = App::GetRootEvent();
