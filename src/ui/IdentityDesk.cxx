@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdlib>
+#include <ctime>
 
 namespace sf4e { namespace ui {
 using netplay::IdentityOp;
@@ -117,6 +118,17 @@ void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std:
             at.userText = true; rows.push_back(std::move(at));
         }
         rows.push_back(TextRow("dk-device-code", loc::T("desk.device_code"), {}, 9, !busy));
+        // What asked with the code, and the number its page shows among two
+        // others: picking it proves the code came from that page, not from
+        // someone who sent the player a code of their own.
+        const auto& asked = id.deskDevice;
+        if (deskCode_.empty() || asked.choices.empty()) return;
+        const auto minutes = asked.requestedAt ? (static_cast<std::uint64_t>(std::time(nullptr)) - std::min<std::uint64_t>(asked.requestedAt, std::time(nullptr))) / 60 : 0;
+        auto who = InfoRow("dk-device-who", loc::T("desk.device_asked"), asked.device.empty() ? loc::T("desk.device_unknown") : asked.device,
+            loc::Tf("desk.device_asked_detail", static_cast<int>(minutes)));
+        who.userText = true; rows.push_back(std::move(who));
+        for (const int number : asked.choices)
+            rows.push_back(Row("dk-pick:" + std::to_string(number), loc::Tf("desk.device_pick", number), loc::T("desk.device_pick_detail"), !busy));
         return;
     }
     if (screen == "tournament-desk") {
@@ -235,6 +247,14 @@ void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std:
 }
 
 bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNavigation& nav) {
+    if (a.id.compare(0, 8, "dk-pick:") == 0) {
+        const auto* ember = EmberBridge(v);
+        if (!ember || deskCode_.empty()) return true;
+        IdentityRequest approve; approve.op = IdentityOp::DeskApprove; approve.bridge = ember->id; approve.command = deskCode_;
+        approve.number = static_cast<std::uint8_t>(std::atoi(a.id.c_str() + 8));
+        message_.clear(); Queue(std::move(approve));
+        return true;
+    }
     if (a.id.compare(0, 9, "dk-event:") == 0) {
         deskEvent_ = a.id.substr(9); deskFilter_ = 0; deskBracket_ = false; deskReadAt_ = 0;
         nav.Push("desk-event"); return true;
@@ -242,7 +262,7 @@ bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNa
     if (a.id.compare(0, 7, "dk-set:") == 0) { deskSet_ = a.id.substr(7); nav.Push("desk-set"); return true; }
     if (a.id.compare(0, 7, "dk-org:") == 0) { OrganizerAccess(v, a.id.substr(7), true); return true; }
     if (a.id.compare(0, 14, "dk-org-remove:") == 0) { OrganizerAccess(v, a.id.substr(14), false); return true; }
-    if (a.id == "dk-phone") { message_.clear(); nav.Push("desk-device"); return true; }
+    if (a.id == "dk-phone") { message_.clear(); deskCode_.clear(); nav.Push("desk-device"); return true; }
     const auto* ember = EmberBridge(v);
     if (a.id == "dk-open" && ember) {
         IdentityRequest handoff; handoff.op = IdentityOp::DeskOpen; handoff.bridge = ember->id;
@@ -285,8 +305,10 @@ bool IdentityPanel::DeskAccept(const MenuAction& a, const ShellView& v) {
     if (a.kind == MenuAction::TextAccepted && a.id == "dk-device-code") {
         const auto* ember = EmberBridge(v);
         if (!ember || a.text.empty()) return true;
-        IdentityRequest approve; approve.op = IdentityOp::DeskApprove; approve.bridge = ember->id; approve.command = a.text;
-        message_.clear(); Queue(std::move(approve));
+        // Read first: the player approves only once they see what asked.
+        deskCode_ = a.text;
+        IdentityRequest info; info.op = IdentityOp::DeskCodeInfo; info.bridge = ember->id; info.command = a.text;
+        message_.clear(); Queue(std::move(info));
         return true;
     }
     if (a.kind != MenuAction::Adjust) return false;

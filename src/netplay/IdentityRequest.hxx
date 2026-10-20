@@ -23,8 +23,9 @@ enum class IdentityOp : std::uint8_t {
     // player about them, and signing them all out.
     DeskWeb, DeskWebSeen, DeskWebEnd,
     // Opening the web desk from the game: in the browser, or as a code to
-    // type on another device.
-    DeskOpen, DeskApprove,
+    // type on another device, read first for what asked and the numbers to
+    // pick from, then approved with the number that device shows.
+    DeskOpen, DeskApprove, DeskCodeInfo,
 };
 
 // Where a player connects an account to their Ember ID through a browser
@@ -70,7 +71,7 @@ constexpr IdentityEffect EffectOf(IdentityOp op) {
     }
     switch (op) {
     case IdentityOp::Status: case IdentityOp::BridgeList: case IdentityOp::BridgeInspect: case IdentityOp::LinkList:
-    case IdentityOp::DeskRead: case IdentityOp::DeskWeb:
+    case IdentityOp::DeskRead: case IdentityOp::DeskWeb: case IdentityOp::DeskCodeInfo:
         return IdentityEffect::Read;
     case IdentityOp::DeskOpen: return IdentityEffect::Open;
     case IdentityOp::PreviewImport: return IdentityEffect::Preview;
@@ -99,6 +100,8 @@ struct IdentityRequest {
     bool replace = false;
     // A desk action's body, as JSON.
     std::string command;
+    // DeskApprove: the number the other device shows.
+    std::uint8_t number = 0;
 
     static constexpr std::size_t MaxSecret = 1024, MaxPath = 1024, MaxField = 256;
     bool Valid() const {

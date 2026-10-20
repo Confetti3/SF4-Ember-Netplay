@@ -6276,6 +6276,21 @@ msgstr "Code from the other device"
 msgid "desk.device_approved"
 msgstr "The other device is signed in to the desk."
 
+msgid "desk.device_asked"
+msgstr "Asked by"
+
+msgid "desk.device_unknown"
+msgstr "An unknown browser"
+
+msgid "desk.device_asked_detail"
+msgstr "{0} min ago. Approve only if this is your own device."
+
+msgid "desk.device_pick"
+msgstr "It shows {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "Pick the number the other device shows. A wrong pick turns the code down."
+
 msgid "desk.device_refused"
 msgstr "That code is wrong or expired. Get a new one on the other device."
 

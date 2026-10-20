@@ -6634,6 +6634,21 @@ msgstr "另一台设备上的代码"
 msgid "desk.device_approved"
 msgstr "另一台设备已登录控制台。"
 
+msgid "desk.device_asked"
+msgstr "请求来自"
+
+msgid "desk.device_unknown"
+msgstr "未知浏览器"
+
+msgid "desk.device_asked_detail"
+msgstr "{0} 分钟前。仅在这是你自己的设备时批准。"
+
+msgid "desk.device_pick"
+msgstr "显示 {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "选择另一台设备上显示的数字。选错会拒绝该代码。"
+
 msgid "desk.device_refused"
 msgstr "代码错误或已过期。请在另一台设备上获取新代码。"
 

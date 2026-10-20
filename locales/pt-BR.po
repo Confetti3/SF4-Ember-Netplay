@@ -6160,6 +6160,21 @@ msgstr "Código do outro dispositivo"
 msgid "desk.device_approved"
 msgstr "O outro dispositivo entrou na mesa."
 
+msgid "desk.device_asked"
+msgstr "Pedido por"
+
+msgid "desk.device_unknown"
+msgstr "Um navegador desconhecido"
+
+msgid "desk.device_asked_detail"
+msgstr "Há {0} min. Aprove só se for o seu próprio dispositivo."
+
+msgid "desk.device_pick"
+msgstr "Mostra {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "Escolha o número que o outro dispositivo mostra. Uma escolha errada recusa o código."
+
 msgid "desk.device_refused"
 msgstr "Esse código está errado ou expirou. Pegue um novo no outro dispositivo."
 

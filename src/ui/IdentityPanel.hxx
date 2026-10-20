@@ -356,6 +356,8 @@ private:
     // The desk's event and set on screen, the queue's filter (IdentityDesk.cxx
     // Filters) or the bracket, and when the desk is read next.
     std::string deskEvent_, deskSet_;
+    // The other device's code typed on desk-device, until it is approved.
+    std::string deskCode_;
     int deskFilter_ = 0;
     bool deskBracket_ = false;
     double deskReadAt_ = 0;

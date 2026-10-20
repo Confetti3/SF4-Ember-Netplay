@@ -219,6 +219,18 @@ void Desk() {
     sf4e::netplay::IdentityRequest approve; approve.op = IdentityOp::DeskApprove; approve.bridge = "brg_1"; approve.command = "ABCD EFGH";
     Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(approve)) == nlohmann::json({{"op", "desk_approve"}, {"bridge_id", "brg_1"}, {"code", "ABCD EFGH"}}),
         "Approving another device was not built");
+    // The code is read first, for what asked and the numbers to pick from,
+    // and approved with the number picked.
+    sf4e::netplay::IdentityRequest info; info.op = IdentityOp::DeskCodeInfo; info.bridge = "brg_1"; info.command = "123 456";
+    Check(sf4e::netplay::EffectOf(IdentityOp::DeskCodeInfo) == sf4e::netplay::IdentityEffect::Read, "Reading a code is not a read");
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(info)) == nlohmann::json({{"op", "desk_code_info"}, {"bridge_id", "brg_1"}, {"code", "123 456"}}),
+        "Reading another device's code was not built");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":4,"op":"desk_code_info","ok":true,"data":{
+        "device":"Chrome on Android","requested_at":1700000000,"choices":[12,47,83,99]}})"), view);
+    Check(view.deskDevice.device == "Chrome on Android" && view.deskDevice.requestedAt == 1700000000 &&
+        view.deskDevice.choices == std::vector<int>{12, 47, 83}, "What asked with the code was not read, or more than three numbers were kept");
+    approve.number = 47;
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(approve)).value("number", 0) == 47, "The number picked was not sent");
     approve.command.clear();
     Check(sf4e::session::BuildTournamentRequest(approve).empty(), "An approval without a code was built");
 }

@@ -6634,6 +6634,21 @@ msgstr "もう一方の端末のコード"
 msgid "desk.device_approved"
 msgstr "もう一方の端末がデスクにサインインしました。"
 
+msgid "desk.device_asked"
+msgstr "要求元"
+
+msgid "desk.device_unknown"
+msgstr "不明なブラウザ"
+
+msgid "desk.device_asked_detail"
+msgstr "{0} 分前。自分の端末の場合のみ承認してください。"
+
+msgid "desk.device_pick"
+msgstr "表示は {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "もう一方の端末に表示された数字を選んでください。間違えるとコードは拒否されます。"
+
 msgid "desk.device_refused"
 msgstr "コードが違うか期限切れです。もう一方の端末で新しいコードを取得してください。"
 

@@ -477,6 +477,7 @@ void IdentityPanel::Finish(const ShellView& v) {
     case IdentityOp::DeskOpen:
         Say(loc::T("desk.opened"), false, 4); break;
     case IdentityOp::DeskApprove:
+        deskCode_.clear();
         Say(loc::T("desk.device_approved"), false, 8); break;
     case IdentityOp::DeskWebEnd:
         Say(loc::T("desk.web_ended"), false, 4); deskReadAt_ = 0; break;

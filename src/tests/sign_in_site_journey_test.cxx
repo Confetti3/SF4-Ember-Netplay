@@ -707,7 +707,13 @@ void SiteOrganizer(){
  for(int i=0;i<3;++i)h.answer();
  Check(h.row("dk-device-code")->enabled,"The code cannot be typed");
  h.Choose("dk-device-code");h.type("abcd efgh");
- Check(h.sent().back()->op==IdentityOp::DeskApprove&&h.sent().back()->command=="abcd efgh","The other device's code was not sent for approval");
+ Check(h.sent().back()->op==IdentityOp::DeskCodeInfo&&h.sent().back()->command=="abcd efgh","The other device's code was not read before approving it");
+ Check(!h.row("dk-pick:47"),"Numbers were offered before the code was read");
+ id.deskDevice={"Chrome on Android",0,{12,47,83}};h.answer();
+ Check(h.row("dk-device-who")&&h.row("dk-pick:12")&&h.row("dk-pick:47")&&h.row("dk-pick:83"),"What asked and the three numbers were not shown");
+ h.Choose("dk-pick:47");
+ Check(h.sent().back()->op==IdentityOp::DeskApprove&&h.sent().back()->command=="abcd efgh"&&h.sent().back()->number==47,
+  "The other device's code was not approved with the number picked");
  h.answer();
  Check(h.status==loc::T("desk.device_approved"),"Approving the other device was not said");
 }

@@ -148,6 +148,12 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
             w.fresh = session.value("new", false);
             view.webSessions.push_back(std::move(w));
         }
+    } else if (view.op == "desk_code_info") {
+        view.deskDevice = {Text(data, "device", 64), 0, {}};
+        const auto at = data.find("requested_at");
+        if (at != data.end() && at->is_number_unsigned()) view.deskDevice.requestedAt = at->get<std::uint64_t>();
+        for (const auto& choice : data.value("choices", nlohmann::json::array()))
+            if (choice.is_number_integer() && view.deskDevice.choices.size() < 3) view.deskDevice.choices.push_back(choice.get<int>());
     } else if (view.op == "desk_read") {
         view.deskEvents.clear();
         for (const auto& event : data.value("events", nlohmann::json::array()))
@@ -227,6 +233,10 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
         break;
     case IdentityOp::DeskApprove:
         body["op"] = "desk_approve"; complete = need({{"bridge_id", &r.bridge}, {"code", &r.command}});
+        if (r.number) body["number"] = r.number;
+        break;
+    case IdentityOp::DeskCodeInfo:
+        body["op"] = "desk_code_info"; complete = need({{"bridge_id", &r.bridge}, {"code", &r.command}});
         break;
     case IdentityOp::DeskWeb: case IdentityOp::DeskWebSeen: case IdentityOp::DeskWebEnd:
         body["op"] = "desk_web"; complete = need({{"bridge_id", &r.bridge}});

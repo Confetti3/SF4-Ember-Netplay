@@ -6634,6 +6634,21 @@ msgstr "Kód z druhého zařízení"
 msgid "desk.device_approved"
 msgstr "Druhé zařízení je přihlášené k desku."
 
+msgid "desk.device_asked"
+msgstr "Požádal"
+
+msgid "desk.device_unknown"
+msgstr "Neznámý prohlížeč"
+
+msgid "desk.device_asked_detail"
+msgstr "Před {0} min. Schvaluj jen, pokud je to tvoje zařízení."
+
+msgid "desk.device_pick"
+msgstr "Ukazuje {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "Vyber číslo, které ukazuje druhé zařízení. Špatná volba kód odmítne."
+
 msgid "desk.device_refused"
 msgstr "Kód je špatný nebo vypršel. Získej nový na druhém zařízení."
 

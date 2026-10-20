@@ -6634,6 +6634,21 @@ msgstr "Код с другого устройства"
 msgid "desk.device_approved"
 msgstr "Другое устройство вошло в панель."
 
+msgid "desk.device_asked"
+msgstr "Запрос от"
+
+msgid "desk.device_unknown"
+msgstr "Неизвестный браузер"
+
+msgid "desk.device_asked_detail"
+msgstr "{0} мин назад. Подтверждайте, только если это ваше устройство."
+
+msgid "desk.device_pick"
+msgstr "Показывает {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "Выберите число, которое показывает другое устройство. Неверный выбор отклонит код."
+
 msgid "desk.device_refused"
 msgstr "Код неверный или устарел. Получи новый на другом устройстве."
 

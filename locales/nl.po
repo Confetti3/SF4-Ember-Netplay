@@ -6634,6 +6634,21 @@ msgstr "Code van het andere apparaat"
 msgid "desk.device_approved"
 msgstr "Het andere apparaat is aangemeld bij de desk."
 
+msgid "desk.device_asked"
+msgstr "Gevraagd door"
+
+msgid "desk.device_unknown"
+msgstr "Een onbekende browser"
+
+msgid "desk.device_asked_detail"
+msgstr "{0} min geleden. Keur alleen goed als dit je eigen apparaat is."
+
+msgid "desk.device_pick"
+msgstr "Het toont {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "Kies het getal dat het andere apparaat toont. Een verkeerde keuze weigert de code."
+
 msgid "desk.device_refused"
 msgstr "Die code is fout of verlopen. Haal een nieuwe op het andere apparaat."
 

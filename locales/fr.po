@@ -6634,6 +6634,21 @@ msgstr "Code de l'autre appareil"
 msgid "desk.device_approved"
 msgstr "L'autre appareil est connecté au bureau."
 
+msgid "desk.device_asked"
+msgstr "Demandé par"
+
+msgid "desk.device_unknown"
+msgstr "Un navigateur inconnu"
+
+msgid "desk.device_asked_detail"
+msgstr "Il y a {0} min. N'approuvez que si c'est votre propre appareil."
+
+msgid "desk.device_pick"
+msgstr "Il affiche {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "Choisissez le nombre affiché sur l'autre appareil. Un mauvais choix refuse le code."
+
 msgid "desk.device_refused"
 msgstr "Ce code est faux ou expiré. Obtiens-en un nouveau sur l'autre appareil."
 

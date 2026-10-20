@@ -6634,6 +6634,21 @@ msgstr "Codice dall'altro dispositivo"
 msgid "desk.device_approved"
 msgstr "L'altro dispositivo ha effettuato l'accesso al desk."
 
+msgid "desk.device_asked"
+msgstr "Richiesto da"
+
+msgid "desk.device_unknown"
+msgstr "Un browser sconosciuto"
+
+msgid "desk.device_asked_detail"
+msgstr "{0} min fa. Approva solo se è il tuo dispositivo."
+
+msgid "desk.device_pick"
+msgstr "Mostra {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "Scegli il numero mostrato dall'altro dispositivo. Una scelta sbagliata rifiuta il codice."
+
 msgid "desk.device_refused"
 msgstr "Codice errato o scaduto. Ottienine uno nuovo sull'altro dispositivo."
 

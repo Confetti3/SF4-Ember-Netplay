@@ -6634,6 +6634,21 @@ msgstr "Kod z drugiego urządzenia"
 msgid "desk.device_approved"
 msgstr "Drugie urządzenie jest zalogowane do desku."
 
+msgid "desk.device_asked"
+msgstr "Prośba od"
+
+msgid "desk.device_unknown"
+msgstr "Nieznana przeglądarka"
+
+msgid "desk.device_asked_detail"
+msgstr "{0} min temu. Zatwierdź tylko, jeśli to twoje urządzenie."
+
+msgid "desk.device_pick"
+msgstr "Pokazuje {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "Wybierz liczbę widoczną na drugim urządzeniu. Zły wybór odrzuca kod."
+
 msgid "desk.device_refused"
 msgstr "Ten kod jest błędny lub wygasł. Pobierz nowy na drugim urządzeniu."
 

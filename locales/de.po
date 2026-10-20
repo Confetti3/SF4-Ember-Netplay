@@ -6634,6 +6634,21 @@ msgstr "Code vom anderen Gerät"
 msgid "desk.device_approved"
 msgstr "Das andere Gerät ist am Desk angemeldet."
 
+msgid "desk.device_asked"
+msgstr "Angefragt von"
+
+msgid "desk.device_unknown"
+msgstr "Ein unbekannter Browser"
+
+msgid "desk.device_asked_detail"
+msgstr "Vor {0} Min. Nur bestätigen, wenn es dein eigenes Gerät ist."
+
+msgid "desk.device_pick"
+msgstr "Es zeigt {0}"
+
+msgid "desk.device_pick_detail"
+msgstr "Wähle die Zahl, die das andere Gerät zeigt. Eine falsche Wahl lehnt den Code ab."
+
 msgid "desk.device_refused"
 msgstr "Der Code ist falsch oder abgelaufen. Hol dir auf dem anderen Gerät einen neuen."
 
