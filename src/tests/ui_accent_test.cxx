@@ -109,6 +109,8 @@ int main() {
     ui::SetAccentColor(accent::Default);
     CHECK(ui::palette::Ember == IM_COL32(255, 135, 56, 255));
     CHECK(ui::palette::Ivory == IM_COL32(243,235,221,255) && ui::palette::Muted == IM_COL32(181,169,155,255));
+    CHECK(Same(ui::DialogButtonColor(true), ImVec4(.5f,.25f,.1f,1)));
+    CHECK(Same(ui::DialogButtonColor(false), ImVec4(.15f,.14f,.13f,1)));
     CHECK(Same(ui::AccentShade(focused), focused) && Same(ui::AccentShade(pale), pale));
     CHECK(ui::AccentColor(IM_COL32(74,46,20,235)) == IM_COL32(74,46,20,235));
     CHECK(ImGui::ColorConvertFloat4ToU32(ui::AccentShade(0x59402B)) == IM_COL32(89, 64, 43, 255));

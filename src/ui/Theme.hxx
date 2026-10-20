@@ -35,7 +35,7 @@ ImVec4 AccentShade(ImVec4 original);
 ImU32 AccentColor(ImU32 original);
 inline ImU32 AccentAlpha(unsigned alpha) { return (palette::Ember & ~IM_COL32_A_MASK) | ((alpha & 255u) << IM_COL32_A_SHIFT); }
 // The focused button of a modal dialog, and the other one.
-inline ImVec4 DialogButtonColor(bool selected) { return selected ? AccentShade(0x80401A) : AccentShade(ImVec4(.15f,.14f,.13f,1)); }
+inline ImVec4 DialogButtonColor(bool selected) { return AccentShade(selected ? ImVec4(.5f,.25f,.1f,1) : ImVec4(.15f,.14f,.13f,1)); }
 // Row and button text for an entry that can, or cannot, be activated right now.
 inline ImVec4 EntryTextColor(bool enabled) { return AccentShade(enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1)); }
 // Ember over a game the player watches (ShellView::SeeThrough) lets the game
