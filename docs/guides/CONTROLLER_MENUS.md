@@ -39,9 +39,11 @@ Player & Controller, Gameplay Defaults, Interface and Discord use named value ro
 Interface > Interface color changes the local menu and HUD accent. Adjust
 Red, Green and Blue with Left/Right, or enter a six-digit color code such as
 `#328DFF`. The preview updates immediately and the accepted choice is saved.
+The chosen color also derives the pale text, dark cards, panels and borders,
+keeping their brightness and transparency so labels remain readable.
 Restore orange returns to the original accent. Error and success colors,
-controller button artwork and the illustrated background keep their meaning
-and original colors.
+network warnings, controller button artwork and the illustrated background
+keep their meaning and original colors.
 
 Ember automatically adopts SF4's connected controller, or the sole connected controller when the native menu still points to keyboard. Multiple unassigned controllers trigger release-all / press / release capture; simultaneous presses cannot choose an arbitrary device. With no controller, keyboard is provisional until explicitly chosen or used to join a room. You can explicitly choose a device under Player & Controller. Disconnecting never silently replaces an established device.
 

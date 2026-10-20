@@ -51,7 +51,7 @@ void DrawMatchNotice(const std::string& message,int severity) {
     ImGui::SetNextWindowSize(ImVec2(vp->Size.x*.6f,0));
     ImGui::Begin("Match notice",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|
         ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoFocusOnAppearing);
-    const ImVec4 colors[]={ImVec4(.71f,.66f,.61f,1),ImVec4(1,.77f,.38f,1),ImVec4(1,.46f,.38f,1)};
+    const ImVec4 colors[]={AccentShade(ImVec4(.71f,.66f,.61f,1)),ImVec4(1,.77f,.38f,1),ImVec4(1,.46f,.38f,1)};
     ImGui::PushStyleColor(ImGuiCol_Text,colors[(std::max)(0,(std::min)(2,severity))]);
     ImGui::TextWrapped("%s",message.c_str());ImGui::PopStyleColor();ImGui::End();
 }
@@ -90,8 +90,8 @@ std::string FitText(std::string t,float maxWidth,float size){
 // A neutral panel keeps the telemetry readable on bright stages, but a solid block
 // pulled the eye mid-fight: let the stage show through a little. Quiet border.
 void DrawPanelBox(ImDrawList* draw,ImVec2 p,float w,float h,float s){
-    draw->AddRectFilled(p,ImVec2(p.x+w,p.y+h),IM_COL32(20,19,18,200),6*s);
-    draw->AddRect(p,ImVec2(p.x+w,p.y+h),IM_COL32(88,76,65,100),6*s);
+    draw->AddRectFilled(p,ImVec2(p.x+w,p.y+h),AccentColor(IM_COL32(20,19,18,200)),6*s);
+    draw->AddRect(p,ImVec2(p.x+w,p.y+h),AccentColor(IM_COL32(88,76,65,100)),6*s);
 }
 // Link state / notice line beside a panel, `top` its upper edge. Same width as the
 // panel, own background so it reads against any stage; colour follows severity.
@@ -100,9 +100,9 @@ void DrawStateLine(const MatchStripView& view,ImDrawList* draw,float x,float w,f
     if(state.empty())return;
     const int severity=view.noticeSeverity>0||view.connectionWarning||view.predictionStalled?
         (std::max)(view.noticeSeverity,view.connectionWarning||view.predictionStalled?1:0):0;
-    const ImU32 colors[]={IM_COL32(181,169,155,255),IM_COL32(255,196,96,255),IM_COL32(255,118,96,255)};
+    const ImU32 colors[]={AccentColor(IM_COL32(181,169,155,255)),IM_COL32(255,196,96,255),IM_COL32(255,118,96,255)};
     const float h=MatchStateHeight*s;
-    draw->AddRectFilled(ImVec2(x,top),ImVec2(x+w,top+h),IM_COL32(20,19,18,235),4*s);
+    draw->AddRectFilled(ImVec2(x,top),ImVec2(x+w,top+h),AccentColor(IM_COL32(20,19,18,235)),4*s);
     const auto line=FitText(state,w-16*s,16*s);
     draw->AddText(DiagnosticFont(),16*s,ImVec2(x+8*s,top+(h-16*s)*.5f),colors[(std::max)(0,(std::min)(2,severity))],line.c_str());
 }
@@ -162,9 +162,9 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     const auto leftWidth=TextWidth(20*s,left),rightWidth=TextWidth(20*s,right);
     auto x=p.x+(w-(glyphSpace+leftWidth+gap+vsWidth+gap+rightWidth+glyphSpace))*.5f;
     DrawNetworkLinkGlyph(draw,ImVec2(x,p.y+7*s),glyph,view.links[0]);x+=glyphSpace;
-    text(x,p.y+4*s,left,20*s,IM_COL32(243,235,221,255));x+=leftWidth+gap;
+    text(x,p.y+4*s,left,20*s,AccentColor(IM_COL32(243,235,221,255)));x+=leftWidth+gap;
     text(x,p.y+6*s,versus,16*s,AccentAlpha(230));x+=vsWidth+gap;
-    text(x,p.y+4*s,right,20*s,IM_COL32(243,235,221,255));
+    text(x,p.y+4*s,right,20*s,AccentColor(IM_COL32(243,235,221,255)));
     DrawNetworkLinkGlyph(draw,ImVec2(x+rightWidth+glyphGap,p.y+7*s),glyph,view.links[1]);
     const auto cells=MatchTelemetryCells(view);
     const float column=(w-24*s)/3;
@@ -172,13 +172,13 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
         const auto& cell=cells[i];
         const float x=p.x+12*s+column*i;
         // Fixed label/value anchors keep the layout stable as values change.
-        text(x,p.y+33*s,cell.label,16*s,IM_COL32(181,169,155,255));
+        text(x,p.y+33*s,cell.label,16*s,AccentColor(IM_COL32(181,169,155,255)));
         const float valueX=x+(cell.label.empty()?0:TextWidth(16*s,cell.label)+8*s);
         // A translated label must leave room for its whole value, at its widest.
         const float valueWidth=(std::max)(TextWidth(22*s,cell.value),TextWidth(22*s,cell.reserve));
         ReportMenuText(("hud-telemetry/"+std::to_string(i)).c_str(),22*s,MatchHeight*s,valueX-x+valueWidth,column-4*s);
         const auto value=FitText(cell.value,x+column-valueX-4*s,22*s);
-        text(valueX,p.y+29*s,value,22*s,IM_COL32(243,235,221,255));
+        text(valueX,p.y+29*s,value,22*s,AccentColor(IM_COL32(243,235,221,255)));
     }
 }
 
@@ -204,8 +204,8 @@ Plate MakePlate(const MatchStripView& view,int side,float edge,float y,float k,f
 void DrawPlate(ImDrawList* draw,const Plate& p,bool withLink=true){
     const float k=p.k,glyph=p.font*.9f,gap=6*k;
     // Opaque: the plate hides the game's own PLAYER label.
-    draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(20,19,18,255),5*k);
-    draw->AddRect(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(88,76,65,110),5*k);
+    draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),AccentColor(IM_COL32(20,19,18,255)),5*k);
+    draw->AddRect(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),AccentColor(IM_COL32(88,76,65,110)),5*k);
     // The Ember rule on the outer edge, in line with the life bar's end.
     const float rule=p.right?p.x1-7*k:p.x0+4*k;
     draw->AddRectFilled(ImVec2(rule,p.y0+4*k),ImVec2(rule+3*k,p.y1-4*k),palette::Ember,1.5f*k);
@@ -250,7 +250,7 @@ void DrawTelemetry(ImDrawList* draw,const Telemetry& t,ImVec2 p){
     draw->AddRectFilled(ImVec2(p.x+10*s,p.y),ImVec2(p.x+34*s,p.y+2*s),palette::Ember);
     float x=p.x;int index=0;
     for(const auto& c:t.cells){
-        if(index>0)draw->AddLine(ImVec2(x,p.y+9*s),ImVec2(x,p.y+t.h-9*s),IM_COL32(88,76,65,140),1.f);
+        if(index>0)draw->AddLine(ImVec2(x,p.y+9*s),ImVec2(x,p.y+t.h-9*s),AccentColor(IM_COL32(88,76,65,140)),1.f);
         float tx=x+10*s;
         const float label=c.label.empty()?0:TextWidth(SplitLabel*s,c.label)+6*s;
         if(!c.label.empty())draw->AddText(font,SplitLabel*s,ImVec2(tx,p.y+(t.h-SplitLabel*s)*.5f+1.5f*s),palette::Muted,c.label.c_str());
@@ -389,7 +389,7 @@ void DrawExportCaption(const ExportCaptionView& view) {
     for(const auto& plate:placed.plates)if(!plate.name.empty())DrawPlate(draw,plate,false);
     auto* font=DiagnosticFont();
     const auto boxed=[&](const std::string& text,float size,float x,float y,float padX,float height,ImU32 color){
-        draw->AddRectFilled(ImVec2(x,y),ImVec2(x+TextWidth(size,text)+2*padX,y+height),IM_COL32(20,19,18,235),4*gs);
+        draw->AddRectFilled(ImVec2(x,y),ImVec2(x+TextWidth(size,text)+2*padX,y+height),AccentColor(IM_COL32(20,19,18,235)),4*gs);
         draw->AddText(font,size,ImVec2(x+padX+gs,y+(height-size)*.5f+gs),IM_COL32(0,0,0,190),text.c_str());
         draw->AddText(font,size,ImVec2(x+padX,y+(height-size)*.5f),color,text.c_str());
     };

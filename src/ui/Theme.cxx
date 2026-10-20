@@ -17,7 +17,10 @@
 #include <vector>
 
 namespace sf4e { namespace ui {
-namespace palette { ImU32 Ember = IM_COL32(255, 135, 56, 255); }
+namespace palette {
+ImU32 Ember = IM_COL32(255, 135, 56, 255);
+ImU32 Ivory = IM_COL32(243, 235, 221, 255), Muted = IM_COL32(181, 169, 155, 255);
+}
 namespace {
 unsigned accentRgb = accent::Default;
 ImGuiContext* accentStyleContext = nullptr;
@@ -163,20 +166,29 @@ void NoteUserText(const std::string& utf8, UserTextRole role) {
 }
 void SetAtlasBuildLog(std::function<void(const char*)> log) { atlasBuildLog = std::move(log); }
 ImVec4 AccentShade(unsigned orangeRgb, float alpha) {
-    const auto original = Color(orangeRgb, alpha);
+    return AccentShade(Color(orangeRgb, alpha));
+}
+ImVec4 AccentShade(ImVec4 original) {
     if (accentRgb == accent::Default) return original;
-    if (orangeRgb == accent::Default) return Color(accentRgb, alpha);
+    const auto reference = Color(accent::Default);
+    if (original.x == reference.x && original.y == reference.y && original.z == reference.z)
+        return Color(accentRgb, original.w);
     float hue, saturation, value, referenceHue, referenceSaturation, referenceValue;
-    const auto chosen = Color(accentRgb), reference = Color(accent::Default);
+    const auto chosen = Color(accentRgb);
     ImGui::ColorConvertRGBtoHSV(chosen.x, chosen.y, chosen.z, hue, saturation, value);
     ImGui::ColorConvertRGBtoHSV(reference.x, reference.y, reference.z, referenceHue, referenceSaturation, referenceValue);
     float oldHue, oldSaturation, oldValue;
     ImGui::ColorConvertRGBtoHSV(original.x, original.y, original.z, oldHue, oldSaturation, oldValue);
-    ImVec4 result(0, 0, 0, alpha);
-    // Keep the dark controls' brightness so their ivory labels remain readable.
+    ImVec4 result(0, 0, 0, original.w);
+    // Dark panels stay dark and pale text stays pale, even for a very bright
+    // or dark chosen accent. Only decorative callers use this transformation.
     ImGui::ColorConvertHSVtoRGB(std::fmod(hue + oldHue - referenceHue + 1.f, 1.f),
         (std::min)(1.f, oldSaturation * saturation / referenceSaturation), oldValue, result.x, result.y, result.z);
     return result;
+}
+ImU32 AccentColor(ImU32 original) {
+    if (accentRgb == accent::Default) return original;
+    return ImGui::ColorConvertFloat4ToU32(AccentShade(ImGui::ColorConvertU32ToFloat4(original)));
 }
 void SetAccentColor(unsigned rgb) {
     rgb = accent::Normalize(rgb);
@@ -184,7 +196,26 @@ void SetAccentColor(unsigned rgb) {
     accentRgb = rgb;
     accentStyleContext = ImGui::GetCurrentContext();
     palette::Ember = ImGui::ColorConvertFloat4ToU32(Color(accentRgb));
+    palette::Ivory = AccentColor(IM_COL32(243, 235, 221, 255));
+    palette::Muted = AccentColor(IM_COL32(181, 169, 155, 255));
     auto* c = ImGui::GetStyle().Colors;
+    c[ImGuiCol_Text] = AccentShade(Ivory);
+    c[ImGuiCol_TextDisabled] = AccentShade(Muted);
+    c[ImGuiCol_WindowBg] = AccentShade(Ink, .97f);
+    c[ImGuiCol_ChildBg] = AccentShade(Panel);
+    c[ImGuiCol_PopupBg] = AccentShade(Panel, .99f);
+    c[ImGuiCol_Border] = AccentShade(Border);
+    c[ImGuiCol_BorderShadow] = AccentShade(Ink, 0);
+    c[ImGuiCol_FrameBg] = AccentShade(0x191715);
+    c[ImGuiCol_TitleBg] = AccentShade(Panel);
+    c[ImGuiCol_TitleBgCollapsed] = AccentShade(Ink, .95f);
+    c[ImGuiCol_MenuBarBg] = AccentShade(Panel, .98f);
+    c[ImGuiCol_ScrollbarBg] = AccentShade(Ink);
+    c[ImGuiCol_ScrollbarGrab] = AccentShade(Border);
+    c[ImGuiCol_Separator] = AccentShade(Border);
+    c[ImGuiCol_Tab] = c[ImGuiCol_TabDimmed] = AccentShade(Panel);
+    c[ImGuiCol_TableBorderStrong] = c[ImGuiCol_TableBorderLight] = AccentShade(Border);
+    c[ImGuiCol_TableRowBg] = AccentShade(Ink, 0);
     c[ImGuiCol_FrameBgHovered] = AccentShade(0x393027);
     c[ImGuiCol_FrameBgActive] = AccentShade(0x4A3525);
     c[ImGuiCol_TitleBgActive] = AccentShade(0x3A2A1F);
@@ -323,24 +354,6 @@ bool ApplyTheme(float dpiScale, float interfaceScale, unsigned rgb) {
     style.WindowBorderSize = style.ChildBorderSize = style.FrameBorderSize = 1;
     style.ScrollbarSize = 12;
     style.GrabMinSize = 12;
-    auto* c = style.Colors;
-    c[ImGuiCol_Text] = Color(Ivory);
-    c[ImGuiCol_TextDisabled] = Color(Muted);
-    c[ImGuiCol_WindowBg] = Color(Ink, .97f);
-    c[ImGuiCol_ChildBg] = Color(Panel);
-    c[ImGuiCol_PopupBg] = Color(Panel, .99f);
-    c[ImGuiCol_Border] = Color(Border);
-    c[ImGuiCol_BorderShadow] = Color(Ink, 0);
-    c[ImGuiCol_FrameBg] = Color(0x191715);
-    c[ImGuiCol_TitleBg] = Color(Panel);
-    c[ImGuiCol_TitleBgCollapsed] = Color(Ink, .95f);
-    c[ImGuiCol_MenuBarBg] = Color(Panel, .98f);
-    c[ImGuiCol_ScrollbarBg] = Color(Ink);
-    c[ImGuiCol_ScrollbarGrab] = Color(Border);
-    c[ImGuiCol_Separator] = Color(Border);
-    c[ImGuiCol_Tab] = c[ImGuiCol_TabDimmed] = Color(Panel);
-    c[ImGuiCol_TableBorderStrong] = c[ImGuiCol_TableBorderLight] = Color(Border);
-    c[ImGuiCol_TableRowBg] = Color(Ink, 0);
     style.ScaleAllSizes(dpiScale);
     ImGui::GetStyle() = style;
     accentStyleContext = nullptr;
@@ -353,7 +366,7 @@ ImVec4 ToneColor(Tone tone) {
     case Tone::Success: return Color(0xA4CEA0); // Keep in step with palette::Ready.
     case Tone::Pending: return Color(0xF1C477);
     case Tone::Error: return Color(0xFFAAA0);
-    default: return Color(Muted);
+    default: return AccentShade(Muted);
     }
 }
 void Header(const char* title, const char* subtitle, bool brand) {
@@ -368,7 +381,7 @@ void Header(const char* title, const char* subtitle, bool brand) {
     ImGui::PushFont(HeadingFont());
     ImGui::TextWrapped("%s", title);
     ImGui::PopFont();
-    if (subtitle) { ImGui::PushStyleColor(ImGuiCol_Text, Color(Muted));
+    if (subtitle) { ImGui::PushStyleColor(ImGuiCol_Text, AccentShade(Muted));
         ImGui::TextWrapped("%s", subtitle); ImGui::PopStyleColor(); }
     const auto p = ImGui::GetCursorScreenPos();
     const float width = (std::max)(1.f, ImGui::GetContentRegionAvail().x), s = Scale();

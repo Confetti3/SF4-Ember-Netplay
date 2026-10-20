@@ -104,9 +104,9 @@ void DrawCap(const Piece& piece, const Layout& layout) {
     auto* draw = ImGui::GetWindowDrawList();
     if (pill) DrawButtonPill(draw, piece.text.c_str(), at, w, h, unit);
     else {
-        draw->AddRect(ImVec2(at.x + .5f, at.y + .5f), ImVec2(at.x + w - .5f, at.y + h - .5f), IM_COL32(243, 235, 221, 130),
+        draw->AddRect(ImVec2(at.x + .5f, at.y + .5f), ImVec2(at.x + w - .5f, at.y + h - .5f), AccentColor(IM_COL32(243, 235, 221, 130)),
             3 * unit, 0, (std::max)(1.f, unit));
-        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + CapPadding * unit, at.y), IM_COL32(243, 235, 221, 215), piece.text.c_str());
+        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + CapPadding * unit, at.y), AccentColor(IM_COL32(243, 235, 221, 215)), piece.text.c_str());
     }
     ImGui::Dummy(ImVec2(w, h));
 }

@@ -15,7 +15,7 @@ DrawnFlag DrawCountryFlagBeside(ImDrawList* d, float x, float textTop, float fon
     const ImVec2 min(std::round(x), std::round(textTop + (fontSize - h) * .5f)), max(min.x + w, min.y + h);
     d->AddImage(image.texture, min, max, image.uvMin, image.uvMax);
     // The ring of pixels just outside the flag (AddRect strokes half a pixel in).
-    d->AddRect(ImVec2(min.x - 1, min.y - 1), ImVec2(max.x + 1, max.y + 1), IM_COL32(128, 120, 110, 150), 0, 0, 1);
+    d->AddRect(ImVec2(min.x - 1, min.y - 1), ImVec2(max.x + 1, max.y + 1), AccentColor(IM_COL32(128, 120, 110, 150)), 0, 0, 1);
     drawn.width = FlagSlotWidth(fontSize);
     drawn.hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseHoveringRect(min, max);
     return drawn;

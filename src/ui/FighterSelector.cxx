@@ -47,7 +47,7 @@ void CommandSymbols(const char* notation) {
             if (triple) label = single;
             for (int i = 0; i < count; ++i) {
                 const ImVec2 c(center.x + i * unit * .7f, center.y);
-                draw->AddCircleFilled(c, unit * .44f, IM_COL32(48, 36, 25, 255));
+                draw->AddCircleFilled(c, unit * .44f, AccentColor(IM_COL32(48, 36, 25, 255)));
                 draw->AddCircle(c, unit * .44f, Ember, 24, 1.5f * scale);
                 const auto size = ImGui::CalcTextSize(label);
                 draw->AddText(ImVec2(c.x - size.x / 2, c.y - size.y / 2), Ivory, label);
@@ -114,7 +114,7 @@ void ImageInRect(const SelectionImage& image, ImVec2 min, ImVec2 max) {
 }
 bool ImageCard(const char* id, const char* label, const SelectionImage& image, ImVec2 size, bool selected) {
     ImGui::PushID(id);
-    if (selected) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(.32f, .17f, .08f, 1));
+    if (selected) ImGui::PushStyleColor(ImGuiCol_Button, AccentShade(ImVec4(.32f, .17f, .08f, 1)));
     const bool clicked = ImGui::Button("##choice", size);
     if (selected) ImGui::PopStyleColor();
     const ImVec2 min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
@@ -131,7 +131,7 @@ bool ImageCard(const char* id, const char* label, const SelectionImage& image, I
             ImVec2(min.x + (size.x - text.x * messageScale) / 2,
                    min.y + (size.y - labelHeight - text.y * messageScale) / 2), Muted, message);
     }
-    draw->AddRectFilled(ImVec2(min.x + 1, max.y - labelHeight), ImVec2(max.x - 1, max.y - 1), IM_COL32(20, 19, 18, 235));
+    draw->AddRectFilled(ImVec2(min.x + 1, max.y - labelHeight), ImVec2(max.x - 1, max.y - 1), AccentColor(IM_COL32(20, 19, 18, 235)));
     const auto text = ImGui::CalcTextSize(label);
     const float labelScale = (std::min)(1.f, (size.x - 6 * Scale()) / (std::max)(1.f, text.x));
     draw->PushClipRect(ImVec2(min.x + 3, max.y - labelHeight), ImVec2(max.x - 3, max.y), true);
@@ -394,7 +394,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   const ImVec2 top(min.x+3,min.y+3),bottom(max.x-3,max.y-labelHeight);
   if(ultra==2){
    auto* panel=ImGui::GetWindowDrawList();
-   panel->AddRectFilled(top,bottom,IM_COL32(26,22,19,255));
+   panel->AddRectFilled(top,bottom,AccentColor(IM_COL32(26,22,19,255)));
    const float font=(std::max)(1.f,(std::min)((bottom.y-top.y)*.8f,(bottom.x-top.x)*.7f));
    const auto glyph=ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,"W");
    panel->AddText(ImGui::GetFont(),font,ImVec2((top.x+bottom.x-glyph.x)*.5f,(top.y+bottom.y-glyph.y)*.5f),palette::Ember,"W");
@@ -403,7 +403,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   const bool saved=ultra==pick.ultra;
   const std::string label=ultra==2?e.label:e.label+": "+FindFighter(pick.fighter)->ultras[ultra];
   auto* d=ImGui::GetWindowDrawList();
-  d->AddRectFilled(ImVec2(min.x,max.y-labelHeight),max,IM_COL32(16,15,14,230));
+  d->AddRectFilled(ImVec2(min.x,max.y-labelHeight),max,AccentColor(IM_COL32(16,15,14,230)));
   const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-6)*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(label.c_str()).x));
   d->AddText(ImGui::GetFont(),font,ImVec2(min.x+3,max.y-labelHeight),saved?palette::Ember:palette::Ivory,label.c_str());
   if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.saved"),"saved-badge");
@@ -417,17 +417,17 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    art->Appearance(pick.fighter,screen=="costumes"?id:pick.costume,screen=="costumes"?PreviewColor(pick.fighter,id,availability,installed):id);
   ImageInRect(image,ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight));
   const bool saved=!pool&&(screen=="roster"?id==pick.fighter:screen=="costumes"?id==pick.costume:screen=="colors"?id==pick.color:stageId&&id==*stageId);
-  ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x,max.y-labelHeight),max,IM_COL32(16,15,14,230));
+  ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x,max.y-labelHeight),max,AccentColor(IM_COL32(16,15,14,230)));
   const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-6)*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(e.label.c_str()).x));
   ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),font,ImVec2(min.x+3,max.y-labelHeight),saved?palette::Ember:palette::Ivory,e.label.c_str());
   if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.saved"),"saved-badge");
   if(screen=="roster"&&!saved&&readAvailability&&FighterLocked(id,readAvailability(id))){
-   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),IM_COL32(16,15,14,170));
+   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),AccentColor(IM_COL32(16,15,14,170)));
    DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.not_owned_badge"),"not-owned-badge");
   }
   if(pool&&randomPool&&!randomPool->Contains(id)){
    // A skipped stage reads as switched off at a glance: dimmed, and labelled.
-   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),IM_COL32(16,15,14,170));
+   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),AccentColor(IM_COL32(16,15,14,170)));
    DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.random_pool_skipped"),"skipped-badge");
   }
   return true;

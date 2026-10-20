@@ -59,7 +59,7 @@ int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons
     return clicked;
 }
 void BeginDialogCard(const char* id,ImVec2 at,ImVec2 size) {
-    const ImVec4 panel(.13f,.115f,.1f,1);
+    const auto panel=AccentShade(ImVec4(.13f,.115f,.1f,1));
     ImGui::SetCursorScreenPos(at);
     ImGui::PushStyleColor(ImGuiCol_ChildBg,panel);
     ImGui::BeginChild(id,size,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
@@ -180,7 +180,7 @@ void GameMenu::DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuA
 void GameMenu::DrawReader(const std::vector<MenuEntry>& entries,const Detail& detail,float height,unsigned held) {
     const auto* entry=FindEntry(entries,navigation.ReadingId());
     if(!entry)return;
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,AccentShade(ImVec4(.1f,.09f,.08f,.52f)));
     // Each document has its own reader and opens at its top, so one never
     // inherits another's scroll, nor its own from an earlier reading.
     ImGui::BeginChild(("Menu reader/"+entry->id).c_str(),ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
@@ -254,7 +254,7 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
         if(notice_.empty()) ImGui::CloseCurrentPopup();
         else {
             if(noticeError_) ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
-            else ImGui::TextColored(ToneColor(Tone::Pending),"%s",noticeHeading_.empty()?loc::T("notice.title"):noticeHeading_.c_str());
+            else ImGui::TextColored(AccentShade(0xF1C477),"%s",noticeHeading_.empty()?loc::T("notice.title"):noticeHeading_.c_str());
             NoteUserText(notice_.c_str());
             ImGui::TextWrapped("%s",notice_.c_str());
             ImGui::Dummy(ImVec2(0,8*Scale()));

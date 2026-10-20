@@ -55,7 +55,7 @@ void DrawUnreadBadge(float right, float top, unsigned count) {
     const ImVec2 min(right - width, top), max(right, top + height);
     d->AddRectFilled(min, max, palette::Ember, height * .5f);
     const auto measured = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, text.c_str());
-    d->AddText(ImGui::GetFont(), size, ImVec2(min.x + (width - measured.x) * .5f, min.y + (height - measured.y) * .5f), IM_COL32(20, 19, 18, 255), text.c_str());
+    d->AddText(ImGui::GetFont(), size, ImVec2(min.x + (width - measured.x) * .5f, min.y + (height - measured.y) * .5f), AccentColor(IM_COL32(20, 19, 18, 255)), text.c_str());
 }
 
 // Every frame, drawn or hidden (Background), so the transcript sees each room
@@ -168,7 +168,7 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
             const std::string name = line.name.empty() ? std::string(loc::T("room.member_left")) : line.name;
             const char* you = loc::T("room.you");
             const float tag = 12 * s, tagWidth = ImGui::GetFont()->CalcTextSizeA(tag, FLT_MAX, 0, you).x + 10 * s;
-            ImGui::PushStyleColor(ImGuiCol_Text, ToneColor(line.own ? Tone::Success : Tone::Pending));
+            ImGui::PushStyleColor(ImGuiCol_Text, line.own ? ToneColor(Tone::Success) : AccentShade(0xF1C477));
             ImGui::TextUnformatted(FitLabel(name, width - (line.own ? tagWidth + 6 * s : 0)).c_str());
             ImGui::PopStyleColor();
             if (ImGui::IsItemVisible()) NoteUserText(line.name);

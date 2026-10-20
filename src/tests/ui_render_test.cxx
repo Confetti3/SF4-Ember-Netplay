@@ -703,6 +703,9 @@ int main(int argc, char** argv) {
             // keeps its help line under a status.
             page("about");draw(nullptr,MenuInput::Select,1);draw("about-reader");
             Require(shell.Navigation().Reading(),"About's controls did not open in the reader");
+            draw("palette-default-text");view.preferences.uiAccent=0x328DFF;draw("palette-blue-text");
+            Require(palette::Ivory!=IM_COL32(243,235,221,255),"The reader kept the default text palette");
+            view.preferences.uiAccent=accent::Default;draw();
             draw(nullptr,MenuInput::Back,1);draw();Require(!shell.Navigation().Reading(),"Back did not close the reader");
             page("interface");
             for(int i=0;i<12&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
@@ -789,6 +792,11 @@ int main(int argc, char** argv) {
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
             ShootMemberLatency(view,draw,page);
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
+            page("room");draw("palette-default-room");
+            view.preferences.uiAccent=0x328DFF;draw("palette-blue-room");
+            Require(ImGui::GetStyle().Colors[ImGuiCol_ChildBg].z>ImGui::GetStyle().Colors[ImGuiCol_ChildBg].x,
+                "The room kept the default panel palette");
+            view.preferences.uiAccent=accent::Default;draw();
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});

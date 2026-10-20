@@ -92,7 +92,7 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
     const auto ivory=ImGui::GetColorU32(textColor);
     if(KeyCapGlyph(glyph)){
         const ImVec2 capTop(at.x+2*s,at.y+3*s),capBottom(at.x+size-2*s,at.y+size-3*s);
-        d->AddRectFilled(capTop,capBottom,IM_COL32(40,38,36,static_cast<int>(235*alpha)),5*s);
+        d->AddRectFilled(capTop,capBottom,AccentColor(IM_COL32(40,38,36,static_cast<int>(235*alpha))),5*s);
         d->AddRect(capTop,capBottom,ivory,5*s,0,1.5f*s);
         // 12 and 16 at the legend's 32-pixel prompts, and in step at other sizes.
         if(keyFont<=0)keyFont=(std::strlen(glyph)>1?12:16)*size/32;
@@ -110,7 +110,7 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
             const float measured=ImGui::GetFont()->CalcTextSizeA(base,FLT_MAX,0,name).x;
             const float font=base*(std::min)(1.f,(size-8*size/32)/(std::max)(1.f,measured));
             const auto text=ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,name);
-            d->AddText(ImGui::GetFont(),font,ImVec2(at.x+(size-text.x)*.5f,at.y+(size-text.y)*.5f),ImGui::GetColorU32(ImVec4(.12f,.11f,.1f,alpha)),name);
+            d->AddText(ImGui::GetFont(),font,ImVec2(at.x+(size-text.x)*.5f,at.y+(size-text.y)*.5f),ImGui::GetColorU32(AccentShade(ImVec4(.12f,.11f,.1f,alpha))),name);
         }
     }
     else {
