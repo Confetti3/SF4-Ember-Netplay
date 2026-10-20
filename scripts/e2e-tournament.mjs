@@ -158,7 +158,10 @@ const shots = (name) => Promise.all([shotLocal(name + "-organizer"), shotRemote(
 
 // --- The run.
 
-log("starting both games against", bridge);
+const webhookFile = join(homedir(), "tournament-lab/e2e/discord-webhook");
+const webhook = existsSync(webhookFile) ? readFileSync(webhookFile, "utf8").trim() : "";
+
+log("starting both games against", bridge, webhook ? "with Discord calls" : "without Discord");
 const games = [startLocal(), startRemote()];
 const page = await chrome(out);
 let event = null;
@@ -215,7 +218,10 @@ try {
     await page.eval("document.getElementById('next').click()");
     await page.until("/Discord/.test(document.getElementById('step-now').textContent)", 20000);
     must(await page.eval("Boolean(desk.event.tournament)"), "no Challonge tournament");
-    await page.eval(`document.querySelectorAll('#live-settings input[type=checkbox]').forEach((box) => { box.checked = !/score/.test(box.parentElement.textContent); })`);
+    // With a webhook in ~/tournament-lab/e2e/discord-webhook, calls and scores
+    // go to that Discord channel; it is never printed.
+    await page.eval(`(() => { const hook = document.querySelector('#live-settings input[type=url]'); if (${JSON.stringify(Boolean(webhook))}) hook.value = ${JSON.stringify(webhook)};
+      document.querySelectorAll('#live-settings input[type=checkbox]').forEach((box) => { box.checked = ${JSON.stringify(Boolean(webhook))} || !/score/.test(box.parentElement.textContent); }); })()`);
     await layout(page, "08-discord", true);
     await page.eval("document.getElementById('next').click()");
     await page.until("/Ready/.test(document.getElementById('step-now').textContent)");
@@ -256,6 +262,7 @@ try {
       await sleep(15000);
     }
     await layout(page, "13-done");
+    if (webhook) must(/posted on Discord/.test(await page.eval("document.getElementById('live-body').textContent")), "the call did not reach Discord");
     const set = JSON.parse(await page.eval("JSON.stringify(view.sets.find((set) => set.desk_state === 'done'))"));
     must(set.score && Math.max(...set.score) === 1 && Math.min(...set.score) === 0, "score " + JSON.stringify(set.score));
     must(/1 draw/.test(await page.eval("document.getElementById('live-body').textContent")), "the draw is not shown");

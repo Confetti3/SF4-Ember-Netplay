@@ -179,6 +179,8 @@ try {
       await layout(page, "start");
       await page.eval("document.getElementById('start-bracket').click()");
       await page.until("document.getElementById('start-bracket').hidden || /started/.test(document.body.textContent)", 15000);
+      // The connector reads the started bracket, then calls its first sets.
+      await control("/pass");
       await control("/pass");
       const posts = await (await fetch(stack.control + "/posts")).json();
       must(posts.some((post) => JSON.stringify(post).includes("ember-e2e") || JSON.stringify(post).includes("Round")), "no call posted: " + JSON.stringify(posts).slice(0, 200));
