@@ -31,22 +31,22 @@ function draw() {
   $("when").textContent = event.starts_at
     ? new Date(event.starts_at * 1000).toLocaleString([], { dateStyle: "full", timeStyle: "short" })
     : "Date to be announced";
-  $("links").replaceChildren(...(event.links || []).map((link) =>
+  fill($("links"), ...(event.links || []).map((link) =>
     el("a", { class: "wd-btn", href: link.url, target: "_blank", rel: "noopener" }, link.label)));
   signUp();
   const sets = event.sets || [];
   const count = tally(sets);
-  $("counts").replaceChildren(
+  fill($("counts"),
     el("div", { class: "wd-kpi live" }, el("b", {}, String(count.live)), el("span", { class: "small" }, "live now")),
     el("div", { class: "wd-kpi ok" }, el("b", {}, count.done + "/" + count.total), el("span", { class: "small" }, "sets done")),
   );
-  $("tabs").replaceChildren(...["Live", "Bracket"].map((tab) =>
+  fill($("tabs"), ...["Live", "Bracket"].map((tab) =>
     el("button", { type: "button", class: "chip", role: "tab", "aria-selected": String(page.tab === tab), onclick: () => { page.tab = tab; draw(); } }, tab)));
   if (page.tab === "Bracket") {
-    $("body").replaceChildren(bracketView(sets, { phase: page.phase, redraw: (phase) => { page.phase = phase; draw(); } }));
+    fill($("body"), bracketView(sets, { phase: page.phase, redraw: (phase) => { page.phase = phase; draw(); } }));
   } else {
     const live = sets.filter((set) => FILTERS.Live(set) || FILTERS["Needs action"](set));
-    $("body").replaceChildren(live.length
+    fill($("body"), live.length
       ? el("div", { class: "wd-grid" }, live.map((set) => setCard(set)))
       : el("p", { class: "note" }, sets.length ? "No set is being played right now." : "The sets show here once the tournament starts."));
   }
@@ -65,11 +65,11 @@ async function signUp() {
     page.session = response.ok ? await response.json() : false;
   }
   if (page.session) {
-    box.replaceChildren(el("button", { type: "button", class: "wd-btn primary", onclick: join }, "Sign up"));
+    fill(box, el("button", { type: "button", class: "wd-btn primary", onclick: join }, "Sign up"));
     return;
   }
   const capabilities = await fetch("/v1/capabilities").then((response) => response.json()).catch(() => ({}));
-  box.replaceChildren(
+  fill(box,
     el("p", { class: "note" }, "Sign up with the account you linked in Ember:"),
     ...(capabilities.sign_in_sites || []).filter((site) => site.sign_in).map((site) =>
       el("a", { class: "wd-btn primary", href: "/web/sign-in/" + encodeURIComponent(site.id), onclick: () => remember() }, "Sign in with " + site.display_name)),

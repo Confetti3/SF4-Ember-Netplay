@@ -135,7 +135,7 @@ async function signedOut() {
   deviceShows("", 0);
   $("device-left").textContent = "";
   const list = $("sign-in-sites");
-  list.replaceChildren();
+  fill(list);
   const capabilities = await api("GET", "/v1/capabilities").catch(() => ({}));
   for (const site of capabilities.sign_in_sites || []) {
     if (!site.sign_in) continue;
@@ -150,7 +150,7 @@ async function home() {
   accounts().catch((error) => toast(error.message));
   desk.events = (await api("GET", "/v1/organizer/events")).events;
   const list = $("events");
-  list.replaceChildren(
+  fill(list,
     ...desk.events.map((event) =>
       el("button", { type: "button", class: "wd-card", onclick: () => open(event) },
         el("span", { class: "name" }, event.title),
@@ -181,8 +181,8 @@ function go(step) {
   toast("");
   stepError("");
   for (const section of document.querySelectorAll("[data-step]")) section.hidden = Number(section.dataset.step) !== desk.step;
-  $("step-now").replaceChildren("Step " + desk.step + " of " + STEPS.length + " · ", el("b", {}, STEPS[desk.step - 1]));
-  $("steps").replaceChildren(
+  fill($("step-now"), "Step " + desk.step + " of " + STEPS.length + " · ", el("b", {}, STEPS[desk.step - 1]));
+  fill($("steps"),
     ...STEPS.map((label, index) =>
       el("button", {
         type: "button",
@@ -202,7 +202,7 @@ function go(step) {
 
 function summary() {
   const event = desk.event;
-  $("summary").replaceChildren(
+  fill($("summary"),
     el("span", { class: "name" }, event ? event.title : "New tournament"),
     el("span", { class: "small" }, event ? event.status + " · " + whenText(event.starts_at) : "Not saved yet"),
     el("span", { class: "small" }, event && event.site ? siteName(event.site) + (event.name ? " · " + event.name : "") : "No bracket service yet"),
@@ -212,7 +212,7 @@ function summary() {
 
 async function accounts() {
   desk.accounts = (await api("GET", "/web/accounts")).sites;
-  $("accounts").replaceChildren(
+  fill($("accounts"),
     ...desk.accounts.map((site) => {
       let state;
       let action = null;
@@ -250,7 +250,7 @@ async function details() {
   $("title").value = event ? event.title : "";
   [$("date").value, $("time").value] = localParts(event && event.starts_at);
   const kept = (event && event.links) || [];
-  $("links").replaceChildren(...(kept.length ? kept : [{ label: "Stream", url: "" }, { label: "Matcherino", url: "" }]).map(linkRow));
+  fill($("links"), ...(kept.length ? kept : [{ label: "Stream", url: "" }, { label: "Matcherino", url: "" }]).map(linkRow));
 }
 
 function startsAt() {
@@ -305,7 +305,7 @@ async function service() {
   $("no-service").hidden = usable.length > 0;
   const chosen = (event && event.site) || desk.picks.site || (usable[0] && usable[0].id);
   desk.picks.site = chosen;
-  $("services").replaceChildren(
+  fill($("services"),
     el("legend", {}, "Bracket service"),
     ...usable.map((site) =>
       el("label", { class: "choice" },
@@ -317,7 +317,7 @@ async function service() {
   // Only the chosen service's own settings: Challonge's creation fields,
   // or start.gg's event and stream holding.
   const detail = $("service-detail");
-  detail.replaceChildren();
+  fill(detail);
   if (event && event.tournament) {
     detail.append(el("span", { class: "name" }, "Linked to " + (event.name || event.tournament)), el("span", { class: "small" }, siteName(event.site)));
   } else if (site && site.create) {
@@ -348,7 +348,7 @@ async function service() {
       el("label", { class: "wd-field" }, "Your event", picker),
     );
     api("GET", "/v1/organizer/tournaments?site=" + encodeURIComponent(site.id))
-      .then((listed) => picker.replaceChildren(
+      .then((listed) => fill(picker,
         el("option", { value: "" }, listed.tournaments.length ? "Pick an event" : "No events found: create one first"),
         ...listed.tournaments.map((found) => el("option", { value: found.id }, found.name))))
       .catch((error) => stepError(error.message));
@@ -356,11 +356,11 @@ async function service() {
   $("next").textContent = site && site.create && !(event && event.tournament) ? "Create on " + site.display_name : "Save";
   const settings = (event && event.settings) || {};
   const rounds = settings.rounds || { games_to_win: 2 };
-  $("games").replaceChildren(...gamesOptions(rounds.games_to_win || 2));
-  $("tiers").replaceChildren(...(rounds.tiers || []).map(tierRow));
+  fill($("games"), ...gamesOptions(rounds.games_to_win || 2));
+  fill($("tiers"), ...(rounds.tiers || []).map(tierRow));
   // ponytail: holding sets on stream is start.gg's, the one service Ember
   // attaches to rather than creates on; a flag in /web/accounts if another such site comes.
-  $("hold-row").replaceChildren(...(site && !site.create
+  fill($("hold-row"), ...(site && !site.create
     ? [el("label", { class: "check" }, "Hold sets " + site.display_name + " puts on a stream", el("input", { type: "checkbox", id: "hold", checked: !!(settings.hold && settings.hold.streamed) }))]
     : []));
 }
@@ -448,9 +448,9 @@ async function live() {
   clearInterval(view.timer);
   $("stop").textContent = desk.event.status === "draft" ? "Delete this draft" : "Stop this tournament";
   if (desk.event.status !== "running") {
-    $("live").replaceChildren(el("div", { class: "wd-kpi" }, el("b", {}, desk.event.status), el("span", { class: "small" }, whenText(desk.event.starts_at))));
-    $("live-tabs").replaceChildren();
-    $("live-body").replaceChildren(el("p", { class: "note" }, "The sets show here once the tournament runs."));
+    fill($("live"), el("div", { class: "wd-kpi" }, el("b", {}, desk.event.status), el("span", { class: "small" }, whenText(desk.event.starts_at))));
+    fill($("live-tabs"));
+    fill($("live-body"), el("p", { class: "note" }, "The sets show here once the tournament runs."));
     return;
   }
   await readSets();
@@ -463,7 +463,7 @@ async function readSets() {
   const read = await api("GET", "/v1/organizer/events/" + desk.event.id + "/sets");
   view.sets = read.sets;
   const count = tally(view.sets);
-  $("live").replaceChildren(
+  fill($("live"),
     el("div", { class: "wd-kpi bad" }, el("b", {}, String(count.action)), el("span", { class: "small" }, "need you")),
     el("div", { class: "wd-kpi live" }, el("b", {}, String(count.live)), el("span", { class: "small" }, "live")),
     el("div", { class: "wd-kpi ok" }, el("b", {}, count.done + "/" + count.total), el("span", { class: "small" }, "done")),
@@ -472,15 +472,15 @@ async function readSets() {
 }
 
 function drawLive() {
-  $("live-tabs").replaceChildren(...["Sets", "Bracket"].map((tab) =>
+  fill($("live-tabs"), ...["Sets", "Bracket"].map((tab) =>
     el("button", { type: "button", class: "chip", role: "tab", "aria-selected": String(view.tab === tab), onclick: () => { view.tab = tab; drawLive(); } }, tab)));
   if (view.tab === "Bracket") {
     const picked = { phase: view.phase, redraw: (phase) => { view.phase = phase; drawLive(); } };
-    $("live-body").replaceChildren(bracketView(view.sets, picked));
+    fill($("live-body"), bracketView(view.sets, picked));
     return;
   }
   const shown = view.sets.filter(FILTERS[view.filter]);
-  $("live-body").replaceChildren(
+  fill($("live-body"),
     el("div", { class: "chips" }, Object.keys(FILTERS).map((name) =>
       el("button", { type: "button", class: "chip", "aria-pressed": String(view.filter === name), onclick: () => { view.filter = name; drawLive(); } }, name))),
     shown.length ? el("div", { class: "wd-grid" }, shown.map(liveCard)) : el("p", { class: "note" }, "No sets here."),
@@ -548,7 +548,7 @@ function decide(set) {
       el("button", { type: "button", class: "wd-btn danger", onclick: () => send({ kind: "void_game", attempt_id: game.attempt_id }, "Void " + label.toLowerCase() + "? It no longer counts.") }, "Void"));
   });
   const waiting = (set.games || []).some((game) => game.state !== "accepted");
-  box.replaceChildren(...[
+  fill(box, [
     el("h2", { class: "wd-h" }, p1 + " vs " + p2),
     el("label", { class: "wd-field" }, "Reason (kept with the decision)", reason),
     ...games,
@@ -556,7 +556,7 @@ function decide(set) {
       el("div", { class: "wd-row" }, [p1, p2].map((name, slot) =>
         el("button", { type: "button", class: "wd-btn", onclick: () => send({ kind: "game_result", winner_slot: slot }, "Add a game won by " + name + "?") }, name + " won")))),
     el("button", { type: "button", class: "wd-btn", onclick: () => box.close() }, "Close"),
-  ].filter(Boolean));
+  ]);
   box.showModal();
 }
 
@@ -573,7 +573,7 @@ async function liveSettings() {
   const [resultsRow, results] = check("Post each set's score on Discord", event.post_results);
   const [publicRow, open] = check("Public page anyone can follow", event.public);
   const [signRow, signs] = check("Players sign up through Ember (" + (event.signed_up || 0) + " signed up)", event.sign_ups);
-  $("live-settings").replaceChildren(
+  fill($("live-settings"),
     el("h2", { class: "name" }, "Settings"),
     el("label", { class: "wd-field" }, "Discord channel webhook (calls are posted there)", hook),
     event.discord_webhook ? el("button", { type: "button", class: "wd-btn", onclick: () => saveLive({ discord_webhook: null }) }, "Remove the webhook") : null,
@@ -624,14 +624,14 @@ $("stop").addEventListener("click", () => {
   };
   const button = (label, onSite, danger) =>
     el("button", { type: "button", class: danger ? "wd-btn danger" : "wd-btn", onclick: () => end(onSite) }, label);
-  box.replaceChildren(...[
+  fill(box, [
     el("h2", { class: "wd-h" }, draft ? "Delete this draft?" : "Stop this tournament?"),
     el("p", { class: "small" }, draft ? "Its settings and links go." : "Ember stops creating its sets."),
     event.created_on_site ? el("p", { class: "small" }, "Ember created it on " + site + ". Deleting it there too removes its bracket and results for everyone.") : null,
     button(draft ? "Delete the draft" : "Stop it", false, !event.created_on_site),
     event.created_on_site ? button((draft ? "Delete it" : "Stop it") + " and delete it on " + site, true, true) : null,
     el("button", { type: "button", class: "wd-btn", onclick: () => box.close() }, "Keep it"),
-  ].filter(Boolean));
+  ]);
   box.showModal();
 });
 

@@ -17,6 +17,11 @@ function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+/** Replaces `node`'s children, leaving out empty parts as `el` does. */
+function fill(node, ...children) {
+  node.replaceChildren(...children.flat().filter((child) => child != null && child !== false));
+}
+
 // The stages a longer set length can start from, widest first.
 const STAGES = [["top_32", "Top 32"], ["top_24", "Top 24"], ["top_16", "Top 16"], ["top_12", "Top 12"], ["top_8", "Top 8"],
   ["quarter_finals", "Quarter-finals"], ["top_6", "Top 6"], ["top_4", "Top 4"], ["semi_finals", "Semi-finals"], ["finals", "Finals"],
