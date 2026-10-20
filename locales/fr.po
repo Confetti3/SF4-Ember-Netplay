@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "Joueur et manette"
 
 msgid "screen.defaults"
-msgstr "Réglages par défaut"
+msgstr "Valeurs des nouveaux salons"
 
 msgid "screen.main_character"
 msgstr "Perso principal"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "CRÉER UN SALON"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "RÉGLAGES PAR DÉFAUT"
+msgstr "VALEURS DES NOUVEAUX SALONS"
 
 msgid "settings.input_delay"
 msgstr "Latence d'entrée"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "Nom affiché, attribution de la manette et jeu en arrière-plan."
 
 msgid "settings.defaults_detail"
-msgstr "Latence et réglages des nouveaux salons."
+msgstr "Nom, capacité et règles des nouveaux salons. Le salon actuel reste inchangé."
 
 msgid "settings.interface"
 msgstr "Interface"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "Commandes"
 
 msgid "about.controls_detail"
-msgstr "Xbox : A sélectionne et B revient en arrière. PlayStation : Croix sélectionne et Rond revient en arrière. Switch : B sélectionne et A revient en arrière, comme dans les menus du jeu. Manette configurée dans Ember : Le bouton choisi pour Pied léger sélectionne et celui de Pied moyen revient en arrière, quelle que soit la disposition des boutons. Clavier : flèches, Entrée et Échap. La croix directionnelle déplace ; Gauche et Droite changent une valeur. Revenir en arrière à l'Accueil masque Ember. F10, ou Start sur une manette, l'ouvre à nouveau au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre place vous déclare prêt et B quitte votre place ou la file (sur les autres manettes, les boutons aux mêmes positions). Sur Xbox, X ouvre Combattant, Y Options et View Chat ; appuyez à nouveau pour revenir au salon. PlayStation utilise Carré, Triangle et Share ou Create ; Switch utilise Y, X et Minus.\n\nEn entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit. Sur une manette, maintenez View (Share, Create ou Minus) et appuyez sur Start."
+msgstr "Xbox : A sélectionne et B revient en arrière. PlayStation : Croix sélectionne et Rond revient en arrière. Switch : B sélectionne et A revient en arrière, comme dans les menus du jeu. Manette configurée dans Ember : Le bouton choisi pour Pied léger sélectionne et celui de Pied moyen revient en arrière, quelle que soit la disposition des boutons. Clavier : flèches, Entrée et Échap. La croix directionnelle déplace ; Gauche et Droite changent une valeur. Revenir en arrière à l'Accueil masque Ember. F10, ou Start sur une manette, l'ouvre à nouveau au menu principal du jeu.\n\nSélectionnez votre table puis Prêt, Changer de combattant ou Quitter sa place. Retour conserve votre place. Paramètres regroupe le combat, les règles des tables, la gestion du salon et les préférences personnelles. X, Y et View (F, T et C au clavier) ouvrent Combattant, Actions de table et Chat ; répétez le raccourci pour revenir.\n\nEn entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit. Sur une manette, maintenez View (Share, Create ou Minus) et appuyez sur Start."
 
 msgid "about.controls_keyboard"
 msgstr "Au clavier, Espace sélectionne aussi et Retour arrière revient aussi. Dans un salon, F ouvre Combattant, T ouvre Options et C ouvre Chat. Échap revient toujours, même sur votre propre place ; Suppr quitte votre place ou votre file."
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "Reconnexion au salon..."
 
 msgid "room.table_setup_title"
-msgstr "TABLE {0} / AVANT-COMBAT"
+msgstr "TABLE {0} / Actions de table"
 
 msgid "room.waiting_opponent"
 msgstr "En attente d'un adversaire"
@@ -2685,6 +2685,12 @@ msgstr "Il faut un clavier pour écrire. Entrée envoie ; haut et bas font défi
 msgid "chat.hint"
 msgstr "Écrire un message"
 
+msgid "chat.history"
+msgstr "Historique du chat"
+
+msgid "chat.inline_detail"
+msgstr "Écrivez ici dans le salon. Entrée envoie le message ; Échap revient aux commandes du salon."
+
 msgid "chat.send"
 msgstr "Envoyer"
 
@@ -3095,10 +3101,8 @@ msgid "room.rules_summary"
 msgstr "{0} rounds, {1} s, édition spéciale {2}"
 
 msgid "room.table_options"
-msgstr "Options de la table"
+msgstr "Actions de table"
 
-msgid "room.table_options.detail"
-msgstr "Table {0} : Délai, test de connexion, règles, file et spectateurs de cette table."
 
 msgid "room.legend_fighter"
 msgstr "Combattant"
@@ -4403,7 +4407,7 @@ msgid "public.create_detail"
 msgstr "Ouvre un salon visible par tous les joueurs avec un Ember ID, dont vous êtes l'hôte. Choisissez ensuite son nom, sa taille et les règles des tables."
 
 msgid "public.create_requirements"
-msgstr "Ouvre un salon public sur le service de l'Ember ID, le rejoint et applique ces règles à toutes les tables. Modifiez-les plus tard dans Options de la table."
+msgstr "Crée et rejoint un salon public sur le service Ember ID avec ces règles à toutes les tables. Modifiez-les ensuite dans Paramètres > Règles de table."
 
 msgid "public.create_needs_id"
 msgstr "Les salons publics demandent un Ember ID et un service de confiance. Configurez-les dans Salons publics."
@@ -6397,3 +6401,32 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "Actions"
+
+msgid "room.invite"
+msgstr "Inviter"
+
+msgid "room.invite.detail"
+msgstr "Inviter une personne dans ce salon."
+
+
+
+
+msgid "room.rules_target"
+msgstr "Choisissez une table pour voir ses règles. Seul l’hôte peut les modifier."
+
+
+msgid "room.more_actions"
+msgstr "Plus"
+
+msgid "settings.delay_saved_detail"
+msgstr "Votre délai de saisie enregistré pour les prochains matchs. Les changements ici modifient aussi votre valeur par défaut."
+
+msgid "settings.delay_future_detail"
+msgstr "Enregistrez votre délai de saisie avant de prendre place. Il sera appliqué lorsque vous vous déclarerez prêt la prochaine fois ; le match que vous regardez ne changera pas."
+
+msgid "settings.delay_check_seated"
+msgstr "Prenez place avec un adversaire pour vérifier la connexion et obtenir une recommandation."

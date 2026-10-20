@@ -147,6 +147,11 @@ Decision SessionController::Execute(const Command& command) {
         if (state_.room != RoomState::Joined || state_.control != Health::Healthy || state_.readyPending ||
             (state_.match != MatchState::None && state_.match != MatchState::PostMatch)) return Decision();
         return Accept(command.kind == CommandKind::CheckConnection ? Effect::CheckConnection : Effect::ApplyDelay);
+    case CommandKind::SaveInputDelay:
+        // Personal preference only. The runtime additionally requires no fighter's seat;
+        // a spectator may be in Playing, but must never alter that game's delay.
+        if (state_.room != RoomState::Joined || state_.readyPending) return Decision();
+        return Accept(Effect::SaveInputDelay);
     case CommandKind::Ready:
     case CommandKind::Rematch:
         if (state_.room != RoomState::Joined || state_.control != Health::Healthy || state_.readyPending

@@ -226,10 +226,12 @@ void TournamentRoom(){
  room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;h.view.room.members.push_back(peer);
  h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
  h.Screen("room");h.FocusOn("table-0");h.Press(MenuInput::Options);h.Frame();
- Check(h.has("unqueue")&&h.has("rounds"),"A casual table lost its seat or rules rows");
+ Check(h.has("unqueue"),"A casual table lost its leave action");
+ h.Screen("room-rules");Check(h.has("rounds"),"A casual table lost its editable rules");
  h.view.room.tournament.matchId="emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12";h.view.room.tournament.gamesToWin=2;
  h.Frame();
- Check(h.has("ready")&&!h.has("unqueue")&&!h.has("rounds")&&h.has("rules"),"A tournament table offers seat or rules changes");
+ Check(!h.has("rounds")&&h.has("rules"),"A tournament table offers rules changes");
+ h.Screen("room-table");Check(h.has("ready")&&!h.has("unqueue"),"A tournament table offers seat changes");
  h.view.tournament.phase=netplay::tournament::Phase::InRoom;h.view.tournament.waitingForPermit=true;h.Frame(0,2);
  Check(h.status==loc::T("tournament.state.waiting_permit"),"A tournament table does not say it waits for the service");
  // On the board: the room says it is a tournament match, offers no
@@ -306,7 +308,7 @@ void RoomLinks(){
  platform.Platform_GetClipboardTextFn=[](ImGuiContext*){return g_clipboard.c_str();};
  const std::string full="sf4e3:full-invitation",link="https://embernetplay.link/j#7K3M-0X1R-T9PZ";
  h.view.session.room=netplay::RoomState::Joined;h.view.invitation=full;
- h.Screen("room");
+ h.Screen("room");h.Choose("room-invite");
  auto before=h.actions.size();g_clipboard.clear();h.Choose("copy-short");
  Check(h.actions.size()==before+1&&h.actions.back().shortInvitation,"Copy short link did not ask for the link");
  Check(g_clipboard.empty(),"Copy short link copied before the link existed");
@@ -322,7 +324,7 @@ void RoomLinks(){
  Check(g_clipboard==full,"A failed short link did not copy the full invitation");
  // A room link waits while the room is open, then fills the Join screen.
  h.view.pendingJoinLink=link;h.view.pendingJoinSequence=1;h.Frame(0,3);
- Check(h.shell.Navigation().Screen()=="room","A room link moved the player out of the room");
+ Check(h.shell.Navigation().Screen()=="room-invite","A room link moved the player out of the invitation screen");
  before=h.actions.size();
  h.view.session.room=netplay::RoomState::Idle;h.view.invitation.clear();h.view.room=room::Snapshot{};h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join","A room link did not open the Join screen");

@@ -9,6 +9,7 @@
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
 #include <cwchar>
+#include "../netplay/UnseatedInputDelay.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -452,6 +453,19 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             runtime->error=loc::T("runtime.connection_check_unavailable");
         else if(runtime->error==loc::T("runtime.connection_check_unavailable"))
             runtime->error.clear();
+        break;
+    }
+    case netplay::Effect::SaveInputDelay: {
+        if (!UserApp::netplay || !netplay::CanSaveUnseatedInputDelay(runtime->controller.GetSnapshot(),
+            UserApp::netplay->client.GetRoomSnapshot())) break;
+        auto preferences = runtime->preferences;
+        if (!netplay::ChooseInputDelay(preferences, command.selectedDelay)) break;
+        if (OverlayPrefs::SavePlayerPreferences(preferences)) {
+            runtime->preferences = std::move(preferences);
+            runtime->selectedDelay = runtime->preferences.inputDelay;
+            if (runtime->error == loc::T("runtime.delay_save_failed")) runtime->error.clear();
+        } else runtime->error = loc::T("runtime.delay_save_failed");
+        // No SetSelectedDelay, Ready, connection probe or GGPO change here.
         break;
     }
     case netplay::Effect::ApplyDelay: {

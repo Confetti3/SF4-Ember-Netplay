@@ -156,7 +156,6 @@ bool ApplicationShell::UpdateRoomFeedback(const ShellView& v) {
  using namespace netplay;
  // Ignore brief checkpoint delays; hold visible feedback through short gaps.
  // Eligibility still uses the current snapshot on every frame.
- if(v.room.roomEpoch!=roomEpoch_){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
  const bool healthyRoom=v.session.room==RoomState::Joined&&v.session.control==Health::Healthy&&
   v.session.recovery==Recovery::None&&!v.room.closed;
  if(!healthyRoom){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
@@ -259,9 +258,20 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // The flag beside the player's name; Select opens the country picker.
   rows.insert(rows.begin()+1,Row("country",loc::T("settings.country"),v.canEditPreferences?loc::T("settings.country_detail"):reason,v.canEditPreferences));
   rows[1].value=CountryPicker::ChoiceText(preferences_.country,v.automaticCountry);
+   if(v.session.room==RoomState::Joined&&v.room.roomEpoch){
+    const bool host=v.room.localMember&&RoomActionsAvailable(v)&&room::ActingHost(v.room)==v.room.localMember;
+    rows.insert(rows.begin()+2,Row("room-match",loc::T("settings.input_delay"),loc::T("settings.delay_saved_detail")));
+    rows.insert(rows.begin()+3,Row("room-rules",loc::T("room.table_rules"),loc::T("room.rules_target")));
+    rows.insert(rows.begin()+4,Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
+   }else rows.insert(rows.begin()+2,Row("connection",loc::T("settings.input_delay"),loc::T("settings.delay_saved_detail")));
  }else if(screen==CountryPicker::Screen){
   title=loc::T("settings.country");rows=countryPicker_.Rows(preferences_.country,v.automaticCountry,v.canEditPreferences);
- }else if(screen=="problem-reports"){
+ }else if(screen=="connection"){
+   title=loc::T("settings.input_delay");
+   rows.push_back(preferences_.autoInputDelay?Value("delay",loc::T("settings.input_delay"),loc::T("settings.input_delay.auto"),
+    loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum)+"\n"+loc::T("settings.delay_saved_detail")+"\n"+reason,v.canEditPreferences):
+    Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),loc::Tf("room.selected_delay.detail",MinimumInputDelay,MaximumInputDelay)+"\n"+loc::T("settings.delay_saved_detail")+"\n"+reason,v.canEditPreferences));
+  }else if(screen=="problem-reports"){
   // The setting's pane says what a report holds; Select reads it in full.
   title=loc::T("reports.settings_title");
   auto send=Value("send-reports",loc::T("reports.setting"),preferences_.sendProblemReports?loc::T("common.on"):loc::T("common.off"),
@@ -364,7 +374,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
+ const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="connection"||screen=="room-match"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -388,6 +398,10 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    std::string(loc::T(RoomStatusKey(v.room)));
   if(!healthy)statusTone=Tone::Pending;
  }
+ if(screen=="room-match")title=loc::T("settings.input_delay");
+ if(screen=="room-rules")title=loc::T("room.table_rules");
+ if(screen=="room-admin")title=loc::T("room.settings");
+ if(screen=="room-invite")title=loc::T("room.invite");
  if(screen=="room-table"){
   title=loc::Tf("room.table_setup_title",selectedTable_+1);
   const auto& table=v.room.tables[selectedTable_];
@@ -508,7 +522,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
- else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
+ else if(a.id=="connection"||a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
@@ -529,7 +543,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="updater")Service(platform::ServiceAction::OpenUpdater,v,submit);
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
  else if(a.id=="community")Service(platform::ServiceAction::OpenCommunity,v,submit);
- else if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
+ else if(screen.compare(0,4,"room")==0||(screen=="settings"&&a.id.compare(0,5,"room-")==0))RoomAction(a,v,submit);
 }
 void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const std::string& screen,const Submit& submit) {
  using namespace netplay;
@@ -653,7 +667,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.trainingCallSequence!=trainingCallSeen_||v.trainingReadySequence!=trainingReadySeen_){
   const auto place=room::PlaceOf(v.room,v.room.localMember);
   const bool seated=v.session.room==RoomState::Joined&&place.kind==room::Place::Kind::Seat&&place.table>=0&&place.table<static_cast<int>(v.room.tables.size());
-  if(seated&&v.trainingCallSequence!=trainingCallSeen_)OpenTableOptions(v,place.table);
+  if(seated&&v.trainingCallSequence!=trainingCallSeen_){nav.Home();nav.Push("room");OpenTableOptions(v,place.table);}
   trainingCallSeen_=v.trainingCallSequence;
   // The Ready waits for the runtime's gate, and ends with the seat or the window.
   // A refused submit keeps the request, since the runtime asks for the Ready only once.
@@ -881,7 +895,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
  // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
- menu_.typesText=roomScreen&&screen=="room-chat"&&v.room.roomEpoch&&ChatTypable(v);
+ menu_.textOwner=roomScreen&&chatComposer_.Typing()&&ChatTypable(v);
+ menu_.typesText=roomScreen&&(screen=="room-chat"||chatComposer_.Typing())&&v.room.roomEpoch&&ChatTypable(v);
  // On the country picker a typed letter goes to a country, so letters are no shortcuts there.
  if(screen==CountryPicker::Screen){menu_.typesText=true;if(!nav.Editing())for(const ImWchar typed:ImGui::GetIO().InputQueueCharacters){const auto row=countryPicker_.Jump(typed,nav.Focus());if(!row.empty())nav.Focus(row,rows);}}
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
@@ -889,9 +904,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
- if(keys&&*placeExit)menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
+ if(keys&&*placeExit&&!chatComposer_.Typing())menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
  // Back names where it goes when that is not simply the previous screen:
- // from Home, out of Ember or back to the room; on the board, out of your seat.
+ // from Home, out of Ember or back to the room.
  menu_.exitName.clear();menu_.backHint.clear();
  // Home's corner says which version this is and which channel it follows.
  menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v),v.services.channel):std::string();
@@ -902,7 +917,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
    menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
   }else menu_.backInert=true;
- }else if(!keys)menu_.backHint=placeExit;
+ }
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}

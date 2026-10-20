@@ -659,6 +659,21 @@ int main(int argc, char** argv) {
                 }
             };
             const auto page=[&](const char* screen){shell.Navigation().Home();if(std::string(screen)!="home")shell.Navigation().Push(screen);draw(screen);};
+            // Follow the actual directional graph. A toolbar grid is not a vertical list.
+            const auto focusBoard=[&](const char* id){
+                std::vector<MenuNavigation> pending{shell.Navigation()};std::set<std::string> seen;
+                for(std::size_t next=0;next<pending.size();++next){
+                    const auto from=pending[next];if(!seen.insert(from.Focus()).second)continue;
+                    for(unsigned direction:{MenuInput::Up,MenuInput::Down,MenuInput::Left,MenuInput::Right}){
+                        shell.Navigation()=from;draw(nullptr,0,1);
+                        if(shell.Navigation().Focus()==id){draw();return;}
+                        draw(nullptr,direction,1);draw(nullptr,0,1);
+                        if(shell.Navigation().Focus()==id){draw();return;}
+                        if(!seen.count(shell.Navigation().Focus()))pending.push_back(shell.Navigation());
+                    }
+                }
+                throw std::runtime_error(std::string("Room action is unreachable: ")+id);
+            };
             SetMenuGlyphs(3,0x40000,0x20000);
             // The launch card opens once for mismatched game settings. Right
             // moves to "Don't show again" and Back declines it, so this covers
@@ -672,14 +687,14 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
-            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","connection","defaults","interface","training-replays","discord","about"})page(screen);
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);
             ShootReplays(shell,view,draw,page);
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
-            view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
+            view.preferences.autoInputDelay=true;page("connection");view.preferences.autoInputDelay=false;
             // Fighter select's hint is two lines: each label over its value.
             {
                 page("home");
@@ -811,7 +826,14 @@ int main(int argc, char** argv) {
             const char* sampleChat[]={"Welcome! Grab a table or join a queue.","Good games. I'll watch the next one.","Ready for another set?","Let's run it back!"};
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
             ShootMemberLatency(view,draw,page);
-            draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
+            draw();for(const char* screen:{"room","room-table","room-match","room-rules","room-members","room-chat","room-admin","room-invite"})page(screen);
+            page("room");shell.Navigation().Prefer("settings");draw("room-actions");
+            page("settings");draw("room-settings");
+            page("room");shell.Navigation().Prefer("table-0");draw();draw(nullptr,MenuInput::Select,1);draw("room-own-actions");
+            Require(shell.Navigation().Choosing(),"Own table did not open controller actions");
+            draw(nullptr,MenuInput::Right,1);draw();draw(nullptr,MenuInput::Right,1);draw("room-own-leave");
+            Require(shell.Navigation().ChoiceIndex()==2,"Controller could not focus Leave on its table");
+            draw(nullptr,MenuInput::Back,1);draw();
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});
@@ -849,15 +871,19 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             page("room-table");view.room.tables[0].p2=0;view.canReady=false;draw("table-waiting-opponent");
             view.room.tables[0].p2=2;view.canReady=true;draw("table-ready-up");
+            // Stage is part of More, separate from the personal delay editor.
+            for(int i=0;i<24&&shell.Navigation().Focus()!="stage";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            Require(shell.Navigation().Focus()=="stage","Stage is unreachable in table actions at this viewport/DPI");
+            draw("table-stage-focus");
             // Delay advice is a setup aid: the recommendation is read-only,
             // manual adjustment is bounded and immediate, and insufficient
             // probe data never blocks a manual Ready.
             view.recommendedDelay=4;view.selectedDelay=2;view.canProbe=true;view.canApplyDelay=true;
-            view.probeStatus="complete";view.probeSamples=96;view.probeLost=4;draw("table-delay-recommended");
+            view.probeStatus="complete";view.probeSamples=96;view.probeLost=4;page("room-match");draw("table-delay-recommended");
             view.probeStatus="checking";draw("table-delay-checking");
             view.probeStatus="unavailable";view.recommendedDelay=-1;draw("table-delay-retry");
             view.probeStatus="complete";view.recommendedDelay=4;
-            for(const char* control:{"ultra","input-delay","check-connection"}) {
+            for(const char* control:{"input-delay","check-connection"}) {
                 for(int i=0;i<24&&shell.Navigation().Focus()!=control;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
                 Require(shell.Navigation().Focus()==control,"Delay control is unreachable at this viewport/DPI");
                 draw((std::string("table-delay-focus-")+control).c_str());
@@ -873,7 +899,16 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);
             view.recommendedDelay=-1;view.canApplyDelay=false;view.probeStatus="insufficient samples";view.probeSamples=12;view.probeLost=88;
             view.canReady=true;draw("table-delay-manual-ready");
-            view.room.tables[0].ready[0]=true;view.canReady=false;view.canEditSelection=false;draw("table-unready");
+            {
+                const auto seatedRoom=view.room;const auto match=view.session.match;
+                for(auto& member:view.room.members)if(member.id==view.room.localMember){member.table=-1;member.seat=-1;}
+                for(auto& table:view.room.tables){if(table.p1==view.room.localMember)table.p1=0;if(table.p2==view.room.localMember)table.p2=0;}
+                view.session.match=netplay::MatchState::None;page("room-match");draw("delay-unseated");
+                view.room.tables[0].queue.push_back(view.room.localMember);
+                view.session.match=netplay::MatchState::Playing;draw("delay-queued-spectator");
+                view.room=seatedRoom;view.session.match=match;
+            }
+            page("room-table");view.room.tables[0].ready[0]=true;view.canReady=false;view.canEditSelection=false;draw("table-unready");
             view.room.tables[0].ready[1]=true;view.room.tables[0].phase=room::TablePhase::Playing;
             view.session.match=netplay::MatchState::PostMatch;draw("table-postmatch-waiting");
             view.room.tables[0].resultPending=true;draw("table-postmatch-reporting");
@@ -895,7 +930,7 @@ int main(int argc, char** argv) {
             view.room.practice=true;page("room");draw("room-practice-fight");view.room.practice=false;
             view.practiceFight=false;view.session.match=netplay::MatchState::None;view.room.tables[0].phase=room::TablePhase::Waiting;
             // An Own delay room: the table card says so beside the rules, and its page reads the player's own delay.
-            view.room.delayPolicy=room::DelayPolicy::Own;page("room");draw("room-own-delay");page("room-table");draw("table-own-delay");view.room.delayPolicy=room::DelayPolicy::Shared;
+            view.room.delayPolicy=room::DelayPolicy::Own;page("room");draw("room-own-delay");page("room-match");draw("table-own-delay");view.room.delayPolicy=room::DelayPolicy::Shared;
             view.room.members[1].training=true;page("room");draw("room-training-call");view.room.members[1].training=false;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
             // Applied terminal receipts remain a committed eligibility fence
             // until native/socket/helper retirement and explicit ACK.  Render
@@ -919,7 +954,7 @@ int main(int argc, char** argv) {
             {const auto phase=view.room.tables[0].phase;const auto match=view.session.match;const auto generation=view.room.tables[0].matchGeneration;
              view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;
              view.room.tables[0].matchGeneration=9;view.watchedGame={0,9};page("room");draw("room-watched-match");
-             view.watchedPicture=ImGui::GetIO().Fonts->TexID;page("room");draw("room-watched-picture");
+             view.watchedPicture=headless?ImTextureID(1):ImGui::GetIO().Fonts->TexID;page("room");draw("room-watched-picture");
              {auto* pip=FindWindow("Watched game");Require(pip&&pip->LastFrameActive==ImGui::GetFrameCount()&&pip->Pos.y<size.h*.2f&&pip->Pos.x+pip->Size.x<=size.w+1,"The watched game's picture is not in the top right corner");
               Require(!(pip->Flags&ImGuiWindowFlags_NoMouseInputs)&&(pip->Flags&ImGuiWindowFlags_NoNav)==ImGuiWindowFlags_NoNav,"The watched game's picture lets the pointer through to the rows it hides, or takes navigation");}view.watchedPicture={};page("room-table");
              view.watchedGame={};view.session.match=match;view.room.tables[0].phase=phase;view.room.tables[0].matchGeneration=generation;}
@@ -981,7 +1016,7 @@ int main(int argc, char** argv) {
             view.canReplaceRoom=true;
             // Replace room is on the board; the table page is only the table.
             page("room");draw();
-            for(int i=0;i<64&&shell.Navigation().Focus()!="replace-room";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            focusBoard("replace-room");
             Require(shell.Navigation().Focus()=="replace-room","Replacement action is unreachable at this viewport/DPI");
             draw("table-replacement");
             view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Preparing;
@@ -1012,7 +1047,7 @@ int main(int argc, char** argv) {
                     "Member list height is not a whole number of member cards");
             }
             // Move to Leave by clamped navigation, then open the safe dialog.
-            for(int i=0;i<64&&shell.Navigation().Focus()!="leave";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            focusBoard("leave");
             draw(nullptr,MenuInput::Select,1);draw("leave-confirmation");
             Require(shell.Navigation().Confirming()&&!shell.Navigation().ConfirmSelected(),"Leave confirmation not safe");
             auto* confirmation=FindWindow("###ConfirmAction");

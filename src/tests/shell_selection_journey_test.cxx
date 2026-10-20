@@ -30,7 +30,7 @@ void KeyboardJourneys(){
  key(ImGuiKey_Delete);
  Check(h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue,"Delete on your own card did not leave the seat");
  // Delete anywhere else does nothing.
- before=h.actions.size();h.FocusOn("copy");key(ImGuiKey_Delete);
+ before=h.actions.size();h.FocusOn("room-invite");key(ImGuiKey_Delete);
  Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="room","Delete away from your card did something");
  // T and C open table options and chat, and again return to the board.
  key(ImGuiKey_T);Check(h.shell.Navigation().Screen()=="room-table","T did not open the table options");
@@ -88,17 +88,17 @@ void KeyboardJourneys(){
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="options",
   "Select on the table's Additional options did not open the options page");
  key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the options page did not return to the table page");
- // P1 opens the stage cards at the saved stage, and a pick returns to the table page.
- int stage=0;h.view.localSlot=0;h.view.stageName="Random";
+ // P1 opens the stage cards at the saved stage, and a pick returns to the table actions.
+ h.Screen("room-table");int stage=0;h.view.localSlot=0;h.view.stageName="Random";
  h.selection=[&]{selector.Draw(pick,false,nullptr,[&](int){return available;},&stage,true);};
  // Stage shows its value but steps nothing in place: Left and Right stay here.
  h.FocusOn("stage");key(ImGuiKey_RightArrow);key(ImGuiKey_LeftArrow);
- Check(h.shell.Navigation().Screen()=="room-table"&&stage==0,"Left or Right on the table's Stage left the table page");
+ Check(h.shell.Navigation().Screen()=="room-table"&&stage==0,"Left or Right on the table's Stage left the table actions");
  key(ImGuiKey_Enter);
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="stage",
   "Select on the table's Stage did not open the stage cards");
  key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
- Check(stage!=0&&h.shell.Navigation().Screen()=="room-table","Picking a stage did not return to the table page");
+ Check(stage!=0&&h.shell.Navigation().Screen()=="room-table","Picking a stage did not return to the table actions");
  key(ImGuiKey_Escape);
  // A pad press puts the pad's prompts back; a key brings the keys again.
  SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);
@@ -134,7 +134,7 @@ void PresentationJourneys(){
  h.view.preferences=h.actions.back().preferences;h.Frame();Check(status=="Saved","Acknowledged settings did not report Saved");h.Press(MenuInput::Down);
  Check(h.shell.Navigation().Focus()=="hud-layout","Controller did not move to the row following the mouse-selected row");
  // Gameplay defaults step through 0 frames: Left from a chosen 1 saves 0, and Left from 0 goes to Auto, keeping 0.
- h.view.preferences.inputDelay=1;h.view.preferences.autoInputDelay=false;h.Screen("defaults");h.FocusOn("delay");const auto delaySaves=h.actions.size();
+ h.view.preferences.inputDelay=1;h.view.preferences.autoInputDelay=false;h.Screen("connection");h.FocusOn("delay");const auto delaySaves=h.actions.size();
  h.Press(MenuInput::Left);h.Frame(0,40);
  Check(h.actions.size()>delaySaves&&!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,
   "Gameplay defaults did not offer 0 frames of input delay");

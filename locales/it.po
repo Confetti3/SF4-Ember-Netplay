@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "Giocatore e controller"
 
 msgid "screen.defaults"
-msgstr "Impostazioni di gioco"
+msgstr "Valori per nuove stanze"
 
 msgid "screen.main_character"
 msgstr "Scegli il main"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "CREA SALA"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "IMPOSTAZIONI DI GIOCO"
+msgstr "VALORI PER NUOVE STANZE"
 
 msgid "settings.input_delay"
 msgstr "Ritardo input"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "Nome visualizzato, assegnazione controller e gioco in background."
 
 msgid "settings.defaults_detail"
-msgstr "Ritardo input e nuove sale."
+msgstr "Nome, capienza e regole per nuove stanze. La stanza attuale non cambia."
 
 msgid "settings.interface"
 msgstr "Interfaccia"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "Comandi"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A seleziona e B torna indietro. PlayStation: Croce seleziona e Cerchio torna indietro. Switch: B seleziona e A torna indietro, come nei menu del gioco. Un controller configurato in Ember: Il pulsante scelto per Calcio leggero seleziona e quello per Calcio medio torna indietro, qualunque sia la disposizione dei pulsanti. Tastiera: frecce, Invio ed Escape. La croce direzionale muove; Sinistra e Destra cambiano un valore. Tornare indietro in Home nasconde Ember. F10, o Start su un controller, lo apre di nuovo nel menu principale del gioco.\n\nIn una stanza, A su un tavolo permette di scegliere un posto, A sul proprio posto segnala che si è pronti e B lascia il posto o la coda (sugli altri controller, i pulsanti nelle stesse posizioni). Su Xbox, X apre Combattente, Y Opzioni e View Chat; premi di nuovo per tornare alla stanza. PlayStation usa Quadrato, Triangolo e Share o Create; Switch usa Y, X e Minus.\n\nIn allenamento, F6 apre i controlli, F5 nasconde l'HUD, F7 registra e F8 riproduce. Su un controller, tieni premuto View (Share, Create o Minus) e premi Start."
+msgstr "Xbox: A seleziona e B torna indietro. PlayStation: Croce seleziona e Cerchio torna indietro. Switch: B seleziona e A torna indietro, come nei menu del gioco. Un controller configurato in Ember: Il pulsante scelto per Calcio leggero seleziona e quello per Calcio medio torna indietro, qualunque sia la disposizione dei pulsanti. Tastiera: frecce, Invio ed Escape. La croce direzionale muove; Sinistra e Destra cambiano un valore. Tornare indietro in Home nasconde Ember. F10, o Start su un controller, lo apre di nuovo nel menu principale del gioco.\n\nSeleziona il tuo tavolo, poi Pronto, Cambia combattente o Lascia posto. Indietro mantiene il tuo posto. Impostazioni raccoglie incontro, regole dei tavoli, gestione della stanza e preferenze personali. X, Y e View (F, T e C sulla tastiera) aprono Combattente, Azioni del tavolo e Chat; ripeti la scorciatoia per tornare.\n\nIn allenamento, F6 apre i controlli, F5 nasconde l'HUD, F7 registra e F8 riproduce. Su un controller, tieni premuto View (Share, Create o Minus) e premi Start."
 
 msgid "about.controls_keyboard"
 msgstr "Da tastiera, anche Spazio seleziona e Backspace torna indietro. In una stanza, F apre Lottatore, T apre Opzioni e C apre Chat. Esc torna sempre indietro, anche sul tuo posto; Canc lascia il tuo posto o la coda."
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "Riconnessione alla sala..."
 
 msgid "room.table_setup_title"
-msgstr "TAVOLO {0} / PREPARATIVI"
+msgstr "TAVOLO {0} / Azioni del tavolo"
 
 msgid "room.waiting_opponent"
 msgstr "In attesa dell'avversario"
@@ -2685,6 +2685,12 @@ msgstr "Per scrivere serve una tastiera. Invio manda il messaggio; Su e Giù sco
 msgid "chat.hint"
 msgstr "Scrivi un messaggio"
 
+msgid "chat.history"
+msgstr "Cronologia della chat"
+
+msgid "chat.inline_detail"
+msgstr "Scrivi qui nella stanza. Invio invia il messaggio; Esc torna ai comandi della stanza."
+
 msgid "chat.send"
 msgstr "Invia"
 
@@ -3095,10 +3101,8 @@ msgid "room.rules_summary"
 msgstr "{0} round, {1} s, seleziona versione {2}"
 
 msgid "room.table_options"
-msgstr "Opzioni del tavolo"
+msgstr "Azioni del tavolo"
 
-msgid "room.table_options.detail"
-msgstr "Tavolo {0}: Ritardo, test di connessione, regole, coda e spettatori di questo tavolo."
 
 msgid "room.legend_fighter"
 msgstr "Lottatore"
@@ -4403,7 +4407,7 @@ msgid "public.create_detail"
 msgstr "Apre una sala visibile a tutti i giocatori con un Ember ID, di cui sei l'host. Poi scegli nome, dimensione e regole dei tavoli."
 
 msgid "public.create_requirements"
-msgstr "Apre una sala pubblica sul servizio dell'Ember ID, vi entra e applica queste regole a tutti i tavoli. Puoi cambiarle poi in Opzioni del tavolo."
+msgstr "Crea e raggiunge una stanza pubblica nel servizio Ember ID con queste regole su tutti i tavoli. Modificale poi in Impostazioni > Regole del tavolo."
 
 msgid "public.create_needs_id"
 msgstr "Le sale pubbliche richiedono un Ember ID e un servizio attendibile. Configurali in Sale pubbliche."
@@ -6397,3 +6401,32 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "Azioni"
+
+msgid "room.invite"
+msgstr "Invita"
+
+msgid "room.invite.detail"
+msgstr "Invita qualcuno in questa stanza."
+
+
+
+
+msgid "room.rules_target"
+msgstr "Scegli un tavolo per vedere le regole. Solo l’host può modificarle."
+
+
+msgid "room.more_actions"
+msgstr "Altro"
+
+msgid "settings.delay_saved_detail"
+msgstr "Il ritardo di input salvato per le partite future. Le modifiche qui aggiornano anche il valore predefinito."
+
+msgid "settings.delay_future_detail"
+msgstr "Salva il ritardo di input prima di sederti. Verrà applicato la prossima volta che ti dichiari pronto; non modifica la partita che stai guardando."
+
+msgid "settings.delay_check_seated"
+msgstr "Siediti con un avversario per verificare la connessione e ricevere un consiglio."

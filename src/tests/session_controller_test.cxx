@@ -425,6 +425,26 @@ int main() {
         CHECK(CommandNow(stalled, CommandKind::ReplaceRoom).accepted);
     }
 
+    {
+        SessionController delay;
+        CHECK(!CommandNow(delay, CommandKind::SaveInputDelay).accepted);
+        CHECK(CommandNow(delay, CommandKind::HostRoom).accepted);
+        CHECK(!CommandNow(delay, CommandKind::SaveInputDelay).accepted);
+        CHECK(EventNow(delay, EventKind::RoomJoined).accepted);
+        CHECK(CommandNow(delay, CommandKind::SaveInputDelay).effect == Effect::SaveInputDelay);
+        // A spectator can have an active game while its personal default is edited.
+        CHECK(EventNow(delay,EventKind::MatchPreparing).accepted);
+        CHECK(EventNow(delay,EventKind::GameplayReady).accepted);
+        CHECK(EventNow(delay,EventKind::MatchStarted).accepted);
+        const auto generation=delay.GetSnapshot().generation;
+        CHECK(CommandNow(delay,CommandKind::SaveInputDelay).effect==Effect::SaveInputDelay);
+        CHECK(delay.GetSnapshot().match==MatchState::Playing && delay.GetSnapshot().generation==generation);
+        auto stale=Command{CommandKind::SaveInputDelay,generation,{}};--stale.generation.room;
+        CHECK(!delay.Execute(stale).accepted);
+        CHECK(CommandNow(delay,CommandKind::LeaveRoom).accepted);
+        CHECK(!CommandNow(delay,CommandKind::SaveInputDelay).accepted);
+
+    }
     std::printf("SessionController: %d failure(s)\n", failures);
     return failures ? 1 : 0;
 }

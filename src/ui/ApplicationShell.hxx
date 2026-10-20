@@ -1,4 +1,5 @@
 #pragma once
+#include "ChatComposer.hxx"
 #include <imgui.h>
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
@@ -25,6 +26,7 @@
 #include <memory>
 #include <optional>
 #include "ChatTranscript.hxx"
+#include "ChatNotification.hxx"
 #include "GameMenu.hxx"
 #include "../common/ControllerView.hxx"
 #include "../common/ControllerRequest.hxx"
@@ -41,6 +43,8 @@ namespace sf4e { namespace ui {
 // The shared shell has no game, transport, filesystem or bootstrap dependency.
 // Its caller supplies a copied view and translates actions on the owning thread.
 struct ShellView {
+    // Persistent OS window focus; ImGui's focus-loss event lasts only one frame.
+    bool focused = true;
     bool controllerAvailable = false, controllerFocus = false, controllerBack = false;
     bool controllerUnavailable = false;
     netplay::Snapshot session;
@@ -173,10 +177,6 @@ struct ShellView {
     ReplaysView replays;
 };
 
-// The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
-// height of a line of text. UnreadBadgeWidth is what it takes, for the text beside it to leave room.
-float UnreadBadgeWidth(unsigned count);
-void DrawUnreadBadge(float right,float top,unsigned count);
 // "Ready in N s" for a player called out of Training: ShellView::trainingReadySeconds, in words.
 std::string TrainingReadyText(int seconds);
 
@@ -271,6 +271,8 @@ public:
     // The room chat's unread count, as the room screen's Chat row shows it.
     // Kept while the shell is hidden (Background), so the training HUD can say it.
     unsigned UnreadChat() const { return transcript_.Unread(muted_); }
+    // Update every overlay frame, including hidden menus and active fights.
+    ChatNotificationView UpdateChatNotification(double monotonicNow) { return chatNotification_.Update(transcript_, muted_, monotonicNow); }
     // The shell is not being drawn (the overlay is hidden): nothing typed into
     // a passphrase field may wait in it until it next opens.
     void Conceal() {
@@ -385,13 +387,13 @@ private:
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);
-    // What B does on the board while your own table card is focused: leave your
+    // What Delete does on the board while your own table card is focused: leave your
     // seat or queue place (or say why the seat cannot be left yet). Empty
     // (plain Back) otherwise.
     const char* PlaceExitLabel(const ShellView& view) const;
     void OpenTableOptions(const ShellView& view, int table);
     void ToggleReady(const ShellView& view, const Submit& submit);
-    // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
+    // Leaves our seat or queue place once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
     // Leaves the game this PC watches (Stop watching, or the table's own
     // Unwatch of it), once confirmed: the press names the game, and the
@@ -407,6 +409,7 @@ private:
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;
+    std::size_t roomBoardColumns_ = 1;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
@@ -419,14 +422,13 @@ private:
     void FlushChat(const ShellView& view,const Submit& submit);
     void NoteChatGate(ChatGate gate,double now);
     void DrawChatLog(const ShellView& view,bool compact);
+    void DrawRoomChat(const ShellView& view,MenuAction& action,float height);
+    ChatComposer::Result DrawChatComposer(const ShellView& view,float width,bool inlineBox,bool activate=false);
+    ChatComposer chatComposer_;
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
-    // The Chat screen's message box, and the room left in the message at the right of the note line
-    // under it (`noteHeight` tall). A tournament match's watcher has neither.
-    void DrawChatBox(float x,float width,bool typable,float noteHeight);
-    // The room left in the message, in bytes, which the counter says.
-    int ChatBytesLeft() const;
     ChatTranscript transcript_;
+    ChatNotificationState chatNotification_;
     // A message sent and not yet seen in the room's chat. The draft stays in the box until it is, however
     // late, or until the room changes; `after` is the newest message already looked at. For 8 seconds
     // from `since` the same text is not sent again (ChatInFlight); after that it may be, and is still
@@ -452,7 +454,6 @@ private:
     bool chatOpen_=false;
     // The text the message box last held. ImGui ignores the buffer it is given while the box has the
     // keyboard, so a draft the shell changed (sent, or a new room) is handed to the box again.
-    std::string chatBoxText_;
     std::size_t chatShown_=0;
     double saveAt_ = 0;
     double lastUiTime_ = -1;
@@ -506,7 +507,7 @@ private:
     std::string lastError_, errorScreen_, errorBlockedText_;
     double errorSince_=0;
     std::function<bool(const ShellView&)> errorBlocked_;
-    // B on a seat that would lose a score or hand the seat over asks first: the
+    // Leaving a seat that would lose a score or hand it over asks first: the
     // table whose card carries the question, and whether it is open yet.
     int leaveAsk_=-1;
     bool leaveAsked_=false;

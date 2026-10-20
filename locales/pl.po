@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "Gracz i kontroler"
 
 msgid "screen.defaults"
-msgstr "Domyślne ustawienia gry"
+msgstr "Domyślne opcje nowych pokoi"
 
 msgid "screen.main_character"
 msgstr "Wybierz główną postać"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "UTWÓRZ POKÓJ"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "DOMYŚLNE USTAWIENIA GRY"
+msgstr "DOMYŚLNE OPCJE NOWYCH POKOI"
 
 msgid "settings.input_delay"
 msgstr "Opóźnienie"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "Nazwa wyświetlana, przypisanie kontrolera i gra w tle."
 
 msgid "settings.defaults_detail"
-msgstr "Opóźnienie i ustawienia nowych pokojów."
+msgstr "Nazwa, pojemność i zasady nowych pokoi. Obecny pokój nie zmienia się."
 
 msgid "settings.interface"
 msgstr "Interfejs"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "Sterowanie"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A wybiera, a B wraca. PlayStation: Krzyżyk wybiera, a Kółko wraca. Switch: B wybiera, a A wraca, tak jak w menu gry. Kontroler ustawiony w Ember: Przycisk wybrany dla Lekkiego kopnięcia wybiera, a ten dla Średniego kopnięcia wraca, niezależnie od układu przycisków. Klawiatura: strzałki, Enter i Escape. Krzyżak przesuwa; Lewo i Prawo zmieniają wartość. Powrót na ekranie głównym ukrywa Ember. F10 lub Start na kontrolerze otwiera go ponownie w menu głównym gry.\n\nW pokoju A na stole pozwala wybrać miejsce, A na swoim miejscu zgłasza gotowość, a B opuszcza miejsce lub kolejkę (na innych kontrolerach przyciski w tych samych pozycjach). Na Xbox X otwiera Zawodnika, Y Opcje, a View Czat; naciśnij ponownie, aby wrócić do pokoju. PlayStation używa Kwadratu, Trójkąta i Share lub Create; Switch Y, X i Minus.\n\nW treningu F6 otwiera sterowanie, F5 ukrywa HUD, F7 nagrywa, a F8 odtwarza. Na kontrolerze przytrzymaj View (Share, Create lub Minus) i naciśnij Start."
+msgstr "Xbox: A wybiera, a B wraca. PlayStation: Krzyżyk wybiera, a Kółko wraca. Switch: B wybiera, a A wraca, tak jak w menu gry. Kontroler ustawiony w Ember: Przycisk wybrany dla Lekkiego kopnięcia wybiera, a ten dla Średniego kopnięcia wraca, niezależnie od układu przycisków. Klawiatura: strzałki, Enter i Escape. Krzyżak przesuwa; Lewo i Prawo zmieniają wartość. Powrót na ekranie głównym ukrywa Ember. F10 lub Start na kontrolerze otwiera go ponownie w menu głównym gry.\n\nWybierz swój stół, a potem Gotowość, Zmień postać lub Opuść miejsce. Wstecz zachowuje miejsce. Ustawienia zawierają opcje meczu, zasady stołów, zarządzanie pokojem i opcje osobiste. X, Y i View (F, T i C na klawiaturze) otwierają postać, akcje stołu i czat; ponowne naciśnięcie wraca.\n\nW treningu F6 otwiera sterowanie, F5 ukrywa HUD, F7 nagrywa, a F8 odtwarza. Na kontrolerze przytrzymaj View (Share, Create lub Minus) i naciśnij Start."
 
 msgid "about.controls_keyboard"
 msgstr "Na klawiaturze Spacja też wybiera, a Backspace też cofa. W pokoju F otwiera Postać, T Opcje, a C Czat. Escape zawsze cofa, także na twoim miejscu; Delete opuszcza miejsce lub kolejkę."
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "Ponowne łączenie z pokojem..."
 
 msgid "room.table_setup_title"
-msgstr "STÓŁ {0} / USTAWIENIA WALKI"
+msgstr "STÓŁ {0} / Akcje stołu"
 
 msgid "room.waiting_opponent"
 msgstr "Czekanie na przeciwnika"
@@ -2685,6 +2685,12 @@ msgstr "Pisanie wymaga klawiatury. Enter wysyła; strzałki w górę i w dół p
 msgid "chat.hint"
 msgstr "Napisz wiadomość"
 
+msgid "chat.history"
+msgstr "Historia czatu"
+
+msgid "chat.inline_detail"
+msgstr "Pisz tutaj w pokoju. Enter wysyła wiadomość, a Escape przywraca sterowanie pokojem."
+
 msgid "chat.send"
 msgstr "Wyślij"
 
@@ -3095,10 +3101,8 @@ msgid "room.rules_summary"
 msgstr "Rundy: {0}, {1} s, wybór edycji: {2}"
 
 msgid "room.table_options"
-msgstr "Opcje stołu"
+msgstr "Akcje stołu"
 
-msgid "room.table_options.detail"
-msgstr "Stół {0}: Opóźnienie, test połączenia, zasady, kolejka i oglądanie dla tego stołu."
 
 msgid "room.legend_fighter"
 msgstr "Postać"
@@ -4403,7 +4407,7 @@ msgid "public.create_detail"
 msgstr "Otwiera pokój widoczny dla wszystkich graczy z Ember ID, a ty jesteś jego hostem. Następnie wybierz nazwę, rozmiar i zasady stołów."
 
 msgid "public.create_requirements"
-msgstr "Otwiera pokój publiczny w usłudze Ember ID, dołącza do niego i ustawia te zasady na wszystkich stołach. Zmienisz je później w Opcjach stołu."
+msgstr "Tworzy pokój publiczny w usłudze Ember ID i dołącza z tymi zasadami przy wszystkich stołach. Później zmień je w Ustawienia > Zasady stołu."
 
 msgid "public.create_needs_id"
 msgstr "Pokoje publiczne wymagają Ember ID i zaufanej usługi. Skonfiguruj je w sekcji Pokoje publiczne."
@@ -6397,3 +6401,32 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "Działania"
+
+msgid "room.invite"
+msgstr "Zaproś"
+
+msgid "room.invite.detail"
+msgstr "Zaproś kogoś do tego pokoju."
+
+
+
+
+msgid "room.rules_target"
+msgstr "Wybierz stół, aby zobaczyć zasady. Tylko gospodarz może je zmienić."
+
+
+msgid "room.more_actions"
+msgstr "Więcej"
+
+msgid "settings.delay_saved_detail"
+msgstr "Zapisane opóźnienie wejścia dla przyszłych meczów. Zmiany tutaj aktualizują też wartość domyślną."
+
+msgid "settings.delay_future_detail"
+msgstr "Zapisz opóźnienie wejścia przed zajęciem miejsca. Zostanie zastosowane przy następnym zgłoszeniu gotowości; nie zmieni oglądanego meczu."
+
+msgid "settings.delay_check_seated"
+msgstr "Zajmij miejsce przy stole z przeciwnikiem, aby sprawdzić połączenie i uzyskać zalecaną wartość."

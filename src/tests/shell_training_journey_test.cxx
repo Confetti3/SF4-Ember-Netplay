@@ -20,7 +20,7 @@ void TrainingSettingsAndHome() {
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Choose("settings");
- const std::vector<std::string> settings={"player","country","defaults","interface","training-replays","discord","problem-reports","about"};
+ const std::vector<std::string> settings={"player","country","connection","defaults","interface","training-replays","discord","problem-reports","about"};
  Check(rows.size()==settings.size(),"Settings row count changed");
  for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
  h.Choose("interface");
@@ -90,12 +90,13 @@ void TrainingFromRoom() {
  // Seated opposite another fighter and called back: the table page, with the time to ready on its Ready row.
  me.table=0;me.seat=0;me.status=room::MemberStatus::Seated;other.table=0;other.seat=1;other.status=room::MemberStatus::Seated;
  h.view.room.members={me,other};h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;h.view.room.tables[0].phase=room::TablePhase::Waiting;
+ h.Screen("settings");h.Choose("interface");
  h.view.canTrain=false;h.view.trainingCallSequence=1;h.view.trainingReadySeconds=15;h.Frame();
- Check(h.shell.Navigation().Screen()=="room-table","A player called back from Training was not shown their table");
+ Check(h.shell.Navigation().Screen()=="room-table"&&h.shell.Navigation().Parent()=="room","A Training call from Settings did not restore the room return path");
  Check(status==loc::Tf("room.training_call.ready_in",15)&&tone==Tone::Pending,"Training deadline missing from table status");
  h.Screen("room");Check(status==loc::Tf("room.training_call.ready_in",15)&&tone==Tone::Pending,"Training deadline missing from room status");h.Screen("room-table");
  // In a Practice room every game takes the longest round time, whatever the table's rules say.
- h.view.room.practice=true;h.Frame();
+ h.view.room.practice=true;h.Screen("room-rules");
  const auto rules=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="rules";});
  Check(rules!=rows.end()&&rules->value==loc::Tf("room.rules_summary_practice",3,room::PracticeRoundTime,loc::T("common.on")),"Non-host cannot see the Practice room's rules");
  // The host edits the other rules there, but has no round time to choose.
@@ -105,6 +106,7 @@ void TrainingFromRoom() {
  h.view.room.practice=false;h.Frame();
  Check(hasRow("rounds")&&hasRow("time"),"A plain room's host lost the round time");
  h.view.room.host=0;h.view.room.practice=true;h.Frame();
+ h.Screen("room-table");
  // Asked to be readied: nothing until the runtime's gate opens, then one Ready.
  const auto sent=h.actions.size();
  h.view.trainingReadySequence=1;h.Frame();h.Frame();
@@ -266,17 +268,20 @@ void DelayPolicyInRoom() {
  h.view.room.host=0;h.view.opponentDelay=4;h.Frame();
  std::vector<MenuEntry> rows;
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
- h.Screen("room-table");
+ h.Screen("room-rules");
  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
  const auto& rules=h.view.room.tables[0].rules;
  const auto shared=loc::Tf("room.rules_summary",static_cast<int>(rules.roundCount),static_cast<int>(rules.roundTime),loc::T(rules.editionSelect?"common.on":"common.off"));
  Check(row("rules")!=rows.end()&&row("rules")->value==shared,"A Shared room's rules summary changed");
+ h.Screen("room-match");
  Check(row("input-delay")!=rows.end()&&row("input-delay")->detail.find(loc::Tf("room.input_delay.match",""))!=std::string::npos&&
   row("input-delay")->detail.find(loc::Tf("room.input_delay.own",""))==std::string::npos,"A Shared room's delay row lost its match value");
- h.view.room.delayPolicy=room::DelayPolicy::Own;h.Frame();
+ h.view.room.delayPolicy=room::DelayPolicy::Own;h.Screen("room-rules");
  Check(row("rules")->value==loc::Tf("room.rules_summary_own_delay",shared),"An Own room's rules summary did not say so");
+ h.Screen("room-match");
  Check(row("input-delay")->detail.find(loc::Tf("room.input_delay.own",""))!=std::string::npos&&
   row("input-delay")->detail.find(loc::Tf("room.input_delay.match",""))==std::string::npos,"An Own room's delay row showed a match value");
+ h.Screen("room-rules");
  // The host edits the rules in place, so an Own room is named by its own read-only row.
  Check(row("delay-policy")==rows.end(),"A player who is not the host was shown the host's delay row");
  h.view.room.host=1;h.Frame();

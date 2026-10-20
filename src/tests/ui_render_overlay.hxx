@@ -44,6 +44,25 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
             Require(foreground()==passive,"Open window or native pause did not gate the match strip or split HUD");
             Require(!WindowDrawn("Match notice"),"Suppressed ordinary telemetry became a standalone alert");
         }
+        // Spectators use the bubble; Training keeps its existing room line.
+        // Neither can leak a bubble over menus, pause, or a hidden HUD.
+        for(bool spectating:{false,true}) {
+            reset();layers.chat={18,true};layers.matchActive=spectating;
+            layers.match.spectator=spectating;layers.showMatchHud=true;
+            training.available=!spectating;layers.trainingHud=true;
+            draw();Require(WindowDrawn("Chat notification")== (passive&&spectating),"Chat notification ignored passive visibility");
+            layers.chat.expanded=false;draw();
+            Require(WindowDrawn("Chat notification")== (passive&&spectating),"Unread badge disappeared at notification expiry");
+            layers.focused=false;draw();Require(!WindowDrawn("Chat notification"),"Unfocused game showed chat attention");
+            layers.focused=true;layers.trainingHud=layers.showMatchHud=false;draw();
+            Require(!WindowDrawn("Chat notification")&&!WindowDrawn("Match notice"),"HUD off leaked routine chat through an alert");
+        }
+        reset();layers.matchActive=layers.showMatchHud=true;layers.chat={18,true};draw();
+        Require(!WindowDrawn("Chat notification"),"Chat notification interrupted an active fighter");
+        layers.match.spectator=true;layers.match.connectionWarning=true;draw();
+        Require(!WindowDrawn("Chat notification"),"Chat competed with a connection warning");
+        layers.match.connectionWarning=false;layers.chat={};draw();
+        Require(!WindowDrawn("Chat notification"),"Empty chat drew a badge");
         // The Ember shortcut never covers a fight's timer, even where the menu opens over it.
         reset();layers.matchActive=layers.shellAvailable=true;layers.padHint="Saved pad connected. You play with it.";draw();
         Require(!WindowDrawn("Ember shortcut"),"The Ember shortcut was drawn over a fight");
@@ -77,6 +96,34 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
         tooltip=false;
     }
     battlePause.CloseBattle();training=saved;layers={};mode=2;draw();
+    // Review captures of the production widget, including capped counts.
+    mode=7;training.available=training.watching=false;layers={};layers.matchActive=layers.match.spectator=true;layers.chat={18,true};
+    layers.match.names[0]="Player One";layers.match.names[1]="Player Two";layers.match.appliedDelay=1;layers.match.behindFrames=2;
+    draw("chat-notification-expanded");const float expandedWidth=FindWindow("Chat notification")->Size.x;
+    layers.chat.expanded=false;draw("chat-notification-badge");
+    const auto* badge=FindWindow("Chat notification");const auto* vp=ImGui::GetMainViewport();
+    Require(badge->Size.x<expandedWidth&&badge->Size.x<vp->Size.x*.5f,"Unread badge did not shrink after expiry");
+    Require(badge->Pos.x>=vp->Pos.x&&badge->Pos.y>=vp->Pos.y&&
+        badge->Pos.x+badge->Size.x<=vp->Pos.x+vp->Size.x&&badge->Pos.y+badge->Size.y<=vp->Pos.y+vp->Size.y,
+        "Chat badge escaped the viewport");
+    Require((badge->Flags&ImGuiWindowFlags_NoInputs)==ImGuiWindowFlags_NoInputs,"Passive chat stole input");
+    layers.chat.unread=200;draw("chat-notification-many");
+    // Test each actual occupied HUD box, including raised bottom right and
+    // split name plates, at every viewport/locale/scale in the harness.
+    for(int layout:{0,1})for(int anchor=0;anchor<6;++anchor)for(int size=0;size<3;++size)for(bool raised:{false,true}) {
+        layers.match.layout=layout;layers.match.anchor=anchor;layers.match.size=size;layers.match.raised=raised;
+        for(bool expanded:{false,true}) {
+            layers.chat.expanded=expanded;draw();
+            const auto* bubble=FindWindow("Chat notification");const auto bounds=MatchStripGeometry(layers.match);
+            for(const auto& box:{bounds.panel,bounds.state,bounds.names[0],bounds.names[1]})
+                Require(!box.valid||bubble->Pos.x>=box.x1||bubble->Pos.x+bubble->Size.x<=box.x0||bubble->Pos.y>=box.y1||bubble->Pos.y+bubble->Size.y<=box.y0,
+                    ("Chat overlaps the spectator HUD: layout="+std::to_string(layout)+" anchor="+std::to_string(anchor)+" size="+std::to_string(size)+" raised="+std::to_string(raised)+" expanded="+std::to_string(expanded)+" bubble="+std::to_string(bubble->Pos.x)+","+std::to_string(bubble->Pos.y)+","+std::to_string(bubble->Size.x)+","+std::to_string(bubble->Size.y)+" box="+std::to_string(box.x0)+","+std::to_string(box.y0)+","+std::to_string(box.x1)+","+std::to_string(box.y1)).c_str());
+            Require(bubble->Pos.x>=vp->Pos.x&&bubble->Pos.y>=vp->Pos.y&&bubble->Pos.x+bubble->Size.x<=vp->Pos.x+vp->Size.x&&bubble->Pos.y+bubble->Size.y<=vp->Pos.y+vp->Size.y,
+                "Positioned chat escaped the viewport");
+        }
+    }
+
+    layers={};mode=2;
     CheckExportPasses(training,layers,tooltip,mode,draw);
 }
 

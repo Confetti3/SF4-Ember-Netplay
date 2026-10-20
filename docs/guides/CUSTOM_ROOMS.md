@@ -11,7 +11,7 @@ release.
    and assign your gameplay controller.
 2. At the main menu, open **Online play > Create room**, choose the room name,
    capacity, and default battle rules, then select **Create room** again.
-3. Use **Copy invitation** to share the private invitation with your players.
+3. Use **Invite > Copy invitation** to share the private invitation with your players.
 4. Guests open **Online play > Join room**, select **Paste invitation**, then
    **Join room**. Joining a room leaves them idle until they explicitly choose a
    table and take a seat, queue or watch.
@@ -29,17 +29,14 @@ play at any table, or watch.
 Select a table's card. With no seat or queue place yet, it opens a seat chooser:
 **Play as P1** or **Play as P2** while that seat is open and nobody is queued
 ahead (an empty table offers both seats), otherwise **Join queue**; then
-**Watch**; and **Table options**. Open seats fill in queue order. If you already
+**Watch**; and **Table actions**. Open seats fill in queue order. If you already
 hold a seat or queue place at another table, the card opens that table's Table
-options instead, and joining there waits until you leave your current place.
-Seated fighters choose their characters and both select **Ready up** (A on your
-own card) before each game. Before preparation begins, a fighter can withdraw
+actions instead, and joining there waits until you leave your current place.
+Seated fighters choose their characters and both select **Ready up** (Confirm on your
+own card opens Actions; Confirm again selects Ready) before each game. Before preparation begins, a fighter can withdraw
 readiness with **Unready / unlock fighter**.
 
-Battle setup, opened from **Table options** (Y on an Xbox pad, T on the
-keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
-(Left and Right step the Ultra in place), then **Input delay**. Its value is
-your own delay, and its detail names the recommended delay and the match delay.
+Your table's Actions contains Ready, fighter selection, Leave seat and More. More opens the complete table-action list, including unresolved-game recovery. Y on an Xbox pad or T on the keyboard opens the expanded table actions. Settings is the room's single settings entry. **Settings > Match & connection** contains stage, **Input delay** and **Check connection**. The delay value is your own, and its detail names the recommended delay and the match delay.
 A new profile is on **Auto**: the connection check runs by itself for each
 new opponent, and a Ready pressed meanwhile waits for it to end, for about
 twelve seconds at most. A check that fails is tried once more. You ready with
@@ -54,8 +51,7 @@ zero. Zero adds no delay and needs a steady, low ping; Auto and the
 recommendation never choose it. A chosen delay is saved, Select applies a valid recommendation to it,
 and you can Ready without a usable probe. Ready locks your own delay for that
 game; Unready unlocks it. A route change or a new
-recommendation never changes delay during a fight. The table's rules follow on
-the same page: the host changes Rounds, Round time and Edition Select in place
+recommendation never changes delay during a fight. **Settings > Table rules** contains the shared rules: the host changes Rounds, Round time and Edition Select in place
 and presses **Apply rules**, which appears once something changed; everyone
 else sees them on one line.
 
@@ -104,16 +100,16 @@ The running count, such as 2 - 1, replaces "VS" on the table card and "vs" on
 the match HUD, and the HUD keeps the final count on the screen of the game that
 ended the set. Both fighters must ready again after returning to the room. When
 a fighter leaves their seat, the next queued member takes that seat and the new
-pair starts with fresh win counts. B on your own table card, or
-**Leave seat** in the table options, leaves your seat at once. It asks first
+pair starts with fresh win counts.
+**Leave seat** on your table's Actions or the expanded table actions leaves your seat at once. It asks first
 only when the pair has wins on the board or a queued member would take the seat;
 the question starts on staying. A game in progress or an unresolved result holds
-the seat, and B says why. While a start is held for a locked-in spectator, B
+the seat, and the disabled button says why. While a start is held for a locked-in spectator, **Cancel the start**
 cancels the start by taking Ready back. An unresolved game does not award a win or erase earlier
 wins for the same pair.
 
 Queued members automatically watch each game while retaining their queue
-positions. B on your queue card, or **Leave queue**, leaves the queue at once.
+positions. **Leave queue** on your table's Actions or the expanded table actions leaves the queue at once.
 Leaving the queue during a game lets you finish watching it; the place ends with
 that game unless you press **Watch next game**. Between games, leaving the queue
 returns you to the room. A queued member has no Watch or Stop watching action of
@@ -202,3 +198,11 @@ See [CUSTOM_ROOMS_STATUS.md](../validation/CUSTOM_ROOMS_STATUS.md) for the exact
 evidence. Local
 component and synthetic helper tests do not establish native gameplay,
 multi-machine acceptance, or installation acceptance.
+
+### Room menu navigation
+
+Back returns to the previous screen without giving up your seat or queue place.
+The board keeps Settings, Chat history, Members, Invite, Training and Leave room together. Leave seat / Leave queue is on your table, and seated fighters use its Fighter choice. Fighter select appears under chat only before taking a seat. Select your own table to choose Ready, Fighter or Leave without accidentally readying. Settings groups Player & controller, Match & connection, Table rules and Room settings; Invite groups room links. Directions and Confirm reach every action, including with a controller that has no shortcut buttons.
+
+Delete remains an optional keyboard shortcut on your own table card. Leaving a
+seat with a score or a waiting player still asks for confirmation.

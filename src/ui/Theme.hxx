@@ -4,6 +4,7 @@
 #include "../common/NetworkLink.hxx"
 #include "MenuNavigation.hxx"
 #include "FontMetrics.hxx"
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -135,8 +136,7 @@ struct MatchStripView {
     // What a spectator, which has no link of its own, is shown instead (MatchTelemetryCells):
     // its frames behind the host stream (-1 before the stream runs), and ownDelays when each
     // fighter plays at their own delay rather than at appliedDelay. On the state line, its
-    // place in the table's queue (from 1, of queueLength; 0 when not queued) and the room
-    // chat's unread count.
+    // place in the table's queue (from 1, of queueLength; 0 when not queued).
     int behindFrames = -1;
     bool ownDelays = false;
     int queuePosition = 0, queueLength = 0;
@@ -146,6 +146,9 @@ struct MatchStripView {
     int noticeSeverity = 0;
     bool connectionWarning = false, predictionStalled = false;
     int disconnectCountdownMs = -1;
+    bool HasAlert() const { return !notice.empty() || connectionWarning || predictionStalled; }
+    bool NeedsAttention() const { return (noticeSeverity >= 2 && !notice.empty()) || predictionStalled || (connectionWarning && disconnectCountdownMs >= 0); }
+    int AlertSeverity() const { return (std::max)(noticeSeverity, connectionWarning || predictionStalled ? 1 : 0); }
 };
 // The match HUD functions below, MatchStripGeometry and the label helpers are defined in MatchHud.cxx.
 void DrawMatchStrip(const MatchStripView& view);
@@ -154,7 +157,7 @@ std::string SetScoreText(const std::uint32_t (&score)[2]);
 // The single line the strip shows for the link state, or empty. Exposed so
 // the render harness and tests can check the wording without a draw list.
 // With nothing more urgent to say, a spectator's line is where it stands in
-// the room: its queue place and the unread chat.
+// the room: its queue place. Chat has its own timed notice and compact badge.
 std::string MatchStripStateLine(const MatchStripView& view);
 // One telemetry cell: a label (empty for a bare value), the value, and the
 // widest value the cell keeps room for so the layout does not jump.

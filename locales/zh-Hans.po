@@ -455,7 +455,7 @@ msgid "screen.player"
 msgstr "玩家与控制器"
 
 msgid "screen.defaults"
-msgstr "对战默认设置"
+msgstr "新房间默认设置"
 
 msgid "screen.main_character"
 msgstr "选择主角"
@@ -1012,7 +1012,7 @@ msgid "room.create_title"
 msgstr "创建房间"
 
 msgid "settings.gameplay_defaults_title"
-msgstr "对战默认设置"
+msgstr "新房间默认设置"
 
 msgid "settings.input_delay"
 msgstr "输入延迟"
@@ -1066,7 +1066,7 @@ msgid "settings.player_detail"
 msgstr "显示名称、控制器分配和后台游玩。"
 
 msgid "settings.defaults_detail"
-msgstr "输入延迟和新房间默认设置。"
+msgstr "新房间的名称、人数上限和规则。当前房间不受影响。"
 
 msgid "settings.interface"
 msgstr "界面"
@@ -1281,7 +1281,7 @@ msgid "about.controls"
 msgstr "操作说明"
 
 msgid "about.controls_detail"
-msgstr "Xbox：A 选择，B 返回。PlayStation：叉号选择，圆圈返回。Switch：B 选择，A 返回，与游戏自身的菜单一致。在 Ember 中设置的控制器：为轻脚选定的按钮负责选择，为中脚选定的按钮负责返回，无论按钮布局如何。键盘：方向键、Enter 和 Escape。方向键移动，左右更改数值。在主页返回会隐藏 Ember。在游戏主菜单按 F10 或控制器上的 Start 可再次打开。\n\n在房间中，在桌台上按 A 可选择座位，在自己的座位上按 A 可准备，按 B 可离开座位或队列位置；其他控制器使用相同位置的按钮。在 Xbox 上，X 打开斗士，Y 打开选项，View 打开聊天；再次按下会返回房间。PlayStation 使用方块、三角和 Share 或 Create；Switch 使用 Y、X 和 Minus。\n\n训练中，F6 打开控制界面，F5 隐藏 HUD，F7 录制，F8 播放。在控制器上按住 View（Share、Create 或 Minus）并按 Start。"
+msgstr "Xbox：A 选择，B 返回。PlayStation：叉号选择，圆圈返回。Switch：B 选择，A 返回，与游戏自身的菜单一致。在 Ember 中设置的控制器：为轻脚选定的按钮负责选择，为中脚选定的按钮负责返回，无论按钮布局如何。键盘：方向键、Enter 和 Escape。方向键移动，左右更改数值。在主页返回会隐藏 Ember。在游戏主菜单按 F10 或控制器上的 Start 可再次打开。\n\n选择自己的球桌，再选择准备、更换角色或离开座位。返回不会放弃座位。设置中包含对战选项、球桌规则、房间管理和个人设置。X、Y、View（键盘上的F、T、C）分别打开角色、球桌操作和聊天；再次按下同一快捷键即可返回。\n\n训练中，F6 打开控制界面，F5 隐藏 HUD，F7 录制，F8 播放。在控制器上按住 View（Share、Create 或 Minus）并按 Start。"
 
 msgid "about.controls_keyboard"
 msgstr "键盘上，空格键也可选择，Backspace 也可返回。在房间中，F 打开角色，T 打开选项，C 打开聊天。Esc 始终返回，即使在你自己的座位上；Delete 离开座位或排队位置。"
@@ -1362,7 +1362,7 @@ msgid "room.reconnecting"
 msgstr "正在重连房间..."
 
 msgid "room.table_setup_title"
-msgstr "对战席 {0}／对战设置"
+msgstr "对战席 {0}／对战设置 / 球桌操作"
 
 msgid "room.waiting_opponent"
 msgstr "等待对手"
@@ -2686,6 +2686,12 @@ msgstr "输入需要键盘。按 Enter 发送；上下方向键滚动聊天。"
 msgid "chat.hint"
 msgstr "输入消息"
 
+msgid "chat.history"
+msgstr "聊天记录"
+
+msgid "chat.inline_detail"
+msgstr "在此输入房间聊天内容。按 Enter 发送，按 Esc 返回房间操作。"
+
 msgid "chat.send"
 msgstr "发送"
 
@@ -3096,10 +3102,8 @@ msgid "room.rules_summary"
 msgstr "{0} 回合，{1} 秒，版本选择{2}"
 
 msgid "room.table_options"
-msgstr "对战席选项"
+msgstr "球桌操作"
 
-msgid "room.table_options.detail"
-msgstr "对战席 {0}：此对战席的延迟、连接检测、规则、队列与观战。"
 
 msgid "room.legend_fighter"
 msgstr "角色"
@@ -4404,7 +4408,7 @@ msgid "public.create_detail"
 msgstr "开设一个对所有拥有 Ember ID 的玩家可见的房间，由您担任房主。接下来选择名称、人数和对战席规则。"
 
 msgid "public.create_requirements"
-msgstr "在 Ember ID 服务上创建公开房间并加入，并为所有对战席设置这些规则。之后可在对战席选项中更改。"
+msgstr "在Ember ID服务上创建并加入公开房间，将这些规则应用于所有球桌。之后可在设置 > 球桌规则中更改。"
 
 msgid "public.create_needs_id"
 msgstr "公开房间需要 Ember ID 和受信任的服务。请在公开房间页面中设置。"
@@ -6398,3 +6402,32 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+# Table actions and consolidated settings. Draft translations require native-speaker review.
+msgid "room.actions"
+msgstr "操作"
+
+msgid "room.invite"
+msgstr "邀请"
+
+msgid "room.invite.detail"
+msgstr "邀请玩家加入此房间。"
+
+
+
+
+msgid "room.rules_target"
+msgstr "选择桌台查看规则。只有房主可以更改规则。"
+
+
+msgid "room.more_actions"
+msgstr "更多"
+
+msgid "settings.delay_saved_detail"
+msgstr "已保存的输入延迟，用于以后的对局。在此处更改也会更新默认值。"
+
+msgid "settings.delay_future_detail"
+msgstr "入座前即可保存输入延迟。此设置将在下次准备就绪时生效，不会改变正在观战的对局。"
+
+msgid "settings.delay_check_seated"
+msgstr "请与对手在同一桌入座，以检查连接并获取建议值。"

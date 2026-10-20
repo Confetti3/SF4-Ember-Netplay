@@ -36,15 +36,14 @@ const SeatOption* FindSeatOption(const std::string& id);
 // refuse anyway (updating, or a receipt still outstanding) is shown dimmed with
 // its reason, as the table options list shows it.
 std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t);
-// What B does on the board for a member with a place at a table: leave it when
-// the table allows, take Ready back while a start is held for a locked-in
-// spectator, otherwise say why not. table < 0: no place, so B is the ordinary
-// Back.
+// The explicit departure action for a member with a place: leave when allowed,
+// take Ready back during a held start, otherwise explain the restriction.
+// table < 0 means there is no place to leave; Back only navigates.
 struct PlaceExit {
     int table = -1;
     bool seat = false;
     bool allowed = false;
-    // During a held start, B on the seat takes Ready back instead of leaving.
+    // During a held start, the departure action takes Ready back instead of leaving.
     bool unready = false;
     int seatIndex = -1;
     const char* label = "";
@@ -53,6 +52,7 @@ struct PlaceExit {
     room::LeavingCost cost;
 };
 PlaceExit ExitFromPlace(const ShellView& v);
+std::string DepartureDetail(const ShellView& v, bool cancelStart = true);
 // The board's focus is on the card of the table where the member has a place.
 bool OnOwnPlace(const PlaceExit& place, const std::string& focus);
 bool LeaveBlocked(const ShellView& v);
