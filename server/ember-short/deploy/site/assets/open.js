@@ -33,6 +33,9 @@
     'Download the newest Nightly at the top of the list.';
   // How long the page waits after Open in Ember before it guesses Ember did not open.
   var OPEN_WAIT_MS = 2000;
+  // How long after that click Ember taking focus still counts as Ember opening:
+  // a first launch waits for the browser's prompt and the launcher to start.
+  var RECORD_WAIT_MS = 15000;
   // Set once Ember took focus right after Open in Ember on this page.
   var OPENED_KEY = 'ember.opened';
   var PHONE_FALLBACK_TITLE = 'Open it on your PC';
@@ -199,7 +202,8 @@
     byId('download').href = STABLE_DOWNLOAD;
     byId('not-opened-download').href = STABLE_DOWNLOAD;
     clearTimeout(openTimer);
-    waiting = false;
+    clearTimeout(recordTimer);
+    recording = false;
     byId('title').textContent = 'Open in Ember';
     byId('status').textContent = '';
     byId('open').href = '#';
@@ -272,26 +276,28 @@
   // likely had no Ember to hand the link to. Browsers cannot tell for sure,
   // so this only reveals help and never hides any.
   var openTimer = 0;
+  var recordTimer = 0;
   var leftPage = false;
-  var waiting = false;
+  var recording = false;
   function opened() {
     leftPage = false;
-    waiting = true;
+    recording = true;
     clearTimeout(openTimer);
+    clearTimeout(recordTimer);
     openTimer = setTimeout(function () {
-      waiting = false;
-      if (!leftPage && !document.hidden && document.hasFocus()) {
-        document.getElementById('not-opened').hidden = false;
-        forgetOpen();
-      }
+      if (!leftPage && !document.hidden && document.hasFocus()) document.getElementById('not-opened').hidden = false;
     }, OPEN_WAIT_MS);
+    recordTimer = setTimeout(function () {
+      recording = false;
+      if (!leftPage) forgetOpen();
+    }, RECORD_WAIT_MS);
   }
   function left() { leftPage = true; }
   // Ember taking focus right after the click is the sign it opened. Leaving
   // the page does not count: a browser with no handler for ember: may replace
   // the page with an error.
   function lostFocus() {
-    if (waiting && !leftPage) rememberOpen();
+    if (recording && !leftPage) rememberOpen();
     left();
   }
 
