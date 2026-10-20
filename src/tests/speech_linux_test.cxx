@@ -12,6 +12,8 @@ int main() {
     const auto on = ClipKey("en", 0, "On");
     CHECK(on.size() == 16 && on == ClipKey("en", 0, "On"));
     CHECK(on != ClipKey("en", 1, "On") && on != ClipKey("de", 0, "On") && on != ClipKey("en", 0, "Off"));
+    // The voice packs are made with the same key outside Ember (lab voice-packs), so its value is fixed.
+    CHECK(on == "c503529c00ce0957" && ClipKey("de", 0, "Einstellungen") == "70a452a0ce6b3a3f");
     // The fields are kept apart, so "e" + "n0" is not "en" + "0".
     CHECK(ClipKey("e", 10, "x") != ClipKey("e1", 0, "x"));
     CHECK(SayLine({"Lower input lag", "On"}, true, -4, 60, "pt-BR") == "SAY\t1\t-4\t60\tpt-BR\t" + ClipKey("pt-BR", -4, "Lower input lag") +
