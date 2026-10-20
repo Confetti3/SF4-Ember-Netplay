@@ -20,6 +20,7 @@
 #include "../common/RoomRules.hxx"
 #include "../common/SteamId.hxx"
 #include "../common/Country.hxx"
+#include "Admission.hxx"
 #include "TournamentBinding.hxx"
 
 // The room model is deliberately independent from the game and transport
@@ -143,9 +144,10 @@ struct MemberProfile {
 	int mainFighter = -1;
 	NetworkLink link = NetworkLink::Unknown;
 	NatClass nat = NatClass::Unknown;
-	// The player's Ember ID. Only server-owned rooms use it: it is the identity
-	// a kick and a duplicate join are keyed on. Never part of a snapshot.
-	std::string account;
+	// Server-owned rooms only, from the room's ticket (Admission.hxx): the
+	// Ember ID a kick and a duplicate join are keyed on, which is never part of
+	// a snapshot, and the player's class, which is.
+	Admission admission;
 	// The player's Steam profile, only when they chose to show it to the room;
 	// none otherwise.
 	SteamId steamId;
@@ -195,6 +197,8 @@ struct Member {
     SteamId steamId;
     // The country this member showed when it joined, or none.
     CountryCode country;
+    // The class a public room's ticket vouched for (MemberProfile::admission), or none.
+    SkillBadge badge;
     // The selected delay belongs to this fighter until Ready captures it.
     // Values are deliberately bounded by Action deserialization
     // (0..InputDelayWireCeiling); the authority records at most MaximumInputDelay.
@@ -623,6 +627,9 @@ public:
 	bool ServerOwned() const { return snapshot_.serverOwned; }
 	// Accounts a kick removed for the room's life; empty unless server-owned.
 	std::vector<std::string> KickedAccounts() const;
+	// The newest MaximumWonGames games won between two accounts, oldest first;
+	// empty unless server-owned.
+	std::vector<WonGame> WonGames() const { return {wonGames_.begin(), wonGames_.end()}; }
 	// The room host closes a server-owned room; no member's action is involved.
 	Result CloseServerOwned();
 
@@ -917,6 +924,7 @@ private:
 	void BanAccount(const std::string& account);
 	bool BanWouldExceedCap(const std::string& account) const;
 	void ForgetAccount(MemberId member);
+	void RecordWonGame(std::uint8_t tableId, const Table& table, MatchResult result);
 	void ReopenEmptyRoom();
 	void SaveServerOwned(nlohmann::json& state) const;
 	bool LoadServerOwned(const nlohmann::json& state);
@@ -957,6 +965,7 @@ private:
 	// never reaches the snapshot other members see.
 	std::map<MemberId, std::string> memberAccounts_;
 	std::set<std::string> kickedAccounts_;
+	std::deque<WonGame> wonGames_;
 	std::uint64_t nowMs_ = 0;
 	bool recoveryPaused_ = false;
 	MemberId activeActionMember_ = 0;

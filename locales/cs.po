@@ -2575,6 +2575,18 @@ msgstr "U stolu"
 msgid "room.status.ready"
 msgstr "Připraven"
 
+msgid "class.master"
+msgstr "Mistr"
+
+msgid "class.grand_master"
+msgstr "Velmistr"
+
+msgid "class.tip"
+msgstr "Třída {0}"
+
+msgid "class.unsettled"
+msgstr "Žádné nedávné zápasy, takže se mohla změnit."
+
 msgid "room.status.playing"
 msgstr "Hraje"
 

@@ -2575,6 +2575,18 @@ msgstr "착석"
 msgid "room.status.ready"
 msgstr "준비 완료"
 
+msgid "class.master"
+msgstr "마스터"
+
+msgid "class.grand_master"
+msgstr "그랜드 마스터"
+
+msgid "class.tip"
+msgstr "클래스 {0}"
+
+msgid "class.unsettled"
+msgstr "최근 대전 기록이 없어 바뀌었을 수 있습니다."
+
 msgid "room.status.playing"
 msgstr "대전 중"
 

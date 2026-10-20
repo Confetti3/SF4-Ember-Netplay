@@ -516,7 +516,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   for(int side=0;side<2;++side){
    const auto* m=Member(v.room,ids[side]);if(!m)continue;
    auto& seat=card.seats[side];
-   seat.occupied=true;seat.name=m->name;seat.fighter=fighter(m);seat.link=m->link;seat.country=m->country;seat.marked=banner.seat==side;
+   seat.occupied=true;seat.name=m->name;seat.fighter=fighter(m);seat.link=m->link;seat.marks={m->country,m->badge};seat.marked=banner.seat==side;
    seat.latency=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
    // A readied fighter wears a badge on the portrait until the game starts.
    seat.ready=t.ready[side]&&(t.phase==room::TablePhase::Waiting||t.phase==room::TablePhase::Ready);
@@ -547,7 +547,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  };
  const auto memberCard=[&](const MenuEntry& e){
   const auto* m=Member(v.room,std::stoull(e.id.substr(7)));if(!m)return;
-  MemberCardView card;card.id=e.id;card.name=m->name;card.label=e.label;card.link=m->link;card.country=m->country;
+  MemberCardView card;card.id=e.id;card.name=m->name;card.label=e.label;card.link=m->link;card.marks={m->country,m->badge};
   card.latency=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
   card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
   card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();

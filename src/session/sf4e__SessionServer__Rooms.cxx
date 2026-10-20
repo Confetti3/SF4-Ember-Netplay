@@ -51,9 +51,9 @@ bool SessionServer::EnableServerOwnedRooms(const std::string& name, std::uint8_t
 	return false;
 }
 
-void SessionServer::SetConnectionAccount(session::Connection connection, std::string account) {
-	if (account.empty()) _connectionAccounts.erase(connection);
-	else _connectionAccounts[connection] = std::move(account);
+void SessionServer::SetConnectionAdmission(session::Connection connection, Admission admission) {
+	if (admission.account.empty()) _connectionAdmissions.erase(connection);
+	else _connectionAdmissions[connection] = std::move(admission);
 }
 
 bool SessionServer::CloseServerOwnedRoom() {
@@ -81,9 +81,10 @@ bool SessionServer::ServerOwnedRoomLeftEmpty() const {
 	return snapshot && snapshot->members.empty() && !snapshot->closed;
 }
 
-std::vector<std::string> SessionServer::BannedAccounts() const {
+SessionServer::ServerOwnedRecord SessionServer::CommittedServerOwned() const {
 	if (!_roomAuthority) return {};
-	return _hasRecoveryProjection ? _recoveryBanned : _roomAuthority->KickedAccounts();
+	if (_hasRecoveryProjection) return _recoveryServerOwned;
+	return {_roomAuthority->KickedAccounts(), _roomAuthority->WonGames()};
 }
 
 sf4e::session::MatchAuthority* SessionServer::RoomMatchAuthority(std::uint8_t table) {

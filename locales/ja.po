@@ -2575,6 +2575,18 @@ msgstr "着席中"
 msgid "room.status.ready"
 msgstr "準備完了"
 
+msgid "class.master"
+msgstr "マスター"
+
+msgid "class.grand_master"
+msgstr "グランドマスター"
+
+msgid "class.tip"
+msgstr "クラス {0}"
+
+msgid "class.unsettled"
+msgstr "最近の対戦がないため、変わっている可能性があります。"
+
 msgid "room.status.playing"
 msgstr "対戦中"
 

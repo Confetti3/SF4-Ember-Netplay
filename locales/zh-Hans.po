@@ -2575,6 +2575,18 @@ msgstr "已入座"
 msgid "room.status.ready"
 msgstr "已准备"
 
+msgid "class.master"
+msgstr "大师"
+
+msgid "class.grand_master"
+msgstr "宗师"
+
+msgid "class.tip"
+msgstr "等级 {0}"
+
+msgid "class.unsettled"
+msgstr "最近没有对战，等级可能已有变化。"
+
 msgid "room.status.playing"
 msgstr "对战中"
 

@@ -2575,6 +2575,18 @@ msgstr "Aan tafel"
 msgid "room.status.ready"
 msgstr "Klaar"
 
+msgid "class.master"
+msgstr "Meester"
+
+msgid "class.grand_master"
+msgstr "Grootmeester"
+
+msgid "class.tip"
+msgstr "Klasse {0}"
+
+msgid "class.unsettled"
+msgstr "Al een tijd geen potjes, dus die kan veranderd zijn."
+
 msgid "room.status.playing"
 msgstr "Speelt"
 

@@ -4,6 +4,7 @@
 // session layer and which stays out of every snapshot.
 #include "RoomModel.hxx"
 #include "RoomModelDetail.hxx"
+#include "../common/SkillBadgeJson.hxx"
 
 namespace sf4e { namespace room {
 using namespace detail;
@@ -39,10 +40,10 @@ std::vector<std::string> RoomAuthority::KickedAccounts() const {
 
 RejectReason RoomAuthority::CheckServerOwnedJoin(const MemberProfile& profile) const {
 	// A member without an account could never be kicked for good.
-	if (!ValidAccount(profile.account)) return RejectReason::Unauthorized;
-	if (kickedAccounts_.count(profile.account)) return RejectReason::MemberKicked;
+	if (!ValidAccount(profile.admission.account)) return RejectReason::Unauthorized;
+	if (kickedAccounts_.count(profile.admission.account)) return RejectReason::MemberKicked;
 	for (const auto& entry : memberAccounts_)
-		if (entry.second == profile.account) return RejectReason::NameTaken;
+		if (entry.second == profile.admission.account) return RejectReason::NameTaken;
 	return RejectReason::None;
 }
 
@@ -64,6 +65,18 @@ void RoomAuthority::ForgetAccount(MemberId member) {
 	memberAccounts_.erase(member);
 }
 
+// A game won between two accounts, for the skill rating; draws, cancels and
+// aborts never count. The room host reports the newest on every status and the
+// bridge counts each once, so older ones can go.
+void RoomAuthority::RecordWonGame(std::uint8_t tableId, const Table& table, MatchResult result) {
+	if (!snapshot_.serverOwned || (result != MatchResult::P1Win && result != MatchResult::P2Win)) return;
+	const auto p1 = memberAccounts_.find(table.p1), p2 = memberAccounts_.find(table.p2);
+	if (p1 == memberAccounts_.end() || p2 == memberAccounts_.end()) return;
+	const bool p1Won = result == MatchResult::P1Win;
+	wonGames_.push_back({tableId, table.matchGeneration, (p1Won ? p1 : p2)->second, (p1Won ? p2 : p1)->second});
+	if (wonGames_.size() > MaximumWonGames) wonGames_.pop_front();
+}
+
 // The last member left. A public room waits for its next joiner, who becomes
 // host; whoever locked it is gone, and the kick list stays. The rules return to
 // the public default, which is what the room list shows for it.
@@ -79,10 +92,11 @@ void RoomAuthority::SaveServerOwned(nlohmann::json& state) const {
 	for (const auto& entry : memberAccounts_) accounts.push_back({{"member", entry.first}, {"account", entry.second}});
 	state["accounts"] = std::move(accounts);
 	state["kicked_accounts"] = kickedAccounts_;
+	state["won_games"] = wonGames_;
 }
 
 bool RoomAuthority::LoadServerOwned(const nlohmann::json& state) {
-	if (!snapshot_.serverOwned) return !state.contains("accounts") && !state.contains("kicked_accounts");
+	if (!snapshot_.serverOwned) return !state.contains("accounts") && !state.contains("kicked_accounts") && !state.contains("won_games");
 	if (!state.contains("accounts") || !state.contains("kicked_accounts")) return false;
 	const auto& accounts = state.at("accounts");
 	const auto& kicked = state.at("kicked_accounts");
@@ -101,6 +115,15 @@ bool RoomAuthority::LoadServerOwned(const nlohmann::json& state) {
 		if (!entry.is_string()) return false;
 		auto account = entry.get<std::string>();
 		if (!ValidAccount(account) || !kickedAccounts_.insert(std::move(account)).second) return false;
+	}
+	// A room from before won games has none yet.
+	const auto won = state.value("won_games", nlohmann::json::array());
+	if (!won.is_array() || won.size() > MaximumWonGames) return false;
+	for (const auto& row : won) {
+		auto game = row.get<WonGame>();
+		if (game.table >= TableCount || game.generation == 0 || !ValidAccount(game.winner) || !ValidAccount(game.loser) ||
+			game.winner == game.loser) return false;
+		wonGames_.push_back(std::move(game));
 	}
 	// With nobody inside there is no moderator; with anybody inside there is one.
 	return (snapshot_.host == 0) == snapshot_.members.empty();

@@ -2575,6 +2575,18 @@ msgstr "Am Tisch"
 msgid "room.status.ready"
 msgstr "Bereit"
 
+msgid "class.master"
+msgstr "Meister"
+
+msgid "class.grand_master"
+msgstr "Großmeister"
+
+msgid "class.tip"
+msgstr "Klasse {0}"
+
+msgid "class.unsettled"
+msgstr "Länger keine Spiele, sie kann sich geändert haben."
+
 msgid "room.status.playing"
 msgstr "Spielt"
 
