@@ -543,6 +543,7 @@ async fn a_set_s_phase_names_the_rule_for_its_length() {
             }],
             top: None,
             grand_final: None,
+            tiers: vec![],
         },
         ..Setup::default()
     })
@@ -592,6 +593,7 @@ async fn a_blank_phase_is_none_and_a_phase_over_64_characters_leaves_the_set_out
             }],
             top: None,
             grand_final: None,
+            tiers: vec![],
         },
         ..Setup::default()
     })

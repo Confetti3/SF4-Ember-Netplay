@@ -26,6 +26,7 @@ fn top_8_is_first_to_3(phase: &str) -> Rounds {
         }],
         top: None,
         grand_final: None,
+        tiers: vec![],
     }
 }
 

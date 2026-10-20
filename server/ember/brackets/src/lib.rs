@@ -36,7 +36,7 @@ use tokio::{net::TcpListener, task::JoinHandle};
 use zeroize::Zeroizing;
 
 pub use config::{Adapter, Bridge, Config, Credential, CredentialKind, Desk, Results, Tournament};
-pub use rounds::{Hold, RoundRule, Rounds, Side, Top};
+pub use rounds::{Hold, RoundRule, Rounds, Side, Stage, Tier, Top};
 
 use bracket::{Bracket, Context};
 use bridge::BridgeClient;

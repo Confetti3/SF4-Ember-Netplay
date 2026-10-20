@@ -475,6 +475,7 @@ async fn challonge_group_and_final_stages_take_their_own_length() {
             }],
             top: None,
             grand_final: None,
+            tiers: vec![],
         },
         ..Setup::default()
     };

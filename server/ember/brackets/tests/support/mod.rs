@@ -152,6 +152,7 @@ pub fn rounds() -> Rounds {
         }],
         top: None,
         grand_final: None,
+        tiers: vec![],
     }
 }
 

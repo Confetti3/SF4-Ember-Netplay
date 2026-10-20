@@ -314,16 +314,33 @@ Secrets are only ever read from files, never written to the log.
   from top 8's winners round 3 on (the first rule comes first because it is
   narrower).
 
-  Two lengths follow the bracket rather than its round numbers: `top`
-  (`{"top": 8, "games_to_win": 3}`) covers the sets played once that many
-  players are left, and `grand_final` is the grand final's and its reset's
-  length (a single elimination bracket's final counts). The connector reads
-  each phase's shape from the sets it has read: a double elimination
-  bracket of 2^k players has 2k - 2 losers rounds, and its top 8 is the
-  winners side from four players left and the losers side from four (top 6:
-  two and four). A round rule that covers a set wins over `top`;
-  `grand_final` wins over both. A bracket with byes may count one losers
-  round more or less.
+  Lengths can also follow the bracket rather than its round numbers:
+  `tiers` (`[{"from": "top_8", "games_to_win": 3}, {"from":
+  "grand_final", "games_to_win": 5}]`), each from a stage on; of the tiers
+  that cover a set the narrowest stage's wins, whatever their order. The
+  stages:
+  - `top_32`, `top_24`, `top_16`, `top_12`, `top_8`, `top_6`, `top_4`:
+    once that many players are left. Single elimination: a round played
+    among that many or fewer. Double elimination: the winners side from
+    the largest power of two up to half of them (top 8: 4, top 6: 2, top
+    12: 4), the losers side from the rest.
+  - `quarter_finals`, `semi_finals`, `finals`, by start.gg's round names:
+    single elimination's last three rounds; in double elimination the
+    winners rounds with 8, 4 and 2 players left (Winners Quarter-Final,
+    Semi-Final, Final) and the losers rounds two before, one before and at
+    the losers final (Losers Quarter-Final with 4 players left, Losers
+    Semi-Final, Losers Final). Each covers its later rounds too.
+  - `grand_final`: the grand final and its reset; single elimination's
+    final. It wins over a round rule as well.
+
+  A round name is narrower than the top of the same size (quarter-finals
+  over top 8). The older `top` (`{"top": 8, "games_to_win": 3}`) and
+  `grand_final` (a length) still work. The connector reads each phase's
+  shape from a whole read of the bracket before it makes any match of such
+  a tournament: a double elimination bracket of 2^k players has 2k - 2
+  losers rounds. A bracket with byes may count one losers round more or
+  less. A round rule that covers a set wins over every tier except the
+  grand final.
   - start.gg: the phase's name as the event's bracket page shows it (its
     tabs, such as "Pools" or "Top 8"), compared without case and the spaces
     around it, or the phase's ID, which tells apart two phases with one name.

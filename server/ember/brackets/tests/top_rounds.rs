@@ -33,6 +33,7 @@ async fn first_to(round: i32) -> u64 {
                 games_to_win: 3,
             }),
             grand_final: Some(5),
+            tiers: vec![],
         },
         matches: bracket(round),
         ..Setup::default()

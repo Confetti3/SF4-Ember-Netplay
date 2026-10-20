@@ -25,6 +25,64 @@ pub struct Rounds {
     /// single elimination bracket's final counts as its grand final.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grand_final: Option<u8>,
+    /// Lengths from a stage of the bracket on: of the tiers that cover a
+    /// set, the narrowest stage's, whatever their order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tiers: Vec<Tier>,
+}
+
+/// First to `games_to_win` from stage `from` on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Tier {
+    pub from: Stage,
+    pub games_to_win: u8,
+}
+
+/// A stage of a bracket, by players left or by start.gg's round names
+/// (`Shape::reaches` says which sets each covers).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Stage {
+    #[serde(rename = "top_32")]
+    Top32,
+    #[serde(rename = "top_24")]
+    Top24,
+    #[serde(rename = "top_16")]
+    Top16,
+    #[serde(rename = "top_12")]
+    Top12,
+    #[serde(rename = "top_8")]
+    Top8,
+    #[serde(rename = "top_6")]
+    Top6,
+    #[serde(rename = "top_4")]
+    Top4,
+    QuarterFinals,
+    SemiFinals,
+    Finals,
+    GrandFinal,
+}
+
+impl Stage {
+    /// How narrow the stage is, as the players it is played among: the
+    /// smaller, the narrower; a round name is narrower than the top of the
+    /// same size.
+    fn width(self) -> (u32, u8) {
+        match self {
+            Self::Top32 => (32, 1),
+            Self::Top24 => (24, 1),
+            Self::Top16 => (16, 1),
+            Self::Top12 => (12, 1),
+            Self::Top8 => (8, 1),
+            Self::Top6 => (6, 1),
+            Self::Top4 => (4, 1),
+            Self::QuarterFinals => (8, 0),
+            Self::SemiFinals => (4, 0),
+            Self::Finals => (2, 0),
+            Self::GrandFinal => (1, 0),
+        }
+    }
 }
 
 /// First to `games_to_win` from the last `top` players on.
@@ -95,6 +153,39 @@ impl Shape {
             round.unsigned_abs().div_ceil(2)
         };
         size.checked_shr(halvings).unwrap_or(0).max(1)
+    }
+
+    /// Whether a set of `round` is at or after `stage`. Round names follow
+    /// start.gg's: in single elimination the final is the last round, the
+    /// semi-finals the one before, the quarter-finals the one before that.
+    /// In double elimination the winners final is the last winners round
+    /// before the grand final (2 players left on that side), the winners
+    /// semi-finals 4, the quarter-finals 8; the losers final is the last
+    /// losers round, the losers semi-finals the one before, the
+    /// quarter-finals the one before that (4 players). "Finals" is both
+    /// finals, and every stage covers the grand final after it.
+    fn reaches(self, stage: Stage, round: i32) -> bool {
+        let named = |back: u32| {
+            let r = round.unsigned_abs();
+            if round > 0 {
+                r + back >= self.before_final()
+            } else {
+                r + back >= self.losers
+            }
+        };
+        match stage {
+            Stage::Top32 => self.in_top(32, round),
+            Stage::Top24 => self.in_top(24, round),
+            Stage::Top16 => self.in_top(16, round),
+            Stage::Top12 => self.in_top(12, round),
+            Stage::Top8 => self.in_top(8, round),
+            Stage::Top6 => self.in_top(6, round),
+            Stage::Top4 => self.in_top(4, round),
+            Stage::QuarterFinals => named(2),
+            Stage::SemiFinals => named(1),
+            Stage::Finals => named(0),
+            Stage::GrandFinal => self.grand_final(round),
+        }
     }
 
     /// Whether a set of `round` is played among the last `top` players: in
@@ -194,7 +285,13 @@ impl Rounds {
     /// bracket's, when the reads have shown it.
     pub fn length(&self, set: &Set, shape: Option<Shape>) -> u8 {
         let shape = shape.filter(|shape| shape.winners > 0);
-        if let (Some(length), Some(shape)) = (self.grand_final, shape)
+        let grand_final = self.grand_final.or_else(|| {
+            self.tiers
+                .iter()
+                .find(|tier| tier.from == Stage::GrandFinal)
+                .map(|tier| tier.games_to_win)
+        });
+        if let (Some(length), Some(shape)) = (grand_final, shape)
             && shape.grand_final(set.round)
         {
             return length;
@@ -202,15 +299,25 @@ impl Rounds {
         if let Some(rule) = self.rules.iter().find(|rule| rule.covers(set)) {
             return rule.games_to_win;
         }
-        match (self.top, shape) {
-            (Some(top), Some(shape)) if shape.in_top(top.top, set.round) => top.games_to_win,
-            _ => self.games_to_win,
-        }
+        let Some(shape) = shape else {
+            return self.games_to_win;
+        };
+        let top = self
+            .top
+            .filter(|top| shape.in_top(top.top, set.round))
+            .map(|top| ((top.top, 1), top.games_to_win));
+        self.tiers
+            .iter()
+            .filter(|tier| shape.reaches(tier.from, set.round))
+            .map(|tier| (tier.from.width(), tier.games_to_win))
+            .chain(top)
+            .min_by_key(|&(width, _)| width)
+            .map_or(self.games_to_win, |(_, length)| length)
     }
 
     /// Whether a set's length needs its bracket's shape.
     pub fn needs_shape(&self) -> bool {
-        self.top.is_some() || self.grand_final.is_some()
+        self.top.is_some() || self.grand_final.is_some() || !self.tiers.is_empty()
     }
 
     /// Whether any rule is for one phase, so the phase of each set matters.
@@ -223,6 +330,7 @@ impl Rounds {
             .chain(self.rules.iter().map(|rule| rule.games_to_win))
             .chain(self.top.map(|top| top.games_to_win))
             .chain(self.grand_final)
+            .chain(self.tiers.iter().map(|tier| tier.games_to_win))
             .all(games_to_win_valid);
         if self.top.is_some_and(|top| !(2..=1024).contains(&top.top)) {
             return Err("top is 2 to 1024 players".into());
@@ -351,6 +459,7 @@ mod tests {
             ],
             top: None,
             grand_final: None,
+            tiers: vec![],
         };
         let lengths: Vec<u8> = [1, 2, 3, 4, 5, 9, -1, -2, -3, -7]
             .into_iter()
@@ -382,6 +491,7 @@ mod tests {
             ],
             top: None,
             grand_final: None,
+            tiers: vec![],
         };
         let pools = phase("Pools", Some("1300001"));
         let top = phase("Top 8", Some("1300002"));
@@ -399,6 +509,7 @@ mod tests {
             rules: vec![named("1300002", 3)],
             top: None,
             grand_final: None,
+            tiers: vec![],
         };
         assert_eq!(by_id.length(&set(1, Some(top.clone())), None), 3);
         assert_eq!(by_id.length(&set(1, Some(pools)), None), 2);
@@ -428,6 +539,7 @@ mod tests {
             rules,
             top: None,
             grand_final: None,
+            tiers: vec![],
         };
         assert!(with(vec![rule(1, None, Side::Any, 10)]).check().is_ok());
         assert!(with(vec![rule(0, None, Side::Any, 3)]).check().is_err());
@@ -439,6 +551,7 @@ mod tests {
                 rules: vec![],
                 top: None,
                 grand_final: None,
+                tiers: vec![],
             }
             .check()
             .is_err()
@@ -471,6 +584,7 @@ mod tests {
             ],
             top: None,
             grand_final: None,
+            tiers: vec![],
         };
         let mut watch = PhaseWatch::default();
         // Nothing is said about a read with no sets.
@@ -499,6 +613,7 @@ mod tests {
                         rules: vec![rule(1, None, Side::Any, 3)],
                         top: None,
                         grand_final: None,
+                        tiers: vec![],
                     },
                     &read
                 )
@@ -521,6 +636,7 @@ mod tests {
                 games_to_win: 3,
             }),
             grand_final: Some(5),
+            tiers: vec![],
         };
         let all = |sides: std::ops::RangeInclusive<i32>| {
             sides
@@ -602,6 +718,7 @@ mod tests {
                 games_to_win: 3,
             }),
             grand_final: None,
+            tiers: vec![],
         };
         let shape = Some(Shape {
             winners: 5,
@@ -630,5 +747,91 @@ mod tests {
                 losers: 0
             }
         );
+    }
+
+    /// Every round's length with tiers from the top 8, the semi-finals, the
+    /// finals and the grand final: winners rounds, then losers rounds.
+    fn tiered(shape: Shape, tiers: Vec<Tier>) -> (Vec<u8>, Vec<u8>) {
+        let rounds = Rounds {
+            games_to_win: 2,
+            rules: vec![],
+            top: None,
+            grand_final: None,
+            tiers,
+        };
+        let winners = (1..=i32::try_from(shape.winners).unwrap())
+            .map(|round| rounds.length(&set(round, None), Some(shape)))
+            .collect();
+        let losers = (1..=i32::try_from(shape.losers).unwrap())
+            .map(|round| rounds.length(&set(-round, None), Some(shape)))
+            .collect();
+        (winners, losers)
+    }
+
+    fn tier(from: Stage, games_to_win: u8) -> Tier {
+        Tier { from, games_to_win }
+    }
+
+    #[test]
+    fn the_narrowest_tier_sets_the_length() {
+        // Listed widest last: the order does not matter.
+        let tiers = || {
+            vec![
+                tier(Stage::GrandFinal, 6),
+                tier(Stage::Finals, 5),
+                tier(Stage::SemiFinals, 4),
+                tier(Stage::Top8, 3),
+            ]
+        };
+        let de = |winners, losers| tiered(Shape { winners, losers }, tiers());
+        // 8 players: everything is the top 8.
+        assert_eq!(de(4, 4), (vec![3, 4, 5, 6], vec![3, 3, 4, 5]));
+        // 16 players: winners semi-finals at four left, losers top 8 at the
+        // third losers round, losers semi-finals the one before their final.
+        assert_eq!(de(5, 6), (vec![2, 2, 4, 5, 6], vec![2, 2, 3, 3, 4, 5]));
+        // 24 and 32 players: a bracket of 32.
+        assert_eq!(
+            de(6, 8),
+            (vec![2, 2, 2, 4, 5, 6], vec![2, 2, 2, 2, 3, 3, 4, 5])
+        );
+        // Single elimination of 16: the final is the grand final.
+        assert_eq!(
+            tiered(
+                Shape {
+                    winners: 4,
+                    losers: 0
+                },
+                tiers()
+            ),
+            (vec![2, 3, 4, 6], vec![])
+        );
+    }
+
+    #[test]
+    fn quarter_finals_are_narrower_than_the_top_8() {
+        // Winners quarter-finals: eight left on the winners side; losers
+        // quarter-finals: the losers round two before their final.
+        let tiers = vec![tier(Stage::Top8, 3), tier(Stage::QuarterFinals, 4)];
+        assert_eq!(
+            tiered(
+                Shape {
+                    winners: 5,
+                    losers: 6
+                },
+                tiers
+            ),
+            (vec![2, 4, 4, 4, 4], vec![2, 2, 3, 4, 4, 4])
+        );
+    }
+
+    #[test]
+    fn tiers_read_and_write_as_stage_names() {
+        let rounds: Rounds = serde_json::from_value(serde_json::json!({
+            "games_to_win": 2,
+            "tiers": [{ "from": "top_8", "games_to_win": 3 }, { "from": "grand_final", "games_to_win": 5 }]
+        }))
+        .unwrap();
+        assert_eq!(rounds.tiers[0].from, Stage::Top8);
+        assert!(rounds.needs_shape() && rounds.check().is_ok());
     }
 }
