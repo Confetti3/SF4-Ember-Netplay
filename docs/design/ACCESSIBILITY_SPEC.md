@@ -251,14 +251,18 @@ Voice: Kokoro-82M v1.0 "heart" (af_heart, sid 3), the user's pick. All languages
 | Ember language | Engine and voice | Licence | Notes |
 |---|---|---|---|
 | en | Kokoro af_heart | Apache-2.0 weights; trained only on permissive or non-copyrighted audio (model card) | |
-| es-ES, es-419 | Kokoro, heart with the Spanish G2P; else ef_dora | Apache-2.0 | try heart first |
-| fr | Kokoro, heart with the French G2P; else ff_siwis | Apache-2.0; ff_siwis is from the SIWIS database (CC BY 4.0, credit) | |
-| it | Kokoro, heart with the Italian G2P; else if_sara | Apache-2.0 | |
-| pt-BR | Kokoro, heart with the Portuguese G2P; else pf_dora | Apache-2.0 | |
+| es-ES, es-419 | Kokoro ef_dora (heart through the Spanish G2P kept an English accent; rejected) | Apache-2.0 | |
+| fr | Kokoro ff_siwis | Apache-2.0; ff_siwis is from the SIWIS database (CC BY 4.0, credit) | |
+| it | Kokoro if_sara | Apache-2.0 | |
+| pt-BR | Kokoro pf_dora | Apache-2.0 | |
 | ja | Kokoro jf_alpha (heart likely cannot) | Apache-2.0; G2P misaki[ja] | |
 | zh-Hans | Kokoro zf_xiaobei | Apache-2.0; G2P misaki[zh] | |
-| de, nl, pl, ru, ko | Chatterbox Multilingual V3 (Resemble AI), cloned from a heart reference clip | MIT (GitHub LICENSE, Hugging Face card) | every clip carries Resemble's imperceptible Perth watermark; say so in the credits |
-| cs | open | | not in Chatterbox Multilingual's 23 languages (README), not in Kokoro; stays live (speech-dispatcher / SAPI). Resemble's V3 product page claims Czech: recheck when the open V3 weights list it |
+| de | MOSS-TTS-Nano, cloning kerstin (female) | Apache-2.0 model; reference CC0 (OHF-Voice/voice-datasets) | |
+| nl-NL, nl-BE | MOSS-TTS-Nano, cloning ronnie (male, Netherlands) and nathalie (female, Flemish) | Apache-2.0 model; references CC0 (OHF-Voice/voice-datasets) | two packs for the one nl interface language |
+| pl | MOSS-TTS-Nano, cloning gosia (female) | Apache-2.0 model; reference CC0 (OHF-Voice/voice-datasets) | clips that run past their text are re-made |
+| ru | MOSS-TTS-Nano, cloning denis (male) | Apache-2.0 model; reference CC0 (OHF-Voice/voice-datasets) | |
+| ko | MOSS-TTS-Nano, cloning a Zeroth-Korean speaker (male) | Apache-2.0 model; reference CC BY 4.0, credit "Zeroth-Korean, Lucas Jo and Wonkyum Lee" (in the pack's manifest and README) | |
+| cs | MOSS-TTS-Nano, cloning a Common Voice 17 speaker (male) | Apache-2.0 model; reference CC0 (Common Voice) | |
 
 Packs: every msgstr speech can say (labels, values, descriptions, notices, intro, reminders: about 2,170 strings, 83,000 characters in English, roughly 1.5 hours of speech) plus the numbers 0 to 100 and the common value words, deduplicated, Opus 24 kb/s mono (roughly 15 to 20 MB per language). A pack is the clips, a manifest keyed by hash(locale, normalized text) and a version; Ember downloads the interface language's pack when speech is turned on (SHA-256 checked, with the same progress notices), and plays a clip per spoken part (name, value, description apart, as the clip cache does now): winmm on Windows, the relay's paplay on the Deck. A miss falls back to live speech: Piper ljspeech for English, speech-dispatcher or SAPI for the rest. Strings with placeholders (279 in English) are rendered as their fixed parts where that reads naturally, else they fall back. The guide's recordings come from the same pipeline with heart, and the clips are addressable by key so the website can reuse them.
 
