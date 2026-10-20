@@ -12,6 +12,7 @@
 //! the match's status (`status`). A fifth sends desk events' Discord calls
 //! (`calls`).
 pub mod calls;
+pub mod dms;
 pub mod progress;
 pub mod results;
 pub mod status;

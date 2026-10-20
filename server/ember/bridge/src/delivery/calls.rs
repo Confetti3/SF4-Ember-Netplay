@@ -2,7 +2,8 @@
 //! channel webhook an organizer gave their desk event. A set is called when
 //! the desk creates its Ember match and each time the organizer calls it
 //! again: its round, its two players (pinged when their Discord account is
-//! connected to their Ember ID) and the match link. With the event's
+//! connected to their Ember ID) and the match link, which each player also
+//! gets privately (`delivery::dms`). With the event's
 //! `post_results`, a finished set's score is posted too.
 //!
 //! A post is built when it is queued and kept as built; the webhook is read
@@ -70,13 +71,23 @@ pub struct Called<'a> {
     pub set: &'a Value,
 }
 
-/// Queues a call for `set` when its event has a webhook. True when queued.
-pub fn call(tx: &Transaction<'_>, now: u64, bridge_id: &str, called: &Called) -> Result<bool> {
-    if !has_webhook(tx, called.event_id)? {
-        return Ok(false);
-    }
+/// Queues a call for `set` when its event has a webhook, and with `dms` a
+/// private message with the match link to each player (`delivery::dms`).
+/// True when anything was queued.
+pub fn call(
+    tx: &Transaction<'_>,
+    now: u64,
+    bridge_id: &str,
+    called: &Called,
+    dms: bool,
+) -> Result<bool> {
+    let webhook = has_webhook(tx, called.event_id)?;
     let set = called.set;
     let match_id = set["match_id"].as_str();
+    let dms = dms && match_id.is_some();
+    if !webhook && !dms {
+        return Ok(false);
+    }
     let games_to_win: Option<u32> = match match_id {
         Some(id) => tx
             .query_row(
@@ -87,18 +98,41 @@ pub fn call(tx: &Transaction<'_>, now: u64, bridge_id: &str, called: &Called) ->
             .optional()?,
         None => None,
     };
-    let (players, mentions) = players(tx, set)?;
-    let mut lines = vec![format!("**{}**", heading(set, games_to_win))];
-    lines.push(players.join(" vs "));
-    match match_id {
-        Some(id) => lines.push(format!("Play in Ember: {}", play_url(bridge_id, id))),
-        None => lines.push("The match is being set up in Ember.".to_owned()),
+    let (players, discord) = players(tx, set)?;
+    let heading = heading(set, games_to_win);
+    let link = match match_id {
+        Some(id) => format!("Play in Ember: {}", play_url(bridge_id, id)),
+        None => "The match is being set up in Ember.".to_owned(),
+    };
+    if webhook {
+        let mentions: Vec<&String> = discord.iter().flatten().collect();
+        let content = [format!("**{heading}**"), players.join(" vs "), link.clone()].join("\n");
+        let body = json!({
+            "content": content,
+            "allowed_mentions": { "parse": [], "users": mentions },
+        });
+        queue(tx, now, called, "call", &body)?;
     }
-    let body = json!({
-        "content": lines.join("\n"),
-        "allowed_mentions": { "parse": [], "users": mentions },
-    });
-    queue(tx, now, called, "call", &body)?;
+    if dms {
+        let names = names(set);
+        let set_id = set["id"].as_str().unwrap_or_default();
+        for (slot, user) in discord.iter().enumerate() {
+            let content = format!(
+                "Your set is ready: **{heading}**\n**{}** vs **{}**\n{link}",
+                names[slot],
+                names[1 - slot]
+            );
+            super::dms::queue(
+                tx,
+                now,
+                called.event_id,
+                set_id,
+                slot,
+                user.as_deref(),
+                &content,
+            )?;
+        }
+    }
     Ok(true)
 }
 
@@ -191,8 +225,8 @@ fn names(set: &Value) -> [String; 2] {
 }
 
 /// Each player as the call names them, with a ping when their Ember ID has
-/// a Discord account connected, and the Discord IDs it pings.
-fn players(tx: &Transaction<'_>, set: &Value) -> Result<(Vec<String>, Vec<String>)> {
+/// a Discord account connected, and each player's Discord ID, if any.
+fn players(tx: &Transaction<'_>, set: &Value) -> Result<(Vec<String>, Vec<Option<String>>)> {
     let names = names(set);
     let mut shown = Vec::new();
     let mut mentions = Vec::new();
@@ -210,13 +244,11 @@ fn players(tx: &Transaction<'_>, set: &Value) -> Result<(Vec<String>, Vec<String
         // ponytail: only Discord accounts connected in Ember are pinged; the
         // Discord the connector finds through start.gg is not in the
         // snapshot yet. Add it to the snapshot's entries when TOs ask.
-        match discord {
-            Some(id) => {
-                shown.push(format!("**{name}** (<@{id}>)"));
-                mentions.push(id);
-            }
+        match &discord {
+            Some(id) => shown.push(format!("**{name}** (<@{id}>)")),
             None => shown.push(format!("**{name}**")),
         }
+        mentions.push(discord);
     }
     Ok((shown, mentions))
 }

@@ -1118,6 +1118,7 @@ pub async fn put_sets(
     let stored = serde_json::to_string(&snapshot.sets).map_err(|_| ApiFailure::unavailable())?;
     let now = state.now();
     let bridge_id = state.config.bridge_id.clone();
+    let dms = crate::delivery::dms::on(&state);
     let kept = state
         .db
         .write(move |tx| {
@@ -1127,7 +1128,7 @@ pub async fn put_sets(
                 params![stored, now, id],
             )?;
             if kept == 1 {
-                post_news(tx, now, &bridge_id, &id, &stored)?;
+                post_news(tx, now, &bridge_id, &id, &stored, dms)?;
             }
             Ok(kept)
         })
@@ -1148,6 +1149,7 @@ fn post_news(
     bridge_id: &str,
     id: &str,
     stored: &str,
+    dms: bool,
 ) -> Result<()> {
     let site: Option<String> = tx.query_row(
         "SELECT site FROM organizer_events WHERE id = ?1",
@@ -1174,7 +1176,7 @@ fn post_news(
         let state = set["desk_state"].as_str().unwrap_or_default();
         if called.as_deref() != Some(match_id)
             && matches!(state, "called" | "playing")
-            && calls::call(tx, now, bridge_id, &called_set)?
+            && calls::call(tx, now, bridge_id, &called_set, dms)?
         {
             tx.execute(
                 "INSERT INTO desk_marks (event_id, set_id, called_match, called_at)
@@ -1341,6 +1343,7 @@ pub async fn mark(
     }
     let path = format!("{EVENTS_PATH}/{id}/sets/{set}");
     let ctx = Ctx::of(&state);
+    let dms = crate::delivery::dms::on(&state);
     let marked = state
         .db
         .write(move |tx| {
@@ -1377,7 +1380,7 @@ pub async fn mark(
                     event_id: &id,
                     set: &found,
                 };
-                calls::call(tx, ctx.now, &ctx.config.bridge_id, &called)?;
+                calls::call(tx, ctx.now, &ctx.config.bridge_id, &called, dms)?;
             }
             Ok(true)
         })
@@ -1465,6 +1468,7 @@ fn desk_sets(
         .and_then(|stored| serde_json::from_str(stored).ok())
         .unwrap_or_default();
     let posted = calls::calls(tx, event)?;
+    let messaged = crate::delivery::dms::status(tx, event)?;
     let marks: std::collections::HashMap<String, (bool, Option<u64>)> = tx
         .prepare("SELECT set_id, held, called_at FROM desk_marks WHERE event_id = ?1")?
         .query_map([event], |row| Ok((row.get(0)?, (row.get(1)?, row.get(2)?))))?
@@ -1480,6 +1484,9 @@ fn desk_sets(
             }
             if let Some(call) = set["id"].as_str().and_then(|id| posted.get(id)) {
                 set["call"] = call.clone();
+            }
+            if let Some(dms) = set["id"].as_str().and_then(|id| messaged.get(id)) {
+                set["dms"] = dms.clone();
             }
             let found = match set["match_id"].as_str() {
                 Some(match_id) => desk_match(tx, match_id, site)?,

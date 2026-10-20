@@ -72,6 +72,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
         42,
         include_str!("../migrations/042_organizer_events_created.sql"),
     ),
+    (43, include_str!("../migrations/043_desk_dms.sql")),
 ];
 
 #[derive(Clone)]

@@ -19,6 +19,8 @@ struct File {
     #[serde(default)]
     discord_client_secret: Option<String>,
     #[serde(default)]
+    discord_bot_token: Option<String>,
+    #[serde(default)]
     rooms_supervisor_secret: Option<String>,
     /// Platform API keys by connection ID.
     #[serde(default)]
@@ -35,6 +37,9 @@ struct File {
 pub struct Secrets {
     /// Discord's client secret. Without it Discord sign-in stays off.
     pub discord_client_secret: Option<Zeroizing<String>>,
+    /// The Discord app's bot token. Without it no private match messages
+    /// are sent (`delivery::dms`).
+    pub discord_bot_token: Option<Zeroizing<String>>,
     /// The bearer secret of the room supervisor's API. Without it public
     /// rooms stay off.
     pub rooms_supervisor_secret: Option<Zeroizing<String>>,
@@ -66,6 +71,10 @@ impl Secrets {
             discord_client_secret: file
                 .discord_client_secret
                 .filter(|secret| !secret.is_empty())
+                .map(Zeroizing::new),
+            discord_bot_token: file
+                .discord_bot_token
+                .filter(|token| !token.is_empty())
                 .map(Zeroizing::new),
             rooms_supervisor_secret: file
                 .rooms_supervisor_secret
