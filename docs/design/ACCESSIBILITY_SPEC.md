@@ -262,6 +262,21 @@ Voice: Kokoro-82M v1.0 "heart" (af_heart, sid 3), the user's pick. All languages
 
 Packs: every msgstr speech can say (labels, values, descriptions, notices, intro, reminders: about 2,170 strings, 83,000 characters in English, roughly 1.5 hours of speech) plus the numbers 0 to 100 and the common value words, deduplicated, Opus 24 kb/s mono (roughly 15 to 20 MB per language). A pack is the clips, a manifest keyed by hash(locale, normalized text) and a version; Ember downloads the interface language's pack when speech is turned on (SHA-256 checked, with the same progress notices), and plays a clip per spoken part (name, value, description apart, as the clip cache does now): winmm on Windows, the relay's paplay on the Deck. A miss falls back to live speech: Piper ljspeech for English, speech-dispatcher or SAPI for the rest. Strings with placeholders (279 in English) are rendered as their fixed parts where that reads naturally, else they fall back. The guide's recordings come from the same pipeline with heart, and the clips are addressable by key so the website can reuse them.
 
+#### Packs rendered and engines measured (2026-10-20)
+
+Kokoro heart packs, 100% of lines each, Opus 24 kb/s: en 18.6 MB (hosted), es-ES 22.5, es-419 22.7, fr 19.9, it 22.7, pt-BR 22.1, ja 19.1 (jf_alpha), zh-Hans 23.1 (zf_xiaobei). About 8 minutes per language on an RTX 3080 Ti. Japanese needs UniDic downloaded for its G2P (render time only).
+
+Engines for de, nl, pl, ru, ko, cs, on an RTX 3070, 20 real Ember lines per language, voice cloned from a heart clip (seconds per line; real-time factor):
+
+| Engine | Licence | Seconds per line | RTF | Languages |
+|---|---|---|---|---|
+| MOSS-TTS-Nano 100M, ONNX on CUDA | Apache-2.0 | de 3.7, pl 2.0, ru 2.8, ko 1.9, cs 1.6 | 0.64 to 0.72 | de, pl, ru, ko, cs (no nl) |
+| Chatterbox Multilingual V3 | MIT | de 8.5, nl 5.8, pl 5.7, ru 8.2, ko 6.1 | 1.9 to 2.5 | no cs |
+| VoxCPM2 | Apache-2.0 | de 14.6, nl 10.4, pl 8.0, ru 10.0, ko 6.5 | 2.8 to 3.8 | no cs |
+| Qwen3-TTS 0.6B Base | Apache-2.0 | de 19.5, ru 15.7, ko 10.9; batched de 22.6 (spills past 8 GB) | 5 to 7 | de, ru, ko |
+
+Only MOSS-TTS-Nano is faster than real time, and it is the only one with Czech; Dutch would need Chatterbox or VoxCPM2. The choice is the user's, by ear, from the samples.
+
 ### Steam's own screen reader
 
 Steam on the Deck has a screen reader (Settings, Accessibility). It is Orca: turning it on starts `orca` and `speech-dispatcher --spawn` (unix socket in `$XDG_RUNTIME_DIR/speech-dispatcher`, module espeak-ng), the same speech-dispatcher Ember's relay talks to. It cannot read Ember's menus, so Ember still speaks.
