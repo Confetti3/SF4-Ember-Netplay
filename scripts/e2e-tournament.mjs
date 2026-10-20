@@ -271,6 +271,10 @@ try {
     }
     await layout(page, "13-done");
     if (webhook) must(/posted on Discord/.test(await page.eval("document.getElementById('live-body').textContent")), "the call did not reach Discord");
+    // Players with Discord linked get the match link privately from the Ember bot.
+    const dm = await page.eval("(document.getElementById('live-body').textContent.match(/Private message: [^\\n]*?(?=Games|$)/) || [''])[0]");
+    log(dm || "no private messages (the bridge has no Discord bot)");
+    if (dm) must(!/refused/.test(dm), dm);
     const set = JSON.parse(await page.eval("JSON.stringify(view.sets.find((set) => set.desk_state === 'done'))"));
     must(set.score && Math.max(...set.score) === 1 && Math.min(...set.score) === 0, "score " + JSON.stringify(set.score));
     must(/1 draw/.test(await page.eval("document.getElementById('live-body').textContent")), "the draw is not shown");
