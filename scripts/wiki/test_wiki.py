@@ -5,6 +5,7 @@ from pathlib import Path
 
 import build
 import check
+import publish
 
 # A changed paragraph keeps the current text and shows the new one below it, marked.
 doc = build.Doc("Intro.\n\nOld step.\nSecond line.\n\nOutro.")
@@ -48,4 +49,7 @@ with tempfile.TemporaryDirectory() as folder:
     Path(folder, "Home.md").write_text("[x](Missing) ![y](images/none.png)\n\n## Steps\n\n1. Do it.\n")
     errors, warnings = check.check(Path(folder))
     assert len(errors) == 2 and len(warnings) == 1, (errors, warnings)
+# A build without frame data keeps the published Frame Data section after Training.
+old = "**[Home](Home)**\n\n**Training**\n\n- a\n\n**Frame Data**\n\n- b\n\n**Tournaments**\n\n- c\n"
+assert publish.carry(old, old.replace("**Frame Data**\n\n- b\n\n", ""), "**") == old
 print("wiki checks passed")
