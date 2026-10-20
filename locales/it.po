@@ -433,6 +433,9 @@ msgstr "Regola"
 msgid "speech.position"
 msgstr "{0} di {1}"
 
+msgid "speech.change"
+msgstr "Sinistra o destra per cambiare"
+
 msgid "rules.edition_select"
 msgstr "Seleziona versione"
 

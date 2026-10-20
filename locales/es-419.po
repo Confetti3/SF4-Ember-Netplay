@@ -433,6 +433,9 @@ msgstr "Ajustar"
 msgid "speech.position"
 msgstr "{0} de {1}"
 
+msgid "speech.change"
+msgstr "Izquierda o derecha para cambiar"
+
 msgid "rules.edition_select"
 msgstr "Selección de edición"
 

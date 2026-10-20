@@ -7,7 +7,9 @@
 #include "MenuDialogs.hxx"
 #include "CountryFlag.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../platform/Speech.hxx"
 #include <imgui.h>
+#include <algorithm>
 #include <cstring>
 #include <utility>
 
@@ -169,6 +171,8 @@ void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFall
 void SetMenuGlyphs(int type,const input::MenuButtons& buttons,gamepads::PromptBrand brand){
     SetMenuGlyphs(type,buttons.confirm,buttons.back,buttons.confirmGlyph,buttons.backGlyph,brand);
 }
+namespace { netplay::SpeechPreferences menuSpeech; }
+void SetMenuSpeech(const netplay::SpeechPreferences& speech){ menuSpeech=speech; }
 gamepads::PromptBrand MenuPromptBrand(){ return promptBrand; }
 const gamepads::FightNames* MenuPromptNames(){ return &promptNames; }
 void SetMenuPromptBrand(gamepads::PromptBrand brand,const gamepads::FightNames& names){ promptBrand=brand;promptNames=names; }
@@ -391,6 +395,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(focusedEntry!=entries.end()) { presentationEntry=*focusedEntry; presentationEntry.enabled=feedback_.Enabled(*focusedEntry); }
     const bool adjustable=!dialog&&focusedEntry!=entries.end()&&presentationEntry.adjustable&&presentationEntry.enabled;
     const char* primary=!listEnabled?nullptr:dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
+    Narrate(title,entries,focusedEntry==entries.end()?nullptr:&presentationEntry,dialog?dialogSelect:std::string(),primary,adjustable,now);
     const bool wide=ImGui::GetContentRegionAvail().x>=(flyout?640:820)*unit;
     // Reserve the actual footer items and their spacing, not a guessed margin.
     const float footerSpacing=8*unit+2*ImGui::GetStyle().ItemSpacing.y+
@@ -686,5 +691,24 @@ void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 r
     EndDialogCard();
     ReportMenuCard("list-card",at,ImVec2(at.x+width,at.y+height));
     ImGui::SetCursorScreenPos(cursor);
+}
+// The narrator follows every frame, so turning speech on says the new value
+// instead of the whole screen. F1 is the stop-speech key while a menu shows.
+void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now) {
+    SpokenFrame frame{title,focus};
+    // The focused entry may be a copy, so its place comes from its id.
+    if(focus){frame.index=static_cast<std::size_t>(std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==focus->id;})-entries.begin());frame.count=entries.size();}
+    frame.button=button;
+    if(!button.empty()) {
+        const auto& owner=navigation.Editing()?navigation.EditingId():navigation.DialogId();
+        const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==owner;});
+        frame.question=!notice_.empty()?notice_:entry!=entries.end()?entry->label:std::string();
+    }
+    if(primary)frame.hint=SpokenButton(selectGlyph)+": "+primary;
+    if(adjustable)frame.hint+=(frame.hint.empty()?"":". ")+std::string(loc::T("speech.change"));
+    const auto said=narrator_.Update(frame,now,menuSpeech);
+    if(!menuSpeech.enabled)return;
+    if(ImGui::IsKeyPressed(ImGuiKey_F1,false))speech::Stop();
+    else if(!said.text.empty())speech::Say(said.text,said.interrupt,menuSpeech.rate,menuSpeech.volume);
 }
 } }

@@ -433,6 +433,9 @@ msgstr "調整"
 msgid "speech.position"
 msgstr "{1}件中{0}件目"
 
+msgid "speech.change"
+msgstr "左右で変更"
+
 msgid "rules.edition_select"
 msgstr "エディションセレクト"
 

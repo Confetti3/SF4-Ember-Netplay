@@ -5,6 +5,7 @@
 #include "MenuGlyphs.hxx"
 #include "MenuDialogs.hxx"
 #include "MenuProbes.hxx"
+#include "MenuSpeech.hxx"
 #include "../common/Country.hxx"
 #include <functional>
 #include <imgui.h>
@@ -19,6 +20,8 @@ SelectionArt* MenuArt();
 void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,const char* selectFallback="LK",const char* backFallback="MK",gamepads::PromptBrand brand={});
 // The device's menu buttons as Pad::MenuButtons answers them, glyphs included.
 void SetMenuGlyphs(int deviceType,const input::MenuButtons& buttons,gamepads::PromptBrand brand={});
+// The player's speech settings, which every menu reads as it draws.
+void SetMenuSpeech(const netplay::SpeechPreferences& speech);
 struct PlayerCardView {
     std::string name, fighterName;
     int fighter=0, inputDelay=0, members=0, activeTables=0;
@@ -202,6 +205,9 @@ private:
     void DrawNoticeModal(bool noticeOpen);
     void ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) const;
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
+    // Says what changed on this frame (MenuNarrator), with speech on. button
+    // is an open dialog's highlighted button; primary is what Select does.
+    void Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now);
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
     std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_;
@@ -215,5 +221,6 @@ private:
     std::size_t lastChoice_ = ~std::size_t(0);
     UiClock clock_;
     MenuVisualFeedback feedback_;
+    MenuNarrator narrator_;
 };
 } }

@@ -6,6 +6,7 @@
 #include "../common/ButtonPrompts.hxx"
 #include "../common/ButtonLayout.hxx"
 #include "../common/MenuButtons.hxx"
+#include <cctype>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -117,6 +118,17 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
         const char* name=BrandGlyph(glyph,brand,names).name;
         d->AddText(ImGui::GetFont(),12*size/32,ImVec2(at.x,at.y+8*size/32),ivory,*name?name:glyph);
     }
+}
+// A prompt's name as speech says it: a stick's own button name, else the last
+// word of its art, so a pad's button is named as its brand prints it
+// ("playstation_button_color_cross" is Cross, "xbox_lb" is LB, "keyboard_enter" Enter).
+inline std::string SpokenButton(const char* glyph,gamepads::PromptBrand brand=MenuPromptBrand(),const gamepads::FightNames* names=MenuPromptNames()) {
+    const auto found=BrandGlyph(glyph,brand,names);
+    if(*found.name)return found.name;
+    const char* last=std::strrchr(found.asset,'_');
+    std::string word=last?last+1:found.asset;
+    for(std::size_t i=0;i<word.size();++i)if(i==0||word.size()<=2)word[i]=static_cast<char>(std::toupper(static_cast<unsigned char>(word[i])));
+    return word;
 }
 // A screen's own button, shown after the standard ones.
 struct LegendHint { const char* glyph; std::string label; };
