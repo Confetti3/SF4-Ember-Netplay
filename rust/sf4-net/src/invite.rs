@@ -24,6 +24,7 @@ pub const MAX_CLOCK_SKEW_SECS: u64 = 24 * 60 * 60;
 const PREFIX: &str = "sf4e2:";
 const RECOVERY_PREFIX: &str = "sf4e3:";
 const LEGACY_PREFIX: &str = "sf4e1:";
+const LAN_PREFIX: &str = "sf4l1:";
 const DISCORD_PREFIX: &str = "emd1:";
 const RECOVERY_DISCORD_PREFIX: &str = "emd2:";
 // Stable wire IDs, independent of relay-map iteration order. Never reorder or
@@ -70,8 +71,10 @@ pub fn public_route(remote: Option<&TransportAddr>) -> String {
 #[serde(deny_unknown_fields)]
 pub struct Invite {
     version: u16,
+    #[serde(default)]
+    transport: crate::transport::Transport,
     endpoint: EndpointId,
-    relay: RelayUrl,
+    relay: Option<RelayUrl>,
     room: [u8; 16],
     capability: [u8; 32],
     expires: u64,
@@ -108,6 +111,33 @@ fn relay_allowed(relay: &RelayUrl) -> bool {
 }
 
 impl Invite {
+    pub fn is_lan(&self) -> bool {
+        self.transport == crate::transport::Transport::Lan
+    }
+
+    pub fn is_lan_text(text: &str) -> bool {
+        text.trim().starts_with(LAN_PREFIX)
+    }
+
+    pub fn create_lan(endpoint: EndpointId, build: String, now: u64) -> io::Result<Self> {
+        let invite = Self {
+            transport: crate::transport::Transport::Lan,
+            version: VERSION,
+            endpoint,
+            relay: None,
+            room: rand::random(),
+            capability: rand::random(),
+            expires: now
+                .checked_add(MAX_INVITE_LIFETIME_SECS)
+                .ok_or_else(invalid)?,
+            build,
+            coordination_endpoint: None,
+            authority_term: 0,
+            authority_incarnation: 0,
+        };
+        invite.validate(now)?;
+        Ok(invite)
+    }
     /// Discord carries the routing/capability header only. The caller supplies
     /// its actual local build; the host still checks that build in RoomProof.
     pub fn parse_for_build(text: &str, now: u64, build: &str) -> io::Result<Self> {
@@ -142,7 +172,11 @@ impl Invite {
     }
 
     /// Export only to the authenticated local Discord bridge, never logs.
-    pub fn encode_discord(&self) -> io::Result<String> {
+    pub fn encode_discord(&self) -> io::Result<Option<String>> {
+        // A LAN capability is never published to Discord or the link service.
+        if self.is_lan() {
+            return Ok(None);
+        }
         let encoded = self.encode()?;
         let bytes = URL_SAFE_NO_PAD
             .decode(&encoded[PREFIX.len()..])
@@ -152,7 +186,10 @@ impl Invite {
         } else {
             DISCORD_PREFIX
         };
-        Ok(format!("{prefix}{}", URL_SAFE_NO_PAD.encode(&bytes[..91])))
+        Ok(Some(format!(
+            "{prefix}{}",
+            URL_SAFE_NO_PAD.encode(&bytes[..91])
+        )))
     }
 
     pub fn create(
@@ -179,9 +216,10 @@ impl Invite {
             return Err(invalid());
         }
         let invite = Self {
+            transport: crate::transport::Transport::Online,
             version: VERSION,
             endpoint,
-            relay,
+            relay: Some(relay),
             room,
             capability: rand::random(),
             expires: now.checked_add(lifetime).ok_or_else(invalid)?,
@@ -195,6 +233,11 @@ impl Invite {
     }
 
     fn validate(&self, now: u64) -> io::Result<()> {
+        if self.is_lan() != self.relay.is_none()
+            || self.transport == crate::transport::Transport::RelayOnly
+        {
+            return Err(invalid());
+        }
         if self.version != VERSION
             || self.room == [0; 16]
             || self.capability == [0; 32]
@@ -202,7 +245,10 @@ impl Invite {
             || self.expires - now > MAX_INVITE_LIFETIME_SECS + MAX_CLOCK_SKEW_SECS
             || self.build.is_empty()
             || self.build.len() > 128
-            || !relay_allowed(&self.relay)
+            || self
+                .relay
+                .as_ref()
+                .is_some_and(|relay| !relay_allowed(relay))
             || self.coordination_endpoint.is_some_and(|endpoint| {
                 endpoint == self.endpoint
                     || self.authority_term == 0
@@ -237,7 +283,10 @@ impl Invite {
             decode(payload).and_then(|bytes| Self::decode_compact(&bytes).ok())
         } else if let Some(payload) = text.strip_prefix(RECOVERY_PREFIX) {
             decode(payload).and_then(|bytes| Self::decode_recovery_compact(&bytes).ok())
-        } else if let Some(payload) = text.strip_prefix(LEGACY_PREFIX) {
+        } else if let Some(payload) = text
+            .strip_prefix(LEGACY_PREFIX)
+            .or_else(|| text.strip_prefix(LAN_PREFIX))
+        {
             decode(payload).and_then(|bytes| serde_json::from_slice::<Self>(&bytes).ok())
         } else {
             None
@@ -261,7 +310,10 @@ impl Invite {
         if text.len() > MAX_INVITE_LENGTH {
             return Err(invalid());
         }
-        let invite = if let Some(payload) = text.strip_prefix(PREFIX) {
+        let invite = if let Some(payload) = text.strip_prefix(LAN_PREFIX) {
+            let bytes = URL_SAFE_NO_PAD.decode(payload).map_err(|_| invalid())?;
+            serde_json::from_slice::<Self>(&bytes).map_err(|_| invalid())?
+        } else if let Some(payload) = text.strip_prefix(PREFIX) {
             let bytes = URL_SAFE_NO_PAD.decode(payload).map_err(|_| invalid())?;
             Self::decode_compact(&bytes)?
         } else if let Some(payload) = text.strip_prefix(RECOVERY_PREFIX) {
@@ -273,6 +325,9 @@ impl Invite {
                 .map_err(|_| invalid())?;
             serde_json::from_slice(&bytes).map_err(|_| invalid())?
         };
+        if invite.is_lan() != Self::is_lan_text(text) {
+            return Err(invalid());
+        }
         invite.validate(now)?;
         Ok(invite)
     }
@@ -284,14 +339,17 @@ impl Invite {
             return Err(invalid());
         }
         Ok(Self {
+            transport: crate::transport::Transport::Online,
             version: u16::from_le_bytes(bytes[0..2].try_into().map_err(|_| invalid())?),
             endpoint: EndpointId::from_bytes(bytes[2..34].try_into().map_err(|_| invalid())?)
                 .map_err(|_| invalid())?,
-            relay: RELAYS
-                .get(bytes[34] as usize)
-                .ok_or_else(invalid)?
-                .parse()
-                .map_err(|_| invalid())?,
+            relay: Some(
+                RELAYS
+                    .get(bytes[34] as usize)
+                    .ok_or_else(invalid)?
+                    .parse()
+                    .map_err(|_| invalid())?,
+            ),
             room: bytes[35..51].try_into().map_err(|_| invalid())?,
             capability: bytes[51..83].try_into().map_err(|_| invalid())?,
             expires: u64::from_le_bytes(bytes[83..91].try_into().map_err(|_| invalid())?),
@@ -311,14 +369,17 @@ impl Invite {
             return Err(invalid());
         }
         Ok(Self {
+            transport: crate::transport::Transport::Online,
             version: u16::from_le_bytes(bytes[0..2].try_into().map_err(|_| invalid())?),
             endpoint: EndpointId::from_bytes(bytes[2..34].try_into().map_err(|_| invalid())?)
                 .map_err(|_| invalid())?,
-            relay: RELAYS
-                .get(bytes[34] as usize)
-                .ok_or_else(invalid)?
-                .parse()
-                .map_err(|_| invalid())?,
+            relay: Some(
+                RELAYS
+                    .get(bytes[34] as usize)
+                    .ok_or_else(invalid)?
+                    .parse()
+                    .map_err(|_| invalid())?,
+            ),
             room: bytes[35..51].try_into().map_err(|_| invalid())?,
             capability: bytes[51..83].try_into().map_err(|_| invalid())?,
             expires: u64::from_le_bytes(bytes[83..91].try_into().map_err(|_| invalid())?),
@@ -338,11 +399,20 @@ impl Invite {
 
     /// Call only for explicit clipboard/invite export. Never log the result.
     pub fn encode(&self) -> io::Result<String> {
+        if self.is_lan() {
+            let bytes = serde_json::to_vec(self).map_err(|_| invalid())?;
+            let text = format!("{LAN_PREFIX}{}", URL_SAFE_NO_PAD.encode(bytes));
+            return if text.len() <= MAX_INVITE_LENGTH {
+                Ok(text)
+            } else {
+                Err(invalid())
+            };
+        }
         let relay = RELAYS
             .iter()
             .position(|url| {
                 url.parse::<RelayUrl>()
-                    .is_ok_and(|relay| relay == self.relay)
+                    .is_ok_and(|relay| Some(relay) == self.relay)
             })
             .ok_or_else(invalid)?;
         if self.build.is_empty() || self.build.len() > 128 {
@@ -374,7 +444,11 @@ impl Invite {
     }
 
     pub fn address(&self) -> EndpointAddr {
-        EndpointAddr::new(self.endpoint).with_relay_url(self.relay.clone())
+        let address = EndpointAddr::new(self.endpoint);
+        match &self.relay {
+            Some(relay) => address.with_relay_url(relay.clone()),
+            None => address,
+        }
     }
 
     pub fn coordination_endpoint(&self) -> Option<EndpointId> {
@@ -383,7 +457,10 @@ impl Invite {
 
     pub fn coordination_address(&self) -> Option<EndpointAddr> {
         self.coordination_endpoint
-            .map(|endpoint| EndpointAddr::new(endpoint).with_relay_url(self.relay.clone()))
+            .map(|endpoint| match &self.relay {
+                Some(relay) => EndpointAddr::new(endpoint).with_relay_url(relay.clone()),
+                None => EndpointAddr::new(endpoint),
+            })
     }
 
     pub fn authority_term(&self) -> u64 {
@@ -548,7 +625,11 @@ mod tests {
         assert!(Invite::parse_for_build(&original.encode().unwrap(), 3700, &build).is_err());
         assert!(Invite::parse_for_build(&renewed.encode().unwrap(), 3700, &build).is_ok());
         assert!(original.clone().renewed(3000, 0).is_err());
-        assert!(original.renewed(3000, MAX_INVITE_LIFETIME_SECS + 1).is_err());
+        assert!(
+            original
+                .renewed(3000, MAX_INVITE_LIFETIME_SECS + 1)
+                .is_err()
+        );
     }
 
     #[test]
@@ -558,10 +639,17 @@ mod tests {
             .urls::<Vec<_>>()
             .remove(0);
         let issued = 1_000_000;
-        let fresh = Invite::create(id, relay, "build".into(), issued, MAX_INVITE_LIFETIME_SECS).unwrap();
-        let renewed = fresh.clone().renewed(issued + 100, MAX_INVITE_LIFETIME_SECS).unwrap();
+        let fresh =
+            Invite::create(id, relay, "build".into(), issued, MAX_INVITE_LIFETIME_SECS).unwrap();
+        let renewed = fresh
+            .clone()
+            .renewed(issued + 100, MAX_INVITE_LIFETIME_SECS)
+            .unwrap();
         for invite in [&fresh, &renewed] {
-            for text in [invite.encode().unwrap(), invite.encode_discord().unwrap()] {
+            for text in [
+                invite.encode().unwrap(),
+                invite.encode_discord().unwrap().unwrap(),
+            ] {
                 // Two minutes and most of a day behind the issuer: still a
                 // real invitation.
                 assert!(Invite::parse_for_build(&text, issued - 120, "build").is_ok());
@@ -610,7 +698,7 @@ mod tests {
             assert_eq!(Invite::rejection_reason(text, 101, &build), "malformed");
         }
         // A Discord invitation takes the local build, so only expiry shows.
-        let discord = original.encode_discord().unwrap();
+        let discord = original.encode_discord().unwrap().unwrap();
         assert_eq!(Invite::rejection_reason(&discord, 3700, &build), "expired");
     }
 
@@ -665,16 +753,16 @@ mod tests {
     fn discord_ticket_preserves_capability_and_host_checks_build_and_expiry() {
         for relay in iroh::defaults::prod::default_relay_map().urls::<Vec<_>>() {
             let mut original = invite();
-            original.relay = relay;
+            original.relay = Some(relay);
             original.build = "a".repeat(64);
-            let token = original.encode_discord().unwrap();
+            let token = original.encode_discord().unwrap().unwrap();
             assert_eq!(token.len(), 127);
             let guest = Invite::parse_for_build(&token, 101, original.build()).unwrap();
             assert_eq!(guest.room, original.room);
             assert_eq!(guest.endpoint, original.endpoint);
             assert_eq!(guest.relay, original.relay);
             assert_eq!(guest.capability, original.capability);
-            assert_eq!(guest.encode_discord().unwrap(), token);
+            assert_eq!(guest.encode_discord().unwrap().unwrap(), token);
             original.admit(&guest.proof(), 101).unwrap();
             let wrong = Invite::parse_for_build(&token, 101, "wrong-build").unwrap();
             assert!(original.admit(&wrong.proof(), 101).is_err());
@@ -709,7 +797,7 @@ mod tests {
         let mut tokens = vec![
             original.encode().unwrap(),
             legacy(&original),
-            original.encode_discord().unwrap(),
+            original.encode_discord().unwrap().unwrap(),
         ];
         original.coordination_endpoint = Some(iroh::SecretKey::generate().public());
         original.authority_term = 1;
@@ -718,7 +806,7 @@ mod tests {
         assert_eq!(recovery.len(), 277);
         // Matches the laptop capture: a 277-character invitation plus CRLF.
         tokens.push(recovery);
-        tokens.push(original.encode_discord().unwrap());
+        tokens.push(original.encode_discord().unwrap().unwrap());
         for token in tokens {
             let canonical = Invite::parse_for_build(&token, 101, original.build()).unwrap();
             for pasted in [format!("{token}\r\n"), format!(" \t{token}\r\n ")] {
@@ -746,7 +834,7 @@ mod tests {
     fn compact_invites_preserve_every_field_and_accept_legacy() {
         for relay in iroh::defaults::prod::default_relay_map().urls::<Vec<_>>() {
             let mut original = invite();
-            original.relay = relay;
+            original.relay = Some(relay);
             original.build = "a".repeat(64); // Production sidecar SHA-256 string.
             let compact = original.encode().unwrap();
             let old = legacy(&original);
@@ -835,7 +923,7 @@ mod tests {
             "https://use1-1.relay.n0.iroh.link./extra",
         ] {
             let mut unsafe_invite = invite();
-            unsafe_invite.relay = relay.parse().unwrap();
+            unsafe_invite.relay = Some(relay.parse().unwrap());
             assert!(unsafe_invite.encode().is_err());
             assert!(Invite::parse(&legacy(&unsafe_invite), 101).is_err());
         }

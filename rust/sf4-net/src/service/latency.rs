@@ -33,7 +33,7 @@ mod opening;
 mod tests;
 
 use authority::{Inputs, LatencyAuthority, Observer, PeerBinding};
-use endpoint::bind_for_room;
+pub(super) use endpoint::bind_for_room;
 pub(super) use endpoint::{LatencyEndpoint, LatencyNet};
 use opening::{
     ACCEPT_DEADLINE, AcceptContext, AdmissionTable, DIAL_DEADLINE, DialFailure, DialRequest,
@@ -158,13 +158,13 @@ impl Default for Latency {
 /// dropped, and the room has no latency route. The route is sent once, in the
 /// join request, so there is nothing to publish later.
 pub(super) async fn beside<T>(
-    binding: Option<(LatencyNet, bool)>,
+    binding: Option<(LatencyNet, crate::transport::Transport)>,
     work: impl std::future::Future<Output = T>,
 ) -> (T, Option<LatencyEndpoint>) {
-    let Some((net, relay_only)) = binding else {
+    let Some((net, policy)) = binding else {
         return (work.await, None);
     };
-    let bind = bind_for_room(net, relay_only);
+    let bind = bind_for_room(net, policy);
     tokio::pin!(work, bind);
     let mut bound = None;
     let mut binding = true;
@@ -178,6 +178,20 @@ pub(super) async fn beside<T>(
             }
         }
     }
+}
+
+/// A local room can open immediately; finish its bounded bind so its one
+/// admission message can include the latency endpoint.
+pub(super) async fn together<T>(
+    binding: Option<(LatencyNet, crate::transport::Transport)>,
+    work: impl std::future::Future<Output = T>,
+) -> (T, Option<LatencyEndpoint>) {
+    tokio::join!(work, async {
+        match binding {
+            Some((net, policy)) => bind_for_room(net, policy).await,
+            None => None,
+        }
+    })
 }
 
 /// The next incoming latency connection, or never without an endpoint.
@@ -294,7 +308,13 @@ impl Latency {
                     .iter()
                     .filter(|entry| entry.primary != primary)
                     .take(MAX_CONTROL_PEERS)
-                    .map(|entry| unavailable(entry.member, entry.incarnation, LatencyUnavailable::RoomUnavailable))
+                    .map(|entry| {
+                        unavailable(
+                            entry.member,
+                            entry.incarnation,
+                            LatencyUnavailable::RoomUnavailable,
+                        )
+                    })
                     .collect()
             });
         };
@@ -338,7 +358,9 @@ impl Latency {
                     .filter(|dial| dial.binding.incarnation == incarnation)
                     .and_then(|dial| dial.failure)
                 {
-                    Some(DialFailure::Refused) => unavailable(member, incarnation, LatencyUnavailable::Refused),
+                    Some(DialFailure::Refused) => {
+                        unavailable(member, incarnation, LatencyUnavailable::Refused)
+                    }
                     Some(DialFailure::Unreachable) => {
                         unavailable(member, incarnation, LatencyUnavailable::Unreachable)
                     }
@@ -352,14 +374,13 @@ impl Latency {
 impl Actor {
     /// A public room's members measure over relays only, as the diagnostic
     /// relay-only policy does.
-    fn latency_relay_only(&self) -> bool {
-        self.relay_only || self.public.is_some()
-    }
-
-    /// The latency endpoint the join or host task should bind, or none for a
-    /// public room's host.
-    pub(super) fn latency_binding(&self) -> Option<(LatencyNet, bool)> {
-        (!self.is_public_host()).then(|| (self.latency.net.clone(), self.latency_relay_only()))
+    pub(super) fn latency_binding(&self) -> Option<(LatencyNet, crate::transport::Transport)> {
+        let policy = if self.public.is_some() {
+            crate::transport::Transport::RelayOnly
+        } else {
+            self.transport
+        };
+        (!self.is_public_host()).then(|| (self.latency.net.clone(), policy))
     }
 
     /// Our latency endpoint and its relay region, for `hosted` and

@@ -74,7 +74,7 @@ private:
 // Leave; FollowerKilled closes a seated follower's pipe without one.
 // HostRejoin hands host to a follower, leaves, and rejoins as a guest.
 enum class Fault { None, Departure, HostRejoin, FollowerKilled, KilledThenLeaderLeaves, ShrinkThenGuestKilled, ShrinkWhileGuestKilled, PairLeaderLeaves, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
-static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t count, Fault fault) {
+static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t count, Fault fault, bool lan) {
     std::array<platform::HelperProcess,3> processes;
     std::array<platform::HelperClient,3> helpers;
     std::array<test::IrohIntegrationPeer,3> peers;
@@ -89,6 +89,10 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
     std::function<void()> gameStep;
     const auto pump=[&]() {
         CHECK(test::PumpIrohIntegrationPeers(live));
+        if(lan) for(auto* peer:live) if(peer->client) {
+            const auto& snapshot=peer->client->GetRoomSnapshot();
+            peer->room->PublishLanRoom(snapshot.name,static_cast<unsigned>(snapshot.members.size()),snapshot.capacity);
+        }
         for (std::size_t i=0;i<3;++i) if (matches[i]) {
             if(i==2 && holdSecondPreparation) continue;
             if (!matches[i]->Tick(ggpo[i] != nullptr)) {
@@ -160,7 +164,8 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         peers[i].name="Recovery "+std::to_string(i);
     }
     wait([&](){for(std::size_t i=0;i<count;++i) if(helpers[i].State()!=platform::HelperState::Connected) return false;return true;});
-    CHECK(peers[0].room->Host("recovery-integration"));
+    const auto hostRoom=[&](std::size_t index){return lan?peers[index].room->Host("recovery-integration",netplay::RoomTransport::Lan):peers[index].room->Host("recovery-integration");};
+    CHECK(hostRoom(0));
     wait([&](){return peers[0].room->GetState()==session::IrohRoom::State::Ready;});
     SessionClient::Callbacks callbacks={};
     callbacks.OnError=[](SessionClient::ErrorType,SessionClient*,const SessionClient::Callbacks&) {CHECK(false);};
@@ -468,6 +473,15 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         const auto chatReadyAt=GetTickCount64()+1010;
         wait([&](){pump();return GetTickCount64()>=chatReadyAt;});
         action(1,room::ActionKind::Chat,"After the leader of two left");
+        if(lan) {
+            phase="LAN discovery follows the new leader";
+            wait([&](){
+                pump();peers[0].room->WatchLan(true);
+                const auto& rooms=peers[0].room->LanRooms().rooms;
+                return std::any_of(rooms.begin(),rooms.end(),[&](const auto& room){return room.endpoint==peers[1].room->LocalIdentity()&&room.members==1;});
+            });
+            peers[0].room->WatchLan(false);
+        }
         for(std::size_t i=0;i<count;++i) CHECK(helpers[i].Send("{\"type\":\"shutdown\"}"));
         phase="pair-leader-leaves fixture shutdown";
         wait([&](){for(std::size_t i=0;i<count;++i) if(processes[i].IsRunning()) return false;return true;});
@@ -712,7 +726,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                 wait([&]() {return peers[1].room->GetState()==session::IrohRoom::State::Idle;});
                 CHECK(event(netplay::EventKind::RoomClosed).accepted);
                 CHECK(command(netplay::CommandKind::HostRoom).accepted);
-                CHECK(peers[1].room->Host("recovery-integration"));
+                CHECK(hostRoom(1));
                 wait([&]() {return peers[1].room->GetState()==session::IrohRoom::State::Ready;});
                 CHECK(peers[1].room->RoomId()!=oldRoom);
                 peers[1].recovery=session::RoomRecoveryRuntime{};
@@ -1048,13 +1062,13 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         CHECK(peers[1].recovery.AppliedRevision()==oldRevision);
         room::Action blocked;blocked.kind=room::ActionKind::Chat;blocked.text="Blocked during recovery";
         CHECK(peers[1].client->SendRoomAction(blocked)==session::SendResult::NotConnected);
-        CHECK(!peers[1].room->Host("recovery-integration"));
+        CHECK(!hostRoom(1));
         phase="explicit replacement after local retirement";
         live.clear();peers[1].client.reset();peers[1].server.reset();peers[1].room->Leave(true);
         wait([&](){return peers[1].room->GetState()==session::IrohRoom::State::Idle;});
-        CHECK(peers[1].room->Host("recovery-integration"));
+        CHECK(hostRoom(1));
         wait([&](){return peers[1].room->GetState()==session::IrohRoom::State::Ready;});
-        CHECK(peers[1].room->RoomId()!=oldRoom && peers[1].room->Invitation().rfind("sf4e3:",0)==0);
+        CHECK(peers[1].room->RoomId()!=oldRoom && peers[1].room->Invitation().rfind(lan?"sf4l1:":"sf4e3:",0)==0);
         peers[1].recovery=session::RoomRecoveryRuntime{};
         CHECK(test::ConfigureIrohIntegrationPeer(peers[1],callbacks,"recovery-integration",31001));
         live.push_back(&peers[1]);
@@ -1069,12 +1083,13 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
 
 int wmain(int argc,wchar_t** argv) {
     std::cout << std::unitbuf;
-    CHECK(argc>=2 && argc<=5);
-    bool relayOnly=false;
+    CHECK(argc>=2 && argc<=6);
+    bool relayOnly=false,lan=false;
     std::wstring scenario=L"all";
     for(int i=2;i<argc;++i) {
         const std::wstring option=argv[i];
         if(option==L"--relay-only") { CHECK(!relayOnly);relayOnly=true; }
+        else if(option==L"--lan") lan=true;
         else if(option.rfind(L"--scenario=",0)==0) { CHECK(scenario==L"all");scenario=option.substr(11); }
         else CHECK(sf4e::test::ParseNetworkCaseOption(option));
     }
@@ -1088,7 +1103,8 @@ int wmain(int argc,wchar_t** argv) {
         {L"killed-then-leader-leaves",3,Fault::KilledThenLeaderLeaves},
         {L"shrink-then-guest-killed",3,Fault::ShrinkThenGuestKilled},{L"shrink-while-guest-killed",3,Fault::ShrinkWhileGuestKilled},{L"pair-leader-leaves",2,Fault::PairLeaderLeaves}};
     CHECK(scenario==L"all" || std::any_of(std::begin(cases),std::end(cases),[&](const Case& c){return scenario==c.name;}));
-    for(const auto& c:cases) if(scenario==L"all" || scenario==c.name) RunRecovery(argv[1],relayOnly,c.count,c.fault);
+    CHECK(!lan||!relayOnly);
+    for(const auto& c:cases) if(scenario==L"all" || scenario==c.name) RunRecovery(argv[1],relayOnly,c.count,c.fault,lan);
     std::cout << "Helper recovery integration passed. No native SF4 gameplay tested.\n";
     sf4e::test::CompleteNetworkCase();
 }

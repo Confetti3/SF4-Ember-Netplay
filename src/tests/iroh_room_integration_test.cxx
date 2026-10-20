@@ -26,10 +26,11 @@ static SessionClient::Callbacks Callbacks(Observer& observer) {
 int wmain(int argc, wchar_t** argv) {
 	std::cout << std::unitbuf;
 	CHECK(argc >= 2 && argc <= 5);
-	bool relayOnly=false, quick=false, queueAcks=false, probeCheck=false, benchmark=false, rejoin=false;
+	bool relayOnly=false, quick=false, queueAcks=false, probeCheck=false, benchmark=false, rejoin=false, lan=false;
 	for(int i=2;i<argc;++i) {
 		const std::wstring option=argv[i];
 		if(option==L"--relay-only") relayOnly=true;
+        else if(option==L"--lan") lan=true;
 		else if(option==L"--quick") quick=true;
 		else if(option==L"--queue-acks") { queueAcks=true; quick=true; }
 		else if(option==L"--probe") { probeCheck=true; quick=true; }
@@ -55,6 +56,7 @@ int wmain(int argc, wchar_t** argv) {
 		} while (std::chrono::steady_clock::now() < deadline);
         std::cerr << "Wait " << attempt << " timed out: host_invitation=" << host->Invitation().substr(0,12) << "/" << host->DiscordInvitation().substr(0,12)
             << " guest_invitation=" << guest->Invitation().substr(0,12) << "/" << guest->DiscordInvitation().substr(0,12)
+            << " lan_view=" << guest->LanRooms().status << "/" << guest->LanRooms().rooms.size()
             << " host=" << static_cast<int>(host->GetState())
             << " error=" << host->Error() << " term=" << host->Coordination().term
             << " revision=" << host->Coordination().revision << " writable=" << host->Coordination().writable
@@ -92,11 +94,11 @@ int wmain(int argc, wchar_t** argv) {
 		test::IrohIntegrationPeer hostPeer, guestPeer;
 		hostPeer.room = host; hostPeer.name = "Host";
 		guestPeer.room = guest; guestPeer.name = "Guest";
-		CHECK(host->Host("cpp-room-test"));
+		CHECK(lan?host->Host("cpp-room-test",netplay::RoomTransport::Lan):host->Host("cpp-room-test"));
 		obsoleteClient.reset(); // A prior epoch's destructor cannot leave this room.
 		wait([&]() { host->Poll(); return host->GetState() == session::IrohRoom::State::Ready; });
 		CHECK(!host->Invitation().empty());
-        wait([&]() { host->Poll(); return host->DiscordInvitation().size()==127; });
+        wait([&]() { host->Poll(); return lan?host->Invitation().compare(0,6,"sf4l1:")==0:host->DiscordInvitation().size()==127; });
 		CHECK(test::ConfigureIrohIntegrationPeer(hostPeer, Callbacks(hostObserver), "cpp-room-test", 30000));
 		auto hostClient = [&]() -> SessionClient& { return *hostPeer.client; };
 		std::vector<test::IrohIntegrationPeer*> hostOnly{&hostPeer};
@@ -202,9 +204,21 @@ int wmain(int argc, wchar_t** argv) {
 			std::cout << "Rejected mismatching native build without hanging admission" << std::endl;
 		}
 		// Shared clipboards may carry a Windows line ending after the invitation.
-		const auto pastedInvitation = roomCycle == 0 ? host->Invitation() + "\r\n" :
+        if(lan){
+            std::cout << "Discovering LAN room " << roomCycle+1 << " host=" << host->LocalIdentity().substr(0,8) << std::endl;
+            wait([&](){
+                guest->WatchLan(true);guest->Poll();CHECK(test::PumpIrohIntegrationPeers(hostOnly));
+                const auto snapshot=hostPeer.server->RoomSnapshot();host->PublishLanRoom(snapshot->name,static_cast<unsigned>(snapshot->members.size()),snapshot->capacity);
+                const auto& rooms=guest->LanRooms().rooms;
+                return std::any_of(rooms.begin(),rooms.end(),[&](const auto& room){return room.endpoint==host->LocalIdentity();});
+            });
+        }
+		const auto pastedInvitation = lan?"sf4lan:"+host->LocalIdentity():roomCycle == 0 ? host->Invitation() + "\r\n" :
 			(roomCycle == 1 ? host->DiscordInvitation() : host->Invitation());
 		CHECK(guest->Join(pastedInvitation, "cpp-room-test"));
+        // Match TickRuntime: DrainCommands begins the join before TickLan
+        // closes the browser lease, retaining its discovered endpoint.
+        if(lan)guest->WatchLan(false);
 		wait([&]() { guest->Poll(); const bool pumped=test::PumpIrohIntegrationPeers(hostOnly);
 			if(!pumped) std::cerr << "Helper diagnostic: host_state=" << static_cast<int>(hostHelper.State())
 				<< " host_error=" << hostHelper.LastError() << " host_running=" << hostProcess.IsRunning()
@@ -238,8 +252,18 @@ int wmain(int argc, wchar_t** argv) {
 					<< " host_client_error=" << hostClient().RoomError() << " guest_client_error=" << guestClient().RoomError() << '\n';
 			}
 			return complete; });
-		wait([&]() { pump(); return guest->DiscordInvitation()==host->DiscordInvitation(); });
+        wait([&]() { pump(); return guest->Invitation()==host->Invitation() && guest->DiscordInvitation()==host->DiscordInvitation(); });
+        if(lan) CHECK(host->DiscordInvitation().empty() && guest->DiscordInvitation().empty());
         CHECK(guest->Invitation()==host->Invitation());
+        if(lan) {
+            host->PublishLanRoom("Updated LAN room",2,16);
+            wait([&](){
+                pump();guest->WatchLan(true);
+                const auto& rooms=guest->LanRooms().rooms;
+                return rooms.size()==1&&rooms[0].name=="Updated LAN room"&&rooms[0].members==2;
+            });
+            guest->WatchLan(false);
+        }
 		CHECK(hostClient().GetRoomSnapshot().members.size() == 2 && guestClient().GetRoomSnapshot().members.size() == 2);
 		std::cout << "Room " << roomCycle+1 << ": both native members admitted with matching current invitations" << std::endl;
 		const auto makeAction = [](SessionClient& client, room::ActionKind kind) {
@@ -278,8 +302,8 @@ int wmain(int argc, wchar_t** argv) {
 			// host retires the seat once it steps again.
 			enum class Departure { Committed, Uncommitted, Unconfirmed };
 			const Departure departures[]={Departure::Committed, Departure::Uncommitted, Departure::Unconfirmed, Departure::Committed};
-			const auto ticket=host->DiscordInvitation();
-			CHECK(ticket.size()==127);
+			const auto ticket=lan?host->Invitation():host->DiscordInvitation();
+			CHECK(lan?!ticket.empty():ticket.size()==127);
 			std::cout << "Rejoin identities: host=" << host->LocalIdentity().substr(0,13) << " guest=" << guest->LocalIdentity().substr(0,13) << std::endl;
 			int attempt=0;
 			for(const auto departure:departures) {
@@ -356,7 +380,8 @@ int wmain(int argc, wchar_t** argv) {
 				waitAction(guestClient(), makeAction(guestClient(), room::ActionKind::Queue));
 				waitAction(guestClient(), makeAction(guestClient(), room::ActionKind::Unqueue));
 			}
-			std::cout << "Rejoined the same room through the same Discord ticket after four departures" << std::endl;
+			std::cout << "Rejoined the same room through the same " << (lan?"LAN invitation":"Discord ticket")
+                << " after four departures" << std::endl;
 		}
 		// Custom-room actions are the only admission/readiness path once the
 		// client requires room authority. Legacy LobbyReady callbacks are not a

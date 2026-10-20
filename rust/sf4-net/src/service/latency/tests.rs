@@ -238,11 +238,17 @@ pub(super) async fn member_on(
     actor.latency.net = net;
     actor.epoch = 1;
     actor.room = Some(ROOM);
-    let recovery = RecoverySession::host_in(ROOM, primary.id(), false, None, false)
-        .await
-        .expect("recovery");
+    let recovery = RecoverySession::host_in(
+        ROOM,
+        primary.id(),
+        crate::transport::Transport::Online,
+        None,
+        false,
+    )
+    .await
+    .expect("recovery");
     actor.install_recovery(recovery.clone()).await;
-    let latency = bind_latency(&actor.latency.net, relay_only)
+    let latency = bind_latency(&actor.latency.net, if relay_only { crate::transport::Transport::RelayOnly } else { crate::transport::Transport::Online })
         .await
         .expect("latency endpoint");
     if let Some(lookup) = lookup {
@@ -334,7 +340,7 @@ pub(super) async fn accept_one(actor: &mut Actor) {
 }
 
 /// Prepares a game on `actor`, as the native side does before a match.
-pub(super) fn prepare_game(actor: &mut Actor, peer: EndpointId) {
+pub(super) async fn prepare_game(actor: &mut Actor, peer: EndpointId) {
     let id = 7_000;
     actor
         .command(Request {
@@ -350,6 +356,7 @@ pub(super) fn prepare_game(actor: &mut Actor, peer: EndpointId) {
                 dial: false,
             },
         })
+        .await
         .expect("prepare game");
     assert!(!actor.games.is_empty(), "the game slot is held at once");
 }
@@ -828,7 +835,7 @@ async fn the_endpoint_guard_closes_an_obsolete_or_aborted_tasks_endpoint() {
     let lookup = MemoryLookup::new();
     let net = local_net(&lookup);
     // Dropped: closed.
-    let endpoint = bind_latency(&net, false).await.unwrap();
+    let endpoint = bind_latency(&net, crate::transport::Transport::Online).await.unwrap();
     drop(LatencyEndpoint::new(endpoint.clone()));
     timeout(Duration::from_secs(5), async {
         while !endpoint.is_closed() {
@@ -841,7 +848,7 @@ async fn the_endpoint_guard_closes_an_obsolete_or_aborted_tasks_endpoint() {
     // A task aborted while it holds the endpoint closes it.
     let (sender, receiver) = tokio::sync::oneshot::channel();
     let task = tokio::spawn(async move {
-        let guard = bind_for_room(net, false).await.expect("bound");
+        let guard = bind_for_room(net, crate::transport::Transport::Online).await.expect("bound");
         let _ = sender.send(guard.endpoint().clone());
         std::future::pending::<()>().await;
         drop(guard);
@@ -860,11 +867,15 @@ async fn the_endpoint_guard_closes_an_obsolete_or_aborted_tasks_endpoint() {
     let (events, _events) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(primary_endpoint().await, events);
     actor.epoch = 2;
-    let stale = bind_latency(&local_net(&lookup), false).await.unwrap();
+    let stale = bind_latency(&local_net(&lookup), crate::transport::Transport::Online)
+        .await
+        .unwrap();
     actor.latency_adopt(1, Some(LatencyEndpoint::new(stale.clone())));
     assert!(actor.latency.endpoint.is_none());
     actor.opening = true;
-    let failed_host = bind_latency(&local_net(&lookup), false).await.unwrap();
+    let failed_host = bind_latency(&local_net(&lookup), crate::transport::Transport::Online)
+        .await
+        .unwrap();
     actor
         .completed_hosted(
             2,
@@ -897,7 +908,10 @@ async fn the_subscription_has_a_lease_a_single_view_and_no_events_after_it_stops
     let (view, rows) = events.last().expect("a table").clone();
     assert_eq!(view, 5);
     assert_eq!(rows.len(), 1);
-    assert!(matches!(rows[0].state, LatencyState::Value { .. }), "{rows:?}");
+    assert!(
+        matches!(rows[0].state, LatencyState::Value { .. }),
+        "{rows:?}"
+    );
 
     // Stale epoch, room or view: ignored.
     members[0].actor.latency_watch(2, ROOM, 6, true);

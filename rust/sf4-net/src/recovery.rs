@@ -79,9 +79,9 @@ impl RecoverySession {
     pub async fn host(
         room: [u8; 16],
         primary_endpoint: EndpointId,
-        relay_only: bool,
+        transport: crate::transport::Transport,
     ) -> io::Result<Self> {
-        Self::host_on(room, primary_endpoint, relay_only, None).await
+        Self::host_on(room, primary_endpoint, transport, None).await
     }
 
     /// `host` with the coordination endpoint on exactly `port`, or the default
@@ -89,18 +89,26 @@ impl RecoverySession {
     pub async fn host_on(
         room: [u8; 16],
         primary_endpoint: EndpointId,
-        relay_only: bool,
+        transport: crate::transport::Transport,
         port: Option<u16>,
     ) -> io::Result<Self> {
-        Self::host_in(room, primary_endpoint, relay_only, port, false).await
+        Self::host_in(
+            room,
+            primary_endpoint,
+            transport,
+            port,
+            false,
+        )
+        .await
     }
 
     /// `host_on` for the host of a server-owned room when `server_owned`: its
-    /// only voter for the room's whole life.
+    /// only voter for the room's whole life. LAN uses local discovery without
+    /// waiting for or publishing an internet relay route.
     pub async fn host_in(
         room: [u8; 16],
         primary_endpoint: EndpointId,
-        relay_only: bool,
+        transport: crate::transport::Transport,
         port: Option<u16>,
         server_owned: bool,
     ) -> io::Result<Self> {
@@ -110,7 +118,7 @@ impl RecoverySession {
             Ownership::Private
         };
         let incarnation = fresh_incarnation();
-        let rpc = IrohRpc::bind_owned(room, incarnation, relay_only, port, ownership).await?;
+        let rpc = IrohRpc::bind_owned(room, incarnation, transport, port, ownership).await?;
         let coordinator = std::sync::Arc::new(
             Coordinator::new_owned(room, incarnation, rpc.clone(), ownership).await?,
         );
@@ -151,14 +159,14 @@ impl RecoverySession {
         primary_endpoint: EndpointId,
         host_incarnation: u64,
         host_coordination: EndpointAddr,
-        relay_only: bool,
+        transport: crate::transport::Transport,
     ) -> io::Result<Self> {
         Self::join_in(
             room,
             primary_endpoint,
             host_incarnation,
             host_coordination,
-            relay_only,
+            transport,
             false,
         )
         .await
@@ -166,12 +174,13 @@ impl RecoverySession {
 
     /// `join` into a server-owned room when `server_owned`: the learner takes
     /// the log from `host_incarnation` only, and never votes or campaigns.
+    /// LAN keeps that admission on local discovery and direct connections.
     pub async fn join_in(
         room: [u8; 16],
         primary_endpoint: EndpointId,
         host_incarnation: u64,
         host_coordination: EndpointAddr,
-        relay_only: bool,
+        transport: crate::transport::Transport,
         server_owned: bool,
     ) -> io::Result<Self> {
         if host_incarnation == 0 || room == [0; 16] {
@@ -185,7 +194,7 @@ impl RecoverySession {
             Ownership::Private
         };
         let incarnation = fresh_incarnation();
-        let rpc = IrohRpc::bind_owned(room, incarnation, relay_only, None, ownership).await?;
+        let rpc = IrohRpc::bind_owned(room, incarnation, transport, None, ownership).await?;
         rpc.admit(host_incarnation, host_coordination).await?;
         let coordinator = std::sync::Arc::new(
             Coordinator::new_owned(room, incarnation, rpc.clone(), ownership).await?,

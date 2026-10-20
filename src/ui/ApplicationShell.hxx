@@ -13,6 +13,8 @@
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/LanRooms.hxx"
+#include "../netplay/RoomTransport.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
@@ -64,6 +66,8 @@ struct ShellView {
     std::string probeRelay, probeOpponent;
     NatClass probeOpponentNat=NatClass::Unknown;
     NetworkSummary netReport;
+    netplay::LanRooms lanRooms;
+    netplay::RoomTransport transport=netplay::RoomTransport::Online;
     std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
     bool probeBenchmark=false;
     unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
@@ -201,6 +205,7 @@ struct ShellAction {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
+    netplay::RoomTransport transport=netplay::RoomTransport::Online;
     // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
     // sent alone. The runtime decides whether it still holds.
     TrainingEntry training=TrainingEntry::None;
@@ -263,6 +268,7 @@ public:
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
     // The last Draw drew the room board, whose ping the runtime asks for only while it is drawn.
     bool BoardDrawn() const { return boardDrawn_; }
+    bool LanDrawn() const { return lanDrawn_; }
     // The last Draw drew the fighter selector.
     bool SelectionDrawn() const { return selectionDrawn_; }
     bool NoticeError() const { return menu_.NoticeError(); }
@@ -301,6 +307,9 @@ public:
         identity_.SetAnnouncedStore(std::move(loader), std::move(saver));
     }
 private:
+    enum class CreateKind { Private, Public, Lan };
+    CreateKind createKind_=CreateKind::Private;
+    bool lanDrawn_=false;
     LanguageSaver languageSaver_;
     UpdateCheckSaver updateCheckSaver_;
     GameMenu menu_;

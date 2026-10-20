@@ -422,7 +422,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 			spdlog::info("Room: created room rules armed format={} rotation={}",
 				static_cast<int>(command.createdRules->format), static_cast<int>(command.createdRules->rotation));
 		} else runtime->createdRules.Cancel("other_room");
-		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
+		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash,command.transport) :
 			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->join == JoinKind::Observer) :
 			ticket.is_object() && runtime->room->JoinPublic(decision.invitation, ticket, sf4e::sidecarHash);
 		if (!started) Apply(netplay::EventKind::RoomFailed, loc::T("runtime.room_open_failed"));

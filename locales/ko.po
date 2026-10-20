@@ -6,6 +6,39 @@ msgstr ""
 msgid "app.name"
 msgstr "SF4 Ember Netplay"
 
+msgid "lan.title"
+msgstr "LAN 플레이"
+
+msgid "lan.detail"
+msgstr "같은 로컬 네트워크의 방을 찾습니다. 인터넷은 필요하지 않습니다."
+
+msgid "lan.host"
+msgstr "LAN 방 만들기"
+
+msgid "lan.host_detail"
+msgstr "이 로컬 네트워크의 누구나 방을 찾아 참가할 수 있습니다. Steam과 지원 게임은 여전히 필요합니다."
+
+msgid "lan.incompatible"
+msgstr "Ember 빌드가 다릅니다. 두 플레이어 모두 같은 패키지가 필요합니다."
+
+msgid "lan.full"
+msgstr "방이 가득 참"
+
+msgid "lan.join_detail"
+msgstr "로컬 네트워크로 이 방에 참가합니다."
+
+msgid "lan.unavailable"
+msgstr "LAN 검색을 사용할 수 없습니다. 네트워크와 방화벽을 확인하세요."
+
+msgid "lan.searching"
+msgstr "LAN 방 검색 중"
+
+msgid "lan.search_detail"
+msgstr "두 PC를 같은 네트워크 또는 핫스팟에 연결하세요. 게스트 네트워크 격리나 방화벽이 검색을 막을 수 있습니다."
+
+msgid "lan.join_failed"
+msgstr "LAN 방에 참가하지 못했습니다. 호스트가 나갔거나 연결이 차단되었습니다."
+
 msgid "common.back"
 msgstr "뒤로"
 

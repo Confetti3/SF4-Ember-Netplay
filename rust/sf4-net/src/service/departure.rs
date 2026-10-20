@@ -127,7 +127,10 @@ impl Actor {
                             // equivalent committed exclusion proof for this
                             // one-way departure route.
                             if recovery
-                                .confirm_departure(state.term, recovery.committed().await.revision())
+                                .confirm_departure(
+                                    state.term,
+                                    recovery.committed().await.revision(),
+                                )
                                 .await
                                 .is_ok()
                             {
@@ -580,6 +583,7 @@ impl Actor {
     /// can still query the departing leader after the leader has reported its
     /// own room_closed event, then both processes may shut down normally.
     pub(super) fn enter_departure_grace(&mut self) {
+        self.lan.unadvertise(&self.endpoint);
         self.hosted = None;
         self.room_invite = None;
         self.host_address = None;

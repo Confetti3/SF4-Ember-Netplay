@@ -1,4 +1,6 @@
 #pragma once
+#include "../netplay/LanRooms.hxx"
+#include "../netplay/RoomTransport.hxx"
 #include "../ui/ControllerNavigation.hxx"
 #include "../ui/ReplaysView.hxx"
 #include "../ui/ChatTranscript.hxx"
@@ -124,6 +126,7 @@ namespace sf4e {
             netplay::IdentityRequest identity;
             // Ask the helper for the room's short link (IrohRoom::RequestShortInvitation).
             bool shortInvitation=false;
+            netplay::RoomTransport transport=netplay::RoomTransport::Online;
             // Refresh the assignment list, play a match or stop; op None otherwise.
             netplay::tournament::Command tournament;
             // With JoinInvite: the signed ticket (JSON) of a public room's admission, or empty for a private room.
@@ -245,6 +248,8 @@ namespace sf4e {
 			std::string shortInvitation;
 			bool shortInvitationPending = false;
 			std::uint64_t shortInvitationFailures = 0;
+            netplay::LanRooms lanRooms;
+    netplay::RoomTransport transport=netplay::RoomTransport::Online;
 			// The newest room link opened from the browser, as an https link.
 			std::string pendingJoinLink;
 			std::uint64_t pendingJoinSequence = 0;
@@ -319,6 +324,7 @@ namespace sf4e {
 		// was drawn this frame. The runtime asks for each member's ping only
 		// while the board is drawn (netplay/LatencyBoard.hxx).
 		void NoteLatencyBoard(std::uint64_t roomGeneration);
+        void NoteLanBrowser();
 		// Any thread: Ember's fighter selector was drawn this frame in room
 		// `roomGeneration`. A player called back from Training does not lose
 		// the time they have to ready while choosing (session/TrainingCall.hxx).

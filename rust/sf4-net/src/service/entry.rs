@@ -4,9 +4,9 @@ use super::*;
 pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     stream: S,
     endpoint: Endpoint,
-    relay_only: bool,
+    transport: crate::transport::Transport,
 ) -> io::Result<()> {
-    run_on_port(stream, endpoint, relay_only, None).await
+    run_on_port(stream, endpoint, transport, None).await
 }
 
 /// `run` with the exact UDP port the coordination endpoint binds when this
@@ -14,7 +14,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
 pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     stream: S,
     endpoint: Endpoint,
-    relay_only: bool,
+    transport: crate::transport::Transport,
     coordination_port: Option<u16>,
 ) -> io::Result<()> {
     let (mut reader, mut writer) = tokio::io::split(stream);
@@ -94,7 +94,8 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     ]);
     let mut actor = Actor {
         endpoint: endpoint.clone(),
-        relay_only,
+        lan: Default::default(),
+        transport,
         epoch: 0,
         opening: false,
         room: None,
@@ -158,6 +159,7 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     let result = actor.run(receiver, failure).await;
     actor.clear_room();
     actor.tasks.shutdown().await;
+    actor.stop_lan().await;
     endpoint.close().await;
     if result.is_ok() {
         let _ = actor.events.flush();

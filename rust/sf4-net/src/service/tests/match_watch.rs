@@ -316,6 +316,7 @@ async fn a_watcher_joins_with_the_full_invitation_only() {
                 id: 9,
                 command: join
             })
+            .await
             .unwrap()
     );
     let refused = timeout(Duration::from_secs(5), events.recv()).await;
@@ -474,7 +475,7 @@ async fn a_watchers_join_tells_the_room_it_only_watches() {
                 observer,
             },
         };
-        assert!(guest.command(join(1, true)).unwrap());
+        assert!(guest.command(join(1, true)).await.unwrap());
         complete_next(&mut guest).await;
         let refused = loop {
             match events.recv().await.unwrap() {
@@ -484,7 +485,7 @@ async fn a_watchers_join_tells_the_room_it_only_watches() {
             }
         };
         assert_eq!(refused, "join_failed");
-        assert!(guest.command(join(2, false)).unwrap());
+        assert!(guest.command(join(2, false)).await.unwrap());
         complete_next(&mut guest).await;
         let _ = next(&mut events, "connected").await;
         guest.clear_room();

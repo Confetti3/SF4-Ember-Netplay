@@ -21,7 +21,7 @@ impl Actor {
     /// `Command::Join`. A short link is looked up first; the full invitation
     /// it stands for then takes the same path as a pasted one. A watcher
     /// always has the full invitation from its bridge.
-    pub(super) fn join_command(
+    pub(super) async fn join_command(
         &mut self,
         id: u64,
         epoch: u64,
@@ -32,8 +32,20 @@ impl Actor {
         // Consume an accepted room epoch before parsing the invitation.
         // Rejection then belongs to the caller's attempt and Leave can
         // acknowledge cancellation even though no connection was made.
-        if !self.begin(epoch, &build) {
+        let policy = if crate::lan::locator(invitation).is_some() || Invite::is_lan_text(invitation) {
+            transport::Transport::Lan
+        } else {
+            transport::Transport::Online
+        };
+        if !self.begin(epoch, &build, policy).await {
             return self.error_at(id, epoch, "invalid_room_state");
+        }
+        if let Some(host) = crate::lan::locator(invitation) {
+            if observer {
+                self.clear_room();
+                return self.error_because(id, "invalid_or_incompatible_invitation", Some("observer_short_link"));
+            }
+            return self.join_lan(id, epoch, host, build);
         }
         match crate::short_invite::parse(invitation) {
             Some(_) if observer => {
@@ -65,6 +77,7 @@ impl Actor {
         let invite = match invite {
             Some(invite)
                 if invite.build() == build
+                    && invite.is_lan() == (self.transport == transport::Transport::Lan)
                     && match via {
                         JoinVia::Short(code) => invite.short_code() == code,
                         _ => true,
@@ -105,7 +118,7 @@ impl Actor {
         };
         let latency = self.latency_binding();
         self.tasks.spawn(async move {
-            let (result, latency) = latency::beside(latency, async {
+            let work = async {
                 match &ticket {
                     Some(ticket) => {
                         crate::public_room::connect_public(&endpoint, &invite, ticket).await
@@ -114,8 +127,12 @@ impl Actor {
                         transport::connect_control_with(&endpoint, &invite, &proof, false).await
                     }
                 }
-            })
-            .await;
+            };
+            let (result, latency) = if invite.is_lan() {
+                latency::together(latency, work).await
+            } else {
+                latency::beside(latency, work).await
+            };
             Completion::GuestControl(epoch, invite, result, latency)
         });
         Ok(())

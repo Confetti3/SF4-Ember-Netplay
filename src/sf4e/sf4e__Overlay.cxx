@@ -253,6 +253,33 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 
 }
 
+static sf4e::NetplayFacade::RuntimeCommand ToRuntimeCommand(sf4e::ui::ShellAction&& action) {
+		sf4e::NetplayFacade::RuntimeCommand request;
+		request.command = std::move(action.command);
+        request.service = action.service; request.servicePath = std::move(action.servicePath); request.steamProfile = action.steamProfile;
+        request.updateOffer = std::move(action.updateOffer);
+        request.replay = std::move(action.replay);
+        request.reportSubmission = std::move(action.reportSubmission);
+        request.inputAction = action.inputAction; request.discordAction = action.discordAction;
+        request.padAction = action.padAction;
+        request.discordRevision = action.discordRevision;
+		request.preferences = std::move(action.preferences);
+		request.roomAction = std::move(action.roomAction);
+        request.selectedDelay=action.selectedDelay;
+        request.previewSoundVolume=action.previewSoundVolume;
+        request.identity = std::move(action.identity);
+        request.shortInvitation=action.shortInvitation;
+        request.transport=action.transport;
+        request.tournament = std::move(action.tournament);
+        request.publicTicket = std::move(action.publicTicket);
+        request.createdRules = action.createdRules;
+        request.practiceRoom = action.practiceRoom;
+        request.delayPolicy = action.delayPolicy;
+		request.training = action.training;
+		request.leaveWatchedGame = action.leaveWatchedGame;
+    return request;
+}
+
 // Hidden, the shell still takes identity answers, ends a cancelled Discord
 // sign-in on its service and keeps the room chat. The room is read where the
 // published snapshot holds it, not copied, since this runs every match frame;
@@ -265,11 +292,7 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
     view.identityRefusal = snapshot.identityRefusal;
     shell.Background(view, snapshot.room, [](sf4e::ui::ShellAction action) {
-        sf4e::NetplayFacade::RuntimeCommand request;
-        request.command = std::move(action.command);
-        request.identity = std::move(action.identity);
-        request.publicTicket = std::move(action.publicTicket);
-        request.createdRules = action.createdRules;
+        auto request=ToRuntimeCommand(std::move(action));
         return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
     });
 }
@@ -337,6 +360,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.localSlot = snapshot.localSlot;
 	view.invitation = snapshot.invitation;
 	view.shortInvitation = snapshot.shortInvitation;
+    view.lanRooms = snapshot.lanRooms;
+    view.transport = snapshot.transport;
 	view.shortInvitationPending = snapshot.shortInvitationPending;
 	view.shortInvitationFailures = snapshot.shortInvitationFailures;
 	view.pendingJoinLink = snapshot.pendingJoinLink;
@@ -420,37 +445,17 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			sf4e::selection::ToNative(pick, lobbyConditions);
 			return true;
 		}
-		sf4e::NetplayFacade::RuntimeCommand request;
-		request.command = std::move(action.command);
-        request.service = action.service; request.servicePath = std::move(action.servicePath); request.steamProfile = action.steamProfile;
-        request.updateOffer = std::move(action.updateOffer);
-        request.replay = std::move(action.replay);
-        request.reportSubmission = std::move(action.reportSubmission);
-        request.inputAction = action.inputAction; request.discordAction = action.discordAction;
-        request.padAction = action.padAction;
-        request.discordRevision = action.discordRevision;
+        const auto training=action.training;
+        auto request=ToRuntimeCommand(std::move(action));
 		request.displayName = snapshot.preferences.displayName;
-		request.preferences = std::move(action.preferences);
-		request.roomAction = std::move(action.roomAction);
-        request.selectedDelay=action.selectedDelay;
-        request.previewSoundVolume=action.previewSoundVolume;
-        request.identity = std::move(action.identity);
-        request.shortInvitation=action.shortInvitation;
-        request.tournament = std::move(action.tournament);
-        request.publicTicket = std::move(action.publicTicket);
-        request.createdRules = action.createdRules;
-        request.practiceRoom = action.practiceRoom;
-        request.delayPolicy = action.delayPolicy;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;
 		request.randomPool = lobbyRandomPool;
-		request.training = action.training;
-		request.leaveWatchedGame = action.leaveWatchedGame;
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
 		// Training from inside a room: the menu closes behind it while the runtime
 		// sends the game on.
-		if (action.training == sf4e::TrainingEntry::Room) presentation.Close("Training from the room");
+		if (training == sf4e::TrainingEntry::Room) presentation.Close("Training from the room");
 		return true;
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
@@ -460,6 +465,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     , [] { sf4e::ui::DrawDeveloperOverlay(s_selectionArt.get()); }
 #endif
     );
+    if (shell.LanDrawn()) sf4e::NetplayFacade::NoteLanBrowser();
     if (shell.BoardDrawn()) sf4e::NetplayFacade::NoteLatencyBoard(view.room.roomEpoch);
     if (shell.SelectionDrawn()) sf4e::NetplayFacade::NoteFighterSelector(view.room.roomEpoch);
     if (!open) presentation.Close("Back on Ember's Home");

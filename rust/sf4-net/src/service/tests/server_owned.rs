@@ -1,7 +1,9 @@
 //! What a server-owned room changes in the actor: one voter, a host that is
 //! not a member, bare member records, a room that ends with its host, and the
 //! sixteenth control.
-use super::public_support::{BUILD, host_state, identity, member_admission, public_host, ticket_for};
+use super::public_support::{
+    BUILD, host_state, identity, member_admission, public_host, ticket_for,
+};
 use super::*;
 use crate::{
     public_room::{self, PublicRoom},
@@ -69,7 +71,7 @@ async fn the_host_stays_the_only_voter_as_sixteen_members_are_admitted() {
                 primary,
                 recovery.incarnation,
                 recovery.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
                 true,
             )
             .await
@@ -113,15 +115,21 @@ async fn no_other_voter_set_is_committed_in_a_server_owned_room() {
         let room = [31; 16];
         let mut outcomes = Vec::new();
         for server_owned in [true, false] {
-            let host = RecoverySession::host_in(room, primary.id(), false, None, server_owned)
-                .await
-                .unwrap();
+            let host = RecoverySession::host_in(
+                room,
+                primary.id(),
+                crate::transport::Transport::Online,
+                None,
+                server_owned,
+            )
+            .await
+            .unwrap();
             let learner = RecoverySession::join_in(
                 room,
                 iroh::SecretKey::generate().public(),
                 host.incarnation,
                 host.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
                 server_owned,
             )
             .await
@@ -351,15 +359,21 @@ async fn host_lost(server_owned: bool) -> (bool, bool) {
     let host_primary = endpoint().await;
     let member_primary = endpoint().await;
     let room = [61; 16];
-    let host = RecoverySession::host_in(room, host_primary.id(), false, None, server_owned)
-        .await
-        .unwrap();
+    let host = RecoverySession::host_in(
+        room,
+        host_primary.id(),
+        crate::transport::Transport::Online,
+        None,
+        server_owned,
+    )
+    .await
+    .unwrap();
     let learner = RecoverySession::join_in(
         room,
         member_primary.id(),
         host.incarnation,
         host.coordination_address.clone(),
-        false,
+        crate::transport::Transport::Online,
         server_owned,
     )
     .await
@@ -444,7 +458,7 @@ async fn a_public_host_leaving_performs_no_handoff() {
             iroh::SecretKey::generate().public(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
             true,
         )
         .await

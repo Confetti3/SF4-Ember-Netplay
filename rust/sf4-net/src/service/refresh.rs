@@ -41,7 +41,7 @@ impl Actor {
         let session = crate::recovery::RecoverySession::host_in(
             invite.room(),
             self.endpoint.id(),
-            self.relay_only,
+            self.transport,
             self.coordination_port,
             self.is_public_host(),
         )
@@ -67,7 +67,7 @@ impl Actor {
             self.endpoint.id(),
             invite.authority_incarnation(),
             coordination_address,
-            self.relay_only,
+            self.transport,
             self.server_owned(),
         )
         .await?;

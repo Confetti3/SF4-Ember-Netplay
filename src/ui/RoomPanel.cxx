@@ -262,7 +262,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(!tournamentRoom&&!s.serverOwned&&!v.tournament.MatchRoomActive()){
    rows.push_back(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
    // Once made, the detail shows the link itself so it can be read out.
-   rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
+   if(v.transport!=netplay::RoomTransport::Lan)rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
     v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
   }
   // A public room is shared by its page link, which opens it in Ember from a browser or Discord.
