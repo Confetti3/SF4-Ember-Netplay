@@ -124,6 +124,21 @@ What makes Ember speak, all of it (grep `speech::` outside tests):
     ApplicationShell__Accessibility.cxx (shell back to 945 lines).
 18. Deck install resets speech settings to defaults with speech on.
 
+## Deck crash 15:21 (32e453a2) and fix
+
+- Crash at the first menu frame: Sidecar!speech::UnixPath+0x47 on the speech
+  thread, writing a std::string over a return address. Wine exports
+  `wine_get_unix_file_name` as cdecl (`_wine_get_unix_file_name`, no @4);
+  Ember declared it WINAPI, so each call left ESP 4 bytes off. Fixed in
+  b4ebe12b4. Symbolized with `lab\symbolize-dump.ps1` (cdb + stage PDB).
+- `SpeechWine` test (skipped off Wine) runs speech end to end under Proton:
+  `lab/speech-wine-test.sh`. With the old declaration it crashed (exit 5,
+  0xC0000005); fixed, exit 0.
+- The relay left Piper and paplay running after it ended; it now kills them
+  (d9b376b5a). Its unit goes once the speech-dispatcher it started idles out.
+- 2026-10-20 ~16:00, d9b376b5a: 12 tests (SpeechWine skipped on Windows)
+  pass; stage Sidecar md5 a4d5c766; SpeechWine on the Deck exit 0.
+
 ## Decisions
 
 - **Tolk not added now.** It needs a new x86 DLL (Tolk.dll plus the NVDA
