@@ -696,6 +696,7 @@ void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 r
 // instead of the whole screen. F1 is the stop-speech key while a menu shows.
 void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now) {
     SpokenFrame frame{title,focus};
+    frame.entries=&entries;
     // The focused entry may be a copy, so its place comes from its id.
     if(focus){frame.index=static_cast<std::size_t>(std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==focus->id;})-entries.begin());frame.count=entries.size();}
     frame.button=button;
@@ -709,6 +710,6 @@ void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,c
     const auto said=narrator_.Update(frame,now,menuSpeech);
     if(!menuSpeech.enabled)return;
     if(ImGui::IsKeyPressed(ImGuiKey_F1,false))speech::Stop();
-    else if(!said.text.empty())speech::Say(said.text,said.interrupt,menuSpeech.rate,menuSpeech.volume);
+    else if(!said.parts.empty())speech::Say(said.Text(),said.interrupt,menuSpeech.rate,menuSpeech.volume);
 }
 } }
