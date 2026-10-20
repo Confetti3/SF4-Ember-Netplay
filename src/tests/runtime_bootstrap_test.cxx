@@ -1,5 +1,7 @@
 #include "../sf4e/sf4e.hxx"
 #include "../sf4e/sf4e__NetplayFacade.hxx"
+#include "../sf4e/sf4e__NetplayRuntime.hxx"
+#include "../common/MenuInputCapture.hxx"
 #include "../Dimps/Dimps.hxx"
 #include "../common/Localization.hxx"
 #include "../common/HelperFailure.hxx"

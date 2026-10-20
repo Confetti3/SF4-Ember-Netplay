@@ -4,6 +4,7 @@
 #include "../common/NetworkLink.hxx"
 #include "MenuNavigation.hxx"
 #include "FontMetrics.hxx"
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -103,6 +104,8 @@ void ConstrainNextWindow(ImVec2 preferredSize);
 void KeepWindowVisible();
 bool BeginToolWindow(const char* name, bool* open = nullptr, ImGuiWindowFlags flags = 0);
 void EndToolWindow();
+// Opaque background cover; warning/notice windows remain visible above it.
+void DrawMatchLoading();
 
 // Ember's link marks in a size-by-size square at `min`: an Ethernet port in
 // the ready green, Wi-Fi arcs in the accent colour since it is the link to keep
@@ -146,6 +149,9 @@ struct MatchStripView {
     int noticeSeverity = 0;
     bool connectionWarning = false, predictionStalled = false;
     int disconnectCountdownMs = -1;
+    bool HasAlert() const { return !notice.empty() || connectionWarning || predictionStalled; }
+    bool NeedsAttention() const { return (noticeSeverity >= 2 && !notice.empty()) || predictionStalled || (connectionWarning && disconnectCountdownMs >= 0); }
+    int AlertSeverity() const { return (std::max)(noticeSeverity, connectionWarning || predictionStalled ? 1 : 0); }
 };
 // The match HUD functions below, MatchStripGeometry and the label helpers are defined in MatchHud.cxx.
 void DrawMatchStrip(const MatchStripView& view);

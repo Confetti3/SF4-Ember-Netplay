@@ -13,6 +13,7 @@
 #include "../Dimps/Dimps.hxx"
 #include <winsock2.h>
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 #include <memory>
 
@@ -325,6 +326,115 @@ struct WatchedGame {
 		sf4e::NetplayFacade::internal::DrainRoomEvents();
 	}
 };
+
+
+// The runtime's real main-menu query, with a small native event tree. No
+// battle entry is invoked: these cases stay in transport preparation.
+struct PreparingMenu {
+    using Base = Dimps::Event::EventBaseWithEC;
+    using Controller = Dimps::Event::EventController;
+    struct TreeController : Controller {
+        Dimps::Event::EventBase* Foreground() {
+            static unsigned char event[32] = {};
+            std::memcpy(event + 0xc, "MainMenu", 9);
+            return reinterpret_cast<Dimps::Event::EventBase*>(event);
+        }
+        int Status() { return EQS_FOREGROUND; }
+    };
+    struct Root : Dimps::GameEvents::RootEvent {
+        Controller* Child() { static TreeController controller; return &controller; }
+    };
+    static inline bool shown = true;
+    static Dimps::GameEvents::RootEvent* GetRoot() { static Root root; return shown ? &root : nullptr; }
+    decltype(Dimps::App::GetRootEvent) previousRoot = Dimps::App::GetRootEvent;
+    Base::__publicMethods previousBase = Base::publicMethods;
+    Controller::__publicMethods previousController = Controller::publicMethods;
+    PreparingMenu() {
+        sf4e::NetplayFacade::NotifyRuntimeEventSystemReady();
+        shown = true;
+        Dimps::App::GetRootEvent = GetRoot;
+        Base::publicMethods.GetChildEventController = static_cast<Controller* (Base::*)()>(&Root::Child);
+        Controller::publicMethods.GetForegroundEvent =
+            static_cast<Dimps::Event::EventBase* (Controller::*)()>(&TreeController::Foreground);
+        Controller::publicMethods.GetForegroundEventStatus = static_cast<int (Controller::*)()>(&TreeController::Status);
+    }
+    ~PreparingMenu() {
+        Dimps::App::GetRootEvent = previousRoot;
+        Base::publicMethods = previousBase;
+        Controller::publicMethods = previousController;
+    }
+};
+
+void TestLoadingLifecycle() {
+    namespace internal = sf4e::NetplayFacade::internal;
+    RuntimeRoom r;
+    r.Projection(1); r.Deliver(r.Grant(1));
+    internal::TickMatch();
+    const auto loading = [&] { internal::Publish(); return sf4e::NetplayFacade::GetRuntimeSnapshot().matchLoading; };
+    internal::ApplyMatchEntry(sf4e::UserApp::MatchEntry::Deferred);
+    CHECK(!r.runtime->matchEntered && !loading());
+    const auto enter = [&] { internal::ApplyMatchEntry(sf4e::UserApp::MatchEntry::Entered); CHECK(r.runtime->matchEntered && loading()); };
+    enter();
+    internal::AbortLocalMatch("");
+    CHECK(r.runtime->controller.GetSnapshot().match == sf4e::netplay::MatchState::Preparing);
+    CHECK(r.runtime->matchEntered && !loading());
+    r.runtime->recoveringMatch = false;
+    enter();
+    internal::Apply(sf4e::netplay::EventKind::GameplayReady);
+    internal::Apply(sf4e::netplay::EventKind::MatchStarted);
+    CHECK(loading());
+    sf4e::NetplayFacade::NotifyRuntimeNativeBattleReady(); CHECK(!loading());
+    enter(); sf4e::NetplayFacade::NotifyRuntimeMatchEnded(); CHECK(!loading());
+    enter(); sf4e::NetplayFacade::NotifyRuntimeBattleClosedWithoutSession(); CHECK(!loading());
+    enter(); internal::ResetMatchEntry(); CHECK(!loading() && !r.runtime->matchEntered);
+    enter(); internal::ApplyMatchEntry(sf4e::UserApp::MatchEntry::Rejected); CHECK(!loading());
+}
+
+void TestPreparationCover() {
+    namespace internal = sf4e::NetplayFacade::internal;
+    for (const bool initiallyAtMenu : {true, false}) {
+        RuntimeRoom r;
+        PreparingMenu menu;
+        PreparingMenu::shown = initiallyAtMenu;
+        r.Projection(1);
+        r.Deliver(r.Grant(1));
+        internal::TickMatch();
+        CHECK(r.runtime->controller.GetSnapshot().match == sf4e::netplay::MatchState::Preparing);
+        CHECK(!r.runtime->matchEntered && r.Match().GetPhase() != Phase::Started);
+        CHECK(r.runtime->automaticMatchEntry == initiallyAtMenu);
+        // Training/Options remains uncovered until the player returns.
+        PreparingMenu::shown = true;
+        internal::TickMatch();
+        CHECK(r.runtime->automaticMatchEntry && !r.runtime->matchEntered);
+        // A transient foreground-query drop cannot expose the native menu.
+        PreparingMenu::shown = false;
+        internal::TickMatch();
+        internal::Publish();
+        CHECK(sf4e::NetplayFacade::GetRuntimeSnapshot().matchLoading);
+        // A cancelled transport preparation must remove the cover, even
+        // before any native battle or GGPO session exists to clear it.
+        internal::AbortLocalMatch("");
+        internal::Publish();
+        CHECK(!sf4e::NetplayFacade::GetRuntimeSnapshot().matchLoading);
+        PreparingMenu::shown = true;
+        internal::TickMatch();
+        CHECK(!r.runtime->automaticMatchEntry);
+    }
+    {
+        RuntimeRoom r;
+        PreparingMenu menu;
+        r.Projection(1);
+        r.Deliver(r.Grant(1));
+        internal::TickMatch();
+        CHECK(r.runtime->automaticMatchEntry);
+        // A withdrawn grant ends Preparing without a native battle callback.
+        r.Match().End();
+        r.room->AbandonMatch(1);
+        internal::TickMatch();
+        CHECK(!r.runtime->automaticMatchEntry);
+    }
+    std::cout << "TestPreparationCover passed" << std::endl;
+}
 
 static bool __cdecl GgpoBegin(const char*) { return true; }
 static bool __cdecl GgpoSave(unsigned char**, int*, int*, int) { return false; }
@@ -834,6 +944,8 @@ void TestEnteredBattleRequestCancelled() {
 }
 }
 int main() {
+	TestPreparationCover();
+	TestLoadingLifecycle();
 	for (const bool queued : {false, true})
 		for (const bool staged : {false, true}) TestFailedSetupThroughRuntime(queued, staged, false);
 	TestFailedSetupThroughRuntime(false, false, true);
