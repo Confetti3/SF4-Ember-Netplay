@@ -26,8 +26,30 @@ mapping for every character entry.
 
 Random resolves from installed banks when a match is entered from the lobby,
 using a local RNG independent of the gameplay seed. The stored preference
-remains Random. A continuous rematch retains the loaded bank; choosing a
-new random bank for each rematch would require a separate audio reload path.
+remains Random. The optional `Music::ObserveMatch` integration accepts a
+monotonically increasing, confirmed game token on the outer game tick.
+At a confirmed result it preloads another installed bank, excluding the
+current track when alternatives exist. Once the next game is confirmed,
+it replaces the BGM cue storage using the native constructor and cleanup.
+Loading never controls network readiness or pauses the simulation. A bank
+or sound-pool failure keeps the previous track.
+
+The native BgmPlayer address stays unchanged. Its queued fade functors hold
+that owner and a volume axis (0/1), not a cue handle, bank handle or pointer
+to its cue-entry array; their callbacks read the current array and count.
+Stage crossfading likewise loops over the current array. The adapter waits
+until no noncancelled BGM functor currently owns the player, and does not
+cancel or modify tasks. Cue storage is allocated and checked before the
+old storage is released. The original scene bank remains owned by the game;
+the adapter owns at most its active and pending replacement banks. Native
+player teardown releases cue players before these owned banks are freed.
+
+This API is independent of the continuous-rematch implementation. A combined
+build must provide its confirmed boundary explicitly; predicted reset
+callbacks must never call it. Without that integration, the normal
+one-bank-per-scene behavior remains. Native verification of successive random
+rematches, both character/stage cue-mode transitions, rollback, cancellation
+and cleanup is still required before publishing this addition.
 
 The native hooks target Steam USF4 1.05 and verify instruction signatures
 before attachment. Other layouts leave selection unavailable. The native

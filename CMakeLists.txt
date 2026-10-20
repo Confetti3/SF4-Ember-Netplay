@@ -461,6 +461,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__InputLag.cxx"
     "src/sf4e/sf4e__Music.cxx"
     "src/sf4e/sf4e__Music.hxx"
+    "src/sf4e/sf4e__MusicRematch.cxx"
+    "src/sf4e/sf4e__MusicRematch.hxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
     "src/sf4e/sf4e__ReplayStore.hxx"

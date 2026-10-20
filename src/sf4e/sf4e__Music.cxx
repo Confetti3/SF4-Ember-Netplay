@@ -1,4 +1,5 @@
 #include "sf4e__Music.hxx"
+#include "sf4e__MusicRematch.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "../common/GameFiles.hxx"
 #include "../platform/LocaleWindows.hxx"
@@ -50,6 +51,9 @@ std::mt19937 randomMusic;
 enum class ErrorCode { None, fallback, retry_default, load_failed, disabled, unsupported, hook_failed, files_unavailable, missing };
 ErrorCode error=ErrorCode::None;
 music::MenuPlaybackState playback;
+music::RematchMusicState rematchCycle;
+bool rematchAvailable = false;
+int nextMatchChoice = music::Default;
 void* lastManager = nullptr;
 ULONGLONG loadStarted = 0;
 bool fallingBack = false, loadFailed = false;
@@ -83,7 +87,9 @@ void* __fastcall ConstructBattleBgm(void* self, void*, const BattleBgmInit* init
         auto adjusted = *init;
         adjusted.mode = music::BattleCueMode(choice, init->mode);
         spdlog::info("Music: battle player track={} native_mode={} selected_mode={}", choice, init->mode, adjusted.mode);
-        return battleBgmConstructor(self, &adjusted);
+        auto* player = battleBgmConstructor(self, &adjusted);
+        rematch::TrackPlayer(player);
+        return player;
     }
     return battleBgmConstructor(self, init);
 }
@@ -162,6 +168,7 @@ void Install() {
     const auto c = DetourAttach(reinterpret_cast<PVOID*>(&menuRelease), reinterpret_cast<PVOID>(Release));
     const auto d = DetourAttach(reinterpret_cast<PVOID*>(&battleBgmConstructor), reinterpret_cast<PVOID>(ConstructBattleBgm));
     attached = a == NO_ERROR && b == NO_ERROR && c == NO_ERROR && d == NO_ERROR;
+    rematchAvailable = attached && rematch::Install();
     if (!attached) error = ErrorCode::hook_failed;
 }
 void Activate() { available = attached; }
@@ -180,6 +187,7 @@ void InitializeContent() {
     LARGE_INTEGER counter{}; QueryPerformanceCounter(&counter);
     randomMusic.seed(static_cast<unsigned>(counter.QuadPart ^ GetTickCount64() ^ GetCurrentProcessId()));
     spdlog::info("Music: found {}/{} stock tracks", installedTracks.size(), music::TrackCount);
+    spdlog::info("Music: continuous rematch bank reload capability={}", rematchAvailable);
     initialized = true;
 }
 void Configure(int menu, int match, bool safeMenu) {
@@ -198,10 +206,23 @@ void EnterMatch() {
     const auto roll = installedTracks.empty() ? 0u :
         std::uniform_int_distribution<unsigned>(0, static_cast<unsigned>(installedTracks.size() - 1))(randomMusic);
     matchChoice = music::ResolveMatch(configuredMatch, roll, installedTracks);
+    rematchCycle = {};
+    rematch::CancelPending();
     spdlog::info("Music: match preference={} resolved={}", configuredMatch, matchChoice.load());
     matchArmed = true; safe = false;
 }
-void LeaveMatch() { matchArmed = false; }
+void LeaveMatch() { matchArmed = false; rematch::CancelPending(); }
+void ObserveMatch(std::uint64_t confirmedGame, bool decided) {
+    if (!available || !matchArmed || !rematchAvailable || custom::HasStageMusic() ||
+        configuredMatch != music::Random || !confirmedGame || confirmedGame < rematchCycle.current) return;
+    if (rematchCycle.Observe(confirmedGame, decided)) {
+        nextMatchChoice = music::NextRandomTrack(matchChoice, randomMusic(), installedTracks);
+        if (nextMatchChoice != music::Default && nextMatchChoice != matchChoice)
+            rematch::Prepare(paths[nextMatchChoice].c_str(), nextMatchChoice);
+    }
+    if (rematch::Tick(rematchCycle.MayApply()) == rematch::Progress::Applied)
+        matchChoice = nextMatchChoice;
+}
 void RetryMenu() {
     if (loadFailed) { playback.Retry(); loadFailed = false; error=ErrorCode::None; }
 }

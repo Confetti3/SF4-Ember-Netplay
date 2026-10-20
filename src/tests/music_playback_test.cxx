@@ -1,5 +1,6 @@
 #include "../common/MusicPlaybackState.hxx"
 #include "test_support.hxx"
+#include <algorithm>
 
 int main() {
     using namespace sf4e::music;
@@ -57,6 +58,35 @@ int main() {
         CHECK(ResolveMatch(1, roll, installed) == Default); // Missing file excluded.
     }
     CHECK(ResolveMatch(Random, 0, {}) == Default);
+    // Each game prepares exactly once, despite repeated ticks or a stale
+    // observation. A confirmed result alone must not change victory music.
+    RematchMusicState cycle;
+    CHECK(!cycle.Observe(0, true));
+    CHECK(!cycle.Observe(1, false));
+    CHECK(!cycle.MayApply());
+    CHECK(cycle.Observe(1, true));
+    CHECK(!cycle.MayApply());
+    CHECK(!cycle.Observe(1, true));
+    CHECK(!cycle.Observe(2, false));
+    CHECK(cycle.MayApply());
+    CHECK(!cycle.Observe(1, true)); // Never rewind local audio for older frames.
+    CHECK(cycle.current == 2 && cycle.preparedAfter == 1);
+    CHECK(cycle.Observe(2, true));
+    CHECK(!cycle.MayApply());
+    CHECK(!cycle.Observe(3, false));
+    CHECK(cycle.MayApply());
+    CHECK(cycle.Observe(3, true));
+    CHECK(!cycle.Observe(3, true));
+    CHECK(NextRandomTrack(0, 0, {}) == Default);
+    CHECK(NextRandomTrack(0, 1, {0}) == 0);
+    CHECK(NextRandomTrack(0, 3, {24}) == 24);
+    for (const int current : installed) {
+        for (std::uint32_t roll = 0; roll < 100; ++roll) {
+            const auto next = NextRandomTrack(current, roll, installed);
+            CHECK(next != current);
+            CHECK(std::find(installed.begin(), installed.end(), next) != installed.end());
+        }
+    }
     // Sakura has one cue even when the arena normally crossfades three cues.
     CHECK(BattleCueMode(CharacterBase + 23, 1) == 0);
     for (int id = 0; id < sf4e::selection::FighterCount; ++id) {

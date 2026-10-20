@@ -13,6 +13,30 @@ inline int BattleCueMode(int resolvedChoice, int nativeMode) {
 }
 // An installed custom stage owns its bank and its native cue mode.
 inline int BattleChoice(int selected, bool customStageMusic) { return customStageMusic ? Default : selected; }
+// A rematch should audibly change the random selection when another bank
+// exists. Resolve locally, without consuming the deterministic battle RNG.
+inline int NextRandomTrack(int current, std::uint32_t roll, const std::vector<int>& installed) {
+    std::size_t alternatives = 0;
+    for (const int track : installed) if (track != current) ++alternatives;
+    if (!alternatives) return installed.empty() ? Default : installed.front();
+    std::size_t pick = roll % alternatives;
+    for (const int track : installed) if (track != current && pick-- == 0) return track;
+    return Default;
+}
+// Tokens belong to confirmed games, not simulated frames. Prepare at the
+// result, then switch only after the next game is confirmed. Old observations
+// and repeated outer ticks must neither reroll nor reload a bank.
+struct RematchMusicState {
+    std::uint64_t current = 0, preparedAfter = 0;
+    bool Observe(std::uint64_t token, bool decided) {
+        if (!token || token < current) return false;
+        current = token;
+        if (!decided || token <= preparedAfter) return false;
+        preparedAfter = token;
+        return true;
+    }
+    bool MayApply() const { return preparedAfter && current > preparedAfter; }
+};
 // Root-event names from the game's flow table. Battle-bearing modes and
 // an empty foreground during transitions must never start menu audio.
 // LocalBattleLog also owns replay battles, so it is not a UI-only menu.
