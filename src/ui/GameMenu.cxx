@@ -200,7 +200,7 @@ unsigned KeyboardMenuBits(bool typesText) {
     struct Mapping { ImGuiKey key; unsigned bit; };
     static const Mapping always[]={
         {ImGuiKey_UpArrow,MenuInput::Up},{ImGuiKey_DownArrow,MenuInput::Down},{ImGuiKey_LeftArrow,MenuInput::Left},
-        {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back}};
+        {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back},{ImGuiKey_F2,MenuInput::Describe}};
     // Letters, Space, Backspace and Delete belong to a text field while one
     // is being typed in.
     static const Mapping menuOnly[]={
@@ -293,6 +293,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // A choice belongs to the body that draws it, so the body stays live for it.
     const bool choosingAtStart=navigation.Choosing();
     auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText,additionalInput); menuInput.time=now;
+    const unsigned rawHeld=menuInput.held;
     if(!listEnabled) menuInput.held=0;
     ReadEditInput(entries,menuInput);
     // A notice owns the input until dismissed, so the dismissing press can
@@ -308,6 +309,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
     held_=menuInput.held;
+    // Read before a notice takes the input: the accessibility button works in one too.
+    const bool describe=(rawHeld&MenuInput::Describe)&&!(describeHeld_&MenuInput::Describe);describeHeld_=rawHeld;
     // InputText consumes this frame's characters before the requested acceptance.
     // The navigation model still owns the neutral gate and Back/accept ordering.
     auto action=navigation.Update(menuInput,entries,columns,true,true);
@@ -395,7 +398,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(focusedEntry!=entries.end()) { presentationEntry=*focusedEntry; presentationEntry.enabled=feedback_.Enabled(*focusedEntry); }
     const bool adjustable=!dialog&&focusedEntry!=entries.end()&&presentationEntry.adjustable&&presentationEntry.enabled;
     const char* primary=!listEnabled?nullptr:dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
-    Narrate(title,entries,focusedEntry==entries.end()?nullptr:&presentationEntry,dialog?dialogSelect:std::string(),primary,adjustable,now);
+    Narrate(title,entries,focusedEntry==entries.end()?nullptr:&presentationEntry,dialog?dialogSelect:std::string(),primary,adjustable,now,describe);
     const bool wide=ImGui::GetContentRegionAvail().x>=(flyout?640:820)*unit;
     // Reserve the actual footer items and their spacing, not a guessed margin.
     const float footerSpacing=8*unit+2*ImGui::GetStyle().ItemSpacing.y+
@@ -693,9 +696,9 @@ void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 r
     ImGui::SetCursorScreenPos(cursor);
 }
 // The narrator follows every frame, so turning speech on says the new value
-// instead of the whole screen. F1 is the stop-speech key while a menu shows,
-// F2 the describe key.
-void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now) {
+// instead of the whole screen. describe is a press of the accessibility button
+// (RT, F2); F1 also stops speech while a menu shows.
+void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now,bool describe) {
     SpokenFrame frame{title,focus};
     frame.entries=&entries;
     frame.notice=!notice_.empty();
@@ -709,10 +712,9 @@ void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,c
     }
     if(primary)frame.hint=SpokenButton(selectGlyph)+": "+primary;
     if(adjustable)frame.hint+=(frame.hint.empty()?"":". ")+std::string(loc::T("speech.change"));
-    // F2 asks for the row's description, or a notice's text.
-    const auto said=narrator_.Update(frame,now,menuSpeech,menuSpeech.enabled&&ImGui::IsKeyPressed(ImGuiKey_F2,false));
+    const auto said=narrator_.Update(frame,now,menuSpeech,menuSpeech.enabled&&describe);
     if(!menuSpeech.enabled)return;
-    if(ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
+    if(said.stop||ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
     if(!said.parts.empty())speech::Say(said.parts,said.interrupt,menuSpeech.rate,menuSpeech.volume);
     speech::Render(said.render,menuSpeech.rate);
 }

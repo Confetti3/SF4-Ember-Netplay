@@ -65,6 +65,14 @@ Native SF4 menus are only reached offline (arcade, training, options). Everythin
 | Confirmation prompts | Question plus choices spoken | Every modal speaks its question, then the focused choice. |
 | Language | Setup in own language | Speech strings come from the same `.po` files as the UI. Voice follows the screen reader; SAPI fallback picks a voice matching the UI language. |
 
+## The accessibility button and strict reading
+
+Ember reads its menus as Tokon does: a move says the row's name, and its value only where the player changes it; a new screen says its title; a dialog the player opens says its question, then the focused button; a notice that opens by itself stays quiet until the player moves in it. Nothing else speaks on its own.
+
+One accessibility button, the same on every device: RT on a pad, the same RT input on an arcade stick or leverless (the fourth button of the bottom row in the Xbox layout, which every 8-button stick and leverless has, unlike L3/R3 or a touchpad), F2 on the keyboard. A tap reads the focused row's description (a notice's text), with its button hint when that setting is on; a second tap on the same row stops it. F1 also stops speech. RT is free in every Ember menu (the menus use A, B, X, Y, View and Start; V2 uses LB/RB for tabs); replay playback uses RT to step, but only while Ember's menu is closed. When a player binds RT to confirm or back, it is not the accessibility button. Rebinding it is for later.
+
+Turning speech on (the Accessibility row now, the first-run prompt later) says once, aloud and on screen: "Speech is on. Move to hear each item. Press RT to hear what it does; press it again to stop. More options are in Settings, Accessibility.", with the button named as the player's device prints it (Cross pad: R2, stick: its own name for that button, keyboard: F2).
+
 ## Audio and speech settings
 
 Two sources: SF4's own channels, filtered per cue ID at the existing hook, and Ember's cue layer with its own buses.

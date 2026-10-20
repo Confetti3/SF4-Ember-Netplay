@@ -80,6 +80,10 @@ void NativeReader() {
   ControllerButtons(0,PadXInput,xinput::X)==MenuInput::Fighter&&ControllerButtons(0,PadXInput,xinput::Y)==MenuInput::Options&&
   ControllerButtons(0,PadXInput,xinput::View)==MenuInput::Chat,"An Xbox button reached the menu as another action");
  Check(ControllerButtons(0,PadXInput,xinput::Start)==Button::Menu&&(Button::Menu&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat))==0,"Start became a menu shortcut");
+ // RT, the fourth button of a stick's bottom row too, is the accessibility button, unless it confirms or goes back.
+ Check(ControllerButtons(0,PadXInput,xinput::RT)==MenuInput::Describe&&ControllerButtons(0,PadDirectInput,xinput::RT)==MenuInput::Describe,"RT is not the accessibility button");
+ MenuButtons onRt; onRt.confirm=xinput::RT; onRt.back=xinput::B;
+ Check(ControllerButtons(0,PadXInput,xinput::RT,onRt)==MenuInput::Select,"RT bound to confirm also described");
  // A stick confirms on its third button and goes back on its second, as the game's menus do.
  Check(ControllerButtons(0x40,PadDirectInput,1u<<18)==MenuInput::Select&&ControllerButtons(0x80,PadDirectInput,1u<<17)==MenuInput::Back,"A stick lost the game's menu buttons");
  Check(ControllerButtons(0x10,PadDirectInput,1u<<19)==0,"A stick's LP still selected");

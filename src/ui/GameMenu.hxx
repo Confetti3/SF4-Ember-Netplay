@@ -207,7 +207,7 @@ private:
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
     // Says what changed on this frame (MenuNarrator), with speech on. button
     // is an open dialog's highlighted button; primary is what Select does.
-    void Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now);
+    void Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now,bool describe);
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
     std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_;
@@ -217,7 +217,7 @@ private:
     bool noticeError_=false;
     unsigned noticePrevious_=~0u;
     int lastFrame_ = -2;
-    unsigned held_ = 0;
+    unsigned held_ = 0, describeHeld_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);
     UiClock clock_;
     MenuVisualFeedback feedback_;

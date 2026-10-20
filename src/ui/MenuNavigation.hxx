@@ -15,8 +15,10 @@ struct MenuInput {
     // straight in, so both enums number them alike (asserted in
     // ControllerNavigation.hxx); 64 is left for the sample's Menu button.
     // Leave is the Delete key: it leaves your seat from your own table card,
-    // which a pad does with B.
-    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512, Leave=1024 };
+    // which a pad does with B. Describe is the accessibility button, RT and
+    // F2: speech reads the focused row's description (MenuNarrator); the
+    // menu itself does nothing with it.
+    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512, Leave=1024, Describe=2048 };
     unsigned held = 0;
     double time = 0;
     bool acceptText = false;

@@ -31,6 +31,8 @@ struct SpokenFrame {
 struct Utterance {
     std::vector<std::string> parts, render;
     bool interrupt = true;
+    // The accessibility button pressed again on what it is reading: be quiet.
+    bool stop = false;
     std::string Text() const { return speech::Line(parts); }
 };
 // The voice speech uses, as the Accessibility page shows it.
@@ -47,9 +49,10 @@ inline std::string VoiceText(speech::VoiceStatus status) {
 // the value is the point (a setting the player changes or chooses). Moving on
 // interrupts. A dialog the player opens says its question, then its button; a
 // notice that opens by itself stays quiet until the player moves in it. The
-// row's description (a notice's text) is read when the player asks (describe),
-// or DetailDelay seconds after a stop when the player wants that; its button
-// hint and place in the list only if the player wants them.
+// row's description (a notice's text) is read when the player presses the
+// accessibility button (describe), and a second press on the same row stops
+// it; or DetailDelay seconds after a stop when the player wants that. Its
+// button hint and place in the list are read only if the player wants them.
 class MenuNarrator {
 public:
     static constexpr double DetailDelay = 1.5;
@@ -75,11 +78,16 @@ public:
         } else if (!dialog && value != value_) {
             Add(said.parts, value);
         }
-        if (titled || id != id_ || frame.button != button_) { since_ = now; rest_ = true; }
+        if (titled || id != id_ || frame.button != button_) { since_ = now; rest_ = true; described_ = false; }
         title_ = frame.title; id_ = id; value_ = value; question_ = frame.question; button_ = frame.button;
         const bool waited = speech.details && said.parts.empty() && rest_ && now - since_ >= DetailDelay;
-        if (describe || waited) {
+        if (describe && described_) {
+            described_ = false;
+            said = {};
+            said.stop = true;
+        } else if (describe || waited) {
             rest_ = false;
+            described_ = describe;
             said.interrupt = describe;
             Add(said.parts, dialog ? frame.question : frame.focus ? frame.focus->detail : std::string());
             if (speech.hints) Add(said.parts, frame.hint);
@@ -94,6 +102,6 @@ private:
     }
     std::string title_, id_, value_, question_, button_;
     double since_ = 0;
-    bool rest_ = false;
+    bool rest_ = false, described_ = false;
 };
 } }

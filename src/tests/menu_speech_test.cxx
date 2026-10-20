@@ -32,7 +32,12 @@ int main() {
     // No description by itself; F2 asks for it.
     CHECK(narrator.Update(frame, 5, speech).parts.empty());
     said = narrator.Update(frame, 6, speech, true);
-    CHECK(said.Text() == "Reads the pad every frame." && said.interrupt);
+    CHECK(said.Text() == "Reads the pad every frame." && said.interrupt && !said.stop);
+    // A second press on the same row stops it; after a move it describes again.
+    said = narrator.Update(frame, 6.5, speech, true);
+    CHECK(said.stop && said.parts.empty());
+    CHECK(narrator.Update(frame, 6.6, speech, true).Text() == "Reads the pad every frame.");
+    narrator.Update(frame, 6.7, speech, true);
 
     // A move says the name; the value only where the player changes it; no state words.
     frame.focus = &rows[1]; frame.index = 1;
