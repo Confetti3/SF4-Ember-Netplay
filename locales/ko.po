@@ -3116,9 +3116,6 @@ msgstr "멈춘 대전 취소"
 msgid "room.cancel_stuck.detail"
 msgstr "방장 전용입니다. 끝난 대전의 결과가 보고되지 않을 때 사용하세요. 결과는 기록되지 않습니다."
 
-msgid "room.rules.finish_game"
-msgstr "규칙을 바꾸기 전에 진행 중인 대전을 끝내세요."
-
 msgid "room.rules.apply_note"
 msgstr "변경 사항은 적용을 누른 뒤 반영됩니다."
 
@@ -6287,3 +6284,18 @@ msgstr "상대가 재대전을 선택했습니다. 항목을 선택하세요."
 
 msgid "quick_rematch.time_remaining"
 msgstr "남은 시간: {0}초"
+
+msgid "room.continuous.confirming"
+msgstr "경기 결과 확인 중..."
+
+
+msgid "room.continuous.draw"
+msgstr "지난 경기 ({0}): 무승부"
+
+
+msgid "room.continuous.won"
+msgstr "지난 경기 ({0}): {1}, {2}에게 승리"
+
+
+msgid "room.rules.end_game"
+msgstr "적용하면 이 테이블의 경기가 종료되고 플레이어와 관전자가 방으로 돌아갑니다. 다른 테이블은 계속 진행됩니다. 중단된 경기에는 승리가 부여되지 않습니다."

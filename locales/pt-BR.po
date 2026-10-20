@@ -2769,8 +2769,6 @@ msgid "room.cancel_stuck"
 msgstr "Cancelar jogo travado"
 msgid "room.cancel_stuck.detail"
 msgstr "Somente anfitrião. Use quando um jogo encerrado não informar o resultado. Nenhum resultado será registrado."
-msgid "room.rules.finish_game"
-msgstr "Termine o jogo ativo antes de alterar as regras."
 msgid "room.rules.apply_note"
 msgstr "As alterações só valem após Aplicar."
 msgid "room.rules.host_only"
@@ -5813,3 +5811,18 @@ msgstr "O outro jogador confirmou. Escolha uma opção."
 
 msgid "quick_rematch.time_remaining"
 msgstr "Tempo restante: {0} s"
+
+msgid "room.continuous.confirming"
+msgstr "Confirmando o resultado..."
+
+
+msgid "room.continuous.draw"
+msgstr "Última partida ({0}): empate"
+
+
+msgid "room.continuous.won"
+msgstr "Última partida ({0}): {1} venceu {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Aplicar encerra a partida desta mesa e devolve seus jogadores e espectadores à sala. As outras mesas continuam jogando. A partida interrompida não concede vitória."

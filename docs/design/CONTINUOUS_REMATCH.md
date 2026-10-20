@@ -57,6 +57,14 @@ exits through the ordinary abort path. Other tables have separate state.
 Draws record a Draw receipt and finish normally, preserving earlier wins.
 They do not run the unvalidated native draw-to-rematch transition.
 
+When the host applies different table rules during a game, the authority first
+closes that table's current generation through the existing Cancel receipt.
+It applies the rules only after reserving that durable receipt; a full ledger
+leaves the game and rules unchanged. The single result carries the normal
+MatchEnded event and the final snapshot, so existing teardown returns the
+fighters and spectators without editing their running simulation. Other tables
+are unaffected. The next session reads the new limit from the live owner.
+
 Ordinary games use game number zero; continuous games use numbered results
 inside the same generation. Both use one result outbox, profile persistence
 path and retained finish retry. The room's shared EndMatch receives an

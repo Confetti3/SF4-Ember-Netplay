@@ -3116,9 +3116,6 @@ msgstr "Annulla partita ferma"
 msgid "room.cancel_stuck.detail"
 msgstr "Solo host. Usa se una partita conclusa non ha comunicato il risultato. Nessun risultato sarà registrato."
 
-msgid "room.rules.finish_game"
-msgstr "Termina la partita attiva prima di cambiare le regole."
-
 msgid "room.rules.apply_note"
 msgstr "Le modifiche valgono solo dopo Applica."
 
@@ -6287,3 +6284,18 @@ msgstr "L’altro giocatore ha confermato. Scegli un’opzione."
 
 msgid "quick_rematch.time_remaining"
 msgstr "Tempo rimasto: {0} s"
+
+msgid "room.continuous.confirming"
+msgstr "Conferma del risultato in corso..."
+
+
+msgid "room.continuous.draw"
+msgstr "Ultimo incontro ({0}): pareggio"
+
+
+msgid "room.continuous.won"
+msgstr "Ultimo incontro ({0}): {1} ha battuto {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Applicando le regole, l'incontro di questo tavolo termina e giocatori e spettatori tornano in sala. Gli altri tavoli continuano a giocare. L'incontro interrotto non assegna vittorie."

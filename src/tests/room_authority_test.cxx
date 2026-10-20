@@ -260,7 +260,7 @@ static void TestMatchFinishedAndSeatLifecycle() {
 	CHECK(!authority.HasDueTimerTransition(60000)); // paused but still pending
 	const auto unresolved = authority.SnapshotView().tables[0];
 	Action pausedRules = TableAction(authority, host, 0, ActionKind::SetRules);
-	pausedRules.rules.roundTime = 300;
+	pausedRules.rules.roundTime = 0;
 	CHECK(!authority.Apply(host, pausedRules).accepted);
 	const auto afterPausedRules = authority.SnapshotView().tables[0];
 	CHECK(afterPausedRules.phase == TablePhase::Paused && afterPausedRules.matchGeneration == unresolved.matchGeneration);

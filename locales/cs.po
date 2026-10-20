@@ -3116,9 +3116,6 @@ msgstr "Zrušit zaseknutý zápas"
 msgid "room.cancel_stuck.detail"
 msgstr "Jen hostitel. Použijte, pokud skončený zápas nikdy nenahlásil výsledek. Výsledek se nezaznamená."
 
-msgid "room.rules.finish_game"
-msgstr "Před změnou pravidel dokončete probíhající zápas."
-
 msgid "room.rules.apply_note"
 msgstr "Změny se projeví až po potvrzení."
 
@@ -6287,3 +6284,18 @@ msgstr "Druhý hráč potvrdil. Vyberte možnost."
 
 msgid "quick_rematch.time_remaining"
 msgstr "Zbývající čas: {0} s"
+
+msgid "room.continuous.confirming"
+msgstr "Potvrzování výsledku..."
+
+
+msgid "room.continuous.draw"
+msgstr "Poslední zápas ({0}): remíza"
+
+
+msgid "room.continuous.won"
+msgstr "Poslední zápas ({0}): {1} poráží {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Použití ukončí zápas u tohoto stolu a vrátí jeho hráče a diváky do místnosti. Ostatní stoly hrají dál. Přerušený zápas nepřidá žádnou výhru."

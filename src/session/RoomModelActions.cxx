@@ -127,13 +127,22 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
-	if (GameUnderWay(*table) || !action.rules.Valid()) return Reject(RejectReason::InvalidRules);
+	if (!action.rules.Valid()) return Reject(RejectReason::InvalidRules);
+	if (action.rules == table->rules) return Accept();
+	std::vector<Event> events;
+	if (GameUnderWay(*table)) {
+		// Keep the old rules until the existing close path has reserved its
+		// durable receipt. A full ledger leaves both match and rules intact.
+		auto ended = EndMatch(table->id, table->matchGeneration, MatchResult::Cancel);
+		if (!ended.accepted) return ended;
+		events = std::move(ended.events);
+	}
 	// A different set length or rotation starts a new set. Round count, time and
 	// edition apply from the next game and keep the score.
 	const bool newSet = action.rules.format != table->rules.format || action.rules.rotation != table->rules.rotation;
 	table->rules = action.rules;
 	if (newSet) { table->streakHolder = 0; table->streak = 0; }
-	ResetTable(*table, newSet); return Accept();
+	ResetTable(*table, newSet); return Accept(std::move(events));
 }
 
 Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* table) {

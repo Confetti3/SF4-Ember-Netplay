@@ -278,8 +278,11 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      t.rules.format==room::SetFormat::Unlimited?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
     return;
    }
-   RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"),s.practice);
-   if(rulesDirty_)rows.push_back(Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail"),!active));
+   const bool live=t.phase==TablePhase::Playing||t.phase==TablePhase::Paused;
+   RuleRows(rows,tableRules_,true,loc::T(live?"room.rules.end_game":"room.rules.apply_note"),s.practice);
+   if(rulesDirty_)rows.push_back(live
+    ?ConfirmRow("apply-rules",loc::T("room.apply_rules"),loc::T("room.rules.end_game"))
+    :Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail")));
    // The host edits the rules in place, so the summary above is not shown to them.
    if(s.delayPolicy==room::DelayPolicy::Own)rows.push_back(ReadOnlyValue("delay-policy",loc::T("room.delay_policy"),loc::T("room.delay_policy.own"),loc::T("room.delay_policy.detail")));
   };

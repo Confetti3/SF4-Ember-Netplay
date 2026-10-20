@@ -307,6 +307,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME GamepadSlotsImportPatch SOURCES src/tests/import_patch_test.cxx src/sf4e/sf4e__ImportPatch.cxx STD 17)
     sf4e_add_unit_test(NAME DirectInputFilter SOURCES src/tests/directinput_filter_test.cxx LIBS sf4e dxguid STD 17)
     sf4e_add_unit_test(NAME QuickRematchPanel SOURCES src/tests/quick_rematch_panel_test.cxx LIBS sf4e_ui STD 17 TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomContinuousPresentation SOURCES src/tests/room_continuous_presentation_test.cxx LIBS sf4e_ui STD 17 TIMEOUT 30)
     sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
         src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
         src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx

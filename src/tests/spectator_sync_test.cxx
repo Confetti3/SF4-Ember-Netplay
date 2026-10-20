@@ -299,6 +299,19 @@ static void ParkedActionRetryGate() {
 	netplay::RetryGate menu; menu.controlHealthy = menu.authorityWritable = menu.atMenuIdle = true;
 	netplay::RetryGate watching; watching.controlHealthy = watching.authorityWritable = watching.spectatorInGame = true;
 	netplay::RetryGate fighting; fighting.controlHealthy = fighting.authorityWritable = true;
+	// A host applying rules may be a fighter, spectator or in the lobby.
+	// If the first send is fenced or its queue is full, retry once control
+	// recovers without waiting for the very match the edit is meant to end.
+	for (const auto gate : {menu, watching, fighting}) {
+		const auto edit = action(ActionKind::SetRules);
+		CHECK(netplay::ParkedActionRetryable(edit, gate));
+		auto fenced = gate; fenced.authorityWritable = false;
+		CHECK(!netplay::ParkedActionRetryable(edit, fenced));
+		auto disconnected = gate; disconnected.controlHealthy = false;
+		CHECK(!netplay::ParkedActionRetryable(edit, disconnected));
+		auto recoveringEdit = gate; recoveringEdit.recoveringMatch = true;
+		CHECK(!netplay::ParkedActionRetryable(edit, recoveringEdit));
+	}
 	for (const auto kind : {ActionKind::Unwatch, ActionKind::Unqueue, ActionKind::Chat}) {
 		CHECK(netplay::ParkedActionRetryable(action(kind), watching));
 		CHECK(!netplay::ParkedActionRetryable(action(kind), fighting));

@@ -3116,9 +3116,6 @@ msgstr "Cancelar partida atascada"
 msgid "room.cancel_stuck.detail"
 msgstr "Solo el anfitrión. Úsalo si una partida terminada no comunica el resultado. No se registrará ningún resultado."
 
-msgid "room.rules.finish_game"
-msgstr "Termina la partida activa antes de cambiar las reglas."
-
 msgid "room.rules.apply_note"
 msgstr "Solo se aplican al pulsar Aplicar."
 
@@ -6287,3 +6284,18 @@ msgstr "El otro jugador ha confirmado. Elige una opción."
 
 msgid "quick_rematch.time_remaining"
 msgstr "Tiempo restante: {0} s"
+
+msgid "room.continuous.confirming"
+msgstr "Confirmando el resultado..."
+
+
+msgid "room.continuous.draw"
+msgstr "Última partida ({0}): empate"
+
+
+msgid "room.continuous.won"
+msgstr "Última partida ({0}): {1} venció a {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Aplicar termina la partida de esta mesa y devuelve a sus jugadores y espectadores a la sala. Las demás mesas siguen jugando. La partida interrumpida no otorga ninguna victoria."

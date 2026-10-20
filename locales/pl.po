@@ -3116,9 +3116,6 @@ msgstr "Anuluj zawieszoną walkę"
 msgid "room.cancel_stuck.detail"
 msgstr "Tylko host. Użyj, gdy zakończona walka nie przekazała wyniku. Wynik nie zostanie zapisany."
 
-msgid "room.rules.finish_game"
-msgstr "Zakończ trwającą walkę przed zmianą zasad."
-
 msgid "room.rules.apply_note"
 msgstr "Zmiany po zastosowaniu."
 
@@ -6287,3 +6284,18 @@ msgstr "Drugi gracz potwierdził. Wybierz opcję."
 
 msgid "quick_rematch.time_remaining"
 msgstr "Pozostały czas: {0} s"
+
+msgid "room.continuous.confirming"
+msgstr "Potwierdzanie wyniku..."
+
+
+msgid "room.continuous.draw"
+msgstr "Ostatni mecz ({0}): remis"
+
+
+msgid "room.continuous.won"
+msgstr "Ostatni mecz ({0}): {1} pokonuje {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Zastosowanie kończy mecz przy tym stole i przenosi jego graczy oraz widzów do pokoju. Pozostałe stoły grają dalej. Przerwany mecz nie przyznaje zwycięstwa."

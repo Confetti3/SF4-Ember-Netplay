@@ -2884,8 +2884,6 @@ msgid "room.cancel_stuck"
 msgstr "Cancel stuck game"
 msgid "room.cancel_stuck.detail"
 msgstr "Host only. Use this when a finished game never reported its result. No result will be recorded."
-msgid "room.rules.finish_game"
-msgstr "Finish the active game before changing rules."
 msgid "room.rules.apply_note"
 msgstr "Changes apply only after Apply."
 msgid "room.rules.host_only"
@@ -5929,3 +5927,18 @@ msgstr "The other player confirmed. Choose an option."
 
 msgid "quick_rematch.time_remaining"
 msgstr "Time remaining: {0} s"
+
+msgid "room.continuous.confirming"
+msgstr "Confirming the game result..."
+
+
+msgid "room.continuous.draw"
+msgstr "Last game ({0}): draw"
+
+
+msgid "room.continuous.won"
+msgstr "Last game ({0}): {1} beat {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Applying ends this table's game and returns its players and spectators to the room. Other tables keep playing. The interrupted game awards no win."

@@ -446,6 +446,21 @@ int main() try {
             std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "rounds"; }),
             "A guest does not see the table's rules as one line");
         view.room.host = 1; frame();
+        // Live rule edits are drafts until the host confirms ending this
+        // table's game. Cancel is the default, including on a controller.
+        view.room.tables[0].phase = room::TablePhase::Playing; frame();
+        const auto beforeLiveRules = actions.size();
+        focus("set-length"); press(MenuInput::Right);
+        Check(actions.size() == beforeLiveRules && row("apply-rules").confirm,
+            "Editing live rules sent a mutation or omitted the interruption confirmation");
+        focus("apply-rules"); press(MenuInput::Select); press(MenuInput::Select);
+        Check(actions.size() == beforeLiveRules, "Live rules confirmation did not default to Cancel");
+        press(MenuInput::Select); press(MenuInput::Right); press(MenuInput::Select);
+        Check(actions.size() == beforeLiveRules + 1 && actions.back().roomAction.kind == room::ActionKind::SetRules &&
+            actions.back().roomAction.table == 0,
+            "Confirmed live rules did not target the selected table");
+        view.room.tables[0].rules = actions.back().roomAction.rules;
+        view.room.tables[0].phase = room::TablePhase::Waiting; ++view.room.tables[0].revision; frame();
     }
 
     view.session.recovery = netplay::Recovery::Recovering;

@@ -3116,9 +3116,6 @@ msgstr "Annuler combat bloqué"
 msgid "room.cancel_stuck.detail"
 msgstr "Hôte uniquement. À utiliser si un combat terminé n'a jamais fourni son résultat. Aucun résultat enregistré."
 
-msgid "room.rules.finish_game"
-msgstr "Terminez le combat actif avant de modifier les règles."
-
 msgid "room.rules.apply_note"
 msgstr "Modifications actives après Appliquer."
 
@@ -6287,3 +6284,18 @@ msgstr "L’autre joueur a confirmé. Choisissez une option."
 
 msgid "quick_rematch.time_remaining"
 msgstr "Temps restant : {0} s"
+
+msgid "room.continuous.confirming"
+msgstr "Confirmation du résultat..."
+
+
+msgid "room.continuous.draw"
+msgstr "Dernier match ({0}) : égalité"
+
+
+msgid "room.continuous.won"
+msgstr "Dernier match ({0}) : {1} a battu {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Appliquer termine le match de cette table et renvoie ses joueurs et spectateurs au salon. Les autres tables continuent. Le match interrompu n'accorde aucune victoire."

@@ -3117,9 +3117,6 @@ msgstr "Отменить зависший бой"
 msgid "room.cancel_stuck.detail"
 msgstr "Только для ведущего. Используйте, если завершённый бой так и не сообщил результат. Результат не будет записан."
 
-msgid "room.rules.finish_game"
-msgstr "Завершите текущий бой перед изменением правил."
-
 msgid "room.rules.apply_note"
 msgstr "Изменения ещё не применены."
 
@@ -6288,3 +6285,18 @@ msgstr "Другой игрок подтвердил. Выберите дейс�
 
 msgid "quick_rematch.time_remaining"
 msgstr "Осталось времени: {0} с"
+
+msgid "room.continuous.confirming"
+msgstr "Подтверждение результата..."
+
+
+msgid "room.continuous.draw"
+msgstr "Последний матч ({0}): ничья"
+
+
+msgid "room.continuous.won"
+msgstr "Последний матч ({0}): {1} побеждает {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Применение завершит матч за этим столом и вернёт его игроков и зрителей в комнату. Другие столы продолжат играть. За прерванный матч победа не присуждается."
