@@ -18,11 +18,15 @@ int main(){
   Check(!rows[0].enabled,"Incompatible LAN room can be joined");
   h.view.lanRooms.rooms[0].build="build";h.view.lanRooms.rooms[0].members=2;
   rows=sf4e::ui::LanRoomRows(h.view.lanRooms,h.view.build,true);Check(!rows[0].enabled,"Full LAN room can be joined");
-  h.Choose("lan-host");h.Choose("host");
+  std::vector<MenuEntry> visible;SetMenuEntriesProbe([&](const auto& r){visible=r;});
+  h.Choose("lan-host");
+  Check(std::any_of(visible.begin(),visible.end(),[](const auto& r){return r.id=="lan-mode"&&r.info;}),"LAN creation does not explain its fixed local transport");
+  Check(std::none_of(visible.begin(),visible.end(),[](const auto& r){return r.id=="visibility";}),"LAN creation offers online/public visibility");
+  h.Choose("host");
   Check(h.actions.back().command.kind==CommandKind::HostRoom&&h.actions.back().transport==sf4e::netplay::RoomTransport::Lan,"LAN host was sent to the online/public path");
   h.Screen("online");h.Choose("create");
   // A saved public preference is still public after visiting LAN Create.
-  std::vector<MenuEntry> visible;SetMenuEntriesProbe([&](const auto& r){visible=r;});h.Frame();
+  h.Frame();
   Check(std::any_of(visible.begin(),visible.end(),[](const auto& r){return r.id=="visibility";}),"LAN creation leaked into ordinary Create");
   JoinedRoom(h,1);h.view.invitation="opaque invitation";h.view.transport=sf4e::netplay::RoomTransport::Lan;
   h.Screen("room");

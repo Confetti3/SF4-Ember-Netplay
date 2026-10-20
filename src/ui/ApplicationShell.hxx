@@ -381,7 +381,6 @@ private:
     }
     // The Create screen and its neighbours (ApplicationShell__Create.cxx).
     // RoomSetupRows builds Create and Defaults, which edit the same room settings.
-    MenuEntry CreateVisibilityRow(bool publicRoom,bool can) const;
     std::vector<MenuEntry> RoomSetupRows(const ShellView& view,const std::string& screen,bool opening,const char* reason,std::string& title);
     void CreateActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     bool CreateAdjust(const MenuAction& action);

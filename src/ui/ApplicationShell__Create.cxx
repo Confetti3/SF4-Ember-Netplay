@@ -12,10 +12,6 @@ std::string CutUtf8(std::string text,std::size_t limit) {
     text.resize(limit);return text;
 }
 }
-MenuEntry ApplicationShell::CreateVisibilityRow(bool publicRoom,bool can) const {
- if(createKind_==CreateKind::Lan)return InfoRow("lan-mode",loc::T("lan.title"),"",loc::T("lan.host_detail"));
- return Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can);
-}
 // Create and Defaults edit the same room settings, so their rows are built together.
 std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const std::string& screen,bool opening,const char* reason,std::string& title) {
  using namespace netplay;
@@ -28,7 +24,7 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  if(screen=="defaults")rows.push_back(preferences_.autoInputDelay?Value("delay",loc::T("settings.input_delay"),loc::T("settings.input_delay.auto"),
   loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum)+"\n"+reason,can):
   Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),loc::Tf("room.selected_delay.detail",MinimumInputDelay,MaximumInputDelay)+"\n"+reason,can));
- if(screen=="create")rows.push_back(CreateVisibilityRow(publicRoom,can));
+ if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
  rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
  // Only a private room can be a Practice room, which has no round time to choose.
@@ -36,6 +32,9 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
  rows.push_back(DelayPolicyRow(preferences_.roomDelayPolicy,can));
  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason,practice);
+ // LAN creation has a fixed transport, so its visibility row is descriptive only.
+ if(screen=="create"&&createKind_==CreateKind::Lan)
+  rows.front()=InfoRow("lan-mode",loc::T("lan.title"),"",loc::T("lan.host_detail"));
  if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
   Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
    can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
