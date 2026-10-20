@@ -6271,7 +6271,7 @@ msgid "music.match_default"
 msgstr "场景音乐（默认）"
 
 msgid "music.match_detail"
-msgstr "选择场景、角色或随机。随机会在从房间进入对战时选择曲目。自定义场景自带的音乐优先播放。"
+msgstr "选择场景、角色或随机。随机会为每场对战选择曲目，包括再战。自定义场景自带的音乐优先播放。"
 
 msgid "music.reset"
 msgstr "恢复默认音乐"

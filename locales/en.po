@@ -5913,7 +5913,7 @@ msgid "music.match_default"
 msgstr "Stage music (default)"
 
 msgid "music.match_detail"
-msgstr "Choose a stage, a character, or Random. Random selects a track when entering a match from the lobby. A custom stage's own music takes priority."
+msgstr "Choose a stage, a character, or Random. Random selects a track for each match, including rematches. A custom stage's own music takes priority."
 
 msgid "music.reset"
 msgstr "Restore default music"

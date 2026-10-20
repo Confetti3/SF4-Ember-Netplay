@@ -6271,7 +6271,7 @@ msgid "music.match_default"
 msgstr "Stagemuziek (standaard)"
 
 msgid "music.match_detail"
-msgstr "Kies een stage, een personage of Willekeurig. Willekeurig kiest een nummer wanneer een wedstrijd vanuit de lobby begint. De eigen muziek van een aangepaste stage krijgt voorrang."
+msgstr "Kies een stage, een personage of Willekeurig. Willekeurig kiest voor elke wedstrijd een nummer, ook bij rematches. De eigen muziek van een aangepaste stage krijgt voorrang."
 
 msgid "music.reset"
 msgstr "Standaardmuziek herstellen"

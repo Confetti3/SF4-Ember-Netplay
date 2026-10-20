@@ -6271,7 +6271,7 @@ msgid "music.match_default"
 msgstr "Música del escenario (predeterminada)"
 
 msgid "music.match_detail"
-msgstr "Elige un escenario, un personaje o Aleatorio. Aleatorio elige un tema al iniciar un combate desde la sala. La música propia de un escenario personalizado tiene prioridad."
+msgstr "Elige un escenario, un personaje o Aleatorio. Aleatorio elige un tema para cada combate, incluidas las revanchas. La música propia de un escenario personalizado tiene prioridad."
 
 msgid "music.reset"
 msgstr "Restaurar música predeterminada"

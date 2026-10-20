@@ -6271,7 +6271,7 @@ msgid "music.match_default"
 msgstr "Muzyka areny (domyślna)"
 
 msgid "music.match_detail"
-msgstr "Wybierz arenę, postać lub Losowo. Losowo wybiera utwór przy rozpoczęciu walki z pokoju. Własna muzyka niestandardowej areny ma pierwszeństwo."
+msgstr "Wybierz arenę, postać lub Losowo. Losowo wybiera utwór do każdej walki, także do rewanżów. Własna muzyka niestandardowej areny ma pierwszeństwo."
 
 msgid "music.reset"
 msgstr "Przywróć domyślną muzykę"

@@ -6271,7 +6271,7 @@ msgid "music.match_default"
 msgstr "Stage-Musik (Standard)"
 
 msgid "music.match_detail"
-msgstr "Wähle eine Stage, einen Charakter oder Zufällig. Zufällig wählt beim Start eines Kampfes aus der Lobby einen Titel. Die eigene Musik einer benutzerdefinierten Stage hat Vorrang."
+msgstr "Wähle eine Stage, einen Charakter oder Zufällig. Zufällig wählt für jeden Kampf einen Titel, auch bei Rückkämpfen. Die eigene Musik einer benutzerdefinierten Stage hat Vorrang."
 
 msgid "music.reset"
 msgstr "Standardmusik wiederherstellen"

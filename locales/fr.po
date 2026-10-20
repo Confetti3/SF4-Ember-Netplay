@@ -6271,7 +6271,7 @@ msgid "music.match_default"
 msgstr "Musique du stage (par défaut)"
 
 msgid "music.match_detail"
-msgstr "Choisissez un stage, un personnage ou Aléatoire. Aléatoire choisit un morceau au lancement d'un match depuis le salon. La musique propre à un stage personnalisé est prioritaire."
+msgstr "Choisissez un stage, un personnage ou Aléatoire. Aléatoire choisit un morceau pour chaque match, y compris les revanches. La musique propre à un stage personnalisé est prioritaire."
 
 msgid "music.reset"
 msgstr "Rétablir la musique par défaut"

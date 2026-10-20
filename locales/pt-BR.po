@@ -5797,7 +5797,7 @@ msgid "music.match_default"
 msgstr "Música do cenário (padrão)"
 
 msgid "music.match_detail"
-msgstr "Escolha um cenário, um personagem ou Aleatório. Aleatório escolhe uma faixa ao entrar em uma partida pela sala. A música própria de um cenário personalizado tem prioridade."
+msgstr "Escolha um cenário, um personagem ou Aleatório. Aleatório escolhe uma faixa para cada partida, incluindo as revanches. A música própria de um cenário personalizado tem prioridade."
 
 msgid "music.reset"
 msgstr "Restaurar música padrão"

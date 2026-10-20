@@ -6271,7 +6271,7 @@ msgid "music.match_default"
 msgstr "Hudba scény (výchozí)"
 
 msgid "music.match_detail"
-msgstr "Vyberte scénu, postavu nebo Náhodně. Náhodně vybere skladbu při vstupu do zápasu z lobby. Vlastní hudba upravené scény má přednost."
+msgstr "Vyberte scénu, postavu nebo Náhodně. Náhodně vybere skladbu pro každý zápas včetně odvet. Vlastní hudba upravené scény má přednost."
 
 msgid "music.reset"
 msgstr "Obnovit výchozí hudbu"

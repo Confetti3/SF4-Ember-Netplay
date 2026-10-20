@@ -6271,7 +6271,7 @@ msgid "music.match_default"
 msgstr "Musica dello stage (predefinita)"
 
 msgid "music.match_detail"
-msgstr "Scegli uno stage, un personaggio o Casuale. Casuale sceglie un brano entrando in partita dalla lobby. La musica propria di uno stage personalizzato ha la precedenza."
+msgstr "Scegli uno stage, un personaggio o Casuale. Casuale sceglie un brano per ogni incontro, comprese le rivincite. La musica propria di uno stage personalizzato ha la precedenza."
 
 msgid "music.reset"
 msgstr "Ripristina musica predefinita"
