@@ -4762,6 +4762,21 @@ msgstr "Lire la position"
 msgid "speech.read_position_detail"
 msgstr "Après le nom et la valeur d'une ligne, indique sa place dans la liste, par exemple 3 sur 12."
 
+msgid "speech.notice"
+msgstr "Avis. Appuyez sur {0} pour l'entendre."
+
+msgid "speech.chime"
+msgstr "Son des avis"
+
+msgid "speech.chime_detail"
+msgstr "Un bref son avant que la voix annonce qu'un avis s'est ouvert de lui-même."
+
+msgid "speech.chime_volume"
+msgstr "Volume du son des avis"
+
+msgid "speech.chime_volume_detail"
+msgstr "Le volume du son des avis."
+
 msgid "speech.voice"
 msgstr "Voix"
 

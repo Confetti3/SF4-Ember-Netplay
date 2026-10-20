@@ -4762,6 +4762,21 @@ msgstr "Číst pozici"
 msgid "speech.read_position_detail"
 msgstr "Po názvu a hodnotě řádku řekne jeho pozici v seznamu, například 3 z 12."
 
+msgid "speech.notice"
+msgstr "Oznámení. Stiskněte {0} a uslyšíte ho."
+
+msgid "speech.chime"
+msgstr "Zvuk oznámení"
+
+msgid "speech.chime_detail"
+msgstr "Krátký zvuk před tím, než hlas řekne, že se samo otevřelo oznámení."
+
+msgid "speech.chime_volume"
+msgstr "Hlasitost zvuku oznámení"
+
+msgid "speech.chime_volume_detail"
+msgstr "Jak hlasitě zní zvuk oznámení."
+
 msgid "speech.voice"
 msgstr "Hlas"
 

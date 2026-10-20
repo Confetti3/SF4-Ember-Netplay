@@ -29,17 +29,21 @@ struct LobbySettings {
 // volume is percent in steps of ten. details: a row's description is read by
 // itself once the player stays on it, not only when asked for (F2). hints: its
 // button hint is read with it. position: each row is followed by its place in
-// the list ("3 of 12").
+// the list ("3 of 12"). chime: a notice that opens by itself plays a short
+// chime first, at chimeVolume percent in steps of ten.
 struct SpeechPreferences {
     bool enabled = false;
     int rate = 0;
     int volume = 100;
-    bool details = false, hints = false, position = false;
+    bool details = false, hints = false, position = false, chime = true;
+    int chimeVolume = 60;
     bool operator==(const SpeechPreferences& other) const {
         return enabled == other.enabled && rate == other.rate && volume == other.volume && details == other.details && hints == other.hints &&
-            position == other.position;
+            position == other.position && chime == other.chime && chimeVolume == other.chimeVolume;
     }
-    bool Valid() const { return rate >= -10 && rate <= 10 && volume >= 10 && volume <= 100 && volume % 10 == 0; }
+    bool Valid() const {
+        return rate >= -10 && rate <= 10 && volume >= 10 && volume <= 100 && volume % 10 == 0 && chimeVolume >= 10 && chimeVolume <= 100 && chimeVolume % 10 == 0;
+    }
 };
 
 // How far the name plates move either way, in 720p game units.

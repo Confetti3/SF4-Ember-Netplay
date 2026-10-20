@@ -4762,6 +4762,21 @@ msgstr "Leggi la posizione"
 msgid "speech.read_position_detail"
 msgstr "Dopo il nome e il valore di una riga, ne dice la posizione nell'elenco, ad esempio 3 di 12."
 
+msgid "speech.notice"
+msgstr "Avviso. Premi {0} per sentirlo."
+
+msgid "speech.chime"
+msgstr "Suono degli avvisi"
+
+msgid "speech.chime_detail"
+msgstr "Un breve suono prima che la voce dica che si è aperto un avviso da solo."
+
+msgid "speech.chime_volume"
+msgstr "Volume del suono degli avvisi"
+
+msgid "speech.chime_volume_detail"
+msgstr "Quanto forte suona l'avviso."
+
 msgid "speech.voice"
 msgstr "Voce"
 

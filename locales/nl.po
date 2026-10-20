@@ -4762,6 +4762,21 @@ msgstr "Positie voorlezen"
 msgid "speech.read_position_detail"
 msgstr "Zegt na de naam en waarde van een rij de plaats in de lijst, zoals 3 van 12."
 
+msgid "speech.notice"
+msgstr "Melding. Druk op {0} om ze te horen."
+
+msgid "speech.chime"
+msgstr "Meldingsgeluid"
+
+msgid "speech.chime_detail"
+msgstr "Een kort geluid voordat de spraak zegt dat er vanzelf een melding is geopend."
+
+msgid "speech.chime_volume"
+msgstr "Volume meldingsgeluid"
+
+msgid "speech.chime_volume_detail"
+msgstr "Hoe luid het meldingsgeluid klinkt."
+
 msgid "speech.voice"
 msgstr "Stem"
 

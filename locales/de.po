@@ -4762,6 +4762,21 @@ msgstr "Position vorlesen"
 msgid "speech.read_position_detail"
 msgstr "Nennt nach Name und Wert einer Zeile ihre Position in der Liste, etwa 3 von 12."
 
+msgid "speech.notice"
+msgstr "Hinweis. Drücke {0}, um ihn zu hören."
+
+msgid "speech.chime"
+msgstr "Hinweiston"
+
+msgid "speech.chime_detail"
+msgstr "Ein kurzer Ton, bevor die Sprachausgabe sagt, dass sich ein Hinweis von selbst geöffnet hat."
+
+msgid "speech.chime_volume"
+msgstr "Lautstärke des Hinweistons"
+
+msgid "speech.chime_volume_detail"
+msgstr "Wie laut der Hinweiston spielt."
+
 msgid "speech.voice"
 msgstr "Stimme"
 

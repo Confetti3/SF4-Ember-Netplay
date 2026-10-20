@@ -1,8 +1,10 @@
 #include "Speech.hxx"
 #include "SpeechLinux.hxx"
 #include "Utf8.hxx"
+#include "../common/AwayAlert.hxx"
 #include "../common/Localization.hxx"
 #include <sapi.h>
+#include <mmsystem.h>
 #include <spdlog/spdlog.h>
 #include <atomic>
 #include <chrono>
@@ -154,6 +156,14 @@ void Render(const std::vector<std::string>& parts, int rate) {
     if (!parts.empty()) Queue({parts, false, true, rate, 0, loc::Tag(loc::Active())});
 }
 void Stop() { Queue({{}, true, false, 0, 0, {}}); }
+void Chime(int volume) {
+    // PlaySoundW reads the sound while it plays, so it stays alive here, and
+    // the one playing is stopped before it is replaced.
+    static std::vector<std::uint8_t> wave;
+    PlaySoundW(nullptr, nullptr, 0);
+    wave = away_alert::Tones({{1318.5, .08}, {987.8, .16}}, volume);
+    PlaySoundW(reinterpret_cast<LPCWSTR>(wave.data()), nullptr, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
+}
 Missing Unavailable() { return missing; }
 VoiceStatus NaturalVoice() { return {voice, percent}; }
 } }

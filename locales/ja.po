@@ -4763,6 +4763,21 @@ msgstr "位置を読み上げ"
 msgid "speech.read_position_detail"
 msgstr "項目の名前と値の後に、一覧での位置を読み上げます（例：12件中3件目）。"
 
+msgid "speech.notice"
+msgstr "お知らせです。{0}を押すと読み上げます。"
+
+msgid "speech.chime"
+msgstr "お知らせの効果音"
+
+msgid "speech.chime_detail"
+msgstr "お知らせが自動で開いたことを音声で伝える前に、短い効果音を鳴らします。"
+
+msgid "speech.chime_volume"
+msgstr "効果音の音量"
+
+msgid "speech.chime_volume_detail"
+msgstr "お知らせの効果音の大きさです。"
+
 msgid "speech.voice"
 msgstr "音声"
 

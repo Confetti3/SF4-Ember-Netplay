@@ -24,6 +24,9 @@ void Say(const std::vector<std::string>& parts, bool interrupt, int rate, int vo
 // it has said to make ahead; others let them go.
 void Render(const std::vector<std::string>& parts, int rate);
 void Stop();
+// The notice chime: a short falling pair of tones, at volume percent, through
+// Windows (winmm) under Proton too. It does not wait.
+void Chime(int volume);
 // What kept speech from being heard, if anything: Windows has no SAPI voice,
 // or under Wine speech-dispatcher could not be reached. It stays so for the
 // session.

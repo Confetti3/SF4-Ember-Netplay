@@ -4762,6 +4762,21 @@ msgstr "Czytaj pozycję"
 msgid "speech.read_position_detail"
 msgstr "Po nazwie i wartości wiersza podaje jego miejsce na liście, na przykład 3 z 12."
 
+msgid "speech.notice"
+msgstr "Powiadomienie. Naciśnij {0}, aby je usłyszeć."
+
+msgid "speech.chime"
+msgstr "Dźwięk powiadomień"
+
+msgid "speech.chime_detail"
+msgstr "Krótki dźwięk, zanim głos powie, że samo otworzyło się powiadomienie."
+
+msgid "speech.chime_volume"
+msgstr "Głośność dźwięku powiadomień"
+
+msgid "speech.chime_volume_detail"
+msgstr "Jak głośno brzmi dźwięk powiadomień."
+
 msgid "speech.voice"
 msgstr "Głos"
 

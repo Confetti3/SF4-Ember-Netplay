@@ -3,7 +3,8 @@
 // where the value is the point; the description only when asked for (F2) or
 // wanted after a stop; a changed value alone; the place in the list only when
 // wanted; a dialog's question before its button, and a notice that opened by
-// itself kept quiet; each part apart, and a new screen's rows to prepare.
+// itself announced with a chime and read whole on the accessibility button;
+// each part apart, and a new screen's rows to prepare.
 #include "../ui/MenuSpeech.hxx"
 #include "../common/Localization.hxx"
 #include "test_support.hxx"
@@ -76,12 +77,17 @@ int main() {
     frame.question.clear(); frame.button.clear();
     CHECK(narrator.Update(frame, 26, speech).Text() == "Lower input lag, On");
 
-    // A notice that opened by itself is quiet until the player moves in it or asks.
+    // A notice that opened by itself chimes and says how to hear it; the
+    // accessibility button reads its text and buttons; moving says the button.
     frame.notice = true; frame.question = "A new version is ready."; frame.button = "Later";
-    CHECK(narrator.Update(frame, 27, speech).parts.empty());
+    frame.buttons = {"Later", "Update now"}; frame.accessKey = "RT";
+    said = narrator.Update(frame, 27, speech);
+    CHECK(said.chime && said.Text() == "Notice. Press RT to hear it." && said.interrupt);
+    CHECK(narrator.Update(frame, 27.5, speech, true).Text() == "A new version is ready. Later, Update now");
     frame.button = "Update now";
-    CHECK(narrator.Update(frame, 28, speech).Text() == "Update now");
-    CHECK(narrator.Update(frame, 29, speech, true).Text() == "A new version is ready.");
+    said = narrator.Update(frame, 28, speech);
+    CHECK(said.Text() == "Update now" && !said.chime);
+    CHECK(narrator.Update(frame, 29, speech, true).Text() == "A new version is ready. Later, Update now");
     frame.notice = false; frame.question.clear(); frame.button.clear();
     narrator.Update(frame, 30, speech);
 

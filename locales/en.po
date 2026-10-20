@@ -4401,6 +4401,21 @@ msgstr "Read position"
 msgid "speech.read_position_detail"
 msgstr "After a row's name and value, says its place in the list, such as 3 of 12."
 
+msgid "speech.notice"
+msgstr "Notice. Press {0} to hear it."
+
+msgid "speech.chime"
+msgstr "Notice chime"
+
+msgid "speech.chime_detail"
+msgstr "A short chime before speech says a notice has opened by itself."
+
+msgid "speech.chime_volume"
+msgstr "Chime volume"
+
+msgid "speech.chime_volume_detail"
+msgstr "How loud the notice chime plays."
+
 msgid "speech.voice"
 msgstr "Voice"
 

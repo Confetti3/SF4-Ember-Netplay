@@ -88,7 +88,7 @@ const MenuEntry* FindEntry(const std::vector<MenuEntry>& entries,const std::stri
 }
 }
 void GameMenu::ShowNotice(NoticeDialog notice) {
-    notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons);
+    notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons); noticeAsked_=notice.asked;
     // A notice always has a button to close it by.
     if(noticeButtons_.empty()) noticeButtons_.push_back({loc::T("common.ok")});
     noticeSelected_=(std::max)(0,(std::min)(notice.selected,static_cast<int>(noticeButtons_.size())-1)); noticeError_=false; noticeResult_=NoticeResult::None;

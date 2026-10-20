@@ -312,15 +312,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences),
    Value("watched-picture",loc::T("settings.watched_picture"),preferences_.watchedPicture?loc::T("common.on"):loc::T("common.off"),loc::T("settings.watched_picture_detail"),v.canEditPreferences)};
  }else if(screen=="accessibility"){
-  // Rate, volume and what is read wait for speech to be on, like the ready sound's volume.
-  title=loc::T("settings.accessibility_title");const auto& speech=preferences_.speech;const bool speaking=v.canEditPreferences&&speech.enabled;
-  rows={Value("speech",loc::T("speech.setting"),speech.enabled?loc::T("common.on"):loc::T("common.off"),loc::T("speech.setting_detail"),v.canEditPreferences),
-   Value("speech-rate",loc::T("speech.rate"),std::to_string(speech.rate),loc::T("speech.rate_detail"),speaking),
-   Value("speech-volume",loc::T("speech.volume"),std::to_string(speech.volume)+"%",loc::T("speech.volume_detail"),speaking),
-   Value("speech-details",loc::T("speech.details"),speech.details?loc::T("common.on"):loc::T("common.off"),loc::T("speech.details_detail"),speaking),
-   Value("speech-hints",loc::T("speech.hints"),speech.hints?loc::T("common.on"):loc::T("common.off"),loc::T("speech.hints_detail"),speaking),
-   Value("speech-position",loc::T("speech.read_position"),speech.position?loc::T("common.on"):loc::T("common.off"),loc::T("speech.read_position_detail"),speaking),
-   InfoRow("speech-voice",loc::T("speech.voice"),VoiceText(speech::NaturalVoice()),loc::T("speech.voice_detail"))};
+  title=loc::T("settings.accessibility_title");rows=AccessibilityRows(v);
  }else if(screen=="discord"){
   title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
    Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
@@ -577,12 +569,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
-  else if(a.id=="speech"){speechIntro_=a.delta>0&&!preferences_.speech.enabled;preferences_.speech.enabled=a.delta>0;}
-  else if(a.id=="speech-rate")preferences_.speech.rate=(std::max)(-10,(std::min)(10,preferences_.speech.rate+a.delta));
-  else if(a.id=="speech-volume")preferences_.speech.volume=(std::max)(10,(std::min)(100,preferences_.speech.volume+10*a.delta));
-  else if(a.id=="speech-details")preferences_.speech.details=a.delta>0;
-  else if(a.id=="speech-hints")preferences_.speech.hints=a.delta>0;
-  else if(a.id=="speech-position")preferences_.speech.position=a.delta>0;
+  else if(AdjustSpeech(a)){}
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="shortcut-hint")preferences_.showShortcutHint=a.delta>0;
@@ -924,29 +911,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
  // An opening public room's card is information, so the cursor waits on its Stop row.
  if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
- // Speech follows the row on screen, which may not be saved yet. Speech that
- // cannot be heard is said on screen instead, once.
- SetMenuSpeech(preferences_.speech);
- // Turning speech on says once how it works, aloud and on screen, naming the
- // accessibility button as the player's device prints it.
- if(std::exchange(speechIntro_,false)){
-  const auto intro=loc::Tf("speech.intro",KeyboardPrompts()?std::string("F2"):SpokenButton("RT"));
-  menu_.ShowNotice(intro,loc::T("speech.setting"));
-  speech::Say({intro},true,preferences_.speech.rate,preferences_.speech.volume);
- }
- const auto missing=speech::Unavailable();
- if(preferences_.speech.enabled&&missing!=speech::Missing::Nothing&&!speechNoticeShown_&&!menu_.NoticeOpen()){
-  speechNoticeShown_=true;
-  menu_.ShowNotice(missing==speech::Missing::WindowsVoice?loc::T("speech.no_windows_voice"):loc::T("speech.no_speech_dispatcher"),loc::T("speech.setting"));
- }
- // The natural voice's download is told when it starts, ends and fails (VoiceText has its progress).
- const auto voice=speech::NaturalVoice().voice;
- if(preferences_.speech.enabled&&voice!=voiceTold_&&voice!=speech::Voice::System&&!menu_.NoticeOpen()){
-  if(voice==speech::Voice::Downloading)menu_.ShowNotice(loc::T("speech.voice_detail"),loc::T("speech.voice"));
-  else if(voice==speech::Voice::Failed)menu_.ShowNotice(loc::T("speech.voice_failed"),loc::T("speech.voice"));
-  else if(voiceTold_==speech::Voice::Downloading)menu_.ShowNotice(loc::T("speech.voice_ready"),loc::T("speech.voice"));
-  voiceTold_=voice;
- }
+ UpdateSpeech();
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home");
  AnswerDialog(submit);
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){

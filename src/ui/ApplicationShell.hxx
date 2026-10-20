@@ -336,6 +336,10 @@ private:
     void UpdateLaunchCheck(const ShellView& view,double now,const Submit& submit);
     void FinishUpdatePrompt(NoticeResult result,const Submit& submit);
     void SetLaunchCheck(bool enabled);
+    // Settings, Accessibility, and what speech tells as the shell draws (ApplicationShell__Accessibility.cxx).
+    std::vector<MenuEntry> AccessibilityRows(const ShellView& view) const;
+    bool AdjustSpeech(const MenuAction& action);
+    void UpdateSpeech();
     UpdatePrompt updatePrompt_;
     netplay::Generation updateGeneration_;
     // The failed skips the service had counted when the view was last drawn.

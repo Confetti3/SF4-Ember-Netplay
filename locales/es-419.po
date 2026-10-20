@@ -4286,6 +4286,21 @@ msgstr "Leer posición"
 msgid "speech.read_position_detail"
 msgstr "Después del nombre y el valor de una fila, dice su posición en la lista, como 3 de 12."
 
+msgid "speech.notice"
+msgstr "Aviso. Presiona {0} para oírlo."
+
+msgid "speech.chime"
+msgstr "Sonido de aviso"
+
+msgid "speech.chime_detail"
+msgstr "Un sonido breve antes de que la voz diga que se abrió un aviso por sí solo."
+
+msgid "speech.chime_volume"
+msgstr "Volumen del sonido de aviso"
+
+msgid "speech.chime_volume_detail"
+msgstr "Qué tan fuerte suena el aviso."
+
 msgid "speech.voice"
 msgstr "Voz"
 

@@ -20,8 +20,12 @@ struct SpokenFrame {
     std::string hint;
     // Every row on the screen, for speech to prepare when the screen opens.
     const std::vector<MenuEntry>* entries = nullptr;
-    // The dialog is a notice that opened by itself, not one the player asked for.
+    // The dialog is a notice that opened by itself, not one the player asked
+    // for; buttons are all of its buttons.
     bool notice = false;
+    std::vector<std::string> buttons;
+    // The accessibility button's name on the player's device ("RT", "F2").
+    std::string accessKey;
 };
 // One utterance in parts: a row's name, its value, its state. A voice that
 // keeps what it has said (Piper on Linux) keeps each part on its own, so a
@@ -33,6 +37,8 @@ struct Utterance {
     bool interrupt = true;
     // The accessibility button pressed again on what it is reading: be quiet.
     bool stop = false;
+    // A notice opened by itself: its chime comes first.
+    bool chime = false;
     std::string Text() const { return speech::Line(parts); }
 };
 // The voice speech uses, as the Accessibility page shows it.
@@ -48,7 +54,8 @@ inline std::string VoiceText(speech::VoiceStatus status) {
 // screen says its title, a move says the row's name, and its value only where
 // the value is the point (a setting the player changes or chooses). Moving on
 // interrupts. A dialog the player opens says its question, then its button; a
-// notice that opens by itself stays quiet until the player moves in it. The
+// notice that opens by itself chimes and says only that the accessibility
+// button reads it, which it does, text and buttons. The
 // row's description (a notice's text) is read when the player presses the
 // accessibility button (describe), and a second press on the same row stops
 // it; or DetailDelay seconds after a stop when the player wants that. Its
@@ -61,10 +68,14 @@ public:
         const std::string value = frame.focus && Changes(*frame.focus) ? frame.focus->value : std::string();
         const bool titled = frame.title != title_, dialog = !frame.button.empty();
         Utterance said;
-        if (dialog && (titled || frame.button != button_)) {
-            // A dialog that just opened says its question first, unless it opened by itself.
-            if ((button_.empty() || frame.question != question_) && !(frame.notice && button_.empty())) Add(said.parts, frame.question);
-            if (!frame.notice || !button_.empty()) Add(said.parts, frame.button);
+        if (dialog && frame.notice && button_.empty()) {
+            // A notice that opened by itself chimes and says how to hear it.
+            said.chime = true;
+            said.parts.push_back(loc::Tf("speech.notice", frame.accessKey));
+        } else if (dialog && (titled || frame.button != button_)) {
+            // A dialog that just opened says its question first.
+            if (button_.empty() || frame.question != question_) Add(said.parts, frame.question);
+            Add(said.parts, frame.button);
         } else if (!dialog && (titled || id != id_ || !button_.empty())) {
             if (titled) {
                 Add(said.parts, frame.title);
@@ -90,6 +101,8 @@ public:
             described_ = describe;
             said.interrupt = describe;
             Add(said.parts, dialog ? frame.question : frame.focus ? frame.focus->detail : std::string());
+            // A notice is read whole: its text, then its buttons.
+            if (dialog && frame.notice) for (const auto& button : frame.buttons) Add(said.parts, button);
             if (speech.hints) Add(said.parts, frame.hint);
         }
         return said;

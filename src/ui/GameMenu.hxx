@@ -22,6 +22,8 @@ void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,
 void SetMenuGlyphs(int deviceType,const input::MenuButtons& buttons,gamepads::PromptBrand brand={});
 // The player's speech settings, which every menu reads as it draws.
 void SetMenuSpeech(const netplay::SpeechPreferences& speech);
+// The accessibility button's name on the device the player last used ("RT", "R2", "F2").
+std::string AccessibilityKeyName();
 struct PlayerCardView {
     std::string name, fighterName;
     int fighter=0, inputDelay=0, members=0, activeTables=0;
@@ -84,7 +86,9 @@ bool TakeEmbeddedFresh();
 enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout, UpdateNow, SkipUpdate };
 struct NoticeButton { std::string label; NoticeResult result=NoticeResult::Acknowledged; };
 // selected: the button highlighted when the notice opens (the first by default).
-struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; };
+// asked: the player's own action opened it, so speech reads it at once
+// instead of announcing it (MenuNarrator).
+struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; bool asked=false; };
 class GameMenu {
 public:
     MenuNavigation navigation;
@@ -212,6 +216,7 @@ private:
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
     std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_;
     std::vector<NoticeButton> noticeButtons_;
+    bool noticeAsked_=false;
     int noticeSelected_=0;
     NoticeResult noticeResult_=NoticeResult::None;
     bool noticeError_=false;

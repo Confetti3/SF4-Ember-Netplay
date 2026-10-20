@@ -19,12 +19,12 @@ inline SpeechPreferences ReadSpeechPreferences(const nlohmann::json& saved) {
         const auto it = found->find(key);
         if (it != found->end() && it->is_number_integer() && *it >= low && *it <= high && it->get<int>() % step == 0) member = it->get<int>();
     };
-    flag("enabled", value.enabled); flag("details", value.details); flag("hints", value.hints); flag("position", value.position);
-    number("rate", value.rate, -10, 10, 1); number("volume", value.volume, 10, 100, 10);
+    flag("enabled", value.enabled); flag("details", value.details); flag("hints", value.hints); flag("position", value.position); flag("chime", value.chime);
+    number("rate", value.rate, -10, 10, 1); number("volume", value.volume, 10, 100, 10); number("chimeVolume", value.chimeVolume, 10, 100, 10);
     return value;
 }
 inline void WriteSpeechPreferences(const PlayerPreferences& value, nlohmann::json& saved) {
     const auto& speech = value.speech;
-    saved["speech"] = {{"enabled", speech.enabled}, {"rate", speech.rate}, {"volume", speech.volume}, {"details", speech.details}, {"hints", speech.hints}, {"position", speech.position}};
+    saved["speech"] = {{"enabled", speech.enabled}, {"rate", speech.rate}, {"volume", speech.volume}, {"details", speech.details}, {"hints", speech.hints}, {"position", speech.position}, {"chime", speech.chime}, {"chimeVolume", speech.chimeVolume}};
 }
 } }

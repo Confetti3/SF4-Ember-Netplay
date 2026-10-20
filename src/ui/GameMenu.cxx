@@ -173,6 +173,7 @@ void SetMenuGlyphs(int type,const input::MenuButtons& buttons,gamepads::PromptBr
 }
 namespace { netplay::SpeechPreferences menuSpeech; }
 void SetMenuSpeech(const netplay::SpeechPreferences& speech){ menuSpeech=speech; }
+std::string AccessibilityKeyName(){ return KeyboardPrompts()?std::string("F2"):SpokenButton("RT"); }
 gamepads::PromptBrand MenuPromptBrand(){ return promptBrand; }
 const gamepads::FightNames* MenuPromptNames(){ return &promptNames; }
 void SetMenuPromptBrand(gamepads::PromptBrand brand,const gamepads::FightNames& names){ promptBrand=brand;promptNames=names; }
@@ -701,7 +702,9 @@ void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 r
 void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now,bool describe) {
     SpokenFrame frame{title,focus};
     frame.entries=&entries;
-    frame.notice=!notice_.empty();
+    frame.notice=!notice_.empty()&&!noticeAsked_;
+    for(const auto& noticeButton:noticeButtons_)frame.buttons.push_back(noticeButton.label);
+    frame.accessKey=AccessibilityKeyName();
     // The focused entry may be a copy, so its place comes from its id.
     if(focus){frame.index=static_cast<std::size_t>(std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==focus->id;})-entries.begin());frame.count=entries.size();}
     frame.button=button;
@@ -715,6 +718,7 @@ void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,c
     const auto said=narrator_.Update(frame,now,menuSpeech,menuSpeech.enabled&&describe);
     if(!menuSpeech.enabled)return;
     if(said.stop||ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
+    if(said.chime&&menuSpeech.chime)speech::Chime(menuSpeech.chimeVolume);
     if(!said.parts.empty())speech::Say(said.parts,said.interrupt,menuSpeech.rate,menuSpeech.volume);
     speech::Render(said.render,menuSpeech.rate);
 }
