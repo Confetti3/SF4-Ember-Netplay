@@ -572,8 +572,12 @@ impl GameConnection {
     pub fn max_packet(&self) -> usize {
         self.authorization.max_packet
     }
+    /// A connection the peer already closed keeps the peer's reason, which
+    /// closing it again would replace with our own.
     pub fn close(&self) {
-        self.connection.close(0u32.into(), b"match ended");
+        if self.connection.close_reason().is_none() {
+            self.connection.close(0u32.into(), b"match ended");
+        }
     }
 }
 impl Drop for GameConnection {

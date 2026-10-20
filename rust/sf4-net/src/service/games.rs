@@ -325,49 +325,52 @@ impl Actor {
                 .games
                 .get(&peer)
                 .is_some_and(|slot| slot.auth.key.generation == generation)
+            && let Some(slot) = self.games.remove(&peer)
         {
-            if let Some(slot) = self.games.remove(&peer) {
-                let route = slot
-                    .route_connection
-                    .as_ref()
-                    .map(selected_probe_route)
-                    .unwrap_or_else(|| "unavailable".into());
-                if let Some(stats) = slot.stats.as_ref() {
-                    self.emit(Event::Statistics {
-                        epoch,
-                        peer,
-                        generation,
-                        sent_packets: stats.sent_packets.load(Ordering::Relaxed),
-                        received_packets: stats.received_packets.load(Ordering::Relaxed),
-                        sent_bytes: stats.sent_bytes.load(Ordering::Relaxed),
-                        received_bytes: stats.received_bytes.load(Ordering::Relaxed),
-                        rejected_packets: stats.rejected_packets.load(Ordering::Relaxed),
-                        congestion_events: stats.congestion_events.load(Ordering::Relaxed),
-                        local_drops: stats.local_drops.load(Ordering::Relaxed),
-                        route: route.clone(),
-                    })?;
-                }
-                if let Some(reason) = failure {
-                    self.emit(Event::GameFailed {
-                        epoch,
-                        peer,
-                        generation,
-                        reason,
-                        route,
-                        max_packet: slot.auth.max_packet,
-                        max_datagram: slot
-                            .route_connection
-                            .as_ref()
-                            .and_then(Connection::max_datagram_size)
-                            .unwrap_or(0),
-                    })?;
-                }
+            let route = slot
+                .route_connection
+                .as_ref()
+                .map(selected_probe_route)
+                .unwrap_or_else(|| "unavailable".into());
+            if let Some(stats) = slot.stats.as_ref() {
+                self.emit(Event::Statistics {
+                    epoch,
+                    peer,
+                    generation,
+                    sent_packets: stats.sent_packets.load(Ordering::Relaxed),
+                    received_packets: stats.received_packets.load(Ordering::Relaxed),
+                    sent_bytes: stats.sent_bytes.load(Ordering::Relaxed),
+                    received_bytes: stats.received_bytes.load(Ordering::Relaxed),
+                    rejected_packets: stats.rejected_packets.load(Ordering::Relaxed),
+                    congestion_events: stats.congestion_events.load(Ordering::Relaxed),
+                    local_drops: stats.local_drops.load(Ordering::Relaxed),
+                    route: route.clone(),
+                })?;
+            }
+            if let Some(reason) = failure {
+                self.emit(Event::GameFailed {
+                    epoch,
+                    peer,
+                    generation,
+                    reason,
+                    route,
+                    max_packet: slot.auth.max_packet,
+                    max_datagram: slot
+                        .route_connection
+                        .as_ref()
+                        .and_then(Connection::max_datagram_size)
+                        .unwrap_or(0),
+                })?;
             }
             self.emit(Event::GameClosed {
                 epoch,
                 peer,
                 generation,
-                reason: None,
+                reason: slot
+                    .route_connection
+                    .as_ref()
+                    .and_then(Connection::close_reason)
+                    .map(|error| error.to_string()),
             })?;
         }
         Ok(())

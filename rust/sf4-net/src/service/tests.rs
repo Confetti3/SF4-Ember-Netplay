@@ -4240,9 +4240,51 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             Event::Error { code, .. } => assert_eq!(code, "invalid_game_registration"),
             _ => unreachable!(),
         }
+        // A link the peer closes names the peer's own close reason.
         commands
             .send(Request {
                 id: 9,
+                command: Command::PrepareGame {
+                    epoch: 1,
+                    peer: remote.id(),
+                    room,
+                    generation: 3,
+                    capability: [10; 32],
+                    local_port: local_host.local_addr().unwrap().port(),
+                    max_packet: 1024,
+                    dial: false,
+                },
+            })
+            .await
+            .unwrap();
+        let _ = next(&mut events, "game_waiting").await;
+        let auth = GameAuthorization {
+            peer: host.id(),
+            key: MatchKey {
+                room,
+                generation: 3,
+            },
+            capability: [10; 32],
+            max_packet: 1024,
+        };
+        let game = transport::connect_game(&remote, address(&host), auth)
+            .await
+            .unwrap();
+        let _ = next(&mut events, "game_ready").await;
+        drop(game);
+        match next(&mut events, "game_closed").await {
+            Event::GameClosed { reason, .. } => {
+                let reason = reason.unwrap();
+                assert!(
+                    reason.starts_with("closed by peer") && reason.contains("match ended"),
+                    "{reason}"
+                );
+            }
+            _ => unreachable!(),
+        }
+        commands
+            .send(Request {
+                id: 10,
                 command: Command::Leave {
                     epoch: 1,
                     abandon: false,
@@ -4255,7 +4297,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
         // network work performed by the IPC reader or the game thread.
         commands
             .send(Request {
-                id: 10,
+                id: 11,
                 command: Command::Host {
                     epoch: 2,
                     build: "test-build".into(),
@@ -4265,7 +4307,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             .unwrap();
         commands
             .send(Request {
-                id: 11,
+                id: 12,
                 command: Command::Leave {
                     epoch: 2,
                     abandon: false,
@@ -4276,7 +4318,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
         let _ = next(&mut events, "room_closed").await;
         commands
             .send(Request {
-                id: 12,
+                id: 13,
                 command: Command::Shutdown,
             })
             .await
