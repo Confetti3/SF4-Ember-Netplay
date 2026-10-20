@@ -1,7 +1,8 @@
 /* The web desk (docs/design/TOURNAMENT_DESK.md, 4a). Colours follow
    src/ui/Theme.cxx, as embernetplay.link's site.css does. Mobile first: one
-   column on a phone, a step list beside the form from 900px, a summary
-   column from 1400px, all from the page's own width (container queries). */
+   column on a phone, a step list beside the form from 900px with the
+   summary under it from 1200px, all from the page's own width (container
+   queries). Cards fill the width instead of leaving empty columns. */
 @font-face {
   font-family: "Inter";
   font-weight: 400;
@@ -80,7 +81,10 @@ a:hover { color: var(--ember-light); }
 .wd-main { padding: 16px 16px 0; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .wd-main > section { display: flex; flex-direction: column; gap: 16px; }
 .wd-h { margin: 0; font-size: clamp(20px, 4cqi, 30px); font-weight: 600; padding-bottom: 10px; background: linear-gradient(var(--ember), var(--ember)) 0 100% / 56px 3px no-repeat, linear-gradient(var(--border), var(--border)) 0 100% / 100% 1px no-repeat; }
-.wd-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.wd-grid { display: grid; gap: 12px; align-items: start; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.wd-card > h2 { margin: 0; }
+.stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.home-body, .home-events { display: flex; flex-direction: column; gap: 16px; }
 .wd-card { margin: 0; padding: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; display: flex; flex-direction: column; gap: 10px; min-width: 0; color: var(--ivory); text-align: left; }
 .wd-card.act { border-left: 3px solid var(--ember); }
 button.wd-card { cursor: pointer; font-size: 16px; }
@@ -120,7 +124,7 @@ button.wd-card:hover { border-color: var(--ember); }
 .wd-bar .wd-btn { min-height: 52px; flex: 1; }
 .wd-bar #next { flex: 2; }
 
-.wd-kpis { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); }
+.wd-kpis { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
 .wd-kpi { padding: 12px; border-radius: 4px; background: var(--panel); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
 .wd-kpi b { font-size: clamp(18px, 4cqi, 28px); font-weight: 600; }
 .status { align-self: flex-start; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: 600; background: var(--line); color: var(--ivory); }
@@ -158,10 +162,14 @@ button.wd-card:hover { border-color: var(--ember); }
 .decide[open] { display: flex; flex-direction: column; gap: 12px; }
 .decide::backdrop { background: rgba(20, 19, 18, .8); }
 .decide > .wd-btn.danger { align-self: stretch; }
+.link-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.link-row > :first-child { flex: 1 1 120px; }
+.link-row > :nth-child(2) { flex: 3 1 220px; }
+.link-row > .wd-btn { flex: 0 0 auto; }
 .links { display: flex; flex-wrap: wrap; gap: 8px; }
 .links .wd-btn { flex: 1 1 140px; }
 
-.wd-aside { display: none; flex-direction: column; gap: 12px; padding: 24px 32px 24px 16px; border-left: 1px solid var(--line); align-self: start; position: sticky; top: 73px; }
+.wd-aside { display: none; flex-direction: column; gap: 8px; margin-top: 24px; }
 
 @container (min-width: 900px) {
   .wd-top { padding: 16px 32px; }
@@ -180,8 +188,9 @@ button.wd-card:hover { border-color: var(--ember); }
 }
 @container (min-width: 900px) {
   .rounds { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-items: start; }
+  .home-body { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
 }
-@container (min-width: 1400px) {
-  .wd-body { grid-template-columns: 280px minmax(0, 1fr) 340px; }
+@container (min-width: 1200px) {
+  .wd-body { grid-template-columns: 300px minmax(0, 1fr); }
   .wd-aside { display: flex; }
 }

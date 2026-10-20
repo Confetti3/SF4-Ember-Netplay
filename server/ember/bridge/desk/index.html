@@ -55,9 +55,13 @@
       <h1 class="wd-h">Your tournaments</h1>
       <button type="button" class="wd-btn primary" id="new-tournament">New tournament</button>
     </div>
-    <div class="wd-grid" id="accounts"></div>
-    <p class="note" id="no-events" hidden>No tournaments yet. Start one with New tournament.</p>
-    <div class="wd-grid" id="events"></div>
+    <div class="home-body">
+      <div class="wd-grid" id="accounts"></div>
+      <div class="home-events">
+        <p class="note" id="no-events" hidden>No tournaments yet. Start one with New tournament.</p>
+        <div class="wd-grid" id="events"></div>
+      </div>
+    </div>
   </section>
 
   <div class="wd-body" id="wizard" hidden>
@@ -65,6 +69,10 @@
       <p class="wd-side-title">Set up</p>
       <p class="wd-now" id="step-now"></p>
       <div class="wd-steps" id="steps"></div>
+      <section class="wd-aside" aria-label="Tournament summary">
+        <span class="wd-side-title">Summary</span>
+        <div class="wd-card" id="summary"></div>
+      </section>
     </nav>
 
     <main class="wd-main">
@@ -81,19 +89,23 @@
             </div>
             <p class="note">Saved as a draft. Leave the date empty until you know it.</p>
           </div>
+          <div class="wd-card">
+            <h2 class="name">Links</h2>
+            <p class="note">Everything about the tournament in one place: stream, Matcherino, sign-up, rules, Discord. The bracket's link is added for you.</p>
+            <div class="stack" id="links"></div>
+            <button type="button" class="wd-btn dashed" id="add-link">+ Add link</button>
+          </div>
         </div>
-        <h2 class="name">Links</h2>
-        <p class="note">Everything about the tournament in one place: stream, Matcherino, sign-up, rules, Discord. The bracket's link is added for you.</p>
-        <div class="wd-grid" id="links"></div>
-        <button type="button" class="wd-btn dashed" id="add-link">+ Add link</button>
       </section>
 
       <section data-step="2" hidden>
         <h1 class="wd-h">Service and rules</h1>
         <p class="note" id="no-service" hidden>Allow organizer access on start.gg or Challonge first: Your tournaments, at the top.</p>
         <div class="wd-grid">
-          <fieldset class="wd-card" id="services"><legend>Bracket service</legend></fieldset>
-          <div class="wd-card" id="service-detail"></div>
+          <div class="stack">
+            <fieldset class="wd-card" id="services"><legend>Bracket service</legend></fieldset>
+            <div class="wd-card" id="service-detail"></div>
+          </div>
           <div class="wd-card">
             <h2 class="name">Games to win</h2>
             <p class="note">Later stages can play longer sets. The latest stage that applies wins; Ember finds the stages in the bracket itself.</p>
@@ -133,11 +145,6 @@
         <button type="button" class="wd-btn primary" id="next">Continue</button>
       </div>
     </main>
-
-    <aside class="wd-aside" aria-label="Tournament summary">
-      <span class="wd-side-title">Summary</span>
-      <div class="wd-card" id="summary"></div>
-    </aside>
   </div>
 </div>
 <dialog class="decide" id="decide" aria-label="Games of the set"></dialog>

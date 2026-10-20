@@ -397,7 +397,7 @@ async function saveService() {
 }
 
 function linkRow(link = { label: "", url: "" }) {
-  const row = el("div", { class: "wd-card" },
+  const row = el("div", { class: "link-row" },
     el("label", { class: "wd-field" }, "Label", el("input", { class: "wd-input", "data-link": "label", maxlength: 40, value: link.label, placeholder: "Stream" })),
     el("label", { class: "wd-field" }, "Address", el("input", { class: "wd-input", "data-link": "url", type: "url", inputmode: "url", value: link.url, placeholder: "https://" })),
   );
