@@ -121,15 +121,32 @@ fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
     let metadata: serde_json::Value = serde_json::from_str(&metadata).unwrap_or_default();
     // A bracket set's external ID is `<site>:<tournament>:<set>:<attempt>`;
     // its desk event names the tournament.
-    let tournament: Option<String> = tx
+    let event: Option<(String, String)> = tx
         .query_row(
-            "SELECT title FROM organizer_events WHERE tournament IS NOT NULL
+            "SELECT title, site FROM organizer_events WHERE tournament IS NOT NULL
                AND substr(?1, 1, length(site) + length(tournament) + 2) = site || ':' || tournament || ':'
              ORDER BY created_at DESC LIMIT 1",
             [&found.external_match_id],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?;
+    let players = participants(tx, &found.id, found.generation)?;
+    // Each player by their account name on the event's site, as the desk
+    // shows them, so an imported pack's games carry names.
+    let mut names = Vec::new();
+    for player in &players {
+        names.push(match &event {
+            Some((_, site)) => tx
+                .query_row(
+                    "SELECT username FROM site_accounts WHERE site = ?1 AND ember_id = ?2",
+                    params![site, player.ember_id.as_str()],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?,
+            None => None,
+        });
+    }
+    let tournament = event.map(|(title, _)| title);
     let games = tx
         .prepare(
             "SELECT crc, revision, saved_at, replay FROM match_replays
@@ -153,7 +170,8 @@ fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
         "round_label": metadata.get("round_label"),
         "round": metadata.get("round"),
         "phase": metadata.get("phase"),
-        "players": participants(tx, &found.id, found.generation)?,
+        "players": players,
+        "names": names,
         "score": wins,
         "rooms": rooms.len(),
         "games": games.iter().map(|(crc, revision, saved_at, replay)| json!({

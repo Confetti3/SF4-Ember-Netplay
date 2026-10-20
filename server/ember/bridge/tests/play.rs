@@ -144,7 +144,27 @@ async fn agreeing_reports_score_a_set() {
 #[tokio::test]
 async fn a_sets_replays_are_kept_once_and_packed_by_save_time() {
     let f = fixture().await;
-    let id = create(&f, "play-replays", "ember-room-v1", 2).await;
+    let id = create(&f, "challonge:9001:s1:1", "ember-room-v1", 2).await;
+    // The set's desk event, and player b's account on its site.
+    let (organizer, named) = (f.a.id().as_str().to_owned(), f.b.id().as_str().to_owned());
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO organizer_events (id, ember_id, title, status, site, tournament, name, settings, created_at)
+                 VALUES ('evt_1', ?1, 'Weekly', 'ready', 'challonge', '9001', 'Weekly', '{}', 1)",
+                [&organizer],
+            )?;
+            tx.execute(
+                "INSERT INTO site_accounts (site, user_id, ember_id, username, connected_at)
+                 VALUES ('challonge', '22', ?1, 'player-b', 1)",
+                [&named],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
     // The third game was played in a second room, so under revision 2.
     for (n, revision) in [(3u8, 2), (1, 1), (2, 1)] {
         for sender in [&f.a, &f.b] {
@@ -176,6 +196,8 @@ async fn a_sets_replays_are_kept_once_and_packed_by_save_time() {
     assert_eq!(header["rooms"], 2, "{header}");
     assert_eq!(header["score"], json!([0, 0]));
     assert_eq!(header["players"][1]["ember_id"], f.b.id().as_str());
+    assert_eq!(header["tournament"], "Weekly");
+    assert_eq!(header["names"], json!([null, "player-b"]));
     assert_eq!(header["games"][2]["revision"], 2);
     // A player of the set reads it too; nobody else finds it.
     assert_eq!(pack(&f, f.b.token(), &id).await.1.len(), 3);

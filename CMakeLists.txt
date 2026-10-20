@@ -81,8 +81,6 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME AutoDelayCheck SOURCES "src/tests/auto_delay_check_test.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME GamePing SOURCES "src/tests/game_ping_test.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplaySlots SOURCES "src/tests/replay_slots_test.cxx" STD 17 TIMEOUT 15)
-    sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" STD 17
-        LIBS $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplayArchiveIndex SOURCES "src/tests/replay_archive_index_test.cxx" STD 17
         LIBS Threads::Threads $<$<PLATFORM_ID:Windows>:bcrypt> TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplayArchivePass SOURCES "src/tests/replay_archive_pass_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 60)
@@ -117,6 +115,8 @@ find_package(ggpo CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 if(BUILD_TESTING)
+    sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" STD 17
+        LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15)
     sf4e_add_unit_test(NAME CheckpointTransfer SOURCES "src/tests/checkpoint_transfer_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json bcrypt)
     sf4e_add_unit_test(NAME RoomLoadWindow SOURCES "src/tests/room_load_window_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json)
 endif()

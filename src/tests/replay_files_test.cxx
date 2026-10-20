@@ -472,6 +472,9 @@ static void TestSetReplays() {
  CHECK(!sets::UnpackSet(Bytes(pack.begin(), pack.end() - 1), games, header) && games.size() == 2);
  Bytes torn = pack; torn.back() ^= 1; CHECK(!sets::UnpackSet(torn, games, header));
  Bytes huge = pack; WriteU32(huge.data() + 8, 0xFFFFFFFFu); CHECK(!sets::UnpackSet(huge, games, header));
+ const auto named = sets::PackNames(R"({"match_id":"emt_b","names":[null,"Bob"]})");
+ CHECK(named.set.matchId == "emt_b" && named.players[0].empty() && named.players[1] == "Bob" && named.spectated);
+ CHECK(sets::PackNames("[1]").set.matchId.empty() && sets::PackNames(R"({"names":["A"]})").players[0].empty());
 }
 int main() {
  TestSetReplays();

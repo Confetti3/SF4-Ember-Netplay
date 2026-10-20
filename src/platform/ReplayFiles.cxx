@@ -510,10 +510,7 @@ std::size_t ImportSetPack(const fs::path& pack) {
 		std::vector<slots::Bytes> games;
 		std::string header;
 		if (folders.archive.empty() || !bytes || !UnpackSet(*bytes, games, header)) return 0;
-		replayfiles::ReplayNames names;
-		names.spectated = true;
-		const auto said = nlohmann::json::parse(header, nullptr, false);
-		if (said.is_object() && said.contains("match_id") && said["match_id"].is_string()) names.set.matchId = said["match_id"].get<std::string>();
+		const replayfiles::ReplayNames names = PackNames(header);
 		std::size_t held = 0;
 		for (const auto& game : games) {
 			const fs::path path = folders.archive / slots::ArchiveName(game);

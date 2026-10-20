@@ -3,6 +3,7 @@
 // 4b): the next one to send to the set's bridge, the sets for Replays ›
 // Tournaments, and a set's pack split back into its games.
 #include "ReplayFiles.hxx"
+#include <nlohmann/json.hpp>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -76,6 +77,22 @@ inline bool UnpackSet(const replayslots::Bytes& pack, std::vector<replayslots::B
 	header.assign(pack.begin() + 12, pack.begin() + 12 + ReadU32(pack.data() + 8));
 	games = std::move(read);
 	return true;
+}
+
+// What an imported pack's header says of its games: the set, and its
+// players' names by slot, which Table 0 seats as sides 1 and 2. Imported
+// games count as watched, not played here.
+inline replayfiles::ReplayNames PackNames(const std::string& header) {
+	replayfiles::ReplayNames names;
+	names.spectated = true;
+	const auto said = nlohmann::json::parse(header, nullptr, false);
+	if (!said.is_object()) return names;
+	if (said.contains("match_id") && said["match_id"].is_string()) names.set.matchId = said["match_id"].get<std::string>();
+	if (said.contains("names") && said["names"].is_array() && said["names"].size() == 2)
+		for (std::size_t side = 0; side < 2; ++side)
+			if (said["names"][side].is_string() && said["names"][side].get_ref<const std::string&>().size() <= 1024)
+				names.players[side] = said["names"][side].get<std::string>();
+	return names;
 }
 
 } } }
