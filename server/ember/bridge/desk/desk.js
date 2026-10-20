@@ -505,6 +505,7 @@ function liveCard(set) {
     const posted = set.call ? { delivered: "posted on Discord", pending: "posting to Discord", failed: "Discord refused it" }[set.call.posted] : "";
     card.insertBefore(el("span", { class: "small" }, "Called " + whenText(set.called_at || set.call.at) + (posted ? ", " + posted : "")), card.lastChild);
   }
+  if (dmText(set)) card.insertBefore(el("span", { class: "small" }, dmText(set)), card.lastChild);
   return card;
 }
 

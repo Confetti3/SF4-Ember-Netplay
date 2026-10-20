@@ -169,7 +169,17 @@ function bracketView(sets, picked) {
     })));
 }
 
+/** What the set's private Discord messages came to, by player: "" when
+ *  none were sent. */
+function dmText(set) {
+  if (!Array.isArray(set.dms)) return "";
+  const words = { delivered: "sent", pending: "sending", failed: "Discord refused it (DMs closed, or no server shared with the Ember bot)", no_discord: "no Discord linked in Ember" };
+  const names = players(set);
+  const parts = set.dms.map((state, slot) => (state ? names[slot] + ": " + (words[state] || state) : "")).filter(Boolean);
+  return parts.length ? "Private message: " + parts.join("; ") : "";
+}
+
 // Node's test runner loads this file too (desk/test); a browser has no module.
 if (typeof module !== "undefined") {
-  module.exports = { STAGES, stageName, TITLE_MAX, titleError, sortTiers, discordPost, stepErrorText, codeText, STATES, FILTERS, tally, players, roundName, bracketOf };
+  module.exports = { STAGES, stageName, TITLE_MAX, titleError, sortTiers, discordPost, stepErrorText, codeText, STATES, FILTERS, tally, players, dmText, roundName, bracketOf };
 }

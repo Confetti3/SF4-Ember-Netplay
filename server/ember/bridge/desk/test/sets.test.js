@@ -81,3 +81,10 @@ test("the bracket groups by phase, then winners, losers and grand final, by roun
   assert.deepEqual(phases[0].rounds.map((round) => round.name), ["Winners Round 1", "Winners Final", "Losers Round 1", "Round -2"]);
   assert.equal(phases[1].rounds[0].side, "grand_final");
 });
+
+test("the set card says who got the match link privately", () => {
+  const set = { players: ["Ashgrove", "Minnow"], dms: ["delivered", "no_discord"] };
+  assert.equal(desk.dmText(set), "Private message: Ashgrove: sent; Minnow: no Discord linked in Ember");
+  assert.match(desk.dmText({ players: ["A", "B"], dms: ["failed", null] }), /^Private message: A: Discord refused it/);
+  assert.equal(desk.dmText({ players: ["A", "B"] }), "");
+});
