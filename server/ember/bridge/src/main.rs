@@ -1,8 +1,10 @@
 //! `ember-bridge init <dir>`, `serve <config>`,
 //! `credential <config> provider <connection> <label>` or
 //! `credential <config> organizer <tenant> <label>`, `credentials <config>`
-//! `revoke <config> <credential-id>` and `blumint-register <config> <connection>`.
+//! `revoke <config> <credential-id>`, `blumint-register <config> <connection>`
+//! and `apply-tenants <config> <out>`.
 use std::{
+    io::{Read, Write},
     path::{Path, PathBuf},
     process::ExitCode,
 };
@@ -25,6 +27,7 @@ fn main() -> ExitCode {
         .as_slice()
     {
         ["init", dir] => init(PathBuf::from(dir)),
+        ["apply-tenants", path, out] => apply_tenants(Path::new(path), Path::new(out)),
         ["serve", path] => runtime.block_on(serve(PathBuf::from(path))),
         ["credential", path, "provider", connection, label] => runtime.block_on(credential(
             PathBuf::from(path),
@@ -69,6 +72,7 @@ fn main() -> ExitCode {
 
 const USAGE: &str = "usage:
   ember-bridge init <directory>
+  ember-bridge apply-tenants <bridge.json> <out> < tenants.json
   ember-bridge serve <bridge.json>
   ember-bridge credential <bridge.json> provider <connection-id> <label>
   ember-bridge credential <bridge.json> organizer <tenant-id> <label>
@@ -134,6 +138,51 @@ fn init(dir: PathBuf) -> Result<(), String> {
         config_path.display()
     );
     Ok(())
+}
+
+/// Writes to `out` the configuration deploy/setup.sh installs: `path` with
+/// the tenants file on stdin over it, checked as the bridge would load it.
+/// The tenants file comes on stdin because only root can open it; this runs as
+/// the service account, inside its own folder.
+fn apply_tenants(path: &Path, out: &Path) -> Result<(), String> {
+    let installed =
+        std::fs::read(path).map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+    let mut tenants = Vec::new();
+    std::io::stdin()
+        .take(config::MAX_CONFIG_LEN as u64 + 1)
+        .read_to_end(&mut tenants)
+        .map_err(|error| format!("cannot read the tenants file: {error}"))?;
+    if tenants.len() > config::MAX_CONFIG_LEN {
+        return Err("the tenants file is too large".into());
+    }
+    let (text, _) = Config::deployed(&installed, &tenants)?;
+    write_atomically(out, &text)
+}
+
+/// Replaces `path` with `text` in one rename, owner-only like the secrets.
+fn write_atomically(path: &Path, text: &[u8]) -> Result<(), String> {
+    let name = path
+        .file_name()
+        .ok_or_else(|| format!("{} is not a file path", path.display()))?;
+    let temporary = path.with_file_name(format!(
+        ".{}.{}",
+        name.to_string_lossy(),
+        ember_protocol::encoding::b64u(&random())
+    ));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let written = options.open(&temporary).and_then(|mut file| {
+        file.write_all(text)?;
+        file.sync_all()
+    });
+    written
+        .and_then(|()| std::fs::rename(&temporary, path))
+        .map_err(|error| {
+            let _ = std::fs::remove_file(&temporary);
+            format!("cannot write {}: {error}", path.display())
+        })
 }
 
 fn random32() -> [u8; 32] {

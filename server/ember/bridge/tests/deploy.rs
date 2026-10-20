@@ -1,6 +1,7 @@
 //! The deployed configurations in `deploy/`: each tenants file makes a valid
-//! bridge configuration as `deploy/setup.sh` writes it, and applies over the
-//! database of the deployment before it.
+//! bridge configuration as `deploy/setup.sh` writes it (`ember-bridge
+//! apply-tenants`, `Config::deployed`), and applies over the database of the
+//! deployment before it.
 mod common;
 
 use common::Bridge;
@@ -38,32 +39,31 @@ async fn sync(bridge: &Bridge, tenants: Vec<Tenant>) -> bool {
     ember_bridge::sync_config(&state).await.is_ok()
 }
 
-/// What setup.sh writes: `ember-bridge init`'s configuration with the
-/// tenants file over it and the development switches off.
-fn deployed_config(file: &str) -> Config {
-    let mut config = json!({
+/// A bridge.json as `ember-bridge init` writes it.
+fn initial() -> Value {
+    json!({
         "bridge_id": "brg_0dbc0598-2312-4ce3-9df8-e160330565e6",
         "display_name": "Local Ember bridge",
         "origin": "http://127.0.0.1:8787",
         "listen": "127.0.0.1:8787",
         "database": "bridge.sqlite3",
         "secrets": "bridge-secrets.json",
+        "allow_loopback_http": true,
+        "allow_private_webhooks": true,
+        "mock_browser": true,
         "tenants": [],
-    });
-    let Value::Object(deployed) = serde_json::from_str(file).unwrap() else {
-        panic!("a tenants file is a JSON object");
-    };
-    config.as_object_mut().unwrap().extend(deployed);
-    for switch in [
-        "allow_loopback_http",
-        "allow_private_webhooks",
-        "mock_browser",
-    ] {
-        config[switch] = json!(false);
-    }
-    let config: Config = serde_json::from_value(config).unwrap();
-    config.validate().unwrap();
-    config
+    })
+}
+
+fn deploy(installed: &Value, file: &str) -> Result<(Value, Config), String> {
+    let (text, config) =
+        Config::deployed(&serde_json::to_vec(installed).unwrap(), file.as_bytes())?;
+    Ok((serde_json::from_slice(&text).unwrap(), config))
+}
+
+/// What setup.sh writes on a first install.
+fn deployed_config(file: &str) -> Config {
+    deploy(&initial(), file).unwrap().1
 }
 
 #[tokio::test]
@@ -126,4 +126,41 @@ fn production_and_staging_are_separate_bridges() {
     let (tenant, partner) = staging.connection("blumint-partner-staging").unwrap();
     assert_eq!(tenant.id, "blumint");
     assert_eq!(partner.kind, "blumint");
+}
+
+#[test]
+fn a_deployment_keeps_the_bridge_and_turns_development_off() {
+    let (first, _) = deploy(&initial(), STAGING).unwrap();
+    assert_eq!(first["bridge_id"], initial()["bridge_id"]);
+    for switch in [
+        "allow_loopback_http",
+        "allow_private_webhooks",
+        "mock_browser",
+    ] {
+        assert_eq!(first[switch], json!(false), "{switch}");
+    }
+    // Applying the same file again changes nothing.
+    let (again, _) = deploy(&first, STAGING).unwrap();
+    assert_eq!(again, first);
+}
+
+#[test]
+fn a_tenants_file_the_bridge_would_not_start_with_is_refused() {
+    let refused = |change: Value| {
+        let mut file: Value = serde_json::from_str(STAGING).unwrap();
+        file.as_object_mut()
+            .unwrap()
+            .extend(change.as_object().unwrap().clone());
+        deploy(&initial(), &file.to_string()).unwrap_err()
+    };
+    assert_eq!(
+        refused(json!({ "database": "elsewhere.sqlite3" })),
+        r#"bridge.json has database "elsewhere.sqlite3"; this deployment expects "bridge.sqlite3""#
+    );
+    assert_eq!(
+        refused(json!({ "origin": "http://bridge-staging.embernetplay.link" })),
+        "origin must be a bare https origin"
+    );
+    assert!(refused(json!({ "unknown_setting": 1 })).starts_with("invalid configuration"));
+    assert!(deploy(&initial(), "[]").is_err());
 }

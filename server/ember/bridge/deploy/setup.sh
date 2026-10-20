@@ -40,8 +40,9 @@
 # they were. If the new bridge then does not start or answer, the previous
 # binary, scripts, bridge.json, units, site and zone are put back and the
 # previous bridge is restarted. Before changing anything it refuses a folder
-# that is not directly in the operator's home, and a tenants file whose origin
-# or listen address another installed bridge has. test-setup.sh moves every
+# that is not directly in the operator's home, a tenants file whose origin or
+# listen address another installed bridge has, and one the new binary would
+# not start with (ember-bridge apply-tenants). test-setup.sh moves every
 # path above under a test folder (see instance.sh) and stands in for the
 # commands that need root.
 set -euo pipefail
@@ -160,37 +161,14 @@ if [ ! -f "$STATE/bridge.json" ]; then
     sudo -u "$NAME" "$LIB/ember-bridge.new" init "$STATE"
 fi
 # Apply the tenants file and the deployed settings, keeping bridge_id and
-# paths. Development switches are always off here. Root only opens the
-# tenants file (katie's home is closed to the service account) and hands it
-# over on stdin; everything inside the service-owned folder runs as the
-# service account. The result is written as bridge.json.new and replaces
-# bridge.json with the rest below.
-MERGE=$(cat <<'PY'
-import json, os, sys, tempfile
-path, target = sys.argv[1:]
-deployed = json.load(sys.stdin)
-with open(path) as file:
-    config = json.load(file)
-config.update(deployed)
-# backup.sh and restore.sh work on these names; refuse anything else rather
-# than back up or restore the wrong files.
-for key, expected in (("database", "bridge.sqlite3"), ("secrets", "bridge-secrets.json")):
-    if config.get(key) != expected:
-        sys.exit(f"bridge.json has {key} {config.get(key)!r}; this deployment expects {expected!r}")
-config["allow_loopback_http"] = False
-config["allow_private_webhooks"] = False
-config["mock_browser"] = False
-handle, temporary = tempfile.mkstemp(dir=os.path.dirname(target), prefix=".bridge.json.")
-with os.fdopen(handle, "w") as file:
-    json.dump(config, file, indent=2)
-    file.write("\n")
-os.replace(temporary, target)
-PY
-)
-sudo -u "$NAME" python3 -c "$MERGE" "$STATE/bridge.json" "$STATE/bridge.json.new" < "$SRC/$TENANTS"
-# ember-bridge has no command that checks a config without starting the
-# service, so a setting Config::validate rejects shows only as the restart
-# below failing, which puts the previous files back.
+# paths, with the new binary: it turns the development switches off, refuses
+# other database or secrets names than backup.sh and restore.sh work on, and
+# refuses a configuration it would not start with, before anything moves.
+# Root only opens the tenants file (katie's home is closed to the service
+# account) and hands it over on stdin; everything inside the service-owned
+# folder runs as the service account. The result is written as
+# bridge.json.new and replaces bridge.json with the rest below.
+sudo -u "$NAME" "$LIB/ember-bridge.new" apply-tenants "$STATE/bridge.json" "$STATE/bridge.json.new" < "$SRC/$TENANTS"
 
 # Every instance's units and site come from one template each: @NAME@ is the
 # account, unit and folder name, @HOST@ and @PORT@ come from the tenants

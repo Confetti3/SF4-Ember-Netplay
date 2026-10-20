@@ -207,9 +207,10 @@ stage() {
 stage_binary() {
     cat > "$1/bin/ember-bridge" <<EOF
 #!/usr/bin/env bash
-# stand-in ember-bridge $2
-[ "\$1" = init ] || exit 1
-python3 - "\$2" <<'PY'
+# stand-in ember-bridge $2: init, and apply-tenants as far as setup.sh
+# relies on it (tests/deploy.rs checks the real one).
+case "\$1" in
+init) python3 - "\$2" <<'PY' ;;
 import json, sys, uuid
 json.dump({"bridge_id": f"brg_{uuid.uuid4()}", "display_name": "Local Ember bridge",
            "origin": "http://127.0.0.1:8787", "listen": "127.0.0.1:8787",
@@ -218,6 +219,18 @@ json.dump({"bridge_id": f"brg_{uuid.uuid4()}", "display_name": "Local Ember brid
            "tenants": []}, open(f"{sys.argv[1]}/bridge.json", "w"))
 open(f"{sys.argv[1]}/bridge-secrets.json", "w").write("{}")
 PY
+apply-tenants) python3 /dev/fd/3 "\$2" "\$3" 3<<'PY' ;;
+import json, sys
+config = json.load(open(sys.argv[1]))
+config.update(json.load(sys.stdin))
+for key, expected in (("database", "bridge.sqlite3"), ("secrets", "bridge-secrets.json")):
+    if config.get(key) != expected:
+        sys.exit(f'ember-bridge: bridge.json has {key} {json.dumps(config.get(key))}; this deployment expects "{expected}"')
+config.update(allow_loopback_http=False, allow_private_webhooks=False, mock_browser=False)
+json.dump(config, open(sys.argv[2], "w"), indent=2)
+PY
+*) exit 1 ;;
+esac
 EOF
     chmod +x "$1/bin/ember-bridge"
 }
@@ -485,7 +498,7 @@ sed -i 's/Ember bridge (staging)/Ember bridge (staging, refused)/' "$SDIR/tenant
 sed -i 's/"listen": /"database": "elsewhere.sqlite3",\n  "listen": /' "$SDIR/tenants.staging.json"
 run "$SDIR/setup.sh"
 check "fails" failed
-check "names the database" mentions "this deployment expects 'bridge.sqlite3'"
+check "names the database" mentions 'this deployment expects "bridge.sqlite3"'
 check "staging binary, bridge.json, units, site and zone as they were" unchanged "$S" "$SSITE" staging
 check "no staged file or backup folder left" no_leftovers
 check "nothing reloaded or restarted" bash -c '! grep -q "^systemctl" "$1"' _ "$STUB/log"

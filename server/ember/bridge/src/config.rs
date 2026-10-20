@@ -303,12 +303,21 @@ impl Policy {
     }
 }
 
+/// The largest configuration file the bridge reads.
+pub const MAX_CONFIG_LEN: usize = 64 * 1024;
+
+/// The file names `deploy/backup.sh` and `deploy/restore.sh` work on, which a
+/// deployed configuration must keep.
+const DEPLOYED_FILES: [(&str, &str); 2] = [
+    ("database", "bridge.sqlite3"),
+    ("secrets", "bridge-secrets.json"),
+];
+
 impl Config {
     pub fn load(path: &Path) -> Result<Self, String> {
         let text =
             fs::read(path).map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-        let mut config: Self = ember_protocol::json::parse_as(&text, 64 * 1024)
-            .map_err(|error| format!("invalid configuration: {error}"))?;
+        let mut config = Self::parse(&text)?;
         // Relative paths are relative to the configuration file.
         let base = path.parent().unwrap_or(Path::new("."));
         for file in [&mut config.database, &mut config.secrets]
@@ -321,6 +330,47 @@ impl Config {
         }
         config.validate()?;
         Ok(config)
+    }
+
+    fn parse(text: &[u8]) -> Result<Self, String> {
+        ember_protocol::json::parse_as(text, MAX_CONFIG_LEN)
+            .map_err(|error| format!("invalid configuration: {error}"))
+    }
+
+    /// What `deploy/setup.sh` installs: `installed`, a bridge.json, with the
+    /// top-level settings of a tenants file over it and the development
+    /// switches off. Returns the file to write and the configuration it loads
+    /// as, and refuses one the bridge would not start with or that names
+    /// other files than the deployment's backups expect.
+    pub fn deployed(installed: &[u8], tenants: &[u8]) -> Result<(Vec<u8>, Self), String> {
+        let object = |text: &[u8], what: &str| match serde_json::from_slice(text) {
+            Ok(serde_json::Value::Object(members)) => Ok(members),
+            Ok(_) => Err(format!("{what} is not a JSON object")),
+            Err(error) => Err(format!("{what} is not valid JSON: {error}")),
+        };
+        let mut config = object(installed, "bridge.json")?;
+        config.extend(object(tenants, "the tenants file")?);
+        for (key, expected) in DEPLOYED_FILES {
+            let found = config.get(key);
+            if found.and_then(serde_json::Value::as_str) != Some(expected) {
+                let found = found.map_or("nothing".to_owned(), ToString::to_string);
+                return Err(format!(
+                    "bridge.json has {key} {found}; this deployment expects {expected:?}"
+                ));
+            }
+        }
+        for switch in [
+            "allow_loopback_http",
+            "allow_private_webhooks",
+            "mock_browser",
+        ] {
+            config.insert(switch.into(), false.into());
+        }
+        let mut text = serde_json::to_vec_pretty(&config).map_err(|error| error.to_string())?;
+        text.push(b'\n');
+        let parsed = Self::parse(&text)?;
+        parsed.validate()?;
+        Ok((text, parsed))
     }
 
     /// How long a match nobody plays stays open, in seconds.
