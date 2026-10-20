@@ -537,6 +537,8 @@ async fn closing_the_setting_or_the_staff_list_drops_watchers_at_the_next_claim(
 #[tokio::test]
 async fn a_watcher_who_goes_quiet_is_dropped_at_the_next_claim() {
     let f = fixture().await;
+    // One second short of the window: the wall clock must not move under it.
+    f.bridge.clock.freeze();
     bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
