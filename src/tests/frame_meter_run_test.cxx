@@ -168,6 +168,15 @@ int main() {
             fireball.Play(Quiet, Quiets);
             Require(fireball.View().frozen && fireball.View().frames.size() == 54, "The blocked projectile's exchange was not held");
         }
+        // Hitstop: frames where neither fighter's animation moves leave the bars.
+        {
+            Fight stop; stop.Play(Attack, 3);
+            std::array<FighterSample, 2> both = stop.View().current;
+            for (int i = 0; i < 8; ++i) stop.meter.Observe(stop.at++, both);
+            Require(stop.View().frames.size() == 3 && stop.View().length == 3, "Hitstop frames were drawn");
+            stop.Play(Attack);
+            Require(stop.View().frames.size() == 4, "The frame after hitstop was not drawn");
+        }
         std::puts("Frame meter run tests passed");
         return 0;
     } catch (const std::exception& error) {

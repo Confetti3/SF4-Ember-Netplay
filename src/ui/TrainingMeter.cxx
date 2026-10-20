@@ -84,6 +84,19 @@ void CountMarks(ImDrawList* draw, ImVec2 origin, float cell, float height, float
         draw->AddLine(ImVec2(x, origin.y + height), ImVec2(x, origin.y + height + (tenth ? 2.5f : 1.5f) * unit), colour, thickness);
     }
 }
+// On a bar: a dotted line where frames left out of the bars (hitstop, a
+// super's freeze) were.
+void DrawStops(ImDrawList* draw, const MeterView& meter, int side, BarWindow window, ImVec2 origin, float cell, float height, float slant) {
+    for (int i = 0; i < window.cells; ++i) {
+        const int index = CellFrame(meter, window, i);
+        if (index < 0 || !meter.frames[index].cells[side].afterStop) continue;
+        const float x = origin.x + i * cell;
+        for (int dash = 0; dash < 3; ++dash) {
+            const float a = dash / 3.f, b = a + 1 / 6.f;
+            draw->AddLine(ImVec2(x + slant * (1 - a), origin.y + height * a), ImVec2(x + slant * (1 - b), origin.y + height * b), IM_COL32(120, 200, 255, 235), (std::max)(1.f, height / 10));
+        }
+    }
+}
 // Stable's flat bars: a cell's colour is its state group, so an attack is one
 // colour from start to end; a bright line marks a new native action.
 void FlatBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin, float width, float height, BarWindow window) {
@@ -100,6 +113,7 @@ void FlatBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin, 
             draw->AddLine(ImVec2(origin.x + i * cell, origin.y), ImVec2(origin.x + i * cell, origin.y + height), palette::Ivory, (std::max)(2.f, 2.5f * height / 14));
     }
     CountMarks(draw, origin, cell, height, 0, window.cells);
+    DrawStops(draw, meter, side, window, origin, cell, height, 0);
 }
 // The angled bars, the default: a cell leans as the game's gauges do, its top
 // edge further right; an attack shows its startup, active and recovery; and
@@ -141,6 +155,7 @@ void AngledBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin
     // The last run ends at the newest frame, short of the right edge until the bars are full.
     if (runStart >= 0) runs.push_back({runStart, runEnd, runKind});
     CountMarks(draw, origin, cell, height, slant, window.cells);
+    DrawStops(draw, meter, side, window, origin, cell, height, slant);
     for (const auto& run : runs) label(run.from, run.to, run.kind);
 }
 ImVec4 AdvantageColor(int frames) {
@@ -464,6 +479,7 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
             else if (kind != runKind || split) { label(runStart, i, runKind); runStart = i; runKind = kind; }
             runEnd = i + 1;
         }
+        DrawStops(draw, meter, side, window, origin, cell, height, slant);
         if (runStart >= 0) label(runStart, runEnd, runKind);
         if (options.classicExtras) {
             // Earlier frames lie to the left, later ones to the right, of what is shown.

@@ -301,7 +301,21 @@ struct MeterCell {
     // The status the guard this cell is part of began from, carried from
     // cell to cell, so a long guard stays what it began as.
     unsigned guardFrom = ~0u;
+    // Frames left out of the bars (hitstop, a super's freeze) came just before this one.
+    bool afterStop = false;
 };
+// Whether a fighter's animation went on from before to sample. Hitstop and a
+// super's freeze hold it; the one hit starts a new action at its first frame.
+inline bool AnimationMoved(const FighterSample& before, const FighterSample& sample) {
+    return !sample.valid || !before.valid || (sample.action == before.action ? sample.actionFrame != before.actionFrame : sample.actionFrame > 0);
+}
+// cell, drawn after frames left out of the bars (FrameMeter::Observe),
+// takes on what they began: a new action, a split, and that they were.
+inline void MergeStopped(MeterCell& cell, const MeterCell& stopped) {
+    cell.newAction = cell.newAction || stopped.newAction;
+    cell.split = cell.split || stopped.split;
+    cell.afterStop = cell.afterStop || stopped.afterStop;
+}
 // sample's cell after previous, the sample before it in the bars whose cell
 // was before; no previous for the first cell of the bars.
 inline MeterCell ResolveMeterCell(const FighterSample& sample, const FighterSample* previous, const MeterCell& before) {
@@ -393,7 +407,7 @@ public:
         history_ = (std::max)(MeterShown, frames);
         while (view_.frames.size() > history_) view_.frames.pop_front();
     }
-    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; cancelling_ = {}; }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = stopped_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; cancelling_ = {}; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -413,6 +427,7 @@ public:
             fighters[side].throwRecovery = thrower_[side] && fighters[1 - side].valid && fighters[1 - side].status != ActorStatus::Sequence;
         for (int side = 0; side < 2; ++side)
             fighters[side].wake = fighters[side].valid && view_.current[side].valid && view_.current[side].status == ActorStatus::Rise && fighters[side].status != ActorStatus::Rise;
+        const bool moved = AnimationMoved(view_.current[0], fighters[0]) || AnimationMoved(view_.current[1], fighters[1]);
         const std::int64_t now = observedFrames_++;
         ObserveAdvantage(now, fighters);
         std::array<MeterCell, 2> cells;
@@ -508,6 +523,20 @@ public:
         bool neutral = true;
         for (const auto& cell : cells) neutral = neutral && (cell.kind == MeterKind::Neutral || cell.kind == MeterKind::Unknown);
         idleFrames_ = neutral ? idleFrames_ + 1 : 0;
+        // Hitstop, or a super's freeze: neither fighter's animation moved on
+        // in an exchange. Such a frame is measured, but left out of the bars,
+        // so they count frames as the numbers and the frame data do.
+        if (!moved && !neutral) {
+            // The exchange kept aside counts frames drawn (exchangeAt_).
+            ++exchangeAt_;
+            for (int side = 0; side < 2; ++side) {
+                MergeStopped(stopped_[side], cells[side]);
+                stopped_[side].afterStop = true;
+            }
+            return;
+        }
+        for (int side = 0; side < 2; ++side) MergeStopped(cells[side], stopped_[side]);
+        stopped_ = {};
         // The bars run from an exchange's first active frame; idle frames
         // before it are not kept. MeterIdleFrames quiet frames hold them,
         // ending on the exchange's last active frame, and any action after
@@ -681,6 +710,8 @@ private:
     std::array<bool, 2> thrower_{};
     // The last cell each side was given (ResolveMeterCell).
     std::array<MeterCell, 2> lastCells_{};
+    // What frames left out of the bars began, for the next frame drawn (MergeStopped).
+    std::array<MeterCell, 2> stopped_{};
     // What a held meter has seen of an exchange still waiting for its
     // contact, and that exchange's frames so far (Observe).
     std::deque<MeterFrame> aside_;
