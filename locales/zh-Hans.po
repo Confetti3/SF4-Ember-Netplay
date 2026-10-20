@@ -3945,14 +3945,10 @@ msgstr "在此服务中解除此 {0} 账号与你的 Ember ID 的关联。{0} �
 msgid "site.organizer"
 msgstr "主办方权限"
 
-msgid "site.organizer_allow_detail"
-msgstr "在浏览器中打开 {0}，让 Ember 在那里运营你的比赛：读取你的赛事并上报比分。"
 
 msgid "site.organizer_held"
 msgstr "已允许"
 
-msgid "site.organizer_held_detail"
-msgstr "Ember 正在 {0} 上运营你的比赛。选择以撤销；你的账号仍保持连接。"
 
 msgid "site.organizer_opened"
 msgstr "请在浏览器中允许组织者权限。此界面会自动更新。"
@@ -3960,17 +3956,13 @@ msgstr "请在浏览器中允许组织者权限。此界面会自动更新。"
 msgid "site.organizer_now"
 msgstr "已允许组织者权限。赛事台位于 Ember ID 下。"
 
-msgid "site.desk"
-msgstr "在浏览器中打开赛事台"
 
-msgid "site.desk_detail"
-msgstr "在此电脑的浏览器中打开赛事台，已使用此 Ember ID 登录。"
 
 msgid "screen.tournament_desk"
-msgstr "赛事台"
+msgstr "赛事组织"
 
 msgid "desk.entry_detail"
-msgstr "通过 Ember 运行的赛事：对局、对阵表以及需要你处理的事项。"
+msgstr "组织者权限、网页控制台和你的赛事。"
 
 msgid "desk.event_detail"
 msgstr "在 {0}。选择以查看对局。"
@@ -4165,28 +4157,18 @@ msgid "desk.open_phone"
 msgstr "在其他设备上登录"
 
 msgid "desk.open_phone_detail"
-msgstr "显示一个代码，可在任何设备的赛事台页面输入。"
+msgstr "在任意设备上打开控制台，然后在这里输入它显示的代码。"
 
 msgid "desk.code_at"
 msgstr "输入位置"
 
 msgid "desk.code_at_detail"
-msgstr "赛事台页面的“有 Ember 代码？”处。"
+msgstr "在另一台设备上打开这个。它会显示一个要在这里输入的代码。"
 
-msgid "desk.code_left"
-msgstr "有效时间"
 
-msgid "desk.code_left_detail"
-msgstr "代码只能使用一次，有效两分钟。"
 
-msgid "desk.code_lapsed"
-msgstr "代码已过期。"
 
-msgid "desk.code_new"
-msgstr "新代码"
 
-msgid "desk.code_new_detail"
-msgstr "生成新代码；旧代码失效。"
 
 msgid "desk.opened"
 msgstr "已在浏览器中打开赛事台。"
@@ -6630,3 +6612,39 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+msgid "desk.offstream"
+msgstr "请在直播画面外操作"
+
+msgid "desk.offstream_detail"
+msgstr "看到你屏幕的人无法使用该代码，但仍请在直播画面外登录。"
+
+msgid "desk.device_code"
+msgstr "另一台设备上的代码"
+
+msgid "desk.device_approved"
+msgstr "另一台设备已登录控制台。"
+
+msgid "desk.device_refused"
+msgstr "代码错误或已过期。请在另一台设备上获取新代码。"
+
+msgid "desk.org_site"
+msgstr "{0} 组织者权限"
+
+msgid "desk.org_unlinked"
+msgstr "未关联"
+
+msgid "desk.org_unlinked_detail"
+msgstr "请先在已关联账号中关联你的 {0} 账号。"
+
+msgid "desk.org_allow"
+msgstr "允许"
+
+msgid "desk.org_allow_detail"
+msgstr "让 Ember 运营你的 {0} 赛事。{0} 会在浏览器中打开以便批准。"
+
+msgid "desk.org_remove_detail"
+msgstr "移除组织者权限。已关联的账号保留。"
+
+msgid "site.organizer_where"
+msgstr "组织者权限位于 Ember ID > 赛事组织。"

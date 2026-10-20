@@ -24,7 +24,7 @@ enum class IdentityOp : std::uint8_t {
     DeskWeb, DeskWebSeen, DeskWebEnd,
     // Opening the web desk from the game: in the browser, or as a code to
     // type on another device.
-    DeskOpen, DeskCode,
+    DeskOpen, DeskApprove,
 };
 
 // Where a player connects an account to their Ember ID through a browser

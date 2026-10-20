@@ -200,11 +200,15 @@ private:
     // and Left/Right, and the read every few seconds while one is open.
     static bool DeskScreen(const std::string& screen);
     bool DeskHeld(const ShellView& view) const;
+    // Whether Ember's own service offers organizer access on any site.
+    bool DeskOffered(const ShellView& view) const;
+    // Asks a listed site for organizer access, or drops it (IdentitySignIn.cxx).
+    void OrganizerAccess(const ShellView& view, const std::string& site, bool allow);
     const netplay::DeskSet* DeskSelected(const ShellView& view) const;
     void DeskPoll(const ShellView& view, const std::string& screen);
     void DeskRows(const ShellView& view, const std::string& screen, std::vector<MenuEntry>& rows, std::string& title) const;
     bool DeskActivate(const MenuAction& a, const ShellView& view, MenuNavigation& navigation);
-    bool DeskAccept(const MenuAction& a);
+    bool DeskAccept(const MenuAction& a, const ShellView& view);
     // Says so when the list a link's refresh brought back lacks its match.
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
     // Reads the service list again after the helper answered for a dormant

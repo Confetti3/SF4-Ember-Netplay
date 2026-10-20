@@ -3945,14 +3945,10 @@ msgstr "Отключает этот аккаунт {0} от вашего Ember I
 msgid "site.organizer"
 msgstr "Доступ организатора"
 
-msgid "site.organizer_allow_detail"
-msgstr "Открывает {0} в браузере, чтобы Ember вёл там ваши турниры: читал события и отправлял счёт."
 
 msgid "site.organizer_held"
 msgstr "Разрешён"
 
-msgid "site.organizer_held_detail"
-msgstr "Ember ведёт ваши турниры на {0}. Выберите, чтобы отозвать доступ; аккаунт останется подключённым."
 
 msgid "site.organizer_opened"
 msgstr "Разрешите доступ организатора в браузере. Этот экран обновится сам."
@@ -3960,17 +3956,13 @@ msgstr "Разрешите доступ организатора в браузе
 msgid "site.organizer_now"
 msgstr "Доступ организатора разрешён. Стол турнира — в разделе Ember ID."
 
-msgid "site.desk"
-msgstr "Открыть стол в браузере"
 
-msgid "site.desk_detail"
-msgstr "Открывает стол турнира в браузере этого ПК, уже с входом под этим Ember ID."
 
 msgid "screen.tournament_desk"
-msgstr "Стол турнира"
+msgstr "Организация турниров"
 
 msgid "desk.entry_detail"
-msgstr "Ваши события в Ember: их сеты, сетка и то, что требует вашего решения."
+msgstr "Доступ организатора, веб-панель и твои события."
 
 msgid "desk.event_detail"
 msgstr "На {0}. Выберите, чтобы увидеть сеты."
@@ -4165,28 +4157,18 @@ msgid "desk.open_phone"
 msgstr "Войти на другом устройстве"
 
 msgid "desk.open_phone_detail"
-msgstr "Показывает код для ввода на странице стола на любом устройстве."
+msgstr "Открой панель на любом устройстве и введи здесь код, который она покажет."
 
 msgid "desk.code_at"
 msgstr "Введите на"
 
 msgid "desk.code_at_detail"
-msgstr "На странице пульта, в поле «Есть код из Ember?»"
+msgstr "Открой это на другом устройстве. Оно покажет код, который нужно ввести здесь."
 
-msgid "desk.code_left"
-msgstr "Действует"
 
-msgid "desk.code_left_detail"
-msgstr "Код работает один раз, две минуты."
 
-msgid "desk.code_lapsed"
-msgstr "Срок кода истёк."
 
-msgid "desk.code_new"
-msgstr "Новый код"
 
-msgid "desk.code_new_detail"
-msgstr "Создаёт новый код; старый перестаёт работать."
 
 msgid "desk.opened"
 msgstr "Пульт открыт в браузере."
@@ -6630,3 +6612,39 @@ msgid "country.ZW"
 msgstr "Зимбабве"
 
 #. End of the generated country names.
+
+msgid "desk.offstream"
+msgstr "Делай это не на стриме"
+
+msgid "desk.offstream_detail"
+msgstr "Тот, кто видит твой экран, не сможет использовать код, но всё равно входи не на стриме."
+
+msgid "desk.device_code"
+msgstr "Код с другого устройства"
+
+msgid "desk.device_approved"
+msgstr "Другое устройство вошло в панель."
+
+msgid "desk.device_refused"
+msgstr "Код неверный или устарел. Получи новый на другом устройстве."
+
+msgid "desk.org_site"
+msgstr "Доступ организатора {0}"
+
+msgid "desk.org_unlinked"
+msgstr "Не привязан"
+
+msgid "desk.org_unlinked_detail"
+msgstr "Сначала привяжи аккаунт {0} в разделе «Привязанные аккаунты»."
+
+msgid "desk.org_allow"
+msgstr "Разрешить"
+
+msgid "desk.org_allow_detail"
+msgstr "Позволяет Ember вести твои турниры на {0}. {0} откроется в браузере для подтверждения."
+
+msgid "desk.org_remove_detail"
+msgstr "Убирает доступ организатора. Привязанный аккаунт остаётся."
+
+msgid "site.organizer_where"
+msgstr "Доступ организатора находится в Ember ID > Организация турниров."

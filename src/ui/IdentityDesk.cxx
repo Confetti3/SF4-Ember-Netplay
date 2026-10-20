@@ -1,8 +1,9 @@
-// The tournament desk: the events the organizer runs through Ember's own
-// service, an event's sets as a queue or as its bracket, and the desk's
-// actions on a set (call again, hold, decide or void a game). Shown while the
-// Ember ID holds organizer access on one of the service's sites. The reads
-// repeat every few seconds while a desk screen is open.
+// The tournament organizer: organizer access on each of Ember's own
+// service's sites, the web desk (in this PC's browser, or approving another
+// device), the events the organizer runs, an event's sets as a queue or as
+// its bracket, and the desk's actions on a set (call again, hold, decide or
+// void a game). The reads repeat every few seconds while a desk screen is
+// open.
 #include "IdentityPanel.hxx"
 #include "IdentityRows.hxx"
 #include "../common/Localization.hxx"
@@ -68,8 +69,14 @@ bool IdentityPanel::DeskHeld(const ShellView& v) const {
     });
 }
 
+bool IdentityPanel::DeskOffered(const ShellView& v) const {
+    const auto* ember = EmberBridge(v);
+    return ember && sitesBridge_ == ember->id
+        && std::any_of(sites_.begin(), sites_.end(), [](const netplay::IdentitySignInSite& s) { return s.organizer; });
+}
+
 bool IdentityPanel::DeskScreen(const std::string& screen) {
-    return screen == "tournament-desk" || screen == "desk-event" || screen == "desk-set" || screen == "desk-code";
+    return screen == "tournament-desk" || screen == "desk-event" || screen == "desk-set" || screen == "desk-device";
 }
 
 const netplay::DeskSet* IdentityPanel::DeskSelected(const ShellView& v) const {
@@ -80,7 +87,7 @@ const netplay::DeskSet* IdentityPanel::DeskSelected(const ShellView& v) const {
 }
 
 void IdentityPanel::DeskPoll(const ShellView& v, const std::string& screen) {
-    if (!DeskScreen(screen) || screen == "desk-code" || now_ < deskReadAt_ || sent_ || !queue_.empty()) return;
+    if (!DeskScreen(screen) || screen == "desk-device" || now_ < deskReadAt_ || sent_ || !queue_.empty()) return;
     const auto* ember = EmberBridge(v);
     if (!ember) return;
     deskReadAt_ = now_ + DeskReadSeconds;
@@ -94,23 +101,41 @@ void IdentityPanel::DeskPoll(const ShellView& v, const std::string& screen) {
 void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std::vector<MenuEntry>& rows, std::string& title) const {
     const auto& id = v.identity;
     const bool busy = sent_ != 0 || !queue_.empty();
-    if (screen == "desk-code") {
-        // The code big as the title, where it is typed, and how long it lasts.
-        const bool live = !id.handoffCode.empty() && id.handoffExpires > v.unixNow;
-        title = live ? id.handoffCode.substr(0, 4) + " " + id.handoffCode.substr(4) : std::string(loc::T("desk.open_phone"));
-        if (live) {
-            const auto left = id.handoffExpires - v.unixNow;
-            rows.push_back(InfoRow("dk-code-at", loc::T("desk.code_at"), id.handoffDesk, loc::T("desk.code_at_detail")));
-            rows.push_back(InfoRow("dk-code-left", loc::T("desk.code_left"),
-                std::to_string(left / 60) + ":" + (left % 60 < 10 ? "0" : "") + std::to_string(left % 60), loc::T("desk.code_left_detail")));
-        } else {
-            rows.push_back(InfoRow("dk-code-none", loc::T(busy ? "desk.loading" : "desk.code_lapsed"), {}, {}));
+    if (screen == "desk-device") {
+        // Another device's browser shows a code; it is typed here. The code
+        // only signs in the browser that shows it, but sign-ins stay off stream.
+        title = loc::T("desk.open_phone");
+        rows.push_back(InfoRow("dk-offstream", loc::T("desk.offstream"), {}, loc::T("desk.offstream_detail")));
+        if (const auto* ember = EmberBridge(v)) {
+            auto at = InfoRow("dk-device-at", loc::T("desk.code_at"), ember->origin + "/desk", loc::T("desk.code_at_detail"));
+            at.userText = true; rows.push_back(std::move(at));
         }
-        rows.push_back(Row("dk-code-new", loc::T("desk.code_new"), loc::T("desk.code_new_detail"), !busy));
+        rows.push_back(TextRow("dk-device-code", loc::T("desk.device_code"), {}, 9, !busy));
         return;
     }
     if (screen == "tournament-desk") {
         title = loc::T("screen.tournament_desk");
+        // Organizer access, per site of Ember's own service: allow it, or
+        // drop it; a site not linked yet is linked on its own screen first.
+        const auto* ember = EmberBridge(v);
+        for (const auto& site : sites_) {
+            if (!site.organizer || !ember) continue;
+            const auto found = accounts_.find({SignInSource::Site, site.id, ember->id});
+            const bool linked = found != accounts_.end() && !found->second.user.empty();
+            const auto name = SiteName(site.id);
+            if (!linked) {
+                rows.push_back(InfoRow("dk-org-link:" + site.id, loc::Tf("desk.org_site", name), loc::T("desk.org_unlinked"), loc::Tf("desk.org_unlinked_detail", name)));
+            } else if (found->second.organizer) {
+                auto held = ConfirmRow("dk-org-remove:" + site.id, loc::Tf("desk.org_site", name), loc::T("desk.org_remove_detail"), !busy);
+                held.value = loc::T("site.organizer_held"); rows.push_back(std::move(held));
+            } else {
+                auto allow = Row("dk-org:" + site.id, loc::Tf("desk.org_site", name), loc::Tf("desk.org_allow_detail", name), !busy);
+                allow.value = loc::T("desk.org_allow"); rows.push_back(std::move(allow));
+            }
+            rows.back().userText = true;
+        }
+        // The desk itself once any site grants organizer access.
+        if (!DeskHeld(v) && id.deskEvents.empty()) return;
         for (const auto& event : id.deskEvents) {
             auto row = Row("dk-event:" + event.id, event.title, loc::Tf("desk.event_detail", event.site));
             row.value = DeskWord(event.status, {{"draft", "desk.status.draft"}, {"ready", "desk.status.ready"}, {"running", "desk.status.running"}});
@@ -119,7 +144,7 @@ void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std:
         }
         if (id.deskEvents.empty())
             rows.push_back(InfoRow("dk-none", loc::T("desk.none"), {}, loc::T("desk.none_detail")));
-        // The web desk from here: in this PC's browser, or by a code on a phone.
+        // The web desk from here: in this PC's browser, or approving another device.
         rows.push_back(Row("dk-open", loc::T("desk.open_browser"), loc::T("desk.open_browser_detail"), !busy));
         rows.push_back(Row("dk-phone", loc::T("desk.open_phone"), loc::T("desk.open_phone_detail"), !busy));
         // Web desk sessions: how many, the newest, and signing them all out.
@@ -208,11 +233,13 @@ bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNa
         nav.Push("desk-event"); return true;
     }
     if (a.id.compare(0, 7, "dk-set:") == 0) { deskSet_ = a.id.substr(7); nav.Push("desk-set"); return true; }
+    if (a.id.compare(0, 7, "dk-org:") == 0) { OrganizerAccess(v, a.id.substr(7), true); return true; }
+    if (a.id.compare(0, 14, "dk-org-remove:") == 0) { OrganizerAccess(v, a.id.substr(14), false); return true; }
+    if (a.id == "dk-phone") { message_.clear(); nav.Push("desk-device"); return true; }
     const auto* ember = EmberBridge(v);
-    if ((a.id == "dk-open" || a.id == "dk-phone" || a.id == "dk-code-new") && ember) {
-        IdentityRequest handoff; handoff.op = a.id == "dk-open" ? IdentityOp::DeskOpen : IdentityOp::DeskCode; handoff.bridge = ember->id;
+    if (a.id == "dk-open" && ember) {
+        IdentityRequest handoff; handoff.op = IdentityOp::DeskOpen; handoff.bridge = ember->id;
         message_.clear(); Queue(std::move(handoff));
-        if (a.id == "dk-phone") nav.Push("desk-code");
         return true;
     }
     if (a.id == "dk-web-end" && ember) {
@@ -244,7 +271,14 @@ bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNa
     return true;
 }
 
-bool IdentityPanel::DeskAccept(const MenuAction& a) {
+bool IdentityPanel::DeskAccept(const MenuAction& a, const ShellView& v) {
+    if (a.kind == MenuAction::TextAccepted && a.id == "dk-device-code") {
+        const auto* ember = EmberBridge(v);
+        if (!ember || a.text.empty()) return true;
+        IdentityRequest approve; approve.op = IdentityOp::DeskApprove; approve.bridge = ember->id; approve.command = a.text;
+        message_.clear(); Queue(std::move(approve));
+        return true;
+    }
     if (a.kind != MenuAction::Adjust) return false;
     if (a.id == "dk-view") deskBracket_ = !deskBracket_;
     else if (a.id == "dk-filter") deskFilter_ = (deskFilter_ + (a.delta > 0 ? 1 : FilterCount - 1)) % FilterCount;

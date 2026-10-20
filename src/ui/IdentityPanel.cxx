@@ -34,6 +34,7 @@ std::string FailureText(const std::string& code) {
         {"corrupt", "identity.failure.corrupt"}, {"unsupported_envelope", "identity.failure.corrupt"},
         {"file_unreadable", "identity.failure.file"}, {"invalid_path", "identity.failure.file"},
         {"identity_busy", "identity.failure.busy"},
+        {"desk_code_refused", "desk.device_refused"},
         {"identity_unavailable", "identity.failure.state"}, {"wrong_state", "identity.failure.state"},
         {"key_missing", "identity.failure.state"},
         {"confirmation_mismatch", "identity.failure.changed"}, {"replacement_not_confirmed", "identity.failure.changed"},
@@ -475,6 +476,8 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::DeskOpen:
         Say(loc::T("desk.opened"), false, 4); break;
+    case IdentityOp::DeskApprove:
+        Say(loc::T("desk.device_approved"), false, 8); break;
     case IdentityOp::DeskWebEnd:
         Say(loc::T("desk.web_ended"), false, 4); deskReadAt_ = 0; break;
     case IdentityOp::DiscordStatus:
@@ -579,7 +582,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             rows.push_back(DiscordIdentityRow(v));
             ListedSiteIdentityRows(v, rows);
             rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
-            if (DeskHeld(v)) rows.push_back(Row("tournament-desk", loc::T("screen.tournament_desk"), loc::T("desk.entry_detail")));
+            if (DeskOffered(v)) rows.push_back(Row("tournament-desk", loc::T("screen.tournament_desk"), loc::T("desk.entry_detail")));
             rows.push_back(Row("id-copy", loc::T("identity.copy"), loc::T("identity.copy_detail")));
         }
         rows.push_back(Row("identity-backup", loc::T("screen.identity_backup"),
@@ -773,7 +776,7 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
 }
 
 void IdentityPanel::Accept(const MenuAction& a, const ShellView& v) {
-    if (DeskAccept(a)) return;
+    if (DeskAccept(a, v)) return;
     if (a.id == "id-new-passphrase") Assign(newPassphrase_, a.text);
     else if (a.id == "id-new-confirm") Assign(newConfirm_, a.text);
     else if (a.id == "id-backup-passphrase") Assign(backupPassphrase_, a.text);

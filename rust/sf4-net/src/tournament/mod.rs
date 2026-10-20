@@ -165,12 +165,15 @@ pub enum Request {
         #[serde(default)]
         end: bool,
     },
-    /// A one-time handoff that opens the web desk from the game: with
-    /// `open`, its link in the browser; the code to type on a phone either way.
+    /// A one-time link that opens the web desk in this PC's browser.
     DeskHandoff {
         bridge_id: String,
-        #[serde(default)]
-        open: bool,
+    },
+    /// Approves the code another device's browser shows, signing that
+    /// browser in to the web desk.
+    DeskApprove {
+        bridge_id: String,
+        code: String,
     },
     /// A desk action on one of an event's sets or matches, at `path`.
     DeskAct {
@@ -278,6 +281,7 @@ impl Request {
             Self::DeskAct { .. } => "desk_act",
             Self::DeskWeb { .. } => "desk_web",
             Self::DeskHandoff { .. } => "desk_handoff",
+            Self::DeskApprove { .. } => "desk_approve",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
             Self::RoomList { .. } => "room_list",
@@ -791,7 +795,8 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             seen,
             end,
         } => desk::web(shared, &bridge_id, seen, end).await,
-        Request::DeskHandoff { bridge_id, open } => desk::handoff(shared, &bridge_id, open).await,
+        Request::DeskHandoff { bridge_id } => desk::handoff(shared, &bridge_id).await,
+        Request::DeskApprove { bridge_id, code } => desk::approve(shared, &bridge_id, &code).await,
         Request::MatchClaim {
             bridge_id,
             match_id,

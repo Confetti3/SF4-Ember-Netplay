@@ -17,8 +17,6 @@ namespace {
 // While a site's page is open in the browser, the account is read this
 // often, for as long as the bridge keeps the sign-in.
 constexpr double PollSeconds = 4, SignInSeconds = 600, OrganizerSeconds = 180;
-constexpr const char* OrganizerRow = "st-organizer";
-constexpr const char* OrganizerRemoveRow = "st-organizer-remove";
 
 IdentityRequest Request(const SignInTarget& target, SignInStep step, const std::string& bridge) {
     IdentityRequest r; r.op = netplay::SignInRequest(target.source, step); r.bridge = bridge; r.site = target.site; return r;
@@ -284,18 +282,10 @@ void IdentityPanel::SignInRows(const ShellView& v, const SignInTarget& site, con
         rows.push_back(named(Row(ids.connect, word(words.change), word(words.changeDetail), !busy && (offered || !offKnown))));
         auto remove = ConfirmRow(ids.remove, loc::T(words.removeLabel), word(words.removeDetail), !busy);
         remove.hint = loc::T(words.removeLabel); rows.push_back(std::move(remove));
-        // A site that also runs tournaments through Ember: its organizer access,
-        // and once held, where the tournament desk is.
-        if (listed && listed->organizer) {
-            if (account->organizer) {
-                auto held = ConfirmRow(OrganizerRemoveRow, loc::T("site.organizer"), word("site.organizer_held_detail"), !busy);
-                held.value = loc::T("site.organizer_held"); rows.push_back(std::move(held));
-                // The desk screen's own row: the browser opens signed in.
-                rows.push_back(Row("dk-open", loc::T("site.desk"), loc::T("site.desk_detail"), !busy));
-            } else {
-                rows.push_back(Row(OrganizerRow, loc::T("site.organizer"), word("site.organizer_allow_detail"), !busy && offered));
-            }
-        }
+        // A site that also runs tournaments through Ember: organizer access
+        // is one place, Ember ID › Tournament organizer.
+        if (listed && listed->organizer)
+            rows.push_back(InfoRow("st-organizer-hint", loc::T("site.organizer"), {}, loc::T("site.organizer_where")));
     } else if (offKnown && !offered && !failed) {
         // Off as the latest read said; a failed read offers Try again below.
         rows.push_back(named(InfoRow(ids.off, word(words.off), {}, word(words.offDetail))));
@@ -321,13 +311,13 @@ void IdentityPanel::ListedSiteRows(const ShellView& v, std::vector<MenuEntry>& r
     if (ActiveFor(target)) rows.push_back(Row(Site(SignInSource::Site).rows.cancel, loc::T("common.cancel"), Word(target, "site.cancel_detail")));
 }
 
+void IdentityPanel::OrganizerAccess(const ShellView& v, const std::string& site, bool allow) {
+    message_.clear();
+    const auto bridge = SiteBridge(v, SignInTarget::Listed(site));
+    if (!bridge.empty()) Queue(Organizer(site, allow ? SignInStep::Connect : SignInStep::Remove, bridge));
+}
+
 bool IdentityPanel::SignInActivate(const MenuAction& a, const ShellView& v) {
-    if (a.id == OrganizerRow || a.id == OrganizerRemoveRow) {
-        message_.clear();
-        const auto bridge = SiteBridge(v, SignInTarget::Listed(siteScreen_));
-        if (!bridge.empty()) Queue(Organizer(siteScreen_, a.id == OrganizerRow ? SignInStep::Connect : SignInStep::Remove, bridge));
-        return true;
-    }
     for (const auto source : SignInSources) {
         const auto& info = Site(source);
         const auto target = source == SignInSource::Discord ? SignInTarget::Discord() : SignInTarget::Listed(siteScreen_);
@@ -367,6 +357,7 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
             Account(target, sentBridge_).organizer = id.siteOrganizer;
             if (signIn->step == SignInStep::Remove || id.siteOrganizer) {
                 if (id.siteOrganizer && organizerWait_ && organizerWait_->until > 0) Say(loc::T("site.organizer_now"), false, 20);
+                deskReadAt_ = 0;
                 organizerWait_.reset();
             }
         }
@@ -405,7 +396,7 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
 void IdentityPanel::SignInPoll(const std::string& screen, double now) {
     using Phase = SignInAttempt::Phase;
     if (organizerWait_ && !sent_ && queue_.empty() && now >= organizerWait_->pollAt
-        && AtScreenOf(SignInTarget::Listed(organizerWait_->site), screen)) {
+        && (screen == "tournament-desk" || AtScreenOf(SignInTarget::Listed(organizerWait_->site), screen))) {
         if (now > organizerWait_->until) {
             organizerWait_.reset();
         } else {

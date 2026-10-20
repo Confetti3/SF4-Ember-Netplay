@@ -3945,14 +3945,10 @@ msgstr "이 서비스에서 이 {0} 계정과 Ember ID의 연결을 끊습니다
 msgid "site.organizer"
 msgstr "주최자 권한"
 
-msgid "site.organizer_allow_detail"
-msgstr "브라우저에서 {0}을(를) 열어 Ember가 그곳에서 대회를 운영하게 합니다. 이벤트를 읽고 점수를 보고합니다."
 
 msgid "site.organizer_held"
 msgstr "허용됨"
 
-msgid "site.organizer_held_detail"
-msgstr "Ember가 {0}에서 대회를 운영합니다. 선택하면 권한을 취소합니다. 계정 연결은 유지됩니다."
 
 msgid "site.organizer_opened"
 msgstr "브라우저에서 주최자 접근을 허용하세요. 이 화면은 자동으로 갱신됩니다."
@@ -3960,17 +3956,13 @@ msgstr "브라우저에서 주최자 접근을 허용하세요. 이 화면은 �
 msgid "site.organizer_now"
 msgstr "주최자 접근이 허용되었습니다. 대회 데스크는 Ember ID에 있습니다."
 
-msgid "site.desk"
-msgstr "브라우저에서 대회 데스크 열기"
 
-msgid "site.desk_detail"
-msgstr "이 PC의 브라우저에서 대회 데스크를 엽니다. 이 Ember ID로 이미 로그인되어 있습니다."
 
 msgid "screen.tournament_desk"
-msgstr "대회 데스크"
+msgstr "대회 운영"
 
 msgid "desk.entry_detail"
-msgstr "Ember로 운영 중인 이벤트: 세트, 대진표, 직접 처리할 일."
+msgstr "주최자 권한, 웹 데스크, 내 이벤트."
 
 msgid "desk.event_detail"
 msgstr "{0}의 이벤트. 선택하면 세트를 봅니다."
@@ -4165,28 +4157,18 @@ msgid "desk.open_phone"
 msgstr "다른 기기에서 로그인"
 
 msgid "desk.open_phone_detail"
-msgstr "어떤 기기에서든 대회 데스크 페이지에 입력할 코드를 표시합니다."
+msgstr "아무 기기에서나 데스크를 열고 표시된 코드를 여기에 입력하세요."
 
 msgid "desk.code_at"
 msgstr "입력할 곳"
 
 msgid "desk.code_at_detail"
-msgstr "데스크 페이지의 Ember 코드가 있나요? 칸."
+msgstr "다른 기기에서 이것을 여세요. 여기에 입력할 코드가 표시됩니다."
 
-msgid "desk.code_left"
-msgstr "남은 시간"
 
-msgid "desk.code_left_detail"
-msgstr "코드는 한 번, 2분 동안 쓸 수 있습니다."
 
-msgid "desk.code_lapsed"
-msgstr "코드가 만료되었습니다."
 
-msgid "desk.code_new"
-msgstr "새 코드"
 
-msgid "desk.code_new_detail"
-msgstr "새 코드를 만듭니다. 이전 코드는 더 이상 작동하지 않습니다."
 
 msgid "desk.opened"
 msgstr "브라우저에서 데스크를 열었습니다."
@@ -6630,3 +6612,39 @@ msgid "country.ZW"
 msgstr "짐바브웨"
 
 #. End of the generated country names.
+
+msgid "desk.offstream"
+msgstr "방송 밖에서 하세요"
+
+msgid "desk.offstream_detail"
+msgstr "화면을 보는 사람은 코드를 쓸 수 없지만, 로그인은 방송 밖에서 하세요."
+
+msgid "desk.device_code"
+msgstr "다른 기기의 코드"
+
+msgid "desk.device_approved"
+msgstr "다른 기기가 데스크에 로그인했습니다."
+
+msgid "desk.device_refused"
+msgstr "코드가 틀렸거나 만료되었습니다. 다른 기기에서 새 코드를 받으세요."
+
+msgid "desk.org_site"
+msgstr "{0} 주최자 권한"
+
+msgid "desk.org_unlinked"
+msgstr "연결 안 됨"
+
+msgid "desk.org_unlinked_detail"
+msgstr "먼저 연결된 계정에서 {0} 계정을 연결하세요."
+
+msgid "desk.org_allow"
+msgstr "허용"
+
+msgid "desk.org_allow_detail"
+msgstr "Ember가 {0} 대회를 운영하도록 합니다. 승인을 위해 브라우저에서 {0}이(가) 열립니다."
+
+msgid "desk.org_remove_detail"
+msgstr "주최자 권한을 제거합니다. 연결된 계정은 유지됩니다."
+
+msgid "site.organizer_where"
+msgstr "주최자 권한은 Ember ID > 대회 운영에 있습니다."

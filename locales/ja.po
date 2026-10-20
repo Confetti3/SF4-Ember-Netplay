@@ -3945,14 +3945,10 @@ msgstr "このサービスでこの{0}アカウントとEmber IDの連携を解�
 msgid "site.organizer"
 msgstr "主催者アクセス"
 
-msgid "site.organizer_allow_detail"
-msgstr "ブラウザで{0}を開き、Emberがそこで大会を運営できるようにします（イベントの読み取りとスコアの報告）。"
 
 msgid "site.organizer_held"
 msgstr "許可済み"
 
-msgid "site.organizer_held_detail"
-msgstr "Emberが{0}で大会を運営しています。選択すると取り消します。アカウントの接続はそのままです。"
 
 msgid "site.organizer_opened"
 msgstr "ブラウザで主催者アクセスを承認してください。この画面は自動で更新されます。"
@@ -3960,17 +3956,13 @@ msgstr "ブラウザで主催者アクセスを承認してください。この
 msgid "site.organizer_now"
 msgstr "主催者アクセスが許可されました。大会デスクはEmber IDにあります。"
 
-msgid "site.desk"
-msgstr "ブラウザで大会デスクを開く"
 
-msgid "site.desk_detail"
-msgstr "このPCのブラウザで大会デスクを開きます。このEmber IDでサインイン済みです。"
 
 msgid "screen.tournament_desk"
-msgstr "大会デスク"
+msgstr "大会運営"
 
 msgid "desk.entry_detail"
-msgstr "Ember で運営中のイベント：セット、ブラケット、対応が必要なもの。"
+msgstr "主催者アクセス、Webデスク、あなたのイベント。"
 
 msgid "desk.event_detail"
 msgstr "{0} のイベント。選ぶとセットを表示します。"
@@ -4165,28 +4157,18 @@ msgid "desk.open_phone"
 msgstr "別のデバイスでサインイン"
 
 msgid "desk.open_phone_detail"
-msgstr "どのデバイスでも大会デスクのページに入力するコードを表示します。"
+msgstr "任意の端末でデスクを開き、表示されたコードをここに入力します。"
 
 msgid "desk.code_at"
 msgstr "入力先"
 
 msgid "desk.code_at_detail"
-msgstr "デスクページの「Ember のコードをお持ちですか？」に入力します。"
+msgstr "もう一方の端末でこれを開いてください。ここに入力するコードが表示されます。"
 
-msgid "desk.code_left"
-msgstr "有効時間"
 
-msgid "desk.code_left_detail"
-msgstr "コードは1回だけ、2分間使えます。"
 
-msgid "desk.code_lapsed"
-msgstr "コードの期限が切れました。"
 
-msgid "desk.code_new"
-msgstr "新しいコード"
 
-msgid "desk.code_new_detail"
-msgstr "新しいコードを作ります。古いコードは使えなくなります。"
 
 msgid "desk.opened"
 msgstr "ブラウザーでデスクを開きました。"
@@ -6630,3 +6612,39 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
+
+msgid "desk.offstream"
+msgstr "配信外で行ってください"
+
+msgid "desk.offstream_detail"
+msgstr "画面を見た人はコードを使えませんが、サインインは配信外で行ってください。"
+
+msgid "desk.device_code"
+msgstr "もう一方の端末のコード"
+
+msgid "desk.device_approved"
+msgstr "もう一方の端末がデスクにサインインしました。"
+
+msgid "desk.device_refused"
+msgstr "コードが違うか期限切れです。もう一方の端末で新しいコードを取得してください。"
+
+msgid "desk.org_site"
+msgstr "{0}の主催者アクセス"
+
+msgid "desk.org_unlinked"
+msgstr "未連携"
+
+msgid "desk.org_unlinked_detail"
+msgstr "先に連携済みアカウントで{0}アカウントを連携してください。"
+
+msgid "desk.org_allow"
+msgstr "許可"
+
+msgid "desk.org_allow_detail"
+msgstr "Emberが{0}の大会を運営できるようにします。承認のため{0}がブラウザで開きます。"
+
+msgid "desk.org_remove_detail"
+msgstr "主催者アクセスを削除します。連携したアカウントはそのままです。"
+
+msgid "site.organizer_where"
+msgstr "主催者アクセスはEmber ID > 大会運営にあります。"

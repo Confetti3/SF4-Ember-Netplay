@@ -19,6 +19,7 @@ use super::{
 const EVENTS: &str = "/v1/organizer/events";
 const WEB: &str = "/v1/web-sessions";
 const HANDOFF: &str = "/v1/web-sessions/handoff";
+const APPROVE: &str = "/v1/web-sessions/approve";
 
 /// The most sets an answer carries, and the longest text kept from one: an
 /// answer goes to the game in one 64 KiB message.
@@ -149,11 +150,9 @@ pub async fn web(shared: &Arc<Shared>, bridge_id: &str, seen: bool, end: bool) -
     .await
 }
 
-/// A one-time handoff to the web desk, proven with `site.connect`. With
-/// `open`, the desk's link opens in the browser; the answer is the code to
-/// type elsewhere, when it lapses, and the desk's address. The link's
-/// token stays in the helper.
-pub async fn handoff(shared: &Arc<Shared>, bridge_id: &str, open: bool) -> Outcome {
+/// A one-time handoff to the web desk, proven with `site.connect`: its link
+/// opens in this PC's browser, and its token stays in the helper.
+pub async fn handoff(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
     with_session(shared, bridge_id, |bridge, token| async move {
         let body = prove(
             shared,
@@ -175,26 +174,53 @@ pub async fn handoff(shared: &Arc<Shared>, bridge_id: &str, open: bool) -> Outco
             )
             .await?;
         let made = answer(status, &response, &[201])?;
-        let (Some(link), Some(code)) = (made["token"].as_str(), made["code"].as_str()) else {
-            return Err(Failure::new("bridge_invalid_response"));
-        };
-        let well_formed = |text: &str, len: std::ops::RangeInclusive<usize>| {
-            len.contains(&text.len())
-                && text
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
-        };
-        if !well_formed(link, 16..=64) || !well_formed(code, 8..=8) {
+        let link = made["token"].as_str().unwrap_or_default();
+        let well_formed = (16..=64).contains(&link.len())
+            && link
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
+        if !well_formed {
             return Err(Failure::new("bridge_invalid_response"));
         }
-        if open {
-            browser::open(&format!("{}/desk/h/{link}", bridge.origin))?;
+        browser::open(&format!("{}/desk/h/{link}", bridge.origin))?;
+        Ok(Some(json!({ "desk": format!("{}/desk", bridge.origin) })))
+    })
+    .await
+}
+
+/// Approves `code`, shown by another device's browser at the desk, proven
+/// with `site.connect`: that browser, and only it, signs in to the desk.
+pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
+    let code: String = code.chars().filter(char::is_ascii_alphanumeric).collect();
+    if code.len() != 8 {
+        return Err(Failure::new("desk_code_refused"));
+    }
+    let code = &code;
+    with_session(shared, bridge_id, |bridge, token| async move {
+        let body = prove(
+            shared,
+            &bridge,
+            Some(&token),
+            Action::SiteConnect,
+            Method::Post,
+            APPROVE,
+            json!({ "code": code }),
+        )
+        .await?;
+        let (status, response) = shared
+            .client
+            .call(
+                reqwest::Method::POST,
+                &format!("{}{APPROVE}", bridge.origin),
+                Some(&token),
+                Some(body),
+            )
+            .await?;
+        if status == 404 {
+            return Err(Failure::new("desk_code_refused"));
         }
-        Ok(Some(json!({
-            "code": code,
-            "expires_at": made["expires_at"],
-            "desk": format!("{}/desk", bridge.origin),
-        })))
+        answer(status, &response, &[200])?;
+        Ok(Some(json!({ "approved": true })))
     })
     .await
 }

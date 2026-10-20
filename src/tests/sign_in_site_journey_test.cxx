@@ -666,9 +666,10 @@ void ConnectedAgain(const Case* site){
  }
 }
 
-// Organizer access: Allow opens the site's organizer page, the grant is read
-// again every few seconds until it shows, without leaving the screen, and the
-// desk then opens in the browser from the site's own screen.
+// Organizer access is one place, Ember ID › Tournament organizer: the site's
+// own screen only points there. Allow opens the site's organizer page, the
+// grant is read again every few seconds until it shows, without leaving the
+// screen, and the desk then opens in the browser, or approves another device.
 void SiteOrganizer(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;Ready(h);auto& id=h.view.identity;
@@ -681,19 +682,34 @@ void SiteOrganizer(){
  for(int i=0;i<4&&!organizerRead();++i)h.answer();
  Check(organizerRead(),"The organizer access was not read");
  id.siteOrganizer=false;h.answer();
- Check(h.row("st-organizer")&&h.row("st-organizer")->enabled&&!h.row("dk-open"),"Organizer access is not offered");
- h.Choose("st-organizer");
+ Check(h.row("st-organizer-hint")&&!h.row("dk-open")&&!h.row("dk-org:challonge"),"The site's screen still holds organizer access");
+ h.Screen("tournament-desk");for(int i=0;i<4;++i)h.answer();
+ Check(h.row("dk-org:challonge")&&h.row("dk-org:challonge")->enabled&&!h.row("dk-open"),"Organizer access is not offered on the organizer screen");
+ h.Choose("dk-org:challonge");
  Check(h.sent().back()->op==IdentityOp::SiteConnect&&h.sent().back()->organizer,"Allow did not open the organizer page");
  h.answer();
  Check(h.status==loc::T("site.organizer_opened"),"Approving in the browser is not asked for");
  h.Frame(0,300);
  Check(organizerRead(),"The organizer access was not read again while waiting");
  id.siteOrganizer=true;h.answer();
- Check(h.status==loc::T("site.organizer_now")&&h.row("dk-open")&&h.row("dk-open")->enabled,"Allowed organizer access was not shown by itself");
- const auto settled=h.sent().size();h.Frame(0,300);
- Check(h.sent().size()==settled,"The organizer access was still read after it showed");
+ Check(h.status==loc::T("site.organizer_now")&&h.row("dk-org-remove:challonge"),"Allowed organizer access was not shown by itself");
+ // The desk itself is read once access shows; then its rows open.
+ for(int i=0;i<3;++i)h.answer();
+ Check(h.row("dk-open")&&h.row("dk-open")->enabled,"The desk did not open up once organizer access showed");
+ const auto organizerReads=[&]{std::size_t n=0;for(const auto* r:h.sent())n+=r->op==IdentityOp::SiteStatus&&r->organizer;return n;};
+ const auto settled=organizerReads();h.Frame(0,300);
+ Check(organizerReads()==settled,"The organizer access was still read after it showed");
  h.Choose("dk-open");
- Check(h.sent().back()->op==IdentityOp::DeskOpen&&h.sent().back()->bridge=="brg_1","The site's desk row did not open the desk in the browser");
+ Check(h.sent().back()->op==IdentityOp::DeskOpen&&h.sent().back()->bridge=="brg_1","The desk did not open in the browser");
+ h.answer();
+ h.Choose("dk-phone");
+ Check(h.shell.Navigation().Screen()=="desk-device"&&h.row("dk-offstream")&&h.row("dk-device-code"),"Signing in another device does not ask for its code off stream");
+ for(int i=0;i<3;++i)h.answer();
+ Check(h.row("dk-device-code")->enabled,"The code cannot be typed");
+ h.Choose("dk-device-code");h.type("abcd efgh");
+ Check(h.sent().back()->op==IdentityOp::DeskApprove&&h.sent().back()->command=="abcd efgh","The other device's code was not sent for approval");
+ h.answer();
+ Check(h.status==loc::T("desk.device_approved"),"Approving the other device was not said");
 }
 
 void RunSignInSiteJourneys(){

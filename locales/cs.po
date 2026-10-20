@@ -3945,14 +3945,10 @@ msgstr "Odpojí tento účet {0} od vašeho Ember ID v této službě. Turnaje n
 msgid "site.organizer"
 msgstr "Přístup organizátora"
 
-msgid "site.organizer_allow_detail"
-msgstr "Otevře {0} v prohlížeči, aby tam Ember vedl tvé turnaje: četl tvé akce a hlásil výsledky."
 
 msgid "site.organizer_held"
 msgstr "Povoleno"
 
-msgid "site.organizer_held_detail"
-msgstr "Ember vede tvé turnaje na {0}. Vyber pro odebrání; účet zůstane připojený."
 
 msgid "site.organizer_opened"
 msgstr "Povolte přístup organizátora v prohlížeči. Tato obrazovka se obnoví sama."
@@ -3960,17 +3956,13 @@ msgstr "Povolte přístup organizátora v prohlížeči. Tato obrazovka se obnov
 msgid "site.organizer_now"
 msgstr "Přístup organizátora povolen. Turnajový stůl je v Ember ID."
 
-msgid "site.desk"
-msgstr "Otevřít stůl v prohlížeči"
 
-msgid "site.desk_detail"
-msgstr "Otevře turnajový stůl v prohlížeči tohoto PC, už přihlášený tímto Ember ID."
 
 msgid "screen.tournament_desk"
-msgstr "Turnajový stůl"
+msgstr "Pořádání turnajů"
 
 msgid "desk.entry_detail"
-msgstr "Tvoje události běžící přes Ember: jejich sety, pavouk a co potřebuje tebe."
+msgstr "Přístup pořadatele, webový desk a tvé události."
 
 msgid "desk.event_detail"
 msgstr "Na {0}. Vyber pro zobrazení setů."
@@ -4165,28 +4157,18 @@ msgid "desk.open_phone"
 msgstr "Přihlásit se na jiném zařízení"
 
 msgid "desk.open_phone_detail"
-msgstr "Zobrazí kód k zadání na stránce stolu na libovolném zařízení."
+msgstr "Otevři desk na libovolném zařízení a zadej sem kód, který ukáže."
 
 msgid "desk.code_at"
 msgstr "Zadej na"
 
 msgid "desk.code_at_detail"
-msgstr "Na stránce pultu pod Máš kód z Emberu?"
+msgstr "Otevři to na druhém zařízení. Ukáže kód, který zadáš sem."
 
-msgid "desk.code_left"
-msgstr "Platí"
 
-msgid "desk.code_left_detail"
-msgstr "Kód platí jednou, dvě minuty."
 
-msgid "desk.code_lapsed"
-msgstr "Kód vypršel."
 
-msgid "desk.code_new"
-msgstr "Nový kód"
 
-msgid "desk.code_new_detail"
-msgstr "Vytvoří nový kód; starý přestane platit."
 
 msgid "desk.opened"
 msgstr "Pult se otevřel v prohlížeči."
@@ -6630,3 +6612,39 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "desk.offstream"
+msgstr "Dělej to mimo stream"
+
+msgid "desk.offstream_detail"
+msgstr "Kdo vidí tvou obrazovku, kód použít nemůže, ale přihlašuj se stejně mimo stream."
+
+msgid "desk.device_code"
+msgstr "Kód z druhého zařízení"
+
+msgid "desk.device_approved"
+msgstr "Druhé zařízení je přihlášené k desku."
+
+msgid "desk.device_refused"
+msgstr "Kód je špatný nebo vypršel. Získej nový na druhém zařízení."
+
+msgid "desk.org_site"
+msgstr "Přístup pořadatele {0}"
+
+msgid "desk.org_unlinked"
+msgstr "Nepropojeno"
+
+msgid "desk.org_unlinked_detail"
+msgstr "Nejdřív propoj svůj účet {0} v Propojených účtech."
+
+msgid "desk.org_allow"
+msgstr "Povolit"
+
+msgid "desk.org_allow_detail"
+msgstr "Umožní Emberu vést tvé turnaje na {0}. {0} se otevře v prohlížeči ke schválení."
+
+msgid "desk.org_remove_detail"
+msgstr "Odebere přístup pořadatele. Propojený účet zůstane."
+
+msgid "site.organizer_where"
+msgstr "Přístup pořadatele je v Ember ID > Pořádání turnajů."

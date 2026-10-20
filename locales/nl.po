@@ -3945,14 +3945,10 @@ msgstr "Ontkoppelt dit {0}-account van je Ember ID bij deze dienst. Toernooien o
 msgid "site.organizer"
 msgstr "Organisatortoegang"
 
-msgid "site.organizer_allow_detail"
-msgstr "Opent {0} in je browser zodat Ember daar je toernooien kan runnen: je events lezen en scores doorgeven."
 
 msgid "site.organizer_held"
 msgstr "Toegestaan"
 
-msgid "site.organizer_held_detail"
-msgstr "Ember runt je toernooien op {0}. Selecteer om dit in te trekken; je account blijft gekoppeld."
 
 msgid "site.organizer_opened"
 msgstr "Sta organisatortoegang toe in je browser. Dit scherm werkt zichzelf bij."
@@ -3960,17 +3956,13 @@ msgstr "Sta organisatortoegang toe in je browser. Dit scherm werkt zichzelf bij.
 msgid "site.organizer_now"
 msgstr "Organisatortoegang toegestaan. De toernooitafel staat onder Ember ID."
 
-msgid "site.desk"
-msgstr "Toernooitafel openen in je browser"
 
-msgid "site.desk_detail"
-msgstr "Opent de toernooitafel in de browser van deze pc, al aangemeld met deze Ember ID."
 
 msgid "screen.tournament_desk"
-msgstr "Toernooitafel"
+msgstr "Toernooiorganisatie"
 
 msgid "desk.entry_detail"
-msgstr "Je events die via Ember lopen: hun sets, de bracket en wat jou nodig heeft."
+msgstr "Organisatortoegang, de webdesk en je events."
 
 msgid "desk.event_detail"
 msgstr "Op {0}. Kies om de sets te zien."
@@ -4165,28 +4157,18 @@ msgid "desk.open_phone"
 msgstr "Aanmelden op een ander apparaat"
 
 msgid "desk.open_phone_detail"
-msgstr "Toont een code om op de pagina van de toernooitafel in te typen, op elk apparaat."
+msgstr "Open de desk op een willekeurig apparaat en typ hier de code die het toont."
 
 msgid "desk.code_at"
 msgstr "Typ hem op"
 
 msgid "desk.code_at_detail"
-msgstr "Op de deskpagina, onder Code van Ember?"
+msgstr "Open dit op het andere apparaat. Het toont een code om hier te typen."
 
-msgid "desk.code_left"
-msgstr "Geldig"
 
-msgid "desk.code_left_detail"
-msgstr "Een code werkt één keer, twee minuten lang."
 
-msgid "desk.code_lapsed"
-msgstr "De code is verlopen."
 
-msgid "desk.code_new"
-msgstr "Nieuwe code"
 
-msgid "desk.code_new_detail"
-msgstr "Maakt een nieuwe code; de oude werkt niet meer."
 
 msgid "desk.opened"
 msgstr "De desk is geopend in je browser."
@@ -6630,3 +6612,39 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "desk.offstream"
+msgstr "Doe dit buiten de stream"
+
+msgid "desk.offstream_detail"
+msgstr "Wie je scherm ziet kan de code niet gebruiken, maar log toch buiten de stream in."
+
+msgid "desk.device_code"
+msgstr "Code van het andere apparaat"
+
+msgid "desk.device_approved"
+msgstr "Het andere apparaat is aangemeld bij de desk."
+
+msgid "desk.device_refused"
+msgstr "Die code is fout of verlopen. Haal een nieuwe op het andere apparaat."
+
+msgid "desk.org_site"
+msgstr "{0}-organisatortoegang"
+
+msgid "desk.org_unlinked"
+msgstr "Niet gekoppeld"
+
+msgid "desk.org_unlinked_detail"
+msgstr "Koppel eerst je {0}-account onder Gekoppelde accounts."
+
+msgid "desk.org_allow"
+msgstr "Toestaan"
+
+msgid "desk.org_allow_detail"
+msgstr "Laat Ember je {0}-toernooien leiden. {0} opent in je browser om het goed te keuren."
+
+msgid "desk.org_remove_detail"
+msgstr "Verwijdert de organisatortoegang. Je gekoppelde account blijft."
+
+msgid "site.organizer_where"
+msgstr "Organisatortoegang staat onder Ember ID > Toernooiorganisatie."

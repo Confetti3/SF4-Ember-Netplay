@@ -98,9 +98,5 @@ struct IdentityView {
     std::vector<DeskSet> deskSets;
     // The player's web desk sessions, newest first.
     std::vector<WebSession> webSessions;
-    // The last handoff to the web desk: the code to type, when it lapses
-    // (Unix seconds), and the desk's address.
-    std::string handoffCode, handoffDesk;
-    std::uint64_t handoffExpires = 0;
 };
 } }

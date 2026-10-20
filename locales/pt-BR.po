@@ -3471,14 +3471,10 @@ msgstr "Desconecta esta conta do {0} do seu Ember ID neste serviço. Torneios no
 msgid "site.organizer"
 msgstr "Acesso de organizador"
 
-msgid "site.organizer_allow_detail"
-msgstr "Abre {0} no navegador para o Ember gerenciar seus torneios lá: ler seus eventos e enviar os placares."
 
 msgid "site.organizer_held"
 msgstr "Permitido"
 
-msgid "site.organizer_held_detail"
-msgstr "O Ember gerencia seus torneios no {0}. Selecione para remover; sua conta continua conectada."
 
 msgid "site.organizer_opened"
 msgstr "Autorize o acesso de organizador no navegador. Esta tela se atualiza sozinha."
@@ -3486,17 +3482,13 @@ msgstr "Autorize o acesso de organizador no navegador. Esta tela se atualiza soz
 msgid "site.organizer_now"
 msgstr "Acesso de organizador autorizado. A mesa do torneio fica em Ember ID."
 
-msgid "site.desk"
-msgstr "Abrir a mesa no navegador"
 
-msgid "site.desk_detail"
-msgstr "Abre a mesa do torneio no navegador deste PC, já conectado com este Ember ID."
 
 msgid "screen.tournament_desk"
-msgstr "Mesa do torneio"
+msgstr "Organização de torneios"
 
 msgid "desk.entry_detail"
-msgstr "Seus eventos rodando pelo Ember: os sets, o bracket e o que precisa de você."
+msgstr "Acesso de organizador, a mesa web e seus eventos."
 
 msgid "desk.event_detail"
 msgstr "No {0}. Selecione para ver os sets."
@@ -3691,28 +3683,18 @@ msgid "desk.open_phone"
 msgstr "Entrar em outro dispositivo"
 
 msgid "desk.open_phone_detail"
-msgstr "Mostra um código para digitar na página da mesa em qualquer dispositivo."
+msgstr "Abra a mesa em qualquer dispositivo e digite aqui o código que ela mostra."
 
 msgid "desk.code_at"
 msgstr "Digite em"
 
 msgid "desk.code_at_detail"
-msgstr "Na página da mesa, em Tem um código do Ember?"
+msgstr "Abra isto no outro dispositivo. Ele mostra um código para digitar aqui."
 
-msgid "desk.code_left"
-msgstr "Vale"
 
-msgid "desk.code_left_detail"
-msgstr "Um código vale uma vez, por dois minutos."
 
-msgid "desk.code_lapsed"
-msgstr "O código expirou."
 
-msgid "desk.code_new"
-msgstr "Novo código"
 
-msgid "desk.code_new_detail"
-msgstr "Cria um código novo; o antigo para de funcionar."
 
 msgid "desk.opened"
 msgstr "A mesa abriu no seu navegador."
@@ -6156,3 +6138,39 @@ msgid "country.ZW"
 msgstr "Zimbábue"
 
 #. End of the generated country names.
+
+msgid "desk.offstream"
+msgstr "Faça isso fora da live"
+
+msgid "desk.offstream_detail"
+msgstr "Quem vê sua tela não consegue usar o código, mas faça login fora da live mesmo assim."
+
+msgid "desk.device_code"
+msgstr "Código do outro dispositivo"
+
+msgid "desk.device_approved"
+msgstr "O outro dispositivo entrou na mesa."
+
+msgid "desk.device_refused"
+msgstr "Esse código está errado ou expirou. Pegue um novo no outro dispositivo."
+
+msgid "desk.org_site"
+msgstr "Acesso de organizador do {0}"
+
+msgid "desk.org_unlinked"
+msgstr "Não vinculada"
+
+msgid "desk.org_unlinked_detail"
+msgstr "Vincule primeiro sua conta do {0} em Contas vinculadas."
+
+msgid "desk.org_allow"
+msgstr "Permitir"
+
+msgid "desk.org_allow_detail"
+msgstr "Deixa o Ember gerenciar seus torneios do {0}. O {0} abre no navegador para aprovar."
+
+msgid "desk.org_remove_detail"
+msgstr "Remove o acesso de organizador. Sua conta vinculada continua."
+
+msgid "site.organizer_where"
+msgstr "O acesso de organizador fica em ID Ember > Organização de torneios."
