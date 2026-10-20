@@ -546,6 +546,10 @@ Routes, all with the organizer's player session:
   first deletes the site's event, only one Ember created there
   (`created_on_site` in the listing); when the site refuses, nothing changes
   and the error carries the site's words.
+- `POST /v1/organizer/events/<id>/start` (proof action `site.connect` on that
+  path): starts a ready event's bracket on its site, with the organizer's
+  grant, when the site's definition has `create.start_url`. The listing's
+  `starts_on_site` says which events take it.
 
 `organizer.create` in a site definition (Challonge's has one; start.gg's
 API creates no events): `url`, `headers`, the JSON `body` to POST,
@@ -555,7 +559,10 @@ body; an empty value leaves the field to the site; `with` maps a value to
 more pointers to set alongside it, such as the options object Challonge
 requires with round robin and swiss), `id_pointer` into the answer for the event's ID as `tournaments`
 lists it, and optionally `link_pointer` with `link_prefix` for its page and
-`delete_url` (with `{tournament}`) to DELETE an event it created.
+`delete_url` (with `{tournament}`) to DELETE an event it created, and
+`start_url` (with `{tournament}`) with `start_body` to PUT to start a
+bracket, and `reset_body` to PUT there first when the site refuses to delete
+a started one (Challonge).
 
 The web desk signs organizers in without the game: `GET
 /web/sign-in/<site>` sends the browser to the site's sign-in (its plain
