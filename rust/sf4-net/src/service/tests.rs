@@ -1074,7 +1074,7 @@ async fn an_unconfirmed_departure_is_released_by_the_next_epoch() {
             follower_primary.id(),
             host_recovery.incarnation,
             host_recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -1403,7 +1403,7 @@ async fn an_accepted_admission_publishes_its_session_even_when_roster_known() {
             fixture.remote.id(),
             fixture.recovery.incarnation,
             fixture.recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -2612,7 +2612,7 @@ async fn fresh_learner_accepts_membership_only_from_invitation_authority() {
         )
         .unwrap();
         let room = seed.room();
-        let host = crate::recovery::RecoverySession::host(room, host_primary.id(), false)
+        let host = crate::recovery::RecoverySession::host(room, host_primary.id(), crate::transport::Transport::Online)
             .await
             .unwrap();
         let guest = crate::recovery::RecoverySession::join(
@@ -2620,7 +2620,7 @@ async fn fresh_learner_accepts_membership_only_from_invitation_authority() {
             guest_primary.id(),
             host.incarnation,
             host.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -2685,7 +2685,7 @@ async fn delayed_admission_cannot_readd_authenticated_removed_voter() {
         let host_primary = endpoint().await;
         let departing_primary = endpoint().await;
         let room = [29; 16];
-        let host = crate::recovery::RecoverySession::host(room, host_primary.id(), false)
+        let host = crate::recovery::RecoverySession::host(room, host_primary.id(), crate::transport::Transport::Online)
             .await
             .unwrap();
         let departing = crate::recovery::RecoverySession::join(
@@ -2693,7 +2693,7 @@ async fn delayed_admission_cannot_readd_authenticated_removed_voter() {
             departing_primary.id(),
             host.incarnation,
             host.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -2763,7 +2763,7 @@ async fn successor_rejects_replayed_admission_from_applied_membership_history() 
             departed_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -3002,7 +3002,7 @@ async fn a_confirmed_departure_is_not_reconciled_on_every_refresh() {
             departed_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -3136,7 +3136,7 @@ async fn held_checkpoint_and_admission_writes_do_not_block_actor_or_import_stale
             voter_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -3156,7 +3156,7 @@ async fn held_checkpoint_and_admission_writes_do_not_block_actor_or_import_stale
             joining_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -3431,7 +3431,7 @@ async fn overlapping_admissions_are_serialized_and_reach_current_voter_default()
             first_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -3440,7 +3440,7 @@ async fn overlapping_admissions_are_serialized_and_reach_current_voter_default()
             second_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -3528,7 +3528,7 @@ async fn async_admission_completion_publishes_third_member_to_existing_follower(
             follower_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -3568,7 +3568,7 @@ async fn async_admission_completion_publishes_third_member_to_existing_follower(
             newcomer_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -4551,7 +4551,7 @@ async fn ipc_service_rejects_malformed_and_replayed_commands() {
         timeout(Duration::from_secs(10), async {
             let endpoint = endpoint().await;
             let (server, mut client) = tokio::io::duplex(1024);
-            let service = tokio::spawn(run(server, endpoint, false));
+            let service = tokio::spawn(run(server, endpoint, crate::transport::Transport::Online));
             if replay {
                 let status = ControlFrame {
                     message_id: 2,
@@ -4614,7 +4614,7 @@ async fn a_rejoining_incarnation_supersedes_the_older_one_of_its_endpoint() {
             remote.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -4630,7 +4630,7 @@ async fn a_rejoining_incarnation_supersedes_the_older_one_of_its_endpoint() {
             remote.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -4917,7 +4917,7 @@ async fn learner_follower() -> LearnerFollower {
         fixture.remote.id(),
         fixture.recovery.incarnation,
         fixture.recovery.coordination_address.clone(),
-        false,
+        crate::transport::Transport::Online,
     )
     .await
     .unwrap();
@@ -5079,7 +5079,7 @@ async fn removing_a_voter_does_not_wait_for_an_unreachable_voter() {
                 primary.id(),
                 recovery.incarnation,
                 recovery.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
             )
             .await
             .unwrap();
@@ -5157,7 +5157,7 @@ async fn a_probe_reservation_wait_does_not_block_the_actor() {
             remote.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -5513,7 +5513,7 @@ impl ReservationFixture {
             remote.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();

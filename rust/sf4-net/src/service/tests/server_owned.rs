@@ -71,7 +71,7 @@ async fn the_host_stays_the_only_voter_as_sixteen_members_are_admitted() {
                 primary,
                 recovery.incarnation,
                 recovery.coordination_address.clone(),
-                crate::transport::Transport::from(false),
+                crate::transport::Transport::Online,
                 true,
             )
             .await
@@ -118,7 +118,7 @@ async fn no_other_voter_set_is_committed_in_a_server_owned_room() {
             let host = RecoverySession::host_in(
                 room,
                 primary.id(),
-                crate::transport::Transport::from(false),
+                crate::transport::Transport::Online,
                 None,
                 server_owned,
             )
@@ -129,7 +129,7 @@ async fn no_other_voter_set_is_committed_in_a_server_owned_room() {
                 iroh::SecretKey::generate().public(),
                 host.incarnation,
                 host.coordination_address.clone(),
-                crate::transport::Transport::from(false),
+                crate::transport::Transport::Online,
                 server_owned,
             )
             .await
@@ -362,7 +362,7 @@ async fn host_lost(server_owned: bool) -> (bool, bool) {
     let host = RecoverySession::host_in(
         room,
         host_primary.id(),
-        crate::transport::Transport::from(false),
+        crate::transport::Transport::Online,
         None,
         server_owned,
     )
@@ -373,7 +373,7 @@ async fn host_lost(server_owned: bool) -> (bool, bool) {
         member_primary.id(),
         host.incarnation,
         host.coordination_address.clone(),
-        crate::transport::Transport::from(false),
+        crate::transport::Transport::Online,
         server_owned,
     )
     .await
@@ -458,7 +458,7 @@ async fn a_public_host_leaving_performs_no_handoff() {
             iroh::SecretKey::generate().public(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            crate::transport::Transport::from(false),
+            crate::transport::Transport::Online,
             true,
         )
         .await

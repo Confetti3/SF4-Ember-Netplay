@@ -32,15 +32,6 @@ pub enum Transport {
     RelayOnly,
     Lan,
 }
-impl From<bool> for Transport {
-    fn from(relay_only: bool) -> Self {
-        if relay_only {
-            Self::RelayOnly
-        } else {
-            Self::Online
-        }
-    }
-}
 /// Network policy only; each endpoint owner supplies its own ALPN and limits.
 pub fn endpoint_builder(transport: Transport) -> iroh::endpoint::Builder {
     match transport {
@@ -96,7 +87,7 @@ fn now() -> io::Result<u64> {
 }
 
 /// Relay-only is a diagnostic/test policy, never an alternate gameplay protocol.
-pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint> {
+pub async fn bind_endpoint_with_policy(transport: crate::transport::Transport) -> io::Result<Endpoint> {
     // Port mapping was switched off to demonstrate the transport did not
     // depend on it. Leaving it off in the shipping endpoint also removed a
     // NAT-traversal aid: iroh documents the cost of Disabled as "potentially
@@ -104,11 +95,9 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
     // cannot reach each other directly are hitting. Take iroh's default
     // (enabled) for gameplay; relay-only keeps it off, where it is moot
     // because that diagnostic clears the IP transports anyway.
-    let builder = production_builder;
-    let bound = if relay_only {
-        primary_builder(Transport::RelayOnly).bind().await
-    } else {
-        fixed_port::bind(builder, &fixed_port::PORTS).await
+    let bound = match transport {
+        Transport::Online => fixed_port::bind(production_builder, &fixed_port::PORTS).await,
+        Transport::RelayOnly | Transport::Lan => primary_builder(transport).bind().await,
     };
     bound.map_err(|_| failed())
 }

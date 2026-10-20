@@ -213,8 +213,8 @@ impl Drop for ConnectionUseGuard {
     }
 }
 impl IrohRpc {
-    pub async fn bind(room: [u8; 16], incarnation: u64, relay_only: bool) -> io::Result<Arc<Self>> {
-        Self::bind_on(room, incarnation, relay_only, None).await
+    pub async fn bind(room: [u8; 16], incarnation: u64, transport: crate::transport::Transport) -> io::Result<Arc<Self>> {
+        Self::bind_on(room, incarnation, transport, None).await
     }
 
     /// `bind` with the IPv4 socket on exactly `port`, with no fallback to
@@ -222,13 +222,13 @@ impl IrohRpc {
     pub async fn bind_on(
         room: [u8; 16],
         incarnation: u64,
-        relay_only: bool,
+        transport: crate::transport::Transport,
         port: Option<u16>,
     ) -> io::Result<Arc<Self>> {
         Self::bind_owned(
             room,
             incarnation,
-            relay_only.into(),
+            transport,
             port,
             Ownership::Private,
         )

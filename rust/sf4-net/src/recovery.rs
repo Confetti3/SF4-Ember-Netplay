@@ -79,9 +79,9 @@ impl RecoverySession {
     pub async fn host(
         room: [u8; 16],
         primary_endpoint: EndpointId,
-        relay_only: bool,
+        transport: crate::transport::Transport,
     ) -> io::Result<Self> {
-        Self::host_on(room, primary_endpoint, relay_only, None).await
+        Self::host_on(room, primary_endpoint, transport, None).await
     }
 
     /// `host` with the coordination endpoint on exactly `port`, or the default
@@ -89,13 +89,13 @@ impl RecoverySession {
     pub async fn host_on(
         room: [u8; 16],
         primary_endpoint: EndpointId,
-        relay_only: bool,
+        transport: crate::transport::Transport,
         port: Option<u16>,
     ) -> io::Result<Self> {
         Self::host_in(
             room,
             primary_endpoint,
-            crate::transport::Transport::from(relay_only),
+            transport,
             port,
             false,
         )
@@ -159,14 +159,14 @@ impl RecoverySession {
         primary_endpoint: EndpointId,
         host_incarnation: u64,
         host_coordination: EndpointAddr,
-        relay_only: bool,
+        transport: crate::transport::Transport,
     ) -> io::Result<Self> {
         Self::join_in(
             room,
             primary_endpoint,
             host_incarnation,
             host_coordination,
-            crate::transport::Transport::from(relay_only),
+            transport,
             false,
         )
         .await

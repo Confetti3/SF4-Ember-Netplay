@@ -469,7 +469,7 @@ async fn the_coordination_endpoint_binds_the_given_port_or_hosting_fails() {
         .local_addr()
         .unwrap()
         .port();
-    let session = crate::recovery::RecoverySession::host_on([5; 16], own.id(), false, Some(free))
+    let session = crate::recovery::RecoverySession::host_on([5; 16], own.id(), crate::transport::Transport::Online, Some(free))
         .await
         .unwrap();
     // The port is held by the coordination endpoint now.
@@ -479,7 +479,7 @@ async fn the_coordination_endpoint_binds_the_given_port_or_hosting_fails() {
     let held = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
     let held_port = held.local_addr().unwrap().port();
     assert!(
-        crate::recovery::RecoverySession::host_on([6; 16], own.id(), false, Some(held_port))
+        crate::recovery::RecoverySession::host_on([6; 16], own.id(), crate::transport::Transport::Online, Some(held_port))
             .await
             .is_err()
     );

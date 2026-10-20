@@ -250,8 +250,8 @@ async fn a_private_room_measures_an_idle_member_a_spectator_and_another_table() 
 async fn strangers_wrong_incarnations_old_incarnations_and_rowless_members_are_refused() {
     let infra = Infra::start().await;
     let members = infra.members(3, false).await;
-    let stranger = bind_latency(&infra.net(), false.into()).await.unwrap();
-    let old = bind_latency(&infra.net(), false.into()).await.unwrap();
+    let stranger = bind_latency(&infra.net(), crate::transport::Transport::Online).await.unwrap();
+    let old = bind_latency(&infra.net(), crate::transport::Transport::Online).await.unwrap();
     infra.published(&[stranger.id(), old.id()]).await;
     let (first, second, third) = (
         members[0].incarnation(),
@@ -347,7 +347,7 @@ async fn latency_endpoints_take_no_control_or_game_connection_and_touch_nothing_
         .await;
     // A primary-style endpoint on the same relay reaches the latency
     // endpoint on its ALPN, and on no other.
-    let caller = bind_latency(&infra.net(), false.into()).await.unwrap();
+    let caller = bind_latency(&infra.net(), crate::transport::Transport::Online).await.unwrap();
     let target = EndpointAddr::new(nodes[0].latency.id()).with_relay_url(infra.relay_url.clone());
     let reached = caller
         .connect(target.clone(), LATENCY_ALPN)
@@ -633,7 +633,7 @@ async fn a_join_never_waits_for_the_latency_relay() {
     // The join's own work ends after half a second: it is not held for the
     // relay, which the endpoint never reaches.
     let started = Instant::now();
-    let (done, latency) = beside(Some((net.clone(), false.into())), async {
+    let (done, latency) = beside(Some((net.clone(), crate::transport::Transport::Online)), async {
         sleep(Duration::from_millis(500)).await;
         7
     })
@@ -647,7 +647,7 @@ async fn a_join_never_waits_for_the_latency_relay() {
     let latency = latency.expect("bound while the work ran");
     assert!(crate::service::network::known_home_region(latency.endpoint()).is_none());
     // Work that is done at once leaves no route: the bind is dropped.
-    let (_, none) = beside(Some((net.clone(), false.into())), async {}).await;
+    let (_, none) = beside(Some((net.clone(), crate::transport::Transport::Online)), async {}).await;
     assert!(none.is_none());
     drop(latency);
 
