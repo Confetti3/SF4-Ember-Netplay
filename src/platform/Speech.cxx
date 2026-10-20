@@ -35,10 +35,13 @@ std::vector<Request> Next(std::chrono::milliseconds wait) {
 }
 
 // Wine's own way to run a Unix program (winebrowser runs xdg-open with it).
-// It is internal to Wine, so a Wine without it has no voice for Ember.
+// It is internal to Wine, so a Wine without it has no voice for Ember. The
+// calling conventions are Wine's own (ntdll.spec, kernel32.spec): spawnvp is
+// stdcall, wine_get_unix_file_name cdecl. Declared otherwise, the call leaves
+// the stack four bytes off, which crashed the Steam Deck (UnixPath).
 using UnixSpawn = LONG (WINAPI*)(char* const*, int);
 FARPROC Ntdll(const char* name) { return GetProcAddress(GetModuleHandleW(L"ntdll.dll"), name); }
-using UnixName = char* (WINAPI*)(const wchar_t*);
+using UnixName = char* (CDECL*)(const wchar_t*);
 std::string UnixPath(const std::wstring& path) {
     const auto unixName = reinterpret_cast<UnixName>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "wine_get_unix_file_name"));
     char* name = unixName ? unixName(path.c_str()) : nullptr;

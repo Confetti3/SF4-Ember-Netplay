@@ -336,6 +336,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME CountryPicker SOURCES src/tests/country_picker_test.cxx LIBS sf4e_ui TIMEOUT 30)
     sf4e_add_unit_test(NAME MenuSpeech SOURCES src/tests/menu_speech_test.cxx LIBS sf4e_localization STD 17)
     sf4e_add_unit_test(NAME SpeechLinux SOURCES src/tests/speech_linux_test.cxx STD 17)
+    sf4e_add_unit_test(NAME SpeechWine SOURCES src/tests/speech_wine_test.cxx LIBS sf4e_ui STD 17 SKIP_RETURN_CODE 77)
     target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
     add_test(NAME UiRender COMMAND UiRenderTest)
     # Each sweep takes under a minute with the GPU transforming vertices. The
