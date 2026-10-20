@@ -25,9 +25,11 @@ PIPER = ("https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_
          "a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992")
 VOICE_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/"
 # Ember's language tag to a Piper voice: its path, model size, model and config SHA-256.
-# Japanese and Korean have none this Piper can speak, and stay on speech-dispatcher.
+# Only voices whose recordings are public domain, CC0 or CC BY (docs/design/ACCESSIBILITY_SPEC.md).
+# Japanese, Korean and Chinese have none this Piper can speak under those terms, and stay on
+# speech-dispatcher.
 VOICES = {
-    "en": ("en/en_US/lessac/medium/en_US-lessac-medium", 63201294, "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f", "efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0"),
+    "en": ("en/en_US/ljspeech/medium/en_US-ljspeech-medium", 63531379, "6f52a751e2349abe7a76735eb09dc1875298c77ea2342ffd2fef79ff81b87f22", "41394a62f6aac38235193a755f81b07c24bf4aa72b17d2d6737cfb7c053799dc"),
     "de": ("de/de_DE/thorsten/medium/de_DE-thorsten-medium", 63201294, "7e64762d8e5118bb578f2eea6207e1a35a8e0c30595010b666f983fc87bb7819", "974adee790533adb273a1ac88f49027d2a1b8f0f2cf4905954a4791e79264e85"),
     "fr": ("fr/fr_FR/siwis/medium/fr_FR-siwis-medium", 63201294, "641d1ab097da2b81128c076810edb052b385decc8be3381814802a64a73baf99", "39479916c2db192b5ac9764daddd0c744d83e023ad890c6976c0633ae4df8959"),
     "es-ES": ("es/es_ES/davefx/medium/es_ES-davefx-medium", 63201294, "6658b03b1a6c316ee4c265a9896abc1393353c2d9e1bca7d66c2c442e222a917", "0e0dda87c732f6f38771ff274a6380d9252f327dca77aa2963d5fbdf9ec54842"),
@@ -36,9 +38,8 @@ VOICES = {
     "nl": ("nl/nl_BE/nathalie/medium/nl_BE-nathalie-medium", 63201294, "49cf48023861f9fd42e13a8632f068fee67d1ce244a6ee38f29595afbf0a6be4", "4704af2736022e910a3f32672480d5530dd39da5c2bcc079f315f604166ff0de"),
     "pl": ("pl/pl_PL/gosia/medium/pl_PL-gosia-medium", 63201294, "38f66464240ed74f186e6b7dc13c6e3b22e023426299f25c2b3cc9dfa9373fbc", "1aefb31a9d53ffe44a8163ff73ec833acb7a6253848f6bb0403d8a66f9c7510d"),
     "pt-BR": ("pt/pt_BR/faber/medium/pt_BR-faber-medium", 63201294, "858555e3a064209c57088fe6bd70c4c3dc54d03eaa00c45d5ecaf43a33f95aa7", "7e694de195ae3fc36dd732c445eb04fb49b649854893cb5506b978f0d50a1d6f"),
-    "ru": ("ru/ru_RU/irina/medium/ru_RU-irina-medium", 63201294, "8ff38212d23da300bbe3705c645e6e5b9475f0bfde01558eb17813e22acaaaaa", "c2ec28bb38e2b59e93b959b3e40348c1afebbd272f30fed5d41205d08e98a9d7"),
+    "ru": ("ru/ru_RU/denis/medium/ru_RU-denis-medium", 63201294, "15fab56e11a097858ee115545d0f697fc2a316c41a291a5362349fb870411b0a", "831c860dac0b5073eaa81610a0a638ec23d90a6cf8e5f871b4485c2cec3767c8"),
     "cs": ("cs/cs_CZ/jirka/medium/cs_CZ-jirka-medium", 63201294, "cbd5c900acacc8e8cbecd64347abb8de39c00a9d3104bed06fee92e4f319efc8", "fb38b1799b7354808227c065efa97b1ffa2b0cde59505babb56a36d35af9c637"),
-    "zh-Hans": ("zh/zh_CN/huayan/medium/zh_CN-huayan-medium", 63201294, "9929917bf8cabb26fd528ea44d3a6699c11e87317a14765312420be230be0f3d", "d521dc45504a8ccc99e325822b35946dd701840bfb07e3dbb31a40929ed6a82b"),
 }
 
 
