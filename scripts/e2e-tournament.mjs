@@ -227,9 +227,10 @@ try {
     must(await page.eval("Boolean(desk.event.tournament)"), "no Challonge tournament");
     // With a webhook in ~/tournament-lab/e2e/discord-webhook, calls and scores
     // go to that Discord channel; it is never printed.
-    await page.eval(`(() => { const hook = document.querySelector('#live-settings input[type=url]'); if (${JSON.stringify(Boolean(webhook))}) hook.value = ${JSON.stringify(webhook)};
-      document.querySelectorAll('#live-settings input[type=checkbox]').forEach((box) => { box.checked = ${JSON.stringify(Boolean(webhook))} || !/score/.test(box.parentElement.textContent); }); })()`);
+    await page.eval(`document.querySelectorAll('#live-settings input[type=checkbox]').forEach((box) => { box.checked = ${JSON.stringify(Boolean(webhook))} || !/score/.test(box.parentElement.textContent); })`);
+    // The picture is taken before the webhook is typed: it would show it.
     await layout(page, "08-discord", true);
+    if (webhook) await page.eval(`document.querySelector('#live-settings input[type=url]').value = ${JSON.stringify(webhook)}`);
     await page.eval("document.getElementById('next').click()");
     await page.until("/Ready/.test(document.getElementById('step-now').textContent)");
     must(await page.eval("desk.event.sign_ups"), "sign-ups are not on");
