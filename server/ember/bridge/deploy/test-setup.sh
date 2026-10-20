@@ -70,7 +70,11 @@ cat > "$T/stubs/systemctl" <<'EOF'
 #!/usr/bin/env bash
 echo "systemctl $*" >> "$STUB/log"
 case "$1" in
-    restart) touch "$STUB/up/$2" ;;
+    restart)
+        # One restart fails when a test asks for it.
+        [ -e "$STUB/fail-restart" ] && { rm -f "$STUB/fail-restart"; exit 1; }
+        touch "$STUB/up/$2"
+        ;;
     is-active)
         [ "$2" = --quiet ] && shift
         [ -e "$STUB/up/$2" ] || { echo inactive; exit 3; }
@@ -144,6 +148,11 @@ failed() { [ "$RC" -ne 0 ]; }
 succeeded() { [ "$RC" -eq 0 ]; }
 exited() { [ "$RC" -eq "$1" ]; }
 absent() { [ ! -e "$1" ]; }
+# Nothing a run stages or backs up is left behind: no .new file next to an
+# installed one, and no mktemp folder in TMPDIR besides the test root.
+no_leftovers() {
+    [ -z "$(find "$R" -name '*.new' -o -name '.bridge.json.*')" ] && [ "$(ls "$TMPDIR")" = root ]
+}
 account() { grep -qx -- "$1" "$STUB/users"; }
 # config_is <bridge.json> <key> <JSON value>
 config_is() { python3 -c 'import json, sys; sys.exit(json.load(open(sys.argv[1])).get(sys.argv[2]) != json.loads(sys.argv[3]))' "$@"; }
@@ -325,6 +334,7 @@ check "service restarted" logged "systemctl restart $P"
 PID=$(bridge_id "$PSTATE")
 check "answers on 47820" mentions "service: ok ($PID)"
 check "answers through nginx" mentions "public: ok ($PID)"
+check "no staged file or backup folder left" no_leftovers
 snapshot "$P" "$PSITE" production
 
 echo "2. staging first install beside it, from its folder alone"
@@ -369,6 +379,7 @@ check "answers on 47821" mentions "service: ok ($SID)"
 check "answers through nginx" mentions "public: ok ($SID)"
 check "production files unchanged" unchanged "$P" "$PSITE" production
 check "production units never touched" production_untouched_by_systemctl
+check "no staged file or backup folder left" no_leftovers
 snapshot "$S" "$SSITE" staging
 
 echo "3. a newer staging binary, INSTANCE given and agreeing"
@@ -447,12 +458,6 @@ run "$SDIR/setup.sh" "EMBER_BRIDGE_ROOT=$T/elsewhere"
 check "a root outside TMPDIR exits 2" exited 2
 check "nothing ran" nothing_logged
 
-# Nothing a run stages or backs up is left behind: no .new file next to an
-# installed one, and no mktemp folder in TMPDIR besides the test root.
-no_leftovers() {
-    [ -z "$(find "$R" -name '*.new' -o -name '.bridge.json.*')" ] && [ "$(ls "$TMPDIR")" = root ]
-}
-
 echo "6. a staging site nginx rejects, with a newer binary, config and units staged"
 cp "$SDIR/nginx/bridge.conf.in" "$T/site-template"
 cp "$SDIR/ember-bridge.service.in" "$T/service-template"
@@ -465,8 +470,8 @@ stage_binary "$SDIR" v3
 run "$SDIR/setup.sh"
 check "fails" failed
 check "says it restored nginx" mentions "restored the previous files"
-check "says the rest was not changed" mentions "binary, bridge.json and units were not changed"
-check "the new config was meant to differ" bash -c '! cmp -s "$1" "$2"' _ "$SDIR/bin/ember-bridge" "$T/staging-binary"
+check "says the rest was not replaced" mentions "binary, bridge.json and units were not replaced"
+check "the staged binary differs" bash -c '! cmp -s "$1" "$2"' _ "$SDIR/bin/ember-bridge" "$T/staging-binary"
 check "staging binary, bridge.json, units, site and zone back as they were" unchanged "$S" "$SSITE" staging
 check "staging still enabled" links_to "$R/etc/nginx/sites-enabled/$SSITE" "$R/etc/nginx/sites-available/$SSITE"
 check "no staged file or backup folder left" no_leftovers
@@ -484,6 +489,23 @@ check "names the database" mentions "this deployment expects 'bridge.sqlite3'"
 check "staging binary, bridge.json, units, site and zone as they were" unchanged "$S" "$SSITE" staging
 check "no staged file or backup folder left" no_leftovers
 check "nothing reloaded or restarted" bash -c '! grep -q "^systemctl" "$1"' _ "$STUB/log"
+cp "$T/staging-tenants" "$SDIR/tenants.staging.json"
+cp -p "$T/staging-binary" "$SDIR/bin/ember-bridge"
+
+echo "6c. a bridge that fails to restart gets the previous files back"
+echo "# newer unit" >> "$SDIR/ember-bridge.service.in"
+sed -i 's/Ember bridge (staging)/Ember bridge (staging, restart fails)/' "$SDIR/tenants.staging.json"
+stage_binary "$SDIR" v4
+touch "$STUB/fail-restart"
+run "$SDIR/setup.sh"
+check "fails" failed
+check "says the previous files are back and the bridge restarted" mentions "put back the previous binary, bridge.json, units, site and zone, and restarted it"
+check "the staged binary differs" bash -c '! cmp -s "$1" "$2"' _ "$SDIR/bin/ember-bridge" "$T/staging-binary"
+check "staging binary, bridge.json, units, site and zone back as they were" unchanged "$S" "$SSITE" staging
+check "no staged file or backup folder left" no_leftovers
+check "the previous bridge was restarted" test "$(grep -cx "systemctl restart $S" "$STUB/log")" = 2
+check "production units never touched" production_untouched_by_systemctl
+cp "$T/service-template" "$SDIR/ember-bridge.service.in"
 cp "$T/staging-tenants" "$SDIR/tenants.staging.json"
 cp -p "$T/staging-binary" "$SDIR/bin/ember-bridge"
 
