@@ -651,7 +651,7 @@ int main() {
         sf4e::netplay::PlayerPreferences valid;
         valid.lobbyMusic = 24; valid.matchMusic = 29; CHECK(valid.Valid());
         valid.lobbyMusic = 100; valid.matchMusic = sf4e::music::Random; CHECK(valid.Valid());
-        valid.lobbyMusic = sf4e::music::Random; CHECK(!valid.Valid());
+        valid.lobbyMusic = sf4e::music::Random; CHECK(valid.Valid());
         for (const int invalid : {22, 23, 30, 99, 144, 255}) {
             valid.lobbyMusic = invalid; CHECK(!valid.Valid());
             valid.lobbyMusic = -1; valid.matchMusic = invalid; CHECK(!valid.Valid());
@@ -674,6 +674,8 @@ int main() {
             sf4e::netplay::ReadMusicPreferences({{"lobbyMusic", invalid}, {"matchMusic", invalid}}, loaded);
             CHECK(loaded.lobbyMusic == -1 && loaded.matchMusic == -1);
         }
+        sf4e::netplay::ReadMusicPreferences({{"lobbyMusic", sf4e::music::Random}}, loaded);
+        CHECK(loaded.lobbyMusic == sf4e::music::Random);
         sf4e::netplay::ReadMusicPreferences(Json::object(), loaded);
         CHECK(loaded.lobbyMusic == -1 && loaded.matchMusic == -1);
     }

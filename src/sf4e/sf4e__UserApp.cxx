@@ -125,7 +125,7 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     if (!fVsPreBattle::GoToVersus(settings, fUserApp::_OnVsPreBattleTasksRegistered)) {
         return MatchEntry::Deferred;
     }
-    sf4e::Music::EnterMatch();
+    fVsBattle::nextRequest.localMusic = sf4e::Music::ResolveMatchChoice();
     spdlog::info(
         "Netplay: starting match with rounds={} time={} training={}",
         client->_lobbyData.roundCount,

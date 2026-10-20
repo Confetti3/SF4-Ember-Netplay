@@ -324,6 +324,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditMusic = snapshot.canEditMusic;
 	view.musicError = snapshot.musicError;
+    view.musicChoices = snapshot.musicChoices;
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;
     view.selectedDelay=snapshot.selectedDelay; view.recommendedDelay=snapshot.recommendedDelay; view.autoDelayMeasured=snapshot.autoDelayMeasured;
@@ -430,7 +431,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.reportSubmission = std::move(action.reportSubmission);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
         request.padAction = action.padAction;
-        request.saveMusicPreferences = action.saveMusicPreferences;
+        request.saveLocalPresentation = action.saveLocalPresentation;
         request.discordRevision = action.discordRevision;
 		request.displayName = snapshot.preferences.displayName;
 		request.preferences = std::move(action.preferences);

@@ -3,13 +3,13 @@
 #include "sf4e__CustomContent.hxx"
 #include "../common/GameFiles.hxx"
 #include "../platform/LocaleWindows.hxx"
+#include "../platform/NativeSignature.hxx"
 #include "../common/MusicPlaybackState.hxx"
 #include "../common/EnvFlag.hxx"
 #include "../common/Localization.hxx"
 #include <windows.h>
 #include <intrin.h>
 #include <detours/detours.h>
-#include <array>
 #include <atomic>
 #include <cstring>
 #include <string>
@@ -31,117 +31,124 @@ using MenuPlay = void (__thiscall*)(void*, int);
 struct BattleBgmInit { unsigned sheet; int mode; };
 static_assert(sizeof(BattleBgmInit) == 8, "Native BgmPlayer init has two 32-bit fields");
 using BattleBgmConstructor = void* (__thiscall*)(void*, const BattleBgmInit*);
-CreateSheet createSheet = nullptr;
-BattleBgmConstructor battleBgmConstructor = nullptr;
-MenuMethod menuUpdate = nullptr, menuRelease = nullptr, menuLoad = nullptr;
-MenuReady menuReady = nullptr;
-MenuPlay menuPlay = nullptr;
-std::uintptr_t base = 0;
-std::atomic<bool> available{false}, matchArmed{false};
-std::atomic<int> matchChoice{music::Default};
-bool attached = false, initialized = false, safe = false;
-thread_local bool reloading = false;
-int menuChoice = music::Default;
-int configuredMatch = music::Default;
-thread_local int loadingChoice = music::Default;
-std::array<std::string, music::CharacterBase + selection::FighterCount> paths;
-std::array<bool, music::CharacterBase + selection::FighterCount> installed{};
-std::vector<int> installedTracks;
-std::mt19937 randomMusic;
-enum class ErrorCode { None, fallback, retry_default, load_failed, disabled, unsupported, hook_failed, files_unavailable, missing };
-ErrorCode error=ErrorCode::None;
-music::MenuPlaybackState playback;
-music::RematchMusicState rematchCycle;
-bool rematchAvailable = false;
-int nextMatchChoice = music::Default;
-void* lastManager = nullptr;
-ULONGLONG loadStarted = 0;
-bool fallingBack = false, loadFailed = false;
+struct NativeHooks {
+    CreateSheet createSheet = nullptr;
+    BattleBgmConstructor battleBgmConstructor = nullptr;
+    MenuMethod menuUpdate = nullptr, menuRelease = nullptr, menuLoad = nullptr;
+    MenuReady menuReady = nullptr;
+    MenuPlay menuPlay = nullptr;
+    std::uintptr_t base = 0;
+    bool attached = false;
+    std::atomic<bool> available{false};
+} hooks;
+struct Inventory {
+    bool ready = false;
+    std::vector<int> tracks;
+    music::ChoicesPtr choices = std::make_shared<const music::Choices>();
+    std::mt19937 random;
+    int Installed(int choice) const {
+        return std::find(tracks.begin(), tracks.end(), choice) == tracks.end() ? music::Default : choice;
+    }
+    int Resolve(int preference) {
+        return music::ResolveMatch(preference, random(), tracks);
+    }
+} inventory;
+struct MenuBank {
+    void* manager = nullptr;
+    music::MenuPlaybackState playback;
+    int preference = music::Default, loadingChoice = music::Default;
+    ULONGLONG loadStarted = 0;
+    bool safe = false, reloading = false, fallingBack = false, failed = false;
+} menu;
+struct BattleBank {
+    int preference = music::Default, choice = music::Default, nextChoice = music::Default;
+    music::RematchMusicState cycle;
+} battle;
+enum class ErrorCode { None, Fallback, RetryDefault, LoadFailed, Disabled, Unsupported, HookFailed, FilesUnavailable, Missing };
+ErrorCode error = ErrorCode::None;
 
-int InstalledChoice(int choice) {
-    return music::Find(choice) && installed[choice] ? choice : music::Default;
-}
 const char* Replacement(int choice, const char* original) {
-    return choice == music::Default ? original : paths[choice].c_str();
+    const auto* track = music::Find(choice);
+    return track ? track->path.c_str() : original;
 }
 void* __cdecl Create(const char* path, unsigned flags, int streaming, int arg4, int arg5) {
-    const auto caller = reinterpret_cast<std::uintptr_t>(_ReturnAddress()) - base;
+    const auto caller = reinterpret_cast<std::uintptr_t>(_ReturnAddress()) - hooks.base;
     // Only the primary UI background bank while this module reloads it.
     // No menu effects, character sounds, announcer or native fight state changes.
-    if (available && path && reloading && caller == 0x2869a7 &&
+    if (hooks.available && path && menu.reloading && caller == 0x2869a7 &&
         std::strcmp(path, "ui/sound/bgm/BGM_MAIN.csb") == 0)
-        path = Replacement(loadingChoice, path);
+        path = Replacement(menu.loadingChoice, path);
     // The battle's BGM loader, not its SE/voice resource constructors.
-    else if (available && path && matchArmed && !custom::HasStageMusic() && caller == 0x1efedd &&
+    else if (hooks.available && path && battle.choice != music::Default && !custom::HasStageMusic() && caller == 0x1efedd &&
         std::strncmp(path, "battle/sound/bgm/BGM_", 21) == 0)
-        path = Replacement(InstalledChoice(matchChoice), path);
-    return createSheet(path, flags, streaming, arg4, arg5);
+        path = Replacement(inventory.Installed(battle.choice), path);
+    return hooks.createSheet(path, flags, streaming, arg4, arg5);
 }
 void* __fastcall ConstructBattleBgm(void* self, void*, const BattleBgmInit* init) {
-    const auto caller = reinterpret_cast<std::uintptr_t>(_ReturnAddress()) - base;
-    const int choice = music::BattleChoice(InstalledChoice(matchChoice), custom::HasStageMusic());
-    if (available && matchArmed && init && choice != music::Default && caller == 0x1928e8) {
+    const auto caller = reinterpret_cast<std::uintptr_t>(_ReturnAddress()) - hooks.base;
+    const int choice = music::BattleChoice(inventory.Installed(battle.choice), custom::HasStageMusic());
+    if (hooks.available && init && choice != music::Default && caller == 0x1928e8) {
         // The constructor copies both fields; it does not retain this pointer.
         // Let its native single-cue path ignore unsupported phase changes,
         // instead of crossfading Sakura's cue 0 into nonexistent cues 1/2.
         auto adjusted = *init;
         adjusted.mode = music::BattleCueMode(choice, init->mode);
         spdlog::info("Music: battle player track={} native_mode={} selected_mode={}", choice, init->mode, adjusted.mode);
-        auto* player = battleBgmConstructor(self, &adjusted);
+        auto* player = hooks.battleBgmConstructor(self, &adjusted);
         rematch::TrackPlayer(player);
         return player;
     }
-    return battleBgmConstructor(self, init);
+    auto* player = hooks.battleBgmConstructor(self, init);
+    if (hooks.available && caller == 0x1928e8) rematch::TrackPlayer(player);
+    return player;
 }
 void Reload(void* manager, int choice) {
-    reloading = true;
-    loadingChoice = choice;
-    menuRelease(manager);
-    menuLoad(manager);
-    reloading = false;
-    loadStarted = GetTickCount64();
+    menu.reloading = true;
+    menu.loadingChoice = choice;
+    hooks.menuRelease(manager);
+    hooks.menuLoad(manager);
+    menu.reloading = false;
+    menu.loadStarted = GetTickCount64();
 }
 void __fastcall Release(void* self, void*) {
-    menuRelease(self);
-    if (!reloading && self == lastManager) playback.Reset();
+    hooks.menuRelease(self);
+    if (self == menu.manager) menu.playback.Reset();
 }
 void __fastcall Update(void* self, void*) {
-    menuUpdate(self);
-    if (self != lastManager) { lastManager = self; playback.Reset(); }
-    if (!available || !initialized || !safe) return;
-    const int wanted = InstalledChoice(menuChoice);
-    if (playback.Request(wanted, safe)) {
-        fallingBack = false;
+    hooks.menuUpdate(self);
+    if (self != menu.manager) { menu.manager = self; menu.playback.Reset(); }
+    if (!hooks.available || !inventory.ready || !menu.safe) return;
+    if (menu.playback.NeedsChoice(menu.preference, menu.safe) &&
+        menu.playback.RequestChoice(menu.preference, inventory.random(), inventory.tracks, menu.safe)) {
+        const int wanted = menu.playback.applied;
+        menu.fallingBack = false;
         spdlog::info("Music: loading menu track {}", wanted);
         Reload(self, wanted);
     }
-    if (!playback.pending) return;
-    if (menuReady(self)) {
-        menuPlay(self, 0);
-        playback.pending = false;
-        spdlog::info("Music: menu bank ready (track={}, fallback={})", playback.applied, fallingBack);
-        if (fallingBack) error = ErrorCode::fallback;
-    } else if (GetTickCount64() - loadStarted >= 10000) {
-        loadFailed = true;
+    if (!menu.playback.pending) return;
+    if (hooks.menuReady(self)) {
+        hooks.menuPlay(self, 0);
+        menu.playback.pending = false;
+        spdlog::info("Music: menu bank ready (track={}, fallback={})", menu.playback.applied, menu.fallingBack);
+        if (menu.fallingBack) error = ErrorCode::Fallback;
+    } else if (GetTickCount64() - menu.loadStarted >= 10000) {
+        menu.failed = true;
         // Fall back once, without retrying a bad bank every frame. The original
         // game owns cleanup on its next scene change. Retry on a new selection.
-        if (!fallingBack) {
-            error = ErrorCode::retry_default;
-            fallingBack = true; Reload(self, music::Default);
+        if (!menu.fallingBack) {
+            error = ErrorCode::RetryDefault;
+            menu.fallingBack = true; Reload(self, music::Default);
         } else {
-            error = ErrorCode::load_failed;
-            playback.pending = false;
+            error = ErrorCode::LoadFailed;
+            menu.playback.pending = false;
         }
     }
-}
-template<std::size_t N> bool Bytes(std::uintptr_t rva, const unsigned char (&expected)[N]) {
-    return std::memcmp(reinterpret_cast<const void*>(base + rva), expected, N) == 0;
 }
 }
 
 void Install() {
-    if (EnvFlag("SF4E_DISABLE_MUSIC")) { error = ErrorCode::disabled; return; }
-    base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+    if (EnvFlag("SF4E_DISABLE_MUSIC")) { error = ErrorCode::Disabled; return; }
+    hooks.base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
     // Reject a different engine layout before attaching any of these hooks.
     const unsigned char create[] = {0x55,0x8b,0xec,0x6a,0xff,0x68,0x3b,0xea,0x8f,0x00};
     const unsigned char update[] = {0x56,0x8b,0xf1,0x8d,0x4e,0x18,0xe8};
@@ -150,92 +157,97 @@ void Install() {
     const unsigned char play[] = {0x55,0x8b,0xec,0x53,0x8b,0x5d,0x08,0x56};
     const unsigned char ready[] = {0x83,0xc1,0x18,0xe8};
     const unsigned char battleConstructor[] = {0x55,0x8b,0xec,0x6a,0xff,0x68,0x38,0x29,0x90,0x00};
-    if (!Bytes(0x275e40, create) || !Bytes(0x286940, update) || !Bytes(0x286620, release) ||
-        !Bytes(0x2865b0, load) || !Bytes(0x286680, play) || !Bytes(0x286460, ready) ||
-        !Bytes(0x192630, battleConstructor)) {
-        error = ErrorCode::unsupported; return;
+    if (!native::Signature(hooks.base, 0x275e40, create) || !native::Signature(hooks.base, 0x286940, update) || !native::Signature(hooks.base, 0x286620, release) ||
+        !native::Signature(hooks.base, 0x2865b0, load) || !native::Signature(hooks.base, 0x286680, play) || !native::Signature(hooks.base, 0x286460, ready) ||
+        !native::Signature(hooks.base, 0x192630, battleConstructor)) {
+        error = ErrorCode::Unsupported; return;
     }
-    createSheet = reinterpret_cast<CreateSheet>(base + 0x275e40);
-    menuUpdate = reinterpret_cast<MenuMethod>(base + 0x286940);
-    menuRelease = reinterpret_cast<MenuMethod>(base + 0x286620);
-    menuLoad = reinterpret_cast<MenuMethod>(base + 0x2865b0);
-    menuPlay = reinterpret_cast<MenuPlay>(base + 0x286680);
-    menuReady = reinterpret_cast<MenuReady>(base + 0x286460);
-    battleBgmConstructor = reinterpret_cast<BattleBgmConstructor>(base + 0x192630);
+    hooks.createSheet = reinterpret_cast<CreateSheet>(hooks.base + 0x275e40);
+    hooks.menuUpdate = reinterpret_cast<MenuMethod>(hooks.base + 0x286940);
+    hooks.menuRelease = reinterpret_cast<MenuMethod>(hooks.base + 0x286620);
+    hooks.menuLoad = reinterpret_cast<MenuMethod>(hooks.base + 0x2865b0);
+    hooks.menuPlay = reinterpret_cast<MenuPlay>(hooks.base + 0x286680);
+    hooks.menuReady = reinterpret_cast<MenuReady>(hooks.base + 0x286460);
+    hooks.battleBgmConstructor = reinterpret_cast<BattleBgmConstructor>(hooks.base + 0x192630);
+    if (!rematch::Install()) { error = ErrorCode::Unsupported; return; }
     // Sidecar owns transaction failure/rollback and does not launch on failure.
-    const auto a = DetourAttach(reinterpret_cast<PVOID*>(&createSheet), reinterpret_cast<PVOID>(Create));
-    const auto b = DetourAttach(reinterpret_cast<PVOID*>(&menuUpdate), reinterpret_cast<PVOID>(Update));
-    const auto c = DetourAttach(reinterpret_cast<PVOID*>(&menuRelease), reinterpret_cast<PVOID>(Release));
-    const auto d = DetourAttach(reinterpret_cast<PVOID*>(&battleBgmConstructor), reinterpret_cast<PVOID>(ConstructBattleBgm));
-    attached = a == NO_ERROR && b == NO_ERROR && c == NO_ERROR && d == NO_ERROR;
-    rematchAvailable = attached && rematch::Install();
-    if (!attached) error = ErrorCode::hook_failed;
+    const auto a = DetourAttach(reinterpret_cast<PVOID*>(&hooks.createSheet), reinterpret_cast<PVOID>(Create));
+    const auto b = DetourAttach(reinterpret_cast<PVOID*>(&hooks.menuUpdate), reinterpret_cast<PVOID>(Update));
+    const auto c = DetourAttach(reinterpret_cast<PVOID*>(&hooks.menuRelease), reinterpret_cast<PVOID>(Release));
+    const auto d = DetourAttach(reinterpret_cast<PVOID*>(&hooks.battleBgmConstructor), reinterpret_cast<PVOID>(ConstructBattleBgm));
+    hooks.attached = a == NO_ERROR && b == NO_ERROR && c == NO_ERROR && d == NO_ERROR;
+    if (!hooks.attached) error = ErrorCode::HookFailed;
 }
-void Activate() { available = attached; }
-bool Available() { return available; }
+void Activate() { hooks.available = hooks.attached; }
+bool Available() { return hooks.available; }
 
 void InitializeContent() {
-    if (initialized || !available) return;
+    if (inventory.ready || !hooks.available) return;
     const auto root = platform::GameDirectory();
-    if (root.empty()) { error = ErrorCode::files_unavailable; return; }
-    for (const auto& track : music::TrackList()) {
-        paths[track.id] = track.path;
-        if (!files::FindGameFile(root, track.path).empty()) {
-            installed[track.id] = true; installedTracks.push_back(track.id);
-        }
-    }
+    if (root.empty()) { error = ErrorCode::FilesUnavailable; return; }
+    for (const auto& track : music::TrackList())
+        if (!files::FindGameFile(root, track.path).empty()) inventory.tracks.push_back(track.id);
+    inventory.choices = std::make_shared<const music::Choices>(inventory.tracks);
     LARGE_INTEGER counter{}; QueryPerformanceCounter(&counter);
-    randomMusic.seed(static_cast<unsigned>(counter.QuadPart ^ GetTickCount64() ^ GetCurrentProcessId()));
-    spdlog::info("Music: found {}/{} stock tracks", installedTracks.size(), music::TrackCount);
-    spdlog::info("Music: continuous rematch bank reload capability={}", rematchAvailable);
-    initialized = true;
+    inventory.random.seed(static_cast<unsigned>(counter.QuadPart ^ GetTickCount64() ^ GetCurrentProcessId()));
+    spdlog::info("Music: found {}/{} stock tracks", inventory.tracks.size(), music::TrackCount);
+    inventory.ready = true;
 }
-void Configure(int menu, int match, bool safeMenu) {
-    menu = music::Normalize(menu, false); match = music::Normalize(match);
-    if (menu != menuChoice || match != configuredMatch) {
-        if (available) error=ErrorCode::None;
-        if (initialized && ((menu != music::Default && InstalledChoice(menu) == music::Default) ||
-            (match != music::Default && match != music::Random && InstalledChoice(match) == music::Default)))
-            error = ErrorCode::missing;
+music::ChoicesPtr InstalledChoices() { return inventory.choices; }
+void Configure(int menuChoice, int matchChoice, bool safeMenu) {
+    menuChoice = music::Normalize(menuChoice); matchChoice = music::Normalize(matchChoice);
+    if (menuChoice != menu.preference || matchChoice != battle.preference) {
+        if (hooks.available) error = ErrorCode::None;
+        const auto missing = [](int choice) {
+            return choice != music::Default && choice != music::Random && inventory.Installed(choice) == music::Default;
+        };
+        if (inventory.ready && (missing(menuChoice) || missing(matchChoice))) error = ErrorCode::Missing;
     }
-    menuChoice = menu; configuredMatch = match; safe = safeMenu;
+    menu.preference = menuChoice; battle.preference = matchChoice; menu.safe = safeMenu;
+    // A request abandoned before constructing an audio player has no native
+    // destructor. Returning to a menu retires that pending audio selection too.
+    if (safeMenu) ReleaseBattle();
 }
-void EnterMatch() {
-    // Independent of gameplay/room RNG. Never store the resolved track over
-    // the Random preference, and never reroll on individual loader calls.
-    const auto roll = installedTracks.empty() ? 0u :
-        std::uniform_int_distribution<unsigned>(0, static_cast<unsigned>(installedTracks.size() - 1))(randomMusic);
-    matchChoice = music::ResolveMatch(configuredMatch, roll, installedTracks);
-    rematchCycle = {};
+int ResolveMatchChoice() {
+    const int choice = hooks.available ? inventory.Resolve(battle.preference) : music::Default;
+    spdlog::info("Music: match preference={} resolved={}", battle.preference, choice);
+    return choice;
+}
+void TakeBattleChoice(int choice) {
     rematch::CancelPending();
-    spdlog::info("Music: match preference={} resolved={}", configuredMatch, matchChoice.load());
-    matchArmed = true; safe = false;
+    battle.choice = inventory.Installed(choice);
+    battle.cycle = {};
+    menu.safe = false;
 }
-void LeaveMatch() { matchArmed = false; rematch::CancelPending(); }
+void ReleaseBattle() {
+    battle.choice = music::Default;
+    battle.cycle = {};
+    rematch::CancelPending();
+}
 void ObserveMatch(std::uint64_t confirmedGame, bool decided) {
-    if (!available || !matchArmed || !rematchAvailable || custom::HasStageMusic() ||
-        configuredMatch != music::Random || !confirmedGame || confirmedGame < rematchCycle.current) return;
-    if (rematchCycle.Observe(confirmedGame, decided)) {
-        nextMatchChoice = music::NextRandomTrack(matchChoice, randomMusic(), installedTracks);
-        if (nextMatchChoice != music::Default && nextMatchChoice != matchChoice)
-            rematch::Prepare(paths[nextMatchChoice].c_str(), nextMatchChoice);
+    if (!hooks.available || battle.choice == music::Default || custom::HasStageMusic() ||
+        battle.preference != music::Random || !confirmedGame || confirmedGame < battle.cycle.current) return;
+    if (battle.cycle.Observe(confirmedGame, decided)) {
+        battle.nextChoice = music::NextRandomTrack(battle.choice, inventory.random(), inventory.tracks);
+        if (battle.nextChoice != music::Default && battle.nextChoice != battle.choice)
+            rematch::Prepare(music::Find(battle.nextChoice)->path.c_str(), battle.nextChoice);
     }
-    if (rematch::Tick(rematchCycle.MayApply()) == rematch::Progress::Applied)
-        matchChoice = nextMatchChoice;
+    if (rematch::Tick(battle.cycle.MayApply()) == rematch::Progress::Applied)
+        battle.choice = battle.nextChoice;
 }
 void RetryMenu() {
-    if (loadFailed) { playback.Retry(); loadFailed = false; error=ErrorCode::None; }
+    if (menu.failed) { menu.playback.Retry(); menu.failed = false; error=ErrorCode::None; }
 }
 std::string Error() {
     switch(error) {
-    case ErrorCode::fallback: return loc::T("music.error_fallback");
-    case ErrorCode::retry_default: return loc::T("music.error_retry_default");
-    case ErrorCode::load_failed: return loc::T("music.error_load_failed");
-    case ErrorCode::disabled: return loc::T("music.error_disabled");
-    case ErrorCode::unsupported: return loc::T("music.error_unsupported");
-    case ErrorCode::hook_failed: return loc::T("music.error_hook_failed");
-    case ErrorCode::files_unavailable: return loc::T("music.error_files_unavailable");
-    case ErrorCode::missing: return loc::T("music.error_missing");
+    case ErrorCode::Fallback: return loc::T("music.error_fallback");
+    case ErrorCode::RetryDefault: return loc::T("music.error_retry_default");
+    case ErrorCode::LoadFailed: return loc::T("music.error_load_failed");
+    case ErrorCode::Disabled: return loc::T("music.error_disabled");
+    case ErrorCode::Unsupported: return loc::T("music.error_unsupported");
+    case ErrorCode::HookFailed: return loc::T("music.error_hook_failed");
+    case ErrorCode::FilesUnavailable: return loc::T("music.error_files_unavailable");
+    case ErrorCode::Missing: return loc::T("music.error_missing");
     default: return {};
     }
 }

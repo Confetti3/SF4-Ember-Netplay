@@ -58,6 +58,7 @@ struct ShellView {
     bool canEditMusic = false;
     // A native audio failure or unsupported executable, shown on Music.
     std::string musicError;
+    music::ChoicesPtr musicChoices;
     int selectedDelay=2, recommendedDelay=-1, opponentDelay=-1;
     bool autoDelayMeasured=false;
     bool delayLocked=false, canProbe=false, canApplyDelay=false;
@@ -200,8 +201,8 @@ struct ShellAction {
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
     netplay::PlayerPreferences preferences;
-    // Save only local music choices; never dispatched to the session controller.
-    bool saveMusicPreferences = false;
+    // Save local music and layouts atomically; never sent to the room controller.
+    bool saveLocalPresentation = false;
     room::Action roomAction;
     int selectedDelay=-1;
     // Plays the challenger call-out once at this volume (percent); -1 plays nothing.

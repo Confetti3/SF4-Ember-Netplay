@@ -303,7 +303,6 @@ void CancelLocalMatch(GgpoEnd end) {
 }
 
 void AbortLocalMatch(GgpoEnd end) {
-	Music::LeaveMatch();
 	CancelLocalMatch(end);
 	runtime->recoveringMatch = true;
 }

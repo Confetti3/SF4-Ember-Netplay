@@ -15,7 +15,7 @@ inline int ReadMusicChoice(const nlohmann::json& saved, const char* key, bool al
     return music::Normalize(value->get<std::int64_t>(), allowRandom);
 }
 inline void ReadMusicPreferences(const nlohmann::json& saved, PlayerPreferences& preferences) {
-    preferences.lobbyMusic = ReadMusicChoice(saved, "lobbyMusic", false);
+    preferences.lobbyMusic = ReadMusicChoice(saved, "lobbyMusic", true);
     preferences.matchMusic = ReadMusicChoice(saved, "matchMusic", true);
 }
 } }

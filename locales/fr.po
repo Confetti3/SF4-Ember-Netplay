@@ -6462,16 +6462,16 @@ msgid "music.lobby_default"
 msgstr "Musique des menus par défaut"
 
 msgid "music.lobby_detail"
-msgstr "Choisissez la musique de l'écran titre, des menus et du salon. Le choix est enregistré automatiquement et rétabli au démarrage."
+msgstr "Choisissez la musique de l'écran titre, des menus et du salon. Le choix est enregistré automatiquement et rétabli au démarrage. Aléatoire choisit un morceau installé au démarrage et au retour d'un match."
 
 msgid "music.match"
-msgstr "Musique des matchs"
+msgstr "Musique des matchs en ligne"
 
 msgid "music.match_default"
 msgstr "Musique du stage (par défaut)"
 
 msgid "music.match_detail"
-msgstr "Choisissez un stage, un personnage ou Aléatoire. Aléatoire choisit un morceau pour chaque match, y compris les revanches. La musique propre à un stage personnalisé est prioritaire."
+msgstr "S'applique aux matchs des salons en ligne, y compris en spectateur ; les modes hors ligne gardent leur musique. Choisissez un stage, un personnage ou Aléatoire. Aléatoire choisit un morceau pour chaque match, y compris les revanches. La musique propre à un stage personnalisé est prioritaire."
 
 msgid "music.reset"
 msgstr "Rétablir la musique par défaut"

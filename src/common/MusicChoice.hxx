@@ -2,6 +2,9 @@
 #include "StageCatalog.hxx"
 #include "FighterCatalog.hxx"
 #include <cstdint>
+#include <algorithm>
+#include <memory>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -17,7 +20,7 @@ inline bool Valid(std::int64_t choice) {
     return choice == Default || choice == Random || selection::FindStage(choice) ||
         (choice >= CharacterBase && choice < CharacterBase + selection::FighterCount);
 }
-inline bool ValidLobby(std::int64_t choice) { return Valid(choice) && choice != Random; }
+inline bool ValidLobby(std::int64_t choice) { return Valid(choice); }
 inline int Normalize(std::int64_t choice, bool allowRandom = true) {
     return Valid(choice) && (allowRandom || choice != Random) ? static_cast<int>(choice) : Default;
 }
@@ -41,19 +44,31 @@ inline const Track* Find(int choice) {
     for (const auto& track : TrackList()) if (track.id == choice) return &track;
     return nullptr;
 }
-inline int Step(int choice, int delta, bool allowRandom = false) {
-    const auto& tracks = TrackList();
-    const int firstTrack = allowRandom ? 2 : 1;
-    int index = 0; // Default precedes the first stock stage theme.
-    if (allowRandom && choice == Random) index = 1;
-    for (std::size_t i = 0; i < tracks.size(); ++i)
-        if (tracks[i].id == choice) { index = static_cast<int>(i) + firstTrack; break; }
-    const auto next = static_cast<std::int64_t>(index) + delta;
-    if (next <= 0) return Default;
-    if (allowRandom && next == 1) return Random;
-    if (next >= static_cast<std::int64_t>(tracks.size()) + firstTrack) return tracks.back().id;
-    return tracks[static_cast<std::size_t>(next - firstTrack)].id;
-}
+// Build this once from the inventory. Presentation and keyboard/controller
+// stepping use exactly the same installed, canonical order.
+struct Choices {
+    std::vector<int> ids{Default, Random};
+    explicit Choices(const std::vector<int>& installed = {}) {
+        for (const auto& track : TrackList())
+            if (std::find(installed.begin(), installed.end(), track.id) != installed.end()) ids.push_back(track.id);
+    }
+    std::size_t Index(int choice) const {
+        const auto it = std::find(ids.begin(), ids.end(), choice);
+        return it == ids.end() ? 0 : static_cast<std::size_t>(it - ids.begin());
+    }
+    int Step(int choice, int delta) const {
+        const auto next = static_cast<std::int64_t>(Index(choice)) + delta;
+        return ids[static_cast<std::size_t>((std::max)(std::int64_t(0), (std::min)(next, static_cast<std::int64_t>(ids.size() - 1))))];
+    }
+    int FromKey(const std::string& key) const {
+        if (key.empty()) return Default;
+        char* end = nullptr;
+        const auto value = std::strtol(key.c_str(), &end, 10);
+        if (end != key.c_str() + key.size() || !Valid(value)) return Default;
+        return ids[Index(static_cast<int>(value))];
+    }
+};
+using ChoicesPtr = std::shared_ptr<const Choices>;
 // The random preference stays saved as Random. Resolve only once per match,
 // from installed banks, and retain that concrete choice across loader calls.
 inline int ResolveMatch(int choice, std::uint32_t roll, const std::vector<int>& installed) {

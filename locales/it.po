@@ -6462,16 +6462,16 @@ msgid "music.lobby_default"
 msgstr "Musica predefinita dei menu"
 
 msgid "music.lobby_detail"
-msgstr "Scegli la musica per la schermata iniziale, i menu e la lobby. Si salva automaticamente e viene ripristinata all'avvio."
+msgstr "Scegli la musica per la schermata iniziale, i menu e la lobby. Si salva automaticamente e viene ripristinata all'avvio. Casuale sceglie un brano installato all'avvio e al ritorno da un incontro."
 
 msgid "music.match"
-msgstr "Musica degli incontri"
+msgstr "Musica degli incontri online"
 
 msgid "music.match_default"
 msgstr "Musica dello stage (predefinita)"
 
 msgid "music.match_detail"
-msgstr "Scegli uno stage, un personaggio o Casuale. Casuale sceglie un brano per ogni incontro, comprese le rivincite. La musica propria di uno stage personalizzato ha la precedenza."
+msgstr "Vale per gli incontri nelle sale online, anche da spettatore; le modalità offline mantengono la propria musica. Scegli uno stage, un personaggio o Casuale. Casuale sceglie un brano per ogni incontro, comprese le rivincite. La musica propria di uno stage personalizzato ha la precedenza."
 
 msgid "music.reset"
 msgstr "Ripristina musica predefinita"

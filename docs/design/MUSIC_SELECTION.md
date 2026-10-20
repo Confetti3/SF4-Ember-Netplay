@@ -1,20 +1,26 @@
 # Local music selection
 
-Settings and the room menu expose separate menu/lobby and match music choices.
-The catalog uses the game's 28 Versus stage banks and 44 character stereo
-banks. No music files are distributed by this change. Choices are persisted
+Settings and the room menu expose separate menu/lobby and online-match music choices.
+Offline Versus, Arcade and Training keep their native music. Spectating an
+online room match uses the local online-match choice.
+The catalog describes the game's 28 Versus stage banks and 44 character stereo
+banks; the ordered chooser includes only banks installed on this PC. The
+immutable list is built once and shared by display and directional stepping.
+No music files are distributed by this change. Choices are persisted
 with the existing player preferences and affect only the local presentation.
 The existing `lobbyMusic` preference key is retained so saved choices carry
 over; its scope now includes the title screen and menus before joining a room.
 
-The UI sends a local settings command. The game thread rechecks that it is
+The UI sends one local presentation request for music and controller layouts. The game thread rechecks that it is
 at a safe menu before accepting it, preserving all unrelated preferences.
 Menu playback uses the native background music manager's load, ready, play
 and release operations. A failed bank falls back once to the default; a new
 selection allows retrying. Once the event system is ready, a saved theme is
 applied at Title and the known UI-only foreground events. Room entry/exit
 does not change the selection or restart an already loaded bank. A native
-release invalidates the bank so returning from a fight loads it again.
+release invalidates the bank so returning from a fight loads it again. Random
+menu music resolves once at startup and again after that native release; it
+does not roll on each menu frame. The default preference remains unchanged.
 Boot logos, movies, unknown/transitional events and modes containing battles
 are excluded. A pending menu load is never started while a match is busy.
 
@@ -24,8 +30,13 @@ the corresponding player mode. Otherwise a character theme can go silent
 when the native stage music changes phase. `MusicPlaybackTest` checks that
 mapping for every character entry.
 
-Random resolves from installed banks when a match is entered from the lobby,
-using a local RNG independent of the gameplay seed. The stored preference
+Random resolves from installed banks only after GoToVersus accepts the room
+match entry, using a local RNG independent of the gameplay seed. A deferred
+entry does not roll or arm anything. The resolved local track travels in
+NextRequest and is consumed once when the native battle request is prepared.
+The native BgmPlayer destructor clears its audio choice; returning to a safe
+menu also retires an abandoned load that never constructed that player. There
+is no separate online-match flag or room-lifecycle reset list. The stored preference
 remains Random. The optional `Music::ObserveMatch` integration accepts a
 monotonically increasing, confirmed game token on the outer game tick.
 At a confirmed result it preloads another installed bank, excluding the
@@ -68,13 +79,12 @@ the stock catalog, not a second list of numeric ranges.
 A custom stage with an installed music bank keeps both its bank and native
 cue mode. A custom stage without music uses the selected local override.
 
-This module should own the menu music path when integrating #76. That PR's
-parallel MenuMusic patch and lobby-music row must not be installed alongside
-this one: it changes the input path this loader currently recognizes. The
-future Random menu choice belongs in this catalog and playback owner, with
-one resolved track retained until a match ends. The existing allowRandom
-choice helpers support that extension. Menu playback now starts at Title
-using the saved fixed choice, following Flavio's requested scope extension.
+This module owns menu music, including Random, when integrating #76. That
+PR's parallel MenuMusic patch must not be installed alongside it: it changes
+the original path this loader recognizes. MusicPanel owns its distinct
+music-menu/music-online row ids, so it does not intercept another panel's
+lobby-music row. The native byte and readable/executable page checks live in
+platform/NativeSignature.hxx, shared with the rematch contribution.
 
 All 14 catalogs contain translations. The CJK subsets were regenerated;
 native speakers should review the new wording. Automated tests cover bank

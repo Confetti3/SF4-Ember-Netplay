@@ -1,3 +1,4 @@
+#include "sf4e__Music.hxx"
 #include <cstdint>
 #include <mutex>
 #include <windows.h>
@@ -363,6 +364,7 @@ void fVsBattle::PrepareBattleRequest() {
 	(this->*rVsBattle::privateMethods.PrepareBattleRequest)();
 	Request* r = *rVsBattle::GetRequest(this);
 	const auto next = nextRequest.Take();
+    sf4e::Music::TakeBattleChoice(r ? next.localMusic : sf4e::music::Default);
 	if (r) {
 		if (bForceNextMatchOnline) {
 			(r->*Request::publicMethods.SetIsOnlineBattle)(TRUE);

@@ -9,7 +9,7 @@ namespace sf4e { namespace music {
 // Match the replacement bank, rather than the original arena's bank layout.
 inline int BattleCueMode(int resolvedChoice, int nativeMode) {
     return resolvedChoice >= CharacterBase && resolvedChoice < CharacterBase + selection::FighterCount ? 0 :
-        ValidLobby(resolvedChoice) && resolvedChoice != Default ? 1 : nativeMode;
+        Find(resolvedChoice) ? 1 : nativeMode;
 }
 // An installed custom stage owns its bank and its native cue mode.
 inline int BattleChoice(int selected, bool customStageMusic) { return customStageMusic ? Default : selected; }
@@ -52,6 +52,7 @@ inline bool MenuPlaybackAllowed(const std::string& foreground, bool battleBusy) 
 // Remember it across loading/fights so it is restored on the return to menus.
 struct MenuPlaybackState {
     int applied = Default;
+    int requested = Default;
     bool pending = false;
     bool retry = false;
     bool Request(int wanted, bool safeMenu) {
@@ -61,7 +62,15 @@ struct MenuPlaybackState {
         pending = true;
         return true;
     }
+    bool NeedsChoice(int preference, bool safeMenu) const {
+        return safeMenu && (requested != preference || retry);
+    }
+    bool RequestChoice(int preference, std::uint32_t roll, const std::vector<int>& installed, bool safeMenu) {
+        if (!NeedsChoice(preference, safeMenu)) return false;
+        requested = preference;
+        return Request(ResolveMatch(preference, roll, installed), safeMenu);
+    }
     void Retry() { retry = true; }
-    void Reset() { applied = Default; pending = false; retry = false; }
+    void Reset() { applied = Default; requested = Default; pending = false; retry = false; }
 };
 } }

@@ -1,4 +1,5 @@
 #include "ApplicationShell.hxx"
+#include "MusicPanel.hxx"
 #include <imgui_internal.h>
 #include "ButtonPromptSetting.hxx"
 #include "ControllersScreen.hxx"
@@ -35,22 +36,6 @@ bool CanSavePreferences(const ShellView& v,const netplay::PlayerPreferences& edi
  if(v.canEditPreferences)return true;
  const bool layouts=v.atMainMenu&&v.session.room!=netplay::RoomState::Idle&&!netplay::Fighting(v.session.match);
  return (layouts||v.canEditMusic)&&OnlyLocalPresentationChanged(edited,v.preferences,layouts,v.canEditMusic);
-}
-const char* MusicName(int choice,const char* defaultKey) {
- if(choice==music::Random)return loc::T("music.random");
- const auto* track=music::Find(choice);return track?track->name:loc::T(defaultKey);
-}
-std::vector<MenuChoice> MusicChoices(const char* defaultKey,bool allowRandom=false) {
- std::vector<MenuChoice> choices={{std::to_string(music::Default),loc::T(defaultKey)}};
- if(allowRandom)choices.push_back({std::to_string(music::Random),loc::T("music.random")});
- for(const auto& track:music::TrackList())choices.push_back({std::to_string(track.id),
-  loc::Tf(track.character?"music.character_theme":"music.stage_theme",track.name)});
- return choices;
-}
-int ChosenMusic(const std::string& id) {
- if(id==std::to_string(music::Random))return music::Random;
- for(const auto& track:music::TrackList())if(id==std::to_string(track.id))return track.id;
- return music::Default;
 }
 // The installed version label, or the build's hash for a copy without one (a developer build).
 std::string InstalledVersion(const ShellView& v) { return v.services.installedVersion.empty() ? v.build : v.services.installedVersion; }
@@ -301,13 +286,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
     std::string(loc::T(sent[i].kind=="problem"?"reports.row":"reports.crash_report"))+"\n\n"+ReportRecordText(sent[i])));
   if(rows.empty())rows.push_back(InfoRow("sent-none",loc::T("reports.none"),"",loc::T("reports.none_detail")));
  }else if(screen=="music"){
-  title=loc::T("music.title");const bool can=v.canEditMusic;
-  rows={Value("lobby-music",loc::T("music.lobby"),MusicName(preferences_.lobbyMusic,"music.lobby_default"),loc::T("music.lobby_detail"),can),
-   Value("match-music",loc::T("music.match"),MusicName(preferences_.matchMusic,"music.match_default"),loc::T("music.match_detail"),can),
-   Row("music-reset",loc::T("music.reset"),loc::T("music.reset_detail"),can)};
-  rows[0].choices=MusicChoices("music.lobby_default");rows[0].chosen=std::to_string(preferences_.lobbyMusic);
-  rows[1].choices=MusicChoices("music.match_default",true);rows[1].chosen=std::to_string(preferences_.matchMusic);
-  if(!v.musicError.empty())for(auto& row:rows)row.detail=v.musicError+"\n\n"+row.detail;
+  title=loc::T("music.title");rows=MusicPanel::Rows(preferences_,v);
  }else if(screen=="player"){
   title=loc::T("player.title");
   rows=PlayerControllerRows(preferences_,v.controller,v.inputDevice.type,v.gameplayBrand,v.pads,
@@ -540,8 +519,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
  else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="music"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
- else if(screen=="music"&&a.id=="music-reset"&&v.canEditMusic){
-  preferences_.lobbyMusic=preferences_.matchMusic=music::Default;
+ else if(screen=="music"&&MusicPanel::Accept(a,v,preferences_)){
   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
  }
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
@@ -567,8 +545,10 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
 }
 void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const std::string& screen,const Submit& submit) {
  using namespace netplay;
- if((a.id=="lobby-music"||a.id=="match-music")&&
-    (screen!="music"||!v.canEditMusic))return;
+ if(screen=="music") {
+  if(MusicPanel::Accept(a,v,preferences_)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
+  return;
+ }
  if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
@@ -605,8 +585,6 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
-  else if(a.id=="lobby-music")preferences_.lobbyMusic=music::Normalize(a.kind==MenuAction::Chosen?ChosenMusic(a.text):music::Step(preferences_.lobbyMusic,a.delta),false);
-  else if(a.id=="match-music")preferences_.matchMusic=a.kind==MenuAction::Chosen?ChosenMusic(a.text):music::Step(preferences_.matchMusic,a.delta,true);
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="shortcut-hint")preferences_.showShortcutHint=a.delta>0;
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;

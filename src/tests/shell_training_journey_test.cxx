@@ -70,25 +70,28 @@ void TrainingSettingsAndHome() {
  // restored choices without submitting another save just to open Settings.
  sf4e::netplay::PlayerPreferences savedMusic;
  {
-  Harness before;before.view.canEditMusic=true;before.Frame();before.Choose("settings");before.Choose("music");
-  before.Choose("lobby-music");
-  for(int i=0;i<29;++i)before.Press(MenuInput::Down);
+  Harness before;
+  std::vector<int> installed;for(const auto& track:music::TrackList())installed.push_back(track.id);
+  before.view.musicChoices=std::make_shared<const music::Choices>(installed);before.view.canEditMusic=true;before.Frame();before.Choose("settings");before.Choose("music");
+  before.Choose("music-menu");
+  for(int i=0;i<30;++i)before.Press(MenuInput::Down);
   before.Press(MenuInput::Select);before.Frame(0,45);
   Check(!before.actions.empty()&&before.actions.back().command.kind==Kind::SavePreferences&&
    before.actions.back().preferences.lobbyMusic==100,"Character theme did not save before creating a room");
   before.view.preferences=before.actions.back().preferences;before.Frame();
-  before.FocusOn("match-music");before.Press(MenuInput::Right);before.Frame(0,45);
+  before.FocusOn("music-online");before.Press(MenuInput::Right);before.Frame(0,45);
   Check(before.actions.back().preferences.matchMusic==-2&&before.actions.back().preferences.lobbyMusic==100,
    "Random match music did not save independently before creating a room");
   savedMusic=before.actions.back().preferences;
  }
  {
-  Harness restored;restored.view.preferences=savedMusic;restored.view.canEditMusic=true;restored.Frame();
+  Harness restored;std::vector<int> installed;for(const auto& track:music::TrackList())installed.push_back(track.id);
+  restored.view.musicChoices=std::make_shared<const music::Choices>(installed);restored.view.preferences=savedMusic;restored.view.canEditMusic=true;restored.Frame();
   restored.Choose("settings");restored.Choose("music");
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});restored.Frame();
   Check(rows[0].chosen=="100"&&rows[1].chosen=="-2","Opening Settings lost restored music choices");
   Check(std::none_of(restored.actions.begin(),restored.actions.end(),[](const ShellAction& a){
-   return a.command.kind==Kind::SavePreferences||a.saveMusicPreferences;
+   return a.command.kind==Kind::SavePreferences||a.saveLocalPresentation;
   }),"Opening Settings saved over restored music choices");
   SetMenuEntriesProbe({});
  }
@@ -96,6 +99,7 @@ void TrainingSettingsAndHome() {
  // including a public room. Back returns directly to the room board.
  {
   Harness music;
+  music.view.musicChoices=std::make_shared<const sf4e::music::Choices>(std::vector<int>{0,24,100,143});
   music.view.preferences.country=CountryPreference::Of(CountryCode::Parsed("IT"));music.view.preferences.roomDelayPolicy=room::DelayPolicy::Own;
   music.view.preferences.buttonPrompts=gamepads::ButtonPrompts::Nintendo;
   music.view.canEditMusic=true;music.Frame();music.Choose("settings");music.Choose("music");
@@ -107,16 +111,16 @@ void TrainingSettingsAndHome() {
   std::vector<MenuEntry> tracks;std::string musicStatus;Tone musicTone=Tone::Neutral;
   SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){tracks=entries;});
   SetMenuStatusProbe([&](const char* text,Tone tone){musicStatus=text;musicTone=tone;});music.Frame();
-  Check(tracks.size()==3&&tracks[0].choices.size()==73&&tracks[1].choices.size()==74&&
+  Check(tracks.size()==3&&tracks[0].choices.size()==6&&tracks[1].choices.size()==6&&
    tracks[0].choices.front().id=="-1"&&tracks[0].choices.back().id=="143"&&
    tracks[1].choices[1].id=="-2","Music chooser lost character themes, Default or match Random");
-  music.FocusOn("lobby-music");music.Press(MenuInput::Right);music.Frame(0,45);
-  Check(!music.actions.empty()&&music.actions.back().saveMusicPreferences&&
+  music.FocusOn("music-menu");music.Press(MenuInput::Right);music.Press(MenuInput::Right);music.Frame(0,45);
+  Check(!music.actions.empty()&&music.actions.back().saveLocalPresentation&&
    music.actions.back().preferences.lobbyMusic==0&&music.actions.back().preferences.matchMusic==-1,
    "Lobby music did not save independently while joined");
   Check(OnlyLocalPresentationChanged(music.actions.back().preferences,music.view.preferences,false,true),"Music save changed other preferences");
   music.view.preferences=music.actions.back().preferences;music.Frame();
-  music.Choose("match-music");music.Press(MenuInput::Down);music.Press(MenuInput::Down);music.Press(MenuInput::Select);music.Frame(0,45);
+  music.Choose("music-online");music.Press(MenuInput::Down);music.Press(MenuInput::Down);music.Press(MenuInput::Select);music.Frame(0,45);
   Check(music.actions.back().preferences.matchMusic==0&&music.actions.back().preferences.lobbyMusic==0,
    "Match music overwrote lobby music");
   music.view.preferences=music.actions.back().preferences;music.Frame();music.Choose("music-reset");music.Frame(0,45);

@@ -31,7 +31,6 @@ Runtime* runtime = nullptr;
 // The battle of the granted match is no longer entered, or never was. What
 // the entry armed for the battle request goes with it (battle::NextRequest).
 void ResetMatchEntry() {
-	sf4e::Music::LeaveMatch();
 	sf4e::GameEvents::VsBattle::nextRequest = {};
 	runtime->matchEntered = false;
 	runtime->enteredGeneration = 0;
@@ -155,6 +154,13 @@ void Apply(netplay::EventKind kind, const std::string& error) {
 			CloseRoom();
 		}
 	}
+}
+
+bool CanEditMusic() {
+    const auto state = runtime->controller.GetSnapshot();
+    return Music::Available() && AtMainMenu() && !Game::Battle::System::ggpo &&
+        !netplay::Fighting(state.match) &&
+        (state.room == netplay::RoomState::Idle || state.room == netplay::RoomState::Joined);
 }
 
 bool CanEditLobby() {
@@ -450,11 +456,10 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
 	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
-		!command.saveMusicPreferences && command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+		!command.saveLocalPresentation && command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
-		kind != netplay::CommandKind::SavePreferences &&
-		kind != netplay::CommandKind::SetLobbySettings &&
+		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
 		kind != netplay::CommandKind::RoomAction && kind != netplay::CommandKind::ReplaceRoom &&
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +

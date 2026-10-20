@@ -6462,16 +6462,16 @@ msgid "music.lobby_default"
 msgstr "Standaard menumuziek"
 
 msgid "music.lobby_detail"
-msgstr "Kies muziek voor het titelscherm, de menu's en de lobby. De keuze wordt automatisch opgeslagen en bij het opstarten hersteld."
+msgstr "Kies muziek voor het titelscherm, de menu's en de lobby. De keuze wordt automatisch opgeslagen en bij het opstarten hersteld. Willekeurig kiest bij het starten en na een wedstrijd een geïnstalleerd nummer."
 
 msgid "music.match"
-msgstr "Wedstrijdmuziek"
+msgstr "Muziek voor online wedstrijden"
 
 msgid "music.match_default"
 msgstr "Stagemuziek (standaard)"
 
 msgid "music.match_detail"
-msgstr "Kies een stage, een personage of Willekeurig. Willekeurig kiest voor elke wedstrijd een nummer, ook bij rematches. De eigen muziek van een aangepaste stage krijgt voorrang."
+msgstr "Geldt voor wedstrijden in online kamers, ook als toeschouwer; offline modi behouden hun eigen muziek. Kies een stage, een personage of Willekeurig. Willekeurig kiest voor elke wedstrijd een nummer, ook bij rematches. De eigen muziek van een aangepaste stage krijgt voorrang."
 
 msgid "music.reset"
 msgstr "Standaardmuziek herstellen"

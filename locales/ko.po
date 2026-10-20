@@ -6463,16 +6463,16 @@ msgid "music.lobby_default"
 msgstr "기본 메뉴 음악"
 
 msgid "music.lobby_detail"
-msgstr "타이틀 화면, 메뉴 및 로비의 음악을 선택합니다. 선택은 자동으로 저장되며 시작할 때 복원됩니다."
+msgstr "타이틀 화면, 메뉴 및 로비의 음악을 선택합니다. 선택은 자동으로 저장되며 시작할 때 복원됩니다. 무작위는 시작할 때와 대전에서 돌아올 때 설치된 곡을 선택합니다."
 
 msgid "music.match"
-msgstr "대전 음악"
+msgstr "온라인 대전 음악"
 
 msgid "music.match_default"
 msgstr "스테이지 음악 (기본값)"
 
 msgid "music.match_detail"
-msgstr "스테이지, 캐릭터 또는 무작위를 선택합니다. 무작위는 재대전을 포함한 매 대전마다 곡을 선택합니다. 사용자 지정 스테이지에 전용 음악이 있으면 우선 재생합니다."
+msgstr "온라인 방의 대전과 관전에 적용됩니다. 오프라인 모드의 음악은 바뀌지 않습니다. 스테이지, 캐릭터 또는 무작위를 선택합니다. 무작위는 재대전을 포함한 매 대전마다 곡을 선택합니다. 사용자 지정 스테이지에 전용 음악이 있으면 우선 재생합니다."
 
 msgid "music.reset"
 msgstr "기본 음악 복원"

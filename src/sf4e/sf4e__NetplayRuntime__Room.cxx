@@ -211,19 +211,25 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         return DispatchOutcome::Dropped;
     }
 	const auto kind = command.command.kind;
-    if (command.saveMusicPreferences) {
-        // Local presentation: no room mutation and no authority checkpoint
-        // dependency. Recheck safety after the queued press reached its owner.
-        const auto state = runtime->controller.GetSnapshot();
-        if (!Music::Available() || !AtMainMenu() || Game::Battle::System::ggpo || netplay::Fighting(state.match) ||
-            (state.room != netplay::RoomState::Idle && state.room != netplay::RoomState::Joined) ||
-              !music::ValidLobby(command.preferences.lobbyMusic) || !music::Valid(command.preferences.matchMusic))
+    if (command.saveLocalPresentation) {
+        // Merge only the fields owned by this local request and validate them
+        // together before queuing one durable write. No partial save is visible.
+        const bool musicChanged = command.preferences.lobbyMusic != runtime->preferences.lobbyMusic ||
+            command.preferences.matchMusic != runtime->preferences.matchMusic;
+        const bool layoutsChanged = command.preferences.buttonLayouts != runtime->preferences.buttonLayouts;
+        const bool musicEditable = CanEditMusic(), layoutsEditable = CanEditButtonLayoutNow();
+        if ((!musicEditable && !layoutsEditable) || (musicChanged && !musicEditable) || (layoutsChanged && !layoutsEditable))
             return DispatchOutcome::Dropped;
         auto next = runtime->preferences;
         next.lobbyMusic = command.preferences.lobbyMusic;
         next.matchMusic = command.preferences.matchMusic;
-        if (OverlayPrefs::SavePlayerPreferences(next)) { runtime->preferences = std::move(next); Music::RetryMenu(); runtime->error.clear(); }
-        else runtime->error = loc::T("runtime.preferences_queue_failed");
+        next.buttonLayouts = command.preferences.buttonLayouts;
+        if (!next.Valid()) return DispatchOutcome::Dropped;
+        if (OverlayPrefs::SavePlayerPreferences(next)) {
+            runtime->preferences = std::move(next);
+            if (layoutsChanged) Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+            Music::RetryMenu(); runtime->error.clear();
+        } else runtime->error = loc::T("runtime.preferences_queue_failed");
         return DispatchOutcome::Dispatched;
     }
     // Recheck queued invite work after callbacks and controller changes.

@@ -339,6 +339,8 @@ bool AtMainMenu();
 void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
 bool CanEditLobby();
+bool CanEditMusic();
+bool CanEditButtonLayoutNow();
 bool CanBeginReplacement();
 // Training from the room: at the main menu, with no game of the player's
 // starting or running and no Ready of theirs given or on its way. A game

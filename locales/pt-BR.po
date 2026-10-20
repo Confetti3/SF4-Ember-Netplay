@@ -5982,16 +5982,16 @@ msgid "music.lobby_default"
 msgstr "Música padrão dos menus"
 
 msgid "music.lobby_detail"
-msgstr "Escolha a música da tela inicial, dos menus e da sala. A escolha é salva automaticamente e restaurada ao iniciar."
+msgstr "Escolha a música da tela inicial, dos menus e da sala. A escolha é salva automaticamente e restaurada ao iniciar. Aleatório escolhe uma faixa instalada ao iniciar e ao voltar de uma partida."
 
 msgid "music.match"
-msgstr "Música das partidas"
+msgstr "Música das partidas online"
 
 msgid "music.match_default"
 msgstr "Música do cenário (padrão)"
 
 msgid "music.match_detail"
-msgstr "Escolha um cenário, um personagem ou Aleatório. Aleatório escolhe uma faixa para cada partida, incluindo as revanches. A música própria de um cenário personalizado tem prioridade."
+msgstr "Vale para partidas em salas online, inclusive como espectador; os modos offline mantêm sua própria música. Escolha um cenário, um personagem ou Aleatório. Aleatório escolhe uma faixa para cada partida, incluindo as revanches. A música própria de um cenário personalizado tem prioridade."
 
 msgid "music.reset"
 msgstr "Restaurar música padrão"

@@ -6462,16 +6462,16 @@ msgid "music.lobby_default"
 msgstr "Výchozí hudba menu"
 
 msgid "music.lobby_detail"
-msgstr "Vyberte hudbu pro úvodní obrazovku, menu a lobby. Volba se uloží automaticky a obnoví při spuštění."
+msgstr "Vyberte hudbu pro úvodní obrazovku, menu a lobby. Volba se uloží automaticky a obnoví při spuštění. Náhodně vybere nainstalovanou skladbu při spuštění a při návratu ze zápasu."
 
 msgid "music.match"
-msgstr "Hudba zápasu"
+msgstr "Hudba online zápasů"
 
 msgid "music.match_default"
 msgstr "Hudba scény (výchozí)"
 
 msgid "music.match_detail"
-msgstr "Vyberte scénu, postavu nebo Náhodně. Náhodně vybere skladbu pro každý zápas včetně odvet. Vlastní hudba upravené scény má přednost."
+msgstr "Platí pro zápasy v online místnostech i pro diváky; offline režimy si ponechají vlastní hudbu. Vyberte scénu, postavu nebo Náhodně. Náhodně vybere skladbu pro každý zápas včetně odvet. Vlastní hudba upravené scény má přednost."
 
 msgid "music.reset"
 msgstr "Obnovit výchozí hudbu"

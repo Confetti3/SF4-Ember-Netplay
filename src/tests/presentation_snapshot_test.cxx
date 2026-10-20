@@ -146,13 +146,13 @@ static void TestCommandLifetime() {
 	// Music changes made inside a room use their own local command. Exercise
 	// the real submission boundary, not just the shell's mock command sink.
 	facade::RuntimeCommand music;
-	music.saveMusicPreferences = true;
+	music.saveLocalPresentation = true;
 	music.preferences.lobbyMusic = 1;
 	music.preferences.matchMusic = 24;
 	CHECK(facade::SubmitRuntimeCommand(music));
 	facade::RuntimeCommand accepted;
 	CHECK(first->TryPop(accepted));
-	CHECK(accepted.saveMusicPreferences);
+	CHECK(accepted.saveLocalPresentation);
 	CHECK(accepted.preferences.lobbyMusic == 1 && accepted.preferences.matchMusic == 24);
 	CHECK(Drain(*first) == 0);
 	// Malformed commands are refused before the queue.

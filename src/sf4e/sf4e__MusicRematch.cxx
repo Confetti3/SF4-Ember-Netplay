@@ -1,4 +1,6 @@
 #include "sf4e__MusicRematch.hxx"
+#include "sf4e__Music.hxx"
+#include "../platform/NativeSignature.hxx"
 #include "../common/MusicPlaybackState.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Eva.hxx"
@@ -45,21 +47,6 @@ bool installed = false;
 std::atomic<DWORD> ownerThread{0};
 std::atomic<bool> cancelRequested{false};
 
-bool Readable(const void* pointer, std::size_t size) {
-    const auto begin = reinterpret_cast<std::uintptr_t>(pointer);
-    if (!begin || !size || begin + size < begin) return false;
-    MEMORY_BASIC_INFORMATION region{};
-    if (VirtualQuery(pointer, &region, sizeof(region)) != sizeof(region) ||
-        region.State != MEM_COMMIT || (region.Protect & (PAGE_GUARD | PAGE_NOACCESS))) return false;
-    const auto protection = region.Protect & 0xff;
-    return (protection == PAGE_READONLY || protection == PAGE_READWRITE || protection == PAGE_WRITECOPY ||
-        protection == PAGE_EXECUTE_READ || protection == PAGE_EXECUTE_READWRITE || protection == PAGE_EXECUTE_WRITECOPY) &&
-        begin + size <= reinterpret_cast<std::uintptr_t>(region.BaseAddress) + region.RegionSize;
-}
-template<std::size_t N> bool Signature(std::uintptr_t rva, const unsigned char (&bytes)[N]) {
-    const auto* pointer = reinterpret_cast<const void*>(base + rva);
-    return Readable(pointer, N) && std::memcmp(pointer, bytes, N) == 0;
-}
 void ReleaseSheet(void*& sheet) {
     if (sheet) { destroySheet(sheet, 1); sheet = nullptr; }
 }
@@ -74,24 +61,25 @@ void* __fastcall DestroyPlayer(void* self, void*, unsigned flags) {
         ReleaseSheet(activeSheet);
         ownerThread = 0;
         cancelRequested = false;
+        Music::ReleaseBattle();
     }
     return result;
 }
 bool QuiescentPlayer() {
-    if (!Readable(player, 0x24) || *static_cast<std::uintptr_t*>(player) != base + 0x551b98) return false;
+    if (!native::Accessible(player, 0x24) || *static_cast<std::uintptr_t*>(player) != base + 0x551b98) return false;
     auto* system = System::staticMethods.GetSingleton();
-    if (!Readable(system, sizeof(void*))) return false;
+    if (!native::Accessible(system, sizeof(void*))) return false;
     auto* sound = (system->*System::publicMethods.GetUnitByIndex)(System::U_SOUND);
-    if (!Readable(sound, 0xc) || *reinterpret_cast<void**>(static_cast<char*>(sound) + 8) != player) return false;
+    if (!native::Accessible(sound, 0xc) || *reinterpret_cast<void**>(static_cast<char*>(sound) + 8) != player) return false;
     auto* core = (system->*System::publicMethods.GetTaskCore)(System::TCI_UPDATE);
-    if (!Readable(core, 0x4c)) return false;
+    if (!native::Accessible(core, 0x4c)) return false;
     auto* task = TaskCore::GetTaskHead(core);
     for (unsigned count = 0; task && count < MAX_TASKS_PER_CORE; ++count) {
-        if (!Readable(task, sizeof(Task))) return false;
+        if (!native::Accessible(task, sizeof(Task))) return false;
         if (*Task::GetState(task) != Task::TS_CANCELLED) {
             auto* work = *Task::GetWorkFunctor(task);
             if (work) {
-                if (!Readable(work, 0xc)) return false;
+                if (!native::Accessible(work, 0xc)) return false;
                 const auto* fields = reinterpret_cast<const std::uintptr_t*>(work);
                 if (fields[0] == base + 0x551b88 && fields[1] == reinterpret_cast<std::uintptr_t>(player))
                     return false;
@@ -115,10 +103,10 @@ bool Install() {
     const unsigned char start[] = {0x55,0x8b,0xec,0x56,0x8b,0xf1,0xb8,0x01,0x00,0x00,0x00};
     const unsigned char fade[] = {0x55,0x8b,0xec,0x51,0x53,0x8b,0xd9,0x8b,0x4d,0x08,0x56};
     const unsigned char makeFade[] = {0x55,0x8b,0xec,0x51,0xf3,0x0f,0x10,0x45,0x10};
-    if (!Signature(0x275e40, create) || !Signature(0x275d60, load) || !Signature(0x275c10, poll) ||
-        !Signature(0x275d70, sheetDestroy) || !Signature(0x192170, clear) ||
-        !Signature(0x192630, construct) || !Signature(0x192740, playerDestroy) || !Signature(0x1922a0, start) ||
-        !Signature(0x192520, fade) || !Signature(0x1927f0, makeFade))
+    if (!native::Signature(base, 0x275e40, create) || !native::Signature(base, 0x275d60, load) || !native::Signature(base, 0x275c10, poll) ||
+        !native::Signature(base, 0x275d70, sheetDestroy) || !native::Signature(base, 0x192170, clear) ||
+        !native::Signature(base, 0x192630, construct) || !native::Signature(base, 0x192740, playerDestroy) || !native::Signature(base, 0x1922a0, start) ||
+        !native::Signature(base, 0x192520, fade) || !native::Signature(base, 0x1927f0, makeFade))
         return false;
     createSheet = reinterpret_cast<CreateSheet>(base + 0x275e40);
     loadSheet = reinterpret_cast<Method>(base + 0x275d60);
@@ -184,7 +172,7 @@ Progress Tick(bool mayApply) {
     auto* created = constructPlayer(&replacement, &init);
     const int count = init.mode == 1 ? 3 : 1;
     bool valid = created == &replacement && replacement.vtable == base + 0x551b98 &&
-        replacement.count == count && Readable(replacement.cues, count * sizeof(Cue));
+        replacement.count == count && native::Accessible(replacement.cues, count * sizeof(Cue));
     for (int i = 0; valid && i < count; ++i) valid = replacement.cues[i].handle != UINT32_MAX;
     if (!valid) {
         // A successful native constructor still owns its cue allocation,

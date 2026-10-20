@@ -6462,16 +6462,16 @@ msgid "music.lobby_default"
 msgstr "Standard-Menümusik"
 
 msgid "music.lobby_detail"
-msgstr "Wähle die Musik für Titelbildschirm, Menüs und Lobby. Die Auswahl wird automatisch gespeichert und beim Start wiederhergestellt."
+msgstr "Wähle die Musik für Titelbildschirm, Menüs und Lobby. Die Auswahl wird automatisch gespeichert und beim Start wiederhergestellt. Zufällig wählt beim Start und bei der Rückkehr aus einem Kampf einen installierten Titel."
 
 msgid "music.match"
-msgstr "Kampfmusik"
+msgstr "Musik für Online-Kämpfe"
 
 msgid "music.match_default"
 msgstr "Stage-Musik (Standard)"
 
 msgid "music.match_detail"
-msgstr "Wähle eine Stage, einen Charakter oder Zufällig. Zufällig wählt für jeden Kampf einen Titel, auch bei Rückkämpfen. Die eigene Musik einer benutzerdefinierten Stage hat Vorrang."
+msgstr "Gilt für Kämpfe in Online-Räumen, auch beim Zuschauen; Offline-Modi behalten ihre eigene Musik. Wähle eine Stage, einen Charakter oder Zufällig. Zufällig wählt für jeden Kampf einen Titel, auch bei Rückkämpfen. Die eigene Musik einer benutzerdefinierten Stage hat Vorrang."
 
 msgid "music.reset"
 msgstr "Standardmusik wiederherstellen"

@@ -495,9 +495,8 @@ PostPublishState Publish() {
 	snapshot.lobbySettings = runtime->preferences.lobby;
 	snapshot.canEditPreferences = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle &&
 		!UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
-	snapshot.canEditMusic = Music::Available() && snapshot.atMainMenu && !Game::Battle::System::ggpo &&
-		!netplay::Fighting(snapshot.session.match) &&
-		(snapshot.session.room == netplay::RoomState::Idle || snapshot.session.room == netplay::RoomState::Joined);
+	snapshot.canEditMusic = CanEditMusic();
+    snapshot.musicChoices = Music::InstalledChoices();
 	snapshot.musicError = Music::Error();
 	snapshot.canEditLobby = CanEditLobby();
 	snapshot.settingsPending = OverlayPrefs::PersistencePending() || runtime->pendingLobbySettings != nullptr || runtime->lobbyEditIntent.Parked() != nullptr;

@@ -6098,16 +6098,16 @@ msgid "music.lobby_default"
 msgstr "Default menu music"
 
 msgid "music.lobby_detail"
-msgstr "Choose the music for the title screen, menus and lobby. It is saved automatically and restored on startup."
+msgstr "Choose the music for the title screen, menus and lobby. It is saved automatically and restored on startup. Random chooses an installed track on startup and when returning from a match."
 
 msgid "music.match"
-msgstr "Match music"
+msgstr "Online match music"
 
 msgid "music.match_default"
 msgstr "Stage music (default)"
 
 msgid "music.match_detail"
-msgstr "Choose a stage, a character, or Random. Random selects a track for each match, including rematches. A custom stage's own music takes priority."
+msgstr "Applies to online room matches, including spectating; offline modes keep their own music. Choose a stage, a character, or Random. Random selects a track for each match, including rematches. A custom stage's own music takes priority."
 
 msgid "music.reset"
 msgstr "Restore default music"

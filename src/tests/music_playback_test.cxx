@@ -58,6 +58,25 @@ int main() {
         CHECK(ResolveMatch(1, roll, installed) == Default); // Missing file excluded.
     }
     CHECK(ResolveMatch(Random, 0, {}) == Default);
+    const Choices available({143, 0, 999, 0, 100});
+    CHECK(available.ids == std::vector<int>({Default, Random, 0, 100, 143}));
+    CHECK(available.Step(0, 1) == 100); // Missing banks cannot be stepped onto.
+    CHECK(available.FromKey("24") == Default && available.FromKey("100") == 100);
+    CHECK(available.FromKey("100oops") == Default);
+    CHECK(Choices().ids == std::vector<int>({Default, Random}));
+    MenuPlaybackState randomMenu;
+    CHECK(!randomMenu.RequestChoice(Random, 0, installed, false));
+    CHECK(randomMenu.RequestChoice(Random, 0, installed, true));
+    CHECK(randomMenu.applied == installed[0]); randomMenu.pending = false;
+    CHECK(!randomMenu.NeedsChoice(Random, true)); // No per-frame RNG or reload.
+    CHECK(!randomMenu.RequestChoice(Random, 1, installed, true));
+    CHECK(randomMenu.applied == installed[0]);
+    randomMenu.Reset(); // Native menu-bank release after a match.
+    CHECK(randomMenu.RequestChoice(Random, 1, installed, true));
+    CHECK(randomMenu.applied == installed[1]);
+    randomMenu.Reset();
+    CHECK(!randomMenu.RequestChoice(Default, 2, installed, true)); // Default stays native.
+
     // Each game prepares exactly once, despite repeated ticks or a stale
     // observation. A confirmed result alone must not change victory music.
     RematchMusicState cycle;
