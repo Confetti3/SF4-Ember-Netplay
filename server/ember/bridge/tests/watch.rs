@@ -91,6 +91,35 @@ async fn a_match_is_closed_to_watchers_until_its_organizer_opens_it() {
 }
 
 #[tokio::test]
+async fn a_stranger_learns_nothing_of_a_finished_match() {
+    let f = fixture().await;
+    let id = f.id.clone();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE matches SET state = 'cancelled' WHERE id = ?1",
+                [&id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let player3 = viewer(&f.bridge, 40).await;
+    let (status, refused) = ask(&f, &f.id, &player3).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{refused}");
+    assert_eq!(
+        (code(&refused), reason(&refused)),
+        ("forbidden", "not_allowed")
+    );
+    assert!(
+        refused["error"]["details"].get("state").is_none(),
+        "{refused}"
+    );
+}
+
+#[tokio::test]
 async fn a_watcher_waits_for_the_room_and_for_both_fighters() {
     let f = fixture().await;
     let player3 = viewer(&f.bridge, 40).await;
@@ -533,6 +562,18 @@ async fn leaving_removes_a_watcher_at_once() {
     assert!(watchers(&binding_for(&f, &f.id, &f.b).await).is_empty());
     assert_eq!(
         count(&f.bridge, "SELECT COUNT(*) FROM match_watchers").await,
+        0
+    );
+}
+
+#[tokio::test]
+async fn leaving_without_watching_changes_nothing() {
+    let f = fixture().await;
+    let player3 = viewer(&f.bridge, 40).await;
+    let (status, left) = leave(&f, &f.id, &player3).await;
+    assert_eq!((status, &left["left"]), (StatusCode::OK, &json!(true)));
+    assert_eq!(
+        count(&f.bridge, "SELECT COUNT(*) FROM match_rooms").await,
         0
     );
 }

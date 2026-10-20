@@ -71,12 +71,6 @@ pub fn fighter(tx: &Transaction<'_>, match_id: &str, ember_id: &EmberId) -> Resu
     with_rules(tx, found, roster)
 }
 
-/// Loads `match_id` for whoever asks, a fighter or not.
-fn played(tx: &Transaction<'_>, match_id: &str) -> Result<PlayedMatch> {
-    let (found, roster) = roster_of(tx, match_id)?;
-    with_rules(tx, found, roster)
-}
-
 /// The match and its current roster, whatever its rules.
 fn roster_of(tx: &Transaction<'_>, match_id: &str) -> Result<(Match, Vec<Participant>)> {
     let found = load(tx, match_id)?.ok_or_else(ApiFailure::not_found)?;
