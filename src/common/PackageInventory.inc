@@ -1,6 +1,7 @@
 // One source for packaging, preflight and both update validators.
 SF4E_PACKAGE_REQUIRED("Launcher.exe")
 SF4E_PACKAGE_REQUIRED("Sidecar.dll")
+SF4E_PACKAGE_REQUIRED("speech_relay.py")
 SF4E_PACKAGE_REQUIRED("Updater.exe")
 SF4E_PACKAGE_REQUIRED("sf4-net.exe")
 SF4E_PACKAGE_REQUIRED("ember-discord.exe")

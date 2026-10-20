@@ -709,7 +709,8 @@ void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,c
     if(adjustable)frame.hint+=(frame.hint.empty()?"":". ")+std::string(loc::T("speech.change"));
     const auto said=narrator_.Update(frame,now,menuSpeech);
     if(!menuSpeech.enabled)return;
-    if(ImGui::IsKeyPressed(ImGuiKey_F1,false))speech::Stop();
-    else if(!said.parts.empty())speech::Say(said.Text(),said.interrupt,menuSpeech.rate,menuSpeech.volume);
+    if(ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
+    if(!said.parts.empty())speech::Say(said.parts,said.interrupt,menuSpeech.rate,menuSpeech.volume);
+    speech::Render(said.render,menuSpeech.rate);
 }
 } }

@@ -905,6 +905,8 @@ install(
   TARGETS Launcher Sidecar Updater
   RUNTIME DESTINATION "."
 )
+# Speech under Proton: Sidecar starts it on the host (platform/SpeechLinux.hxx).
+install(FILES "src/platform/speech_relay.py" DESTINATION ".")
 install(FILES "src/ui/fonts/OFL.txt" DESTINATION "notices" RENAME "Inter-OFL.txt")
 install(FILES "src/ui/fonts/NotoSansCJK-OFL.txt" DESTINATION "notices")
 install(FILES "src/ui/backends/LICENSE.txt" DESTINATION "notices" RENAME "Dear-ImGui-MIT.txt")

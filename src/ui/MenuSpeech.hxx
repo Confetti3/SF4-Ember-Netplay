@@ -2,6 +2,7 @@
 #include "MenuNavigation.hxx"
 #include "../common/Localization.hxx"
 #include "../netplay/PlayerPreferences.hxx"
+#include "../platform/Speech.hxx"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -28,13 +29,7 @@ struct SpokenFrame {
 struct Utterance {
     std::vector<std::string> parts, render;
     bool interrupt = true;
-    // The parts as one line, for a voice that says it whole. A part that ends
-    // its own sentence is not given a comma.
-    std::string Text() const {
-        std::string text;
-        for (const auto& part : parts) text += (text.empty() ? "" : text.back() == '.' ? " " : ", ") + part;
-        return text;
-    }
+    std::string Text() const { return speech::Line(parts); }
 };
 // Turns what a menu shows into speech, one utterance at a time: the screen's
 // title and how many rows it has when it changes, then the focused row's name
