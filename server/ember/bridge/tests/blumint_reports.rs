@@ -574,10 +574,9 @@ async fn a_progress_report_follows_each_game_that_does_not_end_the_set() {
 }
 
 // BluMint asks every report to name the creation that made its match by that
-// creation's Idempotency-Key, so a report that reaches it before it has
-// recorded the creation's answer waits instead of reading as a match it does
-// not know. The stand-in BluMint refuses a report without one, as BluMint
-// does; each kind the bridge sends carries its own match's key.
+// creation's Idempotency-Key. The stand-in BluMint refuses a report without
+// one, as BluMint does; each kind carries its own match's key. A set that ends
+// drops a progress report still unsent, so game 1's is settled before game 2.
 #[tokio::test]
 async fn every_report_names_the_creation_that_made_its_match() {
     let f = fixture().await;
@@ -588,6 +587,7 @@ async fn every_report_names_the_creation_that_made_its_match() {
     assert!(reports(&f, &id).await.is_empty());
     assert!(!statuses(&f, &id).is_empty());
     win(&f, &id, 0, "game-1").await;
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
     win(&f, &id, 0, "game-2").await;
     assert_eq!(
         reports(&f, &id).await,
