@@ -23,7 +23,7 @@ use crate::{
     audit::audit,
     ctx::Ctx,
     error::Result,
-    http::{GENERAL_BODY, ok},
+    http::{GENERAL_BODY, is_idempotency_key, ok},
     routes::{
         idempotency,
         ledger::{Match, load},
@@ -31,9 +31,6 @@ use crate::{
     },
 };
 
-/// Longest creation `Idempotency-Key` the bridge makes a match under
-/// (`http::idempotency_key`); BluMint's are at most 128 characters.
-const MAX_KEY: usize = 128;
 /// Most characters of a reason the bridge keeps. BluMint's are short words.
 const MAX_REASON: usize = 64;
 
@@ -80,12 +77,7 @@ pub async fn close(
 ) -> std::result::Result<Response, BluMintRefusal> {
     let (connection_id, credential) = caller(&state, &headers).await?;
     let request: CloseRequest = parse(&body?)?;
-    if !(1..=MAX_KEY).contains(&request.idempotency_key.len())
-        || !request
-            .idempotency_key
-            .bytes()
-            .all(|b| b.is_ascii_graphic())
-    {
+    if !is_idempotency_key(&request.idempotency_key) {
         return Ok(ok(&json!({ "closed": true })));
     }
     let reason = format!("closed by BluMint: {}", logged(&request.reason));
