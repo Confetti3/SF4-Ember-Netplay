@@ -111,6 +111,19 @@ What makes Ember speak, all of it (grep `speech::` outside tests):
 - Nothing else calls Say: no header, player card, news, status line, toast
   or chat is spoken.
 
+## Accessibility button, intro, notice chime (2026-10-20, user decisions)
+
+15. RT (pads, XInput and DirectInput sticks, Xbox-layout 4th bottom button)
+    and F2 = `MenuInput::Describe`: tap reads the description or a notice's
+    text and buttons; tap again on the same row stops. F1 also stops.
+16. Turning Speech on shows and reads "Speech is on. Move to hear each item.
+    Press <RT/R2/F2> ..." once (a notice marked as asked by the player).
+17. Notice that opens by itself: chime (winmm PlaySound, also under Proton,
+    so no CHIME message to the relay) + "Notice. Press RT to hear it.".
+    Chime on/off and volume rows. Accessibility page moved to
+    ApplicationShell__Accessibility.cxx (shell back to 945 lines).
+18. Deck install resets speech settings to defaults with speech on.
+
 ## Decisions
 
 - **Tolk not added now.** It needs a new x86 DLL (Tolk.dll plus the NVDA

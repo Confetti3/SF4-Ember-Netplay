@@ -67,7 +67,7 @@ Native SF4 menus are only reached offline (arcade, training, options). Everythin
 
 ## The accessibility button and strict reading
 
-Ember reads its menus as Tokon does: a move says the row's name, and its value only where the player changes it; a new screen says its title; a dialog the player opens says its question, then the focused button; a notice that opens by itself stays quiet until the player moves in it. Nothing else speaks on its own.
+Ember reads its menus as Tokon does: a move says the row's name, and its value only where the player changes it; a new screen says its title; a dialog the player opens (or a notice their own action opens) says its question, then the focused button. A notice that opens by itself plays a short chime of its own (two falling tones, made in code like the ready chime, played through winmm, which works under Proton too) and says only "Notice. Press RT to hear it."; the accessibility button then reads its text and buttons. The chime has its own on/off and volume (default on, 60%). Nothing else speaks on its own.
 
 One accessibility button, the same on every device: RT on a pad, the same RT input on an arcade stick or leverless (the fourth button of the bottom row in the Xbox layout, which every 8-button stick and leverless has, unlike L3/R3 or a touchpad), F2 on the keyboard. A tap reads the focused row's description (a notice's text), with its button hint when that setting is on; a second tap on the same row stops it. F1 also stops speech. RT is free in every Ember menu (the menus use A, B, X, Y, View and Start; V2 uses LB/RB for tabs); replay playback uses RT to step, but only while Ember's menu is closed. When a player binds RT to confirm or back, it is not the accessibility button. Rebinding it is for later.
 
