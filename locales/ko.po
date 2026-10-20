@@ -4715,6 +4715,45 @@ msgstr "대전 중 프레임 미터, 트레이닝 복귀 시 자동 준비, 저�
 msgid "settings.training_replays_title"
 msgstr "트레이닝과 리플레이"
 
+msgid "settings.accessibility"
+msgstr "접근성"
+
+msgid "settings.accessibility_detail"
+msgstr "Ember의 메뉴를 소리 내어 읽어 주는 음성입니다."
+
+msgid "settings.accessibility_title"
+msgstr "접근성"
+
+msgid "speech.setting"
+msgstr "음성"
+
+msgid "speech.setting_detail"
+msgstr "Ember의 메뉴를 이동할 때마다 소리 내어 읽습니다. F1을 누르면 음성이 멈춥니다."
+
+msgid "speech.rate"
+msgstr "음성 속도"
+
+msgid "speech.rate_detail"
+msgstr "음성이 말하는 속도입니다. 0이 기본 속도입니다."
+
+msgid "speech.volume"
+msgstr "음성 볼륨"
+
+msgid "speech.volume_detail"
+msgstr "음성의 크기입니다."
+
+msgid "speech.details"
+msgstr "세부 정보 읽기"
+
+msgid "speech.details_detail"
+msgstr "항목 이름 다음에, 그 항목에 머무르면 설명을 읽습니다."
+
+msgid "speech.hints"
+msgstr "버튼 안내 읽기"
+
+msgid "speech.hints_detail"
+msgstr "머무르고 있는 항목에서 어떤 버튼이 무엇을 하는지 읽습니다."
+
 msgid "room.table_footer_practice"
 msgstr "연습 대전"
 

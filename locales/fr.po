@@ -4714,6 +4714,45 @@ msgstr "Affichage des frames en match, prêt automatiquement après l'entraînem
 msgid "settings.training_replays_title"
 msgstr "ENTRAÎNEMENT ET REPLAYS"
 
+msgid "settings.accessibility"
+msgstr "Accessibilité"
+
+msgid "settings.accessibility_detail"
+msgstr "Voix qui lit à haute voix les menus d'Ember."
+
+msgid "settings.accessibility_title"
+msgstr "ACCESSIBILITÉ"
+
+msgid "speech.setting"
+msgstr "Voix"
+
+msgid "speech.setting_detail"
+msgstr "Lit à haute voix les menus d'Ember pendant que vous les parcourez. F1 arrête la voix."
+
+msgid "speech.rate"
+msgstr "Débit de la voix"
+
+msgid "speech.rate_detail"
+msgstr "La vitesse à laquelle la voix parle. 0 est son débit normal."
+
+msgid "speech.volume"
+msgstr "Volume de la voix"
+
+msgid "speech.volume_detail"
+msgstr "Le volume auquel la voix parle."
+
+msgid "speech.details"
+msgstr "Lire les détails"
+
+msgid "speech.details_detail"
+msgstr "Après le nom d'une ligne, lit son explication si vous y restez."
+
+msgid "speech.hints"
+msgstr "Lire les aides des boutons"
+
+msgid "speech.hints_detail"
+msgstr "Lit ce que font vos boutons sur la ligne où vous restez."
+
 msgid "room.table_footer_practice"
 msgstr "Match d'entraînement"
 

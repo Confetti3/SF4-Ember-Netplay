@@ -4714,6 +4714,45 @@ msgstr "Frame-Anzeige in Kämpfen, automatische Bereitschaft nach dem Training u
 msgid "settings.training_replays_title"
 msgstr "TRAINING UND REPLAYS"
 
+msgid "settings.accessibility"
+msgstr "Barrierefreiheit"
+
+msgid "settings.accessibility_detail"
+msgstr "Sprachausgabe, die Embers Menüs vorliest."
+
+msgid "settings.accessibility_title"
+msgstr "BARRIEREFREIHEIT"
+
+msgid "speech.setting"
+msgstr "Sprachausgabe"
+
+msgid "speech.setting_detail"
+msgstr "Liest Embers Menüs vor, während du dich durch sie bewegst. F1 hält die Stimme an."
+
+msgid "speech.rate"
+msgstr "Sprechtempo"
+
+msgid "speech.rate_detail"
+msgstr "Wie schnell die Stimme spricht. 0 ist ihr normales Tempo."
+
+msgid "speech.volume"
+msgstr "Lautstärke der Sprachausgabe"
+
+msgid "speech.volume_detail"
+msgstr "Wie laut die Stimme spricht."
+
+msgid "speech.details"
+msgstr "Details vorlesen"
+
+msgid "speech.details_detail"
+msgstr "Liest nach dem Namen einer Zeile ihre Erklärung, wenn du auf ihr bleibst."
+
+msgid "speech.hints"
+msgstr "Tastenhinweise vorlesen"
+
+msgid "speech.hints_detail"
+msgstr "Liest vor, was deine Tasten in der Zeile tun, auf der du bleibst."
+
 msgid "room.table_footer_practice"
 msgstr "Übungskampf"
 

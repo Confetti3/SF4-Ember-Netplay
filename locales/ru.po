@@ -4715,6 +4715,45 @@ msgstr "Счётчик кадров в матчах, автоготовност�
 msgid "settings.training_replays_title"
 msgstr "ТРЕНИРОВКА И ПОВТОРЫ"
 
+msgid "settings.accessibility"
+msgstr "Специальные возможности"
+
+msgid "settings.accessibility_detail"
+msgstr "Голос, который читает меню Ember вслух."
+
+msgid "settings.accessibility_title"
+msgstr "СПЕЦИАЛЬНЫЕ ВОЗМОЖНОСТИ"
+
+msgid "speech.setting"
+msgstr "Озвучивание"
+
+msgid "speech.setting_detail"
+msgstr "Читает меню Ember вслух, пока вы по ним перемещаетесь. F1 останавливает голос."
+
+msgid "speech.rate"
+msgstr "Скорость речи"
+
+msgid "speech.rate_detail"
+msgstr "Насколько быстро говорит голос. 0 означает обычный темп."
+
+msgid "speech.volume"
+msgstr "Громкость речи"
+
+msgid "speech.volume_detail"
+msgstr "Насколько громко говорит голос."
+
+msgid "speech.details"
+msgstr "Читать подробности"
+
+msgid "speech.details_detail"
+msgstr "После названия строки читает её пояснение, если вы на ней задержитесь."
+
+msgid "speech.hints"
+msgstr "Читать подсказки кнопок"
+
+msgid "speech.hints_detail"
+msgstr "Читает, что делают ваши кнопки в строке, на которой вы задержались."
+
 msgid "room.table_footer_practice"
 msgstr "Тренировочный матч"
 

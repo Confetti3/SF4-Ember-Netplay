@@ -4714,6 +4714,45 @@ msgstr "De framemeter in wedstrijden, automatisch gereed na Training en welke we
 msgid "settings.training_replays_title"
 msgstr "TRAINING EN REPLAYS"
 
+msgid "settings.accessibility"
+msgstr "Toegankelijkheid"
+
+msgid "settings.accessibility_detail"
+msgstr "Spraak die de menu's van Ember voorleest."
+
+msgid "settings.accessibility_title"
+msgstr "TOEGANKELIJKHEID"
+
+msgid "speech.setting"
+msgstr "Spraak"
+
+msgid "speech.setting_detail"
+msgstr "Leest de menu's van Ember voor terwijl je erdoorheen gaat. F1 stopt de stem."
+
+msgid "speech.rate"
+msgstr "Spreeksnelheid"
+
+msgid "speech.rate_detail"
+msgstr "Hoe snel de stem spreekt. 0 is het normale tempo."
+
+msgid "speech.volume"
+msgstr "Spraakvolume"
+
+msgid "speech.volume_detail"
+msgstr "Hoe luid de stem spreekt."
+
+msgid "speech.details"
+msgstr "Details voorlezen"
+
+msgid "speech.details_detail"
+msgstr "Leest na de naam van een rij de uitleg als je erop blijft staan."
+
+msgid "speech.hints"
+msgstr "Knophints voorlezen"
+
+msgid "speech.hints_detail"
+msgstr "Leest voor wat je knoppen doen op de rij waarop je blijft staan."
+
 msgid "room.table_footer_practice"
 msgstr "Oefenwedstrijd"
 

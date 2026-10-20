@@ -665,7 +665,7 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
-            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","accessibility","discord","about"})page(screen);
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);

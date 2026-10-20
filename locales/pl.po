@@ -4714,6 +4714,45 @@ msgstr "Miernik klatek w meczach, automatyczna gotowość po treningu i wybór z
 msgid "settings.training_replays_title"
 msgstr "TRENING I POWTÓRKI"
 
+msgid "settings.accessibility"
+msgstr "Dostępność"
+
+msgid "settings.accessibility_detail"
+msgstr "Głos, który czyta menu Embera na głos."
+
+msgid "settings.accessibility_title"
+msgstr "DOSTĘPNOŚĆ"
+
+msgid "speech.setting"
+msgstr "Głos"
+
+msgid "speech.setting_detail"
+msgstr "Czyta menu Embera na głos, gdy się po nich poruszasz. F1 zatrzymuje głos."
+
+msgid "speech.rate"
+msgstr "Tempo głosu"
+
+msgid "speech.rate_detail"
+msgstr "Jak szybko mówi głos. 0 to normalne tempo."
+
+msgid "speech.volume"
+msgstr "Głośność głosu"
+
+msgid "speech.volume_detail"
+msgstr "Jak głośno mówi głos."
+
+msgid "speech.details"
+msgstr "Czytaj szczegóły"
+
+msgid "speech.details_detail"
+msgstr "Po nazwie wiersza czyta jego objaśnienie, gdy na nim zostaniesz."
+
+msgid "speech.hints"
+msgstr "Czytaj podpowiedzi przycisków"
+
+msgid "speech.hints_detail"
+msgstr "Czyta, co robią twoje przyciski w wierszu, na którym zostajesz."
+
 msgid "room.table_footer_practice"
 msgstr "Mecz treningowy"
 

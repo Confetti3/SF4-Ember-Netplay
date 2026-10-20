@@ -254,7 +254,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(ReplaysPanel::Owns(screen)){rows=replays_.Rows(v,screen,idle,title);
  }else if(screen=="settings"){
-  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
+  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("accessibility",loc::T("settings.accessibility"),loc::T("settings.accessibility_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
    Row("problem-reports",loc::T("reports.settings_title"),loc::T("reports.settings_detail")),Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
   // The flag beside the player's name; Select opens the country picker.
   rows.insert(rows.begin()+1,Row("country",loc::T("settings.country"),v.canEditPreferences?loc::T("settings.country_detail"):reason,v.canEditPreferences));
@@ -311,6 +311,14 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
    Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences),
    Value("watched-picture",loc::T("settings.watched_picture"),preferences_.watchedPicture?loc::T("common.on"):loc::T("common.off"),loc::T("settings.watched_picture_detail"),v.canEditPreferences)};
+ }else if(screen=="accessibility"){
+  // Rate, volume and what is read wait for speech to be on, like the ready sound's volume.
+  title=loc::T("settings.accessibility_title");const auto& speech=preferences_.speech;const bool speaking=v.canEditPreferences&&speech.enabled;
+  rows={Value("speech",loc::T("speech.setting"),speech.enabled?loc::T("common.on"):loc::T("common.off"),loc::T("speech.setting_detail"),v.canEditPreferences),
+   Value("speech-rate",loc::T("speech.rate"),std::to_string(speech.rate),loc::T("speech.rate_detail"),speaking),
+   Value("speech-volume",loc::T("speech.volume"),std::to_string(speech.volume)+"%",loc::T("speech.volume_detail"),speaking),
+   Value("speech-details",loc::T("speech.details"),speech.details?loc::T("common.on"):loc::T("common.off"),loc::T("speech.details_detail"),speaking),
+   Value("speech-hints",loc::T("speech.hints"),speech.hints?loc::T("common.on"):loc::T("common.off"),loc::T("speech.hints_detail"),speaking)};
  }else if(screen=="discord"){
   title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
    Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
@@ -508,7 +516,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
- else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="accessibility"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
@@ -567,6 +575,11 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
+  else if(a.id=="speech")preferences_.speech.enabled=a.delta>0;
+  else if(a.id=="speech-rate")preferences_.speech.rate=(std::max)(-10,(std::min)(10,preferences_.speech.rate+a.delta));
+  else if(a.id=="speech-volume")preferences_.speech.volume=(std::max)(10,(std::min)(100,preferences_.speech.volume+10*a.delta));
+  else if(a.id=="speech-details")preferences_.speech.details=a.delta>0;
+  else if(a.id=="speech-hints")preferences_.speech.hints=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="shortcut-hint")preferences_.showShortcutHint=a.delta>0;

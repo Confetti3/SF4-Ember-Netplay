@@ -4353,6 +4353,45 @@ msgstr "The frame meter in matches, Auto-ready from Training, and which matches 
 msgid "settings.training_replays_title"
 msgstr "TRAINING AND REPLAYS"
 
+msgid "settings.accessibility"
+msgstr "Accessibility"
+
+msgid "settings.accessibility_detail"
+msgstr "Speech that reads Ember's menus aloud."
+
+msgid "settings.accessibility_title"
+msgstr "ACCESSIBILITY"
+
+msgid "speech.setting"
+msgstr "Speech"
+
+msgid "speech.setting_detail"
+msgstr "Reads Ember's menus aloud as you move through them. F1 stops the voice."
+
+msgid "speech.rate"
+msgstr "Speech rate"
+
+msgid "speech.rate_detail"
+msgstr "How fast the voice speaks. 0 is its normal pace."
+
+msgid "speech.volume"
+msgstr "Speech volume"
+
+msgid "speech.volume_detail"
+msgstr "How loud the voice speaks."
+
+msgid "speech.details"
+msgstr "Read details"
+
+msgid "speech.details_detail"
+msgstr "After a row's name, reads its explanation once you stay on it."
+
+msgid "speech.hints"
+msgstr "Read button hints"
+
+msgid "speech.hints_detail"
+msgstr "Reads which of your buttons does what on the row you stay on."
+
 msgid "room.table_footer_practice"
 msgstr "Practice match"
 

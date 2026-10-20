@@ -4714,6 +4714,45 @@ msgstr "Indicatore dei frame nelle partite, pronto automatico dopo l'allenamento
 msgid "settings.training_replays_title"
 msgstr "ALLENAMENTO E REPLAY"
 
+msgid "settings.accessibility"
+msgstr "Accessibilità"
+
+msgid "settings.accessibility_detail"
+msgstr "Voce che legge ad alta voce i menu di Ember."
+
+msgid "settings.accessibility_title"
+msgstr "ACCESSIBILITÀ"
+
+msgid "speech.setting"
+msgstr "Voce"
+
+msgid "speech.setting_detail"
+msgstr "Legge ad alta voce i menu di Ember mentre li scorri. F1 ferma la voce."
+
+msgid "speech.rate"
+msgstr "Velocità della voce"
+
+msgid "speech.rate_detail"
+msgstr "Quanto velocemente parla la voce. 0 è il ritmo normale."
+
+msgid "speech.volume"
+msgstr "Volume della voce"
+
+msgid "speech.volume_detail"
+msgstr "Quanto forte parla la voce."
+
+msgid "speech.details"
+msgstr "Leggi i dettagli"
+
+msgid "speech.details_detail"
+msgstr "Dopo il nome di una riga, ne legge la spiegazione se ci resti sopra."
+
+msgid "speech.hints"
+msgstr "Leggi i suggerimenti dei tasti"
+
+msgid "speech.hints_detail"
+msgstr "Legge cosa fanno i tuoi tasti sulla riga su cui resti."
+
 msgid "room.table_footer_practice"
 msgstr "Partita di pratica"
 

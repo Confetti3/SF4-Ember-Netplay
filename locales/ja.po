@@ -4715,6 +4715,45 @@ msgstr "対戦中のフレームメーター、トレーニング後の自動準
 msgid "settings.training_replays_title"
 msgstr "トレーニングとリプレイ"
 
+msgid "settings.accessibility"
+msgstr "アクセシビリティ"
+
+msgid "settings.accessibility_detail"
+msgstr "Emberのメニューを読み上げる音声。"
+
+msgid "settings.accessibility_title"
+msgstr "アクセシビリティ"
+
+msgid "speech.setting"
+msgstr "音声読み上げ"
+
+msgid "speech.setting_detail"
+msgstr "Emberのメニューを移動に合わせて読み上げます。F1で読み上げを止めます。"
+
+msgid "speech.rate"
+msgstr "読み上げ速度"
+
+msgid "speech.rate_detail"
+msgstr "音声の話す速さです。0が標準の速さです。"
+
+msgid "speech.volume"
+msgstr "読み上げ音量"
+
+msgid "speech.volume_detail"
+msgstr "音声の大きさです。"
+
+msgid "speech.details"
+msgstr "詳細を読み上げ"
+
+msgid "speech.details_detail"
+msgstr "項目の名前の後、その項目に留まると説明を読み上げます。"
+
+msgid "speech.hints"
+msgstr "ボタンのヒントを読み上げ"
+
+msgid "speech.hints_detail"
+msgstr "留まっている項目で、どのボタンが何をするかを読み上げます。"
+
 msgid "room.table_footer_practice"
 msgstr "練習対戦"
 

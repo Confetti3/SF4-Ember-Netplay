@@ -4714,6 +4714,45 @@ msgstr "Měřič snímků v zápasech, automatická připravenost po tréninku a
 msgid "settings.training_replays_title"
 msgstr "TRÉNINK A ZÁZNAMY"
 
+msgid "settings.accessibility"
+msgstr "Přístupnost"
+
+msgid "settings.accessibility_detail"
+msgstr "Hlas, který čte nabídky Emberu nahlas."
+
+msgid "settings.accessibility_title"
+msgstr "PŘÍSTUPNOST"
+
+msgid "speech.setting"
+msgstr "Hlas"
+
+msgid "speech.setting_detail"
+msgstr "Čte nabídky Emberu nahlas, jak se jimi pohybujete. F1 hlas zastaví."
+
+msgid "speech.rate"
+msgstr "Rychlost hlasu"
+
+msgid "speech.rate_detail"
+msgstr "Jak rychle hlas mluví. 0 je jeho běžné tempo."
+
+msgid "speech.volume"
+msgstr "Hlasitost hlasu"
+
+msgid "speech.volume_detail"
+msgstr "Jak hlasitě hlas mluví."
+
+msgid "speech.details"
+msgstr "Číst podrobnosti"
+
+msgid "speech.details_detail"
+msgstr "Po názvu řádku přečte jeho vysvětlení, když na něm zůstanete."
+
+msgid "speech.hints"
+msgstr "Číst nápovědu tlačítek"
+
+msgid "speech.hints_detail"
+msgstr "Přečte, co na řádku, na kterém zůstanete, dělají vaše tlačítka."
+
 msgid "room.table_footer_practice"
 msgstr "Cvičný zápas"
 

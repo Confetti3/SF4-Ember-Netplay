@@ -4715,6 +4715,45 @@ msgstr "对战帧数表、从训练返回时自动准备，以及要保存哪些
 msgid "settings.training_replays_title"
 msgstr "训练和录像"
 
+msgid "settings.accessibility"
+msgstr "无障碍"
+
+msgid "settings.accessibility_detail"
+msgstr "朗读Ember菜单的语音。"
+
+msgid "settings.accessibility_title"
+msgstr "无障碍"
+
+msgid "speech.setting"
+msgstr "语音"
+
+msgid "speech.setting_detail"
+msgstr "在你浏览Ember菜单时朗读菜单。按F1停止朗读。"
+
+msgid "speech.rate"
+msgstr "语速"
+
+msgid "speech.rate_detail"
+msgstr "语音的说话速度。0为正常语速。"
+
+msgid "speech.volume"
+msgstr "语音音量"
+
+msgid "speech.volume_detail"
+msgstr "语音的音量。"
+
+msgid "speech.details"
+msgstr "朗读详情"
+
+msgid "speech.details_detail"
+msgstr "在项目名称之后，若你停留在该项目上，会朗读其说明。"
+
+msgid "speech.hints"
+msgstr "朗读按键提示"
+
+msgid "speech.hints_detail"
+msgstr "朗读你停留的项目上各按键的作用。"
+
 msgid "room.table_footer_practice"
 msgstr "练习对战"
 
