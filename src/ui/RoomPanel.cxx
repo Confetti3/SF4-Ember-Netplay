@@ -607,6 +607,14 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   ImGui::SetCursorScreenPos(ImVec2(origin.x+leftWidth+gap,origin.y));
   ImGui::BeginChild("Room community",ImVec2(rightWidth,communityHeight),0,ImGuiWindowFlags_NoNavInputs);
   float titleRight=0;
+  // The watched game's picture tops the column, shaped as the screen, in place
+  // of the corner one; members and chat keep over half the column's height.
+  if(v.watchedPicture&&anyOpen){
+   const auto& screen=ImGui::GetMainViewport()->Size;const float room=ImGui::GetContentRegionAvail().x;
+   const float w=(std::min)(room,communityHeight*.45f*screen.x/screen.y);
+   ImGui::SetCursorPosX(ImGui::GetCursorPosX()+(room-w)/2);
+   ImGui::Image(v.watchedPicture,ImVec2(w,w*screen.y/screen.x));
+  }
   // Members and chat each sit in a card, filled and edged as the theme's frames are.
   const auto beginCard=[&](const char* name,ImVec2 size){
    ImGui::PushStyleColor(ImGuiCol_ChildBg,ImGui::GetColorU32(ImGuiCol_FrameBg));

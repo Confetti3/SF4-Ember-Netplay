@@ -794,7 +794,7 @@ msgid "settings.watched_picture"
 msgstr "Partida vista en una esquina"
 
 msgid "settings.watched_picture_detail"
-msgstr "Con el menú de Ember abierto sobre una partida que ves, la muestra pequeña en la esquina superior derecha sobre un menú opaco en vez de atenuada detrás."
+msgstr "Con el menú de Ember abierto sobre una partida que ves, la muestra pequeña en la esquina superior derecha (en el tablero ancho de la sala, arriba de la columna de miembros y chat) sobre un menú opaco en vez de atenuada detrás."
 
 msgid "replays.link"
 msgstr "Reproducir la repetición del enlace"

@@ -38,6 +38,8 @@ inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.
 constexpr float WatchedMatchWindowAlpha = .72f;
 // The watched game's picture in the menu's corner: its share of the screen's width and height.
 constexpr float WatchedPictureShare = .25f;
+// Its copy is taken at this share, about the width of the room board's column.
+constexpr float WatchedPictureTakenShare = .5f;
 inline ImVec4 BoardPanelColor(bool seeThrough) { return ImVec4(.08f,.075f,.07f,seeThrough ? .6f : .84f); }
 
 // Call between frames. A true result requires backend font texture recreation.

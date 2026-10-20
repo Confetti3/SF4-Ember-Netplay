@@ -316,7 +316,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     // Taken before Ember draws anything this frame, so it holds the game's picture alone.
     if (view.watchedGame.Active() && snapshot.preferences.watchedPicture) {
         const auto& size = ImGui::GetMainViewport()->Size;
-        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * sf4e::ui::WatchedPictureShare), static_cast<unsigned>(size.y * sf4e::ui::WatchedPictureShare));
+        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * sf4e::ui::WatchedPictureTakenShare), static_cast<unsigned>(size.y * sf4e::ui::WatchedPictureTakenShare));
     }
     view.lockInDrops = snapshot.lockInDrops;
 	view.canEditPreferences = snapshot.canEditPreferences;

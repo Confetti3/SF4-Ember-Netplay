@@ -794,7 +794,7 @@ msgid "settings.watched_picture"
 msgstr "관전 중인 게임을 구석에"
 
 msgid "settings.watched_picture_detail"
-msgstr "관전 중인 게임 위에 Ember 메뉴를 열면 메뉴 뒤에 어둡게 보이는 대신 불투명한 메뉴의 오른쪽 위에 작게 표시합니다."
+msgstr "관전 중인 게임 위에 Ember 메뉴를 열면 메뉴 뒤에 어둡게 보이는 대신 불투명한 메뉴의 오른쪽 위(넓은 방 보드에서는 참가자와 채팅 열의 맨 위)에 작게 표시합니다."
 
 msgid "replays.link"
 msgstr "링크의 리플레이 재생"

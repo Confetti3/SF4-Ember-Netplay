@@ -773,7 +773,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
- if(v.watchedPicture)DrawWatchedPicture(v.watchedPicture);
+ // The wide room board shows the picture at the top of its column instead (DrawRoomBoard).
+ if(v.watchedPicture&&!(nav.Screen()=="room"&&boardLayout_!=BoardLayout::Stacked&&(!preferences_.roomMembersHidden||!preferences_.roomChatHidden)))
+  DrawWatchedPicture(v.watchedPicture);
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
