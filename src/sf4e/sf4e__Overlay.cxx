@@ -679,13 +679,14 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool trainingOpen = s_trainingControls.Open();
     layers.trainingControlsOpen = trainingOpen; layers.nativePaused = nativePaused;
     layers.focused = focused; layers.trainingHud = trainingHud;
+    // OS monotonic time survives ImGui/DX9 recreation and keeps aging while hidden.
+    layers.chat = shell.UpdateChatNotification(GetTickCount64() / 1000.0);
     layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
     layers.showMatchHud = snapshot.preferences.showMatchHud;
     // Waiting in Training from a room: where the player stands there, and on
-    // the call who sat down. The room is the snapshot's; the unread count is
-    // the room screen's own.
+    // the call who sat down. Chat is presented through layers.chat above.
     const bool inRoom = snapshot.session.room == sf4e::netplay::RoomState::Joined;
-    if (training.available && inRoom) layers.trainingRoom = sf4e::ui::DescribeTrainingRoom(snapshot.room, shell.UnreadChat());
+    if (training.available && inRoom) layers.trainingRoom = sf4e::ui::DescribeTrainingRoom(snapshot.room,shell.UnreadChat());
     if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.room, call);
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;

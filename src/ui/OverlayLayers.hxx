@@ -1,5 +1,6 @@
 #pragma once
 #include "Theme.hxx"
+#include "ChatNotification.hxx"
 #include "TrainingPanel.hxx"
 #include "ReplayPlaybackHud.hxx"
 
@@ -22,6 +23,7 @@ struct OverlayLayersView {
     bool captionShown = false;
     ExportCaptionView caption;
     MatchStripView match;
+    ChatNotificationView chat;
     // A replay the game plays: its controls, lanes and frame meter.
     ReplayHudView replay;
     // A member waiting in Training: where they stand in their room, drawn

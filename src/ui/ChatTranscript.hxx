@@ -45,13 +45,17 @@ public:
     bool Update(const room::Snapshot& snapshot, const std::vector<RoomNotice>& notices);
     void Clear();
     const std::deque<ChatLine>& Lines() const { return lines_; }
+    // The room this transcript belongs to, or 0 when cleared.
+    std::uint64_t Epoch() const { return epoch_; }
     // The newest message sequence taken in, or 0 before any.
     std::uint64_t LastSequence() const { return lastSequence_; }
     // Messages from others, newer than the last MarkRead, that the player has
     // not muted.
     unsigned Unread(const std::set<room::MemberId>& muted) const;
+    std::uint64_t NewestUnreadSequence(const std::set<room::MemberId>& muted) const;
     void MarkRead() { readThrough_ = lastSequence_; }
 private:
+    bool IsUnread(const ChatLine& line,const std::set<room::MemberId>& muted) const;
     void Append(ChatLine line);
     ChatLine EventLine(ChatLine::Kind kind, room::MemberId who) const;
     void Diff(const room::Snapshot& snapshot);

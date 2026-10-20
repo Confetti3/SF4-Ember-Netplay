@@ -8,7 +8,9 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
     ChallengerBanner(training, view.challenger);
     bool passive = PassiveOverlayShown(view.shellVisible, view.trainingControlsOpen, view.nativePaused);
     TrainingHudInput hud;
-    if (passive && view.focused && training.available && view.trainingHud) {
+    const bool trainingHud=training.available&&view.trainingHud;
+    const bool matchHud=view.matchActive&&view.showMatchHud;
+    if (passive && view.focused && trainingHud) {
         DrawTrainingRoomStatus(view.trainingRoom);
         hud = DrawTrainingHud(training, view.challenger.called);
         if (hud.open) passive = false;
@@ -22,6 +24,10 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
         ImGui::TextUnformatted(text); ImGui::End();
         ImGui::PopStyleVar();
     };
+    // Training keeps its existing room-line count, clear of the input display.
+    // The temporary bubble is for spectators and yields to match alerts.
+    if(passive&&view.focused&&matchHud&&view.match.spectator&&!view.exporting&&!view.match.HasAlert())
+        DrawChatNotification(view.chat,view.match);
     // Never over a fight, where it would cover the timer; a Practice match's
     // own notice names the keys there.
     if (passive && view.shellAvailable && !view.matchActive && view.shortcutHintAlpha > 0)
@@ -41,15 +47,12 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
         DrawControllerWarning(view.controllerWarning);
         if (passive && training.watching) DrawMatchMeter(training);
         const auto& match = view.match;
-        if (passive && view.showMatchHud) DrawMatchStrip(match);
-        else if (passive || (match.noticeSeverity >= 2 && !match.notice.empty()) ||
-            match.predictionStalled || (match.connectionWarning && match.disconnectCountdownMs >= 0)) {
+        if (passive && matchHud) DrawMatchStrip(match);
+        else if (match.HasAlert() && (passive || match.NeedsAttention())) {
             // An open window suppresses telemetry, but a stalled or ending
             // fight still explains itself using the strip's own state line.
             const auto line = MatchStripStateLine(match);
-            const int severity = match.noticeSeverity >= 2 ? 2 :
-                (match.connectionWarning || match.predictionStalled) ? 1 : match.noticeSeverity;
-            DrawMatchNotice(line, severity);
+            DrawMatchNotice(line, match.AlertSeverity());
         }
     }
     return hud;

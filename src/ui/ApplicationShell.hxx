@@ -26,6 +26,7 @@
 #include <memory>
 #include <optional>
 #include "ChatTranscript.hxx"
+#include "ChatNotification.hxx"
 #include "GameMenu.hxx"
 #include "../common/ControllerView.hxx"
 #include "../common/ControllerRequest.hxx"
@@ -176,10 +177,6 @@ struct ShellView {
     ReplaysView replays;
 };
 
-// The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
-// height of a line of text. UnreadBadgeWidth is what it takes, for the text beside it to leave room.
-float UnreadBadgeWidth(unsigned count);
-void DrawUnreadBadge(float right,float top,unsigned count);
 // "Ready in N s" for a player called out of Training: ShellView::trainingReadySeconds, in words.
 std::string TrainingReadyText(int seconds);
 
@@ -274,6 +271,8 @@ public:
     // The room chat's unread count, as the room screen's Chat row shows it.
     // Kept while the shell is hidden (Background), so the training HUD can say it.
     unsigned UnreadChat() const { return transcript_.Unread(muted_); }
+    // Update every overlay frame, including hidden menus and active fights.
+    ChatNotificationView UpdateChatNotification(double monotonicNow) { return chatNotification_.Update(transcript_, muted_, monotonicNow); }
     // The shell is not being drawn (the overlay is hidden): nothing typed into
     // a passphrase field may wait in it until it next opens.
     void Conceal() {
@@ -428,6 +427,7 @@ private:
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
     ChatTranscript transcript_;
+    ChatNotificationState chatNotification_;
     // A message sent and not yet seen in the room's chat. The draft stays in the box until it is, however
     // late, or until the room changes; `after` is the newest message already looked at. For 8 seconds
     // from `since` the same text is not sent again (ChatInFlight); after that it may be, and is still

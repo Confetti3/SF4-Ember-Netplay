@@ -20,6 +20,41 @@ ImGuiWindow* ActiveWindow(const char* fragment){
  for(auto* window:GImGui->Windows)if(window->Active&&std::strstr(window->Name,fragment))found=window;
  return found;
 }
+void ChatNotificationTiming(){
+ using namespace sf4e;
+ room::Snapshot room;room.roomEpoch=800;room.localMember=1;
+ ui::ChatTranscript transcript;ui::ChatNotificationState notification;
+ std::set<room::MemberId> muted;
+ std::uint64_t sequence=0;
+ const auto say=[&](room::MemberId sender){room.chat.push_back({++sequence,sender,"New message"});transcript.Update(room,{});};
+ const auto tick=[&](double now){return notification.Update(transcript,muted,now);};
+ transcript.Update(room,{});Check(!tick(99).expanded,"Joining armed a chat notification");
+ say(2);Check(tick(100).expanded&&tick(103.999).expanded,"Chat notification ended before four seconds");
+ Check(!tick(104).expanded&&tick(104).unread==1,"Expiry lost unread chat or kept the expanded notice");
+ // Duplicate snapshots, our own messages, mute changes and mode changes do not rearm.
+ transcript.Update(room,{});Check(!tick(105).expanded,"A repeated snapshot rearmed chat");
+ muted.insert(3);say(3);Check(!tick(106).expanded&&tick(106).unread==1,"Muted chat raised a notification");
+ muted.clear();Check(!tick(107).expanded&&tick(107).unread==2,"Unmuting old chat raised a notification");
+ say(1);Check(!tick(108).expanded,"Our own message raised a notification");
+ say(2);Check(tick(110).expanded,"A later message did not raise a fresh notification");
+ say(2);Check(tick(112).expanded,"A burst lost its initial notification");
+ Check(!tick(114).expanded&&tick(114).unread==4,"A burst extended the notification or cleared unread");
+ say(2);Check(!tick(115).expanded,"Continuous chatter immediately reopened the notification");
+ say(2);Check(tick(119).expanded,"A quiet interval did not permit the next notification");
+ transcript.MarkRead();Check(!tick(119.1).expanded&&tick(119.1).unread==0,"Reading did not dismiss chat attention");
+ say(2);Check(tick(120).expanded,"A new message after reading did not notify");
+ // These supplied monotonic ticks keep advancing even when an ImGui context
+ // is recreated or the menu/fight hides the passive layer.
+ Check(!tick(124).expanded&&tick(124).unread==1,"A hidden notification stopped aging");
+ for(int i=0;i<210;++i)say(2);
+ Check(tick(130).expanded&&tick(130).unread==200,"A full transcript failed to notify on new sequences");
+ tick(134);say(2);
+ Check(tick(140).expanded&&tick(140).unread==200,"An unchanged capped count hid a new message");
+ room.roomEpoch=801;transcript.Update(room,{});
+ Check(!tick(141).expanded&&tick(141).unread==0,"The prior room leaked a notification");
+ say(2);Check(tick(142).expanded,"New room chat failed to notify");
+ transcript.Clear();Check(!tick(143).expanded&&tick(143).unread==0,"Leaving a room left an unread badge");
+}
 // Scrolling, focus and dialogs must not acknowledge text the player cannot see.
 void ChatReadVisibility(){
  using namespace sf4e;
@@ -543,4 +578,5 @@ void ChatJourneys(){
   "A spectator's message during the game it watches was not sent");
  h.view.watchedGame={};h.view.session.match=netplay::MatchState::None;
  SetMenuEntriesProbe({});
+ ChatNotificationTiming();
 }
