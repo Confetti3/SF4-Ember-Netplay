@@ -189,6 +189,19 @@ namespace Dimps {
 						char* (*GetBoneLabelByID)(int idx);
 					} __staticMethods;
 
+					// A fighter's body boxes, 0xA0 bytes each, four corners first:
+					// BODY_STACK to BODY_STACK_END where a throw connects, then from
+					// BODY_PARTS one a part of the body, in training::OpenParts' bit order.
+					static unsigned char* GetBodyBox(Actor* a, unsigned index);
+					// The first of an attack's boxes in a list (BOXES_*), null when
+					// empty; count: how many. object: an Actor, or an effect object
+					// (Effect::Unit::GetFirstEffect), which keeps its lists the same way.
+					static unsigned char* GetAttackBoxes(const void* object, unsigned list, unsigned& count);
+					enum { BOXES_GUARD = 0, BOXES_HIT = 1, BOXES_THROW = 2 };
+					// In an attack box: the next box, and its state, BOX_LIVE while it can touch.
+					enum { BOX_NEXT = 0xA8, BOX_STATE = 0xAC, BOX_LIVE = 2 };
+					enum { BODY_STACK = 0, BODY_STACK_END = 4, BODY_PARTS = 8, BODY_PART_COUNT = 24 };
+
 					static void Locate(HMODULE peRoot);
 					static __publicMethods publicMethods;
 					static __staticMethods staticMethods;

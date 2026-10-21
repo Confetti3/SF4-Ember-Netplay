@@ -20,6 +20,14 @@ Task** Unit::GetCamShakeTask(Unit* u) {
 	return (Task**)((unsigned int)u + 0x110);
 }
 
+float* Unit::GetViewMatrix(Unit* u) {
+	return (float*)((unsigned int)u + 0x10);
+}
+
+float* Unit::GetProjectionMatrix(Unit* u) {
+	return (float*)((unsigned int)u + 0x90);
+}
+
 void Unit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 

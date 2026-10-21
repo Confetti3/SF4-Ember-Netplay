@@ -4705,6 +4705,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Teile des HUD im Kampf ein- oder ausschalten."
 
+msgid "training.hitboxes"
+msgstr "Hitboxen"
+
+msgid "training.hitboxes.detail"
+msgstr "Zeichnet die Boxen der Kämpfer über den Kampf: grün, wo ein Kämpfer getroffen werden kann, gelb, wo er geworfen werden kann, rot, wo ein Angriff trifft, und blau, wo er wirft."
+
 msgid "training.color_key"
 msgstr "Farblegende"
 

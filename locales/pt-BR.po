@@ -4225,6 +4225,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Ligue ou desligue partes do HUD durante a luta."
 
+msgid "training.hitboxes"
+msgstr "Hitboxes"
+
+msgid "training.hitboxes.detail"
+msgstr "Desenha as caixas dos lutadores sobre a luta: em verde onde um lutador pode ser atingido, em amarelo onde ele pode ser agarrado, em vermelho onde um ataque acerta e em azul onde ele agarra."
+
 msgid "training.color_key"
 msgstr "Legenda de cores"
 

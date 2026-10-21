@@ -110,6 +110,8 @@ const TrainingStripShown& LastTrainingStrip();
 // The frame meter's window, alone over a rollback match or a replay the
 // runtime is watching, or with the training HUD.
 constexpr const char* FrameMeterWindow = "Training frame meter";
+// The fighters' boxes over the fight, when Hitboxes on the lab's HUD page is on.
+void DrawTrainingBoxes(const training::View& view);
 // The frame meter alone, over a rollback match the runtime is watching.
 void DrawMatchMeter(const training::View& view);
 // Over a fight Ember's menu opens over (input::MenuOverFight): the lines that

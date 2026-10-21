@@ -114,6 +114,14 @@ Measurement starts from an observed attack and a native damage/guard-damage cont
 
 Point the mouse at `Start --` on the passive meter to see why startup is unavailable, or at the `FRAME ADVANTAGE` line below the bars to see why advantage is unavailable. Startup and advantage are independent: a whiff can retain authored startup while correctly leaving advantage unavailable.
 
+### Hitboxes
+
+**Hitboxes** on the HUD page of the training controls (F6) draws the fighters' collision boxes over the fight, read from the game after every simulated frame and drawn through the game's own camera. Green is where a fighter can be hit on this frame, yellow where it can be thrown, red where an attack hits on this frame (a fireball's too) and blue where it throws. They show while the HUD does, so F5 hides them with it, and stay drawn under the training controls. The choice is kept in `training.json`. Offline Training only.
+
+The game keeps a box for every part of the body, and the script of the fighter's move says which of them are open on a frame. Standing still that is legs, trunk and head. On the first frames of a Shoryuken it is none, so no green shows: the move cannot be hit. Once an attack's own frames are over, the limb it held out is open on its way back.
+
+The box that makes the opponent guard at a distance is not drawn.
+
 ### Startup
 
 Each player row shows `Start N f`. It counts observed advancing frames from the action's start to its native BAC script's first attack boundary. This handles animation speed changes; repeated frozen animation frames do not increase startup. It does not wait for the opponent to be hit, so projectile travel distance does not inflate it. Target-combo follow-ups update startup; recovery-only actions retain the preceding value. A multi-phase move without an initial attack boundary keeps counting into the next phase. A projectile move whose script names no attack frames (Evil Ryu's light Hadoken) takes them from the fighter's script file instead: the frame the move spawns a projectile that can hit. That frame shows as the one active cell, the rest as recovery; the projectile's own flight is not on the meter, and the count may be a frame late. `Start --` means the script has no usable boundary or observation began mid-move. This uses authored attack timing, not live collision-box activation, and needs native off-by-one and character-specific validation. The last startup remains visible after recovery.
