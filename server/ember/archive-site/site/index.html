@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Every replay played on SF4 Ember Netplay: tournament sets by event and round, and online matches. Filter by fighter, country and round, and download them for Ember.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141312">
+<title>Ember replay archive</title>
+<link rel="icon" href="/assets/ember-emblem.png" type="image/png">
+<link rel="preload" href="/assets/fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/inter-latin-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/archive.css">
+<script src="/assets/archive.js" defer></script>
+</head>
+<body>
+<header class="top">
+<a class="brand" href="/" aria-label="Ember replay archive, start"><img src="/assets/ember-emblem.png" width="40" height="40" alt=""><span><span class="brand-name">EMBER</span><span class="brand-sub">Replay archive</span></span></a>
+<label class="search"><span class="hidden">Search a player or event</span><input id="q" type="search" placeholder="Search a player or event" autocomplete="off"></label>
+<a class="btn" href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Get Ember</a>
+</header>
+
+<main id="main">
+<section id="list-view">
+<h1 class="rule">Replays</h1>
+<div class="filters" role="group" aria-label="Filters" id="filters"></div>
+<p class="note" id="summary" role="status" aria-live="polite">Loading replays…</p>
+<div id="events" aria-busy="true"></div>
+<p><button type="button" class="btn" id="more" hidden>Older replays</button></p>
+</section>
+
+<section id="set-view" hidden>
+<nav aria-label="Breadcrumb" class="note"><button type="button" class="link" id="back">All replays</button> › <span id="set-event"></span></nav>
+<h1 class="rule" id="set-round"></h1>
+<div class="versus" id="set-versus"></div>
+<p class="note" id="set-meta"></p>
+<div class="actions" id="set-actions"></div>
+<h2 class="label">Games</h2>
+<div class="games" id="set-games"></div>
+<p class="note">Open a replay in SF4 Ember Netplay: <strong>Replays</strong>, <strong>Import</strong>. A set file (.emberpack) brings every game of the set at once. Replays need USF4 on Steam.</p>
+</section>
+</main>
+
+<dialog id="pick" aria-labelledby="pick-title">
+<div class="pick-head"><span><span class="label">Filter</span><span class="pick-title" id="pick-title"></span></span><button type="button" class="btn" id="pick-close">Close</button></div>
+<div class="options" id="pick-options"></div>
+</dialog>
+
+<footer class="foot note">Every game played on Ember is kept here, tournament sets first. Tournament replays are public; in Ember, <strong>Settings</strong>, <strong>Online</strong>, <strong>Share my replays</strong> keeps your other games off this page.</footer>
+</body>
+</html>
