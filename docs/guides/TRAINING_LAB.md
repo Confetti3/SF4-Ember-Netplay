@@ -112,7 +112,7 @@ Measurement starts from an observed attack and a native damage/guard-damage cont
 
 Each hit or block also gets its own number, in the row between the two bars: the advantage had the exchange stopped at that hit, so a combo shows what every link and cancel point is worth. A bracket over the number spans the advantage frames themselves: at +5, the five frames in which the attacker can already act and the defender is still in hitstun or blockstun; at -3, the three in which the defender is free first. Player 1's bracket hangs from Player 1's bar, Player 2's rises from Player 2's.
 
-The number is read as the hit lands from the game's own count of frames until each fighter can act, and a knockdown shows none. That count can stall a frame in a long stun, so once both fighters are free, the exchange's last hit takes the advantage measured above; a hit inside a combo keeps the count. Where a multi-hit move's numbers would overlap, the later hit's shows.
+The number is read as the hit lands from the game's own count of frames until each fighter can act, and a knockdown shows none. That count can stall a frame in a long stun, so a hit's number is read again when the first fighter becomes free, from the other's remaining count; a hit followed by another before then keeps the count. Where a multi-hit move's numbers would overlap, the later hit's shows.
 
 Hitstop and a super's freeze, frames in which neither fighter's animation moves, are left out of the bars, so a move that hits draws the same startup, active and recovery cells as one that whiffs. A dotted light-blue line across a bar marks where such frames were cut out.
 
