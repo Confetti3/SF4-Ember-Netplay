@@ -4,6 +4,7 @@
 #include "SelectionArt.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
+#include <cfloat>
 #include <cmath>
 
 namespace sf4e { namespace ui {
@@ -16,31 +17,58 @@ constexpr GameClass Classes[SkillBadge::Classes] = {
     {"class_D.dds", "D"}, {"class_Dp.dds", "D+"}, {"class_C.dds", "C"}, {"class_Cp.dds", "C+"},
     {"class_B.dds", "B"}, {"class_Bp.dds", "B+"}, {"class_A.dds", "A"}, {"class_Ap.dds", "A+"},
     {"class_MASTER.dds", nullptr}, {"class_GM.dds", nullptr}};
+constexpr ImU32 PillFill = IM_COL32(56, 51, 46, 255), PillBorder = IM_COL32(255, 135, 56, 160);
 
-// The class to draw: a placed player's, with its emblem loaded.
-const GameClass* Shown(const SkillBadge& badge, SelectionImage& emblem) {
-    auto* art = MenuArt();
-    if (!art || !badge.Present() || badge.band > SkillBadge::Classes) return nullptr;
-    const auto& shown = Classes[badge.band - 1];
-    emblem = art->RankingEmblem(shown.entry);
-    return emblem.texture ? &shown : nullptr;
+// How a badge is drawn: a class as the game's emblem once it has loaded;
+// placing and the developer mark as a word in a pill, since the game has no
+// art for them; nothing for none, or a class whose emblem has not loaded.
+struct Mark {
+    SelectionImage emblem;
+    std::string pill;
+    bool Drawn() const { return emblem.texture || !pill.empty(); }
+};
+Mark MarkOf(const SkillBadge& badge) {
+    Mark mark;
+    switch (badge.kind) {
+    case SkillBadge::Kind::Placing: mark.pill = "?"; break;
+    case SkillBadge::Kind::Developer: mark.pill = loc::T("class.developer"); break;
+    case SkillBadge::Kind::Class:
+        if (auto* art = MenuArt()) mark.emblem = art->RankingEmblem(Classes[badge.band - 1].entry);
+        break;
+    default: break;
+    }
+    return mark;
 }
 float EmblemSide(float fontSize) { return std::round(fontSize * 1.1f); }
-float EmblemSlot(float fontSize) { return EmblemSide(fontSize) + std::round(5 * Scale()); }
+float Gap() { return std::round(5 * Scale()); }
+float PillTextSize(float fontSize) { return std::round(fontSize * .78f); }
+float PillWidth(const std::string& pill, float fontSize) {
+    const float size = PillTextSize(fontSize);
+    return std::round(ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, pill.c_str()).x + size * .9f);
+}
+// The room a drawn mark takes, its gap included.
+float MarkSlot(const Mark& mark, float fontSize) {
+    return mark.emblem.texture ? EmblemSide(fontSize) + Gap() : mark.pill.empty() ? 0 : PillWidth(mark.pill, fontSize) + Gap();
+}
 
-std::string ClassTip(const GameClass& shown, const SkillBadge& badge) {
-    const std::string name = shown.letters ? shown.letters
-        : loc::T(badge.band == SkillBadge::Classes ? "class.grand_master" : "class.master");
-    const auto tip = loc::Tf("class.tip", name);
+std::string MarkTip(const SkillBadge& badge) {
+    if (badge.kind == SkillBadge::Kind::Placing) return loc::T("rankings.placing");
+    if (badge.kind == SkillBadge::Kind::Developer) return loc::T("class.developer_tip");
+    const auto tip = loc::Tf("class.tip", ClassName(badge.band));
     return badge.settled ? tip : tip + "\n" + loc::T("class.unsettled");
 }
 }
 
+std::string ClassName(std::uint8_t band) {
+    if (band == 0 || band > SkillBadge::Classes) return {};
+    const auto& shown = Classes[band - 1];
+    return shown.letters ? shown.letters : loc::T(band == SkillBadge::Classes ? "class.grand_master" : "class.master");
+}
+
 float NameMarksWidth(const NameMarks& marks, float fontSize) {
     auto* art = MenuArt();
-    SelectionImage emblem;
     const bool flag = art && marks.country.Present() && art->Flag(marks.country).texture;
-    return (flag ? FlagSlotWidth(fontSize) : 0) + (Shown(marks.badge, emblem) ? EmblemSlot(fontSize) : 0);
+    return (flag ? FlagSlotWidth(fontSize) : 0) + MarkSlot(MarkOf(marks.badge), fontSize);
 }
 
 DrawnMarks DrawNameMarks(ImDrawList* d, float x, float textTop, float fontSize, const NameMarks& marks) {
@@ -48,16 +76,24 @@ DrawnMarks DrawNameMarks(ImDrawList* d, float x, float textTop, float fontSize, 
     const auto flag = DrawCountryFlagBeside(d, x, textTop, fontSize, marks.country);
     if (flag.hovered) drawn.tip = CountryName(marks.country);
     drawn.width = flag.width;
-    SelectionImage emblem;
-    if (const auto* shown = Shown(marks.badge, emblem)) {
-        const float side = EmblemSide(fontSize);
-        const ImVec2 min(std::round(x + drawn.width), std::round(textTop + (fontSize - side) * .5f)), max(min.x + side, min.y + side);
-        d->AddImage(emblem.texture, min, max, emblem.uvMin, emblem.uvMax,
+    const Mark mark = MarkOf(marks.badge);
+    if (!mark.Drawn()) return drawn;
+    const float side = EmblemSide(fontSize), width = mark.emblem.texture ? side : PillWidth(mark.pill, fontSize);
+    const ImVec2 min(std::round(x + drawn.width), std::round(textTop + (fontSize - side) * .5f)), max(min.x + width, min.y + side);
+    if (mark.emblem.texture) {
+        d->AddImage(mark.emblem.texture, min, max, mark.emblem.uvMin, mark.emblem.uvMax,
             marks.badge.settled ? IM_COL32_WHITE : IM_COL32(255, 255, 255, 115));
-        drawn.width += EmblemSlot(fontSize);
-        if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseHoveringRect(min, max))
-            drawn.tip = ClassTip(*shown, marks.badge);
+    } else {
+        const float size = PillTextSize(fontSize), rounding = side * .5f;
+        const float textWidth = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, mark.pill.c_str()).x;
+        d->AddRectFilled(min, max, PillFill, rounding);
+        d->AddRect(min, max, PillBorder, rounding, 0, std::round(Scale()));
+        d->AddText(ImGui::GetFont(), size, ImVec2(std::round(min.x + (width - textWidth) * .5f), std::round(min.y + (side - size) * .5f)),
+            palette::Ivory, mark.pill.c_str());
     }
+    drawn.width += MarkSlot(mark, fontSize);
+    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseHoveringRect(min, max))
+        drawn.tip = MarkTip(marks.badge);
     return drawn;
 }
 } }

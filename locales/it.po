@@ -6448,3 +6448,139 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "screen.rankings"
+msgstr "Classifiche"
+
+msgid "rankings.title"
+msgstr "CLASSIFICHE"
+
+msgid "rankings.board_title"
+msgstr "GIOCATORI PER CLASSE"
+
+msgid "rankings.entry_detail"
+msgstr "La tua classe nelle sale pubbliche e i giocatori per classe."
+
+msgid "rankings.needs_setup"
+msgstr "Le classifiche nascono dalle partite nelle sale pubbliche. Prima configura le sale pubbliche."
+
+msgid "rankings.loading"
+msgstr "Caricamento della tua classe..."
+
+msgid "rankings.your_class"
+msgstr "La tua classe"
+
+msgid "rankings.placing"
+msgstr "In valutazione"
+
+msgid "rankings.placing_detail"
+msgstr "La tua classe compare dopo qualche altra partita nelle sale pubbliche contro giocatori che ne hanno una."
+
+msgid "rankings.faint_detail"
+msgstr "Non giochi da un po', quindi la tua classe appare sbiadita e sei fuori dalla classifica. Poche partite sistemano tutto."
+
+msgid "rankings.settled_detail"
+msgstr "Mostrata accanto al tuo nome nelle sale pubbliche."
+
+msgid "rankings.hidden"
+msgstr "Classi non ancora visibili"
+
+msgid "rankings.hidden_detail"
+msgstr "Questo servizio non mostra ancora le classi. Le tue partite nelle sale pubbliche contano comunque."
+
+msgid "rankings.no_account"
+msgstr "Collega Discord per partecipare"
+
+msgid "rankings.no_account_detail"
+msgstr "Le classi appartengono a un account Discord, quindi un nuovo Ember ID mantiene la tua. Senza account le tue partite non contano."
+
+msgid "rankings.connect_detail"
+msgstr "Apre Collega Discord. Torna qui quando hai finito."
+
+msgid "rankings.off"
+msgstr "Non partecipi"
+
+msgid "rankings.off_detail"
+msgstr "Le tue partite non contano e nessuna classe è visibile. La tua valutazione resta salvata per quando torni."
+
+msgid "rankings.take_part"
+msgstr "Partecipa"
+
+msgid "rankings.take_part_detail"
+msgstr "Le tue partite nelle sale pubbliche contano di nuovo e la tua classe torna. Dopo una pausa può apparire sbiadita per qualche partita. Sarai in classifica come {0}. Puoi cambiarlo una volta al giorno."
+
+msgid "rankings.stop"
+msgstr "Smetti di partecipare"
+
+msgid "rankings.stop_detail"
+msgstr "La tua classe sparisce dalle sale e dalla classifica e le tue partite non contano più. La tua valutazione resta com'è e riprende se torni. Puoi cambiarlo una volta al giorno."
+
+msgid "rankings.change_wait"
+msgstr "Potrai cambiarlo di nuovo tra {0}."
+
+msgid "rankings.hours"
+msgstr "{0} h"
+
+msgid "rankings.minutes"
+msgstr "{0} min"
+
+msgid "rankings.board_as"
+msgstr "In classifica come"
+
+msgid "rankings.board_as_detail"
+msgstr "Il nome e la bandiera che le sale mostrano per te. Cambiali in Profilo e Impostazioni. La classifica recepisce la modifica alla prossima apertura di Classifiche."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Come funzionano le classi"
+
+msgid "rankings.how_text"
+msgstr "Contano solo le partite nelle sale pubbliche che finiscono con un vincitore. La tua classe appartiene al tuo account Discord, non al tuo Ember ID. Cambia solo dopo una serie chiara di risultati, e una partita contro un giocatore molto più forte o più debole conta appena. Non ci sono punti da vedere, solo la classe. Dopo una lunga pausa appare sbiadita finché non giochi di nuovo, e non scende mai da sola."
+
+msgid "rankings.players"
+msgstr "Giocatori per classe"
+
+msgid "rankings.players_detail"
+msgstr "Tutti i partecipanti con una classe stabile, dal più alto. All'interno di una classe, prima chi ha giocato più di recente."
+
+msgid "rankings.you"
+msgstr "Tu"
+
+msgid "rankings.you_beyond_cap"
+msgstr "La classifica elenca fino a {0} giocatori e al momento non ci sei."
+
+msgid "rankings.jump"
+msgstr "Sinistra e Destra passano da una classe all'altra."
+
+msgid "rankings.loading_board"
+msgstr "Caricamento dei giocatori..."
+
+msgid "rankings.empty"
+msgstr "Nessuno è ancora in classifica."
+
+msgid "rankings.status_board"
+msgstr "Giocatori in elenco: {0}. Aggiornato {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Questo servizio non offre classifiche."
+
+msgid "rankings.failure.too_soon"
+msgstr "Puoi cambiarlo una volta al giorno."
+
+msgid "settings.class_emblems"
+msgstr "Emblemi di classe"
+
+msgid "settings.class_emblems_detail"
+msgstr "Mostra la classe di ogni giocatore accanto al suo nome nelle sale pubbliche. Disattivato li nasconde solo sul tuo schermo. Gli altri vedono ancora la tua e le tue partite contano ancora."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Sviluppatore di Ember"
+
+msgid "rankings.developer_detail"
+msgstr "Gli sviluppatori di Ember mostrano questo segno al posto della classe e non sono in classifica. Le tue partite contano comunque."

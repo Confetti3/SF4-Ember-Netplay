@@ -188,6 +188,66 @@ static void TestRoomListDetails() {
 // A permit's start deadline becomes the window between the bridge's two
 // times, never compared with this PC's clock; a reply without a sound one is
 // refused.
+// A standing reads as one of its three shapes, and a board as listed players
+// with a class each, highest first; anything else reads as nothing.
+static void TestRankings() {
+	using Kind = netplay::rankings::Standing::Kind;
+	CHECK(session::DecodeStanding({{"ranking", "no_account"}})->kind == Kind::NoAccount);
+	const auto out = session::DecodeStanding({{"ranking", "opted_out"}, {"change_in", 60u}});
+	CHECK(out && out->kind == Kind::OptedOut && out->changeIn == 60);
+	const auto hidden = session::DecodeStanding({{"ranking", "ranked"}});
+	CHECK(hidden && hidden->kind == Kind::Ranked && !hidden->classesShown && !hidden->listed);
+	const auto ranked = session::DecodeStanding({{"ranking", "ranked"}, {"badge", {{"band", 7u}, {"settled", false}}},
+		{"listing", {{"name", "Player 1"}, {"country", "GB"}}}});
+	CHECK(ranked && ranked->classesShown && ranked->badge.band == 7 && !ranked->badge.settled && ranked->listed &&
+		ranked->listing.name == "Player 1" && ranked->listing.country.ToString() == "GB");
+	// Placing is a badge of its own, and so is the developer mark, which leaves the class out.
+	const auto placing = session::DecodeStanding({{"ranking", "ranked"}, {"badge", {{"band", 0u}, {"settled", false}}}});
+	CHECK(placing && placing->badge == SkillBadge::Placing());
+	const auto developer = session::DecodeStanding({{"ranking", "ranked"}, {"badge", {{"band", 0u}, {"settled", false}, {"developer", true}}}});
+	CHECK(developer && developer->badge == SkillBadge::Developer());
+	CHECK(!session::DecodeStanding({{"ranking", "ranked"}, {"badge", {{"band", 5u}, {"settled", true}, {"developer", true}}}}));
+	// A country the table lacks shows no flag, but one that is not two letters is invalid.
+	const auto unknown = session::DecodeStanding({{"ranking", "ranked"}, {"listing", {{"name", "Player 1"}, {"country", "ZZ"}}}});
+	CHECK(unknown && !unknown->listing.country.Present());
+	for (const json& invalid : {json{{"ranking", "top"}}, json{{"ranking", "ranked"}, {"badge", {{"band", 0u}, {"settled", true}}}},
+			json{{"ranking", "ranked"}, {"badge", {{"band", 11u}, {"settled", true}}}},
+			json{{"ranking", "ranked"}, {"listing", {{"name", ""}}}},
+			json{{"ranking", "ranked"}, {"listing", {{"name", "Player 1"}, {"country", "gb"}}}},
+			// Strict like the bridge: a cooldown that is not seconds, fields another shape carries,
+			// an empty country and a name the bridge would refuse.
+			json{{"ranking", "opted_out"}, {"change_in", "later"}},
+			json{{"ranking", "opted_out"}, {"badge", {{"band", 3u}, {"settled", true}}}},
+			json{{"ranking", "no_account"}, {"change_in", 5u}},
+			json{{"ranking", "ranked"}, {"rating", 1500u}},
+			json{{"ranking", "ranked"}, {"listing", {{"name", "Player 1"}, {"country", ""}}}},
+			json{{"ranking", "ranked"}, {"listing", {{"name", " Player 1"}}}},
+			json{{"ranking", "ranked"}, {"listing", {{"name", "Line\nbreak"}}}}})
+		CHECK(!session::DecodeStanding(invalid));
+
+	// The game sends the name rooms show, trimmed as the bridge trims; one it would refuse is "Player".
+	using netplay::rankings::ListingName;
+	CHECK(ListingName("\xE3\x80\x80Player 1\xC2\xA0") == "Player 1" && ListingName(" \t") == "Player");
+	CHECK(ListingName("Player\xC2\x85 1") == "Player" && ListingName("\xE3\x83\x97\xE3\x83\xAC") == "\xE3\x83\x97\xE3\x83\xAC");
+	CHECK(netplay::rankings::IsListingName("Player 1") && !netplay::rankings::IsListingName("Player 1\xE2\x80\x80"));
+
+	const auto entry = [](const char* name, unsigned band) { return json{{"listing", {{"name", name}}}, {"band", band}}; };
+	auto own = entry("Player 2", 4u);
+	own["own"] = true;
+	const auto board = session::DecodeBoard({{"players", json::array({entry("Player 1", 10u), own, entry("Player 3", 4u)})}});
+	CHECK(board && board->size() == 3 && (*board)[0].band == 10 && (*board)[1].own && !(*board)[0].own);
+	CHECK(!session::DecodeBoard({{"players", json::array({entry("Line\nbreak", 4u)})}}));
+	CHECK(!session::DecodeBoard({{"players", json::array()}, {"total", 0u}}));
+	CHECK(!session::DecodeBoard({{"players", json::array({entry("Player 1", 4u), entry("Player 2", 5u)})}}));
+	CHECK(!session::DecodeBoard({{"players", json::array({entry("Player 1", 0u)})}}));
+	CHECK(!session::DecodeBoard({{"players", json::array({json{{"listing", {{"name", "Player 1"}}}, {"band", 3u}, {"own", 1u}}})}}));
+	json full = json::array();
+	for (std::size_t i = 0; i <= netplay::rankings::MaxBoard; ++i) full.push_back(entry("Player 1", 1u));
+	CHECK(!session::DecodeBoard({{"players", full}}));
+	for (const char* op : {"ranking_standing", "ranking_choose", "ranking_board"})
+		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 7u}, {"ok", true}, {"data", json::object()}}).has_value());
+}
+
 static void TestPrepareWindow() {
 	const auto decode = [](const json& extra) {
 		json reply = {{"state", "permitted"}, {"permit_id", "per_x"}, {"match_generation", "7"},
@@ -385,6 +445,12 @@ static void FuzzAnswers(Random& random) {
 		if (const auto watch = session::DecodeWatchReply(data)) {
 			if (watch->role == netplay::tournament::WatchReply::Role::Room) CHECK(IsHex(watch->roomId, 32) && !watch->invitation.empty());
 			else CHECK(watch->retryAfterMs <= 60000 && watch->reason.size() <= 32);
+		}
+		if (const auto standing = session::DecodeStanding(data)) CHECK(standing->badge.Valid() && standing->listing.name.size() <= 32);
+		if (const auto board = session::DecodeBoard(data)) {
+			CHECK(board->size() <= netplay::rankings::MaxBoard);
+			for (std::size_t i = 0; i < board->size(); ++i)
+				CHECK((*board)[i].band >= 1 && (*board)[i].band <= SkillBadge::Classes && (!i || (*board)[i - 1].band >= (*board)[i].band));
 		}
 		if (const auto list = session::DecodeAssignments(data)) {
 			CHECK(list->size() <= 50);
@@ -779,6 +845,7 @@ int main() {
 	CHECK(!session::ReadTournamentAnswer({{"op", "link_list"}, {"request_id", 7u}, {"ok", true}}).has_value());
 	Random random(Seed());
 	TestRoomListDetails();
+	TestRankings();
 	TestAssignmentTimes();
 	TestPrepareWindow();
 	TestStartingWins();

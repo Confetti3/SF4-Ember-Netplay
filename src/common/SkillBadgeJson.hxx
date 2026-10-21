@@ -8,20 +8,33 @@
 
 namespace sf4e {
 
-// The "badge" member of `object` ({"band":n,"settled":b}), or none when it is
-// absent or not a valid badge.
+// A badge object, {"band":n,"settled":b} with "developer":true for the
+// developer mark: band 0 is placing, any other a class. `out` is left alone
+// and false returned when it is not a valid badge.
+inline bool ParseSkillBadge(const nlohmann::json& value, SkillBadge& out) {
+	if (!value.is_object()) return false;
+	const auto band = value.find("band"), settled = value.find("settled"), developer = value.find("developer");
+	if (band == value.end() || settled == value.end() || !band->is_number_unsigned() || !settled->is_boolean() ||
+		band->get<std::uint64_t>() > SkillBadge::Classes || (developer != value.end() && !developer->is_boolean())) return false;
+	const auto level = static_cast<std::uint8_t>(band->get<std::uint64_t>());
+	const SkillBadge badge = developer != value.end() && developer->get<bool>() ? SkillBadge{SkillBadge::Kind::Developer, level, settled->get<bool>()} :
+		level ? SkillBadge::OfClass(level, settled->get<bool>()) : SkillBadge{SkillBadge::Kind::Placing, 0, settled->get<bool>()};
+	if (!badge.Valid()) return false;
+	out = badge;
+	return true;
+}
+
+// The "badge" member of `object`, or none when it is absent or not a valid badge.
 inline SkillBadge ReadSkillBadge(const nlohmann::json& object) {
 	const auto found = object.find("badge");
-	if (found == object.end() || !found->is_object()) return {};
-	const auto band = found->find("band"), settled = found->find("settled");
-	if (band == found->end() || settled == found->end() || !band->is_number_unsigned() || !settled->is_boolean() ||
-		band->get<std::uint64_t>() > SkillBadge::Classes) return {};
-	const SkillBadge badge{static_cast<std::uint8_t>(band->get<std::uint64_t>()), settled->get<bool>()};
-	return badge.Valid() ? badge : SkillBadge();
+	SkillBadge badge;
+	return found != object.end() && ParseSkillBadge(*found, badge) ? badge : SkillBadge();
 }
 
 inline nlohmann::json SkillBadgeJson(const SkillBadge& badge) {
-	return {{"band", badge.band}, {"settled", badge.settled}};
+	nlohmann::json json = {{"band", badge.band}, {"settled", badge.settled}};
+	if (badge.kind == SkillBadge::Kind::Developer) json["developer"] = true;
+	return json;
 }
 
 // {"table":n,"generation":n,"winner":s,"loser":s}. Reading one that is not

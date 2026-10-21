@@ -6084,3 +6084,138 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "screen.rankings"
+msgstr "Rankings"
+
+msgid "rankings.title"
+msgstr "RANKINGS"
+
+msgid "rankings.board_title"
+msgstr "PLAYERS BY CLASS"
+
+msgid "rankings.entry_detail"
+msgstr "Your class in public rooms, and players by class."
+
+msgid "rankings.needs_setup"
+msgstr "Rankings come from public room games. Set up public rooms first."
+
+msgid "rankings.loading"
+msgstr "Loading your class..."
+
+msgid "rankings.your_class"
+msgstr "Your class"
+
+msgid "rankings.placing"
+msgstr "Placing"
+
+msgid "rankings.placing_detail"
+msgstr "Your class appears after a few more public room games against players who have one."
+
+msgid "rankings.faint_detail"
+msgstr "You have not played lately, so your class shows faint and you are off the board. A few games settle it again."
+
+msgid "rankings.settled_detail"
+msgstr "Shown beside your name in public rooms."
+
+msgid "rankings.hidden"
+msgstr "Classes not shown yet"
+
+msgid "rankings.hidden_detail"
+msgstr "This service is not showing classes yet. Your public room games still count."
+
+msgid "rankings.no_account"
+msgstr "Connect Discord to take part"
+
+msgid "rankings.no_account_detail"
+msgstr "Classes belong to a Discord account, so a new Ember ID keeps yours. Without one your games do not count."
+
+msgid "rankings.connect_detail"
+msgstr "Opens Connect Discord. Come back here when it is done."
+
+msgid "rankings.off"
+msgstr "Not taking part"
+
+msgid "rankings.off_detail"
+msgstr "Your games do not count and no class shows. Your rating is kept for when you come back."
+
+msgid "rankings.take_part"
+msgstr "Take part"
+
+msgid "rankings.take_part_detail"
+msgstr "Your public room games count again and your class returns. After time away it may show faint for a few games. You will be on the board as {0}. You can change this once a day."
+
+msgid "rankings.stop"
+msgstr "Stop taking part"
+
+msgid "rankings.stop_detail"
+msgstr "Your class leaves rooms and the board, and your games stop counting. Your rating is kept as it is and resumes if you come back. You can change this once a day."
+
+msgid "rankings.change_wait"
+msgstr "You can change this again in {0}."
+
+msgid "rankings.hours"
+msgstr "{0} h"
+
+msgid "rankings.minutes"
+msgstr "{0} min"
+
+msgid "rankings.board_as"
+msgstr "On the board as"
+
+msgid "rankings.board_as_detail"
+msgstr "The name and flag rooms show for you. Change them in Profile and Settings. The board takes a change the next time you open Rankings."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "How classes work"
+
+msgid "rankings.how_text"
+msgstr "Only public room games that end with a winner count. Your class belongs to your Discord account, not your Ember ID. It moves only after a clear run of results, and a game against a much stronger or weaker player barely counts. There are no points to see, only the class. After a long break it shows faint until you play again, and it never drops on its own."
+
+msgid "rankings.players"
+msgstr "Players by class"
+
+msgid "rankings.players_detail"
+msgstr "Everyone taking part with a settled class, highest first. Within a class, the most recent to play come first."
+
+msgid "rankings.you"
+msgstr "You"
+
+msgid "rankings.you_beyond_cap"
+msgstr "The board lists up to {0} players, and you are not among them right now."
+
+msgid "rankings.jump"
+msgstr "Left and Right move between classes."
+
+msgid "rankings.loading_board"
+msgstr "Loading players..."
+
+msgid "rankings.empty"
+msgstr "Nobody is on the board yet."
+
+msgid "rankings.status_board"
+msgstr "Players listed: {0}. Updated {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "This service does not offer rankings."
+
+msgid "rankings.failure.too_soon"
+msgstr "You can change this once a day."
+
+msgid "settings.class_emblems"
+msgstr "Class emblems"
+
+msgid "settings.class_emblems_detail"
+msgstr "Shows each player's class beside their name in public rooms. Off hides them on your screen only. Others still see yours, and your games still count."
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Ember developer"
+
+msgid "rankings.developer_detail"
+msgstr "Ember developers show this mark in place of a class and are not on the board. Your games still count."

@@ -59,7 +59,7 @@ bool ApplicationShell::CreateAdjust(const MenuAction& a) {
 // one place that asks: once per stay in such a state, when no service is
 // selected, and not over a request the panel is still waiting on.
 void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& screen) {
- const bool needed=PublicRoomsPanel::Owns(screen)||(screen=="create"&&preferences_.roomPublic);
+ const bool needed=PublicRoomsPanel::Owns(screen)||RankingsPanel::Owns(screen)||(screen=="create"&&preferences_.roomPublic);
  if(!needed){publicBridgeAsked_=false;return;}
  if(publicBridgeAsked_)return;
  if(identity_.UsableBridge(v).empty()){
