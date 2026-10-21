@@ -694,7 +694,7 @@ async fn play_a_set_through_two_helpers() {
     assert_eq!(&bytes[..8], ember_protocol::replays::PACK_MAGIC);
     // A bridge without a replay archive takes no other game, for good.
     let (ok, reason, _, _) = host
-        .ask(json!({ "op": "replay_archive", "path": dirs.0.join("game-1.emberreplay"), "a": "Ann", "b": "Bob Ü", "side": 0, "country": "BE" }))
+        .ask(json!({ "op": "replay_archive", "path": dirs.0.join("game-1.emberreplay"), "sides": { "a": "Ann", "b": "Bob Ü", "side": 0, "country": "BE" } }))
         .await;
     assert_eq!((ok, reason.as_deref()), (false, Some("replays_unsupported")));
     running.abort();

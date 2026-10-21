@@ -1,6 +1,7 @@
 //! A tournament set's replays (docs/design/TOURNAMENT_DESK.md, 4b): the
 //! `.emberreplay` a player's game archived, as it is sent to the bridge,
 //! and the set's pack the bridge serves.
+use serde::{Deserialize, Serialize};
 
 /// An `.emberreplay`: `EMBRPLY1`, the game's 125-byte record (the replay's
 /// CRC at +5, its save time at +13), two bytes, then the replay itself, at
@@ -43,6 +44,46 @@ pub fn saved_at(crc: &str, replay: &[u8]) -> Option<u32> {
         && u32_at(replay, 8 + 5) == named
         && crc32(&replay[HEAD..]) == named)
         .then(|| u32_at(replay, 8 + 13))
+}
+
+/// The two fighters (native IDs) a whole `.emberreplay`'s record names: its
+/// menu fields at +47 hold two 34-byte players after 8 bytes, each with its
+/// fighter at +16 (`src/common/ReplaySlots.hxx`, ReadRecordInfo).
+pub fn fighters(replay: &[u8]) -> [Option<u8>; 2] {
+    [0, 1].map(|side| {
+        let fighter = replay[8 + 47 + 8 + side * 34 + 16];
+        (fighter < 64).then_some(fighter)
+    })
+}
+
+/// What the sending game says of a game for the replay archive
+/// (docs/design/REPLAY_ARCHIVE.md): the two sides' names as it named them,
+/// and its own side and country. The bridge checks each.
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct Sides {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub a: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub b: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+}
+
+impl Sides {
+    /// The query pairs of the fields it has.
+    pub fn pairs(&self) -> Vec<(&'static str, String)> {
+        [
+            ("a", self.a.clone()),
+            ("b", self.b.clone()),
+            ("side", self.side.map(|side| side.to_string())),
+            ("country", self.country.clone()),
+        ]
+        .into_iter()
+        .filter_map(|(key, value)| Some((key, value?)))
+        .collect()
+    }
 }
 
 /// A made-up `.emberreplay` around `body`, saved at `saved_at`, for tests.

@@ -1,7 +1,8 @@
 # Public replay archive
 
-Every game played on Ember can be downloaded from the archive at
-replays.ember.fraccie.be, with tournament sets listed by event and round.
+A bridge with an archive keeps the games played on Ember for anyone to
+download from its archive page, with tournament sets listed by event and
+round.
 
 ## What goes in
 
@@ -14,7 +15,14 @@ replays.ember.fraccie.be, with tournament sets listed by event and round.
   on (it is on by default), the game sends each game it played and did not
   just watch through `replay_archive`, which is `PUT /v1/replays/{crc}`. The
   helper tries each of the player's bridges and stops at the first one that
-  has an archive. Only `.emberreplay` files are sent.
+  has an archive. Only `.emberreplay` files are sent, and only games saved
+  since sharing came on: the game saves that time in the player's
+  preferences when sharing comes on, and forgets it when it goes off, so the
+  replays already on the PC stay theirs. A game not sent before closing is
+  sent the next time.
+- A bridge without an archive answers `replays_unsupported`. The game then
+  stops sending other games for the rest of the run and marks none of them
+  sent.
 - The game sends one replay at a time. It sends all of a set's games before
   any other game, and the bridge stores tournament games first
   (`priority` 0).
@@ -38,8 +46,8 @@ Once a game is stored, the bridge drops its bytes and keeps only the row that
 lists it. When the store refuses a game, the bridge tries again an hour later
 and keeps the game until then.
 
-Anyone can read the bucket at https://s3.replays.ember.fraccie.be/replays/,
-but nobody can list its contents. Its proxy only lets GET, HEAD and OPTIONS
+Anyone can read the bucket at its public address (`public_base`), but
+nobody can list its contents. Its proxy only lets GET, HEAD and OPTIONS
 requests through.
 
 ## Listing
@@ -60,14 +68,15 @@ Online games are grouped by day; games between the same two players within
 
 ```json
 "archive": {
-  "endpoint": "http://10.40.0.247:9400",
+  "endpoint": "http://127.0.0.1:9400",
   "bucket": "replays",
   "access_key": "…",
-  "public_base": "https://s3.replays.ember.fraccie.be/replays"
+  "public_base": "https://s3.archive.example/replays"
 }
 ```
 
-The secret key is `archive_secret_key` in the integration secrets file.
+The secret key is `archive_secret_key` in the integration secrets file; the
+bridge does not start with an archive and no key.
 
 ## Limits
 
@@ -76,3 +85,7 @@ The secret key is `archive_secret_key` in the integration secrets file.
   stored.
 - Filtered listings scan the whole table. That needs an index once the
   archive holds more than about 100k games.
+- `GET /v1/archive` needs no credential and has no rate limit of its own;
+  put one in front of it in the proxy that serves the page.
+- A game outside a set shows the names its sender's game saved; only a set's
+  games fall back to the desk's names.

@@ -9,7 +9,11 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::Response,
 };
-use ember_protocol::{EmberId, replays};
+use ember_protocol::{
+    EmberId,
+    replays::{self, Sides},
+    rooms::{is_country, is_player_name},
+};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -19,7 +23,11 @@ use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, json as respond},
-    routes::{ledger::scores, play::playing, replays::Described},
+    routes::{
+        ledger::{load, scores},
+        play::playing,
+        replays::described,
+    },
 };
 
 /// Replays one player may send in a day: far more than anyone plays.
@@ -29,55 +37,38 @@ const MAX_WAITING: i64 = 2 << 30;
 /// Games one listing holds; `before` pages further back.
 const LISTED: i64 = 400;
 
-/// What the sending game says of a replay: the two sides' names as it
-/// named them, and its own side and country.
-#[derive(Deserialize, Default)]
-pub struct Sides {
-    #[serde(default)]
-    a: Option<String>,
-    #[serde(default)]
-    b: Option<String>,
-    #[serde(default)]
-    side: Option<u8>,
-    #[serde(default)]
-    country: Option<String>,
-}
-
 fn name(name: &Option<String>) -> Option<String> {
-    let name = name.as_deref()?.trim();
-    (!name.is_empty() && name.chars().count() <= 64 && !name.chars().any(char::is_control))
-        .then(|| name.to_owned())
+    name.as_deref().map(str::trim).filter(|name| is_player_name(name)).map(str::to_owned)
 }
 
 fn country(code: &Option<String>) -> Option<String> {
-    code.as_deref()
-        .filter(|code| code.len() == 2 && code.bytes().all(|b| b.is_ascii_uppercase()))
-        .map(str::to_owned)
-}
-
-/// The two fighters (native IDs) an `.emberreplay`'s record names: its menu
-/// fields at +47 hold two 34-byte players after 8 bytes, each with its
-/// fighter at +16 (`src/common/ReplaySlots.hxx`, ReadRecordInfo).
-fn fighters(replay: &[u8]) -> [Option<u8>; 2] {
-    [0, 1].map(|side| {
-        let fighter = replay[8 + 47 + 8 + side * 34 + 16];
-        (fighter < 64).then_some(fighter)
-    })
+    code.clone().filter(|code| is_country(code))
 }
 
 /// Keeps the whole replay `replay` (its CRC `crc` checked) for the archive,
-/// sent by `sender`. A game it already holds only gains the sender's
-/// country and, sent for a set, the set. `set` is the set's ID and what its
-/// pack says of it; its games go to the bucket first.
+/// sent by `sender`, when the bridge has one. A game it already holds only
+/// gains the sender's country and, sent for the set `set`, the set, whose
+/// games go to the bucket first.
 pub fn keep(
     tx: &Transaction<'_>,
-    now: u64,
+    ctx: &Ctx,
     crc: &str,
     replay: &[u8],
     sender: &EmberId,
     sides: &Sides,
-    set: Option<(&str, &Described)>,
+    set: Option<&str>,
 ) -> Result<()> {
+    if ctx.config.archive.is_none() {
+        return Ok(());
+    }
+    let set = match set {
+        Some(id) => {
+            let found = load(tx, id)?.ok_or_else(ApiFailure::not_found)?;
+            Some((id, described(tx, &found)?))
+        }
+        None => None,
+    };
+    let set = set.as_ref().map(|(id, described)| (*id, described));
     let own = country(&sides.country);
     let side = sides.side.filter(|side| *side < 2);
     let held = tx
@@ -118,7 +109,7 @@ pub fn keep(
     }
     let saved_at = replays::saved_at(crc, replay)
         .ok_or_else(|| ApiFailure::invalid("That is not a whole replay."))?;
-    let [fighter_a, fighter_b] = fighters(replay);
+    let [fighter_a, fighter_b] = replays::fighters(replay);
     // A set's players by the desk's names when the game sent none.
     let fallback =
         |slot: usize| set.and_then(|(_, described)| described.names.get(slot).cloned().flatten());
@@ -146,7 +137,7 @@ pub fn keep(
             sender.as_str(),
             if set.is_some() { 0 } else { 1 },
             replay,
-            now
+            ctx.now
         ],
     )?;
     Ok(())
@@ -192,7 +183,7 @@ pub async fn put(
                     return Err(ApiFailure::unavailable());
                 }
             }
-            keep(tx, ctx.now, &crc, &replay, &player.ember_id, &sides, None)?;
+            keep(tx, &ctx, &crc, &replay, &player.ember_id, &sides, None)?;
             Ok(if held { StatusCode::OK } else { StatusCode::CREATED })
         })
         .await?;
@@ -289,8 +280,8 @@ pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -
                     "set": set, "event": event, "round": round, "phase": phase,
                 }));
             }
-            // ponytail: both lists read the whole table; an index per column
-            // if the archive grows past a few hundred thousand games.
+            // Both lists read the whole table, which is fine for some hundred
+            // thousand games; past that they want an index of their own.
             let events = tx
                 .prepare(
                     "SELECT event_title FROM archive_games WHERE state = 'stored' AND event_title IS NOT NULL

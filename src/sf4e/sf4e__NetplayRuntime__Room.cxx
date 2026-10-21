@@ -390,6 +390,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	case netplay::Effect::SavePreferences:
         // UI drafts cannot replace the game-thread-owned match record.
         command.preferences.record=runtime->preferences.record;
+        command.preferences.shareReplaysSince=runtime->preferences.shareReplaysSince;
 		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
 			runtime->preferences = command.preferences;
             Gamepads::SetLayouts(runtime->preferences.buttonLayouts);

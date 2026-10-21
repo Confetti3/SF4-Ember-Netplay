@@ -199,9 +199,9 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 
 // A set's replays go to its bridge one at a time, the oldest first, as the
 // archive lists them; with none left, and Share my replays on, other games
-// go to the public replay archive (docs/design/REPLAY_ARCHIVE.md). One the bridge took, or refused for good, is noted in
-// the archive (MarkSent); any other failure, or no answer, is tried again a
-// minute later.
+// go to the public replay archive (docs/design/REPLAY_ARCHIVE.md). One the
+// bridge took, or refused for good, is noted in the archive (MarkSent); any
+// other failure, or no answer, is tried again a minute later.
 // ponytail: the archive is listed once a minute for this, whether or not a set was played.
 void SendSetReplays(bool helperReady, std::uint64_t nowMs) {
 	auto& sending = runtime->replaySend;
@@ -211,40 +211,50 @@ void SendSetReplays(bool helperReady, std::uint64_t nowMs) {
 	platform::replays::WantListing();
 	const auto listing = platform::replays::LatestListing();
 	if (!listing) return;
-	// A set's games first; then, when the player shares them, any other game.
+	// Sharing covers the games saved since it came on, never the ones before.
+	auto& preferences = runtime->preferences;
+	const std::uint64_t since = !preferences.shareReplays ? 0 : preferences.shareReplaysSince ? preferences.shareReplaysSince : _time64(nullptr);
+	if (since != preferences.shareReplaysSince) {
+		preferences.shareReplaysSince = since;
+		OverlayPrefs::SavePlayerPreferences(preferences);
+	}
+	// A set's games first; then any other game, while the bridges have an archive.
 	const auto* next = platform::replays::NextToSend(*listing);
 	const bool set = next;
-	if (!next && runtime->preferences.shareReplays) next = platform::replays::NextToArchive(*listing);
+	if (!next && since && !sending.noArchive) next = platform::replays::NextToArchive(*listing, since);
 	if (!next) return;
 	std::string text;
 	try {
-		json ask{{"op", set ? "replay_send" : "replay_archive"}, {"path", platform::WideToUtf8(next->path.wstring())},
-			{"a", next->names[0]}, {"b", next->names[1]}};
+		// The sides' names, and this player's side, which the archive gives their country.
+		json sides{{"a", next->names[0]}, {"b", next->names[1]}};
+		if (next->names[0] != next->names[1])
+			for (std::uint8_t side = 0; side < 2; ++side)
+				if (next->names[side] == runtime->displayName) {
+					sides["side"] = side;
+					if (const auto country = ShownCountry(runtime->preferences.country, runtime->automaticCountry); country.Present())
+						sides["country"] = country.ToString();
+				}
+		json ask{{"op", set ? "replay_send" : "replay_archive"}, {"path", platform::WideToUtf8(next->path.wstring())}, {"sides", sides}};
 		if (set) {
 			ask["bridge_id"] = next->set.bridgeId;
 			ask["match_id"] = next->set.matchId;
 			ask["revision"] = std::to_string(next->set.revision);
 		}
-		// This player's side, which the archive gives their country.
-		if (next->names[0] != next->names[1])
-			for (std::uint8_t side = 0; side < 2; ++side)
-				if (next->names[side] == runtime->displayName) {
-					ask["side"] = side;
-					if (const auto country = ShownCountry(runtime->preferences.country, runtime->automaticCountry); country.Present())
-						ask["country"] = country.ToString();
-				}
 		text = ask.dump();
 	} catch (const json::exception&) { return; }
 	std::uint64_t id = 0;
-	if (runtime->room->SendTournament(text, &id)) { sending.request = id; sending.path = next->path; }
+	if (runtime->room->SendTournament(text, &id)) { sending.request = id; sending.path = next->path; sending.set = set; }
 }
 
 bool TakeReplaySent(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	auto& sending = runtime->replaySend;
 	if (!answer.requestId || answer.requestId != sending.request) return false;
 	sending.request = 0;
+	// No bridge of the player's keeps an archive: the game stays unsent, for
+	// one that may later, and the others wait for the next start.
+	if (!sending.set && answer.reason == "replays_unsupported") { sending.noArchive = true; return true; }
 	if (answer.ok || platform::replays::SendSettled(answer.reason)) {
-		if (!answer.ok) spdlog::info("Replays: the set's bridge refused {}: {}", platform::WideToUtf8(sending.path.filename().wstring()), answer.reason);
+		if (!answer.ok) spdlog::info("Replays: {} refused {}: {}", sending.set ? "the set's bridge" : "the replay archive", platform::WideToUtf8(sending.path.filename().wstring()), answer.reason);
 		platform::replays::MarkSent(sending.path);
 		// The next one once the archive is listed again with this one marked.
 		sending.nextMs = nowMs + 5000;

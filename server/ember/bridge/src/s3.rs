@@ -3,11 +3,7 @@
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 
-use crate::config::Archive;
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
+use crate::{config::Archive, util::hex};
 
 fn hmac(key: &[u8], data: &str) -> Vec<u8> {
     let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("any key length");
@@ -17,23 +13,7 @@ fn hmac(key: &[u8], data: &str) -> Vec<u8> {
 
 /// `YYYYMMDDTHHMMSSZ` for unix seconds `now`, UTC.
 fn amz_date(now: u64) -> String {
-    let (days, secs) = ((now / 86_400) as i64, now % 86_400);
-    // Days to a civil date (Howard Hinnant's days_from_civil, inverted).
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = yoe + era * 400 + i64::from(month <= 2);
-    format!(
-        "{year:04}{month:02}{day:02}T{:02}{:02}{:02}Z",
-        secs / 3600,
-        secs / 60 % 60,
-        secs % 60
-    )
+    ember_protocol::event::rfc3339(now).replace(['-', ':'], "")
 }
 
 /// The headers of a signed `PUT` of `body` to `key` at `now`: host,
@@ -94,18 +74,30 @@ mod tests {
         assert_eq!(amz_date(1_792_576_171), "20261021T094931Z");
     }
 
-    /// AWS's own example (GET Object, "Example: GET Object" in the SigV4
-    /// docs) has a GET; the same key derivation and string-to-sign layout
-    /// checked here on its signing key.
+    /// The same PUT signed by botocore (AWS's own Python signer) with AWS's
+    /// example credentials.
     #[test]
-    fn signing_key_matches_aws_example() {
-        let mut key = hmac(b"AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "20120215");
-        for part in ["us-east-1", "iam", "aws4_request"] {
-            key = hmac(&key, part);
-        }
+    fn a_put_is_signed_as_aws_signs_it() {
+        let archive = Archive {
+            endpoint: "http://127.0.0.1:9400".into(),
+            bucket: "replays".into(),
+            region: "us-east-1".into(),
+            access_key: "AKIAIOSFODNN7EXAMPLE".into(),
+            public_base: "https://s3.example/replays".into(),
+        };
+        let headers = signed_put(
+            &archive,
+            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "games/0badf00d.emberreplay",
+            b"Welcome to Amazon S3.",
+            1_792_576_171,
+        );
+        let authorization = &headers.iter().find(|(name, _)| *name == "authorization").unwrap().1;
         assert_eq!(
-            hex(&key),
-            "f4780e2d9f65fa895f9c67b32ce1baf0b0d8a43505a000a1a9e090d414db404d"
+            authorization,
+            "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20261021/us-east-1/s3/aws4_request, \
+             SignedHeaders=host;x-amz-content-sha256;x-amz-date, \
+             Signature=c11dd0e59eaeca03ac783eba11a79d98b6049217a5c43986cfe3d12bf4321b5a"
         );
     }
 }

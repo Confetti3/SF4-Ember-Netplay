@@ -458,12 +458,15 @@ static void TestSetReplays() {
  CHECK(sets::NextToSend(archive) == &archive[2]);
  archive[2].sent = true; CHECK(sets::NextToSend(archive) == &archive[0]);
  archive[0].sent = true; CHECK(!sets::NextToSend(archive));
- // Games outside a set go to the replay archive, Ember's own files only.
- CHECK(!sets::NextToArchive(archive));
+ // Games outside a set go to the replay archive, Ember's own files only,
+ // and only those saved since sharing came on.
+ CHECK(!sets::NextToArchive(archive, 0));
  archive.push_back(sets::ArchivedReplay{"old.emberreplay"}); archive.insert(archive.begin(), sets::ArchivedReplay{"new.emberreplay"});
- CHECK(sets::NextToArchive(archive) == &archive.back());
- archive.back().spectated = true; CHECK(sets::NextToArchive(archive) == &archive[0]);
- archive[0].sent = true; CHECK(!sets::NextToArchive(archive));
+ archive.back().time = 100; archive[0].time = 200;
+ CHECK(sets::NextToArchive(archive, 0) == &archive.back());
+ CHECK(sets::NextToArchive(archive, 150) == &archive[0] && !sets::NextToArchive(archive, 201));
+ archive.back().spectated = true; CHECK(sets::NextToArchive(archive, 0) == &archive[0]);
+ archive[0].sent = true; CHECK(!sets::NextToArchive(archive, 0));
  archive.erase(archive.begin()); archive.pop_back();
  CHECK(sets::SendSettled("not_found") && sets::SendSettled("replays_unsupported") && !sets::SendSettled("bridge_unreachable") && !sets::SendSettled("unauthenticated"));
  const auto listed = sets::Sets(archive);

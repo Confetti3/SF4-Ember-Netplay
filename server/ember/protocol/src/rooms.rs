@@ -89,6 +89,11 @@ pub fn check_host_name(name: &str) -> Result<()> {
     }
 }
 
+/// A country as players show it: an ISO 3166 alpha-2 code in capitals.
+pub fn is_country(code: &str) -> bool {
+    code.len() == 2 && code.bytes().all(|byte| byte.is_ascii_uppercase())
+}
+
 /// A player's name as rooms and the ranking board show it: 1 to 32 bytes of
 /// single-line text with no control characters and no leading or trailing
 /// whitespace.

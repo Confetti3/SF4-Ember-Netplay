@@ -218,6 +218,9 @@ fn open(path: &Path) -> Result<AppState, String> {
     let config = Config::load(path)?;
     let keys = Keys::load(&config.secrets)?;
     let integrations = ember_bridge::integrations::Secrets::load(&config)?;
+    if config.archive.is_some() && integrations.archive_secret_key.is_none() {
+        return Err("archive needs archive_secret_key in the integration secrets".into());
+    }
     if config.discord.is_some() && integrations.discord_client_secret.is_none() {
         eprintln!("ember-bridge: Discord sign-in is off until its client secret is stored");
     }

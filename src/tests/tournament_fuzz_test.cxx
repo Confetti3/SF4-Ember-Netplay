@@ -332,8 +332,9 @@ static void TestWatchers() {
 		json{{"role", "waiting"}, {"retry_after", -1}, {"reason", "full"}}, json{{"role", "waiting"}, {"retry_after", 10u}},
 		json{{"role", "host"}}, json{{"role", 3}}, json::array(), json(nullptr)})
 		CHECK(!session::DecodeWatchReply(refused));
-	// Both watch ops reach the runtime, as their answers do.
-	for (const char* op : {"match_watch", "match_unwatch"}) {
+	// Both watch ops reach the runtime, as their answers do, and so do the
+	// replay ops, whose answers mark a replay sent or a pack saved.
+	for (const char* op : {"match_watch", "match_unwatch", "replay_send", "replay_archive", "replay_pack"}) {
 		CHECK(session::IsTournamentPlayOp(op));
 		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 3u}, {"ok", true}, {"data", json::object()}}).has_value());
 	}

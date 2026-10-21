@@ -5,7 +5,7 @@
 //! failure.
 use std::sync::Arc;
 
-use ember_protocol::replays::{self, MAX_REPLAY};
+use ember_protocol::replays::{self, MAX_REPLAY, Sides};
 use serde_json::json;
 
 use super::{Failure, Outcome, Shared, check_path, client, play::check_match_id};
@@ -13,35 +13,18 @@ use super::{Failure, Outcome, Shared, check_path, client, play::check_match_id};
 /// A pack: its header and at most 32 replays (the bridge's limit).
 const MAX_PACK: usize = 64 * 1024 + 32 * MAX_REPLAY;
 
-/// What the game says of a replay for the archive (docs/design/REPLAY_ARCHIVE.md),
-/// as the bridge's query: `&a=&b=&side=&country=`, empty when it says none.
-/// Names longer than the bridge keeps, and anything but a two-letter
-/// country, are left out.
-pub fn sides(names: &[Option<String>; 2], side: Option<u8>, country: Option<String>) -> String {
-    let mut query = String::new();
-    for (key, name) in ["a", "b"].into_iter().zip(names) {
-        if let Some(name) = name.as_deref().filter(|name| !name.is_empty() && name.chars().count() <= 64) {
-            query.push_str(&format!("&{key}="));
-            for byte in name.bytes() {
-                if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
-                    query.push(char::from(byte));
-                } else {
-                    query.push_str(&format!("%{byte:02X}"));
-                }
-            }
-        }
+/// `path` on `origin` with `pairs` as its query.
+fn url(origin: &str, path: &str, pairs: &[(&str, String)]) -> Result<String, Failure> {
+    let mut url = reqwest::Url::parse(&format!("{origin}{path}")).map_err(|_| Failure::new("internal"))?;
+    if !pairs.is_empty() {
+        url.query_pairs_mut().extend_pairs(pairs);
     }
-    if let Some(side) = side.filter(|side| *side < 2) {
-        query.push_str(&format!("&side={side}"));
-    }
-    if let Some(country) = country.filter(|code| code.len() == 2 && code.bytes().all(|b| b.is_ascii_uppercase())) {
-        query.push_str(&format!("&country={country}"));
-    }
-    query
+    Ok(url.into())
 }
 
 /// Sends the replay at `path`, played under room revision `revision`, to
-/// the set `match_id`, with `sides` (`sides`) for the bridge's archive.
+/// the set `match_id`, with what the game says of its `sides` for the
+/// bridge's archive.
 /// `kept` is false when the bridge already had it.
 pub async fn send(
     shared: &Arc<Shared>,
@@ -49,20 +32,20 @@ pub async fn send(
     match_id: &str,
     revision: u64,
     path: &str,
-    sides: &str,
+    sides: &Sides,
 ) -> Outcome {
     check_match_id(match_id)?;
     let replay = super::read_file(path, MAX_REPLAY)?;
     let crc = replays::crc_name(&replay)
         .filter(|crc| replays::saved_at(crc, &replay).is_some())
         .ok_or_else(|| Failure::new("invalid_replay"))?;
+    let mut pairs = sides.pairs();
+    pairs.push(("revision", revision.to_string()));
     client::with_session(shared, bridge_id, |bridge, token| {
-        let url = format!(
-            "{}/v1/matches/{match_id}/replays/{crc}?revision={revision}{sides}",
-            bridge.origin
-        );
+        let url = url(&bridge.origin, &format!("/v1/matches/{match_id}/replays/{crc}"), &pairs);
         let body = replay.to_vec();
         async move {
+            let url = url?;
             let (status, response) = shared
                 .client
                 .call_bounded(
@@ -92,12 +75,11 @@ pub async fn send(
 /// used. `bridge_id` names it; `kept` is false when it already had the game.
 /// None keeps one: `replays_unsupported`, so the game stops sending; a bridge
 /// that failed otherwise is the failure, so the game tries again later.
-pub async fn archive(shared: &Arc<Shared>, path: &str, sides: &str) -> Outcome {
+pub async fn archive(shared: &Arc<Shared>, path: &str, sides: &Sides) -> Outcome {
     let replay = super::read_file(path, MAX_REPLAY)?;
     let crc = replays::crc_name(&replay)
         .filter(|crc| replays::saved_at(crc, &replay).is_some())
         .ok_or_else(|| Failure::new("invalid_replay"))?;
-    // ponytail: the store is in memory once opened, so a plain lock.
     let bridges: Vec<String> = shared
         .bridges
         .lock()
@@ -107,14 +89,15 @@ pub async fn archive(shared: &Arc<Shared>, path: &str, sides: &str) -> Outcome {
         .filter(|listed| !listed.builtin || listed.active)
         .map(|listed| listed.bridge.bridge_id)
         .collect();
-    let query = sides.strip_prefix('&').unwrap_or(sides).to_owned();
+    let pairs = sides.pairs();
     let mut failed = Failure::new("replays_unsupported");
     for bridge_id in bridges {
         let sent = client::with_session(shared, &bridge_id, |bridge, token| {
-            let url = format!("{}/v1/replays/{crc}?{query}", bridge.origin);
+            let url = url(&bridge.origin, &format!("/v1/replays/{crc}"), &pairs);
             let body = replay.to_vec();
             let bridge_id = bridge_id.clone();
             async move {
+                let url = url?;
                 let (status, response) = shared
                     .client
                     .call_bounded(
@@ -175,11 +158,38 @@ pub async fn pack(shared: &Arc<Shared>, bridge_id: &str, match_id: &str, path: &
 
 #[cfg(test)]
 mod tests {
+    use super::{super::Request, Sides};
+    use serde_json::json;
+
+    /// The requests as the game sends them (SendSetReplays).
+    #[test]
+    fn the_games_replay_requests_read() {
+        let archive = json!({ "op": "replay_archive", "path": "C:/r.emberreplay",
+            "sides": { "a": "Ann", "b": "", "side": 1, "country": "BE" } });
+        let Ok(Request::ReplayArchive { sides, .. }) = serde_json::from_value(archive) else {
+            panic!("replay_archive was not read");
+        };
+        assert_eq!((sides.a.as_deref(), sides.side, sides.country.as_deref()), (Some("Ann"), Some(1), Some("BE")));
+        let set = json!({ "op": "replay_send", "bridge_id": "brg_x", "match_id": "emt_x", "revision": "4",
+            "path": "C:/r.emberreplay", "sides": { "a": "Ann", "b": "Bob" } });
+        assert!(matches!(serde_json::from_value(set), Ok(Request::ReplaySend { .. })));
+    }
+
     #[test]
     fn sides_are_a_query_the_bridge_reads() {
-        let names = [Some("Ann B".to_owned()), Some("Ü&x".to_owned())];
-        assert_eq!(super::sides(&names, Some(1), Some("BE".into())), "&a=Ann%20B&b=%C3%9C%26x&side=1&country=BE");
-        assert_eq!(super::sides(&[None, Some(String::new())], Some(2), Some("be".into())), "");
+        let sides = Sides {
+            a: Some("Ann B".into()),
+            b: Some("Ü&x".into()),
+            side: Some(1),
+            country: Some("BE".into()),
+        };
+        assert_eq!(
+            super::url("http://bridge", "/v1/replays/0badf00d", &sides.pairs()).ok().as_deref(),
+            Some("http://bridge/v1/replays/0badf00d?a=Ann+B&b=%C3%9C%26x&side=1&country=BE")
+        );
+        assert_eq!(
+            super::url("http://bridge", "/v1/replays/0badf00d", &Sides::default().pairs()).ok().as_deref(),
+            Some("http://bridge/v1/replays/0badf00d")
+        );
     }
 }
-

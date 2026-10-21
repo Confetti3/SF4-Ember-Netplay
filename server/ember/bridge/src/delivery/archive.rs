@@ -1,8 +1,10 @@
 //! Stores the replay archive's games in its bucket (`routes::archive`):
 //! tournament games first, each as `games/<crc>.emberreplay`, and with a
 //! set's game its whole pack again as `sets/<match id>.emberpack`. A stored
-//! game's replay leaves the bridge. Nothing is given up: a game the bucket
-//! did not take is tried again, hourly once a day has passed.
+//! game's replay leaves the bridge. Nothing is given up: the game marks a
+//! replay sent once the bridge has it, so this is the archive's only copy,
+//! and one the bucket did not take is tried again, hourly once a day has
+//! passed.
 use rusqlite::{Transaction, params};
 
 use super::{BATCH, Leased, Outcome, Queue, Record, Settled};
@@ -91,10 +93,11 @@ impl Queue for Archive {
         {
             return retry(error);
         }
-        if let Some(id) = item.set.clone() {
+        if let Some(id) = &item.set {
+            let found = id.clone();
             let pack = state
                 .db
-                .read(move |tx| match load(tx, &id)? {
+                .read(move |tx| match load(tx, &found)? {
                     Some(found) => packed(tx, &found).map(Some),
                     None => Ok(None),
                 })
@@ -102,7 +105,7 @@ impl Queue for Archive {
             match pack {
                 Ok(Some(pack)) => {
                     if let Some(error) = put(
-                        format!("sets/{}.emberpack", item.set.as_deref().unwrap_or_default()),
+                        format!("sets/{id}.emberpack"),
                         pack,
                     )
                     .await

@@ -794,7 +794,7 @@ msgid "replays.share"
 msgstr "Mijn replays delen"
 
 msgid "replays.share_detail"
-msgstr "Stuurt de wedstrijden die je speelt naar het openbare replay-archief op replays.ember.fraccie.be. Toernooiwedstrijden worden altijd gedeeld."
+msgstr "Stuurt de wedstrijden die je vanaf nu speelt naar het openbare replay-archief van je bridge, met de namen van beide spelers en je land. Toernooiwedstrijden worden altijd gedeeld."
 
 msgid "replays.link"
 msgstr "Replay uit de link afspelen"

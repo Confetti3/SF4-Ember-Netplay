@@ -113,7 +113,7 @@ pub struct ReplayRetention {
 #[serde(deny_unknown_fields)]
 pub struct Archive {
     /// The S3 endpoint the bridge writes to, as an origin
-    /// (`http://10.40.0.247:9400`); path-style requests.
+    /// (`http://127.0.0.1:9400`); path-style requests.
     pub endpoint: String,
     pub bucket: String,
     #[serde(default = "default_region")]
@@ -536,9 +536,6 @@ impl Config {
                     .all(|b| matches!(b, b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.'))
             {
                 return Err("archive.bucket must be an S3 bucket name".into());
-            }
-            if self.integration_secrets.is_none() {
-                return Err("archive needs integration_secrets for archive_secret_key".into());
             }
         }
         let mut seen = std::collections::BTreeSet::new();

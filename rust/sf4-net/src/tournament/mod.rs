@@ -281,27 +281,14 @@ pub enum Request {
         revision: Counter,
         path: String,
         #[serde(default)]
-        a: Option<String>,
-        #[serde(default)]
-        b: Option<String>,
-        #[serde(default)]
-        side: Option<u8>,
-        #[serde(default)]
-        country: Option<String>,
+        sides: ember_protocol::replays::Sides,
     },
     /// Any other archived replay this player played, for the public replay
-    /// archive of the first of their bridges that keeps one: the two
-    /// sides' names, and the player's own side and country.
+    /// archive of the first of their bridges that keeps one.
     ReplayArchive {
         path: String,
         #[serde(default)]
-        a: Option<String>,
-        #[serde(default)]
-        b: Option<String>,
-        #[serde(default)]
-        side: Option<u8>,
-        #[serde(default)]
-        country: Option<String>,
+        sides: ember_protocol::replays::Sides,
     },
     /// The set's pack, written to `path`.
     ReplayPack {
@@ -950,21 +937,9 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             match_id,
             revision,
             path,
-            a,
-            b,
-            side,
-            country,
-        } => {
-            let sides = replays::sides(&[a, b], side, country);
-            replays::send(shared, &bridge_id, &match_id, revision.0, &path, &sides).await
-        }
-        Request::ReplayArchive {
-            path,
-            a,
-            b,
-            side,
-            country,
-        } => replays::archive(shared, &path, &replays::sides(&[a, b], side, country)).await,
+            sides,
+        } => replays::send(shared, &bridge_id, &match_id, revision.0, &path, &sides).await,
+        Request::ReplayArchive { path, sides } => replays::archive(shared, &path, &sides).await,
         Request::ReplayPack {
             bridge_id,
             match_id,

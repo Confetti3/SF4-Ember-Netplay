@@ -22,7 +22,6 @@ mod ticket;
 
 use std::{
     convert::Infallible,
-    fmt::Write as _,
     net::{IpAddr, SocketAddr},
     sync::atomic::{AtomicBool, AtomicU64},
 };
@@ -61,6 +60,7 @@ use crate::{
     events::{NewEvent, emit},
     http::{Body, GENERAL_BODY, json, ok},
     routes::play::require_play,
+    util::hex,
 };
 
 /// The capability this feature is advertised as.
@@ -652,14 +652,6 @@ pub async fn close(
         .await?;
     state.committed();
     Ok(ok(&view))
-}
-
-fn hex(bytes: &[u8]) -> String {
-    let mut text = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        let _ = write!(text, "{byte:02x}");
-    }
-    text
 }
 
 #[cfg(test)]

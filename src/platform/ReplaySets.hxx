@@ -18,11 +18,12 @@ inline const ArchivedReplay* NextToSend(const std::vector<ArchivedReplay>& archi
 	return nullptr;
 }
 
-// The oldest game this PC played outside any set that the replay archive may
-// not have yet, or null. Only Ember's own files: the archive takes no other.
-inline const ArchivedReplay* NextToArchive(const std::vector<ArchivedReplay>& archive) {
+// The oldest game this PC played outside any set, saved at or after `since`
+// (unix seconds), that the replay archive may not have yet, or null. Only
+// Ember's own files: the archive takes no other.
+inline const ArchivedReplay* NextToArchive(const std::vector<ArchivedReplay>& archive, std::uint64_t since) {
 	for (auto at = archive.rbegin(); at != archive.rend(); ++at)
-		if (!at->set.Tagged() && !at->spectated && !at->sent && at->path.extension() == L".emberreplay") return &*at;
+		if (!at->set.Tagged() && !at->spectated && !at->sent && at->time >= since && at->path.extension() == L".emberreplay") return &*at;
 	return nullptr;
 }
 
