@@ -4543,6 +4543,9 @@ msgstr "对手：{0}。您是玩家{1}。"
 msgid "tournament.play"
 msgstr "开始"
 
+msgid "tournament.play_round"
+msgstr "开始{0}"
+
 msgid "tournament.play_detail"
 msgstr "打开或加入此对局的房间。每局结果会自动发送给赛事服务。"
 
@@ -4604,7 +4607,7 @@ msgid "tournament.paste_link_detail"
 msgstr "在赛事网站复制对局链接，然后选择此项即可在这里打开该对局。"
 
 msgid "tournament.link_opened"
-msgstr "赛事网站打开了一个对局。准备好后请按开始。"
+msgstr "赛事网站打开了你的对局。Ember 会尽快进入对局房间。"
 
 msgid "tournament.assigned_notice"
 msgstr "有一场赛事对局已为你准备好。请打开“Ember ID”，再打开“赛事对局”。"
@@ -6018,6 +6021,36 @@ msgstr "{0} 现在等同于 {1}。"
 
 msgid "button_layout.extra_off"
 msgstr "{0} 现在不起作用。"
+
+msgid "button_layout.copy_view_detail"
+msgstr "在训练中，轻按会重置位置，按住会保存位置，与返回键相同。"
+
+msgid "button_layout.copy_start_detail"
+msgstr "暂停对战，并在主菜单打开 Ember，与开始键相同。"
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} 还没有复制任何按钮。请先在下方它的那一行选择一个，然后在这里按下它。"
+
+msgid "button_layout.training_record"
+msgstr "训练录制"
+
+msgid "button_layout.training_play"
+msgstr "训练播放"
+
+msgid "button_layout.training_record_detail"
+msgstr "选择后，按下在训练中开始和停止录制的按钮，作用与 F7 相同。在训练中该按钮只负责录制；在对战中它保留原来的攻击。"
+
+msgid "button_layout.training_play_detail"
+msgstr "选择后，按下在训练中播放和停止所选槽位的按钮，作用与 F8 相同。在训练中该按钮只负责播放；在对战中它保留原来的攻击。"
+
+msgid "button_layout.training_clear"
+msgstr "清除训练按钮"
+
+msgid "button_layout.training_clear_detail"
+msgstr "关闭训练录制按钮和播放按钮。"
+
+msgid "button_layout.training_cleared"
+msgstr "训练按钮已关闭。"
 
 msgid "room.delay_policy"
 msgstr "房间输入延迟"

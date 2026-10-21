@@ -4542,6 +4542,9 @@ msgstr "Gegen {0}. Sie sind Spieler {1}."
 msgid "tournament.play"
 msgstr "Spielen"
 
+msgid "tournament.play_round"
+msgstr "Spielen: {0}"
+
 msgid "tournament.play_detail"
 msgstr "Öffnet den Raum dieses Spiels oder tritt ihm bei. Das Ergebnis jedes Kampfes geht von selbst an den Turnierdienst."
 
@@ -4603,7 +4606,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Kopieren Sie den Spiel-Link auf der Turnierseite und wählen Sie dies, um das Spiel hier zu öffnen."
 
 msgid "tournament.link_opened"
-msgstr "Die Turnierseite hat ein Spiel geöffnet. Drücken Sie Spielen, wenn Sie bereit sind."
+msgstr "Die Turnierseite hat Ihr Spiel geöffnet. Ember betritt seinen Raum, sobald es geht."
 
 msgid "tournament.assigned_notice"
 msgstr "Ein Turnierspiel ist für Sie bereit. Öffnen Sie Ember ID, dann Turnierspiele."
@@ -6017,6 +6020,36 @@ msgstr "{0} wirkt jetzt wie {1}."
 
 msgid "button_layout.extra_off"
 msgstr "{0} hat jetzt keine Funktion."
+
+msgid "button_layout.copy_view_detail"
+msgstr "Im Training setzt ein Tippen die Position zurück und Halten speichert sie, wie Zurück."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pausiert einen Kampf und öffnet Ember im Hauptmenü, wie Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} kopiert noch keine Taste. Wähle unten in seiner Zeile eine, dann drücke es hier."
+
+msgid "button_layout.training_record"
+msgstr "Training: Aufnahme"
+
+msgid "button_layout.training_play"
+msgstr "Training: Wiedergabe"
+
+msgid "button_layout.training_record_detail"
+msgstr "Auswählen, dann die Taste drücken, die im Training eine Aufnahme startet und beendet, wie F7. Im Training nimmt diese Taste nur auf; in Kämpfen behält sie ihren Angriff."
+
+msgid "button_layout.training_play_detail"
+msgstr "Auswählen, dann die Taste drücken, die im Training den gewählten Slot abspielt und stoppt, wie F8. Im Training spielt diese Taste nur ab; in Kämpfen behält sie ihren Angriff."
+
+msgid "button_layout.training_clear"
+msgstr "Trainingstasten löschen"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Schaltet die Tasten für Aufnahme und Wiedergabe im Training aus."
+
+msgid "button_layout.training_cleared"
+msgstr "Die Trainingstasten sind aus."
 
 msgid "room.delay_policy"
 msgstr "Eingabeverzögerung im Raum"

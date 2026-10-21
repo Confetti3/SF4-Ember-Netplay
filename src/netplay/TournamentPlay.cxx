@@ -152,6 +152,17 @@ bool TournamentPlay::SeatReady(const RoomView& room) const {
 void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out) {
 	using Step = MatchRoomFollower::Step;
 	waitingForOpponent_ = false;
+	// The named room could not be joined twice running: its host left or its
+	// game closed. This game hosts a new room and publishes it in that one's
+	// place, which the bridge refuses while a game of the match is undecided;
+	// none is tried while this game holds a permit or a report not yet settled.
+	// Decided before Follow, so a tick never sends a join and a host at once.
+	if (room_.Aimed() && room_.FailedJoins() >= ReplaceAfterFailedJoins && !room.joined && !room.opening && AttemptsSettled()) {
+		replacing_ = room_.Target();
+		retiredRooms_.insert(replacing_);
+		room_.Forget();
+		published_ = false;
+	}
 	const auto step = room_.Follow(nowMs, room);
 	switch (step) {
 	case Step::Foreign:
@@ -175,9 +186,9 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 	case Step::None:
 		break;
 	}
-	// No room named yet: the fighter holding the lease hosts and publishes one;
-	// the other waits for it.
-	if (!room_.Aimed() && leaseId_.empty()) {
+	// No room named yet: the fighter holding the lease, or replacing a room,
+	// hosts and publishes one; the other waits for it.
+	if (!room_.Aimed() && leaseId_.empty() && replacing_.empty()) {
 		waitingForOpponent_ = true;
 	} else if (!room_.Aimed()) {
 		if (room_.Host(nowMs, room)) {
@@ -191,6 +202,7 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 			publish.invitation = room.invitation;
 			publish.leaseId = leaseId_;
 			publish.fence = fence_;
+			publish.replaces = replacing_;
 			out.push_back(publish);
 			publishingInvitation_ = room.invitation;
 			publishInFlight_ = true;
@@ -298,9 +310,32 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 			published_ = true;
 			publishedInvitation_ = publishingInvitation_;
 		}
+		// A room the match moved away from (replaced, or being replaced) never
+		// comes back: an answer naming it was sent before the move.
+		if (retiredRooms_.count(reply.roomId)) break;
+		// A move is measured against the room the bridge last named and this
+		// game accepted, which a replacement under way or refused keeps.
+		const bool moving = !matchRoom_.empty() && reply.roomId != matchRoom_;
+		// A move waits for the last room's reports to be saved, under the
+		// permits they were played with; the next claim brings the room again.
+		if (moving && !unsaved_.empty()) break;
+		// Once bound, the match moves to another room only with a newer
+		// assignment (a replaced room starts one): an answer naming another
+		// room without one was sent before the room held now.
+		if (moving && binding_ && !(reply.binding && reply.binding->roomId == reply.roomId &&
+			reply.binding->room.assignmentGeneration > binding_->room.assignmentGeneration)) break;
+		replacing_.clear();
 		leaseId_.clear();
 		fence_.clear();
 		if (room_.Aim(reply.roomId, reply.invitation) && request == Output::Kind::Claim) published_ = false;
+		// A room after another (one replaced, by either fighter) numbers its
+		// games from 1 again: the last room's games are retired, so the new
+		// room's game 1 asks for a permit and reports of its own.
+		if (moving) {
+			retiredRooms_.insert(matchRoom_);
+			RetireRoomAttempts();
+		}
+		matchRoom_ = reply.roomId;
 		if (reply.binding && reply.binding->roomId == reply.roomId &&
 			(!binding_ || binding_->roomId != reply.binding->roomId || binding_->room.SupersededBy(reply.binding->room)))
 			binding_ = reply.binding;
@@ -308,8 +343,24 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 	}
 }
 
+void TournamentPlay::RetireRoomAttempts() {
+	// Reports of the last room are all saved by now (OnRoom waits for them).
+	permits_.clear();
+	permitToldMs_.clear();
+	started_.clear();
+	reported_.clear();
+	// A prepare sent for the last room answers for it: that answer is dropped.
+	dropPrepare_ = prepareInFlight_;
+}
+
+bool TournamentPlay::AttemptsSettled() const {
+	return unsaved_.empty() && !prepareInFlight_ &&
+		std::all_of(permits_.begin(), permits_.end(), [&](const auto& held) { return reported_.count(held.first) != 0; });
+}
+
 void TournamentPlay::OnPrepare(const PrepareReply& reply, std::uint64_t nowMs) {
 	prepareInFlight_ = false;
+	if (dropPrepare_) { dropPrepare_ = false; return; }
 	if (reply.permitted && reply.generation && !reply.permitId.empty()) {
 		permits_[reply.generation] = {reply.permitId, reply.startWindowMs};
 		permitToldMs_[reply.generation] = 0;
@@ -333,11 +384,21 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 	case Output::Kind::Publish:
 		publishInFlight_ = false;
 		nextPublishMs_ = nowMs + RetryMs;
-		// The lease moved on: claim again to learn the room to join.
-		if (code == "lease_conflict") { leaseId_.clear(); fence_.clear(); nextClaimMs_ = nowMs; }
+		// The lease moved on, or the room could not be replaced (the other
+		// fighter replaced it first, or a game is undecided): claim again to
+		// learn the room to join.
+		if (code == "lease_conflict") {
+			leaseId_.clear();
+			fence_.clear();
+			// A room that could not be replaced is still the match's.
+			if (!replacing_.empty()) retiredRooms_.erase(replacing_);
+			replacing_.clear();
+			nextClaimMs_ = nowMs;
+		}
 		break;
 	case Output::Kind::Prepare:
 		prepareInFlight_ = false;
+		dropPrepare_ = false;
 		nextPrepareMs_ = nowMs + (code == "stale_revision" ? PrepareIntervalMs : RetryMs);
 		// A stale binding: a claim brings the current one.
 		if (code == "stale_revision") nextClaimMs_ = nowMs;

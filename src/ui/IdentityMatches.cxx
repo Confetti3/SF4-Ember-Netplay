@@ -18,6 +18,8 @@ constexpr double AssignmentsSeconds = 60;
 // After a match ended for a lost connection, the bridge may set up a new one:
 // the matches are read this often, from any screen, for this long.
 constexpr double RestartPollSeconds = 5, RestartWatchSeconds = 180;
+// How long after a fresh link its match may still play by itself.
+constexpr double LinkPlaySeconds = 120;
 
 bool Playing(const netplay::tournament::Status& t) { return netplay::tournament::PlayUnderWay(t.phase); }
 std::string PlayState(const netplay::tournament::Status& t) {
@@ -36,13 +38,19 @@ std::string PlayState(const netplay::tournament::Status& t) {
 }
 }
 
-void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match) {
+void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match, bool playNow, std::uint64_t linkSequence) {
     bridge_ = bridge;
     wantAssignments_ = true;
     opened_ = OpenedMatch{bridge, "tm-play:" + match, std::nullopt, match};
+    if (playNow) linkedPlay_ = LinkedPlay{match, now_ + LinkPlaySeconds, linkSequence};
+    else linkedPlay_.reset();
     watchBridge_.clear(); watchMatch_.clear();
     // The fresh service list says whether the player trusts this one.
     IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
+}
+
+bool IdentityPanel::LinkMayPlay(const ShellView& v) {
+    return v.session.room == netplay::RoomState::Idle && v.session.match == netplay::MatchState::None && !v.tournament.MatchRoomActive();
 }
 
 int IdentityPanel::ReadyMatches(const ShellView& v) const {
@@ -112,14 +120,26 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
         phase_ = t.phase;
     }
     const bool watching = now_ < restartWatchUntil_;
+    // A fresh link's match plays by itself once the list shows it playable,
+    // with the checks Play has, while the player looks at the matches screen.
+    if (linkedPlay_ && (linkedPlay_->linkSequence ? !t.link.direct || t.link.sequence != linkedPlay_->linkSequence : now_ > linkedPlay_->until))
+        linkedPlay_.reset();
+    if (!play_ && linkedPlay_ && screen == "tournament-matches" && v.identity.state == "ready" && FindBridge(v, bridge_) &&
+        CanPlay(v, linkedPlay_->match)) {
+        play_ = Command{Command::Op::Play, bridge_, linkedPlay_->match};
+        linkedPlay_.reset();
+        message_.clear();
+    }
+    // While a fresh link waits for its match, the list is read as often as after a lost connection.
+    const bool linking = linkedPlay_.has_value();
     ShellAction action;
     action.command.generation = v.session.generation;
     if (play_) {
         action.tournament = std::move(*play_);
         play_.reset();
-    } else if ((wantAssignments_ && screen == "tournament-matches" || (watching || !Owns(screen)) && now_ >= assignmentsAt_ && servicesKnown_) &&
+    } else if ((wantAssignments_ && screen == "tournament-matches" || (watching || linking || !Owns(screen)) && now_ >= assignmentsAt_ && servicesKnown_) &&
                FindBridge(v, bridge_) && !t.list.loading) {
-        wantAssignments_ = false; assignmentsAt_ = now_ + (watching ? RestartPollSeconds : AssignmentsSeconds);
+        wantAssignments_ = false; assignmentsAt_ = now_ + (watching || linking ? RestartPollSeconds : AssignmentsSeconds);
         action.tournament.op = Command::Op::Refresh;
         action.tournament.bridgeId = bridge_;
         if (opened_ && opened_->bridge == bridge_) opened_->finishedBefore = t.list.finished;
@@ -175,8 +195,11 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
             detail += expired ? loc::T("tournament.expired_detail") : match.Finished() ? loc::T("tournament.finished_detail") :
                 !match.PlayedInEmber() ? loc::T("tournament.organizer_detail") : !playable ? loc::T("tournament.state.waiting_permit") :
                 free ? loc::T("tournament.play_detail") : loc::T("tournament.leave_room_detail");
-            auto row = Row("tm-play:" + match.matchId, match.roundLabel.empty() ? std::string(loc::T("tournament.match")) : match.roundLabel,
-                std::move(detail), playable && free);
+            // A match the player can play now reads as the button it is: Play, with its round.
+            const bool canPlay = playable && free;
+            const std::string label = canPlay ? (match.roundLabel.empty() ? std::string(loc::T("tournament.play")) : loc::Tf("tournament.play_round", match.roundLabel)) :
+                match.roundLabel.empty() ? std::string(loc::T("tournament.match")) : match.roundLabel;
+            auto row = Row("tm-play:" + match.matchId, label, std::move(detail), canPlay);
             row.value = expired ? std::string(loc::T("tournament.expired")) : loc::Tf("tournament.score", own, other, match.gamesToWin);
             row.userText = !match.roundLabel.empty();
             row.hint = loc::T("tournament.play");
@@ -194,13 +217,15 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
 
 bool IdentityPanel::MatchesActivate(const MenuAction& a, const ShellView& v) {
     if (a.id == "tm-refresh") { wantAssignments_ = true; message_.clear(); return true; }
+    // The player's own Play, Stop or Watch replaces what a link was waiting to play.
+    if (a.id == "tm-stop" || a.id.compare(0, 8, "tm-play:") == 0 || a.id.compare(0, 9, "tm-watch:") == 0) linkedPlay_.reset();
     if (a.id == "tm-paste") {
         // The match link the tournament site gave: its page or the ember: link.
         const char* text = ImGui::GetClipboardText();
         const auto link = tournament_link::ParsePasted(text ? text : "");
         if (!link.Valid()) { Say(loc::T("tournament.failure.link"), Tone::Error); return true; }
         message_.clear();
-        OpenMatch(link.bridgeId, link.matchId);
+        OpenMatch(link.bridgeId, link.matchId, LinkMayPlay(v));
         return true;
     }
     if (a.id == "tm-stop") { play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Stop, {}, {}}; return true; }
