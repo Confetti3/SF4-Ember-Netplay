@@ -4211,6 +4211,9 @@ msgstr "상대: {0}. 당신은 플레이어 {1}입니다."
 msgid "tournament.play"
 msgstr "플레이"
 
+msgid "tournament.play_round"
+msgstr "{0} 플레이"
+
 msgid "tournament.play_detail"
 msgstr "이 경기의 방을 열거나 참가합니다. 각 대전의 결과는 대회 서비스로 자동 전송됩니다."
 
@@ -4272,7 +4275,7 @@ msgid "tournament.paste_link_detail"
 msgstr "대회 사이트에서 경기 링크를 복사한 다음 이것을 선택하면 여기서 그 경기를 엽니다."
 
 msgid "tournament.link_opened"
-msgstr "대회 사이트가 경기를 열었습니다. 준비되면 플레이를 누르세요."
+msgstr "대회 사이트가 경기를 열었습니다. 준비되는 대로 Ember가 경기 방에 들어갑니다."
 
 msgid "tournament.assigned_notice"
 msgstr "대회 경기가 준비되었습니다. Ember ID를 연 다음 대회 경기를 여세요."
@@ -5674,6 +5677,36 @@ msgstr "{0}이(가) 이제 {1}처럼 동작합니다."
 
 msgid "button_layout.extra_off"
 msgstr "{0}에는 이제 아무 기능도 없습니다."
+
+msgid "button_layout.copy_view_detail"
+msgstr "트레이닝에서 짧게 누르면 위치를 초기화하고 길게 누르면 저장합니다(뒤로 버튼과 같음)."
+
+msgid "button_layout.copy_start_detail"
+msgstr "대전을 일시 정지하고 메인 메뉴에서 Ember를 엽니다(스타트 버튼과 같음)."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0}은(는) 아직 아무 버튼도 복사하지 않습니다. 아래 행에서 고른 다음 여기서 누르세요."
+
+msgid "button_layout.training_record"
+msgstr "트레이닝 녹화"
+
+msgid "button_layout.training_play"
+msgstr "트레이닝 재생"
+
+msgid "button_layout.training_record_detail"
+msgstr "선택한 다음 트레이닝에서 녹화를 시작하고 멈출 버튼을 누르세요. F7과 같은 역할입니다. 트레이닝에서는 그 버튼이 녹화만 하고, 대전에서는 공격을 그대로 유지합니다."
+
+msgid "button_layout.training_play_detail"
+msgstr "선택한 다음 트레이닝에서 고른 슬롯을 재생하고 멈출 버튼을 누르세요. F8과 같은 역할입니다. 트레이닝에서는 그 버튼이 재생만 하고, 대전에서는 공격을 그대로 유지합니다."
+
+msgid "button_layout.training_clear"
+msgstr "트레이닝 버튼 지우기"
+
+msgid "button_layout.training_clear_detail"
+msgstr "트레이닝 녹화 버튼과 재생 버튼을 끕니다."
+
+msgid "button_layout.training_cleared"
+msgstr "트레이닝 버튼이 꺼졌습니다."
 
 msgid "room.delay_policy"
 msgstr "방 입력 지연"

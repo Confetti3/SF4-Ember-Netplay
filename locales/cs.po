@@ -4210,6 +4210,9 @@ msgstr "Soupeř: {0}. Jste hráč {1}."
 msgid "tournament.play"
 msgstr "Hrát"
 
+msgid "tournament.play_round"
+msgstr "Hrát: {0}"
+
 msgid "tournament.play_detail"
 msgstr "Otevře místnost tohoto zápasu nebo se do ní připojí. Výsledek každého souboje odejde turnajové službě sám."
 
@@ -4271,7 +4274,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Zkopírujte odkaz na zápas ze stránky turnaje a zvolte tuto možnost, abyste zápas otevřeli zde."
 
 msgid "tournament.link_opened"
-msgstr "Stránka turnaje otevřela zápas. Až budete připraveni, stiskněte Hrát."
+msgstr "Stránka turnaje otevřela váš zápas. Ember se připojí do jeho místnosti, jakmile to půjde."
 
 msgid "tournament.assigned_notice"
 msgstr "Máte připravený turnajový zápas. Otevřete Ember ID a pak Turnajové zápasy."
@@ -5673,6 +5676,36 @@ msgstr "{0} teď funguje jako {1}."
 
 msgid "button_layout.extra_off"
 msgstr "{0} teď nic nedělá."
+
+msgid "button_layout.copy_view_detail"
+msgstr "V tréninku klepnutí obnoví pozici a podržení ji uloží, jako Zpět."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pozastaví zápas a otevře Ember v hlavní nabídce, jako Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} zatím nekopíruje žádné tlačítko. Zvolte ho v jeho řádku níže a pak ho stiskněte tady."
+
+msgid "button_layout.training_record"
+msgstr "Nahrávání v tréninku"
+
+msgid "button_layout.training_play"
+msgstr "Přehrávání v tréninku"
+
+msgid "button_layout.training_record_detail"
+msgstr "Vyberte a pak stiskněte tlačítko, které v tréninku spouští a zastavuje nahrávání, jako F7. V tréninku to tlačítko jen nahrává; v zápasech si ponechá svůj útok."
+
+msgid "button_layout.training_play_detail"
+msgstr "Vyberte a pak stiskněte tlačítko, které v tréninku přehrává a zastavuje zvolený slot, jako F8. V tréninku to tlačítko jen přehrává; v zápasech si ponechá svůj útok."
+
+msgid "button_layout.training_clear"
+msgstr "Smazat tlačítka tréninku"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Vypne tlačítka nahrávání a přehrávání v tréninku."
+
+msgid "button_layout.training_cleared"
+msgstr "Tlačítka tréninku jsou vypnutá."
 
 msgid "room.delay_policy"
 msgstr "Zpoždění vstupu v místnosti"

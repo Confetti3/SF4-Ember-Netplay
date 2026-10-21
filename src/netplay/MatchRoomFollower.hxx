@@ -51,7 +51,7 @@ public:
 	// is joined afresh.
 	bool Aim(const std::string& roomId, const std::string& invitation) {
 		const bool changed = target_ != roomId;
-		if (changed) { target_ = roomId; requested_ = false; }
+		if (changed) { target_ = roomId; requested_ = false; failedJoins_ = 0; }
 		invitation_ = invitation;
 		return changed;
 	}
@@ -60,8 +60,12 @@ public:
 		target_.clear();
 		invitation_.clear();
 		requested_ = leaving_ = openUnderWay_ = false;
+		failedJoins_ = 0;
 	}
 	bool Aimed() const { return !target_.empty(); }
+	const std::string& Target() const { return target_; }
+	// Joins of the named room that failed in a row: its host may be gone.
+	unsigned FailedJoins() const { return failedJoins_; }
 	const std::string& Invitation() const { return invitation_; }
 	bool InTarget(const RoomView& room) const { return room.joined && Aimed() && room.roomId == target_; }
 
@@ -70,8 +74,12 @@ public:
 	bool Tick(std::uint64_t nowMs, const RoomView& room) {
 		// A join names its room before it is sent; a host learns it here.
 		if (room.joined && openUnderWay_ && hosting_) Own(room.roomId);
-		// The open has landed or failed once nothing is opening.
-		if (!room.opening) openUnderWay_ = false;
+		// The open has landed or failed once nothing is opening; a join that
+		// left the player in no room failed, counted against the room it was for.
+		if (!room.opening) {
+			if (openUnderWay_ && !hosting_ && !room.joined && joining_ == target_) ++failedJoins_;
+			openUnderWay_ = false;
+		}
 		if (wanted_) {
 			wanted_ = false;
 			return Holds(nowMs, room);
@@ -92,6 +100,7 @@ public:
 		if (!Aimed()) return Step::None;
 		if (InTarget(room)) {
 			requested_ = leaving_ = false;
+			failedJoins_ = 0;
 			return Step::InTarget;
 		}
 		if (room.joined) {
@@ -103,6 +112,7 @@ public:
 		if (!OpenDue(nowMs, room)) return Step::None;
 		Opened(nowMs, false);
 		leaving_ = false;
+		joining_ = target_;
 		// Whatever this join lands in is the match's room, and this follower's to leave.
 		Own(target_);
 		return Step::Join;
@@ -149,6 +159,9 @@ private:
 	// open's successor is never taken for it; a Leave of a room no longer named is out.
 	bool requested_ = false, openUnderWay_ = false, hosting_ = false, leaving_ = false;
 	std::uint64_t openedAtMs_ = 0;
+	unsigned failedJoins_ = 0;
+	// The room the last join asked for: its failure counts only while it is still the target.
+	std::string joining_;
 	// Every room its joins named or its hosts landed in: the only rooms it leaves.
 	std::vector<std::string> ownRooms_;
 	// A Leave is wanted on the next tick, or held for the last battle.

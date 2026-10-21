@@ -44,7 +44,7 @@ private:
 // before dispatch, the request ids answered no.
 struct CommandBatch { std::vector<Command> dispatch; std::vector<std::uint64_t> refused; };
 // 1. A command for another battle is refused, an Interrupt among them.
-// 2. An AdvanceRecording for this battle sent before its Interrupt is
+// 2. An AdvanceRecording or Record for this battle sent before its Interrupt is
 //    refused: the Interrupt came after it and wins.
 // 3. The rest go in the order they were sent.
 inline CommandBatch PrepareBatch(const std::deque<Command>& taken, const std::vector<std::uint64_t>& replaced, std::uint64_t generation) {
@@ -55,7 +55,8 @@ inline CommandBatch PrepareBatch(const std::deque<Command>& taken, const std::ve
         if (taken[at].generation == generation && taken[at].action == Action::Interrupt) interrupt = at;
     for (std::size_t at = 0; at < taken.size(); ++at) {
         const Command& command = taken[at];
-        if (command.generation != generation || (at < interrupt && interrupt < taken.size() && command.action == Action::AdvanceRecording))
+        if (command.generation != generation || (at < interrupt && interrupt < taken.size() &&
+            (command.action == Action::AdvanceRecording || command.action == Action::Record)))
             batch.refused.push_back(command.requestId);
         else batch.dispatch.push_back(command);
     }

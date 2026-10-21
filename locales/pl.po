@@ -4210,6 +4210,9 @@ msgstr "Przeciwnik: {0}. Grasz jako gracz {1}."
 msgid "tournament.play"
 msgstr "Graj"
 
+msgid "tournament.play_round"
+msgstr "Graj: {0}"
+
 msgid "tournament.play_detail"
 msgstr "Otwiera pokój tego meczu lub do niego dołącza. Wynik każdej walki trafia do serwisu turniejowego sam."
 
@@ -4271,7 +4274,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Skopiuj link meczu ze strony turnieju, a potem wybierz tę opcję, aby otworzyć mecz tutaj."
 
 msgid "tournament.link_opened"
-msgstr "Strona turnieju otworzyła mecz. Naciśnij Graj, gdy będziesz gotów."
+msgstr "Strona turnieju otworzyła twój mecz. Ember dołączy do jego pokoju, gdy tylko będzie mógł."
 
 msgid "tournament.assigned_notice"
 msgstr "Mecz turniejowy czeka na Ciebie. Otwórz Ember ID, a potem Mecze turniejowe."
@@ -5673,6 +5676,36 @@ msgstr "{0} działa teraz jak {1}."
 
 msgid "button_layout.extra_off"
 msgstr "{0} nic teraz nie robi."
+
+msgid "button_layout.copy_view_detail"
+msgstr "W treningu stuknięcie przywraca pozycję, a przytrzymanie ją zapisuje, jak Wstecz."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Wstrzymuje walkę i otwiera Embera w menu głównym, jak Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} nie kopiuje jeszcze żadnego przycisku. Wybierz go w wierszu poniżej, a potem naciśnij tutaj."
+
+msgid "button_layout.training_record"
+msgstr "Nagrywanie w treningu"
+
+msgid "button_layout.training_play"
+msgstr "Odtwarzanie w treningu"
+
+msgid "button_layout.training_record_detail"
+msgstr "Wybierz, a potem naciśnij przycisk, który w treningu rozpoczyna i kończy nagrywanie, jak F7. W treningu ten przycisk tylko nagrywa; w walkach zachowuje swój atak."
+
+msgid "button_layout.training_play_detail"
+msgstr "Wybierz, a potem naciśnij przycisk, który w treningu odtwarza i zatrzymuje wybrany slot, jak F8. W treningu ten przycisk tylko odtwarza; w walkach zachowuje swój atak."
+
+msgid "button_layout.training_clear"
+msgstr "Wyczyść przyciski treningu"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Wyłącza przyciski nagrywania i odtwarzania w treningu."
+
+msgid "button_layout.training_cleared"
+msgstr "Przyciski treningu są wyłączone."
 
 msgid "room.delay_policy"
 msgstr "Opóźnienie wejścia w pokoju"
