@@ -20,13 +20,13 @@ positions and no numbers (Rankings). The research behind it is
   with a fighter who has no Discord account counts for neither.
 - The rating is Glicko-2 with one game per rating period, and it never leaves
   the bridge. Only the class does.
-- A new player has no class until the rating is sure enough, about ten games
-  against settled players.
+- A new player has no class until the rating is sure enough (a deviation of
+  200 or less), about three games against settled players.
 - A class changes only when the rating has crossed into another class by a
   margin (25 points) since the class last shown, so one good or bad evening
   rarely moves it. There is no promotion match and no announcement.
-- The rating grows less sure with each day without a game. After about two
-  months the class shows faint until a few games settle it again; it never
+- The rating grows less sure with each day without a game. After most of a
+  year the class shows faint until a few games settle it again; it never
   drops on its own.
 - Classes are fixed rating ranges, not percentiles, so a class cannot change
   because other people played. The 1500 every player starts at is the floor
@@ -51,8 +51,9 @@ stronger opponent, a weaker friend, a long set or a break.
 - A long set with one friend does not swing either class. Past eight games
   against the same opponent in one sitting, each game counts a quarter; a
   sitting ends after three hours without a game between the two.
-- Games while a rating is still placing count in full: it needs them to
-  settle, and its gap to anyone says little yet.
+- Games while a rating is still unsure (a deviation above 110, about the
+  first ten games) count in full: it needs them to settle, and its gap to
+  anyone says little yet.
 - A class never drops on its own, needs a margin to move, and has no number,
   no position on the board and no promotion match to play for.
 
