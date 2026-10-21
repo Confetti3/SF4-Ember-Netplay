@@ -154,9 +154,10 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 	waitingForOpponent_ = false;
 	// The named room could not be joined twice running: its host left or its
 	// game closed. This game hosts a new room and publishes it in that one's
-	// place, which the bridge refuses while a game of the match is undecided.
+	// place, which the bridge refuses while a game of the match is undecided;
+	// none is tried while this game holds a permit or a report not yet settled.
 	// Decided before Follow, so a tick never sends a join and a host at once.
-	if (room_.Aimed() && room_.FailedJoins() >= ReplaceAfterFailedJoins && !room.joined && !room.opening) {
+	if (room_.Aimed() && room_.FailedJoins() >= ReplaceAfterFailedJoins && !room.joined && !room.opening && AttemptsSettled()) {
 		replacing_ = room_.Target();
 		room_.Forget();
 		published_ = false;
@@ -311,10 +312,16 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 		// The room being replaced is still the bridge's answer to a claim until
 		// the new one is published: it is not joined again meanwhile.
 		if (!replacing_.empty() && request == Output::Kind::Claim && reply.roomId == replacing_) break;
+		const bool hadRoom = room_.Aimed() || !replacing_.empty() || binding_.has_value();
 		replacing_.clear();
 		leaseId_.clear();
 		fence_.clear();
-		if (room_.Aim(reply.roomId, reply.invitation) && request == Output::Kind::Claim) published_ = false;
+		const bool changed = room_.Aim(reply.roomId, reply.invitation);
+		if (changed && request == Output::Kind::Claim) published_ = false;
+		// A room after another (one replaced, by either fighter) numbers its
+		// games from 1 again: the last room's settled games are retired, so
+		// the new room's game 1 asks for a permit and reports of its own.
+		if (changed && hadRoom) RetireRoomAttempts();
 		if (reply.binding && reply.binding->roomId == reply.roomId &&
 			(!binding_ || binding_->roomId != reply.binding->roomId || binding_->room.SupersededBy(reply.binding->room)))
 			binding_ = reply.binding;
@@ -322,8 +329,26 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 	}
 }
 
+void TournamentPlay::RetireRoomAttempts() {
+	// A report not saved yet keeps its permit and game: it is the last room's
+	// result and still goes out under its own generation.
+	const auto unsaved = [&](std::uint64_t generation) { return unsaved_.count(generation) != 0; };
+	for (auto it = permits_.begin(); it != permits_.end();) it = unsaved(it->first) ? std::next(it) : permits_.erase(it);
+	for (auto it = permitToldMs_.begin(); it != permitToldMs_.end();) it = unsaved(it->first) ? std::next(it) : permitToldMs_.erase(it);
+	for (auto it = started_.begin(); it != started_.end();) it = unsaved(*it) ? std::next(it) : started_.erase(it);
+	for (auto it = reported_.begin(); it != reported_.end();) it = unsaved(*it) ? std::next(it) : reported_.erase(it);
+	// A prepare sent for the last room answers for it: that answer is dropped.
+	dropPrepare_ = prepareInFlight_;
+}
+
+bool TournamentPlay::AttemptsSettled() const {
+	return unsaved_.empty() && !prepareInFlight_ &&
+		std::all_of(permits_.begin(), permits_.end(), [&](const auto& held) { return reported_.count(held.first) != 0; });
+}
+
 void TournamentPlay::OnPrepare(const PrepareReply& reply, std::uint64_t nowMs) {
 	prepareInFlight_ = false;
+	if (dropPrepare_) { dropPrepare_ = false; return; }
 	if (reply.permitted && reply.generation && !reply.permitId.empty()) {
 		permits_[reply.generation] = {reply.permitId, reply.startWindowMs};
 		permitToldMs_[reply.generation] = 0;
@@ -354,6 +379,7 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 		break;
 	case Output::Kind::Prepare:
 		prepareInFlight_ = false;
+		dropPrepare_ = false;
 		nextPrepareMs_ = nowMs + (code == "stale_revision" ? PrepareIntervalMs : RetryMs);
 		// A stale binding: a claim brings the current one.
 		if (code == "stale_revision") nextClaimMs_ = nowMs;

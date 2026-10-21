@@ -306,7 +306,7 @@ void StartHelper() {
         SetEnvironmentVariableA("SF4E_MATCH_LINK", nullptr);
         const std::string value = length && length < sizeof(text) ? std::string(text, length) : std::string();
         const auto split = value.find(' ');
-        if (split != std::string::npos) OpenMatchLink(tournament_link::Checked(value.substr(0, split), value.substr(split + 1)));
+        if (split != std::string::npos) OpenMatchLink(tournament_link::Checked(value.substr(0, split), value.substr(split + 1)), true);
         if (!runtime->matchLinks.Open()) spdlog::warn("Tournament: match links from the browser cannot reach this game");
     }
     {

@@ -105,6 +105,9 @@ struct OpenedLink {
 	// menu (in a room, a match or offline play): Ember asks before going on.
 	// One that started Ember, or arrived at the main menu, goes on by itself.
 	bool confirm = false;
+	// A match link the player clicked while free, still within two minutes of
+	// arriving: it plays its match by itself (ui::IdentityPanel::OpenMatch).
+	bool direct = false;
 };
 
 // The last public room link a browser opened: the service and room it named.

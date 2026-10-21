@@ -130,7 +130,7 @@ void IdentityJourneys() {
  // for a player who is free, plays it by itself once the list shows it playable.
  t=netplay::tournament::Status{};t.list.bridge="brg_1";t.list.items={playable};
  const auto before=h.played().size();
- t.link.bridge="brg_1";t.link.match="emt_1";t.link.sequence=1;h.Frame(0,3);
+ t.link.bridge="brg_1";t.link.match="emt_1";t.link.sequence=1;t.link.direct=true;h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="tournament-matches"&&h.shell.Navigation().Focus()=="tm-play:emt_1",
   "A match link did not open its match's row");
  std::size_t plays=0;for(std::size_t i=before;i<h.played().size();++i)plays+=h.played()[i]->op==Command::Op::Play&&h.played()[i]->matchId=="emt_1";
@@ -154,6 +154,18 @@ void IdentityJourneys() {
   Check(refreshes>=2,"A link waiting for its match did not read the list again");
   t.list.items={playable};h.Frame(0,3);
   Check(h.played().back()->op==Command::Op::Play&&h.played().back()->matchId=="emt_1","A link's match did not play once the list showed it playable");
+ }
+ // A link the runtime judged busy when it arrived (clicked during a fight,
+ // say) waits for Play, and one whose two minutes from arrival run out
+ // before its match is playable stops waiting.
+ {
+  const auto mark=h.played().size();
+  t.link.sequence=12;t.link.direct=false;h.Frame(0,3);
+  auto later=playable;later.state="running";t.list.items={later};
+  t.link.sequence=13;t.link.direct=true;h.Frame(0,3);t.link.direct=false;h.Frame(0,3);
+  t.list.items={playable};h.Frame(0,3);
+  bool played=false;for(std::size_t i=mark;i<h.played().size();++i)played|=h.played()[i]->op==Command::Op::Play;
+  Check(!played,"A match link the runtime judged busy, or past its time, played by itself");
  }
  // A match the refreshed list does not hold is not the player's.
  t.link.match="emt_9";t.link.sequence=2;h.Frame(0,2);

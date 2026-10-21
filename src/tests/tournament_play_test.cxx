@@ -808,6 +808,87 @@ static void TestGoneHostIsReplaced() {
 	out = once.Tick(OpenTimeoutMs + 400, Joined(RoomA, &snapshot));
 	CHECK(Count(out, Kind::Host) == 0 && once.GetPhase() == Phase::InRoom);
 }
+
+// A room after another numbers its games from 1 again: once the match moves
+// to a replacement room, the last room's settled game 1 neither stands in for
+// the new game 1's permit nor keeps its result from being reported.
+static void TestReplacementRoomStartsItsGamesAgain() {
+	TournamentPlay play;
+	play.Start("brg_x", "emt_x", 0);
+	play.Tick(0, {});
+	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 0);
+	JoinNamed(play, 50);
+	room::Snapshot first;
+	first.tournament = MakeBinding(RoomA, 1).room;
+	auto& table = first.tables[room::TournamentTable];
+	table.phase = room::TablePhase::Ready;
+	table.permitGeneration = 1;
+	CHECK(Count(play.Tick(100, Joined(RoomA, &first, false)), Kind::Prepare) == 1);
+	PrepareReply permitted;
+	permitted.permitted = true;
+	permitted.generation = 1;
+	permitted.permitId = "per_a";
+	permitted.startWindowMs = 90000;
+	play.OnPrepare(permitted, 200);
+	table.permits[1] = "per_a";
+	table.phase = room::TablePhase::Playing;
+	table.matchGeneration = 1;
+	table.permitGeneration = 0;
+	play.Tick(300, Joined(RoomA, &first, false));
+	play.OnTerminal(1, room::MatchResult::P1Win, 10, 9);
+	CHECK(Count(play.Tick(400, Joined(RoomA, &first, false)), Kind::Report) == 1);
+	play.OnReported(1);
+	// The other fighter replaced the room: the bridge names B, a new assignment.
+	auto moved = MakeBinding(RoomB, 1);
+	moved.room.assignmentGeneration = 2;
+	play.OnRoom(Kind::Claim, Room(RoomB, moved), 500);
+	CHECK(Count(play.Tick(600, Joined(RoomA, &first, false)), Kind::Leave) == 1);
+	CHECK(Count(play.Tick(700, {}), Kind::Join) == 1);
+	room::Snapshot second;
+	second.tournament = moved.room;
+	auto& next = second.tables[room::TournamentTable];
+	next.phase = room::TablePhase::Ready;
+	next.permitGeneration = 1;
+	auto out = play.Tick(800, Joined(RoomB, &second, false));
+	CHECK(Count(out, Kind::Prepare) == 1 && Count(out, Kind::PermitReady) == 0);
+	permitted.permitId = "per_b";
+	play.OnPrepare(permitted, 900);
+	out = play.Tick(1000, Joined(RoomB, &second, false));
+	const auto* ready = Find(out, Kind::PermitReady);
+	CHECK(ready && ready->permitId == "per_b");
+	next.permits[1] = "per_b";
+	next.phase = room::TablePhase::Playing;
+	next.matchGeneration = 1;
+	next.permitGeneration = 0;
+	play.Tick(1100, Joined(RoomB, &second, false));
+	play.OnTerminal(1, room::MatchResult::P2Win, 20, 19);
+	out = play.Tick(1200, Joined(RoomB, &second, false));
+	const auto* report = Find(out, Kind::Report);
+	CHECK(report && report->generation == 1 && report->result == "p2_win");
+
+	// A prepare out when the room changed answers for the last room: dropped.
+	TournamentPlay late;
+	late.Start("brg_x", "emt_x", 0);
+	late.Tick(0, {});
+	late.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 0);
+	JoinNamed(late, 50);
+	room::Snapshot waiting;
+	waiting.tournament = MakeBinding(RoomA, 1).room;
+	waiting.tables[room::TournamentTable].phase = room::TablePhase::Ready;
+	waiting.tables[room::TournamentTable].permitGeneration = 1;
+	CHECK(Count(late.Tick(100, Joined(RoomA, &waiting, false)), Kind::Prepare) == 1);
+	late.OnRoom(Kind::Claim, Room(RoomB, moved), 150);
+	permitted.permitId = "per_old";
+	late.OnPrepare(permitted, 200);
+	late.Tick(300, Joined(RoomA, &waiting, false));
+	late.Tick(400, {});
+	room::Snapshot fresh;
+	fresh.tournament = moved.room;
+	fresh.tables[room::TournamentTable].phase = room::TablePhase::Ready;
+	fresh.tables[room::TournamentTable].permitGeneration = 1;
+	out = late.Tick(500, Joined(RoomB, &fresh, false));
+	CHECK(Count(out, Kind::Prepare) == 1 && Count(out, Kind::PermitReady) == 0);
+}
 int main() {
 	TestHostPublishesAndBinds();
 	TestACasualGameHoldsTheFirstBinding();
@@ -823,6 +904,7 @@ int main() {
 	TestOrderingAndLeases();
 	TestReadyGoesWithTheClaim();
 	TestGoneHostIsReplaced();
+	TestReplacementRoomStartsItsGamesAgain();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("tournament play tests passed\n");
 	return failures ? 1 : 0;

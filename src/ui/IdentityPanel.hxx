@@ -40,11 +40,13 @@ public:
     static std::string TournamentFailure(const std::string& code);
     // A match link named this match: the matches screen selects its service,
     // refreshes the list and focuses the match's Play row. `playNow`: the
-    // player just clicked or pasted the link while free, so the match plays
-    // by itself once the list shows it playable, within LinkPlaySeconds, while
-    // the matches screen is shown. A service the player does not trust, or a
-    // match not in their list, is said instead.
-    void OpenMatch(const std::string& bridge, const std::string& match, bool playNow = false);
+    // player just clicked or pasted the link while free, so the match plays by
+    // itself once the list shows it playable, while the matches screen is
+    // shown: for a browser link (`linkSequence`, its OpenedLink::sequence) as
+    // long as the runtime says it is direct, for a pasted one LinkPlaySeconds.
+    // A service the player does not trust, or a match not in their list, is
+    // said instead.
+    void OpenMatch(const std::string& bridge, const std::string& match, bool playNow = false, std::uint64_t linkSequence = 0);
     // Whether a match link arriving now may play its match by itself: no room,
     // no game, and no tournament match played or watched (OpenMatch's playNow).
     static bool LinkMayPlay(const ShellView& v);
@@ -404,7 +406,7 @@ private:
     };
     std::optional<OpenedMatch> opened_;
     // The match a fresh link plays by itself, and until when (OpenMatch).
-    struct LinkedPlay { std::string match; double until = 0; };
+    struct LinkedPlay { std::string match; double until = 0; std::uint64_t linkSequence = 0; };
     std::optional<LinkedPlay> linkedPlay_;
     // The match a link named that the player may only watch: it is not in their
     // list, or its service is not trusted. Its row stays until another link opens.

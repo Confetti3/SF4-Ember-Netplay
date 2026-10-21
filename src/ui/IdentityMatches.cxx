@@ -38,11 +38,11 @@ std::string PlayState(const netplay::tournament::Status& t) {
 }
 }
 
-void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match, bool playNow) {
+void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match, bool playNow, std::uint64_t linkSequence) {
     bridge_ = bridge;
     wantAssignments_ = true;
     opened_ = OpenedMatch{bridge, "tm-play:" + match, std::nullopt, match};
-    if (playNow) linkedPlay_ = LinkedPlay{match, now_ + LinkPlaySeconds};
+    if (playNow) linkedPlay_ = LinkedPlay{match, now_ + LinkPlaySeconds, linkSequence};
     else linkedPlay_.reset();
     watchBridge_.clear(); watchMatch_.clear();
     // The fresh service list says whether the player trusts this one.
@@ -122,7 +122,8 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     const bool watching = now_ < restartWatchUntil_;
     // A fresh link's match plays by itself once the list shows it playable,
     // with the checks Play has, while the player looks at the matches screen.
-    if (linkedPlay_ && now_ > linkedPlay_->until) linkedPlay_.reset();
+    if (linkedPlay_ && (linkedPlay_->linkSequence ? !t.link.direct || t.link.sequence != linkedPlay_->linkSequence : now_ > linkedPlay_->until))
+        linkedPlay_.reset();
     if (!play_ && linkedPlay_ && screen == "tournament-matches" && v.identity.state == "ready" && FindBridge(v, bridge_) &&
         CanPlay(v, linkedPlay_->match)) {
         play_ = Command{Command::Op::Play, bridge_, linkedPlay_->match};

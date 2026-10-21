@@ -763,7 +763,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.tournament.link.sequence!=matchLinkSequence_){
   matchLinkSequence_=v.tournament.link.sequence;
   const bool idle=v.session.room==RoomState::Idle;
-  identity_.OpenMatch(v.tournament.link.bridge,v.tournament.link.match,IdentityPanel::LinkMayPlay(v));
+  identity_.OpenMatch(v.tournament.link.bridge,v.tournament.link.match,v.tournament.link.direct&&IdentityPanel::LinkMayPlay(v),v.tournament.link.sequence);
   if(idle){
    if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
    notice_=loc::T("tournament.link_opened");noticeTone_=Tone::Success;

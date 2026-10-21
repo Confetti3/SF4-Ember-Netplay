@@ -143,6 +143,11 @@ private:
 	void SendReport(Output report, std::vector<Output>& out);
 	void ResendReports(std::uint64_t nowMs, std::vector<Output>& out);
 	void ReportsSettled();
+	// The match moved to another room: its settled permits and games go (OnRoom).
+	void RetireRoomAttempts();
+	// No permit is held for a game not reported, no report waits to be saved,
+	// and no prepare is out: a room may be replaced.
+	bool AttemptsSettled() const;
 
 	Phase phase_ = Phase::Idle;
 	std::string bridgeId_, matchId_, reason_;
@@ -180,6 +185,8 @@ private:
 	// game is prepared while one is unsaved.
 	struct UnsavedReport { Output report; int attempts = 0; bool inFlight = false; std::uint64_t retryAtMs = 0; };
 	std::map<std::uint64_t, UnsavedReport> unsaved_;
+	// The prepare out when the room changed answers for the last room.
+	bool dropPrepare_ = false;
 	bool forgetAfterReports_ = false;
 	// The last game whose link to the other fighter dropped, and whether the
 	// last report sent was that game's abort. Any other report, a cancel or
