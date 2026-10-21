@@ -569,8 +569,8 @@ async fn webhooks_arrive_in_event_order() {
     );
 }
 
-// An event the receiver refuses with a 4xx is dead at once, so the next one
-// follows without waiting out the retry budget; 408 and 429 are retried.
+// An event the receiver refuses with a 4xx is dead at once, the subscription
+// stays on, and the next event follows without waiting out the retry budget.
 #[tokio::test]
 async fn a_refused_webhook_does_not_hold_back_the_next() {
     let f = fixture().await;

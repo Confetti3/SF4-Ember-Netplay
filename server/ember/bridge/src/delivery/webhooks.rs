@@ -104,8 +104,9 @@ impl Queue for Webhooks {
                 leased.attempt
             ],
         )?;
-        // The receiver said the endpoint is gone (410).
-        if changed == 1 && matches!(record.settled, Settled::Refused(_)) {
+        // The receiver said the endpoint is gone (410). Any other refusal
+        // ends only that event.
+        if changed == 1 && matches!(&record.settled, Settled::Refused(error) if error == GONE) {
             tx.execute(
                 "UPDATE webhook_subscriptions SET enabled = 0, disabled_at = ?1 WHERE id = ?2",
                 params![record.at, leased.item.subscription_id],
@@ -173,7 +174,7 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
     match answer {
         Err(outcome) => outcome,
         Ok(answer) if (200..300).contains(&answer.status) => Outcome::Delivered,
-        Ok(answer) if answer.status == 410 => Outcome::Refused("gone".to_owned()),
+        Ok(answer) if answer.status == 410 => Outcome::Refused(GONE.to_owned()),
         // A receiver that refuses an event (a 4xx other than a timeout or a
         // rate limit) refuses it again, and the subscription's later events
         // wait behind it: it is dead at once.
@@ -186,6 +187,9 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
         },
     }
 }
+
+/// A 410's refusal, the one that also disables the subscription.
+const GONE: &str = "gone";
 
 /// A receiver's answer no retry changes: a 4xx but 408 Request Timeout and
 /// 429 Too Many Requests.
