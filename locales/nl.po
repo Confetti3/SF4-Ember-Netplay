@@ -6587,6 +6587,36 @@ msgstr "V2 (voorproef)"
 msgid "settings.look_detail"
 msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw. Je kunt altijd terugschakelen: alleen hoe de schermen eruitzien verandert."
 
+msgid "settings.tab.player"
+msgstr "Speler"
+
+msgid "settings.tab.matches"
+msgstr "Wedstrijden"
+
+msgid "settings.tab.interface"
+msgstr "Interface"
+
+msgid "settings.tab.accessibility"
+msgstr "Toegankelijkheid"
+
+msgid "settings.tab.online"
+msgstr "Online"
+
+msgid "settings.tab.about"
+msgstr "Over"
+
+msgid "settings.group.look"
+msgstr "Uiterlijk"
+
+msgid "settings.group.sounds"
+msgstr "Geluiden"
+
+msgid "settings.group.text"
+msgstr "Tekst en taal"
+
+msgid "settings.group.help"
+msgstr "Hulp op het scherm"
+
 
 msgid "class.developer"
 msgstr "Dev"

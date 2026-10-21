@@ -20,6 +20,7 @@
 #include <xinput.h>
 #include <d3d9.h>
 #include <algorithm>
+#include <cfloat>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -177,7 +178,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         // The V2 scale rule, max(DPI, height / 1080), which the picture-scale branch brings to the game.
         if (ui::ApplyTheme((std::max)(ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd), height / 1080.f), textSize)) ImGui_ImplDX9_InvalidateDeviceObjects();
         art.Pump();
-        ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();
+        ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame();
+        // Scripted shots keep the real mouse out of it: hovering a card focuses it.
+        if (!shot.empty()) ImGui::GetIO().AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+        ImGui::NewFrame();
         // A scripted key is held for 3 frames and released for 3, from frame 30 (a new screen ignores its first frames).
         unsigned held = PadButtons();
         const int scripted = frame - 30;

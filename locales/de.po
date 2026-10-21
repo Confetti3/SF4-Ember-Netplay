@@ -6587,6 +6587,36 @@ msgstr "V2 (Vorschau)"
 msgid "settings.look_detail"
 msgstr "Embers neues Aussehen, noch im Aufbau. Sie können jederzeit zurückwechseln: Nur das Aussehen der Bildschirme ändert sich."
 
+msgid "settings.tab.player"
+msgstr "Spieler"
+
+msgid "settings.tab.matches"
+msgstr "Matches"
+
+msgid "settings.tab.interface"
+msgstr "Oberfläche"
+
+msgid "settings.tab.accessibility"
+msgstr "Barrierefreiheit"
+
+msgid "settings.tab.online"
+msgstr "Online"
+
+msgid "settings.tab.about"
+msgstr "Info"
+
+msgid "settings.group.look"
+msgstr "Aussehen"
+
+msgid "settings.group.sounds"
+msgstr "Töne"
+
+msgid "settings.group.text"
+msgstr "Text und Sprache"
+
+msgid "settings.group.help"
+msgstr "Hilfe auf dem Bildschirm"
+
 
 msgid "class.developer"
 msgstr "Dev"

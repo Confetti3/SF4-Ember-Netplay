@@ -6588,6 +6588,36 @@ msgstr "V2 (미리 보기)"
 msgid "settings.look_detail"
 msgstr "아직 만드는 중인 Ember의 새 모양입니다. 언제든 되돌릴 수 있으며, 화면의 모양만 바뀝니다."
 
+msgid "settings.tab.player"
+msgstr "플레이어"
+
+msgid "settings.tab.matches"
+msgstr "대전"
+
+msgid "settings.tab.interface"
+msgstr "인터페이스"
+
+msgid "settings.tab.accessibility"
+msgstr "접근성"
+
+msgid "settings.tab.online"
+msgstr "온라인"
+
+msgid "settings.tab.about"
+msgstr "정보"
+
+msgid "settings.group.look"
+msgstr "모양"
+
+msgid "settings.group.sounds"
+msgstr "소리"
+
+msgid "settings.group.text"
+msgstr "글자와 언어"
+
+msgid "settings.group.help"
+msgstr "화면 도움말"
+
 
 msgid "class.developer"
 msgstr "개발"

@@ -6588,6 +6588,36 @@ msgstr "V2 (vista previa)"
 msgid "settings.look_detail"
 msgstr "El nuevo aspecto de Ember, todavía en desarrollo. Puedes volver cuando quieras: solo cambia cómo se ven las pantallas."
 
+msgid "settings.tab.player"
+msgstr "Jugador"
+
+msgid "settings.tab.matches"
+msgstr "Partidas"
+
+msgid "settings.tab.interface"
+msgstr "Interfaz"
+
+msgid "settings.tab.accessibility"
+msgstr "Accesibilidad"
+
+msgid "settings.tab.online"
+msgstr "En línea"
+
+msgid "settings.tab.about"
+msgstr "Acerca de"
+
+msgid "settings.group.look"
+msgstr "Aspecto"
+
+msgid "settings.group.sounds"
+msgstr "Sonidos"
+
+msgid "settings.group.text"
+msgstr "Texto e idioma"
+
+msgid "settings.group.help"
+msgstr "Ayuda en pantalla"
+
 
 msgid "class.developer"
 msgstr "Dev"

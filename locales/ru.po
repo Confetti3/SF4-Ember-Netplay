@@ -6588,6 +6588,36 @@ msgstr "V2 (предпросмотр)"
 msgid "settings.look_detail"
 msgstr "Новый внешний вид Ember, он ещё в работе. Вернуться можно в любой момент: меняется только вид экранов."
 
+msgid "settings.tab.player"
+msgstr "Игрок"
+
+msgid "settings.tab.matches"
+msgstr "Матчи"
+
+msgid "settings.tab.interface"
+msgstr "Интерфейс"
+
+msgid "settings.tab.accessibility"
+msgstr "Доступность"
+
+msgid "settings.tab.online"
+msgstr "Онлайн"
+
+msgid "settings.tab.about"
+msgstr "О программе"
+
+msgid "settings.group.look"
+msgstr "Внешний вид"
+
+msgid "settings.group.sounds"
+msgstr "Звуки"
+
+msgid "settings.group.text"
+msgstr "Текст и язык"
+
+msgid "settings.group.help"
+msgstr "Подсказки на экране"
+
 
 msgid "class.developer"
 msgstr "Dev"

@@ -109,6 +109,13 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             const auto& e = entries[i];
             const bool focused = e.id == navigation.Focus(), enabled = feedback_.Enabled(e), cell = i < cells;
             if (cell && i % columns) ImGui::SameLine(0, gap);
+            // A group's heading over its first card: caps, muted, with room above it after a group.
+            if (!cell && !e.group.empty() && (i == 0 || entries[i - 1].group != e.group)) {
+                if (i) ImGui::Dummy(ImVec2(0, 8 * s));
+                const auto at = ImGui::GetCursorScreenPos();
+                ld->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y + 4 * s), palette::Muted, e.group.c_str());
+                ImGui::Dummy(ImVec2(full, 18 * s));
+            }
             const float w = cell ? cellWidth : full;
             const float h = cell ? cardHeight * s : e.height > 0 ? e.height * s : (twoLines && !e.detail.empty() ? 64 : 52) * s;
             const auto p = ImGui::GetCursorScreenPos();

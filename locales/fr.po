@@ -6587,6 +6587,36 @@ msgstr "V2 (aperçu)"
 msgid "settings.look_detail"
 msgstr "La nouvelle apparence d'Ember, encore en construction. Vous pouvez revenir en arrière à tout moment : seul l'aspect des écrans change."
 
+msgid "settings.tab.player"
+msgstr "Joueur"
+
+msgid "settings.tab.matches"
+msgstr "Matchs"
+
+msgid "settings.tab.interface"
+msgstr "Interface"
+
+msgid "settings.tab.accessibility"
+msgstr "Accessibilité"
+
+msgid "settings.tab.online"
+msgstr "En ligne"
+
+msgid "settings.tab.about"
+msgstr "À propos"
+
+msgid "settings.group.look"
+msgstr "Apparence"
+
+msgid "settings.group.sounds"
+msgstr "Sons"
+
+msgid "settings.group.text"
+msgstr "Texte et langue"
+
+msgid "settings.group.help"
+msgstr "Aide à l'écran"
+
 
 msgid "class.developer"
 msgstr "Dev"

@@ -6588,6 +6588,36 @@ msgstr "V2（预览）"
 msgid "settings.look_detail"
 msgstr "Ember 正在制作中的新外观。可随时切换回去：只改变界面的样子。"
 
+msgid "settings.tab.player"
+msgstr "玩家"
+
+msgid "settings.tab.matches"
+msgstr "对战"
+
+msgid "settings.tab.interface"
+msgstr "界面"
+
+msgid "settings.tab.accessibility"
+msgstr "无障碍"
+
+msgid "settings.tab.online"
+msgstr "在线"
+
+msgid "settings.tab.about"
+msgstr "关于"
+
+msgid "settings.group.look"
+msgstr "外观"
+
+msgid "settings.group.sounds"
+msgstr "声音"
+
+msgid "settings.group.text"
+msgstr "文字与语言"
+
+msgid "settings.group.help"
+msgstr "屏幕帮助"
+
 
 msgid "class.developer"
 msgstr "开发"

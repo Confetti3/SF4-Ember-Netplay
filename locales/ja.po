@@ -6588,6 +6588,36 @@ msgstr "V2（プレビュー）"
 msgid "settings.look_detail"
 msgstr "制作中の Ember の新しい外観です。いつでも元に戻せます。変わるのは画面の見た目だけです。"
 
+msgid "settings.tab.player"
+msgstr "プレイヤー"
+
+msgid "settings.tab.matches"
+msgstr "対戦"
+
+msgid "settings.tab.interface"
+msgstr "インターフェース"
+
+msgid "settings.tab.accessibility"
+msgstr "アクセシビリティ"
+
+msgid "settings.tab.online"
+msgstr "オンライン"
+
+msgid "settings.tab.about"
+msgstr "情報"
+
+msgid "settings.group.look"
+msgstr "外観"
+
+msgid "settings.group.sounds"
+msgstr "サウンド"
+
+msgid "settings.group.text"
+msgstr "文字と言語"
+
+msgid "settings.group.help"
+msgstr "画面のヘルプ"
+
 
 msgid "class.developer"
 msgstr "開発"

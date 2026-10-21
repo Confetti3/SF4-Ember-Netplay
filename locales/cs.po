@@ -6587,6 +6587,36 @@ msgstr "V2 (náhled)"
 msgid "settings.look_detail"
 msgstr "Nový vzhled Emberu, který ještě vzniká. Kdykoli můžete přepnout zpět: mění se jen vzhled obrazovek."
 
+msgid "settings.tab.player"
+msgstr "Hráč"
+
+msgid "settings.tab.matches"
+msgstr "Zápasy"
+
+msgid "settings.tab.interface"
+msgstr "Rozhraní"
+
+msgid "settings.tab.accessibility"
+msgstr "Přístupnost"
+
+msgid "settings.tab.online"
+msgstr "Online"
+
+msgid "settings.tab.about"
+msgstr "O aplikaci"
+
+msgid "settings.group.look"
+msgstr "Vzhled"
+
+msgid "settings.group.sounds"
+msgstr "Zvuky"
+
+msgid "settings.group.text"
+msgstr "Text a jazyk"
+
+msgid "settings.group.help"
+msgstr "Nápověda na obrazovce"
+
 
 msgid "class.developer"
 msgstr "Dev"

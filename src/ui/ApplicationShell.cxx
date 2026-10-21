@@ -198,6 +198,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),std::string(v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))+"\n"+loc::T("controller.keep_current"))};
   rows[0].hint=loc::T("common.cancel");
   rows[0].detailText=DetailText::Name;
+ }else if(v2::On()&&SettingsTab(screen)){rows=SettingsTabRows(v,screen,idle,opening,selection,developer,title);
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
@@ -372,7 +373,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
+ const bool personal=SettingsTab(screen)||screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -518,6 +519,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
+ else if(a.id=="settings"&&v2::On())nav.Push("tab-player");
  else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
@@ -905,13 +907,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
  else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
- // V2: Settings' pages as tabs, on Settings and on each page it opens.
+ // V2: Settings is six tabs.
  menu_.tabs.clear();menu_.tab=-1;
- if(v2::On()&&(screen=="settings"||nav.Parent()=="settings")){
-  menu_.tabs={{"player",loc::T("screen.player")},{"defaults",loc::T("screen.defaults")},{"interface",loc::T("settings.interface")},
-   {"training-replays",loc::T("settings.training_replays")},{"discord",loc::T("screen.discord")},{"problem-reports",loc::T("reports.settings_title")},{"about",loc::T("home.about")}};
+ if(v2::On()&&SettingsTab(screen)){
+  menu_.tabs=SettingsTabs();
   for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==screen)menu_.tab=i;
-  if(menu_.tab<0&&screen!="settings")menu_.tabs.clear();
  }
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
@@ -947,7 +947,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(open&&input::HomeBackHidesShell(v.session.room))*open=false;
  }else if(a.kind==MenuAction::Shortcut){
   // A V2 tab names the page it shows.
-  if(!a.id.empty()){if(screen!="settings")nav.Return();nav.Push(a.id);}
+  if(!a.id.empty()){nav.Return();nav.Push(a.id);}
   else if(inRoom)RoomShortcut(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
   else if(RankingsPanel::Owns(screen))rankings_.Shortcut(a);

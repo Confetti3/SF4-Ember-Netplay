@@ -6223,6 +6223,36 @@ msgstr "V2 (preview)"
 msgid "settings.look_detail"
 msgstr "Ember's new look, still being built. Switch back at any time: only how screens look changes."
 
+msgid "settings.tab.player"
+msgstr "Player"
+
+msgid "settings.tab.matches"
+msgstr "Matches"
+
+msgid "settings.tab.interface"
+msgstr "Interface"
+
+msgid "settings.tab.accessibility"
+msgstr "Accessibility"
+
+msgid "settings.tab.online"
+msgstr "Online"
+
+msgid "settings.tab.about"
+msgstr "About"
+
+msgid "settings.group.look"
+msgstr "Look"
+
+msgid "settings.group.sounds"
+msgstr "Sounds"
+
+msgid "settings.group.text"
+msgstr "Text and language"
+
+msgid "settings.group.help"
+msgstr "On-screen help"
+
 msgid "class.developer"
 msgstr "Dev"
 
