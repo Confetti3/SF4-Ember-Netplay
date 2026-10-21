@@ -1,8 +1,9 @@
 //! The bracket site's news in a Discord channel: every `feed_secs` the
 //! notifier reads each live tournament's feed past what it already posted
 //! and posts what is new as one message, so a busy bracket costs one
-//! message a minute. What was posted is kept in its database, so a restart
-//! posts nothing twice.
+//! message a minute. A league's news (a closed season's awards) is listed
+//! the same way, with its own feed path. What was posted is kept in its
+//! database, so a restart posts nothing twice.
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -27,6 +28,9 @@ struct Live {
 struct Listed {
     id: String,
     last: u64,
+    /// Where its feed is, when not a tournament's (a league's news).
+    #[serde(default)]
+    feed: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -87,12 +91,16 @@ impl Notifier {
             if tournament.last <= after {
                 continue;
             }
-            let Ok(response) = get(format!(
-                "{base}/tournaments/{}/feed?after={after}",
-                tournament.id
-            ))
-            .await
-            else {
+            let path = match &tournament.feed {
+                Some(path)
+                    if path.starts_with('/') && !path.contains("..") && !path.contains("//") =>
+                {
+                    path.clone()
+                }
+                Some(_) => continue,
+                None => format!("/tournaments/{}/feed", tournament.id),
+            };
+            let Ok(response) = get(format!("{base}{path}?after={after}")).await else {
                 continue;
             };
             let Ok(feed) = response.json::<Feed>().await else {

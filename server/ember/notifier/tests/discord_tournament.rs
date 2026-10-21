@@ -259,7 +259,19 @@ async fn only_managers_and_its_organizers_post_a_tournament() {
 #[tokio::test]
 async fn a_live_tournaments_news_is_posted_once_as_one_message() {
     let site = Mock::start(|request| match request.path.as_str() {
-        "/live" => (200, json!({ "tournaments": [{ "id": "weekly", "last": 2 }, { "id": "quiet", "last": 0 }] }).to_string()),
+        "/live" => (
+            200,
+            json!({ "tournaments": [
+                { "id": "weekly", "last": 2 },
+                { "id": "quiet", "last": 0 },
+                { "id": "league:ember", "last": 1, "feed": "/leagues/ember/feed" },
+            ] })
+            .to_string(),
+        ),
+        _ if request.path.starts_with("/leagues/ember/feed") => (
+            200,
+            json!({ "items": [{ "n": 1, "text": "P1: Season champion of Ember League, Season 1 (100 points)." }] }).to_string(),
+        ),
         _ if request.path.starts_with("/tournaments/weekly/feed") => (
             200,
             json!({ "items": [{ "n": 1, "text": "Semifinals: P3 beats P2 2-1." }, { "n": 2, "text": "Upset: seed 3 *P3* knocks out seed 2." }] }).to_string(),
@@ -285,7 +297,7 @@ async fn a_live_tournaments_news_is_posted_once_as_one_message() {
     let posted = discord.wait_for(Method::POST, "/hook").await;
     assert_eq!(
         posted.body["content"],
-        "Semifinals: P3 beats P2 2-1.\nUpset: seed 3 \\*P3\\* knocks out seed 2."
+        "Semifinals: P3 beats P2 2-1.\nUpset: seed 3 \\*P3\\* knocks out seed 2.\nP1: Season champion of Ember League, Season 1 \\(100 points\\)."
     );
     assert_eq!(posted.body["allowed_mentions"], json!({ "parse": [] }));
     // Its answer is read, and what was posted kept, a moment after it arrives.
