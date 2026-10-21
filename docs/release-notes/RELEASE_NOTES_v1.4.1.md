@@ -1,6 +1,6 @@
 # SF4 Ember Netplay v1.4.1
 
-v1.4.1 lets you record and play in Training from your pad with a button you choose, such as a stick click. It also makes a PlayStation touchpad, or any extra button, usable when you set up your buttons, and lets those buttons stand in for Select or Start.
+v1.4.1 lets you record and play in Training from your pad with a button you choose, such as a stick click. Tournament match links now join their match by themselves, and a match whose host closed the game can be played again. It also makes a PlayStation touchpad, or any extra button, usable when you set up your buttons, and lets those buttons stand in for Select or Start.
 
 Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
@@ -20,6 +20,12 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 - **The button only records or plays in Training.** Any layout button can be chosen, including one that does an attack. In offline Training that button does nothing in the fight, so a press never attacks too. In matches and everywhere else it keeps its attack. Record and play cannot share a button, and Clear Training buttons turns both off.
 - **The shortcut strip names your buttons.** With a pad, the strip over the frame meter shows the button you chose in place of F7 or F8. Back and Start on standby still starts a recording.
 - **Quick presses act on the lab as it is.** Two Record or Play presses in a row are each decided when they arrive, so a quick double press no longer plays twice or records over a recorded slot without asking. A press made just before a room calls you back does nothing once the call comes.
+
+### Tournaments
+
+- **A match link joins its match.** Clicking a tournament match link while you are free now opens the match and joins its room by itself as soon as the match can be played, for two minutes after the click. A link clicked during a fight, in a room or during another tournament match waits for you to press Play.
+- **A match you can play is a Play row.** Tournament matches shows each playable match as Play, with its round when the site names one and the score beside it. Before, the screen said to press Play but the match was a row named after its round.
+- **A match can be played again after its host's game closed.** When the player hosting a tournament match's room closed or lost the game, neither player could get back in: Ember kept trying to join the closed room. Now, after two failed tries, Ember opens a new room for the match in its place, about 40 seconds after the first try. It waits while a game of the match is still being decided.
 
 ### Pad buttons
 
