@@ -479,7 +479,9 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
         Row("color-key",loc::T("training.color_key"),""),
         Value("meter-style",loc::T("training.meter.style"),loc::T(lab.meter.style==MeterStyle::Classic?"training.meter.style.classic":lab.meter.style==MeterStyle::Flat?"training.meter.style.flat":"training.meter.style.angled"),loc::T("training.meter.style.detail")),
         Value("frames-shown",loc::T("training.meter.frames_shown"),std::to_string(lab.meter.shown),loc::T("training.meter.frames_shown.detail")),
-        Value("hud-recovery",loc::T("training.meter.hud_recovery"),onOff(lab.meter.recovery),loc::T("training.meter.hud_recovery.detail"))};
+        Value("hud-recovery",loc::T("training.meter.hud_recovery"),onOff(lab.meter.recovery),loc::T("training.meter.hud_recovery.detail")),
+        // The meter's own settings, on a page of their own.
+        Row("meter-settings",loc::T("training.meter.settings"),loc::T("training.meter.settings.detail"))};
   rows[0].reading=rows[1].reading=rows[2].reading=true;
  }else if(screen=="hud"){
   LoadPractice();
@@ -487,8 +489,6 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   for(const auto& part:HudParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
   rows.push_back(Value("hud-inputs",loc::T("training.meter.hud_inputs"),loc::T(InputDisplayChoices[static_cast<int>(lab.meter.inputs)].label),loc::T("training.meter.hud_part.detail")));
   rows.push_back(Value("hitboxes",loc::T("training.hitboxes"),loc::T(lab.meter.hitboxes?"common.on":"common.off"),loc::T("training.hitboxes.detail")));
-  // The meter's own settings, Ember's beside the HUD's, on a page of their own.
-  rows.push_back(Row("meter-settings",loc::T("training.meter.settings"),loc::T("training.meter.settings.detail")));
  }else if(screen=="meter-settings"){
   LoadPractice();
   rows={Value("meter-position",loc::T("training.meter.position"),std::to_string(lab.meter.position)+"%",loc::T("training.meter.position.detail")),
