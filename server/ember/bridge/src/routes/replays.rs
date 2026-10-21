@@ -26,8 +26,10 @@ use crate::{
     },
 };
 
-/// More games than any set plays, draws included.
-const MAX_GAMES: i64 = 32;
+/// What every set's replays together may take on the bridge.
+// ponytail: summed over the table on each new replay; keep a running total
+// if bridges come to hold many thousands of sets.
+const MAX_STORED: i64 = 2 << 30;
 
 #[derive(Deserialize)]
 pub struct Sent {
@@ -62,8 +64,20 @@ pub async fn put(
             if kept {
                 return Ok(StatusCode::OK);
             }
-            if held >= MAX_GAMES {
-                return Err(ApiFailure::invalid("This set holds all the replays it can."));
+            // One replay for each game the set has played, and no more than
+            // the bridge keeps for every set together.
+            let (played, stored): (i64, i64) = tx.query_row(
+                "SELECT (SELECT COUNT(*) FROM attempts WHERE match_id = ?1),
+                        (SELECT COALESCE(SUM(length(replay)), 0) FROM match_replays)",
+                [&id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            if held >= played {
+                return Err(ApiFailure::invalid("This set holds a replay for each game it played."));
+            }
+            // Refused for good, so the games stop sending it.
+            if stored + replay.len() as i64 > MAX_STORED {
+                return Err(ApiFailure::invalid("This bridge keeps no more replays."));
             }
             tx.execute(
                 "INSERT INTO match_replays (match_id, crc, revision, saved_at, sent_by, replay, received_at)

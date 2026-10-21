@@ -243,6 +243,19 @@ pub async fn report(
     super::read(response).await
 }
 
+/// Plays `games` drawn games of the match, so it stays open: each has its
+/// replay from then on.
+pub async fn played(f: &impl Table, id: &str, games: u8) {
+    let binding = bound(f, id).await;
+    for game in 0..games {
+        let permit = permit(f, id, &binding, 20 + u64::from(game)).await;
+        report(f, f.a(), f.a(), id, &permit, 2 * game + 1, Outcome::Draw).await;
+        let (status, body) =
+            report(f, f.a(), f.b(), id, &permit, 2 * game + 2, Outcome::Draw).await;
+        assert_eq!(status, StatusCode::CREATED, "{body}");
+    }
+}
+
 /// Claims and publishes the room; returns the binding JSON both fighters hold.
 pub async fn bound(f: &impl Table, id: &str) -> Json {
     bound_as(f, id, false).await

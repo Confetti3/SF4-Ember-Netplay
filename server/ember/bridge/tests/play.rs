@@ -6,7 +6,7 @@ use common::{
     Bridge, Player, code,
     play::{
         BUILD, ROOM, Table, act, bound, claim, create_match, descriptor, endpoint, observation,
-        pack, permit, prepare, publish, replay, report, send_replay,
+        pack, permit, played, prepare, publish, replay, report, send_replay,
     },
 };
 use ember_protocol::{
@@ -145,6 +145,7 @@ async fn agreeing_reports_score_a_set() {
 async fn a_sets_replays_are_kept_once_and_packed_by_save_time() {
     let f = fixture().await;
     let id = create(&f, "challonge:9001:s1:1", "ember-room-v1", 2).await;
+    played(&f, &id, 3).await;
     // The set's desk event, and player b's account on its site.
     let (organizer, named) = (f.a.id().as_str().to_owned(), f.b.id().as_str().to_owned());
     f.bridge
@@ -190,6 +191,11 @@ async fn a_sets_replays_are_kept_once_and_packed_by_save_time() {
     assert_eq!(
         send_replay(&f, &outsider, &id, &replay(4), 1).await,
         StatusCode::NOT_FOUND
+    );
+    // Three games played, three replays: a fourth is no game of the set.
+    assert_eq!(
+        send_replay(&f, &f.a, &id, &replay(4), 2).await,
+        StatusCode::BAD_REQUEST
     );
     let (header, games) = pack(&f, &f.provider, &id).await;
     assert_eq!(games, vec![replay(1), replay(2), replay(3)]);
@@ -240,6 +246,7 @@ async fn retained(days: u64, backup: &std::path::Path) -> (Fixture, String) {
     })
     .await;
     let id = create(&f, "play-retained", "ember-room-v1", 2).await;
+    played(&f, &id, 2).await;
     for n in [1, 2] {
         send_replay(&f, &f.a, &id, &replay(n), 1).await;
     }
@@ -250,6 +257,7 @@ async fn retained(days: u64, backup: &std::path::Path) -> (Fixture, String) {
 async fn replays_are_kept_forever_by_default() {
     let f = fixture().await;
     let id = create(&f, "play-forever", "ember-room-v1", 2).await;
+    played(&f, &id, 1).await;
     send_replay(&f, &f.a, &id, &replay(1), 1).await;
     for _ in 0..3 {
         f.bridge.clock.advance(3650 * DAY as i64);
