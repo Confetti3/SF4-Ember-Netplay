@@ -548,14 +548,15 @@ impl SignInSite {
             let transitions_ok = create.transitions.is_empty()
                 || (create.start_url.is_some()
                     && create.transitions.len() <= 16
-                    && create
-                        .transitions
-                        .iter()
-                        .all(|(name, body)| is_token(name, 32) && body.is_object()));
+                    && create.transitions.iter().all(|(name, body)| {
+                        (1..=32).contains(&name.len())
+                            && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                            && body.is_object()
+                    }));
             if !transitions_ok {
                 return fail(
                     "organizer.create.transitions needs start_url, and at most 16 names of \
-                     visible ASCII with object bodies",
+                     1 to 32 letters, digits and _, with object bodies",
                 );
             }
             if !headers_ok(&create.headers)
