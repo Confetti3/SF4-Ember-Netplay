@@ -1287,6 +1287,16 @@ notifier also posts each live tournament's news to that channel: every
 tournament's feed past what it posted, and posts what is new as one
 message, without pings. What it posted is kept in its database.
 
+Award roles are off unless `brackets.roles` names a server (`{ "guild_id":
+"...", "kinds": ["champion", "runner_up", "top_3", "season_champion"],
+"prefix": "Ember" }`). The bot then needs Manage Roles there and
+`discord.interactions.bot_token`. It reads the site's award log
+(`/awards?after=`), makes one role per award kind the first time it needs
+it ("Ember Champion"), and gives it to each award's player who is a member;
+someone not in the server is skipped. It keeps the roles it made in its
+database, never edits or removes a role, and touches no role it did not
+make; a role someone deleted is made again.
+
 ### Twitch `!room`
 
 With `twitch.room_creator` (the streamer's linked player on the connection)

@@ -50,6 +50,35 @@ pub struct Brackets {
     pub feed: bool,
     #[serde(default = "default_feed_secs")]
     pub feed_secs: u64,
+    /// Discord roles for awards in one server; none unless set.
+    #[serde(default)]
+    pub roles: Option<Roles>,
+}
+
+/// Award roles in a server whose admins asked for them. The bot needs
+/// Manage Roles there and `discord.interactions.bot_token`; it creates one
+/// role per award kind, gives it to each award's player, and never touches
+/// a role it did not create.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Roles {
+    pub guild_id: String,
+    /// The awards that get a role, by kind (`champion`, `season_champion`).
+    #[serde(default = "default_role_kinds")]
+    pub kinds: Vec<String>,
+    /// Put before each award's title in its role's name.
+    #[serde(default = "default_role_prefix")]
+    pub prefix: String,
+}
+
+fn default_role_kinds() -> Vec<String> {
+    ["champion", "runner_up", "top_3", "season_champion"]
+        .map(str::to_owned)
+        .into()
+}
+
+fn default_role_prefix() -> String {
+    "Ember".into()
 }
 
 fn default_feed_secs() -> u64 {

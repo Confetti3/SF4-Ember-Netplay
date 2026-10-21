@@ -3,7 +3,7 @@
 mod support;
 
 use ed25519_dalek::{Signer, SigningKey};
-use ember_notifier::{Brackets, Discord, Interactions};
+use ember_notifier::{Brackets, Discord, Interactions, Roles};
 use reqwest::Method;
 use serde_json::{Value, json};
 use support::{Mock, base_config, bot, notifier};
@@ -30,6 +30,7 @@ async fn serve(site: &Mock, discord: &Mock) -> String {
         token: "site-bot-token".into(),
         feed: false,
         feed_secs: 60,
+        roles: None,
     });
     config.discord = Some(Discord {
         webhook_url: None,
@@ -291,6 +292,7 @@ async fn a_live_tournaments_news_is_posted_once_as_one_message() {
         token: "site-bot-token".into(),
         feed: true,
         feed_secs: 3600,
+        roles: None,
     });
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let (_, tasks) = notifier(config.clone()).start(listener).unwrap();
@@ -373,4 +375,103 @@ async fn a_vote_is_posted_as_menus_and_a_pick_is_the_pickers_vote() {
         (cast.headers["x-discord-user"].to_str().unwrap(), &cast.body),
         (PLAYER, &json!({ "nomination": "n1" }))
     );
+}
+
+#[tokio::test]
+async fn award_roles_are_made_once_and_given_to_members_only() {
+    // The site's log answers its awards once; asked again (after them), none.
+    let asked = std::sync::atomic::AtomicBool::new(false);
+    let site = Mock::start(move |request| match request.path.as_str() {
+        "/awards" if asked.swap(true, std::sync::atomic::Ordering::SeqCst) => {
+            (200, json!({ "awards": [] }).to_string())
+        }
+        "/awards" => (
+            200,
+            json!({ "awards": [
+                { "n": 1, "discord": PLAYER, "kind": "champion", "title": "Champion" },
+                { "n": 2, "discord": ORGANIZER, "kind": "champion", "title": "Champion" },
+                { "n": 3, "discord": PLAYER, "kind": "iron", "title": "Iron" },
+            ] })
+            .to_string(),
+        ),
+        _ => (404, "{}".into()),
+    })
+    .await;
+    let discord = Mock::start(
+        |request| match (request.method.clone(), request.path.as_str()) {
+            (Method::POST, "/guilds/g1/roles") => (200, json!({ "id": "777" }).to_string()),
+            (Method::PUT, path) if path.ends_with(&format!("/members/{PLAYER}/roles/777")) => {
+                (204, String::new())
+            }
+            // Not a member of the server.
+            (Method::PUT, _) => (404, json!({ "code": 10007 }).to_string()),
+            _ => (500, "{}".into()),
+        },
+    )
+    .await;
+    let mut config = base_config("roles");
+    config.bot = Some(bot("http://127.0.0.1:1"));
+    config.discord = Some(Discord {
+        webhook_url: None,
+        username: "Ember".into(),
+        interactions: Some(Interactions {
+            application_id: APPLICATION.into(),
+            public_key: hex(signing_key().verifying_key().as_bytes()),
+            api_base: discord.origin.clone(),
+            bot_token: Some("test-bot-token".into()),
+            guild_id: None,
+        }),
+    });
+    config.brackets = Some(Brackets {
+        base: site.origin.clone(),
+        token: "site-bot-token".into(),
+        feed: false,
+        feed_secs: 3600,
+        roles: Some(Roles {
+            guild_id: "g1".into(),
+            kinds: vec!["champion".into()],
+            prefix: "Ember".into(),
+        }),
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let (_, tasks) = notifier(config.clone()).start(listener).unwrap();
+    discord
+        .wait_for(Method::PUT, &format!("/members/{ORGANIZER}/roles/777"))
+        .await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    let calls: Vec<_> = discord
+        .requests()
+        .into_iter()
+        .map(|request| (request.method, request.path, request.body))
+        .collect();
+    assert_eq!(
+        calls[0],
+        (
+            Method::POST,
+            "/guilds/g1/roles".to_owned(),
+            json!({ "name": "Ember Champion", "permissions": "0", "mentionable": false, "hoist": false })
+        )
+    );
+    assert_eq!(
+        calls.len(),
+        3,
+        "one role made, given twice, nothing for Iron: {calls:?}"
+    );
+    assert!(
+        discord
+            .requests()
+            .iter()
+            .all(|request| request.headers["authorization"] == "Bot test-bot-token")
+    );
+    for task in tasks {
+        task.abort();
+    }
+    // Started again: every award was handled, and the role is not made again.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let (_, tasks) = notifier(config).start(listener).unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    assert_eq!(discord.requests().len(), 3);
+    for task in tasks {
+        task.abort();
+    }
 }

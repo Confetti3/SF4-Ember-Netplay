@@ -21,6 +21,7 @@ mod feed;
 mod format;
 mod inbox;
 mod interactions;
+mod roles;
 mod sent;
 mod tournament;
 mod twitch;
@@ -43,7 +44,7 @@ use rusqlite::Connection;
 use tokio::{net::TcpListener, sync::Notify, task::JoinHandle};
 use zeroize::Zeroizing;
 
-pub use config::{Bot, Brackets, Config, Discord, Interactions, Twitch};
+pub use config::{Bot, Brackets, Config, Discord, Interactions, Roles, Twitch};
 pub use format::Message;
 pub use interactions::register_commands;
 
@@ -118,7 +119,10 @@ impl Notifier {
                  discord_done INTEGER NOT NULL, twitch_done INTEGER NOT NULL,
                  attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL, last_error TEXT);
              CREATE TABLE IF NOT EXISTS matches (id TEXT PRIMARY KEY, label TEXT NOT NULL);
-             CREATE TABLE IF NOT EXISTS feeds (tournament TEXT PRIMARY KEY, posted INTEGER NOT NULL);",
+             CREATE TABLE IF NOT EXISTS feeds (tournament TEXT PRIMARY KEY, posted INTEGER NOT NULL);
+             CREATE TABLE IF NOT EXISTS award_cursor (id INTEGER PRIMARY KEY CHECK (id = 1), n INTEGER NOT NULL);
+             CREATE TABLE IF NOT EXISTS award_roles (guild TEXT NOT NULL, kind TEXT NOT NULL, role TEXT NOT NULL,
+                 PRIMARY KEY (guild, kind));",
         )
         .map_err(|error| format!("cannot prepare database: {error}"))?;
         let bridge = config
@@ -134,6 +138,17 @@ impl Notifier {
             .twitch
             .as_ref()
             .is_some_and(|twitch| twitch.room_creator.is_some());
+        let roles = config
+            .brackets
+            .as_ref()
+            .is_some_and(|brackets| brackets.roles.is_some());
+        if roles
+            && interactions
+                .and_then(|interactions| interactions.bot_token.as_ref())
+                .is_none()
+        {
+            return Err("brackets.roles needs discord.interactions.bot_token".into());
+        }
         if bridge.is_none() && (interactions.is_some() || room_creator) {
             return Err("the room commands need a `bot` section".into());
         }
@@ -176,6 +191,9 @@ impl Notifier {
         }
         if self.follows_feeds() {
             tasks.push(tokio::spawn(self.clone().follow_feeds()));
+        }
+        if self.gives_roles() {
+            tasks.push(tokio::spawn(self.clone().follow_awards()));
         }
         Ok((address, tasks))
     }

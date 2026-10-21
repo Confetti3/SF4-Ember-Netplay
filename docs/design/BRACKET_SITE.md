@@ -305,7 +305,8 @@ see the match. The report offers:
 
 ## 15. Ranks, titles, emblems and awards
 
-Status: built, but for emblems and Discord roles.
+Status: built. Emblems are plain SVG badges in Ember's palette; Discord
+roles are off unless a server's config turns them on.
 
 At `finished` the site hands out awards to each player's Discord identity
 and keeps them on their profile (`GET /players/{discord}`: Ember ID,
