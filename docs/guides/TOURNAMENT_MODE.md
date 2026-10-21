@@ -182,8 +182,9 @@ On a set:
 
 - **Hold** keeps it out of Ember, for example to play it on stream.
   **Release** gives it back.
-- **Call again** posts the call again. The card says when it was called and
-  whether Discord took it.
+- **Call again** posts the call again, and sends the private messages again,
+  at most once every two minutes per set. The card says when it was called
+  and whether Discord took it.
 - **Games** lists its games. A game that **needs review** can go to either
   player, be a **Draw** (played again), or be **Voided** (played again too).
   You can also add a game, or void one that counted. Each asks first and keeps

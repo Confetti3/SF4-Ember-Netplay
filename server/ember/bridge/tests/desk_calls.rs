@@ -230,6 +230,17 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
     };
     assert_eq!(sets().await["call"]["posted"], "delivered");
 
+    // Called again at once: refused, so a desk cannot flood the channel.
+    let (status, _) = send(
+        &bridge,
+        &player1,
+        &format!("{event_path}/sets/s1"),
+        json!({ "call": true }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+    bridge.clock.advance(120);
+
     // Called again: Discord says slow down, and the post goes out after.
     *discord.answers.lock().unwrap() = VecDeque::from([429]);
     let (status, _) = send(
@@ -298,6 +309,7 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+    bridge.clock.advance(120);
     send(
         &bridge,
         &player1,
@@ -511,6 +523,7 @@ async fn a_called_set_messages_each_player_privately() {
     // Called again while player 2 takes no messages from the bot: not tried
     // again, and the desk says so.
     *bot.answers.lock().unwrap() = VecDeque::from([403]);
+    bridge.clock.advance(120);
     let (status, _) = send(
         &bridge,
         &player1,

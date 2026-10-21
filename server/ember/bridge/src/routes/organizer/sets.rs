@@ -252,6 +252,9 @@ struct Mark {
 
 /// `POST /v1/organizer/events/{id}/sets/{set}`: holds or lets go a set of
 /// the organizer's running event, or calls it again. Takes a `site.connect`
+/// The shortest time between two calls of one set.
+const CALL_AGAIN_SECS: u64 = 120;
+
 /// proof for this path.
 pub async fn mark(
     State(state): State<AppState>,
@@ -285,6 +288,22 @@ pub async fn mark(
                 )?;
             }
             if mark.call {
+                // A set is called at most once in CALL_AGAIN_SECS, so a
+                // desk cannot flood the channel or the players' messages.
+                let called_at: Option<u64> = tx
+                    .query_row(
+                        "SELECT called_at FROM desk_marks WHERE event_id = ?1 AND set_id = ?2",
+                        params![id, set],
+                        |row| row.get(0),
+                    )
+                    .optional()?
+                    .flatten();
+                if let Some(wait) = called_at
+                    .map(|at| (at + CALL_AGAIN_SECS).saturating_sub(ctx.now))
+                    .filter(|&wait| wait > 0)
+                {
+                    return Err(ApiFailure::rate_limited(wait));
+                }
                 tx.execute(
                     "UPDATE desk_marks SET called_at = ?1 WHERE event_id = ?2 AND set_id = ?3",
                     params![ctx.now, id, set],
