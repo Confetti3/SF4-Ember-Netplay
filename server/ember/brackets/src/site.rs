@@ -202,6 +202,8 @@ pub struct Report {
     pub games: [u8; 2],
     pub winner: usize,
     pub sequence: Vec<usize>,
+    /// Each game's facts, beside `sequence`, where the bridge keeps them.
+    pub facts: Vec<Option<serde_json::Value>>,
     /// The same on every delivery of this result (the Ember match's ID), so
     /// a site can tell a repeat from a different result.
     pub key: String,

@@ -797,10 +797,10 @@ impl Bracket {
             OnResult::Report { games, winner } => {
                 // The games one by one, for a site that takes them, which
                 // must add up to the score.
-                let sequence = if self.site.wants_games() {
-                    self.context.bridge.sequence(match_id).await?
+                let (sequence, facts): (Vec<usize>, Vec<_>) = if self.site.wants_games() {
+                    self.context.bridge.sequence(match_id).await?.into_iter().unzip()
                 } else {
-                    Vec::new()
+                    Default::default()
                 };
                 if self.site.wants_games() && !adds_up(&sequence, games) {
                     self.end(
@@ -818,6 +818,7 @@ impl Bracket {
                     games,
                     winner,
                     sequence,
+                    facts,
                     key: match_id.clone(),
                 };
                 let outcome = self.report(set_id, tracked, &report, tries).await?;
