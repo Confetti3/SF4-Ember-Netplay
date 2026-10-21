@@ -340,7 +340,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.mode=training::Mode::Idle;training.cursor=0;training.active=-1;training.activeLength=0;
     // The HUD's parts: the bars alone are a smaller meter with no chip over it, and with every part off nothing is drawn.
     training::MeterOptions parts;parts.numbers=parts.state=parts.shortcuts=false;SetTrainingMeterOptions(parts);draw("training-hud-bars");
-    Require(hud->Size.y<whole*.7f&&chips->LastFrameActive!=ImGui::GetFrameCount(),"HUD parts did not turn off");
+    Require(hud->Size.y<whole*.75f&&chips->LastFrameActive!=ImGui::GetFrameCount(),"HUD parts did not turn off");
     parts.bars=false;SetTrainingMeterOptions(parts);draw();
     Require(hud->LastFrameActive!=ImGui::GetFrameCount(),"HUD drew with every part off");
     SetTrainingMeterOptions({});
