@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
-    rooms::{is_false, is_player_name},
+    rooms::{is_country, is_false, is_player_name},
 };
 
 /// The capability a bridge with the ranking routes offers.
@@ -89,9 +89,7 @@ impl Listing {
         if !is_player_name(&self.name) {
             return Err(Error::InvalidField("name"));
         }
-        let country_valid = self.country.as_ref().is_none_or(|country| {
-            country.len() == 2 && country.bytes().all(|byte| byte.is_ascii_uppercase())
-        });
+        let country_valid = self.country.as_deref().is_none_or(is_country);
         if country_valid {
             Ok(())
         } else {

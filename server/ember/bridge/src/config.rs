@@ -69,6 +69,11 @@ pub struct Config {
     /// How long a set's replays are kept. Forever when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub replay_retention: Option<ReplayRetention>,
+    /// The public replay archive (docs/design/REPLAY_ARCHIVE.md): every game
+    /// a player sends is stored in this S3 bucket, tournament games first.
+    /// Off when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive: Option<Archive>,
     /// Reverse proxies whose `X-Real-IP` names the caller (`rooms::Address`).
     /// Loopback always is one; any other caller is known by its own address.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -101,6 +106,27 @@ pub struct ReplayRetention {
     /// before its replays are removed; they stay until that write succeeds.
     #[serde(default)]
     pub backup: Option<PathBuf>,
+}
+
+/// Where the replay archive is stored (`delivery::archive`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Archive {
+    /// The S3 endpoint the bridge writes to, as an origin
+    /// (`http://127.0.0.1:9400`); path-style requests.
+    pub endpoint: String,
+    pub bucket: String,
+    #[serde(default = "default_region")]
+    pub region: String,
+    /// The access key; its secret is `archive_secret_key` in the
+    /// integration secrets.
+    pub access_key: String,
+    /// Where anyone reads the bucket's files (`https://s3.example/replays`).
+    pub public_base: String,
+}
+
+fn default_region() -> String {
+    "us-east-1".into()
 }
 
 pub const MIN_REPLAY_RETENTION_DAYS: u64 = 30;
@@ -406,6 +432,7 @@ impl Config {
             rooms: None,
             match_expiry_hours: DEFAULT_MATCH_EXPIRY_HOURS,
             replay_retention: None,
+            archive: None,
             trusted_proxies: Vec::new(),
             tenants: vec![Tenant {
                 id: "local".into(),
@@ -491,6 +518,25 @@ impl Config {
             return Err(format!(
                 "replay_retention.days must be at least {MIN_REPLAY_RETENTION_DAYS}"
             ));
+        }
+        if let Some(archive) = &self.archive {
+            if url::Url::parse(&archive.endpoint)
+                .ok()
+                .is_none_or(|url| !matches!(url.scheme(), "http" | "https") || url.path() != "/")
+            {
+                return Err("archive.endpoint must be an http(s) origin".into());
+            }
+            if !archive.public_base.starts_with("https://") || archive.public_base.ends_with('/') {
+                return Err("archive.public_base must be an https URL without a trailing /".into());
+            }
+            if archive.bucket.len() < 3
+                || !archive
+                    .bucket
+                    .bytes()
+                    .all(|b| matches!(b, b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.'))
+            {
+                return Err("archive.bucket must be an S3 bucket name".into());
+            }
         }
         let mut seen = std::collections::BTreeSet::new();
         for tenant in &self.tenants {

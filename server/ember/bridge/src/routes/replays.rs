@@ -20,6 +20,7 @@ use crate::{
     error::{ApiFailure, Result},
     http::{Body, json as respond},
     routes::{
+        archive,
         ledger::{Match, load, participants, scores},
         matches::{viewer_of, visible},
         play::{fighter, playing},
@@ -45,6 +46,7 @@ pub async fn put(
     headers: HeaderMap,
     Path((id, crc)): Path<(String, String)>,
     Query(sent): Query<Sent>,
+    Query(sides): Query<replays::Sides>,
     body: Body<{ replays::MAX_REPLAY }>,
 ) -> Result<Response> {
     let player = playing(&state, &headers).await?;
@@ -62,6 +64,8 @@ pub async fn put(
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )?;
             if kept {
+                // The other player's copy still adds their side's country.
+                archive::keep(tx, &ctx, &crc, &replay, &player.ember_id, &sides, None)?;
                 return Ok(StatusCode::OK);
             }
             // One replay for each game the set has played, and no more than
@@ -84,6 +88,7 @@ pub async fn put(
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![id, crc, sent.revision, saved_at, player.ember_id.as_str(), &replay[..], ctx.now],
             )?;
+            archive::keep(tx, &ctx, &crc, &replay, &player.ember_id, &sides, Some(&id))?;
             Ok(StatusCode::CREATED)
         })
         .await?;
@@ -124,9 +129,17 @@ pub async fn pack(
         .into_response())
 }
 
-/// A set's pack, as `pack` serves it.
-fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
-    let (wins, _) = scores(tx, &found.id)?;
+/// What a set's pack and the archive say of it: its desk event's title, its
+/// round and phase, its players, and each one's account name on the event's
+/// site, as the desk shows them, so an imported pack's games carry names.
+pub struct Described {
+    pub tournament: Option<String>,
+    pub metadata: serde_json::Value,
+    pub players: Vec<crate::routes::ledger::Participant>,
+    pub names: Vec<Option<String>>,
+}
+
+pub fn described(tx: &Transaction<'_>, found: &Match) -> Result<Described> {
     let metadata: String = tx.query_row(
         "SELECT metadata FROM matches WHERE id = ?1",
         [&found.id],
@@ -145,8 +158,6 @@ fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
         )
         .optional()?;
     let players = participants(tx, &found.id, found.generation)?;
-    // Each player by their account name on the event's site, as the desk
-    // shows them, so an imported pack's games carry names.
     let mut names = Vec::new();
     for player in &players {
         names.push(match &event {
@@ -160,7 +171,23 @@ fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
             None => None,
         });
     }
-    let tournament = event.map(|(title, _)| title);
+    Ok(Described {
+        tournament: event.map(|(title, _)| title),
+        metadata,
+        players,
+        names,
+    })
+}
+
+/// A set's pack, as `pack` serves it.
+pub fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
+    let (wins, _) = scores(tx, &found.id)?;
+    let Described {
+        tournament,
+        metadata,
+        players,
+        names,
+    } = described(tx, found)?;
     let games = tx
         .prepare(
             "SELECT crc, revision, saved_at, replay FROM match_replays
