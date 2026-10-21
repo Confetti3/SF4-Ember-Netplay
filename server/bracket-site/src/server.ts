@@ -7,6 +7,7 @@ import type { BridgeClient } from "../../../sdk/typescript/src/index.ts";
 import { Conflict, Invalid, roundLabel, status } from "./bracket.ts";
 import { contractRoutes, record } from "./contract.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
+import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
 import { page } from "./page.ts";
 import type { Store } from "./store.ts";
@@ -67,8 +68,8 @@ export function bracketSite(options: Options): Server {
     return options.tokens?.(token) ?? options.oauth?.actor(token);
   }
   const signedIn = (request: IncomingMessage) => actor(request) ?? fail(401, "wrong or missing token");
-  const manages = (who: Actor | undefined, tournament: Tournament) =>
-    !!who && (who.operator || (who.organizer && who.discord !== null && tournament.organizers.includes(who.discord)));
+  const manages = (who: Actor | undefined, managed: { organizers: string[] }) =>
+    !!who && (who.operator || (who.organizer && who.discord !== null && managed.organizers.includes(who.discord)));
   const manager = (request: IncomingMessage, tournament: Tournament) => {
     if (!manages(signedIn(request), tournament)) fail(403, "only its organizers may");
     return tournament;
@@ -137,6 +138,7 @@ export function bracketSite(options: Options): Server {
         };
         settings(tournament, body, who.operator ? null : who.discord);
         if (!tournament.title) fail(400, "title is 1 to 100 characters");
+        if (tournament.season && !store.leagueOf(tournament.season)) fail(400, `no season ${tournament.season}`);
         if (!store.add(tournament)) fail(409, `tournament ${id} exists`);
         return [201, view(tournament)];
       },
@@ -160,6 +162,7 @@ export function bracketSite(options: Options): Server {
         return [200, view(change(id!, request, (tournament) => {
           if (!beforeLive(tournament)) throw new Conflict(`its settings are fixed while ${tournament.state}`);
           settings(tournament, body, who.operator ? null : who.discord);
+          if (tournament.season && !store.leagueOf(tournament.season)) throw new Invalid(`no season ${tournament.season}`);
         }))];
       },
     ],
@@ -250,6 +253,51 @@ export function bracketSite(options: Options): Server {
         return [200, view(found(id!))];
       },
     ],
+    [
+      "POST",
+      /^\/leagues$/,
+      async (request) => {
+        const who = signedIn(request);
+        if (!who.organizer) fail(403, "only organizers may create leagues");
+        const body = await readJson(request);
+        const league: League = {
+          id: text(body.id, SLUG, "id is 1 to 64 letters, digits, _ or -"),
+          title: text(body.title, /^.{1,100}$/u, "title is 1 to 100 characters"),
+          organizers: who.discord ? [who.discord] : [],
+          seasons: [],
+        };
+        if (!store.putLeague(league, true)) fail(409, `league ${league.id} exists`);
+        return [201, league];
+      },
+    ],
+    ["GET", /^\/leagues\/([^/]+)$/, (_, [id]) => [200, store.league(id!) ?? fail(404, `no league ${id}`)]],
+    [
+      "POST",
+      /^\/leagues\/([^/]+)\/seasons$/,
+      async (request, [id]) => {
+        const league = store.league(id!) ?? fail(404, `no league ${id}`);
+        if (!manages(signedIn(request), league)) fail(403, "only its organizers may");
+        const body = await readJson(request);
+        const season: Season = {
+          id: text(body.id, SLUG, "id is 1 to 64 letters, digits, _ or -"),
+          title: text(body.title, /^.{1,100}$/u, "title is 1 to 100 characters"),
+          points: body.points === undefined ? DEFAULT_POINTS : pointsOf(body.points),
+          best_of: body.best_of === undefined || body.best_of === null ? null : whole(body.best_of, 1, 100, "best_of is 1 to 100, or null"),
+        };
+        if (store.leagueOf(season.id)) fail(409, `season ${season.id} exists`);
+        league.seasons.push(season);
+        store.putLeague(league, false);
+        return [201, season];
+      },
+    ],
+    [
+      "GET",
+      /^\/leagues\/([^/]+)\/seasons\/([^/]+)\/standings$/,
+      (_, [id, seasonId]) => {
+        const season = store.league(id!)?.seasons.find((each) => each.id === seasonId) ?? fail(404, `no season ${seasonId}`);
+        return [200, { season, standings: standings(season, store.all()) }];
+      },
+    ],
     ...contract,
     ...(options.oauth?.routes() ?? []),
   ];
@@ -321,6 +369,18 @@ function settings(tournament: Tournament, body: Json, self: string | null): void
     if (self !== null && !organizers.includes(self)) fail(400, "organizers must still name you");
     tournament.organizers = [...new Set(organizers as string[])];
   }
+}
+
+/** Points by placement (`"1"`, `"2"`, ... and `"*"`), each 0 to 10000. */
+function pointsOf(value: unknown): Record<string, number> {
+  const ok =
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.entries(value).length <= 32 &&
+    Object.entries(value).every(([place, points]) => /^(\*|[1-9]\d{0,3})$/.test(place) && Number.isInteger(points) && points >= 0 && points <= 10000);
+  if (!ok) fail(400, 'points maps placements ("1", "2", "3", "5", ... or "*") to whole points');
+  return value as Record<string, number>;
 }
 
 function whole(value: unknown, min: number, max: number, message: string): number {

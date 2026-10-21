@@ -114,8 +114,9 @@ A league is a series of events with standings across them.
 - Seeding by points: a season's event can be seeded by standings at its
   start, ties by join order.
 
-Phase 1 builds single events only, with `season` stored and ignored; the
-tables above come with leagues.
+Built: leagues, seasons and their standings (points, then events won).
+Not yet: head-to-head as a tiebreak, seeding by points, and the league's
+Discord guild.
 
 ## 5. Discord
 

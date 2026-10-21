@@ -1,6 +1,7 @@
 // Tournaments on local disk, one SQLite row each.
 import { DatabaseSync } from "node:sqlite";
 
+import type { League } from "./league.ts";
 import type { Tournament } from "./tournament.ts";
 
 // ponytail: each write saves the whole tournament, fine for brackets of a few
@@ -11,7 +12,9 @@ export class Store {
 
   constructor(path: string) {
     this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode = WAL; CREATE TABLE IF NOT EXISTS tournaments (id TEXT PRIMARY KEY, doc TEXT NOT NULL)");
+    this.db.exec(`PRAGMA journal_mode = WAL;
+      CREATE TABLE IF NOT EXISTS tournaments (id TEXT PRIMARY KEY, doc TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS leagues (id TEXT PRIMARY KEY, doc TEXT NOT NULL)`);
   }
 
   get(id: string): Tournament | undefined {
@@ -34,6 +37,24 @@ export class Store {
 
   delete(id: string): boolean {
     return this.db.prepare("DELETE FROM tournaments WHERE id = ?").run(id).changes === 1;
+  }
+
+  league(id: string): League | undefined {
+    const row = this.db.prepare("SELECT doc FROM leagues WHERE id = ?").get(id) as { doc: string } | undefined;
+    return row && (JSON.parse(row.doc) as League);
+  }
+
+  /** The league holding season `id`. */
+  leagueOf(season: string): League | undefined {
+    return (this.db.prepare("SELECT doc FROM leagues").all() as { doc: string }[])
+      .map((row) => JSON.parse(row.doc) as League)
+      .find((league) => league.seasons.some((each) => each.id === season));
+  }
+
+  /** Adds a league, or saves it again; false when a new one's ID is taken. */
+  putLeague(league: League, adding: boolean): boolean {
+    const sql = adding ? "INSERT OR IGNORE INTO leagues (doc, id) VALUES (?, ?)" : "UPDATE leagues SET doc = ? WHERE id = ?";
+    return this.db.prepare(sql).run(JSON.stringify(league), league.id).changes === 1;
   }
 
   close(): void {

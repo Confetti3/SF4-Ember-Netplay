@@ -201,3 +201,22 @@ test("a cancelled or deleted tournament's sets are gone for the connector", asyn
   assert.equal((await call("GET", "/tournaments/gone")).status, 404);
   assert.equal((await call("GET", "/t/gone")).status, 404, "the page of none, answered");
 });
+
+test("organizers make leagues and seasons, and a tournament counts for a season that exists", async () => {
+  assert.equal((await as("player-2")("POST", "/leagues", { id: "ember", title: "Ember League" })).status, 403);
+  assert.equal((await organizer("POST", "/leagues", { id: "ember", title: "Ember League" })).status, 201);
+  assert.equal((await organizer("POST", "/leagues", { id: "ember", title: "Again" })).status, 409);
+  assert.equal((await operator("POST", "/leagues", { id: "theirs", title: "Theirs" })).status, 201);
+  assert.equal((await organizer("POST", "/leagues/theirs/seasons", { id: "x", title: "X" })).status, 403);
+  assert.equal((await organizer("POST", "/leagues/ember/seasons", { id: "s1", title: "Season 1", points: { first: 3 } })).status, 400);
+  const season = await organizer("POST", "/leagues/ember/seasons", { id: "s1", title: "Season 1", best_of: 4 });
+  assert.deepEqual([season.status, season.body.points["1"], season.body.best_of], [201, 100, 4]);
+  assert.equal((await operator("POST", "/leagues/theirs/seasons", { id: "s1", title: "Taken" })).status, 409, "a season ID is the site's");
+
+  assert.equal((await organizer("POST", "/tournaments", { id: "cup", title: "Cup", season: "s9" })).status, 400);
+  assert.equal((await organizer("POST", "/tournaments", { id: "cup", title: "Cup", season: "s1" })).status, 201);
+  assert.equal((await organizer("PATCH", "/tournaments/cup", { season: "nope" })).status, 422);
+  const standings = await call("GET", "/leagues/ember/seasons/s1/standings");
+  assert.deepEqual([standings.status, standings.body.standings], [200, []]);
+  assert.equal((await call("GET", "/leagues/ember")).body.seasons.length, 1);
+});

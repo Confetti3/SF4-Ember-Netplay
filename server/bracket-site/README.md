@@ -67,6 +67,15 @@ manages the tournaments that name them in `organizers`.
 | `POST /tournaments/{id}/check-in` | a player | while checking in |
 | `POST /tournaments/{id}/sets/{set}/result` | its organizers | `{ "winner": "<ember id>", "scores": { "<ember id>": 2, "<ember id>": 1 } }` |
 | `DELETE /tournaments/{id}` | its organizers | its live matches are cancelled |
+| `POST /leagues` | organizer | `{ "id", "title" }` |
+| `GET /leagues/{id}` | anyone | the league and its seasons |
+| `POST /leagues/{id}/seasons` | its organizers | `{ "id", "title", "points", "best_of" }`; a season ID is unique on the site |
+| `GET /leagues/{id}/seasons/{season}/standings` | anyone | points, events and wins of each player |
+
+A tournament counts for the season its `season` names, once finished:
+places 1 and 2, then everyone out in the same round together (3, 5, 9, ...),
+worth the season's `points` (default `{"1": 100, "2": 70, "3": 50, "5": 30,
+"9": 15, "*": 5}`), a player's best `best_of` events counting.
 
 States: `draft`, `planned`, `sign_ups`, `check_in`, `live`, `finished`,
 `archived`, `cancelled`. Actions: `plan`, `open_sign_ups`, `close_sign_ups`,
