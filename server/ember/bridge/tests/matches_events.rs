@@ -569,6 +569,43 @@ async fn webhooks_arrive_in_event_order() {
     );
 }
 
+// An event the receiver refuses with a 4xx is dead at once, so the next one
+// follows without waiting out the retry budget; 408 and 429 are retried.
+#[tokio::test]
+async fn a_refused_webhook_does_not_hold_back_the_next() {
+    let f = fixture().await;
+    f.bridge.clock.freeze();
+    let (url, hook) = receiver().await;
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &f.organizer,
+            "/v1/webhook-subscriptions",
+            json!({
+                "url": url,
+                "event_types": ["io.ember.tournament.match.created.v1", "io.ember.tournament.match.game.confirmed.v1"],
+            }),
+            Some("sub-1"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    hook.answer_with(&[400]);
+    let (id, _) = create_match(&f).await;
+    adjudicate(&f, &id, "g1", json!({ "kind": "game_result", "winner_slot": 1, "reason": "Stream VOD", "expected_revision": "1" })).await;
+    let types: Vec<Value> = wait_for(&hook, 2)
+        .await
+        .iter()
+        .map(|(_, body)| serde_json::from_slice::<Value>(body).unwrap()["type"].clone())
+        .collect();
+    assert_eq!(
+        types,
+        [
+            "io.ember.tournament.match.created.v1",
+            "io.ember.tournament.match.game.confirmed.v1"
+        ]
+    );
+}
+
 // WEB-05, WEB-06
 #[tokio::test]
 async fn event_stream_resumes_and_hides_others() {

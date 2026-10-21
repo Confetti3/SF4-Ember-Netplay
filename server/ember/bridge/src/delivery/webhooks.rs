@@ -174,11 +174,23 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
         Err(outcome) => outcome,
         Ok(answer) if (200..300).contains(&answer.status) => Outcome::Delivered,
         Ok(answer) if answer.status == 410 => Outcome::Refused("gone".to_owned()),
+        // A receiver that refuses an event (a 4xx other than a timeout or a
+        // rate limit) refuses it again, and the subscription's later events
+        // wait behind it: it is dead at once.
+        Ok(answer) if refuses(answer.status) => {
+            Outcome::Refused(format!("status {}", answer.status))
+        }
         Ok(answer) => Outcome::Retry {
             error: format!("status {}", answer.status),
             retry_after: answer.retry_after,
         },
     }
+}
+
+/// A receiver's answer no retry changes: a 4xx but 408 Request Timeout and
+/// 429 Too Many Requests.
+fn refuses(status: u16) -> bool {
+    (400..500).contains(&status) && status != 408 && status != 429
 }
 
 /// What a destination answered.
