@@ -6587,6 +6587,9 @@ msgstr "V2 (podgląd)"
 msgid "settings.look_detail"
 msgstr "Nowy wygląd Embera, wciąż w budowie. Możesz wrócić w każdej chwili: zmienia się tylko wygląd ekranów."
 
+msgid "room.controls_detail"
+msgstr "Twój kontroler i jego przyciski, bez wychodzenia z pokoju."
+
 msgid "settings.picture_corner"
 msgstr "Róg obrazu"
 

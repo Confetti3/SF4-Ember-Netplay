@@ -6587,6 +6587,9 @@ msgstr "V2 (voorproef)"
 msgid "settings.look_detail"
 msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw. Je kunt altijd terugschakelen: alleen hoe de schermen eruitzien verandert."
 
+msgid "room.controls_detail"
+msgstr "Je controller en zijn knoppen, zonder de kamer te verlaten."
+
 msgid "settings.picture_corner"
 msgstr "Hoek van het beeld"
 

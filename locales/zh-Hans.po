@@ -6588,6 +6588,9 @@ msgstr "V2（预览）"
 msgid "settings.look_detail"
 msgstr "Ember 正在制作中的新外观。可随时切换回去：只改变界面的样子。"
 
+msgid "room.controls_detail"
+msgstr "不离开房间即可设置控制器和按键。"
+
 msgid "settings.picture_corner"
 msgstr "画面位置"
 

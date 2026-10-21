@@ -6588,6 +6588,9 @@ msgstr "V2 (미리 보기)"
 msgid "settings.look_detail"
 msgstr "아직 만드는 중인 Ember의 새 모양입니다. 언제든 되돌릴 수 있으며, 화면의 모양만 바뀝니다."
 
+msgid "room.controls_detail"
+msgstr "방을 나가지 않고 컨트롤러와 버튼을 설정합니다."
+
 msgid "settings.picture_corner"
 msgstr "화면 위치"
 

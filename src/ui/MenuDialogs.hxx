@@ -25,4 +25,7 @@ float DialogButtonsHeight(const std::vector<DialogButton>& buttons,float height)
 // in screen coordinates. Pair with EndDialogCard.
 void BeginDialogCard(const char* id,ImVec2 at,ImVec2 size);
 void EndDialogCard();
+// The columns a choice of `count` options is drawn in: one in the classic
+// look; in V2 all options show at once, three to a row past twelve.
+std::size_t MenuChoiceColumns(std::size_t count);
 } }

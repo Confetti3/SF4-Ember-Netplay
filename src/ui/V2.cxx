@@ -64,7 +64,14 @@ int Tabs(const std::vector<std::string>& labels, int current) {
     const float width = ImGui::GetContentRegionAvail().x;
     auto* draw = ImGui::GetWindowDrawList();
     int pressed = -1;
-    float x = start.x;
+    // A strip wider than the screen slides so the current tab stays in view.
+    float end = 0, total = 0;
+    for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
+        total += ImGui::CalcTextSize(labels[i].c_str()).x + 2 * pad;
+        if (i == current) end = total;
+    }
+    float x = start.x - (std::max)(0.f, (std::min)(end - width + pad, total - width));
+    draw->PushClipRect(start, ImVec2(start.x + width, start.y + height + s), true);
     for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
         const float w = ImGui::CalcTextSize(labels[i].c_str()).x + 2 * pad;
         ImGui::SetCursorScreenPos(ImVec2(x, start.y));
@@ -79,6 +86,7 @@ int Tabs(const std::vector<std::string>& labels, int current) {
         draw->AddText(ImVec2(x + pad, start.y + (height - ImGui::GetFontSize()) * .5f), selected ? palette::Ivory : palette::Muted, labels[i].c_str());
         x += w;
     }
+    draw->PopClipRect();
     draw->AddLine(ImVec2(start.x, start.y + height), ImVec2(start.x + width, start.y + height), color::Border, s);
     ImGui::SetCursorScreenPos(start);
     ImGui::Dummy(ImVec2(width, height + 8 * s));

@@ -6223,6 +6223,9 @@ msgstr "V2 (preview)"
 msgid "settings.look_detail"
 msgstr "Ember's new look, still being built. Switch back at any time: only how screens look changes."
 
+msgid "room.controls_detail"
+msgstr "Your controller and its buttons, without leaving the room."
+
 msgid "settings.picture_corner"
 msgstr "Picture corner"
 

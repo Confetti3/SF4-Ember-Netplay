@@ -6587,6 +6587,9 @@ msgstr "V2 (Vorschau)"
 msgid "settings.look_detail"
 msgstr "Embers neues Aussehen, noch im Aufbau. Sie können jederzeit zurückwechseln: Nur das Aussehen der Bildschirme ändert sich."
 
+msgid "room.controls_detail"
+msgstr "Ihr Controller und seine Tasten, ohne den Raum zu verlassen."
+
 msgid "settings.picture_corner"
 msgstr "Ecke des Bildes"
 

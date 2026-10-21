@@ -41,7 +41,7 @@ std::vector<MenuEntry> ApplicationShell::SettingsTabRows(const ShellView& v, con
         add("interface", loc::T("settings.group.text"), [](const std::string& id) { return id == "scale" || id == "language"; });
         add("interface", loc::T("settings.group.help"), [](const std::string& id) { return id == "shortcut-hint"; });
     } else if (screen == "tab-online") {
-        add("discord", loc::T("discord.title"));
+        add("discord", loc::T("screen.discord"));
         add("interface", loc::T("screen.rankings"), [](const std::string& id) { return id == "class-emblems"; });
     } else {
         add("about", loc::T("home.about"));

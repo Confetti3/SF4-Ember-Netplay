@@ -324,6 +324,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     held_=menuInput.held;
     // InputText consumes this frame's characters before the requested acceptance.
     // The navigation model still owns the neutral gate and Back/accept ordering.
+    {const auto open=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
+     navigation.choiceColumns=navigation.Choosing()&&open!=entries.end()?MenuChoiceColumns(open->choices.size()):1;}
     auto action=navigation.Update(menuInput,entries,columns,true,true);
     const bool acceptEditText=action.kind==MenuAction::SubmitText;
     if(acceptEditText)action={};

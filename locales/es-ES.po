@@ -6588,6 +6588,9 @@ msgstr "V2 (vista previa)"
 msgid "settings.look_detail"
 msgstr "El nuevo aspecto de Ember, todavía en desarrollo. Puedes volver cuando quieras: solo cambia cómo se ven las pantallas."
 
+msgid "room.controls_detail"
+msgstr "Tu mando y sus botones, sin salir de la sala."
+
 msgid "settings.picture_corner"
 msgstr "Esquina de la imagen"
 

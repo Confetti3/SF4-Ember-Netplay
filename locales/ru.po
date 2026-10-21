@@ -6588,6 +6588,9 @@ msgstr "V2 (предпросмотр)"
 msgid "settings.look_detail"
 msgstr "Новый внешний вид Ember, он ещё в работе. Вернуться можно в любой момент: меняется только вид экранов."
 
+msgid "room.controls_detail"
+msgstr "Ваш контроллер и его кнопки, не выходя из комнаты."
+
 msgid "settings.picture_corner"
 msgstr "Угол картинки"
 

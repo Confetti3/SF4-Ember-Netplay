@@ -28,6 +28,7 @@ float DialogButtonsHeight(const std::vector<DialogButton>& buttons,float height)
     const float rows=Stacked(buttons)?static_cast<float>(buttons.size()):1.f;
     return rows*height+(rows-1)*ImGui::GetStyle().ItemSpacing.y;
 }
+std::size_t MenuChoiceColumns(std::size_t count) { return v2::On()?(std::min<std::size_t>)(3,(count+5)/6):1; }
 // A dialog button's ground; V2 marks the selected one with its focus marks after drawing it (V2Mark).
 static ImVec4 ButtonGround(bool selected) {
     if(!v2::On())return DialogButtonColor(selected);
@@ -222,7 +223,7 @@ void GameMenu::DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction&
         else {
             const float s=Scale(),row=40*s;const auto count=entry->choices.size();
             // V2 shows every option at once: a grid of up to three columns once a list passes six.
-            const std::size_t columns=v2::On()?(std::min<std::size_t>)(3,(count+5)/6):1,lines=(count+columns-1)/columns;
+            const std::size_t columns=MenuChoiceColumns(count),lines=(count+columns-1)/columns;
             const float height=(std::min)(row*lines+ImGui::GetStyle().ItemSpacing.y*lines,ImGui::GetMainViewport()->Size.y*.55f);
             ImGui::BeginChild("Choice options",ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
             ReportMenuCard("choice-list",ImGui::GetWindowPos(),ImVec2(ImGui::GetWindowPos().x+ImGui::GetWindowSize().x,ImGui::GetWindowPos().y+ImGui::GetWindowSize().y));

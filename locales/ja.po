@@ -6588,6 +6588,9 @@ msgstr "V2（プレビュー）"
 msgid "settings.look_detail"
 msgstr "制作中の Ember の新しい外観です。いつでも元に戻せます。変わるのは画面の見た目だけです。"
 
+msgid "room.controls_detail"
+msgstr "ルームを出ずに、コントローラーとボタンを設定します。"
+
 msgid "settings.picture_corner"
 msgstr "画面の位置"
 

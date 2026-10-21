@@ -6587,6 +6587,9 @@ msgstr "V2 (aperçu)"
 msgid "settings.look_detail"
 msgstr "La nouvelle apparence d'Ember, encore en construction. Vous pouvez revenir en arrière à tout moment : seul l'aspect des écrans change."
 
+msgid "room.controls_detail"
+msgstr "Votre manette et ses boutons, sans quitter le salon."
+
 msgid "settings.picture_corner"
 msgstr "Coin de l'image"
 

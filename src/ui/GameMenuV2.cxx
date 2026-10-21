@@ -22,6 +22,12 @@ std::string Fit(const std::string& text, float width, float size, ImFont* font) 
     font->CalcTextSizeA(size, (std::max)(0.f, width - font->CalcTextSizeA(size, FLT_MAX, 0, "...").x), 0, text.c_str(), nullptr, &end);
     return std::string(text.c_str(), end) + "...";
 }
+// A title written in capitals, as the classic headers are.
+bool IsCapitals(const char* text) {
+    bool letter = false;
+    for (; *text; ++text) { if (*text >= 'a' && *text <= 'z') return false; letter |= *text >= 'A' && *text <= 'Z'; }
+    return letter;
+}
 // The first line of a detail, for a card's second line.
 std::string FirstLine(const std::string& text) { return text.substr(0, text.find('\n')); }
 void Chevron(ImDrawList* d, ImVec2 at, float size, ImU32 color) {
@@ -61,7 +67,9 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     else {
         ImGui::BeginGroup();
         ImGui::Dummy(ImVec2(x1 - x0, 0));
-        v2::Header(title);
+        // Classic titles are capitals ("SETTINGS"); the V2 header names the screen as the menus do.
+        const char* named = MenuScreenName(navigation.Screen());
+        v2::Header(named && IsCapitals(title) ? named : title);
         if (!tabs.empty()) {
             std::vector<std::string> labels;
             for (const auto& t : tabs) labels.push_back(t.second);
@@ -164,7 +172,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
                 if (second) {
                     NoteDetailText(e.detail, e.detailText);
                     ld->AddText(ImGui::GetFont(), detailSize, ImVec2(left, labelY + labelSize + 4 * s), palette::Muted,
-                        Fit(FirstLine(e.detail), right - left, detailSize, ImGui::GetFont()).c_str());
+                        Fit(FirstLine(e.detail), labelRoom, detailSize, ImGui::GetFont()).c_str());
                 }
                 const float valueY = p.y + (h - ImGui::GetFontSize()) * .5f;
                 if (e.adjustable) {

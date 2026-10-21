@@ -165,6 +165,8 @@ public:
     void ConfirmSelected(bool accept) { if (Confirming()) confirmSelected_ = accept; }
     // The highlighted option of an open choice.
     std::size_t ChoiceIndex() const { return choiceIndex_; }
+    // How many options an open choice shows on a row (MenuChoiceColumns); its owner sets it.
+    std::size_t choiceColumns = 1;
     void ChoiceIndex(std::size_t index) { if (index < choiceIds_.size()) choiceIndex_ = index; }
     const std::string& EditingId() const { return Editing() ? modalId_ : NoId(); }
     // The entry an open confirmation or choice belongs to.
@@ -287,8 +289,11 @@ public:
         const unsigned shortcut=pressed&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat|MenuInput::Leave|MenuInput::PrevTab|MenuInput::NextTab);
         if(shortcut&&mode_==Modal::None) return {MenuAction::Shortcut,{},{},static_cast<int>(shortcut&(~shortcut+1))};
         if(Choosing()) {
-            if((pressed&(MenuInput::Left|MenuInput::Up))&&choiceIndex_>0) --choiceIndex_;
-            if((pressed&(MenuInput::Right|MenuInput::Down))&&choiceIndex_+1<choiceIds_.size()) ++choiceIndex_;
+            // In a grid of options (choiceColumns), Up and Down move a row; Left and Right one option.
+            const std::size_t up=pressed&MenuInput::Up?choiceColumns:pressed&MenuInput::Left?1:0;
+            const std::size_t down=pressed&MenuInput::Down?choiceColumns:pressed&MenuInput::Right?1:0;
+            if(up&&choiceIndex_>=up) choiceIndex_-=up;
+            if(down&&choiceIndex_+down<choiceIds_.size()) choiceIndex_+=down;
             return pressed&MenuInput::Select ? Pick(choiceIndex_,entries) : MenuAction{};
         }
         if(Confirming()) {
