@@ -205,4 +205,16 @@ serves a plain read-only page and the web desk its current steps.
 - Same Discord application for the site's sign-in as the bot's, or its own.
 - Whether players may sign up before connecting Discord in Ember (listed
   as unlinked, nudged, dropped at check-in) instead of being refused.
-- Where the site runs (a host under embernetplay.link) and who operates it.
+- Who operates it.
+
+## 11. Deployment
+
+The public origin is `https://brackets.ember.fraccie.be`: Nginx Proxy
+Manager on taelman ends TLS and proxies to `http://10.40.0.247:8490`, so
+the site listens on `BRACKET_SITE_LISTEN=0.0.0.0:8490` there (beside the
+nightly bridge on 8470, the connector on 8791 and the staging website on
+8480). The proxy reaches it as 10.10.10.1 and sets `X-Real-IP`; any
+per-address limit the site adds reads that header from 10.10.10.1 only, as
+the bridge's `trusted_proxies` does. The site definition's URLs and
+`hosts` name that origin, and the connector's `desk.services` and `api_base`
+take it as the base.
