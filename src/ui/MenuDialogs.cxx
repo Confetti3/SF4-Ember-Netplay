@@ -97,6 +97,42 @@ const MenuEntry* FindEntry(const std::vector<MenuEntry>& entries,const std::stri
     const auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==id;});
     return it==entries.end()?nullptr:&*it;
 }
+// The dialogs' popup. V2: a card `width` wide without a title bar, edged in
+// `edge` (the 3 px Ember rule down its left with `rule`), over the screen dimmed.
+bool BeginDialogPopup(const char* id,float width,ImU32 edge,bool rule=false) {
+    NextPopupSize();
+    const bool look=v2::On();const float s=Scale();const auto& c=v2::Colors();
+    if(look){
+        ImGui::SetNextWindowSize(ImVec2((std::min)(width*s,ImGui::GetMainViewport()->Size.x-40*s),0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(24*s,22*s));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,4*s);
+        ImGui::PushStyleColor(ImGuiCol_PopupBg,ImGui::ColorConvertU32ToFloat4(c.ink));
+        ImGui::PushStyleColor(ImGuiCol_Border,ImGui::ColorConvertU32ToFloat4(edge));
+        ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg,ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(c.ink,.72f)));
+    }
+    const bool open=ImGui::BeginPopupModal(id,nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs|(look?ImGuiWindowFlags_NoTitleBar:0));
+    if(look){ImGui::PopStyleColor(3);ImGui::PopStyleVar(2);}
+    if(open&&look&&rule){
+        auto* d=ImGui::GetWindowDrawList();const auto at=ImGui::GetWindowPos();
+        d->PushClipRect(at,ImVec2(at.x+3*s,at.y+ImGui::GetWindowHeight()));
+        d->AddRectFilled(at,ImVec2(at.x+3*s,at.y+ImGui::GetWindowHeight()),c.accent,4*s,ImDrawFlags_RoundCornersLeft);
+        d->PopClipRect();
+    }
+    return open;
+}
+// A V2 dialog's top: the brand's mark and `eyebrow`, `chip` at the right end,
+// then `heading` (none when null) at `size` in `tone`.
+void DialogTop(const std::string& eyebrow,const v2::HeaderChip& chip,const char* heading,ImU32 tone,float size) {
+    const float s=Scale();const auto& c=v2::Colors();
+    auto* d=ImGui::GetWindowDrawList();const auto at=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
+    const float mark=v2::BrandMark(d,ImVec2(at.x,at.y+3*s),18*s);
+    d->AddText(ImGui::GetFont(),14*s,ImVec2(at.x+mark+10*s,at.y+5*s),c.muted,eyebrow.c_str());
+    if(!chip.text.empty())v2::Chip(d,ImVec2(at.x+width-v2::ChipWidth(chip.text),at.y),chip.text,chip.tone);
+    ImGui::Dummy(ImVec2(width,24*s));
+    if(!heading)return;
+    size*=s;const auto h=HeadingFont()->CalcTextSizeA(size,FLT_MAX,width,heading);
+    d->AddText(HeadingFont(),size,ImGui::GetCursorScreenPos(),tone,heading,nullptr,width);
+    ImGui::Dummy(ImVec2(width,h.y+4*s));
+}
 }
 void GameMenu::ShowNotice(NoticeDialog notice) {
     notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons);
@@ -170,17 +206,19 @@ void GameMenu::DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuA
     // takes the popup level while it is open (see DrawNoticeModal), so this
     // dialog is opened again, unchanged, once the notice is answered.
     if(navigation.Confirming()&&notice_.empty()) ImGui::OpenPopup(confirmationPopup.c_str());
-    NextPopupSize();
-    if(ImGui::BeginPopupModal(confirmationPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+    // V2: the question is the card's heading, under the dialog's name.
+    if(BeginDialogPopup(confirmationPopup.c_str(),560,v2::Colors().border,true)) {
         if(!navigation.Confirming()) ImGui::CloseCurrentPopup();
         else {
             const auto* entry=FindEntry(entries,navigation.DialogId());
             const auto question=loc::Tf("confirm.question",entry?entry->label:std::string(loc::T("confirm.title")));
-            ImGui::TextWrapped("%s",question.c_str());
+            if(v2::On())DialogTop(loc::T("confirm.title"),{},question.c_str(),v2::Colors().text,24);
+            else ImGui::TextWrapped("%s",question.c_str());
             if(entry)ImGui::TextWrapped("%s",entry->detail.c_str());
+            ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
             ImGui::BeginChild("Confirmation feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
             if(!entry||!feedback_.Enabled(*entry))ImGui::TextWrapped("%s",loc::T("confirm.updating"));
-            ImGui::EndChild();
+            ImGui::EndChild();ImGui::PopStyleColor();
             int selected=navigation.ConfirmSelected()?1:0;
             const int clicked=DrawDialogButtons("confirm",ConfirmationButtons(entries),&selected,48*Scale());
             AnswerConfirmation(entries,clicked,selected,action);
@@ -266,32 +304,16 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
     // trading places with it every frame. The navigation state they answer to
     // (a draft, a question) is untouched and their popup returns afterwards.
     if(!notice_.empty()) ImGui::OpenPopup(noticePopup.c_str());
-    NextPopupSize();
     // V2: a card without a title bar, the brand's mark and the notice's eyebrow and chip on its top line.
     const bool look=v2::On();const float s=Scale();const auto& c=v2::Colors();
-    if(look){
-        ImGui::SetNextWindowSize(ImVec2((std::min)(560*s,ImGui::GetMainViewport()->Size.x-40*s),0));
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(24*s,22*s));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,4*s);
-        ImGui::PushStyleColor(ImGuiCol_PopupBg,ImGui::ColorConvertU32ToFloat4(c.ink));
-        ImGui::PushStyleColor(ImGuiCol_Border,ImGui::ColorConvertU32ToFloat4(noticeChip_.text.empty()?c.border:c.accent));
-        ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg,ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(c.ink,.72f)));
-    }
-    const bool open=ImGui::BeginPopupModal(noticePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs|(look?ImGuiWindowFlags_NoTitleBar:0));
-    if(look){ImGui::PopStyleColor(3);ImGui::PopStyleVar(2);}
+    const bool open=BeginDialogPopup(noticePopup.c_str(),560,noticeChip_.text.empty()?c.border:c.accent);
     if(open) {
         if(notice_.empty()) ImGui::CloseCurrentPopup();
         else {
             const char* heading=noticeError_?loc::T("notice.error_title"):noticeHeading_.empty()?loc::T("notice.title"):noticeHeading_.c_str();
             if(look){
-                auto* d=ImGui::GetWindowDrawList();const auto at=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x,line=24*s;
-                const float mark=v2::BrandMark(d,ImVec2(at.x,at.y+3*s),18*s);
-                d->AddText(ImGui::GetFont(),12*s,ImVec2(at.x+mark+10*s,at.y+6*s),c.muted,noticeEyebrow_.c_str());
-                if(!noticeChip_.text.empty())v2::Chip(d,ImVec2(at.x+width-v2::ChipWidth(noticeChip_.text),at.y),noticeChip_.text,noticeChip_.tone);
-                ImGui::Dummy(ImVec2(width,line));
-                const float size=28*s;const auto h=HeadingFont()->CalcTextSizeA(size,FLT_MAX,width,heading);
-                const auto top=ImGui::GetCursorScreenPos();
-                d->AddText(HeadingFont(),size,top,noticeError_?ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Error)):c.text,heading,nullptr,width);
-                ImGui::Dummy(ImVec2(width,h.y+4*s));
+                DialogTop(noticeEyebrow_,noticeChip_,heading,noticeError_?ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Error)):c.text,28);
+                auto* d=ImGui::GetWindowDrawList();const float width=ImGui::GetContentRegionAvail().x;
                 if(!noticeFacts_.empty()){
                     const auto box=ImGui::GetCursorScreenPos();const float bh=44*s;
                     d->AddRectFilled(box,ImVec2(box.x+width,box.y+bh),c.frame,4*s);d->AddRect(box,ImVec2(box.x+width,box.y+bh),c.border,4*s,0,s);
@@ -330,31 +352,43 @@ void GameMenu::ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& in
 void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action) {
     const std::string editPopup=std::string(loc::T("edit.title"))+"###EditText";
     if(navigation.Editing()&&notice_.empty()) ImGui::OpenPopup(editPopup.c_str());
-    NextPopupSize();
-    if(ImGui::BeginPopupModal(editPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+    const bool look=v2::On();const float s=Scale();const auto& c=v2::Colors();
+    if(BeginDialogPopup(editPopup.c_str(),720,c.border)) {
         if(!navigation.Editing()) ImGui::CloseCurrentPopup();
         else {
             const auto* entry=FindEntry(entries,navigation.EditingId());
             const std::size_t limit=entry?(std::min)(entry->multiline?std::size_t(8000):std::size_t(4096),entry->textLimit):4096;
             const bool canAccept=entry&&entry->enabled;
-            ImGui::TextWrapped("%s",entry?entry->label.c_str():loc::T("edit.title"));
-            ImGui::TextWrapped("%s",entry&&entry->multiline?loc::T("edit.instructions_multiline"):loc::T("edit.instructions"));
+            const char* label=entry?entry->label.c_str():loc::T("edit.title");
+            const char* instructions=entry&&entry->multiline?loc::T("edit.instructions_multiline"):loc::T("edit.instructions");
+            const auto bytes=loc::Tf("edit.bytes",static_cast<unsigned>(navigation.Draft().size()),static_cast<unsigned>(limit));
+            // V2: the field's name and its count above it, the field edged in Ember, how to type under it.
+            if(look)DialogTop(label,{bytes,c.muted},nullptr,0,0);
+            else{ImGui::TextWrapped("%s",label);ImGui::TextWrapped("%s",instructions);}
             const bool secret=navigation.EditingSecret();
             std::vector<char> draft(limit+1,0); std::strncpy(draft.data(),navigation.Draft().c_str(),limit);
             // A masked passphrase draws only asterisks, so its glyphs are never needed.
             if(!secret) NoteUserText(navigation.Draft(),UserTextRole::Draft);
             if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if(look){
+                ImGui::PushStyleColor(ImGuiCol_FrameBg,ImGui::ColorConvertU32ToFloat4(c.frame));ImGui::PushStyleColor(ImGuiCol_Border,ImGui::ColorConvertU32ToFloat4(c.accent));
+                ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,2*s);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,4*s);
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(14*s,(std::max)(4*s,(52*s-ImGui::GetFontSize())*.5f)));
+            }
             const bool changed=entry&&entry->multiline?
                 ImGui::InputTextMultiline("##Draft",draft.data(),draft.size(),ImVec2(-1,4*ImGui::GetTextLineHeightWithSpacing())):
                 ImGui::InputText(secret?"##Secret":"##Draft",draft.data(),draft.size(),secret?ImGuiInputTextFlags_Password:0);
+            if(look){ImGui::PopStyleVar(3);ImGui::PopStyleColor(2);}
             if(changed) navigation.Draft(draft.data());
             if(secret) WipeText(draft.data(),draft.size());
-            ImGui::TextDisabled("%s",loc::Tf("edit.bytes",static_cast<unsigned>(navigation.Draft().size()),static_cast<unsigned>(limit)).c_str());
+            if(look)ImGui::TextWrapped("%s",instructions);
+            else ImGui::TextDisabled("%s",bytes.c_str());
             const bool visualAccept=entry&&feedback_.Enabled(*entry);
+            ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
             ImGui::BeginChild("Edit feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
             if(!visualAccept)ImGui::TextWrapped("%s",loc::T("edit.updating"));
-            ImGui::EndChild();
+            ImGui::EndChild();ImGui::PopStyleColor();
             // The highlight is what the controller's Select presses; a moving
             // pointer moves it, and the model keeps it.
             int accept=navigation.EditAccepts()?1:0;

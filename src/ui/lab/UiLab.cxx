@@ -5,7 +5,7 @@
 //
 // F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F5 in a room · F6 picture · F12 screenshot
 // BluMint room (--blumint): F7 next moment · F8 fighter or watcher
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--pip] [--hud 0|1] [--training] [--screen id] [--keys down,down,enter] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--pip] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -186,7 +186,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::string shot, keys, screen;
     bool inRoom = false, pip = false;
     int hud = -1;
-    bool trainingPanel = false, blumint = false, watcher = false;
+    bool trainingPanel = false, blumint = false, watcher = false, update = false;  // --update: Home offers a Nightly update
     std::string moment;  // --moment game|set|lost|restart|host|expired, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
@@ -203,6 +203,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--watcher") watcher = true;
         else if (args[i] == "--moment" && more) moment = args[++i];
         else if (args[i] == "--screen" && more) screen = args[++i];
+        else if (args[i] == "--update") update = true;
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
     RegisterClassExW(&wc);
@@ -229,6 +230,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     // A BluMint room joins its own (BluMintRoom).
     if (inRoom && !blumint) JoinRoom(view);
     if (blumint) BluMintRoom(view, watcher);
+    if (update) { view.services.launchOffer = launcher::InstallOffer{updates::UpdateChannel::Nightly, "v1.3.0", "lab"}; view.services.installedVersion = "v1.2.0"; }
     bool open = true, bar = shot.empty();
     std::size_t size = 0;
     std::vector<unsigned> script;
