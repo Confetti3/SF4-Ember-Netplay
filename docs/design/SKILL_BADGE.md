@@ -99,14 +99,16 @@ country flag and leads the name on table seats and in the Members list
 tooltip names the class; a faint emblem's adds that the player has not played
 lately. A player without a Discord account or not taking part shows nothing.
 
-The game has no art for the two marks that are not classes, so they are words
-in a small pill in Ember's own colours:
+The game has no art for the two marks that are not classes:
 
-- **"?"**: the player's rating is still placing. A ticket has always carried
-  this as band 0; builds before this one show nothing for it, so it needed no
-  new field.
-- **"Dev"**: one of Ember's developers. The bridge's operator lists their
-  Discord user IDs in `rooms.developers`; no client can claim it. It stands in
+- **"?"**: the player's rating is still placing, shown as a word in a small
+  pill in Ember's own colours. A ticket has always carried this as band 0;
+  builds before this one show nothing for it, so it needed no new field.
+- **Dev**: one of Ember's developers, shown as Ember's own flame "DEV" art
+  (`assets/input/mark_developer.png`, drawn at the emblems' height and its own
+  width), or as "Dev" in a pill while that file has not loaded. The bridge's
+  operator lists their Discord user IDs in `rooms.developers`; no client can
+  claim it. It stands in
   place of the class (`SkillBadge::developer`, band 0), on tickets and on the
   player's own standing. A developer is not on the board, since the board
   lists classes. Their games are rated as anyone's, so their opponents'

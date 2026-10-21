@@ -19,11 +19,13 @@ constexpr GameClass Classes[SkillBadge::Classes] = {
     {"class_MASTER.dds", nullptr}, {"class_GM.dds", nullptr}};
 constexpr ImU32 PillFill = IM_COL32(56, 51, 46, 255), PillBorder = IM_COL32(255, 135, 56, 160);
 
-// How a badge is drawn: a class as the game's emblem once it has loaded;
-// placing and the developer mark as a word in a pill, since the game has no
-// art for them; nothing for none, or a class whose emblem has not loaded.
+// How a badge is drawn: a class as the game's emblem once it has loaded, the
+// developer mark as Ember's own art; placing as "?" in a pill, since the game
+// has no art for it, and the developer mark as a word in a pill until its art
+// has loaded; nothing for none, or a class whose emblem has not loaded.
 struct Mark {
     SelectionImage emblem;
+    bool faded = false;
     std::string pill;
     bool Drawn() const { return emblem.texture || !pill.empty(); }
 };
@@ -31,25 +33,36 @@ Mark MarkOf(const SkillBadge& badge) {
     Mark mark;
     switch (badge.kind) {
     case SkillBadge::Kind::Placing: mark.pill = "?"; break;
-    case SkillBadge::Kind::Developer: mark.pill = loc::T("class.developer"); break;
+    case SkillBadge::Kind::Developer:
+        if (auto* art = MenuArt()) mark.emblem = art->DeveloperMark();
+        if (!mark.emblem.texture) mark.pill = loc::T("class.developer");
+        break;
     case SkillBadge::Kind::Class:
         if (auto* art = MenuArt()) mark.emblem = art->RankingEmblem(Classes[badge.band - 1].entry);
+        mark.faded = !badge.settled;
         break;
     default: break;
     }
     return mark;
 }
 float EmblemSide(float fontSize) { return std::round(fontSize * 1.1f); }
+// An emblem is drawn EmblemSide tall at its own shape (the class emblems are
+// square, the developer mark wide).
+float EmblemWidth(const SelectionImage& emblem, float fontSize) {
+    const float side = EmblemSide(fontSize);
+    return emblem.height > 0 ? std::round(side * emblem.width / emblem.height) : side;
+}
 float Gap() { return std::round(5 * Scale()); }
 float PillTextSize(float fontSize) { return std::round(fontSize * .78f); }
 float PillWidth(const std::string& pill, float fontSize) {
     const float size = PillTextSize(fontSize);
     return std::round(ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, pill.c_str()).x + size * .9f);
 }
-// The room a drawn mark takes, its gap included.
-float MarkSlot(const Mark& mark, float fontSize) {
-    return mark.emblem.texture ? EmblemSide(fontSize) + Gap() : mark.pill.empty() ? 0 : PillWidth(mark.pill, fontSize) + Gap();
+float MarkWidth(const Mark& mark, float fontSize) {
+    return mark.emblem.texture ? EmblemWidth(mark.emblem, fontSize) : PillWidth(mark.pill, fontSize);
 }
+// The room a drawn mark takes, its gap included.
+float MarkSlot(const Mark& mark, float fontSize) { return mark.Drawn() ? MarkWidth(mark, fontSize) + Gap() : 0; }
 
 std::string MarkTip(const SkillBadge& badge) {
     if (badge.kind == SkillBadge::Kind::Placing) return loc::T("rankings.placing");
@@ -78,11 +91,11 @@ DrawnMarks DrawNameMarks(ImDrawList* d, float x, float textTop, float fontSize, 
     drawn.width = flag.width;
     const Mark mark = MarkOf(marks.badge);
     if (!mark.Drawn()) return drawn;
-    const float side = EmblemSide(fontSize), width = mark.emblem.texture ? side : PillWidth(mark.pill, fontSize);
+    const float side = EmblemSide(fontSize), width = MarkWidth(mark, fontSize);
     const ImVec2 min(std::round(x + drawn.width), std::round(textTop + (fontSize - side) * .5f)), max(min.x + width, min.y + side);
     if (mark.emblem.texture) {
         d->AddImage(mark.emblem.texture, min, max, mark.emblem.uvMin, mark.emblem.uvMax,
-            marks.badge.settled ? IM_COL32_WHITE : IM_COL32(255, 255, 255, 115));
+            mark.faded ? IM_COL32(255, 255, 255, 115) : IM_COL32_WHITE);
     } else {
         const float size = PillTextSize(fontSize), rounding = side * .5f;
         const float textWidth = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, mark.pill.c_str()).x;

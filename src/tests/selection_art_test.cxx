@@ -160,6 +160,16 @@ int main() {
         const auto emblem = Settle(art, [&] { return art.RankingEmblem("class_B.dds"); }, 2000);
         CHECK(emblem.texture && !emblem.missing && emblem.width == 32 && emblem.height == 32);
         CHECK(logged.size() == 4);
+
+        // The shipped developer mark sits in the input art folder beside the
+        // selection art and loads at its own, wide shape.
+        std::ifstream markFile(fs::path(SF4E_TEST_ASSET_ROOT) / L".." / L"input" / L"mark_developer.png", std::ios::binary);
+        const std::string mark((std::istreambuf_iterator<char>(markFile)), std::istreambuf_iterator<char>());
+        CHECK(mark.size() > 8);
+        Write(root / L"input" / L"mark_developer.png", mark);
+        const auto developer = Settle(art, [&] { return art.DeveloperMark(); }, 2000);
+        CHECK(developer.texture && !developer.missing && developer.width == 256 && developer.height == 116);
+        CHECK(logged.size() == 4);
     }
     device->Release(); d3d->Release(); DestroyWindow(window);
     RemoveTempRoot(root);

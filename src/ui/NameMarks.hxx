@@ -1,8 +1,8 @@
 #pragma once
 // What leads a member's name in the room: their country's flag, then, in a
 // public room, their class as USF4's own emblem (faint while it is
-// unsettled), or "?" while their rating places and "Dev" for Ember's
-// developers. A player without a badge shows nothing.
+// unsettled), or "?" while their rating places and Ember's flame "DEV" mark
+// for its developers. A player without a badge shows nothing.
 #include "../common/Country.hxx"
 #include "../common/SkillBadge.hxx"
 #include <imgui.h>

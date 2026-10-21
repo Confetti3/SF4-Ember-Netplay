@@ -449,6 +449,12 @@ SelectionImage SelectionArt::RankingEmblem(const std::string& entry) {
         return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/network_mode/Ranking.emz"};
     }, NativeSide, emblem, entry);
 }
+SelectionImage SelectionArt::DeveloperMark() {
+    Impl::Policy shipped; shipped.reportAbsence = true;
+    return impl_->Request("developer-mark", [&] {
+        return std::vector<std::wstring>{impl_->assetRoot + L"/../input/mark_developer.png"};
+    }, NativeSide, shipped);
+}
 SelectionImage SelectionArt::Stage(int nativeId) {
     // The Random card borrows the game's character-select random tile, read at
     // runtime like the portraits and never repackaged.
