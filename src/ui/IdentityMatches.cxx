@@ -49,6 +49,10 @@ void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& matc
     IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
 }
 
+bool IdentityPanel::LinkMayPlay(const ShellView& v) {
+    return v.session.room == netplay::RoomState::Idle && v.session.match == netplay::MatchState::None && !v.tournament.MatchRoomActive();
+}
+
 int IdentityPanel::ReadyMatches(const ShellView& v) const {
     const auto& id = v.identity;
     if (!id.known || id.state != "ready" || (servicesKnown_ && !FirstService(v))) return 0;
@@ -125,14 +129,16 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
         linkedPlay_.reset();
         message_.clear();
     }
+    // While a fresh link waits for its match, the list is read as often as after a lost connection.
+    const bool linking = linkedPlay_.has_value();
     ShellAction action;
     action.command.generation = v.session.generation;
     if (play_) {
         action.tournament = std::move(*play_);
         play_.reset();
-    } else if ((wantAssignments_ && screen == "tournament-matches" || (watching || !Owns(screen)) && now_ >= assignmentsAt_ && servicesKnown_) &&
+    } else if ((wantAssignments_ && screen == "tournament-matches" || (watching || linking || !Owns(screen)) && now_ >= assignmentsAt_ && servicesKnown_) &&
                FindBridge(v, bridge_) && !t.list.loading) {
-        wantAssignments_ = false; assignmentsAt_ = now_ + (watching ? RestartPollSeconds : AssignmentsSeconds);
+        wantAssignments_ = false; assignmentsAt_ = now_ + (watching || linking ? RestartPollSeconds : AssignmentsSeconds);
         action.tournament.op = Command::Op::Refresh;
         action.tournament.bridgeId = bridge_;
         if (opened_ && opened_->bridge == bridge_) opened_->finishedBefore = t.list.finished;
@@ -216,7 +222,7 @@ bool IdentityPanel::MatchesActivate(const MenuAction& a, const ShellView& v) {
         const auto link = tournament_link::ParsePasted(text ? text : "");
         if (!link.Valid()) { Say(loc::T("tournament.failure.link"), Tone::Error); return true; }
         message_.clear();
-        OpenMatch(link.bridgeId, link.matchId, v.session.room == netplay::RoomState::Idle && !v.tournament.MatchRoomActive());
+        OpenMatch(link.bridgeId, link.matchId, LinkMayPlay(v));
         return true;
     }
     if (a.id == "tm-stop") { play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Stop, {}, {}}; return true; }

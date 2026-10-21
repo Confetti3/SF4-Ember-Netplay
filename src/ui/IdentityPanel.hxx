@@ -45,6 +45,9 @@ public:
     // the matches screen is shown. A service the player does not trust, or a
     // match not in their list, is said instead.
     void OpenMatch(const std::string& bridge, const std::string& match, bool playNow = false);
+    // Whether a match link arriving now may play its match by itself: no room,
+    // no game, and no tournament match played or watched (OpenMatch's playNow).
+    static bool LinkMayPlay(const ShellView& v);
     // A tournament site asked the player to connect Discord on `bridge`: the
     // Connect Discord screen shows that service, from wherever the player is
     // in the steps. Nothing is sent to Discord until the player presses Connect.

@@ -782,6 +782,19 @@ static void TestGoneHostIsReplaced() {
 	const auto* join = Find(out, Kind::Join);
 	CHECK(join && join->invitation == "sf4e3:" + RoomC);
 
+	// Joins that each take the whole open timeout to fail: the tick that sees
+	// the second fail hosts the replacement and sends no third join with it.
+	TournamentPlay slow;
+	slow.Start("brg_x", "emt_x", 0);
+	slow.Tick(0, {});
+	slow.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 100);
+	CHECK(Count(slow.Tick(200, {}), Kind::Join) == 1);
+	slow.Tick(300, Opening());
+	CHECK(Count(slow.Tick(OpenTimeoutMs + 300, {}), Kind::Join) == 1);
+	slow.Tick(OpenTimeoutMs + 400, Opening());
+	out = slow.Tick(2 * OpenTimeoutMs + 400, {});
+	CHECK(Count(out, Kind::Host) == 1 && Count(out, Kind::Join) == 0);
+
 	// One failed join is not enough: the room is joined again, not replaced.
 	TournamentPlay once;
 	once.Start("brg_x", "emt_x", 0);

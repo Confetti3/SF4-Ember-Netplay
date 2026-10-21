@@ -152,6 +152,15 @@ bool TournamentPlay::SeatReady(const RoomView& room) const {
 void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out) {
 	using Step = MatchRoomFollower::Step;
 	waitingForOpponent_ = false;
+	// The named room could not be joined twice running: its host left or its
+	// game closed. This game hosts a new room and publishes it in that one's
+	// place, which the bridge refuses while a game of the match is undecided.
+	// Decided before Follow, so a tick never sends a join and a host at once.
+	if (room_.Aimed() && room_.FailedJoins() >= ReplaceAfterFailedJoins && !room.joined && !room.opening) {
+		replacing_ = room_.Target();
+		room_.Forget();
+		published_ = false;
+	}
 	const auto step = room_.Follow(nowMs, room);
 	switch (step) {
 	case Step::Foreign:
@@ -174,14 +183,6 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 		break;
 	case Step::None:
 		break;
-	}
-	// The named room could not be joined twice running: its host left or its
-	// game closed. This game hosts a new room and publishes it in that one's
-	// place, which the bridge refuses while a game of the match is undecided.
-	if (room_.Aimed() && room_.FailedJoins() >= ReplaceAfterFailedJoins && !room.joined && !room.opening) {
-		replacing_ = room_.Target();
-		room_.Forget();
-		published_ = false;
 	}
 	// No room named yet: the fighter holding the lease, or replacing a room,
 	// hosts and publishes one; the other waits for it.

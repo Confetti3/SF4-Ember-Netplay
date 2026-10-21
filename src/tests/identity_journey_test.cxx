@@ -136,6 +136,25 @@ void IdentityJourneys() {
  std::size_t plays=0;for(std::size_t i=before;i<h.played().size();++i)plays+=h.played()[i]->op==Command::Op::Play&&h.played()[i]->matchId=="emt_1";
  Check(plays==1,"A match link did not play its match by itself, once");
  for(int i=0;i<4;++i)answer();
+ // A link that arrives while a tournament match is being claimed waits for
+ // Play, even once that match stops.
+ {
+  t.phase=netplay::tournament::Phase::Claiming;const auto mark=h.played().size();
+  t.link.sequence=10;h.Frame(0,3);t.phase=netplay::tournament::Phase::Idle;h.Frame(0,30);
+  bool played=false;for(std::size_t i=mark;i<h.played().size();++i)played|=h.played()[i]->op==Command::Op::Play;
+  Check(!played,"A match link that came during another tournament match played by itself later");
+ }
+ // A link whose match is not playable yet reads the list again every few
+ // seconds and plays it once it is.
+ {
+  auto later=playable;later.state="running";t.list.items={later};const auto mark=h.played().size();
+  t.link.sequence=11;h.Frame(0,3);
+  for(int i=0;i<12;++i)h.Frame(0,1,1.f);
+  std::size_t refreshes=0;for(std::size_t i=mark;i<h.played().size();++i)refreshes+=h.played()[i]->op==Command::Op::Refresh;
+  Check(refreshes>=2,"A link waiting for its match did not read the list again");
+  t.list.items={playable};h.Frame(0,3);
+  Check(h.played().back()->op==Command::Op::Play&&h.played().back()->matchId=="emt_1","A link's match did not play once the list showed it playable");
+ }
  // A match the refreshed list does not hold is not the player's.
  t.link.match="emt_9";t.link.sequence=2;h.Frame(0,2);
  Check(h.played().back()->op==Command::Op::Refresh&&h.played().back()->bridgeId=="brg_1","A match link did not refresh its service's list");
