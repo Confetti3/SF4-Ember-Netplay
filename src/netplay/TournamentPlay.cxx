@@ -313,9 +313,9 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 		// A room the match moved away from (replaced, or being replaced) never
 		// comes back: an answer naming it was sent before the move.
 		if (retiredRooms_.count(reply.roomId)) break;
-		const std::string previous = room_.Target();
-		const bool hadRoom = room_.Aimed() || !replacing_.empty() || binding_.has_value();
-		const bool moving = hadRoom && reply.roomId != previous;
+		// A move is measured against the room the bridge last named and this
+		// game accepted, which a replacement under way or refused keeps.
+		const bool moving = !matchRoom_.empty() && reply.roomId != matchRoom_;
 		// A move waits for the last room's reports to be saved, under the
 		// permits they were played with; the next claim brings the room again.
 		if (moving && !unsaved_.empty()) break;
@@ -332,9 +332,10 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 		// games from 1 again: the last room's games are retired, so the new
 		// room's game 1 asks for a permit and reports of its own.
 		if (moving) {
-			if (!previous.empty()) retiredRooms_.insert(previous);
+			retiredRooms_.insert(matchRoom_);
 			RetireRoomAttempts();
 		}
+		matchRoom_ = reply.roomId;
 		if (reply.binding && reply.binding->roomId == reply.roomId &&
 			(!binding_ || binding_->roomId != reply.binding->roomId || binding_->room.SupersededBy(reply.binding->room)))
 			binding_ = reply.binding;

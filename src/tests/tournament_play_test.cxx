@@ -791,6 +791,18 @@ static void TestGoneHostIsReplaced() {
 	const auto* join = Find(out, Kind::Join);
 	CHECK(join && join->invitation == "sf4e3:" + RoomC);
 
+	// Refused while a game is undecided, the bridge keeps A: the claim naming A
+	// again, at the same assignment, is followed: B is left and A joined.
+	TournamentPlay kept;
+	failTwice(kept);
+	kept.Tick(at + 20, Opening());
+	CHECK(Count(kept.Tick(at + 30, Joined(RoomB, &snapshot)), Kind::Publish) == 1);
+	kept.OnFailure(Kind::Publish, "lease_conflict", at + 40);
+	kept.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), at + 50);
+	CHECK(Count(kept.Tick(at + 60, Joined(RoomB, &snapshot)), Kind::Leave) == 1);
+	join = Find(out = kept.Tick(at + 70, {}), Kind::Join);
+	CHECK(join && join->invitation == "sf4e3:" + RoomA);
+
 	// Joins that each take the whole open timeout to fail: the tick that sees
 	// the second fail hosts the replacement and sends no third join with it.
 	TournamentPlay slow;

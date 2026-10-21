@@ -163,6 +163,9 @@ private:
 	// The match's room that could not be joined: this game hosts a new one and
 	// publishes it in that room's place, until the bridge names another.
 	std::string replacing_;
+	// The room the bridge last named for the match and this game accepted; a
+	// replacement under way or refused leaves it as it is.
+	std::string matchRoom_;
 	// Rooms the match moved away from: an answer naming one is older than the move.
 	std::set<std::string> retiredRooms_;
 	bool published_ = false;
