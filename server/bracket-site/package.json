@@ -1,0 +1,15 @@
+{
+  "name": "ember-bracket-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A small bracket site that the Ember bracket connector plays through its http adapter",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test \"test/*.test.ts\""
+  }
+}
