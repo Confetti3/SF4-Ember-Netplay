@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# The Ember tournament bridge and bracket connector in one image, for a bridge
+# The Ember tournament bridge, bracket connector and notifier in one image, for a bridge
 # run under Docker instead of bridge/deploy/setup.sh. Build from the
 # repository root:
 #
@@ -16,7 +16,7 @@ COPY server/ember server/ember
 # Windows target the client build needs.
 RUN export RUSTUP_TOOLCHAIN="$(rustup default | cut -d' ' -f1)" \
     && cd server/ember \
-    && cargo build --release --locked -p ember-bridge -p ember-brackets
+    && cargo build --release --locked -p ember-bridge -p ember-brackets -p ember-notifier
 
 FROM debian:${DEBIAN_RELEASE}-slim
 RUN apt-get update \
@@ -26,6 +26,6 @@ RUN apt-get update \
     && groupadd --system --gid 4784 ember \
     && useradd --system --uid 4784 --gid ember --home-dir /var/lib/ember \
         --no-create-home --shell /usr/sbin/nologin ember
-COPY --from=rust /src/server/ember/target/release/ember-bridge /src/server/ember/target/release/ember-brackets /usr/local/bin/
+COPY --from=rust /src/server/ember/target/release/ember-bridge /src/server/ember/target/release/ember-brackets /src/server/ember/target/release/ember-notifier /usr/local/bin/
 USER ember
 ENTRYPOINT ["tini", "--"]
