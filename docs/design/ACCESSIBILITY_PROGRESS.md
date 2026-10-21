@@ -201,3 +201,40 @@ junction `ember-build\src-a11y`, build `build\tests`), log `lab\logs\build-a11y.
   passed. Stage built (Sidecar.dll md5 8fac5e6b...). On the Deck: the 12:50
   build (md5 145ccceb..., FIFO fix, without the relay lifetime fix) is
   installed; the 14:10 build waits for the user's game to close.
+
+## State and open points (2026-10-21, before the session was cleared)
+
+Branch fraccie/a11y-speech-core (pushed to the fork by the lead, history rewritten to the noreply email
+without trailers; nothing pushed since). Steam Deck: C:\Ember has the stage of 2026-10-20 (Sidecar
+00c4793f) plus speech_relay.py d742006c (packs for en, es-ES, es-419, fr, it, pt-BR, ja, zh-Hans); its
+speech settings were reset to {enabled: true}.
+
+Voice packs (lab\voice-packs, README there; render host = test PC D:\ember-voice):
+- Hosted on the Nightly repo's "voice-packs" pre-release and in PACKS: en (Kokoro heart), es-ES, es-419
+  (ef_dora), fr (ff_siwis), it (if_sara), pt-BR (pf_dora), ja (jf_alpha), zh-Hans (zf_xiaobei). Real
+  downloads checked on the Deck for en, ja, es-ES (silent).
+- MOSS-TTS-Nano packs, all voices approved (provisional): de (kerstin) stopped at 1717 of about 2330 WAVs
+  in D:\ember-voice\de\wav (render_moss.py resumes); then pl (gosia), ru (denis), nl-BE (nathalie),
+  nl-NL (ronnie), ko (Zeroth-Korean speaker, CC BY 4.0 credit in manifest/README), cs (Common Voice
+  speaker). The lead is moving the queue into a standalone script on the test PC.
+- Uploads only through the lead after the user agrees; then add each pack to PACKS (version, url, size, sha).
+
+Open, code:
+1. Dutch: map the interface language nl to the nl-NL or nl-BE pack by the OS region, and the "Dutch voice"
+   row (spec, "Dutch: two voices"), once both packs exist.
+2. Windows packs: download and unzip in Ember (the zlib extractor of PR #109 / fraccie/linux-install is
+   not in nightly yet), Opus decoding with opusfile from vcpkg (approved; check the x86 triplet, the package
+   inventory and the installer), PlaySound from memory. The Pack rows are hidden on Windows until then.
+3. Speech under Wine without spawnvp, and hosts with another loader layout: the notice only (spec, Risks).
+4. A miss in a pack (player and room names, chat, numbers with words) uses Piper only for English; other
+   languages fall back to speech-dispatcher.
+5. Pad describe is RT; rebinding it, a first-run speech prompt, the Steam overlay/keyboard quiet rule and
+   "Steam reader on" detection (config.vdf ScreenReaderEnabled) are not built.
+6. Piper's non-English voices carry the lessac licence risk (spec); with the packs they are only reached
+   for misses in languages that have both.
+7. The guide's recordings are in ljspeech; regenerate them with heart from the pack pipeline.
+8. Nothing has gone to Katie: before any upstream PR, run the katie-bar gate, the katie-reviewer, and a
+   full in-game test on Windows and the Deck.
+
+Lab scripts are under ember-build\lab, which is not a repository of its own (it sits in the user's home
+folder repository), so they are kept as files there, not committed.
