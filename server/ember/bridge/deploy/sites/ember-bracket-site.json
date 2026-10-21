@@ -1,0 +1,54 @@
+{
+  "id": "ember-bracket-site",
+  "display_name": "Ember brackets",
+  "client_id": "ember-bridge",
+  "scope": "player",
+  "authorize_url": "https://brackets.ember.fraccie.be/oauth/authorize",
+  "token_url": "https://brackets.ember.fraccie.be/oauth/token",
+  "token_encoding": "form",
+  "user": {
+    "method": "GET",
+    "url": "https://brackets.ember.fraccie.be/oauth/me",
+    "id_pointer": "/discord_id"
+  },
+  "username_rule": {
+    "characters": "letters_digits",
+    "max_length": 20
+  },
+  "lookup_by": "user_id",
+  "hosts": ["brackets.ember.fraccie.be"],
+  "organizer": {
+    "scope": "player organizer",
+    "tournaments": {
+      "method": "GET",
+      "url": "https://brackets.ember.fraccie.be/tournaments",
+      "list_pointer": "/tournaments",
+      "id_pointer": "/id",
+      "name_pointer": "/title"
+    },
+    "create": {
+      "url": "https://brackets.ember.fraccie.be/tournaments",
+      "delete_url": "https://brackets.ember.fraccie.be/tournaments/{tournament}",
+      "start_url": "https://brackets.ember.fraccie.be/tournaments/{tournament}/state",
+      "start_body": { "action": "start" },
+      "reset_body": { "action": "reset" },
+      "body": { "title": "", "check_in": false },
+      "name_pointer": "/title",
+      "fields": {
+        "check_in": { "pointer": "/check_in", "values": [true, false] }
+      },
+      "id_pointer": "/id",
+      "link_pointer": "/id",
+      "link_prefix": "https://brackets.ember.fraccie.be/t/"
+    },
+    "participants": {
+      "url": "https://brackets.ember.fraccie.be/tournaments/{tournament}/entrants",
+      "remove_url": "https://brackets.ember.fraccie.be/tournaments/{tournament}/entrants/{participant}",
+      "body": { "discord": "", "name": "", "marker": "" },
+      "name_pointer": "/name",
+      "username_pointer": "/discord",
+      "marker_pointer": "/marker",
+      "id_pointer": "/discord"
+    }
+  }
+}

@@ -266,10 +266,11 @@ export function bracketSite(options: Options): Server {
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
-      const html = /^\/tournaments\/([^/]+)\/bracket$/.exec(url.pathname);
+      // The page, also at /t/<id>, the short link the desk shows.
+      const html = /^\/(?:t\/([^/]+)|tournaments\/([^/]+)\/bracket)$/.exec(url.pathname);
       if (html && request.method === "GET") {
         const viewer = options.oauth?.session(request)?.discord ?? null;
-        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(page(found(decodeURIComponent(html[1]!)), viewer, !!options.oauth));
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(page(found(decodeURIComponent(html[1] ?? html[2]!)), viewer, !!options.oauth));
         return;
       }
       for (const [method, pattern, handler] of routes) {

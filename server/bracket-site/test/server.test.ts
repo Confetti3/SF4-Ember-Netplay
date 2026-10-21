@@ -179,6 +179,7 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   assert.equal(final.body.state, "finished");
   assert.deepEqual((await connector("GET", "/standing")).body, { standing: "finished" });
   assert.ok(final.body.sets.every((set: object) => !("key" in set)), "keys are not shown");
+  assert.equal((await call("GET", "/t/weekly")).body, (await call("GET", "/tournaments/weekly/bracket")).body);
   const html = await call("GET", "/tournaments/weekly/bracket");
   assert.match(html.body, /<title>Weekly &#60;1&#62;<\/title>/);
   assert.match(html.body, /<tr class="won"><td>Player 1<\/td><td>2<\/td><\/tr>/);

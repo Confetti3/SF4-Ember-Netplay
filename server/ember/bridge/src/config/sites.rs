@@ -621,7 +621,7 @@ mod tests {
 
     #[test]
     fn the_shipped_definitions_are_valid() {
-        for name in ["challonge", "startgg"] {
+        for name in ["challonge", "startgg", "ember-bracket-site"] {
             let site = example(name);
             assert_eq!(site.id, name);
             assert_eq!(site.validate(OriginPolicy::HttpsOnly), Ok(()), "{name}");
