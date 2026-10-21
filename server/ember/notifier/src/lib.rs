@@ -9,7 +9,9 @@
 //!
 //! With a `bot` it is also a room bot: Discord's `/room` command (HTTP
 //! interactions) and Twitch's `!room` (EventSub over WebSocket) open a public
-//! room through the bridge and answer with its link.
+//! room through the bridge and answer with its link. With `brackets`,
+//! Discord's `/tournament` and its buttons sign players up on the bracket
+//! site.
 mod bot;
 mod bridge;
 mod config;
@@ -19,6 +21,7 @@ mod format;
 mod inbox;
 mod interactions;
 mod sent;
+mod tournament;
 mod twitch;
 mod twitch_room;
 
@@ -39,7 +42,7 @@ use rusqlite::Connection;
 use tokio::{net::TcpListener, sync::Notify, task::JoinHandle};
 use zeroize::Zeroizing;
 
-pub use config::{Bot, Config, Discord, Interactions, Twitch};
+pub use config::{Bot, Brackets, Config, Discord, Interactions, Twitch};
 pub use format::Message;
 pub use interactions::register_commands;
 

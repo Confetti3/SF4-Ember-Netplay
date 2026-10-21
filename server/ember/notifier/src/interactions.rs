@@ -25,6 +25,7 @@ use crate::{
     config::{Config, MAX_BODY, resolve},
     format::escape_markdown,
     sent::{Reset, Sent, classify, http_client},
+    tournament,
 };
 
 const COMMAND: &str = "room";
@@ -43,31 +44,39 @@ const EPHEMERAL: u64 = 64;
 
 const PING: u8 = 1;
 const APPLICATION_COMMAND: u8 = 2;
+const MESSAGE_COMPONENT: u8 = 3;
 const PONG: u8 = 1;
 const DEFERRED_MESSAGE: u8 = 5;
 
 #[derive(Deserialize)]
-struct Interaction {
+pub(crate) struct Interaction {
     #[serde(rename = "type")]
     kind: u8,
     #[serde(default)]
-    token: String,
-    data: Option<CommandData>,
+    pub token: String,
+    pub data: Option<CommandData>,
     member: Option<Member>,
     user: Option<User>,
 }
 
+/// A command's name and options, or a pressed button's `custom_id`.
 #[derive(Deserialize)]
-struct CommandData {
-    name: String,
+pub(crate) struct CommandData {
     #[serde(default)]
-    options: Vec<CommandOption>,
+    pub name: String,
+    #[serde(default)]
+    pub options: Vec<CommandOption>,
+    #[serde(default)]
+    pub custom_id: String,
 }
 
+/// An option, or a subcommand with options of its own.
 #[derive(Deserialize)]
-struct CommandOption {
-    name: String,
-    value: Option<Value>,
+pub(crate) struct CommandOption {
+    pub name: String,
+    pub value: Option<Value>,
+    #[serde(default)]
+    pub options: Vec<CommandOption>,
 }
 
 #[derive(Deserialize)]
@@ -76,8 +85,31 @@ struct Member {
 }
 
 #[derive(Deserialize)]
-struct User {
-    id: String,
+pub(crate) struct User {
+    pub id: String,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub global_name: Option<String>,
+}
+
+impl Interaction {
+    /// Who sent it: the member in a server, the user in a DM.
+    pub(crate) fn sender(&self) -> Option<&User> {
+        self.member
+            .as_ref()
+            .map(|member| &member.user)
+            .or(self.user.as_ref())
+    }
+
+    /// Whether its token can go into a webhook URL.
+    pub(crate) fn token_valid(&self) -> bool {
+        !self.token.is_empty()
+            && self
+                .token
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    }
 }
 
 /// The application's public key from its hex form.
@@ -109,7 +141,7 @@ fn verify(key: &VerifyingKey, timestamp: &str, body: &[u8], signature: &str) -> 
         .is_ok()
 }
 
-fn json_response(body: Value) -> Response {
+pub(crate) fn json_response(body: Value) -> Response {
     (
         [(header::CONTENT_TYPE, "application/json")],
         body.to_string(),
@@ -143,24 +175,25 @@ pub(crate) async fn receive(
     let Ok(interaction) = serde_json::from_slice::<Interaction>(&body) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
+    let named = |name: &str| {
+        interaction
+            .data
+            .as_ref()
+            .is_some_and(|data| data.name == name)
+    };
     match interaction.kind {
         PING => json_response(json!({ "type": PONG })),
+        APPLICATION_COMMAND if named(tournament::COMMAND) => notifier.tournament(interaction),
         APPLICATION_COMMAND => notifier.command(interaction).await,
+        MESSAGE_COMPONENT => notifier.tournament(interaction),
         _ => StatusCode::BAD_REQUEST.into_response(),
     }
 }
 
 impl Notifier {
     async fn command(&self, interaction: Interaction) -> Response {
-        let valid_token = !interaction.token.is_empty()
-            && interaction
-                .token
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
-        let discord_id = interaction
-            .member
-            .map(|member| member.user.id)
-            .or(interaction.user.map(|user| user.id));
+        let valid_token = interaction.token_valid();
+        let discord_id = interaction.sender().map(|user| user.id.clone());
         let (Some(data), Some(discord_id), true, true) = (
             interaction.data.filter(|data| data.name == COMMAND),
             discord_id,
@@ -232,7 +265,10 @@ impl Notifier {
         // The reply must be settled before the followup: one sent while the
         // reply is still deferred fills it in, and is private like it.
         let posted = self.edit_original(token, ROOM_OPENED).await
-            && match self.webhook(Method::POST, token, "", &line).await {
+            && match self
+                .webhook(Method::POST, token, "", json!({ "content": line }))
+                .await
+            {
                 Sent::Done => true,
                 Sent::Retry(error, _) | Sent::Failed(error) => {
                     eprintln!("ember-notifier: Discord refused the /{COMMAND} followup: {error}");
@@ -248,10 +284,17 @@ impl Notifier {
     /// limited. The interaction token outlives these waits by a long way.
     /// Whether the reply now holds `text`.
     async fn edit_original(&self, token: &str, text: &str) -> bool {
+        self.edit_original_with(token, json!({ "content": text }))
+            .await
+    }
+
+    /// `edit_original` with a whole message: its `content` and, say, its
+    /// buttons.
+    pub(crate) async fn edit_original_with(&self, token: &str, message: Value) -> bool {
         let mut wait = Duration::from_millis(RETRY_BASE_MS);
         for attempt in 1..=EDIT_ATTEMPTS {
             match self
-                .webhook(Method::PATCH, token, "/messages/@original", text)
+                .webhook(Method::PATCH, token, "/messages/@original", message.clone())
                 .await
             {
                 Sent::Done => return true,
@@ -283,7 +326,7 @@ impl Notifier {
 
     /// Sends a message through the interaction's webhook: an edit of the
     /// original reply, or a followup. Mentions in the text never ping anyone.
-    async fn webhook(&self, method: Method, token: &str, tail: &str, text: &str) -> Sent {
+    async fn webhook(&self, method: Method, token: &str, tail: &str, mut body: Value) -> Sent {
         let Some(interactions) = self
             .0
             .config
@@ -298,7 +341,7 @@ impl Notifier {
             interactions.api_base.trim_end_matches('/'),
             interactions.application_id
         );
-        let body = json!({ "content": text, "allowed_mentions": { "parse": [] } });
+        body["allowed_mentions"] = json!({ "parse": [] });
         // The URL carries the interaction token, so it is never logged.
         classify(
             self.0.http.request(method, url).json(&body).send().await,
@@ -330,10 +373,10 @@ pub async fn register_commands(config: &Config) -> Result<(), String> {
         Some(guild) => format!("{api}/applications/{application}/guilds/{guild}/commands"),
         None => format!("{api}/applications/{application}/commands"),
     };
-    // One command POSTed: Discord creates it, or updates the command of the
+    // Each command POSTed: Discord creates it, or updates the command of the
     // same name and type, and leaves the application's other commands alone
     // (a PUT of the list would replace them all).
-    let command = json!({
+    let room = json!({
         "name": COMMAND,
         "description": "Open a public Ember room",
         "type": 1,
@@ -344,21 +387,28 @@ pub async fn register_commands(config: &Config) -> Result<(), String> {
               "required": false, "min_value": MIN_CAPACITY, "max_value": MAX_CAPACITY },
         ],
     });
-    let response = http_client()?
-        .post(url)
-        .header("authorization", format!("Bot {}", token.as_str()))
-        .json(&command)
-        .send()
-        .await
-        .map_err(|_| "Discord could not be reached".to_owned())?;
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        Err(format!(
-            "Discord refused the registration: status {}",
-            response.status().as_u16()
-        ))
+    let mut commands = vec![room];
+    if config.brackets.is_some() {
+        commands.push(tournament::command());
     }
+    let client = http_client()?;
+    for command in commands {
+        let response = client
+            .post(&url)
+            .header("authorization", format!("Bot {}", token.as_str()))
+            .json(&command)
+            .send()
+            .await
+            .map_err(|_| "Discord could not be reached".to_owned())?;
+        if !response.status().is_success() {
+            return Err(format!(
+                "Discord refused the registration of /{}: status {}",
+                command["name"].as_str().unwrap_or_default(),
+                response.status().as_u16()
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

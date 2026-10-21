@@ -1,0 +1,196 @@
+//! `/tournament` and its buttons over Discord's HTTP interactions, against a
+//! mock bracket site and a mock Discord API.
+mod support;
+
+use ed25519_dalek::{Signer, SigningKey};
+use ember_notifier::{Brackets, Discord, Interactions};
+use reqwest::Method;
+use serde_json::{Value, json};
+use support::{Mock, base_config, bot, notifier};
+
+const APPLICATION: &str = "app1";
+const TOKEN: &str = "interaction-token_1";
+const PLAYER: &str = "274220342558756145";
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn signing_key() -> SigningKey {
+    SigningKey::from_bytes(&[9u8; 32])
+}
+
+/// A notifier serving `/tournament` for the site at `site`; its interactions URL.
+async fn serve(site: &Mock, discord: &Mock) -> String {
+    let mut config = base_config("tournament");
+    config.bot = Some(bot("http://127.0.0.1:1"));
+    config.brackets = Some(Brackets {
+        base: site.origin.clone(),
+        token: "site-bot-token".into(),
+    });
+    config.discord = Some(Discord {
+        webhook_url: None,
+        username: "Ember".into(),
+        interactions: Some(Interactions {
+            application_id: APPLICATION.into(),
+            public_key: hex(signing_key().verifying_key().as_bytes()),
+            api_base: discord.origin.clone(),
+            bot_token: None,
+            guild_id: None,
+        }),
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!(
+        "http://{}/discord/interactions",
+        listener.local_addr().unwrap()
+    );
+    notifier(config).start(listener).unwrap();
+    url
+}
+
+/// Sends `interaction` signed as Discord would; its answer.
+async fn send(url: &str, interaction: Value) -> Value {
+    let body = interaction.to_string();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        .to_string();
+    let signature = signing_key().sign(format!("{timestamp}{body}").as_bytes());
+    let response = reqwest::Client::new()
+        .post(url)
+        .header("x-signature-ed25519", hex(&signature.to_bytes()))
+        .header("x-signature-timestamp", timestamp)
+        .body(body)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    response.json().await.unwrap()
+}
+
+fn from_player(mut interaction: Value) -> Value {
+    interaction["token"] = json!(TOKEN);
+    interaction["member"] =
+        json!({ "user": { "id": PLAYER, "username": "kate", "global_name": "Kate" } });
+    interaction
+}
+
+/// The deferred reply's edit, once it comes.
+async fn edited(discord: &Mock) -> Value {
+    let edit = discord
+        .wait_for(
+            Method::PATCH,
+            &format!("/webhooks/{APPLICATION}/{TOKEN}/messages/@original"),
+        )
+        .await;
+    assert_eq!(edit.body["allowed_mentions"], json!({ "parse": [] }));
+    edit.body
+}
+
+#[tokio::test]
+async fn a_player_signs_up_from_the_command_as_themselves() {
+    let site = Mock::start(|_| {
+        (
+            201,
+            json!({ "discord": PLAYER, "name": "Kate", "ember_id": null, "checked_in": false })
+                .to_string(),
+        )
+    })
+    .await;
+    let discord = Mock::start(|_| (200, "{}".into())).await;
+    let url = serve(&site, &discord).await;
+    let command = from_player(json!({
+        "type": 2,
+        "data": { "name": "tournament", "options": [{ "type": 1, "name": "signup", "options": [{ "name": "id", "value": "weekly" }] }] },
+    }));
+    assert_eq!(
+        send(&url, command).await,
+        json!({ "type": 5, "data": { "flags": 64 } })
+    );
+    let content = edited(&discord).await["content"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(content.starts_with("You are signed up"), "{content}");
+    assert!(
+        content.contains("Connect Discord in Ember"),
+        "not linked yet: {content}"
+    );
+
+    let asked = &site.requests()[0];
+    assert_eq!(
+        (asked.method.clone(), asked.path.as_str()),
+        (Method::POST, "/tournaments/weekly/entrants")
+    );
+    assert_eq!(asked.headers["authorization"], "Bearer site-bot-token");
+    assert_eq!(asked.headers["x-discord-user"], PLAYER);
+    assert_eq!(asked.body, json!({ "name": "Kate" }));
+}
+
+#[tokio::test]
+async fn a_shown_tournament_has_buttons_and_a_press_checks_in() {
+    let site = Mock::start(|request| match request.method {
+        Method::GET => (
+            200,
+            json!({ "title": "Weekly", "state": "check_in", "games_to_win": 2, "entrants": [{}] })
+                .to_string(),
+        ),
+        _ if request.path.ends_with("/check-in") => (
+            409,
+            json!({ "error": "check-in is not open while live" }).to_string(),
+        ),
+        _ => (500, "{}".into()),
+    })
+    .await;
+    let discord = Mock::start(|_| (200, "{}".into())).await;
+    let url = serve(&site, &discord).await;
+    let show = from_player(json!({
+        "type": 2,
+        "data": { "name": "tournament", "options": [{ "type": 1, "name": "show", "options": [{ "name": "id", "value": "weekly" }] }] },
+    }));
+    // Shown to the whole channel.
+    assert_eq!(
+        send(&url, show).await,
+        json!({ "type": 5, "data": { "flags": 0 } })
+    );
+    let message = edited(&discord).await;
+    assert!(
+        message["content"]
+            .as_str()
+            .unwrap()
+            .starts_with("**Weekly**: check-in is open.")
+    );
+    let button = &message["components"][0]["components"][0];
+    assert_eq!(button["custom_id"], "tournament:checkin:weekly");
+
+    // Pressed, by someone else as it happens: they act as themselves, and
+    // the site's refusal is what they see.
+    let press = from_player(
+        json!({ "type": 3, "data": { "custom_id": "tournament:checkin:weekly", "component_type": 2 } }),
+    );
+    assert_eq!(
+        send(&url, press).await,
+        json!({ "type": 5, "data": { "flags": 64 } })
+    );
+    let check_in = site
+        .wait_for(Method::POST, "/tournaments/weekly/check-in")
+        .await;
+    assert_eq!(check_in.headers["x-discord-user"], PLAYER);
+    for _ in 0..200 {
+        let edits: Vec<_> = discord
+            .requests()
+            .into_iter()
+            .filter(|request| request.method == Method::PATCH)
+            .collect();
+        if edits.len() == 2 {
+            assert_eq!(
+                edits[1].body["content"],
+                "That did not work: check-in is not open while live."
+            );
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    panic!("the press was not answered");
+}

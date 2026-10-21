@@ -191,6 +191,7 @@ pub fn base_config(name: &str) -> Config {
         twitch: None,
         bot: None,
         names: Default::default(),
+        brackets: None,
     }
 }
 

@@ -1254,6 +1254,20 @@ keeps the reply editable for fifteen minutes:
 Opening a room is given up to 45 seconds, since the bridge may need that long
 to start a host.
 
+### Discord `/tournament`
+
+With `brackets` (`{ "base": "https://brackets.ember.fraccie.be", "token":
+"env:NAME" }`, the bracket site's bot token), `discord-register` also
+registers `/tournament` with `signup`, `leave`, `checkin` and `show`, each
+taking a tournament `id`. The notifier calls the bracket site with the bot
+token and `X-Discord-User`, the user Discord signed the interaction for, so
+each player acts only as themselves. `signup`, `leave` and `checkin` answer
+privately; `show` posts the tournament to the channel with Sign up, Check
+in and Leave buttons for its state, and a press (`tournament:<what>:<id>`)
+acts for whoever pressed it. A player whose Discord is not connected in
+Ember yet is signed up all the same and told to connect it before the
+start (docs/design/BRACKET_SITE.md).
+
 ### Twitch `!room`
 
 With `twitch.room_creator` (the streamer's linked player on the connection)
