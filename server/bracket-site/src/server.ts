@@ -12,6 +12,7 @@ import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts
 import { stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
 import { page, reportPage } from "./page.ts";
+import { manifest, setReplays, type Clip } from "./replays.ts";
 import type { Store } from "./store.ts";
 import { ACTIONS, actions, beforeLive, checkIn, enter, move, type Action, type Entrant, type Tournament } from "./tournament.ts";
 
@@ -46,6 +47,9 @@ export interface Options {
   oauth?: OAuth;
   /** The site's public origin: a browser's session writes only from its own pages. */
   origin?: string;
+  /** The bridge's public origin, which serves a public event's replays. */
+  bridgeOrigin?: string;
+  fetch?: typeof fetch;
   /** A bridge connection with `discord_lookup`, which finds each player's Ember ID. */
   bridge: Pick<BridgeClient, "lookupPlayers">;
   now?: () => Date;
@@ -164,6 +168,51 @@ export function bracketSite(options: Options): Server {
       },
     ],
     ["GET", /^\/tournaments\/([^/]+)\/stats$/, (_, [id]) => [200, stats(found(id!))]],
+    [
+      "GET",
+      /^\/tournaments\/([^/]+)\/replays\/([^/]+)$/,
+      async (_, [id, setId]) => {
+        const bridge = options.bridgeOrigin ?? fail(404, "this site links no replays");
+        const set = found(id!).sets.find((each) => each.id === setId) ?? fail(404, `no set ${setId}`);
+        let replays;
+        try {
+          replays = await setReplays(bridge, set, options.fetch);
+        } catch {
+          fail(502, "the bridge did not answer; try again");
+        }
+        return [200, replays ?? fail(404, "no public replays of this set")];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/clips$/,
+      async (request, [id]) => {
+        const body = await readJson(request);
+        let clip: Clip | undefined;
+        change(id!, request, (tournament) => {
+          const set = tournament.sets.find((each) => each.id === body.set);
+          if (!set?.ember_match) throw new Invalid("set is a set Ember played");
+          const frame = (value: unknown) => typeof value === "string" && /^\d{1,12}$/.test(value);
+          if (typeof body.crc !== "string" || !/^[0-9a-f]{8}$/.test(body.crc)) throw new Invalid("crc is a game's 8 hex digits");
+          if (!frame(body.from_frame) || !frame(body.to_frame) || Number(body.to_frame) <= Number(body.from_frame)) throw new Invalid("from_frame and to_frame are frames, to after from");
+          const title = text(body.title, /^.{1,100}$/u, "title is 1 to 100 characters");
+          const clips = (tournament.clips ??= []);
+          clip = { id: `c${clips.length + 1}`, set: set.id, crc: body.crc, from_frame: body.from_frame as string, to_frame: body.to_frame as string, title };
+          clips.push(clip);
+        });
+        return [201, clip!];
+      },
+    ],
+    ["GET", /^\/tournaments\/([^/]+)\/clips$/, (_, [id]) => [200, { clips: found(id!).clips ?? [] }]],
+    [
+      "GET",
+      /^\/tournaments\/([^/]+)\/clips\/([^/]+)$/,
+      (_, [id, clipId]) => {
+        const tournament = found(id!);
+        const clip = tournament.clips?.find((each) => each.id === clipId) ?? fail(404, `no clip ${clipId}`);
+        return [200, manifest(options.bridgeOrigin ?? "", tournament, clip)];
+      },
+    ],
     ["GET", /^\/tournaments\/([^/]+)\/report$/, (_, [id]) => [200, found(id!).report ?? fail(404, "its report comes once it is finished")]],
     [
       "GET",
@@ -450,7 +499,7 @@ function shuffle<T>(items: T[]): void {
 
 /** The tournament as anyone may see it, with the actions its state allows. */
 function view(tournament: Tournament): Json {
-  const { feed: _, report: __, ...shown } = tournament;
+  const { feed: _, report: __, clips: ___, ...shown } = tournament;
   return {
     ...shown,
     actions: actions(tournament),

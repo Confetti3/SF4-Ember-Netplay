@@ -3,6 +3,7 @@
 // each tournament whole.
 import { Conflict, decided, generate, Invalid, type BracketSet } from "./bracket.ts";
 import { stateChanged, type FeedItem } from "./live.ts";
+import type { Clip } from "./replays.ts";
 import { buildReport, type Report } from "./report.ts";
 
 export type State = "draft" | "planned" | "sign_ups" | "check_in" | "live" | "finished" | "archived" | "cancelled";
@@ -48,6 +49,8 @@ export interface Tournament {
   feed?: FeedItem[];
   /** The after-report, made once when it is finished. */
   report?: Report;
+  /** Parts of its replays its organizers marked (`replays.ts`). */
+  clips?: Clip[];
 }
 
 export type Action = "plan" | "open_sign_ups" | "close_sign_ups" | "open_check_in" | "reopen_sign_ups" | "start" | "reset" | "archive" | "cancel";

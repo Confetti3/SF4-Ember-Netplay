@@ -75,6 +75,9 @@ manages the tournaments that name them in `organizers`.
 | `GET /tournaments/{id}/feed?after=<n>` | anyone | what happened since item `n`: moves, sets live and done, upsets, streaks |
 | `GET /tournaments/{id}/stats` | anyone | sets live and done, placements, per player games, rounds, perfects and characters, upsets, the longest set |
 | `GET /tournaments/{id}/report` | anyone | once finished: podium, every player's path, stats, upsets, longest and shortest set, characters, perfects, time-outs; `null` where no game's facts say (also as a page, `/t/{id}/report`) |
+| `GET /tournaments/{id}/replays/{set}` | anyone | a public event's set: its pack, each game's file and `ember://replay` link, and each round's link where the facts say its frames |
+| `POST /tournaments/{id}/clips` | its organizers | `{ "set", "crc", "from_frame", "to_frame", "title" }` |
+| `GET /tournaments/{id}/clips`, `/clips/{clip}` | anyone | the clips; one as the game is handed it (`match`, `crc`, frames, `open`) |
 | `POST /leagues` | organizer | `{ "id", "title" }` |
 | `GET /leagues/{id}` | anyone | the league and its seasons |
 | `POST /leagues/{id}/seasons` | its organizers | `{ "id", "title", "points", "best_of" }`; a season ID is unique on the site |

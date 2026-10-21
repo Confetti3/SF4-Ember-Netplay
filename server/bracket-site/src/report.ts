@@ -15,6 +15,8 @@ export interface PathStep {
   /** Each game's winner, by name, when the connector said. */
   games: string[] | null;
   ember_match: string | null;
+  /** The set's replays (`/tournaments/<id>/replays/<set>`), once Ember played it. */
+  replays: string | null;
 }
 
 export interface ReportPlayer extends Omit<PlayerStats, "characters" | "rounds_won" | "perfects"> {
@@ -60,6 +62,7 @@ export function buildReport(tournament: Tournament, at: string): Report {
       score: [set.scores![slot]!, set.scores![1 - slot]!],
       games: set.games ? set.games.map(name) : null,
       ember_match: set.ember_match ?? null,
+      replays: set.ember_match ? `/tournaments/${encodeURIComponent(tournament.id)}/replays/${set.id}` : null,
     };
   };
   const players = numbers.players.map((player): ReportPlayer => {
