@@ -10,7 +10,7 @@ replays.ember.fraccie.be, with tournament sets listed by event and round.
   each set game to the set's bridge (`replay_send`, `PUT
   /v1/matches/{id}/replays/{crc}`). The bridge keeps the game for the set and
   also puts it in the archive.
-- **Other games.** When a player has Settings › Replays › **Share my replays**
+- **Other games.** When a player has Settings › Training and replays › **Share my replays**
   on (it is on by default), the game sends each game it played and did not
   just watch through `replay_archive`, which is `PUT /v1/replays/{crc}`. The
   helper tries each of the player's bridges and stops at the first one that
