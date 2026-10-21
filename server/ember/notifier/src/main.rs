@@ -52,7 +52,15 @@ async fn serve(path: PathBuf) -> Result<(), String> {
 }
 
 async fn register(path: PathBuf) -> Result<(), String> {
-    register_commands(&Config::load(&path)?).await?;
-    println!("Registered the /room command.");
+    let config = Config::load(&path)?;
+    register_commands(&config).await?;
+    let names: Vec<&str> = [
+        config.bot.is_some().then_some("/room"),
+        config.brackets.is_some().then_some("/tournament"),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    println!("Registered {}.", names.join(" and "));
     Ok(())
 }
