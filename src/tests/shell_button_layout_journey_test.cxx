@@ -186,21 +186,21 @@ void MenuButtonRows() {
     Check(layouts() == 0 && tone == Tone::Error && status.find(loc::T("button_layout.menu_back")) != std::string::npos,
         "Menu confirm took the Menu back button");
     h.Choose("menu-confirm"); h.view.pads[0].held = {"X"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
-    Check(LastLayout(h).menu.confirm == 2 && LastLayout(h).menu.back == -1 && LastLayout(h).buttons == DefaultLayout,
+    Check(LastLayout(h).bound[MenuConfirmButton] == 2 && LastLayout(h).bound[MenuBackButton] == -1 && LastLayout(h).buttons == DefaultLayout,
         "Menu confirm did not bind Square alone");
     Check(tone == Tone::Success && status.find(loc::T("button_layout.menu_confirm")) != std::string::npos, "Binding did not say so");
     h.Wait(.5f);
-    Check(h.actions.back().preferences.buttonLayouts.size() == 1 && h.actions.back().preferences.buttonLayouts[0].menu.confirm == 2, "Binding did not autosave");
+    Check(h.actions.back().preferences.buttonLayouts.size() == 1 && h.actions.back().preferences.buttonLayouts[0].bound[MenuConfirmButton] == 2, "Binding did not autosave");
     h.view.preferences = h.actions.back().preferences;
     // The runtime resolves the binding on its next frame.
-    h.view.pads[0].menu = {2, -1}; h.view.pads[0].menuButtons = input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr,
-        input::MenuConfirmFunction, input::MenuBackFunction, MenuBindingMask(2), 0);
+    h.view.pads[0].bound[MenuConfirmButton] = 2; h.view.pads[0].menuButtons = input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr,
+        input::MenuConfirmFunction, input::MenuBackFunction, LayoutButtonMask(2), 0);
     h.view.menuButtons = h.view.pads[0].menuButtons; SetMenuGlyphs(input::PadXInput, h.view.menuButtons, h.view.promptBrand); h.Frame();
     Check(row("menu-confirm").value == "Square", "Menu confirm row does not show its binding");
     h.Choose("menu-back"); h.view.pads[0].held = {"X"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
-    Check(LastLayout(h).menu.back == -1 && tone == Tone::Error, "Menu back took the bound Menu confirm button");
+    Check(LastLayout(h).bound[MenuBackButton] == -1 && tone == Tone::Error, "Menu back took the bound Menu confirm button");
     h.Choose("preset"); h.Press(MenuInput::Down); h.Press(MenuInput::Select);
-    Check(LastLayout(h).buttons == LayoutPresets[1].buttons && LastLayout(h).menu.confirm == 2, "A preset dropped the menu binding");
+    Check(LastLayout(h).buttons == LayoutPresets[1].buttons && LastLayout(h).bound[MenuConfirmButton] == 2, "A preset dropped the menu binding");
     // A target pad that is not the gameplay controller selects with its bound button.
     h.view.pads[0].gameplay = false; h.Frame(); h.FocusOn("test");
     h.view.pads[0].held = {"down"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
@@ -230,8 +230,9 @@ void ExtraButtonRows() {
     h.view.pads[0].hasExtras[static_cast<unsigned>(Extra::Touchpad)] = true; h.view.pads[0].hasExtras[static_cast<unsigned>(Extra::Home)] = true; h.Frame();
     Check(row("extra-touchpad").label == loc::T("button_layout.extra.touchpad") && row("extra-touchpad").value == loc::T("common.off") &&
         row("extra-home").label == "PS" && !has("extra-share"), "Touchpad and PS rows do not show as Off");
-    Check(row("extra-touchpad").choices.size() == 11 && row("extra-touchpad").choices[3].label == loc::Tf("button_layout.extra_copy", "Square"),
-        "Touchpad choices are not Off and the ten buttons by name");
+    Check(row("extra-touchpad").choices.size() == 13 && row("extra-touchpad").choices[3].label == loc::Tf("button_layout.extra_copy", "Square") &&
+        row("extra-touchpad").choices[11].id == "View" && row("extra-touchpad").choices[12].id == "Start",
+        "Touchpad choices are not Off, the ten buttons by name, View and Start");
     h.Choose("extra-touchpad"); for (int i = 0; i < 3; ++i) h.Press(MenuInput::Down); h.Press(MenuInput::Select);
     Check(LastLayout(h).extras[static_cast<unsigned>(Extra::Touchpad)] == 2 && LastLayout(h).buttons == DefaultLayout,
         "Touchpad did not copy Square on the game's buttons");
@@ -247,7 +248,60 @@ void ExtraButtonRows() {
     Check(LastLayout(h).buttons == LayoutPresets[1].buttons && LastLayout(h).extras[0] == 2, "A preset dropped the touchpad copy");
     h.Choose("extra-touchpad"); for (int i = 0; i < 3; ++i) h.Press(MenuInput::Up); h.Press(MenuInput::Select);
     Check(LastLayout(h).extras == NoExtraCopies && row("extra-touchpad").value == loc::T("common.off"), "Off did not clear the touchpad copy");
+    // View is a copy too: the touchpad can be the pad's Back.
+    h.Choose("extra-touchpad"); for (int i = 0; i < 11; ++i) h.Press(MenuInput::Down); h.Press(MenuInput::Select);
+    Check(LastLayout(h).extras[static_cast<unsigned>(Extra::Touchpad)] == CopiesView && LastLayout(h).log.find("touchpad copies View") != std::string::npos,
+        "Touchpad did not copy View");
+    h.Choose("extra-touchpad"); for (int i = 0; i < 11; ++i) h.Press(MenuInput::Up); h.Press(MenuInput::Select);
+    Check(LastLayout(h).extras == NoExtraCopies, "Off did not clear the View copy");
+    // A capture told the touchpad while it copies nothing says how to give it a press, and takes nothing.
+    const auto before = h.actions.size();
+    h.Choose("fn-lp"); h.view.pads[0].held = {"touchpad"}; h.Frame(); h.Frame();
+    Check(tone == Tone::Error && status.find(loc::Tf("button_layout.extra_uncopied", loc::T("button_layout.extra.touchpad"))) != std::string::npos &&
+        row("fn-lp").value == loc::T("button_layout.waiting"), "An uncopied touchpad press did not explain itself while the capture waited");
+    h.view.pads[0].held = {"Start"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    Check(std::none_of(h.actions.begin() + static_cast<std::ptrdiff_t>(before), h.actions.end(), [](const ShellAction& a) { return a.padAction.kind == ControllerRequest::Kind::Layout; }),
+        "An uncopied touchpad press changed the layout");
+    SetMenuEntriesProbe({}); SetMenuStatusProbe({});
+}
+
+// Training record and play: a press binds any layout button for this
+// controller, even one that attacks, the other row's button is refused,
+// presets keep the binding, and Clear turns both off.
+void TrainingButtonRows() {
+    Harness h; std::vector<MenuEntry> rows; std::string status; Tone tone = Tone::Neutral;
+    SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r) { rows = r; });
+    SetMenuStatusProbe([&](const char* text, Tone t) { status = text; tone = t; });
+    const auto has = [&](const char* id) { return std::any_of(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; }); };
+    const auto row = [&](const char* id) {
+        const auto at = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; });
+        Check(at != rows.end(), "Training button row missing"); return *at;
+    };
+    const auto press = [&](const char* id, const char* glyph) { h.Choose(id); h.view.pads[0].held = {glyph}; h.Frame(); h.view.pads[0].held.clear(); h.Frame(); };
+    const auto training = [](const BoundButtons& bound) { return std::make_pair(bound[TrainingRecordButton], bound[TrainingPlayButton]); };
+    Prepare(h);
+    Check(row("training-record").value == loc::T("common.off") && row("training-play").value == loc::T("common.off") && !has("training-clear"),
+        "Training rows do not start Off");
+    press("training-record", "X");
+    // A button the layout gives an attack binds too: in Training it records instead (TrainingTable).
+    Check(LastLayout(h).bound[TrainingRecordButton] == 2 && tone == Tone::Success && row("training-record").value == "Square", "Record did not take a button that attacks");
+    press("training-record", "RS");
+    Check(LastLayout(h).bound[TrainingRecordButton] == 9 && LastLayout(h).bound[TrainingPlayButton] == -1 && LastLayout(h).buttons == DefaultLayout,
+        "Record did not bind the right stick click alone");
+    Check(tone == Tone::Success && status.find(loc::T("button_layout.training_record")) != std::string::npos, "Binding did not say so");
+    Check(row("training-record").value != loc::T("common.off") && has("training-clear"), "Record row does not show its button");
+    h.Wait(.5f);
+    Check(h.actions.back().preferences.buttonLayouts.size() == 1 && h.actions.back().preferences.buttonLayouts[0].bound[TrainingRecordButton] == 9, "Binding did not autosave");
+    h.view.preferences = h.actions.back().preferences;
+    press("training-play", "RS");
+    Check(LastLayout(h).bound[TrainingPlayButton] == -1 && tone == Tone::Error, "Play took the Record button");
+    press("training-play", "LS");
+    Check(training(LastLayout(h).bound) == std::make_pair(9, 8), "Play did not bind the left stick click");
+    h.Choose("preset"); h.Press(MenuInput::Down); h.Press(MenuInput::Select);
+    Check(LastLayout(h).buttons == LayoutPresets[1].buttons && training(LastLayout(h).bound) == std::make_pair(9, 8), "A preset dropped the Training buttons");
+    h.Choose("training-clear"); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+    Check(training(LastLayout(h).bound) == std::make_pair(-1, -1) && row("training-record").value == loc::T("common.off") && !has("training-clear"), "Clear did not turn both Off");
     SetMenuEntriesProbe({}); SetMenuStatusProbe({});
 }
 }
-void ButtonLayoutJourneys() { RedFocusAndCaptureRows(); LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); MenuButtonRows(); ExtraButtonRows(); }
+void ButtonLayoutJourneys() { RedFocusAndCaptureRows(); LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); MenuButtonRows(); ExtraButtonRows(); TrainingButtonRows(); }

@@ -32,9 +32,12 @@ const BAND_FLOORS: [f64; SKILL_BANDS as usize - 1] = [
 /// How far past a class's edge a rating must go before the class shown
 /// follows it, so one good or bad evening rarely changes it.
 const BAND_MARGIN: f64 = 25.0;
-/// The deviation at or below which a rating stands behind a class: about ten
-/// games for a new player, and about two months without a game undoes it.
-const SETTLED_DEVIATION: f64 = 110.0;
+/// The deviation at or below which a rating stands behind a class: about
+/// three games for a new player, and most of a year without a game undoes it.
+const SETTLED_DEVIATION: f64 = 200.0;
+/// The deviation above which a rating's gap to anyone says little yet, so its
+/// games count in full (`gap_weight`): about ten games for a new player.
+const UNSURE_DEVIATION: f64 = 110.0;
 /// One rating period a day of not playing (`Rating::idle`).
 const SECS_PER_PERIOD: u64 = 24 * 60 * 60;
 
@@ -125,10 +128,10 @@ fn weights(winner: Rating, loser: Rating) -> (f64, f64) {
 }
 
 /// How much a game between `one` and `other` counts for their rating gap.
-/// A rating that is still placing takes every game in full: its gap says
+/// A rating that is still unsure takes every game in full: its gap says
 /// little, and it needs the games to settle.
 fn gap_weight(one: Rating, other: Rating) -> f64 {
-    if one.deviation > SETTLED_DEVIATION || other.deviation > SETTLED_DEVIATION {
+    if one.deviation > UNSURE_DEVIATION || other.deviation > UNSURE_DEVIATION {
         return 1.0;
     }
     let gap = (one.rating - other.rating).abs();
@@ -317,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn a_new_player_settles_in_about_ten_games_against_settled_peers() {
+    fn a_new_player_shows_a_class_in_about_three_games_against_settled_peers() {
         let peer = Rating {
             rating: 1500.0,
             deviation: 60.0,
@@ -326,6 +329,12 @@ mod tests {
         let mut new = Rating::NEW;
         let mut games = 0;
         while new.deviation > SETTLED_DEVIATION {
+            new = new.after(peer, f64::from(games % 2), 1.0);
+            games += 1;
+        }
+        assert!((2..=4).contains(&games), "{games}");
+        // Its games count in full for about ten more games.
+        while new.deviation > UNSURE_DEVIATION {
             new = new.after(peer, f64::from(games % 2), 1.0);
             games += 1;
         }

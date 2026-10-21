@@ -17,7 +17,7 @@ use ember_protocol::{
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 
-use super::{Developers, SETTLED_DEVIATION, account, aged, badge_of, glicko::Rating};
+use super::{Developers, SETTLED_DEVIATION, account, aged, badge_of, glicko::Rating, shown_band};
 use crate::error::{ApiFailure, Result};
 
 /// How long a change of the choice stands before the next.
@@ -146,11 +146,12 @@ pub fn choose(
 }
 
 /// The board as the player as `ember_id` sees it: every listed account that
-/// takes part and has a settled class, by the class rooms last showed, the
-/// highest first. Within a class the most recent to play comes first, so the
-/// board is about who plays and its cap drops whoever played longest ago.
-/// No rating, position or number is on it, and no developer: their mark
-/// stands in place of a class.
+/// takes part and has a settled class, the highest first. The class is the
+/// one their next ticket would show (`shown_band`), so a player who settled
+/// since their last ticket is on it already. Within a class the most recent
+/// to play comes first, so the board is about who plays and its cap drops
+/// whoever played longest ago. No rating, position or number is on it, and
+/// no developer: their mark stands in place of a class.
 pub fn board(
     tx: &Transaction<'_>,
     ember_id: &EmberId,
@@ -163,33 +164,44 @@ pub fn board(
          FROM skill_ratings r
          JOIN ranking_choices c ON c.discord_user_id = r.discord_user_id
          JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE r.band > 0 AND c.ranked AND c.name IS NOT NULL
-         ORDER BY r.band DESC, r.played_at DESC, c.name",
+         WHERE c.ranked AND c.name IS NOT NULL",
     )?;
     let mut rows = statement.query([ember_id.as_str()])?;
-    let mut players = Vec::new();
-    while players.len() < MAX_BOARD
-        && let Some(row) = rows.next()?
-    {
+    let mut listed = Vec::new();
+    while let Some(row) = rows.next()? {
         let rating = Rating {
             rating: row.get(0)?,
             deviation: row.get(1)?,
             volatility: row.get(2)?,
         };
-        // Faint: not played lately. It comes back after a few games.
+        let played_at: u64 = row.get(3)?;
+        // Placing, or faint: not played lately. It comes back after a few games.
         let developer = developers.contains(&row.get::<_, String>(8)?);
-        if developer || aged(rating, row.get(3)?, now).deviation > SETTLED_DEVIATION {
+        if developer || aged(rating, played_at, now).deviation > SETTLED_DEVIATION {
             continue;
         }
-        players.push(BoardEntry {
-            band: row.get(4)?,
+        let entry = BoardEntry {
+            band: shown_band(row.get(4)?, rating.rating),
             listing: Listing {
                 name: row.get(5)?,
                 country: row.get(6)?,
             },
             own: row.get(7)?,
-        });
+        };
+        listed.push((played_at, entry));
     }
+    listed.sort_by(|(one_at, one), (other_at, other)| {
+        other
+            .band
+            .cmp(&one.band)
+            .then(other_at.cmp(one_at))
+            .then_with(|| one.listing.name.cmp(&other.listing.name))
+    });
+    let players = listed
+        .into_iter()
+        .take(MAX_BOARD)
+        .map(|(_, entry)| entry)
+        .collect();
     Ok(Board { players })
 }
 

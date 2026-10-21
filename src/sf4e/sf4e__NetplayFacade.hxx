@@ -150,6 +150,8 @@ namespace sf4e {
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
+            // The gameplay pad's Training record and play buttons (sf4e__Pad.cxx).
+            input::TrainingButtons trainingButtons;
             // Retain the detected brand to preview Automatic before autosave.
             gamepads::PromptBrand gameplayBrand, promptBrand;
             gamepads::SetupSnapshot padSetup;

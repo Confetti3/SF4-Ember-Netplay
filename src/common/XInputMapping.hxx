@@ -44,13 +44,13 @@ inline XInputFields MapToXInput(const State& state) {
     return result;
 }
 
-// The state with each held extra button pressing the layout button it copies,
+// The state with each held extra button pressing the button it copies,
 // as Steam Input binds a touchpad or paddle to an Xbox button.
 inline State WithExtraCopies(State state, const ExtraCopies& copies) {
-    // The layout buttons in LayoutGlyphs order; LT and RT are axes, pressed fully.
+    // The layout buttons in LayoutGlyphs order, then View and Start; LT and RT are axes, pressed fully.
     constexpr int LeftTrigger = 6, RightTrigger = 7;
-    constexpr std::array<Button, 10> buttons = {Button::South, Button::East, Button::West, Button::North,
-        Button::LeftShoulder, Button::RightShoulder, Button::Count, Button::Count, Button::LeftStick, Button::RightStick};
+    constexpr std::array<Button, CopyTargetCount> buttons = {Button::South, Button::East, Button::West, Button::North,
+        Button::LeftShoulder, Button::RightShoulder, Button::Count, Button::Count, Button::LeftStick, Button::RightStick, Button::Back, Button::Start};
     for (unsigned i = 0; i < ExtraCount; ++i) {
         const int copy = copies[i];
         if (!state.extras[i] || copy < 0 || copy >= static_cast<int>(buttons.size())) continue;

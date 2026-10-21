@@ -51,6 +51,7 @@ void Update(const Inventory& inventory) {
     std::array<bool, 4> occupied{};
     std::array<const Pad*, 4> pads{};
     const auto connected = Connected(inventory);
+    const bool training = NetplayFacade::GetRuntimeSnapshotShared()->menuContext == input::MenuContext::OfflineTraining;
     for (const auto& pad : inventory.pads) if (pad.slot >= 0 && pad.slot < 4 && pad.status == Status::Slotted) {
         occupied[pad.slot] = true; pads[pad.slot] = &pad;
         const auto match = FindLayout(layouts, pad.identity, connected);
@@ -61,7 +62,8 @@ void Update(const Inventory& inventory) {
             Log(spdlog::level::info, fmt::format("Input: layout for guid {} matched '{}' id {} by guid only; path updated",
                 pad.identity.guid, pad.identity.name, pad.id));
         }
-        placements[pad.slot] = LayoutPlacement{pad.identity, layout.buttons, pad.id};
+        // In offline Training the buttons bound to record and play leave the fight (TrainingTable).
+        placements[pad.slot] = LayoutPlacement{pad.identity, training ? TrainingTable(layout.buttons, layout.bound) : layout.buttons, pad.id};
     }
     const auto writes = SlotWritePlan(owners, placements, occupied);
     const auto previous = owners;
@@ -92,7 +94,7 @@ void Update(const Inventory& inventory) {
 }
 void Read(PadFrame& frame, const Inventory& inventory) {
     const auto match = FindLayout(layouts, frame.pad.identity, Connected(inventory));
-    if (match.index) { frame.layout = layouts[*match.index].buttons; frame.menu = layouts[*match.index].menu; frame.extras = layouts[*match.index].extras; }
+    if (match.index) { frame.layout = layouts[*match.index].buttons; frame.bound = layouts[*match.index].bound; frame.extras = layouts[*match.index].extras; }
     frame.table = frame.layout.value_or(DefaultLayout);
     if (frame.pad.slot >= 0) ReadSlot(Dimps::Pad::BindingRecords(), frame.pad.slot, frame.table);
 }

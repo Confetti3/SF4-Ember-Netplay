@@ -127,11 +127,12 @@ void Adapter() {
 }
 void Storage() {
     using namespace sf4e::gamepads;
-    CHECK(ValidMenuBinding({}) && ValidMenuBinding({2, 3}) && ValidMenuBinding({2, -1}) && ValidMenuBinding({-1, 1}));
-    CHECK(!ValidMenuBinding({2, 2}) && !ValidMenuBinding({10, -1}) && !ValidMenuBinding({-2, 0}));
-    CHECK(MenuBindingMask(2) == xinput::X && MenuBindingMask(-1) == 0 && MenuBindingMask(10) == 0);
-    auto has = AllLayoutButtons; has[8] = false; CHECK(MenuBindingMask(8, has) == 0);
-    StoredLayout layout{{"guid", "serial", "path", "Pad"}, DefaultLayout, 5, {2, 3}};
+    const auto menu = [](int confirm, int back) { auto bound = NoBoundButtons; bound[MenuConfirmButton] = confirm; bound[MenuBackButton] = back; return bound; };
+    CHECK(ValidBoundButtons(NoBoundButtons) && ValidBoundButtons(menu(2, 3)) && ValidBoundButtons(menu(2, -1)) && ValidBoundButtons(menu(-1, 1)));
+    CHECK(!ValidBoundButtons(menu(2, 2)) && !ValidBoundButtons(menu(10, -1)) && !ValidBoundButtons(menu(-2, 0)));
+    CHECK(LayoutButtonMask(2) == xinput::X && LayoutButtonMask(-1) == 0 && LayoutButtonMask(10) == 0);
+    auto has = AllLayoutButtons; has[8] = false; CHECK(LayoutButtonMask(8, has) == 0);
+    StoredLayout layout{{"guid", "serial", "path", "Pad"}, DefaultLayout, 5, menu(2, 3)};
     const auto json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
     const auto read = ReadLayouts(json, [](unsigned, LayoutLoadError) {});
     CHECK(read.size() == 1 && read[0] == layout);
@@ -141,11 +142,11 @@ void Storage() {
         if (bad.is_null()) { entry["buttonLayouts"][0].erase("menuBack"); entry["buttonLayouts"][0].erase("menuConfirm"); }
         if (bad == 4) entry["buttonLayouts"][0]["menuConfirm"] = 4;
         const auto loaded = ReadLayouts(entry, [](unsigned, LayoutLoadError) {});
-        CHECK(loaded.size() == 1 && loaded[0].buttons == DefaultLayout && loaded[0].menu == MenuBinding{});
+        CHECK(loaded.size() == 1 && loaded[0].buttons == DefaultLayout && loaded[0].bound == NoBoundButtons);
     }
     netplay::PlayerPreferences preferences; preferences.buttonLayouts = {layout};
     CHECK(preferences.Valid());
-    preferences.buttonLayouts[0].menu = {3, 3}; CHECK(!preferences.Valid());
+    preferences.buttonLayouts[0].bound = menu(3, 3); CHECK(!preferences.Valid());
 }
 }
 int main() { Resolver(); Adapter(); Storage(); }

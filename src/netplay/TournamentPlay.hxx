@@ -34,6 +34,9 @@ constexpr std::uint64_t RetryMs = 5000;
 constexpr std::uint64_t PrepareIntervalMs = 2000;
 // How long a host or join may take before it is tried again.
 constexpr std::uint64_t OpenTimeoutMs = 30000;
+// Joins of the match's room that fail in a row before this fighter hosts a
+// new room in its place: its host is gone (left, or closed the game).
+constexpr unsigned ReplaceAfterFailedJoins = 2;
 // How many times a game's report is handed to the helper before the match
 // stops as unsaved; the tries are RetryMs apart.
 constexpr int MaxReportAttempts = 6;
@@ -140,6 +143,11 @@ private:
 	void SendReport(Output report, std::vector<Output>& out);
 	void ResendReports(std::uint64_t nowMs, std::vector<Output>& out);
 	void ReportsSettled();
+	// The match moved to another room: the last room's permits and games go (OnRoom).
+	void RetireRoomAttempts();
+	// No permit is held for a game not reported, no report waits to be saved,
+	// and no prepare is out: a room may be replaced.
+	bool AttemptsSettled() const;
 
 	Phase phase_ = Phase::Idle;
 	std::string bridgeId_, matchId_, reason_;
@@ -152,6 +160,14 @@ private:
 	std::uint64_t claimedAtMs_ = 0;
 	// The provisioning lease from a Host answer, until the room is published.
 	std::string leaseId_, fence_;
+	// The match's room that could not be joined: this game hosts a new one and
+	// publishes it in that room's place, until the bridge names another.
+	std::string replacing_;
+	// The room the bridge last named for the match and this game accepted; a
+	// replacement under way or refused leaves it as it is.
+	std::string matchRoom_;
+	// Rooms the match moved away from: an answer naming one is older than the move.
+	std::set<std::string> retiredRooms_;
 	bool published_ = false;
 	std::string publishedInvitation_, publishingInvitation_;
 	// The room the bridge names for the match, hosting or joining it, and
@@ -174,6 +190,8 @@ private:
 	// game is prepared while one is unsaved.
 	struct UnsavedReport { Output report; int attempts = 0; bool inFlight = false; std::uint64_t retryAtMs = 0; };
 	std::map<std::uint64_t, UnsavedReport> unsaved_;
+	// The prepare out when the room changed answers for the last room.
+	bool dropPrepare_ = false;
 	bool forgetAfterReports_ = false;
 	// The last game whose link to the other fighter dropped, and whether the
 	// last report sent was that game's abort. Any other report, a cancel or

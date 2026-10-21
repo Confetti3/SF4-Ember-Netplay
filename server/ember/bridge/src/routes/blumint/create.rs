@@ -12,7 +12,7 @@ use ember_protocol::{
     api::ErrorCode,
     json as wire,
     matches::{MAX_GAMES_TO_WIN, Participant, Rules},
-    play::{PROFILE, play_url},
+    play::{PROFILE, play_deep_link, play_url},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -225,7 +225,13 @@ fn make(
         let id = insert(tx, ctx, &tenant_id, connection_id, key, set, digest)?;
         Ok((
             StatusCode::OK,
-            json!({ "matchId": id, "matchUrl": play_url(&ctx.config.bridge_id, &id) }),
+            // BluMint links the match straight to Ember; the play page, which
+            // also offers Ember to a player without it, rides beside it.
+            json!({
+                "matchId": id,
+                "matchUrl": play_deep_link(&ctx.config.bridge_id, &id),
+                "pageUrl": play_url(&ctx.config.bridge_id, &id),
+            }),
         ))
     });
     // A key used for a different request is refused by the generic code, as
