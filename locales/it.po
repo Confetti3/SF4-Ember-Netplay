@@ -5684,10 +5684,10 @@ msgid "button_layout.training_play"
 msgstr "Riproduci (Allenamento)"
 
 msgid "button_layout.training_record_detail"
-msgstr "Seleziona, poi premi il pulsante che avvia e ferma una registrazione in Allenamento, come F7. Scegli un pulsante che non fa nulla nel combattimento, come il clic di una leva."
+msgstr "Seleziona, poi premi il pulsante che avvia e ferma una registrazione in Allenamento, come F7. In Allenamento quel pulsante registra soltanto; negli incontri mantiene il suo attacco."
 
 msgid "button_layout.training_play_detail"
-msgstr "Seleziona, poi premi il pulsante che riproduce e ferma lo slot scelto in Allenamento, come F8. Scegli un pulsante che non fa nulla nel combattimento, come il clic di una leva."
+msgstr "Seleziona, poi premi il pulsante che riproduce e ferma lo slot scelto in Allenamento, come F8. In Allenamento quel pulsante riproduce soltanto; negli incontri mantiene il suo attacco."
 
 msgid "button_layout.training_clear"
 msgstr "Cancella i pulsanti di Allenamento"
@@ -5697,12 +5697,6 @@ msgstr "Disattiva i pulsanti di registrazione e riproduzione di Allenamento."
 
 msgid "button_layout.training_cleared"
 msgstr "I pulsanti di Allenamento sono disattivati."
-
-msgid "button_layout.training_busy"
-msgstr "{0} fa già {1} nel combattimento. Scegli un pulsante che non fa nulla."
-
-msgid "button_layout.training_busy_value"
-msgstr "{0} (fa un attacco, quindi non è usato)"
 
 msgid "room.delay_policy"
 msgstr "Ritardo di input della sala"

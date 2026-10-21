@@ -177,8 +177,8 @@ input::MenuButtons MenuButtonsFor(int deviceType, int deviceIndex) {
     const auto* pad = LayerPad(deviceType, deviceIndex);
     if (!pad) return Dimps::Pad::MenuButtons(deviceType, deviceIndex);
     using namespace gamepads;
-    return Dimps::Pad::MenuButtons(deviceType, deviceIndex, BoundButtonMask(pad->bound, MenuConfirmButton, pad->has, pad->table),
-        BoundButtonMask(pad->bound, MenuBackButton, pad->has, pad->table));
+    return Dimps::Pad::MenuButtons(deviceType, deviceIndex, LayoutButtonMask(pad->bound[MenuConfirmButton], pad->has),
+        LayoutButtonMask(pad->bound[MenuBackButton], pad->has));
 }
 
 input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex) {
@@ -186,8 +186,8 @@ input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex) {
     input::TrainingButtons buttons;
     if (!pad) return buttons;
     using namespace gamepads;
-    buttons.record = BoundButtonMask(pad->bound, TrainingRecordButton, pad->has, pad->table);
-    buttons.play = BoundButtonMask(pad->bound, TrainingPlayButton, pad->has, pad->table);
+    buttons.record = LayoutButtonMask(pad->bound[TrainingRecordButton], pad->has);
+    buttons.play = LayoutButtonMask(pad->bound[TrainingPlayButton], pad->has);
     if (buttons.record) buttons.recordName = pad->buttonNames[pad->bound[TrainingRecordButton]];
     if (buttons.play) buttons.playName = pad->buttonNames[pad->bound[TrainingPlayButton]];
     return buttons;

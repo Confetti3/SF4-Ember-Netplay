@@ -5204,10 +5204,10 @@ msgid "button_layout.training_play"
 msgstr "Reproduzir no Treino"
 
 msgid "button_layout.training_record_detail"
-msgstr "Selecione e aperte o botão que inicia e encerra uma gravação no Treino, como F7. Escolha um botão que não faça nada na luta, como o clique do analógico."
+msgstr "Selecione e aperte o botão que inicia e encerra uma gravação no Treino, como F7. No Treino esse botão só grava; nas lutas ele mantém seu ataque."
 
 msgid "button_layout.training_play_detail"
-msgstr "Selecione e aperte o botão que reproduz e para o slot escolhido no Treino, como F8. Escolha um botão que não faça nada na luta, como o clique do analógico."
+msgstr "Selecione e aperte o botão que reproduz e para o slot escolhido no Treino, como F8. No Treino esse botão só reproduz; nas lutas ele mantém seu ataque."
 
 msgid "button_layout.training_clear"
 msgstr "Limpar botões do Treino"
@@ -5217,12 +5217,6 @@ msgstr "Desativa os botões de gravar e reproduzir do Treino."
 
 msgid "button_layout.training_cleared"
 msgstr "Os botões do Treino estão desativados."
-
-msgid "button_layout.training_busy"
-msgstr "{0} já faz {1} na luta. Escolha um botão que não faça nada."
-
-msgid "button_layout.training_busy_value"
-msgstr "{0} (faz um ataque, então não é usado)"
 
 msgid "room.delay_policy"
 msgstr "Atraso de entrada da sala"

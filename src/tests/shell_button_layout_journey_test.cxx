@@ -250,9 +250,9 @@ void ExtraButtonRows() {
     SetMenuEntriesProbe({}); SetMenuStatusProbe({});
 }
 
-// Training record and play: a press binds a stick click for this controller,
-// a button that does an attack or the other row's button is refused, presets
-// keep the binding, and Clear turns both off.
+// Training record and play: a press binds any layout button for this
+// controller, even one that attacks, the other row's button is refused,
+// presets keep the binding, and Clear turns both off.
 void TrainingButtonRows() {
     Harness h; std::vector<MenuEntry> rows; std::string status; Tone tone = Tone::Neutral;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r) { rows = r; });
@@ -268,8 +268,8 @@ void TrainingButtonRows() {
     Check(row("training-record").value == loc::T("common.off") && row("training-play").value == loc::T("common.off") && !has("training-clear"),
         "Training rows do not start Off");
     press("training-record", "X");
-    Check(std::none_of(h.actions.begin(), h.actions.end(), [](const ShellAction& a) { return a.padAction.kind == ControllerRequest::Kind::Layout; }), "Record took a button that does an attack");
-    Check(tone == Tone::Error, "The attack button was not refused with a notice");
+    // A button the layout gives an attack binds too: in Training it records instead (TrainingTable).
+    Check(LastLayout(h).bound[TrainingRecordButton] == 2 && tone == Tone::Success && row("training-record").value == "Square", "Record did not take a button that attacks");
     press("training-record", "RS");
     Check(LastLayout(h).bound[TrainingRecordButton] == 9 && LastLayout(h).bound[TrainingPlayButton] == -1 && LastLayout(h).buttons == DefaultLayout,
         "Record did not bind the right stick click alone");

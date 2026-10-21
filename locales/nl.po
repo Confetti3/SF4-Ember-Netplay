@@ -5684,10 +5684,10 @@ msgid "button_layout.training_play"
 msgstr "Afspelen (Training)"
 
 msgid "button_layout.training_record_detail"
-msgstr "Selecteer en druk dan op de knop die in Training een opname start en stopt, zoals F7. Kies een knop die in het gevecht niets doet, zoals een stickklik."
+msgstr "Selecteer en druk dan op de knop die in Training een opname start en stopt, zoals F7. In Training neemt die knop alleen op; in gevechten houdt hij zijn aanval."
 
 msgid "button_layout.training_play_detail"
-msgstr "Selecteer en druk dan op de knop die in Training de gekozen slot afspeelt en stopt, zoals F8. Kies een knop die in het gevecht niets doet, zoals een stickklik."
+msgstr "Selecteer en druk dan op de knop die in Training de gekozen slot afspeelt en stopt, zoals F8. In Training speelt die knop alleen af; in gevechten houdt hij zijn aanval."
 
 msgid "button_layout.training_clear"
 msgstr "Trainingsknoppen wissen"
@@ -5697,12 +5697,6 @@ msgstr "Zet de knoppen voor opnemen en afspelen in Training uit."
 
 msgid "button_layout.training_cleared"
 msgstr "De trainingsknoppen staan uit."
-
-msgid "button_layout.training_busy"
-msgstr "{0} doet in het gevecht al {1}. Kies een knop die niets doet."
-
-msgid "button_layout.training_busy_value"
-msgstr "{0} (doet een aanval, dus ongebruikt)"
 
 msgid "room.delay_policy"
 msgstr "Invoervertraging in de kamer"

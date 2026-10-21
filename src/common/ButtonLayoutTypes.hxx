@@ -28,19 +28,12 @@ inline bool ValidLayout(const ButtonLayout& layout) {
 // Training. Each has a partner that never shares its button. Start, View and
 // the directions are never bound.
 enum BoundAction : unsigned { MenuConfirmButton, MenuBackButton, TrainingRecordButton, TrainingPlayButton, BoundActionCount };
-struct BoundActionInfo {
-    // Its key in a saved layout.
-    const char* json;
-    BoundAction partner;
-    // Training's buttons are read beside the fight, so one the layout gives an
-    // attack would fight and record at once: it does not count. A menu button
-    // the player leaves unbound is the game's own (input::ResolveMenuButtons).
-    bool needsFreeButton;
-};
+// Each action's key in a saved layout, and its partner.
+struct BoundActionInfo { const char* json; BoundAction partner; };
 constexpr std::array<BoundActionInfo, BoundActionCount> BoundActions = {{
-    {"menuConfirm", MenuBackButton, false}, {"menuBack", MenuConfirmButton, false},
-    {"trainingRecord", TrainingPlayButton, true}, {"trainingPlay", TrainingRecordButton, true}}};
-// For each action, the layout button bound to it as an index into LayoutGlyphs; -1 for none.
+    {"menuConfirm", MenuBackButton}, {"menuBack", MenuConfirmButton}, {"trainingRecord", TrainingPlayButton}, {"trainingPlay", TrainingRecordButton}}};
+// For each action, the layout button bound to it as an index into LayoutGlyphs;
+// -1 for none (for a menu action: the game's own, input::ResolveMenuButtons).
 using BoundButtons = std::array<int, BoundActionCount>;
 constexpr BoundButtons NoBoundButtons = {-1, -1, -1, -1};
 inline bool BoundIndexInRange(std::int64_t index) { return index >= -1 && index < static_cast<std::int64_t>(LayoutGlyphs.size()); }
@@ -55,14 +48,13 @@ inline bool ValidBoundButtons(const BoundButtons& bound) {
 inline std::uint32_t LayoutButtonMask(int index, const ListedButtons& has = AllLayoutButtons) {
     return index >= 0 && index < static_cast<int>(LayoutBits.size()) && has[index] ? std::uint32_t(1) << LayoutBits[index] : 0;
 }
-// Whether a layout button can act for an action under this table: always, but
-// for an action that needs a button free of attacks.
-inline bool BoundButtonWorks(BoundAction action, int index, const ButtonLayout& table) {
-    return index >= 0 && index < static_cast<int>(table.size()) && (!BoundActions[action].needsFreeButton || !table[index]);
-}
-// The physical mask of the button bound to an action, 0 when none is or it does not work.
-inline std::uint32_t BoundButtonMask(const BoundButtons& bound, BoundAction action, const ListedButtons& has, const ButtonLayout& table) {
-    return BoundButtonWorks(action, bound[action], table) ? LayoutButtonMask(bound[action], has) : 0;
+// The fight table offline Training plays with: Training's record and play
+// buttons do nothing in the fight there, so a press records or plays and
+// never attacks too. Everywhere else they keep what the layout gives them.
+inline ButtonLayout TrainingTable(ButtonLayout table, const BoundButtons& bound) {
+    for (const BoundAction action : {TrainingRecordButton, TrainingPlayButton})
+        if (bound[action] >= 0 && bound[action] < static_cast<int>(table.size())) table[bound[action]] = 0;
+    return table;
 }
 struct StoredLayout {
     Identity identity;

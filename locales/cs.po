@@ -5684,10 +5684,10 @@ msgid "button_layout.training_play"
 msgstr "Přehrávání v tréninku"
 
 msgid "button_layout.training_record_detail"
-msgstr "Vyberte a pak stiskněte tlačítko, které v tréninku spouští a zastavuje nahrávání, jako F7. Zvolte tlačítko, které v zápase nic nedělá, například stisk páčky."
+msgstr "Vyberte a pak stiskněte tlačítko, které v tréninku spouští a zastavuje nahrávání, jako F7. V tréninku to tlačítko jen nahrává; v zápasech si ponechá svůj útok."
 
 msgid "button_layout.training_play_detail"
-msgstr "Vyberte a pak stiskněte tlačítko, které v tréninku přehrává a zastavuje zvolený slot, jako F8. Zvolte tlačítko, které v zápase nic nedělá, například stisk páčky."
+msgstr "Vyberte a pak stiskněte tlačítko, které v tréninku přehrává a zastavuje zvolený slot, jako F8. V tréninku to tlačítko jen přehrává; v zápasech si ponechá svůj útok."
 
 msgid "button_layout.training_clear"
 msgstr "Smazat tlačítka tréninku"
@@ -5697,12 +5697,6 @@ msgstr "Vypne tlačítka nahrávání a přehrávání v tréninku."
 
 msgid "button_layout.training_cleared"
 msgstr "Tlačítka tréninku jsou vypnutá."
-
-msgid "button_layout.training_busy"
-msgstr "{0} už v zápase dělá: {1}. Zvolte tlačítko, které nic nedělá."
-
-msgid "button_layout.training_busy_value"
-msgstr "{0} (provádí útok, proto se nepoužije)"
 
 msgid "room.delay_policy"
 msgstr "Zpoždění vstupu v místnosti"

@@ -5685,10 +5685,10 @@ msgid "button_layout.training_play"
 msgstr "Reproducir en Entrenamiento"
 
 msgid "button_layout.training_record_detail"
-msgstr "Selecciona y pulsa el botón que inicia y detiene una grabación en Entrenamiento, como F7. Elige un botón que no haga nada en el combate, como pulsar un stick."
+msgstr "Selecciona y pulsa el botón que inicia y detiene una grabación en Entrenamiento, como F7. En Entrenamiento ese botón solo graba; en los combates conserva su ataque."
 
 msgid "button_layout.training_play_detail"
-msgstr "Selecciona y pulsa el botón que reproduce y detiene la ranura elegida en Entrenamiento, como F8. Elige un botón que no haga nada en el combate, como pulsar un stick."
+msgstr "Selecciona y pulsa el botón que reproduce y detiene la ranura elegida en Entrenamiento, como F8. En Entrenamiento ese botón solo reproduce; en los combates conserva su ataque."
 
 msgid "button_layout.training_clear"
 msgstr "Borrar botones de Entrenamiento"
@@ -5698,12 +5698,6 @@ msgstr "Desactiva los botones de grabar y reproducir de Entrenamiento."
 
 msgid "button_layout.training_cleared"
 msgstr "Los botones de Entrenamiento están desactivados."
-
-msgid "button_layout.training_busy"
-msgstr "{0} ya hace {1} en el combate. Elige un botón que no haga nada."
-
-msgid "button_layout.training_busy_value"
-msgstr "{0} (hace un ataque, no se usa)"
 
 msgid "room.delay_policy"
 msgstr "Retraso de entrada de la sala"

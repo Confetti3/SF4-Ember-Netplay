@@ -5684,10 +5684,10 @@ msgid "button_layout.training_play"
 msgstr "Rejouer (Entraînement)"
 
 msgid "button_layout.training_record_detail"
-msgstr "Sélectionnez, puis appuyez sur le bouton qui lance et arrête un enregistrement en Entraînement, comme F7. Choisissez un bouton qui ne fait rien en combat, comme un clic de stick."
+msgstr "Sélectionnez, puis appuyez sur le bouton qui lance et arrête un enregistrement en Entraînement, comme F7. En Entraînement ce bouton ne fait qu'enregistrer ; en combat il garde son attaque."
 
 msgid "button_layout.training_play_detail"
-msgstr "Sélectionnez, puis appuyez sur le bouton qui rejoue et arrête l'emplacement choisi en Entraînement, comme F8. Choisissez un bouton qui ne fait rien en combat, comme un clic de stick."
+msgstr "Sélectionnez, puis appuyez sur le bouton qui rejoue et arrête l'emplacement choisi en Entraînement, comme F8. En Entraînement ce bouton ne fait que rejouer ; en combat il garde son attaque."
 
 msgid "button_layout.training_clear"
 msgstr "Effacer les boutons d'Entraînement"
@@ -5697,12 +5697,6 @@ msgstr "Désactive les boutons d'enregistrement et de lecture de l'Entraînement
 
 msgid "button_layout.training_cleared"
 msgstr "Les boutons d'Entraînement sont désactivés."
-
-msgid "button_layout.training_busy"
-msgstr "{0} fait déjà {1} en combat. Choisissez un bouton qui ne fait rien."
-
-msgid "button_layout.training_busy_value"
-msgstr "{0} (fait une attaque, donc inutilisé)"
 
 msgid "room.delay_policy"
 msgstr "Délai d'entrée du salon"

@@ -41,7 +41,7 @@ inline std::string LayoutCaptureRow(const std::optional<unsigned>& function) {
 // binding, 0 for none.
 std::uint32_t BoundButtonNow(const gamepads::PadView& pad, gamepads::BoundAction action);
 // What a bound action's row shows: the menu button that acts now; a Training
-// action's button, Off, or a note that the layout gives it an attack.
+// action's button, or Off.
 std::string BoundButtonValue(const gamepads::PadView& pad, gamepads::BoundAction action);
 // The pad's name for a physical menu button (input::MenuButtons), or its glyph
 // when it is none of the ten layout buttons.

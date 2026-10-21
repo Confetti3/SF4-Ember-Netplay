@@ -215,11 +215,7 @@ std::string BoundButtonValue(const PadView& pad, BoundAction action) {
     switch (action) {
     case MenuConfirmButton: return MenuButtonName(pad, pad.menuButtons.confirm, pad.menuButtons.confirmGlyph);
     case MenuBackButton: return MenuButtonName(pad, pad.menuButtons.back, pad.menuButtons.backGlyph);
-    default: {
-        const int button = pad.bound[action];
-        if (button < 0) return loc::T("common.off");
-        return BoundButtonWorks(action, button, pad.table) ? pad.buttonNames[button] : loc::Tf("button_layout.training_busy_value", pad.buttonNames[button]);
-    }
+    default: return pad.bound[action] < 0 ? std::string(loc::T("common.off")) : pad.buttonNames[pad.bound[action]];
     }
 }
 namespace {

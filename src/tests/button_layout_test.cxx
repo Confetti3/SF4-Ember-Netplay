@@ -148,19 +148,16 @@ static void TrainingButtons() {
     set(10, -1); CHECK(!prefs.Valid());
     set(-1, -2); CHECK(!prefs.Valid());
     set(-1, -1); CHECK(prefs.Valid());
-    // The physical mask: the stick clicks are bits 24 and 25; none for no
-    // binding or a button the pad lacks, and for Training none for a button
-    // the layout gives an attack, which a menu button may have.
-    auto bound = NoBoundButtons; bound[TrainingRecordButton] = 8; bound[TrainingPlayButton] = 9;
-    CHECK(BoundButtonMask(bound, TrainingRecordButton, AllLayoutButtons, DefaultLayout) == 0x1000000u &&
-        BoundButtonMask(bound, TrainingPlayButton, AllLayoutButtons, DefaultLayout) == 0x2000000u);
-    CHECK(BoundButtonMask(bound, MenuConfirmButton, AllLayoutButtons, DefaultLayout) == 0);
+    // The stick clicks are bits 24 and 25; none for no button or one the pad lacks.
+    CHECK(LayoutButtonMask(8) == 0x1000000u && LayoutButtonMask(9) == 0x2000000u && LayoutButtonMask(-1) == 0);
     auto listed = AllLayoutButtons; listed[8] = false;
-    CHECK(BoundButtonMask(bound, TrainingRecordButton, listed, DefaultLayout) == 0);
-    auto table = DefaultLayout; table[8] = 0x10;
-    CHECK(BoundButtonMask(bound, TrainingRecordButton, AllLayoutButtons, table) == 0 && BoundButtonMask(bound, TrainingPlayButton, AllLayoutButtons, table) == 0x2000000u);
-    bound[MenuConfirmButton] = 2;
-    CHECK(!BoundButtonWorks(TrainingRecordButton, 2, DefaultLayout) && BoundButtonMask(bound, MenuConfirmButton, AllLayoutButtons, DefaultLayout) == 0x80000u);
+    CHECK(LayoutButtonMask(8, listed) == 0);
+    // Offline Training's table: the Training buttons do nothing in the fight
+    // there, whatever the layout gives them; the menu buttons and the rest keep theirs.
+    auto bound = NoBoundButtons; bound[TrainingRecordButton] = 8; bound[TrainingPlayButton] = 9; bound[MenuConfirmButton] = 2;
+    auto table = DefaultLayout; table[8] = 0x430; table[9] = 0x8C0;
+    auto expected = table; expected[8] = expected[9] = 0;
+    CHECK(TrainingTable(table, bound) == expected && TrainingTable(table, NoBoundButtons) == table);
 }
 static void Writer() {
     alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 6> memory;

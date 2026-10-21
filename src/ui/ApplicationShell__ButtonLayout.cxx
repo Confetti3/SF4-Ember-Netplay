@@ -107,18 +107,12 @@ bool ApplicationShell::ChangeLayout(const PadView& pad, const std::optional<Butt
 void ApplicationShell::ChangeBoundButton(const PadView& pad, BoundAction action, unsigned button, const ShellView& view, const Submit& submit) {
     const auto& row = BoundActionRows[action];
     layoutFlash_ = row.id; layoutFlashUntil_ = ImGui::GetTime() + .6;
-    const auto refuse = [&](const char* why, std::string notice) {
-        LayoutLog(view, submit, fmt::format("layout for id {}: {} = {} refused ({})", pad.id, row.id, LayoutGlyphs[button], why));
-        notice_ = std::move(notice); noticeTone_ = Tone::Error; noticeUntil_ = ImGui::GetTime() + 4; layoutFlash_.clear();
-    };
     // Partners never share a button: the one the other acts on now is refused.
     const auto partner = BoundActions[action].partner;
     if (LayoutButtonMask(static_cast<int>(button), pad.has) == BoundButtonNow(pad, partner)) {
-        refuse("its partner's button", loc::Tf("button_layout.menu_taken", pad.buttonNames[button], loc::T(BoundActionRows[partner].label)));
-        return;
-    }
-    if (!BoundButtonWorks(action, static_cast<int>(button), pad.table)) {
-        refuse("it does an attack", loc::Tf("button_layout.training_busy", pad.buttonNames[button], FightName(pad.table[button])));
+        LayoutLog(view, submit, fmt::format("layout for id {}: {} = {} refused (its partner's button)", pad.id, row.id, LayoutGlyphs[button]));
+        notice_ = loc::Tf("button_layout.menu_taken", pad.buttonNames[button], loc::T(BoundActionRows[partner].label));
+        noticeTone_ = Tone::Error; noticeUntil_ = ImGui::GetTime() + 4; layoutFlash_.clear();
         return;
     }
     auto bound = pad.bound;
