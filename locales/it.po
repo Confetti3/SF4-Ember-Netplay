@@ -5032,7 +5032,7 @@ msgid "training.hitboxes"
 msgstr "Hitbox"
 
 msgid "training.hitboxes.detail"
-msgstr "Disegna i riquadri dei lottatori sopra il combattimento: in verde dove un lottatore può essere colpito, in giallo dove può essere afferrato, in rosso dove un attacco colpisce e in blu dove afferra."
+msgstr "Disegna i riquadri dei lottatori sopra il combattimento: in verde dove un lottatore può essere colpito, in giallo dove può essere afferrato, in rosso dove un attacco colpisce e in blu dove afferra. Le linee bianche sono le ossa."
 
 msgid "training.color_key"
 msgstr "Legenda colori"

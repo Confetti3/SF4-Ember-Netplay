@@ -190,10 +190,12 @@ namespace Dimps {
 					typedef struct __staticMethods {
 						void (*ResetAfterMemento)(Actor* a);
 						char* (*GetBoneLabelByID)(int idx);
+						// The locator a body part's strike box ends at, -1 past the last.
+						int (*GetLocatorPairEnd)(unsigned int part);
 					} __staticMethods;
 
 					// A fighter's body boxes: where a strike lands, one a part of the
-					// body, and where a throw connects.
+					// body from its own locator to GetLocatorPairEnd's, and where a throw connects.
 					enum class BodyList { Strike, Throw };
 					// One of a list's boxes, 0xA0 bytes, four corners first.
 					static unsigned char* GetBodyBox(Actor* a, BodyList list, unsigned index);

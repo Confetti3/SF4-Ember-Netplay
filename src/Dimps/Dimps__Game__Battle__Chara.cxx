@@ -99,5 +99,6 @@ void Actor::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.GetCurrentBonePositionByID) = (PVOID)(peRootOffset + 0x1427a0);
 
 	staticMethods.GetBoneLabelByID = (char* (*)(int))(peRootOffset + 0x163260);
+	staticMethods.GetLocatorPairEnd = (int (*)(unsigned int))(peRootOffset + 0x1632a0);
 	staticMethods.ResetAfterMemento = (void(*)(Actor*))(peRootOffset + 0x151800);
 }

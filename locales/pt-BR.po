@@ -4549,7 +4549,7 @@ msgid "training.hitboxes"
 msgstr "Hitboxes"
 
 msgid "training.hitboxes.detail"
-msgstr "Desenha as caixas dos lutadores sobre a luta: em verde onde um lutador pode ser atingido, em amarelo onde ele pode ser agarrado, em vermelho onde um ataque acerta e em azul onde ele agarra."
+msgstr "Desenha as caixas dos lutadores sobre a luta: em verde onde um lutador pode ser atingido, em amarelo onde ele pode ser agarrado, em vermelho onde um ataque acerta e em azul onde ele agarra. As linhas brancas são os ossos."
 
 msgid "training.color_key"
 msgstr "Legenda de cores"

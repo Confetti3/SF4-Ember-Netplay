@@ -5032,7 +5032,7 @@ msgid "training.hitboxes"
 msgstr "Hitboksy"
 
 msgid "training.hitboxes.detail"
-msgstr "Rysuje pola zawodników na tle walki: zielone tam, gdzie zawodnika można trafić, żółte tam, gdzie można nim rzucić, czerwone tam, gdzie atak trafia, i niebieskie tam, gdzie rzuca."
+msgstr "Rysuje pola zawodników na tle walki: zielone tam, gdzie zawodnika można trafić, żółte tam, gdzie można nim rzucić, czerwone tam, gdzie atak trafia, i niebieskie tam, gdzie rzuca. Białe linie to kości."
 
 msgid "training.color_key"
 msgstr "Legenda kolorów"

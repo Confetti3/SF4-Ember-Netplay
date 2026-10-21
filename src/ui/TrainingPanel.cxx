@@ -293,22 +293,31 @@ void DrawTrainingBoxes(const training::View& view) {
     LoadPractice();
     if(!lab.meter.hitboxes||!view.boxes.valid) return;
     // Green where a fighter can be hit, yellow where it can be thrown, red
-    // where an attack hits and blue where it throws.
+    // where an attack hits and blue where it throws; the skeleton in white.
     static const ImU32 line[]={IM_COL32(60,220,90,230),IM_COL32(240,220,60,230),IM_COL32(255,60,60,230),IM_COL32(70,140,255,230)};
     static const ImU32 fill[]={IM_COL32(60,220,90,90),IM_COL32(240,220,60,70),IM_COL32(255,60,60,110),IM_COL32(70,140,255,110)};
     const auto* vp=ImGui::GetMainViewport();
     auto* draw=ImGui::GetBackgroundDrawList();
+    const auto project=[&](float x,float y,ImVec2& at){
+        const bool seen=training::Project(view.boxes.view,view.boxes.projection,x,y,vp->Size.x,vp->Size.y,at.x,at.y);
+        at.x+=vp->Pos.x; at.y+=vp->Pos.y;
+        return seen;
+    };
     for(const auto& box:view.boxes.boxes) {
         ImVec2 at[4];
         bool seen=true;
-        for(int corner=0;corner<4&&seen;++corner) {
-            seen=training::Project(view.boxes.view,view.boxes.projection,box.x[corner],box.y[corner],vp->Size.x,vp->Size.y,at[corner].x,at[corner].y);
-            at[corner].x+=vp->Pos.x; at[corner].y+=vp->Pos.y;
-        }
+        for(int corner=0;corner<4&&seen;++corner) seen=project(box.x[corner],box.y[corner],at[corner]);
         if(!seen) continue;
         const int kind=static_cast<int>(box.kind);
         draw->AddQuadFilled(at[0],at[1],at[2],at[3],fill[kind]);
         draw->AddQuad(at[0],at[1],at[2],at[3],line[kind],2);
+    }
+    for(const auto& bone:view.boxes.bones) {
+        ImVec2 from,to;
+        if(!project(bone.x[0],bone.y[0],from)||!project(bone.x[1],bone.y[1],to)) continue;
+        draw->AddLine(from,to,IM_COL32(255,255,255,220),2);
+        draw->AddCircleFilled(from,3,IM_COL32(255,255,255,220));
+        draw->AddCircleFilled(to,3,IM_COL32(255,255,255,220));
     }
 }
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }
