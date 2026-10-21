@@ -475,7 +475,7 @@ pub async fn transition(
     Path((id, name)): Path<(String, String)>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
-    let (caller, sessions::Nothing {}) = Caller::of(&state, &headers, &body).await?;
+    let (caller, sessions::Nothing {}) = Caller::organizer(&state, &headers, &body).await?;
     caller.require_game()?;
     let (reading, owner) = (id.clone(), caller.ember_id().to_owned());
     let event: Option<(String, String)> = state
