@@ -148,6 +148,12 @@ async function home() {
   show("home");
   $("brand-sub").textContent = "Tournament desk";
   accounts().catch((error) => toast(error.message));
+  // An organizer not invited yet, on a bridge that takes organizers by
+  // invitation, is told how to get in; a bridge without the route takes all.
+  const access = await api("GET", "/v1/organizer/access").catch(() => ({ invite_only: false, allowed: true }));
+  const invited = !access.invite_only || access.allowed;
+  $("invite").hidden = invited;
+  $("new-tournament").hidden = !invited;
   desk.events = (await api("GET", "/v1/organizer/events")).events;
   const list = $("events");
   fill(list,
