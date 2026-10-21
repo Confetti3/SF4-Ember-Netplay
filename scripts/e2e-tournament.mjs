@@ -181,10 +181,10 @@ const games = [startLocal(), startRemote()].map((game, index) => game.then((resu
 }));
 // A run that ends early stops the games it started, so the next run finds
 // both PCs free. Each game's script then puts the saves back as after any game.
-// Only the game the package's launcher started: a player's own game on
-// either PC is left alone.
-const stopScript = (pkg) => "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'SSFIV.exe' -and " +
-  `(Get-Process -Id $_.ParentProcessId -EA 0).Path -like '${pkg}\\*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`;
+// Only the package's launcher and the game it started, so one stuck before
+// the game opened goes too: a player's own game on either PC is left alone.
+const stopScript = (pkg) => "Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like '" + pkg + "\\*' -or " +
+  `($_.Name -eq 'SSFIV.exe' -and (Get-Process -Id $_.ParentProcessId -EA 0).Path -like '${pkg}\\*') } | Sort-Object Name -Descending | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`;
 function stopGames() {
   if (!ended[0]) { try { execFileSync("powershell.exe", ["-NoProfile", "-Command", stopScript(config.local.package)], { stdio: "ignore" }); } catch {} }
   if (!ended[1]) { try { ssh(`powershell -NoProfile -Command "${stopScript(config.remote.package)}"`); } catch {} }
