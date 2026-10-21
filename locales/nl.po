@@ -2569,6 +2569,18 @@ msgstr "Aan tafel"
 msgid "room.status.ready"
 msgstr "Klaar"
 
+msgid "class.master"
+msgstr "Meester"
+
+msgid "class.grand_master"
+msgstr "Grootmeester"
+
+msgid "class.tip"
+msgstr "Klasse {0}"
+
+msgid "class.unsettled"
+msgstr "Al een tijd geen potjes, dus die kan veranderd zijn."
+
 msgid "room.status.playing"
 msgstr "Speelt"
 
@@ -3651,7 +3663,7 @@ msgid "identity.local_passphrase"
 msgstr "Wachtwoordzin voor deze pc"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine en Proton kunnen de sleutelbeveiliging van Windows niet gebruiken, dus beschermt een wachtwoordzin je sleutel. Je voert hem één keer in bij elke start van het spel."
+msgstr "Wine en Proton (bijvoorbeeld op de Steam Deck) kunnen de gebruikelijke sleutelbeveiliging niet gebruiken, dus beschermt een wachtwoordzin je sleutel. Je voert hem één keer in bij elke start van het spel."
 
 msgid "identity.repeat_passphrase"
 msgstr "Wachtwoordzin herhalen"
@@ -3673,6 +3685,9 @@ msgstr "Ember ID maken"
 
 msgid "identity.enable_detail"
 msgstr "Maakt je sleutel aan op deze pc. Alleen dit Windows-account kan hem gebruiken."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Maakt je sleutel aan op deze pc, beschermd met de wachtwoordzin hierboven."
 
 msgid "identity.leave_room"
 msgstr "Verlaat de kamer en ga terug naar het hoofdmenu om je Ember ID te wijzigen."
@@ -5639,6 +5654,36 @@ msgstr "Selecteer en druk dan op de knop die teruggaat in de menu's van Ember. T
 msgid "button_layout.menu_taken"
 msgstr "{0} is al {1}. Kies een andere knop."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Home-knop"
+
+msgid "button_layout.extra.mute"
+msgstr "Dempknop"
+
+msgid "button_layout.extra.misc"
+msgstr "Extra knop"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Rechterpaddle {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Linkerpaddle {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Kies de knop die {0} nadoet. {0} werkt dan als die knop."
+
+msgid "button_layout.extra_copy"
+msgstr "Zelfde als {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} werkt nu als {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} doet nu niets."
+
 msgid "room.delay_policy"
 msgstr "Invoervertraging in de kamer"
 
@@ -6416,3 +6461,139 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "screen.rankings"
+msgstr "Ranglijsten"
+
+msgid "rankings.title"
+msgstr "RANGLIJSTEN"
+
+msgid "rankings.board_title"
+msgstr "SPELERS PER KLASSE"
+
+msgid "rankings.entry_detail"
+msgstr "Je klasse in openbare kamers en spelers per klasse."
+
+msgid "rankings.needs_setup"
+msgstr "Ranglijsten komen uit potjes in openbare kamers. Stel eerst openbare kamers in."
+
+msgid "rankings.loading"
+msgstr "Je klasse laden..."
+
+msgid "rankings.your_class"
+msgstr "Je klasse"
+
+msgid "rankings.placing"
+msgstr "Wordt ingedeeld"
+
+msgid "rankings.placing_detail"
+msgstr "Je klasse verschijnt na nog een paar potjes in openbare kamers tegen spelers die er een hebben."
+
+msgid "rankings.faint_detail"
+msgstr "Je hebt de laatste tijd niet gespeeld, dus je klasse is vaal en je staat niet op de ranglijst. Een paar potjes lossen dat op."
+
+msgid "rankings.settled_detail"
+msgstr "Staat naast je naam in openbare kamers."
+
+msgid "rankings.hidden"
+msgstr "Klassen nog niet zichtbaar"
+
+msgid "rankings.hidden_detail"
+msgstr "Deze dienst toont nog geen klassen. Je potjes in openbare kamers tellen wel mee."
+
+msgid "rankings.no_account"
+msgstr "Koppel Discord om mee te doen"
+
+msgid "rankings.no_account_detail"
+msgstr "Klassen horen bij een Discord-account, dus een nieuwe Ember ID behoudt de jouwe. Zonder account tellen je potjes niet mee."
+
+msgid "rankings.connect_detail"
+msgstr "Opent Discord koppelen. Kom hier terug als het klaar is."
+
+msgid "rankings.off"
+msgstr "Doet niet mee"
+
+msgid "rankings.off_detail"
+msgstr "Je potjes tellen niet mee en er is geen klasse zichtbaar. Je rating blijft bewaard voor als je terugkomt."
+
+msgid "rankings.take_part"
+msgstr "Meedoen"
+
+msgid "rankings.take_part_detail"
+msgstr "Je potjes in openbare kamers tellen weer mee en je klasse komt terug. Na een tijd weg kan hij een paar potjes vaal zijn. Je staat op de ranglijst als {0}. Je kunt dit één keer per dag wijzigen."
+
+msgid "rankings.stop"
+msgstr "Stoppen met meedoen"
+
+msgid "rankings.stop_detail"
+msgstr "Je klasse verdwijnt uit kamers en van de ranglijst en je potjes tellen niet meer mee. Je rating blijft zoals hij is en gaat verder als je terugkomt. Je kunt dit één keer per dag wijzigen."
+
+msgid "rankings.change_wait"
+msgstr "Je kunt dit over {0} weer wijzigen."
+
+msgid "rankings.hours"
+msgstr "{0} u"
+
+msgid "rankings.minutes"
+msgstr "{0} min"
+
+msgid "rankings.board_as"
+msgstr "Op de ranglijst als"
+
+msgid "rankings.board_as_detail"
+msgstr "De naam en vlag die kamers van jou tonen. Wijzig ze in Profiel en Instellingen. De ranglijst neemt een wijziging over zodra je Ranglijsten weer opent."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Hoe klassen werken"
+
+msgid "rankings.how_text"
+msgstr "Alleen potjes in openbare kamers die met een winnaar eindigen tellen mee. Je klasse hoort bij je Discord-account, niet bij je Ember ID. Hij verandert pas na een duidelijke reeks resultaten en een potje tegen een veel sterkere of zwakkere speler telt nauwelijks. Er zijn geen punten te zien, alleen de klasse. Na een lange pauze is hij vaal tot je weer speelt en hij daalt nooit vanzelf."
+
+msgid "rankings.players"
+msgstr "Spelers per klasse"
+
+msgid "rankings.players_detail"
+msgstr "Iedereen die meedoet met een vaste klasse, hoogste eerst. Binnen een klasse komen de laatst gespeelden eerst."
+
+msgid "rankings.you"
+msgstr "Jij"
+
+msgid "rankings.you_beyond_cap"
+msgstr "De ranglijst toont maximaal {0} spelers en jij staat er nu niet bij."
+
+msgid "rankings.jump"
+msgstr "Links en Rechts wisselen tussen klassen."
+
+msgid "rankings.loading_board"
+msgstr "Spelers laden..."
+
+msgid "rankings.empty"
+msgstr "Er staat nog niemand op de ranglijst."
+
+msgid "rankings.status_board"
+msgstr "Spelers in de lijst: {0}. Bijgewerkt {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Deze dienst biedt geen ranglijsten."
+
+msgid "rankings.failure.too_soon"
+msgstr "Je kunt dit één keer per dag wijzigen."
+
+msgid "settings.class_emblems"
+msgstr "Klasse-emblemen"
+
+msgid "settings.class_emblems_detail"
+msgstr "Toont de klasse van elke speler naast zijn naam in openbare kamers. Uit verbergt ze alleen op jouw scherm. Anderen zien de jouwe nog steeds en je potjes tellen nog steeds mee."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Ember-ontwikkelaar"
+
+msgid "rankings.developer_detail"
+msgstr "Ember-ontwikkelaars tonen dit teken in plaats van een klasse en staan niet op de ranglijst. Je potjes tellen wel mee."

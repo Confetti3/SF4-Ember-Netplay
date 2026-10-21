@@ -38,6 +38,12 @@ public:
     SelectionImage Ultra(int fighter, int ultra);
     // RandomStageId is served from the game's character-select random tile.
     SelectionImage Stage(int nativeId);
+    // An emblem from the game's own online ranking archive by its entry name,
+    // such as "class_B.dds" (USF4's class emblems, NameMarks.cxx).
+    SelectionImage RankingEmblem(const std::string& entry);
+    // Ember's developer mark (assets/input/mark_developer.png), shown in place
+    // of a class; wider than tall.
+    SelectionImage DeveloperMark();
     SelectionImage MenuBackdrop();
     SelectionImage InputPrompt(const std::string& name);
     // A country's flag: its cell of the flag atlas (assets/flags/flags.png),

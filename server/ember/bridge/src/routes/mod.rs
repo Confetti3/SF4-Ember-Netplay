@@ -10,6 +10,7 @@ pub mod lookup;
 pub mod matches;
 pub mod play;
 pub mod policy;
+pub mod ranking;
 pub mod records;
 pub mod reports;
 pub mod rooms;
@@ -104,6 +105,11 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/rooms/{room_id}", get(rooms::get))
         .route("/v1/rooms/{room_id}/close", post(rooms::close))
         .route("/v1/rooms/{room_id}/tickets", post(rooms::ticket))
+        .route(
+            ember_protocol::skill::STANDING_PATH,
+            get(ranking::standing).put(ranking::choose),
+        )
+        .route(ember_protocol::skill::BOARD_PATH, get(ranking::board))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))

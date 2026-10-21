@@ -27,20 +27,18 @@ impl Actor {
         }
     }
 
-    /// The members a committed checkpoint's `envelope` names. A server-owned
-    /// host is the room's leader but not one of its members, so it is added
-    /// to the roster here: reconciliation never treats it as departed for
-    /// being absent from the native member list, and a room whose members
-    /// have all left still has a roster to retire them against.
+    /// The members a committed checkpoint names, including their exact
+    /// process incarnations. A server-owned host leads without a native seat,
+    /// so keep its recovery incarnation even when every member has left.
     pub(super) fn committed_roster(
         &self,
         envelope: &serde_json::Value,
-    ) -> Option<BTreeSet<EndpointId>> {
+    ) -> Option<BTreeMap<EndpointId, u64>> {
         if !self.is_public_host() {
-            return primary_endpoints(envelope, false);
+            return primary_members(envelope, false);
         }
-        let mut roster = primary_endpoints(envelope, true)?;
-        roster.insert(self.endpoint.id());
+        let mut roster = primary_members(envelope, true)?;
+        roster.insert(self.endpoint.id(), self.recovery.as_ref()?.incarnation);
         Some(roster)
     }
 

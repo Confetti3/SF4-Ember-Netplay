@@ -4,6 +4,7 @@ use ember_protocol::{
     EmberId, SigningIdentity,
     play::VERSION as TICKET_VERSION,
     rooms::{RoomTicket, TICKET_SECS},
+    skill::SkillBadge,
 };
 use zeroize::Zeroizing;
 
@@ -32,6 +33,27 @@ async fn a_member_with_a_ticket_connects_and_the_event_names_its_account() {
         assert_eq!(peer, remote.id());
         assert_eq!(room, fixture.invite.room());
         assert_eq!(account.as_deref(), Some(player.ember_id().as_str()));
+        fixture.host.close().await;
+        remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn the_event_carries_the_skill_badge_the_ticket_was_signed_with() {
+    timeout(Duration::from_secs(30), async {
+        let mut fixture = public_host().await;
+        let (remote, player) = (endpoint().await, identity(1));
+        let mut ticket = ticket_for(&fixture.invite, &player, &remote).ticket;
+        let shown = SkillBadge::class(6, true);
+        ticket.badge = Some(shown);
+        let signed = ticket.sign(&identity(9), "k1").unwrap();
+        let _control = fixture.dial(&remote, &signed).await.unwrap();
+        let Event::Connected { badge, .. } = next(&mut fixture.events, "connected").await else {
+            unreachable!()
+        };
+        assert_eq!(badge, Some(shown));
         fixture.host.close().await;
         remote.close().await;
     })
@@ -498,6 +520,7 @@ fn connected_serializes_as_before_without_an_account() {
         room: [7; 16],
         control: 9,
         account: None,
+        badge: None,
         latency: None,
         latency_relay: None,
     };
@@ -514,6 +537,7 @@ fn connected_serializes_as_before_without_an_account() {
         room: [7; 16],
         control: 9,
         account: Some(account.clone()),
+        badge: None,
         latency: None,
         latency_relay: None,
     };
@@ -521,6 +545,22 @@ fn connected_serializes_as_before_without_an_account() {
         serde_json::to_string(&event).unwrap(),
         format!(
             r#"{{"type":"connected","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}"}}"#
+        )
+    );
+    let event = Event::Connected {
+        epoch: 4,
+        peer,
+        room: [7; 16],
+        control: 9,
+        account: Some(account.clone()),
+        badge: Some(SkillBadge::class(5, false)),
+        latency: None,
+        latency_relay: None,
+    };
+    assert_eq!(
+        serde_json::to_string(&event).unwrap(),
+        format!(
+            r#"{{"type":"connected","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}","badge":{{"band":5,"settled":false}}}}"#
         )
     );
 }
@@ -600,6 +640,7 @@ fn the_public_commands_round_trip_and_keep_their_names() {
         endpoint_id: "c".repeat(64),
         issued_at: 1000,
         expires_at: 1000 + TICKET_SECS,
+        badge: None,
     }
     .sign(&identity(9), "k1")
     .unwrap();

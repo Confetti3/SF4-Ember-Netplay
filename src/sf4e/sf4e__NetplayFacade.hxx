@@ -24,6 +24,7 @@
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/ReplayFiles.hxx"
@@ -277,6 +278,8 @@ namespace sf4e {
             netplay::tournament::Status tournament;
             // The bridge's public rooms and the last admission request's answer.
             netplay::publicrooms::Status publicRooms;
+            // The player's ranking standing, the board and the last choice's answer.
+            netplay::rankings::Status rankings;
 		};
 		// Everything the overlay draws from, built on the game thread at the end
 		// of each outer tick and never changed afterwards. It owns its values:

@@ -7,7 +7,7 @@ inline nlohmann::json LayoutsToJson(const std::vector<StoredLayout>& layouts) {
     auto result = nlohmann::json::array();
     for (const auto& layout : layouts) result.push_back({{"guid", layout.identity.guid}, {"serial", layout.identity.serial},
         {"path", layout.identity.path}, {"name", layout.identity.name}, {"buttons", layout.buttons}, {"edited", layout.edited},
-        {"menuConfirm", layout.menu.confirm}, {"menuBack", layout.menu.back}});
+        {"menuConfirm", layout.menu.confirm}, {"menuBack", layout.menu.back}, {"extraButtons", layout.extras}});
     return result;
 }
 struct LayoutLoadError {
@@ -46,6 +46,12 @@ template<class Rejected> std::vector<StoredLayout> ReadLayouts(const nlohmann::j
         const auto confirm = index("menuConfirm"), back = index("menuBack");
         if (confirm >= -1 && confirm < 10 && back >= -1 && back < 10) layout.menu = {static_cast<int>(confirm), static_cast<int>(back)};
         if (!ValidMenuBinding(layout.menu)) layout.menu = {};
+        // Missing or unusable extra button copies leave every extra button off; the layout still loads.
+        const auto extras = entry.find("extraButtons");
+        if (extras != entry.end() && extras->is_array() && extras->size() == ExtraCount &&
+            std::all_of(extras->begin(), extras->end(), [](const nlohmann::json& copy) {
+                return copy.is_number_integer() && copy.get<std::int64_t>() >= -1 && copy.get<std::int64_t>() < static_cast<std::int64_t>(LayoutGlyphs.size());
+            })) layout.extras = extras->get<ExtraCopies>();
         UpsertLayout(layouts, std::move(layout));
     }
     return layouts;

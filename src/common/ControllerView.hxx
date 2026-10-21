@@ -29,6 +29,7 @@ inline std::vector<std::string> HeldGlyphs(const State& state) {
     };
     for (const auto& input : inputs)
         if (input.axis || state.buttons[static_cast<unsigned>(input.button)]) held.emplace_back(input.id);
+    for (unsigned i = 0; i < ExtraCount; ++i) if (state.extras[i]) held.emplace_back(ExtraIds[i]);
     if (state.leftTrigger > 16383) held.emplace_back("LT");
     if (state.rightTrigger > 16383) held.emplace_back("RT");
     return held;
@@ -72,6 +73,9 @@ struct PadView {
     // this pad with it (MenuButtonsFor; A and B while it has no game slot).
     MenuBinding menu;
     input::MenuButtons menuButtons;
+    // The extra buttons the pad reports and what each copies.
+    ListedExtras hasExtras{};
+    ExtraCopies extras = NoExtraCopies;
 };
 struct PadFrame {
     Pad pad;
@@ -85,6 +89,8 @@ struct PadFrame {
     ButtonLayout table = DefaultLayout;
     std::optional<ButtonLayout> layout;
     MenuBinding menu;
+    ListedExtras hasExtras{};
+    ExtraCopies extras = NoExtraCopies;
 };
 struct NativeController {
     int index;

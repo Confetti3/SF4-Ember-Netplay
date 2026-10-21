@@ -2569,6 +2569,18 @@ msgstr "U stolu"
 msgid "room.status.ready"
 msgstr "Připraven"
 
+msgid "class.master"
+msgstr "Mistr"
+
+msgid "class.grand_master"
+msgstr "Velmistr"
+
+msgid "class.tip"
+msgstr "Třída {0}"
+
+msgid "class.unsettled"
+msgstr "Žádné nedávné zápasy, takže se mohla změnit."
+
 msgid "room.status.playing"
 msgstr "Hraje"
 
@@ -3651,7 +3663,7 @@ msgid "identity.local_passphrase"
 msgstr "Heslo pro tento počítač"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine a Proton nemohou používat ochranu klíčů Windows, proto váš klíč chrání heslo. Zadáte ho jednou při každém spuštění hry."
+msgstr "Wine a Proton (například na Steam Decku) nemohou používat běžnou ochranu klíčů, proto váš klíč chrání heslo. Zadáte ho jednou při každém spuštění hry."
 
 msgid "identity.repeat_passphrase"
 msgstr "Zopakujte heslo"
@@ -3673,6 +3685,9 @@ msgstr "Vytvořit Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "Vytvoří váš klíč v tomto počítači. Použít ho může jen tento účet Windows."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Vytvoří váš klíč v tomto počítači, chráněný heslem výše."
 
 msgid "identity.leave_room"
 msgstr "Pro změnu Ember ID opusťte místnost a vraťte se do hlavní nabídky."
@@ -5639,6 +5654,36 @@ msgstr "Vyberte a pak stiskněte tlačítko, které vrací zpět v nabídkách E
 msgid "button_layout.menu_taken"
 msgstr "{0} už je: {1}. Zvolte jiné tlačítko."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Tlačítko Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Tlačítko ztlumení"
+
+msgid "button_layout.extra.misc"
+msgstr "Další tlačítko"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Pravé pádlo {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Levé pádlo {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Vyberte tlačítko, které {0} kopíruje. {0} pak funguje jako toto tlačítko."
+
+msgid "button_layout.extra_copy"
+msgstr "Stejné jako {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} teď funguje jako {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} teď nic nedělá."
+
 msgid "room.delay_policy"
 msgstr "Zpoždění vstupu v místnosti"
 
@@ -6416,3 +6461,139 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "screen.rankings"
+msgstr "Žebříčky"
+
+msgid "rankings.title"
+msgstr "ŽEBŘÍČKY"
+
+msgid "rankings.board_title"
+msgstr "HRÁČI PODLE TŘÍD"
+
+msgid "rankings.entry_detail"
+msgstr "Vaše třída ve veřejných místnostech a hráči podle tříd."
+
+msgid "rankings.needs_setup"
+msgstr "Žebříčky vycházejí ze her ve veřejných místnostech. Nejdřív nastavte veřejné místnosti."
+
+msgid "rankings.loading"
+msgstr "Načítání vaší třídy..."
+
+msgid "rankings.your_class"
+msgstr "Vaše třída"
+
+msgid "rankings.placing"
+msgstr "Zařazování"
+
+msgid "rankings.placing_detail"
+msgstr "Vaše třída se objeví po několika dalších hrách ve veřejných místnostech proti hráčům, kteří ji mají."
+
+msgid "rankings.faint_detail"
+msgstr "Nedávno jste nehráli, proto je vaše třída zesvětlená a nejste v žebříčku. Pár her to zase srovná."
+
+msgid "rankings.settled_detail"
+msgstr "Zobrazuje se u vašeho jména ve veřejných místnostech."
+
+msgid "rankings.hidden"
+msgstr "Třídy se zatím nezobrazují"
+
+msgid "rankings.hidden_detail"
+msgstr "Tato služba zatím třídy nezobrazuje. Vaše hry ve veřejných místnostech se stále počítají."
+
+msgid "rankings.no_account"
+msgstr "Pro účast připojte Discord"
+
+msgid "rankings.no_account_detail"
+msgstr "Třída patří k účtu Discord, takže ji zachová i nové Ember ID. Bez účtu se vaše hry nepočítají."
+
+msgid "rankings.connect_detail"
+msgstr "Otevře Připojit Discord. Až budete hotovi, vraťte se sem."
+
+msgid "rankings.off"
+msgstr "Bez účasti"
+
+msgid "rankings.off_detail"
+msgstr "Vaše hry se nepočítají a žádná třída se nezobrazuje. Vaše hodnocení zůstane zachováno pro váš návrat."
+
+msgid "rankings.take_part"
+msgstr "Zapojit se"
+
+msgid "rankings.take_part_detail"
+msgstr "Vaše hry ve veřejných místnostech se zase počítají a vaše třída se vrátí. Po delší pauze může být pár her zesvětlená. V žebříčku budete jako {0}. Změnit to lze jednou denně."
+
+msgid "rankings.stop"
+msgstr "Přestat se účastnit"
+
+msgid "rankings.stop_detail"
+msgstr "Vaše třída zmizí z místností i žebříčku a vaše hry se přestanou počítat. Hodnocení zůstane zachováno a po návratu naváže. Změnit to lze jednou denně."
+
+msgid "rankings.change_wait"
+msgstr "Znovu to půjde změnit za {0}."
+
+msgid "rankings.hours"
+msgstr "{0} h"
+
+msgid "rankings.minutes"
+msgstr "{0} min"
+
+msgid "rankings.board_as"
+msgstr "V žebříčku jako"
+
+msgid "rankings.board_as_detail"
+msgstr "Jméno a vlajka, které o vás ukazují místnosti. Změníte je v sekcích Profil a Nastavení. Žebříček převezme změnu při dalším otevření Žebříčků."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Jak třídy fungují"
+
+msgid "rankings.how_text"
+msgstr "Počítají se jen hry ve veřejných místnostech, které skončí vítězem. Vaše třída patří k účtu Discord, ne k Ember ID. Mění se až po jasné sérii výsledků a hra proti mnohem silnějšímu či slabšímu hráči se téměř nepočítá. Nezobrazují se žádné body, jen třída. Po dlouhé pauze je zesvětlená, dokud znovu nezahrajete, a sama od sebe nikdy neklesne."
+
+msgid "rankings.players"
+msgstr "Hráči podle tříd"
+
+msgid "rankings.players_detail"
+msgstr "Všichni, kdo se účastní a mají ustálenou třídu, od nejvyšší. V rámci třídy jsou první ti, kdo hráli naposledy."
+
+msgid "rankings.you"
+msgstr "Vy"
+
+msgid "rankings.you_beyond_cap"
+msgstr "Žebříček uvádí nejvýše {0} hráčů a vy teď mezi nimi nejste."
+
+msgid "rankings.jump"
+msgstr "Vlevo a vpravo přepínají mezi třídami."
+
+msgid "rankings.loading_board"
+msgstr "Načítání hráčů..."
+
+msgid "rankings.empty"
+msgstr "V žebříčku zatím nikdo není."
+
+msgid "rankings.status_board"
+msgstr "Hráčů v seznamu: {0}. Aktualizováno {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Tato služba žebříčky nenabízí."
+
+msgid "rankings.failure.too_soon"
+msgstr "Změnit to lze jednou denně."
+
+msgid "settings.class_emblems"
+msgstr "Emblémy tříd"
+
+msgid "settings.class_emblems_detail"
+msgstr "Zobrazuje třídu každého hráče u jeho jména ve veřejných místnostech. Vypnutí je skryje jen na vaší obrazovce. Ostatní vaši třídu stále vidí a vaše hry se stále počítají."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Vývojář Ember"
+
+msgid "rankings.developer_detail"
+msgstr "Vývojáři Ember mají místo třídy tuto značku a nejsou v žebříčku. Vaše hry se stále počítají."

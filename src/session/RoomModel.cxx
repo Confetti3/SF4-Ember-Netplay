@@ -440,13 +440,14 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.nat = NatClassFromWire(static_cast<long long>(profile.nat));
 	member.steamId = profile.steamId;
 	member.country = profile.country;
+	member.badge = profile.admission.badge;
 	member.connection = connection;
 	member.host = snapshot_.host == 0 || host;
 	member.joinOrder = nextJoinOrder_++;
 	if (member.host) snapshot_.host = member.id;
 	snapshot_.members.push_back(member);
 	NoteActive(member.id);
-	if (snapshot_.serverOwned) RememberAccount(member.id, profile.account);
+	if (snapshot_.serverOwned) RememberAccount(member.id, profile.admission.account);
 	if (snapshot_.tournament.Active()) SettleBoundJoin(member.id);
 	TouchRoom();
 	return Accept({Event{Event::Kind::SnapshotChanged, 0, 0, member.id, MatchResult::Abort}});
@@ -790,6 +791,7 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// ledger is backpressure, so a failed EndMatch must leave the live table
 	// untouched and retryable.
 	if (!StoreTerminalReceipt(tableId, *table, result)) return Reject(RejectReason::TerminalLedgerFull);
+	RecordWonGame(tableId, *table, result);
 	if (result == MatchResult::P1Win) ++table->score[0];
 	else if (result == MatchResult::P2Win) ++table->score[1];
 	const auto generationValue = table->matchGeneration;

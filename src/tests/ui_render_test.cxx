@@ -333,6 +333,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 }
 
 #include "ui_render_public_rooms.hxx"
+#include "ui_render_rankings.hxx"
 #include "ui_render_match_hud.hxx"
 #include "ui_render_chat.hxx"
 #include "ui_render_latency.hxx"
@@ -1081,6 +1082,8 @@ int main(int argc, char** argv) {
                 id.state="disabled";page("linked-accounts");draw("linked-accounts-no-id");
                 // Public rooms: the list, the card states, the setup cards and the room link (ui_render_public_rooms.hxx).
                 ShootPublicRooms(shell,view,draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();},answerTickets,holdIdentity,heldTicket);
+                // Rankings: your class in each state and the board by class (ui_render_rankings.hxx).
+                ShootRankings(shell,view,draw,page);
                 view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
                 page("create");draw(nullptr,0,8);draw("create-public");
                 view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;

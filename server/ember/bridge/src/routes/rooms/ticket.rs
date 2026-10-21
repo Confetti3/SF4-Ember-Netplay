@@ -14,12 +14,13 @@ use ember_protocol::{
 };
 use rusqlite::params;
 
-use super::{Address, load, refuse, supervisor};
+use super::{Address, classes_shown, developers, load, refuse, supervisor};
 use crate::{
     AppState,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, json},
     routes::play::playing,
+    skill,
 };
 
 /// Ticket requests one address may make per window.
@@ -53,10 +54,15 @@ pub async fn ticket(
     let TicketRequest {
         endpoint_id,
         build_id,
+        skill_badge,
+        developer_badge,
     } = request;
-    let (room, sealed) = state
+    let show_badge = skill_badge && classes_shown(&state);
+    let developers = developers(&state);
+    // A write: showing a class remembers it (`skill::show`).
+    let (room, sealed, badge) = state
         .db
-        .read(move |tx| {
+        .write(move |tx| {
             let room = load(tx, &looked_up)?
                 .filter(|room| room.closed_at.is_none() && room.invitation_sealed.is_some())
                 .ok_or_else(|| refuse(ROOM_NOT_FOUND))?;
@@ -86,7 +92,16 @@ pub async fn ticket(
                 return Err(refuse(ROOM_FULL));
             }
             let sealed = room.invitation_sealed.clone().unwrap_or_default();
-            Ok((room, sealed))
+            let badge = if show_badge {
+                let developers = skill::Developers {
+                    accounts: &developers,
+                    shown: developer_badge,
+                };
+                skill::show(tx, &ember_id, &developers, now)?
+            } else {
+                None
+            };
+            Ok((room, sealed, badge))
         })
         .await?;
     let invitation = state
@@ -104,6 +119,7 @@ pub async fn ticket(
             endpoint_id,
             issued_at: now,
             expires_at: now + TICKET_SECS,
+            badge,
         })
         .map_err(|_| ApiFailure::unavailable())?;
     let admission = RoomAdmission {

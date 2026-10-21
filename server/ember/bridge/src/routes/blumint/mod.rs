@@ -42,7 +42,6 @@ use serde_json::{Value, json};
 pub use close::{close, end_unkeyed};
 pub use create::create;
 pub use refusal::BluMintRefusal;
-use refusal::outcome;
 pub use report::{progress, status, status_report, submission, unopened_status};
 
 use crate::{

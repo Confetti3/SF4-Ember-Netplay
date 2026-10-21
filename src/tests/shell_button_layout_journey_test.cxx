@@ -214,5 +214,40 @@ void MenuButtonRows() {
     SetMenuEntriesProbe({}); SetMenuStatusProbe({});
     SetMenuGlyphs(input::PadXInput, input::xinput::A, input::xinput::B);
 }
+// Extra buttons: only the ones the pad reports get a row, a choice makes one
+// copy a layout button, and presets and menu bindings keep the copies.
+void ExtraButtonRows() {
+    Harness h; std::vector<MenuEntry> rows; std::string status; Tone tone = Tone::Neutral;
+    SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r) { rows = r; });
+    SetMenuStatusProbe([&](const char* text, Tone t) { status = text; tone = t; });
+    const auto has = [&](const std::string& id) { return std::any_of(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; }); };
+    const auto row = [&](const char* id) {
+        const auto at = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; });
+        Check(at != rows.end(), "Extra button row missing"); return *at;
+    };
+    Prepare(h);
+    Check(!has("extra-touchpad") && !has("extra-home"), "A pad without extra buttons showed their rows");
+    h.view.pads[0].hasExtras[static_cast<unsigned>(Extra::Touchpad)] = true; h.view.pads[0].hasExtras[static_cast<unsigned>(Extra::Home)] = true; h.Frame();
+    Check(row("extra-touchpad").label == loc::T("button_layout.extra.touchpad") && row("extra-touchpad").value == loc::T("common.off") &&
+        row("extra-home").label == "PS" && !has("extra-share"), "Touchpad and PS rows do not show as Off");
+    Check(row("extra-touchpad").choices.size() == 11 && row("extra-touchpad").choices[3].label == loc::Tf("button_layout.extra_copy", "Square"),
+        "Touchpad choices are not Off and the ten buttons by name");
+    h.Choose("extra-touchpad"); for (int i = 0; i < 3; ++i) h.Press(MenuInput::Down); h.Press(MenuInput::Select);
+    Check(LastLayout(h).extras[static_cast<unsigned>(Extra::Touchpad)] == 2 && LastLayout(h).buttons == DefaultLayout,
+        "Touchpad did not copy Square on the game's buttons");
+    Check(LastLayout(h).log.find("touchpad copies X") != std::string::npos, "Copy log missing");
+    Check(tone == Tone::Success && row("extra-touchpad").value == loc::Tf("button_layout.extra_copy", "Square"), "Touchpad row does not show its copy");
+    h.Wait(.5f);
+    Check(h.actions.back().preferences.buttonLayouts.size() == 1 && h.actions.back().preferences.buttonLayouts[0].extras[0] == 2, "Copy did not autosave");
+    h.view.preferences = h.actions.back().preferences;
+    h.view.pads[0].held = {"touchpad"}; h.Frame();
+    Check(row("extra-touchpad").valueHighlighted, "Holding the touchpad did not light its row");
+    h.view.pads[0].held.clear(); h.Frame();
+    h.Choose("preset"); h.Press(MenuInput::Down); h.Press(MenuInput::Select);
+    Check(LastLayout(h).buttons == LayoutPresets[1].buttons && LastLayout(h).extras[0] == 2, "A preset dropped the touchpad copy");
+    h.Choose("extra-touchpad"); for (int i = 0; i < 3; ++i) h.Press(MenuInput::Up); h.Press(MenuInput::Select);
+    Check(LastLayout(h).extras == NoExtraCopies && row("extra-touchpad").value == loc::T("common.off"), "Off did not clear the touchpad copy");
+    SetMenuEntriesProbe({}); SetMenuStatusProbe({});
 }
-void ButtonLayoutJourneys() { RedFocusAndCaptureRows(); LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); MenuButtonRows(); }
+}
+void ButtonLayoutJourneys() { RedFocusAndCaptureRows(); LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); MenuButtonRows(); ExtraButtonRows(); }

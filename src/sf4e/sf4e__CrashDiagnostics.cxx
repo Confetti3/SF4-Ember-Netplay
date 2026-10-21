@@ -45,6 +45,12 @@ std::atomic<bool> s_recording(false);
 char s_header[1024];
 char s_module[MAX_PATH];
 char s_detail[256];
+char s_callers[640];
+
+// The modules whose return addresses the callers line names, found at
+// Install so the crash path only compares numbers.
+struct CodeRange { uintptr_t base = 0, end = 0; char name[32] = {}; };
+CodeRange s_codeRanges[2];
 
 // spdlog's thread pool has exactly one worker (sf4e__Platform.cxx), so the
 // sink needs no lock of its own.
@@ -97,10 +103,52 @@ sf4e::crash::CrashFacts FactsFor(const char* kind, EXCEPTION_POINTERS* pointers,
 	return facts;
 }
 
+void NoteCodeRange(CodeRange& range, HMODULE module) {
+	if (!module) return;
+	const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(module);
+	const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(reinterpret_cast<const uint8_t*>(module) + dos->e_lfanew);
+	char path[MAX_PATH];
+	if (!GetModuleFileNameA(module, path, MAX_PATH)) return;
+	const char* name = strrchr(path, '\\');
+	snprintf(range.name, sizeof(range.name), "%s", name ? name + 1 : path);
+	range.base = reinterpret_cast<uintptr_t>(module);
+	range.end = range.base + nt->OptionalHeader.SizeOfImage;
+}
+
+// Return addresses on the faulting thread's stack, so a report sent without
+// a dump still names the calls that led to the fault. It scans rather than
+// unwinds: every stack word that points just past a call in the game or
+// Sidecar is listed, so a stale frame can appear among the live ones. Reads
+// only this thread's own committed stack and the two modules' images. A
+// nonzero scanFrom starts the scan higher than the context's Esp.
+const char* FormatCallers(const EXCEPTION_POINTERS* pointers, uintptr_t scanFrom) {
+	s_callers[0] = '\0';
+	if (!pointers || !pointers->ContextRecord) return s_callers;
+	const NT_TIB* tib = reinterpret_cast<const NT_TIB*>(NtCurrentTeb());
+	const uintptr_t top = reinterpret_cast<uintptr_t>(tib->StackBase);
+	uintptr_t sp = pointers->ContextRecord->Esp;
+	if (scanFrom > sp) sp = scanFrom;
+	// A fault on another thread's stack, or a corrupt Esp, is not scanned.
+	if (sp < reinterpret_cast<uintptr_t>(tib->StackLimit) || sp >= top) return s_callers;
+	size_t length = (size_t)snprintf(s_callers, sizeof(s_callers), "callers:");
+	unsigned found = 0;
+	for (unsigned words = 0; words < 2048 && sp + sizeof(uintptr_t) <= top && found < 16; ++words, sp += sizeof(uintptr_t)) {
+		const uintptr_t value = *reinterpret_cast<const uintptr_t*>(sp);
+		for (const CodeRange& range : s_codeRanges) {
+			if (!range.base || value < range.base + 0x1000 + 7 || value >= range.end) continue;
+			if (!sf4e::crash::EndsInCall(reinterpret_cast<const uint8_t*>(value - 7))) continue;
+			if (!sf4e::crash::AppendCaller(s_callers, sizeof(s_callers), length, range.name, value - range.base)) return s_callers;
+			++found;
+		}
+	}
+	if (!found) s_callers[0] = '\0';
+	return s_callers;
+}
+
 // dumpInProcess=false never falls back to MiniDumpWriteDump in this process,
 // which can deadlock on the loader lock; the launcher's bounded request is
 // the only dump then.
-void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* message, bool dumpInProcess = true) {
+void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* message, bool dumpInProcess = true, uintptr_t scanFrom = 0) {
 	if (s_recording.exchange(true)) return;
 	// With the heap corrupt, anything that allocates may fault again and end
 	// the process before the dump, so ask the launcher for it first; the
@@ -111,12 +159,18 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	const size_t headerLength = sf4e::crash::FormatCrashHeader(s_header, sizeof(s_header), facts);
 	HANDLE file = CreateFileW(s_recordPath, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file != INVALID_HANDLE_VALUE) WriteText(file, s_header, headerLength);
+	const char* callers = FormatCallers(pointers, scanFrom);
+	if (file != INVALID_HANDLE_VALUE && callers[0]) {
+		WriteText(file, callers, strlen(callers));
+		WriteText(file, "\n", 1);
+	}
 	// The asynchronous logger may still hold the last lines: give its worker
 	// a moment, then take the ring, which now also carries this line. After
 	// heap corruption the worker may be stuck on the heap, and a flush could
 	// wait for it forever, so the ring is taken as it stands.
 	if (!heapCorrupt) {
 		spdlog::critical("Crash: {:.{}}", s_header, headerLength ? headerLength - 1 : 0); // without the newline
+		if (callers[0]) spdlog::critical("Crash {}", callers);
 		spdlog::default_logger()->flush();
 		Sleep(250);
 	}
@@ -178,7 +232,9 @@ __declspec(noinline) void WINAPI OnExitProcess(UINT code) {
 		EXCEPTION_POINTERS pointers = { &record, &context };
 		char message[32];
 		snprintf(message, sizeof(message), "ExitProcess(%u)", code);
-		WriteRecord("exit", &pointers, message, false);
+		// The captured Esp is this function's own, whose locals hold a return
+		// address into Sidecar: the callers start above the game's call instead.
+		WriteRecord("exit", &pointers, message, false, reinterpret_cast<uintptr_t>(_AddressOfReturnAddress()) + sizeof(void*));
 	}
 	void* original = s_exitProcess.load();
 	if (!original) original = (void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "ExitProcess");
@@ -271,6 +327,11 @@ spdlog::sink_ptr RingSink() {
 void Install(const wchar_t* logsDirectory) {
 	PathCombineW(s_recordPath, logsDirectory, L"sf4e-crash.log");
 	wcsncpy_s(s_logsDirectory, logsDirectory, _TRUNCATE);
+	NoteCodeRange(s_codeRanges[0], GetModuleHandleW(nullptr));
+	HMODULE sidecar = nullptr;
+	if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		reinterpret_cast<LPCWSTR>(&Install), &sidecar) && sidecar != GetModuleHandleW(nullptr))
+		NoteCodeRange(s_codeRanges[1], sidecar);
 	// Room to write the record from a stack overflow on this thread.
 	ULONG reserve = 16 * 1024;
 	SetThreadStackGuarantee(&reserve);

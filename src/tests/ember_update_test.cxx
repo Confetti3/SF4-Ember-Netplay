@@ -394,14 +394,25 @@ int main(int argc, char** argv) {
         const std::string big(300000, 'x');
         ZipBuilder zip; zip.Add("pkg/", "", false); zip.Add("pkg/a.txt", "stored", false);
         zip.Add("pkg/sub/b.bin", big + "tail", true); zip.Add("pkg/empty", "", true);
+        // One byte past a 64 KiB output buffer: zlib 1.3.1 takes all of this
+        // entry's input while that byte is still pending.
+        const std::string edge = std::string(65533, 'x') + "tail";
+        zip.Add("pkg/edge.bin", edge, true);
         zip.Write(work / "ok.zip");
         CHECK(extract("ok.zip", "out", keep));
         CHECK(Slurp(work / "out/pkg/a.txt") == "stored" && Slurp(work / "out/pkg/sub/b.bin") == big + "tail" && Slurp(work / "out/pkg/empty").empty());
+        CHECK(Slurp(work / "out/pkg/edge.bin") == edge);
         CHECK(!extract("ok.zip", "cancel", cancel) && error == "cancelled: pkg/a.txt");
         // Names the installer refuses are refused here too: a way out, and one Windows would alter.
         ZipBuilder evil; evil.Add("../escape.txt", "x", false); evil.Write(work / "evil.zip");
         CHECK(!extract("evil.zip", "out2", keep) && error.find("unsafe entry name") == 0);
         CHECK(!std::filesystem::exists(work / "escape.txt"));
+        // A name from the root lands on the extract folder's drive root.
+        for (const char* rooted : {"/sf4e-zip-rooted.txt", "\\sf4e-zip-rooted.txt"}) {
+            ZipBuilder rootedZip; rootedZip.Add(rooted, "x", false); rootedZip.Write(work / "rooted.zip");
+            CHECK(!extract("rooted.zip", "out5", keep) && error.find("unsafe entry name") == 0);
+            CHECK(!std::filesystem::exists(work.root_path() / "sf4e-zip-rooted.txt"));
+        }
         ZipBuilder dot; dot.Add("pkg/name.", "x", false); dot.Write(work / "dot.zip");
         CHECK(!extract("dot.zip", "out3", keep) && error.find("unsafe entry name") == 0);
         ZipBuilder bad; bad.Add("c.txt", "hello", true); bad.bytes[bad.bytes.size() - 1] ^= 1; bad.Write(work / "bad.zip");

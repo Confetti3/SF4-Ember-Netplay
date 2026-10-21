@@ -2,6 +2,7 @@
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplaySlots.hxx"
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -144,11 +145,17 @@ template<class Read> ArchiveCandidates::Snapshot ScanArchive(const std::filesyst
 
 // A game slot's replay kept by its path, size and write time, so an unchanged
 // slot's 50 KB are read and summed once. Only a successful read is kept: a
-// slot the game holds open is read again on the next scan. The lock is held
-// only to look and to store, never while a file is read.
+// slot the game holds open is read again on the next scan. A file written
+// less than kSettled before it was read is not kept either: a file system
+// stamps write times in steps (NTFS at the clock tick, FAT at two seconds), so
+// a second write of the same size within one step leaves size and time as
+// they were. The lock is held only to look and to store, never while a file
+// is read.
 class SlotFileCache {
 public:
+ static constexpr std::chrono::seconds kSettled{2};
  template<class Reader> std::optional<replayslots::Bytes> Read(const std::filesystem::path& file, const Reader& read) {
+  const std::filesystem::file_time_type now = std::filesystem::file_time_type::clock::now();
   std::error_code failed;
   const std::uintmax_t size = std::filesystem::file_size(file, failed);
   if (failed) return std::nullopt;
@@ -160,7 +167,7 @@ public:
    if (at != kept_.end() && at->second.size == size && at->second.written == written) return at->second.replay;
   }
   std::optional<replayslots::Bytes> replay = read(file);
-  if (replay) { std::lock_guard<std::mutex> lock(mutex_); kept_[file] = Kept{size, written, *replay}; }
+  if (replay && written + kSettled < now) { std::lock_guard<std::mutex> lock(mutex_); kept_[file] = Kept{size, written, *replay}; }
   return replay;
  }
 private:

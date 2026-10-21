@@ -17,7 +17,7 @@ use rusqlite::Transaction;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{BluMintBody, BluMintRefusal, MATCHES_PATH, caller, keys, outcome, parse};
+use super::{BluMintBody, BluMintRefusal, MATCHES_PATH, caller, keys, parse};
 use crate::{
     AppState,
     audit::audit,
@@ -76,7 +76,9 @@ pub async fn close(
     body: BluMintBody<GENERAL_BODY>,
 ) -> std::result::Result<Response, BluMintRefusal> {
     let (connection_id, credential) = caller(&state, &headers).await?;
-    let request: CloseRequest = parse(&body?)?;
+    let request: CloseRequest = body
+        .and_then(|body| parse(&body))
+        .map_err(BluMintRefusal::classify)?;
     if !is_idempotency_key(&request.idempotency_key) {
         return Ok(ok(&json!({ "closed": true })));
     }
@@ -84,16 +86,14 @@ pub async fn close(
     let ctx = Ctx::of(&state);
     state
         .db
-        .write(move |tx| {
-            outcome(|| {
-                let found = close_key(tx, &ctx, &connection_id, &request.idempotency_key)?;
-                if let Some(found) = found {
-                    end(tx, &ctx, ("service", credential), &found, &reason)?;
-                }
-                Ok(())
-            })
+        .write_with(move |tx| -> std::result::Result<(), BluMintRefusal> {
+            let found = close_key(tx, &ctx, &connection_id, &request.idempotency_key)?;
+            if let Some(found) = found {
+                end(tx, &ctx, ("service", credential), &found, &reason)?;
+            }
+            Ok(())
         })
-        .await??;
+        .await?;
     state.committed();
     Ok(ok(&json!({ "closed": true })))
 }

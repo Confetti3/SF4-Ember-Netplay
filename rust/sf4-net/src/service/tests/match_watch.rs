@@ -41,7 +41,8 @@ fn tournament(fighters: &[EndpointId], watchers: &[EndpointId]) -> Value {
 fn checkpoint(members: &[EndpointId], tournament: Value) -> String {
     let members = members
         .iter()
-        .map(|endpoint| json!({ "data": { "authenticatedEndpoint": endpoint.to_string() } }))
+        .enumerate()
+        .map(|(index, endpoint)| json!({ "incarnation": index + 1, "data": { "authenticatedEndpoint": endpoint.to_string() } }))
         .collect::<Vec<_>>();
     json!({ "checkpoint": {
         "members": members,

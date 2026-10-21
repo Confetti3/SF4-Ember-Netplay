@@ -86,6 +86,7 @@ fn admission(own_delay: bool) -> RoomAdmission {
         endpoint_id: "a".repeat(64),
         issued_at: 1000,
         expires_at: 1000 + TICKET_SECS,
+        badge: None,
     };
     RoomAdmission {
         room: summary(own_delay),

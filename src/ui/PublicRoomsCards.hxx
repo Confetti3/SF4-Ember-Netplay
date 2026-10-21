@@ -36,6 +36,13 @@ bool DrawPublicCard(const ShellView& view, const PublicRoomsPanel& panel, const 
 // detail pane; nothing for any other row.
 void DrawPublicPreview(const ShellView& view, const PublicRoomsPanel& panel, const std::string& id);
 
+// An interface string on one line at `at`, shrunk from `natural` to fit `width`
+// and reported to the overflow probe as `probe` within `interior`; returns the width it took.
+float DrawCardLine(ImVec2 at, float natural, ImU32 color, const std::string& text, float width, const char* probe, float interior);
+// An interface paragraph wrapped to `width`, shrunk from `natural` while it needs
+// more than `height`; returns the height it took.
+float DrawCardParagraph(ImVec2 at, float natural, ImU32 color, const std::string& text, float width, float height, const char* probe);
+
 // A pill label at `at` (its top left): 20 tall, the text shrunk to fit
 // `maxWidth` and reported to the overflow probe as `probe`. Returns its width,
 // or 0 when there is no room to draw it.

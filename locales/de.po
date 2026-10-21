@@ -2569,6 +2569,18 @@ msgstr "Am Tisch"
 msgid "room.status.ready"
 msgstr "Bereit"
 
+msgid "class.master"
+msgstr "Meister"
+
+msgid "class.grand_master"
+msgstr "Großmeister"
+
+msgid "class.tip"
+msgstr "Klasse {0}"
+
+msgid "class.unsettled"
+msgstr "Länger keine Spiele, sie kann sich geändert haben."
+
 msgid "room.status.playing"
 msgstr "Spielt"
 
@@ -3651,7 +3663,7 @@ msgid "identity.local_passphrase"
 msgstr "Passphrase für diesen PC"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine und Proton können den Windows-Schlüsselschutz nicht nutzen, daher schützt eine Passphrase Ihren Schlüssel. Sie geben sie bei jedem Spielstart einmal ein."
+msgstr "Wine und Proton (etwa auf dem Steam Deck) können den üblichen Schlüsselschutz nicht nutzen, daher schützt eine Passphrase Ihren Schlüssel. Sie geben sie bei jedem Spielstart einmal ein."
 
 msgid "identity.repeat_passphrase"
 msgstr "Passphrase wiederholen"
@@ -3673,6 +3685,9 @@ msgstr "Ember ID erstellen"
 
 msgid "identity.enable_detail"
 msgstr "Erstellt Ihren Schlüssel auf diesem PC. Nur dieses Windows-Konto kann ihn nutzen."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Erstellt Ihren Schlüssel auf diesem PC, geschützt durch die Passphrase oben."
 
 msgid "identity.leave_room"
 msgstr "Verlassen Sie den Raum und kehren Sie zum Hauptmenü zurück, um Ihre Ember ID zu ändern."
@@ -5639,6 +5654,36 @@ msgstr "Auswählen, dann die Taste drücken, die in Embers Menüs zurückgeht. B
 msgid "button_layout.menu_taken"
 msgstr "{0} ist bereits {1}. Wähle eine andere Taste."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Touchpad"
+
+msgid "button_layout.extra.home"
+msgstr "Home-Taste"
+
+msgid "button_layout.extra.mute"
+msgstr "Stummschalttaste"
+
+msgid "button_layout.extra.misc"
+msgstr "Zusatztaste"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Rechtes Paddle {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Linkes Paddle {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Wähle eine Taste, die {0} kopiert. {0} wirkt dann wie diese Taste."
+
+msgid "button_layout.extra_copy"
+msgstr "Wie {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} wirkt jetzt wie {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} hat jetzt keine Funktion."
+
 msgid "room.delay_policy"
 msgstr "Eingabeverzögerung im Raum"
 
@@ -6416,3 +6461,139 @@ msgid "country.ZW"
 msgstr "Simbabwe"
 
 #. End of the generated country names.
+
+msgid "screen.rankings"
+msgstr "Ranglisten"
+
+msgid "rankings.title"
+msgstr "RANGLISTEN"
+
+msgid "rankings.board_title"
+msgstr "SPIELER NACH KLASSE"
+
+msgid "rankings.entry_detail"
+msgstr "Ihre Klasse in öffentlichen Räumen und Spieler nach Klasse."
+
+msgid "rankings.needs_setup"
+msgstr "Ranglisten stammen aus Spielen in öffentlichen Räumen. Richten Sie zuerst öffentliche Räume ein."
+
+msgid "rankings.loading"
+msgstr "Ihre Klasse wird geladen..."
+
+msgid "rankings.your_class"
+msgstr "Ihre Klasse"
+
+msgid "rankings.placing"
+msgstr "Einstufung"
+
+msgid "rankings.placing_detail"
+msgstr "Ihre Klasse erscheint nach ein paar weiteren Spielen in öffentlichen Räumen gegen Spieler, die schon eine haben."
+
+msgid "rankings.faint_detail"
+msgstr "Sie haben zuletzt nicht gespielt, daher ist Ihre Klasse blass und Sie stehen nicht in der Rangliste. Ein paar Spiele ändern das wieder."
+
+msgid "rankings.settled_detail"
+msgstr "Wird in öffentlichen Räumen neben Ihrem Namen angezeigt."
+
+msgid "rankings.hidden"
+msgstr "Klassen noch nicht sichtbar"
+
+msgid "rankings.hidden_detail"
+msgstr "Dieser Dienst zeigt noch keine Klassen an. Ihre Spiele in öffentlichen Räumen zählen trotzdem."
+
+msgid "rankings.no_account"
+msgstr "Discord verbinden zum Mitmachen"
+
+msgid "rankings.no_account_detail"
+msgstr "Klassen gehören zu einem Discord-Konto, daher behält eine neue Ember ID Ihre. Ohne Konto zählen Ihre Spiele nicht."
+
+msgid "rankings.connect_detail"
+msgstr "Öffnet Discord verbinden. Kehren Sie danach hierher zurück."
+
+msgid "rankings.off"
+msgstr "Nicht dabei"
+
+msgid "rankings.off_detail"
+msgstr "Ihre Spiele zählen nicht und es wird keine Klasse angezeigt. Ihre Wertung bleibt für Ihre Rückkehr erhalten."
+
+msgid "rankings.take_part"
+msgstr "Mitmachen"
+
+msgid "rankings.take_part_detail"
+msgstr "Ihre Spiele in öffentlichen Räumen zählen wieder und Ihre Klasse kehrt zurück. Nach einer Pause kann sie für ein paar Spiele blass sein. In der Rangliste stehen Sie als {0}. Das lässt sich einmal pro Tag ändern."
+
+msgid "rankings.stop"
+msgstr "Nicht mehr mitmachen"
+
+msgid "rankings.stop_detail"
+msgstr "Ihre Klasse verschwindet aus den Räumen und der Rangliste, und Ihre Spiele zählen nicht mehr. Ihre Wertung bleibt erhalten und läuft bei Ihrer Rückkehr weiter. Das lässt sich einmal pro Tag ändern."
+
+msgid "rankings.change_wait"
+msgstr "Sie können das in {0} erneut ändern."
+
+msgid "rankings.hours"
+msgstr "{0} Std."
+
+msgid "rankings.minutes"
+msgstr "{0} Min."
+
+msgid "rankings.board_as"
+msgstr "In der Rangliste als"
+
+msgid "rankings.board_as_detail"
+msgstr "Name und Flagge, die Räume für Sie zeigen. Ändern Sie sie unter Profil und Einstellungen. Die Rangliste übernimmt eine Änderung beim nächsten Öffnen von Ranglisten."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "So funktionieren Klassen"
+
+msgid "rankings.how_text"
+msgstr "Nur Spiele in öffentlichen Räumen mit einem Sieger zählen. Ihre Klasse gehört zu Ihrem Discord-Konto, nicht zu Ihrer Ember ID. Sie ändert sich erst nach einer klaren Ergebnisserie, und ein Spiel gegen einen viel stärkeren oder schwächeren Spieler zählt kaum. Es gibt keine Punkte, nur die Klasse. Nach einer langen Pause wirkt sie blass, bis Sie wieder spielen, und sinkt nie von selbst."
+
+msgid "rankings.players"
+msgstr "Spieler nach Klasse"
+
+msgid "rankings.players_detail"
+msgstr "Alle Teilnehmer mit fester Klasse, die höchste zuerst. Innerhalb einer Klasse stehen die zuletzt aktiven vorn."
+
+msgid "rankings.you"
+msgstr "Sie"
+
+msgid "rankings.you_beyond_cap"
+msgstr "Die Rangliste führt bis zu {0} Spieler, und Sie sind derzeit nicht dabei."
+
+msgid "rankings.jump"
+msgstr "Links und Rechts wechseln zwischen den Klassen."
+
+msgid "rankings.loading_board"
+msgstr "Spieler werden geladen..."
+
+msgid "rankings.empty"
+msgstr "Noch niemand in der Rangliste."
+
+msgid "rankings.status_board"
+msgstr "Gelistete Spieler: {0}. Aktualisiert {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Dieser Dienst bietet keine Ranglisten an."
+
+msgid "rankings.failure.too_soon"
+msgstr "Das lässt sich einmal pro Tag ändern."
+
+msgid "settings.class_emblems"
+msgstr "Klassen-Embleme"
+
+msgid "settings.class_emblems_detail"
+msgstr "Zeigt die Klasse jedes Spielers neben seinem Namen in öffentlichen Räumen. Aus blendet sie nur auf Ihrem Bildschirm aus. Andere sehen Ihre weiterhin, und Ihre Spiele zählen weiter."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Ember-Entwickler"
+
+msgid "rankings.developer_detail"
+msgstr "Ember-Entwickler tragen dieses Zeichen statt einer Klasse und stehen nicht in der Rangliste. Ihre Spiele zählen trotzdem."

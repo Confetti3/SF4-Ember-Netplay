@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use ember_protocol::{
     Error as ProtocolError,
-    api::ApiError,
     rooms::{
         BANNED, CreateRoom, INVALID_NAME, ROOM_FULL, ROOM_LIMIT, ROOM_LOCKED, ROOM_NOT_FOUND,
         ROOM_NOT_OPEN, RoomAdmission, RoomList, RoomSummary, TicketRequest, UNSUPPORTED_BUILD,
@@ -22,8 +21,8 @@ use serde_json::Value;
 use super::{
     Failure, Outcome, Shared,
     bridges::Approved,
-    client::{self, answer},
-    play::bridge_key,
+    client,
+    play::{self, bridge_key},
 };
 
 /// Open rooms one listing holds.
@@ -69,26 +68,9 @@ fn invalid_response() -> Failure {
 
 /// The bridge's answer as JSON when it is `success`. A refusal is the
 /// bridge's own reason when it names one of the room reasons. A 404 without
-/// one is a bridge that does not offer rooms. Anything else is mapped as for
-/// every other request.
+/// one is a bridge that does not offer rooms.
 fn reply(status: u16, body: &[u8], success: u16) -> Result<Value, Failure> {
-    if status == success {
-        return answer(status, body, &[success]);
-    }
-    let reason = serde_json::from_slice::<ApiError>(body)
-        .ok()
-        .and_then(|error| error.error.details.get("reason").cloned())
-        .and_then(|reason| {
-            let reason = reason.as_str()?.to_owned();
-            REASONS.contains(&reason.as_str()).then_some(reason)
-        });
-    if let Some(reason) = reason {
-        return Err(Failure(reason));
-    }
-    if status == 404 {
-        return Err(Failure::new("rooms_unavailable"));
-    }
-    Err(answer(status, body, &[]).unwrap_err())
+    client::feature_answer(status, body, success, &REASONS, "rooms_unavailable")
 }
 
 /// A build ID as a query value: the bridge's rules, with everything outside
@@ -156,11 +138,15 @@ pub async fn list(shared: &Arc<Shared>, bridge_id: &str, build: &str) -> Outcome
     .await
 }
 
-/// The ticket request this helper makes for `build`, checked.
-fn ticket_request(shared: &Shared, build: &str) -> Result<TicketRequest, Failure> {
+/// The ticket request this helper makes for `build`, checked. The class and
+/// the developer mark are asked for only from a bridge that offers ranking:
+/// an older one refuses either field.
+fn ticket_request(endpoint_id: &str, build: &str, ranking: bool) -> Result<TicketRequest, Failure> {
     let request = TicketRequest {
-        endpoint_id: shared.endpoint_id.clone(),
+        endpoint_id: endpoint_id.to_owned(),
         build_id: build.to_owned(),
+        skill_badge: ranking,
+        developer_badge: ranking,
     };
     request.check().map_err(|_| invalid_request())?;
     Ok(request)
@@ -190,7 +176,7 @@ pub async fn create(
         _ => invalid_request(),
     })?;
     // Nothing is opened that this helper could not then take a ticket for.
-    ticket_request(shared, build)?;
+    ticket_request(&shared.endpoint_id, build, false)?;
     let body = serde_json::to_vec(&command).map_err(|_| Failure::new("internal"))?;
     let created = client::with_session(shared, bridge_id, |bridge, token| {
         let (url, body) = (format!("{}/v1/rooms", bridge.origin), body.clone());
@@ -241,12 +227,18 @@ pub async fn ticket(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build:
 
 /// Asks for the ticket and checks the admission before it is answered.
 async fn admit(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str) -> Outcome {
-    let body = serde_json::to_vec(&ticket_request(shared, build)?)
-        .map_err(|_| Failure::new("internal"))?;
+    ticket_request(&shared.endpoint_id, build, false)?;
     let path = format!("/v1/rooms/{room_id}/tickets");
     client::with_session(shared, bridge_id, |bridge, token| {
-        let (url, body) = (format!("{}{path}", bridge.origin), body.clone());
+        let url = format!("{}{path}", bridge.origin);
         async move {
+            // What the bridge offers, read once a run; a failed read asks as
+            // an older build would, which every bridge answers.
+            let ranking = play::features(shared, &bridge, play::Need::Nothing)
+                .await
+                .is_ok_and(|features| features.ranking);
+            let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, ranking)?)
+                .map_err(|_| Failure::new("internal"))?;
             let (status, response) = shared
                 .client
                 .call(reqwest::Method::POST, &url, Some(&token), Some(body))
@@ -408,6 +400,16 @@ mod tests {
         );
         // Only the success status counts as success.
         assert_eq!(reply(200, b"{}", 201).unwrap_err().0, "http_200");
+    }
+
+    #[test]
+    fn a_ticket_asks_for_badges_only_from_a_bridge_that_offers_ranking() {
+        let endpoint = "ab".repeat(32);
+        let older = serde_json::to_value(ticket_request(&endpoint, "b1", false).unwrap()).unwrap();
+        assert_eq!(older, json!({ "endpoint_id": endpoint, "build_id": "b1" }));
+        let ranking = serde_json::to_value(ticket_request(&endpoint, "b1", true).unwrap()).unwrap();
+        assert_eq!(ranking["skill_badge"], json!(true));
+        assert_eq!(ranking["developer_badge"], json!(true));
     }
 
     #[test]

@@ -15,9 +15,11 @@
 //!   `unsupported_build`, 409 `exists`, 400 `invalid_request` and 502
 //!   `host_failed`.
 //! - `GET /rooms` answers 200 with `[{ room_id, members, capacity,
-//!   tables_playing, invitation, banned, opened, details? }]` for live rooms;
-//!   `opened` latches the first time the host reports a member and `details`
-//!   is the host's latest listing details, when it sent usable ones.
+//!   tables_playing, invitation, banned, opened, details?, games? }]` for live
+//!   rooms; `opened` latches the first time the host reports a member,
+//!   `details` is the host's latest listing details, when it sent usable ones,
+//!   and `games` the won games its latest status reported (`{ table,
+//!   generation, winner, loser }`, newest last), left out when there are none.
 //! - `DELETE /rooms/{room_id}` asks the host to close and answers 204, or 404.
 //! - `GET /limits` answers 200 with `{ max_rooms, port_range, builds, rooms,
 //!   reloads, bind, secret_file, empty_close_secs, drain_secs }`: the limits

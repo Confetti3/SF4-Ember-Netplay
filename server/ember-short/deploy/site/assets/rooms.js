@@ -20,6 +20,7 @@
   // new one at each release; a room on a build not listed here says
   // "Other version".
   var VERSIONS = [
+    ['fa57472adffd80ed65c943577b4cba204a5673640a167d5c94b83f89bb4fbd77', '1.3.1'],
     ['1668cadbd970fd75b019ff6c1f4f56eb6f0712c16013b3e5c50f29aac32c0b38', '1.3.0'],
     ['77b8c778dc1a4dc81ef0de4dbff808057534e920706eb65977a1d39f6eb2bd63', '1.3.0 Nightly'],
     ['900d86d6dc991a71378dd626bbe0ad1c77d1006215745cca406f96e684d4546d', '1.3.0 Nightly'],

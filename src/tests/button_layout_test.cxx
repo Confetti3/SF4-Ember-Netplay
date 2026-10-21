@@ -1,6 +1,7 @@
 #include "../common/ButtonLayoutJson.hxx"
 #include "../common/ButtonLayoutSlots.hxx"
 #include "../common/ButtonLayoutCapture.hxx"
+#include "../common/XInputMapping.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "test_support.hxx"
 #include <cstring>
@@ -65,6 +66,54 @@ static void Persistence() {
     CHECK(!FindLayout(port, pad, {pad, pad}).index);
     auto other = pad; other.path = "other-port"; CHECK(!FindLayout(port, pad, {other}).index);
     port.push_back(port[0]); CHECK(!FindLayout(port, pad, {pad}).index);
+}
+static void ExtraButtons() {
+    // A layout saved before extra buttons existed loads with every extra button off.
+    unsigned rejected = 0;
+    const auto read = [&](const nlohmann::json& json) { return ReadLayouts(json, [&](unsigned, LayoutLoadError) { ++rejected; }); };
+    StoredLayout layout{Pad(1), DefaultLayout, 5};
+    auto json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
+    json["buttonLayouts"][0].erase("extraButtons");
+    CHECK(read(json).at(0).extras == NoExtraCopies && rejected == 0);
+    layout.extras = {2, -1, 9, -1, -1, 0, -1};
+    json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
+    CHECK(read(json) == std::vector<StoredLayout>{layout});
+    // Any bad copy or a bad list turns every extra button off. The layout still loads.
+    json["buttonLayouts"][0]["extraButtons"][0] = 10;
+    CHECK(read(json).at(0).extras == NoExtraCopies);
+    json["buttonLayouts"][0]["extraButtons"][0] = 1.5;
+    CHECK(read(json).at(0).extras == NoExtraCopies);
+    json["buttonLayouts"][0]["extraButtons"] = {1, 2};
+    CHECK(read(json).at(0).extras == NoExtraCopies);
+    json["buttonLayouts"][0]["extraButtons"] = "touchpad";
+    CHECK(read(json).at(0).extras == NoExtraCopies && rejected == 0);
+    sf4e::netplay::PlayerPreferences prefs; prefs.buttonLayouts = {layout}; CHECK(prefs.Valid());
+    prefs.buttonLayouts[0].extras[1] = 10; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].extras[1] = -2; CHECK(!prefs.Valid());
+    // A copy of a button the pad lacks copies nothing.
+    auto listed = AllLayoutButtons; listed[2] = false;
+    CHECK(CopiedButton(layout.extras, 0, AllLayoutButtons) == 2u && !CopiedButton(layout.extras, 0, listed) && !CopiedButton(layout.extras, 1, AllLayoutButtons));
+    // Each held extra button presses the layout button it copies; triggers press fully.
+    State state; state.extras[static_cast<unsigned>(Extra::Touchpad)] = true;
+    CHECK(MapToXInput(WithExtraCopies(state, NoExtraCopies)) == MapToXInput(state));
+    ExtraCopies copies = NoExtraCopies; copies[static_cast<unsigned>(Extra::Touchpad)] = 2;
+    CHECK(MapToXInput(WithExtraCopies(state, copies)).buttons == 0x4000);
+    copies[static_cast<unsigned>(Extra::Touchpad)] = 7;
+    CHECK(MapToXInput(WithExtraCopies(state, copies)).rightTrigger == 255 && MapToXInput(WithExtraCopies(state, copies)).buttons == 0);
+    copies[static_cast<unsigned>(Extra::Touchpad)] = 9;
+    CHECK(MapToXInput(WithExtraCopies(state, copies)).buttons == 0x0080);
+    // An extra button that is not held, or copies nothing, presses nothing; a held copy stays one press.
+    copies = {0, 1, 2, 3, 4, 5, 6};
+    CHECK(MapToXInput(WithExtraCopies(State{}, copies)) == XInputFields{});
+    state = {}; state.buttons[static_cast<unsigned>(Button::South)] = true; state.extras[0] = true; copies = NoExtraCopies; copies[0] = 0;
+    CHECK(MapToXInput(WithExtraCopies(state, copies)).buttons == 0x1000);
+    const std::pair<int, std::uint16_t> bits[] = {{0, 0x1000}, {1, 0x2000}, {2, 0x4000}, {3, 0x8000}, {4, 0x0100}, {5, 0x0200}, {8, 0x0040}, {9, 0x0080}};
+    for (const auto& bit : bits) {
+        state = {}; state.extras[static_cast<unsigned>(Extra::LeftPaddle2)] = true; copies = NoExtraCopies; copies[static_cast<unsigned>(Extra::LeftPaddle2)] = bit.first;
+        CHECK(MapToXInput(WithExtraCopies(state, copies)).buttons == bit.second);
+    }
+    state = {}; state.extras[static_cast<unsigned>(Extra::Home)] = true; copies = NoExtraCopies; copies[static_cast<unsigned>(Extra::Home)] = 6;
+    CHECK(MapToXInput(WithExtraCopies(state, copies)).leftTrigger == 255);
 }
 static void Writer() {
     alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 6> memory;
@@ -188,4 +237,4 @@ static void Capture() {
     capture.Begin(0, {}); CHECK(capture.Left(0) == 1 && capture.Left(2.5) == .75 && capture.Left(12) == 0);
     CHECK(capture.Read(10, {}, AllLayoutButtons).cancelled == LayoutCancel::Timeout && capture.Left(10) == 0);
 }
-int main() { Model(); Persistence(); Writer(); Reload(); ReloadEqual(); Capture(); }
+int main() { Model(); Persistence(); ExtraButtons(); Writer(); Reload(); ReloadEqual(); Capture(); }

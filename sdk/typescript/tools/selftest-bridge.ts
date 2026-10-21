@@ -2,7 +2,7 @@
 // (docs/design/TOURNAMENT_SELFTEST.md), started by
 // scripts/run-tournament-selftest.ps1:
 //
-//   node tools/selftest-bridge.ts --bridge <ember-bridge.exe> --work <empty folder>
+//   node tools/selftest-bridge.ts --bridge <ember-bridge.exe> --work <missing or empty folder>
 //     --host <exchange> --guest <exchange> [--port 18787] [--minutes 25]
 //
 // An exchange is a local folder, or `ssh:<host>:<folder>` on the other PC,
@@ -15,8 +15,11 @@
 // both games have closed: the games learn from it that the match is over.
 // Then the match has to be completed with the host as the winner, and its
 // signed result delivered. Prints PASS and FAIL lines; exits 0 when all passed.
-// Test identities and subjects only; everything it starts is stopped and the
-// work folder deleted at the end, also on Ctrl+C.
+// Test identities and subjects only; everything it starts is stopped and what
+// it created in the work folder deleted at the end, also on Ctrl+C. It refuses
+// a work folder that has anything in it, and deletes only what it made: the
+// folder itself when it created it, otherwise just its own subfolders and the
+// `stop` file.
 //
 // With --site challonge (docs/design/TOURNAMENT_SELFTEST.md, "Challonge
 // mode") the platform is a real Challonge tournament instead: the bridge
@@ -26,7 +29,7 @@
 // Needs --challonge <run configuration> and --connector <ember-brackets.exe>.
 import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
 import { parseArgs, promisify } from "node:util";
@@ -241,12 +244,29 @@ interface BridgeSetup {
 // The bridge's own messages (its stderr), the last few thousand characters.
 let bridgeLog = "";
 
+/** What this tool creates in the work folder besides the folder itself: the bridge's, the connector's, and the runner's `stop` file. */
+const workContents = ["bridge", "connector", "stop"];
+
+/**
+ * Takes the work folder, which has to be missing or empty, and arranges for
+ * cleanup to delete only what this tool made there: the folder when it made
+ * it, otherwise just its own contents. Nothing is deleted when it refuses.
+ */
+function claimWork(): void {
+  const created = !existsSync(args.work);
+  if (!created && (!statSync(args.work).isDirectory() || readdirSync(args.work).length > 0)) {
+    throw new Error(`${args.work} has to be a missing or empty folder: this tool deletes what it creates there when it ends`);
+  }
+  mkdirSync(args.work, { recursive: true });
+  const remove = (path: string) => rmSync(path, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  stops.push(() => (created ? remove(args.work) : workContents.forEach((name) => remove(join(args.work, name)))));
+}
+
 /** A fresh bridge on `port` with the connection `setup` describes. */
 async function startBridge(setup: BridgeSetup): Promise<{ origin: string; bridgeId: string; providerToken: string; connection: string }> {
+  claimWork();
   const dir = join(args.work, "bridge");
-  if (existsSync(dir) && readdirSync(dir).length > 0) throw new Error(`${dir} is not empty`);
   mkdirSync(dir, { recursive: true });
-  stops.push(() => rmSync(args.work, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }));
   execFileSync(args.bridge, ["init", dir], { stdio: "ignore" });
   const configPath = join(dir, "bridge.json");
   const config = readConfig(configPath);
