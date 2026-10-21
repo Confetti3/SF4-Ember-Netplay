@@ -186,9 +186,10 @@ void Desk() {
     Check(view.deskEvents.size() == 1 && view.deskEvents[0].title == "Weekly" && view.deskEvents[0].status == "running", "The events were not read");
     Check(!view.deskAccess.known && view.deskAccess.allowed, "A read without access said something about Tournament Mode");
     // On a service that takes organizers by invitation: not yet invited.
+    sf4e::netplay::IdentityView invited;
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"desk_read","ok":true,"data":{"events":[],
-        "access":{"invite_only":true,"allowed":false}}})"), view);
-    Check(view.deskAccess.known && view.deskAccess.inviteOnly && !view.deskAccess.allowed, "Tournament Mode's invitation was not read");
+        "access":{"invite_only":true,"allowed":false}}})"), invited);
+    Check(invited.deskAccess.known && invited.deskAccess.inviteOnly && !invited.deskAccess.allowed, "Tournament Mode's invitation was not read");
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"desk_read","ok":true,"data":{"event":"oev_1","sets":[
         {"id":"7","round_label":"Losers Top 8","round":-3,"side":"losers","players":["Kuro",null],"score":[2,1],"desk_state":"needs_review",
          "match_id":"emt_1","revision":"4","held":true,"called_at":50,"posted":"failed",
