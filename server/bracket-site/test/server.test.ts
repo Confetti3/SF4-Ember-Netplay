@@ -196,6 +196,10 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   const html = await call("GET", "/tournaments/weekly/bracket");
   assert.match(html.body, /<title>Weekly &#60;1&#62;<\/title>/);
   assert.match(html.body, /<tr class="won"><td>Player 1<\/td><td>2<\/td><\/tr>/);
+  // Over within the hour: still listed for followers, with its last item.
+  const live = (await call("GET", "/live")).body.tournaments;
+  assert.deepEqual(live.map((each: { id: string; state: string }) => [each.id, each.state]), [["weekly", "finished"]]);
+  assert.ok(live[0].last > 0);
   assert.equal((await state("archive")).status, 200);
 });
 

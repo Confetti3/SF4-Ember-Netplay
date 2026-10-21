@@ -164,6 +164,16 @@ export function bracketSite(options: Options): Server {
     ],
     ["GET", /^\/tournaments\/([^/]+)\/stats$/, (_, [id]) => [200, stats(found(id!))]],
     [
+      "GET",
+      /^\/live$/,
+      () => {
+        // Live, or over within the hour, so a follower sees how it ended.
+        const recent = (tournament: Tournament) => Date.parse(tournament.log.at(-1)?.at ?? "") > Date.parse(now()) - 3600_000;
+        const shown = store.all().filter((tournament) => tournament.state === "live" || (["finished", "cancelled"].includes(tournament.state) && recent(tournament)));
+        return [200, { tournaments: shown.map((tournament) => ({ id: tournament.id, title: tournament.title, state: tournament.state, last: tournament.feed?.at(-1)?.n ?? 0 })) }];
+      },
+    ],
+    [
       "PATCH",
       /^\/tournaments\/([^/]+)$/,
       async (request, [id]) => {
