@@ -28,7 +28,13 @@ const oauth =
     ? new OAuth({
         db: store.db,
         origin,
-        discord: { clientId: env("DISCORD_CLIENT_ID"), clientSecret: secret("DISCORD_CLIENT_SECRET_FILE") },
+        discord: {
+          clientId: env("DISCORD_CLIENT_ID"),
+          clientSecret: secret("DISCORD_CLIENT_SECRET_FILE"),
+          // Elsewhere only for tests.
+          ...(process.env.DISCORD_API_BASE ? { apiBase: process.env.DISCORD_API_BASE } : {}),
+          ...(process.env.DISCORD_AUTHORIZE_URL ? { authorizeUrl: process.env.DISCORD_AUTHORIZE_URL } : {}),
+        },
         clients: [{ id: env("BRACKET_SITE_BRIDGE_CLIENT_ID"), secret: secret("BRACKET_SITE_BRIDGE_CLIENT_SECRET_FILE"), redirect_uri: env("BRACKET_SITE_BRIDGE_REDIRECT_URI") }],
       })
     : undefined;

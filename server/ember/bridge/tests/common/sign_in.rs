@@ -424,11 +424,15 @@ pub fn definition(name: &str, origin: &str, client_id: &str) -> SignInSite {
                     .map_or(String::new(), |query| format!("?{query}"))
             );
         }
+        let braced = |url: &str| local(url).replace("%7B", "{").replace("%7D", "}");
         if let Some(create) = &mut organizer.create {
             create.url = local(&create.url);
-            let braced = |url: &str| local(url).replace("%7B", "{").replace("%7D", "}");
             create.delete_url = create.delete_url.as_deref().map(braced);
             create.start_url = create.start_url.as_deref().map(braced);
+        }
+        if let Some(add) = &mut organizer.participants {
+            add.url = braced(&add.url);
+            add.remove_url = braced(&add.remove_url);
         }
     }
     site.client_id = client_id.into();
