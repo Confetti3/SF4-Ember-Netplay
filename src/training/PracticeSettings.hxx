@@ -59,6 +59,7 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     const auto inputs = meter.value("hud_inputs", nlohmann::json());
     for (int choice = 0; choice < InputDisplays; ++choice) if (inputs == InputDisplayChoices[choice].key) options.inputs = static_cast<InputDisplay>(choice);
     options.smooth = meter.value("scroll", nlohmann::json()) == "smooth";
+    options.hitboxes = meter.value("hitboxes", nlohmann::json(false)) == true;
     const auto position = meter.value("position", nlohmann::json()), barHeight = meter.value("bar_height", nlohmann::json());
     for (const int choice : MeterPositions) if (position.is_number_integer() && position == choice) options.position = choice;
     for (const int choice : ClassicBarHeights) if (barHeight.is_number_integer() && barHeight == choice) options.barHeight = choice;
@@ -71,7 +72,7 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
 inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
     nlohmann::json meter{{"style", options.style == MeterStyle::Classic ? "classic" : options.style == MeterStyle::Flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}, {"history_frames", options.history}, {"after_pause", options.continuous ? "continue" : "start_over"}, {"scroll", options.smooth ? "smooth" : "pages"},
         {"hud_inputs", InputDisplayChoices[static_cast<int>(options.inputs)].key},
-        {"position", options.position}, {"bar_height", options.barHeight}};
+        {"position", options.position}, {"bar_height", options.barHeight}, {"hitboxes", options.hitboxes}};
     for (const auto& part : HudParts) meter[part.key] = options.*part.shown;
     for (const auto& part : ClassicParts) meter[part.key] = options.*part.shown;
     return meter;

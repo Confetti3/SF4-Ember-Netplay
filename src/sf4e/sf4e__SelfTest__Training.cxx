@@ -11,9 +11,9 @@
 #include "../training/TrainingRuntime.hxx"
 #include "sf4e__GameEvents.hxx"
 
-// The training test: the frame meter against moves whose frame data is known,
-// typed in numpad notation and played by the lab, a recording and its
-// playback, and the lab's saved position. An offline Versus battle of Ryu
+// The training test: the frame meter and the hitboxes against moves whose
+// frame data is known, typed in numpad notation and played by the lab, a
+// recording and its playback, and the lab's saved position. An offline Versus battle of Ryu
 // against Ryu is entered the way a room's match is, with no menu, and the lab
 // is let into that battle. It uses only what the lab's own controls send
 // (training::Submit) and reads.
@@ -46,7 +46,22 @@ struct Lab : Steps<Stage> {
 	// Frames recorded, and the furthest frame the playback was seen at.
 	int recorded = 0, reached = 0;
 	float saved = 0, dashed = 0;
+	// While the crouching LP plays: the boxes were read, each fighter showed
+	// where it can be hit, and on how many frames Player 1's attack box was live.
+	bool boxesRead = false, hurt[2] = {};
+	int hitFrames = 0;
 } s_lab;
+
+void WatchBoxes(const training::BoxView& boxes) {
+	if (!boxes.valid) return;
+	s_lab.boxesRead = true;
+	bool hit = false;
+	for (const auto& box : boxes.boxes) {
+		if (box.kind == training::BoxKind::Hurt) s_lab.hurt[box.side] = true;
+		if (box.kind == training::BoxKind::Hit && box.side == 0) hit = true;
+	}
+	if (hit) s_lab.hitFrames++;
+}
 
 // Ryu against Ryu on the first stage.
 void SetFighters() {
@@ -91,6 +106,10 @@ void Measure(const training::View& view) {
 	Say(numbersRight, "Ryu crouching LP numbers", "startup " + std::to_string(view.meter.startupFrames[0]) + ", active " +
 		std::to_string(move.active) + ", recovery " + std::to_string(move.recovery) + (numbersRight ? "" : ", expected 3/2/7"));
 	SayCells(view, "Ryu crouching LP cells");
+	const bool boxesRight = s_lab.boxesRead && s_lab.hurt[0] && s_lab.hurt[1] && s_lab.hitFrames == kActive;
+	Say(boxesRight, "Ryu crouching LP hitboxes", !s_lab.boxesRead ? "no boxes were read" :
+		std::string("hurt boxes ") + (s_lab.hurt[0] && s_lab.hurt[1] ? "on both" : "missing") + ", attack box live on " +
+		std::to_string(s_lab.hitFrames) + " frames" + (boxesRight ? "" : ", expected hurt boxes on both and 2 frames"));
 }
 
 // The advantage measured once both recovered, and the hit's own
@@ -128,6 +147,8 @@ void TickTraining() {
 	lab.waited++;
 	const training::View view = training::ReadView();
 	const bool neutral = view.meter.current[0].valid && training::ClassifyStatus(view.meter.current[0].status) == training::Phase::Neutral;
+	// The crouching LP's boxes, while it plays.
+	if ((lab.stage == Stage::Starting || lab.stage == Stage::Settling) && lab.then == Stage::Measure) WatchBoxes(view.boxes);
 	switch (lab.stage) {
 	case Stage::ToBattle:
 		// Fought with whatever fighters the save had, every number below would point the wrong way.

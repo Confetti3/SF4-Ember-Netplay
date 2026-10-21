@@ -52,7 +52,9 @@ repeats by default, so it first turns Loop off, then:
   by Player 1. For Ryu's crouching LP the meter's numbers have to be the
   frame data's, startup 3, active 2 and recovery 7, and its bars have to
   draw 3, 2 and 6 cells (the last recovery frame has no cell; see
-  `ClassifyMeter` in `FrameMeter.hxx`);
+  `ClassifyMeter` in `FrameMeter.hxx`). While it plays, the boxes read from
+  the game have to show where each fighter can be hit, and Player 1's attack
+  box has to be live on the move's 2 active frames;
 - Player 1 walks up and hits the other Ryu with crouching LP. The advantage
   the meter measures once both have recovered, and the one it marks on the
   hit as it lands (`MeterCell::hitAdvantage`, from the game's frames until

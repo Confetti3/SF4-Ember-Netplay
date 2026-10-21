@@ -4718,6 +4718,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Activez ou désactivez des éléments du HUD pendant le combat."
 
+msgid "training.hitboxes"
+msgstr "Hitboxes"
+
+msgid "training.hitboxes.detail"
+msgstr "Dessine les boîtes des combattants sur le combat : en vert là où un combattant peut être touché, en jaune là où il peut être projeté, en rouge là où une attaque touche et en bleu là où elle projette."
+
 msgid "training.color_key"
 msgstr "Légende des couleurs"
 

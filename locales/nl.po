@@ -4718,6 +4718,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Zet onderdelen van de HUD tijdens het gevecht aan of uit."
 
+msgid "training.hitboxes"
+msgstr "Hitboxen"
+
+msgid "training.hitboxes.detail"
+msgstr "Tekent de boxen van de vechters over het gevecht: groen waar een vechter geraakt kan worden, geel waar hij geworpen kan worden, rood waar een aanval raakt en blauw waar hij werpt."
+
 msgid "training.color_key"
 msgstr "Kleurenlegenda"
 

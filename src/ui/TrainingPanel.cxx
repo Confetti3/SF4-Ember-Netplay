@@ -289,6 +289,28 @@ gamepads::PositionNames TrainingPadNames() {
     return gamepads::ButtonPositionNames(MenuPromptDevice()==input::PadDirectInput?input::PadDirectInput:input::PadXInput,MenuPromptBrand());
 }
 std::string TrainingPadChord() { const auto names=TrainingPadNames(); return std::string(names.view)+" + "+names.start; }
+void DrawTrainingBoxes(const training::View& view) {
+    LoadPractice();
+    if(!lab.meter.hitboxes||!view.boxes.valid) return;
+    // Green where a fighter can be hit, yellow where it can be thrown, red
+    // where an attack hits and blue where it throws.
+    static const ImU32 line[]={IM_COL32(60,220,90,230),IM_COL32(240,220,60,230),IM_COL32(255,60,60,230),IM_COL32(70,140,255,230)};
+    static const ImU32 fill[]={IM_COL32(60,220,90,90),IM_COL32(240,220,60,70),IM_COL32(255,60,60,110),IM_COL32(70,140,255,110)};
+    const auto* vp=ImGui::GetMainViewport();
+    auto* draw=ImGui::GetBackgroundDrawList();
+    for(const auto& box:view.boxes.boxes) {
+        ImVec2 at[4];
+        bool seen=true;
+        for(int corner=0;corner<4&&seen;++corner) {
+            seen=training::Project(view.boxes.view,view.boxes.projection,box.x[corner],box.y[corner],vp->Size.x,vp->Size.y,at[corner].x,at[corner].y);
+            at[corner].x+=vp->Pos.x; at[corner].y+=vp->Pos.y;
+        }
+        if(!seen) continue;
+        const int kind=static_cast<int>(box.kind);
+        draw->AddQuadFilled(at[0],at[1],at[2],at[3],fill[kind]);
+        draw->AddQuad(at[0],at[1],at[2],at[3],line[kind],2);
+    }
+}
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }
 std::vector<TrainingKeyHint> TrainingPositionKeys() {
     LoadPractice();
@@ -464,6 +486,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.push_back(Value("hud-size",loc::T("training.meter.hud_size"),loc::T(sizes[lab.meter.size]),loc::T("training.meter.hud_size.detail")));
   for(const auto& part:HudParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
   rows.push_back(Value("hud-inputs",loc::T("training.meter.hud_inputs"),loc::T(InputDisplayChoices[static_cast<int>(lab.meter.inputs)].label),loc::T("training.meter.hud_part.detail")));
+  rows.push_back(Value("hitboxes",loc::T("training.hitboxes"),loc::T(lab.meter.hitboxes?"common.on":"common.off"),loc::T("training.hitboxes.detail")));
   // The meter's own settings, Ember's beside the HUD's, on a page of their own.
   rows.push_back(Row("meter-settings",loc::T("training.meter.settings"),loc::T("training.meter.settings.detail")));
  }else if(screen=="meter-settings"){
@@ -530,6 +553,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&a.id=="bar-height"){Step(lab.meter.barHeight,{std::begin(ClassicBarHeights),std::end(ClassicBarHeights)},a.delta);SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-inputs"){Step(lab.meter.inputs,{0,1,2,3},a.delta);SavePractice();return;}
+ if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hitboxes"){lab.meter.hitboxes=a.delta>0;SavePractice();return;}
  const auto turn=[&](const auto& parts){for(const auto& part:parts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return true;}return false;};
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&turn(HudParts))return;
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&turn(ClassicParts))return;
