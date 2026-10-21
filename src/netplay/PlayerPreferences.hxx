@@ -56,6 +56,8 @@ struct PlayerPreferences {
     // Public room classes show beside players' names on this screen. Off hides
     // them here only: games still count and others still see this player's.
     bool classEmblems = true;
+    // Ember's V2 look (Settings > Interface > Look); off keeps the classic one.
+    bool lookV2 = false;
     // Called out of Training to their table, the player is readied at once
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;

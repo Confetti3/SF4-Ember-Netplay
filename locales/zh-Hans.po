@@ -6576,6 +6576,18 @@ msgstr "等级徽章"
 msgid "settings.class_emblems_detail"
 msgstr "在公开房间中，于每位玩家名字旁显示其等级。关闭后仅在你的屏幕上隐藏。其他人仍能看到你的等级，你的对战也仍会计入。"
 
+msgid "settings.look"
+msgstr "外观"
+
+msgid "settings.look.classic"
+msgstr "经典"
+
+msgid "settings.look.v2"
+msgstr "V2（预览）"
+
+msgid "settings.look_detail"
+msgstr "Ember 正在制作中的新外观。可随时切换回去：只改变界面的样子。"
+
 
 msgid "class.developer"
 msgstr "开发"

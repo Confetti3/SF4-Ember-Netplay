@@ -6575,6 +6575,18 @@ msgstr "Klassen-Embleme"
 msgid "settings.class_emblems_detail"
 msgstr "Zeigt die Klasse jedes Spielers neben seinem Namen in öffentlichen Räumen. Aus blendet sie nur auf Ihrem Bildschirm aus. Andere sehen Ihre weiterhin, und Ihre Spiele zählen weiter."
 
+msgid "settings.look"
+msgstr "Aussehen"
+
+msgid "settings.look.classic"
+msgstr "Klassisch"
+
+msgid "settings.look.v2"
+msgstr "V2 (Vorschau)"
+
+msgid "settings.look_detail"
+msgstr "Embers neues Aussehen, noch im Aufbau. Sie können jederzeit zurückwechseln: Nur das Aussehen der Bildschirme ändert sich."
+
 
 msgid "class.developer"
 msgstr "Dev"

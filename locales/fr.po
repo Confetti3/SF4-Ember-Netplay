@@ -6575,6 +6575,18 @@ msgstr "Emblèmes de classe"
 msgid "settings.class_emblems_detail"
 msgstr "Affiche la classe de chaque joueur à côté de son nom dans les salons publics. Désactivé, elles sont masquées sur votre écran seulement. Les autres voient toujours la vôtre, et vos matchs comptent toujours."
 
+msgid "settings.look"
+msgstr "Apparence"
+
+msgid "settings.look.classic"
+msgstr "Classique"
+
+msgid "settings.look.v2"
+msgstr "V2 (aperçu)"
+
+msgid "settings.look_detail"
+msgstr "La nouvelle apparence d'Ember, encore en construction. Vous pouvez revenir en arrière à tout moment : seul l'aspect des écrans change."
+
 
 msgid "class.developer"
 msgstr "Dev"

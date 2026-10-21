@@ -6576,6 +6576,18 @@ msgstr "클래스 엠블럼"
 msgid "settings.class_emblems_detail"
 msgstr "공개 방에서 각 플레이어의 이름 옆에 클래스를 표시합니다. 끄면 내 화면에서만 숨겨집니다. 다른 사람에게는 내 클래스가 계속 보이고 대전도 계속 반영됩니다."
 
+msgid "settings.look"
+msgstr "모양"
+
+msgid "settings.look.classic"
+msgstr "클래식"
+
+msgid "settings.look.v2"
+msgstr "V2 (미리 보기)"
+
+msgid "settings.look_detail"
+msgstr "아직 만드는 중인 Ember의 새 모양입니다. 언제든 되돌릴 수 있으며, 화면의 모양만 바뀝니다."
+
 
 msgid "class.developer"
 msgstr "개발"

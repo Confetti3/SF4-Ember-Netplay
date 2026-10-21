@@ -6576,6 +6576,18 @@ msgstr "クラスエンブレム"
 msgid "settings.class_emblems_detail"
 msgstr "公開ルームで各プレイヤーの名前の横にクラスを表示します。オフにすると自分の画面でのみ非表示になります。ほかの人にはあなたのクラスが表示され、対戦もカウントされます。"
 
+msgid "settings.look"
+msgstr "外観"
+
+msgid "settings.look.classic"
+msgstr "クラシック"
+
+msgid "settings.look.v2"
+msgstr "V2（プレビュー）"
+
+msgid "settings.look_detail"
+msgstr "制作中の Ember の新しい外観です。いつでも元に戻せます。変わるのは画面の見た目だけです。"
+
 
 msgid "class.developer"
 msgstr "開発"

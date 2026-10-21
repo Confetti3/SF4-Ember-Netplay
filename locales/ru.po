@@ -6576,6 +6576,18 @@ msgstr "Эмблемы классов"
 msgid "settings.class_emblems_detail"
 msgstr "Показывает класс каждого игрока рядом с его именем в открытых лобби. Если выключено, они скрыты только на вашем экране. Другие по-прежнему видят ваш класс, и ваши игры засчитываются."
 
+msgid "settings.look"
+msgstr "Внешний вид"
+
+msgid "settings.look.classic"
+msgstr "Классический"
+
+msgid "settings.look.v2"
+msgstr "V2 (предпросмотр)"
+
+msgid "settings.look_detail"
+msgstr "Новый внешний вид Ember, он ещё в работе. Вернуться можно в любой момент: меняется только вид экранов."
+
 
 msgid "class.developer"
 msgstr "Dev"

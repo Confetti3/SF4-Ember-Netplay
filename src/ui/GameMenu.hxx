@@ -119,6 +119,11 @@ public:
     // text (up to most of the window, then it scrolls), so a long launcher
     // message keeps the paths and steps it names.
     bool fitStatus=false;
+    // V2 only: the tabs over this screen, each a screen id and its label, and
+    // the one shown. Pressing one, or LB/RB (Q/E) to a neighbour, returns a
+    // Shortcut whose id names it; the owner switches. Empty for none.
+    std::vector<std::pair<std::string,std::string>> tabs;
+    int tab=-1;
     bool listEnabled=true, ownsBack=false, customDetail=false;
     unsigned additionalInput=0;
     // The corner radius, in unscaled pixels, of the rows and grid cells that a Card

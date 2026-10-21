@@ -1,0 +1,65 @@
+#pragma once
+// Ember's V2 look (the V2 Overhaul design canvas): one switch, the layout rules
+// and the small set of parts every V2 screen is built from. Presentation only:
+// nothing here reads or changes navigation, so a screen draws the same entries
+// in either look and the player can switch between them at any time.
+#include "NameMarks.hxx"
+#include "RoomCards.hxx"
+#include <imgui.h>
+#include <algorithm>
+#include <string>
+#include <vector>
+
+namespace sf4e { namespace ui { namespace v2 {
+// The player's Settings > Interface > Look. Set once per frame from their preferences.
+bool On();
+void SetOn(bool on);
+
+// The palette roles of Theme.cxx by name, so V2 parts never write a literal.
+namespace color {
+constexpr ImU32 Ink = IM_COL32(20, 19, 18, 255), Frame = IM_COL32(25, 23, 21, 255), Panel = IM_COL32(33, 30, 27, 255);
+constexpr ImU32 Button = IM_COL32(56, 45, 36, 255), Header = IM_COL32(58, 42, 31, 255), Hover = IM_COL32(89, 64, 43, 255);
+constexpr ImU32 ButtonBorder = IM_COL32(118, 80, 47, 255), Border = IM_COL32(68, 58, 49, 255), EmberLight = IM_COL32(255, 177, 111, 255);
+// `color` at `alpha` (0 to 1).
+constexpr ImU32 Alpha(ImU32 color, float alpha) { return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>(alpha * 255) << IM_COL32_A_SHIFT); }
+}
+
+// Layout, in physical pixels for an interface of `scale`. The side margin is
+// 16 under 900 logical pixels of width, 24 under 1700, 40 above; content is
+// capped at 2000 and centred, so a 21:9 or 32:9 screen grows margins, not rows.
+constexpr float ContentCap = 2000;
+inline float Pad(float width, float scale) {
+    const float logical = width / scale;
+    return (logical < 900 ? 16 : logical < 1700 ? 24 : 40) * scale;
+}
+inline bool Narrow(float width, float scale) { return width / scale < 900; }
+inline float SideMargin(float width, float scale) { return (std::max)(Pad(width, scale), (width - ContentCap * scale) * .5f); }
+
+// The focused thing's marks, drawn over it: a 2 px Ember edge inside the box
+// and a 4 px bar on its left (`bar` false for art, which the bar would cover).
+// Its fill, color::Header, goes under its content.
+void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar = true);
+// A state word on its tone at 18 %: "Ready", "Live", "D 42 ms". Returns its width.
+float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone);
+float ChipWidth(const std::string& text);
+
+// A screen's header: the emblem, an optional muted eyebrow (the path), the
+// title, and the rule with its 72 px Ember start. Takes the cursor's line.
+void Header(const char* title, const char* eyebrow = nullptr);
+// Horizontal tabs under the header; the current one is filled and underlined.
+// Returns the tab the pointer pressed, or -1. Moving between tabs is the screen's.
+int Tabs(const std::vector<std::string>& labels, int current);
+
+// The player tag: flag · rank · name · title · indicators, always in that
+// order. Space short: status goes first, then the title; flag, rank, name and
+// ping always stay.
+enum class TagSize { XS, S, M };
+struct TagView {
+    std::string name, title, status;
+    NameMarks marks;
+    // The member's ping as the room measures it (LatencyMarkFor); none without text.
+    LatencyMark ping;
+};
+// Draws at `at` within `width`; returns the height it took.
+float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size);
+} } }

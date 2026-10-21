@@ -1,4 +1,5 @@
 #include "RoomCards.hxx"
+#include "V2.hxx"
 #include "CountryFlag.hxx"
 #include "GameMenu.hxx"
 #include "MenuProbes.hxx"
@@ -77,14 +78,18 @@ void FlushCardTip(std::string& elided) {
 bool DrawCardButton(const std::string& id,ImVec2 size,bool focused,bool scrollTo,bool disabled) {
  const float s=Scale();
  ImGui::PushID(id.c_str());
- ImGui::PushStyleColor(ImGuiCol_Button,focused?ImVec4(.40f,.23f,.12f,.9f):ImVec4(.10f,.09f,.08f,.94f));
+ const bool look=v2::On();
+ ImGui::PushStyleColor(ImGuiCol_Button,look?ImGui::ColorConvertU32ToFloat4(focused?v2::color::Header:v2::color::Alpha(v2::color::Frame,.94f)):
+  focused?ImVec4(.40f,.23f,.12f,.9f):ImVec4(.10f,.09f,.08f,.94f));
+ ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,look?4*s:ImGui::GetStyle().FrameRounding);
  // An open choice leaves only its own options live.
  ImGui::BeginDisabled(disabled);
  const bool clicked=ImGui::Button("##room-entry",size);
  ImGui::EndDisabled();
- ImGui::PopStyleColor();ImGui::PopID();
+ ImGui::PopStyleVar();ImGui::PopStyleColor();ImGui::PopID();
  if(focused){
-  ImGui::GetWindowDrawList()->AddRect(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),palette::Ember,0,0,2*s);
+  if(look)v2::Focus(ImGui::GetWindowDrawList(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
+  else ImGui::GetWindowDrawList()->AddRect(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),palette::Ember,0,0,2*s);
   if(scrollTo)ImGui::SetScrollHereY(.5f);
  }
  return clicked;
@@ -212,6 +217,17 @@ CardInteraction DrawMemberCard(const MemberCardView& card) {
  const bool pressed=DrawCardButton(card.id,ImVec2(width,58*s),card.focused,card.focusChanged,card.disabled);
  const bool hovered=ImGui::IsItemHovered();
  DrawCharacterPortrait(card.mainFighter,ImVec2(p.x+6*s,p.y+5*s),ImVec2(p.x+54*s,p.y+53*s));
+ if(v2::On()){
+  // V2: the player tag (flag, class, name, ping) over the status line.
+  v2::Tag(ImGui::GetWindowDrawList(),ImVec2(p.x+64*s,p.y+6*s),width-98*s,{card.label,{},{},card.marks,card.latency},v2::TagSize::S);
+  DrawNetworkLinkGlyph(ImGui::GetWindowDrawList(),ImVec2(p.x+width-28*s,p.y+8*s),16*s,card.link);
+  elided=NetworkLinkName(card.link);
+  if(!card.latency.tip.empty())elided+="\n"+card.latency.tip;
+  DrawCardText(elided,ImVec2(p.x+64*s,p.y+33*s),width-76*s,card.status,14*s,palette::Muted);
+  ReportMenuCardText(card.id,card.status);
+  FlushCardTip(elided);
+  return Interaction({},pressed,hovered);
+ }
  // The flag and the class lead the name; with neither the name keeps its place.
  const auto marks=DrawNameMarks(ImGui::GetWindowDrawList(),p.x+64*s,p.y+7*s,16*s,card.marks);
  // The ping sits left of the link mark, and the name gives way to it.

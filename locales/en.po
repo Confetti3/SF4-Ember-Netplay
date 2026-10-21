@@ -6211,6 +6211,18 @@ msgstr "Class emblems"
 msgid "settings.class_emblems_detail"
 msgstr "Shows each player's class beside their name in public rooms. Off hides them on your screen only. Others still see yours, and your games still count."
 
+msgid "settings.look"
+msgstr "Look"
+
+msgid "settings.look.classic"
+msgstr "Classic"
+
+msgid "settings.look.v2"
+msgstr "V2 (preview)"
+
+msgid "settings.look_detail"
+msgstr "Ember's new look, still being built. Switch back at any time: only how screens look changes."
+
 msgid "class.developer"
 msgstr "Dev"
 

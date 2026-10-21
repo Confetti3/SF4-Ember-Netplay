@@ -6575,6 +6575,18 @@ msgstr "Emblémy tříd"
 msgid "settings.class_emblems_detail"
 msgstr "Zobrazuje třídu každého hráče u jeho jména ve veřejných místnostech. Vypnutí je skryje jen na vaší obrazovce. Ostatní vaši třídu stále vidí a vaše hry se stále počítají."
 
+msgid "settings.look"
+msgstr "Vzhled"
+
+msgid "settings.look.classic"
+msgstr "Klasický"
+
+msgid "settings.look.v2"
+msgstr "V2 (náhled)"
+
+msgid "settings.look_detail"
+msgstr "Nový vzhled Emberu, který ještě vzniká. Kdykoli můžete přepnout zpět: mění se jen vzhled obrazovek."
+
 
 msgid "class.developer"
 msgstr "Dev"

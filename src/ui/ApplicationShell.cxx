@@ -11,6 +11,7 @@
 #include "RankingsCards.hxx"
 #include "SignInSites.hxx"
 #include "RoomControls.hxx"
+#include "V2.hxx"
 #include "VersionLine.hxx"
 #include "../session/TrainingCall.hxx"
 #include "../common/FighterCatalog.hxx"
@@ -295,7 +296,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
   const auto languageValue=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
    std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
-  rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
+  rows={Value("look",loc::T("settings.look"),loc::T(preferences_.lookV2?"settings.look.v2":"settings.look.classic"),loc::T("settings.look_detail"),v.canEditPreferences),
+   Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
    Value("hud-layout",loc::T("settings.match_hud_layout"),MatchStripLayoutName(preferences_.matchHudLayout),loc::T("settings.match_hud_layout_detail"),v.canEditPreferences),
    Value("hud-name-offset",loc::T("settings.name_offset"),MatchHudNameOffsetText(preferences_.matchHudNameOffset),loc::T("settings.name_offset_detail"),v.canEditPreferences&&preferences_.matchHudLayout==1),
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
@@ -565,6 +567,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="class-emblems")preferences_.classEmblems=a.delta>0;
+  else if(a.id=="look")preferences_.lookV2=a.delta>0;
   else if(a.id=="watched-picture")preferences_.watchedPicture=a.delta>0;
   else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
   else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
@@ -792,7 +795,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateLaunchCheck(v,now,submit);
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
- ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
+ // The look follows the row as it changes, before the save lands.
+ v2::SetOn(preferences_.lookV2);
+ ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(v2::On()?v2::SideMargin(vp->Size.x,Scale()):20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
@@ -900,6 +905,14 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
  else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
+ // V2: Settings' pages as tabs, on Settings and on each page it opens.
+ menu_.tabs.clear();menu_.tab=-1;
+ if(v2::On()&&(screen=="settings"||nav.Parent()=="settings")){
+  menu_.tabs={{"player",loc::T("screen.player")},{"defaults",loc::T("screen.defaults")},{"interface",loc::T("settings.interface")},
+   {"training-replays",loc::T("settings.training_replays")},{"discord",loc::T("screen.discord")},{"problem-reports",loc::T("reports.settings_title")},{"about",loc::T("home.about")}};
+  for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==screen)menu_.tab=i;
+  if(menu_.tab<0&&screen!="settings")menu_.tabs.clear();
+ }
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
  if(keys&&*placeExit)menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
@@ -933,7 +946,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // behind it is locked there, so Ember stays up (F10 can still hide it).
   if(open&&input::HomeBackHidesShell(v.session.room))*open=false;
  }else if(a.kind==MenuAction::Shortcut){
-  if(inRoom)RoomShortcut(a,v);
+  // A V2 tab names the page it shows.
+  if(!a.id.empty()){if(screen!="settings")nav.Return();nav.Push(a.id);}
+  else if(inRoom)RoomShortcut(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
   else if(RankingsPanel::Owns(screen))rankings_.Shortcut(a);
  }else if(a.kind==MenuAction::Chosen){

@@ -6576,6 +6576,18 @@ msgstr "Emblemas de clase"
 msgid "settings.class_emblems_detail"
 msgstr "Muestra la clase de cada jugador junto a su nombre en las salas públicas. Desactivado las oculta solo en tu pantalla. Los demás siguen viendo la tuya y tus partidas siguen contando."
 
+msgid "settings.look"
+msgstr "Aspecto"
+
+msgid "settings.look.classic"
+msgstr "Clásico"
+
+msgid "settings.look.v2"
+msgstr "V2 (vista previa)"
+
+msgid "settings.look_detail"
+msgstr "El nuevo aspecto de Ember, todavía en desarrollo. Puedes volver cuando quieras: solo cambia cómo se ven las pantallas."
+
 
 msgid "class.developer"
 msgstr "Dev"

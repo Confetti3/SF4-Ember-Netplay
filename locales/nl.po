@@ -6575,6 +6575,18 @@ msgstr "Klasse-emblemen"
 msgid "settings.class_emblems_detail"
 msgstr "Toont de klasse van elke speler naast zijn naam in openbare kamers. Uit verbergt ze alleen op jouw scherm. Anderen zien de jouwe nog steeds en je potjes tellen nog steeds mee."
 
+msgid "settings.look"
+msgstr "Uiterlijk"
+
+msgid "settings.look.classic"
+msgstr "Klassiek"
+
+msgid "settings.look.v2"
+msgstr "V2 (voorproef)"
+
+msgid "settings.look_detail"
+msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw. Je kunt altijd terugschakelen: alleen hoe de schermen eruitzien verandert."
+
 
 msgid "class.developer"
 msgstr "Dev"

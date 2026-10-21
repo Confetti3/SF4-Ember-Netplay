@@ -1,4 +1,5 @@
 #include "GameMenu.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
 #include "Theme.hxx"
 #include "SelectionArt.hxx"
@@ -201,7 +202,7 @@ unsigned KeyboardMenuBits(bool typesText) {
     // is being typed in.
     static const Mapping menuOnly[]={
         {ImGuiKey_Space,MenuInput::Select},{ImGuiKey_Backspace,MenuInput::Back},
-        {ImGuiKey_F,MenuInput::Fighter},{ImGuiKey_T,MenuInput::Options},{ImGuiKey_C,MenuInput::Chat},{ImGuiKey_Delete,MenuInput::Leave}};
+        {ImGuiKey_F,MenuInput::Fighter},{ImGuiKey_T,MenuInput::Options},{ImGuiKey_C,MenuInput::Chat},{ImGuiKey_Delete,MenuInput::Leave},{ImGuiKey_Q,MenuInput::PrevTab},{ImGuiKey_E,MenuInput::NextTab}};
     unsigned bits=0;
     for(const auto& mapping:always) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
     if(!typesText&&!ImGui::GetIO().WantTextInput)
@@ -277,6 +278,8 @@ void GameMenu::DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const ch
     }
     ImGui::Dummy(ImVec2(0,lines*HomeLineHeight*Scale()));ImGui::SetCursorPosX(homeMargin);
 }
+// The detail pane's ground: a V2 panel, or the classic tint.
+static ImVec4 DetailBackground() { return v2::On()?ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::color::Panel,.9f)):ImVec4(.1f,.09f,.08f,.52f); }
 MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,const Body& body,float flyoutScale,float cardHeight,bool stableStatus,Tone statusTone,bool home) {
     const bool flyout=flyoutScale>0;
     const float unit=flyout?flyoutScale:Scale();
@@ -345,7 +348,18 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         ImGui::Separator();
     }
     const auto headerTop=ImGui::GetCursorScreenPos();
-    if(!flyout) MenuHeader(title,home);
+    if(flyout);else if(v2::On()&&!home)v2::Header(title);else MenuHeader(title,home);
+    // V2 tabs: a press on one, or LB/RB to a neighbour, comes back as a Shortcut naming it.
+    const bool tabbed=v2::On()&&!flyout&&!home&&!tabs.empty();
+    if(tabbed){
+        std::vector<std::string> labels;for(const auto& t:tabs)labels.push_back(t.second);
+        const int hit=v2::Tabs(labels,tab);
+        if(hit>=0&&hit!=tab&&!modalAtStart)action={MenuAction::Shortcut,tabs[hit].first};
+    }
+    if(action.kind==MenuAction::Shortcut&&action.id.empty()&&(action.delta==MenuInput::PrevTab||action.delta==MenuInput::NextTab)){
+        const int next=tab+(action.delta==MenuInput::NextTab?1:-1);
+        action=tabbed&&next>=0&&next<static_cast<int>(tabs.size())?MenuAction{MenuAction::Shortcut,tabs[next].first}:MenuAction{};
+    }
     // An open dialog owns the header and the legend: Back cancels it, and
     // Select names the button it highlights.
     std::string dialogSelect,dialogBack;
@@ -501,7 +515,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     else if(navigation.Reading()) DrawReader(entries,detail,(std::max)(60.f,available.y-footer),menuInput.held);
     else {
     if(!wide&&!home) {
-        ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg,DetailBackground());
         ImGui::BeginChild("Menu detail",ImVec2(0,compactGallery?2*ImGui::GetTextLineHeightWithSpacing()+4*unit:
             compactDetailHeight>0?(std::max)(0.f,(std::min)(compactDetailHeight*unit,available.y-footer-60.f-ImGui::GetStyle().ItemSpacing.y)):
             leanDetail?(std::min)(compactDetailLines*ImGui::GetTextLineHeightWithSpacing()+4*unit,(available.y-footer)*.48f):
@@ -544,9 +558,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const float height=gridCell?gridHeight:e.height>0?e.height*unit:(std::max)(home?homeHeight:(stackedValue?64:flyout?42:52)*unit,textSize+2*ImGui::GetStyle().FramePadding.y);
         const float face=match?(std::min)(stackedFace,height-8*unit):0,lead=match?faceInset+face+faceGap:0;
         const float innerWidth=rowWidth-2*lead;
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,0);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,card?cardRounding*unit:0);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,0);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,card?cardRounding*unit:v2::On()?4*unit:0);
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2(.03f,.5f));
-        ImGui::PushStyleColor(ImGuiCol_Button,focused?(card&&cardRounding>0?ImVec4(.30f,.17f,.09f,.55f):ImVec4(.47f,.28f,.16f,.6f)):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
+        if(v2::On())ImGui::PushStyleColor(ImGuiCol_Button,ImGui::ColorConvertU32ToFloat4(focused?v2::color::Header:home?0:v2::color::Alpha(v2::color::Frame,.9f)));
+        else ImGui::PushStyleColor(ImGuiCol_Button,focused?(card&&cardRounding>0?ImVec4(.30f,.17f,.09f,.55f):ImVec4(.47f,.28f,.16f,.6f)):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
         ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(visualEnabled));
         if(home)ImGui::PushFont(HeadingFont());
         const float textWidth=innerWidth-2*ImGui::GetStyle().FramePadding.x;
@@ -607,7 +622,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         if(focused) {
             focusMin=start;focusMax=ImVec2(start.x+rowWidth,start.y+height);
             // A card with rounded corners draws its own outline; the bar would stick out of them.
-            if(gridCell)ImGui::GetWindowDrawList()->AddRect(start,ImVec2(start.x+rowWidth,start.y+height),palette::Ember,card?cardRounding*unit:0,0,2*Scale());
+            if(v2::On()){if(gridCell||!(drawnCard&&cardRounding>0))v2::Focus(ImGui::GetWindowDrawList(),start,ImVec2(start.x+rowWidth,start.y+height),!gridCell);}
+            else if(gridCell)ImGui::GetWindowDrawList()->AddRect(start,ImVec2(start.x+rowWidth,start.y+height),palette::Ember,card?cardRounding*unit:0,0,2*Scale());
             else if(!(drawnCard&&cardRounding>0))ImGui::GetWindowDrawList()->AddRectFilled(start,ImVec2(start.x+3*Scale(),start.y+height),palette::Ember);
             if(lastFocus_!=e.id||changed) ImGui::SetScrollHereY(.5f);
         }
@@ -616,7 +632,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(home)ImGui::PopStyleVar();
     navigation.Scroll()=ImGui::GetScrollY(); ImGui::EndChild();ImGui::PopStyleColor();
     const auto listMin=ImGui::GetItemRectMin(),listMax=ImGui::GetItemRectMax();
-    if(wide&&!home) { ImGui::SameLine(0,20*unit); ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
+    if(wide&&!home) { ImGui::SameLine(0,20*unit); ImGui::PushStyleColor(ImGuiCol_ChildBg,DetailBackground());
         ImGui::BeginChild("Menu detail",ImVec2(0,(std::max)(60.f,available.y-footer))); preview(); ImGui::EndChild(); ImGui::PopStyleColor(); }
     if(listCard.draw)DrawListCard(listMin,listMax,focusMin,focusMax,unit);
     }
@@ -628,6 +644,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const auto p=ImGui::GetCursorScreenPos();const auto origin=ImGui::GetWindowPos();
         const ImU32 top=IM_COL32(16,15,14,drewBackdrop?60:225),deep=IM_COL32(16,15,14,drewBackdrop?205:225);
         ImGui::GetWindowDrawList()->AddRectFilledMultiColor(ImVec2(origin.x,p.y),ImVec2(origin.x+windowSize.x,origin.y+windowSize.y),top,top,deep,deep);
+        if(v2::On())ImGui::GetWindowDrawList()->AddLine(ImVec2(origin.x,p.y),ImVec2(origin.x+windowSize.x,p.y),v2::color::Border,Scale());
     }
     if(home){
         DrawHomeStatusLine(entries,status,statusTone,homeMargin);
