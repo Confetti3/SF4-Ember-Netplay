@@ -25,6 +25,13 @@ Discord bot and (later) the V2 web and mobile pages all do the same thing.
   `deploy/sites/ember-bracket-site.json`, like Challonge. What the desk
   needs that Challonge's definition cannot say (state, transitions) is
   added to the definition format as optional fields, usable by any site.
+- **Organizers are the bridge's.** Tournament Mode is invite-only (vetted
+  streamers, single-use invites): only an Ember ID the bridge gives
+  organizer access can sign in to the site as an organizer, since only the
+  bridge holds the site's OAuth client secret and asks for the organizer
+  scope. The site creates tournaments only for an organizer token (and its
+  operator), and an organizer manages only the tournaments that name them.
+  Players need no invite.
 - **One bot.** A Discord application has one interactions URL, already the
   notifier's (`/room`). The site's commands and buttons go there too, and
   the notifier calls the site's API as the Discord user who pressed them.
@@ -67,11 +74,12 @@ bracket.
 ## 3. Sign-ups
 
 Every path ends in the same call, `POST /tournaments/{id}/entrants` as the
-player, and the same rules: the tournament is in `sign_ups` (or `check_in`,
-when late sign-ups are on), there is room (`cap`), and the player's Discord
-account is connected to an Ember ID. A player without one is told how to
-connect it (Ember: Online play, Ember ID, Discord) and signed up once they
-do, if they retry. Leaving is the same call with `DELETE`.
+player, and the same rules: the tournament is in `sign_ups`, and there is
+room (`cap`). A player whose Discord account is not connected to an Ember
+ID yet is signed up all the same, and told how to connect it (Ember: Online
+play, Ember ID, Discord); the entry waits for the link. At `start` (and at
+every reseed) the site looks the waiting entries up once more and drops any
+still not linked, before seeding. Leaving is the same call with `DELETE`.
 
 - **Web.** The public page `/t/{id}`: Sign up with Discord, one OAuth
   round trip, then Sign up / Leave / Check in.
@@ -83,10 +91,10 @@ do, if they retry. Leaving is the same call with `DELETE`.
 - **Ember.** The bridge's sign-ups through Ember (037): the event's site
   has `organizer.participants`, so the bridge adds the player under their
   account on the site, which is their Discord ID. That needs the player to
-  have linked the site in Ember once (a Discord round trip). Option to
-  decide: a definition flag (`"accounts": "discord"`) telling the bridge
-  the site's accounts are Discord accounts, so a player with Discord
-  connected in Ember needs no second link.
+  have linked the site in Ember once, unless the definition says
+  `"accounts": "discord"`: the site's accounts are Discord accounts, so
+  the bridge signs the player up under the Discord account connected to
+  their Ember ID, with no second link.
 
 Check-in takes the same three paths (`POST /tournaments/{id}/check-in`).
 
@@ -200,12 +208,10 @@ serves a plain read-only page and the web desk its current steps.
 6. Desk and game rows for state and transitions, with the strings.
 7. Leagues and seasons.
 
-## 10. Open
+## 10. Operator
 
-- Same Discord application for the site's sign-in as the bot's, or its own.
-- Whether players may sign up before connecting Discord in Ember (listed
-  as unlinked, nudged, dropped at check-in) instead of being refused.
-- Who operates it.
+The user runs the site for now, with its operator token; who runs it later
+is to be agreed with Katie.
 
 ## 11. Deployment
 
