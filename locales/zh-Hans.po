@@ -1913,6 +1913,9 @@ msgstr "倒地"
 msgid "training.meter.meaty"
 msgstr "压起身"
 
+msgid "training.meter.hitstop"
+msgstr "顿帧"
+
 msgid "training.meter.throw"
 msgstr "投技 / 演出"
 

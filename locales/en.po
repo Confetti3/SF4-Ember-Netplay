@@ -1913,6 +1913,9 @@ msgstr "Knockdown"
 msgid "training.meter.meaty"
 msgstr "Meaty"
 
+msgid "training.meter.hitstop"
+msgstr "Hitstop"
+
 msgid "training.meter.throw"
 msgstr "Throw / cinematic"
 
