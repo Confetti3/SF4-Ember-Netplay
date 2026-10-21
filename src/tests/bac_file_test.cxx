@@ -13,7 +13,6 @@ struct ScriptRow {
     std::vector<std::array<int, 2>> flows; // {type, target}
     Ids guards;                            // hitboxes of type 0, which never hit
     int spawnAt = -1;                      // first frame of every effect spawn; -1 writes no frames
-    std::vector<bac::Opening> openings;    // list 8, written in place of the skipped list
 };
 static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int, ScriptRow>& effects) {
     const std::size_t counts[] = {scripts.empty() ? 0 : static_cast<std::size_t>(scripts.rbegin()->first) + 1,
@@ -51,15 +50,7 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
             data.resize(data.size() + 32); // An effect command of another kind.
             data[data.size() - 32] = 5;
             for (const auto effect : row.effects) { Put16(data, 0); Put16(data, 2); Put32(data, effect); data.resize(data.size() + 24); }
-            if (row.openings.empty()) list(9, 3); // A list the reader skips.
-            else {
-                const std::size_t record = lists.size();
-                Put16(lists, 8); Put16(lists, static_cast<std::uint32_t>(row.openings.size()));
-                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
-                for (const auto& opening : row.openings) { Put16(data, opening.first); Put16(data, opening.last); }
-                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
-                for (const auto& opening : row.openings) { Put32(data, opening.to); Put32(data, opening.parts); data.resize(data.size() + 8); }
-            }
+            list(9, 3); // A list the reader skips.
             const std::size_t at = out.size();
             out.resize(at + 0x18);
             out[at + 0x12] = static_cast<std::uint8_t>(listCount);
@@ -86,17 +77,6 @@ int main() {
     CHECK(model.scripts[6].effects.empty() && !model.scripts[6].canHit);
     int first = -1, last = -1;
     CHECK(bac::ProjectileBoundary(model, 0, first, last) && first == 27 && last == 28);
-    // List 8 says which parts are open from a frame up to another, and to what.
-    {
-        ScriptRow open = Script({});
-        open.openings = {{0, 12, 6, 0}, {12, 24, 2, 0xB}};
-        const Bytes opened = Scripts({{0, open}}, {});
-        bac::File read;
-        CHECK(ReadExact(opened, opened.size(), read, error));
-        const auto& openings = read.scripts[0].openings;
-        CHECK(openings.size() == 2 && openings[1].first == 12 && openings[1].last == 24 && openings[1].to == 2 && openings[1].parts == 0xB);
-        CHECK(read.scripts[0].openings[0].to == 6 && model.scripts[0].openings.empty());
-    }
     for (int action : {-1, 1, 2, 3, 4, 5, 6, 999}) {
         first = last = -1;
         CHECK(!bac::ProjectileBoundary(model, action, first, last) && first == -1 && last == -1);

@@ -4,15 +4,13 @@
 #include <cstring>
 #include <vector>
 
-#include "BacFile.hxx"
-
 // The fighters' collision boxes as the game holds them during a fight, and the
 // camera they are drawn through. Owns only the model and the byte layout of
 // one box; it knows nothing of the game or the overlay.
 namespace sf4e { namespace training {
-// Hurt: where a strike lands. Body: where a throw connects, and about where
-// fighters stop each other. Hit, Throw: an attack's, on the frames it can touch.
-enum class BoxKind : std::uint8_t { Hurt, Body, Hit, Throw };
+// Hurt: where a strike lands. Throwable: where a throw connects. Hit, Throw:
+// an attack's, on the frames it can touch.
+enum class BoxKind : std::uint8_t { Hurt, Throwable, Hit, Throw };
 // A box in the fight's own units, on its plane (z = 0): its four corners, in
 // order round it. Not always upright: a box on a leaning body leans with it,
 // and the upright rectangle round it reaches further than the box does.
@@ -21,24 +19,6 @@ struct Box { float x[4], y[4]; BoxKind kind; std::uint8_t side; };
 // view, projection: the game's camera matrices, 16 floats each, rows first.
 // valid: both were read this frame.
 struct BoxView { bool valid = false; float view[16] = {}, projection[16] = {}; std::vector<Box> boxes; };
-
-// Which parts of the body a move's script leaves open on a frame, one bit a
-// part: waist, stomach, chest, head, then shoulder, elbow, wrist and hand of
-// the left arm, hip, knee, ankle and foot of the left leg, and the same of
-// the right side. A command naming no parts is the invincibility of a
-// Shoryuken's first frames. With no command on the frame, every part is open:
-// the limb an attack held out, on its way back.
-constexpr std::uint32_t AllParts = 0xFFFFFF, OpenToStrike = 2, OpenToThrow = 4;
-// Wrist, hand, ankle and foot have no box of their own in the game: a foot
-// that reached the attack and nothing else was never hit.
-constexpr std::uint32_t BoxedParts = 0x3333F;
-inline std::uint32_t OpenParts(const bac::Script* script, int frame, std::uint32_t to) {
-    bool said = false;
-    std::uint32_t parts = 0;
-    if (script) for (const auto& opening : script->openings)
-        if (frame >= opening.first && frame < opening.last && (opening.to & to)) { said = true; parts |= opening.parts; }
-    return said ? parts : AllParts;
-}
 
 // One box of the game: its four corners, 16 bytes each (x, y, z and one more
 // float). Reads the 0x40 bytes at record. False for a box without area or
