@@ -22,6 +22,14 @@ The pictures on this page come from the automated test of a whole tournament
 
 ---
 
+## Step 0. Get Tournament Mode
+
+While Tournament Mode is new it is by invitation: ask the Ember team for an
+invite. In Ember, open **Online play › Ember ID › Tournament organizer**.
+The first row, **Tournament Mode**, says **Invite needed**; type your invite
+in **Invite code**. It works once, for your Ember ID, and the row then says
+**On**. Players never need one: they sign up and play as before.
+
 ## Step 1. Link your bracket site in Ember (once)
 
 The desk knows you by your Ember ID, which lives in the game.

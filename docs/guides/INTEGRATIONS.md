@@ -592,6 +592,32 @@ the organizer's events (both shipped definitions have one):
   `tournament_name_pointer` (optional, shown before the event's name). The
   ID is what `ember-brackets` takes as `tournament`.
 
+##### Tournament Mode by invitation
+
+With `"invite_only": true` in `desk`, only invited organizers run events:
+everyone else gets 403 with `details.reason` `invite_required` when they ask
+for organizer access on a site, open the web desk from Ember, approve
+another device, or make, change, ready or start an event. Events already
+running stay theirs to run and stop.
+
+The operator hands out invites, each good once:
+
+```sh
+ember-bridge invite bridge.json 3 "Streamer name"   # prints 3 codes, shown only now
+ember-bridge organizers bridge.json                 # who redeemed one, since when, the note
+ember-bridge organizer-remove bridge.json <ember-id>
+```
+
+A code is stored only as a keyed hash. The organizer types it in Ember
+under Ember ID › Tournament organizer, which shows Tournament Mode as
+**Invite needed** until then; the web desk shows how to get in.
+
+- `GET /v1/organizer/access` (player or web desk session):
+  `{ "invite_only", "allowed" }`.
+- `POST /v1/organizer/invites/redeem` (proof action `site.connect` on that
+  path, from the game): `{ "code" }`. A wrong, used or unknown code answers
+  400 with reason `invite_invalid`; five tries an hour per Ember ID.
+
 Routes, all with the organizer's player session:
 
 - `GET /v1/organizer/tournaments?site=<id>`: the events the site lists for
