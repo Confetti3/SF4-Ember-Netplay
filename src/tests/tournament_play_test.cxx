@@ -768,6 +768,10 @@ static void TestGoneHostIsReplaced() {
 	play.OnRoom(Kind::Publish, Room(RoomB, MakeBinding(RoomB, 1)), at + 40);
 	play.Tick(at + 50, Joined(RoomB, &snapshot));
 	CHECK(play.GetPhase() == Phase::InRoom);
+	// A claim answer sent before the replacement arrives after it: B stays the room.
+	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), at + 60);
+	out = play.Tick(at + 70, Joined(RoomB, &snapshot));
+	CHECK(Count(out, Kind::Leave) == 0 && Count(out, Kind::Join) == 0 && play.GetPhase() == Phase::InRoom);
 
 	TournamentPlay refused;
 	failTwice(refused);
@@ -837,10 +841,13 @@ static void TestReplacementRoomStartsItsGamesAgain() {
 	play.Tick(300, Joined(RoomA, &first, false));
 	play.OnTerminal(1, room::MatchResult::P1Win, 10, 9);
 	CHECK(Count(play.Tick(400, Joined(RoomA, &first, false)), Kind::Report) == 1);
-	play.OnReported(1);
 	// The other fighter replaced the room: the bridge names B, a new assignment.
+	// The move waits for game 1's report to be saved, which comes late here.
 	auto moved = MakeBinding(RoomB, 1);
 	moved.room.assignmentGeneration = 2;
+	play.OnRoom(Kind::Claim, Room(RoomB, moved), 450);
+	CHECK(Count(play.Tick(460, Joined(RoomA, &first, false)), Kind::Leave) == 0);
+	play.OnReported(1);
 	play.OnRoom(Kind::Claim, Room(RoomB, moved), 500);
 	CHECK(Count(play.Tick(600, Joined(RoomA, &first, false)), Kind::Leave) == 1);
 	CHECK(Count(play.Tick(700, {}), Kind::Join) == 1);

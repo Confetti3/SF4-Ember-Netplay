@@ -143,7 +143,7 @@ private:
 	void SendReport(Output report, std::vector<Output>& out);
 	void ResendReports(std::uint64_t nowMs, std::vector<Output>& out);
 	void ReportsSettled();
-	// The match moved to another room: its settled permits and games go (OnRoom).
+	// The match moved to another room: the last room's permits and games go (OnRoom).
 	void RetireRoomAttempts();
 	// No permit is held for a game not reported, no report waits to be saved,
 	// and no prepare is out: a room may be replaced.
@@ -163,6 +163,8 @@ private:
 	// The match's room that could not be joined: this game hosts a new one and
 	// publishes it in that room's place, until the bridge names another.
 	std::string replacing_;
+	// Rooms the match moved away from: an answer naming one is older than the move.
+	std::set<std::string> retiredRooms_;
 	bool published_ = false;
 	std::string publishedInvitation_, publishingInvitation_;
 	// The room the bridge names for the match, hosting or joining it, and
