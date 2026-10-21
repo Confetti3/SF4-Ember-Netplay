@@ -8,6 +8,7 @@
 //! redeemed one names who took it.
 use axum::{extract::State, http::HeaderMap, response::Response};
 use ember_protocol::{
+    EmberId,
     api::ErrorCode,
     challenge::{Action, Method},
 };
@@ -196,6 +197,30 @@ pub async fn list(state: &AppState) -> Result<Vec<(String, u64, Option<String>)>
                 .collect::<rusqlite::Result<_>>()?)
         })
         .await
+}
+
+/// Makes `ember_id` an organizer without an invite, as the operator vets
+/// one directly (`note` says who); false when it already is one.
+pub async fn add(state: &AppState, ember_id: &str, note: Option<String>) -> Result<bool> {
+    EmberId::parse(ember_id).map_err(|_| ApiFailure::invalid("That is not an Ember ID."))?;
+    let (ember_id, now) = (ember_id.to_owned(), state.now());
+    let added = state
+        .db
+        .write(move |tx| {
+            // The note rides on an invite already marked as redeemed.
+            let code_hash = crate::util::random::<32>();
+            tx.execute(
+                "INSERT INTO organizer_invites (code_hash, created_at, note, redeemed_by, redeemed_at)
+                 VALUES (?1, ?2, ?3, ?4, ?2)",
+                params![code_hash.as_slice(), now, note, ember_id],
+            )?;
+            Ok(tx.execute(
+                "INSERT OR IGNORE INTO organizers (ember_id, since, code_hash) VALUES (?1, ?2, ?3)",
+                params![ember_id, now, code_hash.as_slice()],
+            )?)
+        })
+        .await?;
+    Ok(added == 1)
 }
 
 /// Takes `ember_id`'s organizer standing away; their events keep running

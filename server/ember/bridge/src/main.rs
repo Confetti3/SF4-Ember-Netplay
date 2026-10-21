@@ -84,6 +84,15 @@ fn main() -> ExitCode {
             }
             Ok(())
         }),
+        ["organizer-add", path, ember_id, rest @ ..] if rest.len() <= 1 => runtime.block_on(async {
+            let state = open(Path::new(path))?;
+            let note = rest.first().map(|note| note.to_string());
+            let added = ember_bridge::add_organizer(&state, ember_id, note)
+                .await
+                .map_err(|error| error.message.to_string())?;
+            println!("{}", if added { "Added." } else { "Already an organizer." });
+            Ok(())
+        }),
         ["organizer-remove", path, ember_id] => runtime.block_on(async {
             let state = open(Path::new(path))?;
             let removed = ember_bridge::remove_organizer(&state, ember_id)
@@ -121,6 +130,7 @@ const USAGE: &str = "usage:
   ember-bridge blumint-register <bridge.json> <connection-id>
   ember-bridge invite <bridge.json> [count] [note]
   ember-bridge organizers <bridge.json>
+  ember-bridge organizer-add <bridge.json> <ember-id> [note]
   ember-bridge organizer-remove <bridge.json> <ember-id>
   ember-bridge result-secret";
 

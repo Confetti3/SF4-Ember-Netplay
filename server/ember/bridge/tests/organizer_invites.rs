@@ -112,6 +112,19 @@ async fn only_an_invited_organizer_runs_tournaments() {
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].2.as_deref(), Some("a streamer"));
 
+    // The operator can also vet an organizer directly.
+    assert!(
+        ember_bridge::add_organizer(bridge.state(), player2.id().as_str(), Some("known".into()))
+            .await
+            .unwrap()
+    );
+    assert_eq!(access(player2.token().to_owned()).await["allowed"], true);
+    assert!(
+        !ember_bridge::add_organizer(bridge.state(), player2.id().as_str(), None)
+            .await
+            .unwrap()
+    );
+
     // Taken off the list, they start nothing new.
     assert!(
         ember_bridge::remove_organizer(bridge.state(), player1.id().as_str())
