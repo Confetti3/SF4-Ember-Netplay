@@ -6,11 +6,14 @@ use serde::{Deserialize, Serialize};
 use crate::{
     EmberId, Error, PublicKey, Result, SigningIdentity,
     encoding::{Counter, decode_b64u, is_prefixed_id},
+    facts::GameFacts,
     json::{self, Value},
     sign::Domain,
 };
 
 pub const VERSION: u8 = 1;
+/// A report that also carries the game's facts (`facts::GameFacts`).
+pub const FACTS_VERSION: u8 = 2;
 /// Signed native report bodies (spec 25.1).
 pub const MAX_REPORT_BODY: usize = 8 * 1024;
 
@@ -56,6 +59,11 @@ pub struct GameReport {
     pub confirmed_input_frame: Option<Counter>,
     pub observed_at: u64,
     pub helper_instance_id: String,
+    /// What the game saw besides the result, in a report of
+    /// `FACTS_VERSION` only; a version 1 report signs the same bytes as
+    /// before facts existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facts: Option<GameFacts>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,7 +99,11 @@ impl GameReport {
                         .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
                 "room_id",
             ),
-            (self.version == VERSION, "version"),
+            (
+                (self.version == VERSION && self.facts.is_none())
+                    || (self.version == FACTS_VERSION && self.facts.is_some()),
+                "version",
+            ),
             (self.table_id <= 3, "table_id"),
             (
                 self.assignment_generation.is_positive(),
@@ -105,6 +117,9 @@ impl GameReport {
         ];
         if let Some((_, field)) = ids.iter().find(|(valid, _)| !valid) {
             return Err(Error::InvalidField(field));
+        }
+        if let Some(facts) = &self.facts {
+            facts.check()?;
         }
         decode_b64u::<32>(&self.rules_digest, "rules_digest")?;
         decode_b64u::<32>(&self.roster_digest, "roster_digest")?;
@@ -133,6 +148,15 @@ impl GameReport {
         Ok(())
     }
 
+    /// The report of version 2 with the game's `facts`, for a bridge whose
+    /// capabilities name `facts::FEATURE`.
+    pub fn with_facts(mut self, facts: GameFacts) -> Result<Self> {
+        self.version = FACTS_VERSION;
+        self.facts = Some(facts);
+        self.check()?;
+        Ok(self)
+    }
+
     pub fn sign(&self, identity: &SigningIdentity) -> Result<SignedReport> {
         if &self.reporter_id != identity.ember_id() {
             return Err(Error::Mismatch("reporter_id"));
@@ -146,7 +170,8 @@ impl GameReport {
     }
 
     /// True when two reports describe the same attempt and outcome. Different
-    /// observation IDs, times and confirmation frames are not disagreement.
+    /// observation IDs, times, confirmation frames and facts are not
+    /// disagreement: facts that differ are only not kept.
     pub fn agrees_with(&self, other: &GameReport) -> bool {
         self.bridge_id == other.bridge_id
             && self.match_id == other.match_id

@@ -452,6 +452,7 @@ impl Permit {
             confirmed_input_frame: observation.confirmed_input_frame,
             observed_at: observation.observed_at,
             helper_instance_id: observation.helper_instance_id,
+            facts: None,
         };
         report.check()?;
         Ok(report)
@@ -610,6 +611,43 @@ mod tests {
                 )
                 .is_err()
         );
+    }
+
+    #[test]
+    fn a_report_with_facts_is_version_2_and_signs_them() {
+        let (a, b) = (key(1), key(2));
+        let permit = permit(a.ember_id(), b.ember_id());
+        let observe = Observation {
+            observation_id: "obs_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a16".into(),
+            result: Outcome::P1Win,
+            capture_frame: Some(Counter(900)),
+            confirmed_input_frame: Some(Counter(899)),
+            observed_at: 200,
+            helper_instance_id: "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a15".into(),
+        };
+        let plain = permit.report(a.ember_id(), observe).unwrap();
+        let facts: crate::facts::GameFacts = serde_json::from_value(serde_json::json!({
+            "fighters": [{ "character": "RYU", "costume": 0, "color": 0 }, { "character": "KEN", "costume": 0, "color": 1 }],
+            "rounds": [{ "winner": 0, "finish": "ultra", "perfect": false, "from_frame": "10", "to_frame": "800" }],
+        }))
+        .unwrap();
+        // Version 1 signs what it always did: no facts key at all.
+        assert!(json::to_value(&plain).unwrap().get("facts").is_none());
+        let rich = plain.clone().with_facts(facts.clone()).unwrap();
+        assert_eq!(rich.version, crate::report::FACTS_VERSION);
+        let signed = rich.sign(&a).unwrap();
+        assert!(signed.verify().is_ok());
+        assert!(rich.agrees_with(&plain), "facts are not the result");
+        let mut tampered = signed.clone();
+        tampered.report.facts.as_mut().unwrap().rounds[0].perfect = true;
+        assert!(tampered.verify().is_err());
+        // Facts only in version 2, and version 2 only with facts.
+        let mut wrong = plain.clone();
+        wrong.facts = Some(facts);
+        assert!(wrong.check().is_err());
+        let mut empty = plain;
+        empty.version = crate::report::FACTS_VERSION;
+        assert!(empty.check().is_err());
     }
 
     #[test]
