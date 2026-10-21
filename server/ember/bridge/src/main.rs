@@ -52,6 +52,46 @@ fn main() -> ExitCode {
             println!("BluMint now calls this bridge for {connection}.");
             Ok(())
         }),
+        ["invite", path, rest @ ..] if rest.len() <= 2 => runtime.block_on(async {
+            // ember-bridge invite <bridge.json> [count] [note]
+            let count = match rest.first() {
+                Some(count) => count.parse::<usize>().ok().filter(|n| (1..=50).contains(n)),
+                None => Some(1),
+            }
+            .ok_or("count is 1 to 50")?;
+            let state = open(Path::new(path))?;
+            let note = rest.get(1).map(|note| note.to_string());
+            for code in ember_bridge::make_invites(&state, count, note)
+                .await
+                .map_err(|error| error.message.to_string())?
+            {
+                println!("{code}");
+            }
+            eprintln!("Each invite works once: an organizer redeems it in Ember under Ember ID › Tournament organizer.");
+            Ok(())
+        }),
+        ["organizers", path] => runtime.block_on(async {
+            let state = open(Path::new(path))?;
+            for (ember_id, since, note) in ember_bridge::list_organizers(&state)
+                .await
+                .map_err(|error| error.message.to_string())?
+            {
+                println!(
+                    "{ember_id}  {}  {}",
+                    ember_protocol::event::rfc3339(since),
+                    note.unwrap_or_default()
+                );
+            }
+            Ok(())
+        }),
+        ["organizer-remove", path, ember_id] => runtime.block_on(async {
+            let state = open(Path::new(path))?;
+            let removed = ember_bridge::remove_organizer(&state, ember_id)
+                .await
+                .map_err(|error| error.message.to_string())?;
+            println!("{}", if removed { "Removed." } else { "Not an organizer." });
+            Ok(())
+        }),
         ["result-secret"] => {
             // A platform verifies the results sent to its results_url with
             // this; the operator stores it with set-integration-secret.sh.
@@ -79,6 +119,9 @@ const USAGE: &str = "usage:
   ember-bridge credentials <bridge.json>
   ember-bridge revoke <bridge.json> <credential-id>
   ember-bridge blumint-register <bridge.json> <connection-id>
+  ember-bridge invite <bridge.json> [count] [note]
+  ember-bridge organizers <bridge.json>
+  ember-bridge organizer-remove <bridge.json> <ember-id>
   ember-bridge result-secret";
 
 fn fail(message: &str) -> ExitCode {

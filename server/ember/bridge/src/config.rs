@@ -83,6 +83,11 @@ pub struct Desk {
     /// A `direct` connection; the bracket connector holds its provider
     /// credential and reads the events from `/v1/desk/brackets`.
     pub connection: String,
+    /// Tournament Mode by invitation only: only an Ember ID that redeemed
+    /// a single-use invite from the operator (`ember-bridge invite`) gets
+    /// organizer access and the desk (`routes::organizer::invites`).
+    #[serde(default)]
+    pub invite_only: bool,
 }
 
 /// Pruning of old sets' replays (`routes::replays::prune`).

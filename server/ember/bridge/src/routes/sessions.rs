@@ -150,6 +150,7 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
                         || crate::routes::organizer::is_desk_action(path)
                         || path == crate::routes::sign_in::desk::HANDOFF_PATH
                         || path == crate::routes::sign_in::desk::APPROVE_PATH
+                        || path == crate::routes::organizer::invites::REDEEM_PATH
                         || id_between("/v1/events/", "oev", "/sign-up")))
         }
         (Action::SiteRemove, Method::Delete) => {

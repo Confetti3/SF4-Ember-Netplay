@@ -42,6 +42,7 @@ use crate::{
 };
 
 mod drafts;
+pub mod invites;
 mod sets;
 
 use drafts::Link;
@@ -89,6 +90,7 @@ pub async fn tournaments(
     Query(listing): Query<Listing>,
 ) -> Result<Response> {
     let ember_id = reader(&state, &headers).await?;
+    invites::require(&state, &ember_id).await?;
     let site = Site::Configured(listing.site);
     let tournaments = listed(&state, &site, &ember_id).await?;
     Ok(ok(&json!({ "tournaments": tournaments })))
@@ -239,7 +241,7 @@ pub async fn start(
     if state.config.desk.is_none() {
         return Err(ApiFailure::not_found());
     }
-    let (caller, command): (_, Start) = Caller::of(&state, &headers, &body).await?;
+    let (caller, command): (_, Start) = Caller::organizer(&state, &headers, &body).await?;
     caller.require_game()?;
     let settings = settings_of(command.settings)?;
     let site = Site::Configured(command.site.clone());

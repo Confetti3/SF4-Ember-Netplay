@@ -22,7 +22,7 @@ pub(super) fn code_rejected() -> ApiFailure {
     )
 }
 
-pub(super) fn generate_code() -> String {
+pub(crate) fn generate_code() -> String {
     let bytes: [u8; 8] = random();
     let bits = u64::from_be_bytes(bytes);
     (0..CODE_LENGTH)
@@ -32,7 +32,7 @@ pub(super) fn generate_code() -> String {
 
 /// Accepts the ten symbols, in either case, with at most the single display
 /// separator after the fifth. Nothing else is normalized.
-pub(super) fn normalize_code(input: &str) -> Option<String> {
+pub(crate) fn normalize_code(input: &str) -> Option<String> {
     let compact = match input.len() {
         CODE_LENGTH => input.to_owned(),
         11 if input.as_bytes()[5] == b'-' => format!("{}{}", &input[..5], &input[6..]),
@@ -45,7 +45,7 @@ pub(super) fn normalize_code(input: &str) -> Option<String> {
         .then_some(upper)
 }
 
-pub(super) fn display_code(code: &str) -> String {
+pub(crate) fn display_code(code: &str) -> String {
     format!("{}-{}", &code[..5], &code[5..])
 }
 

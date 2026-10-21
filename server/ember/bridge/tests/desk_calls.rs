@@ -405,6 +405,7 @@ async fn a_called_set_messages_each_player_privately() {
         |config| {
             config.desk = Some(ember_bridge::config::Desk {
                 connection: BRACKETS.into(),
+                invite_only: false,
             });
             config.discord = Some(ember_bridge::config::Discord {
                 client_id: "123456789012345678".into(),

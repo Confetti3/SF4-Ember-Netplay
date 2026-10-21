@@ -12,7 +12,7 @@
 //! and mock-browser modules adapt requests to these functions.
 mod approval;
 mod claim;
-mod code;
+pub(crate) mod code;
 pub mod grants;
 mod intent;
 mod revoke;

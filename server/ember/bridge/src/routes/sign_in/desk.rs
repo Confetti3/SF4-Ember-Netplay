@@ -500,6 +500,7 @@ pub async fn handoff(
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
+    crate::routes::organizer::invites::require(&state, player.ember_id.as_str()).await?;
     let now = state.now();
     per_player(&state, &player)?;
     let token = b64u(&random::<32>());
@@ -841,7 +842,7 @@ pub async fn approve(
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
     let (caller, Approval { code, number }): (_, Approval) =
-        Caller::of(&state, &headers, &body).await?;
+        Caller::organizer(&state, &headers, &body).await?;
     caller.require_game()?;
     state
         .rate

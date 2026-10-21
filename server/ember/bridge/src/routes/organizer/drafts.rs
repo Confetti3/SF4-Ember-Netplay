@@ -19,7 +19,7 @@ pub async fn draft(
     if state.config.desk.is_none() {
         return Err(ApiFailure::not_found());
     }
-    let (caller, command): (_, Draft) = Caller::of(&state, &headers, &body).await?;
+    let (caller, command): (_, Draft) = Caller::organizer(&state, &headers, &body).await?;
     let title = title_of(&command.title)?;
     let ctx = Ctx::of(&state);
     let id = new_id("oev");
@@ -110,7 +110,7 @@ pub async fn change(
     Path(id): Path<String>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
-    let (caller, change): (_, Change) = Caller::of(&state, &headers, &body).await?;
+    let (caller, change): (_, Change) = Caller::organizer(&state, &headers, &body).await?;
     if change.discord_webhook.is_some() || change.public.is_some() || change.sign_ups.is_some() {
         caller.require_game()?;
     }
@@ -271,7 +271,7 @@ pub async fn create(
     Path(id): Path<String>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
-    let (caller, command): (_, Create) = Caller::of(&state, &headers, &body).await?;
+    let (caller, command): (_, Create) = Caller::organizer(&state, &headers, &body).await?;
     caller.require_game()?;
     let site = Site::Configured(command.site.clone());
     let oauth = OAuth::organizer(&state, &site).ok_or_else(ApiFailure::not_found)?;
@@ -368,7 +368,7 @@ pub async fn ready(
     Path(id): Path<String>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
-    let (caller, sessions::Nothing {}) = Caller::of(&state, &headers, &body).await?;
+    let (caller, sessions::Nothing {}) = Caller::organizer(&state, &headers, &body).await?;
     caller.require_game()?;
     let path = format!("{EVENTS_PATH}/{id}/ready");
     let ctx = Ctx::of(&state);
@@ -420,7 +420,7 @@ pub async fn start_bracket(
     Path(id): Path<String>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
-    let (caller, sessions::Nothing {}) = Caller::of(&state, &headers, &body).await?;
+    let (caller, sessions::Nothing {}) = Caller::organizer(&state, &headers, &body).await?;
     caller.require_game()?;
     let (reading, owner) = (id.clone(), caller.ember_id().to_owned());
     let ready: Option<(String, String)> = state

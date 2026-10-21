@@ -63,6 +63,7 @@ pub async fn bridge_with_desk(
 ) -> Bridge {
     let desk = desk.map(|connection| config::Desk {
         connection: connection.into(),
+        invite_only: false,
     });
     let bridge = Bridge::start_with(
         |config| {

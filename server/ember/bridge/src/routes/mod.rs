@@ -135,6 +135,14 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/tournaments/{id}/cancel", post(tournaments::cancel))
         .route("/v1/organizer/tournaments", get(organizer::tournaments))
         .route(
+            organizer::invites::ACCESS_PATH,
+            get(organizer::invites::access),
+        )
+        .route(
+            organizer::invites::REDEEM_PATH,
+            post(organizer::invites::redeem),
+        )
+        .route(
             organizer::EVENTS_PATH,
             post(organizer::start).get(organizer::list),
         )

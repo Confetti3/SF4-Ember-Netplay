@@ -314,6 +314,9 @@ pub(super) async fn begin(
         Starter::Player(player, _) => player.ember_id.as_str().to_owned(),
         Starter::Desk(ember_id) => ember_id.clone(),
     };
+    if organizer {
+        crate::routes::organizer::invites::require(state, &starting).await?;
+    }
     state
         .rate
         .check(

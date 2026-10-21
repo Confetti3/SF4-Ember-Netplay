@@ -31,6 +31,10 @@ use tokio::{net::TcpListener, sync::Notify, task::JoinHandle};
 pub use config::Config;
 pub use db::Db;
 pub use routes::blumint::liveness::LEASE_SECS as PRESENCE_LEASE_SECS;
+/// Tournament Mode's invitations, for the operator's commands.
+pub use routes::organizer::invites::{
+    list as list_organizers, make as make_invites, remove as remove_organizer,
+};
 pub use secrets::Keys;
 pub use util::{Clock, create_private};
 
