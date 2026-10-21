@@ -82,19 +82,64 @@ impl Notifier {
             .clone()
             .filter(|name| !name.is_empty())
             .unwrap_or_else(|| user.username.clone());
+        // Posting a tournament to the channel is for the server's managers
+        // and the tournament's organizers; anyone else is told so privately.
+        let manager = interaction.manages_server();
+        let public = ask == Ask::Show && manager;
         let (this, token, discord) = (self.clone(), interaction.token.clone(), user.id.clone());
         tokio::spawn(async move {
-            let message = this.ask_site(ask, &id, &discord, &name).await;
-            this.edit_original_with(&token, message).await;
+            let (message, organizers) = this.ask_site(ask, &id, &discord, &name).await;
+            if ask != Ask::Show || public || message.get("components").is_none() {
+                this.edit_original_with(&token, message).await;
+            } else if organizers.contains(&discord) {
+                // The private reply is settled first, so the followup is public.
+                if this
+                    .edit_original_with(&token, json!({ "content": "Posted." }))
+                    .await
+                {
+                    this.webhook(Method::POST, &token, "", message).await;
+                }
+            } else {
+                let refused =
+                    "Only the server's managers and the tournament's organizers can post it.";
+                this.edit_original_with(&token, json!({ "content": refused }))
+                    .await;
+            }
         });
-        let flags = if ask == Ask::Show { 0 } else { EPHEMERAL };
+        let flags = if ask == Ask::Show && public {
+            0
+        } else {
+            EPHEMERAL
+        };
         json_response(json!({ "type": DEFERRED_MESSAGE, "data": { "flags": flags } }))
     }
 
-    /// The site's answer, as the message to show.
-    async fn ask_site(&self, ask: Ask, id: &str, discord: &str, name: &str) -> Value {
+    /// The site's answer, as the message to show, and for `show` the
+    /// tournament's organizers.
+    async fn ask_site(
+        &self,
+        ask: Ask,
+        id: &str,
+        discord: &str,
+        name: &str,
+    ) -> (Value, Vec<String>) {
+        let (message, answer) = self.answer(ask, id, discord, name).await;
+        let organizers = answer["organizers"]
+            .as_array()
+            .map(|all| {
+                all.iter()
+                    .filter_map(|each| each.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default();
+        (message, organizers)
+    }
+
+    /// The message to show, and the site's answer it was made from (null on
+    /// a failure).
+    async fn answer(&self, ask: Ask, id: &str, discord: &str, name: &str) -> (Value, Value) {
         let Some(brackets) = &self.0.config.brackets else {
-            return json!({ "content": BUSY });
+            return (json!({ "content": BUSY }), Value::Null);
         };
         let base = brackets.base.trim_end_matches('/');
         let (method, path, body) = match ask {
@@ -108,7 +153,7 @@ impl Notifier {
             Ask::Show => (Method::GET, String::new(), None),
         };
         let Ok(token) = resolve(&brackets.token) else {
-            return json!({ "content": BUSY });
+            return (json!({ "content": BUSY }), Value::Null);
         };
         let mut request = self
             .0
@@ -120,21 +165,24 @@ impl Notifier {
             request = request.json(&body);
         }
         let Ok(response) = request.send().await else {
-            return json!({ "content": BUSY });
+            return (json!({ "content": BUSY }), Value::Null);
         };
         let status = response.status();
         let answer: Value = response.json().await.unwrap_or(Value::Null);
         if status.is_server_error() {
-            return json!({ "content": BUSY });
+            return (json!({ "content": BUSY }), Value::Null);
         }
         if !status.is_success() {
             let said = answer["error"]
                 .as_str()
                 .unwrap_or("the bracket site refused it");
-            return json!({ "content": format!("That did not work: {}.", escape_markdown(said)) });
+            return (
+                json!({ "content": format!("That did not work: {}.", escape_markdown(said)) }),
+                Value::Null,
+            );
         }
         let link = format!("{base}/t/{id}");
-        json!({
+        let message = json!({
             "content": match ask {
                 Ask::SignUp if answer["ember_id"].is_null() => format!(
                     "You are signed up ({link}). Connect Discord in Ember (Online play, Ember ID, Discord) before the start, or your entry is dropped."
@@ -142,9 +190,10 @@ impl Notifier {
                 Ask::SignUp => format!("You are signed up ({link})."),
                 Ask::Leave => format!("You left the tournament ({link})."),
                 Ask::CheckIn => format!("You are checked in ({link})."),
-                Ask::Show => return shown(&answer, id, &link),
+                Ask::Show => return (shown(&answer, id, &link), answer),
             }
-        })
+        });
+        (message, answer)
     }
 }
 

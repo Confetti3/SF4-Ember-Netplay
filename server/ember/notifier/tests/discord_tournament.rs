@@ -11,6 +11,7 @@ use support::{Mock, base_config, bot, notifier};
 const APPLICATION: &str = "app1";
 const TOKEN: &str = "interaction-token_1";
 const PLAYER: &str = "274220342558756145";
+const ORGANIZER: &str = "80351110224678912";
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
@@ -133,7 +134,7 @@ async fn a_shown_tournament_has_buttons_and_a_press_checks_in() {
     let site = Mock::start(|request| match request.method {
         Method::GET => (
             200,
-            json!({ "title": "Weekly", "state": "check_in", "games_to_win": 2, "entrants": [{}] })
+            json!({ "title": "Weekly", "state": "check_in", "games_to_win": 2, "entrants": [{}], "organizers": [ORGANIZER] })
                 .to_string(),
         ),
         _ if request.path.ends_with("/check-in") => (
@@ -145,11 +146,12 @@ async fn a_shown_tournament_has_buttons_and_a_press_checks_in() {
     .await;
     let discord = Mock::start(|_| (200, "{}".into())).await;
     let url = serve(&site, &discord).await;
-    let show = from_player(json!({
+    let mut show = from_player(json!({
         "type": 2,
         "data": { "name": "tournament", "options": [{ "type": 1, "name": "show", "options": [{ "name": "id", "value": "weekly" }] }] },
     }));
-    // Shown to the whole channel.
+    // A member who manages the server shows it to the whole channel.
+    show["member"]["permissions"] = json!("32");
     assert_eq!(
         send(&url, show).await,
         json!({ "type": 5, "data": { "flags": 0 } })
@@ -193,4 +195,61 @@ async fn a_shown_tournament_has_buttons_and_a_press_checks_in() {
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     }
     panic!("the press was not answered");
+}
+
+#[tokio::test]
+async fn only_managers_and_its_organizers_post_a_tournament() {
+    let site = Mock::start(|_| {
+        (
+            200,
+            json!({ "title": "Weekly", "state": "sign_ups", "games_to_win": 2, "entrants": [], "organizers": [ORGANIZER] })
+                .to_string(),
+        )
+    })
+    .await;
+    let discord = Mock::start(|_| (200, "{}".into())).await;
+    let url = serve(&site, &discord).await;
+    let show = |user: &str| {
+        let mut show = from_player(json!({
+            "type": 2,
+            "data": { "name": "tournament", "options": [{ "type": 1, "name": "show", "options": [{ "name": "id", "value": "weekly" }] }] },
+        }));
+        show["member"]["user"]["id"] = json!(user);
+        show["member"]["permissions"] = json!("0");
+        show
+    };
+    // Anyone else is told privately, and nothing reaches the channel.
+    assert_eq!(
+        send(&url, show(PLAYER)).await,
+        json!({ "type": 5, "data": { "flags": 64 } })
+    );
+    assert_eq!(
+        edited(&discord).await["content"],
+        "Only the server's managers and the tournament's organizers can post it."
+    );
+    // Its organizer: a private note, then the tournament as a public followup.
+    assert_eq!(
+        send(&url, show(ORGANIZER)).await,
+        json!({ "type": 5, "data": { "flags": 64 } })
+    );
+    let posted = discord
+        .wait_for(Method::POST, &format!("/webhooks/{APPLICATION}/{TOKEN}"))
+        .await;
+    assert!(
+        posted.body["content"]
+            .as_str()
+            .unwrap()
+            .starts_with("**Weekly**: sign-ups are open.")
+    );
+    assert_eq!(
+        posted.body["components"][0]["components"][0]["label"],
+        "Sign up"
+    );
+    let notes: Vec<_> = discord
+        .requests()
+        .into_iter()
+        .filter(|request| request.method == Method::PATCH)
+        .map(|request| request.body["content"].clone())
+        .collect();
+    assert_eq!(notes.last().unwrap(), "Posted.");
 }

@@ -82,6 +82,9 @@ pub(crate) struct CommandOption {
 #[derive(Deserialize)]
 struct Member {
     user: User,
+    /// The member's permissions in the channel, as a decimal bitfield.
+    #[serde(default)]
+    permissions: String,
 }
 
 #[derive(Deserialize)]
@@ -100,6 +103,15 @@ impl Interaction {
             .as_ref()
             .map(|member| &member.user)
             .or(self.user.as_ref())
+    }
+
+    /// Whether the sender may manage the server (`MANAGE_GUILD`); never in a DM.
+    pub(crate) fn manages_server(&self) -> bool {
+        const MANAGE_GUILD: u64 = 1 << 5;
+        self.member
+            .as_ref()
+            .and_then(|member| member.permissions.parse::<u64>().ok())
+            .is_some_and(|bits| bits & MANAGE_GUILD != 0)
     }
 
     /// Whether its token can go into a webhook URL.
@@ -326,7 +338,13 @@ impl Notifier {
 
     /// Sends a message through the interaction's webhook: an edit of the
     /// original reply, or a followup. Mentions in the text never ping anyone.
-    async fn webhook(&self, method: Method, token: &str, tail: &str, mut body: Value) -> Sent {
+    pub(crate) async fn webhook(
+        &self,
+        method: Method,
+        token: &str,
+        tail: &str,
+        mut body: Value,
+    ) -> Sent {
         let Some(interactions) = self
             .0
             .config
