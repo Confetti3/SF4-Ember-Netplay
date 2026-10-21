@@ -90,6 +90,7 @@ manages the tournaments that name them in `organizers`.
 | `GET /leagues/{id}/seasons/{season}/standings` | anyone | points, events and wins of each player |
 | `POST /leagues/{id}/seasons/{season}/close` | its organizers | closes it and gives its champion and top 3 their awards |
 | `GET /players/{discord}` | anyone | a player's name, Ember ID and every award they hold, each with its `emblem` |
+| `GET /awards?after=<n>` | anyone | every award given after number `n`, oldest first, each with its number: the notifier's log for award roles |
 | `GET /emblems/{kind}.svg` | anyone | an award's emblem: a round badge in Ember's palette with a star or a mark |
 
 At its finish a tournament gives Champion, Runner-up, Top 3 and (over 8

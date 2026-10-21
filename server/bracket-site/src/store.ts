@@ -68,6 +68,13 @@ export class Store {
     return awards.filter((award) => add.run(award.discord, award.kind, award.tournament ?? `season:${award.season}`, JSON.stringify(award)).changes === 1);
   }
 
+  /** Every award given after number `after`, oldest first, each with its number: a follower's log. */
+  awardsAfter(after: number, limit = 100): (Award & { n: number })[] {
+    return (this.db.prepare("SELECT rowid AS n, doc FROM awards WHERE rowid > ? ORDER BY rowid LIMIT ?").all(after, limit) as { n: number; doc: string }[]).map(
+      (row) => ({ ...(JSON.parse(row.doc) as Award), n: row.n }),
+    );
+  }
+
   awardsOf(discord: string): Award[] {
     return (this.db.prepare("SELECT doc FROM awards WHERE discord = ? ORDER BY rowid").all(discord) as { doc: string }[]).map((row) => JSON.parse(row.doc) as Award);
   }

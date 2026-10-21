@@ -209,6 +209,9 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   const badge = await fetch(`${base}/emblems/champion.svg`);
   assert.deepEqual([badge.status, badge.headers.get("content-type")], [200, "image/svg+xml"]);
   assert.equal((await fetch(`${base}/emblems/admin.svg`)).status, 404);
+  const log = (await call("GET", "/awards?after=0")).body.awards;
+  assert.deepEqual([log[0].n, log[0].kind], [1, "champion"]);
+  assert.deepEqual((await call("GET", `/awards?after=${log.at(-1).n}`)).body.awards, []);
   assert.ok((await call("GET", "/tournaments/weekly/feed")).body.items.some((item: { kind: string; text: string }) => item.kind === "award" && item.text.startsWith("Player 1: Champion")));
   assert.equal((await call("GET", "/players/99999999999999999")).status, 404);
   // Over within the hour: still listed for followers, with its last item.

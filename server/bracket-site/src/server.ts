@@ -470,6 +470,7 @@ export function bracketSite(options: Options): Server {
         return [200, { season, awards: given }];
       },
     ],
+    ["GET", /^\/awards$/, (_, __, url) => [200, { awards: store.awardsAfter(Number(url.searchParams.get("after") ?? 0) || 0) }]],
     [
       "GET",
       /^\/players\/(\d{17,20})$/,
