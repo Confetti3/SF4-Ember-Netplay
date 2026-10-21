@@ -13,6 +13,7 @@ use axum::{
 use ember_protocol::{
     api::ErrorCode,
     event::Kind,
+    facts::GameFacts,
     json,
     matches::MatchState,
     play::SignedPermit,
@@ -229,6 +230,18 @@ fn first_reports(tx: &Transaction<'_>, attempt_id: &str) -> Result<Vec<(String, 
             Ok((id, signed.report))
         })
         .collect()
+}
+
+/// The game's facts, when both fighters' first reports carry the same.
+/// Facts that differ, or that one fighter's older game did not send, are
+/// not kept: the result stands without them.
+pub(crate) fn agreed_facts(tx: &Transaction<'_>, attempt_id: &str) -> Result<Option<GameFacts>> {
+    Ok(match first_reports(tx, attempt_id)?.as_slice() {
+        [(_, first), (_, second)] if first.facts.is_some() && first.facts == second.facts => {
+            first.facts.clone()
+        }
+        _ => None,
+    })
 }
 
 fn reconcile(tx: &Transaction<'_>, ctx: &Ctx, match_id: &str, found: &Attempt) -> Result<()> {
