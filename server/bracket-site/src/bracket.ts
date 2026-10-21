@@ -1,5 +1,6 @@
 // A single elimination bracket: seeding with byes, results and who moves on.
 // Pure functions over a bracket's sets, each entry an entrant's Ember ID.
+import type { GameFacts } from "./live.ts";
 
 export interface BracketSet {
   /** `r<round>-<position>`, from 1. A round 1 set with a bye is never made. */
@@ -14,6 +15,10 @@ export interface BracketSet {
   underway: boolean;
   /** The Idempotency-Key the result came with; null when an organizer entered it. */
   key: string | null;
+  /** From the connector's report: each game's winning entry in order, its facts, and the Ember match. */
+  games?: string[];
+  facts?: (GameFacts | null)[];
+  ember_match?: string;
 }
 
 export type Status = "pending" | "open" | "decided";

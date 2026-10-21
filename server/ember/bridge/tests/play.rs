@@ -6,7 +6,7 @@ use common::{
     Bridge, Player, code,
     play::{
         BUILD, ROOM, Table, act, bound, claim, create_match, descriptor, endpoint, observation,
-        pack, permit, played, prepare, publish, replay, report, send_replay,
+        pack, permit, played, prepare, publish, replay, report, report_with, send_replay,
     },
 };
 use ember_protocol::{
@@ -765,4 +765,135 @@ async fn forged_and_misdirected_reports_are_refused() {
     let (_, decided) = report(&f, &f.b, &f.b, &id, &permit, 2, Outcome::P1Win).await;
     assert_eq!(decided["attempt_state"], "accepted");
     assert_eq!(state(&f, &id).await["scores"][0]["wins"], 1);
+}
+
+#[tokio::test]
+async fn a_games_facts_show_once_both_fighters_say_the_same() {
+    let f = fixture().await;
+    let (status, capabilities) = f.bridge.get(&f.provider, "/v1/capabilities").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        capabilities["features"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("reports.facts"))
+    );
+    let id = create(&f, "play-facts", "ember-room-v1", 2).await;
+    let binding = bound(&f, &id).await;
+    let facts = |perfect: bool| {
+        serde_json::from_value::<ember_protocol::facts::GameFacts>(json!({
+            "fighters": [{ "character": "RYU", "costume": 0, "color": 0 }, { "character": "BLR", "costume": 1, "color": 3 }],
+            "rounds": [
+                { "winner": 0, "finish": "ultra", "perfect": perfect, "from_frame": "10", "to_frame": "900" },
+                { "winner": 0, "finish": "ko", "perfect": false, "from_frame": "1000", "to_frame": "2000" },
+            ],
+        }))
+        .unwrap()
+    };
+    // Game 1: both say the same; game 2: they differ; game 3: one older
+    // game sends none. Each result counts all the same.
+    let mut generation = 10;
+    for (n, mine, theirs) in [
+        (1u8, Some(facts(true)), Some(facts(true))),
+        (3, Some(facts(true)), Some(facts(false))),
+    ] {
+        generation += 1;
+        let permit = permit(&f, &id, &binding, generation).await;
+        let (status, first) =
+            report_with(&f, &f.a, &f.a, &id, &permit, n, Outcome::P1Win, mine).await;
+        assert_eq!(status, StatusCode::CREATED, "{first}");
+        let (status, second) =
+            report_with(&f, &f.a, &f.b, &id, &permit, n + 1, Outcome::P1Win, theirs).await;
+        assert_eq!(
+            (status, second["attempt_state"].as_str()),
+            (StatusCode::CREATED, Some("accepted")),
+            "{second}"
+        );
+    }
+    let finished = state(&f, &id).await;
+    assert_eq!(finished["state"], "completed");
+    let attempts = finished["attempts"].as_array().unwrap();
+    assert_eq!(
+        attempts[0]["facts"],
+        serde_json::to_value(facts(true)).unwrap()
+    );
+    assert!(
+        attempts[1].get("facts").is_none(),
+        "facts that differ are not kept"
+    );
+}
+
+#[tokio::test]
+async fn a_public_events_finished_set_is_downloaded_by_anyone() {
+    let f = fixture().await;
+    let id = create(&f, "http:weekly:r1-1:1", "ember-room-v1", 2).await;
+    let binding = bound(&f, &id).await;
+    for (n, generation) in [(1u8, 11), (3, 12)] {
+        let permit = permit(&f, &id, &binding, generation).await;
+        report(&f, &f.a, &f.a, &id, &permit, n, Outcome::P1Win).await;
+        report(&f, &f.a, &f.b, &id, &permit, n + 1, Outcome::P1Win).await;
+        assert_eq!(
+            send_replay(&f, &f.a, &id, &replay(n), 1).await,
+            StatusCode::CREATED
+        );
+    }
+    assert_eq!(state(&f, &id).await["state"], "completed");
+    let anyone = |path: String| {
+        let request = f.bridge.client.get(f.bridge.url(&path));
+        async move { request.send().await.unwrap() }
+    };
+    let crc = ember_protocol::replays::crc_name(&replay(1)).unwrap();
+    let pack_path = format!("/v1/public/matches/{id}/replays.pack");
+    let game_path = format!("/v1/public/matches/{id}/replays/{crc}");
+    // Not public: as if there were no such set.
+    assert_eq!(
+        anyone(pack_path.clone()).await.status(),
+        StatusCode::NOT_FOUND
+    );
+    // The desk event whose sets the connector sent name the match.
+    let (organizer, sets) = (
+        f.a.id().as_str().to_owned(),
+        json!([{ "id": "r1-1", "match_id": id }]).to_string(),
+    );
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO organizer_events (id, ember_id, title, status, site, tournament, name, settings, created_at, public, sets)
+                 VALUES ('evt_1', ?1, 'Weekly', 'ready', 'ember-bracket-site', 'weekly', 'Weekly', '{}', 1, 1, ?2)",
+                [&organizer, &sets],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let downloaded = anyone(pack_path).await;
+    assert_eq!(downloaded.status(), StatusCode::OK);
+    let header: Json = serde_json::from_slice(
+        &anyone(format!("/v1/public/matches/{id}/replays"))
+            .await
+            .bytes()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(header["games"][0]["crc"], crc);
+    // Its header names the event, found by its sets.
+    assert_eq!(pack(&f, &f.provider, &id).await.0["tournament"], "Weekly");
+    assert!(
+        downloaded.headers()["content-disposition"]
+            .to_str()
+            .unwrap()
+            .ends_with(".emberpack\"")
+    );
+    let game = anyone(game_path).await;
+    assert_eq!(game.status(), StatusCode::OK);
+    assert_eq!(game.bytes().await.unwrap().to_vec(), replay(1));
+    assert_eq!(
+        anyone(format!("/v1/public/matches/{id}/replays/00000000"))
+            .await
+            .status(),
+        StatusCode::NOT_FOUND
+    );
 }

@@ -812,6 +812,14 @@ its `state` and `actions`, keeping only moves the definition names in
 the game with a `site.connect` proof, makes one with the organizer's grant;
 the site's refusal comes back as `site_refused`.
 
+Public replays: for a desk event with `"public": true`, each completed set
+whose Ember match the connector named in its sets is downloadable by
+anyone: `GET /v1/public/matches/{id}/replays.pack` (the set's pack) and
+`GET /v1/public/matches/{id}/replays/{crc}` (one game's `.emberreplay`), and
+`GET /v1/public/matches/{id}/replays` (the pack's header alone: each game's CRC,
+save time and size, in save-time order).
+Any other match answers 404, as one that does not exist.
+
 ## Testing the desk
 
 Three layers, from fastest:
@@ -1258,15 +1266,26 @@ to start a host.
 
 With `brackets` (`{ "base": "https://brackets.ember.fraccie.be", "token":
 "env:NAME" }`, the bracket site's bot token), `discord-register` also
-registers `/tournament` with `signup`, `leave`, `checkin` and `show`, each
-taking a tournament `id`. The notifier calls the bracket site with the bot
+registers `/tournament` with `signup`, `leave`, `checkin`, `show` and
+`vote`, each taking a tournament `id`. The notifier calls the bracket site with the bot
 token and `X-Discord-User`, the user Discord signed the interaction for, so
 each player acts only as themselves. `signup`, `leave` and `checkin` answer
-privately; `show` posts the tournament to the channel with Sign up, Check
-in and Leave buttons for its state, and a press (`tournament:<what>:<id>`)
-acts for whoever pressed it. A player whose Discord is not connected in
+privately; `show`, for a member who may manage the server or one of the
+tournament's organizers, posts the tournament to the channel with Sign up,
+Check in and Leave buttons for its state, and a press (`tournament:<what>:<id>`)
+acts for whoever pressed it. `vote`, for the same members, posts a finished
+tournament's vote as a select menu per category with accepted nominations
+(`tournament:pick:<id>:<category>`); a pick is the picker's vote, which they
+may change until the vote closes, and once it closed `vote` posts the
+winners. A player whose Discord is not connected in
 Ember yet is signed up all the same and told to connect it before the
 start (docs/design/BRACKET_SITE.md).
+
+With `"feed": true` in `brackets` (and a channel `webhook_url`), the
+notifier also posts each live tournament's news to that channel: every
+`feed_secs` (default 60) it reads the site's `/live` list and each
+tournament's feed past what it posted, and posts what is new as one
+message, without pings. What it posted is kept in its database.
 
 ### Twitch `!room`
 

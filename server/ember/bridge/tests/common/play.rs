@@ -224,12 +224,29 @@ pub async fn report(
     n: u8,
     result: Outcome,
 ) -> (StatusCode, Json) {
-    let signed = permit
+    report_with(f, sender, reporter, id, permit, n, result, None).await
+}
+
+/// `report`, of version 2 with the game's `facts` when given.
+#[allow(clippy::too_many_arguments)]
+pub async fn report_with(
+    f: &impl Table,
+    sender: &Player,
+    reporter: &Player,
+    id: &str,
+    permit: &SignedPermit,
+    n: u8,
+    result: Outcome,
+    facts: Option<ember_protocol::facts::GameFacts>,
+) -> (StatusCode, Json) {
+    let mut report = permit
         .permit
         .report(reporter.id(), observation(n, result))
-        .unwrap()
-        .sign(&reporter.identity)
         .unwrap();
+    if let Some(facts) = facts {
+        report = report.with_facts(facts).unwrap();
+    }
+    let signed = report.sign(&reporter.identity).unwrap();
     let response = f
         .bridge()
         .client

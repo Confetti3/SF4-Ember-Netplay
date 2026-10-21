@@ -1,6 +1,8 @@
 // A read-only bracket page: one column a round, each set with its players
 // and score.
 import { roundLabel, status } from "./bracket.ts";
+import { stats } from "./live.ts";
+import type { Report } from "./report.ts";
 import { beforeLive, type Tournament } from "./tournament.ts";
 
 const escape = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -36,7 +38,7 @@ export function page(tournament: Tournament, viewer: string | null, signIn: bool
   const entrants = tournament.entrants.map((entrant) => `<li>${escape(entrant.name)}${entrant.ember_id ? "" : " (waiting for Discord to be connected in Ember)"}</li>`).join("");
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escape(tournament.title)}</title>
+<title>${escape(tournament.title)}</title>${tournament.state === "live" ? '\n<meta http-equiv="refresh" content="30">' : ""}
 <style>
 body { font: 16px system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
 .rounds { display: flex; gap: 24px; overflow-x: auto; }
@@ -49,6 +51,7 @@ td + td { width: 2em; text-align: right; }
 <h1>${escape(tournament.title)}</h1>
 <p>First to ${tournament.games_to_win}. ${STATES[tournament.state]}</p>
 ${signIn ? buttons(tournament, viewer) : ""}
+${tournament.state === "live" || tournament.state === "finished" ? summary(tournament) : ""}
 ${beforeLive(tournament) ? `<h2>Entrants</h2><ol>${entrants}</ol>` : `<div class="rounds">${rounds.join("")}</div>`}
 <script>
 for (const button of document.querySelectorAll("button[data-path]")) {
@@ -61,6 +64,48 @@ for (const button of document.querySelectorAll("button[data-path]")) {
 </script>
 </body></html>
 `;
+}
+
+/** The after-report as a page to share: the podium first. */
+export function reportPage(report: Report, id: string): string {
+  const medal = ["", "1st", "2nd", "3rd"];
+  const podium = report.podium.map((each) => `<li>${medal[each.place] ?? each.place} ${escape(each.name)}</li>`).join("");
+  const players = report.players
+    .map((player) => {
+      const path = player.path.map((step) => `${escape(step.round)}: ${step.won ? "beat" : "lost to"} ${escape(step.opponent)} ${step.score[0]}-${step.score[1]}`).join("; ");
+      const characters = player.characters ? Object.keys(player.characters).join(", ") : "not known";
+      return `<tr><td>${player.place ?? ""}</td><td>${escape(player.name)}</td><td>${player.sets_won}-${player.sets_lost}</td><td>${player.games_won}-${player.games_lost}</td><td>${escape(characters)}</td><td>${path}</td></tr>`;
+    })
+    .join("");
+  const upsets = report.upsets.map((upset) => `<li>${escape(upset.winner)} over ${escape(upset.loser)} (${upset.gap} seeds)</li>`).join("");
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escape(report.title)}: results</title>
+<meta property="og:title" content="${escape(report.title)}: results">
+<meta property="og:description" content="${escape(report.podium.map((each) => `${medal[each.place] ?? each.place} ${each.name}`).join(" · "))}">
+<style>
+body { font: 16px system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+table { border-collapse: collapse; } td, th { border: 1px solid #999; padding: 4px 8px; text-align: left; }
+.wide { overflow-x: auto; }
+@media (prefers-color-scheme: dark) { body { background: #111; color: #eee; } td, th { border-color: #666; } }
+</style></head><body>
+<h1>${escape(report.title)}</h1>
+<ol aria-label="Podium">${podium}</ol>
+<p>${report.games} games${report.longest_set ? `, the longest set ${report.longest_set.games} games` : ""}${report.perfects === null ? "" : `, ${report.perfects} perfects, ${report.time_outs} time-outs`}.</p>
+${upsets ? `<h2>Upsets</h2><ul>${upsets}</ul>` : ""}
+<h2>Players</h2>
+<div class="wide"><table><tr><th>Place</th><th>Player</th><th>Sets</th><th>Games</th><th>Characters</th><th>Path</th></tr>${players}</table></div>
+<p><a href="/t/${encodeURIComponent(id)}">The bracket</a></p>
+</body></html>
+`;
+}
+
+/** The live numbers and the latest news, while it runs and once it is over. */
+function summary(tournament: Tournament): string {
+  const numbers = stats(tournament);
+  const upsets = numbers.upsets.slice(0, 3).map((upset) => `${escape(upset.winner)} over ${escape(upset.loser)}`);
+  const news = (tournament.feed ?? []).slice(-5).reverse().map((item) => `<li>${escape(item.text)}</li>`).join("");
+  return `<p>${numbers.sets.live} live, ${numbers.sets.done} of ${numbers.sets.total} sets done.${upsets.length ? ` Upsets: ${upsets.join(", ")}.` : ""}</p>${news ? `<ul aria-label="Latest">${news}</ul>` : ""}`;
 }
 
 /** What the viewer can do now: sign in, sign up, leave or check in. */

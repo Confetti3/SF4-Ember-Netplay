@@ -48,6 +48,7 @@ const oauth =
 const server = bracketSite({
   store,
   ...(oauth ? { oauth, origin } : {}),
+  bridgeOrigin: env("EMBER_BRIDGE_ORIGIN"),
   operatorToken: secret("BRACKET_SITE_OPERATOR_TOKEN_FILE"),
   connectorToken: secret("BRACKET_SITE_CONNECTOR_TOKEN_FILE"),
   ...(process.env.BRACKET_SITE_BOT_TOKEN_FILE ? { botToken: secret("BRACKET_SITE_BOT_TOKEN_FILE") } : {}),

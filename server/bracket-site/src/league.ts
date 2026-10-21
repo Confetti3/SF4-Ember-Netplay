@@ -11,6 +11,8 @@ export interface Season {
   points: Record<string, number>;
   /** Only a player's best this many events count; null counts all. */
   best_of: number | null;
+  /** When its organizers closed it and its awards were given. */
+  closed_at?: string;
 }
 
 export interface League {

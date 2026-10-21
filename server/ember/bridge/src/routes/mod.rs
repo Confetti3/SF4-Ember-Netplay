@@ -81,6 +81,18 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/matches/{id}/reports", post(reports::submit_route))
         .route("/v1/matches/{id}/replays/{crc}", put(replays::put))
         .route("/v1/matches/{id}/replays.pack", get(replays::pack))
+        .route(
+            "/v1/public/matches/{id}/replays.pack",
+            get(replays::public_pack),
+        )
+        .route(
+            "/v1/public/matches/{id}/replays",
+            get(replays::public_header),
+        )
+        .route(
+            "/v1/public/matches/{id}/replays/{crc}",
+            get(replays::public_game),
+        )
         .route("/v1/matches/{id}/watch", post(play::watch::watch_route))
         .route(
             "/v1/matches/{id}/watch/leave",

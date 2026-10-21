@@ -217,6 +217,12 @@ struct WireReport<'a> {
     scores: [WireScore<'a>; 2],
     /// The winning entry of each game, in the order played.
     games: Vec<&'a str>,
+    /// The Ember match, as the Idempotency-Key names it.
+    ember_match: &'a str,
+    /// Each game's facts beside `games`, null where none were kept; absent
+    /// when no game has any.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    facts: Option<&'a [Option<Value>]>,
 }
 
 #[derive(Serialize)]
@@ -235,6 +241,12 @@ impl<'a> WireReport<'a> {
                 games: report.games[index],
             }),
             games: report.sequence.iter().map(|&index| entry(index)).collect(),
+            ember_match: &report.key,
+            facts: report
+                .facts
+                .iter()
+                .any(Option::is_some)
+                .then_some(report.facts.as_slice()),
         }
     }
 }
@@ -630,6 +642,7 @@ mod tests {
             games: [1, 2],
             winner: 1,
             sequence: vec![1, 0, 1],
+            facts: vec![None, Some(json!({ "rounds": [] })), None],
             key: "emt_1".into(),
         };
         assert_eq!(
@@ -638,6 +651,8 @@ mod tests {
                 "winner": "e2",
                 "scores": [{ "entry": "e1", "games": 1 }, { "entry": "e2", "games": 2 }],
                 "games": ["e2", "e1", "e2"],
+                "ember_match": "emt_1",
+                "facts": [null, { "rounds": [] }, null],
             })
         );
     }

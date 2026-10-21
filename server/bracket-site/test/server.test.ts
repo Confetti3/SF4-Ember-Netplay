@@ -163,13 +163,26 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   assert.deepEqual((await connector("GET", "/sets/r9-1")).body, { set: null });
 
   const report = (winner: number, loser: number, key?: string) =>
-    connector("POST", "/sets/r1-1/report", { winner: emberId(winner), scores: [{ entry: emberId(winner), games: 2 }, { entry: emberId(loser), games: 1 }], games: [] }, key);
+    connector("POST", "/sets/r1-1/report", {
+        winner: emberId(winner),
+        scores: [{ entry: emberId(winner), games: 2 }, { entry: emberId(loser), games: 1 }],
+        games: [emberId(winner), emberId(loser), emberId(winner)],
+        ember_match: "emt_semi-1",
+        facts: [null, null, { fighters: [{ character: "RYU", costume: 0, color: 0 }, { character: "BLR", costume: 0, color: 1 }], rounds: [] }],
+      }, key);
   assert.equal((await report(1, 2)).status, 400, "a key is required");
   assert.equal((await report(4, 2, "emt_a")).status, 422);
   assert.equal((await report(1, 2, "emt_a")).status, 200);
   assert.equal((await report(1, 2, "emt_a")).status, 200, "a repeat");
   assert.equal((await report(1, 2, "emt_b")).status, 409);
   assert.equal((await state("reset")).status, 409, "a set is decided");
+  // What the report said is kept, and counts in the stats and the feed.
+  const semi = (await call("GET", "/tournaments/weekly")).body.sets.find((set: { id: string }) => set.id === "r1-1");
+  assert.deepEqual([semi.ember_match, semi.games.length, semi.facts[2].fighters[1].character], ["emt_semi-1", 3, "BLR"]);
+  assert.deepEqual((await call("GET", "/tournaments/weekly/stats")).body.characters, { RYU: 1, BLR: 1 });
+  const feed = (await call("GET", "/tournaments/weekly/feed?after=0")).body.items;
+  assert.deepEqual(feed.slice(-3).map((item: { kind: string }) => item.kind), ["set_live", "set_done", "upset"], "seed 4 beat seed 1");
+  assert.deepEqual((await call("GET", `/tournaments/weekly/feed?after=${feed.at(-1).n}`)).body.items, []);
 
   const hand = (set: string, winner: number, loser: number) => organizer("POST", `/tournaments/weekly/sets/${set}/result`, { winner: emberId(winner), scores: { [emberId(winner)]: 2, [emberId(loser)]: 0 } });
   assert.equal((await as("player-2")("POST", "/tournaments/weekly/sets/r1-2/result", {})).status, 403);
@@ -183,7 +196,39 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   const html = await call("GET", "/tournaments/weekly/bracket");
   assert.match(html.body, /<title>Weekly &#60;1&#62;<\/title>/);
   assert.match(html.body, /<tr class="won"><td>Player 1<\/td><td>2<\/td><\/tr>/);
+  const after = (await call("GET", "/tournaments/weekly/report")).body;
+  assert.deepEqual(after.podium.map((each: { name: string }) => each.name), ["Player 1", "Player 3", "Player 2", "Player 5"], "both semifinal losers are third");
+  const shared = await call("GET", "/t/weekly/report");
+  assert.match(shared.body, /<meta property="og:description" content="1st Player 1 · 2nd Player 3 · 3rd/);
+  // Awards on the players' profiles, announced in the feed.
+  const champion = (await call("GET", `/players/${discordId(1)}`)).body;
+  assert.deepEqual([champion.name, champion.ember_id, champion.awards[0].kind], ["Player 1", emberId(1), "champion"]);
+  assert.ok((await call("GET", "/tournaments/weekly/feed")).body.items.some((item: { kind: string; text: string }) => item.kind === "award" && item.text.startsWith("Player 1: Champion")));
+  assert.equal((await call("GET", "/players/99999999999999999")).status, 404);
+  // Over within the hour: still listed for followers, with its last item.
+  const live = (await call("GET", "/live")).body.tournaments;
+  assert.deepEqual(live.map((each: { id: string; state: string }) => [each.id, each.state]), [["weekly", "finished"]]);
+  assert.ok(live[0].last > 0);
   assert.equal((await state("archive")).status, 200);
+
+  // The public vote: a player suggests, the organizer accepts, players vote once each.
+  assert.equal((await bot(2, "POST", "/tournaments/weekly/vote", {})).status, 403);
+  assert.equal((await organizer("POST", "/tournaments/weekly/vote", { hours: 24 })).status, 201);
+  const suggested = await bot(2, "POST", "/tournaments/weekly/vote/nominations", { category: "best_player", player: discordId(1), title: "Player 1's run" });
+  assert.deepEqual([suggested.status, suggested.body.accepted], [201, false]);
+  assert.equal((await bot(3, "POST", "/tournaments/weekly/votes/best_player", { nomination: "n1" })).status, 422, "not accepted yet");
+  assert.equal((await organizer("POST", "/tournaments/weekly/vote/nominations/n1/accept")).status, 200);
+  for (const n of [1, 2, 3]) assert.equal((await bot(n, "POST", "/tournaments/weekly/votes/best_player", { nomination: "n1" })).status, 204);
+  const running = await bot(3, "GET", "/tournaments/weekly/vote");
+  assert.deepEqual([running.body.results, running.body.voters.best_player, running.body.mine.best_player], [null, 3, "n1"]);
+  assert.equal((await organizer("DELETE", `/tournaments/weekly/votes/best_player/${discordId(3)}`)).status, 204);
+  const closed = await organizer("POST", "/tournaments/weekly/vote/close");
+  assert.deepEqual(closed.body.results.best_player, [{ nomination: "n1", votes: 2 }]);
+  assert.equal((await bot(1, "POST", "/tournaments/weekly/votes/best_player", { nomination: "n1" })).status, 409);
+  const kinds = (await call("GET", `/players/${discordId(1)}`)).body.awards.map((award: { kind: string }) => award.kind);
+  assert.ok(kinds.includes("best_player"), String(kinds));
+  assert.deepEqual((await call("GET", "/tournaments/weekly/report")).body.votes.best_player, [{ nomination: "n1", votes: 2 }]);
+  assert.ok(!("vote" in (await call("GET", "/tournaments/weekly")).body), "ballots stay out of the tournament");
 });
 
 test("a cancelled or deleted tournament's sets are gone for the connector", async () => {
@@ -219,4 +264,8 @@ test("organizers make leagues and seasons, and a tournament counts for a season 
   const standings = await call("GET", "/leagues/ember/seasons/s1/standings");
   assert.deepEqual([standings.status, standings.body.standings], [200, []]);
   assert.equal((await call("GET", "/leagues/ember")).body.seasons.length, 1);
+  assert.equal((await as("player-2")("POST", "/leagues/ember/seasons/s1/close")).status, 403);
+  const closed = await organizer("POST", "/leagues/ember/seasons/s1/close");
+  assert.deepEqual([closed.status, closed.body.awards], [200, []], "no finished event yet: nobody to award");
+  assert.equal((await organizer("POST", "/leagues/ember/seasons/s1/close")).status, 409);
 });

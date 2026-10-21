@@ -70,6 +70,8 @@ fn player1_wins(key: &str) -> Recorded {
             "winner": "player1",
             "scores": [{ "entry": "player1", "games": 2 }, { "entry": "player2", "games": 1 }],
             "games": ["player1", "player2", "player1"],
+            // The Ember match, and no facts: the test bridge's games carry none.
+            "ember_match": key,
         }),
     }
 }

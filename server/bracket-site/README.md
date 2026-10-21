@@ -72,10 +72,30 @@ manages the tournaments that name them in `organizers`.
 | `POST /tournaments/{id}/check-in` | a player | while checking in |
 | `POST /tournaments/{id}/sets/{set}/result` | its organizers | `{ "winner": "<ember id>", "scores": { "<ember id>": 2, "<ember id>": 1 } }` |
 | `DELETE /tournaments/{id}` | its organizers | its live matches are cancelled |
+| `GET /tournaments/{id}/feed?after=<n>` | anyone | what happened since item `n`: moves, sets live and done, upsets, streaks |
+| `GET /tournaments/{id}/stats` | anyone | sets live and done, placements, per player games, rounds, perfects and characters, upsets, the longest set |
+| `GET /tournaments/{id}/report` | anyone | once finished: podium, every player's path, stats, upsets, longest and shortest set, characters, perfects, time-outs; `null` where no game's facts say (also as a page, `/t/{id}/report`) |
+| `GET /tournaments/{id}/replays/{set}` | anyone | a public event's set: its pack, each game's file and `ember://replay` link, and each round's link where the facts say its frames |
+| `POST /tournaments/{id}/clips` | its organizers | `{ "set", "crc", "from_frame", "to_frame", "title" }` |
+| `GET /tournaments/{id}/clips`, `/clips/{clip}` | anyone | the clips; one as the game is handed it (`match`, `crc`, frames, `open`) |
+| `POST /tournaments/{id}/vote` | its organizers | opens the vote of a finished tournament for `hours` (default 48) |
+| `GET /tournaments/{id}/vote` | anyone | its nominations, how many voted, the viewer's own votes; counts once closed |
+| `POST /tournaments/{id}/vote/nominations` | signed in | `{ "category", "player", "title", "ref" }`; an organizer's counts at once, anyone else's once accepted (`.../nominations/{n}/accept`) |
+| `POST /tournaments/{id}/votes/{category}` | a player | `{ "nomination" }`: one vote per Discord account per category, changeable until it closes; accounts under a week old cannot vote |
+| `DELETE /tournaments/{id}/votes/{category}/{discord}` | its organizers | voids a vote |
+| `POST /tournaments/{id}/vote/close` | its organizers | closes it before its time; its winners get their awards, and the counts go into the report |
 | `POST /leagues` | organizer | `{ "id", "title" }` |
 | `GET /leagues/{id}` | anyone | the league and its seasons |
 | `POST /leagues/{id}/seasons` | its organizers | `{ "id", "title", "points", "best_of" }`; a season ID is unique on the site |
 | `GET /leagues/{id}/seasons/{season}/standings` | anyone | points, events and wins of each player |
+| `POST /leagues/{id}/seasons/{season}/close` | its organizers | closes it and gives its champion and top 3 their awards |
+| `GET /players/{discord}` | anyone | a player's name, Ember ID and every award they hold |
+
+At its finish a tournament gives Champion, Runner-up, Top 3 and (over 8
+entrants) Top 8, and from its report Giant killer (the biggest upset, 2
+seeds or more), Perfectionist, Iron (most games), Marathon (a set that
+went the distance), One-trick and Mixer; each is announced in its feed and
+kept on the player's profile once.
 
 A tournament counts for the season its `season` names, once finished:
 places 1 and 2, then everyone out in the same round together (3, 5, 9, ...),

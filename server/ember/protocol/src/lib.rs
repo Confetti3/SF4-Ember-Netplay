@@ -12,6 +12,7 @@ pub mod discord;
 pub mod encoding;
 mod error;
 pub mod event;
+pub mod facts;
 pub mod id;
 pub mod json;
 pub mod lobby;

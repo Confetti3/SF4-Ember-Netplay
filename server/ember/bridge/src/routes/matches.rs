@@ -371,6 +371,20 @@ fn snapshot(tx: &Transaction<'_>, bridge_id: &str, found: &Match) -> Result<serd
             }))
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    // Each accepted game's facts, where both fighters' games said the same.
+    let mut attempts = attempts;
+    for attempt in &mut attempts {
+        if attempt["state"] != "accepted" {
+            continue;
+        }
+        let id = attempt["attempt_id"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
+        if let Some(facts) = crate::routes::reports::agreed_facts(tx, &id)? {
+            attempt["facts"] = serde_json::to_value(facts).unwrap_or_default();
+        }
+    }
     let scores: Vec<_> = roster
         .iter()
         .map(|p| json!({ "ember_id": p.ember_id, "wins": wins[usize::from(p.slot)] }))

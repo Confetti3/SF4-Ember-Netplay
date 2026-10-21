@@ -228,7 +228,8 @@ take it as the base.
 
 ## 12. Live stats
 
-Status: design, not built.
+Status: built (site feed and stats, notifier posts, bridge facts); the
+game's version 2 reports are the game's part.
 
 While a tournament is live the site shows, on its public page and in
 Discord: sets live and done, the bracket so far, upsets (a lower seed
@@ -257,7 +258,7 @@ placements (everyone out is placed at once, §4), and the characters played.
 
 ## 13. After-report
 
-Status: design, not built.
+Status: built.
 
 When the tournament is finished the site builds its report once and keeps
 it (`GET /tournaments/{id}/report`, JSON, and `/t/{id}/report`, a page made
@@ -279,7 +280,8 @@ plain page lists it.
 
 ## 14. Replays from the report
 
-Status: design, not built; nothing game-side is built here.
+Status: built on the bridge and the site; opening `ember://replay` links
+and cutting clips are the game's part.
 
 The bridge keeps every game of a set and serves the set's pack
 (`/v1/matches/{id}/replays.pack`, TOURNAMENT_DESK.md §4b) to whoever may
@@ -303,7 +305,7 @@ see the match. The report offers:
 
 ## 15. Ranks, titles, emblems and awards
 
-Status: design, not built.
+Status: built, but for emblems and Discord roles.
 
 At `finished` the site hands out awards to each player's Discord identity
 and keeps them on their profile (`GET /players/{discord}`: Ember ID,
@@ -327,7 +329,7 @@ a player's title by reading their profile through the bridge later.
 
 ## 16. Public vote
 
-Status: design, not built.
+Status: built.
 
 Each finished tournament can open a vote with three categories: best
 player, best combo, best moment. Voters sign in with Discord (the site's

@@ -9,7 +9,7 @@ use axum::{
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
-use ember_protocol::replays;
+use ember_protocol::{matches::MatchState, replays};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use serde_json::json;
@@ -111,7 +111,78 @@ pub async fn pack(
             packed(tx, &found)
         })
         .await?;
-    Ok((
+    Ok(download(bytes, &file_name))
+}
+
+/// `GET /v1/public/matches/{id}/replays.pack` and
+/// `GET /v1/public/matches/{id}/replays/{crc}`: a completed set's pack, or
+/// one of its games, to anyone, when its desk event is public
+/// (docs/design/BRACKET_SITE.md, "Replays from the report").
+pub async fn public_pack(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Response> {
+    let file_name = format!("{id}.emberpack");
+    let bytes = state
+        .db
+        .read(move |tx| packed(tx, &public_match(tx, &id)?))
+        .await?;
+    Ok(download(bytes, &file_name))
+}
+
+/// `GET /v1/public/matches/{id}/replays`: the header of what
+/// `public_pack` serves, without the games.
+pub async fn public_header(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Response> {
+    let header = state
+        .db
+        .read(move |tx| Ok(pack_parts(tx, &public_match(tx, &id)?)?.0))
+        .await?;
+    Ok(respond(StatusCode::OK, &header))
+}
+
+pub async fn public_game(
+    State(state): State<AppState>,
+    Path((id, crc)): Path<(String, String)>,
+) -> Result<Response> {
+    let file_name = format!("{crc}.emberreplay");
+    let bytes = state
+        .db
+        .read(move |tx| {
+            let found = public_match(tx, &id)?;
+            tx.query_row(
+                "SELECT replay FROM match_replays WHERE match_id = ?1 AND crc = ?2",
+                params![found.id, crc],
+                |row| row.get::<_, Vec<u8>>(0),
+            )
+            .optional()?
+            .ok_or_else(ApiFailure::not_found)
+        })
+        .await?;
+    Ok(download(bytes, &file_name))
+}
+
+/// The match, when it is completed and its desk event is public; else
+/// not found, as for a match that does not exist.
+fn public_match(tx: &Transaction<'_>, id: &str) -> Result<Match> {
+    let found = load(tx, id)?.ok_or_else(ApiFailure::not_found)?;
+    // A desk event names its sets' matches in the sets the connector sent.
+    let public: bool = tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM organizer_events e, json_each(e.sets) s
+           WHERE e.public = 1 AND json_extract(s.value, '$.match_id') = ?1)",
+        [&found.id],
+        |row| row.get(0),
+    )?;
+    if !public || found.state != MatchState::Completed {
+        return Err(ApiFailure::not_found());
+    }
+    Ok(found)
+}
+
+fn download(bytes: Vec<u8>, file_name: &str) -> Response {
+    (
         [
             (header::CONTENT_TYPE, "application/octet-stream".to_owned()),
             (
@@ -121,11 +192,11 @@ pub async fn pack(
         ],
         bytes,
     )
-        .into_response())
+        .into_response()
 }
 
-/// A set's pack, as `pack` serves it.
-fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
+/// A set's pack header and its games' bytes, in save-time order.
+fn pack_parts(tx: &Transaction<'_>, found: &Match) -> Result<(serde_json::Value, Vec<Vec<u8>>)> {
     let (wins, _) = scores(tx, &found.id)?;
     let metadata: String = tx.query_row(
         "SELECT metadata FROM matches WHERE id = ?1",
@@ -134,13 +205,15 @@ fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
     )?;
     let metadata: serde_json::Value = serde_json::from_str(&metadata).unwrap_or_default();
     // A bracket set's external ID is `<site>:<tournament>:<set>:<attempt>`;
-    // its desk event names the tournament.
+    // its desk event names the tournament. An `http` service's sets are
+    // named `http:...`, so its event is found by the sets the connector sent.
     let event: Option<(String, String)> = tx
         .query_row(
-            "SELECT title, site FROM organizer_events WHERE tournament IS NOT NULL
-               AND substr(?1, 1, length(site) + length(tournament) + 2) = site || ':' || tournament || ':'
+            "SELECT title, site FROM organizer_events e WHERE tournament IS NOT NULL
+               AND (substr(?1, 1, length(site) + length(tournament) + 2) = site || ':' || tournament || ':'
+                 OR EXISTS (SELECT 1 FROM json_each(e.sets) s WHERE json_extract(s.value, '$.match_id') = ?2))
              ORDER BY created_at DESC LIMIT 1",
-            [&found.external_match_id],
+            [&found.external_match_id, &found.id],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?;
@@ -178,7 +251,7 @@ fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
     let mut rooms: Vec<u64> = games.iter().map(|game| game.1).collect();
     rooms.sort_unstable();
     rooms.dedup();
-    let header = serde_json::to_vec(&json!({
+    let header = json!({
         "match_id": found.id,
         "tournament": tournament,
         "round_label": metadata.get("round_label"),
@@ -191,12 +264,21 @@ fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
         "games": games.iter().map(|(crc, revision, saved_at, replay)| json!({
             "crc": crc, "revision": revision, "saved_at": saved_at, "size": replay.len(),
         })).collect::<Vec<_>>(),
-    }))
-    .map_err(|_| ApiFailure::unavailable())?;
+    });
+    Ok((
+        header,
+        games.into_iter().map(|(_, _, _, replay)| replay).collect(),
+    ))
+}
+
+/// A set's pack, as `pack` serves it.
+fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
+    let (header, games) = pack_parts(tx, found)?;
+    let header = serde_json::to_vec(&header).map_err(|_| ApiFailure::unavailable())?;
     let mut out = replays::PACK_MAGIC.to_vec();
     out.extend_from_slice(&(header.len() as u32).to_le_bytes());
     out.extend_from_slice(&header);
-    for (_, _, _, replay) in &games {
+    for replay in &games {
         out.extend_from_slice(replay);
     }
     Ok(out)

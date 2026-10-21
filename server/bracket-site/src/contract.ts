@@ -5,6 +5,8 @@ import type { IncomingMessage } from "node:http";
 import { Conflict, Invalid, report, roundLabel, status, type BracketSet, type Result } from "./bracket.ts";
 import { fail, Failure, readJson, type Json, type Route } from "./http.ts";
 import type { Store } from "./store.ts";
+import { tournamentAwards } from "./awards.ts";
+import { push, setDone, setLive, type GameFacts } from "./live.ts";
 import { beforeLive, settle, type Tournament } from "./tournament.ts";
 
 export const CONTRACT = "1";
@@ -58,6 +60,7 @@ export function contractRoutes(store: Store, authorize: (request: IncomingMessag
         const tournament = played(request, id!) ?? fail(404, `no tournament ${id}`);
         await readJson(request);
         const set = tournament.sets.find((each) => each.id === setId) ?? fail(404, `no set ${setId}`);
+        if (!set.underway) setLive(tournament, set, new Date().toISOString());
         set.underway = true;
         store.save(tournament);
         return [204];
@@ -74,7 +77,7 @@ export function contractRoutes(store: Store, authorize: (request: IncomingMessag
         const scores = Array.isArray(body.scores) ? (body.scores as { entry?: unknown; games?: unknown }[]) : [];
         if (typeof body.winner !== "string" || scores.length !== 2) fail(400, "not a report");
         const byEntry = Object.fromEntries(scores.map((score) => [String(score.entry), score.games as number]));
-        record(store, tournament, setId!, { winner: body.winner, scores: byEntry, key });
+        record(store, tournament, setId!, { winner: body.winner, scores: byEntry, key }, gamesOf(body));
         return [200, {}];
       },
     ],
@@ -82,7 +85,7 @@ export function contractRoutes(store: Store, authorize: (request: IncomingMessag
 }
 
 /** Records a set's result, from the connector or an organizer, and finishes the tournament on its final. */
-export function record(store: Store, tournament: Tournament, setId: string, result: Result): void {
+export function record(store: Store, tournament: Tournament, setId: string, result: Result, games: Played = {}): void {
   if (tournament.state !== "live" && tournament.state !== "finished") fail(409, `the tournament is ${tournament.state}`);
   try {
     if (report(tournament.sets, setId, result) === "repeat") return;
@@ -91,8 +94,34 @@ export function record(store: Store, tournament: Tournament, setId: string, resu
     if (error instanceof Invalid) fail(422, error.message);
     throw error;
   }
-  settle(tournament, new Date().toISOString());
+  const at = new Date().toISOString();
+  const set = tournament.sets.find((each) => each.id === setId)!;
+  Object.assign(set, games);
+  setDone(tournament, set, at);
+  settle(tournament, at);
+  if (tournament.state === "finished" && tournament.report) {
+    for (const award of store.addAwards(tournamentAwards(tournament, tournament.report))) {
+      push(tournament, { at, kind: "award", text: `${award.name}: ${award.title} of ${award.of} (${award.detail}).` });
+    }
+  }
   store.save(tournament);
+}
+
+type Played = Pick<BracketSet, "games" | "facts" | "ember_match">;
+
+/**
+ * The games of a report, its facts and its Ember match, where they are in
+ * shape: a service keeps what it can of optional fields, and a report
+ * without them is recorded all the same.
+ */
+function gamesOf(body: Json): Played {
+  const games = Array.isArray(body.games) && body.games.length <= 19 && body.games.every((each) => typeof each === "string") ? (body.games as string[]) : undefined;
+  const facts =
+    games && Array.isArray(body.facts) && body.facts.length === games.length && body.facts.every((each) => each === null || (typeof each === "object" && Array.isArray((each as GameFacts).fighters) && Array.isArray((each as GameFacts).rounds)))
+      ? (body.facts as (GameFacts | null)[])
+      : undefined;
+  const ember = typeof body.ember_match === "string" && /^emt_[A-Za-z0-9-]{1,64}$/.test(body.ember_match) ? body.ember_match : undefined;
+  return { ...(games ? { games } : {}), ...(facts ? { facts } : {}), ...(ember ? { ember_match: ember } : {}) };
 }
 
 /** A set as the connector reads it: each entry is found by its Discord account. */

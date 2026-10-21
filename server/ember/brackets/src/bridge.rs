@@ -258,6 +258,10 @@ struct Attempt {
     state: String,
     #[serde(default)]
     outcome: Option<String>,
+    /// What both fighters' games said of it besides the result, when a
+    /// bridge keeps it (`reports.facts`).
+    #[serde(default)]
+    facts: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -274,15 +278,15 @@ struct Wins {
 
 impl MatchView {
     /// The winning slot of each game that counts, in the order they were
-    /// played. A drawn game counts for nobody.
-    fn sequence(mut self) -> Vec<usize> {
+    /// played, with its facts. A drawn game counts for nobody.
+    fn sequence(mut self) -> Vec<(usize, Option<serde_json::Value>)> {
         self.attempts.sort_by_key(|attempt| attempt.seq);
         self.attempts
-            .iter()
+            .into_iter()
             .filter(|attempt| attempt.state == "accepted")
             .filter_map(|attempt| match attempt.outcome.as_deref() {
-                Some("p1_win") => Some(0),
-                Some("p2_win") => Some(1),
+                Some("p1_win") => Some((0, attempt.facts)),
+                Some("p2_win") => Some((1, attempt.facts)),
                 _ => None,
             })
             .collect()
@@ -537,8 +541,11 @@ impl BridgeClient {
     }
 
     /// The winning slot of each game of the match that counts, in the order
-    /// they were played.
-    pub async fn sequence(&self, match_id: &str) -> Result<Vec<usize>, BridgeError> {
+    /// they were played, with the game's facts when the bridge keeps them.
+    pub async fn sequence(
+        &self,
+        match_id: &str,
+    ) -> Result<Vec<(usize, Option<serde_json::Value>)>, BridgeError> {
         Ok(self.read_match(match_id).await?.sequence())
     }
 

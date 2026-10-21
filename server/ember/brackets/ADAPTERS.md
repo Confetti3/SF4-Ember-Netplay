@@ -267,7 +267,12 @@ tournament for good.
 ```
 
 `games` is each game's winning entry, in the order played. Answer `2xx` once
-recorded.
+recorded. Two fields added in contract 1, which a service may ignore:
+`ember_match`, the Ember match's ID (also the `Idempotency-Key`), and
+`facts`, present when the bridge kept any game's facts (`reports.facts`):
+one entry per game beside `games`, `null` where none were kept, else both
+fighters' characters, costumes and colours and each round's winner,
+finish, perfect and frames (`ember_protocol::facts::GameFacts`).
 
 The body of a `2xx` to a write (`/report` or `/underway`) is not read: empty,
 JSON or text are all taken. Only reads must answer JSON in the shapes above.
