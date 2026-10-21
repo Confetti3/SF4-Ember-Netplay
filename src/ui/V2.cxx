@@ -1,5 +1,7 @@
 #include "V2.hxx"
 #include "Theme.hxx"
+#include "GameMenu.hxx"
+#include "MenuGlyphs.hxx"
 #include <cfloat>
 
 namespace sf4e { namespace ui { namespace v2 {
@@ -23,6 +25,41 @@ void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar) {
     const float s = Scale(), r = 4 * s;
     draw->AddRect(ImVec2(min.x + s, min.y + s), ImVec2(max.x - s, max.y - s), palette::Ember, r, 0, 2 * s);
     if (bar) draw->AddRectFilled(min, ImVec2(min.x + 4 * s, max.y), palette::Ember, r, ImDrawFlags_RoundCornersLeft);
+}
+
+void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act) {
+    const float s = Scale();
+    draw->AddRectFilled(card.min, card.max, focused ? color::Header : hovered ? color::Hover : color::Alpha(color::Frame, .92f), 4 * s);
+    draw->AddRect(card.min, card.max, color::Alpha(color::Border, .6f), 4 * s, 0, s);
+    if (act) draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), palette::Ember, 4 * s, ImDrawFlags_RoundCornersLeft);
+}
+
+int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone) {
+    const float s = Scale(), glyph = (bar.H() < 52 * s ? 26 : 30) * s, font = 16 * s;
+    auto* d = ImGui::GetWindowDrawList();
+    const float side = SideMargin(ImGui::GetWindowWidth(), s);
+    d->AddRectFilled(bar.min, bar.max, color::Alpha(color::Ink, .92f));
+    d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), color::Border, s);
+    int pressed = -1;
+    float x = bar.min.x + side;
+    for (int i = 0; i < static_cast<int>(hints.size()); ++i) {
+        const auto& h = hints[i];
+        const std::string label = PromptLabel(h.glyph, h.label, MenuPromptBrand());
+        const float w = glyph + 8 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, label.c_str()).x;
+        ImGui::SetCursorScreenPos(ImVec2(x, bar.min.y));
+        ImGui::PushID(i);
+        if (ImGui::InvisibleButton("##hint", ImVec2(w, bar.H()))) pressed = i;
+        ImGui::PopID();
+        DrawPromptGlyph(d, h.glyph, ImVec2(x, bar.min.y + (bar.H() - glyph) * .5f), glyph, MenuArt(), s);
+        d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), palette::Ivory, label.c_str());
+        x += w + 24 * s;
+    }
+    if (!status.empty()) {
+        const float right = bar.max.x - side, size = 15 * s;
+        const std::string fitted = Fit(status, (std::max)(0.f, right - x), size);
+        d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(fitted, size), bar.min.y + (bar.H() - size) * .5f), tone, fitted.c_str());
+    }
+    return pressed;
 }
 
 float ChipWidth(const std::string& text) { return TextWidth(text, ChipFont()) + 16 * Scale(); }

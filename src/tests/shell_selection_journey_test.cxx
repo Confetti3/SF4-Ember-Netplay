@@ -126,7 +126,7 @@ void PresentationJourneys(){
   if(std::strcmp(id,"scale")==0)otherRow=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);
  });h.Frame();SetMenuCardProbe({});
  auto& io=ImGui::GetIO();io.AddMousePosEvent(otherRow.x,otherRow.y);h.Frame();
- Check(h.shell.Navigation().Focus()=="hud","Mouse hover stole controller focus");
+ Check(h.shell.Navigation().Focus()=="look","Mouse hover stole controller focus");
  io.AddMousePosEvent(leftArrow.x,leftArrow.y);h.Frame();io.AddMouseButtonEvent(0,true);h.Frame();
  io.AddMouseButtonEvent(0,false);h.Frame(0,40);
  Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Visible value arrows did not adjust on click");

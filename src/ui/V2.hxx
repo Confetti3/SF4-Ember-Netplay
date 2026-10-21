@@ -35,10 +35,34 @@ inline float Pad(float width, float scale) {
 inline bool Narrow(float width, float scale) { return width / scale < 900; }
 inline float SideMargin(float width, float scale) { return (std::max)(Pad(width, scale), (width - ContentCap * scale) * .5f); }
 
+// A screen is laid out by cutting boxes off a box, as the design boards stack
+// their panes: the hint bar off the bottom, the header off the top, a side
+// column off the right, and what is left is the body. Each cut takes `size`
+// (clamped to what is there) and leaves the rest, gap included, in `from`.
+struct Box {
+    ImVec2 min, max;
+    float W() const { return max.x - min.x; }
+    float H() const { return max.y - min.y; }
+};
+inline Box CutTop(Box& from, float size, float gap = 0) { size = (std::min)(size, from.H()); Box cut{from.min, {from.max.x, from.min.y + size}}; from.min.y = (std::min)(from.max.y, cut.max.y + gap); return cut; }
+inline Box CutBottom(Box& from, float size, float gap = 0) { size = (std::min)(size, from.H()); Box cut{{from.min.x, from.max.y - size}, from.max}; from.max.y = (std::max)(from.min.y, cut.min.y - gap); return cut; }
+inline Box CutLeft(Box& from, float size, float gap = 0) { size = (std::min)(size, from.W()); Box cut{from.min, {from.min.x + size, from.max.y}}; from.min.x = (std::min)(from.max.x, cut.max.x + gap); return cut; }
+inline Box CutRight(Box& from, float size, float gap = 0) { size = (std::min)(size, from.W()); Box cut{{from.max.x - size, from.min.y}, from.max}; from.max.x = (std::max)(from.min.x, cut.min.x - gap); return cut; }
+inline Box Inset(Box b, float x, float y) { return {{b.min.x + x, b.min.y + y}, {b.max.x - x, b.max.y - y}}; }
+
 // The focused thing's marks, drawn over it: a 2 px Ember edge inside the box
 // and a 4 px bar on its left (`bar` false for art, which the bar would cover).
 // Its fill, color::Header, goes under its content.
 void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar = true);
+// A card's ground: Frame at rest, Hover under the pointer, Header when focused
+// (its marks then go over the content: Focus), and the 3 px Ember rule on a
+// card that asks to be acted on.
+void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act = false);
+// The hint bar along the bottom: each hint is a glyph and its words, and also
+// a button (touch, mouse). `status` sits at the right end in `tone`. Returns
+// the hint pressed, or -1.
+struct Hint { const char* glyph; std::string label; };
+int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone);
 // A state word on its tone at 18 %: "Ready", "Live", "D 42 ms". Returns its width.
 float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone);
 float ChipWidth(const std::string& text);

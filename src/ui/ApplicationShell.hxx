@@ -327,6 +327,9 @@ private:
     // V2 Settings (ApplicationShell__Settings.cxx): the tabs as screen id and label, whether a screen is one, and its rows.
     static std::vector<std::pair<std::string,std::string>> SettingsTabs();
     static bool SettingsTab(const std::string& screen);
+    // V2 value panels (ApplicationShell__Values.cxx): each value row's values as choices, and a picked one as the steps to it.
+    static void OfferValues(std::vector<MenuEntry>& rows);
+    static MenuAction ValueStep(const MenuAction& chosen,const std::vector<MenuEntry>& rows);
     std::vector<MenuEntry> SettingsTabRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
     std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
     void PublishPlayerCard(const ShellView& view);

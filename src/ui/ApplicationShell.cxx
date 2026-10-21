@@ -839,6 +839,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const auto feedback=UpdateStatus(v,screen,opening,healthyRoom,title);
  const std::string& status=feedback.first;const Tone statusTone=feedback.second;
  const bool roomScreen=screen.compare(0,4,"room")==0;
+ // V2: Select on a value opens all its values in a panel (the room boards keep their own).
+ if(v2::On()&&!roomScreen)OfferValues(rows);
  PublishPlayerCard(v);
  // Public rooms lead with a toolbar of four cells, in one row on a wide list and two on a narrow one.
  const bool publicToolbar=PublicRoomsPanel::Owns(screen)&&!rows.empty()&&rows[0].id=="pr-quick";
@@ -869,20 +871,35 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   const auto pad=std::find_if(v.pads.begin(),v.pads.end(),[&](const gamepads::PadView& p){return id=="pad-"+std::to_string(p.id);});
   if(pad!=v.pads.end())DrawControllerDetail(*pad,preferences_.buttonPrompts);
  };
- if(screen=="profile"||screen=="main-character")profilePreview=[&](const std::string& id){
+ if(screen=="profile"||screen=="main-character"||screen=="tab-player")profilePreview=[&](const std::string& id){
+  if(screen=="tab-player"&&id!="name"&&id!="main-character"&&id!="record"&&id!="share-steam")return;
   const int fighter=screen=="main-character"&&id.compare(0,5,"main-")==0?std::stoi(id.substr(5)):v.preferences.mainFighter;
   const auto space=ImGui::GetContentRegionAvail();const float size=(std::min)(220*Scale(),(std::min)(space.x,space.y-12*Scale()));
   if(size>=48*Scale()){const auto p=ImGui::GetCursorScreenPos();DrawCharacterPortrait(fighter,p,ImVec2(p.x+size,p.y+size));ImGui::Dummy(ImVec2(size,size));}
  };
  if(PublicRoomsPanel::Owns(screen))profilePreview=[&](const std::string& id){DrawPublicPreview(v,publicRooms_,id);};
  GameMenu::Body board;
- if(screen=="interface")profilePreview=[&](const std::string&){
+ if(screen=="interface"||screen=="tab-interface")profilePreview=[&](const std::string& id){
+  // On V2's Interface tab the preview goes with the match HUD's own rows.
+  if(screen=="tab-interface"&&id.compare(0,3,"hud")!=0)return;
   ImGui::TextUnformatted(loc::T("settings.preview"));
   MatchStripView preview;preview.names[0]=loc::T("settings.player_one");preview.names[1]=loc::T("settings.player_two");
   preview.pingMs=68;preview.rollbackFrames=2;preview.appliedDelay=3;
   preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;preview.anchor=preferences_.matchHudAnchor;preview.layout=preferences_.matchHudLayout;preview.nameOffset=preferences_.matchHudNameOffset;
   preview.spectators=2;
   DrawMatchStripPreview(preview);
+ };
+ // V2: where the watched game's picture sits and how big, on a small screen.
+ if(screen=="tab-matches")profilePreview=[&](const std::string& id){
+  if(id!="watched-picture"&&id!="picture-corner"&&id!="picture-size")return;
+  const float w=(std::min)(260*Scale(),ImGui::GetContentRegionAvail().x),h=w*9/16;const auto p=ImGui::GetCursorScreenPos();auto* d=ImGui::GetWindowDrawList();
+  d->AddRectFilled(p,ImVec2(p.x+w,p.y+h),v2::color::Frame,4*Scale());d->AddRect(p,ImVec2(p.x+w,p.y+h),v2::color::Border,4*Scale());
+  if(preferences_.watchedPicture){
+   const int corner=preferences_.pictureSpot%4;const float share=WatchedPictureShareFor(preferences_.pictureSpot),m=6*Scale();
+   const float x=corner==0||corner==2?p.x+w-m-w*share:p.x+m,y=corner>=2?p.y+h-m-h*share:p.y+m;
+   d->AddRectFilled(ImVec2(x,y),ImVec2(x+w*share,y+h*share),palette::Ember,2*Scale());
+  }
+  ImGui::Dummy(ImVec2(w,h));
  };
  if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawRoomBoard(v,entries,navigation,action,height,feedback);};
@@ -931,6 +948,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home");
  AnswerDialog(submit);
+ // A value picked in its V2 panel is the steps to it, as Left and Right would take.
+ if(a.kind==MenuAction::Chosen&&a.text.size()>1&&a.text[0]=='#')a=ValueStep(a,rows);
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close&&opening){
