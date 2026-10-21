@@ -595,8 +595,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // How far back a held meter reaches and whether it starts over after a pause, as the Meter settings page chose.
     const auto meterOptions = sf4e::ui::TrainingMeterOptions();
     sf4e::training::SetMeterHistory(meterOptions.history, meterOptions.continuous);
-    // The fighters' boxes are read only while Hitboxes is on.
-    sf4e::training::ShowHitBoxes(meterOptions.hitboxes);
+    // The fighters' boxes are read only while Hitboxes is on and the HUD (F5) shows them.
+    sf4e::training::ShowHitBoxes(meterOptions.hitboxes && trainingHud);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();
