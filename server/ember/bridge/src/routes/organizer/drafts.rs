@@ -290,6 +290,10 @@ pub async fn create(
         })
         .await?;
     let title = title.ok_or_else(ApiFailure::not_found)?;
+    // A second create while this one waits for the site would make a
+    // second event there that nothing keeps.
+    let _creating =
+        crate::util::InFlight::take(format!("create:{id}")).ok_or_else(ApiFailure::under_way)?;
     let creation = oauth
         .creation(&title, &command.fields)
         .ok_or_else(|| ApiFailure::invalid("This site's events are made on the site."))?

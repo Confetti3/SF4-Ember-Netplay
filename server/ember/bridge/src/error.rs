@@ -67,6 +67,14 @@ impl ApiFailure {
         failure
     }
 
+    /// The same change is already under way (`util::InFlight`).
+    pub fn under_way() -> Self {
+        Self::new(
+            ErrorCode::IdempotencyConflict,
+            "That is already under way. Wait for it to finish.",
+        )
+    }
+
     pub fn rate_limited(retry_after: u64) -> Self {
         let mut failure = Self::new(
             ErrorCode::RateLimited,

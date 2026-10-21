@@ -104,6 +104,10 @@ pub async fn sign_up(
     if participant.is_some() {
         return Ok(ok(&json!({ "signed_up": true })));
     }
+    // Held until the participant is stored, so a second sign-up of the
+    // player at the same time cannot add them twice.
+    let _adding = crate::util::InFlight::take(format!("sign-up:{id}:{ember_id}"))
+        .ok_or_else(ApiFailure::under_way)?;
     let site = Site::Configured(open.site);
     let oauth = OAuth::organizer(&state, &site)
         .filter(OAuth::takes_sign_ups)
@@ -116,8 +120,6 @@ pub async fn sign_up(
     {
         return Err(ApiFailure::sign_in_busy(None));
     }
-    // ponytail: two sign-ups of one player at once may both add them; one
-    // per player at a time if a site shows doubles.
     let added = oauth
         .add_participant(
             &grant.access,

@@ -127,9 +127,46 @@ pub async fn read_bounded(mut response: reqwest::Response, limit: usize) -> Opti
     Some(bytes)
 }
 
+/// Holds `key` while one request does what a second one with the same key
+/// must not do at the same time, such as creating an event on a site: the
+/// second finds it held. Released when dropped.
+// ponytail: per process, as the bridge runs as one; a row in the database
+// if bridges ever share one.
+pub struct InFlight(String);
+
+static IN_FLIGHT: Mutex<std::collections::BTreeSet<String>> =
+    Mutex::new(std::collections::BTreeSet::new());
+
+impl InFlight {
+    pub fn take(key: String) -> Option<Self> {
+        let mut held = IN_FLIGHT
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        held.insert(key.clone()).then(|| Self(key))
+    }
+}
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        let mut held = IN_FLIGHT
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        held.remove(&self.0);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_key_is_held_until_its_holder_is_dropped() {
+        let first = InFlight::take("create:evt_test".into()).unwrap();
+        assert!(InFlight::take("create:evt_test".into()).is_none());
+        assert!(InFlight::take("create:evt_other".into()).is_some());
+        drop(first);
+        assert!(InFlight::take("create:evt_test".into()).is_some());
+    }
 
     fn response(body: Vec<u8>) -> reqwest::Response {
         axum::http::Response::new(body).into()
