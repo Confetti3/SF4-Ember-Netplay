@@ -280,6 +280,28 @@ pub enum Request {
         match_id: String,
         revision: Counter,
         path: String,
+        #[serde(default)]
+        a: Option<String>,
+        #[serde(default)]
+        b: Option<String>,
+        #[serde(default)]
+        side: Option<u8>,
+        #[serde(default)]
+        country: Option<String>,
+    },
+    /// Any other archived replay this player played, for the public replay
+    /// archive of the first of their bridges that keeps one: the two
+    /// sides' names, and the player's own side and country.
+    ReplayArchive {
+        path: String,
+        #[serde(default)]
+        a: Option<String>,
+        #[serde(default)]
+        b: Option<String>,
+        #[serde(default)]
+        side: Option<u8>,
+        #[serde(default)]
+        country: Option<String>,
     },
     /// The set's pack, written to `path`.
     ReplayPack {
@@ -347,6 +369,7 @@ impl Request {
             Self::GameReport { .. } => "game_report",
             Self::MatchLeave { .. } => "match_leave",
             Self::ReplaySend { .. } => "replay_send",
+            Self::ReplayArchive { .. } => "replay_archive",
             Self::ReplayPack { .. } => "replay_pack",
             Self::MatchWatch { .. } => "match_watch",
             Self::MatchUnwatch { .. } => "match_unwatch",
@@ -927,7 +950,21 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             match_id,
             revision,
             path,
-        } => replays::send(shared, &bridge_id, &match_id, revision.0, &path).await,
+            a,
+            b,
+            side,
+            country,
+        } => {
+            let sides = replays::sides(&[a, b], side, country);
+            replays::send(shared, &bridge_id, &match_id, revision.0, &path, &sides).await
+        }
+        Request::ReplayArchive {
+            path,
+            a,
+            b,
+            side,
+            country,
+        } => replays::archive(shared, &path, &replays::sides(&[a, b], side, country)).await,
         Request::ReplayPack {
             bridge_id,
             match_id,
