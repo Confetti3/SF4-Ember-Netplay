@@ -19,9 +19,13 @@ void DrawTrainingFlyout(const training::View& view, const TrainingSubmit& submit
 // it changes nothing and leaves no request for a later opening.
 bool OpenTrainingRecordings(input::TrainingControls& controls, const input::TrainingControls::Token& token);
 // The press of Record (F7, or the pad button the player bound) and of Play
-// (F8, or its button): the keys and the pad take the same steps. Record's
-// opens the recordings under token when the slot holds one.
-void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit,input::TrainingControls& controls,const input::TrainingControls::Token& token);
+// (F8, or its button): the keys and the pad send the same command, which the
+// session resolves as it stands when it runs (Action::Record, AdvancePlayback).
+void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit);
+// Whether the session has asked about overwriting a recorded slot since the
+// last call (View::overwriteAsked), once per ask; the overlay then opens the
+// recordings under its frame's token.
+bool TakeOverwriteAsk(const training::View& view);
 void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit);
 // Where the lab keeps the dummy's reply and the hotkeys (training.json) and
 // the saved recordings. Until this is set they live in memory only, which is

@@ -241,6 +241,19 @@ int main() {
         for (int i = 0; i < MaxFrames + 5; ++i) session.Commit(session.Prepare(physical));
         Require(session.GetView().lengths[1] == MaxFrames && session.GetView().mode == Mode::Idle, "Recording limit failed");
         Require(session.GetView().lengths[0] == 2, "Second slot overwrote first");
+        // Record (F7 and the pad's) on the recorded slot asks about
+        // overwriting it, as the session stands when it runs: at rest and
+        // during playback it asks and changes nothing; while recording it
+        // stops, so a second Record queued with it asks rather than recording over.
+        {
+            const auto asked = session.GetView().overwriteAsked;
+            Require(apply(Action::Record) && session.GetView().mode == Mode::Idle && session.GetView().overwriteAsked == asked + 1, "Record at rest on a recorded slot did not ask");
+            Require(apply(Action::Play) && apply(Action::Record) && session.GetView().mode == Mode::Playback && session.GetView().overwriteAsked == asked + 2, "Record during playback did not ask");
+            Require(apply(Action::AdvanceRecording) && apply(Action::Record) && session.GetView().mode == Mode::Recording, "Record on standby did not record");
+            session.Commit(session.Prepare(physical));
+            Require(apply(Action::Record) && session.GetView().mode == Mode::Idle && session.GetView().lengths[1] == 1 && apply(Action::Record) &&
+                session.GetView().mode == Mode::Idle && session.GetView().overwriteAsked == asked + 3, "A second queued Record recorded over the slot");
+        }
         Require(session.GetView().history[0].size() <= HistoryRows, "History unbounded");
         session.SetReady(false); Require(!apply(Action::AdvanceRecording), "Loading allowed record");
         session.SetReady(true); session.SetCheckpoint(true);

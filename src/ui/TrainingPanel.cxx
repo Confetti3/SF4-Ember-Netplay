@@ -266,7 +266,7 @@ void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& subm
     }
     case Kind::Reset: ResetPosition(view,submit); break;
     // Decided as each is applied, as the keys are: a press from before the controls opened or a call came does nothing.
-    case Kind::Record: if(TrainingPressesAct(controls,called)) TrainingRecordPress(view,submit,controls,{pad.epoch,true}); break;
+    case Kind::Record: if(TrainingPressesAct(controls,called)) TrainingRecordPress(view,submit); break;
     case Kind::Play: if(TrainingPressesAct(controls,called)) TrainingPlayPress(view,submit); break;
     }
 }
@@ -380,12 +380,19 @@ bool OpenTrainingRecordings(input::TrainingControls& controls, const input::Trai
  showRecordings=true;
  return true;
 }
-void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit,input::TrainingControls& controls,const input::TrainingControls::Token& token) {
- // Standby, then record, then stop. From rest on a recorded slot it first
- // asks about overwriting it, and the recordings' Record sends the same press.
- if(!training::PadPlaysDummy(view.mode)&&view.lengths[view.selected]>0) { OpenTrainingRecordings(controls,token); return; }
- Command advance; advance.action=Action::AdvanceRecording; advance.generation=view.generation;
- if(!submit||!submit(advance)) Notice(loc::T("training.command_rejected"),true);
+void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit) {
+ // The session decides as it runs: standby, then record, then stop, or from
+ // rest on a recorded slot it asks about overwriting it (TakeOverwriteAsk).
+ Command record; record.action=Action::Record; record.generation=view.generation;
+ if(!submit||!submit(record)) Notice(loc::T("training.command_rejected"),true);
+}
+bool TakeOverwriteAsk(const training::View& view) {
+ static std::uint64_t generation=0, seen=0;
+ // A new battle starts its count again; nothing it held is an ask.
+ if(view.generation!=generation) { generation=view.generation; seen=view.overwriteAsked; return false; }
+ if(view.overwriteAsked==seen) return false;
+ seen=view.overwriteAsked;
+ return true;
 }
 void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit) {
  Command command; command.action=Action::AdvancePlayback; command.generation=view.generation;

@@ -535,16 +535,16 @@ void TrainingJourneys() {
   Check(told("training.command_rejected",true),"A refused reset read as done");
   v.checkpoint=hadCheckpoint;
  }
- // The pad's chord on standby is Record, and starts the recording, for its own battle.
+ // The pad's chord on standby is Record, for its own battle.
  {
   commands.clear();const auto mode=v.mode;v.mode=training::Mode::Standby;input::TrainingControls shut;
   input::TrainingPadEvent record;record.kind=input::TrainingPadEvent::Kind::Record;record.generation=v.generation;
   ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record,false);ImGui::Render();v.mode=mode;
-  Check(commands.size()==1&&commands[0].action==training::Action::AdvanceRecording&&commands[0].generation==v.generation,"The pad's chord on standby did not start the recording");
+  Check(commands.size()==1&&commands[0].action==training::Action::Record&&commands[0].generation==v.generation,"The pad's chord on standby did not send Record");
  }
  // A Record or Play queued just before a room's call does nothing once it is
  // applied under the call, as F7 and F8 do nothing there; without the call the
- // same Record on a recorded slot asks about overwriting it.
+ // same Record goes to the session, which decides about overwriting (training_session_test).
  {
   commands.clear();const auto length=v.lengths[v.selected];v.lengths[v.selected]=60;input::TrainingControls shut;
   input::TrainingPadEvent record;record.kind=input::TrainingPadEvent::Kind::Record;record.generation=v.generation;
@@ -552,7 +552,7 @@ void TrainingJourneys() {
   ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record,true);ApplyTrainingPadEvent(v,submit,shut,play,true);ImGui::Render();
   Check(commands.empty()&&!shut.Open(),"A Record or Play queued before the call acted under it");
   ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record,false);ImGui::Render();
-  Check(commands.empty()&&shut.Open(),"Record on a recorded slot did not ask about overwriting it");
+  Check(commands.size()==1&&commands[0].action==training::Action::Record&&!shut.Open(),"Record without the call did not go to the session, which decides about overwriting");
   v.lengths[v.selected]=length;
  }
  for(const char* name:{"First","Second"})std::filesystem::remove(folder/"recordings"/(std::string(name)+".json"));

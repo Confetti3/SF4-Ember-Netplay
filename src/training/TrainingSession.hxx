@@ -26,14 +26,16 @@ struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 // Standby: P1's pad plays the dummy, as in a recording, and nothing is
 // recorded until the next press (Session::Apply, AdvanceRecording).
 enum class Mode { Idle, Standby, Recording, Playback };
-// AdvanceRecording: standby, then recording, then stop. AdvancePlayback: Play,
+// AdvanceRecording: standby, then recording, then stop. Record: the same for F7
+// and the pad's Record, but from rest on a recorded slot it only asks about
+// overwriting it (View::overwriteAsked). AdvancePlayback: Play,
 // or Stop while a slot plays, as the session stands when it runs (F8 and the
 // pad's Play, so presses queued together alternate). Interrupt: what
 // Escape, opening the controls and losing the focus send; it ends whatever
 // the session does when it runs, keeping a recording (TrainingCommands.hxx
 // gives it a place of its own in the queue). SlotOn and PlayOrder change
 // which slots play (RecordingBank.hxx). PlayOrder is the last.
-enum class Action { Select, AdvanceRecording, AdvancePlayback, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan,
+enum class Action { Select, AdvanceRecording, Record, AdvancePlayback, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan,
     Interrupt, SlotOn, PlayOrder };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
@@ -436,6 +438,9 @@ struct View {
     std::uint64_t exportId = 0; int exportedSlot = -1;
     std::vector<Input> exported;
     Acks acks;
+    // Record from rest on a recorded slot asked about overwriting it: counted,
+    // so the drawing thread opens the recordings once for each ask.
+    std::uint64_t overwriteAsked = 0;
     // The dummy's current settings, read from the game every frame; all -1
     // until the adapter has read them.
     DummyState dummy;
@@ -560,14 +565,16 @@ public:
             return true;
         case Action::ClearHistory: ClearHistory(); return true;
         // A recording stops as Stop does, with the fight running or not.
-        case Action::AdvanceRecording: if (view_.mode == Mode::Recording) { Stop(); return true; } break;
+        case Action::AdvanceRecording: case Action::Record: if (view_.mode == Mode::Recording) { Stop(); return true; } break;
         case Action::AdvancePlayback: if (view_.mode == Mode::Playback) { Stop(); return true; } break;
         default: break;
         }
         if (!view_.ready) return false;
         switch (command.action) {
         // Standby first, the selected slot as it was; the next press records.
-        case Action::AdvanceRecording:
+        // Record from rest on a recorded slot asks first (View::overwriteAsked); the recordings' own Record is AdvanceRecording.
+        case Action::AdvanceRecording: case Action::Record:
+            if (command.action == Action::Record && view_.mode != Mode::Standby && !bank_.Slot(view_.selected).empty()) { ++view_.overwriteAsked; return true; }
             if (view_.mode == Mode::Standby) { view_.mode = Mode::Recording; scratch_.clear(); view_.cursor = 0; ++epoch_; return true; }
             Stop(); view_.mode = Mode::Standby; view_.playbackSide = 1; return true;
         case Action::Load:
