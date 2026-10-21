@@ -202,7 +202,7 @@ namespace sf4e {
 			bool readyGate = false;
 			// A Ready press is being carried through drain, fence, send and
 			// commit. The interface shows one steady "Readying up..." state.
-			bool readyRequested = false;
+			netplay::ReadyPress readyPress = netplay::ReadyPress::None;
 			// Set when a press could not be honoured; the sequence changes per failure.
 			std::string readyFailure;
 			std::uint64_t readyFailureSequence = 0;

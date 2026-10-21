@@ -14,6 +14,10 @@ inline bool Fighting(MatchState state) { return state == MatchState::Preparing |
 enum class Health { Offline, Connecting, Healthy, Lost };
 enum class Recovery { None, Recovering, ReplacementOffered };
 enum class Page { Home, Host, Join, Lobby, Match, PostMatch, Settings, Diagnostics };
+// Where a Ready press is: held by the runtime (parked behind the last game's
+// close, so Unready withdraws it without the room), or sent and waiting for
+// its commit.
+enum class ReadyPress { None, Held, Sent };
 enum class CommandKind { HostRoom, JoinInvite, LeaveRoom, Ready, Rematch, StartOffline, RequestUpdate, SavePreferences, SetLobbySettings, RoomAction, ReplaceRoom, CheckConnection, ApplyDelay };
 enum class EventKind { RoomJoined, RoomFailed, RoomClosed, ReadyAcknowledged,
     MatchPreparing, GameplayReady, MatchStarted, MatchEnded, ControlLost, GameplayLost, HelperLost, MatchRecovered };

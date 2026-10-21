@@ -237,10 +237,18 @@ static void RoomBoardJourneys() {
  Check(tableStatus.find("Waiting for results")==std::string::npos,"Post-match footer exposes the result wait");
  const auto postMatchActions=h.actions.size();h.Choose("ready");
  Check(h.actions.size()==postMatchActions+1&&h.actions.back().command.kind==Kind::Rematch,"Pending result dropped the rematch press");
- h.view.readyRequested=true;h.Frame();
- Check(row("ready").label=="Readying up..."&&!row("ready").enabled,"In-flight Ready still offers a second press");
+ // A Ready the runtime still holds (while the last game closes) is taken
+ // back with Unready, which does not wait for the last game's receipt.
+ h.view.readyPress=netplay::ReadyPress::Held;h.view.room.localTerminalPending=true;h.Frame();
+ Check(row("ready").label=="Unready / unlock fighter"&&row("ready").enabled,"In-flight Ready cannot be taken back");
  Check(tableStatus.find("Readying up")!=std::string::npos,"In-flight Ready is not shown on the seat line");
- h.view.readyRequested=false;
+ h.Choose("ready");
+ Check(h.actions.back().roomAction.kind==room::ActionKind::Unready&&h.actions.back().roomAction.seat==0,"Unready of an in-flight Ready was refused");
+ // A Ready already sent waits for the room, and offers no second press.
+ h.view.readyPress=netplay::ReadyPress::Sent;h.Frame();
+ Check(row("ready").label=="Readying up..."&&!row("ready").enabled,"A sent Ready still offers a second press");
+ h.view.room.localTerminalPending=false;
+ h.view.readyPress=netplay::ReadyPress::None;
  h.view.readyFailure="Your Ready did not go through.";h.view.readyFailureSequence=1;h.Frame();
  const auto beforeNotice=h.actions.size();h.Press(MenuInput::Select);
  Check(h.actions.size()==beforeNotice,"Dismissing the failure notice activated the focused row");

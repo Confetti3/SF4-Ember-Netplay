@@ -300,7 +300,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyConditions.charaID], snapshot.installedContent.get());
 	view.canEditSelection = snapshot.canEditSelection;
     view.selectionLockReason = snapshot.selectionLockReason;
-    view.readyRequested = snapshot.readyRequested; view.readyFailure = snapshot.readyFailure;
+    view.readyPress = snapshot.readyPress; view.readyFailure = snapshot.readyFailure;
     view.readyFailureSequence = snapshot.readyFailureSequence;
     view.opponentChangedFighter = snapshot.opponentChangedFighter; view.opponentChangeSequence = snapshot.opponentChangeSequence;
     view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
