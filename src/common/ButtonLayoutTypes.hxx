@@ -18,8 +18,10 @@ constexpr std::array<const char*, 6> AttackNames = {"LP", "MP", "HP", "LK", "MK"
 constexpr std::uint32_t FightMask = 0xCF0;
 constexpr ButtonLayout DefaultLayout = {0x40, 0x80, 0x10, 0x20, 0x430, 0x400, 0x8C0, 0x800, 0, 0};
 inline bool ValidExtraCopies(const ExtraCopies& copies) {
-    return std::all_of(copies.begin(), copies.end(), [](int copy) { return copy >= -1 && copy < static_cast<int>(LayoutGlyphs.size()); });
+    return std::all_of(copies.begin(), copies.end(), [](int copy) { return copy >= -1 && copy < CopyTargetCount; });
 }
+// The glyph id of what an extra button copies (ExtraCopies), as held glyphs name it.
+inline const char* CopyTargetGlyph(int copy) { return copy == CopiesView ? "View" : copy == CopiesStart ? "Start" : LayoutGlyphs[copy]; }
 inline bool ValidLayout(const ButtonLayout& layout) {
     return std::all_of(layout.begin(), layout.end(), [](std::uint32_t mask) { return !(mask & ~FightMask); });
 }

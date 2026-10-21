@@ -5677,6 +5677,15 @@ msgstr "{0} wirkt jetzt wie {1}."
 msgid "button_layout.extra_off"
 msgstr "{0} hat jetzt keine Funktion."
 
+msgid "button_layout.copy_view_detail"
+msgstr "Im Training setzt ein Tippen die Position zurück und Halten speichert sie, wie Zurück."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pausiert einen Kampf und öffnet Ember im Hauptmenü, wie Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} kopiert noch keine Taste. Wähle unten in seiner Zeile eine, dann drücke es hier."
+
 msgid "button_layout.training_record"
 msgstr "Training: Aufnahme"
 

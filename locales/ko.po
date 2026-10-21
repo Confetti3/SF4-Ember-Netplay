@@ -5678,6 +5678,15 @@ msgstr "{0}이(가) 이제 {1}처럼 동작합니다."
 msgid "button_layout.extra_off"
 msgstr "{0}에는 이제 아무 기능도 없습니다."
 
+msgid "button_layout.copy_view_detail"
+msgstr "트레이닝에서 짧게 누르면 위치를 초기화하고 길게 누르면 저장합니다(뒤로 버튼과 같음)."
+
+msgid "button_layout.copy_start_detail"
+msgstr "대전을 일시 정지하고 메인 메뉴에서 Ember를 엽니다(스타트 버튼과 같음)."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0}은(는) 아직 아무 버튼도 복사하지 않습니다. 아래 행에서 고른 다음 여기서 누르세요."
+
 msgid "button_layout.training_record"
 msgstr "트레이닝 녹화"
 

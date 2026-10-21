@@ -230,8 +230,9 @@ void ExtraButtonRows() {
     h.view.pads[0].hasExtras[static_cast<unsigned>(Extra::Touchpad)] = true; h.view.pads[0].hasExtras[static_cast<unsigned>(Extra::Home)] = true; h.Frame();
     Check(row("extra-touchpad").label == loc::T("button_layout.extra.touchpad") && row("extra-touchpad").value == loc::T("common.off") &&
         row("extra-home").label == "PS" && !has("extra-share"), "Touchpad and PS rows do not show as Off");
-    Check(row("extra-touchpad").choices.size() == 11 && row("extra-touchpad").choices[3].label == loc::Tf("button_layout.extra_copy", "Square"),
-        "Touchpad choices are not Off and the ten buttons by name");
+    Check(row("extra-touchpad").choices.size() == 13 && row("extra-touchpad").choices[3].label == loc::Tf("button_layout.extra_copy", "Square") &&
+        row("extra-touchpad").choices[11].id == "View" && row("extra-touchpad").choices[12].id == "Start",
+        "Touchpad choices are not Off, the ten buttons by name, View and Start");
     h.Choose("extra-touchpad"); for (int i = 0; i < 3; ++i) h.Press(MenuInput::Down); h.Press(MenuInput::Select);
     Check(LastLayout(h).extras[static_cast<unsigned>(Extra::Touchpad)] == 2 && LastLayout(h).buttons == DefaultLayout,
         "Touchpad did not copy Square on the game's buttons");
@@ -247,6 +248,20 @@ void ExtraButtonRows() {
     Check(LastLayout(h).buttons == LayoutPresets[1].buttons && LastLayout(h).extras[0] == 2, "A preset dropped the touchpad copy");
     h.Choose("extra-touchpad"); for (int i = 0; i < 3; ++i) h.Press(MenuInput::Up); h.Press(MenuInput::Select);
     Check(LastLayout(h).extras == NoExtraCopies && row("extra-touchpad").value == loc::T("common.off"), "Off did not clear the touchpad copy");
+    // View is a copy too: the touchpad can be the pad's Back.
+    h.Choose("extra-touchpad"); for (int i = 0; i < 11; ++i) h.Press(MenuInput::Down); h.Press(MenuInput::Select);
+    Check(LastLayout(h).extras[static_cast<unsigned>(Extra::Touchpad)] == CopiesView && LastLayout(h).log.find("touchpad copies View") != std::string::npos,
+        "Touchpad did not copy View");
+    h.Choose("extra-touchpad"); for (int i = 0; i < 11; ++i) h.Press(MenuInput::Up); h.Press(MenuInput::Select);
+    Check(LastLayout(h).extras == NoExtraCopies, "Off did not clear the View copy");
+    // A capture told the touchpad while it copies nothing says how to give it a press, and takes nothing.
+    const auto before = h.actions.size();
+    h.Choose("fn-lp"); h.view.pads[0].held = {"touchpad"}; h.Frame(); h.Frame();
+    Check(tone == Tone::Error && status.find(loc::Tf("button_layout.extra_uncopied", loc::T("button_layout.extra.touchpad"))) != std::string::npos &&
+        row("fn-lp").value == loc::T("button_layout.waiting"), "An uncopied touchpad press did not explain itself while the capture waited");
+    h.view.pads[0].held = {"Start"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    Check(std::none_of(h.actions.begin() + static_cast<std::ptrdiff_t>(before), h.actions.end(), [](const ShellAction& a) { return a.padAction.kind == ControllerRequest::Kind::Layout; }),
+        "An uncopied touchpad press changed the layout");
     SetMenuEntriesProbe({}); SetMenuStatusProbe({});
 }
 

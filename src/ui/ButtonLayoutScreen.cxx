@@ -57,6 +57,10 @@ std::string ExtraButtonName(const PadView& pad, unsigned extra) {
     default: return ExtraIds[extra];
     }
 }
+std::string CopyTargetName(const PadView& pad, int copy) {
+    const auto names = ButtonPositionNames(input::PadXInput, pad.brand);
+    return copy == CopiesView ? names.view : copy == CopiesStart ? names.start : pad.buttonNames[copy];
+}
 namespace {
 void Mark(std::vector<MenuEntry>& rows, const LayoutRowMarks& marks) {
     for (auto& row : rows) {
@@ -67,18 +71,20 @@ void Mark(std::vector<MenuEntry>& rows, const LayoutRowMarks& marks) {
         if (row.id == marks.flash) row.valueHighlighted = true;
     }
 }
-// An extra button's row: Off or the layout button it copies, chosen from the
-// buttons the pad has, as Steam Input binds a touchpad or paddle.
+// An extra button's row: Off or what it copies, chosen from the buttons the
+// pad has, View and Start, as Steam Input binds a touchpad or paddle.
 MenuEntry ExtraButtonRow(const PadView& pad, unsigned extra, bool enabled, const std::string& unavailable) {
     const auto name = ExtraButtonName(pad, extra);
     auto row = Row(ExtraRowId(extra), name, enabled ? loc::Tf("button_layout.extra_detail", name) : unavailable, enabled);
     const auto copy = CopiedButton(pad.extras, extra, pad.has);
-    row.value = copy ? loc::Tf("button_layout.extra_copy", pad.buttonNames[*copy]) : std::string(loc::T("common.off"));
-    row.chosen = copy ? LayoutGlyphs[*copy] : "off";
+    row.value = copy ? loc::Tf("button_layout.extra_copy", CopyTargetName(pad, static_cast<int>(*copy))) : std::string(loc::T("common.off"));
+    row.chosen = copy ? CopyTargetGlyph(static_cast<int>(*copy)) : "off";
     row.choices.push_back({"off", loc::T("common.off"), ""});
-    for (unsigned i = 0; i < pad.has.size(); ++i) if (pad.has[i]) {
-        const auto fight = FightName(pad.table[i]);
-        row.choices.push_back({LayoutGlyphs[i], loc::Tf("button_layout.extra_copy", pad.buttonNames[i]),
+    for (int target = 0; target < CopyTargetCount; ++target) {
+        if (target < static_cast<int>(pad.has.size()) && !pad.has[target]) continue;
+        const auto fight = target < static_cast<int>(pad.table.size()) ? FightName(pad.table[target]) : std::string();
+        row.choices.push_back({CopyTargetGlyph(target), loc::Tf("button_layout.extra_copy", CopyTargetName(pad, target)),
+            target >= CopiesView ? std::string(loc::T(target == CopiesView ? "button_layout.copy_view_detail" : "button_layout.copy_start_detail")) :
             loc::Tf("button_layout.button_does", fight.empty() ? std::string(loc::T("button_layout.nothing")) : fight)});
     }
     row.valueHighlighted = std::find(pad.held.begin(), pad.held.end(), ExtraIds[extra]) != pad.held.end();
@@ -174,9 +180,8 @@ void LayoutMap(const PadView& pad, PromptBrand brand) {
 void Attacks(const PadView& pad) {
     ImGui::TextUnformatted(loc::T("button_layout.attacks"));
     std::uint32_t active = 0;
+    // pad.held already holds what each held extra button copies (ControllerInventory).
     for (unsigned i = 0; i < pad.has.size(); ++i) if (pad.has[i] && Held(pad, LayoutGlyphs[i])) active |= pad.table[i];
-    for (unsigned i = 0; i < ExtraCount; ++i)
-        if (const auto copy = CopiedButton(pad.extras, i, pad.has)) if (Held(pad, ExtraIds[i])) active |= pad.table[*copy];
     const float s = Scale(), height = ImGui::GetTextLineHeight(), gap = 6 * s;
     auto at = ImGui::GetCursorScreenPos(); auto* draw = ImGui::GetWindowDrawList();
     for (unsigned i = 0; i < AttackMasks.size(); ++i) {

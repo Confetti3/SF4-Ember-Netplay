@@ -50,6 +50,14 @@ std::string AttackLongName(std::uint32_t mask);
 gamepads::FightNames LayoutButtonNames(const gamepads::PadView& pad, gamepads::ButtonPrompts prompts);
 // The pad's name for an extra button (gamepads::Extra), by the pad's own brand.
 std::string ExtraButtonName(const gamepads::PadView& pad, unsigned extra);
+// The pad's name for what an extra button copies (gamepads::ExtraCopies): a layout button, View or Start.
+std::string CopyTargetName(const gamepads::PadView& pad, int copy);
+// An extra button held now that copies nothing, so a capture cannot take it.
+inline std::optional<unsigned> UncopiedExtraHeld(const gamepads::PadView& pad) {
+    for (unsigned extra = 0; extra < gamepads::ExtraCount; ++extra)
+        if (!gamepads::CopiedButton(pad.extras, extra, pad.has) && std::find(pad.held.begin(), pad.held.end(), gamepads::ExtraIds[extra]) != pad.held.end()) return extra;
+    return {};
+}
 // The row id of an extra button's copy choice, and the extra button a row id names.
 inline std::string ExtraRowId(unsigned extra) { return std::string("extra-") + gamepads::ExtraIds[extra]; }
 inline std::optional<unsigned> ExtraOfRow(const std::string& id) {

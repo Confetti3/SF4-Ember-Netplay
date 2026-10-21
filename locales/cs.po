@@ -5677,6 +5677,15 @@ msgstr "{0} teď funguje jako {1}."
 msgid "button_layout.extra_off"
 msgstr "{0} teď nic nedělá."
 
+msgid "button_layout.copy_view_detail"
+msgstr "V tréninku klepnutí obnoví pozici a podržení ji uloží, jako Zpět."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pozastaví zápas a otevře Ember v hlavní nabídce, jako Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} zatím nekopíruje žádné tlačítko. Zvolte ho v jeho řádku níže a pak ho stiskněte tady."
+
 msgid "button_layout.training_record"
 msgstr "Nahrávání v tréninku"
 

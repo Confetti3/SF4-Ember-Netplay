@@ -5313,6 +5313,15 @@ msgstr "{0} works as {1} now."
 msgid "button_layout.extra_off"
 msgstr "{0} does nothing now."
 
+msgid "button_layout.copy_view_detail"
+msgstr "In Training, a tap resets the position and a hold saves it, as Back does."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pauses a fight and opens Ember at the main menu, as Start does."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} copies no button yet. Choose one for it in its row below, then press it here."
+
 msgid "button_layout.training_record"
 msgstr "Training record"
 

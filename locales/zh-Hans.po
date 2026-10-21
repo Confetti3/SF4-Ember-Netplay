@@ -5678,6 +5678,15 @@ msgstr "{0} 现在等同于 {1}。"
 msgid "button_layout.extra_off"
 msgstr "{0} 现在不起作用。"
 
+msgid "button_layout.copy_view_detail"
+msgstr "在训练中，轻按会重置位置，按住会保存位置，与返回键相同。"
+
+msgid "button_layout.copy_start_detail"
+msgstr "暂停对战，并在主菜单打开 Ember，与开始键相同。"
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} 还没有复制任何按钮。请先在下方它的那一行选择一个，然后在这里按下它。"
+
 msgid "button_layout.training_record"
 msgstr "训练录制"
 

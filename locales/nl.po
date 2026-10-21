@@ -5677,6 +5677,15 @@ msgstr "{0} werkt nu als {1}."
 msgid "button_layout.extra_off"
 msgstr "{0} doet nu niets."
 
+msgid "button_layout.copy_view_detail"
+msgstr "In Training zet een tik de positie terug en vasthouden bewaart haar, zoals Terug."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pauzeert een gevecht en opent Ember in het hoofdmenu, zoals Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} kopieert nog geen knop. Kies er hieronder een in zijn rij en druk hem dan hier in."
+
 msgid "button_layout.training_record"
 msgstr "Opnemen (Training)"
 

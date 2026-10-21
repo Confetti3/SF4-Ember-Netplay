@@ -58,7 +58,7 @@ template<class Rejected> std::vector<StoredLayout> ReadLayouts(const nlohmann::j
         const auto extras = entry.find("extraButtons");
         if (extras != entry.end() && extras->is_array() && extras->size() == ExtraCount &&
             std::all_of(extras->begin(), extras->end(), [](const nlohmann::json& copy) {
-                return copy.is_number_integer() && copy.get<std::int64_t>() >= -1 && copy.get<std::int64_t>() < static_cast<std::int64_t>(LayoutGlyphs.size());
+                return copy.is_number_integer() && copy.get<std::int64_t>() >= -1 && copy.get<std::int64_t>() < CopyTargetCount;
             })) layout.extras = extras->get<ExtraCopies>();
         UpsertLayout(layouts, std::move(layout));
     }

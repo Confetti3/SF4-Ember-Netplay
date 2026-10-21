@@ -5678,6 +5678,15 @@ msgstr "{0}は{1}として動作します。"
 msgid "button_layout.extra_off"
 msgstr "{0}には何も割り当てられていません。"
 
+msgid "button_layout.copy_view_detail"
+msgstr "トレーニングでは、短く押すとポジションをリセットし、長押しで保存します（戻るボタンと同じ）。"
+
+msgid "button_layout.copy_start_detail"
+msgstr "対戦を一時停止し、メインメニューでEmberを開きます（スタートボタンと同じ）。"
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0}にはまだボタンが割り当てられていません。下の行で選んでから、ここで押してください。"
+
 msgid "button_layout.training_record"
 msgstr "トレーニング録画"
 

@@ -5678,6 +5678,15 @@ msgstr "{0} funciona ahora como {1}."
 msgid "button_layout.extra_off"
 msgstr "{0} ya no hace nada."
 
+msgid "button_layout.copy_view_detail"
+msgstr "En Entrenamiento, un toque restablece la posición y mantenerlo la guarda, como Atrás."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pausa un combate y abre Ember en el menú principal, como Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} todavía no copia ningún botón. Elige uno en su fila de abajo y luego púlsalo aquí."
+
 msgid "button_layout.training_record"
 msgstr "Grabar en Entrenamiento"
 

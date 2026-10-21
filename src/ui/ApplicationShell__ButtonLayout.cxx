@@ -124,12 +124,12 @@ void ApplicationShell::ChangeBoundButton(const PadView& pad, BoundAction action,
 }
 void ApplicationShell::ChangeExtraCopy(const PadView& pad, unsigned extra, const std::string& choice, const ShellView& view, const Submit& submit) {
     auto copies = pad.extras; copies[extra] = -1;
-    for (unsigned i = 0; i < LayoutGlyphs.size(); ++i) if (pad.has[i] && choice == LayoutGlyphs[i]) copies[extra] = static_cast<int>(i);
+    for (int target = 0; target < CopyTargetCount; ++target) if (choice == CopyTargetGlyph(target)) copies[extra] = target;
     if (copies == pad.extras) return;
     const auto copy = CopiedButton(copies, extra, pad.has);
-    if (!ChangeLayout(pad, pad.table, view, submit, fmt::format("layout for id {}: {} copies {}", pad.id, ExtraIds[extra], copy ? LayoutGlyphs[*copy] : "nothing"), {}, copies)) return;
+    if (!ChangeLayout(pad, pad.table, view, submit, fmt::format("layout for id {}: {} copies {}", pad.id, ExtraIds[extra], copy ? CopyTargetGlyph(static_cast<int>(*copy)) : "nothing"), {}, copies)) return;
     const auto name = ExtraButtonName(pad, extra);
-    notice_ = copy ? loc::Tf("button_layout.extra_set", name, pad.buttonNames[*copy]) : loc::Tf("button_layout.extra_off", name);
+    notice_ = copy ? loc::Tf("button_layout.extra_set", name, CopyTargetName(pad, static_cast<int>(*copy))) : loc::Tf("button_layout.extra_off", name);
     noticeTone_ = Tone::Success; noticeUntil_ = ImGui::GetTime() + 4;
 }
 bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& submit) {
@@ -224,6 +224,9 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
                     noticeTone_ = Tone::Success; noticeUntil_ = ImGui::GetTime() + 4;
                 }
             }
+        } else if (const auto extra = UncopiedExtraHeld(pad)) {
+            // An extra button that copies nothing has no press to give; say how to give it one.
+            notice_ = loc::Tf("button_layout.extra_uncopied", ExtraButtonName(pad, *extra)); noticeTone_ = Tone::Error; noticeUntil_ = ImGui::GetTime() + 4;
         }
         return true;
     }

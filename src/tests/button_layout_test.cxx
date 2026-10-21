@@ -4,6 +4,7 @@
 #include "../common/XInputMapping.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "test_support.hxx"
+#include <algorithm>
 #include <cstring>
 
 using namespace sf4e::gamepads;
@@ -79,7 +80,7 @@ static void ExtraButtons() {
     json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
     CHECK(read(json) == std::vector<StoredLayout>{layout});
     // Any bad copy or a bad list turns every extra button off. The layout still loads.
-    json["buttonLayouts"][0]["extraButtons"][0] = 10;
+    json["buttonLayouts"][0]["extraButtons"][0] = CopyTargetCount;
     CHECK(read(json).at(0).extras == NoExtraCopies);
     json["buttonLayouts"][0]["extraButtons"][0] = 1.5;
     CHECK(read(json).at(0).extras == NoExtraCopies);
@@ -88,7 +89,7 @@ static void ExtraButtons() {
     json["buttonLayouts"][0]["extraButtons"] = "touchpad";
     CHECK(read(json).at(0).extras == NoExtraCopies && rejected == 0);
     sf4e::netplay::PlayerPreferences prefs; prefs.buttonLayouts = {layout}; CHECK(prefs.Valid());
-    prefs.buttonLayouts[0].extras[1] = 10; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].extras[1] = CopyTargetCount; CHECK(!prefs.Valid());
     prefs.buttonLayouts[0].extras[1] = -2; CHECK(!prefs.Valid());
     // A copy of a button the pad lacks copies nothing.
     auto listed = AllLayoutButtons; listed[2] = false;
@@ -114,6 +115,14 @@ static void ExtraButtons() {
     }
     state = {}; state.extras[static_cast<unsigned>(Extra::Home)] = true; copies = NoExtraCopies; copies[static_cast<unsigned>(Extra::Home)] = 6;
     CHECK(MapToXInput(WithExtraCopies(state, copies)).leftTrigger == 255);
+    // View and Start are copies too, whatever the pad lists, and survive a save.
+    copies = NoExtraCopies; copies[static_cast<unsigned>(Extra::Touchpad)] = CopiesView; copies[static_cast<unsigned>(Extra::Home)] = CopiesStart;
+    state = {}; state.extras[static_cast<unsigned>(Extra::Touchpad)] = true; state.extras[static_cast<unsigned>(Extra::Home)] = true;
+    CHECK(MapToXInput(WithExtraCopies(state, copies)).buttons == (0x0020 | 0x0010));
+    CHECK(CopiedButton(copies, 0, listed) == static_cast<unsigned>(CopiesView) && CopiedButton(copies, 1, listed) == static_cast<unsigned>(CopiesStart));
+    CHECK(!std::strcmp(CopyTargetGlyph(CopiesView), "View") && !std::strcmp(CopyTargetGlyph(CopiesStart), "Start") && !std::strcmp(CopyTargetGlyph(2), "X"));
+    layout.extras = copies; json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
+    CHECK(read(json).at(0).extras == copies);
 }
 static void TrainingButtons() {
     // A layout saved before Training buttons existed loads with both off.
