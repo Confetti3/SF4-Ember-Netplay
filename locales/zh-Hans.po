@@ -5035,6 +5035,18 @@ msgstr "判定框"
 msgid "training.hitboxes.detail"
 msgstr "在对战画面上绘制斗士的判定框：可被击中的范围、可被投的范围、攻击命中的范围和投技的范围各用一种颜色，另有线条标出身体。"
 
+msgid "training.hitboxes.hurt"
+msgstr "受击判定"
+
+msgid "training.hitboxes.throw"
+msgstr "受投判定"
+
+msgid "training.hitboxes.skeleton"
+msgstr "身体线条"
+
+msgid "training.hitboxes.part.detail"
+msgstr "在对战上方绘制这部分判定框。"
+
 msgid "training.color_key"
 msgstr "颜色图例"
 

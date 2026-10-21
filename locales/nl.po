@@ -5034,6 +5034,18 @@ msgstr "Hitboxen"
 msgid "training.hitboxes.detail"
 msgstr "Tekent de boxen van de vechters over het gevecht: groen waar een vechter geraakt kan worden, geel waar hij geworpen kan worden, rood waar een aanval raakt en blauw waar hij werpt. Witte lijnen zijn de botten."
 
+msgid "training.hitboxes.hurt"
+msgstr "Raakzones"
+
+msgid "training.hitboxes.throw"
+msgstr "Worpzones"
+
+msgid "training.hitboxes.skeleton"
+msgstr "Skelet"
+
+msgid "training.hitboxes.part.detail"
+msgstr "Tekent dit deel van de hitboxen over het gevecht."
+
 msgid "training.color_key"
 msgstr "Kleurenlegenda"
 

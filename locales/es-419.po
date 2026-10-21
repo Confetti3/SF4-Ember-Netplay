@@ -4551,6 +4551,18 @@ msgstr "Hitboxes"
 msgid "training.hitboxes.detail"
 msgstr "Dibuja las cajas de los peleadores sobre la pelea: en verde donde se puede golpear a un peleador, en amarillo donde se le puede agarrar, en rojo donde un ataque golpea y en azul donde agarra. Las líneas blancas son los huesos."
 
+msgid "training.hitboxes.hurt"
+msgstr "Cajas vulnerables"
+
+msgid "training.hitboxes.throw"
+msgstr "Cajas de agarre"
+
+msgid "training.hitboxes.skeleton"
+msgstr "Esqueleto"
+
+msgid "training.hitboxes.part.detail"
+msgstr "Dibuja esta parte de las hitboxes sobre el combate."
+
 msgid "training.color_key"
 msgstr "Clave de colores"
 
