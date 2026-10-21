@@ -128,7 +128,7 @@ function renderFilters() {
 function renderList() {
   const sets = state.groups.reduce((n, event) => n + event.sets.length, 0);
   $('summary').textContent = state.games.length
-    ? `${sets} sets · ${state.games.length} games${state.more ? ' (newest first)' : ''}`
+    ? `${sets} ${sets === 1 ? 'set' : 'sets'} · ${state.games.length} ${state.games.length === 1 ? 'game' : 'games'}${state.more ? ' (newest first)' : ''}`
     : 'No replays match. Clear a filter above.';
   $('events').replaceChildren(...state.groups.map((event) => el('section', { className: 'event' },
     el('div', { className: 'event-head' }, el('h2', { textContent: event.title }),
