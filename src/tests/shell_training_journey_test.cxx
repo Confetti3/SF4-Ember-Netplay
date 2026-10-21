@@ -527,7 +527,7 @@ void TrainingJourneys() {
   input::TrainingPadEvent save,reset;save.kind=input::TrainingPadEvent::Kind::Save;reset.kind=input::TrainingPadEvent::Kind::Reset;
   save.generation=reset.generation=v.generation;save.place[0]=120;save.place[1]=420;
   input::TrainingControls shut;
-  ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,save);ApplyTrainingPadEvent(v,submit,shut,reset);ImGui::Render();
+  ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,save,false);ApplyTrainingPadEvent(v,submit,shut,reset,false);ImGui::Render();
   Check(commands.size()==3&&commands[0].action==training::Action::Place&&commands[1].action==training::Action::Save&&
    commands[2].action==training::Action::Restore&&commands[2].requestId!=0,"A reset after a save in the same batch was turned down before the session saw it");
   // The session then refuses the reset only when the save before it failed.
@@ -539,8 +539,21 @@ void TrainingJourneys() {
  {
   commands.clear();const auto mode=v.mode;v.mode=training::Mode::Standby;input::TrainingControls shut;
   input::TrainingPadEvent record;record.kind=input::TrainingPadEvent::Kind::Record;record.generation=v.generation;
-  ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record);ImGui::Render();v.mode=mode;
+  ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record,false);ImGui::Render();v.mode=mode;
   Check(commands.size()==1&&commands[0].action==training::Action::AdvanceRecording&&commands[0].generation==v.generation,"The pad's chord on standby did not start the recording");
+ }
+ // A Record or Play queued just before a room's call does nothing once it is
+ // applied under the call, as F7 and F8 do nothing there; without the call the
+ // same Record on a recorded slot asks about overwriting it.
+ {
+  commands.clear();const auto length=v.lengths[v.selected];v.lengths[v.selected]=60;input::TrainingControls shut;
+  input::TrainingPadEvent record;record.kind=input::TrainingPadEvent::Kind::Record;record.generation=v.generation;
+  input::TrainingPadEvent play=record;play.kind=input::TrainingPadEvent::Kind::Play;
+  ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record,true);ApplyTrainingPadEvent(v,submit,shut,play,true);ImGui::Render();
+  Check(commands.empty()&&!shut.Open(),"A Record or Play queued before the call acted under it");
+  ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record,false);ImGui::Render();
+  Check(commands.empty()&&shut.Open(),"Record on a recorded slot did not ask about overwriting it");
+  v.lengths[v.selected]=length;
  }
  for(const char* name:{"First","Second"})std::filesystem::remove(folder/"recordings"/(std::string(name)+".json"));
  std::filesystem::remove(folder/"recordings");std::filesystem::remove(folder/"training.json");std::filesystem::remove(folder);

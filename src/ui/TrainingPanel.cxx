@@ -253,7 +253,7 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
 }
 }
 void SetTrainingDirectory(std::wstring directory) { if(lab.directory.empty()) lab.directory=std::move(directory); }
-void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& submit,input::TrainingControls& controls,const input::TrainingPadEvent& pad) {
+void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& submit,input::TrainingControls& controls,const input::TrainingPadEvent& pad,bool called) {
     if(!view.available||pad.generation!=view.generation) return;
     using Kind=input::TrainingPadEvent::Kind;
     LoadPractice();
@@ -265,9 +265,9 @@ void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& subm
         break;
     }
     case Kind::Reset: ResetPosition(view,submit); break;
-    // A press from before the controls opened does nothing in them.
-    case Kind::Record: if(!controls.Open()) TrainingRecordPress(view,submit,controls,{pad.epoch,true}); break;
-    case Kind::Play: if(!controls.Open()) TrainingPlayPress(view,submit); break;
+    // Decided as each is applied, as the keys are: a press from before the controls opened or a call came does nothing.
+    case Kind::Record: if(TrainingPressesAct(controls,called)) TrainingRecordPress(view,submit,controls,{pad.epoch,true}); break;
+    case Kind::Play: if(TrainingPressesAct(controls,called)) TrainingPlayPress(view,submit); break;
     }
 }
 void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
@@ -388,7 +388,7 @@ void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit
  if(!submit||!submit(advance)) Notice(loc::T("training.command_rejected"),true);
 }
 void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit) {
- Command command; command.action=view.mode==Mode::Playback?Action::Stop:Action::Play; command.generation=view.generation;
+ Command command; command.action=Action::AdvancePlayback; command.generation=view.generation;
  if(!submit||!submit(command)) Notice(loc::T("training.command_rejected"),true);
 }
 void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit) {

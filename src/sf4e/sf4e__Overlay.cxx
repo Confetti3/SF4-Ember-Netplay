@@ -645,7 +645,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             // Each is applied only under the owner it was pressed under, which
             // may have changed since the batch was taken.
             if (pad.generation != training.generation || !s_trainingControls.Current(pad)) continue;
-            sf4e::ui::ApplyTrainingPadEvent(training, sf4e::training::Submit, s_trainingControls, pad);
+            sf4e::ui::ApplyTrainingPadEvent(training, sf4e::training::Submit, s_trainingControls, pad, called);
         }
         if (ImGui::IsKeyPressed(ImGuiKey_F6, false) && !called) s_trainingControls.Toggle(focus);
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) trainingHud = !trainingHud;
@@ -654,7 +654,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         };
         sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
         // Not under the call either: F7 could otherwise open the recordings there.
-        if (!s_trainingControls.Open() && !called && !ImGui::GetIO().WantTextInput) {
+        if (sf4e::ui::TrainingPressesAct(s_trainingControls, called) && !ImGui::GetIO().WantTextInput) {
             // F7: standby, then record, then stop. From rest on a recorded
             // slot it first asks about overwriting it, and its Record sends
             // the same press.

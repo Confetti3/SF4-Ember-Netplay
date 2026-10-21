@@ -26,12 +26,14 @@ struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 // Standby: P1's pad plays the dummy, as in a recording, and nothing is
 // recorded until the next press (Session::Apply, AdvanceRecording).
 enum class Mode { Idle, Standby, Recording, Playback };
-// AdvanceRecording: standby, then recording, then stop. Interrupt: what
+// AdvanceRecording: standby, then recording, then stop. AdvancePlayback: Play,
+// or Stop while a slot plays, as the session stands when it runs (F8 and the
+// pad's Play, so presses queued together alternate). Interrupt: what
 // Escape, opening the controls and losing the focus send; it ends whatever
 // the session does when it runs, keeping a recording (TrainingCommands.hxx
 // gives it a place of its own in the queue). SlotOn and PlayOrder change
 // which slots play (RecordingBank.hxx). PlayOrder is the last.
-enum class Action { Select, AdvanceRecording, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan,
+enum class Action { Select, AdvanceRecording, AdvancePlayback, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan,
     Interrupt, SlotOn, PlayOrder };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
@@ -559,6 +561,7 @@ public:
         case Action::ClearHistory: ClearHistory(); return true;
         // A recording stops as Stop does, with the fight running or not.
         case Action::AdvanceRecording: if (view_.mode == Mode::Recording) { Stop(); return true; } break;
+        case Action::AdvancePlayback: if (view_.mode == Mode::Playback) { Stop(); return true; } break;
         default: break;
         }
         if (!view_.ready) return false;
@@ -571,7 +574,7 @@ public:
             if (view_.mode != Mode::Idle || command.frames.empty() || (command.side != 0 && command.side != 1)) return false;
             bank_.Replace(view_.selected, command.frames); Publish();
             view_.playbackSide = command.side; return true;
-        case Action::Play: {
+        case Action::Play: case Action::AdvancePlayback: {
             Stop();
             const int slot = playPicker_.Peek(bank_.Playable(), bank_.GetOrder());
             if (slot < 0) return false;

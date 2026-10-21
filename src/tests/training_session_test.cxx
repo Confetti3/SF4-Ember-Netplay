@@ -169,6 +169,11 @@ int main() {
             for (int i = 0; i < MaxWaitHitFrames + 2; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
             Require(session.Prepare(physical)[0].raw == 0x18, "Waiting for a hit never gave up");
             apply(Action::Stop);
+            // F8 and the pad's Play alternate as the session stands when each runs, however many queue before a frame.
+            Require(session.Apply(timed) && apply(Action::AdvancePlayback) && session.GetView().mode == Mode::Playback, "A Play toggle did not play");
+            Require(apply(Action::AdvancePlayback) && session.GetView().mode == Mode::Idle, "A second Play toggle did not stop");
+            Require(apply(Action::AdvancePlayback) && session.GetView().mode == Mode::Playback, "A third Play toggle did not play again");
+            apply(Action::Stop);
             // With the script predicting the free frame, a link's press lands
             // on that frame plus the offset: before it when negative. A seen
             // free frame still releases it. A hit is never predicted.

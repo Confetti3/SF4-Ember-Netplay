@@ -538,7 +538,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         draw();Require(LastTrainingStrip().pieces.empty(),strip("The strip drew with the shortcuts off and nothing to tell").c_str());
         input::TrainingPadEvent press;press.kind=input::TrainingPadEvent::Kind::Reset;press.generation=training.generation;
         input::TrainingControls controls;
-        ApplyTrainingPadEvent(training,[](training::Command){return false;},controls,press);
+        ApplyTrainingPadEvent(training,[](training::Command){return false;},controls,press,false);
         draw();
         // Whole, or shortened to the meter's width.
         const auto& told=LastTrainingStrip().pieces;const std::string rejected=loc::T("training.command_rejected");
@@ -549,7 +549,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         Require(LastTrainingStrip().pieces.empty(),strip("The notice outlived its three seconds").c_str());
         // A position command the game takes clears the notice, so the next
         // size's new clock does not bring it back.
-        ApplyTrainingPadEvent(training,[](training::Command){return true;},controls,press);
+        ApplyTrainingPadEvent(training,[](training::Command){return true;},controls,press,false);
         SetTrainingMeterOptions({});draw();
     }
     SetMenuGlyphs(3,0x40000,0x20000);
