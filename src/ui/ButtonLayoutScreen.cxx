@@ -57,6 +57,10 @@ std::string ExtraButtonName(const PadView& pad, unsigned extra) {
     default: return ExtraIds[extra];
     }
 }
+std::string CopyTargetName(const PadView& pad, int copy) {
+    const auto names = ButtonPositionNames(input::PadXInput, pad.brand);
+    return copy == CopiesView ? names.view : copy == CopiesStart ? names.start : pad.buttonNames[copy];
+}
 namespace {
 void Mark(std::vector<MenuEntry>& rows, const LayoutRowMarks& marks) {
     for (auto& row : rows) {
@@ -67,18 +71,20 @@ void Mark(std::vector<MenuEntry>& rows, const LayoutRowMarks& marks) {
         if (row.id == marks.flash) row.valueHighlighted = true;
     }
 }
-// An extra button's row: Off or the layout button it copies, chosen from the
-// buttons the pad has, as Steam Input binds a touchpad or paddle.
+// An extra button's row: Off or what it copies, chosen from the buttons the
+// pad has, View and Start, as Steam Input binds a touchpad or paddle.
 MenuEntry ExtraButtonRow(const PadView& pad, unsigned extra, bool enabled, const std::string& unavailable) {
     const auto name = ExtraButtonName(pad, extra);
     auto row = Row(ExtraRowId(extra), name, enabled ? loc::Tf("button_layout.extra_detail", name) : unavailable, enabled);
     const auto copy = CopiedButton(pad.extras, extra, pad.has);
-    row.value = copy ? loc::Tf("button_layout.extra_copy", pad.buttonNames[*copy]) : std::string(loc::T("common.off"));
-    row.chosen = copy ? LayoutGlyphs[*copy] : "off";
+    row.value = copy ? loc::Tf("button_layout.extra_copy", CopyTargetName(pad, static_cast<int>(*copy))) : std::string(loc::T("common.off"));
+    row.chosen = copy ? CopyTargetGlyph(static_cast<int>(*copy)) : "off";
     row.choices.push_back({"off", loc::T("common.off"), ""});
-    for (unsigned i = 0; i < pad.has.size(); ++i) if (pad.has[i]) {
-        const auto fight = FightName(pad.table[i]);
-        row.choices.push_back({LayoutGlyphs[i], loc::Tf("button_layout.extra_copy", pad.buttonNames[i]),
+    for (int target = 0; target < CopyTargetCount; ++target) {
+        if (target < static_cast<int>(pad.has.size()) && !pad.has[target]) continue;
+        const auto fight = target < static_cast<int>(pad.table.size()) ? FightName(pad.table[target]) : std::string();
+        row.choices.push_back({CopyTargetGlyph(target), loc::Tf("button_layout.extra_copy", CopyTargetName(pad, target)),
+            target >= CopiesView ? std::string(loc::T(target == CopiesView ? "button_layout.copy_view_detail" : "button_layout.copy_start_detail")) :
             loc::Tf("button_layout.button_does", fight.empty() ? std::string(loc::T("button_layout.nothing")) : fight)});
     }
     row.valueHighlighted = std::find(pad.held.begin(), pad.held.end(), ExtraIds[extra]) != pad.held.end();
@@ -111,15 +117,15 @@ std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable, const
         if (row.value.empty()) row.value = loc::T("button_layout.no_button");
         row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
     }
-    // Ember's menu buttons: the player's choice, else the game's own (input::ResolveMenuButtons).
-    const struct { const char* id; const char* label; const char* detail; std::uint32_t mask; const char* glyph; } menuRows[] = {
-        {"menu-confirm", loc::T("button_layout.menu_confirm"), loc::T("button_layout.menu_confirm_detail"), pad.menuButtons.confirm, pad.menuButtons.confirmGlyph},
-        {"menu-back", loc::T("button_layout.menu_back"), loc::T("button_layout.menu_back_detail"), pad.menuButtons.back, pad.menuButtons.backGlyph}};
-    for (const auto& menu : menuRows) {
-        auto row = Row(menu.id, menu.label, editable && !absent ? std::string(menu.detail) : unavailable, editable && !absent);
-        row.value = MenuButtonName(pad, menu.mask, menu.glyph);
+    // Ember's menu buttons and Training's record and play, each set by a press.
+    for (unsigned action = 0; action < BoundActionCount; ++action) {
+        const auto& bound = BoundActionRows[action];
+        auto row = Row(bound.id, loc::T(bound.label), editable && !absent ? std::string(loc::T(bound.detail)) : unavailable, editable && !absent);
+        row.value = BoundButtonValue(pad, static_cast<BoundAction>(action));
         row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
     }
+    if (editable && !absent && (pad.bound[TrainingRecordButton] >= 0 || pad.bound[TrainingPlayButton] >= 0))
+        rows.push_back(ConfirmRow("training-clear", loc::T("button_layout.training_clear"), loc::T("button_layout.training_clear_detail")));
     for (unsigned extra = 0; extra < ExtraCount; ++extra)
         if (pad.hasExtras[extra]) rows.push_back(ExtraButtonRow(pad, extra, editable && !absent, unavailable));
     rows.push_back(Row("edit-button", loc::T("button_layout.edit_button"), editable && !absent ? loc::T("button_layout.edit_button_detail") : unavailable, editable && !absent));
@@ -174,9 +180,8 @@ void LayoutMap(const PadView& pad, PromptBrand brand) {
 void Attacks(const PadView& pad) {
     ImGui::TextUnformatted(loc::T("button_layout.attacks"));
     std::uint32_t active = 0;
+    // pad.held already holds what each held extra button copies (ControllerInventory).
     for (unsigned i = 0; i < pad.has.size(); ++i) if (pad.has[i] && Held(pad, LayoutGlyphs[i])) active |= pad.table[i];
-    for (unsigned i = 0; i < ExtraCount; ++i)
-        if (const auto copy = CopiedButton(pad.extras, i, pad.has)) if (Held(pad, ExtraIds[i])) active |= pad.table[*copy];
     const float s = Scale(), height = ImGui::GetTextLineHeight(), gap = 6 * s;
     auto at = ImGui::GetCursorScreenPos(); auto* draw = ImGui::GetWindowDrawList();
     for (unsigned i = 0; i < AttackMasks.size(); ++i) {
@@ -197,12 +202,26 @@ void DrawButtonLayoutDetail(const PadView& pad, ButtonPrompts prompts, bool capt
 CaptureCard LayoutCaptureCard(const PadView& pad, const std::optional<std::uint32_t>& mask, double left) {
     return {mask ? loc::Tf("button_layout.press_for", AttackLongName(*mask)) : std::string(loc::T("button_layout.press_to_change")), pad.name, left};
 }
-CaptureCard MenuCaptureCard(const PadView& pad, bool back, double left) {
-    return {loc::Tf("button_layout.press_for", loc::T(back ? "button_layout.menu_back" : "button_layout.menu_confirm")), pad.name, left};
+CaptureCard BoundCaptureCard(const PadView& pad, BoundAction action, double left) {
+    return {loc::Tf("button_layout.press_for", loc::T(BoundActionRows[action].label)), pad.name, left};
 }
 std::string MenuButtonName(const PadView& pad, std::uint32_t mask, const char* glyph) {
     for (unsigned i = 0; i < LayoutBits.size(); ++i) if (mask == std::uint32_t(1) << LayoutBits[i] && !pad.buttonNames[i].empty()) return pad.buttonNames[i];
     return glyph;
+}
+std::uint32_t BoundButtonNow(const PadView& pad, BoundAction action) {
+    switch (action) {
+    case MenuConfirmButton: return pad.menuButtons.confirm;
+    case MenuBackButton: return pad.menuButtons.back;
+    default: return LayoutButtonMask(pad.bound[action], pad.has);
+    }
+}
+std::string BoundButtonValue(const PadView& pad, BoundAction action) {
+    switch (action) {
+    case MenuConfirmButton: return MenuButtonName(pad, pad.menuButtons.confirm, pad.menuButtons.confirmGlyph);
+    case MenuBackButton: return MenuButtonName(pad, pad.menuButtons.back, pad.menuButtons.backGlyph);
+    default: return pad.bound[action] < 0 ? std::string(loc::T("common.off")) : pad.buttonNames[pad.bound[action]];
+    }
 }
 namespace {
 // The prompt at 1.4x the body font, as the wizard's capture draws it (5.2).

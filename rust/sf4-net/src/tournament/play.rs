@@ -180,7 +180,16 @@ async fn accept_binding(
     }
     let view = binding_view(binding, slot);
     let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
-    state.bindings.insert(match_id.to_owned(), binding.clone());
+    // An answer can arrive after a newer one (a claim sent before its room
+    // was replaced): the newer binding stays the one permits are checked against.
+    let order = |binding: &Binding| (binding.assignment_generation.0, binding.binding_revision.0);
+    if state
+        .bindings
+        .get(match_id)
+        .is_none_or(|held| order(binding) >= order(held))
+    {
+        state.bindings.insert(match_id.to_owned(), binding.clone());
+    }
     Ok(view)
 }
 

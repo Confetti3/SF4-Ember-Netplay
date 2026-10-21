@@ -4214,6 +4214,9 @@ msgstr "対戦相手：{0}。あなたはプレイヤー{1}です。"
 msgid "tournament.play"
 msgstr "プレイ"
 
+msgid "tournament.play_round"
+msgstr "{0}をプレイ"
+
 msgid "tournament.play_detail"
 msgstr "この試合のルームを開くか、参加します。各対戦の結果は自動的に大会サービスへ送られます。"
 
@@ -4275,7 +4278,7 @@ msgid "tournament.paste_link_detail"
 msgstr "大会サイトで試合のリンクをコピーし、これを選ぶとその試合をここで開きます。"
 
 msgid "tournament.link_opened"
-msgstr "大会サイトが試合を開きました。準備ができたらプレイを押してください。"
+msgstr "大会サイトがあなたの試合を開きました。準備ができ次第、Emberがそのルームに参加します。"
 
 msgid "tournament.assigned_notice"
 msgstr "大会の試合の準備ができました。「Ember ID」、「大会の試合」の順に開いてください。"
@@ -5677,6 +5680,36 @@ msgstr "{0}は{1}として動作します。"
 
 msgid "button_layout.extra_off"
 msgstr "{0}には何も割り当てられていません。"
+
+msgid "button_layout.copy_view_detail"
+msgstr "トレーニングでは、短く押すとポジションをリセットし、長押しで保存します（戻るボタンと同じ）。"
+
+msgid "button_layout.copy_start_detail"
+msgstr "対戦を一時停止し、メインメニューでEmberを開きます（スタートボタンと同じ）。"
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0}にはまだボタンが割り当てられていません。下の行で選んでから、ここで押してください。"
+
+msgid "button_layout.training_record"
+msgstr "トレーニング録画"
+
+msgid "button_layout.training_play"
+msgstr "トレーニング再生"
+
+msgid "button_layout.training_record_detail"
+msgstr "選択してから、トレーニングで録画を開始・停止するボタンを押してください。F7と同じ働きです。トレーニングではそのボタンは録画だけを行い、対戦では攻撃のままです。"
+
+msgid "button_layout.training_play_detail"
+msgstr "選択してから、トレーニングで選んだスロットを再生・停止するボタンを押してください。F8と同じ働きです。トレーニングではそのボタンは再生だけを行い、対戦では攻撃のままです。"
+
+msgid "button_layout.training_clear"
+msgstr "トレーニングのボタンを消す"
+
+msgid "button_layout.training_clear_detail"
+msgstr "トレーニングの録画ボタンと再生ボタンをオフにします。"
+
+msgid "button_layout.training_cleared"
+msgstr "トレーニングのボタンをオフにしました。"
 
 msgid "room.delay_policy"
 msgstr "ルームの入力遅延"

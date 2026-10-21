@@ -161,12 +161,13 @@ void fSystem::UpdateInputs() {
     // now, for go now: the reset, save and controls it asks for there are
     // refused without the focus (PostTrainingPad, TrainingControls::Accept).
     static sf4e::input::TrainingPadInput trainingPad;
+    static sf4e::input::TrainingButtonPresses trainingButtons;
     static bool trainingPadOwned=false;
     std::uint32_t ownedByGesture=0;
     const bool training=(focused||callOffered)&&connected&&snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&
         snapshot.inputCapture==sf4e::input::Capture::Idle&&ownerType==device.type&&ownerIndex==device.index;
     if(!training) {
-        trainingPad.Reset();
+        trainingPad.Reset(); trainingButtons.Reset();
         if(trainingPadOwned) sf4e::Overlay::DropTrainingPad();
         trainingPadOwned=false;
     }
@@ -188,14 +189,20 @@ void fSystem::UpdateInputs() {
         if(events.goNow) spdlog::info("Training: go now on the pad was {}{}",
             sf4e::Overlay::TrainingControls().PressGoNow(result.owner.epoch,offeredCall,goNowGate,sf4e::input::GoNowGate::Source::Pad,free)?"taken":"not taken",
             focused?"":" behind another window");
+        // The player's own Record and Play buttons, beside the gesture, take the owner they go down under.
+        const auto pressed=trainingButtons.Update(physical,snapshot.trainingButtons,sf4e::Overlay::TrainingControls().Open(),call,free);
         using Kind=sf4e::input::TrainingPadEvent::Kind;
-        for(const Kind kind:{Kind::Reset,Kind::Save,Kind::Advance}) {
-            if(!(kind==Kind::Reset?events.reset:kind==Kind::Save?events.save:events.advance)) continue;
+        const auto post=[](Kind kind,const sf4e::input::PadOwner& by,const float (&at)[2]) {
             sf4e::input::TrainingPadEvent event;
-            event.kind=kind;event.generation=result.owner.generation;event.epoch=result.owner.epoch;
-            event.place[0]=result.place[0];event.place[1]=result.place[1];
+            event.kind=kind;event.generation=by.generation;event.epoch=by.epoch;
+            event.place[0]=at[0];event.place[1]=at[1];
             sf4e::Overlay::PostTrainingPad(event);
-        }
+        };
+        if(events.reset) post(Kind::Reset,result.owner,result.place);
+        if(events.save) post(Kind::Save,result.owner,result.place);
+        if(events.record) post(Kind::Record,result.owner,result.place);
+        if(pressed.record) post(Kind::Record,owner,place.x);
+        if(pressed.play) post(Kind::Play,owner,place.x);
     }
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);

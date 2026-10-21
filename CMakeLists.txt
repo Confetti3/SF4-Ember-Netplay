@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 1.4.0
+    VERSION 1.4.1
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -29,6 +29,7 @@ if(WIN32)
 endif()
 if(BUILD_TESTING)
     if(WIN32)
+        sf4e_add_unit_test(NAME NativeSignature SOURCES "src/tests/native_signature_test.cxx" STD 14)
         sf4e_add_unit_test(NAME CustomContentFiles SOURCES "src/tests/custom_content_files_test.cxx"
             STD 17 LIBS sf4e_custom_content_files TIMEOUT 15)
     endif()
@@ -62,7 +63,6 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME MatchFrameMeter SOURCES "src/tests/match_frame_meter_test.cxx")
     sf4e_add_unit_test(NAME GfxActionPool SOURCES "src/tests/gfx_action_pool_test.cxx" STD 14)
     sf4e_add_unit_test(NAME MusicPlayback SOURCES "src/tests/music_playback_test.cxx" LIBS sf4e_selection)
-    sf4e_add_unit_test(NAME NativeSignature SOURCES "src/tests/native_signature_test.cxx" STD 14)
     sf4e_add_unit_test(NAME SoundReconcile SOURCES "src/tests/sound_reconcile_test.cxx")
     sf4e_add_unit_test(NAME ReusableRecords SOURCES "src/tests/reusable_records_test.cxx")
     sf4e_add_unit_test(NAME NativeMatchResult SOURCES "src/tests/native_match_result_test.cxx" STD 11 TIMEOUT 15)

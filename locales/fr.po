@@ -4213,6 +4213,9 @@ msgstr "Contre {0}. Vous êtes le joueur {1}."
 msgid "tournament.play"
 msgstr "Jouer"
 
+msgid "tournament.play_round"
+msgstr "Jouer : {0}"
+
 msgid "tournament.play_detail"
 msgstr "Ouvre ou rejoint le salon de ce match. Le résultat de chaque combat est envoyé de lui-même au service de tournoi."
 
@@ -4274,7 +4277,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Copiez le lien du match sur le site du tournoi, puis choisissez ceci pour ouvrir ce match ici."
 
 msgid "tournament.link_opened"
-msgstr "Le site du tournoi a ouvert un match. Appuyez sur Jouer quand vous êtes prêt."
+msgstr "Le site du tournoi a ouvert votre match. Ember rejoint son salon dès que possible."
 
 msgid "tournament.assigned_notice"
 msgstr "Un match du tournoi vous attend. Ouvrez Ember ID, puis Matchs du tournoi."
@@ -5676,6 +5679,36 @@ msgstr "{0} agit désormais comme {1}."
 
 msgid "button_layout.extra_off"
 msgstr "{0} ne fait plus rien."
+
+msgid "button_layout.copy_view_detail"
+msgstr "En Entraînement, un appui réinitialise la position et un maintien l'enregistre, comme Retour."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Met un combat en pause et ouvre Ember au menu principal, comme Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} ne copie encore aucun bouton. Choisissez-en un dans sa ligne ci-dessous, puis appuyez dessus ici."
+
+msgid "button_layout.training_record"
+msgstr "Enregistrer (Entraînement)"
+
+msgid "button_layout.training_play"
+msgstr "Rejouer (Entraînement)"
+
+msgid "button_layout.training_record_detail"
+msgstr "Sélectionnez, puis appuyez sur le bouton qui lance et arrête un enregistrement en Entraînement, comme F7. En Entraînement ce bouton ne fait qu'enregistrer ; en combat il garde son attaque."
+
+msgid "button_layout.training_play_detail"
+msgstr "Sélectionnez, puis appuyez sur le bouton qui rejoue et arrête l'emplacement choisi en Entraînement, comme F8. En Entraînement ce bouton ne fait que rejouer ; en combat il garde son attaque."
+
+msgid "button_layout.training_clear"
+msgstr "Effacer les boutons d'Entraînement"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Désactive les boutons d'enregistrement et de lecture de l'Entraînement."
+
+msgid "button_layout.training_cleared"
+msgstr "Les boutons d'Entraînement sont désactivés."
 
 msgid "room.delay_policy"
 msgstr "Délai d'entrée du salon"

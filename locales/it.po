@@ -4213,6 +4213,9 @@ msgstr "Contro {0}. Sei il giocatore {1}."
 msgid "tournament.play"
 msgstr "Gioca"
 
+msgid "tournament.play_round"
+msgstr "Gioca {0}"
+
 msgid "tournament.play_detail"
 msgstr "Apre la sala di questa partita o vi entra. Il risultato di ogni incontro arriva da solo al servizio tornei."
 
@@ -4274,7 +4277,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Copia il link della partita dal sito del torneo, poi scegli questa voce per aprire qui la partita."
 
 msgid "tournament.link_opened"
-msgstr "Il sito del torneo ha aperto una partita. Premi Gioca quando sei pronto."
+msgstr "Il sito del torneo ha aperto la tua partita. Ember entra nella sua sala appena può."
 
 msgid "tournament.assigned_notice"
 msgstr "Una partita del torneo è pronta per te. Apri Ember ID, poi Partite del torneo."
@@ -5676,6 +5679,36 @@ msgstr "{0} ora funziona come {1}."
 
 msgid "button_layout.extra_off"
 msgstr "{0} ora non fa nulla."
+
+msgid "button_layout.copy_view_detail"
+msgstr "In Allenamento, un tocco reimposta la posizione e tenerlo premuto la salva, come Indietro."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Mette in pausa un combattimento e apre Ember nel menu principale, come Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} non copia ancora nessun pulsante. Scegline uno nella sua riga qui sotto, poi premilo qui."
+
+msgid "button_layout.training_record"
+msgstr "Registra (Allenamento)"
+
+msgid "button_layout.training_play"
+msgstr "Riproduci (Allenamento)"
+
+msgid "button_layout.training_record_detail"
+msgstr "Seleziona, poi premi il pulsante che avvia e ferma una registrazione in Allenamento, come F7. In Allenamento quel pulsante registra soltanto; negli incontri mantiene il suo attacco."
+
+msgid "button_layout.training_play_detail"
+msgstr "Seleziona, poi premi il pulsante che riproduce e ferma lo slot scelto in Allenamento, come F8. In Allenamento quel pulsante riproduce soltanto; negli incontri mantiene il suo attacco."
+
+msgid "button_layout.training_clear"
+msgstr "Cancella i pulsanti di Allenamento"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Disattiva i pulsanti di registrazione e riproduzione di Allenamento."
+
+msgid "button_layout.training_cleared"
+msgstr "I pulsanti di Allenamento sono disattivati."
 
 msgid "room.delay_policy"
 msgstr "Ritardo di input della sala"

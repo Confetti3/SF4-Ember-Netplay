@@ -3733,6 +3733,9 @@ msgstr "Contra {0}. Você é o jogador {1}."
 msgid "tournament.play"
 msgstr "Jogar"
 
+msgid "tournament.play_round"
+msgstr "Jogar {0}"
+
 msgid "tournament.play_detail"
 msgstr "Abre a sala desta partida ou entra nela. O resultado de cada jogo vai sozinho para o serviço de torneios."
 
@@ -3794,7 +3797,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Copie o link da partida no site do torneio e escolha esta opção para abrir a partida aqui."
 
 msgid "tournament.link_opened"
-msgstr "O site do torneio abriu uma partida. Pressione Jogar quando estiver pronto."
+msgstr "O site do torneio abriu sua partida. O Ember entra na sala dela assim que puder."
 
 msgid "tournament.assigned_notice"
 msgstr "Uma partida do torneio está pronta para você. Abra Ember ID e depois Partidas do torneio."
@@ -5196,6 +5199,36 @@ msgstr "{0} agora funciona como {1}."
 
 msgid "button_layout.extra_off"
 msgstr "{0} não faz mais nada."
+
+msgid "button_layout.copy_view_detail"
+msgstr "No Treino, um toque redefine a posição e segurar a salva, como Voltar."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pausa uma luta e abre o Ember no menu principal, como Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} ainda não copia nenhum botão. Escolha um na linha dele abaixo e depois aperte-o aqui."
+
+msgid "button_layout.training_record"
+msgstr "Gravar no Treino"
+
+msgid "button_layout.training_play"
+msgstr "Reproduzir no Treino"
+
+msgid "button_layout.training_record_detail"
+msgstr "Selecione e aperte o botão que inicia e encerra uma gravação no Treino, como F7. No Treino esse botão só grava; nas lutas ele mantém seu ataque."
+
+msgid "button_layout.training_play_detail"
+msgstr "Selecione e aperte o botão que reproduz e para o slot escolhido no Treino, como F8. No Treino esse botão só reproduz; nas lutas ele mantém seu ataque."
+
+msgid "button_layout.training_clear"
+msgstr "Limpar botões do Treino"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Desativa os botões de gravar e reproduzir do Treino."
+
+msgid "button_layout.training_cleared"
+msgstr "Os botões do Treino estão desativados."
 
 msgid "room.delay_policy"
 msgstr "Atraso de entrada da sala"

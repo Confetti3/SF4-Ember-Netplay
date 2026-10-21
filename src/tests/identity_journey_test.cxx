@@ -81,8 +81,8 @@ void IdentityJourneys() {
  playable.slot=1;playable.gamesToWin=3;playable.wins={2,1};playable.roundLabel="Winners R1";playable.opponentFingerprint="abcd1234-efgh5678";
  auto organizer=playable;organizer.matchId="emt_2";organizer.profile="organizer-reported-v1";
  t.list.items={playable,organizer};h.Frame();
- Check(h.row("tm-play:emt_1")&&h.row("tm-play:emt_1")->enabled&&h.row("tm-play:emt_1")->value==loc::Tf("tournament.score",1u,2u,3),
-  "A playable match does not show its score from the player's side");
+ Check(h.row("tm-play:emt_1")&&h.row("tm-play:emt_1")->enabled&&h.row("tm-play:emt_1")->label==loc::Tf("tournament.play_round","Winners R1")&&h.row("tm-play:emt_1")->value==loc::Tf("tournament.score",1u,2u,3),
+  "A playable match is not a Play row with its round and the score from the player's side");
  Check(h.row("tm-play:emt_2")&&!h.row("tm-play:emt_2")->enabled,"A match the organizer enters can be played");
  // A match that expired shows as information, by the bridge's word or by this PC's clock, and cannot be played.
  {
@@ -126,15 +126,60 @@ void IdentityJourneys() {
  h.Screen("home");
  t.phase=netplay::tournament::Phase::Failed;t.reason="incompatible_build";h.Frame(0,2);
  Check(h.status==loc::Tf("tournament.stopped_notice",loc::T("tournament.failure.build")),"A stopped match was not announced");
- // A match link from the browser opens the matches screen on its match, for
- // the player to press Play; nothing is played by itself.
+ // A match link from the browser opens the matches screen on its match and,
+ // for a player who is free, plays it by itself once the list shows it playable.
  t=netplay::tournament::Status{};t.list.bridge="brg_1";t.list.items={playable};
  const auto before=h.played().size();
- t.link.bridge="brg_1";t.link.match="emt_1";t.link.sequence=1;h.Frame(0,3);
+ t.link.bridge="brg_1";t.link.match="emt_1";t.link.sequence=1;t.link.direct=true;h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="tournament-matches"&&h.shell.Navigation().Focus()=="tm-play:emt_1",
   "A match link did not open its match's row");
- for(std::size_t i=before;i<h.played().size();++i)Check(h.played()[i]->op!=Command::Op::Play,"A match link started the match by itself");
+ std::size_t plays=0;for(std::size_t i=before;i<h.played().size();++i)plays+=h.played()[i]->op==Command::Op::Play&&h.played()[i]->matchId=="emt_1";
+ Check(plays==1,"A match link did not play its match by itself, once");
  for(int i=0;i<4;++i)answer();
+ // A link that arrives while a tournament match is being claimed waits for
+ // Play, even once that match stops.
+ {
+  t.phase=netplay::tournament::Phase::Claiming;const auto mark=h.played().size();
+  t.link.sequence=10;h.Frame(0,3);t.phase=netplay::tournament::Phase::Idle;h.Frame(0,30);
+  bool played=false;for(std::size_t i=mark;i<h.played().size();++i)played|=h.played()[i]->op==Command::Op::Play;
+  Check(!played,"A match link that came during another tournament match played by itself later");
+ }
+ // A link whose match is not playable yet reads the list again every few
+ // seconds and plays it once it is.
+ {
+  auto later=playable;later.state="running";t.list.items={later};const auto mark=h.played().size();
+  t.link.sequence=11;h.Frame(0,3);
+  for(int i=0;i<12;++i)h.Frame(0,1,1.f);
+  std::size_t refreshes=0;for(std::size_t i=mark;i<h.played().size();++i)refreshes+=h.played()[i]->op==Command::Op::Refresh;
+  Check(refreshes>=2,"A link waiting for its match did not read the list again");
+  t.list.items={playable};h.Frame(0,3);
+  Check(h.played().back()->op==Command::Op::Play&&h.played().back()->matchId=="emt_1","A link's match did not play once the list showed it playable");
+ }
+ // A link the runtime judged busy when it arrived (clicked during a fight,
+ // say) waits for Play, and one whose two minutes from arrival run out
+ // before its match is playable stops waiting.
+ {
+  const auto mark=h.played().size();
+  t.link.sequence=12;t.link.direct=false;h.Frame(0,3);
+  auto later=playable;later.state="running";t.list.items={later};
+  t.link.sequence=13;t.link.direct=true;h.Frame(0,3);t.link.direct=false;h.Frame(0,3);
+  t.list.items={playable};h.Frame(0,3);
+  bool played=false;for(std::size_t i=mark;i<h.played().size();++i)played|=h.played()[i]->op==Command::Op::Play;
+  Check(!played,"A match link the runtime judged busy, or past its time, played by itself");
+ }
+ // The player's own Play replaces what a link was waiting to play: the
+ // link's match does not start by itself afterwards.
+ {
+  auto later=playable;later.state="running";auto other=playable;other.matchId="emt_7";
+  t.list.items={later,other};const auto mark=h.played().size();
+  t.link.sequence=14;t.link.direct=true;h.Frame(0,3);
+  h.Choose("tm-play:emt_7");h.Frame();
+  Check(h.played().back()->op==Command::Op::Play&&h.played().back()->matchId=="emt_7","The player's own Play did not go out");
+  t.list.items={playable,other};h.Frame(0,3);
+  std::size_t linked=0;for(std::size_t i=mark;i<h.played().size();++i)linked+=h.played()[i]->op==Command::Op::Play&&h.played()[i]->matchId=="emt_1";
+  Check(linked==0,"A link's match played by itself after the player chose another");
+  t.link.direct=false;t.list.items={playable};
+ }
  // A match the refreshed list does not hold is not the player's.
  t.link.match="emt_9";t.link.sequence=2;h.Frame(0,2);
  Check(h.played().back()->op==Command::Op::Refresh&&h.played().back()->bridgeId=="brg_1","A match link did not refresh its service's list");

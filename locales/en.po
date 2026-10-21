@@ -3848,6 +3848,9 @@ msgstr "Against {0}. You are player {1}."
 msgid "tournament.play"
 msgstr "Play"
 
+msgid "tournament.play_round"
+msgstr "Play {0}"
+
 msgid "tournament.play_detail"
 msgstr "Opens or joins this match's room. Each game's result goes to the tournament service by itself."
 
@@ -3909,7 +3912,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Copy the match link from the tournament site, then choose this to open that match here."
 
 msgid "tournament.link_opened"
-msgstr "The tournament site opened a match. Press Play when you are ready."
+msgstr "The tournament site opened your match. Ember joins its room as soon as it can."
 
 msgid "tournament.assigned_notice"
 msgstr "A tournament match is ready for you. Open Ember ID, then Tournament matches."
@@ -5312,6 +5315,36 @@ msgstr "{0} works as {1} now."
 
 msgid "button_layout.extra_off"
 msgstr "{0} does nothing now."
+
+msgid "button_layout.copy_view_detail"
+msgstr "In Training, a tap resets the position and a hold saves it, as Back does."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pauses a fight and opens Ember at the main menu, as Start does."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} copies no button yet. Choose one for it in its row below, then press it here."
+
+msgid "button_layout.training_record"
+msgstr "Training record"
+
+msgid "button_layout.training_play"
+msgstr "Training play"
+
+msgid "button_layout.training_record_detail"
+msgstr "Select, then press the button that starts and stops a recording in Training, as F7 does. In Training that button only records; in matches it keeps its attack."
+
+msgid "button_layout.training_play_detail"
+msgstr "Select, then press the button that plays and stops the selected slot in Training, as F8 does. In Training that button only plays; in matches it keeps its attack."
+
+msgid "button_layout.training_clear"
+msgstr "Clear Training buttons"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Turns the Training record and play buttons off."
+
+msgid "button_layout.training_cleared"
+msgstr "Training buttons are off."
 
 msgid "room.delay_policy"
 msgstr "Room input delay"

@@ -82,6 +82,24 @@ async fn rate(bridge: &Bridge, account: &str, deviation: f64, band: u8, days_ago
         .unwrap();
 }
 
+/// Forgets the class last shown for `account`, as if every ticket so far
+/// came while it was placing.
+async fn shown_placing(bridge: &Bridge, account: &str) {
+    let account = account.to_owned();
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE skill_ratings SET band = 0 WHERE discord_user_id = ?1",
+                [account],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
 /// Every stored rating, by Discord account.
 async fn ratings(bridge: &Bridge) -> Vec<(String, f64)> {
     bridge
@@ -153,9 +171,9 @@ async fn a_standing_says_where_the_player_is() {
             "listing": { "name": "Player 3", "country": "GB" } })
     );
 
-    // About two months without a game: the class shows faint.
+    // Over a year without a game: the class shows faint.
     connect_discord(&bridge, "400", &faint).await;
-    rate(&bridge, "400", 60.0, 7, 120).await;
+    rate(&bridge, "400", 60.0, 7, 600).await;
     assert_eq!(
         standing(&bridge, &faint).await["badge"],
         json!({ "band": 7, "settled": false })
@@ -229,7 +247,7 @@ async fn the_listing_changes_freely_and_needs_a_discord_account() {
 async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
     let (bridge, _fake) = start(true).await;
     let mut players = Vec::new();
-    for byte in 1..=7u8 {
+    for byte in 1..=8u8 {
         let player = player(&bridge, byte).await;
         connect_discord(&bridge, &byte.to_string(), &player).await;
         players.push(player);
@@ -240,9 +258,13 @@ async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
     rate(&bridge, "3", 60.0, 8, 2).await;
     // Still placing, faint, unlisted, and opted out: none are on it.
     rate(&bridge, "4", 300.0, 0, 0).await;
-    rate(&bridge, "5", 60.0, 9, 120).await;
+    rate(&bridge, "5", 60.0, 9, 600).await;
     rate(&bridge, "6", 60.0, 9, 0).await;
     rate(&bridge, "7", 60.0, 9, 0).await;
+    // 8 settled after its last ticket, which still showed it placing: it is
+    // on the board with the class its next ticket would show.
+    rate(&bridge, "8", 60.0, 6, 4).await;
+    shown_placing(&bridge, "8").await;
     for (index, player) in players.iter().enumerate() {
         if index == 5 {
             continue;
@@ -265,6 +287,7 @@ async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
         board(&bridge, &players[0]).await,
         json!([
             entry("Player 3", 8, false),
+            entry("Player 8", 6, false),
             entry("Player 2", 5, false),
             entry("Player 1", 5, true)
         ])

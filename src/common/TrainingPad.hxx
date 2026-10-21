@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <mutex>
 #include <vector>
+#include "MenuButtons.hxx"
 #include "TrainingCallInput.hxx"
 
 // The assigned pad in offline Training, outside Ember's own menu input. It
@@ -54,9 +55,9 @@ struct TrainingPadEvents {
     // Back went down this sample, whatever the press turns out to be: the
     // moment the press takes its owner (TrainingPadInput).
     bool pressed = false;
-    // The chord on standby: it starts the recording and opens nothing.
-    bool advance = false;
-    bool Any() const { return down || reset || save || open || close || goNow || advance; }
+    // The chord on standby: Record, as F7 is there (TrainingPadInput); it opens nothing.
+    bool record = false;
+    bool Any() const { return down || reset || save || open || close || goNow || record; }
 };
 class TrainingPadGesture {
 public:
@@ -103,12 +104,12 @@ private:
 };
 
 // What the gesture asked for, one at a time and in order, for the drawing
-// thread: a position reset or save, or the next step of a recording (Advance,
-// the chord on standby); each with the Training battle (its generation) and
+// thread: a position reset or save, or Record or Play (the chord on standby,
+// or the player's own buttons); each with the Training battle (its generation) and
 // the pad owner (epoch) it was pressed under. A save keeps where the fighters
 // stood as its Back went down.
 struct TrainingPadEvent {
-    enum class Kind : std::uint8_t { Reset, Save, Advance };
+    enum class Kind : std::uint8_t { Reset, Save, Record, Play };
     Kind kind = Kind::Reset;
     std::uint64_t generation = 0;
     std::uint32_t epoch = 0;
@@ -228,7 +229,7 @@ struct PadOwner {
 // for, a reset, a save or the controls, acts under another owner. The chord
 // opens or closes the controls, accepted only for the owner it was pressed
 // under: one whose owner went during the update (focus lost) is refused. On
-// standby it opens nothing and asks for the recording instead (advance), the
+// standby it opens nothing and is Record instead, the
 // one place that choice is made.
 class TrainingPadInput {
 public:
@@ -247,7 +248,7 @@ public:
         result.events = gesture_.Update(physical, controls.Open(), now, call);
         if (result.events.pressed) { owner_ = current; place_[0] = place[0]; place_[1] = place[1]; }
         held_ = (physical & PhysicalBack) != 0;
-        if (result.events.open && standby) { result.events.open = false; result.events.advance = true; }
+        if (result.events.open && standby) { result.events.open = false; result.events.record = true; }
         else if ((result.events.open || result.events.close) && !controls.Accept(result.events.open, owner_.epoch))
             result.events.open = result.events.close = false;
         result.owner = owner_; result.place[0] = place_[0]; result.place[1] = place_[1];
@@ -260,5 +261,27 @@ private:
     PadOwner owner_;
     float place_[2] = {0, 0};
     bool held_ = false;
+};
+
+// The player's own Record and Play buttons (gamepads::TrainingRecordButton and
+// TrainingPlayButton, from the button layout page), on the game thread beside
+// the gesture: each fresh press is Record or Play, as F7 and F8 are. They act
+// only with the controls shut, no call, no Back held and the fight holding the
+// pad (live); a button held through any of those counts once pressed again.
+class TrainingButtonPresses {
+public:
+    struct Pressed { bool record = false, play = false; };
+    Pressed Update(std::uint32_t physical, const TrainingButtons& buttons, bool open, TrainingCall call, bool live) {
+        const bool record = buttons.record && (physical & buttons.record), play = buttons.play && (physical & buttons.play);
+        const bool ready = live && !open && call == TrainingCall::None && !(physical & PhysicalBack);
+        Pressed pressed;
+        pressed.record = ready && record && !record_; pressed.play = ready && play && !play_;
+        record_ = record; play_ = play;
+        return pressed;
+    }
+    // The pad changed, lost focus or left Training: a button still held counts only once pressed again.
+    void Reset() { record_ = play_ = true; }
+private:
+    bool record_ = false, play_ = false;
 };
 } }

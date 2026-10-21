@@ -184,6 +184,11 @@ static void InventoryProjection() {
     auto pads = inventory.Build(Layer::Active, {ps}, {}, {}, gameplay, ps.pad.identity);
     CHECK(pads.size() == 1 && pads[0].id == 1 && pads[0].gameplay && pads[0].picture == "controller_playstation5");
     CHECK(pads[0].brand == PromptBrand(Brand::PlayStation, PlayStationArt::PS5) && pads[0].held == std::vector<std::string>({"A"}));
+    // Held as the game reads it: the touchpad also holds the button it copies.
+    PadFrame touch = ps; touch.state = {}; touch.state.extras[static_cast<unsigned>(Extra::Touchpad)] = true;
+    touch.extras[static_cast<unsigned>(Extra::Touchpad)] = 2;
+    pads = inventory.Build(Layer::Active, {touch}, {}, {}, gameplay, ps.pad.identity);
+    CHECK(pads.size() == 1 && pads[0].held == std::vector<std::string>({"X", "touchpad"}));
     pads = inventory.Build(Layer::Active, {}, {}, {}, gameplay, ps.pad.identity);
     CHECK(pads.size() == 1 && pads[0].id == 1 && pads[0].state == RowState::Absent && pads[0].picture == "controller_disconnected");
     ps.pad.id = 99; ps.pad.slot = 2; ps.pad.identity.guid = "bluetooth";

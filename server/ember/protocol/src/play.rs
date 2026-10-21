@@ -521,6 +521,14 @@ pub fn play_url(bridge_id: &str, match_id: &str) -> String {
     format!("{PLAY_PAGE}{bridge_id}/{match_id}")
 }
 
+/// The same match as the link Ember itself opens, which the play page hands
+/// to Ember: a site that links it directly skips the page, and Ember plays
+/// the match as soon as the player is free. Unlike the page it offers nothing
+/// to a player whose Ember is not installed or never started.
+pub fn play_deep_link(bridge_id: &str, match_id: &str) -> String {
+    format!("ember://tournament/open?bridge={bridge_id}&match={match_id}")
+}
+
 #[cfg(test)]
 mod tests {
     use zeroize::Zeroizing;
