@@ -328,9 +328,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         homeLift=(std::min)((std::max)(0.f,homeTop-16*Scale()),(std::max)(0.f,rows+footer-windowSize.y*.61f));
         homeTop-=homeLift;
     }
+    bool drewBackdrop=false;
     if(menuArt&&!flyout&&backdrop) {
         const auto art=menuArt->MenuBackdrop();const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
-        if(art.texture){auto* d=ImGui::GetWindowDrawList();
+        if(art.texture){auto* d=ImGui::GetWindowDrawList();drewBackdrop=true;
             ImVec2 uv0(0,0),uv1(1,1);
             const float sourceAspect=float(art.width)/art.height,targetAspect=size.x/size.y;
             if(targetAspect<sourceAspect){const float span=targetAspect/sourceAspect;uv0.x=1-span;}
@@ -621,8 +622,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     }
     if(action.kind==MenuAction::Back){backRequested=true;action={};}
     if(!flyout){
+        // Over the menu art the legend's backing deepens towards the bottom, so the
+        // art runs on behind it instead of stopping at a hard line. Over the game it
+        // stays solid, since the game behind it can be bright anywhere.
         const auto p=ImGui::GetCursorScreenPos();const auto origin=ImGui::GetWindowPos();
-        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(origin.x,p.y),ImVec2(origin.x+windowSize.x,origin.y+windowSize.y),IM_COL32(16,15,14,225));
+        const ImU32 top=IM_COL32(16,15,14,drewBackdrop?60:225),deep=IM_COL32(16,15,14,drewBackdrop?205:225);
+        ImGui::GetWindowDrawList()->AddRectFilledMultiColor(ImVec2(origin.x,p.y),ImVec2(origin.x+windowSize.x,origin.y+windowSize.y),top,top,deep,deep);
     }
     if(home){
         DrawHomeStatusLine(entries,status,statusTone,homeMargin);
