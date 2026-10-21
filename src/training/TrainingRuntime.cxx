@@ -74,6 +74,9 @@ std::atomic<bool> watching{false};
 // The frames the meter keeps, as the Frame data page chose (SetMeterHistory).
 std::atomic<int> meterHistory{static_cast<int>(MeterHistory)};
 std::atomic<bool> meterContinuous{false};
+// Whether Hitboxes is on (ShowHitBoxes): the boxes are read only then, since
+// reading them walks the game's box lists every frame.
+std::atomic<bool> hitBoxesShown{false};
 // Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
@@ -81,6 +84,8 @@ void ApplyMeterSettings() {
 #ifdef SF4E_SELFTEST
 // The in-game self-test's: the lab also runs in an offline Versus battle.
 bool versusForTest = false;
+// The self-test's: the boxes are read whatever Hitboxes says.
+bool boxesForTest = false;
 #endif
 // Where the lab runs: a Training battle (and the self-test's Versus battle,
 // in a self-test build), not while the battle is being left. The one rule for
@@ -93,6 +98,14 @@ bool LabBattle(Native* system) {
     const bool lab = gameMode == Dimps::Game::Battle::GAMEMODE_TRAINING;
 #endif
     return lab && !(system->*Native::publicMethods.IsLeavingBattle)();
+}
+// Whether the fighters' boxes are read this frame: while Hitboxes is on, and
+// always in a self-test that checks them.
+bool BoxesWanted() {
+#ifdef SF4E_SELFTEST
+    if (boxesForTest) return true;
+#endif
+    return hitBoxesShown;
 }
 bool matchShown = false;
 ConfirmedSamples confirmed;
@@ -593,7 +606,7 @@ void AfterUpdate(Native* system) {
     sampling = false; following = false;
     const View view = session.GetView();
     BoxView boxes;
-    if (view.available && view.ready) boxes = ReadBoxes(system);
+    if (view.available && view.ready && BoxesWanted()) boxes = ReadBoxes(system);
     std::lock_guard<std::mutex> lock(mutex); published = view; published.meter = meter.View(); published.boxes = std::move(boxes);
     if (published.available) published.dummy = ReadDummyState(published.dummy);
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
@@ -607,9 +620,11 @@ unsigned ClearReservedInputBits(unsigned raw) {
 }
 #ifdef SF4E_SELFTEST
 void AllowOfflineVersusForTest() { versusForTest = true; }
+void ReadHitBoxesForTest() { boxesForTest = true; }
 #endif
 void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
+void ShowHitBoxes(bool shown) { hitBoxesShown = shown; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.

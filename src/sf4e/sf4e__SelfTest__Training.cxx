@@ -137,6 +137,8 @@ bool StartTraining() {
 	settings.recordReplay = FALSE;
 	// The lab runs in a Training battle only; a test run lets it into this one.
 	training::AllowOfflineVersusForTest();
+	// The crouching LP's boxes are checked whether or not Hitboxes is on.
+	training::ReadHitBoxesForTest();
 	if (!GameEvents::VsPreBattle::GoToVersus(settings, SetFighters)) { Say(false, "battle", "the main menu was not in front"); return false; }
 	s_lab.Enter(Stage::ToBattle);
 	return true;
