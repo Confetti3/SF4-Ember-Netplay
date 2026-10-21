@@ -1,7 +1,7 @@
 // Tournaments on local disk, one SQLite row each.
 import { DatabaseSync } from "node:sqlite";
 
-import type { Tournament } from "./bracket.ts";
+import type { Tournament } from "./tournament.ts";
 
 // ponytail: each write saves the whole tournament, fine for brackets of a few
 // hundred players; give sets their own rows if events get bigger.
@@ -16,6 +16,10 @@ export class Store {
   get(id: string): Tournament | undefined {
     const row = this.#db.prepare("SELECT doc FROM tournaments WHERE id = ?").get(id) as { doc: string } | undefined;
     return row && (JSON.parse(row.doc) as Tournament);
+  }
+
+  all(): Tournament[] {
+    return (this.#db.prepare("SELECT doc FROM tournaments ORDER BY id").all() as { doc: string }[]).map((row) => JSON.parse(row.doc) as Tournament);
   }
 
   /** Adds a new tournament; false when the ID is taken. */

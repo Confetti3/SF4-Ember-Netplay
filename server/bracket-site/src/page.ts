@@ -1,11 +1,23 @@
 // A read-only bracket page: one column a round, each set with its players
 // and score.
-import { roundLabel, status, type Tournament } from "./bracket.ts";
+import { roundLabel, status } from "./bracket.ts";
+import { beforeLive, type Tournament } from "./tournament.ts";
 
 const escape = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
+const STATES: Record<Tournament["state"], string> = {
+  draft: "Being set up.",
+  planned: "Sign-ups are not open yet.",
+  sign_ups: "Sign-ups are open.",
+  check_in: "Check-in is open.",
+  live: "Live.",
+  finished: "Finished.",
+  archived: "Finished.",
+  cancelled: "Cancelled.",
+};
+
 export function page(tournament: Tournament): string {
-  const name = (id: string | null) => (id ? escape(tournament.entrants.find((each) => each.id === id)?.name ?? id) : "<i>to be decided</i>");
+  const name = (id: string | null) => (id ? escape(tournament.entrants.find((each) => each.ember_id === id)?.name ?? id) : "<i>to be decided</i>");
   const rounds = Array.from({ length: tournament.rounds }, (_, i) => i + 1).map((round) => {
     const sets = tournament.sets.filter((set) => set.round === round).map((set) => {
       const rows = set.entries.map((entry, i) => {
@@ -31,8 +43,8 @@ td + td { width: 2em; text-align: right; }
 @media (prefers-color-scheme: dark) { body { background: #111; color: #eee; } td { border-color: #666; } }
 </style></head><body>
 <h1>${escape(tournament.title)}</h1>
-<p>First to ${tournament.games_to_win}. ${tournament.state === "open" ? "Not started yet." : ""}</p>
-${tournament.state === "open" ? `<h2>Entrants</h2><ol>${entrants}</ol>` : `<div class="rounds">${rounds.join("")}</div>`}
+<p>First to ${tournament.games_to_win}. ${STATES[tournament.state]}</p>
+${beforeLive(tournament) ? `<h2>Entrants</h2><ol>${entrants}</ol>` : `<div class="rounds">${rounds.join("")}</div>`}
 </body></html>
 `;
 }

@@ -21,8 +21,9 @@ function secret(name: string): string {
 const [host, port] = (process.env.BRACKET_SITE_LISTEN ?? "127.0.0.1:8790").split(/:(?=\d+$)/);
 const server = bracketSite({
   store: new Store(process.env.BRACKET_SITE_DATABASE ?? "bracket-site.sqlite3"),
-  organizerToken: secret("BRACKET_SITE_ORGANIZER_TOKEN_FILE"),
+  operatorToken: secret("BRACKET_SITE_OPERATOR_TOKEN_FILE"),
   connectorToken: secret("BRACKET_SITE_CONNECTOR_TOKEN_FILE"),
+  ...(process.env.BRACKET_SITE_BOT_TOKEN_FILE ? { botToken: secret("BRACKET_SITE_BOT_TOKEN_FILE") } : {}),
   bridge: new BridgeClient({ origin: env("EMBER_BRIDGE_ORIGIN"), credential: secret("EMBER_BRIDGE_CREDENTIAL_FILE") }),
 });
 server.listen(Number(port), host, () => console.log(`ember-bracket-site listening on http://${host}:${port}`));

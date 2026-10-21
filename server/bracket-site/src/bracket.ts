@@ -1,12 +1,5 @@
 // A single elimination bracket: seeding with byes, results and who moves on.
-// Pure functions over one tournament's state, which the store keeps whole.
-
-export interface Entrant {
-  /** The player's Ember ID, which is also their entry ID on the contract. */
-  id: string;
-  discord: string;
-  name: string;
-}
+// Pure functions over a bracket's sets, each entry an entrant's Ember ID.
 
 export interface BracketSet {
   /** `r<round>-<position>`, from 1. A round 1 set with a bye is never made. */
@@ -21,16 +14,6 @@ export interface BracketSet {
   underway: boolean;
   /** The Idempotency-Key the result came with; null when an organizer entered it. */
   key: string | null;
-}
-
-export interface Tournament {
-  id: string;
-  title: string;
-  games_to_win: number;
-  state: "open" | "started";
-  entrants: Entrant[];
-  rounds: number;
-  sets: BracketSet[];
 }
 
 export type Status = "pending" | "open" | "decided";
@@ -94,8 +77,8 @@ export interface Result {
  * already recorded under the same key is `"repeat"` and changes nothing; any
  * other result for a decided or pending set is a Conflict.
  */
-export function report(tournament: Tournament, setId: string, result: Result): "recorded" | "repeat" {
-  const set = tournament.sets.find((set) => set.id === setId);
+export function report(sets: BracketSet[], setId: string, result: Result): "recorded" | "repeat" {
+  const set = sets.find((set) => set.id === setId);
   if (!set) throw new Invalid(`no set ${setId}`);
   const scores = set.entries.map((entry) => (entry ? result.scores[entry] : undefined));
   if (set.winner) {
@@ -111,10 +94,11 @@ export function report(tournament: Tournament, setId: string, result: Result): "
   set.winner = result.winner;
   set.scores = [scores[0]!, scores[1]!];
   set.key = result.key;
-  moveOn(tournament.sets, set.round, set.position, result.winner);
+  moveOn(sets, set.round, set.position, result.winner);
   return "recorded";
 }
 
-export function finished(tournament: Tournament): boolean {
-  return tournament.state === "started" && tournament.sets.some((set) => set.round === tournament.rounds && set.winner);
+/** Whether the final is decided. */
+export function decided(sets: BracketSet[], rounds: number): boolean {
+  return sets.some((set) => set.round === rounds && set.winner);
 }

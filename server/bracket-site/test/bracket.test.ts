@@ -1,21 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { Conflict, Invalid, finished, generate, report, roundLabel, seedOrder, status, type Tournament } from "../src/bracket.ts";
+import { Conflict, Invalid, decided, generate, report, roundLabel, seedOrder, status, type BracketSet } from "../src/bracket.ts";
 
 const ids = (count: number) => Array.from({ length: count }, (_, i) => `p${i + 1}`);
 
-function tournament(count: number): Tournament {
-  return { id: "t", title: "T", games_to_win: 2, state: "started", entrants: [], ...generate(ids(count)) };
+function tournament(count: number): { rounds: number; sets: BracketSet[] } {
+  return generate(ids(count));
 }
 
 /** Plays every open set, the lower seed number winning 2-1, until none is left. */
-function playOut(t: Tournament): void {
+function playOut(t: { sets: BracketSet[] }): void {
   for (let open = t.sets.filter((set) => status(set) === "open"); open.length; open = t.sets.filter((set) => status(set) === "open")) {
     for (const set of open) {
       const [a, b] = set.entries as [string, string];
       const winner = Number(a.slice(1)) < Number(b.slice(1)) ? a : b;
-      report(t, set.id, { winner, scores: { [winner]: 2, [winner === a ? b : a]: 1 }, key: `k-${set.id}` });
+      report(t.sets, set.id, { winner, scores: { [winner]: 2, [winner === a ? b : a]: 1 }, key: `k-${set.id}` });
     }
   }
 }
@@ -42,7 +42,7 @@ test("every size from 2 to 17 gets byes for its top seeds, and its first seed wi
     }
     assert.ok(new Set(t.sets.map((set) => set.id)).size === t.sets.length);
     playOut(t);
-    assert.ok(finished(t), `${count}`);
+    assert.ok(decided(t.sets, t.rounds), `${count}`);
     const final = t.sets.find((set) => set.round === t.rounds)!;
     assert.equal(final.winner, "p1");
     assert.deepEqual([...final.entries].sort(), ["p1", "p2"], `${count}: seeds 1 and 2 meet in the final`);
@@ -61,24 +61,24 @@ test("three players: seed 1 waits for the winner of 2 against 3", () => {
   assert.equal(roundLabel(1, 2), "Semifinals");
   assert.equal(roundLabel(2, 2), "Final");
   assert.equal(roundLabel(1, 5), "Round 1");
-  report(t, "r1-2", { winner: "p3", scores: { p2: 1, p3: 2 }, key: "a" });
+  report(t.sets, "r1-2", { winner: "p3", scores: { p2: 1, p3: 2 }, key: "a" });
   assert.deepEqual(t.sets[1]!.entries, ["p1", "p3"]);
   assert.equal(status(t.sets[1]!), "open");
-  assert.equal(finished(t), false);
+  assert.equal(decided(t.sets, t.rounds), false);
 });
 
 test("a result is recorded once; its repeat changes nothing, any other is a conflict", () => {
   const t = tournament(4);
   const result = { winner: "p1", scores: { p1: 2, p4: 0 }, key: "emt_1" };
-  assert.equal(report(t, "r1-1", result), "recorded");
-  assert.equal(report(t, "r1-1", result), "repeat");
+  assert.equal(report(t.sets, "r1-1", result), "recorded");
+  assert.equal(report(t.sets, "r1-1", result), "repeat");
   assert.deepEqual(t.sets.find((set) => set.id === "r1-1")!.scores, [2, 0]);
-  assert.throws(() => report(t, "r1-1", { ...result, key: "emt_2" }), Conflict);
-  assert.throws(() => report(t, "r1-1", { ...result, scores: { p1: 2, p4: 1 } }), Conflict);
-  assert.throws(() => report(t, "r1-1", { ...result, key: null }), Conflict);
+  assert.throws(() => report(t.sets, "r1-1", { ...result, key: "emt_2" }), Conflict);
+  assert.throws(() => report(t.sets, "r1-1", { ...result, scores: { p1: 2, p4: 1 } }), Conflict);
+  assert.throws(() => report(t.sets, "r1-1", { ...result, key: null }), Conflict);
   // The final has one player so far.
-  assert.throws(() => report(t, "r2-1", { winner: "p1", scores: { p1: 2 }, key: "x" }), Conflict);
-  assert.throws(() => report(t, "r9-1", result), Invalid);
+  assert.throws(() => report(t.sets, "r2-1", { winner: "p1", scores: { p1: 2 }, key: "x" }), Conflict);
+  assert.throws(() => report(t.sets, "r9-1", result), Invalid);
 });
 
 test("a result names one of the set's players, who won more games", () => {
@@ -92,7 +92,7 @@ test("a result names one of the set's players, who won more games", () => {
     { winner: "p1", scores: { p1: 2, p2: -1 } },
   ];
   for (const bad of bads) {
-    assert.throws(() => report(t, "r1-1", { ...bad, key: null }), Invalid, JSON.stringify(bad));
+    assert.throws(() => report(t.sets, "r1-1", { ...bad, key: null }), Invalid, JSON.stringify(bad));
   }
   assert.equal(status(t.sets[0]!), "open");
   assert.throws(() => generate(["p1"]), /at least two/);

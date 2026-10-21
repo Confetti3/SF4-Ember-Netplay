@@ -18,11 +18,12 @@ use std::{
 };
 
 use ember_brackets::Adapter;
+use reqwest::Method;
 use serde_json::{Value, json};
 use support::{Extra, Setup, World};
 
 const CONNECTOR_TOKEN: &str = "bracket-site-connector-token";
-const ORGANIZER_TOKEN: &str = "bracket-site-organizer-token";
+const OPERATOR_TOKEN: &str = "bracket-site-operator-token";
 const DISCORD: [&str; 3] = [
     "274220342558756141",
     "274220342558756142",
@@ -56,8 +57,8 @@ impl Site {
             .env("BRACKET_SITE_LISTEN", format!("127.0.0.1:{port}"))
             .env("BRACKET_SITE_DATABASE", dir.join("site.sqlite3"))
             .env(
-                "BRACKET_SITE_ORGANIZER_TOKEN_FILE",
-                write("organizer.token", ORGANIZER_TOKEN),
+                "BRACKET_SITE_OPERATOR_TOKEN_FILE",
+                write("operator.token", OPERATOR_TOKEN),
             )
             .env(
                 "BRACKET_SITE_CONNECTOR_TOKEN_FILE",
@@ -90,12 +91,12 @@ impl Site {
         panic!("the bracket site did not start");
     }
 
-    /// An organizer's request; its status and JSON answer.
-    async fn organizer(&self, path: &str, body: Value) -> (u16, Value) {
+    /// The operator's request; its status and JSON answer.
+    async fn operator(&self, method: Method, path: &str, body: Value) -> (u16, Value) {
         let response = self
             .http
-            .post(format!("{}{path}", self.origin))
-            .bearer_auth(ORGANIZER_TOKEN)
+            .request(method, format!("{}{path}", self.origin))
+            .bearer_auth(OPERATOR_TOKEN)
             .json(&body)
             .send()
             .await
@@ -161,21 +162,42 @@ async fn the_bracket_site_is_played_to_its_final() {
     let site = Site::start(&dir, port, &world.bridge.origin, &world.provider).await;
 
     let (status, _) = site
-        .organizer("/tournaments", json!({ "id": "weekly", "title": "Weekly" }))
+        .operator(
+            Method::POST,
+            "/tournaments",
+            json!({ "id": "weekly", "title": "Weekly" }),
+        )
         .await;
     assert_eq!(status, 201);
+    for action in ["plan", "open_sign_ups"] {
+        let (status, _) = site
+            .operator(
+                Method::PUT,
+                "/tournaments/weekly/state",
+                json!({ "action": action }),
+            )
+            .await;
+        assert_eq!(status, 200);
+    }
     for (n, discord) in DISCORD.iter().enumerate() {
         let (status, entrant) = site
-            .organizer(
+            .operator(
+                Method::POST,
                 "/tournaments/weekly/entrants",
                 json!({ "discord": discord, "name": format!("Player {}", n + 1) }),
             )
             .await;
         assert_eq!(status, 201, "{entrant}");
-        assert_eq!(entrant["id"], players[n].as_str());
+        assert_eq!(entrant["ember_id"], players[n].as_str());
     }
-    let (status, _) = site.organizer("/tournaments/weekly/start", json!({})).await;
-    assert_eq!(status, 200);
+    let (status, started) = site
+        .operator(
+            Method::PUT,
+            "/tournaments/weekly/state",
+            json!({ "action": "start" }),
+        )
+        .await;
+    assert_eq!(status, 200, "{started}");
 
     // Players 2 and 3 play the semifinal, first to 2; Player 3 wins 2-1.
     assert_eq!(play(&world, &[1, 0, 1]).await, "http:weekly:r1-2:1");
@@ -196,5 +218,9 @@ async fn the_bracket_site_is_played_to_its_final() {
     assert_eq!(final_["winner"], players[0].as_str());
     assert_eq!(final_["scores"], json!([3, 0]));
     assert_eq!(world.progress("http:weekly", "r2-1"), "reported");
+    let (_, finished) = site
+        .operator(Method::GET, "/tournaments/weekly", Value::Null)
+        .await;
+    assert_eq!(finished["state"], "finished");
     let _ = std::fs::remove_dir_all(dir);
 }

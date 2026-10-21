@@ -1,217 +1,254 @@
-// The HTTP routes: an organizer's API, a public view, and the bracket
-// connector's contract (server/ember/brackets/ADAPTERS.md, "The http adapter")
-// under /tournaments/<id>/ember.
-import { createHash, randomInt, timingSafeEqual } from "node:crypto";
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+// The HTTP routes: who is asking, the tournaments' API for organizers and
+// players, a public view, and the connector's contract (contract.ts).
+import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { createServer, type IncomingMessage, type Server } from "node:http";
 
 import type { BridgeClient } from "../../../sdk/typescript/src/index.ts";
-import { BridgeError } from "../../../sdk/typescript/src/index.ts";
-import { Conflict, Invalid, finished, generate, report, roundLabel, status, type BracketSet, type Tournament } from "./bracket.ts";
+import { Conflict, Invalid, roundLabel, status } from "./bracket.ts";
+import { contractRoutes, record } from "./contract.ts";
+import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
 import { page } from "./page.ts";
 import type { Store } from "./store.ts";
+import { ACTIONS, actions, beforeLive, checkIn, enter, move, type Action, type Entrant, type Tournament } from "./tournament.ts";
 
-export const CONTRACT = "1";
-const MAX_BODY = 64 * 1024;
 const SLUG = /^[A-Za-z0-9_-]{1,64}$/;
-const DISCORD_ID = /^\d{17,20}$/;
+export const DISCORD_ID = /^\d{17,20}$/;
+/** The most Discord IDs one bridge lookup takes. */
+const LOOKUP_BATCH = 32;
+
+/** Who is asking. */
+export interface Actor {
+  /** Their Discord user ID; none for the operator acting as no one. */
+  discord: string | null;
+  /** The site's operator: may do anything. */
+  operator: boolean;
+  /** May create tournaments and manage those they organize: only organizers the bridge lets sign in as one. */
+  organizer: boolean;
+}
 
 export interface Options {
   store: Store;
-  /** For the organizer's routes. */
-  organizerToken: string;
-  /** For the connector's routes. */
+  /** The operator's token. With `X-Discord-User`, the operator acts as that user. */
+  operatorToken: string;
+  /** For the connector's configured tournaments. */
   connectorToken: string;
+  /** For the Discord bot, which says in `X-Discord-User` who pressed its button. */
+  botToken?: string;
+  /** Other bearer tokens, such as the site's OAuth access tokens. */
+  tokens?: (token: string) => Actor | undefined;
   /** A bridge connection with `discord_lookup`, which finds each player's Ember ID. */
   bridge: Pick<BridgeClient, "lookupPlayers">;
+  now?: () => Date;
 }
-
-class Failure extends Error {
-  readonly status: number;
-  readonly body: object;
-
-  constructor(status: number, message: string, body: object = { error: message }) {
-    super(message);
-    this.status = status;
-    this.body = body;
-  }
-}
-
-type Json = Record<string, unknown>;
-type Handler = (request: IncomingMessage, params: string[], url: URL) => Promise<[number, object?]> | [number, object?];
 
 export function bracketSite(options: Options): Server {
   const { store } = options;
-  const organizer = (request: IncomingMessage) => authorize(request, options.organizerToken);
-  const connector = (request: IncomingMessage) => {
-    authorize(request, options.connectorToken);
-    const version = request.headers["ember-brackets-contract"];
-    if (version !== undefined && version !== CONTRACT) throw new Failure(426, "contract version", { contract: CONTRACT });
-  };
+  const now = () => (options.now?.() ?? new Date()).toISOString();
   const found = (id: string) => store.get(id) ?? fail(404, `no tournament ${id}`);
 
-  const routes: [string, RegExp, Handler][] = [
-    [
-      "POST",
-      /^\/tournaments$/,
-      async (request) => {
-        organizer(request);
-        const body = await readJson(request);
-        const id = text(body.id, SLUG, "id is 1 to 64 letters, digits, _ or -");
-        const title = text(body.title, /^.{1,100}$/u, "title is 1 to 100 characters");
-        const gamesToWin = body.games_to_win ?? 2;
-        if (!Number.isInteger(gamesToWin) || (gamesToWin as number) < 1 || (gamesToWin as number) > 10) fail(400, "games_to_win is 1 to 10");
-        const tournament: Tournament = { id, title, games_to_win: gamesToWin as number, state: "open", entrants: [], rounds: 0, sets: [] };
-        if (!store.add(tournament)) fail(409, `tournament ${id} exists`);
-        return [201, view(tournament)];
-      },
-    ],
-    ["GET", /^\/tournaments\/([^/]+)$/, (_, [id]) => [200, view(found(id!))]],
-    [
-      "DELETE",
-      /^\/tournaments\/([^/]+)$/,
-      (request, [id]) => {
-        organizer(request);
-        return store.delete(id!) ? [204] : fail(404, `no tournament ${id}`);
-      },
-    ],
-    [
-      "POST",
-      /^\/tournaments\/([^/]+)\/entrants$/,
-      async (request, [id]) => {
-        organizer(request);
-        const body = await readJson(request);
-        const discord = text(body.discord, DISCORD_ID, "discord is a Discord user ID");
-        const name = body.name === undefined ? discord : text(body.name, /^.{1,64}$/u, "name is 1 to 64 characters");
-        open(found(id!));
-        let players;
-        try {
-          players = await options.bridge.lookupPlayers([discord]);
-        } catch (error) {
-          if (error instanceof BridgeError) fail(502, `the bridge answered ${error.status} (${error.code})`);
-          throw error;
-        }
-        const player = players[0] ?? fail(422, "that Discord account is not connected to an Ember ID; connect it in Ember first");
-        // Read again: the tournament may have changed while the bridge answered.
-        const tournament = open(found(id!));
-        if (tournament.entrants.some((entrant) => entrant.id === player.ember_id || entrant.discord === discord)) fail(409, "already entered");
-        const entrant = { id: player.ember_id, discord, name };
-        tournament.entrants.push(entrant);
-        store.save(tournament);
-        return [201, entrant];
-      },
-    ],
-    [
-      "DELETE",
-      /^\/tournaments\/([^/]+)\/entrants\/([^/]+)$/,
-      (request, [id, entrant]) => {
-        organizer(request);
-        const tournament = open(found(id!));
-        const before = tournament.entrants.length;
-        tournament.entrants = tournament.entrants.filter((each) => each.id !== entrant);
-        if (tournament.entrants.length === before) fail(404, `no entrant ${entrant}`);
-        store.save(tournament);
-        return [204];
-      },
-    ],
-    [
-      "POST",
-      /^\/tournaments\/([^/]+)\/start$/,
-      async (request, [id]) => {
-        organizer(request);
-        const body = await readJson(request);
-        const seeding = body.seeding ?? "join";
-        if (seeding !== "join" && seeding !== "random") fail(400, 'seeding is "join" or "random"');
-        const tournament = open(found(id!));
-        if (tournament.entrants.length < 2) fail(409, "a bracket needs at least two entrants");
-        if (seeding === "random") shuffle(tournament.entrants);
-        Object.assign(tournament, generate(tournament.entrants.map((entrant) => entrant.id)), { state: "started" });
-        store.save(tournament);
-        return [200, view(tournament)];
-      },
-    ],
-    [
-      "POST",
-      /^\/tournaments\/([^/]+)\/sets\/([^/]+)\/result$/,
-      async (request, [id, setId]) => {
-        organizer(request);
-        const body = await readJson(request);
-        const scores = body.scores as Record<string, number>;
-        if (typeof body.winner !== "string" || typeof scores !== "object" || scores === null) fail(400, "a result is { winner, scores: { <entrant>: <games> } }");
-        return record(found(id!), setId!, { winner: body.winner as string, scores, key: null });
-      },
-    ],
-    // The connector's contract.
-    [
-      "GET",
-      /^\/tournaments\/([^/]+)\/ember\/sets$/,
-      (request, [id], url) => {
-        connector(request);
-        const state = url.searchParams.get("state");
-        const tournament = store.get(id!);
-        const sets = (tournament?.sets ?? []).filter((set) => !state || status(set) === state);
-        return [200, { sets: sets.map((set) => contractSet(tournament!, set)) }];
-      },
-    ],
-    [
-      "GET",
-      /^\/tournaments\/([^/]+)\/ember\/sets\/([^/]+)$/,
-      (request, [id, setId]) => {
-        connector(request);
-        // A tournament deleted, or a set it never had, is gone: its match is cancelled.
-        const tournament = store.get(id!);
-        const set = tournament?.sets.find((each) => each.id === setId);
-        return [200, { set: set ? contractSet(tournament!, set) : null }];
-      },
-    ],
-    [
-      "GET",
-      /^\/tournaments\/([^/]+)\/ember\/standing$/,
-      (request, [id]) => {
-        connector(request);
-        const tournament = store.get(id!);
-        return [200, { standing: !tournament || finished(tournament) ? "finished" : "running" }];
-      },
-    ],
-    [
-      "POST",
-      /^\/tournaments\/([^/]+)\/ember\/sets\/([^/]+)\/underway$/,
-      async (request, [id, setId]) => {
-        connector(request);
-        await readJson(request);
-        const tournament = found(id!);
-        const set = tournament.sets.find((each) => each.id === setId) ?? fail(404, `no set ${setId}`);
-        set.underway = true;
-        store.save(tournament);
-        return [204];
-      },
-    ],
-    [
-      "POST",
-      /^\/tournaments\/([^/]+)\/ember\/sets\/([^/]+)\/report$/,
-      async (request, [id, setId]) => {
-        connector(request);
-        const key = request.headers["idempotency-key"];
-        if (typeof key !== "string" || !key) fail(400, "Idempotency-Key is required");
-        const body = await readJson(request);
-        const scores = Array.isArray(body.scores) ? (body.scores as { entry?: unknown; games?: unknown }[]) : [];
-        if (typeof body.winner !== "string" || scores.length !== 2) fail(400, "not a report");
-        const byEntry = Object.fromEntries(scores.map((score) => [String(score.entry), score.games as number]));
-        return record(found(id!), setId!, { winner: body.winner as string, scores: byEntry, key: key as string });
-      },
-    ],
-  ];
+  function actor(request: IncomingMessage): Actor | undefined {
+    const token = /^Bearer (.+)$/.exec(request.headers.authorization ?? "")?.[1];
+    if (!token) return undefined;
+    const header = request.headers["x-discord-user"];
+    const discord = typeof header === "string" && DISCORD_ID.test(header) ? header : null;
+    if (same(token, options.operatorToken)) return { discord, operator: true, organizer: true };
+    if (options.botToken && same(token, options.botToken)) return discord ? { discord, operator: false, organizer: false } : fail(400, "X-Discord-User is required");
+    return options.tokens?.(token);
+  }
+  const signedIn = (request: IncomingMessage) => actor(request) ?? fail(401, "wrong or missing token");
+  const manages = (who: Actor | undefined, tournament: Tournament) =>
+    !!who && (who.operator || (who.organizer && who.discord !== null && tournament.organizers.includes(who.discord)));
+  const manager = (request: IncomingMessage, tournament: Tournament) => {
+    if (!manages(signedIn(request), tournament)) fail(403, "only its organizers may");
+    return tournament;
+  };
+  const player = (request: IncomingMessage) => signedIn(request).discord ?? fail(400, "who? (X-Discord-User)");
+  const by = (request: IncomingMessage) => signedIn(request).discord ?? "operator";
 
-  function record(tournament: Tournament, setId: string, result: Parameters<typeof report>[2]): [number, object] {
-    if (tournament.state !== "started") fail(409, "the tournament has not started");
+  /** The Ember IDs connected to these Discord accounts, as many as the bridge finds; none when it fails. */
+  async function lookup(discords: string[]): Promise<Map<string, string>> {
+    const found = new Map<string, string>();
+    for (let i = 0; i < discords.length; i += LOOKUP_BATCH) {
+      try {
+        for (const player of await options.bridge.lookupPlayers(discords.slice(i, i + LOOKUP_BATCH))) found.set(player.discord_user_id, player.ember_id);
+      } catch (error) {
+        console.error(`the bridge's lookup failed: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    return found;
+  }
+
+  /** Runs `change` on the tournament as it is now, saves it, and answers the 4xx its refusal means. */
+  function change(id: string, request: IncomingMessage | null, change: (tournament: Tournament) => void): Tournament {
+    const tournament = found(id);
+    if (request) manager(request, tournament);
     try {
-      report(tournament, setId, result);
+      change(tournament);
     } catch (error) {
       if (error instanceof Conflict) fail(409, error.message);
       if (error instanceof Invalid) fail(422, error.message);
       throw error;
     }
     store.save(tournament);
-    return [200, view(tournament)];
+    return tournament;
+  }
+
+  const contract = contractRoutes(store, (request, tournament) => {
+    const token = /^Bearer (.+)$/.exec(request.headers.authorization ?? "")?.[1] ?? "";
+    if (same(token, options.connectorToken)) return;
+    // A desk event's connector comes with the organizer's own token.
+    if (!tournament || !manages(actor(request), tournament)) fail(401, "wrong or missing token");
+  });
+
+  const routes: Route[] = [
+    [
+      "POST",
+      /^\/tournaments$/,
+      async (request) => {
+        const who = signedIn(request);
+        if (!who.organizer) fail(403, "only organizers may create tournaments");
+        const body = await readJson(request);
+        const id = body.id === undefined ? `t${randomBytes(6).toString("hex")}` : text(body.id, SLUG, "id is 1 to 64 letters, digits, _ or -");
+        const tournament: Tournament = {
+          id,
+          title: "",
+          games_to_win: 2,
+          check_in: false,
+          cap: null,
+          starts_at: null,
+          season: null,
+          organizers: who.discord ? [who.discord] : [],
+          state: "draft",
+          entrants: [],
+          rounds: 0,
+          sets: [],
+          log: [],
+        };
+        settings(tournament, body, who.operator ? null : who.discord);
+        if (!tournament.title) fail(400, "title is 1 to 100 characters");
+        if (!store.add(tournament)) fail(409, `tournament ${id} exists`);
+        return [201, view(tournament)];
+      },
+    ],
+    [
+      "GET",
+      /^\/tournaments$/,
+      (request) => {
+        const who = signedIn(request);
+        const mine = store.all().filter((tournament) => manages(who, tournament) && tournament.state !== "archived");
+        return [200, { tournaments: mine.map(view) }];
+      },
+    ],
+    ["GET", /^\/tournaments\/([^/]+)$/, (_, [id]) => [200, view(found(id!))]],
+    [
+      "PATCH",
+      /^\/tournaments\/([^/]+)$/,
+      async (request, [id]) => {
+        const body = await readJson(request);
+        const who = signedIn(request);
+        return [200, view(change(id!, request, (tournament) => {
+          if (!beforeLive(tournament)) throw new Conflict(`its settings are fixed while ${tournament.state}`);
+          settings(tournament, body, who.operator ? null : who.discord);
+        }))];
+      },
+    ],
+    [
+      "DELETE",
+      /^\/tournaments\/([^/]+)$/,
+      (request, [id]) => {
+        manager(request, found(id!));
+        store.delete(id!);
+        return [204];
+      },
+    ],
+    [
+      "PUT",
+      /^\/tournaments\/([^/]+)\/state$/,
+      async (request, [id]) => {
+        const body = await readJson(request);
+        const action = body.action as Action;
+        if (!ACTIONS.includes(action)) fail(400, `action is one of ${ACTIONS.join(", ")}`);
+        const seeding = body.seeding ?? "join";
+        if (seeding !== "join" && seeding !== "random") fail(400, 'seeding is "join" or "random"');
+        manager(request, found(id!));
+        // Entrants still waiting for their Discord link are looked up once more, and dropped at the start if still not linked.
+        if (action === "start") {
+          const linked = await lookup(found(id!).entrants.filter((entrant) => !entrant.ember_id).map((entrant) => entrant.discord));
+          change(id!, null, (tournament) => {
+            for (const entrant of tournament.entrants) entrant.ember_id ??= linked.get(entrant.discord) ?? null;
+          });
+        }
+        return [200, view(change(id!, request, (tournament) => {
+          if (action === "start" && seeding === "random") shuffle(tournament.entrants);
+          move(tournament, action, by(request), now());
+        }))];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/entrants$/,
+      async (request, [id]) => {
+        const who = signedIn(request);
+        const body = await readJson(request);
+        const discord = body.discord === undefined ? player(request) : text(body.discord, DISCORD_ID, "discord is a Discord user ID");
+        const name = body.name === undefined ? discord : text(body.name, /^.{1,64}$/u, "name is 1 to 64 characters");
+        const forSomeoneElse = discord !== who.discord;
+        if (forSomeoneElse) manager(request, found(id!));
+        const organizer = manages(who, found(id!));
+        // Refused before the bridge is asked, and asked again after, as it may have changed meanwhile.
+        const entrant: Entrant = { discord, name, ember_id: null, checked_in: false };
+        enterOrFail(found(id!), entrant, organizer);
+        entrant.ember_id = (await lookup([discord])).get(discord) ?? null;
+        change(id!, null, (tournament) => enter(tournament, entrant, organizer));
+        return [201, entrant];
+      },
+    ],
+    [
+      "DELETE",
+      /^\/tournaments\/([^/]+)\/entrants\/([^/]+)$/,
+      (request, [id, discord]) => {
+        if (discord !== signedIn(request).discord) manager(request, found(id!));
+        change(id!, null, (tournament) => {
+          if (!beforeLive(tournament)) throw new Conflict(`entrants are fixed while ${tournament.state}`);
+          const before = tournament.entrants.length;
+          tournament.entrants = tournament.entrants.filter((each) => each.discord !== discord);
+          if (tournament.entrants.length === before) throw new Invalid(`${discord} has not signed up`);
+        });
+        return [204];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/check-in$/,
+      (request, [id]) => {
+        const discord = player(request);
+        let entrant: Entrant | undefined;
+        change(id!, null, (tournament) => (entrant = checkIn(tournament, discord)));
+        return [200, entrant!];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/sets\/([^/]+)\/result$/,
+      async (request, [id, setId]) => {
+        const tournament = manager(request, found(id!));
+        const body = await readJson(request);
+        const scores = body.scores as Record<string, number>;
+        if (typeof body.winner !== "string" || typeof scores !== "object" || scores === null) fail(400, "a result is { winner, scores: { <ember id>: <games> } }");
+        record(store, tournament, setId!, { winner: body.winner, scores, key: null });
+        return [200, view(found(id!))];
+      },
+    ],
+    ...contract,
+  ];
+
+  function enterOrFail(tournament: Tournament, entrant: Entrant, organizer: boolean): void {
+    try {
+      enter(structuredClone(tournament), entrant, organizer);
+    } catch (error) {
+      if (error instanceof Conflict) fail(409, error.message);
+      throw error;
+    }
   }
 
   return createServer(async (request, response) => {
@@ -240,48 +277,39 @@ export function bracketSite(options: Options): Server {
   });
 }
 
-function send(response: ServerResponse, status: number, body?: object): void {
-  if (body === undefined) response.writeHead(status).end();
-  else response.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
-}
-
-function fail(status: number, message: string): never {
-  throw new Failure(status, message);
-}
-
-function authorize(request: IncomingMessage, token: string): void {
-  const given = /^Bearer (.+)$/.exec(request.headers.authorization ?? "")?.[1] ?? "";
+function same(given: string, token: string): boolean {
   const digest = (value: string) => createHash("sha256").update(value).digest();
-  if (!timingSafeEqual(digest(given), digest(token))) fail(401, "wrong or missing token");
+  return timingSafeEqual(digest(given), digest(token));
 }
 
-function open(tournament: Tournament): Tournament {
-  if (tournament.state !== "open") fail(409, "the tournament has started");
-  return tournament;
-}
-
-function text(value: unknown, pattern: RegExp, message: string): string {
-  if (typeof value !== "string" || !pattern.test(value)) fail(400, message);
-  return value;
-}
-
-async function readJson(request: IncomingMessage): Promise<Json> {
-  let size = 0;
-  const chunks: Buffer[] = [];
-  for await (const chunk of request as AsyncIterable<Buffer>) {
-    size += chunk.length;
-    if (size > MAX_BODY) fail(413, "body too large");
-    chunks.push(chunk);
+/** Reads the settings an organizer may change into `tournament`. `self`: the organizer making the change; null for the operator. */
+function settings(tournament: Tournament, body: Json, self: string | null): void {
+  if (body.title !== undefined) tournament.title = text(body.title, /^.{1,100}$/u, "title is 1 to 100 characters");
+  if (body.games_to_win !== undefined) tournament.games_to_win = whole(body.games_to_win, 1, 10, "games_to_win is 1 to 10");
+  if (body.check_in !== undefined) {
+    if (typeof body.check_in !== "boolean") fail(400, "check_in is true or false");
+    tournament.check_in = body.check_in;
   }
-  const raw = Buffer.concat(chunks).toString("utf8");
-  if (!raw) return {};
-  try {
-    const body = JSON.parse(raw) as unknown;
-    if (typeof body === "object" && body !== null && !Array.isArray(body)) return body as Json;
-  } catch {
-    // Answered below.
+  if (body.cap !== undefined) tournament.cap = body.cap === null ? null : whole(body.cap, 2, 1024, "cap is 2 to 1024, or null");
+  if (body.starts_at !== undefined) {
+    if (body.starts_at !== null && (typeof body.starts_at !== "string" || Number.isNaN(Date.parse(body.starts_at)))) fail(400, "starts_at is a date and time, or null");
+    tournament.starts_at = body.starts_at === null ? null : new Date(body.starts_at as string).toISOString();
   }
-  return fail(400, "the body is not a JSON object");
+  if (body.season !== undefined) tournament.season = body.season === null ? null : text(body.season, SLUG, "season is 1 to 64 letters, digits, _ or -");
+  if (body.organizers !== undefined) {
+    const organizers = body.organizers;
+    if (!Array.isArray(organizers) || !organizers.length || !organizers.every((each) => typeof each === "string" && DISCORD_ID.test(each))) {
+      fail(400, "organizers is a list of Discord user IDs");
+    }
+    // An organizer may add co-organizers but not leave their own tournament without one.
+    if (self !== null && !organizers.includes(self)) fail(400, "organizers must still name you");
+    tournament.organizers = [...new Set(organizers as string[])];
+  }
+}
+
+function whole(value: unknown, min: number, max: number, message: string): number {
+  if (!Number.isInteger(value) || (value as number) < min || (value as number) > max) fail(400, message);
+  return value as number;
 }
 
 function shuffle<T>(items: T[]): void {
@@ -291,26 +319,11 @@ function shuffle<T>(items: T[]): void {
   }
 }
 
-/** A set as the connector reads it: each entry is found by its Discord account. */
-function contractSet(tournament: Tournament, set: BracketSet): Json {
-  const [one, two] = set.entries;
-  const entry = (id: string) => ({ id, accounts: [{ discord: tournament.entrants.find((each) => each.id === id)!.discord }] });
-  return {
-    id: set.id,
-    round: set.round,
-    round_label: roundLabel(set.round, tournament.rounds),
-    status: status(set),
-    entries: one && two ? [entry(one), entry(two)] : null,
-    underway: set.underway,
-    winner: set.winner,
-  };
-}
-
-/** The tournament as anyone may see it. */
+/** The tournament as anyone may see it, with the actions its state allows. */
 function view(tournament: Tournament): Json {
   return {
     ...tournament,
-    finished: finished(tournament),
+    actions: actions(tournament),
     sets: tournament.sets.map(({ key: _, ...set }) => ({ ...set, status: status(set), round_label: roundLabel(set.round, tournament.rounds) })),
   };
 }
