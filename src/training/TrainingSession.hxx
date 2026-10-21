@@ -28,7 +28,7 @@ struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 enum class Mode { Idle, Standby, Recording, Playback };
 // AdvanceRecording: standby, then recording, then stop. Record: the same for F7
 // and the pad's Record, but from rest on a recorded slot it only asks about
-// overwriting it (View::overwriteAsked). AdvancePlayback: Play,
+// overwriting it (View::overwriteAsk). AdvancePlayback: Play,
 // or Stop while a slot plays, as the session stands when it runs (F8 and the
 // pad's Play, so presses queued together alternate). Interrupt: what
 // Escape, opening the controls and losing the focus send; it ends whatever
@@ -438,9 +438,10 @@ struct View {
     std::uint64_t exportId = 0; int exportedSlot = -1;
     std::vector<Input> exported;
     Acks acks;
-    // Record from rest on a recorded slot asked about overwriting it: counted,
-    // so the drawing thread opens the recordings once for each ask.
-    std::uint64_t overwriteAsked = 0;
+    // The request id of the last Record that, from rest on a recorded slot,
+    // asked about overwriting it; 0 for none. The press that sent it opens
+    // the recordings, under the owner it went down with (ui::TakeOverwriteAsk).
+    std::uint64_t overwriteAsk = 0;
     // The dummy's current settings, read from the game every frame; all -1
     // until the adapter has read them.
     DummyState dummy;
@@ -572,9 +573,9 @@ public:
         if (!view_.ready) return false;
         switch (command.action) {
         // Standby first, the selected slot as it was; the next press records.
-        // Record from rest on a recorded slot asks first (View::overwriteAsked); the recordings' own Record is AdvanceRecording.
+        // Record from rest on a recorded slot asks first (View::overwriteAsk); the recordings' own Record is AdvanceRecording.
         case Action::AdvanceRecording: case Action::Record:
-            if (command.action == Action::Record && view_.mode != Mode::Standby && !bank_.Slot(view_.selected).empty()) { ++view_.overwriteAsked; return true; }
+            if (command.action == Action::Record && view_.mode != Mode::Standby && !bank_.Slot(view_.selected).empty()) { view_.overwriteAsk = command.requestId; return true; }
             if (view_.mode == Mode::Standby) { view_.mode = Mode::Recording; scratch_.clear(); view_.cursor = 0; ++epoch_; return true; }
             Stop(); view_.mode = Mode::Standby; view_.playbackSide = 1; return true;
         case Action::Load:

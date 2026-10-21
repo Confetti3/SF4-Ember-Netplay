@@ -266,7 +266,7 @@ void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& subm
     }
     case Kind::Reset: ResetPosition(view,submit); break;
     // Decided as each is applied, as the keys are: a press from before the controls opened or a call came does nothing.
-    case Kind::Record: if(TrainingPressesAct(controls,called)) TrainingRecordPress(view,submit); break;
+    case Kind::Record: if(TrainingPressesAct(controls,called)) TrainingRecordPress(view,submit,{pad.epoch,true}); break;
     case Kind::Play: if(TrainingPressesAct(controls,called)) TrainingPlayPress(view,submit); break;
     }
 }
@@ -380,18 +380,19 @@ bool OpenTrainingRecordings(input::TrainingControls& controls, const input::Trai
  showRecordings=true;
  return true;
 }
-void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit) {
+// The last Record sent and the owner it was pressed under: an overwrite
+// question the session asks for it opens under that owner, or not at all.
+namespace { struct PendingRecord { std::uint64_t id=0; input::TrainingControls::Token token; } pendingRecord; }
+void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit,const input::TrainingControls::Token& token) {
  // The session decides as it runs: standby, then record, then stop, or from
  // rest on a recorded slot it asks about overwriting it (TakeOverwriteAsk).
- Command record; record.action=Action::Record; record.generation=view.generation;
- if(!submit||!submit(record)) Notice(loc::T("training.command_rejected"),true);
+ Command record; record.action=Action::Record; record.generation=view.generation; record.requestId=nextRequest++;
+ if(!submit||!submit(record)) { Notice(loc::T("training.command_rejected"),true); return; }
+ pendingRecord={record.requestId,token};
 }
-bool TakeOverwriteAsk(const training::View& view) {
- static std::uint64_t generation=0, seen=0;
- // A new battle starts its count again; nothing it held is an ask.
- if(view.generation!=generation) { generation=view.generation; seen=view.overwriteAsked; return false; }
- if(view.overwriteAsked==seen) return false;
- seen=view.overwriteAsked;
+bool TakeOverwriteAsk(const training::View& view,input::TrainingControls::Token& token) {
+ if(!pendingRecord.id||view.overwriteAsk!=pendingRecord.id) return false;
+ token=pendingRecord.token; pendingRecord={};
  return true;
 }
 void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit) {

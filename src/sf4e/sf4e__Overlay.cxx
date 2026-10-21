@@ -647,8 +647,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             if (pad.generation != training.generation || !s_trainingControls.Current(pad)) continue;
             sf4e::ui::ApplyTrainingPadEvent(training, sf4e::training::Submit, s_trainingControls, pad, called);
         }
-        // Record from rest on a recorded slot: the session asked about overwriting it, so the recordings open under this frame's token.
-        if (sf4e::ui::TakeOverwriteAsk(training) && !called) sf4e::ui::OpenTrainingRecordings(s_trainingControls, focus);
+        // Record from rest on a recorded slot: the session asked about overwriting it, so the recordings open under the owner that press went down with.
+        if (sf4e::input::TrainingControls::Token asked; sf4e::ui::TakeOverwriteAsk(training, asked) && !called) sf4e::ui::OpenTrainingRecordings(s_trainingControls, asked);
         if (ImGui::IsKeyPressed(ImGuiKey_F6, false) && !called) s_trainingControls.Toggle(focus);
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) trainingHud = !trainingHud;
         auto practice = [&](sf4e::training::Action action) {
@@ -660,7 +660,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             // F7: standby, then record, then stop. From rest on a recorded
             // slot the session asks about overwriting it first (TakeOverwriteAsk).
             if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingRecordKey), false))
-                sf4e::ui::TrainingRecordPress(training, sf4e::training::Submit);
+                sf4e::ui::TrainingRecordPress(training, sf4e::training::Submit, focus);
             if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingPlayKey), false))
                 sf4e::ui::TrainingPlayPress(training, sf4e::training::Submit);
             // Escape leaves standby, keeps a recording, and stops a playback.

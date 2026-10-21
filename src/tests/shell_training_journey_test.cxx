@@ -553,6 +553,21 @@ void TrainingJourneys() {
   Check(commands.empty()&&!shut.Open(),"A Record or Play queued before the call acted under it");
   ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record,false);ImGui::Render();
   Check(commands.size()==1&&commands[0].action==training::Action::Record&&!shut.Open(),"Record without the call did not go to the session, which decides about overwriting");
+  // The session's ask opens the recordings under the owner the press went
+  // down with: at once it does; once that focus period or pad owner has
+  // gone, it opens nothing, and an ask is taken once.
+  input::TrainingControls::Token asked;
+  v.overwriteAsk=commands[0].requestId;
+  Check(TakeOverwriteAsk(v,asked)&&!TakeOverwriteAsk(v,asked)&&OpenTrainingRecordings(shut,asked)&&shut.Open(),"The session's ask did not open the recordings once under its press's owner");
+  shut.Close();commands.clear();
+  ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record,false);ImGui::Render();
+  shut.LoseFocus();shut.GainFocus();v.overwriteAsk=commands[0].requestId;
+  Check(TakeOverwriteAsk(v,asked)&&!OpenTrainingRecordings(shut,asked)&&!shut.Open(),"An ask for a press from an ended focus period opened the recordings");
+  commands.clear();
+  record.epoch=shut.Epoch();ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record,false);ImGui::Render();
+  shut.Invalidate();v.overwriteAsk=commands[0].requestId;
+  Check(TakeOverwriteAsk(v,asked)&&!OpenTrainingRecordings(shut,asked)&&!shut.Open(),"An ask for a press under a pad owner that has gone opened the recordings");
+  v.overwriteAsk=0;
   v.lengths[v.selected]=length;
  }
  for(const char* name:{"First","Second"})std::filesystem::remove(folder/"recordings"/(std::string(name)+".json"));

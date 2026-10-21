@@ -246,13 +246,14 @@ int main() {
         // during playback it asks and changes nothing; while recording it
         // stops, so a second Record queued with it asks rather than recording over.
         {
-            const auto asked = session.GetView().overwriteAsked;
-            Require(apply(Action::Record) && session.GetView().mode == Mode::Idle && session.GetView().overwriteAsked == asked + 1, "Record at rest on a recorded slot did not ask");
-            Require(apply(Action::Play) && apply(Action::Record) && session.GetView().mode == Mode::Playback && session.GetView().overwriteAsked == asked + 2, "Record during playback did not ask");
-            Require(apply(Action::AdvanceRecording) && apply(Action::Record) && session.GetView().mode == Mode::Recording, "Record on standby did not record");
+            // Each Record names its request; the ask names the one it was for.
+            const auto record = [&](std::uint64_t id) { Command c{Action::Record, generation}; c.requestId = id; return session.Apply(c); };
+            Require(record(1) && session.GetView().mode == Mode::Idle && session.GetView().overwriteAsk == 1, "Record at rest on a recorded slot did not ask");
+            Require(apply(Action::Play) && record(2) && session.GetView().mode == Mode::Playback && session.GetView().overwriteAsk == 2, "Record during playback did not ask");
+            Require(apply(Action::AdvanceRecording) && record(3) && session.GetView().mode == Mode::Recording && session.GetView().overwriteAsk == 2, "Record on standby did not record");
             session.Commit(session.Prepare(physical));
-            Require(apply(Action::Record) && session.GetView().mode == Mode::Idle && session.GetView().lengths[1] == 1 && apply(Action::Record) &&
-                session.GetView().mode == Mode::Idle && session.GetView().overwriteAsked == asked + 3, "A second queued Record recorded over the slot");
+            Require(record(4) && session.GetView().mode == Mode::Idle && session.GetView().lengths[1] == 1 && session.GetView().overwriteAsk == 2 && record(5) &&
+                session.GetView().mode == Mode::Idle && session.GetView().overwriteAsk == 5, "A second queued Record recorded over the slot");
         }
         Require(session.GetView().history[0].size() <= HistoryRows, "History unbounded");
         session.SetReady(false); Require(!apply(Action::AdvanceRecording), "Loading allowed record");
