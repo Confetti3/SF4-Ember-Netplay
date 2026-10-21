@@ -138,14 +138,14 @@ pub async fn list(shared: &Arc<Shared>, bridge_id: &str, build: &str) -> Outcome
     .await
 }
 
-/// The ticket request this helper makes for `build`, checked. The developer
-/// mark is asked for only from a bridge that offers ranking: an older one
-/// refuses the field.
-fn ticket_request(shared: &Shared, build: &str, ranking: bool) -> Result<TicketRequest, Failure> {
+/// The ticket request this helper makes for `build`, checked. The class and
+/// the developer mark are asked for only from a bridge that offers ranking:
+/// an older one refuses either field.
+fn ticket_request(endpoint_id: &str, build: &str, ranking: bool) -> Result<TicketRequest, Failure> {
     let request = TicketRequest {
-        endpoint_id: shared.endpoint_id.clone(),
+        endpoint_id: endpoint_id.to_owned(),
         build_id: build.to_owned(),
-        skill_badge: true,
+        skill_badge: ranking,
         developer_badge: ranking,
     };
     request.check().map_err(|_| invalid_request())?;
@@ -176,7 +176,7 @@ pub async fn create(
         _ => invalid_request(),
     })?;
     // Nothing is opened that this helper could not then take a ticket for.
-    ticket_request(shared, build, false)?;
+    ticket_request(&shared.endpoint_id, build, false)?;
     let body = serde_json::to_vec(&command).map_err(|_| Failure::new("internal"))?;
     let created = client::with_session(shared, bridge_id, |bridge, token| {
         let (url, body) = (format!("{}/v1/rooms", bridge.origin), body.clone());
@@ -227,7 +227,7 @@ pub async fn ticket(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build:
 
 /// Asks for the ticket and checks the admission before it is answered.
 async fn admit(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str) -> Outcome {
-    ticket_request(shared, build, false)?;
+    ticket_request(&shared.endpoint_id, build, false)?;
     let path = format!("/v1/rooms/{room_id}/tickets");
     client::with_session(shared, bridge_id, |bridge, token| {
         let url = format!("{}{path}", bridge.origin);
@@ -237,7 +237,7 @@ async fn admit(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str
             let ranking = play::features(shared, &bridge, play::Need::Nothing)
                 .await
                 .is_ok_and(|features| features.ranking);
-            let body = serde_json::to_vec(&ticket_request(shared, build, ranking)?)
+            let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, ranking)?)
                 .map_err(|_| Failure::new("internal"))?;
             let (status, response) = shared
                 .client
@@ -400,6 +400,16 @@ mod tests {
         );
         // Only the success status counts as success.
         assert_eq!(reply(200, b"{}", 201).unwrap_err().0, "http_200");
+    }
+
+    #[test]
+    fn a_ticket_asks_for_badges_only_from_a_bridge_that_offers_ranking() {
+        let endpoint = "ab".repeat(32);
+        let older = serde_json::to_value(ticket_request(&endpoint, "b1", false).unwrap()).unwrap();
+        assert_eq!(older, json!({ "endpoint_id": endpoint, "build_id": "b1" }));
+        let ranking = serde_json::to_value(ticket_request(&endpoint, "b1", true).unwrap()).unwrap();
+        assert_eq!(ranking["skill_badge"], json!(true));
+        assert_eq!(ranking["developer_badge"], json!(true));
     }
 
     #[test]
