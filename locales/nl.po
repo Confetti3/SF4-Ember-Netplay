@@ -6844,6 +6844,60 @@ msgstr "Toernooimodus staat aan voor je Ember ID."
 msgid "desk.invite_invalid"
 msgstr "Die uitnodiging is niet geldig. Controleer ze of vraag een nieuwe."
 
+msgid "desk.site.on"
+msgstr "Op {0}"
+
+msgid "desk.site.detail"
+msgstr "Waar het toernooi staat op zijn bracketsite. Hieronder de stappen die de site nu toestaat."
+
+msgid "desk.site.draft"
+msgstr "Concept"
+
+msgid "desk.site.planned"
+msgstr "Gepland"
+
+msgid "desk.site.sign_ups"
+msgstr "Inschrijving open"
+
+msgid "desk.site.check_in"
+msgstr "Check-in"
+
+msgid "desk.site.live"
+msgstr "Live"
+
+msgid "desk.site.finished"
+msgstr "Afgelopen"
+
+msgid "desk.site.archived"
+msgstr "Gearchiveerd"
+
+msgid "desk.site.cancelled"
+msgstr "Geannuleerd"
+
+msgid "desk.move.plan"
+msgstr "Als gepland markeren"
+
+msgid "desk.move.open_sign_ups"
+msgstr "Inschrijving openen"
+
+msgid "desk.move.close_sign_ups"
+msgstr "Inschrijving sluiten"
+
+msgid "desk.move.open_check_in"
+msgstr "Check-in openen"
+
+msgid "desk.move.reopen_sign_ups"
+msgstr "Inschrijving heropenen"
+
+msgid "desk.move.archive"
+msgstr "Archiveren"
+
+msgid "desk.move.cancel"
+msgstr "Toernooi annuleren"
+
+msgid "desk.move.detail"
+msgstr "Vraagt {0} dit nu te veranderen. Spelers zien het meteen."
+
 msgid "desk.org_site"
 msgstr "{0}-organisatortoegang"
 

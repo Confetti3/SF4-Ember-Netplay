@@ -6844,6 +6844,60 @@ msgstr "Turnajový režim je pro tvé Ember ID zapnutý."
 msgid "desk.invite_invalid"
 msgstr "Tato pozvánka neplatí. Zkontroluj ji, nebo si řekni o novou."
 
+msgid "desk.site.on"
+msgstr "Na {0}"
+
+msgid "desk.site.detail"
+msgstr "Kde turnaj na svém webu s pavouky je. Níže jsou kroky, které web teď dovoluje."
+
+msgid "desk.site.draft"
+msgstr "Koncept"
+
+msgid "desk.site.planned"
+msgstr "Naplánováno"
+
+msgid "desk.site.sign_ups"
+msgstr "Přihlášky otevřené"
+
+msgid "desk.site.check_in"
+msgstr "Odbavení"
+
+msgid "desk.site.live"
+msgstr "Živě"
+
+msgid "desk.site.finished"
+msgstr "Dokončeno"
+
+msgid "desk.site.archived"
+msgstr "Archivováno"
+
+msgid "desk.site.cancelled"
+msgstr "Zrušeno"
+
+msgid "desk.move.plan"
+msgstr "Označit jako naplánované"
+
+msgid "desk.move.open_sign_ups"
+msgstr "Otevřít přihlášky"
+
+msgid "desk.move.close_sign_ups"
+msgstr "Zavřít přihlášky"
+
+msgid "desk.move.open_check_in"
+msgstr "Otevřít odbavení"
+
+msgid "desk.move.reopen_sign_ups"
+msgstr "Znovu otevřít přihlášky"
+
+msgid "desk.move.archive"
+msgstr "Archivovat"
+
+msgid "desk.move.cancel"
+msgstr "Zrušit turnaj"
+
+msgid "desk.move.detail"
+msgstr "Požádá {0} o tuto změnu hned. Hráči ji uvidí okamžitě."
+
 msgid "desk.org_site"
 msgstr "Přístup pořadatele {0}"
 

@@ -36,7 +36,10 @@ struct IdentityAccount {
 // event with what the desk shows of it (side: winners, losers or
 // grand_final; state: the bridge's desk_state). A set's games are what the
 // desk can decide or void; revision is what a decision names.
-struct DeskEvent { std::string id, title, status, site; };
+struct DeskEvent { std::string id, title, status, site, tournament; };
+// An event's state on its site and the moves the site allows now, for a
+// site whose listing says them (the bracket site).
+struct DeskSiteState { std::string tournament, state; std::vector<std::string> actions; };
 struct DeskGame { std::string attempt, outcome, state; };
 struct DeskSet {
     std::string id, roundLabel, phase, side, state, matchId, revision, posted;
@@ -108,5 +111,6 @@ struct IdentityView {
     DeskDevice deskDevice;
     // Tournament Mode on this service: known once the desk was read.
     DeskAccess deskAccess;
+    DeskSiteState deskSiteState;
 };
 } }

@@ -341,6 +341,48 @@ pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str, number: 
     .await
 }
 
+/// The state of `tournament` on `site` and the moves the site allows now,
+/// from the organizer's listing there; nothing for a site that says none.
+/// Read when the organizer opens an event, not polled: each read is one
+/// request to the site.
+pub async fn site_state(shared: &Arc<Shared>, bridge_id: &str, site: &str, tournament: &str) -> Outcome {
+    let valid = |text: &str| {
+        (1..=64).contains(&text.len())
+            && text.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    };
+    if !valid(site) || !valid(tournament) {
+        return Err(Failure::new("invalid_request"));
+    }
+    with_session(shared, bridge_id, |bridge, token| async move {
+        let (status, body) = shared
+            .client
+            .call(
+                reqwest::Method::GET,
+                &format!("{}/v1/organizer/tournaments?site={site}", bridge.origin),
+                Some(&token),
+                None,
+            )
+            .await?;
+        let found = answer(status, &body, &[200])?;
+        let listed = found["tournaments"].as_array().map(Vec::as_slice).unwrap_or_default();
+        let Some(event) = listed.iter().find(|each| each["id"] == tournament) else {
+            return Ok(Some(json!({ "state": null, "actions": [] })));
+        };
+        let actions: Vec<&str> = event["actions"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+            .iter()
+            .filter_map(Value::as_str)
+            .filter(|name| name.len() <= 32)
+            .take(8)
+            .collect();
+        let state = event["state"].as_str().filter(|state| state.len() <= 32);
+        Ok(Some(json!({ "tournament": tournament, "state": state, "actions": actions })))
+    })
+    .await
+}
+
 /// Redeems `code`, an invite to Tournament Mode, for the player's Ember ID.
 pub async fn redeem(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
     let code: String = code.trim().chars().take(16).collect();
@@ -395,6 +437,12 @@ fn is_action(path: &str) -> bool {
         [event, "matches", id, "adjudications"] => {
             is_prefixed_id(event, "oev") && is_prefixed_id(id, "emt")
         }
+        // A move of the event on its site, as the site's listing offers it.
+        [event, "transitions", name] => {
+            is_prefixed_id(event, "oev")
+                && (1..=32).contains(&name.len())
+                && name.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
+        }
         _ => false,
     }
 }
@@ -435,7 +483,7 @@ fn events(found: &Value) -> Value {
     let list = found.as_array().map(Vec::as_slice).unwrap_or_default();
     list.iter()
         .take(32)
-        .map(|event| kept(event, &["id", "title", "status", "site", "starts_at"]))
+        .map(|event| kept(event, &["id", "title", "status", "site", "starts_at", "tournament"]))
         .collect()
 }
 
@@ -494,7 +542,10 @@ mod tests {
             "{EVENTS}/{EVENT}/matches/{MATCH}/adjudications"
         )));
         assert!(is_action(&format!("/v1/events/{EVENT}/sign-up")));
+        assert!(is_action(&format!("{EVENTS}/{EVENT}/transitions/open_sign_ups")));
         for path in [
+            format!("{EVENTS}/{EVENT}/transitions/Open"),
+            format!("{EVENTS}/{EVENT}/transitions/../x"),
             format!("/v1/events/{EVENT}/sign-up/x"),
             format!("/v1/events/oev_1/sign-up"),
             format!("/v1/events/{EVENT}/../x/sign-up"),

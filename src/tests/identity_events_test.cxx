@@ -227,6 +227,17 @@ void Desk() {
     sf4e::netplay::IdentityRequest invite; invite.op = IdentityOp::DeskRedeem; invite.bridge = "brg_1"; invite.command = "ABCDE-FGHJK";
     Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(invite)) == nlohmann::json({{"op", "desk_redeem"}, {"bridge_id", "brg_1"}, {"code", "ABCDE-FGHJK"}}),
         "Redeeming an invite was not built");
+    // An event's state on its site: asked on opening the event, with the moves it allows.
+    sf4e::netplay::IdentityRequest siteState; siteState.op = IdentityOp::DeskSiteState; siteState.bridge = "brg_1";
+    siteState.site = "ember-bracket-site"; siteState.target = "t_7";
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(siteState)) ==
+        nlohmann::json({{"op", "desk_site_state"}, {"bridge_id", "brg_1"}, {"site", "ember-bracket-site"}, {"tournament", "t_7"}}),
+        "An event's site state was not asked for");
+    sf4e::netplay::IdentityView sited;
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":9,"op":"desk_site_state","ok":true,
+        "data":{"tournament":"t_7","state":"planned","actions":["open_sign_ups","cancel",5]}})"), sited);
+    Check(sited.deskSiteState.tournament == "t_7" && sited.deskSiteState.state == "planned" && sited.deskSiteState.actions.size() == 2,
+        "An event's site state was not read");
     // The code is read first, for what asked and the numbers to pick from,
     // and approved with the number picked.
     sf4e::netplay::IdentityRequest info; info.op = IdentityOp::DeskCodeInfo; info.bridge = "brg_1"; info.command = "123 456";

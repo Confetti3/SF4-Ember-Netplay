@@ -6845,6 +6845,60 @@ msgstr "你的 Ember ID 已开启赛事模式。"
 msgid "desk.invite_invalid"
 msgstr "该邀请无效。请检查，或申请新的邀请。"
 
+msgid "desk.site.on"
+msgstr "在 {0} 上"
+
+msgid "desk.site.detail"
+msgstr "赛事在对阵表网站上的状态。下面是网站目前允许的操作。"
+
+msgid "desk.site.draft"
+msgstr "草稿"
+
+msgid "desk.site.planned"
+msgstr "已计划"
+
+msgid "desk.site.sign_ups"
+msgstr "报名中"
+
+msgid "desk.site.check_in"
+msgstr "签到"
+
+msgid "desk.site.live"
+msgstr "进行中"
+
+msgid "desk.site.finished"
+msgstr "已结束"
+
+msgid "desk.site.archived"
+msgstr "已归档"
+
+msgid "desk.site.cancelled"
+msgstr "已取消"
+
+msgid "desk.move.plan"
+msgstr "标记为已计划"
+
+msgid "desk.move.open_sign_ups"
+msgstr "开放报名"
+
+msgid "desk.move.close_sign_ups"
+msgstr "关闭报名"
+
+msgid "desk.move.open_check_in"
+msgstr "开放签到"
+
+msgid "desk.move.reopen_sign_ups"
+msgstr "重新开放报名"
+
+msgid "desk.move.archive"
+msgstr "归档"
+
+msgid "desk.move.cancel"
+msgstr "取消赛事"
+
+msgid "desk.move.detail"
+msgstr "请 {0} 现在进行此更改。玩家会立即看到。"
+
 msgid "desk.org_site"
 msgstr "{0} 组织者权限"
 

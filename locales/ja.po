@@ -6845,6 +6845,60 @@ msgstr "あなたのEmber IDで大会モードがオンになりました。"
 msgid "desk.invite_invalid"
 msgstr "この招待は無効です。確認するか、新しい招待を依頼してください。"
 
+msgid "desk.site.on"
+msgstr "{0}での状態"
+
+msgid "desk.site.detail"
+msgstr "ブラケットサイトでの大会の状態です。下は今サイトが許可している操作です。"
+
+msgid "desk.site.draft"
+msgstr "下書き"
+
+msgid "desk.site.planned"
+msgstr "予定"
+
+msgid "desk.site.sign_ups"
+msgstr "参加受付中"
+
+msgid "desk.site.check_in"
+msgstr "チェックイン"
+
+msgid "desk.site.live"
+msgstr "進行中"
+
+msgid "desk.site.finished"
+msgstr "終了"
+
+msgid "desk.site.archived"
+msgstr "アーカイブ済み"
+
+msgid "desk.site.cancelled"
+msgstr "中止"
+
+msgid "desk.move.plan"
+msgstr "予定にする"
+
+msgid "desk.move.open_sign_ups"
+msgstr "参加受付を開始"
+
+msgid "desk.move.close_sign_ups"
+msgstr "参加受付を締め切る"
+
+msgid "desk.move.open_check_in"
+msgstr "チェックインを開始"
+
+msgid "desk.move.reopen_sign_ups"
+msgstr "参加受付を再開"
+
+msgid "desk.move.archive"
+msgstr "アーカイブ"
+
+msgid "desk.move.cancel"
+msgstr "大会を中止"
+
+msgid "desk.move.detail"
+msgstr "{0}にこの変更を今すぐ依頼します。プレイヤーにはすぐ反映されます。"
+
 msgid "desk.org_site"
 msgstr "{0}の主催者アクセス"
 

@@ -6844,6 +6844,60 @@ msgstr "Tryb turniejowy jest włączony dla twojego Ember ID."
 msgid "desk.invite_invalid"
 msgstr "To zaproszenie jest nieważne. Sprawdź je lub poproś o nowe."
 
+msgid "desk.site.on"
+msgstr "Na {0}"
+
+msgid "desk.site.detail"
+msgstr "Na jakim etapie jest turniej na swojej stronie z drabinkami. Poniżej kroki, na które strona teraz pozwala."
+
+msgid "desk.site.draft"
+msgstr "Szkic"
+
+msgid "desk.site.planned"
+msgstr "Zaplanowany"
+
+msgid "desk.site.sign_ups"
+msgstr "Zapisy otwarte"
+
+msgid "desk.site.check_in"
+msgstr "Check-in"
+
+msgid "desk.site.live"
+msgstr "Na żywo"
+
+msgid "desk.site.finished"
+msgstr "Zakończony"
+
+msgid "desk.site.archived"
+msgstr "Zarchiwizowany"
+
+msgid "desk.site.cancelled"
+msgstr "Odwołany"
+
+msgid "desk.move.plan"
+msgstr "Oznacz jako zaplanowany"
+
+msgid "desk.move.open_sign_ups"
+msgstr "Otwórz zapisy"
+
+msgid "desk.move.close_sign_ups"
+msgstr "Zamknij zapisy"
+
+msgid "desk.move.open_check_in"
+msgstr "Otwórz check-in"
+
+msgid "desk.move.reopen_sign_ups"
+msgstr "Otwórz ponownie zapisy"
+
+msgid "desk.move.archive"
+msgstr "Archiwizuj"
+
+msgid "desk.move.cancel"
+msgstr "Odwołaj turniej"
+
+msgid "desk.move.detail"
+msgstr "Prosi {0} o tę zmianę teraz. Gracze widzą ją od razu."
+
 msgid "desk.org_site"
 msgstr "Dostęp organizatora {0}"
 

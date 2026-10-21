@@ -6845,6 +6845,60 @@ msgstr "내 Ember ID에 대회 모드가 켜졌습니다."
 msgid "desk.invite_invalid"
 msgstr "유효하지 않은 초대입니다. 확인하거나 새 초대를 요청하세요."
 
+msgid "desk.site.on"
+msgstr "{0}에서"
+
+msgid "desk.site.detail"
+msgstr "대진표 사이트에서 대회가 어떤 상태인지 보여 줍니다. 아래는 지금 사이트가 허용하는 단계입니다."
+
+msgid "desk.site.draft"
+msgstr "초안"
+
+msgid "desk.site.planned"
+msgstr "예정"
+
+msgid "desk.site.sign_ups"
+msgstr "참가 신청 중"
+
+msgid "desk.site.check_in"
+msgstr "체크인"
+
+msgid "desk.site.live"
+msgstr "진행 중"
+
+msgid "desk.site.finished"
+msgstr "종료"
+
+msgid "desk.site.archived"
+msgstr "보관됨"
+
+msgid "desk.site.cancelled"
+msgstr "취소됨"
+
+msgid "desk.move.plan"
+msgstr "예정으로 표시"
+
+msgid "desk.move.open_sign_ups"
+msgstr "참가 신청 열기"
+
+msgid "desk.move.close_sign_ups"
+msgstr "참가 신청 닫기"
+
+msgid "desk.move.open_check_in"
+msgstr "체크인 열기"
+
+msgid "desk.move.reopen_sign_ups"
+msgstr "참가 신청 다시 열기"
+
+msgid "desk.move.archive"
+msgstr "보관"
+
+msgid "desk.move.cancel"
+msgstr "대회 취소"
+
+msgid "desk.move.detail"
+msgstr "{0}에 지금 이 변경을 요청합니다. 플레이어에게 바로 보입니다."
+
 msgid "desk.org_site"
 msgstr "{0} 주최자 권한"
 

@@ -6844,6 +6844,60 @@ msgstr "Турнирный режим включён для вашего Ember I
 msgid "desk.invite_invalid"
 msgstr "Это приглашение недействительно. Проверьте его или попросите новое."
 
+msgid "desk.site.on"
+msgstr "На {0}"
+
+msgid "desk.site.detail"
+msgstr "На каком этапе турнир на сайте с сеткой. Ниже шаги, которые сайт сейчас разрешает."
+
+msgid "desk.site.draft"
+msgstr "Черновик"
+
+msgid "desk.site.planned"
+msgstr "Запланирован"
+
+msgid "desk.site.sign_ups"
+msgstr "Регистрация открыта"
+
+msgid "desk.site.check_in"
+msgstr "Подтверждение участия"
+
+msgid "desk.site.live"
+msgstr "В эфире"
+
+msgid "desk.site.finished"
+msgstr "Завершён"
+
+msgid "desk.site.archived"
+msgstr "В архиве"
+
+msgid "desk.site.cancelled"
+msgstr "Отменён"
+
+msgid "desk.move.plan"
+msgstr "Отметить как запланированный"
+
+msgid "desk.move.open_sign_ups"
+msgstr "Открыть регистрацию"
+
+msgid "desk.move.close_sign_ups"
+msgstr "Закрыть регистрацию"
+
+msgid "desk.move.open_check_in"
+msgstr "Открыть подтверждение участия"
+
+msgid "desk.move.reopen_sign_ups"
+msgstr "Снова открыть регистрацию"
+
+msgid "desk.move.archive"
+msgstr "В архив"
+
+msgid "desk.move.cancel"
+msgstr "Отменить турнир"
+
+msgid "desk.move.detail"
+msgstr "Просит {0} сделать это изменение сейчас. Игроки увидят его сразу."
+
 msgid "desk.org_site"
 msgstr "Доступ организатора {0}"
 

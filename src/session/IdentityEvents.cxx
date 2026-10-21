@@ -154,6 +154,10 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         if (at != data.end() && at->is_number_unsigned()) view.deskDevice.requestedAt = at->get<std::uint64_t>();
         for (const auto& choice : data.value("choices", nlohmann::json::array()))
             if (choice.is_number_integer() && view.deskDevice.choices.size() < 3) view.deskDevice.choices.push_back(choice.get<int>());
+    } else if (view.op == "desk_site_state") {
+        view.deskSiteState = {Text(data, "tournament", 64), Text(data, "state", 32), {}};
+        for (const auto& action : data.value("actions", nlohmann::json::array()))
+            if (action.is_string() && view.deskSiteState.actions.size() < 8) view.deskSiteState.actions.push_back(action.get<std::string>().substr(0, 32));
     } else if (view.op == "desk_read") {
         // Whether Tournament Mode is the player's: by invitation, and redeemed.
         if (const auto access = data.find("access"); access != data.end() && access->is_object())
@@ -161,7 +165,8 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         view.deskEvents.clear();
         for (const auto& event : data.value("events", nlohmann::json::array()))
             if (event.is_object() && view.deskEvents.size() < 32)
-                view.deskEvents.push_back({Text(event, "id", 64), Text(event, "title", 64), Text(event, "status", 16), Text(event, "site", 32)});
+                view.deskEvents.push_back({Text(event, "id", 64), Text(event, "title", 64), Text(event, "status", 16), Text(event, "site", 32),
+                    Text(event, "tournament", 64)});
     } else if (view.op == "link_claim") {
         view.claimFingerprint = Text(data, "fingerprint", 32);
     } else if (view.op == "identity_preview_import") {
@@ -240,6 +245,9 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
         break;
     case IdentityOp::DeskCodeInfo:
         body["op"] = "desk_code_info"; complete = need({{"bridge_id", &r.bridge}, {"code", &r.command}});
+        break;
+    case IdentityOp::DeskSiteState:
+        body["op"] = "desk_site_state"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}, {"tournament", &r.target}});
         break;
     case IdentityOp::DeskRedeem:
         body["op"] = "desk_redeem"; complete = need({{"bridge_id", &r.bridge}, {"code", &r.command}});

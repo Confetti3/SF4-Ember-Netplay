@@ -469,7 +469,9 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::DeskAct:
         // The desk shows what the action changed at once.
-        Say(loc::T("desk.done"), Tone::Success, 4); deskReadAt_ = 0; break;
+        Say(loc::T("desk.done"), Tone::Success, 4); deskReadAt_ = 0;
+        if (deskMoved_) { deskMoved_ = false; DeskSiteRead(v); }
+        break;
     case IdentityOp::DeskWeb:
         // A web sign-in the player has not heard of is told once.
         if (std::any_of(id.webSessions.begin(), id.webSessions.end(), [](const netplay::WebSession& w) { return w.fresh; })) {

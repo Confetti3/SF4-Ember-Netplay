@@ -195,6 +195,12 @@ pub enum Request {
         bridge_id: String,
         code: String,
     },
+    /// An event's state on its site and the moves the site allows now.
+    DeskSiteState {
+        bridge_id: String,
+        site: String,
+        tournament: String,
+    },
     /// A desk action on one of an event's sets or matches, at `path`.
     DeskAct {
         bridge_id: String,
@@ -328,6 +334,7 @@ impl Request {
             Self::DeskApprove { .. } => "desk_approve",
             Self::DeskCodeInfo { .. } => "desk_code_info",
             Self::DeskRedeem { .. } => "desk_redeem",
+            Self::DeskSiteState { .. } => "desk_site_state",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
             Self::RoomList { .. } => "room_list",
@@ -856,6 +863,11 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             desk::code_info(shared, &bridge_id, &code).await
         }
         Request::DeskRedeem { bridge_id, code } => desk::redeem(shared, &bridge_id, &code).await,
+        Request::DeskSiteState {
+            bridge_id,
+            site,
+            tournament,
+        } => desk::site_state(shared, &bridge_id, &site, &tournament).await,
         Request::MatchClaim {
             bridge_id,
             match_id,

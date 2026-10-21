@@ -6844,6 +6844,60 @@ msgstr "Der Turniermodus ist für deine Ember-ID an."
 msgid "desk.invite_invalid"
 msgstr "Diese Einladung ist ungültig. Prüfe sie oder frag nach einer neuen."
 
+msgid "desk.site.on"
+msgstr "Auf {0}"
+
+msgid "desk.site.detail"
+msgstr "Wo das Turnier auf seiner Bracket-Seite steht. Unten die Schritte, die die Seite jetzt erlaubt."
+
+msgid "desk.site.draft"
+msgstr "Entwurf"
+
+msgid "desk.site.planned"
+msgstr "Geplant"
+
+msgid "desk.site.sign_ups"
+msgstr "Anmeldung offen"
+
+msgid "desk.site.check_in"
+msgstr "Check-in"
+
+msgid "desk.site.live"
+msgstr "Live"
+
+msgid "desk.site.finished"
+msgstr "Beendet"
+
+msgid "desk.site.archived"
+msgstr "Archiviert"
+
+msgid "desk.site.cancelled"
+msgstr "Abgesagt"
+
+msgid "desk.move.plan"
+msgstr "Als geplant markieren"
+
+msgid "desk.move.open_sign_ups"
+msgstr "Anmeldung öffnen"
+
+msgid "desk.move.close_sign_ups"
+msgstr "Anmeldung schließen"
+
+msgid "desk.move.open_check_in"
+msgstr "Check-in öffnen"
+
+msgid "desk.move.reopen_sign_ups"
+msgstr "Anmeldung wieder öffnen"
+
+msgid "desk.move.archive"
+msgstr "Archivieren"
+
+msgid "desk.move.cancel"
+msgstr "Turnier absagen"
+
+msgid "desk.move.detail"
+msgstr "Bittet {0}, das jetzt zu ändern. Die Spieler sehen es sofort."
+
 msgid "desk.org_site"
 msgstr "{0}-Organisatorzugriff"
 

@@ -29,6 +29,9 @@ enum class IdentityOp : std::uint8_t {
     // Redeeming an invite to Tournament Mode (`command`: the code), on a
     // service that takes organizers by invitation.
     DeskRedeem,
+    // An event's state on its site (`site`) and the moves allowed now, for
+    // the site's event `target`.
+    DeskSiteState,
 };
 
 // Where a player connects an account to their Ember ID through a browser
@@ -74,7 +77,7 @@ constexpr IdentityEffect EffectOf(IdentityOp op) {
     }
     switch (op) {
     case IdentityOp::Status: case IdentityOp::BridgeList: case IdentityOp::BridgeInspect: case IdentityOp::LinkList:
-    case IdentityOp::DeskRead: case IdentityOp::DeskWeb: case IdentityOp::DeskCodeInfo:
+    case IdentityOp::DeskRead: case IdentityOp::DeskWeb: case IdentityOp::DeskCodeInfo: case IdentityOp::DeskSiteState:
         return IdentityEffect::Read;
     case IdentityOp::DeskOpen: return IdentityEffect::Open;
     case IdentityOp::PreviewImport: return IdentityEffect::Preview;

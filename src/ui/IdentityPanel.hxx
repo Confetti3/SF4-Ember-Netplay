@@ -206,6 +206,8 @@ private:
     void OrganizerAccess(const ShellView& view, const std::string& site, bool allow);
     const netplay::DeskSet* DeskSelected(const ShellView& view) const;
     void DeskPoll(const ShellView& view, const std::string& screen);
+    // The open event's state on its site, read on opening it and after a move.
+    void DeskSiteRead(const ShellView& view);
     void DeskRows(const ShellView& view, const std::string& screen, std::vector<MenuEntry>& rows, std::string& title) const;
     bool DeskActivate(const MenuAction& a, const ShellView& view, MenuNavigation& navigation);
     bool DeskAccept(const MenuAction& a, const ShellView& view);
@@ -361,6 +363,8 @@ private:
     int deskFilter_ = 0;
     bool deskBracket_ = false;
     double deskReadAt_ = 0;
+    // A move was sent: its answer reads the event's site state again.
+    bool deskMoved_ = false;
     SiteAccount& Account(const SignInTarget& target, const std::string& bridge);
     const SiteAccount* FindAccount(const SignInTarget& target, const std::string& bridge) const;
     // The sign-in sites Ember's own service (sitesBridge_) lists, as its

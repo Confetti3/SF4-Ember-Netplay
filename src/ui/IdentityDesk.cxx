@@ -188,6 +188,27 @@ void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std:
     title = event == id.deskEvents.end() ? std::string(loc::T("screen.tournament_desk")) : event->title;
     const bool current = id.deskEvent == deskEvent_;
     if (screen == "desk-event") {
+        // The event's state on its site and the moves it allows now (the
+        // bracket site says them; Challonge and start.gg do not).
+        const auto& site = id.deskSiteState;
+        if (event != id.deskEvents.end() && !site.state.empty() && site.tournament == event->tournament) {
+            static const std::pair<const char*, const char*> states[] = {
+                {"draft", "desk.site.draft"}, {"planned", "desk.site.planned"}, {"sign_ups", "desk.site.sign_ups"},
+                {"check_in", "desk.site.check_in"}, {"live", "desk.site.live"}, {"finished", "desk.site.finished"},
+                {"archived", "desk.site.archived"}, {"cancelled", "desk.site.cancelled"}};
+            std::string word = site.state;
+            for (const auto& [key, text] : states) if (site.state == key) word = loc::T(text);
+            const auto name = SiteName(event->site);
+            auto state = InfoRow("dk-site-state", loc::Tf("desk.site.on", name), word, loc::T("desk.site.detail"));
+            state.userText = true; rows.push_back(std::move(state));
+            static const std::pair<const char*, const char*> moves[] = {
+                {"plan", "desk.move.plan"}, {"open_sign_ups", "desk.move.open_sign_ups"}, {"close_sign_ups", "desk.move.close_sign_ups"},
+                {"open_check_in", "desk.move.open_check_in"}, {"reopen_sign_ups", "desk.move.reopen_sign_ups"},
+                {"archive", "desk.move.archive"}, {"cancel", "desk.move.cancel"}};
+            for (const auto& action : site.actions)
+                for (const auto& [key, text] : moves)
+                    if (action == key) rows.push_back(ConfirmRow("dk-move:" + action, loc::T(text), loc::Tf("desk.move.detail", name), !busy));
+        }
         rows.push_back(Value("dk-view", loc::T("desk.view"), loc::T(deskBracket_ ? "desk.view.bracket" : "desk.view.queue"), loc::T("desk.view_detail")));
         if (!deskBracket_)
             rows.push_back(Value("dk-filter", loc::T("desk.filter"), loc::T(Filters[deskFilter_]), loc::T("desk.filter_detail")));
@@ -257,6 +278,15 @@ void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std:
             rows.push_back(ConfirmRow("dk-add:" + std::to_string(slot), loc::Tf("desk.add", Name(s->players[slot])), loc::T("desk.add_detail"), !busy));
 }
 
+void IdentityPanel::DeskSiteRead(const ShellView& v) {
+    const auto* ember = EmberBridge(v);
+    const auto event = std::find_if(v.identity.deskEvents.begin(), v.identity.deskEvents.end(),
+        [&](const netplay::DeskEvent& e) { return e.id == deskEvent_; });
+    if (!ember || event == v.identity.deskEvents.end() || event->tournament.empty() || event->site.empty()) return;
+    IdentityRequest read; read.op = IdentityOp::DeskSiteState; read.bridge = ember->id; read.site = event->site; read.target = event->tournament;
+    Queue(std::move(read));
+}
+
 bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNavigation& nav) {
     if (a.id.compare(0, 8, "dk-pick:") == 0) {
         const auto* ember = EmberBridge(v);
@@ -268,7 +298,17 @@ bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNa
     }
     if (a.id.compare(0, 9, "dk-event:") == 0) {
         deskEvent_ = a.id.substr(9); deskFilter_ = 0; deskBracket_ = false; deskReadAt_ = 0;
+        DeskSiteRead(v);
         nav.Push("desk-event"); return true;
+    }
+    if (a.id.compare(0, 8, "dk-move:") == 0) {
+        // A move of the event on its site, which needs the game's proof.
+        const auto* ember = EmberBridge(v);
+        if (!ember) return true;
+        IdentityRequest move; move.op = IdentityOp::DeskAct; move.bridge = ember->id;
+        move.target = EventsPath + deskEvent_ + "/transitions/" + a.id.substr(8); move.command = "{}";
+        deskMoved_ = true; message_.clear(); Queue(std::move(move));
+        return true;
     }
     if (a.id.compare(0, 7, "dk-set:") == 0) { deskSet_ = a.id.substr(7); nav.Push("desk-set"); return true; }
     if (a.id.compare(0, 7, "dk-org:") == 0) { OrganizerAccess(v, a.id.substr(7), true); return true; }
