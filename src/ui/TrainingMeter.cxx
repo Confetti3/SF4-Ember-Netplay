@@ -310,13 +310,6 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
         else AngledBar(ImGui::GetWindowDrawList(), meter, side, origin, width, height, window);
         ReportMenuCard(side ? "training-bar-2" : "training-bar-1", origin, ImVec2(origin.x + width, origin.y + height));
         ImGui::Dummy(ImVec2(width, height));
-        // Between the bars, each hit's bracket and advantage.
-        if (side == 0) {
-            const float size = height * .82f, slant = options.style == MeterStyle::Flat ? 0 : height * .35f, left[2] = {bars.x, bars.x + slant};
-            const float cell = (width - slant) / window.cells;
-            DrawHitMarks(ImGui::GetWindowDrawList(), HitMarks(meter, window, left, cell, size), left, cell, ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y, size);
-            ImGui::Dummy(ImVec2(width, HitRow(size) - 2 * ImGui::GetStyle().ItemSpacing.y));
-        }
     }
 }
 // What a focus cancel was, from the reading it belongs to.
