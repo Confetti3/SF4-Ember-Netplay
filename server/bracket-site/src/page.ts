@@ -16,7 +16,11 @@ const STATES: Record<Tournament["state"], string> = {
   cancelled: "Cancelled.",
 };
 
-export function page(tournament: Tournament): string {
+/**
+ * `viewer`: the signed-in Discord user, who gets the sign-up and check-in
+ * buttons; `signIn`: whether the site signs people in at all.
+ */
+export function page(tournament: Tournament, viewer: string | null, signIn: boolean): string {
   const name = (id: string | null) => (id ? escape(tournament.entrants.find((each) => each.ember_id === id)?.name ?? id) : "<i>to be decided</i>");
   const rounds = Array.from({ length: tournament.rounds }, (_, i) => i + 1).map((round) => {
     const sets = tournament.sets.filter((set) => set.round === round).map((set) => {
@@ -29,7 +33,7 @@ export function page(tournament: Tournament): string {
     });
     return `<section><h2>${roundLabel(round, tournament.rounds)}</h2>${sets.join("")}</section>`;
   });
-  const entrants = tournament.entrants.map((entrant) => `<li>${escape(entrant.name)}</li>`).join("");
+  const entrants = tournament.entrants.map((entrant) => `<li>${escape(entrant.name)}${entrant.ember_id ? "" : " (waiting for Discord to be connected in Ember)"}</li>`).join("");
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(tournament.title)}</title>
@@ -44,7 +48,34 @@ td + td { width: 2em; text-align: right; }
 </style></head><body>
 <h1>${escape(tournament.title)}</h1>
 <p>First to ${tournament.games_to_win}. ${STATES[tournament.state]}</p>
+${signIn ? buttons(tournament, viewer) : ""}
 ${beforeLive(tournament) ? `<h2>Entrants</h2><ol>${entrants}</ol>` : `<div class="rounds">${rounds.join("")}</div>`}
+<script>
+for (const button of document.querySelectorAll("button[data-path]")) {
+  button.addEventListener("click", async () => {
+    const answer = await fetch(button.dataset.path, { method: button.dataset.method, headers: { "content-type": "application/json" }, body: "{}" });
+    if (answer.ok) location.reload();
+    else document.getElementById("said").textContent = (await answer.json()).error;
+  });
+}
+</script>
 </body></html>
 `;
+}
+
+/** What the viewer can do now: sign in, sign up, leave or check in. */
+function buttons(tournament: Tournament, viewer: string | null): string {
+  if (!["sign_ups", "check_in"].includes(tournament.state)) return "";
+  const path = `/tournaments/${encodeURIComponent(tournament.id)}`;
+  if (!viewer) return `<p><a href="/signin?back=${encodeURIComponent(`${path}/bracket`)}">Sign in with Discord</a> to sign up.</p>`;
+  const entrant = tournament.entrants.find((each) => each.discord === viewer);
+  const button = (label: string, method: string, to: string) => `<button data-method="${method}" data-path="${to}">${label}</button>`;
+  const shown = !entrant
+    ? tournament.state === "sign_ups" ? button("Sign up", "POST", `${path}/entrants`) : ""
+    : [
+        tournament.state === "check_in" && !entrant.checked_in ? button("Check in", "POST", `${path}/check-in`) : "",
+        entrant.checked_in ? "You are checked in." : "",
+        button("Leave", "DELETE", `${path}/entrants/${viewer}`),
+      ].join(" ");
+  return `<p>${shown}</p><p id="said" role="status"></p>`;
 }

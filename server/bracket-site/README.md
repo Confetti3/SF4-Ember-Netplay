@@ -28,7 +28,20 @@ EMBER_BRIDGE_CREDENTIAL_FILE=/etc/ember-bracket-site/provider.token \
 node src/main.ts
 ```
 
-Each `_FILE` holds one secret on its first line. The bridge credential is a
+With `BRACKET_SITE_ORIGIN` (its public https origin) and the Ember bot's
+Discord application, the site also signs people in (below):
+
+```sh
+BRACKET_SITE_ORIGIN=https://brackets.ember.fraccie.be \
+DISCORD_CLIENT_ID=<the bot's application ID> \
+DISCORD_CLIENT_SECRET_FILE=/etc/ember-bracket-site/discord.secret \
+BRACKET_SITE_BRIDGE_CLIENT_ID=ember-bridge \
+BRACKET_SITE_BRIDGE_CLIENT_SECRET_FILE=/etc/ember-bracket-site/bridge-client.secret \
+BRACKET_SITE_BRIDGE_REDIRECT_URI=https://<bridge>/v1/sites/ember-bracket-site/callback \
+```
+
+The Discord application's redirects must hold
+`<BRACKET_SITE_ORIGIN>/oauth/discord/callback`. Each `_FILE` holds one secret on its first line. The bridge credential is a
 provider credential of a connection with `discord_lookup`: the connector's
 own connection, so the players it finds are the ones the connector looks up.
 Put the site behind an https proxy; the connector takes only https (or
@@ -67,6 +80,20 @@ Seeding follows the join order (or a shuffle) of those who can play: linked,
 and checked in when check-in is on. The bracket is the next power of two;
 the top seeds get the byes, and a bye is not a set. Set IDs are
 `r<round>-<position>`, and the last round is the final.
+
+## Signing in
+
+The site is an OAuth server for one client, the bridge, as Challonge is
+(`GET /oauth/authorize`, `POST /oauth/token` with the authorization code or
+a refresh token, used once each, and `GET /oauth/me`, which answers
+`{ "discord_id", "username" }`). Behind it each user signs in with Discord.
+Scopes are `player` and `organizer`; only the bridge holds the client
+secret, so only organizers the bridge lets sign in get `organizer`. Access
+tokens last an hour, refresh tokens 60 days.
+
+A browser signs in on the site's own page (`/signin?back=<path>`) and gets a
+session cookie, a player's only, whose writes are taken only with the site's
+own `Origin`. The bracket page then offers Sign up, Check in and Leave.
 
 ## The connector
 

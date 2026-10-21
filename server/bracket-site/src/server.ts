@@ -7,6 +7,7 @@ import type { BridgeClient } from "../../../sdk/typescript/src/index.ts";
 import { Conflict, Invalid, roundLabel, status } from "./bracket.ts";
 import { contractRoutes, record } from "./contract.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
+import { OAuth, OAuthError, Redirect } from "./oauth.ts";
 import { page } from "./page.ts";
 import type { Store } from "./store.ts";
 import { ACTIONS, actions, beforeLive, checkIn, enter, move, type Action, type Entrant, type Tournament } from "./tournament.ts";
@@ -24,6 +25,8 @@ export interface Actor {
   operator: boolean;
   /** May create tournaments and manage those they organize: only organizers the bridge lets sign in as one. */
   organizer: boolean;
+  /** Their Discord name, when signed in through Discord. */
+  name?: string;
 }
 
 export interface Options {
@@ -34,8 +37,12 @@ export interface Options {
   connectorToken: string;
   /** For the Discord bot, which says in `X-Discord-User` who pressed its button. */
   botToken?: string;
-  /** Other bearer tokens, such as the site's OAuth access tokens. */
+  /** Other bearer tokens, for tests. */
   tokens?: (token: string) => Actor | undefined;
+  /** Sign-in: the site's OAuth access tokens, browser sessions and their routes. */
+  oauth?: OAuth;
+  /** The site's public origin: a browser's session writes only from its own pages. */
+  origin?: string;
   /** A bridge connection with `discord_lookup`, which finds each player's Ember ID. */
   bridge: Pick<BridgeClient, "lookupPlayers">;
   now?: () => Date;
@@ -48,12 +55,16 @@ export function bracketSite(options: Options): Server {
 
   function actor(request: IncomingMessage): Actor | undefined {
     const token = /^Bearer (.+)$/.exec(request.headers.authorization ?? "")?.[1];
-    if (!token) return undefined;
+    if (!token) {
+      const session = options.oauth?.session(request);
+      if (session && request.method !== "GET" && request.headers.origin !== options.origin) fail(403, "only from the site's own pages");
+      return session;
+    }
     const header = request.headers["x-discord-user"];
     const discord = typeof header === "string" && DISCORD_ID.test(header) ? header : null;
     if (same(token, options.operatorToken)) return { discord, operator: true, organizer: true };
     if (options.botToken && same(token, options.botToken)) return discord ? { discord, operator: false, organizer: false } : fail(400, "X-Discord-User is required");
-    return options.tokens?.(token);
+    return options.tokens?.(token) ?? options.oauth?.actor(token);
   }
   const signedIn = (request: IncomingMessage) => actor(request) ?? fail(401, "wrong or missing token");
   const manages = (who: Actor | undefined, tournament: Tournament) =>
@@ -191,7 +202,7 @@ export function bracketSite(options: Options): Server {
         const who = signedIn(request);
         const body = await readJson(request);
         const discord = body.discord === undefined ? player(request) : text(body.discord, DISCORD_ID, "discord is a Discord user ID");
-        const name = body.name === undefined ? discord : text(body.name, /^.{1,64}$/u, "name is 1 to 64 characters");
+        const name = body.name !== undefined ? text(body.name, /^.{1,64}$/u, "name is 1 to 64 characters") : discord === who.discord ? (who.name ?? discord) : discord;
         const forSomeoneElse = discord !== who.discord;
         if (forSomeoneElse) manager(request, found(id!));
         const organizer = manages(who, found(id!));
@@ -240,6 +251,7 @@ export function bracketSite(options: Options): Server {
       },
     ],
     ...contract,
+    ...(options.oauth?.routes() ?? []),
   ];
 
   function enterOrFail(tournament: Tournament, entrant: Entrant, organizer: boolean): void {
@@ -256,7 +268,8 @@ export function bracketSite(options: Options): Server {
     try {
       const html = /^\/tournaments\/([^/]+)\/bracket$/.exec(url.pathname);
       if (html && request.method === "GET") {
-        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(page(found(decodeURIComponent(html[1]!))));
+        const viewer = options.oauth?.session(request)?.discord ?? null;
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(page(found(decodeURIComponent(html[1]!)), viewer, !!options.oauth));
         return;
       }
       for (const [method, pattern, handler] of routes) {
@@ -269,6 +282,7 @@ export function bracketSite(options: Options): Server {
       fail(404, "not found");
     } catch (error) {
       if (error instanceof Failure) send(response, error.status, error.body);
+      else if (error instanceof Redirect || error instanceof OAuthError) error.answer(response);
       else {
         console.error(error);
         send(response, 500, { error: "internal error" });
