@@ -217,6 +217,8 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
 
 bool IdentityPanel::MatchesActivate(const MenuAction& a, const ShellView& v) {
     if (a.id == "tm-refresh") { wantAssignments_ = true; message_.clear(); return true; }
+    // The player's own Play, Stop or Watch replaces what a link was waiting to play.
+    if (a.id == "tm-stop" || a.id.compare(0, 8, "tm-play:") == 0 || a.id.compare(0, 9, "tm-watch:") == 0) linkedPlay_.reset();
     if (a.id == "tm-paste") {
         // The match link the tournament site gave: its page or the ember: link.
         const char* text = ImGui::GetClipboardText();

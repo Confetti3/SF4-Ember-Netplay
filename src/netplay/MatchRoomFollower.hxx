@@ -75,9 +75,9 @@ public:
 		// A join names its room before it is sent; a host learns it here.
 		if (room.joined && openUnderWay_ && hosting_) Own(room.roomId);
 		// The open has landed or failed once nothing is opening; a join that
-		// left the player in no room failed.
+		// left the player in no room failed, counted against the room it was for.
 		if (!room.opening) {
-			if (openUnderWay_ && !hosting_ && !room.joined) ++failedJoins_;
+			if (openUnderWay_ && !hosting_ && !room.joined && joining_ == target_) ++failedJoins_;
 			openUnderWay_ = false;
 		}
 		if (wanted_) {
@@ -112,6 +112,7 @@ public:
 		if (!OpenDue(nowMs, room)) return Step::None;
 		Opened(nowMs, false);
 		leaving_ = false;
+		joining_ = target_;
 		// Whatever this join lands in is the match's room, and this follower's to leave.
 		Own(target_);
 		return Step::Join;
@@ -159,6 +160,8 @@ private:
 	bool requested_ = false, openUnderWay_ = false, hosting_ = false, leaving_ = false;
 	std::uint64_t openedAtMs_ = 0;
 	unsigned failedJoins_ = 0;
+	// The room the last join asked for: its failure counts only while it is still the target.
+	std::string joining_;
 	// Every room its joins named or its hosts landed in: the only rooms it leaves.
 	std::vector<std::string> ownRooms_;
 	// A Leave is wanted on the next tick, or held for the last battle.

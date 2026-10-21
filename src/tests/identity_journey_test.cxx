@@ -167,6 +167,19 @@ void IdentityJourneys() {
   bool played=false;for(std::size_t i=mark;i<h.played().size();++i)played|=h.played()[i]->op==Command::Op::Play;
   Check(!played,"A match link the runtime judged busy, or past its time, played by itself");
  }
+ // The player's own Play replaces what a link was waiting to play: the
+ // link's match does not start by itself afterwards.
+ {
+  auto later=playable;later.state="running";auto other=playable;other.matchId="emt_7";
+  t.list.items={later,other};const auto mark=h.played().size();
+  t.link.sequence=14;t.link.direct=true;h.Frame(0,3);
+  h.Choose("tm-play:emt_7");h.Frame();
+  Check(h.played().back()->op==Command::Op::Play&&h.played().back()->matchId=="emt_7","The player's own Play did not go out");
+  t.list.items={playable,other};h.Frame(0,3);
+  std::size_t linked=0;for(std::size_t i=mark;i<h.played().size();++i)linked+=h.played()[i]->op==Command::Op::Play&&h.played()[i]->matchId=="emt_1";
+  Check(linked==0,"A link's match played by itself after the player chose another");
+  t.link.direct=false;t.list.items={playable};
+ }
  // A match the refreshed list does not hold is not the player's.
  t.link.match="emt_9";t.link.sequence=2;h.Frame(0,2);
  Check(h.played().back()->op==Command::Op::Refresh&&h.played().back()->bridgeId=="brg_1","A match link did not refresh its service's list");

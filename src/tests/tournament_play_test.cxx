@@ -765,7 +765,10 @@ static void TestGoneHostIsReplaced() {
 	auto out = play.Tick(at + 30, Joined(RoomB, &snapshot));
 	const auto* publish = Find(out, Kind::Publish);
 	CHECK(publish && publish->roomId == RoomB && publish->replaces == RoomA && publish->leaseId.empty() && publish->fence.empty());
-	play.OnRoom(Kind::Publish, Room(RoomB, MakeBinding(RoomB, 1)), at + 40);
+	// The bridge answers the replacement with the next assignment.
+	auto replaced = MakeBinding(RoomB, 1);
+	replaced.room.assignmentGeneration = 2;
+	play.OnRoom(Kind::Publish, Room(RoomB, replaced), at + 40);
 	play.Tick(at + 50, Joined(RoomB, &snapshot));
 	CHECK(play.GetPhase() == Phase::InRoom);
 	// A claim answer sent before the replacement arrives after it: B stays the room.
@@ -779,7 +782,9 @@ static void TestGoneHostIsReplaced() {
 	CHECK(Count(refused.Tick(at + 30, Joined(RoomB, &snapshot)), Kind::Publish) == 1);
 	refused.OnFailure(Kind::Publish, "lease_conflict", at + 40);
 	const std::string RoomC(32, 'c');
-	refused.OnRoom(Kind::Claim, Room(RoomC, MakeBinding(RoomC, 1)), at + 50);
+	auto other = MakeBinding(RoomC, 1);
+	other.room.assignmentGeneration = 2;
+	refused.OnRoom(Kind::Claim, Room(RoomC, other), at + 50);
 	out = refused.Tick(at + 60, Joined(RoomB, &snapshot));
 	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Publish) == 0);
 	out = refused.Tick(at + 70, {});
@@ -896,6 +901,45 @@ static void TestReplacementRoomStartsItsGamesAgain() {
 	out = late.Tick(500, Joined(RoomB, &fresh, false));
 	CHECK(Count(out, Kind::Prepare) == 1 && Count(out, Kind::PermitReady) == 0);
 }
+
+// Which room is the match's follows the bridge's order, not the order answers
+// arrive in: once bound, a room comes after another only with a newer
+// assignment. A join's failure counts against the room it asked for.
+static void TestRoomOrdering() {
+	const std::string RoomC(32, 'c');
+	const auto generation = [](const std::string& roomId, std::uint64_t value) {
+		auto binding = MakeBinding(roomId, 1);
+		binding.room.assignmentGeneration = value;
+		return binding;
+	};
+	// Room C (assignment 3) arrives before an older answer naming B (assignment 2).
+	TournamentPlay play;
+	play.Start("brg_x", "emt_x", 0);
+	play.Tick(0, {});
+	play.OnRoom(Kind::Claim, Room(RoomA, generation(RoomA, 1)), 100);
+	play.OnRoom(Kind::Claim, Room(RoomC, generation(RoomC, 3)), 200);
+	play.OnRoom(Kind::Claim, Room(RoomB, generation(RoomB, 2)), 300);
+	auto out = play.Tick(400, {});
+	const auto* join = Find(out, Kind::Join);
+	CHECK(join && join->invitation == "sf4e3:" + RoomC);
+
+	// The bridge moves the match from A to B while A's join is still opening:
+	// A's failure is not B's, so B is joined twice before it is replaced.
+	TournamentPlay moved;
+	moved.Start("brg_x", "emt_x", 0);
+	moved.Tick(0, {});
+	moved.OnRoom(Kind::Claim, Room(RoomA, generation(RoomA, 1)), 100);
+	CHECK(Count(moved.Tick(200, {}), Kind::Join) == 1);
+	moved.Tick(300, Opening());
+	moved.OnRoom(Kind::Claim, Room(RoomB, generation(RoomB, 2)), 350);
+	CHECK(Count(moved.Tick(400, {}), Kind::Join) == 1);
+	moved.Tick(500, Opening());
+	out = moved.Tick(600, {});
+	CHECK(Count(out, Kind::Host) == 0);
+	CHECK(Count(moved.Tick(OpenTimeoutMs + 400, {}), Kind::Join) == 1);
+	moved.Tick(OpenTimeoutMs + 500, Opening());
+	CHECK(Count(moved.Tick(OpenTimeoutMs + 600, {}), Kind::Host) == 1);
+}
 int main() {
 	TestHostPublishesAndBinds();
 	TestACasualGameHoldsTheFirstBinding();
@@ -912,6 +956,7 @@ int main() {
 	TestReadyGoesWithTheClaim();
 	TestGoneHostIsReplaced();
 	TestReplacementRoomStartsItsGamesAgain();
+	TestRoomOrdering();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("tournament play tests passed\n");
 	return failures ? 1 : 0;

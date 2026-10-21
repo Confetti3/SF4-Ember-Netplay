@@ -319,6 +319,11 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 		// A move waits for the last room's reports to be saved, under the
 		// permits they were played with; the next claim brings the room again.
 		if (moving && !unsaved_.empty()) break;
+		// Once bound, the match moves to another room only with a newer
+		// assignment (a replaced room starts one): an answer naming another
+		// room without one was sent before the room held now.
+		if (moving && binding_ && !(reply.binding && reply.binding->roomId == reply.roomId &&
+			reply.binding->room.assignmentGeneration > binding_->room.assignmentGeneration)) break;
 		replacing_.clear();
 		leaseId_.clear();
 		fence_.clear();
