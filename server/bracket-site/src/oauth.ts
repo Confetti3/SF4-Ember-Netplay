@@ -107,6 +107,7 @@ export class OAuth {
     return [
       ["GET", /^\/oauth\/authorize$/, (_, __, url) => this.#authorize(url)],
       ["GET", /^\/signin$/, (_, __, url) => this.#signIn(url)],
+      ["POST", /^\/signout$/, (request) => this.#signOut(request)],
       ["GET", /^\/oauth\/discord\/callback$/, async (_, __, url) => this.#callback(url)],
       ["POST", /^\/oauth\/token$/, async (request) => [200, await this.#token(request)]],
       [
@@ -136,6 +137,13 @@ export class OAuth {
   #signIn(url: URL): never {
     const back = url.searchParams.get("back") ?? "/";
     return this.#toDiscord({ scope: "player", back: back.startsWith("/") && !back.startsWith("//") ? back : "/" });
+  }
+
+  /** Ends the browser's session, here and in the database, and goes home. */
+  #signOut(request: IncomingMessage): never {
+    const value = cookie(request, SESSION_COOKIE);
+    if (value) this.#options.db.prepare("DELETE FROM grants WHERE hash = ? AND kind = 'session'").run(hash(value));
+    throw new Redirect("/", `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
   }
 
   #toDiscord(pending: Omit<Pending, "until">): never {

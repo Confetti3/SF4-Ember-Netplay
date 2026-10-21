@@ -128,8 +128,10 @@ Scopes are `player` and `organizer`; only the bridge holds the client
 secret, so only organizers the bridge lets sign in get `organizer`. Access
 tokens last an hour, refresh tokens 60 days.
 
-A browser signs in on the site's own page (`/signin?back=<path>`) and gets a
-session cookie, a player's only, whose writes are taken only with the site's
+The home page (`/`) shows who is signed in, the tournaments open or live,
+and the latest results, with Sign in with Discord or Sign out
+(`POST /signout`). A browser signs in on the site's own page
+(`/signin?back=<path>`, home without `back`) and gets a session cookie, a player's only, whose writes are taken only with the site's
 own `Origin`. The bracket page then offers Sign up, Check in and Leave.
 
 ## The connector

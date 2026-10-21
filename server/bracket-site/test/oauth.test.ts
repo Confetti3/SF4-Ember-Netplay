@@ -153,3 +153,23 @@ test("a browser signs in on the site's page and signs up from it, only from the 
   const away = await throughDiscord(`${site}/signin?back=${encodeURIComponent("//evil.example")}`, "code-player");
   assert.equal(away.headers.get("location"), "/");
 });
+
+test("the home page lists what is on, and signs a browser in and out", async () => {
+  const signedOut = await (await get(`${site}/`)).text();
+  assert.match(signedOut, /<a class="button" href="\/signin\?back=\/">Sign in with Discord<\/a>/);
+  assert.match(signedOut, /<a href="\/t\/weekly">Weekly<\/a> <span class="note">Sign-ups are open.<\/span>/);
+  assert.match(signedOut, /No results yet/);
+  // Without `back`, a sign-in comes home.
+  const signedIn = await throughDiscord(`${site}/signin`, "code-player");
+  assert.equal(signedIn.headers.get("location"), "/");
+  const cookie = signedIn.headers.get("set-cookie")!.split(";")[0]!;
+  const page = await (await get(`${site}/`, { cookie })).text();
+  assert.match(page, /Signed in as user12\. <button>Sign out<\/button>/);
+  assert.doesNotMatch(page, /Sign in with Discord/);
+
+  const out = await fetch(`${site}/signout`, { method: "POST", redirect: "manual", headers: { cookie } });
+  assert.deepEqual([out.status, out.headers.get("location")], [302, "/"]);
+  assert.match(out.headers.get("set-cookie")!, /Max-Age=0/);
+  // The session is gone, not only its cookie.
+  assert.match(await (await get(`${site}/`, { cookie })).text(), /Sign in with Discord/);
+});

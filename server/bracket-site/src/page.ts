@@ -22,6 +22,43 @@ const STATES: Record<Tournament["state"], string> = {
  * `viewer`: the signed-in Discord user, who gets the sign-up and check-in
  * buttons; `signIn`: whether the site signs people in at all.
  */
+/**
+ * The home page: who is signed in, the tournaments open or live, and the
+ * reports of those finished lately. `viewer`: the signed-in Discord name;
+ * `signIn`: whether the site signs people in at all.
+ */
+export function home(tournaments: Tournament[], viewer: string | null, signIn: boolean): string {
+  const OPEN = ["sign_ups", "check_in", "live"];
+  const open = tournaments.filter((each) => OPEN.includes(each.state));
+  const finished = tournaments
+    .filter((each) => each.report)
+    .sort((a, b) => b.report!.finished_at.localeCompare(a.report!.finished_at))
+    .slice(0, 10);
+  const link = (each: Tournament, path: string, note: string) => `<li><a href="/t/${encodeURIComponent(each.id)}${path}">${escape(each.title)}</a> <span class="note">${note}</span></li>`;
+  const who = !signIn
+    ? ""
+    : viewer
+      ? `<form method="post" action="/signout"><p>Signed in as ${escape(viewer)}. <button>Sign out</button></p></form>`
+      : `<p><a class="button" href="/signin?back=/">Sign in with Discord</a></p>`;
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ember brackets</title>
+<style>
+body { font: 16px system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+li { margin: 6px 0; } .note { color: #666; }
+.button, button { display: inline-block; padding: 8px 12px; border: 1px solid #999; border-radius: 4px; background: none; color: inherit; font: inherit; text-decoration: none; }
+@media (prefers-color-scheme: dark) { body { background: #111; color: #eee; } .note { color: #aaa; } }
+</style></head><body>
+<h1>Ember brackets</h1>
+${who}
+<h2>Now</h2>
+${open.length ? `<ul>${open.map((each) => link(each, "", STATES[each.state])).join("")}</ul>` : "<p>No tournament is open or live right now.</p>"}
+<h2>Results</h2>
+${finished.length ? `<ul>${finished.map((each) => link(each, "/report", each.report!.podium[0] ? `won by ${escape(each.report!.podium[0].name)}` : "")).join("")}</ul>` : "<p>No results yet.</p>"}
+</body></html>
+`;
+}
+
 export function page(tournament: Tournament, viewer: string | null, signIn: boolean): string {
   const name = (id: string | null) => (id ? escape(tournament.entrants.find((each) => each.ember_id === id)?.name ?? id) : "<i>to be decided</i>");
   const rounds = Array.from({ length: tournament.rounds }, (_, i) => i + 1).map((round) => {

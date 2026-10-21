@@ -12,7 +12,7 @@ import { emblem, isKind } from "./emblems.ts";
 import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
 import { push, stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
-import { page, reportPage } from "./page.ts";
+import { home, page, reportPage } from "./page.ts";
 import { manifest, setReplays, type Clip } from "./replays.ts";
 import { accept, cast, close as closeVoteOf, due, nominate, open as openVote, shown as voteView, voidVote, type Category, type Nomination } from "./vote.ts";
 import type { Store } from "./store.ts";
@@ -534,6 +534,12 @@ export function bracketSite(options: Options): Server {
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
+      if (url.pathname === "/" && request.method === "GET") {
+        const viewer = options.oauth?.session(request);
+        const shown = home(store.all(), viewer ? (viewer.name ?? viewer.discord) : null, !!options.oauth);
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(shown);
+        return;
+      }
       const badge = /^\/emblems\/([a-z0-9_]+)\.svg$/.exec(url.pathname);
       if (badge && request.method === "GET") {
         const kind = isKind(badge[1]!) ? badge[1] : fail(404, "no such emblem");
