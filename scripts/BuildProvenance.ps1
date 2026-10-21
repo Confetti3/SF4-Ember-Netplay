@@ -36,6 +36,34 @@ function Get-DependencyReceipt([string]$SourceRoot, [string]$BuildRoot) {
     }
     [pscustomobject]@{root=$root;artifacts=@($artifacts);rustLockSha256=(Get-FileHash -LiteralPath (Join-Path $SourceRoot 'rust/sf4-net/Cargo.lock')).Hash}
 }
+# Runs the default CTest set and returns the tests that passed only when run once
+# more. With -RerunFailed (Nightly), what failed runs once more, one test at a time:
+# tests that time their work can fail on a busy publishing PC. Without it (Stable)
+# every test must pass the first time. A test that still fails throws, so the build
+# writes no receipt. CTest's output goes to the host, and so into a transcript.
+function Invoke-DefaultTests([object]$Ctest, [string]$BuildRoot, [string]$Excluded, [int]$Parallel, [switch]$RerunFailed) {
+    $junit = Join-Path $BuildRoot 'ctest-junit.xml'
+    $rerunJunit = Join-Path $BuildRoot 'ctest-rerun-junit.xml'
+    Remove-Item -LiteralPath $junit, $rerunJunit -ErrorAction SilentlyContinue
+    $arguments = @('--test-dir', $BuildRoot, '--output-on-failure', '--no-tests=error', '-E', $Excluded)
+    $passedOnRerun = @()
+    & $Ctest @arguments --parallel $Parallel --output-junit $junit | Out-Host
+    if ($LASTEXITCODE) {
+        if (!$RerunFailed) { throw 'Tests failed' }
+        $passedOnRerun = @(Get-Content -LiteralPath (Join-Path $BuildRoot 'Testing/Temporary/LastTestsFailed.log') | ForEach-Object { ($_ -split ':', 2)[1] })
+        Write-Host "Running the failed tests once more, one at a time: $($passedOnRerun -join ', ')"
+        & $Ctest @arguments --rerun-failed --parallel 1 --output-junit $rerunJunit | Out-Host
+        if ($LASTEXITCODE) { throw 'Tests failed, and again when run once more' }
+        Write-Warning "Passed only when run once more: $($passedOnRerun -join ', ')"
+    }
+    # The receipt names these components, so the runs themselves must show them.
+    $ran = @(foreach ($file in @($junit, $rerunJunit) | Where-Object { Test-Path -LiteralPath $_ }) {
+        ([xml](Get-Content -Raw -LiteralPath $file)).testsuite.testcase | Where-Object { $_.status -eq 'run' -and !$_.failure } | ForEach-Object { $_.name }
+    })
+    $missing = @('HelperRust','EmberRust','BridgeSdk') | Where-Object { $_ -notin $ran }
+    if ($missing) { throw "Default CTest did not run: $($missing -join ', ')" }
+    $passedOnRerun
+}
 function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot) {
     Assert-CMakeSource $SourceRoot $BuildRoot
     $receipt = Get-Content -LiteralPath (Join-Path $BuildRoot 'build-provenance.json') -Raw | ConvertFrom-Json

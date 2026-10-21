@@ -4702,6 +4702,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Zet onderdelen van de HUD tijdens het gevecht aan of uit."
 
+msgid "training.hitboxes"
+msgstr "Hitboxen"
+
+msgid "training.hitboxes.detail"
+msgstr "Tekent de boxen van de vechters over het gevecht: groen waar een vechter geraakt kan worden, geel waar hij geworpen kan worden, rood waar een aanval raakt en blauw waar hij werpt."
+
 msgid "training.color_key"
 msgstr "Kleurenlegenda"
 
@@ -6505,3 +6511,139 @@ msgstr "Vorige wedstrijd ({0}): {1} versloeg {2}"
 
 msgid "room.rules.end_game"
 msgstr "Toepassen beëindigt de wedstrijd aan deze tafel en brengt de spelers en toeschouwers terug naar de kamer. Andere tafels spelen door. De onderbroken wedstrijd levert geen overwinning op."
+
+msgid "screen.rankings"
+msgstr "Ranglijsten"
+
+msgid "rankings.title"
+msgstr "RANGLIJSTEN"
+
+msgid "rankings.board_title"
+msgstr "SPELERS PER KLASSE"
+
+msgid "rankings.entry_detail"
+msgstr "Je klasse in openbare kamers en spelers per klasse."
+
+msgid "rankings.needs_setup"
+msgstr "Ranglijsten komen uit potjes in openbare kamers. Stel eerst openbare kamers in."
+
+msgid "rankings.loading"
+msgstr "Je klasse laden..."
+
+msgid "rankings.your_class"
+msgstr "Je klasse"
+
+msgid "rankings.placing"
+msgstr "Wordt ingedeeld"
+
+msgid "rankings.placing_detail"
+msgstr "Je klasse verschijnt na nog een paar potjes in openbare kamers tegen spelers die er een hebben."
+
+msgid "rankings.faint_detail"
+msgstr "Je hebt de laatste tijd niet gespeeld, dus je klasse is vaal en je staat niet op de ranglijst. Een paar potjes lossen dat op."
+
+msgid "rankings.settled_detail"
+msgstr "Staat naast je naam in openbare kamers."
+
+msgid "rankings.hidden"
+msgstr "Klassen nog niet zichtbaar"
+
+msgid "rankings.hidden_detail"
+msgstr "Deze dienst toont nog geen klassen. Je potjes in openbare kamers tellen wel mee."
+
+msgid "rankings.no_account"
+msgstr "Koppel Discord om mee te doen"
+
+msgid "rankings.no_account_detail"
+msgstr "Klassen horen bij een Discord-account, dus een nieuwe Ember ID behoudt de jouwe. Zonder account tellen je potjes niet mee."
+
+msgid "rankings.connect_detail"
+msgstr "Opent Discord koppelen. Kom hier terug als het klaar is."
+
+msgid "rankings.off"
+msgstr "Doet niet mee"
+
+msgid "rankings.off_detail"
+msgstr "Je potjes tellen niet mee en er is geen klasse zichtbaar. Je rating blijft bewaard voor als je terugkomt."
+
+msgid "rankings.take_part"
+msgstr "Meedoen"
+
+msgid "rankings.take_part_detail"
+msgstr "Je potjes in openbare kamers tellen weer mee en je klasse komt terug. Na een tijd weg kan hij een paar potjes vaal zijn. Je staat op de ranglijst als {0}. Je kunt dit één keer per dag wijzigen."
+
+msgid "rankings.stop"
+msgstr "Stoppen met meedoen"
+
+msgid "rankings.stop_detail"
+msgstr "Je klasse verdwijnt uit kamers en van de ranglijst en je potjes tellen niet meer mee. Je rating blijft zoals hij is en gaat verder als je terugkomt. Je kunt dit één keer per dag wijzigen."
+
+msgid "rankings.change_wait"
+msgstr "Je kunt dit over {0} weer wijzigen."
+
+msgid "rankings.hours"
+msgstr "{0} u"
+
+msgid "rankings.minutes"
+msgstr "{0} min"
+
+msgid "rankings.board_as"
+msgstr "Op de ranglijst als"
+
+msgid "rankings.board_as_detail"
+msgstr "De naam en vlag die kamers van jou tonen. Wijzig ze in Profiel en Instellingen. De ranglijst neemt een wijziging over zodra je Ranglijsten weer opent."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Hoe klassen werken"
+
+msgid "rankings.how_text"
+msgstr "Alleen potjes in openbare kamers die met een winnaar eindigen tellen mee. Je klasse hoort bij je Discord-account, niet bij je Ember ID. Hij verandert pas na een duidelijke reeks resultaten en een potje tegen een veel sterkere of zwakkere speler telt nauwelijks. Er zijn geen punten te zien, alleen de klasse. Na een lange pauze is hij vaal tot je weer speelt en hij daalt nooit vanzelf."
+
+msgid "rankings.players"
+msgstr "Spelers per klasse"
+
+msgid "rankings.players_detail"
+msgstr "Iedereen die meedoet met een vaste klasse, hoogste eerst. Binnen een klasse komen de laatst gespeelden eerst."
+
+msgid "rankings.you"
+msgstr "Jij"
+
+msgid "rankings.you_beyond_cap"
+msgstr "De ranglijst toont maximaal {0} spelers en jij staat er nu niet bij."
+
+msgid "rankings.jump"
+msgstr "Links en Rechts wisselen tussen klassen."
+
+msgid "rankings.loading_board"
+msgstr "Spelers laden..."
+
+msgid "rankings.empty"
+msgstr "Er staat nog niemand op de ranglijst."
+
+msgid "rankings.status_board"
+msgstr "Spelers in de lijst: {0}. Bijgewerkt {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Deze dienst biedt geen ranglijsten."
+
+msgid "rankings.failure.too_soon"
+msgstr "Je kunt dit één keer per dag wijzigen."
+
+msgid "settings.class_emblems"
+msgstr "Klasse-emblemen"
+
+msgid "settings.class_emblems_detail"
+msgstr "Toont de klasse van elke speler naast zijn naam in openbare kamers. Uit verbergt ze alleen op jouw scherm. Anderen zien de jouwe nog steeds en je potjes tellen nog steeds mee."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Ember-ontwikkelaar"
+
+msgid "rankings.developer_detail"
+msgstr "Ember-ontwikkelaars tonen dit teken in plaats van een klasse en staan niet op de ranglijst. Je potjes tellen wel mee."

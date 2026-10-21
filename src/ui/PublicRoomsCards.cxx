@@ -40,26 +40,6 @@ std::string Elide(float size, const std::string& text, float width) {
 void Text(ImVec2 at, float size, ImU32 color, const std::string& text) {
     if (!text.empty()) ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), size, at, color, text.c_str());
 }
-// An interface string on one line, shrunk to `width` and reported; returns the width it took.
-float Line(ImVec2 at, float natural, ImU32 color, const std::string& text, float width, const char* probe, float interior) {
-    const float size = FitSize(natural, text.c_str(), width), used = Measure(size, text.c_str());
-    ReportMenuText(probe, size, interior, used, width);
-    Text(at, size, color, text);
-    return used;
-}
-// An interface paragraph wrapped to `width` within `height`, shrunk when it needs more; returns the height it took.
-float Wrapped(ImVec2 at, float natural, ImU32 color, const std::string& text, float width, float height, const char* probe) {
-    auto* font = ImGui::GetFont();
-    float size = natural;
-    ImVec2 used = font->CalcTextSizeA(size, FLT_MAX, width, text.c_str());
-    for (int i = 0; i < 8 && used.y > height; ++i) {
-        size *= .92f;
-        used = font->CalcTextSizeA(size, FLT_MAX, width, text.c_str());
-    }
-    ReportMenuText(probe, used.y, height, used.x, width);
-    ImGui::GetWindowDrawList()->AddText(font, size, at, color, text.c_str(), nullptr, width);
-    return used.y;
-}
 ImU32 ErrorColor() { return ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Error)); }
 ImU32 WithAlpha(ImU32 color, float alpha) {
     return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>((std::max)(0.f, (std::min)(1.f, alpha)) * 255.f) << IM_COL32_A_SHIFT);
@@ -262,7 +242,7 @@ void DrawMessage(const MenuEntry& e, ImVec2 min, ImVec2 max, ImU32 color, bool f
     const float s = Scale(), pad = 12 * s, edge = 16 * s, width = max.x - min.x - 2 * pad, pillH = 30 * s;
     const bool action = !e.hint.empty();
     const float labelHeight = max.y - min.y - 2 * edge - (action ? pillH + 8 * s : 0);
-    Wrapped(ImVec2(min.x + pad, min.y + edge), 18 * s, color, e.label, width, labelHeight, e.id.c_str());
+    DrawCardParagraph(ImVec2(min.x + pad, min.y + edge), 18 * s, color, e.label, width, labelHeight, e.id.c_str());
     if (action) DrawAction(ImVec2(min.x + pad, max.y - edge - pillH), e.hint, pillH, false, e.enabled, width, (e.id + "-action").c_str());
     DrawFrame(min, max, focused);
 }
@@ -271,7 +251,7 @@ void DrawMessage(const MenuEntry& e, ImVec2 min, ImVec2 max, ImU32 color, bool f
 void DrawChecking(const MenuEntry& e, ImVec2 min, ImVec2 max, bool focused, double now) {
     const float s = Scale(), pad = 12 * s, width = max.x - min.x - 2 * pad, rounding = 5 * s;
     auto* d = ImGui::GetWindowDrawList();
-    Wrapped(ImVec2(min.x + pad, min.y + 14 * s), 18 * s, palette::Ivory, e.label, width, 40 * s, e.id.c_str());
+    DrawCardParagraph(ImVec2(min.x + pad, min.y + 14 * s), 18 * s, palette::Ivory, e.label, width, 40 * s, e.id.c_str());
     const float alpha = Pulse(now);
     const ImU32 bar = IM_COL32(120, 108, 96, 255);
     d->AddRectFilled(ImVec2(min.x + pad, min.y + 66 * s), ImVec2(min.x + pad + width * .7f, min.y + 76 * s), WithAlpha(bar, alpha), rounding);
@@ -284,7 +264,7 @@ void DrawChecking(const MenuEntry& e, ImVec2 min, ImVec2 max, bool focused, doub
 void DrawLoading(const MenuEntry& e, ImVec2 min, ImVec2 max, bool focused, double now) {
     const float s = Scale(), pad = 12 * s, width = max.x - min.x - 2 * pad, rounding = PublicCardRounding * s;
     auto* d = ImGui::GetWindowDrawList();
-    Line(ImVec2(min.x + pad, min.y + 10 * s), 14 * s, palette::Muted, e.label, width, e.id.c_str(), 18 * s);
+    DrawCardLine(ImVec2(min.x + pad, min.y + 10 * s), 14 * s, palette::Muted, e.label, width, e.id.c_str(), 18 * s);
     const float alpha = Pulse(now), cardHeight = (max.y - min.y - 34 * s - 12 * s - 10 * s) / 3;
     const ImU32 block = IM_COL32(120, 108, 96, 255);
     for (int i = 0; i < 3; ++i) {
@@ -326,10 +306,10 @@ void DrawSetup(const MenuEntry& e, const PublicSetupView& setup, ImVec2 min, ImV
             d->AddRect(at, ImVec2(at.x + face, at.y + face), IM_COL32(0, 0, 0, 120), 3 * s);
         }
     }
-    Line(ImVec2(min.x + pad, min.y + 14 * s), 22 * s, palette::Ivory, title, width, needsId ? "pr-setup-id" : "pr-setup-title", 28 * s);
-    Wrapped(ImVec2(min.x + pad, min.y + 46 * s), 16 * s, failed ? ErrorColor() : palette::Muted, body, width, ctaY - 8 * s - (min.y + 46 * s), needsId ? "pr-setup-id-body" : "pr-setup-body");
+    DrawCardLine(ImVec2(min.x + pad, min.y + 14 * s), 22 * s, palette::Ivory, title, width, needsId ? "pr-setup-id" : "pr-setup-title", 28 * s);
+    DrawCardParagraph(ImVec2(min.x + pad, min.y + 46 * s), 16 * s, failed ? ErrorColor() : palette::Muted, body, width, ctaY - 8 * s - (min.y + 46 * s), needsId ? "pr-setup-id-body" : "pr-setup-body");
     if (running) {
-        Line(ImVec2(min.x + pad, ctaY + (ctaHeight - 15 * s) * .5f), 15 * s, palette::Ivory, line, width, "pr-setup-step", ctaHeight);
+        DrawCardLine(ImVec2(min.x + pad, ctaY + (ctaHeight - 15 * s) * .5f), 15 * s, palette::Ivory, line, width, "pr-setup-step", ctaHeight);
         DrawBusyBar(min, max, now);
     } else if (needsId) DrawAction(ImVec2(min.x + pad, ctaY), loc::T("identity.unlock"), ctaHeight, true, e.enabled, width, "pr-setup-id-action");
     else DrawAction(ImVec2(min.x + pad, ctaY), e.label, ctaHeight, true, e.enabled, width, "pr-setup-action");
@@ -341,6 +321,26 @@ bool PublicRoomBare(const Room& room) {
     return !room.hasDetails && room.fighters.empty() && room.setFormat < 0 && !room.locked && !Full(room) && room.playing == 0 && !room.ownDelay;
 }
 
+// An interface string on one line, shrunk to `width` and reported; returns the width it took.
+float DrawCardLine(ImVec2 at, float natural, ImU32 color, const std::string& text, float width, const char* probe, float interior) {
+    const float size = FitSize(natural, text.c_str(), width), used = Measure(size, text.c_str());
+    ReportMenuText(probe, size, interior, used, width);
+    Text(at, size, color, text);
+    return used;
+}
+// An interface paragraph wrapped to `width` within `height`, shrunk when it needs more; returns the height it took.
+float DrawCardParagraph(ImVec2 at, float natural, ImU32 color, const std::string& text, float width, float height, const char* probe) {
+    auto* font = ImGui::GetFont();
+    float size = natural;
+    ImVec2 used = font->CalcTextSizeA(size, FLT_MAX, width, text.c_str());
+    for (int i = 0; i < 8 && used.y > height; ++i) {
+        size *= .92f;
+        used = font->CalcTextSizeA(size, FLT_MAX, width, text.c_str());
+    }
+    ReportMenuText(probe, used.y, height, used.x, width);
+    ImGui::GetWindowDrawList()->AddText(font, size, at, color, text.c_str(), nullptr, width);
+    return used.y;
+}
 float DrawChip(ImVec2 at, const char* text, ImU32 foreground, ImU32 background, const char* probe, float maxWidth) {
     const float s = Scale(), pad = 7 * s, height = 20 * s;
     if (maxWidth < 2 * pad + 8 * s) return 0;
@@ -412,7 +412,7 @@ void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const 
         const float caption = 18 * s, height = pad + caption + 8 * s + rows * face + (rows - 1) * gap + pad;
         const auto at = ImGui::GetCursorScreenPos();
         d->AddRectFilled(at, ImVec2(at.x + space.x, at.y + height), panelFill, rounding);
-        Line(ImVec2(at.x + pad, at.y + pad), 14 * s, palette::Muted, loc::T("public.players"), inner, "pr-preview-players", caption);
+        DrawCardLine(ImVec2(at.x + pad, at.y + pad), 14 * s, palette::Muted, loc::T("public.players"), inner, "pr-preview-players", caption);
         const float top = at.y + pad + caption + 8 * s;
         for (std::size_t i = 0; i < count; ++i)
             portrait(room->fighters[i], ImVec2(at.x + pad + (i % perRow) * (face + gap), top + (i / perRow) * (face + gap)), face);
@@ -454,7 +454,7 @@ void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const 
     if (open >= 0) {
         const long long minutes = (std::max)(1LL, static_cast<long long>(open / 60));
         const std::string age = minutes < 60 ? loc::Tf("public.age_minutes", minutes) : loc::Tf("public.age_hours", minutes / 60);
-        Line(ImVec2(at.x + pad, y), 14 * s, palette::Muted, loc::Tf("public.open_for", age), inner, "pr-preview-open", line);
+        DrawCardLine(ImVec2(at.x + pad, y), 14 * s, palette::Muted, loc::Tf("public.open_for", age), inner, "pr-preview-open", line);
     }
     ImGui::Dummy(ImVec2(space.x, height));
 }

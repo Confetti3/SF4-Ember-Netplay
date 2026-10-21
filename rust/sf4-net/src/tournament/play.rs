@@ -16,6 +16,7 @@ use ember_protocol::{
         PrepareAnswer, PublishRoom, SignedBinding, SignedPermit, TABLE, WATCH_FEATURE,
     },
     report::Outcome as GameOutcome,
+    skill::RANKING_FEATURE,
 };
 use serde_json::{Value, json};
 
@@ -35,14 +36,17 @@ pub struct State {
     features: HashMap<String, Features>,
 }
 
-/// The optional features of a bridge that a claim or a watch request depends
-/// on, from its capabilities.
+/// The optional features of a bridge that a claim, a watch request or a room
+/// ticket depends on, from its capabilities.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct Features {
     /// It reads a claim's `ready`.
     pub ready: bool,
     /// It serves the watch routes and reads a claim's `watch`.
     pub watch: bool,
+    /// It serves the ranking routes and reads a ticket request's
+    /// `developer_badge`.
+    pub ranking: bool,
 }
 
 impl Features {
@@ -51,6 +55,7 @@ impl Features {
         Self {
             ready: lists(CLAIM_READY_FEATURE),
             watch: lists(WATCH_FEATURE),
+            ranking: lists(RANKING_FEATURE),
         }
     }
 }
@@ -833,7 +838,8 @@ mod tests {
             ready,
             Features {
                 ready: true,
-                watch: false
+                watch: false,
+                ranking: false
             }
         );
         let watch = Features::of(&capabilities(&["matches.play", WATCH_FEATURE]));
@@ -841,9 +847,11 @@ mod tests {
             watch,
             Features {
                 ready: false,
-                watch: true
+                watch: true,
+                ranking: false
             }
         );
+        assert!(Features::of(&capabilities(&[RANKING_FEATURE])).ranking);
         assert_eq!(
             Features::of(&capabilities(&["matches.play"])),
             Features::default()

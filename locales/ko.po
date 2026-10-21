@@ -4703,6 +4703,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "대전 중 HUD의 항목을 켜거나 끕니다."
 
+msgid "training.hitboxes"
+msgstr "히트박스"
+
+msgid "training.hitboxes.detail"
+msgstr "파이터의 판정을 대전 화면 위에 그립니다. 초록은 맞는 범위, 노랑은 잡히는 범위, 빨강은 공격이 닿는 범위, 파랑은 잡기가 닿는 범위입니다."
+
 msgid "training.color_key"
 msgstr "색상 설명"
 
@@ -6506,3 +6512,139 @@ msgstr "지난 경기 ({0}): {1}, {2}에게 승리"
 
 msgid "room.rules.end_game"
 msgstr "적용하면 이 테이블의 경기가 종료되고 플레이어와 관전자가 방으로 돌아갑니다. 다른 테이블은 계속 진행됩니다. 중단된 경기에는 승리가 부여되지 않습니다."
+
+msgid "screen.rankings"
+msgstr "랭킹"
+
+msgid "rankings.title"
+msgstr "랭킹"
+
+msgid "rankings.board_title"
+msgstr "클래스별 플레이어"
+
+msgid "rankings.entry_detail"
+msgstr "공개 방에서의 내 클래스와 클래스별 플레이어입니다."
+
+msgid "rankings.needs_setup"
+msgstr "랭킹은 공개 방 대전으로 정해집니다. 먼저 공개 방을 설정하세요."
+
+msgid "rankings.loading"
+msgstr "클래스를 불러오는 중..."
+
+msgid "rankings.your_class"
+msgstr "내 클래스"
+
+msgid "rankings.placing"
+msgstr "배치 중"
+
+msgid "rankings.placing_detail"
+msgstr "클래스가 있는 플레이어와 공개 방 대전을 몇 번 더 하면 클래스가 표시됩니다."
+
+msgid "rankings.faint_detail"
+msgstr "최근에 플레이하지 않아 클래스가 흐리게 표시되고 랭킹에서도 빠졌습니다. 몇 판 하면 다시 돌아옵니다."
+
+msgid "rankings.settled_detail"
+msgstr "공개 방에서 이름 옆에 표시됩니다."
+
+msgid "rankings.hidden"
+msgstr "클래스 아직 표시 안 됨"
+
+msgid "rankings.hidden_detail"
+msgstr "이 서비스는 아직 클래스를 표시하지 않습니다. 공개 방 대전은 계속 반영됩니다."
+
+msgid "rankings.no_account"
+msgstr "참여하려면 Discord 연결"
+
+msgid "rankings.no_account_detail"
+msgstr "클래스는 Discord 계정에 속하므로 새 Ember ID로도 유지됩니다. 연결하지 않으면 대전이 반영되지 않습니다."
+
+msgid "rankings.connect_detail"
+msgstr "Discord 연결을 엽니다. 끝나면 이곳으로 돌아오세요."
+
+msgid "rankings.off"
+msgstr "참여 안 함"
+
+msgid "rankings.off_detail"
+msgstr "대전이 반영되지 않고 클래스도 표시되지 않습니다. 레이팅은 유지되어 돌아오면 이어집니다."
+
+msgid "rankings.take_part"
+msgstr "참여"
+
+msgid "rankings.take_part_detail"
+msgstr "공개 방 대전이 다시 반영되고 클래스가 돌아옵니다. 오래 쉬었다면 몇 판 동안 흐리게 표시될 수 있습니다. 랭킹에는 {0}(으)로 표시됩니다. 하루에 한 번 바꿀 수 있습니다."
+
+msgid "rankings.stop"
+msgstr "참여 중단"
+
+msgid "rankings.stop_detail"
+msgstr "클래스가 방과 랭킹에서 사라지고 대전도 반영되지 않습니다. 레이팅은 그대로 유지되며 돌아오면 이어집니다. 하루에 한 번 바꿀 수 있습니다."
+
+msgid "rankings.change_wait"
+msgstr "{0} 후에 다시 바꿀 수 있습니다."
+
+msgid "rankings.hours"
+msgstr "{0}시간"
+
+msgid "rankings.minutes"
+msgstr "{0}분"
+
+msgid "rankings.board_as"
+msgstr "랭킹에 표시되는 이름"
+
+msgid "rankings.board_as_detail"
+msgstr "방에서 나에게 표시되는 이름과 국기입니다. 프로필과 설정에서 바꿀 수 있습니다. 바뀐 내용은 다음에 랭킹을 열 때 반영됩니다."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "클래스 작동 방식"
+
+msgid "rankings.how_text"
+msgstr "승자가 가려진 공개 방 대전만 반영됩니다. 클래스는 Ember ID가 아니라 Discord 계정에 속합니다. 결과가 뚜렷하게 이어질 때만 바뀌며, 훨씬 강하거나 약한 상대와의 대전은 거의 반영되지 않습니다. 점수는 보이지 않고 클래스만 표시됩니다. 오래 쉬면 다시 플레이할 때까지 흐리게 표시되며, 저절로 내려가지는 않습니다."
+
+msgid "rankings.players"
+msgstr "클래스별 플레이어"
+
+msgid "rankings.players_detail"
+msgstr "클래스가 확정된 참여자 전원을 높은 순으로 표시합니다. 같은 클래스에서는 최근에 플레이한 순입니다."
+
+msgid "rankings.you"
+msgstr "나"
+
+msgid "rankings.you_beyond_cap"
+msgstr "랭킹에는 최대 {0}명이 표시되며, 지금은 내가 포함되어 있지 않습니다."
+
+msgid "rankings.jump"
+msgstr "좌우로 클래스를 이동합니다."
+
+msgid "rankings.loading_board"
+msgstr "플레이어를 불러오는 중..."
+
+msgid "rankings.empty"
+msgstr "아직 랭킹에 아무도 없습니다."
+
+msgid "rankings.status_board"
+msgstr "표시된 플레이어: {0}명. 업데이트: {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "이 서비스는 랭킹을 제공하지 않습니다."
+
+msgid "rankings.failure.too_soon"
+msgstr "하루에 한 번 바꿀 수 있습니다."
+
+msgid "settings.class_emblems"
+msgstr "클래스 엠블럼"
+
+msgid "settings.class_emblems_detail"
+msgstr "공개 방에서 각 플레이어의 이름 옆에 클래스를 표시합니다. 끄면 내 화면에서만 숨겨집니다. 다른 사람에게는 내 클래스가 계속 보이고 대전도 계속 반영됩니다."
+
+
+msgid "class.developer"
+msgstr "개발"
+
+msgid "class.developer_tip"
+msgstr "Ember 개발자"
+
+msgid "rankings.developer_detail"
+msgstr "Ember 개발자는 클래스 대신 이 표시가 나오며 랭킹에 오르지 않습니다. 대전은 계속 반영됩니다."

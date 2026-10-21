@@ -625,14 +625,14 @@ try {
         $script:receipt.baseRevision = 'f' * 40
         Reject { Assert-NightlyBuildSnapshot $source 'build' 'stage' $snapshot } '*receipt does not match*'
         $script:receipt.baseRevision = $snapshot.revision
-        Assert-NightlyBuildSnapshot $source 'build' 'stage' $snapshot
+        Assert-NightlyBuildSnapshot $source 'build' 'stage' $snapshot | Out-Null
         $script:head = 'f' * 40
         Reject { Assert-NightlyBuildSnapshot $source 'build' 'stage' $snapshot } '*Source commit changed*'
         $script:head = $snapshot.revision
         $packageDirectory = Join-Path $fixture 'package'
         New-Item -ItemType Directory -Path $packageDirectory | Out-Null
         $script:receipt | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $packageDirectory 'build-provenance.json')
-        Assert-NightlyBuildSnapshot $source 'build' 'stage' $snapshot $packageDirectory
+        Assert-NightlyBuildSnapshot $source 'build' 'stage' $snapshot $packageDirectory | Out-Null
         @{sourceFingerprint=('C' * 64);baseRevision=$snapshot.revision} | ConvertTo-Json |
             Set-Content -LiteralPath (Join-Path $packageDirectory 'build-provenance.json')
         Reject { Assert-NightlyBuildSnapshot $source 'build' 'stage' $snapshot $packageDirectory } '*Packaged receipt does not match*'
@@ -681,6 +681,7 @@ try {
         $release = $script:remoteReleases['v1.2.0-nightly20261008']
         Check (!$release.draft -and @($release.assets).Count -eq 4 -and !(Test-Path $statePath)) 'Fresh run did not publish its four assets'
         Check ($release.body -like "*Source: $($snapshot.revision)*- Fix a fixture bug*") 'Release notes lack the source and subjects'
+        Check ($release.body -notlike '*run once more*') 'Release notes name a rerun the build did not have'
         Check ($script:fingerprintCalls -eq 2) "Fresh run fingerprinted the source $($script:fingerprintCalls) times"
         Check (@(Get-CommandLabels | Select-Object -Skip (Find-Command 'ssh *vps* cleanup') | Where-Object { $_ -like 'git *' }).Count -eq 0) 'Fresh run consulted the source between remote operations'
         Pass 'a fresh run syncs, builds, packages, prepares hosts, then stages and publishes in order with one prepare-time source check'
@@ -699,6 +700,12 @@ try {
         Check (!(Test-Ran 'op LinuxBuild') -and !(Test-Ran 'git * archive *') -and !(Test-Ran 'ssh *') -and !(Test-Ran 'scp *')) 'Skipped room hosts were built or staged'
         Check (!$script:remoteReleases['v1.2.0-nightly20261008'].draft -and !(Test-Path $statePath)) 'A run without room hosts did not publish'
         Pass 'a run without room hosts publishes without building, pinning or staging them'
+
+        Reset-Fake
+        $script:receipt | Add-Member testsPassedOnRerun @('HelperRust', 'EmberRust')
+        Invoke-Publish @{SkipRoomHosts=$true}
+        Check ($script:remoteReleases['v1.2.0-nightly20261008'].body -like '*Passed only when run once more: HelperRust, EmberRust*') 'Release notes do not name the tests that passed on rerun'
+        Pass 'release notes name the tests that passed only when run once more'
 
         Reset-Fake
         $script:repositoryMode = 'missing'

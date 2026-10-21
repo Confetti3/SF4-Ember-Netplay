@@ -40,7 +40,10 @@ Unchanged published source skips building unless forced,
 but still runs retention maintenance. Labels use the CMake version and UTC date, for example
 `1.2.0-nightly20261008`, with `.2`, `.3`, etc. for existing tags that day.
 It runs the normal build and local tests, packages the full ZIP and installer
-with SHA-256 sidecars. Publication has four phases: prepare the artifacts,
+with SHA-256 sidecars. A Nightly build runs any failed CTest entry once more,
+one at a time; if it then passes, the receipt lists it under
+`testsPassedOnRerun` and the release notes name it. A second failure stops the
+publish, and Stable builds never rerun. Publication has four phases: prepare the artifacts,
 verify host staging, verify and publish the GitHub draft, then finish retention.
 It keeps the newest 14 matching Nightlies; unrelated releases are excluded
 from both the changelog baseline and retention.

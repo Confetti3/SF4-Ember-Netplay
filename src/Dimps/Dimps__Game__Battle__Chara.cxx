@@ -39,6 +39,18 @@ void Unit::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.RestoreFromInternalMementoKey = (PVOID)(peRootOffset + 0x1633f0);
 }
 
+unsigned char* Actor::GetBodyBox(Actor* a, unsigned index) {
+	return (unsigned char*)a + 0x21e0 + index * 0xa0;
+}
+
+// Six list pointers from +0x130; a list keeps its first box at +0x20 and its
+// count at +0x2C.
+unsigned char* Actor::GetAttackBoxes(const void* object, unsigned list, unsigned& count) {
+	unsigned char* head = *(unsigned char* const*)((const unsigned char*)object + 0x130 + list * 4);
+	count = head ? *(unsigned int*)(head + 0x2c) : 0;
+	return count ? *(unsigned char**)(head + 0x20) : nullptr;
+}
+
 void Actor::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)(&publicMethods.GetActorID) = (PVOID)(peRootOffset + 0x16c6a0);

@@ -4702,6 +4702,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Zapněte nebo vypněte části HUD během souboje."
 
+msgid "training.hitboxes"
+msgstr "Hitboxy"
+
+msgid "training.hitboxes.detail"
+msgstr "Kreslí přes zápas boxy bojovníků: zeleně tam, kde lze bojovníka zasáhnout, žlutě tam, kde ho lze chytit, červeně tam, kde útok zasahuje, a modře tam, kde chytá."
+
 msgid "training.color_key"
 msgstr "Význam barev"
 
@@ -6505,3 +6511,139 @@ msgstr "Poslední zápas ({0}): {1} poráží {2}"
 
 msgid "room.rules.end_game"
 msgstr "Použití ukončí zápas u tohoto stolu a vrátí jeho hráče a diváky do místnosti. Ostatní stoly hrají dál. Přerušený zápas nepřidá žádnou výhru."
+
+msgid "screen.rankings"
+msgstr "Žebříčky"
+
+msgid "rankings.title"
+msgstr "ŽEBŘÍČKY"
+
+msgid "rankings.board_title"
+msgstr "HRÁČI PODLE TŘÍD"
+
+msgid "rankings.entry_detail"
+msgstr "Vaše třída ve veřejných místnostech a hráči podle tříd."
+
+msgid "rankings.needs_setup"
+msgstr "Žebříčky vycházejí ze her ve veřejných místnostech. Nejdřív nastavte veřejné místnosti."
+
+msgid "rankings.loading"
+msgstr "Načítání vaší třídy..."
+
+msgid "rankings.your_class"
+msgstr "Vaše třída"
+
+msgid "rankings.placing"
+msgstr "Zařazování"
+
+msgid "rankings.placing_detail"
+msgstr "Vaše třída se objeví po několika dalších hrách ve veřejných místnostech proti hráčům, kteří ji mají."
+
+msgid "rankings.faint_detail"
+msgstr "Nedávno jste nehráli, proto je vaše třída zesvětlená a nejste v žebříčku. Pár her to zase srovná."
+
+msgid "rankings.settled_detail"
+msgstr "Zobrazuje se u vašeho jména ve veřejných místnostech."
+
+msgid "rankings.hidden"
+msgstr "Třídy se zatím nezobrazují"
+
+msgid "rankings.hidden_detail"
+msgstr "Tato služba zatím třídy nezobrazuje. Vaše hry ve veřejných místnostech se stále počítají."
+
+msgid "rankings.no_account"
+msgstr "Pro účast připojte Discord"
+
+msgid "rankings.no_account_detail"
+msgstr "Třída patří k účtu Discord, takže ji zachová i nové Ember ID. Bez účtu se vaše hry nepočítají."
+
+msgid "rankings.connect_detail"
+msgstr "Otevře Připojit Discord. Až budete hotovi, vraťte se sem."
+
+msgid "rankings.off"
+msgstr "Bez účasti"
+
+msgid "rankings.off_detail"
+msgstr "Vaše hry se nepočítají a žádná třída se nezobrazuje. Vaše hodnocení zůstane zachováno pro váš návrat."
+
+msgid "rankings.take_part"
+msgstr "Zapojit se"
+
+msgid "rankings.take_part_detail"
+msgstr "Vaše hry ve veřejných místnostech se zase počítají a vaše třída se vrátí. Po delší pauze může být pár her zesvětlená. V žebříčku budete jako {0}. Změnit to lze jednou denně."
+
+msgid "rankings.stop"
+msgstr "Přestat se účastnit"
+
+msgid "rankings.stop_detail"
+msgstr "Vaše třída zmizí z místností i žebříčku a vaše hry se přestanou počítat. Hodnocení zůstane zachováno a po návratu naváže. Změnit to lze jednou denně."
+
+msgid "rankings.change_wait"
+msgstr "Znovu to půjde změnit za {0}."
+
+msgid "rankings.hours"
+msgstr "{0} h"
+
+msgid "rankings.minutes"
+msgstr "{0} min"
+
+msgid "rankings.board_as"
+msgstr "V žebříčku jako"
+
+msgid "rankings.board_as_detail"
+msgstr "Jméno a vlajka, které o vás ukazují místnosti. Změníte je v sekcích Profil a Nastavení. Žebříček převezme změnu při dalším otevření Žebříčků."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Jak třídy fungují"
+
+msgid "rankings.how_text"
+msgstr "Počítají se jen hry ve veřejných místnostech, které skončí vítězem. Vaše třída patří k účtu Discord, ne k Ember ID. Mění se až po jasné sérii výsledků a hra proti mnohem silnějšímu či slabšímu hráči se téměř nepočítá. Nezobrazují se žádné body, jen třída. Po dlouhé pauze je zesvětlená, dokud znovu nezahrajete, a sama od sebe nikdy neklesne."
+
+msgid "rankings.players"
+msgstr "Hráči podle tříd"
+
+msgid "rankings.players_detail"
+msgstr "Všichni, kdo se účastní a mají ustálenou třídu, od nejvyšší. V rámci třídy jsou první ti, kdo hráli naposledy."
+
+msgid "rankings.you"
+msgstr "Vy"
+
+msgid "rankings.you_beyond_cap"
+msgstr "Žebříček uvádí nejvýše {0} hráčů a vy teď mezi nimi nejste."
+
+msgid "rankings.jump"
+msgstr "Vlevo a vpravo přepínají mezi třídami."
+
+msgid "rankings.loading_board"
+msgstr "Načítání hráčů..."
+
+msgid "rankings.empty"
+msgstr "V žebříčku zatím nikdo není."
+
+msgid "rankings.status_board"
+msgstr "Hráčů v seznamu: {0}. Aktualizováno {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Tato služba žebříčky nenabízí."
+
+msgid "rankings.failure.too_soon"
+msgstr "Změnit to lze jednou denně."
+
+msgid "settings.class_emblems"
+msgstr "Emblémy tříd"
+
+msgid "settings.class_emblems_detail"
+msgstr "Zobrazuje třídu každého hráče u jeho jména ve veřejných místnostech. Vypnutí je skryje jen na vaší obrazovce. Ostatní vaši třídu stále vidí a vaše hry se stále počítají."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Vývojář Ember"
+
+msgid "rankings.developer_detail"
+msgstr "Vývojáři Ember mají místo třídy tuto značku a nejsou v žebříčku. Vaše hry se stále počítají."

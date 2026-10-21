@@ -1,9 +1,11 @@
 #include "TournamentAnswers.hxx"
 
 #include <algorithm>
+#include <initializer_list>
 #include <stdexcept>
 
 #include "../common/RoomRules.hxx"
+#include "../common/SkillBadgeJson.hxx"
 
 namespace sf4e { namespace session {
 namespace {
@@ -192,7 +194,8 @@ Binding DecodeBinding(const json& view) {
 bool IsTournamentPlayOp(const std::string& op) {
 	return op == "match_claim" || op == "room_publish" || op == "game_prepare" || op == "game_report" ||
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
-		op == "room_list" || op == "room_create" || op == "room_ticket";
+		op == "room_list" || op == "room_create" || op == "room_ticket" ||
+		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board";
 }
 
 std::optional<TournamentAnswer> ReadTournamentAnswer(const nlohmann::json& event) {
@@ -343,6 +346,95 @@ std::optional<netplay::publicrooms::RoomList> DecodeRoomList(const nlohmann::jso
 		if (const auto found = data.find("listed_at"); found != data.end() && found->is_number_unsigned())
 			list.listedAt = found->get<std::uint64_t>();
 		return list;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+namespace {
+using netplay::rankings::Listing;
+
+// An object whose every key is one of `allowed`: the bridge's ranking objects
+// refuse unknown fields, and so does their reader here.
+const json& Strict(const json& object, std::initializer_list<const char*> allowed) {
+	if (!object.is_object()) throw std::invalid_argument("object");
+	for (auto it = object.begin(); it != object.end(); ++it)
+		if (std::none_of(allowed.begin(), allowed.end(), [&](const char* key) { return it.key() == key; })) throw std::invalid_argument("field");
+	return object;
+}
+
+// {"name":s,"country":s?}: another player's name under the bridge's rules,
+// and a country of two upper-case letters, which the game's table may lack
+// (shown without a flag).
+Listing DecodeListing(const json& value) {
+	const auto& object = Strict(value, {"name", "country"});
+	Listing listing;
+	listing.name = Text(object, "name", netplay::rankings::MaxNameBytes);
+	if (!netplay::rankings::IsListingName(listing.name)) throw std::invalid_argument("name");
+	if (object.find("country") != object.end()) {
+		const auto country = Text(object, "country", 2);
+		if (country.size() != 2 || !std::all_of(country.begin(), country.end(), [](char c) { return c >= 'A' && c <= 'Z'; }))
+			throw std::invalid_argument("country");
+		listing.country = CountryCode::Parsed(country);
+	}
+	return listing;
+}
+
+// A badge as rooms carry it (SkillBadgeJson.hxx).
+SkillBadge DecodeBadge(const json& object) {
+	SkillBadge badge;
+	if (!ParseSkillBadge(Strict(object, {"band", "settled", "developer"}), badge)) throw std::invalid_argument("badge");
+	return badge;
+}
+}
+
+std::optional<netplay::rankings::Standing> DecodeStanding(const json& data) {
+	using Kind = netplay::rankings::Standing::Kind;
+	try {
+		netplay::rankings::Standing standing;
+		const auto ranking = Text(data, "ranking", 16);
+		// Each shape carries its own fields and no others.
+		if (ranking == "no_account") { Strict(data, {"ranking"}); return standing; }
+		if (ranking == "opted_out") Strict(data, {"ranking", "change_in"});
+		else if (ranking == "ranked") Strict(data, {"ranking", "badge", "listing", "change_in"});
+		else return std::nullopt;
+		if (data.find("change_in") != data.end()) standing.changeIn = Seconds(data, "change_in");
+		if (ranking == "opted_out") {
+			standing.kind = Kind::OptedOut;
+			return standing;
+		}
+		standing.kind = Kind::Ranked;
+		if (const auto badge = data.find("badge"); badge != data.end()) {
+			standing.classesShown = true;
+			standing.badge = DecodeBadge(*badge);
+		}
+		if (const auto listing = data.find("listing"); listing != data.end()) {
+			standing.listed = true;
+			standing.listing = DecodeListing(*listing);
+		}
+		return standing;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const json& data) {
+	try {
+		const auto& rows = Strict(data, {"players"}).at("players");
+		if (!rows.is_array() || rows.size() > netplay::rankings::MaxBoard) return std::nullopt;
+		std::vector<netplay::rankings::BoardEntry> board;
+		board.reserve(rows.size());
+		for (const auto& row : rows) {
+			netplay::rankings::BoardEntry entry;
+			entry.listing = DecodeListing(Strict(row, {"listing", "band", "own"}).at("listing"));
+			entry.band = static_cast<std::uint8_t>(Small(row, "band", SkillBadge::Classes));
+			const auto own = row.find("own");
+			if (entry.band == 0 || (own != row.end() && !own->is_boolean()) || (!board.empty() && board.back().band < entry.band))
+				return std::nullopt;
+			entry.own = own != row.end() && own->get<bool>();
+			board.push_back(std::move(entry));
+		}
+		return board;
 	} catch (const std::exception&) {
 		return std::nullopt;
 	}
