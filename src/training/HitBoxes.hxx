@@ -16,9 +16,12 @@ enum class BoxKind : std::uint8_t { Hurt, Throwable, Hit, Throw };
 // and the upright rectangle round it reaches further than the box does.
 // side: whose it is, 0 or 1.
 struct Box { float x[4], y[4]; BoxKind kind; std::uint8_t side; };
+// A bone: the line a body part's strike box is built round, between two of
+// the fighter's locators, on the fight's plane.
+struct Bone { float x[2], y[2]; std::uint8_t side; };
 // view, projection: the game's camera matrices, 16 floats each, rows first.
 // valid: both were read this frame.
-struct BoxView { bool valid = false; float view[16] = {}, projection[16] = {}; std::vector<Box> boxes; };
+struct BoxView { bool valid = false; float view[16] = {}, projection[16] = {}; std::vector<Box> boxes; std::vector<Bone> bones; };
 
 // One box of the game: its four corners, 16 bytes each (x, y, z and one more
 // float). Reads the 0x40 bytes at record. False for a box without area or

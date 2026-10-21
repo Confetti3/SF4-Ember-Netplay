@@ -116,9 +116,9 @@ Point the mouse at `Start --` on the passive meter to see why startup is unavail
 
 ### Hitboxes
 
-**Hitboxes** on the Meter settings page of the training controls (F6) draws the fighters' collision boxes over the fight, read from the game after every simulated frame and drawn through the game's own camera. Green is where a fighter can be hit on this frame, yellow where it can be thrown, red where an attack hits on this frame (a fireball's too) and blue where it throws. Which green and yellow boxes show is the game's own choice for the frame, after the move's script, invincibility and facing. They show while the HUD does, so F5 hides them with it, and stay drawn under the training controls. The choice is kept in `training.json`. Offline Training only.
+**Hitboxes** on the Meter settings page of the training controls (F6), draws the fighters' collision boxes over the fight, read from the game after every simulated frame and drawn through the game's own camera. Green is where a fighter can be hit on this frame, yellow where it can be thrown, red where an attack hits on this frame (a fireball's too) and blue where it throws; the white lines are the fighter's skeleton. Which green and yellow boxes show is the game's own choice for the frame, after the move's script, invincibility and facing. They show while the HUD does, so F5 hides them with it, and stay drawn under the training controls. The choice is kept in `training.json`. Offline Training only.
 
-The green boxes are the body's parts; the yellow ones are where a throw connects, and neither stands for where the fighters push each other.
+The green boxes are the body's parts, each built round a line between two points of the fighter's skeleton; the yellow ones are where a throw connects, and neither stands for where the fighters push each other.
 
 The box that makes the opponent guard at a distance is not drawn.
 

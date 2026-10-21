@@ -504,8 +504,15 @@ BoxView ReadBoxes(Native* system) {
         const auto add = [&](const unsigned char* record, BoxKind kind) { if (ReadBox(record, kind, box)) { box.side = static_cast<std::uint8_t>(side); result.boxes.push_back(box); } };
         // The boxes the game tests this frame, as its masks say.
         const unsigned strike = Actor::GetBodyMask(actor, Actor::BodyList::Strike), throwable = Actor::GetBodyMask(actor, Actor::BodyList::Throw);
-        for (unsigned part = 0; part < Actor::BODY_STRIKE_COUNT; ++part)
+        for (unsigned part = 0; part < Actor::BODY_STRIKE_COUNT; ++part) {
             if (strike >> part & 1) add(Actor::GetBodyBox(actor, Actor::BodyList::Strike, part), BoxKind::Hurt);
+            const int end = Actor::staticMethods.GetLocatorPairEnd(part);
+            // A part on one locator (the head, a hand) has no line to draw.
+            if (end < 0 || end == static_cast<int>(part)) continue;
+            const float* from = (actor->*Actor::publicMethods.GetCurrentBonePositionByID)(part);
+            const float* to = (actor->*Actor::publicMethods.GetCurrentBonePositionByID)(end);
+            if (from && to) result.bones.push_back({{from[0], to[0]}, {from[1], to[1]}, static_cast<std::uint8_t>(side)});
+        }
         for (unsigned part = 0; part < Actor::BODY_THROW_COUNT; ++part)
             if (throwable >> part & 1) add(Actor::GetBodyBox(actor, Actor::BodyList::Throw, part), BoxKind::Throwable);
         const auto attack = [&](const void* from, unsigned list, BoxKind kind) {

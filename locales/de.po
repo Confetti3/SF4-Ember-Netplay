@@ -4709,7 +4709,7 @@ msgid "training.hitboxes"
 msgstr "Hitboxen"
 
 msgid "training.hitboxes.detail"
-msgstr "Zeichnet die Boxen der Kämpfer über den Kampf: grün, wo ein Kämpfer getroffen werden kann, gelb, wo er geworfen werden kann, rot, wo ein Angriff trifft, und blau, wo er wirft."
+msgstr "Zeichnet die Boxen der Kämpfer über den Kampf: grün, wo ein Kämpfer getroffen werden kann, gelb, wo er geworfen werden kann, rot, wo ein Angriff trifft, und blau, wo er wirft. Weiße Linien sind die Knochen."
 
 msgid "training.color_key"
 msgstr "Farblegende"
