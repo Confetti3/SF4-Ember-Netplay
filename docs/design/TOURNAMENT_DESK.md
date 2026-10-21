@@ -115,7 +115,7 @@ serves them to anyone while the event is `public` (the mobile viewer).
   while the browser asks to move an account).
 - `organizer_grants (site, ember_id, sealed, scope, expires_at, refreshed_at)`.
 - `organizer_events (id, ember_id, site, tournament, name, settings,
-  created_at, ended_at)` (migration 030), one running event per site and
+  created_at, ended_at)` (migration 032), one running event per site and
   event.
 
 ## 3. ember-brackets
@@ -187,7 +187,7 @@ keeps everything about it in one place. The steps, in order:
    Lines with no value are left out. The text is built in the page, not
    stored.
 
-Storage: `organizer_events` (migration 031) gains the draft fields:
+Storage: `organizer_events` (migration 033) gains the draft fields:
 `title`, `starts_at` (nullable), `links` (JSON list of label and URL),
 `status` (`draft` or `ready`), and `tournament` is nullable until a service
 event is created or attached. Running is not stored: a ready event runs once
