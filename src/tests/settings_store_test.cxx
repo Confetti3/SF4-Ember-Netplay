@@ -204,7 +204,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true}, {"borderless", &PlayerPreferences::borderless, false},
         {"controllerLayer", &PlayerPreferences::controllerLayer, true},
-        {"recordWatched", &PlayerPreferences::recordWatched, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
+        {"recordWatched", &PlayerPreferences::recordWatched, true}, {"shareReplays", &PlayerPreferences::shareReplays, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
         {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false},
         {"shareSteamProfile", &PlayerPreferences::shareSteamProfile, true}, {"roomMembersHidden", &PlayerPreferences::roomMembersHidden, false}, {"roomChatHidden", &PlayerPreferences::roomChatHidden, false}};
     CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));

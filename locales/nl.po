@@ -790,6 +790,12 @@ msgstr "Matches waar je naar kijkt opslaan"
 msgid "replays.save_watched_detail"
 msgstr "Slaat ook wedstrijden op die je als toeschouwer bekijkt. Uit slaat alleen wedstrijden op die je zelf speelt."
 
+msgid "replays.share"
+msgstr "Mijn replays delen"
+
+msgid "replays.share_detail"
+msgstr "Stuurt de wedstrijden die je vanaf nu speelt naar het openbare replay-archief van je bridge, met de namen van beide spelers en je land. Toernooiwedstrijden worden altijd gedeeld."
+
 msgid "replays.link"
 msgstr "Replay uit de link afspelen"
 

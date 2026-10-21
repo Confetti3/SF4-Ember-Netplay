@@ -790,6 +790,12 @@ msgstr "Zugeschaute Matches speichern"
 msgid "replays.save_watched_detail"
 msgstr "Speichert auch Kämpfe, denen du als Zuschauer zusiehst. Aus speichert nur Kämpfe, die du selbst spielst."
 
+msgid "replays.share"
+msgstr "Share my replays"
+
+msgid "replays.share_detail"
+msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+
 msgid "replays.link"
 msgstr "Replay aus dem Link abspielen"
 

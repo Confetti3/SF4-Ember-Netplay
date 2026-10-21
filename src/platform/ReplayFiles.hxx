@@ -132,7 +132,8 @@ std::size_t ImportSetPack(const std::filesystem::path& pack);
 // the two native fighter IDs from the replay's record (-1 when the file
 // holds none), names the players Ember noted (empty when it noted none),
 // spectated whether this PC only watched that match, watched whether
-// it was played with Watch now before, and sent whether its set's bridge has it.
+// it was played with Watch now before, and sent whether its set's bridge or the
+// replay archive has it, or refused it for good.
 struct ArchivedReplay {
 	std::filesystem::path path;
 	std::string label;

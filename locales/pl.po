@@ -790,6 +790,12 @@ msgstr "Zapisuj oglądane mecze"
 msgid "replays.save_watched_detail"
 msgstr "Zapisuje także mecze oglądane w roli widza. Wyłączone zapisuje tylko mecze, w których grasz."
 
+msgid "replays.share"
+msgstr "Share my replays"
+
+msgid "replays.share_detail"
+msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+
 msgid "replays.link"
 msgstr "Odtwórz powtórkę z linku"
 

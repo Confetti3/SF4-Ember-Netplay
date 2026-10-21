@@ -204,9 +204,13 @@ struct Runtime {
     std::map<std::uint64_t, netplay::tournament::WatchOutput::Kind> watchRequests;
     std::uint64_t assignmentRequest=0;
     netplay::tournament::AssignmentList assignmentList;
-    // The set replay being sent to its bridge (SendSetReplays): its helper
-    // request (0 when none is in flight), its file, and when to look again.
-    struct ReplaySend { std::uint64_t request = 0; std::filesystem::path path; std::uint64_t nextMs = 0; } replaySend;
+    // The replay being sent to a bridge (SendSetReplays): its helper request
+    // (0 when none is in flight), its file, whether it is a set's, and when to
+    // look again; and whether none of the player's bridges has an archive.
+    struct ReplaySend {
+        std::uint64_t request = 0; std::filesystem::path path; bool set = false; std::uint64_t nextMs = 0;
+        bool noArchive = false;
+    } replaySend;
     // Save set pack's helper request (0 when none) and its file, and what the
     // Replays screen is told of the last pack saved or imported.
     std::uint64_t packRequest = 0;
