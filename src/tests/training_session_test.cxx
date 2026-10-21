@@ -344,16 +344,18 @@ int main() {
         fighters[0].posture = fighters[1].posture = 0;
         fighters[0].status = 16; fighters[1].status = 22;
         fighters[0].action = 100; fighters[1].action = 200;
-        for (int i = 0; i < 5; ++i) meter.Observe(i, fighters);
+        // Animations advance, or the frames read as hitstop and leave the bars.
+        const auto advance = [&](int i) { fighters[0].actionFrame = fighters[1].actionFrame = static_cast<float>(i); };
+        for (int i = 0; i < 5; ++i) { advance(i); meter.Observe(i, fighters); }
         Require(meter.View().stateFrames[0] == 5, "State duration wrong");
-        fighters[0].action = 101; meter.Observe(5, fighters);
+        fighters[0].action = 101; advance(5); meter.Observe(5, fighters);
         Require(meter.View().lastAttackFrames[0] == 5 && meter.View().actionFrames[0] == 1, "Cancelled action duration wrong");
         Require(ClassifyStatus(16) == Phase::Attack && ClassifyStatus(22) == Phase::Guard && ClassifyStatus(99) == Phase::Unknown, "Native status classification wrong");
         fighters[0].status = fighters[1].status = 0;
-        for (int i = 6; i < 50; ++i) meter.Observe(i, fighters);
+        for (int i = 6; i < 50; ++i) { advance(i); meter.Observe(i, fighters); }
         Require(meter.View().frozen && meter.View().frames.back().frame == 5 && meter.View().length == 6, "Idle did not hold exchange on its last active frame");
         fighters[0].status = 16; fighters[0].action = 103; fighters[1].status = 22; fighters[1].action = 201;
-        for (int i = 50; i < 50 + 3 * static_cast<int>(MeterHistory); ++i) meter.Observe(i, fighters);
+        for (int i = 50; i < 50 + 3 * static_cast<int>(MeterHistory); ++i) { advance(i); meter.Observe(i, fighters); }
         Require(meter.View().frames.size() == MeterHistory && meter.View().length == 3 * MeterHistory, "Frame meter unbounded");
         meter.Observe(10, fighters);
         Require(meter.View().frames.size() == 1 && meter.View().stateFrames[0] == 1, "Timeline crossed reset");
