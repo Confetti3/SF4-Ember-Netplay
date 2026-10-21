@@ -26,6 +26,19 @@ doc.add("Old.", "New.", 5)
 doc.apply()
 assert build.mark(doc.lines, doc.owners).count("> New.") == 1 and "PR #5" in build.mark(doc.lines, doc.owners)[3]
 
+# A pull request that changes one step of a list shows that step alone, with its number and indented lines.
+steps = "Do this:\n\n1. One.\n2. Two.\n\n   ![two](two.png)\n\n3. Three.\n4. Four.\n5. Five."
+doc = build.Doc(steps)
+doc.add(steps, steps.replace("4. Four.", "4. Four, then wait."), 6)
+doc.add(steps, steps.replace("2. Two.", "2. Two, twice."), 7)
+doc.apply()
+marked = build.mark(doc.lines, doc.owners)
+assert [line for line in marked if line.startswith("> ") and line[2:3].isdigit()] == \
+    ["> 2. Two, twice.", "> 4. Four, then wait."], marked
+assert ">    ![two](two.png)" in marked and marked.count("3. Three.") == 1, marked
+assert marked.index("4. Four.") < marked.index("> 4. Four, then wait.") < marked.index("5. Five.") - 1, marked
+assert marked[marked.index("5. Five.") - 1] == "", marked
+
 # Text that is already in the docs adds nothing.
 assert build.Doc("Same.").add("Before.", "Same.", 3) == 0
 

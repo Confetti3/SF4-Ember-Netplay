@@ -50,6 +50,7 @@ PAGES = [
 # Only the README's install part is for players; the rest is for the repository page.
 README_PART = ("## Get started", "## Status and documentation")
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+ITEM = re.compile(r"(\d+\.|[-*+]) ")
 LINK = re.compile(r'(\]\(|(?:src|href)=")([^)"\s]+)')
 
 
@@ -117,7 +118,7 @@ class Doc:
     def apply(self):
         """Insert the queued paragraphs, in pull request order where several share a place."""
         for _, (at, prs, block) in sorted(enumerate(self.pending), key=lambda p: (-p[1][0], -min(p[1][1]), -p[0])):
-            lines = block + [""] if at == 0 else [""] + block
+            lines = ([""] if at else []) + block + ([""] if at < len(self.lines) and self.lines[at] else [])
             self.lines[at:at] = lines
             self.owners[at:at] = [frozenset(prs)] * len(lines)
         self.pending = []
@@ -197,13 +198,19 @@ def overlay(docs, auth, report, label):
 
 
 def blocks(lines):
+    """Paragraphs, with each top-level list item and its indented lines as one of its own.
+
+    So a pull request that changes one step of a list shows that step, not the whole list.
+    """
     spans, start = [], None
     for i, (line, code) in enumerate(zip(lines + [""], fenced(lines) + [False])):
-        if line.strip() or code:
-            start = i if start is None else start
-        elif start is not None:
+        text = bool(line.strip()) or code
+        if start is not None and (not text or (not code and ITEM.match(line))):
             spans.append((start, i))
             start = None
+        if text and start is None:
+            joins = spans and line[:1].isspace() and ITEM.match(lines[spans[-1][0]])
+            start = spans.pop()[0] if joins else i
     return spans
 
 
