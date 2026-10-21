@@ -3,6 +3,7 @@
 #include "ButtonPromptSetting.hxx"
 #include "ControllersScreen.hxx"
 #include "Theme.hxx"
+#include "AccentPanel.hxx"
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
 #include "NetworkFeedback.hxx"
@@ -313,13 +314,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
  }else if(screen=="accent"){
   title=loc::T("settings.accent");
-  const auto color=preferences_.uiAccent;
-  rows={Value("accent-red",loc::T("settings.accent_red"),std::to_string(accent::Channel(color,16)),"",v.canEditPreferences),
-   Value("accent-green",loc::T("settings.accent_green"),std::to_string(accent::Channel(color,8)),"",v.canEditPreferences),
-   Value("accent-blue",loc::T("settings.accent_blue"),std::to_string(accent::Channel(color,0)),"",v.canEditPreferences),
-   Row("accent-hex",loc::T("settings.accent_hex"),loc::T("settings.accent_hex_detail"),v.canEditPreferences),
-   Row("accent-reset",loc::T("settings.accent_reset"),"",v.canEditPreferences)};
-  rows[3].text=true;rows[3].value=accent::Hex(color);rows[3].textLimit=7;
+  rows=AccentRows(preferences_.uiAccent,v.canEditPreferences);
  }else if(screen=="training-replays"){
   title=loc::T("settings.training_replays_title");
   rows={Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),
@@ -892,6 +887,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(size>=48*Scale()){const auto p=ImGui::GetCursorScreenPos();DrawCharacterPortrait(fighter,p,ImVec2(p.x+size,p.y+size));ImGui::Dummy(ImVec2(size,size));}
  };
  if(PublicRoomsPanel::Owns(screen))profilePreview=[&](const std::string& id){DrawPublicPreview(v,publicRooms_,id);};
+ if(screen=="accent")profilePreview=[&](const std::string&){
+  if(DrawAccentPicker(preferences_.uiAccent,v.canEditPreferences)){
+   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
+  }
+ };
  GameMenu::Body board;
  if(screen=="interface")profilePreview=[&](const std::string&){
   ImGui::TextUnformatted(loc::T("settings.preview"));

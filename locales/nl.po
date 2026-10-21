@@ -6617,3 +6617,6 @@ msgstr "Ember-ontwikkelaar"
 
 msgid "rankings.developer_detail"
 msgstr "Ember-ontwikkelaars tonen dit teken in plaats van een klasse en staan niet op de ranglijst. Je potjes tellen wel mee."
+
+msgid "settings.accent_picker"
+msgstr "Kleurkiezer"

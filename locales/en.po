@@ -6252,3 +6252,6 @@ msgstr "Ember developer"
 
 msgid "rankings.developer_detail"
 msgstr "Ember developers show this mark in place of a class and are not on the board. Your games still count."
+
+msgid "settings.accent_picker"
+msgstr "Color picker"

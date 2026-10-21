@@ -6617,3 +6617,6 @@ msgstr "Vývojář Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Vývojáři Ember mají místo třídy tuto značku a nejsou v žebříčku. Vaše hry se stále počítají."
+
+msgid "settings.accent_picker"
+msgstr "Výběr barvy"

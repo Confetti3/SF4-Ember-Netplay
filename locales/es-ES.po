@@ -6618,3 +6618,6 @@ msgstr "Desarrollador de Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Los desarrolladores de Ember muestran esta marca en lugar de una clase y no aparecen en la clasificación. Tus partidas siguen contando."
+
+msgid "settings.accent_picker"
+msgstr "Selector de color"

@@ -6618,3 +6618,6 @@ msgstr "Разработчик Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Разработчики Ember показывают эту отметку вместо класса и не попадают в таблицу. Ваши игры по-прежнему засчитываются."
+
+msgid "settings.accent_picker"
+msgstr "Выбор цвета"

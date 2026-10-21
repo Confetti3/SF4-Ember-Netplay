@@ -6618,3 +6618,6 @@ msgstr "Ember開発者"
 
 msgid "rankings.developer_detail"
 msgstr "Ember開発者はクラスの代わりにこのマークが表示され、ランキングには載りません。対戦は引き続きカウントされます。"
+
+msgid "settings.accent_picker"
+msgstr "カラーピッカー"

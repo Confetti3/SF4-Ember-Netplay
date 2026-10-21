@@ -6617,3 +6617,6 @@ msgstr "Développeur d'Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Les développeurs d'Ember affichent cette marque à la place d'une classe et ne figurent pas au classement. Vos matchs comptent quand même."
+
+msgid "settings.accent_picker"
+msgstr "Sélecteur de couleur"

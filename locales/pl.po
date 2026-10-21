@@ -6617,3 +6617,6 @@ msgstr "Twórca Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Twórcy Ember mają ten znak zamiast klasy i nie ma ich w rankingu. Twoje gry nadal się liczą."
+
+msgid "settings.accent_picker"
+msgstr "Wybór koloru"

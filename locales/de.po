@@ -6617,3 +6617,6 @@ msgstr "Ember-Entwickler"
 
 msgid "rankings.developer_detail"
 msgstr "Ember-Entwickler tragen dieses Zeichen statt einer Klasse und stehen nicht in der Rangliste. Ihre Spiele zählen trotzdem."
+
+msgid "settings.accent_picker"
+msgstr "Farbauswahl"

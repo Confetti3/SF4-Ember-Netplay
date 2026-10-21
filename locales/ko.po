@@ -6618,3 +6618,6 @@ msgstr "Ember 개발자"
 
 msgid "rankings.developer_detail"
 msgstr "Ember 개발자는 클래스 대신 이 표시가 나오며 랭킹에 오르지 않습니다. 대전은 계속 반영됩니다."
+
+msgid "settings.accent_picker"
+msgstr "색상 선택"

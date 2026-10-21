@@ -6618,3 +6618,6 @@ msgstr "Ember 开发者"
 
 msgid "rankings.developer_detail"
 msgstr "Ember 开发者以此标记代替等级，不会列入排行榜。你的对战仍会计入。"
+
+msgid "settings.accent_picker"
+msgstr "拾色器"
