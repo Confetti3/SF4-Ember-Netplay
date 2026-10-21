@@ -1144,7 +1144,13 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
             return json!({ "errors": [{ "status": 422, "detail": ["is missing"],
                 "source": { "pointer": "/data/attributes/match_options" } }] });
         }
-        json!({ "data": { "id": "777", "type": "tournament", "attributes": {
+        // The second draft, "Weekly", gets a tournament of its own.
+        let id = if attributes["name"] == "Weekly" {
+            "778"
+        } else {
+            "777"
+        };
+        json!({ "data": { "id": id, "type": "tournament", "attributes": {
             "name": attributes["name"], "url": "ember_cup" } } })
     });
     let bridge = desk_bridge(&fake).await;
@@ -1287,6 +1293,10 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+    // Created on Challonge first, then switched to an event the site lists:
+    // that event is not Ember's to delete there.
+    let (status, _) = organizer(format!("{other_path}/create"), create(json!({}))).await;
+    assert_eq!(status, StatusCode::CREATED);
     let (status, _) = organizer(
         other_path.clone(),
         json!({ "site": SITE, "tournament": "9001" }),
@@ -1326,6 +1336,7 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
     let (status, _) = on_site(other_path.clone()).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(fake.seen("/v2.1/tournaments/9001.json").is_empty());
+    assert!(fake.seen("/v2.1/tournaments/778.json").is_empty());
     let (status, _) = stop_event(&bridge, &player1, &other).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(events().await["events"].as_array().unwrap().len(), 1);

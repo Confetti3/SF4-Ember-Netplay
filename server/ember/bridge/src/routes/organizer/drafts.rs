@@ -165,8 +165,11 @@ pub async fn change(
                 if status != "draft" {
                     return Ok(Err(Some("Only a draft takes the site's event.")));
                 }
+                // An event picked from the site's list is not Ember's to
+                // delete there, whatever this draft created before.
                 let taken = tx.execute(
-                    "UPDATE organizer_events SET site = ?1, tournament = ?2, name = ?3
+                    "UPDATE organizer_events SET site = ?1, tournament = ?2, name = ?3,
+                         created_on_site = created_on_site AND site IS ?1 AND tournament IS ?2
                      WHERE id = ?4
                        AND NOT EXISTS (SELECT 1 FROM organizer_events WHERE site = ?1
                            AND tournament = ?2 AND ended_at IS NULL AND id != ?4)",
