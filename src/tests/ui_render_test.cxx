@@ -715,8 +715,10 @@ int main(int argc, char** argv) {
             Require(palette::Ivory!=IM_COL32(243,235,221,255),"The reader kept the default text palette");
             view.preferences.uiAccent=accent::Default;draw();
             draw(nullptr,MenuInput::Back,1);draw();Require(!shell.Navigation().Reading(),"Back did not close the reader");
-            page("interface");
-            for(int i=0;i<12&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            std::size_t interfaceRowCount=0;
+            SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){interfaceRowCount=rows.size();});
+            page("interface");SetMenuEntriesProbe({});
+            for(std::size_t i=0;i<interfaceRowCount&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw(nullptr,MenuInput::Select,1);draw("language-choice");
             Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
             draw(nullptr,MenuInput::Back,1);draw();
