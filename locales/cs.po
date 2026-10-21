@@ -5032,7 +5032,19 @@ msgid "training.hitboxes"
 msgstr "Hitboxy"
 
 msgid "training.hitboxes.detail"
-msgstr "Kreslí přes zápas boxy bojovníků: zeleně tam, kde lze bojovníka zasáhnout, žlutě tam, kde ho lze chytit, červeně tam, kde útok zasahuje, a modře tam, kde chytá."
+msgstr "Kreslí přes zápas boxy bojovníků: zeleně tam, kde lze bojovníka zasáhnout, žlutě tam, kde ho lze chytit, červeně tam, kde útok zasahuje, a modře tam, kde chytá. Bílé čáry jsou kosti."
+
+msgid "training.hitboxes.hurt"
+msgstr "Zranitelné boxy"
+
+msgid "training.hitboxes.throw"
+msgstr "Boxy pro chycení"
+
+msgid "training.hitboxes.skeleton"
+msgstr "Kostra"
+
+msgid "training.hitboxes.part.detail"
+msgstr "Kreslí tuto část hitboxů přes souboj."
 
 msgid "training.color_key"
 msgstr "Význam barev"

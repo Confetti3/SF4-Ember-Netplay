@@ -29,14 +29,5 @@ int main() {
     CHECK(sx == 960 && sy > 539 && sy < 541);
     const float behind[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1};
     CHECK(!Project(behind, projection, 0, 0, 1920, 1080, sx, sy));
-    // Frames 0 to 12 open to nothing (strike and throw named, no parts),
-    // frames 12 to 24 open to a strike on waist, stomach and head.
-    sf4e::bac::Script script;
-    script.openings = {{0, 12, OpenToStrike | OpenToThrow, 0}, {12, 24, OpenToStrike, 0xB}};
-    CHECK(OpenParts(&script, 0, OpenToStrike) == 0 && OpenParts(&script, 11, OpenToThrow) == 0);
-    CHECK(OpenParts(&script, 12, OpenToStrike) == 0xB && OpenParts(&script, 23, OpenToStrike) == 0xB);
-    // Nothing says anything about throws from frame 12 on, or about anything from 24 on, or without a script.
-    CHECK(OpenParts(&script, 12, OpenToThrow) == AllParts && OpenParts(&script, 24, OpenToStrike) == AllParts);
-    CHECK(OpenParts(nullptr, 0, OpenToStrike) == AllParts);
     return 0;
 }

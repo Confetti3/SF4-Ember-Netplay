@@ -10,6 +10,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../common/FocusGate.hxx"
+#include "../common/WindowNudge.hxx"
 #include "../platform/GameWindowSection.hxx"
 #include "sf4e__CodePages.hxx"
 #include "sf4e__BackgroundPlay.hxx"
@@ -156,6 +157,10 @@ void sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, const Policy& p
     const HWND window = data ? data->hWnd : nullptr;
     gameWindow.store(window);
     windowSection.Publish(window);
+    // A message about once a second, so Windows never takes the game for hung
+    // while only a pad is in use (WindowNudge.hxx).
+    static sf4e::window_nudge::Nudge nudge;
+    if (window && nudge.Due(GetTickCount64())) PostMessageW(window, WM_NULL, 0, 0);
     keepSound.store(policy.keepSound);
     keepRunning.store(policy.keepRunning);
     keepSoundMinimized.store(policy.keepSoundMinimized);

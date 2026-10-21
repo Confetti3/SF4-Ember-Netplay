@@ -5033,7 +5033,19 @@ msgid "training.hitboxes"
 msgstr "히트박스"
 
 msgid "training.hitboxes.detail"
-msgstr "파이터의 판정을 대전 화면 위에 그립니다. 초록은 맞는 범위, 노랑은 잡히는 범위, 빨강은 공격이 닿는 범위, 파랑은 잡기가 닿는 범위입니다."
+msgstr "파이터의 판정을 대전 화면 위에 그립니다. 초록은 맞는 범위, 노랑은 잡히는 범위, 빨강은 공격이 닿는 범위, 파랑은 잡기가 닿는 범위입니다. 흰 선은 뼈입니다."
+
+msgid "training.hitboxes.hurt"
+msgstr "피격 판정"
+
+msgid "training.hitboxes.throw"
+msgstr "잡기 피격 판정"
+
+msgid "training.hitboxes.skeleton"
+msgstr "골격"
+
+msgid "training.hitboxes.part.detail"
+msgstr "히트박스의 이 부분을 대전 위에 그립니다."
 
 msgid "training.color_key"
 msgstr "색상 설명"

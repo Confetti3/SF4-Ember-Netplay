@@ -122,9 +122,9 @@ Point the mouse at `Start --` on the passive meter to see why startup is unavail
 
 ### Hitboxes
 
-**Hitboxes** on the HUD page of the training controls (F6) draws the fighters' collision boxes over the fight, read from the game after every simulated frame while it is on and drawn through the game's own camera. Green is where a fighter can be hit on this frame, yellow where it can be thrown, red where an attack hits on this frame (a fireball's too) and blue where it throws. They show while the HUD does, so F5 hides them with it, and stay drawn under the training controls. The choice is kept in `training.json`. Offline Training only.
+**Hitboxes**, a page of its own opened from the HUD page of the training controls (F6), draws the fighters' collision boxes over the fight, read from the game after every simulated frame and drawn through the game's own camera. Green is where a fighter can be hit on this frame, yellow where it can be thrown, red where an attack hits on this frame (a fireball's too) and blue where it throws; the white lines are the fighter's skeleton. Which green and yellow boxes show is the game's own choice for the frame, after the move's script, invincibility and facing. Beside the switch for them all, the page has a row each to turn off the hurt boxes, the throw boxes and the skeleton. They show while the HUD does, so F5 hides them with it, and stay drawn under the training controls. The choice is kept in `training.json`. Offline Training only.
 
-The game keeps a box for every part of the body, and the script of the fighter's move says which of them are open on a frame. Standing still that is legs, trunk and head. On the first frames of a Shoryuken it is none, so no green shows: the move cannot be hit. Once an attack's own frames are over, the limb it held out is open on its way back.
+The green boxes are the body's parts, each built round a line between two points of the fighter's skeleton; the yellow ones are where a throw connects, and neither stands for where the fighters push each other.
 
 The box that makes the opponent guard at a distance is not drawn.
 
