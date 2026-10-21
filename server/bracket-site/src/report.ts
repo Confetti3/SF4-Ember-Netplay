@@ -4,6 +4,7 @@
 import { roundLabel, type BracketSet } from "./bracket.ts";
 import { stats, type PlayerStats, type Stats } from "./live.ts";
 import type { Tournament } from "./tournament.ts";
+import type { Vote } from "./vote.ts";
 
 export interface PathStep {
   set: string;
@@ -45,6 +46,8 @@ export interface Report {
   final: PathStep | null;
   games: number;
   games_with_facts: number;
+  /** The vote's counts by category, once it closed. */
+  votes?: NonNullable<Vote["results"]>;
 }
 
 export function buildReport(tournament: Tournament, at: string): Report {

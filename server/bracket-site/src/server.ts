@@ -9,10 +9,11 @@ import { contractRoutes, record } from "./contract.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
 import { seasonAwards } from "./awards.ts";
 import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
-import { stats } from "./live.ts";
+import { push, stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
 import { page, reportPage } from "./page.ts";
 import { manifest, setReplays, type Clip } from "./replays.ts";
+import { accept, cast, close as closeVoteOf, due, nominate, open as openVote, shown as voteView, voidVote, type Category, type Nomination } from "./vote.ts";
 import type { Store } from "./store.ts";
 import { ACTIONS, actions, beforeLive, checkIn, enter, move, type Action, type Entrant, type Tournament } from "./tournament.ts";
 
@@ -213,6 +214,71 @@ export function bracketSite(options: Options): Server {
         return [200, manifest(options.bridgeOrigin ?? "", tournament, clip)];
       },
     ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/vote$/,
+      async (request, [id]) => {
+        const body = await readJson(request);
+        const hours = body.hours === undefined ? 48 : whole(body.hours, 1, 336, "hours is 1 to 336");
+        return [201, voteView(change(id!, request, (tournament) => openVote(tournament, new Date(now()), hours)).vote!, null)];
+      },
+    ],
+    [
+      "GET",
+      /^\/tournaments\/([^/]+)\/vote$/,
+      (request, [id]) => {
+        const tournament = closeIfDue(id!);
+        return [200, voteView(tournament.vote ?? fail(404, "no vote"), actor(request)?.discord ?? options.oauth?.session(request)?.discord ?? null)];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/vote\/nominations$/,
+      async (request, [id]) => {
+        const by = player(request);
+        const organizer = manages(signedIn(request), found(id!));
+        const body = await readJson(request);
+        const title = text(body.title, /^.{1,100}$/u, "title is 1 to 100 characters");
+        const ref = body.ref === undefined || body.ref === null ? null : text(body.ref, /^[A-Za-z0-9_:-]{1,100}$/, "ref names a clip or a game");
+        let made: Nomination | undefined;
+        change(closeIfDue(id!).id, null, (tournament) => {
+          made = nominate(tournament, { category: body.category as Category, player: String(body.player), title, ref, by }, organizer);
+        });
+        return [201, made!];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/vote\/nominations\/([^/]+)\/accept$/,
+      (request, [id, nomination]) => [200, voteView(change(id!, request, (tournament) => accept(tournament, nomination!)).vote!, null)],
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/votes\/([^/]+)$/,
+      async (request, [id, category]) => {
+        const voter = player(request);
+        const body = await readJson(request);
+        change(closeIfDue(id!).id, null, (tournament) => cast(tournament, category as Category, voter, String(body.nomination), new Date(now())));
+        return [204];
+      },
+    ],
+    [
+      "DELETE",
+      /^\/tournaments\/([^/]+)\/votes\/([^/]+)\/(\d{17,20})$/,
+      (request, [id, category, voter]) => {
+        change(id!, request, (tournament) => voidVote(tournament, category as Category, voter!));
+        return [204];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/vote\/close$/,
+      (request, [id]) => {
+        manager(request, found(id!));
+        const tournament = closeVote(id!);
+        return [200, voteView(tournament.vote ?? fail(404, "no vote"), null)];
+      },
+    ],
     ["GET", /^\/tournaments\/([^/]+)\/report$/, (_, [id]) => [200, found(id!).report ?? fail(404, "its report comes once it is finished")]],
     [
       "GET",
@@ -397,6 +463,21 @@ export function bracketSite(options: Options): Server {
     ...(options.oauth?.routes() ?? []),
   ];
 
+  /** Closes the vote once its time is up; the tournament as it is now. */
+  function closeIfDue(id: string): Tournament {
+    return due(found(id), new Date(now())) ? closeVote(id) : found(id);
+  }
+
+  /** Closes the vote: its results into the report, its winners' awards, each announced. */
+  function closeVote(id: string): Tournament {
+    return change(id, null, (tournament) => {
+      const at = now();
+      const awards = store.addAwards(closeVoteOf(tournament, new Date(at)));
+      if (tournament.report && tournament.vote?.results) tournament.report.votes = tournament.vote.results;
+      for (const award of awards) push(tournament, { at, kind: "award", text: `${award.name}: ${award.title} of ${award.of} (${award.detail}).` });
+    });
+  }
+
   function enterOrFail(tournament: Tournament, entrant: Entrant, organizer: boolean): void {
     try {
       enter(structuredClone(tournament), entrant, organizer);
@@ -499,7 +580,8 @@ function shuffle<T>(items: T[]): void {
 
 /** The tournament as anyone may see it, with the actions its state allows. */
 function view(tournament: Tournament): Json {
-  const { feed: _, report: __, clips: ___, ...shown } = tournament;
+  // The feed, report, clips and vote have routes of their own; a vote's ballots are never shown.
+  const { feed: _, report: __, clips: ___, vote: ____, ...shown } = tournament;
   return {
     ...shown,
     actions: actions(tournament),

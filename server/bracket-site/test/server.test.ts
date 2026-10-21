@@ -210,6 +210,25 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   assert.deepEqual(live.map((each: { id: string; state: string }) => [each.id, each.state]), [["weekly", "finished"]]);
   assert.ok(live[0].last > 0);
   assert.equal((await state("archive")).status, 200);
+
+  // The public vote: a player suggests, the organizer accepts, players vote once each.
+  assert.equal((await bot(2, "POST", "/tournaments/weekly/vote", {})).status, 403);
+  assert.equal((await organizer("POST", "/tournaments/weekly/vote", { hours: 24 })).status, 201);
+  const suggested = await bot(2, "POST", "/tournaments/weekly/vote/nominations", { category: "best_player", player: discordId(1), title: "Player 1's run" });
+  assert.deepEqual([suggested.status, suggested.body.accepted], [201, false]);
+  assert.equal((await bot(3, "POST", "/tournaments/weekly/votes/best_player", { nomination: "n1" })).status, 422, "not accepted yet");
+  assert.equal((await organizer("POST", "/tournaments/weekly/vote/nominations/n1/accept")).status, 200);
+  for (const n of [1, 2, 3]) assert.equal((await bot(n, "POST", "/tournaments/weekly/votes/best_player", { nomination: "n1" })).status, 204);
+  const running = await bot(3, "GET", "/tournaments/weekly/vote");
+  assert.deepEqual([running.body.results, running.body.voters.best_player, running.body.mine.best_player], [null, 3, "n1"]);
+  assert.equal((await organizer("DELETE", `/tournaments/weekly/votes/best_player/${discordId(3)}`)).status, 204);
+  const closed = await organizer("POST", "/tournaments/weekly/vote/close");
+  assert.deepEqual(closed.body.results.best_player, [{ nomination: "n1", votes: 2 }]);
+  assert.equal((await bot(1, "POST", "/tournaments/weekly/votes/best_player", { nomination: "n1" })).status, 409);
+  const kinds = (await call("GET", `/players/${discordId(1)}`)).body.awards.map((award: { kind: string }) => award.kind);
+  assert.ok(kinds.includes("best_player"), String(kinds));
+  assert.deepEqual((await call("GET", "/tournaments/weekly/report")).body.votes.best_player, [{ nomination: "n1", votes: 2 }]);
+  assert.ok(!("vote" in (await call("GET", "/tournaments/weekly")).body), "ballots stay out of the tournament");
 });
 
 test("a cancelled or deleted tournament's sets are gone for the connector", async () => {

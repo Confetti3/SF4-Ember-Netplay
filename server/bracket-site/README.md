@@ -78,6 +78,12 @@ manages the tournaments that name them in `organizers`.
 | `GET /tournaments/{id}/replays/{set}` | anyone | a public event's set: its pack, each game's file and `ember://replay` link, and each round's link where the facts say its frames |
 | `POST /tournaments/{id}/clips` | its organizers | `{ "set", "crc", "from_frame", "to_frame", "title" }` |
 | `GET /tournaments/{id}/clips`, `/clips/{clip}` | anyone | the clips; one as the game is handed it (`match`, `crc`, frames, `open`) |
+| `POST /tournaments/{id}/vote` | its organizers | opens the vote of a finished tournament for `hours` (default 48) |
+| `GET /tournaments/{id}/vote` | anyone | its nominations, how many voted, the viewer's own votes; counts once closed |
+| `POST /tournaments/{id}/vote/nominations` | signed in | `{ "category", "player", "title", "ref" }`; an organizer's counts at once, anyone else's once accepted (`.../nominations/{n}/accept`) |
+| `POST /tournaments/{id}/votes/{category}` | a player | `{ "nomination" }`: one vote per Discord account per category, changeable until it closes; accounts under a week old cannot vote |
+| `DELETE /tournaments/{id}/votes/{category}/{discord}` | its organizers | voids a vote |
+| `POST /tournaments/{id}/vote/close` | its organizers | closes it before its time; its winners get their awards, and the counts go into the report |
 | `POST /leagues` | organizer | `{ "id", "title" }` |
 | `GET /leagues/{id}` | anyone | the league and its seasons |
 | `POST /leagues/{id}/seasons` | its organizers | `{ "id", "title", "points", "best_of" }`; a season ID is unique on the site |
