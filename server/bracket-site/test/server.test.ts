@@ -205,6 +205,10 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   // Awards on the players' profiles, announced in the feed.
   const champion = (await call("GET", `/players/${discordId(1)}`)).body;
   assert.deepEqual([champion.name, champion.ember_id, champion.awards[0].kind], ["Player 1", emberId(1), "champion"]);
+  assert.equal(champion.awards[0].emblem, "/emblems/champion.svg");
+  const badge = await fetch(`${base}/emblems/champion.svg`);
+  assert.deepEqual([badge.status, badge.headers.get("content-type")], [200, "image/svg+xml"]);
+  assert.equal((await fetch(`${base}/emblems/admin.svg`)).status, 404);
   assert.ok((await call("GET", "/tournaments/weekly/feed")).body.items.some((item: { kind: string; text: string }) => item.kind === "award" && item.text.startsWith("Player 1: Champion")));
   assert.equal((await call("GET", "/players/99999999999999999")).status, 404);
   // Over within the hour: still listed for followers, with its last item.

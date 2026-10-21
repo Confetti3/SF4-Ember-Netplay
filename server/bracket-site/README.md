@@ -89,7 +89,8 @@ manages the tournaments that name them in `organizers`.
 | `POST /leagues/{id}/seasons` | its organizers | `{ "id", "title", "points", "best_of" }`; a season ID is unique on the site |
 | `GET /leagues/{id}/seasons/{season}/standings` | anyone | points, events and wins of each player |
 | `POST /leagues/{id}/seasons/{season}/close` | its organizers | closes it and gives its champion and top 3 their awards |
-| `GET /players/{discord}` | anyone | a player's name, Ember ID and every award they hold |
+| `GET /players/{discord}` | anyone | a player's name, Ember ID and every award they hold, each with its `emblem` |
+| `GET /emblems/{kind}.svg` | anyone | an award's emblem: a round badge in Ember's palette with a star or a mark |
 
 At its finish a tournament gives Champion, Runner-up, Top 3 and (over 8
 entrants) Top 8, and from its report Giant killer (the biggest upset, 2

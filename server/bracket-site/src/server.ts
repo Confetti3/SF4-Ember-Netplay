@@ -8,6 +8,7 @@ import { Conflict, Invalid, roundLabel, status } from "./bracket.ts";
 import { contractRoutes, record } from "./contract.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
 import { seasonAwards } from "./awards.ts";
+import { emblem, isKind } from "./emblems.ts";
 import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
 import { push, stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
@@ -476,7 +477,8 @@ export function bracketSite(options: Options): Server {
         const awards = store.awardsOf(discord!);
         const entered = store.all().flatMap((tournament) => tournament.entrants.filter((entrant) => entrant.discord === discord));
         if (!awards.length && !entered.length) fail(404, "no such player here");
-        return [200, { discord, name: entered.at(-1)?.name ?? awards.at(-1)!.name, ember_id: entered.findLast((each) => each.ember_id)?.ember_id ?? null, awards }];
+        const shown = awards.map((award) => ({ ...award, emblem: `/emblems/${award.kind}.svg` }));
+        return [200, { discord, name: entered.at(-1)?.name ?? awards.at(-1)!.name, ember_id: entered.findLast((each) => each.ember_id)?.ember_id ?? null, awards: shown }];
       },
     ],
     [
@@ -531,6 +533,12 @@ export function bracketSite(options: Options): Server {
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
+      const badge = /^\/emblems\/([a-z0-9_]+)\.svg$/.exec(url.pathname);
+      if (badge && request.method === "GET") {
+        const kind = isKind(badge[1]!) ? badge[1] : fail(404, "no such emblem");
+        response.writeHead(200, { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" }).end(emblem(kind));
+        return;
+      }
       const reported = /^\/t\/([^/]+)\/report$/.exec(url.pathname);
       if (reported && request.method === "GET") {
         const tournament = found(decodeURIComponent(reported[1]!));
