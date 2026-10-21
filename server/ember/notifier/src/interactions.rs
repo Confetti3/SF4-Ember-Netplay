@@ -408,7 +408,10 @@ pub async fn register_commands(config: &Config) -> Result<(), String> {
               "required": false, "min_value": MIN_CAPACITY, "max_value": MAX_CAPACITY },
         ],
     });
-    let mut commands = vec![room];
+    let mut commands = Vec::new();
+    if config.bot.is_some() {
+        commands.push(room);
+    }
     if config.brackets.is_some() {
         commands.push(tournament::command());
     }

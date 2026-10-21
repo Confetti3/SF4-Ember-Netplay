@@ -149,7 +149,11 @@ impl Notifier {
         {
             return Err("brackets.roles needs discord.interactions.bot_token".into());
         }
-        if bridge.is_none() && (interactions.is_some() || room_creator) {
+        // Interactions for /tournament alone need no bot: /room is only
+        // registered and served with one.
+        if bridge.is_none()
+            && ((interactions.is_some() && config.brackets.is_none()) || room_creator)
+        {
             return Err("the room commands need a `bot` section".into());
         }
         let interaction_key = interactions

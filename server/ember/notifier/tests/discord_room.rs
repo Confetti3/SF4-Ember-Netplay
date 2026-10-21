@@ -525,6 +525,7 @@ async fn the_command_is_registered_for_the_application_or_a_server() {
     ]));
     let discord = Mock::start(registry(scopes.clone())).await;
     let mut config: Config = base_config("register");
+    config.bot = Some(bot("http://127.0.0.1:9"));
     config.discord = Some(Discord {
         webhook_url: None,
         username: "Ember".into(),
@@ -575,6 +576,36 @@ async fn the_command_is_registered_for_the_application_or_a_server() {
         discord.requests().iter().all(|r| r.method == Method::POST),
         "registration replaced a command list"
     );
+
+    // Without a bot, /room is neither registered nor needed: a notifier
+    // for /tournament alone registers only that.
+    let only = Arc::new(Mutex::new(vec![(
+        "/applications/app1/guilds/g9/commands".to_owned(),
+        Vec::new(),
+    )]));
+    let tournament_only = Mock::start(registry(only.clone())).await;
+    let mut alone = config.clone();
+    alone.bot = None;
+    alone.brackets = Some(ember_notifier::Brackets {
+        base: "http://127.0.0.1:9".into(),
+        token: "site-bot-token".into(),
+        feed: false,
+        feed_secs: 60,
+        roles: None,
+    });
+    alone
+        .discord
+        .as_mut()
+        .and_then(|d| d.interactions.as_mut())
+        .unwrap()
+        .api_base = tournament_only.origin.clone();
+    register_commands(&alone).await.unwrap();
+    let registered: Vec<String> = only.lock().unwrap()[0]
+        .1
+        .iter()
+        .map(|c| c["name"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(registered, ["tournament"]);
 
     let refused = Mock::start(|_| (401, "{}".into())).await;
     config
