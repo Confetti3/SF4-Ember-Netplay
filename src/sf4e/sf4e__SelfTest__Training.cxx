@@ -26,7 +26,7 @@ using training::Mode;
 // Frames the test records before it stops the recording.
 constexpr int kRecorded = 8 * kSecond;
 // Done: the outcome is written (Finish).
-enum class Stage { ToBattle, Move, Starting, Settling, Measure, Hit, Struck, Record, Standby, Recording, Replaying, SavePosition, Dash, Dashed, Reset, Done };
+enum class Stage { ToBattle, Move, Starting, Settling, Measure, Hit, Struck, HeavyHit, HeavyStruck, Record, Standby, Recording, Replaying, SavePosition, Dash, Dashed, Reset, Done };
 
 // Ryu's crouching LP: startup 3, active 2, recovery 7. The numbers on the
 // meter's line have to be these. Its cells follow the startup number
@@ -34,6 +34,8 @@ enum class Stage { ToBattle, Move, Starting, Settling, Measure, Hit, Struck, Rec
 constexpr int kStartup = 3, kActive = 2, kRecovery = 7;
 // And +5 on hit, against a standing fighter.
 constexpr int kHitAdvantage = 5;
+// Crouching HP on hit, a move made to be cancelled (SSF4 AE frame data, and the BAC: interruptible on its 52nd of 53 frames).
+constexpr int kHeavyHitAdvantage = -13;
 
 struct Lab : Steps<Stage> {
 	// Where a played move goes once it has ended, and where it goes if it does not.
@@ -92,19 +94,17 @@ void Measure(const training::View& view) {
 }
 
 // The advantage measured once both recovered, and the hit's own
-// (MeterCell::hitAdvantage), read off the game's counts as it lands, both
-// have to be the frame data's.
-void HitAdvantage(const training::View& view) {
+// (MeterCell::hitAdvantage), both have to be the frame data's.
+void HitAdvantage(const training::View& view, const std::string& move, int expected) {
 	const auto& measured = view.meter.advantage;
-	const bool measuredRight = measured.valid && !measured.blocked && measured.attacker == 0 && measured.frames[0] == kHitAdvantage;
-	Say(measuredRight, "Ryu crouching LP advantage", measured.valid ? (measured.blocked ? "blocked, " : "hit, ") + std::to_string(measured.frames[0]) +
-		(measuredRight ? "" : ", expected hit and 5") : "nothing measured");
+	const std::string wanted = ", expected " + std::to_string(expected);
+	const bool measuredRight = measured.valid && !measured.blocked && measured.attacker == 0 && measured.frames[0] == expected;
+	Say(measuredRight, move + " advantage", measured.valid ? (measured.blocked ? "blocked, " : "hit, ") + std::to_string(measured.frames[0]) +
+		(measuredRight ? "" : wanted + " on hit") : "nothing measured");
 	const auto& frames = view.meter.frames;
 	const auto hit = std::find_if(frames.rbegin(), frames.rend(), [](const training::MeterFrame& frame) { return frame.cells[0].hitAdvantage != training::NoHitAdvantage; });
-	const bool markRight = hit != frames.rend() && hit->cells[0].hitAdvantage == kHitAdvantage;
-	// Hitstop is left out of the bars, so a hit draws the cells a whiff does.
-	SayCells(view, "Ryu crouching LP cells on hit");
-	Say(markRight, "Ryu crouching LP hit mark", hit == frames.rend() ? "no hit marked" : std::to_string(hit->cells[0].hitAdvantage) + (markRight ? "" : ", expected 5"));
+	const bool markRight = hit != frames.rend() && hit->cells[0].hitAdvantage == expected;
+	Say(markRight, move + " hit mark", hit == frames.rend() ? "no hit marked" : std::to_string(hit->cells[0].hitAdvantage) + (markRight ? "" : wanted));
 }
 
 }
@@ -163,7 +163,16 @@ void TickTraining() {
 		Play("[6]120f > 2LP", "Ryu crouching LP hit advantage", Stage::Struck, Stage::Record);
 		break;
 	case Stage::Struck:
-		HitAdvantage(view);
+		HitAdvantage(view, "Ryu crouching LP", kHitAdvantage);
+		// Hitstop is left out of the bars, so a hit draws the cells a whiff does.
+		SayCells(view, "Ryu crouching LP cells on hit");
+		lab.Enter(Stage::HeavyHit);
+		break;
+	case Stage::HeavyHit:
+		Play("[6]120f > 2HP", "Ryu crouching HP hit advantage", Stage::HeavyStruck, Stage::Record);
+		break;
+	case Stage::HeavyStruck:
+		HitAdvantage(view, "Ryu crouching HP", kHeavyHitAdvantage);
 		lab.Enter(Stage::Record);
 		break;
 	case Stage::Record:

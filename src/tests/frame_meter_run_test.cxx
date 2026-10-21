@@ -3,8 +3,10 @@
 // edge past their width, hold four quiet frames after it on its last active
 // frame, and any action after that starts the next exchange.
 #include "../training/FrameMeter.hxx"
+#include <algorithm>
 #include <cstdio>
 #include <stdexcept>
+#include <vector>
 using namespace sf4e::training;
 namespace {
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
@@ -226,6 +228,61 @@ int main() {
                 "The hit's mark was not on the frame it landed on");
             Require(after[0].hitAdvantage == NoHitAdvantage && after[1].newAction && after[0].afterStop && after[1].afterStop,
                 "The reaction's start and the hitstop line did not show on the frame after hitstop");
+        }
+        // The game's counts said -14 as Ryu's crouching HP landed, and still
+        // through its hitstop, but the other's stun stalled a frame: it was
+        // free 13 frames before Ryu, and the hit settles as its count runs
+        // out, with Ryu's 13 left.
+        {
+            FrameMeter meter;
+            const auto play = [&](int frame, unsigned own, float ownFrame, unsigned other, int otherAction, float otherFrame, int ownLeft, int otherLeft) {
+                std::array<FighterSample, 2> both;
+                for (auto& fighter : both) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; }
+                both[0].status = own; both[0].action = own ? 270 : 0; both[0].actionFrame = ownFrame; both[0].untilActionable = ownLeft;
+                both[1].status = other; both[1].action = otherAction; both[1].actionFrame = otherFrame; both[1].untilActionable = otherLeft;
+                meter.Observe(frame, both);
+            };
+            int at = 0;
+            play(at++, 0, 0, 0, 0, 0, 0, 0);
+            for (int f = 1; f <= 4; ++f) play(at++, 16, static_cast<float>(f), 0, 0, static_cast<float>(f), 0, 0);
+            play(at++, 16, 4, 21, 144, 0, 46, 32);
+            const int landed = at - 1;
+            // The other's count holds at 5 for a frame.
+            constexpr int stalled = 15;
+            for (int f = 1; f <= 12; ++f) play(at++, 16, 4, 21, 144, 0, 46 - f, 32 - f);
+            for (int f = 1; f <= 20; ++f) play(at++, 16, 4.f + f, 21, 144, static_cast<float>(f), 34 - f, f <= stalled ? 20 - f : 21 - f);
+            for (int f = 1; f <= 13; ++f) play(at++, 16, 24.f + f, 0, 0, static_cast<float>(f), 14 - f, 0);
+            for (int f = 1; f <= 3; ++f) play(at++, 0, static_cast<float>(f), 0, 0, 13.f + f, 0, 0);
+            const auto& advantage = meter.View().lastAdvantage;
+            Require(advantage.valid && advantage.frames[0] == -13, "The crouching HP's exchange was not measured at -13");
+            const auto& frames = meter.View().frames;
+            const auto marked = std::find_if(frames.begin(), frames.end(), [](const MeterFrame& frame) { return frame.cells[0].hitAdvantage != NoHitAdvantage; });
+            Require(marked != frames.end() && marked->frame < landed && marked->cells[0].hitAdvantage == -13, "The hit did not settle once the other's count ran out");
+        }
+        // A link: the attacker is free first, after the other's count stalled
+        // a frame, so the first hit reads +6 from what the other has left,
+        // not the +5 its counts said, and the next hit keeps its own mark.
+        {
+            FrameMeter meter;
+            const auto play = [&](int frame, unsigned own, int ownAction, int ownLeft, float combo, int otherLeft) {
+                std::array<FighterSample, 2> both;
+                for (auto& fighter : both) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; }
+                both[0].status = own; both[0].action = ownAction; both[0].actionFrame = static_cast<float>(frame); both[0].untilActionable = ownLeft;
+                both[1].status = combo > 0 ? 21 : 0; both[1].action = combo > 0 ? 144 : 0; both[1].actionFrame = static_cast<float>(frame);
+                both[1].comboDamage = combo; both[1].untilActionable = otherLeft;
+                meter.Observe(frame, both);
+            };
+            play(0, 0, 0, 0, 0, 0);
+            play(1, 16, 100, 10, 0, 0);
+            play(2, 16, 100, 10, 10, 15);
+            constexpr int stalled = 3;
+            for (int f = 1; f <= 10; ++f) play(2 + f, f < 10 ? 16 : 0, f < 10 ? 100 : 0, 10 - f, 10, f <= stalled ? 15 - f : 16 - f);
+            play(13, 16, 102, 20, 10, 4);
+            play(14, 16, 102, 20, 20, 23);
+            std::vector<int> marks;
+            for (const auto& frame : meter.View().frames)
+                if (frame.cells[0].hitAdvantage != NoHitAdvantage) marks.push_back(frame.cells[0].hitAdvantage);
+            Require(marks == std::vector<int>{6, 3}, "The link's first hit was not read again as the attacker became free");
         }
         std::puts("Frame meter run tests passed");
         return 0;
