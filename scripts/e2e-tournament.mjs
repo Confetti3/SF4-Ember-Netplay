@@ -171,12 +171,25 @@ const webhookFile = join(homedir(), "tournament-lab/e2e/discord-webhook");
 const webhook = existsSync(webhookFile) ? readFileSync(webhookFile, "utf8").trim() : "";
 
 log("starting both games against", bridge, webhook ? "with Discord calls" : "without Discord");
+const ended = [false, false];
 const games = [startLocal(), startRemote()].map((game, index) => game.then((result) => {
+  ended[index] = true;
   const fails = (result.text.match(/FAIL.*/g) || []).join("; ");
   // A game that passed has done its part; one that failed ends the run.
   if (result.code !== 0 || fails) closed.push((index ? "the other PC's game" : "this PC's game") + " closed: " + (fails || "exit " + result.code));
   return result;
 }));
+// A run that ends early stops the games it started, so the next run finds
+// both PCs free. Each game's script then puts the saves back as after any game.
+// Only the game the package's launcher started: a player's own game on
+// either PC is left alone.
+const stopScript = (pkg) => "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'SSFIV.exe' -and " +
+  `(Get-Process -Id $_.ParentProcessId -EA 0).Path -like '${pkg}\\*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`;
+function stopGames() {
+  if (!ended[0]) { try { execFileSync("powershell.exe", ["-NoProfile", "-Command", stopScript(config.local.package)], { stdio: "ignore" }); } catch {} }
+  if (!ended[1]) { try { ssh(`powershell -NoProfile -Command "${stopScript(config.remote.package)}"`); } catch {} }
+}
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { stopGames(); process.exit(130); });
 const page = await chrome(out);
 let event = null;
 
@@ -324,6 +337,10 @@ try {
     log("this run's tournament, with Challonge's:", status);
   }
   page.close();
+  if (!ended.every(Boolean)) {
+    stopGames();
+    await Promise.race([Promise.allSettled(games), sleep(120000)]);
+  }
   const failed = results.filter(([state]) => state === "FAIL");
   console.log(`\n${results.length - failed.length} passed, ${failed.length} failed; pictures in ${out}`);
   process.exit(failed.length ? 1 : 0);
