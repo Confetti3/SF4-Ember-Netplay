@@ -101,6 +101,9 @@ any `ember-2p` tournament an earlier one left.
 The first run waits for three approvals in the browsers, five minutes each:
 the player's Challonge account on each PC, then organizer access on this PC.
 Each game keeps its Ember ID in `<work>\ember`, so later runs need nobody.
+A PC's `"ember"` names another Ember folder instead, such as that PC's own
+(`C:\Users\<you>\AppData\Local\Ember`) when its real Ember ID holds the
+organizer's accounts; the run never deletes a folder it is given.
 
 ### Run
 

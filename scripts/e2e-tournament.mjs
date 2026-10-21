@@ -77,9 +77,15 @@ async function wait(side, name, minutes, what) {
 // --- The games.
 
 const env = { SF4E_SELFTEST_SIGN_UP: "1", SF4E_SELFTEST_DRAW_FIRST: "1" };
+// Each game's Ember folder: the config's own (`ember`, such as a PC's real
+// Ember ID that holds the organizer's accounts), else one kept in its work folder.
+const emberDir = (side) => {
+  const pc = side === local ? config.local : config.remote;
+  return pc.ember || pc.work + "\\ember";
+};
 const selftest = (side, test) => ["-PackageDir", side === local ? config.local.package : config.remote.package,
   "-Test", test, "-Exchange", (side === local ? config.local.work : config.remote.work) + "\\exchange", "-Bridge", bridge,
-  "-Connection", config.connection, "-Site", "challonge", "-KeptEmberDir", (side === local ? config.local.work : config.remote.work) + "\\ember",
+  "-Connection", config.connection, "-Site", "challonge", "-KeptEmberDir", emberDir(side),
   "-TimeoutMinutes", "45"];
 
 function startLocal() {
