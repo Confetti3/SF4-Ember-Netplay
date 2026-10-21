@@ -97,6 +97,7 @@ impl Bridge {
             rooms: None,
             match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
             replay_retention: None,
+            archive: None,
             trusted_proxies: Vec::new(),
             tenants: vec![
                 config::Tenant {
