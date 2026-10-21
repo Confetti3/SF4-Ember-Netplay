@@ -96,6 +96,9 @@ struct PlayerPreferences {
     // A match this PC only watches is recorded too, like one it plays
     // (sf4e__UserApp.cxx: StartMatchFromLobby).
     bool recordWatched = true;
+    // Games played outside a tournament go to the public replay archive
+    // (docs/design/REPLAY_ARCHIVE.md). A tournament set's games always do.
+    bool shareReplays = true;
     // Room members can open this player's Steam profile from the room's member
     // screen. Sent when they join a room; nothing is sent when it is off.
     bool shareSteamProfile = true;

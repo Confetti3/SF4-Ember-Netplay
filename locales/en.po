@@ -790,6 +790,12 @@ msgstr "Save matches you watch"
 msgid "replays.save_watched_detail"
 msgstr "Also saves matches you watch as a spectator. Off saves only the matches you play."
 
+msgid "replays.share"
+msgstr "Share my replays"
+
+msgid "replays.share_detail"
+msgstr "Sends the games you play to the public replay archive at replays.ember.fraccie.be. Tournament games are always shared."
+
 msgid "replays.link"
 msgstr "Play the replay from the link"
 
