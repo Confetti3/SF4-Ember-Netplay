@@ -812,6 +812,12 @@ its `state` and `actions`, keeping only moves the definition names in
 the game with a `site.connect` proof, makes one with the organizer's grant;
 the site's refusal comes back as `site_refused`.
 
+Public replays: for a desk event with `"public": true`, each completed set
+whose Ember match the connector named in its sets is downloadable by
+anyone: `GET /v1/public/matches/{id}/replays.pack` (the set's pack) and
+`GET /v1/public/matches/{id}/replays/{crc}` (one game's `.emberreplay`).
+Any other match answers 404, as one that does not exist.
+
 ## Testing the desk
 
 Three layers, from fastest:
