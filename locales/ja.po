@@ -5678,6 +5678,33 @@ msgstr "{0}は{1}として動作します。"
 msgid "button_layout.extra_off"
 msgstr "{0}には何も割り当てられていません。"
 
+msgid "button_layout.training_record"
+msgstr "トレーニング録画"
+
+msgid "button_layout.training_play"
+msgstr "トレーニング再生"
+
+msgid "button_layout.training_record_detail"
+msgstr "選択してから、トレーニングで録画を開始・停止するボタンを押してください。F7と同じ働きです。対戦中に何も割り当てられていないボタン（スティック押し込みなど）を選んでください。"
+
+msgid "button_layout.training_play_detail"
+msgstr "選択してから、トレーニングで選んだスロットを再生・停止するボタンを押してください。F8と同じ働きです。対戦中に何も割り当てられていないボタン（スティック押し込みなど）を選んでください。"
+
+msgid "button_layout.training_clear"
+msgstr "トレーニングのボタンを消す"
+
+msgid "button_layout.training_clear_detail"
+msgstr "トレーニングの録画ボタンと再生ボタンをオフにします。"
+
+msgid "button_layout.training_cleared"
+msgstr "トレーニングのボタンをオフにしました。"
+
+msgid "button_layout.training_busy"
+msgstr "{0}は対戦中にすでに{1}です。何も割り当てられていないボタンを選んでください。"
+
+msgid "button_layout.training_busy_value"
+msgstr "{0}（攻撃に使っているため無効）"
+
 msgid "room.delay_policy"
 msgstr "ルームの入力遅延"
 

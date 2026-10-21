@@ -466,6 +466,9 @@ bool CanChooseControllerNow();
 // The buttons that confirm and go back in Ember's menus for a device: the
 // binding of its pad's Ember layout (runtime->pads), else the game's own.
 input::MenuButtons MenuButtonsFor(int deviceType, int deviceIndex);
+// The buttons that record and play in Training for a device: those its pad's
+// Ember layout names, none for a pad without one.
+input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex);
 
 // The published snapshot, errors and Discord (sf4e__NetplayRuntime__Status.cxx).
 void FillNetworkDiagnostics(platform::DiagnosticsView& view);

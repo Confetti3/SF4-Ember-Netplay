@@ -89,16 +89,17 @@ void ApplicationShell::LayoutLog(const ShellView& view, const Submit& submit, st
 }
 bool ApplicationShell::ChangeLayout(const PadView& pad, const std::optional<ButtonLayout>& layout,
     const ShellView& view, const Submit& submit, const std::string& log, const std::optional<MenuBinding>& menu,
-    const std::optional<ExtraCopies>& extras) {
+    const std::optional<ExtraCopies>& extras, const std::optional<TrainingBinding>& training) {
     if (!CanEditLayout(view) || !Served(pad)) return false;
     const auto binding = menu.value_or(pad.menu);
     const auto copies = extras.value_or(pad.extras);
+    const auto trainingButtons = training.value_or(pad.training);
     ShellAction action; action.command.generation = view.session.generation;
     action.padAction.kind = layout ? ControllerRequest::Kind::Layout : ControllerRequest::Kind::RemoveLayout;
     action.padAction.id = pad.id; action.padAction.buttons = layout.value_or(DefaultLayout); action.padAction.menu = binding;
-    action.padAction.extras = copies; action.padAction.log = log;
+    action.padAction.extras = copies; action.padAction.training = trainingButtons; action.padAction.log = log;
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
-    if (layout) UpsertLayout(preferences_.buttonLayouts, {pad.identity, *layout, static_cast<std::int64_t>(std::time(nullptr)), binding, copies});
+    if (layout) UpsertLayout(preferences_.buttonLayouts, {pad.identity, *layout, static_cast<std::int64_t>(std::time(nullptr)), binding, copies, trainingButtons});
     else RemoveLayout(preferences_.buttonLayouts, pad.identity);
     preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45; error_.clear();
     layoutChanged_ = layout.has_value();
@@ -119,6 +120,32 @@ void ApplicationShell::ChangeMenuButton(const PadView& pad, bool back, unsigned 
     if (menu != pad.menu && ChangeLayout(pad, pad.table, view, submit,
         fmt::format("layout for id {}: menu {} = {}", pad.id, back ? "back" : "confirm", LayoutGlyphs[button]), menu)) {
         notice_ = loc::Tf("button_layout.assigned", row, pad.buttonNames[button]); noticeTone_ = Tone::Success; noticeUntil_ = ImGui::GetTime() + 4;
+    }
+}
+void ApplicationShell::ChangeTrainingButton(const PadView& pad, bool play, unsigned button, const ShellView& view, const Submit& submit) {
+    const auto row = play ? "training-play" : "training-record";
+    layoutFlash_ = row; layoutFlashUntil_ = ImGui::GetTime() + .6;
+    const auto refuse = [&](const char* why, std::string notice) {
+        LayoutLog(view, submit, fmt::format("layout for id {}: {} = {} refused ({})", pad.id, row, LayoutGlyphs[button], why));
+        notice_ = std::move(notice); noticeTone_ = Tone::Error; noticeUntil_ = ImGui::GetTime() + 4; layoutFlash_.clear();
+    };
+    // The button would record or play and do its attack at once.
+    if (pad.table[button]) {
+        const auto name = FightName(pad.table[button]);
+        refuse("it does an attack", loc::Tf("button_layout.training_busy", pad.buttonNames[button], name.empty() ? std::string(loc::T("button_layout.nothing")) : name));
+        return;
+    }
+    // Record and play never share a button, as confirm and back never do.
+    if (static_cast<int>(button) == (play ? pad.training.record : pad.training.play)) {
+        refuse("the other Training button", loc::Tf("button_layout.menu_taken", pad.buttonNames[button], loc::T(play ? "button_layout.training_record" : "button_layout.training_play")));
+        return;
+    }
+    auto training = pad.training;
+    (play ? training.play : training.record) = static_cast<int>(button);
+    if (training != pad.training && ChangeLayout(pad, pad.table, view, submit,
+        fmt::format("layout for id {}: {} = {}", pad.id, row, LayoutGlyphs[button]), {}, {}, training)) {
+        notice_ = loc::Tf("button_layout.assigned", loc::T(play ? "button_layout.training_play" : "button_layout.training_record"), pad.buttonNames[button]);
+        noticeTone_ = Tone::Success; noticeUntil_ = ImGui::GetTime() + 4;
     }
 }
 void ApplicationShell::ChangeExtraCopy(const PadView& pad, unsigned extra, const std::string& choice, const ShellView& view, const Submit& submit) {
@@ -156,6 +183,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     pad.layout = stored.index ? std::make_optional(preferences_.buttonLayouts[*stored.index].buttons) : std::nullopt;
     pad.menu = stored.index ? preferences_.buttonLayouts[*stored.index].menu : MenuBinding{};
     pad.extras = stored.index ? preferences_.buttonLayouts[*stored.index].extras : NoExtraCopies;
+    pad.training = stored.index ? preferences_.buttonLayouts[*stored.index].training : TrainingBinding{};
     if (pad.layout) pad.table = *pad.layout;
     pad.buttonNames = LayoutButtonNames(pad, preferences_.buttonPrompts);
     if (absent) pad.held.clear();
@@ -177,7 +205,9 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     menu_.listCard = {};
     if (capturing) {
         const auto left = layoutCapture_.Left(ImGui::GetTime());
-        const auto card = menuCapture ? MenuCaptureCard(pad, *layoutCaptureFunction_ == MenuBackCapture, left) : LayoutCaptureCard(pad, captureMask, left);
+        const bool trainingCapture = layoutCaptureFunction_ && *layoutCaptureFunction_ >= TrainingRecordCapture;
+        const auto card = trainingCapture ? TrainingCaptureCard(pad, *layoutCaptureFunction_ == TrainingPlayCapture, left) :
+            menuCapture ? MenuCaptureCard(pad, *layoutCaptureFunction_ == MenuBackCapture, left) : LayoutCaptureCard(pad, captureMask, left);
         menu_.listCard = {[card](float width) { return CaptureCardHeight(card, width); }, [card] { DrawCaptureCard(card); }};
     }
     menu_.listEnabled = !capturing; menu_.ownsBack = true; menu_.customDetail = capturing;
@@ -206,7 +236,8 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
             const auto button = *press.button;
             LayoutLog(view, submit, fmt::format("layout capture for id {} {} took {}", pad.id, captureName, LayoutGlyphs[button]));
             layoutNeutral_ = true; nav.NeutralGate();
-            if (menuCapture) ChangeMenuButton(pad, *layoutCaptureFunction_ == MenuBackCapture, button, view, submit);
+            if (layoutCaptureFunction_ && *layoutCaptureFunction_ >= TrainingRecordCapture) ChangeTrainingButton(pad, *layoutCaptureFunction_ == TrainingPlayCapture, button, view, submit);
+            else if (menuCapture) ChangeMenuButton(pad, *layoutCaptureFunction_ == MenuBackCapture, button, view, submit);
             else if (!captureMask) { layoutButton_ = button; nav.Push("button-layout-button"); nav.Focus("bit-lp", ButtonEditorRows(pad, button, true)); }
             else {
                 layoutFlash_ = captureRow; layoutFlashUntil_ = ImGui::GetTime() + .6;
@@ -240,11 +271,13 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
             } else nav.Return();
         }
     } else if (action.kind == MenuAction::Activate && action.id == "setup") BeginPadSetup(pad, view, submit);
-    else if (editable && action.kind == MenuAction::Activate && (action.id.compare(0, 3, "fn-") == 0 || action.id.compare(0, 5, "menu-") == 0 || action.id == "edit-button")) {
+    else if (editable && action.kind == MenuAction::Activate && (action.id.compare(0, 3, "fn-") == 0 || action.id.compare(0, 5, "menu-") == 0 || action.id == "training-record" || action.id == "training-play" || action.id == "edit-button")) {
         layoutCaptureFunction_.reset();
         for (unsigned i = 0; i < LayoutFunctions.size(); ++i) if (action.id == std::string("fn-") + LayoutFunctions[i].id) layoutCaptureFunction_ = i;
         if (action.id == "menu-confirm") layoutCaptureFunction_ = MenuConfirmCapture;
         if (action.id == "menu-back") layoutCaptureFunction_ = MenuBackCapture;
+        if (action.id == "training-record") layoutCaptureFunction_ = TrainingRecordCapture;
+        if (action.id == "training-play") layoutCaptureFunction_ = TrainingPlayCapture;
         layoutCapture_.Begin(ImGui::GetTime(), pad.held);
     } else if (editable && action.kind == MenuAction::Chosen && action.id == "preset") {
         for (const auto& preset : LayoutPresets) if (action.text == preset.id && ChangeLayout(pad, preset.buttons, view, submit,
@@ -253,6 +286,10 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
         }
     } else if (editable && action.kind == MenuAction::Chosen && ExtraOfRow(action.id)) {
         ChangeExtraCopy(pad, *ExtraOfRow(action.id), action.text, view, submit);
+    } else if (editable && action.kind == MenuAction::Activate && action.id == "training-clear") {
+        if (ChangeLayout(pad, pad.table, view, submit, fmt::format("layout for id {}: Training buttons cleared", pad.id), {}, {}, TrainingBinding{})) {
+            nav.Focus("training-record", rows); notice_ = loc::T("button_layout.training_cleared"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;
+        }
     } else if (editable && action.kind == MenuAction::Activate && action.id == "remove") {
         if (ChangeLayout(pad, {}, view, submit, fmt::format("layout for id {} removed", pad.id))) {
             nav.Focus("preset", rows); notice_ = loc::T("button_layout.removed"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;

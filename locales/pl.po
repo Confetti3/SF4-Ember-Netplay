@@ -5677,6 +5677,33 @@ msgstr "{0} działa teraz jak {1}."
 msgid "button_layout.extra_off"
 msgstr "{0} nic teraz nie robi."
 
+msgid "button_layout.training_record"
+msgstr "Nagrywanie w treningu"
+
+msgid "button_layout.training_play"
+msgstr "Odtwarzanie w treningu"
+
+msgid "button_layout.training_record_detail"
+msgstr "Wybierz, a potem naciśnij przycisk, który w treningu rozpoczyna i kończy nagrywanie, jak F7. Wybierz przycisk, który nic nie robi w walce, na przykład kliknięcie drążka."
+
+msgid "button_layout.training_play_detail"
+msgstr "Wybierz, a potem naciśnij przycisk, który w treningu odtwarza i zatrzymuje wybrany slot, jak F8. Wybierz przycisk, który nic nie robi w walce, na przykład kliknięcie drążka."
+
+msgid "button_layout.training_clear"
+msgstr "Wyczyść przyciski treningu"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Wyłącza przyciski nagrywania i odtwarzania w treningu."
+
+msgid "button_layout.training_cleared"
+msgstr "Przyciski treningu są wyłączone."
+
+msgid "button_layout.training_busy"
+msgstr "{0} już robi w walce: {1}. Wybierz przycisk, który nic nie robi."
+
+msgid "button_layout.training_busy_value"
+msgstr "{0} (wykonuje atak, więc nie jest używany)"
+
 msgid "room.delay_policy"
 msgstr "Opóźnienie wejścia w pokoju"
 

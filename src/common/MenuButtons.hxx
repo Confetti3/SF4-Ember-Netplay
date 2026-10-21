@@ -15,6 +15,9 @@ struct MenuButtons {
     const char* confirmGlyph = "A";
     const char* backGlyph = "B";
 };
+// The physical buttons that start a Training recording and play a slot for one
+// device (the player's choices, gamepads::TrainingBinding); 0 for none.
+struct TrainingButtons { std::uint32_t record = 0, play = 0; };
 // The glyph id of one physical XInput button, or null.
 inline const char* XInputButtonName(std::uint32_t mask) {
     switch (mask) {

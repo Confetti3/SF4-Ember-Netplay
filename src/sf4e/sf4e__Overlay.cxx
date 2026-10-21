@@ -640,29 +640,41 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         // The pad drives the controls while they are open, through the same
         // adapter as the shell's menus; the prompts follow the device last used.
         if (!s_trainingControls.Open()) sf4e::ui::NoteMenuDevice(snapshot.menuController.buttons);
+        // The hints name the gameplay pad's Record and Play buttons only while they work (the runtime's masks).
+        sf4e::ui::TrainingPadButtonNames padButtons;
+        for (const auto& pad : snapshot.pads) {
+            if (!pad.gameplay) continue;
+            if (snapshot.trainingButtons.record && pad.training.record >= 0) padButtons.record = pad.buttonNames[pad.training.record];
+            if (snapshot.trainingButtons.play && pad.training.play >= 0) padButtons.play = pad.buttonNames[pad.training.play];
+        }
+        sf4e::ui::SetTrainingPadButtons(std::move(padButtons));
         for (const auto& pad : padEvents) {
             // Each is applied only under the owner it was pressed under, which
             // may have changed since the batch was taken.
             if (pad.generation != training.generation || !s_trainingControls.Current(pad)) continue;
-            sf4e::ui::TrainingPadPosition(training, sf4e::training::Submit, pad);
+            using Kind = sf4e::input::TrainingPadEvent::Kind;
+            // The player's own Record and Play buttons do what F7 and F8 do, under the focus period they went down in.
+            if (pad.kind == Kind::Record || pad.kind == Kind::Play) {
+                if (called || s_trainingControls.Open()) continue;
+                if (pad.kind == Kind::Record) sf4e::ui::TrainingRecordPress(training, sf4e::training::Submit, s_trainingControls, {pad.epoch, true});
+                else sf4e::ui::TrainingPlayPress(training, sf4e::training::Submit);
+            }
+            else sf4e::ui::TrainingPadPosition(training, sf4e::training::Submit, pad);
         }
         if (ImGui::IsKeyPressed(ImGuiKey_F6, false) && !called) s_trainingControls.Toggle(focus);
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) trainingHud = !trainingHud;
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, training.generation});
-        };
-        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
+        };        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
         // Not under the call either: F7 could otherwise open the recordings there.
         if (!s_trainingControls.Open() && !called && !ImGui::GetIO().WantTextInput) {
             // F7: standby, then record, then stop. From rest on a recorded
             // slot it first asks about overwriting it, and its Record sends
             // the same press.
-            if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingRecordKey), false)) {
-                if (!sf4e::training::PadPlaysDummy(training.mode) && training.lengths[training.selected] > 0) {
-                    sf4e::ui::OpenTrainingRecordings(s_trainingControls, focus);
-                } else practice(sf4e::training::Action::AdvanceRecording);
-            }
-            if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingPlayKey), false)) practice(training.mode == sf4e::training::Mode::Playback ? sf4e::training::Action::Stop : sf4e::training::Action::Play);
+            if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingRecordKey), false))
+                sf4e::ui::TrainingRecordPress(training, sf4e::training::Submit, s_trainingControls, focus);
+            if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingPlayKey), false))
+                sf4e::ui::TrainingPlayPress(training, sf4e::training::Submit);
             // Escape leaves standby, keeps a recording, and stops a playback.
             if (training.mode != sf4e::training::Mode::Idle && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) practice(sf4e::training::Action::Interrupt);
         }

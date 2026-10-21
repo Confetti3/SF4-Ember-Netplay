@@ -541,7 +541,7 @@ private:
     std::optional<gamepads::PadView> layoutPad_;
     bool layoutChanged_ = false, layoutAbsent_ = false;
     unsigned layoutButton_ = 0;
-    // An index into LayoutFunctions, MenuConfirmCapture or MenuBackCapture; none for a pick.
+    // An index into LayoutFunctions, or MenuConfirmCapture to TrainingPlayCapture; none for a pick.
     std::optional<unsigned> layoutCaptureFunction_;
     gamepads::LayoutCapture layoutCapture_;
     bool layoutNeutral_ = false;
@@ -555,10 +555,12 @@ private:
     bool DrawButtonLayout(const ShellView& view, const Submit& submit);
     bool ControllerActivate(const MenuAction& action, const ShellView& view, const Submit& submit);
     bool SavePreferences(const ShellView& view, const Submit& submit);
-    // menu and extras replace the pad's menu binding and extra button copies; none keeps them.
+    // menu, extras and training replace the pad's menu binding, extra button copies and Training buttons; none keeps them.
     bool ChangeLayout(const gamepads::PadView& pad, const std::optional<gamepads::ButtonLayout>& layout,
         const ShellView& view, const Submit& submit, const std::string& log, const std::optional<gamepads::MenuBinding>& menu = {},
-        const std::optional<gamepads::ExtraCopies>& extras = {});
+        const std::optional<gamepads::ExtraCopies>& extras = {}, const std::optional<gamepads::TrainingBinding>& training = {});
+    // Binds Training record (play false) or Training play to a layout button, refusing the other's button and one that does an attack.
+    void ChangeTrainingButton(const gamepads::PadView& pad, bool play, unsigned button, const ShellView& view, const Submit& submit);
     // Binds Menu confirm (back false) or Menu back to a layout button, refusing the other's button.
     void ChangeMenuButton(const gamepads::PadView& pad, bool back, unsigned button, const ShellView& view, const Submit& submit);
     // Sets an extra button to copy the layout button a choice names, or nothing for "off".

@@ -288,6 +288,9 @@ std::string TrainingKeyName(int fromF1) { return "F"+std::to_string(fromF1+1); }
 gamepads::PositionNames TrainingPadNames() {
     return gamepads::ButtonPositionNames(MenuPromptDevice()==input::PadDirectInput?input::PadDirectInput:input::PadXInput,MenuPromptBrand());
 }
+namespace { TrainingPadButtonNames padButtons; }
+void SetTrainingPadButtons(TrainingPadButtonNames names) { padButtons=std::move(names); }
+const TrainingPadButtonNames& TrainingPadButtons() { return padButtons; }
 std::string TrainingPadChord() { const auto names=TrainingPadNames(); return std::string(names.view)+" + "+names.start; }
 void DrawTrainingBoxes(const training::View& view) {
     LoadPractice();
@@ -375,6 +378,17 @@ bool OpenTrainingRecordings(input::TrainingControls& controls, const input::Trai
  if(!controls.Open(token)) return false;
  showRecordings=true;
  return true;
+}
+void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit,input::TrainingControls& controls,const input::TrainingControls::Token& token) {
+ // Standby, then record, then stop. From rest on a recorded slot it first
+ // asks about overwriting it, and the recordings' Record sends the same press.
+ if(!training::PadPlaysDummy(view.mode)&&view.lengths[view.selected]>0) { OpenTrainingRecordings(controls,token); return; }
+ Command advance; advance.action=Action::AdvanceRecording; advance.generation=view.generation;
+ if(submit) submit(advance);
+}
+void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit) {
+ Command command; command.action=view.mode==Mode::Playback?Action::Stop:Action::Play; command.generation=view.generation;
+ if(submit) submit(command);
 }
 void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit) {
     if(!view.available)return;

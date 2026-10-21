@@ -67,8 +67,15 @@ std::vector<Group> Groups(const training::View& view, bool shortcuts, const std:
     if (!notice.empty()) { groups.push_back({{{Piece::Notice, notice, Between * unit}}, true}); return groups; }
     // The pad's Back is its one way to reset or save, so it is shortened to stay.
     if (pad) hint(Piece::Button, back, loc::T("training.pad_hint"), true);
-    hint(Piece::Key, TrainingKeyName(TrainingRecordKey), loc::T(view.mode == training::Mode::Recording ? "training.stop" : "training.record"));
-    hint(Piece::Key, TrainingKeyName(TrainingPlayKey), loc::T(view.mode == training::Mode::Playback ? "training.stop" : "training.play"));
+    // A pad shows the buttons its player bound, where the keys show F7 and F8.
+    const auto& padButtons = TrainingPadButtons();
+    const bool padRecord = pad && !padButtons.record.empty(), padPlay = pad && !padButtons.play.empty();
+    const char* recordLabel = loc::T(view.mode == training::Mode::Recording ? "training.stop" : "training.record");
+    const char* playLabel = loc::T(view.mode == training::Mode::Playback ? "training.stop" : "training.play");
+    if (padRecord) hint(Piece::Button, padButtons.record, recordLabel);
+    if (padPlay) hint(Piece::Button, padButtons.play, playLabel);
+    if (!padRecord) hint(Piece::Key, TrainingKeyName(TrainingRecordKey), recordLabel);
+    if (!padPlay) hint(Piece::Key, TrainingKeyName(TrainingPlayKey), playLabel);
     if (!pad) {
         for (const auto& key : TrainingPositionKeys()) hint(Piece::Key, key.key, loc::T(key.label));
         hint(Piece::Key, "F5", loc::T("training.hide_hint"));

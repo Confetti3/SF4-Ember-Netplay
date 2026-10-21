@@ -35,9 +35,27 @@ inline bool ValidMenuBinding(const MenuBinding& menu) {
     const auto inRange = [](int index) { return index >= -1 && index < static_cast<int>(LayoutGlyphs.size()); };
     return inRange(menu.confirm) && inRange(menu.back) && (menu.confirm < 0 || menu.confirm != menu.back);
 }
+// The buttons the player chose to start and stop a Training recording and to
+// play and stop a slot, as indexes into LayoutGlyphs; -1 for none. Each is read
+// on its own, with no Back held, so a button that does nothing in the fight (a
+// stick click) is the one to pick.
+struct TrainingBinding {
+    int record = -1, play = -1;
+    bool operator==(const TrainingBinding& other) const { return record == other.record && play == other.play; }
+    bool operator!=(const TrainingBinding& other) const { return !(*this == other); }
+};
+inline bool ValidTrainingBinding(const TrainingBinding& training) {
+    const auto inRange = [](int index) { return index >= -1 && index < static_cast<int>(LayoutGlyphs.size()); };
+    return inRange(training.record) && inRange(training.play) && (training.record < 0 || training.record != training.play);
+}
 // The physical mask of a bound index, 0 for none or a button the pad lacks.
 inline std::uint32_t MenuBindingMask(int index, const ListedButtons& has = AllLayoutButtons) {
     return index >= 0 && index < static_cast<int>(LayoutBits.size()) && has[index] ? std::uint32_t(1) << LayoutBits[index] : 0;
+}
+// The physical mask of a Training button: none for no binding, a button the
+// pad lacks, or one the layout gives an attack, which would fight and record at once.
+inline std::uint32_t TrainingBindingMask(int index, const ListedButtons& has, const ButtonLayout& table) {
+    return index >= 0 && index < static_cast<int>(table.size()) && !table[index] ? MenuBindingMask(index, has) : 0;
 }
 struct StoredLayout {
     Identity identity;
@@ -45,8 +63,10 @@ struct StoredLayout {
     std::int64_t edited = 0;
     MenuBinding menu;
     ExtraCopies extras = NoExtraCopies;
+    TrainingBinding training;
     bool operator==(const StoredLayout& other) const {
-        return identity == other.identity && buttons == other.buttons && edited == other.edited && menu == other.menu && extras == other.extras;
+        return identity == other.identity && buttons == other.buttons && edited == other.edited && menu == other.menu && extras == other.extras &&
+            training == other.training;
     }
 };
 } }

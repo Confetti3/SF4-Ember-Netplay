@@ -5677,6 +5677,33 @@ msgstr "{0} wirkt jetzt wie {1}."
 msgid "button_layout.extra_off"
 msgstr "{0} hat jetzt keine Funktion."
 
+msgid "button_layout.training_record"
+msgstr "Training: Aufnahme"
+
+msgid "button_layout.training_play"
+msgstr "Training: Wiedergabe"
+
+msgid "button_layout.training_record_detail"
+msgstr "Auswählen, dann die Taste drücken, die im Training eine Aufnahme startet und beendet, wie F7. Wähle eine Taste, die im Kampf nichts tut, etwa einen Stickklick."
+
+msgid "button_layout.training_play_detail"
+msgstr "Auswählen, dann die Taste drücken, die im Training den gewählten Slot abspielt und stoppt, wie F8. Wähle eine Taste, die im Kampf nichts tut, etwa einen Stickklick."
+
+msgid "button_layout.training_clear"
+msgstr "Trainingstasten löschen"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Schaltet die Tasten für Aufnahme und Wiedergabe im Training aus."
+
+msgid "button_layout.training_cleared"
+msgstr "Die Trainingstasten sind aus."
+
+msgid "button_layout.training_busy"
+msgstr "{0} löst im Kampf bereits {1} aus. Wähle eine Taste ohne Funktion."
+
+msgid "button_layout.training_busy_value"
+msgstr "{0} (löst einen Angriff aus, wird nicht genutzt)"
+
 msgid "room.delay_policy"
 msgstr "Eingabeverzögerung im Raum"
 

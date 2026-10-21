@@ -5197,6 +5197,33 @@ msgstr "{0} ahora funciona como {1}."
 msgid "button_layout.extra_off"
 msgstr "{0} ya no hace nada."
 
+msgid "button_layout.training_record"
+msgstr "Grabar en Práctica"
+
+msgid "button_layout.training_play"
+msgstr "Reproducir en Práctica"
+
+msgid "button_layout.training_record_detail"
+msgstr "Selecciona y presiona el botón que inicia y detiene una grabación en Práctica, como F7. Elige un botón que no haga nada en el combate, como presionar un stick."
+
+msgid "button_layout.training_play_detail"
+msgstr "Selecciona y presiona el botón que reproduce y detiene la ranura elegida en Práctica, como F8. Elige un botón que no haga nada en el combate, como presionar un stick."
+
+msgid "button_layout.training_clear"
+msgstr "Borrar botones de Práctica"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Desactiva los botones de grabar y reproducir de Práctica."
+
+msgid "button_layout.training_cleared"
+msgstr "Los botones de Práctica están desactivados."
+
+msgid "button_layout.training_busy"
+msgstr "{0} ya hace {1} en el combate. Elige un botón que no haga nada."
+
+msgid "button_layout.training_busy_value"
+msgstr "{0} (hace un ataque, no se usa)"
+
 msgid "room.delay_policy"
 msgstr "Retardo de entrada de la sala"
 

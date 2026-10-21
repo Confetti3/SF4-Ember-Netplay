@@ -125,7 +125,7 @@ void CaptureMenuInput() {
     for (auto& pad : runtime->pads) {
         if (pad.state == gamepads::RowState::Absent) {
             const auto match = std::find_if(runtime->preferences.buttonLayouts.begin(), runtime->preferences.buttonLayouts.end(), [&](const gamepads::StoredLayout& layout) { return gamepads::Same(layout.identity, pad.identity); });
-            if (match != runtime->preferences.buttonLayouts.end()) { pad.layout = match->buttons; pad.table = match->buttons; pad.menu = match->menu; pad.extras = match->extras; }
+            if (match != runtime->preferences.buttonLayouts.end()) { pad.layout = match->buttons; pad.table = match->buttons; pad.menu = match->menu; pad.extras = match->extras; pad.training = match->training; }
         }
         pad.buttonNames = ui::LayoutButtonNames(pad, runtime->preferences.buttonPrompts);
         if (pad.name.empty() && pad.state == gamepads::RowState::Steam) pad.name = loc::T("controllers.steam_name");
@@ -172,6 +172,16 @@ input::MenuButtons MenuButtonsFor(int deviceType, int deviceIndex) {
         gamepads::MenuBindingMask(pad->menu.back, pad->has));
 }
 
+input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex) {
+    const auto pad = std::find_if(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) {
+        return deviceType == input::PadXInput && pad.slot == deviceIndex &&
+            (pad.state == gamepads::RowState::Recognised || pad.state == gamepads::RowState::Steam);
+    });
+    if (pad == runtime->pads.end()) return {};
+    return {gamepads::TrainingBindingMask(pad->training.record, pad->has, pad->table),
+        gamepads::TrainingBindingMask(pad->training.play, pad->has, pad->table)};
+}
+
 bool CanEditButtonLayoutNow() {
     const auto view = GetRuntimeSnapshotShared();
     return AtMainMenu() && !netplay::Fighting(runtime->controller.GetSnapshot().match) &&
@@ -216,9 +226,9 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
         if (!CanEditButtonLayoutNow() || runtime->padLayer != gamepads::Layer::Active ||
             (pad.state != gamepads::RowState::Recognised && pad.state != gamepads::RowState::Steam)) return;
         if (request.kind == Kind::Layout) {
-            if (!gamepads::ValidLayout(request.buttons) || !gamepads::ValidMenuBinding(request.menu) || !gamepads::ValidExtraCopies(request.extras)) return;
+            if (!gamepads::ValidLayout(request.buttons) || !gamepads::ValidMenuBinding(request.menu) || !gamepads::ValidExtraCopies(request.extras) || !gamepads::ValidTrainingBinding(request.training)) return;
             const auto dropped = gamepads::UpsertLayout(runtime->preferences.buttonLayouts,
-                {pad.identity, request.buttons, static_cast<std::int64_t>(std::time(nullptr)), request.menu, request.extras});
+                {pad.identity, request.buttons, static_cast<std::int64_t>(std::time(nullptr)), request.menu, request.extras, request.training});
             if (dropped) spdlog::info("Input: layout for id {} dropped, oldest of 33", gamepads::IdentityHash(*dropped));
         } else gamepads::RemoveLayout(runtime->preferences.buttonLayouts, pad.identity);
         Gamepads::SetLayouts(runtime->preferences.buttonLayouts);

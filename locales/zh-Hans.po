@@ -5678,6 +5678,33 @@ msgstr "{0} 现在等同于 {1}。"
 msgid "button_layout.extra_off"
 msgstr "{0} 现在不起作用。"
 
+msgid "button_layout.training_record"
+msgstr "训练录制"
+
+msgid "button_layout.training_play"
+msgstr "训练播放"
+
+msgid "button_layout.training_record_detail"
+msgstr "选择后，按下在训练中开始和停止录制的按钮，作用与 F7 相同。请选择对战中不起作用的按钮，例如摇杆按下。"
+
+msgid "button_layout.training_play_detail"
+msgstr "选择后，按下在训练中播放和停止所选槽位的按钮，作用与 F8 相同。请选择对战中不起作用的按钮，例如摇杆按下。"
+
+msgid "button_layout.training_clear"
+msgstr "清除训练按钮"
+
+msgid "button_layout.training_clear_detail"
+msgstr "关闭训练录制按钮和播放按钮。"
+
+msgid "button_layout.training_cleared"
+msgstr "训练按钮已关闭。"
+
+msgid "button_layout.training_busy"
+msgstr "{0} 在对战中已经是{1}。请选择不起作用的按钮。"
+
+msgid "button_layout.training_busy_value"
+msgstr "{0}（用于攻击，因此不生效）"
+
 msgid "room.delay_policy"
 msgstr "房间输入延迟"
 

@@ -5313,6 +5313,33 @@ msgstr "{0} works as {1} now."
 msgid "button_layout.extra_off"
 msgstr "{0} does nothing now."
 
+msgid "button_layout.training_record"
+msgstr "Training record"
+
+msgid "button_layout.training_play"
+msgstr "Training play"
+
+msgid "button_layout.training_record_detail"
+msgstr "Select, then press the button that starts and stops a recording in Training, as F7 does. Choose a button that does nothing in the fight, such as a stick click."
+
+msgid "button_layout.training_play_detail"
+msgstr "Select, then press the button that plays and stops the selected slot in Training, as F8 does. Choose a button that does nothing in the fight, such as a stick click."
+
+msgid "button_layout.training_clear"
+msgstr "Clear Training buttons"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Turns the Training record and play buttons off."
+
+msgid "button_layout.training_cleared"
+msgstr "Training buttons are off."
+
+msgid "button_layout.training_busy"
+msgstr "{0} already does {1} in the fight. Choose a button that does nothing."
+
+msgid "button_layout.training_busy_value"
+msgstr "{0} (does an attack, so not used)"
+
 msgid "room.delay_policy"
 msgstr "Room input delay"
 

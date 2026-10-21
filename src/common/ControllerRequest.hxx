@@ -10,6 +10,7 @@ struct ControllerRequest {
     ButtonLayout buttons = DefaultLayout;
     MenuBinding menu;
     ExtraCopies extras = NoExtraCopies;
+    TrainingBinding training;
     std::string log;
     std::vector<StoredLayout> layouts;
 };

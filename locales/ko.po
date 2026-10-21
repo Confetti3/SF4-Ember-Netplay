@@ -5678,6 +5678,33 @@ msgstr "{0}이(가) 이제 {1}처럼 동작합니다."
 msgid "button_layout.extra_off"
 msgstr "{0}에는 이제 아무 기능도 없습니다."
 
+msgid "button_layout.training_record"
+msgstr "트레이닝 녹화"
+
+msgid "button_layout.training_play"
+msgstr "트레이닝 재생"
+
+msgid "button_layout.training_record_detail"
+msgstr "선택한 다음 트레이닝에서 녹화를 시작하고 멈출 버튼을 누르세요. F7과 같은 역할입니다. 대전 중 아무 기능이 없는 버튼(스틱 누르기 등)을 고르세요."
+
+msgid "button_layout.training_play_detail"
+msgstr "선택한 다음 트레이닝에서 고른 슬롯을 재생하고 멈출 버튼을 누르세요. F8과 같은 역할입니다. 대전 중 아무 기능이 없는 버튼(스틱 누르기 등)을 고르세요."
+
+msgid "button_layout.training_clear"
+msgstr "트레이닝 버튼 지우기"
+
+msgid "button_layout.training_clear_detail"
+msgstr "트레이닝 녹화 버튼과 재생 버튼을 끕니다."
+
+msgid "button_layout.training_cleared"
+msgstr "트레이닝 버튼이 꺼졌습니다."
+
+msgid "button_layout.training_busy"
+msgstr "{0}은(는) 대전 중 이미 {1}입니다. 아무 기능이 없는 버튼을 고르세요."
+
+msgid "button_layout.training_busy_value"
+msgstr "{0}(공격에 쓰이므로 사용 안 됨)"
+
 msgid "room.delay_policy"
 msgstr "방 입력 지연"
 

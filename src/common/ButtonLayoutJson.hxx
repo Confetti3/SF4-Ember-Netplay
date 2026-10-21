@@ -7,7 +7,8 @@ inline nlohmann::json LayoutsToJson(const std::vector<StoredLayout>& layouts) {
     auto result = nlohmann::json::array();
     for (const auto& layout : layouts) result.push_back({{"guid", layout.identity.guid}, {"serial", layout.identity.serial},
         {"path", layout.identity.path}, {"name", layout.identity.name}, {"buttons", layout.buttons}, {"edited", layout.edited},
-        {"menuConfirm", layout.menu.confirm}, {"menuBack", layout.menu.back}, {"extraButtons", layout.extras}});
+        {"menuConfirm", layout.menu.confirm}, {"menuBack", layout.menu.back}, {"extraButtons", layout.extras},
+        {"trainingRecord", layout.training.record}, {"trainingPlay", layout.training.play}});
     return result;
 }
 struct LayoutLoadError {
@@ -52,6 +53,10 @@ template<class Rejected> std::vector<StoredLayout> ReadLayouts(const nlohmann::j
             std::all_of(extras->begin(), extras->end(), [](const nlohmann::json& copy) {
                 return copy.is_number_integer() && copy.get<std::int64_t>() >= -1 && copy.get<std::int64_t>() < static_cast<std::int64_t>(LayoutGlyphs.size());
             })) layout.extras = extras->get<ExtraCopies>();
+        // Missing or unusable Training buttons leave both off; the layout still loads.
+        const auto record = index("trainingRecord"), play = index("trainingPlay");
+        if (record >= -1 && record < 10 && play >= -1 && play < 10) layout.training = {static_cast<int>(record), static_cast<int>(play)};
+        if (!ValidTrainingBinding(layout.training)) layout.training = {};
         UpsertLayout(layouts, std::move(layout));
     }
     return layouts;

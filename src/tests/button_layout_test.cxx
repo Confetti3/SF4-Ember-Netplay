@@ -115,6 +115,40 @@ static void ExtraButtons() {
     state = {}; state.extras[static_cast<unsigned>(Extra::Home)] = true; copies = NoExtraCopies; copies[static_cast<unsigned>(Extra::Home)] = 6;
     CHECK(MapToXInput(WithExtraCopies(state, copies)).leftTrigger == 255);
 }
+static void TrainingButtons() {
+    // A layout saved before Training buttons existed loads with both off.
+    unsigned rejected = 0;
+    const auto read = [&](const nlohmann::json& json) { return ReadLayouts(json, [&](unsigned, LayoutLoadError) { ++rejected; }); };
+    StoredLayout layout{Pad(1), DefaultLayout, 5};
+    auto json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
+    json["buttonLayouts"][0].erase("trainingRecord"); json["buttonLayouts"][0].erase("trainingPlay");
+    CHECK(read(json).at(0).training == TrainingBinding{} && rejected == 0);
+    layout.training = {9, 8};
+    json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
+    CHECK(read(json) == std::vector<StoredLayout>{layout});
+    // An index out of range, or one button for both, turns both off; a value that is no integer is that button off. The layout still loads.
+    json["buttonLayouts"][0]["trainingRecord"] = 10;
+    CHECK(read(json).at(0).training == TrainingBinding{});
+    json["buttonLayouts"][0]["trainingRecord"] = 1.5;
+    CHECK(read(json).at(0).training == (TrainingBinding{-1, 8}));
+    json["buttonLayouts"][0]["trainingRecord"] = 8;
+    CHECK(read(json).at(0).training == TrainingBinding{});
+    json["buttonLayouts"][0]["trainingRecord"] = "RS";
+    CHECK(read(json).at(0).training == (TrainingBinding{-1, 8}) && rejected == 0);
+    sf4e::netplay::PlayerPreferences prefs; prefs.buttonLayouts = {layout}; CHECK(prefs.Valid());
+    prefs.buttonLayouts[0].training = {8, 8}; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].training = {10, -1}; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].training = {-1, -2}; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].training = {-1, -1}; CHECK(prefs.Valid());
+    // The physical mask: the stick clicks are bits 24 and 25; a button the pad lacks, or one the layout gives an attack, is none.
+    CHECK(TrainingBindingMask(8, AllLayoutButtons, DefaultLayout) == 0x1000000u && TrainingBindingMask(9, AllLayoutButtons, DefaultLayout) == 0x2000000u);
+    CHECK(TrainingBindingMask(-1, AllLayoutButtons, DefaultLayout) == 0 && TrainingBindingMask(10, AllLayoutButtons, DefaultLayout) == 0);
+    auto listed = AllLayoutButtons; listed[8] = false;
+    CHECK(TrainingBindingMask(8, listed, DefaultLayout) == 0);
+    CHECK(TrainingBindingMask(2, AllLayoutButtons, DefaultLayout) == 0);
+    auto table = DefaultLayout; table[8] = 0x10;
+    CHECK(TrainingBindingMask(8, AllLayoutButtons, table) == 0 && TrainingBindingMask(9, AllLayoutButtons, table) == 0x2000000u);
+}
 static void Writer() {
     alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 6> memory;
     memory.fill(0x5A); const auto untouched = memory;
@@ -237,4 +271,4 @@ static void Capture() {
     capture.Begin(0, {}); CHECK(capture.Left(0) == 1 && capture.Left(2.5) == .75 && capture.Left(12) == 0);
     CHECK(capture.Read(10, {}, AllLayoutButtons).cancelled == LayoutCancel::Timeout && capture.Left(10) == 0);
 }
-int main() { Model(); Persistence(); ExtraButtons(); Writer(); Reload(); ReloadEqual(); Capture(); }
+int main() { Model(); Persistence(); ExtraButtons(); TrainingButtons(); Writer(); Reload(); ReloadEqual(); Capture(); }

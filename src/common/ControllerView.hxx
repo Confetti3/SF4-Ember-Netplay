@@ -76,6 +76,8 @@ struct PadView {
     // The extra buttons the pad reports and what each copies.
     ListedExtras hasExtras{};
     ExtraCopies extras = NoExtraCopies;
+    // The stored buttons that start a Training recording and play a slot.
+    TrainingBinding training;
 };
 struct PadFrame {
     Pad pad;
@@ -91,6 +93,7 @@ struct PadFrame {
     MenuBinding menu;
     ListedExtras hasExtras{};
     ExtraCopies extras = NoExtraCopies;
+    TrainingBinding training;
 };
 struct NativeController {
     int index;
