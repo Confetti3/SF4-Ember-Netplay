@@ -225,3 +225,136 @@ per-address limit the site adds reads that header from 10.10.10.1 only, as
 the bridge's `trusted_proxies` does. The site definition's URLs and
 `hosts` name that origin, and the connector's `desk.services` and `api_base`
 take it as the base.
+
+## 12. Live stats
+
+Status: design, not built.
+
+While a tournament is live the site shows, on its public page and in
+Discord: sets live and done, the bracket so far, upsets (a lower seed
+beating a higher one, by seed gap), win streaks across sets, the current
+placements (everyone out is placed at once, §4), and the characters played.
+
+- **What the site knows today** is each set's result from the connector's
+  report: winner, score and the winner of each game in order. That is
+  enough for sets, upsets, streaks, placements, games won and lost and the
+  longest set (most games).
+- **What it needs for the rest** is per-game facts the game already sees:
+  both fighters' characters (and costume colour), the round winners in
+  order, how each round ended (KO, time, double KO, perfect, Ultra or Super
+  finish), and each round's start and end frame in the replay. The game
+  adds these `facts` to the signed game report both players send; the
+  bridge keeps them with the game (agreeing facts only, as with results)
+  and serves them with the match. The connector passes them on in the
+  contract's report as an optional `facts` per game, with the Ember match
+  ID (`ember_match`), both optional fields under contract 1.
+- **Push**: the site keeps an event feed per tournament (set live, set
+  done, upset, streak, state change), served as `GET /tournaments/{id}/feed?after=`
+  for the page (polled every 10 s, or server-sent events later) and posted
+  to Discord by the notifier, which reads the same feed (§5). A Discord
+  post is one message per set done, edited for an upset or a perfect; no
+  more than one post a minute per channel, the rest folded into the next.
+
+## 13. After-report
+
+Status: design, not built.
+
+When the tournament is finished the site builds its report once and keeps
+it (`GET /tournaments/{id}/report`, JSON, and `/t/{id}/report`, a page made
+to share: Discord's link preview shows the podium):
+
+- Podium and every placement; each player's path through the bracket
+  (opponents, set scores, games), seeds against placement.
+- Per player: sets and games won and lost, characters played (games per
+  character), rounds won, perfects, comebacks (set won from a game down),
+  longest set, quickest set.
+- Event-wide: upsets (biggest seed gap first), longest set, most-played
+  characters, perfects, time-outs, the final's games.
+- Each set links its replays (§14) and its vote nominations (§16).
+- Facts a game did not report (an older build) show as unknown, never as
+  zero.
+
+The report is data first; the V2 page draws it. Until then the site's
+plain page lists it.
+
+## 14. Replays from the report
+
+Status: design, not built; nothing game-side is built here.
+
+The bridge keeps every game of a set and serves the set's pack
+(`/v1/matches/{id}/replays.pack`, TOURNAMENT_DESK.md §4b) to whoever may
+see the match. The report offers:
+
+- **The whole set**: the pack, through the bridge, by the set's Ember
+  match ID. A public tournament's matches become visible to anyone once
+  it is finished, so the link works without signing in.
+- **One game**: `.../replays/{crc}`, the game's `.emberreplay` as kept,
+  listed in the pack's header in play order.
+- **One round, or a clip**: a manifest, not a new file. The site serves
+  `GET /tournaments/{id}/clips/{clip}` as `{ match, crc, from_frame,
+  to_frame, title }`, with round frames from the game's facts (§12); a
+  clip is a frame range someone nominated (§16) or the organizer cut. An
+  `ember://replay?...` link with the same fields opens it in the game.
+- **The game** (or a small tool from the game's replay code) does the
+  cutting: it opens the game's replay, plays it from the nearest saved
+  state before `from_frame`, and stops at `to_frame`, or exports that
+  range as video with the existing export. The `.emberreplay` format is
+  not cut on the server: round boundaries need the game's own state.
+
+## 15. Ranks, titles, emblems and awards
+
+Status: design, not built.
+
+At `finished` the site hands out awards to each player's Discord identity
+and keeps them on their profile (`GET /players/{discord}`: Ember ID,
+Discord name, awards, league standings):
+
+- **By placement**: Champion, Runner-up, Top 3, Top 8 (with the event),
+  and an emblem per tier for the profile and the game's player card.
+- **By stats**: Giant killer (biggest upset), Perfectionist (most
+  perfects), Marathon (longest set), Iron (most games), One-trick or
+  Mixer (characters), each from the report's facts.
+- **By vote** (§16): best player, best combo, best moment.
+- **Leagues** accumulate them: a season's standings award its own ranks
+  (season champion, top 3) at the season's end, and titles carry the
+  season's name.
+
+An award is `{ kind, tournament, season, given_at, detail }`, kept on the
+site, never removed by a later event. The notifier announces them in the
+event's channel, and can give a Discord role per rank where the server
+allows it (the bot needs Manage Roles; optional per guild). The game shows
+a player's title by reading their profile through the bridge later.
+
+## 16. Public vote
+
+Status: design, not built.
+
+Each finished tournament can open a vote with three categories: best
+player, best combo, best moment. Voters sign in with Discord (the site's
+own sign-in, §3); one vote per Discord account per category, changeable
+until it closes.
+
+- **Nominations**: from the report: players for best player, games,
+  rounds or clips (§14) for combo and moment. The organizer nominates, and
+  while nominations are open anyone signed in may suggest one, which the
+  organizer accepts.
+- **Voting**: `POST /tournaments/{id}/votes/{category}` `{ nominee }` as the
+  signed-in voter; the site stores `(tournament, category, discord)` once.
+  From Discord, the notifier posts each category with a select menu, and a
+  pick is that Discord user's vote, as sign-ups are.
+- **Closing**: at the organizer's time (default 48 hours); results go into
+  the report and the winners' awards (§15). Counts are hidden until it
+  closes.
+- Only Discord accounts older than a week may vote, and the organizer can
+  void a vote; no other proof of a person is asked.
+
+## 17. Build order for §12 to §16
+
+1. Game and bridge: per-game facts in signed reports; the connector passes
+   them, with the Ember match ID.
+2. Site: event feed and live stats; notifier posts from the feed.
+3. Site: after-report, from what exists (works before facts, with unknowns).
+4. Site: awards and player profiles; notifier announces them.
+5. Bridge: public packs for finished public events; site: replay links and
+   clip manifests; game: open a clip by link.
+6. Site and notifier: the vote.
