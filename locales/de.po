@@ -6820,6 +6820,30 @@ msgstr "Wähle die Zahl, die das andere Gerät zeigt. Eine falsche Wahl lehnt de
 msgid "desk.device_refused"
 msgstr "Der Code ist falsch oder abgelaufen. Hol dir auf dem anderen Gerät einen neuen."
 
+msgid "desk.mode"
+msgstr "Turniermodus"
+
+msgid "desk.mode_on"
+msgstr "An"
+
+msgid "desk.mode_invite"
+msgstr "Einladung nötig"
+
+msgid "desk.mode_on_detail"
+msgstr "Richte eigene Events aus Ember aus: Verknüpfe deine Bracket-Seite, erlaube unten den Organisator-Zugang und öffne dann den Desk auf diesem PC oder einem anderen Gerät."
+
+msgid "desk.mode_invite_detail"
+msgstr "Der Turniermodus ist vorerst nur mit Einladung nutzbar. Gib die Einladung ein, die du bekommen hast; jede funktioniert nur einmal."
+
+msgid "desk.invite_code"
+msgstr "Einladungscode"
+
+msgid "desk.invite_done"
+msgstr "Der Turniermodus ist für deine Ember-ID an."
+
+msgid "desk.invite_invalid"
+msgstr "Diese Einladung ist ungültig. Prüfe sie oder frag nach einer neuen."
+
 msgid "desk.org_site"
 msgstr "{0}-Organisatorzugriff"
 

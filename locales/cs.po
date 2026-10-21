@@ -6820,6 +6820,30 @@ msgstr "Vyber číslo, které ukazuje druhé zařízení. Špatná volba kód od
 msgid "desk.device_refused"
 msgstr "Kód je špatný nebo vypršel. Získej nový na druhém zařízení."
 
+msgid "desk.mode"
+msgstr "Turnajový režim"
+
+msgid "desk.mode_on"
+msgstr "Zapnuto"
+
+msgid "desk.mode_invite"
+msgstr "Potřebuješ pozvánku"
+
+msgid "desk.mode_on_detail"
+msgstr "Pořádej vlastní akce z Emberu: propoj svůj web s pavouky, níže povol přístup pořadatele a pak otevři pult na tomto PC nebo jiném zařízení."
+
+msgid "desk.mode_invite_detail"
+msgstr "Turnajový režim je zatím jen na pozvánku. Zadej pozvánku, kterou jsi dostal; každá funguje jen jednou."
+
+msgid "desk.invite_code"
+msgstr "Kód pozvánky"
+
+msgid "desk.invite_done"
+msgstr "Turnajový režim je pro tvé Ember ID zapnutý."
+
+msgid "desk.invite_invalid"
+msgstr "Tato pozvánka neplatí. Zkontroluj ji, nebo si řekni o novou."
+
 msgid "desk.org_site"
 msgstr "Přístup pořadatele {0}"
 

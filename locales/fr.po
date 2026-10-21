@@ -6820,6 +6820,30 @@ msgstr "Choisissez le nombre affiché sur l'autre appareil. Un mauvais choix ref
 msgid "desk.device_refused"
 msgstr "Ce code est faux ou expiré. Obtiens-en un nouveau sur l'autre appareil."
 
+msgid "desk.mode"
+msgstr "Mode tournoi"
+
+msgid "desk.mode_on"
+msgstr "Activé"
+
+msgid "desk.mode_invite"
+msgstr "Invitation requise"
+
+msgid "desk.mode_on_detail"
+msgstr "Organisez vos propres événements depuis Ember : liez votre site de brackets, autorisez l'accès organisateur ci-dessous, puis ouvrez le bureau sur ce PC ou un autre appareil."
+
+msgid "desk.mode_invite_detail"
+msgstr "Le mode tournoi est sur invitation pour le moment. Saisissez l'invitation reçue ; chacune ne fonctionne qu'une fois."
+
+msgid "desk.invite_code"
+msgstr "Code d'invitation"
+
+msgid "desk.invite_done"
+msgstr "Le mode tournoi est activé pour votre Ember ID."
+
+msgid "desk.invite_invalid"
+msgstr "Cette invitation n'est pas valide. Vérifiez-la ou demandez-en une nouvelle."
+
 msgid "desk.org_site"
 msgstr "Accès organisateur {0}"
 

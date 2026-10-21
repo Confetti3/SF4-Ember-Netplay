@@ -49,6 +49,9 @@ struct DeskSet {
 };
 // Another device asking for the web desk with a code: what it is, when it
 // asked (unix seconds) and the numbers to pick from, one of them its own.
+// Whether the service takes organizers by invitation, and whether this
+// Ember ID redeemed one; a service without invitations takes everyone.
+struct DeskAccess { bool known = false, inviteOnly = false, allowed = true; };
 struct DeskDevice { std::string device; std::uint64_t requestedAt = 0; std::vector<int> choices; };
 // A web desk session of the player's: the site it signed in with, the
 // browser's short name, when it started and was last used, and whether the
@@ -103,5 +106,7 @@ struct IdentityView {
     std::vector<WebSession> webSessions;
     // The last code read for another device.
     DeskDevice deskDevice;
+    // Tournament Mode on this service: known once the desk was read.
+    DeskAccess deskAccess;
 };
 } }

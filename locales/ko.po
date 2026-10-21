@@ -6821,6 +6821,30 @@ msgstr "다른 기기에 표시된 숫자를 고르세요. 잘못 고르면 코�
 msgid "desk.device_refused"
 msgstr "코드가 틀렸거나 만료되었습니다. 다른 기기에서 새 코드를 받으세요."
 
+msgid "desk.mode"
+msgstr "대회 모드"
+
+msgid "desk.mode_on"
+msgstr "켜짐"
+
+msgid "desk.mode_invite"
+msgstr "초대 필요"
+
+msgid "desk.mode_on_detail"
+msgstr "Ember에서 직접 대회를 운영하세요. 대진표 사이트를 연결하고, 아래에서 운영자 권한을 허용한 뒤, 이 PC나 다른 기기에서 데스크를 여세요."
+
+msgid "desk.mode_invite_detail"
+msgstr "대회 모드는 당분간 초대제로 운영됩니다. 받은 초대 코드를 입력하세요. 각 초대는 한 번만 사용할 수 있습니다."
+
+msgid "desk.invite_code"
+msgstr "초대 코드"
+
+msgid "desk.invite_done"
+msgstr "내 Ember ID에 대회 모드가 켜졌습니다."
+
+msgid "desk.invite_invalid"
+msgstr "유효하지 않은 초대입니다. 확인하거나 새 초대를 요청하세요."
+
 msgid "desk.org_site"
 msgstr "{0} 주최자 권한"
 

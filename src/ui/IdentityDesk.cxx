@@ -133,6 +133,17 @@ void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std:
     }
     if (screen == "tournament-desk") {
         title = loc::T("screen.tournament_desk");
+        // Tournament Mode first: what it is, and on a service that takes
+        // organizers by invitation, the invite until it is redeemed.
+        if (id.deskAccess.known) {
+            const bool on = !id.deskAccess.inviteOnly || id.deskAccess.allowed;
+            rows.push_back(InfoRow("dk-mode", loc::T("desk.mode"), loc::T(on ? "desk.mode_on" : "desk.mode_invite"),
+                loc::T(on ? "desk.mode_on_detail" : "desk.mode_invite_detail")));
+            if (!on) {
+                rows.push_back(TextRow("dk-invite", loc::T("desk.invite_code"), {}, 11, !busy));
+                return;
+            }
+        }
         // Organizer access, per site of Ember's own service: allow it, or
         // drop it; a site not linked yet is linked on its own screen first.
         const auto* ember = EmberBridge(v);
@@ -302,6 +313,13 @@ bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNa
 }
 
 bool IdentityPanel::DeskAccept(const MenuAction& a, const ShellView& v) {
+    if (a.kind == MenuAction::TextAccepted && a.id == "dk-invite") {
+        const auto* ember = EmberBridge(v);
+        if (!ember || a.text.empty()) return true;
+        IdentityRequest redeem; redeem.op = IdentityOp::DeskRedeem; redeem.bridge = ember->id; redeem.command = a.text;
+        message_.clear(); Queue(std::move(redeem));
+        return true;
+    }
     if (a.kind == MenuAction::TextAccepted && a.id == "dk-device-code") {
         const auto* ember = EmberBridge(v);
         if (!ember || a.text.empty()) return true;

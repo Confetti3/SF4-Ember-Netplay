@@ -184,6 +184,11 @@ void Desk() {
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":1,"op":"desk_read","ok":true,"data":{"events":[
         {"id":"oev_1","title":"Weekly","status":"running","site":"challonge"}, 5]}})"), view);
     Check(view.deskEvents.size() == 1 && view.deskEvents[0].title == "Weekly" && view.deskEvents[0].status == "running", "The events were not read");
+    Check(!view.deskAccess.known && view.deskAccess.allowed, "A read without access said something about Tournament Mode");
+    // On a service that takes organizers by invitation: not yet invited.
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"desk_read","ok":true,"data":{"events":[],
+        "access":{"invite_only":true,"allowed":false}}})"), view);
+    Check(view.deskAccess.known && view.deskAccess.inviteOnly && !view.deskAccess.allowed, "Tournament Mode's invitation was not read");
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"desk_read","ok":true,"data":{"event":"oev_1","sets":[
         {"id":"7","round_label":"Losers Top 8","round":-3,"side":"losers","players":["Kuro",null],"score":[2,1],"desk_state":"needs_review",
          "match_id":"emt_1","revision":"4","held":true,"called_at":50,"posted":"failed",
@@ -219,6 +224,9 @@ void Desk() {
     sf4e::netplay::IdentityRequest approve; approve.op = IdentityOp::DeskApprove; approve.bridge = "brg_1"; approve.command = "ABCD EFGH";
     Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(approve)) == nlohmann::json({{"op", "desk_approve"}, {"bridge_id", "brg_1"}, {"code", "ABCD EFGH"}}),
         "Approving another device was not built");
+    sf4e::netplay::IdentityRequest invite; invite.op = IdentityOp::DeskRedeem; invite.bridge = "brg_1"; invite.command = "ABCDE-FGHJK";
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(invite)) == nlohmann::json({{"op", "desk_redeem"}, {"bridge_id", "brg_1"}, {"code", "ABCDE-FGHJK"}}),
+        "Redeeming an invite was not built");
     // The code is read first, for what asked and the numbers to pick from,
     // and approved with the number picked.
     sf4e::netplay::IdentityRequest info; info.op = IdentityOp::DeskCodeInfo; info.bridge = "brg_1"; info.command = "123 456";

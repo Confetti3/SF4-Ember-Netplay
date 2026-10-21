@@ -189,6 +189,12 @@ pub enum Request {
         bridge_id: String,
         code: String,
     },
+    /// Redeems an invite to Tournament Mode on a bridge that takes
+    /// organizers by invitation.
+    DeskRedeem {
+        bridge_id: String,
+        code: String,
+    },
     /// A desk action on one of an event's sets or matches, at `path`.
     DeskAct {
         bridge_id: String,
@@ -321,6 +327,7 @@ impl Request {
             Self::DeskHandoff { .. } => "desk_handoff",
             Self::DeskApprove { .. } => "desk_approve",
             Self::DeskCodeInfo { .. } => "desk_code_info",
+            Self::DeskRedeem { .. } => "desk_redeem",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
             Self::RoomList { .. } => "room_list",
@@ -848,6 +855,7 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::DeskCodeInfo { bridge_id, code } => {
             desk::code_info(shared, &bridge_id, &code).await
         }
+        Request::DeskRedeem { bridge_id, code } => desk::redeem(shared, &bridge_id, &code).await,
         Request::MatchClaim {
             bridge_id,
             match_id,

@@ -6821,6 +6821,30 @@ msgstr "もう一方の端末に表示された数字を選んでください。
 msgid "desk.device_refused"
 msgstr "コードが違うか期限切れです。もう一方の端末で新しいコードを取得してください。"
 
+msgid "desk.mode"
+msgstr "大会モード"
+
+msgid "desk.mode_on"
+msgstr "オン"
+
+msgid "desk.mode_invite"
+msgstr "招待が必要"
+
+msgid "desk.mode_on_detail"
+msgstr "Emberから自分の大会を運営できます。ブラケットサイトを連携し、下で運営者アクセスを許可してから、このPCまたは別の端末でデスクを開いてください。"
+
+msgid "desk.mode_invite_detail"
+msgstr "大会モードは当面招待制です。受け取った招待コードを入力してください。各コードは1回だけ使えます。"
+
+msgid "desk.invite_code"
+msgstr "招待コード"
+
+msgid "desk.invite_done"
+msgstr "あなたのEmber IDで大会モードがオンになりました。"
+
+msgid "desk.invite_invalid"
+msgstr "この招待は無効です。確認するか、新しい招待を依頼してください。"
+
 msgid "desk.org_site"
 msgstr "{0}の主催者アクセス"
 

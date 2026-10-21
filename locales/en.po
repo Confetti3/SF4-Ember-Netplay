@@ -6453,6 +6453,30 @@ msgstr "Pick the number the other device shows. A wrong pick turns the code down
 msgid "desk.device_refused"
 msgstr "That code is wrong or expired. Get a new one on the other device."
 
+msgid "desk.mode"
+msgstr "Tournament Mode"
+
+msgid "desk.mode_on"
+msgstr "On"
+
+msgid "desk.mode_invite"
+msgstr "Invite needed"
+
+msgid "desk.mode_on_detail"
+msgstr "Run your own events from Ember: link your bracket site, allow organizer access below, then open the desk on this PC or another device."
+
+msgid "desk.mode_invite_detail"
+msgstr "Tournament Mode is by invitation while it is new. Enter the invite you were given; each invite works once."
+
+msgid "desk.invite_code"
+msgstr "Invite code"
+
+msgid "desk.invite_done"
+msgstr "Tournament Mode is on for your Ember ID."
+
+msgid "desk.invite_invalid"
+msgstr "That invite is not valid. Check it, or ask for a new one."
+
 msgid "desk.org_site"
 msgstr "{0} organizer access"
 

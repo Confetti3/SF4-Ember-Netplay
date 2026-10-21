@@ -155,6 +155,9 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         for (const auto& choice : data.value("choices", nlohmann::json::array()))
             if (choice.is_number_integer() && view.deskDevice.choices.size() < 3) view.deskDevice.choices.push_back(choice.get<int>());
     } else if (view.op == "desk_read") {
+        // Whether Tournament Mode is the player's: by invitation, and redeemed.
+        if (const auto access = data.find("access"); access != data.end() && access->is_object())
+            view.deskAccess = {true, access->value("invite_only", false), access->value("allowed", true)};
         view.deskEvents.clear();
         for (const auto& event : data.value("events", nlohmann::json::array()))
             if (event.is_object() && view.deskEvents.size() < 32)
@@ -237,6 +240,9 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
         break;
     case IdentityOp::DeskCodeInfo:
         body["op"] = "desk_code_info"; complete = need({{"bridge_id", &r.bridge}, {"code", &r.command}});
+        break;
+    case IdentityOp::DeskRedeem:
+        body["op"] = "desk_redeem"; complete = need({{"bridge_id", &r.bridge}, {"code", &r.command}});
         break;
     case IdentityOp::DeskWeb: case IdentityOp::DeskWebSeen: case IdentityOp::DeskWebEnd:
         body["op"] = "desk_web"; complete = need({{"bridge_id", &r.bridge}});

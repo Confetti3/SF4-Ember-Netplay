@@ -386,7 +386,9 @@ pub(super) fn refusal(status: u16, body: &[u8], reasons: &[&str]) -> Failure {
     let error = serde_json::from_slice::<ApiError>(body).ok();
     let reason = error.as_ref().and_then(|error| {
         let reason = error.error.details.get("reason")?.as_str()?;
-        reasons.contains(&reason).then(|| reason.to_owned())
+        // Tournament Mode by invitation is the same answer wherever an
+        // organizer is turned away, so the game always words it.
+        (reasons.contains(&reason) || reason == "invite_required").then(|| reason.to_owned())
     });
     let code = || {
         error
@@ -701,6 +703,14 @@ pub async fn remove_link(shared: &Arc<Shared>, bridge_id: &str, link_id: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_organizer_not_invited_is_told_so_from_any_route() {
+        let body = br#"{"error":{"code":"forbidden","message":"x","retryable":false,"request_id":"r","details":{"reason":"invite_required"}}}"#;
+        assert_eq!(refusal(403, body, &[]).0, "invite_required");
+        let other = br#"{"error":{"code":"forbidden","message":"x","retryable":false,"request_id":"r","details":{"reason":"needs_game_proof"}}}"#;
+        assert_eq!(refusal(403, other, &[]).0, "forbidden");
+    }
 
     /// The capabilities hold to the strict JSON rules everywhere but inside
     /// `sign_in_sites`: a break of them anywhere else fails the read as it

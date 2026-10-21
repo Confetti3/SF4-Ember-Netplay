@@ -6820,6 +6820,30 @@ msgstr "Kies het getal dat het andere apparaat toont. Een verkeerde keuze weiger
 msgid "desk.device_refused"
 msgstr "Die code is fout of verlopen. Haal een nieuwe op het andere apparaat."
 
+msgid "desk.mode"
+msgstr "Toernooimodus"
+
+msgid "desk.mode_on"
+msgstr "Aan"
+
+msgid "desk.mode_invite"
+msgstr "Uitnodiging nodig"
+
+msgid "desk.mode_on_detail"
+msgstr "Organiseer je eigen events vanuit Ember: koppel je bracketsite, sta hieronder organisatortoegang toe en open dan de desk op deze pc of een ander apparaat."
+
+msgid "desk.mode_invite_detail"
+msgstr "Toernooimodus is voorlopig alleen op uitnodiging. Vul de uitnodiging in die je kreeg; elke uitnodiging werkt maar één keer."
+
+msgid "desk.invite_code"
+msgstr "Uitnodigingscode"
+
+msgid "desk.invite_done"
+msgstr "Toernooimodus staat aan voor je Ember ID."
+
+msgid "desk.invite_invalid"
+msgstr "Die uitnodiging is niet geldig. Controleer ze of vraag een nieuwe."
+
 msgid "desk.org_site"
 msgstr "{0}-organisatortoegang"
 

@@ -6820,6 +6820,30 @@ msgstr "Scegli il numero mostrato dall'altro dispositivo. Una scelta sbagliata r
 msgid "desk.device_refused"
 msgstr "Codice errato o scaduto. Ottienine uno nuovo sull'altro dispositivo."
 
+msgid "desk.mode"
+msgstr "Modalità torneo"
+
+msgid "desk.mode_on"
+msgstr "Attiva"
+
+msgid "desk.mode_invite"
+msgstr "Serve un invito"
+
+msgid "desk.mode_on_detail"
+msgstr "Organizza i tuoi eventi da Ember: collega il tuo sito di bracket, consenti qui sotto l'accesso organizzatore, poi apri il pannello su questo PC o su un altro dispositivo."
+
+msgid "desk.mode_invite_detail"
+msgstr "Per ora la modalità torneo è solo su invito. Inserisci l'invito che hai ricevuto; ognuno funziona una sola volta."
+
+msgid "desk.invite_code"
+msgstr "Codice invito"
+
+msgid "desk.invite_done"
+msgstr "La modalità torneo è attiva per il tuo Ember ID."
+
+msgid "desk.invite_invalid"
+msgstr "Questo invito non è valido. Controllalo o chiedine uno nuovo."
+
 msgid "desk.org_site"
 msgstr "Accesso organizzatore {0}"
 

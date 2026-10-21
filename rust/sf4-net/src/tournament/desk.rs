@@ -14,7 +14,7 @@ use serde_json::{Map, Value, json};
 
 use super::{
     Failure, Outcome, Shared, browser,
-    client::{answer, prove, with_session},
+    client::{answer, feature_answer, prove, with_session},
 };
 
 const EVENTS: &str = "/v1/organizer/events";
@@ -23,6 +23,8 @@ const WEB: &str = "/v1/web-sessions";
 const HANDOFF: &str = "/v1/web-sessions/handoff";
 const APPROVE: &str = "/v1/web-sessions/approve";
 const DEVICE: &str = "/v1/web-sessions/device";
+const ACCESS: &str = "/v1/organizer/access";
+const REDEEM: &str = "/v1/organizer/invites/redeem";
 
 /// The most sets an answer carries, and the longest text kept from one: an
 /// answer goes to the game in one 64 KiB message.
@@ -62,11 +64,32 @@ pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) ->
             } else {
                 answer(status, &body, &[200])?
             };
-            Ok(Some(if event.is_some() {
-                json!({ "event": event, "sets": sets(&found["sets"]) })
-            } else {
-                json!({ "events": events(&found["events"]) })
-            }))
+            if event.is_some() {
+                return Ok(Some(json!({ "event": event, "sets": sets(&found["sets"]) })));
+            }
+            // Whether Tournament Mode is the player's yet, on a bridge that
+            // takes organizers by invitation; a bridge without the route
+            // takes everyone.
+            let (status, body) = shared
+                .client
+                .call(
+                    reqwest::Method::GET,
+                    &format!("{}{ACCESS}", bridge.origin),
+                    Some(&token),
+                    None,
+                )
+                .await?;
+            let access = match feature_answer(status, &body, 200, &[], "unsupported") {
+                Ok(found) => json!({
+                    "invite_only": found["invite_only"].as_bool().unwrap_or(false),
+                    "allowed": found["allowed"].as_bool().unwrap_or(true),
+                }),
+                Err(failure) if failure.0 == "unsupported" => {
+                    json!({ "invite_only": false, "allowed": true })
+                }
+                Err(failure) => return Err(failure),
+            };
+            Ok(Some(json!({ "events": events(&found["events"]), "access": access })))
         }
     })
     .await
@@ -314,6 +337,39 @@ pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str, number: 
         }
         answer(status, &response, &[200])?;
         Ok(Some(json!({ "approved": true })))
+    })
+    .await
+}
+
+/// Redeems `code`, an invite to Tournament Mode, for the player's Ember ID.
+pub async fn redeem(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
+    let code: String = code.trim().chars().take(16).collect();
+    if code.is_empty() {
+        return Err(Failure::new("invite_invalid"));
+    }
+    let code = &code;
+    with_session(shared, bridge_id, |bridge, token| async move {
+        let body = prove(
+            shared,
+            &bridge,
+            Some(&token),
+            Action::SiteConnect,
+            Method::Post,
+            REDEEM,
+            json!({ "code": code }),
+        )
+        .await?;
+        let (status, response) = shared
+            .client
+            .call(
+                reqwest::Method::POST,
+                &format!("{}{REDEEM}", bridge.origin),
+                Some(&token),
+                Some(body),
+            )
+            .await?;
+        feature_answer(status, &response, 200, &["invite_invalid"], "invites_unsupported")?;
+        Ok(Some(json!({ "allowed": true })))
     })
     .await
 }

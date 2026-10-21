@@ -35,6 +35,8 @@ std::string FailureText(const std::string& code) {
         {"file_unreadable", "identity.failure.file"}, {"invalid_path", "identity.failure.file"},
         {"identity_busy", "identity.failure.busy"},
         {"desk_code_refused", "desk.device_refused"},
+        {"invite_invalid", "desk.invite_invalid"}, {"invites_unsupported", "desk.invite_invalid"},
+        {"invite_required", "desk.mode_invite_detail"},
         {"identity_unavailable", "identity.failure.state"}, {"wrong_state", "identity.failure.state"},
         {"key_missing", "identity.failure.state"},
         {"confirmation_mismatch", "identity.failure.changed"}, {"replacement_not_confirmed", "identity.failure.changed"},
@@ -477,6 +479,8 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::DeskOpen:
         Say(loc::T("desk.opened"), Tone::Success, 4); break;
+    case IdentityOp::DeskRedeem:
+        Say(loc::T("desk.invite_done"), Tone::Success, 8); deskReadAt_ = 0; break;
     case IdentityOp::DeskApprove:
         deskCode_.clear();
         Say(loc::T("desk.device_approved"), Tone::Success, 8); break;

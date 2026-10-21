@@ -6820,6 +6820,30 @@ msgstr "Выберите число, которое показывает дру�
 msgid "desk.device_refused"
 msgstr "Код неверный или устарел. Получи новый на другом устройстве."
 
+msgid "desk.mode"
+msgstr "Турнирный режим"
+
+msgid "desk.mode_on"
+msgstr "Включён"
+
+msgid "desk.mode_invite"
+msgstr "Нужно приглашение"
+
+msgid "desk.mode_on_detail"
+msgstr "Проводите свои турниры из Ember: привяжите сайт с сеткой, ниже разрешите доступ организатора, затем откройте панель на этом ПК или другом устройстве."
+
+msgid "desk.mode_invite_detail"
+msgstr "Пока турнирный режим доступен только по приглашению. Введите полученное приглашение; каждое работает один раз."
+
+msgid "desk.invite_code"
+msgstr "Код приглашения"
+
+msgid "desk.invite_done"
+msgstr "Турнирный режим включён для вашего Ember ID."
+
+msgid "desk.invite_invalid"
+msgstr "Это приглашение недействительно. Проверьте его или попросите новое."
+
 msgid "desk.org_site"
 msgstr "Доступ организатора {0}"
 

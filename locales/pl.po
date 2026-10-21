@@ -6820,6 +6820,30 @@ msgstr "Wybierz liczbę widoczną na drugim urządzeniu. Zły wybór odrzuca kod
 msgid "desk.device_refused"
 msgstr "Ten kod jest błędny lub wygasł. Pobierz nowy na drugim urządzeniu."
 
+msgid "desk.mode"
+msgstr "Tryb turniejowy"
+
+msgid "desk.mode_on"
+msgstr "Włączony"
+
+msgid "desk.mode_invite"
+msgstr "Potrzebne zaproszenie"
+
+msgid "desk.mode_on_detail"
+msgstr "Prowadź własne wydarzenia z Embera: połącz swoją stronę z drabinkami, poniżej zezwól na dostęp organizatora, a potem otwórz panel na tym PC lub innym urządzeniu."
+
+msgid "desk.mode_invite_detail"
+msgstr "Tryb turniejowy jest na razie tylko na zaproszenie. Wpisz otrzymane zaproszenie; każde działa tylko raz."
+
+msgid "desk.invite_code"
+msgstr "Kod zaproszenia"
+
+msgid "desk.invite_done"
+msgstr "Tryb turniejowy jest włączony dla twojego Ember ID."
+
+msgid "desk.invite_invalid"
+msgstr "To zaproszenie jest nieważne. Sprawdź je lub poproś o nowe."
+
 msgid "desk.org_site"
 msgstr "Dostęp organizatora {0}"
 

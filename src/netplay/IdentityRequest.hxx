@@ -26,6 +26,9 @@ enum class IdentityOp : std::uint8_t {
     // type on another device, read first for what asked and the numbers to
     // pick from, then approved with the number that device shows.
     DeskOpen, DeskApprove, DeskCodeInfo,
+    // Redeeming an invite to Tournament Mode (`command`: the code), on a
+    // service that takes organizers by invitation.
+    DeskRedeem,
 };
 
 // Where a player connects an account to their Ember ID through a browser

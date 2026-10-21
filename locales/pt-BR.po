@@ -6337,6 +6337,30 @@ msgstr "Escolha o número que o outro dispositivo mostra. Uma escolha errada rec
 msgid "desk.device_refused"
 msgstr "Esse código está errado ou expirou. Pegue um novo no outro dispositivo."
 
+msgid "desk.mode"
+msgstr "Modo torneio"
+
+msgid "desk.mode_on"
+msgstr "Ativado"
+
+msgid "desk.mode_invite"
+msgstr "Convite necessário"
+
+msgid "desk.mode_on_detail"
+msgstr "Organize seus próprios eventos pelo Ember: vincule seu site de chaves, permita o acesso de organizador abaixo e depois abra o painel neste PC ou em outro dispositivo."
+
+msgid "desk.mode_invite_detail"
+msgstr "Por enquanto o modo torneio é só por convite. Digite o convite que você recebeu; cada um funciona uma única vez."
+
+msgid "desk.invite_code"
+msgstr "Código do convite"
+
+msgid "desk.invite_done"
+msgstr "O modo torneio está ativado para o seu Ember ID."
+
+msgid "desk.invite_invalid"
+msgstr "Esse convite não é válido. Confira ou peça um novo."
+
 msgid "desk.org_site"
 msgstr "Acesso de organizador do {0}"
 

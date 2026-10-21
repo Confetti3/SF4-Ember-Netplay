@@ -6821,6 +6821,30 @@ msgstr "选择另一台设备上显示的数字。选错会拒绝该代码。"
 msgid "desk.device_refused"
 msgstr "代码错误或已过期。请在另一台设备上获取新代码。"
 
+msgid "desk.mode"
+msgstr "赛事模式"
+
+msgid "desk.mode_on"
+msgstr "已开启"
+
+msgid "desk.mode_invite"
+msgstr "需要邀请"
+
+msgid "desk.mode_on_detail"
+msgstr "在 Ember 中举办你自己的赛事：关联你的对阵表网站，在下方允许主办方权限，然后在这台电脑或其他设备上打开主办台。"
+
+msgid "desk.mode_invite_detail"
+msgstr "赛事模式目前仅限邀请。请输入你收到的邀请码；每个邀请码只能使用一次。"
+
+msgid "desk.invite_code"
+msgstr "邀请码"
+
+msgid "desk.invite_done"
+msgstr "你的 Ember ID 已开启赛事模式。"
+
+msgid "desk.invite_invalid"
+msgstr "该邀请无效。请检查，或申请新的邀请。"
+
 msgid "desk.org_site"
 msgstr "{0} 组织者权限"
 
