@@ -458,7 +458,7 @@ static void TestSetReplays() {
  CHECK(sets::NextToSend(archive) == &archive[2]);
  archive[2].sent = true; CHECK(sets::NextToSend(archive) == &archive[0]);
  archive[0].sent = true; CHECK(!sets::NextToSend(archive));
- CHECK(sets::SendSettled("not_found") && !sets::SendSettled("bridge_unreachable") && !sets::SendSettled("unauthenticated"));
+ CHECK(sets::SendSettled("not_found") && sets::SendSettled("replays_unsupported") && !sets::SendSettled("bridge_unreachable") && !sets::SendSettled("unauthenticated"));
  const auto listed = sets::Sets(archive);
  CHECK(listed.size() == 3 && listed[0].matchId == "emt_b" && listed[0].rooms == 1 && listed[2].matchId == "emt_c");
  CHECK(listed[1].games.size() == 3 && listed[1].games[0] == &archive[4] && listed[1].games[2] == &archive[2] && listed[1].rooms == 2);

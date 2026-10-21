@@ -29,6 +29,9 @@ const DEVICE: &str = "/v1/web-sessions/device";
 // ponytail: a bracket past 160 sets shows its first 160; page by phase if one ever does.
 const MAX_SETS: usize = 160;
 const MAX_TEXT: usize = 64;
+/// The most an event's sets weigh as the bridge sends them, with every
+/// set's players, score and games: the bridge keeps up to 1024 sets.
+const MAX_SETS_ANSWER: usize = 1024 * 1024;
 
 /// The organizer's events, or `event`'s sets with what the desk shows of
 /// each, when `event` is given.
@@ -41,16 +44,24 @@ pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) ->
     with_session(shared, bridge_id, |bridge, token| {
         let path = path.clone();
         async move {
+            // An event's sets outgrow the 64 KiB of other answers from
+            // about 90 sets on; what goes to the game is cut down below.
             let (status, body) = shared
                 .client
-                .call(
+                .call_bounded(
                     reqwest::Method::GET,
                     &format!("{}{path}", bridge.origin),
                     Some(&token),
                     None,
+                    "application/json",
+                    if event.is_some() { MAX_SETS_ANSWER } else { 64 * 1024 },
                 )
                 .await?;
-            let found = answer(status, &body, &[200])?;
+            let found = if status == 200 {
+                large_answer(&body)?
+            } else {
+                answer(status, &body, &[200])?
+            };
             Ok(Some(if event.is_some() {
                 json!({ "event": event, "sets": sets(&found["sets"]) })
             } else {
@@ -59,6 +70,14 @@ pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) ->
         }
     })
     .await
+}
+
+/// An answer of up to `MAX_SETS_ANSWER` bytes, as `client::answer` reads
+/// the smaller ones.
+fn large_answer(body: &[u8]) -> Result<Value, Failure> {
+    ember_protocol::json::parse(body, MAX_SETS_ANSWER)
+        .and_then(|value| ember_protocol::json::from_value::<Value>(&value))
+        .map_err(|_| Failure::new("bridge_invalid_response"))
 }
 
 /// A desk action on `path`, one of an event's set or match routes, proven
@@ -457,6 +476,23 @@ mod tests {
             info(&json!({ "device": "x", "requested_at": 5, "choices": [47, 12, 100] })).is_err()
         );
         assert!(info(&json!({ "device": "x", "choices": [47, 12, 83] })).is_err());
+    }
+
+    #[test]
+    fn a_large_event_is_read_whole_and_cut_down_for_the_game() {
+        // A thousand sets as the bridge sends them: well past 64 KiB.
+        let one = json!({
+            "id": "set-0000000", "round": 3, "round_label": "Winners Round 3", "phase": "Top 64",
+            "status": "open", "players": ["A player name", "Another player"], "score": [1, 0],
+            "draws": 0, "side": "winners", "desk_state": "playing", "held": false,
+            "match_id": "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01", "revision": "4",
+            "ember_ids": ["emb1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "emb1_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+            "games": [{ "attempt_id": "att_1", "outcome": "p1_win", "state": "accepted" }],
+        });
+        let body = serde_json::to_vec(&json!({ "sets": vec![one; 1000] })).unwrap();
+        assert!(body.len() > 64 * 1024);
+        let found = large_answer(&body).unwrap();
+        assert_eq!(sets(&found["sets"]).as_array().unwrap().len(), MAX_SETS);
     }
 
     #[test]

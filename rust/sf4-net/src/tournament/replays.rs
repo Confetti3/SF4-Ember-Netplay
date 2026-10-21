@@ -45,7 +45,13 @@ pub async fn send(
                     1024,
                 )
                 .await?;
-            client::answer(status, &response, &[200, 201])?;
+            // A bridge without the replay routes takes none, ever: the
+            // game is told so once rather than sending again.
+            if status == 200 {
+                client::answer(status, &response, &[200])?;
+            } else {
+                client::feature_answer(status, &response, 201, &[], "replays_unsupported")?;
+            }
             Ok(Some(json!({ "kept": status == 201 })))
         }
     })

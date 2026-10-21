@@ -22,7 +22,7 @@ inline const ArchivedReplay* NextToSend(const std::vector<ArchivedReplay>& archi
 // no such set for this player, or the file is not a replay it takes. Any
 // other failure is tried again later.
 inline bool SendSettled(const std::string& code) {
-	for (const char* settled : {"invalid_request", "invalid_replay", "not_found", "forbidden", "unsupported_rules", "corrupt", "file_unreadable", "invalid_path"})
+	for (const char* settled : {"invalid_request", "invalid_replay", "not_found", "forbidden", "unsupported_rules", "corrupt", "file_unreadable", "invalid_path", "replays_unsupported"})
 		if (code == settled) return true;
 	return false;
 }
