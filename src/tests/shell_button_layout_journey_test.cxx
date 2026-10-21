@@ -186,21 +186,21 @@ void MenuButtonRows() {
     Check(layouts() == 0 && tone == Tone::Error && status.find(loc::T("button_layout.menu_back")) != std::string::npos,
         "Menu confirm took the Menu back button");
     h.Choose("menu-confirm"); h.view.pads[0].held = {"X"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
-    Check(LastLayout(h).menu.confirm == 2 && LastLayout(h).menu.back == -1 && LastLayout(h).buttons == DefaultLayout,
+    Check(LastLayout(h).bound[MenuConfirmButton] == 2 && LastLayout(h).bound[MenuBackButton] == -1 && LastLayout(h).buttons == DefaultLayout,
         "Menu confirm did not bind Square alone");
     Check(tone == Tone::Success && status.find(loc::T("button_layout.menu_confirm")) != std::string::npos, "Binding did not say so");
     h.Wait(.5f);
-    Check(h.actions.back().preferences.buttonLayouts.size() == 1 && h.actions.back().preferences.buttonLayouts[0].menu.confirm == 2, "Binding did not autosave");
+    Check(h.actions.back().preferences.buttonLayouts.size() == 1 && h.actions.back().preferences.buttonLayouts[0].bound[MenuConfirmButton] == 2, "Binding did not autosave");
     h.view.preferences = h.actions.back().preferences;
     // The runtime resolves the binding on its next frame.
-    h.view.pads[0].menu = {2, -1}; h.view.pads[0].menuButtons = input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr,
-        input::MenuConfirmFunction, input::MenuBackFunction, MenuBindingMask(2), 0);
+    h.view.pads[0].bound[MenuConfirmButton] = 2; h.view.pads[0].menuButtons = input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr,
+        input::MenuConfirmFunction, input::MenuBackFunction, LayoutButtonMask(2), 0);
     h.view.menuButtons = h.view.pads[0].menuButtons; SetMenuGlyphs(input::PadXInput, h.view.menuButtons, h.view.promptBrand); h.Frame();
     Check(row("menu-confirm").value == "Square", "Menu confirm row does not show its binding");
     h.Choose("menu-back"); h.view.pads[0].held = {"X"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
-    Check(LastLayout(h).menu.back == -1 && tone == Tone::Error, "Menu back took the bound Menu confirm button");
+    Check(LastLayout(h).bound[MenuBackButton] == -1 && tone == Tone::Error, "Menu back took the bound Menu confirm button");
     h.Choose("preset"); h.Press(MenuInput::Down); h.Press(MenuInput::Select);
-    Check(LastLayout(h).buttons == LayoutPresets[1].buttons && LastLayout(h).menu.confirm == 2, "A preset dropped the menu binding");
+    Check(LastLayout(h).buttons == LayoutPresets[1].buttons && LastLayout(h).bound[MenuConfirmButton] == 2, "A preset dropped the menu binding");
     // A target pad that is not the gameplay controller selects with its bound button.
     h.view.pads[0].gameplay = false; h.Frame(); h.FocusOn("test");
     h.view.pads[0].held = {"down"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
@@ -263,6 +263,7 @@ void TrainingButtonRows() {
         Check(at != rows.end(), "Training button row missing"); return *at;
     };
     const auto press = [&](const char* id, const char* glyph) { h.Choose(id); h.view.pads[0].held = {glyph}; h.Frame(); h.view.pads[0].held.clear(); h.Frame(); };
+    const auto training = [](const BoundButtons& bound) { return std::make_pair(bound[TrainingRecordButton], bound[TrainingPlayButton]); };
     Prepare(h);
     Check(row("training-record").value == loc::T("common.off") && row("training-play").value == loc::T("common.off") && !has("training-clear"),
         "Training rows do not start Off");
@@ -270,21 +271,21 @@ void TrainingButtonRows() {
     Check(std::none_of(h.actions.begin(), h.actions.end(), [](const ShellAction& a) { return a.padAction.kind == ControllerRequest::Kind::Layout; }), "Record took a button that does an attack");
     Check(tone == Tone::Error, "The attack button was not refused with a notice");
     press("training-record", "RS");
-    Check(LastLayout(h).training.record == 9 && LastLayout(h).training.play == -1 && LastLayout(h).buttons == DefaultLayout,
+    Check(LastLayout(h).bound[TrainingRecordButton] == 9 && LastLayout(h).bound[TrainingPlayButton] == -1 && LastLayout(h).buttons == DefaultLayout,
         "Record did not bind the right stick click alone");
     Check(tone == Tone::Success && status.find(loc::T("button_layout.training_record")) != std::string::npos, "Binding did not say so");
     Check(row("training-record").value != loc::T("common.off") && has("training-clear"), "Record row does not show its button");
     h.Wait(.5f);
-    Check(h.actions.back().preferences.buttonLayouts.size() == 1 && h.actions.back().preferences.buttonLayouts[0].training.record == 9, "Binding did not autosave");
+    Check(h.actions.back().preferences.buttonLayouts.size() == 1 && h.actions.back().preferences.buttonLayouts[0].bound[TrainingRecordButton] == 9, "Binding did not autosave");
     h.view.preferences = h.actions.back().preferences;
     press("training-play", "RS");
-    Check(LastLayout(h).training.play == -1 && tone == Tone::Error, "Play took the Record button");
+    Check(LastLayout(h).bound[TrainingPlayButton] == -1 && tone == Tone::Error, "Play took the Record button");
     press("training-play", "LS");
-    Check(LastLayout(h).training == TrainingBinding{9, 8}, "Play did not bind the left stick click");
+    Check(training(LastLayout(h).bound) == std::make_pair(9, 8), "Play did not bind the left stick click");
     h.Choose("preset"); h.Press(MenuInput::Down); h.Press(MenuInput::Select);
-    Check(LastLayout(h).buttons == LayoutPresets[1].buttons && LastLayout(h).training == TrainingBinding{9, 8}, "A preset dropped the Training buttons");
+    Check(LastLayout(h).buttons == LayoutPresets[1].buttons && training(LastLayout(h).bound) == std::make_pair(9, 8), "A preset dropped the Training buttons");
     h.Choose("training-clear"); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
-    Check(LastLayout(h).training == TrainingBinding{} && row("training-record").value == loc::T("common.off") && !has("training-clear"), "Clear did not turn both Off");
+    Check(training(LastLayout(h).bound) == std::make_pair(-1, -1) && row("training-record").value == loc::T("common.off") && !has("training-clear"), "Clear did not turn both Off");
     SetMenuEntriesProbe({}); SetMenuStatusProbe({});
 }
 }

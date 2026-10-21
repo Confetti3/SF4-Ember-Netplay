@@ -69,15 +69,13 @@ struct PadView {
     ListedButtons has = AllLayoutButtons;
     ButtonLayout table = DefaultLayout;
     std::optional<ButtonLayout> layout;
-    // The stored menu binding, and the buttons that confirm and go back for
-    // this pad with it (Pad::MenuButtons; A and B while it has no game slot).
-    MenuBinding menu;
+    // The stored bound buttons (BoundAction), and the buttons that confirm and go back
+    // for this pad with them (Pad::MenuButtons; A and B while it has no game slot).
+    BoundButtons bound = NoBoundButtons;
     input::MenuButtons menuButtons;
     // The extra buttons the pad reports and what each copies.
     ListedExtras hasExtras{};
     ExtraCopies extras = NoExtraCopies;
-    // The stored buttons that start a Training recording and play a slot.
-    TrainingBinding training;
 };
 struct PadFrame {
     Pad pad;
@@ -90,10 +88,9 @@ struct PadFrame {
     ListedButtons has = AllLayoutButtons;
     ButtonLayout table = DefaultLayout;
     std::optional<ButtonLayout> layout;
-    MenuBinding menu;
+    BoundButtons bound = NoBoundButtons;
     ListedExtras hasExtras{};
     ExtraCopies extras = NoExtraCopies;
-    TrainingBinding training;
 };
 struct NativeController {
     int index;

@@ -22,11 +22,6 @@
 // record (TrainingPadInput). While recording it opens them as ever, which
 // ends the recording and keeps it.
 //
-// The player's own Record and Play buttons (TrainingBinding, from the button
-// layout page) act on their own, as F7 and F8 do: a fresh press, with the
-// controls shut, no call, no Back held and the fight holding the pad. A button
-// held through any of those counts only once pressed again.
-//
 // Start first and Back after is the game's pause, so only a Start that goes
 // down while Back is already held counts, and a Back pressed during the
 // pause's Start does nothing here. With the controls open, Back alone
@@ -60,30 +55,18 @@ struct TrainingPadEvents {
     // Back went down this sample, whatever the press turns out to be: the
     // moment the press takes its owner (TrainingPadInput).
     bool pressed = false;
-    // The chord on standby: it starts the recording and opens nothing.
-    bool advance = false;
-    // The player's own buttons for Record and Play went down, as F7 and F8 do.
-    bool record = false, play = false;
-    bool Any() const { return down || reset || save || open || close || goNow || advance || record || play; }
+    // The chord on standby: Record, as F7 is there (TrainingPadInput); it opens nothing.
+    bool record = false;
+    bool Any() const { return down || reset || save || open || close || goNow || record; }
 };
 class TrainingPadGesture {
 public:
     static constexpr double HoldSeconds = .5;
     // physical: the pad's physical buttons now; open: the controls are open;
-    // call: whether a room is calling the player back; buttons: the player's
-    // Record and Play buttons, and live whether the fight has the pad (no menu,
-    // no pause) so they may act.
-    TrainingPadEvents Update(std::uint32_t physical, bool open, double now, TrainingCall call = TrainingCall::None,
-        const TrainingButtons& buttons = {}, bool live = true) {
+    // call: whether a room is calling the player back.
+    TrainingPadEvents Update(std::uint32_t physical, bool open, double now, TrainingCall call = TrainingCall::None) {
         TrainingPadEvents events;
         const bool back = (physical & PhysicalBack) != 0, start = (physical & PhysicalStart) != 0;
-        // A button held while the controls were open, a call stood, Back was
-        // down or the pad was not the fight's counts only once pressed again.
-        const bool recordDown = buttons.record && (physical & buttons.record), playDown = buttons.play && (physical & buttons.play);
-        const bool ready = live && !open && !back && call == TrainingCall::None;
-        events.record = ready && recordDown && !recordDown_;
-        events.play = ready && playDown && !playDown_;
-        recordDown_ = recordDown; playDown_ = playDown;
         if (back && !back_) {
             downAt_ = now; openAtPress_ = open; mine_ = !start; events.pressed = true;
             if (call == TrainingCall::GoNow && !open && !start) { events.goNow = true; used_ = true; armed_ = false; }
@@ -111,10 +94,9 @@ public:
     }
     // The pad changed, lost focus or left Training: a press under way is
     // dropped, and a button still held counts only once it is pressed again.
-    void Reset() { *this = TrainingPadGesture{}; back_ = start_ = used_ = recordDown_ = playDown_ = true; }
+    void Reset() { *this = TrainingPadGesture{}; back_ = start_ = used_ = true; }
 private:
     bool back_ = false, start_ = false, armed_ = false, used_ = false, openAtPress_ = false;
-    bool recordDown_ = false, playDown_ = false;
     // mine_: the Back held now went down before Start, so it is the
     // gesture's; startOwned_: the Start held now went down under it.
     bool mine_ = false, startOwned_ = false;
@@ -122,12 +104,12 @@ private:
 };
 
 // What the gesture asked for, one at a time and in order, for the drawing
-// thread: a position reset or save, or the next step of a recording (Advance,
-// the chord on standby); each with the Training battle (its generation) and
+// thread: a position reset or save, or Record or Play (the chord on standby,
+// or the player's own buttons); each with the Training battle (its generation) and
 // the pad owner (epoch) it was pressed under. A save keeps where the fighters
 // stood as its Back went down.
 struct TrainingPadEvent {
-    enum class Kind : std::uint8_t { Reset, Save, Advance, Record, Play };
+    enum class Kind : std::uint8_t { Reset, Save, Record, Play };
     Kind kind = Kind::Reset;
     std::uint64_t generation = 0;
     std::uint32_t epoch = 0;
@@ -247,7 +229,7 @@ struct PadOwner {
 // for, a reset, a save or the controls, acts under another owner. The chord
 // opens or closes the controls, accepted only for the owner it was pressed
 // under: one whose owner went during the update (focus lost) is refused. On
-// standby it opens nothing and asks for the recording instead (advance), the
+// standby it opens nothing and is Record instead, the
 // one place that choice is made.
 class TrainingPadInput {
 public:
@@ -260,14 +242,13 @@ public:
     // standby: the dummy is on standby for a recording, as the game thread
     // last published it (training::ChordStartsRecording).
     Result Update(std::uint32_t physical, TrainingControls& controls, double now, TrainingCall call, const PadOwner& current, const float (&place)[2],
-        bool standby = false, const TrainingButtons& buttons = {}, bool live = true) {
+        bool standby = false) {
         if (held_ && current != owner_) gesture_.Reset();
         Result result;
-        result.events = gesture_.Update(physical, controls.Open(), now, call, buttons, live);
-        // Record and Play go down with no Back held, so the press takes its owner as Back's does.
-        if (result.events.pressed || result.events.record || result.events.play) { owner_ = current; place_[0] = place[0]; place_[1] = place[1]; }
+        result.events = gesture_.Update(physical, controls.Open(), now, call);
+        if (result.events.pressed) { owner_ = current; place_[0] = place[0]; place_[1] = place[1]; }
         held_ = (physical & PhysicalBack) != 0;
-        if (result.events.open && standby) { result.events.open = false; result.events.advance = true; }
+        if (result.events.open && standby) { result.events.open = false; result.events.record = true; }
         else if ((result.events.open || result.events.close) && !controls.Accept(result.events.open, owner_.epoch))
             result.events.open = result.events.close = false;
         result.owner = owner_; result.place[0] = place_[0]; result.place[1] = place_[1];
@@ -280,5 +261,27 @@ private:
     PadOwner owner_;
     float place_[2] = {0, 0};
     bool held_ = false;
+};
+
+// The player's own Record and Play buttons (gamepads::TrainingRecordButton and
+// TrainingPlayButton, from the button layout page), on the game thread beside
+// the gesture: each fresh press is Record or Play, as F7 and F8 are. They act
+// only with the controls shut, no call, no Back held and the fight holding the
+// pad (live); a button held through any of those counts once pressed again.
+class TrainingButtonPresses {
+public:
+    struct Pressed { bool record = false, play = false; };
+    Pressed Update(std::uint32_t physical, const TrainingButtons& buttons, bool open, TrainingCall call, bool live) {
+        const bool record = buttons.record && (physical & buttons.record), play = buttons.play && (physical & buttons.play);
+        const bool ready = live && !open && call == TrainingCall::None && !(physical & PhysicalBack);
+        Pressed pressed;
+        pressed.record = ready && record && !record_; pressed.play = ready && play && !play_;
+        record_ = record; play_ = play;
+        return pressed;
+    }
+    // The pad changed, lost focus or left Training: a button still held counts only once pressed again.
+    void Reset() { record_ = play_ = true; }
+private:
+    bool record_ = false, play_ = false;
 };
 } }

@@ -119,35 +119,48 @@ static void TrainingButtons() {
     // A layout saved before Training buttons existed loads with both off.
     unsigned rejected = 0;
     const auto read = [&](const nlohmann::json& json) { return ReadLayouts(json, [&](unsigned, LayoutLoadError) { ++rejected; }); };
+    const auto training = [](const StoredLayout& layout) { return std::make_pair(layout.bound[TrainingRecordButton], layout.bound[TrainingPlayButton]); };
+    const auto off = std::make_pair(-1, -1);
     StoredLayout layout{Pad(1), DefaultLayout, 5};
     auto json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
     json["buttonLayouts"][0].erase("trainingRecord"); json["buttonLayouts"][0].erase("trainingPlay");
-    CHECK(read(json).at(0).training == TrainingBinding{} && rejected == 0);
-    layout.training = {9, 8};
+    CHECK(training(read(json).at(0)) == off && rejected == 0);
+    layout.bound[TrainingRecordButton] = 9; layout.bound[TrainingPlayButton] = 8; layout.bound[MenuConfirmButton] = 2;
     json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
     CHECK(read(json) == std::vector<StoredLayout>{layout});
-    // An index out of range, or one button for both, turns both off; a value that is no integer is that button off. The layout still loads.
+    // An index out of range, or one button for both, turns the pair off and
+    // leaves the menu pair alone; a value that is no integer is that button off.
+    // The layout still loads.
     json["buttonLayouts"][0]["trainingRecord"] = 10;
-    CHECK(read(json).at(0).training == TrainingBinding{});
+    CHECK(training(read(json).at(0)) == off && read(json).at(0).bound[MenuConfirmButton] == 2);
     json["buttonLayouts"][0]["trainingRecord"] = 1.5;
-    CHECK(read(json).at(0).training == (TrainingBinding{-1, 8}));
+    CHECK(training(read(json).at(0)) == std::make_pair(-1, 8));
     json["buttonLayouts"][0]["trainingRecord"] = 8;
-    CHECK(read(json).at(0).training == TrainingBinding{});
+    CHECK(training(read(json).at(0)) == off);
     json["buttonLayouts"][0]["trainingRecord"] = "RS";
-    CHECK(read(json).at(0).training == (TrainingBinding{-1, 8}) && rejected == 0);
+    CHECK(training(read(json).at(0)) == std::make_pair(-1, 8) && rejected == 0);
+    // A menu button and a Training button may share one: only partners may not.
+    json["buttonLayouts"][0]["trainingRecord"] = 2;
+    CHECK(training(read(json).at(0)) == std::make_pair(2, 8));
     sf4e::netplay::PlayerPreferences prefs; prefs.buttonLayouts = {layout}; CHECK(prefs.Valid());
-    prefs.buttonLayouts[0].training = {8, 8}; CHECK(!prefs.Valid());
-    prefs.buttonLayouts[0].training = {10, -1}; CHECK(!prefs.Valid());
-    prefs.buttonLayouts[0].training = {-1, -2}; CHECK(!prefs.Valid());
-    prefs.buttonLayouts[0].training = {-1, -1}; CHECK(prefs.Valid());
-    // The physical mask: the stick clicks are bits 24 and 25; a button the pad lacks, or one the layout gives an attack, is none.
-    CHECK(TrainingBindingMask(8, AllLayoutButtons, DefaultLayout) == 0x1000000u && TrainingBindingMask(9, AllLayoutButtons, DefaultLayout) == 0x2000000u);
-    CHECK(TrainingBindingMask(-1, AllLayoutButtons, DefaultLayout) == 0 && TrainingBindingMask(10, AllLayoutButtons, DefaultLayout) == 0);
+    const auto set = [&](int record, int play) { prefs.buttonLayouts[0].bound[TrainingRecordButton] = record; prefs.buttonLayouts[0].bound[TrainingPlayButton] = play; };
+    set(8, 8); CHECK(!prefs.Valid());
+    set(10, -1); CHECK(!prefs.Valid());
+    set(-1, -2); CHECK(!prefs.Valid());
+    set(-1, -1); CHECK(prefs.Valid());
+    // The physical mask: the stick clicks are bits 24 and 25; none for no
+    // binding or a button the pad lacks, and for Training none for a button
+    // the layout gives an attack, which a menu button may have.
+    auto bound = NoBoundButtons; bound[TrainingRecordButton] = 8; bound[TrainingPlayButton] = 9;
+    CHECK(BoundButtonMask(bound, TrainingRecordButton, AllLayoutButtons, DefaultLayout) == 0x1000000u &&
+        BoundButtonMask(bound, TrainingPlayButton, AllLayoutButtons, DefaultLayout) == 0x2000000u);
+    CHECK(BoundButtonMask(bound, MenuConfirmButton, AllLayoutButtons, DefaultLayout) == 0);
     auto listed = AllLayoutButtons; listed[8] = false;
-    CHECK(TrainingBindingMask(8, listed, DefaultLayout) == 0);
-    CHECK(TrainingBindingMask(2, AllLayoutButtons, DefaultLayout) == 0);
+    CHECK(BoundButtonMask(bound, TrainingRecordButton, listed, DefaultLayout) == 0);
     auto table = DefaultLayout; table[8] = 0x10;
-    CHECK(TrainingBindingMask(8, AllLayoutButtons, table) == 0 && TrainingBindingMask(9, AllLayoutButtons, table) == 0x2000000u);
+    CHECK(BoundButtonMask(bound, TrainingRecordButton, AllLayoutButtons, table) == 0 && BoundButtonMask(bound, TrainingPlayButton, AllLayoutButtons, table) == 0x2000000u);
+    bound[MenuConfirmButton] = 2;
+    CHECK(!BoundButtonWorks(TrainingRecordButton, 2, DefaultLayout) && BoundButtonMask(bound, MenuConfirmButton, AllLayoutButtons, DefaultLayout) == 0x80000u);
 }
 static void Writer() {
     alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 6> memory;

@@ -23,50 +23,55 @@ inline bool ValidExtraCopies(const ExtraCopies& copies) {
 inline bool ValidLayout(const ButtonLayout& layout) {
     return std::all_of(layout.begin(), layout.end(), [](std::uint32_t mask) { return !(mask & ~FightMask); });
 }
-// The buttons the player chose to confirm and go back in Ember's menus, as
-// indexes into LayoutGlyphs; -1 keeps what the game's own menus use
-// (input::ResolveMenuButtons). Start, View and the directions are never bound.
-struct MenuBinding {
-    int confirm = -1, back = -1;
-    bool operator==(const MenuBinding& other) const { return confirm == other.confirm && back == other.back; }
-    bool operator!=(const MenuBinding& other) const { return !(*this == other); }
+// Ember's own actions a player binds to a layout button by pressing it on the
+// button layout page: confirm and go back in Ember's menus, record and play in
+// Training. Each has a partner that never shares its button. Start, View and
+// the directions are never bound.
+enum BoundAction : unsigned { MenuConfirmButton, MenuBackButton, TrainingRecordButton, TrainingPlayButton, BoundActionCount };
+struct BoundActionInfo {
+    // Its key in a saved layout.
+    const char* json;
+    BoundAction partner;
+    // Training's buttons are read beside the fight, so one the layout gives an
+    // attack would fight and record at once: it does not count. A menu button
+    // the player leaves unbound is the game's own (input::ResolveMenuButtons).
+    bool needsFreeButton;
 };
-inline bool ValidMenuBinding(const MenuBinding& menu) {
-    const auto inRange = [](int index) { return index >= -1 && index < static_cast<int>(LayoutGlyphs.size()); };
-    return inRange(menu.confirm) && inRange(menu.back) && (menu.confirm < 0 || menu.confirm != menu.back);
+constexpr std::array<BoundActionInfo, BoundActionCount> BoundActions = {{
+    {"menuConfirm", MenuBackButton, false}, {"menuBack", MenuConfirmButton, false},
+    {"trainingRecord", TrainingPlayButton, true}, {"trainingPlay", TrainingRecordButton, true}}};
+// For each action, the layout button bound to it as an index into LayoutGlyphs; -1 for none.
+using BoundButtons = std::array<int, BoundActionCount>;
+constexpr BoundButtons NoBoundButtons = {-1, -1, -1, -1};
+inline bool BoundIndexInRange(std::int64_t index) { return index >= -1 && index < static_cast<std::int64_t>(LayoutGlyphs.size()); }
+inline bool ValidBoundButtons(const BoundButtons& bound) {
+    for (unsigned action = 0; action < BoundActionCount; ++action) {
+        const int button = bound[action];
+        if (!BoundIndexInRange(button) || (button >= 0 && button == bound[BoundActions[action].partner])) return false;
+    }
+    return true;
 }
-// The buttons the player chose to start and stop a Training recording and to
-// play and stop a slot, as indexes into LayoutGlyphs; -1 for none. Each is read
-// on its own, with no Back held, so a button that does nothing in the fight (a
-// stick click) is the one to pick.
-struct TrainingBinding {
-    int record = -1, play = -1;
-    bool operator==(const TrainingBinding& other) const { return record == other.record && play == other.play; }
-    bool operator!=(const TrainingBinding& other) const { return !(*this == other); }
-};
-inline bool ValidTrainingBinding(const TrainingBinding& training) {
-    const auto inRange = [](int index) { return index >= -1 && index < static_cast<int>(LayoutGlyphs.size()); };
-    return inRange(training.record) && inRange(training.play) && (training.record < 0 || training.record != training.play);
-}
-// The physical mask of a bound index, 0 for none or a button the pad lacks.
-inline std::uint32_t MenuBindingMask(int index, const ListedButtons& has = AllLayoutButtons) {
+// The physical mask of a layout button, 0 for none or a button the pad lacks.
+inline std::uint32_t LayoutButtonMask(int index, const ListedButtons& has = AllLayoutButtons) {
     return index >= 0 && index < static_cast<int>(LayoutBits.size()) && has[index] ? std::uint32_t(1) << LayoutBits[index] : 0;
 }
-// The physical mask of a Training button: none for no binding, a button the
-// pad lacks, or one the layout gives an attack, which would fight and record at once.
-inline std::uint32_t TrainingBindingMask(int index, const ListedButtons& has, const ButtonLayout& table) {
-    return index >= 0 && index < static_cast<int>(table.size()) && !table[index] ? MenuBindingMask(index, has) : 0;
+// Whether a layout button can act for an action under this table: always, but
+// for an action that needs a button free of attacks.
+inline bool BoundButtonWorks(BoundAction action, int index, const ButtonLayout& table) {
+    return index >= 0 && index < static_cast<int>(table.size()) && (!BoundActions[action].needsFreeButton || !table[index]);
+}
+// The physical mask of the button bound to an action, 0 when none is or it does not work.
+inline std::uint32_t BoundButtonMask(const BoundButtons& bound, BoundAction action, const ListedButtons& has, const ButtonLayout& table) {
+    return BoundButtonWorks(action, bound[action], table) ? LayoutButtonMask(bound[action], has) : 0;
 }
 struct StoredLayout {
     Identity identity;
     ButtonLayout buttons = DefaultLayout;
     std::int64_t edited = 0;
-    MenuBinding menu;
+    BoundButtons bound = NoBoundButtons;
     ExtraCopies extras = NoExtraCopies;
-    TrainingBinding training;
     bool operator==(const StoredLayout& other) const {
-        return identity == other.identity && buttons == other.buttons && edited == other.edited && menu == other.menu && extras == other.extras &&
-            training == other.training;
+        return identity == other.identity && buttons == other.buttons && edited == other.edited && bound == other.bound && extras == other.extras;
     }
 };
 } }

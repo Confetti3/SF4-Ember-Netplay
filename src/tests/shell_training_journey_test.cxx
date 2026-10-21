@@ -526,7 +526,8 @@ void TrainingJourneys() {
   const bool hadCheckpoint=v.checkpoint;v.checkpoint=false;commands.clear();
   input::TrainingPadEvent save,reset;save.kind=input::TrainingPadEvent::Kind::Save;reset.kind=input::TrainingPadEvent::Kind::Reset;
   save.generation=reset.generation=v.generation;save.place[0]=120;save.place[1]=420;
-  ImGui::NewFrame();TrainingPadPosition(v,submit,save);TrainingPadPosition(v,submit,reset);ImGui::Render();
+  input::TrainingControls shut;
+  ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,save);ApplyTrainingPadEvent(v,submit,shut,reset);ImGui::Render();
   Check(commands.size()==3&&commands[0].action==training::Action::Place&&commands[1].action==training::Action::Save&&
    commands[2].action==training::Action::Restore&&commands[2].requestId!=0,"A reset after a save in the same batch was turned down before the session saw it");
   // The session then refuses the reset only when the save before it failed.
@@ -534,10 +535,11 @@ void TrainingJourneys() {
   Check(told("training.command_rejected",true),"A refused reset read as done");
   v.checkpoint=hadCheckpoint;
  }
- // The pad's chord on standby asks for the recording to start, for its own battle.
+ // The pad's chord on standby is Record, and starts the recording, for its own battle.
  {
-  commands.clear();input::TrainingPadEvent advance;advance.kind=input::TrainingPadEvent::Kind::Advance;advance.generation=v.generation;
-  ImGui::NewFrame();TrainingPadPosition(v,submit,advance);ImGui::Render();
+  commands.clear();const auto mode=v.mode;v.mode=training::Mode::Standby;input::TrainingControls shut;
+  input::TrainingPadEvent record;record.kind=input::TrainingPadEvent::Kind::Record;record.generation=v.generation;
+  ImGui::NewFrame();ApplyTrainingPadEvent(v,submit,shut,record);ImGui::Render();v.mode=mode;
   Check(commands.size()==1&&commands[0].action==training::Action::AdvanceRecording&&commands[0].generation==v.generation,"The pad's chord on standby did not start the recording");
  }
  for(const char* name:{"First","Second"})std::filesystem::remove(folder/"recordings"/(std::string(name)+".json"));

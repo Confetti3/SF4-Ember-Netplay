@@ -111,25 +111,14 @@ std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable, const
         if (row.value.empty()) row.value = loc::T("button_layout.no_button");
         row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
     }
-    // Ember's menu buttons: the player's choice, else the game's own (input::ResolveMenuButtons).
-    const struct { const char* id; const char* label; const char* detail; std::uint32_t mask; const char* glyph; } menuRows[] = {
-        {"menu-confirm", loc::T("button_layout.menu_confirm"), loc::T("button_layout.menu_confirm_detail"), pad.menuButtons.confirm, pad.menuButtons.confirmGlyph},
-        {"menu-back", loc::T("button_layout.menu_back"), loc::T("button_layout.menu_back_detail"), pad.menuButtons.back, pad.menuButtons.backGlyph}};
-    for (const auto& menu : menuRows) {
-        auto row = Row(menu.id, menu.label, editable && !absent ? std::string(menu.detail) : unavailable, editable && !absent);
-        row.value = MenuButtonName(pad, menu.mask, menu.glyph);
+    // Ember's menu buttons and Training's record and play, each set by a press.
+    for (unsigned action = 0; action < BoundActionCount; ++action) {
+        const auto& bound = BoundActionRows[action];
+        auto row = Row(bound.id, loc::T(bound.label), editable && !absent ? std::string(loc::T(bound.detail)) : unavailable, editable && !absent);
+        row.value = BoundButtonValue(pad, static_cast<BoundAction>(action));
         row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
     }
-    // Training's own buttons: one press records or plays, as F7 and F8 do.
-    const struct { const char* id; const char* label; const char* detail; int button; } trainingRows[] = {
-        {"training-record", loc::T("button_layout.training_record"), loc::T("button_layout.training_record_detail"), pad.training.record},
-        {"training-play", loc::T("button_layout.training_play"), loc::T("button_layout.training_play_detail"), pad.training.play}};
-    for (const auto& training : trainingRows) {
-        auto row = Row(training.id, training.label, editable && !absent ? std::string(training.detail) : unavailable, editable && !absent);
-        row.value = TrainingButtonName(pad, training.button);
-        row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
-    }
-    if (editable && !absent && (pad.training.record >= 0 || pad.training.play >= 0))
+    if (editable && !absent && (pad.bound[TrainingRecordButton] >= 0 || pad.bound[TrainingPlayButton] >= 0))
         rows.push_back(ConfirmRow("training-clear", loc::T("button_layout.training_clear"), loc::T("button_layout.training_clear_detail")));
     for (unsigned extra = 0; extra < ExtraCount; ++extra)
         if (pad.hasExtras[extra]) rows.push_back(ExtraButtonRow(pad, extra, editable && !absent, unavailable));
@@ -208,20 +197,30 @@ void DrawButtonLayoutDetail(const PadView& pad, ButtonPrompts prompts, bool capt
 CaptureCard LayoutCaptureCard(const PadView& pad, const std::optional<std::uint32_t>& mask, double left) {
     return {mask ? loc::Tf("button_layout.press_for", AttackLongName(*mask)) : std::string(loc::T("button_layout.press_to_change")), pad.name, left};
 }
-CaptureCard MenuCaptureCard(const PadView& pad, bool back, double left) {
-    return {loc::Tf("button_layout.press_for", loc::T(back ? "button_layout.menu_back" : "button_layout.menu_confirm")), pad.name, left};
-}
-CaptureCard TrainingCaptureCard(const PadView& pad, bool play, double left) {
-    return {loc::Tf("button_layout.press_for", loc::T(play ? "button_layout.training_play" : "button_layout.training_record")), pad.name, left};
-}
-std::string TrainingButtonName(const PadView& pad, int button) {
-    if (button < 0 || button >= static_cast<int>(pad.buttonNames.size())) return loc::T("common.off");
-    const auto name = pad.buttonNames[button];
-    return pad.table[button] ? loc::Tf("button_layout.training_busy_value", name) : name;
+CaptureCard BoundCaptureCard(const PadView& pad, BoundAction action, double left) {
+    return {loc::Tf("button_layout.press_for", loc::T(BoundActionRows[action].label)), pad.name, left};
 }
 std::string MenuButtonName(const PadView& pad, std::uint32_t mask, const char* glyph) {
     for (unsigned i = 0; i < LayoutBits.size(); ++i) if (mask == std::uint32_t(1) << LayoutBits[i] && !pad.buttonNames[i].empty()) return pad.buttonNames[i];
     return glyph;
+}
+std::uint32_t BoundButtonNow(const PadView& pad, BoundAction action) {
+    switch (action) {
+    case MenuConfirmButton: return pad.menuButtons.confirm;
+    case MenuBackButton: return pad.menuButtons.back;
+    default: return LayoutButtonMask(pad.bound[action], pad.has);
+    }
+}
+std::string BoundButtonValue(const PadView& pad, BoundAction action) {
+    switch (action) {
+    case MenuConfirmButton: return MenuButtonName(pad, pad.menuButtons.confirm, pad.menuButtons.confirmGlyph);
+    case MenuBackButton: return MenuButtonName(pad, pad.menuButtons.back, pad.menuButtons.backGlyph);
+    default: {
+        const int button = pad.bound[action];
+        if (button < 0) return loc::T("common.off");
+        return BoundButtonWorks(action, button, pad.table) ? pad.buttonNames[button] : loc::Tf("button_layout.training_busy_value", pad.buttonNames[button]);
+    }
+    }
 }
 namespace {
 // The prompt at 1.4x the body font, as the wizard's capture draws it (5.2).

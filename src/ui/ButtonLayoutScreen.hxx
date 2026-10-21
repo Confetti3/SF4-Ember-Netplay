@@ -12,18 +12,37 @@ constexpr std::array<LayoutFunction, 11> LayoutFunctions = {{
     {"red-focus", "button_layout.red_focus", 0xB0}
 }};
 std::string LayoutName(const std::optional<gamepads::ButtonLayout>& layout);
-// The captures of the Menu confirm, Menu back, Training record and Training
-// play rows, numbered after LayoutFunctions.
-constexpr unsigned MenuConfirmCapture = static_cast<unsigned>(LayoutFunctions.size()), MenuBackCapture = MenuConfirmCapture + 1,
-    TrainingRecordCapture = MenuBackCapture + 1, TrainingPlayCapture = TrainingRecordCapture + 1;
-// The row a capture belongs to: fn- and the function's id for an assign,
-// menu-confirm or menu-back for a menu button, training-record or
-// training-play for a Training button, edit-button for a pick.
+// Each bound action's row on the page, in gamepads::BoundAction order: its id
+// and the locale keys of its label and detail.
+struct BoundActionRow { const char* id; const char* label; const char* detail; };
+constexpr std::array<BoundActionRow, gamepads::BoundActionCount> BoundActionRows = {{
+    {"menu-confirm", "button_layout.menu_confirm", "button_layout.menu_confirm_detail"},
+    {"menu-back", "button_layout.menu_back", "button_layout.menu_back_detail"},
+    {"training-record", "button_layout.training_record", "button_layout.training_record_detail"},
+    {"training-play", "button_layout.training_play", "button_layout.training_play_detail"}}};
+inline std::optional<gamepads::BoundAction> BoundActionOfRow(const std::string& id) {
+    for (unsigned action = 0; action < gamepads::BoundActionCount; ++action) if (id == BoundActionRows[action].id) return static_cast<gamepads::BoundAction>(action);
+    return {};
+}
+// A capture is an index into LayoutFunctions, or a bound action numbered after them.
+constexpr unsigned BoundActionCapture(gamepads::BoundAction action) { return static_cast<unsigned>(LayoutFunctions.size()) + action; }
+inline std::optional<gamepads::BoundAction> BoundActionOfCapture(const std::optional<unsigned>& function) {
+    if (!function || *function < LayoutFunctions.size()) return {};
+    return static_cast<gamepads::BoundAction>(*function - LayoutFunctions.size());
+}
+// The row a capture belongs to: fn- and the function's id for an assign, the
+// bound action's row, or edit-button for a pick.
 inline std::string LayoutCaptureRow(const std::optional<unsigned>& function) {
-    if (function && *function >= TrainingRecordCapture) return *function == TrainingRecordCapture ? "training-record" : "training-play";
-    if (function && *function >= MenuConfirmCapture) return *function == MenuConfirmCapture ? "menu-confirm" : "menu-back";
+    if (const auto action = BoundActionOfCapture(function)) return BoundActionRows[*action].id;
     return function ? std::string("fn-") + LayoutFunctions[*function].id : std::string("edit-button");
 }
+// The physical button an action acts on now: for a menu action its binding,
+// else the game's own (PadView::menuButtons); for a Training action its
+// binding, 0 for none.
+std::uint32_t BoundButtonNow(const gamepads::PadView& pad, gamepads::BoundAction action);
+// What a bound action's row shows: the menu button that acts now; a Training
+// action's button, Off, or a note that the layout gives it an attack.
+std::string BoundButtonValue(const gamepads::PadView& pad, gamepads::BoundAction action);
 // The pad's name for a physical menu button (input::MenuButtons), or its glyph
 // when it is none of the ten layout buttons.
 std::string MenuButtonName(const gamepads::PadView& pad, std::uint32_t mask, const char* glyph);
@@ -49,13 +68,8 @@ void DrawButtonLayoutDetail(const gamepads::PadView& pad, gamepads::ButtonPrompt
 // the capture's timeout (left, 1 to 0) and how to cancel.
 struct CaptureCard { std::string prompt, pad; double left = 1; };
 CaptureCard LayoutCaptureCard(const gamepads::PadView& pad, const std::optional<std::uint32_t>& mask, double left);
-// The same card for the Menu confirm (back false) or Menu back row.
-CaptureCard MenuCaptureCard(const gamepads::PadView& pad, bool back, double left);
-// The same card for the Training record (play false) or Training play row.
-CaptureCard TrainingCaptureCard(const gamepads::PadView& pad, bool play, double left);
-// The pad's name for a Training button, Off for none, and a note when the
-// layout gives that button an attack, which keeps it from working.
-std::string TrainingButtonName(const gamepads::PadView& pad, int button);
+// The same card for a bound action's row.
+CaptureCard BoundCaptureCard(const gamepads::PadView& pad, gamepads::BoundAction action, double left);
 float CaptureCardHeight(const CaptureCard& card, float width);
 void DrawCaptureCard(const CaptureCard& card);
 void DrawButtonEditorDetail(const gamepads::PadView& pad, gamepads::ButtonPrompts prompts, unsigned button);

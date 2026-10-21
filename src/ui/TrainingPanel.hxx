@@ -30,10 +30,11 @@ void SetTrainingDirectory(std::wstring directory);
 // Reset position and save position on keys the player picks (F2 and F11 at
 // first), over the fight or the controls. Also sends the dummy's plan each battle.
 void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit);
-// The pad's Back (TrainingPad.hxx): a tap resets the position, a hold saves
-// where the fighters stood as it went down, and with Start on standby it starts
-// the recording. For the battle it was pressed in only.
-void TrainingPadPosition(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvent& pad);
+// What the pad asked for (TrainingPad.hxx), for the battle it was pressed in
+// only: Back's tap resets the position and its hold saves where the fighters
+// stood as it went down; Record (the chord on standby, or the player's own
+// button) and Play do what F7 and F8 do, under the focus period they went down in.
+void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& submit,input::TrainingControls& controls,const input::TrainingPadEvent& pad);
 // Whether a hotkey sits on the key that many after F1, so the game is not given it.
 bool TrainingHotkeyBound(int fromF1);
 // The keys that record and play a slot, and stop either again, counted from
@@ -45,12 +46,11 @@ std::string TrainingKeyName(int fromF1);
 // DirectInput pad is in use), and the two as the chord that, on standby,
 // starts a recording (TrainingPadInput).
 gamepads::PositionNames TrainingPadNames();
-// The pad's own Record and Play buttons as the layout page names them
-// (gamepads::TrainingBinding), empty for one that is off or does not work.
-// The overlay sets them each frame for the strip of hints.
-struct TrainingPadButtonNames { std::string record, play; };
-void SetTrainingPadButtons(TrainingPadButtonNames names);
-const TrainingPadButtonNames& TrainingPadButtons();
+// The gameplay pad's own Record and Play buttons as the runtime resolves them
+// (masks and names; none for one that is off or does not work). The overlay
+// sets them each frame for the strip of hints.
+void SetTrainingPadButtons(const input::TrainingButtons& buttons);
+const input::TrainingButtons& TrainingPadButtons();
 std::string TrainingPadChord();
 // The position hotkeys as the HUD's strip names them: reset then save, each
 // with its key and a short locale key for what it does; a hotkey set to Off

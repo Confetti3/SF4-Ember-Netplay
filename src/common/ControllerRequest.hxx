@@ -8,9 +8,8 @@ struct ControllerRequest {
     SetupCommand command = SetupCommand::None;
     int step = 0;
     ButtonLayout buttons = DefaultLayout;
-    MenuBinding menu;
+    BoundButtons bound = NoBoundButtons;
     ExtraCopies extras = NoExtraCopies;
-    TrainingBinding training;
     std::string log;
     std::vector<StoredLayout> layouts;
 };

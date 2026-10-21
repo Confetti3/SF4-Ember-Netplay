@@ -541,7 +541,7 @@ private:
     std::optional<gamepads::PadView> layoutPad_;
     bool layoutChanged_ = false, layoutAbsent_ = false;
     unsigned layoutButton_ = 0;
-    // An index into LayoutFunctions, or MenuConfirmCapture to TrainingPlayCapture; none for a pick.
+    // An index into LayoutFunctions or a BoundActionCapture; none for a pick.
     std::optional<unsigned> layoutCaptureFunction_;
     gamepads::LayoutCapture layoutCapture_;
     bool layoutNeutral_ = false;
@@ -555,14 +555,13 @@ private:
     bool DrawButtonLayout(const ShellView& view, const Submit& submit);
     bool ControllerActivate(const MenuAction& action, const ShellView& view, const Submit& submit);
     bool SavePreferences(const ShellView& view, const Submit& submit);
-    // menu, extras and training replace the pad's menu binding, extra button copies and Training buttons; none keeps them.
+    // bound and extras replace the pad's bound buttons and extra button copies; none keeps them.
     bool ChangeLayout(const gamepads::PadView& pad, const std::optional<gamepads::ButtonLayout>& layout,
-        const ShellView& view, const Submit& submit, const std::string& log, const std::optional<gamepads::MenuBinding>& menu = {},
-        const std::optional<gamepads::ExtraCopies>& extras = {}, const std::optional<gamepads::TrainingBinding>& training = {});
-    // Binds Training record (play false) or Training play to a layout button, refusing the other's button and one that does an attack.
-    void ChangeTrainingButton(const gamepads::PadView& pad, bool play, unsigned button, const ShellView& view, const Submit& submit);
-    // Binds Menu confirm (back false) or Menu back to a layout button, refusing the other's button.
-    void ChangeMenuButton(const gamepads::PadView& pad, bool back, unsigned button, const ShellView& view, const Submit& submit);
+        const ShellView& view, const Submit& submit, const std::string& log, const std::optional<gamepads::BoundButtons>& bound = {},
+        const std::optional<gamepads::ExtraCopies>& extras = {});
+    // Binds an action to a layout button, refusing its partner's button and, for one
+    // that needs a free button, one the layout gives an attack.
+    void ChangeBoundButton(const gamepads::PadView& pad, gamepads::BoundAction action, unsigned button, const ShellView& view, const Submit& submit);
     // Sets an extra button to copy the layout button a choice names, or nothing for "off".
     void ChangeExtraCopy(const gamepads::PadView& pad, unsigned extra, const std::string& choice, const ShellView& view, const Submit& submit);
     void LayoutLog(const ShellView& view, const Submit& submit, std::string text);

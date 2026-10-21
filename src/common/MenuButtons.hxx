@@ -1,6 +1,7 @@
 #pragma once
 #include "PadKind.hxx"
 #include <cstdint>
+#include <string>
 
 namespace sf4e { namespace input {
 // The functions the game's own menus confirm and go back with: Pad::System
@@ -16,8 +17,12 @@ struct MenuButtons {
     const char* backGlyph = "B";
 };
 // The physical buttons that start a Training recording and play a slot for one
-// device (the player's choices, gamepads::TrainingBinding); 0 for none.
-struct TrainingButtons { std::uint32_t record = 0, play = 0; };
+// device (the player's TrainingRecordButton and TrainingPlayButton), 0 for none,
+// and the names the pad gives them, empty for none.
+struct TrainingButtons {
+    std::uint32_t record = 0, play = 0;
+    std::string recordName, playName;
+};
 // The glyph id of one physical XInput button, or null.
 inline const char* XInputButtonName(std::uint32_t mask) {
     switch (mask) {
