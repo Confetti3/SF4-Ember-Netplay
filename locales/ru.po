@@ -4706,6 +4706,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Включайте и выключайте части HUD во время боя."
 
+msgid "training.hitboxes"
+msgstr "Хитбоксы"
+
+msgid "training.hitboxes.detail"
+msgstr "Рисует области бойцов поверх боя. Зелёный: где бойца можно ударить; жёлтый: где его можно захватить; красный: где атака попадает; синий: где она захватывает."
+
 msgid "training.color_key"
 msgstr "Обозначения цветов"
 

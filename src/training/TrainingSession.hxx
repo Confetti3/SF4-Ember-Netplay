@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include "HitBoxes.hxx"
 #include "FrameMeter.hxx"
 #include "RecordingBank.hxx"
 #include "RecordingTypes.hxx"
@@ -436,6 +437,8 @@ struct View {
     // The dummy's current settings, read from the game every frame; all -1
     // until the adapter has read them.
     DummyState dummy;
+    // The fighters' boxes after the last simulated frame; offline Training only.
+    BoxView boxes;
 };
 
 // P1's pad plays the dummy: on standby and while recording.

@@ -187,6 +187,8 @@ struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = fal
     int history = 1200;
     // After a pause the next exchange goes on after the last instead of starting over.
     bool continuous = false;
+    // The fighters' boxes are drawn over the fight.
+    bool hitboxes = false;
     // The bars slide a frame at a time, and a held meter steps back MeterSlideStep
     // frames a notch, instead of a page at a time.
     bool smooth = false;
