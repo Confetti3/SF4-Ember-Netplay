@@ -166,6 +166,16 @@ a server-wide room cap from supervisor configuration. Bans are rows
 - `DELETE /rooms/{room_id}`.
 - `GET /health`.
 
+A room's `status` line and its `GET /rooms` entry also carry an optional
+`games`: the room's 32 newest won games for public room classes, oldest first,
+each `{ table, generation, winner, loser }` with the two players' Ember IDs
+(`SKILL_BADGE.md`). The supervisor treats it like `details`: it does not read
+it, keeps the array of the latest status if it is at most 6 KB, drops anything
+else without failing the line, and writes `games` in the listing only when it
+has one, so a room without games lists exactly what it did before. The bridge
+reads each game by itself and rates each once, by room, table and generation,
+so the host repeats its recent games in every status.
+
 `creator` is the Ember ID of the player who made the room. The room host
 passes it to its helper as `HostPublic.creator`.
 

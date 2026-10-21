@@ -13,6 +13,7 @@
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
@@ -32,6 +33,7 @@
 #include "../common/ButtonLayoutCapture.hxx"
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
+#include "RankingsPanel.hxx"
 #include "ReplaysPanel.hxx"
 #include "ProblemReportPanel.hxx"
 #include "UpdatePrompt.hxx"
@@ -167,6 +169,7 @@ struct ShellView {
     netplay::tournament::Status tournament;
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
+    netplay::rankings::Status rankings;
     // Ember's replay archive, newest first, and what the runtime says of
     // replays (RuntimeSnapshot::Replays, ui/ReplaysView.hxx), as published.
     // A replay link's file waits there until the player answers: the Replays
@@ -285,6 +288,7 @@ public:
     void Conceal() {
         identity_.Conceal();
         publicRooms_.Conceal();
+        rankings_.Conceal();
         // A link that was going on by itself starts again when Ember reopens,
         // with the services read again (identity_.Conceal dropped that read).
         roomLinkOpening_ = roomLinkOpening_ || publicRooms_.FollowingLink();
@@ -315,6 +319,7 @@ private:
     GameMenu menu_;
     IdentityPanel identity_;
     PublicRoomsPanel publicRooms_;
+    RankingsPanel rankings_;
     ReplaysPanel replays_;
     ProblemReportPanel reportPanel_;
     CountryPicker countryPicker_;
@@ -568,11 +573,14 @@ private:
     bool DrawButtonLayout(const ShellView& view, const Submit& submit);
     bool ControllerActivate(const MenuAction& action, const ShellView& view, const Submit& submit);
     bool SavePreferences(const ShellView& view, const Submit& submit);
-    // menu replaces the pad's menu binding; none keeps it.
+    // menu and extras replace the pad's menu binding and extra button copies; none keeps them.
     bool ChangeLayout(const gamepads::PadView& pad, const std::optional<gamepads::ButtonLayout>& layout,
-        const ShellView& view, const Submit& submit, const std::string& log, const std::optional<gamepads::MenuBinding>& menu = {});
+        const ShellView& view, const Submit& submit, const std::string& log, const std::optional<gamepads::MenuBinding>& menu = {},
+        const std::optional<gamepads::ExtraCopies>& extras = {});
     // Binds Menu confirm (back false) or Menu back to a layout button, refusing the other's button.
     void ChangeMenuButton(const gamepads::PadView& pad, bool back, unsigned button, const ShellView& view, const Submit& submit);
+    // Sets an extra button to copy the layout button a choice names, or nothing for "off".
+    void ChangeExtraCopy(const gamepads::PadView& pad, unsigned extra, const std::string& choice, const ShellView& view, const Submit& submit);
     void LayoutLog(const ShellView& view, const Submit& submit, std::string text);
     void BeginPadSetup(const gamepads::PadView& pad,const ShellView& view,const Submit& submit);
     void UpdatePadSetup(const ShellView& view,const Submit& submit,bool visible);

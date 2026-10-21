@@ -134,7 +134,7 @@ function Assert-NightlyPendingSource([object]$Pending, [object]$Snapshot) {
 function Assert-NightlyBuildSnapshot([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot,
                                     [object]$Snapshot, [string]$PackageDirectory) {
     # The receipt check fingerprints the tree itself; tying the receipt to the snapshot
-    # covers the content, so only HEAD is left to compare here.
+    # covers the content, so only HEAD is left to compare here. Returns the receipt.
     $receipt = Assert-BuildReceipt $SourceRoot $BuildRoot $StageRoot
     if ($receipt.sourceFingerprint -cne $Snapshot.fingerprint -or $receipt.baseRevision -cne $Snapshot.revision) {
         throw 'Build receipt does not match the clean Nightly snapshot.'
@@ -146,6 +146,7 @@ function Assert-NightlyBuildSnapshot([string]$SourceRoot, [string]$BuildRoot, [s
         }
     }
     Assert-NightlyCleanHead $SourceRoot $Snapshot.revision | Out-Null
+    $receipt
 }
 
 function Get-NightlyArtifact([string]$Path) {
@@ -544,13 +545,13 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     & $Operations.Build $VisualStudioPath $DiscordSdkArchive
     $buildDirectory = Join-Path $CheckoutRoot $nightlyTarget.buildDirectory
     $stageDirectory = Join-Path $CheckoutRoot $nightlyTarget.installDirectory
-    Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot
+    $receipt = Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot
     $package = & $Operations.Package $OutDirectory $nightlyLabel
     $releaseAssets = @($package.zipPath, "$($package.zipPath).sha256")
     $installerPath = & $Operations.Installer $package.folderPath $nightlyLabel $OutDirectory $VisualStudioPath
     $releaseAssets += @($installerPath, "$installerPath.sha256")
     if ($package.gitRev -cne $sourceRevision) { throw 'Packaged source revision changed.' }
-    Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot $package.folderPath
+    Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot $package.folderPath | Out-Null
     # GetHash reads every on-disk byte through BCrypt SHA256, formatting each
     # digest byte with %02hhx: 64 lowercase hex characters, no prefix or separators.
     $publicBuildId = (Get-FileHash -LiteralPath (Join-Path $stageDirectory 'Sidecar.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -561,6 +562,7 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     $notes = @("SF4 Ember Netplay Nightly $nightlyLabel", '', "Source: $sourceRevision", '',
         'Nightly build from the nightly branch. Daily test builds may break; rooms only with other Nightly players.', '',
         "Public rooms build: $publicBuildId", '')
+    if ($receipt.testsPassedOnRerun) { $notes += @("Passed only when run once more: $($receipt.testsPassedOnRerun -join ', ')", '') }
     $notes += @($subjects | ForEach-Object { "- $_" })
     if ($commitCount -gt 60) { $notes += "- and $($commitCount - 60) more" }
     if (!$commitCount) { $notes += '- No commits since the changelog baseline.' }

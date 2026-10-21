@@ -31,7 +31,9 @@ pub struct Due {
 }
 
 /// The outbox: pending deliveries to enabled subscriptions whose owner's
-/// credential is not revoked.
+/// credential is not revoked. A subscription gets its events in order: only
+/// its oldest pending event is leased, so later ones wait until it is
+/// delivered or dead.
 pub struct Webhooks;
 
 impl Queue for Webhooks {
@@ -48,6 +50,8 @@ impl Queue for Webhooks {
                  JOIN service_credentials c ON c.id = s.owner_credential
                  WHERE o.state = 'pending' AND o.next_attempt_at <= ?1 AND s.enabled = 1
                    AND c.revoked_at IS NULL
+                   AND o.event_seq = (SELECT MIN(event_seq) FROM delivery_outbox
+                                      WHERE subscription_id = o.subscription_id AND state = 'pending')
                  ORDER BY o.next_attempt_at, o.id LIMIT ?2",
             )?
             .query_map(params![now, BATCH], |row| {
@@ -100,8 +104,9 @@ impl Queue for Webhooks {
                 leased.attempt
             ],
         )?;
-        // The receiver said the endpoint is gone (410).
-        if changed == 1 && matches!(record.settled, Settled::Refused(_)) {
+        // The receiver said the endpoint is gone (410). Any other refusal
+        // ends only that event.
+        if changed == 1 && matches!(&record.settled, Settled::Refused(error) if error == GONE) {
             tx.execute(
                 "UPDATE webhook_subscriptions SET enabled = 0, disabled_at = ?1 WHERE id = ?2",
                 params![record.at, leased.item.subscription_id],
@@ -169,12 +174,27 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
     match answer {
         Err(outcome) => outcome,
         Ok(answer) if (200..300).contains(&answer.status) => Outcome::Delivered,
-        Ok(answer) if answer.status == 410 => Outcome::Refused("gone".to_owned()),
+        Ok(answer) if answer.status == 410 => Outcome::Refused(GONE.to_owned()),
+        // A receiver that refuses an event (a 4xx other than a timeout or a
+        // rate limit) refuses it again, and the subscription's later events
+        // wait behind it: it is dead at once.
+        Ok(answer) if refuses(answer.status) => {
+            Outcome::Refused(format!("status {}", answer.status))
+        }
         Ok(answer) => Outcome::Retry {
             error: format!("status {}", answer.status),
             retry_after: answer.retry_after,
         },
     }
+}
+
+/// A 410's refusal, the one that also disables the subscription.
+const GONE: &str = "gone";
+
+/// A receiver's answer no retry changes: a 4xx but 408 Request Timeout and
+/// 429 Too Many Requests.
+fn refuses(status: u16) -> bool {
+    (400..500).contains(&status) && status != 408 && status != 429
 }
 
 /// What a destination answered.

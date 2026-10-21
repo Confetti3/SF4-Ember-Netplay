@@ -37,6 +37,12 @@ namespace Dimps {
 						// TODO
 					} __staticMethods;
 
+					// The first of a fighter's effect objects (a fireball), null
+					// when it has none. Its boxes that hit are in list BOXES_HIT
+					// (Chara::Actor::GetAttackBoxes).
+					static void* GetFirstEffect(Unit* u, unsigned side);
+					enum { BOXES_HIT = 3 };
+
 					static void Locate(HMODULE peRoot);
 					static __privateMethods privateMethods;
 					static __publicMethods publicMethods;

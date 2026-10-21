@@ -77,6 +77,16 @@ See [README.md](README.md#external-licenses-and-copyright-information) for depen
 
 You must own *Ultra Street Fighter IV* on Steam to play.
 
+The training lab's hitbox display reads the fighters' attack boxes from the
+actor offsets used by dantarion's
+[UltraBotFramework](https://github.com/dantarion/UltraBotFramework) (MIT). It
+followed the box layout described by lullius's
+[SF4 Box Viewer](https://github.com/lullius/SF4BV) to find the rest in a
+running game, and the layout of a script's vulnerability commands described by
+RainbowLib in dantarion's
+[ssf4ae-tools](https://github.com/dantarion/ssf4ae-tools). No code from any of
+them is included.
+
 ## Fighter selection reference photographs
 
 The optional selection photos contain Capcom game imagery. The alternate-outfit

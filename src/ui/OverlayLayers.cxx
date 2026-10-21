@@ -8,6 +8,8 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
     ChallengerBanner(training, view.challenger);
     bool passive = PassiveOverlayShown(view.shellVisible, view.trainingControlsOpen, view.nativePaused);
     TrainingHudInput hud;
+    // Behind the HUD, and under the training controls too, so turning them on there shows them.
+    if (training.available && view.trainingHud) DrawTrainingBoxes(training);
     if (passive && view.focused && training.available && view.trainingHud) {
         DrawTrainingRoomStatus(view.trainingRoom);
         hud = DrawTrainingHud(training, view.challenger.called);

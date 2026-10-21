@@ -22,6 +22,7 @@
 //!   not an object, then a larger one than allowed, then none.
 //! - `deep-details`: reports `hosted`, then one member whose details nest 200
 //!   arrays deep, past the JSON parser's own recursion limit.
+//! - `games`: reports `hosted`, then one member and two won games.
 //! - `max-status`: reports `hosted`, then the largest valid status: 512 banned
 //!   Ember IDs and an invitation of 4096 bytes.
 //! - `too-many-bans`: like `max-status` with 513 banned IDs, which is a
@@ -186,6 +187,16 @@ fn main() -> ExitCode {
             let mut out = std::io::stdout().lock();
             let _ = writeln!(out, "{line}");
             let _ = out.flush();
+        }
+        "games" => {
+            let (one, two) = (ember_id(1), ember_id(2));
+            send(&json!({
+                "type": "status", "members": 1, "tables_playing": 0, "invitation": invitation,
+                "games": [
+                    { "table": 2, "generation": 5, "winner": one, "loser": two },
+                    { "table": 0, "generation": 6, "winner": two, "loser": one },
+                ],
+            }));
         }
         "max-status" | "too-many-bans" => {
             let count = if name == "max-status" { 512 } else { 513 };

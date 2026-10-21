@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub use self::sites::SignInSite;
 use crate::linking::Site;
 
+mod deployed;
 pub mod sites;
 
 /// Provider kinds this build can serve. `direct` is a platform that calls
@@ -125,6 +126,15 @@ pub struct Rooms {
     /// Its bearer secret is `rooms_supervisor_secret` in the integration
     /// secrets.
     pub supervisor_url: String,
+    /// Room tickets carry the joiner's skill badge. Games are rated either
+    /// way, so the bands can be calibrated before anyone sees one.
+    #[serde(default)]
+    pub skill_badges: bool,
+    /// Discord user IDs of Ember's developers: their badge is the developer
+    /// mark in place of a class, and they are not on the ranking board. Their
+    /// games are rated as anyone's, so their opponents' ratings stay fair.
+    #[serde(default)]
+    pub developers: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -334,12 +344,14 @@ impl Policy {
     }
 }
 
+/// The largest configuration file the bridge reads.
+pub const MAX_CONFIG_LEN: usize = 64 * 1024;
+
 impl Config {
     pub fn load(path: &Path) -> Result<Self, String> {
         let text =
             fs::read(path).map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-        let mut config: Self = ember_protocol::json::parse_as(&text, 64 * 1024)
-            .map_err(|error| format!("invalid configuration: {error}"))?;
+        let mut config = Self::parse(&text)?;
         // Relative paths are relative to the configuration file.
         let base = path.parent().unwrap_or(Path::new("."));
         for file in [&mut config.database, &mut config.secrets]
@@ -358,6 +370,51 @@ impl Config {
         }
         config.validate()?;
         Ok(config)
+    }
+
+    fn parse(text: &[u8]) -> Result<Self, String> {
+        ember_protocol::json::parse_as(text, MAX_CONFIG_LEN)
+            .map_err(|error| format!("invalid configuration: {error}"))
+    }
+
+    /// A local development configuration with a mock provider, as
+    /// `ember-bridge init` writes it.
+    pub fn initial(bridge_id: String) -> Self {
+        Self {
+            bridge_id,
+            display_name: "Local Ember bridge".into(),
+            origin: "http://127.0.0.1:8787".into(),
+            listen: "127.0.0.1:8787".into(),
+            database: "bridge.sqlite3".into(),
+            secrets: "bridge-secrets.json".into(),
+            allow_loopback_http: true,
+            allow_private_webhooks: true,
+            mock_browser: true,
+            discord: None,
+            sign_in_sites: Vec::new(),
+            desk: None,
+            integration_secrets: None,
+            rooms: None,
+            match_expiry_hours: DEFAULT_MATCH_EXPIRY_HOURS,
+            replay_retention: None,
+            tenants: vec![Tenant {
+                id: "local".into(),
+                name: "Local tournaments".into(),
+                connections: vec![Connection {
+                    id: "mock-local".into(),
+                    kind: "mock".into(),
+                    environment: "local".into(),
+                    display_name: "Mock provider".into(),
+                    enabled: true,
+                    api_base: None,
+                    discord_lookup: false,
+                    lookup_sites: Vec::new(),
+                    disputes: None,
+                    results_url: None,
+                    rooms: None,
+                }],
+            }],
+        }
     }
 
     /// How long a match nobody plays stays open, in seconds.

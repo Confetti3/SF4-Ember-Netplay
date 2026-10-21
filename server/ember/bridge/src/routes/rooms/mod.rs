@@ -100,6 +100,26 @@ pub fn enabled(state: &AppState) -> bool {
     Supervisor::of(state).is_some()
 }
 
+/// Whether players' classes are shown (`rooms.skill_badges`): in tickets, on
+/// standings and on the ranking board. Games are rated either way.
+pub fn classes_shown(state: &AppState) -> bool {
+    state
+        .config
+        .rooms
+        .as_ref()
+        .is_some_and(|rooms| rooms.skill_badges)
+}
+
+/// The Discord accounts of Ember's developers (`rooms.developers`).
+pub fn developers(state: &AppState) -> Vec<String> {
+    state
+        .config
+        .rooms
+        .as_ref()
+        .map(|rooms| rooms.developers.clone())
+        .unwrap_or_default()
+}
+
 fn supervisor(state: &AppState) -> Result<Supervisor<'_>> {
     Supervisor::of(state).ok_or_else(ApiFailure::not_found)
 }

@@ -57,7 +57,7 @@ void TestRoomFollowsTheConfiguration() {
 		// And so does the status line the bridge reads.
 		const auto details = roomhost::DetailsOf(*snapshot);
 		CHECK(details.ownDelay == own);
-		const auto line = json::parse(roomhost::StatusLine(0, 0, "sf4e3:x", {}, details)).at("details");
+		const auto line = json::parse(roomhost::StatusLine({0, 0, "sf4e3:x", {}, details})).at("details");
 		CHECK(line.contains("own_delay") == own);
 		if (own) CHECK(line.at("own_delay") == true);
 		// A second room cannot be made over it.

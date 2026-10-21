@@ -56,24 +56,27 @@ const MIGRATIONS: &[(i64, &str)] = &[
     ),
     (27, include_str!("../migrations/027_sign_in_sites.sql")),
     (28, include_str!("../migrations/028_match_watch.sql")),
-    (31, include_str!("../migrations/031_organizer_grants.sql")),
-    (32, include_str!("../migrations/032_organizer_events.sql")),
-    (33, include_str!("../migrations/033_tournament_drafts.sql")),
-    (34, include_str!("../migrations/034_desk_sessions.sql")),
-    (35, include_str!("../migrations/035_desk_sets.sql")),
-    (36, include_str!("../migrations/036_match_replays.sql")),
-    (37, include_str!("../migrations/037_desk_marks.sql")),
-    (38, include_str!("../migrations/038_desk_calls.sql")),
-    (39, include_str!("../migrations/039_event_sign_ups.sql")),
-    (40, include_str!("../migrations/040_desk_session_seen.sql")),
-    (41, include_str!("../migrations/041_desk_handoffs.sql")),
-    (42, include_str!("../migrations/042_desk_devices.sql")),
-    (43, include_str!("../migrations/043_desk_device_checks.sql")),
+    (29, include_str!("../migrations/029_skill_ratings.sql")),
+    (30, include_str!("../migrations/030_ranking_choices.sql")),
+    (31, include_str!("../migrations/031_delivery_order.sql")),
+    (32, include_str!("../migrations/032_organizer_grants.sql")),
+    (33, include_str!("../migrations/033_organizer_events.sql")),
+    (34, include_str!("../migrations/034_tournament_drafts.sql")),
+    (35, include_str!("../migrations/035_desk_sessions.sql")),
+    (36, include_str!("../migrations/036_desk_sets.sql")),
+    (37, include_str!("../migrations/037_match_replays.sql")),
+    (38, include_str!("../migrations/038_desk_marks.sql")),
+    (39, include_str!("../migrations/039_desk_calls.sql")),
+    (40, include_str!("../migrations/040_event_sign_ups.sql")),
+    (41, include_str!("../migrations/041_desk_session_seen.sql")),
+    (42, include_str!("../migrations/042_desk_handoffs.sql")),
+    (43, include_str!("../migrations/043_desk_devices.sql")),
+    (44, include_str!("../migrations/044_desk_device_checks.sql")),
     (
-        44,
-        include_str!("../migrations/044_organizer_events_created.sql"),
+        45,
+        include_str!("../migrations/045_organizer_events_created.sql"),
     ),
-    (45, include_str!("../migrations/045_desk_dms.sql")),
+    (46, include_str!("../migrations/046_desk_dms.sql")),
 ];
 
 #[derive(Clone)]
@@ -100,6 +103,17 @@ impl Db {
         self.run(TransactionBehavior::Immediate, work).await
     }
 
+    /// `write` for a route with an error type of its own: any `Err` from
+    /// `work` rolls the write back, whatever the route answers it with.
+    pub async fn write_with<T, E, F>(&self, work: F) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<ApiFailure> + Send + 'static,
+        F: FnOnce(&Transaction<'_>) -> Result<T, E> + Send + 'static,
+    {
+        self.run(TransactionBehavior::Immediate, work).await
+    }
+
     /// Runs `work` in a read transaction, a consistent snapshot.
     pub async fn read<T, F>(&self, work: F) -> Result<T, ApiFailure>
     where
@@ -109,17 +123,20 @@ impl Db {
         self.run(TransactionBehavior::Deferred, work).await
     }
 
-    async fn run<T, F>(&self, behavior: TransactionBehavior, work: F) -> Result<T, ApiFailure>
+    async fn run<T, E, F>(&self, behavior: TransactionBehavior, work: F) -> Result<T, E>
     where
         T: Send + 'static,
-        F: FnOnce(&Transaction<'_>) -> Result<T, ApiFailure> + Send + 'static,
+        E: From<ApiFailure> + Send + 'static,
+        F: FnOnce(&Transaction<'_>) -> Result<T, E> + Send + 'static,
     {
         let db = self.0.clone();
         tokio::task::spawn_blocking(move || {
             let mut connection = db.lock().map_err(|_| ApiFailure::unavailable())?;
-            let transaction = connection.transaction_with_behavior(behavior)?;
+            let transaction = connection
+                .transaction_with_behavior(behavior)
+                .map_err(ApiFailure::from)?;
             let value = work(&transaction)?;
-            transaction.commit()?;
+            transaction.commit().map_err(ApiFailure::from)?;
             Ok(value)
         })
         .await

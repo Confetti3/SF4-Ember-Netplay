@@ -132,19 +132,25 @@ static void TestLargerArchiveKeepsSomeSummaries() {
   if (listing) CHECK(cache.Parses() - before == archive.size() - ArchiveSummaryCache::kCapacity);
  }
 }
-static void TestSlotReadFailuresAreRetried() {
- namespace fs = std::filesystem;
- using sf4e::replayslots::Bytes;
+namespace fs = std::filesystem;
+using sf4e::replayslots::Bytes;
+static fs::path SlotFolder() {
  const fs::path folder = fs::temp_directory_path() / ("ember-slot-cache-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
  CHECK(fs::create_directory(folder));
+ return folder;
+}
+static void SaveSlot(const fs::path& path, const Bytes& replay) {
+ std::ofstream out(path, std::ios::binary);
+ out.write(reinterpret_cast<const char*>(replay.data()), static_cast<std::streamsize>(replay.size()));
+ out.close(); CHECK(!out.fail());
+}
+static void TestSlotReadFailuresAreRetried() {
+ const fs::path folder = SlotFolder();
  const Bytes replay{'#', 'B', 'R', 'P', 1, 2, 3};
- const auto save = [&](const fs::path& path) {
-  std::ofstream out(path, std::ios::binary);
-  out.write(reinterpret_cast<const char*>(replay.data()), static_cast<std::streamsize>(replay.size()));
-  out.close(); CHECK(!out.fail());
- };
  const fs::path slot = folder / "280";
- save(slot);
+ SaveSlot(slot, replay);
+ // Saved an hour ago, so the cache may keep it.
+ fs::last_write_time(slot, fs::file_time_type::clock::now() - std::chrono::hours(1));
  SlotFileCache cache;
  unsigned reads = 0;
  bool locked = true;
@@ -157,7 +163,7 @@ static void TestSlotReadFailuresAreRetried() {
 #ifdef _WIN32
  // The game holding the slot open with no sharing, through the real reader.
  const fs::path held = folder / "281";
- save(held);
+ SaveSlot(held, replay);
  const auto real = [](const fs::path& path) { return sf4e::replayfiles::ReadFile(path); };
  const HANDLE game = CreateFileW(held.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
  CHECK(game != INVALID_HANDLE_VALUE);
@@ -167,8 +173,28 @@ static void TestSlotReadFailuresAreRetried() {
 #endif
  fs::remove_all(folder);
 }
+// A slot saved twice within one step of the file system's write times, the
+// second replay the same size: size and time are as they were, and the cache
+// still gives the second replay.
+static void TestASlotRewrittenWithinOneStepIsReadAgain() {
+ const fs::path folder = SlotFolder();
+ const fs::path slot = folder / "300";
+ const fs::file_time_type stamp = fs::file_time_type::clock::now();
+ const Bytes first{'#', 'B', 'R', 'P', 1, 2, 3}, second{'#', 'B', 'R', 'P', 4, 5, 6};
+ SlotFileCache cache;
+ unsigned reads = 0;
+ const auto read = [&](const fs::path& path) { ++reads; return sf4e::replayfiles::ReadFile(path); };
+ SaveSlot(slot, first);
+ fs::last_write_time(slot, stamp);
+ CHECK(cache.Read(slot, read) == first);
+ SaveSlot(slot, second);
+ fs::last_write_time(slot, stamp);
+ CHECK(cache.Read(slot, read) == second && reads == 2);
+ fs::remove_all(folder);
+}
 int main() {
  TestBoundedPayloads(); TestCrcBucketsAndConcurrentPublication();
  TestRepeatedListingsReuseSummaries(); TestLargerArchiveKeepsSomeSummaries(); TestSlotReadFailuresAreRetried();
+ TestASlotRewrittenWithinOneStepIsReadAgain();
  std::printf("replay_archive_index_test: all tests passed\n");
 }

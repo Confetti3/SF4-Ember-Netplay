@@ -174,6 +174,10 @@ int main() {
         MeterOptions saved; saved.inputs = inputs;
         CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).inputs == inputs);
     }
+    // No hitboxes unless saved as a literal true, and a round trip keeps them on.
+    for (const json& boxes : {json(), json(1), json("true")}) CHECK(!ReadMeterOptions(json{{"hitboxes", boxes}}).hitboxes);
+    MeterOptions boxed; boxed.hitboxes = true;
+    CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(boxed).dump())).hitboxes);
     // The HUD is standard size unless small (0) or large (2) is saved, and keeps its size through a round trip.
     for (const json& size : {json(), json(3), json(-1), json(1.5), json("2"), json(true)}) CHECK(ReadMeterOptions(json{{"hud_size", size}}).size == 1);
     for (int size = 0; size < HudSizes; ++size) {

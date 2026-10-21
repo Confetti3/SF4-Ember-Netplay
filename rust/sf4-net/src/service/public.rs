@@ -103,8 +103,7 @@ impl Actor {
         let waiting = self.parked_controls.iter().filter_map(|(peer, parked)| {
             parked
                 .channel
-                .account
-                .as_ref()
+                .account()
                 .map(|account| (account.clone(), *peer))
         });
         live.chain(waiting).collect()
@@ -185,7 +184,7 @@ impl Actor {
         let parked: Vec<_> = self
             .parked_controls
             .iter()
-            .filter(|(_, parked)| parked.channel.account.as_ref() == Some(&account))
+            .filter(|(_, parked)| parked.channel.account() == Some(&account))
             .map(|(peer, _)| *peer)
             .collect();
         for peer in parked {

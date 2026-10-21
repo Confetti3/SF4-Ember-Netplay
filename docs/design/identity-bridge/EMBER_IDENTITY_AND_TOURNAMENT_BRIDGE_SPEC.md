@@ -81,6 +81,8 @@ Correctness takes precedence over apparent automation. An unresolved result MUST
 
 This work does not create a global ranked service, a public room directory, a payment system, an anti-cheat system, a global ban authority, or a universal account-recovery service. It does not replace GGPO, Iroh, existing room authority, or native match-result detection.
 
+Later scope, outside this specification: public rooms show a player's class, from a rating the bridge keeps per Discord account over public room games (`docs/design/SKILL_BADGE.md`). It has no ranking list and no mode of its own.
+
 It does not require another player-installed executable. It does not require an Ember-operated central cloud. A platform, organizer, or Ember operator may deploy the bridge.
 
 The first automated tournament mode is **one two-player bracket match on one reserved table in a dedicated room**. The protocol includes table identity from day one, but automated multi-table tournament scheduling is a later capability. Existing casual four-table rooms remain unchanged.
@@ -1076,7 +1078,7 @@ Accept only configured event types/sources and bound payload sizes. Signature va
 
 ### 20.4 Durable, at-least-once delivery
 
-Commit a state transition, event, and outbox record in one database transaction. A worker sends the event and marks success only after a successful receiver response. Delivery is at least once; ordering is not guaranteed. Exactly-once delivery across independent HTTP systems is not promised.
+Commit a state transition, event, and outbox record in one database transaction. A worker sends the event and marks success only after a successful receiver response. Delivery is at least once and in event order per subscription: a later event waits until the one before it is delivered or dead. A 4xx answer other than 408 or 429 makes an event dead at once, so only a receiver that fails (5xx, 408, 429 or no answer) holds back the rest, for up to the retry budget. Exactly-once delivery across independent HTTP systems is not promised.
 
 Receivers persist/deduplicate event IDs and make their own side effects idempotent. A receiver should acknowledge with 2xx only after durable acceptance into its own queue or transaction. The request need not wait for all downstream processing.
 

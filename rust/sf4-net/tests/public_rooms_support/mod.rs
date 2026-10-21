@@ -232,7 +232,11 @@ pub async fn bridge_at(
         integration_secrets: rooms.then(|| "unused-in-tests.json".into()),
         desk: None,
         replay_retention: None,
-        rooms: supervisor.map(|supervisor_url| config::Rooms { supervisor_url }),
+        rooms: supervisor.map(|supervisor_url| config::Rooms {
+            supervisor_url,
+            skill_badges: false,
+            developers: Vec::new(),
+        }),
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {
             id: "local".into(),

@@ -22,7 +22,7 @@ use crate::{
     config::{Build, Config, Settings, Tuning},
     protocol::{
         ChildConfig, ChildMessage, CreateRoom, LineReader, MAX_ROOM_BANS, ReadError, parse_line,
-        usable_details,
+        usable_details, usable_games,
     },
 };
 
@@ -50,6 +50,11 @@ pub struct RoomInfo {
     /// when the host has not sent one or sent one that does not qualify.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<serde_json::Value>,
+    /// The won games the host's latest status reported, for the skill
+    /// rating, as it sent them (`usable_games`). Replaced by every status;
+    /// left out when there are none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub games: Option<serde_json::Value>,
 }
 
 /// `GET /limits`: what the supervisor runs with now, so an operator can see
@@ -100,6 +105,7 @@ struct Live {
     /// Set by the first status with a member and kept for the room's life.
     opened: bool,
     details: Option<serde_json::Value>,
+    games: Option<serde_json::Value>,
 }
 
 struct Room {
@@ -379,6 +385,7 @@ impl Supervisor {
                         banned: live.banned.clone(),
                         opened: live.opened,
                         details: live.details.clone(),
+                        games: live.games.clone(),
                     },
                 ))
             })
@@ -664,6 +671,7 @@ fn apply(
                         banned: Vec::new(),
                         opened: false,
                         details: None,
+                        games: None,
                     },
                 );
                 if let Some(sender) = hosted_tx.take() {
@@ -677,6 +685,7 @@ fn apply(
             invitation,
             banned,
             details,
+            games,
         } => {
             if !*hosted {
                 return Some("status before hosted".to_owned());
@@ -704,6 +713,9 @@ fn apply(
                         // Not an object or too big: this status says nothing
                         // about the room's details and the room stays up.
                         details: usable_details(details),
+                        // Only this status's games: the host repeats its
+                        // recent ones, and the bridge counts each once.
+                        games: usable_games(games),
                     },
                 );
             }

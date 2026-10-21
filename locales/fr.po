@@ -2639,6 +2639,18 @@ msgstr "Assis"
 msgid "room.status.ready"
 msgstr "Prêt"
 
+msgid "class.master"
+msgstr "Maître"
+
+msgid "class.grand_master"
+msgstr "Grand Maître"
+
+msgid "class.tip"
+msgstr "Classe {0}"
+
+msgid "class.unsettled"
+msgstr "Aucun match récent, elle a peut-être changé."
+
 msgid "room.status.playing"
 msgstr "En combat"
 
@@ -3721,7 +3733,7 @@ msgid "identity.local_passphrase"
 msgstr "Phrase secrète du PC"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine et Proton ne peuvent pas utiliser la protection des clés de Windows : une phrase secrète protège donc votre clé. Vous la saisissez une fois à chaque lancement du jeu."
+msgstr "Wine et Proton (par exemple sur Steam Deck) ne peuvent pas utiliser la protection des clés habituelle : une phrase secrète protège donc votre clé. Vous la saisissez une fois à chaque lancement du jeu."
 
 msgid "identity.repeat_passphrase"
 msgstr "Répéter la phrase"
@@ -3743,6 +3755,9 @@ msgstr "Créer l'Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "Crée votre clé sur ce PC. Seul ce compte Windows peut l'utiliser."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Crée votre clé sur ce PC, protégée par la phrase secrète ci-dessus."
 
 msgid "identity.leave_room"
 msgstr "Quittez le salon et revenez au menu principal pour changer votre Ember ID."
@@ -5013,6 +5028,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Activez ou désactivez des éléments du HUD pendant le combat."
 
+msgid "training.hitboxes"
+msgstr "Hitboxes"
+
+msgid "training.hitboxes.detail"
+msgstr "Dessine les boîtes des combattants sur le combat : en vert là où un combattant peut être touché, en jaune là où il peut être projeté, en rouge là où une attaque touche et en bleu là où elle projette."
+
 msgid "training.color_key"
 msgstr "Légende des couleurs"
 
@@ -5949,6 +5970,36 @@ msgstr "Sélectionnez, puis appuyez sur le bouton qui revient en arrière dans l
 msgid "button_layout.menu_taken"
 msgstr "{0} est déjà {1}. Choisissez un autre bouton."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Pavé tactile"
+
+msgid "button_layout.extra.home"
+msgstr "Bouton Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Bouton Muet"
+
+msgid "button_layout.extra.misc"
+msgstr "Bouton supplémentaire"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Palette droite {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Palette gauche {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Choisissez le bouton que {0} copie. {0} agit alors comme ce bouton."
+
+msgid "button_layout.extra_copy"
+msgstr "Comme {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} agit désormais comme {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} ne fait plus rien."
+
 msgid "room.delay_policy"
 msgstr "Délai d'entrée du salon"
 
@@ -6777,3 +6828,139 @@ msgstr "Retire l'accès organisateur. Ton compte lié reste."
 
 msgid "site.organizer_where"
 msgstr "L'accès organisateur est dans ID Ember > Organisation de tournois."
+
+msgid "screen.rankings"
+msgstr "Classements"
+
+msgid "rankings.title"
+msgstr "CLASSEMENTS"
+
+msgid "rankings.board_title"
+msgstr "JOUEURS PAR CLASSE"
+
+msgid "rankings.entry_detail"
+msgstr "Votre classe dans les salons publics, et les joueurs par classe."
+
+msgid "rankings.needs_setup"
+msgstr "Les classements viennent des matchs en salon public. Configurez d'abord les salons publics."
+
+msgid "rankings.loading"
+msgstr "Chargement de votre classe..."
+
+msgid "rankings.your_class"
+msgstr "Votre classe"
+
+msgid "rankings.placing"
+msgstr "Placement"
+
+msgid "rankings.placing_detail"
+msgstr "Votre classe apparaît après quelques matchs de plus en salon public contre des joueurs qui en ont une."
+
+msgid "rankings.faint_detail"
+msgstr "Vous n'avez pas joué récemment : votre classe est estompée et vous n'êtes plus au classement. Quelques matchs suffisent à la rétablir."
+
+msgid "rankings.settled_detail"
+msgstr "Affichée à côté de votre nom dans les salons publics."
+
+msgid "rankings.hidden"
+msgstr "Classes pas encore affichées"
+
+msgid "rankings.hidden_detail"
+msgstr "Ce service n'affiche pas encore les classes. Vos matchs en salon public comptent quand même."
+
+msgid "rankings.no_account"
+msgstr "Connectez Discord pour participer"
+
+msgid "rankings.no_account_detail"
+msgstr "Les classes sont liées à un compte Discord, donc un nouvel Ember ID conserve la vôtre. Sans compte, vos matchs ne comptent pas."
+
+msgid "rankings.connect_detail"
+msgstr "Ouvre Connecter Discord. Revenez ici ensuite."
+
+msgid "rankings.off"
+msgstr "Vous ne participez pas"
+
+msgid "rankings.off_detail"
+msgstr "Vos matchs ne comptent pas et aucune classe n'est affichée. Votre cote est conservée pour votre retour."
+
+msgid "rankings.take_part"
+msgstr "Participer"
+
+msgid "rankings.take_part_detail"
+msgstr "Vos matchs en salon public comptent de nouveau et votre classe revient. Après une absence, elle peut paraître estompée pendant quelques matchs. Vous serez au classement sous le nom {0}. Modifiable une fois par jour."
+
+msgid "rankings.stop"
+msgstr "Ne plus participer"
+
+msgid "rankings.stop_detail"
+msgstr "Votre classe disparaît des salons et du classement, et vos matchs ne comptent plus. Votre cote est conservée telle quelle et reprend à votre retour. Modifiable une fois par jour."
+
+msgid "rankings.change_wait"
+msgstr "Modifiable à nouveau dans {0}."
+
+msgid "rankings.hours"
+msgstr "{0} h"
+
+msgid "rankings.minutes"
+msgstr "{0} min"
+
+msgid "rankings.board_as"
+msgstr "Au classement sous le nom"
+
+msgid "rankings.board_as_detail"
+msgstr "Le nom et le drapeau que les salons affichent pour vous. Modifiez-les dans Profil et Paramètres. Le classement prend en compte un changement à la prochaine ouverture de Classements."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Fonctionnement des classes"
+
+msgid "rankings.how_text"
+msgstr "Seuls les matchs en salon public qui se terminent par un vainqueur comptent. Votre classe est liée à votre compte Discord, pas à votre Ember ID. Elle ne bouge qu'après une série de résultats nette, et un match contre un joueur bien plus fort ou plus faible compte à peine. Aucun point à voir, seulement la classe. Après une longue pause, elle paraît estompée jusqu'à votre prochain match, et elle ne baisse jamais d'elle-même."
+
+msgid "rankings.players"
+msgstr "Joueurs par classe"
+
+msgid "rankings.players_detail"
+msgstr "Tous les participants avec une classe établie, du plus haut au plus bas. Dans une classe, les derniers à avoir joué passent en premier."
+
+msgid "rankings.you"
+msgstr "Vous"
+
+msgid "rankings.you_beyond_cap"
+msgstr "Le classement liste jusqu'à {0} joueurs, et vous n'en faites pas partie pour l'instant."
+
+msgid "rankings.jump"
+msgstr "Gauche et Droite changent de classe."
+
+msgid "rankings.loading_board"
+msgstr "Chargement des joueurs..."
+
+msgid "rankings.empty"
+msgstr "Personne n'est encore au classement."
+
+msgid "rankings.status_board"
+msgstr "Joueurs listés : {0}. Mis à jour {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Ce service ne propose pas de classements."
+
+msgid "rankings.failure.too_soon"
+msgstr "Modifiable une fois par jour."
+
+msgid "settings.class_emblems"
+msgstr "Emblèmes de classe"
+
+msgid "settings.class_emblems_detail"
+msgstr "Affiche la classe de chaque joueur à côté de son nom dans les salons publics. Désactivé, elles sont masquées sur votre écran seulement. Les autres voient toujours la vôtre, et vos matchs comptent toujours."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Développeur d'Ember"
+
+msgid "rankings.developer_detail"
+msgstr "Les développeurs d'Ember affichent cette marque à la place d'une classe et ne figurent pas au classement. Vos matchs comptent quand même."

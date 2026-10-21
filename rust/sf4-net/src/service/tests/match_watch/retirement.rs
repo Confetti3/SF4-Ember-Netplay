@@ -13,6 +13,8 @@ struct Room {
     own: Endpoint,
     invite: Invite,
     recovery: RecoverySession,
+    /// Native roster identities survive retirement from the helper admissions.
+    incarnations: BTreeMap<EndpointId, u64>,
 }
 
 /// A member in the room's coordination as a learner, its admission recorded.
@@ -78,7 +80,9 @@ async fn open_room() -> Room {
     let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(own.clone(), events_tx);
     let (invite, recovery) = led_host(&mut actor, seed).await;
+    let incarnations = BTreeMap::from([(own.id(), recovery.incarnation)]);
     Room {
+        incarnations,
         actor,
         events,
         seen: Vec::new(),
@@ -103,6 +107,7 @@ impl Room {
         let admission = session.advertise().await;
         self.recovery.add_learner(&admission).await.unwrap();
         self.actor.remember_admission(admission.clone());
+        self.incarnations.insert(primary.id(), admission.incarnation);
         let control = if control {
             Some(Heard::new(
                 self.connect(&primary, Session::Bound(admission.incarnation))
@@ -144,7 +149,14 @@ impl Room {
     }
 
     async fn commit(&self, members: &[EndpointId], tournament: Value) {
-        commit(&self.recovery, checkpoint(members, tournament)).await;
+        // The native checkpoint carries the authenticated process identity,
+        // not just its endpoint. Keep those identities when testing departure.
+        let mut envelope: Value = serde_json::from_str(&checkpoint(members, tournament)).unwrap();
+        for (row, endpoint) in envelope["checkpoint"]["members"].as_array_mut().unwrap().iter_mut().zip(members) {
+            let incarnation = self.incarnations[endpoint];
+            row["incarnation"] = json!(incarnation);
+        }
+        commit(&self.recovery, envelope.to_string()).await;
     }
 
     fn drain(&mut self) {
@@ -227,6 +239,7 @@ async fn a_named_watcher_is_a_learner_however_many_watch() {
             while !room.actor.admissions.contains_key(&admission.incarnation) {
                 room.step().await;
             }
+            room.incarnations.insert(primary, admission.incarnation);
             sessions.push(session);
             // Two fighters keep the one voter a room of two has.
             if [1, 4, 8].contains(&count) {
@@ -812,6 +825,7 @@ async fn a_follower_keeps_its_control_to_a_leader_the_binding_does_not_name() {
         let fighter = room.member(false).await;
         let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let mut follower = Room {
+            incarnations: room.incarnations.clone(),
             actor: test_actor(fighter.primary.clone(), events_tx),
             events,
             seen: Vec::new(),
@@ -855,6 +869,8 @@ async fn a_follower_keeps_its_control_to_a_leader_the_binding_does_not_name() {
             .insert(leader, ControlWorker::start(ours));
 
         let members = [leader, fighter.id(), key()];
+        // The other fighter is named by the native checkpoint but offline.
+        room.incarnations.insert(members[2], u64::MAX);
         room.commit(&members, tournament(&members[1..], &[])).await;
         let revision = room.recovery.committed().await.revision();
         while fighter.session.committed().await.revision() < revision {

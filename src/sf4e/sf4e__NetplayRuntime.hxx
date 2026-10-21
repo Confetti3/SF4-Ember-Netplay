@@ -41,6 +41,7 @@
 #include "../netplay/WatchPlay.hxx"
 #include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/RankingRequests.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
@@ -217,6 +218,8 @@ struct Runtime {
     std::uint64_t roomListRequest=0, admissionRequest=0;
     std::uint64_t roomListSentMs=0, admissionSentMs=0;
     netplay::publicrooms::Status publicRooms;
+    // Rankings: the requests in flight and what the interface sees.
+    netplay::rankings::Requests rankings;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;
@@ -448,11 +451,21 @@ void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOut
 netplay::tournament::Status TournamentStatus();
 
 // Public rooms (sf4e__NetplayRuntime__PublicRooms.cxx).
+// Sends one bridge request on the tournament channel; the id the helper will
+// answer under, or 0 when it was not sent. The helper bounds its own bridge
+// requests; BridgeRequestGiveUpMs only ends a wait for one it lost.
+constexpr std::uint64_t BridgeRequestGiveUpMs = 60000;
+std::uint64_t SendBridgeRequest(const nlohmann::json& request);
 void DispatchPublicRooms(const netplay::tournament::Command& command, bool helperReady);
 // True when the answer was to a public room request, which it then took.
 bool TakePublicRoomsAnswer(const session::TournamentAnswer& answer);
 // Gives up on a request the helper never answered.
 void ExpirePublicRooms(std::uint64_t nowMs);
+
+// Rankings (sf4e__NetplayRuntime__Rankings.cxx), the same way.
+void DispatchRankings(const netplay::tournament::Command& command, bool helperReady);
+bool TakeRankingsAnswer(const session::TournamentAnswer& answer);
+void ExpireRankings(std::uint64_t nowMs);
 
 // Controllers (sf4e__NetplayRuntime__Input.cxx).
 std::string DeviceName(const input::Device& device);

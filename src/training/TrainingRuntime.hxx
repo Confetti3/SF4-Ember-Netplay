@@ -44,14 +44,21 @@ static_assert((ReservedInputBits & FightButtons) == 0, "reserved bits overlap th
 // pad before it goes to GGPO and to both of GGPO's inputs before the game
 // plays a frame, simulated or resimulated. Any other match is left alone.
 unsigned ClearReservedInputBits(unsigned raw);
+#ifdef SF4E_SELFTEST
 // For the in-game self-test: lets the lab into an offline Versus battle too,
 // where it otherwise runs in a Training battle only. Game thread.
 void AllowOfflineVersusForTest();
+// Reads the fighters' boxes whether or not Hitboxes is on. Game thread.
+void ReadHitBoxesForTest();
+#endif
 // Whether the player wants that meter. Any thread.
 void WatchMatches(bool enabled);
 // How many frames the meter keeps, and whether an exchange after a pause goes
 // on after the last (MeterOptions::history, continuous). Any thread.
 void SetMeterHistory(int frames, bool continuous);
+// Whether Hitboxes is on (MeterOptions::hitboxes); the fighters' boxes are
+// read only while it is. Any thread.
+void ShowHitBoxes(bool shown);
 void CloseBattle();
 void StopCapture();
 // The override exists only during one native offline training update.

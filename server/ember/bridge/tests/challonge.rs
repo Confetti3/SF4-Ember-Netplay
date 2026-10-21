@@ -507,6 +507,47 @@ async fn starts_are_limited_across_the_bridge_too() {
 }
 
 #[tokio::test]
+async fn a_refused_start_does_not_spend_its_proof() {
+    let fake = fake_challonge();
+    let bridge = bridge_with(
+        &fake,
+        Limits {
+            starts_per_hour: 1,
+            ..LIMITS
+        },
+        with_secret(),
+    )
+    .await;
+    let players = [player(&bridge, 1).await, player(&bridge, 2).await];
+    CHALLONGE.start(&bridge, &players[0]).await;
+    let body = bridge
+        .prove(
+            &players[1],
+            Action::SiteConnect,
+            Method::Post,
+            "/v1/sites/challonge/start",
+            json!({}),
+        )
+        .await;
+    // The same proof is refused as busy again, not as already used.
+    for _ in 0..2 {
+        let (status, answer) = bridge
+            .send_proof(
+                &players[1],
+                Method::Post,
+                "/v1/sites/challonge/start",
+                body.clone(),
+            )
+            .await;
+        assert_eq!(
+            (status, code(&answer)),
+            (StatusCode::SERVICE_UNAVAILABLE, "sign_in_busy"),
+            "{answer}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn a_sign_in_started_with_room_is_refused_once_the_budget_is_spent() {
     let fake = fake_challonge();
     let bridge = bridge_with(

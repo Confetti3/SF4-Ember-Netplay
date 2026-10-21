@@ -5,7 +5,10 @@ use std::sync::{
     atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
-use ember_protocol::EmberId;
+use ember_protocol::{
+    EmberId,
+    {rooms::RoomTicket, skill::SkillBadge},
+};
 use iroh::endpoint::Connection;
 use tokio::{
     sync::{Notify, mpsc},
@@ -63,7 +66,8 @@ pub struct ControlWorker {
     /// The most frames the send queue has held since `take_queue_peak`.
     queue_peak: AtomicUsize,
     session: Session,
-    account: Option<EmberId>,
+    /// The verified ticket a public room admitted this connection with.
+    ticket: Option<RoomTicket>,
 }
 
 impl ControlWorker {
@@ -77,7 +81,7 @@ impl ControlWorker {
         let (outgoing, mut send_queue) = mpsc::channel(CONTROL_QUEUE_CAPACITY);
         let (recv_queue, incoming) = mpsc::channel(CONTROL_QUEUE_CAPACITY);
         let rejected = Arc::new(AtomicU64::new(0));
-        let account = channel.account;
+        let ticket = channel.ticket;
         let connection = channel.connection;
         let mut sender = channel.sender;
         let mut receiver = channel.receiver;
@@ -124,13 +128,18 @@ impl ControlWorker {
             rejected,
             queue_peak: AtomicUsize::new(0),
             session: Session::Unbound,
-            account,
+            ticket,
         }
     }
 
     /// The Ember ID a public room's ticket admitted this connection under.
     pub fn account(&self) -> Option<&EmberId> {
-        self.account.as_ref()
+        self.ticket.as_ref().map(|ticket| &ticket.ember_id)
+    }
+
+    /// The skill badge the bridge put in that ticket.
+    pub fn badge(&self) -> Option<SkillBadge> {
+        self.ticket.as_ref().and_then(|ticket| ticket.badge)
     }
 
     pub fn session(&self) -> Session {

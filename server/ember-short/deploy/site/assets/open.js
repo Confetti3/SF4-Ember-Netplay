@@ -7,9 +7,13 @@
 // the player: a name of 1 to 40 letters, digits, spaces and . ' & -, starting
 // with a letter or digit (SITE), is shown as text, and any other is dropped.
 // It reads the link from the URL
-// fragment, which is never sent to the server, makes no requests of its own,
-// and offers the ember: link only on the player's click, never by itself: a
+// fragment, which is never sent to the server, and makes no requests of its own.
+// It offers the ember: link on the player's click, and opens it by itself only
+// for a match (/m) in a browser where Ember has opened from this page before: a
 // browser without Ember's handler would otherwise replace this page with an error.
+// That memory is one flag in this browser's storage, never a link.
+// On a phone or tablet it offers neither Ember nor its download, only the link
+// to take to the PC.
 // A link naming the staging bridge offers Nightly, the only Ember that trusts it.
 (function () {
   'use strict';
@@ -29,6 +33,14 @@
     'Download the newest Nightly at the top of the list.';
   // How long the page waits after Open in Ember before it guesses Ember did not open.
   var OPEN_WAIT_MS = 2000;
+  // How long after that click Ember taking focus still counts as Ember opening:
+  // a first launch waits for the browser's prompt and the launcher to start.
+  var RECORD_WAIT_MS = 15000;
+  // Set once Ember took focus right after Open in Ember on this page.
+  var OPENED_KEY = 'ember.opened';
+  var PHONE_FALLBACK_TITLE = 'Open it on your PC';
+  var PHONE_FALLBACK_LEAD = 'Copy the link and send it to yourself, then open it on the PC you play on, or paste it into Ember there:';
+  var AUTO_AFTER = 'Ember opened from this browser before, so this page opens it for you. If nothing happens, choose Open in Ember.';
 
   // The canonical 12-symbol room code, or null. Same rules as the game:
   // dashes and spaces ignored, any case, O read as 0 and I or L as 1.
@@ -180,13 +192,18 @@
     ['page', 'missing', 'link', 'fallback', 'tournaments', 'code', 'copy-code', 'version', 'not-opened'].forEach(function (id) {
       byId(id).hidden = true;
     });
+    byId('get').hidden = false;
     byId('come-back').hidden = false;
     byId('get-title').textContent = "Don't have Ember yet?";
+    byId('tournaments-title').textContent = TOURNAMENTS_TITLE;
+    byId('fallback-title').textContent = FALLBACK_TITLE;
     byId('fallback-lead').textContent = FALLBACK_LEAD;
     byId('version').textContent = VERSION_NOTE;
     byId('download').href = STABLE_DOWNLOAD;
     byId('not-opened-download').href = STABLE_DOWNLOAD;
     clearTimeout(openTimer);
+    clearTimeout(recordTimer);
+    recording = false;
     byId('title').textContent = 'Open in Ember';
     byId('status').textContent = '';
     byId('open').href = '#';
@@ -219,10 +236,13 @@
       document.getElementById('download').href = NIGHTLY_DOWNLOAD;
       document.getElementById('not-opened-download').href = NIGHTLY_DOWNLOAD;
     }
+    // A phone can neither open Ember nor install it.
+    if (PHONE) document.getElementById('get').hidden = true;
     if (!found.ember) {
       document.getElementById('get-title').textContent = 'Get Ember';
       document.getElementById('come-back').hidden = true;
       document.getElementById('tournaments').hidden = false;
+      if (PHONE) document.getElementById('tournaments-title').textContent = 'Connect Discord on your PC';
       return;
     }
     document.getElementById('after').textContent = found.after;
@@ -237,23 +257,65 @@
       code.hidden = false;
       document.getElementById('copy-code').hidden = false;
     }
-    document.getElementById('link').hidden = false;
     document.getElementById('fallback').hidden = false;
+    if (PHONE) {
+      document.getElementById('fallback-title').textContent = PHONE_FALLBACK_TITLE;
+      document.getElementById('fallback-lead').textContent = PHONE_FALLBACK_LEAD;
+      return;
+    }
+    document.getElementById('link').hidden = false;
+    // A match opens by itself once per link while this page is open.
+    if (path === '/m' && found.link !== autoOpened && rememberedOpen()) {
+      autoOpened = found.link;
+      document.getElementById('after').textContent = AUTO_AFTER;
+      location.href = found.ember;
+    }
   }
 
   // After Open in Ember, a page that still has focus a moment later most
   // likely had no Ember to hand the link to. Browsers cannot tell for sure,
   // so this only reveals help and never hides any.
   var openTimer = 0;
+  var recordTimer = 0;
   var leftPage = false;
+  var recording = false;
   function opened() {
     leftPage = false;
+    recording = true;
     clearTimeout(openTimer);
+    clearTimeout(recordTimer);
     openTimer = setTimeout(function () {
       if (!leftPage && !document.hidden && document.hasFocus()) document.getElementById('not-opened').hidden = false;
     }, OPEN_WAIT_MS);
+    recordTimer = setTimeout(function () {
+      recording = false;
+      if (!leftPage) forgetOpen();
+    }, RECORD_WAIT_MS);
   }
   function left() { leftPage = true; }
+  // Ember taking focus right after the click is the sign it opened. Leaving
+  // the page does not count: a browser with no handler for ember: may replace
+  // the page with an error.
+  function lostFocus() {
+    if (recording && !leftPage) rememberOpen();
+    left();
+  }
+
+  // The flag that lets a match open by itself. Storage may be off or full;
+  // then the page simply waits for a click, as it did before.
+  var autoOpened = null;
+  function rememberedOpen() {
+    try { return localStorage.getItem(OPENED_KEY) === '1'; } catch (error) { return false; }
+  }
+  function rememberOpen() {
+    try { localStorage.setItem(OPENED_KEY, '1'); } catch (error) { /* stays manual */ }
+  }
+  // Only after a click that Ember did not answer. An automatic open that does
+  // nothing proves less (Chrome opens an app without a click only once the
+  // player chose to always allow it), so it keeps the flag.
+  function forgetOpen() {
+    try { localStorage.removeItem(OPENED_KEY); } catch (error) { /* nothing stored */ }
+  }
 
   // Ember runs on the PC the player plays on, not a phone or tablet.
   function onPhone() {
@@ -263,16 +325,19 @@
     return /Android|iPhone|iPad|iPod|Mobile/i.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
   }
 
-  var FALLBACK_LEAD;
+  var FALLBACK_LEAD, FALLBACK_TITLE, TOURNAMENTS_TITLE, PHONE;
   function start() {
     FALLBACK_LEAD = document.getElementById('fallback-lead').textContent;
-    document.getElementById('phone').hidden = !onPhone();
+    FALLBACK_TITLE = document.getElementById('fallback-title').textContent;
+    TOURNAMENTS_TITLE = document.getElementById('tournaments-title').textContent;
+    PHONE = onPhone();
+    document.getElementById('phone').hidden = !PHONE;
     document.getElementById('open').addEventListener('click', function () {
       if (current && current.ember) opened();
     });
-    window.addEventListener('blur', left);
+    window.addEventListener('blur', lostFocus);
     window.addEventListener('pagehide', left);
-    document.addEventListener('visibilitychange', function () { if (document.hidden) left(); });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) lostFocus(); });
     // Bound once; each copies whatever link the page shows now.
     document.getElementById('copy-link').addEventListener('click', function () {
       if (current && current.link) copy(current.link, 'Link copied. Paste it into Ember.');

@@ -9,6 +9,7 @@ struct ControllerRequest {
     int step = 0;
     ButtonLayout buttons = DefaultLayout;
     MenuBinding menu;
+    ExtraCopies extras = NoExtraCopies;
     std::string log;
 };
 } }

@@ -699,6 +699,8 @@ void fSystem::CloseBattle() {
     }
     sf4e::platform::replays::NoteMatchEnd(s_nativeResultEmitted);
     (_this->*rSystem::publicMethods.CloseBattle)();
+    // After the native close, which puts back its own saved step setting.
+    RestoreBattleStep();
     sf4e::memento::LogCounters("battle_close_exit");
     sf4e::memento::ResetCounters();
     ResetNativeResultMatch();

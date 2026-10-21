@@ -259,6 +259,22 @@ fn announces_tournament_progress() {
 #[derive(Clone, Default)]
 struct Captured(Arc<Mutex<Vec<(HeaderMap, Value)>>>);
 
+impl Captured {
+    /// The posts once `count` have arrived; fails if more arrive or the
+    /// count is not reached within 30 s.
+    async fn wait_for(&self, count: usize) -> Vec<(HeaderMap, Value)> {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        loop {
+            let posts = self.0.lock().unwrap().clone();
+            if posts.len() >= count || tokio::time::Instant::now() >= deadline {
+                assert_eq!(posts.len(), count, "{posts:?}");
+                return posts;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+}
+
 /// A fake endpoint that records each post and answers `answer`.
 async fn fake(path: &'static str, answer: &'static str) -> (String, Captured) {
     let captured = Captured::default();
@@ -438,6 +454,10 @@ async fn announces_a_set_on_discord_and_twitch() {
     )
     .await;
     let id = created["match_id"].as_str().unwrap();
+    // Later events are titled with the label match.created brought, so the
+    // set is decided only once that announcement is out.
+    discord.wait_for(1).await;
+    twitch.wait_for(1).await;
     call(
         &origin,
         &organizer,
@@ -447,33 +467,31 @@ async fn announces_a_set_on_discord_and_twitch() {
     )
     .await;
 
-    for _ in 0..200 {
-        if discord.0.lock().unwrap().len() >= 3 && twitch.0.lock().unwrap().len() >= 3 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    let posts = discord.0.lock().unwrap().clone();
-    assert_eq!(posts.len(), 3, "{posts:?}");
-    assert_eq!(posts[0].1["embeds"][0]["title"], "Grand final");
+    // The decided game commits score.changed and match.completed together,
+    // and the bridge sends them side by side: webhook order is not
+    // guaranteed (spec 20.4), so the set result is found by its text.
+    let set_result = |text: &Value| text.as_str().unwrap().contains("wins the set");
+    let posts = discord.wait_for(3).await;
     assert_eq!(posts[0].1["allowed_mentions"], json!({ "parse": [] }));
-    assert!(
-        posts[2].1["embeds"][0]["description"]
-            .as_str()
-            .unwrap()
-            .contains("wins the set")
-    );
-    let chats = twitch.0.lock().unwrap().clone();
-    assert_eq!(chats.len(), 3);
+    for (_, post) in &posts {
+        assert_eq!(post["embeds"][0]["title"], "Grand final", "{posts:?}");
+    }
+    let results = posts
+        .iter()
+        .filter(|(_, post)| set_result(&post["embeds"][0]["description"]));
+    assert_eq!(results.count(), 1, "{posts:?}");
+    let chats = twitch.wait_for(3).await;
     assert_eq!(chats[0].0["authorization"], "Bearer test-token");
     assert_eq!(chats[0].0["client-id"], "test-client");
-    assert_eq!(chats[2].1["broadcaster_id"], "1001");
-    assert!(
-        chats[2].1["message"]
-            .as_str()
-            .unwrap()
-            .starts_with("Grand final: ")
-    );
+    for (_, chat) in &chats {
+        assert_eq!(chat["broadcaster_id"], "1001");
+        let message = chat["message"].as_str().unwrap();
+        assert!(message.starts_with("Grand final: "), "{chats:?}");
+    }
+    let results = chats
+        .iter()
+        .filter(|(_, chat)| set_result(&chat["message"]));
+    assert_eq!(results.count(), 1, "{chats:?}");
     for task in tasks {
         task.abort();
     }

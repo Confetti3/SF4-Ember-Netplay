@@ -64,6 +64,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME UiPolish SOURCES "src/tests/ui-polish/ui_polish_test.cxx" STD 14 TIMEOUT 10)
     sf4e_add_unit_test(NAME GgpoGate SOURCES "src/tests/ggpo_gate_test.cxx" "src/common/sf4e__GgpoGate.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME CrashReport SOURCES "src/tests/crash_report_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME BattleStep SOURCES "src/tests/battle_step_test.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME HelperErrorScope SOURCES "src/tests/helper_error_scope_test.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME RecoveryProgress SOURCES "src/tests/recovery_progress_test.cxx" STD 17 TIMEOUT 15)
     sf4e_add_unit_test(NAME JoinLink SOURCES "src/tests/join_link_test.cxx" STD 11 TIMEOUT 15)
@@ -198,6 +199,7 @@ if(BUILD_TESTING)
         LIBS nlohmann_json::nlohmann_json STD 17)
     sf4e_add_unit_test(NAME WatchPlay SOURCES "src/tests/watch_play_test.cxx" LIBS sf4e_watch_play)
     sf4e_add_unit_test(NAME RoomWatch SOURCES "src/tests/room_watch_test.cxx" LIBS sf4e_room_model)
+    sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test.cxx" STD 17)
     sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
         LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300)
     sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
@@ -229,6 +231,7 @@ endif()
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME SelectionValue SOURCES "src/tests/selection_value_test.cxx" LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
     sf4e_add_unit_test(NAME MoveNotation SOURCES "src/tests/move_notation_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
+    sf4e_add_unit_test(NAME HitBoxes SOURCES "src/tests/hit_boxes_test.cxx" STD 14 TIMEOUT 15)
     sf4e_add_unit_test(NAME BacFile SOURCES "src/tests/bac_file_test.cxx" STD 14 TIMEOUT 15)
     sf4e_add_unit_test(NAME PracticeSettings SOURCES "src/tests/practice_settings_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
     sf4e_add_unit_test(NAME TrainingDummyControl SOURCES "src/tests/training_dummy_control_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json)
@@ -283,10 +286,10 @@ install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.
 install(DIRECTORY "assets/flags" DESTINATION "assets" FILES_MATCHING PATTERN "flags.png" PATTERN "flags.json" PATTERN "LICENSE" PATTERN "README.md")
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
-target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/IdentityDesk.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/IdentityDesk.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/RankingsPanel.cxx src/ui/RankingsCards.cxx src/ui/MatchAnnouncements.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
-target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx src/ui/ApplicationShell__Create.cxx src/ui/ApplicationShell__Links.cxx src/ui/RoomCards.cxx src/ui/ApplicationShell__Updates.cxx src/ui/UpdatePrompt.cxx src/ui/CountryFlag.cxx src/ui/CountryPicker.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx src/ui/ApplicationShell__Create.cxx src/ui/ApplicationShell__Links.cxx src/ui/RoomCards.cxx src/ui/ApplicationShell__Updates.cxx src/ui/UpdatePrompt.cxx src/ui/CountryFlag.cxx src/ui/CountryPicker.cxx src/ui/NameMarks.cxx)
 add_library(sf4e_problem_report STATIC src/platform/ProblemReport.cxx)
 target_compile_features(sf4e_problem_report PUBLIC cxx_std_17)
 target_link_libraries(sf4e_problem_report PUBLIC nlohmann_json::nlohmann_json)
@@ -325,6 +328,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME WatchJourney SOURCES src/tests/watch_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME RankingsJourney SOURCES src/tests/rankings_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME WatchedMatchExit SOURCES src/tests/watched_match_exit_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME LatencyMark SOURCES src/tests/latency_mark_test.cxx LIBS sf4e_ui Dimps TIMEOUT 15)
@@ -501,6 +505,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__Room.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Tournament.cxx"
     "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Rankings.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
     "src/sf4e/sf4e__NetplayPresentation.cxx"
     "src/sf4e/sf4e__RuntimeBridge.hxx"

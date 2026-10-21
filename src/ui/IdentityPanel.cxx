@@ -573,7 +573,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
             // A match link waits for the ID: it is what watching needs.
             rows.push_back(ConfirmRow("id-enable", loc::T("identity.enable"),
-                canEdit ? loc::T(opened_ ? "tournament.watch.needs_id" : "identity.enable_detail") : loc::T("identity.leave_room"),
+                canEdit ? loc::T(opened_ ? "tournament.watch.needs_id" : id.passphraseRequired ? "identity.enable_passphrase_detail" : "identity.enable_detail") : loc::T("identity.leave_room"),
                 canEdit && !busy && secretOk));
         }
         if (id.state == "locked") {

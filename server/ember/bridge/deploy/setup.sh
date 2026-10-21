@@ -35,10 +35,16 @@
 #                                                      request zones, named after the instance
 # Nothing is opened in ufw: the bridge listens on loopback, nginx already serves 80 and 443.
 #
-# Before changing anything it refuses a folder that is not directly in the
-# operator's home, and a tenants file whose origin or listen address another
-# installed bridge has. test-setup.sh moves every path above under a test
-# folder (see instance.sh) and stands in for the commands that need root.
+# Nothing but the nginx zone and site is moved until nginx -t accepts them; a
+# failed check puts those back and leaves the binary, bridge.json and units as
+# they were. If the new bridge then does not start or answer, the previous
+# binary, scripts, bridge.json, units, site and zone are put back and the
+# previous bridge is restarted. Before changing anything it refuses a folder
+# that is not directly in the operator's home, a tenants file whose origin or
+# listen address another installed bridge has, and one the new binary would
+# not load (ember-bridge apply-tenants). test-setup.sh moves every
+# path above under a test folder (see instance.sh) and stands in for the
+# commands that need root.
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
@@ -122,45 +128,49 @@ if ! id "$NAME" >/dev/null 2>&1; then
 fi
 
 install -d -o root -g root -m 0755 "$LIB"
-install -o root -g root -m 0755 "$SRC/bin/ember-bridge" "$LIB/ember-bridge.new"
-mv -f "$LIB/ember-bridge.new" "$LIB/ember-bridge"
-install -o root -g root -m 0644 "$SRC/instance.sh" "$LIB/instance.sh"
-install -o root -g root -m 0755 "$SRC/backup.sh" "$LIB/backup.sh"
-install -o root -g root -m 0755 "$SRC/restore.sh" "$LIB/restore.sh"
 install -d -o "$NAME" -g "$NAME" -m 0700 "$STATE" "$BACKUPS"
 
+# Stage everything as <path>.new, check it, and only then move it all into
+# place, so a failure before that leaves the running bridge as it was. NEW
+# names what the last step moves; the site and zone are moved earlier. The
+# trap removes what was staged and the backup on every way out, and puts the
+# site and zone back if the script dies while they are moved but unchecked.
+backup=$(mktemp -d)
+NEW=("$LIB/ember-bridge" "$LIB/instance.sh" "$LIB/backup.sh" "$LIB/restore.sh" "$STATE/bridge.json"
+    "$UNITS/$NAME.service" "$UNITS/$NAME-backup.service" "$UNITS/$NAME-backup.timer")
+swapped=
+cleanup() {
+    local path
+    for path in "${NEW[@]}" "$SITE" "$ZONE"; do rm -f "$path.new"; done
+    [ -z "$swapped" ] || restore
+    rm -rf "$backup"
+}
+trap cleanup EXIT
+stage_install() {
+    install -o root -g root -m "$1" "$2" "$3.new"
+}
+stage_install 0755 "$SRC/bin/ember-bridge" "$LIB/ember-bridge"
+stage_install 0644 "$SRC/instance.sh" "$LIB/instance.sh"
+stage_install 0755 "$SRC/backup.sh" "$LIB/backup.sh"
+stage_install 0755 "$SRC/restore.sh" "$LIB/restore.sh"
+
 # First install: a fresh bridge ID and secrets, then the deployed settings.
+# The new binary makes them; if a later step fails they stay, and the next run
+# finds them and goes on.
 if [ ! -f "$STATE/bridge.json" ]; then
-    sudo -u "$NAME" "$LIB/ember-bridge" init "$STATE"
+    sudo -u "$NAME" "$LIB/ember-bridge.new" init "$STATE"
 fi
 # Apply the tenants file and the deployed settings, keeping bridge_id and
-# paths. Development switches are always off here. Root only opens the
-# tenants file (katie's home is closed to the service account) and hands it
-# over on stdin; everything inside the service-owned folder runs as the
-# service account.
-MERGE=$(cat <<'PY'
-import json, os, sys, tempfile
-path = sys.argv[1]
-deployed = json.load(sys.stdin)
-with open(path) as file:
-    config = json.load(file)
-config.update(deployed)
-# backup.sh and restore.sh work on these names; refuse anything else rather
-# than back up or restore the wrong files.
-for key, expected in (("database", "bridge.sqlite3"), ("secrets", "bridge-secrets.json")):
-    if config.get(key) != expected:
-        sys.exit(f"bridge.json has {key} {config.get(key)!r}; this deployment expects {expected!r}")
-config["allow_loopback_http"] = False
-config["allow_private_webhooks"] = False
-config["mock_browser"] = False
-handle, temporary = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".bridge.json.")
-with os.fdopen(handle, "w") as file:
-    json.dump(config, file, indent=2)
-    file.write("\n")
-os.replace(temporary, path)
-PY
-)
-sudo -u "$NAME" python3 -c "$MERGE" "$STATE/bridge.json" < "$SRC/$TENANTS"
+# paths, with the new binary: it turns the development switches off, refuses
+# other database or secrets names than backup.sh and restore.sh work on, and
+# refuses a configuration it would not load, before anything moves. A change
+# only the database refuses at start (a connection changing kind) still shows
+# at the restart below, which puts the previous files back.
+# Root only opens the tenants file (katie's home is closed to the service
+# account) and hands it over on stdin; everything inside the service-owned
+# folder runs as the service account. The result is written as
+# bridge.json.new and replaces bridge.json with the rest below.
+sudo -u "$NAME" "$LIB/ember-bridge.new" apply-tenants "$STATE/bridge.json" "$STATE/bridge.json.new" < "$SRC/$TENANTS"
 
 # Every instance's units and site come from one template each: @NAME@ is the
 # account, unit and folder name, @HOST@ and @PORT@ come from the tenants
@@ -171,15 +181,17 @@ render() {
     sed -e "s/@NAME@/$NAME/g" -e "s/@HOST@/$HOST/g" -e "s/@PORT@/$PORT/g" \
         -e "s/@LABEL@/$LABEL/g" -e "s/@ZONE@/$ZONE_PREFIX/g" "$1" > "$2.new"
     chmod 0644 "$2.new"
-    mv -f "$2.new" "$2"
 }
 for unit in .service -backup.service -backup.timer; do
     render "$SRC/ember-bridge$unit.in" "$UNITS/$NAME$unit"
 done
+render "$SRC/nginx/bridge.conf.in" "$SITE"
+stage_install 0644 "$SRC/nginx/ember-bridge-zone.conf" "$ZONE"
 
-# nginx: keep copies of the zone, the site and the enabled entry (or note
-# that each was absent) so a failed check puts everything back as it was.
-backup=$(mktemp -d)
+# nginx reads the installed files, so the zone and the site go in first, with
+# copies of the zone, the site and the enabled entry (or a note that each was
+# absent) so a failed check puts everything back as it was. Nothing else has
+# been moved yet.
 [ -e "$ZONE" ] && cp -a "$ZONE" "$backup/zone"
 [ -e "$SITE" ] && cp -a "$SITE" "$backup/site"
 [ -e "$ENABLED" ] || [ -L "$ENABLED" ] && cp -a "$ENABLED" "$backup/enabled"
@@ -189,28 +201,23 @@ restore() {
     rm -f "$ENABLED"
     if [ -e "$backup/enabled" ] || [ -L "$backup/enabled" ]; then cp -a "$backup/enabled" "$ENABLED"; fi
 }
-install -o root -g root -m 0644 "$SRC/nginx/ember-bridge-zone.conf" "$ZONE"
-render "$SRC/nginx/bridge.conf.in" "$SITE"
+swapped=1
+mv -f "$ZONE.new" "$ZONE"
+mv -f "$SITE.new" "$SITE"
 ln -sfn "$SITE" "$ENABLED"
 if ! nginx -t; then
     restore
+    swapped=
     if nginx -t; then
-        echo "nginx rejected the new configuration; restored the previous files." >&2
+        echo "nginx rejected the new configuration; restored the previous files. The binary, bridge.json and units were not replaced." >&2
     else
         echo "nginx rejected the new configuration, and the restored files fail too; fix nginx before reloading it." >&2
     fi
     exit 1
 fi
-
-systemctl daemon-reload
-systemctl enable "$NAME" "$NAME-backup.timer"
-systemctl restart "$NAME"
-systemctl start "$NAME-backup.timer"
-systemctl reload nginx || systemctl restart nginx
-rm -rf "$backup"
+swapped=
 
 # The bridge must answer with its own origin, directly and through nginx.
-BRIDGE_ID=$(sudo -u "$NAME" python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["bridge_id"])' "$STATE/bridge.json")
 check() {
     local where=$1; shift
     local body
@@ -225,10 +232,52 @@ check() {
     echo "$where: no valid answer" >&2
     return 1
 }
+start_bridge() {
+    systemctl restart "$NAME" &&
+        BRIDGE_ID=$(sudo -u "$NAME" python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["bridge_id"])' "$STATE/bridge.json") &&
+        check service "http://127.0.0.1:$PORT/.well-known/ember-bridge.json"
+}
+# Put back what was there before. A file goes back by rename, because the new
+# binary may still be running.
+put_back() {
+    local path
+    for path in "${NEW[@]}"; do
+        if [ -e "$backup/old$path" ]; then
+            cp -a "$backup/old$path" "$path.new" && mv -f "$path.new" "$path" || return 1
+        else
+            rm -f "$path"
+        fi
+    done
+    restore
+    systemctl daemon-reload
+    systemctl reset-failed "$NAME" || :
+    systemctl restart "$NAME"
+}
+
+# nginx accepts it: keep a copy of what the rest replaces, move it into place
+# and start the new bridge.
+mkdir "$backup/old"
+for path in "${NEW[@]}"; do
+    [ ! -e "$path" ] || cp -a --parents "$path" "$backup/old"
+done
+for path in "${NEW[@]}"; do
+    mv -f "$path.new" "$path"
+done
+systemctl daemon-reload
+systemctl enable "$NAME" "$NAME-backup.timer"
+if ! start_bridge; then
+    if put_back; then
+        echo "The new bridge did not start or answer; put back the previous binary, bridge.json, units, site and zone, and restarted it." >&2
+    else
+        echo "The new bridge did not start or answer, and putting the previous files back and restarting $NAME failed. Check the files and systemctl status $NAME." >&2
+    fi
+    exit 1
+fi
+systemctl start "$NAME-backup.timer"
+systemctl reload nginx || systemctl restart nginx
 
 echo
 echo "=== $NAME ==="
 systemctl is-active "$NAME"
-check service "http://127.0.0.1:$PORT/.well-known/ember-bridge.json"
 check public --resolve "$HOST:443:127.0.0.1" "https://$HOST/.well-known/ember-bridge.json"
 echo "=== done ==="

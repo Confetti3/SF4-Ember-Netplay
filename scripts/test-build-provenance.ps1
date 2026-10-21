@@ -63,6 +63,32 @@ Expect-Rejection 'The build has the in-game self-test*'
 [IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
 Assert-BuildReceipt $source $build $stage | Out-Null
 Write-Output 'PASS self-test build refused by receipt, missing field and cache'
+
+# A fake CTest whose first run fails HelperRust; a rerun fails it again only when $failAgain says so.
+$tests = Join-Path $fixture 'tests'
+New-Item -ItemType Directory -Path (Join-Path $tests 'Testing/Temporary') | Out-Null
+$fakeCtest = {
+    $rerun = $args -contains '--rerun-failed'
+    $failing = if ($rerun) { $failAgain } else { 'HelperRust' }
+    $cases = foreach ($name in $(if ($rerun) { 'HelperRust' } else { 'HelperRust', 'EmberRust', 'BridgeSdk' })) {
+        if ($name -eq $failing) { "<testcase name=`"$name`" status=`"fail`"><failure/></testcase>" } else { "<testcase name=`"$name`" status=`"run`"/>" }
+    }
+    Set-Content -LiteralPath $args[[Array]::IndexOf($args, '--output-junit') + 1] -Value "<testsuite>$($cases -join '')</testsuite>"
+    Set-Content -LiteralPath (Join-Path $tests 'Testing/Temporary/LastTestsFailed.log') -Value '84:HelperRust'
+    $global:LASTEXITCODE = [int][bool]$failing
+}
+function Expect-TestFailure([string]$Expected, [scriptblock]$Run) {
+    try { & $Run | Out-Null; throw 'Unexpected pass' }
+    catch { if ($_.Exception.Message -notlike $Expected) { throw } }
+}
+$failAgain = $null
+$passedOnRerun = @(Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 -RerunFailed 3>$null 6>$null)
+if (($passedOnRerun -join ',') -ne 'HelperRust') { throw "Rerun reported '$($passedOnRerun -join ',')'" }
+Expect-TestFailure 'Tests failed' { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 6>$null }
+$failAgain = 'HelperRust'
+Expect-TestFailure 'Tests failed, and again*' { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 -RerunFailed 6>$null }
+$global:LASTEXITCODE = 0
+Write-Output 'PASS a failed test passes on one rerun only with -RerunFailed, and a second failure stops the build'
 Write-Output "Fixtures retained at $fixture"
 
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')

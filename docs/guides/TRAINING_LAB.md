@@ -112,13 +112,21 @@ Measurement starts from an observed attack and a native damage/guard-damage cont
 
 Each hit or block also gets its own number, in the row between the two bars: the advantage had the exchange stopped at that hit, so a combo shows what every link and cancel point is worth. A bracket over the number spans the advantage frames themselves: at +5, the five frames in which the attacker can already act and the defender is still in hitstun or blockstun; at -3, the three in which the defender is free first. Player 1's bracket hangs from Player 1's bar, Player 2's rises from Player 2's.
 
-The number is read as the hit lands from the game's own count of frames until each fighter can act, and a knockdown shows none. That count can stall a frame in a long stun, so once both fighters are free, the exchange's last hit takes the advantage measured above; a hit inside a combo keeps the count. Where a multi-hit move's numbers would overlap, the later hit's shows.
+The number is read as the hit lands from the game's own count of frames until each fighter can act, and a knockdown shows none. That count can stall a frame in a long stun, so a hit's number is read again when the first fighter becomes free, from the other's remaining count; a hit followed by another before then keeps the count. Where a multi-hit move's numbers would overlap, the later hit's shows.
 
 Hitstop and a super's freeze, frames in which neither fighter's animation moves, are left out of the bars, so a move that hits draws the same startup, active and recovery cells as one that whiffs. A dotted light-blue line across a bar marks where such frames were cut out.
 
 `--` means no completed supported exchange. Whiffs, guard posture without contact, trades/interruption, missing actors and timeline gaps do not produce numbers. Slow/frozen phases retain the exchange; values count accepted simulation steps. A new attack after a completed exchange clears the previous result; an action change within an unfinished chain continues measurement. Pending exchanges expire after 600 frames without a new action/contact. Reset and battle exit clear all values. Attribution assumes a two-fighter exchange; reflected projectiles and unusual scripted interactions are not independently verified.
 
 Point the mouse at `Start --` on the passive meter to see why startup is unavailable, or at the `FRAME ADVANTAGE` line below the bars to see why advantage is unavailable. Startup and advantage are independent: a whiff can retain authored startup while correctly leaving advantage unavailable.
+
+### Hitboxes
+
+**Hitboxes** on the HUD page of the training controls (F6) draws the fighters' collision boxes over the fight, read from the game after every simulated frame and drawn through the game's own camera. Green is where a fighter can be hit on this frame, yellow where it can be thrown, red where an attack hits on this frame (a fireball's too) and blue where it throws. They show while the HUD does, so F5 hides them with it, and stay drawn under the training controls. The choice is kept in `training.json`. Offline Training only.
+
+The game keeps a box for every part of the body, and the script of the fighter's move says which of them are open on a frame. Standing still that is legs, trunk and head. On the first frames of a Shoryuken it is none, so no green shows: the move cannot be hit. Once an attack's own frames are over, the limb it held out is open on its way back.
+
+The box that makes the opponent guard at a distance is not drawn.
 
 ### Startup
 

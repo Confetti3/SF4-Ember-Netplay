@@ -92,7 +92,7 @@ void Update(const Inventory& inventory) {
 }
 void Read(PadFrame& frame, const Inventory& inventory) {
     const auto match = FindLayout(layouts, frame.pad.identity, Connected(inventory));
-    if (match.index) { frame.layout = layouts[*match.index].buttons; frame.menu = layouts[*match.index].menu; }
+    if (match.index) { frame.layout = layouts[*match.index].buttons; frame.menu = layouts[*match.index].menu; frame.extras = layouts[*match.index].extras; }
     frame.table = frame.layout.value_or(DefaultLayout);
     if (frame.pad.slot >= 0) ReadSlot(Dimps::Pad::BindingRecords(), frame.pad.slot, frame.table);
 }

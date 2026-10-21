@@ -2639,6 +2639,18 @@ msgstr "В ячейке"
 msgid "room.status.ready"
 msgstr "Готов"
 
+msgid "class.master"
+msgstr "Мастер"
+
+msgid "class.grand_master"
+msgstr "Грандмастер"
+
+msgid "class.tip"
+msgstr "Класс {0}"
+
+msgid "class.unsettled"
+msgstr "Давно нет игр, класс мог измениться."
+
 msgid "room.status.playing"
 msgstr "Играет"
 
@@ -3721,7 +3733,7 @@ msgid "identity.local_passphrase"
 msgstr "Пароль для этого ПК"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine и Proton не поддерживают защиту ключей Windows, поэтому ваш ключ защищает пароль. Его нужно вводить один раз при каждом запуске игры."
+msgstr "Wine и Proton (например, на Steam Deck) не поддерживают обычную защиту ключей, поэтому ваш ключ защищает пароль. Его нужно вводить один раз при каждом запуске игры."
 
 msgid "identity.repeat_passphrase"
 msgstr "Повторите пароль"
@@ -3743,6 +3755,9 @@ msgstr "Создать Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "Создаёт ваш ключ на этом ПК. Использовать его сможет только эта учётная запись Windows."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Создаёт ваш ключ на этом ПК, защищённый паролем выше."
 
 msgid "identity.leave_room"
 msgstr "Чтобы изменить Ember ID, выйдите из лобби и вернитесь в главное меню."
@@ -5013,6 +5028,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Включайте и выключайте части HUD во время боя."
 
+msgid "training.hitboxes"
+msgstr "Хитбоксы"
+
+msgid "training.hitboxes.detail"
+msgstr "Рисует области бойцов поверх боя. Зелёный: где бойца можно ударить; жёлтый: где его можно захватить; красный: где атака попадает; синий: где она захватывает."
+
 msgid "training.color_key"
 msgstr "Обозначения цветов"
 
@@ -5949,6 +5970,36 @@ msgstr "Выберите, затем нажмите кнопку, которая
 msgid "button_layout.menu_taken"
 msgstr "{0} уже назначена: {1}. Выберите другую кнопку."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Тачпад"
+
+msgid "button_layout.extra.home"
+msgstr "Кнопка Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Кнопка отключения звука"
+
+msgid "button_layout.extra.misc"
+msgstr "Дополнительная кнопка"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Правый лепесток {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Левый лепесток {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Выберите кнопку, которую повторяет {0}. Нажатие {0} сработает как эта кнопка."
+
+msgid "button_layout.extra_copy"
+msgstr "Как {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} теперь работает как {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} теперь ничего не делает."
+
 msgid "room.delay_policy"
 msgstr "Задержка ввода в лобби"
 
@@ -6777,3 +6828,139 @@ msgstr "Убирает доступ организатора. Привязанн
 
 msgid "site.organizer_where"
 msgstr "Доступ организатора находится в Ember ID > Организация турниров."
+
+msgid "screen.rankings"
+msgstr "Рейтинги"
+
+msgid "rankings.title"
+msgstr "РЕЙТИНГИ"
+
+msgid "rankings.board_title"
+msgstr "ИГРОКИ ПО КЛАССАМ"
+
+msgid "rankings.entry_detail"
+msgstr "Ваш класс в открытых лобби и игроки по классам."
+
+msgid "rankings.needs_setup"
+msgstr "Рейтинги строятся по играм в открытых лобби. Сначала настройте открытые лобби."
+
+msgid "rankings.loading"
+msgstr "Загрузка вашего класса..."
+
+msgid "rankings.your_class"
+msgstr "Ваш класс"
+
+msgid "rankings.placing"
+msgstr "Определяется"
+
+msgid "rankings.placing_detail"
+msgstr "Класс появится после нескольких игр в открытых лобби с игроками, у которых он уже есть."
+
+msgid "rankings.faint_detail"
+msgstr "Давно нет игр, поэтому класс показан приглушённо, а в таблице вас нет. Несколько игр это исправят."
+
+msgid "rankings.settled_detail"
+msgstr "Показывается рядом с вашим именем в открытых лобби."
+
+msgid "rankings.hidden"
+msgstr "Классы пока скрыты"
+
+msgid "rankings.hidden_detail"
+msgstr "Этот сервис пока не показывает классы. Ваши игры в открытых лобби по-прежнему засчитываются."
+
+msgid "rankings.no_account"
+msgstr "Подключите Discord, чтобы участвовать"
+
+msgid "rankings.no_account_detail"
+msgstr "Класс привязан к аккаунту Discord, поэтому новый Ember ID его сохраняет. Без аккаунта ваши игры не засчитываются."
+
+msgid "rankings.connect_detail"
+msgstr "Открывает «Подключить Discord». Когда закончите, вернитесь сюда."
+
+msgid "rankings.off"
+msgstr "Вы не участвуете"
+
+msgid "rankings.off_detail"
+msgstr "Ваши игры не засчитываются, класс не показывается. Рейтинг сохраняется до вашего возвращения."
+
+msgid "rankings.take_part"
+msgstr "Участвовать"
+
+msgid "rankings.take_part_detail"
+msgstr "Ваши игры в открытых лобби снова засчитываются, и класс вернётся. После перерыва он может несколько игр показываться приглушённо. В таблице вы будете как {0}. Менять можно раз в сутки."
+
+msgid "rankings.stop"
+msgstr "Перестать участвовать"
+
+msgid "rankings.stop_detail"
+msgstr "Ваш класс исчезнет из лобби и таблицы, а игры перестанут засчитываться. Рейтинг сохранится как есть и продолжится после возвращения. Менять можно раз в сутки."
+
+msgid "rankings.change_wait"
+msgstr "Снова изменить можно будет через {0}."
+
+msgid "rankings.hours"
+msgstr "{0} ч"
+
+msgid "rankings.minutes"
+msgstr "{0} мин"
+
+msgid "rankings.board_as"
+msgstr "В таблице как"
+
+msgid "rankings.board_as_detail"
+msgstr "Имя и флаг, которые лобби показывают о вас. Меняются в разделах «Профиль игрока» и «Настройки». Таблица учтёт изменение при следующем открытии раздела «Рейтинги»."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Как работают классы"
+
+msgid "rankings.how_text"
+msgstr "Засчитываются только игры в открытых лобби, которые закончились победой одного из игроков. Класс привязан к аккаунту Discord, а не к Ember ID. Он меняется только после явной серии результатов, а игра с намного более сильным или слабым соперником почти не влияет. Очков не видно, только класс. После долгого перерыва он показывается приглушённо, пока вы снова не сыграете, и сам никогда не снижается."
+
+msgid "rankings.players"
+msgstr "Игроки по классам"
+
+msgid "rankings.players_detail"
+msgstr "Все участники с установившимся классом, от высшего. Внутри класса выше те, кто играл недавно."
+
+msgid "rankings.you"
+msgstr "Вы"
+
+msgid "rankings.you_beyond_cap"
+msgstr "В таблице не больше {0} игроков, и сейчас вас среди них нет."
+
+msgid "rankings.jump"
+msgstr "Влево и вправо переключают классы."
+
+msgid "rankings.loading_board"
+msgstr "Загрузка игроков..."
+
+msgid "rankings.empty"
+msgstr "В таблице пока никого нет."
+
+msgid "rankings.status_board"
+msgstr "Игроков в списке: {0}. Обновлено {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Этот сервис не предоставляет рейтинги."
+
+msgid "rankings.failure.too_soon"
+msgstr "Менять можно раз в сутки."
+
+msgid "settings.class_emblems"
+msgstr "Эмблемы классов"
+
+msgid "settings.class_emblems_detail"
+msgstr "Показывает класс каждого игрока рядом с его именем в открытых лобби. Если выключено, они скрыты только на вашем экране. Другие по-прежнему видят ваш класс, и ваши игры засчитываются."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Разработчик Ember"
+
+msgid "rankings.developer_detail"
+msgstr "Разработчики Ember показывают эту отметку вместо класса и не попадают в таблицу. Ваши игры по-прежнему засчитываются."

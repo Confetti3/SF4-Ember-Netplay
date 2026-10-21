@@ -199,6 +199,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"showMatchHud", &PlayerPreferences::showMatchHud, true}, {"matchHudRaised", &PlayerPreferences::matchHudRaised, false},
         {"showShortcutHint", &PlayerPreferences::showShortcutHint, true},
         {"readySound", &PlayerPreferences::readySound, true}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady, false},
+        {"classEmblems", &PlayerPreferences::classEmblems, true},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true}, {"borderless", &PlayerPreferences::borderless, false},

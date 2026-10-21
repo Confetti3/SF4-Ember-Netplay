@@ -450,8 +450,9 @@ On every allowed call, the route:
 **`POST /v1/matches/{match_id}/watch/leave`**
 
 - Proof `Action::MatchUnwatch` (`"match.unwatch"`), with the command `{}`.
-- It deletes the caller's row and runs `rebind`.
-- Answer: `200 {"left": true}`.
+- It deletes the caller's row. It changes nothing unless the caller was
+  watching, and it runs `rebind` only then; a finished match is not rebound.
+- Answer: `200 {"left": true}`, for any match ID.
 
 ### 3.4 Policy routes (organizer)
 
@@ -677,7 +678,7 @@ room row keeps the set as a typed list (`room::Room::bound_watchers`).
 
 `rebind` runs, inside the existing write transactions:
 
-- the watch route and the leave route;
+- the watch route, and the leave route when it removed a row;
 - every fighter claim and every room publish, through `room_answer`, including
   the refresh of the current room's invitation.
 

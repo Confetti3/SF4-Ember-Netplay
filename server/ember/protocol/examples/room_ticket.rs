@@ -69,6 +69,7 @@ fn sign(arguments: &[String]) -> Result<String, String> {
         endpoint_id: endpoint_id.clone(),
         issued_at,
         expires_at: issued_at + TICKET_SECS,
+        badge: None,
     };
     let signed = ticket
         .sign(&identity(seed)?, kid)

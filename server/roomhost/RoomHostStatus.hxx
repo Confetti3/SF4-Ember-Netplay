@@ -12,7 +12,8 @@ namespace sf4e { namespace roomhost {
 
 // The supervisor kills a child whose line passes 64 KiB; the host stays well
 // under it. A room holds at most room::MaximumKickedAccounts (512) bans, each
-// an Ember ID of 57 bytes, so a full line is about 31 KB plus the invitation.
+// an Ember ID of 57 bytes, and MaximumWonGames (32) won games of two, so
+// a full line is about 36 KB plus the invitation.
 constexpr std::size_t MaximumStatusLineBytes = 60000;
 
 // What the bridge lists beside a room (the status line's "details" object).
@@ -51,11 +52,26 @@ std::string HostDisplayName(const std::string& name);
 // The details of a room model's snapshot.
 RoomDetails DetailsOf(const room::Snapshot& snapshot);
 
+// Everything one status line says. The host emits a line when this changes.
+struct Status {
+	std::size_t members = 0, tablesPlaying = 0;
+	std::string invitation;
+	// Committed bans and won games only (SessionServer::CommittedServerOwned).
+	std::vector<std::string> banned;
+	RoomDetails details;
+	std::vector<WonGame> games;
+	bool operator==(const Status& other) const {
+		return members == other.members && tablesPlaying == other.tablesPlaying && invitation == other.invitation &&
+			banned == other.banned && details == other.details && games == other.games;
+	}
+};
+
 // {"type":"status","members":n,"tables_playing":n,"invitation":s,"banned":[...],
 //  "details":{"name":s,"capacity":n,"locked":b,"host_name":s (only with a
 //  moderator),"fighters":[n...],"set_format":n,"rotation":n,"own_delay":true (only
-//  for a room whose fighters each play at their own input delay)}}
-std::string StatusLine(std::size_t members, std::size_t tablesPlaying, const std::string& invitation,
-	const std::vector<std::string>& banned, const RoomDetails& details);
+//  for a room whose fighters each play at their own input delay)},
+//  "games":[{"table":n,"generation":n,"winner":s,"loser":s}...] (only once the
+//  room has a won game, oldest first)}
+std::string StatusLine(const Status& status);
 
 } }

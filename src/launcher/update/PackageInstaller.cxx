@@ -38,7 +38,8 @@ constexpr const wchar_t* TransactionName = UpdateTransactionName;
 constexpr wchar_t LockName[] = L".ember-update.lock";
 }
 void CheckPath(const fs::path& root, const fs::path& relative) {
-    if (relative.empty() || relative.is_absolute() || relative.has_root_name()) throw std::runtime_error("Invalid update path");
+    // "\x" is not absolute on Windows, but root / "\x" is the drive's root.
+    if (relative.empty() || relative.is_absolute() || relative.has_root_name() || relative.has_root_directory()) throw std::runtime_error("Invalid update path");
     auto path = root;
     for (const auto& part : relative) {
         const auto name=part.wstring();

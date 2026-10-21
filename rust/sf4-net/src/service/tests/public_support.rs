@@ -45,6 +45,7 @@ pub(super) fn ticket_for(
         endpoint_id: endpoint.id().to_string(),
         issued_at,
         expires_at: issued_at + TICKET_SECS,
+        badge: None,
     }
     .sign(&identity(9), "k1")
     .unwrap()

@@ -63,13 +63,16 @@ const char* FilterName(PublicRoomsPanel::Filter filter) {
         filter == PublicRoomsPanel::Filter::Seats ? "public.filter.seats" : "public.filter.all");
 }
 
-// How long ago the list was heard from the service.
-std::string UpdatedText(double seconds) {
+}
+
+std::string PublicRoomsPanel::UpdatedText(double seconds) {
     const long long elapsed = seconds > 0 ? static_cast<long long>(seconds) : 0;
     if (elapsed < 10) return loc::T("public.updated_now");
     if (elapsed < 60) return loc::Tf("public.updated_seconds", elapsed);
     return loc::Tf("public.updated_minutes", elapsed / 60);
 }
+
+namespace {
 
 // What a room's row says when its details are known: who hosts it, where, and how full.
 std::string RoomDetail(const Room& room) {

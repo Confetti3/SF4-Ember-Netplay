@@ -546,16 +546,15 @@ fn status(request_id: u64, endpoint: &Endpoint, epoch: u64, peers: usize, games:
     }
 }
 
-/// Extract the primary Iroh identities from the committed native
-/// `SessionProposal` envelope. The C++ side binds these values from its
+/// Extract the primary Iroh identities and exact process incarnations from
+/// the committed native `SessionProposal` envelope. C++ binds these from its
 /// authenticated room-member map; Rust only uses a complete, validated list
-/// to reconcile Raft membership after commit. An empty roster is accepted
-/// only when `allow_empty`: a server-owned room can stand with no member in
-/// it.
-fn primary_endpoints(
+/// to reconcile Raft membership after commit. A server-owned room can
+/// stand with no member when `allow_empty`.
+fn primary_members(
     envelope: &serde_json::Value,
     allow_empty: bool,
-) -> Option<BTreeSet<EndpointId>> {
+) -> Option<BTreeMap<EndpointId, u64>> {
     let members = envelope.get("checkpoint")?.get("members")?.as_array()?;
     // A recovery checkpoint may retain started spectator tombstones in
     // addition to the sixteen active room members. Bound the total separately
@@ -567,7 +566,7 @@ fn primary_endpoints(
     {
         return None;
     }
-    let mut endpoints = BTreeSet::new();
+    let mut endpoints = BTreeMap::new();
     let mut active = 0usize;
     for member in members {
         if member.get("frozen").and_then(serde_json::Value::as_bool) == Some(true) {
@@ -583,7 +582,10 @@ fn primary_endpoints(
             .or_else(|| data.get("authenticated_endpoint"))?
             .as_str()?;
         let endpoint = text.parse::<EndpointId>().ok()?;
-        endpoints.insert(endpoint);
+        let incarnation = member.get("incarnation")?.as_u64()?;
+        if incarnation == 0 || endpoints.insert(endpoint, incarnation).is_some() {
+            return None;
+        }
     }
     (allow_empty || !endpoints.is_empty()).then_some(endpoints)
 }
@@ -656,10 +658,10 @@ struct Actor {
     /// Raft task, so retries never allocate a second near-1 MiB buffer.
     pending_checkpoint_retry: Option<(CheckpointProposalKey, usize)>,
     outgoing_transfer: Option<OutgoingCheckpoint>,
-    /// Last native roster that was committed by C++. Admissions arriving
+    /// Exact endpoint/incarnation roster last committed by C++. Admissions arriving
     /// after that checkpoint are not treated as departures until a later
     /// checkpoint explicitly includes them first.
-    committed_native_members: Option<BTreeSet<EndpointId>>,
+    committed_native_members: Option<BTreeMap<EndpointId, u64>>,
     /// Incarnations omitted by a committed native roster or an authenticated
     /// membership update. Keep these IDs until the local applied Raft
     /// membership proves their exclusion; a leader can die after the native
@@ -1284,7 +1286,9 @@ impl Actor {
             Completion::ProbeAuthorization(key, result) => {
                 self.completed_probe_authorization(key, result).await
             }
-            Completion::Hosted(epoch, result, latency) => self.completed_hosted(epoch, result, latency).await,
+            Completion::Hosted(epoch, result, latency) => {
+                self.completed_hosted(epoch, result, latency).await
+            }
             Completion::Incoming(epoch, result) => self.completed_incoming(epoch, result).await,
             Completion::ClassifiedGame(incoming, result) => {
                 self.completed_classified_game(incoming, result).await
@@ -1357,7 +1361,9 @@ impl Actor {
                 self.hosted = Some(invite);
                 self.room_invite = self.hosted.clone();
             }
-            Err(error) => self.error_because(0, "host_unavailable", network::host_failure_reason(&error))?,
+            Err(error) => {
+                self.error_because(0, "host_unavailable", network::host_failure_reason(&error))?
+            }
         }
         Ok(())
     }

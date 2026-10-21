@@ -25,6 +25,7 @@ pub mod rooms;
 pub mod sign;
 pub mod sign_in;
 pub mod sites;
+pub mod skill;
 pub mod tournament;
 pub mod webhook;
 

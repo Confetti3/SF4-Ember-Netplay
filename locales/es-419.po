@@ -2461,6 +2461,14 @@ msgid "room.status.seated"
 msgstr "Sentado"
 msgid "room.status.ready"
 msgstr "Listo"
+msgid "class.master"
+msgstr "Maestro"
+msgid "class.grand_master"
+msgstr "Gran Maestro"
+msgid "class.tip"
+msgstr "Clase {0}"
+msgid "class.unsettled"
+msgstr "Sin partidas recientes, así que puede haber cambiado."
 msgid "room.status.playing"
 msgstr "Jugando"
 msgid "room.status.watching"
@@ -3242,7 +3250,7 @@ msgid "identity.local_passphrase"
 msgstr "Contraseña de esta PC"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine y Proton no pueden usar la protección de claves de Windows, así que una contraseña protege tu clave. La ingresas una vez cada vez que se inicia el juego."
+msgstr "Wine y Proton (por ejemplo, en Steam Deck) no pueden usar la protección de claves habitual, así que una contraseña protege tu clave. La ingresas una vez cada vez que se inicia el juego."
 
 msgid "identity.repeat_passphrase"
 msgstr "Repetir contraseña"
@@ -3264,6 +3272,9 @@ msgstr "Crear Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "Crea tu clave en esta PC. Solo esta cuenta de Windows puede usarla."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Crea tu clave en esta PC, protegida con la contraseña de arriba."
 
 msgid "identity.leave_room"
 msgstr "Sal de la sala y vuelve al menú principal para cambiar tu Ember ID."
@@ -4534,6 +4545,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Activa o desactiva partes del HUD durante la pelea."
 
+msgid "training.hitboxes"
+msgstr "Hitboxes"
+
+msgid "training.hitboxes.detail"
+msgstr "Dibuja las cajas de los peleadores sobre la pelea: en verde donde se puede golpear a un peleador, en amarillo donde se le puede agarrar, en rojo donde un ataque golpea y en azul donde agarra."
+
 msgid "training.color_key"
 msgstr "Clave de colores"
 
@@ -5470,6 +5487,36 @@ msgstr "Selecciona y presiona el botón que vuelve atrás en los menús de Ember
 msgid "button_layout.menu_taken"
 msgstr "{0} ya es {1}. Elige otro botón."
 
+msgid "button_layout.extra.touchpad"
+msgstr "Panel táctil"
+
+msgid "button_layout.extra.home"
+msgstr "Botón Home"
+
+msgid "button_layout.extra.mute"
+msgstr "Botón de silencio"
+
+msgid "button_layout.extra.misc"
+msgstr "Botón adicional"
+
+msgid "button_layout.extra.right_paddle"
+msgstr "Pala derecha {0}"
+
+msgid "button_layout.extra.left_paddle"
+msgstr "Pala izquierda {0}"
+
+msgid "button_layout.extra_detail"
+msgstr "Elige el botón que copia {0}. Al presionar {0}, hace lo mismo que ese botón."
+
+msgid "button_layout.extra_copy"
+msgstr "Igual que {0}"
+
+msgid "button_layout.extra_set"
+msgstr "{0} ahora funciona como {1}."
+
+msgid "button_layout.extra_off"
+msgstr "{0} ya no hace nada."
+
 msgid "room.delay_policy"
 msgstr "Retardo de entrada de la sala"
 
@@ -6298,3 +6345,139 @@ msgstr "Quita el acceso de organizador. Tu cuenta vinculada se mantiene."
 
 msgid "site.organizer_where"
 msgstr "El acceso de organizador está en ID de Ember > Organización de torneos."
+
+msgid "screen.rankings"
+msgstr "Clasificaciones"
+
+msgid "rankings.title"
+msgstr "CLASIFICACIONES"
+
+msgid "rankings.board_title"
+msgstr "JUGADORES POR CLASE"
+
+msgid "rankings.entry_detail"
+msgstr "Tu clase en salas públicas y los jugadores por clase."
+
+msgid "rankings.needs_setup"
+msgstr "Las clasificaciones salen de las partidas en salas públicas. Primero configura las salas públicas."
+
+msgid "rankings.loading"
+msgstr "Cargando tu clase..."
+
+msgid "rankings.your_class"
+msgstr "Tu clase"
+
+msgid "rankings.placing"
+msgstr "Calibrando"
+
+msgid "rankings.placing_detail"
+msgstr "Tu clase aparece tras unas partidas más en salas públicas contra jugadores que ya tienen una."
+
+msgid "rankings.faint_detail"
+msgstr "No has jugado hace poco, así que tu clase se ve tenue y estás fuera de la clasificación. Unas partidas lo arreglan."
+
+msgid "rankings.settled_detail"
+msgstr "Se muestra junto a tu nombre en las salas públicas."
+
+msgid "rankings.hidden"
+msgstr "Clases aún no visibles"
+
+msgid "rankings.hidden_detail"
+msgstr "Este servicio todavía no muestra las clases. Tus partidas en salas públicas igual cuentan."
+
+msgid "rankings.no_account"
+msgstr "Conecta Discord para participar"
+
+msgid "rankings.no_account_detail"
+msgstr "Las clases pertenecen a una cuenta de Discord, así que un Ember ID nuevo conserva la tuya. Sin una, tus partidas no cuentan."
+
+msgid "rankings.connect_detail"
+msgstr "Abre Conectar Discord. Vuelve aquí cuando termines."
+
+msgid "rankings.off"
+msgstr "Sin participar"
+
+msgid "rankings.off_detail"
+msgstr "Tus partidas no cuentan y no se muestra ninguna clase. Tu puntuación se guarda para cuando vuelvas."
+
+msgid "rankings.take_part"
+msgstr "Participar"
+
+msgid "rankings.take_part_detail"
+msgstr "Tus partidas en salas públicas vuelven a contar y tu clase regresa. Tras un tiempo fuera, puede verse tenue unas partidas. Aparecerás en la clasificación como {0}. Puedes cambiarlo una vez al día."
+
+msgid "rankings.stop"
+msgstr "Dejar de participar"
+
+msgid "rankings.stop_detail"
+msgstr "Tu clase desaparece de las salas y de la clasificación, y tus partidas dejan de contar. Tu puntuación se conserva y sigue si vuelves. Puedes cambiarlo una vez al día."
+
+msgid "rankings.change_wait"
+msgstr "Podrás cambiarlo de nuevo en {0}."
+
+msgid "rankings.hours"
+msgstr "{0} h"
+
+msgid "rankings.minutes"
+msgstr "{0} min"
+
+msgid "rankings.board_as"
+msgstr "En la clasificación como"
+
+msgid "rankings.board_as_detail"
+msgstr "El nombre y la bandera que las salas muestran de ti. Cámbialos en Perfil y Ajustes. La clasificación toma el cambio la próxima vez que abras Clasificaciones."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Cómo funcionan las clases"
+
+msgid "rankings.how_text"
+msgstr "Solo cuentan las partidas en salas públicas que terminan con un ganador. Tu clase pertenece a tu cuenta de Discord, no a tu Ember ID. Solo cambia tras una racha clara de resultados, y una partida contra alguien mucho más fuerte o más débil casi no cuenta. No hay puntos que ver, solo la clase. Tras una pausa larga se ve tenue hasta que vuelvas a jugar, y nunca baja por sí sola."
+
+msgid "rankings.players"
+msgstr "Jugadores por clase"
+
+msgid "rankings.players_detail"
+msgstr "Todos los participantes con clase fija, de mayor a menor. Dentro de una clase, primero los que jugaron más recientemente."
+
+msgid "rankings.you"
+msgstr "Tú"
+
+msgid "rankings.you_beyond_cap"
+msgstr "La clasificación muestra hasta {0} jugadores y ahora no estás entre ellos."
+
+msgid "rankings.jump"
+msgstr "Izquierda y Derecha cambian entre clases."
+
+msgid "rankings.loading_board"
+msgstr "Cargando jugadores..."
+
+msgid "rankings.empty"
+msgstr "Aún no hay nadie en la clasificación."
+
+msgid "rankings.status_board"
+msgstr "Jugadores listados: {0}. Actualizado {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Este servicio no ofrece clasificaciones."
+
+msgid "rankings.failure.too_soon"
+msgstr "Puedes cambiarlo una vez al día."
+
+msgid "settings.class_emblems"
+msgstr "Emblemas de clase"
+
+msgid "settings.class_emblems_detail"
+msgstr "Muestra la clase de cada jugador junto a su nombre en las salas públicas. Desactivado las oculta solo en tu pantalla. Los demás siguen viendo la tuya y tus partidas siguen contando."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Desarrollador de Ember"
+
+msgid "rankings.developer_detail"
+msgstr "Los desarrolladores de Ember muestran esta marca en lugar de una clase y no aparecen en la clasificación. Tus partidas igual cuentan."

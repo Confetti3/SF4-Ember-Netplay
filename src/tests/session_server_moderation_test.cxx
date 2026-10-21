@@ -3,6 +3,7 @@
 // be discarded) is never reported or forwarded. Also the status line's budget.
 #include "../session/sf4e__SessionServer.hxx"
 #include "../../server/roomhost/RoomHostStatus.hxx"
+#include "../common/SkillBadgeJson.hxx"
 #include <array>
 #include <string>
 
@@ -39,7 +40,7 @@ static void TestUncommittedKicksStayOutOfTheModerationView() {
 		join.username = "Member-" + std::to_string(connection); join.sidecarHash = "build"; join.port = 30000;
 		join.customRooms = true; join.roomProtocol = room::ProtocolVersion;
 		protocol::SessionHelloMsg hello; hello.admission = json(join);
-		server.SetConnectionAccount(connection, account);
+		server.SetConnectionAdmission(connection, {account});
 		transport->Push(connection, json(hello));
 		CHECK(server.Step() == 0);
 		commit();
@@ -109,7 +110,7 @@ static void TestOnlyACleanLastLeaveEndsTheRoom() {
 			join.username = "Member-" + std::to_string(connection); join.sidecarHash = "build"; join.port = 30000;
 			join.customRooms = true; join.roomProtocol = room::ProtocolVersion;
 			protocol::SessionHelloMsg hello; hello.admission = json(join);
-			server.SetConnectionAccount(connection, "ember-" + std::to_string(connection));
+			server.SetConnectionAdmission(connection, {"ember-" + std::to_string(connection)});
 			transport->Push(connection, json(hello));
 			CHECK(server.Step() == 0);
 			Commit();
@@ -227,15 +228,22 @@ static void TestFullStatusLineFitsTheBudget() {
 	std::vector<std::string> banned;
 	for (std::size_t i = 0; i < room::MaximumKickedAccounts; ++i) banned.push_back(EmberId(i));
 	CHECK(banned.front().size() == 57 && banned.back().size() == 57);
+	std::vector<WonGame> games;
+	for (std::size_t i = 0; i < MaximumWonGames; ++i)
+		games.push_back({static_cast<std::uint8_t>(room::TableCount - 1), UINT64_MAX - i, EmberId(i), EmberId(i + 1)});
 	const std::string invitation = "sf4e3:" + std::string(4096, 'x');
-	const auto line = roomhost::StatusLine(room::MaximumMembers, room::TableCount, invitation, banned, {});
+	const auto line = roomhost::StatusLine({room::MaximumMembers, room::TableCount, invitation, banned, {}, games});
 	CHECK(line.size() < 60000 && line.size() < roomhost::MaximumStatusLineBytes);
 	CHECK(line.size() > 512 * 57);
 	const auto parsed = json::parse(line);
 	CHECK(parsed.at("type") == "status" && parsed.at("banned").size() == 512 && parsed.at("invitation") == invitation);
-	// An empty report is a short line with the same keys.
-	const auto empty = json::parse(roomhost::StatusLine(0, 0, "sf4e3:x", {}, {}));
+	CHECK(parsed.at("games").size() == MaximumWonGames);
+	CHECK(parsed.at("games").front() == json({{"table", room::TableCount - 1}, {"generation", UINT64_MAX},
+		{"winner", EmberId(0)}, {"loser", EmberId(1)}}));
+	// An empty report is a short line with the same keys, and no games until one is won.
+	const auto empty = json::parse(roomhost::StatusLine({0, 0, "sf4e3:x", {}, {}}));
 	CHECK(empty.at("banned").is_array() && empty.at("banned").empty() && empty.at("members") == 0);
+	CHECK(!empty.contains("games"));
 }
 
 static room::Member Joined(room::MemberId id, const std::string& name, std::uint64_t order, int main) {
@@ -258,22 +266,22 @@ static void TestStatusLineDetails() {
 	details.fighters = {3, 255, 12};
 	details.setFormat = 3;
 	details.rotation = 2;
-	const auto line = roomhost::StatusLine(3, 1, "sf4e3:x", {}, details);
+	const auto line = roomhost::StatusLine({3, 1, "sf4e3:x", {}, details});
 	CHECK(json::parse(line).at("details") == json::parse(
 		R"({"name":"Late night","capacity":8,"locked":true,"host_name":"Kate","fighters":[3,255,12],"set_format":3,"rotation":2})"));
 	details.hostName.clear();
-	const auto bare = json::parse(roomhost::StatusLine(3, 1, "sf4e3:x", {}, details)).at("details");
+	const auto bare = json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, details})).at("details");
 	CHECK(!bare.contains("host_name") && bare.size() == 6);
 	// A room whose fighters each play at their own delay says so, and only that room.
 	auto ownDetails = details;
 	ownDetails.ownDelay = true;
-	const auto own = json::parse(roomhost::StatusLine(3, 1, "sf4e3:x", {}, ownDetails)).at("details");
+	const auto own = json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, ownDetails})).at("details");
 	CHECK(own.at("own_delay") == true && own.size() == bare.size() + 1);
-	CHECK(!(ownDetails == details) && roomhost::StatusLine(3, 1, "sf4e3:x", {}, ownDetails) != roomhost::StatusLine(3, 1, "sf4e3:x", {}, details));
+	CHECK(!(ownDetails == details) && roomhost::StatusLine({3, 1, "sf4e3:x", {}, ownDetails}) != roomhost::StatusLine({3, 1, "sf4e3:x", {}, details}));
 	// A room name that is not UTF-8 is replaced instead of throwing.
 	details.name = std::string("bad\xff");
-	CHECK(json::parse(roomhost::StatusLine(0, 0, "sf4e3:x", {}, details)).at("details").at("name").is_string());
-	CHECK(roomhost::StatusLine(0, 0, "sf4e3:x", {}, details) != line);
+	CHECK(json::parse(roomhost::StatusLine({0, 0, "sf4e3:x", {}, details})).at("details").at("name").is_string());
+	CHECK(roomhost::StatusLine({0, 0, "sf4e3:x", {}, details}) != line);
 }
 
 static void TestHostDisplayName() {
@@ -331,6 +339,57 @@ static void TestDetailsOfSnapshot() {
 	CHECK(roomhost::DetailsOf(snapshot).ownDelay);
 }
 
+// A public member's class is the one the room's ticket vouched for: it reaches
+// every member's snapshot, and a joiner who writes its own into the join
+// request gets nothing for it.
+static void TestAdmissionCarriesTheClass() {
+	auto* transport = new MockTransport();
+	SessionServer server("classes", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
+	CHECK(server.EnableServerOwnedRooms("Classes", 8, 61));
+	std::uint64_t request = 1, revision = 0;
+	constexpr std::uint64_t term = 5;
+	server.SetAuthority(term, revision, true);
+	const auto admit = [&](session::Connection connection, Admission admission, const json& extra) {
+		protocol::SessionJoinRequest join;
+		join.username = "Member-" + std::to_string(connection); join.sidecarHash = "build"; join.port = 30000;
+		join.customRooms = true; join.roomProtocol = room::ProtocolVersion;
+		json written = join;
+		written.update(extra);
+		protocol::SessionHelloMsg hello; hello.admission = written;
+		server.SetConnectionAdmission(connection, std::move(admission));
+		transport->Push(connection, json(hello));
+		CHECK(server.Step() == 0);
+		CHECK(server.ProposeCheckpoint(request, term, revision, nullptr));
+		const auto proposal = server.PendingProposal();
+		CHECK(server.ApplyCommit(request, term, revision + 1, proposal->checkpoint, proposal->effectsDigest));
+		++request; ++revision;
+	};
+	const auto aPlus = SkillBadge::OfClass(8, true);
+	admit(1, {"ember-a", aPlus}, json::object());
+	admit(2, {"ember-b", {}}, {{"badge", {{"band", 10}, {"settled", true}}}});
+	const auto& members = server.RoomSnapshot()->members;
+	CHECK(members.size() == 2);
+	CHECK(members[0].badge == aPlus && !members[1].badge.Present());
+	// The wire form round-trips, and a member without a class has no key.
+	const json first = members[0], second = members[1];
+	CHECK(first.at("badge") == json({{"band", 8}, {"settled", true}}) && !second.contains("badge"));
+	CHECK(first.get<room::Member>().badge == members[0].badge);
+	// A badge that is not one reads as none.
+	auto forged = first;
+	forged["badge"]["band"] = SkillBadge::Classes + 1;
+	CHECK(!forged.get<room::Member>().badge.Present());
+	forged["badge"] = {{"band", 0}, {"settled", true}};
+	CHECK(!forged.get<room::Member>().badge.Present());
+	forged["badge"] = {{"band", 3}, {"settled", true}, {"developer", true}};
+	CHECK(!forged.get<room::Member>().badge.Present());
+	// Placing and the developer mark travel as themselves.
+	for (const auto& badge : {SkillBadge::Placing(), SkillBadge::Developer()}) {
+		auto marked = first;
+		marked["badge"] = SkillBadgeJson(badge);
+		CHECK(marked.get<room::Member>().badge == badge && json(marked.get<room::Member>()).at("badge") == marked["badge"]);
+	}
+}
+
 // The room host opens a public room with the public rules, and the list's
 // card reads them from table 0.
 static void TestPublicRoomListsFirstToTwo() {
@@ -338,7 +397,7 @@ static void TestPublicRoomListsFirstToTwo() {
 	CHECK(server.EnableServerOwnedRooms("Public", 8, 71, room::PublicRoomRules()));
 	const auto details = roomhost::DetailsOf(*server.RoomSnapshot());
 	CHECK(details.setFormat == 2 && details.rotation == 0);
-	const auto line = json::parse(roomhost::StatusLine(0, 0, "sf4e3:x", {}, details)).at("details");
+	const auto line = json::parse(roomhost::StatusLine({0, 0, "sf4e3:x", {}, details})).at("details");
 	CHECK(line.at("set_format") == 2 && line.at("rotation") == 0);
 }
 
@@ -350,6 +409,7 @@ int main() {
 	TestHostDisplayName();
 	TestDetailsOfSnapshot();
 	TestPublicRoomListsFirstToTwo();
+	TestAdmissionCarriesTheClass();
 	std::puts("SessionServerModeration test passed");
 	return 0;
 }
