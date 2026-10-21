@@ -1262,8 +1262,9 @@ registers `/tournament` with `signup`, `leave`, `checkin` and `show`, each
 taking a tournament `id`. The notifier calls the bracket site with the bot
 token and `X-Discord-User`, the user Discord signed the interaction for, so
 each player acts only as themselves. `signup`, `leave` and `checkin` answer
-privately; `show` posts the tournament to the channel with Sign up, Check
-in and Leave buttons for its state, and a press (`tournament:<what>:<id>`)
+privately; `show`, for a member who may manage the server or one of the
+tournament's organizers, posts the tournament to the channel with Sign up,
+Check in and Leave buttons for its state, and a press (`tournament:<what>:<id>`)
 acts for whoever pressed it. A player whose Discord is not connected in
 Ember yet is signed up all the same and told to connect it before the
 start (docs/design/BRACKET_SITE.md).
