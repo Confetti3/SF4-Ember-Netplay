@@ -35,11 +35,16 @@
 // is read only while the call offers go now, for go now: its reset, save and
 // controls are refused without the focus.
 //
+// On an Xbox pad R3 (the right stick's click, which the game leaves alone) is
+// the quick way: a press opens the controls, or closes them, on its own; it
+// does nothing under the call, and on standby it starts the recording as the
+// chord does. The poller passes it only for an Xbox pad (sf4e__Pad.cxx).
+//
 // A Start that goes down while the gesture's Back is held is the gesture's
 // whether or not it opens anything (TrainingPadEvents::owned), so the game
 // never takes it for its pause, under the call too.
 namespace sf4e { namespace input {
-constexpr std::uint32_t PhysicalBack = 0x100, PhysicalStart = 0x200;
+constexpr std::uint32_t PhysicalBack = 0x100, PhysicalStart = 0x200, PhysicalQuick = 0x2000000;
 // Called: the room calls the player back and the controls stay shut. GoNow:
 // also, the banner offers go now on this pad.
 enum class TrainingCall { None, Called, GoNow };
@@ -88,14 +93,17 @@ public:
         if (!back && back_ && !used_) (held ? events.save : events.reset) = true;
         if (startOwned_) events.owned |= PhysicalStart;
         if (!start) startOwned_ = false;
-        back_ = back; start_ = start;
+        const bool quick = (physical & PhysicalQuick) != 0;
+        if (quick && !quick_ && !back && call == TrainingCall::None) { (open ? events.close : events.open) = true; events.pressed = true; }
+        if (quick) events.owned |= PhysicalQuick;
+        back_ = back; start_ = start; quick_ = quick;
         return events;
     }
     // The pad changed, lost focus or left Training: a press under way is
     // dropped, and a button still held counts only once it is pressed again.
-    void Reset() { *this = TrainingPadGesture{}; back_ = start_ = used_ = true; }
+    void Reset() { *this = TrainingPadGesture{}; back_ = start_ = used_ = quick_ = true; }
 private:
-    bool back_ = false, start_ = false, armed_ = false, used_ = false, openAtPress_ = false;
+    bool back_ = false, start_ = false, armed_ = false, used_ = false, openAtPress_ = false, quick_ = false;
     // mine_: the Back held now went down before Start, so it is the
     // gesture's; startOwned_: the Start held now went down under it.
     bool mine_ = false, startOwned_ = false;

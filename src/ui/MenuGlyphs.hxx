@@ -77,7 +77,7 @@ inline const char* PromptAsset(const char* glyph, gamepads::PromptBrand brand = 
 inline bool KeyCapGlyph(const char* glyph) {
     // The function keys F1 to F12 too, which the replay controls use.
     const bool function=glyph[0]=='F'&&glyph[1]>='1'&&glyph[1]<='9'&&(!glyph[2]||(glyph[1]=='1'&&glyph[2]>='0'&&glyph[2]<='2'&&!glyph[3]));
-    return function||!std::strcmp(glyph,"F")||!std::strcmp(glyph,"T")||!std::strcmp(glyph,"C")||!std::strcmp(glyph,"Del")||!std::strcmp(glyph,"Bksp")||!std::strcmp(glyph,"Space");
+    return function||!std::strcmp(glyph,"F")||!std::strcmp(glyph,"T")||!std::strcmp(glyph,"C")||!std::strcmp(glyph,"Del")||!std::strcmp(glyph,"Bksp")||!std::strcmp(glyph,"Space")||!std::strcmp(glyph,"PgUp")||!std::strcmp(glyph,"PgDn");
 }
 inline std::string PromptLabel(const char* glyph,const std::string& label,gamepads::PromptBrand brand,const gamepads::FightNames* names=MenuPromptNames()) {
     if(!std::strcmp(glyph,"Ctrl+Enter"))return "Ctrl+Enter "+label;

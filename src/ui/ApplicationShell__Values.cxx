@@ -1,9 +1,5 @@
-// V2: a value row's every value as a choice, so Select opens them all in a
-// panel on the row instead of stepping through them with Left and Right. A
-// choice's id is "#<n>", n its place in the order Left and Right step
-// through, so picking it is that many steps from where the value is, through
-// the same handler the arrows use (ValueStep). The labels are the ones the
-// row itself shows, which is how the value's place is found. A row whose
+// V2: the shell's value rows' values, in the order Left and Right step
+// through them and in the words the rows show (OfferSteps). A row whose
 // values are not listed here keeps its arrows only.
 #include "ApplicationShell.hxx"
 #include "ButtonPromptSetting.hxx"
@@ -43,20 +39,6 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
 }
 
 void ApplicationShell::OfferValues(std::vector<MenuEntry>& rows) {
-    for (auto& e : rows) {
-        if (!e.adjustable || !e.choices.empty()) continue;
-        const auto labels = ValueLabels(e.id, e.value);
-        const auto at = std::find(labels.begin(), labels.end(), e.value);
-        if (labels.size() < 2 || at == labels.end()) continue;
-        for (std::size_t i = 0; i < labels.size(); ++i) e.choices.push_back({"#" + std::to_string(i), labels[i], {}, e.enabled});
-        e.chosen = "#" + std::to_string(at - labels.begin());
-    }
-}
-
-MenuAction ApplicationShell::ValueStep(const MenuAction& chosen, const std::vector<MenuEntry>& rows) {
-    const auto row = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == chosen.id; });
-    if (row == rows.end() || row->chosen.size() < 2 || chosen.text.size() < 2) return {};
-    const int steps = std::stoi(chosen.text.substr(1)) - std::stoi(row->chosen.substr(1));
-    return steps ? MenuAction{MenuAction::Adjust, chosen.id, {}, steps} : MenuAction{};
+    for (auto& e : rows) OfferSteps(e, ValueLabels(e.id, e.value));
 }
 } }

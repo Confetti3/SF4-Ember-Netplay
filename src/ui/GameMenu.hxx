@@ -197,7 +197,7 @@ private:
     // The V2 look's screen (GameMenuV2.cxx): the same entries, input and
     // dialogs as Draw, laid out as the V2 design's cards, panes and hint bar.
     MenuAction DrawV2(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,
-        const Body& body,float cardHeight,Tone statusTone,bool home,MenuAction action,unsigned held,bool modalAtStart,bool choosingAtStart,bool acceptEditText,bool noticeOpen);
+        const Body& body,float cardHeight,Tone statusTone,bool home,bool flyout,MenuAction action,unsigned held,bool modalAtStart,bool choosingAtStart,bool acceptEditText,bool noticeOpen);
     // The dialogs over the screen, then the frame's bookkeeping and its answer; both looks end here.
     MenuAction Finish(const std::vector<MenuEntry>& entries,MenuAction action,bool backRequested,bool acceptEditText,bool body,bool noticeOpen);
     // Parts of Draw. The dialogs and their helpers (ConfirmationButtons,

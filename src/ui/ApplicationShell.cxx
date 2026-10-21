@@ -955,8 +955,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home");
  AnswerDialog(submit);
- // A value picked in its V2 panel is the steps to it, as Left and Right would take.
- if(a.kind==MenuAction::Chosen&&a.text.size()>1&&a.text[0]=='#')a=ValueStep(a,rows);
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close&&opening){

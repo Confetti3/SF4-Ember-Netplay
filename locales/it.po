@@ -1287,7 +1287,7 @@ msgid "about.controls"
 msgstr "Comandi"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A seleziona e B torna indietro. PlayStation: Croce seleziona e Cerchio torna indietro. Switch: B seleziona e A torna indietro, come nei menu del gioco. Un controller configurato in Ember: Il pulsante scelto per Calcio leggero seleziona e quello per Calcio medio torna indietro, qualunque sia la disposizione dei pulsanti. Tastiera: frecce, Invio ed Escape. La croce direzionale muove; Sinistra e Destra cambiano un valore. Tornare indietro in Home nasconde Ember. F10, o Start su un controller, lo apre di nuovo nel menu principale del gioco.\n\nIn una stanza, A su un tavolo permette di scegliere un posto, A sul proprio posto segnala che si è pronti e B lascia il posto o la coda (sugli altri controller, i pulsanti nelle stesse posizioni). Su Xbox, X apre Combattente, Y Opzioni e View Chat; premi di nuovo per tornare alla stanza. PlayStation usa Quadrato, Triangolo e Share o Create; Switch usa Y, X e Minus.\n\nIn allenamento, F6 apre i controlli, F5 nasconde l'HUD, F7 registra e F8 riproduce. Su un controller, tieni premuto View (Share, Create o Minus) e premi Start."
+msgstr "Xbox: A seleziona e B torna indietro. PlayStation: Croce seleziona e Cerchio torna indietro. Switch: B seleziona e A torna indietro, come nei menu del gioco. Un controller configurato in Ember: Il pulsante scelto per Calcio leggero seleziona e quello per Calcio medio torna indietro, qualunque sia la disposizione dei pulsanti. Tastiera: frecce, Invio ed Escape. La croce direzionale muove; Sinistra e Destra cambiano un valore. Tornare indietro in Home nasconde Ember. F10, o Start su un controller, lo apre di nuovo nel menu principale del gioco.\n\nIn una stanza, A su un tavolo permette di scegliere un posto, A sul proprio posto segnala che si è pronti e B lascia il posto o la coda (sugli altri controller, i pulsanti nelle stesse posizioni). Su Xbox, X apre Combattente, Y Opzioni e View Chat; premi di nuovo per tornare alla stanza. PlayStation usa Quadrato, Triangolo e Share o Create; Switch usa Y, X e Minus.\n\nIn allenamento, F6 apre i controlli, F5 nasconde l'HUD, F7 registra e F8 riproduce. Su un controller, tieni premuto View (Share, Create o Minus) e premi Start. Su un controller Xbox, premere la levetta destra (R3) li apre anche."
 
 msgid "about.controls_keyboard"
 msgstr "Da tastiera, anche Spazio seleziona e Backspace torna indietro. In una stanza, F apre Lottatore, T apre Opzioni e C apre Chat. Esc torna sempre indietro, anche sul tuo posto; Canc lascia il tuo posto o la coda."
@@ -6586,6 +6586,9 @@ msgstr "V2 (anteprima)"
 
 msgid "settings.look_detail"
 msgstr "Il nuovo aspetto di Ember, ancora in costruzione. Puoi tornare indietro in qualsiasi momento: cambia solo l'aspetto delle schermate."
+
+msgid "menu.pages"
+msgstr "Pagine"
 
 msgid "room.controls_detail"
 msgstr "Il tuo controller e i suoi tasti, senza lasciare la stanza."

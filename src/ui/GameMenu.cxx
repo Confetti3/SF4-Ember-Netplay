@@ -337,9 +337,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // LB/RB move between the V2 tabs, as a Shortcut naming the tab; elsewhere they do nothing.
     if(action.kind==MenuAction::Shortcut&&(action.delta==MenuInput::PrevTab||action.delta==MenuInput::NextTab)){
         const int next=tab+(action.delta==MenuInput::NextTab?1:-1);
-        action=v2::On()&&!flyout&&next>=0&&next<static_cast<int>(tabs.size())?MenuAction{MenuAction::Shortcut,tabs[next].first}:MenuAction{};
+        action=v2::On()&&next>=0&&next<static_cast<int>(tabs.size())?MenuAction{MenuAction::Shortcut,tabs[next].first}:MenuAction{};
     }
-    if(v2::On()&&!flyout)return DrawV2(title,entries,status,detail,columns,card,body,cardHeight,statusTone,home,action,menuInput.held,modalAtStart,choosingAtStart,acceptEditText,noticeOpen);
+    if(v2::On())return DrawV2(title,entries,status,detail,columns,card,body,cardHeight,statusTone,home,flyout,action,menuInput.held,modalAtStart,choosingAtStart,acceptEditText,noticeOpen);
     const bool changed=lastScreen_!=navigation.Screen();
     // Scaled like every other breakpoint, so a 1.5x interface on a 1024-wide
     // window takes the same layout decision as the header and the galleries.
@@ -677,6 +677,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     return Finish(entries,action,backRequested,acceptEditText,static_cast<bool>(body),noticeOpen);
 }
 MenuAction GameMenu::Finish(const std::vector<MenuEntry>& entries,MenuAction action,bool backRequested,bool acceptEditText,bool body,bool noticeOpen) {
+    // A value picked in its panel (OfferSteps) is the steps to it, as Left and Right would take.
+    if(action.kind==MenuAction::Chosen&&action.text.size()>1&&action.text[0]=='#'){
+        const auto row=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==action.id;});
+        const int steps=row==entries.end()||row->chosen.size()<2?0:std::stoi(action.text.substr(1))-std::stoi(row->chosen.substr(1));
+        action=steps?MenuAction{MenuAction::Adjust,action.id,{},steps}:MenuAction{};
+    }
     // A renderer popup may survive a model cancellation by one frame. Close it
     // without rendering stale controls or reading a draft that was already cleared.
     DrawConfirmationModal(entries,action);

@@ -1287,7 +1287,7 @@ msgid "about.controls"
 msgstr "操作说明"
 
 msgid "about.controls_detail"
-msgstr "Xbox：A 选择，B 返回。PlayStation：叉号选择，圆圈返回。Switch：B 选择，A 返回，与游戏自身的菜单一致。在 Ember 中设置的控制器：为轻脚选定的按钮负责选择，为中脚选定的按钮负责返回，无论按钮布局如何。键盘：方向键、Enter 和 Escape。方向键移动，左右更改数值。在主页返回会隐藏 Ember。在游戏主菜单按 F10 或控制器上的 Start 可再次打开。\n\n在房间中，在桌台上按 A 可选择座位，在自己的座位上按 A 可准备，按 B 可离开座位或队列位置；其他控制器使用相同位置的按钮。在 Xbox 上，X 打开斗士，Y 打开选项，View 打开聊天；再次按下会返回房间。PlayStation 使用方块、三角和 Share 或 Create；Switch 使用 Y、X 和 Minus。\n\n训练中，F6 打开控制界面，F5 隐藏 HUD，F7 录制，F8 播放。在控制器上按住 View（Share、Create 或 Minus）并按 Start。"
+msgstr "Xbox：A 选择，B 返回。PlayStation：叉号选择，圆圈返回。Switch：B 选择，A 返回，与游戏自身的菜单一致。在 Ember 中设置的控制器：为轻脚选定的按钮负责选择，为中脚选定的按钮负责返回，无论按钮布局如何。键盘：方向键、Enter 和 Escape。方向键移动，左右更改数值。在主页返回会隐藏 Ember。在游戏主菜单按 F10 或控制器上的 Start 可再次打开。\n\n在房间中，在桌台上按 A 可选择座位，在自己的座位上按 A 可准备，按 B 可离开座位或队列位置；其他控制器使用相同位置的按钮。在 Xbox 上，X 打开斗士，Y 打开选项，View 打开聊天；再次按下会返回房间。PlayStation 使用方块、三角和 Share 或 Create；Switch 使用 Y、X 和 Minus。\n\n训练中，F6 打开控制界面，F5 隐藏 HUD，F7 录制，F8 播放。在控制器上按住 View（Share、Create 或 Minus）并按 Start。在 Xbox 手柄上，按下右摇杆（R3）也可以打开。"
 
 msgid "about.controls_keyboard"
 msgstr "键盘上，空格键也可选择，Backspace 也可返回。在房间中，F 打开角色，T 打开选项，C 打开聊天。Esc 始终返回，即使在你自己的座位上；Delete 离开座位或排队位置。"
@@ -6587,6 +6587,9 @@ msgstr "V2（预览）"
 
 msgid "settings.look_detail"
 msgstr "Ember 正在制作中的新外观。可随时切换回去：只改变界面的样子。"
+
+msgid "menu.pages"
+msgstr "页面"
 
 msgid "room.controls_detail"
 msgstr "不离开房间即可设置控制器和按键。"

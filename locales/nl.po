@@ -1287,7 +1287,7 @@ msgid "about.controls"
 msgstr "Besturing"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A selecteert en B gaat terug. PlayStation: Kruis selecteert en Cirkel gaat terug. Switch: B selecteert en A gaat terug, zoals in de menu's van het spel. Een in Ember ingestelde controller: De knop gekozen voor Lichte trap selecteert en die voor Middelzware trap gaat terug, ongeacht de knopindeling. Toetsenbord: pijlen, Enter en Escape. Het richtingspad beweegt; Links en Rechts veranderen een waarde. Teruggaan op Home verbergt Ember. F10, of Start op een controller, opent het weer in het hoofdmenu van het spel.\n\nIn een kamer laat A op een tafel je een plek kiezen, maakt A op je eigen plek je gereed en verlaat B je plek of de wachtrij (op andere controllers de knoppen op dezelfde posities). Op Xbox opent X Vechter, Y Opties en View Chat; druk nogmaals om terug te keren naar de kamer. PlayStation gebruikt Vierkant, Driehoek en Share of Create; Switch gebruikt Y, X en Minus.\n\nIn training opent F6 de bediening, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Houd op een controller View (Share, Create of Minus) vast en druk op Start."
+msgstr "Xbox: A selecteert en B gaat terug. PlayStation: Kruis selecteert en Cirkel gaat terug. Switch: B selecteert en A gaat terug, zoals in de menu's van het spel. Een in Ember ingestelde controller: De knop gekozen voor Lichte trap selecteert en die voor Middelzware trap gaat terug, ongeacht de knopindeling. Toetsenbord: pijlen, Enter en Escape. Het richtingspad beweegt; Links en Rechts veranderen een waarde. Teruggaan op Home verbergt Ember. F10, of Start op een controller, opent het weer in het hoofdmenu van het spel.\n\nIn een kamer laat A op een tafel je een plek kiezen, maakt A op je eigen plek je gereed en verlaat B je plek of de wachtrij (op andere controllers de knoppen op dezelfde posities). Op Xbox opent X Vechter, Y Opties en View Chat; druk nogmaals om terug te keren naar de kamer. PlayStation gebruikt Vierkant, Driehoek en Share of Create; Switch gebruikt Y, X en Minus.\n\nIn training opent F6 de bediening, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Houd op een controller View (Share, Create of Minus) vast en druk op Start. Op een Xbox-controller opent indrukken van de rechterstick (R3) ze ook."
 
 msgid "about.controls_keyboard"
 msgstr "Op het toetsenbord selecteert Spatie ook en gaat Backspace ook terug. In een kamer opent F Vechter, T Opties en C Chat. Escape gaat altijd terug, ook op je eigen plaats; Delete verlaat je plaats of wachtrij."
@@ -6586,6 +6586,9 @@ msgstr "V2 (voorproef)"
 
 msgid "settings.look_detail"
 msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw. Je kunt altijd terugschakelen: alleen hoe de schermen eruitzien verandert."
+
+msgid "menu.pages"
+msgstr "Pagina's"
 
 msgid "room.controls_detail"
 msgstr "Je controller en zijn knoppen, zonder de kamer te verlaten."

@@ -29,6 +29,17 @@ inline MenuEntry ReadOnlyValue(std::string id,std::string label,std::string valu
 inline MenuEntry InfoRow(std::string id,std::string label,std::string value,std::string detail) {
     auto e=Row(std::move(id),std::move(label),std::move(detail)); e.value=std::move(value); e.info=true; return e;
 }
+// V2: a value row's every value, in the order Left and Right step through
+// them, as choices "#<n>", so Select opens them all in the value panel. The
+// row's own value text marks where it is; a pick comes back as the steps to
+// it (an Adjust, GameMenu::Finish), through the handler the arrows use.
+inline void OfferSteps(MenuEntry& e,const std::vector<std::string>& labels) {
+    if(!e.adjustable||!e.choices.empty()||labels.size()<2) return;
+    const auto at=std::find(labels.begin(),labels.end(),e.value);
+    if(at==labels.end()) return;
+    for(std::size_t i=0;i<labels.size();++i) e.choices.push_back({"#"+std::to_string(i),labels[i],{},e.enabled});
+    e.chosen="#"+std::to_string(at-labels.begin());
+}
 inline MenuEntry TextRow(std::string id,std::string label,std::string value,std::size_t limit,bool enabled=true) {
     auto e=Value(std::move(id),std::move(label),value,enabled?loc::T("menu.edit_detail"):loc::T("menu.edit_unavailable"),enabled);
     e.adjustable=false; e.text=true; e.textLimit=limit; return e;

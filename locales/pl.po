@@ -1287,7 +1287,7 @@ msgid "about.controls"
 msgstr "Sterowanie"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A wybiera, a B wraca. PlayStation: Krzyżyk wybiera, a Kółko wraca. Switch: B wybiera, a A wraca, tak jak w menu gry. Kontroler ustawiony w Ember: Przycisk wybrany dla Lekkiego kopnięcia wybiera, a ten dla Średniego kopnięcia wraca, niezależnie od układu przycisków. Klawiatura: strzałki, Enter i Escape. Krzyżak przesuwa; Lewo i Prawo zmieniają wartość. Powrót na ekranie głównym ukrywa Ember. F10 lub Start na kontrolerze otwiera go ponownie w menu głównym gry.\n\nW pokoju A na stole pozwala wybrać miejsce, A na swoim miejscu zgłasza gotowość, a B opuszcza miejsce lub kolejkę (na innych kontrolerach przyciski w tych samych pozycjach). Na Xbox X otwiera Zawodnika, Y Opcje, a View Czat; naciśnij ponownie, aby wrócić do pokoju. PlayStation używa Kwadratu, Trójkąta i Share lub Create; Switch Y, X i Minus.\n\nW treningu F6 otwiera sterowanie, F5 ukrywa HUD, F7 nagrywa, a F8 odtwarza. Na kontrolerze przytrzymaj View (Share, Create lub Minus) i naciśnij Start."
+msgstr "Xbox: A wybiera, a B wraca. PlayStation: Krzyżyk wybiera, a Kółko wraca. Switch: B wybiera, a A wraca, tak jak w menu gry. Kontroler ustawiony w Ember: Przycisk wybrany dla Lekkiego kopnięcia wybiera, a ten dla Średniego kopnięcia wraca, niezależnie od układu przycisków. Klawiatura: strzałki, Enter i Escape. Krzyżak przesuwa; Lewo i Prawo zmieniają wartość. Powrót na ekranie głównym ukrywa Ember. F10 lub Start na kontrolerze otwiera go ponownie w menu głównym gry.\n\nW pokoju A na stole pozwala wybrać miejsce, A na swoim miejscu zgłasza gotowość, a B opuszcza miejsce lub kolejkę (na innych kontrolerach przyciski w tych samych pozycjach). Na Xbox X otwiera Zawodnika, Y Opcje, a View Czat; naciśnij ponownie, aby wrócić do pokoju. PlayStation używa Kwadratu, Trójkąta i Share lub Create; Switch Y, X i Minus.\n\nW treningu F6 otwiera sterowanie, F5 ukrywa HUD, F7 nagrywa, a F8 odtwarza. Na kontrolerze przytrzymaj View (Share, Create lub Minus) i naciśnij Start. Na kontrolerze Xbox otwiera je też wciśnięcie prawego drążka (R3)."
 
 msgid "about.controls_keyboard"
 msgstr "Na klawiaturze Spacja też wybiera, a Backspace też cofa. W pokoju F otwiera Postać, T Opcje, a C Czat. Escape zawsze cofa, także na twoim miejscu; Delete opuszcza miejsce lub kolejkę."
@@ -6586,6 +6586,9 @@ msgstr "V2 (podgląd)"
 
 msgid "settings.look_detail"
 msgstr "Nowy wygląd Embera, wciąż w budowie. Możesz wrócić w każdej chwili: zmienia się tylko wygląd ekranów."
+
+msgid "menu.pages"
+msgstr "Strony"
 
 msgid "room.controls_detail"
 msgstr "Twój kontroler i jego przyciski, bez wychodzenia z pokoju."

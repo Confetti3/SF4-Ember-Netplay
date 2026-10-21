@@ -248,6 +248,19 @@ void PracticeFightPresses(){
 // pressed while Back is held opens the controls or closes them. None of the
 // three clashes with another: the chord never resets or saves, a hold saves
 // once, and the game's pause (Start first) never opens or resets.
+// R3 on an Xbox pad: a press opens or closes the controls on its own, once
+// per press, never under the call, and the game never sees it.
+void TrainingPadQuick(){
+ using namespace sf4e::input;
+ TrainingPadGesture pad;double now=0;
+ const auto step=[&](unsigned physical,bool open=false,TrainingCall call=TrainingCall::None){now+=1.0/60;return pad.Update(physical,open,now,call);};
+ const unsigned quick=PhysicalQuick;
+ auto e=step(quick);Check(e.open&&!e.close&&!e.reset&&!e.save&&(e.owned&quick),"R3 did not open the controls");
+ Check(!step(quick).Any(),"Holding R3 acted twice");
+ step(0);e=step(quick,true);Check(e.close&&!e.open,"R3 did not close the open controls");
+ step(0);Check(!step(quick,false,TrainingCall::Called).Any(),"R3 opened the controls under the call");
+ step(0);step(PhysicalBack);Check(!step(PhysicalBack|quick).open,"R3 opened the controls while Back was held");
+}
 void TrainingPadChord(){
  using namespace sf4e::input;
  TrainingPadGesture pad;double now=0;
@@ -850,5 +863,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

@@ -1287,7 +1287,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A selecciona y B vuelve atrás. PlayStation: Cruz selecciona y Círculo vuelve atrás. Switch: B selecciona y A vuelve atrás, como en los menús del juego. Un control configurado en Ember: El botón que elegiste para Patada débil selecciona y el de Patada media vuelve atrás, sea cual sea la distribución de botones. Teclado: flechas, Enter y Escape. La cruceta mueve; Izquierda y Derecha cambian un valor. Volver atrás en Inicio oculta Ember. F10, o Start en un control, lo abre de nuevo en el menú principal del juego.\n\nEn una sala, A sobre una mesa permite elegir asiento, A en tu asiento te marca como listo y B abandona tu asiento o lugar en la cola (en otros controles, los botones en las mismas posiciones). En Xbox, X abre Luchador, Y Opciones y View Chat; pulsa de nuevo para volver a la sala. PlayStation usa Cuadrado, Triángulo y Share o Create; Switch usa Y, X y Minus.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce. En un control, mantén View (Share, Create o Minus) y pulsa Start."
+msgstr "Xbox: A selecciona y B vuelve atrás. PlayStation: Cruz selecciona y Círculo vuelve atrás. Switch: B selecciona y A vuelve atrás, como en los menús del juego. Un control configurado en Ember: El botón que elegiste para Patada débil selecciona y el de Patada media vuelve atrás, sea cual sea la distribución de botones. Teclado: flechas, Enter y Escape. La cruceta mueve; Izquierda y Derecha cambian un valor. Volver atrás en Inicio oculta Ember. F10, o Start en un control, lo abre de nuevo en el menú principal del juego.\n\nEn una sala, A sobre una mesa permite elegir asiento, A en tu asiento te marca como listo y B abandona tu asiento o lugar en la cola (en otros controles, los botones en las mismas posiciones). En Xbox, X abre Luchador, Y Opciones y View Chat; pulsa de nuevo para volver a la sala. PlayStation usa Cuadrado, Triángulo y Share o Create; Switch usa Y, X y Minus.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce. En un control, mantén View (Share, Create o Minus) y pulsa Start. En un control de Xbox, presionar el stick derecho (R3) también los abre."
 
 msgid "about.controls_keyboard"
 msgstr "En el teclado, Espacio también selecciona y Retroceso también regresa. En una sala, F abre Luchador, T abre Opciones y C abre Chat. Escape siempre regresa, incluso en tu propio asiento; Supr deja tu asiento o tu lugar en la fila."
@@ -6106,6 +6106,9 @@ msgstr "V2 (vista previa)"
 
 msgid "settings.look_detail"
 msgstr "El nuevo aspecto de Ember, todavía en desarrollo. Puedes volver cuando quieras: solo cambia cómo se ven las pantallas."
+
+msgid "menu.pages"
+msgstr "Páginas"
 
 msgid "room.controls_detail"
 msgstr "Tu control y sus botones, sin salir de la sala."

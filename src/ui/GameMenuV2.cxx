@@ -89,21 +89,22 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
 }
 
 MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& entries, const char* status, const Detail& detail, int columns,
-    const Card& card, const Body& body, float cardHeight, Tone statusTone, bool home, MenuAction action, unsigned held,
+    const Card& card, const Body& body, float cardHeight, Tone statusTone, bool home, bool flyout, MenuAction action, unsigned held,
     bool modalAtStart, bool choosingAtStart, bool acceptEditText, bool noticeOpen) {
     const float s = Scale();
     auto* d = ImGui::GetWindowDrawList();
     const auto win = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
     const bool narrow = v2::Narrow(size.x, s), changed = lastScreen_ != navigation.Screen();
-    const float side = v2::SideMargin(size.x, s), pad = v2::Pad(size.x, s);
-    if (backdrop) DrawMenuBackdrop(true);
+    const float side = flyout ? 16 * s : v2::SideMargin(size.x, s), pad = flyout ? 12 * s : v2::Pad(size.x, s);
+    // A flyout (the training controls) sits over the fight: no art behind it.
+    if (backdrop && !flyout) DrawMenuBackdrop(true);
     bool backRequested = false;
     const auto focusedEntry = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == navigation.Focus(); });
     const auto mouse = ImGui::GetIO().MouseDelta;
     const bool pointerMoved = mouse.x != 0 || mouse.y != 0;
 
     v2::Box screen{win, ImVec2(win.x + size.x, win.y + size.y)};
-    const v2::Box hintBar = v2::CutBottom(screen, (narrow ? 48 : 56) * s, 16 * s);
+    const v2::Box hintBar = v2::CutBottom(screen, (narrow || flyout ? 48 : 56) * s, (flyout ? 8 : 16) * s);
     v2::Box content{ImVec2(screen.min.x + side, screen.min.y + pad), ImVec2(screen.max.x - side, screen.max.y)};
 
     // Header: Home's brand, or the screen's title and its tabs.
@@ -115,7 +116,8 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     } else {
         ImGui::BeginGroup();
         // Classic titles are capitals ("SETTINGS"); the V2 header names the screen as the menus do.
-        const char* named = MenuScreenName(navigation.Screen());
+        // A flyout's root is named by its owner (rootName), its pages as the menus name them.
+        const char* named = navigation.Screen() == navigation.Root() && !rootName.empty() ? rootName.c_str() : MenuScreenName(navigation.Screen());
         v2::Header(named && IsCapitals(title) ? named : title);
         if (!tabs.empty()) {
             std::vector<std::string> labels;
@@ -146,7 +148,8 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         v2::Box list = content, pane{};
         if (split) pane = v2::CutRight(list, home ? (std::min)(420 * s, content.W() * .4f) : content.W() * .45f - 24 * s, 24 * s);
         if (home && split) list.max.x = list.min.x + (std::min)(600 * s, list.W());
-        const bool twoLines = home || !split, grid = columns > 1 && card;
+        // A flyout keeps to one line a card past its first page, so more of its settings show at once.
+        const bool twoLines = home || (!split && (!flyout || navigation.Screen() == navigation.Root())), grid = columns > 1 && card;
         const std::size_t cells = grid ? MenuGridCells(entries) : 0;
         v2::Box focusCard{};
         ImGui::SetCursorScreenPos(list.min);
@@ -294,7 +297,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     MenuEntry shown;
     if (focusedEntry != entries.end()) { shown = *focusedEntry; shown.enabled = feedback_.Enabled(*focusedEntry); }
     std::vector<v2::Hint> hints;
-    std::vector<int> does;  // 1 Select, 2 Back
+    std::vector<int> does;  // 1 Select, 2 Back, 3 previous tab, 4 next tab
     const bool choosing = navigation.Choosing();
     if (const char* primary = !listEnabled ? nullptr : choosing ? loc::T("menu.choose") : MenuPrimaryHint(focusedEntry == entries.end() ? nullptr : &shown)) {
         hints.push_back({MenuSelectGlyph(), primary}); does.push_back(1);
@@ -302,12 +305,22 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     if (!backInert) { hints.push_back({MenuBackGlyph(), choosing ? loc::T("common.cancel") : backHint.empty() ? loc::T("common.back") : backHint}); does.push_back(2); }
     if (shown.adjustable && shown.enabled && !choosing) { hints.push_back({KeyboardPrompts() ? "keys-horizontal" : "horizontal", loc::T("menu.adjust")}); does.push_back(0); }
     for (const auto& h : shortcutHints) { hints.push_back({h.glyph, h.label}); does.push_back(0); }
+    // Tabs step with LB and RB (Page Up and Down on the keyboard).
+    if (!tabs.empty() && !choosing) {
+        const bool keys = KeyboardPrompts();
+        hints.push_back({keys ? "PgUp" : "LB", ""}); does.push_back(3);
+        hints.push_back({keys ? "PgDn" : "RB", loc::T("menu.pages")}); does.push_back(4);
+    }
     const bool hasStatus = status && *status;
     const int hit = v2::HintBar(hintBar, hints, hasStatus ? status : footerNote,
         hasStatus ? ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)) : palette::Muted);
     if (hit >= 0 && !modalAtStart && !noticeOpen) {
         if (does[hit] == 2) { if (choosing) navigation.Cancel(); else backRequested = true; }
         else if (does[hit] == 1 && focusedEntry != entries.end() && !choosing) action = navigation.Choose(entries);
+        else if ((does[hit] == 3 || does[hit] == 4) && !modalAtStart) {
+            const int next = tab + (does[hit] == 4 ? 1 : -1);
+            if (next >= 0 && next < static_cast<int>(tabs.size())) action = {MenuAction::Shortcut, tabs[next].first};
+        }
     }
     return Finish(entries, action, backRequested, acceptEditText, static_cast<bool>(body) || valuePanel, noticeOpen);
 }

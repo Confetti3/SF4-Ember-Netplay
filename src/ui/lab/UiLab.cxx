@@ -4,11 +4,12 @@
 // work as in the game.
 //
 // F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F5 in a room · F6 picture · F12 screenshot
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--pip] [--hud 0|1] [--screen id] [--keys down,down,enter] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--pip] [--hud 0|1] [--training] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
 #include "../SelectionArt.hxx"
+#include "../TrainingPanel.hxx"
 #include "../Theme.hxx"
 #include "../V2.hxx"
 #include "../../common/Localization.hxx"
@@ -154,7 +155,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool v2 = false;
     std::string shot, keys, screen;
     bool inRoom = false, pip = false;
-    int hud = -1;  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
+    int hud = -1;
+    bool trainingPanel = false;  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
         if (args[i] == "--size" && more) std::sscanf(args[++i].c_str(), "%dx%d", &width, &height);
@@ -165,6 +167,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--room") inRoom = true;
         else if (args[i] == "--pip") pip = true;
         else if (args[i] == "--hud" && more) hud = std::atoi(args[++i].c_str());
+        else if (args[i] == "--training") trainingPanel = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
@@ -229,7 +232,21 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (ImGui::IsKeyPressed(ImGuiKey_F6)) pip = !pip;
         view.preferences.watchedPicture = pip;
         view.watchedPicture = pip ? art.MenuBackdrop().texture : ImTextureID{};
-        if (hud >= 0) {
+        if (trainingPanel) {
+            const auto* vp = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
+            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
+            ui::DrawMenuBackdrop(false);
+            ImGui::End();
+            ui::v2::SetOn(view.preferences.lookV2);
+            // A Training battle with two recordings, as the render test's.
+            training::View lab;
+            lab.available = lab.ready = lab.checkpoint = true; lab.generation = 1;
+            lab.lengths[0] = 120; lab.lengths[2] = 45; lab.on[0] = true; lab.playable = lab.replyable = 1u;
+            // The dummy crouching and blocking everything, as the game reports it.
+            lab.dummy.action = 1; lab.dummy.guard = 2; lab.dummy.counterHit = 0; lab.dummy.quickStand = 1; lab.dummy.super = 0; lab.dummy.revenge = 0;
+            ui::DrawTrainingFlyout(lab, [](const training::Command&) { return true; });
+        } else if (hud >= 0) {
             // A fight's HUD: the art stands in for the game behind it.
             const auto* vp = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
