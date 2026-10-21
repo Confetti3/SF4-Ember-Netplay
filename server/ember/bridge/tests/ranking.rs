@@ -153,9 +153,9 @@ async fn a_standing_says_where_the_player_is() {
             "listing": { "name": "Player 3", "country": "GB" } })
     );
 
-    // About two months without a game: the class shows faint.
+    // Over a year without a game: the class shows faint.
     connect_discord(&bridge, "400", &faint).await;
-    rate(&bridge, "400", 60.0, 7, 120).await;
+    rate(&bridge, "400", 60.0, 7, 600).await;
     assert_eq!(
         standing(&bridge, &faint).await["badge"],
         json!({ "band": 7, "settled": false })
@@ -240,7 +240,7 @@ async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
     rate(&bridge, "3", 60.0, 8, 2).await;
     // Still placing, faint, unlisted, and opted out: none are on it.
     rate(&bridge, "4", 300.0, 0, 0).await;
-    rate(&bridge, "5", 60.0, 9, 120).await;
+    rate(&bridge, "5", 60.0, 9, 600).await;
     rate(&bridge, "6", 60.0, 9, 0).await;
     rate(&bridge, "7", 60.0, 9, 0).await;
     for (index, player) in players.iter().enumerate() {
