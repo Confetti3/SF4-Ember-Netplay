@@ -199,4 +199,5 @@ test("a cancelled or deleted tournament's sets are gone for the connector", asyn
   assert.equal((await organizer("DELETE", "/tournaments/gone")).status, 204);
   assert.deepEqual((await read("/sets?state=open")).body, { sets: [] });
   assert.equal((await call("GET", "/tournaments/gone")).status, 404);
+  assert.equal((await call("GET", "/t/gone")).status, 404, "the page of none, answered");
 });

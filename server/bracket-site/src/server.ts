@@ -270,7 +270,8 @@ export function bracketSite(options: Options): Server {
       const html = /^\/(?:t\/([^/]+)|tournaments\/([^/]+)\/bracket)$/.exec(url.pathname);
       if (html && request.method === "GET") {
         const viewer = options.oauth?.session(request)?.discord ?? null;
-        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(page(found(decodeURIComponent(html[1] ?? html[2]!)), viewer, !!options.oauth));
+        const shown = page(found(decodeURIComponent(html[1] ?? html[2]!)), viewer, !!options.oauth);
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(shown);
         return;
       }
       for (const [method, pattern, handler] of routes) {
