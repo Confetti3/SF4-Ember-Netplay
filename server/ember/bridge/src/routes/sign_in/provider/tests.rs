@@ -34,9 +34,33 @@ fn a_listing_reads_events_inside_tournaments_and_skips_what_it_cannot_read() {
         [Tournament {
             id: "tournament/ember-weekly-12/event/usf4-singles".into(),
             name: "Ember Weekly 12: USF4 Singles".into(),
+            state: None,
+            actions: vec![],
         }]
     );
     assert!(listed(&serde_json::json!({ "errors": [] }), &read).is_empty());
+}
+
+#[test]
+fn a_listing_reads_each_events_state_and_allowed_moves() {
+    let read: TournamentsRead = serde_json::from_value(serde_json::json!({
+        "method": "GET",
+        "url": "https://brackets.example/tournaments",
+        "list_pointer": "/tournaments",
+        "id_pointer": "/id",
+        "name_pointer": "/title",
+        "state_pointer": "/state",
+        "actions_pointer": "/actions",
+    }))
+    .unwrap();
+    let answer = serde_json::json!({ "tournaments": [
+        { "id": "weekly", "title": "Weekly", "state": "sign_ups", "actions": ["close_sign_ups", 7, "start"] },
+        { "id": "cup", "title": "Cup" },
+    ] });
+    let found = listed(&answer, &read);
+    assert_eq!(found[0].state.as_deref(), Some("sign_ups"));
+    assert_eq!(found[0].actions, ["close_sign_ups", "start"]);
+    assert_eq!((found[1].state.clone(), found[1].actions.len()), (None, 0));
 }
 
 #[test]

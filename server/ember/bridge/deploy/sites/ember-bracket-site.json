@@ -25,7 +25,9 @@
       "url": "https://brackets.ember.fraccie.be/tournaments",
       "list_pointer": "/tournaments",
       "id_pointer": "/id",
-      "name_pointer": "/title"
+      "name_pointer": "/title",
+      "state_pointer": "/state",
+      "actions_pointer": "/actions"
     },
     "create": {
       "url": "https://brackets.ember.fraccie.be/tournaments",
@@ -33,6 +35,15 @@
       "start_url": "https://brackets.ember.fraccie.be/tournaments/{tournament}/state",
       "start_body": { "action": "start" },
       "reset_body": { "action": "reset" },
+      "transitions": {
+        "plan": { "action": "plan" },
+        "open_sign_ups": { "action": "open_sign_ups" },
+        "close_sign_ups": { "action": "close_sign_ups" },
+        "open_check_in": { "action": "open_check_in" },
+        "reopen_sign_ups": { "action": "reopen_sign_ups" },
+        "archive": { "action": "archive" },
+        "cancel": { "action": "cancel" }
+      },
       "body": { "title": "", "check_in": false },
       "name_pointer": "/title",
       "fields": {

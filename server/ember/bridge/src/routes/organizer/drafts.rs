@@ -463,3 +463,58 @@ pub async fn start_bracket(
         .map_err(|refused| site_refused(&state, site.id(), "to start the bracket", refused))?;
     Ok(ok(&json!({})))
 }
+
+/// `POST /v1/organizer/events/{id}/transitions/{name}`: makes the move
+/// `name` of an event on its site (opening sign-ups, check-in, cancelling),
+/// with the session player's organizer grant, for a site whose definition
+/// has the move (`organizer.create.transitions`). The site decides whether
+/// its event's state allows it. Takes a `site.connect` proof for this path.
+pub async fn transition(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path((id, name)): Path<(String, String)>,
+    body: Body<PROOF_BODY>,
+) -> Result<Response> {
+    let (caller, sessions::Nothing {}) = Caller::of(&state, &headers, &body).await?;
+    caller.require_game()?;
+    let (reading, owner) = (id.clone(), caller.ember_id().to_owned());
+    let event: Option<(String, String)> = state
+        .db
+        .read(move |tx| {
+            Ok(tx
+                .query_row(
+                    "SELECT site, tournament FROM organizer_events WHERE id = ?1
+                         AND ember_id = ?2 AND tournament IS NOT NULL AND ended_at IS NULL",
+                    params![reading, owner],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?)
+        })
+        .await?;
+    let (site, tournament) = event.ok_or_else(ApiFailure::not_found)?;
+    let site = Site::Configured(site);
+    let oauth = OAuth::organizer(&state, &site)
+        .filter(|oauth| oauth.moves(&name))
+        .ok_or_else(|| ApiFailure::invalid("This site's events do not move so from Ember."))?;
+    let grant = organizer_grant(&state, &site, caller.ember_id())
+        .await?
+        .ok_or_else(ApiFailure::not_found)?;
+    let path = format!("{EVENTS_PATH}/{id}/transitions/{name}");
+    let organizer = caller.ember_id().to_owned();
+    let ctx = Ctx::of(&state);
+    state
+        .db
+        .write(move |tx| caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, &path))
+        .await?;
+    state.committed();
+    if let Some(limits) = oauth.limits
+        && !spend(&state, site.id(), &organizer, 1, limits).await?
+    {
+        return Err(ApiFailure::sign_in_busy(None));
+    }
+    oauth
+        .transition(&grant.access, &tournament, &name)
+        .await
+        .map_err(|refused| site_refused(&state, site.id(), "the move", refused))?;
+    Ok(ok(&json!({})))
+}

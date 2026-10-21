@@ -203,6 +203,12 @@ enum Read {
 pub struct Tournament {
     pub id: String,
     pub name: String,
+    /// Its state on the site, when the site says it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+    /// The moves the organizer can make from Ember now (`transitions`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub actions: Vec<String>,
 }
 
 /// Who signed in.
@@ -402,7 +408,38 @@ impl OAuth {
         let (request, read) = self.tournaments.as_ref()?;
         let client = outbound_client().build().ok()?;
         let body = send(&client, request, token, MAX_LISTING).await?;
-        Some(listed(&serde_json::from_slice(&body).ok()?, read))
+        let mut found = listed(&serde_json::from_slice(&body).ok()?, read);
+        // Only the moves this definition can make are offered.
+        let transitions = self.create.as_ref().map(|create| &create.transitions);
+        for tournament in &mut found {
+            tournament
+                .actions
+                .retain(|action| transitions.is_some_and(|known| known.contains_key(action)));
+        }
+        Some(found)
+    }
+
+    /// Makes the move `name` of the organizer's event `tournament`: `Ok`
+    /// when the site did, why it refused (`refusal`), or `Err(None)` on any
+    /// other failure or when the definition has no such move.
+    pub async fn transition(
+        &self,
+        token: &str,
+        tournament: &str,
+        name: &str,
+    ) -> Result<(), Option<String>> {
+        let create = self.create.as_ref().ok_or(None)?;
+        let (Some(url), Some(body)) = (&create.start_url, create.transitions.get(name)) else {
+            return Err(None);
+        };
+        let request = UserRequest {
+            method: Method::Put,
+            url: url.replace("{tournament}", path_id(tournament).ok_or(None)?),
+            headers: pairs(&create.headers),
+            body: Some(body.clone()),
+        };
+        let client = outbound_client().build().map_err(|_| None)?;
+        sent(&client, &request, token, MAX_ANSWER).await.map(drop)
     }
 
     /// The request that creates an event titled `title` with the
@@ -518,6 +555,13 @@ impl OAuth {
         };
         let client = outbound_client().build().map_err(|_| None)?;
         sent(&client, &request, token, MAX_ANSWER).await.map(drop)
+    }
+
+    /// Whether the organizer makes the move `name` of an event from Ember.
+    pub fn moves(&self, name: &str) -> bool {
+        self.create
+            .as_ref()
+            .is_some_and(|create| create.transitions.contains_key(name))
     }
 
     /// Whether the site takes players who sign up through Ember.
@@ -897,7 +941,31 @@ fn listed(answer: &Value, read: &TournamentsRead) -> Vec<Tournament> {
                     Some(prefix) => shown(&format!("{}: {name}", shown(prefix))),
                     None => name,
                 };
-                found.push(Tournament { id, name });
+                let state = read
+                    .state_pointer
+                    .as_deref()
+                    .and_then(|pointer| text_at(event, pointer))
+                    .map(|state| shown(&state));
+                let actions = read
+                    .actions_pointer
+                    .as_deref()
+                    .and_then(|pointer| event.pointer(pointer))
+                    .and_then(Value::as_array)
+                    .map(|actions| {
+                        actions
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .take(16)
+                            .map(str::to_owned)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                found.push(Tournament {
+                    id,
+                    name,
+                    state,
+                    actions,
+                });
             }
         }
     }

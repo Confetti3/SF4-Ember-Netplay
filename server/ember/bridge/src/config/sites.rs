@@ -137,6 +137,12 @@ pub struct CreateRequest {
     pub start_body: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reset_body: Option<serde_json::Value>,
+    /// Other moves of an event the organizer makes from Ember, by name
+    /// (`open_sign_ups`, `cancel`): each body PUT to `start_url`, as
+    /// `start_body` is. The desk offers those the site's listing says are
+    /// allowed now (`tournaments.actions_pointer`).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub transitions: BTreeMap<String, serde_json::Value>,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
     pub body: serde_json::Value,
@@ -187,6 +193,12 @@ pub struct TournamentsRead {
     pub name_pointer: String,
     #[serde(default)]
     pub tournament_name_pointer: Option<String>,
+    /// Into each event: its state on the site, as text the desk shows.
+    #[serde(default)]
+    pub state_pointer: Option<String>,
+    /// Into each event: the names of the moves its state allows now.
+    #[serde(default)]
+    pub actions_pointer: Option<String>,
 }
 
 /// How the token request's body is encoded.
@@ -472,6 +484,8 @@ impl SignInSite {
                 || !pointer_ok(&read.name_pointer)
                 || !optional(&read.events_pointer)
                 || !optional(&read.tournament_name_pointer)
+                || !optional(&read.state_pointer)
+                || !optional(&read.actions_pointer)
             {
                 return fail(
                     "organizer.tournaments pointers must be JSON pointers starting with /",
@@ -531,6 +545,19 @@ impl SignInSite {
                     .reset_body
                     .as_ref()
                     .is_none_or(|body| body.is_object() && create.start_url.is_some());
+            let transitions_ok = create.transitions.is_empty()
+                || (create.start_url.is_some()
+                    && create.transitions.len() <= 16
+                    && create
+                        .transitions
+                        .iter()
+                        .all(|(name, body)| is_token(name, 32) && body.is_object()));
+            if !transitions_ok {
+                return fail(
+                    "organizer.create.transitions needs start_url, and at most 16 names of \
+                     visible ASCII with object bodies",
+                );
+            }
             if !headers_ok(&create.headers)
                 || !prefix_ok
                 || !named(&create.delete_url)
