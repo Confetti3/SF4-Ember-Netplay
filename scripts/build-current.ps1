@@ -13,6 +13,9 @@ $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot
 & (Join-Path $PSScriptRoot 'test-nightly-paths.ps1') -BashPath (Get-EmberGitBash)
 $build = Join-Path $repo $target.buildDirectory
 $stage = Join-Path $repo $target.installDirectory
+# A run that stops before the end leaves no receipt, so packaging cannot take an
+# earlier run's passing receipt for this one.
+Remove-Item -LiteralPath (Join-Path $build 'build-provenance.json') -ErrorAction SilentlyContinue
 if (!$DiscordSdkArchive) { throw 'Set -DiscordSdkArchive or SF4E_DISCORD_SDK_ARCHIVE to the official archive matching cmake/discord-sdk-pin.json.' }
 & (Join-Path $PSScriptRoot 'build-current-dependencies.ps1') -VisualStudioPath $tools.VisualStudioPath -VcpkgRoot $tools.VcpkgRoot
 $dependencies = Join-Path $build 'dependencies'
@@ -54,15 +57,10 @@ if ($LASTEXITCODE) { throw 'Build failed' }
 # Public-network and live Discord checks require a separate explicit run. The
 # receipt names them, so testsPassed never implies they ran (ledger A-015).
 $excludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
+# Nightly runs a failed test once more (Invoke-DefaultTests); Stable does not.
+$passedOnRerun = @()
 if (!$SkipTests) {
-    $junit = Join-Path $build 'ctest-junit.xml'
-    Remove-Item -LiteralPath $junit -ErrorAction SilentlyContinue
-    & $ctest --test-dir $build --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS --no-tests=error -E $excludedTests --output-junit $junit
-    if ($LASTEXITCODE) { throw 'Tests failed' }
-    # The receipt names these components, so the run itself must show them.
-    $ran = @(([xml](Get-Content -Raw -LiteralPath $junit)).testsuite.testcase | Where-Object { $_.status -eq 'run' -and !$_.failure } | ForEach-Object { $_.name })
-    $missing = @('HelperRust','EmberRust','BridgeSdk') | Where-Object { $_ -notin $ran }
-    if ($missing) { throw "Default CTest did not run: $($missing -join ', ')" }
+    $passedOnRerun = @(Invoke-DefaultTests $ctest $build $excludedTests $env:NUMBER_OF_PROCESSORS -RerunFailed:($target.channel -eq 'nightly'))
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')
 if ($LASTEXITCODE) { throw 'Local staging failed' }
@@ -79,4 +77,4 @@ $components = @(
     [ordered]@{name='Supplemental service, lint and Linux checks (scripts/test-full-quality.ps1)';platform='windows/linux';status='unexecuted'},
     [ordered]@{name='Public network matrix (scripts/test-current-network.ps1)';platform='windows';status='unexecuted'},
     [ordered]@{name='Live Discord and gameplay acceptance';platform='live';status='unexecuted'})
-[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');compilerCache=$ccacheVersion;testsPassed=(!$SkipTests);testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
+[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');compilerCache=$ccacheVersion;testsPassed=(!$SkipTests);testsPassedOnRerun=$passedOnRerun;testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
