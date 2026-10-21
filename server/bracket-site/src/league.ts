@@ -1,6 +1,7 @@
 // Leagues: seasons of tournaments with standings across them
 // (docs/design/BRACKET_SITE.md, "Leagues"). Pure functions; standings are
 // worked out from the season's finished tournaments, never stored.
+import type { FeedItem } from "./live.ts";
 import type { Tournament } from "./tournament.ts";
 
 export interface Season {
@@ -21,6 +22,8 @@ export interface League {
   /** The Discord user IDs who may manage it. */
   organizers: string[];
   seasons: Season[];
+  /** Its news, such as a closed season's awards (`live.ts`). */
+  feed?: FeedItem[];
 }
 
 export const DEFAULT_POINTS: Record<string, number> = { "1": 100, "2": 70, "3": 50, "5": 30, "9": 15, "*": 5 };

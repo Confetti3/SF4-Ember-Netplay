@@ -25,8 +25,9 @@ export interface FeedItem {
 /** The most items a tournament keeps; older ones fall off. */
 const MAX_FEED = 500;
 
-export function push(tournament: Tournament, item: Omit<FeedItem, "n">): void {
-  const feed = (tournament.feed ??= []);
+/** Adds an item to a tournament's feed, or a league's. */
+export function push(owner: { feed?: FeedItem[] }, item: Omit<FeedItem, "n">): void {
+  const feed = (owner.feed ??= []);
   feed.push({ n: (feed.at(-1)?.n ?? 0) + 1, ...item });
   if (feed.length > MAX_FEED) feed.splice(0, feed.length - MAX_FEED);
 }

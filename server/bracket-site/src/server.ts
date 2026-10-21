@@ -287,7 +287,17 @@ export function bracketSite(options: Options): Server {
         // Live, or over within the hour, so a follower sees how it ended.
         const recent = (tournament: Tournament) => Date.parse(tournament.log.at(-1)?.at ?? "") > Date.parse(now()) - 3600_000;
         const shown = store.all().filter((tournament) => tournament.state === "live" || (["finished", "cancelled"].includes(tournament.state) && recent(tournament)));
-        return [200, { tournaments: shown.map((tournament) => ({ id: tournament.id, title: tournament.title, state: tournament.state, last: tournament.feed?.at(-1)?.n ?? 0 })) }];
+        // A league with news within the hour, such as a closed season's awards.
+        const leagues = store.leagues().filter((league) => Date.parse(league.feed?.at(-1)?.at ?? "") > Date.parse(now()) - 3600_000);
+        return [
+          200,
+          {
+            tournaments: [
+              ...shown.map((tournament) => ({ id: tournament.id, title: tournament.title, state: tournament.state, last: tournament.feed?.at(-1)?.n ?? 0 })),
+              ...leagues.map((league) => ({ id: `league:${league.id}`, title: league.title, state: "league", last: league.feed!.at(-1)!.n, feed: `/leagues/${league.id}/feed` })),
+            ],
+          },
+        ];
       },
     ],
     [
@@ -407,7 +417,22 @@ export function bracketSite(options: Options): Server {
         return [201, league];
       },
     ],
-    ["GET", /^\/leagues\/([^/]+)$/, (_, [id]) => [200, store.league(id!) ?? fail(404, `no league ${id}`)]],
+    [
+      "GET",
+      /^\/leagues\/([^/]+)$/,
+      (_, [id]) => {
+        const { feed: _feed, ...league } = store.league(id!) ?? fail(404, `no league ${id}`);
+        return [200, league];
+      },
+    ],
+    [
+      "GET",
+      /^\/leagues\/([^/]+)\/feed$/,
+      (_, [id], url) => {
+        const after = Number(url.searchParams.get("after") ?? 0);
+        return [200, { items: ((store.league(id!) ?? fail(404, `no league ${id}`)).feed ?? []).filter((item) => item.n > after) }];
+      },
+    ],
     [
       "POST",
       /^\/leagues\/([^/]+)\/seasons$/,
@@ -438,6 +463,8 @@ export function bracketSite(options: Options): Server {
         season.closed_at = now();
         store.putLeague(league, false);
         const given = store.addAwards(seasonAwards(season, standings(season, store.all()), season.closed_at));
+        for (const award of given) push(league, { at: season.closed_at, kind: "award", text: `${award.name}: ${award.title} of ${league.title}, ${award.of} (${award.detail}).` });
+        store.putLeague(league, false);
         return [200, { season, awards: given }];
       },
     ],

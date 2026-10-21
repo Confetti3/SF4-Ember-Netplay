@@ -10,8 +10,10 @@ import { join } from "node:path";
 import { after, before, test } from "node:test";
 
 import { BridgeError } from "../../../sdk/typescript/src/index.ts";
+import { report } from "../src/bracket.ts";
 import { bracketSite, type Actor } from "../src/server.ts";
 import { Store } from "../src/store.ts";
+import { enter, move, type Tournament } from "../src/tournament.ts";
 
 const OPERATOR = "operator-test-token";
 const CONNECTOR = "connector-test-token";
@@ -268,4 +270,22 @@ test("organizers make leagues and seasons, and a tournament counts for a season 
   const closed = await organizer("POST", "/leagues/ember/seasons/s1/close");
   assert.deepEqual([closed.status, closed.body.awards], [200, []], "no finished event yet: nobody to award");
   assert.equal((await organizer("POST", "/leagues/ember/seasons/s1/close")).status, 409);
+});
+
+test("a closed season's awards are news its league's followers read", async () => {
+  await organizer("POST", "/leagues/ember/seasons", { id: "s2", title: "Season 2" });
+  // A finished event of the season, played out without the site's routes.
+  const t: Tournament = { id: "s2cup", title: "S2 Cup", games_to_win: 2, check_in: false, cap: null, starts_at: null, season: "s2", organizers: [], state: "sign_ups", entrants: [], rounds: 0, sets: [], log: [] };
+  for (const n of [1, 2]) enter(t, { discord: discordId(n), name: `Player ${n}`, ember_id: emberId(n), checked_in: false }, false);
+  move(t, "start", "o", "2026-10-21T20:00:00.000Z");
+  report(t.sets, "r1-1", { winner: emberId(1), scores: { [emberId(1)]: 2, [emberId(2)]: 0 }, key: null });
+  t.state = "finished";
+  store.add(t);
+  const closed = await organizer("POST", "/leagues/ember/seasons/s2/close");
+  assert.deepEqual(closed.body.awards.map((award: { name: string; kind: string }) => [award.name, award.kind]), [["Player 1", "season_champion"], ["Player 2", "season_top_3"]]);
+  const listed = (await call("GET", "/live")).body.tournaments.find((each: { id: string }) => each.id === "league:ember");
+  assert.deepEqual([listed.feed, listed.last], ["/leagues/ember/feed", 2]);
+  const news = (await call("GET", "/leagues/ember/feed?after=0")).body.items;
+  assert.equal(news[0].text, "Player 1: Season champion of Ember League, Season 2 (100 points).");
+  assert.ok(!("feed" in (await call("GET", "/leagues/ember")).body));
 });

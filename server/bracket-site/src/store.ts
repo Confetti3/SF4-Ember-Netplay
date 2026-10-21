@@ -47,11 +47,13 @@ export class Store {
     return row && (JSON.parse(row.doc) as League);
   }
 
+  leagues(): League[] {
+    return (this.db.prepare("SELECT doc FROM leagues ORDER BY id").all() as { doc: string }[]).map((row) => JSON.parse(row.doc) as League);
+  }
+
   /** The league holding season `id`. */
   leagueOf(season: string): League | undefined {
-    return (this.db.prepare("SELECT doc FROM leagues").all() as { doc: string }[])
-      .map((row) => JSON.parse(row.doc) as League)
-      .find((league) => league.seasons.some((each) => each.id === season));
+    return this.leagues().find((league) => league.seasons.some((each) => each.id === season));
   }
 
   /** Adds a league, or saves it again; false when a new one's ID is taken. */
