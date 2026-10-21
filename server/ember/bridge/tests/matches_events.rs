@@ -528,6 +528,47 @@ async fn webhooks_are_signed_retried_and_rotated() {
     assert_eq!(removed.status(), StatusCode::OK);
 }
 
+// A subscription gets its events in order, even while an earlier one
+// waits for a retry, and a dead one no longer holds the rest back.
+#[tokio::test]
+async fn webhooks_arrive_in_event_order() {
+    let f = fixture().await;
+    f.bridge.clock.freeze();
+    let (url, hook) = receiver().await;
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &f.organizer,
+            "/v1/webhook-subscriptions",
+            json!({
+                "url": url,
+                "event_types": ["io.ember.tournament.match.created.v1", "io.ember.tournament.match.game.confirmed.v1"],
+            }),
+            Some("sub-1"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    hook.answer_with(&[503, 503]);
+    let (id, _) = create_match(&f).await;
+    adjudicate(&f, &id, "g1", json!({ "kind": "game_result", "winner_slot": 1, "reason": "Stream VOD", "expected_revision": "1" })).await;
+    wait_for(&hook, 1).await;
+    // Past the retry budget the second failure leaves the first event dead.
+    f.bridge.clock.advance(DAY + 1);
+    let types: Vec<Value> = wait_for(&hook, 3)
+        .await
+        .iter()
+        .map(|(_, body)| serde_json::from_slice::<Value>(body).unwrap()["type"].clone())
+        .collect();
+    assert_eq!(
+        types,
+        [
+            "io.ember.tournament.match.created.v1",
+            "io.ember.tournament.match.created.v1",
+            "io.ember.tournament.match.game.confirmed.v1",
+        ]
+    );
+}
+
 // WEB-05, WEB-06
 #[tokio::test]
 async fn event_stream_resumes_and_hides_others() {
