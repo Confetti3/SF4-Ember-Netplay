@@ -37,18 +37,24 @@ pub fn insert(
 }
 
 /// Claims the sign-in `hash` names for the first answer that arrives for it.
-/// When this was that answer, whether it is an organizer sign-in.
-pub fn claim(tx: &Transaction<'_>, site: &Site, hash: &[u8; 32], now: u64) -> Result<Option<bool>> {
+/// When this was that answer, whether it is an organizer sign-in, and the
+/// Ember ID that started it.
+pub fn claim(
+    tx: &Transaction<'_>,
+    site: &Site,
+    hash: &[u8; 32],
+    now: u64,
+) -> Result<Option<(bool, String)>> {
     let (table, scope) = site.scope(SIGN_INS);
     Ok(tx
         .query_row(
             &format!(
                 "UPDATE {table} SET claimed = 1
                  WHERE {scope}state_hash = :hash AND expires_at > :now AND claimed = 0
-                 RETURNING organizer"
+                 RETURNING organizer, ember_id"
             ),
             &*site.bind(named_params! { ":hash": hash.as_slice(), ":now": now }),
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?)
 }

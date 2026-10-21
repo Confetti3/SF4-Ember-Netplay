@@ -6,6 +6,11 @@
 //! still counts both. Each refusal by a limit, the hourly start limit
 //! included, is logged once per hour or day (`refused`), so an operator sees
 //! a drain without the drain filling the log.
+//!
+//! Each caller takes at most half of the day (`share`): an Ember ID,
+//! for its own sign-ins, sign-ups and desk actions, or the web desk's
+//! sign-ins together. One player or one busy event cannot spend the day
+//! for everyone.
 use rusqlite::{Transaction, params};
 
 use super::provider::Limits;
@@ -18,6 +23,7 @@ pub const PER_SIGN_IN: u64 = 2;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cap {
     StartsPerHour,
+    Share,
     Day,
     Month,
 }
@@ -27,6 +33,7 @@ impl Cap {
     fn setting(self) -> &'static str {
         match self {
             Self::StartsPerHour => "starts_per_hour",
+            Self::Share => "share of daily_request_budget",
             Self::Day => "daily_request_budget",
             Self::Month => "monthly_request_budget",
         }
@@ -37,7 +44,7 @@ impl Cap {
     /// is the limiter's to say.
     pub fn retry_after(self, now: u64) -> Option<u64> {
         match self {
-            Self::Day => Some(24 * 3600 - now % (24 * 3600)),
+            Self::Share | Self::Day => Some(24 * 3600 - now % (24 * 3600)),
             Self::StartsPerHour | Self::Month => None,
         }
     }
@@ -46,7 +53,7 @@ impl Cap {
     fn logged_every(self) -> u64 {
         match self {
             Self::StartsPerHour => 3600,
-            Self::Day | Self::Month => 24 * 3600,
+            Self::Share | Self::Day | Self::Month => 24 * 3600,
         }
     }
 }
@@ -67,8 +74,14 @@ pub fn refused(state: &AppState, site: &str, cap: Cap) {
     }
 }
 
-/// Today's key, and what was spent today and this month.
-fn spent(tx: &Transaction<'_>, site: &str, now: u64) -> Result<(String, u64, u64)> {
+/// Today's key, what was spent today and this month, and what `caller`
+/// spent today.
+fn spent(
+    tx: &Transaction<'_>,
+    site: &str,
+    caller: &str,
+    now: u64,
+) -> Result<(String, u64, u64, u64)> {
     let day: String = tx.query_row(
         "SELECT strftime('%Y-%m-%d', ?1, 'unixepoch')",
         [now],
@@ -80,7 +93,13 @@ fn spent(tx: &Transaction<'_>, site: &str, now: u64) -> Result<(String, u64, u64
         params![site, day],
         |row| Ok((row.get(0)?, row.get(1)?)),
     )?;
-    Ok((day, today, month))
+    let mine: u64 = tx.query_row(
+        "SELECT COALESCE(SUM(spent), 0) FROM site_request_shares
+         WHERE site = ?1 AND day = ?2 AND caller = ?3",
+        params![site, day, caller],
+        |row| row.get(0),
+    )?;
+    Ok((day, today, month, mine))
 }
 
 /// Whether spending from `before` to `after` passes 80% of the month's
@@ -91,40 +110,65 @@ fn passes_warning(before: u64, after: u64, monthly: u64) -> bool {
 
 /// The budget, today's or this month's, without room for a sign-in's
 /// exchange at `now`, if any, read in the caller's write.
-pub fn full(tx: &Transaction<'_>, site: &str, now: u64, limits: Limits) -> Result<Option<Cap>> {
-    let (_, today, month) = spent(tx, site, now)?;
-    Ok(cap(today, month, limits))
+pub fn full(
+    tx: &Transaction<'_>,
+    site: &str,
+    caller: &str,
+    now: u64,
+    limits: Limits,
+) -> Result<Option<Cap>> {
+    let (_, today, month, mine) = spent(tx, site, caller, now)?;
+    Ok(cap(today, month, mine, PER_SIGN_IN, limits))
 }
 
-/// The budget without room for a sign-in's exchange, if any.
-fn cap(today: u64, month: u64, limits: Limits) -> Option<Cap> {
-    if month + PER_SIGN_IN > limits.monthly_request_budget {
+/// The most one caller spends of a day: half, and at least one exchange.
+fn share(limits: Limits) -> u64 {
+    (limits.daily_request_budget / 2).max(PER_SIGN_IN)
+}
+
+/// The budget without room for `need` requests, if any.
+fn cap(today: u64, month: u64, mine: u64, need: u64, limits: Limits) -> Option<Cap> {
+    if month + need > limits.monthly_request_budget {
         Some(Cap::Month)
-    } else if today + PER_SIGN_IN > limits.daily_request_budget {
+    } else if today + need > limits.daily_request_budget {
         Some(Cap::Day)
+    } else if mine + need > share(limits) {
+        Some(Cap::Share)
     } else {
         None
     }
 }
 
-/// Takes a sign-in's exchange from today's and this month's budgets, or
-/// says there is none left, logging the refusal. Logs a warning when the
-/// month passes 80% of its budget.
-pub async fn spend(state: &AppState, site: &str, limits: Limits) -> Result<bool> {
-    let (now, id) = (state.now(), site.to_owned());
+/// Takes `need` requests (`PER_SIGN_IN` for a sign-in's exchange, one for
+/// most desk actions) from today's and this month's budgets and from
+/// `caller`'s share, or says there is none left, logging the refusal. Logs
+/// a warning when the month passes 80% of its budget.
+pub async fn spend(
+    state: &AppState,
+    site: &str,
+    caller: &str,
+    need: u64,
+    limits: Limits,
+) -> Result<bool> {
+    let (now, id, caller) = (state.now(), site.to_owned(), caller.to_owned());
     let spent = state
         .db
         .write(move |tx| {
-            let (day, today, month) = spent(tx, &id, now)?;
-            if let Some(cap) = cap(today, month, limits) {
+            let (day, today, month, mine) = spent(tx, &id, &caller, now)?;
+            if let Some(cap) = cap(today, month, mine, need, limits) {
                 return Ok(Err(cap));
             }
             tx.execute(
                 "INSERT INTO site_requests (site, day, spent) VALUES (?1, ?2, ?3)
                  ON CONFLICT (site, day) DO UPDATE SET spent = spent + excluded.spent",
-                params![id, day, PER_SIGN_IN],
+                params![id, day, need],
             )?;
-            Ok(Ok((month, month + PER_SIGN_IN)))
+            tx.execute(
+                "INSERT INTO site_request_shares (site, day, caller, spent) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT (site, day, caller) DO UPDATE SET spent = spent + excluded.spent",
+                params![id, day, caller, need],
+            )?;
+            Ok(Ok((month, month + need)))
         })
         .await?;
     // Logged once the count is stored, so a rolled-back write does not warn.
@@ -162,9 +206,17 @@ mod tests {
             daily_request_budget: 40,
             starts_per_hour: 30,
         };
-        assert_eq!(cap(38, 100, limits), None);
-        assert_eq!(cap(39, 100, limits), Some(Cap::Day));
-        assert_eq!(cap(0, 399, limits), Some(Cap::Month));
-        assert_eq!(cap(39, 399, limits), Some(Cap::Month));
+        assert_eq!(cap(38, 100, 0, PER_SIGN_IN, limits), None);
+        assert_eq!(cap(39, 100, 0, PER_SIGN_IN, limits), Some(Cap::Day));
+        assert_eq!(cap(0, 399, 0, PER_SIGN_IN, limits), Some(Cap::Month));
+        assert_eq!(cap(39, 399, 0, PER_SIGN_IN, limits), Some(Cap::Month));
+        // One caller takes at most half of the day: 20 of 40.
+        assert_eq!(cap(30, 100, 18, PER_SIGN_IN, limits), None);
+        assert_eq!(cap(30, 100, 19, PER_SIGN_IN, limits), Some(Cap::Share));
+        let tiny = Limits {
+            daily_request_budget: 4,
+            ..limits
+        };
+        assert_eq!(cap(0, 0, 0, PER_SIGN_IN, tiny), None);
     }
 }

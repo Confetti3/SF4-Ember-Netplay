@@ -174,8 +174,8 @@ async fn a_lookup_names_startgg_accounts_by_user_id() {
 /// finds players everywhere.
 const EVERYWHERE: &str = "everywhere-bot";
 
-/// A bridge with Challonge (one sign-in's budget a day) and start.gg (three
-/// sign-ins' a day) against their stand-ins.
+/// A bridge with Challonge (one sign-in's budget a day) and start.gg (four
+/// sign-ins' a day, two of them one player's) against their stand-ins.
 async fn both(challonge_fake: &Arc<FakeSite>, startgg_fake: &Arc<FakeSite>) -> Bridge {
     let mut challonge = challonge::challonge_site(&challonge_fake.serve().await);
     challonge.limits = Some(Limits {
@@ -185,7 +185,7 @@ async fn both(challonge_fake: &Arc<FakeSite>, startgg_fake: &Arc<FakeSite>) -> B
     let mut startgg = startgg_site(&startgg_fake.serve().await);
     startgg.limits = Some(Limits {
         monthly_request_budget: 10,
-        daily_request_budget: 6,
+        daily_request_budget: 8,
         starts_per_hour: 30,
     });
     bridge_with_sites(

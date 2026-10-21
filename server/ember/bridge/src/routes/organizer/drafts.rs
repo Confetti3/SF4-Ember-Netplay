@@ -297,6 +297,7 @@ pub async fn create(
     // The proof is spent before the site is asked, so a refused proof
     // creates nothing there.
     let path = format!("{EVENTS_PATH}/{id}/create");
+    let organizer = caller.ember_id().to_owned();
     let ctx = Ctx::of(&state);
     state
         .db
@@ -304,7 +305,7 @@ pub async fn create(
         .await?;
     state.committed();
     if let Some(limits) = oauth.limits
-        && !spend(&state, site.id(), limits).await?
+        && !spend(&state, site.id(), &organizer, 1, limits).await?
     {
         return Err(ApiFailure::sign_in_busy(None));
     }
@@ -437,6 +438,7 @@ pub async fn start_bracket(
         .await?
         .ok_or_else(ApiFailure::not_found)?;
     let path = format!("{EVENTS_PATH}/{id}/start");
+    let organizer = caller.ember_id().to_owned();
     let ctx = Ctx::of(&state);
     state
         .db
@@ -444,7 +446,7 @@ pub async fn start_bracket(
         .await?;
     state.committed();
     if let Some(limits) = oauth.limits
-        && !spend(&state, site.id(), limits).await?
+        && !spend(&state, site.id(), &organizer, 1, limits).await?
     {
         return Err(ApiFailure::sign_in_busy(None));
     }

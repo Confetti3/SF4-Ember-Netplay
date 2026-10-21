@@ -112,7 +112,7 @@ pub async fn sign_up(
         .await?
         .ok_or_else(ApiFailure::unavailable)?;
     if let Some(limits) = oauth.limits
-        && !spend(&state, site.id(), limits).await?
+        && !spend(&state, site.id(), &ember_id, 1, limits).await?
     {
         return Err(ApiFailure::sign_in_busy(None));
     }
@@ -209,7 +209,7 @@ pub async fn withdraw(
             .await?
             .ok_or_else(ApiFailure::unavailable)?;
         if let Some(limits) = oauth.limits
-            && !spend(&state, site.id(), limits).await?
+            && !spend(&state, site.id(), &ember_id, 1, limits).await?
         {
             return Err(ApiFailure::sign_in_busy(None));
         }

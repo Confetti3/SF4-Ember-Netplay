@@ -344,7 +344,7 @@ pub(super) async fn begin(
         // error, so the write rolls back and the proof is not spent.
         let mut slot = None;
         if let Some(limits) = limits {
-            if let Some(cap) = budget::full(tx, stored.id(), ctx.now, limits)? {
+            if let Some(cap) = budget::full(tx, stored.id(), ember_id, ctx.now, limits)? {
                 budget::refused(&logged, stored.id(), cap);
                 return Err(ApiFailure::sign_in_busy(cap.retry_after(ctx.now)));
             }
@@ -499,7 +499,7 @@ async fn callback(
         .db
         .write(move |tx| sign_ins::claim(tx, &claiming, &hash, now))
         .await;
-    let Ok(Some(organizer)) = claimed else {
+    let Ok(Some((organizer, starter))) = claimed else {
         return pages.not_waiting();
     };
     let oauth = match (organizer, OAuth::organizer(&state, &site)) {
@@ -518,7 +518,10 @@ async fn callback(
         }
     };
     if let Some(limits) = oauth.limits
-        && !matches!(budget::spend(&state, site.id(), limits).await, Ok(true))
+        && !matches!(
+            budget::spend(&state, site.id(), &starter, budget::PER_SIGN_IN, limits).await,
+            Ok(true)
+        )
     {
         end_claimed(&state, &site, hash, now).await;
         return pages.busy();
@@ -768,10 +771,10 @@ pub async fn organizer_grant(
     site: &Site,
     ember_id: &str,
 ) -> Result<Option<Grant>> {
-    let (id, ember_id) = (site.id().to_owned(), ember_id.to_owned());
+    let (id, holder) = (site.id().to_owned(), ember_id.to_owned());
     let Some((user_id, sealed)) = state
         .db
-        .read(move |tx| grants::held(tx, &id, &ember_id))
+        .read(move |tx| grants::held(tx, &id, &holder))
         .await?
     else {
         return Ok(None);
@@ -789,7 +792,7 @@ pub async fn organizer_grant(
     // A refresh spends from a limited site's budget as a sign-in does.
     let spent = match (&grant.refresh, oauth.limits) {
         (None, _) => false,
-        (Some(_), Some(limits)) => budget::spend(state, site.id(), limits).await?,
+        (Some(_), Some(limits)) => budget::spend(state, site.id(), ember_id, 1, limits).await?,
         (Some(_), None) => true,
     };
     let tokens = match grant.refresh.as_deref() {

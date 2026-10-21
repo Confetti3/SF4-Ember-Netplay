@@ -491,7 +491,14 @@ ten starts an hour. A sign-in costs two requests (the token exchange and the
 user read), and the bridge spends at most `monthly_request_budget` per
 calendar month and `daily_request_budget` per day, both in UTC and counted in
 the database: it takes a sign-in's two before the exchange, so one the site
-refuses still counts both. At either budget a start answers `sign_in_busy`
+refuses still counts both. Organizer actions on the desk (listing, creating,
+starting and deleting tournaments, refreshing a grant) and sign-ups through
+Ember spend from the same budgets: one request each, two to delete a
+tournament (Challonge may need a reset first). No one caller spends more than
+half of a day: each Ember ID, for its own sign-ins, sign-ups and desk
+actions, and the web desk's site sign-ins together, so one player or one
+busy event cannot use up the day for everyone. At either budget, or a
+caller's half, a start answers `sign_in_busy`
 (503, retryable, with `Retry-After` until the next UTC day for the daily
 budget) and a sign-in already started ends with a page asking the player to
 try again later. Starts are also limited to `starts_per_hour` across the

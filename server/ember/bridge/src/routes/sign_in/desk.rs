@@ -157,7 +157,10 @@ pub(super) async fn callback(
         }
     };
     if let Some(limits) = oauth.limits
-        && !matches!(budget::spend(&state, site.id(), limits).await, Ok(true))
+        && !matches!(
+            budget::spend(&state, site.id(), "web-desk", budget::PER_SIGN_IN, limits).await,
+            Ok(true)
+        )
     {
         return finished(
             "Try again later",

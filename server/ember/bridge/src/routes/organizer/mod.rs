@@ -102,7 +102,7 @@ async fn listed(state: &AppState, site: &Site, ember_id: &str) -> Result<Vec<Tou
         .await?
         .ok_or_else(ApiFailure::not_found)?;
     if let Some(limits) = oauth.limits
-        && !spend(state, site.id(), limits).await?
+        && !spend(state, site.id(), ember_id, 1, limits).await?
     {
         return Err(ApiFailure::sign_in_busy(None));
     }
@@ -407,7 +407,7 @@ pub async fn stop(
             .await?;
         state.committed();
         if let Some(limits) = oauth.limits
-            && !spend(&state, site.id(), limits).await?
+            && !spend(&state, site.id(), &owner, 2, limits).await?
         {
             return Err(ApiFailure::sign_in_busy(None));
         }
