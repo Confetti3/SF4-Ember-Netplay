@@ -7,6 +7,7 @@ import type { BridgeClient } from "../../../sdk/typescript/src/index.ts";
 import { Conflict, Invalid, roundLabel, status } from "./bracket.ts";
 import { contractRoutes, record } from "./contract.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
+import { seasonAwards } from "./awards.ts";
 import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
 import { stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
@@ -309,6 +310,30 @@ export function bracketSite(options: Options): Server {
         league.seasons.push(season);
         store.putLeague(league, false);
         return [201, season];
+      },
+    ],
+    [
+      "POST",
+      /^\/leagues\/([^/]+)\/seasons\/([^/]+)\/close$/,
+      (request, [id, seasonId]) => {
+        const league = store.league(id!) ?? fail(404, `no league ${id}`);
+        if (!manages(signedIn(request), league)) fail(403, "only its organizers may");
+        const season = league.seasons.find((each) => each.id === seasonId) ?? fail(404, `no season ${seasonId}`);
+        if (season.closed_at) fail(409, "the season is closed");
+        season.closed_at = now();
+        store.putLeague(league, false);
+        const given = store.addAwards(seasonAwards(season, standings(season, store.all()), season.closed_at));
+        return [200, { season, awards: given }];
+      },
+    ],
+    [
+      "GET",
+      /^\/players\/(\d{17,20})$/,
+      (_, [discord]) => {
+        const awards = store.awardsOf(discord!);
+        const entered = store.all().flatMap((tournament) => tournament.entrants.filter((entrant) => entrant.discord === discord));
+        if (!awards.length && !entered.length) fail(404, "no such player here");
+        return [200, { discord, name: entered.at(-1)?.name ?? awards.at(-1)!.name, ember_id: entered.findLast((each) => each.ember_id)?.ember_id ?? null, awards }];
       },
     ],
     [

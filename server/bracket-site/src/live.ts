@@ -15,7 +15,7 @@ export interface FeedItem {
   /** From 1, in order: a reader asks for those after the last it saw. */
   n: number;
   at: string;
-  kind: "state" | "set_live" | "set_done" | "upset" | "streak";
+  kind: "state" | "set_live" | "set_done" | "upset" | "streak" | "award";
   /** The set it is about, if any. */
   set?: string;
   /** In words, names and all, as Discord and the page show it. */

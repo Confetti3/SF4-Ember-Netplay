@@ -79,6 +79,14 @@ manages the tournaments that name them in `organizers`.
 | `GET /leagues/{id}` | anyone | the league and its seasons |
 | `POST /leagues/{id}/seasons` | its organizers | `{ "id", "title", "points", "best_of" }`; a season ID is unique on the site |
 | `GET /leagues/{id}/seasons/{season}/standings` | anyone | points, events and wins of each player |
+| `POST /leagues/{id}/seasons/{season}/close` | its organizers | closes it and gives its champion and top 3 their awards |
+| `GET /players/{discord}` | anyone | a player's name, Ember ID and every award they hold |
+
+At its finish a tournament gives Champion, Runner-up, Top 3 and (over 8
+entrants) Top 8, and from its report Giant killer (the biggest upset, 2
+seeds or more), Perfectionist, Iron (most games), Marathon (a set that
+went the distance), One-trick and Mixer; each is announced in its feed and
+kept on the player's profile once.
 
 A tournament counts for the season its `season` names, once finished:
 places 1 and 2, then everyone out in the same round together (3, 5, 9, ...),

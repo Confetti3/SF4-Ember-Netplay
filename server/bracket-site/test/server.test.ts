@@ -200,6 +200,11 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   assert.deepEqual(after.podium.map((each: { name: string }) => each.name), ["Player 1", "Player 3", "Player 2", "Player 5"], "both semifinal losers are third");
   const shared = await call("GET", "/t/weekly/report");
   assert.match(shared.body, /<meta property="og:description" content="1st Player 1 · 2nd Player 3 · 3rd/);
+  // Awards on the players' profiles, announced in the feed.
+  const champion = (await call("GET", `/players/${discordId(1)}`)).body;
+  assert.deepEqual([champion.name, champion.ember_id, champion.awards[0].kind], ["Player 1", emberId(1), "champion"]);
+  assert.ok((await call("GET", "/tournaments/weekly/feed")).body.items.some((item: { kind: string; text: string }) => item.kind === "award" && item.text.startsWith("Player 1: Champion")));
+  assert.equal((await call("GET", "/players/99999999999999999")).status, 404);
   // Over within the hour: still listed for followers, with its last item.
   const live = (await call("GET", "/live")).body.tournaments;
   assert.deepEqual(live.map((each: { id: string; state: string }) => [each.id, each.state]), [["weekly", "finished"]]);
@@ -240,4 +245,8 @@ test("organizers make leagues and seasons, and a tournament counts for a season 
   const standings = await call("GET", "/leagues/ember/seasons/s1/standings");
   assert.deepEqual([standings.status, standings.body.standings], [200, []]);
   assert.equal((await call("GET", "/leagues/ember")).body.seasons.length, 1);
+  assert.equal((await as("player-2")("POST", "/leagues/ember/seasons/s1/close")).status, 403);
+  const closed = await organizer("POST", "/leagues/ember/seasons/s1/close");
+  assert.deepEqual([closed.status, closed.body.awards], [200, []], "no finished event yet: nobody to award");
+  assert.equal((await organizer("POST", "/leagues/ember/seasons/s1/close")).status, 409);
 });

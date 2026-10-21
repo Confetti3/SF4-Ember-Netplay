@@ -5,7 +5,8 @@ import type { IncomingMessage } from "node:http";
 import { Conflict, Invalid, report, roundLabel, status, type BracketSet, type Result } from "./bracket.ts";
 import { fail, Failure, readJson, type Json, type Route } from "./http.ts";
 import type { Store } from "./store.ts";
-import { setDone, setLive, type GameFacts } from "./live.ts";
+import { tournamentAwards } from "./awards.ts";
+import { push, setDone, setLive, type GameFacts } from "./live.ts";
 import { beforeLive, settle, type Tournament } from "./tournament.ts";
 
 export const CONTRACT = "1";
@@ -98,6 +99,11 @@ export function record(store: Store, tournament: Tournament, setId: string, resu
   Object.assign(set, games);
   setDone(tournament, set, at);
   settle(tournament, at);
+  if (tournament.state === "finished" && tournament.report) {
+    for (const award of store.addAwards(tournamentAwards(tournament, tournament.report))) {
+      push(tournament, { at, kind: "award", text: `${award.name}: ${award.title} of ${award.of} (${award.detail}).` });
+    }
+  }
   store.save(tournament);
 }
 
