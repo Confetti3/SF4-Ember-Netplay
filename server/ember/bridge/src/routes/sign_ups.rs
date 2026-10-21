@@ -5,7 +5,9 @@
 //! connected signs up from the game or the web desk, and the bridge adds
 //! them to the site's event under their site username with the organizer's
 //! grant. The bracket connector then finds them by that username, as it
-//! finds anyone else, so it needs nothing of its own for them.
+//! finds anyone else, so it needs nothing of its own for them. On a site
+//! whose accounts are Discord's (`accounts: discord`), the player is added
+//! under the Discord account connected to their Ember ID instead.
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
@@ -20,6 +22,7 @@ use serde_json::json;
 
 use crate::{
     AppState,
+    config::sites::Accounts,
     ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, json, ok},
@@ -57,6 +60,13 @@ pub async fn sign_up(
     let path = path(&id);
     let ctx = Ctx::of(&state);
     let event = id.clone();
+    let discord_sites: Vec<String> = state
+        .config
+        .sign_in_sites
+        .iter()
+        .filter(|site| site.accounts == Accounts::Discord)
+        .map(|site| site.id.clone())
+        .collect();
     let signed = state
         .db
         .write(move |tx| {
@@ -80,15 +90,29 @@ pub async fn sign_up(
             };
             let site = Site::Configured(open.site.clone());
             let ember_id = caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, &path)?;
-            let Some(account) = site.account(tx, &ember_id)? else {
-                return Ok(Err(
-                    "Connect your account on the event's site in Ember first.",
-                ));
+            // The account to add, and the name to add it as.
+            let account: Option<(String, String)> = if discord_sites.contains(&open.site) {
+                tx.query_row(
+                    "SELECT user_id, username FROM discord_accounts WHERE ember_id = ?1",
+                    [&ember_id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?
+            } else {
+                site.account(tx, &ember_id)?
+                    .map(|account| (account.username.clone(), account.username))
+            };
+            let Some((account, name)) = account else {
+                return Ok(Err(if discord_sites.contains(&open.site) {
+                    "Connect Discord in Ember first."
+                } else {
+                    "Connect your account on the event's site in Ember first."
+                }));
             };
             tx.execute(
                 "INSERT OR IGNORE INTO event_sign_ups (event_id, ember_id, username, signed_up_at)
                  VALUES (?1, ?2, ?3, ?4)",
-                params![event, ember_id, account.username, ctx.now],
+                params![event, ember_id, account, ctx.now],
             )?;
             let (username, participant): (String, Option<String>) = tx.query_row(
                 "SELECT username, participant FROM event_sign_ups
@@ -96,11 +120,11 @@ pub async fn sign_up(
                 params![event, ember_id],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )?;
-            Ok(Ok((open, ember_id, username, participant)))
+            Ok(Ok((open, ember_id, username, name, participant)))
         })
         .await?;
     state.committed();
-    let (open, ember_id, username, participant) = signed.map_err(ApiFailure::invalid)?;
+    let (open, ember_id, username, name, participant) = signed.map_err(ApiFailure::invalid)?;
     if participant.is_some() {
         return Ok(ok(&json!({ "signed_up": true })));
     }
@@ -124,7 +148,7 @@ pub async fn sign_up(
         .add_participant(
             &grant.access,
             &open.tournament,
-            &username,
+            &name,
             &username,
             &format!("ember:{ember_id}"),
         )

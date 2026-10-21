@@ -30,6 +30,20 @@ pub struct Config {
     /// Display names for Ember IDs; others show their short fingerprint.
     #[serde(default)]
     pub names: BTreeMap<String, String>,
+    /// The bracket site the `/tournament` command signs players up on.
+    #[serde(default)]
+    pub brackets: Option<Brackets>,
+}
+
+/// The bracket site (docs/design/BRACKET_SITE.md) and its bot token, which
+/// lets the notifier act for the Discord user who pressed a button.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Brackets {
+    /// Its base URL, such as `https://brackets.ember.fraccie.be`.
+    pub base: String,
+    /// The site's bot token, or `env:NAME`.
+    pub token: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -165,6 +165,7 @@ impl Flow {
                 ("challonge".into(), challonge.api.clone()),
                 ("startgg".into(), startgg.origin.clone()),
             ]),
+            ..Desk::default()
         });
         let clock = Clock::frozen(bridge.clock.now());
         let connector = support::connector(&config, &clock);

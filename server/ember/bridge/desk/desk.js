@@ -453,6 +453,7 @@ const view = { tab: "Sets", filter: "All", phase: null, sets: [], timer: 0 };
 async function live() {
   clearInterval(view.timer);
   $("start-bracket").hidden = true;
+  siteState().catch(() => {});
   $("stop").textContent = desk.event.status === "draft" ? "Delete this draft" : "Stop this tournament";
   if (desk.event.status !== "running") {
     fill($("live"), el("div", { class: "wd-kpi" }, el("b", {}, desk.event.status), el("span", { class: "small" }, whenText(desk.event.starts_at))));
@@ -464,6 +465,36 @@ async function live() {
   view.timer = setInterval(() => {
     if (desk.step === 5 && !$("wizard").hidden && !document.hidden) readSets().catch(() => {});
   }, 10000);
+}
+
+// The event's state on its site and the moves the site allows now, for a
+// site whose listing says them (the bracket site); one button a move.
+const MOVES = {
+  plan: "Mark planned", open_sign_ups: "Open sign-ups", close_sign_ups: "Close sign-ups",
+  open_check_in: "Open check-in", reopen_sign_ups: "Reopen sign-ups", archive: "Archive", cancel: "Cancel the tournament",
+};
+
+async function siteState() {
+  const box = $("site-state");
+  box.hidden = true;
+  if (!desk.event.tournament) return;
+  const listed = await api("GET", "/v1/organizer/tournaments?site=" + encodeURIComponent(desk.event.site));
+  const found = listed.tournaments.find((each) => each.id === desk.event.tournament);
+  if (!found || !found.state) return;
+  const moves = (found.actions || []).filter((name) => MOVES[name]).map((name) =>
+    el("button", { type: "button", class: "wd-btn" + (name === "cancel" ? " danger" : ""), onclick: () => move(name) }, MOVES[name]));
+  fill(box, el("span", { class: "small" }, "On " + siteName(desk.event.site) + ": " + found.state.replace(/_/g, " ")), ...moves);
+  box.hidden = false;
+}
+
+async function move(name) {
+  if (!window.confirm(MOVES[name] + " on " + siteName(desk.event.site) + "?")) return;
+  try {
+    await api("POST", "/v1/organizer/events/" + desk.event.id + "/transitions/" + name);
+    await siteState();
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
 async function readSets() {

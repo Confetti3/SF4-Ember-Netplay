@@ -798,6 +798,19 @@ shows `sign_ups` and the `signed_up` count. `organizer.participants` holds
 `url` and `remove_url` (with `{tournament}`, and `{participant}` in the
 second), `headers`, `body`, and `name_pointer`, `username_pointer`,
 `marker_pointer` into the body and `id_pointer` into the answer.
+On a site whose definition says `"accounts": "discord"` (the bracket site,
+docs/design/BRACKET_SITE.md), the player is added under the Discord account
+connected to their Ember ID instead, by its Discord name, with no account
+of the site's own linked.
+
+Event states: a definition's `organizer.tournaments` can point at each
+event's `state` (`state_pointer`) and at the moves its state allows now
+(`actions_pointer`); `GET /v1/organizer/tournaments` then gives each event
+its `state` and `actions`, keeping only moves the definition names in
+`organizer.create.transitions` (each a body PUT to `start_url`, as
+`start_body` is). `POST /v1/organizer/events/{id}/transitions/{name}`, from
+the game with a `site.connect` proof, makes one with the organizer's grant;
+the site's refusal comes back as `site_refused`.
 
 ## Testing the desk
 
@@ -1240,6 +1253,20 @@ keeps the reply editable for fifteen minutes:
 
 Opening a room is given up to 45 seconds, since the bridge may need that long
 to start a host.
+
+### Discord `/tournament`
+
+With `brackets` (`{ "base": "https://brackets.ember.fraccie.be", "token":
+"env:NAME" }`, the bracket site's bot token), `discord-register` also
+registers `/tournament` with `signup`, `leave`, `checkin` and `show`, each
+taking a tournament `id`. The notifier calls the bracket site with the bot
+token and `X-Discord-User`, the user Discord signed the interaction for, so
+each player acts only as themselves. `signup`, `leave` and `checkin` answer
+privately; `show` posts the tournament to the channel with Sign up, Check
+in and Leave buttons for its state, and a press (`tournament:<what>:<id>`)
+acts for whoever pressed it. A player whose Discord is not connected in
+Ember yet is signed up all the same and told to connect it before the
+start (docs/design/BRACKET_SITE.md).
 
 ### Twitch `!room`
 

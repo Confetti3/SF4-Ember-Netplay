@@ -46,7 +46,7 @@ pub mod invites;
 mod sets;
 
 use drafts::Link;
-pub use drafts::{change, create, draft, ready, start_bracket};
+pub use drafts::{change, create, draft, ready, start_bracket, transition};
 use sets::held_sets;
 pub use sets::{adjudicate, is_desk_action, mark, public, put_sets, sets};
 

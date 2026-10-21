@@ -157,6 +157,10 @@ pub fn router(state: AppState) -> Router {
             "/v1/organizer/events/{id}/start",
             post(organizer::start_bracket),
         )
+        .route(
+            "/v1/organizer/events/{id}/transitions/{name}",
+            post(organizer::transition),
+        )
         .route("/v1/desk/brackets", get(organizer::brackets))
         .route("/desk", get(desk_pages::page))
         .route("/desk/{file}", get(desk_pages::file))

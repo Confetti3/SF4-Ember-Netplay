@@ -71,6 +71,7 @@ async fn a_desk_events_sets_follow_its_matches_and_show_while_public() {
     let mut config = world.config.clone();
     config.desk = Some(Desk {
         api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
+        ..Desk::default()
     });
     let connector = support::connector(&config, &world.clock);
     world.bridge.connect(1, "player1").await;
@@ -138,6 +139,7 @@ async fn a_desk_events_sets_hold_the_whole_bracket() {
     let mut config = world.config.clone();
     config.desk = Some(Desk {
         api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
+        ..Desk::default()
     });
     let connector = support::connector(&config, &world.clock);
     world.bridge.connect(1, "player1").await;
@@ -172,6 +174,7 @@ async fn a_set_held_from_the_desk_is_not_played() {
     let mut config = world.config.clone();
     config.desk = Some(Desk {
         api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
+        ..Desk::default()
     });
     let connector = support::connector(&config, &world.clock);
     world.bridge.connect(1, "player1").await;

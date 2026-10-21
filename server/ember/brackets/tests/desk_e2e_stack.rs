@@ -206,6 +206,7 @@ async fn serve_a_desk_for_the_browser() {
     config.monthly_request_budget = 10_000;
     config.desk = Some(Desk {
         api_bases: [("challonge".into(), challonge.api.clone())].into(),
+        ..Desk::default()
     });
     let connector = support::connector(&config, &Clock::default());
     connector.serve(listener).unwrap();

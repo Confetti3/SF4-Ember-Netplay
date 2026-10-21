@@ -4,7 +4,9 @@
 ports: `support/challonge.rs` and `support/startgg.rs` keep a site's state
 (sign-in through `support/oauth.rs`, the organizer's tournament, participants,
 sets, scores), and `tournament_flow.rs` runs a whole event through a real
-bridge with them.
+bridge with them. `bracket_site.rs` plays the real bracket site
+(`server/bracket-site`) instead of a fake; it needs Node, so it runs only
+with `--ignored`.
 
 ## Live smoke test
 
