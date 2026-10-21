@@ -50,6 +50,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME HudMementoBounds SOURCES "src/tests/hud_memento_bounds_test.cxx")
     sf4e_add_unit_test(NAME VfxObjectMemento SOURCES "src/tests/vfx_object_memento_test.cxx")
     sf4e_add_unit_test(NAME FocusGate SOURCES "src/tests/focus_gate_test.cxx")
+    sf4e_add_unit_test(NAME WindowNudge SOURCES "src/tests/window_nudge_test.cxx")
     sf4e_add_unit_test(NAME AwayAlert SOURCES "src/tests/away_alert_test.cxx")
     sf4e_add_unit_test(NAME InputLagControl SOURCES "src/tests/input_lag_control_test.cxx")
     # The game's object layout holds 32-bit pointers.
