@@ -870,6 +870,15 @@ async fn a_public_events_finished_set_is_downloaded_by_anyone() {
         .unwrap();
     let downloaded = anyone(pack_path).await;
     assert_eq!(downloaded.status(), StatusCode::OK);
+    let header: Json = serde_json::from_slice(
+        &anyone(format!("/v1/public/matches/{id}/replays"))
+            .await
+            .bytes()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(header["games"][0]["crc"], crc);
     // Its header names the event, found by its sets.
     assert_eq!(pack(&f, &f.provider, &id).await.0["tournament"], "Weekly");
     assert!(

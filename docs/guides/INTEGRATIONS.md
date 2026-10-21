@@ -815,7 +815,9 @@ the site's refusal comes back as `site_refused`.
 Public replays: for a desk event with `"public": true`, each completed set
 whose Ember match the connector named in its sets is downloadable by
 anyone: `GET /v1/public/matches/{id}/replays.pack` (the set's pack) and
-`GET /v1/public/matches/{id}/replays/{crc}` (one game's `.emberreplay`).
+`GET /v1/public/matches/{id}/replays/{crc}` (one game's `.emberreplay`), and
+`GET /v1/public/matches/{id}/replays` (the pack's header alone: each game's CRC,
+save time and size, in save-time order).
 Any other match answers 404, as one that does not exist.
 
 ## Testing the desk

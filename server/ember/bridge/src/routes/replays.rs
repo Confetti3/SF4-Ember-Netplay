@@ -130,6 +130,19 @@ pub async fn public_pack(
     Ok(download(bytes, &file_name))
 }
 
+/// `GET /v1/public/matches/{id}/replays`: the header of what
+/// `public_pack` serves, without the games.
+pub async fn public_header(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Response> {
+    let header = state
+        .db
+        .read(move |tx| Ok(pack_parts(tx, &public_match(tx, &id)?)?.0))
+        .await?;
+    Ok(respond(StatusCode::OK, &header))
+}
+
 pub async fn public_game(
     State(state): State<AppState>,
     Path((id, crc)): Path<(String, String)>,
@@ -182,8 +195,8 @@ fn download(bytes: Vec<u8>, file_name: &str) -> Response {
         .into_response()
 }
 
-/// A set's pack, as `pack` serves it.
-fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
+/// A set's pack header and its games' bytes, in save-time order.
+fn pack_parts(tx: &Transaction<'_>, found: &Match) -> Result<(serde_json::Value, Vec<Vec<u8>>)> {
     let (wins, _) = scores(tx, &found.id)?;
     let metadata: String = tx.query_row(
         "SELECT metadata FROM matches WHERE id = ?1",
@@ -238,7 +251,7 @@ fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
     let mut rooms: Vec<u64> = games.iter().map(|game| game.1).collect();
     rooms.sort_unstable();
     rooms.dedup();
-    let header = serde_json::to_vec(&json!({
+    let header = json!({
         "match_id": found.id,
         "tournament": tournament,
         "round_label": metadata.get("round_label"),
@@ -251,12 +264,21 @@ fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
         "games": games.iter().map(|(crc, revision, saved_at, replay)| json!({
             "crc": crc, "revision": revision, "saved_at": saved_at, "size": replay.len(),
         })).collect::<Vec<_>>(),
-    }))
-    .map_err(|_| ApiFailure::unavailable())?;
+    });
+    Ok((
+        header,
+        games.into_iter().map(|(_, _, _, replay)| replay).collect(),
+    ))
+}
+
+/// A set's pack, as `pack` serves it.
+fn packed(tx: &Transaction<'_>, found: &Match) -> Result<Vec<u8>> {
+    let (header, games) = pack_parts(tx, found)?;
+    let header = serde_json::to_vec(&header).map_err(|_| ApiFailure::unavailable())?;
     let mut out = replays::PACK_MAGIC.to_vec();
     out.extend_from_slice(&(header.len() as u32).to_le_bytes());
     out.extend_from_slice(&header);
-    for (_, _, _, replay) in &games {
+    for replay in &games {
         out.extend_from_slice(replay);
     }
     Ok(out)

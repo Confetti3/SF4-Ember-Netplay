@@ -86,6 +86,10 @@ pub fn router(state: AppState) -> Router {
             get(replays::public_pack),
         )
         .route(
+            "/v1/public/matches/{id}/replays",
+            get(replays::public_header),
+        )
+        .route(
             "/v1/public/matches/{id}/replays/{crc}",
             get(replays::public_game),
         )
