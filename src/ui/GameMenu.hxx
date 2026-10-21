@@ -29,6 +29,12 @@ struct PlayerCardView {
     CountryCode country;
 };
 void SetMenuPlayerCard(PlayerCardView view);
+const PlayerCardView& MenuPlayerCard();
+// The legend's Select and Back glyphs for the device in use (SetMenuGlyphs).
+const char* MenuSelectGlyph();
+const char* MenuBackGlyph();
+// The menu art behind a full-window menu, under a tint; false without art.
+bool DrawMenuBackdrop(bool v2);
 void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
 // A card's corner marker (SAVED, MAIN), fitted to the card's width. `at` is its
 // top-left corner, or its top-right when rightAligned. Returns the badge's drawn width.
@@ -120,7 +126,7 @@ public:
     // message keeps the paths and steps it names.
     bool fitStatus=false;
     // V2 only: the tabs over this screen, each a screen id and its label, and
-    // the one shown. Pressing one, or LB/RB (Q/E) to a neighbour, returns a
+    // the one shown. Pressing one, or LB/RB (Page Up/Down) to a neighbour, returns a
     // Shortcut whose id names it; the owner switches. Empty for none.
     std::vector<std::pair<std::string,std::string>> tabs;
     int tab=-1;
@@ -188,6 +194,12 @@ private:
     // row's one-line detail. Unscaled height; it reads the current window.
     static constexpr float HomeLineHeight=18;
     static int HomeLines();
+    // The V2 look's screen (GameMenuV2.cxx): the same entries, input and
+    // dialogs as Draw, laid out as the V2 design's cards, panes and hint bar.
+    MenuAction DrawV2(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,
+        const Body& body,float cardHeight,Tone statusTone,bool home,MenuAction action,unsigned held,bool modalAtStart,bool choosingAtStart,bool acceptEditText,bool noticeOpen);
+    // The dialogs over the screen, then the frame's bookkeeping and its answer; both looks end here.
+    MenuAction Finish(const std::vector<MenuEntry>& entries,MenuAction action,bool backRequested,bool acceptEditText,bool body,bool noticeOpen);
     // Parts of Draw. The dialogs and their helpers (ConfirmationButtons,
     // AnswerConfirmation) live in MenuDialogs.cxx.
     // An open dialog owns the legend and the header: Select names its

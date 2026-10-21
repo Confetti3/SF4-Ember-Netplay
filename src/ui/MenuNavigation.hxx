@@ -15,7 +15,7 @@ struct MenuInput {
     // straight in, so both enums number them alike (asserted in
     // ControllerNavigation.hxx); 64 is left for the sample's Menu button.
     // Leave is the Delete key: it leaves your seat from your own table card,
-    // which a pad does with B. PrevTab and NextTab are LB and RB (Q and E):
+    // which a pad does with B. PrevTab and NextTab are LB and RB (Page Up and Down):
     // the V2 tabs over a screen (GameMenu::tabs).
     enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512, Leave=1024, PrevTab=2048, NextTab=4096 };
     unsigned held = 0;

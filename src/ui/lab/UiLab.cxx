@@ -1,0 +1,216 @@
+// Ember's UI lab: the real shell (ApplicationShell, GameMenu, the V2 kit) in a
+// window of its own, with made-up data and no game or network, so a layout can
+// be tried at every screen size in seconds. Keyboard, mouse and an XInput pad
+// work as in the game.
+//
+// F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F12 screenshot
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--keys down,down,enter] [--shot file.bmp]
+//   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
+#include "../ApplicationShell.hxx"
+#include "../ControllerNavigation.hxx"
+#include "../SelectionArt.hxx"
+#include "../Theme.hxx"
+#include "../V2.hxx"
+#include "../../common/Localization.hxx"
+#include <imgui.h>
+#include <imgui_impl_dx9.h>
+#include <imgui_impl_win32.h>
+#include <windows.h>
+#include <shellapi.h>
+#include <xinput.h>
+#include <d3d9.h>
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
+
+IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
+
+namespace {
+using namespace sf4e;
+struct Size { int w, h; const char* name; };
+// The V2 design's screen sizes.
+const Size Sizes[] = {{1280,800,"Deck"},{1280,720,"720p"},{1366,768,"Laptop"},{1920,1080,"1080p"},{1920,1200,"16:10"},{2560,1440,"1440p"},
+    {2560,1080,"21:9"},{3440,1440,"21:9 QHD"},{3840,2160,"4K"},{5120,1440,"32:9"},{1024,768,"4:3"},{800,600,"Small"},{640,720,"Narrow"}};
+IDirect3DDevice9* device = nullptr;
+D3DPRESENT_PARAMETERS present{};
+int resizeW = 0, resizeH = 0;
+
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
+    if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, w, l)) return 1;
+    if (msg == WM_SIZE && w != SIZE_MINIMIZED) { resizeW = LOWORD(l); resizeH = HIWORD(l); return 0; }
+    if (msg == WM_DESTROY) { PostQuitMessage(0); return 0; }
+    return DefWindowProcW(hwnd, msg, w, l);
+}
+void ResizeWindow(HWND hwnd, int w, int h) {
+    RECT r{0, 0, w, h};
+    AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
+    SetWindowPos(hwnd, nullptr, 0, 0, r.right - r.left, r.bottom - r.top, SWP_NOMOVE | SWP_NOZORDER);
+}
+void Reset(int w, int h) {
+    ImGui_ImplDX9_InvalidateDeviceObjects();
+    present.BackBufferWidth = w; present.BackBufferHeight = h;
+    device->Reset(&present);
+    ImGui_ImplDX9_CreateDeviceObjects();
+}
+// The back buffer as a 32-bit BMP.
+bool SaveShot(const std::string& path) {
+    IDirect3DSurface9 *target = nullptr, *copy = nullptr;
+    if (FAILED(device->GetRenderTarget(0, &target))) return false;
+    D3DSURFACE_DESC desc{}; target->GetDesc(&desc);
+    bool ok = SUCCEEDED(device->CreateOffscreenPlainSurface(desc.Width, desc.Height, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &copy, nullptr)) &&
+        SUCCEEDED(device->GetRenderTargetData(target, copy));
+    target->Release();
+    D3DLOCKED_RECT pixels{};
+    if (ok) ok = SUCCEEDED(copy->LockRect(&pixels, nullptr, D3DLOCK_READONLY));
+    if (ok) {
+        BITMAPFILEHEADER file{}; BITMAPINFOHEADER info{};
+        file.bfType = 0x4d42; file.bfOffBits = sizeof(file) + sizeof(info); file.bfSize = file.bfOffBits + desc.Width * desc.Height * 4;
+        info.biSize = sizeof(info); info.biWidth = desc.Width; info.biHeight = -static_cast<LONG>(desc.Height); info.biPlanes = 1; info.biBitCount = 32;
+        std::ofstream out(path, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(&file), sizeof(file)); out.write(reinterpret_cast<const char*>(&info), sizeof(info));
+        for (UINT y = 0; y < desc.Height; ++y) out.write(static_cast<const char*>(pixels.pBits) + y * pixels.Pitch, desc.Width * 4);
+        copy->UnlockRect();
+    }
+    if (copy) copy->Release();
+    return ok;
+}
+// The first connected XInput pad's menu buttons, as the overlay hands them to the menu.
+unsigned PadButtons() {
+    for (DWORD i = 0; i < XUSER_MAX_COUNT; ++i) {
+        XINPUT_STATE state{};
+        if (XInputGetState(i, &state) != ERROR_SUCCESS) continue;
+        const auto b = state.Gamepad.wButtons;
+        unsigned held = (b & XINPUT_GAMEPAD_DPAD_UP ? 1 : 0) | (b & XINPUT_GAMEPAD_DPAD_DOWN ? 2 : 0) |
+            (b & XINPUT_GAMEPAD_DPAD_LEFT ? 4 : 0) | (b & XINPUT_GAMEPAD_DPAD_RIGHT ? 8 : 0);
+        std::uint32_t physical = 0;
+        // The XInput masks of common/PadKind.hxx sit 16 bits up for the face buttons.
+        if (b & XINPUT_GAMEPAD_A) physical |= input::xinput::A;
+        if (b & XINPUT_GAMEPAD_B) physical |= input::xinput::B;
+        if (b & XINPUT_GAMEPAD_X) physical |= input::xinput::X;
+        if (b & XINPUT_GAMEPAD_Y) physical |= input::xinput::Y;
+        if (b & XINPUT_GAMEPAD_BACK) physical |= input::xinput::View;
+        if (b & XINPUT_GAMEPAD_LEFT_SHOULDER) physical |= input::xinput::LB;
+        if (b & XINPUT_GAMEPAD_RIGHT_SHOULDER) physical |= input::xinput::RB;
+        return ui::ControllerButtons(held, input::PadXInput, physical, input::MenuButtons{});
+    }
+    return 0;
+}
+unsigned KeyBit(const std::string& key) {
+    using B = ui::MenuInput;
+    const std::pair<const char*, unsigned> keys[] = {{"up",B::Up},{"down",B::Down},{"left",B::Left},{"right",B::Right},{"enter",B::Select},
+        {"back",B::Back},{"x",B::Fighter},{"y",B::Options},{"view",B::Chat},{"lb",B::PrevTab},{"rb",B::NextTab}};
+    for (const auto& k : keys) if (key == k.first) return k.second;
+    return 0;
+}
+// A ShellView with a player, a controller and nothing running.
+ui::ShellView FakeView(bool v2) {
+    ui::ShellView view;
+    view.controllerReady = view.canChangeController = view.canEditPreferences = view.canEditSelection = view.canOpenRoom = view.helperReady = true;
+    view.controller = "Xbox pad";
+    view.preferences.displayName = "FRaccie";
+    view.automaticCountry = CountryCode::Parsed("BE");
+    view.preferences.lookV2 = v2;
+    view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
+    return view;
+}
+}
+
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
+    int argc = 0;
+    LPWSTR* wide = CommandLineToArgvW(GetCommandLineW(), &argc);
+    std::vector<std::string> args;
+    for (int i = 1; i < argc; ++i) { std::wstring a = wide[i]; args.emplace_back(a.begin(), a.end()); }
+    int width = 1280, height = 800;
+    float textSize = 1;
+    bool v2 = false;
+    std::string shot, keys;
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const bool more = i + 1 < args.size();
+        if (args[i] == "--size" && more) std::sscanf(args[++i].c_str(), "%dx%d", &width, &height);
+        else if (args[i] == "--scale" && more) textSize = static_cast<float>(std::atof(args[++i].c_str()));
+        else if (args[i] == "--v2") v2 = true;
+        else if (args[i] == "--keys" && more) keys = args[++i];
+        else if (args[i] == "--shot" && more) shot = args[++i];
+    }
+    WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
+    RegisterClassExW(&wc);
+    HWND hwnd = CreateWindowW(wc.lpszClassName, L"Ember UI lab", WS_OVERLAPPEDWINDOW, 40, 40, width, height, nullptr, nullptr, instance, nullptr);
+    ResizeWindow(hwnd, width, height);
+    IDirect3D9* d3d = Direct3DCreate9(D3D_SDK_VERSION);
+    present.Windowed = TRUE; present.SwapEffect = D3DSWAPEFFECT_DISCARD; present.BackBufferFormat = D3DFMT_A8R8G8B8;
+    present.BackBufferWidth = width; present.BackBufferHeight = height; present.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+    if (!d3d || FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &present, &device))) return 1;
+    ShowWindow(hwnd, shot.empty() ? SW_SHOWDEFAULT : SW_SHOWNOACTIVATE);
+
+    ImGui::CreateContext();
+    ImGui::GetIO().IniFilename = nullptr;
+    ImGui_ImplWin32_Init(hwnd);
+    ImGui_ImplDX9_Init(device);
+    // The repository's art: menu backdrop, emblem and prompts. Portraits need the game's files (SF4E_GAME_DIR).
+    const char* game = std::getenv("SF4E_GAME_DIR");
+    const std::string root = game ? game : "";
+    ui::SelectionArt art(device, std::wstring(root.begin(), root.end()), L"" SF4E_LAB_ASSET_ROOT);
+    ui::SetMenuArt(&art);
+
+    ui::ApplicationShell shell;
+    ui::ShellView view = FakeView(v2);
+    bool open = true, bar = shot.empty();
+    std::size_t size = 0;
+    std::vector<unsigned> script;
+    { std::stringstream list(keys); std::string key; while (std::getline(list, key, ',')) script.push_back(KeyBit(key)); }
+    const auto submit = [&](ui::ShellAction action) {
+        // Saving is instant here: the shell reads what it saved back from the view.
+        if (action.command.kind == netplay::CommandKind::SavePreferences) view.preferences = action.preferences;
+        return true;
+    };
+    int frame = 0;
+    for (MSG msg{}; msg.message != WM_QUIT;) {
+        while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
+        if (msg.message == WM_QUIT) break;
+        if (resizeW && resizeH) { Reset(resizeW, resizeH); width = resizeW; height = resizeH; resizeW = resizeH = 0; }
+        // The V2 scale rule, max(DPI, height / 1080), which the picture-scale branch brings to the game.
+        if (ui::ApplyTheme((std::max)(ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd), height / 1080.f), textSize)) ImGui_ImplDX9_InvalidateDeviceObjects();
+        art.Pump();
+        ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();
+        // A scripted key is held for 3 frames and released for 3, from frame 30 (a new screen ignores its first frames).
+        unsigned held = PadButtons();
+        const int scripted = frame - 30;
+        const std::size_t step = scripted < 0 ? script.size() : static_cast<std::size_t>(scripted / 6);
+        if (step < script.size() && scripted % 6 < 3) held |= script[step];
+        ui::SetMenuInput({held, ImGui::GetTime()});
+        ui::SetMenuGlyphs(PadButtons() ? input::PadXInput : input::PadKeyboard, input::MenuButtons{});
+        if (ImGui::IsKeyPressed(ImGuiKey_F1)) bar = !bar;
+        if (ImGui::IsKeyPressed(ImGuiKey_F2)) { size = (size + 1) % std::size(Sizes); ResizeWindow(hwnd, Sizes[size].w, Sizes[size].h); }
+        if (ImGui::IsKeyPressed(ImGuiKey_F3)) view.preferences.lookV2 = !view.preferences.lookV2;
+        if (ImGui::IsKeyPressed(ImGuiKey_F4)) textSize = textSize >= 1.5f ? 1 : textSize + .25f;
+        const bool snap = ImGui::IsKeyPressed(ImGuiKey_F12);
+        shell.Draw(view, &open, submit, [] {});
+        open = true;
+        if (bar) {
+            ImGui::SetNextWindowPos(ImVec2(8, 8), ImGuiCond_Always, ImVec2(0, 0));
+            ImGui::SetNextWindowBgAlpha(.85f);
+            ImGui::Begin("Lab", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
+            ImGui::Text("%dx%d  text %.2f  %s", width, height, textSize, view.preferences.lookV2 ? "V2" : "Classic");
+            ImGui::TextDisabled("F1 bar  F2 size  F3 look  F4 text  F12 shot");
+            ImGui::End();
+        }
+        ImGui::EndFrame();
+        device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_XRGB(20, 19, 18), 1.f, 0);
+        device->BeginScene(); ImGui::Render(); ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData()); device->EndScene();
+        ++frame;
+        if (snap) { char name[64]; std::snprintf(name, sizeof(name), "uilab-%d.bmp", frame); SaveShot(name); }
+        // Scripted runs give the art time to load and the last key time to settle.
+        if (!shot.empty() && frame > static_cast<int>(script.size()) * 6 + 60 && art.MenuBackdrop().texture) { SaveShot(shot); break; }
+        device->Present(nullptr, nullptr, nullptr, nullptr);
+    }
+    ImGui_ImplDX9_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
+    device->Release(); d3d->Release();
+    DestroyWindow(hwnd);
+    return 0;
+}
