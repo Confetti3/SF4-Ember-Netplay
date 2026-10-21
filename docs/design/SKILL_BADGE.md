@@ -3,7 +3,8 @@
 A player's class shows beside their name in public rooms: one of USF4's own
 online classes, D, D+, C, C+, B, B+, A, A+, Master and Grand Master, drawn with
 the game's own class emblems. It answers "who am I sitting down against?"
-without a number, a leaderboard or a mode to grind. The research behind it is
+without a number or a mode to grind. A board lists players by class, with no
+positions and no numbers (Rankings). The research behind it is
 `PLAYER_SKILL_BADGE_RESEARCH.md` (October 2026, kept outside the repository).
 
 ## Rules
@@ -53,7 +54,7 @@ stronger opponent, a weaker friend, a long set or a break.
 - Games while a rating is still placing count in full: it needs them to
   settle, and its gap to anyone says little yet.
 - A class never drops on its own, needs a margin to move, and has no number,
-  no leaderboard and no promotion match to play for.
+  no position on the board and no promotion match to play for.
 
 A game's weight is a fraction of a Glicko-2 rating period: the information it
 adds and the volatility change it brings both scale with it
@@ -96,12 +97,69 @@ runtime like the fighter portraits and never repackaged. It follows the
 country flag and leads the name on table seats and in the Members list
 (`src/ui/NameMarks.cxx`). The
 tooltip names the class; a faint emblem's adds that the player has not played
-lately. A player still placing, or without a Discord account, shows nothing.
+lately. A player without a Discord account or not taking part shows nothing.
+
+The game has no art for the two marks that are not classes, so they are words
+in a small pill in Ember's own colours:
+
+- **"?"**: the player's rating is still placing. A ticket has always carried
+  this as band 0; builds before this one show nothing for it, so it needed no
+  new field.
+- **"Dev"**: one of Ember's developers. The bridge's operator lists their
+  Discord user IDs in `rooms.developers`; no client can claim it. It stands in
+  place of the class (`SkillBadge::developer`, band 0), on tickets and on the
+  player's own standing. A developer is not on the board, since the board
+  lists classes. Their games are rated as anyone's, so their opponents'
+  ratings stay fair, and their class comes back if they leave the list.
+
+A player can hide emblems on their own screen (Interface, `classEmblems`).
+That is local: their games still count and others still see their class.
+
+## Rankings
+
+Online play has a Rankings page with the player's own class and the board.
+The bridge serves both to players (`ember_protocol::skill`,
+`server/ember/bridge/src/skill/ranking.rs`, offered as the `ranking`
+capability wherever public rooms are on):
+
+- `GET /v1/ranking/me` is the player's standing: no Discord account, not
+  taking part, or taking part with the class their next room ticket carries
+  (placing, faint or settled; none while `rooms.skill_badges` is off). Like a
+  ticket, it remembers the class as shown.
+- `PUT /v1/ranking/me` takes part or not, and sets how the board lists them.
+- `GET /v1/ranking/board` lists up to 500 players: everyone who takes part,
+  is listed and has a settled class. The highest class comes first; within a
+  class, whoever played most recently, so the board is about who plays and
+  its cap drops whoever played longest ago. It carries the name, the flag and
+  the class, never a rating, a position or a number. Faint and placing players
+  are not on it.
+
+The board shows the name and flag the player's game sends, the same ones
+rooms show, never the Discord account's name. The game sends them from the
+Rankings page, so nobody is listed before seeing the page that says how they
+appear and how to stop. A changed name or flag follows the next time the page
+opens.
+
+### Not taking part
+
+Taking part is the default and belongs to the Discord account. A player who
+stops has no class on any ticket, is not on the board, and their games count
+for neither fighter, like a game with a fighter who has no Discord account.
+Their rating is kept untouched and their listing forgotten. Coming back
+resumes the rating where it was, grown less sure by the time away like any
+break, so after a long one the class shows faint until a few games settle it.
+Starting over is not offered: it would turn a bad run into a free reset.
+
+The choice changes at most once a day, so nobody can stop after a loss and
+come back after a win. The few seconds between a game's end and the bridge's
+next room poll are not covered; a player who stops in them skips that game.
 
 ## Deploying
 
 Upgrade the bridge first: it accepts the `skill_badge` ticket request field
-that new builds send, and an older bridge refuses it.
+that new builds send, and an older bridge refuses it. The ranking routes come
+with migration 030; a build that finds no `ranking` routes says the service
+does not offer rankings yet, and older builds never ask for them.
 
 A ticket carries a class only for a build that asked for one, and the bridge
 issues a ticket only for a room of the joiner's own build, which the
@@ -109,6 +167,11 @@ supervisor hosts with that build's room host and helper. So a class never
 reaches a helper that would refuse it (`RoomTicket` refuses unknown fields),
 and room hosts and builds can follow in any order. If a build ID is ever
 mapped to an older helper, keep `rooms.skill_badges` off while it is.
+
+The developer mark is a field older helpers refuse, so a ticket carries it
+only for a build that asks (`TicketRequest::developer_badge`). A build asks
+only a bridge whose capabilities list `ranking`, because an older bridge
+refuses the request field. Every other ticket is byte for byte what it was.
 
 Leave `rooms.skill_badges` off until the class ranges are calibrated.
 
@@ -119,3 +182,5 @@ Leave `rooms.skill_badges` off until the class ranges are calibrated.
 - Classes in private rooms, organised (bridge-matched) games and the Discord
   room bot.
 - A quiet marker for players who often leave unfinished games.
+- Sending `skill_badge` only to a bridge that offers `ranking`, so a build
+  also gets tickets from a bridge that predates classes.
