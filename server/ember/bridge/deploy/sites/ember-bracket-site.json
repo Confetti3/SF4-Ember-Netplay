@@ -17,6 +17,7 @@
   },
   "lookup_by": "user_id",
   "hosts": ["brackets.ember.fraccie.be"],
+  "accounts": "discord",
   "organizer": {
     "scope": "player organizer",
     "tournaments": {

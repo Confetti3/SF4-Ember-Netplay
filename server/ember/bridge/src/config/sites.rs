@@ -42,10 +42,30 @@ pub struct SignInSite {
     pub hosts: Vec<String>,
     #[serde(default)]
     pub limits: Option<Limits>,
+    /// Whose accounts the site's are. `discord`: a site account is the
+    /// Discord account of that ID (docs/design/BRACKET_SITE.md), so a
+    /// player signs up through Ember with the Discord account connected to
+    /// their Ember ID, with no account of the site's own linked.
+    #[serde(default, skip_serializing_if = "Accounts::is_own")]
+    pub accounts: Accounts,
     /// Offers organizers a sign-in that keeps the site's tokens, to run
     /// their events (docs/design/TOURNAMENT_DESK.md). None offers none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub organizer: Option<Organizer>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Accounts {
+    #[default]
+    Own,
+    Discord,
+}
+
+impl Accounts {
+    fn is_own(&self) -> bool {
+        *self == Self::Own
+    }
 }
 
 /// What an organizer sign-in asks the site for.
