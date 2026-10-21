@@ -10,7 +10,7 @@ import { fail, Failure, readJson, send, text, type Json, type Route } from "./ht
 import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
 import { stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
-import { page } from "./page.ts";
+import { page, reportPage } from "./page.ts";
 import type { Store } from "./store.ts";
 import { ACTIONS, actions, beforeLive, checkIn, enter, move, type Action, type Entrant, type Tournament } from "./tournament.ts";
 
@@ -163,6 +163,7 @@ export function bracketSite(options: Options): Server {
       },
     ],
     ["GET", /^\/tournaments\/([^/]+)\/stats$/, (_, [id]) => [200, stats(found(id!))]],
+    ["GET", /^\/tournaments\/([^/]+)\/report$/, (_, [id]) => [200, found(id!).report ?? fail(404, "its report comes once it is finished")]],
     [
       "GET",
       /^\/live$/,
@@ -334,6 +335,13 @@ export function bracketSite(options: Options): Server {
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
+      const reported = /^\/t\/([^/]+)\/report$/.exec(url.pathname);
+      if (reported && request.method === "GET") {
+        const tournament = found(decodeURIComponent(reported[1]!));
+        const shown = reportPage(tournament.report ?? fail(404, "its report comes once it is finished"), tournament.id);
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(shown);
+        return;
+      }
       // The page, also at /t/<id>, the short link the desk shows.
       const html = /^\/(?:t\/([^/]+)|tournaments\/([^/]+)\/bracket)$/.exec(url.pathname);
       if (html && request.method === "GET") {
@@ -417,7 +425,7 @@ function shuffle<T>(items: T[]): void {
 
 /** The tournament as anyone may see it, with the actions its state allows. */
 function view(tournament: Tournament): Json {
-  const { feed: _, ...shown } = tournament;
+  const { feed: _, report: __, ...shown } = tournament;
   return {
     ...shown,
     actions: actions(tournament),

@@ -74,6 +74,7 @@ manages the tournaments that name them in `organizers`.
 | `DELETE /tournaments/{id}` | its organizers | its live matches are cancelled |
 | `GET /tournaments/{id}/feed?after=<n>` | anyone | what happened since item `n`: moves, sets live and done, upsets, streaks |
 | `GET /tournaments/{id}/stats` | anyone | sets live and done, placements, per player games, rounds, perfects and characters, upsets, the longest set |
+| `GET /tournaments/{id}/report` | anyone | once finished: podium, every player's path, stats, upsets, longest and shortest set, characters, perfects, time-outs; `null` where no game's facts say (also as a page, `/t/{id}/report`) |
 | `POST /leagues` | organizer | `{ "id", "title" }` |
 | `GET /leagues/{id}` | anyone | the league and its seasons |
 | `POST /leagues/{id}/seasons` | its organizers | `{ "id", "title", "points", "best_of" }`; a season ID is unique on the site |

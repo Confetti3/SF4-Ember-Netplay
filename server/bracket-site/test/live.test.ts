@@ -52,4 +52,21 @@ test("the feed tells each move, set and upset, and the stats count games, charac
   assert.deepEqual([second!.games_won, second!.games_lost, second!.rounds_won, second!.perfects], [2, 3, 4, 1]);
   assert.deepEqual([third!.characters, third!.rounds_won, third!.perfects], [{ RYU: 2 }, 1, 0]);
   assert.deepEqual(second!.characters, { KEN: 1, BLR: 1 });
+
+  // The after-report, made once at the finish.
+  const after = t.report!;
+  assert.deepEqual(after.podium.map((each) => [each.place, each.name]), [[1, "P1"], [2, "P3"], [3, "P2"]]);
+  const p3 = after.players.find((player) => player.name === "P3")!;
+  assert.deepEqual(
+    p3.path.map((step) => [step.round, step.opponent, step.won, step.score, step.games]),
+    [
+      ["Semifinals", "P2", true, [2, 1], ["P3", "P2", "P3"]],
+      ["Final", "P1", false, [0, 2], null],
+    ],
+  );
+  assert.equal(p3.comebacks, 0, "P3 won the semifinal's first game");
+  const p1 = after.players.find((player) => player.name === "P1")!;
+  assert.deepEqual([p1.characters, p1.perfects, p1.comebacks], [null, null, null], "unknown, not none");
+  assert.deepEqual([after.perfects, after.time_outs, after.shortest_set, after.final!.opponent], [1, 0, { set: "r2-1", games: 2 }, "P3"]);
+  assert.deepEqual(Object.keys(after.characters!), ["RYU", "KEN", "BLR"], "most played first");
 });

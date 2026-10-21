@@ -2,6 +2,7 @@
 // and score.
 import { roundLabel, status } from "./bracket.ts";
 import { stats } from "./live.ts";
+import type { Report } from "./report.ts";
 import { beforeLive, type Tournament } from "./tournament.ts";
 
 const escape = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -61,6 +62,40 @@ for (const button of document.querySelectorAll("button[data-path]")) {
   });
 }
 </script>
+</body></html>
+`;
+}
+
+/** The after-report as a page to share: the podium first. */
+export function reportPage(report: Report, id: string): string {
+  const medal = ["", "1st", "2nd", "3rd"];
+  const podium = report.podium.map((each) => `<li>${medal[each.place] ?? each.place} ${escape(each.name)}</li>`).join("");
+  const players = report.players
+    .map((player) => {
+      const path = player.path.map((step) => `${escape(step.round)}: ${step.won ? "beat" : "lost to"} ${escape(step.opponent)} ${step.score[0]}-${step.score[1]}`).join("; ");
+      const characters = player.characters ? Object.keys(player.characters).join(", ") : "not known";
+      return `<tr><td>${player.place ?? ""}</td><td>${escape(player.name)}</td><td>${player.sets_won}-${player.sets_lost}</td><td>${player.games_won}-${player.games_lost}</td><td>${escape(characters)}</td><td>${path}</td></tr>`;
+    })
+    .join("");
+  const upsets = report.upsets.map((upset) => `<li>${escape(upset.winner)} over ${escape(upset.loser)} (${upset.gap} seeds)</li>`).join("");
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escape(report.title)}: results</title>
+<meta property="og:title" content="${escape(report.title)}: results">
+<meta property="og:description" content="${escape(report.podium.map((each) => `${medal[each.place] ?? each.place} ${each.name}`).join(" · "))}">
+<style>
+body { font: 16px system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+table { border-collapse: collapse; } td, th { border: 1px solid #999; padding: 4px 8px; text-align: left; }
+.wide { overflow-x: auto; }
+@media (prefers-color-scheme: dark) { body { background: #111; color: #eee; } td, th { border-color: #666; } }
+</style></head><body>
+<h1>${escape(report.title)}</h1>
+<ol aria-label="Podium">${podium}</ol>
+<p>${report.games} games${report.longest_set ? `, the longest set ${report.longest_set.games} games` : ""}${report.perfects === null ? "" : `, ${report.perfects} perfects, ${report.time_outs} time-outs`}.</p>
+${upsets ? `<h2>Upsets</h2><ul>${upsets}</ul>` : ""}
+<h2>Players</h2>
+<div class="wide"><table><tr><th>Place</th><th>Player</th><th>Sets</th><th>Games</th><th>Characters</th><th>Path</th></tr>${players}</table></div>
+<p><a href="/t/${encodeURIComponent(id)}">The bracket</a></p>
 </body></html>
 `;
 }

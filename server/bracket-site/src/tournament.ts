@@ -3,6 +3,7 @@
 // each tournament whole.
 import { Conflict, decided, generate, Invalid, type BracketSet } from "./bracket.ts";
 import { stateChanged, type FeedItem } from "./live.ts";
+import { buildReport, type Report } from "./report.ts";
 
 export type State = "draft" | "planned" | "sign_ups" | "check_in" | "live" | "finished" | "archived" | "cancelled";
 
@@ -45,6 +46,8 @@ export interface Tournament {
   log: Change[];
   /** What happened, for the page and Discord; absent in a tournament saved before it. */
   feed?: FeedItem[];
+  /** The after-report, made once when it is finished. */
+  report?: Report;
 }
 
 export type Action = "plan" | "open_sign_ups" | "close_sign_ups" | "open_check_in" | "reopen_sign_ups" | "start" | "reset" | "archive" | "cancel";
@@ -138,6 +141,7 @@ export function settle(tournament: Tournament, at: string): void {
     tournament.state = "finished";
     tournament.log.push({ at, by: "site", from: "live", to: "finished" });
     stateChanged(tournament, at);
+    tournament.report = buildReport(tournament, at);
   }
 }
 

@@ -196,6 +196,10 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   const html = await call("GET", "/tournaments/weekly/bracket");
   assert.match(html.body, /<title>Weekly &#60;1&#62;<\/title>/);
   assert.match(html.body, /<tr class="won"><td>Player 1<\/td><td>2<\/td><\/tr>/);
+  const after = (await call("GET", "/tournaments/weekly/report")).body;
+  assert.deepEqual(after.podium.map((each: { name: string }) => each.name), ["Player 1", "Player 3", "Player 2", "Player 5"], "both semifinal losers are third");
+  const shared = await call("GET", "/t/weekly/report");
+  assert.match(shared.body, /<meta property="og:description" content="1st Player 1 · 2nd Player 3 · 3rd/);
   // Over within the hour: still listed for followers, with its last item.
   const live = (await call("GET", "/live")).body.tournaments;
   assert.deepEqual(live.map((each: { id: string; state: string }) => [each.id, each.state]), [["weekly", "finished"]]);
