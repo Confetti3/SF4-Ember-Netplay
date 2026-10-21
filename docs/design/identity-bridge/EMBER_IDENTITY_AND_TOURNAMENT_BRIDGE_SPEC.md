@@ -1078,7 +1078,7 @@ Accept only configured event types/sources and bound payload sizes. Signature va
 
 ### 20.4 Durable, at-least-once delivery
 
-Commit a state transition, event, and outbox record in one database transaction. A worker sends the event and marks success only after a successful receiver response. Delivery is at least once; ordering is not guaranteed. Exactly-once delivery across independent HTTP systems is not promised.
+Commit a state transition, event, and outbox record in one database transaction. A worker sends the event and marks success only after a successful receiver response. Delivery is at least once and in event order per subscription: a later event waits until the one before it is delivered or dead, so an event a receiver keeps refusing holds back the rest for up to the retry budget. Exactly-once delivery across independent HTTP systems is not promised.
 
 Receivers persist/deduplicate event IDs and make their own side effects idempotent. A receiver should acknowledge with 2xx only after durable acceptance into its own queue or transaction. The request need not wait for all downstream processing.
 

@@ -31,7 +31,9 @@ pub struct Due {
 }
 
 /// The outbox: pending deliveries to enabled subscriptions whose owner's
-/// credential is not revoked.
+/// credential is not revoked. A subscription gets its events in order: only
+/// its oldest pending event is leased, so later ones wait until it is
+/// delivered or dead.
 pub struct Webhooks;
 
 impl Queue for Webhooks {
@@ -48,6 +50,8 @@ impl Queue for Webhooks {
                  JOIN service_credentials c ON c.id = s.owner_credential
                  WHERE o.state = 'pending' AND o.next_attempt_at <= ?1 AND s.enabled = 1
                    AND c.revoked_at IS NULL
+                   AND o.event_seq = (SELECT MIN(event_seq) FROM delivery_outbox
+                                      WHERE subscription_id = o.subscription_id AND state = 'pending')
                  ORDER BY o.next_attempt_at, o.id LIMIT ?2",
             )?
             .query_map(params![now, BATCH], |row| {
