@@ -6588,6 +6588,18 @@ msgstr "V2 (미리 보기)"
 msgid "settings.look_detail"
 msgstr "아직 만드는 중인 Ember의 새 모양입니다. 언제든 되돌릴 수 있으며, 화면의 모양만 바뀝니다."
 
+msgid "settings.picture_corner"
+msgstr "화면 위치"
+
+msgid "settings.picture_corner_detail"
+msgstr "관전 중인 경기 화면이 놓이는 모서리입니다. 마우스로 다른 모서리로 끌어 옮길 수도 있습니다."
+
+msgid "settings.picture_size"
+msgstr "화면 크기"
+
+msgid "settings.picture_size_detail"
+msgstr "관전 중인 경기 화면의 크기입니다. 마우스로 손잡이를 끌어 바꿀 수도 있습니다."
+
 msgid "settings.tab.player"
 msgstr "플레이어"
 

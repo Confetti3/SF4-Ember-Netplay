@@ -6588,6 +6588,18 @@ msgstr "V2（プレビュー）"
 msgid "settings.look_detail"
 msgstr "制作中の Ember の新しい外観です。いつでも元に戻せます。変わるのは画面の見た目だけです。"
 
+msgid "settings.picture_corner"
+msgstr "画面の位置"
+
+msgid "settings.picture_corner_detail"
+msgstr "観戦中の試合の画面を置く角です。マウスで別の角へドラッグすることもできます。"
+
+msgid "settings.picture_size"
+msgstr "画面の大きさ"
+
+msgid "settings.picture_size_detail"
+msgstr "観戦中の試合の画面の大きさです。マウスでつまみをドラッグして変えることもできます。"
+
 msgid "settings.tab.player"
 msgstr "プレイヤー"
 

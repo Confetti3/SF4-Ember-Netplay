@@ -6588,6 +6588,18 @@ msgstr "V2 (предпросмотр)"
 msgid "settings.look_detail"
 msgstr "Новый внешний вид Ember, он ещё в работе. Вернуться можно в любой момент: меняется только вид экранов."
 
+msgid "settings.picture_corner"
+msgstr "Угол картинки"
+
+msgid "settings.picture_corner_detail"
+msgstr "В каком углу стоит картинка просматриваемой игры. Мышью её можно перетащить в другой угол."
+
+msgid "settings.picture_size"
+msgstr "Размер картинки"
+
+msgid "settings.picture_size_detail"
+msgstr "Насколько велика картинка просматриваемой игры. Мышью можно тянуть за её уголок."
+
 msgid "settings.tab.player"
 msgstr "Игрок"
 

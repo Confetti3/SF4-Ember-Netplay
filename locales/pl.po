@@ -6587,6 +6587,18 @@ msgstr "V2 (podgląd)"
 msgid "settings.look_detail"
 msgstr "Nowy wygląd Embera, wciąż w budowie. Możesz wrócić w każdej chwili: zmienia się tylko wygląd ekranów."
 
+msgid "settings.picture_corner"
+msgstr "Róg obrazu"
+
+msgid "settings.picture_corner_detail"
+msgstr "W którym rogu jest obraz oglądanej gry. Myszą możesz też przeciągnąć go do innego rogu."
+
+msgid "settings.picture_size"
+msgstr "Rozmiar obrazu"
+
+msgid "settings.picture_size_detail"
+msgstr "Jak duży jest obraz oglądanej gry. Myszą możesz też przeciągnąć jego uchwyt."
+
 msgid "settings.tab.player"
 msgstr "Gracz"
 

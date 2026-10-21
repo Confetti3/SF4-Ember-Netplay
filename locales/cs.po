@@ -6587,6 +6587,18 @@ msgstr "V2 (náhled)"
 msgid "settings.look_detail"
 msgstr "Nový vzhled Emberu, který ještě vzniká. Kdykoli můžete přepnout zpět: mění se jen vzhled obrazovek."
 
+msgid "settings.picture_corner"
+msgstr "Roh obrazu"
+
+msgid "settings.picture_corner_detail"
+msgstr "Ve kterém rohu je obraz sledované hry. Myší ho můžete přetáhnout i do jiného rohu."
+
+msgid "settings.picture_size"
+msgstr "Velikost obrazu"
+
+msgid "settings.picture_size_detail"
+msgstr "Jak velký je obraz sledované hry. Myší můžete táhnout i za jeho úchyt."
+
 msgid "settings.tab.player"
 msgstr "Hráč"
 

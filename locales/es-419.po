@@ -6107,6 +6107,18 @@ msgstr "V2 (vista previa)"
 msgid "settings.look_detail"
 msgstr "El nuevo aspecto de Ember, todavía en desarrollo. Puedes volver cuando quieras: solo cambia cómo se ven las pantallas."
 
+msgid "settings.picture_corner"
+msgstr "Esquina de la imagen"
+
+msgid "settings.picture_corner_detail"
+msgstr "En qué esquina está la imagen del juego que miras. Con un mouse también puedes arrastrarla a otra esquina."
+
+msgid "settings.picture_size"
+msgstr "Tamaño de la imagen"
+
+msgid "settings.picture_size_detail"
+msgstr "Qué tan grande es la imagen del juego que miras. Con un mouse también puedes arrastrar su agarre."
+
 msgid "settings.tab.player"
 msgstr "Jugador"
 

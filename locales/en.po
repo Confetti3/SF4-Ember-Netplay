@@ -6223,6 +6223,18 @@ msgstr "V2 (preview)"
 msgid "settings.look_detail"
 msgstr "Ember's new look, still being built. Switch back at any time: only how screens look changes."
 
+msgid "settings.picture_corner"
+msgstr "Picture corner"
+
+msgid "settings.picture_corner_detail"
+msgstr "Which corner the watched game's picture sits in. With a mouse you can also drag the picture to another corner."
+
+msgid "settings.picture_size"
+msgstr "Picture size"
+
+msgid "settings.picture_size_detail"
+msgstr "How big the watched game's picture is. With a mouse you can also drag its grip."
+
 msgid "settings.tab.player"
 msgstr "Player"
 

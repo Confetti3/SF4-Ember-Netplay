@@ -6587,6 +6587,18 @@ msgstr "V2 (Vorschau)"
 msgid "settings.look_detail"
 msgstr "Embers neues Aussehen, noch im Aufbau. Sie können jederzeit zurückwechseln: Nur das Aussehen der Bildschirme ändert sich."
 
+msgid "settings.picture_corner"
+msgstr "Ecke des Bildes"
+
+msgid "settings.picture_corner_detail"
+msgstr "In welcher Ecke das Bild des beobachteten Spiels sitzt. Mit der Maus können Sie es auch in eine andere Ecke ziehen."
+
+msgid "settings.picture_size"
+msgstr "Größe des Bildes"
+
+msgid "settings.picture_size_detail"
+msgstr "Wie groß das Bild des beobachteten Spiels ist. Mit der Maus können Sie auch an seinem Griff ziehen."
+
 msgid "settings.tab.player"
 msgstr "Spieler"
 

@@ -6587,6 +6587,18 @@ msgstr "V2 (voorproef)"
 msgid "settings.look_detail"
 msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw. Je kunt altijd terugschakelen: alleen hoe de schermen eruitzien verandert."
 
+msgid "settings.picture_corner"
+msgstr "Hoek van het beeld"
+
+msgid "settings.picture_corner_detail"
+msgstr "In welke hoek het beeld van de bekeken wedstrijd staat. Met een muis kun je het ook naar een andere hoek slepen."
+
+msgid "settings.picture_size"
+msgstr "Grootte van het beeld"
+
+msgid "settings.picture_size_detail"
+msgstr "Hoe groot het beeld van de bekeken wedstrijd is. Met een muis kun je ook aan de greep slepen."
+
 msgid "settings.tab.player"
 msgstr "Speler"
 

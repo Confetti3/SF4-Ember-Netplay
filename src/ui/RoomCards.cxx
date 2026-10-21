@@ -113,7 +113,9 @@ CardInteraction DrawTableCard(const TableCardView& card) {
  std::string markTip,pingTip;
  const ImU32 bannerColor=ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
  text(ImVec2(p.x+12*s,p.y+7*s),width*.57f,loc::Tf("room.battle_slot",card.slot+1),16*s,palette::Ivory);
- text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,card.phase,14*s,palette::Ember);
+ // V2: the table's state as a chip at the card's right end.
+ if(v2::On()&&!card.phase.empty())v2::Chip(ImGui::GetWindowDrawList(),ImVec2(p.x+width-12*s-v2::ChipWidth(card.phase),p.y+6*s),card.phase,palette::Ember);
+ else text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,card.phase,14*s,palette::Ember);
  // A full pair shows its running win count where "VS" would sit; the gap
  // between the two sides grows to fit however long the rematch run gets.
  const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(18*s,FLT_MAX,0,card.middle.c_str()).x+12*s);

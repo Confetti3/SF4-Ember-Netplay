@@ -3,8 +3,8 @@
 // be tried at every screen size in seconds. Keyboard, mouse and an XInput pad
 // work as in the game.
 //
-// F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F12 screenshot
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--keys down,down,enter] [--shot file.bmp]
+// F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F5 in a room · F6 picture · F12 screenshot
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--pip] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -120,6 +120,28 @@ ui::ShellView FakeView(bool v2) {
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
     return view;
 }
+// A joined room with four tables, sixteen members and some chat (the render test's sample room).
+void JoinRoom(ui::ShellView& view) {
+    view.session.room = netplay::RoomState::Joined; view.session.control = netplay::Health::Healthy; view.session.generation.room = 1;
+    view.room.roomEpoch = 42; view.room.name = "Friday Night Fights"; view.room.capacity = 16; view.room.host = view.room.localMember = 1;
+    view.canEditPreferences = false; view.canReady = true; view.localSlot = 0; view.invitation = "sf4://lab-only";
+    for (int i = 0; i < 4; ++i) {
+        auto& t = view.room.tables[i]; t.id = i; t.revision = 1;
+        t.phase = i == 0 ? room::TablePhase::Waiting : i == 1 ? room::TablePhase::Playing : room::TablePhase::Idle;
+        if (i < 2) { t.p1 = i * 2 + 1; t.p2 = i * 2 + 2; t.score[0] = i * 2; t.score[1] = i; }
+    }
+    const char* names[] = {"FRaccie","Akira","Jamie","Alex","Morgan","Riley","Sam","Jordan","Casey","Taylor","Robin","Ash","Sky","Reese","Avery","Drew"};
+    const char* countries[] = {"BE","JP","GB","US","FR","DE","NL","BR","KR","ES","IT","PL","CA","MX","SE","AU"};
+    for (int i = 1; i <= 16; ++i) {
+        room::Member m; m.id = i; m.name = names[i - 1]; m.host = i == 1; m.fighter = (i - 1) * 2; m.mainFighter = (i + 7) % 44;
+        m.country = CountryCode::Parsed(countries[i - 1]);
+        if (i <= 4) { m.table = (i - 1) / 2; m.seat = (i - 1) % 2; m.status = i < 3 ? room::MemberStatus::Seated : room::MemberStatus::Playing; }
+        m.link = static_cast<NetworkLink>(i % 3);
+        view.room.members.push_back(m);
+    }
+    const char* chat[] = {"Welcome! Grab a table or join a queue.", "Good games. I'll watch the next one.", "Ready for another set?", "Let's run it back!"};
+    for (int i = 0; i < 12; ++i) view.room.chat.push_back({static_cast<std::uint64_t>(i + 1), static_cast<room::MemberId>(i % 16 + 1), chat[i % 4]});
+}
 }
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
@@ -130,7 +152,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int width = 1280, height = 800;
     float textSize = 1;
     bool v2 = false;
-    std::string shot, keys;
+    std::string shot, keys, screen;
+    bool inRoom = false, pip = false;
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
         if (args[i] == "--size" && more) std::sscanf(args[++i].c_str(), "%dx%d", &width, &height);
@@ -138,6 +161,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--v2") v2 = true;
         else if (args[i] == "--keys" && more) keys = args[++i];
         else if (args[i] == "--shot" && more) shot = args[++i];
+        else if (args[i] == "--room") inRoom = true;
+        else if (args[i] == "--pip") pip = true;
+        else if (args[i] == "--screen" && more) screen = args[++i];
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
     RegisterClassExW(&wc);
@@ -161,6 +187,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
     ui::ApplicationShell shell;
     ui::ShellView view = FakeView(v2);
+    if (inRoom) JoinRoom(view);
     bool open = true, bar = shot.empty();
     std::size_t size = 0;
     std::vector<unsigned> script;
@@ -193,7 +220,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (ImGui::IsKeyPressed(ImGuiKey_F2)) { size = (size + 1) % std::size(Sizes); ResizeWindow(hwnd, Sizes[size].w, Sizes[size].h); }
         if (ImGui::IsKeyPressed(ImGuiKey_F3)) view.preferences.lookV2 = !view.preferences.lookV2;
         if (ImGui::IsKeyPressed(ImGuiKey_F4)) textSize = textSize >= 1.5f ? 1 : textSize + .25f;
+        if (ImGui::IsKeyPressed(ImGuiKey_F5)) { const bool look = view.preferences.lookV2; inRoom = !inRoom; view = FakeView(look); if (inRoom) JoinRoom(view); }
+        if (frame == 2 && !screen.empty()) shell.Navigation().Push(screen);
         const bool snap = ImGui::IsKeyPressed(ImGuiKey_F12);
+        // The menu art stands in for a watched game's picture (F6).
+        if (ImGui::IsKeyPressed(ImGuiKey_F6)) pip = !pip;
+        view.preferences.watchedPicture = pip;
+        view.watchedPicture = pip ? art.MenuBackdrop().texture : ImTextureID{};
         shell.Draw(view, &open, submit, [] {});
         open = true;
         if (bar) {
@@ -201,7 +234,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             ImGui::SetNextWindowBgAlpha(.85f);
             ImGui::Begin("Lab", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
             ImGui::Text("%dx%d  text %.2f  %s", width, height, textSize, view.preferences.lookV2 ? "V2" : "Classic");
-            ImGui::TextDisabled("F1 bar  F2 size  F3 look  F4 text  F12 shot");
+            ImGui::TextDisabled("F1 bar  F2 size  F3 look  F4 text  F5 room  F6 picture  F12 shot");
             ImGui::End();
         }
         ImGui::EndFrame();

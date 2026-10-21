@@ -318,7 +318,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     // Taken before Ember draws anything this frame, so it holds the game's picture alone.
     if (view.watchedGame.Active() && snapshot.preferences.watchedPicture) {
         const auto& size = ImGui::GetMainViewport()->Size;
-        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * sf4e::ui::WatchedPictureShare), static_cast<unsigned>(size.y * sf4e::ui::WatchedPictureShare));
+        // The texture is made once, at the largest size the picture can be shown, so any size stays sharp.
+        const float share = sf4e::ui::WatchedPictureShareFor(8);
+        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * share), static_cast<unsigned>(size.y * share));
     }
     view.lockInDrops = snapshot.lockInDrops;
 	view.canEditPreferences = snapshot.canEditPreferences;

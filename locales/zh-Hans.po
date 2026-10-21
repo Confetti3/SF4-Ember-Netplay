@@ -6588,6 +6588,18 @@ msgstr "V2（预览）"
 msgid "settings.look_detail"
 msgstr "Ember 正在制作中的新外观。可随时切换回去：只改变界面的样子。"
 
+msgid "settings.picture_corner"
+msgstr "画面位置"
+
+msgid "settings.picture_corner_detail"
+msgstr "观战画面所在的角落。用鼠标也可以把它拖到另一个角落。"
+
+msgid "settings.picture_size"
+msgstr "画面大小"
+
+msgid "settings.picture_size_detail"
+msgstr "观战画面的大小。用鼠标也可以拖动它的把手。"
+
 msgid "settings.tab.player"
 msgstr "玩家"
 

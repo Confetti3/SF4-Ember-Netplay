@@ -1,4 +1,5 @@
 #include "MenuDialogs.hxx"
+#include "V2.hxx"
 #include "GameMenu.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
@@ -27,6 +28,12 @@ float DialogButtonsHeight(const std::vector<DialogButton>& buttons,float height)
     const float rows=Stacked(buttons)?static_cast<float>(buttons.size()):1.f;
     return rows*height+(rows-1)*ImGui::GetStyle().ItemSpacing.y;
 }
+// A dialog button's ground; V2 marks the selected one with its focus marks after drawing it (V2Mark).
+static ImVec4 ButtonGround(bool selected) {
+    if(!v2::On())return DialogButtonColor(selected);
+    return ImGui::ColorConvertU32ToFloat4(selected?v2::color::Header:v2::color::Button);
+}
+static void V2Mark(bool selected) { if(v2::On()&&selected)v2::Focus(ImGui::GetWindowDrawList(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax()); }
 int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons,int* selected,float height,bool focusOnAppearing) {
     const auto& style=ImGui::GetStyle();const int count=static_cast<int>(buttons.size());
     const bool stacked=Stacked(buttons);
@@ -41,7 +48,8 @@ int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons
         const auto& button=buttons[i];const float room=width-2*style.FramePadding.x;
         if(i&&!stacked)ImGui::SameLine();
         ImGui::PushID(i);
-        ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(button.lit&&selected&&*selected==i));
+        const bool lit=button.lit&&selected&&*selected==i;
+        ImGui::PushStyleColor(ImGuiCol_Button,ButtonGround(lit));
         ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(button.lit));
         ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
         ImGui::BeginDisabled(!button.enabled);
@@ -49,6 +57,7 @@ int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons
         // explicitly focus the default instead of ImGui's automatic nav init.
         if(focusOnAppearing&&appearing&&selected&&button.enabled&&*selected==i)ImGui::SetKeyboardFocusHere();
         if(ImGui::Button((FitLabel(button.label,room)+"###DialogButton").c_str(),ImVec2(width,height)))clicked=i;
+        V2Mark(lit);
         if(selected&&moved&&ImGui::IsItemHovered(ImGuiHoveredFlags_NoNavOverride))*selected=i;
         ImGui::EndDisabled();ImGui::PopStyleVar();ImGui::PopStyleColor(2);
         const auto measured=ImGui::CalcTextSize(button.label.c_str());
@@ -59,7 +68,7 @@ int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons
     return clicked;
 }
 void BeginDialogCard(const char* id,ImVec2 at,ImVec2 size) {
-    const ImVec4 panel(.13f,.115f,.1f,1);
+    const ImVec4 panel=v2::On()?ImGui::ColorConvertU32ToFloat4(v2::color::Panel):ImVec4(.13f,.115f,.1f,1);
     ImGui::SetCursorScreenPos(at);
     ImGui::PushStyleColor(ImGuiCol_ChildBg,panel);
     ImGui::BeginChild(id,size,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
@@ -212,18 +221,23 @@ void GameMenu::DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction&
         if(!entry) ImGui::CloseCurrentPopup();
         else {
             const float s=Scale(),row=40*s;const auto count=entry->choices.size();
-            const float height=(std::min)(row*count+ImGui::GetStyle().ItemSpacing.y*count,ImGui::GetMainViewport()->Size.y*.55f);
+            // V2 shows every option at once: a grid of up to three columns once a list passes six.
+            const std::size_t columns=v2::On()?(std::min<std::size_t>)(3,(count+5)/6):1,lines=(count+columns-1)/columns;
+            const float height=(std::min)(row*lines+ImGui::GetStyle().ItemSpacing.y*lines,ImGui::GetMainViewport()->Size.y*.55f);
             ImGui::BeginChild("Choice options",ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
             ReportMenuCard("choice-list",ImGui::GetWindowPos(),ImVec2(ImGui::GetWindowPos().x+ImGui::GetWindowSize().x,ImGui::GetWindowPos().y+ImGui::GetWindowSize().y));
             const auto delta=ImGui::GetIO().MouseDelta;const bool moved=delta.x!=0||delta.y!=0;
             for(std::size_t i=0;i<count&&navigation.Choosing();++i) {
                 const auto& option=entry->choices[i];const bool selected=i==navigation.ChoiceIndex();
                 ImGui::PushID(static_cast<int>(i));
-                ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(selected));
+                ImGui::PushStyleColor(ImGuiCol_Button,ButtonGround(selected));
                 ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2(.03f,.5f));
-                const float width=ImGui::GetContentRegionAvail().x,room=width-2*ImGui::GetStyle().FramePadding.x;
+                if(i%columns)ImGui::SameLine();
+                const float full=ImGui::GetWindowContentRegionMax().x-ImGui::GetWindowContentRegionMin().x;
+                const float width=(full-ImGui::GetStyle().ItemSpacing.x*(columns-1))/columns,room=width-2*ImGui::GetStyle().FramePadding.x;
                 if(ImGui::Button((FitLabel(option.label,room)+"###Option").c_str(),ImVec2(width,row))) action=navigation.Pick(i,entries);
                 else if(moved&&ImGui::IsItemHovered()) navigation.ChoiceIndex(i);
+                V2Mark(selected);
                 if(selected&&(appearing||lastChoice_!=i)) ImGui::SetScrollHereY(.5f);
                 ImGui::PopStyleVar();ImGui::PopStyleColor();
                 const auto measured=ImGui::CalcTextSize(option.label.c_str());

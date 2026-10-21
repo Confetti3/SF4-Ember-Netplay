@@ -6587,6 +6587,18 @@ msgstr "V2 (aperçu)"
 msgid "settings.look_detail"
 msgstr "La nouvelle apparence d'Ember, encore en construction. Vous pouvez revenir en arrière à tout moment : seul l'aspect des écrans change."
 
+msgid "settings.picture_corner"
+msgstr "Coin de l'image"
+
+msgid "settings.picture_corner_detail"
+msgstr "Le coin où se trouve l'image de la partie regardée. À la souris, vous pouvez aussi la faire glisser vers un autre coin."
+
+msgid "settings.picture_size"
+msgstr "Taille de l'image"
+
+msgid "settings.picture_size_detail"
+msgstr "La taille de l'image de la partie regardée. À la souris, vous pouvez aussi tirer sa poignée."
+
 msgid "settings.tab.player"
 msgstr "Joueur"
 

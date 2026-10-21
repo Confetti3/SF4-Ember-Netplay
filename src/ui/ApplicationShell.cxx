@@ -12,6 +12,7 @@
 #include "SignInSites.hxx"
 #include "RoomControls.hxx"
 #include "V2.hxx"
+#include "WatchedPicture.hxx"
 #include "VersionLine.hxx"
 #include "../session/TrainingCall.hxx"
 #include "../common/FighterCatalog.hxx"
@@ -320,6 +321,13 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
    Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences),
    Value("watched-picture",loc::T("settings.watched_picture"),preferences_.watchedPicture?loc::T("common.on"):loc::T("common.off"),loc::T("settings.watched_picture_detail"),v.canEditPreferences)};
+  // Where the picture sits and how big, in the V2 look (which also drags it there).
+  if(v2::On()){
+   const int corners[]={4,3,2,1};const char* sizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
+   const bool shown=v.canEditPreferences&&preferences_.watchedPicture;
+   rows.push_back(Value("picture-corner",loc::T("settings.picture_corner"),MatchStripAnchorName(corners[preferences_.pictureSpot%4]),loc::T("settings.picture_corner_detail"),shown));
+   rows.push_back(Value("picture-size",loc::T("settings.picture_size"),sizes[preferences_.pictureSpot/4],loc::T("settings.picture_size_detail"),shown));
+  }
  }else if(screen=="discord"){
   title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
    Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
@@ -570,6 +578,8 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="class-emblems")preferences_.classEmblems=a.delta>0;
   else if(a.id=="look")preferences_.lookV2=a.delta>0;
+  else if(a.id=="picture-corner")preferences_.pictureSpot=preferences_.pictureSpot/4*4+(preferences_.pictureSpot%4+4+a.delta)%4;
+  else if(a.id=="picture-size")preferences_.pictureSpot=preferences_.pictureSpot%4+4*(std::max)(0,(std::min)(2,preferences_.pictureSpot/4+a.delta));
   else if(a.id=="watched-picture")preferences_.watchedPicture=a.delta>0;
   else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
   else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
@@ -642,21 +652,6 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  identity_.Hidden(v,submit,ImGui::GetTime());
 }
 
-// The watched game's picture in a small window of its own in the top right
-// corner: over the menu's panels there, under its dialogs. It takes the
-// mouse, so the rows it hides are never hovered or clicked through it; NoNav
-// keeps the pad and keys off it (the shell's navigation is its own anyway).
-static void DrawWatchedPicture(ImTextureID picture) {
- const auto* vp=ImGui::GetMainViewport();
- ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x-16*Scale(),vp->Pos.y+16*Scale()),ImGuiCond_Always,ImVec2(1,0));
- ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(0,0));ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,1);
- if(ImGui::Begin("Watched game",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoNav|ImGuiWindowFlags_NoSavedSettings|
-  ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoFocusOnAppearing|ImGuiWindowFlags_NoBringToFrontOnFocus)){
-  ImGui::Image(picture,ImVec2(vp->Size.x*WatchedPictureShare,vp->Size.y*WatchedPictureShare));
-  if(!ImGui::IsPopupOpen("",ImGuiPopupFlags_AnyPopupId))ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
- }
- ImGui::End();ImGui::PopStyleVar(2);
-}
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
  boardDrawn_=false;selectionDrawn_=false;
@@ -803,7 +798,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
- if(v.watchedPicture)DrawWatchedPicture(v.watchedPicture);
+ if(v.watchedPicture&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
