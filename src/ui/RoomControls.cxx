@@ -48,11 +48,14 @@ const char* LeaveBlockerKey(room::SeatHold hold) {
     default: return "room.leave_seat.finish_first";
     }
 }
-bool TerminalFenced(const room::Snapshot& snapshot, room::ActionKind kind, std::size_t table) {
+bool TerminalFenced(const ShellView& v, room::ActionKind kind, std::size_t table) {
     if (kind != room::ActionKind::Queue && kind != room::ActionKind::Watch &&
         kind != room::ActionKind::Ready && kind != room::ActionKind::Unready) return false;
-    return snapshot.localTerminalPending ||
-        (table < snapshot.terminalPending.size() && snapshot.terminalPending[table]);
+    // Unready of a press the runtime still holds is withdrawn there and never
+    // reaches the room, so it does not wait for the last game to close.
+    if (kind == room::ActionKind::Unready && v.readyPress == netplay::ReadyPress::Held) return false;
+    return v.room.localTerminalPending ||
+        (table < v.room.terminalPending.size() && v.room.terminalPending[table]);
 }
 const char* TerminalPendingReason() {
     return loc::T("room.terminal_pending");
@@ -85,7 +88,7 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
         const auto* option = FindSeatOption(id);
         MenuChoice choice{id, loc::T(option->label), loc::T(option->detail) + WatchingNote(v, option->kind)};
         if (!RoomTakesNow(v, option->kind, t.id)) { choice.enabled = false; choice.detail = RoomWaitReason(v); }
-        else if (TerminalFenced(v.room, option->kind, t.id)) { choice.enabled = false; choice.detail = TerminalPendingReason(); }
+        else if (TerminalFenced(v, option->kind, t.id)) { choice.enabled = false; choice.detail = TerminalPendingReason(); }
         choices.push_back(std::move(choice));
     }
     choices.push_back({"options", loc::T("room.legend_options"), loc::T("room.table_options")});
@@ -147,16 +150,18 @@ std::string LeavingCostText(const room::LeavingCost& cost, const room::Table& t)
 ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     using room::TablePhase;
     ReadyControl control;
-    if (seat >= 0 && seat < 2 && room::ReadyCancellable(t, seat)) {
+    // A Ready the runtime still holds is taken back the same way.
+    if (seat >= 0 && seat < 2 && (room::ReadyCancellable(t, seat) || v.readyPress == netplay::ReadyPress::Held)) {
         control.label = loc::T("room.unready");
-        control.detail = t.spectatorHold ? HoldText(v, t) + " " + loc::T("room.hold.cancel_detail") : std::string(loc::T("room.ready.cancel_detail"));
+        control.detail = t.spectatorHold ? HoldText(v, t) + " " + loc::T("room.hold.cancel_detail") :
+            std::string(loc::T(t.ready[seat] ? "room.ready.cancel_detail" : "room.ready.locking"));
         if (RoomActionsAvailable(v)) control.kind = ReadyControl::Unready;
         else control.refusal = RoomWaitReason(v);
         return control;
     }
     // An in-flight Ready already says so on the control, so a second press
     // needs no refusal of its own.
-    if (v.readyRequested) { control.label = loc::T("room.readying"); control.detail = loc::T("room.ready.locking"); return control; }
+    if (v.readyPress == netplay::ReadyPress::Sent) { control.label = loc::T("room.readying"); control.detail = loc::T("room.ready.locking"); return control; }
     const bool postMatch = v.session.match == netplay::MatchState::PostMatch;
     const bool finishedGame = t.phase == TablePhase::Playing && postMatch;
     control.label = loc::T(t.phase == TablePhase::Paused ? "room.phase.unresolved" : t.phase == TablePhase::Ready ? "room.preparing_match" :
@@ -267,7 +272,7 @@ std::string SelectionBlocker(const ShellView& v) {
         const auto hold = room::ChangingFighterHold(t, place.seat, PostMatch(v));
         if (active && !mutableRoom && !RoomCheckpointPending(v)) return RoomWaitReason(v);
         if (hold == room::SeatHold::UnreadyFirst) return loc::T(ChangeBlockerKey(hold));
-        if (active && TerminalFenced(s, room::ActionKind::Ready, place.table)) return TerminalPendingReason();
+        if (active && TerminalFenced(v, room::ActionKind::Ready, place.table)) return TerminalPendingReason();
         if (hold != room::SeatHold::None) return loc::T(ChangeBlockerKey(hold));
     }
     if (!mutableRoom) return RoomWaitReason(v);

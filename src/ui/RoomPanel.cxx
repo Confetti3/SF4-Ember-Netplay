@@ -113,9 +113,9 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     if (action.kind == room::ActionKind::Unwatch && LeavesWatchedGame(view, action.table)) return LeaveWatchedGame(view, submit);
     const auto mine = room::PlaceOf(view.room, view.room.localMember);
     const auto& table = view.room.tables[action.table];
-    if (TerminalFenced(view.room, action.kind, action.table)) {
+    if (TerminalFenced(view, action.kind, action.table)) {
         Refuse(TerminalPendingReason(), [kind = action.kind, index = action.table](const ShellView& now) {
-            return TerminalFenced(now.room, kind, index);
+            return TerminalFenced(now, kind, index);
         });
         return false;
     }
@@ -433,7 +433,7 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
     // Enablement asks the same fence SendRoom dispatches through, so the row
     // and the dispatch guard cannot drift apart.
     const auto tableRow=[&](room::ActionKind kind,const char* id,const char* label){
-     const bool fenced=TerminalFenced(s,kind,selectedTable_);
+     const bool fenced=TerminalFenced(v,kind,selectedTable_);
      rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():reason)+WatchingNote(v,kind),mutableRoom&&!elsewhere&&!fenced));
     };
     if(!boundTable)tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",

@@ -139,9 +139,9 @@ struct ShellView {
     std::string hintFighter, hintAppearance, hintUltra;
     bool ultraSteps = false, colorSteps = false;
     std::string selectionLockReason;
-    // A Ready press in flight (parked, sent or awaiting commit), and the
-    // last failure with a sequence that changes per occurrence.
-    bool readyRequested = false;
+    // A Ready press in flight, and the last failure with a sequence that
+    // changes per occurrence.
+    netplay::ReadyPress readyPress = netplay::ReadyPress::None;
     std::string readyFailure;
     std::uint64_t readyFailureSequence = 0;
     // The fighter the opponent changed to since the player last readied

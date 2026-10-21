@@ -261,6 +261,13 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		// one retried after this press would undo it (Queue, then Unqueue).
 		if (attempt == Attempt::Fresh) RoomActionIntent(command).Clear();
 		const auto action = command.roomAction.kind;
+		// Unready takes back the player's Ready; one still parked here, which
+		// the room never had, needs no message.
+		if (action == room::ActionKind::Unready) {
+			const bool parked = runtime->readyIntent.Parked();
+			runtime->readyIntent.Clear();
+			if (parked) return DispatchOutcome::Dispatched;
+		}
 		const bool changingTable = action == room::ActionKind::Queue || action == room::ActionKind::Unqueue ||
 			action == room::ActionKind::Watch || action == room::ActionKind::Unwatch;
 		if (changingTable && Game::Battle::System::ggpo) {
@@ -392,8 +399,6 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		}
 		return DispatchOutcome::Dropped;
 	}
-	if (kind == netplay::CommandKind::RoomAction && command.roomAction.kind == room::ActionKind::Unready)
-		runtime->readyIntent.Clear();
     if (command.discordRevision) {
         if (kind == netplay::CommandKind::JoinInvite) runtime->discordInvite.Cancel();
         else if (kind == netplay::CommandKind::LeaveRoom) runtime->discordInvite.LeaveQueued();
