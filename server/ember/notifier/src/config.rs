@@ -44,6 +44,16 @@ pub struct Brackets {
     pub base: String,
     /// The site's bot token, or `env:NAME`.
     pub token: String,
+    /// Post each live tournament's news (the site's feed) to the Discord
+    /// channel webhook, at most one message every `feed_secs`.
+    #[serde(default)]
+    pub feed: bool,
+    #[serde(default = "default_feed_secs")]
+    pub feed_secs: u64,
+}
+
+fn default_feed_secs() -> u64 {
+    60
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

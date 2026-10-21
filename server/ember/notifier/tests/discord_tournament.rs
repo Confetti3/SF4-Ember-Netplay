@@ -28,6 +28,8 @@ async fn serve(site: &Mock, discord: &Mock) -> String {
     config.brackets = Some(Brackets {
         base: site.origin.clone(),
         token: "site-bot-token".into(),
+        feed: false,
+        feed_secs: 60,
     });
     config.discord = Some(Discord {
         webhook_url: None,
@@ -252,4 +254,57 @@ async fn only_managers_and_its_organizers_post_a_tournament() {
         .map(|request| request.body["content"].clone())
         .collect();
     assert_eq!(notes.last().unwrap(), "Posted.");
+}
+
+#[tokio::test]
+async fn a_live_tournaments_news_is_posted_once_as_one_message() {
+    let site = Mock::start(|request| match request.path.as_str() {
+        "/live" => (200, json!({ "tournaments": [{ "id": "weekly", "last": 2 }, { "id": "quiet", "last": 0 }] }).to_string()),
+        _ if request.path.starts_with("/tournaments/weekly/feed") => (
+            200,
+            json!({ "items": [{ "n": 1, "text": "Semifinals: P3 beats P2 2-1." }, { "n": 2, "text": "Upset: seed 3 *P3* knocks out seed 2." }] }).to_string(),
+        ),
+        _ => (404, "{}".into()),
+    })
+    .await;
+    let discord = Mock::start(|_| (200, "{}".into())).await;
+    let mut config = base_config("feed");
+    config.discord = Some(Discord {
+        webhook_url: Some(format!("{}/hook", discord.origin)),
+        username: "Ember".into(),
+        interactions: None,
+    });
+    config.brackets = Some(Brackets {
+        base: site.origin.clone(),
+        token: "site-bot-token".into(),
+        feed: true,
+        feed_secs: 3600,
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let (_, tasks) = notifier(config.clone()).start(listener).unwrap();
+    let posted = discord.wait_for(Method::POST, "/hook").await;
+    assert_eq!(
+        posted.body["content"],
+        "Semifinals: P3 beats P2 2-1.\nUpset: seed 3 \\*P3\\* knocks out seed 2."
+    );
+    assert_eq!(posted.body["allowed_mentions"], json!({ "parse": [] }));
+    // Its answer is read, and what was posted kept, a moment after it arrives.
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(
+        site.requests()
+            .iter()
+            .all(|request| !request.path.contains("quiet")),
+        "nothing new there"
+    );
+    for task in tasks {
+        task.abort();
+    }
+    // Started again on the same database: nothing is posted twice.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let (_, tasks) = notifier(config).start(listener).unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    assert_eq!(discord.requests().len(), 1);
+    for task in tasks {
+        task.abort();
+    }
 }

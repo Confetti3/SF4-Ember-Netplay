@@ -17,6 +17,7 @@ mod bridge;
 mod config;
 mod discord;
 mod eventsub;
+mod feed;
 mod format;
 mod inbox;
 mod interactions;
@@ -116,7 +117,8 @@ impl Notifier {
                  id TEXT PRIMARY KEY, type TEXT NOT NULL, body BLOB NOT NULL, received_at INTEGER NOT NULL,
                  discord_done INTEGER NOT NULL, twitch_done INTEGER NOT NULL,
                  attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL, last_error TEXT);
-             CREATE TABLE IF NOT EXISTS matches (id TEXT PRIMARY KEY, label TEXT NOT NULL);",
+             CREATE TABLE IF NOT EXISTS matches (id TEXT PRIMARY KEY, label TEXT NOT NULL);
+             CREATE TABLE IF NOT EXISTS feeds (tournament TEXT PRIMARY KEY, posted INTEGER NOT NULL);",
         )
         .map_err(|error| format!("cannot prepare database: {error}"))?;
         let bridge = config
@@ -171,6 +173,9 @@ impl Notifier {
         let mut tasks = vec![server, tokio::spawn(self.clone().run())];
         if self.twitch_room_enabled() {
             tasks.push(tokio::spawn(self.clone().eventsub()));
+        }
+        if self.follows_feeds() {
+            tasks.push(tokio::spawn(self.clone().follow_feeds()));
         }
         Ok((address, tasks))
     }

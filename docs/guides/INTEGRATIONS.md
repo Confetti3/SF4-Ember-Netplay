@@ -1269,6 +1269,12 @@ acts for whoever pressed it. A player whose Discord is not connected in
 Ember yet is signed up all the same and told to connect it before the
 start (docs/design/BRACKET_SITE.md).
 
+With `"feed": true` in `brackets` (and a channel `webhook_url`), the
+notifier also posts each live tournament's news to that channel: every
+`feed_secs` (default 60) it reads the site's `/live` list and each
+tournament's feed past what it posted, and posts what is new as one
+message, without pings. What it posted is kept in its database.
+
 ### Twitch `!room`
 
 With `twitch.room_creator` (the streamer's linked player on the connection)
