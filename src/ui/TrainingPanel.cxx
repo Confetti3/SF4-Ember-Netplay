@@ -253,20 +253,21 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
 }
 }
 void SetTrainingDirectory(std::wstring directory) { if(lab.directory.empty()) lab.directory=std::move(directory); }
-void TrainingPadPosition(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvent& pad) {
+void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& submit,input::TrainingControls& controls,const input::TrainingPadEvent& pad,bool called) {
     if(!view.available||pad.generation!=view.generation) return;
     using Kind=input::TrainingPadEvent::Kind;
     LoadPractice();
-    if(pad.kind==Kind::Save) {
+    switch(pad.kind) {
+    case Kind::Save: {
         Command place; place.action=Action::Place; place.generation=pad.generation; place.place[0]=pad.place[0]; place.place[1]=pad.place[1];
         if(submit) submit(place);
         SavePosition(view,submit);
+        break;
     }
-    else if(pad.kind==Kind::Reset) ResetPosition(view,submit);
-    // The chord on standby (TrainingPadInput): the recording starts, as F7's second press starts it.
-    else if(pad.kind==Kind::Advance) {
-        Command advance; advance.action=Action::AdvanceRecording; advance.generation=pad.generation;
-        if(!submit||!submit(advance)) Notice(loc::T("training.command_rejected"),true);
+    case Kind::Reset: ResetPosition(view,submit); break;
+    // Decided as each is applied, as the keys are: a press from before the controls opened or a call came does nothing.
+    case Kind::Record: if(TrainingPressesAct(controls,called)) TrainingRecordPress(view,submit,{pad.epoch,true}); break;
+    case Kind::Play: if(TrainingPressesAct(controls,called)) TrainingPlayPress(view,submit); break;
     }
 }
 void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
@@ -288,6 +289,9 @@ std::string TrainingKeyName(int fromF1) { return "F"+std::to_string(fromF1+1); }
 gamepads::PositionNames TrainingPadNames() {
     return gamepads::ButtonPositionNames(MenuPromptDevice()==input::PadDirectInput?input::PadDirectInput:input::PadXInput,MenuPromptBrand());
 }
+namespace { input::TrainingButtons padButtons; }
+void SetTrainingPadButtons(const input::TrainingButtons& buttons) { padButtons=buttons; }
+const input::TrainingButtons& TrainingPadButtons() { return padButtons; }
 std::string TrainingPadChord() { const auto names=TrainingPadNames(); return std::string(names.view)+" + "+names.start; }
 void DrawTrainingBoxes(const training::View& view) {
     LoadPractice();
@@ -385,6 +389,25 @@ bool OpenTrainingRecordings(input::TrainingControls& controls, const input::Trai
  if(!controls.Open(token)) return false;
  showRecordings=true;
  return true;
+}
+// The last Record sent and the owner it was pressed under: an overwrite
+// question the session asks for it opens under that owner, or not at all.
+namespace { struct PendingRecord { std::uint64_t id=0; input::TrainingControls::Token token; } pendingRecord; }
+void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit,const input::TrainingControls::Token& token) {
+ // The session decides as it runs: standby, then record, then stop, or from
+ // rest on a recorded slot it asks about overwriting it (TakeOverwriteAsk).
+ Command record; record.action=Action::Record; record.generation=view.generation; record.requestId=nextRequest++;
+ if(!submit||!submit(record)) { Notice(loc::T("training.command_rejected"),true); return; }
+ pendingRecord={record.requestId,token};
+}
+bool TakeOverwriteAsk(const training::View& view,input::TrainingControls::Token& token) {
+ if(!pendingRecord.id||view.overwriteAsk!=pendingRecord.id) return false;
+ token=pendingRecord.token; pendingRecord={};
+ return true;
+}
+void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit) {
+ Command command; command.action=Action::AdvancePlayback; command.generation=view.generation;
+ if(!submit||!submit(command)) Notice(loc::T("training.command_rejected"),true);
 }
 void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit) {
     if(!view.available)return;

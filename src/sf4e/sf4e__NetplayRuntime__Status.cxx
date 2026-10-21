@@ -485,6 +485,7 @@ PostPublishState Publish() {
         sample.menu = MenuButtonsFor(sample.deviceType, sample.deviceIndex);
         sample.buttons = sample.connected ? ui::ControllerButtons(held,sample.deviceType,physical,sample.menu) : 0;
     }
+    snapshot.trainingButtons = TrainingButtonsFor(snapshot.inputDevice.type, snapshot.inputDevice.index);
     snapshot.canEditSelection = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle;
 	snapshot.canOpenRoom = snapshot.controllerReady && snapshot.helperReady && snapshot.atMainMenu && !UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
 	snapshot.canReplaceRoom = CanBeginReplacement();

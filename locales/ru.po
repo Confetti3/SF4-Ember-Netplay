@@ -4536,6 +4536,9 @@ msgstr "Соперник: {0}. Вы игрок {1}."
 msgid "tournament.play"
 msgstr "Играть"
 
+msgid "tournament.play_round"
+msgstr "Играть: {0}"
+
 msgid "tournament.play_detail"
 msgstr "Открывает лобби этого матча или входит в него. Результат каждого боя сам отправляется в турнирный сервис."
 
@@ -4597,7 +4600,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Скопируйте ссылку на матч на сайте турнира и выберите этот пункт, чтобы открыть матч здесь."
 
 msgid "tournament.link_opened"
-msgstr "Сайт турнира открыл матч. Нажмите «Играть», когда будете готовы."
+msgstr "Сайт турнира открыл ваш матч. Ember войдёт в его лобби, как только сможет."
 
 msgid "tournament.assigned_notice"
 msgstr "Для вас готов турнирный матч. Откройте «Учётная запись Ember», затем «Турнирные матчи»."
@@ -6011,6 +6014,36 @@ msgstr "{0} теперь работает как {1}."
 
 msgid "button_layout.extra_off"
 msgstr "{0} теперь ничего не делает."
+
+msgid "button_layout.copy_view_detail"
+msgstr "В тренировке короткое нажатие сбрасывает позицию, а удержание сохраняет её, как «Назад»."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Ставит бой на паузу и открывает Ember в главном меню, как Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} пока не копирует ни одну кнопку. Выберите её в строке ниже, затем нажмите здесь."
+
+msgid "button_layout.training_record"
+msgstr "Запись в тренировке"
+
+msgid "button_layout.training_play"
+msgstr "Пуск в тренировке"
+
+msgid "button_layout.training_record_detail"
+msgstr "Выберите, затем нажмите кнопку, которая в тренировке начинает и останавливает запись, как F7. В тренировке эта кнопка только записывает; в боях она сохраняет свою атаку."
+
+msgid "button_layout.training_play_detail"
+msgstr "Выберите, затем нажмите кнопку, которая в тренировке запускает и останавливает выбранный слот, как F8. В тренировке эта кнопка только запускает; в боях она сохраняет свою атаку."
+
+msgid "button_layout.training_clear"
+msgstr "Сбросить кнопки тренировки"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Отключает кнопки записи и пуска в тренировке."
+
+msgid "button_layout.training_cleared"
+msgstr "Кнопки тренировки отключены."
 
 msgid "room.delay_policy"
 msgstr "Задержка ввода в лобби"

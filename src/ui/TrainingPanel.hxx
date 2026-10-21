@@ -18,6 +18,16 @@ void DrawTrainingFlyout(const training::View& view, const TrainingSubmit& submit
 // asking before the slot is overwritten. Refused (the focus period ended),
 // it changes nothing and leaves no request for a later opening.
 bool OpenTrainingRecordings(input::TrainingControls& controls, const input::TrainingControls::Token& token);
+// The press of Record (F7, or the pad button the player bound) and of Play
+// (F8, or its button): the keys and the pad send the same command, which the
+// session resolves as it stands when it runs (Action::Record, AdvancePlayback).
+// token: the owner the Record press went down under (TakeOverwriteAsk).
+void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit,const input::TrainingControls::Token& token);
+// Whether the session asked about overwriting a recorded slot for the last
+// Record sent (View::overwriteAsk), once; token is then that press's owner,
+// under which the overlay opens the recordings, or nothing once it has gone.
+bool TakeOverwriteAsk(const training::View& view,input::TrainingControls::Token& token);
+void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit);
 // Where the lab keeps the dummy's reply and the hotkeys (training.json) and
 // the saved recordings. Until this is set they live in memory only, which is
 // what the render tests want.
@@ -25,10 +35,16 @@ void SetTrainingDirectory(std::wstring directory);
 // Reset position and save position on keys the player picks (F2 and F11 at
 // first), over the fight or the controls. Also sends the dummy's plan each battle.
 void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit);
-// The pad's Back (TrainingPad.hxx): a tap resets the position, a hold saves
-// where the fighters stood as it went down, and with Start on standby it starts
-// the recording. For the battle it was pressed in only.
-void TrainingPadPosition(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvent& pad);
+// Whether Record and Play, by key or pad, may act now: not while the controls
+// are open, nor while a room calls the player back (TRAINING_IN_ROOMS.md),
+// where the controls stay shut.
+inline bool TrainingPressesAct(const input::TrainingControls& controls,bool called) { return !controls.Open()&&!called; }
+// What the pad asked for (TrainingPad.hxx), for the battle it was pressed in
+// only: Back's tap resets the position and its hold saves where the fighters
+// stood as it went down; Record (the chord on standby, or the player's own
+// button) and Play do what F7 and F8 do, under the focus period they went down
+// in, when TrainingPressesAct as each is applied.
+void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& submit,input::TrainingControls& controls,const input::TrainingPadEvent& pad,bool called);
 // Whether a hotkey sits on the key that many after F1, so the game is not given it.
 bool TrainingHotkeyBound(int fromF1);
 // The keys that record and play a slot, and stop either again, counted from
@@ -40,6 +56,11 @@ std::string TrainingKeyName(int fromF1);
 // DirectInput pad is in use), and the two as the chord that, on standby,
 // starts a recording (TrainingPadInput).
 gamepads::PositionNames TrainingPadNames();
+// The gameplay pad's own Record and Play buttons as the runtime resolves them
+// (masks and names; none for one that is off or does not work). The overlay
+// sets them each frame for the strip of hints.
+void SetTrainingPadButtons(const input::TrainingButtons& buttons);
+const input::TrainingButtons& TrainingPadButtons();
 std::string TrainingPadChord();
 // The position hotkeys as the HUD's strip names them: reset then save, each
 // with its key and a short locale key for what it does; a hotkey set to Off

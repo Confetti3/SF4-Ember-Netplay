@@ -4,6 +4,7 @@
 #include "../common/XInputMapping.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "test_support.hxx"
+#include <algorithm>
 #include <cstring>
 
 using namespace sf4e::gamepads;
@@ -79,7 +80,7 @@ static void ExtraButtons() {
     json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
     CHECK(read(json) == std::vector<StoredLayout>{layout});
     // Any bad copy or a bad list turns every extra button off. The layout still loads.
-    json["buttonLayouts"][0]["extraButtons"][0] = 10;
+    json["buttonLayouts"][0]["extraButtons"][0] = CopyTargetCount;
     CHECK(read(json).at(0).extras == NoExtraCopies);
     json["buttonLayouts"][0]["extraButtons"][0] = 1.5;
     CHECK(read(json).at(0).extras == NoExtraCopies);
@@ -88,7 +89,7 @@ static void ExtraButtons() {
     json["buttonLayouts"][0]["extraButtons"] = "touchpad";
     CHECK(read(json).at(0).extras == NoExtraCopies && rejected == 0);
     sf4e::netplay::PlayerPreferences prefs; prefs.buttonLayouts = {layout}; CHECK(prefs.Valid());
-    prefs.buttonLayouts[0].extras[1] = 10; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].extras[1] = CopyTargetCount; CHECK(!prefs.Valid());
     prefs.buttonLayouts[0].extras[1] = -2; CHECK(!prefs.Valid());
     // A copy of a button the pad lacks copies nothing.
     auto listed = AllLayoutButtons; listed[2] = false;
@@ -114,6 +115,58 @@ static void ExtraButtons() {
     }
     state = {}; state.extras[static_cast<unsigned>(Extra::Home)] = true; copies = NoExtraCopies; copies[static_cast<unsigned>(Extra::Home)] = 6;
     CHECK(MapToXInput(WithExtraCopies(state, copies)).leftTrigger == 255);
+    // View and Start are copies too, whatever the pad lists, and survive a save.
+    copies = NoExtraCopies; copies[static_cast<unsigned>(Extra::Touchpad)] = CopiesView; copies[static_cast<unsigned>(Extra::Home)] = CopiesStart;
+    state = {}; state.extras[static_cast<unsigned>(Extra::Touchpad)] = true; state.extras[static_cast<unsigned>(Extra::Home)] = true;
+    CHECK(MapToXInput(WithExtraCopies(state, copies)).buttons == (0x0020 | 0x0010));
+    CHECK(CopiedButton(copies, 0, listed) == static_cast<unsigned>(CopiesView) && CopiedButton(copies, 1, listed) == static_cast<unsigned>(CopiesStart));
+    CHECK(!std::strcmp(CopyTargetGlyph(CopiesView), "View") && !std::strcmp(CopyTargetGlyph(CopiesStart), "Start") && !std::strcmp(CopyTargetGlyph(2), "X"));
+    layout.extras = copies; json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
+    CHECK(read(json).at(0).extras == copies);
+}
+static void TrainingButtons() {
+    // A layout saved before Training buttons existed loads with both off.
+    unsigned rejected = 0;
+    const auto read = [&](const nlohmann::json& json) { return ReadLayouts(json, [&](unsigned, LayoutLoadError) { ++rejected; }); };
+    const auto training = [](const StoredLayout& layout) { return std::make_pair(layout.bound[TrainingRecordButton], layout.bound[TrainingPlayButton]); };
+    const auto off = std::make_pair(-1, -1);
+    StoredLayout layout{Pad(1), DefaultLayout, 5};
+    auto json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
+    json["buttonLayouts"][0].erase("trainingRecord"); json["buttonLayouts"][0].erase("trainingPlay");
+    CHECK(training(read(json).at(0)) == off && rejected == 0);
+    layout.bound[TrainingRecordButton] = 9; layout.bound[TrainingPlayButton] = 8; layout.bound[MenuConfirmButton] = 2;
+    json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
+    CHECK(read(json) == std::vector<StoredLayout>{layout});
+    // An index out of range, or one button for both, turns the pair off and
+    // leaves the menu pair alone; a value that is no integer is that button off.
+    // The layout still loads.
+    json["buttonLayouts"][0]["trainingRecord"] = 10;
+    CHECK(training(read(json).at(0)) == off && read(json).at(0).bound[MenuConfirmButton] == 2);
+    json["buttonLayouts"][0]["trainingRecord"] = 1.5;
+    CHECK(training(read(json).at(0)) == std::make_pair(-1, 8));
+    json["buttonLayouts"][0]["trainingRecord"] = 8;
+    CHECK(training(read(json).at(0)) == off);
+    json["buttonLayouts"][0]["trainingRecord"] = "RS";
+    CHECK(training(read(json).at(0)) == std::make_pair(-1, 8) && rejected == 0);
+    // A menu button and a Training button may share one: only partners may not.
+    json["buttonLayouts"][0]["trainingRecord"] = 2;
+    CHECK(training(read(json).at(0)) == std::make_pair(2, 8));
+    sf4e::netplay::PlayerPreferences prefs; prefs.buttonLayouts = {layout}; CHECK(prefs.Valid());
+    const auto set = [&](int record, int play) { prefs.buttonLayouts[0].bound[TrainingRecordButton] = record; prefs.buttonLayouts[0].bound[TrainingPlayButton] = play; };
+    set(8, 8); CHECK(!prefs.Valid());
+    set(10, -1); CHECK(!prefs.Valid());
+    set(-1, -2); CHECK(!prefs.Valid());
+    set(-1, -1); CHECK(prefs.Valid());
+    // The stick clicks are bits 24 and 25; none for no button or one the pad lacks.
+    CHECK(LayoutButtonMask(8) == 0x1000000u && LayoutButtonMask(9) == 0x2000000u && LayoutButtonMask(-1) == 0);
+    auto listed = AllLayoutButtons; listed[8] = false;
+    CHECK(LayoutButtonMask(8, listed) == 0);
+    // Offline Training's table: the Training buttons do nothing in the fight
+    // there, whatever the layout gives them; the menu buttons and the rest keep theirs.
+    auto bound = NoBoundButtons; bound[TrainingRecordButton] = 8; bound[TrainingPlayButton] = 9; bound[MenuConfirmButton] = 2;
+    auto table = DefaultLayout; table[8] = 0x430; table[9] = 0x8C0;
+    auto expected = table; expected[8] = expected[9] = 0;
+    CHECK(TrainingTable(table, bound) == expected && TrainingTable(table, NoBoundButtons) == table);
 }
 static void Writer() {
     alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 6> memory;
@@ -237,4 +290,4 @@ static void Capture() {
     capture.Begin(0, {}); CHECK(capture.Left(0) == 1 && capture.Left(2.5) == .75 && capture.Left(12) == 0);
     CHECK(capture.Read(10, {}, AllLayoutButtons).cancelled == LayoutCancel::Timeout && capture.Left(10) == 0);
 }
-int main() { Model(); Persistence(); ExtraButtons(); Writer(); Reload(); ReloadEqual(); Capture(); }
+int main() { Model(); Persistence(); ExtraButtons(); TrainingButtons(); Writer(); Reload(); ReloadEqual(); Capture(); }

@@ -125,7 +125,7 @@ void CaptureMenuInput() {
     for (auto& pad : runtime->pads) {
         if (pad.state == gamepads::RowState::Absent) {
             const auto match = std::find_if(runtime->preferences.buttonLayouts.begin(), runtime->preferences.buttonLayouts.end(), [&](const gamepads::StoredLayout& layout) { return gamepads::Same(layout.identity, pad.identity); });
-            if (match != runtime->preferences.buttonLayouts.end()) { pad.layout = match->buttons; pad.table = match->buttons; pad.menu = match->menu; pad.extras = match->extras; }
+            if (match != runtime->preferences.buttonLayouts.end()) { pad.layout = match->buttons; pad.table = match->buttons; pad.bound = match->bound; pad.extras = match->extras; }
         }
         pad.buttonNames = ui::LayoutButtonNames(pad, runtime->preferences.buttonPrompts);
         if (pad.name.empty() && pad.state == gamepads::RowState::Steam) pad.name = loc::T("controllers.steam_name");
@@ -161,17 +161,39 @@ bool CanChooseControllerNow() {
         !current.readyPending && (current.match == netplay::MatchState::None || current.match == netplay::MatchState::PostMatch);
 }
 
+namespace {
+// The pad the layer serves on an XInput slot: only such a pad carries an Ember
+// layout, and so bound buttons. Null for any other device.
+const gamepads::PadView* LayerPad(int deviceType, int deviceIndex) {
+    const auto pad = std::find_if(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) {
+        return deviceType == input::PadXInput && pad.slot == deviceIndex &&
+            (pad.state == gamepads::RowState::Recognised || pad.state == gamepads::RowState::Steam);
+    });
+    return pad == runtime->pads.end() ? nullptr : &*pad;
+}
+}
+
 input::MenuButtons MenuButtonsFor(int deviceType, int deviceIndex) {
     if (deviceType != input::PadXInput) return Dimps::Pad::MenuButtons(deviceType, deviceIndex);
     // An XInput pad reads no tables, so A and B unless bound: the game's button
     // screen moves LK and MK in its menu table along with the fight layout.
-    // Only a pad the layer serves carries an Ember layout, and so a binding.
-    const auto pad = std::find_if(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) {
-        return pad.slot == deviceIndex && (pad.state == gamepads::RowState::Recognised || pad.state == gamepads::RowState::Steam);
-    });
-    if (pad == runtime->pads.end()) return input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr);
+    const auto* pad = LayerPad(deviceType, deviceIndex);
+    if (!pad) return input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr);
+    using namespace gamepads;
     return input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr, input::MenuConfirmFunction, input::MenuBackFunction,
-        gamepads::MenuBindingMask(pad->menu.confirm, pad->has), gamepads::MenuBindingMask(pad->menu.back, pad->has));
+        LayoutButtonMask(pad->bound[MenuConfirmButton], pad->has), LayoutButtonMask(pad->bound[MenuBackButton], pad->has));
+}
+
+input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex) {
+    const auto* pad = LayerPad(deviceType, deviceIndex);
+    input::TrainingButtons buttons;
+    if (!pad) return buttons;
+    using namespace gamepads;
+    buttons.record = LayoutButtonMask(pad->bound[TrainingRecordButton], pad->has);
+    buttons.play = LayoutButtonMask(pad->bound[TrainingPlayButton], pad->has);
+    if (buttons.record) buttons.recordName = pad->buttonNames[pad->bound[TrainingRecordButton]];
+    if (buttons.play) buttons.playName = pad->buttonNames[pad->bound[TrainingPlayButton]];
+    return buttons;
 }
 
 bool CanEditButtonLayoutNow() {
@@ -220,9 +242,9 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
         if (!CanEditButtonLayoutNow() || runtime->padLayer != gamepads::Layer::Active ||
             (pad.state != gamepads::RowState::Recognised && pad.state != gamepads::RowState::Steam)) return;
         if (request.kind == Kind::Layout) {
-            if (!gamepads::ValidLayout(request.buttons) || !gamepads::ValidMenuBinding(request.menu) || !gamepads::ValidExtraCopies(request.extras)) return;
+            if (!gamepads::ValidLayout(request.buttons) || !gamepads::ValidBoundButtons(request.bound) || !gamepads::ValidExtraCopies(request.extras)) return;
             const auto dropped = gamepads::UpsertLayout(runtime->preferences.buttonLayouts,
-                {pad.identity, request.buttons, static_cast<std::int64_t>(std::time(nullptr)), request.menu, request.extras});
+                {pad.identity, request.buttons, static_cast<std::int64_t>(std::time(nullptr)), request.bound, request.extras});
             if (dropped) spdlog::info("Input: layout for id {} dropped, oldest of 33", gamepads::IdentityHash(*dropped));
         } else gamepads::RemoveLayout(runtime->preferences.buttonLayouts, pad.identity);
         Gamepads::SetLayouts(runtime->preferences.buttonLayouts);

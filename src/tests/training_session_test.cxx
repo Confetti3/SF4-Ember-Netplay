@@ -169,6 +169,11 @@ int main() {
             for (int i = 0; i < MaxWaitHitFrames + 2; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
             Require(session.Prepare(physical)[0].raw == 0x18, "Waiting for a hit never gave up");
             apply(Action::Stop);
+            // F8 and the pad's Play alternate as the session stands when each runs, however many queue before a frame.
+            Require(session.Apply(timed) && apply(Action::AdvancePlayback) && session.GetView().mode == Mode::Playback, "A Play toggle did not play");
+            Require(apply(Action::AdvancePlayback) && session.GetView().mode == Mode::Idle, "A second Play toggle did not stop");
+            Require(apply(Action::AdvancePlayback) && session.GetView().mode == Mode::Playback, "A third Play toggle did not play again");
+            apply(Action::Stop);
             // With the script predicting the free frame, a link's press lands
             // on that frame plus the offset: before it when negative. A seen
             // free frame still releases it. A hit is never predicted.
@@ -236,6 +241,20 @@ int main() {
         for (int i = 0; i < MaxFrames + 5; ++i) session.Commit(session.Prepare(physical));
         Require(session.GetView().lengths[1] == MaxFrames && session.GetView().mode == Mode::Idle, "Recording limit failed");
         Require(session.GetView().lengths[0] == 2, "Second slot overwrote first");
+        // Record (F7 and the pad's) on the recorded slot asks about
+        // overwriting it, as the session stands when it runs: at rest and
+        // during playback it asks and changes nothing; while recording it
+        // stops, so a second Record queued with it asks rather than recording over.
+        {
+            // Each Record names its request; the ask names the one it was for.
+            const auto record = [&](std::uint64_t id) { Command c{Action::Record, generation}; c.requestId = id; return session.Apply(c); };
+            Require(record(1) && session.GetView().mode == Mode::Idle && session.GetView().overwriteAsk == 1, "Record at rest on a recorded slot did not ask");
+            Require(apply(Action::Play) && record(2) && session.GetView().mode == Mode::Playback && session.GetView().overwriteAsk == 2, "Record during playback did not ask");
+            Require(apply(Action::AdvanceRecording) && record(3) && session.GetView().mode == Mode::Recording && session.GetView().overwriteAsk == 2, "Record on standby did not record");
+            session.Commit(session.Prepare(physical));
+            Require(record(4) && session.GetView().mode == Mode::Idle && session.GetView().lengths[1] == 1 && session.GetView().overwriteAsk == 2 && record(5) &&
+                session.GetView().mode == Mode::Idle && session.GetView().overwriteAsk == 5, "A second queued Record recorded over the slot");
+        }
         Require(session.GetView().history[0].size() <= HistoryRows, "History unbounded");
         session.SetReady(false); Require(!apply(Action::AdvanceRecording), "Loading allowed record");
         session.SetReady(true); session.SetCheckpoint(true);

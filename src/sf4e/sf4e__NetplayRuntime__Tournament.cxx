@@ -324,12 +324,17 @@ void SaySet(std::string text, bool error) {
 	notice.text = std::move(text); notice.error = error; ++notice.count;
 }
 
-void OpenMatchLink(const tournament_link::MatchLink& link) {
+void OpenMatchLink(const tournament_link::MatchLink& link, bool launched) {
 	if (!link.Valid()) return;
 	auto& opened = runtime->openedLink;
 	opened.bridge = link.bridgeId;
 	opened.match = link.matchId;
 	++opened.sequence;
+	// Judged as it arrives: a link clicked during a fight, a room or another
+	// tournament match waits for Play whenever the menu is next opened.
+	runtime->openedLinkFree = launched || (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle &&
+		!UserApp::netplay && !netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase()));
+	runtime->openedLinkArrived = std::chrono::steady_clock::now();
 	spdlog::info("Tournament: a link opened match {}", link.matchId);
 }
 
@@ -502,6 +507,9 @@ netplay::tournament::Status TournamentStatus() {
 	netplay::tournament::Status status;
 	status.list = runtime->assignmentList;
 	status.link = runtime->openedLink;
+	// A match link clicked while free plays its match by itself, for two minutes from its arrival.
+	constexpr std::chrono::seconds MatchLinkDirectWindow{120};
+	status.link.direct = runtime->openedLinkFree && std::chrono::steady_clock::now() - runtime->openedLinkArrived < MatchLinkDirectWindow;
 	status.connect = runtime->openedConnect;
 	status.roomLink = runtime->openedRoomLink;
 	const auto& play = runtime->tournament;

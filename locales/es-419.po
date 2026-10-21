@@ -4053,6 +4053,9 @@ msgstr "Contra {0}. Eres el jugador {1}."
 msgid "tournament.play"
 msgstr "Jugar"
 
+msgid "tournament.play_round"
+msgstr "Jugar {0}"
+
 msgid "tournament.play_detail"
 msgstr "Abre la sala de esta partida o entra en ella. El resultado de cada juego llega solo al servicio de torneos."
 
@@ -4114,7 +4117,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Copia el enlace de la partida en el sitio del torneo y elige esta opción para abrirla aquí."
 
 msgid "tournament.link_opened"
-msgstr "El sitio del torneo abrió una partida. Presiona Jugar cuando estés listo."
+msgstr "El sitio del torneo abrió tu partida. Ember entra en su sala en cuanto pueda."
 
 msgid "tournament.assigned_notice"
 msgstr "Tienes una partida del torneo lista. Abre Ember ID y luego Partidas del torneo."
@@ -5528,6 +5531,36 @@ msgstr "{0} ahora funciona como {1}."
 
 msgid "button_layout.extra_off"
 msgstr "{0} ya no hace nada."
+
+msgid "button_layout.copy_view_detail"
+msgstr "En Práctica, un toque restablece la posición y mantenerlo la guarda, como Atrás."
+
+msgid "button_layout.copy_start_detail"
+msgstr "Pausa un combate y abre Ember en el menú principal, como Start."
+
+msgid "button_layout.extra_uncopied"
+msgstr "{0} todavía no copia ningún botón. Elige uno en su fila de abajo y luego presiónalo aquí."
+
+msgid "button_layout.training_record"
+msgstr "Grabar en Práctica"
+
+msgid "button_layout.training_play"
+msgstr "Reproducir en Práctica"
+
+msgid "button_layout.training_record_detail"
+msgstr "Selecciona y presiona el botón que inicia y detiene una grabación en Práctica, como F7. En Práctica ese botón solo graba; en los combates conserva su ataque."
+
+msgid "button_layout.training_play_detail"
+msgstr "Selecciona y presiona el botón que reproduce y detiene la ranura elegida en Práctica, como F8. En Práctica ese botón solo reproduce; en los combates conserva su ataque."
+
+msgid "button_layout.training_clear"
+msgstr "Borrar botones de Práctica"
+
+msgid "button_layout.training_clear_detail"
+msgstr "Desactiva los botones de grabar y reproducir de Práctica."
+
+msgid "button_layout.training_cleared"
+msgstr "Los botones de Práctica están desactivados."
 
 msgid "room.delay_policy"
 msgstr "Retardo de entrada de la sala"

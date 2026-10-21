@@ -32,9 +32,10 @@ public:
                     else if (pad.type == Type::Unknown || pad.type == Type::Standard) row.name.clear(); // localized by the runtime
                 }
                 row.bindings = frame.bindings; row.numberedHats = frame.numberedHats;
-                row.has = frame.has; row.table = frame.table; row.layout = frame.layout; row.menu = frame.menu;
+                row.has = frame.has; row.table = frame.table; row.layout = frame.layout; row.bound = frame.bound;
                 row.hasExtras = frame.hasExtras; row.extras = frame.extras;
-                row.held = HeldGlyphs(frame.state); row.raw = frame.raw; row.rawAtRest = frame.rawAtRest; row.pressed = frame.pressed;
+                // Held as the game reads it: an extra button also holds what it copies.
+                row.held = HeldGlyphs(WithExtraCopies(frame.state, frame.extras)); row.raw = frame.raw; row.rawAtRest = frame.rawAtRest; row.pressed = frame.pressed;
                 if (row.state == RowState::Unmapped || row.state == RowState::GameRead) {
                     const auto match = [&](const NativeController& n) {
                         return std::find(usedNative.begin(), usedNative.end(), n.index) == usedNative.end() &&
