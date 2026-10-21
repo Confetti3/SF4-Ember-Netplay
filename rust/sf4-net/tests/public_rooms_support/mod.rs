@@ -233,6 +233,7 @@ pub async fn bridge_at(
         rooms: supervisor.map(|supervisor_url| config::Rooms {
             supervisor_url,
             skill_badges: false,
+            developers: Vec::new(),
         }),
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {
