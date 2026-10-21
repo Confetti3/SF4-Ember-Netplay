@@ -195,7 +195,8 @@ bool IsTournamentPlayOp(const std::string& op) {
 	return op == "match_claim" || op == "room_publish" || op == "game_prepare" || op == "game_report" ||
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
-		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board";
+		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
+		op == "replay_send" || op == "replay_archive" || op == "replay_pack";
 }
 
 std::optional<TournamentAnswer> ReadTournamentAnswer(const nlohmann::json& event) {
