@@ -40,6 +40,11 @@ BRACKET_SITE_BRIDGE_CLIENT_SECRET_FILE=/etc/ember-bracket-site/bridge-client.sec
 BRACKET_SITE_BRIDGE_REDIRECT_URI=https://<bridge>/v1/sites/ember-bracket-site/callback \
 ```
 
+`BRACKET_SITE_CONFIG` names a JSON file of these same names, for those not
+in the environment (the environment wins). Under Docker,
+`docker/compose.yml` runs the site with its data, `site.json` and secret
+files in one folder; its header lists them.
+
 The Discord application's redirects must hold
 `<BRACKET_SITE_ORIGIN>/oauth/discord/callback`. Each `_FILE` holds one secret on its first line. The bridge credential is a
 provider credential of a connection with `discord_lookup`: the connector's

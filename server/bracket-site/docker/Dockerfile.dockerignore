@@ -1,0 +1,6 @@
+# The build context of this Dockerfile: the site and the SDK sources it
+# imports, nothing else.
+*
+!sdk/typescript/src/
+!server/bracket-site/package.json
+!server/bracket-site/src/

@@ -6,6 +6,13 @@ import { OAuth } from "./oauth.ts";
 import { bracketSite } from "./server.ts";
 import { Store } from "./store.ts";
 
+// Settings may also come from a JSON file of the same names; the
+// environment wins. Secrets stay in their own files (the `_FILE` names).
+if (process.env.BRACKET_SITE_CONFIG) {
+  const file = JSON.parse(readFileSync(process.env.BRACKET_SITE_CONFIG, "utf8")) as Record<string, string>;
+  for (const [name, value] of Object.entries(file)) process.env[name] ??= String(value);
+}
+
 function env(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is not set`);

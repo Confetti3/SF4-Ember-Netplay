@@ -1,0 +1,55 @@
+# The bracket site under Docker, published on the host for a reverse proxy
+# that serves its origin over HTTPS (brackets.ember.fraccie.be).
+#
+# .env next to this file:
+#   SITE_PORT  host port the proxy forwards to (default 8490)
+#   SITE_BIND  host address it is published on (default 127.0.0.1, for a
+#              proxy on this host; a proxy on another host needs this
+#              host's address here)
+#   SITE_DATA  host folder for site.json, the secret files and the
+#              database (0700, owned by SITE_USER)
+#   SITE_USER  uid:gid that owns SITE_DATA (default 4790:4790, the image's)
+#
+# $SITE_DATA/site.json holds the settings that are not secret, by the names
+# server/bracket-site/README.md gives ("Running it"):
+#   {
+#     "BRACKET_SITE_ORIGIN": "https://brackets.ember.fraccie.be",
+#     "EMBER_BRIDGE_ORIGIN": "https://ember-bridge.fraccie.be",
+#     "DISCORD_CLIENT_ID": "<the Ember bot's application ID>",
+#     "BRACKET_SITE_BRIDGE_CLIENT_ID": "ember-bridge",
+#     "BRACKET_SITE_BRIDGE_REDIRECT_URI": "https://ember-bridge.fraccie.be/v1/sites/ember-bracket-site/callback",
+#     "BRACKET_SITE_OPERATOR_TOKEN_FILE": "/var/lib/bracket-site/secrets/operator.token",
+#     "BRACKET_SITE_CONNECTOR_TOKEN_FILE": "/var/lib/bracket-site/secrets/connector.token",
+#     "BRACKET_SITE_BOT_TOKEN_FILE": "/var/lib/bracket-site/secrets/bot.token",
+#     "DISCORD_CLIENT_SECRET_FILE": "/var/lib/bracket-site/secrets/discord-client.secret",
+#     "BRACKET_SITE_BRIDGE_CLIENT_SECRET_FILE": "/var/lib/bracket-site/secrets/bridge-client.secret",
+#     "EMBER_BRIDGE_CREDENTIAL_FILE": "/var/lib/bracket-site/secrets/bridge-provider.token"
+#   }
+# and each secret is the first line of its file under $SITE_DATA/secrets
+# (0600). None of them goes into the repository.
+#
+# The site reads no client address, so the proxy's (10.10.10.1) needs no
+# setting; it only has to pass the Host and the whole path through.
+services:
+  site:
+    image: ember-bracket-site
+    build:
+      context: ../../..
+      dockerfile: server/bracket-site/docker/Dockerfile
+    restart: unless-stopped
+    user: "${SITE_USER:-4790:4790}"
+    ports:
+      - "${SITE_BIND:-127.0.0.1}:${SITE_PORT:-8490}:8490"
+    volumes:
+      - "${SITE_DATA:?set SITE_DATA}:/var/lib/bracket-site"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8490/t/-').then((r) => process.exit(r.status === 404 ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
