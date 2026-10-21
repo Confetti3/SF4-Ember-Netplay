@@ -131,11 +131,12 @@ capability wherever public rooms are on):
   ticket, it remembers the class as shown.
 - `PUT /v1/ranking/me` takes part or not, and sets how the board lists them.
 - `GET /v1/ranking/board` lists up to 500 players: everyone who takes part,
-  is listed and has a settled class. The highest class comes first; within a
-  class, whoever played most recently, so the board is about who plays and
-  its cap drops whoever played longest ago. It carries the name, the flag and
-  the class, never a rating, a position or a number. Faint and placing players
-  are not on it.
+  is listed and has a settled class, the one their next ticket would carry
+  (so a player who settled since their last ticket is on it). The highest
+  class comes first; within a class, whoever played most recently, so the
+  board is about who plays and its cap drops whoever played longest ago. It
+  carries the name, the flag and the class, never a rating, a position or a
+  number. Faint and placing players are not on it.
 
 The board shows the name and flag the player's game sends, the same ones
 rooms show, never the Discord account's name. The game sends them from the
