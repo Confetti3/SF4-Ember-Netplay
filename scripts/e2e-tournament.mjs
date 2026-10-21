@@ -57,6 +57,12 @@ const write = (side, name, line) => {
 };
 // A game that closed early ends every wait with its own words.
 const closed = [];
+// ...and the run: the steps after it would only wait out their timeouts, so
+// it goes straight to deleting its tournament.
+async function play(name, run) {
+  await step(name, run);
+  if (closed.length) throw new Error(closed.join("; "));
+}
 async function wait(side, name, minutes, what) {
   const end = Date.now() + minutes * 60000;
   for (;;) {
@@ -167,20 +173,21 @@ const webhook = existsSync(webhookFile) ? readFileSync(webhookFile, "utf8").trim
 log("starting both games against", bridge, webhook ? "with Discord calls" : "without Discord");
 const games = [startLocal(), startRemote()].map((game, index) => game.then((result) => {
   const fails = (result.text.match(/FAIL.*/g) || []).join("; ");
-  closed.push((index ? "the other PC's game" : "this PC's game") + " closed: " + (fails || "exit " + result.code));
+  // A game that passed has done its part; one that failed ends the run.
+  if (result.code !== 0 || fails) closed.push((index ? "the other PC's game" : "this PC's game") + " closed: " + (fails || "exit " + result.code));
   return result;
 }));
 const page = await chrome(out);
 let event = null;
 
 try {
-  await step("both games connected their Challonge accounts", async () => {
+  await play("both games connected their Challonge accounts", async () => {
     log("first run: approve Challonge in the browser on each PC (5 minutes each)");
     await Promise.all([wait(local, "site-account", 12, "this PC's account"), wait(remote, "site-account", 12, "the other PC's account")]);
     await shots("01-connected");
   });
 
-  await step("the organizer's game signs the web desk in with the code and its number", async () => {
+  await play("the organizer's game signs the web desk in with the code and its number", async () => {
     await page.go(bridge + "/desk");
     await page.until("!document.getElementById('signed-out').hidden", 15000);
     await layout(page, "02-desk-signed-out", true);
@@ -208,7 +215,7 @@ try {
     await layout(page, "05-desk-home", true);
   });
 
-  await step("the desk creates a single elimination Challonge tournament, first to 1, with sign-ups", async () => {
+  await play("the desk creates a single elimination Challonge tournament, first to 1, with sign-ups", async () => {
     await page.eval("document.getElementById('new-tournament').click()");
     await page.until("!document.getElementById('wizard').hidden");
     await page.eval(`document.getElementById('title').value = 'ember-2p ' + new Date().toISOString().slice(0, 16);
@@ -236,7 +243,7 @@ try {
     must(await page.eval("desk.event.sign_ups"), "sign-ups are not on");
   });
 
-  await step("both games sign up for it in Ember", async () => {
+  await play("both games sign up for it in Ember", async () => {
     write(local, "event", event);
     write(remote, "event", event);
     await Promise.all([wait(local, "signed-up", 5, "this PC's sign-up"), wait(remote, "signed-up", 5, "the other PC's sign-up")]);
@@ -245,7 +252,7 @@ try {
     await layout(page, "09-ready", true);
   });
 
-  await step("the desk readies it and starts the bracket on Challonge", async () => {
+  await play("the desk readies it and starts the bracket on Challonge", async () => {
     await page.eval("document.getElementById('next').click()");
     await page.until("desk.event.status !== 'draft'", 15000);
     await page.eval("go(5)");
@@ -260,7 +267,7 @@ try {
     await layout(page, "11-live");
   });
 
-  await step("the games play the set: a draw on time, then the organizer's win", async () => {
+  await play("the games play the set: a draw on time, then the organizer's win", async () => {
     let shot = 0;
     for (const end = Date.now() + 15 * 60000; ;) {
       await page.eval("readSets()");
@@ -280,7 +287,7 @@ try {
     must(/1 draw/.test(await page.eval("document.getElementById('live-body').textContent")), "the draw is not shown");
   });
 
-  await step("both games finished their part", async () => {
+  await play("both games finished their part", async () => {
     const [mine, theirs] = await Promise.all(games);
     writeFileSync(join(out, "organizer-game.txt"), mine.text);
     writeFileSync(join(out, "player-game.txt"), theirs.text);
@@ -288,14 +295,14 @@ try {
     must(theirs.code === 0, "the other PC's game: " + (theirs.text.match(/FAIL.*/g) || ["exit " + theirs.code]).join("; "));
   });
 
-  await step("the public page shows the result", async () => {
+  await play("the public page shows the result", async () => {
     await page.go(bridge + "/t/" + event);
     await page.until("document.body.textContent.includes('ember-2p')", 15000);
     await layout(page, "14-public");
   });
 
   if (!args.includes("--keep")) {
-    await step("stopped and deleted on Challonge", async () => {
+    await play("stopped and deleted on Challonge", async () => {
       await page.go(bridge + "/desk");
       await page.until("!document.getElementById('home').hidden", 15000);
       await page.eval(`home().then(() => open(desk.events.find((e) => e.id === ${JSON.stringify(event)})))`);
