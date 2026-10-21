@@ -4,6 +4,9 @@
 - **Ember is already running:** a second start shows this message instead of opening another copy. If you cannot see Ember, end Launcher.exe and SSFIV.exe in Task Manager, then start it again.
 - **Preflight reports an unexpected program file:** a DLL or EXE that is not part of this package is in the folder, usually left by extracting over an older version. Extract the package into a new empty folder. Other files you keep there, such as the downloaded .sha256, are only reported and ignored.
 - **Game not found:** choose the directory containing SSFIV.exe in recovery, then Retry launch. Ember remembers that folder and uses it on later launches. Steam must be installed and the game owned.
+
+  ![Launch recovery with Choose game folder highlighted](../images/guides/user_netplay/launch-recovery.webp)
+
 - **Missing networking helper:** extract the complete package, including sf4-net.exe. Offline remains available. Restart Launcher after restoring files.
 - **Create room, Join room and Public rooms are disabled:** the row says what is missing, usually an assigned gameplay controller; see [Change settings](CONTROLLER_MENUS.md#change-settings) for how Ember picks one.
 - **Launch or injection failed:** close recovery, run preflight.cmd and review `%APPDATA%\sf4e\logs\launcher.log`. Retry through recovery. No unrelated processes are terminated.
@@ -68,7 +71,11 @@
   If `Launcher.exe` shows "Windows protected your PC", choose More info > Run anyway, or run `Unblock-File .\*.exe, .\*.dll` in the folder. Exclusions do not fix a `relay_unreachable` error; for that, check Defender's network protection (`Get-MpPreference | Select EnableNetworkProtection`, 1 is block mode) together with any VPN adapter and Teredo (`netsh interface teredo show state`).
 - **Ready pending:** wait for the other player and preparation acknowledgement. Selections remain locked while readiness is pending. Leave is explicit.
 - **Preferences could not be saved:** keep the window open, resolve a read-only or busy settings directory, then choose **Retry saving**. Original settings and migration backups remain under `%APPDATA%\sf4e`.
+
+  ![Settings after a failed save, with Retry saving](../images/guides/troubleshooting/save-error.webp)
+
 - **No update question at launch:** Ember asks only on Home, with no room or match, and checks at most once every 6 hours. Check that Help & About > **Check for updates at launch** is On, that you did not choose **Skip this version** for the release, and use **Check for updates** there to look right away. A check that could not reach GitHub is tried again the next time you start the game.
+
 - **Update failed:** retry from Help & About, or double-click `Updater.exe` with the game closed. Installation requires orderly game shutdown. Logs are in `%TEMP%\sf4-netplay-update.log`; the files the last update replaced or removed are kept in `.ember-update-backups`. Do not delete those recovery copies while investigating. If an update was interrupted, the launcher restores it on the next start. One that cannot be restored is reported once and its record is kept as `.ember-update-transaction-v1.json.failed` in the install folder; include it in a report.
 
 Before reporting a problem, follow [Saving logs for a bug report](SAVING_LOGS.md) to save the full logs folder and export diagnostics from Help & About. For online match issues, collect logs from both players. The diagnostic export intentionally omits invitations, capabilities, player names, credentials, arbitrary log text and settings backups. Never paste a private invitation into a public issue.

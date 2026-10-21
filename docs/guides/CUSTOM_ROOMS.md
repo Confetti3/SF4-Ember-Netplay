@@ -9,12 +9,25 @@ release.
 
 1. Start the game through the launcher, wait for networking to become ready,
    and assign your gameplay controller.
+
+   ![Assign controller asking for a button press](../images/guides/user_netplay/assign-controller.webp)
+
 2. At the main menu, open **Online play > Create room**, choose the room name,
    capacity, and default battle rules, then select **Create room** again.
+
+   ![Create room settings](../images/guides/user_netplay/create-room.webp)
+
 3. Use **Copy invitation** to share the private invitation with your players.
+
+   ![The room board with Copy invitation among the room's actions](../images/ember-room.png)
+
 4. Guests open **Online play > Join room**, select **Paste invitation**, then
    **Join room**. Joining a room leaves them idle until they explicitly choose a
    table and take a seat, queue or watch.
+
+   ![Join room with Paste invitation highlighted](../images/guides/user_netplay/join-room.webp)
+
+   ![The room board once a guest has joined: two members and the join line in chat](../images/guides/custom_rooms/room-two-players.webp)
 
 While the room opens, the row reads **Stop creating** or **Stop joining**. If
 it has not opened after about 30 seconds, Ember says so; check your connection,
@@ -35,6 +48,8 @@ options instead, and joining there waits until you leave your current place.
 Seated fighters choose their characters and both select **Ready up** (A on your
 own card) before each game. Before preparation begins, a fighter can withdraw
 readiness with **Unready / unlock fighter**.
+
+![Seat chooser on an open battle slot](../images/guides/user_netplay/seat-chooser.webp)
 
 Battle setup, opened from **Table options** (Y on an Xbox pad, T on the
 keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
@@ -58,6 +73,8 @@ recommendation never changes delay during a fight. The table's rules follow on
 the same page: the host changes Rounds, Round time and Edition Select in place
 and presses **Apply rules**, which appears once something changed; everyone
 else sees them on one line.
+
+![Battle setup's Input delay on Auto, with the recommended and match delays](../images/guides/user_netplay/check-connection.webp)
 
 Both fighters play each game at the higher of their two Ready delays. A
 fighter's delay decides how much rollback the other fighter sees, so separate
@@ -131,6 +148,8 @@ happens to the view. Your view runs a little behind the room, so the room may
 have finished the game while you still watch it: Stop watching then only ends
 the rest of the view, and your place at the table stays as it is.
 
+![Seat chooser for a table you watch: Join queue, Unwatch, Options](../images/guides/custom_rooms/watching.webp)
+
 A spectator by choice can also use **Lock in to watch** in Table options
 (**Release lock-in** undoes it). If both fighters ready while a locked-in
 spectator is still leaving the last game, the start waits for them for up to 10
@@ -144,6 +163,8 @@ the game after that. Lock-in ends when you stop watching, move to another table
 or seat, or your view of a game fails, so it cannot hold up the fighters again;
 a short notice says which. Only your own Release lock-in, while you keep
 watching the same table, ends it without one.
+
+![Battle setup while the game waits for you, with Release lock-in](../images/guides/custom_rooms/lock-in.webp)
 
 A spectator whose connection is still being set up when the fighters are ready
 (after a short grace period) misses that game and watches the next one. A
@@ -166,11 +187,15 @@ cannot rejoin the same room under another name.
 Room chat retains the latest 100 messages, with a limit of 256 UTF-8 bytes per
 message. The room removes a member's messages when they leave, but your own Chat screen keeps the messages it has already received (the latest 200 lines, with the room's join, leave, host and result lines among them) under the name the member had. **Mute member** hides that member's messages on your screen only.
 
+![Room chat](../images/guides/custom_rooms/chat.webp)
+
 Both fighters report the game's native outcome. A win is counted only when the
 reports agree. Conflicting reports, or missing reports after the result deadline,
 leave the game unresolved. The host can **Cancel unresolved game** to allow the
 fighters to ready again without awarding a win or removing previously counted
 wins. This keeps a disagreement from becoming an automatic result.
+
+![Battle setup after an unresolved result](../images/guides/custom_rooms/unresolved.webp)
 
 To hand the room to another member:
 
@@ -198,6 +223,8 @@ explicitly cancels preparation and waits for its local connections to close.
 It then opens a fresh room with new invitations and authority. Saved preferences and
 local records remain. The confirmation defaults to Cancel, and recovery of the
 old room continues while you decide.
+
+![Replace room on a room whose control is unavailable](../images/guides/user_netplay/replace-room.webp)
 
 A two-member room needs both voters. Unexpected loss of either member cannot
 recover the old quorum; use the replacement action after gameplay has retired.

@@ -12,6 +12,8 @@ Offline, choose **Play offline** on Ember's Home, then Training in the game's ow
 
 Use the game's main menu to enter **Training** and select both fighters and a stage. The meter appears at the bottom of the screen once the fight is ready. The viewer and its F6 controls exist only inside native offline Training. There is no Training page in the main Ember overlay.
 
+![The frame meter under a Ryu jab that hit](../images/guides/training_lab/meter.webp)
+
 | Control | Action |
 | --- | --- |
 | F5 | Show/hide the passive meter |
@@ -39,6 +41,8 @@ The controls are a flyout targeting 820 by 600 logical pixels, bounded by 80% of
 ## Read the frame meter
 
 **Frame data** in the training controls (F6) gives each fighter's last move: **Startup** (the frame it first hits on), **Active** and **Recovery** in frames, hitstop left out, so the move's total is startup - 1 + active + recovery. They are counted as the game's frame data counts them: Startup includes the first active frame, and a move that completes has its Recovery count the frame it is free on, so one that ends with no recovery frames left reads 1. After them comes what the move met and what it was worth: **Hit** or **Block** with the frame advantage, or **Whiff** when it touched nothing, which has no advantage to give. A cancel into another attack counts as a new move. A focus cancel is read as one: a move, a focus started before it recovered, then a forward or back dash out of the focus. Frame data then gives that move's Startup and Active, its Recovery as **Cancelled**, a line such as **Focus cancel, forward dash**, and the advantage after the dash; the HUD gives the same startup, `Rec cancelled` and the same line under the bars. The game's own move data says which actions are a focus and which a dash out of one (docs/design/FOCUS_CANCEL_MARKER.md). What the thrower still has to play once the thrown fighter is let go counts as its recovery. A multi-hit move's gaps between hits count as active. **Meaty** appears after a knockdown: the number of the attack's active frames that had already passed when the other fighter could first be hit. Each is a frame of advantage gained, so an attack that is +2 on block with Meaty 3 is +5. A signed number means the attack missed that frame: +N left the other fighter N frames to act, -N went active N frames before it and was over by then. The same screen holds the colour key, the meter's style, the frames it shows, and the HUD's recovery option.
+
+![Frame data after the jab: Startup 3, Active 3, Recovery 21, Hit +3](../images/guides/training_lab/frame-data.webp)
 
 Each bar shows one fighter, the upper one Player 1's, one cell a simulated frame. The bars work like SF6's meter. They start empty on the first frame either fighter does something (an attack, a walk or dash, a hit, a block, a knockdown) and fill from the left. Standing, crouching and jumping are idle. Once both fighters have been idle for four frames the bars hold the exchange, ending on its last frame of action; a shorter gap, such as a frame trap's, stays in it. Any action after that starts the next exchange on clear bars. **Frames shown** on the Frame data page sets how many frames cross the bar: 60 at first, so each cell is wide enough to count by eye, 90 or 120. An exchange longer than that goes on from the left edge, or slides along with Smooth scrolling. The meter keeps the last 1200 frames (20 seconds) by default; **Meter history** on the Meter settings page makes that 240, 600, 1200 or 3600 frames. While it is held, each notch of the mouse wheel over the bars steps back a page through them, or ten frames with Smooth scrolling. A thin gap parts every cell; every fifth boundary is a faint line and every tenth a brighter one with a tick under the bar. **Meter style** on the same page chooses how the cells are drawn: Angled, Flat or Classic. The meter in matches follows both choices, and the Meter settings too.
 
@@ -83,6 +87,8 @@ By default, the timeline holds the last exchange after 4 neutral frames and resu
 
 Press F6, open **HUD**, then select **Meter settings**. The choices are kept in `training.json`.
 
+![Meter settings](../images/guides/training_lab/meter-settings.webp)
+
 - **Meter position**: how far down the screen the meter's bottom edge sits, as a percent of the height. The choices are 12, 25, 40, 55, 70, 82 and 92. 82 is the default, just above the super meters; lower numbers move it up, and 92 sits over the super meters.
 - **Meter history**: how much the meter keeps, 4, 10, 20 or 60 seconds (240, 600, 1200 or 3600 frames). 20 seconds is the default. A longer history lets a held meter step back to the start of a long combo.
 - **After a pause**: what the meter does when something moves again after both fighters were quiet. **Start over**, the default, clears the bars for the new exchange, as SF6 does. **Continue** goes on after the last exchange, so the history scrolls back through several.
@@ -98,6 +104,8 @@ Meter history and After a pause apply in Training, in replays and in matches tha
 Each fighter's presses are drawn on a lane beside its bar: a direction when it changes and a button when it goes down. In Training they show what each side pressed. In an online match the lanes are left out, since a match keeps no inputs, and they show over a replay only, whose file holds every input.
 
 The **Classic meter** page of Meter settings holds:
+
+![Classic meter settings](../images/guides/training_lab/classic.webp)
 
 - **Bar height**: Small, Standard or Large (12, 16 or 22 at the HUD's scale).
 - **Data line on HUD**: the startup, active, recovery, meaty and result line.
@@ -128,6 +136,8 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 To practise with another player, create a private room with **Practice room** on (Online play > Create room). It is off each time that screen opens, and a public room never offers it. Every game in a Practice room is a Practice match: both fighters' health, Super and Ultra gauges fill again about a second after they are left alone, and nobody is knocked out. Both players and every spectator get it from the room; nothing has to be set on their side. The room keeps it for as long as it is open, and its status line says **Practice room**. To play normal matches, close the room and create a new one.
 
+![A Practice room's board with End practice](../images/guides/training_lab/practice-room.webp)
+
 Nobody is knocked out, so every game in a Practice room takes the longest round time, 9999, and does not end on its own while you practise; its tables have no round time to choose. To end the game, either fighter presses Start or F10 during the fight: Ember opens on the room board at **End practice**, and confirming it ends the game for both with no result and the notice "Practice ended". Both stay seated and can ready again. While Ember is open over the fight your fighter stands still; closing Ember (B back to Home and B again, or F10) returns you to the fight. The match HUD names those keys. Leaving the room also ends the game. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Back apply only in offline Training; a Practice room does not enable them.
 
 There is no dummy and no recording in a Practice room: the other player is the dummy. A Practice match always shows the frame meter, to both players and everyone watching, whether **Frame meter in matches** is on or off; a public room still never shows it.
@@ -147,7 +157,12 @@ Nothing needs setting in the game first, and Player 2 needs no controller: while
    ![Dummy recording](../images/guides/training_lab/dummy-recording.webp)
 
 2. Close the controls and press F7 three times: standby, record, stop.
+
+   ![Recording slot 1, with F7 Stop on the strip](../images/guides/training_lab/recording.webp)
+
 3. Press F8 to play the recording.
+
+   ![Slot 1 playing, with F8 Stop on the strip](../images/guides/training_lab/playing.webp)
 
 Select on an empty slot chooses it too, and selecting **Record** works like closing the controls. As in SF6, the first F7 puts the dummy on standby: P1's controller operates P2 while P1 stays neutral, and nothing is recorded yet, so the dummy can be walked into place. The second starts recording and the third stops it. On a pad, Back held while Start is pressed starts the recording from standby, where it does not open the controls; while recording it opens them, which stops the recording and keeps it. The HUD names both ways. The slot keeps its old recording until the new one stops, and then the new one replaces it. Escape, opening the controls or the game losing focus leaves standby with nothing recorded, and stops a recording, keeping what was recorded. F7 on a slot that already holds a recording first asks whether to overwrite it. Each slot holds at most 7,200 accepted simulation frames (120 seconds at 60 fps).
 
@@ -161,9 +176,13 @@ Input history shows controller inputs, newest first, with how many simulated fra
 
 Open the training controls (F6) and select **Position** for the position rows and their keys, or **Dummy** for the dummy's settings. These settings and the two hotkeys are kept in `training.json` beside Ember's settings; dummy recordings saved from the Dummy Recording screen go to `recordings\` next to it, at most 4 MiB each, which holds a full slot. Files saved before recordings followed the dummy's facing are read as recorded with the dummy on the right, facing left; **Mirror selected recording** swaps a loaded slot's Left and Right in one press for one that comes out the wrong way round.
 
+![Position: Save position, Reset position and their keys](../images/guides/training_lab/position.webp)
+
 **Save position** keeps both fighters' place, health, meters and dummy state for this battle. **Reset position** restores the saved state. On a pad, a tap of Back (View on an Xbox pad, Select on a DirectInput pad) resets and a hold of half a second saves; Back held while Start is pressed opens or closes the controls instead and does neither, except on standby, where it starts the recording.
 
 The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) show the game's own Training menu settings and change them at once. The action row offers Stand, Crouch, Jump and CPU; Human, Record and Playback set in the pause menu are shown by name. Save position leaves standby, a recording, a playback or a reply running. Reset position leaves standby and a recording running, starts a playback again from its first frame, in step with the restored positions and with its waits cued by the restored fight, and ends a reply, whose timing belonged to the stun the reset undid.
+
+![Dummy settings](../images/guides/training_lab/dummy.webp)
 
 ### Dummy reply
 
@@ -173,6 +192,9 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 
 1. Press F6 and open **Dummy reply**.
 2. On **Dummy reply**, choose when it replies: **After a dropped combo**, **After blocking**, **On Wake-Up** or **Whenever it recovers**.
+
+   ![Dummy reply](../images/guides/training_lab/reply.webp)
+
 3. On **Reply preset**, pick a common reply with Left and Right, or press Select to type your own into **Reply moves**.
 
    ![Reply preset set to 623P](../images/guides/training_lab/reply-preset.webp)

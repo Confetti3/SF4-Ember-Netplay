@@ -85,6 +85,9 @@ plays" below.
    expires after five minutes.
 2. The player enters the code in Ember (Profile, Ember ID, Linked accounts).
    Ember's helper proves it holds the key and submits a claim.
+
+   ![Ember ID, with Tournament matches and Linked accounts](../images/guides/integrations/ember-id.webp)
+
 3. Your service shows the claim's fingerprint (`GET /v1/link-intents/{id}`)
    next to the one Ember shows, and when the user confirms it, approves that
    exact claim: `POST /v1/link-intents/{id}/approve` with the claim ID, the
@@ -182,6 +185,9 @@ and the game reports it:
    (Settings > Ember ID), or from your Play button (below). The first player's
    game opens a room and the second joins it. Only the two assigned players
    can be in that room, and the room plays the set length you chose.
+
+   ![Home with a tournament match waiting under Tournament matches](../images/guides/integrations/play-button.webp)
+
 2. Before each game both games ask the bridge for permission to start it, and
    the game starts only when both have it. You see `match.room.ready` once
    the room is published, then `match.attempt.authorized` for each game.

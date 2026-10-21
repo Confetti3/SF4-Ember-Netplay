@@ -37,7 +37,11 @@ Own and install Ultra Street Fighter IV on Steam. Use the complete package on bo
 
    ![Interface settings with the Match HUD preview](../images/guides/user_netplay/interface.webp)
 
+   ![The match HUD in a real match: both names, Ping, Rollback and Delay at bottom center](../images/guides/user_netplay/match-hud.webp)
+
 8. After a game, both fighters ready again to play the next one. With no set length the same two fighters keep playing until one of them leaves, and the score counts their wins against each other. A host can give a table a set length of first to 1 through 10 (best of 1 to best of 19) and choose who rotates out when a set ends: winner stays (king of the hill), loser stays, or both rotate. Players who rotate out go to the back of the queue, and only members who joined the queue are seated. When a fighter leaves, the next member in the queue takes that seat.
+
+   ![The table after a game, with Ready for rematch and the score](../images/guides/user_netplay/rematch.webp)
 
 Queued members watch each game while retaining their queue position; leaving the queue ends that watching when the current game does, unless you choose **Watch next game**. Spectators have no Ready action; while waiting outside a match, they can save a fighter choice for their next turn. **Stop watching** leaves the spectator roster while the fighters continue. During a game, Start or F10 opens Ember over it on the room board at that row; a queued member sees **Leave this game** there instead, which stops watching this game and keeps the queue place. A table can include up to 14 spectators in addition to its two fighters.
 
@@ -47,7 +51,11 @@ Queued members watch each game while retaining their queue position; leaving the
 
 **Discord:** keep the Discord desktop app open. Ember shares basic activity, elapsed session time, and room occupancy. A host or guest can invite friends using Discord's interface while the room is unlocked and has space. Accepting an invite starts Ember when needed and waits for the main menu, networking, and your gameplay device. You enter idle and choose a table, queue, or spectator place yourself. If you are already in another room or playing offline, return to the main menu and choose **Switch to invited room**, or **Cancel invitation**. No fight is interrupted.
 
+![A Discord invitation: Cancel invitation or Switch to invited room](../images/guides/user_netplay/discord-invite.webp)
+
 Settings > Discord includes **Show activity** and **Allow invitations**, both initially enabled. Turning off activity also stops advertising invites. These controls do not revoke invitations already shared or change the host's admission policy. Discord receives no room names, player names, fighter selections, stages, scores, or connection metrics. Discord being closed or unavailable does not prevent normal play.
+
+![Settings > Discord](../images/guides/user_netplay/discord-settings.webp)
 
 The room host is separate from the P1 seat. The host can rename the room, lock admission, change capacity, edit rules for a waiting table, and kick members. A kicked peer cannot rejoin that room under another name. The host can cancel an unresolved game after conflicting or missing native result reports; cancellation awards no win and preserves earlier scores. A result counts only when both fighter reports agree. Either fighter can choose **Abandon unresolved game**, and a host who is not playing at that table can **Cancel stuck game** when a finished game never reported its result. That row is available once a game has run for ten minutes without a result; until then it says the game is in progress.
 
@@ -88,6 +96,8 @@ Every Ember match is recorded, and the game keeps the last 30 in Replay Channel 
 | F5 | | Show or hide the frame meter |
 | F9 | LT | Show or hide the input lanes |
 
+![The replay strip over a replay: speed, round, time and the keys](../images/guides/user_netplay/replay-controls.webp)
+
 The controls act during the fight. The round's introduction, the knockout and the round's end play at normal speed, and each round starts playing at 1x. Pressed outside the fight, the controls say "Controls work during the fight". A strip at the bottom centre shows whether the replay is paused, its speed, the round and the time into it (the frame while paused), with the keys for the device you last used. At 1x it fades three seconds after your last press. The game's own half speed on Select still works and counts as 1/2x. Start still opens the game's pause menu, and the controls wait while it is open. The input lanes are two narrow columns, player 1 at the left and player 2 at the right, with what each held, newest at the top: an arrow for the direction as seen on screen, the buttons (orange on the frame they were pressed) and how many frames it lasted. They are off at first and need the replay file, so they are there for replays started with **Watch now** or **Watch with frame meter**, not for ones picked from the game's own list. A video export always plays at normal speed with no controls, strip or lanes. A DirectInput pad has no known button layout, so use the keyboard with one.
 
 **Training controls:** in offline training, press **F6** to open or close Training Lab. Use the keyboard and mouse: arrows navigate, Enter selects, and Escape returns or closes the panel. **F5** toggles the frame-meter HUD. Controller Start opens the native pause menu when Training Lab is closed. Gameplay inputs are captured while Training Lab is open and until held buttons are released. Record and Play return to practice after acceptance; an error stays visible. Overwriting or clearing a recording requires confirmation, initially focused on Cancel.
@@ -105,10 +115,22 @@ The controls act during the fight. The round's introduction, the knockout and th
 **Updating:**
 
 1. In Help & about, choose **Check for updates**.
+
+   ![Help & about with Installed version and Check for updates](../images/guides/user_netplay/about-version.webp)
+
 2. When one is found, leave your room and choose **Exit and open updater**. The game closes and the Updates window opens with **Download and install** highlighted.
+
+   ![The Updates window with Download and install highlighted](../images/guides/user_netplay/updates-window.webp)
+
 3. Select **Download and install**, then **Download and install** again in the question that starts on Cancel. Ember restarts once it is installed.
 
+   ![The install question, starting on Cancel](../images/guides/user_netplay/update-confirm.webp)
+
 With the game closed, double-clicking `Updater.exe` opens the same window. The window also has **What's new**, the found version's release notes as plain text: Select opens them, Up and Down scroll, Back closes them. **Update channel** chooses which builds are offered: Stable, Beta or Nightly. Left and Right pick one without changing anything; Select asks first, with Cancel highlighted, and says what the switch means (Nightly's warning, or that going back may offer an older version). Only once you confirm is the channel saved and checked; nothing is installed until you choose **Download and install**. When the offered version is older than yours, its row says so: replays recorded on the newer version may not open on it. While the update installs, its window names the step it is at. Installation waits for shutdown and verifies the downloaded ZIP. Your own files are preserved, and the backup from the latest update is kept in `.ember-update-backups`. If an update was interrupted, the launcher restores the previous files the next time you start it, then opens normally. An update that can never be restored is reported once and set aside, and later starts go to the game.
+
+![Update channel on Nightly, with what the channel means](../images/guides/user_netplay/update-channel.webp)
+
+![The launcher after a crash, offering to send a report](../images/guides/user_netplay/crash-report.webp)
 
 **If the game crashes:** the launcher says so and the files to send are in `%APPDATA%\sf4e\logs`: `sf4e.log`, `sf4e-crash.log` and the newest `sf4e-crash-*.dmp` (the launcher keeps the last five). A heap corruption crash writes a larger `sf4e-crash-*-heap.dmp` of several hundred MB, and the launcher keeps the last two of those. Crash dumps are copies of the game's memory and can hold your current room invitation, player names and chat, so send them privately (a direct message to a developer), never in a public channel. A few crashes stop the game before any of its own handlers run. To catch those too, run this once in an **Administrator** PowerShell; Windows then keeps a full dump in `%LOCALAPPDATA%\CrashDumps`, and `launcher.log` names the file after a crash:
 
