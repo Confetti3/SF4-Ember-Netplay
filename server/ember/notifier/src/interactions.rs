@@ -68,6 +68,9 @@ pub(crate) struct CommandData {
     pub options: Vec<CommandOption>,
     #[serde(default)]
     pub custom_id: String,
+    /// What a select menu's user picked.
+    #[serde(default)]
+    pub values: Vec<String>,
 }
 
 /// An option, or a subcommand with options of its own.

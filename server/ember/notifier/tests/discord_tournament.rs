@@ -308,3 +308,57 @@ async fn a_live_tournaments_news_is_posted_once_as_one_message() {
         task.abort();
     }
 }
+
+#[tokio::test]
+async fn a_vote_is_posted_as_menus_and_a_pick_is_the_pickers_vote() {
+    let site =
+        Mock::start(|request| {
+            match (request.method.clone(), request.path.as_str()) {
+        (Method::GET, "/tournaments/weekly/vote") => (
+            200,
+            json!({ "closed_at": null, "closes_at": "2026-10-23T20:00:00.000Z", "nominations": [
+                { "id": "n1", "category": "best_player", "title": "Kate", "accepted": true },
+                { "id": "n2", "category": "best_combo", "title": "Waiting", "accepted": false },
+            ] })
+            .to_string(),
+        ),
+        (Method::GET, "/tournaments/weekly") => (200, json!({ "organizers": [] }).to_string()),
+        (Method::POST, "/tournaments/weekly/votes/best_player") => (204, String::new()),
+        _ => (404, "{}".into()),
+    }
+        })
+        .await;
+    let discord = Mock::start(|_| (200, "{}".into())).await;
+    let url = serve(&site, &discord).await;
+    let mut vote = from_player(json!({
+        "type": 2,
+        "data": { "name": "tournament", "options": [{ "type": 1, "name": "vote", "options": [{ "name": "id", "value": "weekly" }] }] },
+    }));
+    vote["member"]["permissions"] = json!("32");
+    assert_eq!(
+        send(&url, vote).await,
+        json!({ "type": 5, "data": { "flags": 0 } })
+    );
+    let message = edited(&discord).await;
+    // One menu: only accepted nominations, and only categories that have one.
+    let rows = message["components"].as_array().unwrap();
+    assert_eq!(rows.len(), 1);
+    let menu = &rows[0]["components"][0];
+    assert_eq!(menu["custom_id"], "tournament:pick:weekly:best_player");
+    assert_eq!(menu["options"], json!([{ "label": "Kate", "value": "n1" }]));
+
+    let pick = from_player(
+        json!({ "type": 3, "data": { "custom_id": "tournament:pick:weekly:best_player", "component_type": 3, "values": ["n1"] } }),
+    );
+    assert_eq!(
+        send(&url, pick).await,
+        json!({ "type": 5, "data": { "flags": 64 } })
+    );
+    let cast = site
+        .wait_for(Method::POST, "/tournaments/weekly/votes/best_player")
+        .await;
+    assert_eq!(
+        (cast.headers["x-discord-user"].to_str().unwrap(), &cast.body),
+        (PLAYER, &json!({ "nomination": "n1" }))
+    );
+}

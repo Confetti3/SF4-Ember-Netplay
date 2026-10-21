@@ -1266,14 +1266,18 @@ to start a host.
 
 With `brackets` (`{ "base": "https://brackets.ember.fraccie.be", "token":
 "env:NAME" }`, the bracket site's bot token), `discord-register` also
-registers `/tournament` with `signup`, `leave`, `checkin` and `show`, each
-taking a tournament `id`. The notifier calls the bracket site with the bot
+registers `/tournament` with `signup`, `leave`, `checkin`, `show` and
+`vote`, each taking a tournament `id`. The notifier calls the bracket site with the bot
 token and `X-Discord-User`, the user Discord signed the interaction for, so
 each player acts only as themselves. `signup`, `leave` and `checkin` answer
 privately; `show`, for a member who may manage the server or one of the
 tournament's organizers, posts the tournament to the channel with Sign up,
 Check in and Leave buttons for its state, and a press (`tournament:<what>:<id>`)
-acts for whoever pressed it. A player whose Discord is not connected in
+acts for whoever pressed it. `vote`, for the same members, posts a finished
+tournament's vote as a select menu per category with accepted nominations
+(`tournament:pick:<id>:<category>`); a pick is the picker's vote, which they
+may change until the vote closes, and once it closed `vote` posts the
+winners. A player whose Discord is not connected in
 Ember yet is signed up all the same and told to connect it before the
 start (docs/design/BRACKET_SITE.md).
 
