@@ -280,6 +280,15 @@ pub enum Request {
         match_id: String,
         revision: Counter,
         path: String,
+        #[serde(default)]
+        sides: ember_protocol::replays::Sides,
+    },
+    /// Any other archived replay this player played, for the public replay
+    /// archive of the first of their bridges that keeps one.
+    ReplayArchive {
+        path: String,
+        #[serde(default)]
+        sides: ember_protocol::replays::Sides,
     },
     /// The set's pack, written to `path`.
     ReplayPack {
@@ -347,6 +356,7 @@ impl Request {
             Self::GameReport { .. } => "game_report",
             Self::MatchLeave { .. } => "match_leave",
             Self::ReplaySend { .. } => "replay_send",
+            Self::ReplayArchive { .. } => "replay_archive",
             Self::ReplayPack { .. } => "replay_pack",
             Self::MatchWatch { .. } => "match_watch",
             Self::MatchUnwatch { .. } => "match_unwatch",
@@ -927,7 +937,9 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             match_id,
             revision,
             path,
-        } => replays::send(shared, &bridge_id, &match_id, revision.0, &path).await,
+            sides,
+        } => replays::send(shared, &bridge_id, &match_id, revision.0, &path, &sides).await,
+        Request::ReplayArchive { path, sides } => replays::archive(shared, &path, &sides).await,
         Request::ReplayPack {
             bridge_id,
             match_id,
