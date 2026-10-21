@@ -85,6 +85,12 @@ pub struct Desk {
     /// not its public one, as a tournament's `api_base`. For local tests.
     #[serde(default)]
     pub api_bases: std::collections::BTreeMap<String, String>,
+    /// Sign-in sites that answer the `http` adapter's contract, by bridge
+    /// site ID, with their base URL: an event there runs on that adapter at
+    /// `<base>/tournaments/<event>/ember` (the bracket site,
+    /// docs/design/BRACKET_SITE.md).
+    #[serde(default)]
+    pub services: std::collections::BTreeMap<String, String>,
 }
 
 /// Where the bridge sends each finished match (the connection's
@@ -469,6 +475,16 @@ impl Config {
                 return Err(format!(
                     "desk.api_bases: {adapter} is an https origin on {domain}"
                 ));
+            }
+        }
+        for (site, base) in self.desk.iter().flat_map(|desk| &desk.services) {
+            if !is_slug(site) || matches!(site.as_str(), "challonge" | "startgg") {
+                return Err(format!(
+                    "desk.services: {site} is a bridge site ID, not challonge or startgg"
+                ));
+            }
+            if !is_service_base(base, self.allow_loopback_http) {
+                return Err(format!("desk.services: {site} is an https base URL"));
             }
         }
         let mut keys = std::collections::BTreeSet::new();

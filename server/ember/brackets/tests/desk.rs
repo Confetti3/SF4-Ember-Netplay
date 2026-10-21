@@ -59,6 +59,7 @@ async fn the_desks_event_is_played_and_stops_when_its_organizer_stops_it() {
     let mut config = world.config.clone();
     config.desk = Some(Desk {
         api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
+        ..Desk::default()
     });
     let connector = support::connector(&config, &world.clock);
     world.bridge.connect(1, "player1").await;
@@ -107,6 +108,7 @@ async fn an_event_a_configured_tournament_runs_is_left_to_it() {
     let mut config = world.config.clone();
     config.desk = Some(Desk {
         api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
+        ..Desk::default()
     });
     let connector = support::connector(&config, &world.clock);
     world.bridge.connect(1, "player1").await;

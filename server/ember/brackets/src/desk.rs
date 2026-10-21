@@ -179,9 +179,11 @@ impl Desk {
     }
 
     /// The event as a configured tournament: its site's adapter, its
-    /// settings, and the bearer token in place of a credential file.
+    /// settings, and the bearer token in place of a credential file. A site
+    /// in `services` is played on the `http` adapter.
     fn tournament(&self, event: &DeskEvent) -> Result<Tournament, String> {
-        if !matches!(event.site.as_str(), "challonge" | "startgg") {
+        let service = self.config.services.get(&event.site);
+        if service.is_none() && !matches!(event.site.as_str(), "challonge" | "startgg") {
             return Err(format!("site {} has no adapter here", event.site));
         }
         let mut fields: serde_json::Map<String, Value> = event
@@ -194,11 +196,20 @@ impl Desk {
         if let Some(hold) = fields.get_mut("hold").and_then(Value::as_object_mut) {
             hold.remove("sets");
         }
-        fields.insert("adapter".into(), json!(event.site));
         fields.insert("tournament".into(), json!(event.tournament));
         fields.insert("credential".into(), json!({ "kind": "bearer", "file": "" }));
-        if let Some(base) = self.config.api_bases.get(&event.site) {
-            fields.insert("api_base".into(), json!(base));
+        if let Some(base) = service {
+            fields.insert("adapter".into(), json!("http"));
+            let base = base.trim_end_matches('/');
+            fields.insert(
+                "api_base".into(),
+                json!(format!("{base}/tournaments/{}/ember", event.tournament)),
+            );
+        } else {
+            fields.insert("adapter".into(), json!(event.site));
+            if let Some(base) = self.config.api_bases.get(&event.site) {
+                fields.insert("api_base".into(), json!(base));
+            }
         }
         let tournament: Tournament = serde_json::from_value(Value::Object(fields))
             .map_err(|error| format!("its settings do not read: {error}"))?;

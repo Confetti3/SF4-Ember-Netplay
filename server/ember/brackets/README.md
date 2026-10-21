@@ -298,7 +298,11 @@ Secrets are only ever read from files, never written to the log.
   the bridge stops listing is no longer read, its sets left as they are; one
   a tournament here already runs is left to that tournament.
   `desk.api_bases` maps `challonge` or `startgg` to an API origin, as
-  `api_base` does, for local tests.
+  `api_base` does, for local tests. `desk.services` maps a bridge sign-in
+  site that answers the `http` contract to its base URL (`{
+  "ember-bracket-site": "https://brackets.ember.fraccie.be" }`): an event
+  there is played on the `http` adapter at `<base>/tournaments/<event>/ember`,
+  with the organizer's access token.
 - `mark_underway`: per tournament, default `true`. Marking each set underway
   costs one request a set; `false` saves them.
 - `rounds`: `games_to_win` (1 to 10) unless a rule covers the set. Rules are
