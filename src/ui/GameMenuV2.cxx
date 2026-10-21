@@ -190,7 +190,8 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             }
             if (!ImGui::IsItemVisible()) continue;
             v2::CardGround(ld, c, focused, hovered, e.valueHighlighted);
-            if (cell && card(e, c.min, c.max)) { if (focused) v2::Focus(ld, c.min, c.max, false); continue; }
+            // A screen's own drawing of its rows (portraits, flags, rankings), as Classic draws them.
+            if (card && card(e, c.min, c.max)) { if (focused) v2::Focus(ld, c.min, c.max, !cell); continue; }
             DrawCardContent(ld, e, c, enabled, twoLines && !cell, home, valueWidth);
             if (focused) v2::Focus(ld, c.min, c.max, !cell);
         }
