@@ -10,7 +10,8 @@
 //! for a platform that hears how a set stands while it is played
 //! (`Policy::reports_progress`, BluMint), the set's score (`progress`) and
 //! the match's status (`status`). A fifth sends desk events' Discord calls
-//! (`calls`).
+//! (`calls`). A sixth stores the replay archive's games (`archive`).
+pub mod archive;
 pub mod calls;
 pub mod dms;
 pub mod progress;

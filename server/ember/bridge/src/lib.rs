@@ -19,6 +19,7 @@ mod linking;
 mod mock;
 mod rate;
 mod routes;
+mod s3;
 mod secrets;
 mod skill;
 mod tournament;
@@ -140,6 +141,12 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
         tokio::spawn(delivery::run(state.clone(), delivery::calls::Calls)),
         tokio::spawn(delivery::run(state.clone(), delivery::dms::Dms)),
     ];
+    if state.config.archive.is_some() {
+        workers.push(tokio::spawn(delivery::run(
+            state.clone(),
+            delivery::archive::Archive,
+        )));
+    }
     if routes::rooms::enabled(&state) {
         workers.push(tokio::spawn(routes::rooms::poll_forever(state.clone())));
     }

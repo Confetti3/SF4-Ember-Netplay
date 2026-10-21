@@ -790,6 +790,12 @@ msgstr "Сохранять просмотренные матчи"
 msgid "replays.save_watched_detail"
 msgstr "Также сохраняет матчи, которые вы смотрите как зритель. Если выключено, сохраняются только ваши матчи."
 
+msgid "replays.share"
+msgstr "Share my replays"
+
+msgid "replays.share_detail"
+msgstr "Sends the games you play to the public replay archive at replays.ember.fraccie.be. Tournament games are always shared."
+
 msgid "replays.link"
 msgstr "Воспроизвести повтор по ссылке"
 

@@ -790,6 +790,12 @@ msgstr "Ukládat sledované zápasy"
 msgid "replays.save_watched_detail"
 msgstr "Ukládá i zápasy, které sleduješ jako divák. Vypnuto ukládá pouze zápasy, které hraješ."
 
+msgid "replays.share"
+msgstr "Share my replays"
+
+msgid "replays.share_detail"
+msgstr "Sends the games you play to the public replay archive at replays.ember.fraccie.be. Tournament games are always shared."
+
 msgid "replays.link"
 msgstr "Přehrát záznam z odkazu"
 

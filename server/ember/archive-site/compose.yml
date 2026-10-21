@@ -1,0 +1,38 @@
+# The replay archive page (docs/design/REPLAY_ARCHIVE.md) beside the bucket
+# it lists. .env next to this file:
+#   SITE_BIND, SITE_PORT  where the reverse proxy reaches the page
+#   BRIDGE_URL            the bridge the page asks, http://host:port
+#   RUSTFS_ACCESS_KEY, RUSTFS_SECRET_KEY  the bucket's credentials
+#   S3_BIND, S3_PORT      where the bridge writes and the proxy reads the
+#                         bucket; the proxy must pass only GET and HEAD
+# site/assets needs the Inter fonts and ember-emblem.png from
+# server/ember-short/deploy/site/assets (the deploy copies them).
+services:
+  rustfs:
+    image: rustfs/rustfs@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ENABLE: "false"
+    ports:
+      - "${S3_BIND:-127.0.0.1}:${S3_PORT:-9400}:9000"
+    volumes:
+      - ./data:/data
+      - ./logs:/logs
+  site:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    environment:
+      BRIDGE_URL: ${BRIDGE_URL:?}
+    ports:
+      - "${SITE_BIND:-127.0.0.1}:${SITE_PORT:-8495}:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /etc/nginx/conf.d

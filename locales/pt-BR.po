@@ -790,6 +790,12 @@ msgstr "Salvar partidas que você assiste"
 msgid "replays.save_watched_detail"
 msgstr "Também salva as partidas que você assiste como espectador. Desativado salva apenas as que você joga."
 
+msgid "replays.share"
+msgstr "Share my replays"
+
+msgid "replays.share_detail"
+msgstr "Sends the games you play to the public replay archive at replays.ember.fraccie.be. Tournament games are always shared."
+
 msgid "replays.link"
 msgstr "Reproduzir o replay do link"
 

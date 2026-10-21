@@ -22,6 +22,8 @@ struct File {
     discord_bot_token: Option<String>,
     #[serde(default)]
     rooms_supervisor_secret: Option<String>,
+    #[serde(default)]
+    archive_secret_key: Option<String>,
     /// Platform API keys by connection ID.
     #[serde(default)]
     api_keys: BTreeMap<String, String>,
@@ -43,6 +45,8 @@ pub struct Secrets {
     /// The bearer secret of the room supervisor's API. Without it public
     /// rooms stay off.
     pub rooms_supervisor_secret: Option<Zeroizing<String>>,
+    /// The replay archive's S3 secret key. Without it nothing is stored.
+    pub archive_secret_key: Option<Zeroizing<String>>,
     /// A platform's API key, by connection ID. A BluMint connection without
     /// one is served but not sent results.
     pub api_keys: BTreeMap<String, Zeroizing<String>>,
@@ -78,6 +82,10 @@ impl Secrets {
                 .map(Zeroizing::new),
             rooms_supervisor_secret: file
                 .rooms_supervisor_secret
+                .filter(|secret| !secret.is_empty())
+                .map(Zeroizing::new),
+            archive_secret_key: file
+                .archive_secret_key
                 .filter(|secret| !secret.is_empty())
                 .map(Zeroizing::new),
             site_client_secrets: file

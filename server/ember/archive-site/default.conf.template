@@ -1,0 +1,21 @@
+# The replay archive page. /v1/archive goes to the bridge (BRIDGE_URL); the
+# replays themselves download from the bucket's own public address.
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    add_header Content-Security-Policy "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+
+    location = /v1/archive {
+        limit_except GET { deny all; }
+        proxy_pass ${BRIDGE_URL};
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location /assets/ {
+        expires 1h;
+    }
+    location / {
+        try_files $uri /index.html;
+    }
+}

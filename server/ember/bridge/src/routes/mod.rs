@@ -1,3 +1,4 @@
+pub mod archive;
 pub mod blumint;
 pub mod desk_pages;
 pub mod discovery;
@@ -93,6 +94,8 @@ pub fn router(state: AppState) -> Router {
             "/v1/public/matches/{id}/replays/{crc}",
             get(replays::public_game),
         )
+        .route("/v1/replays/{crc}", put(archive::put))
+        .route("/v1/archive", get(archive::list))
         .route("/v1/matches/{id}/watch", post(play::watch::watch_route))
         .route(
             "/v1/matches/{id}/watch/leave",

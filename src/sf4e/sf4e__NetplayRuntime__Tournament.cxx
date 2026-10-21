@@ -198,7 +198,8 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 }
 
 // A set's replays go to its bridge one at a time, the oldest first, as the
-// archive lists them. One the bridge took, or refused for good, is noted in
+// archive lists them; with none left, and Share my replays on, other games
+// go to the public replay archive (docs/design/REPLAY_ARCHIVE.md). One the bridge took, or refused for good, is noted in
 // the archive (MarkSent); any other failure, or no answer, is tried again a
 // minute later.
 // ponytail: the archive is listed once a minute for this, whether or not a set was played.
@@ -209,12 +210,30 @@ void SendSetReplays(bool helperReady, std::uint64_t nowMs) {
 	sending.nextMs = nowMs + 60000;
 	platform::replays::WantListing();
 	const auto listing = platform::replays::LatestListing();
-	const auto* next = listing ? platform::replays::NextToSend(*listing) : nullptr;
+	if (!listing) return;
+	// A set's games first; then, when the player shares them, any other game.
+	const auto* next = platform::replays::NextToSend(*listing);
+	const bool set = next;
+	if (!next && runtime->preferences.shareReplays) next = platform::replays::NextToArchive(*listing);
 	if (!next) return;
 	std::string text;
 	try {
-		text = json{{"op", "replay_send"}, {"bridge_id", next->set.bridgeId}, {"match_id", next->set.matchId},
-			{"revision", std::to_string(next->set.revision)}, {"path", platform::WideToUtf8(next->path.wstring())}}.dump();
+		json ask{{"op", set ? "replay_send" : "replay_archive"}, {"path", platform::WideToUtf8(next->path.wstring())},
+			{"a", next->names[0]}, {"b", next->names[1]}};
+		if (set) {
+			ask["bridge_id"] = next->set.bridgeId;
+			ask["match_id"] = next->set.matchId;
+			ask["revision"] = std::to_string(next->set.revision);
+		}
+		// This player's side, which the archive gives their country.
+		if (next->names[0] != next->names[1])
+			for (std::uint8_t side = 0; side < 2; ++side)
+				if (next->names[side] == runtime->displayName) {
+					ask["side"] = side;
+					if (const auto country = ShownCountry(runtime->preferences.country, runtime->automaticCountry); country.Present())
+						ask["country"] = country.ToString();
+				}
+		text = ask.dump();
 	} catch (const json::exception&) { return; }
 	std::uint64_t id = 0;
 	if (runtime->room->SendTournament(text, &id)) { sending.request = id; sending.path = next->path; }
