@@ -70,8 +70,9 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
 		snapshot.room = UserApp::netplay->client.GetRoomSnapshot();
 		// A class is the bridge's word only in a room this client joined as
 		// public, which it knows from its own join; a private room's host
-		// writes its own snapshot, so any class in one is dropped here.
-		if (!runtime->room || !runtime->room->ServerOwned())
+		// writes its own snapshot, so any class in one is dropped here. So are
+		// all of them for a player who hides class emblems on their screen.
+		if (!runtime->room || !runtime->room->ServerOwned() || !runtime->preferences.classEmblems)
 			for (auto& member : snapshot.room.members) member.badge = SkillBadge();
 		snapshot.roomReceivedMs = UserApp::netplay->client.RoomSnapshotReceivedMs();
 		snapshot.roomNotices.assign(runtime->roomNotices.begin(), runtime->roomNotices.end());
@@ -420,6 +421,7 @@ PostPublishState Publish() {
     snapshot.identityRefusal = runtime->identityRefusal;
     snapshot.tournament = TournamentStatus();
     snapshot.publicRooms = runtime->publicRooms;
+    snapshot.rankings = runtime->rankings.Published(GetTickCount64());
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();

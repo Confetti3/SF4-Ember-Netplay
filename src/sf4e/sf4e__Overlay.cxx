@@ -377,6 +377,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.identityRefusal = snapshot.identityRefusal;
     view.tournament = snapshot.tournament;
     view.publicRooms = snapshot.publicRooms;
+    view.rankings = snapshot.rankings;
     // The archive is listed, and an entry's inputs read, off this thread (the
     // runtime's workers). The screen on show says what to ask for; the last
     // listing and detail they made come with the snapshot.
@@ -598,6 +599,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // How far back a held meter reaches and whether it starts over after a pause, as the Meter settings page chose.
     const auto meterOptions = sf4e::ui::TrainingMeterOptions();
     sf4e::training::SetMeterHistory(meterOptions.history, meterOptions.continuous);
+    // The fighters' boxes are read only while Hitboxes is on and the HUD, which draws them, is shown (F5).
+    sf4e::training::ShowHitBoxes(meterOptions.hitboxes && trainingHud);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();

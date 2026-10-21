@@ -324,6 +324,26 @@ pub(super) fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value
     Err(refusal(status, body, &[]))
 }
 
+/// The answer of a route an older bridge may not serve: `answer` for
+/// `success`, a refusal as `refusal` words it with `reasons`, except that a
+/// 404 naming none of them is a bridge without the route, `missing`.
+pub(super) fn feature_answer(
+    status: u16,
+    body: &[u8],
+    success: u16,
+    reasons: &[&str],
+    missing: &str,
+) -> Result<Value, Failure> {
+    if status == success {
+        return answer(status, body, &[success]);
+    }
+    let failure = refusal(status, body, reasons);
+    if status == 404 && !reasons.contains(&failure.0.as_str()) {
+        return Err(Failure::new(missing));
+    }
+    Err(failure)
+}
+
 /// The failure for a bridge's refusal: its `details.reason` when that is one
 /// of `reasons`, which a caller words apart, else its error code, or
 /// `http_<status>` when the body names none.

@@ -101,6 +101,24 @@ std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened, con
     }
     return bytes;
 }
+// Windows' DDS codec reads only block-compressed images. The game's class
+// emblems (Ranking.emz) are plain 32-bit BGRA, so those pixels are taken as
+// they are; anything else goes to the codec.
+ComPtr<IWICBitmapSource> PlainDds(IWICImagingFactory* factory, const std::vector<unsigned char>& bytes) {
+    constexpr std::size_t Header = 128;
+    constexpr std::uint32_t Rgb = 0x40, AlphaPixels = 0x1;
+    if (bytes.size() < Header || std::memcmp(bytes.data(), "DDS ", 4) != 0 || U32(bytes, 4) != 124) return nullptr;
+    const std::uint32_t height = U32(bytes, 12), width = U32(bytes, 16), format = U32(bytes, 80);
+    if ((format & (Rgb | AlphaPixels)) != (Rgb | AlphaPixels) || U32(bytes, 88) != 32 || U32(bytes, 92) != 0xff0000 ||
+        U32(bytes, 96) != 0xff00 || U32(bytes, 100) != 0xff || U32(bytes, 104) != 0xff000000 ||
+        !width || !height || width > 8192 || height > 8192 || (bytes.size() - Header) / 4 / width < height) return nullptr;
+    // The bitmap keeps its own copy of the pixels.
+    ComPtr<IWICBitmap> bitmap;
+    ComPtr<IWICBitmapSource> source;
+    if (FAILED(factory->CreateBitmapFromMemory(width, height, GUID_WICPixelFormat32bppBGRA, width * 4, width * height * 4,
+            const_cast<BYTE*>(bytes.data() + Header), &bitmap)) || FAILED(bitmap.As(&source))) return nullptr;
+    return source;
+}
 // Absent: no candidate file exists, which is final and expected for most
 // color previews. Failed: a file exists but could not be used; worth a retry.
 enum class Outcome { Decoded, Absent, Failed };
@@ -134,11 +152,14 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
         ComPtr<IWICBitmapScaler> scaler;
         ComPtr<IWICFormatConverter> converter;
         UINT width = 0, height = 0;
-        if (FAILED(hr = factory->CreateStream(&stream)) ||
-            FAILED(hr = stream->InitializeFromMemory(bytes.data(), static_cast<DWORD>(bytes.size()))) ||
-            FAILED(hr = factory->CreateDecoderFromStream(stream.Get(), nullptr, WICDecodeMetadataCacheOnDemand, &decoder)) ||
-            FAILED(hr = decoder->GetFrame(0, &frame)) || FAILED(hr = frame->GetSize(&width, &height)) ||
-            !width || !height || width > 8192 || height > 8192) {
+        ComPtr<IWICBitmapSource> image = PlainDds(factory, bytes);
+        if (!image && SUCCEEDED(hr = factory->CreateStream(&stream)) &&
+            SUCCEEDED(hr = stream->InitializeFromMemory(bytes.data(), static_cast<DWORD>(bytes.size()))) &&
+            SUCCEEDED(hr = factory->CreateDecoderFromStream(stream.Get(), nullptr, WICDecodeMetadataCacheOnDemand, &decoder)) &&
+            SUCCEEDED(hr = decoder->GetFrame(0, &frame))) {
+            image = frame;
+        }
+        if (!image || FAILED(hr = image->GetSize(&width, &height)) || !width || !height || width > 8192 || height > 8192) {
             pixels.Fail(path, "decode " + Hex(hr) + " " + std::to_string(width) + "x" + std::to_string(height));
             continue;
         }
@@ -149,12 +170,12 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
             width = (std::max)(1u, static_cast<UINT>(width * ratio));
             height = (std::max)(1u, static_cast<UINT>(height * ratio));
             if (FAILED(hr = factory->CreateBitmapScaler(&scaler)) ||
-                FAILED(hr = scaler->Initialize(frame.Get(), width, height, WICBitmapInterpolationModeFant))) {
+                FAILED(hr = scaler->Initialize(image.Get(), width, height, WICBitmapInterpolationModeFant))) {
                 pixels.Fail(path, "scale " + Hex(hr));
                 continue;
             }
         }
-        IWICBitmapSource* source = side == NativeSide ? static_cast<IWICBitmapSource*>(frame.Get()) : scaler.Get();
+        IWICBitmapSource* source = side == NativeSide ? image.Get() : scaler.Get();
         if (FAILED(hr = factory->CreateFormatConverter(&converter)) ||
             FAILED(hr = converter->Initialize(source, GUID_WICPixelFormat32bppBGRA,
                 WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeCustom))) {
@@ -427,6 +448,12 @@ SelectionImage SelectionArt::RankingEmblem(const std::string& entry) {
     return impl_->Request("classes/" + entry, [&] {
         return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/network_mode/Ranking.emz"};
     }, NativeSide, emblem, entry);
+}
+SelectionImage SelectionArt::DeveloperMark() {
+    Impl::Policy shipped; shipped.reportAbsence = true;
+    return impl_->Request("developer-mark", [&] {
+        return std::vector<std::wstring>{impl_->assetRoot + L"/../input/mark_developer.png"};
+    }, NativeSide, shipped);
 }
 SelectionImage SelectionArt::Stage(int nativeId) {
     // The Random card borrows the game's character-select random tile, read at

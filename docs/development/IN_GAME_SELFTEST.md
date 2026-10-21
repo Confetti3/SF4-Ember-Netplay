@@ -52,7 +52,9 @@ repeats by default, so it first turns Loop off, then:
   by Player 1. For Ryu's crouching LP the meter's numbers have to be the
   frame data's, startup 3, active 2 and recovery 7, and its bars have to
   draw 3, 2 and 6 cells (the last recovery frame has no cell; see
-  `ClassifyMeter` in `FrameMeter.hxx`);
+  `ClassifyMeter` in `FrameMeter.hxx`). While it plays, the boxes read from
+  the game have to show where each fighter can be hit, and Player 1's attack
+  box has to be live on the move's 2 active frames;
 - the lab's record control is pressed three times: standby, recording for
   eight seconds, stop. The slot has to hold about that many frames, and its
   playback has to get into it. The HUD's recording and playback strip shows

@@ -54,6 +54,9 @@ struct PlayerPreferences {
     int matchHudNameOffset = 0;
     // The announcer calls out when the other fighter at this player's table readies.
     bool readySound = true;
+    // Public room classes show beside players' names on this screen. Off hides
+    // them here only: games still count and others still see this player's.
+    bool classEmblems = true;
     // Called out of Training to their table, the player is readied at once
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;

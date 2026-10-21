@@ -5,9 +5,12 @@
 //! here, once, between the two players' Discord accounts. An Ember ID costs
 //! nothing to replace, a Discord account does, so the rating belongs to the
 //! account and follows it to whichever Ember ID it is connected to. A game
-//! with a fighter who has no Discord account counts for neither. Only the
-//! class (`SkillBadge`) ever leaves the bridge, inside room tickets.
+//! with a fighter who has no Discord account counts for neither, and so
+//! does one with a fighter whose account does not take part (`ranking`).
+//! Only the class (`SkillBadge`) ever leaves the bridge: inside room tickets,
+//! on the player's own standing and on the ranking board.
 mod glicko;
+pub mod ranking;
 
 use ember_protocol::{
     EmberId,
@@ -84,8 +87,10 @@ pub fn record_games(
         if !first {
             continue;
         }
-        let (Some(winner), Some(loser)) = (account(tx, &game.winner)?, account(tx, &game.loser)?)
-        else {
+        let (Some(winner), Some(loser)) = (
+            rated_account(tx, &game.winner)?,
+            rated_account(tx, &game.loser)?,
+        ) else {
             continue;
         };
         if winner == loser {
@@ -155,15 +160,42 @@ fn sitting_weight(tx: &Transaction<'_>, one: &str, other: &str, now: u64) -> Res
     })
 }
 
-/// The class to show for the player as `ember_id` now: none without a
-/// Discord account, band 0 while they are still placing. It is remembered as
-/// the class last shown, which is what the margin is measured from, so the
-/// class ranges can change before anyone has seen one.
-pub fn show(tx: &Transaction<'_>, ember_id: &EmberId, now: u64) -> Result<Option<SkillBadge>> {
-    let Some(account) = account(tx, ember_id)? else {
+/// Ember's developers, by Discord account, and whether the build asking
+/// shows their mark: one that does not is shown their class.
+pub struct Developers<'a> {
+    pub accounts: &'a [String],
+    pub shown: bool,
+}
+
+impl Developers<'_> {
+    fn mark(&self, account: &str) -> bool {
+        self.shown && self.accounts.iter().any(|developer| developer == account)
+    }
+}
+
+/// The badge to show for the player as `ember_id` now: none without a
+/// Discord account that takes part, the developer mark for a developer, and
+/// otherwise their class (`badge_of`).
+pub fn show(
+    tx: &Transaction<'_>,
+    ember_id: &EmberId,
+    developers: &Developers<'_>,
+    now: u64,
+) -> Result<Option<SkillBadge>> {
+    let Some(account) = rated_account(tx, ember_id)? else {
         return Ok(None);
     };
-    let (rating, shown) = load(tx, &account, now)?;
+    if developers.mark(&account) {
+        return Ok(Some(SkillBadge::DEVELOPER));
+    }
+    badge_of(tx, &account, now).map(Some)
+}
+
+/// The class to show for `account` now, band 0 while it is still placing. It
+/// is remembered as the class last shown, which is what the margin is
+/// measured from, so the class ranges can change before anyone has seen one.
+fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge> {
+    let (rating, shown) = load(tx, account, now)?;
     let settled = rating.deviation <= SETTLED_DEVIATION;
     let band = if settled {
         shown_band(shown, rating.rating)
@@ -176,10 +208,7 @@ pub fn show(tx: &Transaction<'_>, ember_id: &EmberId, now: u64) -> Result<Option
             params![account, band],
         )?;
     }
-    Ok(Some(SkillBadge {
-        band,
-        settled: band != 0 && settled,
-    }))
+    Ok(SkillBadge::class(band, band != 0 && settled))
 }
 
 /// The Discord account connected to `ember_id`.
@@ -187,6 +216,19 @@ fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
     Ok(tx
         .query_row(
             "SELECT user_id FROM discord_accounts WHERE ember_id = ?1",
+            [ember_id.as_str()],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+/// The Discord account connected to `ember_id`, if it takes part in ranking.
+fn rated_account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
+    Ok(tx
+        .query_row(
+            "SELECT d.user_id FROM discord_accounts d
+             LEFT JOIN ranking_choices c ON c.discord_user_id = d.user_id
+             WHERE d.ember_id = ?1 AND COALESCE(c.ranked, 1)",
             [ember_id.as_str()],
             |row| row.get(0),
         )
@@ -212,12 +254,14 @@ fn load(tx: &Transaction<'_>, account: &str, now: u64) -> Result<(Rating, u8)> {
         )
         .optional()?;
     Ok(match stored {
-        Some((rating, band, played_at)) => {
-            let idle = now.saturating_sub(played_at) as f64 / SECS_PER_PERIOD as f64;
-            (rating.idle(idle), band)
-        }
+        Some((rating, band, played_at)) => (aged(rating, played_at, now), band),
         None => (Rating::NEW, 0),
     })
+}
+
+/// `rating` from a game at `played_at`, grown less sure by the days since.
+fn aged(rating: Rating, played_at: u64, now: u64) -> Rating {
+    rating.idle(now.saturating_sub(played_at) as f64 / SECS_PER_PERIOD as f64)
 }
 
 /// Writes `account`'s rating after a game at `now`, leaving the band shown.

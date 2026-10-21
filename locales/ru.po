@@ -4706,6 +4706,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Включайте и выключайте части HUD во время боя."
 
+msgid "training.hitboxes"
+msgstr "Хитбоксы"
+
+msgid "training.hitboxes.detail"
+msgstr "Рисует области бойцов поверх боя. Зелёный: где бойца можно ударить; жёлтый: где его можно захватить; красный: где атака попадает; синий: где она захватывает."
+
 msgid "training.color_key"
 msgstr "Обозначения цветов"
 
@@ -6512,3 +6518,139 @@ msgstr "Не удалось найти музыкальные файлы игр�
 
 msgid "music.error_missing"
 msgstr "Выбранный музыкальный файл отсутствует. Будет использована музыка игры по умолчанию."
+
+msgid "screen.rankings"
+msgstr "Рейтинги"
+
+msgid "rankings.title"
+msgstr "РЕЙТИНГИ"
+
+msgid "rankings.board_title"
+msgstr "ИГРОКИ ПО КЛАССАМ"
+
+msgid "rankings.entry_detail"
+msgstr "Ваш класс в открытых лобби и игроки по классам."
+
+msgid "rankings.needs_setup"
+msgstr "Рейтинги строятся по играм в открытых лобби. Сначала настройте открытые лобби."
+
+msgid "rankings.loading"
+msgstr "Загрузка вашего класса..."
+
+msgid "rankings.your_class"
+msgstr "Ваш класс"
+
+msgid "rankings.placing"
+msgstr "Определяется"
+
+msgid "rankings.placing_detail"
+msgstr "Класс появится после нескольких игр в открытых лобби с игроками, у которых он уже есть."
+
+msgid "rankings.faint_detail"
+msgstr "Давно нет игр, поэтому класс показан приглушённо, а в таблице вас нет. Несколько игр это исправят."
+
+msgid "rankings.settled_detail"
+msgstr "Показывается рядом с вашим именем в открытых лобби."
+
+msgid "rankings.hidden"
+msgstr "Классы пока скрыты"
+
+msgid "rankings.hidden_detail"
+msgstr "Этот сервис пока не показывает классы. Ваши игры в открытых лобби по-прежнему засчитываются."
+
+msgid "rankings.no_account"
+msgstr "Подключите Discord, чтобы участвовать"
+
+msgid "rankings.no_account_detail"
+msgstr "Класс привязан к аккаунту Discord, поэтому новый Ember ID его сохраняет. Без аккаунта ваши игры не засчитываются."
+
+msgid "rankings.connect_detail"
+msgstr "Открывает «Подключить Discord». Когда закончите, вернитесь сюда."
+
+msgid "rankings.off"
+msgstr "Вы не участвуете"
+
+msgid "rankings.off_detail"
+msgstr "Ваши игры не засчитываются, класс не показывается. Рейтинг сохраняется до вашего возвращения."
+
+msgid "rankings.take_part"
+msgstr "Участвовать"
+
+msgid "rankings.take_part_detail"
+msgstr "Ваши игры в открытых лобби снова засчитываются, и класс вернётся. После перерыва он может несколько игр показываться приглушённо. В таблице вы будете как {0}. Менять можно раз в сутки."
+
+msgid "rankings.stop"
+msgstr "Перестать участвовать"
+
+msgid "rankings.stop_detail"
+msgstr "Ваш класс исчезнет из лобби и таблицы, а игры перестанут засчитываться. Рейтинг сохранится как есть и продолжится после возвращения. Менять можно раз в сутки."
+
+msgid "rankings.change_wait"
+msgstr "Снова изменить можно будет через {0}."
+
+msgid "rankings.hours"
+msgstr "{0} ч"
+
+msgid "rankings.minutes"
+msgstr "{0} мин"
+
+msgid "rankings.board_as"
+msgstr "В таблице как"
+
+msgid "rankings.board_as_detail"
+msgstr "Имя и флаг, которые лобби показывают о вас. Меняются в разделах «Профиль игрока» и «Настройки». Таблица учтёт изменение при следующем открытии раздела «Рейтинги»."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Как работают классы"
+
+msgid "rankings.how_text"
+msgstr "Засчитываются только игры в открытых лобби, которые закончились победой одного из игроков. Класс привязан к аккаунту Discord, а не к Ember ID. Он меняется только после явной серии результатов, а игра с намного более сильным или слабым соперником почти не влияет. Очков не видно, только класс. После долгого перерыва он показывается приглушённо, пока вы снова не сыграете, и сам никогда не снижается."
+
+msgid "rankings.players"
+msgstr "Игроки по классам"
+
+msgid "rankings.players_detail"
+msgstr "Все участники с установившимся классом, от высшего. Внутри класса выше те, кто играл недавно."
+
+msgid "rankings.you"
+msgstr "Вы"
+
+msgid "rankings.you_beyond_cap"
+msgstr "В таблице не больше {0} игроков, и сейчас вас среди них нет."
+
+msgid "rankings.jump"
+msgstr "Влево и вправо переключают классы."
+
+msgid "rankings.loading_board"
+msgstr "Загрузка игроков..."
+
+msgid "rankings.empty"
+msgstr "В таблице пока никого нет."
+
+msgid "rankings.status_board"
+msgstr "Игроков в списке: {0}. Обновлено {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Этот сервис не предоставляет рейтинги."
+
+msgid "rankings.failure.too_soon"
+msgstr "Менять можно раз в сутки."
+
+msgid "settings.class_emblems"
+msgstr "Эмблемы классов"
+
+msgid "settings.class_emblems_detail"
+msgstr "Показывает класс каждого игрока рядом с его именем в открытых лобби. Если выключено, они скрыты только на вашем экране. Другие по-прежнему видят ваш класс, и ваши игры засчитываются."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Разработчик Ember"
+
+msgid "rankings.developer_detail"
+msgstr "Разработчики Ember показывают эту отметку вместо класса и не попадают в таблицу. Ваши игры по-прежнему засчитываются."

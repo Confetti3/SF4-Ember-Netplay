@@ -202,6 +202,12 @@ fn assert_no_address(event: &Event) {
         assert_public_route(route);
     }
 }
+/// `work` within `limit`, or a failure that names the unfinished `step`.
+async fn phase<T>(step: &str, limit: Duration, work: impl Future<Output = T>) -> T {
+    timeout(limit, work)
+        .await
+        .unwrap_or_else(|_| panic!("{step} did not finish within {limit:?}"))
+}
 async fn next(events: &mut mpsc::Receiver<Event>, kind: &str) -> Event {
     loop {
         let event = events.recv().await.unwrap();
@@ -3696,65 +3702,73 @@ async fn expired_probe_authorization_completion_never_installs_or_dials() {
 
 #[tokio::test]
 async fn service_replays_committed_checkpoint_to_each_native_owner() {
-    timeout(Duration::from_secs(35), async {
-        let host = endpoint().await;
-        let guest = endpoint().await;
-        let relay = iroh::defaults::prod::default_relay_map()
-            .urls::<Vec<_>>()
-            .remove(0);
-        let seed = Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600)
-            .unwrap();
-        let room = seed.room();
-        let (host_events_tx, mut host_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
-        let (host_commands, host_command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
-        let (guest_events_tx, mut guest_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
-        let (guest_commands, guest_command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
-        let (_host_fault, host_failure) = watch::channel(false);
-        let (_guest_fault, guest_failure) = watch::channel(false);
-        let make_actor = test_actor;
-        let mut host_actor = make_actor(host.clone(), host_events_tx);
-        let invite = host_actor.setup_host_recovery(seed).await.unwrap();
-        host_actor.epoch = 1;
-        host_actor.room = Some(room);
-        host_actor.hosted = Some(invite.clone());
-        let host_service = tokio::spawn(async move {
-            let result = host_actor.run(host_command_rx, host_failure).await;
-            host_actor.clear_room();
-            host_actor.tasks.shutdown().await;
-            result
-        });
-        let mut guest_actor = make_actor(guest.clone(), guest_events_tx);
-        // Use an explicit loopback connection for this deterministic
-        // service fixture; production Join still uses the authenticated
-        // invite address (relay or direct route).
-        guest_actor.epoch = 1;
-        guest_actor.opening = true;
-        guest_actor.room = Some(room);
-        guest_actor.host_address = Some(address(&host));
-        let guest_connection = guest
-            .connect(address(&host), CONTROL_ALPN)
-            .await
-            .unwrap();
-        let guest_control = transport::connect_control_on(guest_connection, &invite)
-            .await
-            .unwrap();
-        guest_actor
-            .completed(Completion::GuestControl(1, invite.clone(), Ok(guest_control), None))
-            .await
-            .unwrap();
-        let guest_service = tokio::spawn(async move {
-            let result = guest_actor.run(guest_command_rx, guest_failure).await;
-            guest_actor.clear_room();
-            guest_actor.tasks.shutdown().await;
-            result
-        });
-        let _services = TaskScope(vec![
-            host_service.abort_handle(),
-            guest_service.abort_handle(),
-        ]);
-        // Wait until the host has both authenticated control routes before
-        // submitting a proposal. This exercises the live admission path,
-        // rather than a standalone Coordinator fixture.
+    // Each wait below has its own deadline and names itself when it runs
+    // out, so a loaded machine is not charged one budget for the whole
+    // fixture and a hang still says where it is. Idle, the fixture takes
+    // about 7 s, 6 s of it the two coordination endpoints' relay waits
+    // (ADVERTISE_READY_TIMEOUT).
+    let setup = Duration::from_secs(20);
+    let host = endpoint().await;
+    let guest = endpoint().await;
+    let relay = iroh::defaults::prod::default_relay_map()
+        .urls::<Vec<_>>()
+        .remove(0);
+    let seed = Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600)
+        .unwrap();
+    let room = seed.room();
+    let (host_events_tx, mut host_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (host_commands, host_command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (guest_events_tx, mut guest_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (guest_commands, guest_command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (_host_fault, host_failure) = watch::channel(false);
+    let (_guest_fault, guest_failure) = watch::channel(false);
+    let mut host_actor = test_actor(host.clone(), host_events_tx);
+    let invite = phase("host recovery setup", setup, host_actor.setup_host_recovery(seed))
+        .await
+        .unwrap();
+    host_actor.epoch = 1;
+    host_actor.room = Some(room);
+    host_actor.hosted = Some(invite.clone());
+    let host_service = tokio::spawn(async move {
+        let result = host_actor.run(host_command_rx, host_failure).await;
+        host_actor.clear_room();
+        host_actor.tasks.shutdown().await;
+        result
+    });
+    let mut guest_actor = test_actor(guest.clone(), guest_events_tx);
+    // Use an explicit loopback connection for this deterministic
+    // service fixture; production Join still uses the authenticated
+    // invite address (relay or direct route).
+    guest_actor.epoch = 1;
+    guest_actor.opening = true;
+    guest_actor.room = Some(room);
+    guest_actor.host_address = Some(address(&host));
+    let guest_control = phase("guest control stream", setup, async {
+        let connection = guest.connect(address(&host), CONTROL_ALPN).await.unwrap();
+        transport::connect_control_on(connection, &invite).await.unwrap()
+    })
+    .await;
+    phase(
+        "guest join recovery",
+        setup,
+        guest_actor.completed(Completion::GuestControl(1, invite.clone(), Ok(guest_control), None)),
+    )
+    .await
+    .unwrap();
+    let guest_service = tokio::spawn(async move {
+        let result = guest_actor.run(guest_command_rx, guest_failure).await;
+        guest_actor.clear_room();
+        guest_actor.tasks.shutdown().await;
+        result
+    });
+    let _services = TaskScope(vec![
+        host_service.abort_handle(),
+        guest_service.abort_handle(),
+    ]);
+    // Wait until the host has both authenticated control routes before
+    // submitting a proposal. This exercises the live admission path,
+    // rather than a standalone Coordinator fixture.
+    let term = phase("host admits the guest's route", setup, async {
         let mut term = 0;
         let mut host_has_guest_route = false;
         while !host_has_guest_route || term == 0 {
@@ -3772,102 +3786,106 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
                 _ => {}
             }
         }
-        guest_commands
-            .send(Request {
-                id: 10,
-                command: Command::Send {
-                    epoch: 1,
-                    peer: host.id(),
-                    message_id: 71,
-                    payload: "cpp hello alongside admission".into(),
-                    control: 0,
-                },
-            })
-            .await
-            .unwrap();
-        loop {
-            match host_events.recv().await.unwrap() {
-                Event::Message {
-                    message_id,
-                    payload,
-                    ..
-                } => {
-                    assert_eq!(message_id, 71);
-                    assert_eq!(payload, "cpp hello alongside admission");
-                    break;
-                }
-                Event::Error { code, .. } => panic!("host helper error: {code}"),
-                _ => {}
-            }
-        }
-        tokio::time::sleep(Duration::from_millis(500)).await;
-        let body = serde_json::json!({
-            "version": 1,
-            "request": 7,
-            "term": term,
-            "base_revision": 0,
-            "checkpoint": {"room": "recovery-test"},
-            "effects": [],
-            "effects_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-        });
-        let bytes = serde_json::to_vec(&body).unwrap();
-        let digest = recovery::hex_digest(&recovery::sha256(&bytes));
+        term
+    })
+    .await;
+    guest_commands
+        .send(Request {
+            id: 10,
+            command: Command::Send {
+                epoch: 1,
+                peer: host.id(),
+                message_id: 71,
+                payload: "cpp hello alongside admission".into(),
+                control: 0,
+            },
+        })
+        .await
+        .unwrap();
+    let message = phase(
+        "guest message reaches the host",
+        Duration::from_secs(15),
+        next(&mut host_events, "message"),
+    )
+    .await;
+    let Event::Message {
+        message_id,
+        payload,
+        ..
+    } = message
+    else {
+        unreachable!()
+    };
+    assert_eq!(message_id, 71);
+    assert_eq!(payload, "cpp hello alongside admission");
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let body = serde_json::json!({
+        "version": 1,
+        "request": 7,
+        "term": term,
+        "base_revision": 0,
+        "checkpoint": {"room": "recovery-test"},
+        "effects": [],
+        "effects_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    });
+    let bytes = serde_json::to_vec(&body).unwrap();
+    let digest = recovery::hex_digest(&recovery::sha256(&bytes));
+    host_commands
+        .send(Request {
+            id: 2,
+            command: Command::CheckpointBegin {
+                epoch: 1,
+                room,
+                transfer: 7,
+                term,
+                base_revision: 0,
+                revision: 1,
+                length: bytes.len() as u32,
+                digest: digest.clone(),
+            },
+        })
+        .await
+        .unwrap();
+    for (offset, chunk) in bytes.chunks(CHECKPOINT_CHUNK_BYTES).enumerate() {
+        let offset = offset * CHECKPOINT_CHUNK_BYTES;
         host_commands
             .send(Request {
-                id: 2,
-                command: Command::CheckpointBegin {
+                id: 3 + offset as u64,
+                command: Command::CheckpointChunk {
                     epoch: 1,
                     room,
                     transfer: 7,
                     term,
                     base_revision: 0,
                     revision: 1,
-                    length: bytes.len() as u32,
-                    digest: digest.clone(),
+                    offset: offset as u32,
+                    data: URL_SAFE_NO_PAD.encode(chunk),
                 },
             })
             .await
             .unwrap();
-        for (offset, chunk) in bytes.chunks(CHECKPOINT_CHUNK_BYTES).enumerate() {
-            let offset = offset * CHECKPOINT_CHUNK_BYTES;
-            host_commands
-                .send(Request {
-                    id: 3 + offset as u64,
-                    command: Command::CheckpointChunk {
-                        epoch: 1,
-                        room,
-                        transfer: 7,
-                        term,
-                        base_revision: 0,
-                        revision: 1,
-                        offset: offset as u32,
-                        data: URL_SAFE_NO_PAD.encode(chunk),
-                    },
-                })
-                .await
-                .unwrap();
-        }
-        host_commands
-            .send(Request {
-                id: 4,
-                command: Command::CheckpointEnd {
-                    epoch: 1,
-                    room,
-                    transfer: 7,
-                    term,
-                    base_revision: 0,
-                    revision: 1,
-                    length: bytes.len() as u32,
-                    digest,
-                },
-            })
-            .await
-            .unwrap();
+    }
+    host_commands
+        .send(Request {
+            id: 4,
+            command: Command::CheckpointEnd {
+                epoch: 1,
+                room,
+                transfer: 7,
+                term,
+                base_revision: 0,
+                revision: 1,
+                length: bytes.len() as u32,
+                digest,
+            },
+        })
+        .await
+        .unwrap();
 
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
-        let mut guest_committed = false;
+    let replayed = "committed checkpoint replayed to the guest";
+    let guest_started = phase(replayed, Duration::from_secs(15), async {
         let mut guest_started = false;
-        while !guest_committed {
+        loop {
             tokio::select! {
                 event = host_events.recv() => match event.unwrap() {
                     Event::CheckpointBegin { transfer, .. } => {
@@ -3898,20 +3916,18 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
                     Event::CheckpointCommitted { transfer, revision, .. } => {
                         assert_eq!(transfer, 7);
                         assert_eq!(revision, 1);
-                        guest_committed = true;
+                        return guest_started;
                     }
                     Event::Error { code, .. } => panic!("guest helper error: {code}"),
                     _ => {},
                 },
-                _ = tokio::time::sleep_until(deadline) => panic!("committed checkpoint was not replayed"),
             }
         }
-        assert!(guest_started);
-        host.close().await;
-        guest.close().await;
     })
-    .await
-    .unwrap();
+    .await;
+    assert!(guest_started);
+    host.close().await;
+    guest.close().await;
 }
 
 #[tokio::test]

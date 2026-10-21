@@ -28,7 +28,7 @@ void TrainingSettingsAndHome() {
  Check(rows.size()==settings.size(),"Settings row count changed");
  for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
  h.Choose("interface");
- const std::vector<std::string> interfaceRows={"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","shortcut-hint","scale","language"};
+ const std::vector<std::string> interfaceRows={"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","shortcut-hint","class-emblems","scale","language"};
  Check(rows.size()==interfaceRows.size(),"Interface no longer has its 12 rows");
  for(std::size_t i=0;i<interfaceRows.size();++i)Check(rows[i].id==interfaceRows[i],"Interface order changed");
  h.Press(MenuInput::Back);h.Choose("training-replays");

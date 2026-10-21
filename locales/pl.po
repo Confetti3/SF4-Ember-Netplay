@@ -4705,6 +4705,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Włącz lub wyłącz części HUD podczas walki."
 
+msgid "training.hitboxes"
+msgstr "Hitboksy"
+
+msgid "training.hitboxes.detail"
+msgstr "Rysuje pola zawodników na tle walki: zielone tam, gdzie zawodnika można trafić, żółte tam, gdzie można nim rzucić, czerwone tam, gdzie atak trafia, i niebieskie tam, gdzie rzuca."
+
 msgid "training.color_key"
 msgstr "Legenda kolorów"
 
@@ -6511,3 +6517,139 @@ msgstr "Nie znaleziono plików muzycznych gry."
 
 msgid "music.error_missing"
 msgstr "Brakuje wybranego pliku muzycznego. Zostanie użyta domyślna muzyka gry."
+
+msgid "screen.rankings"
+msgstr "Rankingi"
+
+msgid "rankings.title"
+msgstr "RANKINGI"
+
+msgid "rankings.board_title"
+msgstr "GRACZE WG KLAS"
+
+msgid "rankings.entry_detail"
+msgstr "Twoja klasa w pokojach publicznych i gracze według klas."
+
+msgid "rankings.needs_setup"
+msgstr "Rankingi powstają z gier w pokojach publicznych. Najpierw skonfiguruj pokoje publiczne."
+
+msgid "rankings.loading"
+msgstr "Wczytywanie Twojej klasy..."
+
+msgid "rankings.your_class"
+msgstr "Twoja klasa"
+
+msgid "rankings.placing"
+msgstr "Ustalanie"
+
+msgid "rankings.placing_detail"
+msgstr "Twoja klasa pojawi się po kilku kolejnych grach w pokojach publicznych z graczami, którzy ją mają."
+
+msgid "rankings.faint_detail"
+msgstr "Brak ostatnich gier, więc Twoja klasa jest wyblakła, a Ciebie nie ma w rankingu. Kilka gier to naprawi."
+
+msgid "rankings.settled_detail"
+msgstr "Widoczna obok Twojej nazwy w pokojach publicznych."
+
+msgid "rankings.hidden"
+msgstr "Klasy jeszcze niewidoczne"
+
+msgid "rankings.hidden_detail"
+msgstr "Ta usługa jeszcze nie pokazuje klas. Twoje gry w pokojach publicznych nadal się liczą."
+
+msgid "rankings.no_account"
+msgstr "Połącz Discord, aby uczestniczyć"
+
+msgid "rankings.no_account_detail"
+msgstr "Klasy należą do konta Discord, więc nowe Ember ID zachowa Twoją. Bez konta Twoje gry się nie liczą."
+
+msgid "rankings.connect_detail"
+msgstr "Otwiera Połącz Discord. Wróć tutaj, gdy skończysz."
+
+msgid "rankings.off"
+msgstr "Bez udziału"
+
+msgid "rankings.off_detail"
+msgstr "Twoje gry się nie liczą i żadna klasa się nie pokazuje. Rating zostaje zachowany na czas Twojego powrotu."
+
+msgid "rankings.take_part"
+msgstr "Weź udział"
+
+msgid "rankings.take_part_detail"
+msgstr "Twoje gry w pokojach publicznych znów się liczą, a klasa wraca. Po przerwie może przez kilka gier być wyblakła. W rankingu będziesz jako {0}. Zmianę można wprowadzić raz dziennie."
+
+msgid "rankings.stop"
+msgstr "Przestań brać udział"
+
+msgid "rankings.stop_detail"
+msgstr "Twoja klasa znika z pokoi i rankingu, a gry przestają się liczyć. Rating zostaje bez zmian i wznawia się po powrocie. Zmianę można wprowadzić raz dziennie."
+
+msgid "rankings.change_wait"
+msgstr "Zmienisz to ponownie za {0}."
+
+msgid "rankings.hours"
+msgstr "{0} godz."
+
+msgid "rankings.minutes"
+msgstr "{0} min"
+
+msgid "rankings.board_as"
+msgstr "W rankingu jako"
+
+msgid "rankings.board_as_detail"
+msgstr "Nazwa i flaga, które pokazują pokoje. Zmienisz je w sekcjach Profil i Ustawienia. Ranking uwzględni zmianę przy następnym otwarciu Rankingów."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "Jak działają klasy"
+
+msgid "rankings.how_text"
+msgstr "Liczą się tylko gry w pokojach publicznych, które kończą się zwycięzcą. Twoja klasa należy do konta Discord, a nie do Ember ID. Zmienia się dopiero po wyraźnej serii wyników, a gra z dużo silniejszym lub słabszym graczem ledwo się liczy. Nie widać punktów, tylko klasę. Po długiej przerwie jest wyblakła, dopóki nie zagrasz ponownie, i sama nigdy nie spada."
+
+msgid "rankings.players"
+msgstr "Gracze według klas"
+
+msgid "rankings.players_detail"
+msgstr "Wszyscy uczestnicy z ustaloną klasą, od najwyższej. W obrębie klasy pierwsi są ci, którzy grali ostatnio."
+
+msgid "rankings.you"
+msgstr "Ty"
+
+msgid "rankings.you_beyond_cap"
+msgstr "Ranking zawiera do {0} graczy i teraz Cię w nim nie ma."
+
+msgid "rankings.jump"
+msgstr "Lewo i prawo przełączają klasy."
+
+msgid "rankings.loading_board"
+msgstr "Wczytywanie graczy..."
+
+msgid "rankings.empty"
+msgstr "W rankingu nikogo jeszcze nie ma."
+
+msgid "rankings.status_board"
+msgstr "Gracze na liście: {0}. Odświeżono {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Ta usługa nie oferuje rankingów."
+
+msgid "rankings.failure.too_soon"
+msgstr "Zmianę można wprowadzić raz dziennie."
+
+msgid "settings.class_emblems"
+msgstr "Emblematy klas"
+
+msgid "settings.class_emblems_detail"
+msgstr "Pokazuje klasę każdego gracza obok jego nazwy w pokojach publicznych. Wyłączenie ukrywa je tylko na Twoim ekranie. Inni nadal widzą Twoją, a Twoje gry nadal się liczą."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Twórca Ember"
+
+msgid "rankings.developer_detail"
+msgstr "Twórcy Ember mają ten znak zamiast klasy i nie ma ich w rankingu. Twoje gry nadal się liczą."

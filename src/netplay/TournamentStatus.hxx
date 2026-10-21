@@ -48,12 +48,16 @@ struct Assignment {
 	bool ExpiredBy(std::uint64_t unixNow) const { return Expired() || (Waiting() && Lapsed(unixNow)); }
 };
 
-// The three public room ops ride the same channel as the tournament ones: they
-// are bridge requests the helper answers by request id, and their answers
-// reach the runtime beside the assignment list's (PublicRooms.hxx). Watch asks
-// to watch a match, and Stop ends whichever of playing or watching is under way.
+// The three public room ops and the three ranking ops ride the same channel as
+// the tournament ones: they are bridge requests the helper answers by request
+// id, and their answers reach the runtime beside the assignment list's
+// (PublicRooms.hxx, Rankings.hxx). Watch asks to watch a match, and Stop ends
+// whichever of playing or watching is under way.
 struct Command {
-	enum class Op : std::uint8_t { None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket, Watch } op = Op::None;
+	enum class Op : std::uint8_t {
+		None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket, Watch,
+		RankingStanding, RankingChoose, RankingBoard,
+	} op = Op::None;
 	std::string bridgeId, matchId;
 	// RoomCreate names and sizes the new room; RoomTicket names the room to join.
 	std::string roomName, roomId;
@@ -61,16 +65,23 @@ struct Command {
 	// RoomCreate: each fighter plays at their own input delay (room::DelayPolicy::Own).
 	// Sent to the helper only when set.
 	bool ownDelay = false;
-	// The interface's identity for a public room request, increasing, chosen by
-	// the PublicRoomsPanel. The runtime carries it to the request's answer, and a
-	// newer one supersedes a create or ticket still in flight.
+	// RankingChoose: take part or not, and while taking part the name and
+	// country code the board lists (no listing when the name is empty).
+	bool ranked = false;
+	std::string listingName, listingCountry;
+	// The interface's identity for a public room or ranking choice request,
+	// increasing, chosen by its panel. The runtime carries it to the request's
+	// answer, and a newer one supersedes a create, ticket or choice in flight.
 	std::uint64_t request = 0;
 	static constexpr std::size_t MaxField = 256;
 	bool Valid() const {
 		return bridgeId.size() <= MaxField && matchId.size() <= MaxField && roomId.size() <= MaxField &&
-			roomName.size() <= 64 && capacity >= 0 && capacity <= 16;
+			roomName.size() <= 64 && capacity >= 0 && capacity <= 16 && listingName.size() <= 32 &&
+			listingCountry.size() <= 2;
 	}
-	std::size_t Bytes() const { return bridgeId.size() + matchId.size() + roomName.size() + roomId.size(); }
+	std::size_t Bytes() const {
+		return bridgeId.size() + matchId.size() + roomName.size() + roomId.size() + listingName.size() + listingCountry.size();
+	}
 };
 
 // The assignment list for `bridge`, from its last refresh.

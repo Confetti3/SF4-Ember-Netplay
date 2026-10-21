@@ -27,6 +27,10 @@ namespace Dimps {
 					} __staticMethods;
 
 					static Eva::Task** GetCamShakeTask(Unit* u);
+					// The matrices the fight is drawn through, 16 floats each,
+					// rows first. Read off a live fight.
+					static float* GetViewMatrix(Unit* u);
+					static float* GetProjectionMatrix(Unit* u);
 
 					static void Locate(HMODULE peRoot);
 					static __privateMethods privateMethods;

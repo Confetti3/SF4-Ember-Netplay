@@ -46,10 +46,7 @@ async fn the_event_carries_the_skill_badge_the_ticket_was_signed_with() {
         let mut fixture = public_host().await;
         let (remote, player) = (endpoint().await, identity(1));
         let mut ticket = ticket_for(&fixture.invite, &player, &remote).ticket;
-        let shown = SkillBadge {
-            band: 6,
-            settled: true,
-        };
+        let shown = SkillBadge::class(6, true);
         ticket.badge = Some(shown);
         let signed = ticket.sign(&identity(9), "k1").unwrap();
         let _control = fixture.dial(&remote, &signed).await.unwrap();
@@ -556,10 +553,7 @@ fn connected_serializes_as_before_without_an_account() {
         room: [7; 16],
         control: 9,
         account: Some(account.clone()),
-        badge: Some(SkillBadge {
-            band: 5,
-            settled: false,
-        }),
+        badge: Some(SkillBadge::class(5, false)),
         latency: None,
         latency_relay: None,
     };

@@ -9,6 +9,8 @@
 #include "NetworkFeedback.hxx"
 #include "MenuPresentation.hxx"
 #include "PublicRoomsCards.hxx"
+#include "RankingsCards.hxx"
+#include "SignInSites.hxx"
 #include "RoomControls.hxx"
 #include "VersionLine.hxx"
 #include "../session/TrainingCall.hxx"
@@ -243,7 +245,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   const auto open=[&](const char* id,const std::string& label,const char* detail){auto r=Row(id,label,blocked?blocked:detail,v.canOpenRoom);r.quiet=blocked!=nullptr;return r;};
   title=loc::T("online.title");rows={open("create",loc::T("online.create"),loc::T("online.create_detail")),open("join",loc::T("online.join"),loc::T("online.join_detail")),
    open("public-rooms",loc::T("screen.public_rooms"),loc::T("online.public_detail")),
-   Row("identity",loc::T("screen.identity"),identity_.EntryDetail(v))};
+   Row("identity",loc::T("screen.identity"),identity_.EntryDetail(v)),
+   Row("rankings",loc::T("screen.rankings"),loc::T("rankings.entry_detail"))};
+  rows.back().value=RankingsPanel::EntryValue(v,identity_.UsableBridge(v));
   // Where this PC connects and how its network treats a direct path, for information only.
   auto relay=Row("relay",loc::T("network.relay"),loc::T("network.relay_detail"));relay.info=true;relay.value=DescribeRelay(v.netReport);
   auto network=Row("network",loc::T("network.status"),DescribeNatDetail(v.netReport));network.info=true;network.value=DescribeNat(v.netReport.nat);
@@ -257,6 +261,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[0].hint=loc::T("menu.hint.paste");if(!opening)rows[1].hint=loc::T("online.join");
  }else if(PublicRoomsPanel::Owns(screen)){
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
+ }else if(RankingsPanel::Owns(screen)){rows=rankings_.Rows(v,screen,identity_.Waiting(),title);
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(ReplaysPanel::Owns(screen)){rows=replays_.Rows(v,screen,idle,title);
  }else if(screen=="settings"){
@@ -308,6 +313,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
    Value("shortcut-hint",loc::T("settings.shortcut_hint"),preferences_.showShortcutHint?loc::T("common.on"):loc::T("common.off"),loc::T("settings.shortcut_hint_detail"),v.canEditPreferences),
+   Value("class-emblems",loc::T("settings.class_emblems"),preferences_.classEmblems?loc::T("common.on"):loc::T("common.off"),loc::T("settings.class_emblems_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
@@ -452,6 +458,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  if(screen=="music"&&!v.musicError.empty()){status=v.musicError;statusTone=Tone::Error;}
  if(IdentityPanel::Owns(screen)){std::string own;Tone ownTone=Tone::Neutral;if(identity_.Status(own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(PublicRoomsPanel::Owns(screen)||screen=="create"){std::string own=status;Tone ownTone=statusTone;if(publicRooms_.Status(v,screen,own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
+ if(RankingsPanel::Owns(screen)){std::string own=status;Tone ownTone=statusTone;if(rankings_.Status(v,screen,own,ownTone)){status=own;statusTone=ownTone;}}
  if(v.controllerUnavailable){status=loc::T(v.session.room==RoomState::Idle?"controller.disconnected":"controller.disconnected_room");statusTone=Tone::Error;}
  if(v.session.room==RoomState::Opening&&v.session.openingStalled){status=loc::T("room.opening_stalled");statusTone=Tone::Error;}
  const std::string sessionProblem=SessionProblem(v.session);
@@ -500,6 +507,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(a.id=="pr-setup-id"){identity_.ClearPublicSetup();nav.Push("identity");return;}
   if(publicRooms_.Activate(a,nav))return;
  }
+ if(RankingsPanel::Owns(screen)){if(a.id==DiscordConnectScreen){identity_.Activate(a,v,nav);return;}if(rankings_.Activate(a,v,nav))return;}
  if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
  if(ControllerActivate(a,v,submit))return;
  // An opening room keeps its own screen, with its Stop row, until it joins.
@@ -517,7 +525,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
- else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="music"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports"||a.id=="music")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(screen=="music"&&MusicPanel::Accept(a,v,preferences_)){
   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
@@ -572,6 +580,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,preferences_.matchHudAnchor+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
+  else if(a.id=="class-emblems")preferences_.classEmblems=a.delta>0;
   else if(a.id=="watched-picture")preferences_.watchedPicture=a.delta>0;
   else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
   else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
@@ -734,6 +743,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),identity_.Waiting(),submit,now);
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
+ rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
+ {std::string said;if(rankings_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
  if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();notice_=loc::T("public.setup_done");noticeTone_=Tone::Success;noticeUntil_=now+4;}
  // A tournament match that ended is announced wherever the player is: the
@@ -861,6 +872,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
    return DrawPublicCard(v,publicRooms_,publicSetup,publicRooms_.PhaseOf(e.id),e,min,max,e.id==menu_.navigation.Focus(),now);};
  }
+ if(RankingsPanel::Owns(screen))portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return DrawRankingsRow(v,e,min,max);};
  if(screen==CountryPicker::Screen)portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return countryPicker_.DrawRow(e,v.automaticCountry,min,max);};
  if(screen=="main-character")portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
   if(e.id.compare(0,5,"main-")!=0)return false;
@@ -902,7 +914,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // On the country picker a typed letter goes to a country, so letters are no shortcuts there.
  if(screen==CountryPicker::Screen){menu_.typesText=true;if(!nav.Editing())for(const ImWchar typed:ImGui::GetIO().InputQueueCharacters){const auto row=countryPicker_.Jump(typed,nav.Focus());if(!row.empty())nav.Focus(row,rows);}}
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
- else if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
+ else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
@@ -939,6 +951,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }else if(a.kind==MenuAction::Shortcut){
   if(inRoom)RoomShortcut(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
+  else if(RankingsPanel::Owns(screen))rankings_.Shortcut(a);
  }else if(a.kind==MenuAction::Chosen){
   if(roomScreen)RoomAction(a,v,submit);
   else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);

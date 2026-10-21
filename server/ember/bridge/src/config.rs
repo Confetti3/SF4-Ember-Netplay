@@ -99,6 +99,11 @@ pub struct Rooms {
     /// way, so the bands can be calibrated before anyone sees one.
     #[serde(default)]
     pub skill_badges: bool,
+    /// Discord user IDs of Ember's developers: their badge is the developer
+    /// mark in place of a class, and they are not on the ranking board. Their
+    /// games are rated as anyone's, so their opponents' ratings stay fair.
+    #[serde(default)]
+    pub developers: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

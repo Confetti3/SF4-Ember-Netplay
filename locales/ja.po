@@ -4706,6 +4706,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "対戦中のHUDの項目をオン・オフします。"
 
+msgid "training.hitboxes"
+msgstr "ヒットボックス"
+
+msgid "training.hitboxes.detail"
+msgstr "ファイターの判定を対戦画面に表示します。緑は攻撃を受ける範囲、黄は投げられる範囲、赤は攻撃が当たる範囲、青は投げが届く範囲です。"
+
 msgid "training.color_key"
 msgstr "色の凡例"
 
@@ -6512,3 +6518,139 @@ msgstr "ゲームの音楽ファイルが見つかりませんでした。"
 
 msgid "music.error_missing"
 msgstr "選択した音楽ファイルがありません。ゲーム既定の曲を使用します。"
+
+msgid "screen.rankings"
+msgstr "ランキング"
+
+msgid "rankings.title"
+msgstr "ランキング"
+
+msgid "rankings.board_title"
+msgstr "クラス別プレイヤー"
+
+msgid "rankings.entry_detail"
+msgstr "公開ルームでのあなたのクラスと、クラス別のプレイヤーです。"
+
+msgid "rankings.needs_setup"
+msgstr "ランキングは公開ルームの対戦で決まります。先に公開ルームを設定してください。"
+
+msgid "rankings.loading"
+msgstr "クラスを読み込み中..."
+
+msgid "rankings.your_class"
+msgstr "あなたのクラス"
+
+msgid "rankings.placing"
+msgstr "判定中"
+
+msgid "rankings.placing_detail"
+msgstr "クラスは、クラスを持つプレイヤーとの公開ルームの対戦をあと数回行うと表示されます。"
+
+msgid "rankings.faint_detail"
+msgstr "最近対戦していないため、クラスが薄く表示され、ランキングからも外れています。数回対戦すると元に戻ります。"
+
+msgid "rankings.settled_detail"
+msgstr "公開ルームで名前の横に表示されます。"
+
+msgid "rankings.hidden"
+msgstr "クラスはまだ非表示"
+
+msgid "rankings.hidden_detail"
+msgstr "このサービスではまだクラスを表示していません。公開ルームの対戦は引き続きカウントされます。"
+
+msgid "rankings.no_account"
+msgstr "参加するにはDiscordを連携"
+
+msgid "rankings.no_account_detail"
+msgstr "クラスはDiscordアカウントに紐づくため、新しいEmber IDでも引き継がれます。連携しないと対戦はカウントされません。"
+
+msgid "rankings.connect_detail"
+msgstr "「Discordを連携」を開きます。完了したらここに戻ってください。"
+
+msgid "rankings.off"
+msgstr "参加しない"
+
+msgid "rankings.off_detail"
+msgstr "対戦はカウントされず、クラスも表示されません。レーティングは保持され、戻ったときに再開します。"
+
+msgid "rankings.take_part"
+msgstr "参加する"
+
+msgid "rankings.take_part_detail"
+msgstr "公開ルームの対戦が再びカウントされ、クラスが戻ります。離れていた場合、数回は薄く表示されることがあります。ランキングには{0}として表示されます。変更は1日1回までです。"
+
+msgid "rankings.stop"
+msgstr "参加をやめる"
+
+msgid "rankings.stop_detail"
+msgstr "クラスはルームとランキングから消え、対戦もカウントされなくなります。レーティングはそのまま保持され、戻れば再開します。変更は1日1回までです。"
+
+msgid "rankings.change_wait"
+msgstr "あと{0}で再度変更できます。"
+
+msgid "rankings.hours"
+msgstr "{0}時間"
+
+msgid "rankings.minutes"
+msgstr "{0}分"
+
+msgid "rankings.board_as"
+msgstr "ランキングでの表示"
+
+msgid "rankings.board_as_detail"
+msgstr "ルームであなたに表示される名前と国旗です。「プロフィール」と「設定」で変更できます。変更はランキングを次に開いたときに反映されます。"
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "クラスの仕組み"
+
+msgid "rankings.how_text"
+msgstr "勝敗がついた公開ルームの対戦だけがカウントされます。クラスはEmber IDではなくDiscordアカウントに属します。結果がはっきり続いたときだけ変わり、かなり強い相手や弱い相手との対戦はほとんど影響しません。ポイントは表示されず、クラスだけが表示されます。長く空くとプレイするまで薄く表示されますが、自然に下がることはありません。"
+
+msgid "rankings.players"
+msgstr "クラス別プレイヤー"
+
+msgid "rankings.players_detail"
+msgstr "クラスが確定している参加者全員を、上位から表示します。同じクラス内では、最近プレイした順です。"
+
+msgid "rankings.you"
+msgstr "あなた"
+
+msgid "rankings.you_beyond_cap"
+msgstr "ランキングには最大{0}人が載りますが、現在あなたは含まれていません。"
+
+msgid "rankings.jump"
+msgstr "左右でクラスを切り替えます。"
+
+msgid "rankings.loading_board"
+msgstr "プレイヤーを読み込み中..."
+
+msgid "rankings.empty"
+msgstr "まだ誰もランキングにいません。"
+
+msgid "rankings.status_board"
+msgstr "掲載プレイヤー：{0}人。更新：{1}。"
+
+msgid "rankings.failure.unavailable"
+msgstr "このサービスにはランキングがありません。"
+
+msgid "rankings.failure.too_soon"
+msgstr "変更は1日1回までです。"
+
+msgid "settings.class_emblems"
+msgstr "クラスエンブレム"
+
+msgid "settings.class_emblems_detail"
+msgstr "公開ルームで各プレイヤーの名前の横にクラスを表示します。オフにすると自分の画面でのみ非表示になります。ほかの人にはあなたのクラスが表示され、対戦もカウントされます。"
+
+
+msgid "class.developer"
+msgstr "開発"
+
+msgid "class.developer_tip"
+msgstr "Ember開発者"
+
+msgid "rankings.developer_detail"
+msgstr "Ember開発者はクラスの代わりにこのマークが表示され、ランキングには載りません。対戦は引き続きカウントされます。"

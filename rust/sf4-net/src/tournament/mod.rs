@@ -11,6 +11,7 @@ mod builtin;
 mod client;
 mod discord;
 mod play;
+mod ranking;
 mod rooms;
 mod sign_in;
 mod sites;
@@ -26,6 +27,7 @@ use std::{
 
 use ember_protocol::{
     EmberId, encoding::Counter, play::PublishRoom, report::Outcome as GameOutcome,
+    skill::RankingChoice,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -177,6 +179,19 @@ pub enum Request {
         room_id: String,
         build: String,
     },
+    /// The player's own class and choice to take part in ranking.
+    RankingStanding {
+        bridge_id: String,
+    },
+    /// Takes part in ranking or not, and how the board lists the player.
+    RankingChoose {
+        bridge_id: String,
+        choice: RankingChoice,
+    },
+    /// The board of classes.
+    RankingBoard {
+        bridge_id: String,
+    },
     GamePrepare {
         bridge_id: String,
         match_id: String,
@@ -240,6 +255,9 @@ impl Request {
             Self::RoomList { .. } => "room_list",
             Self::RoomCreate { .. } => "room_create",
             Self::RoomTicket { .. } => "room_ticket",
+            Self::RankingStanding { .. } => "ranking_standing",
+            Self::RankingChoose { .. } => "ranking_choose",
+            Self::RankingBoard { .. } => "ranking_board",
             Self::GamePrepare { .. } => "game_prepare",
             Self::GameReport { .. } => "game_report",
             Self::MatchLeave { .. } => "match_leave",
@@ -742,6 +760,11 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             room_id,
             build,
         } => rooms::ticket(shared, &bridge_id, &room_id, &build).await,
+        Request::RankingStanding { bridge_id } => ranking::standing(shared, &bridge_id).await,
+        Request::RankingChoose { bridge_id, choice } => {
+            ranking::choose(shared, &bridge_id, choice).await
+        }
+        Request::RankingBoard { bridge_id } => ranking::board(shared, &bridge_id).await,
         Request::GamePrepare {
             bridge_id,
             match_id,
