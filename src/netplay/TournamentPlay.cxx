@@ -175,9 +175,17 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 	case Step::None:
 		break;
 	}
-	// No room named yet: the fighter holding the lease hosts and publishes one;
-	// the other waits for it.
-	if (!room_.Aimed() && leaseId_.empty()) {
+	// The named room could not be joined twice running: its host left or its
+	// game closed. This game hosts a new room and publishes it in that one's
+	// place, which the bridge refuses while a game of the match is undecided.
+	if (room_.Aimed() && room_.FailedJoins() >= ReplaceAfterFailedJoins && !room.joined && !room.opening) {
+		replacing_ = room_.Target();
+		room_.Forget();
+		published_ = false;
+	}
+	// No room named yet: the fighter holding the lease, or replacing a room,
+	// hosts and publishes one; the other waits for it.
+	if (!room_.Aimed() && leaseId_.empty() && replacing_.empty()) {
 		waitingForOpponent_ = true;
 	} else if (!room_.Aimed()) {
 		if (room_.Host(nowMs, room)) {
@@ -191,6 +199,7 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 			publish.invitation = room.invitation;
 			publish.leaseId = leaseId_;
 			publish.fence = fence_;
+			publish.replaces = replacing_;
 			out.push_back(publish);
 			publishingInvitation_ = room.invitation;
 			publishInFlight_ = true;
@@ -298,6 +307,10 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 			published_ = true;
 			publishedInvitation_ = publishingInvitation_;
 		}
+		// The room being replaced is still the bridge's answer to a claim until
+		// the new one is published: it is not joined again meanwhile.
+		if (!replacing_.empty() && request == Output::Kind::Claim && reply.roomId == replacing_) break;
+		replacing_.clear();
 		leaseId_.clear();
 		fence_.clear();
 		if (room_.Aim(reply.roomId, reply.invitation) && request == Output::Kind::Claim) published_ = false;
@@ -333,8 +346,10 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 	case Output::Kind::Publish:
 		publishInFlight_ = false;
 		nextPublishMs_ = nowMs + RetryMs;
-		// The lease moved on: claim again to learn the room to join.
-		if (code == "lease_conflict") { leaseId_.clear(); fence_.clear(); nextClaimMs_ = nowMs; }
+		// The lease moved on, or the room could not be replaced (the other
+		// fighter replaced it first, or a game is undecided): claim again to
+		// learn the room to join.
+		if (code == "lease_conflict") { leaseId_.clear(); fence_.clear(); replacing_.clear(); nextClaimMs_ = nowMs; }
 		break;
 	case Output::Kind::Prepare:
 		prepareInFlight_ = false;

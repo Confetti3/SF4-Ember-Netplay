@@ -735,6 +735,66 @@ static void TestReadyGoesWithTheClaim() {
 	CHECK(retried && !*retried);
 }
 
+
+// The match's room cannot be joined twice running (its host closed the game,
+// or left): this fighter hosts a new room and publishes it in that one's
+// place. The bridge's claims still name the old room until then, and are not
+// joined again. Refused, because the other fighter replaced it first or a
+// game is undecided, the room the bridge names next is joined and the hosted
+// one left.
+static void TestGoneHostIsReplaced() {
+	const auto failTwice = [](TournamentPlay& play) {
+		play.Start("brg_x", "emt_x", 0);
+		play.Tick(0, {});
+		play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 100);
+		CHECK(Count(play.Tick(200, {}), Kind::Join) == 1);
+		play.Tick(300, Opening());
+		// The first failed join is tried again after the open timeout.
+		CHECK(Count(play.Tick(400, {}), Kind::Host) == 0);
+		CHECK(Count(play.Tick(OpenTimeoutMs + 200, {}), Kind::Join) == 1);
+		play.Tick(OpenTimeoutMs + 300, Opening());
+		CHECK(Count(play.Tick(OpenTimeoutMs + 400, {}), Kind::Host) == 1);
+	};
+	TournamentPlay play;
+	failTwice(play);
+	const std::uint64_t at = OpenTimeoutMs + 400;
+	// A claim still naming the old room does not bring its join back.
+	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), at + 10);
+	CHECK(Count(play.Tick(at + 20, Opening()), Kind::Join) == 0);
+	room::Snapshot snapshot;
+	auto out = play.Tick(at + 30, Joined(RoomB, &snapshot));
+	const auto* publish = Find(out, Kind::Publish);
+	CHECK(publish && publish->roomId == RoomB && publish->replaces == RoomA && publish->leaseId.empty() && publish->fence.empty());
+	play.OnRoom(Kind::Publish, Room(RoomB, MakeBinding(RoomB, 1)), at + 40);
+	play.Tick(at + 50, Joined(RoomB, &snapshot));
+	CHECK(play.GetPhase() == Phase::InRoom);
+
+	TournamentPlay refused;
+	failTwice(refused);
+	refused.Tick(at + 20, Opening());
+	CHECK(Count(refused.Tick(at + 30, Joined(RoomB, &snapshot)), Kind::Publish) == 1);
+	refused.OnFailure(Kind::Publish, "lease_conflict", at + 40);
+	const std::string RoomC(32, 'c');
+	refused.OnRoom(Kind::Claim, Room(RoomC, MakeBinding(RoomC, 1)), at + 50);
+	out = refused.Tick(at + 60, Joined(RoomB, &snapshot));
+	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Publish) == 0);
+	out = refused.Tick(at + 70, {});
+	const auto* join = Find(out, Kind::Join);
+	CHECK(join && join->invitation == "sf4e3:" + RoomC);
+
+	// One failed join is not enough: the room is joined again, not replaced.
+	TournamentPlay once;
+	once.Start("brg_x", "emt_x", 0);
+	once.Tick(0, {});
+	once.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 100);
+	once.Tick(200, {});
+	once.Tick(300, Opening());
+	once.Tick(400, {});
+	once.Tick(OpenTimeoutMs + 200, {});
+	once.Tick(OpenTimeoutMs + 300, Opening());
+	out = once.Tick(OpenTimeoutMs + 400, Joined(RoomA, &snapshot));
+	CHECK(Count(out, Kind::Host) == 0 && once.GetPhase() == Phase::InRoom);
+}
 int main() {
 	TestHostPublishesAndBinds();
 	TestACasualGameHoldsTheFirstBinding();
@@ -749,6 +809,7 @@ int main() {
 	TestOwedAbort();
 	TestOrderingAndLeases();
 	TestReadyGoesWithTheClaim();
+	TestGoneHostIsReplaced();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("tournament play tests passed\n");
 	return failures ? 1 : 0;
