@@ -73,6 +73,8 @@ struct TableCardView {
     bool choosing=false;
     int chosen=-1;
     bool focused=false,focusChanged=false,disabled=false;
+    // The one table of a match's room (BluMint's), drawn as its stage: big portraits and score.
+    bool stage=false;
 };
 CardInteraction DrawTableCard(const TableCardView& card);
 

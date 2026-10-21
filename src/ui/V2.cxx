@@ -21,25 +21,39 @@ float TextWidth(const std::string& text, float size, ImFont* font = ImGui::GetFo
 bool On() { return on; }
 void SetOn(bool value) { on = value; }
 
+namespace {
+Brand brand = Brand::Ember;
+constexpr Palette EmberPalette{IM_COL32(20, 19, 18, 255), IM_COL32(25, 23, 21, 255), IM_COL32(33, 30, 27, 255), IM_COL32(56, 45, 36, 255),
+    IM_COL32(58, 42, 31, 255), IM_COL32(89, 64, 43, 255), IM_COL32(68, 58, 49, 255), IM_COL32(255, 135, 56, 255), IM_COL32(255, 177, 111, 255),
+    IM_COL32(243, 235, 221, 255), IM_COL32(181, 169, 155, 255), IM_COL32(255, 92, 80, 255)};
+// BluMint's: near-black navy grounds and its brand blue, as blumint.com.
+constexpr Palette BluMintPalette{IM_COL32(5, 9, 13, 255), IM_COL32(10, 20, 28, 255), IM_COL32(12, 24, 34, 255), IM_COL32(16, 34, 48, 255),
+    IM_COL32(10, 46, 68, 255), IM_COL32(18, 58, 82, 255), IM_COL32(30, 58, 78, 255), IM_COL32(33, 187, 255, 255), IM_COL32(127, 215, 255, 255),
+    IM_COL32(236, 244, 250, 255), IM_COL32(140, 164, 182, 255), IM_COL32(255, 77, 77, 255)};
+}
+void SetBrand(Brand value) { brand = value; }
+Brand CurrentBrand() { return brand; }
+const Palette& Colors() { return brand == Brand::BluMint ? BluMintPalette : EmberPalette; }
+
 void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar) {
     const float s = Scale(), r = 4 * s;
-    draw->AddRect(ImVec2(min.x + s, min.y + s), ImVec2(max.x - s, max.y - s), palette::Ember, r, 0, 2 * s);
-    if (bar) draw->AddRectFilled(min, ImVec2(min.x + 4 * s, max.y), palette::Ember, r, ImDrawFlags_RoundCornersLeft);
+    draw->AddRect(ImVec2(min.x + s, min.y + s), ImVec2(max.x - s, max.y - s), Colors().accent, r, 0, 2 * s);
+    if (bar) draw->AddRectFilled(min, ImVec2(min.x + 4 * s, max.y), Colors().accent, r, ImDrawFlags_RoundCornersLeft);
 }
 
 void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act) {
     const float s = Scale();
-    draw->AddRectFilled(card.min, card.max, focused ? color::Header : hovered ? color::Hover : color::Alpha(color::Frame, .92f), 4 * s);
-    draw->AddRect(card.min, card.max, color::Alpha(color::Border, .6f), 4 * s, 0, s);
-    if (act) draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), palette::Ember, 4 * s, ImDrawFlags_RoundCornersLeft);
+    draw->AddRectFilled(card.min, card.max, focused ? Colors().header : hovered ? Colors().hover : color::Alpha(Colors().frame, .92f), 4 * s);
+    draw->AddRect(card.min, card.max, color::Alpha(Colors().border, .6f), 4 * s, 0, s);
+    if (act) draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), Colors().accent, 4 * s, ImDrawFlags_RoundCornersLeft);
 }
 
 int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone) {
     const float s = Scale(), glyph = (bar.H() < 52 * s ? 26 : 30) * s, font = 16 * s;
     auto* d = ImGui::GetWindowDrawList();
     const float side = SideMargin(ImGui::GetWindowWidth(), s);
-    d->AddRectFilled(bar.min, bar.max, color::Alpha(color::Ink, .92f));
-    d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), color::Border, s);
+    d->AddRectFilled(bar.min, bar.max, color::Alpha(Colors().ink, .92f));
+    d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), Colors().border, s);
     int pressed = -1;
     float x = bar.min.x + side;
     for (int i = 0; i < static_cast<int>(hints.size()); ++i) {
@@ -51,7 +65,7 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
         if (ImGui::InvisibleButton("##hint", ImVec2(w, bar.H()))) pressed = i;
         ImGui::PopID();
         DrawPromptGlyph(d, h.glyph, ImVec2(x, bar.min.y + (bar.H() - glyph) * .5f), glyph, MenuArt(), s);
-        d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), palette::Ivory, label.c_str());
+        d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), Colors().text, label.c_str());
         x += w + 24 * s;
     }
     if (!status.empty()) {
@@ -68,8 +82,8 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
     auto* d = ImGui::GetWindowDrawList();
     ImGui::InvisibleButton(id, ImVec2(w, h));
     const bool held = ImGui::IsItemActive(), hovered = ImGui::IsItemHovered();
-    d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), color::Frame, 4 * s);
-    d->AddRect(p, ImVec2(p.x + w, p.y + h), hovered || held ? palette::Ember : color::Border, 4 * s, 0, s);
+    d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), Colors().frame, 4 * s);
+    d->AddRect(p, ImVec2(p.x + w, p.y + h), hovered || held ? Colors().accent : Colors().border, 4 * s, 0, s);
     const ImVec2 size(block.x * w, block.y * h);
     const auto at = [&](ImVec2 centre) { return ImVec2(p.x + centre.x * w - size.x * .5f, p.y + centre.y * h - size.y * .5f); };
     const auto mouse = ImGui::GetMousePos();
@@ -82,11 +96,15 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
     }
     for (int i = 0; i < static_cast<int>(spots.size()); ++i) {
         const auto q = at(spots[i]);
-        d->AddRect(q, ImVec2(q.x + size.x, q.y + size.y), held && i == nearest ? palette::Ember : color::Alpha(palette::Muted, .5f), 2 * s, 0, s);
+        d->AddRect(q, ImVec2(q.x + size.x, q.y + size.y), held && i == nearest ? Colors().accent : color::Alpha(Colors().muted, .5f), 2 * s, 0, s);
     }
     const ImVec2 q = held ? ImVec2(mouse.x - size.x * .5f, mouse.y - size.y * .5f) : at(spots[(std::max)(0, (std::min)(static_cast<int>(spots.size()) - 1, current))]);
-    d->AddRectFilled(q, ImVec2(q.x + size.x, q.y + size.y), palette::Ember, 2 * s);
+    d->AddRectFilled(q, ImVec2(q.x + size.x, q.y + size.y), Colors().accent, 2 * s);
     return ImGui::IsItemDeactivated() && hovered ? nearest : -1;
+}
+
+ImVec4 BoardGround(bool seeThrough) {
+    return on ? ImGui::ColorConvertU32ToFloat4(color::Alpha(Colors().panel, seeThrough ? .6f : .84f)) : BoardPanelColor(seeThrough);
 }
 
 float ChipWidth(const std::string& text) { return TextWidth(text, ChipFont()) + 16 * Scale(); }
@@ -97,28 +115,53 @@ float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone) {
     return width;
 }
 
-void Header(const char* title, const char* eyebrow) {
+float BrandMark(ImDrawList* draw, ImVec2 at, float height) {
+    auto* atlas = ImGui::GetIO().Fonts;
+    ImVec2 uv0, uv1;
+    if (brand == Brand::Ember) {
+        atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0), &uv0, &uv1);
+        draw->AddImage(atlas->TexID, at, ImVec2(at.x + height, at.y + height), uv0, uv1);
+        return height;
+    }
+    // BluMint's wordmark, then a small × and Ember's mark: BluMint's match, played in Ember.
+    const float s = Scale(), w = height * 4 * .7f, h = height * .7f, mark = height * .6f;
+    atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(WordmarkRect), &uv0, &uv1);
+    draw->AddImage(atlas->TexID, ImVec2(at.x, at.y + (height - h) * .5f), ImVec2(at.x + w, at.y + (height + h) * .5f), uv0, uv1);
+    float x = at.x + w + 10 * s;
+    draw->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, at.y + (height - 14 * s) * .5f), Colors().muted, "x");
+    x += 18 * s;
+    atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0), &uv0, &uv1);
+    draw->AddImage(atlas->TexID, ImVec2(x, at.y + (height - mark) * .5f), ImVec2(x + mark, at.y + (height + mark) * .5f), uv0, uv1);
+    return x + mark - at.x;
+}
+
+void Header(const char* title, const char* eyebrow, const std::vector<HeaderChip>& chips) {
     const float s = Scale();
     const auto p = ImGui::GetCursorScreenPos();
     const float width = ImGui::GetContentRegionAvail().x;
     const bool narrow = Narrow(ImGui::GetWindowWidth(), s);
     auto* draw = ImGui::GetWindowDrawList();
-    auto* atlas = ImGui::GetIO().Fonts;
-    ImVec2 uv0, uv1;
-    atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0), &uv0, &uv1);
-    const float mark = (narrow ? 32 : 40) * s, gap = 12 * s, x = p.x + mark + gap;
+    const float markHeight = (narrow ? 32 : 40) * s, gap = 16 * s;
     const float eyebrowSize = 13 * s, titleSize = (narrow ? 24 : 28) * s;
     const float eyebrowHeight = eyebrow ? eyebrowSize + 4 * s : 0;
-    const float height = (std::max)(mark, eyebrowHeight + titleSize) + 10 * s;
-    draw->AddImage(atlas->TexID, ImVec2(p.x, p.y + (height - 10 * s - mark) * .5f), ImVec2(p.x + mark, p.y + (height - 10 * s + mark) * .5f), uv0, uv1);
+    const float height = (std::max)(markHeight, eyebrowHeight + titleSize) + 10 * s;
+    const float mark = BrandMark(draw, ImVec2(p.x, p.y + (height - 10 * s - markHeight) * .5f), markHeight), x = p.x + mark + gap;
+    // The chips first, from the right end, so the title knows its room.
+    float right = p.x + width;
+    for (auto chip = chips.rbegin(); chip != chips.rend(); ++chip) {
+        right -= ChipWidth(chip->text);
+        Chip(draw, ImVec2(right, p.y + (height - 10 * s - ChipFont() - 8 * s) * .5f), chip->text, chip->tone);
+        right -= 8 * s;
+    }
+    const float room = right - x;
     float y = p.y + (height - 10 * s - eyebrowHeight - titleSize) * .5f;
     if (eyebrow) {
-        draw->AddText(ImGui::GetFont(), eyebrowSize, ImVec2(x, y), palette::Muted, Fit(eyebrow, width - mark - gap, eyebrowSize).c_str());
+        draw->AddText(ImGui::GetFont(), eyebrowSize, ImVec2(x, y), Colors().muted, Fit(eyebrow, room, eyebrowSize).c_str());
         y += eyebrowHeight;
     }
-    draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), palette::Ivory, Fit(title, width - mark - gap, titleSize, HeadingFont()).c_str());
-    draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), color::Border, s);
-    draw->AddRectFilled(ImVec2(p.x, p.y + height - s), ImVec2(p.x + 72 * s, p.y + height + 2 * s), palette::Ember);
+    draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), Colors().text, Fit(title, room, titleSize, HeadingFont()).c_str());
+    draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, s);
+    draw->AddRectFilled(ImVec2(p.x, p.y + height - s), ImVec2(p.x + 72 * s, p.y + height + 2 * s), Colors().accent);
     ImGui::Dummy(ImVec2(width, height + 8 * s));
 }
 
@@ -144,14 +187,14 @@ int Tabs(const std::vector<std::string>& labels, int current) {
         ImGui::PopID();
         const bool selected = i == current;
         if (selected) {
-            draw->AddRectFilled(ImVec2(x, start.y), ImVec2(x + w, start.y + height), color::Header);
-            draw->AddRectFilled(ImVec2(x, start.y + height - 3 * s), ImVec2(x + w, start.y + height), palette::Ember);
-        } else if (ImGui::IsItemHovered()) draw->AddRectFilled(ImVec2(x, start.y), ImVec2(x + w, start.y + height), color::Hover);
-        draw->AddText(ImVec2(x + pad, start.y + (height - ImGui::GetFontSize()) * .5f), selected ? palette::Ivory : palette::Muted, labels[i].c_str());
+            draw->AddRectFilled(ImVec2(x, start.y), ImVec2(x + w, start.y + height), Colors().header);
+            draw->AddRectFilled(ImVec2(x, start.y + height - 3 * s), ImVec2(x + w, start.y + height), Colors().accent);
+        } else if (ImGui::IsItemHovered()) draw->AddRectFilled(ImVec2(x, start.y), ImVec2(x + w, start.y + height), Colors().hover);
+        draw->AddText(ImVec2(x + pad, start.y + (height - ImGui::GetFontSize()) * .5f), selected ? Colors().text : Colors().muted, labels[i].c_str());
         x += w;
     }
     draw->PopClipRect();
-    draw->AddLine(ImVec2(start.x, start.y + height), ImVec2(start.x + width, start.y + height), color::Border, s);
+    draw->AddLine(ImVec2(start.x, start.y + height), ImVec2(start.x + width, start.y + height), Colors().border, s);
     ImGui::SetCursorScreenPos(start);
     ImGui::Dummy(ImVec2(width, height + 8 * s));
     return pressed;
@@ -180,22 +223,22 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     const float nameMax = nameRoom - (!twoLines && title ? titleWidth : 0) - (!twoLines && status ? statusWidth : 0);
     NoteUserText(tag.name);
     const std::string name = Fit(tag.name, (std::max)(0.f, nameMax), nameSize, nameFont);
-    draw->AddText(nameFont, nameSize, ImVec2(x, middle), palette::Ivory, name.c_str());
+    draw->AddText(nameFont, nameSize, ImVec2(x, middle), Colors().text, name.c_str());
     x += TextWidth(name, nameSize, nameFont) + gap;
     if (!ping.empty()) Chip(draw, ImVec2(at.x + width - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
     if (!twoLines) {
-        if (title) { draw->AddText(ImGui::GetFont(), font, ImVec2(x, at.y + (line - font) * .5f), palette::Muted, tag.title.c_str()); x += titleWidth; }
-        if (status) Chip(draw, ImVec2(x, at.y + (line - chipHeight) * .5f), tag.status, palette::Muted);
+        if (title) { draw->AddText(ImGui::GetFont(), font, ImVec2(x, at.y + (line - font) * .5f), Colors().muted, tag.title.c_str()); x += titleWidth; }
+        if (status) Chip(draw, ImVec2(x, at.y + (line - chipHeight) * .5f), tag.status, Colors().muted);
         return line;
     }
     const float second = at.y + line + 4 * s;
     float x2 = at.x;
     if (title) {
         const std::string fitted = Fit(tag.title, width - (status ? statusWidth : 0), font);
-        draw->AddText(ImGui::GetFont(), font, ImVec2(x2, second + (chipHeight - font) * .5f), palette::Muted, fitted.c_str());
+        draw->AddText(ImGui::GetFont(), font, ImVec2(x2, second + (chipHeight - font) * .5f), Colors().muted, fitted.c_str());
         x2 += TextWidth(fitted, font) + gap;
     }
-    if (status) Chip(draw, ImVec2(x2, second), tag.status, palette::Muted);
+    if (status) Chip(draw, ImVec2(x2, second), tag.status, Colors().muted);
     return line + 4 * s + chipHeight;
 }
 } } }

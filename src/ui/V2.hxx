@@ -15,11 +15,19 @@ namespace sf4e { namespace ui { namespace v2 {
 bool On();
 void SetOn(bool on);
 
-// The palette roles of Theme.cxx by name, so V2 parts never write a literal.
+// Whose look a screen wears: Ember's, or BluMint's in the rooms of BluMint's
+// matches (with BluMint's permission). Set each frame by what is on screen.
+enum class Brand { Ember, BluMint };
+void SetBrand(Brand brand);
+Brand CurrentBrand();
+// The palette roles of Theme.cxx by name, in the brand's colours, so V2
+// parts never write a literal: grounds from ink to hover, the accent that
+// marks focus and the thing to act on, text, and the red of a LIVE mark.
+struct Palette { ImU32 ink, frame, panel, button, header, hover, border, accent, accentLight, text, muted, live; };
+const Palette& Colors();
+// BluMint's wordmark in the font atlas (Theme.cxx), after Ember's mark.
+constexpr int WordmarkRect = 1;
 namespace color {
-constexpr ImU32 Ink = IM_COL32(20, 19, 18, 255), Frame = IM_COL32(25, 23, 21, 255), Panel = IM_COL32(33, 30, 27, 255);
-constexpr ImU32 Button = IM_COL32(56, 45, 36, 255), Header = IM_COL32(58, 42, 31, 255), Hover = IM_COL32(89, 64, 43, 255);
-constexpr ImU32 ButtonBorder = IM_COL32(118, 80, 47, 255), Border = IM_COL32(68, 58, 49, 255), EmberLight = IM_COL32(255, 177, 111, 255);
 // `color` at `alpha` (0 to 1).
 constexpr ImU32 Alpha(ImU32 color, float alpha) { return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>(alpha * 255) << IM_COL32_A_SHIFT); }
 }
@@ -50,9 +58,12 @@ inline Box CutLeft(Box& from, float size, float gap = 0) { size = (std::min)(siz
 inline Box CutRight(Box& from, float size, float gap = 0) { size = (std::min)(size, from.W()); Box cut{{from.max.x - size, from.min.y}, from.max}; from.max.x = (std::max)(from.min.x, cut.min.x - gap); return cut; }
 inline Box Inset(Box b, float x, float y) { return {{b.min.x + x, b.min.y + y}, {b.max.x - x, b.max.y - y}}; }
 
+// A board panel's ground (the room's, Chat's): the brand's panel in V2, else
+// BoardPanelColor; lighter over a game the player watches.
+ImVec4 BoardGround(bool seeThrough);
 // The focused thing's marks, drawn over it: a 2 px Ember edge inside the box
 // and a 4 px bar on its left (`bar` false for art, which the bar would cover).
-// Its fill, color::Header, goes under its content.
+// Its fill, Colors().header, goes under its content.
 void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar = true);
 // A card's ground: Frame at rest, Hover under the pointer, Header when focused
 // (its marks then go over the content: Focus), and the 3 px Ember rule on a
@@ -67,9 +78,14 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
 float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone);
 float ChipWidth(const std::string& text);
 
-// A screen's header: the emblem, an optional muted eyebrow (the path), the
+// The brand's mark `height` tall at `at`: Ember's emblem, or BluMint's
+// wordmark × Ember's emblem. Returns its width.
+float BrandMark(ImDrawList* draw, ImVec2 at, float height);
+// A screen's header: the brand's mark (BrandMark), an optional muted eyebrow (the path), the
 // title, and the rule with its 72 px Ember start. Takes the cursor's line.
-void Header(const char* title, const char* eyebrow = nullptr);
+// `chips` sit at its right end: a state word each, in its tone.
+struct HeaderChip { std::string text; ImU32 tone; };
+void Header(const char* title, const char* eyebrow = nullptr, const std::vector<HeaderChip>& chips = {});
 // Horizontal tabs under the header; the current one is filled and underlined.
 // Returns the tab the pointer pressed, or -1. Moving between tabs is the screen's.
 int Tabs(const std::vector<std::string>& labels, int current);

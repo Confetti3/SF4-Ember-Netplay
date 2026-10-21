@@ -2,6 +2,7 @@
 #include "MenuNavigation.hxx"
 #include "MenuFeedback.hxx"
 #include "Theme.hxx"
+#include "V2.hxx"
 #include "MenuGlyphs.hxx"
 #include "MenuDialogs.hxx"
 #include "MenuProbes.hxx"
@@ -84,10 +85,14 @@ bool TakeEmbeddedFresh();
 // What a notice's button does when it closes the notice. The shell reads it
 // from GameMenu::TakeNoticeResult and acts on it. Dismissed is Back or the
 // header's Close; Acknowledged is a button that only closes it.
-enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout, UpdateNow, SkipUpdate };
+enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout, UpdateNow, SkipUpdate,
+    // A BluMint match's notices (BluMintMoments.hxx): ready for the next game, change fighter first, play the next match, leave the room.
+    BluMintReady, BluMintFighter, BluMintNext, BluMintLeave };
 struct NoticeButton { std::string label; NoticeResult result=NoticeResult::Acknowledged; };
 // selected: the button highlighted when the notice opens (the first by default).
-struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; };
+// V2 shows `eyebrow` beside the brand's mark, `chip` at the top right and
+// `facts` (a score line) boxed over the text; Classic shows facts as a line.
+struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; std::string eyebrow,facts; v2::HeaderChip chip{}; };
 class GameMenu {
 public:
     MenuNavigation navigation;
@@ -129,6 +134,10 @@ public:
     // the one shown. Pressing one, or LB/RB (Page Up/Down) to a neighbour, returns a
     // Shortcut whose id names it; the owner switches. Empty for none.
     std::vector<std::pair<std::string,std::string>> tabs;
+    // V2 only: the words over the title (where the screen sits, as "BLUMINT · WINNERS ROUND 1") and the
+    // chips at the header's right end. Empty for none.
+    std::string eyebrow;
+    std::vector<v2::HeaderChip> headerChips;
     int tab=-1;
     bool listEnabled=true, ownsBack=false, customDetail=false;
     unsigned additionalInput=0;
@@ -221,7 +230,8 @@ private:
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
-    std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_;
+    std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_,noticeFacts_;
+v2::HeaderChip noticeChip_{};
     std::vector<NoticeButton> noticeButtons_;
     int noticeSelected_=0;
     NoticeResult noticeResult_=NoticeResult::None;

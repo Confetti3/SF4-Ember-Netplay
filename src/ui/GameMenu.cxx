@@ -91,6 +91,14 @@ const PlayerCardView& MenuPlayerCard(){return playerCard;}
 const char* MenuSelectGlyph(){return selectGlyph;}
 const char* MenuBackGlyph(){return backGlyph;}
 bool DrawMenuBackdrop(bool v2){
+    // BluMint's rooms wear BluMint's ground: near-black navy with a faint blue glow from the top, not Ember's art.
+    if(v2&&v2::CurrentBrand()==v2::Brand::BluMint){
+        const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();auto* d=ImGui::GetWindowDrawList();
+        const auto& c=v2::Colors();
+        d->AddRectFilled(p,ImVec2(p.x+size.x,p.y+size.y),c.ink);
+        d->AddRectFilledMultiColor(p,ImVec2(p.x+size.x,p.y+size.y*.6f),v2::color::Alpha(c.accent,.10f),v2::color::Alpha(c.accent,.04f),v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,0));
+        return true;
+    }
     if(!menuArt)return false;
     const auto art=menuArt->MenuBackdrop();if(!art.texture)return false;
     const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();auto* d=ImGui::GetWindowDrawList();

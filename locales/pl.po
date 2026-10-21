@@ -6587,6 +6587,81 @@ msgstr "V2 (podgląd)"
 msgid "settings.look_detail"
 msgstr "Nowy wygląd Embera, wciąż w budowie. Możesz wrócić w każdej chwili: zmienia się tylko wygląd ekranów."
 
+msgid "blumint.score"
+msgstr "{0} {1} – {2} {3} · Do {4} wygranych"
+
+msgid "blumint.game_heading"
+msgstr "Gra {0} zakończona"
+
+msgid "blumint.game_next"
+msgstr "Następna jest gra {0}. Zgłoś gotowość, kiedy chcesz."
+
+msgid "blumint.ready_next"
+msgstr "Gotowy na następną grę"
+
+msgid "blumint.change_fighter"
+msgstr "Najpierw zmień postać"
+
+msgid "blumint.not_yet"
+msgstr "Jeszcze nie"
+
+msgid "blumint.set_won"
+msgstr "Wygrywasz seta"
+
+msgid "blumint.set_lost"
+msgstr "Set przegrany"
+
+msgid "blumint.set_winner"
+msgstr "{0} wygrywa seta"
+
+msgid "blumint.set_reported"
+msgstr "BluMint ma wynik i aktualizuje wydarzenie."
+
+msgid "blumint.next_waiting"
+msgstr "Twój następny mecz pojawi się tutaj, gdy tylko BluMint go wywoła."
+
+msgid "blumint.watch_next"
+msgstr "Następny mecz pojawi się tutaj, gdy BluMint go wywoła."
+
+msgid "blumint.next_ready"
+msgstr "Twój następny mecz jest gotowy: z {0}."
+
+msgid "blumint.play_next"
+msgstr "Graj z {0}"
+
+msgid "blumint.stay"
+msgstr "Zostań w pokoju"
+
+msgid "blumint.leave"
+msgstr "Opuść pokój"
+
+msgid "blumint.restart_heading"
+msgstr "Ta gra się nie liczyła"
+
+msgid "blumint.restart_text"
+msgstr "Połączenie zostało zerwane, więc BluMint ustawia mecz ponownie od {0} – {1}. Pojawi się tutaj, gdy to nastąpi."
+
+msgid "blumint.host_heading"
+msgstr "Gospodarz BluMint przejął ten mecz"
+
+msgid "blumint.host_text"
+msgstr "Gospodarz wydarzenia zamknął ten mecz w BluMint: przejął go, wpisał wynik lub go usunął."
+
+msgid "blumint.expired_heading"
+msgstr "Nie rozegrano na czas"
+
+msgid "blumint.expired_text"
+msgstr "Ten mecz nie został rozegrany przed upływem czasu. Gospodarz BluMint zdecyduje, co dalej."
+
+msgid "blumint.first_to"
+msgstr "Do {0} wygranych"
+
+msgid "blumint.live"
+msgstr "NA ŻYWO"
+
+msgid "blumint.eyebrow"
+msgstr "BLUMINT"
+
 msgid "menu.pages"
 msgstr "Strony"
 
@@ -6644,3 +6719,45 @@ msgstr "Twórca Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Twórcy Ember mają ten znak zamiast klasy i nie ma ich w rankingu. Twoje gry nadal się liczą."
+
+msgid "blumint.stage_live"
+msgstr "Gra {0} · w toku"
+
+msgid "blumint.stage_next"
+msgstr "Następna gra {0}"
+
+msgid "blumint.stage_decided"
+msgstr "Set rozstrzygnięty"
+
+msgid "blumint.stage_fighter"
+msgstr "Zgłoś gotowość przed każdą grą. Set kończy się na first to {0}; BluMint dostaje każdy wynik."
+
+msgid "blumint.stage_watcher"
+msgstr "Oglądasz. Zawodnicy zgłaszają gotowość; pokój rozgrywa każdą grę seta."
+
+msgid "blumint.watching"
+msgstr "Oglądają · {0}"
+
+msgid "blumint.not_ready"
+msgstr "Niegotowy"
+
+msgid "blumint.role_host"
+msgstr "Host"
+
+msgid "blumint.role_watching"
+msgstr "Ogląda"
+
+msgid "blumint.eyebrow_game"
+msgstr "Gra {0}"
+
+msgid "blumint.eyebrow_set"
+msgstr "Set"
+
+msgid "blumint.chip_set_won"
+msgstr "Set wygrany"
+
+msgid "blumint.chip_restart"
+msgstr "Restart"
+
+msgid "blumint.chip_expired"
+msgstr "Wygasło"

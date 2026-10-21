@@ -1,6 +1,7 @@
 #include "Theme.hxx"
 #include "EmbeddedFonts.hxx"
 #include "EmbeddedBrand.hxx"
+#include "EmbeddedBluMint.hxx"
 #include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -240,6 +241,8 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     io.FontDefault = io.Fonts->Fonts[0];
     const int markIndex = io.Fonts->AddCustomRectRegular(brand::Size, brand::Size);
     IM_ASSERT(markIndex == 0); // Clear above makes this the first custom rectangle.
+    // BluMint's wordmark is the second (WordmarkRect), for BluMint's rooms.
+    const int wordmarkIndex = io.Fonts->AddCustomRectRegular(blumint::Width, blumint::Height);
     const bool built = io.Fonts->Build();
     unsigned char* pixels = nullptr;
     int atlasWidth = 0, atlasHeight = 0;
@@ -254,6 +257,11 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
         for (int row = 0; row < brand::Size; ++row)
             std::memcpy(pixels + ((mark->Y + row) * atlasWidth + mark->X) * 4,
                         brand::Pixels + row * brand::Size * 4, brand::Size * 4);
+    const auto* wordmark = io.Fonts->GetCustomRectByIndex(wordmarkIndex);
+    if (built && pixels && wordmark && wordmark->IsPacked() && wordmark->X + blumint::Width <= atlasWidth && wordmark->Y + blumint::Height <= atlasHeight)
+        for (int row = 0; row < blumint::Height; ++row)
+            std::memcpy(pixels + ((wordmark->Y + row) * atlasWidth + wordmark->X) * 4,
+                        blumint::Pixels + row * blumint::Width * 4, blumint::Width * 4);
     ReportAtlasBuild(built && markFits, atlasWidth, atlasHeight, atlasUserGlyphs.size(), userGlyphsAdded);
     io.Fonts->TexPixelsUseColors = true;
     ImGuiStyle style;

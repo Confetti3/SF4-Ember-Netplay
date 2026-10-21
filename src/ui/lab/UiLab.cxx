@@ -4,6 +4,7 @@
 // work as in the game.
 //
 // F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F5 in a room · F6 picture · F12 screenshot
+// BluMint room (--blumint): F7 next moment · F8 fighter or watcher
 // UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--pip] [--hud 0|1] [--training] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
@@ -143,6 +144,35 @@ void JoinRoom(ui::ShellView& view) {
     const char* chat[] = {"Welcome! Grab a table or join a queue.", "Good games. I'll watch the next one.", "Ready for another set?", "Let's run it back!"};
     for (int i = 0; i < 12; ++i) view.room.chat.push_back({static_cast<std::uint64_t>(i + 1), static_cast<room::MemberId>(i % 16 + 1), chat[i % 4]});
 }
+// A BluMint match's room: table 0 bound to the match, FRaccie (this PC) against
+// Akira, first to 2. A watcher sits at no seat (member 5).
+void BluMintRoom(ui::ShellView& view, bool watcher) {
+    JoinRoom(view);
+    auto& t = view.tournament;
+    t.phase = netplay::tournament::Phase::InRoom; t.bridgeId = "brg_lab"; t.matchId = "emt_lab";
+    netplay::tournament::Assignment a;
+    a.matchId = "emt_lab"; a.provider = "blumint"; a.state = "ready"; a.roundLabel = "Winners round 1"; a.gamesToWin = 2; a.profile = "ember-room-v1";
+    t.list.items.push_back(a);
+    view.room.name = "Good Fighters USF4 · Ember";
+    view.room.tournament.matchId = "emt_lab"; view.room.tournament.gamesToWin = 2;
+    view.room.tables[0].phase = room::TablePhase::Playing;
+    if (watcher) view.room.localMember = 5;
+}
+// What happens next in it, from frame 40 (lab --moment): a game, the set won or
+// lost, a game cut off, the host's close, the match's time run out.
+void BluMintMoment(ui::ShellView& view, const std::string& moment) {
+    auto& table = view.room.tables[0];
+    auto& a = view.tournament.list.items[0];
+    if (moment == "game") table.score[0] = 1;
+    else if (moment == "set" || moment == "lost") {
+        const unsigned you = moment == "set" ? 2 : 1, them = moment == "set" ? 1 : 2;
+        table.score[0] = you; table.score[1] = them; a.wins = {you, them}; a.state = "completed";
+        table.phase = room::TablePhase::Waiting;
+    }
+    else if (moment == "restart") { table.score[0] = 1; view.tournament.reason = netplay::tournament::ConnectionLostReason; }
+    else if (moment == "host") a.state = "cancelled";
+    else if (moment == "expired") a.state = "expired";
+}
 }
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
@@ -156,7 +186,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::string shot, keys, screen;
     bool inRoom = false, pip = false;
     int hud = -1;
-    bool trainingPanel = false;  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
+    bool trainingPanel = false, blumint = false, watcher = false;
+    std::string moment;  // --moment game|set|lost|restart|host|expired, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
         if (args[i] == "--size" && more) std::sscanf(args[++i].c_str(), "%dx%d", &width, &height);
@@ -168,6 +199,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--pip") pip = true;
         else if (args[i] == "--hud" && more) hud = std::atoi(args[++i].c_str());
         else if (args[i] == "--training") trainingPanel = true;
+        else if (args[i] == "--blumint") blumint = true;
+        else if (args[i] == "--watcher") watcher = true;
+        else if (args[i] == "--moment" && more) moment = args[++i];
         else if (args[i] == "--screen" && more) screen = args[++i];
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
@@ -192,7 +226,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
     ui::ApplicationShell shell;
     ui::ShellView view = FakeView(v2);
-    if (inRoom) JoinRoom(view);
+    // A BluMint room joins its own (BluMintRoom).
+    if (inRoom && !blumint) JoinRoom(view);
+    if (blumint) BluMintRoom(view, watcher);
     bool open = true, bar = shot.empty();
     std::size_t size = 0;
     std::vector<unsigned> script;
@@ -202,7 +238,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (action.command.kind == netplay::CommandKind::SavePreferences) view.preferences = action.preferences;
         return true;
     };
-    int frame = 0;
+    int frame = 0, momentAt = 40;
     for (MSG msg{}; msg.message != WM_QUIT;) {
         while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
         if (msg.message == WM_QUIT) break;
@@ -227,6 +263,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (ImGui::IsKeyPressed(ImGuiKey_F4)) textSize = textSize >= 1.5f ? 1 : textSize + .25f;
         if (ImGui::IsKeyPressed(ImGuiKey_F5)) { const bool look = view.preferences.lookV2; inRoom = !inRoom; view = FakeView(look); if (inRoom) JoinRoom(view); }
         if (frame == 2 && !screen.empty()) shell.Navigation().Push(screen);
+        // F7 and F8 set the room up again, and the moment follows a few frames later so the shell sees it happen.
+        static const char* const moments[] = {"", "game", "set", "lost", "restart", "host", "expired"};
+        const bool nextMoment = blumint && ImGui::IsKeyPressed(ImGuiKey_F7), swapRole = blumint && ImGui::IsKeyPressed(ImGuiKey_F8);
+        if (nextMoment || swapRole) {
+            if (nextMoment) { const auto at = std::find(std::begin(moments), std::end(moments), moment); moment = moments[at == std::end(moments) || at + 1 == std::end(moments) ? 0 : at - std::begin(moments) + 1]; }
+            if (swapRole) watcher = !watcher;
+            const bool look = view.preferences.lookV2; view = FakeView(look); JoinRoom(view); BluMintRoom(view, watcher); momentAt = frame + 10;
+        }
+        if (frame == momentAt && blumint && !moment.empty()) BluMintMoment(view, moment);
         const bool snap = ImGui::IsKeyPressed(ImGuiKey_F12);
         // The menu art stands in for a watched game's picture (F6).
         if (ImGui::IsKeyPressed(ImGuiKey_F6)) pip = !pip;

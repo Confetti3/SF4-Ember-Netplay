@@ -6587,6 +6587,81 @@ msgstr "V2 (Vorschau)"
 msgid "settings.look_detail"
 msgstr "Embers neues Aussehen, noch im Aufbau. Sie können jederzeit zurückwechseln: Nur das Aussehen der Bildschirme ändert sich."
 
+msgid "blumint.score"
+msgstr "{0} {1} – {2} {3} · Erster bis {4}"
+
+msgid "blumint.game_heading"
+msgstr "Spiel {0} vorbei"
+
+msgid "blumint.game_next"
+msgstr "Spiel {0} ist als Nächstes dran. Melde dich bereit, wenn du so weit bist."
+
+msgid "blumint.ready_next"
+msgstr "Bereit für das nächste Spiel"
+
+msgid "blumint.change_fighter"
+msgstr "Erst Kämpfer wechseln"
+
+msgid "blumint.not_yet"
+msgstr "Noch nicht"
+
+msgid "blumint.set_won"
+msgstr "Du gewinnst den Satz"
+
+msgid "blumint.set_lost"
+msgstr "Satz verloren"
+
+msgid "blumint.set_winner"
+msgstr "{0} gewinnt den Satz"
+
+msgid "blumint.set_reported"
+msgstr "BluMint hat das Ergebnis und aktualisiert das Event."
+
+msgid "blumint.next_waiting"
+msgstr "Dein nächstes Match erscheint hier, sobald BluMint es aufruft."
+
+msgid "blumint.watch_next"
+msgstr "Das nächste Match erscheint hier, wenn BluMint es aufruft."
+
+msgid "blumint.next_ready"
+msgstr "Dein nächstes Match ist bereit: gegen {0}."
+
+msgid "blumint.play_next"
+msgstr "{0} spielen"
+
+msgid "blumint.stay"
+msgstr "Im Raum bleiben"
+
+msgid "blumint.leave"
+msgstr "Raum verlassen"
+
+msgid "blumint.restart_heading"
+msgstr "Dieses Spiel zählt nicht"
+
+msgid "blumint.restart_text"
+msgstr "Die Verbindung ist abgebrochen, daher setzt BluMint das Match ab {0} – {1} neu an. Es erscheint hier, sobald es so weit ist."
+
+msgid "blumint.host_heading"
+msgstr "Der Host von BluMint hat dieses Match übernommen"
+
+msgid "blumint.host_text"
+msgstr "Der Host des Events hat dieses Match auf BluMint geschlossen: übernommen, das Ergebnis eingetragen oder entfernt."
+
+msgid "blumint.expired_heading"
+msgstr "Nicht rechtzeitig gespielt"
+
+msgid "blumint.expired_text"
+msgstr "Dieses Match wurde nicht gespielt, bevor die Zeit abgelaufen ist. Der Host von BluMint entscheidet, wie es weitergeht."
+
+msgid "blumint.first_to"
+msgstr "Erster bis {0}"
+
+msgid "blumint.live"
+msgstr "LIVE"
+
+msgid "blumint.eyebrow"
+msgstr "BLUMINT"
+
 msgid "menu.pages"
 msgstr "Seiten"
 
@@ -6644,3 +6719,45 @@ msgstr "Ember-Entwickler"
 
 msgid "rankings.developer_detail"
 msgstr "Ember-Entwickler tragen dieses Zeichen statt einer Klasse und stehen nicht in der Rangliste. Ihre Spiele zählen trotzdem."
+
+msgid "blumint.stage_live"
+msgstr "Spiel {0} · läuft"
+
+msgid "blumint.stage_next"
+msgstr "Spiel {0} als Nächstes"
+
+msgid "blumint.stage_decided"
+msgstr "Set entschieden"
+
+msgid "blumint.stage_fighter"
+msgstr "Mach dich für jedes Spiel bereit. Das Set endet bei First to {0}; BluMint erhält jedes Ergebnis."
+
+msgid "blumint.stage_watcher"
+msgstr "Du schaust zu. Die Kämpfer machen sich bereit; der Raum spielt jedes Spiel des Sets."
+
+msgid "blumint.watching"
+msgstr "Zuschauer · {0}"
+
+msgid "blumint.not_ready"
+msgstr "Nicht bereit"
+
+msgid "blumint.role_host"
+msgstr "Host"
+
+msgid "blumint.role_watching"
+msgstr "Schaut zu"
+
+msgid "blumint.eyebrow_game"
+msgstr "Spiel {0}"
+
+msgid "blumint.eyebrow_set"
+msgstr "Set"
+
+msgid "blumint.chip_set_won"
+msgstr "Set gewonnen"
+
+msgid "blumint.chip_restart"
+msgstr "Neustart"
+
+msgid "blumint.chip_expired"
+msgstr "Abgelaufen"

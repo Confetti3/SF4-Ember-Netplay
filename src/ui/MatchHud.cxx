@@ -100,7 +100,7 @@ std::string FitText(std::string t,float maxWidth,float size){
 // pulled the eye mid-fight: let the stage show through a little. Quiet border.
 void DrawPanelBox(ImDrawList* draw,ImVec2 p,float w,float h,float s){
     draw->AddRectFilled(p,ImVec2(p.x+w,p.y+h),IM_COL32(20,19,18,200),Round(6*s,s));
-    draw->AddRect(p,ImVec2(p.x+w,p.y+h),v2::On()?v2::color::Alpha(v2::color::Border,.8f):IM_COL32(88,76,65,100),Round(6*s,s));
+    draw->AddRect(p,ImVec2(p.x+w,p.y+h),v2::On()?v2::color::Alpha(v2::Colors().border,.8f):IM_COL32(88,76,65,100),Round(6*s,s));
 }
 // Link state / notice line beside a panel, `top` its upper edge. Same width as the
 // panel, own background so it reads against any stage; colour follows severity.
@@ -214,7 +214,7 @@ void DrawPlate(ImDrawList* draw,const Plate& p,bool withLink=true){
     const float k=p.k,glyph=p.font*.9f,gap=6*k;
     // Opaque: the plate hides the game's own PLAYER label.
     draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(20,19,18,255),Round(5*k,k));
-    draw->AddRect(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),v2::On()?v2::color::Alpha(v2::color::Border,.8f):IM_COL32(88,76,65,110),Round(5*k,k));
+    draw->AddRect(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),v2::On()?v2::color::Alpha(v2::Colors().border,.8f):IM_COL32(88,76,65,110),Round(5*k,k));
     // The Ember rule on the outer edge, in line with the life bar's end.
     const float rule=p.right?p.x1-7*k:p.x0+4*k;
     draw->AddRectFilled(ImVec2(rule,p.y0+4*k),ImVec2(rule+3*k,p.y1-4*k),palette::Ember,1.5f*k);

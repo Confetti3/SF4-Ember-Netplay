@@ -6107,6 +6107,81 @@ msgstr "V2 (prévia)"
 msgid "settings.look_detail"
 msgstr "A nova aparência do Ember, ainda em construção. Você pode voltar a qualquer momento: só muda a aparência das telas."
 
+msgid "blumint.score"
+msgstr "{0} {1} – {2} {3} · Primeiro a {4}"
+
+msgid "blumint.game_heading"
+msgstr "Jogo {0} encerrado"
+
+msgid "blumint.game_next"
+msgstr "O jogo {0} é o próximo. Marque pronto quando quiser."
+
+msgid "blumint.ready_next"
+msgstr "Pronto para o próximo jogo"
+
+msgid "blumint.change_fighter"
+msgstr "Trocar de lutador antes"
+
+msgid "blumint.not_yet"
+msgstr "Ainda não"
+
+msgid "blumint.set_won"
+msgstr "Você venceu o set"
+
+msgid "blumint.set_lost"
+msgstr "Set perdido"
+
+msgid "blumint.set_winner"
+msgstr "{0} vence o set"
+
+msgid "blumint.set_reported"
+msgstr "A BluMint recebeu o resultado e atualiza o evento."
+
+msgid "blumint.next_waiting"
+msgstr "Sua próxima partida aparece aqui assim que a BluMint chamar."
+
+msgid "blumint.watch_next"
+msgstr "A próxima partida aparece aqui quando a BluMint chamar."
+
+msgid "blumint.next_ready"
+msgstr "Sua próxima partida está pronta: contra {0}."
+
+msgid "blumint.play_next"
+msgstr "Jogar contra {0}"
+
+msgid "blumint.stay"
+msgstr "Ficar na sala"
+
+msgid "blumint.leave"
+msgstr "Sair da sala"
+
+msgid "blumint.restart_heading"
+msgstr "Esse jogo não contou"
+
+msgid "blumint.restart_text"
+msgstr "A conexão caiu, então a BluMint prepara a partida de novo a partir de {0} – {1}. Ela aparece aqui quando isso acontecer."
+
+msgid "blumint.host_heading"
+msgstr "O anfitrião da BluMint assumiu esta partida"
+
+msgid "blumint.host_text"
+msgstr "O anfitrião do evento fechou esta partida na BluMint: assumiu, lançou o placar ou a removeu."
+
+msgid "blumint.expired_heading"
+msgstr "Não jogada a tempo"
+
+msgid "blumint.expired_text"
+msgstr "Esta partida não foi jogada antes de o tempo acabar. O anfitrião da BluMint decide o que vem depois."
+
+msgid "blumint.first_to"
+msgstr "Primeiro a {0}"
+
+msgid "blumint.live"
+msgstr "AO VIVO"
+
+msgid "blumint.eyebrow"
+msgstr "BLUMINT"
+
 msgid "menu.pages"
 msgstr "Páginas"
 
@@ -6164,3 +6239,45 @@ msgstr "Desenvolvedor do Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Desenvolvedores do Ember mostram esta marca no lugar da classe e não aparecem no ranking. Suas partidas continuam valendo."
+
+msgid "blumint.stage_live"
+msgstr "Partida {0} · em andamento"
+
+msgid "blumint.stage_next"
+msgstr "Partida {0} em seguida"
+
+msgid "blumint.stage_decided"
+msgstr "Set decidido"
+
+msgid "blumint.stage_fighter"
+msgstr "Fique pronto para cada partida. O set termina no primeiro a {0}; a BluMint recebe cada resultado."
+
+msgid "blumint.stage_watcher"
+msgstr "Você está assistindo. Os lutadores ficam prontos; a sala joga cada partida do set."
+
+msgid "blumint.watching"
+msgstr "Assistindo · {0}"
+
+msgid "blumint.not_ready"
+msgstr "Não pronto"
+
+msgid "blumint.role_host"
+msgstr "Anfitrião"
+
+msgid "blumint.role_watching"
+msgstr "Assistindo"
+
+msgid "blumint.eyebrow_game"
+msgstr "Partida {0}"
+
+msgid "blumint.eyebrow_set"
+msgstr "Set"
+
+msgid "blumint.chip_set_won"
+msgstr "Set vencido"
+
+msgid "blumint.chip_restart"
+msgstr "Reinício"
+
+msgid "blumint.chip_expired"
+msgstr "Expirado"

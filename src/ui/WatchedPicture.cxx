@@ -51,7 +51,7 @@ bool DrawWatchedPicture(ImTextureID picture,int& spot) {
     pulled=(std::max)(.18f,(std::min)(.5f,wide/vp->Size.x));
    }
    const bool hot=moving||resizing||ImGui::IsWindowHovered();
-   d->AddRect(p,q,hot?palette::Ember:v2::color::Border,0,0,(hot?2:1)*s);
+   d->AddRect(p,q,hot?palette::Ember:v2::Colors().border,0,0,(hot?2:1)*s);
    const ImVec2 a(right?grip.x+3*s:grip.x+g-3*s,bottom?grip.y+3*s:grip.y+g-3*s);
    d->AddTriangleFilled(a,ImVec2(a.x+(right?10:-10)*s,a.y),ImVec2(a.x,a.y+(bottom?10:-10)*s),hot?palette::Ember:palette::Muted);
    if(!ImGui::IsMouseDown(ImGuiMouseButton_Left)&&(moving||resizing)){

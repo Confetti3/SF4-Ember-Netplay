@@ -6587,6 +6587,81 @@ msgstr "V2 (náhled)"
 msgid "settings.look_detail"
 msgstr "Nový vzhled Emberu, který ještě vzniká. Kdykoli můžete přepnout zpět: mění se jen vzhled obrazovek."
 
+msgid "blumint.score"
+msgstr "{0} {1} – {2} {3} · Do {4} výher"
+
+msgid "blumint.game_heading"
+msgstr "Hra {0} skončila"
+
+msgid "blumint.game_next"
+msgstr "Na řadě je hra {0}. Potvrď připravenost, až budeš chtít."
+
+msgid "blumint.ready_next"
+msgstr "Připraven na další hru"
+
+msgid "blumint.change_fighter"
+msgstr "Nejdřív změnit bojovníka"
+
+msgid "blumint.not_yet"
+msgstr "Ještě ne"
+
+msgid "blumint.set_won"
+msgstr "Vyhrál jsi set"
+
+msgid "blumint.set_lost"
+msgstr "Set prohrán"
+
+msgid "blumint.set_winner"
+msgstr "{0} vyhrává set"
+
+msgid "blumint.set_reported"
+msgstr "BluMint má výsledek a aktualizuje akci."
+
+msgid "blumint.next_waiting"
+msgstr "Tvůj další zápas se tu objeví, jakmile ho BluMint vyhlásí."
+
+msgid "blumint.watch_next"
+msgstr "Další zápas se tu objeví, až ho BluMint vyhlásí."
+
+msgid "blumint.next_ready"
+msgstr "Tvůj další zápas je připraven: proti {0}."
+
+msgid "blumint.play_next"
+msgstr "Hrát proti {0}"
+
+msgid "blumint.stay"
+msgstr "Zůstat v místnosti"
+
+msgid "blumint.leave"
+msgstr "Opustit místnost"
+
+msgid "blumint.restart_heading"
+msgstr "Ta hra se nepočítala"
+
+msgid "blumint.restart_text"
+msgstr "Spojení spadlo, takže BluMint zápas připraví znovu od stavu {0} – {1}. Objeví se tu, až se tak stane."
+
+msgid "blumint.host_heading"
+msgstr "Hostitel BluMintu převzal tento zápas"
+
+msgid "blumint.host_text"
+msgstr "Hostitel akce zápas na BluMintu uzavřel: převzal ho, zadal skóre nebo ho odstranil."
+
+msgid "blumint.expired_heading"
+msgstr "Neodehráno včas"
+
+msgid "blumint.expired_text"
+msgstr "Tento zápas nebyl odehrán, než vypršel čas. O dalším postupu rozhodne hostitel BluMintu."
+
+msgid "blumint.first_to"
+msgstr "Do {0} výher"
+
+msgid "blumint.live"
+msgstr "ŽIVĚ"
+
+msgid "blumint.eyebrow"
+msgstr "BLUMINT"
+
 msgid "menu.pages"
 msgstr "Stránky"
 
@@ -6644,3 +6719,45 @@ msgstr "Vývojář Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Vývojáři Ember mají místo třídy tuto značku a nejsou v žebříčku. Vaše hry se stále počítají."
+
+msgid "blumint.stage_live"
+msgstr "Hra {0} · probíhá"
+
+msgid "blumint.stage_next"
+msgstr "Další hra {0}"
+
+msgid "blumint.stage_decided"
+msgstr "Set rozhodnut"
+
+msgid "blumint.stage_fighter"
+msgstr "Před každou hrou se připrav. Set končí na first to {0}; BluMint dostane každý výsledek."
+
+msgid "blumint.stage_watcher"
+msgstr "Díváš se. Bojovníci se připravují; místnost odehraje každou hru setu."
+
+msgid "blumint.watching"
+msgstr "Dívají se · {0}"
+
+msgid "blumint.not_ready"
+msgstr "Nepřipraven"
+
+msgid "blumint.role_host"
+msgstr "Hostitel"
+
+msgid "blumint.role_watching"
+msgstr "Dívá se"
+
+msgid "blumint.eyebrow_game"
+msgstr "Hra {0}"
+
+msgid "blumint.eyebrow_set"
+msgstr "Set"
+
+msgid "blumint.chip_set_won"
+msgstr "Set vyhrán"
+
+msgid "blumint.chip_restart"
+msgstr "Restart"
+
+msgid "blumint.chip_expired"
+msgstr "Vypršelo"

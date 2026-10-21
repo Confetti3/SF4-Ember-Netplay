@@ -6588,6 +6588,81 @@ msgstr "V2 (предпросмотр)"
 msgid "settings.look_detail"
 msgstr "Новый внешний вид Ember, он ещё в работе. Вернуться можно в любой момент: меняется только вид экранов."
 
+msgid "blumint.score"
+msgstr "{0} {1} – {2} {3} · До {4} побед"
+
+msgid "blumint.game_heading"
+msgstr "Игра {0} окончена"
+
+msgid "blumint.game_next"
+msgstr "Следующая — игра {0}. Отметьте готовность, когда будете готовы."
+
+msgid "blumint.ready_next"
+msgstr "Готов к следующей игре"
+
+msgid "blumint.change_fighter"
+msgstr "Сначала сменить бойца"
+
+msgid "blumint.not_yet"
+msgstr "Пока нет"
+
+msgid "blumint.set_won"
+msgstr "Вы выиграли сет"
+
+msgid "blumint.set_lost"
+msgstr "Сет проигран"
+
+msgid "blumint.set_winner"
+msgstr "{0} выигрывает сет"
+
+msgid "blumint.set_reported"
+msgstr "BluMint получил результат и обновляет турнир."
+
+msgid "blumint.next_waiting"
+msgstr "Ваш следующий матч появится здесь, как только BluMint его объявит."
+
+msgid "blumint.watch_next"
+msgstr "Следующий матч появится здесь, когда BluMint его объявит."
+
+msgid "blumint.next_ready"
+msgstr "Ваш следующий матч готов: против {0}."
+
+msgid "blumint.play_next"
+msgstr "Играть против {0}"
+
+msgid "blumint.stay"
+msgstr "Остаться в комнате"
+
+msgid "blumint.leave"
+msgstr "Покинуть комнату"
+
+msgid "blumint.restart_heading"
+msgstr "Эта игра не засчитана"
+
+msgid "blumint.restart_text"
+msgstr "Соединение оборвалось, поэтому BluMint заново создаёт матч со счёта {0} – {1}. Он появится здесь, когда это произойдёт."
+
+msgid "blumint.host_heading"
+msgstr "Хост BluMint взял этот матч на себя"
+
+msgid "blumint.host_text"
+msgstr "Хост турнира закрыл этот матч в BluMint: взял его на себя, внёс счёт или удалил его."
+
+msgid "blumint.expired_heading"
+msgstr "Не сыграно вовремя"
+
+msgid "blumint.expired_text"
+msgstr "Этот матч не был сыгран до истечения времени. Что дальше, решает хост BluMint."
+
+msgid "blumint.first_to"
+msgstr "До {0} побед"
+
+msgid "blumint.live"
+msgstr "В ЭФИРЕ"
+
+msgid "blumint.eyebrow"
+msgstr "BLUMINT"
+
 msgid "menu.pages"
 msgstr "Страницы"
 
@@ -6645,3 +6720,45 @@ msgstr "Разработчик Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Разработчики Ember показывают эту отметку вместо класса и не попадают в таблицу. Ваши игры по-прежнему засчитываются."
+
+msgid "blumint.stage_live"
+msgstr "Игра {0} · идёт"
+
+msgid "blumint.stage_next"
+msgstr "Следующая игра {0}"
+
+msgid "blumint.stage_decided"
+msgstr "Сет решён"
+
+msgid "blumint.stage_fighter"
+msgstr "Подтверждайте готовность перед каждой игрой. Сет до {0} побед; BluMint получает каждый результат."
+
+msgid "blumint.stage_watcher"
+msgstr "Вы смотрите. Бойцы готовятся; комната играет каждую игру сета."
+
+msgid "blumint.watching"
+msgstr "Смотрят · {0}"
+
+msgid "blumint.not_ready"
+msgstr "Не готов"
+
+msgid "blumint.role_host"
+msgstr "Хост"
+
+msgid "blumint.role_watching"
+msgstr "Смотрит"
+
+msgid "blumint.eyebrow_game"
+msgstr "Игра {0}"
+
+msgid "blumint.eyebrow_set"
+msgstr "Сет"
+
+msgid "blumint.chip_set_won"
+msgstr "Сет выигран"
+
+msgid "blumint.chip_restart"
+msgstr "Переигровка"
+
+msgid "blumint.chip_expired"
+msgstr "Истекло"

@@ -503,12 +503,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  const auto pressBody=[&](const MenuEntry& e,const CardInteraction& hit){
   if(hit.kind==CardInteraction::Kind::Pressed&&hit.option<0&&!nav.Asking()&&!nav.Editing()){nav.Focus(e.id,rows);action=nav.Choose(rows);}
  };
- const auto tableCard=[&](const MenuEntry& e,float h){
+ const auto tableCard=[&](const MenuEntry& e,float h,bool stage=false){
   const auto& t=v.room.tables[std::stoi(e.id.substr(6))];
   // The seat chooser, or on your own focused place what A and B do there.
   const bool choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
   const bool ownPlace=!nav.Asking()&&onOwnPlace&&e.id==focus;
-  TableCardView card;card.id=e.id;card.slot=t.id;card.height=h;
+  TableCardView card;card.id=e.id;card.slot=t.id;card.height=h;card.stage=stage;
   card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();
   if(choosing){
    card.choosing=true;card.chosen=static_cast<int>(nav.ChoiceIndex());
@@ -578,7 +578,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  std::vector<const MenuEntry*> toolbar;
  for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
- ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.SeeThrough()));
+ ImGui::PushStyleColor(ImGuiCol_ChildBg,v2::BoardGround(v.SeeThrough()));
  if(wide){
   // The battle slots take the whole height on the left. Members, chat and the
   // room's actions share the right, and the focused row's explanation runs
@@ -590,8 +590,10 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float toolsHeight=std::ceil(toolbar.size()/float(toolColumns))*48*s+8*s;
   const float communityHeight=(std::max)(120*s,boardHeight-toolsHeight-gap);
   ImGui::BeginChild("Battle slots",ImVec2(leftWidth,boardHeight),0,ImGuiWindowFlags_NoNavInputs);
-  const float rowHeight=(std::max)(100*s,(ImGui::GetContentRegionAvail().y-3*8*s)/4);
-  for(const auto& e:rows)if(e.id.compare(0,6,"table-")==0)tableCard(e,rowHeight);
+  // A BluMint match's room has one table, the match: it is the stage.
+  const bool stage=v2::On()&&v2::CurrentBrand()==v2::Brand::BluMint;
+  const float rowHeight=stage?ImGui::GetContentRegionAvail().y:(std::max)(100*s,(ImGui::GetContentRegionAvail().y-3*8*s)/4);
+  for(const auto& e:rows)if(e.id.compare(0,6,"table-")==0&&(!stage||e.id=="table-0"))tableCard(e,rowHeight,stage);
   ImGui::EndChild();ImGui::SameLine(0,gap);
   ImGui::BeginChild("Room community",ImVec2(0,communityHeight),0,ImGuiWindowFlags_NoNavInputs);
   ImGui::TextUnformatted(loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity).c_str());

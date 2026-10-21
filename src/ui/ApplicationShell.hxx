@@ -328,6 +328,14 @@ private:
     // V2 Settings (ApplicationShell__Settings.cxx): the tabs as screen id and label, whether a screen is one, and its rows.
     static std::vector<std::pair<std::string,std::string>> SettingsTabs();
     static bool SettingsTab(const std::string& screen);
+    // A BluMint match's room (ApplicationShell__BluMint.cxx): its look, header, watcher's rows and
+    // notices; then what a notice's BluMint button does (true when it was one).
+    // The room of a BluMint match this PC fights in: it wears BluMint's V2 look.
+static bool InBluMintRoom(const ShellView& view,const std::string& screen);
+void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<MenuEntry>& rows);
+    bool AnswerBluMint(NoticeResult result,const ShellView& view,const Submit& submit);
+    // What the last frame saw of the BluMint match, to say each moment once.
+    struct BluMintSeen { std::string match,state,reason; unsigned wins[2]={0,0}; } bluMint_;
     // V2 value panels (ApplicationShell__Values.cxx): each value row's values as choices.
     static void OfferValues(std::vector<MenuEntry>& rows);
     std::vector<MenuEntry> SettingsTabRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
@@ -339,7 +347,7 @@ private:
     // A notice's buttons carry results, not actions (GameMenu::TakeNoticeResult). Every
     // draw of the menu is followed by AnswerDialog, which does what the result says with
     // what the notice's owner left in dialogContext_.
-    void AnswerDialog(const Submit& submit);
+    NoticeResult AnswerDialog(const Submit& submit);
     // The launch-time update check and its question (ApplicationShell__Updates.cxx).
     // UpdateLaunchCheck asks the service for the check on the first Home and puts the
     // question up when the offer is due and the player is free to answer; a closed
@@ -421,7 +429,9 @@ private:
     bool GameIsStale(std::size_t table) const;
     // A member's card as the room board and the V2 Members list draw it; no id when `row` names no member.
     MemberCardView RoomMemberCard(const ShellView& view,const MenuEntry& row) const;
-    void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
+    // A BluMint match's room in V2 (ApplicationShell__BluMint.cxx): the match as a stage, who watches, chat and the actions.
+void DrawBluMintBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height);
+void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its

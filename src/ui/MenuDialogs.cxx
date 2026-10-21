@@ -4,6 +4,7 @@
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
+#include <cfloat>
 #include <cstring>
 
 namespace sf4e { namespace ui {
@@ -32,7 +33,7 @@ std::size_t MenuChoiceColumns(std::size_t count) { return v2::On()?(std::min<std
 // A dialog button's ground; V2 marks the selected one with its focus marks after drawing it (V2Mark).
 static ImVec4 ButtonGround(bool selected) {
     if(!v2::On())return DialogButtonColor(selected);
-    return ImGui::ColorConvertU32ToFloat4(selected?v2::color::Header:v2::color::Button);
+    return ImGui::ColorConvertU32ToFloat4(selected?v2::Colors().header:v2::Colors().button);
 }
 static void V2Mark(bool selected) { if(v2::On()&&selected)v2::Focus(ImGui::GetWindowDrawList(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax()); }
 int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons,int* selected,float height,bool focusOnAppearing) {
@@ -69,7 +70,7 @@ int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons
     return clicked;
 }
 void BeginDialogCard(const char* id,ImVec2 at,ImVec2 size) {
-    const ImVec4 panel=v2::On()?ImGui::ColorConvertU32ToFloat4(v2::color::Panel):ImVec4(.13f,.115f,.1f,1);
+    const ImVec4 panel=v2::On()?ImGui::ColorConvertU32ToFloat4(v2::Colors().panel):ImVec4(.13f,.115f,.1f,1);
     ImGui::SetCursorScreenPos(at);
     ImGui::PushStyleColor(ImGuiCol_ChildBg,panel);
     ImGui::BeginChild(id,size,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
@@ -99,6 +100,7 @@ const MenuEntry* FindEntry(const std::vector<MenuEntry>& entries,const std::stri
 }
 void GameMenu::ShowNotice(NoticeDialog notice) {
     notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons);
+    noticeEyebrow_=std::move(notice.eyebrow); noticeFacts_=std::move(notice.facts); noticeChip_=std::move(notice.chip);
     // A notice always has a button to close it by.
     if(noticeButtons_.empty()) noticeButtons_.push_back({loc::T("common.ok")});
     noticeSelected_=(std::max)(0,(std::min)(notice.selected,static_cast<int>(noticeButtons_.size())-1)); noticeError_=false; noticeResult_=NoticeResult::None;
@@ -265,11 +267,43 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
     // (a draft, a question) is untouched and their popup returns afterwards.
     if(!notice_.empty()) ImGui::OpenPopup(noticePopup.c_str());
     NextPopupSize();
-    if(ImGui::BeginPopupModal(noticePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+    // V2: a card without a title bar, the brand's mark and the notice's eyebrow and chip on its top line.
+    const bool look=v2::On();const float s=Scale();const auto& c=v2::Colors();
+    if(look){
+        ImGui::SetNextWindowSize(ImVec2((std::min)(560*s,ImGui::GetMainViewport()->Size.x-40*s),0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(24*s,22*s));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,4*s);
+        ImGui::PushStyleColor(ImGuiCol_PopupBg,ImGui::ColorConvertU32ToFloat4(c.ink));
+        ImGui::PushStyleColor(ImGuiCol_Border,ImGui::ColorConvertU32ToFloat4(noticeChip_.text.empty()?c.border:c.accent));
+        ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg,ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(c.ink,.72f)));
+    }
+    const bool open=ImGui::BeginPopupModal(noticePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs|(look?ImGuiWindowFlags_NoTitleBar:0));
+    if(look){ImGui::PopStyleColor(3);ImGui::PopStyleVar(2);}
+    if(open) {
         if(notice_.empty()) ImGui::CloseCurrentPopup();
         else {
-            if(noticeError_) ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
-            else ImGui::TextColored(ToneColor(Tone::Pending),"%s",noticeHeading_.empty()?loc::T("notice.title"):noticeHeading_.c_str());
+            const char* heading=noticeError_?loc::T("notice.error_title"):noticeHeading_.empty()?loc::T("notice.title"):noticeHeading_.c_str();
+            if(look){
+                auto* d=ImGui::GetWindowDrawList();const auto at=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x,line=24*s;
+                const float mark=v2::BrandMark(d,ImVec2(at.x,at.y+3*s),18*s);
+                d->AddText(ImGui::GetFont(),12*s,ImVec2(at.x+mark+10*s,at.y+6*s),c.muted,noticeEyebrow_.c_str());
+                if(!noticeChip_.text.empty())v2::Chip(d,ImVec2(at.x+width-v2::ChipWidth(noticeChip_.text),at.y),noticeChip_.text,noticeChip_.tone);
+                ImGui::Dummy(ImVec2(width,line));
+                const float size=28*s;const auto h=HeadingFont()->CalcTextSizeA(size,FLT_MAX,width,heading);
+                const auto top=ImGui::GetCursorScreenPos();
+                d->AddText(HeadingFont(),size,top,noticeError_?ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Error)):c.text,heading,nullptr,width);
+                ImGui::Dummy(ImVec2(width,h.y+4*s));
+                if(!noticeFacts_.empty()){
+                    const auto box=ImGui::GetCursorScreenPos();const float bh=44*s;
+                    d->AddRectFilled(box,ImVec2(box.x+width,box.y+bh),c.frame,4*s);d->AddRect(box,ImVec2(box.x+width,box.y+bh),c.border,4*s,0,s);
+                    NoteUserText(noticeFacts_.c_str());
+                    d->AddText(ImGui::GetFont(),16*s,ImVec2(box.x+12*s,box.y+(bh-16*s)*.5f),c.text,noticeFacts_.c_str());
+                    ImGui::Dummy(ImVec2(width,bh+4*s));
+                }
+            }
+            else{
+                ImGui::TextColored(noticeError_?ToneColor(Tone::Error):ToneColor(Tone::Pending),"%s",heading);
+                if(!noticeFacts_.empty()){NoteUserText(noticeFacts_.c_str());ImGui::TextWrapped("%s",noticeFacts_.c_str());}
+            }
             NoteUserText(notice_.c_str());
             ImGui::TextWrapped("%s",notice_.c_str());
             ImGui::Dummy(ImVec2(0,8*Scale()));

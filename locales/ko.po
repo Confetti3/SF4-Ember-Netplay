@@ -6588,6 +6588,81 @@ msgstr "V2 (미리 보기)"
 msgid "settings.look_detail"
 msgstr "아직 만드는 중인 Ember의 새 모양입니다. 언제든 되돌릴 수 있으며, 화면의 모양만 바뀝니다."
 
+msgid "blumint.score"
+msgstr "{0} {1} – {2} {3} · {4}선승"
+
+msgid "blumint.game_heading"
+msgstr "{0}번째 게임 종료"
+
+msgid "blumint.game_next"
+msgstr "다음은 {0}번째 게임입니다. 준비되면 레디를 누르세요."
+
+msgid "blumint.ready_next"
+msgstr "다음 게임 준비 완료"
+
+msgid "blumint.change_fighter"
+msgstr "먼저 캐릭터 변경"
+
+msgid "blumint.not_yet"
+msgstr "아직"
+
+msgid "blumint.set_won"
+msgstr "세트 승리"
+
+msgid "blumint.set_lost"
+msgstr "세트 패배"
+
+msgid "blumint.set_winner"
+msgstr "{0} 님이 세트를 이겼습니다"
+
+msgid "blumint.set_reported"
+msgstr "BluMint가 결과를 받아 이벤트를 업데이트합니다."
+
+msgid "blumint.next_waiting"
+msgstr "다음 경기는 BluMint가 호출하는 즉시 여기에 표시됩니다."
+
+msgid "blumint.watch_next"
+msgstr "다음 경기는 BluMint가 호출하면 여기에 표시됩니다."
+
+msgid "blumint.next_ready"
+msgstr "다음 경기가 준비되었습니다: {0} 상대."
+
+msgid "blumint.play_next"
+msgstr "{0} 상대로 플레이"
+
+msgid "blumint.stay"
+msgstr "방에 남기"
+
+msgid "blumint.leave"
+msgstr "방 나가기"
+
+msgid "blumint.restart_heading"
+msgstr "이 게임은 인정되지 않았습니다"
+
+msgid "blumint.restart_text"
+msgstr "연결이 끊어져 BluMint가 {0} – {1}부터 경기를 다시 잡습니다. 준비되면 여기에 표시됩니다."
+
+msgid "blumint.host_heading"
+msgstr "BluMint 호스트가 이 경기를 넘겨받았습니다"
+
+msgid "blumint.host_text"
+msgstr "이벤트 호스트가 BluMint에서 이 경기를 닫았습니다: 넘겨받았거나, 점수를 입력했거나, 삭제했습니다."
+
+msgid "blumint.expired_heading"
+msgstr "제시간에 진행되지 않음"
+
+msgid "blumint.expired_text"
+msgstr "이 경기는 시간 안에 진행되지 않았습니다. 이후는 BluMint 호스트가 결정합니다."
+
+msgid "blumint.first_to"
+msgstr "{0}선승"
+
+msgid "blumint.live"
+msgstr "LIVE"
+
+msgid "blumint.eyebrow"
+msgstr "BLUMINT"
+
 msgid "menu.pages"
 msgstr "페이지"
 
@@ -6645,3 +6720,45 @@ msgstr "Ember 개발자"
 
 msgid "rankings.developer_detail"
 msgstr "Ember 개발자는 클래스 대신 이 표시가 나오며 랭킹에 오르지 않습니다. 대전은 계속 반영됩니다."
+
+msgid "blumint.stage_live"
+msgstr "게임 {0} · 진행 중"
+
+msgid "blumint.stage_next"
+msgstr "다음 게임 {0}"
+
+msgid "blumint.stage_decided"
+msgstr "세트 결정"
+
+msgid "blumint.stage_fighter"
+msgstr "게임마다 준비를 누르세요. 세트는 {0}선승으로 끝나며 모든 결과는 BluMint로 갑니다."
+
+msgid "blumint.stage_watcher"
+msgstr "관전 중입니다. 파이터가 준비하고 룸이 세트의 모든 게임을 진행합니다."
+
+msgid "blumint.watching"
+msgstr "관전 · {0}"
+
+msgid "blumint.not_ready"
+msgstr "준비 안 됨"
+
+msgid "blumint.role_host"
+msgstr "호스트"
+
+msgid "blumint.role_watching"
+msgstr "관전 중"
+
+msgid "blumint.eyebrow_game"
+msgstr "게임 {0}"
+
+msgid "blumint.eyebrow_set"
+msgstr "세트"
+
+msgid "blumint.chip_set_won"
+msgstr "세트 승리"
+
+msgid "blumint.chip_restart"
+msgstr "재시작"
+
+msgid "blumint.chip_expired"
+msgstr "만료"

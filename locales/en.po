@@ -6223,6 +6223,81 @@ msgstr "V2 (preview)"
 msgid "settings.look_detail"
 msgstr "Ember's new look, still being built. Switch back at any time: only how screens look changes."
 
+msgid "blumint.score"
+msgstr "{0} {1} – {2} {3} · First to {4}"
+
+msgid "blumint.game_heading"
+msgstr "Game {0} done"
+
+msgid "blumint.game_next"
+msgstr "Game {0} is next. Ready up when you are."
+
+msgid "blumint.ready_next"
+msgstr "Ready for the next game"
+
+msgid "blumint.change_fighter"
+msgstr "Change fighter first"
+
+msgid "blumint.not_yet"
+msgstr "Not yet"
+
+msgid "blumint.set_won"
+msgstr "You win the set"
+
+msgid "blumint.set_lost"
+msgstr "Set lost"
+
+msgid "blumint.set_winner"
+msgstr "{0} wins the set"
+
+msgid "blumint.set_reported"
+msgstr "BluMint has the result and updates the event."
+
+msgid "blumint.next_waiting"
+msgstr "Your next match appears here as soon as BluMint calls it."
+
+msgid "blumint.watch_next"
+msgstr "The next match appears here when BluMint calls it."
+
+msgid "blumint.next_ready"
+msgstr "Your next match is ready: against {0}."
+
+msgid "blumint.play_next"
+msgstr "Play {0}"
+
+msgid "blumint.stay"
+msgstr "Stay in the room"
+
+msgid "blumint.leave"
+msgstr "Leave the room"
+
+msgid "blumint.restart_heading"
+msgstr "That game did not count"
+
+msgid "blumint.restart_text"
+msgstr "The connection dropped, so BluMint sets the match up again from {0} – {1}. It appears here when it does."
+
+msgid "blumint.host_heading"
+msgstr "BluMint's host took this match"
+
+msgid "blumint.host_text"
+msgstr "The event's host closed this match on BluMint: they took it over, entered the score or removed it."
+
+msgid "blumint.expired_heading"
+msgstr "Not played in time"
+
+msgid "blumint.expired_text"
+msgstr "This match was not played before its time ran out. BluMint's host decides what happens next."
+
+msgid "blumint.first_to"
+msgstr "First to {0}"
+
+msgid "blumint.live"
+msgstr "LIVE"
+
+msgid "blumint.eyebrow"
+msgstr "BLUMINT"
+
 msgid "menu.pages"
 msgstr "Pages"
 
@@ -6279,3 +6354,45 @@ msgstr "Ember developer"
 
 msgid "rankings.developer_detail"
 msgstr "Ember developers show this mark in place of a class and are not on the board. Your games still count."
+
+msgid "blumint.stage_live"
+msgstr "Game {0} · in progress"
+
+msgid "blumint.stage_next"
+msgstr "Game {0} next"
+
+msgid "blumint.stage_decided"
+msgstr "Set decided"
+
+msgid "blumint.stage_fighter"
+msgstr "Ready up for each game. The set ends at first to {0}; BluMint gets every result."
+
+msgid "blumint.stage_watcher"
+msgstr "You are watching. The fighters ready up; the room plays every game of the set."
+
+msgid "blumint.watching"
+msgstr "Watching · {0}"
+
+msgid "blumint.not_ready"
+msgstr "Not ready"
+
+msgid "blumint.role_host"
+msgstr "Host"
+
+msgid "blumint.role_watching"
+msgstr "Watching"
+
+msgid "blumint.eyebrow_game"
+msgstr "Game {0}"
+
+msgid "blumint.eyebrow_set"
+msgstr "Set"
+
+msgid "blumint.chip_set_won"
+msgstr "Set won"
+
+msgid "blumint.chip_restart"
+msgstr "Restart"
+
+msgid "blumint.chip_expired"
+msgstr "Expired"

@@ -42,15 +42,15 @@ void Brand(ImDrawList* d, ImVec2 p, float mark) {
     atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0), &uv0, &uv1);
     d->AddImage(atlas->TexID, p, ImVec2(p.x + mark, p.y + mark), uv0, uv1);
     const float x = p.x + mark + 16 * s;
-    d->AddText(HeadingFont(), size, ImVec2(x, p.y + (mark - size - 18 * s) * .5f), palette::Ivory, "EMBER");
-    d->AddText(HeadingFont(), 13 * s, ImVec2(x + 2 * s, p.y + (mark + size - 18 * s) * .5f + 4 * s), palette::Ember, loc::T("brand.subtitle"));
+    d->AddText(HeadingFont(), size, ImVec2(x, p.y + (mark - size - 18 * s) * .5f), v2::Colors().text, "EMBER");
+    d->AddText(HeadingFont(), 13 * s, ImVec2(x + 2 * s, p.y + (mark + size - 18 * s) * .5f + 4 * s), v2::Colors().accent, loc::T("brand.subtitle"));
 }
 // One entry's card: its label (and first line of detail on two-line cards), its
 // value with the arrows that step it, or a chevron when Select opens something.
 void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled, bool twoLines, bool home, float valueWidth) {
     const float s = Scale(), h = c.H();
     if (e.userText) NoteUserText(e.label);
-    const ImU32 text = enabled ? palette::Ivory : v2::color::Alpha(palette::Ivory, .55f);
+    const ImU32 text = enabled ? v2::Colors().text : v2::color::Alpha(v2::Colors().text, .55f);
     const float face = e.Match() ? h - 12 * s : 0;
     if (face > 0) {
         DrawCharacterPortrait(e.fighter1, ImVec2(c.min.x + 6 * s, c.min.y + 6 * s), ImVec2(c.min.x + 6 * s + face, c.max.y - 6 * s));
@@ -68,23 +68,23 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
     d->AddText(labelFont, labelSize, ImVec2(left, labelY), text, Fit(e.label, labelRoom, labelSize, labelFont).c_str());
     if (second) {
         NoteDetailText(e.detail, e.detailText);
-        d->AddText(ImGui::GetFont(), detailSize, ImVec2(left, labelY + labelSize + 4 * s), palette::Muted, Fit(FirstLine(e.detail), labelRoom, detailSize, ImGui::GetFont()).c_str());
+        d->AddText(ImGui::GetFont(), detailSize, ImVec2(left, labelY + labelSize + 4 * s), v2::Colors().muted, Fit(FirstLine(e.detail), labelRoom, detailSize, ImGui::GetFont()).c_str());
     }
     const float valueY = c.min.y + (h - ImGui::GetFontSize()) * .5f;
     if (e.adjustable) {
         const float vx = right - valueWidth;
         const std::string shown = Fit(e.value.empty() ? loc::T("common.not_set") : e.value, valueWidth - 40 * s, ImGui::GetFontSize(), ImGui::GetFont());
         const float tw = ImGui::CalcTextSize(shown.c_str()).x;
-        const ImU32 arrow = enabled ? palette::Ember : palette::Muted;
+        const ImU32 arrow = enabled ? v2::Colors().accent : v2::Colors().muted;
         d->AddText(ImVec2(vx, valueY), arrow, "<");
-        d->AddText(ImVec2(vx + (valueWidth - tw) * .5f, valueY), e.valueHighlighted ? palette::Ember : text, shown.c_str());
+        d->AddText(ImVec2(vx + (valueWidth - tw) * .5f, valueY), e.valueHighlighted ? v2::Colors().accent : text, shown.c_str());
         d->AddText(ImVec2(right - 10 * s, valueY), arrow, ">");
     } else if (valueText > 0) {
         if (e.userText || e.text) NoteUserText(e.value);
         const std::string shown = Fit(e.value, valueText, ImGui::GetFontSize(), ImGui::GetFont());
-        d->AddText(ImVec2(right - ImGui::CalcTextSize(shown.c_str()).x, valueY), e.valueHighlighted ? palette::Ember : palette::Muted, shown.c_str());
+        d->AddText(ImVec2(right - ImGui::CalcTextSize(shown.c_str()).x, valueY), e.valueHighlighted ? v2::Colors().accent : v2::Colors().muted, shown.c_str());
     }
-    if (chevron) Chevron(d, ImVec2(c.max.x - 22 * s, c.min.y + h * .5f), 6 * s, enabled ? palette::Muted : v2::color::Alpha(palette::Muted, .5f));
+    if (chevron) Chevron(d, ImVec2(c.max.x - 22 * s, c.min.y + h * .5f), 6 * s, enabled ? v2::Colors().muted : v2::color::Alpha(v2::Colors().muted, .5f));
 }
 }
 
@@ -94,6 +94,16 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     const float s = Scale();
     auto* d = ImGui::GetWindowDrawList();
     const auto win = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
+    // What ImGui draws itself (a board's text and buttons) wears the brand's colours too.
+    const auto& c = v2::Colors();
+    const auto col = [](ImU32 u) { return ImGui::ColorConvertU32ToFloat4(u); };
+    ImGui::PushStyleColor(ImGuiCol_Text, col(c.text));
+    ImGui::PushStyleColor(ImGuiCol_TextDisabled, col(c.muted));
+    ImGui::PushStyleColor(ImGuiCol_Button, col(c.button));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, col(c.hover));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, col(c.header));
+    ImGui::PushStyleColor(ImGuiCol_Border, col(c.border));
+    struct PopColors { ~PopColors() { ImGui::PopStyleColor(6); } } popColors;
     const bool narrow = v2::Narrow(size.x, s), changed = lastScreen_ != navigation.Screen();
     const float side = flyout ? 16 * s : v2::SideMargin(size.x, s), pad = flyout ? 12 * s : v2::Pad(size.x, s);
     // A flyout (the training controls) sits over the fight: no art behind it.
@@ -118,7 +128,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         // Classic titles are capitals ("SETTINGS"); the V2 header names the screen as the menus do.
         // A flyout's root is named by its owner (rootName), its pages as the menus name them.
         const char* named = navigation.Screen() == navigation.Root() && !rootName.empty() ? rootName.c_str() : MenuScreenName(navigation.Screen());
-        v2::Header(named && IsCapitals(title) ? named : title);
+        v2::Header(named && IsCapitals(title) ? named : title, eyebrow.empty() ? nullptr : eyebrow.c_str(), headerChips);
         if (!tabs.empty()) {
             std::vector<std::string> labels;
             for (const auto& t : tabs) labels.push_back(t.second);
@@ -168,7 +178,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             if (!cell && !e.group.empty() && (i == 0 || entries[i - 1].group != e.group)) {
                 if (i) ImGui::Dummy(ImVec2(0, 8 * s));
                 const auto at = ImGui::GetCursorScreenPos();
-                ld->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y + 4 * s), palette::Muted, e.group.c_str());
+                ld->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y + 4 * s), v2::Colors().muted, e.group.c_str());
                 ImGui::Dummy(ImVec2(full, 18 * s));
             }
             const float w = cell ? cellWidth : full;
@@ -207,11 +217,11 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             // The player, as the V2 player card: the main's portrait and the tag.
             const auto& player = MenuPlayerCard();
             const v2::Box pc = v2::CutBottom(pane, 128 * s);
-            d->AddRectFilled(pc.min, pc.max, v2::color::Alpha(v2::color::Panel, .94f), 4 * s);
-            d->AddRect(pc.min, pc.max, v2::color::Border, 4 * s, 0, s);
-            d->AddText(HeadingFont(), 13 * s, ImVec2(pc.min.x + 16 * s, pc.min.y + 14 * s), palette::Muted, loc::T("card.player"));
+            d->AddRectFilled(pc.min, pc.max, v2::color::Alpha(v2::Colors().panel, .94f), 4 * s);
+            d->AddRect(pc.min, pc.max, v2::Colors().border, 4 * s, 0, s);
+            d->AddText(HeadingFont(), 13 * s, ImVec2(pc.min.x + 16 * s, pc.min.y + 14 * s), v2::Colors().muted, loc::T("card.player"));
             const float face = 72 * s, fy = pc.min.y + 40 * s;
-            DrawCharacterPortrait(player.fighter, ImVec2(pc.min.x + 16 * s, fy), ImVec2(pc.min.x + 16 * s + face, fy + face), v2::color::Frame);
+            DrawCharacterPortrait(player.fighter, ImVec2(pc.min.x + 16 * s, fy), ImVec2(pc.min.x + 16 * s + face, fy + face), v2::Colors().frame);
             v2::TagView tag;
             tag.name = player.name.empty() ? loc::T("card.player") : player.name;
             tag.title = player.fighterName;
@@ -220,7 +230,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             v2::Tag(d, ImVec2(pc.min.x + 32 * s + face, fy + 4 * s), pc.W() - 48 * s - face, tag, v2::TagSize::M);
         } else if (split && focusedEntry != entries.end()) {
             ImGui::SetCursorScreenPos(pane.min);
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::color::Panel, .94f)));
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel, .94f)));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16 * s, 16 * s));
             ImGui::BeginChild("V2 detail", ImVec2(pane.W(), pane.H()), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoNavInputs);
             if (!customDetail) {
@@ -230,7 +240,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
                 ImGui::TextWrapped("%s", e.label.c_str());
                 ImGui::PopFont();
                 ImGui::Dummy(ImVec2(0, 4 * s));
-                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(palette::Muted));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(v2::Colors().muted));
                 if (!e.detail.empty()) { NoteDetailText(e.detail, e.detailText); ImGui::TextWrapped("%s", e.detail.c_str()); }
                 ImGui::PopStyleColor();
                 if (!feedback_.Enabled(e) && !e.quiet) ImGui::TextDisabled("%s", loc::T(feedback_.Pending(e) ? "room.updating" : "common.unavailable"));
@@ -255,13 +265,13 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             ImGui::SetNextWindowSize(ImVec2(list.W(), (std::min)(height, list.H())));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12 * s, 12 * s));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4 * s);
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::ColorConvertU32ToFloat4(v2::color::Panel));
-            ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(palette::Ember));
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::ColorConvertU32ToFloat4(v2::Colors().panel));
+            ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(v2::Colors().accent));
             ImGui::Begin("###V2 values", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings);
             ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
             auto* pd = ImGui::GetWindowDrawList();
             const auto at = ImGui::GetCursorScreenPos();
-            pd->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y), palette::Muted, e.label.c_str());
+            pd->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y), v2::Colors().muted, e.label.c_str());
             ImGui::Dummy(ImVec2(0, 14 * s));
             const float cw = (ImGui::GetContentRegionAvail().x - inner * (across - 1)) / across;
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(inner, inner));
@@ -281,7 +291,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
                 const std::string label = Fit(option.label, cw - 24 * s, ImGui::GetFontSize(), ImGui::GetFont());
                 // The value in effect now is in Ember, so the player sees where they start.
                 pd->AddText(ImVec2(p.x + (cw - ImGui::CalcTextSize(label.c_str()).x) * .5f, p.y + (row - ImGui::GetFontSize()) * .5f),
-                    !option.enabled ? palette::Muted : current ? palette::Ember : palette::Ivory, label.c_str());
+                    !option.enabled ? v2::Colors().muted : current ? v2::Colors().accent : v2::Colors().text, label.c_str());
                 if (selected) v2::Focus(pd, c.min, c.max, false);
             }
             ImGui::PopStyleVar();
@@ -313,7 +323,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     }
     const bool hasStatus = status && *status;
     const int hit = v2::HintBar(hintBar, hints, hasStatus ? status : footerNote,
-        hasStatus ? ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)) : palette::Muted);
+        hasStatus ? ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)) : v2::Colors().muted);
     if (hit >= 0 && !modalAtStart && !noticeOpen) {
         if (does[hit] == 2) { if (choosing) navigation.Cancel(); else backRequested = true; }
         else if (does[hit] == 1 && focusedEntry != entries.end() && !choosing) action = navigation.Choose(entries);
