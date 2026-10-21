@@ -4733,6 +4733,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "开关对战中 HUD 的各项。"
 
+msgid "training.hitboxes"
+msgstr "判定框"
+
+msgid "training.hitboxes.detail"
+msgstr "在对战画面上绘制斗士的判定框：可被击中、可被投、攻击命中和投技的范围各有不同颜色。"
+
 msgid "training.color_key"
 msgstr "颜色图例"
 
@@ -6476,3 +6482,139 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+msgid "screen.rankings"
+msgstr "排行榜"
+
+msgid "rankings.title"
+msgstr "排行榜"
+
+msgid "rankings.board_title"
+msgstr "玩家等级榜"
+
+msgid "rankings.entry_detail"
+msgstr "你在公开房间的等级，以及按等级排列的玩家。"
+
+msgid "rankings.needs_setup"
+msgstr "排行榜来自公开房间的对战。请先设置公开房间。"
+
+msgid "rankings.loading"
+msgstr "正在加载你的等级..."
+
+msgid "rankings.your_class"
+msgstr "你的等级"
+
+msgid "rankings.placing"
+msgstr "定级中"
+
+msgid "rankings.placing_detail"
+msgstr "再与有等级的玩家在公开房间对战几局后，你的等级就会显示。"
+
+msgid "rankings.faint_detail"
+msgstr "你最近没有对战，所以等级显示为淡色，也不在榜上。再打几局即可恢复。"
+
+msgid "rankings.settled_detail"
+msgstr "在公开房间显示在你的名字旁边。"
+
+msgid "rankings.hidden"
+msgstr "暂不显示等级"
+
+msgid "rankings.hidden_detail"
+msgstr "此服务暂未显示等级。你在公开房间的对战仍会计入。"
+
+msgid "rankings.no_account"
+msgstr "关联 Discord 即可参与"
+
+msgid "rankings.no_account_detail"
+msgstr "等级属于 Discord 账号，因此新的 Ember ID 也会保留你的等级。未关联时，你的对战不会计入。"
+
+msgid "rankings.connect_detail"
+msgstr "打开“关联 Discord”。完成后回到这里。"
+
+msgid "rankings.off"
+msgstr "未参与"
+
+msgid "rankings.off_detail"
+msgstr "你的对战不会计入，也不显示等级。你的评分会保留，回来时继续使用。"
+
+msgid "rankings.take_part"
+msgstr "参与"
+
+msgid "rankings.take_part_detail"
+msgstr "你在公开房间的对战将重新计入，等级也会恢复。离开一段时间后，等级可能有几局显示为淡色。你将以 {0} 的名字上榜。每天只能更改一次。"
+
+msgid "rankings.stop"
+msgstr "停止参与"
+
+msgid "rankings.stop_detail"
+msgstr "你的等级会从房间和榜单中消失，对战也不再计入。评分保持不变，回来后继续。每天只能更改一次。"
+
+msgid "rankings.change_wait"
+msgstr "{0}后可再次更改。"
+
+msgid "rankings.hours"
+msgstr "{0} 小时"
+
+msgid "rankings.minutes"
+msgstr "{0} 分钟"
+
+msgid "rankings.board_as"
+msgstr "榜上显示为"
+
+msgid "rankings.board_as_detail"
+msgstr "房间为你显示的名字和旗帜。可在“个人资料”和“设置”中更改。榜单会在你下次打开排行榜时采用更改。"
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "等级如何运作"
+
+msgid "rankings.how_text"
+msgstr "只有以分出胜负结束的公开房间对战才会计入。等级属于你的 Discord 账号，而不是 Ember ID。只有连续出现明确结果后才会变动，与强得多或弱得多的玩家对战几乎不计。看不到点数，只显示等级。长时间不玩，等级会显示为淡色，直到你再次对战，且不会自行下降。"
+
+msgid "rankings.players"
+msgstr "按等级排列的玩家"
+
+msgid "rankings.players_detail"
+msgstr "所有已确定等级的参与者，从高到低。同一等级内，最近对战的排在前面。"
+
+msgid "rankings.you"
+msgstr "你"
+
+msgid "rankings.you_beyond_cap"
+msgstr "榜单最多列出 {0} 名玩家，你目前不在其中。"
+
+msgid "rankings.jump"
+msgstr "左右切换等级。"
+
+msgid "rankings.loading_board"
+msgstr "正在加载玩家..."
+
+msgid "rankings.empty"
+msgstr "榜上暂时没有人。"
+
+msgid "rankings.status_board"
+msgstr "已列出玩家：{0} 名。更新：{1}。"
+
+msgid "rankings.failure.unavailable"
+msgstr "此服务不提供排行榜。"
+
+msgid "rankings.failure.too_soon"
+msgstr "每天只能更改一次。"
+
+msgid "settings.class_emblems"
+msgstr "等级徽章"
+
+msgid "settings.class_emblems_detail"
+msgstr "在公开房间中，于每位玩家名字旁显示其等级。关闭后仅在你的屏幕上隐藏。其他人仍能看到你的等级，你的对战也仍会计入。"
+
+
+msgid "class.developer"
+msgstr "开发"
+
+msgid "class.developer_tip"
+msgstr "Ember 开发者"
+
+msgid "rankings.developer_detail"
+msgstr "Ember 开发者以此标记代替等级，不会列入排行榜。你的对战仍会计入。"

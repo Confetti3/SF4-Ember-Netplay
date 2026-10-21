@@ -62,7 +62,7 @@ const MAX_REGION: usize = 8;
 /// A room property written only when set, the way a room's own delay is: a
 /// listing or request for any other room is byte for byte what it was before,
 /// so a reader that refuses unknown fields never meets it.
-fn is_false(value: &bool) -> bool {
+pub(crate) fn is_false(value: &bool) -> bool {
     !*value
 }
 
@@ -80,18 +80,23 @@ pub fn check_room_name(name: &str) -> Result<()> {
     }
 }
 
-/// A moderator's name: 1 to 32 bytes of single-line text with no control
-/// characters and no leading or trailing whitespace.
+/// A moderator's name, as any player name: `is_player_name`.
 pub fn check_host_name(name: &str) -> Result<()> {
-    let valid = !name.is_empty()
-        && name.len() <= MAX_HOST_NAME
-        && !name.chars().any(char::is_control)
-        && name.trim() == name;
-    if valid {
+    if is_player_name(name) {
         Ok(())
     } else {
         Err(Error::InvalidField("host_name"))
     }
+}
+
+/// A player's name as rooms and the ranking board show it: 1 to 32 bytes of
+/// single-line text with no control characters and no leading or trailing
+/// whitespace.
+pub fn is_player_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= MAX_HOST_NAME
+        && !name.chars().any(char::is_control)
+        && name.trim() == name
 }
 
 /// Whether `format` is one a table can play: unlimited or first to 1 to 10.
@@ -348,6 +353,11 @@ pub struct TicketRequest {
     /// A build that does not ask gets a ticket it can read.
     #[serde(default, skip_serializing_if = "is_false")]
     pub skill_badge: bool,
+    /// The joiner's build shows Ember's developer mark in place of a class
+    /// (`SkillBadge::developer`). A build sends it only to a bridge that
+    /// offers ranking, since an older one refuses the field.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub developer_badge: bool,
 }
 
 impl TicketRequest {
@@ -633,10 +643,7 @@ mod tests {
             },
             // A badge that is not one.
             RoomTicket {
-                badge: Some(SkillBadge {
-                    band: 0,
-                    settled: true,
-                }),
+                badge: Some(SkillBadge::class(0, true)),
                 ..good.clone()
             },
         ];
@@ -738,6 +745,7 @@ mod tests {
             endpoint_id: "c".repeat(64),
             build_id: "build".into(),
             skill_badge: false,
+            developer_badge: false,
         };
         assert!(request.check().is_ok());
         let bad = TicketRequest {

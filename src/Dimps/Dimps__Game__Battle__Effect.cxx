@@ -22,6 +22,11 @@ void ActorManager::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.GetMementoSize) = (PVOID)(peRootOffset + 0x16ca60);
 }
 
+void* Unit::GetFirstEffect(Unit* u, unsigned side) {
+	unsigned char* manager = *(unsigned char**)((unsigned char*)u + 8 + side * 4);
+	return manager && *(unsigned int*)(manager + 0x8c) ? *(void**)(manager + 0x84) : nullptr;
+}
+
 void Unit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 

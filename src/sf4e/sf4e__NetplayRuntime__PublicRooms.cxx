@@ -10,16 +10,8 @@ namespace sf4e { namespace NetplayFacade {
 namespace {
 using netplay::tournament::Command;
 using nlohmann::json;
-// The helper bounds its own bridge requests; this only ends a wait for one it lost.
-constexpr std::uint64_t GiveUpMs = 60000;
-
-// Sends one request; the id the helper will answer under, or 0 when it was not sent.
-std::uint64_t Send(const json& request) {
-	std::uint64_t id = 0;
-	std::string text;
-	try { text = request.dump(); } catch (const json::exception&) { return 0; }
-	return runtime->room && runtime->room->SendTournament(text, &id) ? id : 0;
-}
+using internal::BridgeRequestGiveUpMs;
+using internal::SendBridgeRequest;
 
 void FinishList(const std::string& error) {
 	auto& rooms = runtime->publicRooms;
@@ -45,7 +37,7 @@ void DispatchList(const Command& command, bool helperReady) {
 	if (command.bridgeId.empty() || rooms.loading) return;
 	if (rooms.bridge != command.bridgeId) rooms.rooms.clear();
 	rooms.bridge = command.bridgeId;
-	const auto id = helperReady ? Send({{"op", "room_list"}, {"bridge_id", command.bridgeId}, {"build", sf4e::sidecarHash}}) : 0;
+	const auto id = helperReady ? SendBridgeRequest({{"op", "room_list"}, {"bridge_id", command.bridgeId}, {"build", sf4e::sidecarHash}}) : 0;
 	if (!id) { FinishList("helper_unavailable"); return; }
 	runtime->roomListRequest = id;
 	runtime->roomListSentMs = GetTickCount64();
@@ -74,7 +66,7 @@ void DispatchAdmission(const Command& command, bool helperReady) {
 		json{{"op", "room_ticket"}, {"bridge_id", command.bridgeId}, {"room_id", command.roomId}, {"build", sf4e::sidecarHash}};
 	// Only a room that asks for each player's own delay says so; the helper reads an absent key as the shared one.
 	if (create && command.ownDelay) request["own_delay"] = true;
-	const auto id = helperReady ? Send(request) : 0;
+	const auto id = helperReady ? SendBridgeRequest(request) : 0;
 	if (!id) { FinishAdmission("helper_unavailable"); return; }
 	runtime->admissionRequest = id;
 	runtime->admissionSentMs = GetTickCount64();
@@ -83,6 +75,13 @@ void DispatchAdmission(const Command& command, bool helperReady) {
 }
 
 namespace internal {
+std::uint64_t SendBridgeRequest(const json& request) {
+	std::uint64_t id = 0;
+	std::string text;
+	try { text = request.dump(); } catch (const json::exception&) { return 0; }
+	return runtime->room && runtime->room->SendTournament(text, &id) ? id : 0;
+}
+
 void DispatchPublicRooms(const Command& command, bool helperReady) {
 	if (command.op == Command::Op::RoomList) DispatchList(command, helperReady);
 	else DispatchAdmission(command, helperReady);
@@ -109,8 +108,8 @@ bool TakePublicRoomsAnswer(const session::TournamentAnswer& answer) {
 }
 
 void ExpirePublicRooms(std::uint64_t nowMs) {
-	if (runtime->roomListRequest && nowMs - runtime->roomListSentMs >= GiveUpMs) FinishList("unavailable");
-	if (runtime->admissionRequest && nowMs - runtime->admissionSentMs >= GiveUpMs) FinishAdmission("unavailable");
+	if (runtime->roomListRequest && nowMs - runtime->roomListSentMs >= BridgeRequestGiveUpMs) FinishList("unavailable");
+	if (runtime->admissionRequest && nowMs - runtime->admissionSentMs >= BridgeRequestGiveUpMs) FinishAdmission("unavailable");
 }
 } // namespace internal
 } } // namespace sf4e::NetplayFacade

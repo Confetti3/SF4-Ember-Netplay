@@ -36,17 +36,11 @@ fn a_ticket_without_a_class_is_what_it_was() {
 #[test]
 fn the_class_is_under_the_signature() {
     let bridge = key(9);
-    let badged = ticket(Some(SkillBadge {
-        band: 4,
-        settled: true,
-    }));
+    let badged = ticket(Some(SkillBadge::class(4, true)));
     let wire = serde_json::to_string(&badged.sign(&bridge, "k1").unwrap()).unwrap();
     let read: SignedRoomTicket = serde_json::from_str(&wire).unwrap();
     assert_eq!(read.verify(&bridge.public_key(), "k1").unwrap(), &badged);
     let mut forged = read;
-    forged.ticket.badge = Some(SkillBadge {
-        band: 10,
-        settled: true,
-    });
+    forged.ticket.badge = Some(SkillBadge::class(10, true));
     assert!(forged.verify(&bridge.public_key(), "k1").is_err());
 }

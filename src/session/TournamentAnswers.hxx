@@ -8,12 +8,14 @@
 #include <nlohmann/json.hpp>
 
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 
 // The helper's answers to tournament play requests (match_claim,
 // room_publish, game_prepare, game_report, match_leave, match_watch,
 // match_unwatch, assignment_list) and
-// to public room requests (room_list, room_create, room_ticket),
+// to public room requests (room_list, room_create, room_ticket) and ranking
+// requests (ranking_standing, ranking_choose, ranking_board),
 // held apart from the identity answers the Ember ID screens show. Each is
 // decoded completely into a typed reply, or not at all: a malformed answer
 // never reaches the state machine half-read.
@@ -44,5 +46,9 @@ std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& d
 // A room_list answer's rooms, and a room_create or room_ticket answer's admission.
 std::optional<netplay::publicrooms::RoomList> DecodeRoomList(const nlohmann::json& data);
 std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::json& data);
+
+// A ranking_standing or ranking_choose answer's standing, and a ranking_board answer's board.
+std::optional<netplay::rankings::Standing> DecodeStanding(const nlohmann::json& data);
+std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const nlohmann::json& data);
 
 } }

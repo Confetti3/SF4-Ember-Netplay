@@ -45,6 +45,8 @@ public:
     static std::string KnownRegion(const ShellView& view);
     // A region by its name, or its code in capitals when the name is not known.
     static std::string RegionLabel(const std::string& code);
+    // How long ago a list was heard from its service, `seconds` ago.
+    static std::string UpdatedText(double seconds);
     // The setup card's line: the step while the setup runs, why it stopped once
     // it failed, empty otherwise. The row's value and the painted card both use it.
     static std::string SetupLine(const PublicSetupView& setup);

@@ -11,6 +11,8 @@
 #include "TrainingCommands.hxx"
 #include <atomic>
 #include "../common/FighterCatalog.hxx"
+#include "../Dimps/Dimps__Game__Battle__Camera.hxx"
+#include "../Dimps/Dimps__Game__Battle__Effect.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Game__Battle__Training.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
@@ -72,6 +74,9 @@ std::atomic<bool> watching{false};
 // The frames the meter keeps, as the Frame data page chose (SetMeterHistory).
 std::atomic<int> meterHistory{static_cast<int>(MeterHistory)};
 std::atomic<bool> meterContinuous{false};
+// Whether Hitboxes is on (ShowHitBoxes): the boxes are read only then, since
+// reading them walks the game's box lists every frame.
+std::atomic<bool> hitBoxesShown{false};
 // Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
@@ -79,6 +84,8 @@ void ApplyMeterSettings() {
 #ifdef SF4E_SELFTEST
 // The in-game self-test's: the lab also runs in an offline Versus battle.
 bool versusForTest = false;
+// The self-test's: the boxes are read whatever Hitboxes says.
+bool boxesForTest = false;
 #endif
 // Where the lab runs: a Training battle (and the self-test's Versus battle,
 // in a self-test build), not while the battle is being left. The one rule for
@@ -91,6 +98,14 @@ bool LabBattle(Native* system) {
     const bool lab = gameMode == Dimps::Game::Battle::GAMEMODE_TRAINING;
 #endif
     return lab && !(system->*Native::publicMethods.IsLeavingBattle)();
+}
+// Whether the fighters' boxes are read this frame: while Hitboxes is on, and
+// always in a self-test that checks them.
+bool BoxesWanted() {
+#ifdef SF4E_SELFTEST
+    if (boxesForTest) return true;
+#endif
+    return hitBoxesShown;
 }
 bool matchShown = false;
 ConfirmedSamples confirmed;
@@ -469,6 +484,48 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
     }
     return fighters;
 }
+// The boxes and the camera as the game holds them now. Game thread, in a fight.
+BoxView ReadBoxes(Native* system) {
+    using Actor = Dimps::Game::Battle::Chara::Actor;
+    using Unit = Dimps::Game::Battle::Chara::Unit;
+    using Camera = Dimps::Game::Battle::Camera::Unit;
+    using Effects = Dimps::Game::Battle::Effect::Unit;
+    BoxView result;
+    Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
+    Camera* camera = (Camera*)(system->*Native::publicMethods.GetUnitByIndex)(Native::U_CAMERA);
+    Effects* effects = (Effects*)(system->*Native::publicMethods.GetUnitByIndex)(Native::U_EFFECT);
+    if (!unit || !camera) return result;
+    std::memcpy(result.view, Camera::GetViewMatrix(camera), sizeof(result.view));
+    std::memcpy(result.projection, Camera::GetProjectionMatrix(camera), sizeof(result.projection));
+    Box box{};
+    for (unsigned side = 0; side < 2; ++side) {
+        Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side);
+        if (!actor) continue;
+        const auto add = [&](const unsigned char* record, BoxKind kind) { if (ReadBox(record, kind, box)) { box.side = static_cast<std::uint8_t>(side); result.boxes.push_back(box); } };
+        // What the fighter's action leaves open on this frame is its script's to say.
+        const auto& scripts = FighterScripts(system, side).scripts;
+        const int action = (actor->*Actor::publicMethods.GetActionID)();
+        const bac::Script* script = action >= 0 && action < static_cast<int>(scripts.size()) ? &scripts[action] : nullptr;
+        Dimps::Math::FixedPoint at{};
+        (actor->*Actor::publicMethods.GetActionFrame)(&at);
+        const std::uint32_t hit = OpenParts(script, at.integral, OpenToStrike) & BoxedParts;
+        for (unsigned part = 0; part < Actor::BODY_PART_COUNT; ++part) if (hit >> part & 1) add(Actor::GetBodyBox(actor, Actor::BODY_PARTS + part), BoxKind::Hurt);
+        if (OpenParts(script, at.integral, OpenToThrow))
+            for (unsigned part = Actor::BODY_STACK; part < Actor::BODY_STACK_END; ++part) add(Actor::GetBodyBox(actor, part), BoxKind::Body);
+        const auto attack = [&](const void* from, unsigned list, BoxKind kind) {
+            unsigned count = 0;
+            const unsigned char* record = Actor::GetAttackBoxes(from, list, count);
+            // The chain can close on itself, so the count ends it.
+            for (unsigned n = 0; record && n < (std::min)(count, 32u); ++n, record = *(const unsigned char* const*)(record + Actor::BOX_NEXT))
+                if (record[Actor::BOX_STATE] == Actor::BOX_LIVE) add(record, kind);
+        };
+        attack(actor, Actor::BOXES_HIT, BoxKind::Hit);
+        attack(actor, Actor::BOXES_THROW, BoxKind::Throw);
+        if (const void* effect = effects ? Effects::GetFirstEffect(effects, side) : nullptr) attack(effect, Effects::BOXES_HIT, BoxKind::Hit);
+    }
+    result.valid = true;
+    return result;
+}
 void AfterUpdate(Native* system) {
     overriding = false;
     // The native integral field wraps at 16 bits. Count only one accepted
@@ -546,7 +603,10 @@ void AfterUpdate(Native* system) {
         }
     }
     sampling = false; following = false;
-    std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
+    const View view = session.GetView();
+    BoxView boxes;
+    if (view.available && view.ready && BoxesWanted()) boxes = ReadBoxes(system);
+    std::lock_guard<std::mutex> lock(mutex); published = view; published.meter = meter.View(); published.boxes = std::move(boxes);
     if (published.available) published.dummy = ReadDummyState(published.dummy);
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
     published.leavingIn = leaving.Left(); published.leavingCall = leaving.Call();
@@ -559,9 +619,11 @@ unsigned ClearReservedInputBits(unsigned raw) {
 }
 #ifdef SF4E_SELFTEST
 void AllowOfflineVersusForTest() { versusForTest = true; }
+void ReadHitBoxesForTest() { boxesForTest = true; }
 #endif
 void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
+void ShowHitBoxes(bool shown) { hitBoxesShown = shown; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.

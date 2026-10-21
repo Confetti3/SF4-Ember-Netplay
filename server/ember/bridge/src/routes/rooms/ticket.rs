@@ -14,7 +14,7 @@ use ember_protocol::{
 };
 use rusqlite::params;
 
-use super::{Address, load, refuse, supervisor};
+use super::{Address, classes_shown, developers, load, refuse, supervisor};
 use crate::{
     AppState,
     error::{ApiFailure, Result},
@@ -55,13 +55,10 @@ pub async fn ticket(
         endpoint_id,
         build_id,
         skill_badge,
+        developer_badge,
     } = request;
-    let show_badge = skill_badge
-        && state
-            .config
-            .rooms
-            .as_ref()
-            .is_some_and(|rooms| rooms.skill_badges);
+    let show_badge = skill_badge && classes_shown(&state);
+    let developers = developers(&state);
     // A write: showing a class remembers it (`skill::show`).
     let (room, sealed, badge) = state
         .db
@@ -96,7 +93,11 @@ pub async fn ticket(
             }
             let sealed = room.invitation_sealed.clone().unwrap_or_default();
             let badge = if show_badge {
-                skill::show(tx, &ember_id, now)?
+                let developers = skill::Developers {
+                    accounts: &developers,
+                    shown: developer_badge,
+                };
+                skill::show(tx, &ember_id, &developers, now)?
             } else {
                 None
             };

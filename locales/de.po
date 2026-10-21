@@ -4732,6 +4732,12 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Teile des HUD im Kampf ein- oder ausschalten."
 
+msgid "training.hitboxes"
+msgstr "Hitboxen"
+
+msgid "training.hitboxes.detail"
+msgstr "Zeichnet die Boxen der Kämpfer über den Kampf: grün, wo ein Kämpfer getroffen werden kann, gelb, wo er geworfen werden kann, rot, wo ein Angriff trifft, und blau, wo er wirft."
+
 msgid "training.color_key"
 msgstr "Farblegende"
 
@@ -6475,3 +6481,139 @@ msgid "country.ZW"
 msgstr "Simbabwe"
 
 #. End of the generated country names.
+
+msgid "screen.rankings"
+msgstr "Ranglisten"
+
+msgid "rankings.title"
+msgstr "RANGLISTEN"
+
+msgid "rankings.board_title"
+msgstr "SPIELER NACH KLASSE"
+
+msgid "rankings.entry_detail"
+msgstr "Ihre Klasse in öffentlichen Räumen und Spieler nach Klasse."
+
+msgid "rankings.needs_setup"
+msgstr "Ranglisten stammen aus Spielen in öffentlichen Räumen. Richten Sie zuerst öffentliche Räume ein."
+
+msgid "rankings.loading"
+msgstr "Ihre Klasse wird geladen..."
+
+msgid "rankings.your_class"
+msgstr "Ihre Klasse"
+
+msgid "rankings.placing"
+msgstr "Einstufung"
+
+msgid "rankings.placing_detail"
+msgstr "Ihre Klasse erscheint nach ein paar weiteren Spielen in öffentlichen Räumen gegen Spieler, die schon eine haben."
+
+msgid "rankings.faint_detail"
+msgstr "Sie haben zuletzt nicht gespielt, daher ist Ihre Klasse blass und Sie stehen nicht in der Rangliste. Ein paar Spiele ändern das wieder."
+
+msgid "rankings.settled_detail"
+msgstr "Wird in öffentlichen Räumen neben Ihrem Namen angezeigt."
+
+msgid "rankings.hidden"
+msgstr "Klassen noch nicht sichtbar"
+
+msgid "rankings.hidden_detail"
+msgstr "Dieser Dienst zeigt noch keine Klassen an. Ihre Spiele in öffentlichen Räumen zählen trotzdem."
+
+msgid "rankings.no_account"
+msgstr "Discord verbinden zum Mitmachen"
+
+msgid "rankings.no_account_detail"
+msgstr "Klassen gehören zu einem Discord-Konto, daher behält eine neue Ember ID Ihre. Ohne Konto zählen Ihre Spiele nicht."
+
+msgid "rankings.connect_detail"
+msgstr "Öffnet Discord verbinden. Kehren Sie danach hierher zurück."
+
+msgid "rankings.off"
+msgstr "Nicht dabei"
+
+msgid "rankings.off_detail"
+msgstr "Ihre Spiele zählen nicht und es wird keine Klasse angezeigt. Ihre Wertung bleibt für Ihre Rückkehr erhalten."
+
+msgid "rankings.take_part"
+msgstr "Mitmachen"
+
+msgid "rankings.take_part_detail"
+msgstr "Ihre Spiele in öffentlichen Räumen zählen wieder und Ihre Klasse kehrt zurück. Nach einer Pause kann sie für ein paar Spiele blass sein. In der Rangliste stehen Sie als {0}. Das lässt sich einmal pro Tag ändern."
+
+msgid "rankings.stop"
+msgstr "Nicht mehr mitmachen"
+
+msgid "rankings.stop_detail"
+msgstr "Ihre Klasse verschwindet aus den Räumen und der Rangliste, und Ihre Spiele zählen nicht mehr. Ihre Wertung bleibt erhalten und läuft bei Ihrer Rückkehr weiter. Das lässt sich einmal pro Tag ändern."
+
+msgid "rankings.change_wait"
+msgstr "Sie können das in {0} erneut ändern."
+
+msgid "rankings.hours"
+msgstr "{0} Std."
+
+msgid "rankings.minutes"
+msgstr "{0} Min."
+
+msgid "rankings.board_as"
+msgstr "In der Rangliste als"
+
+msgid "rankings.board_as_detail"
+msgstr "Name und Flagge, die Räume für Sie zeigen. Ändern Sie sie unter Profil und Einstellungen. Die Rangliste übernimmt eine Änderung beim nächsten Öffnen von Ranglisten."
+
+msgid "rankings.name_country"
+msgstr "{0} ({1})"
+
+msgid "rankings.how"
+msgstr "So funktionieren Klassen"
+
+msgid "rankings.how_text"
+msgstr "Nur Spiele in öffentlichen Räumen mit einem Sieger zählen. Ihre Klasse gehört zu Ihrem Discord-Konto, nicht zu Ihrer Ember ID. Sie ändert sich erst nach einer klaren Ergebnisserie, und ein Spiel gegen einen viel stärkeren oder schwächeren Spieler zählt kaum. Es gibt keine Punkte, nur die Klasse. Nach einer langen Pause wirkt sie blass, bis Sie wieder spielen, und sinkt nie von selbst."
+
+msgid "rankings.players"
+msgstr "Spieler nach Klasse"
+
+msgid "rankings.players_detail"
+msgstr "Alle Teilnehmer mit fester Klasse, die höchste zuerst. Innerhalb einer Klasse stehen die zuletzt aktiven vorn."
+
+msgid "rankings.you"
+msgstr "Sie"
+
+msgid "rankings.you_beyond_cap"
+msgstr "Die Rangliste führt bis zu {0} Spieler, und Sie sind derzeit nicht dabei."
+
+msgid "rankings.jump"
+msgstr "Links und Rechts wechseln zwischen den Klassen."
+
+msgid "rankings.loading_board"
+msgstr "Spieler werden geladen..."
+
+msgid "rankings.empty"
+msgstr "Noch niemand in der Rangliste."
+
+msgid "rankings.status_board"
+msgstr "Gelistete Spieler: {0}. Aktualisiert {1}."
+
+msgid "rankings.failure.unavailable"
+msgstr "Dieser Dienst bietet keine Ranglisten an."
+
+msgid "rankings.failure.too_soon"
+msgstr "Das lässt sich einmal pro Tag ändern."
+
+msgid "settings.class_emblems"
+msgstr "Klassen-Embleme"
+
+msgid "settings.class_emblems_detail"
+msgstr "Zeigt die Klasse jedes Spielers neben seinem Namen in öffentlichen Räumen. Aus blendet sie nur auf Ihrem Bildschirm aus. Andere sehen Ihre weiterhin, und Ihre Spiele zählen weiter."
+
+
+msgid "class.developer"
+msgstr "Dev"
+
+msgid "class.developer_tip"
+msgstr "Ember-Entwickler"
+
+msgid "rankings.developer_detail"
+msgstr "Ember-Entwickler tragen dieses Zeichen statt einer Klasse und stehen nicht in der Rangliste. Ihre Spiele zählen trotzdem."

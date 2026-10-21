@@ -3,6 +3,7 @@
 // be discarded) is never reported or forwarded. Also the status line's budget.
 #include "../session/sf4e__SessionServer.hxx"
 #include "../../server/roomhost/RoomHostStatus.hxx"
+#include "../common/SkillBadgeJson.hxx"
 #include <array>
 #include <string>
 
@@ -363,7 +364,7 @@ static void TestAdmissionCarriesTheClass() {
 		CHECK(server.ApplyCommit(request, term, revision + 1, proposal->checkpoint, proposal->effectsDigest));
 		++request; ++revision;
 	};
-	const SkillBadge aPlus{8, true};
+	const auto aPlus = SkillBadge::OfClass(8, true);
 	admit(1, {"ember-a", aPlus}, json::object());
 	admit(2, {"ember-b", {}}, {{"badge", {{"band", 10}, {"settled", true}}}});
 	const auto& members = server.RoomSnapshot()->members;
@@ -379,6 +380,14 @@ static void TestAdmissionCarriesTheClass() {
 	CHECK(!forged.get<room::Member>().badge.Present());
 	forged["badge"] = {{"band", 0}, {"settled", true}};
 	CHECK(!forged.get<room::Member>().badge.Present());
+	forged["badge"] = {{"band", 3}, {"settled", true}, {"developer", true}};
+	CHECK(!forged.get<room::Member>().badge.Present());
+	// Placing and the developer mark travel as themselves.
+	for (const auto& badge : {SkillBadge::Placing(), SkillBadge::Developer()}) {
+		auto marked = first;
+		marked["badge"] = SkillBadgeJson(badge);
+		CHECK(marked.get<room::Member>().badge == badge && json(marked.get<room::Member>()).at("badge") == marked["badge"]);
+	}
 }
 
 // The room host opens a public room with the public rules, and the list's
