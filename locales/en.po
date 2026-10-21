@@ -4346,6 +4346,18 @@ msgstr "Hitboxes"
 msgid "training.hitboxes.detail"
 msgstr "Draws the fighters' boxes over the fight: green where a fighter can be hit, yellow where it can be thrown, red where an attack hits and blue where it throws. White lines are the skeleton."
 
+msgid "training.hitboxes.hurt"
+msgstr "Hurt boxes"
+
+msgid "training.hitboxes.throw"
+msgstr "Throwable boxes"
+
+msgid "training.hitboxes.skeleton"
+msgstr "Skeleton"
+
+msgid "training.hitboxes.part.detail"
+msgstr "Draws this part of Hitboxes over the fight."
+
 msgid "training.color_key"
 msgstr "Color key"
 

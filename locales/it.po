@@ -4711,6 +4711,18 @@ msgstr "Hitbox"
 msgid "training.hitboxes.detail"
 msgstr "Disegna i riquadri dei lottatori sopra il combattimento: in verde dove un lottatore può essere colpito, in giallo dove può essere afferrato, in rosso dove un attacco colpisce e in blu dove afferra. Le linee bianche sono le ossa."
 
+msgid "training.hitboxes.hurt"
+msgstr "Hurtbox"
+
+msgid "training.hitboxes.throw"
+msgstr "Box di presa"
+
+msgid "training.hitboxes.skeleton"
+msgstr "Scheletro"
+
+msgid "training.hitboxes.part.detail"
+msgstr "Disegna questa parte delle hitbox sopra il combattimento."
+
 msgid "training.color_key"
 msgstr "Legenda colori"
 

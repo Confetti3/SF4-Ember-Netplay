@@ -304,6 +304,7 @@ void DrawTrainingBoxes(const training::View& view) {
         return seen;
     };
     for(const auto& box:view.boxes.boxes) {
+        if((box.kind==training::BoxKind::Hurt&&!lab.meter.hurtBoxes)||(box.kind==training::BoxKind::Throwable&&!lab.meter.throwBoxes)) continue;
         ImVec2 at[4];
         bool seen=true;
         for(int corner=0;corner<4&&seen;++corner) seen=project(box.x[corner],box.y[corner],at[corner]);
@@ -312,7 +313,7 @@ void DrawTrainingBoxes(const training::View& view) {
         draw->AddQuadFilled(at[0],at[1],at[2],at[3],fill[kind]);
         draw->AddQuad(at[0],at[1],at[2],at[3],line[kind],2);
     }
-    for(const auto& bone:view.boxes.bones) {
+    if(lab.meter.skeleton) for(const auto& bone:view.boxes.bones) {
         ImVec2 from,to;
         if(!project(bone.x[0],bone.y[0],from)||!project(bone.x[1],bone.y[1],to)) continue;
         draw->AddLine(from,to,IM_COL32(255,255,255,220),2);
@@ -497,6 +498,10 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.push_back(Value("hud-inputs",loc::T("training.meter.hud_inputs"),loc::T(InputDisplayChoices[static_cast<int>(lab.meter.inputs)].label),loc::T("training.meter.hud_part.detail")));
   // The meter's own settings, Ember's beside the HUD's, on a page of their own.
   rows.push_back(Row("meter-settings",loc::T("training.meter.settings"),loc::T("training.meter.settings.detail")));
+ }else if(screen=="hitboxes"){
+  LoadPractice();
+  rows.push_back(Value("hitboxes-shown",loc::T("training.hitboxes"),loc::T(lab.meter.hitboxes?"common.on":"common.off"),loc::T("training.hitboxes.detail")));
+  for(const auto& part:HitboxParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.hitboxes.part.detail")));
  }else if(screen=="meter-settings"){
   LoadPractice();
   rows={Value("meter-position",loc::T("training.meter.position"),std::to_string(lab.meter.position)+"%",loc::T("training.meter.position.detail")),
@@ -504,7 +509,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
         Value("meter-after-pause",loc::T("training.meter.after_pause"),loc::T(lab.meter.continuous?"training.meter.after_pause.continue":"training.meter.after_pause.start_over"),loc::T("training.meter.after_pause.detail")),
         Value("meter-scroll",loc::T("training.meter.scroll"),loc::T(lab.meter.smooth?"training.meter.scroll.smooth":"training.meter.scroll.pages"),loc::T("training.meter.scroll.detail")),
         // Here and not on the HUD page, which is full at 1080p and 150%.
-        Value("hitboxes",loc::T("training.hitboxes"),loc::T(lab.meter.hitboxes?"common.on":"common.off"),loc::T("training.hitboxes.detail"))};
+        Row("hitboxes",loc::T("training.hitboxes"),loc::T("training.hitboxes.detail"))};
   if(lab.meter.style==MeterStyle::Classic)rows.push_back(Row("meter-classic",loc::T("training.meter.classic"),loc::T("training.meter.classic.detail")));
  }else if(screen=="meter-classic"){
   LoadPractice();
@@ -555,7 +560,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
  // The HUD's size, Small to Large, and a part of the HUD: Off, then On.
- if(a.kind==MenuAction::Activate&&(a.id=="meter-settings"||a.id=="meter-classic")){nav.Push(a.id);return;}
+ if(a.kind==MenuAction::Activate&&(a.id=="meter-settings"||a.id=="meter-classic"||a.id=="hitboxes")){nav.Push(a.id);return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-history"){Step(lab.meter.history,{std::begin(MeterHistoryChoices),std::end(MeterHistoryChoices)},a.delta);SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-scroll"){lab.meter.smooth=a.delta>0;SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-after-pause"){lab.meter.continuous=a.delta>0;SavePractice();return;}
@@ -563,9 +568,10 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&a.id=="bar-height"){Step(lab.meter.barHeight,{std::begin(ClassicBarHeights),std::end(ClassicBarHeights)},a.delta);SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-inputs"){Step(lab.meter.inputs,{0,1,2,3},a.delta);SavePractice();return;}
- if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="hitboxes"){lab.meter.hitboxes=a.delta>0;SavePractice();return;}
+ if(screen=="hitboxes"&&a.kind==MenuAction::Adjust&&a.id=="hitboxes-shown"){lab.meter.hitboxes=a.delta>0;SavePractice();return;}
  const auto turn=[&](const auto& parts){for(const auto& part:parts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return true;}return false;};
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&turn(HudParts))return;
+ if(screen=="hitboxes"&&a.kind==MenuAction::Adjust&&turn(HitboxParts))return;
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&turn(ClassicParts))return;
  if(screen=="frame-data"&&a.kind==MenuAction::Adjust&&(a.id=="meter-style"||a.id=="frames-shown"||a.id=="hud-recovery")){
   // Angled, Flat, then Classic; 60, 90, then 120 frames; Recovery Off, then On.

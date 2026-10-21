@@ -4712,6 +4712,18 @@ msgstr "Хитбоксы"
 msgid "training.hitboxes.detail"
 msgstr "Рисует области бойцов поверх боя. Зелёный: где бойца можно ударить; жёлтый: где его можно захватить; красный: где атака попадает; синий: где она захватывает. Белые линии показывают кости."
 
+msgid "training.hitboxes.hurt"
+msgstr "Зоны поражения"
+
+msgid "training.hitboxes.throw"
+msgstr "Зоны захвата"
+
+msgid "training.hitboxes.skeleton"
+msgstr "Скелет"
+
+msgid "training.hitboxes.part.detail"
+msgstr "Рисует эту часть хитбоксов поверх боя."
+
 msgid "training.color_key"
 msgstr "Обозначения цветов"
 

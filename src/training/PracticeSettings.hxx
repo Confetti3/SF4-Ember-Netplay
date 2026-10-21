@@ -37,6 +37,9 @@ constexpr HudPart HudParts[] = {{"hud_numbers", "training.meter.hud_numbers", &M
 constexpr HudPart ClassicParts[] = {{"classic_data", "training.meter.classic_data", &MeterOptions::classicData},
     {"classic_inputs", "training.meter.classic_inputs", &MeterOptions::classicInputs}, {"classic_colors", "training.meter.classic_colors", &MeterOptions::classicColors},
     {"classic_extras", "training.meter.classic_extras", &MeterOptions::classicExtras}, {"classic_slant", "training.meter.classic_slant", &MeterOptions::classicSlant}};
+// The parts of Hitboxes, on its page.
+constexpr HudPart HitboxParts[] = {{"hitboxes_hurt", "training.hitboxes.hurt", &MeterOptions::hurtBoxes},
+    {"hitboxes_throw", "training.hitboxes.throw", &MeterOptions::throwBoxes}, {"hitboxes_skeleton", "training.hitboxes.skeleton", &MeterOptions::skeleton}};
 // The input displays: each one's name in training.json and its label.
 struct InputDisplayChoice { const char* key; const char* label; };
 constexpr InputDisplayChoice InputDisplayChoices[InputDisplays] = {{"off", "common.off"}, {"stick", "training.meter.inputs_stick"},
@@ -65,6 +68,7 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     for (const int choice : ClassicBarHeights) if (barHeight.is_number_integer() && barHeight == choice) options.barHeight = choice;
     for (const auto& part : HudParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
     for (const auto& part : ClassicParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
+    for (const auto& part : HitboxParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
     const auto size = meter.value("hud_size", nlohmann::json());
     for (int choice = 0; choice < HudSizes; ++choice) if (size.is_number_integer() && size == choice) options.size = choice;
     return options;
@@ -75,6 +79,7 @@ inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
         {"position", options.position}, {"bar_height", options.barHeight}, {"hitboxes", options.hitboxes}};
     for (const auto& part : HudParts) meter[part.key] = options.*part.shown;
     for (const auto& part : ClassicParts) meter[part.key] = options.*part.shown;
+    for (const auto& part : HitboxParts) meter[part.key] = options.*part.shown;
     return meter;
 }
 // Old replies accepted these shared names without a fighter database.
