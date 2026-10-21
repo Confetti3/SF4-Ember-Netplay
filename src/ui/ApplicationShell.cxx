@@ -757,12 +757,14 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   default:break;
   }
  }
- // A match link from the browser opens the match's row for the player to
- // press Play. It never leaves a room by itself: in one, it only says so.
+ // A match link from the browser opens the match and plays it by itself once
+ // the list shows it playable (IdentityPanel::OpenMatch). It never leaves a
+ // room by itself: in one, it only says so, and the match waits for Play.
  if(v.tournament.link.sequence!=matchLinkSequence_){
   matchLinkSequence_=v.tournament.link.sequence;
-  identity_.OpenMatch(v.tournament.link.bridge,v.tournament.link.match);
-  if(v.session.room==RoomState::Idle){
+  const bool idle=v.session.room==RoomState::Idle;
+  identity_.OpenMatch(v.tournament.link.bridge,v.tournament.link.match,idle&&v.session.match==MatchState::None);
+  if(idle){
    if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
    notice_=loc::T("tournament.link_opened");noticeTone_=Tone::Success;
   }else{notice_=loc::T("tournament.link_waiting");noticeTone_=Tone::Pending;}

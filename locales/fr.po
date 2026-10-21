@@ -4213,6 +4213,9 @@ msgstr "Contre {0}. Vous êtes le joueur {1}."
 msgid "tournament.play"
 msgstr "Jouer"
 
+msgid "tournament.play_round"
+msgstr "Jouer : {0}"
+
 msgid "tournament.play_detail"
 msgstr "Ouvre ou rejoint le salon de ce match. Le résultat de chaque combat est envoyé de lui-même au service de tournoi."
 
@@ -4274,7 +4277,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Copiez le lien du match sur le site du tournoi, puis choisissez ceci pour ouvrir ce match ici."
 
 msgid "tournament.link_opened"
-msgstr "Le site du tournoi a ouvert un match. Appuyez sur Jouer quand vous êtes prêt."
+msgstr "Le site du tournoi a ouvert votre match. Ember rejoint son salon dès que possible."
 
 msgid "tournament.assigned_notice"
 msgstr "Un match du tournoi vous attend. Ouvrez Ember ID, puis Matchs du tournoi."

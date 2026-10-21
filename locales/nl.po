@@ -4213,6 +4213,9 @@ msgstr "Tegen {0}. Jij bent speler {1}."
 msgid "tournament.play"
 msgstr "Spelen"
 
+msgid "tournament.play_round"
+msgstr "Spelen: {0}"
+
 msgid "tournament.play_detail"
 msgstr "Opent of betreedt de kamer van deze wedstrijd. De uitslag van elk gevecht gaat vanzelf naar de toernooidienst."
 
@@ -4274,7 +4277,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Kopieer de wedstrijdlink op de toernooisite en kies dit om die wedstrijd hier te openen."
 
 msgid "tournament.link_opened"
-msgstr "De toernooisite heeft een wedstrijd geopend. Druk op Spelen als je klaar bent."
+msgstr "De toernooisite heeft je wedstrijd geopend. Ember gaat naar de kamer zodra het kan."
 
 msgid "tournament.assigned_notice"
 msgstr "Er staat een toernooiwedstrijd voor je klaar. Open Ember ID en dan Toernooiwedstrijden."

@@ -4214,6 +4214,9 @@ msgstr "Соперник: {0}. Вы игрок {1}."
 msgid "tournament.play"
 msgstr "Играть"
 
+msgid "tournament.play_round"
+msgstr "Играть: {0}"
+
 msgid "tournament.play_detail"
 msgstr "Открывает лобби этого матча или входит в него. Результат каждого боя сам отправляется в турнирный сервис."
 
@@ -4275,7 +4278,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Скопируйте ссылку на матч на сайте турнира и выберите этот пункт, чтобы открыть матч здесь."
 
 msgid "tournament.link_opened"
-msgstr "Сайт турнира открыл матч. Нажмите «Играть», когда будете готовы."
+msgstr "Сайт турнира открыл ваш матч. Ember войдёт в его лобби, как только сможет."
 
 msgid "tournament.assigned_notice"
 msgstr "Для вас готов турнирный матч. Откройте «Учётная запись Ember», затем «Турнирные матчи»."

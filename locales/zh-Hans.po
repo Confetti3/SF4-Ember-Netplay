@@ -4214,6 +4214,9 @@ msgstr "对手：{0}。您是玩家{1}。"
 msgid "tournament.play"
 msgstr "开始"
 
+msgid "tournament.play_round"
+msgstr "开始{0}"
+
 msgid "tournament.play_detail"
 msgstr "打开或加入此对局的房间。每局结果会自动发送给赛事服务。"
 
@@ -4275,7 +4278,7 @@ msgid "tournament.paste_link_detail"
 msgstr "在赛事网站复制对局链接，然后选择此项即可在这里打开该对局。"
 
 msgid "tournament.link_opened"
-msgstr "赛事网站打开了一个对局。准备好后请按开始。"
+msgstr "赛事网站打开了你的对局。Ember 会尽快进入对局房间。"
 
 msgid "tournament.assigned_notice"
 msgstr "有一场赛事对局已为你准备好。请打开“Ember ID”，再打开“赛事对局”。"

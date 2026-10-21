@@ -4213,6 +4213,9 @@ msgstr "Soupeř: {0}. Jste hráč {1}."
 msgid "tournament.play"
 msgstr "Hrát"
 
+msgid "tournament.play_round"
+msgstr "Hrát: {0}"
+
 msgid "tournament.play_detail"
 msgstr "Otevře místnost tohoto zápasu nebo se do ní připojí. Výsledek každého souboje odejde turnajové službě sám."
 
@@ -4274,7 +4277,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Zkopírujte odkaz na zápas ze stránky turnaje a zvolte tuto možnost, abyste zápas otevřeli zde."
 
 msgid "tournament.link_opened"
-msgstr "Stránka turnaje otevřela zápas. Až budete připraveni, stiskněte Hrát."
+msgstr "Stránka turnaje otevřela váš zápas. Ember se připojí do jeho místnosti, jakmile to půjde."
 
 msgid "tournament.assigned_notice"
 msgstr "Máte připravený turnajový zápas. Otevřete Ember ID a pak Turnajové zápasy."

@@ -3733,6 +3733,9 @@ msgstr "Contra {0}. Você é o jogador {1}."
 msgid "tournament.play"
 msgstr "Jogar"
 
+msgid "tournament.play_round"
+msgstr "Jogar {0}"
+
 msgid "tournament.play_detail"
 msgstr "Abre a sala desta partida ou entra nela. O resultado de cada jogo vai sozinho para o serviço de torneios."
 
@@ -3794,7 +3797,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Copie o link da partida no site do torneio e escolha esta opção para abrir a partida aqui."
 
 msgid "tournament.link_opened"
-msgstr "O site do torneio abriu uma partida. Pressione Jogar quando estiver pronto."
+msgstr "O site do torneio abriu sua partida. O Ember entra na sala dela assim que puder."
 
 msgid "tournament.assigned_notice"
 msgstr "Uma partida do torneio está pronta para você. Abra Ember ID e depois Partidas do torneio."

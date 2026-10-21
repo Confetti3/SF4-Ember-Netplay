@@ -4214,6 +4214,9 @@ msgstr "対戦相手：{0}。あなたはプレイヤー{1}です。"
 msgid "tournament.play"
 msgstr "プレイ"
 
+msgid "tournament.play_round"
+msgstr "{0}をプレイ"
+
 msgid "tournament.play_detail"
 msgstr "この試合のルームを開くか、参加します。各対戦の結果は自動的に大会サービスへ送られます。"
 
@@ -4275,7 +4278,7 @@ msgid "tournament.paste_link_detail"
 msgstr "大会サイトで試合のリンクをコピーし、これを選ぶとその試合をここで開きます。"
 
 msgid "tournament.link_opened"
-msgstr "大会サイトが試合を開きました。準備ができたらプレイを押してください。"
+msgstr "大会サイトがあなたの試合を開きました。準備ができ次第、Emberがそのルームに参加します。"
 
 msgid "tournament.assigned_notice"
 msgstr "大会の試合の準備ができました。「Ember ID」、「大会の試合」の順に開いてください。"

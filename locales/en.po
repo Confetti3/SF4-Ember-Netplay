@@ -3848,6 +3848,9 @@ msgstr "Against {0}. You are player {1}."
 msgid "tournament.play"
 msgstr "Play"
 
+msgid "tournament.play_round"
+msgstr "Play {0}"
+
 msgid "tournament.play_detail"
 msgstr "Opens or joins this match's room. Each game's result goes to the tournament service by itself."
 
@@ -3909,7 +3912,7 @@ msgid "tournament.paste_link_detail"
 msgstr "Copy the match link from the tournament site, then choose this to open that match here."
 
 msgid "tournament.link_opened"
-msgstr "The tournament site opened a match. Press Play when you are ready."
+msgstr "The tournament site opened your match. Ember joins its room as soon as it can."
 
 msgid "tournament.assigned_notice"
 msgstr "A tournament match is ready for you. Open Ember ID, then Tournament matches."
