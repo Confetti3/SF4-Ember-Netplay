@@ -192,10 +192,14 @@ namespace Dimps {
 						char* (*GetBoneLabelByID)(int idx);
 					} __staticMethods;
 
-					// A fighter's body boxes, 0xA0 bytes each, four corners first:
-					// BODY_STACK to BODY_STACK_END where a throw connects, then from
-					// BODY_PARTS one a part of the body, in training::OpenParts' bit order.
-					static unsigned char* GetBodyBox(Actor* a, unsigned index);
+					// A fighter's body boxes: where a strike lands, one a part of the
+					// body, and where a throw connects.
+					enum class BodyList { Strike, Throw };
+					// One of a list's boxes, 0xA0 bytes, four corners first.
+					static unsigned char* GetBodyBox(Actor* a, BodyList list, unsigned index);
+					// Which boxes of a list count on this frame, one bit a box: the
+					// fighter's defaults as the action's script, invincibility and facing leave them.
+					static unsigned int GetBodyMask(Actor* a, BodyList list);
 					// The first of an attack's boxes in a list (BOXES_*), null when
 					// empty; count: how many. object: an Actor, or an effect object
 					// (Effect::Unit::GetFirstEffect), which keeps its lists the same way.
@@ -203,7 +207,7 @@ namespace Dimps {
 					enum { BOXES_GUARD = 0, BOXES_HIT = 1, BOXES_THROW = 2 };
 					// In an attack box: the next box, and its state, BOX_LIVE while it can touch.
 					enum { BOX_NEXT = 0xA8, BOX_STATE = 0xAC, BOX_LIVE = 2 };
-					enum { BODY_STACK = 0, BODY_STACK_END = 4, BODY_PARTS = 8, BODY_PART_COUNT = 24 };
+					enum { BODY_STRIKE_COUNT = 24, BODY_THROW_COUNT = 4 };
 
 					static void Locate(HMODULE peRoot);
 					static __publicMethods publicMethods;

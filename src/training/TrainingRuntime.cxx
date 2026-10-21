@@ -503,16 +503,12 @@ BoxView ReadBoxes(Native* system) {
         Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side);
         if (!actor) continue;
         const auto add = [&](const unsigned char* record, BoxKind kind) { if (ReadBox(record, kind, box)) { box.side = static_cast<std::uint8_t>(side); result.boxes.push_back(box); } };
-        // What the fighter's action leaves open on this frame is its script's to say.
-        const auto& scripts = FighterScripts(system, side).scripts;
-        const int action = (actor->*Actor::publicMethods.GetActionID)();
-        const bac::Script* script = action >= 0 && action < static_cast<int>(scripts.size()) ? &scripts[action] : nullptr;
-        Dimps::Math::FixedPoint at{};
-        (actor->*Actor::publicMethods.GetActionFrame)(&at);
-        const std::uint32_t hit = OpenParts(script, at.integral, OpenToStrike) & BoxedParts;
-        for (unsigned part = 0; part < Actor::BODY_PART_COUNT; ++part) if (hit >> part & 1) add(Actor::GetBodyBox(actor, Actor::BODY_PARTS + part), BoxKind::Hurt);
-        if (OpenParts(script, at.integral, OpenToThrow))
-            for (unsigned part = Actor::BODY_STACK; part < Actor::BODY_STACK_END; ++part) add(Actor::GetBodyBox(actor, part), BoxKind::Body);
+        // The boxes the game tests this frame, as its masks say.
+        const unsigned strike = Actor::GetBodyMask(actor, Actor::BodyList::Strike), throwable = Actor::GetBodyMask(actor, Actor::BodyList::Throw);
+        for (unsigned part = 0; part < Actor::BODY_STRIKE_COUNT; ++part)
+            if (strike >> part & 1) add(Actor::GetBodyBox(actor, Actor::BodyList::Strike, part), BoxKind::Hurt);
+        for (unsigned part = 0; part < Actor::BODY_THROW_COUNT; ++part)
+            if (throwable >> part & 1) add(Actor::GetBodyBox(actor, Actor::BodyList::Throw, part), BoxKind::Throwable);
         const auto attack = [&](const void* from, unsigned list, BoxKind kind) {
             unsigned count = 0;
             const unsigned char* record = Actor::GetAttackBoxes(from, list, count);
