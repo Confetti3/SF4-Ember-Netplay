@@ -330,7 +330,7 @@ export function bracketSite(options: Options): Server {
         const action = body.action as Action;
         if (!ACTIONS.includes(action)) fail(400, `action is one of ${ACTIONS.join(", ")}`);
         const seeding = body.seeding ?? "join";
-        if (seeding !== "join" && seeding !== "random") fail(400, 'seeding is "join" or "random"');
+        if (seeding !== "join" && seeding !== "random" && seeding !== "points") fail(400, 'seeding is "join", "random" or "points"');
         manager(request, found(id!));
         // Entrants still waiting for their Discord link are looked up once more, and dropped at the start if still not linked.
         if (action === "start") {
@@ -341,6 +341,7 @@ export function bracketSite(options: Options): Server {
         }
         return [200, view(change(id!, request, (tournament) => {
           if (action === "start" && seeding === "random") shuffle(tournament.entrants);
+          if (action === "start" && seeding === "points") byPoints(tournament);
           move(tournament, action, by(request), now());
         }))];
       },
@@ -489,6 +490,19 @@ export function bracketSite(options: Options): Server {
     ...contract,
     ...(options.oauth?.routes() ?? []),
   ];
+
+  /**
+   * Seeds by the season's standings at the start: the most points first,
+   * those without any after them in join order.
+   */
+  function byPoints(tournament: Tournament): void {
+    const league = tournament.season ? store.leagueOf(tournament.season) : undefined;
+    const season = league?.seasons.find((each) => each.id === tournament.season) ?? fail(409, "points seeding needs the tournament's season");
+    const order = standings(season, store.all()).map((row) => row.discord);
+    const rank = (discord: string) => (order.includes(discord) ? order.indexOf(discord) : order.length);
+    // A stable sort keeps join order among those ranked the same.
+    tournament.entrants.sort((a, b) => rank(a.discord) - rank(b.discord));
+  }
 
   /** Closes the vote once its time is up; the tournament as it is now. */
   function closeIfDue(id: string): Tournament {

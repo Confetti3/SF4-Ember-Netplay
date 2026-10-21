@@ -66,7 +66,7 @@ manages the tournaments that name them in `organizers`.
 | `GET /tournaments` | signed in | the tournaments they manage |
 | `GET /tournaments/{id}` | anyone | the tournament, with the `actions` its state allows |
 | `PATCH /tournaments/{id}` | its organizers | settings, and `organizers`, before it is live |
-| `PUT /tournaments/{id}/state` | its organizers | `{ "action": "<action>" }`; `start` takes `"seeding": "join"` or `"random"` |
+| `PUT /tournaments/{id}/state` | its organizers | `{ "action": "<action>" }`; `start` takes `"seeding": "join"`, `"random"` or `"points"` (its season's standings) |
 | `POST /tournaments/{id}/entrants` | a player, or its organizers for anyone | `{ "name" }`; an organizer adds `"discord"` |
 | `DELETE /tournaments/{id}/entrants/{discord}` | that player, or its organizers | before it is live |
 | `POST /tournaments/{id}/check-in` | a player | while checking in |
@@ -100,7 +100,8 @@ kept on the player's profile once.
 A tournament counts for the season its `season` names, once finished:
 places 1 and 2, then everyone out in the same round together (3, 5, 9, ...),
 worth the season's `points` (default `{"1": 100, "2": 70, "3": 50, "5": 30,
-"9": 15, "*": 5}`), a player's best `best_of` events counting.
+"9": 15, "*": 5}`), a player's best `best_of` events counting. Standings rank by points, then
+events won, then sets won against the others tied with them.
 
 States: `draft`, `planned`, `sign_ups`, `check_in`, `live`, `finished`,
 `archived`, `cancelled`. Actions: `plan`, `open_sign_ups`, `close_sign_ups`,

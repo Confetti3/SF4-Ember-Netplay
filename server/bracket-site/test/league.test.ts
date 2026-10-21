@@ -49,3 +49,14 @@ test("standings add each finished event of the season, best of N, by points then
   assert.equal(standings({ ...season, best_of: null }, events)[0]!.points, 270);
   assert.equal(standings({ ...season, points: { "1": 3 } }, events).at(-1)!.points, 0, "no * gives nothing");
 });
+
+test("a tie on points and wins goes to who won the sets between them", () => {
+  const season: Season = { id: "s1", title: "Season 1", points: { "1": 10, "2": 6, "3": 6 }, best_of: null };
+  // P2 beats P1, P1 beats P2, then P2 beats P1 in a semifinal they both
+  // lose out of: 22 points and one win each, 2 sets to 1 for P2.
+  const events = [played("a", 2, "s1", (n) => [2, 1][n - 1]!), played("b", 2), played("c", 3, "s1", (n) => [3, 2, 1][n - 1]!)];
+  const rows = standings(season, events).filter((row) => row.name !== "P3");
+  assert.deepEqual(rows.map((row) => [row.name, row.points, row.won]), [["P2", 22, 1], ["P1", 22, 1]], "head-to-head, not the name");
+  // Without the third event it is one set each: the name decides.
+  assert.deepEqual(standings(season, events.slice(0, 2)).map((row) => row.name), ["P1", "P2"]);
+});

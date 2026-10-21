@@ -59,8 +59,12 @@ export function placements(tournament: Tournament): Map<string, number> {
 }
 
 /** The season's standings: points, then events won, then name. */
+/** The season's standings: points, then events won, then sets won against
+ * the others tied with them (head-to-head), then name. */
 export function standings(season: Season, tournaments: Tournament[]): Standing[] {
   const earned = new Map<string, { name: string; scores: number[]; won: number }>();
+  /** Sets won, by winner and then loser. */
+  const beat = new Map<string, Map<string, number>>();
   for (const tournament of tournaments) {
     if (tournament.season !== season.id || !["finished", "archived"].includes(tournament.state)) continue;
     for (const [discord, place] of placements(tournament)) {
@@ -71,11 +75,22 @@ export function standings(season: Season, tournaments: Tournament[]): Standing[]
       if (place === 1) row.won += 1;
       earned.set(discord, row);
     }
+    const discord = (ember: string | null) => tournament.entrants.find((entrant) => entrant.ember_id === ember)?.discord;
+    for (const set of tournament.sets) {
+      const winner = discord(set.winner);
+      const loser = discord(set.entries.find((entry) => entry && entry !== set.winner) ?? null);
+      if (!winner || !loser) continue;
+      const against = beat.get(winner) ?? new Map<string, number>();
+      against.set(loser, (against.get(loser) ?? 0) + 1);
+      beat.set(winner, against);
+    }
   }
-  return [...earned]
-    .map(([discord, row]) => {
-      const counted = row.scores.sort((a, b) => b - a).slice(0, season.best_of ?? undefined);
-      return { discord, name: row.name, points: counted.reduce((sum, each) => sum + each, 0), events: counted.length, won: row.won };
-    })
-    .sort((a, b) => b.points - a.points || b.won - a.won || a.name.localeCompare(b.name));
+  const rows = [...earned].map(([discord, row]) => {
+    const counted = row.scores.sort((a, b) => b - a).slice(0, season.best_of ?? undefined);
+    return { discord, name: row.name, points: counted.reduce((sum, each) => sum + each, 0), events: counted.length, won: row.won };
+  });
+  const tied = (a: Standing, b: Standing) => a.points === b.points && a.won === b.won;
+  const headToHead = (row: Standing) =>
+    rows.filter((other) => other !== row && tied(other, row)).reduce((sum, other) => sum + (beat.get(row.discord)?.get(other.discord) ?? 0), 0);
+  return rows.sort((a, b) => b.points - a.points || b.won - a.won || headToHead(b) - headToHead(a) || a.name.localeCompare(b.name));
 }

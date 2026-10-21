@@ -288,4 +288,14 @@ test("a closed season's awards are news its league's followers read", async () =
   const news = (await call("GET", "/leagues/ember/feed?after=0")).body.items;
   assert.equal(news[0].text, "Player 1: Season champion of Ember League, Season 2 (100 points).");
   assert.ok(!("feed" in (await call("GET", "/leagues/ember")).body));
+
+  // The next event of the season seeds by its points: Player 1 first, though Player 2 joined first.
+  for (const [id, season] of [["s2next", "s2"], ["plain", null]] as const) {
+    await organizer("POST", "/tournaments", { id, title: id, season });
+    for (const action of ["plan", "open_sign_ups"]) await organizer("PUT", `/tournaments/${id}/state`, { action });
+    for (const n of [2, 1]) await bot(n, "POST", `/tournaments/${id}/entrants`, {});
+  }
+  const seeded = await organizer("PUT", "/tournaments/s2next/state", { action: "start", seeding: "points" });
+  assert.deepEqual(seeded.body.entrants.map((each: { name: string }) => each.name), [discordId(1), discordId(2)]);
+  assert.equal((await organizer("PUT", "/tournaments/plain/state", { action: "start", seeding: "points" })).status, 409, "no season, no points");
 });
