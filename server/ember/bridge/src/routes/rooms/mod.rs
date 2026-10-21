@@ -23,12 +23,12 @@ mod ticket;
 use std::{
     convert::Infallible,
     fmt::Write as _,
-    net::IpAddr,
+    net::{IpAddr, SocketAddr},
     sync::atomic::{AtomicBool, AtomicU64},
 };
 
 use axum::{
-    extract::{FromRequestParts, Path, Query, State},
+    extract::{ConnectInfo, FromRequestParts, Path, Query, State},
     http::{HeaderMap, StatusCode, request::Parts},
     response::Response,
 };
@@ -126,9 +126,12 @@ fn supervisor(state: &AppState) -> Result<Supervisor<'_>> {
 
 /// The caller's network address as a keyed hash under the bridge's persistent
 /// HMAC key, so a stored hash still matches after a restart but cannot be
-/// turned back into an address: an IPv4 address, or an IPv6 /64. The service listens on loopback behind nginx, which sets `X-Real-IP`;
-/// only a local process could forge it. Without the header (tests, a direct
-/// loopback connection) every caller shares the key `local`.
+/// turned back into an address: an IPv4 address, or an IPv6 /64. Behind
+/// nginx on loopback, or a proxy in `trusted_proxies`, it is the proxy's
+/// `X-Real-IP`; any other caller is known by its own address, so a bridge
+/// reachable without its proxy cannot be told another address. Without the
+/// header from a proxy (tests, a direct loopback connection) every caller
+/// shares the key `local`.
 pub struct Address(pub(crate) String);
 
 impl FromRequestParts<AppState> for Address {
@@ -138,11 +141,17 @@ impl FromRequestParts<AppState> for Address {
         parts: &mut Parts,
         state: &AppState,
     ) -> std::result::Result<Self, Infallible> {
-        let forwarded = parts
-            .headers
-            .get("x-real-ip")
-            .and_then(|value| value.to_str().ok())
-            .and_then(|value| value.trim().parse::<IpAddr>().ok());
+        let forwarded = caller_ip(
+            parts
+                .extensions
+                .get::<ConnectInfo<SocketAddr>>()
+                .map(|info| info.0.ip()),
+            parts
+                .headers
+                .get("x-real-ip")
+                .and_then(|value| value.to_str().ok()),
+            &state.config.trusted_proxies,
+        );
         let bytes = match forwarded {
             Some(IpAddr::V4(v4)) => v4.octets().to_vec(),
             Some(IpAddr::V6(v6)) => match v6.to_ipv4_mapped() {
@@ -153,6 +162,15 @@ impl FromRequestParts<AppState> for Address {
         };
         let digest = state.keys.keyed_hash("room-address", &bytes);
         Ok(Self(hex(&digest[..16])))
+    }
+}
+
+/// The proxy's `X-Real-IP` when the connection comes from loopback or a
+/// trusted proxy (or no address is known), else the connection's own.
+fn caller_ip(peer: Option<IpAddr>, header: Option<&str>, trusted: &[IpAddr]) -> Option<IpAddr> {
+    match peer {
+        Some(peer) if !peer.is_loopback() && !trusted.contains(&peer) => Some(peer),
+        _ => header.and_then(|value| value.trim().parse().ok()),
     }
 }
 
@@ -642,4 +660,34 @@ fn hex(bytes: &[u8]) -> String {
         let _ = write!(text, "{byte:02x}");
     }
     text
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_a_proxy_names_the_caller() {
+        let ip = |text: &str| text.parse::<IpAddr>().unwrap();
+        let proxy = [ip("192.168.0.1")];
+        // Through nginx on loopback or a trusted proxy: the header.
+        assert_eq!(
+            caller_ip(Some(ip("127.0.0.1")), Some("203.0.113.9"), &[]),
+            Some(ip("203.0.113.9"))
+        );
+        assert_eq!(
+            caller_ip(Some(ip("192.168.0.1")), Some("203.0.113.9"), &proxy),
+            Some(ip("203.0.113.9"))
+        );
+        // Anyone else is known by their own address, whatever they claim.
+        assert_eq!(
+            caller_ip(Some(ip("198.51.100.7")), Some("203.0.113.9"), &proxy),
+            Some(ip("198.51.100.7"))
+        );
+        assert_eq!(
+            caller_ip(Some(ip("198.51.100.7")), None, &[]),
+            Some(ip("198.51.100.7"))
+        );
+        assert_eq!(caller_ip(None, None, &[]), None);
+    }
 }

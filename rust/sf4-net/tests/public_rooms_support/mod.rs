@@ -232,6 +232,7 @@ pub async fn bridge_at(
         integration_secrets: rooms.then(|| "unused-in-tests.json".into()),
         desk: None,
         replay_retention: None,
+        trusted_proxies: Vec::new(),
         rooms: supervisor.map(|supervisor_url| config::Rooms {
             supervisor_url,
             skill_badges: false,

@@ -4,11 +4,19 @@
 #
 # .env next to this file:
 #   BRIDGE_PORT  host port the proxy forwards to
+#   BRIDGE_BIND  host address it is published on (default 127.0.0.1, for a
+#                proxy on this host). A proxy on another host needs this
+#                host's address here.
 #   BRIDGE_DATA  host folder for bridge.json, its secrets and database (0700)
 #   BRIDGE_USER  uid:gid that owns BRIDGE_DATA (default 4784:4784, the image's)
 #   BRACKETS_PORT, BRACKETS_DATA  the same for ember-brackets (default 8791
 #                and ./brackets), whose brackets.json listens on 0.0.0.0:8791
 #                (results.listen); it runs with `--profile brackets`
+#
+# bridge.json's trusted_proxies names the address the bridge sees the proxy
+# connect from: the Docker network's gateway for a proxy on this host, or
+# the proxy's own address. Only those proxies' X-Real-IP is read, so the
+# per-address limits hold for anyone else who reaches the port.
 #
 # The bridge sends finished matches only to an https results_url, so the
 # proxy serves the connector's results path too (say
@@ -35,7 +43,7 @@ services:
     restart: unless-stopped
     user: "${BRIDGE_USER:-4784:4784}"
     ports:
-      - "${BRIDGE_PORT:?set BRIDGE_PORT}:8470"
+      - "${BRIDGE_BIND:-127.0.0.1}:${BRIDGE_PORT:?set BRIDGE_PORT}:8470"
     volumes:
       - "${BRIDGE_DATA:?set BRIDGE_DATA}:/var/lib/ember"
     read_only: true
@@ -50,7 +58,7 @@ services:
     restart: unless-stopped
     user: "${BRIDGE_USER:-4784:4784}"
     ports:
-      - "${BRACKETS_PORT:-8791}:8791"
+      - "${BRIDGE_BIND:-127.0.0.1}:${BRACKETS_PORT:-8791}:8791"
     volumes:
       - "${BRACKETS_DATA:-./brackets}:/var/lib/ember"
     read_only: true

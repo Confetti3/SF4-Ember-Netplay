@@ -69,6 +69,10 @@ pub struct Config {
     /// How long a set's replays are kept. Forever when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub replay_retention: Option<ReplayRetention>,
+    /// Reverse proxies whose `X-Real-IP` names the caller (`rooms::Address`).
+    /// Loopback always is one; any other caller is known by its own address.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trusted_proxies: Vec<std::net::IpAddr>,
     pub tenants: Vec<Tenant>,
 }
 
@@ -397,6 +401,7 @@ impl Config {
             rooms: None,
             match_expiry_hours: DEFAULT_MATCH_EXPIRY_HOURS,
             replay_retention: None,
+            trusted_proxies: Vec::new(),
             tenants: vec![Tenant {
                 id: "local".into(),
                 name: "Local tournaments".into(),

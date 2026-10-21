@@ -99,6 +99,7 @@ pub async fn start_bridge(
         integration_secrets,
         desk: None,
         replay_retention: None,
+        trusted_proxies: Vec::new(),
         rooms: None,
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {
