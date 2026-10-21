@@ -62,6 +62,33 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     return pressed;
 }
 
+int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec2 block) {
+    const float s = Scale(), w = (std::min)(300 * s, ImGui::GetContentRegionAvail().x), h = w * 9 / 16;
+    const auto p = ImGui::GetCursorScreenPos();
+    auto* d = ImGui::GetWindowDrawList();
+    ImGui::InvisibleButton(id, ImVec2(w, h));
+    const bool held = ImGui::IsItemActive(), hovered = ImGui::IsItemHovered();
+    d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), color::Frame, 4 * s);
+    d->AddRect(p, ImVec2(p.x + w, p.y + h), hovered || held ? palette::Ember : color::Border, 4 * s, 0, s);
+    const ImVec2 size(block.x * w, block.y * h);
+    const auto at = [&](ImVec2 centre) { return ImVec2(p.x + centre.x * w - size.x * .5f, p.y + centre.y * h - size.y * .5f); };
+    const auto mouse = ImGui::GetMousePos();
+    // The spot nearest the pointer, where a drop lands.
+    int nearest = 0;
+    float best = FLT_MAX;
+    for (int i = 0; i < static_cast<int>(spots.size()); ++i) {
+        const float dx = p.x + spots[i].x * w - mouse.x, dy = p.y + spots[i].y * h - mouse.y;
+        if (dx * dx + dy * dy < best) { best = dx * dx + dy * dy; nearest = i; }
+    }
+    for (int i = 0; i < static_cast<int>(spots.size()); ++i) {
+        const auto q = at(spots[i]);
+        d->AddRect(q, ImVec2(q.x + size.x, q.y + size.y), held && i == nearest ? palette::Ember : color::Alpha(palette::Muted, .5f), 2 * s, 0, s);
+    }
+    const ImVec2 q = held ? ImVec2(mouse.x - size.x * .5f, mouse.y - size.y * .5f) : at(spots[(std::max)(0, (std::min)(static_cast<int>(spots.size()) - 1, current))]);
+    d->AddRectFilled(q, ImVec2(q.x + size.x, q.y + size.y), palette::Ember, 2 * s);
+    return ImGui::IsItemDeactivated() && hovered ? nearest : -1;
+}
+
 float ChipWidth(const std::string& text) { return TextWidth(text, ChipFont()) + 16 * Scale(); }
 float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone) {
     const float s = Scale(), size = ChipFont(), width = ChipWidth(text);

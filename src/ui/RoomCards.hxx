@@ -87,4 +87,7 @@ struct MemberCardView {
     bool focused=false,focusChanged=false,disabled=false;
 };
 CardInteraction DrawMemberCard(const MemberCardView& card);
+// The same member as a V2 list row in `min`-`max`: portrait, player tag, status
+// and link mark. The list draws the row's ground, focus and press.
+void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max);
 } }

@@ -862,6 +862,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  if(RankingsPanel::Owns(screen))portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return DrawRankingsRow(v,e,min,max);};
  if(screen==CountryPicker::Screen)portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return countryPicker_.DrawRow(e,v.automaticCountry,min,max);};
+ // V2: the Members list as player tags.
+ if(v2::On()&&screen=="room-members")portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
+  const auto card=RoomMemberCard(v,e);if(card.id.empty())return false;
+  DrawMemberRow(card,min,max);return true;};
  if(screen=="main-character")portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
   if(e.id.compare(0,5,"main-")!=0)return false;
   const int id=std::stoi(e.id.substr(5));DrawMainPortrait(id,id==v.preferences.mainFighter,min,max);return true;
@@ -888,18 +892,21 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;preview.anchor=preferences_.matchHudAnchor;preview.layout=preferences_.matchHudLayout;preview.nameOffset=preferences_.matchHudNameOffset;
   preview.spectators=2;
   DrawMatchStripPreview(preview);
+  // V2: where the HUD sits; drag it to another place, or click one.
+  if(screen=="tab-interface"&&v.canEditPreferences){
+   ImGui::Dummy(ImVec2(0,8*Scale()));
+   const int picked=v2::SpotMap("##hud-spot",{{.5f,.88f},{.16f,.88f},{.84f,.88f},{.16f,.12f},{.84f,.12f},{.5f,.12f}},preferences_.matchHudAnchor,{.26f,.1f});
+   if(picked>=0&&picked!=preferences_.matchHudAnchor){preferences_.matchHudAnchor=picked;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+  }
  };
  // V2: where the watched game's picture sits and how big, on a small screen.
  if(screen=="tab-matches")profilePreview=[&](const std::string& id){
   if(id!="watched-picture"&&id!="picture-corner"&&id!="picture-size")return;
-  const float w=(std::min)(260*Scale(),ImGui::GetContentRegionAvail().x),h=w*9/16;const auto p=ImGui::GetCursorScreenPos();auto* d=ImGui::GetWindowDrawList();
-  d->AddRectFilled(p,ImVec2(p.x+w,p.y+h),v2::color::Frame,4*Scale());d->AddRect(p,ImVec2(p.x+w,p.y+h),v2::color::Border,4*Scale());
-  if(preferences_.watchedPicture){
-   const int corner=preferences_.pictureSpot%4;const float share=WatchedPictureShareFor(preferences_.pictureSpot),m=6*Scale();
-   const float x=corner==0||corner==2?p.x+w-m-w*share:p.x+m,y=corner>=2?p.y+h-m-h*share:p.y+m;
-   d->AddRectFilled(ImVec2(x,y),ImVec2(x+w*share,y+h*share),palette::Ember,2*Scale());
-  }
-  ImGui::Dummy(ImVec2(w,h));
+  // The corners in pictureSpot's order: top right, top left, bottom right, bottom left.
+  const float share=WatchedPictureShareFor(preferences_.pictureSpot),c=share*.5f+.03f;
+  const int corner=preferences_.pictureSpot%4;
+  const int picked=v2::SpotMap("##picture-spot",{{1-c,c},{c,c},{1-c,1-c},{c,1-c}},corner,{share,share});
+  if(picked>=0&&picked!=corner&&v.canEditPreferences){preferences_.pictureSpot=preferences_.pictureSpot/4*4+picked;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  };
  if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawRoomBoard(v,entries,navigation,action,height,feedback);};

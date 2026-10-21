@@ -452,6 +452,17 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  }
  return rows;
 }
+MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEntry& e) const {
+ MemberCardView card;
+ const auto* m=e.id.compare(0,7,"member-")==0?Member(v.room,std::stoull(e.id.substr(7))):nullptr;if(!m)return card;
+ card.id=e.id;card.name=m->name;card.label=e.label;card.link=m->link;card.marks={m->country,m->badge};
+ card.latency=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
+ card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
+ const auto status=MemberStatusText(v.room,*m,false,true);
+ const auto idle=IdleText(*m);
+ card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
+ return card;
+}
 void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,
                                      const MenuVisualFeedback& feedback) {
  boardDrawn_=true;
@@ -549,14 +560,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
  };
  const auto memberCard=[&](const MenuEntry& e){
-  const auto* m=Member(v.room,std::stoull(e.id.substr(7)));if(!m)return;
-  MemberCardView card;card.id=e.id;card.name=m->name;card.label=e.label;card.link=m->link;card.marks={m->country,m->badge};
-  card.latency=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
-  card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
+  auto card=RoomMemberCard(v,e);if(card.id.empty())return;
   card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();
-  const auto status=MemberStatusText(v.room,*m,false,true);
-  const auto idle=IdleText(*m);
-  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
   pressBody(e,DrawMemberCard(card));
  };
  const auto button=[&](const MenuEntry& e,float width){
@@ -592,7 +597,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   ImGui::TextUnformatted(loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity).c_str());
   // Whole cards only. A free fraction of the board height always clipped the
   // bottom card through its portrait.
-  const float cardPitch=58*s+ImGui::GetStyle().ItemSpacing.y,childPadding=12*s;
+  // The list is a child without a border, so it has no padding of its own:
+  // room for more than whole cards showed a sliver of the next one under the last.
+  const float cardPitch=58*s+ImGui::GetStyle().ItemSpacing.y,childPadding=0;
   const int memberRows=(std::max)(1,static_cast<int>(((communityHeight-48*s)*.56f-childPadding+ImGui::GetStyle().ItemSpacing.y)/cardPitch));
   ImGui::BeginChild("Member list",ImVec2(0,memberRows*cardPitch-ImGui::GetStyle().ItemSpacing.y+childPadding),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows)if(e.id.compare(0,7,"member-")==0)memberCard(e);

@@ -13,6 +13,7 @@
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLayers.hxx"
 #include "../ui/Theme.hxx"
+#include "../ui/V2.hxx"
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
@@ -500,6 +501,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
     if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
+    // The look the HUD and the menus draw in (Settings > Interface > Look); the shell follows its own edits sooner.
+    sf4e::ui::v2::SetOn(snapshot.preferences.lookV2);
     // A replay being exported can be followed or cancelled from Ember's menu,
     // so the menu stays available over the battle log while it runs; a
     // Practice match's fighter ends the game from it, and a spectator leaves

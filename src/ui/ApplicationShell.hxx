@@ -1,5 +1,6 @@
 #pragma once
 #include <imgui.h>
+#include "RoomCards.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/TrainingEntry.hxx"
@@ -419,6 +420,8 @@ private:
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;
+    // A member's card as the room board and the V2 Members list draw it; no id when `row` names no member.
+    MemberCardView RoomMemberCard(const ShellView& view,const MenuEntry& row) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;

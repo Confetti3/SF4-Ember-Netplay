@@ -252,4 +252,14 @@ CardInteraction DrawMemberCard(const MemberCardView& card) {
  FlushCardTip(elided);
  return Interaction({},pressed,hovered);
 }
+void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
+ const float s=Scale(),h=max.y-min.y,face=h-12*s;auto* d=ImGui::GetWindowDrawList();
+ DrawCharacterPortrait(card.mainFighter,ImVec2(min.x+6*s,min.y+6*s),ImVec2(min.x+6*s+face,max.y-6*s));
+ const float x=min.x+16*s+face,w=max.x-x-44*s;
+ v2::Tag(d,ImVec2(x,min.y+5*s),w,{card.label,{},{},card.marks,card.latency},v2::TagSize::S);
+ std::string elided;
+ DrawCardText(elided,ImVec2(x,max.y-20*s),w,card.status,14*s,palette::Muted);
+ DrawNetworkLinkGlyph(d,ImVec2(max.x-30*s,min.y+(h-16*s)*.5f),16*s,card.link);
+ NoteUserText(card.name);
+}
 } }

@@ -74,6 +74,13 @@ void Header(const char* title, const char* eyebrow = nullptr);
 // Returns the tab the pointer pressed, or -1. Moving between tabs is the screen's.
 int Tabs(const std::vector<std::string>& labels, int current);
 
+// A small 16:9 screen with the spots something can sit in (centres, 0 to 1 of
+// the screen), the thing drawn as an Ember block of `block` (also 0 to 1) at
+// `current`. The mouse drags the block, or clicks a spot, and it snaps to the
+// nearest spot when let go: returns that spot, or -1 while nothing was picked.
+// The pad and keys pick the same values in the row's value panel.
+int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec2 block);
+
 // The player tag: flag · rank · name · title · indicators, always in that
 // order. Space short: status goes first, then the title; flag, rank, name and
 // ping always stay.
