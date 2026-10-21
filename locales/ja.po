@@ -5033,7 +5033,19 @@ msgid "training.hitboxes"
 msgstr "ヒットボックス"
 
 msgid "training.hitboxes.detail"
-msgstr "ファイターの判定を対戦画面に表示します。緑は攻撃を受ける範囲、黄は投げられる範囲、赤は攻撃が当たる範囲、青は投げが届く範囲です。"
+msgstr "ファイターの判定を対戦画面に表示します。緑は攻撃を受ける範囲、黄は投げられる範囲、赤は攻撃が当たる範囲、青は投げが届く範囲です。白い線は骨です。"
+
+msgid "training.hitboxes.hurt"
+msgstr "やられ判定"
+
+msgid "training.hitboxes.throw"
+msgstr "投げられ判定"
+
+msgid "training.hitboxes.skeleton"
+msgstr "骨格"
+
+msgid "training.hitboxes.part.detail"
+msgstr "当たり判定のこの部分を対戦の上に表示します。"
 
 msgid "training.color_key"
 msgstr "色の凡例"

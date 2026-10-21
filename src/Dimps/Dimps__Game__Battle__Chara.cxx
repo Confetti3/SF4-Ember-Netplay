@@ -39,8 +39,13 @@ void Unit::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.RestoreFromInternalMementoKey = (PVOID)(peRootOffset + 0x1633f0);
 }
 
-unsigned char* Actor::GetBodyBox(Actor* a, unsigned index) {
-	return (unsigned char*)a + 0x21e0 + index * 0xa0;
+unsigned char* Actor::GetBodyBox(Actor* a, BodyList list, unsigned index) {
+	return (unsigned char*)a + (list == BodyList::Strike ? 0x26e0 : 0x44e0) + index * 0xa0;
+}
+
+// The masks in effect this frame, after the push boxes' at +0x6810.
+unsigned int Actor::GetBodyMask(Actor* a, BodyList list) {
+	return *(unsigned int*)((unsigned char*)a + (list == BodyList::Strike ? 0x6814 : 0x6818));
 }
 
 // Six list pointers from +0x130; a list keeps its first box at +0x20 and its
@@ -94,5 +99,6 @@ void Actor::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.GetCurrentBonePositionByID) = (PVOID)(peRootOffset + 0x1427a0);
 
 	staticMethods.GetBoneLabelByID = (char* (*)(int))(peRootOffset + 0x163260);
+	staticMethods.GetLocatorPairEnd = (int (*)(unsigned int))(peRootOffset + 0x1632a0);
 	staticMethods.ResetAfterMemento = (void(*)(Actor*))(peRootOffset + 0x151800);
 }

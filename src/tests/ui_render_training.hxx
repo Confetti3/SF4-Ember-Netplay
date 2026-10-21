@@ -80,9 +80,10 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;
     std::vector<MenuEntry> trainingRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){trainingRows=rows;});
-    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","dummy","reply","tools"}){
+    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","hitboxes","dummy","reply","tools"}){
         TrainingNavigation().Home();if(std::string(screen)!="home")TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
+        if(std::string(screen)=="hitboxes")Require(trainingRows.size()==4&&trainingRows[0].id=="hitboxes-shown","Hitboxes page lost its switch or one of its parts");
         if(std::string(screen)=="dummy")Require(trainingRows.size()==6,"Dummy page lost one of its own rows");
         if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==4,"Position page lost one of its own rows");
