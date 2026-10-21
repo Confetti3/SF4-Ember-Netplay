@@ -407,6 +407,12 @@ int main(int argc, char** argv) {
         ZipBuilder evil; evil.Add("../escape.txt", "x", false); evil.Write(work / "evil.zip");
         CHECK(!extract("evil.zip", "out2", keep) && error.find("unsafe entry name") == 0);
         CHECK(!std::filesystem::exists(work / "escape.txt"));
+        // A name from the root lands on the extract folder's drive root.
+        for (const char* rooted : {"/sf4e-zip-rooted.txt", "\\sf4e-zip-rooted.txt"}) {
+            ZipBuilder rootedZip; rootedZip.Add(rooted, "x", false); rootedZip.Write(work / "rooted.zip");
+            CHECK(!extract("rooted.zip", "out5", keep) && error.find("unsafe entry name") == 0);
+            CHECK(!std::filesystem::exists(work.root_path() / "sf4e-zip-rooted.txt"));
+        }
         ZipBuilder dot; dot.Add("pkg/name.", "x", false); dot.Write(work / "dot.zip");
         CHECK(!extract("dot.zip", "out3", keep) && error.find("unsafe entry name") == 0);
         ZipBuilder bad; bad.Add("c.txt", "hello", true); bad.bytes[bad.bytes.size() - 1] ^= 1; bad.Write(work / "bad.zip");
