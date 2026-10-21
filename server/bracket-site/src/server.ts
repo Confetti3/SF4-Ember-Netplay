@@ -8,6 +8,7 @@ import { Conflict, Invalid, roundLabel, status } from "./bracket.ts";
 import { contractRoutes, record } from "./contract.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
 import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
+import { stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
 import { page } from "./page.ts";
 import type { Store } from "./store.ts";
@@ -153,6 +154,15 @@ export function bracketSite(options: Options): Server {
       },
     ],
     ["GET", /^\/tournaments\/([^/]+)$/, (_, [id]) => [200, view(found(id!))]],
+    [
+      "GET",
+      /^\/tournaments\/([^/]+)\/feed$/,
+      (_, [id], url) => {
+        const after = Number(url.searchParams.get("after") ?? 0);
+        return [200, { items: (found(id!).feed ?? []).filter((item) => item.n > after) }];
+      },
+    ],
+    ["GET", /^\/tournaments\/([^/]+)\/stats$/, (_, [id]) => [200, stats(found(id!))]],
     [
       "PATCH",
       /^\/tournaments\/([^/]+)$/,
@@ -397,8 +407,9 @@ function shuffle<T>(items: T[]): void {
 
 /** The tournament as anyone may see it, with the actions its state allows. */
 function view(tournament: Tournament): Json {
+  const { feed: _, ...shown } = tournament;
   return {
-    ...tournament,
+    ...shown,
     actions: actions(tournament),
     sets: tournament.sets.map(({ key: _, ...set }) => ({ ...set, status: status(set), round_label: roundLabel(set.round, tournament.rounds) })),
   };

@@ -163,13 +163,26 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   assert.deepEqual((await connector("GET", "/sets/r9-1")).body, { set: null });
 
   const report = (winner: number, loser: number, key?: string) =>
-    connector("POST", "/sets/r1-1/report", { winner: emberId(winner), scores: [{ entry: emberId(winner), games: 2 }, { entry: emberId(loser), games: 1 }], games: [] }, key);
+    connector("POST", "/sets/r1-1/report", {
+        winner: emberId(winner),
+        scores: [{ entry: emberId(winner), games: 2 }, { entry: emberId(loser), games: 1 }],
+        games: [emberId(winner), emberId(loser), emberId(winner)],
+        ember_match: "emt_semi-1",
+        facts: [null, null, { fighters: [{ character: "RYU", costume: 0, color: 0 }, { character: "BLR", costume: 0, color: 1 }], rounds: [] }],
+      }, key);
   assert.equal((await report(1, 2)).status, 400, "a key is required");
   assert.equal((await report(4, 2, "emt_a")).status, 422);
   assert.equal((await report(1, 2, "emt_a")).status, 200);
   assert.equal((await report(1, 2, "emt_a")).status, 200, "a repeat");
   assert.equal((await report(1, 2, "emt_b")).status, 409);
   assert.equal((await state("reset")).status, 409, "a set is decided");
+  // What the report said is kept, and counts in the stats and the feed.
+  const semi = (await call("GET", "/tournaments/weekly")).body.sets.find((set: { id: string }) => set.id === "r1-1");
+  assert.deepEqual([semi.ember_match, semi.games.length, semi.facts[2].fighters[1].character], ["emt_semi-1", 3, "BLR"]);
+  assert.deepEqual((await call("GET", "/tournaments/weekly/stats")).body.characters, { RYU: 1, BLR: 1 });
+  const feed = (await call("GET", "/tournaments/weekly/feed?after=0")).body.items;
+  assert.deepEqual(feed.slice(-3).map((item: { kind: string }) => item.kind), ["set_live", "set_done", "upset"], "seed 4 beat seed 1");
+  assert.deepEqual((await call("GET", `/tournaments/weekly/feed?after=${feed.at(-1).n}`)).body.items, []);
 
   const hand = (set: string, winner: number, loser: number) => organizer("POST", `/tournaments/weekly/sets/${set}/result`, { winner: emberId(winner), scores: { [emberId(winner)]: 2, [emberId(loser)]: 0 } });
   assert.equal((await as("player-2")("POST", "/tournaments/weekly/sets/r1-2/result", {})).status, 403);

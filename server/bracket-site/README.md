@@ -72,6 +72,8 @@ manages the tournaments that name them in `organizers`.
 | `POST /tournaments/{id}/check-in` | a player | while checking in |
 | `POST /tournaments/{id}/sets/{set}/result` | its organizers | `{ "winner": "<ember id>", "scores": { "<ember id>": 2, "<ember id>": 1 } }` |
 | `DELETE /tournaments/{id}` | its organizers | its live matches are cancelled |
+| `GET /tournaments/{id}/feed?after=<n>` | anyone | what happened since item `n`: moves, sets live and done, upsets, streaks |
+| `GET /tournaments/{id}/stats` | anyone | sets live and done, placements, per player games, rounds, perfects and characters, upsets, the longest set |
 | `POST /leagues` | organizer | `{ "id", "title" }` |
 | `GET /leagues/{id}` | anyone | the league and its seasons |
 | `POST /leagues/{id}/seasons` | its organizers | `{ "id", "title", "points", "best_of" }`; a season ID is unique on the site |

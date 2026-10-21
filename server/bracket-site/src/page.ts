@@ -1,6 +1,7 @@
 // A read-only bracket page: one column a round, each set with its players
 // and score.
 import { roundLabel, status } from "./bracket.ts";
+import { stats } from "./live.ts";
 import { beforeLive, type Tournament } from "./tournament.ts";
 
 const escape = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -36,7 +37,7 @@ export function page(tournament: Tournament, viewer: string | null, signIn: bool
   const entrants = tournament.entrants.map((entrant) => `<li>${escape(entrant.name)}${entrant.ember_id ? "" : " (waiting for Discord to be connected in Ember)"}</li>`).join("");
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escape(tournament.title)}</title>
+<title>${escape(tournament.title)}</title>${tournament.state === "live" ? '\n<meta http-equiv="refresh" content="30">' : ""}
 <style>
 body { font: 16px system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
 .rounds { display: flex; gap: 24px; overflow-x: auto; }
@@ -49,6 +50,7 @@ td + td { width: 2em; text-align: right; }
 <h1>${escape(tournament.title)}</h1>
 <p>First to ${tournament.games_to_win}. ${STATES[tournament.state]}</p>
 ${signIn ? buttons(tournament, viewer) : ""}
+${tournament.state === "live" || tournament.state === "finished" ? summary(tournament) : ""}
 ${beforeLive(tournament) ? `<h2>Entrants</h2><ol>${entrants}</ol>` : `<div class="rounds">${rounds.join("")}</div>`}
 <script>
 for (const button of document.querySelectorAll("button[data-path]")) {
@@ -61,6 +63,14 @@ for (const button of document.querySelectorAll("button[data-path]")) {
 </script>
 </body></html>
 `;
+}
+
+/** The live numbers and the latest news, while it runs and once it is over. */
+function summary(tournament: Tournament): string {
+  const numbers = stats(tournament);
+  const upsets = numbers.upsets.slice(0, 3).map((upset) => `${escape(upset.winner)} over ${escape(upset.loser)}`);
+  const news = (tournament.feed ?? []).slice(-5).reverse().map((item) => `<li>${escape(item.text)}</li>`).join("");
+  return `<p>${numbers.sets.live} live, ${numbers.sets.done} of ${numbers.sets.total} sets done.${upsets.length ? ` Upsets: ${upsets.join(", ")}.` : ""}</p>${news ? `<ul aria-label="Latest">${news}</ul>` : ""}`;
 }
 
 /** What the viewer can do now: sign in, sign up, leave or check in. */
