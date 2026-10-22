@@ -4,6 +4,7 @@ void ButtonPromptJourneys();
 void ControllerJourneys();
 void ButtonLayoutJourneys();
 void KeyboardJourneys();
+void RightClickBack();
 void PresentationJourneys();
 void AppearanceGalleries();
 void ChatJourneys();

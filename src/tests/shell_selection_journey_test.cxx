@@ -2,6 +2,15 @@
 #include "shell_additional_journeys.hxx"
 #include <algorithm>
 #include <iterator>
+// V2: the right mouse button is Back, and closes an open value panel first.
+void RightClickBack(){
+ using namespace sf4e;
+ Harness h;h.view.preferences.lookV2=true;h.Frame();
+ auto& io=ImGui::GetIO();
+ const auto rightClick=[&]{io.AddMouseButtonEvent(1,true);h.Frame();io.AddMouseButtonEvent(1,false);h.Frame();h.Frame();};
+ h.Screen("replays");rightClick();
+ Check(h.shell.Navigation().Screen()=="home","A right click in V2 did not go back");
+}
 // A keyboard player reaches everything a pad does: F, T and C are X, Y and
 // View, Escape always goes back, and Delete leaves the seat that B leaves.
 void KeyboardJourneys(){

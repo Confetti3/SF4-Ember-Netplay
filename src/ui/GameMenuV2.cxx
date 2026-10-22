@@ -323,6 +323,11 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         if (listCard.draw) DrawListCard(list.min, list.max, focusCard.min, focusCard.max, s);
     }
     if (action.kind == MenuAction::Back) { backRequested = true; action = {}; }
+    // The right mouse button is Back, as B and Escape: it closes an open value panel or question first.
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !noticeOpen && !navigation.Editing()) {
+        if (navigation.Asking()) navigation.Cancel();
+        else if (!backInert) backRequested = true;
+    }
 
     // The hint bar: what the focused card's buttons do, each also a button; the status on the right.
     MenuEntry shown;
