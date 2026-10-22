@@ -87,10 +87,6 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
 }
 
 bool MenuValueIsToggle(const MenuEntry& e) { return e.adjustable && (e.value == loc::T("common.on") || e.value == loc::T("common.off")); }
-bool MenuValueIsNumber(const MenuEntry& e) {
-    const char c = e.value.empty() ? 0 : e.value[0];
-    return e.adjustable && ((c >= '0' && c <= '9') || ((c == '+' || c == '-') && e.value.size() > 1));
-}
 void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text) {
     const float s = Scale(), h = box.H(), y = box.min.y + (h - ImGui::GetFontSize()) * .5f;
     const auto& col = v2::Colors();
@@ -176,7 +172,8 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         const auto& e = *focusedEntry;
         // Select on a switch flips it: no popup for two words.
         if (MenuValueIsToggle(e)) { navigation.Cancel(); action = {MenuAction::Adjust, e.id, {}, 1}; return false; }
-        const std::size_t count = e.choices.size(), across = e.popout ? 1 : MenuChoiceColumns(count), lines = (count + across - 1) / across;
+        const auto grid = MenuChoiceLayout(e.choices);
+        const std::size_t count = e.choices.size(), across = e.popout ? 1 : grid.across, lines = (count + across - 1) / across;
         const float row = (e.popout ? 44 : 48) * s, inner = (e.popout ? 8 : 6) * s, foot = e.popout ? 0 : 30 * s;
         const float height = lines * row + (lines - 1) * inner + 24 * s + (e.popout ? 22 : 38) * s + foot;
         if (e.popout) {
@@ -194,7 +191,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             // At the column's right edge, level with the row, kept inside the column.
             const auto chosen = std::find_if(e.choices.begin(), e.choices.end(), [&](const MenuChoice& o) { return o.id == e.chosen; });
             const float keys = ImGui::CalcTextSize(loc::Tf("menu.choices_keys", chosen == e.choices.end() ? e.value : chosen->label).c_str()).x + 24 * s;
-            const float w = (std::min)(list.W(), (std::max)(keys, across * (count > 8 ? 190 : 170) * s + (across - 1) * inner + 24 * s));
+            const float w = (std::min)(list.W(), (std::max)(keys, across * grid.cell + (across - 1) * inner + 24 * s));
             const float top = (std::max)(list.min.y, (std::min)(focusCard.min.y, list.max.y - height));
             ImGui::SetNextWindowPos(ImVec2(list.max.x - w - 12 * s, top));
             ImGui::SetNextWindowSize(ImVec2(w, (std::min)(height, list.H())));
@@ -243,7 +240,9 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             const std::string label = Fit(option.label, cw - 24 * s - tick, ImGui::GetFontSize(), ImGui::GetFont());
             pd->AddText(ImVec2(p.x + 12 * s + tick, p.y + (row - ImGui::GetFontSize()) * .5f), !option.enabled ? col.muted : col.text, label.c_str());
             if (selected) v2::Focus(pd, c.min, c.max, false);
+            if (selected && lastChoice_ != i) ImGui::SetScrollHereY(.5f);
         }
+        lastChoice_ = navigation.ChoiceIndex();
         ImGui::PopStyleVar();
         if (!e.popout && navigation.Choosing()) {
             const auto chosen = std::find_if(e.choices.begin(), e.choices.end(), [&](const MenuChoice& o) { return o.id == e.chosen; });

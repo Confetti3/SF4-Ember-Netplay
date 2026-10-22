@@ -41,7 +41,6 @@ void SetMenuNews(std::vector<MenuNewsItem> news);
 // chevron, Select opening every choice in a popup. DrawMenuValue draws one
 // right-aligned in `box`.
 bool MenuValueIsToggle(const MenuEntry& e);
-bool MenuValueIsNumber(const MenuEntry& e);
 void DrawMenuValue(ImDrawList* draw, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text);
 const std::vector<MenuNewsItem>& MenuNews();
 // The legend's Select and Back glyphs for the device in use (SetMenuGlyphs).

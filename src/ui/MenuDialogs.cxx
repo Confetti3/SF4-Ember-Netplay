@@ -31,6 +31,16 @@ float DialogButtonsHeight(const std::vector<DialogButton>& buttons,float height)
 }
 // V2 (the Settings board's choice popup): up to three side by side, four as two by two, more three across.
 std::size_t MenuChoiceColumns(std::size_t count) { return !v2::On()?1:count<=3?(std::max<std::size_t>)(1,count):count==4?2:3; }
+MenuChoiceGrid MenuChoiceLayout(const std::vector<MenuChoice>& choices) {
+    const float s=Scale(),gap=6*s,room=(std::min)(720*s,ImGui::GetMainViewport()->Size.x*.6f);
+    float longest=0;
+    for(const auto& c:choices)longest=(std::max)(longest,ImGui::CalcTextSize(c.label.c_str()).x);
+    // The tick, the padding either side.
+    float cell=(std::max)((choices.size()>8?190:170)*s,longest+46*s);
+    std::size_t across=MenuChoiceColumns(choices.size());
+    while(across>1&&across*cell+(across-1)*gap>room)--across;
+    return {across,(std::min)(cell,room)};
+}
 // A dialog button's ground; V2 marks the selected one with its focus marks after drawing it (V2Mark).
 static ImVec4 ButtonGround(bool selected) {
     if(!v2::On())return DialogButtonColor(selected);

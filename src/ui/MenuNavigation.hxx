@@ -99,6 +99,11 @@ struct MenuEntry {
 // legend agree. A reader wins over text, text over choices, choices over a
 // confirmation (a confirmation that also carries choices asks by choosing).
 enum class SelectOpens { Nothing, Reader, Edit, Choice, Confirm, Activate };
+// A value that is a number ("3", "100%", "-2 f"): V2 steps it with the arrows only.
+inline bool MenuValueIsNumber(const MenuEntry& e) {
+    const char c = e.value.empty() ? 0 : e.value[0];
+    return e.adjustable && ((c >= '0' && c <= '9') || ((c == '+' || c == '-') && e.value.size() > 1));
+}
 inline SelectOpens MenuSelectOpens(const MenuEntry& e) {
     if (!e.enabled || e.info) return SelectOpens::Nothing;
     if (e.reading) return SelectOpens::Reader;
@@ -227,8 +232,8 @@ public:
         case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; secret_=e.secret; draft_=e.secret?std::string():e.value; editAccept_=true; return {};
         case SelectOpens::Choice: case SelectOpens::Confirm: Open(e); return {};
         case SelectOpens::Activate: return {MenuAction::Activate,e.id};
-        // V2: Select on a value with no list of choices steps it on.
-        case SelectOpens::Nothing: if (selectSteps && e.adjustable && e.enabled && !e.info) return {MenuAction::Adjust,e.id,{},1}; break;
+        // V2: Select on a word value with no list of choices steps it on; numbers keep their arrows.
+        case SelectOpens::Nothing: if (selectSteps && e.adjustable && e.enabled && !e.info && !MenuValueIsNumber(e)) return {MenuAction::Adjust,e.id,{},1}; break;
         }
         return {};
     }
