@@ -9,7 +9,6 @@
 #include "V2.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
-#include <cfloat>
 
 namespace sf4e { namespace ui {
 std::vector<std::pair<std::string, std::string>> ApplicationShell::SettingsTabs() {
@@ -98,10 +97,8 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
     const auto& c = v2::Colors();
     auto* d = ImGui::GetWindowDrawList();
     const std::string& screen = nav.Screen(), tab = SettingsTabOf(screen), focus = nav.Focus();
-    const bool open = tab != screen, narrow = v2::Narrow(ImGui::GetIO().DisplaySize.x, s), changed = focus != settingsFocus_;
+    const bool open = tab != screen, narrow = v2::Narrow(ImGui::GetWindowWidth(), s), changed = focus != settingsFocus_;
     settingsFocus_ = focus;
-    const auto mouse = ImGui::GetIO().MouseDelta;
-    const bool pointerMoved = mouse.x != 0 || mouse.y != 0, idle = !nav.Asking() && !nav.Editing() && !nav.Choosing();
     // The panels as [first, end) of settingsRows_; the one shown is the open one, else the focused head's.
     std::vector<std::pair<std::size_t, std::size_t>> panels;
     for (std::size_t i = 0; i < settingsRows_.size(); ++i)
@@ -109,16 +106,6 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
     const std::string& shownId = open ? screen : focus;
     const int current = shownId.size() > tab.size() ? std::atoi(shownId.c_str() + tab.size() + 1) : 0;
     if (panels.empty() || current >= static_cast<int>(panels.size())) return;
-    // A box that is a button: pressed, and the moving pointer focuses an entry.
-    const auto press = [&](const std::string& id, const v2::Box& b) {
-        ImGui::SetCursorScreenPos(b.min);
-        ImGui::PushID(id.c_str());
-        const bool pressed = ImGui::InvisibleButton("##settings", ImVec2(b.W(), b.H())) && idle;
-        const bool hovered = ImGui::IsItemHovered();
-        ImGui::PopID();
-        if (hovered && pointerMoved && !nav.Choosing()) nav.Focus(id, entries);
-        return std::make_pair(pressed, hovered);
-    };
 
     v2::Box body{ImGui::GetCursorScreenPos(), ImVec2(ImGui::GetCursorScreenPos().x + width, ImGui::GetCursorScreenPos().y + height)};
     v2::CutTop(body, 0, 8 * s);
@@ -128,16 +115,18 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
         float y = rail.min.y;
         for (int i = 0; i < static_cast<int>(panels.size()); ++i) {
             const MenuEntry& first = settingsRows_[panels[i].first];
-            const std::string id = tab + "/" + std::to_string(i);
+            MenuEntry head;
+            head.id = tab + "/" + std::to_string(i);
+            const std::string& id = head.id;
             const bool isOpen = open && i == current, focused = !open && id == focus;
             const v2::Box h{ImVec2(rail.min.x, y), ImVec2(rail.max.x, y + (open ? 52 : 64) * s)};
             y = h.max.y + 8 * s;
-            const auto [pressed, hovered] = press(id, h);
+            const auto [pressed, hovered] = PressEntry(nav, entries, head, h, action, false, 0, false);
             if (pressed) {
                 if (!open) { nav.Focus(id, entries); action = nav.Choose(entries); }
                 else action = isOpen ? MenuAction{MenuAction::Back} : MenuAction{MenuAction::Shortcut, id};
             }
-            d->AddRectFilled(h.min, h.max, focused || isOpen ? c.header : hovered ? c.hover : v2::color::Alpha(c.panel, .94f), 4 * s);
+            d->AddRectFilled(h.min, h.max, focused || isOpen ? c.header : hovered ? c.hover : v2::PanelGround(), 4 * s);
             d->AddRect(h.min, h.max, isOpen ? c.accentLight : c.border, 4 * s, 0, s);
             if (isOpen) d->AddRectFilled(h.min, ImVec2(h.min.x + 4 * s, h.max.y), c.accent, 4 * s, ImDrawFlags_RoundCornersLeft);
             // The arrow: right while closed, down and filled while open.
@@ -150,19 +139,14 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
                 d->AddTriangleFilled(ImVec2(m.x - 2 * s, m.y - 4 * s), ImVec2(m.x + 3 * s, m.y), ImVec2(m.x - 2 * s, m.y + 4 * s), c.text);
             }
             const float x = a.x + 38 * s;
-            if (open) {
-                d->PushClipRect(ImVec2(x, h.min.y), ImVec2(h.max.x - 10 * s, h.max.y), true);
-                d->AddText(HeadingFont(), 18 * s, ImVec2(x, h.min.y + (h.H() - 18 * s) * .5f), c.text, first.group.c_str());
-                d->PopClipRect();
-            } else {
+            if (open) v2::Text(d, ImVec2(x, h.min.y + (h.H() - 16 * s) * .5f), h.max.x - 10 * s - x, first.group, 16 * s, c.text, HeadingFont());
+            else {
                 const char* state = loc::T("settings.panel.closed");
                 const float sw = ImGui::CalcTextSize(state).x;
                 d->AddText(ImVec2(h.max.x - 10 * s - sw, h.min.y + (h.H() - font) * .5f), c.muted, state);
-                const auto head = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == id; });
-                d->PushClipRect(ImVec2(x, h.min.y), ImVec2(h.max.x - 20 * s - sw, h.max.y), true);
-                d->AddText(HeadingFont(), 20 * s, ImVec2(x, h.min.y + 10 * s), c.text, first.group.c_str());
-                if (head != entries.end()) d->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, h.min.y + 36 * s), c.muted, head->value.c_str());
-                d->PopClipRect();
+                const auto row = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == id; });
+                v2::Text(d, ImVec2(x, h.min.y + 10 * s), h.max.x - 20 * s - sw - x, first.group, 20 * s, c.text, HeadingFont());
+                if (row != entries.end()) v2::Text(d, ImVec2(x, h.min.y + 36 * s), h.max.x - 20 * s - sw - x, row->value, 14 * s, c.muted);
             }
             if (focused) v2::Focus(d, h.min, h.max);
         }
@@ -175,26 +159,10 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
     v2::Box column = body;
     if (const float cap = (width / s > 1700 ? 1400 : 1100) * s; column.W() > cap) column.max.x = column.min.x + cap;
     // The words' bar: the design's height, taller when they wrap past it.
-    const float wrapped = words ? ImGui::CalcTextSize(words->detail.c_str(), nullptr, false, column.W() - 32 * s).y : 0;
-    const v2::Box bar = v2::CutBottom(column, (std::max)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 52 : 74) * s, 36 * s + wrapped), 8 * s);
-    d->AddRectFilled(bar.min, bar.max, c.frame, 4 * s);
-    d->AddRect(bar.min, bar.max, c.border, 4 * s, 0, s);
-    if (words) {
-        d->PushClipRect(bar.min, bar.max, true);
-        d->AddText(HeadingFont(), 16 * s, ImVec2(bar.min.x + 16 * s, bar.min.y + 6 * s), c.text, words->label.c_str());
-        d->AddText(ImGui::GetFont(), 15 * s, ImVec2(bar.min.x + 16 * s, bar.min.y + 28 * s), c.muted, words->detail.c_str(), nullptr, bar.W() - 32 * s);
-        d->PopClipRect();
-    }
-    v2::Box section = column;
-    d->AddRectFilled(section.min, section.max, v2::color::Alpha(c.panel, .94f), 4 * s);
-    const v2::Box head = v2::CutTop(section, 40 * s);
-    d->AddRectFilled(head.min, head.max, open ? c.header : c.panel, 4 * s, ImDrawFlags_RoundCornersTop);
-    d->AddLine(ImVec2(head.min.x, head.max.y), ImVec2(head.max.x, head.max.y), c.border, s);
-    d->AddRect(column.min, column.max, open ? c.accentLight : c.border, 4 * s, 0, s);
-    const MenuEntry& first = settingsRows_[panels[current].first];
-    const char* state = loc::T(open ? "settings.panel.open" : "settings.preview");
-    d->AddText(HeadingFont(), 20 * s, ImVec2(head.min.x + 16 * s, head.min.y + 10 * s), c.text, first.group.c_str());
-    d->AddText(ImVec2(head.max.x - 16 * s - ImGui::CalcTextSize(state).x, head.min.y + (head.H() - font) * .5f), c.muted, state);
+    const float wrapped = words ? v2::WordsHeight(column.W(), words->detail) : 0;
+    const v2::Box bar = v2::CutBottom(column, (std::max)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 52 : 74) * s, wrapped), 8 * s);
+    v2::Words(d, bar, words ? words->label : std::string(), words ? words->detail : std::string(), true);
+    v2::Box section = v2::Panel(d, column, settingsRows_[panels[current].first].group.c_str(), loc::T(open ? "settings.panel.open" : "settings.preview"), open);
 
     // The preview, beside the rows, for a panel with something to show.
     std::string pictured;
@@ -203,7 +171,7 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
     if (open && SettingsPreview(focus)) pictured = focus;
     if (!pictured.empty() && preview && !narrow && section.W() >= 760 * s) {
         const v2::Box pv = v2::CutRight(section, 380 * s);
-        d->AddText(HeadingFont(), 14 * s, ImVec2(pv.min.x, pv.min.y + 12 * s), c.muted, loc::T("settings.preview"));
+        v2::SectionHeading(d, ImVec2(pv.min.x, pv.min.y + 12 * s), loc::T("settings.preview"));
         ImGui::SetCursorScreenPos(ImVec2(pv.min.x, pv.min.y + 32 * s));
         ImGui::BeginChild("settings preview", ImVec2(pv.W() - 12 * s, pv.H() - 44 * s), 0, ImGuiWindowFlags_NoNavInputs);
         preview(pictured);
@@ -223,34 +191,12 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
         const auto p = ImGui::GetCursorScreenPos();
         const v2::Box r{p, ImVec2(p.x + list.W(), p.y + rowHeight)};
         const bool focused = open && e.id == focus;
-        const auto [pressed, hovered] = press(e.id, r);
-        ImGui::SetCursorScreenPos(ImVec2(p.x, r.max.y + 4 * s));
-        if (focused && changed) ImGui::SetScrollHereY(.5f);
         // While closed a row opens its panel; while open its value's ends step it, anything else on it is Select.
+        const auto [pressed, hovered] = PressEntry(nav, entries, e, r, action, focused && changed, valueWidth, open);
+        ImGui::SetCursorScreenPos(ImVec2(p.x, r.max.y + 4 * s));
         if (pressed && !open) action = {MenuAction::Shortcut, tab + "/" + std::to_string(current)};
-        else if (pressed) {
-            nav.Focus(e.id, entries);
-            const float mx = ImGui::GetMousePos().x, vx = r.max.x - 6 * s - valueWidth;
-            const int step = MenuValueIsNumber(e) && e.enabled && mx >= vx ? (mx < vx + valueWidth * .5f ? -1 : 1) : 0;
-            action = step ? MenuAction{MenuAction::Adjust, e.id, {}, step} : nav.Choose(entries);
-        }
-        if (focused || (open && hovered)) ld->AddRectFilled(r.min, r.max, focused ? c.header : c.hover, 4 * s);
-        const bool enabled = feedback.Enabled(e);
-        const ImU32 text = open && enabled ? c.text : c.muted, arrow = open && enabled && e.adjustable ? c.accent : c.muted;
-        const float ty = r.min.y + (rowHeight - font) * .5f, vx = r.max.x - 6 * s - valueWidth;
-        ld->PushClipRect(r.min, ImVec2(e.adjustable || !e.value.empty() ? vx - 8 * s : r.max.x, r.max.y), true);
-        ld->AddText(ImVec2(r.min.x + 14 * s, ty), text, e.label.c_str());
-        ld->PopClipRect();
-        // The value between the arrows that step it, or on its own with a chevron when Select opens something.
-        if (e.userText || e.text) NoteUserText(e.value);
-        if (e.adjustable) DrawMenuValue(ld, e, {ImVec2(vx, r.min.y), ImVec2(r.max.x - 14 * s, r.max.y)}, open && enabled, text);
-        else {
-            const float tw = (std::min)(ImGui::CalcTextSize(e.value.c_str()).x, valueWidth - 40 * s);
-            ld->PushClipRect(ImVec2(vx + 20 * s, r.min.y), ImVec2(vx + valueWidth - 20 * s, r.max.y), true);
-            ld->AddText(ImVec2(vx + valueWidth - 20 * s - tw, ty), e.valueHighlighted ? c.accent : e.info ? c.muted : text, e.value.c_str());
-            ld->PopClipRect();
-            if (!e.info) ld->AddText(ImVec2(r.max.x - 14 * s - ImGui::CalcTextSize(">").x, ty), arrow, ">");
-        }
+        v2::RowGround(ld, r, focused, open && hovered);
+        DrawMenuRow(ld, e, r, open && feedback.Enabled(e), valueWidth, 14 * s);
         if (focused) {
             v2::Focus(ld, r.min, r.max);
             if (!e.choices.empty()) menu_.bodyChoices = {r, list};

@@ -51,8 +51,7 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
     const auto& c = v2::Colors();
     auto* d = ImGui::GetWindowDrawList();
     const auto& focus = nav.Focus();
-    const auto mouse = ImGui::GetIO().MouseDelta;
-    const bool pointerMoved = mouse.x != 0 || mouse.y != 0, changed = focus != awardsFocus_;
+    const bool changed = focus != awardsFocus_;
     const bool narrow = v2::Narrow(ImGui::GetIO().DisplaySize.x, s);
     awardsFocus_ = focus;
     const auto origin = ImGui::GetCursorScreenPos();
@@ -60,7 +59,7 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
     v2::Box side = narrow ? area : v2::CutLeft(area, (std::min)(440 * s, width * .4f), 24 * s);
     // The card as others see it, and the smaller tags of rows and chat.
     const auto heading = [&](const char* text) {
-        d->AddText(HeadingFont(), 14 * s, side.min, c.muted, text);
+        v2::SectionHeading(d, side.min, text);
         v2::CutTop(side, 18 * s, 10 * s);
     };
     const auto& profile = MenuPlayerCard().profile;
@@ -82,14 +81,8 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
         if (!award) continue;
         const ImVec2 at(area.min.x + (i % columns) * (tileWidth + gap), area.min.y + (i / columns) * (tileHeight + gap));
         const v2::Box tile{at, ImVec2(at.x + tileWidth, at.y + tileHeight)};
-        ImGui::SetCursorScreenPos(tile.min);
-        ImGui::PushID(e.id.c_str());
-        const bool pressed = ImGui::InvisibleButton("##award", ImVec2(tile.W(), tile.H())), hovered = ImGui::IsItemHovered();
-        ImGui::PopID();
-        if (pressed && !nav.Asking() && !nav.Editing()) { nav.Focus(e.id, rows); action = nav.Choose(rows); }
-        else if (hovered && pointerMoved) nav.Focus(e.id, rows);
+        const bool hovered = PressEntry(nav, rows, e, tile, action, changed).hovered;
         const bool focused = e.id == focus, earned = !e.info, on = e.valueHighlighted;
-        if (focused && changed) ImGui::SetScrollHereY(.5f);
         v2::CardGround(d, tile, focused, hovered);
         if (on && !focused) d->AddRect(tile.min, tile.max, v2::color::Alpha(c.accent, .5f), 4 * s, 0, s);
         // The name on two lines when it needs them; the icon, name and state centred as a stack.
@@ -121,13 +114,8 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
     float bottom = area.min.y + ((rows.size() + columns - 1) / columns) * (tileHeight + gap);
     const auto shown = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == focus; });
     if (shown != rows.end()) {
-        const float wrap = area.W() - 28 * s, size = 16 * s;
-        const float h = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, wrap, shown->detail.c_str()).y + size + 26 * s;
-        const v2::Box words{ImVec2(area.min.x, bottom + 2 * s), ImVec2(area.max.x, bottom + 2 * s + h)};
-        d->AddRectFilled(words.min, words.max, c.frame, 4 * s);
-        d->AddRect(words.min, words.max, c.border, 4 * s, 0, s);
-        d->AddText(HeadingFont(), size, ImVec2(words.min.x + 14 * s, words.min.y + 10 * s), c.text, shown->label.c_str());
-        d->AddText(ImGui::GetFont(), size, ImVec2(words.min.x + 14 * s, words.min.y + 14 * s + size), c.muted, shown->detail.c_str(), nullptr, wrap);
+        const v2::Box words{ImVec2(area.min.x, bottom + 2 * s), ImVec2(area.max.x, bottom + 2 * s + v2::WordsHeight(area.W(), shown->detail))};
+        v2::Words(d, words, shown->label, shown->detail, true);
         bottom = words.max.y;
     }
     ImGui::SetCursorScreenPos(origin);

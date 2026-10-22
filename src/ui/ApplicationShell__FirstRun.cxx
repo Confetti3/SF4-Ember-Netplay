@@ -64,20 +64,11 @@ void ApplicationShell::DrawWelcomeBoard(const std::vector<MenuEntry>& rows, Menu
     const auto& c = v2::Colors();
     auto* d = ImGui::GetWindowDrawList();
     const auto origin = ImGui::GetCursorScreenPos();
-    const auto mouse = ImGui::GetIO().MouseDelta;
-    const bool pointerMoved = mouse.x != 0 || mouse.y != 0;
     const std::string& focus = nav.Focus();
-    // A row's box: the pointer focuses it, a click chooses it, as the cards do.
-    const auto press = [&](const MenuEntry& e, v2::Box b) {
-        ImGui::SetCursorScreenPos(b.min);
-        const bool pressed = ImGui::InvisibleButton(e.id.c_str(), ImVec2(b.W(), b.H())), hovered = ImGui::IsItemHovered();
-        if (pressed && !nav.Asking() && !nav.Editing()) { nav.Focus(e.id, rows); action = nav.Choose(rows); }
-        else if (hovered && pointerMoved && !nav.Choosing()) nav.Focus(e.id, rows);
-        return hovered;
-    };
+    const auto press = [&](const MenuEntry& e, v2::Box b) { return PressEntry(nav, rows, e, b, action).hovered; };
     float y = origin.y;
     // WELCOME · STEP 1 OF 4, and a dot per step, the current one long.
-    d->AddText(HeadingFont(), 14 * s, ImVec2(origin.x, y), c.accent, loc::Tf("welcome.step", welcomeStep_ + 1, WelcomeSteps).c_str());
+    v2::SectionHeading(d, ImVec2(origin.x, y), loc::Tf("welcome.step", welcomeStep_ + 1, WelcomeSteps), c.accent);
     y += 30 * s;
     for (int i = 0, x = 0; i < WelcomeSteps; ++i) {
         const float w = (i == welcomeStep_ ? 40 : 12) * s;
@@ -89,28 +80,21 @@ void ApplicationShell::DrawWelcomeBoard(const std::vector<MenuEntry>& rows, Menu
     const char* title = loc::T(Titles[welcomeStep_]);
     d->AddText(HeadingFont(), heading, ImVec2(origin.x, y), c.text, title, nullptr, wrap);
     y += HeadingFont()->CalcTextSizeA(heading, FLT_MAX, wrap, title).y + 16 * s;
-    const std::string text = loc::T(Texts[welcomeStep_]);
-    const float textSize = 20 * s;
-    float lines = 0;
-    for (const char *p = text.c_str(), *end = p + text.size(); p < end; ++lines) {
-        const char* cut = ImGui::GetFont()->CalcWordWrapPositionA(textSize / ImGui::GetFont()->FontSize, p, end, wrap);
-        d->AddText(ImGui::GetFont(), textSize, ImVec2(origin.x, y + lines * textSize * 1.5f), c.text, p, cut == p ? p + 1 : cut);
-        for (p = cut == p ? p + 1 : cut; p < end && *p == ' '; ++p) {}
-    }
-    y += lines * textSize * 1.5f + 24 * s;
+    y += v2::Paragraph(d, ImVec2(origin.x, y), wrap, loc::T(Texts[welcomeStep_]), 20 * s, c.text) + 24 * s;
     // The answers, 640 wide: the label over its words, Chosen (or the value) at the right.
     const float card = (std::min)(640 * s, width);
     for (const auto& e : rows) {
         if (e.id == "welcome-next" || e.id == "welcome-skip") continue;
-        const v2::Box b{ImVec2(origin.x, y), ImVec2(origin.x + card, y + 68 * s)};
-        y += 76 * s;
+        // The words wrap, and the card grows to hold them.
+        const float valueWidth = e.value.empty() ? 0 : ImGui::CalcTextSize(e.value.c_str()).x + 24 * s, room = card - valueWidth - 28 * s;
+        const std::string words = e.detail.substr(0, e.detail.find('\n'));
+        const float lines = v2::Paragraph(nullptr, ImVec2(), room, words, 16 * s, 0);
+        const v2::Box b{ImVec2(origin.x, y), ImVec2(origin.x + card, y + (std::max)(68 * s, 46 * s + lines))};
+        y = b.max.y + 8 * s;
         const bool focused = e.id == focus, hovered = press(e, b);
         v2::CardGround(d, b, focused, hovered);
-        const float valueWidth = e.value.empty() ? 0 : ImGui::CalcTextSize(e.value.c_str()).x + 24 * s;
-        d->PushClipRect(b.min, ImVec2(b.max.x - valueWidth - 12 * s, b.max.y), true);
-        d->AddText(HeadingFont(), 20 * s, ImVec2(b.min.x + 16 * s, b.min.y + 12 * s), c.text, e.label.c_str());
-        d->AddText(ImGui::GetFont(), 16 * s, ImVec2(b.min.x + 16 * s, b.min.y + 38 * s), c.muted, e.detail.substr(0, e.detail.find('\n')).c_str());
-        d->PopClipRect();
+        v2::Text(d, ImVec2(b.min.x + 16 * s, b.min.y + 12 * s), room, e.label, 20 * s, c.text, HeadingFont());
+        v2::Paragraph(d, ImVec2(b.min.x + 16 * s, b.min.y + 36 * s), room, words, 16 * s, c.muted);
         if (valueWidth > 0) d->AddText(ImVec2(b.max.x - valueWidth, b.min.y + (b.H() - ImGui::GetFontSize()) * .5f), e.choices.empty() ? c.accent : c.text, e.value.c_str());
         if (focused) {
             v2::Focus(d, b.min, b.max);
@@ -120,20 +104,15 @@ void ApplicationShell::DrawWelcomeBoard(const std::vector<MenuEntry>& rows, Menu
     }
     // Skip, then Next in Ember, at the bottom right.
     float x = origin.x + width;
-    const float bottom = (std::max)(y + 8 * s, origin.y + height - 48 * s);
+    const float bottom = (std::max)(y + 8 * s, origin.y + height - 56 * s);
     for (std::size_t i = rows.size() - 2; i < rows.size(); ++i) {
         const auto& e = rows[i];
-        const bool next = e.id == "welcome-next", focused = e.id == focus;
         const float w = HeadingFont()->CalcTextSizeA(17 * s, FLT_MAX, 0, e.label.c_str()).x + 36 * s;
-        const v2::Box b{ImVec2(x - w, bottom), ImVec2(x, bottom + 40 * s)};
+        const v2::Box b{ImVec2(x - w, bottom), ImVec2(x, bottom + 48 * s)};
         x -= w + 12 * s;
-        const bool hovered = press(e, b);
-        d->AddRectFilled(b.min, b.max, focused ? c.header : next ? (hovered ? c.accentLight : c.accent) : hovered ? c.hover : c.button, 4 * s);
-        if (!next) d->AddRect(b.min, b.max, c.border, 4 * s, 0, s);
-        if (focused) v2::Focus(d, b.min, b.max, false);
-        d->AddText(HeadingFont(), 17 * s, ImVec2(b.min.x + 18 * s, b.min.y + 11.5f * s), next && !focused ? c.ink : c.text, e.label.c_str());
+        v2::Button(d, b, e.label, e.id == "welcome-next" ? v2::ButtonKind::Primary : v2::ButtonKind::Secondary, e.id == focus, press(e, b));
     }
-    ImGui::SetCursorScreenPos(ImVec2(origin.x, bottom + 40 * s));
+    ImGui::SetCursorScreenPos(ImVec2(origin.x, bottom + 48 * s));
     ImGui::Dummy(ImVec2(width, 0));
 }
 } }

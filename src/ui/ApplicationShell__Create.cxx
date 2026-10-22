@@ -4,7 +4,6 @@
 #include "V2.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
-#include <cfloat>
 #include <cstdint>
 
 namespace sf4e { namespace ui {
@@ -98,12 +97,10 @@ void ApplicationShell::ApplyPublicDefaultName() {
 // words under them and the button that opens the room. The rows and their
 // order are RoomSetupRows'; up and down still walk them in that order.
 void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback) {
- const float s=Scale(),width=ImGui::GetContentRegionAvail().x,rowHeight=48*s,valueWidth=164*s,font=ImGui::GetFontSize();
- const auto& c=v2::Colors();
+ const float s=Scale(),width=ImGui::GetContentRegionAvail().x,rowHeight=48*s,valueWidth=164*s;
  auto* d=ImGui::GetWindowDrawList();
  const auto focus=nav.Focus();
- const auto mouse=ImGui::GetIO().MouseDelta;
- const bool pointerMoved=mouse.x!=0||mouse.y!=0,changed=focus!=createFocus_;
+ const bool changed=focus!=createFocus_;
  createFocus_=focus;
  // Room: up to its delay policy; Rules: the rest; the button: Create or Stop.
  std::vector<const MenuEntry*> panels[2];const MenuEntry* button=nullptr;
@@ -111,20 +108,6 @@ void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNa
   if(rows[i].id=="host"||rows[i].id=="cancel-open")button=&rows[i];
   else{panels[p].push_back(&rows[i]);if(rows[i].id=="delay-policy")p=1;}
  }
- // A row's box: its value's ends step it, anything else on it is Select; the moving pointer focuses it.
- const auto press=[&](const MenuEntry& e,const v2::Box& b){
-  ImGui::SetCursorScreenPos(b.min);ImGui::PushID(e.id.c_str());
-  const bool pressed=ImGui::InvisibleButton("##create",ImVec2(b.W(),b.H())),hovered=ImGui::IsItemHovered();
-  ImGui::PopID();
-  if(e.id==focus&&changed)ImGui::SetScrollHereY(.5f);
-  if(pressed&&!nav.Asking()&&!nav.Editing()&&!nav.Choosing()){
-   nav.Focus(e.id,rows);
-   const float mx=ImGui::GetMousePos().x,vx=b.max.x-14*s-valueWidth;
-   const int step=MenuValueIsNumber(e)&&e.enabled&&mx>=vx?(mx<vx+valueWidth*.5f?-1:1):0;
-   action=step?MenuAction{MenuAction::Adjust,e.id,{},step}:nav.Choose(rows);
-  }else if(hovered&&pointerMoved&&!nav.Choosing())nav.Focus(e.id,rows);
-  return hovered;
- };
  const auto origin=ImGui::GetCursorScreenPos();
  const bool across=!v2::Narrow(ImGui::GetWindowWidth(),s);
  const float panelWidth=across?(width-24*s)*.5f:width;
@@ -134,32 +117,14 @@ void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNa
   const ImVec2 at(origin.x+(across?i*(panelWidth+24*s):0),across||!i?origin.y:bottom+12*s);
   const float inner=panels[i].size()*(rowHeight+4*s);
   const v2::Box panel{at,ImVec2(at.x+panelWidth,at.y+40*s+12*s+inner)};
-  d->AddRectFilled(panel.min,panel.max,v2::color::Alpha(c.panel,.94f),4*s);
-  d->AddLine(ImVec2(at.x,at.y+40*s),ImVec2(panel.max.x,at.y+40*s),c.border,s);
-  d->AddRect(panel.min,panel.max,c.border,4*s,0,s);
-  d->AddText(HeadingFont(),20*s,ImVec2(at.x+16*s,at.y+10*s),c.text,names[i]);
-  float y=at.y+48*s;
+  float y=v2::Panel(d,panel,names[i]).min.y+8*s;
   for(const MenuEntry* row:panels[i]){
    const auto& e=*row;
    const v2::Box r{ImVec2(at.x+12*s,y),ImVec2(panel.max.x-12*s,y+rowHeight)};
    y+=rowHeight+4*s;
-   const bool focused=e.id==focus,hovered=press(e,r),enabled=feedback.Enabled(e);
-   if(focused||hovered)d->AddRectFilled(r.min,r.max,focused?c.header:c.hover,4*s);
-   const ImU32 text=enabled?c.text:c.muted,arrow=enabled&&e.adjustable?c.accent:c.muted;
-   const float ty=r.min.y+(rowHeight-font)*.5f,vx=r.max.x-14*s-valueWidth;
-   d->PushClipRect(r.min,ImVec2(vx-8*s,r.max.y),true);
-   d->AddText(ImVec2(r.min.x+14*s,ty),text,e.label.c_str());
-   d->PopClipRect();
-   // The value between the arrows that step it, or with a chevron when Select opens it.
-   if(e.userText||e.text)NoteUserText(e.value);
-   if(e.adjustable)DrawMenuValue(d,e,{ImVec2(vx,r.min.y),ImVec2(r.max.x-14*s,r.max.y)},enabled,text);
-   else{
-    const float tw=(std::min)(ImGui::CalcTextSize(e.value.c_str()).x,valueWidth-40*s);
-    d->PushClipRect(ImVec2(vx+20*s,r.min.y),ImVec2(vx+valueWidth-20*s,r.max.y),true);
-    d->AddText(ImVec2(vx+valueWidth-20*s-tw,ty),e.valueHighlighted?c.accent:text,e.value.c_str());
-    d->PopClipRect();
-    d->AddText(ImVec2(r.max.x-14*s-ImGui::CalcTextSize(">").x,ty),arrow,">");
-   }
+   const bool focused=e.id==focus,hovered=PressEntry(nav,rows,e,r,action,changed,valueWidth).hovered;
+   v2::RowGround(d,r,focused,hovered);
+   DrawMenuRow(d,e,r,feedback.Enabled(e),valueWidth,14*s);
    if(focused){
     v2::Focus(d,r.min,r.max);
     if(!e.choices.empty())menu_.bodyChoices={r,{panel.min,ImVec2(panel.max.x,origin.y+height)}};
@@ -170,25 +135,13 @@ void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNa
  // The focused row's words, then the button.
  const auto shown=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==focus;});
  const v2::Box words{ImVec2(origin.x,bottom+12*s),ImVec2(origin.x+width,bottom+12*s+52*s)};
- d->AddRectFilled(words.min,words.max,c.frame,4*s);
- d->AddRect(words.min,words.max,c.border,4*s,0,s);
- if(shown!=rows.end()){
-  d->PushClipRect(words.min,words.max,true);
-  d->AddText(HeadingFont(),16*s,ImVec2(words.min.x+16*s,words.min.y+6*s),c.text,shown->label.c_str());
-  d->AddText(ImGui::GetFont(),15*s,ImVec2(words.min.x+16*s,words.min.y+28*s),c.muted,shown->detail.substr(0,shown->detail.find('\n')).c_str());
-  d->PopClipRect();
- }
+ v2::Words(d,words,shown!=rows.end()?shown->label:std::string(),shown!=rows.end()?shown->detail:std::string(),false);
  float end=words.max.y;
  if(button){
   const auto& e=*button;
-  const bool focused=e.id==focus,enabled=feedback.Enabled(e);
   const float w=(std::min)(width,(std::max)(260*s,ImGui::CalcTextSize(e.label.c_str()).x+48*s));
-  const v2::Box b{ImVec2(origin.x+width-w,end+12*s),ImVec2(origin.x+width,end+12*s+52*s)};
-  const bool hovered=press(e,b);
-  d->AddRectFilled(b.min,b.max,!enabled?c.button:focused||hovered?c.accentLight:c.accent,4*s);
-  if(focused)d->AddRect(b.min,b.max,c.text,4*s,0,3*s);
-  const float tw=HeadingFont()->CalcTextSizeA(18*s,FLT_MAX,0,e.label.c_str()).x;
-  d->AddText(HeadingFont(),18*s,ImVec2(b.min.x+(b.W()-tw)*.5f,b.min.y+17*s),enabled?c.ink:c.muted,e.label.c_str());
+  const v2::Box b{ImVec2(origin.x+width-w,end+12*s),ImVec2(origin.x+width,end+12*s+48*s)};
+  v2::Button(d,b,e.label,v2::ButtonKind::Primary,e.id==focus,PressEntry(nav,rows,e,b,action,changed).hovered,feedback.Enabled(e));
   end=b.max.y;
  }
  ImGui::SetCursorScreenPos(ImVec2(origin.x,end));

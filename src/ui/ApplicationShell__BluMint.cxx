@@ -165,22 +165,11 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
     const auto& c = v2::Colors();
     auto* d = ImGui::GetWindowDrawList();
     const auto focus = nav.Focus();
-    const auto mouse = ImGui::GetIO().MouseDelta;
-    const bool pointerMoved = mouse.x != 0 || mouse.y != 0;
     const auto origin = ImGui::GetCursorScreenPos();
     v2::Box stage{origin, ImVec2(origin.x + ImGui::GetContentRegionAvail().x, origin.y + height)};
     v2::Box aside = v2::CutRight(stage, 400 * s, 20 * s);
     // A row's box: a press is Select on it, the moving pointer focuses it.
-    const auto press = [&](const MenuEntry& e, const v2::Box& b) {
-        ImGui::SetCursorScreenPos(b.min);
-        ImGui::PushID(e.id.c_str());
-        const bool pressed = ImGui::InvisibleButton("##bm", ImVec2(b.W(), b.H()));
-        const bool hovered = ImGui::IsItemHovered();
-        ImGui::PopID();
-        if (pressed && !nav.Asking() && !nav.Editing()) { nav.Focus(e.id, rows); action = nav.Choose(rows); }
-        else if (hovered && pointerMoved && !nav.Choosing()) nav.Focus(e.id, rows);
-        return hovered;
-    };
+    const auto press = [&](const MenuEntry& e, const v2::Box& b) { return PressEntry(nav, rows, e, b, action).hovered; };
     const auto find = [&](const char* id) { return std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; }); };
 
     // The stage: the match's table, BluMint's blue light from the top. Select on it is Ready.
@@ -278,7 +267,7 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
                 const bool ready = t.ready[side];
                 const std::string word = winner >= 0 ? (winner == side ? std::string(loc::T("blumint.chip_set_won")) : std::string())
                                                       : loc::T(ready ? "room.status.ready" : "blumint.not_ready");
-                if (!word.empty()) v2::Chip(d, ImVec2(side ? card.max.x - 12 * s - v2::ChipWidth(word) : card.min.x + 12 * s, py - 11 * s), word, winner == side ? c.accent : ready ? palette::Ready : c.muted);
+                if (!word.empty()) v2::Chip(d, ImVec2(side ? card.max.x - 12 * s - v2::ChipWidth(word) : card.min.x + 12 * s, py - 11 * s), word, winner == side ? c.accent : ready ? c.ready : c.muted);
             }
             // Lit: this PC's fighter during the set, the winner once it is decided.
             if (winner >= 0 ? winner == side : you) {
@@ -301,7 +290,7 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
         if (e.id.compare(0, 7, "member-") == 0) watchers.push_back(&e);
         else if (e.id.compare(0, 6, "table-")) actions.push_back(&e);
     }
-    d->AddText(HeadingFont(), headingSize, aside.min, c.muted, loc::Tf("blumint.watching", watchers.size()).c_str());
+    v2::SectionHeading(d, aside.min, loc::Tf("blumint.watching", watchers.size()));
     v2::CutTop(aside, headingSize, 8 * s);
     const float actionsHeight = ((actions.size() + 1) / 2) * 52 * s;
     v2::Box buttons = v2::CutBottom(aside, actionsHeight, 12 * s);
@@ -334,7 +323,7 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
 
     // Chat, then the actions two to a line.
     v2::CutTop(aside, 6 * s);
-    d->AddText(HeadingFont(), headingSize, aside.min, c.muted, loc::T("room.chat_heading"));
+    v2::SectionHeading(d, aside.min, loc::T("room.chat_heading"));
     v2::CutTop(aside, headingSize, 8 * s);
     ImGui::SetCursorScreenPos(aside.min);
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
@@ -352,7 +341,7 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
         const bool hovered = press(e, b);
         v2::CardGround(d, b, e.id == focus, hovered);
         const bool leave = e.id == "leave" || e.id == "stop-watching";
-        const ImU32 color = !e.enabled ? c.muted : leave ? IM_COL32(255, 170, 160, 255) : c.text;
+        const ImU32 color = !e.enabled ? c.muted : leave ? c.danger : c.text;
         const float w = ImGui::GetFont()->CalcTextSizeA(16 * s, FLT_MAX, 0, e.label.c_str()).x;
         d->AddText(ImGui::GetFont(), 16 * s, ImVec2(b.min.x + (b.W() - w) * .5f, b.min.y + 14 * s), color, e.label.c_str());
         if (e.id == focus) v2::Focus(d, b.min, b.max, false);

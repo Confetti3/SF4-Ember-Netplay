@@ -536,23 +536,10 @@ void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigatio
  const auto& c=v2::Colors();
  auto* d=ImGui::GetWindowDrawList();
  const auto& focus=nav.Focus();
- const auto mouse=ImGui::GetIO().MouseDelta;
- const bool pointerMoved=mouse.x!=0||mouse.y!=0,changed=focus!=boardFocus_;
+ const bool changed=focus!=boardFocus_;
  boardFocus_=focus;
  // A box: its value's ends step it, anything else on it is Select; the moving pointer focuses it.
- const auto press=[&](const MenuEntry& e,const v2::Box& b){
-  ImGui::SetCursorScreenPos(b.min);ImGui::PushID(e.id.c_str());
-  const bool pressed=ImGui::InvisibleButton("##board",ImVec2(b.W(),b.H())),hovered=ImGui::IsItemHovered();
-  ImGui::PopID();
-  if(e.id==focus&&changed)ImGui::SetScrollHereY(.5f);
-  if(pressed&&!nav.Asking()&&!nav.Editing()){
-   nav.Focus(e.id,rows);
-   const float mx=ImGui::GetMousePos().x,vx=b.max.x-14*s-valueWidth;
-   const int step=MenuValueIsNumber(e)&&e.enabled&&mx>=vx?(mx<vx+valueWidth*.5f?-1:1):0;
-   action=step?MenuAction{MenuAction::Adjust,e.id,{},step}:nav.Choose(rows);
-  }else if(hovered&&pointerMoved&&!nav.Choosing())nav.Focus(e.id,rows);
-  return hovered;
- };
+ const auto press=[&](const MenuEntry& e,const v2::Box& b){return PressEntry(nav,rows,e,b,action,changed,valueWidth).hovered;};
  const auto origin=ImGui::GetCursorScreenPos();
  const bool narrow=v2::Narrow(ImGui::GetWindowWidth(),s);
  const std::size_t cells=MenuGridCells(rows),lines=(cells+BoardColumns-1)/BoardColumns;
@@ -577,7 +564,7 @@ void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigatio
  // The pane: the preview, the value rows, Ready at its foot (under the grid when narrow).
  const v2::Box pane{ImVec2(narrow?origin.x:origin.x+gridWidth+24*s,narrow?origin.y+lines*(ch+gap)+10*s:origin.y),ImVec2(origin.x+width,origin.y+height)};
  const std::size_t values=rows.size()-cells-1;
- const float readyHeight=52*s,stack=values*(rowHeight+gap)+readyHeight+12*s;
+ const float readyHeight=48*s,stack=values*(rowHeight+gap)+readyHeight+12*s;
  const float preview=narrow?0:(std::min)(300*s,pane.H()-stack-gap);
  float y=pane.min.y;
  if(preview>=120*s){
@@ -602,11 +589,7 @@ void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigatio
    // Ready: the Ember button at the pane's foot.
    const float top=narrow?y+6*s:(std::max)(y+6*s,pane.max.y-readyHeight);
    const v2::Box b{ImVec2(pane.min.x,top),ImVec2(pane.max.x,top+readyHeight)};
-   const bool hovered=press(e,b);
-   d->AddRectFilled(b.min,b.max,focused||hovered?c.accentLight:c.accent,4*s);
-   if(focused)d->AddRect(b.min,b.max,c.text,4*s,0,3*s);
-   const float tw=HeadingFont()->CalcTextSizeA(18*s,FLT_MAX,0,e.label.c_str()).x;
-   d->AddText(HeadingFont(),18*s,ImVec2(b.min.x+(b.W()-tw)*.5f,b.min.y+17*s),c.ink,e.label.c_str());
+   v2::Button(d,b,e.label,v2::ButtonKind::Primary,focused,press(e,b),enabled);
    y=b.max.y;
    continue;
   }
@@ -614,15 +597,7 @@ void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigatio
   y+=rowHeight+gap;
   const bool hovered=press(e,r);
   v2::CardGround(d,r,focused,hovered);
-  const ImU32 text=enabled?c.text:c.muted;
-  const float ty=r.min.y+(rowHeight-font)*.5f,vx=r.max.x-14*s-valueWidth;
-  d->AddText(ImVec2(r.min.x+14*s,ty),text,e.label.c_str());
-  if(e.adjustable)DrawMenuValue(d,e,{ImVec2(vx,r.min.y),ImVec2(r.max.x-14*s,r.max.y)},enabled,text);
-  else{
-   std::string elided;
-   DrawCardText(elided,ImVec2(vx,ty),valueWidth-24*s,e.value,font,c.muted);
-   d->AddText(ImVec2(r.max.x-14*s-ImGui::CalcTextSize(">").x,ty),enabled?c.muted:v2::color::Alpha(c.muted,.5f),">");
-  }
+  DrawMenuRow(d,e,r,enabled,valueWidth,14*s);
   if(focused){
    v2::Focus(d,r.min,r.max);
    if(!e.choices.empty())menu_.bodyChoices={r,pane};
