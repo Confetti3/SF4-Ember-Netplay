@@ -165,14 +165,15 @@ void ReportMenuCardText(const std::string& id,const std::string& text){if(cardTe
 void SetMenuStatusProbe(MenuStatusProbe probe){statusProbe=std::move(probe);}
 void SetMenuEntriesProbe(MenuEntriesProbe probe){entriesProbe=std::move(probe);}
 void SetPortraitProbe(PortraitProbe probe){portraitProbe=std::move(probe);}
-void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing){
+void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing,bool mirror){
     if(portraitProbe)portraitProbe(fighter,min,max);
     auto* d=ImGui::GetWindowDrawList();
     d->AddRectFilled(min,max,backing);
     if(menuArt){const auto art=menuArt->PortraitFor(fighter,max.y-min.y);if(art.texture){
         const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y)/art.height);
         const float w=art.width*factor,h=art.height*factor;
-        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);return;
+        const ImVec2 uv0=mirror?ImVec2(art.uvMax.x,art.uvMin.y):art.uvMin,uv1=mirror?ImVec2(art.uvMin.x,art.uvMax.y):art.uvMax;
+        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),uv0,uv1);return;
     }}
     const auto size=ImGui::CalcTextSize("?");
     d->AddText(ImVec2((min.x+max.x-size.x)*.5f,(min.y+max.y-size.y)*.5f),palette::Muted,"?");

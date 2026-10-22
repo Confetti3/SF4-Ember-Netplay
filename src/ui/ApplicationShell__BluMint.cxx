@@ -237,7 +237,7 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
             const float px = side ? mid + half : mid - half - pipsWidth + 6 * s;
             pips(px, y, side);
             const float face = bar.H() - 12 * s, fx = side ? bar.max.x - 8 * s - face : bar.min.x + 8 * s;
-            DrawCharacterPortrait(fighterOf(*m), ImVec2(fx, bar.min.y + 6 * s), ImVec2(fx + face, bar.max.y - 6 * s), c.ink);
+            DrawCharacterPortrait(fighterOf(*m), ImVec2(fx, bar.min.y + 6 * s), ImVec2(fx + face, bar.max.y - 6 * s), c.ink, side == 1);
             const float tx = side ? px + pipsWidth + 12 * s : fx + face + 10 * s, tw = side ? fx - 10 * s - tx : px - 22 * s - tx;
             v2::TagView tag;
             tag.name = m->name;
@@ -261,7 +261,7 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
             d->AddRectFilled(card.min, card.max, c.frame, 4 * s);
             if (m) {
                 const float tagY = card.max.y - 12 * s - 22 * s - 8 * s - 26 * s;
-                DrawCharacterPortrait(fighterOf(*m), ImVec2(card.min.x + 12 * s, card.min.y + 12 * s), ImVec2(card.max.x - 12 * s, tagY - 8 * s), c.ink);
+                DrawCharacterPortrait(fighterOf(*m), ImVec2(card.min.x + 12 * s, card.min.y + 12 * s), ImVec2(card.max.x - 12 * s, tagY - 8 * s), c.ink, side == 1);
                 v2::TagView tag;
                 tag.name = m->name;
                 tag.marks = {m->country, m->badge};
