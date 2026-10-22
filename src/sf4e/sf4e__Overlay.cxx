@@ -1,6 +1,7 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__SelfTest.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Pad.hxx"
@@ -579,7 +580,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // or a watched game); in Training and over an export it is the game's pause.
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open("Start");
     ImGui::NewFrame();
-    sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
+    unsigned menuButtons = controllerNavigation.Buttons();
+    // The menu self-test presses the menu's buttons itself, with the menu shown.
+    if (sf4e::selftest::MenuFrame(shell.Navigation(), menuButtons) && !presentation.Visible() && presentation.Available()) presentation.Open("the menu self-test");
+    sf4e::ui::SetMenuInput({menuButtons, ImGui::GetTime()});
     for (const auto& pad : snapshot.pads) if (pad.gameplay) sf4e::ui::SetMenuPromptBrand(snapshot.promptBrand, gamepads::NamesOf(pad.table));
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.menu,snapshot.promptBrand);
     if (presentation.Reopened()) shell.ShowPlay();

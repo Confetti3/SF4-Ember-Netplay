@@ -532,7 +532,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
 void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback,
  const selection::Pick& pick,SelectionArt* art,const AvailabilityReader& readAvailability) {
  using namespace selection;
- const float s=Scale(),width=ImGui::GetContentRegionAvail().x,font=ImGui::GetFontSize(),gap=6*s,rowHeight=48*s,valueWidth=180*s;
+ const float s=Scale(),width=ImGui::GetContentRegionAvail().x,font=ImGui::GetFontSize(),gap=6*s,rowHeight=48*s,valueWidth=220*s;
  const auto& c=v2::Colors();
  auto* d=ImGui::GetWindowDrawList();
  const auto& focus=nav.Focus();
