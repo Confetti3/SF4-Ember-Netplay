@@ -237,6 +237,18 @@ msgstr "Updates"
 msgid "updates.downloaded_mb"
 msgstr "{0:.1f} MB gedownload"
 
+msgid "updates.downloaded_of_mb"
+msgstr "{0:.1f} MB van {1:.1f} MB gedownload"
+
+msgid "updates.step_found"
+msgstr "Gevonden"
+
+msgid "updates.step_verified"
+msgstr "Gecontroleerd"
+
+msgid "updates.step_installed"
+msgstr "Geïnstalleerd"
+
 msgid "services.checking"
 msgstr "Zoeken naar updates..."
 

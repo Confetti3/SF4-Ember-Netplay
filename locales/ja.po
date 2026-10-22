@@ -237,6 +237,18 @@ msgstr "アップデート"
 msgid "updates.downloaded_mb"
 msgstr "{0:.1f} MBダウンロード済み"
 
+msgid "updates.downloaded_of_mb"
+msgstr "{1:.1f} MB中 {0:.1f} MBダウンロード済み"
+
+msgid "updates.step_found"
+msgstr "検出"
+
+msgid "updates.step_verified"
+msgstr "検証済み"
+
+msgid "updates.step_installed"
+msgstr "インストール済み"
+
 msgid "services.checking"
 msgstr "更新を確認中..."
 

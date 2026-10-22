@@ -157,6 +157,8 @@ public:
     float listWidth=0;
     // V2 only: the detail pane's width (unscaled) beside the cards (Public rooms); 0 for the usual split.
     float paneWidth=0;
+    // V2 only: the detail pane on the cards' left, on the screen's own ground (launch recovery).
+    bool paneLeft=false;
     // V2 only: a body's focused card and the column it sits in, where a value's
     // choices open as they do on the cards. The body sets them each frame.
     struct { v2::Box card, column; } bodyChoices;

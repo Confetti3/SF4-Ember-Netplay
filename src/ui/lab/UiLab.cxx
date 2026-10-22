@@ -8,11 +8,13 @@
 // --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms).
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
+// --recovery launch|offer|download|install: the launch window, or the updater at that step
 // UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--public] [--rankings] [--playback] [--pip] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
 #include "../FighterSelector.hxx"
+#include "../RecoveryMenu.hxx"
 #include "../ReplayPlaybackHud.hxx"
 #include "../SelectionArt.hxx"
 #include "../TrainingPanel.hxx"
@@ -261,7 +263,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     float textSize = 1;
     bool v2 = false, tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
-    std::string shot, keys, screen;
+    std::string shot, keys, screen, recovery;
     bool inRoom = false, pip = false;
     int hud = -1;
     bool trainingPanel = false, blumint = false, watcher = false, update = false, publicLab = false, rankings = false, playback = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
@@ -286,6 +288,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--moment" && more) moment = args[++i];
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
+        else if (args[i] == "--recovery" && more) recovery = args[++i];
         else if (args[i] == "--toasts") toasts = true;
         else if (args[i] == "--welcome") welcome = true;
         else if (args[i] == "--pad") pad = true;
@@ -342,6 +345,21 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         return true;
     };
     int frame = 0, momentAt = 40;
+    // The recovery window's state at the asked step: 1.3.0 found on Nightly, then fetched.
+    ui::GameMenu recoveryMenu; recoveryMenu.navigation = ui::RecoveryNavigation(recovery != "launch");
+    platform::ServiceSnapshot recoveryState;
+    recoveryState.installedVersion = "1.2.0"; recoveryState.channel = launcher::UpdateChannel::Nightly;
+    if (!recovery.empty() && recovery != "launch") {
+        auto& u = recoveryState.update;
+        u.ok = u.updateAvailable = true; u.latestVersion = "1.3.0"; u.expectedSha256.assign(64, 'a');
+        u.releaseNotes = "New menus with categories\nSpeech for menus\nRoom board for Steam Deck and ultrawide";
+    }
+    if (recovery == "download" || recovery == "install") {
+        recoveryState.pending = true; recoveryState.lastAction = platform::ServiceAction::InstallUpdate;
+        recoveryState.updateStage = recovery == "download" ? launcher::UpdateStage::Downloading : launcher::UpdateStage::Extracting;
+        recoveryState.stageDone = recovery == "download" ? 22439526 : 0; recoveryState.stageTotal = recovery == "download" ? 48758784 : 0;
+        recoveryState.message = loc::T(recovery == "download" ? "services.downloading" : "services.installing");
+    }
     for (MSG msg{}; msg.message != WM_QUIT;) {
         while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
         if (msg.message == WM_QUIT) break;
@@ -388,7 +406,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (ImGui::IsKeyPressed(ImGuiKey_F6)) pip = !pip;
         view.preferences.watchedPicture = pip;
         view.watchedPicture = pip ? art.MenuBackdrop().texture : ImTextureID{};
-        if (trainingPanel) {
+        if (!recovery.empty()) {
+            ui::v2::SetOn(view.preferences.lookV2);
+            ui::DrawRecoveryMenu(recoveryMenu, recoveryState, recovery == "launch" ? loc::T("launcher.recovery_opened") : "", recovery != "launch", ui::Tone::Error, true);
+        } else if (trainingPanel) {
             const auto* vp = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
             ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);

@@ -824,7 +824,7 @@ target_link_libraries(sf4e PRIVATE sf4e_app_services)
 add_library(sf4e_recovery STATIC src/ui/RecoverySurface.cxx src/ui/RecoveryController.cxx)
 target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 # XInput is loaded at run time; DirectInput 8 is on every supported Windows.
-target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE d3d9 ole32 shell32 dinput8 dxguid)
+target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE sf4e_settings d3d9 ole32 shell32 dinput8 dxguid)
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME RecoveryController SOURCES src/tests/recovery_controller_test.cxx LIBS sf4e_recovery TIMEOUT 30)
 endif()

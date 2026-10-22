@@ -237,6 +237,18 @@ msgstr "Aktualizace"
 msgid "updates.downloaded_mb"
 msgstr "Staženo {0:.1f} MB"
 
+msgid "updates.downloaded_of_mb"
+msgstr "Staženo {0:.1f} MB z {1:.1f} MB"
+
+msgid "updates.step_found"
+msgstr "Nalezeno"
+
+msgid "updates.step_verified"
+msgstr "Ověřeno"
+
+msgid "updates.step_installed"
+msgstr "Nainstalováno"
+
 msgid "services.checking"
 msgstr "Kontrola aktualizací..."
 

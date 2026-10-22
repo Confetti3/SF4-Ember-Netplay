@@ -277,8 +277,11 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         // Home: the cards and a column with the player. Elsewhere: the cards and the focused one's detail.
         const bool split = !narrow && content.W() >= 820 * s;
         v2::Box list = content, pane{};
-        if (split) pane = v2::CutRight(list, home ? (std::min)(460 * s, content.W() * .42f) : listWidth > 0 ? content.W() - (std::min)(listWidth * s, content.W() * .55f) - 24 * s :
-            paneWidth > 0 ? (std::min)(paneWidth * s, content.W() * .45f) : content.W() * .45f - 24 * s, 24 * s);
+        if (split) {
+            const float w = home ? (std::min)(460 * s, content.W() * .42f) : listWidth > 0 ? content.W() - (std::min)(listWidth * s, content.W() * .55f) - 24 * s :
+                paneWidth > 0 ? (std::min)(paneWidth * s, content.W() * .45f) : content.W() * .45f - 24 * s;
+            pane = paneLeft ? v2::CutLeft(list, w, 24 * s) : v2::CutRight(list, w, 24 * s);
+        }
         if (home && split) list.max.x = list.min.x + (std::min)(600 * s, list.W());
         // A flyout keeps to one line a card past its first page, so more of its settings show at once.
         const bool twoLines = home || listWidth > 0 || (!split && (!flyout || navigation.Screen() == navigation.Root())), grid = columns > 1 && card;
@@ -373,7 +376,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             }
         } else if (split && focusedEntry != entries.end()) {
             ImGui::SetCursorScreenPos(pane.min);
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel, .94f)));
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, paneLeft ? ImVec4(0, 0, 0, 0) : ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel, .94f)));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16 * s, 16 * s));
             // Beside Online play's cards the pane is as tall as what it says; a screen's own pane (News) takes the height.
             const bool fit = listWidth > 0 && !customDetail;

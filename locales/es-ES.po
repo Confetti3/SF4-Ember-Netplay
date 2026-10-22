@@ -237,6 +237,18 @@ msgstr "Actualizaciones"
 msgid "updates.downloaded_mb"
 msgstr "Descargados {0:.1f} MB"
 
+msgid "updates.downloaded_of_mb"
+msgstr "Descargados {0:.1f} MB de {1:.1f} MB"
+
+msgid "updates.step_found"
+msgstr "Encontrada"
+
+msgid "updates.step_verified"
+msgstr "Verificada"
+
+msgid "updates.step_installed"
+msgstr "Instalada"
+
 msgid "services.checking"
 msgstr "Buscando actualizaciones..."
 

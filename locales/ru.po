@@ -237,6 +237,18 @@ msgstr "Обновления"
 msgid "updates.downloaded_mb"
 msgstr "Загружено: {0:.1f} МБ"
 
+msgid "updates.downloaded_of_mb"
+msgstr "Загружено: {0:.1f} из {1:.1f} МБ"
+
+msgid "updates.step_found"
+msgstr "Найдено"
+
+msgid "updates.step_verified"
+msgstr "Проверено"
+
+msgid "updates.step_installed"
+msgstr "Установлено"
+
 msgid "services.checking"
 msgstr "Проверка обновлений..."
 

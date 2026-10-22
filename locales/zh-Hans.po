@@ -237,6 +237,18 @@ msgstr "更新"
 msgid "updates.downloaded_mb"
 msgstr "已下载 {0:.1f} MB"
 
+msgid "updates.downloaded_of_mb"
+msgstr "已下载 {0:.1f} MB / {1:.1f} MB"
+
+msgid "updates.step_found"
+msgstr "已找到"
+
+msgid "updates.step_verified"
+msgstr "已验证"
+
+msgid "updates.step_installed"
+msgstr "已安装"
+
 msgid "services.checking"
 msgstr "正在检查更新..."
 

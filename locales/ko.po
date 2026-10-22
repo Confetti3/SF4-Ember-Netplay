@@ -237,6 +237,18 @@ msgstr "업데이트"
 msgid "updates.downloaded_mb"
 msgstr "{0:.1f} MB 다운로드됨"
 
+msgid "updates.downloaded_of_mb"
+msgstr "{1:.1f} MB 중 {0:.1f} MB 다운로드됨"
+
+msgid "updates.step_found"
+msgstr "찾음"
+
+msgid "updates.step_verified"
+msgstr "확인됨"
+
+msgid "updates.step_installed"
+msgstr "설치됨"
+
 msgid "services.checking"
 msgstr "업데이트 확인 중..."
 
