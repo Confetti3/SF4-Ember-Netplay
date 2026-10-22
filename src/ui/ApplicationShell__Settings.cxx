@@ -20,7 +20,7 @@ std::vector<std::pair<std::string, std::string>> ApplicationShell::SettingsTabs(
 bool ApplicationShell::SettingsTab(const std::string& screen) { return screen.compare(0, 4, "tab-") == 0; }
 std::string ApplicationShell::SettingsTabOf(const std::string& screen) { return screen.substr(0, screen.find('/')); }
 bool ApplicationShell::SettingsPreview(const std::string& id) {
-    return id == "name" || id == "main-character" || id == "record" || id == "share-steam" || id.compare(0, 3, "hud") == 0 ||
+    return id == "name" || id == "main-character" || id == "awards" || id == "record" || id == "share-steam" || id.compare(0, 3, "hud") == 0 ||
         id == "watched-picture" || id == "picture-corner" || id == "picture-size";
 }
 

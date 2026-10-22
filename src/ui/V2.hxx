@@ -122,6 +122,13 @@ TierColors TierColor(Tier tier);
 // scaled to `size`; -1 draws nothing.
 constexpr int IconCount = 12;
 void Icon(ImDrawList* draw, int icon, ImVec2 at, float size, ImU32 ink);
+// The awards (the Awards board): a title on its tier's plate and the icon that
+// goes with it, lowest tier first. The ids are the identity backend's; the
+// rest are the catalog ids of its title, its icon's name and how to earn it.
+struct Award { const char* id; int icon; Tier tier; const char *title, *name, *how; };
+extern const Award Awards[11];
+const Award* FindAward(const std::string& id);
+const char* TierName(Tier tier);
 
 // The player tag: flag · rank · name · title · indicators, always in that
 // order. Space short: status goes first, then the title; flag, rank, name and

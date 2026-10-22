@@ -294,6 +294,8 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(gap, gap));
         for (std::size_t i = 0; i < entries.size(); ++i) {
             const auto& e = entries[i];
+            // Home's "awards" row is the player's card in the pane.
+            if (home && split && e.id == "awards") continue;
             const bool focused = e.id == navigation.Focus(), enabled = feedback_.Enabled(e), cell = i < cells;
             if (cell && i % columns) ImGui::SameLine(0, gap);
             // A group's heading over its first card.
@@ -340,6 +342,16 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             const auto& c = v2::Colors();
             const float cardHeight = v2::Tag(d, pane.min, pane.W(), MenuPlayerCard().profile, v2::TagSize::L);
             NoteUserText(MenuPlayerCard().profile.title);
+            // The card is the "awards" row: Select, or a click, opens the awards wall.
+            const auto row = std::find_if(entries.begin(), entries.end(), [](const MenuEntry& e) { return e.id == "awards"; });
+            if (row != entries.end()) {
+                const v2::Box card{pane.min, ImVec2(pane.max.x, pane.min.y + cardHeight)};
+                ImGui::SetCursorScreenPos(card.min);
+                const bool pressed = ImGui::InvisibleButton("##player-card", ImVec2(card.W(), card.H())), hovered = ImGui::IsItemHovered();
+                if (pressed && listEnabled && !modalAtStart && !navigation.Editing() && !navigation.Asking()) { navigation.Focus(row->id, entries); action = navigation.Choose(entries); }
+                else if (listEnabled && pointerMoved && hovered && !navigation.Choosing()) navigation.Focus(row->id, entries);
+                if (row->id == navigation.Focus()) v2::Focus(d, card.min, card.max);
+            }
             v2::CutTop(pane, cardHeight, 16 * s);
             const auto& news = MenuNews();
             const float head = 40 * s, item = 56 * s;

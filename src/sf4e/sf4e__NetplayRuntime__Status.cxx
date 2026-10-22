@@ -332,6 +332,7 @@ std::uint64_t PublishFingerprint() {
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
     mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
     mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.pictureSpot); mix(runtime->preferences.roomColumn); mix(runtime->preferences.roomSplit); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume);
+    mixString(runtime->preferences.wornTitle); mixString(runtime->preferences.wornIcon);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());

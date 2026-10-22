@@ -7089,3 +7089,165 @@ msgstr "Сразу на главный экран. Всё это есть и в 
 
 msgid "welcome.previous"
 msgstr "Предыдущий шаг"
+
+msgid "screen.awards"
+msgstr "Награды"
+
+msgid "awards.titles"
+msgstr "Титулы"
+
+msgid "awards.icons"
+msgstr "Значки"
+
+msgid "awards.card"
+msgstr "Твоя карточка"
+
+msgid "awards.card_detail"
+msgstr "Твоя карточка такой, какой её видят другие. Выбор открывает награды: титулы и значки, которые можно носить."
+
+msgid "awards.entry_detail"
+msgstr "Титулы и значки, которые ты получил, и как получить остальные. Выбери один, чтобы носить его на карточке."
+
+msgid "awards.earned_count"
+msgstr "Получено {0} из {1}"
+
+msgid "awards.card_heading"
+msgstr "ТВОЯ КАРТОЧКА · КАК ЕЁ ВИДЯТ ДРУГИЕ"
+
+msgid "awards.where_heading"
+msgstr "ГДЕ ОНА ВИДНА"
+
+msgid "awards.on_card"
+msgstr "На карточке"
+
+msgid "awards.earned"
+msgstr "Получено"
+
+msgid "awards.locked"
+msgstr "Закрыто"
+
+msgid "awards.wear"
+msgstr "Надеть на карточку"
+
+msgid "awards.detail_worn"
+msgstr "На твоей карточке."
+
+msgid "awards.detail_earned"
+msgstr "Получено. Выбор надевает на карточку."
+
+msgid "awards.detail_locked"
+msgstr "Закрыто. {0}."
+
+msgid "tier.ash"
+msgstr "Пепел"
+
+msgid "tier.copper"
+msgstr "Медь"
+
+msgid "tier.silver"
+msgstr "Серебро"
+
+msgid "tier.gold"
+msgstr "Золото"
+
+msgid "tier.ember"
+msgstr "Ember"
+
+msgid "award.entrant.title"
+msgstr "УЧАСТНИК EMBER"
+
+msgid "award.entrant.icon"
+msgstr "Искра"
+
+msgid "award.entrant.how"
+msgstr "Сыграй один сет в любой сетке Ember"
+
+msgid "award.launch-night.title"
+msgstr "НОЧЬ ЗАПУСКА"
+
+msgid "award.launch-night.icon"
+msgstr "Перемотка"
+
+msgid "award.launch-night.how"
+msgstr "Сыграй во время события запуска Ember"
+
+msgid "award.weekly-top16.title"
+msgstr "ТОП-16 НЕДЕЛИ"
+
+msgid "award.weekly-top16.icon"
+msgstr "Лавр"
+
+msgid "award.weekly-top16.how"
+msgstr "Войди в топ-16 на Ember Weekly"
+
+msgid "award.rollback-regular.title"
+msgstr "ЗАВСЕГДАТАЙ ROLLBACK"
+
+msgid "award.rollback-regular.icon"
+msgstr "Календарь"
+
+msgid "award.rollback-regular.how"
+msgstr "Сыграй в 10 Ember Weekly за сезон"
+
+msgid "award.weekly-top8.title"
+msgstr "ТОП-8 НЕДЕЛИ"
+
+msgid "award.weekly-top8.icon"
+msgstr "Восьмиугольник 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Войди в топ-8 на Ember Weekly"
+
+msgid "award.by-ear.title"
+msgstr "НА СЛУХ"
+
+msgid "award.by-ear.icon"
+msgstr "Звуковая волна"
+
+msgid "award.by-ear.how"
+msgstr "Выиграй сет в сетке только со звуком"
+
+msgid "award.monthly-finalist.title"
+msgstr "ФИНАЛИСТ МЕСЯЦА"
+
+msgid "award.monthly-finalist.icon"
+msgstr "Медаль"
+
+msgid "award.monthly-finalist.how"
+msgstr "Дойди до гранд-финала Ember Monthly"
+
+msgid "award.organizer.title"
+msgstr "ОРГАНИЗАТОР ТУРНИРОВ"
+
+msgid "award.organizer.icon"
+msgstr "Флаг"
+
+msgid "award.organizer.how"
+msgstr "Выдаётся командой Ember организаторам"
+
+msgid "award.commentary.title"
+msgstr "КОММЕНТАТОР"
+
+msgid "award.commentary.icon"
+msgstr "Микрофон"
+
+msgid "award.commentary.how"
+msgstr "Выдаётся комментаторам трансляций"
+
+msgid "award.season1-veteran.title"
+msgstr "ВЕТЕРАН 1-ГО СЕЗОНА"
+
+msgid "award.season1-veteran.icon"
+msgstr "Герб"
+
+msgid "award.season1-veteran.how"
+msgstr "Войди в топ-32 на каждом Monthly 1-го сезона"
+
+msgid "award.cup-champion.title"
+msgstr "ЧЕМПИОН EMBER CUP"
+
+msgid "award.cup-champion.icon"
+msgstr "Корона"
+
+msgid "award.cup-champion.how"
+msgstr "Выиграй Ember Cup в конце сезона"

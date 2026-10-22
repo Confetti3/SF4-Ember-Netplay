@@ -7089,3 +7089,165 @@ msgstr "바로 홈으로 갑니다. 여기 있는 모든 것은 설정에도 있
 
 msgid "welcome.previous"
 msgstr "이전 단계"
+
+msgid "screen.awards"
+msgstr "어워드"
+
+msgid "awards.titles"
+msgstr "칭호"
+
+msgid "awards.icons"
+msgstr "아이콘"
+
+msgid "awards.card"
+msgstr "내 카드"
+
+msgid "awards.card_detail"
+msgstr "다른 사람에게 보이는 내 카드입니다. 선택하면 어워드가 열립니다. 달 수 있는 칭호와 아이콘이 있습니다."
+
+msgid "awards.entry_detail"
+msgstr "획득한 칭호와 아이콘, 나머지를 얻는 방법입니다. 하나를 선택하면 카드에 답니다."
+
+msgid "awards.earned_count"
+msgstr "{1}개 중 {0}개 획득"
+
+msgid "awards.card_heading"
+msgstr "내 카드 · 다른 사람에게 보이는 모습"
+
+msgid "awards.where_heading"
+msgstr "표시되는 곳"
+
+msgid "awards.on_card"
+msgstr "카드에 표시 중"
+
+msgid "awards.earned"
+msgstr "획득"
+
+msgid "awards.locked"
+msgstr "잠김"
+
+msgid "awards.wear"
+msgstr "카드에 달기"
+
+msgid "awards.detail_worn"
+msgstr "카드에 표시 중입니다."
+
+msgid "awards.detail_earned"
+msgstr "획득했습니다. 선택하면 카드에 답니다."
+
+msgid "awards.detail_locked"
+msgstr "잠김. {0}."
+
+msgid "tier.ash"
+msgstr "애시"
+
+msgid "tier.copper"
+msgstr "코퍼"
+
+msgid "tier.silver"
+msgstr "실버"
+
+msgid "tier.gold"
+msgstr "골드"
+
+msgid "tier.ember"
+msgstr "엠버"
+
+msgid "award.entrant.title"
+msgstr "EMBER 참가자"
+
+msgid "award.entrant.icon"
+msgstr "불씨"
+
+msgid "award.entrant.how"
+msgstr "Ember 대진표에서 한 세트 플레이"
+
+msgid "award.launch-night.title"
+msgstr "런칭 나이트"
+
+msgid "award.launch-night.icon"
+msgstr "되감기"
+
+msgid "award.launch-night.how"
+msgstr "Ember 런칭 이벤트 중에 플레이"
+
+msgid "award.weekly-top16.title"
+msgstr "위클리 TOP 16"
+
+msgid "award.weekly-top16.icon"
+msgstr "월계관"
+
+msgid "award.weekly-top16.how"
+msgstr "Ember Weekly에서 16위 안에 들기"
+
+msgid "award.rollback-regular.title"
+msgstr "롤백 단골"
+
+msgid "award.rollback-regular.icon"
+msgstr "달력"
+
+msgid "award.rollback-regular.how"
+msgstr "한 시즌에 Ember Weekly 10회 참가"
+
+msgid "award.weekly-top8.title"
+msgstr "위클리 TOP 8"
+
+msgid "award.weekly-top8.icon"
+msgstr "팔각형 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Ember Weekly에서 8위 안에 들기"
+
+msgid "award.by-ear.title"
+msgstr "귀로 듣고"
+
+msgid "award.by-ear.icon"
+msgstr "음파"
+
+msgid "award.by-ear.how"
+msgstr "오디오 전용 대진표에서 한 세트 승리"
+
+msgid "award.monthly-finalist.title"
+msgstr "먼슬리 결승 진출"
+
+msgid "award.monthly-finalist.icon"
+msgstr "메달"
+
+msgid "award.monthly-finalist.how"
+msgstr "Ember Monthly 그랜드 파이널 진출"
+
+msgid "award.organizer.title"
+msgstr "대회 주최자"
+
+msgid "award.organizer.icon"
+msgstr "깃발"
+
+msgid "award.organizer.how"
+msgstr "Ember 운영진이 이벤트 주최자에게 수여"
+
+msgid "award.commentary.title"
+msgstr "해설"
+
+msgid "award.commentary.icon"
+msgstr "마이크"
+
+msgid "award.commentary.how"
+msgstr "방송 해설자에게 수여"
+
+msgid "award.season1-veteran.title"
+msgstr "시즌 1 베테랑"
+
+msgid "award.season1-veteran.icon"
+msgstr "문장"
+
+msgid "award.season1-veteran.how"
+msgstr "시즌 1 모든 먼슬리에서 32위 안에 들기"
+
+msgid "award.cup-champion.title"
+msgstr "EMBER CUP 챔피언"
+
+msgid "award.cup-champion.icon"
+msgstr "왕관"
+
+msgid "award.cup-champion.how"
+msgstr "시즌 마지막 Ember Cup 우승"

@@ -7088,3 +7088,165 @@ msgstr "Aller directement à l'accueil. Tout ceci est aussi dans Paramètres."
 
 msgid "welcome.previous"
 msgstr "Étape précédente"
+
+msgid "screen.awards"
+msgstr "Récompenses"
+
+msgid "awards.titles"
+msgstr "Titres"
+
+msgid "awards.icons"
+msgstr "Icônes"
+
+msgid "awards.card"
+msgstr "Ta carte"
+
+msgid "awards.card_detail"
+msgstr "Ta carte telle que les autres la voient. Sélectionner ouvre tes récompenses : les titres et icônes que tu peux porter."
+
+msgid "awards.entry_detail"
+msgstr "Les titres et icônes que tu as obtenus, et comment obtenir les autres. Sélectionnes-en un pour le porter sur ta carte."
+
+msgid "awards.earned_count"
+msgstr "{0} sur {1} obtenus"
+
+msgid "awards.card_heading"
+msgstr "TA CARTE · TELLE QUE LES AUTRES LA VOIENT"
+
+msgid "awards.where_heading"
+msgstr "OÙ ELLE APPARAÎT"
+
+msgid "awards.on_card"
+msgstr "Sur ta carte"
+
+msgid "awards.earned"
+msgstr "Obtenu"
+
+msgid "awards.locked"
+msgstr "Verrouillé"
+
+msgid "awards.wear"
+msgstr "Mettre sur la carte"
+
+msgid "awards.detail_worn"
+msgstr "Sur ta carte."
+
+msgid "awards.detail_earned"
+msgstr "Obtenu. Sélectionner le met sur ta carte."
+
+msgid "awards.detail_locked"
+msgstr "Verrouillé. {0}."
+
+msgid "tier.ash"
+msgstr "Cendre"
+
+msgid "tier.copper"
+msgstr "Cuivre"
+
+msgid "tier.silver"
+msgstr "Argent"
+
+msgid "tier.gold"
+msgstr "Or"
+
+msgid "tier.ember"
+msgstr "Ember"
+
+msgid "award.entrant.title"
+msgstr "PARTICIPANT EMBER"
+
+msgid "award.entrant.icon"
+msgstr "Étincelle"
+
+msgid "award.entrant.how"
+msgstr "Joue un set dans un tableau Ember"
+
+msgid "award.launch-night.title"
+msgstr "SOIRÉE DE LANCEMENT"
+
+msgid "award.launch-night.icon"
+msgstr "Retour"
+
+msgid "award.launch-night.how"
+msgstr "Joue pendant l’événement de lancement d’Ember"
+
+msgid "award.weekly-top16.title"
+msgstr "TOP 16 HEBDO"
+
+msgid "award.weekly-top16.icon"
+msgstr "Laurier"
+
+msgid "award.weekly-top16.how"
+msgstr "Finis dans le top 16 d’un Ember Weekly"
+
+msgid "award.rollback-regular.title"
+msgstr "HABITUÉ DU ROLLBACK"
+
+msgid "award.rollback-regular.icon"
+msgstr "Calendrier"
+
+msgid "award.rollback-regular.how"
+msgstr "Participe à 10 Ember Weekly en une saison"
+
+msgid "award.weekly-top8.title"
+msgstr "TOP 8 HEBDO"
+
+msgid "award.weekly-top8.icon"
+msgstr "Octogone 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Finis dans le top 8 d’un Ember Weekly"
+
+msgid "award.by-ear.title"
+msgstr "À L’OREILLE"
+
+msgid "award.by-ear.icon"
+msgstr "Onde sonore"
+
+msgid "award.by-ear.how"
+msgstr "Gagne un set dans le tableau audio uniquement"
+
+msgid "award.monthly-finalist.title"
+msgstr "FINALISTE MENSUEL"
+
+msgid "award.monthly-finalist.icon"
+msgstr "Médaille"
+
+msgid "award.monthly-finalist.how"
+msgstr "Atteins la grande finale d’un Ember Monthly"
+
+msgid "award.organizer.title"
+msgstr "ORGANISATEUR DE TOURNOI"
+
+msgid "award.organizer.icon"
+msgstr "Drapeau"
+
+msgid "award.organizer.how"
+msgstr "Accordé par l’équipe Ember aux organisateurs"
+
+msgid "award.commentary.title"
+msgstr "AU COMMENTAIRE"
+
+msgid "award.commentary.icon"
+msgstr "Micro"
+
+msgid "award.commentary.how"
+msgstr "Accordé aux commentateurs de stream"
+
+msgid "award.season1-veteran.title"
+msgstr "VÉTÉRAN SAISON 1"
+
+msgid "award.season1-veteran.icon"
+msgstr "Blason"
+
+msgid "award.season1-veteran.how"
+msgstr "Finis dans le top 32 de chaque Monthly de la saison 1"
+
+msgid "award.cup-champion.title"
+msgstr "CHAMPION DE L’EMBER CUP"
+
+msgid "award.cup-champion.icon"
+msgstr "Couronne"
+
+msgid "award.cup-champion.how"
+msgstr "Remporte l’Ember Cup de fin de saison"

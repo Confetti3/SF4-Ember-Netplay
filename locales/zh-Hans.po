@@ -7089,3 +7089,165 @@ msgstr "直接前往主页。这里的所有内容在设置中也有。"
 
 msgid "welcome.previous"
 msgstr "上一步"
+
+msgid "screen.awards"
+msgstr "奖励"
+
+msgid "awards.titles"
+msgstr "称号"
+
+msgid "awards.icons"
+msgstr "图标"
+
+msgid "awards.card"
+msgstr "你的名片"
+
+msgid "awards.card_detail"
+msgstr "其他人看到的你的名片。选择可打开奖励：你可以佩戴的称号和图标。"
+
+msgid "awards.entry_detail"
+msgstr "你已获得的称号和图标，以及其余的获取方式。选择一个即可佩戴在名片上。"
+
+msgid "awards.earned_count"
+msgstr "已获得 {0}/{1}"
+
+msgid "awards.card_heading"
+msgstr "你的名片 · 别人看到的样子"
+
+msgid "awards.where_heading"
+msgstr "显示位置"
+
+msgid "awards.on_card"
+msgstr "已佩戴"
+
+msgid "awards.earned"
+msgstr "已获得"
+
+msgid "awards.locked"
+msgstr "未解锁"
+
+msgid "awards.wear"
+msgstr "佩戴到名片"
+
+msgid "awards.detail_worn"
+msgstr "已佩戴在名片上。"
+
+msgid "awards.detail_earned"
+msgstr "已获得。选择即可佩戴到名片上。"
+
+msgid "awards.detail_locked"
+msgstr "未解锁。{0}。"
+
+msgid "tier.ash"
+msgstr "灰烬"
+
+msgid "tier.copper"
+msgstr "铜"
+
+msgid "tier.silver"
+msgstr "银"
+
+msgid "tier.gold"
+msgstr "金"
+
+msgid "tier.ember"
+msgstr "余烬"
+
+msgid "award.entrant.title"
+msgstr "EMBER 参赛者"
+
+msgid "award.entrant.icon"
+msgstr "火花"
+
+msgid "award.entrant.how"
+msgstr "在任意 Ember 对阵中打一局"
+
+msgid "award.launch-night.title"
+msgstr "首发之夜"
+
+msgid "award.launch-night.icon"
+msgstr "回溯"
+
+msgid "award.launch-night.how"
+msgstr "在 Ember 首发活动期间游玩"
+
+msgid "award.weekly-top16.title"
+msgstr "周赛前 16"
+
+msgid "award.weekly-top16.icon"
+msgstr "桂冠"
+
+msgid "award.weekly-top16.how"
+msgstr "在 Ember 周赛中进入前 16"
+
+msgid "award.rollback-regular.title"
+msgstr "回滚常客"
+
+msgid "award.rollback-regular.icon"
+msgstr "日历"
+
+msgid "award.rollback-regular.how"
+msgstr "一个赛季内参加 10 次 Ember 周赛"
+
+msgid "award.weekly-top8.title"
+msgstr "周赛前 8"
+
+msgid "award.weekly-top8.icon"
+msgstr "八边形 8"
+
+msgid "award.weekly-top8.how"
+msgstr "在 Ember 周赛中进入前 8"
+
+msgid "award.by-ear.title"
+msgstr "凭耳取胜"
+
+msgid "award.by-ear.icon"
+msgstr "声波"
+
+msgid "award.by-ear.how"
+msgstr "在纯音频对阵中赢下一局"
+
+msgid "award.monthly-finalist.title"
+msgstr "月赛决赛选手"
+
+msgid "award.monthly-finalist.icon"
+msgstr "奖牌"
+
+msgid "award.monthly-finalist.how"
+msgstr "进入 Ember 月赛总决赛"
+
+msgid "award.organizer.title"
+msgstr "赛事组织者"
+
+msgid "award.organizer.icon"
+msgstr "旗帜"
+
+msgid "award.organizer.how"
+msgstr "由 Ember 团队授予活动主办者"
+
+msgid "award.commentary.title"
+msgstr "解说"
+
+msgid "award.commentary.icon"
+msgstr "麦克风"
+
+msgid "award.commentary.how"
+msgstr "授予直播解说"
+
+msgid "award.season1-veteran.title"
+msgstr "第一赛季老将"
+
+msgid "award.season1-veteran.icon"
+msgstr "徽章"
+
+msgid "award.season1-veteran.how"
+msgstr "在第一赛季每场月赛中进入前 32"
+
+msgid "award.cup-champion.title"
+msgstr "EMBER CUP 冠军"
+
+msgid "award.cup-champion.icon"
+msgstr "王冠"
+
+msgid "award.cup-champion.how"
+msgstr "赢得赛季末的 Ember Cup"

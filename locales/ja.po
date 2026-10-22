@@ -7089,3 +7089,165 @@ msgstr "すぐにホームへ。ここにあるものはすべて設定にもあ
 
 msgid "welcome.previous"
 msgstr "前のステップ"
+
+msgid "screen.awards"
+msgstr "アワード"
+
+msgid "awards.titles"
+msgstr "称号"
+
+msgid "awards.icons"
+msgstr "アイコン"
+
+msgid "awards.card"
+msgstr "あなたのカード"
+
+msgid "awards.card_detail"
+msgstr "他のプレイヤーから見たあなたのカード。選択するとアワードを開きます。付けられる称号とアイコンの一覧です。"
+
+msgid "awards.entry_detail"
+msgstr "獲得した称号とアイコン、そして残りの獲得方法。選択するとカードに付けます。"
+
+msgid "awards.earned_count"
+msgstr "{1}個中{0}個獲得"
+
+msgid "awards.card_heading"
+msgstr "あなたのカード · 他の人からの見え方"
+
+msgid "awards.where_heading"
+msgstr "表示される場所"
+
+msgid "awards.on_card"
+msgstr "カードに装着中"
+
+msgid "awards.earned"
+msgstr "獲得済み"
+
+msgid "awards.locked"
+msgstr "未獲得"
+
+msgid "awards.wear"
+msgstr "カードに付ける"
+
+msgid "awards.detail_worn"
+msgstr "カードに装着中。"
+
+msgid "awards.detail_earned"
+msgstr "獲得済み。選択するとカードに付けます。"
+
+msgid "awards.detail_locked"
+msgstr "未獲得。{0}。"
+
+msgid "tier.ash"
+msgstr "アッシュ"
+
+msgid "tier.copper"
+msgstr "カッパー"
+
+msgid "tier.silver"
+msgstr "シルバー"
+
+msgid "tier.gold"
+msgstr "ゴールド"
+
+msgid "tier.ember"
+msgstr "エンバー"
+
+msgid "award.entrant.title"
+msgstr "EMBER参加者"
+
+msgid "award.entrant.icon"
+msgstr "スパーク"
+
+msgid "award.entrant.how"
+msgstr "Emberのトーナメントで1セット対戦する"
+
+msgid "award.launch-night.title"
+msgstr "ローンチナイト"
+
+msgid "award.launch-night.icon"
+msgstr "リワインド"
+
+msgid "award.launch-night.how"
+msgstr "Emberのローンチイベント中にプレイする"
+
+msgid "award.weekly-top16.title"
+msgstr "ウィークリー TOP16"
+
+msgid "award.weekly-top16.icon"
+msgstr "月桂冠"
+
+msgid "award.weekly-top16.how"
+msgstr "Ember Weeklyで16位以内に入る"
+
+msgid "award.rollback-regular.title"
+msgstr "ロールバック常連"
+
+msgid "award.rollback-regular.icon"
+msgstr "カレンダー"
+
+msgid "award.rollback-regular.how"
+msgstr "1シーズンでEmber Weeklyに10回参加する"
+
+msgid "award.weekly-top8.title"
+msgstr "ウィークリー TOP8"
+
+msgid "award.weekly-top8.icon"
+msgstr "八角形8"
+
+msgid "award.weekly-top8.how"
+msgstr "Ember Weeklyで8位以内に入る"
+
+msgid "award.by-ear.title"
+msgstr "耳で勝つ"
+
+msgid "award.by-ear.icon"
+msgstr "音波"
+
+msgid "award.by-ear.how"
+msgstr "音声のみのトーナメントで1セット勝つ"
+
+msgid "award.monthly-finalist.title"
+msgstr "マンスリー決勝進出"
+
+msgid "award.monthly-finalist.icon"
+msgstr "メダル"
+
+msgid "award.monthly-finalist.how"
+msgstr "Ember Monthlyでグランドファイナルに進出する"
+
+msgid "award.organizer.title"
+msgstr "大会主催者"
+
+msgid "award.organizer.icon"
+msgstr "旗"
+
+msgid "award.organizer.how"
+msgstr "Emberスタッフがイベント主催者に授与"
+
+msgid "award.commentary.title"
+msgstr "実況担当"
+
+msgid "award.commentary.icon"
+msgstr "マイク"
+
+msgid "award.commentary.how"
+msgstr "配信の実況者に授与"
+
+msgid "award.season1-veteran.title"
+msgstr "シーズン1ベテラン"
+
+msgid "award.season1-veteran.icon"
+msgstr "紋章"
+
+msgid "award.season1-veteran.how"
+msgstr "シーズン1の全マンスリーで32位以内に入る"
+
+msgid "award.cup-champion.title"
+msgstr "EMBER CUP王者"
+
+msgid "award.cup-champion.icon"
+msgstr "王冠"
+
+msgid "award.cup-champion.how"
+msgstr "シーズン最後のEmber Cupで優勝する"

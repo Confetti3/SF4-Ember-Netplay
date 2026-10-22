@@ -58,6 +58,9 @@ struct ShellView {
     std::string playerTitle;
     v2::Tier playerTier = v2::Tier::None;
     int playerIcon = -1;
+    // The awards earned (v2::Awards' ids), which the Awards wall lets the
+    // player wear; empty until the backend fills it, so all locked.
+    std::vector<std::string> earnedAwards;
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
     bool canReplaceRoom = false;
@@ -426,6 +429,13 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     void CreateActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     bool CreateAdjust(const MenuAction& action);
     // V2's Create (GameMenu body): the Room and Rules panels, the focused row's words, and the Create button.
+    // The awards wall (ApplicationShell__Awards.cxx): "awards" for titles, "awards-icons" for icons.
+    static bool AwardsScreen(const std::string& screen) { return screen == "awards" || screen == "awards-icons"; }
+    static const v2::Award* WornAward(const ShellView& v, const std::string& id);
+    static std::string EarnedCount(const ShellView& v);
+    static int AwardColumns();
+    std::vector<MenuEntry> AwardRows(const ShellView& v, const std::string& screen, std::string& title) const;
+    void DrawAwardsBoard(const ShellView& v, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback);
     void DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback);
     // The Create screen, with Practice room off (createPractice_).
     void OpenCreate();
@@ -482,7 +492,7 @@ void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,Menu
     void DrawRoomLayoutPreview();
     std::string roomBoardFocus_;
     // The Create board's focus last frame: a new one scrolls into view.
-    std::string createFocus_;
+    std::string createFocus_, awardsFocus_;
 // The Settings tab's rows by panel, its header's path and the focus last drawn (SettingsTabRows, DrawSettingsBoard).
 std::vector<MenuEntry> settingsRows_;std::string settingsEyebrow_,settingsFocus_;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its

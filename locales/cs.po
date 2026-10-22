@@ -7088,3 +7088,165 @@ msgstr "Rovnou na Domů. Vše zde je také v Nastavení."
 
 msgid "welcome.previous"
 msgstr "Předchozí krok"
+
+msgid "screen.awards"
+msgstr "Ocenění"
+
+msgid "awards.titles"
+msgstr "Tituly"
+
+msgid "awards.icons"
+msgstr "Ikony"
+
+msgid "awards.card"
+msgstr "Tvoje karta"
+
+msgid "awards.card_detail"
+msgstr "Tvoje karta, jak ji vidí ostatní. Výběr otevře tvá ocenění: tituly a ikony, které můžeš nosit."
+
+msgid "awards.entry_detail"
+msgstr "Tituly a ikony, které jsi získal, a jak získat ostatní. Vyber jeden a nos ho na své kartě."
+
+msgid "awards.earned_count"
+msgstr "Získáno {0} z {1}"
+
+msgid "awards.card_heading"
+msgstr "TVOJE KARTA · JAK JI VIDÍ OSTATNÍ"
+
+msgid "awards.where_heading"
+msgstr "KDE SE ZOBRAZUJE"
+
+msgid "awards.on_card"
+msgstr "Na tvé kartě"
+
+msgid "awards.earned"
+msgstr "Získáno"
+
+msgid "awards.locked"
+msgstr "Zamčeno"
+
+msgid "awards.wear"
+msgstr "Dát na kartu"
+
+msgid "awards.detail_worn"
+msgstr "Na tvé kartě."
+
+msgid "awards.detail_earned"
+msgstr "Získáno. Výběr ho dá na tvou kartu."
+
+msgid "awards.detail_locked"
+msgstr "Zamčeno. {0}."
+
+msgid "tier.ash"
+msgstr "Popel"
+
+msgid "tier.copper"
+msgstr "Měď"
+
+msgid "tier.silver"
+msgstr "Stříbro"
+
+msgid "tier.gold"
+msgstr "Zlato"
+
+msgid "tier.ember"
+msgstr "Ember"
+
+msgid "award.entrant.title"
+msgstr "ÚČASTNÍK EMBER"
+
+msgid "award.entrant.icon"
+msgstr "Jiskra"
+
+msgid "award.entrant.how"
+msgstr "Odehraj jeden set v libovolném pavouku Ember"
+
+msgid "award.launch-night.title"
+msgstr "NOC SPUŠTĚNÍ"
+
+msgid "award.launch-night.icon"
+msgstr "Přetočení"
+
+msgid "award.launch-night.how"
+msgstr "Hraj během události ke spuštění Emberu"
+
+msgid "award.weekly-top16.title"
+msgstr "TOP 16 TÝDNE"
+
+msgid "award.weekly-top16.icon"
+msgstr "Vavřín"
+
+msgid "award.weekly-top16.how"
+msgstr "Skonči v top 16 na Ember Weekly"
+
+msgid "award.rollback-regular.title"
+msgstr "ROLLBACKOVÝ ŠTAMGAST"
+
+msgid "award.rollback-regular.icon"
+msgstr "Kalendář"
+
+msgid "award.rollback-regular.how"
+msgstr "Zúčastni se 10 turnajů Ember Weekly v jedné sezóně"
+
+msgid "award.weekly-top8.title"
+msgstr "TOP 8 TÝDNE"
+
+msgid "award.weekly-top8.icon"
+msgstr "Osmiúhelník 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Skonči v top 8 na Ember Weekly"
+
+msgid "award.by-ear.title"
+msgstr "PO SLUCHU"
+
+msgid "award.by-ear.icon"
+msgstr "Zvuková vlna"
+
+msgid "award.by-ear.how"
+msgstr "Vyhraj set v pavouku jen se zvukem"
+
+msgid "award.monthly-finalist.title"
+msgstr "FINALISTA MĚSÍCE"
+
+msgid "award.monthly-finalist.icon"
+msgstr "Medaile"
+
+msgid "award.monthly-finalist.how"
+msgstr "Dostaň se do velkého finále Ember Monthly"
+
+msgid "award.organizer.title"
+msgstr "POŘADATEL TURNAJŮ"
+
+msgid "award.organizer.icon"
+msgstr "Vlajka"
+
+msgid "award.organizer.how"
+msgstr "Uděluje tým Emberu pořadatelům akcí"
+
+msgid "award.commentary.title"
+msgstr "KOMENTÁTOR"
+
+msgid "award.commentary.icon"
+msgstr "Mikrofon"
+
+msgid "award.commentary.how"
+msgstr "Uděluje se komentátorům streamů"
+
+msgid "award.season1-veteran.title"
+msgstr "VETERÁN 1. SEZÓNY"
+
+msgid "award.season1-veteran.icon"
+msgstr "Erb"
+
+msgid "award.season1-veteran.how"
+msgstr "Skonči v top 32 v každém Monthly 1. sezóny"
+
+msgid "award.cup-champion.title"
+msgstr "ŠAMPION EMBER CUP"
+
+msgid "award.cup-champion.icon"
+msgstr "Koruna"
+
+msgid "award.cup-champion.how"
+msgstr "Vyhraj Ember Cup na konci sezóny"

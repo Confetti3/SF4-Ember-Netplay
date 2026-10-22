@@ -126,6 +126,9 @@ ui::ShellView FakeView(bool v2) {
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
     // The card's title and icon, and Home's news, as the backend and the release check give them.
     view.playerTitle = "TOURNAMENT ORGANIZER"; view.playerTier = ui::v2::Tier::Gold; view.playerIcon = 7;
+    // The awards earned (six of eleven), the Weekly top 8 worn (--screen awards).
+    view.earnedAwards = {"entrant", "launch-night", "weekly-top16", "rollback-regular", "weekly-top8", "organizer"};
+    view.preferences.wornTitle = view.preferences.wornIcon = "weekly-top8";
     view.services.update.news = {{"v1.3.0", "Ember 1.3.0", "2026-10-21", "New menus: categories, panels and choices.\n- Spectators keep watching through Alt+Enter.", ""},
         {"v1.2.1", "Ember 1.2.1", "2026-10-17", "Fixes for rollback saves.", ""}, {"v1.2.0", "Ember 1.2.0", "2026-10-14", "Borderless window setting.", ""}};
     view.services.update.news.insert(view.services.update.news.begin() + 1, {"v1.3.0-nightly.12", "Nightly 1.3.0.12", "2026-10-19", "Room board fits Steam Deck.\n- Speech for menus.", ""});

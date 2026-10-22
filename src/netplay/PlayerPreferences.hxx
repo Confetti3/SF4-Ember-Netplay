@@ -55,6 +55,9 @@ struct PlayerPreferences {
     // left, 2 bottom right, 3 bottom left) plus 4 times its size (0 small,
     // 1 medium, 2 large). Set from Settings or by dragging the picture.
     int pictureSpot = 0;
+    // The award (v2::Awards' id) whose title, and whose icon, the player wears;
+    // empty for the identity's own. Kept here until the backend stores it.
+    std::string wornTitle, wornIcon;
     // The room board's column and the members' share of it (MinRoomColumn).
     int roomColumn = DefaultRoomColumn, roomSplit = DefaultRoomSplit;
     // 0 the Ember strip (one panel), 1 split: names over the game's PLAYER labels and a small telemetry panel.

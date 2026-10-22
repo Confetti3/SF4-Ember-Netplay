@@ -7088,3 +7088,165 @@ msgstr "Meteen naar Start. Alles hier staat ook in Instellingen."
 
 msgid "welcome.previous"
 msgstr "Vorige stap"
+
+msgid "screen.awards"
+msgstr "Onderscheidingen"
+
+msgid "awards.titles"
+msgstr "Titels"
+
+msgid "awards.icons"
+msgstr "Iconen"
+
+msgid "awards.card"
+msgstr "Jouw kaart"
+
+msgid "awards.card_detail"
+msgstr "Jouw kaart zoals anderen hem zien. Selecteer opent je onderscheidingen: de titels en iconen die je kunt dragen."
+
+msgid "awards.entry_detail"
+msgstr "De titels en iconen die je hebt verdiend, en hoe je de rest verdient. Selecteer er een om hem op je kaart te dragen."
+
+msgid "awards.earned_count"
+msgstr "{0} van {1} verdiend"
+
+msgid "awards.card_heading"
+msgstr "JOUW KAART · ZOALS ANDEREN HEM ZIEN"
+
+msgid "awards.where_heading"
+msgstr "WAAR HIJ TE ZIEN IS"
+
+msgid "awards.on_card"
+msgstr "Op je kaart"
+
+msgid "awards.earned"
+msgstr "Verdiend"
+
+msgid "awards.locked"
+msgstr "Vergrendeld"
+
+msgid "awards.wear"
+msgstr "Op kaart zetten"
+
+msgid "awards.detail_worn"
+msgstr "Op je kaart."
+
+msgid "awards.detail_earned"
+msgstr "Verdiend. Selecteer zet hem op je kaart."
+
+msgid "awards.detail_locked"
+msgstr "Vergrendeld. {0}."
+
+msgid "tier.ash"
+msgstr "As"
+
+msgid "tier.copper"
+msgstr "Koper"
+
+msgid "tier.silver"
+msgstr "Zilver"
+
+msgid "tier.gold"
+msgstr "Goud"
+
+msgid "tier.ember"
+msgstr "Ember"
+
+msgid "award.entrant.title"
+msgstr "EMBER-DEELNEMER"
+
+msgid "award.entrant.icon"
+msgstr "Vonk"
+
+msgid "award.entrant.how"
+msgstr "Speel één set in een Ember-bracket"
+
+msgid "award.launch-night.title"
+msgstr "LANCEERAVOND"
+
+msgid "award.launch-night.icon"
+msgstr "Terugspoelen"
+
+msgid "award.launch-night.how"
+msgstr "Speel tijdens het lanceringsevenement van Ember"
+
+msgid "award.weekly-top16.title"
+msgstr "WEEKLY TOP 16"
+
+msgid "award.weekly-top16.icon"
+msgstr "Lauwerkrans"
+
+msgid "award.weekly-top16.how"
+msgstr "Eindig in de top 16 van een Ember Weekly"
+
+msgid "award.rollback-regular.title"
+msgstr "ROLLBACK-VASTE KLANT"
+
+msgid "award.rollback-regular.icon"
+msgstr "Kalender"
+
+msgid "award.rollback-regular.how"
+msgstr "Doe mee aan 10 Ember Weeklies in één seizoen"
+
+msgid "award.weekly-top8.title"
+msgstr "WEEKLY TOP 8"
+
+msgid "award.weekly-top8.icon"
+msgstr "Achthoek 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Eindig in de top 8 van een Ember Weekly"
+
+msgid "award.by-ear.title"
+msgstr "OP HET GEHOOR"
+
+msgid "award.by-ear.icon"
+msgstr "Geluidsgolf"
+
+msgid "award.by-ear.how"
+msgstr "Win een set in de bracket met alleen geluid"
+
+msgid "award.monthly-finalist.title"
+msgstr "MAANDFINALIST"
+
+msgid "award.monthly-finalist.icon"
+msgstr "Medaille"
+
+msgid "award.monthly-finalist.how"
+msgstr "Haal de grote finale van een Ember Monthly"
+
+msgid "award.organizer.title"
+msgstr "TOERNOOIORGANISATOR"
+
+msgid "award.organizer.icon"
+msgstr "Vlag"
+
+msgid "award.organizer.how"
+msgstr "Door het Ember-team toegekend aan organisatoren"
+
+msgid "award.commentary.title"
+msgstr "COMMENTATOR"
+
+msgid "award.commentary.icon"
+msgstr "Microfoon"
+
+msgid "award.commentary.how"
+msgstr "Toegekend aan stream-commentatoren"
+
+msgid "award.season1-veteran.title"
+msgstr "SEIZOEN 1-VETERAAN"
+
+msgid "award.season1-veteran.icon"
+msgstr "Wapen"
+
+msgid "award.season1-veteran.how"
+msgstr "Eindig in de top 32 van elke Monthly van seizoen 1"
+
+msgid "award.cup-champion.title"
+msgstr "EMBER CUP-KAMPIOEN"
+
+msgid "award.cup-champion.icon"
+msgstr "Kroon"
+
+msgid "award.cup-champion.how"
+msgstr "Win de Ember Cup aan het eind van het seizoen"

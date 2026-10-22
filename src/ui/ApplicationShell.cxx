@@ -217,6 +217,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(v2::On()&&SettingsTab(screen)){rows=SettingsTabRows(v,screen,idle,opening,selection,developer,title);
  }else if(NewsScreen(screen)){rows=NewsRows(v,screen,title);
  }else if(screen=="notifications"){rows=NotificationRows(ImGui::GetTime(),title);
+ }else if(AwardsScreen(screen)){rows=AwardRows(v,screen,title);
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
@@ -243,6 +244,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // Back leaves a pending invitation's screen without answering it, so Home
   // keeps a way back to it until it is answered or expires.
   if(v.discordPending)rows.insert(rows.begin(),Row("discord-invitation",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail")));
+  // V2: the player's card is a row too (drawn as the card); Select opens the awards wall.
+  if(v2::On())rows.push_back(Row("awards",loc::T("awards.card"),loc::T("awards.card_detail")));
   if(developer)rows.push_back(Row("developer","Developer","Development tools."));
  }else if(screen=="profile"){
   title=loc::T("profile.title");const auto& record=v.preferences.record;
@@ -253,6 +256,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[1].value=selection::FindFighter(preferences_.mainFighter)->name;
   rows[2].value=record.available?loc::Tf("profile.record_value",record.wins,record.losses):loc::T("common.unavailable");
   rows.push_back(Value("share-steam",loc::T("profile.share_steam"),preferences_.shareSteamProfile?loc::T("common.on"):loc::T("common.off"),loc::T("profile.share_steam_detail"),v.canEditPreferences));
+  if(v2::On()){rows.push_back(Row("awards",loc::T("screen.awards"),loc::T("awards.entry_detail")));rows.back().value=EarnedCount(v);}
  }else if(screen=="main-character"){
   title=loc::T("profile.choose_main_title");
   for(const int id:selection::RosterDisplayOrder){rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
@@ -528,6 +532,9 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  auto& tag=card.profile;const auto& standing=v.rankings.standing;
  tag.name=card.name;tag.marks.country=card.country;tag.fighter=card.fighter;
  tag.title=v.playerTitle;tag.tier=v.playerTier;tag.icon=v.playerIcon;
+ // What the player picked on the awards wall, while it is earned.
+ if(const auto* a=WornAward(v,preferences_.wornTitle)){tag.title=loc::T(a->title);tag.tier=a->tier;}
+ if(const auto* a=WornAward(v,preferences_.wornIcon))tag.icon=a->icon;
  if(standing.loaded&&standing.value.kind==netplay::rankings::Standing::Kind::Ranked&&standing.value.classesShown)tag.marks.badge=standing.value.badge;
  if(card.country.Present())tag.about=CountryName(card.country);
  if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
@@ -559,6 +566,9 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  // The matches screen, by way of Online play and Ember ID so Back goes there.
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
+ else if(a.id=="awards")nav.Push("awards");
+ // An earned award goes on the card: its title on the Titles tab, its icon on Icons.
+ else if(AwardsScreen(screen)&&a.id.compare(0,6,"award:")==0){if(v.canEditPreferences){(screen=="awards"?preferences_.wornTitle:preferences_.wornIcon)=a.id.substr(6);preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}}
  else if(a.id=="country"){countryPicker_.Open();nav.Push(CountryPicker::Screen);nav.Prefer(CountryPicker::RowId(preferences_.country));}
  // A letter on the V2 board goes to its first country, whose code it carries.
  else if(screen==CountryPicker::Screen&&a.id.compare(0,7,"letter-")==0)nav.Prefer("country-"+a.id.substr(7));
@@ -922,6 +932,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    menu_.headerChips.push_back({std::string(loc::T("network.relay"))+" \xC2\xB7 "+DescribeRelay(v.netReport),v.netReport.relayConnected?palette::Ready:v2::Colors().muted});}
   else if(screen=="create")menu_.eyebrow=loc::T("online.eyebrow_host");
   else if(SettingsTab(screen))menu_.eyebrow=settingsEyebrow_;
+  else if(AwardsScreen(screen)){menu_.eyebrow=loc::T("home.profile");menu_.headerChips.push_back({EarnedCount(v),v2::Colors().accentLight});}
   else if(screen=="join")menu_.eyebrow=loc::T("online.eyebrow_join");
   else if(PublicRoomsPanel::Owns(screen)){menu_.eyebrow=loc::T("online.eyebrow_browse");
    if(const char* region=RelayRegionName(PublicRoomsPanel::KnownRegion(v)))menu_.headerChips.push_back({loc::Tf("public.your_region",region),palette::Ready});}
@@ -933,7 +944,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool publicToolbar=PublicRoomsPanel::Owns(screen)&&!rows.empty()&&rows[0].id=="pr-quick";
  // The main-character grid follows USFIV's select screen, as fighter select does.
  const RosterGrid roster=LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
- const int columns=screen=="main-character"?roster.columns:
+ const int columns=screen=="main-character"?roster.columns:v2::On()&&AwardsScreen(screen)?AwardColumns():
   publicToolbar?(PublicListWidth()>=600*Scale()?4:2):1;
  GameMenu::Card portraits;
  // The public rooms' toolbar, room cards and state cards are drawn by PublicRoomsCards; the rest stay plain rows.
@@ -988,6 +999,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v2::On()&&screen==CountryPicker::Screen&&countryPicker_.Lettered())board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float,const MenuVisualFeedback&){countryPicker_.DrawBoard(entries,navigation,action,v.automaticCountry);};
  // V2: Create is the room's settings and its rules side by side, and the button that opens it.
  if(v2::On()&&screen=="welcome")board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback&){DrawWelcomeBoard(entries,navigation,action,height);};
+ if(v2::On()&&AwardsScreen(screen))board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawAwardsBoard(v,entries,navigation,action,height,feedback);};
  if(v2::On()&&screen=="create")board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawCreateBoard(entries,navigation,action,height,feedback);};
  if(screen=="interface"||page=="tab-interface")profilePreview=[&](const std::string& id){
   if(id.compare(0,8,"arrange-")==0){DrawRoomLayoutPreview();return;}
@@ -1068,6 +1080,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // V2: Rankings' two pages, your own and the board, are tabs.
   menu_.tabs={{RankingsPanel::Screen,MenuScreenName(RankingsPanel::Screen)},{RankingsPanel::BoardScreen,MenuScreenName(RankingsPanel::BoardScreen)}};
   menu_.tab=screen==RankingsPanel::Screen?0:1;
+ }else if(v2::On()&&AwardsScreen(screen)){
+  menu_.tabs={{"awards",loc::T("awards.titles")},{"awards-icons",loc::T("awards.icons")}};
+  menu_.tab=screen=="awards"?0:1;
 
  }else if(v2::On()&&NewsScreen(screen))NewsTabs(v,screen);
  else if(v2::On()&&(screen=="replays"||screen=="replay-sets"||screen=="replay-export")){

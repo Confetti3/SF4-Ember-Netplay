@@ -338,6 +338,28 @@ TierColors TierColor(Tier tier) {
     }
 }
 
+// The icons' order is IconPaths'; Bracket (9) waits for its event to be announced.
+const Award Awards[11] = {
+    {"entrant", 0, Tier::Ash, "award.entrant.title", "award.entrant.icon", "award.entrant.how"},
+    {"launch-night", 1, Tier::Ash, "award.launch-night.title", "award.launch-night.icon", "award.launch-night.how"},
+    {"weekly-top16", 2, Tier::Copper, "award.weekly-top16.title", "award.weekly-top16.icon", "award.weekly-top16.how"},
+    {"rollback-regular", 3, Tier::Copper, "award.rollback-regular.title", "award.rollback-regular.icon", "award.rollback-regular.how"},
+    {"weekly-top8", 4, Tier::Silver, "award.weekly-top8.title", "award.weekly-top8.icon", "award.weekly-top8.how"},
+    {"by-ear", 5, Tier::Silver, "award.by-ear.title", "award.by-ear.icon", "award.by-ear.how"},
+    {"monthly-finalist", 6, Tier::Gold, "award.monthly-finalist.title", "award.monthly-finalist.icon", "award.monthly-finalist.how"},
+    {"organizer", 7, Tier::Gold, "award.organizer.title", "award.organizer.icon", "award.organizer.how"},
+    {"commentary", 8, Tier::Gold, "award.commentary.title", "award.commentary.icon", "award.commentary.how"},
+    {"season1-veteran", 10, Tier::Ember, "award.season1-veteran.title", "award.season1-veteran.icon", "award.season1-veteran.how"},
+    {"cup-champion", 11, Tier::Ember, "award.cup-champion.title", "award.cup-champion.icon", "award.cup-champion.how"}};
+const Award* FindAward(const std::string& id) {
+    for (const auto& a : Awards) if (id == a.id) return &a;
+    return nullptr;
+}
+const char* TierName(Tier tier) {
+    const char* keys[] = {"", "tier.ash", "tier.copper", "tier.silver", "tier.gold", "tier.ember"};
+    return tier == Tier::None ? "" : loc::T(keys[static_cast<int>(tier)]);
+}
+
 void Icon(ImDrawList* d, int icon, ImVec2 at, float size, ImU32 ink) {
     if (icon < 0 || icon >= IconCount) return;
     const float k = size / 64;

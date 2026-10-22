@@ -15,7 +15,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"button-layout",loc::T("player.button_layout")},{"button-layout-button",loc::T("button_layout.edit_button")},
         {"player",loc::T("screen.player")},{"controllers",loc::T("player.controllers")},{"defaults",loc::T("screen.defaults")},
         {"main-character",loc::T("screen.main_character")},{"about",loc::T("screen.about")},
-        {"profile",loc::T("home.profile")},{"settings",loc::T("home.settings")},{"interface",loc::T("settings.interface")},
+        {"profile",loc::T("home.profile")},{"awards",loc::T("screen.awards")},{"awards-icons",loc::T("screen.awards")},{"settings",loc::T("home.settings")},{"interface",loc::T("settings.interface")},
         {"training-replays",loc::T("settings.training_replays")},{"problem-reports",loc::T("reports.settings_title")},{"sent-reports",loc::T("reports.sent_list")},{"discord",loc::T("screen.discord")},{"discord-invitation",loc::T("screen.discord_invitation")},
         {"public-rooms",loc::T("screen.public_rooms")},{"rankings",loc::T("screen.rankings")},{"rankings-board",loc::T("rankings.players")},{"identity",loc::T("screen.identity")},{"identity-backup",loc::T("screen.identity_backup")},
         {"linked-accounts",loc::T("screen.linked_accounts")},{"tournament-matches",loc::T("screen.tournament_matches")},{"discord-connect",loc::T("screen.connect_discord")},{"sign-in-site",loc::T("site.screen")},
