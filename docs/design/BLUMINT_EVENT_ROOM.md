@@ -46,6 +46,35 @@ seeds nothing and reports no forfeits. The room only reads:
 The queue is Ember's own and lives in the room: it orders BluMint's matches,
 it never makes one.
 
+## The event's join link and who may enter (user, 2026-10-22)
+
+The event room is an online private room of its own kind, not a BluMint
+look on a room made some other way. Its general join link
+(`https://embernetplay.link/e#<bridge id>/<room>`) is for everyone in the
+event: a player opens it before BluMint has called any match for them and
+waits in the room until the queue seats them.
+
+Ember lets in only what BluMint's API already shows. BluMint calls the
+lookup when a player registers for an event and again before each match, and
+the lookup links the player's Ember ID to BluMint's connection on the bridge.
+So the join link admits:
+
+- **A player with a BluMint link on the room's bridge**: BluMint looked them
+  up, so they registered with their Ember ID. They wait in the room.
+- **The organizer** who made the room (its host).
+- Nobody else. A player without the link is told to register on BluMint
+  with the Discord account connected to their Ember ID; the Connect Discord
+  screen is one press away.
+
+The limit, from the API: the lookup does not name the event, so a player
+registered for any BluMint event on Ember passes. The first match BluMint
+creates for them shows whether it is this event's. Ember does not guess
+beyond that.
+
+The game reads the player's own links (Ember ID › Linked accounts already
+lists the `blumint` link) to say why before it tries; the bridge enforces it
+when it hands out the room's ticket, so a changed client gets no further.
+
 ## Flow
 
 1. **BluMint** runs registration and the bracket as now; players connect
