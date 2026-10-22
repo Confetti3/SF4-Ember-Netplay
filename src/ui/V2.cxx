@@ -2,7 +2,10 @@
 #include "Theme.hxx"
 #include "GameMenu.hxx"
 #include "MenuGlyphs.hxx"
+#include <cctype>
 #include <cfloat>
+#include <cmath>
+#include <cstdlib>
 
 namespace sf4e { namespace ui { namespace v2 {
 namespace {
@@ -214,6 +217,96 @@ int Tabs(const std::vector<std::string>& labels, int current) {
 }
 
 namespace {
+// The icons' SVG paths (the Titles & icons board): M, L, H, V, C, A and Z,
+// absolute or relative. Each is stroked at 3.5 on its 64 grid.
+const char* const IconPaths[IconCount] = {
+    "M32 6c4 10 15 15 15 29a15 15 0 0 1-30 0c0-8 4-12 7-16 0 6 3 10 7 10-2-9 1-16 1-23z M32 46a5 5 0 0 0 5-5c0-4-3-6-5-9-2 3-5 5-5 9a5 5 0 0 0 5 5z",  // Spark
+    "M50 32a18 18 0 1 1-6-13.4 M46 8v12H34",  // Rewind
+    "M20 54C9 45 7 30 14 14M44 54c11-9 13-24 6-40 M14 24l6 2M12 34h7M15 44l6-3M50 24l-6 2M52 34h-7M49 44l-6-3",  // Laurel
+    "M10 14h44v40H10zM10 24h44 M20 8v10M44 8v10M24 38l6 6 12-12",  // Calendar
+    "M22 6h20l14 14v24L42 58H22L8 44V20z M25 25a7 7 0 1 0 14 0a7 7 0 1 0-14 0M24 40a8 8 0 1 0 16 0a8 8 0 1 0-16 0",  // Octagon 8
+    "M10 26v12M20 18v28M30 10v44M40 20v24M50 28v8 M56 30v4",  // Soundwave
+    "M20 6l12 20 12-20 M18 40a14 14 0 1 0 28 0a14 14 0 1 0-28 0",  // Medal
+    "M14 58V8 M14 10h34l-8 10 8 10H14",  // Flag
+    "M24 12a8 8 0 0 1 16 0v18a8 8 0 0 1-16 0z M16 28a16 16 0 0 0 32 0M32 44v12M22 56h20",  // Mic
+    "M8 14h14v36H8M22 32h14 M36 20h12v24H36M48 32h8",  // Bracket
+    "M32 6l22 8v16c0 14-10 24-22 28C20 54 10 44 10 30V14z M32 20l4 9 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z",  // Crest
+    "M10 46h44l4-26-14 10-12-18-12 18-14-10z M10 54h44",  // Crown
+};
+// An SVG arc from `from` to `to` as ImGui's arc about its centre (SVG 1.1, F.6.5).
+void ArcTo(ImDrawList* d, ImVec2 from, float rx, float ry, bool large, bool sweep, ImVec2 to, float k) {
+    const float hx = (from.x - to.x) * .5f, hy = (from.y - to.y) * .5f;
+    const float scaleUp = (std::max)(1.f, std::sqrt(hx * hx / (rx * rx) + hy * hy / (ry * ry)));
+    rx *= scaleUp; ry *= scaleUp;
+    const float num = rx * rx * ry * ry - rx * rx * hy * hy - ry * ry * hx * hx, den = rx * rx * hy * hy + ry * ry * hx * hx;
+    const float root = (large == sweep ? -1.f : 1.f) * std::sqrt((std::max)(0.f, num / den));
+    const float cx = root * rx * hy / ry + (from.x + to.x) * .5f, cy = -root * ry * hx / rx + (from.y + to.y) * .5f;
+    const float a0 = std::atan2((from.y - cy) / ry, (from.x - cx) / rx);
+    float a1 = std::atan2((to.y - cy) / ry, (to.x - cx) / rx);
+    if (sweep && a1 < a0) a1 += 2 * 3.14159265f;
+    if (!sweep && a1 > a0) a1 -= 2 * 3.14159265f;
+    // ponytail: circles only (rx == ry) in these icons; an ellipse would need its own segments.
+    d->PathArcTo(ImVec2(cx, cy), rx, a0, a1, static_cast<int>(8 + rx * k));
+}
+}
+
+TierColors TierColor(Tier tier) {
+    switch (tier) {
+    case Tier::Ash: return {IM_COL32(58, 55, 64, 255), IM_COL32(142, 136, 148, 255)};
+    case Tier::Copper: return {IM_COL32(107, 58, 34, 255), IM_COL32(217, 130, 75, 255)};
+    case Tier::Silver: return {IM_COL32(74, 80, 88, 255), IM_COL32(213, 220, 227, 255)};
+    case Tier::Gold: return {IM_COL32(110, 84, 24, 255), IM_COL32(242, 197, 92, 255)};
+    case Tier::Ember: return {IM_COL32(122, 30, 14, 255), IM_COL32(255, 135, 56, 255)};
+    default: return {Colors().button, Colors().accent};
+    }
+}
+
+void Icon(ImDrawList* d, int icon, ImVec2 at, float size, ImU32 ink) {
+    if (icon < 0 || icon >= IconCount) return;
+    const float k = size / 64;
+    const auto P = [&](float x, float y) { return ImVec2(at.x + x * k, at.y + y * k); };
+    const char* c = IconPaths[icon];
+    char command = 0;
+    float x = 0, y = 0, sx = 0, sy = 0;
+    const auto stroke = [&](bool closed) { d->PathStroke(ink, closed ? ImDrawFlags_Closed : 0, 3.5f * k); };
+    const auto number = [&] { char* end; const float v = std::strtof(c, &end); c = end; while (*c == ' ' || *c == ',') ++c; return v; };
+    while (*c) {
+        if (std::isalpha(static_cast<unsigned char>(*c))) { command = *c++; while (*c == ' ') ++c; }
+        const bool rel = std::islower(static_cast<unsigned char>(command));
+        const float ox = rel ? x : 0, oy = rel ? y : 0;
+        switch (std::toupper(static_cast<unsigned char>(command))) {
+        case 'M':
+            if (!d->_Path.empty()) stroke(false);
+            x = ox + number(); y = oy + number(); sx = x; sy = y;
+            d->PathLineTo(P(x, y));
+            command = rel ? 'l' : 'L';  // further pairs are lines
+            break;
+        case 'L': x = ox + number(); y = oy + number(); d->PathLineTo(P(x, y)); break;
+        case 'H': x = ox + number(); d->PathLineTo(P(x, y)); break;
+        case 'V': y = oy + number(); d->PathLineTo(P(x, y)); break;
+        case 'C': {
+            const float x1 = ox + number(), y1 = oy + number(), x2 = ox + number(), y2 = oy + number();
+            x = ox + number(); y = oy + number();
+            d->PathBezierCubicCurveTo(P(x1, y1), P(x2, y2), P(x, y));
+            break;
+        }
+        case 'A': {
+            const float rx = number(), ry = number();
+            number();
+            const bool large = number() != 0, sweep = number() != 0;
+            const ImVec2 from(x, y);
+            x = ox + number(); y = oy + number();
+            ArcTo(d, P(from.x, from.y), rx * k, ry * k, large, sweep, P(x, y), 1);
+            break;
+        }
+        case 'Z': x = sx; y = sy; stroke(true); break;
+        default: ++c; break;
+        }
+    }
+    if (!d->_Path.empty()) stroke(false);
+}
+
+namespace {
 // The L tag (Tag): the profile card.
 float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) {
     const auto& c = Colors();
@@ -225,7 +318,16 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     const ImVec2 t(at.x + pad, at.y + 18 * s);
     if (tag.fighter >= 0) DrawCharacterPortrait(tag.fighter, t, ImVec2(t.x + tile, t.y + tile), c.frame);
     draw->AddRect(t, ImVec2(t.x + tile, t.y + tile), c.accent, 0, 0, 3 * s);
-    const float x = t.x + tile + 18 * s, room = at.x + width - pad - x;
+    // The icon worn, in its tier's ink, on a framed tile at the right of the band.
+    const float iconTile = tag.icon >= 0 ? 56 * s : 0;
+    if (iconTile > 0) {
+        const ImVec2 it(at.x + width - pad - iconTile, t.y);
+        const auto ink = TierColor(tag.tier).stripe;
+        draw->AddRectFilled(it, ImVec2(it.x + iconTile, it.y + iconTile), c.frame, 4 * s);
+        draw->AddRect(it, ImVec2(it.x + iconTile, it.y + iconTile), ink, 4 * s, 0, 2 * s);
+        Icon(draw, tag.icon, ImVec2(it.x + 8 * s, it.y + 8 * s), iconTile - 16 * s, ink);
+    }
+    const float x = t.x + tile + 18 * s, room = at.x + width - pad - x - (iconTile > 0 ? iconTile + 12 * s : 0);
     float y = t.y;
     const float marks = DrawNameMarks(draw, x, y + (line - nameSize) * .5f, nameSize, tag.marks).width;
     NoteUserText(tag.name);
@@ -236,8 +338,9 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
         const float w = (std::min)(340 * s, room), cut = line / 3, stripe = line / 2;
         const ImVec2 plate[] = {{x + cut, y}, {x + w, y}, {x + w - cut, y + line}, {x, y + line}};
         const ImVec2 mark[] = {{x + cut, y}, {x + stripe, y}, {x + stripe - cut, y + line}, {x, y + line}};
-        draw->AddConvexPolyFilled(plate, 4, c.button);
-        draw->AddConvexPolyFilled(mark, 4, c.accent);
+        const auto tier = TierColor(tag.tier);
+        draw->AddConvexPolyFilled(plate, 4, tier.plate);
+        draw->AddConvexPolyFilled(mark, 4, tier.stripe);
         const float size = 15 * s;
         draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), c.text, Fit(tag.title, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
         y += line + 8 * s;

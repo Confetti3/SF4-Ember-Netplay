@@ -100,6 +100,15 @@ int Tabs(const std::vector<std::string>& labels, int current);
 // The pad and keys pick the same values in the row's value panel.
 int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec2 block);
 
+// A title's tier, from the lowest: its plate and stripe colours, and its icon's ink.
+enum class Tier { None, Ash, Copper, Silver, Gold, Ember };
+struct TierColors { ImU32 plate, stripe; };
+TierColors TierColor(Tier tier);
+// The title icons (the Titles & icons board), drawn as lines on a 64 grid
+// scaled to `size`; -1 draws nothing.
+constexpr int IconCount = 12;
+void Icon(ImDrawList* draw, int icon, ImVec2 at, float size, ImU32 ink);
+
 // The player tag: flag · rank · name · title · indicators, always in that
 // order. Space short: status goes first, then the title; flag, rank, name and
 // ping always stay. L is the profile card: the main's portrait beside the
@@ -113,6 +122,9 @@ struct TagView {
     LatencyMark ping;
     // L only: the main (-1 for none), the line under the title (country, class) and the facts.
     int fighter = -1;
+    // The title's tier colours its plate; the icon (-1 none) sits on the card's right.
+    Tier tier = Tier::None;
+    int icon = -1;
     std::string about;
     struct Fact { std::string key, value; };
     std::vector<Fact> facts;

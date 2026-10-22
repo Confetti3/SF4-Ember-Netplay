@@ -6816,3 +6816,18 @@ msgstr "온라인 · 둘러보기"
 
 msgid "public.your_region"
 msgstr "내 지역 {0}"
+
+msgid "home.news"
+msgstr "소식"
+
+msgid "news.heading"
+msgstr "소식"
+
+msgid "news.more"
+msgstr "모든 릴리스는 목록의 소식에서 볼 수 있습니다."
+
+msgid "news.none"
+msgstr "아직 소식이 없습니다"
+
+msgid "news.none_detail"
+msgstr "업데이트 확인 후 Ember 릴리스에서 소식을 가져옵니다."

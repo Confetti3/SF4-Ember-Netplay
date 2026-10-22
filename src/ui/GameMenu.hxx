@@ -28,9 +28,15 @@ struct PlayerCardView {
     bool recordAvailable=true;
     // The flag before the name: the country the player shows, or none.
     CountryCode country;
+    // V2: the card as the L tag draws it (title, icon, facts).
+    v2::TagView profile;
 };
 void SetMenuPlayerCard(PlayerCardView view);
 const PlayerCardView& MenuPlayerCard();
+// V2 Home's news: the newest releases, a title and a "date · version" line each.
+struct MenuNewsItem { std::string title, meta; };
+void SetMenuNews(std::vector<MenuNewsItem> news);
+const std::vector<MenuNewsItem>& MenuNews();
 // The legend's Select and Back glyphs for the device in use (SetMenuGlyphs).
 const char* MenuSelectGlyph();
 const char* MenuBackGlyph();

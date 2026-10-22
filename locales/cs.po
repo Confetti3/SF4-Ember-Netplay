@@ -6815,3 +6815,18 @@ msgstr "ONLINE · PROCHÁZENÍ"
 
 msgid "public.your_region"
 msgstr "Váš region {0}"
+
+msgid "home.news"
+msgstr "Novinky"
+
+msgid "news.heading"
+msgstr "NOVINKY"
+
+msgid "news.more"
+msgstr "Vyber Novinky v seznamu pro každé vydání."
+
+msgid "news.none"
+msgstr "Zatím žádné novinky"
+
+msgid "news.none_detail"
+msgstr "Novinky pocházejí z vydání Emberu po kontrole aktualizací."

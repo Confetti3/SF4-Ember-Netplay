@@ -6815,3 +6815,18 @@ msgstr "ONLINE · BLADEREN"
 
 msgid "public.your_region"
 msgstr "Jouw regio {0}"
+
+msgid "home.news"
+msgstr "Nieuws"
+
+msgid "news.heading"
+msgstr "NIEUWS"
+
+msgid "news.more"
+msgstr "Kies Nieuws in de lijst voor elke release."
+
+msgid "news.none"
+msgstr "Nog geen nieuws"
+
+msgid "news.none_detail"
+msgstr "Het nieuws komt uit Embers releases zodra de updatecontrole gelopen heeft."

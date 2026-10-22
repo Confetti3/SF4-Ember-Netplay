@@ -211,7 +211,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         // Home: the cards and a column with the player. Elsewhere: the cards and the focused one's detail.
         const bool split = !narrow && content.W() >= 820 * s;
         v2::Box list = content, pane{};
-        if (split) pane = v2::CutRight(list, home ? (std::min)(420 * s, content.W() * .4f) : listWidth > 0 ? content.W() - (std::min)(listWidth * s, content.W() * .55f) - 24 * s :
+        if (split) pane = v2::CutRight(list, home ? (std::min)(460 * s, content.W() * .42f) : listWidth > 0 ? content.W() - (std::min)(listWidth * s, content.W() * .55f) - 24 * s :
             paneWidth > 0 ? (std::min)(paneWidth * s, content.W() * .45f) : content.W() * .45f - 24 * s, 24 * s);
         if (home && split) list.max.x = list.min.x + (std::min)(600 * s, list.W());
         // A flyout keeps to one line a card past its first page, so more of its settings show at once.
@@ -270,20 +270,29 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         ImGui::PopStyleColor();
 
         if (split && home) {
-            // The player, as the V2 player card: the main's portrait and the tag.
-            const auto& player = MenuPlayerCard();
-            const v2::Box pc = v2::CutBottom(pane, 128 * s);
-            d->AddRectFilled(pc.min, pc.max, v2::color::Alpha(v2::Colors().panel, .94f), 4 * s);
-            d->AddRect(pc.min, pc.max, v2::Colors().border, 4 * s, 0, s);
-            d->AddText(HeadingFont(), 13 * s, ImVec2(pc.min.x + 16 * s, pc.min.y + 14 * s), v2::Colors().muted, loc::T("card.player"));
-            const float face = 72 * s, fy = pc.min.y + 40 * s;
-            DrawCharacterPortrait(player.fighter, ImVec2(pc.min.x + 16 * s, fy), ImVec2(pc.min.x + 16 * s + face, fy + face), v2::Colors().frame);
-            v2::TagView tag;
-            tag.name = player.name.empty() ? loc::T("card.player") : player.name;
-            tag.title = player.fighterName;
-            tag.marks.country = player.country;
-            tag.status = player.controllerReady ? loc::T("card.controller_ready") : loc::T("card.assign_controller");
-            v2::Tag(d, ImVec2(pc.min.x + 32 * s + face, fy + 4 * s), pc.W() - 48 * s - face, tag, v2::TagSize::M);
+            // The player's card (the L tag: title, icon, facts) on top, the news under it.
+            const auto& c = v2::Colors();
+            const float cardHeight = v2::Tag(d, pane.min, pane.W(), MenuPlayerCard().profile, v2::TagSize::L);
+            NoteUserText(MenuPlayerCard().profile.title);
+            v2::CutTop(pane, cardHeight, 16 * s);
+            const auto& news = MenuNews();
+            const float head = 40 * s, item = 56 * s;
+            const std::size_t shown = (std::min)(news.size(), static_cast<std::size_t>((std::max)(0.f, (pane.H() - head - 36 * s) / item)));
+            if (shown) {
+                const v2::Box box = v2::CutBottom(pane, head + shown * item + 36 * s);
+                d->AddRectFilled(box.min, box.max, v2::color::Alpha(c.panel, .94f), 4 * s);
+                d->AddText(HeadingFont(), 13 * s, ImVec2(box.min.x + 16 * s, box.min.y + 14 * s), c.muted, loc::T("news.heading"));
+                d->AddLine(ImVec2(box.min.x, box.min.y + head), ImVec2(box.max.x, box.min.y + head), c.border, s);
+                for (std::size_t i = 0; i < shown; ++i) {
+                    const float y = box.min.y + head + i * item;
+                    NoteUserText(news[i].title);
+                    d->AddText(HeadingFont(), 16 * s, ImVec2(box.min.x + 16 * s, y + 10 * s), c.text, Fit(news[i].title, box.W() - 32 * s, 16 * s, HeadingFont()).c_str());
+                    d->AddText(ImGui::GetFont(), 13 * s, ImVec2(box.min.x + 16 * s, y + 32 * s), c.muted, news[i].meta.c_str());
+                    d->AddLine(ImVec2(box.min.x, y + item), ImVec2(box.max.x, y + item), v2::color::Alpha(c.border, .6f), s);
+                }
+                d->AddText(ImGui::GetFont(), 14 * s, ImVec2(box.min.x + 16 * s, box.max.y - 26 * s), c.muted, loc::T("news.more"));
+                d->AddRect(box.min, box.max, c.border, 4 * s, 0, s);
+            }
         } else if (split && focusedEntry != entries.end()) {
             ImGui::SetCursorScreenPos(pane.min);
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel, .94f)));

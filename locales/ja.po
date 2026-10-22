@@ -6816,3 +6816,18 @@ msgstr "オンライン · 一覧"
 
 msgid "public.your_region"
 msgstr "あなたの地域 {0}"
+
+msgid "home.news"
+msgstr "ニュース"
+
+msgid "news.heading"
+msgstr "ニュース"
+
+msgid "news.more"
+msgstr "すべてのリリースはリストのニュースから。"
+
+msgid "news.none"
+msgstr "まだニュースはありません"
+
+msgid "news.none_detail"
+msgstr "アップデート確認の後、Ember のリリースからニュースが届きます。"

@@ -51,6 +51,11 @@ struct ShellView {
     // The room events the chat shows that no snapshot carries (ChatTranscript).
     std::vector<RoomNotice> roomNotices;
     netplay::PlayerPreferences preferences;
+    // The title and icon the player wears on their card. The identity's
+    // backend fills them once it awards titles; none until then.
+    std::string playerTitle;
+    v2::Tier playerTier = v2::Tier::None;
+    int playerIcon = -1;
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
     bool canReplaceRoom = false;

@@ -6815,3 +6815,18 @@ msgstr "EN LIGNE · PARCOURIR"
 
 msgid "public.your_region"
 msgstr "Votre région {0}"
+
+msgid "home.news"
+msgstr "Actualités"
+
+msgid "news.heading"
+msgstr "ACTUALITÉS"
+
+msgid "news.more"
+msgstr "Choisissez Actualités dans la liste pour chaque version."
+
+msgid "news.none"
+msgstr "Pas encore d'actualités"
+
+msgid "news.none_detail"
+msgstr "Les actualités viennent des versions d'Ember une fois la vérification des mises à jour faite."

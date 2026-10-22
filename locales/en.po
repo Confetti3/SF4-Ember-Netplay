@@ -6450,3 +6450,18 @@ msgstr "ONLINE · BROWSE"
 
 msgid "public.your_region"
 msgstr "Your region {0}"
+
+msgid "home.news"
+msgstr "News"
+
+msgid "news.heading"
+msgstr "NEWS"
+
+msgid "news.more"
+msgstr "Select News on the list for every release."
+
+msgid "news.none"
+msgstr "No news yet"
+
+msgid "news.none_detail"
+msgstr "News comes from Ember's releases once the update check has run."

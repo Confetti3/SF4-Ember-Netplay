@@ -14,7 +14,7 @@
 
 namespace sf4e { namespace ui {
 namespace { MenuInput input; MenuAction forwarded; SelectionArt* menuArt=nullptr;
-const char* selectGlyph="LK";const char* backGlyph="MK";PlayerCardView playerCard;
+const char* selectGlyph="LK";const char* backGlyph="MK";PlayerCardView playerCard;std::vector<MenuNewsItem> news;
 int menuDeviceType=0;
 gamepads::PromptBrand promptBrand;
 gamepads::FightNames promptNames=gamepads::NamesOf(gamepads::DefaultLayout);
@@ -87,6 +87,8 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
 }
 }
 void SetMenuPlayerCard(PlayerCardView view){playerCard=std::move(view);}
+void SetMenuNews(std::vector<MenuNewsItem> items){news=std::move(items);}
+const std::vector<MenuNewsItem>& MenuNews(){return news;}
 const PlayerCardView& MenuPlayerCard(){return playerCard;}
 const char* MenuSelectGlyph(){return selectGlyph;}
 const char* MenuBackGlyph(){return backGlyph;}

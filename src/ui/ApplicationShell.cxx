@@ -201,6 +201,14 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[0].hint=loc::T("common.cancel");
   rows[0].detailText=DetailText::Name;
  }else if(v2::On()&&SettingsTab(screen)){rows=SettingsTabRows(v,screen,idle,opening,selection,developer,title);
+ }else if(screen=="news"){
+  // Each release reads in full; the notes are plain text already (PlainReleaseNotes).
+  const auto& news=v.services.update.news;
+  for(std::size_t i=0;i<news.size();++i){
+   rows.push_back(Row("news-"+std::to_string(i),news[i].title,(news[i].date.empty()?news[i].tag:news[i].date+" \xC2\xB7 "+news[i].tag)+"\n\n"+news[i].notes));
+   rows.back().reading=true;
+  }
+  if(rows.empty())rows.push_back(Row("news-none",loc::T("news.none"),loc::T("news.none_detail"),false));
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
@@ -209,6 +217,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),
    Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
+  // V2: News, the channel's newest releases (the panel under the player card shows the first three).
+  if(v2::On()&&!v.services.update.news.empty())rows.push_back(Row("news",loc::T("home.news"),v.services.update.news.front().title));
   // Fighter select's hint is a line of labels over a line of short values.
   if(v.canEditSelection&&!v.hintFighter.empty())rows[1].columns={{loc::T("selection.fighter"),v.hintFighter},
    {loc::T("home.selection_costume_color"),v.hintAppearance},{loc::T("home.selection_ultra"),v.hintUltra}};
@@ -497,7 +507,19 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  card.country=ShownCountry(preferences_.country,v.automaticCountry);
  card.members=static_cast<int>(v.room.members.size());
  for(const auto& table:v.room.tables)if(table.phase==room::TablePhase::Playing)++card.activeTables;
+ // The profile card (the L tag): Home's and the Player tab's.
+ auto& tag=card.profile;const auto& standing=v.rankings.standing;
+ tag.name=card.name;tag.marks.country=card.country;tag.fighter=card.fighter;
+ tag.title=v.playerTitle;tag.tier=v.playerTier;tag.icon=v.playerIcon;
+ if(standing.loaded&&standing.value.kind==netplay::rankings::Standing::Kind::Ranked&&standing.value.classesShown)tag.marks.badge=standing.value.badge;
+ if(card.country.Present())tag.about=CountryName(card.country);
+ if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
+ tag.facts={{loc::T("profile.main_badge"),card.fighterName}};
+ if(card.recordAvailable)tag.facts.push_back({loc::T("profile.record"),loc::Tf("profile.record_value",card.wins,card.losses)});
  SetMenuPlayerCard(std::move(card));
+ std::vector<MenuNewsItem> news;
+ for(const auto& n:v.services.update.news)news.push_back({n.title,n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag});
+ SetMenuNews(std::move(news));
 }
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
@@ -525,7 +547,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
- else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
+ else if(a.id=="replays"||a.id=="controllers"||a.id=="news")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
  else if(a.id=="settings"&&v2::On())nav.Push("tab-player");
@@ -902,16 +924,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(screen=="tab-player"&&id!="name"&&id!="main-character"&&id!="record"&&id!="share-steam")return;
   // V2's Player tab shows the profile card (the L tag) as others will see it.
   if(screen=="tab-player"){
-   const auto& card=MenuPlayerCard();const auto& standing=v.rankings.standing;
-   v2::TagView tag;tag.name=card.name;tag.marks.country=card.country;tag.fighter=card.fighter;
-   if(standing.loaded&&standing.value.kind==netplay::rankings::Standing::Kind::Ranked&&standing.value.classesShown)tag.marks.badge=standing.value.badge;
-   if(card.country.Present())tag.about=CountryName(card.country);
-   if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
-   tag.facts={{loc::T("profile.main_badge"),card.fighterName}};
-   if(card.recordAvailable)tag.facts.push_back({loc::T("profile.record"),loc::Tf("profile.record_value",card.wins,card.losses)});
    ImGui::Dummy(ImVec2(0,8*Scale()));
    const auto p=ImGui::GetCursorScreenPos();
-   ImGui::Dummy(ImVec2(0,v2::Tag(ImGui::GetWindowDrawList(),p,ImGui::GetContentRegionAvail().x,tag,v2::TagSize::L)));
+   ImGui::Dummy(ImVec2(0,v2::Tag(ImGui::GetWindowDrawList(),p,ImGui::GetContentRegionAvail().x,MenuPlayerCard().profile,v2::TagSize::L)));
    return;
   }
   const int fighter=screen=="main-character"&&id.compare(0,5,"main-")==0?std::stoi(id.substr(5)):v.preferences.mainFighter;

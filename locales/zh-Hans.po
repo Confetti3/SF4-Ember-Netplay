@@ -6816,3 +6816,18 @@ msgstr "在线 · 浏览"
 
 msgid "public.your_region"
 msgstr "你的地区 {0}"
+
+msgid "home.news"
+msgstr "新闻"
+
+msgid "news.heading"
+msgstr "新闻"
+
+msgid "news.more"
+msgstr "在列表中选择“新闻”查看每个版本。"
+
+msgid "news.none"
+msgstr "暂无新闻"
+
+msgid "news.none_detail"
+msgstr "检查更新后，新闻来自 Ember 的发布版本。"

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <functional>
 #include <optional>
 #include <cstdint>
@@ -9,6 +10,11 @@
 
 namespace sf4e {
 namespace launcher {
+
+	// A release the channel takes, as Home's news shows it: newest first.
+	struct ReleaseNews {
+		std::string tag, title, date, notes, url;
+	};
 
 	struct UpdateCheckResult {
 		bool ok = false;
@@ -29,6 +35,8 @@ namespace launcher {
 		// The offer goes back a version: the channel's best release is older
 		// than an installed version of a kind the channel does not accept.
 		bool goesBack = false;
+		// The channel's newest releases (up to five) for Home's news, from the same list.
+		std::vector<ReleaseNews> news;
 	};
 
 	// A release tag or installed version label: "v1.1.0", "1.1.0-rc2",

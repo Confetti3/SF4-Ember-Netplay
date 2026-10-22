@@ -6816,3 +6816,18 @@ msgstr "EN LÍNEA · EXPLORAR"
 
 msgid "public.your_region"
 msgstr "Tu región {0}"
+
+msgid "home.news"
+msgstr "Noticias"
+
+msgid "news.heading"
+msgstr "NOTICIAS"
+
+msgid "news.more"
+msgstr "Elige Noticias en la lista para ver cada versión."
+
+msgid "news.none"
+msgstr "Aún no hay noticias"
+
+msgid "news.none_detail"
+msgstr "Las noticias salen de las versiones de Ember cuando se ha comprobado si hay actualizaciones."

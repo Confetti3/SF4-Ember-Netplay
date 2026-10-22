@@ -6815,3 +6815,18 @@ msgstr "ONLINE · PRZEGLĄDANIE"
 
 msgid "public.your_region"
 msgstr "Twój region {0}"
+
+msgid "home.news"
+msgstr "Aktualności"
+
+msgid "news.heading"
+msgstr "AKTUALNOŚCI"
+
+msgid "news.more"
+msgstr "Wybierz Aktualności na liście, by zobaczyć każde wydanie."
+
+msgid "news.none"
+msgstr "Brak aktualności"
+
+msgid "news.none_detail"
+msgstr "Aktualności pochodzą z wydań Embera po sprawdzeniu aktualizacji."

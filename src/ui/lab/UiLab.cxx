@@ -124,6 +124,10 @@ ui::ShellView FakeView(bool v2) {
     view.automaticCountry = CountryCode::Parsed("BE");
     view.preferences.lookV2 = v2;
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
+    // The card's title and icon, and Home's news, as the backend and the release check give them.
+    view.playerTitle = "TOURNAMENT ORGANIZER"; view.playerTier = ui::v2::Tier::Gold; view.playerIcon = 7;
+    view.services.update.news = {{"v1.3.0", "Ember 1.3.0", "2026-10-21", "New menus: categories, panels and choices.\n- Spectators keep watching through Alt+Enter.", ""},
+        {"v1.2.1", "Ember 1.2.1", "2026-10-17", "Fixes for rollback saves.", ""}, {"v1.2.0", "Ember 1.2.0", "2026-10-14", "Borderless window setting.", ""}};
     return view;
 }
 // A joined room with four tables, sixteen members and some chat (the render test's sample room).

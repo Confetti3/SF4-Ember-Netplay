@@ -6816,3 +6816,18 @@ msgstr "ОНЛАЙН · ОБЗОР"
 
 msgid "public.your_region"
 msgstr "Ваш регион {0}"
+
+msgid "home.news"
+msgstr "Новости"
+
+msgid "news.heading"
+msgstr "НОВОСТИ"
+
+msgid "news.more"
+msgstr "Выберите «Новости» в списке, чтобы увидеть каждый выпуск."
+
+msgid "news.none"
+msgstr "Новостей пока нет"
+
+msgid "news.none_detail"
+msgstr "Новости берутся из выпусков Ember после проверки обновлений."

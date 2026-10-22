@@ -6815,3 +6815,18 @@ msgstr "ONLINE · DURCHSUCHEN"
 
 msgid "public.your_region"
 msgstr "Ihre Region {0}"
+
+msgid "home.news"
+msgstr "Neuigkeiten"
+
+msgid "news.heading"
+msgstr "NEUIGKEITEN"
+
+msgid "news.more"
+msgstr "Wähle Neuigkeiten in der Liste für jede Version."
+
+msgid "news.none"
+msgstr "Noch keine Neuigkeiten"
+
+msgid "news.none_detail"
+msgstr "Neuigkeiten kommen aus Embers Versionen, sobald die Update-Prüfung gelaufen ist."

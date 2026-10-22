@@ -6335,3 +6335,18 @@ msgstr "ONLINE · EXPLORAR"
 
 msgid "public.your_region"
 msgstr "Sua região {0}"
+
+msgid "home.news"
+msgstr "Notícias"
+
+msgid "news.heading"
+msgstr "NOTÍCIAS"
+
+msgid "news.more"
+msgstr "Escolha Notícias na lista para ver cada versão."
+
+msgid "news.none"
+msgstr "Ainda sem notícias"
+
+msgid "news.none_detail"
+msgstr "As notícias vêm das versões do Ember depois da verificação de atualizações."
