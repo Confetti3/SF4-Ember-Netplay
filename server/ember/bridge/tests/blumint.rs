@@ -167,17 +167,8 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
         )
     );
     assert_eq!(
-        (&created["matchUrl"], &created["pageUrl"]),
-        (
-            &json!(format!(
-                "ember://tournament/open?bridge={}&match={id}",
-                f.bridge.bridge_id
-            )),
-            &json!(format!(
-                "https://embernetplay.link/m#{}/{id}",
-                f.bridge.bridge_id
-            ))
-        )
+        created["matchUrl"],
+        format!("https://embernetplay.link/m#{}/{id}", f.bridge.bridge_id).as_str()
     );
     assert_eq!(match_state(&f, &id).await, "awaiting_players");
 

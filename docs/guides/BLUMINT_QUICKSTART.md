@@ -147,24 +147,16 @@ Idempotency-Key: tA1b2-round-1-match-1
 The answer:
 
 ```json
-{
-  "matchId": "emt_...",
-  "matchUrl": "ember://tournament/open?bridge=brg_...&match=emt_...",
-  "pageUrl": "https://embernetplay.link/m#brg_.../emt_..."
-}
+{ "matchId": "emt_...", "matchUrl": "https://embernetplay.link/m#brg_.../emt_..." }
 ```
 
-Use `matchUrl` as the match's Play button. It opens Ember on the match with
-no web page in between, and Ember joins the match's room by itself once the
-player is free. It only works where Ember is installed and has been started
-once on that PC. `pageUrl` is the same match as a web page, which also offers
-Ember to a player who does not have it: link it as a fallback, such as
-"Don't have Ember?".
-
-Both links are the same for both players and safe to send in your messages:
-only the two assigned Ember IDs can play the match, and anyone else's Ember
-finds no such match. The links themselves do not expire, but a match nobody
-plays does: the bridge ends it 24 hours after you
+Use the returned `matchUrl` as the match's Play button and send it to both
+players. It is a web page that opens Ember on the match, by itself in a
+browser where Ember opened from it before, and otherwise tells the player how
+to get Ember or to open the link on the PC they play on. It is the same for
+both and safe to send in your messages: only the two assigned Ember IDs can
+play the match, and anyone else's Ember finds no such match. The link itself does not
+expire, but a match nobody plays does: the bridge ends it 24 hours after you
 created it at the latest (see "Reports").
 
 Every request under one `Idempotency-Key` answers the match that key made,
@@ -373,10 +365,10 @@ so BluMint never receives a second, different result for a match.
    return to BluMint to register again.
 4. **Play:** assigned matches appear automatically, with a notice and a
    **Tournament matches** row on Home, and a list under
-   **Online play > Ember ID > Tournament matches**. A player who clicks the
-   `matchUrl` while free goes straight into the match's room; from the list,
-   they press the match's **Play** row. Players can also paste either link
-   there. Check the reports and the result on BluMint.
+   **Online play > Ember ID > Tournament matches**. A player who opens the
+   `matchUrl` in Ember while free goes straight into the match's room; from
+   the list, they press the match's **Play** row. Players can also paste the
+   `matchUrl` there. Check the reports and the result on BluMint.
 
 ## Not built yet
 
