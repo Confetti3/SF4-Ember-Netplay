@@ -6800,3 +6800,18 @@ msgstr "Listé dans Salons publics"
 
 msgid "room.v2.type_message"
 msgstr "Écrire un message"
+
+msgid "online.eyebrow"
+msgstr "EMBER · EN LIGNE"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · EN LIGNE · HÉBERGER"
+
+msgid "online.eyebrow_join"
+msgstr "EN LIGNE · REJOINDRE"
+
+msgid "online.eyebrow_browse"
+msgstr "EN LIGNE · PARCOURIR"
+
+msgid "public.your_region"
+msgstr "Votre région {0}"

@@ -6801,3 +6801,18 @@ msgstr "공개 방에 표시됨"
 
 msgid "room.v2.type_message"
 msgstr "메시지 입력"
+
+msgid "online.eyebrow"
+msgstr "EMBER · 온라인"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · 온라인 · 호스트"
+
+msgid "online.eyebrow_join"
+msgstr "온라인 · 참가"
+
+msgid "online.eyebrow_browse"
+msgstr "온라인 · 둘러보기"
+
+msgid "public.your_region"
+msgstr "내 지역 {0}"

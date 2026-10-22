@@ -6801,3 +6801,18 @@ msgstr "已列入公开房间"
 
 msgid "room.v2.type_message"
 msgstr "输入消息"
+
+msgid "online.eyebrow"
+msgstr "EMBER · 在线"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · 在线 · 创建"
+
+msgid "online.eyebrow_join"
+msgstr "在线 · 加入"
+
+msgid "online.eyebrow_browse"
+msgstr "在线 · 浏览"
+
+msgid "public.your_region"
+msgstr "你的地区 {0}"

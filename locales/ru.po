@@ -6801,3 +6801,18 @@ msgstr "В списке открытых комнат"
 
 msgid "room.v2.type_message"
 msgstr "Напишите сообщение"
+
+msgid "online.eyebrow"
+msgstr "EMBER · ОНЛАЙН"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · ОНЛАЙН · СОЗДАНИЕ"
+
+msgid "online.eyebrow_join"
+msgstr "ОНЛАЙН · ВХОД"
+
+msgid "online.eyebrow_browse"
+msgstr "ОНЛАЙН · ОБЗОР"
+
+msgid "public.your_region"
+msgstr "Ваш регион {0}"

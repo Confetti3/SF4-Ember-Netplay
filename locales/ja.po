@@ -6801,3 +6801,18 @@ msgstr "公開ルームに掲載"
 
 msgid "room.v2.type_message"
 msgstr "メッセージを入力"
+
+msgid "online.eyebrow"
+msgstr "EMBER · オンライン"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · オンライン · ホスト"
+
+msgid "online.eyebrow_join"
+msgstr "オンライン · 参加"
+
+msgid "online.eyebrow_browse"
+msgstr "オンライン · 一覧"
+
+msgid "public.your_region"
+msgstr "あなたの地域 {0}"

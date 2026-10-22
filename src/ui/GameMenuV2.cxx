@@ -47,7 +47,8 @@ void Brand(ImDrawList* d, ImVec2 p, float mark) {
 }
 // One entry's card: its label (and first line of detail on two-line cards), its
 // value with the arrows that step it, or a chevron when Select opens something.
-void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled, bool twoLines, bool home, float valueWidth) {
+// With `chip` a value that is not a setting stands as an Ember chip (Online play's "B+").
+void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled, bool twoLines, bool home, float valueWidth, bool chip) {
     const float s = Scale(), h = c.H();
     if (e.userText) NoteUserText(e.label);
     const ImU32 text = enabled ? v2::Colors().text : v2::color::Alpha(v2::Colors().text, .55f);
@@ -59,7 +60,8 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
     const bool chevron = !e.adjustable && MenuSelectOpens(e) != SelectOpens::Nothing;
     const float left = c.min.x + 16 * s + (face > 0 ? face + 6 * s : 0);
     const float right = c.max.x - 16 * s - (face > 0 ? face + 6 * s : 0) - (chevron ? 18 * s : 0);
-    const float valueText = e.value.empty() || e.adjustable ? 0 : (std::min)(ImGui::CalcTextSize(e.value.c_str()).x, (right - left) * .45f);
+    chip = chip && !e.info && !e.value.empty() && !e.adjustable;
+    const float valueText = e.value.empty() || e.adjustable ? 0 : (std::min)(chip ? v2::ChipWidth(e.value) : ImGui::CalcTextSize(e.value.c_str()).x, (right - left) * .45f);
     const float labelRoom = right - left - (e.adjustable ? valueWidth : valueText) - (valueText > 0 ? 16 * s : 0);
     ImFont* labelFont = home ? HeadingFont() : ImGui::GetFont();
     const float labelSize = (home ? 20 : 18) * s, detailSize = 15 * s;
@@ -79,6 +81,8 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
         d->AddText(ImVec2(vx, valueY), arrow, "<");
         d->AddText(ImVec2(vx + (valueWidth - tw) * .5f, valueY), e.valueHighlighted ? v2::Colors().accent : text, shown.c_str());
         d->AddText(ImVec2(right - 10 * s, valueY), arrow, ">");
+    } else if (chip) {
+        v2::Chip(d, ImVec2(right - valueText, c.min.y + (h - ImGui::GetFontSize() * .78f - 8 * s) * .5f), e.value, v2::Colors().accent);
     } else if (valueText > 0) {
         if (e.userText || e.text) NoteUserText(e.value);
         const std::string shown = Fit(e.value, valueText, ImGui::GetFontSize(), ImGui::GetFont());
@@ -140,15 +144,66 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     }
 
     bool valuePanel = false;
+    // A value's choices: a panel on its own card, inside the cards' column, so
+    // the detail pane and its preview stay in view. Picking one closes it.
+    const auto Values = [&](v2::Box focusCard, v2::Box list) {
+        if (!navigation.Choosing() || focusedEntry == entries.end() || focusCard.W() <= 0 || !notice_.empty()) return false;
+        const auto& e = *focusedEntry;
+        const std::size_t count = e.choices.size(), across = MenuChoiceColumns(count), lines = (count + across - 1) / across;
+        const float row = 44 * s, inner = 8 * s, height = lines * row + (lines - 1) * inner + 24 * s + 22 * s;
+        // Under the card when it fits, else over it; always inside the column.
+        float top = focusCard.max.y + 4 * s;
+        if (top + height > list.max.y) top = (std::max)(list.min.y, focusCard.min.y - 4 * s - height);
+        ImGui::SetNextWindowPos(ImVec2(list.min.x, top));
+        ImGui::SetNextWindowSize(ImVec2(list.W(), (std::min)(height, list.H())));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12 * s, 12 * s));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4 * s);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::ColorConvertU32ToFloat4(v2::Colors().panel));
+        ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(v2::Colors().accent));
+        ImGui::Begin("###V2 values", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings);
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+        auto* pd = ImGui::GetWindowDrawList();
+        const auto at = ImGui::GetCursorScreenPos();
+        pd->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y), v2::Colors().muted, e.label.c_str());
+        ImGui::Dummy(ImVec2(0, 14 * s));
+        const float cw = (ImGui::GetContentRegionAvail().x - inner * (across - 1)) / across;
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(inner, inner));
+        for (std::size_t i = 0; i < count && navigation.Choosing(); ++i) {
+            const auto& option = e.choices[i];
+            const bool selected = i == navigation.ChoiceIndex(), current = option.id == e.chosen;
+            if (i % across) ImGui::SameLine();
+            const auto p = ImGui::GetCursorScreenPos();
+            const v2::Box c{p, ImVec2(p.x + cw, p.y + row)};
+            ImGui::PushID(static_cast<int>(i));
+            const bool pressed = ImGui::InvisibleButton("##value", ImVec2(cw, row));
+            const bool hovered = ImGui::IsItemHovered();
+            ImGui::PopID();
+            if (pressed && option.enabled) action = navigation.Pick(i, entries);
+            else if (hovered && pointerMoved) navigation.ChoiceIndex(i);
+            v2::CardGround(pd, c, selected, hovered, false);
+            const std::string label = Fit(option.label, cw - 24 * s, ImGui::GetFontSize(), ImGui::GetFont());
+            // The value in effect now is in Ember, so the player sees where they start.
+            pd->AddText(ImVec2(p.x + (cw - ImGui::CalcTextSize(label.c_str()).x) * .5f, p.y + (row - ImGui::GetFontSize()) * .5f),
+                !option.enabled ? v2::Colors().muted : current ? v2::Colors().accent : v2::Colors().text, label.c_str());
+            if (selected) v2::Focus(pd, c.min, c.max, false);
+        }
+        ImGui::PopStyleVar();
+        ImGui::End();
+        ImGui::PopStyleColor(2);
+        ImGui::PopStyleVar(2);
+        return true;
+    };
     if (body) {
         ImGui::SetCursorScreenPos(content.min);
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
         ImGui::BeginChild("V2 body", ImVec2(content.W(), content.H()), 0, ImGuiWindowFlags_NoNavInputs);
         ImGui::BeginDisabled((modalAtStart && !choosingAtStart) || navigation.Editing() || navigation.Confirming());
+        bodyChoices = {};
         body(entries, navigation, action, content.H(), feedback_);
         ImGui::EndDisabled();
         ImGui::EndChild();
         ImGui::PopStyleColor();
+        valuePanel = Values(bodyChoices.card, bodyChoices.column);
     } else if (navigation.Reading()) {
         ImGui::SetCursorScreenPos(content.min);
         DrawReader(entries, detail, content.H(), held);
@@ -156,10 +211,11 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         // Home: the cards and a column with the player. Elsewhere: the cards and the focused one's detail.
         const bool split = !narrow && content.W() >= 820 * s;
         v2::Box list = content, pane{};
-        if (split) pane = v2::CutRight(list, home ? (std::min)(420 * s, content.W() * .4f) : content.W() * .45f - 24 * s, 24 * s);
+        if (split) pane = v2::CutRight(list, home ? (std::min)(420 * s, content.W() * .4f) : listWidth > 0 ? content.W() - (std::min)(listWidth * s, content.W() * .55f) - 24 * s :
+            paneWidth > 0 ? (std::min)(paneWidth * s, content.W() * .45f) : content.W() * .45f - 24 * s, 24 * s);
         if (home && split) list.max.x = list.min.x + (std::min)(600 * s, list.W());
         // A flyout keeps to one line a card past its first page, so more of its settings show at once.
-        const bool twoLines = home || (!split && (!flyout || navigation.Screen() == navigation.Root())), grid = columns > 1 && card;
+        const bool twoLines = home || listWidth > 0 || (!split && (!flyout || navigation.Screen() == navigation.Root())), grid = columns > 1 && card;
         const std::size_t cells = grid ? MenuGridCells(entries) : 0;
         v2::Box focusCard{};
         ImGui::SetCursorScreenPos(list.min);
@@ -182,7 +238,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
                 ImGui::Dummy(ImVec2(full, 18 * s));
             }
             const float w = cell ? cellWidth : full;
-            const float h = cell ? cardHeight * s : e.height > 0 ? e.height * s : (twoLines && !e.detail.empty() ? 64 : 52) * s;
+            const float h = cell ? cardHeight * s : e.height > 0 ? e.height * s : (twoLines && !e.detail.empty() ? listWidth > 0 ? 68 : 64 : 52) * s;
             const auto p = ImGui::GetCursorScreenPos();
             const v2::Box c{p, ImVec2(p.x + w, p.y + h)};
             ImGui::PushID(e.id.c_str());
@@ -205,7 +261,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             v2::CardGround(ld, c, focused, hovered, e.valueHighlighted);
             // A screen's own drawing of its rows (portraits, flags, rankings), as Classic draws them.
             if (card && card(e, c.min, c.max)) { if (focused) v2::Focus(ld, c.min, c.max, !cell); continue; }
-            DrawCardContent(ld, e, c, enabled, twoLines && !cell, home, valueWidth);
+            DrawCardContent(ld, e, c, enabled, twoLines && !cell, home, valueWidth, listWidth > 0);
             if (focused) v2::Focus(ld, c.min, c.max, !cell);
         }
         ImGui::PopStyleVar();
@@ -232,7 +288,10 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             ImGui::SetCursorScreenPos(pane.min);
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel, .94f)));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16 * s, 16 * s));
-            ImGui::BeginChild("V2 detail", ImVec2(pane.W(), pane.H()), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoNavInputs);
+            // Beside Online play's cards the pane is as tall as what it says.
+            if (listWidth > 0) ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, pane.H()));
+            ImGui::BeginChild("V2 detail", ImVec2(pane.W(), listWidth > 0 ? 0 : pane.H()),
+                ImGuiChildFlags_AlwaysUseWindowPadding | (listWidth > 0 ? ImGuiChildFlags_AutoResizeY : 0), ImGuiWindowFlags_NoNavInputs);
             if (!customDetail) {
                 const auto& e = *focusedEntry;
                 ImGui::PushFont(HeadingFont());
@@ -251,54 +310,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             ImGui::PopStyleColor();
         }
 
-        // A value's choices: a panel on its own card, inside the cards' column, so
-        // the detail pane and its preview stay in view. Picking one closes it.
-        if (navigation.Choosing() && focusedEntry != entries.end() && focusCard.W() > 0 && notice_.empty()) {
-            valuePanel = true;
-            const auto& e = *focusedEntry;
-            const std::size_t count = e.choices.size(), across = MenuChoiceColumns(count), lines = (count + across - 1) / across;
-            const float row = 44 * s, inner = 8 * s, height = lines * row + (lines - 1) * inner + 24 * s + 22 * s;
-            // Under the card when it fits, else over it; always inside the column.
-            float top = focusCard.max.y + 4 * s;
-            if (top + height > list.max.y) top = (std::max)(list.min.y, focusCard.min.y - 4 * s - height);
-            ImGui::SetNextWindowPos(ImVec2(list.min.x, top));
-            ImGui::SetNextWindowSize(ImVec2(list.W(), (std::min)(height, list.H())));
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12 * s, 12 * s));
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4 * s);
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::ColorConvertU32ToFloat4(v2::Colors().panel));
-            ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(v2::Colors().accent));
-            ImGui::Begin("###V2 values", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings);
-            ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
-            auto* pd = ImGui::GetWindowDrawList();
-            const auto at = ImGui::GetCursorScreenPos();
-            pd->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y), v2::Colors().muted, e.label.c_str());
-            ImGui::Dummy(ImVec2(0, 14 * s));
-            const float cw = (ImGui::GetContentRegionAvail().x - inner * (across - 1)) / across;
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(inner, inner));
-            for (std::size_t i = 0; i < count && navigation.Choosing(); ++i) {
-                const auto& option = e.choices[i];
-                const bool selected = i == navigation.ChoiceIndex(), current = option.id == e.chosen;
-                if (i % across) ImGui::SameLine();
-                const auto p = ImGui::GetCursorScreenPos();
-                const v2::Box c{p, ImVec2(p.x + cw, p.y + row)};
-                ImGui::PushID(static_cast<int>(i));
-                const bool pressed = ImGui::InvisibleButton("##value", ImVec2(cw, row));
-                const bool hovered = ImGui::IsItemHovered();
-                ImGui::PopID();
-                if (pressed && option.enabled) action = navigation.Pick(i, entries);
-                else if (hovered && pointerMoved) navigation.ChoiceIndex(i);
-                v2::CardGround(pd, c, selected, hovered, false);
-                const std::string label = Fit(option.label, cw - 24 * s, ImGui::GetFontSize(), ImGui::GetFont());
-                // The value in effect now is in Ember, so the player sees where they start.
-                pd->AddText(ImVec2(p.x + (cw - ImGui::CalcTextSize(label.c_str()).x) * .5f, p.y + (row - ImGui::GetFontSize()) * .5f),
-                    !option.enabled ? v2::Colors().muted : current ? v2::Colors().accent : v2::Colors().text, label.c_str());
-                if (selected) v2::Focus(pd, c.min, c.max, false);
-            }
-            ImGui::PopStyleVar();
-            ImGui::End();
-            ImGui::PopStyleColor(2);
-            ImGui::PopStyleVar(2);
-        }
+        valuePanel = Values(focusCard, list);
         if (listCard.draw) DrawListCard(list.min, list.max, focusCard.min, focusCard.max, s);
     }
     if (action.kind == MenuAction::Back) { backRequested = true; action = {}; }

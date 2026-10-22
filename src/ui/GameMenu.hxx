@@ -138,6 +138,14 @@ public:
     // chips at the header's right end. Empty for none.
     std::string eyebrow;
     std::vector<v2::HeaderChip> headerChips;
+    // V2 only: the cards' width (unscaled) beside the detail pane, each card with the
+    // first line of its detail and its value as a chip (Online play, Join); 0 for the usual split.
+    float listWidth=0;
+    // V2 only: the detail pane's width (unscaled) beside the cards (Public rooms); 0 for the usual split.
+    float paneWidth=0;
+    // V2 only: a body's focused card and the column it sits in, where a value's
+    // choices open as they do on the cards. The body sets them each frame.
+    struct { v2::Box card, column; } bodyChoices;
     int tab=-1;
     bool listEnabled=true, ownsBack=false, customDetail=false;
     unsigned additionalInput=0;

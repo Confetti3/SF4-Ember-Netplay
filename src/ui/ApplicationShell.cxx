@@ -852,6 +852,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   menu_.headerChips={{loc::T(listed?"room.v2.listed":"room.v2.invitation_only"),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending))},
    {std::string(loc::T("room.members"))+" "+std::to_string(v.room.members.size())+"/"+std::to_string(v.room.capacity),palette::Ready}};
  }
+ // V2: the online screens say where they sit, Online play its relay and Public rooms the player's region.
+ if(v2::On()){
+  if(screen=="online"){menu_.eyebrow=loc::T("online.eyebrow");
+   menu_.headerChips.push_back({std::string(loc::T("network.relay"))+" \xC2\xB7 "+DescribeRelay(v.netReport),v.netReport.relayConnected?palette::Ready:v2::Colors().muted});}
+  else if(screen=="create")menu_.eyebrow=loc::T("online.eyebrow_host");
+  else if(screen=="join")menu_.eyebrow=loc::T("online.eyebrow_join");
+  else if(PublicRoomsPanel::Owns(screen)){menu_.eyebrow=loc::T("online.eyebrow_browse");
+   if(const char* region=RelayRegionName(PublicRoomsPanel::KnownRegion(v)))menu_.headerChips.push_back({loc::Tf("public.your_region",region),palette::Ready});}
+ }
  PublishPlayerCard(v);
  // Public rooms lead with a toolbar of four cells, in one row on a wide list and two on a narrow one.
  const bool publicToolbar=PublicRoomsPanel::Owns(screen)&&!rows.empty()&&rows[0].id=="pr-quick";
@@ -863,7 +872,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // The public rooms' toolbar, room cards and state cards are drawn by PublicRoomsCards; the rest stay plain rows.
  // The cards get the setup and each card's phase from the panels that own them, not from the rows.
  const PublicSetupView publicSetup=PublicRoomsPanel::Owns(screen)?identity_.PublicSetup():PublicSetupView{};
- menu_.cardRounding=0;menu_.compactDetailLines=0;menu_.wideListShare=screen=="main-character"?roster.listShare:.53f;
+ menu_.cardRounding=0;menu_.compactDetailLines=0;menu_.listWidth=!v2::On()?0:screen=="online"?560:screen=="join"?600:0;menu_.paneWidth=v2::On()&&PublicRoomsPanel::Owns(screen)?380:0;menu_.wideListShare=screen=="main-character"?roster.listShare:.53f;
  if(PublicRoomsPanel::Owns(screen)){
   menu_.cardRounding=PublicCardRounding;
   // With the toolbar and the cards to show, a narrow layout gives them the screen, not the detail text.
@@ -894,6 +903,14 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  };
  if(PublicRoomsPanel::Owns(screen))profilePreview=[&](const std::string& id){DrawPublicPreview(v,publicRooms_,id);};
  GameMenu::Body board;
+ // V2: Online play's detail ends in the focused row's facts.
+ if(v2::On()&&screen=="online")profilePreview=[&](const std::string& id){
+  ImGui::Dummy(ImVec2(0,8*Scale()));
+  if(id=="create"){v2::Fact(loc::T("public.visibility"),loc::T(preferences_.roomPublic?"public.visibility.public":"public.visibility.private"));v2::Fact(loc::T("room.capacity"),std::to_string(preferences_.roomCapacity));}
+  else if(id=="relay"||id=="network"){v2::Fact(loc::T("network.relay"),DescribeRelay(v.netReport));v2::Fact(loc::T("network.status"),DescribeNat(v.netReport.nat));}
+ };
+ // V2: Create is the room's settings and its rules side by side, and the button that opens it.
+ if(v2::On()&&screen=="create")board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawCreateBoard(entries,navigation,action,height,feedback);};
  if(screen=="interface"||screen=="tab-interface")profilePreview=[&](const std::string& id){
   // On V2's Interface tab the preview goes with the match HUD's own rows.
   if(screen=="tab-interface"&&id.compare(0,3,"hud")!=0)return;

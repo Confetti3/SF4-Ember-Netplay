@@ -115,6 +115,19 @@ float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone) {
     return width;
 }
 
+void Fact(const std::string& key, const std::string& value) {
+    const float s = Scale(), w = ImGui::GetContentRegionAvail().x, h = ImGui::GetFontSize() + 20 * s, room = w - 24 * s;
+    const auto p = ImGui::GetCursorScreenPos();
+    auto* d = ImGui::GetWindowDrawList();
+    d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), Colors().frame, 4 * s);
+    d->AddRect(p, ImVec2(p.x + w, p.y + h), Colors().border, 4 * s, 0, s);
+    const std::string shown = Fit(value, room * .6f, ImGui::GetFontSize());
+    const float vw = TextWidth(shown, ImGui::GetFontSize());
+    d->AddText(ImVec2(p.x + 12 * s, p.y + 10 * s), Colors().muted, Fit(key, room - vw - 16 * s, ImGui::GetFontSize()).c_str());
+    d->AddText(ImVec2(p.x + w - 12 * s - vw, p.y + 10 * s), Colors().text, shown.c_str());
+    ImGui::Dummy(ImVec2(w, h));
+}
+
 float BrandMark(ImDrawList* draw, ImVec2 at, float height) {
     auto* atlas = ImGui::GetIO().Fonts;
     ImVec2 uv0, uv1;

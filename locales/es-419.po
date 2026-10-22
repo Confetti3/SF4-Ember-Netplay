@@ -6320,3 +6320,18 @@ msgstr "En Salas públicas"
 
 msgid "room.v2.type_message"
 msgstr "Escribe un mensaje"
+
+msgid "online.eyebrow"
+msgstr "EMBER · EN LÍNEA"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · EN LÍNEA · CREAR"
+
+msgid "online.eyebrow_join"
+msgstr "EN LÍNEA · UNIRSE"
+
+msgid "online.eyebrow_browse"
+msgstr "EN LÍNEA · EXPLORAR"
+
+msgid "public.your_region"
+msgstr "Tu región {0}"
