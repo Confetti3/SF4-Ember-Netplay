@@ -1,6 +1,7 @@
 #pragma once
 #include <imgui.h>
 #include "RoomCards.hxx"
+#include "V2.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/TrainingEntry.hxx"
@@ -517,6 +518,9 @@ std::vector<MenuEntry> settingsRows_;std::string settingsEyebrow_,settingsFocus_
     // The V2 room board drew the watched game's picture, cinema style, so the corner window stays away.
     bool boardPicture_ = false;
     bool boardDrawn_ = false;
+    // Where the BluMint board shows the watched game's picture, from the
+    // frame before (DrawWatchedPicture's dock).
+    std::optional<v2::Box> pictureDock_;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};

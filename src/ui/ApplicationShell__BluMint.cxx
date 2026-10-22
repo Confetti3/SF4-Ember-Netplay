@@ -149,8 +149,12 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
     const auto& t = v.room.tables[0];
     const int toWin = v.room.tournament.gamesToWin ? v.room.tournament.gamesToWin : 2;
     const bool decided = t.score[0] >= static_cast<unsigned>(toWin) || t.score[1] >= static_cast<unsigned>(toWin);
+    // A watched game fills the stage like a stream (the picture in its top
+    // right spot): the picture at 16:9 on navy, the fighters, their pips, LIVE
+    // and the score on a bar under it. Between games the stage has the cards.
+    const bool cinema = v.watchedPicture && preferences_.pictureSpot % 4 == 0;
     d->AddRectFilled(stage.min, stage.max, c.ink, 4 * s);
-    d->AddRectFilledMultiColor(stage.min, ImVec2(stage.max.x, stage.min.y + stage.H() * .7f), v2::color::Alpha(c.accent, .22f), v2::color::Alpha(c.accent, .22f), v2::color::Alpha(c.accent, 0), v2::color::Alpha(c.accent, 0));
+    if (!cinema) d->AddRectFilledMultiColor(stage.min, ImVec2(stage.max.x, stage.min.y + stage.H() * .7f), v2::color::Alpha(c.accent, .22f), v2::color::Alpha(c.accent, .22f), v2::color::Alpha(c.accent, 0), v2::color::Alpha(c.accent, 0));
     const auto table = find("table-0");
     if (table != rows.end()) {
         const bool hovered = press(*table, stage);
@@ -162,45 +166,79 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
         d->AddText(font, size, ImVec2(stage.min.x + (stage.W() - w) * .5f, y), color, text.c_str());
     };
     const unsigned played = t.score[0] + t.score[1];
-    centred(HeadingFont(), 13 * s, stage.min.y + 22 * s, c.accent,
-        decided ? loc::T("blumint.stage_decided") : t.phase == room::TablePhase::Playing ? loc::Tf("blumint.stage_live", played + 1) : loc::Tf("blumint.stage_next", played + 1));
-    const std::string score = std::to_string(t.score[0]) + " \xE2\x80\x93 " + std::to_string(t.score[1]);
-    const float scoreSize = 40 * s, scoreWidth = HeadingFont()->CalcTextSizeA(scoreSize, FLT_MAX, 0, score.c_str()).x;
-    const float cw = 200 * s, ch = 220 * s, between = scoreWidth + 44 * s;
-    const float left = stage.min.x + (stage.W() - 2 * cw - between) * .5f, top = stage.min.y + (stage.H() - ch) * .5f - 12 * s;
     const room::MemberId seats[] = {t.p1, t.p2};
-    for (int side = 0; side < 2; ++side) {
-        const v2::Box card{ImVec2(left + side * (cw + between), top), ImVec2(left + side * (cw + between) + cw, top + ch)};
-        const auto* m = room::FindMember(v.room, seats[side]);
-        const bool you = m && m->id == v.room.localMember;
-        d->AddRectFilled(card.min, card.max, c.frame, 4 * s);
-        if (m) {
-            const float tagY = card.max.y - 12 * s - 22 * s - 8 * s - 26 * s;
-            DrawCharacterPortrait(you ? v.selectedFighter : m->fighter, ImVec2(card.min.x + 12 * s, card.min.y + 12 * s), ImVec2(card.max.x - 12 * s, tagY - 8 * s), c.ink);
+    const auto pips = [&](float x, float y, int side) {
+        for (int g = 0; g < toWin; ++g) {
+            const ImVec2 at(x + g * 16 * s, y);
+            if (static_cast<unsigned>(g) < t.score[side]) d->AddCircleFilled(at, 5 * s, c.accent);
+            else d->AddCircle(at, 5 * s, c.accent, 0, 1.5f * s);
+        }
+    };
+    if (cinema) {
+        v2::Box screen = stage;
+        const v2::Box bar = v2::CutBottom(screen, 56 * s);
+        const float w = (std::min)(screen.W(), screen.H() * 16 / 9) - 16 * s, h = w * 9 / 16;
+        const ImVec2 at(screen.min.x + (screen.W() - w) * .5f, screen.min.y + (screen.H() - h) * .5f);
+        pictureDock_ = v2::Box{at, ImVec2(at.x + w, at.y + h)};
+        d->AddRectFilled(bar.min, bar.max, c.frame, 4 * s, ImDrawFlags_RoundCornersBottom);
+        d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), c.border, s);
+        const std::string score = std::to_string(t.score[0]) + " \xE2\x80\x93 " + std::to_string(t.score[1]);
+        const float scoreSize = 24 * s, scoreWidth = HeadingFont()->CalcTextSizeA(scoreSize, FLT_MAX, 0, score.c_str()).x;
+        const std::string live = loc::T("blumint.live");
+        const float liveWidth = t.phase == room::TablePhase::Playing ? v2::ChipWidth(live) + 10 * s : 0;
+        const float mid = bar.min.x + bar.W() * .5f, y = bar.min.y + bar.H() * .5f, half = (scoreWidth + liveWidth) * .5f + 20 * s;
+        if (liveWidth) v2::Chip(d, ImVec2(mid - half + 20 * s, y - 11 * s), live, c.live);
+        d->AddText(HeadingFont(), scoreSize, ImVec2(mid + half - 20 * s - scoreWidth, y - scoreSize * .5f), c.accent, score.c_str());
+        const float pipsWidth = toWin * 16 * s;
+        for (int side = 0; side < 2; ++side) {
+            const auto* m = room::FindMember(v.room, seats[side]);
+            if (!m) continue;
+            // Pips beside the score; the name on the outer side.
+            const float px = side ? mid + half : mid - half - pipsWidth + 6 * s;
+            pips(px, y, side);
+            const float tx = side ? px + pipsWidth + 12 * s : bar.min.x + 16 * s, tw = side ? bar.max.x - 16 * s - tx : px - 22 * s - tx;
             v2::TagView tag;
             tag.name = m->name;
             tag.marks = {m->country, m->badge};
             tag.ping = LatencyMarkFor(v.memberLatency, *m, v.room.localMember);
-            v2::Tag(d, ImVec2(card.min.x + 12 * s, tagY), cw - 24 * s, tag, v2::TagSize::S);
-            // A pip a game won, of first to N.
-            const float py = card.max.y - 12 * s - 11 * s;
-            for (int g = 0; g < toWin; ++g) {
-                const ImVec2 at(card.min.x + 18 * s + g * 16 * s, py);
-                if (static_cast<unsigned>(g) < t.score[side]) d->AddCircleFilled(at, 5 * s, c.accent);
-                else d->AddCircle(at, 5 * s, c.accent, 0, 1.5f * s);
-            }
-            const bool ready = t.ready[side];
-            const std::string word = loc::T(ready ? "room.status.ready" : "blumint.not_ready");
-            v2::Chip(d, ImVec2(card.max.x - 12 * s - v2::ChipWidth(word), py - 11 * s), word, ready ? palette::Ready : c.muted);
+            v2::Tag(d, ImVec2(tx, y - 13 * s), tw, tag, v2::TagSize::S);
         }
-        if (you) {
-            d->AddRect(ImVec2(card.min.x - 6 * s, card.min.y - 6 * s), ImVec2(card.max.x + 6 * s, card.max.y + 6 * s), v2::color::Alpha(c.accent, .25f), 8 * s, 0, 6 * s);
-            d->AddRect(card.min, card.max, c.accent, 4 * s, 0, 3 * s);
-        } else d->AddRect(card.min, card.max, c.border, 4 * s, 0, s);
+    } else {
+        centred(HeadingFont(), 13 * s, stage.min.y + 22 * s, c.accent,
+            decided ? loc::T("blumint.stage_decided") : t.phase == room::TablePhase::Playing ? loc::Tf("blumint.stage_live", played + 1) : loc::Tf("blumint.stage_next", played + 1));
+        const std::string score = std::to_string(t.score[0]) + " \xE2\x80\x93 " + std::to_string(t.score[1]);
+        const float scoreSize = 40 * s, scoreWidth = HeadingFont()->CalcTextSizeA(scoreSize, FLT_MAX, 0, score.c_str()).x;
+        const float cw = 200 * s, ch = 220 * s, between = scoreWidth + 44 * s;
+        const float left = stage.min.x + (stage.W() - 2 * cw - between) * .5f, top = stage.min.y + (stage.H() - ch) * .5f - 12 * s;
+        for (int side = 0; side < 2; ++side) {
+            const v2::Box card{ImVec2(left + side * (cw + between), top), ImVec2(left + side * (cw + between) + cw, top + ch)};
+            const auto* m = room::FindMember(v.room, seats[side]);
+            const bool you = m && m->id == v.room.localMember;
+            d->AddRectFilled(card.min, card.max, c.frame, 4 * s);
+            if (m) {
+                const float tagY = card.max.y - 12 * s - 22 * s - 8 * s - 26 * s;
+                DrawCharacterPortrait(you ? v.selectedFighter : m->fighter, ImVec2(card.min.x + 12 * s, card.min.y + 12 * s), ImVec2(card.max.x - 12 * s, tagY - 8 * s), c.ink);
+                v2::TagView tag;
+                tag.name = m->name;
+                tag.marks = {m->country, m->badge};
+                tag.ping = LatencyMarkFor(v.memberLatency, *m, v.room.localMember);
+                v2::Tag(d, ImVec2(card.min.x + 12 * s, tagY), cw - 24 * s, tag, v2::TagSize::S);
+                // A pip a game won, of first to N.
+                const float py = card.max.y - 12 * s - 11 * s;
+                pips(card.min.x + 18 * s, py, side);
+                const bool ready = t.ready[side];
+                const std::string word = loc::T(ready ? "room.status.ready" : "blumint.not_ready");
+                v2::Chip(d, ImVec2(card.max.x - 12 * s - v2::ChipWidth(word), py - 11 * s), word, ready ? palette::Ready : c.muted);
+            }
+            if (you) {
+                d->AddRect(ImVec2(card.min.x - 6 * s, card.min.y - 6 * s), ImVec2(card.max.x + 6 * s, card.max.y + 6 * s), v2::color::Alpha(c.accent, .25f), 8 * s, 0, 6 * s);
+                d->AddRect(card.min, card.max, c.accent, 4 * s, 0, 3 * s);
+            } else d->AddRect(card.min, card.max, c.border, 4 * s, 0, s);
+        }
+        d->AddText(HeadingFont(), scoreSize, ImVec2(left + cw + (between - scoreWidth) * .5f, top + (ch - scoreSize) * .5f), c.accent, score.c_str());
+        const bool watching = !(room::FindMember(v.room, v.room.localMember) && (t.p1 == v.room.localMember || t.p2 == v.room.localMember));
+        centred(ImGui::GetFont(), 16 * s, top + ch + 20 * s, c.muted, watching ? loc::T("blumint.stage_watcher") : loc::Tf("blumint.stage_fighter", toWin));
     }
-    d->AddText(HeadingFont(), scoreSize, ImVec2(left + cw + (between - scoreWidth) * .5f, top + (ch - scoreSize) * .5f), c.accent, score.c_str());
-    const bool watching = !(room::FindMember(v.room, v.room.localMember) && (t.p1 == v.room.localMember || t.p2 == v.room.localMember));
-    centred(ImGui::GetFont(), 16 * s, top + ch + 20 * s, c.muted, watching ? loc::T("blumint.stage_watcher") : loc::Tf("blumint.stage_fighter", toWin));
     if (table != rows.end() && focus == table->id) v2::Focus(d, stage.min, stage.max);
 
     // Who watches: everyone but the two fighters, as player tags.

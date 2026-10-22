@@ -841,9 +841,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
- // The V2 room board shows it in its tables' place instead (last frame's word, boardPicture_).
- if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
- boardPicture_=false;
+ // The V2 room board shows it in its tables' place instead (last frame's word, boardPicture_);
+ // a BluMint room docks it on its stage (pictureDock_).
+ if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot,pictureDock_?&*pictureDock_:nullptr)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ boardPicture_=false;pictureDock_.reset();
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
