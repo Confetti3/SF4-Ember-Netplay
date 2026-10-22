@@ -442,6 +442,12 @@ msgstr "Nawiguj"
 msgid "menu.adjust"
 msgstr "Dostosuj"
 
+msgid "speech.position"
+msgstr "{0} z {1}"
+
+msgid "speech.change"
+msgstr "W lewo lub w prawo, aby zmienić"
+
 msgid "rules.edition_select"
 msgstr "Wybór edycji"
 
@@ -4746,6 +4752,153 @@ msgstr "Miernik klatek w meczach, automatyczna gotowość po treningu i wybór z
 
 msgid "settings.training_replays_title"
 msgstr "TRENING I POWTÓRKI"
+
+msgid "settings.accessibility"
+msgstr "Dostępność"
+
+msgid "settings.accessibility_detail"
+msgstr "Głos, który czyta menu Embera na głos."
+
+msgid "settings.accessibility_title"
+msgstr "DOSTĘPNOŚĆ"
+
+msgid "speech.setting"
+msgstr "Głos"
+
+msgid "speech.setting_detail"
+msgstr "Czyta menu Embera na głos, gdy się po nich poruszasz. F1 zatrzymuje głos."
+
+msgid "speech.intro"
+msgstr "Głos jest włączony. Poruszaj się, aby usłyszeć każdą pozycję. Naciśnij {0}, aby usłyszeć, co robi; naciśnij ponownie, aby zatrzymać. Więcej opcji znajdziesz w Ustawieniach, Dostępność."
+
+msgid "speech.rate"
+msgstr "Tempo głosu"
+
+msgid "speech.rate_detail"
+msgstr "Jak szybko mówi głos. 0 to normalne tempo."
+
+msgid "speech.volume"
+msgstr "Głośność głosu"
+
+msgid "speech.volume_detail"
+msgstr "Jak głośno mówi głos."
+
+msgid "speech.details"
+msgstr "Czytaj opisy automatycznie"
+
+msgid "speech.details_detail"
+msgstr "Czyta opis wiersza sam, gdy chwilę na nim zostaniesz. Gdy wyłączone, F2 czyta go na żądanie."
+
+msgid "speech.hints"
+msgstr "Czytaj podpowiedzi przycisków"
+
+msgid "speech.hints_detail"
+msgstr "Czyta, co robią twoje przyciski w wierszu, na którym zostajesz."
+
+msgid "speech.read_position"
+msgstr "Czytaj pozycję"
+
+msgid "speech.read_position_detail"
+msgstr "Po nazwie i wartości wiersza podaje jego miejsce na liście, na przykład 3 z 12."
+
+msgid "speech.more"
+msgstr "{0}, aby dowiedzieć się więcej"
+
+msgid "speech.help"
+msgstr "{0}, aby uzyskać pomoc dla każdej pozycji"
+
+msgid "speech.remind"
+msgstr "Przypominaj o przycisku opisu"
+
+msgid "speech.remind_detail"
+msgstr "Po nazwie wiersza z opisem mówi, który przycisk go czyta. Automatycznie przestaje po trzykrotnym użyciu przycisku."
+
+msgid "speech.remind_auto"
+msgstr "Do 3 użyć"
+
+msgid "speech.tick"
+msgstr "Dźwięk opisu"
+
+msgid "speech.tick_detail"
+msgstr "Gdy przypomnienie ustanie, cichy dźwięk po nazwie wiersza oznacza, że ma on opis."
+
+msgid "speech.notice"
+msgstr "Powiadomienie. Naciśnij {0}, aby je usłyszeć."
+
+msgid "speech.chime"
+msgstr "Dźwięk powiadomień"
+
+msgid "speech.chime_detail"
+msgstr "Krótki dźwięk, zanim głos powie, że samo otworzyło się powiadomienie."
+
+msgid "speech.chime_volume"
+msgstr "Głośność dźwięku powiadomień"
+
+msgid "speech.chime_volume_detail"
+msgstr "Jak głośno brzmi dźwięk powiadomień."
+
+msgid "speech.voice"
+msgstr "Głos"
+
+msgid "speech.voice_detail"
+msgstr "W systemie Linux i na Steam Decku Ember raz pobiera naturalny głos dla twojego języka (około 90 MB) i go zachowuje. Do czasu, aż będzie gotowy, oraz dla języków bez takiego głosu mówi głos systemowy."
+
+msgid "speech.voice_system"
+msgstr "Głos systemowy"
+
+msgid "speech.voice_downloading"
+msgstr "Pobieranie, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Naturalny głos"
+
+msgid "speech.voice_download_failed"
+msgstr "Pobieranie nie powiodło się"
+
+msgid "speech.voice_ready"
+msgstr "Naturalny głos jest gotowy i od teraz to on mówi."
+
+msgid "speech.voice_failed"
+msgstr "Nie udało się pobrać naturalnego głosu, więc mówi głos systemowy. Ember spróbuje ponownie przy następnym uruchomieniu."
+
+msgid "speech.pack"
+msgstr "Pakiet głosowy: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Nie pobrano, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Pobrano, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Dostępna aktualizacja, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Usunięto"
+
+msgid "speech.pack_detail"
+msgstr "Każde zdanie, które mówi Ember, nagrane raz naturalnym głosem. Pobiera się samo, gdy głos jest włączony; wybierz, aby pobrać ponownie lub zaktualizować."
+
+msgid "speech.pack_download"
+msgstr "Pobierz"
+
+msgid "speech.pack_remove"
+msgstr "Usuń pakiet głosowy"
+
+msgid "speech.pack_remove_detail"
+msgstr "Usuwa pakiet głosowy z tego komputera. Do ponownego pobrania mówi głos systemowy."
+
+msgid "speech.pack_downloading"
+msgstr "Pobieranie głosu: {0} ({1} MB). Do czasu, aż będzie gotowy, mówi głos systemowy."
+
+msgid "speech.pack_failed"
+msgstr "Nie udało się pobrać pakietu głosowego, więc mówi głos systemowy. Aby spróbować ponownie, wybierz pakiet głosowy w Ustawieniach, Dostępność."
+
+msgid "speech.no_windows_voice"
+msgstr "Głos jest włączony, ale system Windows nie ma żadnego głosu do mówienia. Dodaj go w Ustawieniach systemu Windows, w sekcji Czas i język, Mowa."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Głos jest włączony, ale nie udało się połączyć ze speech-dispatcher. W systemie Linux i na Steam Decku Ember mówi przez speech-dispatcher, który wymaga też python3."
 
 msgid "room.table_footer_practice"
 msgstr "Mecz treningowy"

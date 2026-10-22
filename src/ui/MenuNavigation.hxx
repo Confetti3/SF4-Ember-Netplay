@@ -17,8 +17,10 @@ struct MenuInput {
     // Ember, and while Ember is shown only the on-screen keyboard reads it (Done).
     // Leave is the Delete key: it leaves your seat from your own table card,
     // which a pad does with B. PrevTab and NextTab are LB and RB (Page Up and Down):
-    // the V2 tabs over a screen (GameMenu::tabs).
-    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Start=64, Fighter=128, Options=256, Chat=512, Leave=1024, PrevTab=2048, NextTab=4096 };
+    // the V2 tabs over a screen (GameMenu::tabs). Describe is the accessibility
+    // button, RT and F2: speech reads the focused row's description (MenuNarrator);
+    // the menu itself does nothing with it.
+    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Start=64, Fighter=128, Options=256, Chat=512, Leave=1024, PrevTab=2048, NextTab=4096, Describe=8192 };
     unsigned held = 0;
     double time = 0;
     bool acceptText = false;

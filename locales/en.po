@@ -442,6 +442,12 @@ msgstr "Navigate"
 msgid "menu.adjust"
 msgstr "Adjust"
 
+msgid "speech.position"
+msgstr "{0} of {1}"
+
+msgid "speech.change"
+msgstr "Left or Right to change"
+
 msgid "rules.edition_select"
 msgstr "Edition Select"
 
@@ -4381,6 +4387,153 @@ msgstr "The frame meter in matches, Auto-ready from Training, and which matches 
 
 msgid "settings.training_replays_title"
 msgstr "TRAINING AND REPLAYS"
+
+msgid "settings.accessibility"
+msgstr "Accessibility"
+
+msgid "settings.accessibility_detail"
+msgstr "Speech that reads Ember's menus aloud."
+
+msgid "settings.accessibility_title"
+msgstr "ACCESSIBILITY"
+
+msgid "speech.setting"
+msgstr "Speech"
+
+msgid "speech.setting_detail"
+msgstr "Reads Ember's menus aloud as you move through them. F1 stops the voice."
+
+msgid "speech.intro"
+msgstr "Speech is on. Move to hear each item. Press {0} to hear what it does; press it again to stop. More options are in Settings, Accessibility."
+
+msgid "speech.rate"
+msgstr "Speech rate"
+
+msgid "speech.rate_detail"
+msgstr "How fast the voice speaks. 0 is its normal pace."
+
+msgid "speech.volume"
+msgstr "Speech volume"
+
+msgid "speech.volume_detail"
+msgstr "How loud the voice speaks."
+
+msgid "speech.details"
+msgstr "Read descriptions automatically"
+
+msgid "speech.details_detail"
+msgstr "Reads a row's description by itself once you stay on it for a moment. Off, F2 reads it when you ask."
+
+msgid "speech.hints"
+msgstr "Read button hints"
+
+msgid "speech.hints_detail"
+msgstr "Reads which of your buttons does what on the row you stay on."
+
+msgid "speech.read_position"
+msgstr "Read position"
+
+msgid "speech.read_position_detail"
+msgstr "After a row's name and value, says its place in the list, such as 3 of 12."
+
+msgid "speech.more"
+msgstr "{0} for more"
+
+msgid "speech.help"
+msgstr "{0} for help on any item"
+
+msgid "speech.remind"
+msgstr "Remind me of the describe button"
+
+msgid "speech.remind_detail"
+msgstr "After the name of a row that has a description, says which button reads it. Automatic stops once you have used the button three times."
+
+msgid "speech.remind_auto"
+msgstr "Until used 3 times"
+
+msgid "speech.tick"
+msgstr "Description tick"
+
+msgid "speech.tick_detail"
+msgstr "Once the reminder has stopped, a soft tick after a row's name says it has a description."
+
+msgid "speech.notice"
+msgstr "Notice. Press {0} to hear it."
+
+msgid "speech.chime"
+msgstr "Notice chime"
+
+msgid "speech.chime_detail"
+msgstr "A short chime before speech says a notice has opened by itself."
+
+msgid "speech.chime_volume"
+msgstr "Chime volume"
+
+msgid "speech.chime_volume_detail"
+msgstr "How loud the notice chime plays."
+
+msgid "speech.voice"
+msgstr "Voice"
+
+msgid "speech.voice_detail"
+msgstr "On Linux and the Steam Deck, Ember downloads a natural voice for your language once (about 90 MB) and keeps it. Until it is ready, and for languages without one, the system voice speaks."
+
+msgid "speech.voice_system"
+msgstr "System voice"
+
+msgid "speech.voice_downloading"
+msgstr "Downloading, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Natural voice"
+
+msgid "speech.voice_download_failed"
+msgstr "Download failed"
+
+msgid "speech.voice_ready"
+msgstr "The natural voice is ready and speaks from now on."
+
+msgid "speech.voice_failed"
+msgstr "The natural voice could not be downloaded, so the system voice speaks. Ember tries again the next time it starts."
+
+msgid "speech.pack"
+msgstr "{0} voice pack"
+
+msgid "speech.pack_missing"
+msgstr "Not downloaded, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Downloaded, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Update available, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Removed"
+
+msgid "speech.pack_detail"
+msgstr "Every line Ember says, recorded once in a natural voice. It downloads by itself when speech is on; select to download it again or update it."
+
+msgid "speech.pack_download"
+msgstr "Download"
+
+msgid "speech.pack_remove"
+msgstr "Remove voice pack"
+
+msgid "speech.pack_remove_detail"
+msgstr "Deletes the voice pack from this PC. The system voice speaks until you download it again."
+
+msgid "speech.pack_downloading"
+msgstr "Downloading the {0} voice ({1} MB). The system voice speaks until it is ready."
+
+msgid "speech.pack_failed"
+msgstr "The voice pack could not be downloaded, so the system voice speaks. To try again, select the voice pack in Settings, Accessibility."
+
+msgid "speech.no_windows_voice"
+msgstr "Speech is on, but Windows has no voice to speak with. Add one in Windows Settings under Time and language, Speech."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Speech is on, but speech-dispatcher could not be reached. On Linux and the Steam Deck, Ember speaks through speech-dispatcher, which needs python3 too."
 
 msgid "room.table_footer_practice"
 msgstr "Practice match"

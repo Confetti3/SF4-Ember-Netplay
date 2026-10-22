@@ -7,7 +7,7 @@ namespace sf4e { namespace ui {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&
-        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
+        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&a.speech==b.speech&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.country==b.country;
 }
 inline bool OnlyLayoutsChanged(const netplay::PlayerPreferences& a, const netplay::PlayerPreferences& b) {

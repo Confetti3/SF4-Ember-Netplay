@@ -148,7 +148,7 @@ void DialogTop(const std::string& eyebrow,const v2::HeaderChip& chip,const char*
 }
 }
 void GameMenu::ShowNotice(NoticeDialog notice) {
-    notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons);
+    notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons); noticeAsked_=notice.asked;
     noticeEyebrow_=std::move(notice.eyebrow); noticeFacts_=std::move(notice.facts); noticeChip_=std::move(notice.chip);
     // A notice always has a button to close it by.
     if(noticeButtons_.empty()) noticeButtons_.push_back({loc::T("common.ok")});
@@ -384,6 +384,15 @@ bool GameMenu::PressKey(const MenuEntry& entry,const std::string& key) {
     keyTyped_=draft!=navigation.Draft();
     if(keyTyped_)navigation.Draft(std::move(draft));
     return false;
+}
+std::string GameMenu::SpokenKey(const std::vector<MenuEntry>& entries) const {
+    const auto* entry=navigation.Editing()?FindEntry(entries,navigation.EditingId()):nullptr;
+    if(!OnScreenKeyboard(entry))return {};
+    if(keyRow_<0){const auto recent=recentText_.find(entry->id);return recent!=recentText_.end()&&keyColumn_<static_cast<int>(recent->second.size())?recent->second[keyColumn_]:std::string();}
+    const std::string key=KeyRows[keyRow_][keyColumn_];
+    if(key=="shift")return loc::T("keyboard.capitals");
+    if(key=="delete"||key=="space"||key=="done")return loc::T(("keyboard."+key).c_str());
+    return capitals_?std::string(1,static_cast<char>(std::toupper(static_cast<unsigned char>(key[0])))):key;
 }
 void GameMenu::ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) {
     const unsigned pressed=input.held&~keyHeld_;keyHeld_=input.held;

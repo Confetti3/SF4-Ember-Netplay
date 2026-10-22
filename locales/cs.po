@@ -442,6 +442,12 @@ msgstr "Pohyb"
 msgid "menu.adjust"
 msgstr "Upravit"
 
+msgid "speech.position"
+msgstr "{0} z {1}"
+
+msgid "speech.change"
+msgstr "Vlevo nebo vpravo pro změnu"
+
 msgid "rules.edition_select"
 msgstr "Výběr edice"
 
@@ -4746,6 +4752,153 @@ msgstr "Měřič snímků v zápasech, automatická připravenost po tréninku a
 
 msgid "settings.training_replays_title"
 msgstr "TRÉNINK A ZÁZNAMY"
+
+msgid "settings.accessibility"
+msgstr "Přístupnost"
+
+msgid "settings.accessibility_detail"
+msgstr "Hlas, který čte nabídky Emberu nahlas."
+
+msgid "settings.accessibility_title"
+msgstr "PŘÍSTUPNOST"
+
+msgid "speech.setting"
+msgstr "Hlas"
+
+msgid "speech.setting_detail"
+msgstr "Čte nabídky Emberu nahlas, jak se jimi pohybujete. F1 hlas zastaví."
+
+msgid "speech.intro"
+msgstr "Hlas je zapnutý. Pohybem uslyšíte každou položku. Stiskněte {0} a uslyšíte, co dělá; dalším stiskem čtení zastavíte. Další možnosti najdete v Nastavení, Přístupnost."
+
+msgid "speech.rate"
+msgstr "Rychlost hlasu"
+
+msgid "speech.rate_detail"
+msgstr "Jak rychle hlas mluví. 0 je jeho běžné tempo."
+
+msgid "speech.volume"
+msgstr "Hlasitost hlasu"
+
+msgid "speech.volume_detail"
+msgstr "Jak hlasitě hlas mluví."
+
+msgid "speech.details"
+msgstr "Číst popisy automaticky"
+
+msgid "speech.details_detail"
+msgstr "Přečte popis řádku sám, když na něm chvíli zůstanete. Když je vypnuto, přečte ho F2 na požádání."
+
+msgid "speech.hints"
+msgstr "Číst nápovědu tlačítek"
+
+msgid "speech.hints_detail"
+msgstr "Přečte, co na řádku, na kterém zůstanete, dělají vaše tlačítka."
+
+msgid "speech.read_position"
+msgstr "Číst pozici"
+
+msgid "speech.read_position_detail"
+msgstr "Po názvu a hodnotě řádku řekne jeho pozici v seznamu, například 3 z 12."
+
+msgid "speech.more"
+msgstr "{0} pro více"
+
+msgid "speech.help"
+msgstr "{0} pro nápovědu ke každé položce"
+
+msgid "speech.remind"
+msgstr "Připomínat tlačítko popisu"
+
+msgid "speech.remind_detail"
+msgstr "Po názvu řádku, který má popis, řekne, které tlačítko ho přečte. Automaticky přestane, jakmile tlačítko použijete třikrát."
+
+msgid "speech.remind_auto"
+msgstr "Do 3 použití"
+
+msgid "speech.tick"
+msgstr "Zvuk popisu"
+
+msgid "speech.tick_detail"
+msgstr "Jakmile připomínka skončí, tiché cvaknutí po názvu řádku oznámí, že má popis."
+
+msgid "speech.notice"
+msgstr "Oznámení. Stiskněte {0} a uslyšíte ho."
+
+msgid "speech.chime"
+msgstr "Zvuk oznámení"
+
+msgid "speech.chime_detail"
+msgstr "Krátký zvuk před tím, než hlas řekne, že se samo otevřelo oznámení."
+
+msgid "speech.chime_volume"
+msgstr "Hlasitost zvuku oznámení"
+
+msgid "speech.chime_volume_detail"
+msgstr "Jak hlasitě zní zvuk oznámení."
+
+msgid "speech.voice"
+msgstr "Hlas"
+
+msgid "speech.voice_detail"
+msgstr "V Linuxu a na Steam Decku Ember jednou stáhne přirozený hlas pro váš jazyk (asi 90 MB) a ponechá si ho. Dokud není připravený, a pro jazyky bez něj, mluví systémový hlas."
+
+msgid "speech.voice_system"
+msgstr "Systémový hlas"
+
+msgid "speech.voice_downloading"
+msgstr "Stahování, {0} %"
+
+msgid "speech.voice_natural"
+msgstr "Přirozený hlas"
+
+msgid "speech.voice_download_failed"
+msgstr "Stažení selhalo"
+
+msgid "speech.voice_ready"
+msgstr "Přirozený hlas je připravený a od teď mluví on."
+
+msgid "speech.voice_failed"
+msgstr "Přirozený hlas se nepodařilo stáhnout, proto mluví systémový hlas. Ember to zkusí znovu při příštím spuštění."
+
+msgid "speech.pack"
+msgstr "Hlasový balíček: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Nestaženo, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Staženo, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Dostupná aktualizace, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Odebráno"
+
+msgid "speech.pack_detail"
+msgstr "Každý řádek, který Ember říká, nahraný jednou přirozeným hlasem. Stáhne se sám, když je hlas zapnutý; výběrem ho stáhnete znovu nebo aktualizujete."
+
+msgid "speech.pack_download"
+msgstr "Stáhnout"
+
+msgid "speech.pack_remove"
+msgstr "Odebrat hlasový balíček"
+
+msgid "speech.pack_remove_detail"
+msgstr "Odstraní hlasový balíček z tohoto počítače. Dokud ho znovu nestáhnete, mluví systémový hlas."
+
+msgid "speech.pack_downloading"
+msgstr "Stahuje se hlas pro jazyk {0} ({1} MB). Dokud není připravený, mluví systémový hlas."
+
+msgid "speech.pack_failed"
+msgstr "Hlasový balíček se nepodařilo stáhnout, proto mluví systémový hlas. Chcete-li to zkusit znovu, vyberte hlasový balíček v Nastavení, Přístupnost."
+
+msgid "speech.no_windows_voice"
+msgstr "Hlas je zapnutý, ale Windows nemají žádný hlas, kterým by mluvily. Přidejte ho v Nastavení Windows v části Čas a jazyk, Řeč."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Hlas je zapnutý, ale speech-dispatcher není dostupný. V Linuxu a na Steam Decku mluví Ember přes speech-dispatcher, který potřebuje také python3."
 
 msgid "room.table_footer_practice"
 msgstr "Cvičný zápas"

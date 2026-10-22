@@ -26,11 +26,12 @@ MenuEntry Answer(const char* id, const char* label, const char* detail, bool cho
 }
 }
 std::vector<MenuEntry> ApplicationShell::WelcomeRows(const ShellView& v, std::string& title) {
-    title = loc::T("welcome.title");
+    // V2 draws the brand over the board, so its title is the step's question, the first thing speech says.
+    title = loc::T(v2::On() ? Titles[welcomeStep_] : "welcome.title");
     std::vector<MenuEntry> rows;
     switch (welcomeStep_) {
-    case 0: rows = {Answer("welcome-speech_on", "welcome.speech_on", "welcome.speech_on_detail", welcomeSpeech_),
-        Answer("welcome-speech_off", "welcome.speech_off", "welcome.speech_off_detail", !welcomeSpeech_)}; break;
+    case 0: rows = {Answer("welcome-speech_on", "welcome.speech_on", "welcome.speech_on_detail", preferences_.speech.enabled),
+        Answer("welcome-speech_off", "welcome.speech_off", "welcome.speech_off_detail", !preferences_.speech.enabled)}; break;
     case 1: rows = {LanguageRow()}; break;
     case 2: rows = {Row("player", loc::T("home.choose_controller"), v.controllerReady ? loc::Tf("welcome.controller_ready", v.controller) : std::string(loc::T("home.choose_controller_detail")))}; break;
     default: rows = {Answer("welcome-look_classic", "welcome.look_classic", "welcome.look_classic_detail", !preferences_.lookV2),
@@ -47,8 +48,11 @@ bool ApplicationShell::WelcomeActivate(const MenuAction& a) {
     auto& nav = menu_.navigation;
     if (a.kind == MenuAction::Back) { welcomeStep_ = (std::max)(0, welcomeStep_ - 1); nav.Prefer(FirstRows[welcomeStep_]); return true; }
     if (a.id.compare(0, 8, "welcome-") != 0) return false;
-    if (a.id == "welcome-speech_on" || a.id == "welcome-speech_off") welcomeSpeech_ = a.id == "welcome-speech_on";
-    if (a.id == "welcome-look_classic" || a.id == "welcome-look_v2") { preferences_.lookV2 = a.id == "welcome-look_v2"; preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45; }
+    // Speech and the look are the player's settings from their answer on, saved like any other.
+    const bool speech = a.id == "welcome-speech_on" || a.id == "welcome-speech_off", look = a.id == "welcome-look_classic" || a.id == "welcome-look_v2";
+    if (speech) preferences_.speech.enabled = a.id == "welcome-speech_on";
+    if (look) preferences_.lookV2 = a.id == "welcome-look_v2";
+    if (speech || look) { preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45; }
     // An answer goes on to the next step, as Next does; Skip and the last step's answer end it.
     if (a.id != "welcome-skip" && ++welcomeStep_ < WelcomeSteps) { nav.Prefer(welcomeStep_ == 3 && preferences_.lookV2 ? "welcome-look_v2" : FirstRows[welcomeStep_]); return true; }
     preferences_.welcomed = true; preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45;

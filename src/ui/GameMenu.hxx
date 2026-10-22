@@ -6,6 +6,7 @@
 #include "MenuGlyphs.hxx"
 #include "MenuDialogs.hxx"
 #include "MenuProbes.hxx"
+#include "MenuSpeech.hxx"
 #include "../common/Country.hxx"
 #include <functional>
 #include <imgui.h>
@@ -20,6 +21,14 @@ SelectionArt* MenuArt();
 void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,const char* selectFallback="LK",const char* backFallback="MK",gamepads::PromptBrand brand={});
 // The device's menu buttons as Pad::MenuButtons answers them, glyphs included.
 void SetMenuGlyphs(int deviceType,const input::MenuButtons& buttons,gamepads::PromptBrand brand={});
+// The player's speech settings, which every menu reads as it draws.
+void SetMenuSpeech(const netplay::SpeechPreferences& speech);
+// How many descriptions the accessibility button has read since the last call.
+int TakeMenuDescribes();
+// Says a notice that shows on its own (a V2 toast) once, after what speech is saying, with speech on.
+void SayMenuNotice(const std::string& text);
+// The accessibility button's name on the device the player last used ("RT", "R2", "F2").
+std::string AccessibilityKeyName();
 struct PlayerCardView {
     std::string name, fighterName;
     int fighter=0, inputDelay=0, members=0, activeTables=0;
@@ -104,7 +113,9 @@ struct NoticeButton { std::string label; NoticeResult result=NoticeResult::Ackno
 // selected: the button highlighted when the notice opens (the first by default).
 // V2 shows `eyebrow` beside the brand's mark, `chip` at the top right and
 // `facts` (a score line) boxed over the text; Classic shows facts as a line.
-struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; std::string eyebrow,facts; v2::HeaderChip chip{}; };
+// asked: the player's own action opened it, so speech reads it at once
+// instead of announcing it (MenuNarrator).
+struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; std::string eyebrow,facts; v2::HeaderChip chip{}; bool asked=false; };
 class GameMenu {
 public:
     MenuNavigation navigation;
@@ -257,8 +268,13 @@ private:
     bool OnScreenKeyboard(const MenuEntry* editing) const;
     // Presses `key` (a character, or shift, delete, space, done, recent-N); true for Done.
     bool PressKey(const MenuEntry& entry,const std::string& key);
+    // The key the on-screen keyboard is on, as speech says it; empty while it is not shown.
+    std::string SpokenKey(const std::vector<MenuEntry>& entries) const;
     void DrawKeyboard(const MenuEntry& entry,const std::vector<MenuEntry>& entries,MenuAction& action);
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
+    // Says what changed on this frame (MenuNarrator), with speech on. button
+    // is an open dialog's highlighted button; primary is what Select does.
+    void Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now,bool describe);
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
     // Where an open popout sits (V2 Values); set on the frame it opens.
@@ -266,12 +282,13 @@ ImVec2 popoutAt_{};bool popoutOpen_=false;
 std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_,noticeFacts_;
 v2::HeaderChip noticeChip_{};
     std::vector<NoticeButton> noticeButtons_;
+    bool noticeAsked_=false;
     int noticeSelected_=0;
     NoticeResult noticeResult_=NoticeResult::None;
     bool noticeError_=false;
     unsigned noticePrevious_=~0u;
     int lastFrame_ = -2;
-    unsigned held_ = 0;
+    unsigned held_ = 0, describeHeld_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);
     // The on-screen keyboard: its key (row -1 the Recent names), capitals, the
     // pad's last buttons, whether it changed the draft this frame, and the
@@ -280,5 +297,6 @@ v2::HeaderChip noticeChip_{};
     std::map<std::string,std::vector<std::string>> recentText_;
     UiClock clock_;
     MenuVisualFeedback feedback_;
+    MenuNarrator narrator_;
 };
 } }

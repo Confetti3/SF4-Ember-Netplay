@@ -442,6 +442,12 @@ msgstr "移動"
 msgid "menu.adjust"
 msgstr "調整"
 
+msgid "speech.position"
+msgstr "{1}件中{0}件目"
+
+msgid "speech.change"
+msgstr "左右で変更"
+
 msgid "rules.edition_select"
 msgstr "エディションセレクト"
 
@@ -4747,6 +4753,153 @@ msgstr "対戦中のフレームメーター、トレーニング後の自動準
 
 msgid "settings.training_replays_title"
 msgstr "トレーニングとリプレイ"
+
+msgid "settings.accessibility"
+msgstr "アクセシビリティ"
+
+msgid "settings.accessibility_detail"
+msgstr "Emberのメニューを読み上げる音声。"
+
+msgid "settings.accessibility_title"
+msgstr "アクセシビリティ"
+
+msgid "speech.setting"
+msgstr "音声読み上げ"
+
+msgid "speech.setting_detail"
+msgstr "Emberのメニューを移動に合わせて読み上げます。F1で読み上げを止めます。"
+
+msgid "speech.intro"
+msgstr "音声読み上げがオンになりました。移動すると各項目を読み上げます。{0}を押すと項目の説明を、もう一度押すと停止します。その他の設定は「設定」の「アクセシビリティ」にあります。"
+
+msgid "speech.rate"
+msgstr "読み上げ速度"
+
+msgid "speech.rate_detail"
+msgstr "音声の話す速さです。0が標準の速さです。"
+
+msgid "speech.volume"
+msgstr "読み上げ音量"
+
+msgid "speech.volume_detail"
+msgstr "音声の大きさです。"
+
+msgid "speech.details"
+msgstr "説明を自動で読み上げ"
+
+msgid "speech.details_detail"
+msgstr "項目にしばらく留まると、その説明を自動で読み上げます。オフのときはF2で読み上げます。"
+
+msgid "speech.hints"
+msgstr "ボタンのヒントを読み上げ"
+
+msgid "speech.hints_detail"
+msgstr "留まっている項目で、どのボタンが何をするかを読み上げます。"
+
+msgid "speech.read_position"
+msgstr "位置を読み上げ"
+
+msgid "speech.read_position_detail"
+msgstr "項目の名前と値の後に、一覧での位置を読み上げます（例：12件中3件目）。"
+
+msgid "speech.more"
+msgstr "{0}で詳細"
+
+msgid "speech.help"
+msgstr "{0}で各項目のヘルプ"
+
+msgid "speech.remind"
+msgstr "説明ボタンを案内"
+
+msgid "speech.remind_detail"
+msgstr "説明がある項目の名前の後に、それを読み上げるボタンを伝えます。自動では、ボタンを3回使うと案内しなくなります。"
+
+msgid "speech.remind_auto"
+msgstr "3回使うまで"
+
+msgid "speech.tick"
+msgstr "説明の合図音"
+
+msgid "speech.tick_detail"
+msgstr "案内が止まった後は、項目名の後の小さな音で説明があることを知らせます。"
+
+msgid "speech.notice"
+msgstr "お知らせです。{0}を押すと読み上げます。"
+
+msgid "speech.chime"
+msgstr "お知らせの効果音"
+
+msgid "speech.chime_detail"
+msgstr "お知らせが自動で開いたことを音声で伝える前に、短い効果音を鳴らします。"
+
+msgid "speech.chime_volume"
+msgstr "効果音の音量"
+
+msgid "speech.chime_volume_detail"
+msgstr "お知らせの効果音の大きさです。"
+
+msgid "speech.voice"
+msgstr "音声"
+
+msgid "speech.voice_detail"
+msgstr "LinuxとSteam Deckでは、Emberはお使いの言語の自然な音声を一度だけダウンロードし（約90 MB）、保存します。準備ができるまで、また対応する音声がない言語では、システムの音声が読み上げます。"
+
+msgid "speech.voice_system"
+msgstr "システムの音声"
+
+msgid "speech.voice_downloading"
+msgstr "ダウンロード中、{0}%"
+
+msgid "speech.voice_natural"
+msgstr "自然な音声"
+
+msgid "speech.voice_download_failed"
+msgstr "ダウンロード失敗"
+
+msgid "speech.voice_ready"
+msgstr "自然な音声の準備ができました。これからはこの音声で読み上げます。"
+
+msgid "speech.voice_failed"
+msgstr "自然な音声をダウンロードできなかったため、システムの音声で読み上げます。Emberは次回の起動時に再試行します。"
+
+msgid "speech.pack"
+msgstr "音声パック（{0}）"
+
+msgid "speech.pack_missing"
+msgstr "未ダウンロード、{0} MB"
+
+msgid "speech.pack_current"
+msgstr "ダウンロード済み、{0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "更新あり、{0} MB"
+
+msgid "speech.pack_removed"
+msgstr "削除済み"
+
+msgid "speech.pack_detail"
+msgstr "Emberが話すすべての文を自然な音声で一度録音したものです。音声読み上げがオンのとき自動でダウンロードされます。選択すると再ダウンロードまたは更新します。"
+
+msgid "speech.pack_download"
+msgstr "ダウンロード"
+
+msgid "speech.pack_remove"
+msgstr "音声パックを削除"
+
+msgid "speech.pack_remove_detail"
+msgstr "このPCから音声パックを削除します。再びダウンロードするまでシステムの音声が読み上げます。"
+
+msgid "speech.pack_downloading"
+msgstr "{0}の音声をダウンロードしています（{1} MB）。準備ができるまでシステムの音声が読み上げます。"
+
+msgid "speech.pack_failed"
+msgstr "音声パックをダウンロードできなかったため、システムの音声で読み上げます。再試行するには、「設定」の「アクセシビリティ」で音声パックを選択してください。"
+
+msgid "speech.no_windows_voice"
+msgstr "音声読み上げはオンですが、Windowsに読み上げ用の音声がありません。Windowsの設定の「時刻と言語」の「音声」で追加してください。"
+
+msgid "speech.no_speech_dispatcher"
+msgstr "音声読み上げはオンですが、speech-dispatcherに接続できませんでした。LinuxとSteam Deckでは、Emberはspeech-dispatcherで読み上げます。python3も必要です。"
 
 msgid "room.table_footer_practice"
 msgstr "練習対戦"

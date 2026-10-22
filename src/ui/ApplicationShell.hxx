@@ -11,6 +11,7 @@
 #include "../netplay/SessionController.hxx"
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/PlayerPreferences.hxx"
+#include "../platform/Speech.hxx"
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
@@ -388,6 +389,11 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     // hero band, the notes a line each and the Update now button when offered.
     bool DrawNewsCard(const ShellView& view,const MenuEntry& row,ImVec2 min,ImVec2 max) const;
     void DrawNewsDetail(const ShellView& view,const std::string& id,const std::vector<MenuEntry>& rows);
+    // Settings, Accessibility, and what speech tells as the shell draws (ApplicationShell__Accessibility.cxx).
+    std::vector<MenuEntry> AccessibilityRows(const ShellView& view) const;
+    bool AdjustSpeech(const MenuAction& action);
+    bool ActivateSpeech(const MenuAction& action);
+    void UpdateSpeech();
     UpdatePrompt updatePrompt_;
     netplay::Generation updateGeneration_;
     // The failed skips the service had counted when the view was last drawn.
@@ -397,6 +403,11 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     bool updateNowReported_=false;
     // The Settings row's value, seeded from the view once and then the shell's own.
     bool launchCheck_=true,launchCheckSeeded_=false;
+    // Told once a session that speech is on but no voice could speak; speech
+    // just turned on, to be told how it works; and the natural voice's
+    // download state last told.
+    bool speechNoticeShown_=false,speechIntro_=false;
+    speech::Voice voiceTold_=speech::Voice::System;
     std::string launchCheckSaveError_;
     struct DialogContext {
         // The pad the Button layout button opens.
@@ -569,7 +580,7 @@ std::string memberAsk_;
     // The welcome's step (0 speech to 3 look), whether it was offered this
     // launch, and the speech answer (ponytail: kept until speech settings land).
     int welcomeStep_ = 0;
-    bool welcomeOffered_ = false, welcomeSpeech_ = false;
+    bool welcomeOffered_ = false;
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.

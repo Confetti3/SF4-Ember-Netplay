@@ -442,6 +442,12 @@ msgstr "이동"
 msgid "menu.adjust"
 msgstr "조정"
 
+msgid "speech.position"
+msgstr "{1}개 중 {0}번째"
+
+msgid "speech.change"
+msgstr "좌우로 변경"
+
 msgid "rules.edition_select"
 msgstr "에디션 선택"
 
@@ -4747,6 +4753,153 @@ msgstr "대전 중 프레임 미터, 트레이닝 복귀 시 자동 준비, 저�
 
 msgid "settings.training_replays_title"
 msgstr "트레이닝과 리플레이"
+
+msgid "settings.accessibility"
+msgstr "접근성"
+
+msgid "settings.accessibility_detail"
+msgstr "Ember의 메뉴를 소리 내어 읽어 주는 음성입니다."
+
+msgid "settings.accessibility_title"
+msgstr "접근성"
+
+msgid "speech.setting"
+msgstr "음성"
+
+msgid "speech.setting_detail"
+msgstr "Ember의 메뉴를 이동할 때마다 소리 내어 읽습니다. F1을 누르면 음성이 멈춥니다."
+
+msgid "speech.intro"
+msgstr "음성이 켜졌습니다. 이동하면 각 항목을 들을 수 있습니다. {0}을(를) 누르면 무엇을 하는지 듣고, 다시 누르면 멈춥니다. 더 많은 옵션은 설정, 접근성에 있습니다."
+
+msgid "speech.rate"
+msgstr "음성 속도"
+
+msgid "speech.rate_detail"
+msgstr "음성이 말하는 속도입니다. 0이 기본 속도입니다."
+
+msgid "speech.volume"
+msgstr "음성 볼륨"
+
+msgid "speech.volume_detail"
+msgstr "음성의 크기입니다."
+
+msgid "speech.details"
+msgstr "설명 자동으로 읽기"
+
+msgid "speech.details_detail"
+msgstr "항목에 잠시 머무르면 설명을 저절로 읽습니다. 꺼져 있으면 F2를 누를 때 읽습니다."
+
+msgid "speech.hints"
+msgstr "버튼 안내 읽기"
+
+msgid "speech.hints_detail"
+msgstr "머무르고 있는 항목에서 어떤 버튼이 무엇을 하는지 읽습니다."
+
+msgid "speech.read_position"
+msgstr "위치 읽기"
+
+msgid "speech.read_position_detail"
+msgstr "항목 이름과 값 다음에 목록에서의 위치를 읽습니다(예: 12개 중 3번째)."
+
+msgid "speech.more"
+msgstr "{0}로 자세히"
+
+msgid "speech.help"
+msgstr "{0}로 각 항목 도움말"
+
+msgid "speech.remind"
+msgstr "설명 버튼 알림"
+
+msgid "speech.remind_detail"
+msgstr "설명이 있는 항목 이름 다음에 그것을 읽는 버튼을 알려 줍니다. 자동은 버튼을 세 번 사용하면 멈춥니다."
+
+msgid "speech.remind_auto"
+msgstr "3번 사용할 때까지"
+
+msgid "speech.tick"
+msgstr "설명 알림음"
+
+msgid "speech.tick_detail"
+msgstr "알림이 멈춘 뒤에는 항목 이름 다음의 작은 소리로 설명이 있음을 알립니다."
+
+msgid "speech.notice"
+msgstr "알림입니다. {0}을(를) 누르면 들을 수 있습니다."
+
+msgid "speech.chime"
+msgstr "알림음"
+
+msgid "speech.chime_detail"
+msgstr "알림이 저절로 열렸다고 음성이 말하기 전에 짧은 소리가 납니다."
+
+msgid "speech.chime_volume"
+msgstr "알림음 볼륨"
+
+msgid "speech.chime_volume_detail"
+msgstr "알림음의 크기입니다."
+
+msgid "speech.voice"
+msgstr "음성"
+
+msgid "speech.voice_detail"
+msgstr "Linux와 Steam Deck에서 Ember는 사용 중인 언어의 자연스러운 음성을 한 번 내려받아(약 90 MB) 보관합니다. 준비될 때까지, 그리고 해당 음성이 없는 언어에서는 시스템 음성이 말합니다."
+
+msgid "speech.voice_system"
+msgstr "시스템 음성"
+
+msgid "speech.voice_downloading"
+msgstr "다운로드 중, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "자연스러운 음성"
+
+msgid "speech.voice_download_failed"
+msgstr "다운로드 실패"
+
+msgid "speech.voice_ready"
+msgstr "자연스러운 음성이 준비되었습니다. 이제부터 이 음성으로 말합니다."
+
+msgid "speech.voice_failed"
+msgstr "자연스러운 음성을 내려받지 못해 시스템 음성이 말합니다. Ember는 다음에 시작할 때 다시 시도합니다."
+
+msgid "speech.pack"
+msgstr "음성 팩({0})"
+
+msgid "speech.pack_missing"
+msgstr "다운로드 안 됨, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "다운로드됨, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "업데이트 있음, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "제거됨"
+
+msgid "speech.pack_detail"
+msgstr "Ember가 말하는 모든 문장을 자연스러운 음성으로 한 번 녹음한 것입니다. 음성이 켜져 있으면 저절로 다운로드됩니다. 선택하면 다시 다운로드하거나 업데이트합니다."
+
+msgid "speech.pack_download"
+msgstr "다운로드"
+
+msgid "speech.pack_remove"
+msgstr "음성 팩 제거"
+
+msgid "speech.pack_remove_detail"
+msgstr "이 PC에서 음성 팩을 삭제합니다. 다시 다운로드할 때까지 시스템 음성이 말합니다."
+
+msgid "speech.pack_downloading"
+msgstr "{0} 음성을 다운로드하는 중입니다({1} MB). 준비될 때까지 시스템 음성이 말합니다."
+
+msgid "speech.pack_failed"
+msgstr "음성 팩을 다운로드하지 못해 시스템 음성이 말합니다. 다시 시도하려면 설정, 접근성에서 음성 팩을 선택하세요."
+
+msgid "speech.no_windows_voice"
+msgstr "음성이 켜져 있지만 Windows에 말할 음성이 없습니다. Windows 설정의 시간 및 언어, 음성에서 추가하세요."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "음성이 켜져 있지만 speech-dispatcher에 연결할 수 없습니다. Linux와 Steam Deck에서는 Ember가 speech-dispatcher로 말하며, python3도 필요합니다."
 
 msgid "room.table_footer_practice"
 msgstr "연습 대전"

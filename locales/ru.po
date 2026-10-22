@@ -442,6 +442,12 @@ msgstr "Перемещение"
 msgid "menu.adjust"
 msgstr "Настроить"
 
+msgid "speech.position"
+msgstr "{0} из {1}"
+
+msgid "speech.change"
+msgstr "Влево или вправо, чтобы изменить"
+
 msgid "rules.edition_select"
 msgstr "Выбор издания"
 
@@ -4747,6 +4753,153 @@ msgstr "Счётчик кадров в матчах, автоготовност�
 
 msgid "settings.training_replays_title"
 msgstr "ТРЕНИРОВКА И ПОВТОРЫ"
+
+msgid "settings.accessibility"
+msgstr "Специальные возможности"
+
+msgid "settings.accessibility_detail"
+msgstr "Голос, который читает меню Ember вслух."
+
+msgid "settings.accessibility_title"
+msgstr "СПЕЦИАЛЬНЫЕ ВОЗМОЖНОСТИ"
+
+msgid "speech.setting"
+msgstr "Озвучивание"
+
+msgid "speech.setting_detail"
+msgstr "Читает меню Ember вслух, пока вы по ним перемещаетесь. F1 останавливает голос."
+
+msgid "speech.intro"
+msgstr "Озвучивание включено. Перемещайтесь, чтобы услышать каждый пункт. Нажмите {0}, чтобы услышать, что он делает; нажмите ещё раз, чтобы остановить. Другие параметры находятся в разделе Настройки, Специальные возможности."
+
+msgid "speech.rate"
+msgstr "Скорость речи"
+
+msgid "speech.rate_detail"
+msgstr "Насколько быстро говорит голос. 0 означает обычный темп."
+
+msgid "speech.volume"
+msgstr "Громкость речи"
+
+msgid "speech.volume_detail"
+msgstr "Насколько громко говорит голос."
+
+msgid "speech.details"
+msgstr "Читать описания автоматически"
+
+msgid "speech.details_detail"
+msgstr "Читает описание строки само, если вы ненадолго на ней задержитесь. Если выключено, описание читает F2 по запросу."
+
+msgid "speech.hints"
+msgstr "Читать подсказки кнопок"
+
+msgid "speech.hints_detail"
+msgstr "Читает, что делают ваши кнопки в строке, на которой вы задержались."
+
+msgid "speech.read_position"
+msgstr "Читать позицию"
+
+msgid "speech.read_position_detail"
+msgstr "После названия и значения строки называет её место в списке, например 3 из 12."
+
+msgid "speech.more"
+msgstr "{0}, чтобы узнать больше"
+
+msgid "speech.help"
+msgstr "{0} для справки по любому пункту"
+
+msgid "speech.remind"
+msgstr "Напоминать о кнопке описания"
+
+msgid "speech.remind_detail"
+msgstr "После названия строки с описанием говорит, какая кнопка его читает. Автоматически перестаёт после трёх нажатий кнопки."
+
+msgid "speech.remind_auto"
+msgstr "До 3 нажатий"
+
+msgid "speech.tick"
+msgstr "Звук описания"
+
+msgid "speech.tick_detail"
+msgstr "Когда напоминание прекратится, тихий щелчок после названия строки сообщит, что у неё есть описание."
+
+msgid "speech.notice"
+msgstr "Уведомление. Нажмите {0}, чтобы прослушать его."
+
+msgid "speech.chime"
+msgstr "Звук уведомлений"
+
+msgid "speech.chime_detail"
+msgstr "Короткий звук перед тем, как голос сообщит, что уведомление открылось само."
+
+msgid "speech.chime_volume"
+msgstr "Громкость звука уведомлений"
+
+msgid "speech.chime_volume_detail"
+msgstr "Насколько громко звучит звук уведомлений."
+
+msgid "speech.voice"
+msgstr "Голос"
+
+msgid "speech.voice_detail"
+msgstr "В Linux и на Steam Deck Ember один раз скачивает естественный голос для вашего языка (около 90 МБ) и сохраняет его. Пока он не готов, а также для языков без такого голоса, говорит системный голос."
+
+msgid "speech.voice_system"
+msgstr "Системный голос"
+
+msgid "speech.voice_downloading"
+msgstr "Загрузка: {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Естественный голос"
+
+msgid "speech.voice_download_failed"
+msgstr "Ошибка загрузки"
+
+msgid "speech.voice_ready"
+msgstr "Естественный голос готов и теперь говорит он."
+
+msgid "speech.voice_failed"
+msgstr "Не удалось скачать естественный голос, поэтому говорит системный голос. Ember попробует снова при следующем запуске."
+
+msgid "speech.pack"
+msgstr "Голосовой пакет: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Не загружен, {0} МБ"
+
+msgid "speech.pack_current"
+msgstr "Загружен, {0} МБ"
+
+msgid "speech.pack_outdated"
+msgstr "Доступно обновление, {0} МБ"
+
+msgid "speech.pack_removed"
+msgstr "Удалён"
+
+msgid "speech.pack_detail"
+msgstr "Каждая фраза Ember, один раз записанная естественным голосом. Загружается сама, когда озвучивание включено; выберите, чтобы загрузить заново или обновить."
+
+msgid "speech.pack_download"
+msgstr "Загрузить"
+
+msgid "speech.pack_remove"
+msgstr "Удалить голосовой пакет"
+
+msgid "speech.pack_remove_detail"
+msgstr "Удаляет голосовой пакет с этого компьютера. Пока вы не загрузите его снова, говорит системный голос."
+
+msgid "speech.pack_downloading"
+msgstr "Загружается голос: {0} ({1} МБ). Пока он не готов, говорит системный голос."
+
+msgid "speech.pack_failed"
+msgstr "Не удалось загрузить голосовой пакет, поэтому говорит системный голос. Чтобы повторить, выберите голосовой пакет в разделе Настройки, Специальные возможности."
+
+msgid "speech.no_windows_voice"
+msgstr "Озвучивание включено, но в Windows нет голоса для речи. Добавьте его в параметрах Windows в разделе Время и язык, Речь."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Озвучивание включено, но speech-dispatcher недоступен. В Linux и на Steam Deck Ember говорит через speech-dispatcher, которому также нужен python3."
 
 msgid "room.table_footer_practice"
 msgstr "Тренировочный матч"

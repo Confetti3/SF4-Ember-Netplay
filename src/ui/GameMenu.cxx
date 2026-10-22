@@ -8,7 +8,9 @@
 #include "MenuDialogs.hxx"
 #include "CountryFlag.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../platform/Speech.hxx"
 #include <imgui.h>
+#include <algorithm>
 #include <cstring>
 #include <utility>
 
@@ -207,6 +209,11 @@ void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFall
 void SetMenuGlyphs(int type,const input::MenuButtons& buttons,gamepads::PromptBrand brand){
     SetMenuGlyphs(type,buttons.confirm,buttons.back,buttons.confirmGlyph,buttons.backGlyph,brand);
 }
+namespace { netplay::SpeechPreferences menuSpeech; int menuDescribes=0; }
+void SetMenuSpeech(const netplay::SpeechPreferences& speech){ menuSpeech=speech; }
+int TakeMenuDescribes(){ return std::exchange(menuDescribes,0); }
+void SayMenuNotice(const std::string& text){ if(menuSpeech.enabled&&!text.empty())speech::Say({text},false,menuSpeech.rate,menuSpeech.volume); }
+std::string AccessibilityKeyName(){ return KeyboardPrompts()?std::string("F2"):SpokenButton("RT"); }
 gamepads::PromptBrand MenuPromptBrand(){ return promptBrand; }
 const gamepads::FightNames* MenuPromptNames(){ return &promptNames; }
 void SetMenuPromptBrand(gamepads::PromptBrand brand,const gamepads::FightNames& names){ promptBrand=brand;promptNames=names; }
@@ -234,7 +241,7 @@ unsigned KeyboardMenuBits(bool typesText) {
     struct Mapping { ImGuiKey key; unsigned bit; };
     static const Mapping always[]={
         {ImGuiKey_UpArrow,MenuInput::Up},{ImGuiKey_DownArrow,MenuInput::Down},{ImGuiKey_LeftArrow,MenuInput::Left},
-        {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back}};
+        {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back},{ImGuiKey_F2,MenuInput::Describe}};
     // Letters, Space, Backspace and Delete belong to a text field while one
     // is being typed in.
     static const Mapping menuOnly[]={
@@ -327,6 +334,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // A choice belongs to the body that draws it, so the body stays live for it.
     const bool choosingAtStart=navigation.Choosing();
     auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText,additionalInput); menuInput.time=now;
+    const unsigned rawHeld=menuInput.held;
     if(!listEnabled) menuInput.held=0;
     ReadEditInput(entries,menuInput);
     // A notice owns the input until dismissed, so the dismissing press can
@@ -342,6 +350,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
     held_=menuInput.held;
+    // Read before a notice takes the input: the accessibility button works in one too.
+    const bool describe=(rawHeld&MenuInput::Describe)&&!(describeHeld_&MenuInput::Describe);describeHeld_=rawHeld;
     // InputText consumes this frame's characters before the requested acceptance.
     // The navigation model still owns the neutral gate and Back/accept ordering.
     {const auto open=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
@@ -360,6 +370,19 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const int next=tab+(action.delta==MenuInput::NextTab?1:-1);
         action=v2::On()&&next>=0&&next<static_cast<int>(tabs.size())?MenuAction{MenuAction::Shortcut,tabs[next].first}:MenuAction{};
     }
+    // An open dialog owns the header and the legend: Back cancels it, and
+    // Select names the button it highlights.
+    std::string dialogSelect,dialogBack;
+    const bool dialog=DialogLegend(entries,dialogSelect,dialogBack);
+    // Both looks speak the same rows (MenuNarrator).
+    const auto focusedEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
+    MenuEntry presentationEntry;
+    if(focusedEntry!=entries.end()) { presentationEntry=*focusedEntry; presentationEntry.enabled=feedback_.Enabled(*focusedEntry); }
+    const bool adjustable=!dialog&&focusedEntry!=entries.end()&&presentationEntry.adjustable&&presentationEntry.enabled;
+    const char* primary=!listEnabled?nullptr:dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
+    // The on-screen keyboard's key the pad is on is its highlighted button.
+    const std::string key=SpokenKey(entries);
+    Narrate(title,entries,focusedEntry==entries.end()?nullptr:&presentationEntry,!key.empty()?key:dialog?dialogSelect:std::string(),primary,adjustable,now,describe);
     if(v2::On())return DrawV2(title,entries,status,detail,columns,card,body,cardHeight,statusTone,home,flyout,action,menuInput.held,modalAtStart,choosingAtStart,acceptEditText,noticeOpen);
     const bool changed=lastScreen_!=navigation.Screen();
     // Scaled like every other breakpoint, so a 1.5x interface on a 1024-wide
@@ -383,10 +406,6 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     }
     const auto headerTop=ImGui::GetCursorScreenPos();
     if(!flyout) MenuHeader(title,home);
-    // An open dialog owns the header and the legend: Back cancels it, and
-    // Select names the button it highlights.
-    std::string dialogSelect,dialogBack;
-    const bool dialog=DialogLegend(entries,dialogSelect,dialogBack);
     const auto editingEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.EditingId();});
     const char* selectPrompt=KeyboardPrompts()&&notice_.empty()&&navigation.Editing()&&editingEntry!=entries.end()&&editingEntry->multiline?"Ctrl+Enter":selectGlyph;
     // Home's header button leaves Ember, so it is offered only with a place to name.
@@ -424,11 +443,6 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // The legend and the list are measured before the status, so a long status
     // can be given exactly what they leave.
     const auto mouseDelta=ImGui::GetIO().MouseDelta;const bool pointerMoved=mouseDelta.x!=0||mouseDelta.y!=0;
-    const auto focusedEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
-    MenuEntry presentationEntry;
-    if(focusedEntry!=entries.end()) { presentationEntry=*focusedEntry; presentationEntry.enabled=feedback_.Enabled(*focusedEntry); }
-    const bool adjustable=!dialog&&focusedEntry!=entries.end()&&presentationEntry.adjustable&&presentationEntry.enabled;
-    const char* primary=!listEnabled?nullptr:dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
     const bool wide=ImGui::GetContentRegionAvail().x>=(flyout?640:820)*unit;
     // Reserve the actual footer items and their spacing, not a guessed margin.
     const float footerSpacing=8*unit+2*ImGui::GetStyle().ItemSpacing.y+
@@ -737,5 +751,32 @@ void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 r
     EndDialogCard();
     ReportMenuCard("list-card",at,ImVec2(at.x+width,at.y+height));
     ImGui::SetCursorScreenPos(cursor);
+}
+// The narrator follows every frame, so turning speech on says the new value
+// instead of the whole screen. describe is a press of the accessibility button
+// (RT, F2); F1 also stops speech while a menu shows.
+void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now,bool describe) {
+    SpokenFrame frame{title,focus};
+    frame.entries=&entries;
+    frame.notice=!notice_.empty()&&!noticeAsked_;
+    for(const auto& noticeButton:noticeButtons_)frame.buttons.push_back(noticeButton.label);
+    frame.accessKey=AccessibilityKeyName();
+    // The focused entry may be a copy, so its place comes from its id.
+    if(focus){frame.index=static_cast<std::size_t>(std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==focus->id;})-entries.begin());frame.count=entries.size();}
+    frame.button=button;
+    if(!button.empty()) {
+        const auto& owner=navigation.Editing()?navigation.EditingId():navigation.DialogId();
+        const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==owner;});
+        frame.question=!notice_.empty()?notice_:entry!=entries.end()?entry->label:std::string();
+    }
+    if(primary)frame.hint=SpokenButton(selectGlyph)+": "+primary;
+    if(adjustable)frame.hint+=(frame.hint.empty()?"":". ")+std::string(loc::T("speech.change"));
+    const auto said=narrator_.Update(frame,now,menuSpeech,menuSpeech.enabled&&describe);
+    if(!menuSpeech.enabled)return;
+    if(said.stop||ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
+    if(said.chime&&menuSpeech.chime)speech::Chime(menuSpeech.chimeVolume);
+    if(!said.parts.empty())speech::Say(said.parts,said.interrupt,menuSpeech.rate,menuSpeech.volume,said.tick);
+    if(describe&&!said.parts.empty())++menuDescribes;
+    speech::Render(said.render,menuSpeech.rate);
 }
 } }

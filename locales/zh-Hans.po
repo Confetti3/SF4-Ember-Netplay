@@ -442,6 +442,12 @@ msgstr "导航"
 msgid "menu.adjust"
 msgstr "调整"
 
+msgid "speech.position"
+msgstr "第{0}项，共{1}项"
+
+msgid "speech.change"
+msgstr "左右键更改"
+
 msgid "rules.edition_select"
 msgstr "版本选择"
 
@@ -4747,6 +4753,153 @@ msgstr "对战帧数表、从训练返回时自动准备，以及要保存哪些
 
 msgid "settings.training_replays_title"
 msgstr "训练和录像"
+
+msgid "settings.accessibility"
+msgstr "无障碍"
+
+msgid "settings.accessibility_detail"
+msgstr "朗读Ember菜单的语音。"
+
+msgid "settings.accessibility_title"
+msgstr "无障碍"
+
+msgid "speech.setting"
+msgstr "语音"
+
+msgid "speech.setting_detail"
+msgstr "在你浏览Ember菜单时朗读菜单。按F1停止朗读。"
+
+msgid "speech.intro"
+msgstr "语音已开启。移动即可听到每一项。按{0}可听到它的作用，再按一次停止。更多选项位于“设置”>“无障碍”。"
+
+msgid "speech.rate"
+msgstr "语速"
+
+msgid "speech.rate_detail"
+msgstr "语音的说话速度。0为正常语速。"
+
+msgid "speech.volume"
+msgstr "语音音量"
+
+msgid "speech.volume_detail"
+msgstr "语音的音量。"
+
+msgid "speech.details"
+msgstr "自动朗读说明"
+
+msgid "speech.details_detail"
+msgstr "在项目上停留片刻后自动朗读其说明。关闭时，按F2朗读。"
+
+msgid "speech.hints"
+msgstr "朗读按键提示"
+
+msgid "speech.hints_detail"
+msgstr "朗读你停留的项目上各按键的作用。"
+
+msgid "speech.read_position"
+msgstr "朗读位置"
+
+msgid "speech.read_position_detail"
+msgstr "在项目名称和值之后，朗读其在列表中的位置，例如第3项，共12项。"
+
+msgid "speech.more"
+msgstr "按{0}了解更多"
+
+msgid "speech.help"
+msgstr "按{0}获取任一项的帮助"
+
+msgid "speech.remind"
+msgstr "提醒说明按键"
+
+msgid "speech.remind_detail"
+msgstr "在有说明的项目名称之后，告知哪个按键可朗读说明。自动模式在你使用该按键三次后停止。"
+
+msgid "speech.remind_auto"
+msgstr "直到使用3次"
+
+msgid "speech.tick"
+msgstr "说明提示音"
+
+msgid "speech.tick_detail"
+msgstr "提醒停止后，项目名称后的轻柔提示音表示它有说明。"
+
+msgid "speech.notice"
+msgstr "通知。按{0}收听。"
+
+msgid "speech.chime"
+msgstr "通知提示音"
+
+msgid "speech.chime_detail"
+msgstr "在语音告知有通知自动打开之前，播放一段简短的提示音。"
+
+msgid "speech.chime_volume"
+msgstr "提示音音量"
+
+msgid "speech.chime_volume_detail"
+msgstr "通知提示音的音量。"
+
+msgid "speech.voice"
+msgstr "语音"
+
+msgid "speech.voice_detail"
+msgstr "在Linux和Steam Deck上，Ember会为你的语言下载一次自然语音（约90 MB）并保留。在其就绪之前，以及没有对应语音的语言，由系统语音朗读。"
+
+msgid "speech.voice_system"
+msgstr "系统语音"
+
+msgid "speech.voice_downloading"
+msgstr "正在下载，{0}%"
+
+msgid "speech.voice_natural"
+msgstr "自然语音"
+
+msgid "speech.voice_download_failed"
+msgstr "下载失败"
+
+msgid "speech.voice_ready"
+msgstr "自然语音已就绪，从现在起由它朗读。"
+
+msgid "speech.voice_failed"
+msgstr "无法下载自然语音，因此由系统语音朗读。Ember会在下次启动时重试。"
+
+msgid "speech.pack"
+msgstr "语音包（{0}）"
+
+msgid "speech.pack_missing"
+msgstr "未下载，{0} MB"
+
+msgid "speech.pack_current"
+msgstr "已下载，{0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "有可用更新，{0} MB"
+
+msgid "speech.pack_removed"
+msgstr "已移除"
+
+msgid "speech.pack_detail"
+msgstr "Ember所说的每一句话，都用自然语音录制一次。开启语音时会自动下载；选择即可重新下载或更新。"
+
+msgid "speech.pack_download"
+msgstr "下载"
+
+msgid "speech.pack_remove"
+msgstr "移除语音包"
+
+msgid "speech.pack_remove_detail"
+msgstr "从此电脑删除语音包。重新下载之前由系统语音朗读。"
+
+msgid "speech.pack_downloading"
+msgstr "正在下载{0}语音（{1} MB）。就绪前由系统语音朗读。"
+
+msgid "speech.pack_failed"
+msgstr "无法下载语音包，因此由系统语音朗读。要重试，请在“设置”>“无障碍”中选择语音包。"
+
+msgid "speech.no_windows_voice"
+msgstr "语音已开启，但Windows没有可用于朗读的语音。请在Windows设置的“时间和语言”>“语音”中添加。"
+
+msgid "speech.no_speech_dispatcher"
+msgstr "语音已开启，但无法连接speech-dispatcher。在Linux和Steam Deck上，Ember通过speech-dispatcher朗读，还需要python3。"
 
 msgid "room.table_footer_practice"
 msgstr "练习对战"

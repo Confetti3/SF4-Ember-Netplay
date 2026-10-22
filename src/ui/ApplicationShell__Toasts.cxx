@@ -34,6 +34,8 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
   if(text.empty())return;
   toasts_.push_front({++toastCount_,text,tone,now,(std::max)(until,now+4)});
   if(toasts_.size()>ToastsKept)toasts_.pop_back();
+  // Speech reads a toast once, as it appears.
+  if(v2::On())SayMenuNotice(text);
  };
  take(notice_,noticeTone_,noticeUntil_,noticeSeen_);
  take(error_,Tone::Error,now+6,errorSeen_);

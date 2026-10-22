@@ -13,7 +13,7 @@ struct ControllerSample {
     // the two enums together. Menu (Start) opens Ember; once it is shown it
     // reaches the menu as MenuInput::Start, which only the on-screen keyboard reads.
     enum Button : std::uint32_t { Up = 1, Down = 2, Left = 4, Right = 8, Confirm = 16, Back = 32, Menu = 64,
-        Fighter = 128, Options = 256, Chat = 512, PrevTab = 2048, NextTab = 4096 };
+        Fighter = 128, Options = 256, Chat = 512, PrevTab = 2048, NextTab = 4096, Describe = 8192 };
     int deviceType = -1, deviceIndex = -1;
     bool connected = false;
     std::uint32_t buttons = 0;
@@ -25,7 +25,7 @@ static_assert(ControllerSample::Up == MenuInput::Up && ControllerSample::Down ==
     ControllerSample::Confirm == MenuInput::Select && ControllerSample::Back == MenuInput::Back &&
     ControllerSample::Fighter == MenuInput::Fighter && ControllerSample::Options == MenuInput::Options &&
     ControllerSample::Chat == MenuInput::Chat && ControllerSample::PrevTab == MenuInput::PrevTab &&
-    ControllerSample::NextTab == MenuInput::NextTab && ControllerSample::Menu == MenuInput::Start, "ControllerSample and MenuInput must number their buttons alike");
+    ControllerSample::NextTab == MenuInput::NextTab && ControllerSample::Describe == MenuInput::Describe && ControllerSample::Menu == MenuInput::Start, "ControllerSample and MenuInput must number their buttons alike");
 static_assert((ControllerSample::Menu & (MenuInput::Up | MenuInput::Down | MenuInput::Left | MenuInput::Right |
     MenuInput::Select | MenuInput::Back | MenuInput::Fighter | MenuInput::Options | MenuInput::Chat)) == 0,
     "Start must not collide with a menu button");
@@ -34,7 +34,9 @@ static_assert((ControllerSample::Menu & (MenuInput::Up | MenuInput::Down | MenuI
 // and Back are the device's physical menu buttons (Pad::MenuButtons): the
 // player's binding, else the ones the game's own menus use. On an Xbox pad X,
 // Y and View are shortcuts unless one of them confirms or goes back; Start
-// (the game's Start function on DirectInput) opens Ember.
+// (the game's Start function on DirectInput) opens Ember. RT, the fourth
+// button of the bottom row on an Xbox-layout stick too, is the accessibility
+// button (MenuInput::Describe).
 inline std::uint32_t ControllerButtons(std::uint32_t held,int deviceType=-1,std::uint32_t physical=0,const input::MenuButtons& menu={}) {
     std::uint32_t result = 0;
     if (held & 0x1) result |= ControllerSample::Up;
@@ -52,6 +54,7 @@ inline std::uint32_t ControllerButtons(std::uint32_t held,int deviceType=-1,std:
         if(shortcuts&input::xinput::LB)result|=ControllerSample::PrevTab;
         if(shortcuts&input::xinput::RB)result|=ControllerSample::NextTab;
     }else if (held & 0x1000) result |= ControllerSample::Menu;
+    if (physical & ~(menu.confirm | menu.back) & input::xinput::RT) result |= ControllerSample::Describe;
     return result;
 }
 

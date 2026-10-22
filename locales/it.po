@@ -442,6 +442,12 @@ msgstr "Naviga"
 msgid "menu.adjust"
 msgstr "Regola"
 
+msgid "speech.position"
+msgstr "{0} di {1}"
+
+msgid "speech.change"
+msgstr "Sinistra o destra per cambiare"
+
 msgid "rules.edition_select"
 msgstr "Seleziona versione"
 
@@ -4746,6 +4752,153 @@ msgstr "Indicatore dei frame nelle partite, pronto automatico dopo l'allenamento
 
 msgid "settings.training_replays_title"
 msgstr "ALLENAMENTO E REPLAY"
+
+msgid "settings.accessibility"
+msgstr "Accessibilità"
+
+msgid "settings.accessibility_detail"
+msgstr "Voce che legge ad alta voce i menu di Ember."
+
+msgid "settings.accessibility_title"
+msgstr "ACCESSIBILITÀ"
+
+msgid "speech.setting"
+msgstr "Voce"
+
+msgid "speech.setting_detail"
+msgstr "Legge ad alta voce i menu di Ember mentre li scorri. F1 ferma la voce."
+
+msgid "speech.intro"
+msgstr "La voce è attiva. Spostati per sentire ogni voce. Premi {0} per sentire cosa fa; premilo di nuovo per fermarla. Altre opzioni sono in Impostazioni, Accessibilità."
+
+msgid "speech.rate"
+msgstr "Velocità della voce"
+
+msgid "speech.rate_detail"
+msgstr "Quanto velocemente parla la voce. 0 è il ritmo normale."
+
+msgid "speech.volume"
+msgstr "Volume della voce"
+
+msgid "speech.volume_detail"
+msgstr "Quanto forte parla la voce."
+
+msgid "speech.details"
+msgstr "Leggi le descrizioni automaticamente"
+
+msgid "speech.details_detail"
+msgstr "Legge da sola la descrizione di una riga quando ci resti sopra un momento. Se disattivato, F2 la legge su richiesta."
+
+msgid "speech.hints"
+msgstr "Leggi i suggerimenti dei tasti"
+
+msgid "speech.hints_detail"
+msgstr "Legge cosa fanno i tuoi tasti sulla riga su cui resti."
+
+msgid "speech.read_position"
+msgstr "Leggi la posizione"
+
+msgid "speech.read_position_detail"
+msgstr "Dopo il nome e il valore di una riga, ne dice la posizione nell'elenco, ad esempio 3 di 12."
+
+msgid "speech.more"
+msgstr "{0} per saperne di più"
+
+msgid "speech.help"
+msgstr "{0} per l'aiuto su ogni voce"
+
+msgid "speech.remind"
+msgstr "Ricordami il tasto descrizione"
+
+msgid "speech.remind_detail"
+msgstr "Dopo il nome di una riga con descrizione, dice quale tasto la legge. Automatico smette dopo che hai usato il tasto tre volte."
+
+msgid "speech.remind_auto"
+msgstr "Fino a 3 usi"
+
+msgid "speech.tick"
+msgstr "Suono di descrizione"
+
+msgid "speech.tick_detail"
+msgstr "Quando il promemoria si ferma, un suono leggero dopo il nome di una riga indica che ha una descrizione."
+
+msgid "speech.notice"
+msgstr "Avviso. Premi {0} per sentirlo."
+
+msgid "speech.chime"
+msgstr "Suono degli avvisi"
+
+msgid "speech.chime_detail"
+msgstr "Un breve suono prima che la voce dica che si è aperto un avviso da solo."
+
+msgid "speech.chime_volume"
+msgstr "Volume del suono degli avvisi"
+
+msgid "speech.chime_volume_detail"
+msgstr "Quanto forte suona l'avviso."
+
+msgid "speech.voice"
+msgstr "Voce"
+
+msgid "speech.voice_detail"
+msgstr "Su Linux e Steam Deck, Ember scarica una volta una voce naturale per la tua lingua (circa 90 MB) e la conserva. Finché non è pronta, e per le lingue che non ne hanno una, parla la voce di sistema."
+
+msgid "speech.voice_system"
+msgstr "Voce di sistema"
+
+msgid "speech.voice_downloading"
+msgstr "Download in corso, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Voce naturale"
+
+msgid "speech.voice_download_failed"
+msgstr "Download non riuscito"
+
+msgid "speech.voice_ready"
+msgstr "La voce naturale è pronta e da ora parla lei."
+
+msgid "speech.voice_failed"
+msgstr "Non è stato possibile scaricare la voce naturale, quindi parla la voce di sistema. Ember riprova al prossimo avvio."
+
+msgid "speech.pack"
+msgstr "Pacchetto voce: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Non scaricato, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Scaricato, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Aggiornamento disponibile, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Rimosso"
+
+msgid "speech.pack_detail"
+msgstr "Ogni frase che Ember dice, registrata una volta con una voce naturale. Si scarica da sola quando la voce è attiva; selezionala per scaricarla di nuovo o aggiornarla."
+
+msgid "speech.pack_download"
+msgstr "Scarica"
+
+msgid "speech.pack_remove"
+msgstr "Rimuovi pacchetto voce"
+
+msgid "speech.pack_remove_detail"
+msgstr "Elimina il pacchetto voce da questo PC. Parla la voce di sistema finché non lo scarichi di nuovo."
+
+msgid "speech.pack_downloading"
+msgstr "Download della voce {0} ({1} MB). Parla la voce di sistema finché non è pronta."
+
+msgid "speech.pack_failed"
+msgstr "Non è stato possibile scaricare il pacchetto voce, quindi parla la voce di sistema. Per riprovare, seleziona il pacchetto voce in Impostazioni, Accessibilità."
+
+msgid "speech.no_windows_voice"
+msgstr "La voce è attiva, ma Windows non ha alcuna voce con cui parlare. Aggiungine una nelle Impostazioni di Windows, in Data/ora e lingua, Voce."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "La voce è attiva, ma speech-dispatcher non è raggiungibile. Su Linux e Steam Deck, Ember parla tramite speech-dispatcher, che richiede anche python3."
 
 msgid "room.table_footer_practice"
 msgstr "Partita di pratica"

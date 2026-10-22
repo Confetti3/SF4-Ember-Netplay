@@ -20,7 +20,7 @@ void TrainingSettingsAndHome() {
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Choose("settings");
- const std::vector<std::string> settings={"player","country","defaults","interface","training-replays","discord","problem-reports","about"};
+ const std::vector<std::string> settings={"player","country","defaults","interface","training-replays","accessibility","discord","problem-reports","about"};
  Check(rows.size()==settings.size(),"Settings row count changed");
  for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
  h.Choose("interface");
@@ -35,6 +35,10 @@ void TrainingSettingsAndHome() {
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.trainingAutoReady,"Training auto-ready did not save from new screen");
  h.view.preferences=h.actions.back().preferences;h.Frame();
+ // Speech starts off, and its other rows wait for it. (Turning it on here
+ // would speak through the PC's voice.)
+ h.Screen("settings");h.Choose("accessibility");
+ Check(rows.size()==11&&rows[0].id=="speech"&&rows[0].enabled&&rows[0].adjustable&&!rows[1].enabled&&!rows[5].enabled,"Accessibility rows wrong while speech is off");
  // Country opens its picker on the saved choice; a country saves and goes back to Settings.
  h.Screen("settings");h.Choose("country");
  Check(h.shell.Navigation().Screen()=="country"&&h.shell.Navigation().Focus()=="country-auto","The country picker did not open on Automatic");

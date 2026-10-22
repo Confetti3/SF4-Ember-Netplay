@@ -25,12 +25,11 @@ inline Plan PlanFor(bool inFront, bool minimized, bool sound) {
     return plan;
 }
 
-// The chime: two short rising tones, a 16-bit mono WAV file in memory for
+// Short tones one after another as a 16-bit mono WAV file in memory for
 // PlaySoundW, at volumePercent (10 to 100) of its full level.
-inline std::vector<std::uint8_t> Chime(int volumePercent) {
+struct Tone { double hz, seconds; };
+inline std::vector<std::uint8_t> Tones(const std::vector<Tone>& tones, int volumePercent) {
     constexpr std::uint32_t Rate = 22050;
-    struct Tone { double hz, seconds; };
-    const Tone tones[] = { {880.0, .12}, {1318.5, .22} };
     const double level = 0.6 * 32767.0 * ((volumePercent < 10 ? 10 : volumePercent > 100 ? 100 : volumePercent) / 100.0);
     std::vector<std::int16_t> samples;
     for (const auto& tone : tones) {
@@ -54,5 +53,12 @@ inline std::vector<std::uint8_t> Chime(int volumePercent) {
     put("data", 4); u32(dataBytes); put(samples.data(), dataBytes);
     return wave;
 }
+// The chime: two short rising tones.
+inline std::vector<std::uint8_t> Chime(int volumePercent) { return Tones({{880.0, .12}, {1318.5, .22}}, volumePercent); }
+// Speech's sounds (platform/Speech.cxx): the chime before a notice that
+// opened by itself, two falling tones; and the soft tick after an item that
+// has a description, one very short high tone.
+inline std::vector<std::uint8_t> NoticeChime(int volumePercent) { return Tones({{1318.5, .08}, {987.8, .16}}, volumePercent); }
+inline std::vector<std::uint8_t> DescriptionTick() { return Tones({{2093.0, .015}}, 40); }
 
 } }
