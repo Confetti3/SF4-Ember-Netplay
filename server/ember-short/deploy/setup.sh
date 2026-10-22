@@ -115,12 +115,27 @@ if ! nginx -t; then
 fi
 
 # The site's files only once nginx has accepted the routes they link to, so
-# a rejected configuration leaves the pages as they were too. Assets first, so
-# a page never names one that is not there yet. Each file is written beside its
-# target and renamed over it, so nginx never serves half a file.
-install -d -o root -g root -m 0755 "$ROOT/assets" "$ROOT/assets/fonts"
+# a rejected configuration leaves the pages as they were too. Every file is
+# written beside its target first; if one cannot be, those copies go and the
+# nginx files are put back. Then each is renamed over its target, assets first
+# so a page never names one that is not there yet, and nginx never serves
+# half a file.
+unstage() {
+    for file in $ASSETS $PAGES; do rm -f "$ROOT/$file.new"; done
+}
+if ! install -d -o root -g root -m 0755 "$ROOT/assets" "$ROOT/assets/fonts"; then
+    restore
+    exit 1
+fi
 for file in $ASSETS $PAGES; do
-    install -o root -g root -m 0644 "$SRC/site/$file" "$ROOT/$file.new"
+    if ! install -o root -g root -m 0644 "$SRC/site/$file" "$ROOT/$file.new"; then
+        echo "Could not write $ROOT/$file; restored the previous nginx files." >&2
+        unstage
+        restore
+        exit 1
+    fi
+done
+for file in $ASSETS $PAGES; do
     mv -f "$ROOT/$file.new" "$ROOT/$file"
 done
 

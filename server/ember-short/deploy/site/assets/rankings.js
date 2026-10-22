@@ -57,6 +57,8 @@
   var regionNames = {};
   REGIONS.forEach(function (region) { regionNames[region[0]] = region[1]; });
   regionNames[OTHER_REGION] = 'Other';
+  var graphemes = null;
+  try { graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' }); } catch (error) { graphemes = null; }
   var displayNames = null;
   try { displayNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (error) { displayNames = null; }
   var countryNames = {};
@@ -142,7 +144,7 @@
     var country = (params.get('country') || '').toUpperCase();
     view.country = COUNTRY.test(country) ? country : country === 'NONE' ? NO_COUNTRY : '';
     var region = params.get('region') || '';
-    view.region = regionNames[region] ? region : '';
+    view.region = Object.prototype.hasOwnProperty.call(regionNames, region) ? region : '';
     var group = params.get('group');
     view.group = group === 'country' || group === 'none' ? group : 'class';
     view.order = params.get('order') === 'name' ? 'name' : 'recent';
@@ -180,6 +182,20 @@
     return true;
   }
 
+  // Widens code points from..last to whole characters as the reader sees
+  // them, so a mark never splits an accent from its letter or a joined emoji.
+  function wholeCharacters(chars, from, last) {
+    if (!graphemes) return [from, last];
+    var start = 0, first = from, end = last;
+    for (var it = graphemes.segment(chars.join(''))[Symbol.iterator](), step = it.next(); !step.done; step = it.next()) {
+      var length = Array.from(step.value.segment).length;
+      if (from >= start && from < start + length) first = start;
+      if (last >= start && last < start + length) end = start + length - 1;
+      start += length;
+    }
+    return [first, end];
+  }
+
   function name(player) {
     var node = el('span', 'rank-name');
     var needle = view.needle;
@@ -188,9 +204,9 @@
       node.textContent = player.name;
       return node;
     }
-    var from = player.folded.starts[at];
-    var last = player.folded.starts[at + needle.length - 1];
     var chars = player.folded.chars;
+    var span = wholeCharacters(chars, player.folded.starts[at], player.folded.starts[at + needle.length - 1]);
+    var from = span[0], last = span[1];
     node.appendChild(document.createTextNode(chars.slice(0, from).join('')));
     node.appendChild(el('mark', '', chars.slice(from, last + 1).join('')));
     node.appendChild(document.createTextNode(chars.slice(last + 1).join('')));
