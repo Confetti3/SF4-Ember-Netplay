@@ -62,19 +62,24 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), Colors().border, s);
     int pressed = -1;
     float x = bar.min.x + side;
+    const float right = bar.max.x - side, size = 15 * s, icon = bell ? 30 * s : 0;
+    // When the hints and the status do not both fit (a narrow screen), the hints
+    // keep their glyphs only and the status keeps its words.
+    float wanted = TextWidth(status, size) + icon;
+    for (const auto& h : hints) wanted += glyph + 32 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, PromptLabel(h.glyph, h.label, MenuPromptBrand()).c_str()).x;
+    const bool compact = x + wanted > right;
     for (int i = 0; i < static_cast<int>(hints.size()); ++i) {
         const auto& h = hints[i];
-        const std::string label = PromptLabel(h.glyph, h.label, MenuPromptBrand());
-        const float w = glyph + 8 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, label.c_str()).x;
+        const std::string label = compact ? std::string() : PromptLabel(h.glyph, h.label, MenuPromptBrand());
+        const float w = glyph + (label.empty() ? 0 : 8 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, label.c_str()).x);
         ImGui::SetCursorScreenPos(ImVec2(x, bar.min.y));
         ImGui::PushID(i);
         if (ImGui::InvisibleButton("##hint", ImVec2(w, bar.H()))) pressed = i;
         ImGui::PopID();
         DrawPromptGlyph(d, h.glyph, ImVec2(x, bar.min.y + (bar.H() - glyph) * .5f), glyph, MenuArt(), s);
         d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), Colors().text, label.c_str());
-        x += w + 24 * s;
+        x += w + (compact ? 12 : 24) * s;
     }
-    const float right = bar.max.x - side, size = 15 * s, icon = bell ? 30 * s : 0;
     const std::string fitted = Fit(status, (std::max)(0.f, right - x - icon), size);
     const float left = right - TextWidth(fitted, size) - icon, mid = bar.min.y + bar.H() * .5f;
     d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(fitted, size), mid - size * .5f), tone, fitted.c_str());
