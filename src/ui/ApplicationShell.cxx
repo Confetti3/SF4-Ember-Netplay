@@ -12,6 +12,7 @@
 #include "SignInSites.hxx"
 #include "RoomControls.hxx"
 #include "V2.hxx"
+#include "CountryFlag.hxx"
 #include "WatchedPicture.hxx"
 #include "VersionLine.hxx"
 #include "../session/TrainingCall.hxx"
@@ -845,6 +846,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v2::On()&&!roomScreen)OfferValues(rows);
  // A BluMint match's room: its look, header and notices (ApplicationShell__BluMint.cxx).
  UpdateBluMint(v,screen,rows);
+ // V2: the country picker's header names the choice in use.
+ if(screen==CountryPicker::Screen)menu_.headerChips.push_back({CountryPicker::ChoiceText(preferences_.country,v.automaticCountry),v2::Colors().accentLight});
  PublishPlayerCard(v);
  // Public rooms lead with a toolbar of four cells, in one row on a wide list and two on a narrow one.
  const bool publicToolbar=PublicRoomsPanel::Owns(screen)&&!rows.empty()&&rows[0].id=="pr-quick";
@@ -881,6 +884,20 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  };
  if(screen=="profile"||screen=="main-character"||screen=="tab-player")profilePreview=[&](const std::string& id){
   if(screen=="tab-player"&&id!="name"&&id!="main-character"&&id!="record"&&id!="share-steam")return;
+  // V2's Player tab shows the profile card (the L tag) as others will see it.
+  if(screen=="tab-player"){
+   const auto& card=MenuPlayerCard();const auto& standing=v.rankings.standing;
+   v2::TagView tag;tag.name=card.name;tag.marks.country=card.country;tag.fighter=card.fighter;
+   if(standing.loaded&&standing.value.kind==netplay::rankings::Standing::Kind::Ranked&&standing.value.classesShown)tag.marks.badge=standing.value.badge;
+   if(card.country.Present())tag.about=CountryName(card.country);
+   if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
+   tag.facts={{loc::T("profile.main_badge"),card.fighterName}};
+   if(card.recordAvailable)tag.facts.push_back({loc::T("profile.record"),loc::Tf("profile.record_value",card.wins,card.losses)});
+   ImGui::Dummy(ImVec2(0,8*Scale()));
+   const auto p=ImGui::GetCursorScreenPos();
+   ImGui::Dummy(ImVec2(0,v2::Tag(ImGui::GetWindowDrawList(),p,ImGui::GetContentRegionAvail().x,tag,v2::TagSize::L)));
+   return;
+  }
   const int fighter=screen=="main-character"&&id.compare(0,5,"main-")==0?std::stoi(id.substr(5)):v.preferences.mainFighter;
   const auto space=ImGui::GetContentRegionAvail();const float size=(std::min)(220*Scale(),(std::min)(space.x,space.y-12*Scale()));
   if(size>=48*Scale()){const auto p=ImGui::GetCursorScreenPos();DrawCharacterPortrait(fighter,p,ImVec2(p.x+size,p.y+size));ImGui::Dummy(ImVec2(size,size));}
@@ -941,6 +958,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v2::On()&&SettingsTab(screen)){
   menu_.tabs=SettingsTabs();
   for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==screen)menu_.tab=i;
+ }else if(v2::On()&&RankingsPanel::Owns(screen)){
+  // V2: Rankings' two pages, your own and the board, are tabs.
+  menu_.tabs={{RankingsPanel::Screen,MenuScreenName(RankingsPanel::Screen)},{RankingsPanel::BoardScreen,MenuScreenName(RankingsPanel::BoardScreen)}};
+  menu_.tab=screen==RankingsPanel::Screen?0:1;
  }
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";

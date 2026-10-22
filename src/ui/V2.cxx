@@ -200,7 +200,52 @@ int Tabs(const std::vector<std::string>& labels, int current) {
     return pressed;
 }
 
+namespace {
+// The L tag (Tag): the profile card.
+float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) {
+    const auto& c = Colors();
+    const float s = Scale(), pad = 20 * s, tile = 96 * s, band = tile + 36 * s, line = 34 * s, nameSize = 26 * s;
+    const std::size_t count = tag.facts.size(), across = width < 640 * s && count > 2 ? (count + 1) / 2 : count;
+    const float factHeight = 52 * s, height = band + (count ? factHeight * ((count + across - 1) / across) : 0);
+    draw->AddRectFilled(at, ImVec2(at.x + width, at.y + height), color::Alpha(c.panel, .94f), 4 * s);
+    draw->AddRectFilledMultiColor(at, ImVec2(at.x + width * .7f, at.y + band), c.header, color::Alpha(c.header, 0), color::Alpha(c.header, 0), c.header);
+    const ImVec2 t(at.x + pad, at.y + 18 * s);
+    if (tag.fighter >= 0) DrawCharacterPortrait(tag.fighter, t, ImVec2(t.x + tile, t.y + tile), c.frame);
+    draw->AddRect(t, ImVec2(t.x + tile, t.y + tile), c.accent, 0, 0, 3 * s);
+    const float x = t.x + tile + 18 * s, room = at.x + width - pad - x;
+    float y = t.y;
+    const float marks = DrawNameMarks(draw, x, y + (line - nameSize) * .5f, nameSize, tag.marks).width;
+    NoteUserText(tag.name);
+    draw->AddText(HeadingFont(), nameSize, ImVec2(x + marks, y + (line - nameSize) * .5f), c.text, Fit(tag.name, room - marks, nameSize, HeadingFont()).c_str());
+    y += line + 8 * s;
+    // The title on its plate: a slanted bar with the accent's stripe at its start.
+    if (!tag.title.empty()) {
+        const float w = (std::min)(340 * s, room), cut = line / 3, stripe = line / 2;
+        const ImVec2 plate[] = {{x + cut, y}, {x + w, y}, {x + w - cut, y + line}, {x, y + line}};
+        const ImVec2 mark[] = {{x + cut, y}, {x + stripe, y}, {x + stripe - cut, y + line}, {x, y + line}};
+        draw->AddConvexPolyFilled(plate, 4, c.button);
+        draw->AddConvexPolyFilled(mark, 4, c.accent);
+        const float size = 15 * s;
+        draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), c.text, Fit(tag.title, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
+        y += line + 8 * s;
+    }
+    draw->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, y), c.muted, Fit(tag.about, room, 14 * s).c_str());
+    // The facts, a cell each, key over value.
+    const float cell = count ? width / across : 0;
+    for (std::size_t i = 0; i < count; ++i) {
+        const ImVec2 p(at.x + cell * (i % across), at.y + band + factHeight * (i / across));
+        if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, s);
+        else draw->AddLine(p, ImVec2(p.x, p.y + factHeight), c.border, s);
+        draw->AddText(HeadingFont(), 12 * s, ImVec2(p.x + 14 * s, p.y + 10 * s), c.muted, Fit(tag.facts[i].key, cell - 28 * s, 12 * s, HeadingFont()).c_str());
+        draw->AddText(HeadingFont(), 15 * s, ImVec2(p.x + 14 * s, p.y + 26 * s), c.text, Fit(tag.facts[i].value, cell - 28 * s, 15 * s, HeadingFont()).c_str());
+    }
+    draw->AddRect(at, ImVec2(at.x + width, at.y + height), c.border, 4 * s, 0, s);
+    return height;
+}
+}
+
 float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size) {
+    if (size == TagSize::L) return ProfileCard(draw, at, width, tag);
     const float s = Scale(), gap = 8 * s;
     const float font = size == TagSize::XS ? ImGui::GetFontSize() * .85f : ImGui::GetFontSize();
     const float nameSize = size == TagSize::M ? 22 * s : font;

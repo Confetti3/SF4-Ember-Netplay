@@ -99,13 +99,20 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
 
 // The player tag: flag · rank · name · title · indicators, always in that
 // order. Space short: status goes first, then the title; flag, rank, name and
-// ping always stay.
-enum class TagSize { XS, S, M };
+// ping always stay. L is the profile card: the main's portrait beside the
+// tag, the title on its plate, a line about the player and their facts in a
+// row, which takes two lines under 640 px.
+enum class TagSize { XS, S, M, L };
 struct TagView {
     std::string name, title, status;
     NameMarks marks;
     // The member's ping as the room measures it (LatencyMarkFor); none without text.
     LatencyMark ping;
+    // L only: the main (-1 for none), the line under the title (country, class) and the facts.
+    int fighter = -1;
+    std::string about;
+    struct Fact { std::string key, value; };
+    std::vector<Fact> facts;
 };
 // Draws at `at` within `width`; returns the height it took.
 float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size);

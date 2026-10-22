@@ -132,6 +132,13 @@ RosterGrid LayOutRosterGrid(float windowWidth){
     const float list=(windowWidth>=820*s?windowWidth*share:windowWidth)-ImGui::GetStyle().ScrollbarSize;
     const float card=(list-gap*(columns-1))/columns;
     RosterGrid grid;
+    // V2 (the Fighter design board): eight across beside the preview, fewer on a narrow screen.
+    if(v2::On()){
+        const float room=v2::Narrow(windowWidth,s)?windowWidth:windowWidth*.55f;
+        grid.columns=(std::max)(3,(std::min)(8,static_cast<int>(room/(76*s))));
+        grid.cardHeight=(std::min)(120.f,(room-gap*(grid.columns-1))/grid.columns/s*.9f+26);grid.listShare=.55f;
+        return grid;
+    }
     if(card>=56*s){
         // Portraits are about square; the caption strip and its padding come on top.
         grid.columns=selection::RosterGridColumns;grid.cardHeight=(std::min)(100.f,card/s*.9f+26);grid.listShare=share;
