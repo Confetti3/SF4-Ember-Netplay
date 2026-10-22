@@ -6472,6 +6472,15 @@ msgstr "Listed in Public rooms"
 msgid "room.v2.type_message"
 msgstr "Type a message"
 
+msgid "room.v2.more"
+msgstr "More…"
+
+msgid "room.v2.more_detail"
+msgstr "Table options, room settings and invitation links."
+
+msgid "room.v2.unread"
+msgstr "{0} unread"
+
 msgid "online.eyebrow"
 msgstr "EMBER · ONLINE"
 

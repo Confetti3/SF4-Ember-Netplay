@@ -162,6 +162,9 @@ void JoinRoom(ui::ShellView& view) {
         m.country = CountryCode::Parsed(countries[i - 1]);
         if (i <= 4) { m.table = (i - 1) / 2; m.seat = (i - 1) % 2; m.status = i < 3 ? room::MemberStatus::Seated : room::MemberStatus::Playing; }
         m.link = static_cast<NetworkLink>(i % 3);
+        // Class marks and pings, as a public room shows them.
+        m.badge = i == 2 ? SkillBadge::Developer() : i == 3 ? SkillBadge::Placing() : i < 9 ? SkillBadge::OfClass(static_cast<std::uint8_t>(i), i % 2 == 0) : SkillBadge{};
+        if (i > 1) { session::MemberLatency l; l.incarnation = m.incarnation; l.state = session::MemberLatency::State::Value; l.rttMs = 20 + i * 13 % 190; view.memberLatency[m.id] = l; }
         view.room.members.push_back(m);
     }
     const char* chat[] = {"Welcome! Grab a table or join a queue.", "Good games. I'll watch the next one.", "Ready for another set?", "Let's run it back!"};

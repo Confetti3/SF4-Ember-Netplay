@@ -153,7 +153,12 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         // Classic titles are capitals ("SETTINGS"); the V2 header names the screen as the menus do.
         // A flyout's root is named by its owner (rootName), its pages as the menus name them.
         const char* named = navigation.Screen() == navigation.Root() && !rootName.empty() ? rootName.c_str() : MenuScreenName(navigation.Screen());
-        v2::Header(named && IsCapitals(title) ? named : title, eyebrow.empty() ? nullptr : eyebrow.c_str(), headerChips);
+        // Its Back button is the hint bar's Back, so it closes an open question first.
+        if (v2::Header(named && IsCapitals(title) ? named : title, eyebrow.empty() ? nullptr : eyebrow.c_str(), headerChips, backInert ? nullptr : loc::T("common.back"))
+            && !modalAtStart && !noticeOpen && !navigation.Editing()) {
+            if (navigation.Asking()) navigation.Cancel();
+            else backRequested = true;
+        }
         if (!tabs.empty()) {
             std::vector<std::string> labels;
             for (const auto& t : tabs) labels.push_back(t.second);

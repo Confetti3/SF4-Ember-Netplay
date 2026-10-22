@@ -6837,6 +6837,15 @@ msgstr "Staat in Openbare kamers"
 msgid "room.v2.type_message"
 msgstr "Typ een bericht"
 
+msgid "room.v2.more"
+msgstr "Meer…"
+
+msgid "room.v2.more_detail"
+msgstr "Tafelopties, kamerinstellingen en uitnodigingslinks."
+
+msgid "room.v2.unread"
+msgstr "{0} ongelezen"
+
 msgid "online.eyebrow"
 msgstr "EMBER · ONLINE"
 

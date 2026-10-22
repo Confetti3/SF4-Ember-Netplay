@@ -6838,6 +6838,15 @@ msgstr "В списке открытых комнат"
 msgid "room.v2.type_message"
 msgstr "Напишите сообщение"
 
+msgid "room.v2.more"
+msgstr "Ещё…"
+
+msgid "room.v2.more_detail"
+msgstr "Настройки ячейки, настройки лобби и ссылки-приглашения."
+
+msgid "room.v2.unread"
+msgstr "Непрочитано: {0}"
+
 msgid "online.eyebrow"
 msgstr "EMBER · ОНЛАЙН"
 

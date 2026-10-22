@@ -6838,6 +6838,15 @@ msgstr "已列入公开房间"
 msgid "room.v2.type_message"
 msgstr "输入消息"
 
+msgid "room.v2.more"
+msgstr "更多…"
+
+msgid "room.v2.more_detail"
+msgstr "对战席选项、房间设置和邀请链接。"
+
+msgid "room.v2.unread"
+msgstr "{0} 条未读"
+
 msgid "online.eyebrow"
 msgstr "EMBER · 在线"
 

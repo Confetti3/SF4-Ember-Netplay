@@ -86,9 +86,10 @@ void Fact(const std::string& key, const std::string& value);
 float BrandMark(ImDrawList* draw, ImVec2 at, float height);
 // A screen's header: the brand's mark (BrandMark), an optional muted eyebrow (the path), the
 // title, and the rule with its 72 px Ember start. Takes the cursor's line.
-// `chips` sit at its right end: a state word each, in its tone.
+// `chips` sit at its right end: a state word each, in its tone. With `back`
+// a button of that word leads the header; returns true when it was pressed.
 struct HeaderChip { std::string text; ImU32 tone; };
-void Header(const char* title, const char* eyebrow = nullptr, const std::vector<HeaderChip>& chips = {});
+bool Header(const char* title, const char* eyebrow = nullptr, const std::vector<HeaderChip>& chips = {}, const char* back = nullptr);
 // Horizontal tabs under the header; the current one is filled and underlined.
 // Returns the tab the pointer pressed, or -1. Moving between tabs is the screen's.
 int Tabs(const std::vector<std::string>& labels, int current);

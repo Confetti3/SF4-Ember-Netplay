@@ -289,6 +289,28 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // A public room has no replacement: when its host is gone the room closes.
   if(v.session.recovery==netplay::Recovery::ReplacementOffered&&!s.serverOwned)
    rows.push_back(ConfirmRow("replace-room",loc::T("room.replace"),loc::T(v.canReplaceRoom?"room.replace.detail":"room.replace.waiting"),v.canReplaceRoom));
+  // V2's action bar (Room.dc.html): Ready when seated, Training, Controls, More... (a popout with the
+  // table options, room settings and links), the asking rows, then Leave room last.
+  if(v2::On()&&v2::CurrentBrand()==v2::Brand::Ember){
+   MenuEntry more=Row("room-more",loc::T("room.v2.more"),loc::T("room.v2.more_detail"));more.popout=true;
+   std::vector<MenuEntry> kept,bar(2),asks;MenuEntry leave;
+   for(auto& e:rows){
+    if(e.id=="options"||e.id=="room-admin"||e.id.compare(0,4,"copy")==0)more.choices.push_back({e.id,e.label,e.detail,e.enabled});
+    else if(e.id=="room-training"||e.id=="room-controls")bar[e.id=="room-controls"]=std::move(e);
+    else if(e.id=="leave")leave=std::move(e);
+    else if(e.id=="end-practice"||e.id=="stop-watching"||e.id=="replace-room")asks.push_back(std::move(e));
+    else kept.push_back(std::move(e));
+   }
+   if(s.roomEpoch&&place.kind==Place::Kind::Seat){
+    const auto ready=DescribeReady(v,s.tables[place.table],place.seat);
+    kept.push_back(Row("ready",ready.label,ready.refusal.empty()?ready.detail:ready.refusal,ready.kind!=ReadyControl::None));
+   }
+   for(auto& e:bar)if(!e.id.empty())kept.push_back(std::move(e));
+   if(!more.choices.empty())kept.push_back(std::move(more));
+   for(auto& e:asks)kept.push_back(std::move(e));
+   kept.push_back(std::move(leave));
+   rows=std::move(kept);
+  }
   const auto firstMember=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id.compare(0,7,"member-")==0;});
   const std::string memberRight=firstMember==rows.end()?"room-members":firstMember->id;
   for(std::size_t i=0;i<rows.size();++i){auto& e=rows[i];
@@ -718,7 +740,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    // The room's actions along the bottom, then the focused row's line over them.
    std::vector<const MenuEntry*> actions;
    for(const auto* e:toolbar)if(e->id!="room-members"&&e->id!="room-chat")actions.push_back(e);
-   const int across=(std::max)(2,(std::min)(static_cast<int>(actions.size()),static_cast<int>(tables.W()/(190*s))));
+   const int across=(std::max)(2,(std::min)(static_cast<int>(actions.size()),static_cast<int>(tables.W()/(140*s))));
    const int lines=(static_cast<int>(actions.size())+across-1)/across;
    v2::Box buttons=v2::CutBottom(tables,(lines*60-12)*s,12*s);
    ImGui::SetCursorScreenPos(v2::CutBottom(tables,18*s,8*s).min);
@@ -728,14 +750,17 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
     const auto& e=*actions[i];
     const ImVec2 at(buttons.min.x+(i%across)*(bw+12*s),buttons.min.y+(i/across)*60*s);
     const v2::Box b{at,ImVec2(at.x+bw,at.y+48*s)};
-    const bool hovered=hit(e,b),focused=e.id==focus,leave=e.id=="leave"||e.id=="stop-watching";
+    const bool hovered=hit(e,b),focused=e.id==focus,leave=e.id=="leave"||e.id=="stop-watching",primary=e.id=="ready"&&shown(e);
     const ImU32 danger=IM_COL32(255,170,160,255);
-    ground(d,b,focused?c.header:hovered?c.hover:c.button,leave?v2::color::Alpha(danger,.5f):v2::color::Alpha(c.accent,.35f));
+    // Ready is the one filled button; Leave room is drawn in the danger tone.
+    if(primary)ground(d,b,focused||hovered?c.accentLight:c.accent,c.accent);
+    else ground(d,b,focused?c.header:hovered?c.hover:c.button,leave?v2::color::Alpha(danger,.5f):v2::color::Alpha(c.accent,.35f));
     const float labelWidth=ImGui::GetFont()->CalcTextSizeA(17*s,FLT_MAX,0,e.label.c_str()).x;
     ReportMenuText(("board-"+e.id).c_str(),17*s,48*s,labelWidth,bw-24*s);
-    text(ImVec2(b.min.x+12*s,b.min.y+15*s),bw-24*s,e.label,17*s,!shown(e)?c.muted:leave?danger:c.text,true);
+    text(ImVec2(b.min.x+12*s,b.min.y+15*s),bw-24*s,e.label,17*s,primary?c.ink:!shown(e)?c.muted:leave?danger:c.text,true);
     tip();
-    if(focused)v2::Focus(d,b.min,b.max);
+    if(focused)v2::Focus(d,b.min,b.max,!primary);
+    if(focused&&e.popout)menu_.bodyChoices={b,tables};
    }
    const float cardHeight=(banners?182:160)*s;
    // Watching with the game as a picture: the picture, cinema style, over one row of cards,
@@ -857,7 +882,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    panel(chat);v2::Box b=v2::Inset(chat,12*s,8*s);
    const v2::Box head=v2::CutTop(b,32*s,4*s);
    heading(d,ImVec2(head.min.x,head.min.y+9*s),loc::T("room.chat_heading"),c.muted);
-   if(unread){const std::string count=loc::Tf("room.chat.unread",unread);v2::Chip(d,ImVec2(head.max.x-v2::ChipWidth(count),head.min.y+6*s),count,c.accent);}
+   if(unread){const std::string count=loc::Tf("room.v2.unread",unread);v2::Chip(d,ImVec2(head.max.x-v2::ChipWidth(count),head.min.y+6*s),count,c.accent);}
    const v2::Box box=v2::CutBottom(b,44*s,6*s);
    const auto compose=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="room-chat";});
    if(compose!=rows.end()){
@@ -1068,6 +1093,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   RoomAction({MenuAction::Activate,a.text},v,submit);
   return;
  }
+ // More...'s choice is the row it holds.
+ if(a.kind==MenuAction::Chosen&&a.id=="room-more"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
  // A seat chooser's option, exactly as the player saw it.
  if(a.kind==MenuAction::Chosen){
   if(a.id.compare(0,6,"table-"))return;
@@ -1106,6 +1133,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id.compare(0,7,"member-")==0){selectedMember_=std::stoull(a.id.substr(7));nav.Push("room-member");return;}
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"){nav.Push(a.id);return;}
  if(a.id=="room-controls"){nav.Push("player");return;}
+ if(a.id=="ready"){const auto mine=room::PlaceOf(v.room,v.room.localMember);if(mine.kind==room::Place::Kind::Seat){selectedTable_=mine.table;ToggleReady(v,submit);}return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;notice_=loc::T("room.invitation_copied");noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
   if(a.id=="copy-room-link"){
@@ -1190,7 +1218,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(!HasChatText(chat_)||queuedChat_||(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_))return;
   queuedChat_=QueuedChat{chat_};FlushChat(v,submit);return;
  }
- else if(a.id=="ready"){ToggleReady(v,submit);return;}
+ else if(a.id=="ready"){const auto mine=room::PlaceOf(v.room,v.room.localMember);if(mine.kind==room::Place::Kind::Seat){selectedTable_=mine.table;ToggleReady(v,submit);}return;}
  else return;
  if(SendRoom(std::move(request),v,submit)){
   if(a.id=="apply-rules")rulesDirty_=false;

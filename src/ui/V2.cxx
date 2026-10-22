@@ -177,7 +177,7 @@ float BrandMark(ImDrawList* draw, ImVec2 at, float height) {
     return x + mark - at.x;
 }
 
-void Header(const char* title, const char* eyebrow, const std::vector<HeaderChip>& chips) {
+bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip>& chips, const char* back) {
     const float s = Scale();
     const auto p = ImGui::GetCursorScreenPos();
     const float width = ImGui::GetContentRegionAvail().x;
@@ -187,7 +187,24 @@ void Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
     const float eyebrowSize = 13 * s, titleSize = (narrow ? 24 : 28) * s;
     const float eyebrowHeight = eyebrow ? eyebrowSize + 4 * s : 0;
     const float height = (std::max)(markHeight, eyebrowHeight + titleSize) + 10 * s;
-    const float mark = BrandMark(draw, ImVec2(p.x, p.y + (height - 10 * s - markHeight) * .5f), markHeight), x = p.x + mark + gap;
+    // Back: a chevron and its word on a button, as the boards draw it.
+    float left = p.x;
+    bool pressed = false;
+    if (back) {
+        const float bh = 44 * s, bw = 34 * s + TextWidth(back, 16 * s) + 12 * s;
+        const ImVec2 at(p.x, p.y + (height - 10 * s - bh) * .5f), to(at.x + bw, at.y + bh);
+        ImGui::SetCursorScreenPos(at);
+        pressed = ImGui::InvisibleButton("##header-back", ImVec2(bw, bh));
+        draw->AddRectFilled(at, to, ImGui::IsItemHovered() ? Colors().hover : Colors().button, 4 * s);
+        draw->AddRect(at, to, color::Alpha(Colors().accent, .35f), 4 * s, 0, s);
+        const float mid = at.y + bh * .5f;
+        const ImVec2 chevron[] = {{at.x + 21 * s, mid - 5 * s}, {at.x + 16 * s, mid}, {at.x + 21 * s, mid + 5 * s}};
+        draw->AddPolyline(chevron, 3, Colors().text, 0, 2 * s);
+        draw->AddText(ImGui::GetFont(), 16 * s, ImVec2(at.x + 34 * s, mid - 8 * s), Colors().text, back);
+        ImGui::SetCursorScreenPos(p);
+        left += bw + gap;
+    }
+    const float mark = BrandMark(draw, ImVec2(left, p.y + (height - 10 * s - markHeight) * .5f), markHeight), x = left + mark + gap;
     // The chips first, from the right end, so the title knows its room.
     float right = p.x + width;
     for (auto chip = chips.rbegin(); chip != chips.rend(); ++chip) {
@@ -205,6 +222,7 @@ void Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
     draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, s);
     draw->AddRectFilled(ImVec2(p.x, p.y + height - s), ImVec2(p.x + 72 * s, p.y + height + 2 * s), Colors().accent);
     ImGui::Dummy(ImVec2(width, height + 8 * s));
+    return pressed;
 }
 
 int Tabs(const std::vector<std::string>& labels, int current) {

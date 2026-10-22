@@ -6838,6 +6838,15 @@ msgstr "공개 방에 표시됨"
 msgid "room.v2.type_message"
 msgstr "메시지 입력"
 
+msgid "room.v2.more"
+msgstr "더 보기…"
+
+msgid "room.v2.more_detail"
+msgstr "테이블 옵션, 방 설정, 초대 링크."
+
+msgid "room.v2.unread"
+msgstr "읽지 않음 {0}"
+
 msgid "online.eyebrow"
 msgstr "EMBER · 온라인"
 

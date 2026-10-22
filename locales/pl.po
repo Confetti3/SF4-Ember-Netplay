@@ -6837,6 +6837,15 @@ msgstr "Na liście Pokoje publiczne"
 msgid "room.v2.type_message"
 msgstr "Napisz wiadomość"
 
+msgid "room.v2.more"
+msgstr "Więcej…"
+
+msgid "room.v2.more_detail"
+msgstr "Opcje stołu, ustawienia pokoju i linki z zaproszeniem."
+
+msgid "room.v2.unread"
+msgstr "Nieprzeczytane: {0}"
+
 msgid "online.eyebrow"
 msgstr "EMBER · ONLINE"
 

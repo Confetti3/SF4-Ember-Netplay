@@ -6837,6 +6837,15 @@ msgstr "Uvedeno ve Veřejných místnostech"
 msgid "room.v2.type_message"
 msgstr "Napište zprávu"
 
+msgid "room.v2.more"
+msgstr "Další…"
+
+msgid "room.v2.more_detail"
+msgstr "Možnosti stolu, nastavení místnosti a odkazy s pozvánkou."
+
+msgid "room.v2.unread"
+msgstr "Nepřečtené: {0}"
+
 msgid "online.eyebrow"
 msgstr "EMBER · ONLINE"
 

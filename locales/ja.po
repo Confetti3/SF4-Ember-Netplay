@@ -6838,6 +6838,15 @@ msgstr "公開ルームに掲載"
 msgid "room.v2.type_message"
 msgstr "メッセージを入力"
 
+msgid "room.v2.more"
+msgstr "その他…"
+
+msgid "room.v2.more_detail"
+msgstr "対戦席の設定、ルーム設定、招待リンク。"
+
+msgid "room.v2.unread"
+msgstr "未読 {0} 件"
+
 msgid "online.eyebrow"
 msgstr "EMBER · オンライン"
 

@@ -6357,6 +6357,15 @@ msgstr "Listada em Salas públicas"
 msgid "room.v2.type_message"
 msgstr "Digite uma mensagem"
 
+msgid "room.v2.more"
+msgstr "Mais…"
+
+msgid "room.v2.more_detail"
+msgstr "Opções da mesa, configurações da sala e links de convite."
+
+msgid "room.v2.unread"
+msgstr "{0} não lidas"
+
 msgid "online.eyebrow"
 msgstr "EMBER · ONLINE"
 

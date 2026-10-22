@@ -6837,6 +6837,15 @@ msgstr "Listé dans Salons publics"
 msgid "room.v2.type_message"
 msgstr "Écrire un message"
 
+msgid "room.v2.more"
+msgstr "Plus…"
+
+msgid "room.v2.more_detail"
+msgstr "Options de la table, paramètres du salon et liens d'invitation."
+
+msgid "room.v2.unread"
+msgstr "{0} non lu(s)"
+
 msgid "online.eyebrow"
 msgstr "EMBER · EN LIGNE"
 

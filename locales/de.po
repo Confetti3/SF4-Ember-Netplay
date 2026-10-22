@@ -6837,6 +6837,15 @@ msgstr "In Öffentliche Räume gelistet"
 msgid "room.v2.type_message"
 msgstr "Nachricht schreiben"
 
+msgid "room.v2.more"
+msgstr "Mehr…"
+
+msgid "room.v2.more_detail"
+msgstr "Tischoptionen, Raumeinstellungen und Einladungslinks."
+
+msgid "room.v2.unread"
+msgstr "{0} ungelesen"
+
 msgid "online.eyebrow"
 msgstr "EMBER · ONLINE"
 
