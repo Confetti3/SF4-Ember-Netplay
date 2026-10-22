@@ -6908,3 +6908,24 @@ msgstr "Možnosti: {0}"
 
 msgid "menu.choices_keys"
 msgstr "Směry posouvají · Vybrat zvolí · Zpět ponechá {0}"
+
+msgid "selection.costume"
+msgstr "Kostým"
+
+msgid "selection.color_row"
+msgstr "Barva"
+
+msgid "selection.ready_with"
+msgstr "Připraven s {0}"
+
+msgid "selection.ready_detail"
+msgstr "Ponechat tohoto bojovníka a vrátit se."
+
+msgid "country.first_letter"
+msgstr "PRVNÍ PÍSMENO"
+
+msgid "country.letter_detail"
+msgstr "Země: {0}"
+
+msgid "country.board_help"
+msgstr "Písmeno ukáže své země. Na klávesnici napiš písmeno a přeskoč na něj."

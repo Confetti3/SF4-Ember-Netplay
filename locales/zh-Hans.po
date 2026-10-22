@@ -6909,3 +6909,24 @@ msgstr "{0} 个选项"
 
 msgid "menu.choices_keys"
 msgstr "方向键移动 · 选择确认 · 返回保留 {0}"
+
+msgid "selection.costume"
+msgstr "服装"
+
+msgid "selection.color_row"
+msgstr "颜色"
+
+msgid "selection.ready_with"
+msgstr "使用{0}准备就绪"
+
+msgid "selection.ready_detail"
+msgstr "保留此角色并返回。"
+
+msgid "country.first_letter"
+msgstr "首字母"
+
+msgid "country.letter_detail"
+msgstr "国家：{0}"
+
+msgid "country.board_help"
+msgstr "选择字母即可显示其国家。使用键盘可输入字母跳转。"

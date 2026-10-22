@@ -284,7 +284,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows.insert(rows.begin()+1,Row("country",loc::T("settings.country"),v.canEditPreferences?loc::T("settings.country_detail"):reason,v.canEditPreferences));
   rows[1].value=CountryPicker::ChoiceText(preferences_.country,v.automaticCountry);
  }else if(screen==CountryPicker::Screen){
-  title=loc::T("settings.country");rows=countryPicker_.Rows(preferences_.country,v.automaticCountry,v.canEditPreferences);
+  title=loc::T("settings.country");
+  // V2: the letters board, where the language's initials fit a grid.
+  rows=v2::On()&&countryPicker_.Lettered()?countryPicker_.BoardRows(preferences_.country,v.automaticCountry,v.canEditPreferences,menu_.navigation.Focus()):countryPicker_.Rows(preferences_.country,v.automaticCountry,v.canEditPreferences);
  }else if(screen=="problem-reports"){
   // The setting's pane says what a report holds; Select reads it in full.
   title=loc::T("reports.settings_title");
@@ -556,6 +558,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id=="country"){countryPicker_.Open();nav.Push(CountryPicker::Screen);nav.Prefer(CountryPicker::RowId(preferences_.country));}
+ // A letter on the V2 board goes to its first country, whose code it carries.
+ else if(screen==CountryPicker::Screen&&a.id.compare(0,7,"letter-")==0)nav.Prefer("country-"+a.id.substr(7));
  // A choice is saved like any setting, and the picker closes on it.
  else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
@@ -967,6 +971,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(id=="create"){v2::Fact(loc::T("public.visibility"),loc::T(preferences_.roomPublic?"public.visibility.public":"public.visibility.private"));v2::Fact(loc::T("room.capacity"),std::to_string(preferences_.roomCapacity));}
   else if(id=="relay"||id=="network"){v2::Fact(loc::T("network.relay"),DescribeRelay(v.netReport));v2::Fact(loc::T("network.status"),DescribeNat(v.netReport.nat));}
  };
+ if(v2::On()&&screen==CountryPicker::Screen&&countryPicker_.Lettered())board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float,const MenuVisualFeedback&){countryPicker_.DrawBoard(entries,navigation,action,v.automaticCountry);};
  // V2: Create is the room's settings and its rules side by side, and the button that opens it.
  if(v2::On()&&screen=="create")board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawCreateBoard(entries,navigation,action,height,feedback);};
  if(screen=="interface"||page=="tab-interface")profilePreview=[&](const std::string& id){
@@ -1013,7 +1018,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
  menu_.typesText=roomScreen&&screen=="room-chat"&&v.room.roomEpoch&&ChatTypable(v);
  // On the country picker a typed letter goes to a country, so letters are no shortcuts there.
- if(screen==CountryPicker::Screen){menu_.typesText=true;if(!nav.Editing())for(const ImWchar typed:ImGui::GetIO().InputQueueCharacters){const auto row=countryPicker_.Jump(typed,nav.Focus());if(!row.empty())nav.Focus(row,rows);}}
+ if(screen==CountryPicker::Screen){menu_.typesText=true;if(!nav.Editing())for(const ImWchar typed:ImGui::GetIO().InputQueueCharacters){const auto row=countryPicker_.Jump(typed,nav.Focus());if(row.empty())continue;
+  // The board shows one letter's countries: the one typed, from now on.
+  if(v2::On()&&countryPicker_.Lettered())rows=countryPicker_.BoardRows(preferences_.country,v.automaticCountry,v.canEditPreferences,row);
+  nav.Focus(row,rows);}}
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
  else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();

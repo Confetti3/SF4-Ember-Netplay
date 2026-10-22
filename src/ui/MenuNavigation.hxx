@@ -65,7 +65,7 @@ struct MenuEntry {
     std::string hint;
     std::size_t textLimit = 256;
     // Explicit pane transitions; empty preserves ordinary list/grid movement.
-    std::string left, right;
+    std::string left, right, up, down;
     // Presentation-only grace during a healthy room checkpoint. Never authorizes an action.
     bool pending = false;
     // A detail that embeds a player's name, or is a chat message.
@@ -323,8 +323,8 @@ public:
         if(!move||entries.empty()) return {};
         auto& s=states_[Screen()]; const auto& e=entries[s.index];
         int delta=(direction&MenuInput::Left)?-1:(direction&MenuInput::Right)?1:0;
-        const auto& neighbor=delta<0?e.left:e.right;
-        if(delta&&!neighbor.empty()){Focus(neighbor,entries);return {};}
+        const auto& neighbor=delta<0?e.left:delta>0?e.right:direction&MenuInput::Up?e.up:e.down;
+        if(!neighbor.empty()){Focus(neighbor,entries);return {};}
         int index=static_cast<int>(s.index), count=static_cast<int>(entries.size());
         // A grid's footer rows sit under its cards, one per line.
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;

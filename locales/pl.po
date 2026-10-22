@@ -6908,3 +6908,24 @@ msgstr "Opcje: {0}"
 
 msgid "menu.choices_keys"
 msgstr "Kierunki przesuwają · Wybierz zatwierdza · Wstecz zostawia {0}"
+
+msgid "selection.costume"
+msgstr "Strój"
+
+msgid "selection.color_row"
+msgstr "Kolor"
+
+msgid "selection.ready_with"
+msgstr "Gotowy z {0}"
+
+msgid "selection.ready_detail"
+msgstr "Zachowaj tego wojownika i wróć."
+
+msgid "country.first_letter"
+msgstr "PIERWSZA LITERA"
+
+msgid "country.letter_detail"
+msgstr "Kraje: {0}"
+
+msgid "country.board_help"
+msgstr "Litera pokazuje swoje kraje. Na klawiaturze wpisz literę, aby do niej przejść."

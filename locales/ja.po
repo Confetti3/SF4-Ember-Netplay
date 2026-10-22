@@ -6909,3 +6909,24 @@ msgstr "{0} 件の選択肢"
 
 msgid "menu.choices_keys"
 msgstr "方向で移動 · 決定で選ぶ · 戻るで {0} のまま"
+
+msgid "selection.costume"
+msgstr "コスチューム"
+
+msgid "selection.color_row"
+msgstr "カラー"
+
+msgid "selection.ready_with"
+msgstr "{0}で準備完了"
+
+msgid "selection.ready_detail"
+msgstr "このファイターのまま戻ります。"
+
+msgid "country.first_letter"
+msgstr "最初の文字"
+
+msgid "country.letter_detail"
+msgstr "国: {0}"
+
+msgid "country.board_help"
+msgstr "文字を選ぶとその国が表示されます。キーボードでは文字を入力して移動できます。"

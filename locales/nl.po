@@ -6908,3 +6908,24 @@ msgstr "{0} keuzes"
 
 msgid "menu.choices_keys"
 msgstr "Richtingen bewegen · Kiezen neemt · Terug houdt {0}"
+
+msgid "selection.costume"
+msgstr "Kostuum"
+
+msgid "selection.color_row"
+msgstr "Kleur"
+
+msgid "selection.ready_with"
+msgstr "Klaar met {0}"
+
+msgid "selection.ready_detail"
+msgstr "Houd deze vechter en ga terug."
+
+msgid "country.first_letter"
+msgstr "EERSTE LETTER"
+
+msgid "country.letter_detail"
+msgstr "Landen: {0}"
+
+msgid "country.board_help"
+msgstr "Een letter toont zijn landen. Met een toetsenbord typ je een letter om erheen te springen."

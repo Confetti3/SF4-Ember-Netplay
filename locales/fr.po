@@ -6908,3 +6908,24 @@ msgstr "{0} choix"
 
 msgid "menu.choices_keys"
 msgstr "Directions pour bouger · Valider choisit · Retour garde {0}"
+
+msgid "selection.costume"
+msgstr "Costume"
+
+msgid "selection.color_row"
+msgstr "Couleur"
+
+msgid "selection.ready_with"
+msgstr "Prêt avec {0}"
+
+msgid "selection.ready_detail"
+msgstr "Garder ce combattant et revenir."
+
+msgid "country.first_letter"
+msgstr "PREMIÈRE LETTRE"
+
+msgid "country.letter_detail"
+msgstr "Pays : {0}"
+
+msgid "country.board_help"
+msgstr "Une lettre affiche ses pays. Au clavier, tapez une lettre pour y aller."

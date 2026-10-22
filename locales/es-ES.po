@@ -6909,3 +6909,24 @@ msgstr "{0} opciones"
 
 msgid "menu.choices_keys"
 msgstr "Direcciones para moverte · Elegir escoge · Atrás mantiene {0}"
+
+msgid "selection.costume"
+msgstr "Traje"
+
+msgid "selection.color_row"
+msgstr "Color"
+
+msgid "selection.ready_with"
+msgstr "Listo con {0}"
+
+msgid "selection.ready_detail"
+msgstr "Mantener este luchador y volver."
+
+msgid "country.first_letter"
+msgstr "PRIMERA LETRA"
+
+msgid "country.letter_detail"
+msgstr "Países: {0}"
+
+msgid "country.board_help"
+msgstr "Una letra muestra sus países. Con un teclado, escribe una letra para saltar a ella."

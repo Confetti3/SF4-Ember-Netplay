@@ -6909,3 +6909,24 @@ msgstr "선택지 {0}개"
 
 msgid "menu.choices_keys"
 msgstr "방향으로 이동 · 선택으로 고르기 · 뒤로는 {0} 유지"
+
+msgid "selection.costume"
+msgstr "코스튬"
+
+msgid "selection.color_row"
+msgstr "색상"
+
+msgid "selection.ready_with"
+msgstr "{0}(으)로 준비 완료"
+
+msgid "selection.ready_detail"
+msgstr "이 파이터를 유지하고 돌아갑니다."
+
+msgid "country.first_letter"
+msgstr "첫 글자"
+
+msgid "country.letter_detail"
+msgstr "국가: {0}"
+
+msgid "country.board_help"
+msgstr "글자를 고르면 해당 국가가 표시됩니다. 키보드로 글자를 입력해 이동할 수 있습니다."
