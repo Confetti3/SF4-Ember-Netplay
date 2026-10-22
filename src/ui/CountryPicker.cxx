@@ -1,5 +1,6 @@
 #include "CountryPicker.hxx"
 #include "CountryFlag.hxx"
+#include "GameMenu.hxx"
 #include "MenuRows.hxx"
 #include "RoomCards.hxx"
 #include "Theme.hxx"
@@ -252,19 +253,11 @@ void CountryPicker::DrawBoard(const std::vector<MenuEntry>& rows, MenuNavigation
     const auto& c = v2::Colors();
     auto* d = ImGui::GetWindowDrawList();
     const auto& focus = nav.Focus();
-    const auto mouse = ImGui::GetIO().MouseDelta;
-    const bool pointerMoved = mouse.x != 0 || mouse.y != 0, changed = focus != boardFocus_;
+    const bool changed = focus != boardFocus_;
     boardFocus_ = focus;
     // A card: Select under the pointer, focus where it moves; its ground, its words, its marks.
     const auto card = [&](const MenuEntry& e, v2::Box b, bool centred) {
-        ImGui::SetCursorScreenPos(b.min);
-        ImGui::PushID(e.id.c_str());
-        const bool pressed = ImGui::InvisibleButton("##country", ImVec2(b.W(), b.H())), hovered = ImGui::IsItemHovered();
-        ImGui::PopID();
-        if (e.id == focus && changed) ImGui::SetScrollHereY(.5f);
-        if (pressed && !nav.Asking() && !nav.Editing()) { nav.Focus(e.id, rows); action = nav.Choose(rows); }
-        else if (hovered && pointerMoved) nav.Focus(e.id, rows);
-        const bool focused = e.id == focus;
+        const bool hovered = PressEntry(nav, rows, e, b, action, changed).hovered, focused = e.id == focus;
         v2::CardGround(d, b, focused, hovered, e.valueHighlighted);
         if (e.userText) NoteUserText(e.label);
         const ImU32 text = e.enabled ? c.text : c.muted;
@@ -289,8 +282,8 @@ void CountryPicker::DrawBoard(const std::vector<MenuEntry>& rows, MenuNavigation
             card(e, {ImVec2(x, y), ImVec2(x + w, y + cell)}, true);
             if (e.id == "country-hidden") {
                 y += cell + 12 * s;
-                d->AddText(HeadingFont(), 13 * s, ImVec2(origin.x + 2 * s, y), c.muted, loc::T("country.first_letter"));
-                y += 13 * s + 10 * s;
+                v2::SectionHeading(d, ImVec2(origin.x + 2 * s, y), loc::T("country.first_letter"));
+                y += 14 * s + 10 * s;
             }
         } else if (e.id.compare(0, 7, LetterPrefix) == 0) {
             const float x = origin.x + (letter % 7) * (letterWidth + 6 * s), top = y + (letter / 7) * (cell + 6 * s);

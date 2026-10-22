@@ -25,17 +25,11 @@ bool IsCapitals(const char* text) {
     return letter;
 }
 std::string FirstLine(const std::string& text) { return text.substr(0, text.find('\n')); }
-void Chevron(ImDrawList* d, ImVec2 at, float size, ImU32 color) {
-    d->AddPolyline(std::array<ImVec2, 3>{ImVec2(at.x, at.y - size), ImVec2(at.x + size * .6f, at.y), ImVec2(at.x, at.y + size)}.data(), 3, color, 0, 2 * Scale());
-}
+using v2::Chevron;
 // Home's brand block: the emblem, EMBER and the subtitle.
 void Brand(ImDrawList* d, ImVec2 p, float mark) {
     const float s = Scale(), size = mark * .78f;
-    auto* atlas = ImGui::GetIO().Fonts;
-    ImVec2 uv0, uv1;
-    atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0), &uv0, &uv1);
-    d->AddImage(atlas->TexID, p, ImVec2(p.x + mark, p.y + mark), uv0, uv1);
-    const float x = p.x + mark + 16 * s;
+    const float x = p.x + v2::BrandMark(d, p, mark) + 16 * s;
     d->AddText(HeadingFont(), size, ImVec2(x, p.y + (mark - size - 18 * s) * .5f), v2::Colors().text, "EMBER");
     d->AddText(HeadingFont(), 13 * s, ImVec2(x + 2 * s, p.y + (mark + size - 18 * s) * .5f + 4 * s), v2::Colors().accent, loc::T("brand.subtitle"));
 }
@@ -106,6 +100,42 @@ void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled,
     d->AddText(ImVec2(box.min.x, y), arrow, "<");
     d->AddText(ImVec2(box.min.x + (box.W() - ImGui::CalcTextSize(fit.c_str()).x) * .5f, y), shown, fit.c_str());
     d->AddText(ImVec2(box.max.x - 10 * s, y), arrow, ">");
+}
+
+void DrawMenuRow(ImDrawList* d, const MenuEntry& e, v2::Box r, bool enabled, float valueWidth, float inset) {
+    const float s = Scale(), font = ImGui::GetFontSize(), y = r.min.y + (r.H() - font) * .5f, right = r.max.x - inset;
+    const auto& c = v2::Colors();
+    const ImU32 text = enabled ? c.text : c.muted;
+    // A switch takes only its own width, so its label has the rest.
+    const float value = MenuValueIsToggle(e) ? 36 * s : e.adjustable || !e.value.empty() ? valueWidth : -inset - 8 * s;
+    v2::Text(d, ImVec2(r.min.x + inset, y), right - value - 8 * s - r.min.x - inset, e.label, font, text);
+    if (e.userText || e.text) NoteUserText(e.value);
+    if (e.adjustable) { DrawMenuValue(d, e, {ImVec2(right - valueWidth, r.min.y), ImVec2(right, r.max.y)}, enabled, text); return; }
+    // A fixed value, then the chevron of a row Select opens (an info row has none), as DrawMenuValue draws them.
+    const float end = e.info ? right : right - 18 * s;
+    if (!e.value.empty()) {
+        const std::string shown = Fit(e.value, valueWidth - 20 * s, font, ImGui::GetFont());
+        d->AddText(ImVec2(end - ImGui::CalcTextSize(shown.c_str()).x, y), e.valueHighlighted ? c.accent : e.info ? c.muted : text, shown.c_str());
+    }
+    if (!e.info) Chevron(d, ImVec2(right - 6 * s, r.min.y + r.H() * .5f), 6 * s, enabled ? c.muted : v2::color::Alpha(c.muted, .5f));
+}
+EntryHit PressEntry(MenuNavigation& nav, const std::vector<MenuEntry>& rows, const MenuEntry& e, v2::Box b, MenuAction& action,
+    bool scroll, float valueWidth, bool choose) {
+    ImGui::SetCursorScreenPos(b.min);
+    ImGui::PushID(e.id.c_str());
+    const bool pressed = ImGui::InvisibleButton("##entry", ImVec2(b.W(), b.H())) && !nav.Asking() && !nav.Editing();
+    const bool hovered = ImGui::IsItemHovered();
+    ImGui::PopID();
+    if (scroll && e.id == nav.Focus()) ImGui::SetScrollHereY(.5f);
+    const auto mouse = ImGui::GetIO().MouseDelta;
+    if (pressed && choose) {
+        nav.Focus(e.id, rows);
+        // The value's ends step it; anything else on the row is Select.
+        const float mx = ImGui::GetMousePos().x, vx = b.max.x - 14 * Scale() - valueWidth;
+        const int step = valueWidth > 0 && MenuValueIsNumber(e) && e.enabled && mx >= vx ? (mx < vx + valueWidth * .5f ? -1 : 1) : 0;
+        action = step ? MenuAction{MenuAction::Adjust, e.id, {}, step} : nav.Choose(rows);
+    } else if (hovered && (mouse.x != 0 || mouse.y != 0) && !nav.Choosing()) nav.Focus(e.id, rows);
+    return {pressed, hovered};
 }
 
 MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& entries, const char* status, const Detail& detail, int columns,
@@ -206,7 +236,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         const auto at = ImGui::GetCursorScreenPos();
         const auto& col = v2::Colors();
         if (e.popout) {
-            pd->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y), col.muted, e.label.c_str());
+            v2::SectionHeading(pd, ImVec2(at.x + 2 * s, at.y), Fit(e.label, ImGui::GetContentRegionAvail().x - 2 * s, 14 * s, HeadingFont()));
             ImGui::Dummy(ImVec2(0, 14 * s));
         } else {
             // The title and its count over a rule, the accent's bar down the left.
@@ -300,7 +330,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             if (!cell && !e.group.empty() && (i == 0 || entries[i - 1].group != e.group)) {
                 if (i) ImGui::Dummy(ImVec2(0, 8 * s));
                 const auto at = ImGui::GetCursorScreenPos();
-                ld->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y + 4 * s), v2::Colors().muted, e.group.c_str());
+                v2::SectionHeading(ld, ImVec2(at.x + 2 * s, at.y + 4 * s), e.group);
                 ImGui::Dummy(ImVec2(full, 18 * s));
             }
             const float w = cell ? cellWidth : full;
@@ -356,7 +386,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             const std::size_t shown = (std::min)(news.size(), static_cast<std::size_t>((std::max)(0.f, (pane.H() - head - 36 * s) / item)));
             if (shown) {
                 const v2::Box box = v2::CutBottom(pane, head + shown * item + 36 * s);
-                d->AddRectFilled(box.min, box.max, v2::color::Alpha(c.panel, .94f), 4 * s);
+                d->AddRectFilled(box.min, box.max, v2::PanelGround(), 4 * s);
                 d->AddText(HeadingFont(), 13 * s, ImVec2(box.min.x + 16 * s, box.min.y + 14 * s), c.muted, loc::T("news.heading"));
                 d->AddLine(ImVec2(box.min.x, box.min.y + head), ImVec2(box.max.x, box.min.y + head), c.border, s);
                 for (std::size_t i = 0; i < shown; ++i) {
@@ -371,7 +401,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             }
         } else if (split && focusedEntry != entries.end()) {
             ImGui::SetCursorScreenPos(pane.min);
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, paneLeft ? ImVec4(0, 0, 0, 0) : ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel, .94f)));
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, paneLeft ? ImVec4(0, 0, 0, 0) : ImGui::ColorConvertU32ToFloat4(v2::PanelGround()));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16 * s, 16 * s));
             // Beside Online play's cards the pane is as tall as what it says; a screen's own pane (News) takes the height.
             const bool fit = listWidth > 0 && !customDetail;

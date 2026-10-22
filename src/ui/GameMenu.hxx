@@ -51,6 +51,19 @@ void SetMenuNews(std::vector<MenuNewsItem> news);
 // right-aligned in `box`.
 bool MenuValueIsToggle(const MenuEntry& e);
 void DrawMenuValue(ImDrawList* draw, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text);
+// A value row's words on a V2 board (Create, Settings, Fighter select): the
+// label `inset` from the left, and at the right the value in `valueWidth`
+// (DrawMenuValue), or a fixed value and the chevron when Select opens it.
+void DrawMenuRow(ImDrawList* draw, const MenuEntry& e, v2::Box row, bool enabled, float valueWidth, float inset);
+// A row's box on a V2 board as a button: the moving pointer focuses the row,
+// and a press focuses it and is Select on it, or steps its value when it lands
+// on one end of the `valueWidth` at the row's right (14 px in from its edge).
+// Nothing answers while a question or the keyboard is open. With `scroll` the
+// focused row scrolls into view. With `choose` false a press is only reported,
+// for a box that means something else when pressed (a panel's head).
+struct EntryHit { bool pressed, hovered; };
+EntryHit PressEntry(MenuNavigation& nav, const std::vector<MenuEntry>& rows, const MenuEntry& e, v2::Box b, MenuAction& action,
+    bool scroll = false, float valueWidth = 0, bool choose = true);
 const std::vector<MenuNewsItem>& MenuNews();
 // The legend's Select and Back glyphs for the device in use (SetMenuGlyphs).
 const char* MenuSelectGlyph();

@@ -22,8 +22,9 @@ void SetBrand(Brand brand);
 Brand CurrentBrand();
 // The palette roles of Theme.cxx by name, in the brand's colours, so V2
 // parts never write a literal: grounds from ink to hover, the accent that
-// marks focus and the thing to act on, text, and the red of a LIVE mark.
-struct Palette { ImU32 ink, frame, panel, button, header, hover, border, accent, accentLight, text, muted, live; };
+// marks focus and the thing to act on, text, the red of a LIVE mark, the
+// danger tone of Leave room (Kit: Error) and the green of Ready (Kit: Success).
+struct Palette { ImU32 ink, frame, panel, button, header, hover, border, accent, accentLight, text, muted, live, danger, ready; };
 const Palette& Colors();
 // BluMint's wordmark in the font atlas (Theme.cxx), after Ember's mark.
 constexpr int WordmarkRect = 1;
@@ -61,6 +62,36 @@ inline Box Inset(Box b, float x, float y) { return {{b.min.x + x, b.min.y + y}, 
 // A board panel's ground (the room's, Chat's): the brand's panel in V2, else
 // BoardPanelColor; lighter over a game the player watches.
 ImVec4 BoardGround(bool seeThrough);
+// A panel's ground inside a board (Create's and Settings' panels, the room's
+// members and chat): the brand's panel at .94, .78 over a game the player watches.
+ImU32 PanelGround(bool seeThrough = false);
+// A titled panel (Kit: card): its ground and edge, `title` (20 px) in a 40 px
+// head with `trailing` muted at its right, and a rule under the head. `open`
+// lights the head and the edge (Settings' open panel). Returns the body.
+Box Panel(ImDrawList* draw, Box b, const char* title, const char* trailing = nullptr, bool open = false);
+// A group's heading (Kit: eyebrow): 14 px in the heading font, muted unless
+// `tone` says otherwise. Returns its width.
+float SectionHeading(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone = Colors().muted);
+// `text` at `size` in `font` (the current one when none), fitted to `width`
+// with Fit, so the text probe sees it; `centred` centres it in `width`.
+// Returns the width drawn.
+float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = nullptr, bool centred = false);
+// The chevron of a row whose Select opens something: `size` from its tip to
+// each end, its tip pointing right at `at.x + size * .6`.
+void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color);
+// A board's button (Kit: buttons), 48 px tall by the design, its label in the
+// 17 px heading font, fitted and centred. Primary is the screen's one Ember
+// button: lighter under the pointer or focus, a 3 px ivory edge when focused.
+// Secondary is the button ground with an Ember edge and Focus's marks; Danger
+// the same in the danger tone (Leave room). Disabled ones are flat and muted.
+// With no label the caller draws its own (Header's Back: a chevron and a word).
+enum class ButtonKind { Primary, Secondary, Danger };
+void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, bool focused, bool hovered, bool enabled = true);
+// The focused row's words under a board: its `label` over its `detail` on the
+// frame's ground in `b`, the detail's first line, or all of it wrapped with
+// `wrap`. WordsHeight is the height that shows `detail` wrapped in `width`.
+void Words(ImDrawList* draw, Box b, const std::string& label, const std::string& detail, bool wrap);
+float WordsHeight(float width, const std::string& detail);
 // The focused thing's marks, drawn over it: a 2 px Ember edge inside the box
 // and a 4 px bar on its left (`bar` false for art, which the bar would cover).
 // Its fill, Colors().header, goes under its content.
@@ -69,6 +100,10 @@ void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar = true);
 // (its marks then go over the content: Focus), and the 3 px Ember rule on a
 // card that asks to be acted on.
 void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act = false);
+// A row's ground inside a panel (Create's, Settings', the room's members):
+// nothing at rest, Hover under the pointer, Header when focused. Free-standing
+// rows and cards are CardGround's.
+void RowGround(ImDrawList* draw, Box row, bool focused, bool hovered);
 // The hint bar along the bottom: each hint is a glyph and its words, and also
 // a button (touch, mouse). `status` sits at the right end in `tone`; with
 // `bell` it follows a bell and is a button too, pressed as hints.size().
@@ -87,6 +122,8 @@ void Fact(const std::string& key, const std::string& value);
 // Text wrapped across the cursor's line at `size` (its em) with the boards'
 // 1.45 line height, which ImGui's own wrapping (one em) has no room for.
 void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font = ImGui::GetFont());
+// The same drawn at `at` across `width`, for code without a cursor. Returns its height.
+float Paragraph(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = ImGui::GetFont());
 // ImGui::TextWrapped in the current font and colour, as a Paragraph in V2.
 void Wrapped(const std::string& text);
 

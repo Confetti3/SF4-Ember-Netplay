@@ -82,7 +82,7 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
   const ImVec2 a(x,y),b(x+w,y+e.h);
   const ImU32 tone=ImGui::ColorConvertFloat4ToU32(ToneColor(t.tone));
   d->AddRectFilled({a.x,a.y+8*s},{b.x,b.y+8*s},v2::color::Alpha(c.ink,.5f),4*s);
-  d->AddRectFilled(a,b,v2::color::Alpha(c.panel,.96f),4*s);
+  d->AddRectFilled(a,b,v2::PanelGround(),4*s);
   d->AddRect(a,b,c.border,4*s,0,s);
   d->AddRectFilled(a,{a.x+4*s,b.y},tone,4*s,ImDrawFlags_RoundCornersLeft);
   if(t.id==toastFocus_)v2::Focus(d,a,b);

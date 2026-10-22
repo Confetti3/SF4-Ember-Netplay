@@ -542,7 +542,7 @@ void ApplicationShell::DrawRoomLayoutPreview() {
  const v2::Box area{p,ImVec2(p.x+w,p.y+h)};
  d->AddRectFilled(area.min,area.max,c.ink,4*s);d->AddRect(area.min,area.max,c.border,4*s,0,s);
  v2::Box tables,members,chat;const v2::Box inside=v2::Inset(area,10*s,10*s);ArrangeRoom(inside,tables,members,chat);
- const auto heading=[&](const v2::Box& b,const std::string& label){d->AddText(HeadingFont(),13*s,b.min,c.muted,label.c_str());};
+ const auto heading=[&](const v2::Box& b,const std::string& label){v2::SectionHeading(d,b.min,label);};
  heading(tables,loc::T("room.v2.tables"));
  const float cw=(tables.W()-6*s)/2,ch=(std::min)(64*s,(tables.H()-26*s)/2);
  for(int i=0;i<4;++i){const ImVec2 at(tables.min.x+(i%2)*(cw+6*s),tables.min.y+20*s+(i/2)*(ch+6*s));d->AddRectFilled(at,ImVec2(at.x+cw,at.y+ch),c.frame,4*s);d->AddRect(at,ImVec2(at.x+cw,at.y+ch),c.border,4*s,0,s);}
@@ -673,7 +673,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // Our own action labels must fit; only player-supplied text may elide.
   ReportMenuText(("board-"+e.id).c_str(),16*s,40*s,
    ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,e.label.c_str()).x,width-24*s-badge);
-  text(ImVec2(p.x+12*s,p.y+11*s),width-24*s-badge,e.label,16*s,shown(e)?palette::Ivory:palette::Muted);
+  text(ImVec2(p.x+12*s,p.y+11*s),width-24*s-badge,e.label,16*s,v2::On()?(shown(e)?v2::Colors().text:v2::Colors().muted):shown(e)?palette::Ivory:palette::Muted);
   tip();
  };
  // The wide boards have one line for the focused row's explanation. Lines
@@ -688,7 +688,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   NoteDetailText(e->detail.substr(0,newline),e->detailText);
   if(!reason.empty())line=line.empty()?reason:line+"  -  "+reason;
   const auto p=ImGui::GetCursorScreenPos();const float lineWidth=ImGui::GetContentRegionAvail().x;
-  text(p,lineWidth,line,size,reason.empty()?palette::Muted:ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
+  text(p,lineWidth,line,size,reason.empty()?(v2::On()?v2::Colors().muted:palette::Muted):ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
   if(newline!=std::string::npos)elided+=(elided.empty()?"":"\n")+e->detail;
   ImGui::Dummy(ImVec2(lineWidth,ImGui::GetFontSize()));
   tip();
@@ -707,17 +707,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   v2::Box area{origin,ImVec2(origin.x+ImGui::GetContentRegionAvail().x,origin.y+height)};
   ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
   // A row's box: a press is Select on it, the moving pointer focuses it. True while hovered.
-  const auto hit=[&](const MenuEntry& e,const v2::Box& b){
-   ImGui::SetCursorScreenPos(b.min);ImGui::PushID(e.id.c_str());
-   const bool pressed=ImGui::InvisibleButton("##v2",ImVec2(b.W(),b.H())),hovered=ImGui::IsItemHovered();ImGui::PopID();
-   if(e.id==focus&&changed)ImGui::SetScrollHereY(.5f);
-   if(pressed&&!nav.Asking()&&!nav.Editing()&&!nav.Choosing()){nav.Focus(e.id,rows);action=nav.Choose(rows);}
-   else if(hovered&&pointerMoved&&!nav.Choosing())nav.Focus(e.id,rows);
-   return hovered;
-  };
+  const auto hit=[&](const MenuEntry& e,const v2::Box& b){return PressEntry(nav,rows,e,b,action,changed).hovered;};
   const auto ground=[&](ImDrawList* dl,const v2::Box& b,ImU32 fill,ImU32 edge){dl->AddRectFilled(b.min,b.max,fill,4*s);dl->AddRect(b.min,b.max,edge,4*s,0,s);};
-  const auto heading=[&](ImDrawList* dl,ImVec2 at,const std::string& label,ImU32 color){dl->AddText(HeadingFont(),14*s,at,color,label.c_str());return HeadingFont()->CalcTextSizeA(14*s,FLT_MAX,0,label.c_str()).x;};
-  const auto panel=[&](const v2::Box& b){ground(d,b,v2::color::Alpha(c.panel,v.SeeThrough()?.78f:.94f),c.border);};
+  const auto panel=[&](const v2::Box& b){ground(d,b,v2::PanelGround(v.SeeThrough()),c.border);};
   const auto first=[&](const char* prefix){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id.compare(0,std::strlen(prefix),prefix)==0;});};
   const int part=focus.compare(0,7,"member-")==0||focus=="room-members"?1:focus=="room-chat"?2:0;
   if(narrow){
@@ -737,7 +729,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    // The tables, under their heading and how many play and watch.
    std::size_t playing=0,watching=0;bool banners=false;
    for(const auto& t:v.room.tables){playing+=t.phase==room::TablePhase::Playing;watching+=t.spectators.size()+t.watchingNext.size();banners|=!DescribeTableBanner(v,t).text.empty();}
-   const float headingWidth=heading(d,tables.min,loc::T("room.v2.tables"),c.muted);
+   const float headingWidth=v2::SectionHeading(d,tables.min,loc::T("room.v2.tables"),c.muted);
    const std::string summary=loc::Tf("room.v2.tables_summary",playing,watching);
    const float summaryWidth=ImGui::GetFont()->CalcTextSizeA(15*s,FLT_MAX,0,summary.c_str()).x;
    d->AddText(ImGui::GetFont(),15*s,ImVec2(tables.max.x-summaryWidth,tables.min.y),c.muted,summary.c_str());
@@ -748,7 +740,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    for(const auto* e:toolbar)if(e->id!="room-members"&&e->id!="room-chat")actions.push_back(e);
    // As many across as the widest label leaves room for (Training from the room is long).
    float least=140*s;
-   for(const auto* e:actions)least=(std::max)(least,ImGui::GetFont()->CalcTextSizeA(17*s,FLT_MAX,0,e->label.c_str()).x+36*s);
+   for(const auto* e:actions)least=(std::max)(least,HeadingFont()->CalcTextSizeA(17*s,FLT_MAX,0,e->label.c_str()).x+36*s);
    const int across=(std::max)(2,(std::min)(static_cast<int>(actions.size()),static_cast<int>(tables.W()/least)));
    const int lines=(static_cast<int>(actions.size())+across-1)/across;
    v2::Box buttons=v2::CutBottom(tables,(lines*60-12)*s,12*s);
@@ -759,16 +751,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
     const auto& e=*actions[i];
     const ImVec2 at(buttons.min.x+(i%across)*(bw+12*s),buttons.min.y+(i/across)*60*s);
     const v2::Box b{at,ImVec2(at.x+bw,at.y+48*s)};
-    const bool hovered=hit(e,b),focused=e.id==focus,leave=e.id=="leave"||e.id=="stop-watching",primary=e.id=="ready"&&shown(e);
-    const ImU32 danger=IM_COL32(255,170,160,255);
+    const bool hovered=hit(e,b),focused=e.id==focus,leave=e.id=="leave"||e.id=="stop-watching";
     // Ready is the one filled button; Leave room is drawn in the danger tone.
-    if(primary)ground(d,b,focused||hovered?c.accentLight:c.accent,c.accent);
-    else ground(d,b,focused?c.header:hovered?c.hover:c.button,leave?v2::color::Alpha(danger,.5f):v2::color::Alpha(c.accent,.35f));
-    const float labelWidth=ImGui::GetFont()->CalcTextSizeA(17*s,FLT_MAX,0,e.label.c_str()).x;
-    ReportMenuText(("board-"+e.id).c_str(),17*s,48*s,labelWidth,bw-24*s);
-    text(ImVec2(b.min.x+12*s,b.min.y+15*s),bw-24*s,e.label,17*s,primary?c.ink:!shown(e)?c.muted:leave?danger:c.text,true);
-    tip();
-    if(focused)v2::Focus(d,b.min,b.max,!primary);
+    v2::Button(d,b,e.label,e.id=="ready"?v2::ButtonKind::Primary:leave?v2::ButtonKind::Danger:v2::ButtonKind::Secondary,focused,hovered,shown(e));
     if(focused&&e.popout)menu_.bodyChoices={b,tables};
    }
    const float cardHeight=(banners?182:160)*s;
@@ -822,7 +807,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
      v2::CardGround(td,b,focused,hovered,place.table==static_cast<int>(t.id));
      // TABLE n, its state, and the set's score (or vs) at the right.
      float x=b.min.x+14*s,y=b.min.y+12*s;const float w=b.W()-28*s;
-     x+=heading(td,ImVec2(x,y+4*s),loc::Tf("room.v2.table",t.id+1),c.muted)+8*s;
+     x+=v2::SectionHeading(td,ImVec2(x,y+4*s),loc::Tf("room.v2.table",t.id+1),c.muted)+8*s;
      const ImU32 tone=t.phase==room::TablePhase::Playing?c.accent:t.phase==room::TablePhase::Idle||t.phase==room::TablePhase::Closed?c.muted:
       ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
      v2::Chip(td,ImVec2(x,y),PhaseName(t),tone);
@@ -865,8 +850,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    const v2::Box head=v2::CutTop(b,32*s,4*s);
    if(list!=rows.end()){
     const bool hovered=hit(*list,head);
-    if(list->id==focus||hovered)d->AddRectFilled(head.min,head.max,list->id==focus?c.header:c.hover,4*s);
-    heading(d,ImVec2(head.min.x+8*s,head.min.y+9*s),loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity),c.muted);
+    v2::RowGround(d,head,list->id==focus,hovered);
+    v2::SectionHeading(d,ImVec2(head.min.x+8*s,head.min.y+9*s),loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity),c.muted);
     if(list->id==focus)v2::Focus(d,head.min,head.max);
    }
    ImGui::SetCursorScreenPos(b.min);
@@ -875,11 +860,11 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    const auto start=ImGui::GetCursorScreenPos();float y=start.y;std::string group;
    for(const auto& e:rows){
     if(e.id.compare(0,7,"member-"))continue;
-    if(e.group!=group){group=e.group;heading(md,ImVec2(start.x+4*s,y+8*s),group,c.accent);y+=30*s;}
+    if(e.group!=group){group=e.group;v2::SectionHeading(md,ImVec2(start.x+4*s,y+8*s),group,c.accent);y+=30*s;}
     const v2::Box r{ImVec2(start.x,y),ImVec2(start.x+b.W(),y+36*s)};y+=40*s;
     const bool hovered=hit(e,r),focused=e.id==focus;
     if(!ImGui::IsItemVisible())continue;
-    if(focused||hovered)md->AddRectFilled(r.min,r.max,focused?c.header:c.hover,4*s);
+    v2::RowGround(md,r,focused,hovered);
     const auto card=RoomMemberCard(v,e);
     v2::TagView tag;tag.name=card.name;tag.marks=card.marks;tag.ping=card.latency;tag.status=card.status;
     v2::Tag(md,ImVec2(r.min.x+10*s,r.min.y+8*s),r.W()-20*s,tag,v2::TagSize::S);
@@ -894,7 +879,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    // Chat: the room's last lines over the message box, which opens Chat.
    panel(chat);v2::Box b=v2::Inset(chat,12*s,8*s);
    const v2::Box head=v2::CutTop(b,32*s,4*s);
-   heading(d,ImVec2(head.min.x,head.min.y+9*s),loc::T("room.chat_heading"),c.muted);
+   v2::SectionHeading(d,ImVec2(head.min.x,head.min.y+9*s),loc::T("room.chat_heading"),c.muted);
    if(unread){const std::string count=loc::Tf("room.v2.unread",unread);v2::Chip(d,ImVec2(head.max.x-v2::ChipWidth(count),head.min.y+6*s),count,c.accent);}
    const v2::Box box=v2::CutBottom(b,44*s,6*s);
    const auto compose=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="room-chat";});

@@ -346,7 +346,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     present.Windowed = TRUE; present.SwapEffect = D3DSWAPEFFECT_DISCARD; present.BackBufferFormat = D3DFMT_A8R8G8B8;
     present.BackBufferWidth = width; present.BackBufferHeight = height; present.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
     if (!d3d || FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &present, &device))) return 1;
-    ShowWindow(hwnd, shot.empty() ? SW_SHOWDEFAULT : SW_SHOWNOACTIVATE);
+    // Scripted shots read the render target, so their window stays hidden and never covers the desktop or a game.
+    if (shot.empty()) ShowWindow(hwnd, SW_SHOWDEFAULT);
 
     ImGui::CreateContext();
     ImGui::GetIO().IniFilename = nullptr;
