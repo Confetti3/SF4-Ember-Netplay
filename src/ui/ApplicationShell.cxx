@@ -433,7 +433,8 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    if(deadline.seat==place.seat){status=deadline.text;statusTone=Tone::Pending;}
   }
  }
- if((screen=="room"||screen=="room-chat")&&status.empty()){
+ // A BluMint room's header has the set and the score, and its notices say the rest.
+ if((screen=="room"||screen=="room-chat")&&status.empty()&&!(InBluMintRoom(v,screen)&&v.session.control==Health::Healthy)){
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
    TournamentRoomStatus(v.room):
@@ -816,7 +817,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    Say(loc::T("tournament.connection_lost_notice"),Tone::Pending,30,ToastKind::Match);
   }
   else if(v.tournament.phase==Phase::Finished)Say(loc::T("tournament.done_notice"),Tone::Success,12,ToastKind::Match);
-  else if(v.tournament.phase==Phase::Failed){
+  // A BluMint room's fighter gets the Failed notice instead (UpdateBluMint).
+  else if(v.tournament.phase==Phase::Failed&&!InBluMintRoom(v,nav.Screen())){
    Say(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,20,ToastKind::Match);
   }
   tournamentPhase_=v.tournament.phase;
