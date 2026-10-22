@@ -314,6 +314,14 @@ async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
             entry("Player 1", 5, false)
         ])
     );
+
+    // It is read again only after a minute, however often it is asked for.
+    rate(&bridge, "3", 60.0, 9, 0).await;
+    let (_, again) = public_board(&bridge).await;
+    assert_eq!(again, public);
+    bridge.clock.advance(60);
+    let (_, later) = public_board(&bridge).await;
+    assert_eq!(later["players"][0], entry("Player 3", 9, false));
 }
 
 #[tokio::test]

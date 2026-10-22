@@ -1,6 +1,9 @@
 //! The ranking routes (docs/design/SKILL_BADGE.md, "Rankings"): a player's
-//! own standing, their choice to take part, and the board. Players only, and
-//! only where public rooms are on, since only their games are rated.
+//! own standing, their choice to take part, and the board, for players and
+//! (the board alone) for the website. Only where public rooms are on, since
+//! only their games are rated.
+use std::sync::Arc;
+
 use axum::{extract::State, http::HeaderMap, response::Response};
 use ember_protocol::skill::{Board, BoardEntry, RankingChoice};
 
@@ -65,6 +68,9 @@ pub async fn board(State(state): State<AppState>, headers: HeaderMap) -> Result<
     Ok(ok(&board))
 }
 
+/// How long a public board is answered again before it is read again.
+const PUBLIC_BOARD_SECS: u64 = 60;
+
 /// The board on the embernetplay.link rankings page. `shown` is false while
 /// classes are hidden, so the page can tell that from a board nobody is on yet.
 #[derive(serde::Serialize)]
@@ -74,31 +80,44 @@ struct PublicBoard {
     players: Vec<BoardEntry>,
 }
 
+/// The last public board. Anyone can ask for it, directly or through the
+/// website, so the bridge reads it at most once a minute, one read at a time.
+#[derive(Default)]
+pub struct PublicCache(tokio::sync::Mutex<Option<Arc<PublicBoard>>>);
+
 /// `GET /v1/ranking/board/public`: the board as players see it in Ember, for a
 /// web page, with no credential. It carries what the board shows any Ember ID,
 /// the names, flags and classes players chose to be listed with, and no entry
-/// is the caller's own. nginx limits and caches requests, as for the room list.
+/// is the caller's own.
 pub async fn public_board(State(state): State<AppState>) -> Result<Response> {
     if !rooms::enabled(&state) {
         return Err(ApiFailure::not_found());
     }
-    let listed_at = state.now();
+    let now = state.now();
     let shown = classes_shown(&state);
+    let mut cached = state.ranking_board.0.lock().await;
+    if let Some(board) = cached.as_ref().filter(|board| {
+        board.shown == shown && now.saturating_sub(board.listed_at) < PUBLIC_BOARD_SECS
+    }) {
+        return Ok(ok(&**board));
+    }
     let players = if shown {
         let developers = developers(&state);
         state
             .db
-            .read(move |tx| ranking::board(tx, None, &developers, listed_at))
+            .read(move |tx| ranking::board(tx, None, &developers, now))
             .await?
             .players
     } else {
         Vec::new()
     };
-    Ok(ok(&PublicBoard {
-        listed_at,
+    let board = Arc::new(PublicBoard {
+        listed_at: now,
         shown,
         players,
-    }))
+    });
+    *cached = Some(Arc::clone(&board));
+    Ok(ok(&*board))
 }
 
 /// The calling player, within their request budget, and the time.

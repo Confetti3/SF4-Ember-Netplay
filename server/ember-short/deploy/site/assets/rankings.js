@@ -50,7 +50,7 @@
   // players: null until the first answer; each { name, country, band, index, folded }.
   // phase: 'loading', 'ready', 'off' (no rankings here), 'hidden' (classes not shown yet) or 'failed'.
   var data = { players: null, listedAt: 0, loadedAt: 0, phase: 'loading', failed: false };
-  var view = { q: '', classes: {}, country: '', region: '', group: 'class', order: 'recent' };
+  var view = { q: '', needle: '', classes: {}, country: '', region: '', group: 'class', order: 'recent' };
   var loading = false;
   var typingTimer = null;
 
@@ -73,7 +73,12 @@
 
   // Case and accents fold away for search: "eric" finds "Éric". Folding a
   // character at a time keeps a map back to the name for the highlight.
-  function foldChar(ch) { return ch.normalize ? ch.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase() : ch.toLowerCase(); }
+  // One code point at a time, for the name and the query alike, so a name
+  // always matches itself; final sigma folds like any sigma.
+  function foldChar(ch) {
+    var folded = ch.normalize ? ch.normalize('NFKD').replace(/[\u0300-\u036f]/g, '') : ch;
+    return folded.toLowerCase().replace(/\u03c2/g, '\u03c3');
+  }
   function fold(text) {
     var chars = Array.from(text), folded = '', starts = [];
     for (var i = 0; i < chars.length; i++) {
@@ -82,6 +87,14 @@
       folded += piece;
     }
     return { text: folded, starts: starts, chars: chars };
+  }
+
+  // A query as kept: at most 64 characters, never half of one, and folded
+  // once for matching.
+  function setQuery(text) {
+    var clipped = Array.from(String(text)).slice(0, 64).join('');
+    view.q = clipped.toWellFormed ? clipped.toWellFormed() : clipped;
+    view.needle = fold(view.q).text.trim();
   }
 
   function el(tag, className, text) {
@@ -120,7 +133,7 @@
   function readHash() {
     var params;
     try { params = new URLSearchParams(location.hash.replace(/^#/, '')); } catch (error) { return; }
-    view.q = (params.get('q') || '').slice(0, 64);
+    setQuery(params.get('q') || '');
     view.classes = {};
     (params.get('class') || '').split(',').forEach(function (value) {
       var band = parseInt(value, 10);
@@ -163,16 +176,13 @@
     if (skip !== 'class' && selectedBands().length && !view.classes[player.band]) return false;
     if (skip !== 'country' && view.country && (player.country || NO_COUNTRY) !== view.country) return false;
     if (skip !== 'region' && view.region && regionOf(player) !== view.region) return false;
-    if (view.q) {
-      var needle = foldChar(view.q).trim();
-      if (needle && player.folded.text.indexOf(needle) < 0) return false;
-    }
+    if (view.needle && player.folded.text.indexOf(view.needle) < 0) return false;
     return true;
   }
 
   function name(player) {
     var node = el('span', 'rank-name');
-    var needle = view.q ? foldChar(view.q).trim() : '';
+    var needle = view.needle;
     var at = needle ? player.folded.text.indexOf(needle) : -1;
     if (at < 0) {
       node.textContent = player.name;
@@ -387,7 +397,7 @@
     classChips(players);
     countryOptions(players);
     regionOptions(players);
-    search.value = view.q;
+    if (search.value !== view.q) search.value = view.q;
     groupSelect.value = view.group;
     orderSelect.value = view.order;
 
@@ -417,12 +427,13 @@
   }
 
   function update() {
+    clearTimeout(typingTimer);
     writeHash();
     render();
   }
 
   function clearFilters() {
-    view.q = '';
+    setQuery('');
     view.classes = {};
     view.country = '';
     view.region = '';
@@ -520,17 +531,16 @@
     update();
   });
   search.addEventListener('input', function () {
+    // The query is kept at once; only drawing the board waits for a pause.
+    setQuery(search.value);
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(function () {
-      view.q = search.value.slice(0, 64);
-      update();
-    }, 120);
+    typingTimer = setTimeout(update, 120);
   });
   search.addEventListener('keydown', function (event) {
     if (event.key === 'Escape' && search.value) {
       event.preventDefault();
       search.value = '';
-      view.q = '';
+      setQuery('');
       update();
     }
   });

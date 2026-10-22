@@ -75,14 +75,6 @@ install -o root -g root -m 0755 "$SRC/bin/ember-short" "$LIB/ember-short.new"
 mv -f "$LIB/ember-short.new" "$LIB/ember-short"
 install -o root -g root -m 0644 "$SRC/ember-short.service" /etc/systemd/system/ember-short.service
 
-# Assets first, so a page never names one that is not there yet. Each file is
-# written beside its target and renamed over it, so nginx never serves half a file.
-install -d -o root -g root -m 0755 "$ROOT/assets" "$ROOT/assets/fonts"
-for file in $ASSETS $PAGES; do
-    install -o root -g root -m 0644 "$SRC/site/$file" "$ROOT/$file.new"
-    mv -f "$ROOT/$file.new" "$ROOT/$file"
-done
-
 # nginx: keep copies so a failed check puts everything back as it was.
 backup=$(mktemp -d)
 cp -a "$SITE" "$backup/site"
@@ -121,6 +113,16 @@ if ! nginx -t; then
     nginx -t || true
     exit 1
 fi
+
+# The site's files only once nginx has accepted the routes they link to, so
+# a rejected configuration leaves the pages as they were too. Assets first, so
+# a page never names one that is not there yet. Each file is written beside its
+# target and renamed over it, so nginx never serves half a file.
+install -d -o root -g root -m 0755 "$ROOT/assets" "$ROOT/assets/fonts"
+for file in $ASSETS $PAGES; do
+    install -o root -g root -m 0644 "$SRC/site/$file" "$ROOT/$file.new"
+    mv -f "$ROOT/$file.new" "$ROOT/$file"
+done
 
 systemctl daemon-reload
 systemctl enable ember-short
