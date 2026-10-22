@@ -371,6 +371,16 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     void UpdateLaunchCheck(const ShellView& view,double now,const Submit& submit);
     void FinishUpdatePrompt(NoticeResult result,const Submit& submit);
     void SetLaunchCheck(bool enabled);
+    // News: the channel's releases, newest first, under a tab for all and V2's
+    // tabs for each kind there is (news-updates, news-changelog), and in V2 Update
+    // now under the release the launch check offers (ApplicationShell__Updates.cxx).
+    static bool NewsScreen(const std::string& screen) { return screen=="news"||screen=="news-updates"||screen=="news-changelog"; }
+    std::vector<MenuEntry> NewsRows(const ShellView& view,const std::string& screen,std::string& title) const;
+    void NewsTabs(const ShellView& view,const std::string& screen);
+    // V2: a release's card (its kind, New, date and title), and its pane: the
+    // hero band, the notes a line each and the Update now button when offered.
+    bool DrawNewsCard(const ShellView& view,const MenuEntry& row,ImVec2 min,ImVec2 max) const;
+    void DrawNewsDetail(const ShellView& view,const std::string& id,const std::vector<MenuEntry>& rows);
     UpdatePrompt updatePrompt_;
     netplay::Generation updateGeneration_;
     // The failed skips the service had counted when the view was last drawn.

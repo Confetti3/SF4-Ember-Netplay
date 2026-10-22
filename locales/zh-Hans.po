@@ -6909,3 +6909,42 @@ msgstr "{0} 个选项"
 
 msgid "menu.choices_keys"
 msgstr "方向键移动 · 选择确认 · 返回保留 {0}"
+
+msgid "news.tab.all"
+msgstr "全部"
+
+msgid "news.tab.updates"
+msgstr "Ember 更新"
+
+msgid "news.tab.changelog"
+msgstr "更新日志"
+
+msgid "news.kind.update"
+msgstr "更新"
+
+msgid "news.new"
+msgstr "新"
+
+msgid "news.update_now_detail"
+msgstr "关闭游戏并用 Launcher 安装 {0}。你的设置会保留。"
+
+msgid "replays.tab.matches"
+msgstr "对战"
+
+msgid "replays.tab.sets"
+msgstr "系列赛"
+
+msgid "replays.set_detail"
+msgstr "{0} 场对战"
+
+msgid "replays.game"
+msgstr "第 {0} 场"
+
+msgid "replays.fact.fighters"
+msgstr "角色"
+
+msgid "replays.fact.played"
+msgstr "对战时间"
+
+msgid "replays.fact.length"
+msgstr "时长"

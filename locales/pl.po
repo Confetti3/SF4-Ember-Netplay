@@ -6908,3 +6908,42 @@ msgstr "Opcje: {0}"
 
 msgid "menu.choices_keys"
 msgstr "Kierunki przesuwają · Wybierz zatwierdza · Wstecz zostawia {0}"
+
+msgid "news.tab.all"
+msgstr "Wszystko"
+
+msgid "news.tab.updates"
+msgstr "Aktualizacje Embera"
+
+msgid "news.tab.changelog"
+msgstr "Zmiany"
+
+msgid "news.kind.update"
+msgstr "Aktualizacja"
+
+msgid "news.new"
+msgstr "Nowe"
+
+msgid "news.update_now_detail"
+msgstr "Zamyka grę i instaluje {0} przez Launcher. Twoje ustawienia zostają."
+
+msgid "replays.tab.matches"
+msgstr "Mecze"
+
+msgid "replays.tab.sets"
+msgstr "Sety"
+
+msgid "replays.set_detail"
+msgstr "Mecze: {0}"
+
+msgid "replays.game"
+msgstr "Mecz {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Postacie"
+
+msgid "replays.fact.played"
+msgstr "Rozegrano"
+
+msgid "replays.fact.length"
+msgstr "Długość"

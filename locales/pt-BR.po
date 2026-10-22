@@ -6428,3 +6428,42 @@ msgstr "{0} opções"
 
 msgid "menu.choices_keys"
 msgstr "Direções movem · Selecionar escolhe · Voltar mantém {0}"
+
+msgid "news.tab.all"
+msgstr "Tudo"
+
+msgid "news.tab.updates"
+msgstr "Atualizações do Ember"
+
+msgid "news.tab.changelog"
+msgstr "Mudanças"
+
+msgid "news.kind.update"
+msgstr "Atualização"
+
+msgid "news.new"
+msgstr "Novo"
+
+msgid "news.update_now_detail"
+msgstr "Fecha o jogo e instala {0} com o Launcher. Suas configurações são mantidas."
+
+msgid "replays.tab.matches"
+msgstr "Partidas"
+
+msgid "replays.tab.sets"
+msgstr "Sets"
+
+msgid "replays.set_detail"
+msgstr "{0} partidas"
+
+msgid "replays.game"
+msgstr "Partida {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Lutadores"
+
+msgid "replays.fact.played"
+msgstr "Jogada"
+
+msgid "replays.fact.length"
+msgstr "Duração"

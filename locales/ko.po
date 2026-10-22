@@ -6909,3 +6909,42 @@ msgstr "선택지 {0}개"
 
 msgid "menu.choices_keys"
 msgstr "방향으로 이동 · 선택으로 고르기 · 뒤로는 {0} 유지"
+
+msgid "news.tab.all"
+msgstr "전체"
+
+msgid "news.tab.updates"
+msgstr "Ember 업데이트"
+
+msgid "news.tab.changelog"
+msgstr "변경 사항"
+
+msgid "news.kind.update"
+msgstr "업데이트"
+
+msgid "news.new"
+msgstr "새 소식"
+
+msgid "news.update_now_detail"
+msgstr "게임을 닫고 Launcher로 {0}을(를) 설치합니다. 설정은 그대로 유지됩니다."
+
+msgid "replays.tab.matches"
+msgstr "매치"
+
+msgid "replays.tab.sets"
+msgstr "세트"
+
+msgid "replays.set_detail"
+msgstr "매치 {0}개"
+
+msgid "replays.game"
+msgstr "{0}번째 매치"
+
+msgid "replays.fact.fighters"
+msgstr "파이터"
+
+msgid "replays.fact.played"
+msgstr "플레이"
+
+msgid "replays.fact.length"
+msgstr "길이"

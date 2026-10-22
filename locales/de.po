@@ -6908,3 +6908,42 @@ msgstr "{0} Optionen"
 
 msgid "menu.choices_keys"
 msgstr "Richtungen bewegen · Auswählen nimmt · Zurück behält {0}"
+
+msgid "news.tab.all"
+msgstr "Alle"
+
+msgid "news.tab.updates"
+msgstr "Ember-Updates"
+
+msgid "news.tab.changelog"
+msgstr "Änderungen"
+
+msgid "news.kind.update"
+msgstr "Update"
+
+msgid "news.new"
+msgstr "Neu"
+
+msgid "news.update_now_detail"
+msgstr "Schließt das Spiel und installiert {0} mit dem Launcher. Deine Einstellungen bleiben erhalten."
+
+msgid "replays.tab.matches"
+msgstr "Matches"
+
+msgid "replays.tab.sets"
+msgstr "Sets"
+
+msgid "replays.set_detail"
+msgstr "{0} Matches"
+
+msgid "replays.game"
+msgstr "Match {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Kämpfer"
+
+msgid "replays.fact.played"
+msgstr "Gespielt"
+
+msgid "replays.fact.length"
+msgstr "Dauer"

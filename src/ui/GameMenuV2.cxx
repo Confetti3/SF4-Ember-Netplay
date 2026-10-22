@@ -358,10 +358,11 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             ImGui::SetCursorScreenPos(pane.min);
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel, .94f)));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16 * s, 16 * s));
-            // Beside Online play's cards the pane is as tall as what it says.
-            if (listWidth > 0) ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, pane.H()));
-            ImGui::BeginChild("V2 detail", ImVec2(pane.W(), listWidth > 0 ? 0 : pane.H()),
-                ImGuiChildFlags_AlwaysUseWindowPadding | (listWidth > 0 ? ImGuiChildFlags_AutoResizeY : 0), ImGuiWindowFlags_NoNavInputs);
+            // Beside Online play's cards the pane is as tall as what it says; a screen's own pane (News) takes the height.
+            const bool fit = listWidth > 0 && !customDetail;
+            if (fit) ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, pane.H()));
+            ImGui::BeginChild("V2 detail", ImVec2(pane.W(), fit ? 0 : pane.H()),
+                ImGuiChildFlags_AlwaysUseWindowPadding | (fit ? ImGuiChildFlags_AutoResizeY : 0), ImGuiWindowFlags_NoNavInputs);
             if (!customDetail) {
                 const auto& e = *focusedEntry;
                 ImGui::PushFont(HeadingFont());

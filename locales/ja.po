@@ -6909,3 +6909,42 @@ msgstr "{0} 件の選択肢"
 
 msgid "menu.choices_keys"
 msgstr "方向で移動 · 決定で選ぶ · 戻るで {0} のまま"
+
+msgid "news.tab.all"
+msgstr "すべて"
+
+msgid "news.tab.updates"
+msgstr "Ember の更新"
+
+msgid "news.tab.changelog"
+msgstr "変更履歴"
+
+msgid "news.kind.update"
+msgstr "更新"
+
+msgid "news.new"
+msgstr "新着"
+
+msgid "news.update_now_detail"
+msgstr "ゲームを閉じ、Launcher で {0} をインストールします。設定はそのまま残ります。"
+
+msgid "replays.tab.matches"
+msgstr "対戦"
+
+msgid "replays.tab.sets"
+msgstr "セット"
+
+msgid "replays.set_detail"
+msgstr "{0} 試合"
+
+msgid "replays.game"
+msgstr "第 {0} 試合"
+
+msgid "replays.fact.fighters"
+msgstr "ファイター"
+
+msgid "replays.fact.played"
+msgstr "対戦日時"
+
+msgid "replays.fact.length"
+msgstr "長さ"

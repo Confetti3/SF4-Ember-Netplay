@@ -6908,3 +6908,42 @@ msgstr "{0} keuzes"
 
 msgid "menu.choices_keys"
 msgstr "Richtingen bewegen · Kiezen neemt · Terug houdt {0}"
+
+msgid "news.tab.all"
+msgstr "Alles"
+
+msgid "news.tab.updates"
+msgstr "Ember-updates"
+
+msgid "news.tab.changelog"
+msgstr "Wijzigingen"
+
+msgid "news.kind.update"
+msgstr "Update"
+
+msgid "news.new"
+msgstr "Nieuw"
+
+msgid "news.update_now_detail"
+msgstr "Sluit het spel en installeert {0} met de Launcher. Je instellingen blijven bewaard."
+
+msgid "replays.tab.matches"
+msgstr "Wedstrijden"
+
+msgid "replays.tab.sets"
+msgstr "Sets"
+
+msgid "replays.set_detail"
+msgstr "{0} wedstrijden"
+
+msgid "replays.game"
+msgstr "Wedstrijd {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Vechters"
+
+msgid "replays.fact.played"
+msgstr "Gespeeld"
+
+msgid "replays.fact.length"
+msgstr "Duur"

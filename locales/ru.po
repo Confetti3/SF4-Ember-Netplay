@@ -6909,3 +6909,42 @@ msgstr "Вариантов: {0}"
 
 msgid "menu.choices_keys"
 msgstr "Направления — выбор · Выбрать — принять · Назад — оставить {0}"
+
+msgid "news.tab.all"
+msgstr "Все"
+
+msgid "news.tab.updates"
+msgstr "Обновления Ember"
+
+msgid "news.tab.changelog"
+msgstr "Изменения"
+
+msgid "news.kind.update"
+msgstr "Обновление"
+
+msgid "news.new"
+msgstr "Новое"
+
+msgid "news.update_now_detail"
+msgstr "Закрывает игру и устанавливает {0} через Launcher. Ваши настройки сохраняются."
+
+msgid "replays.tab.matches"
+msgstr "Матчи"
+
+msgid "replays.tab.sets"
+msgstr "Сеты"
+
+msgid "replays.set_detail"
+msgstr "Матчей: {0}"
+
+msgid "replays.game"
+msgstr "Матч {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Бойцы"
+
+msgid "replays.fact.played"
+msgstr "Сыгран"
+
+msgid "replays.fact.length"
+msgstr "Длительность"

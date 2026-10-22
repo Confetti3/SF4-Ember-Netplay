@@ -6543,3 +6543,42 @@ msgstr "{0} choices"
 
 msgid "menu.choices_keys"
 msgstr "Directions move · Select picks · Back keeps {0}"
+
+msgid "news.tab.all"
+msgstr "All"
+
+msgid "news.tab.updates"
+msgstr "Ember updates"
+
+msgid "news.tab.changelog"
+msgstr "Changelog"
+
+msgid "news.kind.update"
+msgstr "Update"
+
+msgid "news.new"
+msgstr "New"
+
+msgid "news.update_now_detail"
+msgstr "Closes the game and installs {0} with the Launcher. Your settings are kept."
+
+msgid "replays.tab.matches"
+msgstr "Matches"
+
+msgid "replays.tab.sets"
+msgstr "Sets"
+
+msgid "replays.set_detail"
+msgstr "{0} matches"
+
+msgid "replays.game"
+msgstr "Match {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Fighters"
+
+msgid "replays.fact.played"
+msgstr "Played"
+
+msgid "replays.fact.length"
+msgstr "Length"

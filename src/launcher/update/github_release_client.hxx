@@ -12,8 +12,11 @@ namespace sf4e {
 namespace launcher {
 
 	// A release the channel takes, as Home's news shows it: newest first.
+	// stable: a finished release (News' Ember updates; the rest are changelog).
+	// newer: newer than the installed version (News marks it New).
 	struct ReleaseNews {
 		std::string tag, title, date, notes, url;
+		bool stable = false, newer = false;
 	};
 
 	struct UpdateCheckResult {

@@ -206,14 +206,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[0].hint=loc::T("common.cancel");
   rows[0].detailText=DetailText::Name;
  }else if(v2::On()&&SettingsTab(screen)){rows=SettingsTabRows(v,screen,idle,opening,selection,developer,title);
- }else if(screen=="news"){
-  // Each release reads in full; the notes are plain text already (PlainReleaseNotes).
-  const auto& news=v.services.update.news;
-  for(std::size_t i=0;i<news.size();++i){
-   rows.push_back(Row("news-"+std::to_string(i),news[i].title,(news[i].date.empty()?news[i].tag:news[i].date+" \xC2\xB7 "+news[i].tag)+"\n\n"+news[i].notes));
-   rows.back().reading=true;
-  }
-  if(rows.empty())rows.push_back(Row("news-none",loc::T("news.none"),loc::T("news.none_detail"),false));
+ }else if(NewsScreen(screen)){rows=NewsRows(v,screen,title);
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
@@ -561,6 +554,11 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays"||a.id=="controllers"||a.id=="news")nav.Push(a.id);
+ // News' Update now, confirmed on its row: the launch check's offer, as its question's Update now sends it.
+ else if(a.id=="news-update-now"&&v.services.launchOffer){
+  ShellAction r;r.command.generation=v.session.generation;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*v.services.launchOffer;
+  if(!submit(std::move(r)))error_=loc::T("error.queue_failed");else updatePrompt_.Settle(*v.services.launchOffer);
+ }
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
  else if(a.id=="settings"&&v2::On())nav.Push("tab-player");
@@ -995,6 +993,20 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   const int picked=v2::SpotMap("##picture-spot",{{1-c,c},{c,c},{1-c,1-c},{c,1-c}},corner,{share,share});
   if(picked>=0&&picked!=corner&&v.canEditPreferences){preferences_.pictureSpot=preferences_.pictureSpot/4*4+picked;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  };
+ // V2: Replays' match and set cards and the focused one's pane, and Export video's preview.
+ if(v2::On()&&(screen=="replays"||screen=="replay-sets"||screen=="replay-export")){
+  portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return replays_.DrawCard(v,e,min,max);};
+  profilePreview=[&](const std::string& id){replays_.DrawDetail(v,screen,id,nav,rows);};
+  menu_.customDetail=screen=="replay-export"||nav.Focus().compare(0,7,"replay:")==0||nav.Focus().compare(0,4,"set:")==0;
+  if(screen!="replay-export")menu_.paneWidth=380;
+ }
+ // V2: News' cards and the focused release's pane.
+ if(v2::On()&&NewsScreen(screen)){
+  portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return DrawNewsCard(v,e,min,max);};
+  profilePreview=[&](const std::string& id){DrawNewsDetail(v,id,rows);};
+  menu_.customDetail=nav.Focus().compare(0,5,"news-")==0&&nav.Focus()!="news-update-now"&&nav.Focus()!="news-none";
+  menu_.listWidth=420;
+ }
  if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
  // V2: a Settings tab is a rail of panels beside the shown panel (ApplicationShell__Settings.cxx).
  else if(v2::On()&&SettingsTab(screen))board=[&,profilePreview](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawSettingsBoard(entries,navigation,action,height,feedback,profilePreview);};
@@ -1030,6 +1042,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // V2: Rankings' two pages, your own and the board, are tabs.
   menu_.tabs={{RankingsPanel::Screen,MenuScreenName(RankingsPanel::Screen)},{RankingsPanel::BoardScreen,MenuScreenName(RankingsPanel::BoardScreen)}};
   menu_.tab=screen==RankingsPanel::Screen?0:1;
+
+ }else if(v2::On()&&NewsScreen(screen))NewsTabs(v,screen);
+ else if(v2::On()&&(screen=="replays"||screen=="replay-sets"||screen=="replay-export")){
+  // V2: Replays' tabs, and whether matches watched are saved too.
+  menu_.tabs=replays_.Tabs(v);
+  for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==screen){menu_.tab=i;menu_.eyebrow=std::string(loc::T("replays.title"))+" \xC2\xB7 "+menu_.tabs[i].second;}
+  menu_.headerChips.push_back({std::string(loc::T("replays.save_watched"))+" \xC2\xB7 "+loc::T(preferences_.recordWatched?"common.on":"common.off"),preferences_.recordWatched?palette::Ready:v2::Colors().muted});
  }
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
@@ -1067,7 +1086,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }else if(a.kind==MenuAction::Shortcut){
   // A V2 tab names the page it shows.
   // A panel's screen sits on its tab's: leave it first, and the tab too unless one of its panels was picked.
-  if(!a.id.empty()){if(page!=screen)nav.Return();if(SettingsTabOf(a.id)==a.id)nav.Return();nav.Push(a.id);}
+  if(!a.id.empty()){if(a.id=="replay-export")replays_.ExportFrom(v,nav.Focus());if(page!=screen)nav.Return();if(SettingsTabOf(a.id)==a.id)nav.Return();nav.Push(a.id);}
   else if(inRoom)RoomShortcut(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
   else if(RankingsPanel::Owns(screen))rankings_.Shortcut(a);
