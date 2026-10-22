@@ -121,10 +121,7 @@ h1 {
   font-size: 1.75rem;
   font-weight: 600;
   line-height: 1.25;
-  /* The ember bar over the hairline's middle, so the two read as one line. */
-  background:
-    linear-gradient(var(--ember), var(--ember)) 0 100% / 72px 3px no-repeat,
-    linear-gradient(var(--border), var(--border)) 0 calc(100% - 1px) / 100% 1px no-repeat;
+  border-bottom: 1px solid var(--border);
 }
 h2 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; line-height: 1.3; color: var(--ember); }
 p { margin: 0 0 12px; }
