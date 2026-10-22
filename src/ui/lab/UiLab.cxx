@@ -6,12 +6,14 @@
 // F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F5 in a room · F6 picture · F12 screenshot
 // BluMint room (--blumint): F7 next moment · F8 fighter or watcher
 // --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms).
+// --playback: a replay's strip and input lanes over the art, paused at half speed
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--public] [--rankings] [--pip] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--public] [--rankings] [--playback] [--pip] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
 #include "../FighterSelector.hxx"
+#include "../ReplayPlaybackHud.hxx"
 #include "../SelectionArt.hxx"
 #include "../TrainingPanel.hxx"
 #include "../Theme.hxx"
@@ -259,7 +261,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::string shot, keys, screen;
     bool inRoom = false, pip = false;
     int hud = -1;
-    bool trainingPanel = false, blumint = false, watcher = false, update = false, publicLab = false, rankings = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
+    bool trainingPanel = false, blumint = false, watcher = false, update = false, publicLab = false, rankings = false, playback = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     std::string moment;  // --moment game|set|lost|restart|host|expired|failed|called, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
@@ -277,6 +279,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--public") publicLab = true;
         else if (args[i] == "--watcher") watcher = true;
         else if (args[i] == "--rankings") rankings = true;
+        else if (args[i] == "--playback") playback = true;
         else if (args[i] == "--moment" && more) moment = args[++i];
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
@@ -396,6 +399,24 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             // The dummy crouching and blocking everything, as the game reports it.
             lab.dummy.action = 1; lab.dummy.guard = 2; lab.dummy.counterHit = 0; lab.dummy.quickStand = 1; lab.dummy.super = 0; lab.dummy.revenge = 0;
             ui::DrawTrainingFlyout(lab, [](const training::Command&) { return true; });
+        } else if (playback) {
+            ui::v2::SetOn(view.preferences.lookV2);
+            // The board's replay: paused at half speed in round 2, the lanes on.
+            namespace in = replayinputs;
+            ui::ReplayHudView replay;
+            replay.shown = replay.armed = replay.paused = replay.inputsKnown = replay.lanes = true;
+            replay.divisor = 2; replay.round = 1; replay.cursor = 1482; replay.stripAlpha = 1; replay.pad = pad;
+            const replaylane::Row rows[] = {{in::Right | in::MK, in::MK, 3}, {in::Down | in::Right, 0, 2}, {in::Down | in::HP, in::HP, 1},
+                {in::Left, 0, 14}, {0, 0, 6}, {in::Right | in::LP, in::LP, 2}, {in::Down, 0, 1}, {in::Down | in::Left | in::HK | in::LK, in::HK, 4}};
+            for (int side = 0; side < 2; side++) { std::copy(std::begin(rows), std::end(rows), replay.rows[side]); replay.rowCount[side] = 8; }
+            ui::DrawReplayStrip(replay);
+            ui::DrawReplayLanes(replay);
+            // After the HUD: a window that never comes to the front is put behind those made before it.
+            const auto* vp = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
+            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
+            ui::DrawMenuBackdrop(view.preferences.lookV2);
+            ImGui::End();
         } else if (hud >= 0) {
             // A fight's HUD: the art stands in for the game behind it.
             const auto* vp = ImGui::GetMainViewport();

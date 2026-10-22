@@ -3,6 +3,7 @@
 #include "MenuGlyphs.hxx"
 #include "Theme.hxx"
 #include "TrainingPanel.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayTransport.hxx"
 #include <imgui.h>
@@ -41,6 +42,68 @@ void DrawDirection(ImDrawList* d, ImVec2 c, float r, unsigned held, ImU32 color,
     d->AddLine(tail, base, color, (std::max)(1.5f, r * .24f));
     d->AddTriangleFilled(tip, ImVec2(base.x - dy * r * .5f, base.y + dx * r * .5f), ImVec2(base.x + dy * r * .5f, base.y - dx * r * .5f), color);
 }
+std::string SpeedWord(int divisor) {
+    return loc::T(divisor == 4 ? "replays.controls.speed_quarter" : divisor == 2 ? "replays.controls.speed_half" : "replays.controls.speed_full");
+}
+// The V2 strip (the Playback board): a button per control, its pad and
+// keyboard keys over what it does, lit while that is on, then the place in
+// the round; at the bottom centre. The keys are the legend, so it has no hint bar.
+void DrawStripV2(const ReplayHudView& view, float alpha, const std::string& place) {
+    const auto* vp = ImGui::GetMainViewport();
+    const auto& c = v2::Colors();
+    const auto padKey = [](const char* id) {
+        const auto glyph = BrandGlyph(id, MenuPromptBrand(), MenuPromptNames());
+        return std::string(*glyph.name ? glyph.name : id) + " \xC2\xB7 ";
+    };
+    const auto onOff = [](bool on) { return std::string(" ") + loc::T(on ? "common.on" : "common.off"); };
+    struct Control { std::string keys, label; bool lit; ImU32 ink; };
+    std::vector<Control> controls{
+        {padKey("RB") + "F1", loc::T(view.paused ? "replays.controls.play" : "replays.controls.pause"), !view.paused, c.text},
+        {padKey("RT") + "F2", loc::T("replays.controls.step"), false, c.text},
+        // The chosen speed, dimmed where the game's own pace runs (the knockout, the round's end).
+        {padKey("LB") + "F3 F4", loc::T("replays.controls.speed") + std::string(" ") + SpeedWord(view.divisor), view.divisor != 1, view.armed ? c.text : c.muted}};
+    if (view.inputsKnown) controls.push_back({padKey("LT") + "F9", loc::T("replays.controls.inputs") + onOff(view.lanes), view.lanes, c.text});
+    // The pad has no meter button.
+    controls.push_back({"F5", loc::T("replays.controls.meter") + onOff(view.meter), view.meter, c.text});
+    // The board's sizes, shrunk to fit a narrow window.
+    float s = HudScale();
+    const auto measure = [&](float k) {
+        float w = 16 * k + 20 * k + TextWidth(14 * k, place);
+        for (const auto& control : controls) w += (std::max)(92 * k, (std::max)(TextWidth(11 * k, control.keys), TextWidth(16 * k, control.label)) + 20 * k) + 6 * k;
+        return w;
+    };
+    const float room = vp->Size.x - 32 * s;
+    if (measure(s) > room) s *= room / measure(s);
+    const float width = measure(s), height = 68 * s;
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, vp->Pos.y + vp->Size.y - 64 * s), ImGuiCond_Always, ImVec2(.5f, 1));
+    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(1, 1));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0);
+    if (ImGui::Begin("###Replay strip", nullptr, Passive)) {
+        auto* d = ImGui::GetWindowDrawList();
+        const ImVec2 p = ImGui::GetWindowPos();
+        d->AddRectFilled(p, ImVec2(p.x + width, p.y + height), Faded(v2::color::Alpha(c.ink, .92f), alpha), 4 * s);
+        d->AddRect(p, ImVec2(p.x + width, p.y + height), Faded(v2::color::Alpha(c.accent, .45f), alpha), 4 * s, 0, s);
+        float x = p.x + 8 * s;
+        const float top = p.y + 8 * s, bottom = p.y + height - 8 * s;
+        for (const auto& control : controls) {
+            const float w = (std::max)(92 * s, (std::max)(TextWidth(11 * s, control.keys), TextWidth(16 * s, control.label)) + 20 * s);
+            d->AddRectFilled(ImVec2(x, top), ImVec2(x + w, bottom), Faded(control.lit ? c.header : c.button, alpha), 4 * s);
+            d->AddRect(ImVec2(x, top), ImVec2(x + w, bottom), Faded(control.lit ? c.accent : c.border, alpha), 4 * s, 0, (control.lit ? 2 : 1) * s);
+            const float mid = x + w * .5f, cy = (top + bottom) * .5f;
+            d->AddText(ImGui::GetFont(), 11 * s, ImVec2(mid - TextWidth(11 * s, control.keys) * .5f, cy - 13 * s), Faded(c.muted, alpha), control.keys.c_str());
+            d->AddText(ImGui::GetFont(), 16 * s, ImVec2(mid - TextWidth(16 * s, control.label) * .5f, cy - 1 * s), Faded(control.ink, alpha), control.label.c_str());
+            x += w + 6 * s;
+        }
+        d->AddText(ImGui::GetFont(), 14 * s, ImVec2(x + 10 * s, p.y + (height - 14 * s) * .5f), Faded(c.muted, alpha), place.c_str());
+    }
+    ImGui::End();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(4);
+}
 }
 
 void DrawReplayStrip(const ReplayHudView& view) {
@@ -71,11 +134,12 @@ void DrawReplayStrip(const ReplayHudView& view) {
     float statusFont = 14 * s, legendFont = 12 * s;
     const float glyph = 18 * s, gap = 6 * s, padX = 8 * s, icon = 11 * s;
     const std::string pausedWord = view.paused ? loc::T("replays.controls.paused") : "";
-    const std::string speed = loc::T(view.divisor == 4 ? "replays.controls.speed_quarter" : view.divisor == 2 ? "replays.controls.speed_half" : "replays.controls.speed_full");
+    const std::string speed = SpeedWord(view.divisor);
     char clock[16]; replaytransport::FormatClock(view.cursor, clock);
     // Paused, the frame takes the clock's place: a step moves it by one.
     const std::string place = loc::Tf("replays.controls.round", view.round + 1) + " \xC2\xB7 " +
         (view.paused ? loc::Tf("replays.controls.frame", view.cursor) : std::string(clock));
+    if (v2::On()) { DrawStripV2(view, alpha, place); return; }
     std::vector<Hint> hints;
     hints.push_back({{view.pad ? "RB" : "F1", nullptr}, loc::T(view.paused ? "replays.controls.play" : "replays.controls.pause")});
     hints.push_back({{view.pad ? "RT" : "F2", nullptr}, loc::T("replays.controls.step")});
@@ -152,6 +216,45 @@ void DrawReplayLanes(const ReplayHudView& view) {
     const float gx0 = vp->Pos.x + (vp->Size.x - 1280 * gs) * .5f, gy0 = vp->Pos.y + (vp->Size.y - 720 * gs) * .5f;
     // Sized with the picture, but kept readable in a small window.
     const float ls = (std::max)(gs, .75f);
+    if (v2::On()) {
+        // The Playback board's lanes: a card per run, the direction, the buttons
+        // in the accent (brighter on the frame they went down) and the run's frames.
+        const auto& c = v2::Colors();
+        const float row = 30 * ls, gap = 4 * ls, font = 14 * ls, small = 12 * ls, width = 136 * ls, top = gy0 + 180 * gs;
+        for (int side = 0; side < 2; side++) {
+            const int rows = (std::min)(view.rowCount[side], 8);
+            if (rows <= 0) continue;
+            const float x0 = side ? gx0 + 1280 * gs - 24 * gs - width : gx0 + 24 * gs;
+            ImGui::SetNextWindowPos(ImVec2(x0, top), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(width, rows * (row + gap)), ImGuiCond_Always);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(1, 1));
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, 0);
+            if (ImGui::Begin(side ? "###Replay inputs 2" : "###Replay inputs 1", nullptr, Passive)) {
+                auto* d = ImGui::GetWindowDrawList();
+                const ImVec2 p = ImGui::GetWindowPos();
+                for (int i = 0; i < rows; i++) {
+                    const auto& r = view.rows[side][i];
+                    const float y = p.y + i * (row + gap), cy = y + row * .5f;
+                    d->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + width, y + row), v2::color::Alpha(c.ink, .85f), 3 * ls);
+                    DrawDirection(d, ImVec2(p.x + 17 * ls, cy), 8 * ls, r.held, c.text, c.muted);
+                    float x = p.x + 32 * ls;
+                    for (int b = 0; b < 6; b++) {
+                        if (!(r.held & replayinputs::Buttons[b])) continue;
+                        d->AddText(ImGui::GetFont(), font, ImVec2(x, cy - font * .5f), (r.pressed & replayinputs::Buttons[b]) ? c.accent : c.accentLight, replayinputs::ButtonNames[b]);
+                        x += TextWidth(font, replayinputs::ButtonNames[b]) + 4 * ls;
+                    }
+                    const std::string frames = r.frames > 999 ? std::string("999+") : std::to_string(r.frames);
+                    d->AddText(ImGui::GetFont(), small, ImVec2(p.x + width - 8 * ls - TextWidth(small, frames), cy - small * .5f), c.muted, frames.c_str());
+                }
+            }
+            ImGui::End();
+            ImGui::PopStyleColor();
+            ImGui::PopStyleVar(3);
+        }
+        return;
+    }
     const float row = 17 * ls, font = 12 * ls, arrow = 14 * ls, chip = 19 * ls, count = 30 * ls, pad = 6 * ls;
     const float width = 2 * pad + arrow + 6 * ls + 6 * chip + count;
     // Below the life bars (to about y 130) and the name logos beside them (y 144 to 166).
