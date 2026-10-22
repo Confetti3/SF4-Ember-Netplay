@@ -6842,3 +6842,39 @@ msgstr "Zatím žádné novinky"
 
 msgid "news.none_detail"
 msgstr "Novinky pocházejí z vydání Emberu po kontrole aktualizací."
+
+msgid "settings.group.room_layout"
+msgstr "Rozvržení místnosti"
+
+msgid "settings.room_column"
+msgstr "Šířka sloupce"
+
+msgid "settings.room_column_detail"
+msgstr "Kolik z tabule místnosti zabírá sloupec se členy a chatem. V místnosti myš také přetahuje čáru mezi nimi."
+
+msgid "settings.room_split"
+msgstr "Členové a chat"
+
+msgid "settings.room_split_detail"
+msgstr "Jak je sloupec rozdělen: členové nad chatem. Chat si vždy ponechá tři řádky. V místnosti myš také přetahuje čáru mezi nimi."
+
+msgid "settings.room_preset"
+msgstr "Hotové rozvržení"
+
+msgid "settings.room_preset_detail"
+msgstr "Nejdřív tabule dává místo stolům, Nejdřív chat konverzaci; Vyvážené je mezi nimi."
+
+msgid "settings.room_preset.board"
+msgstr "Nejdřív tabule"
+
+msgid "settings.room_preset.balanced"
+msgstr "Vyvážené"
+
+msgid "settings.room_preset.chat"
+msgstr "Nejdřív chat"
+
+msgid "settings.room_layout_reset"
+msgstr "Obnovit výchozí"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Vrátí sloupec a rozdělení mezi členy a chat na Vyvážené."

@@ -106,6 +106,32 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
     return ImGui::IsItemDeactivated() && hovered ? nearest : -1;
 }
 
+float Grip(const char* id, ImVec2 from, ImVec2 to) {
+    const float s = Scale(), reach = 22 * s;
+    const bool down = from.x == to.x;
+    const ImVec2 mid((from.x + to.x) * .5f, (from.y + to.y) * .5f);
+    ImGui::SetCursorScreenPos(down ? ImVec2(from.x - reach, from.y) : ImVec2(from.x, from.y - reach));
+    ImGui::InvisibleButton(id, down ? ImVec2(2 * reach, (std::max)(1.f, to.y - from.y)) : ImVec2((std::max)(1.f, to.x - from.x), 2 * reach));
+    const bool held = ImGui::IsItemActive(), hovered = ImGui::IsItemHovered();
+    if (held || hovered) ImGui::SetMouseCursor(down ? ImGuiMouseCursor_ResizeEW : ImGuiMouseCursor_ResizeNS);
+    auto* d = ImGui::GetWindowDrawList();
+    const auto& c = Colors();
+    const ImU32 line = held ? c.accent : hovered ? color::Alpha(c.accent, .7f) : color::Alpha(c.accent, .35f);
+    d->AddLine(from, to, line, 4 * s);
+    d->AddCircleFilled(mid, 18 * s, held ? c.accent : c.button);
+    d->AddCircle(mid, 18 * s, line, 0, s);
+    // Three dots at rest; held, the two ways it moves.
+    const ImU32 ink = held ? c.ink : c.text;
+    if (held) for (float side : {-1.f, 1.f}) {
+        const ImVec2 tip = down ? ImVec2(mid.x + side * 10 * s, mid.y) : ImVec2(mid.x, mid.y + side * 10 * s);
+        const ImVec2 a = down ? ImVec2(tip.x - side * 6 * s, mid.y - 6 * s) : ImVec2(mid.x - 6 * s, tip.y - side * 6 * s);
+        const ImVec2 b = down ? ImVec2(tip.x - side * 6 * s, mid.y + 6 * s) : ImVec2(mid.x + 6 * s, tip.y - side * 6 * s);
+        d->AddTriangleFilled(tip, a, b, ink);
+    }
+    else for (int i = -1; i <= 1; ++i) d->AddCircleFilled(down ? ImVec2(mid.x, mid.y + i * 6 * s) : ImVec2(mid.x + i * 6 * s, mid.y), 2 * s, ink);
+    return held ? (down ? ImGui::GetMousePos().x : ImGui::GetMousePos().y) : NAN;
+}
+
 ImVec4 BoardGround(bool seeThrough) {
     return on ? ImGui::ColorConvertU32ToFloat4(color::Alpha(Colors().panel, seeThrough ? .6f : .84f)) : BoardPanelColor(seeThrough);
 }

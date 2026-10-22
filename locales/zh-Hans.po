@@ -6843,3 +6843,39 @@ msgstr "暂无新闻"
 
 msgid "news.none_detail"
 msgstr "检查更新后，新闻来自 Ember 的发布版本。"
+
+msgid "settings.group.room_layout"
+msgstr "房间布局"
+
+msgid "settings.room_column"
+msgstr "栏宽"
+
+msgid "settings.room_column_detail"
+msgstr "成员和聊天栏占房间面板的比例。在房间里，也可以用鼠标拖动它们之间的线。"
+
+msgid "settings.room_split"
+msgstr "成员和聊天"
+
+msgid "settings.room_split_detail"
+msgstr "这一栏的分配：成员在上，聊天在下。聊天始终保留三行。在房间里，也可以用鼠标拖动它们之间的线。"
+
+msgid "settings.room_preset"
+msgstr "预设布局"
+
+msgid "settings.room_preset_detail"
+msgstr "“面板优先”把空间给桌子，“聊天优先”给对话；“均衡”介于两者之间。"
+
+msgid "settings.room_preset.board"
+msgstr "面板优先"
+
+msgid "settings.room_preset.balanced"
+msgstr "均衡"
+
+msgid "settings.room_preset.chat"
+msgstr "聊天优先"
+
+msgid "settings.room_layout_reset"
+msgstr "恢复默认"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "把栏宽和成员与聊天的分配恢复为“均衡”。"

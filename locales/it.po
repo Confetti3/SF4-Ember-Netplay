@@ -6842,3 +6842,39 @@ msgstr "Ancora nessuna notizia"
 
 msgid "news.none_detail"
 msgstr "Le notizie arrivano dalle versioni di Ember dopo il controllo degli aggiornamenti."
+
+msgid "settings.group.room_layout"
+msgstr "Disposizione della stanza"
+
+msgid "settings.room_column"
+msgstr "Larghezza della colonna"
+
+msgid "settings.room_column_detail"
+msgstr "Quanto del tabellone della stanza occupa la colonna di membri e chat. In una stanza, anche il mouse trascina la linea tra loro."
+
+msgid "settings.room_split"
+msgstr "Membri e chat"
+
+msgid "settings.room_split_detail"
+msgstr "Come è divisa la colonna: membri sopra la chat. La chat tiene sempre tre righe. In una stanza, anche il mouse trascina la linea tra loro."
+
+msgid "settings.room_preset"
+msgstr "Disposizione pronta"
+
+msgid "settings.room_preset_detail"
+msgstr "Prima il tabellone dà spazio ai tavoli, Prima la chat alla conversazione; Bilanciata sta nel mezzo."
+
+msgid "settings.room_preset.board"
+msgstr "Prima il tabellone"
+
+msgid "settings.room_preset.balanced"
+msgstr "Bilanciata"
+
+msgid "settings.room_preset.chat"
+msgstr "Prima la chat"
+
+msgid "settings.room_layout_reset"
+msgstr "Ripristina predefiniti"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Riporta la colonna e la divisione tra membri e chat su Bilanciata."

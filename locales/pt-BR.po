@@ -6362,3 +6362,39 @@ msgstr "Ainda sem notícias"
 
 msgid "news.none_detail"
 msgstr "As notícias vêm das versões do Ember depois da verificação de atualizações."
+
+msgid "settings.group.room_layout"
+msgstr "Layout da sala"
+
+msgid "settings.room_column"
+msgstr "Largura da coluna"
+
+msgid "settings.room_column_detail"
+msgstr "Quanto do quadro da sala a coluna de membros e chat ocupa. Na sala, o mouse também arrasta a linha entre eles."
+
+msgid "settings.room_split"
+msgstr "Membros e chat"
+
+msgid "settings.room_split_detail"
+msgstr "Como a coluna é dividida: membros acima do chat. O chat sempre mantém três linhas. Na sala, o mouse também arrasta a linha entre eles."
+
+msgid "settings.room_preset"
+msgstr "Layout pronto"
+
+msgid "settings.room_preset_detail"
+msgstr "Quadro primeiro dá o espaço às mesas, Chat primeiro à conversa; Equilibrado fica no meio."
+
+msgid "settings.room_preset.board"
+msgstr "Quadro primeiro"
+
+msgid "settings.room_preset.balanced"
+msgstr "Equilibrado"
+
+msgid "settings.room_preset.chat"
+msgstr "Chat primeiro"
+
+msgid "settings.room_layout_reset"
+msgstr "Restaurar padrões"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Volta a coluna e a divisão entre membros e chat para Equilibrado."

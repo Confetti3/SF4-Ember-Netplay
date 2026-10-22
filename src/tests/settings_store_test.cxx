@@ -405,6 +405,15 @@ int main() {
     CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudAnchor"]==5);
     CHECK(store.SaveLauncher({{"matchHudAnchor",4}},error));
     discordDefaults.matchHudAnchor=0;
+    // The room board's layout grips: in range, and kept in the netplay section.
+    CHECK(discordDefaults.roomColumn==sf4e::netplay::DefaultRoomColumn&&discordDefaults.roomSplit==sf4e::netplay::DefaultRoomSplit);
+    discordDefaults.roomColumn=sf4e::netplay::MaxRoomColumn+1;CHECK(!discordDefaults.Valid());
+    discordDefaults.roomColumn=sf4e::netplay::MinRoomColumn;discordDefaults.roomSplit=sf4e::netplay::MinRoomSplit-1;CHECK(!discordDefaults.Valid());
+    discordDefaults.roomSplit=sf4e::netplay::MaxRoomSplit;CHECK(discordDefaults.Valid());
+    discordDefaults.roomColumn=sf4e::netplay::DefaultRoomColumn;discordDefaults.roomSplit=sf4e::netplay::DefaultRoomSplit;
+    CHECK(store.SaveLauncher({{"roomColumn",48},{"roomSplit",44}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["roomColumn"]==48&&result["roomSplit"]==44);
+    CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["roomColumn"]==48);
     CHECK(discordDefaults.matchHudLayout==1); // Split by default.
     discordDefaults.matchHudLayout=-1;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudLayout=2;CHECK(!discordDefaults.Valid());

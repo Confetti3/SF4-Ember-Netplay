@@ -49,6 +49,7 @@ std::vector<MenuEntry> ApplicationShell::SettingsTabRows(const ShellView& v, con
     } else if (tab == "tab-interface") {
         add("interface", loc::T("settings.group.look"), [](const std::string& id) { return id == "look"; });
         add("interface", loc::T("settings.match_hud"), [](const std::string& id) { return id.compare(0, 3, "hud") == 0; });
+        add("interface", loc::T("settings.group.room_layout"), [](const std::string& id) { return id.compare(0, 8, "arrange-") == 0; });
         add("interface", loc::T("settings.group.sounds"), [](const std::string& id) { return id.compare(0, 5, "ready") == 0; });
     } else if (tab == "tab-access") {
         add("interface", loc::T("settings.group.text"), [](const std::string& id) { return id == "scale" || id == "language"; });

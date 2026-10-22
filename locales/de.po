@@ -6842,3 +6842,39 @@ msgstr "Noch keine Neuigkeiten"
 
 msgid "news.none_detail"
 msgstr "Neuigkeiten kommen aus Embers Versionen, sobald die Update-Prüfung gelaufen ist."
+
+msgid "settings.group.room_layout"
+msgstr "Raumlayout"
+
+msgid "settings.room_column"
+msgstr "Spaltenbreite"
+
+msgid "settings.room_column_detail"
+msgstr "Wie viel vom Board des Raums die Spalte mit Mitgliedern und Chat einnimmt. Im Raum zieht die Maus auch die Linie dazwischen."
+
+msgid "settings.room_split"
+msgstr "Mitglieder und Chat"
+
+msgid "settings.room_split_detail"
+msgstr "Wie die Spalte aufgeteilt ist: Mitglieder über dem Chat. Der Chat behält immer drei Zeilen. Im Raum zieht die Maus auch die Linie dazwischen."
+
+msgid "settings.room_preset"
+msgstr "Fertiges Layout"
+
+msgid "settings.room_preset_detail"
+msgstr "Board zuerst gibt den Tischen den Platz, Chat zuerst dem Gespräch; Ausgewogen liegt dazwischen."
+
+msgid "settings.room_preset.board"
+msgstr "Board zuerst"
+
+msgid "settings.room_preset.balanced"
+msgstr "Ausgewogen"
+
+msgid "settings.room_preset.chat"
+msgstr "Chat zuerst"
+
+msgid "settings.room_layout_reset"
+msgstr "Standard wiederherstellen"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Setzt die Spalte und die Aufteilung von Mitgliedern und Chat auf Ausgewogen zurück."

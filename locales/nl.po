@@ -6842,3 +6842,39 @@ msgstr "Nog geen nieuws"
 
 msgid "news.none_detail"
 msgstr "Het nieuws komt uit Embers releases zodra de updatecontrole gelopen heeft."
+
+msgid "settings.group.room_layout"
+msgstr "Kamerindeling"
+
+msgid "settings.room_column"
+msgstr "Kolombreedte"
+
+msgid "settings.room_column_detail"
+msgstr "Hoeveel van het bord van de kamer de kolom met leden en chat inneemt. In een kamer sleept de muis ook de lijn ertussen."
+
+msgid "settings.room_split"
+msgstr "Leden en chat"
+
+msgid "settings.room_split_detail"
+msgstr "Hoe de kolom verdeeld is: leden boven chat. Chat houdt altijd drie regels. In een kamer sleept de muis ook de lijn ertussen."
+
+msgid "settings.room_preset"
+msgstr "Kant-en-klare indeling"
+
+msgid "settings.room_preset_detail"
+msgstr "Bord eerst geeft de tafels de ruimte, Chat eerst het gesprek; Gebalanceerd zit ertussenin."
+
+msgid "settings.room_preset.board"
+msgstr "Bord eerst"
+
+msgid "settings.room_preset.balanced"
+msgstr "Gebalanceerd"
+
+msgid "settings.room_preset.chat"
+msgstr "Chat eerst"
+
+msgid "settings.room_layout_reset"
+msgstr "Standaard herstellen"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Zet de kolom en de verdeling tussen leden en chat terug op Gebalanceerd."

@@ -100,6 +100,13 @@ int Tabs(const std::vector<std::string>& labels, int current);
 // The pad and keys pick the same values in the row's value panel.
 int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec2 block);
 
+// A layout grip (Customise.dc.html) on the edge from `from` to `to`, straight
+// across or down: a line along the edge and a dot on its middle, which the mouse
+// drags across the edge. Returns the pointer's position along that drag (x for
+// an edge down the screen, y for one across) while held, else NAN. The pad and
+// keys set the same layout in Settings > Interface > Room layout.
+float Grip(const char* id, ImVec2 from, ImVec2 to);
+
 // A title's tier, from the lowest: its plate and stripe colours, and its icon's ink.
 enum class Tier { None, Ash, Copper, Silver, Gold, Ember };
 struct TierColors { ImU32 plate, stripe; };

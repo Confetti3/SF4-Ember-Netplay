@@ -445,6 +445,13 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
 void DrawBluMintBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height);
 void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
+    // The V2 room board's tables and its members-over-chat column in `area`, as the
+    // player's layout grips set them (PlayerPreferences::roomColumn). RoomGrips draws
+    // the grips on their edges, after the panes, and a drag sets them again.
+    void ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat) const;
+    void RoomGrips(v2::Box area);
+    // Settings' picture of that layout, with the same grips.
+    void DrawRoomLayoutPreview();
     std::string roomBoardFocus_;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_;
@@ -507,6 +514,8 @@ std::vector<MenuEntry> settingsRows_;std::string settingsEyebrow_,settingsFocus_
     double roomUpdateUntil_ = 0;
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;
+    // The V2 room board drew the watched game's picture, cinema style, so the corner window stays away.
+    bool boardPicture_ = false;
     bool boardDrawn_ = false;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;

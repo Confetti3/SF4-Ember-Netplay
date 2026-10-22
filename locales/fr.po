@@ -6842,3 +6842,39 @@ msgstr "Pas encore d'actualités"
 
 msgid "news.none_detail"
 msgstr "Les actualités viennent des versions d'Ember une fois la vérification des mises à jour faite."
+
+msgid "settings.group.room_layout"
+msgstr "Disposition du salon"
+
+msgid "settings.room_column"
+msgstr "Largeur de la colonne"
+
+msgid "settings.room_column_detail"
+msgstr "La part du tableau du salon que prend la colonne des membres et du chat. Dans un salon, la souris fait aussi glisser la ligne entre les deux."
+
+msgid "settings.room_split"
+msgstr "Membres et chat"
+
+msgid "settings.room_split_detail"
+msgstr "Le partage de la colonne : les membres au-dessus du chat. Le chat garde toujours trois lignes. Dans un salon, la souris fait aussi glisser la ligne entre les deux."
+
+msgid "settings.room_preset"
+msgstr "Disposition prête"
+
+msgid "settings.room_preset_detail"
+msgstr "Tableau d'abord donne la place aux tables, Chat d'abord à la conversation ; Équilibrée est entre les deux."
+
+msgid "settings.room_preset.board"
+msgstr "Tableau d'abord"
+
+msgid "settings.room_preset.balanced"
+msgstr "Équilibrée"
+
+msgid "settings.room_preset.chat"
+msgstr "Chat d'abord"
+
+msgid "settings.room_layout_reset"
+msgstr "Rétablir les valeurs par défaut"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Remet la colonne et le partage entre membres et chat sur Équilibrée."
