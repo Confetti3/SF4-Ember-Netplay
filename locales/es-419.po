@@ -4442,7 +4442,7 @@ msgid "room.type.classic_detail"
 msgstr "Los jugadores hacen fila en una mesa y juegan ahí."
 
 msgid "room.type.arcade_detail"
-msgstr "Dieciséis máquinas en pares, como en un arcade: la sala te sienta frente a quien esté esperando, y el par sigue jugando hasta que uno se levante."
+msgstr "Dieciséis máquinas: siéntate en cualquiera libre y juega contra quien lleve más tiempo esperando. Tras un set, si ambos eligen Revancha juegan otra vez; si no, cada uno juega con el siguiente que espera."
 
 msgid "room.arcade_status"
 msgstr "Sala arcade / solo por invitación"
@@ -4450,35 +4450,56 @@ msgstr "Sala arcade / solo por invitación"
 msgid "room.arcade_locked_status"
 msgstr "Sala arcade cerrada / solo por invitación"
 
-msgid "room.cabinet_free"
-msgstr "INSERTE FICHA"
-
 msgid "room.arcade_sit"
 msgstr "Sentarse"
 
 msgid "room.arcade_sit_detail"
-msgstr "La sala te sienta frente a quien esté esperando, o en una máquina libre."
-
-msgid "room.arcade_view"
-msgstr "Vista de sala arcade"
-
-msgid "room.arcade_view_detail"
-msgstr "Cómo se dibujan las máquinas de una sala arcade: el salón de parejas enfrentadas, o Real Arcade con máquinas altas en dos filas o en cuatro columnas."
-
-msgid "room.arcade_view.floor"
-msgstr "Salón"
-
-msgid "room.arcade_view.rows"
-msgstr "Real Arcade (filas)"
-
-msgid "room.arcade_view.columns"
-msgstr "Real Arcade (columnas)"
-
-msgid "room.cabinet_empty"
-msgstr "VACÍA"
+msgstr "Siéntate aquí: juegas contra quien lleve más tiempo esperando, o esperas al siguiente que se siente."
 
 msgid "room.arcade_waiting"
 msgstr "Esperando"
+
+msgid "room.type.king"
+msgstr "Rey de la colina"
+
+msgid "room.type.king_detail"
+msgstr "Dieciséis máquinas, todas las parejas juegan a la vez: quien gana un set se queda sentado y juega contra el siguiente retador. La racha de victorias actual más larga ocupa el primer puesto."
+
+msgid "room.cabinet_row"
+msgstr "Máquina {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "libre"
+
+msgid "room.arcade_move_detail"
+msgstr "Cámbiate a esta máquina entre partidas. Tu rival y tu racha se quedan contigo."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Revancha"
+
+msgid "room.rematch_detail"
+msgstr "Juega otra vez contra el mismo rival. Empieza cuando los dos la elijan."
+
+msgid "room.new_opponent"
+msgstr "Nuevo rival"
+
+msgid "room.new_opponent_detail"
+msgstr "Quédate sentado y juega contra quien lleve más tiempo esperando, o espera al siguiente que se siente."
+
+msgid "room.rematch_ask"
+msgstr "¿Revancha?"
+
+msgid "room.rematch_chosen"
+msgstr "Revancha elegida"
+
+msgid "room.top_slot"
+msgstr "PRIMER PUESTO"
+
+msgid "room.top_slot_none"
+msgstr "Gana un set para quedarte con el primer puesto."
 
 msgid "room.rules.arcade"
 msgstr "Las reglas de una sala arcade se fijan al crearla y valen en todas las mesas."

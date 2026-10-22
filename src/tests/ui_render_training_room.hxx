@@ -172,37 +172,32 @@ void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw,const Pag
     view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");
     view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;view.room.delayPolicy=room::DelayPolicy::Shared;
     page("room-table");draw();
-    // An Arcade room's floor: two matches, one on a streak, a cabinet waiting
-    // for an opponent, and this PC's member not sitting at one.
+    // An Arcade room: two players waiting at cabinets apart, a pair across the
+    // aisle, and this PC's member at no cabinet.
     const auto plain=view.room;
-    view.room.arcade=room::ArcadeFloor;
-    view.room.tables[0].p1=8;view.room.tables[0].streakHolder=8;view.room.tables[0].streak=3;view.room.tables[2].p1=5;
-    for(std::size_t i=0;i<view.room.tables.size();++i)view.room.tables[i].id=static_cast<std::uint8_t>(i);
-    for(auto& member:view.room.members){
-        if(member.id==1){member.table=-1;member.seat=-1;member.status=room::MemberStatus::Idle;}
-        else if(member.id==8){member.table=0;member.seat=0;member.status=room::MemberStatus::Seated;}
-        else if(member.id==5){member.table=2;member.seat=0;member.status=room::MemberStatus::Seated;}
-    }
+    for(auto& table:view.room.tables){table.p1=table.p2=0;table.phase=room::TablePhase::Idle;table.queue.clear();}
+    for(auto& member:view.room.members){member.table=-1;member.seat=-1;member.status=room::MemberStatus::Idle;}
+    const auto seat=[&](int cabinet,room::MemberId id,int table,int side){
+        view.room.cabinets[cabinet]=id;auto& t=view.room.tables[table];(side?t.p2:t.p1)=id;
+        auto& member=view.room.members[id-1];member.table=static_cast<std::int8_t>(table);member.seat=static_cast<std::int8_t>(side);member.status=room::MemberStatus::Seated;
+        t.phase=t.p1&&t.p2?room::TablePhase::Waiting:room::TablePhase::Idle;
+    };
+    view.room.arcade=room::ArcadeRoom;
+    seat(0,8,0,0);seat(13,5,0,1);seat(4,3,1,0);
     page("room");draw("room-arcade");
     // Its table's options show the room's rules, which no one changes there.
     page("room-table");draw("room-arcade-table-rules");page("room");
-    // The same room in each Real Arcade layout (room::ArcadeView).
-    view.room.arcade=room::ArcadeRows;draw("room-arcade-real-rows");
-    view.room.arcade=room::ArcadeColumns;draw("room-arcade-real-columns");
-    view.room.arcade=room::ArcadeFloor;
-    // A full Arcade room: sixteen members in eight matches, each pair lit in
-    // its own colour, on the floor and in Real Arcade's rows.
-    for(std::size_t i=0;i<room::TableCount;++i){
-        auto& table=view.room.tables[i];
-        table.p1=static_cast<room::MemberId>(i*2+1);table.p2=static_cast<room::MemberId>(i*2+2);
-        table.phase=i%3?room::TablePhase::Playing:room::TablePhase::Waiting;table.score[0]=static_cast<std::uint32_t>(i);table.score[1]=1;
-        table.streakHolder=i==4?table.p1:0;table.streak=i==4?4:0;
-        for(int side=0;side<2;++side){auto& member=view.room.members[i*2+side];member.table=static_cast<std::int8_t>(i);member.seat=static_cast<std::int8_t>(side);
-            member.status=room::MemberStatus::Playing;member.fighter=static_cast<int>((i*5+side*11)%25);}
+    // A full King of the hill room: sixteen members in eight matches, each pair
+    // in its own colour, streaks and the top slot.
+    view.room.arcade=room::KingRoom;
+    for(int i=0;i<static_cast<int>(room::TableCount);++i){
+        seat(i,static_cast<room::MemberId>(i*2+1),i,0);seat(15-i,static_cast<room::MemberId>(i*2+2),i,1);
+        auto& table=view.room.tables[i];table.phase=i%3?room::TablePhase::Playing:room::TablePhase::Waiting;table.score[0]=static_cast<std::uint32_t>(i%3);
+        view.room.streaks[i]=static_cast<std::uint16_t>(i%4);
+        for(int side=0;side<2;++side)view.room.members[i*2+side].fighter=static_cast<int>((i*5+side*11)%25);
     }
-    page("room");draw("room-arcade-full");
-    view.room.arcade=room::ArcadeRows;draw("room-arcade-full-real-rows");
-    view.room.arcade=room::ArcadeColumns;draw("room-arcade-full-real-columns");view.room.arcade=room::ArcadeFloor;
+    view.room.topSlot=3;
+    page("room");draw("room-king-full");
     view.room=plain;page("room-table");draw();
     SetMenuEntriesProbe({});
 }

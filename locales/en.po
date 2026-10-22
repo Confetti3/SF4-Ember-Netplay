@@ -4557,7 +4557,7 @@ msgid "room.type.classic_detail"
 msgstr "Players queue at a table and play there."
 
 msgid "room.type.arcade_detail"
-msgstr "Sixteen cabinets in pairs, as in an arcade: the room seats you opposite whoever is waiting, and a pair plays on until one stands up."
+msgstr "Sixteen cabinets: sit at any free one and play whoever has waited longest. After a set, both choose Rematch to play again, or each plays the next one waiting."
 
 msgid "room.arcade_status"
 msgstr "Arcade room / invitation only"
@@ -4565,35 +4565,56 @@ msgstr "Arcade room / invitation only"
 msgid "room.arcade_locked_status"
 msgstr "Arcade room locked / invitation only"
 
-msgid "room.cabinet_free"
-msgstr "INSERT COIN"
-
 msgid "room.arcade_sit"
 msgstr "Sit down"
 
 msgid "room.arcade_sit_detail"
-msgstr "The room seats you opposite whoever is waiting, or at a free cabinet."
-
-msgid "room.arcade_view"
-msgstr "Arcade room view"
-
-msgid "room.arcade_view_detail"
-msgstr "How an Arcade room's cabinets are drawn: the floor of facing pairs, or Real Arcade with tall cabinets in two rows or in four columns."
-
-msgid "room.arcade_view.floor"
-msgstr "Floor"
-
-msgid "room.arcade_view.rows"
-msgstr "Real Arcade (rows)"
-
-msgid "room.arcade_view.columns"
-msgstr "Real Arcade (columns)"
-
-msgid "room.cabinet_empty"
-msgstr "EMPTY"
+msgstr "Sit here: you play whoever has waited longest, or wait for the next player to sit down."
 
 msgid "room.arcade_waiting"
 msgstr "Waiting"
+
+msgid "room.type.king"
+msgstr "King of the hill"
+
+msgid "room.type.king_detail"
+msgstr "Sixteen cabinets, every pair playing at once: a set's winner stays seated and plays the next challenger. The longest current win streak holds the top slot."
+
+msgid "room.cabinet_row"
+msgstr "Cabinet {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "free"
+
+msgid "room.arcade_move_detail"
+msgstr "Move to this cabinet between games. Your opponent and your streak stay with you."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Rematch"
+
+msgid "room.rematch_detail"
+msgstr "Play the same opponent again. It starts once both of you choose it."
+
+msgid "room.new_opponent"
+msgstr "New opponent"
+
+msgid "room.new_opponent_detail"
+msgstr "Stay seated and play whoever has waited longest, or wait for the next player to sit down."
+
+msgid "room.rematch_ask"
+msgstr "Rematch?"
+
+msgid "room.rematch_chosen"
+msgstr "Rematch chosen"
+
+msgid "room.top_slot"
+msgstr "TOP SLOT"
+
+msgid "room.top_slot_none"
+msgstr "Win a set to take the top slot."
 
 msgid "room.rules.arcade"
 msgstr "An Arcade room's rules are set when it is created and apply at every table."

@@ -4922,7 +4922,7 @@ msgid "room.type.classic_detail"
 msgstr "I giocatori si mettono in coda a un tavolo e giocano lì."
 
 msgid "room.type.arcade_detail"
-msgstr "Sedici cabinati in coppia, come in sala giochi: la stanza ti mette di fronte a chi aspetta, e la coppia gioca finché uno non si alza."
+msgstr "Sedici cabinati: siediti a uno libero e gioca contro chi aspetta da più tempo. Dopo un set, se entrambi scelgono Rivincita giocate di nuovo, altrimenti ognuno gioca con il prossimo in attesa."
 
 msgid "room.arcade_status"
 msgstr "Stanza arcade / solo su invito"
@@ -4930,35 +4930,56 @@ msgstr "Stanza arcade / solo su invito"
 msgid "room.arcade_locked_status"
 msgstr "Stanza arcade chiusa / solo su invito"
 
-msgid "room.cabinet_free"
-msgstr "INSERISCI GETTONE"
-
 msgid "room.arcade_sit"
 msgstr "Siediti"
 
 msgid "room.arcade_sit_detail"
-msgstr "La stanza ti mette di fronte a chi aspetta, o a un cabinato libero."
-
-msgid "room.arcade_view"
-msgstr "Vista stanza arcade"
-
-msgid "room.arcade_view_detail"
-msgstr "Come vengono disegnati i cabinati di una stanza arcade: la sala di coppie una di fronte all'altra, o Real Arcade con cabinati alti su due file o quattro colonne."
-
-msgid "room.arcade_view.floor"
-msgstr "Sala"
-
-msgid "room.arcade_view.rows"
-msgstr "Real Arcade (file)"
-
-msgid "room.arcade_view.columns"
-msgstr "Real Arcade (colonne)"
-
-msgid "room.cabinet_empty"
-msgstr "VUOTO"
+msgstr "Siediti qui: giochi contro chi aspetta da più tempo, oppure aspetti il prossimo che si siede."
 
 msgid "room.arcade_waiting"
 msgstr "In attesa"
+
+msgid "room.type.king"
+msgstr "Re della collina"
+
+msgid "room.type.king_detail"
+msgstr "Sedici cabinati, tutte le coppie giocano insieme: chi vince un set resta seduto e affronta il prossimo sfidante. La serie di vittorie in corso più lunga tiene il primo posto."
+
+msgid "room.cabinet_row"
+msgstr "Cabinato {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "libero"
+
+msgid "room.arcade_move_detail"
+msgstr "Spostati a questo cabinato tra una partita e l'altra. Avversario e serie restano con te."
+
+msgid "room.arcade_vs"
+msgstr "contro {0}"
+
+msgid "room.rematch"
+msgstr "Rivincita"
+
+msgid "room.rematch_detail"
+msgstr "Gioca di nuovo contro lo stesso avversario. Inizia quando la scegliete entrambi."
+
+msgid "room.new_opponent"
+msgstr "Nuovo avversario"
+
+msgid "room.new_opponent_detail"
+msgstr "Resta seduto e gioca contro chi aspetta da più tempo, oppure aspetta il prossimo che si siede."
+
+msgid "room.rematch_ask"
+msgstr "Rivincita?"
+
+msgid "room.rematch_chosen"
+msgstr "Rivincita scelta"
+
+msgid "room.top_slot"
+msgstr "PRIMO POSTO"
+
+msgid "room.top_slot_none"
+msgstr "Vinci un set per prendere il primo posto."
 
 msgid "room.rules.arcade"
 msgstr "Le regole di una stanza arcade si scelgono alla creazione e valgono a ogni tavolo."

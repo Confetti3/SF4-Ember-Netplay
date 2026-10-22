@@ -21,8 +21,7 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
     if (id == "look") return Words({"settings.look.classic", "settings.look.v2"});
     if (id == "hud-spacing") return Words({"spacing.normal", "spacing.raised"});
     if (id == "delay-policy") return Words({"room.delay_policy.shared", "room.delay_policy.own"});
-    if (id == "room-type") return Words({"room.type.classic", "room.type.arcade"});
-    if (id == "arcade-view") return Words({"room.arcade_view.floor", "room.arcade_view.rows", "room.arcade_view.columns"});
+    if (id == "room-type") return Words({"room.type.classic", "room.type.arcade", "room.type.king"});
     if (id == "visibility") return Words({"public.visibility.private", "public.visibility.public"});
     if (id == "hud-size" || id == "picture-size") return Words({"size.small", "size.standard", "size.large"});
     if (id == "hud-layout") for (int i = 0; i <= 1; ++i) labels.push_back(MatchStripLayoutName(i));

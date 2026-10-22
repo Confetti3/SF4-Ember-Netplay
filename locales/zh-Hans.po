@@ -4923,7 +4923,7 @@ msgid "room.type.classic_detail"
 msgstr "玩家在桌前排队，并在该桌对战。"
 
 msgid "room.type.arcade_detail"
-msgstr "像街机厅一样，十六台机台两两相对：房间会让你坐到正在等待的人对面，两人一直对战，直到有人起身。"
+msgstr "十六台街机：坐到任意空位，与等待最久的玩家对战。一局结束后，双方都选“再战”就再打一局，否则各自与下一位等待的玩家对战。"
 
 msgid "room.arcade_status"
 msgstr "街机房间 / 仅限邀请"
@@ -4931,35 +4931,56 @@ msgstr "街机房间 / 仅限邀请"
 msgid "room.arcade_locked_status"
 msgstr "街机房间已锁定 / 仅限邀请"
 
-msgid "room.cabinet_free"
-msgstr "请投币"
-
 msgid "room.arcade_sit"
 msgstr "坐下"
 
 msgid "room.arcade_sit_detail"
-msgstr "房间会让你坐到正在等待的人对面，或一台空闲的机台前。"
-
-msgid "room.arcade_view"
-msgstr "街机房间视图"
-
-msgid "room.arcade_view_detail"
-msgstr "街机房间机台的画法：两两相对的大厅，或把高机台排成两行或四列的 Real Arcade。"
-
-msgid "room.arcade_view.floor"
-msgstr "大厅"
-
-msgid "room.arcade_view.rows"
-msgstr "Real Arcade（两行）"
-
-msgid "room.arcade_view.columns"
-msgstr "Real Arcade（四列）"
-
-msgid "room.cabinet_empty"
-msgstr "空位"
+msgstr "坐在这里：与等待最久的玩家对战，或等待下一位入座的玩家。"
 
 msgid "room.arcade_waiting"
 msgstr "等待中"
+
+msgid "room.type.king"
+msgstr "擂台赛"
+
+msgid "room.type.king_detail"
+msgstr "十六台街机，所有对局同时进行：一局的胜者留在座位上迎战下一位挑战者。当前连胜最长的玩家占据擂主之位。"
+
+msgid "room.cabinet_row"
+msgstr "街机 {0}：{1}"
+
+msgid "room.cabinet_open"
+msgstr "空闲"
+
+msgid "room.arcade_move_detail"
+msgstr "在两局之间换到这台街机。你的对手和连胜都会保留。"
+
+msgid "room.arcade_vs"
+msgstr "对 {0}"
+
+msgid "room.rematch"
+msgstr "再战"
+
+msgid "room.rematch_detail"
+msgstr "与同一位对手再打一局。双方都选择后开始。"
+
+msgid "room.new_opponent"
+msgstr "换对手"
+
+msgid "room.new_opponent_detail"
+msgstr "留在座位上，与等待最久的玩家对战，或等待下一位入座的玩家。"
+
+msgid "room.rematch_ask"
+msgstr "再战？"
+
+msgid "room.rematch_chosen"
+msgstr "已选再战"
+
+msgid "room.top_slot"
+msgstr "擂主"
+
+msgid "room.top_slot_none"
+msgstr "赢下一局即可成为擂主。"
 
 msgid "room.rules.arcade"
 msgstr "街机房间的规则在创建时设定，适用于每一桌。"

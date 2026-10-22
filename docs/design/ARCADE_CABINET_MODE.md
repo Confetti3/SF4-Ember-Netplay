@@ -1,46 +1,51 @@
 # Arcade rooms
 
-A private room can be created as an Arcade room: sixteen one-player
-cabinets in eight pairs, as single player cabinets stand in an arcade.
+A room has a type, chosen on Create and fixed for its life: Classic, Arcade
+or King of the hill. Any type can be private or public.
 
 ## What a player sees
 
-1. Create: Room type Classic or Arcade. Arcade adds the Arcade room view row
-   (Floor, Real Arcade rows, Real Arcade columns). The rules chosen on Create
-   are the room's for its life and apply at every table.
-2. The room board draws the cabinets in the room's view, the same for
-   everyone:
-   - Floor: two columns of facing cabinets, a row per table.
-   - Real Arcade rows: two rows of eight tall cabinets over a drawn arcade;
-     cabinet n on top faces n+8 below it.
-   - Real Arcade columns: four columns of stacked pairs.
-   Each table has its own colour; a pair with anyone at it lights up in it
-   and a band between the two cabinets shows the score, or VS while one
-   waits. An empty cabinet says Insert coin.
-3. A member sits at the cabinet they choose (press an empty one, or the seat
-   chooser). Sit down without a cabinet puts them opposite someone waiting,
-   else at an empty table. To play someone else they move to the free
-   cabinet opposite them, between games only. Nobody is moved for them.
-4. After a set the pair plays on until one stands up.
+1. Create: Room type Classic, Arcade or King of the hill. An Arcade room's
+   rules are chosen on Create and apply at every table; a set ends at its
+   length (one game when it has none).
+2. The V2 room board lays the tables out by type (Arcade.dc.html):
+   - Classic: today's tables as the floor, the two seats of each facing
+     across the score.
+   - Arcade: sixteen one-player cabinets in two rows of eight (two lines of
+     four each where eight leave a name no room). Each pair has its own
+     colour on both cabinets and a line between them wherever they stand.
+   - King of the hill: the same under the top slot: the longest current win
+     streak, its holder and the streak. Each cabinet shows its streak; the
+     top slot's is gold.
+   The Classic look shows the same rows plainly.
+3. Arcade: sit at any free cabinet. First come, first paired: whoever sits
+   down plays the player who has waited longest. Between games a player may
+   move to another free cabinet, keeping opponent and streak.
+4. After a set nobody leaves their seat. Each chooses Rematch or New
+   opponent. Both Rematch: they play again. New opponent from either: each
+   plays whoever waited longest (not each other), or waits for the next one
+   who sits.
+5. King of the hill: every pair plays at once. The winner stays and plays
+   whoever waited longest; the loser waits for the next one. The top slot
+   stays with its holder until someone beats that streak or beats them.
 
 ## How it is built
 
-- Every room has eight tables (room protocol 4). A Classic room plays at
-  the first four (TablesInPlay).
-- Snapshot::arcade is a room::ArcadeView: off, or the view. It is chosen on
-  Create and fixed for the room's life. ArcadeKindValid keeps it private:
-  never public, never a tournament's, no table queue.
-- RoomModelArcade.cxx picks the table for a Sit down with no cabinet.
-  ApplyQueue lets an Arcade member between games move by naming another
-  seat. SetRules is refused in an Arcade room.
-- RoomPanel.cxx draws the floor and Real Arcade; RoomCards.cxx draws the
-  cabinets and the backdrop.
+- Snapshot::arcade is the room::RoomType. Snapshot::cabinets holds who sits
+  at each cabinet, Snapshot::streaks each cabinet's streak, topSlot the
+  crown. A table is a pair, not a place: Table::deciding and rematch hold the
+  choice after a set, waitingSince orders the players waiting alone.
+- RoomModelArcade.cxx seats, pairs, parts and crowns. Queue names a cabinet
+  as table + seat * TableCount; Unqueue stands up. Rematch and NewOpponent
+  are table actions. SetRules is refused.
+- Public: the service opens a Classic room; the creator, alone in it as host,
+  sends SetRoomType with the type and the rules of all tables
+  (netplay::CreatedRules). An emptied public room goes back to Classic.
+- RoomPanelArcade.cxx draws the board from the V2 kit; the rows are
+  cabinet-N in RoomPanel.cxx.
 
 ## Open
 
-- Not run in the real game since the eight table rework.
-- King of the hill: a separate mode, its own PR on top of this one.
-- Before a PR: fold the history into clean commits, run the reviewer, move
-  the Arcade drawing out of RoomPanel.cxx (977 lines), have the machine
-  translations checked.
-- Public Arcade rooms.
+- Not run in the real game.
+- The public room list does not show a room's type.
+- On four lines, a pair two lines apart is linked behind the line between.

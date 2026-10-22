@@ -4922,7 +4922,7 @@ msgid "room.type.classic_detail"
 msgstr "Les joueurs font la queue à une table et y jouent."
 
 msgid "room.type.arcade_detail"
-msgstr "Seize bornes par paires, comme dans une salle d'arcade : le salon vous place face à celui qui attend, et la paire joue jusqu'à ce que l'un se lève."
+msgstr "Seize bornes : asseyez-vous à n'importe quelle borne libre et affrontez celui qui attend depuis le plus longtemps. Après un set, si les deux choisissent Revanche, ils rejouent ; sinon chacun affronte le suivant qui attend."
 
 msgid "room.arcade_status"
 msgstr "Salon arcade / sur invitation"
@@ -4930,35 +4930,56 @@ msgstr "Salon arcade / sur invitation"
 msgid "room.arcade_locked_status"
 msgstr "Salon arcade verrouillé / sur invitation"
 
-msgid "room.cabinet_free"
-msgstr "INSÉREZ UNE PIÈCE"
-
 msgid "room.arcade_sit"
 msgstr "S'asseoir"
 
 msgid "room.arcade_sit_detail"
-msgstr "Le salon vous place face à celui qui attend, ou à une borne libre."
-
-msgid "room.arcade_view"
-msgstr "Vue du salon arcade"
-
-msgid "room.arcade_view_detail"
-msgstr "Comment les bornes d'un salon arcade sont dessinées : la salle de paires face à face, ou Real Arcade avec de hautes bornes sur deux rangées ou quatre colonnes."
-
-msgid "room.arcade_view.floor"
-msgstr "Salle"
-
-msgid "room.arcade_view.rows"
-msgstr "Real Arcade (rangées)"
-
-msgid "room.arcade_view.columns"
-msgstr "Real Arcade (colonnes)"
-
-msgid "room.cabinet_empty"
-msgstr "VIDE"
+msgstr "Asseyez-vous ici : vous affrontez celui qui attend depuis le plus longtemps, ou attendez le prochain qui s'assied."
 
 msgid "room.arcade_waiting"
 msgstr "En attente"
+
+msgid "room.type.king"
+msgstr "Roi de la colline"
+
+msgid "room.type.king_detail"
+msgstr "Seize bornes, toutes les paires jouent en même temps : le vainqueur d'un set reste assis et affronte le challenger suivant. La plus longue série de victoires en cours tient la première place."
+
+msgid "room.cabinet_row"
+msgstr "Borne {0} : {1}"
+
+msgid "room.cabinet_open"
+msgstr "libre"
+
+msgid "room.arcade_move_detail"
+msgstr "Changez de borne entre deux parties. Votre adversaire et votre série vous suivent."
+
+msgid "room.arcade_vs"
+msgstr "contre {0}"
+
+msgid "room.rematch"
+msgstr "Revanche"
+
+msgid "room.rematch_detail"
+msgstr "Rejouer contre le même adversaire. Elle commence quand vous la choisissez tous les deux."
+
+msgid "room.new_opponent"
+msgstr "Nouvel adversaire"
+
+msgid "room.new_opponent_detail"
+msgstr "Restez assis et affrontez celui qui attend depuis le plus longtemps, ou attendez le prochain qui s'assied."
+
+msgid "room.rematch_ask"
+msgstr "Revanche ?"
+
+msgid "room.rematch_chosen"
+msgstr "Revanche choisie"
+
+msgid "room.top_slot"
+msgstr "PREMIÈRE PLACE"
+
+msgid "room.top_slot_none"
+msgstr "Gagnez un set pour prendre la première place."
 
 msgid "room.rules.arcade"
 msgstr "Les règles d'un salon arcade sont fixées à sa création et valent à toutes les tables."

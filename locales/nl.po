@@ -4922,7 +4922,7 @@ msgid "room.type.classic_detail"
 msgstr "Spelers staan in de rij bij een tafel en spelen daar."
 
 msgid "room.type.arcade_detail"
-msgstr "Zestien kasten in paren, zoals in een speelhal: de kamer zet je tegenover wie er wacht, en het paar speelt door tot er een opstaat."
+msgstr "Zestien kasten: ga aan een vrije zitten en speel tegen wie het langst wacht. Na een set kiezen beiden Rematch om opnieuw te spelen, anders speelt ieder tegen de volgende die wacht."
 
 msgid "room.arcade_status"
 msgstr "Arcadekamer / alleen op uitnodiging"
@@ -4930,35 +4930,56 @@ msgstr "Arcadekamer / alleen op uitnodiging"
 msgid "room.arcade_locked_status"
 msgstr "Arcadekamer op slot / alleen op uitnodiging"
 
-msgid "room.cabinet_free"
-msgstr "WERP MUNT IN"
-
 msgid "room.arcade_sit"
 msgstr "Gaan zitten"
 
 msgid "room.arcade_sit_detail"
-msgstr "De kamer zet je tegenover wie er wacht, of aan een vrije kast."
-
-msgid "room.arcade_view"
-msgstr "Weergave arcadekamer"
-
-msgid "room.arcade_view_detail"
-msgstr "Hoe de kasten van een arcadekamer worden getekend: de hal met paren tegenover elkaar, of Real Arcade met hoge kasten in twee rijen of vier kolommen."
-
-msgid "room.arcade_view.floor"
-msgstr "Hal"
-
-msgid "room.arcade_view.rows"
-msgstr "Real Arcade (rijen)"
-
-msgid "room.arcade_view.columns"
-msgstr "Real Arcade (kolommen)"
-
-msgid "room.cabinet_empty"
-msgstr "LEEG"
+msgstr "Ga hier zitten: je speelt tegen wie het langst wacht, of wacht op de volgende die gaat zitten."
 
 msgid "room.arcade_waiting"
 msgstr "Wacht"
+
+msgid "room.type.king"
+msgstr "King of the hill"
+
+msgid "room.type.king_detail"
+msgstr "Zestien kasten, alle paren spelen tegelijk: de winnaar van een set blijft zitten en speelt tegen de volgende uitdager. De langste huidige winreeks heeft de toppositie."
+
+msgid "room.cabinet_row"
+msgstr "Kast {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "vrij"
+
+msgid "room.arcade_move_detail"
+msgstr "Ga tussen twee potjes naar deze kast. Je tegenstander en je reeks blijven."
+
+msgid "room.arcade_vs"
+msgstr "tegen {0}"
+
+msgid "room.rematch"
+msgstr "Rematch"
+
+msgid "room.rematch_detail"
+msgstr "Speel opnieuw tegen dezelfde tegenstander. Het begint zodra jullie het allebei kiezen."
+
+msgid "room.new_opponent"
+msgstr "Nieuwe tegenstander"
+
+msgid "room.new_opponent_detail"
+msgstr "Blijf zitten en speel tegen wie het langst wacht, of wacht op de volgende die gaat zitten."
+
+msgid "room.rematch_ask"
+msgstr "Rematch?"
+
+msgid "room.rematch_chosen"
+msgstr "Rematch gekozen"
+
+msgid "room.top_slot"
+msgstr "TOPPOSITIE"
+
+msgid "room.top_slot_none"
+msgstr "Win een set om de toppositie te pakken."
 
 msgid "room.rules.arcade"
 msgstr "De regels van een arcadekamer worden bij het maken gekozen en gelden aan elke tafel."

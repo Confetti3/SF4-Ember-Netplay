@@ -241,7 +241,7 @@ struct ShellAction {
     // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
     bool practiceRoom = false;
     // With HostRoom: the room is an Arcade room for its life (room::Snapshot::arcade).
-    room::ArcadeView arcadeRoom = room::ArcadeOff;
+    room::RoomType arcadeRoom = room::ClassicRoom;
     // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     // What the Replays screen asks of the game: an archived replay (its
@@ -514,9 +514,9 @@ void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,Menu
     void RoomGrips(v2::Box area);
     // Settings' picture of that layout, with the same grips.
     void DrawRoomLayoutPreview();
-    // An Arcade room's cabinets in `view`, in place of its table cards (RoomPanelArcade.cxx).
+    // A room's V2 board in its type's layout, in place of the table cards (RoomPanelArcade.cxx).
     void DrawArcadeBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,ImVec2 size,
-                         room::ArcadeView arcadeView);
+                         room::RoomType type);
     std::string roomBoardFocus_;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;
@@ -597,7 +597,7 @@ std::string memberAsk_;
     // launch, and the speech answer (ponytail: kept until speech settings land).
     int welcomeStep_ = 0;
     bool welcomeOffered_ = false;
-    room::ArcadeView createArcade_ = room::ArcadeOff;
+    room::RoomType createArcade_ = room::ClassicRoom;
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.

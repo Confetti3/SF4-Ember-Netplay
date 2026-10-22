@@ -4922,7 +4922,7 @@ msgid "room.type.classic_detail"
 msgstr "Hráči čekají ve frontě u stolu a hrají u něj."
 
 msgid "room.type.arcade_detail"
-msgstr "Šestnáct automatů v párech jako v herně: místnost tě posadí naproti tomu, kdo čeká, a pár hraje, dokud někdo nevstane."
+msgstr "Šestnáct automatů: sedněte si k libovolnému volnému a hrajte s tím, kdo čeká nejdéle. Po setu oba zvolí Odvetu a hrají znovu, jinak každý hraje s dalším čekajícím."
 
 msgid "room.arcade_status"
 msgstr "Místnost herny / jen na pozvání"
@@ -4930,35 +4930,56 @@ msgstr "Místnost herny / jen na pozvání"
 msgid "room.arcade_locked_status"
 msgstr "Místnost herny zamčená / jen na pozvání"
 
-msgid "room.cabinet_free"
-msgstr "VHOĎ MINCI"
-
 msgid "room.arcade_sit"
 msgstr "Posadit se"
 
 msgid "room.arcade_sit_detail"
-msgstr "Místnost tě posadí naproti tomu, kdo čeká, nebo k volnému automatu."
-
-msgid "room.arcade_view"
-msgstr "Pohled na místnost herny"
-
-msgid "room.arcade_view_detail"
-msgstr "Jak se kreslí automaty místnosti herny: sál s páry proti sobě, nebo Real Arcade s vysokými automaty ve dvou řadách či čtyřech sloupcích."
-
-msgid "room.arcade_view.floor"
-msgstr "Sál"
-
-msgid "room.arcade_view.rows"
-msgstr "Real Arcade (řady)"
-
-msgid "room.arcade_view.columns"
-msgstr "Real Arcade (sloupce)"
-
-msgid "room.cabinet_empty"
-msgstr "PRÁZDNÝ"
+msgstr "Sedněte si sem: hrajete s tím, kdo čeká nejdéle, nebo počkáte na dalšího hráče."
 
 msgid "room.arcade_waiting"
 msgstr "Čeká"
+
+msgid "room.type.king"
+msgstr "Král kopce"
+
+msgid "room.type.king_detail"
+msgstr "Šestnáct automatů, všechny dvojice hrají najednou: vítěz setu zůstává sedět a hraje s dalším vyzyvatelem. Nejdelší aktuální série výher drží první místo."
+
+msgid "room.cabinet_row"
+msgstr "Automat {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "volný"
+
+msgid "room.arcade_move_detail"
+msgstr "Mezi hrami se přesuňte k tomuto automatu. Soupeř i vaše série zůstávají."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Odveta"
+
+msgid "room.rematch_detail"
+msgstr "Hrát znovu se stejným soupeřem. Začne, jakmile to zvolíte oba."
+
+msgid "room.new_opponent"
+msgstr "Nový soupeř"
+
+msgid "room.new_opponent_detail"
+msgstr "Zůstaňte sedět a hrajte s tím, kdo čeká nejdéle, nebo počkejte na dalšího hráče."
+
+msgid "room.rematch_ask"
+msgstr "Odveta?"
+
+msgid "room.rematch_chosen"
+msgstr "Odveta zvolena"
+
+msgid "room.top_slot"
+msgstr "PRVNÍ MÍSTO"
+
+msgid "room.top_slot_none"
+msgstr "Vyhrajte set a získejte první místo."
 
 msgid "room.rules.arcade"
 msgstr "Pravidla místnosti herny se volí při jejím vytvoření a platí u každého stolu."

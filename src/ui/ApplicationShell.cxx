@@ -123,7 +123,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
-    action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ArcadeOff;
+    action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ClassicRoom;
     if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
     // A room opened here is not the public one the panel joined.

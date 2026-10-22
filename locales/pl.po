@@ -4922,7 +4922,7 @@ msgid "room.type.classic_detail"
 msgstr "Gracze ustawiają się w kolejce do stołu i grają przy nim."
 
 msgid "room.type.arcade_detail"
-msgstr "Szesnaście automatów w parach, jak w salonie gier: pokój sadza cię naprzeciw tego, kto czeka, a para gra, dopóki ktoś nie wstanie."
+msgstr "Szesnaście automatów: usiądź przy dowolnym wolnym i graj z tym, kto czeka najdłużej. Po secie, jeśli obaj wybiorą Rewanż, gracie dalej; inaczej każdy gra z następnym czekającym."
 
 msgid "room.arcade_status"
 msgstr "Pokój salonu gier / tylko z zaproszeniem"
@@ -4930,35 +4930,56 @@ msgstr "Pokój salonu gier / tylko z zaproszeniem"
 msgid "room.arcade_locked_status"
 msgstr "Pokój salonu gier zamknięty / tylko z zaproszeniem"
 
-msgid "room.cabinet_free"
-msgstr "WRZUĆ MONETĘ"
-
 msgid "room.arcade_sit"
 msgstr "Usiądź"
 
 msgid "room.arcade_sit_detail"
-msgstr "Pokój sadza cię naprzeciw tego, kto czeka, albo przy wolnym automacie."
-
-msgid "room.arcade_view"
-msgstr "Widok pokoju salonu gier"
-
-msgid "room.arcade_view_detail"
-msgstr "Jak rysowane są automaty pokoju salonu gier: sala par naprzeciw siebie albo Real Arcade z wysokimi automatami w dwóch rzędach lub czterech kolumnach."
-
-msgid "room.arcade_view.floor"
-msgstr "Sala"
-
-msgid "room.arcade_view.rows"
-msgstr "Real Arcade (rzędy)"
-
-msgid "room.arcade_view.columns"
-msgstr "Real Arcade (kolumny)"
-
-msgid "room.cabinet_empty"
-msgstr "PUSTY"
+msgstr "Usiądź tutaj: grasz z tym, kto czeka najdłużej, albo czekasz na kolejnego gracza."
 
 msgid "room.arcade_waiting"
 msgstr "Czeka"
+
+msgid "room.type.king"
+msgstr "Król wzgórza"
+
+msgid "room.type.king_detail"
+msgstr "Szesnaście automatów, wszystkie pary grają naraz: zwycięzca seta zostaje na miejscu i gra z kolejnym pretendentem. Najdłuższa bieżąca seria zwycięstw zajmuje pierwsze miejsce."
+
+msgid "room.cabinet_row"
+msgstr "Automat {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "wolny"
+
+msgid "room.arcade_move_detail"
+msgstr "Przesiądź się do tego automatu między meczami. Przeciwnik i seria zostają z tobą."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Rewanż"
+
+msgid "room.rematch_detail"
+msgstr "Zagraj ponownie z tym samym przeciwnikiem. Zaczyna się, gdy oboje go wybierzecie."
+
+msgid "room.new_opponent"
+msgstr "Nowy przeciwnik"
+
+msgid "room.new_opponent_detail"
+msgstr "Zostań na miejscu i graj z tym, kto czeka najdłużej, albo poczekaj na kolejnego gracza."
+
+msgid "room.rematch_ask"
+msgstr "Rewanż?"
+
+msgid "room.rematch_chosen"
+msgstr "Rewanż wybrany"
+
+msgid "room.top_slot"
+msgstr "PIERWSZE MIEJSCE"
+
+msgid "room.top_slot_none"
+msgstr "Wygraj seta, aby zająć pierwsze miejsce."
 
 msgid "room.rules.arcade"
 msgstr "Zasady pokoju salonu gier ustala się przy jego tworzeniu i obowiązują przy każdym stole."

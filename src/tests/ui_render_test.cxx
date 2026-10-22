@@ -1062,15 +1062,13 @@ int main(int argc, char** argv) {
                 view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;
                 view.preferences.roomPublic=false;view.preferences.roomName="Private room";shell.Navigation().Home();draw(nullptr,0,4);
                 {
-                    // Create with Arcade chosen, in each of the room's views, once the
-                    // notice of the room just left has gone.
+                    // Create with each room type chosen, once the notice of the room
+                    // just left has gone.
                     page("create");draw(nullptr,0,200);
                     for(int i=0;i<12&&shell.Navigation().Focus()!="room-type";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
                     Require(shell.Navigation().Focus()=="room-type","Create's Room type row is unreachable");
-                    draw(nullptr,MenuInput::Right,1);draw(nullptr,MenuInput::Down,1);draw("create-arcade-floor");
-                    Require(shell.Navigation().Focus()=="arcade-view","Choosing Arcade did not offer the room's view");
-                    draw(nullptr,MenuInput::Right,1);draw("create-arcade-rows");
-                    draw(nullptr,MenuInput::Right,1);draw("create-arcade-columns");
+                    draw(nullptr,MenuInput::Right,1);draw("create-arcade");
+                    draw(nullptr,MenuInput::Right,1);draw("create-king");
                     shell.Navigation().Home();draw(nullptr,0,4);
                 }
                 {

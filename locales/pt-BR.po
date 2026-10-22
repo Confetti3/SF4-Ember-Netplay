@@ -4442,7 +4442,7 @@ msgid "room.type.classic_detail"
 msgstr "Os jogadores entram na fila de uma mesa e jogam nela."
 
 msgid "room.type.arcade_detail"
-msgstr "Dezesseis fliperamas em pares, como num salão: a sala coloca você diante de quem estiver esperando, e o par joga até alguém se levantar."
+msgstr "Dezesseis fliperamas: sente em qualquer um livre e jogue contra quem espera há mais tempo. Depois de um set, se os dois escolherem Revanche jogam de novo; se não, cada um joga com o próximo que espera."
 
 msgid "room.arcade_status"
 msgstr "Sala de fliperama / só por convite"
@@ -4450,35 +4450,56 @@ msgstr "Sala de fliperama / só por convite"
 msgid "room.arcade_locked_status"
 msgstr "Sala de fliperama trancada / só por convite"
 
-msgid "room.cabinet_free"
-msgstr "INSIRA FICHA"
-
 msgid "room.arcade_sit"
 msgstr "Sentar"
 
 msgid "room.arcade_sit_detail"
-msgstr "A sala coloca você diante de quem estiver esperando, ou num fliperama livre."
-
-msgid "room.arcade_view"
-msgstr "Visual da sala de fliperama"
-
-msgid "room.arcade_view_detail"
-msgstr "Como os fliperamas de uma sala são desenhados: o salão de pares frente a frente, ou Real Arcade com máquinas altas em duas fileiras ou em quatro colunas."
-
-msgid "room.arcade_view.floor"
-msgstr "Salão"
-
-msgid "room.arcade_view.rows"
-msgstr "Real Arcade (fileiras)"
-
-msgid "room.arcade_view.columns"
-msgstr "Real Arcade (colunas)"
-
-msgid "room.cabinet_empty"
-msgstr "VAZIO"
+msgstr "Sente aqui: você joga contra quem espera há mais tempo, ou espera o próximo que sentar."
 
 msgid "room.arcade_waiting"
 msgstr "Aguardando"
+
+msgid "room.type.king"
+msgstr "Rei da colina"
+
+msgid "room.type.king_detail"
+msgstr "Dezesseis fliperamas, todos os pares jogam ao mesmo tempo: quem vence um set fica sentado e enfrenta o próximo desafiante. A maior sequência de vitórias atual fica com o topo."
+
+msgid "room.cabinet_row"
+msgstr "Fliperama {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "livre"
+
+msgid "room.arcade_move_detail"
+msgstr "Mude para este fliperama entre as partidas. Seu adversário e sua sequência continuam com você."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Revanche"
+
+msgid "room.rematch_detail"
+msgstr "Jogue de novo contra o mesmo adversário. Começa quando os dois escolherem."
+
+msgid "room.new_opponent"
+msgstr "Novo adversário"
+
+msgid "room.new_opponent_detail"
+msgstr "Continue sentado e jogue contra quem espera há mais tempo, ou espere o próximo que sentar."
+
+msgid "room.rematch_ask"
+msgstr "Revanche?"
+
+msgid "room.rematch_chosen"
+msgstr "Revanche escolhida"
+
+msgid "room.top_slot"
+msgstr "TOPO"
+
+msgid "room.top_slot_none"
+msgstr "Vença um set para ficar com o topo."
 
 msgid "room.rules.arcade"
 msgstr "As regras de uma sala de fliperama são definidas ao criá-la e valem em todas as mesas."

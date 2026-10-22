@@ -80,26 +80,6 @@ struct TableCardView {
 };
 CardInteraction DrawTableCard(const TableCardView& card);
 
-// One cabinet on an Arcade room's floor: its number on the marquee, its player
-// (name, flag and fighter) or none, and what it is doing. `accent` frames the
-// cabinets of one match alike; `crown` marks a player on a streak.
-struct CabinetTileView {
-    std::string id,name,caption,status;
-    int number=0,fighter=-1;
-    CountryCode country;
-    ImU32 accent=0;
-    bool occupied=false,crown=false,focused=false,focusChanged=false,disabled=false;
-};
-// True when pressed.
-bool DrawCabinetTile(const CabinetTileView& tile,ImVec2 size);
-// The same cabinet in the Real Arcade view: a tall cabinet with its number
-// tag over it and its stool in front, the player on its screen. `empty` is
-// the line under an empty cabinet's screen. True when pressed.
-bool DrawRealCabinet(const CabinetTileView& tile,ImVec2 size,const std::string& empty);
-// The Real Arcade view's backdrop over `min`..`max`: a dark arcade lit by
-// neon, with a floor that catches it.
-void DrawArcadeBackdrop(ImVec2 min,ImVec2 max);
-
 struct MemberCardView {
     std::string id,name,label,status;
     int mainFighter=-1;

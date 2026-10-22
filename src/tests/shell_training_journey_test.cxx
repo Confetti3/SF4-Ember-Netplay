@@ -217,24 +217,22 @@ void PracticeRoomCreate() {
  Check(row("room-type")->value==loc::T("room.type.arcade")&&row("room-type")->detail==loc::T("room.type.arcade_detail"),"Room type did not turn to Arcade");
  Check(row("set-length")!=rows.end()&&row("rotation")==rows.end(),"An Arcade room offered who stays after a set");
  h.Choose("host");
- Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().arcadeRoom==room::ArcadeFloor,"Create room did not ask for an Arcade room on the floor");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().arcadeRoom==room::ArcadeRoom,"Create room did not ask for an Arcade room");
  h.Screen("online");h.Choose("create");
  Check(row("room-type")->value==loc::T("room.type.classic"),"Arcade was still chosen when Create opened again");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::ArcadeOff,"A Classic room asked to be an Arcade room");
- // An Arcade room's view is the room's, chosen on Create: the floor, then Real Arcade in rows and columns.
- h.Screen("online");h.Choose("create");h.FocusOn("room-type");h.Press(MenuInput::Right);
- Check(row("arcade-view")!=rows.end()&&row("arcade-view")->value==loc::T("room.arcade_view.floor"),"Create did not offer the Arcade room's view");
- h.FocusOn("arcade-view");h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Right);
- Check(row("arcade-view")->value==loc::T("room.arcade_view.columns"),"The Arcade room's view did not step to the last layout");
+ Check(h.actions.back().arcadeRoom==room::ClassicRoom,"A Classic room asked to be an Arcade room");
+ // King of the hill is the third type; nothing else about the layout is asked.
+ h.Screen("online");h.Choose("create");h.FocusOn("room-type");h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Right);
+ Check(row("room-type")->value==loc::T("room.type.king")&&row("arcade-view")==rows.end(),"Room type did not step to King of the hill");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::ArcadeColumns,"Create room did not send the Arcade room's view");
- // A public room is never one, and the gameplay defaults do not offer it.
- h.FocusOn("visibility");h.Press(MenuInput::Right);
- Check(row("practice-room")==rows.end()&&row("room-type")==rows.end()&&row("time")!=rows.end(),"Public Create offered Practice room or Arcade");
+ Check(h.actions.back().arcadeRoom==room::KingRoom,"Create room did not ask for King of the hill");
+ // A public room may have any type but is never a Practice room; the gameplay defaults offer neither.
+ h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
+ Check(row("practice-room")==rows.end()&&row("room-type")!=rows.end()&&row("time")!=rows.end(),"Public Create offered Practice room, or no room type");
  h.Press(MenuInput::Left);
  h.Screen("defaults");
- Check(row("practice-room")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room");
+ Check(row("practice-room")==rows.end()&&row("room-type")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room or a room type");
  SetMenuEntriesProbe({});
 }
 // Create offers the room's delay policy: Same for both to begin with, kept with
