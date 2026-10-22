@@ -53,6 +53,11 @@
 <button type="button" class="room-refresh" id="refresh">Refresh</button>
 </div>
 </div>
+<figure class="rank-chart" id="chart" hidden>
+<figcaption><span class="rank-chart-title">Players by class</span><span class="rank-chart-note">The line is a smoothed outline of the columns. Choose a column to show that class.</span></figcaption>
+<div class="rank-chart-plot" id="chart-plot" role="img" aria-label="Players by class"></div>
+<div class="rank-chart-tip" id="chart-tip" role="presentation" hidden></div>
+</figure>
 <nav class="rank-jump" id="jump" aria-label="Jump to a class" hidden></nav>
 
 <div class="rank-board" id="board" aria-busy="true">
@@ -82,7 +87,7 @@
 <footer>
 <p class="links"><a href="/">Home</a><a href="/rooms">Public rooms</a><a href="/rankings">Rankings</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Releases</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/issues" rel="noopener">Report a bug</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/blob/HEAD/ATTRIBUTION.md" rel="noopener">Attribution</a></p>
 <p>Ember is an unofficial port of <a href="https://codeberg.org/adanducci/sf4e" rel="noopener">sf4e</a> by Anthony Danducci and contributors. It is not affiliated with Capcom or Valve; Street Fighter and its characters belong to Capcom.</p>
-<p>Text set in Inter by the Inter Project Authors, under the <a href="/assets/fonts/OFL.txt">SIL Open Font License</a>.</p>
+<p>Text set in Inter by the Inter Project Authors, under the <a href="/assets/fonts/OFL.txt">SIL Open Font License</a>. Flags from flag-icons by Panayiotis Lipiridis, under the <a href="/assets/flags-LICENSE.txt">MIT License</a>.</p>
 </footer>
 </div>
 </body>

@@ -49,7 +49,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 # The site's files, relative to site/ here and to $ROOT on the server.
 PAGES="open.html index.html rooms.html rankings.html 404.html favicon.ico"
-ASSETS="assets/site.css assets/open.js assets/rooms.js assets/rankings.js assets/home.js assets/faces.webp assets/og.jpg assets/ember-emblem.png assets/ember-background.webp
+ASSETS="assets/site.css assets/open.js assets/rooms.js assets/rankings.js assets/home.js assets/flags.png assets/flags-LICENSE.txt assets/faces.webp assets/og.jpg assets/ember-emblem.png assets/ember-background.webp
     assets/ember-background.jpg assets/fonts/inter-latin-400.woff2 assets/fonts/inter-latin-600.woff2
     assets/fonts/OFL.txt"
 for file in bin/ember-short ember-short.service nginx/ember-short-zone.conf \

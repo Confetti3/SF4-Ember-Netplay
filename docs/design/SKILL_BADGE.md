@@ -144,8 +144,11 @@ capability wherever public rooms are on):
   a board nobody is on yet. The page filters by class, country, region and
   name, groups by class or country and keeps the view in the URL fragment;
   like Ember it shows no number or position for a player, and the game's
-  emblems stay in the game, so classes are text there. It asks search engines
-  not to index it.
+  emblems stay in the game, so classes are text there. Above the list a
+  column chart counts the players in each class under the other filters, in
+  the classes' colours, with a smoothed outline; a column picks its class like
+  its chip. Flags come from Ember's own flag atlas (flag-icons, MIT), credited
+  in the page footer. It asks search engines not to index it.
 
 The board shows the name and flag the player's game sends, the same ones
 rooms show, never the Discord account's name. The game sends them from the

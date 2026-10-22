@@ -26,6 +26,13 @@
   REGIONS.forEach(function (region) {
     region[2].split(' ').forEach(function (code) { REGION_OF[code] = region[0]; });
   });
+  // The flags in assets/flags.png (a copy of the repository's
+  // assets/flags/flags.png, flag-icons under MIT): cell N holds the Nth code
+  // here, 16 cells of 32x24 to a row, each with 2 transparent pixels around it.
+  var FLAGS = 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(' ');
+  var FLAG_CELL = {};
+  FLAGS.forEach(function (code, index) { FLAG_CELL[code] = index; });
+  var FLAG_COLUMNS = 16, FLAG_STEP_X = 36, FLAG_STEP_Y = 28, FLAG_PAD = 2, FLAG_SCALE = 20 / 32;
   var OTHER_REGION = 'other';
   var NO_COUNTRY = 'none';
   var COUNTRY = /^[A-Z]{2}$/;
@@ -44,6 +51,9 @@
   var copyListButton = document.getElementById('copy-list');
   var refreshButton = document.getElementById('refresh');
   var jump = document.getElementById('jump');
+  var chart = document.getElementById('chart');
+  var chartPlot = document.getElementById('chart-plot');
+  var chartTip = document.getElementById('chart-tip');
   var board = document.getElementById('board');
   var status = document.getElementById('status');
 
@@ -119,8 +129,15 @@
     node.title = 'Class ' + CLASSES[band - 1];
     return node;
   }
+  // A country's flag from the atlas, or its code where the atlas has none.
   function flag(code) {
-    var node = el('span', 'rank-flag' + (code ? '' : ' none'), code || '');
+    var cell = code && Object.prototype.hasOwnProperty.call(FLAG_CELL, code) ? FLAG_CELL[code] : -1;
+    var node = el('span', 'rank-flag' + (code ? (cell >= 0 ? ' image' : '') : ' none'), cell >= 0 ? '' : code || '');
+    if (cell >= 0) {
+      node.style.backgroundPosition = -(cell % FLAG_COLUMNS * FLAG_STEP_X + FLAG_PAD) * FLAG_SCALE + 'px ' +
+        -(Math.floor(cell / FLAG_COLUMNS) * FLAG_STEP_Y + FLAG_PAD) * FLAG_SCALE + 'px';
+      node.setAttribute('role', 'img');
+    }
     if (code) {
       node.title = countryName(code);
       node.setAttribute('aria-label', countryName(code));
@@ -219,6 +236,111 @@
     item.appendChild(name(player));
     item.appendChild(pill(player.band));
     return item;
+  }
+
+  // The class distribution: a column per class, D to Grand Master, counting
+  // the players the other filters leave (as the class chips do), in its
+  // class's colour, with a smoothed outline over the columns. Chosen classes
+  // stay bright. The colours repeat what each column's label says. A column
+  // is a click target for its class, like its chip; the chips carry the same
+  // counts for keyboards and screen readers, so the drawing itself is hidden
+  // from them and the plot is described in one line instead.
+  var SVG = 'http://www.w3.org/2000/svg';
+  var SHORT = ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'M', 'GM'];
+  var CHART_HEIGHT = 170, CHART_TOP = 12, CHART_BOTTOM = 24, CHART_LEFT = 30, BAR_MAX = 24, SMOOTHING = 0.85;
+  var chartCounts = null;
+
+  function svg(tag, attributes, parent) {
+    var node = document.createElementNS(SVG, tag);
+    Object.keys(attributes).forEach(function (name) { node.setAttribute(name, attributes[name]); });
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+  // The top of the y axis: 1, 2 or 5 times a power of ten per tick, about four ticks.
+  function niceTop(max) {
+    var raw = Math.max(1, max) / 4, power = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+    var step = Math.max(1, [1, 2, 5, 10].map(function (k) { return k * power; }).filter(function (k) { return k >= raw; })[0]);
+    return { top: step * Math.ceil(Math.max(1, max) / step), step: step };
+  }
+  // Each class's count spread as a normal curve a little under a class wide,
+  // summed: the same total as the columns, so it sits over them.
+  function smoothed(counts, x) {
+    var sum = 0;
+    for (var i = 0; i < counts.length; i++) {
+      var d = (x - i) / SMOOTHING;
+      sum += counts[i] * Math.exp(-d * d / 2);
+    }
+    return sum / (SMOOTHING * Math.sqrt(2 * Math.PI));
+  }
+  function smoothedPeak(counts) {
+    var top = 0;
+    for (var x = -0.5; x <= BANDS - 0.5; x += 0.125) top = Math.max(top, smoothed(counts, x));
+    return top;
+  }
+
+  function drawChart() {
+    var counts = chartCounts;
+    while (chartPlot.firstChild) chartPlot.removeChild(chartPlot.firstChild);
+    chartTip.hidden = true;
+    var width = chartPlot.clientWidth;
+    if (!counts || width < 120) return;
+    var total = counts.reduce(function (a, b) { return a + b; }, 0);
+    var plotWidth = width - CHART_LEFT, plotHeight = CHART_HEIGHT - CHART_TOP - CHART_BOTTOM;
+    var slot = plotWidth / BANDS, barWidth = Math.min(BAR_MAX, slot * 0.6);
+    var axis = niceTop(Math.max(Math.max.apply(null, counts), smoothedPeak(counts)));
+    var y = function (value) { return CHART_TOP + plotHeight - value / axis.top * plotHeight; };
+    var root = svg('svg', { width: width, height: CHART_HEIGHT, viewBox: '0 0 ' + width + ' ' + CHART_HEIGHT, 'aria-hidden': 'true', focusable: 'false' }, chartPlot);
+    for (var tick = 0; tick <= axis.top; tick += axis.step) {
+      svg('line', { 'class': 'rank-chart-grid', x1: CHART_LEFT, x2: width, y1: Math.round(y(tick)) + 0.5, y2: Math.round(y(tick)) + 0.5 }, root);
+      svg('text', { 'class': 'rank-chart-tick', x: CHART_LEFT - 8, y: y(tick) + 4, 'text-anchor': 'end' }, root).textContent = String(tick);
+    }
+    var chosen = selectedBands().length > 0;
+    var bars = counts.map(function (count, index) {
+      var middle = CHART_LEFT + slot * (index + 0.5);
+      var top = y(count), left = middle - barWidth / 2, bottom = y(0), r = Math.min(4, barWidth / 2, bottom - top);
+      svg('text', { 'class': 'rank-chart-label', x: middle, y: CHART_HEIGHT - 6, 'text-anchor': 'middle' }, root).textContent = SHORT[index];
+      return svg('path', {
+        'class': 'rank-chart-bar tier-' + TIERS[index] + (chosen && !view.classes[index + 1] ? ' dim' : ''),
+        d: count ? 'M' + left + ' ' + bottom + 'V' + (top + r) + 'Q' + left + ' ' + top + ' ' + (left + r) + ' ' + top +
+          'H' + (left + barWidth - r) + 'Q' + (left + barWidth) + ' ' + top + ' ' + (left + barWidth) + ' ' + (top + r) + 'V' + bottom + 'Z' : 'M0 0'
+      }, root);
+    });
+    var points = [];
+    for (var step = 0; step <= 80; step++) {
+      var x = -0.5 + step * BANDS / 80;
+      points.push((CHART_LEFT + slot * (x + 0.5)).toFixed(1) + ' ' + y(smoothed(counts, x)).toFixed(1));
+    }
+    svg('path', { 'class': 'rank-chart-curve', d: 'M' + points.join('L') }, root);
+    counts.forEach(function (count, index) {
+      var hit = svg('rect', { 'class': 'rank-chart-hit', x: CHART_LEFT + slot * index, y: 0, width: slot, height: CHART_HEIGHT }, root);
+      hit.addEventListener('pointerenter', function () {
+        bars[index].classList.add('hover');
+        chartTip.textContent = '';
+        chartTip.appendChild(el('strong', '', plural(count, 'player', 'players')));
+        chartTip.appendChild(el('span', '', CLASSES[index] + ', ' + Math.round(100 * count / total) + '%'));
+        chartTip.hidden = false;
+        var left = CHART_LEFT + slot * (index + 0.5) - chartTip.offsetWidth / 2;
+        chartTip.style.left = chartPlot.offsetLeft + Math.max(0, Math.min(width - chartTip.offsetWidth, left)) + 'px';
+        chartTip.style.top = chartPlot.offsetTop + Math.max(0, y(count) - chartTip.offsetHeight - 10) + 'px';
+      });
+      hit.addEventListener('pointerleave', function () {
+        bars[index].classList.remove('hover');
+        chartTip.hidden = true;
+      });
+      hit.addEventListener('click', function () { toggleClass(index + 1); });
+    });
+    chartPlot.setAttribute('aria-label', 'Players by class: ' + counts.map(function (count, index) {
+      return CLASSES[index] + ' ' + count;
+    }).join(', ') + '.');
+  }
+
+  function classChart(players) {
+    var counts = [];
+    for (var band = 1; band <= BANDS; band++) counts.push(0);
+    players.forEach(function (player) { if (passes(player, 'class')) counts[player.band - 1]++; });
+    chartCounts = counts.some(function (count) { return count > 0; }) ? counts : null;
+    chart.hidden = !chartCounts;
+    drawChart();
   }
 
   function message(text, detail, withClear) {
@@ -383,6 +505,10 @@
     var players = data.players;
     var ready = data.phase === 'ready' && players && players.length > 0;
     classesBox.hidden = toolbar.hidden = !ready;
+    if (!ready) {
+      chart.hidden = true;
+      chartCounts = null;
+    }
     // Refresh stays once there is an answer, whatever it said.
     bar.hidden = data.phase === 'loading';
     jump.hidden = true;
@@ -411,6 +537,7 @@
     }
 
     classChips(players);
+    classChart(players);
     countryOptions(players);
     regionOptions(players);
     if (search.value !== view.q) search.value = view.q;
@@ -446,6 +573,12 @@
     clearTimeout(typingTimer);
     writeHash();
     render();
+  }
+
+  function toggleClass(band) {
+    if (view.classes[band]) delete view.classes[band];
+    else view.classes[band] = true;
+    update();
   }
 
   function clearFilters() {
@@ -541,10 +674,12 @@
     var button = event.target.closest ? event.target.closest('button') : null;
     if (!button || !classesBox.contains(button)) return;
     var band = parseInt(button.getAttribute('data-band'), 10);
-    if (!band) view.classes = {};
-    else if (view.classes[band]) delete view.classes[band];
-    else view.classes[band] = true;
-    update();
+    if (band) {
+      toggleClass(band);
+    } else {
+      view.classes = {};
+      update();
+    }
   });
   search.addEventListener('input', function () {
     // The query is kept at once; only drawing the board waits for a pause.
@@ -586,6 +721,11 @@
     if (location.hash === hashOf()) return;
     readHash();
     render();
+  });
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawChart, 100);
   });
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && Date.now() - data.loadedAt > STALE_MS) load();

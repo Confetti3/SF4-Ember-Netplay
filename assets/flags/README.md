@@ -11,4 +11,6 @@ node scripts/build-flag-atlas.mjs --flags <flag-icons-7.5.0 folder>
 python -P scripts/check-flag-atlas.py
 ```
 
+The embernetplay.link rankings page serves a copy, `server/ember-short/deploy/site/assets/flags.png` with this licence beside it as `flags-LICENSE.txt`, and lists the codes in cell order in `assets/rankings.js` (`FLAGS`). Copy both files and update that list whenever the atlas is rebuilt.
+
 The atlas is rendered by headless Edge at device scale 1. Each flag is drawn several times over itself so that stripes meeting inside a pixel do not leave a partly transparent seam; Nepal's flag is the one that is not a rectangle.
