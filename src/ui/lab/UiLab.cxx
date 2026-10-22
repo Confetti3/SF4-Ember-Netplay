@@ -5,7 +5,8 @@
 //
 // F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F5 in a room · F6 picture · F12 screenshot
 // BluMint room (--blumint): F7 next moment · F8 fighter or watcher
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--pip] [--hud 0|1] [--training] [--screen id] [--keys down,down,enter] [--shot file.bmp]
+// --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms).
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--public] [--pip] [--hud 0|1] [--training] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -144,6 +145,24 @@ void JoinRoom(ui::ShellView& view) {
     const char* chat[] = {"Welcome! Grab a table or join a queue.", "Good games. I'll watch the next one.", "Ready for another set?", "Let's run it back!"};
     for (int i = 0; i < 12; ++i) view.room.chat.push_back({static_cast<std::uint64_t>(i + 1), static_cast<room::MemberId>(i % 16 + 1), chat[i % 4]});
 }
+// A trusted Ember ID and a relay in Europe; PublicRooms lists rooms once asked.
+void PublicLab(ui::ShellView& view) {
+    auto& id = view.identity;
+    id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
+    view.netReport.reported = view.netReport.relayConnected = view.netReport.udp = true; view.netReport.relay = "euc1"; view.netReport.nat = NatClass::Open;
+}
+void PublicRooms(ui::ShellView& view) {
+    const auto room = [](const char* id, const char* name, const char* host, const char* region, unsigned members, unsigned capacity, unsigned playing) {
+        netplay::publicrooms::Room r; r.id = id; r.name = name; r.hostName = host; r.region = region; r.members = members; r.capacity = capacity; r.playing = playing;
+        r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100;
+        for (unsigned i = 0; i < members; ++i) r.fighters.push_back(static_cast<int>(i * 5 % 44));
+        return r;
+    };
+    auto& list = view.publicRooms;
+    list.bridge = "brg_1"; list.loading = false; list.listedAt = 1300; ++list.listed;
+    list.rooms = {room("a", "EU Monday Night Fights", "Katie", "euc1", 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", "euc1", 3, 4, 1),
+        room("c", "Beginners, ask anything", "Sven", "euc1", 2, 12, 0), room("d", "East coast casuals", "Marn", "use1", 8, 8, 3), room("e", "Tokyo late night", "Kaz", "aps1", 5, 10, 2)};
+}
 // A BluMint match's room: table 0 bound to the match, FRaccie (this PC) against
 // Akira, first to 2. A watcher sits at no seat (member 5).
 void BluMintRoom(ui::ShellView& view, bool watcher) {
@@ -186,7 +205,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::string shot, keys, screen;
     bool inRoom = false, pip = false;
     int hud = -1;
-    bool trainingPanel = false, blumint = false, watcher = false;
+    bool trainingPanel = false, blumint = false, watcher = false, publicLab = false;
     std::string moment;  // --moment game|set|lost|restart|host|expired, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
@@ -200,6 +219,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--hud" && more) hud = std::atoi(args[++i].c_str());
         else if (args[i] == "--training") trainingPanel = true;
         else if (args[i] == "--blumint") blumint = true;
+        else if (args[i] == "--public") publicLab = true;
         else if (args[i] == "--watcher") watcher = true;
         else if (args[i] == "--moment" && more) moment = args[++i];
         else if (args[i] == "--screen" && more) screen = args[++i];
@@ -229,6 +249,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     // A BluMint room joins its own (BluMintRoom).
     if (inRoom && !blumint) JoinRoom(view);
     if (blumint) BluMintRoom(view, watcher);
+    if (publicLab) PublicLab(view);
+    // The helper's side for --public: each Ember ID request answered, the room list on asking.
+    std::uint64_t identityAsked = 0;
+    bool listAsked = false;
     bool open = true, bar = shot.empty();
     std::size_t size = 0;
     std::vector<unsigned> script;
@@ -236,6 +260,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     const auto submit = [&](ui::ShellAction action) {
         // Saving is instant here: the shell reads what it saved back from the view.
         if (action.command.kind == netplay::CommandKind::SavePreferences) view.preferences = action.preferences;
+        if (publicLab && action.identity.op != netplay::IdentityOp::None) identityAsked = action.identity.ticket;
+        if (publicLab && action.tournament.op == netplay::tournament::Command::Op::RoomList) listAsked = true;
         return true;
     };
     int frame = 0, momentAt = 40;
@@ -263,6 +289,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (ImGui::IsKeyPressed(ImGuiKey_F4)) textSize = textSize >= 1.5f ? 1 : textSize + .25f;
         if (ImGui::IsKeyPressed(ImGuiKey_F5)) { const bool look = view.preferences.lookV2; inRoom = !inRoom; view = FakeView(look); if (inRoom) JoinRoom(view); }
         if (frame == 2 && !screen.empty()) shell.Navigation().Push(screen);
+        if (identityAsked && identityAsked != view.identityTicket) {
+            view.identityTicket = identityAsked; view.identityRequest = view.identity.requestId = identityAsked + 100; view.identity.ok = true;
+        }
+        if (listAsked) { listAsked = false; PublicRooms(view); }
         // F7 and F8 set the room up again, and the moment follows a few frames later so the shell sees it happen.
         static const char* const moments[] = {"", "game", "set", "lost", "restart", "host", "expired"};
         const bool nextMoment = blumint && ImGui::IsKeyPressed(ImGuiKey_F7), swapRole = blumint && ImGui::IsKeyPressed(ImGuiKey_F8);

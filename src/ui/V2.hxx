@@ -77,6 +77,9 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
 // A state word on its tone at 18 %: "Ready", "Live", "D 42 ms". Returns its width.
 float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone);
 float ChipWidth(const std::string& text);
+// A fact in a detail pane: `key` muted on the left, `value` on the right, on
+// the frame's ground across the pane at the cursor. Takes the cursor's line.
+void Fact(const std::string& key, const std::string& value);
 
 // The brand's mark `height` tall at `at`: Ember's emblem, or BluMint's
 // wordmark × Ember's emblem. Returns its width.

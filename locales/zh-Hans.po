@@ -6762,3 +6762,18 @@ msgstr "重开"
 
 msgid "blumint.chip_expired"
 msgstr "已过期"
+
+msgid "online.eyebrow"
+msgstr "EMBER · 在线"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · 在线 · 创建"
+
+msgid "online.eyebrow_join"
+msgstr "在线 · 加入"
+
+msgid "online.eyebrow_browse"
+msgstr "在线 · 浏览"
+
+msgid "public.your_region"
+msgstr "你的地区 {0}"

@@ -6762,3 +6762,18 @@ msgstr "재시작"
 
 msgid "blumint.chip_expired"
 msgstr "만료"
+
+msgid "online.eyebrow"
+msgstr "EMBER · 온라인"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · 온라인 · 호스트"
+
+msgid "online.eyebrow_join"
+msgstr "온라인 · 참가"
+
+msgid "online.eyebrow_browse"
+msgstr "온라인 · 둘러보기"
+
+msgid "public.your_region"
+msgstr "내 지역 {0}"

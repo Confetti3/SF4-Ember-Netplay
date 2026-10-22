@@ -6762,3 +6762,18 @@ msgstr "再開"
 
 msgid "blumint.chip_expired"
 msgstr "期限切れ"
+
+msgid "online.eyebrow"
+msgstr "EMBER · オンライン"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · オンライン · ホスト"
+
+msgid "online.eyebrow_join"
+msgstr "オンライン · 参加"
+
+msgid "online.eyebrow_browse"
+msgstr "オンライン · 一覧"
+
+msgid "public.your_region"
+msgstr "あなたの地域 {0}"

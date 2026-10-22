@@ -395,6 +395,8 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     std::vector<MenuEntry> RoomSetupRows(const ShellView& view,const std::string& screen,bool opening,const char* reason,std::string& title);
     void CreateActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     bool CreateAdjust(const MenuAction& action);
+    // V2's Create (GameMenu body): the Room and Rules panels, the focused row's words, and the Create button.
+    void DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback);
     // The Create screen, with Practice room off (createPractice_).
     void OpenCreate();
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
@@ -434,6 +436,8 @@ void DrawBluMintBoard(const ShellView& view,const std::vector<MenuEntry>& rows,M
 void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
+    // The Create board's focus last frame: a new one scrolls into view.
+    std::string createFocus_;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.

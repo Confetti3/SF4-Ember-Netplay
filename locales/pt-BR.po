@@ -6281,3 +6281,18 @@ msgstr "Reinício"
 
 msgid "blumint.chip_expired"
 msgstr "Expirado"
+
+msgid "online.eyebrow"
+msgstr "EMBER · ONLINE"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · ONLINE · HOSPEDAR"
+
+msgid "online.eyebrow_join"
+msgstr "ONLINE · ENTRAR"
+
+msgid "online.eyebrow_browse"
+msgstr "ONLINE · EXPLORAR"
+
+msgid "public.your_region"
+msgstr "Sua região {0}"

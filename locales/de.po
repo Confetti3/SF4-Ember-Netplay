@@ -6761,3 +6761,18 @@ msgstr "Neustart"
 
 msgid "blumint.chip_expired"
 msgstr "Abgelaufen"
+
+msgid "online.eyebrow"
+msgstr "EMBER · ONLINE"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · ONLINE · HOSTEN"
+
+msgid "online.eyebrow_join"
+msgstr "ONLINE · BEITRETEN"
+
+msgid "online.eyebrow_browse"
+msgstr "ONLINE · DURCHSUCHEN"
+
+msgid "public.your_region"
+msgstr "Ihre Region {0}"

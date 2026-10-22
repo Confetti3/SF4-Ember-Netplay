@@ -6762,3 +6762,18 @@ msgstr "Переигровка"
 
 msgid "blumint.chip_expired"
 msgstr "Истекло"
+
+msgid "online.eyebrow"
+msgstr "EMBER · ОНЛАЙН"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · ОНЛАЙН · СОЗДАНИЕ"
+
+msgid "online.eyebrow_join"
+msgstr "ОНЛАЙН · ВХОД"
+
+msgid "online.eyebrow_browse"
+msgstr "ОНЛАЙН · ОБЗОР"
+
+msgid "public.your_region"
+msgstr "Ваш регион {0}"
