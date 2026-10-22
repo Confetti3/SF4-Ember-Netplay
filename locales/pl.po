@@ -6899,3 +6899,9 @@ msgstr "Przywróć domyślne"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "Przywraca kolumnę i podział między członkami a czatem do ustawienia Zrównoważony."
+
+msgid "menu.choices_count"
+msgstr "Opcje: {0}"
+
+msgid "menu.choices_keys"
+msgstr "Kierunki przesuwają · Wybierz zatwierdza · Wstecz zostawia {0}"

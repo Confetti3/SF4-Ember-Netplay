@@ -74,13 +74,7 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
     }
     const float valueY = c.min.y + (h - ImGui::GetFontSize()) * .5f;
     if (e.adjustable) {
-        const float vx = right - valueWidth;
-        const std::string shown = Fit(e.value.empty() ? loc::T("common.not_set") : e.value, valueWidth - 40 * s, ImGui::GetFontSize(), ImGui::GetFont());
-        const float tw = ImGui::CalcTextSize(shown.c_str()).x;
-        const ImU32 arrow = enabled ? v2::Colors().accent : v2::Colors().muted;
-        d->AddText(ImVec2(vx, valueY), arrow, "<");
-        d->AddText(ImVec2(vx + (valueWidth - tw) * .5f, valueY), e.valueHighlighted ? v2::Colors().accent : text, shown.c_str());
-        d->AddText(ImVec2(right - 10 * s, valueY), arrow, ">");
+        DrawMenuValue(d, e, {ImVec2(right - valueWidth, c.min.y), ImVec2(right, c.max.y)}, enabled, text);
     } else if (chip) {
         v2::Chip(d, ImVec2(right - valueText, c.min.y + (h - ImGui::GetFontSize() * .78f - 8 * s) * .5f), e.value, v2::Colors().accent);
     } else if (valueText > 0) {
@@ -90,6 +84,37 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
     }
     if (chevron) Chevron(d, ImVec2(c.max.x - 22 * s, c.min.y + h * .5f), 6 * s, enabled ? v2::Colors().muted : v2::color::Alpha(v2::Colors().muted, .5f));
 }
+}
+
+bool MenuValueIsToggle(const MenuEntry& e) { return e.adjustable && (e.value == loc::T("common.on") || e.value == loc::T("common.off")); }
+bool MenuValueIsNumber(const MenuEntry& e) {
+    const char c = e.value.empty() ? 0 : e.value[0];
+    return e.adjustable && ((c >= '0' && c <= '9') || ((c == '+' || c == '-') && e.value.size() > 1));
+}
+void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text) {
+    const float s = Scale(), h = box.H(), y = box.min.y + (h - ImGui::GetFontSize()) * .5f;
+    const auto& col = v2::Colors();
+    if (MenuValueIsToggle(e)) {
+        const bool on = e.value == loc::T("common.on");
+        const float tw = 36 * s, th = 20 * s, ty = box.min.y + (h - th) * .5f, tx = box.max.x - tw;
+        d->AddRectFilled(ImVec2(tx, ty), ImVec2(tx + tw, ty + th), on ? col.accent : col.button, th * .5f);
+        d->AddRect(ImVec2(tx, ty), ImVec2(tx + tw, ty + th), on ? col.accent : col.border, th * .5f, 0, s);
+        d->AddCircleFilled(ImVec2(on ? tx + tw - th * .5f : tx + th * .5f, ty + th * .5f), 7 * s, enabled ? col.text : col.muted);
+        return;
+    }
+    const std::string value = e.value.empty() ? loc::T("common.not_set") : e.value;
+    const ImU32 shown = e.valueHighlighted ? col.accent : text;
+    if (!MenuValueIsNumber(e)) {
+        const std::string fit = Fit(value, box.W() - 20 * s, ImGui::GetFontSize(), ImGui::GetFont());
+        d->AddText(ImVec2(box.max.x - 18 * s - ImGui::CalcTextSize(fit.c_str()).x, y), shown, fit.c_str());
+        Chevron(d, ImVec2(box.max.x - 6 * s, box.min.y + h * .5f), 6 * s, enabled ? col.muted : v2::color::Alpha(col.muted, .5f));
+        return;
+    }
+    const std::string fit = Fit(value, box.W() - 40 * s, ImGui::GetFontSize(), ImGui::GetFont());
+    const ImU32 arrow = enabled ? col.accent : col.muted;
+    d->AddText(ImVec2(box.min.x, y), arrow, "<");
+    d->AddText(ImVec2(box.min.x + (box.W() - ImGui::CalcTextSize(fit.c_str()).x) * .5f, y), shown, fit.c_str());
+    d->AddText(ImVec2(box.max.x - 10 * s, y), arrow, ">");
 }
 
 MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& entries, const char* status, const Detail& detail, int columns,
@@ -149,8 +174,11 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     const auto Values = [&](v2::Box focusCard, v2::Box list) {
         if (!navigation.Choosing() || focusedEntry == entries.end() || focusCard.W() <= 0 || !notice_.empty()) { popoutOpen_ = false; return false; }
         const auto& e = *focusedEntry;
+        // Select on a switch flips it: no popup for two words.
+        if (MenuValueIsToggle(e)) { navigation.Cancel(); action = {MenuAction::Adjust, e.id, {}, 1}; return false; }
         const std::size_t count = e.choices.size(), across = e.popout ? 1 : MenuChoiceColumns(count), lines = (count + across - 1) / across;
-        const float row = 44 * s, inner = 8 * s, height = lines * row + (lines - 1) * inner + 24 * s + 22 * s;
+        const float row = (e.popout ? 44 : 48) * s, inner = (e.popout ? 8 : 6) * s, foot = e.popout ? 0 : 30 * s;
+        const float height = lines * row + (lines - 1) * inner + 24 * s + (e.popout ? 22 : 38) * s + foot;
         if (e.popout) {
             // A popout opens where it was asked for: at the click, or beside the row for the pad
             // and keys, and turns back at the screen's edges.
@@ -163,11 +191,13 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             ImGui::SetNextWindowPos(at);
             ImGui::SetNextWindowSize(ImVec2(w, h));
         } else {
-            // Under the card when it fits, else over it; always inside the column.
-            float top = focusCard.max.y + 4 * s;
-            if (top + height > list.max.y) top = (std::max)(list.min.y, focusCard.min.y - 4 * s - height);
-            ImGui::SetNextWindowPos(ImVec2(list.min.x, top));
-            ImGui::SetNextWindowSize(ImVec2(list.W(), (std::min)(height, list.H())));
+            // At the column's right edge, level with the row, kept inside the column.
+            const auto chosen = std::find_if(e.choices.begin(), e.choices.end(), [&](const MenuChoice& o) { return o.id == e.chosen; });
+            const float keys = ImGui::CalcTextSize(loc::Tf("menu.choices_keys", chosen == e.choices.end() ? e.value : chosen->label).c_str()).x + 24 * s;
+            const float w = (std::min)(list.W(), (std::max)(keys, across * (count > 8 ? 190 : 170) * s + (across - 1) * inner + 24 * s));
+            const float top = (std::max)(list.min.y, (std::min)(focusCard.min.y, list.max.y - height));
+            ImGui::SetNextWindowPos(ImVec2(list.max.x - w - 12 * s, top));
+            ImGui::SetNextWindowSize(ImVec2(w, (std::min)(height, list.H())));
         }
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12 * s, 12 * s));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4 * s);
@@ -177,8 +207,21 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         auto* pd = ImGui::GetWindowDrawList();
         const auto at = ImGui::GetCursorScreenPos();
-        pd->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y), v2::Colors().muted, e.label.c_str());
-        ImGui::Dummy(ImVec2(0, 14 * s));
+        const auto& col = v2::Colors();
+        if (e.popout) {
+            pd->AddText(HeadingFont(), 13 * s, ImVec2(at.x + 2 * s, at.y), col.muted, e.label.c_str());
+            ImGui::Dummy(ImVec2(0, 14 * s));
+        } else {
+            // The title and its count over a rule, the accent's bar down the left.
+            const auto wp = ImGui::GetWindowPos();
+            pd->AddRectFilled(wp, ImVec2(wp.x + 3 * s, wp.y + ImGui::GetWindowHeight()), col.accent);
+            const float avail = ImGui::GetContentRegionAvail().x;
+            const std::string counted = loc::Tf("menu.choices_count", count);
+            pd->AddText(HeadingFont(), 18 * s, ImVec2(at.x + 4 * s, at.y), col.text, Fit(e.label, avail - ImGui::CalcTextSize(counted.c_str()).x - 16 * s, 18 * s, HeadingFont()).c_str());
+            pd->AddText(ImVec2(at.x + avail - ImGui::CalcTextSize(counted.c_str()).x - 4 * s, at.y + 2 * s), col.muted, counted.c_str());
+            pd->AddLine(ImVec2(at.x, at.y + 28 * s), ImVec2(at.x + avail, at.y + 28 * s), col.border, s);
+            ImGui::Dummy(ImVec2(0, 30 * s));
+        }
         const float cw = (ImGui::GetContentRegionAvail().x - inner * (across - 1)) / across;
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(inner, inner));
         for (std::size_t i = 0; i < count && navigation.Choosing(); ++i) {
@@ -194,13 +237,19 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             if (pressed && option.enabled) action = navigation.Pick(i, entries);
             else if (hovered && pointerMoved) navigation.ChoiceIndex(i);
             v2::CardGround(pd, c, selected, hovered, false);
-            const std::string label = Fit(option.label, cw - 24 * s, ImGui::GetFontSize(), ImGui::GetFont());
-            // The value in effect now is in Ember, so the player sees where they start.
-            pd->AddText(ImVec2(p.x + (cw - ImGui::CalcTextSize(label.c_str()).x) * .5f, p.y + (row - ImGui::GetFontSize()) * .5f),
-                !option.enabled ? v2::Colors().muted : current ? v2::Colors().accent : v2::Colors().text, label.c_str());
+            // The value in effect now is ticked, so the player sees where they start.
+            const float tick = current ? 22 * s : 0;
+            if (current) pd->AddPolyline(std::array<ImVec2, 3>{ImVec2(p.x + 12 * s, p.y + row * .5f), ImVec2(p.x + 16 * s, p.y + row * .5f + 4 * s), ImVec2(p.x + 23 * s, p.y + row * .5f - 5 * s)}.data(), 3, col.accent, 0, 2.5f * s);
+            const std::string label = Fit(option.label, cw - 24 * s - tick, ImGui::GetFontSize(), ImGui::GetFont());
+            pd->AddText(ImVec2(p.x + 12 * s + tick, p.y + (row - ImGui::GetFontSize()) * .5f), !option.enabled ? col.muted : col.text, label.c_str());
             if (selected) v2::Focus(pd, c.min, c.max, false);
         }
         ImGui::PopStyleVar();
+        if (!e.popout && navigation.Choosing()) {
+            const auto chosen = std::find_if(e.choices.begin(), e.choices.end(), [&](const MenuChoice& o) { return o.id == e.chosen; });
+            ImGui::Dummy(ImVec2(0, 2 * s));
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(col.muted), "%s", loc::Tf("menu.choices_keys", chosen == e.choices.end() ? e.value : chosen->label).c_str());
+        }
         ImGui::End();
         ImGui::PopStyleColor(2);
         ImGui::PopStyleVar(2);
@@ -263,7 +312,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             if (pressed && listEnabled && !modalAtStart && !navigation.Editing() && !navigation.Asking()) {
                 navigation.Focus(e.id, entries);
                 const float mx = ImGui::GetMousePos().x, vx = c.max.x - 16 * s - valueWidth;
-                const int step = e.adjustable && e.enabled && mx >= vx ? (mx < vx + valueWidth * .5f ? -1 : 1) : 0;
+                const int step = MenuValueIsNumber(e) && e.enabled && mx >= vx ? (mx < vx + valueWidth * .5f ? -1 : 1) : 0;
                 action = step ? MenuAction{MenuAction::Adjust, e.id, {}, step} : navigation.Choose(entries);
             } else if (listEnabled && pointerMoved && hovered && !navigation.Choosing()) navigation.Focus(e.id, entries);
             if (focused) {
@@ -352,7 +401,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         hints.push_back({MenuSelectGlyph(), primary}); does.push_back(1);
     }
     if (!backInert) { hints.push_back({MenuBackGlyph(), choosing ? loc::T("common.cancel") : backHint.empty() ? loc::T("common.back") : backHint}); does.push_back(2); }
-    if (shown.adjustable && shown.enabled && !choosing) { hints.push_back({KeyboardPrompts() ? "keys-horizontal" : "horizontal", loc::T("menu.adjust")}); does.push_back(0); }
+    if (MenuValueIsNumber(shown) && shown.enabled && !choosing) { hints.push_back({KeyboardPrompts() ? "keys-horizontal" : "horizontal", loc::T("menu.adjust")}); does.push_back(0); }
     for (const auto& h : shortcutHints) { hints.push_back({h.glyph, h.label}); does.push_back(0); }
     // Tabs step with LB and RB (Page Up and Down on the keyboard).
     if (!tabs.empty() && !choosing) {

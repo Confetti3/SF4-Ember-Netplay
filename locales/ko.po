@@ -6900,3 +6900,9 @@ msgstr "기본값 복원"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "열과 멤버·채팅 비율을 균형으로 되돌립니다."
+
+msgid "menu.choices_count"
+msgstr "선택지 {0}개"
+
+msgid "menu.choices_keys"
+msgstr "방향으로 이동 · 선택으로 고르기 · 뒤로는 {0} 유지"

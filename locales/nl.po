@@ -6899,3 +6899,9 @@ msgstr "Standaard herstellen"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "Zet de kolom en de verdeling tussen leden en chat terug op Gebalanceerd."
+
+msgid "menu.choices_count"
+msgstr "{0} keuzes"
+
+msgid "menu.choices_keys"
+msgstr "Richtingen bewegen · Kiezen neemt · Terug houdt {0}"

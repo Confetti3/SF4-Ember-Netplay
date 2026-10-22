@@ -6899,3 +6899,9 @@ msgstr "Rétablir les valeurs par défaut"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "Remet la colonne et le partage entre membres et chat sur Équilibrée."
+
+msgid "menu.choices_count"
+msgstr "{0} choix"
+
+msgid "menu.choices_keys"
+msgstr "Directions pour bouger · Valider choisit · Retour garde {0}"

@@ -29,7 +29,8 @@ float DialogButtonsHeight(const std::vector<DialogButton>& buttons,float height)
     const float rows=Stacked(buttons)?static_cast<float>(buttons.size()):1.f;
     return rows*height+(rows-1)*ImGui::GetStyle().ItemSpacing.y;
 }
-std::size_t MenuChoiceColumns(std::size_t count) { return v2::On()?(std::min<std::size_t>)(4,(std::max<std::size_t>)(1,count)):1; }
+// V2 (the Settings board's choice popup): up to three side by side, four as two by two, more three across.
+std::size_t MenuChoiceColumns(std::size_t count) { return !v2::On()?1:count<=3?(std::max<std::size_t>)(1,count):count==4?2:3; }
 // A dialog button's ground; V2 marks the selected one with its focus marks after drawing it (V2Mark).
 static ImVec4 ButtonGround(bool selected) {
     if(!v2::On())return DialogButtonColor(selected);

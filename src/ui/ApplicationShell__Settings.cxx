@@ -230,7 +230,7 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
         else if (pressed) {
             nav.Focus(e.id, entries);
             const float mx = ImGui::GetMousePos().x, vx = r.max.x - 6 * s - valueWidth;
-            const int step = e.adjustable && e.enabled && mx >= vx ? (mx < vx + valueWidth * .5f ? -1 : 1) : 0;
+            const int step = MenuValueIsNumber(e) && e.enabled && mx >= vx ? (mx < vx + valueWidth * .5f ? -1 : 1) : 0;
             action = step ? MenuAction{MenuAction::Adjust, e.id, {}, step} : nav.Choose(entries);
         }
         if (focused || (open && hovered)) ld->AddRectFilled(r.min, r.max, focused ? c.header : c.hover, 4 * s);
@@ -242,13 +242,14 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
         ld->PopClipRect();
         // The value between the arrows that step it, or on its own with a chevron when Select opens something.
         if (e.userText || e.text) NoteUserText(e.value);
-        const std::string value = e.value.empty() && e.adjustable ? loc::T("common.not_set") : e.value;
-        const float tw = (std::min)(ImGui::CalcTextSize(value.c_str()).x, valueWidth - 40 * s);
-        ld->PushClipRect(ImVec2(vx + 20 * s, r.min.y), ImVec2(vx + valueWidth - 20 * s, r.max.y), true);
-        ld->AddText(ImVec2(e.adjustable ? vx + (valueWidth - tw) * .5f : vx + valueWidth - 20 * s - tw, ty), e.valueHighlighted ? c.accent : e.info ? c.muted : text, value.c_str());
-        ld->PopClipRect();
-        if (e.adjustable) ld->AddText(ImVec2(vx, ty), arrow, "<");
-        if (e.adjustable || !e.info) ld->AddText(ImVec2(r.max.x - 14 * s - ImGui::CalcTextSize(">").x, ty), arrow, ">");
+        if (e.adjustable) DrawMenuValue(ld, e, {ImVec2(vx, r.min.y), ImVec2(r.max.x - 14 * s, r.max.y)}, open && enabled, text);
+        else {
+            const float tw = (std::min)(ImGui::CalcTextSize(e.value.c_str()).x, valueWidth - 40 * s);
+            ld->PushClipRect(ImVec2(vx + 20 * s, r.min.y), ImVec2(vx + valueWidth - 20 * s, r.max.y), true);
+            ld->AddText(ImVec2(vx + valueWidth - 20 * s - tw, ty), e.valueHighlighted ? c.accent : e.info ? c.muted : text, e.value.c_str());
+            ld->PopClipRect();
+            if (!e.info) ld->AddText(ImVec2(r.max.x - 14 * s - ImGui::CalcTextSize(">").x, ty), arrow, ">");
+        }
         if (focused) {
             v2::Focus(ld, r.min, r.max);
             if (!e.choices.empty()) menu_.bodyChoices = {r, list};

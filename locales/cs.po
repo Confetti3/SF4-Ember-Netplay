@@ -6899,3 +6899,9 @@ msgstr "Obnovit výchozí"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "Vrátí sloupec a rozdělení mezi členy a chat na Vyvážené."
+
+msgid "menu.choices_count"
+msgstr "Možnosti: {0}"
+
+msgid "menu.choices_keys"
+msgstr "Směry posouvají · Vybrat zvolí · Zpět ponechá {0}"

@@ -6900,3 +6900,9 @@ msgstr "Восстановить по умолчанию"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "Возвращает колонку и деление между участниками и чатом к «Сбалансированной»."
+
+msgid "menu.choices_count"
+msgstr "Вариантов: {0}"
+
+msgid "menu.choices_keys"
+msgstr "Направления — выбор · Выбрать — принять · Назад — оставить {0}"

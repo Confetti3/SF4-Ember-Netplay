@@ -6534,3 +6534,9 @@ msgstr "Restore defaults"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "Puts the column and the members and chat split back to Balanced."
+
+msgid "menu.choices_count"
+msgstr "{0} choices"
+
+msgid "menu.choices_keys"
+msgstr "Directions move · Select picks · Back keeps {0}"

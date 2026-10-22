@@ -6899,3 +6899,9 @@ msgstr "Standard wiederherstellen"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "Setzt die Spalte und die Aufteilung von Mitgliedern und Chat auf Ausgewogen zurück."
+
+msgid "menu.choices_count"
+msgstr "{0} Optionen"
+
+msgid "menu.choices_keys"
+msgstr "Richtungen bewegen · Auswählen nimmt · Zurück behält {0}"

@@ -170,6 +170,8 @@ public:
     std::size_t ChoiceIndex() const { return choiceIndex_; }
     // How many options an open choice shows on a row (MenuChoiceColumns); its owner sets it.
     std::size_t choiceColumns = 1;
+    // Select steps a value that has no choices on (V2; GameMenu sets it each frame).
+    bool selectSteps = false;
     void ChoiceIndex(std::size_t index) { if (index < choiceIds_.size()) choiceIndex_ = index; }
     const std::string& EditingId() const { return Editing() ? modalId_ : NoId(); }
     // The entry an open confirmation or choice belongs to.
@@ -225,7 +227,8 @@ public:
         case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; secret_=e.secret; draft_=e.secret?std::string():e.value; editAccept_=true; return {};
         case SelectOpens::Choice: case SelectOpens::Confirm: Open(e); return {};
         case SelectOpens::Activate: return {MenuAction::Activate,e.id};
-        case SelectOpens::Nothing: break;
+        // V2: Select on a value with no list of choices steps it on.
+        case SelectOpens::Nothing: if (selectSteps && e.adjustable && e.enabled && !e.info) return {MenuAction::Adjust,e.id,{},1}; break;
         }
         return {};
     }

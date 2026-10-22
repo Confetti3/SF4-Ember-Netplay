@@ -6899,3 +6899,9 @@ msgstr "Ripristina predefiniti"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "Riporta la colonna e la divisione tra membri e chat su Bilanciata."
+
+msgid "menu.choices_count"
+msgstr "{0} scelte"
+
+msgid "menu.choices_keys"
+msgstr "Direzioni per spostarti · Seleziona sceglie · Indietro tiene {0}"

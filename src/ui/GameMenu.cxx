@@ -343,6 +343,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // The navigation model still owns the neutral gate and Back/accept ordering.
     {const auto open=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
      navigation.choiceColumns=navigation.Choosing()&&open!=entries.end()?(open->popout?1:MenuChoiceColumns(open->choices.size())):1;}
+    navigation.selectSteps=v2::On();
     auto action=navigation.Update(menuInput,entries,columns,true,true);
     const bool acceptEditText=action.kind==MenuAction::SubmitText;
     if(acceptEditText)action={};

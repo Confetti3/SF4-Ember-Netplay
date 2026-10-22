@@ -6900,3 +6900,9 @@ msgstr "恢复默认"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "把栏宽和成员与聊天的分配恢复为“均衡”。"
+
+msgid "menu.choices_count"
+msgstr "{0} 个选项"
+
+msgid "menu.choices_keys"
+msgstr "方向键移动 · 选择确认 · 返回保留 {0}"

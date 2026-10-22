@@ -6900,3 +6900,9 @@ msgstr "初期設定に戻す"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "列と、メンバーとチャットの分け方を「バランス」に戻します。"
+
+msgid "menu.choices_count"
+msgstr "{0} 件の選択肢"
+
+msgid "menu.choices_keys"
+msgstr "方向で移動 · 決定で選ぶ · 戻るで {0} のまま"

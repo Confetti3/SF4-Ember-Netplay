@@ -6900,3 +6900,9 @@ msgstr "Restaurar valores predeterminados"
 
 msgid "settings.room_layout_reset_detail"
 msgstr "Devuelve la columna y el reparto entre miembros y chat a Equilibrada."
+
+msgid "menu.choices_count"
+msgstr "{0} opciones"
+
+msgid "menu.choices_keys"
+msgstr "Direcciones para moverte · Elegir escoge · Atrás mantiene {0}"

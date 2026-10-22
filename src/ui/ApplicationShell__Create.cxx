@@ -120,7 +120,7 @@ void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNa
   if(pressed&&!nav.Asking()&&!nav.Editing()&&!nav.Choosing()){
    nav.Focus(e.id,rows);
    const float mx=ImGui::GetMousePos().x,vx=b.max.x-14*s-valueWidth;
-   const int step=e.adjustable&&e.enabled&&mx>=vx?(mx<vx+valueWidth*.5f?-1:1):0;
+   const int step=MenuValueIsNumber(e)&&e.enabled&&mx>=vx?(mx<vx+valueWidth*.5f?-1:1):0;
    action=step?MenuAction{MenuAction::Adjust,e.id,{},step}:nav.Choose(rows);
   }else if(hovered&&pointerMoved&&!nav.Choosing())nav.Focus(e.id,rows);
   return hovered;
@@ -152,13 +152,14 @@ void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNa
    d->PopClipRect();
    // The value between the arrows that step it, or with a chevron when Select opens it.
    if(e.userText||e.text)NoteUserText(e.value);
-   const std::string value=e.value.empty()&&e.adjustable?loc::T("common.not_set"):e.value;
-   const float tw=(std::min)(ImGui::CalcTextSize(value.c_str()).x,valueWidth-40*s);
-   d->PushClipRect(ImVec2(vx+20*s,r.min.y),ImVec2(vx+valueWidth-20*s,r.max.y),true);
-   d->AddText(ImVec2(vx+(valueWidth-tw)*.5f,ty),e.valueHighlighted?c.accent:text,value.c_str());
-   d->PopClipRect();
-   if(e.adjustable)d->AddText(ImVec2(vx,ty),arrow,"<");
-   d->AddText(ImVec2(r.max.x-14*s-ImGui::CalcTextSize(">").x,ty),arrow,">");
+   if(e.adjustable)DrawMenuValue(d,e,{ImVec2(vx,r.min.y),ImVec2(r.max.x-14*s,r.max.y)},enabled,text);
+   else{
+    const float tw=(std::min)(ImGui::CalcTextSize(e.value.c_str()).x,valueWidth-40*s);
+    d->PushClipRect(ImVec2(vx+20*s,r.min.y),ImVec2(vx+valueWidth-20*s,r.max.y),true);
+    d->AddText(ImVec2(vx+valueWidth-20*s-tw,ty),e.valueHighlighted?c.accent:text,e.value.c_str());
+    d->PopClipRect();
+    d->AddText(ImVec2(r.max.x-14*s-ImGui::CalcTextSize(">").x,ty),arrow,">");
+   }
    if(focused){
     v2::Focus(d,r.min,r.max);
     if(!e.choices.empty())menu_.bodyChoices={r,{panel.min,ImVec2(panel.max.x,origin.y+height)}};
