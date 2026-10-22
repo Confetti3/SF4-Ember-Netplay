@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "Zapisuje także mecze oglądane w roli widza. Wyłączone zapisuje tylko mecze, w których grasz."
 
 msgid "settings.watched_picture"
-msgstr "Oglądana gra w rogu"
+msgstr "Obraz oglądanej gry"
 
 msgid "settings.watched_picture_detail"
-msgstr "Gdy menu Embera jest otwarte nad oglądaną grą, pokazuje ją małą w prawym górnym rogu nad nieprzezroczystym menu zamiast przyciemnionej za nim."
+msgstr "Oglądana gra nad menu Embera: Mały w rogu, który można przeciągnąć, Duży w miejscu stołów w pokoju, Brak – przyciemniona za menu."
 
 msgid "replays.link"
 msgstr "Odtwórz powtórkę z linku"
@@ -7100,6 +7100,51 @@ msgstr "Więcej…"
 
 msgid "room.v2.more_detail"
 msgstr "Opcje stołu, ustawienia pokoju i linki z zaproszeniem."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Obraz"
+
+msgid "room.v2.picture_none"
+msgstr "Brak"
+
+msgid "room.v2.part_detail"
+msgstr "Pokazuje lub ukrywa tę część pokoju. Pozostałe części zajmują jej miejsce."
+
+msgid "room.v2.picture_detail"
+msgstr "Oglądana gra: mała w rogu, duża w miejscu stołów albo brak."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Małe okno nad menu. Przeciągnij je do innego rogu albo przeciągnij jego krawędź, aby zmienić rozmiar."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Duży, w miejscu stołów w pokoju."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Bez obrazu: gra pozostaje przyciemniona za menu."
+
+msgid "room.v2.hide"
+msgstr "Ukryj"
+
+msgid "room.v2.hide_members"
+msgstr "Ukryj uczestników"
+
+msgid "room.v2.hide_chat"
+msgstr "Ukryj czat"
+
+msgid "room.v2.hide_picture"
+msgstr "Ukryj obraz"
+
+msgid "room.v2.hide_detail"
+msgstr "Przywrócisz to w Więcej… albo Ustawienia > Interfejs > Układ pokoju."
+
+msgid "settings.room_show_members_detail"
+msgstr "Panel Uczestnicy w pokoju. Gdy jest ukryty, czat zajmuje kolumnę, a gdy oba są ukryte, stoły zajmują całą szerokość."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Panel Czat w pokoju. Gdy jest ukryty, uczestnicy zajmują kolumnę, a gdy oba są ukryte, stoły zajmują całą szerokość."
 
 msgid "room.v2.unread"
 msgstr "Nieprzeczytane: {0}"

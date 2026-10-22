@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "Também salva as partidas que você assiste como espectador. Desativado salva apenas as que você joga."
 
 msgid "settings.watched_picture"
-msgstr "Partida assistida no canto"
+msgstr "Imagem da partida assistida"
 
 msgid "settings.watched_picture_detail"
-msgstr "Com o menu do Ember aberto sobre uma partida que você assiste, mostra ela pequena no canto superior direito sobre um menu opaco em vez de escurecida atrás."
+msgstr "A partida que você assiste, sobre o menu do Ember: Pequeno num canto que você pode arrastar, Grande no lugar das mesas da sala, Nenhuma escurecida atrás do menu."
 
 msgid "replays.link"
 msgstr "Reproduzir o replay do link"
@@ -6620,6 +6620,51 @@ msgstr "Mais…"
 
 msgid "room.v2.more_detail"
 msgstr "Opções da mesa, configurações da sala e links de convite."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Imagem"
+
+msgid "room.v2.picture_none"
+msgstr "Nenhuma"
+
+msgid "room.v2.part_detail"
+msgstr "Mostra ou oculta esta parte da sala. As outras partes ocupam o lugar dela."
+
+msgid "room.v2.picture_detail"
+msgstr "A partida que você assiste: pequena num canto, grande no lugar das mesas ou nenhuma."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Uma janela pequena sobre o menu. Arraste-a para outro canto ou arraste a borda para mudar o tamanho."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Grande, no lugar das mesas da sala."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Sem imagem: a partida fica escurecida atrás do menu."
+
+msgid "room.v2.hide"
+msgstr "Ocultar"
+
+msgid "room.v2.hide_members"
+msgstr "Ocultar membros"
+
+msgid "room.v2.hide_chat"
+msgstr "Ocultar bate-papo"
+
+msgid "room.v2.hide_picture"
+msgstr "Ocultar imagem"
+
+msgid "room.v2.hide_detail"
+msgstr "Traga de volta em Mais… ou Configurações > Interface > Layout da sala."
+
+msgid "settings.room_show_members_detail"
+msgstr "O painel Membros da sala. Oculto, o bate-papo ocupa a coluna, ou as mesas toda a largura."
+
+msgid "settings.room_show_chat_detail"
+msgstr "O painel Bate-papo da sala. Oculto, os membros ocupam a coluna, ou as mesas toda a largura."
 
 msgid "room.v2.unread"
 msgstr "{0} não lidas"

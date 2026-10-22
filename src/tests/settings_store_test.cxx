@@ -202,7 +202,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"readySound", &PlayerPreferences::readySound, true}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady, false},
         {"classEmblems", &PlayerPreferences::classEmblems, true}, {"lookV2", &PlayerPreferences::lookV2, false}, {"tvMode", &PlayerPreferences::tvMode, false},
         {"welcomed", &PlayerPreferences::welcomed, true},
-        {"watchedPicture", &PlayerPreferences::watchedPicture, false},
+        {"roomShowMembers", &PlayerPreferences::roomShowMembers, true}, {"roomShowChat", &PlayerPreferences::roomShowChat, true},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true}, {"borderless", &PlayerPreferences::borderless, false},
@@ -439,6 +439,13 @@ int main() {
     CHECK(store.SaveLauncher({{"roomColumn",48},{"roomSplit",44}},error));
     CHECK(store.LoadLauncher(result,error)&&result["roomColumn"]==48&&result["roomSplit"]==44);
     CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["roomColumn"]==48);
+    // The watched game's picture: small by default, three modes, kept in the netplay section.
+    CHECK(discordDefaults.pictureMode==sf4e::netplay::PictureSmall);
+    discordDefaults.pictureMode=sf4e::netplay::PictureOff+1;CHECK(!discordDefaults.Valid());
+    discordDefaults.pictureMode=sf4e::netplay::PictureBig;CHECK(discordDefaults.Valid());
+    discordDefaults.pictureMode=sf4e::netplay::PictureSmall;
+    CHECK(store.SaveLauncher({{"pictureMode",2}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["pictureMode"]==2&&Json::parse(Read(path / L"settings.json"))["netplay"]["pictureMode"]==2);
     CHECK(discordDefaults.matchHudLayout==1); // Split by default.
     discordDefaults.matchHudLayout=-1;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudLayout=2;CHECK(!discordDefaults.Valid());

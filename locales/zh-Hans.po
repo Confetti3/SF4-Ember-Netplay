@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "也保存你以观众身份观看的对战。关闭时只保存你参加的对战。"
 
 msgid "settings.watched_picture"
-msgstr "观战的对局显示在角落"
+msgstr "观战对局画面"
 
 msgid "settings.watched_picture_detail"
-msgstr "在观战的对局上打开 Ember 菜单时，将对局缩小显示在不透明菜单的右上角，而不是变暗显示在菜单后面。"
+msgstr "在 Ember 菜单上方显示观战的对局：小 显示在可拖动的角落，大 显示在房间界面的对战台位置，不显示 则在菜单后面变暗。"
 
 msgid "replays.link"
 msgstr "播放链接中的录像"
@@ -7101,6 +7101,51 @@ msgstr "更多…"
 
 msgid "room.v2.more_detail"
 msgstr "对战席选项、房间设置和邀请链接。"
+
+msgid "room.v2.part_state"
+msgstr "{0}：{1}"
+
+msgid "room.v2.picture"
+msgstr "画面"
+
+msgid "room.v2.picture_none"
+msgstr "不显示"
+
+msgid "room.v2.part_detail"
+msgstr "显示或隐藏房间界面的这一部分，其他部分会占用它的位置。"
+
+msgid "room.v2.picture_detail"
+msgstr "观战的对局：在角落小窗显示、在对战台位置大幅显示，或不显示。"
+
+msgid "room.v2.picture_small_detail"
+msgstr "菜单上方的小窗口。可拖到其他角落，拖动边缘可调整大小。"
+
+msgid "room.v2.picture_big_detail"
+msgstr "大幅显示在房间界面的对战台位置。"
+
+msgid "room.v2.picture_off_detail"
+msgstr "不显示画面：对局在菜单后面保持变暗。"
+
+msgid "room.v2.hide"
+msgstr "隐藏"
+
+msgid "room.v2.hide_members"
+msgstr "隐藏成员"
+
+msgid "room.v2.hide_chat"
+msgstr "隐藏聊天"
+
+msgid "room.v2.hide_picture"
+msgstr "隐藏画面"
+
+msgid "room.v2.hide_detail"
+msgstr "可在“更多…”或 设置 > 界面 > 房间布局 中恢复。"
+
+msgid "settings.room_show_members_detail"
+msgstr "房间界面的成员面板。隐藏后由聊天占用该列，两者都隐藏时对战台占满整个宽度。"
+
+msgid "settings.room_show_chat_detail"
+msgstr "房间界面的聊天面板。隐藏后由成员占用该列，两者都隐藏时对战台占满整个宽度。"
 
 msgid "room.v2.unread"
 msgstr "{0} 条未读"

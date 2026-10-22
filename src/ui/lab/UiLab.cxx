@@ -13,7 +13,7 @@
 //   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
 // --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk) with V2 on, a created room joined at once,
 //   and writes each step there; exits 3 when a step fails
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--arcade classic|arcade|king] [--public] [--rankings] [--playback] [--pip] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--arcade classic|arcade|king] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -320,6 +320,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::string shot, keys, screen, recovery, check, walkFile;
     bool inRoom = false, pip = false;
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
+    int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
+    std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
     bool trainingPanel = false, blumint = false, watcher = false, update = false, publicLab = false, rankings = false, playback = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     std::string moment;  // --moment game|set|lost|restart|host|expired|failed|called, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
@@ -332,6 +334,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--keys" && more) keys = args[++i];
         else if (args[i] == "--shot" && more) shot = args[++i];
         else if (args[i] == "--room") inRoom = true;
+        else if (args[i] == "--picture" && more) pictureMode = std::atoi(args[++i].c_str());
+        else if (args[i] == "--hide" && more) hidePanes = args[++i];
         else if (args[i] == "--pip") pip = true;
         else if (args[i] == "--arcade" && more) { ++i; arcade = args[i] == "king" ? room::KingRoom : args[i] == "arcade" ? room::ArcadeRoom : room::ClassicRoom; }
         else if (args[i] == "--hud" && more) hud = std::atoi(args[++i].c_str());
@@ -374,6 +378,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
     ui::ApplicationShell shell;
     ui::ShellView view = FakeView(v2);
+    view.preferences.pictureMode = pictureMode;
+    view.preferences.roomShowMembers = hidePanes != "members" && hidePanes != "both";
+    view.preferences.roomShowChat = hidePanes != "chat" && hidePanes != "both";
     view.preferences.tvMode = tv;
     view.preferences.welcomed = !welcome;
     // A BluMint room joins its own (BluMintRoom).
@@ -492,8 +499,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         const bool snap = ImGui::IsKeyPressed(ImGuiKey_F12);
         // The menu art stands in for a watched game's picture (F6).
         if (ImGui::IsKeyPressed(ImGuiKey_F6)) pip = !pip;
-        view.preferences.watchedPicture = pip;
-        view.watchedPicture = pip ? art.MenuBackdrop().texture : ImTextureID{};
+        view.watchedPicture = pip && view.preferences.pictureMode != netplay::PictureOff ? art.MenuBackdrop().texture : ImTextureID{};
         if (!recovery.empty()) {
             ui::v2::SetOn(view.preferences.lookV2);
             ui::DrawRecoveryMenu(recoveryMenu, recoveryState, recovery == "launch" ? loc::T("launcher.recovery_opened") : "", recovery != "launch", ui::Tone::Error, true);

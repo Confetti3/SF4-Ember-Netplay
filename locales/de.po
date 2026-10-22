@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "Speichert auch Kämpfe, denen du als Zuschauer zusiehst. Aus speichert nur Kämpfe, die du selbst spielst."
 
 msgid "settings.watched_picture"
-msgstr "Zugeschautes Spiel in der Ecke"
+msgstr "Bild des zugeschauten Spiels"
 
 msgid "settings.watched_picture_detail"
-msgstr "Öffnest du Embers Menü über einem Spiel, dem du zuschaust, erscheint es klein oben rechts über einem deckenden Menü statt abgedunkelt dahinter."
+msgstr "Das Spiel, dem du zuschaust, über Embers Menü: Klein in einer Ecke, die du verschieben kannst, Groß anstelle der Tische in der Raumansicht, Keins abgedunkelt hinter dem Menü."
 
 msgid "replays.link"
 msgstr "Replay aus dem Link abspielen"
@@ -7100,6 +7100,51 @@ msgstr "Mehr…"
 
 msgid "room.v2.more_detail"
 msgstr "Tischoptionen, Raumeinstellungen und Einladungslinks."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Bild"
+
+msgid "room.v2.picture_none"
+msgstr "Keins"
+
+msgid "room.v2.part_detail"
+msgstr "Zeigt oder verbirgt diesen Teil der Raumansicht. Die anderen Teile nehmen seinen Platz ein."
+
+msgid "room.v2.picture_detail"
+msgstr "Das Spiel, dem du zuschaust: klein in einer Ecke, groß anstelle der Tische oder keins."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Ein kleines Fenster über dem Menü. Zieh es in eine andere Ecke oder zieh am Rand, um die Größe zu ändern."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Groß, anstelle der Tische in der Raumansicht."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Kein Bild: Das Spiel bleibt abgedunkelt hinter dem Menü."
+
+msgid "room.v2.hide"
+msgstr "Ausblenden"
+
+msgid "room.v2.hide_members"
+msgstr "Mitglieder ausblenden"
+
+msgid "room.v2.hide_chat"
+msgstr "Chat ausblenden"
+
+msgid "room.v2.hide_picture"
+msgstr "Bild ausblenden"
+
+msgid "room.v2.hide_detail"
+msgstr "Zurückholen über Mehr… oder Einstellungen > Oberfläche > Raumlayout."
+
+msgid "settings.room_show_members_detail"
+msgstr "Das Mitglieder-Feld der Raumansicht. Ausgeblendet nimmt der Chat die Spalte ein oder die Tische die ganze Breite."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Das Chat-Feld der Raumansicht. Ausgeblendet nehmen die Mitglieder die Spalte ein oder die Tische die ganze Breite."
 
 msgid "room.v2.unread"
 msgstr "{0} ungelesen"

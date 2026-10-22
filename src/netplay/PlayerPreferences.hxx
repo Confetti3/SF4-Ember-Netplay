@@ -64,6 +64,7 @@ constexpr int MaxMatchHudAnchor = 5;
 // The V2 room board's layout grips (Customise.dc.html), in percent: the members
 // and chat column's share of the board's width, and the members' share of that
 // column over chat. Each snaps to its step from the default.
+constexpr int PictureSmall = 0, PictureBig = 1, PictureOff = 2;
 constexpr int MinRoomColumn = 28, MaxRoomColumn = 60, DefaultRoomColumn = 36, RoomColumnStep = 4;
 constexpr int MinRoomSplit = 26, MaxRoomSplit = 74, DefaultRoomSplit = 56, RoomSplitStep = 6;
 
@@ -114,9 +115,13 @@ struct PlayerPreferences {
     // Called out of Training to their table, the player is readied at once
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;
-    // Ember's menu over a game the player watches shows it small in its top
-    // right corner over an opaque menu, instead of dimmed behind the menu.
-    bool watchedPicture = false;
+    // The game the player watches, over Ember's menu: PictureSmall in a corner
+    // (pictureSpot) over an opaque menu, PictureBig in the V2 room board's
+    // tables' place (a corner elsewhere), PictureOff dimmed behind the menu.
+    int pictureMode = PictureSmall;
+    // The V2 room board's Members and Chat panels; hidden, the other one or
+    // the tables take their place.
+    bool roomShowMembers = true, roomShowChat = true;
     // The training frame meter over the player's own matches and those they
     // watch. It only reads the game and shows confirmed frames.
     bool matchFrameMeter = false;
@@ -178,7 +183,7 @@ struct PlayerPreferences {
     bool Valid() const {
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidMenuBinding(layout.menu) && gamepads::ValidExtraCopies(layout.extras); })) return false;
         if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
+            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;

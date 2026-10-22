@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "관전자로 시청한 대전도 저장합니다. 끄면 직접 플레이한 대전만 저장합니다."
 
 msgid "settings.watched_picture"
-msgstr "관전 중인 게임을 구석에"
+msgstr "관전 중인 게임 화면"
 
 msgid "settings.watched_picture_detail"
-msgstr "관전 중인 게임 위에 Ember 메뉴를 열면 메뉴 뒤에 어둡게 보이는 대신 불투명한 메뉴의 오른쪽 위에 작게 표시합니다."
+msgstr "관전 중인 게임을 Ember 메뉴 위에 표시: 작게는 끌어 옮길 수 있는 구석에, 크게는 방 화면의 테이블 자리에, 표시 안 함은 메뉴 뒤에 어둡게."
 
 msgid "replays.link"
 msgstr "링크의 리플레이 재생"
@@ -7101,6 +7101,51 @@ msgstr "더 보기…"
 
 msgid "room.v2.more_detail"
 msgstr "테이블 옵션, 방 설정, 초대 링크."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "화면"
+
+msgid "room.v2.picture_none"
+msgstr "표시 안 함"
+
+msgid "room.v2.part_detail"
+msgstr "방 화면의 이 부분을 표시하거나 숨깁니다. 나머지 부분이 그 자리를 채웁니다."
+
+msgid "room.v2.picture_detail"
+msgstr "관전 중인 게임: 구석에 작게, 테이블 자리에 크게, 또는 표시 안 함."
+
+msgid "room.v2.picture_small_detail"
+msgstr "메뉴 위의 작은 창입니다. 다른 구석으로 끌어 옮기거나 가장자리를 끌어 크기를 바꿀 수 있습니다."
+
+msgid "room.v2.picture_big_detail"
+msgstr "크게, 방 화면의 테이블 자리에 표시합니다."
+
+msgid "room.v2.picture_off_detail"
+msgstr "화면 없음: 게임은 메뉴 뒤에 어둡게 남습니다."
+
+msgid "room.v2.hide"
+msgstr "숨기기"
+
+msgid "room.v2.hide_members"
+msgstr "참가자 숨기기"
+
+msgid "room.v2.hide_chat"
+msgstr "채팅 숨기기"
+
+msgid "room.v2.hide_picture"
+msgstr "화면 숨기기"
+
+msgid "room.v2.hide_detail"
+msgstr "더 보기… 또는 설정 > 인터페이스 > 방 레이아웃에서 다시 표시할 수 있습니다."
+
+msgid "settings.room_show_members_detail"
+msgstr "방 화면의 참가자 패널입니다. 숨기면 채팅이 열을 차지하고, 둘 다 숨기면 테이블이 전체 너비를 차지합니다."
+
+msgid "settings.room_show_chat_detail"
+msgstr "방 화면의 채팅 패널입니다. 숨기면 참가자가 열을 차지하고, 둘 다 숨기면 테이블이 전체 너비를 차지합니다."
 
 msgid "room.v2.unread"
 msgstr "읽지 않음 {0}"

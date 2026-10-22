@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "Slaat ook wedstrijden op die je als toeschouwer bekijkt. Uit slaat alleen wedstrijden op die je zelf speelt."
 
 msgid "settings.watched_picture"
-msgstr "Bekeken spel in een hoek"
+msgstr "Beeld van het bekeken spel"
 
 msgid "settings.watched_picture_detail"
-msgstr "Met het menu van Ember open boven een spel dat je bekijkt, toont het spel klein rechtsboven over een dicht menu in plaats van gedimd erachter."
+msgstr "Het spel dat je bekijkt, boven het menu van Ember: Klein in een hoek die je kunt verslepen, Groot op de plek van de tafels op het kamerbord, Geen gedimd achter het menu."
 
 msgid "replays.link"
 msgstr "Replay uit de link afspelen"
@@ -7100,6 +7100,51 @@ msgstr "Meer…"
 
 msgid "room.v2.more_detail"
 msgstr "Tafelopties, kamerinstellingen en uitnodigingslinks."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Beeld"
+
+msgid "room.v2.picture_none"
+msgstr "Geen"
+
+msgid "room.v2.part_detail"
+msgstr "Toont of verbergt dit deel van het kamerbord. De andere delen nemen zijn plaats in."
+
+msgid "room.v2.picture_detail"
+msgstr "Het spel dat je bekijkt: klein in een hoek, groot op de plek van de tafels, of geen."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Een klein venster boven het menu. Sleep het naar een andere hoek, of sleep de rand om het groter of kleiner te maken."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Groot, op de plek van de tafels op het kamerbord."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Geen beeld: het spel blijft gedimd achter het menu."
+
+msgid "room.v2.hide"
+msgstr "Verbergen"
+
+msgid "room.v2.hide_members"
+msgstr "Leden verbergen"
+
+msgid "room.v2.hide_chat"
+msgstr "Chat verbergen"
+
+msgid "room.v2.hide_picture"
+msgstr "Beeld verbergen"
+
+msgid "room.v2.hide_detail"
+msgstr "Terughalen kan via Meer… of Instellingen > Interface > Kamerindeling."
+
+msgid "settings.room_show_members_detail"
+msgstr "Het paneel Leden op het kamerbord. Verborgen neemt Chat de kolom, of de tafels de volle breedte."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Het paneel Chat op het kamerbord. Verborgen neemt Leden de kolom, of de tafels de volle breedte."
 
 msgid "room.v2.unread"
 msgstr "{0} ongelezen"

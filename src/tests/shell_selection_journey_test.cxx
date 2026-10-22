@@ -23,6 +23,22 @@ void MemberPopout(){
  h.Press(MenuInput::Select);h.Frame(0,2);
  Check(h.shell.Navigation().Screen()=="room-member"&&h.shell.Navigation().Confirming(),"Kick from the popout did not ask first");
 }
+// V2: the Members panel's Hide takes its rows off the board and saves it;
+// its heading stays reachable, as a button, and More… brings it back.
+void RoomPartsHide(){
+ using namespace sf4e;
+ Harness h;h.view.preferences.lookV2=true;h.Frame();
+ JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.capacity=8;
+ for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
+ h.Screen("room");h.Choose("room-hide-members");h.Wait(1);h.Frame();
+ const auto saved=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;});
+ Check(saved!=h.actions.rend()&&!saved->preferences.roomShowMembers&&saved->preferences.roomShowChat,"Hide on the Members panel did not save it hidden");
+ h.view.preferences=saved->preferences;h.Frame();
+ bool gone=false;try{h.FocusOn("member-2");}catch(const std::runtime_error&){gone=true;}
+ Check(gone,"A hidden Members panel's rows are still on the board");
+ h.Choose("room-more");
+ Check(h.shell.Navigation().Choosing(),"More… did not open");
+}
 // A keyboard player reaches everything a pad does: F, T and C are X, Y and
 // View, Escape always goes back, and Delete leaves the seat that B leaves.
 void KeyboardJourneys(){

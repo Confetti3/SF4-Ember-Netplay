@@ -6,6 +6,7 @@ void ButtonLayoutJourneys();
 void KeyboardJourneys();
 void RightClickBack();
 void MemberPopout();
+void RoomPartsHide();
 void PresentationJourneys();
 void AppearanceGalleries();
 void ChatJourneys();

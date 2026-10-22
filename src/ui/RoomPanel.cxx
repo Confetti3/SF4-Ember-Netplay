@@ -314,13 +314,37 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // table options, room settings and links), the asking rows, then Leave room last.
   if(v2::On()&&v2::CurrentBrand()==v2::Brand::Ember){
    MenuEntry more=Row("room-more",loc::T("room.v2.more"),loc::T("room.v2.more_detail"));more.popout=true;
+   if(!moreAsk_&&!nav.Choosing()){morePicture_=false;moreChosen_.clear();}
+   more.chosen=moreChosen_;
+   const char* const pictureNames[]={"size.small","size.large","room.v2.picture_none"};
+   const auto shownPart=[&](const char* part,bool on){return loc::Tf("room.v2.part_state",loc::T(part),loc::T(on?"common.on":"common.off"));};
+   if(morePicture_){
+    // The picture's Small, Big and Off, in More…'s place, on the one in effect.
+    more.label=loc::T("room.v2.picture");more.chosen="picture-"+std::to_string(preferences_.pictureMode);
+    const char* const details[]={"room.v2.picture_small_detail","room.v2.picture_big_detail","room.v2.picture_off_detail"};
+    for(int i=0;i<3;++i)more.choices.push_back({"picture-"+std::to_string(i),loc::T(pictureNames[i]),loc::T(details[i])});
+   }
    std::vector<MenuEntry> kept,bar(2),asks;MenuEntry leave;
    for(auto& e:rows){
-    if(e.id=="options"||e.id=="room-admin"||e.id.compare(0,4,"copy")==0)more.choices.push_back({e.id,e.label,e.detail,e.enabled});
+    if(e.id=="options"||e.id=="room-admin"||e.id.compare(0,4,"copy")==0){if(!morePicture_)more.choices.push_back({e.id,e.label,e.detail,e.enabled});}
+    // A hidden panel's rows go; its heading's row stays, as a button in the bar.
+    else if(e.id.compare(0,7,"member-")==0&&!preferences_.roomShowMembers)continue;
     else if(e.id=="room-training"||e.id=="room-controls")bar[e.id=="room-controls"]=std::move(e);
     else if(e.id=="leave")leave=std::move(e);
     else if(e.id=="end-practice"||e.id=="stop-watching"||e.id=="replace-room")asks.push_back(std::move(e));
-    else kept.push_back(std::move(e));
+    else{
+     // A shown panel's Hide sits on its heading.
+     const std::string id=e.id;kept.push_back(std::move(e));
+     if(id=="room-members"&&preferences_.roomShowMembers)kept.push_back(Row("room-hide-members",loc::T("room.v2.hide_members"),loc::T("room.v2.hide_detail")));
+     if(id=="room-chat"&&preferences_.roomShowChat)kept.push_back(Row("room-hide-chat",loc::T("room.v2.hide_chat"),loc::T("room.v2.hide_detail")));
+    }
+   }
+   if(pictureOnBoard_)kept.push_back(Row("room-hide-picture",loc::T("room.v2.hide_picture"),loc::T("room.v2.hide_detail")));
+   // The board's parts, as switches: Select flips one and More… stays open on it.
+   if(!morePicture_){
+    more.choices.push_back({"room-show-members",shownPart("room.members",preferences_.roomShowMembers),loc::T("room.v2.part_detail")});
+    more.choices.push_back({"room-show-chat",shownPart("room.chat",preferences_.roomShowChat),loc::T("room.v2.part_detail")});
+    more.choices.push_back({"room-picture",loc::Tf("room.v2.part_state",loc::T("room.v2.picture"),loc::T(pictureNames[preferences_.pictureMode])),loc::T("room.v2.picture_detail")});
    }
    if(s.roomEpoch&&place.kind==Place::Kind::Seat){
     const auto ready=DescribeReady(v,s.tables[place.table],place.seat);
@@ -339,6 +363,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    else if(e.id.compare(0,7,"member-")==0)e.left=s.arcade?"cabinet-"+std::to_string((std::max)(0,room::CabinetOf(s,s.localMember))):"table-"+std::to_string(selectedTable_);
    else {e.left=i?rows[i-1].id:e.id;e.right=i+1<rows.size()?rows[i+1].id:e.id;}
   }
+  if(moreAsk_){moreAsk_=false;nav.Ask("room-more",rows);}
   }else if(screen=="room-table"){
    const std::string reason=!mutableRoom?RoomWaitReason(v):
     loc::T(elsewhere?"room.leave_current_table":"room.choose_action");
@@ -536,14 +561,19 @@ MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEnt
 }
 void ApplicationShell::ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat) const {
  const float s=Scale();
- tables=area;chat=v2::CutRight(tables,area.W()*preferences_.roomColumn/100,24*s);
- members=v2::CutTop(chat,(chat.H()-16*s)*preferences_.roomSplit/100,16*s);
+ const bool both=preferences_.roomShowMembers&&preferences_.roomShowChat;
+ tables=area;members=chat=v2::Box{area.max,area.max};
+ if(!preferences_.roomShowMembers&&!preferences_.roomShowChat)return;
+ chat=v2::CutRight(tables,area.W()*preferences_.roomColumn/100,24*s);
+ if(both)members=v2::CutTop(chat,(chat.H()-16*s)*preferences_.roomSplit/100,16*s);
+ else if(preferences_.roomShowMembers)std::swap(members,chat);
 }
 void ApplicationShell::RoomGrips(v2::Box area) {
  v2::Box tables,members,chat;ArrangeRoom(area,tables,members,chat);
- const float column=(tables.max.x+chat.min.x)*.5f,split=(members.max.y+chat.min.y)*.5f;
- const float x=v2::Grip("##room-column",ImVec2(column,area.min.y),ImVec2(column,area.max.y));
- const float y=v2::Grip("##room-split",ImVec2(chat.min.x,split),ImVec2(chat.max.x,split));
+ const float column=(tables.max.x+(preferences_.roomShowChat?chat:members).min.x)*.5f,split=(members.max.y+chat.min.y)*.5f;
+ const bool hasColumn=preferences_.roomShowMembers||preferences_.roomShowChat,hasSplit=preferences_.roomShowMembers&&preferences_.roomShowChat;
+ const float x=hasColumn?v2::Grip("##room-column",ImVec2(column,area.min.y),ImVec2(column,area.max.y)):NAN;
+ const float y=hasSplit?v2::Grip("##room-split",ImVec2(chat.min.x,split),ImVec2(chat.max.x,split)):NAN;
  // The pointer's share, snapped to the grip's steps from its default.
  const auto snap=[](float percent,int low,int high,int base,int step){return (std::max)(low,(std::min)(high,base+static_cast<int>(std::lround((percent-base)/step))*step));};
  auto next=preferences_;
@@ -567,7 +597,9 @@ void ApplicationShell::DrawRoomLayoutPreview() {
   const v2::Box in=v2::Inset(b,10*s,8*s);heading(in,std::string(loc::T(key))+" \xC2\xB7 "+std::to_string(share)+"%");
   for(int i=0;i<lines;++i){const float y=in.min.y+22*s+i*18*s;if(y+12*s<=in.max.y)d->AddRectFilled(ImVec2(in.min.x,y),ImVec2(in.max.x,y+12*s),c.button,3*s);}
  };
- pane(members,"room.members",preferences_.roomSplit,3);pane(chat,"room.chat",100-preferences_.roomSplit,2);
+ const bool both=preferences_.roomShowMembers&&preferences_.roomShowChat;
+ if(preferences_.roomShowMembers)pane(members,"room.members",both?preferences_.roomSplit:100,3);
+ if(preferences_.roomShowChat)pane(chat,"room.chat",both?100-preferences_.roomSplit:100,2);
  RoomGrips(inside);
  ImGui::SetCursorScreenPos(p);ImGui::Dummy(ImVec2(w,h));
 }
@@ -727,19 +759,36 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const auto hit=[&](const MenuEntry& e,const v2::Box& b){return PressEntry(nav,rows,e,b,action,changed).hovered;};
   const auto ground=[&](ImDrawList* dl,const v2::Box& b,ImU32 fill,ImU32 edge){dl->AddRectFilled(b.min,b.max,fill,4*s);dl->AddRect(b.min,b.max,edge,4*s,0,s);};
   const auto panel=[&](const v2::Box& b){ground(d,b,v2::PanelGround(v.SeeThrough()),c.border);};
+  // A panel's Hide: a small row button whose top right corner is at `corner`. Returns its width.
+  const auto hideButton=[&](const MenuEntry& e,ImVec2 corner){
+   const std::string label=loc::T("room.v2.hide");
+   const float w=ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,label.c_str()).x+20*s;
+   const v2::Box b{ImVec2(corner.x-w,corner.y),ImVec2(corner.x,corner.y+32*s)};
+   const bool hovered=hit(e,b),focused=e.id==focus;
+   v2::CardGround(d,b,focused,hovered,false);
+   v2::Text(d,ImVec2(b.min.x+10*s,b.min.y+9*s),w-20*s,label,14*s,hovered||focused?c.text:c.muted);
+   if(focused)v2::Focus(d,b.min,b.max);
+   return w;
+  };
   const auto first=[&](const char* prefix){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id.compare(0,std::strlen(prefix),prefix)==0;});};
-  const int part=focus.compare(0,7,"member-")==0||focus=="room-members"?1:focus=="room-chat"?2:0;
+  const bool showMembers=preferences_.roomShowMembers,showChat=preferences_.roomShowChat;
+  const int part=showMembers&&(focus.compare(0,7,"member-")==0||focus=="room-members"||focus=="room-hide-members")?1:showChat&&(focus=="room-chat"||focus=="room-hide-chat")?2:0;
   if(narrow){
    ImGui::SetCursorScreenPos(area.min);
-   const int picked=v2::Tabs({loc::T("room.v2.board"),std::string(loc::T("room.members"))+" "+std::to_string(v.room.members.size()),
-    std::string(loc::T("room.chat"))+(unread?" "+std::to_string(unread):std::string())},part);
+   // A hidden panel has no tab; its heading's row is a button in the bar.
+   std::vector<std::string> labels{loc::T("room.v2.board")};std::vector<int> tabParts{0};
+   if(showMembers){labels.push_back(std::string(loc::T("room.members"))+" "+std::to_string(v.room.members.size()));tabParts.push_back(1);}
+   if(showChat){labels.push_back(std::string(loc::T("room.chat"))+(unread?" "+std::to_string(unread):std::string()));tabParts.push_back(2);}
+   const auto tab=std::find(tabParts.begin(),tabParts.end(),part);
+   const int pickedTab=v2::Tabs(labels,tab==tabParts.end()?0:static_cast<int>(tab-tabParts.begin()));
+   const int picked=pickedTab<0?-1:tabParts[pickedTab];
    const char* const parts[]={v.room.arcade?"cabinet-":"table-","member-","room-chat"};
    const auto to=picked<0||picked==part||nav.Choosing()?rows.end():first(parts[picked]);
    if(to!=rows.end())nav.Focus(to->id,rows);
    area.min.y=ImGui::GetCursorScreenPos().y;
   }
   v2::Box tables=area,members=area,chat=area;
-  if(ultra){members=v2::CutLeft(tables,480*s,24*s);chat=v2::CutRight(tables,520*s,24*s);}
+  if(ultra){if(showMembers)members=v2::CutLeft(tables,480*s,24*s);if(showChat)chat=v2::CutRight(tables,520*s,24*s);}
   else if(!narrow)ArrangeRoom(area,tables,members,chat);
 
   if(!narrow||part==0){
@@ -754,7 +803,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    v2::CutTop(tables,20*s,12*s);
    // The room's actions along the bottom, then the focused row's line over them.
    std::vector<const MenuEntry*> actions;
-   for(const auto* e:toolbar)if(e->id!="room-members"&&e->id!="room-chat")actions.push_back(e);
+   for(const auto* e:toolbar)if((e->id!="room-members"||!showMembers)&&(e->id!="room-chat"||!showChat)&&e->id.compare(0,10,"room-hide-"))actions.push_back(e);
    // As many across as the widest label leaves room for (Training from the room is long).
    float least=140*s;
    for(const auto* e:actions)least=(std::max)(least,HeadingFont()->CalcTextSizeA(17*s,FLT_MAX,0,e->label.c_str()).x+36*s);
@@ -778,23 +827,28 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    // as large as the tables' place allows (the column grip widens it).
    const auto* vp=ImGui::GetMainViewport();
    const float ph=(std::min)(tables.W()*vp->Size.y/vp->Size.x,tables.H()-cardHeight-8*s);
-   if(v.watchedPicture&&!narrow&&ph>=120*s){
+   if(v.watchedPicture&&preferences_.pictureMode==netplay::PictureBig&&!narrow&&ph>=120*s){
     const float pw=ph*vp->Size.x/vp->Size.y;const v2::Box pic=v2::CutTop(tables,ph,8*s);
     const ImVec2 at(pic.min.x+(pic.W()-pw)*.5f,pic.min.y),to(at.x+pw,pic.max.y);
     d->AddImage(v.watchedPicture,at,to);d->AddRect(at,to,c.border,0,0,s);
     const auto watched=std::find_if(v.room.tables.begin(),v.room.tables.end(),[&](const room::Table& t){return std::find(t.spectators.begin(),t.spectators.end(),v.room.localMember)!=t.spectators.end();});
     if(watched!=v.room.tables.end())v2::Chip(d,ImVec2(at.x+8*s,at.y+8*s),std::string(loc::T("room.status.watching"))+" \xC2\xB7 "+loc::Tf("room.v2.table",watched->id+1),c.accent);
     boardPicture_=true;
+    // Hide, over the picture's top right corner, turns the picture off.
+    if(const auto hide=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="room-hide-picture";});hide!=rows.end())
+     hideButton(*hide,ImVec2(to.x-8*s,at.y+8*s));
    }
    // The tables as the room's type lays them out (RoomPanelArcade.cxx).
    ImGui::SetCursorScreenPos(tables.min);DrawArcadeBoard(v,rows,nav,action,ImVec2(tables.W(),tables.H()),v.room.arcade);
   }
 
-  if(!narrow||part==1){
+  if(narrow?part==1:showMembers){
    // Members: the heading opens the Members list; each member under its group, as a player tag.
    panel(members);v2::Box b=v2::Inset(members,12*s,8*s);
    const auto list=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="room-members";});
-   const v2::Box head=v2::CutTop(b,32*s,4*s);
+   v2::Box head=v2::CutTop(b,32*s,4*s);
+   if(const auto hide=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="room-hide-members";});hide!=rows.end())
+    v2::CutRight(head,hideButton(*hide,ImVec2(head.max.x,head.min.y)),6*s);
    if(list!=rows.end()){
     const bool hovered=hit(*list,head);
     v2::RowGround(d,head,list->id==focus,hovered);
@@ -822,10 +876,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    ImGui::EndChild();
   }
 
-  if(!narrow||part==2){
+  if(narrow?part==2:showChat){
    // Chat: the room's last lines over the message box, which opens Chat.
    panel(chat);v2::Box b=v2::Inset(chat,12*s,8*s);
-   const v2::Box head=v2::CutTop(b,32*s,4*s);
+   v2::Box head=v2::CutTop(b,32*s,4*s);
+   if(const auto hide=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="room-hide-chat";});hide!=rows.end())
+    v2::CutRight(head,hideButton(*hide,ImVec2(head.max.x,head.min.y)),6*s);
    v2::SectionHeading(d,ImVec2(head.min.x,head.min.y+9*s),loc::T("room.chat_heading"),c.muted);
    if(unread){const std::string count=loc::Tf("room.v2.unread",unread);v2::Chip(d,ImVec2(head.max.x-v2::ChipWidth(count),head.min.y+6*s),count,c.accent);}
    const v2::Box box=v2::CutBottom(b,44*s,6*s);
@@ -1039,6 +1095,20 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(a.text=="kick"||a.text=="transfer-host"){memberAsk_=a.text;menu_.navigation.Push("room-member");return;}
   RoomAction({MenuAction::Activate,a.text},v,submit);
   return;
+ }
+ // The board's parts: More…'s switches (which keep it open on them), its picture choice, and each panel's Hide.
+ if((a.kind==MenuAction::Chosen&&a.id=="room-more")||a.kind==MenuAction::Activate){
+  const std::string& id=a.kind==MenuAction::Chosen?a.text:a.id;auto& p=preferences_;bool changed=true;
+  if(id=="room-show-members"||id=="room-hide-members")p.roomShowMembers=id=="room-show-members"&&!p.roomShowMembers;
+  else if(id=="room-show-chat"||id=="room-hide-chat")p.roomShowChat=id=="room-show-chat"&&!p.roomShowChat;
+  else if(id=="room-hide-picture")p.pictureMode=netplay::PictureOff;
+  else if(id.size()==9&&id.compare(0,8,"picture-")==0)p.pictureMode=std::stoi(id.substr(8));
+  else if(id=="room-picture"){morePicture_=moreAsk_=true;return;}
+  else changed=false;
+  if(changed){
+   if(id.compare(0,10,"room-show-")==0){moreAsk_=true;moreChosen_=id;}
+   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;return;
+  }
  }
  // More...'s choice is the row it holds.
  if(a.kind==MenuAction::Chosen&&a.id=="room-more"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}

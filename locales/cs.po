@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "Ukládá i zápasy, které sleduješ jako divák. Vypnuto ukládá pouze zápasy, které hraješ."
 
 msgid "settings.watched_picture"
-msgstr "Sledovaná hra v rohu"
+msgstr "Obraz sledované hry"
 
 msgid "settings.watched_picture_detail"
-msgstr "Když otevřete menu Emberu nad hrou, kterou sledujete, zobrazí ji zmenšenou v pravém horním rohu nad plným menu místo ztlumené za ním."
+msgstr "Sledovaná hra nad nabídkou Emberu: Malé v rohu, které lze přetáhnout, Velké místo stolů v místnosti, Žádný – ztlumená za nabídkou."
 
 msgid "replays.link"
 msgstr "Přehrát záznam z odkazu"
@@ -7100,6 +7100,51 @@ msgstr "Další…"
 
 msgid "room.v2.more_detail"
 msgstr "Možnosti stolu, nastavení místnosti a odkazy s pozvánkou."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Obraz"
+
+msgid "room.v2.picture_none"
+msgstr "Žádný"
+
+msgid "room.v2.part_detail"
+msgstr "Zobrazí nebo skryje tuto část místnosti. Ostatní části zaberou její místo."
+
+msgid "room.v2.picture_detail"
+msgstr "Sledovaná hra: malá v rohu, velká místo stolů, nebo žádná."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Malé okno nad nabídkou. Přetáhněte ho do jiného rohu nebo táhněte jeho okraj a změňte velikost."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Velký, místo stolů v místnosti."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Bez obrazu: hra zůstane ztlumená za nabídkou."
+
+msgid "room.v2.hide"
+msgstr "Skrýt"
+
+msgid "room.v2.hide_members"
+msgstr "Skrýt členy"
+
+msgid "room.v2.hide_chat"
+msgstr "Skrýt chat"
+
+msgid "room.v2.hide_picture"
+msgstr "Skrýt obraz"
+
+msgid "room.v2.hide_detail"
+msgstr "Vrátíte ho přes Další… nebo Nastavení > Rozhraní > Rozvržení místnosti."
+
+msgid "settings.room_show_members_detail"
+msgstr "Panel Členové v místnosti. Když je skrytý, sloupec zabere chat, nebo stoly celou šířku."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Panel Chat v místnosti. Když je skrytý, sloupec zaberou členové, nebo stoly celou šířku."
 
 msgid "room.v2.unread"
 msgstr "Nepřečtené: {0}"
