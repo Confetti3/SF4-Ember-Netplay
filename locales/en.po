@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "Also saves matches you watch as a spectator. Off saves only the matches you play."
 
 msgid "settings.watched_picture"
-msgstr "Watched game in a corner"
+msgstr "Watched game picture"
 
 msgid "settings.watched_picture_detail"
-msgstr "With Ember's menu open over a game you watch, shows it small in the top right corner over a solid menu instead of dimmed behind the menu."
+msgstr "The game you watch, over Ember's menu: Small in a corner you can drag, Large in the room board's tables' place, None dimmed behind the menu."
 
 msgid "replays.link"
 msgstr "Play the replay from the link"
@@ -6657,6 +6657,51 @@ msgstr "More…"
 
 msgid "room.v2.more_detail"
 msgstr "Table options, room settings and invitation links."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Picture"
+
+msgid "room.v2.picture_none"
+msgstr "None"
+
+msgid "room.v2.part_detail"
+msgstr "Shows or hides this part of the room board. The other parts take its place."
+
+msgid "room.v2.picture_detail"
+msgstr "The game you watch: small in a corner, large in the tables' place, or none."
+
+msgid "room.v2.picture_small_detail"
+msgstr "A small window over the menu. Drag it to another corner, or drag its edge to resize it."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Large, in the tables' place on the room board."
+
+msgid "room.v2.picture_off_detail"
+msgstr "No picture: the game stays dimmed behind the menu."
+
+msgid "room.v2.hide"
+msgstr "Hide"
+
+msgid "room.v2.hide_members"
+msgstr "Hide members"
+
+msgid "room.v2.hide_chat"
+msgstr "Hide chat"
+
+msgid "room.v2.hide_picture"
+msgstr "Hide picture"
+
+msgid "room.v2.hide_detail"
+msgstr "Bring it back from More… or Settings > Interface > Room layout."
+
+msgid "settings.room_show_members_detail"
+msgstr "The room board's Members panel. Hidden, Chat takes the column, or the tables the full width."
+
+msgid "settings.room_show_chat_detail"
+msgstr "The room board's Chat panel. Hidden, Members takes the column, or the tables the full width."
 
 msgid "room.v2.unread"
 msgstr "{0} unread"

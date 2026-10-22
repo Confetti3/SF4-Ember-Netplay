@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "Enregistre aussi les matchs que vous suivez en spectateur. Désactivé, seuls les matchs que vous jouez sont enregistrés."
 
 msgid "settings.watched_picture"
-msgstr "Partie regardée dans un coin"
+msgstr "Image de la partie regardée"
 
 msgid "settings.watched_picture_detail"
-msgstr "Avec le menu d'Ember ouvert sur une partie que vous regardez, l'affiche en petit en haut à droite sur un menu opaque au lieu d'assombrie derrière."
+msgstr "La partie que vous regardez, au-dessus du menu d'Ember : Petit dans un coin déplaçable, Grand à la place des tables du salon, Aucune assombrie derrière le menu."
 
 msgid "replays.link"
 msgstr "Lire le replay du lien"
@@ -7022,6 +7022,51 @@ msgstr "Plus…"
 
 msgid "room.v2.more_detail"
 msgstr "Options de la table, paramètres du salon et liens d'invitation."
+
+msgid "room.v2.part_state"
+msgstr "{0} : {1}"
+
+msgid "room.v2.picture"
+msgstr "Image"
+
+msgid "room.v2.picture_none"
+msgstr "Aucune"
+
+msgid "room.v2.part_detail"
+msgstr "Affiche ou masque cette partie du salon. Les autres parties prennent sa place."
+
+msgid "room.v2.picture_detail"
+msgstr "La partie que vous regardez : petite dans un coin, grande à la place des tables, ou aucune."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Une petite fenêtre au-dessus du menu. Faites-la glisser vers un autre coin, ou tirez son bord pour la redimensionner."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Grande, à la place des tables dans le salon."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Pas d'image : la partie reste assombrie derrière le menu."
+
+msgid "room.v2.hide"
+msgstr "Masquer"
+
+msgid "room.v2.hide_members"
+msgstr "Masquer les membres"
+
+msgid "room.v2.hide_chat"
+msgstr "Masquer le chat"
+
+msgid "room.v2.hide_picture"
+msgstr "Masquer l'image"
+
+msgid "room.v2.hide_detail"
+msgstr "Réaffichez-le depuis Plus… ou Paramètres > Interface > Disposition du salon."
+
+msgid "settings.room_show_members_detail"
+msgstr "Le panneau Membres du salon. Masqué, le chat prend la colonne, ou les tables toute la largeur."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Le panneau Chat du salon. Masqué, les membres prennent la colonne, ou les tables toute la largeur."
 
 msgid "room.v2.unread"
 msgstr "{0} non lu(s)"

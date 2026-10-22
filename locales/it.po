@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "Salva anche le partite che segui da spettatore. Disattivato salva solo quelle che giochi."
 
 msgid "settings.watched_picture"
-msgstr "Partita seguita in un angolo"
+msgstr "Immagine della partita seguita"
 
 msgid "settings.watched_picture_detail"
-msgstr "Con il menu di Ember aperto su una partita che guardi, la mostra piccola in alto a destra su un menu opaco invece che attenuata dietro."
+msgstr "La partita che segui, sopra il menu di Ember: Piccola in un angolo che puoi trascinare, Grande al posto dei tavoli della stanza, Nessuna oscurata dietro il menu."
 
 msgid "replays.link"
 msgstr "Riproduci il replay del link"
@@ -7022,6 +7022,51 @@ msgstr "Altro…"
 
 msgid "room.v2.more_detail"
 msgstr "Opzioni del tavolo, impostazioni sala e link di invito."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Immagine"
+
+msgid "room.v2.picture_none"
+msgstr "Nessuna"
+
+msgid "room.v2.part_detail"
+msgstr "Mostra o nasconde questa parte della stanza. Le altre parti prendono il suo posto."
+
+msgid "room.v2.picture_detail"
+msgstr "La partita che segui: piccola in un angolo, grande al posto dei tavoli o nessuna."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Una piccola finestra sopra il menu. Trascinala in un altro angolo o trascinane il bordo per ridimensionarla."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Grande, al posto dei tavoli nella stanza."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Nessuna immagine: la partita resta oscurata dietro il menu."
+
+msgid "room.v2.hide"
+msgstr "Nascondi"
+
+msgid "room.v2.hide_members"
+msgstr "Nascondi membri"
+
+msgid "room.v2.hide_chat"
+msgstr "Nascondi chat"
+
+msgid "room.v2.hide_picture"
+msgstr "Nascondi immagine"
+
+msgid "room.v2.hide_detail"
+msgstr "Puoi riaverlo da Altro… o Impostazioni > Interfaccia > Disposizione della stanza."
+
+msgid "settings.room_show_members_detail"
+msgstr "Il pannello Membri della stanza. Se nascosto, la chat prende la colonna, o i tavoli tutta la larghezza."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Il pannello Chat della stanza. Se nascosto, i membri prendono la colonna, o i tavoli tutta la larghezza."
 
 msgid "room.v2.unread"
 msgstr "{0} da leggere"

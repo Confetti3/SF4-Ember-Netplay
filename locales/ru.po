@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "Также сохраняет матчи, которые вы смотрите как зритель. Если выключено, сохраняются только ваши матчи."
 
 msgid "settings.watched_picture"
-msgstr "Просматриваемая игра в углу"
+msgstr "Картинка просматриваемой игры"
 
 msgid "settings.watched_picture_detail"
-msgstr "Когда меню Ember открыто поверх игры, которую вы смотрите, показывает её маленькой в правом верхнем углу поверх непрозрачного меню, а не затемнённой за ним."
+msgstr "Игра, которую вы смотрите, поверх меню Ember: Малый — в углу, его можно перетащить; Большой — на месте столов в комнате; Нет — затемнена за меню."
 
 msgid "replays.link"
 msgstr "Воспроизвести повтор по ссылке"
@@ -7023,6 +7023,51 @@ msgstr "Ещё…"
 
 msgid "room.v2.more_detail"
 msgstr "Настройки ячейки, настройки лобби и ссылки-приглашения."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Картинка"
+
+msgid "room.v2.picture_none"
+msgstr "Нет"
+
+msgid "room.v2.part_detail"
+msgstr "Показывает или скрывает эту часть комнаты. Остальные части занимают её место."
+
+msgid "room.v2.picture_detail"
+msgstr "Игра, которую вы смотрите: маленькая в углу, большая на месте столов или никакой."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Маленькое окно поверх меню. Перетащите его в другой угол или потяните за край, чтобы изменить размер."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Большая, на месте столов в комнате."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Без картинки: игра остаётся затемнённой за меню."
+
+msgid "room.v2.hide"
+msgstr "Скрыть"
+
+msgid "room.v2.hide_members"
+msgstr "Скрыть участников"
+
+msgid "room.v2.hide_chat"
+msgstr "Скрыть чат"
+
+msgid "room.v2.hide_picture"
+msgstr "Скрыть картинку"
+
+msgid "room.v2.hide_detail"
+msgstr "Вернуть можно через «Ещё…» или Настройки > Интерфейс > Раскладка комнаты."
+
+msgid "settings.room_show_members_detail"
+msgstr "Панель участников комнаты. Если она скрыта, столбец занимает чат, а если скрыты обе — столы на всю ширину."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Панель чата комнаты. Если она скрыта, столбец занимают участники, а если скрыты обе — столы на всю ширину."
 
 msgid "room.v2.unread"
 msgstr "Непрочитано: {0}"

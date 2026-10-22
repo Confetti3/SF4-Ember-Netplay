@@ -195,6 +195,10 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
   if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
 }
+MenuEntry ApplicationShell::PictureModeRow(const ShellView& v) const {
+ const char* const names[]={"size.small","size.large","room.v2.picture_none"};
+ return Value("watched-picture",loc::T("settings.watched_picture"),loc::T(names[preferences_.pictureMode]),loc::T("settings.watched_picture_detail"),v.canEditPreferences);
+}
 MenuEntry ApplicationShell::LanguageRow() const {
  const auto value=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
   std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
@@ -345,6 +349,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    rows.push_back(Value("arrange-column",loc::T("settings.room_column"),std::to_string(column)+"%",loc::T("settings.room_column_detail"),v.canEditPreferences));
    rows.push_back(Value("arrange-split",loc::T("settings.room_split"),std::to_string(split)+" / "+std::to_string(100-split),loc::T("settings.room_split_detail"),v.canEditPreferences));
    rows.push_back(Value("arrange-preset",loc::T("settings.room_preset"),loc::T(RoomPresetKeys[RoomPreset(column)]),loc::T("settings.room_preset_detail"),v.canEditPreferences));
+   // The board's parts: hiding one gives its place to the other, or both to the tables.
+   rows.push_back(Value("arrange-members",loc::T("room.members"),loc::T(preferences_.roomShowMembers?"common.on":"common.off"),loc::T("settings.room_show_members_detail"),v.canEditPreferences));
+   rows.push_back(Value("arrange-chat",loc::T("room.chat"),loc::T(preferences_.roomShowChat?"common.on":"common.off"),loc::T("settings.room_show_chat_detail"),v.canEditPreferences));
+   rows.push_back(PictureModeRow(v));rows.back().id="arrange-picture";
    rows.push_back(Row("arrange-reset",loc::T("settings.room_layout_reset"),loc::T("settings.room_layout_reset_detail"),v.canEditPreferences));
   }
  }else if(screen=="training-replays"){
@@ -353,11 +361,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
     loc::T(match_frame_meter::Allowed(v.room.serverOwned)?"settings.match_frame_meter_detail":"settings.match_frame_meter_private"),v.canEditPreferences),
    Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
    Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences),
-   Value("watched-picture",loc::T("settings.watched_picture"),preferences_.watchedPicture?loc::T("common.on"):loc::T("common.off"),loc::T("settings.watched_picture_detail"),v.canEditPreferences)};
+   PictureModeRow(v)};
   // Where the picture sits and how big, in the V2 look (which also drags it there).
   if(v2::On()){
    const int corners[]={4,3,2,1};const char* sizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
-   const bool shown=v.canEditPreferences&&preferences_.watchedPicture;
+   const bool shown=v.canEditPreferences&&preferences_.pictureMode!=netplay::PictureOff;
    rows.push_back(Value("picture-corner",loc::T("settings.picture_corner"),MatchStripAnchorName(corners[preferences_.pictureSpot%4]),loc::T("settings.picture_corner_detail"),shown));
    rows.push_back(Value("picture-size",loc::T("settings.picture_size"),sizes[preferences_.pictureSpot/4],loc::T("settings.picture_size_detail"),shown));
   }
@@ -605,7 +613,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="problem-report"){
   if(Service(platform::ServiceAction::PrepareProblemReport,v,submit)){reportPanel_.Open(v.services.reporting.preparation + 1);menu_.navigation.Push("report");}
  }
- else if(a.id=="arrange-reset"){preferences_.roomColumn=netplay::DefaultRoomColumn;preferences_.roomSplit=netplay::DefaultRoomSplit;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ else if(a.id=="arrange-reset"){preferences_.roomColumn=netplay::DefaultRoomColumn;preferences_.roomSplit=netplay::DefaultRoomSplit;preferences_.roomShowMembers=preferences_.roomShowChat=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.
   ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
@@ -651,7 +659,9 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(a.id=="tv")preferences_.tvMode=a.delta>0;
   else if(a.id=="picture-corner")preferences_.pictureSpot=preferences_.pictureSpot/4*4+(preferences_.pictureSpot%4+4+a.delta)%4;
   else if(a.id=="picture-size")preferences_.pictureSpot=preferences_.pictureSpot%4+4*(std::max)(0,(std::min)(2,preferences_.pictureSpot/4+a.delta));
-  else if(a.id=="watched-picture")preferences_.watchedPicture=a.delta>0;
+  else if(a.id=="watched-picture"||a.id=="arrange-picture")preferences_.pictureMode=(std::max)(netplay::PictureSmall,(std::min)(netplay::PictureOff,preferences_.pictureMode+a.delta));
+  else if(a.id=="arrange-members")preferences_.roomShowMembers=a.delta>0;
+  else if(a.id=="arrange-chat")preferences_.roomShowChat=a.delta>0;
   else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
   else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
   else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
@@ -878,10 +888,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
- // The V2 room board shows it in its tables' place instead (last frame's word, boardPicture_);
+ // The V2 room board shows a Big one in its tables' place instead (this frame's word, boardPicture_);
  // a BluMint room docks it on its stage (pictureDock_).
  if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot,pictureDock_?&*pictureDock_:nullptr)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
- boardPicture_=false;pictureDock_.reset();
+ pictureOnBoard_=boardPicture_;boardPicture_=false;pictureDock_.reset();
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;

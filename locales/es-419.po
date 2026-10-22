@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "También guarda las partidas que ves como espectador. Desactivado guarda solo las que juegas."
 
 msgid "settings.watched_picture"
-msgstr "Partida vista en una esquina"
+msgstr "Imagen de la partida vista"
 
 msgid "settings.watched_picture_detail"
-msgstr "Con el menú de Ember abierto sobre una partida que ves, la muestra pequeña en la esquina superior derecha sobre un menú opaco en vez de atenuada detrás."
+msgstr "La partida que ves, sobre el menú de Ember: Pequeño en una esquina que puedes arrastrar, Grande en el lugar de las mesas de la sala, Ninguna atenuada detrás del menú."
 
 msgid "replays.link"
 msgstr "Reproducir la repetición del enlace"
@@ -6542,6 +6542,51 @@ msgstr "Más…"
 
 msgid "room.v2.more_detail"
 msgstr "Opciones de la mesa, ajustes de la sala y enlaces de invitación."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Imagen"
+
+msgid "room.v2.picture_none"
+msgstr "Ninguna"
+
+msgid "room.v2.part_detail"
+msgstr "Muestra u oculta esta parte de la sala. Las demás partes ocupan su lugar."
+
+msgid "room.v2.picture_detail"
+msgstr "La partida que ves: pequeña en una esquina, grande en el lugar de las mesas o ninguna."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Una ventana pequeña sobre el menú. Arrástrala a otra esquina o arrastra su borde para cambiar su tamaño."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Grande, en el lugar de las mesas de la sala."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Sin imagen: la partida sigue atenuada detrás del menú."
+
+msgid "room.v2.hide"
+msgstr "Ocultar"
+
+msgid "room.v2.hide_members"
+msgstr "Ocultar miembros"
+
+msgid "room.v2.hide_chat"
+msgstr "Ocultar chat"
+
+msgid "room.v2.hide_picture"
+msgstr "Ocultar imagen"
+
+msgid "room.v2.hide_detail"
+msgstr "Vuelve a mostrarlo desde Más… o Configuración > Interfaz > Distribución de la sala."
+
+msgid "settings.room_show_members_detail"
+msgstr "El panel Miembros de la sala. Si se oculta, el chat ocupa la columna, o las mesas todo el ancho."
+
+msgid "settings.room_show_chat_detail"
+msgstr "El panel Chat de la sala. Si se oculta, los miembros ocupan la columna, o las mesas todo el ancho."
 
 msgid "room.v2.unread"
 msgstr "{0} sin leer"

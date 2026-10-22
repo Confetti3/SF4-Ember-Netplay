@@ -164,7 +164,7 @@ struct ShellView {
     // watching leaves it. Empty when nothing is watched.
     netplay::WatchedGame watchedGame;
     // That game's picture, for the menu's top right corner over an opaque
-    // menu (PlayerPreferences::watchedPicture); null when it is not wanted or
+    // menu (PlayerPreferences::pictureMode); null when it is not wanted or
     // could not be taken.
     ImTextureID watchedPicture{};
     // Ember's menu shows the watched game through itself, dimmed, instead.
@@ -463,6 +463,8 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     void OpenCreate();
     // Settings > Interface > Language, also the welcome's.
     MenuEntry LanguageRow() const;
+    // The watched game's picture: Small, Big or Off (PlayerPreferences::pictureMode).
+    MenuEntry PictureModeRow(const ShellView& v) const;
     // The first-run welcome (ApplicationShell__FirstRun.cxx): speech, language,
     // controller and look, a step at a time, each a few rows, Next and Skip.
     std::vector<MenuEntry> WelcomeRows(const ShellView& view,std::string& title);
@@ -506,8 +508,10 @@ void DrawBluMintBoard(const ShellView& view,const std::vector<MenuEntry>& rows,M
 void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     // The V2 room board's tables and its members-over-chat column in `area`, as the
-    // player's layout grips set them (PlayerPreferences::roomColumn). RoomGrips draws
-    // the grips on their edges, after the panes, and a drag sets them again.
+    // player's layout grips set them (PlayerPreferences::roomColumn); a hidden panel's
+    // box is empty and the other takes the column, or the tables the width when both
+    // are hidden. RoomGrips draws the grips on the edges shown, after the panes, and a
+    // drag sets them again.
     void ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat) const;
     void RoomGrips(v2::Box area);
     // Settings' picture of that layout, with the same grips.
@@ -578,6 +582,8 @@ std::string memberAsk_;
     bool roomUpdateVisible_ = false;
     // The V2 room board drew the watched game's picture, cinema style, so the corner window stays away.
     bool boardPicture_ = false;
+    // The same, kept to the next frame, for the room's rows (its Hide row).
+    bool pictureOnBoard_ = false;
     bool boardDrawn_ = false;
     // Where the BluMint board shows the watched game's picture, from the
     // frame before (DrawWatchedPicture's dock).
@@ -627,6 +633,10 @@ std::string memberAsk_;
     // B on a seat that would lose a score or hand the seat over asks first: the
     // table whose card carries the question, and whether it is open yet.
     int leaveAsk_=-1;
+    // More… asked again by the room's rows: after a switch it holds (moreChosen_
+    // is the option it opens on), or as the picture's Small, Big and Off (morePicture_).
+    bool moreAsk_=false,morePicture_=false;
+    std::string moreChosen_;
     bool leaveAsked_=false;
     // When each table's live game was first seen, for the host's stuck-game row.
     struct LiveGame { std::uint64_t generation=0; double since=-1; };

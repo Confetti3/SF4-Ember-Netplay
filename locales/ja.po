@@ -809,10 +809,10 @@ msgid "replays.save_watched_detail"
 msgstr "観戦した対戦も保存します。オフでは自分がプレイした対戦だけを保存します。"
 
 msgid "settings.watched_picture"
-msgstr "観戦中の試合を隅に表示"
+msgstr "観戦中の試合の映像"
 
 msgid "settings.watched_picture_detail"
-msgstr "観戦中の試合の上でEmberのメニューを開くと、メニューの後ろに暗く表示する代わりに、不透明なメニューの右上に小さく表示します。"
+msgstr "観戦中の試合を Ember のメニューの上に表示：小はドラッグできる隅に、大はルーム画面のテーブルの位置に、なしはメニューの後ろで暗く表示。"
 
 msgid "replays.link"
 msgstr "リンクのリプレイを再生"
@@ -7023,6 +7023,51 @@ msgstr "その他…"
 
 msgid "room.v2.more_detail"
 msgstr "対戦席の設定、ルーム設定、招待リンク。"
+
+msgid "room.v2.part_state"
+msgstr "{0}：{1}"
+
+msgid "room.v2.picture"
+msgstr "映像"
+
+msgid "room.v2.picture_none"
+msgstr "なし"
+
+msgid "room.v2.part_detail"
+msgstr "ルーム画面のこの部分を表示または非表示にします。ほかの部分がその場所を使います。"
+
+msgid "room.v2.picture_detail"
+msgstr "観戦中の試合：隅に小さく、テーブルの位置に大きく、または表示なし。"
+
+msgid "room.v2.picture_small_detail"
+msgstr "メニューの上の小さなウィンドウです。ドラッグで別の隅へ動かし、端をドラッグでサイズを変えられます。"
+
+msgid "room.v2.picture_big_detail"
+msgstr "大きく、ルーム画面のテーブルの位置に表示します。"
+
+msgid "room.v2.picture_off_detail"
+msgstr "映像なし：試合はメニューの後ろで暗く表示されたままです。"
+
+msgid "room.v2.hide"
+msgstr "隠す"
+
+msgid "room.v2.hide_members"
+msgstr "メンバーを隠す"
+
+msgid "room.v2.hide_chat"
+msgstr "チャットを隠す"
+
+msgid "room.v2.hide_picture"
+msgstr "映像を隠す"
+
+msgid "room.v2.hide_detail"
+msgstr "「その他…」または 設定 > インターフェース > ルームのレイアウト から戻せます。"
+
+msgid "settings.room_show_members_detail"
+msgstr "ルーム画面のメンバー欄です。隠すとチャットが列を使い、両方隠すとテーブルが全幅を使います。"
+
+msgid "settings.room_show_chat_detail"
+msgstr "ルーム画面のチャット欄です。隠すとメンバーが列を使い、両方隠すとテーブルが全幅を使います。"
 
 msgid "room.v2.unread"
 msgstr "未読 {0} 件"

@@ -328,7 +328,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
     view.watchedGame = snapshot.watchedGame;
     // Taken before Ember draws anything this frame, so it holds the game's picture alone.
-    if (view.watchedGame.Active() && snapshot.preferences.watchedPicture) {
+    if (view.watchedGame.Active() && snapshot.preferences.pictureMode != sf4e::netplay::PictureOff) {
         const auto& size = ImGui::GetMainViewport()->Size;
         // The texture is made once, at the largest size the picture can be shown, so any size stays sharp.
         const float share = sf4e::ui::WatchedPictureTaken;

@@ -331,7 +331,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
     mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
-    mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.pictureSpot); mix(runtime->preferences.roomColumn); mix(runtime->preferences.roomSplit); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume);
+    mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.pictureSpot); mix(runtime->preferences.pictureMode); mix(runtime->preferences.roomColumn); mix(runtime->preferences.roomSplit); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume);
     mixString(runtime->preferences.wornTitle); mixString(runtime->preferences.wornIcon);
     { const auto& speech = runtime->preferences.speech; mix(speech.enabled); mix(speech.rate); mix(speech.volume); mix(speech.details); mix(speech.hints); mix(speech.position); mix(speech.chime); mix(speech.chimeVolume);
       mix(speech.introHeard); mix(speech.tick); mix(speech.describeUsed); mix(speech.remind); }
