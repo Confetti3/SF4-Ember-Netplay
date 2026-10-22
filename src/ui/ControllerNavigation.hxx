@@ -10,7 +10,8 @@ namespace sf4e { namespace ui {
 struct ControllerSample {
     // Every button but Menu carries MenuInput's value, because the overlay
     // hands a sample's buttons to the menu unchanged; the asserts below hold
-    // the two enums together. Menu (Start) opens Ember and never reaches a menu.
+    // the two enums together. Menu (Start) opens Ember; once it is shown it
+    // reaches the menu as MenuInput::Start, which only the on-screen keyboard reads.
     enum Button : std::uint32_t { Up = 1, Down = 2, Left = 4, Right = 8, Confirm = 16, Back = 32, Menu = 64,
         Fighter = 128, Options = 256, Chat = 512, PrevTab = 2048, NextTab = 4096 };
     int deviceType = -1, deviceIndex = -1;
@@ -24,7 +25,7 @@ static_assert(ControllerSample::Up == MenuInput::Up && ControllerSample::Down ==
     ControllerSample::Confirm == MenuInput::Select && ControllerSample::Back == MenuInput::Back &&
     ControllerSample::Fighter == MenuInput::Fighter && ControllerSample::Options == MenuInput::Options &&
     ControllerSample::Chat == MenuInput::Chat && ControllerSample::PrevTab == MenuInput::PrevTab &&
-    ControllerSample::NextTab == MenuInput::NextTab, "ControllerSample and MenuInput must number their buttons alike");
+    ControllerSample::NextTab == MenuInput::NextTab && ControllerSample::Menu == MenuInput::Start, "ControllerSample and MenuInput must number their buttons alike");
 static_assert((ControllerSample::Menu & (MenuInput::Up | MenuInput::Down | MenuInput::Left | MenuInput::Right |
     MenuInput::Select | MenuInput::Back | MenuInput::Fighter | MenuInput::Options | MenuInput::Chat)) == 0,
     "Start must not collide with a menu button");

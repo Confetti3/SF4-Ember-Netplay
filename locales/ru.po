@@ -6984,3 +6984,99 @@ msgstr "Сыгран"
 
 msgid "replays.fact.length"
 msgstr "Длительность"
+
+msgid "keyboard.recent"
+msgstr "Недавние:"
+
+msgid "keyboard.type"
+msgstr "Ввод"
+
+msgid "keyboard.delete"
+msgstr "Удалить"
+
+msgid "keyboard.space"
+msgstr "Пробел"
+
+msgid "keyboard.capitals"
+msgstr "Заглавные"
+
+msgid "keyboard.done"
+msgstr "Готово"
+
+msgid "welcome.title"
+msgstr "Добро пожаловать"
+
+msgid "welcome.step"
+msgstr "ДОБРО ПОЖАЛОВАТЬ · ШАГ {0} ИЗ {1}"
+
+msgid "welcome.speech_title"
+msgstr "Включить озвучку в Ember?"
+
+msgid "welcome.speech_text"
+msgstr "Ember может зачитывать каждое меню вслух. Это можно изменить в любой момент в настройках."
+
+msgid "welcome.speech_on"
+msgstr "Да, читать меню вслух"
+
+msgid "welcome.speech_on_detail"
+msgstr "Использует экранный диктор, если он запущен, иначе голос Windows."
+
+msgid "welcome.speech_off"
+msgstr "Без озвучки"
+
+msgid "welcome.speech_off_detail"
+msgstr "Её можно включить позже."
+
+msgid "welcome.language_title"
+msgstr "Какой язык использовать в Ember?"
+
+msgid "welcome.language_text"
+msgstr "Меню Ember будут на этом языке. Игра сохранит свой."
+
+msgid "welcome.controller_title"
+msgstr "Каким контроллером вы будете играть?"
+
+msgid "welcome.controller_text"
+msgstr "Ember везде показывает кнопки этого контроллера."
+
+msgid "welcome.controller_ready"
+msgstr "Готов: {0}."
+
+msgid "welcome.look_title"
+msgstr "Какой вид вам нужен?"
+
+msgid "welcome.look_text"
+msgstr "Переключить можно в любой момент в настройках: меняется только вид экранов."
+
+msgid "welcome.look_classic"
+msgstr "Классический"
+
+msgid "welcome.look_classic_detail"
+msgstr "Меню Ember, как всегда."
+
+msgid "welcome.look_v2"
+msgstr "V2 (предпросмотр)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Новый вид Ember, ещё в разработке."
+
+msgid "welcome.chosen"
+msgstr "Выбрано"
+
+msgid "welcome.next"
+msgstr "Далее"
+
+msgid "welcome.start"
+msgstr "Начать игру"
+
+msgid "welcome.next_detail"
+msgstr "К следующему вопросу."
+
+msgid "welcome.skip"
+msgstr "Пропустить"
+
+msgid "welcome.skip_detail"
+msgstr "Сразу на главный экран. Всё это есть и в настройках."
+
+msgid "welcome.previous"
+msgstr "Предыдущий шаг"

@@ -71,6 +71,10 @@ struct PlayerPreferences {
     bool lookV2 = false;
     // TV mode (Settings > Interface, V2 look): a quarter larger, inside a 5% safe area.
     bool tvMode = false;
+    // The first-run welcome (speech, language, controller, look) was shown or
+    // skipped. A profile saved before it existed counts as welcomed; a fresh
+    // install is set false when the runtime loads it (StartHelper).
+    bool welcomed = true;
     // Called out of Training to their table, the player is readied at once
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;

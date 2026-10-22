@@ -13,11 +13,12 @@ struct MenuInput {
     // Fighter, Options and Chat are the Xbox X, Y and View shortcuts and the
     // F, T and C keys. The overlay passes a ControllerSample's buttons
     // straight in, so both enums number them alike (asserted in
-    // ControllerNavigation.hxx); 64 is left for the sample's Menu button.
+    // ControllerNavigation.hxx). Start is the sample's Menu button: it opens
+    // Ember, and while Ember is shown only the on-screen keyboard reads it (Done).
     // Leave is the Delete key: it leaves your seat from your own table card,
     // which a pad does with B. PrevTab and NextTab are LB and RB (Page Up and Down):
     // the V2 tabs over a screen (GameMenu::tabs).
-    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512, Leave=1024, PrevTab=2048, NextTab=4096 };
+    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Start=64, Fighter=128, Options=256, Chat=512, Leave=1024, PrevTab=2048, NextTab=4096 };
     unsigned held = 0;
     double time = 0;
     bool acceptText = false;

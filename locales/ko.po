@@ -6984,3 +6984,99 @@ msgstr "플레이"
 
 msgid "replays.fact.length"
 msgstr "길이"
+
+msgid "keyboard.recent"
+msgstr "최근:"
+
+msgid "keyboard.type"
+msgstr "입력"
+
+msgid "keyboard.delete"
+msgstr "삭제"
+
+msgid "keyboard.space"
+msgstr "스페이스"
+
+msgid "keyboard.capitals"
+msgstr "대문자"
+
+msgid "keyboard.done"
+msgstr "완료"
+
+msgid "welcome.title"
+msgstr "환영합니다"
+
+msgid "welcome.step"
+msgstr "환영합니다 · {1}단계 중 {0}단계"
+
+msgid "welcome.speech_title"
+msgstr "Ember가 소리 내어 읽어 줄까요?"
+
+msgid "welcome.speech_text"
+msgstr "Ember는 모든 메뉴를 소리 내어 읽을 수 있습니다. 설정에서 언제든지 바꿀 수 있습니다."
+
+msgid "welcome.speech_on"
+msgstr "예, 메뉴를 읽어 주세요"
+
+msgid "welcome.speech_on_detail"
+msgstr "화면 낭독기가 실행 중이면 그것을, 아니면 Windows 음성을 사용합니다."
+
+msgid "welcome.speech_off"
+msgstr "음성 없음"
+
+msgid "welcome.speech_off_detail"
+msgstr "나중에 켤 수 있습니다."
+
+msgid "welcome.language_title"
+msgstr "Ember에서 어떤 언어를 쓸까요?"
+
+msgid "welcome.language_text"
+msgstr "Ember 메뉴가 이 언어로 표시됩니다. 게임은 자체 언어를 유지합니다."
+
+msgid "welcome.controller_title"
+msgstr "어떤 컨트롤러로 플레이하나요?"
+
+msgid "welcome.controller_text"
+msgstr "Ember는 어디서나 그 컨트롤러의 버튼 그림을 보여 줍니다."
+
+msgid "welcome.controller_ready"
+msgstr "준비됨: {0}."
+
+msgid "welcome.look_title"
+msgstr "어떤 모양을 원하나요?"
+
+msgid "welcome.look_text"
+msgstr "설정에서 언제든지 바꿀 수 있습니다. 화면 모양만 바뀝니다."
+
+msgid "welcome.look_classic"
+msgstr "클래식"
+
+msgid "welcome.look_classic_detail"
+msgstr "늘 그랬던 Ember 메뉴."
+
+msgid "welcome.look_v2"
+msgstr "V2 (미리 보기)"
+
+msgid "welcome.look_v2_detail"
+msgstr "아직 만들고 있는 Ember의 새 모양."
+
+msgid "welcome.chosen"
+msgstr "선택됨"
+
+msgid "welcome.next"
+msgstr "다음"
+
+msgid "welcome.start"
+msgstr "플레이 시작"
+
+msgid "welcome.next_detail"
+msgstr "다음 질문으로 넘어갑니다."
+
+msgid "welcome.skip"
+msgstr "건너뛰기"
+
+msgid "welcome.skip_detail"
+msgstr "바로 홈으로 갑니다. 여기 있는 모든 것은 설정에도 있습니다."
+
+msgid "welcome.previous"
+msgstr "이전 단계"

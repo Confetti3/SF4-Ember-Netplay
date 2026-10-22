@@ -6983,3 +6983,99 @@ msgstr "Gespielt"
 
 msgid "replays.fact.length"
 msgstr "Dauer"
+
+msgid "keyboard.recent"
+msgstr "Zuletzt:"
+
+msgid "keyboard.type"
+msgstr "Tippen"
+
+msgid "keyboard.delete"
+msgstr "Löschen"
+
+msgid "keyboard.space"
+msgstr "Leerzeichen"
+
+msgid "keyboard.capitals"
+msgstr "Großbuchstaben"
+
+msgid "keyboard.done"
+msgstr "Fertig"
+
+msgid "welcome.title"
+msgstr "Willkommen"
+
+msgid "welcome.step"
+msgstr "WILLKOMMEN · SCHRITT {0} VON {1}"
+
+msgid "welcome.speech_title"
+msgstr "Soll Ember vorlesen?"
+
+msgid "welcome.speech_text"
+msgstr "Ember kann jedes Menü vorlesen. Du kannst das jederzeit in den Einstellungen ändern."
+
+msgid "welcome.speech_on"
+msgstr "Ja, Menüs vorlesen"
+
+msgid "welcome.speech_on_detail"
+msgstr "Nutzt deinen Bildschirmleser, falls einer läuft, sonst die Windows-Sprachausgabe."
+
+msgid "welcome.speech_off"
+msgstr "Keine Sprachausgabe"
+
+msgid "welcome.speech_off_detail"
+msgstr "Du kannst sie später einschalten."
+
+msgid "welcome.language_title"
+msgstr "Welche Sprache soll Ember verwenden?"
+
+msgid "welcome.language_text"
+msgstr "Embers Menüs verwenden diese Sprache. Das Spiel behält seine eigene."
+
+msgid "welcome.controller_title"
+msgstr "Mit welchem Controller spielst du?"
+
+msgid "welcome.controller_text"
+msgstr "Ember zeigt überall die Tastenbilder dieses Controllers."
+
+msgid "welcome.controller_ready"
+msgstr "Bereit: {0}."
+
+msgid "welcome.look_title"
+msgstr "Welches Aussehen möchtest du?"
+
+msgid "welcome.look_text"
+msgstr "Du kannst jederzeit in den Einstellungen wechseln: Nur das Aussehen der Bildschirme ändert sich."
+
+msgid "welcome.look_classic"
+msgstr "Klassisch"
+
+msgid "welcome.look_classic_detail"
+msgstr "Embers Menüs, wie sie immer waren."
+
+msgid "welcome.look_v2"
+msgstr "V2 (Vorschau)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Embers neues Aussehen, noch im Aufbau."
+
+msgid "welcome.chosen"
+msgstr "Gewählt"
+
+msgid "welcome.next"
+msgstr "Weiter"
+
+msgid "welcome.start"
+msgstr "Los geht's"
+
+msgid "welcome.next_detail"
+msgstr "Weiter zur nächsten Frage."
+
+msgid "welcome.skip"
+msgstr "Überspringen"
+
+msgid "welcome.skip_detail"
+msgstr "Direkt zum Start. Alles hier gibt es auch in den Einstellungen."
+
+msgid "welcome.previous"
+msgstr "Vorheriger Schritt"

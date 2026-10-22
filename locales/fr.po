@@ -6983,3 +6983,99 @@ msgstr "Joué"
 
 msgid "replays.fact.length"
 msgstr "Durée"
+
+msgid "keyboard.recent"
+msgstr "Récents :"
+
+msgid "keyboard.type"
+msgstr "Taper"
+
+msgid "keyboard.delete"
+msgstr "Effacer"
+
+msgid "keyboard.space"
+msgstr "Espace"
+
+msgid "keyboard.capitals"
+msgstr "Majuscules"
+
+msgid "keyboard.done"
+msgstr "Terminé"
+
+msgid "welcome.title"
+msgstr "Bienvenue"
+
+msgid "welcome.step"
+msgstr "BIENVENUE · ÉTAPE {0} SUR {1}"
+
+msgid "welcome.speech_title"
+msgstr "Voulez-vous qu'Ember lise à voix haute ?"
+
+msgid "welcome.speech_text"
+msgstr "Ember peut lire chaque menu à voix haute. Vous pouvez changer cela à tout moment dans Paramètres."
+
+msgid "welcome.speech_on"
+msgstr "Oui, lire les menus"
+
+msgid "welcome.speech_on_detail"
+msgstr "Utilise votre lecteur d'écran s'il est lancé, sinon la voix de Windows."
+
+msgid "welcome.speech_off"
+msgstr "Pas de voix"
+
+msgid "welcome.speech_off_detail"
+msgstr "Vous pourrez l'activer plus tard."
+
+msgid "welcome.language_title"
+msgstr "Quelle langue Ember doit-il utiliser ?"
+
+msgid "welcome.language_text"
+msgstr "Les menus d'Ember utilisent cette langue. Le jeu garde la sienne."
+
+msgid "welcome.controller_title"
+msgstr "Avec quelle manette allez-vous jouer ?"
+
+msgid "welcome.controller_text"
+msgstr "Ember affiche partout les images des boutons de cette manette."
+
+msgid "welcome.controller_ready"
+msgstr "Prête : {0}."
+
+msgid "welcome.look_title"
+msgstr "Quel style voulez-vous ?"
+
+msgid "welcome.look_text"
+msgstr "Vous pouvez changer à tout moment dans Paramètres : seul l'aspect des écrans change."
+
+msgid "welcome.look_classic"
+msgstr "Classique"
+
+msgid "welcome.look_classic_detail"
+msgstr "Les menus d'Ember tels qu'ils ont toujours été."
+
+msgid "welcome.look_v2"
+msgstr "V2 (aperçu)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Le nouveau style d'Ember, encore en construction."
+
+msgid "welcome.chosen"
+msgstr "Choisi"
+
+msgid "welcome.next"
+msgstr "Suivant"
+
+msgid "welcome.start"
+msgstr "Commencer à jouer"
+
+msgid "welcome.next_detail"
+msgstr "Passer à la question suivante."
+
+msgid "welcome.skip"
+msgstr "Passer"
+
+msgid "welcome.skip_detail"
+msgstr "Aller directement à l'accueil. Tout ceci est aussi dans Paramètres."
+
+msgid "welcome.previous"
+msgstr "Étape précédente"

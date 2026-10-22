@@ -289,6 +289,8 @@ void StartHelper() {
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
+    // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
+    if (!saved.contains("inputDelay")) runtime->preferences.welcomed = false;
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     {
         // Read once and cleared, so the helper never inherits the code.

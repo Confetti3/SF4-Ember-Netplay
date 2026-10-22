@@ -6983,3 +6983,99 @@ msgstr "Hráno"
 
 msgid "replays.fact.length"
 msgstr "Délka"
+
+msgid "keyboard.recent"
+msgstr "Nedávné:"
+
+msgid "keyboard.type"
+msgstr "Psát"
+
+msgid "keyboard.delete"
+msgstr "Smazat"
+
+msgid "keyboard.space"
+msgstr "Mezera"
+
+msgid "keyboard.capitals"
+msgstr "Velká písmena"
+
+msgid "keyboard.done"
+msgstr "Hotovo"
+
+msgid "welcome.title"
+msgstr "Vítejte"
+
+msgid "welcome.step"
+msgstr "VÍTEJTE · KROK {0} Z {1}"
+
+msgid "welcome.speech_title"
+msgstr "Má Ember číst nahlas?"
+
+msgid "welcome.speech_text"
+msgstr "Ember umí číst nahlas každou nabídku. Kdykoli to můžete změnit v Nastavení."
+
+msgid "welcome.speech_on"
+msgstr "Ano, číst nabídky"
+
+msgid "welcome.speech_on_detail"
+msgstr "Použije čtečku obrazovky, pokud běží, jinak hlas Windows."
+
+msgid "welcome.speech_off"
+msgstr "Bez hlasu"
+
+msgid "welcome.speech_off_detail"
+msgstr "Můžete ho zapnout později."
+
+msgid "welcome.language_title"
+msgstr "Jaký jazyk má Ember používat?"
+
+msgid "welcome.language_text"
+msgstr "Nabídky Emberu používají tento jazyk. Hra si ponechá svůj."
+
+msgid "welcome.controller_title"
+msgstr "Jakým ovladačem budete hrát?"
+
+msgid "welcome.controller_text"
+msgstr "Ember všude ukazuje obrázky tlačítek tohoto ovladače."
+
+msgid "welcome.controller_ready"
+msgstr "Připraveno: {0}."
+
+msgid "welcome.look_title"
+msgstr "Jaký vzhled chcete?"
+
+msgid "welcome.look_text"
+msgstr "Kdykoli to můžete přepnout v Nastavení: mění se jen vzhled obrazovek."
+
+msgid "welcome.look_classic"
+msgstr "Klasický"
+
+msgid "welcome.look_classic_detail"
+msgstr "Nabídky Emberu tak, jak byly vždy."
+
+msgid "welcome.look_v2"
+msgstr "V2 (náhled)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Nový vzhled Emberu, stále ve vývoji."
+
+msgid "welcome.chosen"
+msgstr "Zvoleno"
+
+msgid "welcome.next"
+msgstr "Další"
+
+msgid "welcome.start"
+msgstr "Začít hrát"
+
+msgid "welcome.next_detail"
+msgstr "Na další otázku."
+
+msgid "welcome.skip"
+msgstr "Přeskočit"
+
+msgid "welcome.skip_detail"
+msgstr "Rovnou na Domů. Vše zde je také v Nastavení."
+
+msgid "welcome.previous"
+msgstr "Předchozí krok"
