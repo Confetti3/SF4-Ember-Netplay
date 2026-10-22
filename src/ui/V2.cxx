@@ -504,13 +504,17 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     const bool status = !tag.status.empty() && (twoLines || nameWidth + titleWidth + statusWidth <= nameRoom);
     const bool title = !tag.title.empty() && (twoLines || nameWidth + titleWidth + (status ? statusWidth : 0) <= nameRoom);
     const float middle = at.y + (line - nameSize) * .5f;
-    float x = at.x + DrawNameMarks(draw, at.x, middle, nameSize, tag.marks).width;
     const float nameMax = nameRoom - (!twoLines && title ? titleWidth : 0) - (!twoLines && status ? statusWidth : 0);
     NoteUserText(tag.name);
     const std::string name = Fit(tag.name, (std::max)(0.f, nameMax), nameSize, nameFont);
+    // Mirrored, the marks, name, title and status end at the right edge and the ping starts the line.
+    const bool mirror = tag.mirror && !twoLines;
+    const float after = title || status ? gap + (title ? titleWidth : 0) + (status ? statusWidth - gap : 0) : 0;
+    const float lead = mirror ? width - (marksWidth + TextWidth(name, nameSize, nameFont) + after) : 0;
+    float x = at.x + lead + DrawNameMarks(draw, at.x + lead, middle, nameSize, tag.marks).width;
     draw->AddText(nameFont, nameSize, ImVec2(x, middle), Colors().text, name.c_str());
     x += TextWidth(name, nameSize, nameFont) + gap;
-    if (!ping.empty()) Chip(draw, ImVec2(at.x + width - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
+    if (!ping.empty()) Chip(draw, ImVec2(mirror ? at.x : at.x + width - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
     if (!twoLines) {
         if (title) { draw->AddText(ImGui::GetFont(), font, ImVec2(x, at.y + (line - font) * .5f), Colors().muted, tag.title.c_str()); x += titleWidth; }
         if (status) Chip(draw, ImVec2(x, at.y + (line - chipHeight) * .5f), tag.status, Colors().muted);
