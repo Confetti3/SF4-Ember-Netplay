@@ -7268,3 +7268,30 @@ msgstr "Koruna"
 
 msgid "award.cup-champion.how"
 msgstr "Vyhraj Ember Cup na konci sezóny"
+
+msgid "toast.kind.invitation"
+msgstr "POZVÁNKA"
+
+msgid "toast.kind.room"
+msgstr "MÍSTNOST"
+
+msgid "toast.kind.update"
+msgstr "AKTUALIZACE"
+
+msgid "toast.kind.match"
+msgstr "ZÁPAS"
+
+msgid "toast.kind.system"
+msgstr "SYSTÉM"
+
+msgid "toast.join"
+msgstr "Připojit se"
+
+msgid "toast.open"
+msgstr "Otevřít"
+
+msgid "discord.invitation_notice"
+msgstr "Máš pozvánku do místnosti na Discordu."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} je připraven k instalaci."

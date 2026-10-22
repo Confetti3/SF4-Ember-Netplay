@@ -6903,3 +6903,30 @@ msgstr "Crown"
 
 msgid "award.cup-champion.how"
 msgstr "Win the season-ending Ember Cup"
+
+msgid "toast.kind.invitation"
+msgstr "INVITATION"
+
+msgid "toast.kind.room"
+msgstr "ROOM"
+
+msgid "toast.kind.update"
+msgstr "UPDATE"
+
+msgid "toast.kind.match"
+msgstr "MATCH"
+
+msgid "toast.kind.system"
+msgstr "SYSTEM"
+
+msgid "toast.join"
+msgstr "Join"
+
+msgid "toast.open"
+msgstr "Open"
+
+msgid "discord.invitation_notice"
+msgstr "You are invited to a room on Discord."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} is ready to install."

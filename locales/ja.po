@@ -7269,3 +7269,30 @@ msgstr "王冠"
 
 msgid "award.cup-champion.how"
 msgstr "シーズン最後のEmber Cupで優勝する"
+
+msgid "toast.kind.invitation"
+msgstr "招待"
+
+msgid "toast.kind.room"
+msgstr "ルーム"
+
+msgid "toast.kind.update"
+msgstr "アップデート"
+
+msgid "toast.kind.match"
+msgstr "対戦"
+
+msgid "toast.kind.system"
+msgstr "システム"
+
+msgid "toast.join"
+msgstr "参加"
+
+msgid "toast.open"
+msgstr "開く"
+
+msgid "discord.invitation_notice"
+msgstr "Discordでルームに招待されました。"
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} をインストールできます。"

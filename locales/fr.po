@@ -7268,3 +7268,30 @@ msgstr "Couronne"
 
 msgid "award.cup-champion.how"
 msgstr "Remporte l’Ember Cup de fin de saison"
+
+msgid "toast.kind.invitation"
+msgstr "INVITATION"
+
+msgid "toast.kind.room"
+msgstr "SALLE"
+
+msgid "toast.kind.update"
+msgstr "MISE À JOUR"
+
+msgid "toast.kind.match"
+msgstr "MATCH"
+
+msgid "toast.kind.system"
+msgstr "SYSTÈME"
+
+msgid "toast.join"
+msgstr "Rejoindre"
+
+msgid "toast.open"
+msgstr "Ouvrir"
+
+msgid "discord.invitation_notice"
+msgstr "Tu es invité dans une salle sur Discord."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} est prêt à être installé."

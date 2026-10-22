@@ -137,6 +137,11 @@ void ApplicationShell::UpdateLaunchCheck(const ShellView& v,double now,const Sub
   updatePrompt_.Asked(*offer);
   menu_.ShowNotice(UpdatePrompt::Dialog(*offer,v.services.installedVersion.empty()?v.build:v.services.installedVersion));
  }
+ // A new offer is a toast too, News' Update now a press away.
+ if(v.services.launchOffer&&v.services.launchOffer->tag!=updateToastTag_){
+  updateToastTag_=v.services.launchOffer->tag;
+  Say(loc::Tf("updates.ready_notice",updateToastTag_),Tone::Neutral,20,ToastKind::Update,{{loc::T("updates.launch_now"),"news","news-update-now"},{loc::T("updates.launch_later")}});
+ }
 }
 // The question closed: Update now and Skip this version send the offer the
 // player was shown; anything else leaves it for the next launch. A skip that

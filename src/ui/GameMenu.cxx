@@ -341,6 +341,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         else if(pressed&MenuInput::Select) DismissNotice(noticeButtons_[noticeSelected_].result);
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
+    toastPressed=0;
+    if(toastFocused&&!noticeOpen) {toastPressed=menuInput.held&~toastPrevious_; toastPrevious_=menuInput.held; menuInput.held=0;}
+    else toastPrevious_=~0u;
     held_=menuInput.held;
     // InputText consumes this frame's characters before the requested acceptance.
     // The navigation model still owns the neutral gate and Back/accept ordering.

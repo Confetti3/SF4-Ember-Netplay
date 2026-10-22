@@ -7268,3 +7268,30 @@ msgstr "Corona"
 
 msgid "award.cup-champion.how"
 msgstr "Vinci la Ember Cup di fine stagione"
+
+msgid "toast.kind.invitation"
+msgstr "INVITO"
+
+msgid "toast.kind.room"
+msgstr "STANZA"
+
+msgid "toast.kind.update"
+msgstr "AGGIORNAMENTO"
+
+msgid "toast.kind.match"
+msgstr "INCONTRO"
+
+msgid "toast.kind.system"
+msgstr "SISTEMA"
+
+msgid "toast.join"
+msgstr "Entra"
+
+msgid "toast.open"
+msgstr "Apri"
+
+msgid "discord.invitation_notice"
+msgstr "Sei stato invitato in una stanza su Discord."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} è pronto da installare."

@@ -6788,3 +6788,30 @@ msgstr "Coroa"
 
 msgid "award.cup-champion.how"
 msgstr "Vença a Ember Cup de fim de temporada"
+
+msgid "toast.kind.invitation"
+msgstr "CONVITE"
+
+msgid "toast.kind.room"
+msgstr "SALA"
+
+msgid "toast.kind.update"
+msgstr "ATUALIZAÇÃO"
+
+msgid "toast.kind.match"
+msgstr "PARTIDA"
+
+msgid "toast.kind.system"
+msgstr "SISTEMA"
+
+msgid "toast.join"
+msgstr "Entrar"
+
+msgid "toast.open"
+msgstr "Abrir"
+
+msgid "discord.invitation_notice"
+msgstr "Você foi convidado para uma sala no Discord."
+
+msgid "updates.ready_notice"
+msgstr "O Ember {0} está pronto para instalar."
