@@ -72,7 +72,7 @@ struct Room {
 	const room::Table& Table(int i) const { return authority.SnapshotView().tables[i]; }
 	bool AllChosen() const {
 		const auto& tables = authority.SnapshotView().tables;
-		return std::all_of(tables.begin(), tables.end(), [](const room::Table& t) { return t.rules == Chosen(); });
+		return std::all_of(tables.begin(), tables.begin() + room::ClassicTableCount, [](const room::Table& t) { return t.rules == Chosen(); });
 	}
 };
 }
@@ -80,7 +80,7 @@ struct Room {
 // One table at a time, each sent only after the last shows the chosen rules.
 static void TestOneTableAtATime() {
 	Room room;
-	for (int table = 0; table < static_cast<int>(room::TableCount); ++table) {
+	for (int table = 0; table < static_cast<int>(room::ClassicTableCount); ++table) {
 		const auto sent = room.Run(500);
 		CHECK(sent.size() == 1 && sent.front().table == table);
 		if (sent.size() == 1) CHECK(room.Apply(sent.front()));

@@ -470,6 +470,7 @@ void to_json(nlohmann::json& json, const Snapshot& value) { json = nlohmann::jso
 	if (value.localMatchGenerationsSent) json["local_match_generations"] = value.localMatchGenerations;
 	if (value.serverOwned) json["server_owned"] = true;
 	if (value.practice) json["practice"] = true;
+	if (value.arcade) json["arcade"] = static_cast<int>(value.arcade);
 	if (value.delayPolicy == DelayPolicy::Own) json["delay"] = "own";
 }
 void from_json(const nlohmann::json& json, Snapshot& value) {
@@ -483,6 +484,7 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 		value.serverOwned = json.value("server_owned", false);
 	if (json.contains("practice") && !json.at("practice").is_boolean()) throw std::invalid_argument("room practice field");
 	value.practice = json.value("practice", false);
+	value.arcade = json.contains("arcade") ? static_cast<ArcadeView>(ReadInt(json, "arcade", ArcadeFloor, ArcadeColumns)) : ArcadeOff;
 	// Absent reads as Shared: only an Own room says so.
 	value.delayPolicy = DelayPolicy::Shared;
 	if (json.contains("delay")) {
@@ -552,6 +554,7 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 	ReadMemberList(json, "chat", value.chat, MaximumChatMessages);
 	value.tournament = json.contains("tournament") ? json.at("tournament").get<TournamentBinding>() : TournamentBinding();
 	if (!PracticeKindValid(value)) throw std::invalid_argument("room practice kind");
+	if (!ArcadeKindValid(value)) throw std::invalid_argument("room arcade kind");
 	if (value.host && !memberIds.count(value.host)) throw std::invalid_argument("room host member"); if (value.localMember && !memberIds.count(value.localMember)) throw std::invalid_argument("room local member");
 	// Older owners kept a departed member's chat. Drop those lines rather than
 	// reject the whole room state; the sender cannot be named anyway.

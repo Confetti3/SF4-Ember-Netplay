@@ -5,9 +5,10 @@ namespace sf4e { namespace room {
 using namespace detail;
 
 
-RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy) {
+RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, ArcadeView arcade) {
 	snapshot_.protocolVersion = ProtocolVersion;
 	snapshot_.practice = practice;
+	snapshot_.arcade = arcade;
 	snapshot_.delayPolicy = delayPolicy;
 	snapshot_.roomEpoch = roomEpoch == 0 ? 1 : roomEpoch;
 	snapshot_.name = (!name.empty() && name.size() <= MaximumRoomNameBytes && IsValidUtf8(name) && IsSingleLineText(name))
@@ -173,7 +174,7 @@ const Table* RoomAuthority::FindTable(std::uint8_t table) const {
 	return ValidTable(table) ? &snapshot_.tables[table] : nullptr;
 }
 
-bool RoomAuthority::ValidTable(std::uint8_t table) const { return table < TableCount; }
+bool RoomAuthority::ValidTable(std::uint8_t table) const { return table < TablesInPlay(snapshot_); }
 
 bool RoomAuthority::IsHost(MemberId member) const { return member != 0 && member == ActingHost(snapshot_); }
 
@@ -538,8 +539,9 @@ void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
 	}
 	table.score[0] = table.score[1] = 0;
 	// A tournament set has no queue to rotate: the bridge decides what comes
-	// next, and the same two fighters stay seated by slot.
-	if (BoundTable(table)) return;
+	// next, and the same two fighters stay seated by slot. An Arcade room's two
+	// cabinets play on until one stands up.
+	if (BoundTable(table) || snapshot_.arcade) return;
 	// The rotated fighters join the back of the queue, so an empty queue seats
 	// them again for a new set. Only members who queued themselves are ahead of
 	// them: nobody else is ever put in the queue.

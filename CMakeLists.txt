@@ -140,7 +140,7 @@ if(BUILD_TESTING)
     set_tests_properties(HeapCorruptionCapture PROPERTIES TIMEOUT 90)
 endif()
 
-add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomModelServerOwned.cxx" "src/session/RoomDigest.cxx")
+add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomModelArcade.cxx" "src/session/RoomModelServerOwned.cxx" "src/session/RoomDigest.cxx")
 target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
 target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json "bcrypt")
 # The game's Steam client through steam_api.dll (profile overlay, remote storage).
@@ -194,6 +194,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME RoomSteamProfile SOURCES "src/tests/room_steam_profile_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomCountry SOURCES "src/tests/room_country_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomSets SOURCES "src/tests/room_sets_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomArcade SOURCES "src/tests/room_arcade_test.cxx" LIBS sf4e_room_model)
     sf4e_add_unit_test(NAME RoomTournament SOURCES "src/tests/room_tournament_test.cxx" LIBS sf4e_room_model)
     sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play)
     sf4e_add_unit_test(NAME IdentityEvents SOURCES "src/tests/identity_events_test.cxx" "src/session/IdentityEvents.cxx"

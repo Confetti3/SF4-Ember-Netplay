@@ -35,7 +35,8 @@ using ActionId = std::uint64_t;
 // 2: tables end first-to-N sets and rotate their queue.
 // 3: a room can be bound to a tournament match; its table 0 then seats only
 // the bound fighters and waits for the bridge's permit before each game.
-constexpr std::uint32_t ProtocolVersion = 3;
+// 4: a room has eight tables (TableCount).
+constexpr std::uint32_t ProtocolVersion = 4;
 constexpr std::size_t MaximumMembers = MaxMembers;
 constexpr std::size_t MaximumRoomNameBytes = 64;
 constexpr std::size_t MaximumChatMessages = 100;
@@ -423,6 +424,13 @@ struct Snapshot {
 	// is created and fixed for its life, public or private. Serialized only
 	// when Own, so a Shared room's wire form is unchanged.
 	DelayPolicy delayPolicy = DelayPolicy::Shared;
+	// An Arcade room: every table is a pair of cabinets facing each other. A
+	// member sits at the cabinet they choose, or is given one opposite someone
+	// waiting, and moves to another between games to play someone else; two
+	// linked cabinets play on until one stands up. Its rules are the room's,
+	// set when it is created. Chosen when the room is created and fixed for its
+	// life, as is the way it draws its cabinets. Serialized only when on.
+	ArcadeView arcade = ArcadeOff;
 	MemberId host = 0;
 	MemberId localMember = 0;
 	std::vector<Member> members;
@@ -454,6 +462,11 @@ struct Snapshot {
 // checkpoint holds to it, as the actions that make the other kinds do.
 inline bool PracticeKindValid(const Snapshot& room) {
 	return !room.practice || (!room.serverOwned && !room.tournament.Active());
+}
+// The same holds for an Arcade room, which seats from no queue.
+inline bool ArcadeKindValid(const Snapshot& room) {
+	return !room.arcade || (!room.serverOwned && !room.tournament.Active() &&
+		std::all_of(room.tables.begin(), room.tables.end(), [](const Table& table) { return table.queue.empty(); }));
 }
 
 // The round time a table's games are played at: its rules', or in a Practice
@@ -507,6 +520,10 @@ struct Place {
 	// In a queue: the place in it, from 1 for the member who plays next.
 	int position = 0;
 };
+// The tables a room's members can sit at, watch or set rules for; the others
+// stay empty.
+inline std::size_t TablesInPlay(const Snapshot& room) { return room.arcade ? TableCount : ClassicTableCount; }
+
 inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 	Place place;
 	const auto* member = FindMember(snapshot, id);
@@ -609,11 +626,12 @@ struct Result {
 
 class RoomAuthority {
 public:
-	// practice and delayPolicy are the room's for its life (Snapshot::practice,
-	// Snapshot::delayPolicy); nothing changes them later.
+	// practice, delayPolicy and arcade are the room's for its life
+	// (Snapshot::practice, Snapshot::delayPolicy, Snapshot::arcade); nothing
+	// changes them later.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
 		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
-		DelayPolicy delayPolicy = DelayPolicy::Shared);
+		DelayPolicy delayPolicy = DelayPolicy::Shared, ArcadeView arcade = ArcadeOff);
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -860,6 +878,9 @@ private:
 	// Takes the member off every table's watch lists and clears its lock-in.
 	void StopWatching(MemberId member);
 	void SeatQueued(Table& table);
+	// The table an Arcade room gives a member who sits down without naming a
+	// cabinet (RoomModelArcade.cxx).
+	Table* ArcadeTable();
 	void FillVacancy(Table& table, int seat);
 	// A first-to-N table whose score just reached N: records the set, moves the
 	// streak, and sends the rotated fighters to the back of the queue.

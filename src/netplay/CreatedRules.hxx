@@ -63,7 +63,9 @@ public:
         if (room.roomEpoch != roomEpoch_ || room.localMember != host_ || room.host != host_) { Cancel("room_changed"); return false; }
         if (nowMs >= deadlineMs_) { Cancel("deadline"); return false; }
         int next = -1;
-        for (const auto& table : room.tables) {
+        // Only the tables a room plays at take rules; the others stay as they are.
+        for (std::size_t i = 0; i < room::TablesInPlay(room); ++i) {
+            const auto& table = room.tables[i];
             auto& done = confirmed_[table.id];
             if (done) {
                 if (!(table.rules == rules_)) { Cancel("edited"); return false; }

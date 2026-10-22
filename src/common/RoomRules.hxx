@@ -15,6 +15,11 @@ inline bool ValidSetFormat(long long format) { return format == static_cast<int>
 // the higher of their two Ready delays (MatchDelay). Own: each fighter plays at
 // the delay they chose, and the other side's rollback absorbs the difference.
 enum class DelayPolicy : std::uint8_t { Shared = 0, Own };
+// An Arcade room, and how it draws its cabinets for everyone in it
+// (room::Snapshot::arcade): the floor of facing pairs, or Real Arcade with
+// tall cabinets in two rows of eight or in four columns. Off for a Classic
+// room, so it reads as false.
+enum ArcadeView : std::uint8_t { ArcadeOff = 0, ArcadeFloor, ArcadeRows, ArcadeColumns };
 
 enum class RotationMode : std::uint8_t { WinnerStays = 0, LoserStays, BothRotate };
 // The round times a table offers, shortest first. The longest, about 2.7

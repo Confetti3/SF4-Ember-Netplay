@@ -126,6 +126,8 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 }
 
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
+	// An Arcade room's rules are the room's, chosen when it was created.
+	if (snapshot_.arcade) return Reject(RejectReason::Unauthorized);
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
 	if (GameUnderWay(*table) || !action.rules.Valid()) return Reject(RejectReason::InvalidRules);
 	// A different set length or rotation starts a new set. Round count, time and
@@ -138,14 +140,24 @@ Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table
 
 Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* table) {
 	if (HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
+	// In an Arcade room a member between games moves by sitting at another cabinet.
+	const bool asked = action.seat == 0 || action.seat == 1;
+	bool moving = false;
 	for (const auto& other : snapshot_.tables) {
+		if ((other.p1 == member || other.p2 == member) && snapshot_.arcade && asked && &other != table && !GameUnderWay(other)) { moving = true; continue; }
 		if (other.p1 == member || other.p2 == member) return Reject(RejectReason::AlreadySeated);
 		if (std::find(other.queue.begin(), other.queue.end(), member) != other.queue.end()) return Reject(RejectReason::AlreadyQueued);
 	}
 	// A named seat is that seat or nothing: it must be open, with nobody
-	// queued first. A Queue with no seat takes the first open one, or waits.
-	const bool asked = action.seat == 0 || action.seat == 1;
+	// queued first. A Queue with no seat takes the first open one, or waits;
+	// in an Arcade room it takes a cabinet opposite someone waiting, else an
+	// empty one, as it has no queue to wait in.
+	if (snapshot_.arcade && !asked) {
+		table = ArcadeTable();
+		if (!table) return Reject(RejectReason::WrongPhase);
+	}
 	if (asked && !SeatOpenNow(*table, action.seat)) return Reject(RejectReason::InvalidSeat);
+	if (moving) RemoveFromTable(member);
 	// Watching is not a seat: a watcher who sits down stops watching.
 	StopWatching(member);
 	table->queue.push_back(member);
