@@ -96,6 +96,7 @@ namespace sf4e {
 			// A later press for the same table replaced this one; its outcome is stale.
 			bool superseded=false; };
         bool TakeActionReply(ActionReply& reply);
+        void SetContinuousRematchAvailable(bool available) { _profile.continuousCapable=available; }
         void SetSelectedDelay(unsigned delay) { _selectedDelay=static_cast<std::uint8_t>((std::min)(delay,static_cast<unsigned>(MaximumInputDelay))); }
         void SetSelectedLowerLag(bool on) { _selectedLowerLag=on; }
 		void RequireCustomRooms() { _customRoomsRequired = true; }
@@ -228,6 +229,7 @@ namespace sf4e {
 			// matchup.
 			room::MemberId opponent = 0;
 			int opponentFighter = -1;
+			bool continuous = false;
 		};
 		std::deque<SentRoomAction> _sentRoomActions;
 		// Retried actions keep their id; log each id/reason pair once.

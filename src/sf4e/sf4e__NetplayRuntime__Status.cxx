@@ -1,7 +1,9 @@
+#include "../ui/OverlayPresentation.hxx"
 #include "sf4e__NetplayRuntime.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Gamepads.hxx"
+#include "sf4e__ContinuousRematch.hxx"
 #include "../netplay/PublishCadence.hxx"
 #include "../netplay/LatencyBoard.hxx"
 #include "../common/HelperFailure.hxx"
@@ -335,6 +337,8 @@ std::uint64_t PublishFingerprint() {
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());
+    const auto continuous=continuousrematch::ChoiceView();
+    mix(continuous.visible);mix(continuous.offer);mix(continuous.accepted);mix(continuous.canRematch);mixString(continuous.status);
     return h;
 }
 }
@@ -466,13 +470,15 @@ PostPublishState Publish() {
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
     snapshot.watchedGame = WatchedGameNow();
     snapshot.lockInDrops = runtime->lockInDrops;
+    snapshot.rematchPanel = continuousrematch::ChoiceView();
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
     snapshot.installedContent = custom::Installed();
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
-    if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
-        !input::FightKeepsMenuAway(netplay::Fighting(snapshot.session.match), snapshot.menuContext)) {
+    const ui::OverlayLayersState layers(snapshot.rematchPanel);
+    if (snapshot.inputCapture == input::Capture::Idle &&
+        layers.SamplesController(snapshot.menuContext,netplay::Fighting(snapshot.session.match))) {
         auto& sample = snapshot.menuController;
         sample.deviceType = snapshot.inputDevice.type;
         sample.deviceIndex = snapshot.inputDevice.index;
@@ -547,7 +553,8 @@ PostPublishState PublishThrottled() {
     static PostPublishState cached;
     static netplay::PublishCadence cadence;
     // Every tick where the pad drives Ember's menu, since the snapshot carries its sample.
-    const bool padDrivesMenu = !Game::Battle::System::ggpo || input::ControllerMenuAvailable(MenuContextNow(AtMainMenu()));
+    const ui::OverlayLayersState layers(continuousrematch::ChoiceView());
+    const bool padDrivesMenu = !Game::Battle::System::ggpo || layers.ControllerAvailable(MenuContextNow(AtMainMenu()));
     if (cadence.Due(padDrivesMenu, PublishFingerprint)) cached = Publish();
     return cached;
 }

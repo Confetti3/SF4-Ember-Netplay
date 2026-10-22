@@ -217,6 +217,10 @@ namespace Dimps {
 			typedef struct __privateMethods {
 				int (VsBattle::* CheckAndMaybeExitBasedOnExitType)();
 				void(VsBattle::* PrepareBattleRequest)();
+				// Replay task: checks for a stopped recorder at the result,
+				// then waits for the native save before entering ReplayIdle.
+				void(VsBattle::* CheckReplaySave)(Eva::Task**);
+				void(VsBattle::* ReplayIdle)(Eva::Task**);
 			} __privateMethods;
 
 			typedef struct __publicMethods {
@@ -238,6 +242,7 @@ namespace Dimps {
 			static BOOL (VsBattle::** vt_IsTerminationComplete)();
 
 			static Game::Request** GetRequest(VsBattle* battleEvent);
+			static void** GetPendingReplay(VsBattle* battleEvent);
 		};
 
 		struct VsMode : Dimps::Event::EventBaseWithEC {

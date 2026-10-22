@@ -41,6 +41,8 @@ bool IsRecoveryBatchableMessage(const session::Message& message) {
 		payload.get_to(action);
 		return action.action.protocolVersion == room::ProtocolVersion &&
 			(action.action.kind == room::ActionKind::RecordResult ||
+				action.action.kind == room::ActionKind::RecordContinuousResult ||
+				action.action.kind == room::ActionKind::FinishContinuousMatch ||
 				action.action.kind == room::ActionKind::AcknowledgeTerminal);
 	} catch (const std::exception&) {
 		return false;

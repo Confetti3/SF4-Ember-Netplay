@@ -292,10 +292,17 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),summary,loc::T(boundTable?"room.rules.tournament":"room.rules.host_only")));
     rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),SetSummaryText(t.rules),
      t.rules.format==room::SetFormat::Unlimited?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
+    if(room::ContinuousAllowed(s))rows.push_back(ReadOnlyValue("continuous-rematch",loc::T("room.continuous.rule"),
+     loc::T(t.rules.continuousRematch?"common.on":"common.off"),loc::T("room.continuous.rule.detail")));
     return;
    }
-   RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"),s.practice);
-   if(rulesDirty_)rows.push_back(Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail"),!active));
+   const bool live=t.phase==TablePhase::Playing||t.phase==TablePhase::Paused;
+   RuleRows(rows,tableRules_,true,loc::T(live?"room.rules.end_game":"room.rules.apply_note"),s.practice);
+   if(room::ContinuousAllowed(s))rows.push_back(Value("continuous-rematch",loc::T("room.continuous.rule"),
+    loc::T(tableRules_.continuousRematch?"common.on":"common.off"),loc::T("room.continuous.rule.detail"),true));
+   if(rulesDirty_)rows.push_back(live
+    ?ConfirmRow("apply-rules",loc::T("room.apply_rules"),loc::T("room.rules.end_game"))
+    :Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail")));
    // The host edits the rules in place, so the summary above is not shown to them.
    if(s.delayPolicy==room::DelayPolicy::Own)rows.push_back(ReadOnlyValue("delay-policy",loc::T("room.delay_policy"),loc::T("room.delay_policy.own"),loc::T("room.delay_policy.detail")));
   };
@@ -860,6 +867,9 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="mute"){if(muted_.count(selectedMember_))muted_.erase(selectedMember_);else muted_.insert(selectedMember_);return;}
  if(a.id=="rename"){std::snprintf(roomName_,sizeof(roomName_),"%s",a.text.c_str());return;}
  if(a.id=="room-capacity"){roomCapacity_=(std::max)(2,(std::min)(16,roomCapacity_+a.delta));return;}
+ if(a.id=="continuous-rematch"&&a.kind==MenuAction::Adjust&&room::ContinuousAllowed(v.room)){
+  tableRules_.continuousRematch=a.delta>0;rulesDirty_=!(tableRules_==v.room.tables[selectedTable_].rules);return;
+ }
  if(AdjustRule(tableRules_,a)){rulesDirty_=!(tableRules_==v.room.tables[selectedTable_].rules);return;}
  Action request;request.table=static_cast<std::uint8_t>(selectedTable_);
  if(a.id=="queue")request.kind=ActionKind::Queue;

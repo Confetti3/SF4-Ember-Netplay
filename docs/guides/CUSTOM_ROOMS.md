@@ -100,6 +100,11 @@ A fighter who wins two or more sets in a row at the table has the streak shown
 under their name. Changing the set length or rotation starts a new set; the
 other rules apply from the next game and keep the score.
 
+During a continuous set, the table's score updates after both fighters agree
+on each result. Its banner names the winner and loser of the last confirmed
+game while the next game is played; a result awaiting agreement is labelled
+as confirming. These are set results, not live health or round telemetry.
+
 The running count, such as 2 - 1, replaces "VS" on the table card and "vs" on
 the match HUD, and the HUD keeps the final count on the screen of the game that
 ended the set. Both fighters must ready again after returning to the room. When
@@ -156,9 +161,14 @@ extra frames to catch up and can trail by up to 1024 frames (about 17 seconds).
 
 ## Manage the room
 
-The host can rename the room, lock admission, change its capacity, edit a waiting
-table's battle rules, and kick members. Capacity cannot be reduced below current
-membership. A kicked peer cannot rejoin the same room under another name.
+The host can rename the room, lock admission, change its capacity, edit a
+table's battle rules, and kick members. Applying different rules during a game
+ends that table's current game and returns its fighters and spectators to the
+room. Other tables keep playing. The interrupted game awards no win; changing
+the set length or rotation starts a new set, while round rules keep previously
+confirmed wins. Applying unchanged rules does not interrupt play. Capacity
+cannot be reduced below current membership. A kicked peer cannot rejoin the
+same room under another name.
 
 Room chat retains the latest 100 messages, with a limit of 256 UTF-8 bytes per
 message. The room removes a member's messages when they leave, but your own Chat screen keeps the messages it has already received (the latest 200 lines, with the room's join, leave, host and result lines among them) under the name the member had. **Mute member** hides that member's messages on your screen only.

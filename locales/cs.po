@@ -3142,9 +3142,6 @@ msgstr "Zrušit zaseknutý zápas"
 msgid "room.cancel_stuck.detail"
 msgstr "Jen hostitel. Použijte, pokud skončený zápas nikdy nenahlásil výsledek. Výsledek se nezaznamená."
 
-msgid "room.rules.finish_game"
-msgstr "Před změnou pravidel dokončete probíhající zápas."
-
 msgid "room.rules.apply_note"
 msgstr "Změny se projeví až po potvrzení."
 
@@ -6487,6 +6484,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Zápas skončil"
+
+msgid "quick_rematch.rematch"
+msgstr "Odveta"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Hrát znovu se stejnými postavami a na stejné scéně."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Zpět do lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Odmítnout odvetu a vrátit se do místnosti."
+
+msgid "quick_rematch.waiting"
+msgstr "Čekání na hru..."
+
+msgid "quick_rematch.failed"
+msgstr "Odveta přerušena. Návrat do lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Stav odvety se změnil. Návrat do lobby."
+
+msgid "quick_rematch.interrupted"
+msgstr "Odveta přerušena."
+
+msgid "quick_rematch.set_complete"
+msgstr "Série skončila. Vraťte se do lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Odveta potvrzena. Čekání na druhého hráče."
+
+msgid "quick_rematch.other_ready"
+msgstr "Druhý hráč potvrdil. Vyberte možnost."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Zbývající čas: {0} s"
+
+msgid "room.continuous.rule"
+msgstr "Plynulá odveta (experimentální)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Ponechá spojení pro odvety. Ve výchozím stavu vypnuto; běžné zápasy se použijí, pokud funkci nepodporují oba hráči a všichni počáteční diváci."
+
+msgid "room.continuous.confirming"
+msgstr "Potvrzování výsledku..."
+
+
+msgid "room.continuous.draw"
+msgstr "Poslední zápas ({0}): remíza"
+
+
+msgid "room.continuous.won"
+msgstr "Poslední zápas ({0}): {1} poráží {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Použití ukončí zápas u tohoto stolu a vrátí jeho hráče a diváky do místnosti. Ostatní stoly hrají dál. Přerušený zápas nepřidá žádnou výhru."
 
 msgid "screen.rankings"
 msgstr "Žebříčky"

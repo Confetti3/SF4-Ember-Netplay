@@ -3142,9 +3142,6 @@ msgstr "Hängendes Spiel stoppen"
 msgid "room.cancel_stuck.detail"
 msgstr "Nur Host. Wenn ein beendetes Spiel kein Ergebnis meldet. Kein Ergebnis wird erfasst."
 
-msgid "room.rules.finish_game"
-msgstr "Beenden Sie das laufende Spiel, bevor Sie Regeln ändern."
-
 msgid "room.rules.apply_note"
 msgstr "Änderungen gelten erst nach Übernehmen."
 
@@ -6487,6 +6484,66 @@ msgid "country.ZW"
 msgstr "Simbabwe"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Kampf beendet"
+
+msgid "quick_rematch.rematch"
+msgstr "Revanche"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Mit denselben Kämpfern auf derselben Stage erneut spielen."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Zurück zur Lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Revanche ablehnen und zum Raum zurückkehren."
+
+msgid "quick_rematch.waiting"
+msgstr "Warte auf das Spiel..."
+
+msgid "quick_rematch.failed"
+msgstr "Revanche unterbrochen. Rückkehr zur Lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Revanche-Status geändert. Rückkehr zur Lobby."
+
+msgid "quick_rematch.interrupted"
+msgstr "Revanche unterbrochen."
+
+msgid "quick_rematch.set_complete"
+msgstr "Set beendet. Zurück zur Lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Revanche bestätigt. Warte auf den anderen Spieler."
+
+msgid "quick_rematch.other_ready"
+msgstr "Der andere Spieler hat bestätigt. Wähle eine Option."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Verbleibende Zeit: {0} s"
+
+msgid "room.continuous.rule"
+msgstr "Direkte Revanche (experimentell)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Behält die Verbindung für Revanchespiele. Standardmäßig aus; normale Spiele, sofern nicht beide Spieler und alle anfänglichen Zuschauer dies unterstützen."
+
+msgid "room.continuous.confirming"
+msgstr "Ergebnis wird bestätigt..."
+
+
+msgid "room.continuous.draw"
+msgstr "Letztes Spiel ({0}): Unentschieden"
+
+
+msgid "room.continuous.won"
+msgstr "Letztes Spiel ({0}): {1} besiegt {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Anwenden beendet das Spiel an diesem Tisch und bringt dessen Spieler und Zuschauer in den Raum zurück. Andere Tische spielen weiter. Das abgebrochene Spiel zählt nicht als Sieg."
 
 msgid "screen.rankings"
 msgstr "Ranglisten"

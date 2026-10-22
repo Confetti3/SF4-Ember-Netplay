@@ -3143,9 +3143,6 @@ msgstr "取消卡住的对战"
 msgid "room.cancel_stuck.detail"
 msgstr "仅房主可用。当已结束的对战始终未报告结果时使用。不记录结果。"
 
-msgid "room.rules.finish_game"
-msgstr "请先结束当前对战，再修改规则。"
-
 msgid "room.rules.apply_note"
 msgstr "更改仅在点击应用后生效。"
 
@@ -6488,6 +6485,66 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "对战结束"
+
+msgid "quick_rematch.rematch"
+msgstr "再战"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "使用相同角色和场地再战。"
+
+msgid "quick_rematch.return_lobby"
+msgstr "返回大厅"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "拒绝再战并返回房间。"
+
+msgid "quick_rematch.waiting"
+msgstr "正在等待游戏响应..."
+
+msgid "quick_rematch.failed"
+msgstr "再战已中断。正在返回大厅。"
+
+msgid "quick_rematch.context_invalid"
+msgstr "再战状态已变化。正在返回大厅。"
+
+msgid "quick_rematch.interrupted"
+msgstr "再战已中断。"
+
+msgid "quick_rematch.set_complete"
+msgstr "赛组结束。请返回大厅。"
+
+msgid "quick_rematch.accepted"
+msgstr "已确认再战。正在等待另一位玩家。"
+
+msgid "quick_rematch.other_ready"
+msgstr "另一位玩家已确认。请选择。"
+
+msgid "quick_rematch.time_remaining"
+msgstr "剩余时间：{0}秒"
+
+msgid "room.continuous.rule"
+msgstr "连续再战（实验性）"
+
+msgid "room.continuous.rule.detail"
+msgstr "再战时保持连接。默认关闭；如果双方玩家和开赛时的所有观众未全部支持此功能，则使用普通比赛。"
+
+msgid "room.continuous.confirming"
+msgstr "正在确认比赛结果..."
+
+
+msgid "room.continuous.draw"
+msgstr "上一场 ({0})：平局"
+
+
+msgid "room.continuous.won"
+msgstr "上一场 ({0})：{1} 战胜 {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "应用后将结束此对战台的比赛，并将其玩家和观众送回房间。其他对战台继续比赛。中断的比赛不计胜场。"
 
 msgid "screen.rankings"
 msgstr "排行榜"

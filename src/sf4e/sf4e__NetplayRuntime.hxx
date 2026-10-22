@@ -250,6 +250,7 @@ struct Runtime {
 	std::uint8_t terminalAckTable = 0;
 	std::uint64_t terminalAckGeneration = 0;
 	std::uint64_t matchFinishedGeneration = 0;
+    std::uint64_t matchFinishedGame = 0;
 	std::uint8_t matchFinishedTable = 0;
 	std::unique_ptr<room::Action> pendingAbort;
 	ULONGLONG pendingAbortDeadline = 0;
@@ -364,6 +365,7 @@ std::uint64_t RetiredMatchGeneration();
 void FailReady(const char* reason);
 void DrainCommands(bool helperReady);
 void DrainRoomEvents();
+bool PersistResultProfile();
 void PersistTerminalOutcome();
 void DrainActionReplies();
 void ConfirmLobbySettings();

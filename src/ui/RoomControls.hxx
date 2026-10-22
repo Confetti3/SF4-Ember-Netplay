@@ -125,7 +125,8 @@ ReadyDeadline DescribeReadyDeadline(const ShellView& v, const room::Table& t);
 // A highlighted line across a table card, for something the player at it
 // should act on or wait for: a held start, a seated fighter being called back
 // from Training, or the opponent's new fighter until the player readies or
-// the matchup changes. seat is the side it is about, or -1. Empty text: none.
+// the matchup changes. A live continuous set shows its last confirmed result.
+// seat is the side it is about, or -1. Empty text: none.
 struct TableBanner {
     std::string text;
     int seat = -1;

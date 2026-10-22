@@ -2791,8 +2791,6 @@ msgid "room.cancel_stuck"
 msgstr "Cancelar jogo travado"
 msgid "room.cancel_stuck.detail"
 msgstr "Somente anfitrião. Use quando um jogo encerrado não informar o resultado. Nenhum resultado será registrado."
-msgid "room.rules.finish_game"
-msgstr "Termine o jogo ativo antes de alterar as regras."
 msgid "room.rules.apply_note"
 msgstr "As alterações só valem após Aplicar."
 msgid "room.rules.host_only"
@@ -6007,6 +6005,66 @@ msgid "country.ZW"
 msgstr "Zimbábue"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Luta concluída"
+
+msgid "quick_rematch.rematch"
+msgstr "Revanche"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Jogue novamente com os mesmos personagens e cenário."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Voltar à sala"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Recuse a revanche e volte à sala."
+
+msgid "quick_rematch.waiting"
+msgstr "Aguardando o jogo..."
+
+msgid "quick_rematch.failed"
+msgstr "Revanche interrompida. Voltando à sala."
+
+msgid "quick_rematch.context_invalid"
+msgstr "O estado da revanche mudou. Voltando à sala."
+
+msgid "quick_rematch.interrupted"
+msgstr "Revanche interrompida."
+
+msgid "quick_rematch.set_complete"
+msgstr "Série concluída. Volte à sala."
+
+msgid "quick_rematch.accepted"
+msgstr "Revanche confirmada. Aguardando o outro jogador."
+
+msgid "quick_rematch.other_ready"
+msgstr "O outro jogador confirmou. Escolha uma opção."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Tempo restante: {0} s"
+
+msgid "room.continuous.rule"
+msgstr "Revanche contínua (experimental)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Mantém a conexão nas revanches. Desativada por padrão; usa partidas normais se algum jogador ou espectador inicial não tiver suporte."
+
+msgid "room.continuous.confirming"
+msgstr "Confirmando o resultado..."
+
+
+msgid "room.continuous.draw"
+msgstr "Última partida ({0}): empate"
+
+
+msgid "room.continuous.won"
+msgstr "Última partida ({0}): {1} venceu {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Aplicar encerra a partida desta mesa e devolve seus jogadores e espectadores à sala. As outras mesas continuam jogando. A partida interrompida não concede vitória."
 
 msgid "screen.rankings"
 msgstr "Rankings"

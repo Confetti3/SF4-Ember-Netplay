@@ -22,6 +22,8 @@
 #include "../common/Country.hxx"
 #include "Admission.hxx"
 #include "TournamentBinding.hxx"
+#include "RoomModelActions.hxx"
+#include "RoomModelContinuous.hxx"
 
 // The room model is deliberately independent from the game and transport
 // headers.  It is the value boundary between the session owner and the UI.
@@ -73,42 +75,6 @@ enum class TablePhase : std::uint8_t {
 	Closed,
 };
 
-enum class ActionKind : std::uint8_t {
-	Join = 0,
-	Leave,
-	Queue,
-	Unqueue,
-	Watch,
-	Unwatch,
-	Ready,
-	Unready,
-	SetRules,
-	SetCapacity,
-	Lock,
-	Kick,
-	Close,
-	Chat,
-	Rename,
-	TransferHost,
-	RecordResult,
-	MatchFinished,
-	CancelResult,
-	AbortMatch,
-	AcknowledgeTerminal,
-	// A spectator's lock-in, on (Action::locked) or off. Appended so older
-	// authorities reject it as an unknown kind.
-	LockSpectating,
-	// A bound table's fighter has the bridge's permit for the reserved game
-	// (Action::matchGeneration), named by Action::text.
-	PermitReady,
-	// A member's own word that they are in the game's Training mode, on
-	// (Action::inTraining) or off. It changes what the others are shown and
-	// nothing else. Appended so older authorities reject it as an unknown
-	// kind.
-	SetTraining,
-};
-// The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetTraining;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -157,6 +123,8 @@ struct MemberProfile {
 	// name its endpoint as a watcher refuses it. A courtesy of a cooperating
 	// game, never part of a snapshot.
 	bool observer = false;
+	// Fixed when this endpoint joins; omitted by clients without the adapter.
+	bool continuousCapable = false;
 };
 
 struct ConnectionRef {
@@ -213,6 +181,7 @@ struct Member {
     // ends by their word, or when a game of theirs starts. Optional on the
     // wire and written only when set, so a state without it reads as before.
     bool training = false;
+    bool continuousCapable = false;
     // Seconds since the member last did anything in the room (joined, sent a
     // room action, showed a fighter), as of the moment the snapshot was sent;
     // a member in a game counts as active. Stamped per recipient when sent,
@@ -233,6 +202,7 @@ struct SetRecord {
 	MemberId Loser() const { return winnerSeat == 0 ? p2 : p1; }
 };
 
+
 struct Table {
 	std::uint8_t id = 0;
 	Rules rules;
@@ -249,6 +219,10 @@ struct Table {
 	// unless they choose to watch. Always a subset of spectators.
 	std::vector<MemberId> endingWatchers;
 	bool ready[2] = { false, false };
+	// Captured independently at Ready; the native grant also checks every
+	// frozen spectator. Omitted from ordinary rooms' JSON.
+	bool continuousReady[2] = { false, false };
+	ContinuousSeries continuous;
 	// Immutable per-fighter values captured at the Ready quorum boundary.
 	std::uint8_t inputDelay[2] = { 2, 2 };
 	// Each fighter's Lower input lag at Ready; off until they ready with it.
@@ -564,6 +538,8 @@ struct Action {
 	std::uint8_t inputDelay = 2;
 	// Ready: the fighter has Lower input lag on. Written only when set.
 	bool lowerLag = false;
+	bool continuous = false; // Ready: opt in to the continuous result protocol
+	std::uint64_t continuousGame = 0; // one-based game within matchGeneration
 	std::string text;
 	// PermitReady: the permit's start window in milliseconds (its start_by
 	// less its issued_at, both on the bridge's clock).
@@ -664,7 +640,7 @@ public:
 	// 0 when no game is under way there. A binding for another match, or an
 	// older one for this match, is refused.
 	Result BindTournament(const TournamentBinding& binding);
-	Result EndMatch(std::uint8_t table, std::uint64_t generation, MatchResult result);
+	Result EndMatch(std::uint8_t table, std::uint64_t generation, MatchResult result, bool alreadyScored = false);
 	// True only when AdvanceTime(nowMs) can emit a timer-driven room event.
 	// Pending results which have not reached their deadline, and unresolved
 	// results already paused for host review, are not timer work.
@@ -777,7 +753,10 @@ private:
 	// that follow any readiness change.
 	void ReleaseReady(Table& table, int seat, Member& item);
 	Result SettleReadiness(Table& table, MemberId member);
+	ReportAgreement ReportQuorum(Table& table, MemberId member, MatchResult result);
 	Result ApplyRecordResult(MemberId member, const Action& action, Table* table);
+	Result ApplyContinuousResult(MemberId member, const Action& action, Table& table);
+	Result ApplyFinishContinuous(MemberId member, const Action& action, Table& table);
 	Result ApplyMatchFinished(MemberId member, const Action& action, Table* table);
 	Result ApplyCancelResult(MemberId member, const Action& action, Table* table);
 	Result ApplyAbortMatch(MemberId member, const Action& action, Table* table);
@@ -891,6 +870,7 @@ private:
 		std::uint8_t table = 0;
 		std::uint64_t generation = 0;
 		MatchResult result = MatchResult::Abort;
+		std::uint64_t continuousGames = 0;
 		std::array<MemberId, 2> fighters = {};
 		std::vector<TerminalRecipient> recipients;
 		bool acknowledged = false;

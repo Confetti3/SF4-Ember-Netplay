@@ -710,6 +710,8 @@ session::SendResult SessionClient::Lobby_Ready()
 	if (_customRoomsSeen) {
 		auto ready = TableAction(room::ActionKind::Ready, _selectedRoomTable, _selectedDelay);
 		ready.lowerLag = _selectedLowerLag;
+		ready.continuous = _profile.continuousCapable && room::ContinuousAllowed(_roomSnapshot) &&
+			_roomSnapshot.tables[_selectedRoomTable].rules.continuousRematch;
 		return SendRoomAction(ready);
 	}
 	LobbyReady msg;

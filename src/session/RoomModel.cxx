@@ -255,6 +255,7 @@ bool RoomAuthority::StoreTerminalReceipt(std::uint8_t table, const Table& value,
 	if (terminalReceipts_.size() >= MaximumTerminalReceipts) return false;
 	TerminalReceipt receipt;
 	receipt.table = table; receipt.generation = value.matchGeneration; receipt.result = result;
+	receipt.continuousGames = value.continuous.enabled ? value.continuous.games : 0;
 	const auto addRecipient = [&](MemberId member) {
 		if (!member || std::any_of(receipt.recipients.begin(), receipt.recipients.end(),
 			[&](const TerminalRecipient& prior) { return prior.member == member; })) return;
@@ -440,6 +441,7 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.nat = NatClassFromWire(static_cast<long long>(profile.nat));
 	member.steamId = profile.steamId;
 	member.country = profile.country;
+	member.continuousCapable = profile.continuousCapable;
 	member.badge = profile.admission.badge;
 	member.connection = connection;
 	member.host = snapshot_.host == 0 || host;
@@ -563,6 +565,7 @@ void RoomAuthority::KeepStreak(Table& table) {
 
 void RoomAuthority::ClearSeatReadiness(Table& table, int seat) {
 	table.ready[seat] = false;
+	table.continuousReady[seat] = false;
 	table.lowerLag[seat] = false;
 	if (auto* fighter = Find(seat == 0 ? table.p1 : table.p2)) fighter->delayLocked = false;
 }
@@ -573,6 +576,7 @@ void RoomAuthority::ClearReadiness(Table& table) {
 }
 
 void RoomAuthority::CloseLiveGeneration(Table& table) {
+	if (table.continuous.enabled) table.continuous.closed = true;
 	activeMatchRecipients_[table.id].clear();
 	for (const auto watcher : table.watchingNext)
 		if (std::find(table.spectators.begin(), table.spectators.end(), watcher) == table.spectators.end())
@@ -739,6 +743,7 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	ClearPermit(*table);
 	if (timer.generation) permits_.tables[tableId] = timer;
 	table->phase = TablePhase::Playing;
+	table->continuous = {};
 	table->resultPending = false;
 	resultReporter_[tableId] = 0;
 	activeMatchRecipients_[tableId].clear();
@@ -768,16 +773,32 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	}
 	for (const auto spectator : table->spectators)
 		if (!HasOutstandingTerminalReceiptForMember(spectator)) freezeRecipient(spectator);
+	// Decide once on the complete frozen roster, including promoted queue
+	// watchers. An older or unavailable adapter keeps the ordinary flow for
+	// everyone before the native game begins, never a first-frame abort.
+	table->continuous.enabled = ContinuousAllowed(snapshot_) && table->rules.continuousRematch &&
+		table->continuousReady[0] && table->continuousReady[1] &&
+		std::all_of(activeMatchRecipients_[tableId].begin(), activeMatchRecipients_[tableId].end(),
+			[&](const TerminalRecipient& recipient) { return Find(recipient.member)->continuousCapable; });
+	if (table->continuous.enabled) {
+		table->continuous.initialScore[0] = table->score[0];
+		table->continuous.initialScore[1] = table->score[1];
+	}
 	Touch(*table);
 	NormalizeTableMembers(*table);
 	return Accept({Event{Event::Kind::MatchStarted, tableId, table->matchGeneration, 0, MatchResult::Abort}});
 }
 
-Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, MatchResult result) {
+Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, MatchResult result, bool alreadyScored) {
 	Table* table = FindTable(tableId);
 	if (!table) return Reject(RejectReason::UnknownTable);
 	if ((table->phase != TablePhase::Playing && table->phase != TablePhase::Paused) || table->matchGeneration != generation) return Reject(RejectReason::WrongGeneration);
 	if (table->phase == TablePhase::Paused && result != MatchResult::Cancel && result != MatchResult::Abort) return Reject(RejectReason::WrongPhase);
+	if (result != MatchResult::Abort && result != MatchResult::Cancel) {
+		if (alreadyScored != table->continuous.enabled) return Reject(RejectReason::WrongPhase);
+		if (alreadyScored && (!table->continuous.games || table->resultPending || table->continuous.finishMask != 3 ||
+			result != table->continuous.lastResult)) return Reject(RejectReason::WrongPhase);
+	}
 	// A duplicate native completion is an acknowledgement of the same durable
 	// receipt. It must never award the score a second time or rotate the table
 	// before the first teardown has been delivered.
@@ -791,9 +812,13 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// ledger is backpressure, so a failed EndMatch must leave the live table
 	// untouched and retryable.
 	if (!StoreTerminalReceipt(tableId, *table, result)) return Reject(RejectReason::TerminalLedgerFull);
-	RecordWonGame(tableId, *table, result);
-	if (result == MatchResult::P1Win) ++table->score[0];
-	else if (result == MatchResult::P2Win) ++table->score[1];
+	// Continuous games were already scored by two agreeing reports. Closing
+	// their one transport must not score the last game again, even on retry.
+	if (!alreadyScored) {
+		RecordWonGame(tableId, *table, result);
+		if (result == MatchResult::P1Win) ++table->score[0];
+		else if (result == MatchResult::P2Win) ++table->score[1];
+	}
 	const auto generationValue = table->matchGeneration;
 	CloseLiveGeneration(*table);
 	// A game that ends, started or not, needs no permit timer.
@@ -802,7 +827,7 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// first-to-N table ends the set when a win reaches N and rotates its seats.
 	// Draw/cancel/abort preserve prior wins and never award a point.
 	const auto goal = static_cast<std::uint32_t>(table->rules.format);
-	const int winnerSeat = result == MatchResult::P1Win ? 0 : result == MatchResult::P2Win ? 1 : -1;
+	const int winnerSeat = goal && table->score[0] >= goal ? 0 : goal && table->score[1] >= goal ? 1 : -1;
 	// Clear readiness while the fighters who readied are still seated: it also
 	// unlocks their delays.
 	ClearReadiness(*table);

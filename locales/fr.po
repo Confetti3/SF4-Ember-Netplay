@@ -3142,9 +3142,6 @@ msgstr "Annuler combat bloqué"
 msgid "room.cancel_stuck.detail"
 msgstr "Hôte uniquement. À utiliser si un combat terminé n'a jamais fourni son résultat. Aucun résultat enregistré."
 
-msgid "room.rules.finish_game"
-msgstr "Terminez le combat actif avant de modifier les règles."
-
 msgid "room.rules.apply_note"
 msgstr "Modifications actives après Appliquer."
 
@@ -6487,6 +6484,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Combat terminé"
+
+msgid "quick_rematch.rematch"
+msgstr "Revanche"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Rejouer avec les mêmes personnages et le même stage."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Retour au salon"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Refuser la revanche et revenir au salon."
+
+msgid "quick_rematch.waiting"
+msgstr "En attente du jeu..."
+
+msgid "quick_rematch.failed"
+msgstr "Revanche interrompue. Retour au salon."
+
+msgid "quick_rematch.context_invalid"
+msgstr "État de la revanche modifié. Retour au salon."
+
+msgid "quick_rematch.interrupted"
+msgstr "Revanche interrompue."
+
+msgid "quick_rematch.set_complete"
+msgstr "Série terminée. Retournez au salon."
+
+msgid "quick_rematch.accepted"
+msgstr "Revanche confirmée. En attente de l’autre joueur."
+
+msgid "quick_rematch.other_ready"
+msgstr "L’autre joueur a confirmé. Choisissez une option."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Temps restant : {0} s"
+
+msgid "room.continuous.rule"
+msgstr "Revanche continue (expérimental)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Conserve la connexion pour les revanches. Désactivée par défaut ; utilise des matchs normaux si un joueur ou spectateur initial ne la prend pas en charge."
+
+msgid "room.continuous.confirming"
+msgstr "Confirmation du résultat..."
+
+
+msgid "room.continuous.draw"
+msgstr "Dernier match ({0}) : égalité"
+
+
+msgid "room.continuous.won"
+msgstr "Dernier match ({0}) : {1} a battu {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Appliquer termine le match de cette table et renvoie ses joueurs et spectateurs au salon. Les autres tables continuent. Le match interrompu n'accorde aucune victoire."
 
 msgid "screen.rankings"
 msgstr "Classements"

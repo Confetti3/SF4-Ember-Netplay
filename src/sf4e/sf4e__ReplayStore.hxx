@@ -17,6 +17,9 @@ namespace sf4e { namespace replaystore {
 // save files and is where the table is first seen. Inside the Detours
 // transaction, like the other installs.
 void Install();
+// Both original Versus replay callbacks were checked and hooked. A build
+// without them must use the ordinary room lifecycle, before Ready is sent.
+bool ContinuousRecordingAvailable();
 
 // A replay can be put into the game: the table has been seen with the stock
 // shape, and the match list has its 30 slots (sf4e__Game__Battle.hxx:

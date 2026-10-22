@@ -2791,8 +2791,6 @@ msgid "room.cancel_stuck"
 msgstr "Cancelar juego atascado"
 msgid "room.cancel_stuck.detail"
 msgstr "Solo anfitrión. Úsalo cuando un juego terminado no informe el resultado. No se registrará ningún resultado."
-msgid "room.rules.finish_game"
-msgstr "Termina el juego activo antes de cambiar las reglas."
 msgid "room.rules.apply_note"
 msgstr "Los cambios solo se aplican después de Aplicar."
 msgid "room.rules.host_only"
@@ -6007,6 +6005,66 @@ msgid "country.ZW"
 msgstr "Zimbabue"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Combate terminado"
+
+msgid "quick_rematch.rematch"
+msgstr "Revancha"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Jugar otra vez con los mismos personajes y escenario."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Volver a la sala"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Rechazar la revancha y volver a la sala."
+
+msgid "quick_rematch.waiting"
+msgstr "Esperando al juego..."
+
+msgid "quick_rematch.failed"
+msgstr "Revancha interrumpida. Volviendo a la sala."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Cambió el estado de la revancha. Volviendo a la sala."
+
+msgid "quick_rematch.interrupted"
+msgstr "Revancha interrumpida."
+
+msgid "quick_rematch.set_complete"
+msgstr "Serie terminada. Vuelve a la sala."
+
+msgid "quick_rematch.accepted"
+msgstr "Revancha confirmada. Esperando al otro jugador."
+
+msgid "quick_rematch.other_ready"
+msgstr "El otro jugador confirmó. Elige una opción."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Tiempo restante: {0} s"
+
+msgid "room.continuous.rule"
+msgstr "Revancha continua (experimental)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Mantiene la conexión para las revanchas. Desactivada por defecto; usa partidas normales si algún jugador o espectador inicial no la admite."
+
+msgid "room.continuous.confirming"
+msgstr "Confirmando el resultado..."
+
+
+msgid "room.continuous.draw"
+msgstr "Última partida ({0}): empate"
+
+
+msgid "room.continuous.won"
+msgstr "Última partida ({0}): {1} venció a {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Aplicar termina la partida de esta mesa y devuelve a sus jugadores y espectadores a la sala. Las demás mesas siguen jugando. La partida interrumpida no otorga ninguna victoria."
 
 msgid "screen.rankings"
 msgstr "Clasificaciones"

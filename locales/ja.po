@@ -3143,9 +3143,6 @@ msgstr "停止した対戦をキャンセル"
 msgid "room.cancel_stuck.detail"
 msgstr "ホスト専用。終了済みの対戦結果が届かない場合に使用します。結果は記録されません。"
 
-msgid "room.rules.finish_game"
-msgstr "ルールを変更する前に進行中の対戦を終えてください。"
-
 msgid "room.rules.apply_note"
 msgstr "変更は「適用」後に反映されます。"
 
@@ -6488,6 +6485,66 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "対戦終了"
+
+msgid "quick_rematch.rematch"
+msgstr "再戦"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "同じキャラクターとステージで再戦します。"
+
+msgid "quick_rematch.return_lobby"
+msgstr "ロビーに戻る"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "再戦を断ってロビーに戻ります。"
+
+msgid "quick_rematch.waiting"
+msgstr "ゲームの応答を待っています..."
+
+msgid "quick_rematch.failed"
+msgstr "再戦が中断されました。ロビーに戻ります。"
+
+msgid "quick_rematch.context_invalid"
+msgstr "再戦の状態が変わりました。ロビーに戻ります。"
+
+msgid "quick_rematch.interrupted"
+msgstr "再戦が中断されました。"
+
+msgid "quick_rematch.set_complete"
+msgstr "セット終了。ロビーに戻ってください。"
+
+msgid "quick_rematch.accepted"
+msgstr "再戦を希望しました。相手の返答を待っています。"
+
+msgid "quick_rematch.other_ready"
+msgstr "相手は再戦を希望しています。選択してください。"
+
+msgid "quick_rematch.time_remaining"
+msgstr "残り時間：{0}秒"
+
+msgid "room.continuous.rule"
+msgstr "連続再戦（実験的）"
+
+msgid "room.continuous.rule.detail"
+msgstr "再戦でも接続を維持します。初期設定はオフです。両プレイヤーと開始時の全観戦者が対応していない場合は通常の試合を行います。"
+
+msgid "room.continuous.confirming"
+msgstr "試合結果を確認中..."
+
+
+msgid "room.continuous.draw"
+msgstr "直前の試合 ({0}): 引き分け"
+
+
+msgid "room.continuous.won"
+msgstr "直前の試合 ({0}): {1} が {2} に勝利"
+
+
+msgid "room.rules.end_game"
+msgstr "適用すると、この台の試合を終了し、プレイヤーと観戦者がルームに戻ります。他の台の試合は続行します。中断した試合に勝利は加算されません。"
 
 msgid "screen.rankings"
 msgstr "ランキング"

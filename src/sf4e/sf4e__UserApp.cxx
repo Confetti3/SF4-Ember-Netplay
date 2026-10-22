@@ -236,7 +236,14 @@ static RuntimeGgpoStart StartRuntimeGgpo() {
         fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay,
             netplay->client.SpectatorSyncDeadlineMs());
     }
-    if (fSystem::ggpo != nullptr) {
+    if (fSystem::ggpo != nullptr) sf4e::UserApp::NoteReplayMatchStart();
+    sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
+    sf4e::NetplayFacade::ResetGgpoBattleWatch();
+    return fSystem::ggpo != nullptr ? RuntimeGgpoStart::Started : RuntimeGgpoStart::Failed;
+}
+
+void sf4e::UserApp::NoteReplayMatchStart() {
+    if (netplay) {
         auto* const root = App::GetRootEvent();
         auto* const progress = root ? *RootEvent::GetProgressData(root) : nullptr;
         const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0;
@@ -244,9 +251,6 @@ static RuntimeGgpoStart StartRuntimeGgpo() {
             netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID,
             recordingEnabled);
     }
-    sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
-    sf4e::NetplayFacade::ResetGgpoBattleWatch();
-    return fSystem::ggpo != nullptr ? RuntimeGgpoStart::Started : RuntimeGgpoStart::Failed;
 }
 
 // A spectator without its stream watches the next game at the table, and

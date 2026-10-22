@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__ContinuousRematch.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -113,6 +114,7 @@ void CloseRoom() {
 	runtime->recoveringMatch = false;
 	runtime->matchFinishedPending = false;
 	runtime->matchFinishedGeneration = 0;
+	runtime->matchFinishedGame = 0;
     runtime->finishActionId=runtime->finishRetryAt=0;
 	runtime->matchFinishedAction.reset();
 	runtime->pendingAbort.reset();
@@ -211,6 +213,7 @@ void AttachRoom() {
 	UserApp::StartIrohSession(runtime->room->Client(), config.ggpoPort, runtime->displayName,
 		deviceType, deviceIndex, static_cast<uint8_t>(runtime->preferences.inputDelay));
 	UserApp::netplay->client.RequireCustomRooms();
+    UserApp::netplay->client.SetContinuousRematchAvailable(continuousrematch::Available());
 	UserApp::netplay->client.SetProfileMain(runtime->preferences.mainFighter);
 	std::string linkDetail;
 	const auto link = DetectNetworkLink(&linkDetail);
@@ -239,6 +242,7 @@ void ConfigureDiscord(const platform::HelperBootstrap& bootstrap) { pendingDisco
 void StartHelper() {
 	if (runtime) return;
 	runtime = new Runtime();
+    continuousrematch::Initialize();
 	bridge::OpenCommands(runtime->commands);
     runtime->languagePreference = platform::LoadLanguagePreference();
     runtime->checkUpdatesAtLaunch = platform::LoadUpdatePreferences().checkAtLaunch;
@@ -431,7 +435,10 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		(command.service == platform::ServiceAction::OpenSteamProfile && !command.steamProfile.Present()) ||
 		command.reportSubmission.comment.size() > 8000 ||
 		command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64 ||
-		(command.createdRules && !command.createdRules->Valid())) return false;
+		(command.createdRules && !command.createdRules->Valid()) ||
+        (command.rematchChoice != rematchpanel::Choice::None &&
+            (command.rematchOffer == 0 || (command.rematchChoice != rematchpanel::Choice::Rematch &&
+                command.rematchChoice != rematchpanel::Choice::Lobby)))) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
 		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes() + command.reportSubmission.comment.size();
 		return bridge::PushCommand(std::move(command), bytes);
@@ -443,7 +450,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
 	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
-		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+		command.rematchChoice == rematchpanel::Choice::None && command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&

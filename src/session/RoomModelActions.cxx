@@ -127,13 +127,22 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
-	if (GameUnderWay(*table) || !action.rules.Valid()) return Reject(RejectReason::InvalidRules);
+	if (!action.rules.Valid() || (action.rules.continuousRematch && !ContinuousAllowed(snapshot_))) return Reject(RejectReason::InvalidRules);
+	if (action.rules == table->rules) return Accept();
+	std::vector<Event> events;
+	if (GameUnderWay(*table)) {
+		// Keep the old rules until the existing close path has reserved its
+		// durable receipt. A full ledger leaves both match and rules intact.
+		auto ended = EndMatch(table->id, table->matchGeneration, MatchResult::Cancel);
+		if (!ended.accepted) return ended;
+		events = std::move(ended.events);
+	}
 	// A different set length or rotation starts a new set. Round count, time and
 	// edition apply from the next game and keep the score.
 	const bool newSet = action.rules.format != table->rules.format || action.rules.rotation != table->rules.rotation;
 	table->rules = action.rules;
 	if (newSet) { table->streakHolder = 0; table->streak = 0; }
-	ResetTable(*table, newSet); return Accept();
+	ResetTable(*table, newSet); return Accept(std::move(events));
 }
 
 Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* table) {
@@ -261,6 +270,8 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 	if (action.kind == ActionKind::Ready && HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
 	if (table->phase != TablePhase::Waiting && table->phase != TablePhase::Ready) return Reject(RejectReason::WrongPhase);
 	const int seat = table->p1 == member ? 0 : 1;
+	if (action.kind == ActionKind::Ready && action.continuous &&
+		!ContinuousAllowed(snapshot_)) return Reject(RejectReason::Unauthorized);
 	if (action.inputDelay > InputDelayWireCeiling) return Reject(RejectReason::Unauthorized);
 	// What an earlier build could choose above the limit plays at the limit.
 	const auto delay = static_cast<std::uint8_t>((std::min)(static_cast<int>(action.inputDelay), MaximumInputDelay));
@@ -282,6 +293,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 		return Reject(RejectReason::TerminalLedgerFull);
 	if (action.kind == ActionKind::Ready) {
 		table->ready[seat] = true;
+		table->continuousReady[seat] = action.continuous && table->rules.continuousRematch && item->continuousCapable;
 		item->selectedDelay = delay;
 		item->frozenDelay = delay;
 		item->delayLocked = true;
@@ -323,36 +335,44 @@ Result RoomAuthority::ApplyLockSpectating(MemberId member, const Action& action,
 	return Accept();
 }
 
+ReportAgreement RoomAuthority::ReportQuorum(Table& table, MemberId member, MatchResult result) {
+	if (resultReporter_[table.id] == member) return ReportAgreement::Duplicate;
+	if (table.resultPending && resultReporter_[table.id]) {
+		if (pendingResult_[table.id] == result) return ReportAgreement::Agreed;
+		table.phase = TablePhase::Paused;
+		Touch(table);
+		return ReportAgreement::Disputed;
+	}
+	// MatchFinished may already have opened the result window without a
+	// report. The first actual report establishes its value and reporter.
+	resultReporter_[table.id] = member;
+	pendingResult_[table.id] = result;
+	table.resultPending = true;
+	resultPendingSince_[table.id] = nowMs_;
+	Touch(table);
+	return ReportAgreement::First;
+}
+
 Result RoomAuthority::ApplyRecordResult(MemberId member, const Action& action, Table* table) {
+	if (table->continuous.enabled) return Reject(RejectReason::WrongPhase);
 	if (table->phase != TablePhase::Playing || !IsParticipant(*table, member)) return Reject(RejectReason::WrongPhase);
 	if (action.matchGeneration != table->matchGeneration) return Reject(RejectReason::WrongGeneration);
 	if (action.result != MatchResult::P1Win && action.result != MatchResult::P2Win && action.result != MatchResult::Draw) return Reject(RejectReason::WrongPhase);
-	if (resultReporter_[table->id] == member)
-		return pendingResult_[table->id] == action.result ? Reject(RejectReason::DuplicateResult) :
-			Reject(RejectReason::WrongPhase);
-	if (table->resultPending) {
-		if (resultReporter_[table->id] == 0 && pendingResult_[table->id] == MatchResult::Abort) {
-			resultReporter_[table->id] = member;
-			pendingResult_[table->id] = action.result;
-			resultPendingSince_[table->id] = nowMs_;
-			Touch(*table);
-			return Accept();
-		}
-		if (pendingResult_[table->id] != action.result) {
-			table->phase = TablePhase::Paused; Touch(*table);
-			return Accept({Event{Event::Kind::ResultDisputed, table->id, table->matchGeneration, member, action.result}});
-		}
+	switch (ReportQuorum(*table, member, action.result)) {
+	case ReportAgreement::Duplicate:
+		return Reject(pendingResult_[table->id] == action.result ? RejectReason::DuplicateResult : RejectReason::WrongPhase);
+	case ReportAgreement::Disputed:
+		return Accept({Event{Event::Kind::ResultDisputed, table->id, table->matchGeneration, member, action.result}});
+	case ReportAgreement::Agreed:
 		return EndMatch(table->id, table->matchGeneration, action.result);
+	case ReportAgreement::First:
+		return Accept();
 	}
-	resultReporter_[table->id] = member;
-	pendingResult_[table->id] = action.result;
-	table->resultPending = true;
-	resultPendingSince_[table->id] = nowMs_;
-	Touch(*table);
-	return Accept();
+	return Reject(RejectReason::WrongPhase);
 }
 
 Result RoomAuthority::ApplyMatchFinished(MemberId member, const Action& action, Table* table) {
+	if (table->continuous.enabled) return Reject(RejectReason::WrongPhase);
 	if (!IsParticipant(*table, member) || (table->phase != TablePhase::Playing && table->phase != TablePhase::Paused) ||
 		action.matchGeneration != table->matchGeneration) return Reject(RejectReason::WrongGeneration);
 	if (table->resultPending) return Accept();
@@ -392,7 +412,8 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (!Find(member)) return Reject(RejectReason::UnknownMember);
 	const auto prior = lastAcceptedActions_.find(member);
 	const bool receiptScopedAction = action.kind == ActionKind::AcknowledgeTerminal ||
-		action.kind == ActionKind::RecordResult || action.kind == ActionKind::MatchFinished;
+		action.kind == ActionKind::RecordResult || action.kind == ActionKind::MatchFinished ||
+		action.kind == ActionKind::RecordContinuousResult || action.kind == ActionKind::FinishContinuousMatch;
 	if (action.actionId != 0 && prior != lastAcceptedActions_.end()) {
 		if (prior->second == action.actionId && !receiptScopedAction) {
 			Result repeat;
@@ -435,7 +456,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (IsWatcher(snapshot_, member) && !WatcherMay(action.kind)) return Reject(RejectReason::Unauthorized);
 	// PermitReady names its reserved generation, so the other fighter's
 	// permit arriving first does not make it stale.
-	if (IsTableAction(action.kind) && action.kind != ActionKind::RecordResult && action.kind != ActionKind::MatchFinished && action.kind != ActionKind::CancelResult && action.kind != ActionKind::AbortMatch && action.kind != ActionKind::AcknowledgeTerminal && action.kind != ActionKind::PermitReady && !generationScopedUnwatch) {
+	if (IsTableAction(action.kind) && !receiptScopedAction && action.kind != ActionKind::CancelResult && action.kind != ActionKind::AbortMatch && action.kind != ActionKind::PermitReady && !generationScopedUnwatch) {
 		const Table* table = FindTable(action.table);
 		if (!table) return Reject(RejectReason::UnknownTable);
 		if (action.tableRevision != table->revision) return Reject(RejectReason::StaleTable);
@@ -500,6 +521,8 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::Unwatch) return ApplyUnwatch(member, table);
 	if (action.kind == ActionKind::Ready || action.kind == ActionKind::Unready) return ApplyReadiness(member, action, table, item);
 	if (action.kind == ActionKind::RecordResult) return ApplyRecordResult(member, action, table);
+	if (action.kind == ActionKind::RecordContinuousResult) return ApplyContinuousResult(member, action, *table);
+	if (action.kind == ActionKind::FinishContinuousMatch) return ApplyFinishContinuous(member, action, *table);
 	if (action.kind == ActionKind::MatchFinished) return ApplyMatchFinished(member, action, table);
 	if (action.kind == ActionKind::CancelResult) return ApplyCancelResult(member, action, table);
 	if (action.kind == ActionKind::AbortMatch) return ApplyAbortMatch(member, action, table);

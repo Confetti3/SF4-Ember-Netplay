@@ -225,7 +225,20 @@ void SessionClient::ProjectSelectedRoomTable() {
 	_matchData.readyMessageNum[1] = table.ready[1] ? 0 : -1;
 }
 
+// Runtime callers describe a result or finish plus its numbered game. Only
+// this wire boundary chooses the ordinary or continuous action kind, so the
+// first send and every exact retry encode the same command.
+static sf4e::room::ActionKind ResultActionKind(sf4e::room::ActionKind kind, std::uint64_t game) {
+	using sf4e::room::ActionKind;
+	if (kind == ActionKind::RecordResult || kind == ActionKind::RecordContinuousResult)
+		return game ? ActionKind::RecordContinuousResult : ActionKind::RecordResult;
+	if (kind == ActionKind::MatchFinished || kind == ActionKind::FinishContinuousMatch)
+		return game ? ActionKind::FinishContinuousMatch : ActionKind::MatchFinished;
+	return kind;
+}
+
 session::SendResult SessionClient::SendRoomAction(room::Action action, std::uint64_t* actionId) {
+	action.kind = ResultActionKind(action.kind, action.continuousGame);
 	if (!_transport || !_customRoomsSeen || _nextRoomActionId == (std::numeric_limits<std::uint64_t>::max)()) return session::SendResult::NotConnected;
 	action.protocolVersion = room::ProtocolVersion;
 	action.actionId = _nextRoomActionId++;
@@ -251,6 +264,7 @@ void SessionClient::RememberSentRoomAction(const room::Action& action) {
 	if (_sentRoomActions.size() >= 32) _sentRoomActions.pop_front();
 	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration,
 		action.inputDelay, action.lowerLag, action.seat, action.actionId});
+	_sentRoomActions.back().continuous = action.continuous;
 	if (action.kind == room::ActionKind::Ready)
 		if (const auto* opponent = room::SeatOpponent(_roomSnapshot, action.table, _roomSnapshot.localMember)) {
 			_sentRoomActions.back().opponent = opponent->id;
@@ -276,7 +290,8 @@ void SessionClient::LogRejectedRoomAction(std::uint64_t actionId, room::RejectRe
 	// A duplicate result report is the expected reply to a retried report, and
 	// a stale finish or result is the expected reply once the table ended.
 	const bool staleReport = found != _sentRoomActions.end() &&
-		(found->kind == room::ActionKind::MatchFinished || found->kind == room::ActionKind::RecordResult) &&
+		(found->kind == room::ActionKind::MatchFinished || found->kind == room::ActionKind::RecordResult ||
+		 found->kind == room::ActionKind::RecordContinuousResult || found->kind == room::ActionKind::FinishContinuousMatch) &&
 		reason == room::RejectReason::WrongGeneration;
 	// AlreadyQueued is the idempotent reply to a Queue press that already landed.
 	const auto level = reason == room::RejectReason::DuplicateResult || reason == room::RejectReason::AlreadyQueued ||
@@ -290,22 +305,24 @@ void SessionClient::LogRejectedRoomAction(std::uint64_t actionId, room::RejectRe
 }
 
 session::SendResult SessionClient::RetryRoomResult(room::Action action, std::uint64_t actionId) {
-	return RetryRoomLifecycleAction(std::move(action),actionId,room::ActionKind::RecordResult);
+	return RetryRoomLifecycleAction(std::move(action), actionId, room::ActionKind::RecordResult);
 }
 
 session::SendResult SessionClient::RetryMatchFinished(room::Action action, std::uint64_t actionId) {
-	return RetryRoomLifecycleAction(std::move(action),actionId,room::ActionKind::MatchFinished);
+	return RetryRoomLifecycleAction(std::move(action), actionId, room::ActionKind::MatchFinished);
 }
 
 SessionClient::RetainedRoomRetry* SessionClient::RetryRecord(room::ActionKind kind) {
-	if(kind==room::ActionKind::RecordResult) return &_resultRetry;
-	if(kind==room::ActionKind::MatchFinished) return &_finishRetry;
+	if(kind==room::ActionKind::RecordResult || kind==room::ActionKind::RecordContinuousResult) return &_resultRetry;
+	if(kind==room::ActionKind::MatchFinished || kind==room::ActionKind::FinishContinuousMatch) return &_finishRetry;
 	return nullptr;
 }
 
 session::SendResult SessionClient::RetryRoomLifecycleAction(room::Action action,
 	std::uint64_t actionId, room::ActionKind expectedKind) {
 	if (!_transport || !_customRoomsSeen) return session::SendResult::NotConnected;
+	action.kind = ResultActionKind(action.kind, action.continuousGame);
+	expectedKind = ResultActionKind(expectedKind, action.continuousGame);
 	if (action.kind != expectedKind || !actionId || actionId >= _nextRoomActionId)
 		return session::SendResult::InvalidPayload;
 	action.protocolVersion = room::ProtocolVersion;
@@ -464,6 +481,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
 		const std::uint8_t attempt = sent->staleRetries + 1;
 		auto again = TableAction(kind, sent->table, sent->inputDelay, sent->seat);
 		again.lowerLag = sent->lowerLag;
+		again.continuous = sent->continuous;
 		const auto resent = SendRoomAction(again);
 		if (resent == session::SendResult::Queued) {
 			// SendRoomAction just remembered the resend as the newest entry.
@@ -491,7 +509,8 @@ bool SessionClient::HandleRoomResult(json& msg) {
 		// closed (the opponent's report landed first) is routine
 		// bookkeeping, not something the player needs to read.
 		const bool staleReport = sent != _sentRoomActions.end() &&
-			(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult) &&
+			(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult ||
+			 sent->kind == room::ActionKind::RecordContinuousResult || sent->kind == room::ActionKind::FinishContinuousMatch) &&
 			(result.result.reason == room::RejectReason::WrongGeneration || result.result.reason == room::RejectReason::DuplicateResult);
 		// The Training word is sent by the runtime, not pressed: a refusal
 		// is retried there and is nothing for the player to read.

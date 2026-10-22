@@ -5,6 +5,7 @@
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__Steam.hxx"
 #include "sf4e__CustomContent.hxx"
+#include "sf4e__ContinuousRematch.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
@@ -90,6 +91,10 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	}
 	// Validate ownership before even a deferred GGPO teardown side effect.
 	if (!(command.command.generation == runtime->controller.GetSnapshot().generation)) return DispatchOutcome::Dropped;
+    if (command.rematchChoice != rematchpanel::Choice::None) {
+        continuousrematch::Choose(command.rematchChoice,command.rematchOffer);
+        return DispatchOutcome::Dropped;
+    }
 	// Training from a room sends no room command: the game alone moves, and only
 	// if the room allows it now, not as it was when the player pressed.
 	if (command.training == TrainingEntry::Room) {
@@ -738,6 +743,25 @@ void DrainRoomEvents() {
 	}
 }
 
+bool PersistResultProfile() {
+    netplay::ProfileStore store;
+    store.queue = [] { return OverlayPrefs::QueuePlayerPreferences(runtime->preferences); };
+    store.saved = [](std::uint64_t revision) { return OverlayPrefs::PlayerPreferencesSaved(revision); };
+    store.failed = [] { return !OverlayPrefs::PersistenceError().empty(); };
+    using Persistence = netplay::MatchResultOutbox::ProfilePersistence;
+    switch (runtime->resultOutbox.PersistProfile(runtime->preferences.record, store, GetTickCount64())) {
+    case Persistence::Waiting: return false;
+    case Persistence::Saved: spdlog::info("Match result: profile record saved"); break;
+    case Persistence::NotRequired: break;
+    case Persistence::Released:
+        spdlog::warn("Match result: profile record not saved, releasing the match: {}",
+        OverlayPrefs::PersistenceError().empty() ? std::string("write refused or timed out") : OverlayPrefs::PersistenceError());
+        runtime->error = loc::T("runtime.match_record_not_saved");
+        break;
+    }
+    return true;
+}
+
 void PersistTerminalOutcome() {
 	// Record the confirmed outcome in the profile and hold the terminal receipt
 	// until the settings writer reports that revision on disk. Anything that
@@ -748,21 +772,7 @@ void PersistTerminalOutcome() {
 		runtime->terminalAckGeneration == capturedResult->generation &&
 		runtime->terminalAckTable == capturedResult->table && capturedResult->slot < 2 &&
 		(capturedResult->result == room::MatchResult::P1Win || capturedResult->result == room::MatchResult::P2Win)) {
-		netplay::ProfileStore store;
-		store.queue = [] { return OverlayPrefs::QueuePlayerPreferences(runtime->preferences); };
-		store.saved = [](std::uint64_t revision) { return OverlayPrefs::PlayerPreferencesSaved(revision); };
-		store.failed = [] { return !OverlayPrefs::PersistenceError().empty(); };
-		using Persistence = netplay::MatchResultOutbox::ProfilePersistence;
-		switch (runtime->resultOutbox.PersistProfile(runtime->preferences.record, store, GetTickCount64())) {
-		case Persistence::Waiting: return;
-		case Persistence::Saved: spdlog::info("Match result: profile record saved"); break;
-		case Persistence::NotRequired: break;
-		case Persistence::Released:
-			spdlog::warn("Match result: profile record not saved, releasing the match: {}",
-				OverlayPrefs::PersistenceError().empty() ? std::string("write refused or timed out") : OverlayPrefs::PersistenceError());
-			runtime->error = loc::T("runtime.match_record_not_saved");
-			break;
-		}
+        if (!PersistResultProfile()) return;
 		runtime->terminalOutcomeConsumed = true;
 	}
 }

@@ -15,6 +15,7 @@
 #include "../common/NoticeSeverity.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
 #include "../common/GgpoTimeline.hxx"
+#include "../common/ContinuousRematch.hxx"
 #include "../common/MatchTelemetry.hxx"
 #include "../common/ReusableRecords.hxx"
 #include "../common/RoomLimits.hxx"
@@ -143,6 +144,7 @@ namespace sf4e {
 					// argument to the save callback. Reset on slot reuse.
 					int simulationFrame = -1;
 					int ggpoFrame = -1;
+					continuousrematch::State continuousRematchState;
 					std::vector<std::pair<GameMementoKey*, GameMementoKey>> keys;
 					// Flat, capacity-retaining records of the sound state. A
 					// save runs once per simulated and once per re-simulated
@@ -257,6 +259,7 @@ namespace sf4e {
 				// One read of the fighters gives the frame's trace row
 				// (inputs: what the frame played) and, on cadence frames, its
 				// hash checkpoint, both under the state frame it reaches.
+				static int SimulatedStateFrame();
 				static void CaptureSimulatedFrame(Dimps::Game::Battle::System* src, const sf4e::Pad::System::Inputs inputs[2]);
 				// The traced frames from the checkpoint before frameIdx up to
 				// it, logged on the battle's first v2 mismatch only.

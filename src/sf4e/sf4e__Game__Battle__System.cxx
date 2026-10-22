@@ -7,6 +7,7 @@
 #include "sf4e__MementoGuards.hxx"
 #include "../common/MementoGuards.hxx"
 #include "sf4e__CustomContent.hxx"
+#include "sf4e__ContinuousRematch.hxx"
 
 static_assert(sf4e::NativePauseOrHoldFlag == rSystem::SSF_PAUSE_OR_HOLD, "BattlePause.hxx flag differs from the native one");
 
@@ -25,7 +26,7 @@ void ResetNativeResultMatch() {
 // The outcome is settled: this fighter confirmed it natively, or the room
 // committed the match end (the only way a spectator learns it). Losing the
 // stream or the peer after that ends nothing the player needs to hear about.
-bool MatchResultKnown() { return s_nativeResultEmitted || sf4e::NetplayFacade::IsRuntimeMatchEndCommitted(); }
+bool MatchResultKnown() { return s_nativeResultEmitted || sf4e::NetplayFacade::IsRuntimeMatchEndCommitted() || sf4e::NetplayFacade::IsRuntimeMatchFinishing(); }
 
 void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
     if (!system || !rSystem::staticVars.CurrentBattleFlow) {
@@ -61,6 +62,8 @@ void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
 static void PublishConfirmedNativeMatchResult() {
     if (s_nativeResultEmitted || !fSystem::ggpo ||
         fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) return;
+    // Continuous sets publish each confirmed game through the room authority.
+    if(sf4e::continuousrematch::DeferResultPublication())return;
     int confirmed = -1;
     if (!GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))) return;
     const auto sample = s_nativeResultTimeline.ConfirmedSample(confirmed);
@@ -370,8 +373,8 @@ static bool PlayGgpoFrame(rSystem* system) {
     }
     NoteDisconnectFlags(disconnect_flags);
     // The game is never shown the reserved bits (TrainingRuntime.hxx).
-    ggpoInputs[0].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[0].rawOn);
-    ggpoInputs[1].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[1].rawOn);
+    const auto control = sf4e::continuousrematch::PrepareFrameInputs(ggpoInputs);
+    if(!sf4e::continuousrematch::BeforeFrame(system,ggpoInputs,control))return false;
     const GGPOErrorCode err = sf4e::statehash::GgpoTimeline::Simulate(
         [&] {
             // Playback mode is off again (the guard) before
@@ -385,7 +388,7 @@ static bool PlayGgpoFrame(rSystem* system) {
                 fSoundPlayerManager::SyncState();
             }
             diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
-            (system->*rSystem::publicMethods.BattleUpdate)();
+            if(sf4e::continuousrematch::SimulateNative())(system->*rSystem::publicMethods.BattleUpdate)();
         },
         [&] { fSystem::CaptureSimulatedFrame(system, ggpoInputs); },
         [&] {
@@ -433,6 +436,7 @@ static void CatchUpSpectator(rSystem* system) {
 
 void fSystem::BattleUpdate() {
     sf4e::memento::DrainAbort();
+    sf4e::continuousrematch::Poll();
     rSystem* _this = (rSystem*)this;
     rSystem::__publicMethods& sysMethods = rSystem::publicMethods;
     rPadSystem* p = rPadSystem::staticMethods.GetSingleton();
@@ -489,6 +493,7 @@ void fSystem::BattleUpdate() {
                         else inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
                         inputs.rawOn = sf4e::training::ClearReservedInputBits(inputs.rawOn);
                     }
+                    sf4e::continuousrematch::InjectLocalInput(inputs);
                     {
                         diag::ScopedTimer _t(diag::OP_ADD_LOCAL_INPUT);
                         result = ggpo_add_local_input(ggpo, players[i].handle, &inputs, sizeof(fPadSystem::Inputs));
@@ -634,6 +639,7 @@ static void NoteHeapParticleNames(rSystem* system) {
 }
 
 void fSystem::CloseBattle() {
+    sf4e::continuousrematch::CloseBattle();
     rSystem* _this = (rSystem*)this;
     // The engine is closing this battle, so a session retired from here on
     // (now, or later by the spectator drain) leaves no orphan behind.

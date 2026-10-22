@@ -3142,9 +3142,6 @@ msgstr "Partij annuleren"
 msgid "room.cancel_stuck.detail"
 msgstr "Alleen host. Gebruik dit als een afgelopen partij geen uitslag meldde. Er wordt geen uitslag vastgelegd."
 
-msgid "room.rules.finish_game"
-msgstr "Rond de lopende partij af voordat je regels wijzigt."
-
 msgid "room.rules.apply_note"
 msgstr "Wijzigingen gelden pas na Toepassen."
 
@@ -6487,6 +6484,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Gevecht afgelopen"
+
+msgid "quick_rematch.rematch"
+msgstr "Opnieuw spelen"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Speel opnieuw met dezelfde vechters en arena."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Terug naar de lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Weiger de revanche en keer terug naar de kamer."
+
+msgid "quick_rematch.waiting"
+msgstr "Wachten op het spel..."
+
+msgid "quick_rematch.failed"
+msgstr "Revanche onderbroken. Terug naar de lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Revanche-status gewijzigd. Terug naar de lobby."
+
+msgid "quick_rematch.interrupted"
+msgstr "Revanche onderbroken."
+
+msgid "quick_rematch.set_complete"
+msgstr "Set afgelopen. Keer terug naar de lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Revanche bevestigd. Wachten op de andere speler."
+
+msgid "quick_rematch.other_ready"
+msgstr "De andere speler heeft bevestigd. Kies een optie."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Resterende tijd: {0} s"
+
+msgid "room.continuous.rule"
+msgstr "Directe revanche (experimenteel)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Behoudt de verbinding voor revanches. Standaard uit; gebruikt gewone wedstrijden tenzij beide spelers en alle beginnende toeschouwers dit ondersteunen."
+
+msgid "room.continuous.confirming"
+msgstr "Uitslag bevestigen..."
+
+
+msgid "room.continuous.draw"
+msgstr "Vorige wedstrijd ({0}): gelijkspel"
+
+
+msgid "room.continuous.won"
+msgstr "Vorige wedstrijd ({0}): {1} versloeg {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Toepassen beëindigt de wedstrijd aan deze tafel en brengt de spelers en toeschouwers terug naar de kamer. Andere tafels spelen door. De onderbroken wedstrijd levert geen overwinning op."
 
 msgid "screen.rankings"
 msgstr "Ranglijsten"

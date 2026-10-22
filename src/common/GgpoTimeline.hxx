@@ -25,7 +25,10 @@ public:
     // GGPO's load callback, as a rollback starts: restore() brings the engine
     // back to the saved frame, and the re-simulated frames are named from it.
     template <class Restore>
-    bool Load(int frame, Restore restore) {
+    bool Load(int frame, Restore restore, int minimumFrame = -1) {
+        // A native transition may be irreversible even though GGPO retains
+        // older buffers. Reject before restore() can write engine objects.
+        if (minimumFrame >= 0 && frame < minimumFrame) return false;
         if (!restore()) return false;
         held_ = frame;
         return true;

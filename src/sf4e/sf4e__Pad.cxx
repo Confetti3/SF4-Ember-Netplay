@@ -111,8 +111,9 @@ void fSystem::UpdateInputs() {
     const auto& snapshot=*sharedSnapshot;
     // Where Ember's menu may hold the pads follows where the game is now,
     // whatever the drawing thread last published (ui::MenuPads).
+    const sf4e::ui::OverlayLayersState layers(snapshot.rematchPanel);
     auto& menuPads=sf4e::Overlay::MenuPads();
-    menuPads.Place(snapshot.menuContext,sf4e::netplay::Fighting(snapshot.session.match));
+    menuPads.Place(snapshot.menuContext,sf4e::netplay::Fighting(snapshot.session.match),layers.modal);
     // A replay exported as a video, a room's match this PC only watches and
     // the in-game self-test keep running behind another window whatever the
     // player's setting says. Ember's menu reads the pads there too, while it

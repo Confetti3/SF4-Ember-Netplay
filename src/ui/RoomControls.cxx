@@ -222,6 +222,28 @@ ReadyDeadline DescribeReadyDeadline(const ShellView& v, const room::Table& t) {
 }
 TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t) {
     TableBanner banner;
+    // Numbered continuous results are committed only after both fighters
+    // agree. Keep the last result visible while they play the next game;
+    // a single pending report must never announce a winner.
+    if (t.continuous.enabled && !t.continuous.closed && t.phase == room::TablePhase::Playing) {
+        if (t.resultPending) {
+            banner.text = loc::T("room.continuous.confirming");
+        } else if (t.continuous.games) {
+            const auto result = t.continuous.lastResult;
+            if (result == room::MatchResult::Draw) {
+                banner.text = loc::Tf("room.continuous.draw", t.continuous.games);
+            } else if (result == room::MatchResult::P1Win || result == room::MatchResult::P2Win) {
+                const int winner = result == room::MatchResult::P1Win ? 0 : 1;
+                const auto* won = room::FindMember(v.room, winner ? t.p2 : t.p1);
+                const auto* lost = room::FindMember(v.room, winner ? t.p1 : t.p2);
+                if (won && lost) {
+                    banner.text = loc::Tf("room.continuous.won", t.continuous.games, won->name, lost->name);
+                    banner.seat = winner;
+                }
+            }
+        }
+        return banner;
+    }
     banner.text = HoldText(v, t);
     if (!banner.text.empty()) return banner;
     // The room's own Ready deadline comes before why a fighter is away: it

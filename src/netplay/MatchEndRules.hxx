@@ -227,15 +227,14 @@ struct RetryGate {
 };
 // Whether a room action parked for its gate is sent again now. Nothing goes
 // over an unhealthy control or during a match recovery, and every action also
-// waits for a writable authority and the main menu with no match in hand, but
-// what a spectator in a live game sends: its own leave of the table or queue
-// (Unwatch, Unqueue), which must reach P1 before its stream retires, and chat,
-// which the room takes during a game.
+// waits for a writable authority. Applying rules closes the affected game, so
+// its retry cannot wait for that game to end first. Other actions wait for the
+// main menu, except a live spectator's Unwatch, Unqueue and chat.
 inline bool ParkedActionRetryable(const room::Action& action, const RetryGate& gate) {
 	if (!gate.controlHealthy || gate.recoveringMatch || !gate.authorityWritable) return false;
 	const bool goesMidGame = action.kind == room::ActionKind::Unwatch || action.kind == room::ActionKind::Unqueue ||
 		action.kind == room::ActionKind::Chat;
-	return gate.atMenuIdle || (gate.spectatorInGame && goesMidGame);
+	return gate.atMenuIdle || action.kind == room::ActionKind::SetRules || (gate.spectatorInGame && goesMidGame);
 }
 // Whether a parked leave of the watched game is decided again now. Once the
 // stream is gone it goes at once, to end as nothing left to leave rather than

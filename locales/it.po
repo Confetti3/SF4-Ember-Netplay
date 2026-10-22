@@ -3142,9 +3142,6 @@ msgstr "Annulla partita ferma"
 msgid "room.cancel_stuck.detail"
 msgstr "Solo host. Usa se una partita conclusa non ha comunicato il risultato. Nessun risultato sarà registrato."
 
-msgid "room.rules.finish_game"
-msgstr "Termina la partita attiva prima di cambiare le regole."
-
 msgid "room.rules.apply_note"
 msgstr "Le modifiche valgono solo dopo Applica."
 
@@ -6487,6 +6484,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Incontro concluso"
+
+msgid "quick_rematch.rematch"
+msgstr "Rivincita"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Gioca ancora con gli stessi personaggi e lo stesso stage."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Torna alla lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Rifiuta la rivincita e torna nella sala."
+
+msgid "quick_rematch.waiting"
+msgstr "In attesa del gioco..."
+
+msgid "quick_rematch.failed"
+msgstr "Rivincita interrotta. Ritorno alla lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Stato della rivincita cambiato. Ritorno alla lobby."
+
+msgid "quick_rematch.interrupted"
+msgstr "Rivincita interrotta."
+
+msgid "quick_rematch.set_complete"
+msgstr "Set concluso. Torna alla lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Rivincita confermata. In attesa dell’altro giocatore."
+
+msgid "quick_rematch.other_ready"
+msgstr "L’altro giocatore ha confermato. Scegli un’opzione."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Tempo rimasto: {0} s"
+
+msgid "room.continuous.rule"
+msgstr "Rivincita continua (sperimentale)"
+
+msgid "room.continuous.rule.detail"
+msgstr "Mantiene la connessione per le rivincite. Disattivata di default; usa incontri normali se un giocatore o spettatore iniziale non la supporta."
+
+msgid "room.continuous.confirming"
+msgstr "Conferma del risultato in corso..."
+
+
+msgid "room.continuous.draw"
+msgstr "Ultimo incontro ({0}): pareggio"
+
+
+msgid "room.continuous.won"
+msgstr "Ultimo incontro ({0}): {1} ha battuto {2}"
+
+
+msgid "room.rules.end_game"
+msgstr "Applicando le regole, l'incontro di questo tavolo termina e giocatori e spettatori tornano in sala. Gli altri tavoli continuano a giocare. L'incontro interrotto non assegna vittorie."
 
 msgid "screen.rankings"
 msgstr "Classifiche"

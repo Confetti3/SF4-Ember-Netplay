@@ -87,7 +87,7 @@ static void HandleSessionlessClose(std::uint64_t closedGeneration) {
 	// The runtime tears these down itself and then waits for the session to retire.
 	if (runtime->leaveRequested || runtime->replacementPending) return;
 	const auto action = netplay::SessionlessCloseAction(runtime->matchEntered, runtime->enteredGeneration, closedGeneration,
-		runtime->match->Generation(), runtime->recoveringMatch, inProgress, LocalIsSpectator(), IsRuntimeMatchEndCommitted(),
+		runtime->match->Generation(), runtime->recoveringMatch, inProgress, LocalIsSpectator(), IsRuntimeMatchEndCommitted() || IsRuntimeMatchFinishing(),
 		runtime->spectatorStreamFailedGeneration == closedGeneration);
 	if (action == netplay::SessionlessClose::Ignore) return;
 	spdlog::info("Netplay: battle for generation {} closed without its session spectator={} action={}",
@@ -138,6 +138,15 @@ static void ObserveDeferredEntry() {
 	runtime->match->End();
 	PushAlert(loc::T("runtime.spectator_sat_out"), NoticeSeverity::Info);
 }
+}
+
+// A confirmed game is finishing through the shared result/finish outbox.
+// Native retirement must not replace that pending result with an abort.
+bool IsRuntimeMatchFinishing() {
+    if (!runtime || !runtime->match || !runtime->matchFinishedGame) return false;
+    const auto* result = runtime->resultOutbox.Captured();
+    return result && result->generation == runtime->match->Generation() &&
+        result->generation == runtime->matchFinishedGeneration && result->continuousGame == runtime->matchFinishedGame;
 }
 
 // The room has committed the end of the current match (any result).
@@ -209,13 +218,9 @@ void NotifyRuntimeMatchEnded() {
 			table, snapshot.tables[table].matchGeneration, generation);
 		return;
 	}
-	// Keep a native-finish notice separate from resultPending: a successful
-	// result callback may already be waiting for its peer confirmation.
-	runtime->matchFinishedPending = true;
-	runtime->finishActionId=runtime->finishRetryAt=0;
-	runtime->matchFinishedAction.reset();
-		runtime->matchFinishedGeneration = generation;
-	runtime->matchFinishedTable = table;
+    const auto* result = runtime->resultOutbox.Captured();
+    const auto game = result && result->generation == generation ? result->continuousGame : 0;
+    FinishRuntimeMatch(game);
 }
 
 // The spectator cannot reach its terminal acknowledgement (ReleaseFinishedMatch)
@@ -247,27 +252,69 @@ void PollSpectatorExit() {
 		PushAlert(loc::T("runtime.spectator_close_timeout"), NoticeSeverity::Warning);
 }
 
-void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame) {
-	// Native observer calls on the outer game tick, never while resimulating.
-	if (!runtime || !runtime->match || !UserApp::netplay || LocalIsSpectator() ||
-		(result != room::MatchResult::P1Win && result != room::MatchResult::P2Win && result != room::MatchResult::Draw)) return;
-	const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
-	const auto member = std::find_if(snapshot.members.begin(), snapshot.members.end(),
-		[&](const room::Member& item) { return item.id == snapshot.localMember; });
-	if (member == snapshot.members.end() || member->table < 0 || member->table >= room::TableCount) return;
-	const auto generation = runtime->match->Generation();
-	netplay::MatchResultCapture capture;
-	capture.roomId = runtime->room->RoomId();
-	capture.roomEpoch = snapshot.roomEpoch;
-	capture.generation = generation;
-	capture.table = static_cast<std::uint8_t>(member->table);
-	capture.slot = static_cast<unsigned>(runtime->match->LocalSlot());
-	capture.result = result;
-	capture.captureFrame = captureFrame;
-	capture.confirmedFrame = confirmedFrame;
-	if (runtime->resultOutbox.Capture(capture))
-		spdlog::info("Match result: captured table={} generation={} slot={} outcome={}",
-			capture.table, generation, capture.slot, static_cast<int>(result));
+namespace {
+const room::Table* LocalMatchTable() {
+    if(!runtime||!runtime->match||!runtime->attached||!UserApp::netplay)return nullptr;
+    const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
+    const auto generation=runtime->match->Generation();
+    if(!generation)return nullptr;
+    if(!snapshot.localMatchGenerationsSent) {
+        // Older hosts omit per-recipient grants. Keep their seated fighters'
+        // ordinary result path, but never infer a missing spectator grant.
+        const auto* member=room::FindMember(snapshot,snapshot.localMember);
+        if(LocalIsSpectator()||!member||member->table<0||member->table>=room::TableCount)return nullptr;
+        const auto& table=snapshot.tables[member->table];
+        return table.matchGeneration==generation?&table:nullptr;
+    }
+    for(std::size_t i=0;i<snapshot.tables.size();++i) {
+        const auto& table=snapshot.tables[i];
+        if(snapshot.localMatchGenerations[i]==generation&&table.matchGeneration==generation)return &table;
+    }
+    return nullptr;
+}
+}
+
+bool NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame,
+    std::uint64_t confirmedFrame, std::uint64_t game) {
+    const auto* table=LocalMatchTable();
+    if(!table||!runtime->room||LocalIsSpectator())return false;
+    const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
+    const auto generation=runtime->match->Generation();
+    netplay::MatchResultCapture capture;
+    capture.roomId=runtime->room->RoomId();capture.roomEpoch=snapshot.roomEpoch;
+    capture.generation=generation;capture.table=table->id;
+    capture.slot=static_cast<unsigned>(runtime->match->LocalSlot());capture.result=result;
+    capture.captureFrame=captureFrame;capture.confirmedFrame=confirmedFrame;capture.continuousGame=game;
+    auto& outbox=runtime->resultOutbox;
+    if(outbox.Capture(capture))
+        spdlog::info("Match result: captured table={} generation={} game={} outcome={}",
+            capture.table,generation,game,static_cast<int>(result));
+    const auto* retained=outbox.Captured();
+    if(!game||!retained||retained->generation!=generation||retained->continuousGame!=game||
+        retained->result!=result||runtime->controller.GetSnapshot().control!=netplay::Health::Healthy)return false;
+    // A first report is not a score receipt. The two-report quorum and profile
+    // write must complete before the fighters can make the next offer.
+    return table->continuous.enabled&&table->continuous.games==game&&table->continuous.lastResult==result&&
+        !table->resultPending&&(result==room::MatchResult::Draw||PersistResultProfile());
+}
+
+bool GetRuntimeContinuousTable(room::Table& result) {
+    const auto* table=LocalMatchTable();
+    if(!table||!table->continuous.enabled||table->continuous.closed)return false;
+    result=*table;return true;
+}
+
+void FinishRuntimeMatch(std::uint64_t game) {
+    const auto* table=LocalMatchTable();
+    if(!table||LocalIsSpectator())return;
+    const auto generation=table->matchGeneration;
+    // Repeated polls retain the original queued identity and retry deadline.
+    if(runtime->matchFinishedGeneration==generation&&runtime->matchFinishedGame==game&&
+        runtime->matchFinishedTable==table->id)return;
+    runtime->matchFinishedPending=true;
+    runtime->matchFinishedGeneration=generation;runtime->matchFinishedTable=table->id;
+    runtime->matchFinishedGame=game;
+    runtime->finishActionId=runtime->finishRetryAt=0;runtime->matchFinishedAction.reset();
 }
 
 bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints) {
@@ -473,14 +520,20 @@ void RetryMatchFinished() {
 		if (!current) {
 			runtime->matchFinishedPending = false;
 			runtime->matchFinishedGeneration = 0;
+			runtime->matchFinishedGame = 0;
 			runtime->finishActionId=runtime->finishRetryAt=0;
 			runtime->matchFinishedAction.reset();
 		} else if (runtime->controller.GetSnapshot().control == netplay::Health::Healthy && GetTickCount64()>=runtime->finishRetryAt) {
+            // Continuous results commit first. A recovered room may still be
+            // receiving the retained report for this exact game.
+            if (runtime->matchFinishedGame && (table->resultPending ||
+                table->continuous.games != runtime->matchFinishedGame)) return;
 			const auto now=GetTickCount64();
 			room::Action action;
 			if(runtime->matchFinishedAction) action=*runtime->matchFinishedAction;
 			else {
 				action.kind = room::ActionKind::MatchFinished;
+                action.continuousGame = runtime->matchFinishedGame;
 				action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
 				action.table = runtime->matchFinishedTable;
 				action.tableRevision = snapshot.tables[action.table].revision;
@@ -530,6 +583,7 @@ void PumpResultOutbox() {
 			action.roomEpoch = submission.roomEpoch; action.revision = submission.revision;
 			action.table = submission.table; action.tableRevision = submission.tableRevision;
 			action.matchGeneration = submission.generation; action.result = submission.result;
+            action.continuousGame = submission.continuousGame;
 			std::uint64_t actionId = submission.actionId;
 			const auto sent = actionId ? UserApp::netplay->client.RetryRoomResult(action, actionId) :
 				UserApp::netplay->client.SendRoomAction(action, &actionId);
