@@ -69,6 +69,8 @@ struct PlayerPreferences {
     bool classEmblems = true;
     // Ember's V2 look (Settings > Interface > Look); off keeps the classic one.
     bool lookV2 = false;
+    // TV mode (Settings > Interface, V2 look): a quarter larger, inside a 5% safe area.
+    bool tvMode = false;
     // Called out of Training to their table, the player is readied at once
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;

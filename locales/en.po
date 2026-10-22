@@ -6223,6 +6223,12 @@ msgstr "V2 (preview)"
 msgid "settings.look_detail"
 msgstr "Ember's new look, still being built. Switch back at any time: only how screens look changes."
 
+msgid "settings.tv_mode"
+msgstr "TV mode"
+
+msgid "settings.tv_mode_detail"
+msgstr "For a TV across the room: everything a quarter larger, kept inside a 5% safe area at the edges."
+
 msgid "blumint.score"
 msgstr "{0} {1} – {2} {3} · First to {4}"
 

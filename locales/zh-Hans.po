@@ -6588,6 +6588,12 @@ msgstr "V2（预览）"
 msgid "settings.look_detail"
 msgstr "Ember 正在制作中的新外观。可随时切换回去：只改变界面的样子。"
 
+msgid "settings.tv_mode"
+msgstr "电视模式"
+
+msgid "settings.tv_mode_detail"
+msgstr "适合房间另一头的电视：所有内容放大四分之一，并保持在边缘 5% 的安全区域内。"
+
 msgid "blumint.score"
 msgstr "{0} {1} – {2} {3} · 先赢 {4} 局"
 

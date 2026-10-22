@@ -254,7 +254,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     for (int i = 1; i < argc; ++i) { std::wstring a = wide[i]; args.emplace_back(a.begin(), a.end()); }
     int width = 1280, height = 800;
     float textSize = 1;
-    bool v2 = false;
+    bool v2 = false, tv = false;  // --tv: TV mode
     std::string shot, keys, screen;
     bool inRoom = false, pip = false;
     int hud = -1;
@@ -265,6 +265,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (args[i] == "--size" && more) std::sscanf(args[++i].c_str(), "%dx%d", &width, &height);
         else if (args[i] == "--scale" && more) textSize = static_cast<float>(std::atof(args[++i].c_str()));
         else if (args[i] == "--v2") v2 = true;
+        else if (args[i] == "--tv") tv = true;
         else if (args[i] == "--keys" && more) keys = args[++i];
         else if (args[i] == "--shot" && more) shot = args[++i];
         else if (args[i] == "--room") inRoom = true;
@@ -301,6 +302,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
     ui::ApplicationShell shell;
     ui::ShellView view = FakeView(v2);
+    view.preferences.tvMode = tv;
     // A BluMint room joins its own (BluMintRoom).
     if (inRoom && !blumint) JoinRoom(view);
     if (blumint) BluMintRoom(view, watcher);
@@ -334,7 +336,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (msg.message == WM_QUIT) break;
         if (resizeW && resizeH) { Reset(resizeW, resizeH); width = resizeW; height = resizeH; resizeW = resizeH = 0; }
         // The V2 scale rule, max(DPI, height / 1080), which the picture-scale branch brings to the game.
-        if (ui::ApplyTheme((std::max)(ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd), height / 1080.f), textSize)) ImGui_ImplDX9_InvalidateDeviceObjects();
+        const bool tvScale = ui::v2::On() && view.preferences.tvMode;
+        if (ui::ApplyTheme((std::max)(ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd), height / 1080.f), textSize * (tvScale ? 1.25f : 1.f), ui::v2::On())) ImGui_ImplDX9_InvalidateDeviceObjects();
         art.Pump();
         ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame();
         // Scripted shots keep the real mouse out of it: hovering a card focuses it.

@@ -93,25 +93,28 @@ const PlayerCardView& MenuPlayerCard(){return playerCard;}
 const char* MenuSelectGlyph(){return selectGlyph;}
 const char* MenuBackGlyph(){return backGlyph;}
 bool DrawMenuBackdrop(bool v2){
+    const bool bluMint=v2&&v2::CurrentBrand()==v2::Brand::BluMint;
+    const SelectionImage art=!bluMint&&menuArt?menuArt->MenuBackdrop():SelectionImage{};
+    if(!bluMint&&!art.texture)return false;
+    // The whole screen, also around a window kept inside TV mode's safe area.
+    const auto* vp=ImGui::GetMainViewport();const auto p=vp->Pos,size=vp->Size,end=ImVec2(p.x+size.x,p.y+size.y);auto* d=ImGui::GetWindowDrawList();
+    d->PushClipRect(p,end);
     // BluMint's rooms wear BluMint's ground: near-black navy with a faint blue glow from the top, not Ember's art.
-    if(v2&&v2::CurrentBrand()==v2::Brand::BluMint){
-        const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();auto* d=ImGui::GetWindowDrawList();
+    if(bluMint){
         const auto& c=v2::Colors();
-        d->AddRectFilled(p,ImVec2(p.x+size.x,p.y+size.y),c.ink);
-        d->AddRectFilledMultiColor(p,ImVec2(p.x+size.x,p.y+size.y*.6f),v2::color::Alpha(c.accent,.10f),v2::color::Alpha(c.accent,.04f),v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,0));
-        return true;
+        d->AddRectFilled(p,end,c.ink);
+        d->AddRectFilledMultiColor(p,ImVec2(end.x,p.y+size.y*.6f),v2::color::Alpha(c.accent,.10f),v2::color::Alpha(c.accent,.04f),v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,0));
+    }else{
+        ImVec2 uv0(0,0),uv1(1,1);
+        const float sourceAspect=float(art.width)/art.height,targetAspect=size.x/size.y;
+        if(targetAspect<sourceAspect){const float span=targetAspect/sourceAspect;uv0.x=1-span;}
+        else {const float span=sourceAspect/targetAspect;uv0.y=(1-span)*.5f;uv1.y=1-uv0.y;}
+        d->AddImage(art.texture,p,end,uv0,uv1);
+        // V2: the website's left-heavy tint, so the cards on the left read and the art shows on the right.
+        if(v2)d->AddRectFilledMultiColor(p,end,IM_COL32(20,19,18,245),IM_COL32(20,19,18,128),IM_COL32(20,19,18,160),IM_COL32(20,19,18,250));
+        else d->AddRectFilledMultiColor(p,end,IM_COL32(16,15,14,220),IM_COL32(16,15,14,75),IM_COL32(16,15,14,110),IM_COL32(16,15,14,235));
     }
-    if(!menuArt)return false;
-    const auto art=menuArt->MenuBackdrop();if(!art.texture)return false;
-    const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();auto* d=ImGui::GetWindowDrawList();
-    ImVec2 uv0(0,0),uv1(1,1);
-    const float sourceAspect=float(art.width)/art.height,targetAspect=size.x/size.y;
-    if(targetAspect<sourceAspect){const float span=targetAspect/sourceAspect;uv0.x=1-span;}
-    else {const float span=sourceAspect/targetAspect;uv0.y=(1-span)*.5f;uv1.y=1-uv0.y;}
-    d->AddImage(art.texture,p,ImVec2(p.x+size.x,p.y+size.y),uv0,uv1);
-    // V2: the website's left-heavy tint, so the cards on the left read and the art shows on the right.
-    if(v2)d->AddRectFilledMultiColor(p,ImVec2(p.x+size.x,p.y+size.y),IM_COL32(20,19,18,245),IM_COL32(20,19,18,128),IM_COL32(20,19,18,160),IM_COL32(20,19,18,250));
-    else d->AddRectFilledMultiColor(p,ImVec2(p.x+size.x,p.y+size.y),IM_COL32(16,15,14,220),IM_COL32(16,15,14,75),IM_COL32(16,15,14,110),IM_COL32(16,15,14,235));
+    d->PopClipRect();
     return true;
 }
 float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool rightAligned){

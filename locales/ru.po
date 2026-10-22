@@ -6588,6 +6588,12 @@ msgstr "V2 (предпросмотр)"
 msgid "settings.look_detail"
 msgstr "Новый внешний вид Ember, он ещё в работе. Вернуться можно в любой момент: меняется только вид экранов."
 
+msgid "settings.tv_mode"
+msgstr "Режим ТВ"
+
+msgid "settings.tv_mode_detail"
+msgstr "Для телевизора в другом конце комнаты: всё на четверть крупнее, внутри безопасной зоны 5% по краям."
+
 msgid "blumint.score"
 msgstr "{0} {1} – {2} {3} · До {4} побед"
 

@@ -144,6 +144,19 @@ float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone) {
     return width;
 }
 
+void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font) {
+    const float width = ImGui::GetContentRegionAvail().x, line = size * 1.45f;
+    const ImVec2 start = ImGui::GetCursorScreenPos();
+    float y = start.y;
+    for (const char *p = text.c_str(), *end = p + text.size(); p < end; y += line) {
+        const char* cut = font->CalcWordWrapPositionA(size / font->FontSize, p, end, width);
+        if (cut == p && *p != '\n') ++cut;  // ponytail: a pane narrower than one glyph splits it
+        ImGui::GetWindowDrawList()->AddText(font, size, ImVec2(start.x, y + (line - size) * .5f), color, p, cut);
+        for (p = cut; p < end && *p == ' '; ++p) {}
+        if (p < end && *p == '\n') ++p;
+    }
+    ImGui::Dummy(ImVec2(width, y - start.y));
+}
 void Fact(const std::string& key, const std::string& value) {
     const float s = Scale(), w = ImGui::GetContentRegionAvail().x, h = ImGui::GetFontSize() + 20 * s, room = w - 24 * s;
     const auto p = ImGui::GetCursorScreenPos();
@@ -184,7 +197,7 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
     const bool narrow = Narrow(ImGui::GetWindowWidth(), s);
     auto* draw = ImGui::GetWindowDrawList();
     const float markHeight = (narrow ? 32 : 40) * s, gap = 16 * s;
-    const float eyebrowSize = 13 * s, titleSize = (narrow ? 24 : 28) * s;
+    const float eyebrowSize = 13 * s, titleSize = (narrow ? 22 : 26) * s;
     const float eyebrowHeight = eyebrow ? eyebrowSize + 4 * s : 0;
     const float height = (std::max)(markHeight, eyebrowHeight + titleSize) + 10 * s;
     // Back: a chevron and its word on a button, as the boards draw it.

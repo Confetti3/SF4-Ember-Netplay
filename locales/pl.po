@@ -6587,6 +6587,12 @@ msgstr "V2 (podgląd)"
 msgid "settings.look_detail"
 msgstr "Nowy wygląd Embera, wciąż w budowie. Możesz wrócić w każdej chwili: zmienia się tylko wygląd ekranów."
 
+msgid "settings.tv_mode"
+msgstr "Tryb TV"
+
+msgid "settings.tv_mode_detail"
+msgstr "Do telewizora po drugiej stronie pokoju: wszystko o jedną czwartą większe, w bezpiecznym marginesie 5%."
+
 msgid "blumint.score"
 msgstr "{0} {1} – {2} {3} · Do {4} wygranych"
 
