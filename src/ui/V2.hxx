@@ -80,6 +80,9 @@ float ChipWidth(const std::string& text);
 // A fact in a detail pane: `key` muted on the left, `value` on the right, on
 // the frame's ground across the pane at the cursor. Takes the cursor's line.
 void Fact(const std::string& key, const std::string& value);
+// Text wrapped across the cursor's line at `size` (its em) with the boards'
+// 1.45 line height, which ImGui's own wrapping (one em) has no room for.
+void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font = ImGui::GetFont());
 
 // The brand's mark `height` tall at `at`: Ember's emblem, or BluMint's
 // wordmark × Ember's emblem. Returns its width.

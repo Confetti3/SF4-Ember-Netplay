@@ -6587,6 +6587,12 @@ msgstr "V2 (Vorschau)"
 msgid "settings.look_detail"
 msgstr "Embers neues Aussehen, noch im Aufbau. Sie können jederzeit zurückwechseln: Nur das Aussehen der Bildschirme ändert sich."
 
+msgid "settings.tv_mode"
+msgstr "TV-Modus"
+
+msgid "settings.tv_mode_detail"
+msgstr "Für einen Fernseher quer durch den Raum: alles ein Viertel größer, innerhalb eines sicheren Rands von 5 %."
+
 msgid "blumint.score"
 msgstr "{0} {1} – {2} {3} · Erster bis {4}"
 

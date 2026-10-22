@@ -6587,6 +6587,12 @@ msgstr "V2 (voorproef)"
 msgid "settings.look_detail"
 msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw. Je kunt altijd terugschakelen: alleen hoe de schermen eruitzien verandert."
 
+msgid "settings.tv_mode"
+msgstr "Tv-modus"
+
+msgid "settings.tv_mode_detail"
+msgstr "Voor een tv aan de andere kant van de kamer: alles een kwart groter, binnen een veilige rand van 5%."
+
 msgid "blumint.score"
 msgstr "{0} {1} – {2} {3} · Eerst tot {4}"
 

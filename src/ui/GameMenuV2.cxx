@@ -365,14 +365,9 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
                 ImGuiChildFlags_AlwaysUseWindowPadding | (fit ? ImGuiChildFlags_AutoResizeY : 0), ImGuiWindowFlags_NoNavInputs);
             if (!customDetail) {
                 const auto& e = *focusedEntry;
-                ImGui::PushFont(HeadingFont());
                 if (e.userText) NoteUserText(e.label);
-                ImGui::TextWrapped("%s", e.label.c_str());
-                ImGui::PopFont();
-                ImGui::Dummy(ImVec2(0, 4 * s));
-                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(v2::Colors().muted));
-                if (!e.detail.empty()) { NoteDetailText(e.detail, e.detailText); ImGui::TextWrapped("%s", e.detail.c_str()); }
-                ImGui::PopStyleColor();
+                v2::Paragraph(e.label, 22 * s, v2::Colors().text, HeadingFont());
+                if (!e.detail.empty()) { NoteDetailText(e.detail, e.detailText); v2::Paragraph(e.detail, 16 * s, v2::Colors().muted); }
                 if (!feedback_.Enabled(e) && !e.quiet) ImGui::TextDisabled("%s", loc::T(feedback_.Pending(e) ? "room.updating" : "common.unavailable"));
             }
             if (detail) detail(focusedEntry->id);

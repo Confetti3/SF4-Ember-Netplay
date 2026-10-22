@@ -6588,6 +6588,12 @@ msgstr "V2（プレビュー）"
 msgid "settings.look_detail"
 msgstr "制作中の Ember の新しい外観です。いつでも元に戻せます。変わるのは画面の見た目だけです。"
 
+msgid "settings.tv_mode"
+msgstr "テレビモード"
+
+msgid "settings.tv_mode_detail"
+msgstr "離れた場所のテレビ向け：すべてを4分の1大きくし、画面端から5%のセーフエリア内に収めます。"
+
 msgid "blumint.score"
 msgstr "{0} {1} – {2} {3} · {4}先取"
 

@@ -500,7 +500,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
-    if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
+    // V2 sizes text by the em, a quarter larger in TV mode; v2::On() is still last frame's look, BluMint's rooms included.
+    const bool lookV2 = sf4e::ui::v2::On();
+    if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale * (lookV2 && snapshot.preferences.tvMode ? 1.25f : 1.f), lookV2))
+        ImGui_ImplDX9_InvalidateDeviceObjects();
     // The look the HUD and the menus draw in (Settings > Interface > Look); the shell follows its own edits sooner.
     sf4e::ui::v2::SetOn(snapshot.preferences.lookV2);
     // A replay being exported can be followed or cancelled from Ember's menu,

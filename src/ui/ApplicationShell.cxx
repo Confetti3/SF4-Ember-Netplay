@@ -325,8 +325,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
-  // V2: the room board's layout, which its grips also drag (RoomGrips).
+  // V2: TV mode, by Text size, and the room board's layout, which its grips also drag (RoomGrips).
   if(v2::On()){
+   rows.insert(rows.end()-1,Value("tv",loc::T("settings.tv_mode"),preferences_.tvMode?loc::T("common.on"):loc::T("common.off"),loc::T("settings.tv_mode_detail"),v.canEditPreferences));
    const int column=preferences_.roomColumn,split=preferences_.roomSplit;
    rows.push_back(Value("arrange-column",loc::T("settings.room_column"),std::to_string(column)+"%",loc::T("settings.room_column_detail"),v.canEditPreferences));
    rows.push_back(Value("arrange-split",loc::T("settings.room_split"),std::to_string(split)+" / "+std::to_string(100-split),loc::T("settings.room_split_detail"),v.canEditPreferences));
@@ -621,6 +622,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="class-emblems")preferences_.classEmblems=a.delta>0;
   else if(a.id=="look")preferences_.lookV2=a.delta>0;
+ else if(a.id=="tv")preferences_.tvMode=a.delta>0;
   else if(a.id=="picture-corner")preferences_.pictureSpot=preferences_.pictureSpot/4*4+(preferences_.pictureSpot%4+4+a.delta)%4;
   else if(a.id=="picture-size")preferences_.pictureSpot=preferences_.pictureSpot%4+4*(std::max)(0,(std::min)(2,preferences_.pictureSpot/4+a.delta));
   else if(a.id=="watched-picture")preferences_.watchedPicture=a.delta>0;
@@ -834,12 +836,14 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  // After every other source of a notice this frame, so the question never takes a place they are about to.
  UpdateLaunchCheck(v,now,submit);
- const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
- if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
  // The look follows the row as it changes, before the save lands.
  // A BluMint match's room always wears BluMint's V2 look, whatever the player's Look.
  v2::SetOn(preferences_.lookV2||InBluMintRoom(v,nav.Screen()));
- ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(v2::On()?v2::SideMargin(vp->Size.x,Scale()):20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
+ // TV mode keeps V2 inside a 5% safe area, which a TV may crop.
+ const auto* vp=ImGui::GetMainViewport();const ImVec2 safe=v2::On()&&preferences_.tvMode?ImVec2(vp->Size.x*.05f,vp->Size.y*.05f):ImVec2(0,0);
+ ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+safe.x,vp->Pos.y+safe.y));ImGui::SetNextWindowSize(ImVec2(vp->Size.x-2*safe.x,vp->Size.y-2*safe.y));
+ if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
+ ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(v2::On()?v2::SideMargin(vp->Size.x-2*safe.x,Scale()):20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
