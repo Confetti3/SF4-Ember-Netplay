@@ -3599,6 +3599,9 @@ msgstr "已绑定账号"
 msgid "screen.tournament_matches"
 msgstr "赛事对局"
 
+msgid "screen.blumint_matches"
+msgstr "BluMint 对局"
+
 msgid "identity.title"
 msgstr "Ember ID"
 

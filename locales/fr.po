@@ -3598,6 +3598,9 @@ msgstr "Comptes associés"
 msgid "screen.tournament_matches"
 msgstr "Matchs du tournoi"
 
+msgid "screen.blumint_matches"
+msgstr "Matchs BluMint"
+
 msgid "identity.title"
 msgstr "EMBER ID"
 

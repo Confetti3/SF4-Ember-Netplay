@@ -3599,6 +3599,9 @@ msgstr "연동된 계정"
 msgid "screen.tournament_matches"
 msgstr "대회 경기"
 
+msgid "screen.blumint_matches"
+msgstr "BluMint 경기"
+
 msgid "identity.title"
 msgstr "Ember ID"
 

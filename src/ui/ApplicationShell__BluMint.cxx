@@ -39,8 +39,12 @@ void ApplicationShell::UpdateBluMint(const ShellView& v, const std::string& scre
     menu_.headerChips.clear();
     const auto* a = BluMintAssignment(v);
     const bool roomScreen = screen.compare(0, 4, "room") == 0;
-    v2::SetBrand(InBluMintRoom(v, screen) ? v2::Brand::BluMint : v2::Brand::Ember);
+    v2::SetBrand(InBluMintRoom(v, screen) || screen == "blumint-matches" ? v2::Brand::BluMint : v2::Brand::Ember);
     // A called match (CallBluMint) is told after this frame's moment, never over it.
+    // On BluMint's matches page every match is in sight: none is called over it.
+    if (screen == "blumint-matches")
+        for (const auto& m : v.tournament.list.items)
+            if (m.provider == "blumint" && std::find(bluMintTold_.begin(), bluMintTold_.end(), m.matchId) == bluMintTold_.end()) bluMintTold_.push_back(m.matchId);
     if (!a) { bluMint_ = {}; CallBluMint(v); return; }
 
     // The fighters and the score at the match's table (table 0 of a bound room).
@@ -144,12 +148,12 @@ bool ApplicationShell::AnswerBluMint(NoticeResult result, const ShellView& v, co
         return true;
     }
     case NoticeResult::BluMintFighter: selectionFresh_ = true; selectionOpenOn_ = "roster"; nav.Push("selection"); return true;
-    // The match is on the list: Ember ID's tournament matches open at its row,
+    // The match is on the list: BluMint's matches open at its row,
     // after leaving the room the player was in (a match's own room closes by itself).
     case NoticeResult::BluMintNext:
         if (v.session.room != netplay::RoomState::Idle && v.room.tournament.matchId.empty()) Send(netplay::CommandKind::LeaveRoom, v, submit);
         if (!bluMintNext_.empty()) identity_.OpenMatch(v.tournament.list.bridge, bluMintNext_);
-        nav.Home(); nav.Push("online"); nav.Push("identity"); nav.Push("tournament-matches");
+        nav.Home(); nav.Push("online"); nav.Push("identity"); nav.Push("blumint-matches");
         return true;
     default: return false;
     }

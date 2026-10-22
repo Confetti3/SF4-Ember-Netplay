@@ -3598,6 +3598,9 @@ msgstr "Propojené účty"
 msgid "screen.tournament_matches"
 msgstr "Turnajové zápasy"
 
+msgid "screen.blumint_matches"
+msgstr "Zápasy BluMint"
+
 msgid "identity.title"
 msgstr "EMBER ID"
 
