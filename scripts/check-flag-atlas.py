@@ -3,7 +3,9 @@
 The atlas has exactly the size the layout gives, every country's cell is an
 opaque flag that is not one flat colour, and the padding around each cell and
 the cells after the last country are fully transparent. flags.json names the
-same codes at the same indices as the manifest, with the same layout.
+same codes at the same indices as the manifest, with the same layout. The
+embernetplay.link rankings page's copies (server/ember-short/deploy/site/assets
+flags.png, flags.json and flags-LICENSE.txt) are the same files.
 Run it with python -I after scripts/build-flag-atlas.mjs.
 """
 import json
@@ -34,6 +36,13 @@ def main():
             problems.append(f"flags.json {key} is {index.get(key)}, not {value}")
     if not (ROOT / "assets" / "flags" / "LICENSE").read_text(encoding="utf-8").startswith("The MIT License"):
         problems.append("assets/flags/LICENSE is not the MIT licence")
+    site = ROOT / "server" / "ember-short" / "deploy" / "site" / "assets"
+    for name, copy in (("flags.png", "flags.png"), ("flags.json", "flags.json"), ("LICENSE", "flags-LICENSE.txt")):
+        original, copied = ROOT / "assets" / "flags" / name, site / copy
+        same = (original.read_bytes() == copied.read_bytes() if name.endswith(".png")
+                else original.read_text(encoding="utf-8").splitlines() == copied.read_text(encoding="utf-8").splitlines())
+        if not same:
+            problems.append(f"the rankings page's assets/{copy} is not a copy of assets/flags/{name}")
     with Image.open(ROOT / "assets" / "flags" / "flags.png") as opened:
         atlas = opened.convert("RGBA") if opened.mode != "RGBA" else opened.copy()
     if atlas.size != (columns * sw, rows * sh):

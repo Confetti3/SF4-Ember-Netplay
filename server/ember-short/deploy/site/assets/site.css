@@ -600,13 +600,11 @@ footer a:hover { color: var(--ivory); }
   text-align: center;
 }
 .rank-flag.none { background: transparent; }
-/* A flag from assets/flags.png (flag-icons, 32x24 cells drawn at 20x15). */
+/* A flag from assets/flags.png (flag-icons); rankings.js sizes and places
+   it from assets/flags.json. */
 .rank-flag.image {
-  height: 15px;
-  width: 20px;
   padding: 0;
   background: url("/assets/flags.png") no-repeat;
-  background-size: 360px 280px;
   border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }

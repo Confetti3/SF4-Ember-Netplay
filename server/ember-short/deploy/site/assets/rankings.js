@@ -26,13 +26,12 @@
   REGIONS.forEach(function (region) {
     region[2].split(' ').forEach(function (code) { REGION_OF[code] = region[0]; });
   });
-  // The flags in assets/flags.png (a copy of the repository's
-  // assets/flags/flags.png, flag-icons under MIT): cell N holds the Nth code
-  // here, 16 cells of 32x24 to a row, each with 2 transparent pixels around it.
-  var FLAGS = 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(' ');
-  var FLAG_CELL = {};
-  FLAGS.forEach(function (code, index) { FLAG_CELL[code] = index; });
-  var FLAG_COLUMNS = 16, FLAG_STEP_X = 36, FLAG_STEP_Y = 28, FLAG_PAD = 2, FLAG_SCALE = 20 / 32;
+  // The flags in assets/flags.png, laid out as assets/flags.json says (both
+  // copies of the repository's assets/flags, flag-icons under MIT, which
+  // scripts/check-flag-atlas.py keeps equal). Drawn FLAG_WIDTH wide. Until the
+  // index loads, or if it cannot, a country shows its code.
+  var FLAG_WIDTH = 20;
+  var flagAtlas = null;
   var OTHER_REGION = 'other';
   var NO_COUNTRY = 'none';
   var COUNTRY = /^[A-Z]{2}$/;
@@ -131,11 +130,17 @@
   }
   // A country's flag from the atlas, or its code where the atlas has none.
   function flag(code) {
-    var cell = code && Object.prototype.hasOwnProperty.call(FLAG_CELL, code) ? FLAG_CELL[code] : -1;
+    var atlas = flagAtlas;
+    var cell = atlas && code && Object.prototype.hasOwnProperty.call(atlas.countries, code) ? atlas.countries[code] : -1;
     var node = el('span', 'rank-flag' + (code ? (cell >= 0 ? ' image' : '') : ' none'), cell >= 0 ? '' : code || '');
     if (cell >= 0) {
-      node.style.backgroundPosition = -(cell % FLAG_COLUMNS * FLAG_STEP_X + FLAG_PAD) * FLAG_SCALE + 'px ' +
-        -(Math.floor(cell / FLAG_COLUMNS) * FLAG_STEP_Y + FLAG_PAD) * FLAG_SCALE + 'px';
+      var scale = FLAG_WIDTH / atlas.cellWidth;
+      var stepX = atlas.cellWidth + 2 * atlas.padding, stepY = atlas.cellHeight + 2 * atlas.padding;
+      node.style.width = FLAG_WIDTH + 'px';
+      node.style.height = atlas.cellHeight * scale + 'px';
+      node.style.backgroundSize = atlas.width * scale + 'px ' + atlas.height * scale + 'px';
+      node.style.backgroundPosition = -(cell % atlas.columns * stepX + atlas.padding) * scale + 'px ' +
+        -(Math.floor(cell / atlas.columns) * stepY + atlas.padding) * scale + 'px';
       node.setAttribute('role', 'img');
     }
     if (code) {
@@ -247,7 +252,7 @@
   // from them and the plot is described in one line instead.
   var SVG = 'http://www.w3.org/2000/svg';
   var SHORT = ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'M', 'GM'];
-  var CHART_HEIGHT = 170, CHART_TOP = 12, CHART_BOTTOM = 24, CHART_LEFT = 30, BAR_MAX = 24, SMOOTHING = 0.85;
+  var CHART_HEIGHT = 170, CHART_TOP = 12, CHART_BOTTOM = 24, CHART_LEFT = 30, BAR_MAX = 24, SMOOTHING = 0.85, OUTLINE_STEPS = 80;
   var chartCounts = null;
 
   function svg(tag, attributes, parent) {
@@ -262,20 +267,27 @@
     var step = Math.max(1, [1, 2, 5, 10].map(function (k) { return k * power; }).filter(function (k) { return k >= raw; })[0]);
     return { top: step * Math.ceil(Math.max(1, max) / step), step: step };
   }
-  // Each class's count spread as a normal curve a little under a class wide,
-  // summed: the same total as the columns, so it sits over them.
-  function smoothed(counts, x) {
-    var sum = 0;
-    for (var i = 0; i < counts.length; i++) {
-      var d = (x - i) / SMOOTHING;
-      sum += counts[i] * Math.exp(-d * d / 2);
+  // The outline: each class's count spread as a normal curve a little under
+  // a class wide, scaled so its area over the drawn range (D's left edge to
+  // Grand Master's right, sampled as drawn) is that count. So the outline's
+  // area is the columns' total, and the end classes lose nothing past the edge.
+  function outline(counts) {
+    var xs = [], values = [], step = BANDS / OUTLINE_STEPS, i, j;
+    for (j = 0; j <= OUTLINE_STEPS; j++) {
+      xs.push(-0.5 + j * step);
+      values.push(0);
     }
-    return sum / (SMOOTHING * Math.sqrt(2 * Math.PI));
-  }
-  function smoothedPeak(counts) {
-    var top = 0;
-    for (var x = -0.5; x <= BANDS - 0.5; x += 0.125) top = Math.max(top, smoothed(counts, x));
-    return top;
+    for (i = 0; i < counts.length; i++) {
+      if (!counts[i]) continue;
+      var kernel = xs.map(function (x) {
+        var d = (x - i) / SMOOTHING;
+        return Math.exp(-d * d / 2);
+      });
+      var area = 0;
+      for (j = 0; j < OUTLINE_STEPS; j++) area += (kernel[j] + kernel[j + 1]) / 2 * step;
+      for (j = 0; j <= OUTLINE_STEPS; j++) values[j] += counts[i] * kernel[j] / area;
+    }
+    return { xs: xs, values: values };
   }
 
   function drawChart() {
@@ -287,7 +299,8 @@
     var total = counts.reduce(function (a, b) { return a + b; }, 0);
     var plotWidth = width - CHART_LEFT, plotHeight = CHART_HEIGHT - CHART_TOP - CHART_BOTTOM;
     var slot = plotWidth / BANDS, barWidth = Math.min(BAR_MAX, slot * 0.6);
-    var axis = niceTop(Math.max(Math.max.apply(null, counts), smoothedPeak(counts)));
+    var curve = outline(counts);
+    var axis = niceTop(Math.max.apply(null, counts.concat(curve.values)));
     var y = function (value) { return CHART_TOP + plotHeight - value / axis.top * plotHeight; };
     var root = svg('svg', { width: width, height: CHART_HEIGHT, viewBox: '0 0 ' + width + ' ' + CHART_HEIGHT, 'aria-hidden': 'true', focusable: 'false' }, chartPlot);
     for (var tick = 0; tick <= axis.top; tick += axis.step) {
@@ -305,11 +318,9 @@
           'H' + (left + barWidth - r) + 'Q' + (left + barWidth) + ' ' + top + ' ' + (left + barWidth) + ' ' + (top + r) + 'V' + bottom + 'Z' : 'M0 0'
       }, root);
     });
-    var points = [];
-    for (var step = 0; step <= 80; step++) {
-      var x = -0.5 + step * BANDS / 80;
-      points.push((CHART_LEFT + slot * (x + 0.5)).toFixed(1) + ' ' + y(smoothed(counts, x)).toFixed(1));
-    }
+    var points = curve.xs.map(function (x, j) {
+      return (CHART_LEFT + slot * (x + 0.5)).toFixed(1) + ' ' + y(curve.values[j]).toFixed(1);
+    });
     svg('path', { 'class': 'rank-chart-curve', d: 'M' + points.join('L') }, root);
     counts.forEach(function (count, index) {
       var hit = svg('rect', { 'class': 'rank-chart-hit', x: CHART_LEFT + slot * index, y: 0, width: slot, height: CHART_HEIGHT }, root);
@@ -334,10 +345,7 @@
     }).join(', ') + '.');
   }
 
-  function classChart(players) {
-    var counts = [];
-    for (var band = 1; band <= BANDS; band++) counts.push(0);
-    players.forEach(function (player) { if (passes(player, 'class')) counts[player.band - 1]++; });
+  function classChart(counts) {
     chartCounts = counts.some(function (count) { return count > 0; }) ? counts : null;
     chart.hidden = !chartCounts;
     drawChart();
@@ -356,10 +364,17 @@
     return node;
   }
 
-  function classChips(players) {
+  // Players per class (index band - 1) under every filter but the class
+  // filter: what choosing each class would list. The chips and the chart
+  // both show it.
+  function classCounts(players) {
     var counts = [];
-    for (var band = 0; band <= BANDS; band++) counts.push(0);
-    players.forEach(function (player) { if (passes(player, 'class')) counts[player.band]++; });
+    for (var band = 1; band <= BANDS; band++) counts.push(0);
+    players.forEach(function (player) { if (passes(player, 'class')) counts[player.band - 1]++; });
+    return counts;
+  }
+
+  function classChips(counts) {
     // The chips are made again on each change; the one in focus stays so.
     var active = document.activeElement;
     var focused = active && classesBox.contains(active) ? active.getAttribute('data-band') : null;
@@ -370,13 +385,13 @@
     all.setAttribute('aria-pressed', selectedBands().length ? 'false' : 'true');
     classesBox.appendChild(all);
     for (var b = BANDS; b >= 1; b--) {
-      var chip = el('button', 'rank-chip tier-' + TIERS[b - 1] + (counts[b] ? '' : ' empty'));
+      var chip = el('button', 'rank-chip tier-' + TIERS[b - 1] + (counts[b - 1] ? '' : ' empty'));
       chip.type = 'button';
       chip.setAttribute('data-band', String(b));
       chip.setAttribute('aria-pressed', view.classes[b] ? 'true' : 'false');
-      chip.setAttribute('aria-label', CLASSES[b - 1] + ', ' + plural(counts[b], 'player', 'players'));
+      chip.setAttribute('aria-label', CLASSES[b - 1] + ', ' + plural(counts[b - 1], 'player', 'players'));
       chip.appendChild(el('span', 'rank-chip-name', CLASSES[b - 1]));
-      chip.appendChild(el('span', 'rank-chip-count', String(counts[b])));
+      chip.appendChild(el('span', 'rank-chip-count', String(counts[b - 1])));
       classesBox.appendChild(chip);
     }
     if (focused !== null) {
@@ -536,8 +551,9 @@
       return;
     }
 
-    classChips(players);
-    classChart(players);
+    var counts = classCounts(players);
+    classChips(counts);
+    classChart(counts);
     countryOptions(players);
     regionOptions(players);
     if (search.value !== view.q) search.value = view.q;
@@ -730,6 +746,21 @@
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && Date.now() - data.loadedAt > STALE_MS) load();
   });
+  // The flag index, read once beside the board; the board is drawn again
+  // with flags when it arrives.
+  function validAtlas(index) {
+    var whole = function (value) { return typeof value === 'number' && value >= 0 && value % 1 === 0; };
+    return index && whole(index.cellWidth) && index.cellWidth > 0 && whole(index.cellHeight) && whole(index.padding) &&
+      whole(index.columns) && index.columns > 0 && whole(index.width) && whole(index.height) &&
+      index.countries && typeof index.countries === 'object' ? index : null;
+  }
+  fetch('/assets/flags.json', { credentials: 'omit' })
+    .then(function (response) { return response.ok ? response.json() : null; })
+    .then(function (index) {
+      flagAtlas = validAtlas(index);
+      if (flagAtlas && data.players) render();
+    })
+    .catch(function () {});
   readHash();
   load();
 }());
