@@ -15,6 +15,7 @@ use serde_json::{Value as Json_, json};
 
 const ME: &str = "/v1/ranking/me";
 const BOARD: &str = "/v1/ranking/board";
+const PUBLIC_BOARD: &str = "/v1/ranking/board/public";
 const DAY: i64 = 24 * 60 * 60;
 
 async fn start(show: bool) -> (Bridge, Supervisor) {
@@ -54,6 +55,12 @@ async fn board(bridge: &Bridge, player: &Player) -> Json_ {
     let (status, board) = call(bridge, player, Method::GET, BOARD, None).await;
     assert_eq!(status, StatusCode::OK, "{board}");
     board["players"].clone()
+}
+
+/// The board as the embernetplay.link rankings page reads it, with no credential.
+async fn public_board(bridge: &Bridge) -> (StatusCode, Json_) {
+    let request = bridge.client.get(bridge.url(PUBLIC_BOARD)).send();
+    common::read(request.await.unwrap()).await
 }
 
 fn listed(name: &str, country: &str) -> Json_ {
@@ -292,6 +299,21 @@ async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
             entry("Player 1", 5, true)
         ])
     );
+
+    // The web page sees the same board with nobody's entry as its own.
+    let (status, public) = public_board(&bridge).await;
+    assert_eq!(status, StatusCode::OK, "{public}");
+    assert_eq!(public["shown"], json!(true));
+    assert!(public["listed_at"].as_u64().is_some(), "{public}");
+    assert_eq!(
+        public["players"],
+        json!([
+            entry("Player 3", 8, false),
+            entry("Player 8", 6, false),
+            entry("Player 2", 5, false),
+            entry("Player 1", 5, false)
+        ])
+    );
 }
 
 #[tokio::test]
@@ -307,6 +329,11 @@ async fn while_classes_are_hidden_nothing_shows_but_the_choice_holds() {
         json!({ "ranking": "ranked", "listing": { "name": "Player 1", "country": "DE" } })
     );
     assert_eq!(board(&bridge, &first).await, json!([]));
+    // The web page can tell hidden classes from an empty board.
+    let (status, public) = public_board(&bridge).await;
+    assert_eq!(status, StatusCode::OK, "{public}");
+    assert_eq!(public["shown"], json!(false));
+    assert_eq!(public["players"], json!([]));
 }
 
 #[tokio::test]
@@ -318,6 +345,7 @@ async fn a_bridge_without_public_rooms_has_no_ranking() {
         let (status, _) = call(&bridge, &first, method, path, body).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
     }
+    assert_eq!(public_board(&bridge).await.0, StatusCode::NOT_FOUND);
     let (_, capabilities) = bridge.get(first.token(), "/v1/capabilities").await;
     assert!(
         !capabilities["features"]

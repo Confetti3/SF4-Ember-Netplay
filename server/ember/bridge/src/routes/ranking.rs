@@ -2,7 +2,7 @@
 //! own standing, their choice to take part, and the board. Players only, and
 //! only where public rooms are on, since only their games are rated.
 use axum::{extract::State, http::HeaderMap, response::Response};
-use ember_protocol::skill::{Board, RankingChoice};
+use ember_protocol::skill::{Board, BoardEntry, RankingChoice};
 
 use crate::{
     AppState,
@@ -60,9 +60,45 @@ pub async fn board(State(state): State<AppState>, headers: HeaderMap) -> Result<
     let developers = developers(&state);
     let board = state
         .db
-        .read(move |tx| ranking::board(tx, &player.ember_id, &developers, now))
+        .read(move |tx| ranking::board(tx, Some(&player.ember_id), &developers, now))
         .await?;
     Ok(ok(&board))
+}
+
+/// The board on the embernetplay.link rankings page. `shown` is false while
+/// classes are hidden, so the page can tell that from a board nobody is on yet.
+#[derive(serde::Serialize)]
+struct PublicBoard {
+    listed_at: u64,
+    shown: bool,
+    players: Vec<BoardEntry>,
+}
+
+/// `GET /v1/ranking/board/public`: the board as players see it in Ember, for a
+/// web page, with no credential. It carries what the board shows any Ember ID,
+/// the names, flags and classes players chose to be listed with, and no entry
+/// is the caller's own. nginx limits and caches requests, as for the room list.
+pub async fn public_board(State(state): State<AppState>) -> Result<Response> {
+    if !rooms::enabled(&state) {
+        return Err(ApiFailure::not_found());
+    }
+    let listed_at = state.now();
+    let shown = classes_shown(&state);
+    let players = if shown {
+        let developers = developers(&state);
+        state
+            .db
+            .read(move |tx| ranking::board(tx, None, &developers, listed_at))
+            .await?
+            .players
+    } else {
+        Vec::new()
+    };
+    Ok(ok(&PublicBoard {
+        listed_at,
+        shown,
+        players,
+    }))
 }
 
 /// The calling player, within their request budget, and the time.

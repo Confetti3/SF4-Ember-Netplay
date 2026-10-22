@@ -145,8 +145,8 @@ pub fn choose(
     standing(tx, ember_id, classes_shown, developers, now)
 }
 
-/// The board as the player as `ember_id` sees it: every listed account that
-/// takes part and has a settled class, the highest first. The class is the
+/// The board as the player as `ember_id` sees it, or as a web page sees it
+/// without one (no entry is `own`): every listed account that takes part and has a settled class, the highest first. The class is the
 /// one their next ticket would show (`shown_band`), so a player who settled
 /// since their last ticket is on it already. Within a class the most recent
 /// to play comes first, so the board is about who plays and its cap drops
@@ -154,19 +154,19 @@ pub fn choose(
 /// no developer: their mark stands in place of a class.
 pub fn board(
     tx: &Transaction<'_>,
-    ember_id: &EmberId,
+    ember_id: Option<&EmberId>,
     developers: &[String],
     now: u64,
 ) -> Result<Board> {
     let mut statement = tx.prepare(
         "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, c.name, c.country,
-                d.ember_id = ?1, r.discord_user_id
+                COALESCE(d.ember_id = ?1, 0), r.discord_user_id
          FROM skill_ratings r
          JOIN ranking_choices c ON c.discord_user_id = r.discord_user_id
          JOIN discord_accounts d ON d.user_id = r.discord_user_id
          WHERE c.ranked AND c.name IS NOT NULL",
     )?;
-    let mut rows = statement.query([ember_id.as_str()])?;
+    let mut rows = statement.query([ember_id.map(EmberId::as_str)])?;
     let mut listed = Vec::new();
     while let Some(row) = rows.next()? {
         let rating = Rating {

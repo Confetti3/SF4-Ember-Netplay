@@ -110,6 +110,7 @@ pub fn router(state: AppState) -> Router {
             get(ranking::standing).put(ranking::choose),
         )
         .route(ember_protocol::skill::BOARD_PATH, get(ranking::board))
+        .route("/v1/ranking/board/public", get(ranking::public_board))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))
