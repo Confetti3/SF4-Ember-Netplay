@@ -6625,10 +6625,10 @@ msgid "blumint.watch_next"
 msgstr "다음 경기는 BluMint가 호출하면 여기에 표시됩니다."
 
 msgid "blumint.next_ready"
-msgstr "다음 경기가 준비되었습니다: {0} 상대."
+msgstr "다음 BluMint 경기가 준비되었습니다."
 
 msgid "blumint.play_next"
-msgstr "{0} 상대로 플레이"
+msgstr "다음 경기 플레이"
 
 msgid "blumint.restart_heading"
 msgstr "이 게임은 인정되지 않았습니다"

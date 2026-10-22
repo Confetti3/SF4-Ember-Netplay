@@ -98,6 +98,14 @@ binding and the routing, not a second system.
    way.
 4. **API key scope.** `/tournaments/search` needs our partner key
    (`X-Api-Key`); is that the same key reports use?
+5. **Round label.** A create carries no round ("Winners semis", "Losers
+   round 2"), so rooms, notices and the queue can say only "BluMint" and
+   "First to N". Can the create name the round, in `matchSettings` or a field
+   of its own? Ember shows it wherever it has one.
+6. **Setup deadline.** BluMint disqualifies a player not ready in time
+   (10 minutes on app.blumint.com), but the create does not say when that
+   is. Can it carry the deadline, so Ember can count down in the match-ready
+   notice and the organizer's queue?
 
 ## Not in scope
 

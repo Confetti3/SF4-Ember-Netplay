@@ -6624,10 +6624,10 @@ msgid "blumint.watch_next"
 msgstr "Další zápas se tu objeví, až ho BluMint vyhlásí."
 
 msgid "blumint.next_ready"
-msgstr "Tvůj další zápas je připraven: proti {0}."
+msgstr "Tvůj další zápas na BluMintu je připraven."
 
 msgid "blumint.play_next"
-msgstr "Hrát proti {0}"
+msgstr "Hrát další zápas"
 
 msgid "blumint.restart_heading"
 msgstr "Ta hra se nepočítala"

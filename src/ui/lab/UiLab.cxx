@@ -177,7 +177,7 @@ void BluMintRoom(ui::ShellView& view, bool watcher) {
     auto& t = view.tournament;
     t.phase = netplay::tournament::Phase::InRoom; t.bridgeId = "brg_lab"; t.matchId = "emt_lab";
     netplay::tournament::Assignment a;
-    a.matchId = "emt_lab"; a.provider = "blumint"; a.state = "ready"; a.roundLabel = "Winners round 1"; a.gamesToWin = 2; a.profile = "ember-room-v1";
+    a.matchId = "emt_lab"; a.provider = "blumint"; a.state = "ready"; a.gamesToWin = 2; a.profile = "ember-room-v1";
     t.list.items.push_back(a);
     view.room.name = "Good Fighters USF4 · Ember";
     view.room.tournament.matchId = "emt_lab"; view.room.tournament.gamesToWin = 2;
@@ -202,7 +202,7 @@ void BluMintMoment(ui::ShellView& view, const std::string& moment) {
     else if (moment == "failed") { view.tournament.phase = netplay::tournament::Phase::Failed; view.tournament.reason = "report_not_saved"; }
     // The next BluMint match called while the player sits in another room (king of the hill's queue).
     else if (moment == "called") {
-        auto next = a; next.matchId = "emt_lab2"; next.roundLabel = "Winners round 2";
+        auto next = a; next.matchId = "emt_lab2";
         view.tournament = {}; view.room.tournament = {};
         view.tournament.list.items.push_back(next);
     }

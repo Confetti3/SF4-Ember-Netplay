@@ -59,7 +59,7 @@ void ApplicationShell::UpdateBluMint(const ShellView& v, const std::string& scre
     const netplay::tournament::Assignment* next = nullptr;
     for (const auto& m : v.tournament.list.items)
         if (m.matchId != a->matchId && m.provider == "blumint" && m.Playable(v.unixNow)) next = &m;
-    if (next) scene.next = next->roundLabel.empty() ? next->matchId : next->roundLabel;
+    if (next) scene.next = next->matchId;
 
     if (v2::On() && roomScreen) {
         std::string eyebrow = loc::T("blumint.eyebrow");
