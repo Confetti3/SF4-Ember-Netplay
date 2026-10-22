@@ -7506,3 +7506,12 @@ msgstr "Вас пригласили в комнату через Discord."
 
 msgid "updates.ready_notice"
 msgstr "Ember {0} готов к установке."
+
+msgid "home.training"
+msgstr "Тренировка"
+
+msgid "home.training_detail"
+msgstr "Сразу перейти в режим тренировки, без вопроса о вызовах на бой."
+
+msgid "home.training_unavailable"
+msgstr "Тренировка сейчас недоступна: сначала выйдите из комнаты или матча и вернитесь в главное меню игры."

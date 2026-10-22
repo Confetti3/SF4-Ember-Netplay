@@ -141,6 +141,17 @@ Unlike the training test it writes into the signed-in account's replay slots,
 as an import does: the replay a slot held is in the archive first, as always,
 and the saves were copied before the run.
 
+## The menu test
+
+`-Test menu` turns the Look to V2 and walks Ember's menus by the buttons a
+player presses (`ui::MenuWalk`): Home, Settings, a panel and the language
+popup, Online play, Create, a room opened, a member's popout, the room left
+with Leave and Yes, then Training from Home. The walk runs on the overlay's
+frames; each step logs the screen and row it reached. The test then waits for
+the Training battle and puts the player's Look back. It needs the helper, as
+a room is opened. The UI lab plays the same walk on made-up data
+(`UiLab --walk <file>`), so a changed menu shows up there first.
+
 ## The title screen
 
 The title screen learns from its Start which device, and so which profile,

@@ -7505,3 +7505,12 @@ msgstr "Máš pozvánku do místnosti na Discordu."
 
 msgid "updates.ready_notice"
 msgstr "Ember {0} je připraven k instalaci."
+
+msgid "home.training"
+msgstr "Trénink"
+
+msgid "home.training_detail"
+msgstr "Přejít rovnou do režimu Trénink, bez otázky na výzvy k zápasu."
+
+msgid "home.training_unavailable"
+msgstr "Trénink teď není k dispozici: nejdřív opusť místnost nebo zápas a vrať se do hlavního menu hry."

@@ -7505,3 +7505,12 @@ msgstr "Sei stato invitato in una stanza su Discord."
 
 msgid "updates.ready_notice"
 msgstr "Ember {0} è pronto da installare."
+
+msgid "home.training"
+msgstr "Allenamento"
+
+msgid "home.training_detail"
+msgstr "Vai direttamente alla modalità Allenamento, senza la domanda sulle richieste di lotta."
+
+msgid "home.training_unavailable"
+msgstr "L'allenamento ora non è disponibile: esci prima dalla stanza o dall'incontro e torna al menu principale del gioco."

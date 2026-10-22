@@ -11,14 +11,17 @@ namespace sf4e { namespace ui { namespace v2 {
 namespace {
 bool on = false;
 float ChipFont() { return ImGui::GetFontSize() * .78f; }
-// `text` cut with "..." to `width` at `size`.
-std::string Fit(const std::string& text, float width, float size, ImFont* font = ImGui::GetFont()) {
-    if (font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x <= width) return text;
+float TextWidth(const std::string& text, float size, ImFont* font = ImGui::GetFont()) { return font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x; }
+}
+std::string Fit(const std::string& text, float width, float size, ImFont* font, bool probe) {
+    if (!font) font = ImGui::GetFont();
+    const float measured = font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x;
+    // The text probe sees every V2 line at its full width, so the lab's check finds what this cuts.
+    if (probe) ReportMenuText(("v2/" + text).c_str(), size, size, measured, width);
+    if (measured <= width) return text;
     const char* end = nullptr;
     font->CalcTextSizeA(size, (std::max)(0.f, width - font->CalcTextSizeA(size, FLT_MAX, 0, "...").x), 0, text.c_str(), nullptr, &end);
     return std::string(text.c_str(), end) + "...";
-}
-float TextWidth(const std::string& text, float size, ImFont* font = ImGui::GetFont()) { return font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x; }
 }
 
 bool On() { return on; }
@@ -59,19 +62,24 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), Colors().border, s);
     int pressed = -1;
     float x = bar.min.x + side;
+    const float right = bar.max.x - side, size = 15 * s, icon = bell ? 30 * s : 0;
+    // When the hints and the status do not both fit (a narrow screen), the hints
+    // keep their glyphs only and the status keeps its words.
+    float wanted = TextWidth(status, size) + icon;
+    for (const auto& h : hints) wanted += glyph + 32 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, PromptLabel(h.glyph, h.label, MenuPromptBrand()).c_str()).x;
+    const bool compact = x + wanted > right;
     for (int i = 0; i < static_cast<int>(hints.size()); ++i) {
         const auto& h = hints[i];
-        const std::string label = PromptLabel(h.glyph, h.label, MenuPromptBrand());
-        const float w = glyph + 8 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, label.c_str()).x;
+        const std::string label = compact ? std::string() : PromptLabel(h.glyph, h.label, MenuPromptBrand());
+        const float w = glyph + (label.empty() ? 0 : 8 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, label.c_str()).x);
         ImGui::SetCursorScreenPos(ImVec2(x, bar.min.y));
         ImGui::PushID(i);
         if (ImGui::InvisibleButton("##hint", ImVec2(w, bar.H()))) pressed = i;
         ImGui::PopID();
         DrawPromptGlyph(d, h.glyph, ImVec2(x, bar.min.y + (bar.H() - glyph) * .5f), glyph, MenuArt(), s);
         d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), Colors().text, label.c_str());
-        x += w + 24 * s;
+        x += w + (compact ? 12 : 24) * s;
     }
-    const float right = bar.max.x - side, size = 15 * s, icon = bell ? 30 * s : 0;
     const std::string fitted = Fit(status, (std::max)(0.f, right - x - icon), size);
     const float left = right - TextWidth(fitted, size) - icon, mid = bar.min.y + bar.H() * .5f;
     d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(fitted, size), mid - size * .5f), tone, fitted.c_str());
@@ -260,10 +268,30 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
 
 int Tabs(const std::vector<std::string>& labels, int current) {
     const float s = Scale(), height = 44 * s, pad = 16 * s;
-    const auto start = ImGui::GetCursorScreenPos();
-    const float width = ImGui::GetContentRegionAvail().x;
+    const auto origin = ImGui::GetCursorScreenPos();
+    const float full = ImGui::GetContentRegionAvail().x;
     auto* draw = ImGui::GetWindowDrawList();
     int pressed = -1;
+    // The keys that step the tabs sit at the strip's ends (LB and RB, Page Up and Down
+    // on the keyboard), each also a button to the previous or next tab.
+    const float cap = 30 * s, capRoom = labels.size() > 1 ? cap + 12 * s : 0;
+    if (capRoom > 0) {
+        const bool keys = KeyboardPrompts();
+        const char* glyphs[] = {keys ? "PgUp" : "LB", keys ? "PgDn" : "RB"};
+        for (int side = 0; side < 2; ++side) {
+            const ImVec2 at(side ? origin.x + full - cap : origin.x, origin.y + (height - cap) * .5f);
+            ImGui::SetCursorScreenPos(at);
+            ImGui::PushID(side ? "##next-tab" : "##previous-tab");
+            const int to = current + (side ? 1 : -1);
+            if (ImGui::InvisibleButton("##cap", ImVec2(cap, cap)) && to >= 0 && to < static_cast<int>(labels.size())) pressed = to;
+            ImGui::PopID();
+            // Dimmed at an end with nowhere to go.
+            const bool can = to >= 0 && to < static_cast<int>(labels.size());
+            DrawPromptGlyph(draw, glyphs[side], at, cap, MenuArt(), s, 0, MenuPromptBrand(), can ? 1.f : .35f);
+        }
+    }
+    const ImVec2 start(origin.x + capRoom, origin.y);
+    const float width = full - 2 * capRoom;
     // A strip wider than the screen slides so the current tab stays in view.
     float end = 0, total = 0;
     for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
@@ -287,9 +315,9 @@ int Tabs(const std::vector<std::string>& labels, int current) {
         x += w;
     }
     draw->PopClipRect();
-    draw->AddLine(ImVec2(start.x, start.y + height), ImVec2(start.x + width, start.y + height), Colors().border, s);
-    ImGui::SetCursorScreenPos(start);
-    ImGui::Dummy(ImVec2(width, height + 8 * s));
+    draw->AddLine(ImVec2(origin.x, start.y + height), ImVec2(origin.x + full, start.y + height), Colors().border, s);
+    ImGui::SetCursorScreenPos(origin);
+    ImGui::Dummy(ImVec2(full, height + 8 * s));
     return pressed;
 }
 
@@ -484,13 +512,17 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     const bool status = !tag.status.empty() && (twoLines || nameWidth + titleWidth + statusWidth <= nameRoom);
     const bool title = !tag.title.empty() && (twoLines || nameWidth + titleWidth + (status ? statusWidth : 0) <= nameRoom);
     const float middle = at.y + (line - nameSize) * .5f;
-    float x = at.x + DrawNameMarks(draw, at.x, middle, nameSize, tag.marks).width;
     const float nameMax = nameRoom - (!twoLines && title ? titleWidth : 0) - (!twoLines && status ? statusWidth : 0);
     NoteUserText(tag.name);
     const std::string name = Fit(tag.name, (std::max)(0.f, nameMax), nameSize, nameFont);
+    // Mirrored, the marks, name, title and status end at the right edge and the ping starts the line.
+    const bool mirror = tag.mirror && !twoLines;
+    const float after = title || status ? gap + (title ? titleWidth : 0) + (status ? statusWidth - gap : 0) : 0;
+    const float lead = mirror ? width - (marksWidth + TextWidth(name, nameSize, nameFont) + after) : 0;
+    float x = at.x + lead + DrawNameMarks(draw, at.x + lead, middle, nameSize, tag.marks).width;
     draw->AddText(nameFont, nameSize, ImVec2(x, middle), Colors().text, name.c_str());
     x += TextWidth(name, nameSize, nameFont) + gap;
-    if (!ping.empty()) Chip(draw, ImVec2(at.x + width - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
+    if (!ping.empty()) Chip(draw, ImVec2(mirror ? at.x : at.x + width - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
     if (!twoLines) {
         if (title) { draw->AddText(ImGui::GetFont(), font, ImVec2(x, at.y + (line - font) * .5f), Colors().muted, tag.title.c_str()); x += titleWidth; }
         if (status) Chip(draw, ImVec2(x, at.y + (line - chipHeight) * .5f), tag.status, Colors().muted);

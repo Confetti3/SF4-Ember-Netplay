@@ -54,6 +54,7 @@ bool StartTest() {
 	case Test::RoomHost: case Test::RoomGuest: return StartRoom();
 	case Test::Replay: return StartReplay();
 	case Test::TournamentHost: case Test::TournamentGuest: return StartTournament();
+	case Test::Menu: return StartMenu();
 	default: return false;
 	}
 }
@@ -63,6 +64,7 @@ void TickTest(bool atMainMenu) {
 	case Test::RoomHost: case Test::RoomGuest: TickRoom(); break;
 	case Test::Replay: TickReplay(atMainMenu); break;
 	case Test::TournamentHost: case Test::TournamentGuest: TickTournament(); break;
+	case Test::Menu: TickMenu(atMainMenu); break;
 	default: break;
 	}
 }

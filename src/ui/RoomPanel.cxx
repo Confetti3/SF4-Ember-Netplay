@@ -746,7 +746,10 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    // The room's actions along the bottom, then the focused row's line over them.
    std::vector<const MenuEntry*> actions;
    for(const auto* e:toolbar)if(e->id!="room-members"&&e->id!="room-chat")actions.push_back(e);
-   const int across=(std::max)(2,(std::min)(static_cast<int>(actions.size()),static_cast<int>(tables.W()/(140*s))));
+   // As many across as the widest label leaves room for (Training from the room is long).
+   float least=140*s;
+   for(const auto* e:actions)least=(std::max)(least,ImGui::GetFont()->CalcTextSizeA(17*s,FLT_MAX,0,e->label.c_str()).x+36*s);
+   const int across=(std::max)(2,(std::min)(static_cast<int>(actions.size()),static_cast<int>(tables.W()/least)));
    const int lines=(static_cast<int>(actions.size())+across-1)/across;
    v2::Box buttons=v2::CutBottom(tables,(lines*60-12)*s,12*s);
    ImGui::SetCursorScreenPos(v2::CutBottom(tables,18*s,8*s).min);

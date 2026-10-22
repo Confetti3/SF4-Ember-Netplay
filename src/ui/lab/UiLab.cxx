@@ -9,11 +9,16 @@
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
+// --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
+//   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
+// --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk) with V2 on, a created room joined at once,
+//   and writes each step there; exits 3 when a step fails
 // UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--arcade floor|rows|columns] [--public] [--rankings] [--playback] [--pip] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
 #include "../FighterSelector.hxx"
+#include "../MenuWalk.hxx"
 #include "../RecoveryMenu.hxx"
 #include "../ReplayPlaybackHud.hxx"
 #include "../SelectionArt.hxx"
@@ -34,6 +39,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -298,7 +304,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     float textSize = 1;
     bool v2 = false, tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
-    std::string shot, keys, screen, recovery;
+    std::string shot, keys, screen, recovery, check, walkFile;
     bool inRoom = false, pip = false;
     room::ArcadeView arcade = room::ArcadeOff;  // --arcade floor|rows|columns: an Arcade room in that view
     int hud = -1;
@@ -329,6 +335,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--toasts") toasts = true;
         else if (args[i] == "--welcome") welcome = true;
         else if (args[i] == "--pad") pad = true;
+        else if (args[i] == "--check" && more) check = args[++i];
+        else if (args[i] == "--walk" && more) { walkFile = args[++i]; v2 = true; }
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
     RegisterClassExW(&wc);
@@ -362,7 +370,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (publicLab) PublicLab(view);
     // The helper's side for --public: each Ember ID request answered, the room list on asking.
     std::uint64_t identityAsked = 0;
-    bool listAsked = false;
+    bool listAsked = false, hostAsked = false, leaveAsked = false;
+    ui::MenuWalk walk;
+    std::ofstream walkLog;
+    if (!walkFile.empty()) walkLog.open(walkFile, std::ios::trunc);
     if (rankings) Rankings(view);
     if (screen == "blumint-matches") BluMintMatches(view);
     // Fighter select (--screen selection) with every fighter, costume and colour there.
@@ -379,11 +390,28 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (action.command.kind == netplay::CommandKind::SavePreferences) view.preferences = action.preferences;
         if (publicLab && action.identity.op != netplay::IdentityOp::None) identityAsked = action.identity.ticket;
         if (publicLab && action.tournament.op == netplay::tournament::Command::Op::RoomList) listAsked = true;
+        // The walk's room opens at once, and leaving it closes it. HostRoom is also every action's
+        // kind when it sends no command, so only Create's Open room counts.
+        hostAsked |= action.command.kind == netplay::CommandKind::HostRoom && shell.Navigation().Screen() == "create" && shell.Navigation().Focus() == "host";
+        leaveAsked |= action.command.kind == netplay::CommandKind::LeaveRoom;
         // The helper answers each Ember ID request at once.
         if (action.identity.op != netplay::IdentityOp::None) { view.identityTicket = action.identity.ticket; view.identityRequest = view.identity.requestId = view.identityTicket + 100; view.identity.ok = true; }
         return true;
     };
     int frame = 0, momentAt = 40;
+    // --check: what the menus report on a frame, kept from the last one drawn.
+    std::set<std::string> found;
+    std::vector<std::tuple<std::string, ImVec2, ImVec2>> cards;
+    const auto note = [&](const std::string& item, float need, float have, const char* what) {
+        char line[96]; std::snprintf(line, sizeof(line), ": %s %.0f, has %.0f", what, need, have); found.insert(item + line);
+    };
+    if (!check.empty()) {
+        ui::SetMenuTextProbe([&](const char* id, float text, float interior, float width, float available) {
+            if (width > available + .5f) note(id, width, available, "needs width");
+            if (text > interior + .5f) note(id, text, interior, "needs height");
+        });
+        ui::SetMenuCardProbe([&](const char* id, ImVec2 min, ImVec2 max) { cards.emplace_back(id, min, max); });
+    }
     // The recovery window's state at the asked step: 1.3.0 found on Nightly, then fetched.
     ui::GameMenu recoveryMenu; recoveryMenu.navigation = ui::RecoveryNavigation(recovery != "launch");
     platform::ServiceSnapshot recoveryState;
@@ -411,11 +439,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         // Scripted shots keep the real mouse out of it: hovering a card focuses it.
         if (!shot.empty()) ImGui::GetIO().AddMousePosEvent(-FLT_MAX, -FLT_MAX);
         ImGui::NewFrame();
+        found.clear(); cards.clear();
         // A scripted key is held for 3 frames and released for 3, from frame 30 (a new screen ignores its first frames).
         unsigned held = PadButtons();
         const int scripted = frame - 30;
         const std::size_t step = scripted < 0 ? script.size() : static_cast<std::size_t>(scripted / 6);
         if (step < script.size() && scripted % 6 < 3) held |= script[step];
+        if (walkLog && frame > 30) held |= walk.Frame(shell.Navigation(), [&](bool pass, const std::string& name, const std::string& detail) {
+            walkLog << (pass ? "PASS " : "FAIL ") << name << (detail.empty() ? "" : ": " + detail) << std::endl;
+        });
         ui::SetMenuInput({held, ImGui::GetTime()});
         ui::SetMenuGlyphs(pad || PadButtons() ? input::PadXInput : input::PadKeyboard, input::MenuButtons{});
         if (ImGui::IsKeyPressed(ImGuiKey_F1)) bar = !bar;
@@ -432,6 +464,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             view.identityTicket = identityAsked; view.identityRequest = view.identity.requestId = identityAsked + 100; view.identity.ok = true;
         }
         if (listAsked) { listAsked = false; PublicRooms(view); }
+        if (hostAsked) { hostAsked = false; JoinRoom(view); }
+        if (leaveAsked) { leaveAsked = false; view = FakeView(view.preferences.lookV2); }
         // F7 and F8 set the room up again, and the moment follows a few frames later so the shell sees it happen.
         static const char* const moments[] = {"", "game", "set", "lost", "restart", "host", "expired", "failed", "called"};
         const bool nextMoment = blumint && ImGui::IsKeyPressed(ImGuiKey_F7), swapRole = blumint && ImGui::IsKeyPressed(ImGuiKey_F8);
@@ -511,11 +545,26 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         ++frame;
         if (snap) { char name[64]; std::snprintf(name, sizeof(name), "uilab-%d.bmp", frame); SaveShot(name); }
         // Scripted runs give the art time to load and the last key time to settle.
-        if (!shot.empty() && frame > static_cast<int>(script.size()) * 6 + 60 && art.MenuBackdrop().texture) { SaveShot(shot); break; }
+        if (!shot.empty() && frame > static_cast<int>(script.size()) * 6 + 60 && (!walkLog || walk.Done()) && art.MenuBackdrop().texture) { SaveShot(shot); break; }
         device->Present(nullptr, nullptr, nullptr, nullptr);
+    }
+    // Two cards overlap when they cross without one holding the other (a card and its option strip).
+    const auto inside = [](const auto& a, const auto& b) { return std::get<1>(a).x >= std::get<1>(b).x - .5f && std::get<1>(a).y >= std::get<1>(b).y - .5f &&
+        std::get<2>(a).x <= std::get<2>(b).x + .5f && std::get<2>(a).y <= std::get<2>(b).y + .5f; };
+    for (std::size_t i = 0; i < cards.size(); ++i) for (std::size_t j = i + 1; j < cards.size(); ++j) {
+        const auto &a = cards[i], &b = cards[j];
+        const float w = (std::min)(std::get<2>(a).x, std::get<2>(b).x) - (std::max)(std::get<1>(a).x, std::get<1>(b).x);
+        const float h = (std::min)(std::get<2>(a).y, std::get<2>(b).y) - (std::max)(std::get<1>(a).y, std::get<1>(b).y);
+        if (w > 1 && h > 1 && !inside(a, b) && !inside(b, a)) note(std::get<0>(a) + " over " + std::get<0>(b), w, h, "overlaps by");
+    }
+    if (!check.empty()) {
+        // Named by the shot's file and the screen the shell was on.
+        const std::string label = shot.substr(shot.find_last_of("\\/") + 1);
+        std::ofstream report(check, std::ios::app);
+        for (const auto& f : found) report << label << " " << width << "x" << height << " " << shell.Navigation().Screen() << " | " << f << "\n";
     }
     ImGui_ImplDX9_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
     device->Release(); d3d->Release();
     DestroyWindow(hwnd);
-    return 0;
+    return walk.Failed() ? 3 : found.empty() ? 0 : 2;
 }

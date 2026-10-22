@@ -227,6 +227,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),
    Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
+  // V2: Training straight from Home, before Play offline (Classic reaches it through Play offline > Training).
+  if(v2::On())rows.insert(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="offline";}),Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle));
   // V2: News, the channel's newest releases (the panel under the player card shows the first three).
   if(v2::On()&&!v.services.update.news.empty())rows.push_back(Row("news",loc::T("home.news"),v.services.update.news.front().title));
   // V2: Notifications, what Ember said lately (the toasts).
@@ -433,7 +435,8 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    if(deadline.seat==place.seat){status=deadline.text;statusTone=Tone::Pending;}
   }
  }
- if((screen=="room"||screen=="room-chat")&&status.empty()){
+ // A BluMint room's header has the set and the score, and its notices say the rest.
+ if((screen=="room"||screen=="room-chat")&&status.empty()&&!(InBluMintRoom(v,screen)&&v.session.control==Health::Healthy)){
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
    TournamentRoomStatus(v.room):
@@ -593,6 +596,9 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
+ // Training: the game's main menu goes straight to Training mode, if the runtime finds no room or match.
+ else if(a.id=="training"){ShellAction training;training.command.generation=v.session.generation;training.training=TrainingEntry::Home;
+  if(!submit(std::move(training)))error_=loc::T("home.training_unavailable");}
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
  else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
@@ -813,7 +819,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    Say(loc::T("tournament.connection_lost_notice"),Tone::Pending,30,ToastKind::Match);
   }
   else if(v.tournament.phase==Phase::Finished)Say(loc::T("tournament.done_notice"),Tone::Success,12,ToastKind::Match);
-  else if(v.tournament.phase==Phase::Failed){
+  // A BluMint room's fighter gets the Failed notice instead (UpdateBluMint).
+  else if(v.tournament.phase==Phase::Failed&&!InBluMintRoom(v,nav.Screen())){
    Say(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,20,ToastKind::Match);
   }
   tournamentPhase_=v.tournament.phase;

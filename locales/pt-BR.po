@@ -7025,3 +7025,12 @@ msgstr "Você foi convidado para uma sala no Discord."
 
 msgid "updates.ready_notice"
 msgstr "O Ember {0} está pronto para instalar."
+
+msgid "home.training"
+msgstr "Treino"
+
+msgid "home.training_detail"
+msgstr "Ir direto para o modo Treino, sem a pergunta de pedido de luta."
+
+msgid "home.training_unavailable"
+msgstr "O treino não está disponível agora: saia primeiro da sala ou da partida e volte ao menu principal do jogo."

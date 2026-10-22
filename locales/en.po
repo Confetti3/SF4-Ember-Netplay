@@ -7140,3 +7140,12 @@ msgstr "You are invited to a room on Discord."
 
 msgid "updates.ready_notice"
 msgstr "Ember {0} is ready to install."
+
+msgid "home.training"
+msgstr "Training"
+
+msgid "home.training_detail"
+msgstr "Go straight into Training mode, without the Fight Request question."
+
+msgid "home.training_unavailable"
+msgstr "Training is not available now: leave the room or match first, and go back to the game's main menu."

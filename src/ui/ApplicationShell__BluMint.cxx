@@ -207,9 +207,10 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
     const room::MemberId seats[] = {t.p1, t.p2};
     const int winner = !decided ? -1 : t.score[0] >= static_cast<unsigned>(toWin) ? 0 : 1;
     const auto fighterOf = [&](const room::Member& m) { return m.id == v.room.localMember ? v.selectedFighter : m.fighter; };
+    // Player 1's pips fill from the right, so both sides fill from the score outwards.
     const auto pips = [&](float x, float y, int side) {
         for (int g = 0; g < toWin; ++g) {
-            const ImVec2 at(x + g * 16 * s, y);
+            const ImVec2 at(side ? x + g * 16 * s : x + (toWin - 1 - g) * 16 * s, y);
             if (static_cast<unsigned>(g) < t.score[side]) d->AddCircleFilled(at, 5 * s, c.accent);
             else d->AddCircle(at, 5 * s, c.accent, 0, 1.5f * s);
         }
@@ -237,12 +238,13 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
             const float px = side ? mid + half : mid - half - pipsWidth + 6 * s;
             pips(px, y, side);
             const float face = bar.H() - 12 * s, fx = side ? bar.max.x - 8 * s - face : bar.min.x + 8 * s;
-            DrawCharacterPortrait(fighterOf(*m), ImVec2(fx, bar.min.y + 6 * s), ImVec2(fx + face, bar.max.y - 6 * s), c.ink);
+            DrawCharacterPortrait(fighterOf(*m), ImVec2(fx, bar.min.y + 6 * s), ImVec2(fx + face, bar.max.y - 6 * s), c.ink, side == 1);
             const float tx = side ? px + pipsWidth + 12 * s : fx + face + 10 * s, tw = side ? fx - 10 * s - tx : px - 22 * s - tx;
             v2::TagView tag;
             tag.name = m->name;
             tag.marks = {m->country, m->badge};
             tag.ping = LatencyMarkFor(v.memberLatency, *m, v.room.localMember);
+            tag.mirror = side == 0;
             v2::Tag(d, ImVec2(tx, y - 13 * s), tw, tag, v2::TagSize::S);
         }
     } else {
@@ -250,7 +252,9 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
             decided ? loc::T("blumint.stage_decided") : t.phase == room::TablePhase::Playing ? loc::Tf("blumint.stage_live", played + 1) : loc::Tf("blumint.stage_next", played + 1));
         const std::string score = std::to_string(t.score[0]) + " \xE2\x80\x93 " + std::to_string(t.score[1]);
         const float scoreSize = 40 * s, scoreWidth = HeadingFont()->CalcTextSizeA(scoreSize, FLT_MAX, 0, score.c_str()).x;
-        const float cw = 200 * s, ch = 220 * s, between = scoreWidth + 44 * s;
+        const float between = scoreWidth + 44 * s, ch = 220 * s;
+        // Wide enough for a name beside the ping and its route chip, as far as the stage allows.
+        const float cw = (std::max)(200 * s, (std::min)(300 * s, (stage.W() - between - 48 * s) * .5f));
         const float left = stage.min.x + (stage.W() - 2 * cw - between) * .5f, top = stage.min.y + (stage.H() - ch) * .5f - 12 * s;
         for (int side = 0; side < 2; ++side) {
             const v2::Box card{ImVec2(left + side * (cw + between), top), ImVec2(left + side * (cw + between) + cw, top + ch)};
@@ -259,20 +263,22 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
             d->AddRectFilled(card.min, card.max, c.frame, 4 * s);
             if (m) {
                 const float tagY = card.max.y - 12 * s - 22 * s - 8 * s - 26 * s;
-                DrawCharacterPortrait(fighterOf(*m), ImVec2(card.min.x + 12 * s, card.min.y + 12 * s), ImVec2(card.max.x - 12 * s, tagY - 8 * s), c.ink);
+                DrawCharacterPortrait(fighterOf(*m), ImVec2(card.min.x + 12 * s, card.min.y + 12 * s), ImVec2(card.max.x - 12 * s, tagY - 8 * s), c.ink, side == 1);
                 v2::TagView tag;
                 tag.name = m->name;
                 tag.marks = {m->country, m->badge};
                 tag.ping = LatencyMarkFor(v.memberLatency, *m, v.room.localMember);
+                // Name and pips on the score's side of the card, the ping and the ready chip on the outer side.
+                tag.mirror = side == 0;
                 v2::Tag(d, ImVec2(card.min.x + 12 * s, tagY), cw - 24 * s, tag, v2::TagSize::S);
                 // A pip a game won, of first to N.
                 const float py = card.max.y - 12 * s - 11 * s;
-                pips(card.min.x + 18 * s, py, side);
+                pips(side ? card.min.x + 18 * s : card.max.x - 18 * s - (toWin - 1) * 16 * s, py, side);
                 // Once the set is decided, the winner's card says so; nobody readies any more.
                 const bool ready = t.ready[side];
                 const std::string word = winner >= 0 ? (winner == side ? std::string(loc::T("blumint.chip_set_won")) : std::string())
                                                       : loc::T(ready ? "room.status.ready" : "blumint.not_ready");
-                if (!word.empty()) v2::Chip(d, ImVec2(card.max.x - 12 * s - v2::ChipWidth(word), py - 11 * s), word, winner == side ? c.accent : ready ? palette::Ready : c.muted);
+                if (!word.empty()) v2::Chip(d, ImVec2(side ? card.max.x - 12 * s - v2::ChipWidth(word) : card.min.x + 12 * s, py - 11 * s), word, winner == side ? c.accent : ready ? palette::Ready : c.muted);
             }
             // Lit: this PC's fighter during the set, the winner once it is decided.
             if (winner >= 0 ? winner == side : you) {

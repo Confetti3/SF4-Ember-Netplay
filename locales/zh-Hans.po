@@ -7506,3 +7506,12 @@ msgstr "你在 Discord 上收到了房间邀请。"
 
 msgid "updates.ready_notice"
 msgstr "Ember {0} 已可安装。"
+
+msgid "home.training"
+msgstr "训练"
+
+msgid "home.training_detail"
+msgstr "不询问对战请求设置，直接进入训练模式。"
+
+msgid "home.training_unavailable"
+msgstr "现在无法进入训练：请先离开房间或对战，并回到游戏主菜单。"

@@ -158,7 +158,10 @@ std::vector<MenuEntry> ApplicationShell::NotificationRows(double now,std::string
  title=loc::T("home.notifications");
  std::vector<MenuEntry> rows;
  for(const auto& t:toasts_){
-  auto row=InfoRow("toast-"+std::to_string(t.id),t.text,Ago(now-t.at),{});
+  // Its kind over the words, so a long notice reads whole in its detail.
+  static const char* const kinds[]={"notice.title","toast.kind.invitation","toast.kind.room","toast.kind.update","toast.kind.match","toast.kind.system"};
+  auto row=InfoRow("toast-"+std::to_string(t.id),loc::T(kinds[static_cast<int>(t.kind)]),Ago(now-t.at),{});
+  row.detail=t.text;
   for(std::size_t i=0;i<t.actions.size();++i)row.choices.push_back({std::to_string(i),t.actions[i].label});
   if(!row.choices.empty()){row.info=false;row.popout=true;}
   rows.push_back(std::move(row));
