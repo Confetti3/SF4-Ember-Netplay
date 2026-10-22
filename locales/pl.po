@@ -6618,7 +6618,7 @@ msgid "blumint.set_reported"
 msgstr "BluMint ma wynik i aktualizuje wydarzenie."
 
 msgid "blumint.next_waiting"
-msgstr "Twój następny mecz pojawi się tutaj, gdy tylko BluMint go wywoła."
+msgstr "Ember da ci znać, gdy tylko BluMint wywoła twój następny mecz."
 
 msgid "blumint.watch_next"
 msgstr "Następny mecz pojawi się tutaj, gdy BluMint go wywoła."
@@ -6629,17 +6629,11 @@ msgstr "Twój następny mecz jest gotowy: z {0}."
 msgid "blumint.play_next"
 msgstr "Graj z {0}"
 
-msgid "blumint.stay"
-msgstr "Zostań w pokoju"
-
-msgid "blumint.leave"
-msgstr "Opuść pokój"
-
 msgid "blumint.restart_heading"
 msgstr "Ta gra się nie liczyła"
 
 msgid "blumint.restart_text"
-msgstr "Połączenie zostało zerwane, więc BluMint ustawia mecz ponownie od {0} – {1}. Pojawi się tutaj, gdy to nastąpi."
+msgstr "Połączenie zostało zerwane, więc BluMint ustawia mecz ponownie od {0} – {1}. Ember da ci znać, gdy będzie gotowy."
 
 msgid "blumint.host_heading"
 msgstr "Gospodarz BluMint przejął ten mecz"
@@ -6773,6 +6767,33 @@ msgstr "Restart"
 
 msgid "blumint.chip_expired"
 msgstr "Wygasło"
+
+msgid "blumint.later"
+msgstr "Później"
+
+msgid "blumint.called_heading"
+msgstr "Twój mecz BluMint jest gotowy"
+
+msgid "blumint.called_text"
+msgstr "Zagraj teraz: BluMint dyskwalifikuje gracza, który nie jest gotowy na czas."
+
+msgid "blumint.called_text_room"
+msgstr "Zagraj teraz: BluMint dyskwalifikuje gracza, który nie jest gotowy na czas. Gra oznacza opuszczenie tego pokoju."
+
+msgid "blumint.play_now"
+msgstr "Graj teraz"
+
+msgid "blumint.leave_play"
+msgstr "Opuść pokój i graj"
+
+msgid "blumint.chip_stopped"
+msgstr "Zatrzymany"
+
+msgid "blumint.failed_heading"
+msgstr "Ten mecz został zatrzymany"
+
+msgid "blumint.failed_text"
+msgstr "{0} Podaj wynik gospodarzowi BluMint, aby mógł go wpisać."
 
 msgid "room.v2.board"
 msgstr "Plansza"

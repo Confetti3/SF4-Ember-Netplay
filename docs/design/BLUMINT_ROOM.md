@@ -43,11 +43,19 @@ round's label when BluMint gives one.
 
 | Moment | When Ember sees it | Fighter's buttons | Watcher |
 |---|---|---|---|
+| Match called | A playable `blumint` assignment this PC has not been told of, outside a match being played; once each | Play now (in another room: Leave the room and play) · Later | – |
 | Game done | The table's score rises and nobody reached first to N | Ready for the next game · Change fighter first · Not yet | A line on the status bar |
-| Set won / lost | The score reaches first to N, or the match's assignment is `completed` | Stay in the room · Leave the room; with the next BluMint match already assigned: Play <next> · Stay | "<name> wins the set" on the status bar |
+| Set won / lost | The score reaches first to N, or the match's assignment is `completed` | OK; with the next BluMint match already assigned: Play <next> · Later | "<name> wins the set" on the status bar |
 | Game did not count | The match ended on a lost connection; BluMint asks for the set again from the score | OK | Status bar |
-| Host took the match | The assignment is `cancelled` (BluMint's close: host took over, score entered, removed) | Stay · Leave | Status bar |
-| Not played in time | The assignment is `expired` | Stay · Leave | Status bar |
+| Host took the match | The assignment is `cancelled` (BluMint's close: host took over, score entered, removed) | OK | Status bar |
+| Not played in time | The assignment is `expired` | OK | Status bar |
+| Match stopped | Ember could not carry the match on (play `Failed`: a result not saved, a different Ember version, ...) | OK; the words ask to give BluMint's host the score | – |
+
+The match's room closes by itself when the match ends (the follower leaves it
+after the last battle), so no notice offers to stay in it. "Play" opens Ember
+ID's tournament matches at the match's row. A match called while the player
+sits in another room (the streamer's, in king of the hill) leaves that room
+first: BluMint disqualifies a player not ready in time.
 
 "Rematch" in a first to N is the next game: the notice's Ready readies the
 fighter at once (never unreadies). A rematch after the set is BluMint's to

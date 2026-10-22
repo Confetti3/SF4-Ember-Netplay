@@ -185,7 +185,8 @@ void BluMintRoom(ui::ShellView& view, bool watcher) {
     if (watcher) view.room.localMember = 5;
 }
 // What happens next in it, from frame 40 (lab --moment): a game, the set won or
-// lost, a game cut off, the host's close, the match's time run out.
+// lost, a game cut off, the host's close, the match's time run out, the match
+// stopped, the next match called.
 void BluMintMoment(ui::ShellView& view, const std::string& moment) {
     auto& table = view.room.tables[0];
     auto& a = view.tournament.list.items[0];
@@ -198,6 +199,13 @@ void BluMintMoment(ui::ShellView& view, const std::string& moment) {
     else if (moment == "restart") { table.score[0] = 1; view.tournament.reason = netplay::tournament::ConnectionLostReason; }
     else if (moment == "host") a.state = "cancelled";
     else if (moment == "expired") a.state = "expired";
+    else if (moment == "failed") { view.tournament.phase = netplay::tournament::Phase::Failed; view.tournament.reason = "report_not_saved"; }
+    // The next BluMint match called while the player sits in another room (king of the hill's queue).
+    else if (moment == "called") {
+        auto next = a; next.matchId = "emt_lab2"; next.roundLabel = "Winners round 2";
+        view.tournament = {}; view.room.tournament = {};
+        view.tournament.list.items.push_back(next);
+    }
 }
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
 // it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
@@ -233,7 +241,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool inRoom = false, pip = false;
     int hud = -1;
     bool trainingPanel = false, blumint = false, watcher = false, update = false, publicLab = false, rankings = false;  // --update: Home offers a Nightly update
-    std::string moment;  // --moment game|set|lost|restart|host|expired, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
+    std::string moment;  // --moment game|set|lost|restart|host|expired|failed|called, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
         if (args[i] == "--size" && more) std::sscanf(args[++i].c_str(), "%dx%d", &width, &height);
@@ -332,7 +340,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         }
         if (listAsked) { listAsked = false; PublicRooms(view); }
         // F7 and F8 set the room up again, and the moment follows a few frames later so the shell sees it happen.
-        static const char* const moments[] = {"", "game", "set", "lost", "restart", "host", "expired"};
+        static const char* const moments[] = {"", "game", "set", "lost", "restart", "host", "expired", "failed", "called"};
         const bool nextMoment = blumint && ImGui::IsKeyPressed(ImGuiKey_F7), swapRole = blumint && ImGui::IsKeyPressed(ImGuiKey_F8);
         if (nextMoment || swapRole) {
             if (nextMoment) { const auto at = std::find(std::begin(moments), std::end(moments), moment); moment = moments[at == std::end(moments) || at + 1 == std::end(moments) ? 0 : at - std::begin(moments) + 1]; }

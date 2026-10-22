@@ -6618,7 +6618,7 @@ msgid "blumint.set_reported"
 msgstr "BluMint a le résultat et met l'événement à jour."
 
 msgid "blumint.next_waiting"
-msgstr "Ton prochain match apparaît ici dès que BluMint l'appelle."
+msgstr "Ember te prévient dès que BluMint appelle ton prochain match."
 
 msgid "blumint.watch_next"
 msgstr "Le prochain match apparaît ici quand BluMint l'appelle."
@@ -6629,17 +6629,11 @@ msgstr "Ton prochain match est prêt : contre {0}."
 msgid "blumint.play_next"
 msgstr "Jouer contre {0}"
 
-msgid "blumint.stay"
-msgstr "Rester dans le salon"
-
-msgid "blumint.leave"
-msgstr "Quitter le salon"
-
 msgid "blumint.restart_heading"
 msgstr "Cette manche n'a pas compté"
 
 msgid "blumint.restart_text"
-msgstr "La connexion a coupé, donc BluMint relance le match à partir de {0} – {1}. Il apparaîtra ici à ce moment-là."
+msgstr "La connexion a coupé, donc BluMint relance le match à partir de {0} – {1}. Ember te prévient quand il est prêt."
 
 msgid "blumint.host_heading"
 msgstr "L'organisateur BluMint a repris ce match"
@@ -6773,6 +6767,33 @@ msgstr "Reprise"
 
 msgid "blumint.chip_expired"
 msgstr "Expiré"
+
+msgid "blumint.later"
+msgstr "Plus tard"
+
+msgid "blumint.called_heading"
+msgstr "Ton match BluMint est prêt"
+
+msgid "blumint.called_text"
+msgstr "Joue-le maintenant : BluMint disqualifie un joueur qui n'est pas prêt à temps."
+
+msgid "blumint.called_text_room"
+msgstr "Joue-le maintenant : BluMint disqualifie un joueur qui n'est pas prêt à temps. Le jouer te fait quitter ce salon."
+
+msgid "blumint.play_now"
+msgstr "Jouer maintenant"
+
+msgid "blumint.leave_play"
+msgstr "Quitter le salon et jouer"
+
+msgid "blumint.chip_stopped"
+msgstr "Arrêté"
+
+msgid "blumint.failed_heading"
+msgstr "Ce match s'est arrêté"
+
+msgid "blumint.failed_text"
+msgstr "{0} Donne le score à l'organisateur BluMint pour qu'il puisse le saisir."
 
 msgid "room.v2.board"
 msgstr "Tableau"

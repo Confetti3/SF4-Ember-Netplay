@@ -6618,7 +6618,7 @@ msgid "blumint.set_reported"
 msgstr "BluMint heeft de uitslag en werkt het evenement bij."
 
 msgid "blumint.next_waiting"
-msgstr "Je volgende match verschijnt hier zodra BluMint hem oproept."
+msgstr "Ember laat het je weten zodra BluMint je volgende match oproept."
 
 msgid "blumint.watch_next"
 msgstr "De volgende match verschijnt hier wanneer BluMint hem oproept."
@@ -6629,17 +6629,11 @@ msgstr "Je volgende match staat klaar: tegen {0}."
 msgid "blumint.play_next"
 msgstr "Speel tegen {0}"
 
-msgid "blumint.stay"
-msgstr "In de kamer blijven"
-
-msgid "blumint.leave"
-msgstr "Kamer verlaten"
-
 msgid "blumint.restart_heading"
 msgstr "Die game telde niet"
 
 msgid "blumint.restart_text"
-msgstr "De verbinding viel weg, dus BluMint zet de match opnieuw klaar vanaf {0} – {1}. Hij verschijnt hier zodra dat gebeurt."
+msgstr "De verbinding viel weg, dus BluMint zet de match opnieuw klaar vanaf {0} – {1}. Ember laat het je weten zodra hij klaarstaat."
 
 msgid "blumint.host_heading"
 msgstr "De host van BluMint heeft deze match overgenomen"
@@ -6773,6 +6767,33 @@ msgstr "Opnieuw"
 
 msgid "blumint.chip_expired"
 msgstr "Verlopen"
+
+msgid "blumint.later"
+msgstr "Later"
+
+msgid "blumint.called_heading"
+msgstr "Je BluMint-match staat klaar"
+
+msgid "blumint.called_text"
+msgstr "Speel hem nu: BluMint diskwalificeert wie niet op tijd klaar is."
+
+msgid "blumint.called_text_room"
+msgstr "Speel hem nu: BluMint diskwalificeert wie niet op tijd klaar is. Om te spelen verlaat je deze room."
+
+msgid "blumint.play_now"
+msgstr "Nu spelen"
+
+msgid "blumint.leave_play"
+msgstr "Room verlaten en spelen"
+
+msgid "blumint.chip_stopped"
+msgstr "Gestopt"
+
+msgid "blumint.failed_heading"
+msgstr "Deze match is gestopt"
+
+msgid "blumint.failed_text"
+msgstr "{0} Geef de score door aan de host van BluMint, zodat die hem kan invoeren."
 
 msgid "room.v2.board"
 msgstr "Bord"

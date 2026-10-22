@@ -6138,7 +6138,7 @@ msgid "blumint.set_reported"
 msgstr "A BluMint recebeu o resultado e atualiza o evento."
 
 msgid "blumint.next_waiting"
-msgstr "Sua próxima partida aparece aqui assim que a BluMint chamar."
+msgstr "O Ember avisa assim que a BluMint chamar sua próxima partida."
 
 msgid "blumint.watch_next"
 msgstr "A próxima partida aparece aqui quando a BluMint chamar."
@@ -6149,17 +6149,11 @@ msgstr "Sua próxima partida está pronta: contra {0}."
 msgid "blumint.play_next"
 msgstr "Jogar contra {0}"
 
-msgid "blumint.stay"
-msgstr "Ficar na sala"
-
-msgid "blumint.leave"
-msgstr "Sair da sala"
-
 msgid "blumint.restart_heading"
 msgstr "Esse jogo não contou"
 
 msgid "blumint.restart_text"
-msgstr "A conexão caiu, então a BluMint prepara a partida de novo a partir de {0} – {1}. Ela aparece aqui quando isso acontecer."
+msgstr "A conexão caiu, então a BluMint prepara a partida de novo a partir de {0} – {1}. O Ember avisa quando ela estiver pronta."
 
 msgid "blumint.host_heading"
 msgstr "O anfitrião da BluMint assumiu esta partida"
@@ -6293,6 +6287,33 @@ msgstr "Reinício"
 
 msgid "blumint.chip_expired"
 msgstr "Expirado"
+
+msgid "blumint.later"
+msgstr "Mais tarde"
+
+msgid "blumint.called_heading"
+msgstr "Sua partida da BluMint está pronta"
+
+msgid "blumint.called_text"
+msgstr "Jogue agora: a BluMint desclassifica quem não estiver pronto a tempo."
+
+msgid "blumint.called_text_room"
+msgstr "Jogue agora: a BluMint desclassifica quem não estiver pronto a tempo. Jogar faz você sair desta sala."
+
+msgid "blumint.play_now"
+msgstr "Jogar agora"
+
+msgid "blumint.leave_play"
+msgstr "Sair da sala e jogar"
+
+msgid "blumint.chip_stopped"
+msgstr "Parada"
+
+msgid "blumint.failed_heading"
+msgstr "Esta partida parou"
+
+msgid "blumint.failed_text"
+msgstr "{0} Informe o placar ao anfitrião da BluMint para que ele o registre."
 
 msgid "room.v2.board"
 msgstr "Quadro"

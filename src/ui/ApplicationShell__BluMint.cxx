@@ -15,12 +15,12 @@
 
 namespace sf4e { namespace ui {
 namespace {
-// The assignment of the BluMint match this PC plays, from its list. A
+// The assignment of the BluMint match this PC plays or last played, from its list. A
 // watcher's list does not hold the match, so a watched match is not known
 // as BluMint's until the room's binding says whose it is.
 const netplay::tournament::Assignment* BluMintAssignment(const ShellView& v) {
     const auto& t = v.tournament;
-    if (!netplay::tournament::PlayUnderWay(t.phase) && t.phase != netplay::tournament::Phase::Finished) return nullptr;
+    if (t.phase == netplay::tournament::Phase::Idle) return nullptr;
     for (const auto& a : t.list.items) if (a.matchId == t.matchId && a.provider == "blumint") return &a;
     return nullptr;
 }
@@ -40,7 +40,8 @@ void ApplicationShell::UpdateBluMint(const ShellView& v, const std::string& scre
     const auto* a = BluMintAssignment(v);
     const bool roomScreen = screen.compare(0, 4, "room") == 0;
     v2::SetBrand(InBluMintRoom(v, screen) ? v2::Brand::BluMint : v2::Brand::Ember);
-    if (!a) { bluMint_ = {}; return; }
+    // A called match (CallBluMint) is told after this frame's moment, never over it.
+    if (!a) { bluMint_ = {}; CallBluMint(v); return; }
 
     // The fighters and the score at the match's table (table 0 of a bound room).
     const auto& s = v.room;
@@ -55,8 +56,10 @@ void ApplicationShell::UpdateBluMint(const ShellView& v, const std::string& scre
     scene.you = s.localMember == table.p1 ? 0 : s.localMember == table.p2 ? 1 : -1;
     // A set that ended stands at its final score in the list, not at the table.
     if (a->Finished()) { scene.wins[0] = (std::max)(scene.wins[0], a->wins[0]); scene.wins[1] = (std::max)(scene.wins[1], a->wins[1]); }
-    for (const auto& next : v.tournament.list.items)
-        if (next.matchId != a->matchId && next.provider == "blumint" && next.Playable(v.unixNow)) scene.next = next.roundLabel.empty() ? next.matchId : next.roundLabel;
+    const netplay::tournament::Assignment* next = nullptr;
+    for (const auto& m : v.tournament.list.items)
+        if (m.matchId != a->matchId && m.provider == "blumint" && m.Playable(v.unixNow)) next = &m;
+    if (next) scene.next = next->roundLabel.empty() ? next->matchId : next->roundLabel;
 
     if (v2::On() && roomScreen) {
         std::string eyebrow = loc::T("blumint.eyebrow");
@@ -88,19 +91,45 @@ void ApplicationShell::UpdateBluMint(const ShellView& v, const std::string& scre
     std::optional<BluMintMoment> moment;
     const unsigned played = scene.wins[0] + scene.wins[1], before = was.wins[0] + was.wins[1];
     const bool decided = scene.gamesToWin && (scene.wins[0] >= static_cast<unsigned>(scene.gamesToWin) || scene.wins[1] >= static_cast<unsigned>(scene.gamesToWin));
-    if (same && a->state != was.state && a->state == "cancelled") moment = BluMintMoment::HostTook;
+    const bool failed = v.tournament.phase == netplay::tournament::Phase::Failed;
+    if (same && failed && !was.failed) moment = BluMintMoment::Failed;
+    else if (same && a->state != was.state && a->state == "cancelled") moment = BluMintMoment::HostTook;
     else if (same && a->state != was.state && a->Expired()) moment = BluMintMoment::Expired;
     else if (same && v.tournament.reason != was.reason && v.tournament.reason == netplay::tournament::ConnectionLostReason) moment = BluMintMoment::Restart;
     else if (same && played > before && decided) moment = BluMintMoment::SetDone;
     else if (same && played > before) moment = BluMintMoment::GameDone;
     was.match = a->matchId; was.state = a->state; was.reason = v.tournament.reason;
-    was.wins[0] = scene.wins[0]; was.wins[1] = scene.wins[1];
-    if (!moment) return;
+    was.wins[0] = scene.wins[0]; was.wins[1] = scene.wins[1]; was.failed = failed;
+    if (!moment) { CallBluMint(v); return; }
     scene.moment = *moment;
+    scene.failure = IdentityPanel::TournamentFailure(v.tournament.reason);
+    // The set's notice offers the next match, so it is not called again on its own.
+    if (*moment == BluMintMoment::SetDone && next && scene.you >= 0) { bluMintNext_ = next->matchId; bluMintTold_.push_back(next->matchId); }
     const auto notice = BluMintNotice(scene);
     // A fighter answers it; a watcher only reads it, on the status line.
     if (scene.you >= 0) menu_.ShowNotice(notice);
     else { notice_ = notice.heading; noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 6; }
+}
+
+void ApplicationShell::CallBluMint(const ShellView& v) {
+    const auto& t = v.tournament;
+    // Not over a match being played, nor over another notice: it waits its turn.
+    if (netplay::tournament::PlayUnderWay(t.phase) || menu_.NoticeOpen()) return;
+    for (const auto& m : t.list.items) {
+        // The match just played may still read as waiting until the list catches up.
+        if (m.provider != "blumint" || !m.Playable(v.unixNow) || m.matchId == t.matchId) continue;
+        if (std::find(bluMintTold_.begin(), bluMintTold_.end(), m.matchId) != bluMintTold_.end()) continue;
+        bluMintTold_.push_back(m.matchId);
+        bluMintNext_ = m.matchId;
+        BluMintScene scene;
+        scene.moment = BluMintMoment::Called;
+        scene.you = 0;
+        scene.round = m.roundLabel;
+        scene.gamesToWin = m.gamesToWin;
+        scene.inRoom = v.session.room != netplay::RoomState::Idle && v.room.tournament.matchId.empty();
+        menu_.ShowNotice(BluMintNotice(scene));
+        return;
+    }
 }
 
 bool ApplicationShell::AnswerBluMint(NoticeResult result, const ShellView& v, const Submit& submit) {
@@ -114,9 +143,13 @@ bool ApplicationShell::AnswerBluMint(NoticeResult result, const ShellView& v, co
         return true;
     }
     case NoticeResult::BluMintFighter: selectionFresh_ = true; selectionOpenOn_ = "roster"; nav.Push("selection"); return true;
-    case NoticeResult::BluMintLeave: Send(netplay::CommandKind::LeaveRoom, v, submit); return true;
-    // The next match is on the list: Ember ID's tournament matches open it.
-    case NoticeResult::BluMintNext: nav.Home(); nav.Push("online"); nav.Push("identity"); nav.Push("tournament-matches"); return true;
+    // The match is on the list: Ember ID's tournament matches open at its row,
+    // after leaving the room the player was in (a match's own room closes by itself).
+    case NoticeResult::BluMintNext:
+        if (v.session.room != netplay::RoomState::Idle && v.room.tournament.matchId.empty()) Send(netplay::CommandKind::LeaveRoom, v, submit);
+        if (!bluMintNext_.empty()) identity_.OpenMatch(v.tournament.list.bridge, bluMintNext_);
+        nav.Home(); nav.Push("online"); nav.Push("identity"); nav.Push("tournament-matches");
+        return true;
     default: return false;
     }
 }

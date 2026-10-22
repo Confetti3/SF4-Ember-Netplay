@@ -346,7 +346,12 @@ static bool InBluMintRoom(const ShellView& view,const std::string& screen);
 void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<MenuEntry>& rows);
     bool AnswerBluMint(NoticeResult result,const ShellView& view,const Submit& submit);
     // What the last frame saw of the BluMint match, to say each moment once.
-    struct BluMintSeen { std::string match,state,reason; unsigned wins[2]={0,0}; } bluMint_;
+    struct BluMintSeen { std::string match,state,reason; unsigned wins[2]={0,0}; bool failed=false; } bluMint_;
+    // A BluMint match called for this player, told once each, wherever the player is.
+    void CallBluMint(const ShellView& view);
+    std::vector<std::string> bluMintTold_;
+    // The match a notice's Play button opens.
+    std::string bluMintNext_;
     // V2 value panels (ApplicationShell__Values.cxx): each value row's values as choices.
     static void OfferValues(std::vector<MenuEntry>& rows);
     std::vector<MenuEntry> SettingsTabRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);

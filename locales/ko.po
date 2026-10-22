@@ -6619,7 +6619,7 @@ msgid "blumint.set_reported"
 msgstr "BluMint가 결과를 받아 이벤트를 업데이트합니다."
 
 msgid "blumint.next_waiting"
-msgstr "다음 경기는 BluMint가 호출하는 즉시 여기에 표시됩니다."
+msgstr "BluMint가 다음 경기를 호출하면 Ember가 바로 알려 드립니다."
 
 msgid "blumint.watch_next"
 msgstr "다음 경기는 BluMint가 호출하면 여기에 표시됩니다."
@@ -6630,17 +6630,11 @@ msgstr "다음 경기가 준비되었습니다: {0} 상대."
 msgid "blumint.play_next"
 msgstr "{0} 상대로 플레이"
 
-msgid "blumint.stay"
-msgstr "방에 남기"
-
-msgid "blumint.leave"
-msgstr "방 나가기"
-
 msgid "blumint.restart_heading"
 msgstr "이 게임은 인정되지 않았습니다"
 
 msgid "blumint.restart_text"
-msgstr "연결이 끊어져 BluMint가 {0} – {1}부터 경기를 다시 잡습니다. 준비되면 여기에 표시됩니다."
+msgstr "연결이 끊어져 BluMint가 {0} – {1}부터 경기를 다시 잡습니다. 준비되면 Ember가 알려 드립니다."
 
 msgid "blumint.host_heading"
 msgstr "BluMint 호스트가 이 경기를 넘겨받았습니다"
@@ -6774,6 +6768,33 @@ msgstr "재시작"
 
 msgid "blumint.chip_expired"
 msgstr "만료"
+
+msgid "blumint.later"
+msgstr "나중에"
+
+msgid "blumint.called_heading"
+msgstr "BluMint 경기가 준비되었습니다"
+
+msgid "blumint.called_text"
+msgstr "지금 플레이하세요. 시간 안에 준비하지 않은 플레이어는 BluMint에서 실격됩니다."
+
+msgid "blumint.called_text_room"
+msgstr "지금 플레이하세요. 시간 안에 준비하지 않은 플레이어는 BluMint에서 실격됩니다. 플레이하면 이 룸을 나갑니다."
+
+msgid "blumint.play_now"
+msgstr "지금 플레이"
+
+msgid "blumint.leave_play"
+msgstr "룸을 나가고 플레이"
+
+msgid "blumint.chip_stopped"
+msgstr "중단됨"
+
+msgid "blumint.failed_heading"
+msgstr "이 경기가 중단되었습니다"
+
+msgid "blumint.failed_text"
+msgstr "{0} BluMint 호스트에게 점수를 알려 입력하도록 하세요."
 
 msgid "room.v2.board"
 msgstr "보드"

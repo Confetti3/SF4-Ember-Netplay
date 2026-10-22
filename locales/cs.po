@@ -6618,7 +6618,7 @@ msgid "blumint.set_reported"
 msgstr "BluMint má výsledek a aktualizuje akci."
 
 msgid "blumint.next_waiting"
-msgstr "Tvůj další zápas se tu objeví, jakmile ho BluMint vyhlásí."
+msgstr "Ember ti dá vědět, jakmile BluMint vyhlásí tvůj další zápas."
 
 msgid "blumint.watch_next"
 msgstr "Další zápas se tu objeví, až ho BluMint vyhlásí."
@@ -6629,17 +6629,11 @@ msgstr "Tvůj další zápas je připraven: proti {0}."
 msgid "blumint.play_next"
 msgstr "Hrát proti {0}"
 
-msgid "blumint.stay"
-msgstr "Zůstat v místnosti"
-
-msgid "blumint.leave"
-msgstr "Opustit místnost"
-
 msgid "blumint.restart_heading"
 msgstr "Ta hra se nepočítala"
 
 msgid "blumint.restart_text"
-msgstr "Spojení spadlo, takže BluMint zápas připraví znovu od stavu {0} – {1}. Objeví se tu, až se tak stane."
+msgstr "Spojení spadlo, takže BluMint zápas připraví znovu od stavu {0} – {1}. Ember ti dá vědět, až bude připraven."
 
 msgid "blumint.host_heading"
 msgstr "Hostitel BluMintu převzal tento zápas"
@@ -6773,6 +6767,33 @@ msgstr "Restart"
 
 msgid "blumint.chip_expired"
 msgstr "Vypršelo"
+
+msgid "blumint.later"
+msgstr "Později"
+
+msgid "blumint.called_heading"
+msgstr "Tvůj zápas na BluMintu je připraven"
+
+msgid "blumint.called_text"
+msgstr "Hraj hned: BluMint diskvalifikuje hráče, který není včas připraven."
+
+msgid "blumint.called_text_room"
+msgstr "Hraj hned: BluMint diskvalifikuje hráče, který není včas připraven. Hraním opustíš tuto místnost."
+
+msgid "blumint.play_now"
+msgstr "Hrát hned"
+
+msgid "blumint.leave_play"
+msgstr "Opustit místnost a hrát"
+
+msgid "blumint.chip_stopped"
+msgstr "Zastaveno"
+
+msgid "blumint.failed_heading"
+msgstr "Tento zápas se zastavil"
+
+msgid "blumint.failed_text"
+msgstr "{0} Sděl hostiteli BluMintu skóre, aby ho mohl zadat."
 
 msgid "room.v2.board"
 msgstr "Přehled"

@@ -92,8 +92,8 @@ bool TakeEmbeddedFresh();
 // from GameMenu::TakeNoticeResult and acts on it. Dismissed is Back or the
 // header's Close; Acknowledged is a button that only closes it.
 enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout, UpdateNow, SkipUpdate,
-    // A BluMint match's notices (BluMintMoments.hxx): ready for the next game, change fighter first, play the next match, leave the room.
-    BluMintReady, BluMintFighter, BluMintNext, BluMintLeave };
+    // A BluMint match's notices (BluMintMoments.hxx): ready for the next game, change fighter first, play the next or called match.
+    BluMintReady, BluMintFighter, BluMintNext };
 struct NoticeButton { std::string label; NoticeResult result=NoticeResult::Acknowledged; };
 // selected: the button highlighted when the notice opens (the first by default).
 // V2 shows `eyebrow` beside the brand's mark, `chip` at the top right and

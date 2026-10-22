@@ -31,8 +31,7 @@ NoticeDialog BluMintNotice(const BluMintScene& scene) {
                                                : loc::Tf("blumint.set_winner", leader >= 0 ? s.names[leader] : std::string());
         notice.text = std::string(loc::T("blumint.set_reported")) + " " +
             (s.next.empty() ? std::string(loc::T(player ? "blumint.next_waiting" : "blumint.watch_next")) : loc::Tf("blumint.next_ready", s.next));
-        if (player && !s.next.empty()) notice.buttons = {{loc::Tf("blumint.play_next", s.next), NoticeResult::BluMintNext}, {loc::T("blumint.stay")}};
-        else if (player) notice.buttons = {{loc::T("blumint.stay")}, {loc::T("blumint.leave"), NoticeResult::BluMintLeave}};
+        if (player && !s.next.empty()) notice.buttons = {{loc::Tf("blumint.play_next", s.next), NoticeResult::BluMintNext}, {loc::T("blumint.later")}};
         break;
     }
     case BluMintMoment::Restart:
@@ -46,14 +45,28 @@ NoticeDialog BluMintNotice(const BluMintScene& scene) {
         notice.chip = {loc::T("blumint.role_host"), tone(Tone::Pending)};
         notice.heading = loc::T("blumint.host_heading");
         notice.text = loc::T("blumint.host_text");
-        if (player) notice.buttons = {{loc::T("blumint.stay")}, {loc::T("blumint.leave"), NoticeResult::BluMintLeave}};
         break;
     case BluMintMoment::Expired:
         eyebrow(loc::T("blumint.eyebrow_set"));
         notice.chip = {loc::T("blumint.chip_expired"), tone(Tone::Error)};
         notice.heading = loc::T("blumint.expired_heading");
         notice.text = loc::T("blumint.expired_text");
-        if (player) notice.buttons = {{loc::T("blumint.stay")}, {loc::T("blumint.leave"), NoticeResult::BluMintLeave}};
+        break;
+    case BluMintMoment::Called:
+        // Not yet in the match's room: no score, only the round and the set length.
+        notice.facts.clear();
+        notice.eyebrow = loc::T("blumint.eyebrow");
+        if (!s.round.empty()) notice.eyebrow += " \xC2\xB7 " + s.round;
+        if (s.gamesToWin) notice.chip = {loc::Tf("blumint.first_to", s.gamesToWin), c.accent};
+        notice.heading = loc::T("blumint.called_heading");
+        notice.text = loc::T(s.inRoom ? "blumint.called_text_room" : "blumint.called_text");
+        notice.buttons = {{loc::T(s.inRoom ? "blumint.leave_play" : "blumint.play_now"), NoticeResult::BluMintNext}, {loc::T("blumint.later")}};
+        break;
+    case BluMintMoment::Failed:
+        eyebrow(loc::T("blumint.eyebrow_set"));
+        notice.chip = {loc::T("blumint.chip_stopped"), tone(Tone::Error)};
+        notice.heading = loc::T("blumint.failed_heading");
+        notice.text = loc::Tf("blumint.failed_text", s.failure);
         break;
     }
     // A watcher only reads: one button that closes it.

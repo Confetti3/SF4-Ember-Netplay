@@ -6619,7 +6619,7 @@ msgid "blumint.set_reported"
 msgstr "BluMintが結果を受け取り、イベントを更新します。"
 
 msgid "blumint.next_waiting"
-msgstr "次の対戦はBluMintが呼び出すとすぐここに表示されます。"
+msgstr "BluMintが次の対戦を呼び出すと、すぐにEmberがお知らせします。"
 
 msgid "blumint.watch_next"
 msgstr "次の対戦はBluMintが呼び出すとここに表示されます。"
@@ -6630,17 +6630,11 @@ msgstr "次の対戦の準備ができました：{0} 戦。"
 msgid "blumint.play_next"
 msgstr "{0} と対戦"
 
-msgid "blumint.stay"
-msgstr "ルームに残る"
-
-msgid "blumint.leave"
-msgstr "ルームを出る"
-
 msgid "blumint.restart_heading"
 msgstr "この試合は無効です"
 
 msgid "blumint.restart_text"
-msgstr "接続が切れたため、BluMintが {0} – {1} から対戦を組み直します。準備ができたらここに表示されます。"
+msgstr "接続が切れたため、BluMintが {0} – {1} から対戦を組み直します。準備ができたらEmberがお知らせします。"
 
 msgid "blumint.host_heading"
 msgstr "BluMintのホストがこの対戦を引き取りました"
@@ -6774,6 +6768,33 @@ msgstr "再開"
 
 msgid "blumint.chip_expired"
 msgstr "期限切れ"
+
+msgid "blumint.later"
+msgstr "あとで"
+
+msgid "blumint.called_heading"
+msgstr "BluMintの対戦の準備ができました"
+
+msgid "blumint.called_text"
+msgstr "今すぐプレイしてください。時間内に準備できないプレイヤーはBluMintで失格になります。"
+
+msgid "blumint.called_text_room"
+msgstr "今すぐプレイしてください。時間内に準備できないプレイヤーはBluMintで失格になります。プレイするとこのルームを出ます。"
+
+msgid "blumint.play_now"
+msgstr "今すぐプレイ"
+
+msgid "blumint.leave_play"
+msgstr "ルームを出てプレイ"
+
+msgid "blumint.chip_stopped"
+msgstr "停止"
+
+msgid "blumint.failed_heading"
+msgstr "この対戦は停止しました"
+
+msgid "blumint.failed_text"
+msgstr "{0} スコアをBluMintのホストに伝えて、入力してもらってください。"
 
 msgid "room.v2.board"
 msgstr "ボード"

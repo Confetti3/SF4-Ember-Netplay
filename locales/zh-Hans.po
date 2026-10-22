@@ -6619,7 +6619,7 @@ msgid "blumint.set_reported"
 msgstr "BluMint 已收到结果并更新赛事。"
 
 msgid "blumint.next_waiting"
-msgstr "BluMint 一呼叫，你的下一场比赛就会出现在这里。"
+msgstr "BluMint 一呼叫你的下一场比赛，Ember 就会通知你。"
 
 msgid "blumint.watch_next"
 msgstr "BluMint 呼叫后，下一场比赛会出现在这里。"
@@ -6630,17 +6630,11 @@ msgstr "你的下一场比赛已就绪：对阵 {0}。"
 msgid "blumint.play_next"
 msgstr "对阵 {0}"
 
-msgid "blumint.stay"
-msgstr "留在房间"
-
-msgid "blumint.leave"
-msgstr "离开房间"
-
 msgid "blumint.restart_heading"
 msgstr "这一局不算"
 
 msgid "blumint.restart_text"
-msgstr "连接中断，BluMint 将从 {0} – {1} 重新安排这场比赛。安排好后会出现在这里。"
+msgstr "连接中断，BluMint 将从 {0} – {1} 重新安排这场比赛。准备好后 Ember 会通知你。"
 
 msgid "blumint.host_heading"
 msgstr "BluMint 主办方接管了这场比赛"
@@ -6774,6 +6768,33 @@ msgstr "重开"
 
 msgid "blumint.chip_expired"
 msgstr "已过期"
+
+msgid "blumint.later"
+msgstr "稍后"
+
+msgid "blumint.called_heading"
+msgstr "你的 BluMint 比赛已就绪"
+
+msgid "blumint.called_text"
+msgstr "现在就开始：未按时准备好的玩家会被 BluMint 取消资格。"
+
+msgid "blumint.called_text_room"
+msgstr "现在就开始：未按时准备好的玩家会被 BluMint 取消资格。开始比赛会离开此房间。"
+
+msgid "blumint.play_now"
+msgstr "立即开始"
+
+msgid "blumint.leave_play"
+msgstr "离开房间并开始"
+
+msgid "blumint.chip_stopped"
+msgstr "已停止"
+
+msgid "blumint.failed_heading"
+msgstr "这场比赛已停止"
+
+msgid "blumint.failed_text"
+msgstr "{0} 请把比分告诉 BluMint 主办方，让对方录入。"
 
 msgid "room.v2.board"
 msgstr "概览"
