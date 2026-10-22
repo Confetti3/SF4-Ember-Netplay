@@ -6745,6 +6745,9 @@ msgstr "你正在观战。选手准备后，房间会打完本盘的每一局。
 msgid "blumint.watching"
 msgstr "观战 · {0}"
 
+msgid "blumint.more_watching"
+msgstr "另有 {0} 人观看"
+
 msgid "blumint.not_ready"
 msgstr "未准备"
 

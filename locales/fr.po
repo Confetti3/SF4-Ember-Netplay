@@ -6744,6 +6744,9 @@ msgstr "Vous regardez. Les combattants se mettent prêts ; le salon joue chaque 
 msgid "blumint.watching"
 msgstr "Spectateurs · {0}"
 
+msgid "blumint.more_watching"
+msgstr "+{0} autres regardent"
+
 msgid "blumint.not_ready"
 msgstr "Pas prêt"
 

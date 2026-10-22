@@ -6744,6 +6744,9 @@ msgstr "Oglądasz. Zawodnicy zgłaszają gotowość; pokój rozgrywa każdą gr�
 msgid "blumint.watching"
 msgstr "Oglądają · {0}"
 
+msgid "blumint.more_watching"
+msgstr "+{0} więcej ogląda"
+
 msgid "blumint.not_ready"
 msgstr "Niegotowy"
 

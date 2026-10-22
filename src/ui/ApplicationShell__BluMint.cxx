@@ -76,7 +76,8 @@ void ApplicationShell::UpdateBluMint(const ShellView& v, const std::string& scre
         static const std::vector<std::string> fighterActions = {"options", "room-controls", "room-chat", "leave", "stop-watching"};
         static const std::vector<std::string> watcherActions = {"room-chat", "leave", "stop-watching"};
         const auto kept = [&](const std::string& id) {
-            if (id == "table-0") return true;
+            // The stage is the fighters' Ready; a watcher has nothing to open there.
+            if (id == "table-0") return scene.you >= 0;
             if (id.compare(0, 6, "table-") == 0) return false;
             if (id.compare(0, 7, "member-") == 0) return id != fighters[0] && id != fighters[1];
             const auto& list = scene.you < 0 ? watcherActions : fighterActions;
@@ -182,10 +183,10 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
     const auto& t = v.room.tables[0];
     const int toWin = v.room.tournament.gamesToWin ? v.room.tournament.gamesToWin : 2;
     const bool decided = t.score[0] >= static_cast<unsigned>(toWin) || t.score[1] >= static_cast<unsigned>(toWin);
-    // A watched game fills the stage like a stream (the picture in its top
-    // right spot): the picture at 16:9 on navy, the fighters, their pips, LIVE
+    // A watched game fills the stage like a stream, whichever spot the picture
+    // has elsewhere: the picture at 16:9 on navy, the fighters, their pips, LIVE
     // and the score on a bar under it. Between games the stage has the cards.
-    const bool cinema = v.watchedPicture && preferences_.pictureSpot % 4 == 0;
+    const bool cinema = v.watchedPicture != ImTextureID{};
     d->AddRectFilled(stage.min, stage.max, c.ink, 4 * s);
     if (!cinema) d->AddRectFilledMultiColor(stage.min, ImVec2(stage.max.x, stage.min.y + stage.H() * .7f), v2::color::Alpha(c.accent, .22f), v2::color::Alpha(c.accent, .22f), v2::color::Alpha(c.accent, 0), v2::color::Alpha(c.accent, 0));
     const auto table = find("table-0");
@@ -200,6 +201,8 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
     };
     const unsigned played = t.score[0] + t.score[1];
     const room::MemberId seats[] = {t.p1, t.p2};
+    const int winner = !decided ? -1 : t.score[0] >= static_cast<unsigned>(toWin) ? 0 : 1;
+    const auto fighterOf = [&](const room::Member& m) { return m.id == v.room.localMember ? v.selectedFighter : m.fighter; };
     const auto pips = [&](float x, float y, int side) {
         for (int g = 0; g < toWin; ++g) {
             const ImVec2 at(x + g * 16 * s, y);
@@ -226,10 +229,12 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
         for (int side = 0; side < 2; ++side) {
             const auto* m = room::FindMember(v.room, seats[side]);
             if (!m) continue;
-            // Pips beside the score; the name on the outer side.
+            // Pips beside the score; the fighter's portrait at the outer edge, the name beside it.
             const float px = side ? mid + half : mid - half - pipsWidth + 6 * s;
             pips(px, y, side);
-            const float tx = side ? px + pipsWidth + 12 * s : bar.min.x + 16 * s, tw = side ? bar.max.x - 16 * s - tx : px - 22 * s - tx;
+            const float face = bar.H() - 12 * s, fx = side ? bar.max.x - 8 * s - face : bar.min.x + 8 * s;
+            DrawCharacterPortrait(fighterOf(*m), ImVec2(fx, bar.min.y + 6 * s), ImVec2(fx + face, bar.max.y - 6 * s), c.ink);
+            const float tx = side ? px + pipsWidth + 12 * s : fx + face + 10 * s, tw = side ? fx - 10 * s - tx : px - 22 * s - tx;
             v2::TagView tag;
             tag.name = m->name;
             tag.marks = {m->country, m->badge};
@@ -250,7 +255,7 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
             d->AddRectFilled(card.min, card.max, c.frame, 4 * s);
             if (m) {
                 const float tagY = card.max.y - 12 * s - 22 * s - 8 * s - 26 * s;
-                DrawCharacterPortrait(you ? v.selectedFighter : m->fighter, ImVec2(card.min.x + 12 * s, card.min.y + 12 * s), ImVec2(card.max.x - 12 * s, tagY - 8 * s), c.ink);
+                DrawCharacterPortrait(fighterOf(*m), ImVec2(card.min.x + 12 * s, card.min.y + 12 * s), ImVec2(card.max.x - 12 * s, tagY - 8 * s), c.ink);
                 v2::TagView tag;
                 tag.name = m->name;
                 tag.marks = {m->country, m->badge};
@@ -259,18 +264,23 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
                 // A pip a game won, of first to N.
                 const float py = card.max.y - 12 * s - 11 * s;
                 pips(card.min.x + 18 * s, py, side);
+                // Once the set is decided, the winner's card says so; nobody readies any more.
                 const bool ready = t.ready[side];
-                const std::string word = loc::T(ready ? "room.status.ready" : "blumint.not_ready");
-                v2::Chip(d, ImVec2(card.max.x - 12 * s - v2::ChipWidth(word), py - 11 * s), word, ready ? palette::Ready : c.muted);
+                const std::string word = winner >= 0 ? (winner == side ? std::string(loc::T("blumint.chip_set_won")) : std::string())
+                                                      : loc::T(ready ? "room.status.ready" : "blumint.not_ready");
+                if (!word.empty()) v2::Chip(d, ImVec2(card.max.x - 12 * s - v2::ChipWidth(word), py - 11 * s), word, winner == side ? c.accent : ready ? palette::Ready : c.muted);
             }
-            if (you) {
+            // Lit: this PC's fighter during the set, the winner once it is decided.
+            if (winner >= 0 ? winner == side : you) {
                 d->AddRect(ImVec2(card.min.x - 6 * s, card.min.y - 6 * s), ImVec2(card.max.x + 6 * s, card.max.y + 6 * s), v2::color::Alpha(c.accent, .25f), 8 * s, 0, 6 * s);
                 d->AddRect(card.min, card.max, c.accent, 4 * s, 0, 3 * s);
             } else d->AddRect(card.min, card.max, c.border, 4 * s, 0, s);
         }
         d->AddText(HeadingFont(), scoreSize, ImVec2(left + cw + (between - scoreWidth) * .5f, top + (ch - scoreSize) * .5f), c.accent, score.c_str());
         const bool watching = !(room::FindMember(v.room, v.room.localMember) && (t.p1 == v.room.localMember || t.p2 == v.room.localMember));
-        centred(ImGui::GetFont(), 16 * s, top + ch + 20 * s, c.muted, watching ? loc::T("blumint.stage_watcher") : loc::Tf("blumint.stage_fighter", toWin));
+        const auto* champion = winner >= 0 ? room::FindMember(v.room, seats[winner]) : nullptr;
+        centred(ImGui::GetFont(), 16 * s, top + ch + 20 * s, champion ? c.text : c.muted,
+            champion ? loc::Tf("blumint.set_winner", champion->name) : watching ? loc::T("blumint.stage_watcher") : loc::Tf("blumint.stage_fighter", toWin));
     }
     if (table != rows.end() && focus == table->id) v2::Focus(d, stage.min, stage.max);
 
@@ -286,7 +296,10 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
     const float actionsHeight = ((actions.size() + 1) / 2) * 52 * s;
     v2::Box buttons = v2::CutBottom(aside, actionsHeight, 12 * s);
     const float rowHeight = 40 * s, rowGap = 8 * s;
-    const std::size_t fit = static_cast<std::size_t>((std::max)(1.f, (aside.H() * .4f + rowGap) / (rowHeight + rowGap)));
+    std::size_t fit = static_cast<std::size_t>((std::max)(1.f, (aside.H() * .4f + rowGap) / (rowHeight + rowGap)));
+    // More than fit: the last line counts the rest.
+    const bool more = watchers.size() > fit;
+    if (more) fit = (std::max)(std::size_t(1), fit - 1);
     for (std::size_t i = 0; i < watchers.size() && i < fit; ++i) {
         const auto& e = *watchers[i];
         const v2::Box r = v2::CutTop(aside, rowHeight, rowGap);
@@ -303,6 +316,10 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
         d->AddText(ImGui::GetFont(), 12 * s, ImVec2(r.max.x - 12 * s - roleWidth, r.min.y + 13 * s), c.muted, role.c_str());
         if (e.id == focus) v2::Focus(d, r.min, r.max);
         if (e.id == focus && e.popout) menu_.bodyChoices = {r, aside};
+    }
+    if (more) {
+        const v2::Box r = v2::CutTop(aside, 20 * s, rowGap);
+        d->AddText(ImGui::GetFont(), 14 * s, ImVec2(r.min.x + 12 * s, r.min.y + 2 * s), c.muted, loc::Tf("blumint.more_watching", watchers.size() - fit).c_str());
     }
 
     // Chat, then the actions two to a line.

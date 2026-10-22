@@ -6745,6 +6745,9 @@ msgstr "Вы смотрите. Бойцы готовятся; комната и�
 msgid "blumint.watching"
 msgstr "Смотрят · {0}"
 
+msgid "blumint.more_watching"
+msgstr "Ещё {0} смотрят"
+
 msgid "blumint.not_ready"
 msgstr "Не готов"
 
