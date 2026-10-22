@@ -7421,3 +7421,30 @@ msgstr "Kroon"
 
 msgid "award.cup-champion.how"
 msgstr "Win de Ember Cup aan het eind van het seizoen"
+
+msgid "toast.kind.invitation"
+msgstr "UITNODIGING"
+
+msgid "toast.kind.room"
+msgstr "KAMER"
+
+msgid "toast.kind.update"
+msgstr "UPDATE"
+
+msgid "toast.kind.match"
+msgstr "WEDSTRIJD"
+
+msgid "toast.kind.system"
+msgstr "SYSTEEM"
+
+msgid "toast.join"
+msgstr "Meedoen"
+
+msgid "toast.open"
+msgstr "Openen"
+
+msgid "discord.invitation_notice"
+msgstr "Je bent via Discord uitgenodigd in een kamer."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} staat klaar om te installeren."

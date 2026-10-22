@@ -349,6 +349,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         else if(pressed&MenuInput::Select) DismissNotice(noticeButtons_[noticeSelected_].result);
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
+    toastPressed=0;
+    if(toastFocused&&!noticeOpen) {toastPressed=menuInput.held&~toastPrevious_; toastPrevious_=menuInput.held; menuInput.held=0;}
+    else toastPrevious_=~0u;
     held_=menuInput.held;
     // Read before a notice takes the input: the accessibility button works in one too.
     const bool describe=(rawHeld&MenuInput::Describe)&&!(describeHeld_&MenuInput::Describe);describeHeld_=rawHeld;

@@ -141,8 +141,7 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
   nav.Cancel();
   if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection")nav.Home();
   error_.clear();
-  notice_=previousRoomState_==RoomState::Opening?"":loc::T("notice.left_room");
-  noticeTone_=Tone::Neutral;noticeUntil_=now+3;
+  Say(previousRoomState_==RoomState::Opening?"":loc::T("notice.left_room"),Tone::Neutral,3,ToastKind::Room);
  }
  // The room screen opens only once the committed room snapshot has the local
  // member in it. Before that the player stays where they pressed Create or
@@ -787,7 +786,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   readyFailureSequence_=v.readyFailureSequence;
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowError(v.readyFailure);
  }
- if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
+ if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");
+  Say(loc::T("discord.invitation_notice"),Tone::Pending,30,ToastKind::Invitation,{{loc::T("toast.join"),"discord-invitation","invite-switch"},{loc::T("updates.launch_later")}});}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
  replays_.Update(v,nav);
@@ -808,11 +808,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // One ended for a lost connection says so in the same words on both sides:
   // the tournament is setting up a new match, which Ember does not start itself.
   if(v.tournament.phase==Phase::Finished&&v.tournament.reason==netplay::tournament::ConnectionLostReason){
-   notice_=loc::T("tournament.connection_lost_notice");noticeTone_=Tone::Pending;noticeUntil_=now+30;
+   Say(loc::T("tournament.connection_lost_notice"),Tone::Pending,30,ToastKind::Match);
   }
-  else if(v.tournament.phase==Phase::Finished){notice_=loc::T("tournament.done_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;}
+  else if(v.tournament.phase==Phase::Finished)Say(loc::T("tournament.done_notice"),Tone::Success,12,ToastKind::Match);
   else if(v.tournament.phase==Phase::Failed){
-   notice_=loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason));noticeTone_=Tone::Error;noticeUntil_=now+20;
+   Say(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,20,ToastKind::Match);
   }
   tournamentPhase_=v.tournament.phase;
  }
@@ -821,9 +821,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   using netplay::tournament::WatchNotice;
   watchNoticeSequence_=v.tournament.watch.noticeSequence;
   switch(v.tournament.watch.notice){
-  case WatchNotice::Finished:notice_=loc::T("tournament.watch.finished_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;break;
-  case WatchNotice::Removed:notice_=loc::T("tournament.watch.removed_notice");noticeTone_=Tone::Error;noticeUntil_=now+20;break;
-  case WatchNotice::RoomClosed:notice_=loc::T("tournament.watch.room_closed_notice");noticeTone_=Tone::Pending;noticeUntil_=now+12;break;
+  case WatchNotice::Finished:Say(loc::T("tournament.watch.finished_notice"),Tone::Success,12,ToastKind::Match);break;
+  case WatchNotice::Removed:Say(loc::T("tournament.watch.removed_notice"),Tone::Error,20,ToastKind::Match);break;
+  case WatchNotice::RoomClosed:Say(loc::T("tournament.watch.room_closed_notice"),Tone::Pending,12,ToastKind::Match);break;
   default:break;
   }
  }
@@ -841,7 +841,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // A match newly assigned is announced outside a room, so the player never
  // has to go looking for it.
  if(v.session.room==RoomState::Idle&&identity_.TakeAssigned(v)){
-  notice_=loc::T("tournament.assigned_notice");noticeTone_=Tone::Success;noticeUntil_=now+15;
+  Say(loc::T("tournament.assigned_notice"),Tone::Success,15,ToastKind::Match,{{loc::T("toast.open"),"tournament-matches",""},{loc::T("updates.launch_later")}});
  }
  // A Discord connect link opens Connect Discord for its service, where the
  // player decides. In a room it waits until the room closes.
@@ -1121,8 +1121,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  menu_.ownsBack=screen=="welcome";
  if(screen=="welcome"){menu_.backInert=!welcomeStep_;menu_.backHint=loc::T("welcome.previous");}
  UpdateSpeech();
+ // The newest action toast holds focus while nothing else is open: Select takes
+ // its first action, Back its last (Later), and any other press leaves it.
+ menu_.toastFocused=toastFocus_&&!nav.Editing()&&!nav.Reading()&&!nav.Confirming()&&!nav.Choosing()&&!menu_.NoticeOpen();
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home"||(v2::On()&&screen=="welcome"));
  AnswerBluMint(AnswerDialog(submit),v,submit);
+ if(const unsigned pressed=menu_.toastPressed){
+  if(pressed&(MenuInput::Select|MenuInput::Back))toastAsked_={toastFocus_,pressed&MenuInput::Select?0:~std::size_t(0)};
+  toastFocus_=0;
+ }
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close&&opening){
@@ -1145,6 +1152,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(roomScreen)RoomAction(a,v,submit);
   else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Choose(a);
+  else if(screen=="notifications"&&a.id.compare(0,6,"toast-")==0)toastAsked_={static_cast<unsigned>(std::stoul(a.id.substr(6))),std::stoul(a.text)};
   else if(a.id=="language")SetLanguage(a.text);
   else if(ReplaysPanel::Owns(screen))replays_.Choose(a,v,menu_.navigation,submit,error_);
   else if(screen=="controllers")HandleActivate(a,v,screen,idle,submit);
@@ -1156,6 +1164,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  // Accepted text may be a passphrase; the panel kept its own copy.
  if(a.kind==MenuAction::TextAccepted)WipeText(a.text);
+ AnswerToast(now);
  ImGui::End();ImGui::PopStyleVar(2);
  DrawToasts(now,false,nav.Screen()=="notifications");
 }

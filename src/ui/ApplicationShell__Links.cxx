@@ -46,7 +46,7 @@ void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit
  if(v.pendingJoinSequence!=joinLinkSeen_){
   joinLinkSeen_=v.pendingJoinSequence;joinLink_=v.pendingJoinLink;
   joinLinkDirect_=free&&v.pendingJoinDirect;
-  if(!joinLink_.empty()&&v.session.room!=RoomState::Idle){notice_=loc::T("room.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+8;}
+  if(!joinLink_.empty()&&v.session.room!=RoomState::Idle)Say(loc::T("room.link_waiting"),Tone::Pending,8,ToastKind::Invitation);
  }
  if(joinLink_.empty())return;
  if(!free){joinLinkDirect_=false;return;}

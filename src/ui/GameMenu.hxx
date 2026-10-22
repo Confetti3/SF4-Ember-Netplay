@@ -176,6 +176,10 @@ public:
     int tab=-1;
     bool listEnabled=true, ownsBack=false, customDetail=false;
     unsigned additionalInput=0;
+    // A toast holds focus (the shell's toasts): the list gets no input, and
+    // the buttons newly pressed are left in toastPressed for the toast to answer.
+    bool toastFocused=false;
+    unsigned toastPressed=0;
     // The corner radius, in unscaled pixels, of the rows and grid cells that a Card
     // draws; 0 keeps them square. A card of rounded corners paints its own focus outline.
     float cardRounding=0;
@@ -286,7 +290,7 @@ v2::HeaderChip noticeChip_{};
     int noticeSelected_=0;
     NoticeResult noticeResult_=NoticeResult::None;
     bool noticeError_=false;
-    unsigned noticePrevious_=~0u;
+    unsigned noticePrevious_=~0u,toastPrevious_=~0u;
     int lastFrame_ = -2;
     unsigned held_ = 0, describeHeld_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);

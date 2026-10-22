@@ -7422,3 +7422,30 @@ msgstr "王冠"
 
 msgid "award.cup-champion.how"
 msgstr "赢得赛季末的 Ember Cup"
+
+msgid "toast.kind.invitation"
+msgstr "邀请"
+
+msgid "toast.kind.room"
+msgstr "房间"
+
+msgid "toast.kind.update"
+msgstr "更新"
+
+msgid "toast.kind.match"
+msgstr "比赛"
+
+msgid "toast.kind.system"
+msgstr "系统"
+
+msgid "toast.join"
+msgstr "加入"
+
+msgid "toast.open"
+msgstr "打开"
+
+msgid "discord.invitation_notice"
+msgstr "你在 Discord 上收到了房间邀请。"
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} 已可安装。"

@@ -7422,3 +7422,30 @@ msgstr "Корона"
 
 msgid "award.cup-champion.how"
 msgstr "Выиграй Ember Cup в конце сезона"
+
+msgid "toast.kind.invitation"
+msgstr "ПРИГЛАШЕНИЕ"
+
+msgid "toast.kind.room"
+msgstr "КОМНАТА"
+
+msgid "toast.kind.update"
+msgstr "ОБНОВЛЕНИЕ"
+
+msgid "toast.kind.match"
+msgstr "МАТЧ"
+
+msgid "toast.kind.system"
+msgstr "СИСТЕМА"
+
+msgid "toast.join"
+msgstr "Войти"
+
+msgid "toast.open"
+msgstr "Открыть"
+
+msgid "discord.invitation_notice"
+msgstr "Вас пригласили в комнату через Discord."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} готов к установке."

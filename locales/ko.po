@@ -7422,3 +7422,30 @@ msgstr "왕관"
 
 msgid "award.cup-champion.how"
 msgstr "시즌 마지막 Ember Cup 우승"
+
+msgid "toast.kind.invitation"
+msgstr "초대"
+
+msgid "toast.kind.room"
+msgstr "방"
+
+msgid "toast.kind.update"
+msgstr "업데이트"
+
+msgid "toast.kind.match"
+msgstr "매치"
+
+msgid "toast.kind.system"
+msgstr "시스템"
+
+msgid "toast.join"
+msgstr "참가"
+
+msgid "toast.open"
+msgstr "열기"
+
+msgid "discord.invitation_notice"
+msgstr "Discord에서 방 초대를 받았습니다."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} 설치 준비가 되었습니다."

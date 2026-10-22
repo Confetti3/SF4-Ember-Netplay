@@ -385,9 +385,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (ImGui::IsKeyPressed(ImGuiKey_F4)) textSize = textSize >= 1.5f ? 1 : textSize + .25f;
         if (ImGui::IsKeyPressed(ImGuiKey_F5)) { const bool look = view.preferences.lookV2; inRoom = !inRoom; view = FakeView(look); if (inRoom) JoinRoom(view); }
         if (frame == 2 && !screen.empty()) shell.Navigation().Push(screen);
-        static const std::pair<const char*, ui::Tone> said[] = {{"room.short_invitation_copied", ui::Tone::Success},
-            {"tournament.link_waiting", ui::Tone::Pending}, {"notice.left_room", ui::Tone::Neutral}};
-        if (toasts && frame >= 3 && frame < 6) shell.Say(loc::T(said[frame - 3].first), said[frame - 3].second, 600);
+        // As the Toasts board: a room notice, a match called and, newest, a Discord invitation.
+        if (toasts && frame == 3) shell.Say(loc::T("notice.left_room"), ui::Tone::Success, 600, ui::ToastKind::Room);
+        if (toasts && frame == 4) shell.Say(loc::T("tournament.assigned_notice"), ui::Tone::Pending, 600, ui::ToastKind::Match, {{loc::T("toast.open"), "tournament-matches", ""}, {loc::T("updates.launch_later")}});
+        if (toasts && frame == 5) shell.Say(loc::T("discord.invitation_notice"), ui::Tone::Neutral, 600, ui::ToastKind::Invitation, {{loc::T("toast.join"), "discord-invitation", "invite-switch"}, {loc::T("updates.launch_later")}});
         if (identityAsked && identityAsked != view.identityTicket) {
             view.identityTicket = identityAsked; view.identityRequest = view.identity.requestId = identityAsked + 100; view.identity.ok = true;
         }

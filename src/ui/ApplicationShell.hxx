@@ -253,6 +253,12 @@ struct ShellAction {
 // tournament match's watcher: it reads the chat and has no box to write in.
 enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable, ReadOnly };
 
+// What a toast is about, said over it (Toasts board); None says nothing.
+enum class ToastKind { None, Invitation, Room, Update, Match, System };
+// A toast's button: it opens `screen` at its `row`, where the player acts on
+// the notice; one without a screen is Later, which only puts the toast away.
+struct ToastAction { std::string label, screen, row; };
+
 class ApplicationShell {
 public:
     using Submit = std::function<bool(ShellAction)>;
@@ -269,7 +275,10 @@ public:
     MenuNavigation& Navigation() { return menu_.navigation; }
     // A notice from outside the shell (the lab's toasts): the status line's
     // for `seconds`, and a toast in V2.
-    void Say(std::string text, Tone tone, double seconds) { notice_ = std::move(text); noticeTone_ = tone; noticeUntil_ = ImGui::GetTime() + seconds; }
+    // A kind and up to two actions go on its toast.
+    void Say(std::string text, Tone tone, double seconds, ToastKind kind = ToastKind::None, std::vector<ToastAction> actions = {}) {
+        noticeExtra_ = {text, kind, std::move(actions)}; notice_ = std::move(text); noticeTone_ = tone; noticeUntil_ = ImGui::GetTime() + seconds;
+    }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
     // What the screen on show needs the replay workers to read (ReplaysPanel::Wanted).
@@ -408,6 +417,8 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     // download state last told.
     bool speechNoticeShown_=false,speechIntro_=false;
     speech::Voice voiceTold_=speech::Voice::System;
+    // The update offer last raised as a toast.
+    std::string updateToastTag_;
     std::string launchCheckSaveError_;
     struct DialogContext {
         // The pad the Button layout button opens.
@@ -624,11 +635,18 @@ std::string memberAsk_;
     double noticeUntil_=0;
     // The notices and refusals said lately, newest first: V2's toasts while
     // they last and the Notifications screen's rows (ApplicationShell__Toasts.cxx).
-    struct Toast { unsigned id; std::string text; Tone tone; double at, until; };
+    struct Toast { unsigned id; std::string text; Tone tone; double at, until; ToastKind kind; std::vector<ToastAction> actions; };
     std::deque<Toast> toasts_;
     std::string noticeSeen_, errorSeen_;
     unsigned toastCount_=0;
+    // The kind and actions Say gave notice_, while it still says that text.
+    struct NoticeExtra { std::string text; ToastKind kind=ToastKind::None; std::vector<ToastAction> actions; } noticeExtra_;
+    // The action toast that holds focus over the open menu (0 for none), and
+    // an action its buttons or rows asked for: the toast's id and the action's index.
+    unsigned toastFocus_=0;
+    std::pair<unsigned,std::size_t> toastAsked_{0,0};
     void DrawToasts(double now,bool overMatch,bool listed=false);
+    void AnswerToast(double now);
     std::vector<MenuEntry> NotificationRows(double now,std::string& title) const;
     // Copy short link was pressed before the link existed: copy it when it
     // arrives, or the full invitation on a failure or at the deadline.
