@@ -6831,3 +6831,39 @@ msgstr "아직 소식이 없습니다"
 
 msgid "news.none_detail"
 msgstr "업데이트 확인 후 Ember 릴리스에서 소식을 가져옵니다."
+
+msgid "settings.group.room_layout"
+msgstr "방 레이아웃"
+
+msgid "settings.room_column"
+msgstr "열 너비"
+
+msgid "settings.room_column_detail"
+msgstr "방 보드에서 멤버와 채팅 열이 차지하는 비율입니다. 방에서는 마우스로 그 사이의 선을 끌 수도 있습니다."
+
+msgid "settings.room_split"
+msgstr "멤버와 채팅"
+
+msgid "settings.room_split_detail"
+msgstr "열을 나누는 방식: 채팅 위에 멤버. 채팅은 항상 세 줄을 유지합니다. 방에서는 마우스로 그 사이의 선을 끌 수도 있습니다."
+
+msgid "settings.room_preset"
+msgstr "기본 제공 레이아웃"
+
+msgid "settings.room_preset_detail"
+msgstr "보드 우선은 테이블에, 채팅 우선은 대화에 자리를 줍니다. 균형은 그 중간입니다."
+
+msgid "settings.room_preset.board"
+msgstr "보드 우선"
+
+msgid "settings.room_preset.balanced"
+msgstr "균형"
+
+msgid "settings.room_preset.chat"
+msgstr "채팅 우선"
+
+msgid "settings.room_layout_reset"
+msgstr "기본값 복원"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "열과 멤버·채팅 비율을 균형으로 되돌립니다."

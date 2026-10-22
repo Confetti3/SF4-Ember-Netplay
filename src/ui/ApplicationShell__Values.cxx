@@ -27,6 +27,9 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
     if (id == "hud-position") for (int i = 0; i <= netplay::MaxMatchHudAnchor; ++i) labels.push_back(MatchStripAnchorName(i));
     // Picture corners step top right, top left, bottom right, bottom left (PlayerPreferences::pictureSpot).
     if (id == "picture-corner") for (int anchor : {4, 3, 2, 1}) labels.push_back(MatchStripAnchorName(anchor));
+    if (id == "arrange-preset") return Words({"settings.room_preset.board", "settings.room_preset.balanced", "settings.room_preset.chat"});
+    if (id == "arrange-column") for (int v = netplay::MinRoomColumn; v <= netplay::MaxRoomColumn; v += netplay::RoomColumnStep) labels.push_back(std::to_string(v) + "%");
+    if (id == "arrange-split") for (int v = netplay::MinRoomSplit; v <= netplay::MaxRoomSplit; v += netplay::RoomSplitStep) labels.push_back(std::to_string(v) + " / " + std::to_string(100 - v));
     if (id == "ready-volume") for (int v = 10; v <= 100; v += 10) labels.push_back(std::to_string(v) + "%");
     if (id == "scale") for (int i = 0; i <= 10; ++i) { char size[16]; std::snprintf(size, sizeof(size), "%.2fx", 1 + i * .05f); labels.push_back(size); }
     if (id == "button-prompts") for (int i = 0; i <= 3; ++i) labels.push_back(ButtonPromptValue(static_cast<gamepads::ButtonPrompts>(i)));

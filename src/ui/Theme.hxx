@@ -40,6 +40,8 @@ constexpr float WatchedMatchWindowAlpha = .72f;
 constexpr float WatchedPictureShare = .25f;
 // The same for a PlayerPreferences::pictureSpot: small (this share), medium or large.
 inline float WatchedPictureShareFor(int spot) { const float shares[] = {WatchedPictureShare, .33f, .42f}; return shares[spot / 4 < 0 ? 0 : spot / 4 > 2 ? 2 : spot / 4]; }
+// The picture's copy, at the largest share it is shown: the V2 room board's cinema picture.
+constexpr float WatchedPictureTaken = .62f;
 inline ImVec4 BoardPanelColor(bool seeThrough) { return ImVec4(.08f,.075f,.07f,seeThrough ? .6f : .84f); }
 
 // Call between frames. A true result requires backend font texture recreation.

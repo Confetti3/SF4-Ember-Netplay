@@ -28,6 +28,11 @@ struct LobbySettings {
 constexpr int MaxMatchHudNameOffset = 60;
 // The match HUD positions run from 0 (bottom center) to this one (top center).
 constexpr int MaxMatchHudAnchor = 5;
+// The V2 room board's layout grips (Customise.dc.html), in percent: the members
+// and chat column's share of the board's width, and the members' share of that
+// column over chat. Each snaps to its step from the default.
+constexpr int MinRoomColumn = 28, MaxRoomColumn = 60, DefaultRoomColumn = 36, RoomColumnStep = 4;
+constexpr int MinRoomSplit = 26, MaxRoomSplit = 74, DefaultRoomSplit = 56, RoomSplitStep = 6;
 
 struct PlayerPreferences {
     std::string displayName = "Player";
@@ -50,6 +55,8 @@ struct PlayerPreferences {
     // left, 2 bottom right, 3 bottom left) plus 4 times its size (0 small,
     // 1 medium, 2 large). Set from Settings or by dragging the picture.
     int pictureSpot = 0;
+    // The room board's column and the members' share of it (MinRoomColumn).
+    int roomColumn = DefaultRoomColumn, roomSplit = DefaultRoomSplit;
     // 0 the Ember strip (one panel), 1 split: names over the game's PLAYER labels and a small telemetry panel.
     int matchHudLayout = 1;
     // Moves the split layout's name plates down (positive) or up, in 720p game units.
@@ -128,7 +135,7 @@ struct PlayerPreferences {
     bool Valid() const {
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidMenuBinding(layout.menu) && gamepads::ValidExtraCopies(layout.extras); })) return false;
         if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
+            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;

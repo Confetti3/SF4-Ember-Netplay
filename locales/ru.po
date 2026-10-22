@@ -6831,3 +6831,39 @@ msgstr "Новостей пока нет"
 
 msgid "news.none_detail"
 msgstr "Новости берутся из выпусков Ember после проверки обновлений."
+
+msgid "settings.group.room_layout"
+msgstr "Раскладка комнаты"
+
+msgid "settings.room_column"
+msgstr "Ширина колонки"
+
+msgid "settings.room_column_detail"
+msgstr "Какую часть доски комнаты занимает колонка с участниками и чатом. В комнате мышь тоже перетаскивает линию между ними."
+
+msgid "settings.room_split"
+msgstr "Участники и чат"
+
+msgid "settings.room_split_detail"
+msgstr "Как делится колонка: участники над чатом. Чат всегда сохраняет три строки. В комнате мышь тоже перетаскивает линию между ними."
+
+msgid "settings.room_preset"
+msgstr "Готовая раскладка"
+
+msgid "settings.room_preset_detail"
+msgstr "«Сначала доска» отдаёт место столам, «Сначала чат» — разговору; «Сбалансированная» — посередине."
+
+msgid "settings.room_preset.board"
+msgstr "Сначала доска"
+
+msgid "settings.room_preset.balanced"
+msgstr "Сбалансированная"
+
+msgid "settings.room_preset.chat"
+msgstr "Сначала чат"
+
+msgid "settings.room_layout_reset"
+msgstr "Восстановить по умолчанию"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Возвращает колонку и деление между участниками и чатом к «Сбалансированной»."

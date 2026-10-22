@@ -6831,3 +6831,39 @@ msgstr "まだニュースはありません"
 
 msgid "news.none_detail"
 msgstr "アップデート確認の後、Ember のリリースからニュースが届きます。"
+
+msgid "settings.group.room_layout"
+msgstr "ルームのレイアウト"
+
+msgid "settings.room_column"
+msgstr "列の幅"
+
+msgid "settings.room_column_detail"
+msgstr "ルームのボードのうち、メンバーとチャットの列が占める割合です。ルームでは、マウスで境界線をドラッグすることもできます。"
+
+msgid "settings.room_split"
+msgstr "メンバーとチャット"
+
+msgid "settings.room_split_detail"
+msgstr "列の分け方です：チャットの上にメンバー。チャットは常に3行を保ちます。ルームでは、マウスで境界線をドラッグすることもできます。"
+
+msgid "settings.room_preset"
+msgstr "既定のレイアウト"
+
+msgid "settings.room_preset_detail"
+msgstr "「ボード優先」は卓に、「チャット優先」は会話に場所を譲ります。「バランス」はその中間です。"
+
+msgid "settings.room_preset.board"
+msgstr "ボード優先"
+
+msgid "settings.room_preset.balanced"
+msgstr "バランス"
+
+msgid "settings.room_preset.chat"
+msgstr "チャット優先"
+
+msgid "settings.room_layout_reset"
+msgstr "初期設定に戻す"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "列と、メンバーとチャットの分け方を「バランス」に戻します。"

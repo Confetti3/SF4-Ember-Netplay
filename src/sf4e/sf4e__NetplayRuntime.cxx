@@ -273,6 +273,10 @@ void StartHelper() {
             runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= netplay::MaxMatchHudAnchor ? hudAnchor : 0;
             const int pictureSpot = saved.contains("pictureSpot") && saved["pictureSpot"].is_number_integer() ? saved["pictureSpot"].get<int>() : 0;
             runtime->preferences.pictureSpot = pictureSpot >= 0 && pictureSpot <= 11 ? pictureSpot : 0;
+            const auto percent = [&](const char* key, int fallback) { return saved.contains(key) && saved[key].is_number_integer() ? saved[key].get<int>() : fallback; };
+            const int roomColumn = percent("roomColumn", netplay::DefaultRoomColumn), roomSplit = percent("roomSplit", netplay::DefaultRoomSplit);
+            runtime->preferences.roomColumn = roomColumn >= netplay::MinRoomColumn && roomColumn <= netplay::MaxRoomColumn ? roomColumn : netplay::DefaultRoomColumn;
+            runtime->preferences.roomSplit = roomSplit >= netplay::MinRoomSplit && roomSplit <= netplay::MaxRoomSplit ? roomSplit : netplay::DefaultRoomSplit;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
             runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);

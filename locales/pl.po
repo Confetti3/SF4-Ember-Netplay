@@ -6830,3 +6830,39 @@ msgstr "Brak aktualności"
 
 msgid "news.none_detail"
 msgstr "Aktualności pochodzą z wydań Embera po sprawdzeniu aktualizacji."
+
+msgid "settings.group.room_layout"
+msgstr "Układ pokoju"
+
+msgid "settings.room_column"
+msgstr "Szerokość kolumny"
+
+msgid "settings.room_column_detail"
+msgstr "Ile tablicy pokoju zajmuje kolumna z członkami i czatem. W pokoju mysz również przeciąga linię między nimi."
+
+msgid "settings.room_split"
+msgstr "Członkowie i czat"
+
+msgid "settings.room_split_detail"
+msgstr "Jak dzielona jest kolumna: członkowie nad czatem. Czat zawsze zachowuje trzy wiersze. W pokoju mysz również przeciąga linię między nimi."
+
+msgid "settings.room_preset"
+msgstr "Gotowy układ"
+
+msgid "settings.room_preset_detail"
+msgstr "Najpierw tablica daje miejsce stołom, Najpierw czat rozmowie; Zrównoważony jest pośrodku."
+
+msgid "settings.room_preset.board"
+msgstr "Najpierw tablica"
+
+msgid "settings.room_preset.balanced"
+msgstr "Zrównoważony"
+
+msgid "settings.room_preset.chat"
+msgstr "Najpierw czat"
+
+msgid "settings.room_layout_reset"
+msgstr "Przywróć domyślne"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Przywraca kolumnę i podział między członkami a czatem do ustawienia Zrównoważony."

@@ -330,7 +330,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (view.watchedGame.Active() && snapshot.preferences.watchedPicture) {
         const auto& size = ImGui::GetMainViewport()->Size;
         // The texture is made once, at the largest size the picture can be shown, so any size stays sharp.
-        const float share = sf4e::ui::WatchedPictureShareFor(8);
+        const float share = sf4e::ui::WatchedPictureTaken;
         view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * share), static_cast<unsigned>(size.y * share));
     }
     view.lockInDrops = snapshot.lockInDrops;

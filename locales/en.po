@@ -6465,3 +6465,39 @@ msgstr "No news yet"
 
 msgid "news.none_detail"
 msgstr "News comes from Ember's releases once the update check has run."
+
+msgid "settings.group.room_layout"
+msgstr "Room layout"
+
+msgid "settings.room_column"
+msgstr "Column width"
+
+msgid "settings.room_column_detail"
+msgstr "How much of the room's board the members and chat column takes. In a room, the mouse also drags the line between them."
+
+msgid "settings.room_split"
+msgstr "Members and chat"
+
+msgid "settings.room_split_detail"
+msgstr "How the column is shared: members over chat. Chat always keeps three lines. In a room, the mouse also drags the line between them."
+
+msgid "settings.room_preset"
+msgstr "Ready-made layout"
+
+msgid "settings.room_preset_detail"
+msgstr "Board first gives the tables the room, Chat first the conversation; Balanced sits between them."
+
+msgid "settings.room_preset.board"
+msgstr "Board first"
+
+msgid "settings.room_preset.balanced"
+msgstr "Balanced"
+
+msgid "settings.room_preset.chat"
+msgstr "Chat first"
+
+msgid "settings.room_layout_reset"
+msgstr "Restore defaults"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Puts the column and the members and chat split back to Balanced."

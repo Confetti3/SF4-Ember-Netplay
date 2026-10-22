@@ -36,6 +36,11 @@
 namespace sf4e { namespace ui {
 namespace {
 constexpr double ErrorSeconds = 5;
+// The room board's ready-made layouts, by their column (PlayerPreferences::roomColumn),
+// and the one a column is nearest: Board first, Balanced, Chat first.
+constexpr int RoomPresets[]={28,36,56};
+const char* const RoomPresetKeys[]={"settings.room_preset.board","settings.room_preset.balanced","settings.room_preset.chat"};
+int RoomPreset(int column){return column<=30?0:column>=50?2:1;}
 // The installed version label, or the build's hash for a copy without one (a developer build).
 std::string InstalledVersion(const ShellView& v) { return v.services.installedVersion.empty() ? v.build : v.services.installedVersion; }
 // The launch card names only the settings that differ, in the order the game's
@@ -325,6 +330,14 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
+  // V2: the room board's layout, which its grips also drag (RoomGrips).
+  if(v2::On()){
+   const int column=preferences_.roomColumn,split=preferences_.roomSplit;
+   rows.push_back(Value("arrange-column",loc::T("settings.room_column"),std::to_string(column)+"%",loc::T("settings.room_column_detail"),v.canEditPreferences));
+   rows.push_back(Value("arrange-split",loc::T("settings.room_split"),std::to_string(split)+" / "+std::to_string(100-split),loc::T("settings.room_split_detail"),v.canEditPreferences));
+   rows.push_back(Value("arrange-preset",loc::T("settings.room_preset"),loc::T(RoomPresetKeys[RoomPreset(column)]),loc::T("settings.room_preset_detail"),v.canEditPreferences));
+   rows.push_back(Row("arrange-reset",loc::T("settings.room_layout_reset"),loc::T("settings.room_layout_reset_detail"),v.canEditPreferences));
+  }
  }else if(screen=="training-replays"){
   title=loc::T("settings.training_replays_title");
   rows={Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),
@@ -563,6 +576,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="problem-report"){
   if(Service(platform::ServiceAction::PrepareProblemReport,v,submit)){reportPanel_.Open(v.services.reporting.preparation + 1);menu_.navigation.Push("report");}
  }
+ else if(a.id=="arrange-reset"){preferences_.roomColumn=netplay::DefaultRoomColumn;preferences_.roomSplit=netplay::DefaultRoomSplit;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.
   ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
@@ -597,6 +611,9 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-name-offset")preferences_.matchHudNameOffset=(std::max)(-netplay::MaxMatchHudNameOffset,(std::min)(netplay::MaxMatchHudNameOffset,preferences_.matchHudNameOffset+2*a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
   else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,preferences_.matchHudAnchor+a.delta));
+  else if(a.id=="arrange-column")preferences_.roomColumn=(std::max)(netplay::MinRoomColumn,(std::min)(netplay::MaxRoomColumn,preferences_.roomColumn+netplay::RoomColumnStep*a.delta));
+  else if(a.id=="arrange-split")preferences_.roomSplit=(std::max)(netplay::MinRoomSplit,(std::min)(netplay::MaxRoomSplit,preferences_.roomSplit+netplay::RoomSplitStep*a.delta));
+  else if(a.id=="arrange-preset")preferences_.roomColumn=RoomPresets[(std::max)(0,(std::min)(2,RoomPreset(preferences_.roomColumn)+a.delta))];
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="class-emblems")preferences_.classEmblems=a.delta>0;
@@ -823,7 +840,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
- if(v.watchedPicture&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ // The V2 room board shows it in its tables' place instead (last frame's word, boardPicture_).
+ if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ boardPicture_=false;
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
@@ -944,6 +963,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // V2: Create is the room's settings and its rules side by side, and the button that opens it.
  if(v2::On()&&screen=="create")board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawCreateBoard(entries,navigation,action,height,feedback);};
  if(screen=="interface"||screen=="tab-interface")profilePreview=[&](const std::string& id){
+  if(id.compare(0,8,"arrange-")==0){DrawRoomLayoutPreview();return;}
   // On V2's Interface tab the preview goes with the match HUD's own rows.
   if(screen=="tab-interface"&&id.compare(0,3,"hud")!=0)return;
   ImGui::TextUnformatted(loc::T("settings.preview"));

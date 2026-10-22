@@ -478,6 +478,43 @@ MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEnt
  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
  return card;
 }
+void ApplicationShell::ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat) const {
+ const float s=Scale();
+ tables=area;chat=v2::CutRight(tables,area.W()*preferences_.roomColumn/100,24*s);
+ members=v2::CutTop(chat,(chat.H()-16*s)*preferences_.roomSplit/100,16*s);
+}
+void ApplicationShell::RoomGrips(v2::Box area) {
+ v2::Box tables,members,chat;ArrangeRoom(area,tables,members,chat);
+ const float column=(tables.max.x+chat.min.x)*.5f,split=(members.max.y+chat.min.y)*.5f;
+ const float x=v2::Grip("##room-column",ImVec2(column,area.min.y),ImVec2(column,area.max.y));
+ const float y=v2::Grip("##room-split",ImVec2(chat.min.x,split),ImVec2(chat.max.x,split));
+ // The pointer's share, snapped to the grip's steps from its default.
+ const auto snap=[](float percent,int low,int high,int base,int step){return (std::max)(low,(std::min)(high,base+static_cast<int>(std::lround((percent-base)/step))*step));};
+ auto next=preferences_;
+ if(!std::isnan(x))next.roomColumn=snap((area.max.x-x)/area.W()*100,netplay::MinRoomColumn,netplay::MaxRoomColumn,netplay::DefaultRoomColumn,netplay::RoomColumnStep);
+ if(!std::isnan(y))next.roomSplit=snap((y-members.min.y)/(chat.max.y-members.min.y)*100,netplay::MinRoomSplit,netplay::MaxRoomSplit,netplay::DefaultRoomSplit,netplay::RoomSplitStep);
+ if(next.roomColumn!=preferences_.roomColumn||next.roomSplit!=preferences_.roomSplit){preferences_=next;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+}
+void ApplicationShell::DrawRoomLayoutPreview() {
+ // Customise.dc.html: the tables as four cards, members over chat with their shares, and the grips.
+ const float s=Scale(),w=ImGui::GetContentRegionAvail().x,h=(std::max)(120*s,(std::min)(w*.6f,ImGui::GetContentRegionAvail().y-8*s));
+ const auto p=ImGui::GetCursorScreenPos();const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
+ const v2::Box area{p,ImVec2(p.x+w,p.y+h)};
+ d->AddRectFilled(area.min,area.max,c.ink,4*s);d->AddRect(area.min,area.max,c.border,4*s,0,s);
+ v2::Box tables,members,chat;const v2::Box inside=v2::Inset(area,10*s,10*s);ArrangeRoom(inside,tables,members,chat);
+ const auto heading=[&](const v2::Box& b,const std::string& label){d->AddText(HeadingFont(),13*s,b.min,c.muted,label.c_str());};
+ heading(tables,loc::T("room.v2.tables"));
+ const float cw=(tables.W()-6*s)/2,ch=(std::min)(64*s,(tables.H()-26*s)/2);
+ for(int i=0;i<4;++i){const ImVec2 at(tables.min.x+(i%2)*(cw+6*s),tables.min.y+20*s+(i/2)*(ch+6*s));d->AddRectFilled(at,ImVec2(at.x+cw,at.y+ch),c.frame,4*s);d->AddRect(at,ImVec2(at.x+cw,at.y+ch),c.border,4*s,0,s);}
+ const auto pane=[&](const v2::Box& b,const char* key,int share,int lines){
+  d->AddRectFilled(b.min,b.max,c.panel,4*s);
+  const v2::Box in=v2::Inset(b,10*s,8*s);heading(in,std::string(loc::T(key))+" \xC2\xB7 "+std::to_string(share)+"%");
+  for(int i=0;i<lines;++i){const float y=in.min.y+22*s+i*18*s;if(y+12*s<=in.max.y)d->AddRectFilled(ImVec2(in.min.x,y),ImVec2(in.max.x,y+12*s),c.button,3*s);}
+ };
+ pane(members,"room.members",preferences_.roomSplit,3);pane(chat,"room.chat",100-preferences_.roomSplit,2);
+ RoomGrips(inside);
+ ImGui::SetCursorScreenPos(p);ImGui::Dummy(ImVec2(w,h));
+}
 void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,
                                      const MenuVisualFeedback& feedback) {
  boardDrawn_=true;
@@ -654,12 +691,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
   v2::Box tables=area,members=area,chat=area;
   if(ultra){members=v2::CutLeft(tables,480*s,24*s);chat=v2::CutRight(tables,520*s,24*s);}
-  else if(!narrow){
-   chat=v2::CutRight(tables,(logical>=1500?620:440)*s,24*s);
-   std::size_t lines=0;std::string group;
-   for(const auto& e:rows)if(e.id.compare(0,7,"member-")==0){lines+=e.group!=group?2:1;group=e.group;}
-   members=v2::CutTop(chat,(std::min)((56+lines*40)*s,chat.H()*.6f),16*s);
-  }
+  else if(!narrow)ArrangeRoom(area,tables,members,chat);
 
   if(!narrow||part==0){
    // The tables, under their heading and how many play and watch.
@@ -693,9 +725,22 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
     tip();
     if(focused)v2::Focus(d,b.min,b.max);
    }
+   const float cardHeight=(banners?182:160)*s;
+   // Watching with the game as a picture: the picture, cinema style, over one row of cards,
+   // as large as the tables' place allows (the column grip widens it).
+   const auto* vp=ImGui::GetMainViewport();
+   const float ph=(std::min)(tables.W()*vp->Size.y/vp->Size.x,tables.H()-cardHeight-8*s);
+   if(v.watchedPicture&&!narrow&&ph>=120*s){
+    const float pw=ph*vp->Size.x/vp->Size.y;const v2::Box pic=v2::CutTop(tables,ph,8*s);
+    const ImVec2 at(pic.min.x+(pic.W()-pw)*.5f,pic.min.y),to(at.x+pw,pic.max.y);
+    d->AddImage(v.watchedPicture,at,to);d->AddRect(at,to,c.border,0,0,s);
+    const auto watched=std::find_if(v.room.tables.begin(),v.room.tables.end(),[&](const room::Table& t){return std::find(t.spectators.begin(),t.spectators.end(),v.room.localMember)!=t.spectators.end();});
+    if(watched!=v.room.tables.end())v2::Chip(d,ImVec2(at.x+8*s,at.y+8*s),std::string(loc::T("room.status.watching"))+" \xC2\xB7 "+loc::Tf("room.v2.table",watched->id+1),c.accent);
+    boardPicture_=true;
+   }
    // The cards, two or three across, in their own scroll when there are more than fit.
    const int columns=ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2;
-   const float cardHeight=(banners?182:160)*s,cardWidth=(tables.W()-(columns-1)*8*s)/columns;
+   const float cardWidth=(tables.W()-(columns-1)*8*s)/columns;
    ImGui::SetCursorScreenPos(tables.min);
    ImGui::BeginChild("V2 tables",ImVec2(tables.W(),tables.H()),0,ImGuiWindowFlags_NoNavInputs);
    auto* td=ImGui::GetWindowDrawList();
@@ -816,6 +861,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    chatShown_=transcript_.Lines().size();
    ImGui::EndChild();
   }
+  if(!narrow&&!ultra)RoomGrips(area);
   ImGui::PopStyleColor();
  }else if(wide){
   // The battle slots take the whole height on the left. Members, chat and the
