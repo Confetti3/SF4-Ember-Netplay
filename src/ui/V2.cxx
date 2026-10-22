@@ -31,11 +31,11 @@ namespace {
 Brand brand = Brand::Ember;
 constexpr Palette EmberPalette{IM_COL32(20, 19, 18, 255), IM_COL32(25, 23, 21, 255), IM_COL32(33, 30, 27, 255), IM_COL32(56, 45, 36, 255),
     IM_COL32(58, 42, 31, 255), IM_COL32(89, 64, 43, 255), IM_COL32(68, 58, 49, 255), IM_COL32(255, 135, 56, 255), IM_COL32(255, 177, 111, 255),
-    IM_COL32(243, 235, 221, 255), IM_COL32(181, 169, 155, 255), IM_COL32(255, 92, 80, 255)};
+    IM_COL32(243, 235, 221, 255), IM_COL32(181, 169, 155, 255), IM_COL32(255, 92, 80, 255), IM_COL32(255, 170, 160, 255), IM_COL32(164, 206, 160, 255)};
 // BluMint's: near-black navy grounds and its brand blue, as blumint.com.
 constexpr Palette BluMintPalette{IM_COL32(5, 9, 13, 255), IM_COL32(10, 20, 28, 255), IM_COL32(12, 24, 34, 255), IM_COL32(16, 34, 48, 255),
     IM_COL32(10, 46, 68, 255), IM_COL32(18, 58, 82, 255), IM_COL32(30, 58, 78, 255), IM_COL32(33, 187, 255, 255), IM_COL32(127, 215, 255, 255),
-    IM_COL32(236, 244, 250, 255), IM_COL32(140, 164, 182, 255), IM_COL32(255, 77, 77, 255)};
+    IM_COL32(236, 244, 250, 255), IM_COL32(140, 164, 182, 255), IM_COL32(255, 77, 77, 255), IM_COL32(255, 170, 160, 255), IM_COL32(164, 206, 160, 255)};
 }
 void SetBrand(Brand value) { brand = value; }
 Brand CurrentBrand() { return brand; }
@@ -52,6 +52,10 @@ void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act
     draw->AddRectFilled(card.min, card.max, focused ? Colors().header : hovered ? Colors().hover : color::Alpha(Colors().frame, .92f), 4 * s);
     draw->AddRect(card.min, card.max, color::Alpha(Colors().border, .6f), 4 * s, 0, s);
     if (act) draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), Colors().accent, 4 * s, ImDrawFlags_RoundCornersLeft);
+}
+
+void RowGround(ImDrawList* draw, Box row, bool focused, bool hovered) {
+    if (focused || hovered) draw->AddRectFilled(row.min, row.max, focused ? Colors().header : Colors().hover, 4 * Scale());
 }
 
 int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone, bool bell) {
@@ -166,20 +170,80 @@ float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone) {
     return width;
 }
 
-void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font) {
-    const float width = ImGui::GetContentRegionAvail().x, line = size * 1.45f;
-    const ImVec2 start = ImGui::GetCursorScreenPos();
-    float y = start.y;
+float Paragraph(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font) {
+    const float line = size * 1.45f;
+    float y = at.y;
     // ImGui's wrap runs on through a newline, so each line is wrapped up to its own.
     for (const char *p = text.c_str(), *end = p + text.size(); p < end; y += line) {
         const char* stop = std::find(p, end, '\n');
         const char* cut = p == stop ? stop : font->CalcWordWrapPositionA(size / font->FontSize, p, stop, width);
         if (cut == p && p != stop) ++cut;  // ponytail: a pane narrower than one glyph splits it
-        ImGui::GetWindowDrawList()->AddText(font, size, ImVec2(start.x, y + (line - size) * .5f), color, p, cut);
+        if (draw) draw->AddText(font, size, ImVec2(at.x, y + (line - size) * .5f), color, p, cut);
         for (p = cut; p < stop && *p == ' '; ++p) {}
         if (p == stop && p < end) ++p;
     }
-    ImGui::Dummy(ImVec2(width, y - start.y));
+    return y - at.y;
+}
+void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font) {
+    const float width = ImGui::GetContentRegionAvail().x;
+    ImGui::Dummy(ImVec2(width, Paragraph(ImGui::GetWindowDrawList(), ImGui::GetCursorScreenPos(), width, text, size, color, font)));
+}
+
+ImU32 PanelGround(bool seeThrough) { return color::Alpha(Colors().panel, seeThrough ? .78f : .94f); }
+Box Panel(ImDrawList* draw, Box b, const char* title, const char* trailing, bool open) {
+    const float s = Scale();
+    const auto& c = Colors();
+    draw->AddRectFilled(b.min, b.max, PanelGround(), 4 * s);
+    const Box head = CutTop(b, 40 * s);
+    if (open) draw->AddRectFilled(head.min, head.max, c.header, 4 * s, ImDrawFlags_RoundCornersTop);
+    draw->AddLine(ImVec2(head.min.x, head.max.y), head.max, c.border, s);
+    draw->AddRect(head.min, b.max, open ? c.accentLight : c.border, 4 * s, 0, s);
+    const float tw = trailing ? TextWidth(trailing, ImGui::GetFontSize()) : 0;
+    if (trailing) draw->AddText(ImVec2(head.max.x - 16 * s - tw, head.min.y + (head.H() - ImGui::GetFontSize()) * .5f), c.muted, trailing);
+    Text(draw, ImVec2(head.min.x + 16 * s, head.min.y + 10 * s), head.W() - 32 * s - (tw > 0 ? tw + 16 * s : 0), title, 20 * s, c.text, HeadingFont());
+    return b;
+}
+float SectionHeading(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone) {
+    draw->AddText(HeadingFont(), 14 * Scale(), at, tone, text.c_str());
+    return TextWidth(text, 14 * Scale(), HeadingFont());
+}
+float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font, bool centred) {
+    if (!font) font = ImGui::GetFont();
+    const std::string shown = Fit(text, width, size, font);
+    const float w = TextWidth(shown, size, font);
+    draw->AddText(font, size, ImVec2(centred ? at.x + (width - w) * .5f : at.x, at.y), color, shown.c_str());
+    return w;
+}
+void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color) {
+    const ImVec2 points[] = {{at.x, at.y - size}, {at.x + size * .6f, at.y}, {at.x, at.y + size}};
+    draw->AddPolyline(points, 3, color, 0, 2 * Scale());
+}
+void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, bool focused, bool hovered, bool enabled) {
+    const float s = Scale(), size = 17 * s;
+    const auto& c = Colors();
+    const bool primary = kind == ButtonKind::Primary, danger = kind == ButtonKind::Danger;
+    ImU32 fill = focused ? c.header : hovered ? c.hover : c.button, edge = color::Alpha(danger ? c.danger : c.accent, danger ? .5f : .35f);
+    ImU32 ink = danger ? c.danger : c.text;
+    if (!enabled) { fill = c.frame; edge = c.border; ink = c.muted; }
+    else if (primary) { fill = focused || hovered ? c.accentLight : c.accent; edge = c.accent; ink = c.ink; }
+    draw->AddRectFilled(b.min, b.max, fill, 4 * s);
+    draw->AddRect(b.min, b.max, edge, 4 * s, 0, s);
+    if (!label.empty()) Text(draw, ImVec2(b.min.x + 12 * s, b.min.y + (b.H() - size) * .5f), b.W() - 24 * s, label, size, ink, HeadingFont(), true);
+    if (focused && primary && enabled) draw->AddRect(b.min, b.max, c.text, 4 * s, 0, 3 * s);
+    else if (focused) Focus(draw, b.min, b.max);
+}
+void Words(ImDrawList* draw, Box b, const std::string& label, const std::string& detail, bool wrap) {
+    const float s = Scale(), x = b.min.x + 16 * s, w = b.W() - 32 * s;
+    const auto& c = Colors();
+    draw->AddRectFilled(b.min, b.max, c.frame, 4 * s);
+    draw->AddRect(b.min, b.max, c.border, 4 * s, 0, s);
+    Text(draw, ImVec2(x, b.min.y + 6 * s), w, label, 16 * s, c.text, HeadingFont());
+    if (wrap) Paragraph(draw, ImVec2(x, b.min.y + 28 * s), w, detail, 15 * s, c.muted);
+    else Text(draw, ImVec2(x, b.min.y + 28 * s), w, detail.substr(0, detail.find('\n')), 15 * s, c.muted);
+}
+float WordsHeight(float width, const std::string& detail) {
+    const float s = Scale();
+    return 36 * s + Paragraph(nullptr, ImVec2(), width - 32 * s, detail, 15 * s, 0);
 }
 void Wrapped(const std::string& text) {
     if (On()) Paragraph(text, ImGui::GetFontSize(), ImGui::GetColorU32(ImGuiCol_Text));
@@ -236,8 +300,7 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
         const ImVec2 at(p.x, p.y + (height - 10 * s - bh) * .5f), to(at.x + bw, at.y + bh);
         ImGui::SetCursorScreenPos(at);
         pressed = ImGui::InvisibleButton("##header-back", ImVec2(bw, bh));
-        draw->AddRectFilled(at, to, ImGui::IsItemHovered() ? Colors().hover : Colors().button, 4 * s);
-        draw->AddRect(at, to, color::Alpha(Colors().accent, .35f), 4 * s, 0, s);
+        Button(draw, {at, to}, {}, ButtonKind::Secondary, false, ImGui::IsItemHovered());
         const float mid = at.y + bh * .5f;
         const ImVec2 chevron[] = {{at.x + 21 * s, mid - 5 * s}, {at.x + 16 * s, mid}, {at.x + 21 * s, mid + 5 * s}};
         draw->AddPolyline(chevron, 3, Colors().text, 0, 2 * s);
