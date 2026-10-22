@@ -77,7 +77,7 @@ async fn both_boards_subscribed_hold_one_slot_each_way_and_values_come_from_outb
                 .find(|path| path.is_selected())
                 .map(|path| milliseconds(path.rtt()))
         };
-        let value = slot.value;
+        let value = slot.value.map(|(rtt, _)| rtt);
         assert!(path.is_some());
         assert_eq!(value, path);
         let events = member.latency_events();

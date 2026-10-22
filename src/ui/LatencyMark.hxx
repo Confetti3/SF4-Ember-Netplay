@@ -1,6 +1,6 @@
 #pragma once
-// The ping a room card shows for a member (MEMBER_LATENCY.md 3.9): "~62 ms" in
-// its band's colour (under 80 ms, under 150 ms, above), "..." while it is
+// The ping a room card shows for a member (MEMBER_LATENCY.md 3.9): "~62 ms"
+// ("Relay 62 ms" in V2) in its band's colour (under 80 ms, under 150 ms, above), "..." while it is
 // measured, and only a tip when it is unavailable.
 #include "RoomCards.hxx"
 #include "Theme.hxx"
@@ -25,6 +25,7 @@ inline LatencyMark LatencyMarkFor(const session::MemberLatencyTable& table, cons
 	switch (latency.state) {
 	case session::MemberLatency::State::Value:
 		mark.text = loc::Tf("room.latency.estimate", latency.rttMs);
+		mark.routed = loc::Tf(latency.relay ? "room.latency.relay" : "room.latency.direct", latency.rttMs);
 		mark.tip = loc::Tf("room.latency.tip.value", latency.rttMs);
 		mark.color = LatencyBandColor(latency.rttMs);
 		break;

@@ -467,15 +467,18 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     const float font = size == TagSize::XS ? ImGui::GetFontSize() * .85f : ImGui::GetFontSize();
     const float nameSize = size == TagSize::M ? 22 * s : font;
     const float chipHeight = ChipFont() + 8 * s, line = (std::max)(nameSize, chipHeight);
-    // Indicators sit at the right end: the ping always, the status while there is room.
-    const std::string& ping = tag.ping.text;
-    const float pingWidth = ping.empty() ? 0 : ChipWidth(ping);
+    ImFont* nameFont = size == TagSize::M ? HeadingFont() : ImGui::GetFont();
+    const float nameWidth = TextWidth(tag.name, nameSize, nameFont);
     const float marksWidth = NameMarksWidth(tag.marks, nameSize);
+    // Indicators sit at the right end: the ping always, the status while there is room.
+    // The ping's route goes first: XS, or when the name would not fit beside it.
+    const bool routed = size != TagSize::XS && !tag.ping.routed.empty() &&
+        marksWidth + nameWidth + gap + ChipWidth(tag.ping.routed) <= width;
+    const std::string& ping = routed ? tag.ping.routed : tag.ping.text;
+    const float pingWidth = ping.empty() ? 0 : ChipWidth(ping);
     const float nameRoom = width - marksWidth - (pingWidth > 0 ? pingWidth + gap : 0);
     // M puts the title and status on a second line; XS and S give them only what the name leaves.
     const bool twoLines = size == TagSize::M && !(tag.title.empty() && tag.status.empty());
-    ImFont* nameFont = size == TagSize::M ? HeadingFont() : ImGui::GetFont();
-    const float nameWidth = TextWidth(tag.name, nameSize, nameFont);
     const float titleWidth = tag.title.empty() || twoLines ? 0 : TextWidth(tag.title, font) + gap;
     const float statusWidth = tag.status.empty() ? 0 : ChipWidth(tag.status) + gap;
     const bool status = !tag.status.empty() && (twoLines || nameWidth + titleWidth + statusWidth <= nameRoom);

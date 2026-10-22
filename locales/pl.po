@@ -4411,6 +4411,12 @@ msgstr "Sety z rzędu: {0}"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Bezpośrednio {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Przekaźnik {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Szacowany ping: około {0} ms."
 

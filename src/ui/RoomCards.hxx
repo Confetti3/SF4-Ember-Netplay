@@ -18,6 +18,8 @@ constexpr float TableBannerHeight=22;
 // tip that explains it. With neither, nothing is drawn.
 struct LatencyMark {
     std::string text,tip;
+    // V2's chip: the estimate with its route, "Direct 44 ms"; none while unknown.
+    std::string routed;
     ImU32 color=IM_COL32(181,169,155,255);
 };
 

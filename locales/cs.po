@@ -4411,6 +4411,12 @@ msgstr "Sety v řadě: {0}"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Přímo {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Relé {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Odhadovaný ping: asi {0} ms."
 

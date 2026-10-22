@@ -139,7 +139,8 @@ enum class TagSize { XS, S, M, L };
 struct TagView {
     std::string name, title, status;
     NameMarks marks;
-    // The member's ping as the room measures it (LatencyMarkFor); none without text.
+    // The member's ping as the room measures it (LatencyMarkFor), with its route
+    // above XS; none without text.
     LatencyMark ping;
     // L only: the main (-1 for none), the line under the title (country, class) and the facts.
     int fighter = -1;

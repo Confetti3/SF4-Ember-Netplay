@@ -4411,6 +4411,12 @@ msgstr "{0} set di fila"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Diretto {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Relay {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Ping stimato: circa {0} ms."
 

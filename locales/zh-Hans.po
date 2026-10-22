@@ -4412,6 +4412,12 @@ msgstr "连胜 {0} 组"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "直连 {0} ms"
+
+msgid "room.latency.relay"
+msgstr "中继 {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "估计网络延迟：约 {0} ms。"
 
