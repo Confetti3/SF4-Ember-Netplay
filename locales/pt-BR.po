@@ -4459,6 +4459,9 @@ msgstr "Sente aqui: você joga contra quem espera há mais tempo, ou espera o pr
 msgid "room.arcade_waiting"
 msgstr "Aguardando"
 
+msgid "room.cabinet_free"
+msgstr "INSIRA FICHA"
+
 msgid "room.type.king"
 msgstr "Rei da colina"
 

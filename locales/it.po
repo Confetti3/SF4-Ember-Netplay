@@ -4939,6 +4939,9 @@ msgstr "Siediti qui: giochi contro chi aspetta da più tempo, oppure aspetti il 
 msgid "room.arcade_waiting"
 msgstr "In attesa"
 
+msgid "room.cabinet_free"
+msgstr "INSERISCI GETTONE"
+
 msgid "room.type.king"
 msgstr "Re della collina"
 

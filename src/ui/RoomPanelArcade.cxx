@@ -104,75 +104,105 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
    v2::Chip(d,ImVec2(banner.max.x-14*s-sw,banner.min.y+16*s),streak,gold);
   }else v2::Text(d,ImVec2(x,banner.min.y+19*s),banner.max.x-14*s-x,loc::T("room.top_slot_none"),15*s,c.muted);
  }
- // Arcade: two rows of eight cabinets, cabinet n on top facing n+8 below it;
- // where eight leave a name no room, each row takes two lines of four.
- const float gap=8*s;
- const int across=(board.W()-7*gap)/8>=150*s?8:4,lines=static_cast<int>(room::CabinetCount)/across;
- const float aisle=(across==8?28:20)*s;
- const float w=(board.W()-(across-1)*gap)/across,h=(std::min)(190*s,(board.H()-(lines-1)*aisle)/lines);
- const auto boxOf=[&](int cabinet){
-  const ImVec2 at(board.min.x+(cabinet%across)*(w+gap),board.min.y+(cabinet/across)*(h+aisle));
-  return v2::Box{at,ImVec2(at.x+w,at.y+h)};
- };
- // A line joins each pair's cabinets wherever they stand: through the aisle
- // under a row (over the last row), or across the aisle between two rows,
- // under the cabinets.
- // ponytail: on four rows a pair two lines apart is joined behind the line between.
+ // Real Arcade rows: two rows of eight tall cabinets, each over its stool
+ // with the player's back on it; cabinet n on top, n+8 under it.
+ // Where they would be too small to read, they keep their size and scroll.
+ const float gap=8*s,band=36*s,cell=(board.W()-7*gap)/8;
+ const float h=(std::max)(120*s,(std::min)((board.H()-band)/2/1.4f,240*s)),w=(std::min)(cell,h*.75f),unit=h*1.4f;
+ const bool scrolls=2*unit+band>board.H();
+ if(scrolls){
+  ImGui::SetCursorScreenPos(board.min);
+  ImGui::BeginChild("Arcade rows",ImVec2(board.W(),board.H()),0,ImGuiWindowFlags_NoNavInputs);
+  d=ImGui::GetWindowDrawList();
+  const ImVec2 inner=ImGui::GetCursorScreenPos();board={inner,ImVec2(inner.x+board.W(),inner.y+2*unit+band)};
+ }
+ const float top=board.min.y+(std::max)(0.f,(board.H()-2*unit-band)*.5f),aisle=top+unit+band*.5f;
+ const auto at=[&](int cabinet){return ImVec2(board.min.x+(cabinet%8)*(cell+gap)+(cell-w)*.5f,top+(cabinet/8)*(unit+band));};
+ // A line joins each pair's cabinets along the aisle between the rows, each
+ // pair at its own height there, so it never crosses another cabinet.
  for(const auto& t:v.room.tables){
-  int a=room::CabinetOf(v.room,t.p1),b=room::CabinetOf(v.room,t.p2);
+  const int a=room::CabinetOf(v.room,t.p1),b=room::CabinetOf(v.room,t.p2);
   if(!t.p1||!t.p2||a<0||b<0)continue;
-  if(a/across>b/across)std::swap(a,b);
-  const v2::Box A=boxOf(a),B=boxOf(b);const ImU32 pair=PairColor(t.id);
-  if(a/across==b/across){
-   const bool last=a/across==lines-1;const float dip=(last?-1:1)*aisle*.75f;
-   const ImVec2 p((A.min.x+A.max.x)*.5f,last?A.min.y:A.max.y),q((B.min.x+B.max.x)*.5f,last?B.min.y:B.max.y);
-   d->AddBezierCubic(p,ImVec2(p.x,p.y+dip),ImVec2(q.x,q.y+dip),q,pair,2*s);
-  }else{
-   const ImVec2 p((A.min.x+A.max.x)*.5f,A.max.y),q((B.min.x+B.max.x)*.5f,B.min.y);
-   d->AddBezierCubic(p,ImVec2(p.x,p.y+aisle*.6f),ImVec2(q.x,q.y-aisle*.6f),q,pair,2*s);
-  }
+  const float y=aisle+(t.id-3.5f)*3*s;
+  const auto stub=[&](int cabinet){const ImVec2 p=at(cabinet);return ImVec2(p.x+w*.5f,cabinet<8?p.y+unit:p.y);};
+  const ImVec2 points[]={stub(a),ImVec2(stub(a).x,y),ImVec2(stub(b).x,y),stub(b)};
+  d->AddPolyline(points,4,PairColor(t.id),0,2*s);
  }
  for(int i=0;i<static_cast<int>(room::CabinetCount);++i){
   const auto* e=row("cabinet-"+std::to_string(i));
   if(!e)continue;
-  const v2::Box b=boxOf(i);
-  const bool hovered=press(*e,b),focused=e->id==focus;
+  const ImVec2 p=at(i);
+  const v2::Box b{p,ImVec2(p.x+w,p.y+h)};
+  const v2::Box spot{p,ImVec2(p.x+w,p.y+unit)};
+  const bool hovered=PressEntry(nav,rows,*e,spot,action,scrolls).hovered,focused=e->id==focus;
+  if(focused&&nav.Choosing())menu_.bodyChoices={spot,area};
   const auto* m=room::FindMember(v.room,v.room.cabinets[i]);
   const auto* t=m&&m->table>=0?&v.room.tables[m->table]:nullptr;
-  const bool paired=t&&t->p1&&t->p2;const ImU32 pair=t?PairColor(t->id):c.border;
-  v2::CardGround(d,b,focused,hovered,m&&m->id==v.room.localMember);
-  if(paired)d->AddRect(b.min,b.max,pair,4*s,0,2*s);
-  const v2::Box in=v2::Inset(b,8*s,8*s);
-  // The number; the crown and the streak in King of the hill, gold on the top slot.
-  v2::Text(d,in.min,24*s,std::to_string(i+1),13*s,paired?pair:c.muted,HeadingFont());
-  float right=in.max.x;
-  if(type==room::KingRoom&&v.room.streaks[i]){
-   const bool crowned=v.room.topSlot==i;
-   const std::string streak=std::to_string(v.room.streaks[i]);
-   const float sw=HeadingFont()->CalcTextSizeA(13*s,FLT_MAX,0,streak.c_str()).x;
-   v2::Text(d,ImVec2(in.max.x-sw,in.min.y),sw,streak,13*s,crowned?gold:c.muted,HeadingFont());
-   v2::Icon(d,v2::IconCount-1,ImVec2(in.max.x-sw-18*s,in.min.y),14*s,crowned?gold:c.muted);
-   if(crowned)d->AddRect(ImVec2(b.min.x-2*s,b.min.y-2*s),ImVec2(b.max.x+2*s,b.max.y+2*s),gold,6*s,0,2*s);
-   right-=sw+24*s;
+  const bool paired=t&&t->p1&&t->p2,lit=m!=nullptr;const ImU32 pair=paired?PairColor(t->id):pending;
+  const bool crowned=type==room::KingRoom&&v.room.topSlot==i;
+  if(paired||hovered)d->AddRect(ImVec2(b.min.x-2*s,b.min.y-2*s),ImVec2(b.max.x+2*s,b.max.y+2*s),v2::color::Alpha(paired?pair:c.hover,.27f),8*s,0,4*s);
+  d->AddRectFilled(b.min,b.max,c.ink,6*s,ImDrawFlags_RoundCornersTop);
+  // From the top: marquee, screen, name plate, control panel, kick plate.
+  v2::Box body=b;
+  const v2::Box marquee=v2::CutTop(body,(std::max)(16*s,h*.12f)),kick=v2::CutBottom(body,h*.06f);
+  v2::CutBottom(body,4*s);
+  const v2::Box panel=v2::Inset(v2::CutBottom(body,h*.1f),5*s,0),plate=v2::Inset(v2::CutBottom(body,22*s),3*s,0);
+  v2::CutTop(body,4*s);
+  const v2::Box screen=v2::Inset(body,5*s,0);
+  // The marquee: the number, in the pair's colour; in King of the hill the
+  // streak beside a crown, gold on the top slot.
+  d->AddRectFilled(marquee.min,marquee.max,crowned?gold:lit?pair:c.button,6*s,ImDrawFlags_RoundCornersTop);
+  const float mh=marquee.H(),ms=(std::min)(11*s,mh*.75f);const ImU32 ink=lit||crowned?c.ink:c.muted;
+  const int streak=type==room::KingRoom?v.room.streaks[i]:0;
+  v2::Text(d,ImVec2(marquee.min.x+4*s,marquee.min.y+(mh-ms)*.5f),streak?marquee.W()*.45f:marquee.W()-8*s,std::to_string(i+1),ms,ink,HeadingFont(),!streak);
+  if(streak){
+   const std::string count=std::to_string(streak);
+   const float cw=HeadingFont()->CalcTextSizeA(ms,FLT_MAX,0,count.c_str()).x;
+   v2::Text(d,ImVec2(marquee.max.x-4*s-cw,marquee.min.y+(mh-ms)*.5f),cw,count,ms,ink,HeadingFont());
+   v2::Icon(d,v2::IconCount-1,ImVec2(marquee.max.x-8*s-cw-ms,marquee.min.y+(mh-ms)*.5f),ms,ink);
   }
-  if(!m){
-   v2::Text(d,ImVec2(in.min.x,in.min.y+(in.H()-13*s)*.5f),in.W(),loc::T("room.cabinet_open"),13*s,c.muted,HeadingFont(),true);
-  }else{
-   // Waiting, the score (VS before the first game), or the Rematch choice,
-   // on the number's line; the player under it, and their fighter if it fits.
-   const int side=t&&t->p2==m->id?1:0;
-   std::string state=loc::T("room.arcade_waiting");ImU32 tone=pending;
-   if(paired&&t->deciding){state=loc::T(t->rematch[side]?"room.rematch_chosen":"room.rematch_ask");}
-   else if(paired){state=SetScoreText(t->score).empty()?"VS":SetScoreText(t->score);tone=pair;}
-   const bool below=right-in.min.x-28*s<v2::ChipWidth(state);
-   if(!below)v2::Chip(d,ImVec2(right-v2::ChipWidth(state),in.min.y-3*s),state,tone);
-   float y=in.min.y+24*s;
-   y+=tag(*m,ImVec2(in.min.x,y),in.W(),v2::TagSize::XS,std::string())+4*s;
-   if(y+16*s<=in.max.y-(below?26*s:0))v2::Text(d,ImVec2(in.min.x,y),in.W(),fighterName(*m),13*s,c.muted);
-   if(below)v2::Chip(d,ImVec2(in.min.x,in.max.y-22*s),v2::Fit(state,in.W()-16*s,13*s),tone);
+  // The screen: the fighter and the score while a pair plays, else Waiting,
+  // the Rematch choice, or Insert coin.
+  const int side=t&&t->p2==m->id?1:0;
+  std::string first=loc::T("room.cabinet_free"),second;ImU32 tone=c.muted;
+  if(m&&!paired){first=loc::T("room.arcade_waiting");tone=pending;}
+  else if(paired&&t->deciding){first=loc::T(t->rematch[side]?"room.rematch_chosen":"room.rematch_ask");tone=pending;}
+  else if(paired){first=fighterName(*m);second=SetScoreText(t->score).empty()?"VS":SetScoreText(t->score);tone=pair;}
+  d->AddRectFilled(screen.min,screen.max,!m?c.frame:paired&&!t->deciding?c.header:v2::color::Alpha(pending,.12f),2*s);
+  const float ss=(std::min)(11*s,screen.H()*.3f),mid=(screen.min.y+screen.max.y)*.5f;
+  const auto space=first.find(' ');
+  if(second.empty()&&space!=std::string::npos&&HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,first.c_str()).x>screen.W()-4*s){second=first.substr(space+1);first.resize(space);}
+  v2::Text(d,ImVec2(screen.min.x+2*s,second.empty()?mid-ss*.5f:mid-ss-1*s),screen.W()-4*s,first,ss,tone,HeadingFont(),true);
+  if(!second.empty())v2::Text(d,ImVec2(screen.min.x+2*s,mid+1*s),screen.W()-4*s,second,ss,paired&&!t->deciding?pair:tone,HeadingFont(),true);
+  // The name plate: the player's tag, its edge in the pair's colour.
+  d->AddRectFilled(plate.min,plate.max,c.frame);
+  if(paired)d->AddRect(plate.min,plate.max,pair,0,0,s);
+  if(m){
+   v2::TagView g;g.name=m->name;g.marks={m->country,{}};
+   v2::Tag(d,ImVec2(plate.min.x+2*s,plate.min.y+(plate.H()-ImGui::GetFontSize())*.5f-2*s),plate.W()-4*s,g,v2::TagSize::XS);
   }
-  if(focused)v2::Focus(d,b.min,b.max);
+  d->AddRectFilled(panel.min,panel.max,c.button);
+  const ImVec2 knob((panel.min.x+panel.max.x)*.5f,(panel.min.y+panel.max.y)*.5f);
+  d->AddCircleFilled(ImVec2(knob.x-12*s,knob.y),3.5f*s,c.live);
+  for(int k=0;k<3;++k)d->AddCircleFilled(ImVec2(knob.x-2*s+k*7*s,knob.y),3*s,c.text);
+  if(paired)d->AddRectFilled(kick.min,kick.max,v2::color::Alpha(pair,.2f));
+  d->AddRect(b.min,b.max,crowned?gold:paired?pair:c.border,6*s,ImDrawFlags_RoundCornersTop,2*s);
+  if(focused)v2::Focus(d,ImVec2(b.min.x-4*s,b.min.y-4*s),ImVec2(b.max.x+4*s,p.y+unit),false);
+  // The stool, and on it the player's back (a 60 by 70 drawing).
+  const float k=h*.38f/60;const ImVec2 o(b.min.x+(w-60*k)*.5f,b.max.y-h*.04f);
+  const auto q=[&](float x,float y){return ImVec2(o.x+x*k,o.y+y*k);};
+  d->AddRectFilled(q(12,52),q(48,57),paired?pair:c.border,2*k);
+  d->AddLine(q(17,57),q(13,70),c.hover,2.5f*k);d->AddLine(q(43,57),q(47,70),c.hover,2.5f*k);d->AddLine(q(15,65),q(45,65),c.hover,2.5f*k);
+  if(!m)continue;
+  // ponytail: an Ash jacket for everyone; the title's tier once members carry titles.
+  const auto jacket=v2::TierColor(v2::Tier::Ash);
+  const ImVec2 back[]={q(14,54),q(15,40),q(18,29),q(22,22),q(38,22),q(42,29),q(45,40),q(46,54)};
+  d->AddConvexPolyFilled(back,8,jacket.plate);d->AddPolyline(back,8,jacket.stripe,ImDrawFlags_Closed,1.5f*k);
+  d->AddLine(q(30,23),q(30,53),v2::color::Alpha(jacket.stripe,.55f),2.5f*k);
+  d->AddRectFilled(q(26,16),q(34,23),c.muted,2*k);
+  d->AddCircleFilled(q(30,11),8.75f*k,c.button);
  }
+ if(scrolls){ImGui::SetCursorScreenPos(board.min);ImGui::Dummy(ImVec2(board.W(),board.H()));ImGui::EndChild();}
  ImGui::SetCursorScreenPos(origin);ImGui::Dummy(size);
 }
 

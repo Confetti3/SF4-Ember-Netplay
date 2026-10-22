@@ -4939,6 +4939,9 @@ msgstr "Usiądź tutaj: grasz z tym, kto czeka najdłużej, albo czekasz na kole
 msgid "room.arcade_waiting"
 msgstr "Czeka"
 
+msgid "room.cabinet_free"
+msgstr "WRZUĆ MONETĘ"
+
 msgid "room.type.king"
 msgstr "Król wzgórza"
 

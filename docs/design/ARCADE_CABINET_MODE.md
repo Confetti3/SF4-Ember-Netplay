@@ -11,12 +11,15 @@ or King of the hill. Any type can be private or public.
 2. The V2 room board lays the tables out by type (Arcade.dc.html):
    - Classic: today's tables as the floor, the two seats of each facing
      across the score.
-   - Arcade: sixteen one-player cabinets in two rows of eight (two lines of
-     four each where eight leave a name no room). Each pair has its own
-     colour on both cabinets and a line between them wherever they stand.
-   - King of the hill: the same under the top slot: the longest current win
-     streak, its holder and the streak. Each cabinet shows its streak; the
-     top slot's is gold.
+   - Arcade: Real Arcade rows, sixteen tall one-player cabinets in two rows
+     of eight, each over its stool with the player's back on it: marquee,
+     screen (fighter and score, Waiting, the Rematch choice or Insert coin),
+     name plate with the tag, control panel. Each pair has its own colour on
+     marquee and plate, and a line along the aisle between the rows. Where
+     they would be too small to read they keep their size and scroll.
+   - King of the hill: the same under the top slot banner: the longest
+     current win streak, its holder and the streak. Each marquee shows its
+     streak by a crown; the top slot's marquee is gold.
    The Classic look shows the same rows plainly.
 3. Arcade: sit at any free cabinet. First come, first paired: whoever sits
    down plays the player who has waited longest. Between games a player may
@@ -48,4 +51,3 @@ or King of the hill. Any type can be private or public.
 
 - Not run in the real game.
 - The public room list does not show a room's type.
-- On four lines, a pair two lines apart is linked behind the line between.

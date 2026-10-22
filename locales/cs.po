@@ -4939,6 +4939,9 @@ msgstr "Sedněte si sem: hrajete s tím, kdo čeká nejdéle, nebo počkáte na 
 msgid "room.arcade_waiting"
 msgstr "Čeká"
 
+msgid "room.cabinet_free"
+msgstr "VHOĎ MINCI"
+
 msgid "room.type.king"
 msgstr "Král kopce"
 

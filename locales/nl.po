@@ -4939,6 +4939,9 @@ msgstr "Ga hier zitten: je speelt tegen wie het langst wacht, of wacht op de vol
 msgid "room.arcade_waiting"
 msgstr "Wacht"
 
+msgid "room.cabinet_free"
+msgstr "WERP MUNT IN"
+
 msgid "room.type.king"
 msgstr "King of the hill"
 

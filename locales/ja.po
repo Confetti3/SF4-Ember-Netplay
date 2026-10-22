@@ -4940,6 +4940,9 @@ msgstr "ここに座る：いちばん長く待っている人と対戦するか
 msgid "room.arcade_waiting"
 msgstr "待機中"
 
+msgid "room.cabinet_free"
+msgstr "コインを入れてください"
+
 msgid "room.type.king"
 msgstr "キング・オブ・ザ・ヒル"
 

@@ -4574,6 +4574,9 @@ msgstr "Sit here: you play whoever has waited longest, or wait for the next play
 msgid "room.arcade_waiting"
 msgstr "Waiting"
 
+msgid "room.cabinet_free"
+msgstr "INSERT COIN"
+
 msgid "room.type.king"
 msgstr "King of the hill"
 

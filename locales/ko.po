@@ -4940,6 +4940,9 @@ msgstr "여기에 앉기: 가장 오래 기다린 사람과 대전하거나, 다
 msgid "room.arcade_waiting"
 msgstr "대기 중"
 
+msgid "room.cabinet_free"
+msgstr "코인을 넣으세요"
+
 msgid "room.type.king"
 msgstr "킹 오브 더 힐"
 

@@ -4939,6 +4939,9 @@ msgstr "Asseyez-vous ici : vous affrontez celui qui attend depuis le plus longte
 msgid "room.arcade_waiting"
 msgstr "En attente"
 
+msgid "room.cabinet_free"
+msgstr "INSÉREZ UNE PIÈCE"
+
 msgid "room.type.king"
 msgstr "Roi de la colline"
 

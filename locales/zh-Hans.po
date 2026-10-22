@@ -4940,6 +4940,9 @@ msgstr "坐在这里：与等待最久的玩家对战，或等待下一位入座
 msgid "room.arcade_waiting"
 msgstr "等待中"
 
+msgid "room.cabinet_free"
+msgstr "请投币"
+
 msgid "room.type.king"
 msgstr "擂台赛"
 

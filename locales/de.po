@@ -4939,6 +4939,9 @@ msgstr "Hier hinsetzen: Du spielst gegen den, der am längsten wartet, oder wart
 msgid "room.arcade_waiting"
 msgstr "Wartet"
 
+msgid "room.cabinet_free"
+msgstr "MÜNZE EINWERFEN"
+
 msgid "room.type.king"
 msgstr "King of the Hill"
 

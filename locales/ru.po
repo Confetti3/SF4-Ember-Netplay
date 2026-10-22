@@ -4940,6 +4940,9 @@ msgstr "Сесть здесь: вы играете с тем, кто ждёт д
 msgid "room.arcade_waiting"
 msgstr "Ждёт"
 
+msgid "room.cabinet_free"
+msgstr "ВСТАВЬТЕ МОНЕТУ"
+
 msgid "room.type.king"
 msgstr "Царь горы"
 
