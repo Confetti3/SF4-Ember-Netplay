@@ -889,6 +889,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v2::On()&&!roomScreen)OfferValues(rows);
  // A BluMint match's room: its look, header and notices (ApplicationShell__BluMint.cxx).
  UpdateBluMint(v,screen,rows);
+ // Kick or Make host from a member's popout asks its question on the member's page.
+ if(screen=="room-member"&&!memberAsk_.empty()){menu_.navigation.Focus(memberAsk_,rows);menu_.navigation.Choose(rows);memberAsk_.clear();}
  // V2: an Ember room's header says what kind of room it is, who it admits and how full it is.
  if(v2::On()&&screen=="room"&&v.room.roomEpoch&&v2::CurrentBrand()==v2::Brand::Ember){
   const bool listed=v.room.serverOwned;

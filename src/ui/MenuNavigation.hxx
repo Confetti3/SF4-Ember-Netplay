@@ -48,6 +48,9 @@ struct MenuEntry {
     // A value row whose Select still opens its page: Left/Right change the
     // value in place, Select shows the choices in full.
     bool opens = false;
+    // V2: its choices are actions, opened as a small menu at the row itself
+    // (where it was clicked) rather than as a value panel or a page.
+    bool popout = false;
     // In a grid, an ordinary action (Retry saving) under the cards: it and
     // every entry after it form the grid's footer, one full-width row each
     // (MenuGridCells).

@@ -509,6 +509,8 @@ std::vector<MenuEntry> settingsRows_;std::string settingsEyebrow_,settingsFocus_
     bool profileSavePending_ = false;
     netplay::PlayerPreferences savingPreferences_;
     room::MemberId selectedMember_ = 0;
+// A member action from a popout that asks first (kick, transfer-host): asked on the member's page once it opens.
+std::string memberAsk_;
     std::uint64_t inviteRevision_ = 0;
     std::uint64_t tableGeneration_ = 0;
     int generationTable_ = -1;

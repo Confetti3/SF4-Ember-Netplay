@@ -269,6 +269,7 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
         v2::Tag(d, ImVec2(r.min.x + 12 * s, r.min.y + 11 * s), r.W() - 36 * s - roleWidth, tag, v2::TagSize::XS);
         d->AddText(ImGui::GetFont(), 12 * s, ImVec2(r.max.x - 12 * s - roleWidth, r.min.y + 13 * s), c.muted, role.c_str());
         if (e.id == focus) v2::Focus(d, r.min, r.max);
+        if (e.id == focus && e.popout) menu_.bodyChoices = {r, aside};
     }
 
     // Chat, then the actions two to a line.

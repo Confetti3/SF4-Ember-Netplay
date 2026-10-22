@@ -147,15 +147,28 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     // A value's choices: a panel on its own card, inside the cards' column, so
     // the detail pane and its preview stay in view. Picking one closes it.
     const auto Values = [&](v2::Box focusCard, v2::Box list) {
-        if (!navigation.Choosing() || focusedEntry == entries.end() || focusCard.W() <= 0 || !notice_.empty()) return false;
+        if (!navigation.Choosing() || focusedEntry == entries.end() || focusCard.W() <= 0 || !notice_.empty()) { popoutOpen_ = false; return false; }
         const auto& e = *focusedEntry;
-        const std::size_t count = e.choices.size(), across = MenuChoiceColumns(count), lines = (count + across - 1) / across;
+        const std::size_t count = e.choices.size(), across = e.popout ? 1 : MenuChoiceColumns(count), lines = (count + across - 1) / across;
         const float row = 44 * s, inner = 8 * s, height = lines * row + (lines - 1) * inner + 24 * s + 22 * s;
-        // Under the card when it fits, else over it; always inside the column.
-        float top = focusCard.max.y + 4 * s;
-        if (top + height > list.max.y) top = (std::max)(list.min.y, focusCard.min.y - 4 * s - height);
-        ImGui::SetNextWindowPos(ImVec2(list.min.x, top));
-        ImGui::SetNextWindowSize(ImVec2(list.W(), (std::min)(height, list.H())));
+        if (e.popout) {
+            // A popout opens where it was asked for: at the click, or beside the row for the pad
+            // and keys, and turns back at the screen's edges.
+            if (!popoutOpen_) popoutAt_ = ImGui::IsMouseReleased(ImGuiMouseButton_Left) ? ImGui::GetMousePos() : ImVec2(focusCard.max.x - 24 * s, focusCard.min.y);
+            popoutOpen_ = true;
+            const float w = 300 * s, h = (std::min)(height, size.y - 16 * s);
+            ImVec2 at = popoutAt_;
+            if (at.x + w > win.x + size.x - 8 * s) at.x = (std::max)(win.x + 8 * s, at.x - w);
+            if (at.y + h > win.y + size.y - 8 * s) at.y = (std::max)(win.y + 8 * s, win.y + size.y - 8 * s - h);
+            ImGui::SetNextWindowPos(at);
+            ImGui::SetNextWindowSize(ImVec2(w, h));
+        } else {
+            // Under the card when it fits, else over it; always inside the column.
+            float top = focusCard.max.y + 4 * s;
+            if (top + height > list.max.y) top = (std::max)(list.min.y, focusCard.min.y - 4 * s - height);
+            ImGui::SetNextWindowPos(ImVec2(list.min.x, top));
+            ImGui::SetNextWindowSize(ImVec2(list.W(), (std::min)(height, list.H())));
+        }
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12 * s, 12 * s));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4 * s);
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::ColorConvertU32ToFloat4(v2::Colors().panel));

@@ -450,6 +450,18 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
  }
+ // V2: a member's actions open at their row, not on a page of their own.
+ if(v2::On())for(auto& row:rows){
+  if(row.id.compare(0,7,"member-"))continue;
+  const auto id=std::stoull(row.id.substr(7));
+  if(id==s.localMember||!Member(s,id))continue;
+  const auto* m=Member(s,id);
+  row.choices={{"mute",loc::T(muted_.count(id)?"room.unmute_member":"room.mute_member"),loc::T("room.mute_member.detail")},
+   {"steam-profile",loc::T("room.steam_profile"),loc::T(m->steamId.Present()?"room.steam_profile.detail":"room.steam_profile.none"),m->steamId.Present()}};
+  if(!tournamentRoom)row.choices.push_back({"kick",loc::T("room.kick_member"),loc::Tf("room.kick_member.detail",m->name),host});
+  row.choices.push_back({"transfer-host",loc::T("room.transfer_host"),loc::Tf("room.transfer_host.detail",m->name),host&&!room::IsWatcher(s,id)});
+  row.popout=true;
+ }
  if(!active) {
   for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="appearance"||row.id=="stage"||row.id=="fighter-options"||row.id=="check-connection"||
    row.id=="input-delay"||row.id=="queue"||row.id=="watch") {
@@ -834,6 +846,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
     v2::TagView tag;tag.name=card.name;tag.marks=card.marks;tag.ping=card.latency;tag.status=card.status;
     v2::Tag(md,ImVec2(r.min.x+10*s,r.min.y+8*s),r.W()-20*s,tag,v2::TagSize::S);
     if(focused)v2::Focus(md,r.min,r.max);
+    if(focused&&e.popout)menu_.bodyChoices={r,b};
    }
    ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(b.W(),y-start.y));
    ImGui::EndChild();
@@ -1048,6 +1061,13 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
   error_.clear();return true;
  };
+ // A member's action from their popout: Kick and Make host still ask first, on the member's page.
+ if(a.kind==MenuAction::Chosen&&a.id.compare(0,7,"member-")==0){
+  selectedMember_=std::stoull(a.id.substr(7));
+  if(a.text=="kick"||a.text=="transfer-host"){memberAsk_=a.text;menu_.navigation.Push("room-member");return;}
+  RoomAction({MenuAction::Activate,a.text},v,submit);
+  return;
+ }
  // A seat chooser's option, exactly as the player saw it.
  if(a.kind==MenuAction::Chosen){
   if(a.id.compare(0,6,"table-"))return;

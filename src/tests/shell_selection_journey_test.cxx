@@ -11,6 +11,18 @@ void RightClickBack(){
  h.Screen("replays");rightClick();
  Check(h.shell.Navigation().Screen()=="home","A right click in V2 did not go back");
 }
+// V2: a member's actions open at their row; Kick still asks first, on the member's page.
+void MemberPopout(){
+ using namespace sf4e;
+ Harness h;h.view.preferences.lookV2=true;h.Frame();
+ JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.capacity=8;
+ for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
+ h.Screen("room");h.FocusOn("member-2");h.Press(MenuInput::Select);
+ Check(h.shell.Navigation().Choosing()&&h.shell.Navigation().Screen()=="room","A member's Select did not open their actions in place");
+ for(int i=0;i<2;++i)h.Press(MenuInput::Down);
+ h.Press(MenuInput::Select);h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="room-member"&&h.shell.Navigation().Confirming(),"Kick from the popout did not ask first");
+}
 // A keyboard player reaches everything a pad does: F, T and C are X, Y and
 // View, Escape always goes back, and Delete leaves the seat that B leaves.
 void KeyboardJourneys(){
