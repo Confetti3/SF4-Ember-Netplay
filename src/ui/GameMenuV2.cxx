@@ -17,13 +17,7 @@
 
 namespace sf4e { namespace ui {
 namespace {
-// `text` cut with "..." to `width`.
-std::string Fit(const std::string& text, float width, float size, ImFont* font) {
-    if (font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x <= width) return text;
-    const char* end = nullptr;
-    font->CalcTextSizeA(size, (std::max)(0.f, width - font->CalcTextSizeA(size, FLT_MAX, 0, "...").x), 0, text.c_str(), nullptr, &end);
-    return std::string(text.c_str(), end) + "...";
-}
+using v2::Fit;
 // A title written in capitals, as the classic headers are.
 bool IsCapitals(const char* text) {
     bool letter = false;
@@ -70,7 +64,8 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
     d->AddText(labelFont, labelSize, ImVec2(left, labelY), text, Fit(e.label, labelRoom, labelSize, labelFont).c_str());
     if (second) {
         NoteDetailText(e.detail, e.detailText);
-        d->AddText(ImGui::GetFont(), detailSize, ImVec2(left, labelY + labelSize + 4 * s), v2::Colors().muted, Fit(FirstLine(e.detail), labelRoom, detailSize, ImGui::GetFont()).c_str());
+        // A card's detail may shorten: the detail pane and speech give it whole.
+        d->AddText(ImGui::GetFont(), detailSize, ImVec2(left, labelY + labelSize + 4 * s), v2::Colors().muted, Fit(FirstLine(e.detail), labelRoom, detailSize, ImGui::GetFont(), false).c_str());
     }
     const float valueY = c.min.y + (h - ImGui::GetFontSize()) * .5f;
     if (e.adjustable) {

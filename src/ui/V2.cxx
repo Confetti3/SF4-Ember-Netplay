@@ -11,14 +11,17 @@ namespace sf4e { namespace ui { namespace v2 {
 namespace {
 bool on = false;
 float ChipFont() { return ImGui::GetFontSize() * .78f; }
-// `text` cut with "..." to `width` at `size`.
-std::string Fit(const std::string& text, float width, float size, ImFont* font = ImGui::GetFont()) {
-    if (font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x <= width) return text;
+float TextWidth(const std::string& text, float size, ImFont* font = ImGui::GetFont()) { return font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x; }
+}
+std::string Fit(const std::string& text, float width, float size, ImFont* font, bool probe) {
+    if (!font) font = ImGui::GetFont();
+    const float measured = font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x;
+    // The text probe sees every V2 line at its full width, so the lab's check finds what this cuts.
+    if (probe) ReportMenuText(("v2/" + text).c_str(), size, size, measured, width);
+    if (measured <= width) return text;
     const char* end = nullptr;
     font->CalcTextSizeA(size, (std::max)(0.f, width - font->CalcTextSizeA(size, FLT_MAX, 0, "...").x), 0, text.c_str(), nullptr, &end);
     return std::string(text.c_str(), end) + "...";
-}
-float TextWidth(const std::string& text, float size, ImFont* font = ImGui::GetFont()) { return font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x; }
 }
 
 bool On() { return on; }

@@ -289,7 +289,7 @@ set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMP
 target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/RankingsPanel.cxx src/ui/RankingsCards.cxx src/ui/MatchAnnouncements.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
-target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx src/ui/ApplicationShell__Create.cxx src/ui/ApplicationShell__Links.cxx src/ui/RoomCards.cxx src/ui/V2.cxx src/ui/GameMenuV2.cxx src/ui/ApplicationShell__Settings.cxx src/ui/ApplicationShell__Values.cxx src/ui/ApplicationShell__BluMint.cxx src/ui/BluMintMoments.cxx src/ui/WatchedPicture.cxx src/ui/ApplicationShell__Updates.cxx src/ui/ApplicationShell__Accessibility.cxx src/ui/ApplicationShell__Toasts.cxx src/ui/UpdatePrompt.cxx src/ui/CountryFlag.cxx src/ui/CountryPicker.cxx src/ui/NameMarks.cxx src/ui/ApplicationShell__FirstRun.cxx src/ui/ApplicationShell__Awards.cxx src/platform/Speech.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx src/ui/ApplicationShell__Create.cxx src/ui/ApplicationShell__Links.cxx src/ui/RoomCards.cxx src/ui/V2.cxx src/ui/GameMenuV2.cxx src/ui/MenuWalk.cxx src/ui/ApplicationShell__Settings.cxx src/ui/ApplicationShell__Values.cxx src/ui/ApplicationShell__BluMint.cxx src/ui/BluMintMoments.cxx src/ui/WatchedPicture.cxx src/ui/ApplicationShell__Updates.cxx src/ui/ApplicationShell__Accessibility.cxx src/ui/ApplicationShell__Toasts.cxx src/ui/UpdatePrompt.cxx src/ui/CountryFlag.cxx src/ui/CountryPicker.cxx src/ui/NameMarks.cxx src/ui/ApplicationShell__FirstRun.cxx src/ui/ApplicationShell__Awards.cxx src/platform/Speech.cxx)
 add_library(sf4e_problem_report STATIC src/platform/ProblemReport.cxx)
 target_compile_features(sf4e_problem_report PUBLIC cxx_std_17)
 target_link_libraries(sf4e_problem_report PUBLIC nlohmann_json::nlohmann_json)
@@ -534,7 +534,7 @@ endif()
 # The in-game self-test (docs/development/IN_GAME_SELFTEST.md). Without it
 # selftest::Running is false and nothing of the test is built.
 if(SF4E_SELFTEST)
-    target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Online.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx")
+    target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Online.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx" "src/sf4e/sf4e__SelfTest__Menu.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_SELFTEST=1)
 endif()
 target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)

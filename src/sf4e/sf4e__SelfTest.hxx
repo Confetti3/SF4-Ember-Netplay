@@ -8,9 +8,10 @@
 // unit test cannot reach. SF4E_SELFTEST names the test; every step's outcome
 // goes to the log and to the file SF4E_SELFTEST_RESULT names, and the game
 // closes itself at the end. Without the variable nothing here runs.
+namespace sf4e { namespace ui { class MenuNavigation; } }
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training, RoomHost, RoomGuest, Replay, TournamentHost, TournamentGuest };
+enum class Test { None, Training, RoomHost, RoomGuest, Replay, TournamentHost, TournamentGuest, Menu };
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.
@@ -21,6 +22,7 @@ inline Test Parse(const std::wstring& name) {
 	if (name == L"replay") return Test::Replay;
 	if (name == L"tournament-host") return Test::TournamentHost;
 	if (name == L"tournament-guest") return Test::TournamentGuest;
+	if (name == L"menu") return Test::Menu;
 	return Test::None;
 }
 
@@ -37,11 +39,15 @@ void Tick(bool atMainMenu, const std::string& screen);
 // and replaces the input it was given. The read is also made on a frame GGPO
 // then stalls and repeats, so a test counts reads, not frames.
 void MatchInput(int side, unsigned& mapped, unsigned& raw);
+// Overlay thread, each frame before the menu reads its input: the menu test
+// adds the buttons its walk presses. True while the walk wants the menu shown.
+bool MenuFrame(const ui::MenuNavigation& nav, unsigned& buttons);
 #else
 // A build without the self-test (CMake option SF4E_SELFTEST) runs none.
 inline Test Requested() { return Test::None; }
 inline void Tick(bool, const std::string&) {}
 inline void MatchInput(int, unsigned&, unsigned&) {}
+inline bool MenuFrame(const ui::MenuNavigation&, unsigned&) { return false; }
 #endif
 
 // A test runs: nobody sits in front of the game, so it runs on behind other
@@ -94,6 +100,10 @@ void TickReplay(bool atMainMenu);
 // The tournament test (sf4e__SelfTest__Tournament.cxx), both of its sides.
 bool StartTournament();
 void TickTournament();
+
+// The menu test (sf4e__SelfTest__Menu.cxx).
+bool StartMenu();
+void TickMenu(bool atMainMenu);
 
 // The cells the meter draws for one side, by kind.
 struct Cells { int startup = 0, active = 0, recovery = 0; };
