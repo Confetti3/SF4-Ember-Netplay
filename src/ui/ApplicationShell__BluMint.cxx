@@ -292,7 +292,7 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
     }
     v2::SectionHeading(d, aside.min, loc::Tf("blumint.watching", watchers.size()));
     v2::CutTop(aside, headingSize, 8 * s);
-    const float actionsHeight = ((actions.size() + 1) / 2) * 52 * s;
+    const float actionsHeight = ((actions.size() + 1) / 2) * 56 * s;
     v2::Box buttons = v2::CutBottom(aside, actionsHeight, 12 * s);
     const float rowHeight = 40 * s, rowGap = 8 * s;
     std::size_t fit = static_cast<std::size_t>((std::max)(1.f, (aside.H() * .4f + rowGap) / (rowHeight + rowGap)));
@@ -336,15 +336,11 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
     const float bw = (buttons.W() - 8 * s) * .5f;
     for (std::size_t i = 0; i < actions.size(); ++i) {
         const auto& e = *actions[i];
-        const ImVec2 at(buttons.min.x + (i % 2) * (bw + 8 * s), buttons.min.y + (i / 2) * 52 * s);
-        const v2::Box b{at, ImVec2(at.x + bw, at.y + 44 * s)};
+        const ImVec2 at(buttons.min.x + (i % 2) * (bw + 8 * s), buttons.min.y + (i / 2) * 56 * s);
+        const v2::Box b{at, ImVec2(at.x + bw, at.y + 48 * s)};
         const bool hovered = press(e, b);
-        v2::CardGround(d, b, e.id == focus, hovered);
         const bool leave = e.id == "leave" || e.id == "stop-watching";
-        const ImU32 color = !e.enabled ? c.muted : leave ? c.danger : c.text;
-        const float w = ImGui::GetFont()->CalcTextSizeA(16 * s, FLT_MAX, 0, e.label.c_str()).x;
-        d->AddText(ImGui::GetFont(), 16 * s, ImVec2(b.min.x + (b.W() - w) * .5f, b.min.y + 14 * s), color, e.label.c_str());
-        if (e.id == focus) v2::Focus(d, b.min, b.max, false);
+        v2::Button(d, b, e.label, leave ? v2::ButtonKind::Danger : v2::ButtonKind::Secondary, e.id == focus, hovered, e.enabled);
     }
     roomBoardFocus_ = focus;
 }
