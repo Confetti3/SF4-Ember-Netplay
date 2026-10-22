@@ -6762,3 +6762,42 @@ msgstr "再開"
 
 msgid "blumint.chip_expired"
 msgstr "期限切れ"
+
+msgid "room.v2.board"
+msgstr "ボード"
+
+msgid "room.v2.tables"
+msgstr "テーブル"
+
+msgid "room.v2.table"
+msgstr "テーブル {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "対戦中 {0} · 観戦中 {1}"
+
+msgid "room.v2.group_playing"
+msgstr "対戦中"
+
+msgid "room.v2.group_at_table"
+msgstr "テーブルで待機"
+
+msgid "room.v2.group_watching"
+msgstr "観戦中"
+
+msgid "room.v2.group_in_room"
+msgstr "ルーム内"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · オンライン · プライベートルーム"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · オンライン · 公開ルーム"
+
+msgid "room.v2.invitation_only"
+msgstr "招待のみ"
+
+msgid "room.v2.listed"
+msgstr "公開ルームに掲載"
+
+msgid "room.v2.type_message"
+msgstr "メッセージを入力"

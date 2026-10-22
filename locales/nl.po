@@ -6761,3 +6761,42 @@ msgstr "Opnieuw"
 
 msgid "blumint.chip_expired"
 msgstr "Verlopen"
+
+msgid "room.v2.board"
+msgstr "Bord"
+
+msgid "room.v2.tables"
+msgstr "TAFELS"
+
+msgid "room.v2.table"
+msgstr "TAFEL {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "{0} spelen · {1} kijken"
+
+msgid "room.v2.group_playing"
+msgstr "SPELEN"
+
+msgid "room.v2.group_at_table"
+msgstr "AAN EEN TAFEL"
+
+msgid "room.v2.group_watching"
+msgstr "KIJKEN"
+
+msgid "room.v2.group_in_room"
+msgstr "IN DE KAMER"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · ONLINE · PRIVÉKAMER"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · ONLINE · OPENBARE KAMER"
+
+msgid "room.v2.invitation_only"
+msgstr "Alleen op uitnodiging"
+
+msgid "room.v2.listed"
+msgstr "Staat in Openbare kamers"
+
+msgid "room.v2.type_message"
+msgstr "Typ een bericht"

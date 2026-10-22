@@ -6761,3 +6761,42 @@ msgstr "Restart"
 
 msgid "blumint.chip_expired"
 msgstr "Vypršelo"
+
+msgid "room.v2.board"
+msgstr "Přehled"
+
+msgid "room.v2.tables"
+msgstr "STOLY"
+
+msgid "room.v2.table"
+msgstr "STŮL {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "Hraje: {0} · sleduje: {1}"
+
+msgid "room.v2.group_playing"
+msgstr "HRAJÍ"
+
+msgid "room.v2.group_at_table"
+msgstr "U STOLU"
+
+msgid "room.v2.group_watching"
+msgstr "SLEDUJÍ"
+
+msgid "room.v2.group_in_room"
+msgstr "V MÍSTNOSTI"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · ONLINE · SOUKROMÁ MÍSTNOST"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · ONLINE · VEŘEJNÁ MÍSTNOST"
+
+msgid "room.v2.invitation_only"
+msgstr "Jen na pozvánku"
+
+msgid "room.v2.listed"
+msgstr "Uvedeno ve Veřejných místnostech"
+
+msgid "room.v2.type_message"
+msgstr "Napište zprávu"
