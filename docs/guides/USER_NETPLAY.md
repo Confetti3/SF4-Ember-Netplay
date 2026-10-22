@@ -67,4 +67,6 @@ New-Item -Path 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDu
 
 That dump holds the whole game's memory (about 500 MB), so zip it before sending it.
 
+**The V2 look:** Settings > Interface > Look switches Ember between Classic and V2 (preview). V2 changes only how the screens look; every row works the same. It adds tabs that LB and RB (Page Up and Page Down) step, a Back button in each header, the right mouse button as Back, Settings as tabs of panels, a room board with grips you drag to arrange it, notice cards with Join and Later buttons, and an on-screen keyboard for the pad. Home gains Training, News, Notifications and your player card with its awards. Settings > Accessibility > Text and language has Interface size and TV mode for a TV across the room. A fresh install asks for the look on its first-run welcome. The V2_MENUS.md guide shows every V2 screen.
+
 This experimental release has automated transport coverage. Actual SF4 host/join, native fights, repeated rematches, spectators, different-network and clean-machine results must be recorded separately. The source repository contains the implementation record at `docs/design/EMBER_IMPLEMENTATION.md`; this package guide has no repository-relative links so it remains valid as `START_HERE.md`.
