@@ -6379,6 +6379,9 @@ msgstr "You are watching. The fighters ready up; the room plays every game of th
 msgid "blumint.watching"
 msgstr "Watching · {0}"
 
+msgid "blumint.more_watching"
+msgstr "+{0} more watching"
+
 msgid "blumint.not_ready"
 msgstr "Not ready"
 

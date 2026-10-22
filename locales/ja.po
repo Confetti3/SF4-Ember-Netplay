@@ -6745,6 +6745,9 @@ msgstr "観戦中です。ファイターが準備し、ルームがセットの
 msgid "blumint.watching"
 msgstr "観戦 · {0}"
 
+msgid "blumint.more_watching"
+msgstr "他 {0} 人が観戦中"
+
 msgid "blumint.not_ready"
 msgstr "準備中"
 

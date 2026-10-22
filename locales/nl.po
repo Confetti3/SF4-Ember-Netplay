@@ -6744,6 +6744,9 @@ msgstr "Je kijkt mee. De vechters maken zich klaar; de room speelt elke game van
 msgid "blumint.watching"
 msgstr "Kijkers · {0}"
 
+msgid "blumint.more_watching"
+msgstr "+{0} anderen kijken mee"
+
 msgid "blumint.not_ready"
 msgstr "Niet klaar"
 

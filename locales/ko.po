@@ -6745,6 +6745,9 @@ msgstr "관전 중입니다. 파이터가 준비하고 룸이 세트의 모든 �
 msgid "blumint.watching"
 msgstr "관전 · {0}"
 
+msgid "blumint.more_watching"
+msgstr "외 {0}명 관전 중"
+
 msgid "blumint.not_ready"
 msgstr "준비 안 됨"
 

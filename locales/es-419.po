@@ -6264,6 +6264,9 @@ msgstr "Estás mirando. Los luchadores se preparan; la sala juega cada partida d
 msgid "blumint.watching"
 msgstr "Mirando · {0}"
 
+msgid "blumint.more_watching"
+msgstr "+{0} más mirando"
+
 msgid "blumint.not_ready"
 msgstr "No listo"
 
