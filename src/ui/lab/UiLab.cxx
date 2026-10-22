@@ -5,10 +5,12 @@
 //
 // F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F5 in a room · F6 picture · F12 screenshot
 // BluMint room (--blumint): F7 next moment · F8 fighter or watcher
+// --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--pip] [--hud 0|1] [--training] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
+#include "../FighterSelector.hxx"
 #include "../SelectionArt.hxx"
 #include "../TrainingPanel.hxx"
 #include "../Theme.hxx"
@@ -30,6 +32,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
@@ -173,6 +176,26 @@ void BluMintMoment(ui::ShellView& view, const std::string& moment) {
     else if (moment == "host") a.state = "cancelled";
     else if (moment == "expired") a.state = "expired";
 }
+// An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
+// it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
+void Rankings(ui::ShellView& view) {
+    auto& id = view.identity;
+    id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
+    id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
+    auto& r = view.rankings;
+    r.bridge = "brg_1"; r.emberId = id.emberId;
+    auto& s = r.standing.value;
+    s.kind = netplay::rankings::Standing::Kind::Ranked; s.classesShown = true; s.badge = SkillBadge::OfClass(8, true);
+    s.listed = true; s.listing = {"FRaccie", CountryCode::Parsed("BE")};
+    r.standing.loaded = true; r.standing.revision = r.standing.finished = 1;
+    const std::tuple<const char*, const char*, int> players[] = {{"Shoryu_Ken","JP",10},{"Vulpecula","FR",10},{"MrPalm","US",9},{"Kaido","KR",9},
+        {"TigerKnee","GB",9},{"NightOwl","MX",8},{"Rekka","BR",8},{"Pudding","NL",8},{"Gief4Life","PL",7},{"Tandem","DE",7},{"Ochre","CA",6},
+        {"FRaccie","BE",6},{"Sonic Hurricane","ES",6},{"Aegis","IT",6},{"Bunbun","SE",5},{"Ninety9","US",5}};
+    auto board = std::make_shared<std::vector<netplay::rankings::BoardEntry>>();
+    for (const auto& p : players)
+        board->push_back({{std::get<0>(p), CountryCode::Parsed(std::get<1>(p))}, static_cast<std::uint8_t>(std::get<2>(p)), std::string(std::get<0>(p)) == "FRaccie"});
+    r.board.value = board; r.board.loaded = true; r.board.revision = r.board.finished = 1;
+}
 }
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
@@ -186,7 +209,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::string shot, keys, screen;
     bool inRoom = false, pip = false;
     int hud = -1;
-    bool trainingPanel = false, blumint = false, watcher = false;
+    bool trainingPanel = false, blumint = false, watcher = false, rankings = false;
     std::string moment;  // --moment game|set|lost|restart|host|expired, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
@@ -201,6 +224,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--training") trainingPanel = true;
         else if (args[i] == "--blumint") blumint = true;
         else if (args[i] == "--watcher") watcher = true;
+        else if (args[i] == "--rankings") rankings = true;
         else if (args[i] == "--moment" && more) moment = args[++i];
         else if (args[i] == "--screen" && more) screen = args[++i];
     }
@@ -229,6 +253,12 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     // A BluMint room joins its own (BluMintRoom).
     if (inRoom && !blumint) JoinRoom(view);
     if (blumint) BluMintRoom(view, watcher);
+    if (rankings) Rankings(view);
+    // Fighter select (--screen selection) with every fighter, costume and colour there.
+    ui::FighterSelector selector;
+    selection::Pick pick;
+    selection::Availability available;
+    available.ready = true; available.costumes = 5; available.colors[0] = available.colors[1] = 10; available.personalActions = 1;
     bool open = true, bar = shot.empty();
     std::size_t size = 0;
     std::vector<unsigned> script;
@@ -236,6 +266,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     const auto submit = [&](ui::ShellAction action) {
         // Saving is instant here: the shell reads what it saved back from the view.
         if (action.command.kind == netplay::CommandKind::SavePreferences) view.preferences = action.preferences;
+        // The helper answers each Ember ID request at once.
+        if (action.identity.op != netplay::IdentityOp::None) { view.identityTicket = action.identity.ticket; view.identityRequest = view.identity.requestId = view.identityTicket + 100; view.identity.ok = true; }
         return true;
     };
     int frame = 0, momentAt = 40;
@@ -304,7 +336,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             strip.links[0] = NetworkLink::Wired; strip.links[1] = NetworkLink::Wireless;
             strip.pingMs = 96; strip.rollbackFrames = 2; strip.appliedDelay = 2; strip.layout = hud; strip.spectators = 3; strip.score = "2 - 1";
             ui::DrawMatchStrip(strip);
-        } else shell.Draw(view, &open, submit, [] {});
+        } else shell.Draw(view, &open, submit, [&] { selector.Draw(pick, false, &art, [&](int) { return available; }); });
         open = true;
         if (bar) {
             ImGui::SetNextWindowPos(ImVec2(8, 8), ImGuiCond_Always, ImVec2(0, 0));
