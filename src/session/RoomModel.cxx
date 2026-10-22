@@ -5,7 +5,7 @@ namespace sf4e { namespace room {
 using namespace detail;
 
 
-RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, ArcadeView arcade) {
+RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, RoomType arcade) {
 	snapshot_.protocolVersion = ProtocolVersion;
 	snapshot_.practice = practice;
 	snapshot_.arcade = arcade;
@@ -538,10 +538,10 @@ void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
 		table.streak = 1;
 	}
 	table.score[0] = table.score[1] = 0;
+	if (snapshot_.arcade) { ArcadeSetEnded(table, winner, loser); return; }
 	// A tournament set has no queue to rotate: the bridge decides what comes
-	// next, and the same two fighters stay seated by slot. An Arcade room's two
-	// cabinets play on until one stands up.
-	if (BoundTable(table) || snapshot_.arcade) return;
+	// next, and the same two fighters stay seated by slot.
+	if (BoundTable(table)) return;
 	// The rotated fighters join the back of the queue, so an empty queue seats
 	// them again for a new set. Only members who queued themselves are ahead of
 	// them: nobody else is ever put in the queue.
@@ -629,9 +629,11 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			Touch(table);
 			SeatQueued(table);
 			NormalizeTableMembers(table);
+			if (snapshot_.arcade) ArcadeVacated(table, member);
 		} else if (queueChanged) Touch(table);
 		else if (spectatorsChanged) TouchSpectators(table);
 	}
+	if (snapshot_.arcade) StandUp(member);
 	NormalizeMemberStatus(member);
 }
 
@@ -803,7 +805,8 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// With no set length the same pair stays seated until one leaves. A
 	// first-to-N table ends the set when a win reaches N and rotates its seats.
 	// Draw/cancel/abort preserve prior wins and never award a point.
-	const auto goal = static_cast<std::uint32_t>(table->rules.format);
+	// ponytail: an Arcade room with no set length plays sets of one game, so its pairs still change.
+	const auto goal = (std::max)(static_cast<std::uint32_t>(table->rules.format), snapshot_.arcade ? 1u : 0u);
 	const int winnerSeat = result == MatchResult::P1Win ? 0 : result == MatchResult::P2Win ? 1 : -1;
 	// Clear readiness while the fighters who readied are still seated: it also
 	// unlocks their delays.

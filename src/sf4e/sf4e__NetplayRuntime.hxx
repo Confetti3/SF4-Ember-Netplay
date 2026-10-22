@@ -180,7 +180,7 @@ struct Runtime {
     // The Practice and Arcade choices of the room this PC hosts: the player's
     // on Create, the closed room's for a replacement, false for a room it joins.
     bool practiceRoom=false;
-    room::ArcadeView arcadeRoom=room::ArcadeOff;
+    room::RoomType arcadeRoom=room::ClassicRoom;
     // The delay policy of the room this PC hosts, chosen the same way.
     room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
     bool leaveRequested=false, leaveAcknowledged=false;

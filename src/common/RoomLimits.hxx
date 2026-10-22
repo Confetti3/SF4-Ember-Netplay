@@ -9,6 +9,8 @@ constexpr std::size_t MaxMembers = 16;
 // Classic room plays at the first four (room::TablesInPlay).
 constexpr std::size_t TableCount = 8;
 constexpr std::size_t ClassicTableCount = 4;
+// An Arcade room's one-player cabinets, one for each member.
+constexpr std::size_t CabinetCount = 2 * TableCount;
 constexpr std::size_t FighterCount = 2;
 constexpr std::size_t MaxSpectators = MaxMembers - FighterCount;
 constexpr std::size_t MaxMatchParticipants = FighterCount + MaxSpectators;

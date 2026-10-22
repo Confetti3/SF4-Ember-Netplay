@@ -19,7 +19,7 @@ bool ValidAccount(const std::string& account) {
 }
 
 bool RoomAuthority::SetServerOwned() {
-	if (snapshot_.closed || snapshot_.practice || snapshot_.arcade || !snapshot_.members.empty() || snapshot_.host != 0 || nextMemberId_ != 1) return false;
+	if (snapshot_.closed || snapshot_.practice || !snapshot_.members.empty() || snapshot_.host != 0 || nextMemberId_ != 1) return false;
 	snapshot_.serverOwned = true;
 	return true;
 }
@@ -83,6 +83,9 @@ void RoomAuthority::RecordWonGame(std::uint8_t tableId, const Table& table, Matc
 void RoomAuthority::ReopenEmptyRoom() {
 	snapshot_.host = 0;
 	snapshot_.locked = false;
+	// The next to open it chooses its type again, as with its rules.
+	snapshot_.arcade = ClassicRoom; snapshot_.topSlot = -1;
+	snapshot_.cabinets = {}; snapshot_.streaks = {};
 	for (auto& table : snapshot_.tables)
 		if (!(table.rules == PublicRoomRules())) { table.rules = PublicRoomRules(); Touch(table); }
 }

@@ -199,7 +199,22 @@ static void TestConfirmedTablesStayDone() {
 	}
 }
 
+// An Arcade room's type and rules go in one SetRoomType, sent again until the
+// room shows the type, and the operation is then done.
+static void TestRoomType() {
+	Room room;
+	room.rules.Start(Chosen(), room.now, room::KingRoom);
+	room::Action sent;
+	CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRoomType && sent.roomType == room::KingRoom);
+	CHECK(room.Run(CreatedRules::RetryMs - 16).empty());
+	CHECK(room.authority.Apply(room.creator, sent).accepted);
+	CHECK(room.Run(32).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "done");
+	const auto& shown = room.authority.SnapshotView();
+	CHECK(shown.arcade == room::KingRoom && shown.tables[7].rules == Chosen());
+}
+
 int main() {
+	TestRoomType();
 	TestOneTableAtATime();
 	TestStaleAndFenced();
 	TestDeadlineAndHostChange();

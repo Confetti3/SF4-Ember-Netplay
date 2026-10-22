@@ -115,7 +115,7 @@ namespace sf4e {
 		void EnableCustomRooms(const std::string& name = "Private room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
 			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), bool practice = false,
-			room::DelayPolicy delayPolicy = room::DelayPolicy::Shared, room::ArcadeView arcade = room::ArcadeOff);
+			room::DelayPolicy delayPolicy = room::DelayPolicy::Shared, room::RoomType arcade = room::ClassicRoom);
 		// Server-owned mode, for a room host process with no player host: no
 		// connection is the local host, and every join names an account (the
 		// player's Ember ID) that the embedding process supplied for that

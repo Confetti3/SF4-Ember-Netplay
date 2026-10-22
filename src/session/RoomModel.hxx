@@ -107,9 +107,16 @@ enum class ActionKind : std::uint8_t {
 	// nothing else. Appended so older authorities reject it as an unknown
 	// kind.
 	SetTraining,
+	// An Arcade room's fighter after a set: play the same opponent again, or
+	// part and play whoever waits longest.
+	Rematch,
+	NewOpponent,
+	// The host of a new public room makes it an Arcade room
+	// (Action::roomType) with the rules of all its tables, while alone in it.
+	SetRoomType,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetTraining;
+constexpr ActionKind LastActionKind = ActionKind::SetRoomType;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -262,6 +269,14 @@ struct Table {
 	MemberId streakHolder = 0;
 	std::uint32_t streak = 0;
 	bool resultPending = false;
+	// An Arcade room's pair after a set (Snapshot::arcade): each fighter's
+	// Rematch so far. Nobody readies until both chose it; New opponent from
+	// either parts the pair.
+	bool deciding = false;
+	bool rematch[2] = { false, false };
+	// An Arcade room's table with one fighter waiting alone: when they began
+	// to wait. The lowest has waited longest.
+	std::uint64_t waitingSince = 0;
 	// Both fighters are ready and the start is waiting, for at most
 	// SpectatorStartHoldMs, on a locked-in spectator still retiring the
 	// previous game.
@@ -424,13 +439,19 @@ struct Snapshot {
 	// is created and fixed for its life, public or private. Serialized only
 	// when Own, so a Shared room's wire form is unchanged.
 	DelayPolicy delayPolicy = DelayPolicy::Shared;
-	// An Arcade room: every table is a pair of cabinets facing each other. A
-	// member sits at the cabinet they choose, or is given one opposite someone
-	// waiting, and moves to another between games to play someone else; two
-	// linked cabinets play on until one stands up. Its rules are the room's,
-	// set when it is created. Chosen when the room is created and fixed for its
-	// life, as is the way it draws its cabinets. Serialized only when on.
-	ArcadeView arcade = ArcadeOff;
+	// The room's type (RoomType), fixed for its life. In an Arcade or King of
+	// the hill room a member sits at any free cabinet and plays the player who
+	// has waited longest, at whichever table is free: a table is a pair, not a
+	// place. Its rules are the room's, set when it is created. Serialized only
+	// when not Classic, with the three fields below.
+	RoomType arcade = ClassicRoom;
+	// Who sits at each cabinet (0: free), the sets each has won in a row in
+	// King of the hill, and its top slot: the cabinet with the longest current
+	// streak, -1 for none, which keeps it until someone beats that streak or
+	// beats them.
+	std::array<MemberId, CabinetCount> cabinets = {};
+	std::array<std::uint16_t, CabinetCount> streaks = {};
+	std::int8_t topSlot = -1;
 	MemberId host = 0;
 	MemberId localMember = 0;
 	std::vector<Member> members;
@@ -463,9 +484,10 @@ struct Snapshot {
 inline bool PracticeKindValid(const Snapshot& room) {
 	return !room.practice || (!room.serverOwned && !room.tournament.Active());
 }
-// The same holds for an Arcade room, which seats from no queue.
+// An Arcade room, public or private, is never a tournament's and seats from no
+// queue.
 inline bool ArcadeKindValid(const Snapshot& room) {
-	return !room.arcade || (!room.serverOwned && !room.tournament.Active() &&
+	return !room.arcade || (room.arcade <= KingRoom && !room.tournament.Active() &&
 		std::all_of(room.tables.begin(), room.tables.end(), [](const Table& table) { return table.queue.empty(); }));
 }
 
@@ -523,6 +545,12 @@ struct Place {
 // The tables a room's members can sit at, watch or set rules for; the others
 // stay empty.
 inline std::size_t TablesInPlay(const Snapshot& room) { return room.arcade ? TableCount : ClassicTableCount; }
+
+// The cabinet `member` sits at in an Arcade room, or -1.
+inline int CabinetOf(const Snapshot& room, MemberId member) {
+	const auto at = std::find(room.cabinets.begin(), room.cabinets.end(), member);
+	return member && at != room.cabinets.end() ? static_cast<int>(at - room.cabinets.begin()) : -1;
+}
 
 inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 	Place place;
@@ -589,6 +617,8 @@ struct Action {
 	// own stream or setup failed: leave this game only. The watch stays, the
 	// lock-in does not. A player's own Stop watching never sets it.
 	bool keepWatching = false;
+	// SetRoomType: the type. Written only when set.
+	RoomType roomType = ClassicRoom;
 };
 
 struct Event {
@@ -631,7 +661,7 @@ public:
 	// changes them later.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
 		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
-		DelayPolicy delayPolicy = DelayPolicy::Shared, ArcadeView arcade = ArcadeOff);
+		DelayPolicy delayPolicy = DelayPolicy::Shared, RoomType arcade = ClassicRoom);
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -878,9 +908,17 @@ private:
 	// Takes the member off every table's watch lists and clears its lock-in.
 	void StopWatching(MemberId member);
 	void SeatQueued(Table& table);
-	// The table an Arcade room gives a member who sits down without naming a
-	// cabinet (RoomModelArcade.cxx).
-	Table* ArcadeTable();
+	// An Arcade room's seating (RoomModelArcade.cxx).
+	Result ApplyArcadeSit(MemberId member, const Action& action);
+	Result ApplyRematch(MemberId member, const Action& action, Table* table);
+	Result ApplySetRoomType(MemberId member, const Action& action);
+	Table* Waiter(MemberId member, MemberId parted, const Table* except);
+	void JoinTable(MemberId member, Table& table);
+	void PairArcade(MemberId member, MemberId parted);
+	void ArcadeSetEnded(Table& table, MemberId winner, MemberId loser);
+	void ArcadeVacated(Table& table, MemberId left);
+	void StandUp(MemberId member);
+	void CrownTopSlot();
 	void FillVacancy(Table& table, int seat);
 	// A first-to-N table whose score just reached N: records the set, moves the
 	// streak, and sends the rotated fighters to the back of the queue.

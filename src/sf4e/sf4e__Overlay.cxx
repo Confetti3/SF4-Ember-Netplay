@@ -282,6 +282,7 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
         request.identity = std::move(action.identity);
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
+        request.arcadeRoom = action.arcadeRoom;
         return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
     });
 }

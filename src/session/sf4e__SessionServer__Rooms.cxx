@@ -30,7 +30,7 @@ using Dimps::Math::FixedPoint;
 using sf4e::SessionServer;
 
 void SessionServer::EnableCustomRooms(const std::string& name, std::uint8_t capacity,
-	std::uint64_t roomEpoch, room::Rules defaults, bool practice, room::DelayPolicy delayPolicy, room::ArcadeView arcade) {
+	std::uint64_t roomEpoch, room::Rules defaults, bool practice, room::DelayPolicy delayPolicy, room::RoomType arcade) {
 	if (_roomAuthority || !name.size()) return;
 	_roomAuthority.reset(new room::RoomAuthority(name, capacity, roomEpoch, defaults, practice, delayPolicy, arcade));
 	_roomMatchData.clear();
