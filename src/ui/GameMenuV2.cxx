@@ -171,7 +171,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         if (!navigation.Choosing() || focusedEntry == entries.end() || focusCard.W() <= 0 || !notice_.empty()) { popoutOpen_ = false; return false; }
         const auto& e = *focusedEntry;
         // Select on a switch flips it: no popup for two words.
-        if (MenuValueIsToggle(e)) { navigation.Cancel(); action = {MenuAction::Adjust, e.id, {}, 1}; return false; }
+        if (MenuValueIsToggle(e)) { navigation.Cancel(); action = {MenuAction::Adjust, e.id, {}, e.value == loc::T("common.on") ? -1 : 1}; return false; }
         const auto grid = MenuChoiceLayout(e.choices);
         const std::size_t count = e.choices.size(), across = e.popout ? 1 : grid.across, lines = (count + across - 1) / across;
         const float row = (e.popout ? 44 : 48) * s, inner = (e.popout ? 8 : 6) * s, foot = e.popout ? 0 : 30 * s;
