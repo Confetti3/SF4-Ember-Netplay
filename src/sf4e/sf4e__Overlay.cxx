@@ -462,9 +462,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.training = action.training;
 		request.leaveWatchedGame = action.leaveWatchedGame;
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
-		// Training from inside a room: the menu closes behind it while the runtime
+		// Training from a room or Home: the menu closes behind it while the runtime
 		// sends the game on.
-		if (action.training == sf4e::TrainingEntry::Room) presentation.Close("Training from the room");
+		if (action.training != sf4e::TrainingEntry::None) presentation.Close("Training");
 		return true;
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,

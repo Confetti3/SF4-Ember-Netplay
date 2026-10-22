@@ -7452,3 +7452,12 @@ msgstr "Discordでルームに招待されました。"
 
 msgid "updates.ready_notice"
 msgstr "Ember {0} をインストールできます。"
+
+msgid "home.training"
+msgstr "トレーニング"
+
+msgid "home.training_detail"
+msgstr "乱入設定の確認なしで、すぐにトレーニングモードに入ります。"
+
+msgid "home.training_unavailable"
+msgstr "今はトレーニングを開けません。先にルームや対戦を抜けて、ゲームのメインメニューに戻ってください。"

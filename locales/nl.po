@@ -7451,3 +7451,12 @@ msgstr "Je bent via Discord uitgenodigd in een kamer."
 
 msgid "updates.ready_notice"
 msgstr "Ember {0} staat klaar om te installeren."
+
+msgid "home.training"
+msgstr "Training"
+
+msgid "home.training_detail"
+msgstr "Ga direct naar de Training-modus, zonder de Fight Request-vraag."
+
+msgid "home.training_unavailable"
+msgstr "Training kan nu niet: verlaat eerst de room of match en ga terug naar het hoofdmenu van de game."

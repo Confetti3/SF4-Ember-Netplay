@@ -646,6 +646,7 @@ void NoteFighterSelector(std::uint64_t roomGeneration) {
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
     bool atMainMenu, const room::Snapshot& room, std::uint64_t retiredGeneration) {
     if (!runtime || !(session.generation == made) || !atMainMenu) return false;
+    if (entry == TrainingEntry::Home) return session.room == netplay::RoomState::Idle && session.match == netplay::MatchState::None;
     return entry == TrainingEntry::Room && internal::CanTrain(session, atMainMenu, room, retiredGeneration);
 }
 
@@ -653,8 +654,12 @@ bool TrainingRequestHolds(const netplay::Generation& made) {
     if (!runtime) return false;
     // The client's room as it is now, which may be newer than the last published snapshot.
     const bool attached = runtime->attached && UserApp::netplay;
-    return TrainingHolds(TrainingEntry::Room, made, runtime->controller.GetSnapshot(),
-        internal::AtMainMenu(), attached ? UserApp::netplay->client.GetRoomSnapshot() : room::Snapshot{}, internal::RetiredMatchGeneration());
+    const auto session = runtime->controller.GetSnapshot();
+    const auto room = attached ? UserApp::netplay->client.GetRoomSnapshot() : room::Snapshot{};
+    // Either way in: from a room as the room allows, or from Home with no room at all.
+    for (const auto entry : {TrainingEntry::Room, TrainingEntry::Home})
+        if (TrainingHolds(entry, made, session, internal::AtMainMenu(), room, internal::RetiredMatchGeneration())) return true;
+    return false;
 }
 
 std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared() { return bridge::LatestRuntime(); }

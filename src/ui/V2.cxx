@@ -260,10 +260,30 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
 
 int Tabs(const std::vector<std::string>& labels, int current) {
     const float s = Scale(), height = 44 * s, pad = 16 * s;
-    const auto start = ImGui::GetCursorScreenPos();
-    const float width = ImGui::GetContentRegionAvail().x;
+    const auto origin = ImGui::GetCursorScreenPos();
+    const float full = ImGui::GetContentRegionAvail().x;
     auto* draw = ImGui::GetWindowDrawList();
     int pressed = -1;
+    // The keys that step the tabs sit at the strip's ends (LB and RB, Page Up and Down
+    // on the keyboard), each also a button to the previous or next tab.
+    const float cap = 30 * s, capRoom = labels.size() > 1 ? cap + 12 * s : 0;
+    if (capRoom > 0) {
+        const bool keys = KeyboardPrompts();
+        const char* glyphs[] = {keys ? "PgUp" : "LB", keys ? "PgDn" : "RB"};
+        for (int side = 0; side < 2; ++side) {
+            const ImVec2 at(side ? origin.x + full - cap : origin.x, origin.y + (height - cap) * .5f);
+            ImGui::SetCursorScreenPos(at);
+            ImGui::PushID(side ? "##next-tab" : "##previous-tab");
+            const int to = current + (side ? 1 : -1);
+            if (ImGui::InvisibleButton("##cap", ImVec2(cap, cap)) && to >= 0 && to < static_cast<int>(labels.size())) pressed = to;
+            ImGui::PopID();
+            // Dimmed at an end with nowhere to go.
+            const bool can = to >= 0 && to < static_cast<int>(labels.size());
+            DrawPromptGlyph(draw, glyphs[side], at, cap, MenuArt(), s, 0, MenuPromptBrand(), can ? 1.f : .35f);
+        }
+    }
+    const ImVec2 start(origin.x + capRoom, origin.y);
+    const float width = full - 2 * capRoom;
     // A strip wider than the screen slides so the current tab stays in view.
     float end = 0, total = 0;
     for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
@@ -287,9 +307,9 @@ int Tabs(const std::vector<std::string>& labels, int current) {
         x += w;
     }
     draw->PopClipRect();
-    draw->AddLine(ImVec2(start.x, start.y + height), ImVec2(start.x + width, start.y + height), Colors().border, s);
-    ImGui::SetCursorScreenPos(start);
-    ImGui::Dummy(ImVec2(width, height + 8 * s));
+    draw->AddLine(ImVec2(origin.x, start.y + height), ImVec2(origin.x + full, start.y + height), Colors().border, s);
+    ImGui::SetCursorScreenPos(origin);
+    ImGui::Dummy(ImVec2(full, height + 8 * s));
     return pressed;
 }
 

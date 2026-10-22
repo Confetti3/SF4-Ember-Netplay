@@ -90,11 +90,11 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	}
 	// Validate ownership before even a deferred GGPO teardown side effect.
 	if (!(command.command.generation == runtime->controller.GetSnapshot().generation)) return DispatchOutcome::Dropped;
-	// Training from a room sends no room command: the game alone moves, and only
-	// if the room allows it now, not as it was when the player pressed.
-	if (command.training == TrainingEntry::Room) {
+	// Training from a room or Home sends no room command: the game alone moves, and
+	// only if that still holds now, not as it was when the player pressed.
+	if (command.training != TrainingEntry::None) {
 		if (TrainingRequestHolds(command.command.generation)) sf4e::GameEvents::MainMenu::RequestTraining(command.command.generation);
-		else runtime->error = loc::T("room.training.unavailable");
+		else runtime->error = loc::T(command.training == TrainingEntry::Home ? "home.training_unavailable" : "room.training.unavailable");
 		return DispatchOutcome::Dropped;
 	}
 	// Stop watching names the game; what leaving it takes is decided here, so

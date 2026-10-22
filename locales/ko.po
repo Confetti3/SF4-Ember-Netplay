@@ -7452,3 +7452,12 @@ msgstr "Discord에서 방 초대를 받았습니다."
 
 msgid "updates.ready_notice"
 msgstr "Ember {0} 설치 준비가 되었습니다."
+
+msgid "home.training"
+msgstr "트레이닝"
+
+msgid "home.training_detail"
+msgstr "난입 설정을 묻지 않고 바로 트레이닝 모드로 들어갑니다."
+
+msgid "home.training_unavailable"
+msgstr "지금은 트레이닝을 열 수 없습니다. 먼저 룸이나 대전에서 나가 게임 메인 메뉴로 돌아가세요."
