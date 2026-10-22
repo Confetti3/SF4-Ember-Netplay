@@ -6929,3 +6929,42 @@ msgstr "Pays : {0}"
 
 msgid "country.board_help"
 msgstr "Une lettre affiche ses pays. Au clavier, tapez une lettre pour y aller."
+
+msgid "news.tab.all"
+msgstr "Tout"
+
+msgid "news.tab.updates"
+msgstr "Mises à jour d’Ember"
+
+msgid "news.tab.changelog"
+msgstr "Changements"
+
+msgid "news.kind.update"
+msgstr "Mise à jour"
+
+msgid "news.new"
+msgstr "Nouveau"
+
+msgid "news.update_now_detail"
+msgstr "Ferme le jeu et installe {0} avec le Launcher. Vos réglages sont conservés."
+
+msgid "replays.tab.matches"
+msgstr "Matchs"
+
+msgid "replays.tab.sets"
+msgstr "Sets"
+
+msgid "replays.set_detail"
+msgstr "{0} matchs"
+
+msgid "replays.game"
+msgstr "Match {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Combattants"
+
+msgid "replays.fact.played"
+msgstr "Joué"
+
+msgid "replays.fact.length"
+msgstr "Durée"

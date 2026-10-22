@@ -6929,3 +6929,42 @@ msgstr "Země: {0}"
 
 msgid "country.board_help"
 msgstr "Písmeno ukáže své země. Na klávesnici napiš písmeno a přeskoč na něj."
+
+msgid "news.tab.all"
+msgstr "Vše"
+
+msgid "news.tab.updates"
+msgstr "Aktualizace Emberu"
+
+msgid "news.tab.changelog"
+msgstr "Změny"
+
+msgid "news.kind.update"
+msgstr "Aktualizace"
+
+msgid "news.new"
+msgstr "Nové"
+
+msgid "news.update_now_detail"
+msgstr "Zavře hru a nainstaluje {0} pomocí Launcheru. Tvoje nastavení zůstanou."
+
+msgid "replays.tab.matches"
+msgstr "Zápasy"
+
+msgid "replays.tab.sets"
+msgstr "Sety"
+
+msgid "replays.set_detail"
+msgstr "Zápasy: {0}"
+
+msgid "replays.game"
+msgstr "Zápas {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Bojovníci"
+
+msgid "replays.fact.played"
+msgstr "Hráno"
+
+msgid "replays.fact.length"
+msgstr "Délka"

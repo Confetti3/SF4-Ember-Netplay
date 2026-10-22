@@ -6449,3 +6449,42 @@ msgstr "Países: {0}"
 
 msgid "country.board_help"
 msgstr "Una letra muestra sus países. Con un teclado, escribe una letra para saltar a ella."
+
+msgid "news.tab.all"
+msgstr "Todo"
+
+msgid "news.tab.updates"
+msgstr "Actualizaciones de Ember"
+
+msgid "news.tab.changelog"
+msgstr "Cambios"
+
+msgid "news.kind.update"
+msgstr "Actualización"
+
+msgid "news.new"
+msgstr "Nuevo"
+
+msgid "news.update_now_detail"
+msgstr "Cierra el juego e instala {0} con el Launcher. Se conserva tu configuración."
+
+msgid "replays.tab.matches"
+msgstr "Partidas"
+
+msgid "replays.tab.sets"
+msgstr "Sets"
+
+msgid "replays.set_detail"
+msgstr "{0} partidas"
+
+msgid "replays.game"
+msgstr "Partida {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Peleadores"
+
+msgid "replays.fact.played"
+msgstr "Jugada"
+
+msgid "replays.fact.length"
+msgstr "Duración"

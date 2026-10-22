@@ -128,6 +128,21 @@ ui::ShellView FakeView(bool v2) {
     view.playerTitle = "TOURNAMENT ORGANIZER"; view.playerTier = ui::v2::Tier::Gold; view.playerIcon = 7;
     view.services.update.news = {{"v1.3.0", "Ember 1.3.0", "2026-10-21", "New menus: categories, panels and choices.\n- Spectators keep watching through Alt+Enter.", ""},
         {"v1.2.1", "Ember 1.2.1", "2026-10-17", "Fixes for rollback saves.", ""}, {"v1.2.0", "Ember 1.2.0", "2026-10-14", "Borderless window setting.", ""}};
+    view.services.update.news.insert(view.services.update.news.begin() + 1, {"v1.3.0-nightly.12", "Nightly 1.3.0.12", "2026-10-19", "Room board fits Steam Deck.\n- Speech for menus.", ""});
+    for (auto& n : view.services.update.news) { n.stable = n.tag.find('-') == std::string::npos; n.newer = n.tag > "v1.2.0"; }
+    // Replays: matches played and watched, the first three a set (newest first).
+    auto archive = std::make_shared<std::vector<platform::replays::ArchivedReplay>>();
+    const auto replay = [&](const char* file, const char* date, std::uint64_t time, const char* a, const char* b, int fa, int fb, int sa, int sb, bool spectated, bool seen) {
+        platform::replays::ArchivedReplay r; r.path = file; r.label = date; r.time = time; r.names[0] = a; r.names[1] = b; r.fighters[0] = fa; r.fighters[1] = fb;
+        r.spectated = spectated; r.watched = seen; r.summary = replayinputs::Summary{}; r.summary->scored = true; r.summary->score[0] = sa; r.summary->score[1] = sb;
+        r.summary->rounds = static_cast<std::uint32_t>(sa + sb); r.summary->frames = 60 * 75 * r.summary->rounds; archive->push_back(r);
+    };
+    replay("C:/replays/4.replay", "2026-10-21 21:14", 5000, "FRaccie", "Katie", 0, 16, 2, 1, false, false);
+    replay("C:/replays/3.replay", "2026-10-21 21:02", 4300, "FRaccie", "Katie", 0, 16, 0, 2, false, true);
+    replay("C:/replays/2.replay", "2026-10-21 20:51", 3600, "Katie", "FRaccie", 16, 0, 1, 2, false, false);
+    replay("C:/replays/1.replay", "2026-10-21 20:30", 1000, "Katie", "Jimbo", 16, 13, 2, 0, true, false);
+    replay("C:/replays/0.replay", "2026-10-20 22:10", 100, "Mo", "Ash", 6, 1, 1, 2, true, true);
+    view.replays.archive = archive; view.replays.ready = true;
     return view;
 }
 // A joined room with four tables, sixteen members and some chat (the render test's sample room).
