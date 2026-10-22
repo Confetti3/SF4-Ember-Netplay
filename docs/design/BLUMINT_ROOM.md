@@ -27,7 +27,9 @@ are BluMint's.
 Ember does not learn the format: a match reaches it as two fighters, a set
 length (`gamesToWin` 1 to 10) and optional starting wins (BluMint's partner API
 2.0.0). So the room says the same things for every format, and shows the
-round's label when BluMint gives one.
+round's label when it has one. BluMint's create carries none today (the bridge
+reads nothing from `matchSettings`), so a BluMint match shows "BluMint" and
+"First to N" without a round: question 5 in BLUMINT_EVENT_ROOM.md.
 
 ## What the room shows
 
@@ -45,7 +47,7 @@ round's label when BluMint gives one.
 |---|---|---|---|
 | Match called | A playable `blumint` assignment this PC has not been told of, outside a match being played; once each | Play now (in another room: Leave the room and play) · Later | – |
 | Game done | The table's score rises and nobody reached first to N | Ready for the next game · Change fighter first · Not yet | A line on the status bar |
-| Set won / lost | The score reaches first to N, or the match's assignment is `completed` | OK; with the next BluMint match already assigned: Play <next> · Later | "<name> wins the set" on the status bar |
+| Set won / lost | The score reaches first to N, or the match's assignment is `completed` | OK; with the next BluMint match already assigned: Play the next match · Later | "<name> wins the set" on the status bar |
 | Game did not count | The match ended on a lost connection; BluMint asks for the set again from the score | OK | Status bar |
 | Host took the match | The assignment is `cancelled` (BluMint's close: host took over, score entered, removed) | OK | Status bar |
 | Not played in time | The assignment is `expired` | OK | Status bar |

@@ -30,8 +30,8 @@ NoticeDialog BluMintNotice(const BluMintScene& scene) {
         notice.heading = player && leader >= 0 ? loc::T(won ? "blumint.set_won" : "blumint.set_lost")
                                                : loc::Tf("blumint.set_winner", leader >= 0 ? s.names[leader] : std::string());
         notice.text = std::string(loc::T("blumint.set_reported")) + " " +
-            (s.next.empty() ? std::string(loc::T(player ? "blumint.next_waiting" : "blumint.watch_next")) : loc::Tf("blumint.next_ready", s.next));
-        if (player && !s.next.empty()) notice.buttons = {{loc::Tf("blumint.play_next", s.next), NoticeResult::BluMintNext}, {loc::T("blumint.later")}};
+            (s.next.empty() ? std::string(loc::T(player ? "blumint.next_waiting" : "blumint.watch_next")) : std::string(loc::T("blumint.next_ready")));
+        if (player && !s.next.empty()) notice.buttons = {{loc::T("blumint.play_next"), NoticeResult::BluMintNext}, {loc::T("blumint.later")}};
         break;
     }
     case BluMintMoment::Restart:

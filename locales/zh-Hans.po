@@ -6625,10 +6625,10 @@ msgid "blumint.watch_next"
 msgstr "BluMint 呼叫后，下一场比赛会出现在这里。"
 
 msgid "blumint.next_ready"
-msgstr "你的下一场比赛已就绪：对阵 {0}。"
+msgstr "你的下一场 BluMint 比赛已就绪。"
 
 msgid "blumint.play_next"
-msgstr "对阵 {0}"
+msgstr "开始下一场比赛"
 
 msgid "blumint.restart_heading"
 msgstr "这一局不算"

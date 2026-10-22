@@ -6144,10 +6144,10 @@ msgid "blumint.watch_next"
 msgstr "A próxima partida aparece aqui quando a BluMint chamar."
 
 msgid "blumint.next_ready"
-msgstr "Sua próxima partida está pronta: contra {0}."
+msgstr "Sua próxima partida da BluMint está pronta."
 
 msgid "blumint.play_next"
-msgstr "Jogar contra {0}"
+msgstr "Jogar a próxima partida"
 
 msgid "blumint.restart_heading"
 msgstr "Esse jogo não contou"

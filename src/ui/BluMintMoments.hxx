@@ -25,7 +25,8 @@ struct BluMintScene {
     int gamesToWin = 0;
     // The fighter on this PC (0 or 1), or -1 for a watcher, who gets no buttons.
     int you = -1;
-    // The fighter's next BluMint match is already waiting, against `next`.
+    // The fighter's next BluMint match, already waiting (its id; Ember is not
+    // told the opponent's name or the round before the match is played).
     std::string next;
     // Called: the player is in another room, which playing the match leaves.
     bool inRoom = false;
