@@ -121,7 +121,7 @@ h1 {
   font-size: 1.75rem;
   font-weight: 600;
   line-height: 1.25;
-  border-bottom: 3px solid var(--ember);
+  border-bottom: 1px solid var(--ember);
 }
 h2 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; line-height: 1.3; color: var(--ember); }
 p { margin: 0 0 12px; }
