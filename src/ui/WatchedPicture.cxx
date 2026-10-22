@@ -15,17 +15,19 @@ namespace sf4e { namespace ui {
 // (PlayerPreferences::pictureSpot), and the mouse can drag it to another
 // corner, where it snaps when let go, or drag its grip to resize it. True
 // when that changed `spot`; the pad and keys change it in Settings.
-bool DrawWatchedPicture(ImTextureID picture,int& spot) {
+bool DrawWatchedPicture(ImTextureID picture,int& spot,const v2::Box* dock) {
  const auto* vp=ImGui::GetMainViewport();const float s=Scale();
  const bool look=v2::On();const int corner=look?spot%4:0;
  static bool moving=false,resizing=false;static ImVec2 grab;static float pulled=0;
  float share=look?WatchedPictureShareFor(spot):WatchedPictureShare;
  if(resizing)share=pulled;
- const ImVec2 size(vp->Size.x*share,vp->Size.y*share);
+ const bool docked=look&&dock&&corner==0&&!resizing;
+ const ImVec2 size=docked?ImVec2(dock->W(),dock->H()):ImVec2(vp->Size.x*share,vp->Size.y*share);
  // The bottom corners keep clear of the V2 hint bar.
  const float margin=16*s,bottomMargin=look?72*s:margin;
  const bool right=corner==0||corner==2,bottom=corner>=2;
  ImVec2 at(right?vp->Pos.x+vp->Size.x-margin-size.x:vp->Pos.x+margin,bottom?vp->Pos.y+vp->Size.y-bottomMargin-size.y:vp->Pos.y+margin);
+ if(docked)at=dock->min;
  if(moving)at=ImVec2(ImGui::GetMousePos().x-grab.x,ImGui::GetMousePos().y-grab.y);
  ImGui::SetNextWindowPos(at);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(0,0));ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,1);
@@ -41,19 +43,25 @@ bool DrawWatchedPicture(ImTextureID picture,int& spot) {
    ImGui::SetCursorScreenPos(p);
    ImGui::InvisibleButton("##move",size);
    if(ImGui::IsItemActivated()){moving=true;grab=ImVec2(ImGui::GetMousePos().x-at.x,ImGui::GetMousePos().y-at.y);}
-   ImGui::SetCursorScreenPos(grip);
-   ImGui::SetNextItemAllowOverlap();
-   ImGui::InvisibleButton("##size",ImVec2(g,g));
-   if(ImGui::IsItemActivated()){resizing=true;moving=false;pulled=share;}
+   // Docked, its size is the place's: no grip.
+   if(!docked){
+    ImGui::SetCursorScreenPos(grip);
+    ImGui::SetNextItemAllowOverlap();
+    ImGui::InvisibleButton("##size",ImVec2(g,g));
+    if(ImGui::IsItemActivated()){resizing=true;moving=false;pulled=share;}
+   }
    if(resizing){
     // The far edge follows the pointer; the corner it is pinned to stays.
     const float wide=right?q.x-ImGui::GetMousePos().x:ImGui::GetMousePos().x-p.x;
     pulled=(std::max)(.18f,(std::min)(.5f,wide/vp->Size.x));
    }
    const bool hot=moving||resizing||ImGui::IsWindowHovered();
-   d->AddRect(p,q,hot?palette::Ember:v2::Colors().border,0,0,(hot?2:1)*s);
-   const ImVec2 a(right?grip.x+3*s:grip.x+g-3*s,bottom?grip.y+3*s:grip.y+g-3*s);
-   d->AddTriangleFilled(a,ImVec2(a.x+(right?10:-10)*s,a.y),ImVec2(a.x,a.y+(bottom?10:-10)*s),hot?palette::Ember:palette::Muted);
+   const auto& c=v2::Colors();
+   d->AddRect(p,q,hot?c.accent:c.border,0,0,(hot?2:1)*s);
+   if(!docked){
+    const ImVec2 a(right?grip.x+3*s:grip.x+g-3*s,bottom?grip.y+3*s:grip.y+g-3*s);
+    d->AddTriangleFilled(a,ImVec2(a.x+(right?10:-10)*s,a.y),ImVec2(a.x,a.y+(bottom?10:-10)*s),hot?c.accent:c.muted);
+   }
    if(!ImGui::IsMouseDown(ImGuiMouseButton_Left)&&(moving||resizing)){
     int place=corner,step=spot/4;
     if(moving){const auto m=ImGui::GetMousePos();const bool r=m.x-grab.x+size.x*.5f>vp->Pos.x+vp->Size.x*.5f,b=m.y-grab.y+size.y*.5f>vp->Pos.y+vp->Size.y*.5f;place=r?(b?2:0):(b?3:1);}

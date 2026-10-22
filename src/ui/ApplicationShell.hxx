@@ -1,6 +1,7 @@
 #pragma once
 #include <imgui.h>
 #include "RoomCards.hxx"
+#include "V2.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/TrainingEntry.hxx"
@@ -501,6 +502,9 @@ void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,Menu
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;
     bool boardDrawn_ = false;
+    // Where the BluMint board shows the watched game's picture, from the
+    // frame before (DrawWatchedPicture's dock).
+    std::optional<v2::Box> pictureDock_;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
