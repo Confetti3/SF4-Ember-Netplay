@@ -111,7 +111,7 @@ unsigned PadButtons() {
 unsigned KeyBit(const std::string& key) {
     using B = ui::MenuInput;
     const std::pair<const char*, unsigned> keys[] = {{"up",B::Up},{"down",B::Down},{"left",B::Left},{"right",B::Right},{"enter",B::Select},
-        {"back",B::Back},{"x",B::Fighter},{"y",B::Options},{"view",B::Chat},{"lb",B::PrevTab},{"rb",B::NextTab}};
+        {"back",B::Back},{"x",B::Fighter},{"y",B::Options},{"view",B::Chat},{"lb",B::PrevTab},{"rb",B::NextTab},{"start",B::Start}};
     for (const auto& k : keys) if (key == k.first) return k.second;
     return 0;
 }
@@ -255,6 +255,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int width = 1280, height = 800;
     float textSize = 1;
     bool v2 = false, tv = false;  // --tv: TV mode
+    bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string shot, keys, screen;
     bool inRoom = false, pip = false;
     int hud = -1;
@@ -280,6 +281,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
         else if (args[i] == "--toasts") toasts = true;
+        else if (args[i] == "--welcome") welcome = true;
+        else if (args[i] == "--pad") pad = true;
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
     RegisterClassExW(&wc);
@@ -304,6 +307,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     ui::ApplicationShell shell;
     ui::ShellView view = FakeView(v2);
     view.preferences.tvMode = tv;
+    view.preferences.welcomed = !welcome;
     // A BluMint room joins its own (BluMintRoom).
     if (inRoom && !blumint) JoinRoom(view);
     if (blumint) BluMintRoom(view, watcher);
@@ -350,7 +354,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         const std::size_t step = scripted < 0 ? script.size() : static_cast<std::size_t>(scripted / 6);
         if (step < script.size() && scripted % 6 < 3) held |= script[step];
         ui::SetMenuInput({held, ImGui::GetTime()});
-        ui::SetMenuGlyphs(PadButtons() ? input::PadXInput : input::PadKeyboard, input::MenuButtons{});
+        ui::SetMenuGlyphs(pad || PadButtons() ? input::PadXInput : input::PadKeyboard, input::MenuButtons{});
         if (ImGui::IsKeyPressed(ImGuiKey_F1)) bar = !bar;
         if (ImGui::IsKeyPressed(ImGuiKey_F2)) { size = (size + 1) % std::size(Sizes); ResizeWindow(hwnd, Sizes[size].w, Sizes[size].h); }
         if (ImGui::IsKeyPressed(ImGuiKey_F3)) view.preferences.lookV2 = !view.preferences.lookV2;

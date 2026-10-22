@@ -200,6 +200,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"showShortcutHint", &PlayerPreferences::showShortcutHint, true},
         {"readySound", &PlayerPreferences::readySound, true}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady, false},
         {"classEmblems", &PlayerPreferences::classEmblems, true}, {"lookV2", &PlayerPreferences::lookV2, false}, {"tvMode", &PlayerPreferences::tvMode, false},
+        {"welcomed", &PlayerPreferences::welcomed, true},
         {"watchedPicture", &PlayerPreferences::watchedPicture, false},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},

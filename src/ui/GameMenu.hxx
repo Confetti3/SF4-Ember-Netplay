@@ -248,7 +248,14 @@ private:
     void DrawReader(const std::vector<MenuEntry>& entries,const Detail& detail,float height,unsigned held);
     void DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction& action);
     void DrawNoticeModal(bool noticeOpen);
-    void ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) const;
+    // The editor's keys. With the on-screen keyboard (V2, the pad used last)
+    // the pad types: directions move over the keys, Select presses one, X
+    // deletes, Y spaces, LB switches capitals and Start is Done; B still cancels.
+    void ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input);
+    bool OnScreenKeyboard(const MenuEntry* editing) const;
+    // Presses `key` (a character, or shift, delete, space, done, recent-N); true for Done.
+    bool PressKey(const MenuEntry& entry,const std::string& key);
+    void DrawKeyboard(const MenuEntry& entry,const std::vector<MenuEntry>& entries,MenuAction& action);
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
@@ -264,6 +271,11 @@ v2::HeaderChip noticeChip_{};
     int lastFrame_ = -2;
     unsigned held_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);
+    // The on-screen keyboard: its key (row -1 the Recent names), capitals, the
+    // pad's last buttons, whether it changed the draft this frame, and the
+    // texts accepted this session by entry (ponytail: not saved across launches).
+    int keyRow_=1,keyColumn_=0;bool capitals_=false,keyTyped_=false;unsigned keyHeld_=~0u;
+    std::map<std::string,std::vector<std::string>> recentText_;
     UiClock clock_;
     MenuVisualFeedback feedback_;
 };

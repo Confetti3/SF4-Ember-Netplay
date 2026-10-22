@@ -11,7 +11,7 @@ inline const char* MenuScreenName(const std::string& screen) {
     // push. ScreenNames in controller_navigation_test checks the screens it
     // lists, so add a new screen there too.
     const std::pair<const char*,const char*> names[]={
-        {"home",loc::T("screen.home")},{"online",loc::T("screen.online")},{"selection",loc::T("screen.selection")},
+        {"home",loc::T("screen.home")},{"welcome",loc::T("welcome.title")},{"online",loc::T("screen.online")},{"selection",loc::T("screen.selection")},
         {"button-layout",loc::T("player.button_layout")},{"button-layout-button",loc::T("button_layout.edit_button")},
         {"player",loc::T("screen.player")},{"controllers",loc::T("player.controllers")},{"defaults",loc::T("screen.defaults")},
         {"main-character",loc::T("screen.main_character")},{"about",loc::T("screen.about")},

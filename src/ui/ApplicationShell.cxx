@@ -196,6 +196,14 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
   if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
 }
+MenuEntry ApplicationShell::LanguageRow() const {
+ const auto value=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
+  std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
+ auto row=Value("language",loc::T("settings.language"),value,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true);
+ // Select lists the languages by their own names; browsing them changes nothing.
+ row.choices=LanguageChoices();row.chosen=languagePreference_;
+ return row;
+}
 std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {
  using namespace netplay; auto& nav=menu_.navigation;
  std::vector<MenuEntry> rows;
@@ -205,6 +213,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),std::string(v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))+"\n"+loc::T("controller.keep_current"))};
   rows[0].hint=loc::T("common.cancel");
   rows[0].detailText=DetailText::Name;
+ }else if(screen=="welcome"){rows=WelcomeRows(v,title);
  }else if(v2::On()&&SettingsTab(screen)){rows=SettingsTabRows(v,screen,idle,opening,selection,developer,title);
  }else if(NewsScreen(screen)){rows=NewsRows(v,screen,title);
  }else if(screen=="notifications"){rows=NotificationRows(ImGui::GetTime(),title);
@@ -310,8 +319,6 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="interface"){
   title=loc::T("settings.interface_title");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
   const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
-  const auto languageValue=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
-   std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
   rows={Value("look",loc::T("settings.look"),loc::T(preferences_.lookV2?"settings.look.v2":"settings.look.classic"),loc::T("settings.look_detail"),v.canEditPreferences),
    Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
    Value("hud-layout",loc::T("settings.match_hud_layout"),MatchStripLayoutName(preferences_.matchHudLayout),loc::T("settings.match_hud_layout_detail"),v.canEditPreferences),
@@ -325,9 +332,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("shortcut-hint",loc::T("settings.shortcut_hint"),preferences_.showShortcutHint?loc::T("common.on"):loc::T("common.off"),loc::T("settings.shortcut_hint_detail"),v.canEditPreferences),
    Value("class-emblems",loc::T("settings.class_emblems"),preferences_.classEmblems?loc::T("common.on"):loc::T("common.off"),loc::T("settings.class_emblems_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
-   Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
-  // Select lists the languages by their own names; browsing them changes nothing.
-  rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
+   LanguageRow()};
   // V2: TV mode, by Text size, and the room board's layout, which its grips also drag (RoomGrips).
   if(v2::On()){
    rows.insert(rows.end()-1,Value("tv",loc::T("settings.tv_mode"),preferences_.tvMode?loc::T("common.on"):loc::T("common.off"),loc::T("settings.tv_mode_detail"),v.canEditPreferences));
@@ -875,6 +880,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(forwarded.kind==MenuAction::Shortcut&&inRoom)RoomShortcut(forwarded,v);
   ImGui::End();ImGui::PopStyleVar(2);return;
  }
+ // A fresh install opens on the welcome, once (ApplicationShell__FirstRun.cxx).
+ if(!preferences_.welcomed&&!welcomeOffered_&&v.canEditPreferences&&v.session.room==RoomState::Idle&&nav.Screen()=="home"){welcomeOffered_=true;welcomeStep_=0;nav.Push("welcome");}
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
  if(screen=="report") {
   const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);
@@ -980,6 +987,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  };
  if(v2::On()&&screen==CountryPicker::Screen&&countryPicker_.Lettered())board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float,const MenuVisualFeedback&){countryPicker_.DrawBoard(entries,navigation,action,v.automaticCountry);};
  // V2: Create is the room's settings and its rules side by side, and the button that opens it.
+ if(v2::On()&&screen=="welcome")board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback&){DrawWelcomeBoard(entries,navigation,action,height);};
  if(v2::On()&&screen=="create")board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawCreateBoard(entries,navigation,action,height,feedback);};
  if(screen=="interface"||page=="tab-interface")profilePreview=[&](const std::string& id){
   if(id.compare(0,8,"arrange-")==0){DrawRoomLayoutPreview();return;}
@@ -1090,7 +1098,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
  // An opening public room's card is information, so the cursor waits on its Stop row.
  if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
- auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home");
+ // The welcome's Back is its previous step, and nothing on its first.
+ menu_.ownsBack=screen=="welcome";
+ if(screen=="welcome"){menu_.backInert=!welcomeStep_;menu_.backHint=loc::T("welcome.previous");}
+ auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home"||(v2::On()&&screen=="welcome"));
  AnswerBluMint(AnswerDialog(submit),v,submit);
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
@@ -1117,6 +1128,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(a.id=="language")SetLanguage(a.text);
   else if(ReplaysPanel::Owns(screen))replays_.Choose(a,v,menu_.navigation,submit,error_);
   else if(screen=="controllers")HandleActivate(a,v,screen,idle,submit);
+ }else if(screen=="welcome"&&(a.kind==MenuAction::Back||a.kind==MenuAction::Activate)&&WelcomeActivate(a)){
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){

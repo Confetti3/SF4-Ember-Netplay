@@ -429,6 +429,14 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     void DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback);
     // The Create screen, with Practice room off (createPractice_).
     void OpenCreate();
+    // Settings > Interface > Language, also the welcome's.
+    MenuEntry LanguageRow() const;
+    // The first-run welcome (ApplicationShell__FirstRun.cxx): speech, language,
+    // controller and look, a step at a time, each a few rows, Next and Skip.
+    std::vector<MenuEntry> WelcomeRows(const ShellView& view,std::string& title);
+    // Its own rows and Back; false for a row another screen owns (Language, Choose controller).
+    bool WelcomeActivate(const MenuAction& action);
+    void DrawWelcomeBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height);
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
     void OpenPublicCreate();
     // A public room still named with the default is named for its host.
@@ -548,6 +556,10 @@ std::string memberAsk_;
     // Create's Practice room choice for the private room it opens. Never saved:
     // every visit to Create starts with it off.
     bool createPractice_ = false;
+    // The welcome's step (0 speech to 3 look), whether it was offered this
+    // launch, and the speech answer (ponytail: kept until speech settings land).
+    int welcomeStep_ = 0;
+    bool welcomeOffered_ = false, welcomeSpeech_ = false;
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.

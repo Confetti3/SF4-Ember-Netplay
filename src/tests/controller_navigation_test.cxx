@@ -838,7 +838,7 @@ void FlyoutIgnoresChoices(){
 void ScreenNames(){
  for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","controllers","button-layout","button-layout-button","defaults","interface","training-replays","problem-reports","sent-reports","developer",
    "discord","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","discord-connect","sign-in-site","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin",
-   "roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report"})
+   "roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","welcome"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
 }
 void ProfileRecords(){

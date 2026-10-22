@@ -6992,3 +6992,99 @@ msgstr "Rozegrano"
 
 msgid "replays.fact.length"
 msgstr "Długość"
+
+msgid "keyboard.recent"
+msgstr "Ostatnie:"
+
+msgid "keyboard.type"
+msgstr "Wpisz"
+
+msgid "keyboard.delete"
+msgstr "Usuń"
+
+msgid "keyboard.space"
+msgstr "Spacja"
+
+msgid "keyboard.capitals"
+msgstr "Wielkie litery"
+
+msgid "keyboard.done"
+msgstr "Gotowe"
+
+msgid "welcome.title"
+msgstr "Witaj"
+
+msgid "welcome.step"
+msgstr "WITAJ · KROK {0} Z {1}"
+
+msgid "welcome.speech_title"
+msgstr "Czy Ember ma czytać na głos?"
+
+msgid "welcome.speech_text"
+msgstr "Ember może czytać na głos każde menu. Możesz to zmienić w dowolnej chwili w Ustawieniach."
+
+msgid "welcome.speech_on"
+msgstr "Tak, czytaj menu"
+
+msgid "welcome.speech_on_detail"
+msgstr "Używa czytnika ekranu, jeśli działa, a w przeciwnym razie mowy Windows."
+
+msgid "welcome.speech_off"
+msgstr "Bez mowy"
+
+msgid "welcome.speech_off_detail"
+msgstr "Możesz ją włączyć później."
+
+msgid "welcome.language_title"
+msgstr "Jakiego języka ma używać Ember?"
+
+msgid "welcome.language_text"
+msgstr "Menu Embera używają tego języka. Gra zachowuje swój."
+
+msgid "welcome.controller_title"
+msgstr "Na jakim kontrolerze będziesz grać?"
+
+msgid "welcome.controller_text"
+msgstr "Ember wszędzie pokazuje obrazki przycisków tego kontrolera."
+
+msgid "welcome.controller_ready"
+msgstr "Gotowy: {0}."
+
+msgid "welcome.look_title"
+msgstr "Jaki wygląd wybierasz?"
+
+msgid "welcome.look_text"
+msgstr "Możesz to zmienić w dowolnej chwili w Ustawieniach: zmienia się tylko wygląd ekranów."
+
+msgid "welcome.look_classic"
+msgstr "Klasyczny"
+
+msgid "welcome.look_classic_detail"
+msgstr "Menu Embera takie jak zawsze."
+
+msgid "welcome.look_v2"
+msgstr "V2 (podgląd)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Nowy wygląd Embera, wciąż w budowie."
+
+msgid "welcome.chosen"
+msgstr "Wybrane"
+
+msgid "welcome.next"
+msgstr "Dalej"
+
+msgid "welcome.start"
+msgstr "Zacznij grać"
+
+msgid "welcome.next_detail"
+msgstr "Przejdź do następnego pytania."
+
+msgid "welcome.skip"
+msgstr "Pomiń"
+
+msgid "welcome.skip_detail"
+msgstr "Przejdź od razu do ekranu głównego. Wszystko to jest też w Ustawieniach."
+
+msgid "welcome.previous"
+msgstr "Poprzedni krok"

@@ -6993,3 +6993,99 @@ msgstr "対戦日時"
 
 msgid "replays.fact.length"
 msgstr "長さ"
+
+msgid "keyboard.recent"
+msgstr "最近:"
+
+msgid "keyboard.type"
+msgstr "入力"
+
+msgid "keyboard.delete"
+msgstr "削除"
+
+msgid "keyboard.space"
+msgstr "スペース"
+
+msgid "keyboard.capitals"
+msgstr "大文字"
+
+msgid "keyboard.done"
+msgstr "完了"
+
+msgid "welcome.title"
+msgstr "ようこそ"
+
+msgid "welcome.step"
+msgstr "ようこそ · ステップ {0}/{1}"
+
+msgid "welcome.speech_title"
+msgstr "Ember に読み上げてもらいますか？"
+
+msgid "welcome.speech_text"
+msgstr "Ember はすべてのメニューを読み上げられます。設定でいつでも変更できます。"
+
+msgid "welcome.speech_on"
+msgstr "はい、メニューを読み上げる"
+
+msgid "welcome.speech_on_detail"
+msgstr "スクリーンリーダーが動いていればそれを、なければ Windows の音声を使います。"
+
+msgid "welcome.speech_off"
+msgstr "読み上げなし"
+
+msgid "welcome.speech_off_detail"
+msgstr "あとでオンにできます。"
+
+msgid "welcome.language_title"
+msgstr "Ember の言語はどれにしますか？"
+
+msgid "welcome.language_text"
+msgstr "Ember のメニューはこの言語になります。ゲームの言語はそのままです。"
+
+msgid "welcome.controller_title"
+msgstr "どのコントローラーで遊びますか？"
+
+msgid "welcome.controller_text"
+msgstr "Ember はどこでもそのコントローラーのボタン画像を表示します。"
+
+msgid "welcome.controller_ready"
+msgstr "準備完了: {0}。"
+
+msgid "welcome.look_title"
+msgstr "どの見た目にしますか？"
+
+msgid "welcome.look_text"
+msgstr "設定でいつでも切り替えられます。変わるのは画面の見た目だけです。"
+
+msgid "welcome.look_classic"
+msgstr "クラシック"
+
+msgid "welcome.look_classic_detail"
+msgstr "これまでどおりの Ember のメニュー。"
+
+msgid "welcome.look_v2"
+msgstr "V2（プレビュー）"
+
+msgid "welcome.look_v2_detail"
+msgstr "Ember の新しい見た目。まだ制作中です。"
+
+msgid "welcome.chosen"
+msgstr "選択中"
+
+msgid "welcome.next"
+msgstr "次へ"
+
+msgid "welcome.start"
+msgstr "プレイを始める"
+
+msgid "welcome.next_detail"
+msgstr "次の質問へ進みます。"
+
+msgid "welcome.skip"
+msgstr "スキップ"
+
+msgid "welcome.skip_detail"
+msgstr "すぐにホームへ。ここにあるものはすべて設定にもあります。"
+
+msgid "welcome.previous"
+msgstr "前のステップ"

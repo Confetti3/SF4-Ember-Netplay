@@ -6992,3 +6992,99 @@ msgstr "Gespeeld"
 
 msgid "replays.fact.length"
 msgstr "Duur"
+
+msgid "keyboard.recent"
+msgstr "Recent:"
+
+msgid "keyboard.type"
+msgstr "Typen"
+
+msgid "keyboard.delete"
+msgstr "Wissen"
+
+msgid "keyboard.space"
+msgstr "Spatie"
+
+msgid "keyboard.capitals"
+msgstr "Hoofdletters"
+
+msgid "keyboard.done"
+msgstr "Klaar"
+
+msgid "welcome.title"
+msgstr "Welkom"
+
+msgid "welcome.step"
+msgstr "WELKOM · STAP {0} VAN {1}"
+
+msgid "welcome.speech_title"
+msgstr "Wil je dat Ember voorleest?"
+
+msgid "welcome.speech_text"
+msgstr "Ember kan elk menu hardop voorlezen. Je kunt dit altijd wijzigen in Instellingen."
+
+msgid "welcome.speech_on"
+msgstr "Ja, lees menu's voor"
+
+msgid "welcome.speech_on_detail"
+msgstr "Gebruikt je schermlezer als die draait, anders Windows-spraak."
+
+msgid "welcome.speech_off"
+msgstr "Geen spraak"
+
+msgid "welcome.speech_off_detail"
+msgstr "Je kunt het later aanzetten."
+
+msgid "welcome.language_title"
+msgstr "Welke taal moet Ember gebruiken?"
+
+msgid "welcome.language_text"
+msgstr "De menu's van Ember gebruiken deze taal. Het spel houdt zijn eigen taal."
+
+msgid "welcome.controller_title"
+msgstr "Met welke controller ga je spelen?"
+
+msgid "welcome.controller_text"
+msgstr "Ember toont overal de knopafbeeldingen van die controller."
+
+msgid "welcome.controller_ready"
+msgstr "Klaar: {0}."
+
+msgid "welcome.look_title"
+msgstr "Welk uiterlijk wil je?"
+
+msgid "welcome.look_text"
+msgstr "Je kunt altijd wisselen in Instellingen: alleen hoe de schermen eruitzien verandert."
+
+msgid "welcome.look_classic"
+msgstr "Klassiek"
+
+msgid "welcome.look_classic_detail"
+msgstr "De menu's van Ember zoals ze altijd waren."
+
+msgid "welcome.look_v2"
+msgstr "V2 (voorproef)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw."
+
+msgid "welcome.chosen"
+msgstr "Gekozen"
+
+msgid "welcome.next"
+msgstr "Volgende"
+
+msgid "welcome.start"
+msgstr "Begin met spelen"
+
+msgid "welcome.next_detail"
+msgstr "Door naar de volgende vraag."
+
+msgid "welcome.skip"
+msgstr "Overslaan"
+
+msgid "welcome.skip_detail"
+msgstr "Meteen naar Start. Alles hier staat ook in Instellingen."
+
+msgid "welcome.previous"
+msgstr "Vorige stap"

@@ -6627,3 +6627,99 @@ msgstr "Played"
 
 msgid "replays.fact.length"
 msgstr "Length"
+
+msgid "keyboard.recent"
+msgstr "Recent:"
+
+msgid "keyboard.type"
+msgstr "Type"
+
+msgid "keyboard.delete"
+msgstr "Delete"
+
+msgid "keyboard.space"
+msgstr "Space"
+
+msgid "keyboard.capitals"
+msgstr "Capitals"
+
+msgid "keyboard.done"
+msgstr "Done"
+
+msgid "welcome.title"
+msgstr "Welcome"
+
+msgid "welcome.step"
+msgstr "WELCOME · STEP {0} OF {1}"
+
+msgid "welcome.speech_title"
+msgstr "Do you want Ember to speak?"
+
+msgid "welcome.speech_text"
+msgstr "Ember can read every menu aloud. You can change this at any time in Settings."
+
+msgid "welcome.speech_on"
+msgstr "Yes, read menus aloud"
+
+msgid "welcome.speech_on_detail"
+msgstr "Uses your screen reader if one runs, else Windows speech."
+
+msgid "welcome.speech_off"
+msgstr "No speech"
+
+msgid "welcome.speech_off_detail"
+msgstr "You can turn it on later."
+
+msgid "welcome.language_title"
+msgstr "Which language should Ember use?"
+
+msgid "welcome.language_text"
+msgstr "Ember's menus use this language. The game keeps its own."
+
+msgid "welcome.controller_title"
+msgstr "Which controller will you play with?"
+
+msgid "welcome.controller_text"
+msgstr "Ember shows that controller's button pictures everywhere."
+
+msgid "welcome.controller_ready"
+msgstr "Ready: {0}."
+
+msgid "welcome.look_title"
+msgstr "Which look do you want?"
+
+msgid "welcome.look_text"
+msgstr "You can switch at any time in Settings: only how screens look changes."
+
+msgid "welcome.look_classic"
+msgstr "Classic"
+
+msgid "welcome.look_classic_detail"
+msgstr "Ember's menus as they have always been."
+
+msgid "welcome.look_v2"
+msgstr "V2 (preview)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Ember's new look, still being built."
+
+msgid "welcome.chosen"
+msgstr "Chosen"
+
+msgid "welcome.next"
+msgstr "Next"
+
+msgid "welcome.start"
+msgstr "Start playing"
+
+msgid "welcome.next_detail"
+msgstr "On to the next question."
+
+msgid "welcome.skip"
+msgstr "Skip"
+
+msgid "welcome.skip_detail"
+msgstr "Go straight to Home. Everything here is also in Settings."
+
+msgid "welcome.previous"
+msgstr "Previous step"

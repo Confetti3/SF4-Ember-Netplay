@@ -3,7 +3,9 @@
 #include "GameMenu.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
+#include <imgui_internal.h>
 #include <algorithm>
+#include <cctype>
 #include <cfloat>
 #include <cstring>
 
@@ -352,19 +354,151 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
     }
     if(noticeOpen&&notice_.empty()) navigation.NeutralGate();
 }
-void GameMenu::ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) const {
+namespace {
+// The on-screen keyboard's keys (Keyboard.dc.html), its rows top to bottom.
+const std::vector<std::vector<const char*>> KeyRows={{"1","2","3","4","5","6","7","8","9","0"},{"q","w","e","r","t","y","u","i","o","p"},
+    {"a","s","d","f","g","h","j","k","l","-"},{"shift","z","x","c","v","b","n","m","_","delete"},{"space","done"}};
+// The column straight above or below `column` of row `from` in row `to`: Space
+// sits over the first six letter keys, Done over the rest.
+int KeyBelow(int from,int to,int column,int count) {
+    if(to==4)return column<6?0:1;
+    if(from==4)return column?7:3;
+    return (std::min)(column,count-1);
+}
+}
+bool GameMenu::OnScreenKeyboard(const MenuEntry* editing) const {
+    return v2::On()&&editing&&!editing->multiline&&navigation.Editing()&&notice_.empty()&&!KeyboardPrompts();
+}
+bool GameMenu::PressKey(const MenuEntry& entry,const std::string& key) {
+    std::string draft=navigation.Draft();
+    const std::size_t limit=(std::min)(std::size_t(4096),entry.textLimit);
+    if(key=="done")return true;
+    if(key=="shift")capitals_=!capitals_;
+    else if(key=="delete"){while(!draft.empty()&&(static_cast<unsigned char>(draft.back())&0xC0)==0x80)draft.pop_back();if(!draft.empty())draft.pop_back();}
+    else if(key.compare(0,7,"recent-")==0)draft=recentText_[entry.id][std::stoul(key.substr(7))];
+    else{
+        std::string typed=key=="space"?" ":key;
+        if(capitals_)typed[0]=static_cast<char>(std::toupper(static_cast<unsigned char>(typed[0])));
+        if(draft.size()+typed.size()<=limit)draft+=typed;
+    }
+    keyTyped_=draft!=navigation.Draft();
+    if(keyTyped_)navigation.Draft(std::move(draft));
+    return false;
+}
+void GameMenu::ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) {
+    const unsigned pressed=input.held&~keyHeld_;keyHeld_=input.held;
     if(!navigation.Editing()) return;
     const auto* entry=FindEntry(entries,navigation.EditingId());
     // Match InputTextMultiline's default: either Enter inserts a newline,
     // Ctrl with either Enter validates. Single-line editors accept either key.
     const bool enter=ImGui::IsKeyPressed(ImGuiKey_Enter,false)||ImGui::IsKeyPressed(ImGuiKey_KeypadEnter,false);
     input.acceptText|=entry&&enter&&(!entry->multiline||ImGui::GetIO().KeyCtrl);
+    if(!OnScreenKeyboard(entry))return;
+    // The pad types; only Back (Cancel) still reaches the editor's model.
+    const int recent=static_cast<int>(recentText_[entry->id].size()),top=recent?-1:0;
+    const auto count=[&](int row){return row<0?recent:static_cast<int>(KeyRows[row].size());};
+    if(pressed&(MenuInput::Up|MenuInput::Down)){
+        const int row=(std::max)(top,(std::min)(4,keyRow_+(pressed&MenuInput::Up?-1:1)));
+        if(row!=keyRow_){keyColumn_=row<0||keyRow_<0?0:KeyBelow(keyRow_,row,keyColumn_,count(row));keyRow_=row;}
+    }
+    keyRow_=(std::max)(top,keyRow_);
+    if(pressed&MenuInput::Left)keyColumn_=(std::max)(0,keyColumn_-1);
+    if(pressed&MenuInput::Right)keyColumn_=(std::min)(count(keyRow_)-1,keyColumn_+1);
+    keyColumn_=(std::min)(keyColumn_,count(keyRow_)-1);
+    const std::string key=keyRow_<0?"recent-"+std::to_string(keyColumn_):KeyRows[keyRow_][keyColumn_];
+    bool done=pressed&MenuInput::Start;
+    if(pressed&MenuInput::Select)done|=PressKey(*entry,key);
+    if(pressed&MenuInput::Fighter)PressKey(*entry,"delete");
+    if(pressed&MenuInput::Options)PressKey(*entry,"space");
+    if(pressed&MenuInput::PrevTab)PressKey(*entry,"shift");
+    input.held&=MenuInput::Back;input.acceptText|=done;
+}
+void GameMenu::DrawKeyboard(const MenuEntry& entry,const std::vector<MenuEntry>& entries,MenuAction& action) {
+    const float s=Scale();const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
+    const float width=ImGui::GetContentRegionAvail().x,gap=6*s,h=52*s,key=(std::min)(76*s,(width-9*gap)/10);
+    const auto mouse=ImGui::GetIO().MouseDelta;const bool moved=mouse.x!=0||mouse.y!=0;
+    std::string clicked;
+    // A key's ground, its focus and the pointer: moving over a key focuses it, a click presses it.
+    const auto cell=[&](v2::Box b,int row,int column,const std::string& id,ImU32 ground){
+        ImGui::SetCursorScreenPos(b.min);
+        ImGui::PushID(id.c_str());const bool pressed=ImGui::InvisibleButton("##key",ImVec2(b.W(),b.H()));ImGui::PopID();
+        if(ImGui::IsItemHovered()&&moved){keyRow_=row;keyColumn_=column;}
+        if(pressed)clicked=id;
+        const bool focused=keyRow_==row&&keyColumn_==column;
+        d->AddRectFilled(b.min,b.max,focused?c.header:ground,4*s);
+        d->AddRect(b.min,b.max,ground==c.accent||ground==c.hover?c.accent:c.border,4*s,0,s);
+        if(focused)v2::Focus(d,b.min,b.max);
+        return focused;
+    };
+    const auto label=[&](v2::Box b,const char* text,float size,ImU32 tone){
+        const float w=HeadingFont()->CalcTextSizeA(size,FLT_MAX,0,text).x;
+        d->AddText(HeadingFont(),size,ImVec2(b.min.x+(b.W()-w)*.5f,b.min.y+(b.H()-size)*.5f),tone,text);
+    };
+    auto at=ImGui::GetCursorScreenPos();
+    const auto& recent=recentText_[entry.id];
+    if(!recent.empty()){
+        // The Recent names: the texts this field took before, one press away.
+        const char* named=loc::T("keyboard.recent");const float rh=36*s;
+        d->AddText(ImGui::GetFont(),14*s,ImVec2(at.x,at.y+(rh-14*s)*.5f),c.muted,named);
+        float x=at.x+ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,named).x+8*s;
+        for(int i=0;i<static_cast<int>(recent.size());++i){
+            NoteUserText(recent[i]);
+            const float w=ImGui::CalcTextSize(recent[i].c_str()).x+24*s;
+            const v2::Box b{ImVec2(x,at.y),ImVec2(x+w,at.y+rh)};
+            cell(b,-1,i,"recent-"+std::to_string(i),c.button);
+            d->AddText(ImVec2(b.min.x+12*s,b.min.y+(rh-ImGui::GetFontSize())*.5f),c.text,recent[i].c_str());
+            x+=w+8*s;
+        }
+        at.y+=rh+12*s;
+    }
+    for(int row=0;row<5;++row){
+        const auto& keys=KeyRows[row];
+        // Space and Done: five keys and two and a half, as the board's 420 and 200 of 76.
+        const auto wide=[&](int i){return row<4?key:i?2.6f*key:5.5f*key;};
+        float total=-gap;for(int i=0;i<static_cast<int>(keys.size());++i)total+=wide(i)+gap;
+        float x=at.x+(width-total)*.5f;
+        for(int i=0;i<static_cast<int>(keys.size());++i){
+            const std::string id=keys[i];const v2::Box b{ImVec2(x,at.y),ImVec2(x+wide(i),at.y+h)};x+=wide(i)+gap;
+            const bool done=id=="done",shift=id=="shift";
+            const bool focused=cell(b,row,i,id,done?c.accent:shift&&capitals_?c.hover:c.button);
+            const ImU32 tone=done&&!focused?c.ink:c.text;
+            if(shift){
+                // An outlined arrow up, filled while capitals are on.
+                const ImVec2 m(b.min.x+b.W()*.5f,b.min.y+h*.5f);const float u=7*s;
+                const ImVec2 arrow[]={{m.x,m.y-u*1.4f},{m.x+u*1.2f,m.y},{m.x+u*.5f,m.y},{m.x+u*.5f,m.y+u*1.2f},{m.x-u*.5f,m.y+u*1.2f},{m.x-u*.5f,m.y},{m.x-u*1.2f,m.y}};
+                if(capitals_){d->AddTriangleFilled(arrow[0],arrow[1],arrow[6],c.accent);d->AddRectFilled(arrow[5],arrow[3],c.accent);}
+                else d->AddPolyline(arrow,7,tone,ImDrawFlags_Closed,2*s);
+            }else if(id=="delete"){
+                // A key cap pointing left with a cross on it.
+                const ImVec2 m(b.min.x+b.W()*.5f,b.min.y+h*.5f);const float u=8*s;
+                const ImVec2 cap[]={{m.x-u*1.6f,m.y},{m.x-u*.6f,m.y-u},{m.x+u*1.4f,m.y-u},{m.x+u*1.4f,m.y+u},{m.x-u*.6f,m.y+u}};
+                d->AddPolyline(cap,5,tone,ImDrawFlags_Closed,2*s);
+                d->AddLine(ImVec2(m.x,m.y-u*.4f),ImVec2(m.x+u*.8f,m.y+u*.4f),tone,2*s);d->AddLine(ImVec2(m.x+u*.8f,m.y-u*.4f),ImVec2(m.x,m.y+u*.4f),tone,2*s);
+            }else if(id=="space"||done)label(b,loc::T(done?"keyboard.done":"keyboard.space"),17*s,tone);
+            else{std::string shown=id;if(capitals_)shown[0]=static_cast<char>(std::toupper(static_cast<unsigned char>(shown[0])));label(b,shown.c_str(),20*s,tone);}
+        }
+        at.y+=h+gap;
+    }
+    // What the pad's buttons do, each also a button for the mouse.
+    const std::vector<v2::Hint> hints{{MenuSelectGlyph(),loc::T("keyboard.type")},{"X",loc::T("keyboard.delete")},{"Y",loc::T("keyboard.space")},
+        {"LB",loc::T("keyboard.capitals")},{"Start",loc::T("keyboard.done")},{MenuBackGlyph(),loc::T("common.cancel")}};
+    const int hint=v2::HintBar({ImVec2(at.x-24*s,at.y+6*s),ImVec2(at.x+width+24*s,at.y+50*s)},hints,"",c.muted);
+    ImGui::SetCursorScreenPos(ImVec2(at.x,at.y+50*s));ImGui::Dummy(ImVec2(width,0));
+    const char* hinted[]={"","delete","space","shift","done",""};
+    if(hint==0&&keyRow_>=0)clicked=KeyRows[keyRow_][keyColumn_];
+    else if(hint==0)clicked="recent-"+std::to_string(keyColumn_);
+    else if(hint>0&&hint<5)clicked=hinted[hint];
+    if(hint==5)navigation.Cancel();
+    if(!clicked.empty()&&PressKey(entry,clicked)&&entry.enabled)action=navigation.AcceptText(entries);
 }
 void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action) {
     const std::string editPopup=std::string(loc::T("edit.title"))+"###EditText";
     if(navigation.Editing()&&notice_.empty()) ImGui::OpenPopup(editPopup.c_str());
     const bool look=v2::On();const float s=Scale();const auto& c=v2::Colors();
-    if(BeginDialogPopup(editPopup.c_str(),720,c.border)) {
+    // The on-screen keyboard's card sits at the bottom, under the field, as on the Deck.
+    const bool keyboard=OnScreenKeyboard(navigation.Editing()?FindEntry(entries,navigation.EditingId()):nullptr);
+    if(keyboard){const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x*.5f,vp->Pos.y+vp->Size.y-24*s),ImGuiCond_Always,ImVec2(.5f,1));}
+    if(BeginDialogPopup(editPopup.c_str(),keyboard?1040:720,c.border)) {
         if(!navigation.Editing()) ImGui::CloseCurrentPopup();
         else {
             const auto* entry=FindEntry(entries,navigation.EditingId());
@@ -382,6 +516,9 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
             if(!secret) NoteUserText(navigation.Draft(),UserTextRole::Draft);
             if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            // What the on-screen keyboard typed replaces the field's own copy, the cursor at its end.
+            if(keyTyped_)if(auto* typed=ImGui::GetInputTextState(ImGui::GetID(secret?"##Secret":"##Draft")))typed->ReloadUserBufAndMoveToEnd();
+            keyTyped_=false;
             if(look){
                 ImGui::PushStyleColor(ImGuiCol_FrameBg,ImGui::ColorConvertU32ToFloat4(c.frame));ImGui::PushStyleColor(ImGuiCol_Border,ImGui::ColorConvertU32ToFloat4(c.accent));
                 ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,2*s);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,4*s);
@@ -393,20 +530,31 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
             if(look){ImGui::PopStyleVar(3);ImGui::PopStyleColor(2);}
             if(changed) navigation.Draft(draft.data());
             if(secret) WipeText(draft.data(),draft.size());
-            if(look)ImGui::TextWrapped("%s",instructions);
-            else ImGui::TextDisabled("%s",bytes.c_str());
-            const bool visualAccept=entry&&feedback_.Enabled(*entry);
-            ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
-            ImGui::BeginChild("Edit feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
-            if(!visualAccept)ImGui::TextWrapped("%s",loc::T("edit.updating"));
-            ImGui::EndChild();ImGui::PopStyleColor();
-            // The highlight is what the controller's Select presses; a moving
-            // pointer moves it, and the model keeps it.
-            int accept=navigation.EditAccepts()?1:0;
-            const int clicked=DrawDialogButtons("edit",{{loc::T("edit.cancel")},{loc::T("common.accept"),canAccept,visualAccept}},&accept,48*Scale(),false);
-            navigation.EditAccepts(accept==1);
-            if(canAccept&&(clicked==1||acceptEditText)) action=navigation.AcceptText(entries);
-            else if(clicked==0) navigation.Cancel();
+            if(keyboard&&entry){
+                ImGui::Dummy(ImVec2(0,4*s));DrawKeyboard(*entry,entries,action);
+                if(canAccept&&acceptEditText)action=navigation.AcceptText(entries);
+            }else{
+                if(look)ImGui::TextWrapped("%s",instructions);
+                else ImGui::TextDisabled("%s",bytes.c_str());
+                const bool visualAccept=entry&&feedback_.Enabled(*entry);
+                ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
+                ImGui::BeginChild("Edit feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
+                if(!visualAccept)ImGui::TextWrapped("%s",loc::T("edit.updating"));
+                ImGui::EndChild();ImGui::PopStyleColor();
+                // The highlight is what the controller's Select presses; a moving
+                // pointer moves it, and the model keeps it.
+                int accept=navigation.EditAccepts()?1:0;
+                const int clicked=DrawDialogButtons("edit",{{loc::T("edit.cancel")},{loc::T("common.accept"),canAccept,visualAccept}},&accept,48*Scale(),false);
+                navigation.EditAccepts(accept==1);
+                if(canAccept&&(clicked==1||acceptEditText)) action=navigation.AcceptText(entries);
+                else if(clicked==0) navigation.Cancel();
+            }
+            // An accepted text leads the field's Recent names on the on-screen keyboard; never a passphrase.
+            if(action.kind==MenuAction::TextAccepted&&!secret&&!action.text.empty()){
+                auto& recent=recentText_[action.id];
+                recent.erase(std::remove(recent.begin(),recent.end(),action.text),recent.end());
+                recent.insert(recent.begin(),action.text);if(recent.size()>3)recent.pop_back();
+            }
             if(!navigation.Editing()) ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

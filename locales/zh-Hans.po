@@ -6993,3 +6993,99 @@ msgstr "对战时间"
 
 msgid "replays.fact.length"
 msgstr "时长"
+
+msgid "keyboard.recent"
+msgstr "最近："
+
+msgid "keyboard.type"
+msgstr "输入"
+
+msgid "keyboard.delete"
+msgstr "删除"
+
+msgid "keyboard.space"
+msgstr "空格"
+
+msgid "keyboard.capitals"
+msgstr "大写"
+
+msgid "keyboard.done"
+msgstr "完成"
+
+msgid "welcome.title"
+msgstr "欢迎"
+
+msgid "welcome.step"
+msgstr "欢迎 · 第 {0} 步，共 {1} 步"
+
+msgid "welcome.speech_title"
+msgstr "要让 Ember 朗读吗？"
+
+msgid "welcome.speech_text"
+msgstr "Ember 可以朗读每个菜单。你可以随时在设置中更改。"
+
+msgid "welcome.speech_on"
+msgstr "是，朗读菜单"
+
+msgid "welcome.speech_on_detail"
+msgstr "如果正在运行屏幕阅读器就使用它，否则使用 Windows 语音。"
+
+msgid "welcome.speech_off"
+msgstr "不朗读"
+
+msgid "welcome.speech_off_detail"
+msgstr "你可以稍后开启。"
+
+msgid "welcome.language_title"
+msgstr "Ember 使用哪种语言？"
+
+msgid "welcome.language_text"
+msgstr "Ember 的菜单使用这种语言。游戏保留自己的语言。"
+
+msgid "welcome.controller_title"
+msgstr "你要用哪个控制器游玩？"
+
+msgid "welcome.controller_text"
+msgstr "Ember 会在各处显示该控制器的按钮图示。"
+
+msgid "welcome.controller_ready"
+msgstr "已就绪：{0}。"
+
+msgid "welcome.look_title"
+msgstr "你想要哪种外观？"
+
+msgid "welcome.look_text"
+msgstr "你可以随时在设置中切换：只会改变画面的外观。"
+
+msgid "welcome.look_classic"
+msgstr "经典"
+
+msgid "welcome.look_classic_detail"
+msgstr "一如既往的 Ember 菜单。"
+
+msgid "welcome.look_v2"
+msgstr "V2（预览）"
+
+msgid "welcome.look_v2_detail"
+msgstr "Ember 的新外观，仍在制作中。"
+
+msgid "welcome.chosen"
+msgstr "已选择"
+
+msgid "welcome.next"
+msgstr "下一步"
+
+msgid "welcome.start"
+msgstr "开始游戏"
+
+msgid "welcome.next_detail"
+msgstr "进入下一个问题。"
+
+msgid "welcome.skip"
+msgstr "跳过"
+
+msgid "welcome.skip_detail"
+msgstr "直接前往主页。这里的所有内容在设置中也有。"
+
+msgid "welcome.previous"
+msgstr "上一步"
