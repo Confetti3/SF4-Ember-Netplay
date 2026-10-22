@@ -3616,6 +3616,9 @@ msgstr "Gekoppelde accounts"
 msgid "screen.tournament_matches"
 msgstr "Toernooiwedstrijden"
 
+msgid "screen.blumint_matches"
+msgstr "BluMint-wedstrijden"
+
 msgid "identity.title"
 msgstr "EMBER ID"
 

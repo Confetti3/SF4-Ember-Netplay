@@ -3617,6 +3617,9 @@ msgstr "Привязанные аккаунты"
 msgid "screen.tournament_matches"
 msgstr "Турнирные матчи"
 
+msgid "screen.blumint_matches"
+msgstr "Матчи BluMint"
+
 msgid "identity.title"
 msgstr "УЧЁТНАЯ ЗАПИСЬ EMBER"
 

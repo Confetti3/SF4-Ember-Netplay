@@ -3617,6 +3617,9 @@ msgstr "連携アカウント"
 msgid "screen.tournament_matches"
 msgstr "大会の試合"
 
+msgid "screen.blumint_matches"
+msgstr "BluMintの試合"
+
 msgid "identity.title"
 msgstr "Ember ID"
 

@@ -3251,6 +3251,9 @@ msgstr "Linked accounts"
 msgid "screen.tournament_matches"
 msgstr "Tournament matches"
 
+msgid "screen.blumint_matches"
+msgstr "BluMint matches"
+
 msgid "identity.title"
 msgstr "EMBER ID"
 

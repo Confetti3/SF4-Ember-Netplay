@@ -163,6 +163,20 @@ void IdentityJourneys() {
  h.view.session.room=netplay::RoomState::Idle;
 }
 }
+// BluMint's matches page lists BluMint's matches only, and offers the linked accounts.
+void BluMintMatches(){
+ using namespace sf4e;
+ IdentityPanel panel;ShellView v;std::string title;
+ v.identity.known=true;v.identity.state="ready";v.identity.bridges={{"brg_1","https://bridge.example","Example"}};
+ panel.OpenMatch("brg_1","emt_1");
+ netplay::tournament::Assignment other,blumint;other.matchId="emt_1";blumint.matchId="emt_2";blumint.provider="blumint";
+ v.tournament.list.bridge="brg_1";v.tournament.list.items={other,blumint};
+ const auto rows=panel.Rows(v,"blumint-matches",title);
+ const auto has=[&](const char* id){return std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
+ Check(has("tm-play:emt_2")&&!has("tm-play:emt_1")&&has("linked-accounts"),"BluMint's matches page shows another service's match or no linked accounts");
+ const auto identity=panel.Rows(v,"identity",title);
+ Check(std::any_of(identity.begin(),identity.end(),[](const MenuEntry& e){return e.id=="blumint-matches";}),"Ember ID does not offer BluMint's matches");
+}
 // Play looks at the match again when pressed: a row older than the list, for a
 // match no longer waiting for its players, past its time or gone, or pressed while
 // the player is in a room, sends nothing; a match that can be played sends Play.
@@ -366,5 +380,5 @@ void RoomLinks(){
  h.view.pendingJoinDirect=false;h.shell.Navigation().Home();h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join"&&h.actions.size()==before,"A stale room link did not just fill the Join screen");
 }
-int main(){try{IdentityJourneys();PlayRechecks();RestartWatch();TournamentRoom();TournamentAccount();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();RunSignInSiteJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+int main(){try{IdentityJourneys();BluMintMatches();PlayRechecks();RestartWatch();TournamentRoom();TournamentAccount();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();RunSignInSiteJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

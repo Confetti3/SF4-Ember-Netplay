@@ -77,6 +77,21 @@ All of it already exists except the first item.
 | `ConnectionLostReason` on the match's end | Bridge | Game did not count (BluMint retries from `startingWins`) |
 | A next `blumint` assignment that is playable | Bridge assignment list | "Play <next>" on the set-won notice |
 
+## BluMint's matches
+
+Online play › Ember ID › BluMint matches (screen `blumint-matches`, offered once BluMint has given the player a match) is Ember
+ID's tournament matches in BluMint's look, listing only BluMint's matches,
+with the BluMint account linked to the Ember ID. "Play now" and "Play the next
+match" open it at the match's row. It shows what the assignment list holds:
+the set length, the score, the state. The canvas board BmOpen also draws a
+bracket, seeds, entrants and the opponent's name: BluMint's API has no read
+for them, so they are not built.
+
+King of the hill (canvas board BmKing) is not built: its queue, pot and
+crowns are BluMint's and not readable, and Ember is not told a match's
+format. Each challenger's set plays in the BluMint room above; the event room
+(BLUMINT_EVENT_ROOM.md) is where a king of the hill board would live.
+
 ## Not yet
 
 - A watcher's PC does not hold the match's assignment, so it cannot tell a

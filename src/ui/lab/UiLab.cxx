@@ -234,6 +234,21 @@ void BluMintMoment(ui::ShellView& view, const std::string& moment) {
 }
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
 // it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
+// BluMint's matches (--screen blumint-matches): one called, one won, one nobody played, and the linked BluMint account.
+void BluMintMatches(ui::ShellView& view) {
+    auto& id = view.identity;
+    id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
+    id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
+    id.links = {{"lnk_1", "blumint", "BluMint", "FRaccie"}};
+    auto& list = view.tournament.list;
+    list.bridge = "brg_1";
+    for (const char* state : {"ready", "completed", "expired"}) {
+        netplay::tournament::Assignment a;
+        a.matchId = std::string("emt_") + state; a.provider = "blumint"; a.state = state; a.gamesToWin = 2; a.profile = "ember-room-v1"; a.slot = 0;
+        if (a.Finished()) a.wins = {2, 1};
+        list.items.push_back(a);
+    }
+}
 void Rankings(ui::ShellView& view) {
     auto& id = view.identity;
     id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
@@ -326,6 +341,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::uint64_t identityAsked = 0;
     bool listAsked = false;
     if (rankings) Rankings(view);
+    if (screen == "blumint-matches") BluMintMatches(view);
     // Fighter select (--screen selection) with every fighter, costume and colour there.
     ui::FighterSelector selector;
     selection::Pick pick;

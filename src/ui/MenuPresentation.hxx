@@ -18,7 +18,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"profile",loc::T("home.profile")},{"awards",loc::T("screen.awards")},{"awards-icons",loc::T("screen.awards")},{"settings",loc::T("home.settings")},{"interface",loc::T("settings.interface")},
         {"training-replays",loc::T("settings.training_replays")},{"accessibility",loc::T("settings.accessibility")},{"problem-reports",loc::T("reports.settings_title")},{"sent-reports",loc::T("reports.sent_list")},{"discord",loc::T("screen.discord")},{"discord-invitation",loc::T("screen.discord_invitation")},
         {"public-rooms",loc::T("screen.public_rooms")},{"rankings",loc::T("screen.rankings")},{"rankings-board",loc::T("rankings.players")},{"identity",loc::T("screen.identity")},{"identity-backup",loc::T("screen.identity_backup")},
-        {"linked-accounts",loc::T("screen.linked_accounts")},{"tournament-matches",loc::T("screen.tournament_matches")},{"discord-connect",loc::T("screen.connect_discord")},{"sign-in-site",loc::T("site.screen")},
+        {"linked-accounts",loc::T("screen.linked_accounts")},{"tournament-matches",loc::T("screen.tournament_matches")},{"blumint-matches",loc::T("screen.blumint_matches")},{"discord-connect",loc::T("screen.connect_discord")},{"sign-in-site",loc::T("site.screen")},
         {"assignment",loc::T("screen.assignment")},{"create",loc::T("online.create")},{"join",loc::T("online.join")},
         {"room",loc::T("screen.room")},{"room-table",loc::T("screen.table")},
         {"room-members",loc::T("screen.members")},{"room-member",loc::T("screen.member")},{"room-chat",loc::T("screen.chat")},

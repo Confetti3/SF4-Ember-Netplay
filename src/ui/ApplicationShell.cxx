@@ -372,7 +372,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
  }else if(IdentityPanel::Owns(screen)){
   rows=identity_.Rows(v,screen,title);
-  if(screen=="tournament-matches"){const auto focus=identity_.TakeFocus(rows);if(!focus.empty())nav.Focus(focus,rows);}
+  if(screen=="tournament-matches"||screen=="blumint-matches"){const auto focus=identity_.TakeFocus(rows);if(!focus.empty())nav.Focus(focus,rows);}
  }else if(screen=="developer"&&developer){
   // The inspector's selectors are not the shell's own: they inherit no room
   // hints or Back label, and whatever they forward has no reader here.

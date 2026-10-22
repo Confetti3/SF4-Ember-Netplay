@@ -3616,6 +3616,9 @@ msgstr "Powiązane konta"
 msgid "screen.tournament_matches"
 msgstr "Mecze turniejowe"
 
+msgid "screen.blumint_matches"
+msgstr "Mecze BluMint"
+
 msgid "identity.title"
 msgstr "EMBER ID"
 
