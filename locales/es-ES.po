@@ -6762,3 +6762,42 @@ msgstr "Reinicio"
 
 msgid "blumint.chip_expired"
 msgstr "Caducado"
+
+msgid "room.v2.board"
+msgstr "Tablero"
+
+msgid "room.v2.tables"
+msgstr "MESAS"
+
+msgid "room.v2.table"
+msgstr "MESA {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "{0} jugando · {1} mirando"
+
+msgid "room.v2.group_playing"
+msgstr "JUGANDO"
+
+msgid "room.v2.group_at_table"
+msgstr "EN UNA MESA"
+
+msgid "room.v2.group_watching"
+msgstr "MIRANDO"
+
+msgid "room.v2.group_in_room"
+msgstr "EN LA SALA"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · EN LÍNEA · SALA PRIVADA"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · EN LÍNEA · SALA PÚBLICA"
+
+msgid "room.v2.invitation_only"
+msgstr "Solo con invitación"
+
+msgid "room.v2.listed"
+msgstr "En Salas públicas"
+
+msgid "room.v2.type_message"
+msgstr "Escribe un mensaje"

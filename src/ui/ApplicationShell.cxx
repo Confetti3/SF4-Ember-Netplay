@@ -845,6 +845,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v2::On()&&!roomScreen)OfferValues(rows);
  // A BluMint match's room: its look, header and notices (ApplicationShell__BluMint.cxx).
  UpdateBluMint(v,screen,rows);
+ // V2: an Ember room's header says what kind of room it is, who it admits and how full it is.
+ if(v2::On()&&screen=="room"&&v.room.roomEpoch&&v2::CurrentBrand()==v2::Brand::Ember){
+  const bool listed=v.room.serverOwned;
+  menu_.eyebrow=loc::T(listed?"room.v2.eyebrow_public":"room.v2.eyebrow_private");
+  menu_.headerChips={{loc::T(listed?"room.v2.listed":"room.v2.invitation_only"),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending))},
+   {std::string(loc::T("room.members"))+" "+std::to_string(v.room.members.size())+"/"+std::to_string(v.room.capacity),palette::Ready}};
+ }
  PublishPlayerCard(v);
  // Public rooms lead with a toolbar of four cells, in one row on a wide list and two on a narrow one.
  const bool publicToolbar=PublicRoomsPanel::Owns(screen)&&!rows.empty()&&rows[0].id=="pr-quick";

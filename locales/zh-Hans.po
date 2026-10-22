@@ -6762,3 +6762,42 @@ msgstr "重开"
 
 msgid "blumint.chip_expired"
 msgstr "已过期"
+
+msgid "room.v2.board"
+msgstr "概览"
+
+msgid "room.v2.tables"
+msgstr "对战台"
+
+msgid "room.v2.table"
+msgstr "对战台 {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "{0} 人对战 · {1} 人观战"
+
+msgid "room.v2.group_playing"
+msgstr "对战中"
+
+msgid "room.v2.group_at_table"
+msgstr "在对战台"
+
+msgid "room.v2.group_watching"
+msgstr "观战中"
+
+msgid "room.v2.group_in_room"
+msgstr "在房间内"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · 在线 · 私人房间"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · 在线 · 公开房间"
+
+msgid "room.v2.invitation_only"
+msgstr "仅限邀请"
+
+msgid "room.v2.listed"
+msgstr "已列入公开房间"
+
+msgid "room.v2.type_message"
+msgstr "输入消息"

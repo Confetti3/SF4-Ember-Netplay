@@ -6762,3 +6762,42 @@ msgstr "Переигровка"
 
 msgid "blumint.chip_expired"
 msgstr "Истекло"
+
+msgid "room.v2.board"
+msgstr "Обзор"
+
+msgid "room.v2.tables"
+msgstr "СТОЛЫ"
+
+msgid "room.v2.table"
+msgstr "СТОЛ {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "Играют: {0} · смотрят: {1}"
+
+msgid "room.v2.group_playing"
+msgstr "ИГРАЮТ"
+
+msgid "room.v2.group_at_table"
+msgstr "ЗА СТОЛОМ"
+
+msgid "room.v2.group_watching"
+msgstr "СМОТРЯТ"
+
+msgid "room.v2.group_in_room"
+msgstr "В КОМНАТЕ"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · ОНЛАЙН · ЗАКРЫТАЯ КОМНАТА"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · ОНЛАЙН · ОТКРЫТАЯ КОМНАТА"
+
+msgid "room.v2.invitation_only"
+msgstr "Только по приглашению"
+
+msgid "room.v2.listed"
+msgstr "В списке открытых комнат"
+
+msgid "room.v2.type_message"
+msgstr "Напишите сообщение"

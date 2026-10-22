@@ -6762,3 +6762,42 @@ msgstr "재시작"
 
 msgid "blumint.chip_expired"
 msgstr "만료"
+
+msgid "room.v2.board"
+msgstr "보드"
+
+msgid "room.v2.tables"
+msgstr "테이블"
+
+msgid "room.v2.table"
+msgstr "테이블 {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "대전 중 {0} · 관전 중 {1}"
+
+msgid "room.v2.group_playing"
+msgstr "대전 중"
+
+msgid "room.v2.group_at_table"
+msgstr "테이블 대기"
+
+msgid "room.v2.group_watching"
+msgstr "관전 중"
+
+msgid "room.v2.group_in_room"
+msgstr "방 안"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · 온라인 · 비공개 방"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · 온라인 · 공개 방"
+
+msgid "room.v2.invitation_only"
+msgstr "초대 전용"
+
+msgid "room.v2.listed"
+msgstr "공개 방에 표시됨"
+
+msgid "room.v2.type_message"
+msgstr "메시지 입력"
