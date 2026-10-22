@@ -610,7 +610,12 @@ void AfterUpdate(Native* system) {
     const View view = session.GetView();
     BoxView boxes;
     if (view.available && view.ready && BoxesWanted()) boxes = ReadBoxes(system);
-    std::lock_guard<std::mutex> lock(mutex); published = view; published.meter = meter.View(); published.boxes = std::move(boxes);
+    std::lock_guard<std::mutex> lock(mutex);
+    // Whether the match meter shows is ObserveMatch's: a replay's held frame (a slower speed, a pause) runs only
+    // this, and must not hide the meter until the next played frame.
+    const bool watching = published.watching, replayInputs = published.replayInputs;
+    published = view; published.meter = meter.View(); published.boxes = std::move(boxes);
+    published.watching = watching; published.replayInputs = replayInputs;
     if (published.available) published.dummy = ReadDummyState(published.dummy);
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
     published.leavingIn = leaving.Left(); published.leavingCall = leaving.Call();

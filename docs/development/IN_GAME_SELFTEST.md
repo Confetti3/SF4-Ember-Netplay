@@ -160,6 +160,8 @@ replay and sends the requests the Replays screen sends:
 - Watch: the battle log plays it, the test leaves it after half a minute, and
   the main menu comes back to Ember. Watching imports it into one more slot
   and marks it watched once.
+  It is watched with the frame meter and, once Ember's controls take it, at
+  half speed: the meter has to stay on the frames the game holds.
 
 Unlike the training test it writes into the signed-in account's replay slots,
 as an import does: the replay a slot held is in the archive first, as always,

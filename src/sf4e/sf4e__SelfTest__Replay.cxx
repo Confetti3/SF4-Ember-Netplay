@@ -13,7 +13,9 @@
 #include "../common/ReplaySlots.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
+#include "../training/TrainingRuntime.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__ReplayStore.hxx"
 
 // The replay test: from the main menu, through the requests the Replays
@@ -38,13 +40,14 @@ struct Replay : Steps<Stage> {
 	// The replay that is added and watched, the archive's smallest so the
 	// watch is short, and the CRC of the replay inside it; the save files
 	// before a step; how often the archive's watched list names it; the
-	// frames the battle log has played it.
+	// frames the battle log has played it; at half speed, its frames and how
+	// often the frame meter came back after it was hidden.
 	std::wstring replay;
 	std::uint32_t crc = 0;
 	std::map<std::string, std::uint32_t> before;
-	int watched = 0, tries = 0, frames = 0;
+	int watched = 0, tries = 0, frames = 0, slowFrames = 0, flickers = 0;
 	std::uint64_t returns = 0;
-	bool left = false;
+	bool left = false, slowed = false, meterSeen = false, meterShown = false;
 } s_replay;
 
 std::uint32_t FileCrc(const fs::path& file) {
@@ -99,7 +102,7 @@ int WatchedCount(const std::wstring& replay) {
 // A request as the Replays screen sends it, run at once on this, the game
 // thread. Its outcome is the replay store's notice once its step is Idle.
 void Request(replay::Mode mode, bool atMainMenu) {
-	replaystore::Start({mode, platform::WideToUtf8(s_replay.replay)}, atMainMenu, true);
+	replaystore::Start({mode, platform::WideToUtf8(s_replay.replay), {}, true}, atMainMenu, true);
 }
 bool Notice(const char* key) { return replaystore::GetStatus().notice == loc::T(key); }
 
@@ -188,6 +191,19 @@ void TickReplay(bool atMainMenu) {
 		break;
 	case Stage::Watching:
 		if (status.step == Step::Playing) {
+			// Half speed once Ember's controls take the replay: the game holds every
+			// other frame, and the frame meter stays on those too.
+			const auto& playback = replayplayback::GetView();
+			if (playback.armed && !run.slowed) {
+				replayplayback::Submit(replaytransport::Command::Slower, replaytransport::Device::Keyboard, playback.session);
+				run.slowed = true;
+			}
+			if (playback.divisor == 2) {
+				const bool shown = training::ReadView().watching;
+				// Shown again after it was hidden is a flicker; the meter goes for good as the test leaves.
+				if (shown && run.meterSeen && !run.meterShown) ++run.flickers;
+				run.meterSeen |= shown; run.meterShown = shown; ++run.slowFrames;
+			}
 			// A replay ends on a menu that waits for the player. The test has seen what it came
 			// for once the battle log has played for half a minute, and leaves as Ember does
 			// when the log is back on its list.
@@ -197,6 +213,9 @@ void TickReplay(bool atMainMenu) {
 			if (!run.frames) Say(false, "watch", "the battle log never played the replay");
 			else if (status.returns == run.returns) Say(false, "watch", "the main menu did not come back to Ember");
 			else Say(true, "watch", "played and came back after " + std::to_string(run.waited / kSecond) + " s" + (run.left ? ", left by the test" : ""));
+			if (!run.slowFrames) Say(false, "half speed", "never taken");
+			else if (!run.meterSeen) Say(false, "half speed", "the frame meter never shown");
+			else Say(!run.flickers, "half speed", std::to_string(run.slowFrames) + " frames, the frame meter hidden and back " + std::to_string(run.flickers) + " times");
 			// Watching put it into one more slot and marked it watched, once.
 			const int slot = SlotChanged(run.before, SaveFiles());
 			Say(slot >= 0, "watch import", slot >= 0 ? "in slot " + std::to_string(slot) : slot == -2 ? "more than one match slot changed" : "no match slot changed");
