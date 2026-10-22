@@ -20,7 +20,7 @@ namespace {
 const std::array<std::uint8_t, 16> kRoom{{7}}, kOtherRoom{{8}};
 
 json Rows() {
-	return json::array({{{"member", 2}, {"incarnation", 22}, {"state", "value"}, {"rtt_ms", 62}},
+	return json::array({{{"member", 2}, {"incarnation", 22}, {"state", "value"}, {"rtt_ms", 62}, {"route", "relay"}},
 		{{"member", 3}, {"incarnation", 33}, {"state", "measuring"}},
 		{{"member", 4}, {"incarnation", 44}, {"state", "unavailable"}, {"reason", "in_match"}}});
 }
@@ -42,7 +42,7 @@ void TestSubscription() {
 	CHECK(subscription.Read(Table(1, kRoom, 2), 1, kRoom));
 	const auto& table = subscription.Table();
 	CHECK(table.size() == 3);
-	CHECK(table.at(2).state == session::MemberLatency::State::Value && table.at(2).rttMs == 62 && table.at(2).incarnation == 22);
+	CHECK(table.at(2).state == session::MemberLatency::State::Value && table.at(2).rttMs == 62 && table.at(2).relay && table.at(2).incarnation == 22);
 	CHECK(table.at(3).state == session::MemberLatency::State::Measuring);
 	CHECK(table.at(4).state == session::MemberLatency::State::Unavailable && table.at(4).reason == "in_match");
 	const auto kept = table;
@@ -50,10 +50,12 @@ void TestSubscription() {
 	CHECK(!subscription.Read(Table(1, kRoom, 1, json::array()), 1, kRoom));
 	CHECK(!subscription.Read(Table(2, kRoom, 2, json::array()), 1, kRoom));
 	CHECK(!subscription.Read(Table(1, kOtherRoom, 2, json::array()), 1, kRoom));
-	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "value"}, {"rtt_ms", 0}}})), 1, kRoom));
+	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "value"}, {"rtt_ms", 0}, {"route", "direct"}}})), 1, kRoom));
 	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "fast"}}})), 1, kRoom));
-	// A value without its estimate and an unavailable row without its reason are malformed.
+	// A value without its estimate or route and an unavailable row without its reason are malformed.
 	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "value"}}})), 1, kRoom));
+	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "value"}, {"rtt_ms", 5}}})), 1, kRoom));
+	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "value"}, {"rtt_ms", 5}, {"route", "lan"}}})), 1, kRoom));
 	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "unavailable"}}})), 1, kRoom));
 	json twice = json::array({{{"member", 2}, {"incarnation", 1}, {"state", "measuring"}}, {{"member", 2}, {"incarnation", 1}, {"state", "measuring"}}});
 	CHECK(!subscription.Read(Table(1, kRoom, 2, twice), 1, kRoom));

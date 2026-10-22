@@ -4400,6 +4400,12 @@ msgstr "{0}세트 연속"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "직접 {0} ms"
+
+msgid "room.latency.relay"
+msgstr "릴레이 {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "예상 핑: 약 {0} ms."
 

@@ -4399,6 +4399,12 @@ msgstr "{0} sets op rij"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Direct {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Relay {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Geschatte ping: ongeveer {0} ms."
 

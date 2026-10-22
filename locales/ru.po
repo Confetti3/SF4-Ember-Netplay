@@ -4400,6 +4400,12 @@ msgstr "Поединков подряд: {0}"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Напрямую {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Ретранслятор {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Примерный пинг: около {0} ms."
 

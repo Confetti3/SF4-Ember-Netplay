@@ -4399,6 +4399,12 @@ msgstr "{0} sets d'affilée"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Direct {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Relais {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Ping estimé : environ {0} ms."
 

@@ -4400,6 +4400,12 @@ msgstr "{0} sets seguidos"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Directo {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Relé {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Ping estimado: unos {0} ms."
 
