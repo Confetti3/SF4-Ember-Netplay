@@ -6711,6 +6711,18 @@ msgstr "文字と言語"
 msgid "settings.group.help"
 msgstr "画面のヘルプ"
 
+msgid "settings.panel.open"
+msgstr "開いています"
+
+msgid "settings.panel.closed"
+msgstr "閉じています"
+
+msgid "settings.panel.open_action"
+msgstr "パネルを開く"
+
+msgid "settings.panel.close_action"
+msgstr "パネルを閉じる"
+
 
 msgid "class.developer"
 msgstr "開発"

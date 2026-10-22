@@ -6710,6 +6710,18 @@ msgstr "Text a jazyk"
 msgid "settings.group.help"
 msgstr "Nápověda na obrazovce"
 
+msgid "settings.panel.open"
+msgstr "Otevřeno"
+
+msgid "settings.panel.closed"
+msgstr "Zavřeno"
+
+msgid "settings.panel.open_action"
+msgstr "Otevřít panel"
+
+msgid "settings.panel.close_action"
+msgstr "Zavřít panel"
+
 
 msgid "class.developer"
 msgstr "Dev"

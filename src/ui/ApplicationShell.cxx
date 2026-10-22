@@ -551,6 +551,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
  else if(a.id=="settings"&&v2::On())nav.Push("tab-player");
+ else if(SettingsTab(a.id))nav.Push(a.id);
  else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
@@ -880,6 +881,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(screen=="online"){menu_.eyebrow=loc::T("online.eyebrow");
    menu_.headerChips.push_back({std::string(loc::T("network.relay"))+" \xC2\xB7 "+DescribeRelay(v.netReport),v.netReport.relayConnected?palette::Ready:v2::Colors().muted});}
   else if(screen=="create")menu_.eyebrow=loc::T("online.eyebrow_host");
+  else if(SettingsTab(screen))menu_.eyebrow=settingsEyebrow_;
   else if(screen=="join")menu_.eyebrow=loc::T("online.eyebrow_join");
   else if(PublicRoomsPanel::Owns(screen)){menu_.eyebrow=loc::T("online.eyebrow_browse");
    if(const char* region=RelayRegionName(PublicRoomsPanel::KnownRegion(v)))menu_.headerChips.push_back({loc::Tf("public.your_region",region),palette::Ready});}
@@ -920,10 +922,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   const auto pad=std::find_if(v.pads.begin(),v.pads.end(),[&](const gamepads::PadView& p){return id=="pad-"+std::to_string(p.id);});
   if(pad!=v.pads.end())DrawControllerDetail(*pad,preferences_.buttonPrompts);
  };
- if(screen=="profile"||screen=="main-character"||screen=="tab-player")profilePreview=[&](const std::string& id){
-  if(screen=="tab-player"&&id!="name"&&id!="main-character"&&id!="record"&&id!="share-steam")return;
+ // V2 Settings: a tab's panels are screens of their own (tab-matches/1).
+ const std::string page=SettingsTab(screen)?SettingsTabOf(screen):screen;
+ if(screen=="profile"||screen=="main-character"||page=="tab-player")profilePreview=[&](const std::string& id){
+  if(page=="tab-player"&&!SettingsPreview(id))return;
   // V2's Player tab shows the profile card (the L tag) as others will see it.
-  if(screen=="tab-player"){
+  if(page=="tab-player"){
    ImGui::Dummy(ImVec2(0,8*Scale()));
    const auto p=ImGui::GetCursorScreenPos();
    ImGui::Dummy(ImVec2(0,v2::Tag(ImGui::GetWindowDrawList(),p,ImGui::GetContentRegionAvail().x,MenuPlayerCard().profile,v2::TagSize::L)));
@@ -943,25 +947,25 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  };
  // V2: Create is the room's settings and its rules side by side, and the button that opens it.
  if(v2::On()&&screen=="create")board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawCreateBoard(entries,navigation,action,height,feedback);};
- if(screen=="interface"||screen=="tab-interface")profilePreview=[&](const std::string& id){
+ if(screen=="interface"||page=="tab-interface")profilePreview=[&](const std::string& id){
   // On V2's Interface tab the preview goes with the match HUD's own rows.
-  if(screen=="tab-interface"&&id.compare(0,3,"hud")!=0)return;
-  ImGui::TextUnformatted(loc::T("settings.preview"));
+  if(page=="tab-interface"&&!SettingsPreview(id))return;
+  if(page!="tab-interface")ImGui::TextUnformatted(loc::T("settings.preview")); // V2: the board heads it
   MatchStripView preview;preview.names[0]=loc::T("settings.player_one");preview.names[1]=loc::T("settings.player_two");
   preview.pingMs=68;preview.rollbackFrames=2;preview.appliedDelay=3;
   preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;preview.anchor=preferences_.matchHudAnchor;preview.layout=preferences_.matchHudLayout;preview.nameOffset=preferences_.matchHudNameOffset;
   preview.spectators=2;
   DrawMatchStripPreview(preview);
   // V2: where the HUD sits; drag it to another place, or click one.
-  if(screen=="tab-interface"&&v.canEditPreferences){
+  if(page=="tab-interface"&&v.canEditPreferences){
    ImGui::Dummy(ImVec2(0,8*Scale()));
    const int picked=v2::SpotMap("##hud-spot",{{.5f,.88f},{.16f,.88f},{.84f,.88f},{.16f,.12f},{.84f,.12f},{.5f,.12f}},preferences_.matchHudAnchor,{.26f,.1f});
    if(picked>=0&&picked!=preferences_.matchHudAnchor){preferences_.matchHudAnchor=picked;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
   }
  };
  // V2: where the watched game's picture sits and how big, on a small screen.
- if(screen=="tab-matches")profilePreview=[&](const std::string& id){
-  if(id!="watched-picture"&&id!="picture-corner"&&id!="picture-size")return;
+ if(page=="tab-matches")profilePreview=[&](const std::string& id){
+  if(!SettingsPreview(id))return;
   // The corners in pictureSpot's order: top right, top left, bottom right, bottom left.
   const float share=WatchedPictureShareFor(preferences_.pictureSpot),c=share*.5f+.03f;
   const int corner=preferences_.pictureSpot%4;
@@ -969,6 +973,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(picked>=0&&picked!=corner&&v.canEditPreferences){preferences_.pictureSpot=preferences_.pictureSpot/4*4+picked;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  };
  if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
+ // V2: a Settings tab is a rail of panels beside the shown panel (ApplicationShell__Settings.cxx).
+ else if(v2::On()&&SettingsTab(screen))board=[&,profilePreview](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawSettingsBoard(entries,navigation,action,height,feedback,profilePreview);};
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){
   if(v2::CurrentBrand()==v2::Brand::BluMint&&!v2::Narrow(ImGui::GetContentRegionAvail().x,Scale()))DrawBluMintBoard(v,entries,navigation,action,height);
   else DrawRoomBoard(v,entries,navigation,action,height,feedback);};
@@ -996,7 +1002,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  menu_.tabs.clear();menu_.tab=-1;
  if(v2::On()&&SettingsTab(screen)){
   menu_.tabs=SettingsTabs();
-  for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==screen)menu_.tab=i;
+  for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==page)menu_.tab=i;
  }else if(v2::On()&&RankingsPanel::Owns(screen)){
   // V2: Rankings' two pages, your own and the board, are tabs.
   menu_.tabs={{RankingsPanel::Screen,MenuScreenName(RankingsPanel::Screen)},{RankingsPanel::BoardScreen,MenuScreenName(RankingsPanel::BoardScreen)}};
@@ -1018,6 +1024,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
   }else menu_.backInert=true;
  }else if(!keys)menu_.backHint=placeExit;
+ if(v2::On()&&page!=screen)menu_.backHint=loc::T("settings.panel.close_action");
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
@@ -1036,7 +1043,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(open&&input::HomeBackHidesShell(v.session.room))*open=false;
  }else if(a.kind==MenuAction::Shortcut){
   // A V2 tab names the page it shows.
-  if(!a.id.empty()){nav.Return();nav.Push(a.id);}
+  // A panel's screen sits on its tab's: leave it first, and the tab too unless one of its panels was picked.
+  if(!a.id.empty()){if(page!=screen)nav.Return();if(SettingsTabOf(a.id)==a.id)nav.Return();nav.Push(a.id);}
   else if(inRoom)RoomShortcut(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
   else if(RankingsPanel::Owns(screen))rankings_.Shortcut(a);

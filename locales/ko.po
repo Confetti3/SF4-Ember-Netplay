@@ -6711,6 +6711,18 @@ msgstr "글자와 언어"
 msgid "settings.group.help"
 msgstr "화면 도움말"
 
+msgid "settings.panel.open"
+msgstr "열림"
+
+msgid "settings.panel.closed"
+msgstr "닫힘"
+
+msgid "settings.panel.open_action"
+msgstr "패널 열기"
+
+msgid "settings.panel.close_action"
+msgstr "패널 닫기"
+
 
 msgid "class.developer"
 msgstr "개발"

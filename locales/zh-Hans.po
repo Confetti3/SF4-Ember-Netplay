@@ -6711,6 +6711,18 @@ msgstr "文字与语言"
 msgid "settings.group.help"
 msgstr "屏幕帮助"
 
+msgid "settings.panel.open"
+msgstr "已展开"
+
+msgid "settings.panel.closed"
+msgstr "已收起"
+
+msgid "settings.panel.open_action"
+msgstr "展开面板"
+
+msgid "settings.panel.close_action"
+msgstr "收起面板"
+
 
 msgid "class.developer"
 msgstr "开发"

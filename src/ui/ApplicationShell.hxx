@@ -333,6 +333,11 @@ private:
     // V2 Settings (ApplicationShell__Settings.cxx): the tabs as screen id and label, whether a screen is one, and its rows.
     static std::vector<std::pair<std::string,std::string>> SettingsTabs();
     static bool SettingsTab(const std::string& screen);
+    // The tab a screen belongs to ("tab-matches" for its panel "tab-matches/1"), and the rows whose panel shows a preview.
+    static std::string SettingsTabOf(const std::string& screen);
+    static bool SettingsPreview(const std::string& id);
+    // V2's Settings tab (GameMenu body): the rail of panels, the shown panel's rows and preview, the focused row's words.
+    void DrawSettingsBoard(const std::vector<MenuEntry>& entries,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback,const GameMenu::Detail& preview);
     // A BluMint match's room (ApplicationShell__BluMint.cxx): its look, header, watcher's rows and
     // notices; then what a notice's BluMint button does (true when it was one).
     // The room of a BluMint match this PC fights in: it wears BluMint's V2 look.
@@ -443,6 +448,8 @@ void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,Menu
     std::string roomBoardFocus_;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_;
+// The Settings tab's rows by panel, its header's path and the focus last drawn (SettingsTabRows, DrawSettingsBoard).
+std::vector<MenuEntry> settingsRows_;std::string settingsEyebrow_,settingsFocus_;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.

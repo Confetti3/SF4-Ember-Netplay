@@ -6711,6 +6711,18 @@ msgstr "Текст и язык"
 msgid "settings.group.help"
 msgstr "Подсказки на экране"
 
+msgid "settings.panel.open"
+msgstr "Открыто"
+
+msgid "settings.panel.closed"
+msgstr "Закрыто"
+
+msgid "settings.panel.open_action"
+msgstr "Открыть панель"
+
+msgid "settings.panel.close_action"
+msgstr "Закрыть панель"
+
 
 msgid "class.developer"
 msgstr "Dev"

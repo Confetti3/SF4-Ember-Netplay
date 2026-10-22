@@ -6230,6 +6230,18 @@ msgstr "Texto e idioma"
 msgid "settings.group.help"
 msgstr "Ajuda na tela"
 
+msgid "settings.panel.open"
+msgstr "Aberto"
+
+msgid "settings.panel.closed"
+msgstr "Fechado"
+
+msgid "settings.panel.open_action"
+msgstr "Abrir painel"
+
+msgid "settings.panel.close_action"
+msgstr "Fechar painel"
+
 
 msgid "class.developer"
 msgstr "Dev"

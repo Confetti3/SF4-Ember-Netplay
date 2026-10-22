@@ -6346,6 +6346,18 @@ msgstr "Text and language"
 msgid "settings.group.help"
 msgstr "On-screen help"
 
+msgid "settings.panel.open"
+msgstr "Open"
+
+msgid "settings.panel.closed"
+msgstr "Closed"
+
+msgid "settings.panel.open_action"
+msgstr "Open panel"
+
+msgid "settings.panel.close_action"
+msgstr "Close panel"
+
 msgid "class.developer"
 msgstr "Dev"
 

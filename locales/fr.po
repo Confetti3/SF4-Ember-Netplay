@@ -6710,6 +6710,18 @@ msgstr "Texte et langue"
 msgid "settings.group.help"
 msgstr "Aide à l'écran"
 
+msgid "settings.panel.open"
+msgstr "Ouvert"
+
+msgid "settings.panel.closed"
+msgstr "Fermé"
+
+msgid "settings.panel.open_action"
+msgstr "Ouvrir le panneau"
+
+msgid "settings.panel.close_action"
+msgstr "Fermer le panneau"
+
 
 msgid "class.developer"
 msgstr "Dev"

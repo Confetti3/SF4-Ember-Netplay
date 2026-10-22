@@ -193,7 +193,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         ImGui::PopStyleVar(2);
         return true;
     };
-    if (body) {
+    if (body && !navigation.Reading()) {
         ImGui::SetCursorScreenPos(content.min);
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
         ImGui::BeginChild("V2 body", ImVec2(content.W(), content.H()), 0, ImGuiWindowFlags_NoNavInputs);
