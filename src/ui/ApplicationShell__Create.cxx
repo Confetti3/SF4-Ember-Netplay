@@ -31,11 +31,16 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
  rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
- // Only a private room can be a Practice room, which has no round time to choose.
+ // Only a private room can be an Arcade or a Practice room; a Practice room
+ // has no round time to choose.
  const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_;
+ if(privateCreate)rows.push_back(RoomTypeRow(createArcade_,can));
+ if(privateCreate&&createArcade_)rows.push_back(ArcadeViewRow(createArcade_,can));
  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
  rows.push_back(DelayPolicyRow(preferences_.roomDelayPolicy,can));
  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason,practice);
+ // An Arcade pair rematches after every set, so its rules end at the set's length.
+ if(privateCreate&&createArcade_)rows.pop_back();
  if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
   Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
    can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
@@ -52,6 +57,8 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
 }
 // Create's own choice, never one of the saved preferences.
 bool ApplicationShell::CreateAdjust(const MenuAction& a) {
+ if(a.id=="room-type"){createArcade_=a.delta>0?room::ArcadeFloor:room::ArcadeOff;return true;}
+ if(a.id=="arcade-view"){createArcade_=static_cast<room::ArcadeView>((std::max)(1,(std::min)(3,static_cast<int>(createArcade_)+a.delta)));return true;}
  if(a.id!="practice-room")return false;
  createPractice_=a.delta>0;
  return true;
@@ -75,7 +82,7 @@ void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& 
 
 // Create public room opens Create on Public, which stays the default until changed.
 void ApplicationShell::OpenCreate() {
- createPractice_=false;menu_.navigation.Push("create");
+ createPractice_=false;createArcade_=room::ArcadeOff;menu_.navigation.Push("create");
 }
 void ApplicationShell::OpenPublicCreate() {
  if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}

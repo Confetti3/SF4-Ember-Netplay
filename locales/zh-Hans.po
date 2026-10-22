@@ -4910,6 +4910,60 @@ msgstr "练习对战"
 msgid "room.rules_summary_practice"
 msgstr "练习对战，{0} 回合，{1} 秒，Edition Select {2}"
 
+msgid "room.type"
+msgstr "房间类型"
+
+msgid "room.type.classic"
+msgstr "经典"
+
+msgid "room.type.arcade"
+msgstr "街机"
+
+msgid "room.type.classic_detail"
+msgstr "玩家在桌前排队，并在该桌对战。"
+
+msgid "room.type.arcade_detail"
+msgstr "像街机厅一样，十六台机台两两相对：房间会让你坐到正在等待的人对面，两人一直对战，直到有人起身。"
+
+msgid "room.arcade_status"
+msgstr "街机房间 / 仅限邀请"
+
+msgid "room.arcade_locked_status"
+msgstr "街机房间已锁定 / 仅限邀请"
+
+msgid "room.cabinet_free"
+msgstr "请投币"
+
+msgid "room.arcade_sit"
+msgstr "坐下"
+
+msgid "room.arcade_sit_detail"
+msgstr "房间会让你坐到正在等待的人对面，或一台空闲的机台前。"
+
+msgid "room.arcade_view"
+msgstr "街机房间视图"
+
+msgid "room.arcade_view_detail"
+msgstr "街机房间机台的画法：两两相对的大厅，或把高机台排成两行或四列的 Real Arcade。"
+
+msgid "room.arcade_view.floor"
+msgstr "大厅"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade（两行）"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade（四列）"
+
+msgid "room.cabinet_empty"
+msgstr "空位"
+
+msgid "room.arcade_waiting"
+msgstr "等待中"
+
+msgid "room.rules.arcade"
+msgstr "街机房间的规则在创建时设定，适用于每一桌。"
+
 msgid "room.practice"
 msgstr "练习房间"
 

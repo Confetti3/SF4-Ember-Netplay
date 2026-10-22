@@ -4909,6 +4909,60 @@ msgstr "Partita di pratica"
 msgid "room.rules_summary_practice"
 msgstr "Partita di pratica, {0} round, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Tipo di stanza"
+
+msgid "room.type.classic"
+msgstr "Classica"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "I giocatori si mettono in coda a un tavolo e giocano lì."
+
+msgid "room.type.arcade_detail"
+msgstr "Sedici cabinati in coppia, come in sala giochi: la stanza ti mette di fronte a chi aspetta, e la coppia gioca finché uno non si alza."
+
+msgid "room.arcade_status"
+msgstr "Stanza arcade / solo su invito"
+
+msgid "room.arcade_locked_status"
+msgstr "Stanza arcade chiusa / solo su invito"
+
+msgid "room.cabinet_free"
+msgstr "INSERISCI GETTONE"
+
+msgid "room.arcade_sit"
+msgstr "Siediti"
+
+msgid "room.arcade_sit_detail"
+msgstr "La stanza ti mette di fronte a chi aspetta, o a un cabinato libero."
+
+msgid "room.arcade_view"
+msgstr "Vista stanza arcade"
+
+msgid "room.arcade_view_detail"
+msgstr "Come vengono disegnati i cabinati di una stanza arcade: la sala di coppie una di fronte all'altra, o Real Arcade con cabinati alti su due file o quattro colonne."
+
+msgid "room.arcade_view.floor"
+msgstr "Sala"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (file)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (colonne)"
+
+msgid "room.cabinet_empty"
+msgstr "VUOTO"
+
+msgid "room.arcade_waiting"
+msgstr "In attesa"
+
+msgid "room.rules.arcade"
+msgstr "Le regole di una stanza arcade si scelgono alla creazione e valgono a ogni tavolo."
+
 msgid "room.practice"
 msgstr "Sala di pratica"
 

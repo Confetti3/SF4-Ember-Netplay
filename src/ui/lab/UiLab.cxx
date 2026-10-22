@@ -9,7 +9,7 @@
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--public] [--rankings] [--playback] [--pip] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--arcade floor|rows|columns] [--public] [--rankings] [--playback] [--pip] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -177,6 +177,26 @@ void JoinRoom(ui::ShellView& view) {
     const char* chat[] = {"Welcome! Grab a table or join a queue.", "Good games. I'll watch the next one.", "Ready for another set?", "Let's run it back!"};
     for (int i = 0; i < 12; ++i) view.room.chat.push_back({static_cast<std::uint64_t>(i + 1), static_cast<room::MemberId>(i % 16 + 1), chat[i % 4]});
 }
+// An Arcade room in `arcade` view (Arcade.dc.html): six members, two pairs playing
+// (one on a streak), this PC and one other waiting at a cabinet each.
+void ArcadeRoom(ui::ShellView& view, room::ArcadeView arcade) {
+    JoinRoom(view);
+    view.room.arcade = arcade; view.room.name = "FRaccie's arcade"; view.room.members.resize(6);
+    const char* names[] = {"FRaccie", "Katie", "Jimbo", "Deck01", "Ash", "Mo"};
+    for (auto& m : view.room.members) { m.name = names[m.id - 1]; m.table = m.seat = -1; m.status = room::MemberStatus::Idle; }
+    for (std::size_t i = 0; i < room::TableCount; ++i) view.room.tables[i] = {}, view.room.tables[i].id = static_cast<std::uint8_t>(i);
+    // Table, seat, member, playing.
+    const int seats[][4] = {{0, 0, 2, 1}, {0, 1, 3, 1}, {1, 0, 1, 0}, {2, 0, 4, 1}, {2, 1, 5, 1}, {4, 0, 6, 0}};
+    for (const auto& s : seats) {
+        auto& t = view.room.tables[s[0]]; auto& m = view.room.members[s[2] - 1];
+        (s[1] ? t.p2 : t.p1) = static_cast<room::MemberId>(s[2]);
+        t.phase = s[3] ? room::TablePhase::Playing : room::TablePhase::Waiting;
+        m.table = static_cast<std::int8_t>(s[0]); m.seat = static_cast<std::int8_t>(s[1]);
+        m.status = s[3] ? room::MemberStatus::Playing : room::MemberStatus::Seated;
+    }
+    view.room.tables[0].score[0] = 1; view.room.tables[0].streakHolder = 2; view.room.tables[0].streak = 3;
+    for (auto& line : view.room.chat) line.sender = static_cast<room::MemberId>((line.sender - 1) % 6 + 1);
+}
 // A trusted Ember ID and a relay in Europe; PublicRooms lists rooms once asked.
 void PublicLab(ui::ShellView& view) {
     auto& id = view.identity;
@@ -280,6 +300,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string shot, keys, screen, recovery;
     bool inRoom = false, pip = false;
+    room::ArcadeView arcade = room::ArcadeOff;  // --arcade floor|rows|columns: an Arcade room in that view
     int hud = -1;
     bool trainingPanel = false, blumint = false, watcher = false, update = false, publicLab = false, rankings = false, playback = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     std::string moment;  // --moment game|set|lost|restart|host|expired|failed|called, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
@@ -293,6 +314,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--shot" && more) shot = args[++i];
         else if (args[i] == "--room") inRoom = true;
         else if (args[i] == "--pip") pip = true;
+        else if (args[i] == "--arcade" && more) { ++i; arcade = args[i] == "rows" ? room::ArcadeRows : args[i] == "columns" ? room::ArcadeColumns : room::ArcadeFloor; }
         else if (args[i] == "--hud" && more) hud = std::atoi(args[++i].c_str());
         else if (args[i] == "--training") trainingPanel = true;
         else if (args[i] == "--blumint") blumint = true;
@@ -333,7 +355,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     view.preferences.tvMode = tv;
     view.preferences.welcomed = !welcome;
     // A BluMint room joins its own (BluMintRoom).
-    if (inRoom && !blumint) JoinRoom(view);
+    if (arcade) ArcadeRoom(view, arcade);
+    else if (inRoom && !blumint) JoinRoom(view);
     if (blumint) BluMintRoom(view, watcher);
     if (update) { view.services.launchOffer = launcher::InstallOffer{updates::UpdateChannel::Nightly, "v1.3.0", "lab"}; view.services.installedVersion = "v1.2.0"; }
     if (publicLab) PublicLab(view);

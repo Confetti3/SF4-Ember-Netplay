@@ -212,6 +212,159 @@ CardInteraction DrawTableCard(const TableCardView& card) {
  FlushCardTip(elided);
  return hit;
 }
+namespace {
+// A cabinet's width for its height, as DrawCabinet draws it.
+constexpr float CabinetAspect=.95f;
+constexpr ImU32 CabinetNeon=IM_COL32(222,36,44,255);
+// The size an empty cabinet's screen writes Insert coin at, for its height.
+// Below the smallest readable size the screen stays dark and the text goes
+// beside the cabinet instead.
+float ScreenTextSize(float height) { return height*.11f; }
+bool ScreenTextReadable(float height) { return ScreenTextSize(height)>=11*Scale(); }
+// A crown over `centre`, `size` wide.
+void DrawCrown(ImDrawList* draw,ImVec2 centre,float size) {
+ const float h=size*.6f,x=centre.x-size*.5f,y=centre.y-h*.5f;
+ const ImVec2 points[]={{x,y+h},{x,y+h*.2f},{x+size*.25f,y+h*.55f},{x+size*.5f,y},{x+size*.75f,y+h*.55f},{x+size,y+h*.2f},{x+size,y+h}};
+ draw->AddConvexPolyFilled(points,7,IM_COL32(240,190,60,255));
+}
+// A one player cabinet seen from the front, as USF4's arcade cabinets stand:
+// a black body with a red neon edge, its number on the marquee (lit in the
+// pair's colour while someone plays), the player's fighter on its monitor or
+// Insert coin on a dark one, and the control panel with its stick and buttons.
+void DrawCabinet(ImDrawList* draw,ImVec2 p,float height,const CabinetTileView& tile) {
+ const float s=Scale(),w=height*CabinetAspect;
+ const ImU32 body=IM_COL32(16,14,17,255),panel=IM_COL32(70,14,18,255),glass=IM_COL32(20,24,32,255);
+ const auto at=[&](float x,float y){return ImVec2(p.x+w*x,p.y+height*y);};
+ const auto box=[&](float x0,float y0,float x1,float y1,ImU32 color,float round){draw->AddRectFilled(at(x0,y0),at(x1,y1),color,round*s);};
+ // Body and its neon edge, a soft glow under a sharp line.
+ box(0,0,1,1,body,4);
+ draw->AddRect(at(0,0),at(1,1),(CabinetNeon&0x00FFFFFF)|0x50000000,4*s,0,4*s);
+ draw->AddRect(at(0,0),at(1,1),CabinetNeon,4*s,0,1.5f*s);
+ // Marquee: the cabinet's number, a crown for a streak, a red line under it.
+ box(.05f,.03f,.95f,.17f,tile.occupied&&tile.accent?((tile.accent&0x00FFFFFF)|0x60000000):IM_COL32(32,30,34,255),2);
+ box(.05f,.165f,.95f,.18f,CabinetNeon,0);
+ std::string unused;
+ const float label=(std::max)(8*s,height*.12f);
+ DrawCardText(unused,ImVec2(p.x,p.y+height*.10f-label*.5f),w,std::to_string(tile.number),label,palette::Ivory,true);
+ if(tile.crown)DrawCrown(draw,ImVec2(p.x+w*.18f,p.y+height*.10f),w*.18f);
+ // The monitor.
+ box(.07f,.21f,.93f,.66f,glass,2);
+ const float top=p.y+height*.23f,bottom=p.y+height*.64f,screen=bottom-top;
+ if(tile.occupied){const float x=p.x+(w-screen)*.5f;DrawCharacterPortrait(tile.fighter,ImVec2(x,top),ImVec2(x+screen,bottom));}
+ else{
+  const float size=ScreenTextSize(height);
+  if(ScreenTextReadable(height))DrawCardText(unused,ImVec2(p.x+w*.08f,(top+bottom)*.5f-size*.5f),w*.84f,tile.status,size,palette::Muted,true);
+ }
+ // Control panel with a stick and two rows of buttons.
+ box(.03f,.70f,.97f,.84f,panel,2);
+ const float row=p.y+height*.77f,dot=(std::max)(1.f,height*.024f);
+ draw->AddCircleFilled(ImVec2(p.x+w*.20f,row-dot*.6f),dot*1.7f,CabinetNeon);
+ for(int line=0;line<2;++line)for(int column=0;column<3;++column)
+  draw->AddCircleFilled(ImVec2(p.x+w*(.50f+column*.13f),row+(line-.5f)*dot*2.5f),dot,line?IM_COL32(230,230,235,255):IM_COL32(60,130,230,255));
+ // Kick plate.
+ box(.12f,.88f,.88f,.95f,IM_COL32(40,36,40,255),1);
+}
+}
+bool DrawCabinetTile(const CabinetTileView& tile,ImVec2 size) {
+ const float s=Scale();
+ const auto p=ImGui::GetCursorScreenPos();
+ std::string elided;
+ const bool pressed=DrawCardButton(tile.id,size,tile.focused,tile.focusChanged,tile.disabled);
+ auto* draw=ImGui::GetWindowDrawList();
+ if(tile.accent)draw->AddRect(ImVec2(p.x+3*s,p.y+3*s),ImVec2(p.x+size.x-3*s,p.y+size.y-3*s),tile.accent,4*s,0,2.5f*s);
+ // The cabinet on the left; its player's name and flag, fighter and table
+ // beside it. An empty cabinet says Insert coin on its screen, or beside it
+ // where the screen is too small to read.
+ const float cabinet=(std::max)(24*s,size.y-12*s);
+ DrawCabinet(draw,ImVec2(p.x+10*s,p.y+6*s),cabinet,tile);
+ const float x=p.x+18*s+cabinet*CabinetAspect,width=p.x+size.x-8*s-x,middle=p.y+size.y*.5f;
+ if(tile.occupied){
+  if(ImGui::IsRectVisible(p,ImVec2(p.x+size.x,p.y+size.y)))NoteUserText(tile.name);
+  const auto flag=DrawCountryFlagBeside(draw,x,middle-28*s,15*s,tile.country);
+  DrawCardText(elided,ImVec2(x+flag.width,middle-28*s),width-flag.width,tile.name,15*s,palette::Ivory);
+  DrawCardText(elided,ImVec2(x,middle-8*s),width,tile.caption,13*s,palette::Muted);
+  DrawCardText(elided,ImVec2(x,middle+10*s),width,tile.status,12*s,tile.accent?tile.accent:palette::Muted);
+ }else if(!ScreenTextReadable(cabinet))DrawCardText(elided,ImVec2(x,middle-7*s),width,tile.status,13*s,palette::Muted);
+ FlushCardTip(elided);
+ return pressed;
+}
+bool DrawRealCabinet(const CabinetTileView& tile,ImVec2 size,const std::string& empty) {
+ const float s=Scale(),w=size.x,h=size.y;
+ const auto p=ImGui::GetCursorScreenPos();
+ ImGui::PushID(tile.id.c_str());
+ ImGui::BeginDisabled(tile.disabled);
+ const bool pressed=ImGui::InvisibleButton("##cabinet",size);
+ ImGui::EndDisabled();
+ ImGui::PopID();
+ if(tile.focused&&tile.focusChanged)ImGui::SetScrollHereY(.5f);
+ auto* draw=ImGui::GetWindowDrawList();
+ const auto at=[&](float x,float y){return ImVec2(p.x+w*x,p.y+h*y);};
+ const auto box=[&](float x0,float y0,float x1,float y1,ImU32 color,float round){draw->AddRectFilled(at(x0,y0),at(x1,y1),color,round*s);};
+ std::string elided;
+ // Number tag, in the pair's colour while someone plays.
+ box(.36f,0,.64f,.07f,IM_COL32(20,18,22,235),2);
+ draw->AddRect(at(.36f,0),at(.64f,.07f),tile.occupied&&tile.accent?tile.accent:IM_COL32(90,86,94,255),2*s,0,1*s);
+ DrawCardText(elided,ImVec2(p.x,p.y+h*.035f-8*s),w,std::to_string(tile.number),16*s,palette::Ivory,true);
+ // The cabinet: a black body in neon, red while it stands empty and in its
+ // pair's colour while anyone plays there, glowing brighter when focused.
+ const ImU32 neon=tile.accent?tile.accent:CabinetNeon,rgb=neon&0x00FFFFFF;
+ const ImVec2 top=at(.04f,.09f),bottom=at(.96f,.78f);
+ const int glow=tile.focused?5:tile.accent?3:0;
+ for(int ring=glow;ring>=1;--ring)draw->AddRect(ImVec2(top.x-ring*3*s,top.y-ring*3*s),ImVec2(bottom.x+ring*3*s,bottom.y+ring*3*s),
+  rgb|(static_cast<ImU32>((tile.focused?55:30)*(glow+1-ring)/glow)<<24),8*s,0,3*s);
+ draw->AddRectFilled(top,bottom,IM_COL32(14,12,15,255),7*s);
+ draw->AddRect(top,bottom,rgb|0x60000000,7*s,0,4*s);
+ draw->AddRect(top,bottom,neon,7*s,0,tile.focused?2.5f*s:1.5f*s);
+ // Marquee, lit in the same colour, with the crown for a streak.
+ box(.10f,.11f,.90f,.16f,tile.accent?(rgb|0x90000000):IM_COL32(110,14,22,255),2);
+ box(.10f,.155f,.90f,.162f,neon,0);
+ if(tile.crown)DrawCrown(draw,ImVec2(p.x+w*.5f,p.y+h*.135f),w*.16f);
+ // The screen: the fighter, or Insert coin on dark glass.
+ box(.10f,.18f,.90f,.44f,IM_COL32(22,26,34,255),2);
+ const float screenTop=p.y+h*.185f,screenBottom=p.y+h*.435f,screen=(std::min)(screenBottom-screenTop,w*.78f);
+ if(tile.occupied){const float x=p.x+(w-screen)*.5f;DrawCharacterPortrait(tile.fighter,ImVec2(x,screenTop),ImVec2(x+screen,screenTop+screen));}
+ else DrawCardText(elided,ImVec2(p.x+w*.1f,(screenTop+screenBottom)*.5f-7*s),w*.8f,tile.status,14*s,palette::Ivory,true);
+ // Under the screen: the player's flag, name and fighter, or the empty line.
+ box(.10f,.45f,.90f,.56f,IM_COL32(26,24,28,255),2);
+ const float textX=p.x+w*.14f,textWidth=w*.72f,line=p.y+h*.455f;
+ if(tile.occupied){
+  if(ImGui::IsRectVisible(p,ImVec2(p.x+w,p.y+h)))NoteUserText(tile.name);
+  const auto flag=DrawCountryFlagBeside(draw,textX,line,13*s,tile.country);
+  // A short cabinet has room under its screen for the name alone.
+  const bool caption=h*.11f>=29*s;
+  DrawCardText(elided,ImVec2(textX+flag.width,caption?line:line+(h*.11f-13*s)*.5f),textWidth-flag.width,tile.name,13*s,palette::Ivory);
+  if(caption)DrawCardText(elided,ImVec2(textX,line+16*s),textWidth,tile.caption,12*s,tile.accent?tile.accent:palette::Muted);
+ }else DrawCardText(elided,ImVec2(textX,line+8*s),textWidth,empty,12*s,palette::Muted,true);
+ // Control panel: a stick and two rows of buttons, then the lower body.
+ draw->AddQuadFilled(at(.06f,.58f),at(.94f,.58f),at(.99f,.66f),at(.01f,.66f),IM_COL32(60,12,16,255));
+ const float row=p.y+h*.62f,dot=(std::max)(1.5f,w*.028f);
+ draw->AddCircleFilled(ImVec2(p.x+w*.22f,row-dot*.6f),dot*1.8f,neon);
+ for(int r=0;r<2;++r)for(int c=0;c<3;++c)
+  draw->AddCircleFilled(ImVec2(p.x+w*(.50f+c*.13f),row+(r-.5f)*dot*2.4f),dot,r?IM_COL32(230,230,235,255):neon);
+ box(.10f,.67f,.90f,.77f,IM_COL32(20,18,22,255),2);
+ // The stool in front: a padded seat on two chrome legs.
+ box(.18f,.82f,.82f,.87f,IM_COL32(28,26,30,255),4);
+ box(.20f,.82f,.80f,.835f,IM_COL32(70,66,74,255),3);
+ const ImU32 chrome=IM_COL32(170,170,180,255);
+ draw->AddLine(at(.26f,.87f),at(.22f,.99f),chrome,2*s);draw->AddLine(at(.74f,.87f),at(.78f,.99f),chrome,2*s);
+ draw->AddLine(at(.24f,.94f),at(.76f,.94f),chrome,1.5f*s);
+ if(!elided.empty()&&ImGui::IsMouseHoveringRect(p,ImVec2(p.x+w,p.y+h)))ImGui::SetTooltip("%s",elided.c_str());
+ return pressed;
+}
+void DrawArcadeBackdrop(ImVec2 min,ImVec2 max) {
+ auto* draw=ImGui::GetWindowDrawList();
+ const float height=max.y-min.y,width=max.x-min.x,floor=min.y+height*.72f;
+ draw->AddRectFilledMultiColor(min,ImVec2(max.x,floor),IM_COL32(30,8,26,255),IM_COL32(30,8,26,255),IM_COL32(12,6,16,255),IM_COL32(12,6,16,255));
+ draw->AddRectFilledMultiColor(ImVec2(min.x,floor),max,IM_COL32(22,8,18,255),IM_COL32(22,8,18,255),IM_COL32(8,5,10,255),IM_COL32(8,5,10,255));
+ // Neon signs glow on the back wall, and the floor catches them.
+ const struct { float x,y,r; ImU32 color; } glows[]={{.15f,.18f,.20f,IM_COL32(230,40,60,9)},{.55f,.10f,.25f,IM_COL32(150,60,220,8)},{.88f,.22f,.18f,IM_COL32(230,60,40,9)}};
+ for(const auto& glow:glows){
+  const ImVec2 centre(min.x+width*glow.x,min.y+height*glow.y);
+  for(int ring=16;ring>=1;--ring)draw->AddCircleFilled(centre,width*glow.r*ring/16,glow.color,48);
+  draw->AddLine(ImVec2(centre.x-width*.04f,floor+height*.06f),ImVec2(centre.x+width*.04f,floor+height*.06f),(glow.color&0x00FFFFFF)|0x60000000,3*Scale());
+ }
+ draw->AddLine(ImVec2(min.x,floor),ImVec2(max.x,floor),IM_COL32(120,30,50,120),1.5f*Scale());
+}
 CardInteraction DrawMemberCard(const MemberCardView& card) {
  const float s=Scale();
  const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;

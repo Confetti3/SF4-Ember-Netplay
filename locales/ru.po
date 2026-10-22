@@ -4910,6 +4910,60 @@ msgstr "Тренировочный матч"
 msgid "room.rules_summary_practice"
 msgstr "Тренировочный матч, раундов: {0}, {1} с, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Тип комнаты"
+
+msgid "room.type.classic"
+msgstr "Классическая"
+
+msgid "room.type.arcade"
+msgstr "Аркада"
+
+msgid "room.type.classic_detail"
+msgstr "Игроки встают в очередь к столу и играют за ним."
+
+msgid "room.type.arcade_detail"
+msgstr "Шестнадцать автоматов парами, как в зале: комната сажает вас напротив того, кто ждёт, и пара играет, пока кто-то не встанет."
+
+msgid "room.arcade_status"
+msgstr "Аркадная комната / только по приглашению"
+
+msgid "room.arcade_locked_status"
+msgstr "Аркадная комната закрыта / только по приглашению"
+
+msgid "room.cabinet_free"
+msgstr "ВСТАВЬТЕ МОНЕТУ"
+
+msgid "room.arcade_sit"
+msgstr "Сесть"
+
+msgid "room.arcade_sit_detail"
+msgstr "Комната сажает вас напротив того, кто ждёт, или за свободный автомат."
+
+msgid "room.arcade_view"
+msgstr "Вид аркадной комнаты"
+
+msgid "room.arcade_view_detail"
+msgstr "Как рисуются автоматы аркадной комнаты: зал с парами друг напротив друга или Real Arcade с высокими автоматами в два ряда или в четыре колонки."
+
+msgid "room.arcade_view.floor"
+msgstr "Зал"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (ряды)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (колонки)"
+
+msgid "room.cabinet_empty"
+msgstr "ПУСТО"
+
+msgid "room.arcade_waiting"
+msgstr "Ждёт"
+
+msgid "room.rules.arcade"
+msgstr "Правила аркадной комнаты задаются при её создании и действуют за каждым столом."
+
 msgid "room.practice"
 msgstr "Тренировочное лобби"
 

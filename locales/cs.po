@@ -4909,6 +4909,60 @@ msgstr "Cvičný zápas"
 msgid "room.rules_summary_practice"
 msgstr "Cvičný zápas, {0} kol, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Typ místnosti"
+
+msgid "room.type.classic"
+msgstr "Klasická"
+
+msgid "room.type.arcade"
+msgstr "Herna"
+
+msgid "room.type.classic_detail"
+msgstr "Hráči čekají ve frontě u stolu a hrají u něj."
+
+msgid "room.type.arcade_detail"
+msgstr "Šestnáct automatů v párech jako v herně: místnost tě posadí naproti tomu, kdo čeká, a pár hraje, dokud někdo nevstane."
+
+msgid "room.arcade_status"
+msgstr "Místnost herny / jen na pozvání"
+
+msgid "room.arcade_locked_status"
+msgstr "Místnost herny zamčená / jen na pozvání"
+
+msgid "room.cabinet_free"
+msgstr "VHOĎ MINCI"
+
+msgid "room.arcade_sit"
+msgstr "Posadit se"
+
+msgid "room.arcade_sit_detail"
+msgstr "Místnost tě posadí naproti tomu, kdo čeká, nebo k volnému automatu."
+
+msgid "room.arcade_view"
+msgstr "Pohled na místnost herny"
+
+msgid "room.arcade_view_detail"
+msgstr "Jak se kreslí automaty místnosti herny: sál s páry proti sobě, nebo Real Arcade s vysokými automaty ve dvou řadách či čtyřech sloupcích."
+
+msgid "room.arcade_view.floor"
+msgstr "Sál"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (řady)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (sloupce)"
+
+msgid "room.cabinet_empty"
+msgstr "PRÁZDNÝ"
+
+msgid "room.arcade_waiting"
+msgstr "Čeká"
+
+msgid "room.rules.arcade"
+msgstr "Pravidla místnosti herny se volí při jejím vytvoření a platí u každého stolu."
+
 msgid "room.practice"
 msgstr "Tréninková místnost"
 

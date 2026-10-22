@@ -74,8 +74,12 @@ bool HasChatText(const char* text) {
 // table card. Watching elsewhere is no obstacle: sitting down ends it.
 // A room bound to a tournament match seats its fighters itself and refuses
 // every seat change, so nobody there is offered the chooser.
-bool ChoosesSeat(const room::Snapshot& s) {
-    return !s.tournament.Active() && Member(s, s.localMember) && room::PlaceOf(s, s.localMember).kind == room::Place::Kind::None;
+bool ChoosesSeat(const room::Snapshot& s, const room::Table& t) {
+    if (s.tournament.Active() || !Member(s, s.localMember)) return false;
+    const auto place = room::PlaceOf(s, s.localMember);
+    // In an Arcade room a member between games moves by sitting at another cabinet.
+    if (s.arcade && place.kind == room::Place::Kind::Seat && place.table != t.id) return !room::GameUnderWay(s.tables[place.table]);
+    return place.kind == room::Place::Kind::None;
 }
 // The V2 board's member groups, in their order: playing, at a table, watching, in the room.
 int MemberGroup(room::MemberStatus status) {
@@ -214,14 +218,15 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(screen=="room"){
   if(s.roomEpoch){
    const auto mine=room::PlaceOf(s,s.localMember);
-   for(const auto& table:s.tables){
+   for(std::size_t i=0;i<room::TablesInPlay(s);++i){
+    const auto& table=s.tables[i];
     const auto occupied=(table.p1?1:0)+(table.p2?1:0);
     std::string detail=loc::Tf("room.table_detail",Name(s,table.p1),Name(s,table.p2),PhaseName(table),
      table.queue.size(),table.spectators.size()+table.watchingNext.size(),local?StatusName(local->status):loc::T("room.connecting"));
     rows.push_back(Row("table-"+std::to_string(table.id),loc::Tf("room.table_occupancy",table.id+1,occupied),detail));
     rows.back().detailText=DetailText::Name;
     const bool ownTable=mine.table==static_cast<int>(table.id);
-    if(ChoosesSeat(s))rows.back().choices=SeatChoices(v,table);
+    if(ChoosesSeat(s,table))rows.back().choices=SeatChoices(v,table);
     else if(mine.kind==Place::Kind::Seat&&ownTable){
      // A on your seat readies or unreadies. When neither can be sent the card
      // still names the state on its strip, but has no action to offer.
@@ -325,13 +330,14 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // press (applying clears Ready), everyone else reads them on one line.
   const auto rulesRows=[&]{
    if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
-   if(!host||boundTable){
+   // An Arcade room's rules are the room's, set when it was created.
+   if(!host||boundTable||s.arcade){
     std::string summary=loc::Tf(s.practice?"room.rules_summary_practice":"room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(room::MatchRoundTime(s,t)),
      loc::T(t.rules.editionSelect?"common.on":"common.off"));
     if(s.delayPolicy==room::DelayPolicy::Own)summary=loc::Tf("room.rules_summary_own_delay",summary);
-    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),summary,loc::T(boundTable?"room.rules.tournament":"room.rules.host_only")));
-    rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),SetSummaryText(t.rules),
-     t.rules.format==room::SetFormat::Unlimited?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
+    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),summary,loc::T(boundTable?"room.rules.tournament":s.arcade?"room.rules.arcade":"room.rules.host_only")));
+    rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),s.arcade?SetLengthText(t.rules.format):SetSummaryText(t.rules),
+     t.rules.format==room::SetFormat::Unlimited||s.arcade?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
     return;
    }
    RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"),s.practice);
@@ -414,7 +420,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():reason)+WatchingNote(v,kind),mutableRoom&&!elsewhere&&!fenced));
     };
     if(!boundTable)tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
-     queued?"room.leave_queue":"room.join_queue");
+     queued?"room.leave_queue":s.arcade?"room.arcade_sit":"room.join_queue");
     // A queued member has no watch choice: Watch is refused them, and the game
     // they wait out is theirs to watch until they are seated or leave the queue.
     if(!queued&&!boundTable)tableRow(watching?room::ActionKind::Unwatch:room::ActionKind::Watch,watching?"unwatch":"watch",
@@ -775,74 +781,78 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
     if(watched!=v.room.tables.end())v2::Chip(d,ImVec2(at.x+8*s,at.y+8*s),std::string(loc::T("room.status.watching"))+" \xC2\xB7 "+loc::Tf("room.v2.table",watched->id+1),c.accent);
     boardPicture_=true;
    }
-   // The cards, two or three across, in their own scroll when there are more than fit.
-   const int columns=ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2;
-   const float cardWidth=(tables.W()-(columns-1)*8*s)/columns;
-   ImGui::SetCursorScreenPos(tables.min);
-   ImGui::BeginChild("V2 tables",ImVec2(tables.W(),tables.H()),0,ImGuiWindowFlags_NoNavInputs);
-   auto* td=ImGui::GetWindowDrawList();
-   const auto start=ImGui::GetCursorScreenPos();int n=0;
-   for(const auto& e:rows){
-    if(e.id.compare(0,6,"table-"))continue;
-    const auto& t=v.room.tables[std::stoi(e.id.substr(6))];
-    const ImVec2 at(start.x+(n%columns)*(cardWidth+8*s),start.y+(n/columns)*(cardHeight+8*s));++n;
-    const v2::Box b{at,ImVec2(at.x+cardWidth,at.y+cardHeight)};
-    const bool focused=e.id==focus,choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
-    const auto options=stripOptions(e,t,choosing,!nav.Asking()&&onOwnPlace&&focused);
-    // The strip's buttons go in first: the first item under the pointer is the one it is over.
-    const v2::Box strip{ImVec2(b.min.x+14*s,b.max.y-44*s),ImVec2(b.max.x-14*s,b.max.y-12*s)};
-    const float ow=options.empty()?0:(strip.W()-(options.size()-1)*8*s)/options.size();
-    int over=-1,pressed=-1;
-    for(std::size_t i=0;i<options.size();++i){
-     ImGui::SetCursorScreenPos(ImVec2(strip.min.x+i*(ow+8*s),strip.min.y));ImGui::PushID(e.id.c_str());ImGui::PushID(static_cast<int>(i));
-     if(ImGui::InvisibleButton("##option",ImVec2(ow,strip.H()))&&!nav.Asking()&&!nav.Editing())pressed=static_cast<int>(i);
-     if(ImGui::IsItemHovered())over=static_cast<int>(i);
-     ImGui::PopID();ImGui::PopID();
+   // An Arcade room's cabinets in its view (RoomPanelArcade.cxx), in place of the cards.
+   if(v.room.arcade){ImGui::SetCursorScreenPos(tables.min);DrawArcadeBoard(v,rows,nav,action,ImVec2(tables.W(),tables.H()),v.room.arcade);}
+   else{
+    // The cards, two or three across, in their own scroll when there are more than fit.
+    const int columns=ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2;
+    const float cardWidth=(tables.W()-(columns-1)*8*s)/columns;
+    ImGui::SetCursorScreenPos(tables.min);
+    ImGui::BeginChild("V2 tables",ImVec2(tables.W(),tables.H()),0,ImGuiWindowFlags_NoNavInputs);
+    auto* td=ImGui::GetWindowDrawList();
+    const auto start=ImGui::GetCursorScreenPos();int n=0;
+    for(const auto& e:rows){
+     if(e.id.compare(0,6,"table-"))continue;
+     const auto& t=v.room.tables[std::stoi(e.id.substr(6))];
+     const ImVec2 at(start.x+(n%columns)*(cardWidth+8*s),start.y+(n/columns)*(cardHeight+8*s));++n;
+     const v2::Box b{at,ImVec2(at.x+cardWidth,at.y+cardHeight)};
+     const bool focused=e.id==focus,choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
+     const auto options=stripOptions(e,t,choosing,!nav.Asking()&&onOwnPlace&&focused);
+     // The strip's buttons go in first: the first item under the pointer is the one it is over.
+     const v2::Box strip{ImVec2(b.min.x+14*s,b.max.y-44*s),ImVec2(b.max.x-14*s,b.max.y-12*s)};
+     const float ow=options.empty()?0:(strip.W()-(options.size()-1)*8*s)/options.size();
+     int over=-1,pressed=-1;
+     for(std::size_t i=0;i<options.size();++i){
+      ImGui::SetCursorScreenPos(ImVec2(strip.min.x+i*(ow+8*s),strip.min.y));ImGui::PushID(e.id.c_str());ImGui::PushID(static_cast<int>(i));
+      if(ImGui::InvisibleButton("##option",ImVec2(ow,strip.H()))&&!nav.Asking()&&!nav.Editing())pressed=static_cast<int>(i);
+      if(ImGui::IsItemHovered())over=static_cast<int>(i);
+      ImGui::PopID();ImGui::PopID();
+     }
+     const bool hovered=hit(e,b);
+     if(choosing){
+      // The chosen side follows the mouse, but only a moving one takes the choice.
+      if(over>=0&&pointerMoved)nav.ChoiceIndex(static_cast<std::size_t>(over));
+      if(pressed>=0)action=nav.Pick(static_cast<std::size_t>(pressed),rows);
+     }else if(pressed==0){nav.Focus(e.id,rows);action=nav.Choose(rows);}
+     else if(pressed==1)action={MenuAction::Activate,"leave-place"};
+     if(!ImGui::IsItemVisible())continue;
+     v2::CardGround(td,b,focused,hovered,place.table==static_cast<int>(t.id));
+     // TABLE n, its state, and the set's score (or vs) at the right.
+     float x=b.min.x+14*s,y=b.min.y+12*s;const float w=b.W()-28*s;
+     x+=heading(td,ImVec2(x,y+4*s),loc::Tf("room.v2.table",t.id+1),c.muted)+8*s;
+     const ImU32 tone=t.phase==room::TablePhase::Playing?c.accent:t.phase==room::TablePhase::Idle||t.phase==room::TablePhase::Closed?c.muted:
+      ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
+     v2::Chip(td,ImVec2(x,y),PhaseName(t),tone);
+     const std::string middle=t.phase==room::TablePhase::Closed?std::string():t.p1&&t.p2&&!SetScoreText(t.score).empty()?SetScoreText(t.score):"vs";
+     td->AddText(HeadingFont(),22*s,ImVec2(b.max.x-14*s-HeadingFont()->CalcTextSizeA(22*s,FLT_MAX,0,middle.c_str()).x,y),c.accent,middle.c_str());
+     // The two seats as player tags: fighter and Ready on each one's chip.
+     y+=32*s;
+     const room::MemberId seats[]={t.p1,t.p2};
+     for(int side=0;side<2;++side,y+=30*s){
+      const auto* m=Member(v.room,seats[side]);
+      if(!m){if(side==0||t.p1){td->AddText(ImGui::GetFont(),15*s,ImVec2(b.min.x+14*s,y+4*s),c.muted,loc::T("room.open_seat"));}continue;}
+      v2::TagView tag;tag.name=m->name;tag.marks={m->country,m->badge};tag.ping=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
+      const auto* f=selection::FindFighter(fighter(m));
+      tag.status=f?f->name:loc::T("room.fighter_not_shared");
+      if(t.ready[side]&&(t.phase==room::TablePhase::Waiting||t.phase==room::TablePhase::Ready))tag.status+=std::string(" \xC2\xB7 ")+loc::T("room.status.ready");
+      v2::Tag(td,ImVec2(b.min.x+14*s,y),w,tag,v2::TagSize::S);
+     }
+     const auto banner=DescribeTableBanner(v,t);
+     if(!banner.text.empty())text(ImVec2(b.min.x+14*s,y),w,banner.text,13*s,ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
+     if(options.empty())text(ImVec2(b.min.x+14*s,b.max.y-12*s-14*s),w,footer(t),13*s,c.muted);
+     for(std::size_t i=0;i<options.size();++i){
+      const v2::Box o{ImVec2(strip.min.x+i*(ow+8*s),strip.min.y),ImVec2(strip.min.x+i*(ow+8*s)+ow,strip.max.y)};
+      const bool chosen=choosing&&i==nav.ChoiceIndex();
+      ground(td,o,chosen?c.header:over==static_cast<int>(i)?c.hover:c.button,v2::color::Alpha(c.accent,.35f));
+      text(ImVec2(o.min.x+8*s,o.min.y+8*s),ow-16*s,options[i].label,15*s,options[i].live?c.text:c.muted,true);
+      if(chosen)v2::Focus(td,o.min,o.max,false);
+     }
+     tip();
+     if(focused)v2::Focus(td,b.min,b.max);
     }
-    const bool hovered=hit(e,b);
-    if(choosing){
-     // The chosen side follows the mouse, but only a moving one takes the choice.
-     if(over>=0&&pointerMoved)nav.ChoiceIndex(static_cast<std::size_t>(over));
-     if(pressed>=0)action=nav.Pick(static_cast<std::size_t>(pressed),rows);
-    }else if(pressed==0){nav.Focus(e.id,rows);action=nav.Choose(rows);}
-    else if(pressed==1)action={MenuAction::Activate,"leave-place"};
-    if(!ImGui::IsItemVisible())continue;
-    v2::CardGround(td,b,focused,hovered,place.table==static_cast<int>(t.id));
-    // TABLE n, its state, and the set's score (or vs) at the right.
-    float x=b.min.x+14*s,y=b.min.y+12*s;const float w=b.W()-28*s;
-    x+=heading(td,ImVec2(x,y+4*s),loc::Tf("room.v2.table",t.id+1),c.muted)+8*s;
-    const ImU32 tone=t.phase==room::TablePhase::Playing?c.accent:t.phase==room::TablePhase::Idle||t.phase==room::TablePhase::Closed?c.muted:
-     ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
-    v2::Chip(td,ImVec2(x,y),PhaseName(t),tone);
-    const std::string middle=t.phase==room::TablePhase::Closed?std::string():t.p1&&t.p2&&!SetScoreText(t.score).empty()?SetScoreText(t.score):"vs";
-    td->AddText(HeadingFont(),22*s,ImVec2(b.max.x-14*s-HeadingFont()->CalcTextSizeA(22*s,FLT_MAX,0,middle.c_str()).x,y),c.accent,middle.c_str());
-    // The two seats as player tags: fighter and Ready on each one's chip.
-    y+=32*s;
-    const room::MemberId seats[]={t.p1,t.p2};
-    for(int side=0;side<2;++side,y+=30*s){
-     const auto* m=Member(v.room,seats[side]);
-     if(!m){if(side==0||t.p1){td->AddText(ImGui::GetFont(),15*s,ImVec2(b.min.x+14*s,y+4*s),c.muted,loc::T("room.open_seat"));}continue;}
-     v2::TagView tag;tag.name=m->name;tag.marks={m->country,m->badge};tag.ping=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
-     const auto* f=selection::FindFighter(fighter(m));
-     tag.status=f?f->name:loc::T("room.fighter_not_shared");
-     if(t.ready[side]&&(t.phase==room::TablePhase::Waiting||t.phase==room::TablePhase::Ready))tag.status+=std::string(" \xC2\xB7 ")+loc::T("room.status.ready");
-     v2::Tag(td,ImVec2(b.min.x+14*s,y),w,tag,v2::TagSize::S);
-    }
-    const auto banner=DescribeTableBanner(v,t);
-    if(!banner.text.empty())text(ImVec2(b.min.x+14*s,y),w,banner.text,13*s,ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
-    if(options.empty())text(ImVec2(b.min.x+14*s,b.max.y-12*s-14*s),w,footer(t),13*s,c.muted);
-    for(std::size_t i=0;i<options.size();++i){
-     const v2::Box o{ImVec2(strip.min.x+i*(ow+8*s),strip.min.y),ImVec2(strip.min.x+i*(ow+8*s)+ow,strip.max.y)};
-     const bool chosen=choosing&&i==nav.ChoiceIndex();
-     ground(td,o,chosen?c.header:over==static_cast<int>(i)?c.hover:c.button,v2::color::Alpha(c.accent,.35f));
-     text(ImVec2(o.min.x+8*s,o.min.y+8*s),ow-16*s,options[i].label,15*s,options[i].live?c.text:c.muted,true);
-     if(chosen)v2::Focus(td,o.min,o.max,false);
-    }
-    tip();
-    if(focused)v2::Focus(td,b.min,b.max);
+    ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(tables.W(),((n+columns-1)/columns)*(cardHeight+8*s)-8*s));
+    ImGui::EndChild();
    }
-   ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(tables.W(),((n+columns-1)/columns)*(cardHeight+8*s)-8*s));
-   ImGui::EndChild();
   }
 
   if(!narrow||part==1){
@@ -915,7 +925,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // A BluMint match's room has one table, the match: it is the stage.
   const bool stage=v2::On()&&v2::CurrentBrand()==v2::Brand::BluMint;
   const float rowHeight=stage?ImGui::GetContentRegionAvail().y:(std::max)(100*s,(ImGui::GetContentRegionAvail().y-3*8*s)/4);
-  for(const auto& e:rows)if(e.id.compare(0,6,"table-")==0&&(!stage||e.id=="table-0"))tableCard(e,rowHeight,stage);
+  if(v.room.arcade)DrawArcadeBoard(v,rows,nav,action,ImGui::GetContentRegionAvail(),v.room.arcade);
+  else for(const auto& e:rows)if(e.id.compare(0,6,"table-")==0&&(!stage||e.id=="table-0"))tableCard(e,rowHeight,stage);
   ImGui::EndChild();ImGui::SameLine(0,gap);
   ImGui::BeginChild("Room community",ImVec2(0,communityHeight),0,ImGuiWindowFlags_NoNavInputs);
   ImGui::TextUnformatted(loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity).c_str());
@@ -950,7 +961,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  }else{
   ImGui::BeginChild("Room stacked",ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows){
-   if(e.id.compare(0,6,"table-")==0)tableCard(e,(DescribeTableBanner(v,v.room.tables[std::stoi(e.id.substr(6))]).text.empty()?136:136+TableBannerHeight)*s);
+   // An Arcade room's floor stands for all its tables' rows, drawn at the first.
+   if(e.id.compare(0,6,"table-")==0&&v.room.arcade){if(e.id=="table-0")DrawArcadeBoard(v,rows,nav,action,ImVec2(ImGui::GetContentRegionAvail().x,room::TableCount*76*s),room::ArcadeFloor);}
+   else if(e.id.compare(0,6,"table-")==0)tableCard(e,(DescribeTableBanner(v,v.room.tables[std::stoi(e.id.substr(6))]).text.empty()?136:136+TableBannerHeight)*s);
    else if(e.id.compare(0,7,"member-")==0)memberCard(e);
    else button(e,ImGui::GetContentRegionAvail().x);
   }

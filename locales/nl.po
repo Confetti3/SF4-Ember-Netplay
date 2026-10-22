@@ -4909,6 +4909,60 @@ msgstr "Oefenwedstrijd"
 msgid "room.rules_summary_practice"
 msgstr "Oefenwedstrijd, {0} rondes, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Soort kamer"
+
+msgid "room.type.classic"
+msgstr "Klassiek"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "Spelers staan in de rij bij een tafel en spelen daar."
+
+msgid "room.type.arcade_detail"
+msgstr "Zestien kasten in paren, zoals in een speelhal: de kamer zet je tegenover wie er wacht, en het paar speelt door tot er een opstaat."
+
+msgid "room.arcade_status"
+msgstr "Arcadekamer / alleen op uitnodiging"
+
+msgid "room.arcade_locked_status"
+msgstr "Arcadekamer op slot / alleen op uitnodiging"
+
+msgid "room.cabinet_free"
+msgstr "WERP MUNT IN"
+
+msgid "room.arcade_sit"
+msgstr "Gaan zitten"
+
+msgid "room.arcade_sit_detail"
+msgstr "De kamer zet je tegenover wie er wacht, of aan een vrije kast."
+
+msgid "room.arcade_view"
+msgstr "Weergave arcadekamer"
+
+msgid "room.arcade_view_detail"
+msgstr "Hoe de kasten van een arcadekamer worden getekend: de hal met paren tegenover elkaar, of Real Arcade met hoge kasten in twee rijen of vier kolommen."
+
+msgid "room.arcade_view.floor"
+msgstr "Hal"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (rijen)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (kolommen)"
+
+msgid "room.cabinet_empty"
+msgstr "LEEG"
+
+msgid "room.arcade_waiting"
+msgstr "Wacht"
+
+msgid "room.rules.arcade"
+msgstr "De regels van een arcadekamer worden bij het maken gekozen en gelden aan elke tafel."
+
 msgid "room.practice"
 msgstr "Oefenkamer"
 

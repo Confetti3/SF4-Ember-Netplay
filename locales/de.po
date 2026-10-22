@@ -4909,6 +4909,60 @@ msgstr "Übungskampf"
 msgid "room.rules_summary_practice"
 msgstr "Übungskampf, {0} Runden, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Raumtyp"
+
+msgid "room.type.classic"
+msgstr "Klassisch"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "Spieler stellen sich an einem Tisch an und spielen dort."
+
+msgid "room.type.arcade_detail"
+msgstr "Sechzehn Automaten in Paaren, wie in einer Spielhalle: Der Raum setzt dich dem gegenüber, der wartet, und das Paar spielt weiter, bis einer aufsteht."
+
+msgid "room.arcade_status"
+msgstr "Arcade-Raum / nur mit Einladung"
+
+msgid "room.arcade_locked_status"
+msgstr "Arcade-Raum gesperrt / nur mit Einladung"
+
+msgid "room.cabinet_free"
+msgstr "MÜNZE EINWERFEN"
+
+msgid "room.arcade_sit"
+msgstr "Hinsetzen"
+
+msgid "room.arcade_sit_detail"
+msgstr "Der Raum setzt dich dem gegenüber, der wartet, oder an einen freien Automaten."
+
+msgid "room.arcade_view"
+msgstr "Ansicht des Arcade-Raums"
+
+msgid "room.arcade_view_detail"
+msgstr "Wie die Automaten eines Arcade-Raums gezeichnet werden: die Halle mit Paaren gegenüber, oder Real Arcade mit hohen Automaten in zwei Reihen oder vier Spalten."
+
+msgid "room.arcade_view.floor"
+msgstr "Halle"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (Reihen)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (Spalten)"
+
+msgid "room.cabinet_empty"
+msgstr "LEER"
+
+msgid "room.arcade_waiting"
+msgstr "Wartet"
+
+msgid "room.rules.arcade"
+msgstr "Die Regeln eines Arcade-Raums werden beim Erstellen festgelegt und gelten an jedem Tisch."
+
 msgid "room.practice"
 msgstr "Übungsraum"
 

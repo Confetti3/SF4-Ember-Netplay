@@ -4909,6 +4909,60 @@ msgstr "Mecz treningowy"
 msgid "room.rules_summary_practice"
 msgstr "Mecz treningowy, {0} rund, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Typ pokoju"
+
+msgid "room.type.classic"
+msgstr "Klasyczny"
+
+msgid "room.type.arcade"
+msgstr "Salon gier"
+
+msgid "room.type.classic_detail"
+msgstr "Gracze ustawiają się w kolejce do stołu i grają przy nim."
+
+msgid "room.type.arcade_detail"
+msgstr "Szesnaście automatów w parach, jak w salonie gier: pokój sadza cię naprzeciw tego, kto czeka, a para gra, dopóki ktoś nie wstanie."
+
+msgid "room.arcade_status"
+msgstr "Pokój salonu gier / tylko z zaproszeniem"
+
+msgid "room.arcade_locked_status"
+msgstr "Pokój salonu gier zamknięty / tylko z zaproszeniem"
+
+msgid "room.cabinet_free"
+msgstr "WRZUĆ MONETĘ"
+
+msgid "room.arcade_sit"
+msgstr "Usiądź"
+
+msgid "room.arcade_sit_detail"
+msgstr "Pokój sadza cię naprzeciw tego, kto czeka, albo przy wolnym automacie."
+
+msgid "room.arcade_view"
+msgstr "Widok pokoju salonu gier"
+
+msgid "room.arcade_view_detail"
+msgstr "Jak rysowane są automaty pokoju salonu gier: sala par naprzeciw siebie albo Real Arcade z wysokimi automatami w dwóch rzędach lub czterech kolumnach."
+
+msgid "room.arcade_view.floor"
+msgstr "Sala"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (rzędy)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (kolumny)"
+
+msgid "room.cabinet_empty"
+msgstr "PUSTY"
+
+msgid "room.arcade_waiting"
+msgstr "Czeka"
+
+msgid "room.rules.arcade"
+msgstr "Zasady pokoju salonu gier ustala się przy jego tworzeniu i obowiązują przy każdym stole."
+
 msgid "room.practice"
 msgstr "Pokój treningowy"
 

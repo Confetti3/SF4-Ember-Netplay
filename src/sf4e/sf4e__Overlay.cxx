@@ -454,6 +454,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
         request.practiceRoom = action.practiceRoom;
+        request.arcadeRoom = action.arcadeRoom;
         request.delayPolicy = action.delayPolicy;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);

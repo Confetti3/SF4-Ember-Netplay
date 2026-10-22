@@ -82,7 +82,9 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
     std::vector<MenuChoice> choices;
     for (const char* id : {left, right}) {
         const auto* option = FindSeatOption(id);
-        MenuChoice choice{id, loc::T(option->label), loc::T(option->detail) + WatchingNote(v, option->kind)};
+        // In an Arcade room, joining is sitting down at whichever cabinet the room gives.
+        const bool sit = v.room.arcade && option->kind == room::ActionKind::Queue;
+        MenuChoice choice{id, loc::T(sit ? "room.arcade_sit" : option->label), loc::T(sit ? "room.arcade_sit_detail" : option->detail) + WatchingNote(v, option->kind)};
         if (!RoomTakesNow(v, option->kind, t.id)) { choice.enabled = false; choice.detail = RoomWaitReason(v); }
         else if (TerminalFenced(v.room, option->kind, t.id)) { choice.enabled = false; choice.detail = TerminalPendingReason(); }
         choices.push_back(std::move(choice));

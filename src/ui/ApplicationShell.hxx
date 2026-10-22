@@ -240,6 +240,8 @@ struct ShellAction {
     std::optional<room::Rules> createdRules;
     // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
     bool practiceRoom = false;
+    // With HostRoom: the room is an Arcade room for its life (room::Snapshot::arcade).
+    room::ArcadeView arcadeRoom = room::ArcadeOff;
     // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     // What the Replays screen asks of the game: an archived replay (its
@@ -459,7 +461,7 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     std::vector<MenuEntry> AwardRows(const ShellView& v, const std::string& screen, std::string& title) const;
     void DrawAwardsBoard(const ShellView& v, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback);
     void DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback);
-    // The Create screen, with Practice room off (createPractice_).
+    // The Create screen, a Classic room with Practice room off (createArcade_, createPractice_).
     void OpenCreate();
     // Settings > Interface > Language, also the welcome's.
     MenuEntry LanguageRow() const;
@@ -512,6 +514,9 @@ void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,Menu
     void RoomGrips(v2::Box area);
     // Settings' picture of that layout, with the same grips.
     void DrawRoomLayoutPreview();
+    // An Arcade room's cabinets in `view`, in place of its table cards (RoomPanelArcade.cxx).
+    void DrawArcadeBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,ImVec2 size,
+                         room::ArcadeView arcadeView);
     std::string roomBoardFocus_;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;
@@ -585,13 +590,14 @@ std::string memberAsk_;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
-    // Create's Practice room choice for the private room it opens. Never saved:
-    // every visit to Create starts with it off.
+    // Create's Practice room and Arcade choices for the private room it opens.
+    // Never saved: every visit to Create starts with them off.
     bool createPractice_ = false;
     // The welcome's step (0 speech to 3 look), whether it was offered this
     // launch, and the speech answer (ponytail: kept until speech settings land).
     int welcomeStep_ = 0;
     bool welcomeOffered_ = false;
+    room::ArcadeView createArcade_ = room::ArcadeOff;
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.

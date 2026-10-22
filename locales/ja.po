@@ -4910,6 +4910,60 @@ msgstr "練習対戦"
 msgid "room.rules_summary_practice"
 msgstr "練習対戦、{0}ラウンド、{1}秒、Edition Select {2}"
 
+msgid "room.type"
+msgstr "ルームタイプ"
+
+msgid "room.type.classic"
+msgstr "クラシック"
+
+msgid "room.type.arcade"
+msgstr "アーケード"
+
+msgid "room.type.classic_detail"
+msgstr "テーブルごとに順番を待ち、そのテーブルで対戦します。"
+
+msgid "room.type.arcade_detail"
+msgstr "ゲームセンターのように16台の筐体が2台ずつ向かい合います。待っている人の向かいに座らされ、どちらかが席を立つまで対戦が続きます。"
+
+msgid "room.arcade_status"
+msgstr "アーケードルーム / 招待のみ"
+
+msgid "room.arcade_locked_status"
+msgstr "アーケードルーム（ロック中） / 招待のみ"
+
+msgid "room.cabinet_free"
+msgstr "コインを入れてください"
+
+msgid "room.arcade_sit"
+msgstr "席に着く"
+
+msgid "room.arcade_sit_detail"
+msgstr "待っている人の向かい、または空いている筐体に座らされます。"
+
+msgid "room.arcade_view"
+msgstr "アーケードルームの表示"
+
+msgid "room.arcade_view_detail"
+msgstr "アーケードルームの筐体の描き方：向かい合う2台ずつのフロア、または背の高い筐体を2列か4段に並べるReal Arcade。"
+
+msgid "room.arcade_view.floor"
+msgstr "フロア"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade（横並び）"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade（縦並び）"
+
+msgid "room.cabinet_empty"
+msgstr "空席"
+
+msgid "room.arcade_waiting"
+msgstr "待機中"
+
+msgid "room.rules.arcade"
+msgstr "アーケードルームのルールは作成時に決まり、すべてのテーブルに適用されます。"
+
 msgid "room.practice"
 msgstr "練習ルーム"
 

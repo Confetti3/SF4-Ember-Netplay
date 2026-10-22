@@ -177,9 +177,10 @@ struct Runtime {
     std::uint64_t finishActionId=0, finishRetryAt=0;
 	std::optional<room::Action> matchFinishedAction;
     bool replacementPending=false;
-    // The Practice choice of the room this PC hosts: the player's on Create,
-    // the closed room's for a replacement, false for a room it joins.
+    // The Practice and Arcade choices of the room this PC hosts: the player's
+    // on Create, the closed room's for a replacement, false for a room it joins.
     bool practiceRoom=false;
+    room::ArcadeView arcadeRoom=room::ArcadeOff;
     // The delay policy of the room this PC hosts, chosen the same way.
     room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
     bool leaveRequested=false, leaveAcknowledged=false;

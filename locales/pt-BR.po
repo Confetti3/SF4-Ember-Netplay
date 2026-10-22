@@ -4429,6 +4429,60 @@ msgstr "Partida de prática"
 msgid "room.rules_summary_practice"
 msgstr "Partida de prática, {0} rounds, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Tipo de sala"
+
+msgid "room.type.classic"
+msgstr "Clássica"
+
+msgid "room.type.arcade"
+msgstr "Fliperama"
+
+msgid "room.type.classic_detail"
+msgstr "Os jogadores entram na fila de uma mesa e jogam nela."
+
+msgid "room.type.arcade_detail"
+msgstr "Dezesseis fliperamas em pares, como num salão: a sala coloca você diante de quem estiver esperando, e o par joga até alguém se levantar."
+
+msgid "room.arcade_status"
+msgstr "Sala de fliperama / só por convite"
+
+msgid "room.arcade_locked_status"
+msgstr "Sala de fliperama trancada / só por convite"
+
+msgid "room.cabinet_free"
+msgstr "INSIRA FICHA"
+
+msgid "room.arcade_sit"
+msgstr "Sentar"
+
+msgid "room.arcade_sit_detail"
+msgstr "A sala coloca você diante de quem estiver esperando, ou num fliperama livre."
+
+msgid "room.arcade_view"
+msgstr "Visual da sala de fliperama"
+
+msgid "room.arcade_view_detail"
+msgstr "Como os fliperamas de uma sala são desenhados: o salão de pares frente a frente, ou Real Arcade com máquinas altas em duas fileiras ou em quatro colunas."
+
+msgid "room.arcade_view.floor"
+msgstr "Salão"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (fileiras)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (colunas)"
+
+msgid "room.cabinet_empty"
+msgstr "VAZIO"
+
+msgid "room.arcade_waiting"
+msgstr "Aguardando"
+
+msgid "room.rules.arcade"
+msgstr "As regras de uma sala de fliperama são definidas ao criá-la e valem em todas as mesas."
+
 msgid "room.practice"
 msgstr "Sala de prática"
 

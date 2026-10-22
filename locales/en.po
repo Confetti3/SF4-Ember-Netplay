@@ -4544,6 +4544,60 @@ msgstr "Practice match"
 msgid "room.rules_summary_practice"
 msgstr "Practice match, {0} rounds, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Room type"
+
+msgid "room.type.classic"
+msgstr "Classic"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "Players queue at a table and play there."
+
+msgid "room.type.arcade_detail"
+msgstr "Sixteen cabinets in pairs, as in an arcade: the room seats you opposite whoever is waiting, and a pair plays on until one stands up."
+
+msgid "room.arcade_status"
+msgstr "Arcade room / invitation only"
+
+msgid "room.arcade_locked_status"
+msgstr "Arcade room locked / invitation only"
+
+msgid "room.cabinet_free"
+msgstr "INSERT COIN"
+
+msgid "room.arcade_sit"
+msgstr "Sit down"
+
+msgid "room.arcade_sit_detail"
+msgstr "The room seats you opposite whoever is waiting, or at a free cabinet."
+
+msgid "room.arcade_view"
+msgstr "Arcade room view"
+
+msgid "room.arcade_view_detail"
+msgstr "How an Arcade room's cabinets are drawn: the floor of facing pairs, or Real Arcade with tall cabinets in two rows or in four columns."
+
+msgid "room.arcade_view.floor"
+msgstr "Floor"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (rows)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (columns)"
+
+msgid "room.cabinet_empty"
+msgstr "EMPTY"
+
+msgid "room.arcade_waiting"
+msgstr "Waiting"
+
+msgid "room.rules.arcade"
+msgstr "An Arcade room's rules are set when it is created and apply at every table."
+
 msgid "room.practice"
 msgstr "Practice room"
 

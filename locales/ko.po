@@ -4910,6 +4910,60 @@ msgstr "연습 대전"
 msgid "room.rules_summary_practice"
 msgstr "연습 대전, {0}라운드, {1}초, Edition Select {2}"
 
+msgid "room.type"
+msgstr "방 유형"
+
+msgid "room.type.classic"
+msgstr "클래식"
+
+msgid "room.type.arcade"
+msgstr "아케이드"
+
+msgid "room.type.classic_detail"
+msgstr "플레이어가 테이블마다 줄을 서서 그 테이블에서 대전합니다."
+
+msgid "room.type.arcade_detail"
+msgstr "오락실처럼 16대의 기기가 두 대씩 짝을 이룹니다. 기다리는 사람의 맞은편에 앉게 되며, 한 명이 일어날 때까지 대전이 이어집니다."
+
+msgid "room.arcade_status"
+msgstr "아케이드 방 / 초대 전용"
+
+msgid "room.arcade_locked_status"
+msgstr "아케이드 방 잠김 / 초대 전용"
+
+msgid "room.cabinet_free"
+msgstr "코인을 넣으세요"
+
+msgid "room.arcade_sit"
+msgstr "자리에 앉기"
+
+msgid "room.arcade_sit_detail"
+msgstr "기다리는 사람의 맞은편이나 빈 기기에 앉게 됩니다."
+
+msgid "room.arcade_view"
+msgstr "아케이드 방 보기"
+
+msgid "room.arcade_view_detail"
+msgstr "아케이드 방의 기기를 그리는 방식: 마주 보는 두 대씩의 플로어, 또는 키 큰 기기를 두 줄이나 네 열로 놓는 Real Arcade."
+
+msgid "room.arcade_view.floor"
+msgstr "플로어"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (가로)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (세로)"
+
+msgid "room.cabinet_empty"
+msgstr "빈자리"
+
+msgid "room.arcade_waiting"
+msgstr "대기 중"
+
+msgid "room.rules.arcade"
+msgstr "아케이드 방의 규칙은 만들 때 정해지며 모든 테이블에 적용됩니다."
+
 msgid "room.practice"
 msgstr "연습 방"
 

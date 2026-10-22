@@ -4429,6 +4429,60 @@ msgstr "Partida de práctica"
 msgid "room.rules_summary_practice"
 msgstr "Partida de práctica, {0} rondas, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Tipo de sala"
+
+msgid "room.type.classic"
+msgstr "Clásica"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "Los jugadores hacen fila en una mesa y juegan ahí."
+
+msgid "room.type.arcade_detail"
+msgstr "Dieciséis máquinas en pares, como en un arcade: la sala te sienta frente a quien esté esperando, y el par sigue jugando hasta que uno se levante."
+
+msgid "room.arcade_status"
+msgstr "Sala arcade / solo por invitación"
+
+msgid "room.arcade_locked_status"
+msgstr "Sala arcade cerrada / solo por invitación"
+
+msgid "room.cabinet_free"
+msgstr "INSERTE FICHA"
+
+msgid "room.arcade_sit"
+msgstr "Sentarse"
+
+msgid "room.arcade_sit_detail"
+msgstr "La sala te sienta frente a quien esté esperando, o en una máquina libre."
+
+msgid "room.arcade_view"
+msgstr "Vista de sala arcade"
+
+msgid "room.arcade_view_detail"
+msgstr "Cómo se dibujan las máquinas de una sala arcade: el salón de parejas enfrentadas, o Real Arcade con máquinas altas en dos filas o en cuatro columnas."
+
+msgid "room.arcade_view.floor"
+msgstr "Salón"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (filas)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (columnas)"
+
+msgid "room.cabinet_empty"
+msgstr "VACÍA"
+
+msgid "room.arcade_waiting"
+msgstr "Esperando"
+
+msgid "room.rules.arcade"
+msgstr "Las reglas de una sala arcade se fijan al crearla y valen en todas las mesas."
+
 msgid "room.practice"
 msgstr "Sala de práctica"
 

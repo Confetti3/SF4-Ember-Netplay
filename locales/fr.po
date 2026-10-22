@@ -4909,6 +4909,60 @@ msgstr "Match d'entraînement"
 msgid "room.rules_summary_practice"
 msgstr "Match d'entraînement, {0} rounds, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Type de salon"
+
+msgid "room.type.classic"
+msgstr "Classique"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "Les joueurs font la queue à une table et y jouent."
+
+msgid "room.type.arcade_detail"
+msgstr "Seize bornes par paires, comme dans une salle d'arcade : le salon vous place face à celui qui attend, et la paire joue jusqu'à ce que l'un se lève."
+
+msgid "room.arcade_status"
+msgstr "Salon arcade / sur invitation"
+
+msgid "room.arcade_locked_status"
+msgstr "Salon arcade verrouillé / sur invitation"
+
+msgid "room.cabinet_free"
+msgstr "INSÉREZ UNE PIÈCE"
+
+msgid "room.arcade_sit"
+msgstr "S'asseoir"
+
+msgid "room.arcade_sit_detail"
+msgstr "Le salon vous place face à celui qui attend, ou à une borne libre."
+
+msgid "room.arcade_view"
+msgstr "Vue du salon arcade"
+
+msgid "room.arcade_view_detail"
+msgstr "Comment les bornes d'un salon arcade sont dessinées : la salle de paires face à face, ou Real Arcade avec de hautes bornes sur deux rangées ou quatre colonnes."
+
+msgid "room.arcade_view.floor"
+msgstr "Salle"
+
+msgid "room.arcade_view.rows"
+msgstr "Real Arcade (rangées)"
+
+msgid "room.arcade_view.columns"
+msgstr "Real Arcade (colonnes)"
+
+msgid "room.cabinet_empty"
+msgstr "VIDE"
+
+msgid "room.arcade_waiting"
+msgstr "En attente"
+
+msgid "room.rules.arcade"
+msgstr "Les règles d'un salon arcade sont fixées à sa création et valent à toutes les tables."
+
 msgid "room.practice"
 msgstr "Salon d'entraînement"
 

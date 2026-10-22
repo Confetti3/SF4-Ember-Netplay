@@ -74,6 +74,7 @@ std::string SessionProblem(const netplay::Snapshot& session) {
 const char* RoomStatusKey(const room::Snapshot& room) {
     if(room.serverOwned)return room.locked?"room.public_locked_status":"room.public_status";
     if(room.practice)return room.locked?"room.practice_locked_status":"room.practice_status";
+    if(room.arcade)return room.locked?"room.arcade_locked_status":"room.arcade_status";
     return room.locked?"room.locked_status":"room.private_status";
 }
 // "Automatic" first, then every locale by its own name.
@@ -122,6 +123,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
+    action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ArcadeOff;
     if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
     // A room opened here is not the public one the panel joined.
