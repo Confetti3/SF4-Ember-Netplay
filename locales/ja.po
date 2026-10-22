@@ -6868,6 +6868,15 @@ msgstr "オンライン · 一覧"
 msgid "public.your_region"
 msgstr "あなたの地域 {0}"
 
+msgid "home.notifications"
+msgstr "通知"
+
+msgid "notifications.none"
+msgstr "まだありません。"
+
+msgid "notifications.none_detail"
+msgstr "リンクのコピーやルームからの退出など、Ember からのお知らせはこのセッション中ここに残ります。"
+
 msgid "home.news"
 msgstr "ニュース"
 

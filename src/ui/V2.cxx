@@ -51,7 +51,7 @@ void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act
     if (act) draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), Colors().accent, 4 * s, ImDrawFlags_RoundCornersLeft);
 }
 
-int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone) {
+int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone, bool bell) {
     const float s = Scale(), glyph = (bar.H() < 52 * s ? 26 : 30) * s, font = 16 * s;
     auto* d = ImGui::GetWindowDrawList();
     const float side = SideMargin(ImGui::GetWindowWidth(), s);
@@ -71,10 +71,24 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
         d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), Colors().text, label.c_str());
         x += w + 24 * s;
     }
-    if (!status.empty()) {
-        const float right = bar.max.x - side, size = 15 * s;
-        const std::string fitted = Fit(status, (std::max)(0.f, right - x), size);
-        d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(fitted, size), bar.min.y + (bar.H() - size) * .5f), tone, fitted.c_str());
+    const float right = bar.max.x - side, size = 15 * s, icon = bell ? 30 * s : 0;
+    const std::string fitted = Fit(status, (std::max)(0.f, right - x - icon), size);
+    const float left = right - TextWidth(fitted, size) - icon, mid = bar.min.y + bar.H() * .5f;
+    d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(fitted, size), mid - size * .5f), tone, fitted.c_str());
+    if (bell) {
+        // The bell of the Toasts board's touch control: a dome on a rim, and its clapper.
+        ImGui::SetCursorScreenPos(ImVec2(left, bar.min.y));
+        if (ImGui::InvisibleButton("##hint-bell", ImVec2(right - left, bar.H()))) pressed = static_cast<int>(hints.size());
+        const ImU32 ink = ImGui::IsItemHovered() ? Colors().accent : Colors().text;
+        const float k = s * .8f, bx = left, by = mid - 11 * k;
+        d->PathLineTo(ImVec2(bx + 6 * k, by + 15 * k));
+        d->PathLineTo(ImVec2(bx + 6 * k, by + 10 * k));
+        d->PathArcTo(ImVec2(bx + 11 * k, by + 10 * k), 5 * k, 3.14159265f, 6.28318531f);
+        d->PathLineTo(ImVec2(bx + 16 * k, by + 15 * k));
+        d->PathLineTo(ImVec2(bx + 18 * k, by + 17 * k));
+        d->PathLineTo(ImVec2(bx + 4 * k, by + 17 * k));
+        d->PathStroke(ink, ImDrawFlags_Closed, 2 * k);
+        d->AddLine(ImVec2(bx + 9 * k, by + 20 * k), ImVec2(bx + 13 * k, by + 20 * k), ink, 2 * k);
     }
     return pressed;
 }
@@ -148,14 +162,20 @@ void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font) {
     const float width = ImGui::GetContentRegionAvail().x, line = size * 1.45f;
     const ImVec2 start = ImGui::GetCursorScreenPos();
     float y = start.y;
+    // ImGui's wrap runs on through a newline, so each line is wrapped up to its own.
     for (const char *p = text.c_str(), *end = p + text.size(); p < end; y += line) {
-        const char* cut = font->CalcWordWrapPositionA(size / font->FontSize, p, end, width);
-        if (cut == p && *p != '\n') ++cut;  // ponytail: a pane narrower than one glyph splits it
+        const char* stop = std::find(p, end, '\n');
+        const char* cut = p == stop ? stop : font->CalcWordWrapPositionA(size / font->FontSize, p, stop, width);
+        if (cut == p && p != stop) ++cut;  // ponytail: a pane narrower than one glyph splits it
         ImGui::GetWindowDrawList()->AddText(font, size, ImVec2(start.x, y + (line - size) * .5f), color, p, cut);
-        for (p = cut; p < end && *p == ' '; ++p) {}
-        if (p < end && *p == '\n') ++p;
+        for (p = cut; p < stop && *p == ' '; ++p) {}
+        if (p == stop && p < end) ++p;
     }
     ImGui::Dummy(ImVec2(width, y - start.y));
+}
+void Wrapped(const std::string& text) {
+    if (On()) Paragraph(text, ImGui::GetFontSize(), ImGui::GetColorU32(ImGuiCol_Text));
+    else ImGui::TextWrapped("%s", text.c_str());
 }
 void Fact(const std::string& key, const std::string& value) {
     const float s = Scale(), w = ImGui::GetContentRegionAvail().x, h = ImGui::GetFontSize() + 20 * s, room = w - 24 * s;
@@ -233,7 +253,7 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
     }
     draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), Colors().text, Fit(title, room, titleSize, HeadingFont()).c_str());
     draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, s);
-    draw->AddRectFilled(ImVec2(p.x, p.y + height - s), ImVec2(p.x + 72 * s, p.y + height + 2 * s), Colors().accent);
+    draw->AddRectFilled(ImVec2(x, p.y + height - s), ImVec2(x + 72 * s, p.y + height + 2 * s), Colors().accent);
     ImGui::Dummy(ImVec2(width, height + 8 * s));
     return pressed;
 }
@@ -392,13 +412,15 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     y += line + 8 * s;
     // The title on its plate: a slanted bar with the accent's stripe at its start.
     if (!tag.title.empty()) {
-        const float w = (std::min)(340 * s, room), cut = line / 3, stripe = line / 2;
+        // The plate grows to its title, and a title longer than the room steps down a size.
+        const float cut = line / 3, stripe = line / 2, need = TextWidth(tag.title, 15 * s, HeadingFont()) + stripe + 10 * s + cut + 6 * s;
+        const float w = (std::min)(room, (std::max)(340 * s, need));
         const ImVec2 plate[] = {{x + cut, y}, {x + w, y}, {x + w - cut, y + line}, {x, y + line}};
         const ImVec2 mark[] = {{x + cut, y}, {x + stripe, y}, {x + stripe - cut, y + line}, {x, y + line}};
         const auto tier = TierColor(tag.tier);
         draw->AddConvexPolyFilled(plate, 4, tier.plate);
         draw->AddConvexPolyFilled(mark, 4, tier.stripe);
-        const float size = 15 * s;
+        const float size = need > w ? 13 * s : 15 * s;
         draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), c.text, Fit(tag.title, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
         y += line + 8 * s;
     }

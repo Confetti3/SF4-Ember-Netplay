@@ -6867,6 +6867,15 @@ msgstr "ONLINE · ESPLORA"
 msgid "public.your_region"
 msgstr "La tua regione {0}"
 
+msgid "home.notifications"
+msgstr "Notifiche"
+
+msgid "notifications.none"
+msgstr "Ancora niente."
+
+msgid "notifications.none_detail"
+msgstr "Quello che Ember segnala, come un link copiato o una stanza lasciata, resta qui per questa sessione."
+
 msgid "home.news"
 msgstr "Notizie"
 

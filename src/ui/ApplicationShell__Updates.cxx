@@ -90,7 +90,7 @@ void ApplicationShell::DrawNewsDetail(const ShellView& v,const std::string& id,c
   NoteUserText(line);
   const auto p=ImGui::GetCursorScreenPos();
   d->AddRectFilled(ImVec2(p.x,p.y+ImGui::GetFontSize()*.35f),ImVec2(p.x+6*s,p.y+ImGui::GetFontSize()*.35f+6*s),c.accent);
-  ImGui::Indent(18*s);ImGui::TextWrapped("%s",line.c_str());ImGui::Unindent(18*s);
+  ImGui::Indent(18*s);v2::Wrapped(line);ImGui::Unindent(18*s);
  }
  // Update now on the offered release, at the pane's foot: the same as its row, which asks first.
  if(!v.services.launchOffer||v.services.launchOffer->tag!=n->tag)return;

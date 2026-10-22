@@ -112,6 +112,8 @@ public:
     // no such buttons, so they are shown only for an Xbox pad (or the keyboard),
     // less any button the player made Select or Back.
     std::vector<LegendHint> shortcutHints;
+    // V2: the screen the hint bar's bell and status open (a Shortcut to it); empty for none.
+    std::string statusLeads;
     // A text box on this screen holds the keyboard whether or not ImGui has
     // activated it this frame, so letters, Space, Backspace and Delete are
     // text and never menu keys.

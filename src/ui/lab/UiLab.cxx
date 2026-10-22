@@ -258,7 +258,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::string shot, keys, screen;
     bool inRoom = false, pip = false;
     int hud = -1;
-    bool trainingPanel = false, blumint = false, watcher = false, update = false, publicLab = false, rankings = false;  // --update: Home offers a Nightly update
+    bool trainingPanel = false, blumint = false, watcher = false, update = false, publicLab = false, rankings = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     std::string moment;  // --moment game|set|lost|restart|host|expired|failed|called, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
@@ -279,6 +279,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--moment" && more) moment = args[++i];
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
+        else if (args[i] == "--toasts") toasts = true;
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
     RegisterClassExW(&wc);
@@ -356,6 +357,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (ImGui::IsKeyPressed(ImGuiKey_F4)) textSize = textSize >= 1.5f ? 1 : textSize + .25f;
         if (ImGui::IsKeyPressed(ImGuiKey_F5)) { const bool look = view.preferences.lookV2; inRoom = !inRoom; view = FakeView(look); if (inRoom) JoinRoom(view); }
         if (frame == 2 && !screen.empty()) shell.Navigation().Push(screen);
+        static const std::pair<const char*, ui::Tone> said[] = {{"room.short_invitation_copied", ui::Tone::Success},
+            {"tournament.link_waiting", ui::Tone::Pending}, {"notice.left_room", ui::Tone::Neutral}};
+        if (toasts && frame >= 3 && frame < 6) shell.Say(loc::T(said[frame - 3].first), said[frame - 3].second, 600);
         if (identityAsked && identityAsked != view.identityTicket) {
             view.identityTicket = identityAsked; view.identityRequest = view.identity.requestId = identityAsked + 100; view.identity.ok = true;
         }
@@ -401,6 +405,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             strip.links[0] = NetworkLink::Wired; strip.links[1] = NetworkLink::Wireless;
             strip.pingMs = 96; strip.rollbackFrames = 2; strip.appliedDelay = 2; strip.layout = hud; strip.spectators = 3; strip.score = "2 - 1";
             ui::DrawMatchStrip(strip);
+            if (toasts) shell.Background(view, view.room, submit);
         } else shell.Draw(view, &open, submit, [&] { selector.Draw(pick, false, &art, [&](int) { return available; }); });
         open = true;
         if (bar) {

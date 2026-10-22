@@ -207,6 +207,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[0].detailText=DetailText::Name;
  }else if(v2::On()&&SettingsTab(screen)){rows=SettingsTabRows(v,screen,idle,opening,selection,developer,title);
  }else if(NewsScreen(screen)){rows=NewsRows(v,screen,title);
+ }else if(screen=="notifications"){rows=NotificationRows(ImGui::GetTime(),title);
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
@@ -217,6 +218,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
   // V2: News, the channel's newest releases (the panel under the player card shows the first three).
   if(v2::On()&&!v.services.update.news.empty())rows.push_back(Row("news",loc::T("home.news"),v.services.update.news.front().title));
+  // V2: Notifications, what Ember said lately (the toasts).
+  if(v2::On())rows.push_back(Row("notifications",loc::T("home.notifications"),toasts_.empty()?std::string(loc::T("notifications.none")):toasts_.front().text));
   // Fighter select's hint is a line of labels over a line of short values.
   if(v.canEditSelection&&!v.hintFighter.empty())rows[1].columns={{loc::T("selection.fighter"),v.hintFighter},
    {loc::T("home.selection_costume_color"),v.hintAppearance},{loc::T("home.selection_ultra"),v.hintUltra}};
@@ -558,7 +561,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
- else if(a.id=="replays"||a.id=="controllers"||a.id=="news")nav.Push(a.id);
+ else if(a.id=="replays"||a.id=="controllers"||a.id=="news"||a.id=="notifications")nav.Push(a.id);
  // News' Update now, confirmed on its row: the launch check's offer, as its question's Update now sends it.
  else if(a.id=="news-update-now"&&v.services.launchOffer){
   ShellAction r;r.command.generation=v.session.generation;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*v.services.launchOffer;
@@ -696,6 +699,7 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
+ DrawToasts(ImGui::GetTime(),true);
 }
 
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
@@ -725,6 +729,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   shortCopyUntil_ = RebaseUiTimestamp(shortCopyUntil_, lastUiTime_, now);
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
   roomUpdateStarted_ = -1;
+  for(auto& t:toasts_){t.at=RebaseUiTimestamp(t.at,lastUiTime_,now);t.until=RebaseUiTimestamp(t.until,lastUiTime_,now);}
  }
  lastUiTime_ = now;
  // Player-written text can need glyphs the atlas has not baked yet. The
@@ -1047,6 +1052,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   menu_.shortcutHints.erase(menu_.shortcutHints.begin(),menu_.shortcutHints.begin()+2);
  // V2: Settings is six tabs.
  menu_.tabs.clear();menu_.tab=-1;
+ menu_.statusLeads=v2::On()&&screen!="notifications"?"notifications":"";
  if(v2::On()&&SettingsTab(screen)){
   menu_.tabs=SettingsTabs();
   for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==page)menu_.tab=i;
@@ -1098,7 +1104,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }else if(a.kind==MenuAction::Shortcut){
   // A V2 tab names the page it shows.
   // A panel's screen sits on its tab's: leave it first, and the tab too unless one of its panels was picked.
-  if(!a.id.empty()){if(a.id=="replay-export")replays_.ExportFrom(v,nav.Focus());if(page!=screen)nav.Return();if(SettingsTabOf(a.id)==a.id)nav.Return();nav.Push(a.id);}
+  // The hint bar's bell opens Notifications over the screen shown.
+  if(a.id=="notifications")nav.Push(a.id);
+  else if(!a.id.empty()){if(a.id=="replay-export")replays_.ExportFrom(v,nav.Focus());if(page!=screen)nav.Return();if(SettingsTabOf(a.id)==a.id)nav.Return();nav.Push(a.id);}
   else if(inRoom)RoomShortcut(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
   else if(RankingsPanel::Owns(screen))rankings_.Shortcut(a);
@@ -1117,5 +1125,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Accepted text may be a passphrase; the panel kept its own copy.
  if(a.kind==MenuAction::TextAccepted)WipeText(a.text);
  ImGui::End();ImGui::PopStyleVar(2);
+ DrawToasts(now,false,nav.Screen()=="notifications");
 }
 } }

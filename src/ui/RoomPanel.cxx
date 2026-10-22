@@ -972,7 +972,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    NoteDetailText(selected->detail,selected->detailText);
    if(!reason.empty())explanation=explanation.empty()?reason:explanation+"\n"+reason;
    ImGui::PushStyleColor(ImGuiCol_Text,reason.empty()?ToneColor(Tone::Neutral):ToneColor(Tone::Pending));
-   ImGui::TextWrapped("%s",explanation.c_str());ImGui::PopStyleColor();
+   v2::Wrapped(explanation);ImGui::PopStyleColor();
   }
   ImGui::EndChild();
  }

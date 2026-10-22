@@ -6502,6 +6502,15 @@ msgstr "ONLINE · BROWSE"
 msgid "public.your_region"
 msgstr "Your region {0}"
 
+msgid "home.notifications"
+msgstr "Notifications"
+
+msgid "notifications.none"
+msgstr "Nothing yet."
+
+msgid "notifications.none_detail"
+msgstr "What Ember says, such as a link copied or a room left, is kept here for this session."
+
 msgid "home.news"
 msgstr "News"
 

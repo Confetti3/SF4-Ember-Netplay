@@ -202,8 +202,8 @@ void GameMenu::DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,floa
     const auto buttons=ConfirmationButtons(entries);
     ImGui::BeginChild("Confirmation explanation",ImVec2(0,ImGui::GetContentRegionAvail().y-DialogButtonsHeight(buttons,42*unit)-18*unit));
     const auto question=loc::Tf("confirm.question",entry?entry->label:std::string(loc::T("confirm.title")));
-    ImGui::TextWrapped("%s",question.c_str());
-    if(entry)ImGui::TextWrapped("%s",entry->detail.c_str());
+    v2::Wrapped(question);
+    if(entry)v2::Wrapped(entry->detail);
     ImGui::EndChild();
     int selected=navigation.ConfirmSelected()?1:0;
     const int clicked=DrawDialogButtons("confirm",buttons,&selected,42*unit);
@@ -224,8 +224,8 @@ void GameMenu::DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuA
             const auto* entry=FindEntry(entries,navigation.DialogId());
             const auto question=loc::Tf("confirm.question",entry?entry->label:std::string(loc::T("confirm.title")));
             if(v2::On())DialogTop(loc::T("confirm.title"),{},question.c_str(),v2::Colors().text,24);
-            else ImGui::TextWrapped("%s",question.c_str());
-            if(entry)ImGui::TextWrapped("%s",entry->detail.c_str());
+            else v2::Wrapped(question);
+            if(entry)v2::Wrapped(entry->detail);
             ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
             ImGui::BeginChild("Confirmation feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
             if(!entry||!feedback_.Enabled(*entry))ImGui::TextWrapped("%s",loc::T("confirm.updating"));
@@ -249,10 +249,10 @@ void GameMenu::DrawReader(const std::vector<MenuEntry>& entries,const Detail& de
     const auto window=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
     ReportMenuCard("reader",window,ImVec2(window.x+size.x,window.y+size.y));
     if(entry->userText)NoteUserText(entry->label);
-    ImGui::PushFont(HeadingFont());ImGui::TextWrapped("%s",entry->label.c_str());ImGui::PopFont();
+    ImGui::PushFont(HeadingFont());v2::Wrapped(entry->label);ImGui::PopFont();
     ReportMenuCard("reader-heading",ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
-    if(!entry->detail.empty()){NoteDetailText(entry->detail,entry->detailText);ImGui::TextWrapped("%s",entry->detail.c_str());}
-    if(!entry->value.empty()){if(entry->userText||entry->text)NoteUserText(entry->value);ImGui::TextWrapped("%s",entry->value.c_str());}
+    if(!entry->detail.empty()){NoteDetailText(entry->detail,entry->detailText);v2::Wrapped(entry->detail);}
+    if(!entry->value.empty()){if(entry->userText||entry->text)NoteUserText(entry->value);v2::Wrapped(entry->value);}
     if(detail)detail(entry->id);
     // Held Up/Down scroll smoothly; the mouse wheel and scrollbar still work.
     const float step=ImGui::GetTextLineHeightWithSpacing()*14*ImGui::GetIO().DeltaTime;
@@ -300,7 +300,7 @@ void GameMenu::DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction&
             ImGui::EndChild();
             lastChoice_=navigation.Choosing()?navigation.ChoiceIndex():~std::size_t(0);
             if(navigation.Choosing()&&navigation.ChoiceIndex()<count&&!entry->choices[navigation.ChoiceIndex()].detail.empty())
-                ImGui::TextWrapped("%s",entry->choices[navigation.ChoiceIndex()].detail.c_str());
+                v2::Wrapped(entry->choices[navigation.ChoiceIndex()].detail);
             // The header's Cancel sits under this modal, so the modal has its own.
             if(navigation.Choosing()&&DrawDialogButtons("choice-cancel",{{loc::T("common.cancel")}},nullptr,40*s)==0) navigation.Cancel();
             if(!navigation.Choosing()) ImGui::CloseCurrentPopup();
@@ -335,10 +335,10 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
             }
             else{
                 ImGui::TextColored(noticeError_?ToneColor(Tone::Error):ToneColor(Tone::Pending),"%s",heading);
-                if(!noticeFacts_.empty()){NoteUserText(noticeFacts_.c_str());ImGui::TextWrapped("%s",noticeFacts_.c_str());}
+                if(!noticeFacts_.empty()){NoteUserText(noticeFacts_.c_str());v2::Wrapped(noticeFacts_);}
             }
             NoteUserText(notice_.c_str());
-            ImGui::TextWrapped("%s",notice_.c_str());
+            v2::Wrapped(notice_);
             ImGui::Dummy(ImVec2(0,8*Scale()));
             std::vector<DialogButton> buttons;
             for(const auto& button:noticeButtons_) buttons.push_back({button.label});

@@ -6868,6 +6868,15 @@ msgstr "온라인 · 둘러보기"
 msgid "public.your_region"
 msgstr "내 지역 {0}"
 
+msgid "home.notifications"
+msgstr "알림"
+
+msgid "notifications.none"
+msgstr "아직 없습니다."
+
+msgid "notifications.none_detail"
+msgstr "링크 복사나 방 나가기처럼 Ember가 알린 내용은 이번 세션 동안 여기에 남습니다."
+
 msgid "home.news"
 msgstr "소식"
 

@@ -6868,6 +6868,15 @@ msgstr "在线 · 浏览"
 msgid "public.your_region"
 msgstr "你的地区 {0}"
 
+msgid "home.notifications"
+msgstr "通知"
+
+msgid "notifications.none"
+msgstr "暂无内容。"
+
+msgid "notifications.none_detail"
+msgstr "Ember 的提示（例如已复制链接或已离开房间）会在本次会话中保留在这里。"
+
 msgid "home.news"
 msgstr "新闻"
 

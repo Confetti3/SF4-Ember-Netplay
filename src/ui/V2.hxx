@@ -70,10 +70,11 @@ void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar = true);
 // card that asks to be acted on.
 void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act = false);
 // The hint bar along the bottom: each hint is a glyph and its words, and also
-// a button (touch, mouse). `status` sits at the right end in `tone`. Returns
-// the hint pressed, or -1.
+// a button (touch, mouse). `status` sits at the right end in `tone`; with
+// `bell` it follows a bell and is a button too, pressed as hints.size().
+// Returns the hint pressed, or -1.
 struct Hint { const char* glyph; std::string label; };
-int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone);
+int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone, bool bell = false);
 // A state word on its tone at 18 %: "Ready", "Live", "D 42 ms". Returns its width.
 float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone);
 float ChipWidth(const std::string& text);
@@ -83,12 +84,14 @@ void Fact(const std::string& key, const std::string& value);
 // Text wrapped across the cursor's line at `size` (its em) with the boards'
 // 1.45 line height, which ImGui's own wrapping (one em) has no room for.
 void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font = ImGui::GetFont());
+// ImGui::TextWrapped in the current font and colour, as a Paragraph in V2.
+void Wrapped(const std::string& text);
 
 // The brand's mark `height` tall at `at`: Ember's emblem, or BluMint's
 // wordmark × Ember's emblem. Returns its width.
 float BrandMark(ImDrawList* draw, ImVec2 at, float height);
 // A screen's header: the brand's mark (BrandMark), an optional muted eyebrow (the path), the
-// title, and the rule with its 72 px Ember start. Takes the cursor's line.
+// title, and the rule with its 72 px Ember start under the title. Takes the cursor's line.
 // `chips` sit at its right end: a state word each, in its tone. With `back`
 // a button of that word leads the header; returns true when it was pressed.
 struct HeaderChip { std::string text; ImU32 tone; };

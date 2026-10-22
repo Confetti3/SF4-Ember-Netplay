@@ -21,6 +21,7 @@
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
 #include <array>
+#include <deque>
 #include <functional>
 #include <vector>
 #include <set>
@@ -262,6 +263,9 @@ public:
         }
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // A notice from outside the shell (the lab's toasts): the status line's
+    // for `seconds`, and a toast in V2.
+    void Say(std::string text, Tone tone, double seconds) { notice_ = std::move(text); noticeTone_ = tone; noticeUntil_ = ImGui::GetTime() + seconds; }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
     // What the screen on show needs the replay workers to read (ReplaysPanel::Wanted).
@@ -585,6 +589,14 @@ std::string memberAsk_;
     std::array<LiveGame,room::TableCount> liveGames_;
     std::string notice_;
     double noticeUntil_=0;
+    // The notices and refusals said lately, newest first: V2's toasts while
+    // they last and the Notifications screen's rows (ApplicationShell__Toasts.cxx).
+    struct Toast { unsigned id; std::string text; Tone tone; double at, until; };
+    std::deque<Toast> toasts_;
+    std::string noticeSeen_, errorSeen_;
+    unsigned toastCount_=0;
+    void DrawToasts(double now,bool overMatch,bool listed=false);
+    std::vector<MenuEntry> NotificationRows(double now,std::string& title) const;
     // Copy short link was pressed before the link existed: copy it when it
     // arrives, or the full invitation on a failure or at the deadline.
     bool shortCopyPending_=false;

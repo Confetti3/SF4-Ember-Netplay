@@ -6868,6 +6868,15 @@ msgstr "ОНЛАЙН · ОБЗОР"
 msgid "public.your_region"
 msgstr "Ваш регион {0}"
 
+msgid "home.notifications"
+msgstr "Уведомления"
+
+msgid "notifications.none"
+msgstr "Пока ничего."
+
+msgid "notifications.none_detail"
+msgstr "То, что сообщает Ember, например скопированная ссылка или покинутая комната, хранится здесь до конца сеанса."
+
 msgid "home.news"
 msgstr "Новости"
 

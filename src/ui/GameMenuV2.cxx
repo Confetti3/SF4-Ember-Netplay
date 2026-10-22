@@ -411,9 +411,10 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     }
     const bool hasStatus = status && *status;
     const int hit = v2::HintBar(hintBar, hints, hasStatus ? status : footerNote,
-        hasStatus ? ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)) : v2::Colors().muted);
+        hasStatus ? ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)) : v2::Colors().muted, !statusLeads.empty());
     if (hit >= 0 && !modalAtStart && !noticeOpen) {
-        if (does[hit] == 2) { if (choosing) navigation.Cancel(); else backRequested = true; }
+        if (hit == static_cast<int>(does.size())) action = {MenuAction::Shortcut, statusLeads};
+        else if (does[hit] == 2) { if (choosing) navigation.Cancel(); else backRequested = true; }
         else if (does[hit] == 1 && focusedEntry != entries.end() && !choosing) action = navigation.Choose(entries);
         else if ((does[hit] == 3 || does[hit] == 4) && !modalAtStart) {
             const int next = tab + (does[hit] == 4 ? 1 : -1);

@@ -6867,6 +6867,15 @@ msgstr "ONLINE · PROCHÁZENÍ"
 msgid "public.your_region"
 msgstr "Váš region {0}"
 
+msgid "home.notifications"
+msgstr "Oznámení"
+
+msgid "notifications.none"
+msgstr "Zatím nic."
+
+msgid "notifications.none_detail"
+msgstr "Co Ember oznámí, třeba zkopírovaný odkaz nebo opuštěnou místnost, tu zůstane po tuto relaci."
+
 msgid "home.news"
 msgstr "Novinky"
 

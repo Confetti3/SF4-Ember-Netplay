@@ -504,7 +504,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             ImGui::SetCursorPos(ImVec2(8*unit,(std::max)(0.f,(feedbackHeight-ImGui::CalcTextSize(status,nullptr,false,wrapWidth).y)*.5f)));
         }
         if(fitFeedback){ImGui::PushTextWrapPos(wrapWidth);ImGui::TextUnformatted(status);ImGui::PopTextWrapPos();}
-        else ImGui::TextWrapped("%s",status);
+        else v2::Wrapped(status);
         ImGui::PopStyleColor();ImGui::EndChild();
     }
     const float bodyTop=ImGui::GetCursorScreenPos().y;
@@ -521,10 +521,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             // A compact gallery's card already carries its label, so its two
             // lines go to what the label does not say: the explanation, then
             // what is saved.
-            if(!compactGallery&&!leanDetail){if(it->userText)NoteUserText(it->label);ImGui::TextWrapped("%s",it->label.c_str());}
+            if(!compactGallery&&!leanDetail){if(it->userText)NoteUserText(it->label);v2::Wrapped(it->label);}
             ImGui::PopStyleColor();
-            if(!it->detail.empty()){NoteDetailText(it->detail,it->detailText);ImGui::TextWrapped("%s",it->detail.c_str());}
-            if(!it->value.empty()){if(it->userText||it->text)NoteUserText(it->value);ImGui::TextWrapped("%s",it->value.c_str());}
+            if(!it->detail.empty()){NoteDetailText(it->detail,it->detailText);v2::Wrapped(it->detail);}
+            if(!it->value.empty()){if(it->userText||it->text)NoteUserText(it->value);v2::Wrapped(it->value);}
             if(!visualEnabled&&!it->quiet) ImGui::TextDisabled("%s",loc::T(feedback_.Pending(*it)?"room.updating":"common.unavailable"));
             }
             if(detail) detail(it->id);
