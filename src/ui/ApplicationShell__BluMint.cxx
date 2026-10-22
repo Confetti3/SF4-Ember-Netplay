@@ -250,7 +250,9 @@ void ApplicationShell::DrawBluMintBoard(const ShellView& v, const std::vector<Me
             decided ? loc::T("blumint.stage_decided") : t.phase == room::TablePhase::Playing ? loc::Tf("blumint.stage_live", played + 1) : loc::Tf("blumint.stage_next", played + 1));
         const std::string score = std::to_string(t.score[0]) + " \xE2\x80\x93 " + std::to_string(t.score[1]);
         const float scoreSize = 40 * s, scoreWidth = HeadingFont()->CalcTextSizeA(scoreSize, FLT_MAX, 0, score.c_str()).x;
-        const float cw = 200 * s, ch = 220 * s, between = scoreWidth + 44 * s;
+        const float between = scoreWidth + 44 * s, ch = 220 * s;
+        // Wide enough for a name beside the ping and its route chip, as far as the stage allows.
+        const float cw = (std::max)(200 * s, (std::min)(300 * s, (stage.W() - between - 48 * s) * .5f));
         const float left = stage.min.x + (stage.W() - 2 * cw - between) * .5f, top = stage.min.y + (stage.H() - ch) * .5f - 12 * s;
         for (int side = 0; side < 2; ++side) {
             const v2::Box card{ImVec2(left + side * (cw + between), top), ImVec2(left + side * (cw + between) + cw, top + ch)};
