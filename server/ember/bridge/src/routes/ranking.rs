@@ -69,7 +69,7 @@ pub async fn board(State(state): State<AppState>, headers: HeaderMap) -> Result<
 }
 
 /// How long a public board is answered again before it is read again.
-const PUBLIC_BOARD_SECS: u64 = 60;
+const PUBLIC_BOARD_SECS: u64 = 15;
 
 /// The board on the embernetplay.link rankings page. `shown` is false while
 /// classes are hidden, so the page can tell that from a board nobody is on yet.
@@ -81,7 +81,7 @@ struct PublicBoard {
 }
 
 /// The last public board. Anyone can ask for it, directly or through the
-/// website, so the bridge reads it at most once a minute, one read at a time.
+/// website, so the bridge reads it at most every 15 s, one read at a time.
 #[derive(Default)]
 pub struct PublicCache(tokio::sync::Mutex<Option<Arc<PublicBoard>>>);
 

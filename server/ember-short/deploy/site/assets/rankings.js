@@ -6,7 +6,9 @@
 // player. Names are the players' own words, so they only ever go in as text.
 (function () {
   'use strict';
-  var STALE_MS = 5 * 60 * 1000;
+  // While the tab is shown the board is asked for again this often; nginx and
+  // the bridge each keep it 15 s, so a change shows within about a minute.
+  var REFRESH_MS = 30000;
   // USF4's classes, band 1 to 10 (src/ui/NameMarks.cxx), and the colour
   // family each pill takes.
   var CLASSES = ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'Master', 'Grand Master'];
@@ -58,9 +60,10 @@
 
   // players: null until the first answer; each { name, country, band, index, folded }.
   // phase: 'loading', 'ready', 'off' (no rankings here), 'hidden' (classes not shown yet) or 'failed'.
-  var data = { players: null, listedAt: 0, loadedAt: 0, phase: 'loading', failed: false };
+  var data = { players: null, listedAt: 0, loadedAt: 0, phase: 'loading', failed: false, key: '' };
   var view = { q: '', needle: '', classes: {}, country: '', region: '', group: 'class', order: 'recent' };
   var loading = false;
+  var timer = null;
   var typingTimer = null;
 
   var regionNames = {};
@@ -514,6 +517,16 @@
     });
   }
 
+  // The line over the board: how many players are listed or shown, and how
+  // fresh the list is.
+  function summaryText(players, shown) {
+    var updated = data.listedAt ? ' Updated ' + ago(Math.max(0, Math.floor(Date.now() / 1000) - data.listedAt)) + '.' : '';
+    var stale = data.failed ? ' Could not refresh; showing the last list.' : '';
+    if (players.length === 0) return 'Nobody is listed yet.' + updated + stale;
+    return (shown === players.length ? plural(players.length, 'player', 'players') + ' listed.' :
+      'Showing ' + shown + ' of ' + plural(players.length, 'player', 'players') + '.') + updated + stale;
+  }
+
   function render() {
     board.setAttribute('aria-busy', String(data.phase === 'loading'));
     while (board.firstChild) board.removeChild(board.firstChild);
@@ -543,10 +556,8 @@
       board.appendChild(message('The board is not available right now.', 'Try again in a minute, or look in Ember under Online play, Rankings.'));
       return;
     }
-    var updated = data.listedAt ? ' Updated ' + ago(Math.max(0, Math.floor(Date.now() / 1000) - data.listedAt)) + '.' : '';
-    var stale = data.failed ? ' Could not refresh; showing the last list.' : '';
     if (players.length === 0) {
-      summary.textContent = 'Nobody is listed yet.' + updated + stale;
+      summary.textContent = summaryText(players, 0);
       board.appendChild(message('Nobody is on the board yet.', 'Players appear once their class settles after a few public room games, and they have opened Rankings in Ember.'));
       return;
     }
@@ -561,8 +572,7 @@
     orderSelect.value = view.order;
 
     var shown = players.filter(function (player) { return passes(player); });
-    summary.textContent = (shown.length === players.length ? plural(players.length, 'player', 'players') + ' listed.' :
-      'Showing ' + shown.length + ' of ' + plural(players.length, 'player', 'players') + '.') + updated + stale;
+    summary.textContent = summaryText(players, shown.length);
     if (shown.length === 0) {
       board.appendChild(message('No players match these filters.', view.q ? 'Names are matched without case or accents. Players who have not opened Rankings lately may show an older name.' : '', true));
       return;
@@ -651,7 +661,21 @@
     return players;
   }
 
-  function load() {
+  // The board as text, so a refresh can tell whether anything changed.
+  function keyOf(phase, players) {
+    return phase + '\n' + (players || []).map(function (player) {
+      return player.band + ' ' + player.country + ' ' + player.name;
+    }).join('\n');
+  }
+
+  function schedule(delay) {
+    clearTimeout(timer);
+    timer = document.hidden ? null : setTimeout(function () { load(true); }, delay);
+  }
+
+  // quiet: a timed refresh, which draws the board again only when it changed,
+  // so the page does not jump under someone reading or filtering it.
+  function load(quiet) {
     if (loading) return;
     loading = true;
     refreshButton.disabled = true;
@@ -682,7 +706,15 @@
       .then(function () {
         loading = false;
         refreshButton.disabled = false;
-        render();
+        var key = keyOf(data.phase, data.players);
+        if (!quiet || key !== data.key) {
+          data.key = key;
+          render();
+        } else if (data.phase === 'ready' && data.players.length) {
+          var text = summaryText(data.players, data.players.filter(function (player) { return passes(player); }).length);
+          if (summary.textContent !== text) summary.textContent = text;
+        }
+        schedule(REFRESH_MS);
       });
   }
 
@@ -724,7 +756,7 @@
     var count = text ? text.split('\n').length : 0;
     copy(text, 'Copied ' + plural(count, 'player', 'players') + '.', 'Copy failed.');
   });
-  refreshButton.addEventListener('click', load);
+  refreshButton.addEventListener('click', function () { load(false); });
   document.addEventListener('keydown', function (event) {
     if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || toolbar.hidden) return;
     var target = event.target;
@@ -744,7 +776,12 @@
     resizeTimer = setTimeout(drawChart, 100);
   });
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && Date.now() - data.loadedAt > STALE_MS) load();
+    if (document.hidden) {
+      clearTimeout(timer);
+      timer = null;
+    } else {
+      schedule(Math.max(0, REFRESH_MS - (Date.now() - data.loadedAt)));
+    }
   });
   // The flag index, read once beside the board; the board is drawn again
   // with flags when it arrives.
@@ -762,5 +799,5 @@
     })
     .catch(function () {});
   readHash();
-  load();
+  load(false);
 }());

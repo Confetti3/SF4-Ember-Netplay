@@ -315,12 +315,15 @@ async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
         ])
     );
 
-    // It is read again only after a minute, however often it is asked for.
+    // It is read again only after 15 s, however often it is asked for.
     let (status, renamed) = choose(&bridge, &players[2], listed("Player 3b", "US")).await;
     assert_eq!(status, StatusCode::OK, "{renamed}");
     let (_, again) = public_board(&bridge).await;
     assert_eq!(again, public);
-    bridge.clock.advance(60);
+    bridge.clock.advance(14);
+    let (_, held) = public_board(&bridge).await;
+    assert_eq!(held, public);
+    bridge.clock.advance(1);
     let (_, later) = public_board(&bridge).await;
     assert_eq!(later["players"][0], entry("Player 3b", 8, false));
 }
