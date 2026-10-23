@@ -2816,6 +2816,12 @@ msgstr "{0}が対戦席{1}で1戦勝利しました ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}が対戦席{1}でセットを獲得しました ({2})"
+msgid "chat.typing.one"
+msgstr "{0}が入力中..."
+msgid "chat.typing.two"
+msgstr "{0}と{1}が入力中..."
+msgid "chat.typing.many"
+msgstr "複数の人が入力中..."
 
 msgid "room.fighter_options"
 msgstr "キャラオプション"

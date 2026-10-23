@@ -23,6 +23,13 @@ std::uint32_t RoomAuthority::IdleSeconds(MemberId member) const {
 	return static_cast<std::uint32_t>((std::min)(ms / 1000, static_cast<std::uint64_t>(MaximumIdleSeconds)));
 }
 
+std::uint32_t RoomAuthority::TypingLeftMs(MemberId member) const {
+	const auto found = typing_.find(member);
+	if (recoveryPaused_ || found == typing_.end() || !found->second.second || nowMs_ < found->second.first) return 0;
+	const auto age = nowMs_ - found->second.first;
+	return age < TypingMs ? static_cast<std::uint32_t>(TypingMs - age) : 0;
+}
+
 template <typename Visit> void RoomAuthority::ForEachTimer(Visit&& visit) {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		if (snapshot_.tables[i].resultPending) visit(resultPendingSince_[i], ResultDisputeTimeoutMs);
@@ -37,6 +44,7 @@ void RoomAuthority::PauseForRecovery() {
     if (recoveryPaused_) return;
     // Still running here: each start becomes its age.
     ForEachTimer([&](std::uint64_t& held, std::uint64_t) { held = TimerAge(held); });
+    typing_.clear();
     recoveryPaused_ = true;
 }
 

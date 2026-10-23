@@ -346,6 +346,9 @@ namespace sf4e {
 		// `roomGeneration`. A player called back from Training does not lose
 		// the time they have to ready while choosing (session/TrainingCall.hxx).
 		void NoteFighterSelector(std::uint64_t roomGeneration);
+		// Any thread: the player is writing a chat draft in room `roomGeneration`
+		// this frame. The runtime tells the room they are typing (Typing).
+		void NoteChatTyping(std::uint64_t roomGeneration);
 		// Game thread. Whether leaving for Training, asked for in session `made`,
 		// holds against `session`, whether the native main menu is up, and `room`:
 		// a Room entry, the same session at the main menu and the room's own gate

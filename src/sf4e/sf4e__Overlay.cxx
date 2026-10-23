@@ -466,6 +466,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     );
     if (shell.BoardDrawn()) sf4e::NetplayFacade::NoteLatencyBoard(view.room.roomEpoch);
     if (shell.SelectionDrawn()) sf4e::NetplayFacade::NoteFighterSelector(view.room.roomEpoch);
+    if (shell.ChatTyping()) sf4e::NetplayFacade::NoteChatTyping(view.room.roomEpoch);
     s_roomCarry.Return(view);
     if (!open) presentation.Close("Back on Ember's Home");
 }

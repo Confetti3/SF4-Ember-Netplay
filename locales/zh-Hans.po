@@ -2816,6 +2816,12 @@ msgstr "{0} 在对战位 {1} 赢下一局 ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} 在对战位 {1} 赢下对战组 ({2})"
+msgid "chat.typing.one"
+msgstr "{0} 正在输入..."
+msgid "chat.typing.two"
+msgstr "{0} 和 {1} 正在输入..."
+msgid "chat.typing.many"
+msgstr "多人正在输入..."
 
 msgid "room.fighter_options"
 msgstr "角色选项"

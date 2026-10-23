@@ -195,6 +195,10 @@ inline std::uint32_t RoomIdleSeconds(const room::Member& member, std::uint64_t e
     const auto since = static_cast<std::uint32_t>((std::min<std::uint64_t>)(elapsedMs / 1000, room::MaximumIdleSeconds));
     return (std::min)(member.idleSeconds + since, room::MaximumIdleSeconds);
 }
+// A member's "is typing" `elapsedMs` after the room stamped it; gone once it ran out.
+inline std::uint32_t RoomTypingMs(const room::Member& member, std::uint64_t elapsedMs) {
+    return elapsedMs < member.typingMs ? static_cast<std::uint32_t>(member.typingMs - elapsedMs) : 0;
+}
 // A countdown the room stamped (a table's holdRemainingMs or readyRemainingMs)
 // `elapsedMs` later. None sent stays none; one that has run out still holds
 // until the room says otherwise, so it keeps its last millisecond.
@@ -281,6 +285,10 @@ public:
     bool BoardDrawn() const { return boardDrawn_; }
     // The last Draw drew the fighter selector.
     bool SelectionDrawn() const { return selectionDrawn_; }
+    // The last Draw had the player writing a chat draft, which the runtime tells the room.
+    bool ChatTyping() const { return chatTyping_; }
+    // The line above the chat box: who else is typing, empty when nobody is.
+    std::string ChatTypingText(const ShellView& v) const;
     bool NoticeError() const { return menu_.NoticeError(); }
     // What this client keeps of the room chat (for tests).
     const ChatTranscript& Transcript() const { return transcript_; }
@@ -494,6 +502,9 @@ private:
     std::function<void(const std::string&)> chatLog_;
     // The Chat screen has been drawn since the player last left it.
     bool chatOpen_=false;
+    // When the message box was last edited, and whether this frame's draft counts as typing (ChatTyping).
+    double chatEditedAt_ = -1e9;
+    bool chatTyping_ = false;
     // The text the message box last held. ImGui ignores the buffer it is given while the box has the
     // keyboard, so a draft the shell changed (sent, or a new room) is handed to the box again.
     std::string chatBoxText_;

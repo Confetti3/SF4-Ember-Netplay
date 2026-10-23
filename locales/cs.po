@@ -2815,6 +2815,12 @@ msgstr "{0} vyhrál(a) hru u stolu {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} vyhrál(a) set u stolu {1} ({2})"
+msgid "chat.typing.one"
+msgstr "{0} píše..."
+msgid "chat.typing.two"
+msgstr "{0} a {1} píšou..."
+msgid "chat.typing.many"
+msgstr "Několik lidí píše..."
 
 msgid "room.fighter_options"
 msgstr "Možnosti postavy"

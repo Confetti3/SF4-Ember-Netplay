@@ -719,6 +719,24 @@ static void SayTraining() {
 	if (UserApp::netplay->client.SendRoomAction(say) != session::SendResult::Queued)
 		spdlog::info("Room: could not say the player is {} Training; it is said again", training ? "in" : "out of");
 }
+// The room is told the player is typing while the shell notes a draft being
+// written, again every three seconds to keep it shown, and once when they
+// stop. A word lost or refused is let go: the room drops it after TypingMs.
+static void SayTyping() {
+	if (!runtime->attached || !UserApp::netplay) { runtime->typingSaidAtMs = 0; return; }
+	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	const bool typing = room.roomEpoch && ChatTypingShown(room.roomEpoch);
+	const auto now = GetTickCount64();
+	if (typing ? runtime->typingSaidAtMs && now - runtime->typingSaidAtMs < 3000 : !runtime->typingSaidAtMs) return;
+	if (runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
+	room::Action say;
+	say.kind = room::ActionKind::Typing;
+	say.typing = typing;
+	say.roomEpoch = room.roomEpoch;
+	say.revision = room.revision;
+	runtime->typingSaidAtMs = typing ? now : 0;
+	UserApp::netplay->client.SendRoomAction(say);
+}
 void ReconcileTrainingCall() {
 	if (runtime) CallOutOfTraining();
 }
@@ -786,6 +804,7 @@ void TickRuntime() {
 	CallOutOpponentReady();
 	NoteNativeScreen();
 	SayTraining();
+	SayTyping();
 	TakeJoinLink();
 	TickMemberLatency();
 	PublishAndTickDiscordInvite();
