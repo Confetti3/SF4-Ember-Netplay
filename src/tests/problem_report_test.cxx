@@ -145,7 +145,8 @@ void Collection() {
     CHECK(report.logs.size()==2&&report.logs[0].text.find("private")==std::string::npos);
     CHECK(report.logs[0].text.find("Game ready")!=std::string::npos&&report.logs[0].text.size()<=LogLimit);
     CHECK(report.meta.exceptionCode==0xC0000005u&&report.meta.crashAddress==0x401234&&report.minidump=="MDMPpayload");
-    context.started=(std::filesystem::file_time_type::max)(); report=Collect(path,Fixture().meta,context,{}); CHECK(!report.meta.exceptionCode);
+    context.started=(std::filesystem::file_time_type::max)(); report=Collect(path,Fixture().meta,context,{});
+    CHECK(!report.meta.exceptionCode&&report.logs.size()==1&&report.logs[0].name=="sf4e.log");
     write("small.dmp","MDMP"+std::string(DumpLimit,'x')); report=Collect(path,Fixture().meta,context,{}); CHECK(report.minidump.empty());
     // A tail cut through an invitation/profile/address discards the partial
     // first line, rather than offering an unrecognizable secret fragment.
