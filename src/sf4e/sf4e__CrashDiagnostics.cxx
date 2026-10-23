@@ -157,7 +157,9 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	const bool dumped = heapCorrupt && s_dumpClient.Request(pointers);
 	const sf4e::crash::CrashFacts facts = FactsFor(kind, pointers, message);
 	const size_t headerLength = sf4e::crash::FormatCrashHeader(s_header, sizeof(s_header), facts);
-	HANDLE file = CreateFileW(s_recordPath, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+	// The record holds this crash only: a crash report sends it, and one that
+	// carried earlier crashes would be grouped with them.
+	HANDLE file = CreateFileW(s_recordPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file != INVALID_HANDLE_VALUE) WriteText(file, s_header, headerLength);
 	const char* callers = FormatCallers(pointers, scanFrom);
 	if (file != INVALID_HANDLE_VALUE && callers[0]) {
