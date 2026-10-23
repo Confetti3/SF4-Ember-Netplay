@@ -163,11 +163,11 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   if(focused&&nav.Choosing())menu_.bodyChoices={spot,area};
   const auto* m=room::FindMember(v.room,v.room.cabinets[i]);
   const auto* t=m&&m->table>=0?&v.room.tables[m->table]:nullptr;
-  const bool paired=t&&t->p1&&t->p2,lit=m!=nullptr;const ImU32 pair=paired?PairColor(t->id):pending;
+  const bool paired=t&&t->p1&&t->p2,seated=m!=nullptr;const ImU32 pair=paired?PairColor(t->id):pending;
   const bool crowned=type==room::KingRoom&&v.room.topSlot==i;
   // Every cabinet glows: dim while free, brighter once someone sits there, in the
   // pair's colour while a pair plays; a little more under the pointer.
-  const bool waiting=lit&&!paired;
+  const bool waiting=seated&&!paired;
   const bool picked=lit>=0&&paired&&static_cast<int>(t->id)==lit;
   v2::Glow(d,b.min,b.max,paired?pair:c.text,(picked?.9f:paired?.45f:waiting?.3f:.08f)+(hovered?.1f:0),(picked?10:6)*s,6*s);
   d->AddRectFilled(b.min,b.max,c.ink,6*s,ImDrawFlags_RoundCornersTop);
