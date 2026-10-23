@@ -546,7 +546,7 @@ in phase 1.
 | `LINK_HOLDER_CAP` | 2 | bridge constant |
 | watch poll | 10 s | game `WatchIntervalMs` |
 | watcher liveness | 60 s since `last_seen_at` | bridge |
-| watcher GGPO sync deadline at a bound table | 2 s | `SpectatorPolicy` (§6.6) |
+| watcher GGPO sync deadline at a bound table | 5 s (2 s until 2026-10-23) | `SpectatorPolicy` (§6.6) |
 
 The cap and ceiling are constants until an organizer needs a knob. They are
 lower than the 4 and 8 first designed, because of the load measurement in §6.6
@@ -1105,10 +1105,14 @@ What each watcher costs:
 
 Decisions:
 
-- **Shorter sync deadline.** At a bound table, a watcher's GGPO sync
-  deadline is 2 s instead of 5 s (`SpectatorPolicy` gets the deadline from
-  its caller).
-  - A slow or hostile watcher can then add at most 2 s to a game start.
+- **Sync deadline.** At a bound table, a watcher's GGPO sync deadline is
+  5 s, the same as any other table (`SpectatorPolicy` gets the deadline from
+  its caller, so the two can differ again).
+  - A slow or hostile watcher can then add at most 5 s to a game start.
+  - It was 2 s until 2026-10-23. A watcher of a BluMint match, joining
+    through a relay, finished loading the battle about 4 s after the
+    fighters synchronized and was dropped before the fight; in a first to 1 set
+    there is no next game to watch.
   - A watcher dropped from one game keeps its place for the next, since
     `ApplyLeaveGame` keeps it watching.
   - Not waiting at all is not possible: GGPO itself withholds RUNNING until
@@ -1583,7 +1587,7 @@ binding: it never receives one, and `WatchPlay` never emits Bind.
   - Leave passes host to a fighter.
   - TransferHost to a watcher is refused.
   - A fighter rejoining takes host back from a watcher.
-- **Spectator policy.** The bound-table sync deadline of 2 s drops a
+- **Spectator policy.** The bound-table sync deadline of 5 s drops a
   non-syncing watcher, and it stays placed for the next game.
 - **Fixture.** `to_json` of a bound snapshot with watchers equals the shared
   fixture.
