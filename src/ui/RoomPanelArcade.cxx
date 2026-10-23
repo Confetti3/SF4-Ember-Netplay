@@ -107,6 +107,8 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  // Real Arcade rows: two rows of eight tall cabinets, each over its stool
  // with the player's back on it; cabinet n on top, n+8 under it.
  // Where they would be too small to read, they keep their size and scroll.
+ // A margin for the focus and hover marks, which reach 4 px past a cabinet.
+ board=v2::Inset(board,6*s,6*s);
  const float gap=8*s,band=36*s,cell=(board.W()-7*gap)/8;
  const float h=(std::max)(120*s,(std::min)((board.H()-band)/2/1.4f,240*s)),w=(std::min)(cell,h*.75f),unit=h*1.4f;
  const bool scrolls=2*unit+band>board.H();
