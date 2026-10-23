@@ -42,6 +42,8 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t);
 // Back.
 struct PlaceExit {
     int table = -1;
+    // The board row that is the place: its table, or an Arcade room's cabinet.
+    std::string row;
     bool seat = false;
     bool allowed = false;
     // During a held start, B on the seat takes Ready back instead of leaving.
@@ -131,4 +133,9 @@ struct TableBanner {
     int seat = -1;
 };
 TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t);
+// A table's state in a word or two: open, waiting, in game and so on.
+const char* PhaseName(const room::Table& table);
+// What an Arcade room's cabinet row says of its player: waiting, or the
+// opponent with the score or the Rematch choice, and the streak.
+std::string CabinetState(const room::Snapshot& s, std::size_t cabinet);
 } } }

@@ -410,6 +410,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		runtime->displayName = runtime->preferences.displayName;
 		runtime->error.clear(); runtime->offlineRequested = false;
 		runtime->practiceRoom = decision.effect == netplay::Effect::HostRoom && command.practiceRoom;
+		runtime->arcadeRoom = decision.effect == netplay::Effect::HostRoom ? command.arcadeRoom : room::ClassicRoom;
 		runtime->delayPolicy = decision.effect == netplay::Effect::HostRoom ? command.delayPolicy : room::DelayPolicy::Shared;
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
@@ -418,9 +419,9 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 			!command.publicTicket.empty() ? JoinKind::Public : command.join;
 		// Only the join of a public room just created carries rules for its tables.
 		if (runtime->join == JoinKind::Public && command.createdRules) {
-			runtime->createdRules.Start(*command.createdRules, GetTickCount64());
-			spdlog::info("Room: created room rules armed format={} rotation={}",
-				static_cast<int>(command.createdRules->format), static_cast<int>(command.createdRules->rotation));
+			runtime->createdRules.Start(*command.createdRules, GetTickCount64(), command.arcadeRoom);
+			spdlog::info("Room: created room rules armed format={} rotation={} type={}",
+				static_cast<int>(command.createdRules->format), static_cast<int>(command.createdRules->rotation), static_cast<int>(command.arcadeRoom));
 		} else runtime->createdRules.Cancel("other_room");
 		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
 			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->join == JoinKind::Observer) :
@@ -439,6 +440,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         runtime->replacementPending=true;
         // The replacement is the same kind of room as the one it replaces.
         runtime->practiceRoom=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice;
+        runtime->arcadeRoom=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().arcade : room::ClassicRoom;
         runtime->delayPolicy=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");

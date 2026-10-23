@@ -4907,6 +4907,84 @@ msgstr "Тренировочный матч"
 msgid "room.rules_summary_practice"
 msgstr "Тренировочный матч, раундов: {0}, {1} с, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Тип комнаты"
+
+msgid "room.type.classic"
+msgstr "Классическая"
+
+msgid "room.type.arcade"
+msgstr "Аркада"
+
+msgid "room.type.classic_detail"
+msgstr "Игроки встают в очередь к столу и играют за ним."
+
+msgid "room.type.arcade_detail"
+msgstr "Шестнадцать автоматов: садитесь за любой свободный и играйте с тем, кто ждёт дольше всех. После сета, если оба выберут Реванш, играете снова; иначе каждый играет со следующим ожидающим."
+
+msgid "room.arcade_status"
+msgstr "Аркадная комната / только по приглашению"
+
+msgid "room.arcade_locked_status"
+msgstr "Аркадная комната закрыта / только по приглашению"
+
+msgid "room.arcade_sit"
+msgstr "Сесть"
+
+msgid "room.arcade_sit_detail"
+msgstr "Сесть здесь: вы играете с тем, кто ждёт дольше всех, или ждёте следующего игрока."
+
+msgid "room.arcade_waiting"
+msgstr "Ждёт"
+
+msgid "room.cabinet_free"
+msgstr "ВСТАВЬТЕ МОНЕТУ"
+
+msgid "room.type.king"
+msgstr "Царь горы"
+
+msgid "room.type.king_detail"
+msgstr "Шестнадцать автоматов, все пары играют одновременно: победитель сета остаётся на месте и играет со следующим претендентом. Самая длинная текущая серия побед занимает вершину."
+
+msgid "room.cabinet_row"
+msgstr "Автомат {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "свободен"
+
+msgid "room.arcade_move_detail"
+msgstr "Пересесть за этот автомат между играми. Соперник и серия остаются с вами."
+
+msgid "room.arcade_vs"
+msgstr "против {0}"
+
+msgid "room.rematch"
+msgstr "Реванш"
+
+msgid "room.rematch_detail"
+msgstr "Сыграть с тем же соперником ещё раз. Начнётся, когда оба выберете реванш."
+
+msgid "room.new_opponent"
+msgstr "Новый соперник"
+
+msgid "room.new_opponent_detail"
+msgstr "Остаться на месте и играть с тем, кто ждёт дольше всех, или ждать следующего игрока."
+
+msgid "room.rematch_ask"
+msgstr "Реванш?"
+
+msgid "room.rematch_chosen"
+msgstr "Реванш выбран"
+
+msgid "room.top_slot"
+msgstr "ВЕРШИНА"
+
+msgid "room.top_slot_none"
+msgstr "Выиграйте сет, чтобы занять вершину."
+
+msgid "room.rules.arcade"
+msgstr "Правила аркадной комнаты задаются при её создании и действуют за каждым столом."
+
 msgid "room.practice"
 msgstr "Тренировочное лобби"
 

@@ -30,11 +30,6 @@ static std::uint64_t Play(RoomAuthority& authority, MatchResult result) {
 	return generation;
 }
 
-static MemberStatus StatusOf(const RoomAuthority& authority, MemberId member) {
-	for (const auto& value : authority.SnapshotView().members) if (value.id == member) return value.status;
-	return MemberStatus::Idle;
-}
-
 static bool Queued(const Table& table, MemberId member) {
 	return std::find(table.queue.begin(), table.queue.end(), member) != table.queue.end();
 }

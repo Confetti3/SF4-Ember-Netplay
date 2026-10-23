@@ -15,6 +15,12 @@ inline bool ValidSetFormat(long long format) { return format == static_cast<int>
 // the higher of their two Ready delays (MatchDelay). Own: each fighter plays at
 // the delay they chose, and the other side's rollback absorbs the difference.
 enum class DelayPolicy : std::uint8_t { Shared = 0, Own };
+// A room's type (room::Snapshot::arcade), chosen when it is created and fixed
+// for its life. Classic: tables with queues. Arcade: sixteen one-player
+// cabinets, and whoever sits down plays the player who has waited longest.
+// King of the hill: the same, and a set's winner stays for the next
+// challenger. Classic reads as false.
+enum RoomType : std::uint8_t { ClassicRoom = 0, ArcadeRoom, KingRoom };
 
 enum class RotationMode : std::uint8_t { WinnerStays = 0, LoserStays, BothRotate };
 // The round times a table offers, shortest first. The longest, about 2.7

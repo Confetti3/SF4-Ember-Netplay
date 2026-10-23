@@ -21,6 +21,7 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
     if (id == "look") return Words({"settings.look.classic", "settings.look.v2"});
     if (id == "hud-spacing") return Words({"spacing.normal", "spacing.raised"});
     if (id == "delay-policy") return Words({"room.delay_policy.shared", "room.delay_policy.own"});
+    if (id == "room-type") return Words({"room.type.classic", "room.type.arcade", "room.type.king"});
     if (id == "visibility") return Words({"public.visibility.private", "public.visibility.public"});
     if (id == "watched-picture" || id == "arrange-picture") return Words({"size.small", "size.large", "room.v2.picture_none"});
     if (id == "hud-size" || id == "picture-size") return Words({"size.small", "size.standard", "size.large"});

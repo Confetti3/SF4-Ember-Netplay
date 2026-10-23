@@ -33,9 +33,33 @@ std::string ReadyBlocker(const ShellView& v, const room::Table& t) {
     if (t.phase == TablePhase::Ready) return loc::T("room.both_ready");
     if (t.phase == TablePhase::Playing && !finishedGame) return loc::T("room.match_in_progress.detail");
     if (!t.p1 || !t.p2) return loc::T("room.waiting_other_seat");
+    // An Arcade pair readies again once both chose Rematch.
+    if (t.deciding) return loc::T("room.rematch_detail");
     if (!v.controllerReady) return loc::T("room.controller_required");
     return v.selectionError;
 }
+}
+const char* PhaseName(const room::Table& table) {
+    switch (table.phase) {
+    case room::TablePhase::Waiting: return loc::T("room.phase.waiting");
+    case room::TablePhase::Ready: return loc::T(table.spectatorHold ? "room.phase.holding" : "room.phase.preparing");
+    case room::TablePhase::Playing: return loc::T("room.phase.in_game");
+    case room::TablePhase::Paused: return loc::T("room.phase.unresolved");
+    case room::TablePhase::Closed: return loc::T("room.phase.closed");
+    default: return loc::T("room.phase.open");
+    }
+}
+std::string CabinetState(const room::Snapshot& s, std::size_t cabinet) {
+    const auto* m = room::FindMember(s, s.cabinets[cabinet]);
+    if (!m || m->table < 0) return {};
+    const auto& t = s.tables[m->table];
+    const int side = t.p2 == m->id ? 1 : 0;
+    const auto* other = room::FindMember(s, side ? t.p1 : t.p2);
+    std::string text = other ? loc::Tf("room.arcade_vs", other->name) : std::string(loc::T("room.arcade_waiting"));
+    if (other && t.deciding) text += std::string(" \xC2\xB7 ") + loc::T(t.rematch[side] ? "room.rematch_chosen" : "room.rematch_ask");
+    else if (other && !SetScoreText(t.score).empty()) text += " \xC2\xB7 " + SetScoreText(t.score);
+    if (s.streaks[cabinet]) text += " \xC2\xB7 " + loc::Tf("room.streak", s.streaks[cabinet]);
+    return text;
 }
 bool GameLive(const ShellView& v) { return netplay::Fighting(v.session.match); }
 bool PostMatch(const ShellView& v) { return v.session.match == netplay::MatchState::PostMatch; }
@@ -82,7 +106,9 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
     std::vector<MenuChoice> choices;
     for (const char* id : {left, right}) {
         const auto* option = FindSeatOption(id);
-        MenuChoice choice{id, loc::T(option->label), loc::T(option->detail) + WatchingNote(v, option->kind)};
+        // In an Arcade room, joining is sitting down at whichever cabinet the room gives.
+        const bool sit = v.room.arcade && option->kind == room::ActionKind::Queue;
+        MenuChoice choice{id, loc::T(sit ? "room.arcade_sit" : option->label), loc::T(sit ? "room.arcade_sit_detail" : option->detail) + WatchingNote(v, option->kind)};
         if (!RoomTakesNow(v, option->kind, t.id)) { choice.enabled = false; choice.detail = RoomWaitReason(v); }
         else if (TerminalFenced(v.room, option->kind, t.id)) { choice.enabled = false; choice.detail = TerminalPendingReason(); }
         choices.push_back(std::move(choice));
@@ -96,6 +122,7 @@ PlaceExit ExitFromPlace(const ShellView& v) {
     if (place.kind == room::Place::Kind::Seat) {
         const auto& t = v.room.tables[place.table];
         exit.table = place.table; exit.seat = true; exit.label = loc::T("room.leave_seat");
+        if (v.room.arcade) exit.row = "cabinet-" + std::to_string(room::CabinetOf(v.room, v.room.localMember));
         const auto hold = room::LeavingSeatHold(t, place.seat, GameLive(v), PostMatch(v));
         if (hold == room::SeatHold::None) { exit.allowed = true; exit.cost = room::CostOfLeavingSeat(t); }
         else if (hold == room::SeatHold::UnreadyFirst) {
@@ -111,7 +138,7 @@ PlaceExit ExitFromPlace(const ShellView& v) {
     return exit;
 }
 bool OnOwnPlace(const PlaceExit& place, const std::string& focus) {
-    return place.table >= 0 && focus == "table-" + std::to_string(place.table);
+    return place.table >= 0 && focus == (place.row.empty() ? "table-" + std::to_string(place.table) : place.row);
 }
 AbandonableGame AbandonableAt(const ShellView& v, const room::Table& t) {
     const auto place = room::PlaceOf(v.room, v.room.localMember);
