@@ -12,7 +12,7 @@
 //   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
 // --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk) with V2 on, a created room joined at once,
 //   and writes each step there; exits 3 when a step fails
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--arcade classic|arcade|king] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -33,6 +33,7 @@
 #include <xinput.h>
 #include <d3d9.h>
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <chrono>
 #include <cstdio>
@@ -186,19 +187,26 @@ void JoinRoom(ui::ShellView& view) {
 // cabinets in four pairs that need not be neighbours, and one waiting. In
 // Arcade this PC's pair has finished a set and its opponent chose Rematch; in
 // King of the hill every pair plays and Katie holds the top slot.
-void ArcadeRoom(ui::ShellView& view, room::RoomType type) {
+// --seats picks another state instead: empty, alone, duo, apart, rematch, full.
+void ArcadeRoom(ui::ShellView& view, room::RoomType type, const std::string& seats) {
     JoinRoom(view);
-    view.room.arcade = type; view.room.name = type == room::KingRoom ? "King of the hill" : "FRaccie's arcade"; view.room.members.resize(9);
-    const char* names[] = {"FRaccie", "Katie", "Jimbo", "Deck01", "Ash", "Mo", "Lena", "TJ", "Rook"};
+    const bool full = seats == "full";
+    view.room.arcade = type; view.room.name = type == room::KingRoom ? "King of the hill" : "FRaccie's arcade"; view.room.members.resize(full ? 16 : 9);
+    const char* names[] = {"FRaccie", "Katie", "Jimbo", "Deck01", "Ash", "Mo", "Lena", "TJ", "Rook", "Sven", "Marn", "Kaz", "Nia", "Otto", "Yui", "Bram"};
     for (auto& m : view.room.members) { m.id = static_cast<room::MemberId>(&m - view.room.members.data() + 1); m.name = names[m.id - 1]; m.table = m.seat = -1; m.status = room::MemberStatus::Idle; }
     for (std::size_t i = 0; i < room::TableCount; ++i) view.room.tables[i] = {}, view.room.tables[i].id = static_cast<std::uint8_t>(i), view.room.tables[i].revision = 1;
     const bool king = type == room::KingRoom;
     // Cabinet, member, table, seat, streak.
     const int arcade[][5] = {{0, 2, 0, 0, 0}, {9, 3, 0, 1, 0}, {2, 4, 1, 0, 0}, {5, 5, 1, 1, 0}, {3, 6, 4, 0, 0}, {6, 7, 2, 0, 0}, {14, 8, 2, 1, 0}, {11, 1, 3, 0, 0}, {12, 9, 3, 1, 0}};
     const int hill[][5] = {{0, 2, 0, 0, 5}, {8, 3, 0, 1, 0}, {2, 4, 1, 0, 2}, {3, 5, 1, 1, 0}, {5, 6, 2, 0, 3}, {13, 7, 2, 1, 0}, {10, 8, 3, 0, 1}, {15, 9, 3, 1, 0}, {6, 1, 4, 0, 1}};
-    const int (*list)[5] = king ? hill : arcade;
-    for (int k = 0; k < 9; ++k) {
-        const auto& c = list[k];
+    std::vector<std::array<int, 5>> list;
+    for (int k = 0; k < 9; ++k) list.push_back({(king ? hill : arcade)[k][0], (king ? hill : arcade)[k][1], (king ? hill : arcade)[k][2], (king ? hill : arcade)[k][3], (king ? hill : arcade)[k][4]});
+    if (seats == "empty") list.clear();
+    else if (seats == "alone") list = {{0, 1, 0, 0, 0}};
+    else if (seats == "duo" || seats == "rematch") list = {{0, 1, 0, 0, king ? 3 : 0}, {1, 2, 0, 1, 0}};
+    else if (seats == "apart") list = {{0, 1, 0, 0, king ? 2 : 0}, {15, 2, 0, 1, 0}};
+    else if (full) { list.clear(); for (int k = 0; k < 16; ++k) list.push_back({k, k + 1, k / 2, k % 2, king && k % 2 == 0 ? 8 - k / 2 : 0}); }
+    for (const auto& c : list) {
         auto& t = view.room.tables[c[2]]; auto& m = view.room.members[c[1] - 1];
         (c[3] ? t.p2 : t.p1) = m.id;
         view.room.cabinets[c[0]] = m.id; view.room.streaks[c[0]] = static_cast<std::uint16_t>(c[4]);
@@ -211,9 +219,12 @@ void ArcadeRoom(ui::ShellView& view, room::RoomType type) {
         for (const auto id : {t.p1, t.p2}) if (id) view.room.members[id - 1].status = t.phase == room::TablePhase::Playing ? room::MemberStatus::Playing : room::MemberStatus::Seated;
     }
     view.room.tables[0].score[0] = 1; view.room.tables[2].score[0] = 2; view.room.tables[2].score[1] = 1;
-    if (king) { view.room.topSlot = 0; view.room.tables[3].score[1] = 1; }
+    if (seats == "rematch") { view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].deciding = true; view.room.tables[0].rematch[1] = true; view.room.tables[0].score[0] = 2; }
+    else if (!seats.empty()) { if (king) view.room.topSlot = list.empty() ? -1 : 0; }
+    if (full) for (std::size_t k = 0; k < room::TableCount; ++k) view.room.tables[k].score[0] = static_cast<std::uint32_t>(k % 3), view.room.tables[k].score[1] = static_cast<std::uint32_t>(k % 2);
+    else if (king) { view.room.topSlot = 0; view.room.tables[3].score[1] = 1; }
     else { view.room.tables[3].deciding = true; view.room.tables[3].rematch[1] = true; view.room.tables[4].waitingSince = 1; }
-    for (auto& line : view.room.chat) line.sender = static_cast<room::MemberId>((line.sender - 1) % 9 + 1);
+    for (auto& line : view.room.chat) line.sender = static_cast<room::MemberId>((line.sender - 1) % view.room.members.size() + 1);
 }
 // A trusted Ember ID and a relay in Europe; PublicRooms lists rooms once asked.
 void PublicLab(ui::ShellView& view) {
@@ -267,6 +278,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::string shot, keys, screen, recovery, check, walkFile;
     bool inRoom = false, pip = false;
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
+    std::string seats;  // --seats empty|alone|duo|apart|rematch|full: who sits where in it
     int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
     std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
@@ -285,6 +297,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--hide" && more) hidePanes = args[++i];
         else if (args[i] == "--pip") pip = true;
         else if (args[i] == "--arcade" && more) { ++i; arcade = args[i] == "king" ? room::KingRoom : args[i] == "arcade" ? room::ArcadeRoom : room::ClassicRoom; }
+        else if (args[i] == "--seats" && more) seats = args[++i];
         else if (args[i] == "--hud" && more) hud = std::atoi(args[++i].c_str());
         else if (args[i] == "--training") trainingPanel = true;
         else if (args[i] == "--public") publicLab = true;
@@ -327,7 +340,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     view.preferences.roomShowChat = hidePanes != "chat" && hidePanes != "both";
     view.preferences.tvMode = tv;
     view.preferences.welcomed = !welcome;
-    if (arcade > 0) ArcadeRoom(view, static_cast<room::RoomType>(arcade));
+    if (arcade > 0) ArcadeRoom(view, static_cast<room::RoomType>(arcade), seats);
     else if (inRoom || arcade == 0) JoinRoom(view);
     if (update) { view.services.launchOffer = launcher::InstallOffer{updates::UpdateChannel::Nightly, "v1.3.0", "lab"}; view.services.installedVersion = "v1.2.0"; }
     if (publicLab) PublicLab(view);
