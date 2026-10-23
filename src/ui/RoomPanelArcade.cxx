@@ -18,7 +18,7 @@ namespace {
 // Each pair's own colour (Arcade.dc.html), lit on both of its cabinets: content, like the tiers' colours.
 ImU32 PairColor(std::size_t table) {
     static const ImU32 ember[]={0,IM_COL32(127,176,224,255),IM_COL32(201,160,224,255),IM_COL32(164,206,160,255),
-        IM_COL32(255,170,160,255),IM_COL32(233,160,112,255),IM_COL32(213,220,227,255),IM_COL32(241,196,119,255)};
+        IM_COL32(110,204,200,255),IM_COL32(233,160,112,255),IM_COL32(213,220,227,255),IM_COL32(236,128,176,255)};
     static const ImU32 bluMint[]={0,IM_COL32(91,140,255,255),0,IM_COL32(154,123,255,255)};
     const ImU32 c=v2::CurrentBrand()==v2::Brand::BluMint?bluMint[table%4]:ember[table%8];
     return c?c:v2::Colors().accent;
@@ -143,6 +143,9 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const bool paired=t&&t->p1&&t->p2,lit=m!=nullptr;const ImU32 pair=paired?PairColor(t->id):pending;
   const bool crowned=type==room::KingRoom&&v.room.topSlot==i;
   if(paired||hovered)d->AddRect(ImVec2(b.min.x-2*s,b.min.y-2*s),ImVec2(b.max.x+2*s,b.max.y+2*s),v2::color::Alpha(paired?pair:c.hover,.27f),8*s,0,4*s);
+  // A player waiting alone: a dashed edge round the cabinet, no colour until paired.
+  const bool waiting=lit&&!paired;
+  if(waiting)v2::DashedRect(d,ImVec2(b.min.x-3*s,b.min.y-3*s),ImVec2(b.max.x+3*s,b.max.y+3*s),c.text,2*s,6*s);
   d->AddRectFilled(b.min,b.max,c.ink,6*s,ImDrawFlags_RoundCornersTop);
   // From the top: marquee, screen, name plate, control panel, kick plate.
   v2::Box body=b;
@@ -153,8 +156,8 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const v2::Box screen=v2::Inset(body,5*s,0);
   // The marquee: the number, in the pair's colour; in King of the hill the
   // streak beside a crown, gold on the top slot.
-  d->AddRectFilled(marquee.min,marquee.max,crowned?gold:lit?pair:c.button,6*s,ImDrawFlags_RoundCornersTop);
-  const float mh=marquee.H(),ms=(std::min)(11*s,mh*.75f);const ImU32 ink=lit||crowned?c.ink:c.muted;
+  d->AddRectFilled(marquee.min,marquee.max,crowned?gold:paired?pair:c.button,6*s,ImDrawFlags_RoundCornersTop);
+  const float mh=marquee.H(),ms=(std::min)(11*s,mh*.75f);const ImU32 ink=paired||crowned?c.ink:waiting?c.text:c.muted;
   const int streak=type==room::KingRoom?v.room.streaks[i]:0;
   v2::Text(d,ImVec2(marquee.min.x+4*s,marquee.min.y+(mh-ms)*.5f),streak?marquee.W()*.45f:marquee.W()-8*s,std::to_string(i+1),ms,ink,HeadingFont(),!streak);
   if(streak){
@@ -167,7 +170,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   // the Rematch choice, or Insert coin.
   const int side=t&&t->p2==m->id?1:0;
   std::string first=loc::T("room.cabinet_free"),second;ImU32 tone=c.muted;
-  if(m&&!paired){first=loc::T("room.arcade_waiting");tone=pending;}
+  if(m&&!paired){first=loc::T("room.arcade_waiting");tone=c.text;}
   else if(paired&&t->deciding){first=loc::T(t->rematch[side]?"room.rematch_chosen":"room.rematch_ask");tone=pending;}
   else if(paired){first=fighterName(*m);second=SetScoreText(t->score).empty()?"VS":SetScoreText(t->score);tone=pair;}
   d->AddRectFilled(screen.min,screen.max,!m?c.frame:paired&&!t->deciding?c.header:v2::color::Alpha(pending,.12f),2*s);

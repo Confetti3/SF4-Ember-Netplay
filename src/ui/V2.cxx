@@ -105,6 +105,19 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     return pressed;
 }
 
+void DashedRect(ImDrawList* d, ImVec2 min, ImVec2 max, ImU32 color, float thickness, float dash) {
+    const ImVec2 corners[] = {min, ImVec2(max.x, min.y), max, ImVec2(min.x, max.y), min};
+    for (int side = 0; side < 4; ++side) {
+        const ImVec2 a = corners[side], b = corners[side + 1];
+        const float length = std::sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
+        for (float t = 0; t < length; t += 2 * dash) {
+            const float e = (std::min)(t + dash, length);
+            d->AddLine(ImVec2(a.x + (b.x - a.x) * t / length, a.y + (b.y - a.y) * t / length),
+                       ImVec2(a.x + (b.x - a.x) * e / length, a.y + (b.y - a.y) * e / length), color, thickness);
+        }
+    }
+}
+
 int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec2 block) {
     const float s = Scale(), w = (std::min)(300 * s, ImGui::GetContentRegionAvail().x), h = w * 9 / 16;
     const auto p = ImGui::GetCursorScreenPos();
