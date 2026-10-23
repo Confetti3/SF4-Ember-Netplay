@@ -195,8 +195,16 @@ void ReturnDummyControl(Native* system) {
 bool RestoreCheckpoint(Native* system) {
     int* options = DummyOptions();
     const int action = options ? options[Manager::OPT_ACTION] : -1;
+    // The pause menu's Record and Playback keep their recording in the replay
+    // recorder, which the game's own restore (0x5DAB30) leaves alone: the
+    // load takes the live one, and a running playback starts again from its
+    // first frame.
+    sf4e::replay::Capture(*Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton(), checkpoint.d.replayRecorder);
     const bool restored = Battle::SaveState::Load(&checkpoint);
     if (options) options[Manager::OPT_ACTION] = action;
+    Manager* manager = Manager::staticMethods.GetSingleton ? Manager::staticMethods.GetSingleton() : nullptr;
+    Manager::RecorderState* recorderState = manager ? Manager::GetRecorderState(manager) : nullptr;
+    if (recorderState && *recorderState == Manager::REC_PLAYING) *recorderState = Manager::REC_PLAYBACK_ARMED;
     if (dummyControl.Rewind()) ReturnDummyControl(system);
     meter.Reset(); ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
     if (!restored) {

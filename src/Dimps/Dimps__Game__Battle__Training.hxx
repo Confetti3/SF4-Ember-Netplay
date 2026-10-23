@@ -63,6 +63,12 @@ namespace Dimps {
 						OPTION_COUNT = 14
 					};
 					static int* GetOptions(Manager* m) { return (int*)((unsigned int)m + 0x8); }
+					// The pause menu's Record and Playback (getState 0x5E2360). The
+					// training judge step (0x5D3900) starts playback from the
+					// recording's first frame when it finds PLAYBACK_ARMED. Not in any
+					// memento.
+					enum RecorderState { REC_PLAYBACK_ARMED = 5, REC_PLAYING = 6 };
+					static RecorderState* GetRecorderState(Manager* m) { return (RecorderState*)((unsigned int)m + 0x254); }
 				};
 			}
 		}
