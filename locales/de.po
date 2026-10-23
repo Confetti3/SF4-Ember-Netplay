@@ -2729,6 +2729,12 @@ msgstr "{0} hat ein Spiel an Tisch {1} gewonnen ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} hat den Satz an Tisch {1} gewonnen ({2})"
+msgid "chat.typing.one"
+msgstr "{0} schreibt..."
+msgid "chat.typing.two"
+msgstr "{0} und {1} schreiben..."
+msgid "chat.typing.many"
+msgstr "Mehrere Leute schreiben..."
 
 msgid "room.fighter_options"
 msgstr "Charakter-Optionen"

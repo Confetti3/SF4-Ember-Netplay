@@ -696,6 +696,11 @@ static netplay::LatencyBoardPulse fighterSelector;
 bool FighterSelectorShown(std::uint64_t roomGeneration) {
 	return fighterSelector.Shown(roomGeneration, GetTickCount64());
 }
+// And for a chat draft being written (ApplicationShell::ChatTyping).
+static netplay::LatencyBoardPulse chatTyping;
+bool ChatTypingShown(std::uint64_t roomGeneration) {
+	return chatTyping.Shown(roomGeneration, GetTickCount64());
+}
 
 void TickMemberLatency() {
 	if (!runtime->room) return;
@@ -741,6 +746,10 @@ void NoteLatencyBoard(std::uint64_t roomGeneration) {
 
 void NoteFighterSelector(std::uint64_t roomGeneration) {
 	internal::fighterSelector.Note(roomGeneration, GetTickCount64());
+}
+
+void NoteChatTyping(std::uint64_t roomGeneration) {
+	internal::chatTyping.Note(roomGeneration, GetTickCount64());
 }
 
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,

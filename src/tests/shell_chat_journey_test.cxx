@@ -439,5 +439,40 @@ void ChatJourneys(){
  Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Nice read",
   "A spectator's message during the game it watches was not sent");
  h.view.watchedGame={};h.view.session.match=netplay::MatchState::None;
+ // Who else is typing: one line above the box, never the player or a muted member, and the box stays where it is.
+ sequence=0;JoinChatRoom(h,32);
+ h.view.room.members.push_back(fourth);
+ ImVec2 box{};SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2){if(!std::strcmp(id,"chat-box"))box=min;});
+ h.Screen("room-chat");h.Frame(0,3);
+ const ImVec2 quiet=box;
+ auto& members=h.view.room.members;
+ const auto typing=[&]{return h.shell.ChatTypingText(h.view);};
+ Check(typing().empty(),"Somebody was typing in a quiet room");
+ members[0].typingMs=4000;Check(typing().empty(),"The player was listed as typing");
+ members[1].typingMs=4000;h.Frame();
+ Check(typing()==loc::Tf("chat.typing.one","Peer")&&box.x==quiet.x&&box.y==quiet.y,"One member typing was not named, or moved the box");
+ members[2].typingMs=4000;Check(typing()==loc::Tf("chat.typing.two","Peer","Third"),"Two members typing were not both named");
+ members[3].typingMs=4000;Check(typing()==loc::T("chat.typing.many"),"Three members typing were not several people");
+ h.Screen("room-members");h.Choose("member-3");h.Choose("mute");h.Screen("room-chat");h.Frame();
+ Check(typing()==loc::Tf("chat.typing.two","Peer","Fourth"),"A muted member was listed as typing");
+ for(auto& m:members)m.typingMs=0;
+ Check(typing().empty(),"Typing stayed after it ran out");
+ SetMenuCardProbe({});
+ // The player's own draft counts as typing while it is edited, for 4 seconds after, and not once it is sent.
+ h.Frame(0,2);
+ Check(!h.shell.ChatTyping(),"An empty draft counted as typing");
+ io.AddInputCharactersUTF8("brb");h.Frame(0,2);
+ Check(h.shell.ChatTyping(),"Writing a draft did not count as typing");
+ h.Wait(4.5f);h.Frame();
+ Check(!h.shell.ChatTyping(),"A draft left alone still counted as typing");
+ io.AddInputCharactersUTF8("!");h.Frame(0,2);
+ Check(h.shell.ChatTyping(),"Editing the draft again did not count as typing");
+ h.Screen("room");h.Frame();
+ Check(!h.shell.ChatTyping(),"Typing outlived the Chat screen");
+ h.Screen("room-chat");h.Frame(0,3);io.AddInputCharactersUTF8("?");h.Frame(0,2);
+ Check(h.shell.ChatTyping(),"Typing on return did not count");
+ key(ImGuiKey_Enter);
+ Check(h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="brb!?"&&!h.shell.ChatTyping(),
+  "A sent draft still counted as typing");
  SetMenuEntriesProbe({});
 }

@@ -50,7 +50,7 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 		result.tournament = snapshot_.tournament;
 	}
 	result.localMember = Find(member) ? member : 0;
-	for (auto& item : result.members) item.idleSeconds = IdleSeconds(item.id);
+	for (auto& item : result.members) { item.idleSeconds = IdleSeconds(item.id); item.typingMs = TypingLeftMs(item.id); }
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		if (readyWaitingFor_[i] && WaitingForReady(snapshot_.tables[i]) == readyWaitingFor_[i]) {
 			const auto age = TimerAge(readyWaitingSince_[i]);
@@ -464,6 +464,7 @@ Result RoomAuthority::Leave(MemberId member) {
 	lastAcceptedActions_.erase(member);
 	lastChatMs_.erase(member);
 	lastActiveMs_.erase(member);
+	typing_.erase(member);
 	const bool wasHost = item->host || member == snapshot_.host;
 	std::vector<Event> departureEvents;
 	// A Ready table has no live game: its matchGeneration still names the last

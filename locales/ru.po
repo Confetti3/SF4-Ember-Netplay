@@ -2730,6 +2730,12 @@ msgstr "{0}: победа в бою в ячейке {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}: победа в поединке в ячейке {1} ({2})"
+msgid "chat.typing.one"
+msgstr "{0} печатает..."
+msgid "chat.typing.two"
+msgstr "{0} и {1} печатают..."
+msgid "chat.typing.many"
+msgstr "Несколько человек печатают..."
 
 msgid "room.fighter_options"
 msgstr "Настройки бойца"

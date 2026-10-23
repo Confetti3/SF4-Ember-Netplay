@@ -354,6 +354,8 @@ struct Runtime {
 	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
 	// When the room was last told whether the player is in Training.
 	std::uint64_t trainingSaidAtMs = 0;
+	// When the room was last told the player is typing; zero once told they stopped.
+	std::uint64_t typingSaidAtMs = 0;
 	// The newest RoomNoticesKept room events for the chat, numbered from 1 by
 	// roomNoticeSequence. The interface takes each once by its number.
 	static constexpr std::size_t RoomNoticesKept = 16;
@@ -585,6 +587,8 @@ void PublishAndTickDiscordInvite();
 void TickMemberLatency();
 // Whether the overlay drew the fighter selector lately in room `roomGeneration` (NoteFighterSelector).
 bool FighterSelectorShown(std::uint64_t roomGeneration);
+// Whether the shell noted a chat draft being written lately in room `roomGeneration` (NoteChatTyping).
+bool ChatTypingShown(std::uint64_t roomGeneration);
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

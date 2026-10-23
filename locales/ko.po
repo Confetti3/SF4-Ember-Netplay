@@ -2730,6 +2730,12 @@ msgstr "{0}님이 대전 슬롯 {1}에서 한 판을 이겼습니다 ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}님이 대전 슬롯 {1}에서 세트를 이겼습니다 ({2})"
+msgid "chat.typing.one"
+msgstr "{0}님이 입력 중..."
+msgid "chat.typing.two"
+msgstr "{0}님과 {1}님이 입력 중..."
+msgid "chat.typing.many"
+msgstr "여러 명이 입력 중..."
 
 msgid "room.fighter_options"
 msgstr "캐릭터 옵션"
