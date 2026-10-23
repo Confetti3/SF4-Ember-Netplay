@@ -1232,6 +1232,33 @@ msgstr "Dica do atalho do menu"
 msgid "settings.shortcut_hint_detail"
 msgstr "Mostra F10 ou Start por alguns segundos quando o menu do Ember fecha, para você saber como abri-lo de novo."
 
+msgid "settings.accent"
+msgstr "Cor da interface"
+
+msgid "settings.accent_detail"
+msgstr "Escolha a cor dos destaques nos menus e no HUD. As alterações aparecem imediatamente."
+
+msgid "settings.accent_red"
+msgstr "Vermelho"
+
+msgid "settings.accent_green"
+msgstr "Verde"
+
+msgid "settings.accent_blue"
+msgstr "Azul"
+
+msgid "settings.accent_hex"
+msgstr "Código de cor"
+
+msgid "settings.accent_hex_detail"
+msgstr "Digite seis dígitos hexadecimais, por exemplo #FF8738."
+
+msgid "settings.accent_reset"
+msgstr "Restaurar laranja"
+
+msgid "settings.accent_invalid"
+msgstr "Digite uma cor como #RRGGBB, usando seis dígitos hexadecimais."
+
 msgid "settings.interface_size"
 msgstr "Tamanho da interface"
 
@@ -6143,3 +6170,6 @@ msgstr "Desenvolvedor do Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Desenvolvedores do Ember mostram esta marca no lugar da classe e não aparecem no ranking. Suas partidas continuam valendo."
+
+msgid "settings.accent_picker"
+msgstr "Seletor de cores"

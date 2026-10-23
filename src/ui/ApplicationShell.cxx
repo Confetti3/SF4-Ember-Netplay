@@ -3,6 +3,7 @@
 #include "ButtonPromptSetting.hxx"
 #include "ControllersScreen.hxx"
 #include "Theme.hxx"
+#include "AccentPanel.hxx"
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
 #include "NetworkFeedback.hxx"
@@ -306,10 +307,14 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
    Value("shortcut-hint",loc::T("settings.shortcut_hint"),preferences_.showShortcutHint?loc::T("common.on"):loc::T("common.off"),loc::T("settings.shortcut_hint_detail"),v.canEditPreferences),
    Value("class-emblems",loc::T("settings.class_emblems"),preferences_.classEmblems?loc::T("common.on"):loc::T("common.off"),loc::T("settings.class_emblems_detail"),v.canEditPreferences),
+   Row("accent",loc::T("settings.accent"),loc::T("settings.accent_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
+ }else if(screen=="accent"){
+  title=loc::T("settings.accent");
+  rows=AccentRows(preferences_.uiAccent,v.canEditPreferences);
  }else if(screen=="training-replays"){
   title=loc::T("settings.training_replays_title");
   rows={Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),
@@ -370,7 +375,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
+ const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="accent"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -501,6 +506,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  if(RankingsPanel::Owns(screen)){if(a.id==DiscordConnectScreen){identity_.Activate(a,v,nav);return;}if(rankings_.Activate(a,v,nav))return;}
  if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
  if(ControllerActivate(a,v,submit))return;
+ if(a.id=="accent-reset"){HandleAdjust(a,v,screen,submit);return;}
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
@@ -516,7 +522,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
- else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports"||a.id=="accent")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
@@ -579,6 +585,13 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
+  else if(a.id=="accent-red")preferences_.uiAccent=accent::Adjust(preferences_.uiAccent,16,a.delta);
+  else if(a.id=="accent-green")preferences_.uiAccent=accent::Adjust(preferences_.uiAccent,8,a.delta);
+  else if(a.id=="accent-blue")preferences_.uiAccent=accent::Adjust(preferences_.uiAccent,0,a.delta);
+  else if(a.id=="accent-reset")preferences_.uiAccent=accent::Default;
+  else if(a.id=="accent-hex"){
+   if(!accent::Parse(a.text,preferences_.uiAccent)){error_=loc::T("settings.accent_invalid");return;}
+  }
   else if(a.id=="shortcut-hint")preferences_.showShortcutHint=a.delta>0;
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
@@ -706,6 +719,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateChat(v,submit);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
+ SetAccentColor(preferences_.uiAccent);
  UpdateShortCopy(v,now);
  UpdateJoinLink(v,now,submit);
  UpdatePublicRoomLink(v,now);
@@ -875,6 +889,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(size>=48*Scale()){const auto p=ImGui::GetCursorScreenPos();DrawCharacterPortrait(fighter,p,ImVec2(p.x+size,p.y+size));ImGui::Dummy(ImVec2(size,size));}
  };
  if(PublicRoomsPanel::Owns(screen))profilePreview=[&](const std::string& id){DrawPublicPreview(v,publicRooms_,id);};
+ if(screen=="accent")profilePreview=[&](const std::string&){
+  if(DrawAccentPicker(preferences_.uiAccent,v.canEditPreferences)){
+   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
+  }
+ };
  GameMenu::Body board;
  if(screen=="interface")profilePreview=[&](const std::string&){
   ImGui::TextUnformatted(loc::T("settings.preview"));

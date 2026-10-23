@@ -40,7 +40,7 @@ float DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe,boo
 struct RosterGrid { int columns; float cardHeight; float listShare; };
 RosterGrid LayOutRosterGrid(float windowWidth);
 // `backing` fills the tile behind the art, which is transparent around the fighter.
-void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
+void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=AccentColor(IM_COL32(38,34,30,255)));
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
 // Editors own keyboard Select and acceptance; pad Select still reaches them.

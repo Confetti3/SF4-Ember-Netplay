@@ -246,7 +246,7 @@ void DrawCaptureCard(const CaptureCard& card) {
     ImGui::TextWrapped("%s", card.pad.c_str());
     ImGui::PopStyleColor();
     at = ImGui::GetCursorScreenPos(); at.y += gap - ImGui::GetStyle().ItemSpacing.y;
-    draw->AddRectFilled(at, ImVec2(at.x + width, at.y + BarHeight()), IM_COL32(255, 135, 56, 60));
+    draw->AddRectFilled(at, ImVec2(at.x + width, at.y + BarHeight()), AccentAlpha(60));
     draw->AddRectFilled(at, ImVec2(at.x + width * static_cast<float>(card.left), at.y + BarHeight()), palette::Ember);
     ImGui::Dummy(ImVec2(0, 2 * gap + BarHeight() - 2 * ImGui::GetStyle().ItemSpacing.y));
     ImGui::TextWrapped("%s", loc::T("button_layout.press_cancel"));

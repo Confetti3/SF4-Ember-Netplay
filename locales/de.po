@@ -1232,6 +1232,33 @@ msgstr "Hinweis zum Menükürzel"
 msgid "settings.shortcut_hint_detail"
 msgstr "Zeigt einige Sekunden lang F10 oder Start, wenn sich Embers Menü schließt, damit Sie wissen, wie Sie es wieder öffnen."
 
+msgid "settings.accent"
+msgstr "Oberflächenfarbe"
+
+msgid "settings.accent_detail"
+msgstr "Wähle die Farbe der Hervorhebungen in Menüs und im HUD. Änderungen werden sofort angezeigt."
+
+msgid "settings.accent_red"
+msgstr "Rot"
+
+msgid "settings.accent_green"
+msgstr "Grün"
+
+msgid "settings.accent_blue"
+msgstr "Blau"
+
+msgid "settings.accent_hex"
+msgstr "Farbcode"
+
+msgid "settings.accent_hex_detail"
+msgstr "Gib sechs hexadezimale Ziffern ein, zum Beispiel #FF8738."
+
+msgid "settings.accent_reset"
+msgstr "Orange wiederherstellen"
+
+msgid "settings.accent_invalid"
+msgstr "Gib eine Farbe als #RRGGBB mit sechs hexadezimalen Ziffern ein."
+
 msgid "settings.interface_size"
 msgstr "Oberflächengröße"
 
@@ -6623,3 +6650,6 @@ msgstr "Ember-Entwickler"
 
 msgid "rankings.developer_detail"
 msgstr "Ember-Entwickler tragen dieses Zeichen statt einer Klasse und stehen nicht in der Rangliste. Ihre Spiele zählen trotzdem."
+
+msgid "settings.accent_picker"
+msgstr "Farbauswahl"

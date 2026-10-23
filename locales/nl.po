@@ -1232,6 +1232,33 @@ msgstr "Hint voor menusnelkoppeling"
 msgid "settings.shortcut_hint_detail"
 msgstr "Toont een paar seconden F10 of Start als het menu van Ember sluit, zodat je weet hoe je het weer opent."
 
+msgid "settings.accent"
+msgstr "Interfacekleur"
+
+msgid "settings.accent_detail"
+msgstr "Kies de kleur van markeringen in menu's en de HUD. Wijzigingen zijn direct zichtbaar."
+
+msgid "settings.accent_red"
+msgstr "Rood"
+
+msgid "settings.accent_green"
+msgstr "Groen"
+
+msgid "settings.accent_blue"
+msgstr "Blauw"
+
+msgid "settings.accent_hex"
+msgstr "Kleurcode"
+
+msgid "settings.accent_hex_detail"
+msgstr "Voer zes hexadecimale cijfers in, bijvoorbeeld #FF8738."
+
+msgid "settings.accent_reset"
+msgstr "Oranje herstellen"
+
+msgid "settings.accent_invalid"
+msgstr "Voer een kleur in als #RRGGBB met zes hexadecimale cijfers."
+
 msgid "settings.interface_size"
 msgstr "Interfacegrootte"
 
@@ -6623,3 +6650,6 @@ msgstr "Ember-ontwikkelaar"
 
 msgid "rankings.developer_detail"
 msgstr "Ember-ontwikkelaars tonen dit teken in plaats van een klasse en staan niet op de ranglijst. Je potjes tellen wel mee."
+
+msgid "settings.accent_picker"
+msgstr "Kleurkiezer"

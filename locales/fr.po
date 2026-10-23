@@ -1232,6 +1232,33 @@ msgstr "Rappel du raccourci du menu"
 msgid "settings.shortcut_hint_detail"
 msgstr "Affiche F10 ou Start quelques secondes à la fermeture du menu d'Ember, pour savoir comment le rouvrir."
 
+msgid "settings.accent"
+msgstr "Couleur de l'interface"
+
+msgid "settings.accent_detail"
+msgstr "Choisissez la couleur des surbrillances des menus et du HUD. Les modifications sont visibles immédiatement."
+
+msgid "settings.accent_red"
+msgstr "Rouge"
+
+msgid "settings.accent_green"
+msgstr "Vert"
+
+msgid "settings.accent_blue"
+msgstr "Bleu"
+
+msgid "settings.accent_hex"
+msgstr "Code couleur"
+
+msgid "settings.accent_hex_detail"
+msgstr "Saisissez six chiffres hexadécimaux, par exemple #FF8738."
+
+msgid "settings.accent_reset"
+msgstr "Rétablir l'orange"
+
+msgid "settings.accent_invalid"
+msgstr "Saisissez une couleur au format #RRGGBB avec six chiffres hexadécimaux."
+
 msgid "settings.interface_size"
 msgstr "Taille interface"
 
@@ -6623,3 +6650,6 @@ msgstr "Développeur d'Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Les développeurs d'Ember affichent cette marque à la place d'une classe et ne figurent pas au classement. Vos matchs comptent quand même."
+
+msgid "settings.accent_picker"
+msgstr "Sélecteur de couleur"

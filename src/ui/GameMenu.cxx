@@ -50,7 +50,7 @@ RowGeometry LayOutRow(ImVec2 start,float rowWidth,float height,bool stacked,floa
 }
 void DrawPlayerCard(ImVec2 p,float width,bool compact) {
     const float s=Scale(),height=(compact?94:142)*s;auto* d=ImGui::GetWindowDrawList();
-    d->AddRectFilled(p,ImVec2(p.x+width,p.y+height),IM_COL32(17,16,15,215),3*s);
+    d->AddRectFilled(p,ImVec2(p.x+width,p.y+height),AccentColor(IM_COL32(17,16,15,215)),3*s);
     d->AddLine(p,ImVec2(p.x+width,p.y),palette::Ember,2*s);
     const float portrait=(compact?48:66)*s;
     if(menuArt){const auto art=menuArt->PortraitFor(playerCard.fighter,portrait);if(art.texture){const float ratio=float(art.width)/art.height;
@@ -95,7 +95,7 @@ float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool
     ReportMenuText(probe,font,natural,textWidth+2*pad,width);
     auto* d=ImGui::GetWindowDrawList();
     if(rightAligned)p.x-=textWidth+2*pad;
-    d->AddRectFilled(p,ImVec2(p.x+textWidth+2*pad,p.y+natural+2*s),IM_COL32(16,15,14,230));
+    d->AddRectFilled(p,ImVec2(p.x+textWidth+2*pad,p.y+natural+2*s),AccentColor(IM_COL32(16,15,14,230)));
     d->AddText(ImGui::GetFont(),font,ImVec2(p.x+pad,p.y+(natural-font)*.5f),palette::Ember,text);
     return textWidth+2*pad;
 }
@@ -144,7 +144,7 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
     // The name shrinks to the card, as the roster's captions do, so narrow cards keep it whole.
     const char* name=selection::FindFighter(fighter)->name;
     const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-8*Scale())*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(name).x));
-    d->AddRectFilled(ImVec2(min.x,max.y-footer),max,IM_COL32(16,15,14,235));
+    d->AddRectFilled(ImVec2(min.x,max.y-footer),max,AccentColor(IM_COL32(16,15,14,235)));
     d->AddText(ImGui::GetFont(),font,ImVec2(min.x+4*Scale(),max.y-footer+(ImGui::GetFontSize()-font)*.5f),saved?palette::Ember:palette::Ivory,name);
     if(saved)DrawCardBadge(ImVec2(min.x+4*Scale(),min.y+4*Scale()),max.x-min.x-8*Scale(),loc::T("profile.main_badge"),"main-badge");
 }
@@ -337,11 +337,11 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             if(targetAspect<sourceAspect){const float span=targetAspect/sourceAspect;uv0.x=1-span;}
             else {const float span=sourceAspect/targetAspect;uv0.y=(1-span)*.5f;uv1.y=1-uv0.y;}
             d->AddImage(art.texture,p,ImVec2(p.x+size.x,p.y+size.y),uv0,uv1);
-            d->AddRectFilledMultiColor(p,ImVec2(p.x+size.x,p.y+size.y),IM_COL32(16,15,14,220),IM_COL32(16,15,14,75),IM_COL32(16,15,14,110),IM_COL32(16,15,14,235));}
+            d->AddRectFilledMultiColor(p,ImVec2(p.x+size.x,p.y+size.y),AccentColor(IM_COL32(16,15,14,220)),AccentColor(IM_COL32(16,15,14,75)),AccentColor(IM_COL32(16,15,14,110)),AccentColor(IM_COL32(16,15,14,235)));}
     }
     if(home)ImGui::SetCursorPos(ImVec2(homeMargin,homeTop));
     if(flyout) {
-        ImGui::TextColored(ToneColor(Tone::Pending),"%s",loc::Tf("menu.flyout_title",title).c_str());
+        ImGui::TextColored(AccentShade(0xF1C477),"%s",loc::Tf("menu.flyout_title",title).c_str());
         ImGui::Separator();
     }
     const auto headerTop=ImGui::GetCursorScreenPos();
@@ -501,7 +501,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     else if(navigation.Reading()) DrawReader(entries,detail,(std::max)(60.f,available.y-footer),menuInput.held);
     else {
     if(!wide&&!home) {
-        ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg,AccentShade(ImVec4(.1f,.09f,.08f,.52f)));
         ImGui::BeginChild("Menu detail",ImVec2(0,compactGallery?2*ImGui::GetTextLineHeightWithSpacing()+4*unit:
             compactDetailHeight>0?(std::max)(0.f,(std::min)(compactDetailHeight*unit,available.y-footer-60.f-ImGui::GetStyle().ItemSpacing.y)):
             leanDetail?(std::min)(compactDetailLines*ImGui::GetTextLineHeightWithSpacing()+4*unit,(available.y-footer)*.48f):
@@ -546,7 +546,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const float innerWidth=rowWidth-2*lead;
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,0);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,card?cardRounding*unit:0);
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2(.03f,.5f));
-        ImGui::PushStyleColor(ImGuiCol_Button,focused?(card&&cardRounding>0?ImVec4(.30f,.17f,.09f,.55f):ImVec4(.47f,.28f,.16f,.6f)):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
+        ImGui::PushStyleColor(ImGuiCol_Button,AccentShade(focused?(card&&cardRounding>0?ImVec4(.30f,.17f,.09f,.55f):ImVec4(.47f,.28f,.16f,.6f)):ImVec4(.105f,.10f,.095f,home?0.f:.45f)));
         ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(visualEnabled));
         if(home)ImGui::PushFont(HeadingFont());
         const float textWidth=innerWidth-2*ImGui::GetStyle().FramePadding.x;
@@ -616,7 +616,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(home)ImGui::PopStyleVar();
     navigation.Scroll()=ImGui::GetScrollY(); ImGui::EndChild();ImGui::PopStyleColor();
     const auto listMin=ImGui::GetItemRectMin(),listMax=ImGui::GetItemRectMax();
-    if(wide&&!home) { ImGui::SameLine(0,20*unit); ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
+    if(wide&&!home) { ImGui::SameLine(0,20*unit); ImGui::PushStyleColor(ImGuiCol_ChildBg,AccentShade(ImVec4(.1f,.09f,.08f,.52f)));
         ImGui::BeginChild("Menu detail",ImVec2(0,(std::max)(60.f,available.y-footer))); preview(); ImGui::EndChild(); ImGui::PopStyleColor(); }
     if(listCard.draw)DrawListCard(listMin,listMax,focusMin,focusMax,unit);
     }
@@ -626,7 +626,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         // art runs on behind it instead of stopping at a hard line. Over the game it
         // stays solid, since the game behind it can be bright anywhere.
         const auto p=ImGui::GetCursorScreenPos();const auto origin=ImGui::GetWindowPos();
-        const ImU32 top=IM_COL32(16,15,14,drewBackdrop?60:225),deep=IM_COL32(16,15,14,drewBackdrop?205:225);
+        const ImU32 top=AccentColor(IM_COL32(16,15,14,drewBackdrop?60:225)),deep=AccentColor(IM_COL32(16,15,14,drewBackdrop?205:225));
         ImGui::GetWindowDrawList()->AddRectFilledMultiColor(ImVec2(origin.x,p.y),ImVec2(origin.x+windowSize.x,origin.y+windowSize.y),top,top,deep,deep);
     }
     if(home){

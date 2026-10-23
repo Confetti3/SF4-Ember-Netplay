@@ -16,7 +16,7 @@ namespace {
 using netplay::publicrooms::Room;
 constexpr ImU32 PillFill = IM_COL32(38, 34, 30, 255), TrackFill = IM_COL32(60, 54, 48, 255), ChipDark = IM_COL32(16, 15, 14, 230),
     NearFill = IM_COL32(30, 44, 30, 235), Ink = IM_COL32(20, 19, 18, 255), Dimmed = IM_COL32(8, 7, 6, 120),
-    Border = IM_COL32(255, 255, 255, 14), EmberFaint = IM_COL32(255, 135, 56, 40),
+    Border = IM_COL32(255, 255, 255, 14),
     StatusFill = IM_COL32(56, 51, 46, 255), MetaColor = IM_COL32(158, 147, 134, 255),
     FaceBacking = IM_COL32(88, 80, 72, 255), FaceBorder = IM_COL32(255, 255, 255, 46);
 // How many faces a room card shows before "+N".
@@ -63,9 +63,9 @@ const Room* FindRoom(const ShellView& v, const std::string& id) {
 void DrawFace(int fighter, ImVec2 at, float size, bool dim) {
     const float s = Scale();
     const ImVec2 end(at.x + size, at.y + size);
-    DrawCharacterPortrait(fighter >= 0 ? fighter : -1, at, end, FaceBacking);
+    DrawCharacterPortrait(fighter >= 0 ? fighter : -1, at, end, AccentColor(FaceBacking));
     auto* d = ImGui::GetWindowDrawList();
-    if (dim) d->AddRectFilled(at, end, Dimmed);
+    if (dim) d->AddRectFilled(at, end, AccentColor(Dimmed));
     d->AddRect(at, end, FaceBorder, 2 * s, 0, 1.f);
 }
 
@@ -79,7 +79,7 @@ float DrawAction(ImVec2 at, const std::string& text, float height, bool filled, 
     const ImU32 accent = enabled ? palette::Ember : palette::Muted;
     if (filled && enabled) d->AddRectFilled(at, end, palette::Ember, height * .5f);
     else d->AddRect(at, end, accent, height * .5f, 0, 1.5f * s);
-    Text(ImVec2(at.x + pad, at.y + (height - size) * .5f), size, filled && enabled ? Ink : accent, text);
+    Text(ImVec2(at.x + pad, at.y + (height - size) * .5f), size, filled && enabled ? AccentColor(Ink) : accent, text);
     return used + 2 * pad;
 }
 
@@ -88,7 +88,7 @@ void DrawBusyBar(ImVec2 min, ImVec2 max, double now) {
     const float s = Scale(), x0 = min.x + 8 * s, x1 = max.x - 8 * s, y1 = max.y - 4 * s, y0 = y1 - 3 * s, span = x1 - x0, segment = span * .3f;
     if (span <= 0) return;
     auto* d = ImGui::GetWindowDrawList();
-    d->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), EmberFaint, 1.5f * s);
+    d->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), AccentAlpha(40), 1.5f * s);
     const float t = static_cast<float>(std::fmod(now, 1.2) / 1.2), a = x0 + (span + segment) * t - segment;
     const float from = (std::max)(a, x0), to = (std::min)(a + segment, x1);
     if (to > from) d->AddRectFilled(ImVec2(from, y0), ImVec2(to, y1), palette::Ember, 1.5f * s);
@@ -122,7 +122,7 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
     const bool bare = PublicRoomBare(room) && !busy;
     auto* d = ImGui::GetWindowDrawList();
     auto* font = ImGui::GetFont();
-    if (dimmed) d->AddRectFilled(min, max, Dimmed, rounding);
+    if (dimmed) d->AddRectFilled(min, max, AccentColor(Dimmed), rounding);
     const ImU32 ink = dimmed ? palette::Muted : palette::Ivory;
     const bool visible = ImGui::IsRectVisible(min, max);
 
@@ -143,12 +143,12 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
     const float pillW = textWidth + 20 * s;
     const ImVec2 pillMin(max.x - pad - pillW, pillY);
     if (busy) ReportMenuText("pr-room-state", pillSize, pillH, pillW, maxPill);
-    d->AddRectFilled(pillMin, ImVec2(pillMin.x + pillW, pillMin.y + pillH), PillFill, pillH * .5f);
+    d->AddRectFilled(pillMin, ImVec2(pillMin.x + pillW, pillMin.y + pillH), AccentColor(PillFill), pillH * .5f);
     d->AddText(font, pillSize, ImVec2(pillMin.x + 10 * s, pillMin.y + (pillH - pillSize) * .5f), busy ? palette::Ember : full ? palette::Muted : palette::Ivory, pillText.c_str());
     if (room.capacity > 0) {
         const ImVec2 bar(max.x - pad - barWidth, pillMin.y + pillH + 5 * s);
         const float filled = barWidth * (std::min)(1.f, static_cast<float>(room.members) / room.capacity);
-        d->AddRectFilled(bar, ImVec2(bar.x + barWidth, bar.y + 3 * s), TrackFill, 1.5f * s);
+        d->AddRectFilled(bar, ImVec2(bar.x + barWidth, bar.y + 3 * s), AccentColor(TrackFill), 1.5f * s);
         if (filled > 0) d->AddRectFilled(bar, ImVec2(bar.x + filled, bar.y + 3 * s), dimmed ? palette::Muted : palette::Ember, 1.5f * s);
     }
     const float left = min.x + pad, rightLimit = max.x - pad - (std::max)(pillW, barWidth) - 12 * s, lineWidth = rightLimit - left;
@@ -179,7 +179,7 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
     const float chipY = metaY + (metaFont - 20 * s) * .5f;
     if (!meta.empty()) {
         if (interfaceWidth > 0) ReportMenuText("pr-room-meta", metaFont, 20 * s, interfaceWidth, metaWidth);
-        Text(ImVec2(left, metaY), metaFont, MetaColor, meta);
+        Text(ImVec2(left, metaY), metaFont, AccentColor(MetaColor), meta);
         if (near) DrawChip(ImVec2(left + Measure(metaFont, meta.c_str()) + 8 * s, chipY), nearText.c_str(), palette::Ready, NearFill, "pr-chip-near", nearWidth);
     } else if (near) DrawChip(ImVec2(left, chipY), nearText.c_str(), palette::Ready, NearFill, "pr-chip-near", nearWidth);
     if (bare) {
@@ -197,9 +197,9 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
         DrawChip(ImVec2(rightX, chipTop), text, foreground, background, probe, width);
         rightX -= 6 * s;
     };
-    if (room.locked) standing(loc::T("public.locked"), palette::Muted, StatusFill, "pr-chip-locked");
-    else if (full) standing(loc::T("public.full"), palette::Muted, StatusFill, "pr-chip-full");
-    if (room.playing > 0) standing(loc::T("public.in_match"), Ink, palette::Ready, "pr-chip-match");
+    if (room.locked) standing(loc::T("public.locked"), palette::Muted, AccentColor(StatusFill), "pr-chip-locked");
+    else if (full) standing(loc::T("public.full"), palette::Muted, AccentColor(StatusFill), "pr-chip-full");
+    if (room.playing > 0) standing(loc::T("public.in_match"), AccentColor(Ink), palette::Ready, "pr-chip-match");
     const float limit = rightX + 6 * s - 8 * s;
     float x = left;
     std::size_t shown = (std::min)(room.fighters.size(), CardFaces);
@@ -220,18 +220,18 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
     if (!narrow && room.setFormat > 0) {
         const std::string set = SetLengthText(static_cast<room::SetFormat>(room.setFormat));
         float chip = ChipWidth(set.c_str(), limit - x);
-        if (x + chip <= limit) { DrawChip(ImVec2(x, chipTop), set.c_str(), palette::Ember, ChipDark, "pr-chip-set", chip); x += chip + 6 * s; }
+        if (x + chip <= limit) { DrawChip(ImVec2(x, chipTop), set.c_str(), palette::Ember, AccentColor(ChipDark), "pr-chip-set", chip); x += chip + 6 * s; }
         if (room.rotation >= 0) {
             const char* rotation = RotationText(static_cast<room::RotationMode>(room.rotation));
             chip = ChipWidth(rotation, limit - x);
-            if (x + chip <= limit) { DrawChip(ImVec2(x, chipTop), rotation, palette::Muted, ChipDark, "pr-chip-rotation", chip); x += chip + 6 * s; }
+            if (x + chip <= limit) { DrawChip(ImVec2(x, chipTop), rotation, palette::Muted, AccentColor(ChipDark), "pr-chip-rotation", chip); x += chip + 6 * s; }
         }
     }
     // Each fighter plays at their own input delay: said where there is room for it.
     if (room.ownDelay) {
         const char* own = loc::T("public.own_delay");
         const float chip = ChipWidth(own, limit - x);
-        if (x + chip <= limit) DrawChip(ImVec2(x, chipTop), own, palette::Muted, ChipDark, "pr-chip-own-delay", chip);
+        if (x + chip <= limit) DrawChip(ImVec2(x, chipTop), own, palette::Muted, AccentColor(ChipDark), "pr-chip-own-delay", chip);
     }
     if (busy) DrawBusyBar(min, max, now);
     DrawFrame(min, max, focused);
@@ -253,7 +253,7 @@ void DrawChecking(const MenuEntry& e, ImVec2 min, ImVec2 max, bool focused, doub
     auto* d = ImGui::GetWindowDrawList();
     DrawCardParagraph(ImVec2(min.x + pad, min.y + 14 * s), 18 * s, palette::Ivory, e.label, width, 40 * s, e.id.c_str());
     const float alpha = Pulse(now);
-    const ImU32 bar = IM_COL32(120, 108, 96, 255);
+    const ImU32 bar = AccentColor(IM_COL32(120, 108, 96, 255));
     d->AddRectFilled(ImVec2(min.x + pad, min.y + 66 * s), ImVec2(min.x + pad + width * .7f, min.y + 76 * s), WithAlpha(bar, alpha), rounding);
     d->AddRectFilled(ImVec2(min.x + pad, min.y + 84 * s), ImVec2(min.x + pad + width * .45f, min.y + 94 * s), WithAlpha(bar, alpha), rounding);
     DrawBusyBar(min, max, now);
@@ -266,10 +266,10 @@ void DrawLoading(const MenuEntry& e, ImVec2 min, ImVec2 max, bool focused, doubl
     auto* d = ImGui::GetWindowDrawList();
     DrawCardLine(ImVec2(min.x + pad, min.y + 10 * s), 14 * s, palette::Muted, e.label, width, e.id.c_str(), 18 * s);
     const float alpha = Pulse(now), cardHeight = (max.y - min.y - 34 * s - 12 * s - 10 * s) / 3;
-    const ImU32 block = IM_COL32(120, 108, 96, 255);
+    const ImU32 block = AccentColor(IM_COL32(120, 108, 96, 255));
     for (int i = 0; i < 3; ++i) {
         const ImVec2 a(min.x + pad, min.y + 34 * s + i * (cardHeight + 6 * s)), b(max.x - pad, a.y + cardHeight);
-        d->AddRectFilled(a, b, WithAlpha(PillFill, alpha * 1.4f), rounding);
+        d->AddRectFilled(a, b, WithAlpha(AccentColor(PillFill), alpha * 1.4f), rounding);
         const auto bar = [&](float x, float y, float barWidth, float barHeight, float strength = 1) {
             d->AddRectFilled(ImVec2(a.x + x, a.y + y), ImVec2(a.x + x + barWidth, a.y + y + barHeight), WithAlpha(block, alpha * strength), barHeight * .5f);
         };
@@ -403,7 +403,7 @@ void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const 
         return;
     }
     ImGui::Dummy(ImVec2(0, 8 * s));
-    const ImU32 panelFill = IM_COL32(16, 15, 14, 190);
+    const ImU32 panelFill = AccentColor(IM_COL32(16, 15, 14, 190));
     // The players: their faces, as large as the pane allows.
     if (count > 0) {
         const float inner = space.x - 2 * pad;
@@ -443,12 +443,12 @@ void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const 
         float x = at.x + pad - 7 * s;
         if (rules) {
             const std::string set = SetLengthText(static_cast<room::SetFormat>(room->setFormat));
-            x += DrawChip(ImVec2(x, y), set.c_str(), sets ? palette::Ember : palette::Muted, ChipDark, "pr-preview-set", inner) + 6 * s;
+            x += DrawChip(ImVec2(x, y), set.c_str(), sets ? palette::Ember : palette::Muted, AccentColor(ChipDark), "pr-preview-set", inner) + 6 * s;
         }
         if (sets && room->rotation >= 0)
-            x += DrawChip(ImVec2(x, y), RotationText(static_cast<room::RotationMode>(room->rotation)), palette::Muted, ChipDark, "pr-preview-rotation", at.x + space.x - pad - x) + 6 * s;
+            x += DrawChip(ImVec2(x, y), RotationText(static_cast<room::RotationMode>(room->rotation)), palette::Muted, AccentColor(ChipDark), "pr-preview-rotation", at.x + space.x - pad - x) + 6 * s;
         if (room->ownDelay)
-            DrawChip(ImVec2(x, y), loc::T("public.own_delay"), palette::Muted, ChipDark, "pr-preview-own-delay", at.x + space.x - pad - x);
+            DrawChip(ImVec2(x, y), loc::T("public.own_delay"), palette::Muted, AccentColor(ChipDark), "pr-preview-own-delay", at.x + space.x - pad - x);
         y += chipRow + 6 * s;
     }
     if (open >= 0) {

@@ -673,7 +673,10 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
-            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","accent","training-replays","discord","about"})page(screen);
+            view.preferences.uiAccent=0x328DFF;page("accent");draw("accent-blue");
+            Require(palette::Ember==IM_COL32(50,141,255,255),"Saved accent was not applied to the menu");
+            view.preferences.uiAccent=accent::Default;draw();
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);
@@ -708,9 +711,14 @@ int main(int argc, char** argv) {
             // keeps its help line under a status.
             page("about");draw(nullptr,MenuInput::Select,1);draw("about-reader");
             Require(shell.Navigation().Reading(),"About's controls did not open in the reader");
+            draw("palette-default-text");view.preferences.uiAccent=0x328DFF;draw("palette-blue-text");
+            Require(palette::Ivory!=IM_COL32(243,235,221,255),"The reader kept the default text palette");
+            view.preferences.uiAccent=accent::Default;draw();
             draw(nullptr,MenuInput::Back,1);draw();Require(!shell.Navigation().Reading(),"Back did not close the reader");
-            page("interface");
-            for(int i=0;i<12&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            std::size_t interfaceRowCount=0;
+            SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){interfaceRowCount=rows.size();});
+            page("interface");SetMenuEntriesProbe({});
+            for(std::size_t i=0;i<interfaceRowCount&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw(nullptr,MenuInput::Select,1);draw("language-choice");
             Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
             draw(nullptr,MenuInput::Back,1);draw();
@@ -813,6 +821,15 @@ int main(int argc, char** argv) {
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
             ShootMemberLatency(view,draw,page);
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
+            page("room");draw("palette-default-room");
+            view.preferences.uiAccent=0x328DFF;draw("palette-blue-room");
+            Require(ImGui::GetStyle().Colors[ImGuiCol_ChildBg].z>ImGui::GetStyle().Colors[ImGuiCol_ChildBg].x,
+                "The room kept the default panel palette");
+            view.preferences.uiAccent=0;draw("palette-black-room");
+            view.preferences.uiAccent=0x004080;draw("palette-navy-room");
+            view.preferences.uiAccent=0xFFFFFF;draw("palette-white-room");
+            view.preferences.uiAccent=0xFFF4DD;draw("palette-pale-room");
+            view.preferences.uiAccent=accent::Default;draw();
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});

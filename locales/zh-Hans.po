@@ -1232,6 +1232,33 @@ msgstr "菜单快捷键提示"
 msgid "settings.shortcut_hint_detail"
 msgstr "关闭 Ember 菜单时显示 F10 或 Start 几秒钟，提示如何再次打开。"
 
+msgid "settings.accent"
+msgstr "界面颜色"
+
+msgid "settings.accent_detail"
+msgstr "选择菜单和HUD的高亮颜色。更改会立即显示。"
+
+msgid "settings.accent_red"
+msgstr "红"
+
+msgid "settings.accent_green"
+msgstr "绿"
+
+msgid "settings.accent_blue"
+msgstr "蓝"
+
+msgid "settings.accent_hex"
+msgstr "颜色代码"
+
+msgid "settings.accent_hex_detail"
+msgstr "输入六位十六进制数字，例如 #FF8738。"
+
+msgid "settings.accent_reset"
+msgstr "恢复橙色"
+
+msgid "settings.accent_invalid"
+msgstr "请以 #RRGGBB 格式输入六位十六进制数字。"
+
 msgid "settings.interface_size"
 msgstr "界面大小"
 
@@ -6624,3 +6651,6 @@ msgstr "Ember 开发者"
 
 msgid "rankings.developer_detail"
 msgstr "Ember 开发者以此标记代替等级，不会列入排行榜。你的对战仍会计入。"
+
+msgid "settings.accent_picker"
+msgstr "拾色器"

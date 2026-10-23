@@ -35,7 +35,7 @@ void DrawStrip(std::string& elided,const Strip& strip,const std::vector<TableCar
  auto* d=ImGui::GetWindowDrawList();
  for(int i=0;i<static_cast<int>(options.size());++i){
   const bool lit=chosen>=0?i==chosen:i==strip.hovered;
-  d->AddRectFilled(strip.min[i],strip.max[i],lit?IM_COL32(120,64,30,245):IM_COL32(20,19,18,240),4*s);
+  d->AddRectFilled(strip.min[i],strip.max[i],lit?AccentColor(IM_COL32(120,64,30,245)):AccentColor(IM_COL32(20,19,18,240)),4*s);
   if(lit)d->AddRect(strip.min[i],strip.max[i],palette::Ember,4*s,0,2*s);
   const float stripHeight=strip.max[i].y-strip.min[i].y,optionWidth=strip.max[i].x-strip.min[i].x;
   // Our own action labels must fit; the probe holds every locale to that.
@@ -77,7 +77,7 @@ void FlushCardTip(std::string& elided) {
 bool DrawCardButton(const std::string& id,ImVec2 size,bool focused,bool scrollTo,bool disabled) {
  const float s=Scale();
  ImGui::PushID(id.c_str());
- ImGui::PushStyleColor(ImGuiCol_Button,focused?ImVec4(.40f,.23f,.12f,.9f):ImVec4(.10f,.09f,.08f,.94f));
+ ImGui::PushStyleColor(ImGuiCol_Button,AccentShade(focused?ImVec4(.40f,.23f,.12f,.9f):ImVec4(.10f,.09f,.08f,.94f)));
  // An open choice leaves only its own options live.
  ImGui::BeginDisabled(disabled);
  const bool clicked=ImGui::Button("##room-entry",size);
@@ -129,7 +129,7 @@ CardInteraction DrawTableCard(const TableCardView& card) {
   // The link mark rides the portrait's inner lower corner on a dark disc.
   if(seat.occupied){
    const float mark=14*s;const ImVec2 centre(side?px+10*s:px+portrait-10*s,py+portrait-10*s);
-   ImGui::GetWindowDrawList()->AddCircleFilled(centre,11*s,IM_COL32(20,19,18,225));
+   ImGui::GetWindowDrawList()->AddCircleFilled(centre,11*s,AccentColor(IM_COL32(20,19,18,225)));
    DrawNetworkLinkGlyph(ImGui::GetWindowDrawList(),ImVec2(centre.x-mark*.5f,centre.y-mark*.5f),mark,seat.link);
    // The ping sits in a pill beside the disc, towards the portrait's middle.
    ImVec2 hoverMin(centre.x-11*s,centre.y-11*s),hoverMax(centre.x+11*s,centre.y+11*s);
@@ -137,7 +137,7 @@ CardInteraction DrawTableCard(const TableCardView& card) {
     const float size=12*s,textWidth=ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,seat.latency.text.c_str()).x;
     const float left=side?centre.x+13*s:centre.x-13*s-textWidth-10*s;
     const ImVec2 min(left,centre.y-8*s),max(left+textWidth+10*s,centre.y+8*s);
-    ImGui::GetWindowDrawList()->AddRectFilled(min,max,IM_COL32(20,19,18,225),8*s);
+    ImGui::GetWindowDrawList()->AddRectFilled(min,max,AccentColor(IM_COL32(20,19,18,225)),8*s);
     ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),size,ImVec2(min.x+5*s,centre.y-size*.5f),seat.latency.color,seat.latency.text.c_str());
     hoverMin.x=(std::min)(hoverMin.x,min.x);hoverMax.x=(std::max)(hoverMax.x,max.x);
    }
@@ -149,7 +149,7 @@ CardInteraction DrawTableCard(const TableCardView& card) {
    const float badgeWidth=ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,badge).x+12*s;
    const ImVec2 min(px+(portrait-badgeWidth)*.5f,py+4*s),max(min.x+badgeWidth,min.y+size+4*s);
    ImGui::GetWindowDrawList()->AddRectFilled(min,max,palette::Ready,(size+4*s)*.5f);
-   ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),size,ImVec2(min.x+6*s,min.y+2*s),IM_COL32(20,19,18,255),badge);
+   ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),size,ImVec2(min.x+6*s,min.y+2*s),AccentColor(IM_COL32(20,19,18,255)),badge);
   }
   const float tx=x+(seat.occupied&&!side?portrait+8*s:0),tw=half-(seat.occupied?portrait+8*s:0);
   if(seat.occupied&&cardVisible)NoteUserText(seat.name);
@@ -176,7 +176,7 @@ CardInteraction DrawTableCard(const TableCardView& card) {
  text(ImVec2(p.x+12*s+half,top+16*s),gap,card.middle,18*s,palette::Ember,true);
  if(bannerHeight){
   const ImVec2 min(p.x+8*s,bannerTop),max(p.x+width-8*s,bannerTop+bannerHeight-2*s);
-  ImGui::GetWindowDrawList()->AddRectFilled(min,max,IM_COL32(74,46,20,235),4*s);
+  ImGui::GetWindowDrawList()->AddRectFilled(min,max,AccentColor(IM_COL32(74,46,20,235)),4*s);
   ImGui::GetWindowDrawList()->AddRect(min,max,bannerColor,4*s,0,1*s);
   if(cardVisible)NoteUserText(card.banner);
   text(ImVec2(min.x+8*s,min.y+(max.y-min.y-13*s)*.5f),max.x-min.x-16*s,card.banner,13*s,bannerColor);
@@ -195,7 +195,7 @@ CardInteraction DrawTableCard(const TableCardView& card) {
   if(seat>=0){
    const float pulse=.55f+.45f*std::sin(static_cast<float>(ImGui::GetTime())*6.f);
    const float x=p.x+12*s+seat*(half+gap);
-   ImGui::GetWindowDrawList()->AddRect(ImVec2(x-4*s,p.y+26*s),ImVec2(x+half+4*s,p.y+h-32*s),ImGui::GetColorU32(ImVec4(1.f,.53f,.22f,pulse)),4*s,0,3*s);
+   ImGui::GetWindowDrawList()->AddRect(ImVec2(x-4*s,p.y+26*s),ImVec2(x+half+4*s,p.y+h-32*s),ImGui::GetColorU32(AccentShade(ImVec4(1.f,.53f,.22f,pulse))),4*s,0,3*s);
   }
   DrawStrip(elided,strip,card.options,chosen);
  }else if(!card.options.empty())DrawStrip(elided,strip,card.options,-1);

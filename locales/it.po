@@ -1232,6 +1232,33 @@ msgstr "Suggerimento scorciatoia menu"
 msgid "settings.shortcut_hint_detail"
 msgstr "Mostra F10 o Start per qualche secondo quando il menu di Ember si chiude, così sai come riaprirlo."
 
+msgid "settings.accent"
+msgstr "Colore interfaccia"
+
+msgid "settings.accent_detail"
+msgstr "Scegli il colore delle evidenziazioni nei menu e nell'HUD. Le modifiche sono visibili subito."
+
+msgid "settings.accent_red"
+msgstr "Rosso"
+
+msgid "settings.accent_green"
+msgstr "Verde"
+
+msgid "settings.accent_blue"
+msgstr "Blu"
+
+msgid "settings.accent_hex"
+msgstr "Codice colore"
+
+msgid "settings.accent_hex_detail"
+msgstr "Inserisci sei cifre esadecimali, ad esempio #FF8738."
+
+msgid "settings.accent_reset"
+msgstr "Ripristina arancione"
+
+msgid "settings.accent_invalid"
+msgstr "Inserisci un colore come #RRGGBB, usando sei cifre esadecimali."
+
 msgid "settings.interface_size"
 msgstr "Dim. interfaccia"
 
@@ -6623,3 +6650,6 @@ msgstr "Sviluppatore di Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Gli sviluppatori di Ember mostrano questo segno al posto della classe e non sono in classifica. Le tue partite contano comunque."
+
+msgid "settings.accent_picker"
+msgstr "Selettore colore"

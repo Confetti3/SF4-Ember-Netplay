@@ -24,9 +24,45 @@ void TrainingSettingsAndHome() {
  Check(rows.size()==settings.size(),"Settings row count changed");
  for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
  h.Choose("interface");
- const std::vector<std::string> interfaceRows={"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","shortcut-hint","class-emblems","scale","language"};
- Check(rows.size()==interfaceRows.size(),"Interface no longer has its 12 rows");
+ const std::vector<std::string> interfaceRows={"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","shortcut-hint","class-emblems","accent","scale","language"};
+ Check(rows.size()==interfaceRows.size(),"Interface row count changed");
  for(std::size_t i=0;i<interfaceRows.size();++i)Check(rows[i].id==interfaceRows[i],"Interface order changed");
+ h.Choose("accent");Check(rows.size()==5,"Accent controls missing");
+ std::string accentStatus;SetMenuStatusProbe([&](const char* text,Tone){accentStatus=text;});
+ const auto editAccent=[&](const char* text){
+  h.Choose("accent-hex");Check(h.shell.Navigation().Editing(),"Accent editor did not open");h.shell.Navigation().Draft(text);
+  auto* editor=ImGui::FindWindowByName("###EditText");Check(editor!=nullptr,"Accent editor was not drawn");
+  if(auto* input=ImGui::GetInputTextState(editor->GetID("##Draft")))input->ReloadUserBufAndMoveToEnd();
+  h.Frame();Check(h.shell.Navigation().Draft()==text,"Accent draft did not survive rendering");h.Press(MenuInput::Select);
+  Check(!h.shell.Navigation().Editing(),"Accent editor did not accept its draft");
+ };
+ editAccent("#ZZ0000");
+ Check(accentStatus==loc::T("settings.accent_invalid"),"Invalid color was not explained");
+ editAccent("#328DFF");h.Frame(0,45);
+ Check(accentStatus!=loc::T("settings.accent_invalid"),"A valid color left its old error visible");
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.uiAccent==0x328DFF,"Custom accent did not save");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
+ // An actual pointer click in the native picker must use the same delayed
+ // save as the RGB rows; losing edit permission must make the picker inert.
+ std::pair<ImVec2,ImVec2> picker{};bool sawPicker=false;
+ SetMenuCardProbe([&](const std::string& id,ImVec2 min,ImVec2 max){if(id=="accent-picker"){picker={min,max};sawPicker=true;}});
+ h.Frame();Check(sawPicker,"The color picker was not drawn on the accent screen");
+ const auto clickPicker=[&](float x,float y){
+  auto& io=ImGui::GetIO();io.AddMousePosEvent(picker.first.x+(picker.second.x-picker.first.x)*x,picker.first.y+(picker.second.y-picker.first.y)*y);
+  h.Frame();io.AddMouseButtonEvent(0,true);h.Frame();io.AddMouseButtonEvent(0,false);h.Frame();h.Frame(0,45);
+ };
+ const unsigned beforePicker=h.view.preferences.uiAccent;
+ clickPicker(.3f,.7f);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.uiAccent!=beforePicker,"Picking a color did not save");
+ Check(h.shell.Navigation().Screen()=="accent","The color picker consumed a menu action");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
+ h.view.canEditPreferences=false;h.Frame();const auto beforeDisabled=h.actions.size();
+ clickPicker(.6f,.3f);Check(h.actions.size()==beforeDisabled,"A disabled picker saved preferences");
+ h.view.canEditPreferences=true;ImGui::GetIO().AddMousePosEvent(1,1);h.Frame();SetMenuCardProbe({});
+ h.Choose("accent-reset");h.Frame(0,45);
+ Check(h.actions.back().preferences.uiAccent==accent::Default,"Accent reset did not save orange");
+ h.view.preferences=h.actions.back().preferences;h.Frame();SetMenuStatusProbe({});
+ h.Press(MenuInput::Back);
  h.Press(MenuInput::Back);h.Choose("training-replays");
  Check(rows.size()==4&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="watched-picture","Training and replays settings order wrong");
  Check(rows[1].detail==loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),"Auto-ready detail lost runtime deadline");
