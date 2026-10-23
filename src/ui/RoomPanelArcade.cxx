@@ -17,11 +17,11 @@ namespace sf4e { namespace ui {
 using namespace room_controls;
 namespace {
 // Each pair's own colour (Arcade.dc.html), lit on both of its cabinets: content, like the tiers' colours.
+// None is orange, which stays the focus mark's.
 ImU32 PairColor(std::size_t table) {
-    static const ImU32 ember[]={0,IM_COL32(127,176,224,255),IM_COL32(201,160,224,255),IM_COL32(164,206,160,255),
-        IM_COL32(110,204,200,255),IM_COL32(233,160,112,255),IM_COL32(213,220,227,255),IM_COL32(236,128,176,255)};
-    const ImU32 c=ember[table%8];
-    return c?c:v2::Colors().accent;
+    static const ImU32 pairs[]={IM_COL32(127,176,224,255),IM_COL32(201,160,224,255),IM_COL32(164,206,160,255),IM_COL32(110,204,200,255),
+        IM_COL32(236,128,176,255),IM_COL32(213,220,227,255),IM_COL32(206,214,110,255),IM_COL32(230,100,100,255)};
+    return pairs[table%8];
 }
 }
 
@@ -90,19 +90,19 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  v2::Box board=area;
  if(type==room::KingRoom){
   // The top slot: the longest current streak, its holder and the streak.
-  const v2::Box banner=v2::CutTop(board,56*s,12*s);
+  const v2::Box banner=v2::CutTop(board,48*s,8*s);
   v2::CardGround(d,banner,false,false,true);
-  v2::Icon(d,v2::IconCount-1,ImVec2(banner.min.x+14*s,banner.min.y+12*s),32*s,gold);
+  v2::Icon(d,v2::IconCount-1,ImVec2(banner.min.x+14*s,banner.min.y+10*s),28*s,gold);
   float x=banner.min.x+58*s;
-  x+=v2::SectionHeading(d,ImVec2(x,banner.min.y+20*s),loc::T("room.top_slot"),gold)+16*s;
+  x+=v2::SectionHeading(d,ImVec2(x,banner.min.y+16*s),loc::T("room.top_slot"),gold)+16*s;
   const int top=v.room.topSlot;
   const auto* holder=top>=0?room::FindMember(v.room,v.room.cabinets[top]):nullptr;
   if(holder){
    const std::string streak=loc::Tf("room.streak",v.room.streaks[top]);
    const float sw=v2::ChipWidth(streak);
-   tag(*holder,ImVec2(x,banner.min.y+12*s),(std::max)(0.f,banner.max.x-26*s-sw-x),v2::TagSize::S,fighterName(*holder));
-   v2::Chip(d,ImVec2(banner.max.x-14*s-sw,banner.min.y+16*s),streak,gold);
-  }else v2::Text(d,ImVec2(x,banner.min.y+19*s),banner.max.x-14*s-x,loc::T("room.top_slot_none"),15*s,c.muted);
+   tag(*holder,ImVec2(x,banner.min.y+8*s),(std::max)(0.f,banner.max.x-26*s-sw-x),v2::TagSize::S,fighterName(*holder));
+   v2::Chip(d,ImVec2(banner.max.x-14*s-sw,banner.min.y+12*s),streak,gold);
+  }else v2::Text(d,ImVec2(x,banner.min.y+15*s),banner.max.x-14*s-x,loc::T("room.top_slot_none"),15*s,c.muted);
  }
  // Real Arcade rows: two rows of eight tall cabinets, each over its stool
  // with the player's back on it; cabinet n on top, n+8 under it.
@@ -113,27 +113,28 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  std::vector<const MenuEntry*> matchups;
  for(const auto& e:rows)if(e.id.compare(0,8,"matchup-")==0)matchups.push_back(&e);
  if(!matchups.empty()){
-  const v2::Box strip=v2::CutBottom(board,40*s,8*s);
-  float x=strip.min.x+6*s;
-  for(const auto* e:matchups){
+  // Four to a line, so all eight pairs of a full room fit on two.
+  const std::size_t per=4,lines=(matchups.size()+per-1)/per;
+  const v2::Box strip=v2::CutBottom(board,lines*30*s+6*s,8*s);
+  const float w=(strip.W()-12*s-(per-1)*8*s)/per;
+  for(std::size_t k=0;k<matchups.size();++k){
+   const auto* e=matchups[k];
    const int table=std::stoi(e->id.substr(8));
    const std::string text=e->label+(e->value.empty()?std::string():"  "+e->value);
-   const float w=(std::min)(strip.max.x-6*s-x,ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,text.c_str()).x+40*s);
-   if(w<80*s)break;
-   const v2::Box chip{ImVec2(x,strip.min.y+4*s),ImVec2(x+w,strip.max.y-4*s)};
+   const float x=strip.min.x+6*s+(k%per)*(w+8*s),y=strip.min.y+4*s+(k/per)*30*s;
+   const v2::Box chip{ImVec2(x,y),ImVec2(x+w,y+26*s)};
    const bool hovered=PressEntry(nav,rows,*e,chip,action).hovered,focused=e->id==focus;
    if(hovered||focused)lit=table;
    v2::RowGround(d,chip,focused,hovered);
    d->AddCircleFilled(ImVec2(chip.min.x+14*s,(chip.min.y+chip.max.y)*.5f),5*s,PairColor(table));
-   v2::Text(d,ImVec2(chip.min.x+26*s,chip.min.y+(chip.H()-14*s)*.5f),w-32*s,text,14*s,hovered||focused?c.text:c.muted);
+   v2::Text(d,ImVec2(chip.min.x+26*s,chip.min.y+(chip.H()-13*s)*.5f),w-32*s,text,13*s,hovered||focused?c.text:c.muted);
    if(focused)v2::Focus(d,chip.min,chip.max,false);
-   x+=w+8*s;
   }
  }
  // A margin for the focus and hover marks, which reach 4 px past a cabinet.
  board=v2::Inset(board,6*s,6*s);
  const float gap=8*s,band=36*s,cell=(board.W()-7*gap)/8;
- const float h=(std::max)(120*s,(std::min)((board.H()-band)/2/1.4f,240*s)),w=(std::min)(cell,h*.75f),unit=h*1.4f;
+ const float h=(std::max)(92*s,(std::min)((board.H()-band)/2/1.4f,240*s)),w=(std::min)(cell,h*.75f),unit=h*1.4f;
  const bool scrolls=2*unit+band>board.H();
  if(scrolls){
   ImGui::SetCursorScreenPos(board.min);
