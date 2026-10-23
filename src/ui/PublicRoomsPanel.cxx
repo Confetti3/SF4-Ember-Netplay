@@ -173,14 +173,14 @@ std::string PublicRoomsPanel::KnownRegion(const ShellView& v) {
     return relay == "other" ? std::string() : relay;
 }
 
-void PublicRoomsPanel::Create(const std::string& name, int capacity, const room::Rules& rules, room::DelayPolicy delayPolicy) {
+void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy) {
     if (pending_) return;
     Command command;
     command.op = Command::Op::RoomCreate;
     command.bridgeId = bridge_; command.roomName = name; command.capacity = capacity;
     command.ownDelay = delayPolicy == room::DelayPolicy::Own;
     Begin(std::move(command));
-    pending_->createdRules = rules;
+    pending_->createdRules = tables;
 }
 
 void PublicRoomsPanel::Begin(netplay::tournament::Command command) {

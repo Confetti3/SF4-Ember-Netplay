@@ -580,6 +580,27 @@ int main() {
         restored.tableRules.format == sf4e::room::SetFormat::Ft10 && restored.tableRules.rotation == sf4e::room::RotationMode::BothRotate);
     CHECK(restored.publicTableRules == defaults.publicTableRules && !(restored.publicTableRules == restored.tableRules));
     CHECK(restored.tableRules == defaults.tableRules && restored.tableRules.roundTime == 9999);
+    // Room templates keep each table's rules and name; one that cannot be read
+    // whole is left out, and the defaults and the other templates still load.
+    {
+        sf4e::netplay::RoomTemplate saved;
+        saved.name = "Friday casuals"; saved.roomName = "Casuals"; saved.capacity = 12; saved.practice = true;
+        saved.delayPolicy = sf4e::room::DelayPolicy::Own;
+        saved.tables = sf4e::netplay::TableSetup::Same(defaults.tableRules);
+        saved.tables.rules[1].format = sf4e::room::SetFormat::Ft3; saved.tables.names[1] = "Beginners";
+        auto withTemplates = defaults; withTemplates.roomTemplates = {saved};
+        Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(withTemplates)}};
+        sf4e::netplay::PlayerPreferences read;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.roomTemplates.size() == 1 && read.roomTemplates[0] == saved);
+        auto broken = document["roomDefaults"]["templates"][0];
+        broken["tables"].erase(0);
+        document["roomDefaults"]["templates"].insert(document["roomDefaults"]["templates"].begin(), broken);
+        document["roomDefaults"]["templates"].push_back(Json{{"name", 3}});
+        sf4e::netplay::PlayerPreferences partly;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, partly) && partly.roomTemplates.size() == 1 && partly.roomTemplates[0] == saved &&
+            partly.roomName == "Friday room");
+        CHECK(!Json(sf4e::netplay::RoomPreferences(defaults)).contains("templates"));
+    }
     // A Practice room is chosen for one room on Create, never kept with the defaults.
     for (const auto* saved : {&result["roomDefaults"], &result["roomDefaults"]["publicRules"]})
         CHECK(!saved->contains("practice") && !saved->contains("training") && !saved->contains("timeBeforePractice"));

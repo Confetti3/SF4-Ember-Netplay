@@ -950,7 +950,29 @@ static void TestProbePairCommitted() {
 	EXPECT(!ProbePairCommitted(seated, watched) && !ProbePairCommitted(watched, seated) && ProbePairCommitted(watched, watched));
 }
 
+// The host names a table, during a game too; the name crosses the wire and a
+// checkpoint, an unnamed table carries no key, and nobody else can name one.
+static void TestTableName() {
+    RoomAuthority authority("Names", 16, 93);
+    const auto host = Join(authority, 0, true), guest = Join(authority, 1);
+    const auto named = [&](MemberId member, std::string text, std::uint64_t id) {
+        auto action = TableAction(authority, member, 1, ActionKind::NameTable);
+        action.text = std::move(text); action.actionId += id;
+        return authority.Apply(member, action).accepted;
+    };
+    CHECK(named(host, "Beginners", 0) && authority.SnapshotView().tables[1].name == "Beginners");
+    CHECK(!named(guest, "Mine", 10) && !named(host, std::string(MaximumTableNameBytes + 1, 'a'), 20) && !named(host, "Two\nlines", 30));
+    CHECK(authority.SnapshotView().tables[1].name == "Beginners");
+    const auto wire = nlohmann::json(authority.SnapshotFor(guest));
+    CHECK(wire["tables"][1]["name"] == "Beginners" && !wire["tables"][0].contains("name"));
+    CHECK(wire.get<Snapshot>().tables[1].name == "Beginners");
+    RoomAuthority replica("Replica");
+    CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())) && replica.SnapshotView().tables[1].name == "Beginners");
+    CHECK(named(host, "", 40) && authority.SnapshotView().tables[1].name.empty());
+}
+
 int main() {
+    TestTableName();
     TestProfileMain();
     TestReadyDelaysShareTheHigherValue();
     TestReadyDelayZero();

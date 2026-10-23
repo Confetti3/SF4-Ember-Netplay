@@ -78,6 +78,11 @@ Result RoomAuthority::ApplyChat(MemberId member, const Action& action) {
 	return Accept({Event{Event::Kind::ChatMessage, 0, 0, member, MatchResult::Abort}});
 }
 
+Result RoomAuthority::ApplyNameTable(MemberId member, const Action& action, Table* table) {
+	if (!IsHost(member) || action.text.size() > MaximumTableNameBytes || !IsValidUtf8(action.text) || !IsSingleLineText(action.text)) return Reject(RejectReason::Unauthorized);
+	table->name = action.text; TouchRoom(); return Accept();
+}
+
 Result RoomAuthority::ApplyRename(MemberId member, const Action& action) {
 	if (!IsHost(member) || action.text.empty() || action.text.size() > MaximumRoomNameBytes || !IsValidUtf8(action.text) || !IsSingleLineText(action.text)) return Reject(RejectReason::Unauthorized);
 	snapshot_.name = action.text; TouchRoom(); return Accept();
@@ -473,6 +478,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::Typing) return ApplyTyping(member, action);
 	Table* table = FindTable(action.table);
 	if (!table) return Reject(RejectReason::UnknownTable);
+	if (action.kind == ActionKind::NameTable) return ApplyNameTable(member, action, table);
 	Member* item = Find(member);
 	// Generic room effects may compact away the original MatchEnded/result
 	// action. A retry from either frozen fighter is still authenticated by the

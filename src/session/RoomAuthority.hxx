@@ -170,6 +170,7 @@ private:
 	Result ApplyKick(MemberId member, const Action& action);
 	Result ApplyChat(MemberId member, const Action& action);
 	Result ApplyRename(MemberId member, const Action& action);
+	Result ApplyNameTable(MemberId member, const Action& action, Table* table);
 	Result ApplyAcknowledgeTerminal(MemberId member, const Action& action);
 	Result ApplySetRules(MemberId member, const Action& action, Table* table);
 	Result ApplyQueue(MemberId member, const Action& action, Table* table);

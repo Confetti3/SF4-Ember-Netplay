@@ -114,6 +114,8 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
     }
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
     if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
+    // Opened from a template: the runtime sets its tables once the room is up.
+    if (kind == netplay::CommandKind::HostRoom && createTables_) action.createdRules = CreateTables(preferences_.tableRules);
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
     // A room opened here is not the public one the panel joined.
     if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::HostRoom) publicRooms_.ForgetCurrent();
@@ -510,7 +512,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
- else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
+ else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host"||a.id=="delete-template")CreateActivate(a,v,submit);
  else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);

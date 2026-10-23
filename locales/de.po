@@ -2882,6 +2882,39 @@ msgstr "Raum-Update..."
 msgid "room.battle_slot"
 msgstr "KAMPFTISCH {0}"
 
+msgid "room.table_name"
+msgstr "Tischname"
+
+msgid "room.table_name.detail"
+msgstr "Steht auf der Tischkarte nach der Nummer, etwa Anfänger. Leer zeigt nur die Nummer."
+
+msgid "room.template"
+msgstr "Vorlage"
+
+msgid "room.template.none"
+msgstr "Keine"
+
+msgid "room.template.detail"
+msgstr "Ein gespeicherter Raum. Er setzt die Zeilen unten und, sobald der Raum offen ist, Regeln und Namen jedes Tisches. Links und Rechts wählen."
+
+msgid "room.template.delete"
+msgstr "Vorlage löschen"
+
+msgid "room.template.delete.detail"
+msgstr "Löscht die Vorlage {0} von diesem PC."
+
+msgid "room.template.full"
+msgstr "Du hast {0} Vorlagen. Lösche zuerst eine unter Raum erstellen."
+
+msgid "room.template.saved"
+msgstr "Als Vorlage {0} gespeichert."
+
+msgid "room.save_template"
+msgstr "Als Vorlage speichern"
+
+msgid "room.save_template.detail"
+msgstr "Speichert die Einstellungen dieses Raums sowie Regeln und Namen jedes Tisches auf diesem PC für Raum erstellen > Vorlage. Derselbe Name überschreibt sie."
+
 msgid "room.looking_for_fight"
 msgstr "Suche nach Kampf"
 

@@ -5,6 +5,7 @@
 #include "../common/ControllerRequest.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/RoomRules.hxx"
+#include "../netplay/TableSetup.hxx"
 #include "../common/SteamId.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/UpdateChannel.hxx"
@@ -64,9 +65,10 @@ struct RuntimeRequest {
     netplay::tournament::Command tournament;
     // With a JoinInvite: the signed ticket (JSON) of a public room's admission.
     std::string publicTicket;
-    // With the JoinInvite of a public room just created: the table rules chosen
-    // on Create, which the runtime sets once the creator is in it as host.
-    std::optional<room::Rules> createdRules;
+    // With HostRoom, or the JoinInvite of a public room just created: each
+    // table's rules and name chosen on Create, which the runtime sets once the
+    // creator is in it as host.
+    std::optional<netplay::TableSetup> createdRules;
     // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
     bool practiceRoom = false;
     // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).

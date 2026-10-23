@@ -359,6 +359,9 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
    }
    RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"),s.practice);
    if(rulesDirty_)rows.push_back(Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail"),!active));
+   // A name changes nothing at the table, so it is taken during a game too.
+   rows.push_back(TextRow("table-name",loc::T("room.table_name"),t.name,room::MaximumTableNameBytes));
+   rows.back().detail=std::string(loc::T("room.table_name.detail"))+"\n"+loc::T("menu.edit_detail");rows.back().userText=true;
    // The host edits the rules in place, so the summary above is not shown to them.
    if(s.delayPolicy==room::DelayPolicy::Own)rows.push_back(ReadOnlyValue("delay-policy",loc::T("room.delay_policy"),loc::T("room.delay_policy.own"),loc::T("room.delay_policy.detail")));
   };
@@ -509,6 +512,9 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
   rows.push_back(Value("lock",loc::T("room.admission"),loc::T(s.locked?"room.locked":"room.open"),loc::T("room.admission.detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
+  // Kept on this PC for Create › Template; anyone may keep the room they are in.
+  rows.push_back(TextRow("save-template",loc::T("room.save_template"),"",32));
+  rows.back().detail=std::string(loc::T("room.save_template.detail"))+"\n"+loc::T("menu.edit_detail");
 }
 void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,
                                      const MenuVisualFeedback& feedback) {
@@ -560,7 +566,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // The seat chooser, or on your own focused place what A and B do there.
   const bool choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
   const bool ownPlace=!nav.Asking()&&onOwnPlace&&e.id==focus;
-  TableCardView card;card.id=e.id;card.slot=t.id;card.height=h;
+  TableCardView card;card.id=e.id;card.slot=t.id;card.name=t.name;card.height=h;
   card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();
   if(choosing){
    card.choosing=true;card.chosen=static_cast<int>(nav.ChoiceIndex());

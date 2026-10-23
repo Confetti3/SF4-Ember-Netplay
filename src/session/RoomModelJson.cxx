@@ -379,10 +379,13 @@ void to_json(nlohmann::json& json, const Table& value) { json = nlohmann::json{{
 	// Only in a held table's sent snapshot; older readers skip the key.
 	if (value.holdRemainingMs) json["hold_ms"] = value.holdRemainingMs;
 	if (value.readyRemainingMs) json["ready_ms"] = value.readyRemainingMs;
+	// Only a named table carries one, so other tables keep their wire form.
+	if (!value.name.empty()) json["name"] = value.name;
 }
 void from_json(const nlohmann::json& json, Table& value) {
 	value.id = static_cast<std::uint8_t>(ReadInt(json, "id", 0, static_cast<int>(TableCount - 1)));
 	json.at("rules").get_to(value.rules);
+	value.name = json.contains("name") ? ReadText(json, "name", MaximumTableNameBytes) : std::string();
 	value.phase = static_cast<TablePhase>(ReadInt(json, "phase", 0, static_cast<int>(TablePhase::Closed)));
 	value.revision = ReadU64(json, "revision"); value.matchGeneration = ReadU64(json, "match_generation");
 	value.p1 = ReadU64(json, "p1"); value.p2 = ReadU64(json, "p2");

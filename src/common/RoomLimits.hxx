@@ -6,6 +6,8 @@ namespace sf4e { namespace room {
 // watches the same table. The legacy protocol retains its four-user bound.
 constexpr std::size_t MaxMembers = 16;
 constexpr std::size_t TableCount = 4;
+// A table's own name ("Beginners"), beside its number.
+constexpr std::size_t MaximumTableNameBytes = 24;
 constexpr std::size_t FighterCount = 2;
 constexpr std::size_t MaxSpectators = MaxMembers - FighterCount;
 constexpr std::size_t MaxMatchParticipants = FighterCount + MaxSpectators;

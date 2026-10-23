@@ -251,7 +251,7 @@ static const ShellAction& CreateWithChosenRules(Journey& j){
  h.Choose("host");j.Admit("","b");
  Check(j.joins()==1,"The new room's admission did not join");
  const auto join=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;});
- Check(join->createdRules&&*join->createdRules==saved.publicTableRules,"The created room's join did not carry the chosen rules");
+ Check(join->createdRules&&*join->createdRules==netplay::TableSetup::Same(saved.publicTableRules),"The created room's join did not carry the chosen rules");
  return *join;
 }
 
@@ -263,6 +263,29 @@ static const ShellAction& CreateWithChosenRules(Journey& j){
 // Create on Public carries the room's delay policy: nothing for the shared delay,
 // own_delay for each player's own, which an older service refuses in words; and
 // a listed room that has it shows more than the short card.
+// Create › Template sets the rows from a saved room, and the new room's join
+// carries each table's rules and name from it.
+void TemplateJourney(){
+ Journey j;auto& h=j.h;
+ netplay::RoomTemplate saved;saved.name="Friday casuals";saved.roomName="Casuals";saved.capacity=12;saved.isPublic=true;
+ saved.tables=netplay::TableSetup::Same(room::PublicRoomRules());
+ saved.tables.rules[0].format=room::SetFormat::Ft3;saved.tables.rules[1].format=room::SetFormat::Ft5;saved.tables.names[0]="Beginners";
+ h.view.preferences.roomTemplates={saved};
+ j.OpenList();j.List({});h.Frame(0,2);
+ h.Choose("pr-none");
+ Check(j.row("template")&&j.row("template")->value==std::string(loc::T("room.template.none"))&&!j.row("delete-template"),"Create did not start without a template");
+ h.FocusOn("template");h.Press(MenuInput::Right);
+ Check(j.row("template")->value=="Friday casuals"&&j.row("room-name")->value=="Casuals"&&j.row("capacity")->value=="12"&&
+  j.row("set-length")->value==SetLengthText(room::SetFormat::Ft3)&&j.row("delete-template"),"The template did not set Create's rows");
+ // The rows' save is acknowledged, as the runtime does.
+ h.Frame(0,40);
+ const auto save=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
+ if(save!=h.actions.rend())h.view.preferences=save->preferences;
+ h.Frame(0,2);
+ h.Choose("host");j.Admit("","b");
+ const auto join=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;});
+ Check(join!=h.actions.rend()&&join->createdRules&&*join->createdRules==saved.tables,"The room's join did not carry the template's tables");
+}
 void OwnDelayJourney(){
  Journey j;auto& h=j.h;j.OpenList();
  j.List({MakeRoom("a","Friday Night",3,8)});
@@ -344,7 +367,7 @@ void CreateWithRulesJourney(){
  }
  hidden();now+=100;
  Check(!tick()&&!runtime.Active()&&std::string(runtime.Ended())=="done","The rules did not finish while Ember was hidden");
- for(const auto& table:authority.SnapshotView().tables)Check(table.rules==rules,"A table did not end up with the chosen rules");
+ for(const auto& table:authority.SnapshotView().tables)Check(table.rules==rules.rules[0],"A table did not end up with the chosen rules");
  h.Frame(0,120);
  Check(shellRules()==0,"The shell sent rules of its own");
 }
@@ -653,7 +676,7 @@ void CurrentRoomJourney(){
  v.session.room=netplay::RoomState::Idle;update();
  Check(!panel.OpeningKind()&&panel.RoomLink().empty(),"The room was kept after the session ended");
  // A created room is the same, of its own kind, and the link names the room the admission gave.
- panel.Create("Open Mic",6,room::PublicRoomRules(),room::DelayPolicy::Shared);update();admit(LinkRoom,"Open Mic");
+ panel.Create("Open Mic",6,netplay::TableSetup::Same(room::PublicRoomRules()),room::DelayPolicy::Shared);update();admit(LinkRoom,"Open Mic");
  Check(panel.OpeningKind()==PublicRoomsPanel::OpenKind::Create&&panel.RoomLink()==tournament_link::RoomPageUrl(LinkBridge,LinkRoom),"A created room is not the panel's room");
  // A room another way of opening replaces it; a join that never started lapses.
  panel.ForgetCurrent();Check(!panel.OpeningKind(),"The room was kept after another room was opened");
@@ -696,5 +719,5 @@ void RoomLostJourney(){
  Check(!j.row("replace-room")&&j.row("leave"),"A public room offered to replace its room");
 }
 }
-int main(){try{ListJourney();JoinJourney();CreateJourney();OwnDelayJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
+int main(){try{ListJourney();JoinJourney();CreateJourney();TemplateJourney();OwnDelayJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

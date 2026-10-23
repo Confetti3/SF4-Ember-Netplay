@@ -2882,6 +2882,39 @@ msgstr "Kamer bijwerken..."
 msgid "room.battle_slot"
 msgstr "MATCHTAFEL {0}"
 
+msgid "room.table_name"
+msgstr "Tafelnaam"
+
+msgid "room.table_name.detail"
+msgstr "Staat op de kaart van de tafel na het nummer, bijvoorbeeld Beginners. Leeg toont alleen het nummer."
+
+msgid "room.template"
+msgstr "Sjabloon"
+
+msgid "room.template.none"
+msgstr "Geen"
+
+msgid "room.template.detail"
+msgstr "Een kamer die je hebt opgeslagen. Het vult de rijen hieronder, en de regels en naam van elke tafel zodra de kamer open is. Links en Rechts kiezen."
+
+msgid "room.template.delete"
+msgstr "Sjabloon verwijderen"
+
+msgid "room.template.delete.detail"
+msgstr "Verwijdert het sjabloon {0} van deze pc."
+
+msgid "room.template.full"
+msgstr "Je hebt {0} sjablonen. Verwijder er eerst een bij Kamer maken."
+
+msgid "room.template.saved"
+msgstr "Opgeslagen als het sjabloon {0}."
+
+msgid "room.save_template"
+msgstr "Opslaan als sjabloon"
+
+msgid "room.save_template.detail"
+msgstr "Bewaart de instellingen van deze kamer, en de regels en naam van elke tafel, op deze pc voor Kamer maken > Sjabloon. Dezelfde naam overschrijft het."
+
 msgid "room.looking_for_fight"
 msgstr "Tegenstander zoeken"
 

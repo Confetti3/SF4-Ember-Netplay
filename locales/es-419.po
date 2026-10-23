@@ -2690,6 +2690,39 @@ msgstr "Abriendo sala de reemplazo. Copia la invitación y envía el enlace nuev
 msgid "room.action_rejected"
 msgstr "La sala cambió o rechazó esta acción. Revisa el estado actual e inténtalo de nuevo."
 
+msgid "room.table_name"
+msgstr "Nombre de la mesa"
+
+msgid "room.table_name.detail"
+msgstr "Se muestra en la tarjeta de la mesa después de su número, por ejemplo Principiantes. Vacío muestra solo el número."
+
+msgid "room.template"
+msgstr "Plantilla"
+
+msgid "room.template.none"
+msgstr "Ninguna"
+
+msgid "room.template.detail"
+msgstr "Una sala que guardaste. Ajusta las filas de abajo y, cuando la sala abre, las reglas y el nombre de cada mesa. Izquierda y Derecha eligen."
+
+msgid "room.template.delete"
+msgstr "Eliminar plantilla"
+
+msgid "room.template.delete.detail"
+msgstr "Elimina la plantilla {0} de esta PC."
+
+msgid "room.template.full"
+msgstr "Tienes {0} plantillas. Elimina una en Crear sala primero."
+
+msgid "room.template.saved"
+msgstr "Guardada como la plantilla {0}."
+
+msgid "room.save_template"
+msgstr "Guardar como plantilla"
+
+msgid "room.save_template.detail"
+msgstr "Guarda la configuración de esta sala, y las reglas y el nombre de cada mesa, en esta PC para Crear sala > Plantilla. El mismo nombre la reemplaza."
+
 msgid "room.leave_current_table"
 msgstr "Sal primero de tu mesa actual."
 msgid "room.choose_action"

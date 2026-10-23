@@ -113,9 +113,13 @@ enum class ActionKind : std::uint8_t {
 	// A member started (Action::typing) or stopped typing in chat. Shown to
 	// the others for TypingMs and nothing else.
 	Typing,
+	// The host names a table (Action::text; empty clears the name). It
+	// changes nothing else at the table, so it is taken during a game too.
+	// Appended so older authorities reject it as an unknown kind.
+	NameTable,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::Typing;
+constexpr ActionKind LastActionKind = ActionKind::NameTable;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -246,6 +250,8 @@ struct SetRecord {
 struct Table {
 	std::uint8_t id = 0;
 	Rules rules;
+	// The host's name for it; empty is none, and only the number shows.
+	std::string name;
 	TablePhase phase = TablePhase::Idle;
 	std::uint64_t revision = 0;
 	std::uint64_t matchGeneration = 0;

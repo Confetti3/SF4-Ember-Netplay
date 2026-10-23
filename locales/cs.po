@@ -2882,6 +2882,39 @@ msgstr "Úprava místnosti..."
 msgid "room.battle_slot"
 msgstr "BOJOVÝ STŮL {0}"
 
+msgid "room.table_name"
+msgstr "Název stolu"
+
+msgid "room.table_name.detail"
+msgstr "Zobrazí se na kartě stolu za číslem, třeba Začátečníci. Prázdné ukáže jen číslo."
+
+msgid "room.template"
+msgstr "Šablona"
+
+msgid "room.template.none"
+msgstr "Žádná"
+
+msgid "room.template.detail"
+msgstr "Uložená místnost. Nastaví řádky níže a po otevření místnosti pravidla a název každého stolu. Vlevo a Vpravo vybírají."
+
+msgid "room.template.delete"
+msgstr "Smazat šablonu"
+
+msgid "room.template.delete.detail"
+msgstr "Smaže šablonu {0} z tohoto PC."
+
+msgid "room.template.full"
+msgstr "Máš {0} šablon. Nejdřív jednu smaž v Vytvořit místnost."
+
+msgid "room.template.saved"
+msgstr "Uloženo jako šablona {0}."
+
+msgid "room.save_template"
+msgstr "Uložit jako šablonu"
+
+msgid "room.save_template.detail"
+msgstr "Uloží nastavení této místnosti a pravidla a název každého stolu na tomto PC pro Vytvořit místnost > Šablona. Stejný název ji přepíše."
+
 msgid "room.looking_for_fight"
 msgstr "Hledá se souboj"
 

@@ -6,6 +6,7 @@
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
+#include "../netplay/TableSetup.hxx"
 #include "../netplay/SessionController.hxx"
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/PlayerPreferences.hxx"
@@ -411,6 +412,12 @@ private:
     std::vector<MenuEntry> RoomSetupRows(const ShellView& view,const std::string& screen,bool opening,const char* reason,std::string& title);
     void CreateActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     bool CreateAdjust(const MenuAction& action);
+    // A saved template onto Create's rows, and the tables a room opened from
+    // Create gets with these rules (createTables_).
+    void ApplyRoomTemplate(int index);
+    netplay::TableSetup CreateTables(const room::Rules& rules) const;
+    // Room settings › Save as template: the room as it is now, under `name`.
+    void SaveRoomTemplate(const room::Snapshot& room,const std::string& name);
     // The Create screen, with Practice room off (createPractice_).
     void OpenCreate();
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
@@ -529,6 +536,10 @@ private:
     // Create's Practice room choice for the private room it opens. Never saved:
     // every visit to Create starts with it off.
     bool createPractice_ = false;
+    // The template Create was set from (-1 none), and its tables. Like the
+    // Practice room choice, every visit to Create starts without one.
+    int createTemplate_ = -1;
+    std::optional<netplay::TableSetup> createTables_;
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.

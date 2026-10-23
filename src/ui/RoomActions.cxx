@@ -144,6 +144,13 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  }
  if(a.id=="mute"){if(muted_.count(selectedMember_))muted_.erase(selectedMember_);else muted_.insert(selectedMember_);return;}
  if(a.id=="rename"){std::snprintf(roomName_,sizeof(roomName_),"%s",a.text.c_str());return;}
+ if(a.id=="save-template"){if(!a.text.empty())SaveRoomTemplate(v.room,a.text);return;}
+ if(a.id=="table-name"){
+  if(a.text==v.room.tables[selectedTable_].name)return;
+  Action request;request.table=static_cast<std::uint8_t>(selectedTable_);request.kind=ActionKind::NameTable;request.text=a.text;
+  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
+  return;
+ }
  if(a.id=="room-capacity"){roomCapacity_=(std::max)(2,(std::min)(16,roomCapacity_+a.delta));return;}
  if(AdjustRule(tableRules_,a)){rulesDirty_=!(tableRules_==v.room.tables[selectedTable_].rules);return;}
  Action request;request.table=static_cast<std::uint8_t>(selectedTable_);

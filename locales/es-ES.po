@@ -2883,6 +2883,39 @@ msgstr "Actualizando sala..."
 msgid "room.battle_slot"
 msgstr "MESA DE COMBATE {0}"
 
+msgid "room.table_name"
+msgstr "Nombre de la mesa"
+
+msgid "room.table_name.detail"
+msgstr "Se muestra en la tarjeta de la mesa tras su número, por ejemplo Principiantes. Vacío muestra solo el número."
+
+msgid "room.template"
+msgstr "Plantilla"
+
+msgid "room.template.none"
+msgstr "Ninguna"
+
+msgid "room.template.detail"
+msgstr "Una sala que guardaste. Ajusta las filas de abajo y, al abrir la sala, las reglas y el nombre de cada mesa. Izquierda y Derecha eligen."
+
+msgid "room.template.delete"
+msgstr "Borrar plantilla"
+
+msgid "room.template.delete.detail"
+msgstr "Borra la plantilla {0} de este PC."
+
+msgid "room.template.full"
+msgstr "Tienes {0} plantillas. Borra una en Crear sala primero."
+
+msgid "room.template.saved"
+msgstr "Guardada como la plantilla {0}."
+
+msgid "room.save_template"
+msgstr "Guardar como plantilla"
+
+msgid "room.save_template.detail"
+msgstr "Guarda los ajustes de esta sala, y las reglas y el nombre de cada mesa, en este PC para Crear sala > Plantilla. El mismo nombre la sobrescribe."
+
 msgid "room.looking_for_fight"
 msgstr "Buscando rival"
 

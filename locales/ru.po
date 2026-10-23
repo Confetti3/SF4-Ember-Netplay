@@ -2882,6 +2882,39 @@ msgstr "Обновление лобби..."
 msgid "room.battle_slot"
 msgstr "ЯЧЕЙКА БОЯ {0}"
 
+msgid "room.table_name"
+msgstr "Название стола"
+
+msgid "room.table_name.detail"
+msgstr "Показывается на карточке стола после номера, например «Новички». Пусто — только номер."
+
+msgid "room.template"
+msgstr "Шаблон"
+
+msgid "room.template.none"
+msgstr "Нет"
+
+msgid "room.template.detail"
+msgstr "Сохранённая комната. Задаёт строки ниже, а после открытия комнаты — правила и название каждого стола. Влево и вправо — выбор."
+
+msgid "room.template.delete"
+msgstr "Удалить шаблон"
+
+msgid "room.template.delete.detail"
+msgstr "Удаляет шаблон {0} с этого ПК."
+
+msgid "room.template.full"
+msgstr "У вас {0} шаблонов. Сначала удалите один в «Создать комнату»."
+
+msgid "room.template.saved"
+msgstr "Сохранено как шаблон {0}."
+
+msgid "room.save_template"
+msgstr "Сохранить как шаблон"
+
+msgid "room.save_template.detail"
+msgstr "Сохраняет настройки этой комнаты, а также правила и название каждого стола, на этом ПК для «Создать комнату > Шаблон». То же имя перезаписывает его."
+
 msgid "room.looking_for_fight"
 msgstr "Ищет бой"
 

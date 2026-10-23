@@ -451,11 +451,13 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
 		runtime->join = decision.effect != netplay::Effect::JoinInvite ? JoinKind::Private :
 			!command.publicTicket.empty() ? JoinKind::Public : command.join;
-		// Only the join of a public room just created carries rules for its tables.
-		if (runtime->join == JoinKind::Public && command.createdRules) {
+		// Only a room just created carries its tables: the join of a public one,
+		// or a private one hosted from a template.
+		if ((runtime->join == JoinKind::Public || decision.effect == netplay::Effect::HostRoom) && command.createdRules) {
 			runtime->createdRules.Start(*command.createdRules, GetTickCount64());
-			spdlog::info("Room: created room rules armed format={} rotation={}",
-				static_cast<int>(command.createdRules->format), static_cast<int>(command.createdRules->rotation));
+			spdlog::info("Room: created room tables armed format={} rotation={} named={}",
+				static_cast<int>(command.createdRules->rules[0].format), static_cast<int>(command.createdRules->rules[0].rotation),
+				std::count_if(command.createdRules->names.begin(), command.createdRules->names.end(), [](const std::string& name) { return !name.empty(); }));
 		} else runtime->createdRules.Cancel("other_room");
 		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
 			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->join == JoinKind::Observer) :

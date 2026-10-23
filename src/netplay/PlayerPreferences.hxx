@@ -9,6 +9,7 @@
 #include "../common/InputDelay.hxx"
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
+#include "TableSetup.hxx"
 
 namespace sf4e { namespace netplay {
 
@@ -32,6 +33,28 @@ constexpr int MinRoomSideWidth = 35;
 constexpr int MaxRoomSideWidth = 60;
 constexpr int MinRoomMemberShare = 20;
 constexpr int MaxRoomMemberShare = 80;
+
+// A room saved to open again (Create › Template, Room settings › Save as
+// template): the room's own settings and each table's rules and name.
+struct RoomTemplate {
+    std::string name;
+    std::string roomName = "Private room";
+    int capacity = 16;
+    bool isPublic = false, practice = false;
+    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
+    TableSetup tables;
+    bool Valid() const {
+        if (name.empty() || name.size() > 32 || roomName.empty() || roomName.size() > 64 || capacity < 2 || capacity > static_cast<int>(room::MaxMembers) ||
+            (isPublic && practice) || !tables.Valid()) return false;
+        for (unsigned char c : name + roomName) if (c < 32 || c == 127) return false;
+        return true;
+    }
+    bool operator==(const RoomTemplate& rhs) const {
+        return name == rhs.name && roomName == rhs.roomName && capacity == rhs.capacity && isPublic == rhs.isPublic &&
+            practice == rhs.practice && delayPolicy == rhs.delayPolicy && tables == rhs.tables;
+    }
+};
+constexpr std::size_t MaxRoomTemplates = 12;
 
 struct PlayerPreferences {
     std::string displayName = "Player";
@@ -143,7 +166,9 @@ struct PlayerPreferences {
     // The rules a public room is created with. Its tables open at the public
     // default; the creator, once in as host, sets these.
     room::Rules publicTableRules = room::PublicRoomRules();
+    std::vector<RoomTemplate> roomTemplates;
     bool Valid() const {
+        if (roomTemplates.size() > MaxRoomTemplates || !std::all_of(roomTemplates.begin(), roomTemplates.end(), [](const RoomTemplate& saved) { return saved.Valid(); })) return false;
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidBoundButtons(layout.bound) && gamepads::ValidExtraCopies(layout.extras); })) return false;
         if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
             matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || roomSideWidth < MinRoomSideWidth || roomSideWidth > MaxRoomSideWidth ||

@@ -2882,6 +2882,39 @@ msgstr "Mise à jour..."
 msgid "room.battle_slot"
 msgstr "TABLE DE COMBAT {0}"
 
+msgid "room.table_name"
+msgstr "Nom de la table"
+
+msgid "room.table_name.detail"
+msgstr "Affiché sur la carte de la table après son numéro, par exemple Débutants. Vide n'affiche que le numéro."
+
+msgid "room.template"
+msgstr "Modèle"
+
+msgid "room.template.none"
+msgstr "Aucun"
+
+msgid "room.template.detail"
+msgstr "Un salon que vous avez enregistré. Il règle les lignes ci-dessous, puis les règles et le nom de chaque table une fois le salon ouvert. Gauche et Droite choisissent."
+
+msgid "room.template.delete"
+msgstr "Supprimer le modèle"
+
+msgid "room.template.delete.detail"
+msgstr "Supprime le modèle {0} de ce PC."
+
+msgid "room.template.full"
+msgstr "Vous avez {0} modèles. Supprimez-en un dans Créer un salon d'abord."
+
+msgid "room.template.saved"
+msgstr "Enregistré comme modèle {0}."
+
+msgid "room.save_template"
+msgstr "Enregistrer comme modèle"
+
+msgid "room.save_template.detail"
+msgstr "Garde les réglages de ce salon, ainsi que les règles et le nom de chaque table, sur ce PC pour Créer un salon > Modèle. Le même nom le remplace."
+
 msgid "room.looking_for_fight"
 msgstr "En quête d'un combat"
 

@@ -139,7 +139,7 @@ struct Room {
     std::uint64_t discordRevision = 0;
     netplay::PlayerPreferences preferences;
     std::string publicTicket;
-    std::optional<room::Rules> createdRules;
+    std::optional<netplay::TableSetup> createdRules;
     JoinKind join = JoinKind::Private;
     bool practiceRoom = false;
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;

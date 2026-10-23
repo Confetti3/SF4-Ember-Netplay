@@ -1,16 +1,16 @@
 #pragma once
 
 #include "../session/RoomModel.hxx"
+#include "TableSetup.hxx"
 
 #include <array>
 #include <cstdint>
 
 namespace sf4e { namespace netplay {
 
-// The table rules chosen when creating a public room. The service opens the
-// room at the public default; once the creator is in it as its host, the
-// runtime sets the chosen rules on each table with SetRules, whether or not
-// Ember is on screen.
+// The tables chosen when creating a room. Once the creator is in it as its
+// host, the runtime sets each table's rules with SetRules and its name with
+// NameTable, whether or not Ember is on screen.
 //
 // One table at a time: the next is sent only once the committed room shows
 // the last with the chosen rules, so a fenced room control parks one action,
@@ -21,8 +21,8 @@ namespace sf4e { namespace netplay {
 // A table that shows the chosen rules is done for good. The operation ends
 // when every table is done, after DeadlineMs in the room, when the room, the
 // member or the host changes, and when the host edits any table's rules by
-// hand (a SetRules of their own, or a table that shows other rules than it
-// had or was given): whatever is left is theirs.
+// hand (a SetRules or NameTable of their own, or a table that shows other
+// rules than it had or was given): whatever is left is theirs.
 class CreatedRules {
 public:
     // How long the room may take to admit the creator after the create.
@@ -32,21 +32,21 @@ public:
     // A SetRules with no answer by then is sent again.
     static constexpr std::uint64_t RetryMs = 1500;
 
-    void Start(const room::Rules& rules, std::uint64_t nowMs) {
+    void Start(const TableSetup& setup, std::uint64_t nowMs) {
         *this = CreatedRules();
-        active_ = true; rules_ = rules; armedAtMs_ = nowMs;
+        active_ = true; setup_ = setup; armedAtMs_ = nowMs;
     }
     void Cancel(const char* why) { if (active_) { active_ = false; ended_ = why; } }
     bool Active() const { return active_; }
     // Why the last operation ended: "done", "deadline", "edited" and so on.
     const char* Ended() const { return ended_; }
-    const room::Rules& Rules() const { return rules_; }
-    // A room action the player sent: their own SetRules ends the operation.
+    const TableSetup& Setup() const { return setup_; }
+    // A room action the player sent: their own SetRules or NameTable ends the operation.
     void ObservePlayer(const room::Action& action) {
-        if (action.kind == room::ActionKind::SetRules) Cancel("edited");
+        if (action.kind == room::ActionKind::SetRules || action.kind == room::ActionKind::NameTable) Cancel("edited");
     }
     // The committed room as this member sees it. True, with `action` filled
-    // in, when a table's rules are to be sent now; `canSend` says the room
+    // in, when a table's rules or name are to be sent now; `canSend` says the room
     // control can take an action. Sent() records it once it is queued.
     bool Next(const room::Snapshot& room, bool canSend, std::uint64_t nowMs, room::Action& action) {
         if (!active_) return false;
@@ -56,7 +56,7 @@ public:
                 return false;
             }
             // Some other room, or someone else got in first and moderates it.
-            if (!room.serverOwned || room.host != room.localMember) { Cancel("not_host"); return false; }
+            if (room.host != room.localMember) { Cancel("not_host"); return false; }
             roomEpoch_ = room.roomEpoch; host_ = room.localMember; deadlineMs_ = nowMs + DeadlineMs;
             for (const auto& table : room.tables) before_[table.id] = table.rules;
         }
@@ -65,12 +65,14 @@ public:
         int next = -1;
         for (const auto& table : room.tables) {
             auto& done = confirmed_[table.id];
+            const bool set = table.rules == setup_.rules[table.id] && table.name == setup_.names[table.id];
             if (done) {
-                if (!(table.rules == rules_)) { Cancel("edited"); return false; }
+                if (!set) { Cancel("edited"); return false; }
                 continue;
             }
-            if (table.rules == rules_) { done = true; continue; }
-            if (!(table.rules == before_[table.id])) { Cancel("edited"); return false; }
+            if (set) { done = true; continue; }
+            // Rules are set first, then the name; rules that moved anywhere else are the host's.
+            if (!(table.rules == before_[table.id]) && !(table.rules == setup_.rules[table.id])) { Cancel("edited"); return false; }
             if (next < 0) next = table.id;
         }
         if (next < 0) { Cancel("done"); return false; }
@@ -82,12 +84,14 @@ public:
         if (!canSend) return false;
         const auto& table = room.tables[next];
         action = room::Action();
-        action.kind = room::ActionKind::SetRules;
+        const bool rules = !(table.rules == setup_.rules[table.id]);
+        action.kind = rules ? room::ActionKind::SetRules : room::ActionKind::NameTable;
         action.roomEpoch = room.roomEpoch;
         action.revision = room.revision;
         action.table = table.id;
         action.tableRevision = table.revision;
-        action.rules = rules_;
+        if (rules) action.rules = setup_.rules[table.id];
+        else action.text = setup_.names[table.id];
         return true;
     }
     void Sent(const room::Action& action, std::uint64_t nowMs) {
@@ -98,7 +102,7 @@ public:
 private:
     bool active_ = false;
     const char* ended_ = "";
-    room::Rules rules_;
+    TableSetup setup_;
     std::uint64_t armedAtMs_ = 0;
     // Set at the creator's first sight of the room as its host.
     std::uint64_t roomEpoch_ = 0;

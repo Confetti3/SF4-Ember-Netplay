@@ -2883,6 +2883,39 @@ msgstr "正在更新房间..."
 msgid "room.battle_slot"
 msgstr "对战位 {0}"
 
+msgid "room.table_name"
+msgstr "桌名"
+
+msgid "room.table_name.detail"
+msgstr "显示在桌子卡片的编号后面，例如“新手”。留空只显示编号。"
+
+msgid "room.template"
+msgstr "模板"
+
+msgid "room.template.none"
+msgstr "无"
+
+msgid "room.template.detail"
+msgstr "你保存的房间。它会设置下面各项，并在房间打开后设置每张桌子的规则和名称。左右键选择。"
+
+msgid "room.template.delete"
+msgstr "删除模板"
+
+msgid "room.template.delete.detail"
+msgstr "从这台电脑删除模板 {0}。"
+
+msgid "room.template.full"
+msgstr "你已有 {0} 个模板。请先在“创建房间”中删除一个。"
+
+msgid "room.template.saved"
+msgstr "已保存为模板 {0}。"
+
+msgid "room.save_template"
+msgstr "另存为模板"
+
+msgid "room.save_template.detail"
+msgstr "将此房间的设置以及每张桌子的规则和名称保存在这台电脑上，供“创建房间 > 模板”使用。同名会覆盖。"
+
 msgid "room.looking_for_fight"
 msgstr "寻找对手"
 

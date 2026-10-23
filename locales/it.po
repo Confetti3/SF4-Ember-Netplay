@@ -2882,6 +2882,39 @@ msgstr "Aggiornamento sala..."
 msgid "room.battle_slot"
 msgstr "TAVOLO PARTITA {0}"
 
+msgid "room.table_name"
+msgstr "Nome del tavolo"
+
+msgid "room.table_name.detail"
+msgstr "Appare sulla scheda del tavolo dopo il numero, ad esempio Principianti. Vuoto mostra solo il numero."
+
+msgid "room.template"
+msgstr "Modello"
+
+msgid "room.template.none"
+msgstr "Nessuno"
+
+msgid "room.template.detail"
+msgstr "Una stanza che hai salvato. Imposta le righe qui sotto e, aperta la stanza, le regole e il nome di ogni tavolo. Sinistra e Destra scelgono."
+
+msgid "room.template.delete"
+msgstr "Elimina modello"
+
+msgid "room.template.delete.detail"
+msgstr "Elimina il modello {0} da questo PC."
+
+msgid "room.template.full"
+msgstr "Hai {0} modelli. Eliminane prima uno in Crea stanza."
+
+msgid "room.template.saved"
+msgstr "Salvato come modello {0}."
+
+msgid "room.save_template"
+msgstr "Salva come modello"
+
+msgid "room.save_template.detail"
+msgstr "Conserva le impostazioni di questa stanza, e le regole e il nome di ogni tavolo, su questo PC per Crea stanza > Modello. Lo stesso nome lo sovrascrive."
+
 msgid "room.looking_for_fight"
 msgstr "Cerca una partita"
 

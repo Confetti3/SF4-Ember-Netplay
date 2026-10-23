@@ -9,6 +9,7 @@
 #include "../common/StageCatalog.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
+#include "../netplay/TableSetup.hxx"
 #include "../common/ControllerRequest.hxx"
 #include "../common/ControllerView.hxx"
 
@@ -136,8 +137,9 @@ namespace sf4e {
             // With JoinInvite: Observer for a tournament match's watcher, which the room admits only when it
             // names it. Public is never set here: a public room's join is the one with a publicTicket.
             JoinKind join = JoinKind::Private;
-            // With the JoinInvite of a public room just created: the table rules chosen on Create.
-            std::optional<room::Rules> createdRules;
+            // With HostRoom, or the JoinInvite of a public room just created: each table's
+            // rules and name chosen on Create.
+            std::optional<netplay::TableSetup> createdRules;
             // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
             bool practiceRoom = false;
             // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).

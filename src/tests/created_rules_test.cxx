@@ -31,7 +31,7 @@ struct Room {
 	Room() {
 		EXPECT(authority.SetServerOwned());
 		creator = Join("emb1-creator", 1);
-		rules.Start(Chosen(), now);
+		rules.Start(netplay::TableSetup::Same(Chosen()), now);
 	}
 	room::MemberId Join(const char* account, int peer) {
 		room::MemberProfile profile;
@@ -143,7 +143,7 @@ static void TestDeadlineAndHostChange() {
 		EXPECT(authority.Join("First", room::ConnectionRef{"host", "1"}, false, first).accepted);
 		const auto joined = authority.Join("Creator", room::ConnectionRef{"host", "2"}, false, second);
 		CreatedRules rules;
-		rules.Start(Chosen(), 0);
+		rules.Start(netplay::TableSetup::Same(Chosen()), 0);
 		room::Action action;
 		EXPECT(!rules.Next(authority.SnapshotFor(joined.snapshot.members.back().id), true, 0, action));
 		EXPECT(!rules.Active() && std::string(rules.Ended()) == "not_host");
@@ -151,7 +151,7 @@ static void TestDeadlineAndHostChange() {
 	{
 		// Never admitted: it does not wait for ever.
 		CreatedRules rules;
-		rules.Start(Chosen(), 0);
+		rules.Start(netplay::TableSetup::Same(Chosen()), 0);
 		room::Action action;
 		EXPECT(!rules.Next(room::Snapshot(), true, CreatedRules::JoinMs - 1, action) && rules.Active());
 		EXPECT(!rules.Next(room::Snapshot(), true, CreatedRules::JoinMs, action) && !rules.Active());
@@ -193,13 +193,42 @@ static void TestConfirmedTablesStayDone() {
 	{
 		// Rules equal to the default need nothing sent.
 		Room room;
-		room.rules.Start(room::PublicRoomRules(), room.now);
+		room.rules.Start(netplay::TableSetup::Same(room::PublicRoomRules()), room.now);
 		EXPECT(room.Run(1000).empty() && std::string(room.rules.Ended()) == "done");
 	}
 }
 
+// A template sets each table apart, its name sent once its rules show.
+static void TestEachTableAndItsName() {
+	auto setup = netplay::TableSetup::Same(Chosen());
+	setup.rules[2].format = room::SetFormat::Ft5;
+	setup.names[0] = "Beginners"; setup.names[2] = "FT5";
+	Room room;
+	room.rules.Start(setup, room.now);
+	int names = 0;
+	for (int step = 0; step < 8 && room.rules.Active(); ++step) {
+		const auto sent = room.Run(500);
+		CHECK(sent.size() <= 1);
+		if (sent.empty()) continue;
+		names += sent.front().kind == room::ActionKind::NameTable;
+		// A name follows its own table's rules, before the next table starts.
+		if (sent.front().kind == room::ActionKind::NameTable) CHECK(room.Table(sent.front().table).rules == setup.rules[sent.front().table]);
+		CHECK(room.Apply(sent.front()));
+	}
+	room.Run(100);
+	CHECK(names == 2 && std::string(room.rules.Ended()) == "done");
+	for (int i = 0; i < static_cast<int>(room::TableCount); ++i) CHECK(room.Table(i).rules == setup.rules[i] && room.Table(i).name == setup.names[i]);
+	// The host naming a table by hand ends it, as their own rules do.
+	Room renamed;
+	renamed.rules.Start(setup, renamed.now);
+	CHECK(renamed.Run(100).size() == 1);
+	renamed.rules.ObservePlayer(renamed.Made(renamed.creator, 1, room::ActionKind::NameTable));
+	CHECK(!renamed.rules.Active() && std::string(renamed.rules.Ended()) == "edited");
+}
+
 int main() {
 	TestOneTableAtATime();
+	TestEachTableAndItsName();
 	TestStaleAndFenced();
 	TestDeadlineAndHostChange();
 	TestConfirmedTablesStayDone();

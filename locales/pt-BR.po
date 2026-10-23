@@ -2690,6 +2690,39 @@ msgstr "Abrindo sala substituta. Copie o convite e envie o novo link. O antigo n
 msgid "room.action_rejected"
 msgstr "A sala mudou ou rejeitou esta ação. Revise o estado atual e tente novamente."
 
+msgid "room.table_name"
+msgstr "Nome da mesa"
+
+msgid "room.table_name.detail"
+msgstr "Aparece no cartão da mesa depois do número, por exemplo Iniciantes. Vazio mostra só o número."
+
+msgid "room.template"
+msgstr "Modelo"
+
+msgid "room.template.none"
+msgstr "Nenhum"
+
+msgid "room.template.detail"
+msgstr "Uma sala que você salvou. Ajusta as linhas abaixo e, quando a sala abre, as regras e o nome de cada mesa. Esquerda e Direita escolhem."
+
+msgid "room.template.delete"
+msgstr "Excluir modelo"
+
+msgid "room.template.delete.detail"
+msgstr "Exclui o modelo {0} deste PC."
+
+msgid "room.template.full"
+msgstr "Você tem {0} modelos. Exclua um em Criar sala primeiro."
+
+msgid "room.template.saved"
+msgstr "Salvo como o modelo {0}."
+
+msgid "room.save_template"
+msgstr "Salvar como modelo"
+
+msgid "room.save_template.detail"
+msgstr "Guarda as configurações desta sala, e as regras e o nome de cada mesa, neste PC para Criar sala > Modelo. O mesmo nome o substitui."
+
 msgid "room.leave_current_table"
 msgstr "Saia da mesa atual primeiro."
 msgid "room.choose_action"

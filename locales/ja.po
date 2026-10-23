@@ -2883,6 +2883,39 @@ msgstr "ルームを更新中..."
 msgid "room.battle_slot"
 msgstr "対戦席{0}"
 
+msgid "room.table_name"
+msgstr "テーブル名"
+
+msgid "room.table_name.detail"
+msgstr "テーブルのカードで番号の後に表示されます（例：初心者）。空欄なら番号だけです。"
+
+msgid "room.template"
+msgstr "テンプレート"
+
+msgid "room.template.none"
+msgstr "なし"
+
+msgid "room.template.detail"
+msgstr "保存したルームです。下の項目を設定し、ルームが開いたら各テーブルのルールと名前も設定します。左右で選びます。"
+
+msgid "room.template.delete"
+msgstr "テンプレートを削除"
+
+msgid "room.template.delete.detail"
+msgstr "テンプレート{0}をこのPCから削除します。"
+
+msgid "room.template.full"
+msgstr "テンプレートは{0}個までです。先にルーム作成で1つ削除してください。"
+
+msgid "room.template.saved"
+msgstr "テンプレート{0}として保存しました。"
+
+msgid "room.save_template"
+msgstr "テンプレートとして保存"
+
+msgid "room.save_template.detail"
+msgstr "このルームの設定と各テーブルのルール・名前を、ルーム作成 > テンプレート用にこのPCに保存します。同じ名前なら上書きします。"
+
 msgid "room.looking_for_fight"
 msgstr "対戦相手を募集中"
 

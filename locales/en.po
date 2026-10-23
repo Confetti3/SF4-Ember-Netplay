@@ -2805,6 +2805,39 @@ msgstr "Replacement room opening. Choose Copy invitation and send the new link. 
 msgid "room.action_rejected"
 msgstr "The room changed or rejected this action. Review the current state and try again."
 
+msgid "room.table_name"
+msgstr "Table name"
+
+msgid "room.table_name.detail"
+msgstr "Shown on the table's card after its number, such as Beginners. Empty shows only the number."
+
+msgid "room.template"
+msgstr "Template"
+
+msgid "room.template.none"
+msgstr "None"
+
+msgid "room.template.detail"
+msgstr "A room you saved. It sets the rows below, and each table's rules and name once the room is open. Left and Right choose."
+
+msgid "room.template.delete"
+msgstr "Delete template"
+
+msgid "room.template.delete.detail"
+msgstr "Deletes the template {0} from this PC."
+
+msgid "room.template.full"
+msgstr "You have {0} templates. Delete one on Create room first."
+
+msgid "room.template.saved"
+msgstr "Saved as the template {0}."
+
+msgid "room.save_template"
+msgstr "Save as template"
+
+msgid "room.save_template.detail"
+msgstr "Keeps this room's settings, and each table's rules and name, on this PC for Create room > Template. The same name saves over it."
+
 msgid "room.leave_current_table"
 msgstr "Leave your current table first."
 msgid "room.choose_action"

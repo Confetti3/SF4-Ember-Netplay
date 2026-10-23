@@ -2882,6 +2882,39 @@ msgstr "Aktualizacja pokoju..."
 msgid "room.battle_slot"
 msgstr "STÓŁ WALKI {0}"
 
+msgid "room.table_name"
+msgstr "Nazwa stołu"
+
+msgid "room.table_name.detail"
+msgstr "Widoczna na karcie stołu po numerze, np. Początkujący. Puste pokazuje tylko numer."
+
+msgid "room.template"
+msgstr "Szablon"
+
+msgid "room.template.none"
+msgstr "Brak"
+
+msgid "room.template.detail"
+msgstr "Zapisany pokój. Ustawia wiersze poniżej, a po otwarciu pokoju zasady i nazwę każdego stołu. Lewo i Prawo wybierają."
+
+msgid "room.template.delete"
+msgstr "Usuń szablon"
+
+msgid "room.template.delete.detail"
+msgstr "Usuwa szablon {0} z tego komputera."
+
+msgid "room.template.full"
+msgstr "Masz {0} szablonów. Najpierw usuń jeden w Utwórz pokój."
+
+msgid "room.template.saved"
+msgstr "Zapisano jako szablon {0}."
+
+msgid "room.save_template"
+msgstr "Zapisz jako szablon"
+
+msgid "room.save_template.detail"
+msgstr "Zachowuje ustawienia tego pokoju oraz zasady i nazwę każdego stołu na tym komputerze dla Utwórz pokój > Szablon. Ta sama nazwa go nadpisuje."
+
 msgid "room.looking_for_fight"
 msgstr "Szukam walki"
 
