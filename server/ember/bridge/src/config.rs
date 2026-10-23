@@ -287,9 +287,10 @@ pub struct Policy {
     /// (`matches.ends_by`). None when only `match_expiry_hours` applies.
     /// BluMint's is `BLUMINT_MATCH_LIFETIME_SECS`.
     pub max_lifetime_secs: Option<u64>,
-    /// The platform fixes who may watch its matches (BluMint), so its
-    /// organizer's watch settings are read-only: the routes that change them
-    /// refuse (`routes::play::watch`).
+    /// The platform fixes who may watch its matches (BluMint): anyone holding
+    /// a match link, within the link-holder cap. Its organizer's watch
+    /// settings are read-only: the routes that change them refuse
+    /// (`routes::play::watch`).
     pub fixed_watchers: bool,
 }
 

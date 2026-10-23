@@ -110,8 +110,9 @@ bridge's `/.well-known/ember-bridge.json`, such as
 
 **Data use.** Ember uses and keeps the IDs BluMint sends, and the Ember IDs
 its lookup returns, only to put those players into matches in BluMint's
-events, to report those matches to BluMint, and to let the event staff who
-chose to watch do so. It shares them with no one else and keeps them secure.
+events, and to report those matches to BluMint. It shares them with no one
+else and keeps them secure. A watcher in a match's room sees its players'
+names there, as in any Ember room.
 
 ## Match creation
 
@@ -379,8 +380,12 @@ so BluMint never receives a second, different result for a match.
   staging is registered on the staging bridge.
 - **Tested on real hardware.** Automated tests cover tournament play, but a
   two-PC match on real hardware has not been done yet.
-- **Watching.** `spectators` is sent and not read yet; the listed staff
-  cannot watch a match through Ember.
+- **Watching.** Anyone with an Ember ID who holds a match's `matchUrl` and
+  runs the players' Ember build can watch it from inside its room, up to 2
+  watchers a match. Watchers cannot play or chat. `spectators` is sent and
+  not read yet, so the listed staff get no reserved place.
+  A watcher joins the players' room, so it can learn their public IP
+  addresses when Ember finds a direct path, as any room member can.
 - **Forfeits.** Ember sends no `termination` report, because it has no
   concede action. A player who quits is not reported as a forfeit; the match
   ends as an abort, and BluMint's own hold decides what happens to a player

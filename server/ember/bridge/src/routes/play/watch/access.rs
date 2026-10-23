@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashSet};
 use ember_protocol::EmberId;
 use rusqlite::{Transaction, params};
 
-use crate::error::Result;
+use crate::{error::Result, routes::policy};
 
 /// Where an Ember ID stands for one match. Staff sort before link holders,
 /// which is the order places are given in.
@@ -30,7 +30,8 @@ impl Admission {
 }
 
 /// What the organizer set for a connection: whether anyone holding a match
-/// link may watch, and who is always approved.
+/// link may watch, and who is always approved. A platform that fixes its
+/// watchers (BluMint) is always open to link holders.
 pub struct ConnectionWatch {
     pub link_holders: bool,
     /// Staff by Ember ID, with when each was added.
@@ -39,12 +40,13 @@ pub struct ConnectionWatch {
 
 impl ConnectionWatch {
     pub fn load(tx: &Transaction<'_>, connection_id: &str) -> Result<Self> {
+        let set: bool = tx.query_row(
+            "SELECT watch_link_holders FROM provider_connections WHERE id = ?1",
+            [connection_id],
+            |row| row.get(0),
+        )?;
         Ok(Self {
-            link_holders: tx.query_row(
-                "SELECT watch_link_holders FROM provider_connections WHERE id = ?1",
-                [connection_id],
-                |row| row.get(0),
-            )?,
+            link_holders: set || policy::of(tx, connection_id)?.fixed_watchers,
             staff: tx
                 .prepare(
                     "SELECT ember_id, added_at FROM connection_watch_staff WHERE connection_id = ?1",

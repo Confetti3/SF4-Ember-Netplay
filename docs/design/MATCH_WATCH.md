@@ -467,9 +467,12 @@ a per-match revocation. Nothing else.
 - Anyone else gets `not_found`.
 
 **BluMint.** Writes for a `blumint` connection (`bridge/src/config.rs`,
-`Connection::is_blumint`) answer `403 forbidden`, with reason
-`connection_fixed`, in phase 1. That guarantees no BluMint behaviour change,
-whoever holds that tenant's organizer credential (§12 Q5).
+`Policy::fixed_watchers`) answer `403 forbidden`, with reason
+`connection_fixed`, whoever holds that tenant's organizer credential (§12 Q5).
+Phase 1 kept BluMint closed to watchers. Since 2026-10-22 a BluMint
+connection is always open to link holders (`ConnectionWatch::load`), with no
+staff and no denials, so anyone holding the `matchUrl` may watch within the
+link-holder cap.
 
 **Audit.** Every write is audited in its transaction (`bridge/src/audit.rs:7-22`).
 The actions are `watch.link_holders.set`, `watch.staff.add`,
@@ -1705,8 +1708,9 @@ Settled on 2026-10-19:
    setting, in INTEGRATIONS.md and in the organizer guide.
 3. **Watcher chat:** none in phase 1. Watchers read the fighters' chat.
 4. **The watch link:** the existing `/m` match link, with no new link form.
-5. **BluMint:** connections stay closed to watchers in phase 1, and
-   `spectators` stays ignored.
+5. **BluMint:** connections stayed closed to watchers in phase 1; since
+   2026-10-22 they are open to link holders (§3.4). `spectators` stays
+   ignored.
 6. **Endpoint ties (for the design owner):** the later arrival wins between
    equals (§4.2 step 3), which stops two watchers swapping an endpoint on
    every poll. It lets an allowed link holder take another's endpoint and keep

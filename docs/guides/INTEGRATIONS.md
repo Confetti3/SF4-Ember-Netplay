@@ -249,9 +249,10 @@ connection that does nothing changes nothing:
 - At most 6 watchers watch one match, staff included. A staff watcher can take
   the place of a link holder when the match is full.
 
-BluMint's connections cannot be opened to watchers: every write below answers
-`403 forbidden` with `details.reason` `connection_fixed`, and `spectators` in
-BluMint's create request stays ignored.
+BluMint's connections are always open to link holders, up to 2 a match, and
+have no staff or denials: every write below answers `403 forbidden` with
+`details.reason` `connection_fixed`, the read reports `link_holders` as
+`true`, and `spectators` in BluMint's create request stays ignored.
 
 **Address exposure.** A watcher joins the players' room, and the members of a
 room can learn each other's public IP addresses when Iroh finds a direct path.
