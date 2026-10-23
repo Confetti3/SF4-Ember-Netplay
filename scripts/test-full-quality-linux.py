@@ -43,6 +43,7 @@ add("posix-helper", ["bash", str(source / "server/roomhost/test-linux.sh"), str(
 add("room-host-build", ["bash", str(source / "server/roomhost/build-linux.sh"), str(source), str(output / "sf4e-room-host")])
 add("rooms-deployment-mocks", ["bash", "test-setup.sh"], source / "server/ember-rooms/deploy")
 add("reports-deployment-mocks", ["python3", "tests/deploy_setup.py"], source / "server/ember-reports")
+add("steamdeck-config", ["python3", str(source / "scripts/steamdeck/test_steam_config.py")])
 files = subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=source, text=True).splitlines()
 for name in sorted(set(files)):
     if name.endswith(".sh"):
