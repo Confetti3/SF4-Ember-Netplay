@@ -1096,6 +1096,21 @@ msgstr "Input delay"
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 
+msgid "settings.auto_delay_style"
+msgstr "Auto style"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "How Auto uses the connection check. Balanced: 1 to 3 frames. Responsive: one frame less, 0 to 2, more rollback. Smooth: one frame more, 1 to 4, less rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Balanced"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Responsive"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Smooth"
+
 msgid "room.name"
 msgstr "Room name"
 

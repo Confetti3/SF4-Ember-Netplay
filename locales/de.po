@@ -1096,6 +1096,21 @@ msgstr "Eingabeverzögerung"
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 
+msgid "settings.auto_delay_style"
+msgstr "Auto-Stil"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Wie Auto den Verbindungstest nutzt. Ausgewogen: 1 bis 3 Frames. Direkt: ein Frame weniger, 0 bis 2, mehr Rollback. Flüssig: ein Frame mehr, 1 bis 4, weniger Rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Ausgewogen"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Direkt"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Flüssig"
+
 msgid "room.name"
 msgstr "Raumname"
 

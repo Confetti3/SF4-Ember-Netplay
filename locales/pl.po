@@ -1096,6 +1096,21 @@ msgstr "Opóźnienie"
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 
+msgid "settings.auto_delay_style"
+msgstr "Styl Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Jak Auto korzysta z testu połączenia. Zrównoważony: od 1 do 3 klatek. Responsywny: klatka mniej, od 0 do 2, więcej rollbacku. Płynny: klatka więcej, od 1 do 4, mniej rollbacku."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Zrównoważony"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Responsywny"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Płynny"
+
 msgid "room.name"
 msgstr "Nazwa pokoju"
 

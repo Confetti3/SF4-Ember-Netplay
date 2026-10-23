@@ -1096,6 +1096,21 @@ msgstr "Latence d'entrée"
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 
+msgid "settings.auto_delay_style"
+msgstr "Style Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Comment Auto utilise le test de connexion. Équilibré : 1 à 3 frames. Réactif : une frame de moins, 0 à 2, plus de rollback. Fluide : une frame de plus, 1 à 4, moins de rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Équilibré"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Réactif"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Fluide"
+
 msgid "room.name"
 msgstr "Nom du salon"
 

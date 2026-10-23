@@ -1096,6 +1096,21 @@ msgstr "输入延迟"
 msgid "settings.input_delay.auto"
 msgstr "自动"
 
+msgid "settings.auto_delay_style"
+msgstr "Auto 风格"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Auto 如何使用连接检测。均衡：1 到 3 帧。灵敏：少一帧，0 到 2，回滚更多。流畅：多一帧，1 到 4，回滚更少。"
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "均衡"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "灵敏"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "流畅"
+
 msgid "room.name"
 msgstr "房间名称"
 

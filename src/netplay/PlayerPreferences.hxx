@@ -64,6 +64,8 @@ struct PlayerPreferences {
     // Auto readies with the connection check's delay (AutoInputDelay) instead of
     // inputDelay. It is on until the player chooses a number.
     bool autoInputDelay = true;
+    // How Auto uses the recommendation (AutoDelayStyle), Balanced unless chosen.
+    int autoDelayStyle = 0;
     // On by default so a stall or rollback spike is visible, but Small: the standard strip drew the eye mid-fight.
     bool showMatchHud = true;
     int matchHudSize = 0;
@@ -170,7 +172,7 @@ struct PlayerPreferences {
     bool Valid() const {
         if (roomTemplates.size() > MaxRoomTemplates || !std::all_of(roomTemplates.begin(), roomTemplates.end(), [](const RoomTemplate& saved) { return saved.Valid(); })) return false;
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidBoundButtons(layout.bound) && gamepads::ValidExtraCopies(layout.extras); })) return false;
-        if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
+        if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay || autoDelayStyle < 0 || autoDelayStyle >= AutoDelayStyles ||
             matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || roomSideWidth < MinRoomSideWidth || roomSideWidth > MaxRoomSideWidth ||
             roomMemberShare < MinRoomMemberShare || roomMemberShare > MaxRoomMemberShare || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;

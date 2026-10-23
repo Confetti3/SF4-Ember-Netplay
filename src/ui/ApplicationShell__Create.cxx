@@ -31,8 +31,11 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
   if(chosen){rows.push_back(ConfirmRow("delete-template",loc::T("room.template.delete"),loc::Tf("room.template.delete.detail",templates[createTemplate_].name),can));rows.back().detailText=DetailText::Name;}
  }
  if(screen=="defaults")rows.push_back(preferences_.autoInputDelay?Value("delay",loc::T("settings.input_delay"),loc::T("settings.input_delay.auto"),
-  loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum)+"\n"+reason,can):
+  AutoDelayDetail(preferences_.autoDelayStyle)+"\n"+reason,can):
   Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),loc::Tf("room.selected_delay.detail",MinimumInputDelay,MaximumInputDelay)+"\n"+reason,can));
+ // Auto's style, under the delay row while Auto is chosen.
+ if(screen=="defaults"&&preferences_.autoInputDelay)
+  rows.push_back(Value("auto-style",loc::T("settings.auto_delay_style"),AutoDelayStyleName(preferences_.autoDelayStyle),loc::T("settings.auto_delay_style.detail"),can));
  if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
  rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));

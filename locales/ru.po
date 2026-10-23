@@ -1096,6 +1096,21 @@ msgstr "Задержка ввода"
 msgid "settings.input_delay.auto"
 msgstr "Авто"
 
+msgid "settings.auto_delay_style"
+msgstr "Стиль Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Как Auto использует проверку соединения. Сбалансированный: от 1 до 3 кадров. Отзывчивый: на кадр меньше, от 0 до 2, больше откатов. Плавный: на кадр больше, от 1 до 4, меньше откатов."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Сбалансированный"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Отзывчивый"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Плавный"
+
 msgid "room.name"
 msgstr "Имя лобби"
 

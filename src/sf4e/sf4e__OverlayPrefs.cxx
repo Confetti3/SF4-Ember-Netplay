@@ -322,7 +322,7 @@ namespace OverlayPrefs {
 	}
 	std::uint64_t QueuePlayerPreferences(const netplay::PlayerPreferences& preferences) {
 		if (!writer || !preferences.Valid()) return 0;
-        nlohmann::json values={{"displayName", preferences.displayName}, {"mainFighter",preferences.mainFighter}, {"inputDelay", preferences.inputDelay}, {"autoInputDelay", preferences.autoInputDelay},
+        nlohmann::json values={{"displayName", preferences.displayName}, {"mainFighter",preferences.mainFighter}, {"inputDelay", preferences.inputDelay}, {"autoInputDelay", preferences.autoInputDelay}, {"autoDelayStyle", preferences.autoDelayStyle},
 			{"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
 			{"roundTimeIntegral", preferences.lobby.roundTime},
             {"matchHudSize",preferences.matchHudSize},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"matchHudNameOffset",preferences.matchHudNameOffset},{"readySoundVolume",preferences.readySoundVolume},{"shareReplaysSince",preferences.shareReplaysSince},

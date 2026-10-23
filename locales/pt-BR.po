@@ -1096,6 +1096,21 @@ msgstr "Atraso de entrada"
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 
+msgid "settings.auto_delay_style"
+msgstr "Estilo do Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Como o Auto usa o teste de conexão. Equilibrado: de 1 a 3 frames. Responsivo: um frame a menos, de 0 a 2, mais rollback. Suave: um frame a mais, de 1 a 4, menos rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Equilibrado"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Responsivo"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Suave"
+
 msgid "room.name"
 msgstr "Nome da sala"
 

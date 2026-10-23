@@ -681,7 +681,7 @@ bool AutoDelayMeasured() {
 int ReadyDelay() {
     if(!runtime->preferences.autoInputDelay) return runtime->selectedDelay;
     std::uint64_t revision=0;
-    return runtime->autoDelayCheck.Delay(CurrentProbePeer(revision));
+    return runtime->autoDelayCheck.Delay(CurrentProbePeer(revision),static_cast<AutoDelayStyle>(runtime->preferences.autoDelayStyle));
 }
 
 // A Ready sent mid-check would start the match's own link beside the

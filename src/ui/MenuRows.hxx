@@ -2,12 +2,24 @@
 #include "MenuNavigation.hxx"
 #include "../common/RoomRules.hxx"
 #include "../netplay/BoolPreferences.hxx"
+#include "../common/InputDelay.hxx"
 #include "../common/Localization.hxx"
 #include <cstring>
+#include <algorithm>
+#include <string>
 namespace sf4e { namespace ui {
+// Auto's style by name, and the delay row's line for Auto in that style.
+inline const char* AutoDelayStyleName(int style) {
+    static const char* const names[AutoDelayStyles] = {"settings.auto_delay_style.balanced", "settings.auto_delay_style.responsive", "settings.auto_delay_style.smooth"};
+    return loc::T(names[(std::max)(0, (std::min)(AutoDelayStyles - 1, style))]);
+}
+inline std::string AutoDelayDetail(int style) {
+    const auto range = AutoInputDelayRange(static_cast<AutoDelayStyle>((std::max)(0, (std::min)(AutoDelayStyles - 1, style))));
+    return loc::Tf("room.input_delay.auto.detail", range.minimum, range.maximum);
+}
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
-    return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&
+    return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.autoDelayStyle==b.autoDelayStyle&&
         a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&a.roomSideWidth==b.roomSideWidth&&a.roomMemberShare==b.roomMemberShare&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.roomTemplates==b.roomTemplates&&a.country==b.country;
 }

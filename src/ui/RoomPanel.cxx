@@ -399,7 +399,7 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
      FramesText(room::MatchDelay(selectedDelay,v.opponentDelay)):loc::Tf(selectedDelay==1?"room.match_delay.at_least_one":"room.match_delay.at_least",selectedDelay)));
     if(!delayEditable)delayDetail+="\n"+(v.delayLocked?std::string(loc::T("room.selected_delay.locked")):reason);
     else{
-     delayDetail+="\n"+(autoDelay?loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum):loc::Tf("room.selected_delay.detail",MinimumInputDelay,MaximumInputDelay));
+     delayDetail+="\n"+(autoDelay?AutoDelayDetail(v.preferences.autoDelayStyle):loc::Tf("room.selected_delay.detail",MinimumInputDelay,MaximumInputDelay));
      if(!recommended&&!autoDelay)delayDetail+="\n"+std::string(loc::T("room.apply_recommendation.check_first"));
     }
     const std::string delayFrames=FramesText(selectedDelay);

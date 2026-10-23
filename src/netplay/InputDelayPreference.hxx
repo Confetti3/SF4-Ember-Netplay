@@ -38,6 +38,10 @@ inline void ReadInputDelayPreference(const nlohmann::json& saved, PlayerPreferen
     value.inputDelay = ReadSavedInputDelay(saved);
     const auto automatic = saved.find("autoInputDelay");
     value.autoInputDelay = automatic == saved.end() || !automatic->is_boolean() || automatic->get<bool>();
+    // Auto's style is Balanced unless a style this build knows is saved.
+    const auto style = saved.find("autoDelayStyle");
+    const std::int64_t number = style != saved.end() && style->is_number_integer() ? style->get<std::int64_t>() : -1;
+    value.autoDelayStyle = number >= 0 && number < AutoDelayStyles ? static_cast<int>(number) : 0;
 }
 
 } }

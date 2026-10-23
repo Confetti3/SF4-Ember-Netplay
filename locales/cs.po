@@ -1096,6 +1096,21 @@ msgstr "Zpoždění vstupu"
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 
+msgid "settings.auto_delay_style"
+msgstr "Styl Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Jak Auto používá test připojení. Vyvážený: 1 až 3 snímky. Svižný: o snímek méně, 0 až 2, víc rollbacku. Plynulý: o snímek víc, 1 až 4, méně rollbacku."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Vyvážený"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Svižný"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Plynulý"
+
 msgid "room.name"
 msgstr "Název místnosti"
 

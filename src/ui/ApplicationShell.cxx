@@ -569,6 +569,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
    const int next=StepInputDelay(preferences_.autoInputDelay,preferences_.inputDelay,a.delta);
    preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
   }
+  else if(a.id=="auto-style")preferences_.autoDelayStyle=(std::max)(0,(std::min)(AutoDelayStyles-1,preferences_.autoDelayStyle+a.delta));
   else if(a.id=="hud-layout")preferences_.matchHudLayout=(std::max)(0,(std::min)(1,preferences_.matchHudLayout+a.delta));
   else if(a.id=="hud-name-offset")preferences_.matchHudNameOffset=(std::max)(-netplay::MaxMatchHudNameOffset,(std::min)(netplay::MaxMatchHudNameOffset,preferences_.matchHudNameOffset+2*a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));

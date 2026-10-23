@@ -1096,6 +1096,21 @@ msgstr "입력 지연"
 msgid "settings.input_delay.auto"
 msgstr "자동"
 
+msgid "settings.auto_delay_style"
+msgstr "Auto 스타일"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Auto가 연결 확인을 사용하는 방식. 균형: 1~3프레임. 반응 우선: 1프레임 적게 0~2, 롤백 많음. 부드럽게: 1프레임 많게 1~4, 롤백 적음."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "균형"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "반응 우선"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "부드럽게"
+
 msgid "room.name"
 msgstr "방 이름"
 

@@ -1096,6 +1096,21 @@ msgstr "Ritardo input"
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 
+msgid "settings.auto_delay_style"
+msgstr "Stile Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Come Auto usa il test di connessione. Bilanciato: da 1 a 3 frame. Reattivo: un frame in meno, da 0 a 2, più rollback. Fluido: un frame in più, da 1 a 4, meno rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Bilanciato"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Reattivo"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Fluido"
+
 msgid "room.name"
 msgstr "Nome sala"
 

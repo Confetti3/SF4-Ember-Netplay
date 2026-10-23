@@ -1096,6 +1096,21 @@ msgstr "入力遅延"
 msgid "settings.input_delay.auto"
 msgstr "自動"
 
+msgid "settings.auto_delay_style"
+msgstr "Autoのスタイル"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Autoが接続チェックをどう使うか。バランス：1〜3フレーム。レスポンス重視：1フレーム少なく0〜2、ロールバック多め。なめらか：1フレーム多く1〜4、ロールバック少なめ。"
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "バランス"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "レスポンス重視"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "なめらか"
+
 msgid "room.name"
 msgstr "ルーム名"
 

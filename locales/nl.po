@@ -1096,6 +1096,21 @@ msgstr "Invoervertraging"
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 
+msgid "settings.auto_delay_style"
+msgstr "Auto-stijl"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Hoe Auto de verbindingstest gebruikt. Gebalanceerd: 1 tot 3 frames. Direct: één frame minder, 0 tot 2, meer rollback. Vloeiend: één frame meer, 1 tot 4, minder rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Gebalanceerd"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Direct"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Vloeiend"
+
 msgid "room.name"
 msgstr "Kamernaam"
 

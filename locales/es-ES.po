@@ -1096,6 +1096,21 @@ msgstr "Retr. entrada"
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 
+msgid "settings.auto_delay_style"
+msgstr "Estilo de Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Cómo usa Auto la prueba de conexión. Equilibrado: de 1 a 3 frames. Reactivo: un frame menos, de 0 a 2, más rollback. Fluido: un frame más, de 1 a 4, menos rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Equilibrado"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Reactivo"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Fluido"
+
 msgid "room.name"
 msgstr "Nombre"
 

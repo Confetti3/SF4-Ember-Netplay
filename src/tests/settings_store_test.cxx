@@ -101,6 +101,15 @@ static void InputDelayMigrations(const Path& root) {
     missing.inputDelay = 7;
     sf4e::netplay::ReadInputDelayPreference({{"autoInputDelay", false}}, missing);
     CHECK(missing.inputDelay == sf4e::DefaultInputDelay && !missing.autoInputDelay);
+    // Auto's style loads only as a style this build knows; anything else is Balanced.
+    for (const Json style : {Json(1), Json(2)}) {
+        PlayerPreferences styled; sf4e::netplay::ReadInputDelayPreference({{"autoDelayStyle", style}}, styled);
+        CHECK(styled.autoDelayStyle == style.get<int>());
+    }
+    for (const Json style : {Json(3), Json(-1), Json(1.5), Json("2"), Json(18446744073709551615ull)}) {
+        PlayerPreferences styled; styled.autoDelayStyle = 2; sf4e::netplay::ReadInputDelayPreference({{"autoDelayStyle", style}}, styled);
+        CHECK(styled.autoDelayStyle == 0);
+    }
     // Saving and loading keeps each choice as it was: the game writes both keys.
     for (const bool on : {true, false}) for (int number : {0, 1, 3}) {
         const auto again = LoadDelay(root, L"delay-round-" + std::to_wstring(on) + L"-" + std::to_wstring(number),
