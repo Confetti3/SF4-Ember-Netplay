@@ -98,16 +98,12 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     return pressed;
 }
 
-void DashedRect(ImDrawList* d, ImVec2 min, ImVec2 max, ImU32 color, float thickness, float dash) {
-    const ImVec2 corners[] = {min, ImVec2(max.x, min.y), max, ImVec2(min.x, max.y), min};
-    for (int side = 0; side < 4; ++side) {
-        const ImVec2 a = corners[side], b = corners[side + 1];
-        const float length = std::sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
-        for (float t = 0; t < length; t += 2 * dash) {
-            const float e = (std::min)(t + dash, length);
-            d->AddLine(ImVec2(a.x + (b.x - a.x) * t / length, a.y + (b.y - a.y) * t / length),
-                       ImVec2(a.x + (b.x - a.x) * e / length, a.y + (b.y - a.y) * e / length), color, thickness);
-        }
+void Glow(ImDrawList* d, ImVec2 min, ImVec2 max, ImU32 color, float strength, float reach, float rounding) {
+    const int rings = 6;
+    for (int i = 1; i <= rings; ++i) {
+        const float out = reach * i / rings;
+        d->AddRect(ImVec2(min.x - out, min.y - out), ImVec2(max.x + out, max.y + out),
+            color::Alpha(color, strength * (1 - (i - 1) / static_cast<float>(rings))), rounding + out, 0, reach / rings + 1);
     }
 }
 

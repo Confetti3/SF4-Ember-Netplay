@@ -7439,3 +7439,12 @@ msgstr "Ga direct naar de Training-modus, zonder de Fight Request-vraag."
 
 msgid "home.training_unavailable"
 msgstr "Training kan nu niet: verlaat eerst de room of match en ga terug naar het hoofdmenu van de game."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Kasten {0} en {1}"

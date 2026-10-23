@@ -7440,3 +7440,12 @@ msgstr "乱入設定の確認なしで、すぐにトレーニングモードに
 
 msgid "home.training_unavailable"
 msgstr "今はトレーニングを開けません。先にルームや対戦を抜けて、ゲームのメインメニューに戻ってください。"
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "筐体 {0} と {1}"

@@ -233,6 +233,14 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      {"stay",loc::T("common.cancel"),loc::T("room.leave_seat.keep")},
      {"leave-seat",loc::T("room.leave_seat"),LeavingCostText(cost,table)}};
    }
+   // Under the cabinets, who plays whom: a row per pair, its two cabinets and its score.
+   for(std::size_t i=0;s.arcade&&i<s.tables.size();++i){
+    const auto& table=s.tables[i];
+    if(!table.p1||!table.p2)continue;
+    rows.push_back(InfoRow("matchup-"+std::to_string(i),loc::Tf("room.matchup",Name(s,table.p1),Name(s,table.p2)),SetScoreText(table.score),
+     loc::Tf("room.matchup_detail",room::CabinetOf(s,table.p1)+1,room::CabinetOf(s,table.p2)+1)));
+    rows.back().userText=true;
+   }
    for(std::size_t i=0;!s.arcade&&i<room::TablesInPlay(s);++i){
     const auto& table=s.tables[i];
     const auto occupied=(table.p1?1:0)+(table.p2?1:0);
@@ -359,7 +367,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   const auto firstMember=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id.compare(0,7,"member-")==0;});
   const std::string memberRight=firstMember==rows.end()?"room-members":firstMember->id;
   for(std::size_t i=0;i<rows.size();++i){auto& e=rows[i];
-   if(e.id.compare(0,6,"table-")==0||e.id.compare(0,8,"cabinet-")==0)e.right=memberRight;
+   if(e.id.compare(0,6,"table-")==0||e.id.compare(0,8,"cabinet-")==0||e.id.compare(0,8,"matchup-")==0)e.right=memberRight;
    else if(e.id.compare(0,7,"member-")==0)e.left=s.arcade?"cabinet-"+std::to_string((std::max)(0,room::CabinetOf(s,s.localMember))):"table-"+std::to_string(selectedTable_);
    else {e.left=i?rows[i-1].id:e.id;e.right=i+1<rows.size()?rows[i+1].id:e.id;}
   }
@@ -744,7 +752,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   tip();
  };
  std::vector<const MenuEntry*> toolbar;
- for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,8,"cabinet-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
+ for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,8,"cabinet-")&&e.id.compare(0,8,"matchup-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
  ImGui::PushStyleColor(ImGuiCol_ChildBg,v2::BoardGround(v.SeeThrough()));
  if(v2Board){

@@ -7439,3 +7439,12 @@ msgstr "Przejdź od razu do trybu Trening, bez pytania o wyzwania do walki."
 
 msgid "home.training_unavailable"
 msgstr "Trening jest teraz niedostępny: najpierw wyjdź z pokoju lub meczu i wróć do menu głównego gry."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Automaty {0} i {1}"

@@ -49,7 +49,7 @@ sheet these parts follow.
 | --- | --- | --- |
 | Button | A board button, 48 px: Primary (one per screen), Secondary, Danger (Leave) | `v2::Button(d, box, label, v2::ButtonKind::Primary, focused, hovered, enabled)` |
 | Chevron | A row whose Select opens something | `v2::Chevron(d, at, size, color)` |
-| DashedRect | A seat or slot waiting for someone (an Arcade player alone) | `v2::DashedRect(d, min, max, color, thickness, dash)` |
+| Glow | A seat lit up: dim when free, brighter when taken, the pair's colour when playing | `v2::Glow(d, min, max, color, strength, reach, rounding)` |
 | Header | A screen's brand, eyebrow, title, chips and Back | `v2::Header(title, eyebrow, chips, back)` |
 | Tabs | Horizontal tabs under the header | `v2::Tabs(labels, current)` |
 | HintBar | The bottom bar: glyph hints and the status | `v2::HintBar(bar, hints, status, tone, bell)` |

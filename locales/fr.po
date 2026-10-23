@@ -7439,3 +7439,12 @@ msgstr "Aller directement au mode Entraînement, sans la question des demandes d
 
 msgid "home.training_unavailable"
 msgstr "L'entraînement n'est pas disponible : quittez d'abord le salon ou le match, puis revenez au menu principal du jeu."
+
+msgid "room.arcade_versus"
+msgstr "contre {0}"
+
+msgid "room.matchup"
+msgstr "{0} contre {1}"
+
+msgid "room.matchup_detail"
+msgstr "Bornes {0} et {1}"

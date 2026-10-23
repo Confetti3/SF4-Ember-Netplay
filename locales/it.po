@@ -7439,3 +7439,12 @@ msgstr "Vai direttamente alla modalità Allenamento, senza la domanda sulle rich
 
 msgid "home.training_unavailable"
 msgstr "L'allenamento ora non è disponibile: esci prima dalla stanza o dall'incontro e torna al menu principale del gioco."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Cabinati {0} e {1}"

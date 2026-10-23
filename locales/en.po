@@ -7074,3 +7074,12 @@ msgstr "Go straight into Training mode, without the Fight Request question."
 
 msgid "home.training_unavailable"
 msgstr "Training is not available now: leave the room or match first, and go back to the game's main menu."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Cabinets {0} and {1}"

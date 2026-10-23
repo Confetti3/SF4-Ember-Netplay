@@ -7440,3 +7440,12 @@ msgstr "不询问对战请求设置，直接进入训练模式。"
 
 msgid "home.training_unavailable"
 msgstr "现在无法进入训练：请先离开房间或对战，并回到游戏主菜单。"
+
+msgid "room.arcade_versus"
+msgstr "对 {0}"
+
+msgid "room.matchup"
+msgstr "{0} 对 {1}"
+
+msgid "room.matchup_detail"
+msgstr "机台 {0} 和 {1}"

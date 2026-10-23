@@ -11,6 +11,7 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
+#include <cfloat>
 
 namespace sf4e { namespace ui {
 using namespace room_controls;
@@ -106,6 +107,29 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  // Real Arcade rows: two rows of eight tall cabinets, each over its stool
  // with the player's back on it; cabinet n on top, n+8 under it.
  // Where they would be too small to read, they keep their size and scroll.
+ // Who plays whom, under the cabinets: a chip per pair in its colour. The one
+ // under the pointer or focused lights its two cabinets and dims the rest.
+ int lit=-1;
+ std::vector<const MenuEntry*> matchups;
+ for(const auto& e:rows)if(e.id.compare(0,8,"matchup-")==0)matchups.push_back(&e);
+ if(!matchups.empty()){
+  const v2::Box strip=v2::CutBottom(board,40*s,8*s);
+  float x=strip.min.x+6*s;
+  for(const auto* e:matchups){
+   const int table=std::stoi(e->id.substr(8));
+   const std::string text=e->label+(e->value.empty()?std::string():"  "+e->value);
+   const float w=(std::min)(strip.max.x-6*s-x,ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,text.c_str()).x+40*s);
+   if(w<80*s)break;
+   const v2::Box chip{ImVec2(x,strip.min.y+4*s),ImVec2(x+w,strip.max.y-4*s)};
+   const bool hovered=PressEntry(nav,rows,*e,chip,action).hovered,focused=e->id==focus;
+   if(hovered||focused)lit=table;
+   v2::RowGround(d,chip,focused,hovered);
+   d->AddCircleFilled(ImVec2(chip.min.x+14*s,(chip.min.y+chip.max.y)*.5f),5*s,PairColor(table));
+   v2::Text(d,ImVec2(chip.min.x+26*s,chip.min.y+(chip.H()-14*s)*.5f),w-32*s,text,14*s,hovered||focused?c.text:c.muted);
+   if(focused)v2::Focus(d,chip.min,chip.max,false);
+   x+=w+8*s;
+  }
+ }
  // A margin for the focus and hover marks, which reach 4 px past a cabinet.
  board=v2::Inset(board,6*s,6*s);
  const float gap=8*s,band=36*s,cell=(board.W()-7*gap)/8;
@@ -141,10 +165,11 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const auto* t=m&&m->table>=0?&v.room.tables[m->table]:nullptr;
   const bool paired=t&&t->p1&&t->p2,lit=m!=nullptr;const ImU32 pair=paired?PairColor(t->id):pending;
   const bool crowned=type==room::KingRoom&&v.room.topSlot==i;
-  if(paired||hovered)d->AddRect(ImVec2(b.min.x-2*s,b.min.y-2*s),ImVec2(b.max.x+2*s,b.max.y+2*s),v2::color::Alpha(paired?pair:c.hover,.27f),8*s,0,4*s);
-  // A player waiting alone: a dashed edge round the cabinet, no colour until paired.
+  // Every cabinet glows: dim while free, brighter once someone sits there, in the
+  // pair's colour while a pair plays; a little more under the pointer.
   const bool waiting=lit&&!paired;
-  if(waiting)v2::DashedRect(d,ImVec2(b.min.x-3*s,b.min.y-3*s),ImVec2(b.max.x+3*s,b.max.y+3*s),c.text,2*s,6*s);
+  const bool picked=lit>=0&&paired&&static_cast<int>(t->id)==lit;
+  v2::Glow(d,b.min,b.max,paired?pair:c.text,(picked?.9f:paired?.45f:waiting?.3f:.08f)+(hovered?.1f:0),(picked?10:6)*s,6*s);
   d->AddRectFilled(b.min,b.max,c.ink,6*s,ImDrawFlags_RoundCornersTop);
   // From the top: marquee, screen, name plate, control panel, kick plate.
   v2::Box body=b;
@@ -171,7 +196,9 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   std::string first=loc::T("room.cabinet_free"),second;ImU32 tone=c.muted;
   if(m&&!paired){first=loc::T("room.arcade_waiting");tone=c.text;}
   else if(paired&&t->deciding){first=loc::T(t->rematch[side]?"room.rematch_chosen":"room.rematch_ask");tone=pending;}
-  else if(paired){first=fighterName(*m);second=SetScoreText(t->score).empty()?"VS":SetScoreText(t->score);tone=pair;}
+  // Who plays whom: the opponent's name on the screen, in the pair's colour, over the score.
+  else if(paired){const auto* other=room::FindMember(v.room,side?t->p1:t->p2);
+   if(other)NoteUserText(other->name);first=loc::Tf("room.arcade_versus",other?other->name:std::string());second=SetScoreText(t->score).empty()?fighterName(*m):SetScoreText(t->score);tone=pair;}
   d->AddRectFilled(screen.min,screen.max,!m?c.frame:paired&&!t->deciding?c.header:v2::color::Alpha(pending,.12f),2*s);
   const float ss=(std::min)(11*s,screen.H()*.3f),mid=(screen.min.y+screen.max.y)*.5f;
   const auto space=first.find(' ');
@@ -192,6 +219,8 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   if(paired)d->AddRectFilled(kick.min,kick.max,v2::color::Alpha(pair,.2f));
   d->AddRect(b.min,b.max,crowned?gold:paired?pair:c.border,6*s,ImDrawFlags_RoundCornersTop,2*s);
   if(focused)v2::Focus(d,ImVec2(b.min.x-4*s,b.min.y-4*s),ImVec2(b.max.x+4*s,p.y+unit),false);
+  // While a matchup is picked below, the other cabinets step back.
+  if(lit>=0&&!picked)d->AddRectFilled(ImVec2(b.min.x-2*s,b.min.y-2*s),ImVec2(b.max.x+2*s,b.max.y+2*s),v2::color::Alpha(c.ink,.6f),6*s);
   // The stool, and on it the player's back (a 60 by 70 drawing).
   const float k=h*.38f/60;const ImVec2 o(b.min.x+(w-60*k)*.5f,b.max.y-h*.04f);
   const auto q=[&](float x,float y){return ImVec2(o.x+x*k,o.y+y*k);};

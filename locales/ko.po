@@ -7440,3 +7440,12 @@ msgstr "난입 설정을 묻지 않고 바로 트레이닝 모드로 들어갑�
 
 msgid "home.training_unavailable"
 msgstr "지금은 트레이닝을 열 수 없습니다. 먼저 룸이나 대전에서 나가 게임 메인 메뉴로 돌아가세요."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "기체 {0}, {1}"

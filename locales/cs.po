@@ -7439,3 +7439,12 @@ msgstr "Přejít rovnou do režimu Trénink, bez otázky na výzvy k zápasu."
 
 msgid "home.training_unavailable"
 msgstr "Trénink teď není k dispozici: nejdřív opusť místnost nebo zápas a vrať se do hlavního menu hry."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Automaty {0} a {1}"

@@ -120,8 +120,8 @@ float Paragraph(ImDrawList* draw, ImVec2 at, float width, const std::string& tex
 // ImGui::TextWrapped in the current font and colour, as a Paragraph in V2.
 void Wrapped(const std::string& text);
 
-// A dashed outline (a seat or slot that waits for someone), dashes `dash` long.
-void DashedRect(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 color, float thickness, float dash);
+// A soft glow round a box (a seat lit up): rings fading out over `reach`, starting at `strength` alpha.
+void Glow(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 color, float strength, float reach, float rounding = 0);
 
 // Ember's mark `height` tall at `at`. Returns its width.
 float BrandMark(ImDrawList* draw, ImVec2 at, float height);

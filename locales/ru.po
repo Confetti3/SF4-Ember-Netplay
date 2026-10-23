@@ -7440,3 +7440,12 @@ msgstr "Сразу перейти в режим тренировки, без в�
 
 msgid "home.training_unavailable"
 msgstr "Тренировка сейчас недоступна: сначала выйдите из комнаты или матча и вернитесь в главное меню игры."
+
+msgid "room.arcade_versus"
+msgstr "против {0}"
+
+msgid "room.matchup"
+msgstr "{0} против {1}"
+
+msgid "room.matchup_detail"
+msgstr "Автоматы {0} и {1}"

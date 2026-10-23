@@ -6959,3 +6959,12 @@ msgstr "Ir direto para o modo Treino, sem a pergunta de pedido de luta."
 
 msgid "home.training_unavailable"
 msgstr "O treino não está disponível agora: saia primeiro da sala ou da partida e volte ao menu principal do jogo."
+
+msgid "room.arcade_versus"
+msgstr "vs. {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs. {1}"
+
+msgid "room.matchup_detail"
+msgstr "Fliperamas {0} e {1}"
