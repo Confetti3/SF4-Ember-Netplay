@@ -382,7 +382,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
  }else if(IdentityPanel::Owns(screen)){
   rows=identity_.Rows(v,screen,title);
-  if(screen=="tournament-matches"||screen=="blumint-matches"){const auto focus=identity_.TakeFocus(rows);if(!focus.empty())nav.Focus(focus,rows);}
+  if(screen=="tournament-matches"){const auto focus=identity_.TakeFocus(rows);if(!focus.empty())nav.Focus(focus,rows);}
  }else if(screen=="developer"&&developer){
   // The inspector's selectors are not the shell's own: they inherit no room
   // hints or Back label, and whatever they forward has no reader here.
@@ -441,8 +441,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    if(deadline.seat==place.seat){status=deadline.text;statusTone=Tone::Pending;}
   }
  }
- // A BluMint room's header has the set and the score, and its notices say the rest.
- if((screen=="room"||screen=="room-chat")&&status.empty()&&!(InBluMintRoom(v,screen)&&v.session.control==Health::Healthy)){
+ if((screen=="room"||screen=="room-chat")&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
    TournamentRoomStatus(v.room):
@@ -690,7 +689,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
 
 // What a notice's button does once the menu has drawn the frame it closed on.
 // The buttons carry no actions of their own, only results (NoticeResult).
-NoticeResult ApplicationShell::AnswerDialog(const Submit& submit) {
+void ApplicationShell::AnswerDialog(const Submit& submit) {
  const NoticeResult result=menu_.TakeNoticeResult();
  switch(result){
  case NoticeResult::CreatePublicRoom:openPublicCreate_=true;break;
@@ -704,7 +703,6 @@ NoticeResult ApplicationShell::AnswerDialog(const Submit& submit) {
  }
  // Any closed notice answers the update question if it is the one on show.
  if(updatePrompt_.Open()&&!menu_.NoticeOpen())FinishUpdatePrompt(result,submit);
- return result;
 }
 // Quick join asks for the first room with a free seat, in the player's region when it is known.
 // With none it offers to create one, which the next frame opens.
@@ -827,8 +825,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    Say(loc::T("tournament.connection_lost_notice"),Tone::Pending,30,ToastKind::Match);
   }
   else if(v.tournament.phase==Phase::Finished)Say(loc::T("tournament.done_notice"),Tone::Success,12,ToastKind::Match);
-  // A BluMint room's fighter gets the Failed notice instead (UpdateBluMint).
-  else if(v.tournament.phase==Phase::Failed&&!InBluMintRoom(v,nav.Screen())){
+  else if(v.tournament.phase==Phase::Failed){
    Say(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,20,ToastKind::Match);
   }
   tournamentPhase_=v.tournament.phase;
@@ -878,8 +875,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // After every other source of a notice this frame, so the question never takes a place they are about to.
  UpdateLaunchCheck(v,now,submit);
  // The look follows the row as it changes, before the save lands.
- // A BluMint match's room always wears BluMint's V2 look, whatever the player's Look.
- v2::SetOn(preferences_.lookV2||InBluMintRoom(v,nav.Screen()));
+ v2::SetOn(preferences_.lookV2);
  // TV mode keeps V2 inside a 5% safe area, which a TV may crop.
  const auto* vp=ImGui::GetMainViewport();const ImVec2 safe=v2::On()&&preferences_.tvMode?ImVec2(vp->Size.x*.05f,vp->Size.y*.05f):ImVec2(0,0);
  ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+safe.x,vp->Pos.y+safe.y));ImGui::SetNextWindowSize(ImVec2(vp->Size.x-2*safe.x,vp->Size.y-2*safe.y));
@@ -888,10 +884,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
- // The V2 room board shows a Big one in its tables' place instead (this frame's word, boardPicture_);
- // a BluMint room docks it on its stage (pictureDock_).
- if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot,pictureDock_?&*pictureDock_:nullptr)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
- pictureOnBoard_=boardPicture_;boardPicture_=false;pictureDock_.reset();
+ // The V2 room board shows a Big one in its tables' place instead (this frame's word, boardPicture_).
+ if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ pictureOnBoard_=boardPicture_;boardPicture_=false;
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
@@ -936,12 +931,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool roomScreen=screen.compare(0,4,"room")==0;
  // V2: Select on a value opens all its values in a panel (the room boards keep their own).
  if(v2::On()&&!roomScreen)OfferValues(rows);
- // A BluMint match's room: its look, header and notices (ApplicationShell__BluMint.cxx).
- UpdateBluMint(v,screen,rows);
  // Kick or Make host from a member's popout asks its question on the member's page.
  if(screen=="room-member"&&!memberAsk_.empty()){menu_.navigation.Focus(memberAsk_,rows);menu_.navigation.Choose(rows);memberAsk_.clear();}
- // V2: an Ember room's header says what kind of room it is, who it admits and how full it is.
- if(v2::On()&&screen=="room"&&v.room.roomEpoch&&v2::CurrentBrand()==v2::Brand::Ember){
+ // V2: a room's header says what kind of room it is, who it admits and how full it is.
+ if(v2::On()&&screen=="room"&&v.room.roomEpoch){
   const bool listed=v.room.serverOwned;
   menu_.eyebrow=loc::T(listed?"room.v2.eyebrow_public":"room.v2.eyebrow_private");
   menu_.headerChips={{loc::T(listed?"room.v2.listed":"room.v2.invitation_only"),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending))},
@@ -1065,9 +1058,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
  // V2: a Settings tab is a rail of panels beside the shown panel (ApplicationShell__Settings.cxx).
  else if(v2::On()&&SettingsTab(screen))board=[&,profilePreview](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawSettingsBoard(entries,navigation,action,height,feedback,profilePreview);};
- if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){
-  if(v2::CurrentBrand()==v2::Brand::BluMint&&!v2::Narrow(ImGui::GetContentRegionAvail().x,Scale()))DrawBluMintBoard(v,entries,navigation,action,height);
-  else DrawRoomBoard(v,entries,navigation,action,height,feedback);};
+ if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawRoomBoard(v,entries,navigation,action,height,feedback);};
  if(screen=="room-chat"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawChatScreen(v,entries,navigation,action,height,feedback);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
  const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&
@@ -1087,10 +1078,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
  else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
- // A BluMint match's watcher only watches and chats: Fighter and Options are the fighters'.
- const auto& stageTable=v.room.tables[0];
- if(v2::CurrentBrand()==v2::Brand::BluMint&&v.room.localMember!=stageTable.p1&&v.room.localMember!=stageTable.p2&&menu_.shortcutHints.size()==3)
-  menu_.shortcutHints.erase(menu_.shortcutHints.begin(),menu_.shortcutHints.begin()+2);
  // V2: Settings is six tabs.
  menu_.tabs.clear();menu_.tab=-1;
  menu_.statusLeads=v2::On()&&screen!="notifications"?"notifications":"";
@@ -1142,7 +1129,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // its first action, Back its last (Later), and any other press leaves it.
  menu_.toastFocused=toastFocus_&&!nav.Editing()&&!nav.Reading()&&!nav.Confirming()&&!nav.Choosing()&&!menu_.NoticeOpen();
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home"||(v2::On()&&screen=="welcome"));
- AnswerBluMint(AnswerDialog(submit),v,submit);
+ AnswerDialog(submit);
  if(const unsigned pressed=menu_.toastPressed){
   if(pressed&(MenuInput::Select|MenuInput::Back))toastAsked_={toastFocus_,pressed&MenuInput::Select?0:~std::size_t(0)};
   toastFocus_=0;

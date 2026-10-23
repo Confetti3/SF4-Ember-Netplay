@@ -13,7 +13,6 @@ sheet these parts follow.
 | Part | Use it for | Call |
 | --- | --- | --- |
 | Switch | Whether the V2 look is on (Classic otherwise) | `v2::On()` |
-| Brand | Ember's or BluMint's look on this screen | `v2::SetBrand`, `v2::CurrentBrand()` |
 | Palette | Every colour: ink, frame, panel, button, header, hover, border, accent, accentLight, text, muted, live, danger, ready | `v2::Colors().accent` |
 | Alpha | A palette colour at an alpha | `v2::color::Alpha(c.border, .6f)` |
 | Margins | Side margin and padding for a width | `v2::Pad`, `v2::SideMargin` |
@@ -77,7 +76,7 @@ sheet these parts follow.
    same rows; the board only decides where each row is drawn. Every box that
    is a row goes through `PressEntry`.
 3. No colour literals and no `palette::` colours in a V2 path: use
-   `v2::Colors()`, so BluMint's rooms wear BluMint's colours. Classic keeps
+   `v2::Colors()`. Classic keeps
    `palette::`.
 4. Every line of text goes through `v2::Text`, `v2::Fit` or a part that uses
    them, never through `PushClipRect` alone, so the lab's text probe sees what

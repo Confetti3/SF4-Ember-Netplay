@@ -291,7 +291,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rows.push_back(ConfirmRow("replace-room",loc::T("room.replace"),loc::T(v.canReplaceRoom?"room.replace.detail":"room.replace.waiting"),v.canReplaceRoom));
   // V2's action bar (Room.dc.html): Ready when seated, Training, Controls, More... (a popout with the
   // table options, room settings and links), the asking rows, then Leave room last.
-  if(v2::On()&&v2::CurrentBrand()==v2::Brand::Ember){
+  if(v2::On()){
    MenuEntry more=Row("room-more",loc::T("room.v2.more"),loc::T("room.v2.more_detail"));more.popout=true;
    if(!moreAsk_&&!nav.Choosing()){morePicture_=false;moreChosen_.clear();}
    more.chosen=moreChosen_;
@@ -594,8 +594,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  const auto hint=[&](const MenuEntry& e){return feedback.Enabled(e)?"":loc::T(feedback.Pending(e)?"room.updating":"common.unavailable");};
  const auto origin=ImGui::GetCursorScreenPos();
  const float fullHeight=height;
- // An Ember room in V2 has its own board (Room.dc.html); a BluMint room on a narrow screen keeps this one.
- const bool v2Board=v2::On()&&v2::CurrentBrand()==v2::Brand::Ember;
+ // A room in V2 has its own board (Room.dc.html).
+ const bool v2Board=v2::On();
  if(!wide&&!v2Board)height=(std::max)(80*s,height-64*s);
  if(focus.compare(0,6,"table-")==0)selectedTable_=std::stoi(focus.substr(6));
  // B on your own table's card leaves your place there, cancels a start held
@@ -646,12 +646,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
   return options;
  };
- const auto tableCard=[&](const MenuEntry& e,float h,bool stage=false){
+ const auto tableCard=[&](const MenuEntry& e,float h){
   const auto& t=v.room.tables[std::stoi(e.id.substr(6))];
   // The seat chooser, or on your own focused place what A and B do there.
   const bool choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
   const bool ownPlace=!nav.Asking()&&onOwnPlace&&e.id==focus;
-  TableCardView card;card.id=e.id;card.slot=t.id;card.height=h;card.stage=stage;
+  TableCardView card;card.id=e.id;card.slot=t.id;card.height=h;
   card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();
   card.options=stripOptions(e,t,choosing,ownPlace);
   if(choosing){card.choosing=true;card.chosen=static_cast<int>(nav.ChoiceIndex());}
@@ -956,10 +956,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float toolsHeight=std::ceil(toolbar.size()/float(toolColumns))*48*s+8*s;
   const float communityHeight=(std::max)(120*s,boardHeight-toolsHeight-gap);
   ImGui::BeginChild("Battle slots",ImVec2(leftWidth,boardHeight),0,ImGuiWindowFlags_NoNavInputs);
-  // A BluMint match's room has one table, the match: it is the stage.
-  const bool stage=v2::On()&&v2::CurrentBrand()==v2::Brand::BluMint;
-  const float rowHeight=stage?ImGui::GetContentRegionAvail().y:(std::max)(100*s,(ImGui::GetContentRegionAvail().y-3*8*s)/4);
-  for(const auto& e:rows)if(e.id.compare(0,6,"table-")==0&&(!stage||e.id=="table-0"))tableCard(e,rowHeight,stage);
+  const float rowHeight=(std::max)(100*s,(ImGui::GetContentRegionAvail().y-3*8*s)/4);
+  for(const auto& e:rows)if(e.id.compare(0,6,"table-")==0)tableCard(e,rowHeight);
   ImGui::EndChild();ImGui::SameLine(0,gap);
   ImGui::BeginChild("Room community",ImVec2(0,communityHeight),0,ImGuiWindowFlags_NoNavInputs);
   ImGui::TextUnformatted(loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity).c_str());

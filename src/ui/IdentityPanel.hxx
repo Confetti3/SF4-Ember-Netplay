@@ -187,8 +187,7 @@ private:
     // Sends a waiting Play or Stop, or the assignment refresh the matches screen wants.
     void SendTournament(const ShellView& view, const std::string& screen, const Submit& submit);
     // The tournament matches screen's rows, and its own rows' presses (IdentityMatches.cxx).
-    // `provider` set: only that service's matches (BluMint's page).
-    void MatchesRows(const ShellView& view, std::vector<MenuEntry>& rows, const std::string& provider = {}) const;
+    void MatchesRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
     bool MatchesActivate(const MenuAction& a, const ShellView& view);
     // Says so when the list a link's refresh brought back lacks its match.
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);

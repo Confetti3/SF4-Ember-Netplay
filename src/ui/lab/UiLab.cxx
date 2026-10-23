@@ -4,7 +4,6 @@
 // work as in the game.
 //
 // F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F5 in a room · F6 picture · F12 screenshot
-// BluMint room (--blumint): F7 next moment · F8 fighter or watcher
 // --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms).
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
@@ -201,60 +200,8 @@ void PublicRooms(ui::ShellView& view) {
     list.rooms = {room("a", "EU Monday Night Fights", "Katie", "euc1", 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", "euc1", 3, 4, 1),
         room("c", "Beginners, ask anything", "Sven", "euc1", 2, 12, 0), room("d", "East coast casuals", "Marn", "use1", 8, 8, 3), room("e", "Tokyo late night", "Kaz", "aps1", 5, 10, 2)};
 }
-// A BluMint match's room: table 0 bound to the match, FRaccie (this PC) against
-// Akira, first to 2. A watcher sits at no seat (member 5).
-void BluMintRoom(ui::ShellView& view, bool watcher) {
-    JoinRoom(view);
-    auto& t = view.tournament;
-    t.phase = netplay::tournament::Phase::InRoom; t.bridgeId = "brg_lab"; t.matchId = "emt_lab";
-    netplay::tournament::Assignment a;
-    a.matchId = "emt_lab"; a.provider = "blumint"; a.state = "ready"; a.gamesToWin = 2; a.profile = "ember-room-v1";
-    t.list.items.push_back(a);
-    view.room.name = "Good Fighters USF4 · Ember";
-    view.room.tournament.matchId = "emt_lab"; view.room.tournament.gamesToWin = 2;
-    view.room.tables[0].phase = room::TablePhase::Playing;
-    if (watcher) view.room.localMember = 5;
-}
-// What happens next in it, from frame 40 (lab --moment): a game, the set won or
-// lost, a game cut off, the host's close, the match's time run out, the match
-// stopped, the next match called.
-void BluMintMoment(ui::ShellView& view, const std::string& moment) {
-    auto& table = view.room.tables[0];
-    auto& a = view.tournament.list.items[0];
-    if (moment == "game") table.score[0] = 1;
-    else if (moment == "set" || moment == "lost") {
-        const unsigned you = moment == "set" ? 2 : 1, them = moment == "set" ? 1 : 2;
-        table.score[0] = you; table.score[1] = them; a.wins = {you, them}; a.state = "completed";
-        table.phase = room::TablePhase::Waiting;
-    }
-    else if (moment == "restart") { table.score[0] = 1; view.tournament.reason = netplay::tournament::ConnectionLostReason; }
-    else if (moment == "host") a.state = "cancelled";
-    else if (moment == "expired") a.state = "expired";
-    else if (moment == "failed") { view.tournament.phase = netplay::tournament::Phase::Failed; view.tournament.reason = "report_not_saved"; }
-    // The next BluMint match called while the player sits in another room (king of the hill's queue).
-    else if (moment == "called") {
-        auto next = a; next.matchId = "emt_lab2";
-        view.tournament = {}; view.room.tournament = {};
-        view.tournament.list.items.push_back(next);
-    }
-}
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
 // it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
-// BluMint's matches (--screen blumint-matches): one called, one won, one nobody played, and the linked BluMint account.
-void BluMintMatches(ui::ShellView& view) {
-    auto& id = view.identity;
-    id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
-    id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
-    id.links = {{"lnk_1", "blumint", "BluMint", "FRaccie"}};
-    auto& list = view.tournament.list;
-    list.bridge = "brg_1";
-    for (const char* state : {"ready", "completed", "expired"}) {
-        netplay::tournament::Assignment a;
-        a.matchId = std::string("emt_") + state; a.provider = "blumint"; a.state = state; a.gamesToWin = 2; a.profile = "ember-room-v1"; a.slot = 0;
-        if (a.Finished()) a.wins = {2, 1};
-        list.items.push_back(a);
-    }
-}
 void Rankings(ui::ShellView& view) {
     auto& id = view.identity;
     id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
@@ -289,8 +236,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
     std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
-    bool trainingPanel = false, blumint = false, watcher = false, update = false, publicLab = false, rankings = false, playback = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
-    std::string moment;  // --moment game|set|lost|restart|host|expired|failed|called, in a --blumint room  // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
+    bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
+    // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
         if (args[i] == "--size" && more) std::sscanf(args[++i].c_str(), "%dx%d", &width, &height);
@@ -305,12 +252,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--pip") pip = true;
         else if (args[i] == "--hud" && more) hud = std::atoi(args[++i].c_str());
         else if (args[i] == "--training") trainingPanel = true;
-        else if (args[i] == "--blumint") blumint = true;
         else if (args[i] == "--public") publicLab = true;
-        else if (args[i] == "--watcher") watcher = true;
         else if (args[i] == "--rankings") rankings = true;
         else if (args[i] == "--playback") playback = true;
-        else if (args[i] == "--moment" && more) moment = args[++i];
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
         else if (args[i] == "--recovery" && more) recovery = args[++i];
@@ -348,9 +292,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     view.preferences.roomShowChat = hidePanes != "chat" && hidePanes != "both";
     view.preferences.tvMode = tv;
     view.preferences.welcomed = !welcome;
-    // A BluMint room joins its own (BluMintRoom).
-    if (inRoom && !blumint) JoinRoom(view);
-    if (blumint) BluMintRoom(view, watcher);
+    if (inRoom) JoinRoom(view);
     if (update) { view.services.launchOffer = launcher::InstallOffer{updates::UpdateChannel::Nightly, "v1.3.0", "lab"}; view.services.installedVersion = "v1.2.0"; }
     if (publicLab) PublicLab(view);
     // The helper's side for --public: each Ember ID request answered, the room list on asking.
@@ -360,7 +302,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::ofstream walkLog;
     if (!walkFile.empty()) walkLog.open(walkFile, std::ios::trunc);
     if (rankings) Rankings(view);
-    if (screen == "blumint-matches") BluMintMatches(view);
     // Fighter select (--screen selection) with every fighter, costume and colour there.
     ui::FighterSelector selector;
     selection::Pick pick;
@@ -383,7 +324,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (action.identity.op != netplay::IdentityOp::None) { view.identityTicket = action.identity.ticket; view.identityRequest = view.identity.requestId = view.identityTicket + 100; view.identity.ok = true; }
         return true;
     };
-    int frame = 0, momentAt = 40;
+    int frame = 0;
     // --check: what the menus report on a frame, kept from the last one drawn.
     std::set<std::string> found;
     std::vector<std::tuple<std::string, ImVec2, ImVec2>> cards;
@@ -451,15 +392,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (listAsked) { listAsked = false; PublicRooms(view); }
         if (hostAsked) { hostAsked = false; JoinRoom(view); }
         if (leaveAsked) { leaveAsked = false; view = FakeView(view.preferences.lookV2); }
-        // F7 and F8 set the room up again, and the moment follows a few frames later so the shell sees it happen.
-        static const char* const moments[] = {"", "game", "set", "lost", "restart", "host", "expired", "failed", "called"};
-        const bool nextMoment = blumint && ImGui::IsKeyPressed(ImGuiKey_F7), swapRole = blumint && ImGui::IsKeyPressed(ImGuiKey_F8);
-        if (nextMoment || swapRole) {
-            if (nextMoment) { const auto at = std::find(std::begin(moments), std::end(moments), moment); moment = moments[at == std::end(moments) || at + 1 == std::end(moments) ? 0 : at - std::begin(moments) + 1]; }
-            if (swapRole) watcher = !watcher;
-            const bool look = view.preferences.lookV2; view = FakeView(look); JoinRoom(view); BluMintRoom(view, watcher); momentAt = frame + 10;
-        }
-        if (frame == momentAt && blumint && !moment.empty()) BluMintMoment(view, moment);
         const bool snap = ImGui::IsKeyPressed(ImGuiKey_F12);
         // The menu art stands in for a watched game's picture (F6).
         if (ImGui::IsKeyPressed(ImGuiKey_F6)) pip = !pip;

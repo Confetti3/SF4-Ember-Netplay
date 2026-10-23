@@ -118,15 +118,14 @@ CardInteraction DrawTableCard(const TableCardView& card) {
  else text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,card.phase,14*s,palette::Ember);
  // A full pair shows its running win count where "VS" would sit; the gap
  // between the two sides grows to fit however long the rematch run gets.
- const float middleSize=(card.stage?56:18)*s;
- const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(middleSize,FLT_MAX,0,card.middle.c_str()).x+(card.stage?48:12)*s);
+ const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(18*s,FLT_MAX,0,card.middle.c_str()).x+12*s);
  // A banner takes a row above the footer, so the option strip never hides it.
  const float bannerHeight=card.banner.empty()?0:TableBannerHeight*s,bannerTop=p.y+h-32*s-bannerHeight;
  // Portraits sit on the card's outer edges, mirrored, so neither crowds the
  // score. The row fills and centres in the band between header and footer.
  // The footer band holds the rules line or, over it, an option strip, so
  // portraits and names never sit under the strip.
- const float band=h-60*s-bannerHeight,portrait=(std::min)((card.stage?220:96)*s,band),half=(width-24*s-gap)*.5f;
+ const float band=h-60*s-bannerHeight,portrait=(std::min)(96*s,band),half=(width-24*s-gap)*.5f;
  const float top=p.y+28*s+(band-portrait)*.5f+portrait*.5f-20*s;
  for(int side=0;side<2;++side){
   const auto& seat=card.seats[side];
@@ -181,7 +180,7 @@ CardInteraction DrawTableCard(const TableCardView& card) {
    text(ImVec2(tx,top+40*s),tw,streak?seat.streak:seat.idle,13*s,streak?palette::Ember:palette::Muted,true);
   }
  }
- text(ImVec2(p.x+12*s+half,card.stage?top+20*s-middleSize*.5f:top+16*s),gap,card.middle,middleSize,card.stage?v2::Colors().accent:palette::Ember,true);
+ text(ImVec2(p.x+12*s+half,top+16*s),gap,card.middle,18*s,palette::Ember,true);
  if(bannerHeight){
   const ImVec2 min(p.x+8*s,bannerTop),max(p.x+width-8*s,bannerTop+bannerHeight-2*s);
   ImGui::GetWindowDrawList()->AddRectFilled(min,max,IM_COL32(74,46,20,235),4*s);

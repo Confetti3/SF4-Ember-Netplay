@@ -81,8 +81,7 @@ float DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe,boo
 struct RosterGrid { int columns; float cardHeight; float listShare; };
 RosterGrid LayOutRosterGrid(float windowWidth);
 // `backing` fills the tile behind the art, which is transparent around the fighter.
-// `mirror` flips the art so the fighter faces left, as player 2 does on a versus screen.
-void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255),bool mirror=false);
+void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
 // Editors own keyboard Select and acceptance; pad Select still reaches them.
@@ -120,16 +119,13 @@ bool TakeEmbeddedFresh();
 // What a notice's button does when it closes the notice. The shell reads it
 // from GameMenu::TakeNoticeResult and acts on it. Dismissed is Back or the
 // header's Close; Acknowledged is a button that only closes it.
-enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout, UpdateNow, SkipUpdate,
-    // A BluMint match's notices (BluMintMoments.hxx): ready for the next game, change fighter first, play the next or called match.
-    BluMintReady, BluMintFighter, BluMintNext };
+enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout, UpdateNow, SkipUpdate };
 struct NoticeButton { std::string label; NoticeResult result=NoticeResult::Acknowledged; };
 // selected: the button highlighted when the notice opens (the first by default).
-// V2 shows `eyebrow` beside the brand's mark, `chip` at the top right and
-// `facts` (a score line) boxed over the text; Classic shows facts as a line.
+// V2 shows `eyebrow` beside Ember's mark and `chip` at the top right.
 // asked: the player's own action opened it, so speech reads it at once
 // instead of announcing it (MenuNarrator).
-struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; std::string eyebrow,facts; v2::HeaderChip chip{}; bool asked=false; };
+struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; std::string eyebrow; v2::HeaderChip chip{}; bool asked=false; };
 class GameMenu {
 public:
     MenuNavigation navigation;
@@ -173,7 +169,7 @@ public:
     // the one shown. Pressing one, or LB/RB (Page Up/Down) to a neighbour, returns a
     // Shortcut whose id names it; the owner switches. Empty for none.
     std::vector<std::pair<std::string,std::string>> tabs;
-    // V2 only: the words over the title (where the screen sits, as "BLUMINT · WINNERS ROUND 1") and the
+    // V2 only: the words over the title (where the screen sits, as "ONLINE PLAY · HOST") and the
     // chips at the header's right end. Empty for none.
     std::string eyebrow;
     std::vector<v2::HeaderChip> headerChips;
@@ -297,7 +293,7 @@ private:
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
     // Where an open popout sits (V2 Values); set on the frame it opens.
 ImVec2 popoutAt_{};bool popoutOpen_=false;
-std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_,noticeFacts_;
+std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_;
 v2::HeaderChip noticeChip_{};
     std::vector<NoticeButton> noticeButtons_;
     bool noticeAsked_=false;

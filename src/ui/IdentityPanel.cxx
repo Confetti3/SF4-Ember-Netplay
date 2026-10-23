@@ -78,7 +78,7 @@ void Assign(std::string& target, const std::string& text) { WipeText(target); ta
 
 bool IdentityPanel::Owns(const std::string& screen) {
     return screen == "identity" || screen == "identity-backup" || screen == "linked-accounts" || screen == "tournament-matches" ||
-        screen == "blumint-matches" || screen == DiscordConnectScreen || screen == SiteConnectScreen;
+        screen == DiscordConnectScreen || screen == SiteConnectScreen;
 }
 
 // Requests whose answers only show something or start a wait for a site's
@@ -216,11 +216,10 @@ void IdentityPanel::Refresh(const ShellView&, const std::string& screen) {
     if (signIn_) signIn_->paused = false;
     IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status));
     if (screen == DiscordConnectScreen) connectLookedUp_ = false;
-    const bool matches = screen == "tournament-matches" || screen == "blumint-matches";
-    if (screen == "linked-accounts" || matches || screen == DiscordConnectScreen || screen == SiteConnectScreen) {
+    if (screen == "linked-accounts" || screen == "tournament-matches" || screen == DiscordConnectScreen || screen == SiteConnectScreen) {
         IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
     }
-    if (matches) wantAssignments_ = true;
+    if (screen == "tournament-matches") wantAssignments_ = true;
 }
 
 void IdentityPanel::SelectBridge(const ShellView& v, const std::string& id) {
@@ -562,10 +561,6 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         if (ready) {
             // What players come here for first: their matches, then Discord and the sign-in sites.
             rows.push_back(Row("tournament-matches", loc::T("screen.tournament_matches"), loc::T("identity.matches_detail")));
-            // BluMint's own page, once BluMint has given this player a match.
-            const auto& items = v.tournament.list.items;
-            if (std::any_of(items.begin(), items.end(), [](const netplay::tournament::Assignment& m) { return m.provider == "blumint"; }))
-                rows.push_back(Row("blumint-matches", loc::T("screen.blumint_matches"), loc::T("identity.matches_detail")));
             rows.push_back(DiscordIdentityRow(v));
             ListedSiteIdentityRows(v, rows);
             rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
@@ -703,9 +698,6 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
     } else if (screen == "tournament-matches") {
         title = loc::T("screen.tournament_matches");
         MatchesRows(v, rows);
-    } else if (screen == "blumint-matches") {
-        title = loc::T("screen.blumint_matches");
-        MatchesRows(v, rows, "blumint");
     }
     return rows;
 }
@@ -718,7 +710,7 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     if (a.id == DiscordConnectScreen && nav.Parent() == DiscordConnectScreen) { nav.Return(); return; }
     if (a.id == DiscordConnectScreen) { NewJourney(); connectBridge_.clear(); }
     if (a.id == "identity" || a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches" ||
-        a.id == "blumint-matches" || a.id == DiscordConnectScreen) { nav.Push(a.id); return; }
+        a.id == DiscordConnectScreen) { nav.Push(a.id); return; }
     if (a.id.compare(0, std::strlen(SiteRowPrefix), SiteRowPrefix) == 0) { siteScreen_ = a.id.substr(std::strlen(SiteRowPrefix)); nav.Push(SiteConnectScreen); return; }
     if (ConnectActivate(a, v) || SignInActivate(a, v)) return;
     if (MatchesActivate(a, v)) return;

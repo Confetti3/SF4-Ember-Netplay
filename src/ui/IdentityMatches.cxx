@@ -56,7 +56,7 @@ int IdentityPanel::ReadyMatches(const ShellView& v) const {
 
 bool IdentityPanel::TakeAssigned(const ShellView& v) {
     // A player waiting for the match set up again is told on the matches screen too.
-    return announced_.Take(v.tournament.list, v.unixNow) && (lastScreen_ != "tournament-matches" && lastScreen_ != "blumint-matches" || now_ < restartWatchUntil_);
+    return announced_.Take(v.tournament.list, v.unixNow) && (lastScreen_ != "tournament-matches" || now_ < restartWatchUntil_);
 }
 
 std::string IdentityPanel::TakeFocus(const std::vector<MenuEntry>& rows) {
@@ -129,7 +129,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     if (!submit(std::move(action))) Say(loc::T("error.queue_failed"), Tone::Error);
 }
 
-void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows, const std::string& provider) const {
+void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows) const {
     const bool ready = v.identity.state == "ready";
     if (!ready) {
         rows.push_back(InfoRow("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
@@ -162,7 +162,6 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
     if (t.list.bridge == bridge_) {
         const bool free = v.session.room == netplay::RoomState::Idle && !t.MatchRoomActive();
         for (const auto& match : t.list.items) {
-            if (!provider.empty() && match.provider != provider) continue;
             const bool slotKnown = match.slot == 0 || match.slot == 1;
             const auto own = slotKnown ? match.wins[static_cast<std::size_t>(match.slot)] : 0u;
             const auto other = slotKnown ? match.wins[static_cast<std::size_t>(1 - match.slot)] : 0u;
@@ -185,18 +184,8 @@ void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows
             rows.push_back(std::move(row));
         }
         if (const auto watch = WatchEntry(v)) rows.push_back(*watch);
-        const bool none = std::none_of(t.list.items.begin(), t.list.items.end(),
-            [&](const netplay::tournament::Assignment& m) { return provider.empty() || m.provider == provider; });
-        if (none && !t.list.loading && t.list.error.empty())
+        if (t.list.items.empty() && !t.list.loading && t.list.error.empty())
             rows.push_back(InfoRow("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
-    }
-    // BluMint's page names the BluMint account linked to this Ember ID, the one its matches find.
-    if (!provider.empty()) {
-        auto row = Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail"));
-        if (listedBridge_ == bridge_)
-            for (const auto& link : v.identity.links) if (link.connection == provider) row.value = link.account;
-        row.userText = true;
-        rows.push_back(std::move(row));
     }
     rows.push_back(Row("tm-refresh", loc::T("identity.refresh"), loc::T("tournament.refresh_detail"), !t.list.loading));
     rows.push_back(Row("tm-paste", loc::T("tournament.paste_link"), loc::T("tournament.paste_link_detail")));

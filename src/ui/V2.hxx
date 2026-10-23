@@ -15,19 +15,12 @@ namespace sf4e { namespace ui { namespace v2 {
 bool On();
 void SetOn(bool on);
 
-// Whose look a screen wears: Ember's, or BluMint's in the rooms of BluMint's
-// matches (with BluMint's permission). Set each frame by what is on screen.
-enum class Brand { Ember, BluMint };
-void SetBrand(Brand brand);
-Brand CurrentBrand();
-// The palette roles of Theme.cxx by name, in the brand's colours, so V2
+// The palette roles of Theme.cxx by name, so V2
 // parts never write a literal: grounds from ink to hover, the accent that
 // marks focus and the thing to act on, text, the red of a LIVE mark, the
 // danger tone of Leave room (Kit: Error) and the green of Ready (Kit: Success).
 struct Palette { ImU32 ink, frame, panel, button, header, hover, border, accent, accentLight, text, muted, live, danger, ready; };
 const Palette& Colors();
-// BluMint's wordmark in the font atlas (Theme.cxx), after Ember's mark.
-constexpr int WordmarkRect = 1;
 namespace color {
 // `color` at `alpha` (0 to 1).
 constexpr ImU32 Alpha(ImU32 color, float alpha) { return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>(alpha * 255) << IM_COL32_A_SHIFT); }
@@ -127,8 +120,7 @@ float Paragraph(ImDrawList* draw, ImVec2 at, float width, const std::string& tex
 // ImGui::TextWrapped in the current font and colour, as a Paragraph in V2.
 void Wrapped(const std::string& text);
 
-// The brand's mark `height` tall at `at`: Ember's emblem, or BluMint's
-// wordmark × Ember's emblem. Returns its width.
+// Ember's mark `height` tall at `at`. Returns its width.
 float BrandMark(ImDrawList* draw, ImVec2 at, float height);
 // A screen's header: the brand's mark (BrandMark), an optional muted eyebrow (the path), the
 // title, and the rule with its 72 px Ember start under the title. Takes the cursor's line.
@@ -182,8 +174,6 @@ struct TagView {
     // The member's ping as the room measures it (LatencyMarkFor), with its route
     // above XS; none without text.
     LatencyMark ping;
-    // XS and S: the ping at the left and the name ending at the right, for player 1 beside a score.
-    bool mirror = false;
     // L only: the main (-1 for none), the line under the title (country, class) and the facts.
     int fighter = -1;
     // The title's tier colours its plate; the icon (-1 none) sits on the card's right.

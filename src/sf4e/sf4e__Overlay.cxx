@@ -501,7 +501,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
-    // V2 sizes text by the em, a quarter larger in TV mode; v2::On() is still last frame's look, BluMint's rooms included.
+    // V2 sizes text by the em, a quarter larger in TV mode; v2::On() is still last frame's look.
     const bool lookV2 = sf4e::ui::v2::On();
     if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale * (lookV2 && snapshot.preferences.tvMode ? 1.25f : 1.f), lookV2))
         ImGui_ImplDX9_InvalidateDeviceObjects();

@@ -3617,9 +3617,6 @@ msgstr "已绑定账号"
 msgid "screen.tournament_matches"
 msgstr "赛事对局"
 
-msgid "screen.blumint_matches"
-msgstr "BluMint 对局"
-
 msgid "identity.title"
 msgstr "Ember ID"
 
@@ -6768,75 +6765,6 @@ msgstr "电视模式"
 msgid "settings.tv_mode_detail"
 msgstr "适合房间另一头的电视：所有内容放大四分之一，并保持在边缘 5% 的安全区域内。"
 
-msgid "blumint.score"
-msgstr "{0} {1} – {2} {3} · 先赢 {4} 局"
-
-msgid "blumint.game_heading"
-msgstr "第 {0} 局结束"
-
-msgid "blumint.game_next"
-msgstr "下一局是第 {0} 局。准备好后按准备。"
-
-msgid "blumint.ready_next"
-msgstr "准备下一局"
-
-msgid "blumint.change_fighter"
-msgstr "先更换角色"
-
-msgid "blumint.not_yet"
-msgstr "等一下"
-
-msgid "blumint.set_won"
-msgstr "你赢下了这一盘"
-
-msgid "blumint.set_lost"
-msgstr "这一盘输了"
-
-msgid "blumint.set_winner"
-msgstr "{0} 赢下了这一盘"
-
-msgid "blumint.set_reported"
-msgstr "BluMint 已收到结果并更新赛事。"
-
-msgid "blumint.next_waiting"
-msgstr "BluMint 一呼叫你的下一场比赛，Ember 就会通知你。"
-
-msgid "blumint.watch_next"
-msgstr "BluMint 呼叫后，下一场比赛会出现在这里。"
-
-msgid "blumint.next_ready"
-msgstr "你的下一场 BluMint 比赛已就绪。"
-
-msgid "blumint.play_next"
-msgstr "开始下一场比赛"
-
-msgid "blumint.restart_heading"
-msgstr "这一局不算"
-
-msgid "blumint.restart_text"
-msgstr "连接中断，BluMint 将从 {0} – {1} 重新安排这场比赛。准备好后 Ember 会通知你。"
-
-msgid "blumint.host_heading"
-msgstr "BluMint 主办方接管了这场比赛"
-
-msgid "blumint.host_text"
-msgstr "赛事主办方在 BluMint 上关闭了这场比赛：接管、录入比分或删除。"
-
-msgid "blumint.expired_heading"
-msgstr "未按时进行"
-
-msgid "blumint.expired_text"
-msgstr "这场比赛没有在时限内进行。接下来由 BluMint 主办方决定。"
-
-msgid "blumint.first_to"
-msgstr "先赢 {0} 局"
-
-msgid "blumint.live"
-msgstr "直播中"
-
-msgid "blumint.eyebrow"
-msgstr "BLUMINT"
-
 msgid "menu.pages"
 msgstr "页面"
 
@@ -6906,78 +6834,6 @@ msgstr "Ember 开发者"
 
 msgid "rankings.developer_detail"
 msgstr "Ember 开发者以此标记代替等级，不会列入排行榜。你的对战仍会计入。"
-
-msgid "blumint.stage_live"
-msgstr "第 {0} 局 · 进行中"
-
-msgid "blumint.stage_next"
-msgstr "下一局：第 {0} 局"
-
-msgid "blumint.stage_decided"
-msgstr "本盘已决"
-
-msgid "blumint.stage_fighter"
-msgstr "每局开始前请准备。本盘 {0} 局先胜；BluMint 会收到每个结果。"
-
-msgid "blumint.stage_watcher"
-msgstr "你正在观战。选手准备后，房间会打完本盘的每一局。"
-
-msgid "blumint.watching"
-msgstr "观战 · {0}"
-
-msgid "blumint.more_watching"
-msgstr "另有 {0} 人观看"
-
-msgid "blumint.not_ready"
-msgstr "未准备"
-
-msgid "blumint.role_host"
-msgstr "房主"
-
-msgid "blumint.role_watching"
-msgstr "观战中"
-
-msgid "blumint.eyebrow_game"
-msgstr "第 {0} 局"
-
-msgid "blumint.eyebrow_set"
-msgstr "本盘"
-
-msgid "blumint.chip_set_won"
-msgstr "赢下本盘"
-
-msgid "blumint.chip_restart"
-msgstr "重开"
-
-msgid "blumint.chip_expired"
-msgstr "已过期"
-
-msgid "blumint.later"
-msgstr "稍后"
-
-msgid "blumint.called_heading"
-msgstr "你的 BluMint 比赛已就绪"
-
-msgid "blumint.called_text"
-msgstr "现在就开始：未按时准备好的玩家会被 BluMint 取消资格。"
-
-msgid "blumint.called_text_room"
-msgstr "现在就开始：未按时准备好的玩家会被 BluMint 取消资格。开始比赛会离开此房间。"
-
-msgid "blumint.play_now"
-msgstr "立即开始"
-
-msgid "blumint.leave_play"
-msgstr "离开房间并开始"
-
-msgid "blumint.chip_stopped"
-msgstr "已停止"
-
-msgid "blumint.failed_heading"
-msgstr "这场比赛已停止"
-
-msgid "blumint.failed_text"
-msgstr "{0} 请把比分告诉 BluMint 主办方，让对方录入。"
 
 msgid "room.v2.board"
 msgstr "概览"

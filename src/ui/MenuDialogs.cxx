@@ -149,7 +149,7 @@ void DialogTop(const std::string& eyebrow,const v2::HeaderChip& chip,const char*
 }
 void GameMenu::ShowNotice(NoticeDialog notice) {
     notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons); noticeAsked_=notice.asked;
-    noticeEyebrow_=std::move(notice.eyebrow); noticeFacts_=std::move(notice.facts); noticeChip_=std::move(notice.chip);
+    noticeEyebrow_=std::move(notice.eyebrow); noticeChip_=std::move(notice.chip);
     // A notice always has a button to close it by.
     if(noticeButtons_.empty()) noticeButtons_.push_back({loc::T("common.ok")});
     noticeSelected_=(std::max)(0,(std::min)(notice.selected,static_cast<int>(noticeButtons_.size())-1)); noticeError_=false; noticeResult_=NoticeResult::None;
@@ -317,7 +317,7 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
     // trading places with it every frame. The navigation state they answer to
     // (a draft, a question) is untouched and their popup returns afterwards.
     if(!notice_.empty()) ImGui::OpenPopup(noticePopup.c_str());
-    // V2: a card without a title bar, the brand's mark and the notice's eyebrow and chip on its top line.
+    // V2: a card without a title bar, Ember's mark and the notice's eyebrow and chip on its top line.
     const bool look=v2::On();const float s=Scale();const auto& c=v2::Colors();
     const bool open=BeginDialogPopup(noticePopup.c_str(),560,noticeChip_.text.empty()?c.border:c.accent);
     if(open) {
@@ -326,18 +326,9 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
             const char* heading=noticeError_?loc::T("notice.error_title"):noticeHeading_.empty()?loc::T("notice.title"):noticeHeading_.c_str();
             if(look){
                 DialogTop(noticeEyebrow_,noticeChip_,heading,noticeError_?ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Error)):c.text,28);
-                auto* d=ImGui::GetWindowDrawList();const float width=ImGui::GetContentRegionAvail().x;
-                if(!noticeFacts_.empty()){
-                    const auto box=ImGui::GetCursorScreenPos();const float bh=44*s;
-                    d->AddRectFilled(box,ImVec2(box.x+width,box.y+bh),c.frame,4*s);d->AddRect(box,ImVec2(box.x+width,box.y+bh),c.border,4*s,0,s);
-                    NoteUserText(noticeFacts_.c_str());
-                    d->AddText(ImGui::GetFont(),16*s,ImVec2(box.x+12*s,box.y+(bh-16*s)*.5f),c.text,noticeFacts_.c_str());
-                    ImGui::Dummy(ImVec2(width,bh+4*s));
-                }
             }
             else{
                 ImGui::TextColored(noticeError_?ToneColor(Tone::Error):ToneColor(Tone::Pending),"%s",heading);
-                if(!noticeFacts_.empty()){NoteUserText(noticeFacts_.c_str());v2::Wrapped(noticeFacts_);}
             }
             NoteUserText(notice_.c_str());
             v2::Wrapped(notice_);

@@ -28,18 +28,11 @@ bool On() { return on; }
 void SetOn(bool value) { on = value; }
 
 namespace {
-Brand brand = Brand::Ember;
 constexpr Palette EmberPalette{IM_COL32(20, 19, 18, 255), IM_COL32(25, 23, 21, 255), IM_COL32(33, 30, 27, 255), IM_COL32(56, 45, 36, 255),
     IM_COL32(58, 42, 31, 255), IM_COL32(89, 64, 43, 255), IM_COL32(68, 58, 49, 255), IM_COL32(255, 135, 56, 255), IM_COL32(255, 177, 111, 255),
     IM_COL32(243, 235, 221, 255), IM_COL32(181, 169, 155, 255), IM_COL32(255, 92, 80, 255), IM_COL32(255, 170, 160, 255), IM_COL32(164, 206, 160, 255)};
-// BluMint's: near-black navy grounds and its brand blue, as blumint.com.
-constexpr Palette BluMintPalette{IM_COL32(5, 9, 13, 255), IM_COL32(10, 20, 28, 255), IM_COL32(12, 24, 34, 255), IM_COL32(16, 34, 48, 255),
-    IM_COL32(10, 46, 68, 255), IM_COL32(18, 58, 82, 255), IM_COL32(30, 58, 78, 255), IM_COL32(33, 187, 255, 255), IM_COL32(127, 215, 255, 255),
-    IM_COL32(236, 244, 250, 255), IM_COL32(140, 164, 182, 255), IM_COL32(255, 77, 77, 255), IM_COL32(255, 170, 160, 255), IM_COL32(164, 206, 160, 255)};
 }
-void SetBrand(Brand value) { brand = value; }
-Brand CurrentBrand() { return brand; }
-const Palette& Colors() { return brand == Brand::BluMint ? BluMintPalette : EmberPalette; }
+const Palette& Colors() { return EmberPalette; }
 
 void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar) {
     const float s = Scale(), r = 4 * s;
@@ -265,21 +258,9 @@ void Fact(const std::string& key, const std::string& value) {
 float BrandMark(ImDrawList* draw, ImVec2 at, float height) {
     auto* atlas = ImGui::GetIO().Fonts;
     ImVec2 uv0, uv1;
-    if (brand == Brand::Ember) {
-        atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0), &uv0, &uv1);
-        draw->AddImage(atlas->TexID, at, ImVec2(at.x + height, at.y + height), uv0, uv1);
-        return height;
-    }
-    // BluMint's wordmark, then a small × and Ember's mark: BluMint's match, played in Ember.
-    const float s = Scale(), w = height * 4 * .7f, h = height * .7f, mark = height * .6f;
-    atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(WordmarkRect), &uv0, &uv1);
-    draw->AddImage(atlas->TexID, ImVec2(at.x, at.y + (height - h) * .5f), ImVec2(at.x + w, at.y + (height + h) * .5f), uv0, uv1);
-    float x = at.x + w + 10 * s;
-    draw->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, at.y + (height - 14 * s) * .5f), Colors().muted, "x");
-    x += 18 * s;
     atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0), &uv0, &uv1);
-    draw->AddImage(atlas->TexID, ImVec2(x, at.y + (height - mark) * .5f), ImVec2(x + mark, at.y + (height + mark) * .5f), uv0, uv1);
-    return x + mark - at.x;
+    draw->AddImage(atlas->TexID, at, ImVec2(at.x + height, at.y + height), uv0, uv1);
+    return height;
 }
 
 bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip>& chips, const char* back) {
@@ -575,17 +556,13 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     const bool status = !tag.status.empty() && (twoLines || nameWidth + titleWidth + statusWidth <= nameRoom);
     const bool title = !tag.title.empty() && (twoLines || nameWidth + titleWidth + (status ? statusWidth : 0) <= nameRoom);
     const float middle = at.y + (line - nameSize) * .5f;
+    float x = at.x + DrawNameMarks(draw, at.x, middle, nameSize, tag.marks).width;
     const float nameMax = nameRoom - (!twoLines && title ? titleWidth : 0) - (!twoLines && status ? statusWidth : 0);
     NoteUserText(tag.name);
     const std::string name = Fit(tag.name, (std::max)(0.f, nameMax), nameSize, nameFont);
-    // Mirrored, the marks, name, title and status end at the right edge and the ping starts the line.
-    const bool mirror = tag.mirror && !twoLines;
-    const float after = title || status ? gap + (title ? titleWidth : 0) + (status ? statusWidth - gap : 0) : 0;
-    const float lead = mirror ? width - (marksWidth + TextWidth(name, nameSize, nameFont) + after) : 0;
-    float x = at.x + lead + DrawNameMarks(draw, at.x + lead, middle, nameSize, tag.marks).width;
     draw->AddText(nameFont, nameSize, ImVec2(x, middle), Colors().text, name.c_str());
     x += TextWidth(name, nameSize, nameFont) + gap;
-    if (!ping.empty()) Chip(draw, ImVec2(mirror ? at.x : at.x + width - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
+    if (!ping.empty()) Chip(draw, ImVec2(at.x + width - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
     if (!twoLines) {
         if (title) { draw->AddText(ImGui::GetFont(), font, ImVec2(x, at.y + (line - font) * .5f), Colors().muted, tag.title.c_str()); x += titleWidth; }
         if (status) Chip(draw, ImVec2(x, at.y + (line - chipHeight) * .5f), tag.status, Colors().muted);

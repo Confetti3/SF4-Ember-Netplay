@@ -149,17 +149,6 @@ corner window. There, drag the picture to another corner, or drag its grip to
 resize it; Settings, Matches has Picture corner and Picture size for the pad
 and keys.
 
-## BluMint rooms
-
-![A BluMint room](v2/blumint.png)
-
-A BluMint tournament room takes BluMint's look: the match's fighters on the
-left, who is watching and chat on the right, and LIVE, First to and the score
-in the header. Between games a card asks what you want: Ready for the next
-game, Change fighter first or Not yet. When BluMint calls your next match,
-a card offers Play now or Later. Move with the D-pad or arrows and press A;
-the mouse clicks. See [BluMint quickstart](BLUMINT_QUICKSTART.md).
-
 ## Toasts and Notifications
 
 ![Toasts](v2/toasts.png)

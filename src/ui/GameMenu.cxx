@@ -95,27 +95,19 @@ const PlayerCardView& MenuPlayerCard(){return playerCard;}
 const char* MenuSelectGlyph(){return selectGlyph;}
 const char* MenuBackGlyph(){return backGlyph;}
 bool DrawMenuBackdrop(bool v2){
-    const bool bluMint=v2&&v2::CurrentBrand()==v2::Brand::BluMint;
-    const SelectionImage art=!bluMint&&menuArt?menuArt->MenuBackdrop():SelectionImage{};
-    if(!bluMint&&!art.texture)return false;
+    const SelectionImage art=menuArt?menuArt->MenuBackdrop():SelectionImage{};
+    if(!art.texture)return false;
     // The whole screen, also around a window kept inside TV mode's safe area.
     const auto* vp=ImGui::GetMainViewport();const auto p=vp->Pos,size=vp->Size,end=ImVec2(p.x+size.x,p.y+size.y);auto* d=ImGui::GetWindowDrawList();
     d->PushClipRect(p,end);
-    // BluMint's rooms wear BluMint's ground: near-black navy with a faint blue glow from the top, not Ember's art.
-    if(bluMint){
-        const auto& c=v2::Colors();
-        d->AddRectFilled(p,end,c.ink);
-        d->AddRectFilledMultiColor(p,ImVec2(end.x,p.y+size.y*.6f),v2::color::Alpha(c.accent,.10f),v2::color::Alpha(c.accent,.04f),v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,0));
-    }else{
-        ImVec2 uv0(0,0),uv1(1,1);
-        const float sourceAspect=float(art.width)/art.height,targetAspect=size.x/size.y;
-        if(targetAspect<sourceAspect){const float span=targetAspect/sourceAspect;uv0.x=1-span;}
-        else {const float span=sourceAspect/targetAspect;uv0.y=(1-span)*.5f;uv1.y=1-uv0.y;}
-        d->AddImage(art.texture,p,end,uv0,uv1);
-        // V2: the website's left-heavy tint, so the cards on the left read and the art shows on the right.
-        if(v2)d->AddRectFilledMultiColor(p,end,IM_COL32(20,19,18,245),IM_COL32(20,19,18,128),IM_COL32(20,19,18,160),IM_COL32(20,19,18,250));
-        else d->AddRectFilledMultiColor(p,end,IM_COL32(16,15,14,220),IM_COL32(16,15,14,75),IM_COL32(16,15,14,110),IM_COL32(16,15,14,235));
-    }
+    ImVec2 uv0(0,0),uv1(1,1);
+    const float sourceAspect=float(art.width)/art.height,targetAspect=size.x/size.y;
+    if(targetAspect<sourceAspect){const float span=targetAspect/sourceAspect;uv0.x=1-span;}
+    else {const float span=sourceAspect/targetAspect;uv0.y=(1-span)*.5f;uv1.y=1-uv0.y;}
+    d->AddImage(art.texture,p,end,uv0,uv1);
+    // V2: the website's left-heavy tint, so the cards on the left read and the art shows on the right.
+    if(v2)d->AddRectFilledMultiColor(p,end,IM_COL32(20,19,18,245),IM_COL32(20,19,18,128),IM_COL32(20,19,18,160),IM_COL32(20,19,18,250));
+    else d->AddRectFilledMultiColor(p,end,IM_COL32(16,15,14,220),IM_COL32(16,15,14,75),IM_COL32(16,15,14,110),IM_COL32(16,15,14,235));
     d->PopClipRect();
     return true;
 }
@@ -165,15 +157,14 @@ void ReportMenuCardText(const std::string& id,const std::string& text){if(cardTe
 void SetMenuStatusProbe(MenuStatusProbe probe){statusProbe=std::move(probe);}
 void SetMenuEntriesProbe(MenuEntriesProbe probe){entriesProbe=std::move(probe);}
 void SetPortraitProbe(PortraitProbe probe){portraitProbe=std::move(probe);}
-void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing,bool mirror){
+void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing){
     if(portraitProbe)portraitProbe(fighter,min,max);
     auto* d=ImGui::GetWindowDrawList();
     d->AddRectFilled(min,max,backing);
     if(menuArt){const auto art=menuArt->PortraitFor(fighter,max.y-min.y);if(art.texture){
         const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y)/art.height);
         const float w=art.width*factor,h=art.height*factor;
-        const ImVec2 uv0=mirror?ImVec2(art.uvMax.x,art.uvMin.y):art.uvMin,uv1=mirror?ImVec2(art.uvMin.x,art.uvMax.y):art.uvMax;
-        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),uv0,uv1);return;
+        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);return;
     }}
     const auto size=ImGui::CalcTextSize("?");
     d->AddText(ImVec2((min.x+max.x-size.x)*.5f,(min.y+max.y-size.y)*.5f),palette::Muted,"?");

@@ -3136,9 +3136,6 @@ msgstr "Cuentas vinculadas"
 msgid "screen.tournament_matches"
 msgstr "Partidas del torneo"
 
-msgid "screen.blumint_matches"
-msgstr "Partidas de BluMint"
-
 msgid "identity.title"
 msgstr "EMBER ID"
 
@@ -6287,75 +6284,6 @@ msgstr "Modo TV"
 msgid "settings.tv_mode_detail"
 msgstr "Para una TV al otro lado de la habitación: todo un cuarto más grande, dentro de un margen seguro del 5 %."
 
-msgid "blumint.score"
-msgstr "{0} {1} – {2} {3} · Al mejor de {4} victorias"
-
-msgid "blumint.game_heading"
-msgstr "Juego {0} terminado"
-
-msgid "blumint.game_next"
-msgstr "Sigue el juego {0}. Marca que estás listo cuando quieras."
-
-msgid "blumint.ready_next"
-msgstr "Listo para el siguiente juego"
-
-msgid "blumint.change_fighter"
-msgstr "Cambiar de luchador primero"
-
-msgid "blumint.not_yet"
-msgstr "Todavía no"
-
-msgid "blumint.set_won"
-msgstr "Ganas el set"
-
-msgid "blumint.set_lost"
-msgstr "Set perdido"
-
-msgid "blumint.set_winner"
-msgstr "{0} gana el set"
-
-msgid "blumint.set_reported"
-msgstr "BluMint tiene el resultado y actualiza el evento."
-
-msgid "blumint.next_waiting"
-msgstr "Ember te avisa en cuanto BluMint llame tu siguiente partida."
-
-msgid "blumint.watch_next"
-msgstr "La siguiente partida aparece aquí cuando BluMint la llame."
-
-msgid "blumint.next_ready"
-msgstr "Tu siguiente partida de BluMint está lista."
-
-msgid "blumint.play_next"
-msgstr "Jugar la siguiente partida"
-
-msgid "blumint.restart_heading"
-msgstr "Ese juego no contó"
-
-msgid "blumint.restart_text"
-msgstr "Se cayó la conexión, así que BluMint vuelve a preparar la partida desde {0} – {1}. Ember te avisa cuando esté lista."
-
-msgid "blumint.host_heading"
-msgstr "El anfitrión de BluMint tomó esta partida"
-
-msgid "blumint.host_text"
-msgstr "El anfitrión del evento cerró esta partida en BluMint: la tomó, ingresó el resultado o la eliminó."
-
-msgid "blumint.expired_heading"
-msgstr "No se jugó a tiempo"
-
-msgid "blumint.expired_text"
-msgstr "Esta partida no se jugó antes de que se acabara el tiempo. El anfitrión de BluMint decide qué sigue."
-
-msgid "blumint.first_to"
-msgstr "Primero a {0}"
-
-msgid "blumint.live"
-msgstr "EN VIVO"
-
-msgid "blumint.eyebrow"
-msgstr "BLUMINT"
-
 msgid "menu.pages"
 msgstr "Páginas"
 
@@ -6425,78 +6353,6 @@ msgstr "Desarrollador de Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Los desarrolladores de Ember muestran esta marca en lugar de una clase y no aparecen en la clasificación. Tus partidas igual cuentan."
-
-msgid "blumint.stage_live"
-msgstr "Partida {0} · en curso"
-
-msgid "blumint.stage_next"
-msgstr "Partida {0} a continuación"
-
-msgid "blumint.stage_decided"
-msgstr "Set decidido"
-
-msgid "blumint.stage_fighter"
-msgstr "Prepárate para cada partida. El set termina al primero a {0}; BluMint recibe cada resultado."
-
-msgid "blumint.stage_watcher"
-msgstr "Estás mirando. Los luchadores se preparan; la sala juega cada partida del set."
-
-msgid "blumint.watching"
-msgstr "Mirando · {0}"
-
-msgid "blumint.more_watching"
-msgstr "+{0} más mirando"
-
-msgid "blumint.not_ready"
-msgstr "No listo"
-
-msgid "blumint.role_host"
-msgstr "Anfitrión"
-
-msgid "blumint.role_watching"
-msgstr "Mirando"
-
-msgid "blumint.eyebrow_game"
-msgstr "Partida {0}"
-
-msgid "blumint.eyebrow_set"
-msgstr "Set"
-
-msgid "blumint.chip_set_won"
-msgstr "Set ganado"
-
-msgid "blumint.chip_restart"
-msgstr "Reinicio"
-
-msgid "blumint.chip_expired"
-msgstr "Vencido"
-
-msgid "blumint.later"
-msgstr "Más tarde"
-
-msgid "blumint.called_heading"
-msgstr "Tu partida de BluMint está lista"
-
-msgid "blumint.called_text"
-msgstr "Juégala ya: BluMint descalifica a quien no esté listo a tiempo."
-
-msgid "blumint.called_text_room"
-msgstr "Juégala ya: BluMint descalifica a quien no esté listo a tiempo. Jugarla te saca de esta sala."
-
-msgid "blumint.play_now"
-msgstr "Jugar ya"
-
-msgid "blumint.leave_play"
-msgstr "Salir de la sala y jugar"
-
-msgid "blumint.chip_stopped"
-msgstr "Detenida"
-
-msgid "blumint.failed_heading"
-msgstr "Esta partida se detuvo"
-
-msgid "blumint.failed_text"
-msgstr "{0} Dile el marcador al anfitrión de BluMint para que lo registre."
 
 msgid "room.v2.board"
 msgstr "Tablero"

@@ -3617,9 +3617,6 @@ msgstr "連携アカウント"
 msgid "screen.tournament_matches"
 msgstr "大会の試合"
 
-msgid "screen.blumint_matches"
-msgstr "BluMintの試合"
-
 msgid "identity.title"
 msgstr "Ember ID"
 
@@ -6768,75 +6765,6 @@ msgstr "テレビモード"
 msgid "settings.tv_mode_detail"
 msgstr "離れた場所のテレビ向け：すべてを4分の1大きくし、画面端から5%のセーフエリア内に収めます。"
 
-msgid "blumint.score"
-msgstr "{0} {1} – {2} {3} · {4}先取"
-
-msgid "blumint.game_heading"
-msgstr "第{0}試合終了"
-
-msgid "blumint.game_next"
-msgstr "次は第{0}試合です。準備ができたらレディを押してください。"
-
-msgid "blumint.ready_next"
-msgstr "次の試合の準備OK"
-
-msgid "blumint.change_fighter"
-msgstr "先にキャラクターを変更"
-
-msgid "blumint.not_yet"
-msgstr "まだ"
-
-msgid "blumint.set_won"
-msgstr "セット勝利"
-
-msgid "blumint.set_lost"
-msgstr "セット敗北"
-
-msgid "blumint.set_winner"
-msgstr "{0} がセットを取りました"
-
-msgid "blumint.set_reported"
-msgstr "BluMintが結果を受け取り、イベントを更新します。"
-
-msgid "blumint.next_waiting"
-msgstr "BluMintが次の対戦を呼び出すと、すぐにEmberがお知らせします。"
-
-msgid "blumint.watch_next"
-msgstr "次の対戦はBluMintが呼び出すとここに表示されます。"
-
-msgid "blumint.next_ready"
-msgstr "次のBluMintの対戦の準備ができました。"
-
-msgid "blumint.play_next"
-msgstr "次の対戦をプレイ"
-
-msgid "blumint.restart_heading"
-msgstr "この試合は無効です"
-
-msgid "blumint.restart_text"
-msgstr "接続が切れたため、BluMintが {0} – {1} から対戦を組み直します。準備ができたらEmberがお知らせします。"
-
-msgid "blumint.host_heading"
-msgstr "BluMintのホストがこの対戦を引き取りました"
-
-msgid "blumint.host_text"
-msgstr "イベントのホストがBluMintでこの対戦を閉じました：引き取った、スコアを入力した、または削除しました。"
-
-msgid "blumint.expired_heading"
-msgstr "時間内に行われませんでした"
-
-msgid "blumint.expired_text"
-msgstr "この対戦は時間内に行われませんでした。この後はBluMintのホストが決めます。"
-
-msgid "blumint.first_to"
-msgstr "{0}先取"
-
-msgid "blumint.live"
-msgstr "LIVE"
-
-msgid "blumint.eyebrow"
-msgstr "BLUMINT"
-
 msgid "menu.pages"
 msgstr "ページ"
 
@@ -6906,78 +6834,6 @@ msgstr "Ember開発者"
 
 msgid "rankings.developer_detail"
 msgstr "Ember開発者はクラスの代わりにこのマークが表示され、ランキングには載りません。対戦は引き続きカウントされます。"
-
-msgid "blumint.stage_live"
-msgstr "ゲーム {0} · 進行中"
-
-msgid "blumint.stage_next"
-msgstr "次はゲーム {0}"
-
-msgid "blumint.stage_decided"
-msgstr "セット決着"
-
-msgid "blumint.stage_fighter"
-msgstr "各ゲームの前に準備完了を押してください。セットは {0} 本先取で終了し、結果はすべて BluMint に送られます。"
-
-msgid "blumint.stage_watcher"
-msgstr "観戦中です。ファイターが準備し、ルームがセットの全ゲームを行います。"
-
-msgid "blumint.watching"
-msgstr "観戦 · {0}"
-
-msgid "blumint.more_watching"
-msgstr "他 {0} 人が観戦中"
-
-msgid "blumint.not_ready"
-msgstr "準備中"
-
-msgid "blumint.role_host"
-msgstr "ホスト"
-
-msgid "blumint.role_watching"
-msgstr "観戦中"
-
-msgid "blumint.eyebrow_game"
-msgstr "ゲーム {0}"
-
-msgid "blumint.eyebrow_set"
-msgstr "セット"
-
-msgid "blumint.chip_set_won"
-msgstr "セット勝利"
-
-msgid "blumint.chip_restart"
-msgstr "再開"
-
-msgid "blumint.chip_expired"
-msgstr "期限切れ"
-
-msgid "blumint.later"
-msgstr "あとで"
-
-msgid "blumint.called_heading"
-msgstr "BluMintの対戦の準備ができました"
-
-msgid "blumint.called_text"
-msgstr "今すぐプレイしてください。時間内に準備できないプレイヤーはBluMintで失格になります。"
-
-msgid "blumint.called_text_room"
-msgstr "今すぐプレイしてください。時間内に準備できないプレイヤーはBluMintで失格になります。プレイするとこのルームを出ます。"
-
-msgid "blumint.play_now"
-msgstr "今すぐプレイ"
-
-msgid "blumint.leave_play"
-msgstr "ルームを出てプレイ"
-
-msgid "blumint.chip_stopped"
-msgstr "停止"
-
-msgid "blumint.failed_heading"
-msgstr "この対戦は停止しました"
-
-msgid "blumint.failed_text"
-msgstr "{0} スコアをBluMintのホストに伝えて、入力してもらってください。"
 
 msgid "room.v2.board"
 msgstr "ボード"

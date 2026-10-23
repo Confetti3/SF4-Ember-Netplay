@@ -3616,9 +3616,6 @@ msgstr "Gekoppelde accounts"
 msgid "screen.tournament_matches"
 msgstr "Toernooiwedstrijden"
 
-msgid "screen.blumint_matches"
-msgstr "BluMint-wedstrijden"
-
 msgid "identity.title"
 msgstr "EMBER ID"
 
@@ -6767,75 +6764,6 @@ msgstr "Tv-modus"
 msgid "settings.tv_mode_detail"
 msgstr "Voor een tv aan de andere kant van de kamer: alles een kwart groter, binnen een veilige rand van 5%."
 
-msgid "blumint.score"
-msgstr "{0} {1} – {2} {3} · Eerst tot {4}"
-
-msgid "blumint.game_heading"
-msgstr "Game {0} klaar"
-
-msgid "blumint.game_next"
-msgstr "Game {0} is de volgende. Meld je klaar wanneer je wilt."
-
-msgid "blumint.ready_next"
-msgstr "Klaar voor de volgende game"
-
-msgid "blumint.change_fighter"
-msgstr "Eerst vechter wisselen"
-
-msgid "blumint.not_yet"
-msgstr "Nog niet"
-
-msgid "blumint.set_won"
-msgstr "Je wint de set"
-
-msgid "blumint.set_lost"
-msgstr "Set verloren"
-
-msgid "blumint.set_winner"
-msgstr "{0} wint de set"
-
-msgid "blumint.set_reported"
-msgstr "BluMint heeft de uitslag en werkt het evenement bij."
-
-msgid "blumint.next_waiting"
-msgstr "Ember laat het je weten zodra BluMint je volgende match oproept."
-
-msgid "blumint.watch_next"
-msgstr "De volgende match verschijnt hier wanneer BluMint hem oproept."
-
-msgid "blumint.next_ready"
-msgstr "Je volgende BluMint-match staat klaar."
-
-msgid "blumint.play_next"
-msgstr "Volgende match spelen"
-
-msgid "blumint.restart_heading"
-msgstr "Die game telde niet"
-
-msgid "blumint.restart_text"
-msgstr "De verbinding viel weg, dus BluMint zet de match opnieuw klaar vanaf {0} – {1}. Ember laat het je weten zodra hij klaarstaat."
-
-msgid "blumint.host_heading"
-msgstr "De host van BluMint heeft deze match overgenomen"
-
-msgid "blumint.host_text"
-msgstr "De host van het evenement heeft deze match op BluMint gesloten: overgenomen, de score ingevoerd of verwijderd."
-
-msgid "blumint.expired_heading"
-msgstr "Niet op tijd gespeeld"
-
-msgid "blumint.expired_text"
-msgstr "Deze match is niet gespeeld voordat de tijd om was. De host van BluMint beslist wat er nu gebeurt."
-
-msgid "blumint.first_to"
-msgstr "Eerst tot {0}"
-
-msgid "blumint.live"
-msgstr "LIVE"
-
-msgid "blumint.eyebrow"
-msgstr "BLUMINT"
-
 msgid "menu.pages"
 msgstr "Pagina's"
 
@@ -6905,78 +6833,6 @@ msgstr "Ember-ontwikkelaar"
 
 msgid "rankings.developer_detail"
 msgstr "Ember-ontwikkelaars tonen dit teken in plaats van een klasse en staan niet op de ranglijst. Je potjes tellen wel mee."
-
-msgid "blumint.stage_live"
-msgstr "Game {0} · bezig"
-
-msgid "blumint.stage_next"
-msgstr "Game {0} is de volgende"
-
-msgid "blumint.stage_decided"
-msgstr "Set beslist"
-
-msgid "blumint.stage_fighter"
-msgstr "Maak je klaar voor elke game. De set eindigt bij first to {0}; BluMint krijgt elke uitslag."
-
-msgid "blumint.stage_watcher"
-msgstr "Je kijkt mee. De vechters maken zich klaar; de room speelt elke game van de set."
-
-msgid "blumint.watching"
-msgstr "Kijkers · {0}"
-
-msgid "blumint.more_watching"
-msgstr "+{0} anderen kijken mee"
-
-msgid "blumint.not_ready"
-msgstr "Niet klaar"
-
-msgid "blumint.role_host"
-msgstr "Host"
-
-msgid "blumint.role_watching"
-msgstr "Kijkt"
-
-msgid "blumint.eyebrow_game"
-msgstr "Game {0}"
-
-msgid "blumint.eyebrow_set"
-msgstr "Set"
-
-msgid "blumint.chip_set_won"
-msgstr "Set gewonnen"
-
-msgid "blumint.chip_restart"
-msgstr "Opnieuw"
-
-msgid "blumint.chip_expired"
-msgstr "Verlopen"
-
-msgid "blumint.later"
-msgstr "Later"
-
-msgid "blumint.called_heading"
-msgstr "Je BluMint-match staat klaar"
-
-msgid "blumint.called_text"
-msgstr "Speel hem nu: BluMint diskwalificeert wie niet op tijd klaar is."
-
-msgid "blumint.called_text_room"
-msgstr "Speel hem nu: BluMint diskwalificeert wie niet op tijd klaar is. Om te spelen verlaat je deze room."
-
-msgid "blumint.play_now"
-msgstr "Nu spelen"
-
-msgid "blumint.leave_play"
-msgstr "Room verlaten en spelen"
-
-msgid "blumint.chip_stopped"
-msgstr "Gestopt"
-
-msgid "blumint.failed_heading"
-msgstr "Deze match is gestopt"
-
-msgid "blumint.failed_text"
-msgstr "{0} Geef de score door aan de host van BluMint, zodat die hem kan invoeren."
 
 msgid "room.v2.board"
 msgstr "Bord"

@@ -1,7 +1,6 @@
 #pragma once
 #include <imgui.h>
 #include "RoomCards.hxx"
-#include "V2.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/TrainingEntry.hxx"
@@ -356,19 +355,6 @@ private:
     static bool SettingsPreview(const std::string& id);
     // V2's Settings tab (GameMenu body): the rail of panels, the shown panel's rows and preview, the focused row's words.
     void DrawSettingsBoard(const std::vector<MenuEntry>& entries,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback,const GameMenu::Detail& preview);
-    // A BluMint match's room (ApplicationShell__BluMint.cxx): its look, header, watcher's rows and
-    // notices; then what a notice's BluMint button does (true when it was one).
-    // The room of a BluMint match this PC fights in: it wears BluMint's V2 look.
-static bool InBluMintRoom(const ShellView& view,const std::string& screen);
-void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<MenuEntry>& rows);
-    bool AnswerBluMint(NoticeResult result,const ShellView& view,const Submit& submit);
-    // What the last frame saw of the BluMint match, to say each moment once.
-    struct BluMintSeen { std::string match,state,reason; unsigned wins[2]={0,0}; bool failed=false; } bluMint_;
-    // A BluMint match called for this player, told once each, wherever the player is.
-    void CallBluMint(const ShellView& view);
-    std::vector<std::string> bluMintTold_;
-    // The match a notice's Play button opens.
-    std::string bluMintNext_;
     // V2 value panels (ApplicationShell__Values.cxx): each value row's values as choices.
     static void OfferValues(std::vector<MenuEntry>& rows);
     std::vector<MenuEntry> SettingsTabRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
@@ -380,7 +366,7 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     // A notice's buttons carry results, not actions (GameMenu::TakeNoticeResult). Every
     // draw of the menu is followed by AnswerDialog, which does what the result says with
     // what the notice's owner left in dialogContext_.
-    NoticeResult AnswerDialog(const Submit& submit);
+    void AnswerDialog(const Submit& submit);
     // The launch-time update check and its question (ApplicationShell__Updates.cxx).
     // UpdateLaunchCheck asks the service for the check on the first Home and puts the
     // question up when the offer is due and the player is free to answer; a closed
@@ -503,9 +489,7 @@ void UpdateBluMint(const ShellView& view,const std::string& screen,std::vector<M
     bool GameIsStale(std::size_t table) const;
     // A member's card as the room board and the V2 Members list draw it; no id when `row` names no member.
     MemberCardView RoomMemberCard(const ShellView& view,const MenuEntry& row) const;
-    // A BluMint match's room in V2 (ApplicationShell__BluMint.cxx): the match as a stage, who watches, chat and the actions.
-void DrawBluMintBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height);
-void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
+    void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     // The V2 room board's tables and its members-over-chat column in `area`, as the
     // player's layout grips set them (PlayerPreferences::roomColumn); a hidden panel's
@@ -585,9 +569,6 @@ std::string memberAsk_;
     // The same, kept to the next frame, for the room's rows (its Hide row).
     bool pictureOnBoard_ = false;
     bool boardDrawn_ = false;
-    // Where the BluMint board shows the watched game's picture, from the
-    // frame before (DrawWatchedPicture's dock).
-    std::optional<v2::Box> pictureDock_;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
