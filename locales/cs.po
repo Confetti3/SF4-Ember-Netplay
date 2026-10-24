@@ -6488,6 +6488,69 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
+msgid "music.title"
+msgstr "Hudba"
+
+msgid "music.detail"
+msgstr "Vyberte hudbu scén nebo postav. Obě volby se ukládají na tomto PC."
+
+msgid "music.lobby"
+msgstr "Hudba menu a lobby"
+
+msgid "music.lobby_default"
+msgstr "Výchozí hudba menu"
+
+msgid "music.lobby_detail"
+msgstr "Vyberte hudbu pro úvodní obrazovku, menu a lobby. Volba se uloží automaticky a obnoví při spuštění. Náhodně vybere nainstalovanou skladbu při spuštění a při návratu ze zápasu."
+
+msgid "music.match"
+msgstr "Hudba online zápasů"
+
+msgid "music.match_default"
+msgstr "Hudba scény (výchozí)"
+
+msgid "music.match_detail"
+msgstr "Platí pro zápasy v online místnostech i pro diváky; offline režimy si ponechají vlastní hudbu. Vyberte scénu, postavu nebo Náhodně. Náhodně vybere skladbu pro každý zápas včetně odvet. Vlastní hudba upravené scény má přednost."
+
+msgid "music.reset"
+msgstr "Obnovit výchozí hudbu"
+
+msgid "music.reset_detail"
+msgstr "Obnoví původní hudbu menu a hudbu jednotlivých scén."
+
+msgid "music.random"
+msgstr "Náhodně (scény a postavy)"
+
+msgid "music.character_theme"
+msgstr "Postava: {0}"
+
+msgid "music.stage_theme"
+msgstr "Scéna: {0}"
+
+msgid "music.error_fallback"
+msgstr "Vybranou hudbu menu se nepodařilo načíst. Výchozí hudba byla obnovena."
+
+msgid "music.error_retry_default"
+msgstr "Vybranou hudbu menu se nepodařilo načíst. Zkouší se výchozí hudba."
+
+msgid "music.error_load_failed"
+msgstr "Hudbu menu se nepodařilo načíst. Pro další pokus vyberte Výchozí."
+
+msgid "music.error_disabled"
+msgstr "Výběr hudby je pro toto spuštění vypnutý."
+
+msgid "music.error_unsupported"
+msgstr "Výběr hudby není pro tento spustitelný soubor hry dostupný."
+
+msgid "music.error_hook_failed"
+msgstr "Nepodařilo se připojit hudební hooky."
+
+msgid "music.error_files_unavailable"
+msgstr "Nepodařilo se najít hudební soubory hry."
+
+msgid "music.error_missing"
+msgstr "Vybraný hudební soubor chybí. Použije se výchozí hudba hry."
+
 msgid "screen.rankings"
 msgstr "Žebříčky"
 

@@ -6488,6 +6488,69 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
+msgid "music.title"
+msgstr "Musique"
+
+msgid "music.detail"
+msgstr "Choisissez des thèmes de stages ou de personnages. Les deux choix sont enregistrés sur ce PC."
+
+msgid "music.lobby"
+msgstr "Musique des menus et du salon"
+
+msgid "music.lobby_default"
+msgstr "Musique des menus par défaut"
+
+msgid "music.lobby_detail"
+msgstr "Choisissez la musique de l'écran titre, des menus et du salon. Le choix est enregistré automatiquement et rétabli au démarrage. Aléatoire choisit un morceau installé au démarrage et au retour d'un match."
+
+msgid "music.match"
+msgstr "Musique des matchs en ligne"
+
+msgid "music.match_default"
+msgstr "Musique du stage (par défaut)"
+
+msgid "music.match_detail"
+msgstr "S'applique aux matchs des salons en ligne, y compris en spectateur ; les modes hors ligne gardent leur musique. Choisissez un stage, un personnage ou Aléatoire. Aléatoire choisit un morceau pour chaque match, y compris les revanches. La musique propre à un stage personnalisé est prioritaire."
+
+msgid "music.reset"
+msgstr "Rétablir la musique par défaut"
+
+msgid "music.reset_detail"
+msgstr "Rétablit la musique originale des menus et de chaque stage."
+
+msgid "music.random"
+msgstr "Aléatoire (stages et personnages)"
+
+msgid "music.character_theme"
+msgstr "Personnage : {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage : {0}"
+
+msgid "music.error_fallback"
+msgstr "Impossible de charger la musique choisie pour les menus. Musique par défaut rétablie."
+
+msgid "music.error_retry_default"
+msgstr "Impossible de charger la musique choisie pour les menus. Essai avec la musique par défaut."
+
+msgid "music.error_load_failed"
+msgstr "Impossible de charger la musique des menus. Choisissez Par défaut pour réessayer."
+
+msgid "music.error_disabled"
+msgstr "La sélection musicale est désactivée pour ce lancement."
+
+msgid "music.error_unsupported"
+msgstr "La sélection musicale est indisponible pour cet exécutable du jeu."
+
+msgid "music.error_hook_failed"
+msgstr "Impossible d'installer les points d'interception de la musique."
+
+msgid "music.error_files_unavailable"
+msgstr "Impossible de trouver les fichiers musicaux du jeu."
+
+msgid "music.error_missing"
+msgstr "Un fichier musical sélectionné est absent. La musique par défaut du jeu sera utilisée."
+
 msgid "screen.rankings"
 msgstr "Classements"
 

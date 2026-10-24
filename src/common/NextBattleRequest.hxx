@@ -13,6 +13,8 @@ namespace sf4e { namespace battle {
 // (CancelLocalMatch), the end of the entry (ResetMatchEntry) and the netplay
 // shutdown (NetplayFacade::ShutdownNetplay).
 struct NextRequest {
+    // Local presentation only, never serialized or included in simulation.
+    int localMusic = -1;
     bool training = false;
     bool overrideSeed = false;
     std::uint32_t seed = 0xffffffff;

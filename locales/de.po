@@ -6488,6 +6488,69 @@ msgstr "Simbabwe"
 
 #. End of the generated country names.
 
+msgid "music.title"
+msgstr "Musik"
+
+msgid "music.detail"
+msgstr "Wähle Stage- oder Charakterthemen. Beide Einstellungen werden auf diesem PC gespeichert."
+
+msgid "music.lobby"
+msgstr "Menü- und Lobbymusik"
+
+msgid "music.lobby_default"
+msgstr "Standard-Menümusik"
+
+msgid "music.lobby_detail"
+msgstr "Wähle die Musik für Titelbildschirm, Menüs und Lobby. Die Auswahl wird automatisch gespeichert und beim Start wiederhergestellt. Zufällig wählt beim Start und bei der Rückkehr aus einem Kampf einen installierten Titel."
+
+msgid "music.match"
+msgstr "Musik für Online-Kämpfe"
+
+msgid "music.match_default"
+msgstr "Stage-Musik (Standard)"
+
+msgid "music.match_detail"
+msgstr "Gilt für Kämpfe in Online-Räumen, auch beim Zuschauen; Offline-Modi behalten ihre eigene Musik. Wähle eine Stage, einen Charakter oder Zufällig. Zufällig wählt für jeden Kampf einen Titel, auch bei Rückkämpfen. Die eigene Musik einer benutzerdefinierten Stage hat Vorrang."
+
+msgid "music.reset"
+msgstr "Standardmusik wiederherstellen"
+
+msgid "music.reset_detail"
+msgstr "Stellt die ursprüngliche Menümusik und die Musik jeder Stage wieder her."
+
+msgid "music.random"
+msgstr "Zufällig (Stages und Charaktere)"
+
+msgid "music.character_theme"
+msgstr "Charakter: {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage: {0}"
+
+msgid "music.error_fallback"
+msgstr "Die gewählte Menümusik konnte nicht geladen werden. Standardmusik wiederhergestellt."
+
+msgid "music.error_retry_default"
+msgstr "Die gewählte Menümusik konnte nicht geladen werden. Standardmusik wird versucht."
+
+msgid "music.error_load_failed"
+msgstr "Menümusik konnte nicht geladen werden. Wähle Standard, um es erneut zu versuchen."
+
+msgid "music.error_disabled"
+msgstr "Die Musikauswahl ist für diesen Programmstart deaktiviert."
+
+msgid "music.error_unsupported"
+msgstr "Die Musikauswahl ist für diese ausführbare Spieldatei nicht verfügbar."
+
+msgid "music.error_hook_failed"
+msgstr "Die Musik-Hooks konnten nicht eingerichtet werden."
+
+msgid "music.error_files_unavailable"
+msgstr "Die Musikdateien des Spiels wurden nicht gefunden."
+
+msgid "music.error_missing"
+msgstr "Eine gewählte Musikdatei fehlt. Die Standardmusik des Spiels wird verwendet."
+
 msgid "screen.rankings"
 msgstr "Ranglisten"
 

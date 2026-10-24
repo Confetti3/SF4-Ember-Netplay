@@ -1,4 +1,5 @@
 #include "ApplicationShell.hxx"
+#include "MusicPanel.hxx"
 #include <imgui_internal.h>
 #include "ButtonPromptSetting.hxx"
 #include "ControllersScreen.hxx"
@@ -33,6 +34,11 @@
 namespace sf4e { namespace ui {
 namespace {
 constexpr double ErrorSeconds = 5;
+bool CanSavePreferences(const ShellView& v,const netplay::PlayerPreferences& edited) {
+ if(v.canEditPreferences)return true;
+ const bool layouts=v.atMainMenu&&v.session.room!=netplay::RoomState::Idle&&!netplay::Fighting(v.session.match);
+ return (layouts||v.canEditMusic)&&OnlyLocalPresentationChanged(edited,v.preferences,layouts,v.canEditMusic);
+}
 // The installed version label, or the build's hash for a copy without one (a developer build).
 std::string InstalledVersion(const ShellView& v) { return v.services.installedVersion.empty() ? v.build : v.services.installedVersion; }
 // The launch card names only the settings that differ, in the order the game's
@@ -184,7 +190,7 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
  if(!preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending)preferences_=v.preferences;
  SyncLayoutPaths(v);
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
- if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&(v.canEditPreferences||(v.atMainMenu&&v.session.room!=RoomState::Idle&&!netplay::Fighting(v.session.match)&&OnlyLayoutsChanged(v.preferences,preferences_)))&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
+ if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&CanSavePreferences(v,preferences_)&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
   if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
 }
@@ -259,7 +265,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(ReplaysPanel::Owns(screen)){rows=replays_.Rows(v,screen,idle,title);
  }else if(screen=="settings"){
-  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
+  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("music",loc::T("music.title"),loc::T("music.detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
    Row("problem-reports",loc::T("reports.settings_title"),loc::T("reports.settings_detail")),Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
   // The flag beside the player's name; Select opens the country picker.
   rows.insert(rows.begin()+1,Row("country",loc::T("settings.country"),v.canEditPreferences?loc::T("settings.country_detail"):reason,v.canEditPreferences));
@@ -284,6 +290,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    rows.push_back(InfoRow("sent-"+std::to_string(i),ReportTime(sent[i].time),ReportStatusLabel(sent[i].status),
     std::string(loc::T(sent[i].kind=="problem"?"reports.row":"reports.crash_report"))+"\n\n"+ReportRecordText(sent[i])));
   if(rows.empty())rows.push_back(InfoRow("sent-none",loc::T("reports.none"),"",loc::T("reports.none_detail")));
+ }else if(screen=="music"){
+  title=loc::T("music.title");rows=MusicPanel::Rows(preferences_,v);
  }else if(screen=="player"){
   title=loc::T("player.title");
   rows=PlayerControllerRows(preferences_,v.controller,v.inputDevice.type,v.gameplayBrand,v.pads,
@@ -370,7 +378,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
+ const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="music"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -447,6 +455,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // The failed language save is about the row on the Interface screen, so it
  // speaks there only, and every other report below outranks it.
  if(!languageSaveError_.empty()&&screen=="interface"){status=languageSaveError_;statusTone=Tone::Error;}
+ if(screen=="music"&&!v.musicError.empty()){status=v.musicError;statusTone=Tone::Error;}
  if(IdentityPanel::Owns(screen)){std::string own;Tone ownTone=Tone::Neutral;if(identity_.Status(own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(PublicRoomsPanel::Owns(screen)||screen=="create"){std::string own=status;Tone ownTone=statusTone;if(publicRooms_.Status(v,screen,own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(RankingsPanel::Owns(screen)){std::string own=status;Tone ownTone=statusTone;if(rankings_.Status(v,screen,own,ownTone)){status=own;statusTone=ownTone;}}
@@ -516,8 +525,11 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
- else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports"||a.id=="music")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
+ else if(screen=="music"&&MusicPanel::Accept(a,v,preferences_)){
+  preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
+ }
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
@@ -541,6 +553,10 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
 }
 void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const std::string& screen,const Submit& submit) {
  using namespace netplay;
+ if(screen=="music") {
+  if(MusicPanel::Accept(a,v,preferences_)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
+  return;
+ }
  if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
@@ -629,7 +645,7 @@ void ApplicationShell::SetLanguage(std::string preference) {
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
  CancelLayoutCapture(v,submit);
- if(preferencesDirty_&&OnlyLayoutsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
+ if(preferencesDirty_&&CanSavePreferences(v,preferences_))UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
@@ -834,7 +850,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // The store's own diagnostic is English and goes to the log (the runtime
   // writes it there); the row says it in the player's language.
   const std::string reason=v.settingsError.empty()&&!error_.empty()?error_:std::string(loc::T("error.settings_not_saved"));
-  rows.push_back(Row("retry-save",loc::T("settings.retry_save"),reason,v.canEditPreferences&&!v.settingsPending));rows.back().wide=true;
+  rows.push_back(Row("retry-save",loc::T("settings.retry_save"),reason,CanSavePreferences(v,preferences_)&&!v.settingsPending));rows.back().wide=true;
  }
  const auto feedback=UpdateStatus(v,screen,opening,healthyRoom,title);
  const std::string& status=feedback.first;const Tone statusTone=feedback.second;
@@ -943,6 +959,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Choose(a);
   else if(a.id=="language")SetLanguage(a.text);
+  else if(screen=="music")HandleAdjust(a,v,screen,submit);
   else if(ReplaysPanel::Owns(screen))replays_.Choose(a,v,menu_.navigation,submit,error_);
   else if(screen=="controllers")HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Activate){

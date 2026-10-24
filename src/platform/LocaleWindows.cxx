@@ -11,6 +11,7 @@ namespace sf4e { namespace platform {
 namespace {
 std::mutex gameLanguageMutex;
 std::string gameLanguage;
+std::filesystem::path gameDirectory;
 }
 
 std::vector<std::string> WindowsUiLanguages() {
@@ -37,6 +38,12 @@ void SetGameDirectory(const std::filesystem::path& directory) {
     auto language = directory.empty() ? std::string() : loc::DetectGameLanguage(directory, SteamClientLanguage());
     std::lock_guard<std::mutex> lock(gameLanguageMutex);
     gameLanguage = std::move(language);
+    gameDirectory = directory;
+}
+
+std::filesystem::path GameDirectory() {
+    std::lock_guard<std::mutex> lock(gameLanguageMutex);
+    return gameDirectory;
 }
 
 std::string GameLanguage() {

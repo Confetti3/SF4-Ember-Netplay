@@ -6489,6 +6489,69 @@ msgstr "짐바브웨"
 
 #. End of the generated country names.
 
+msgid "music.title"
+msgstr "음악"
+
+msgid "music.detail"
+msgstr "스테이지 또는 캐릭터 테마를 선택합니다. 두 설정 모두 이 PC에 저장됩니다."
+
+msgid "music.lobby"
+msgstr "메뉴 및 로비 음악"
+
+msgid "music.lobby_default"
+msgstr "기본 메뉴 음악"
+
+msgid "music.lobby_detail"
+msgstr "타이틀 화면, 메뉴 및 로비의 음악을 선택합니다. 선택은 자동으로 저장되며 시작할 때 복원됩니다. 무작위는 시작할 때와 대전에서 돌아올 때 설치된 곡을 선택합니다."
+
+msgid "music.match"
+msgstr "온라인 대전 음악"
+
+msgid "music.match_default"
+msgstr "스테이지 음악 (기본값)"
+
+msgid "music.match_detail"
+msgstr "온라인 방의 대전과 관전에 적용됩니다. 오프라인 모드의 음악은 바뀌지 않습니다. 스테이지, 캐릭터 또는 무작위를 선택합니다. 무작위는 재대전을 포함한 매 대전마다 곡을 선택합니다. 사용자 지정 스테이지에 전용 음악이 있으면 우선 재생합니다."
+
+msgid "music.reset"
+msgstr "기본 음악 복원"
+
+msgid "music.reset_detail"
+msgstr "메뉴와 각 스테이지의 음악을 게임의 원래 음악으로 복원합니다."
+
+msgid "music.random"
+msgstr "무작위 (스테이지 및 캐릭터)"
+
+msgid "music.character_theme"
+msgstr "캐릭터: {0}"
+
+msgid "music.stage_theme"
+msgstr "스테이지: {0}"
+
+msgid "music.error_fallback"
+msgstr "선택한 메뉴 음악을 불러올 수 없습니다. 기본 음악으로 복원했습니다."
+
+msgid "music.error_retry_default"
+msgstr "선택한 메뉴 음악을 불러올 수 없습니다. 기본 음악을 시도합니다."
+
+msgid "music.error_load_failed"
+msgstr "메뉴 음악을 불러올 수 없습니다. 기본값을 선택하여 다시 시도하세요."
+
+msgid "music.error_disabled"
+msgstr "이번 실행에서는 음악 선택이 비활성화되어 있습니다."
+
+msgid "music.error_unsupported"
+msgstr "이 게임 실행 파일에서는 음악을 선택할 수 없습니다."
+
+msgid "music.error_hook_failed"
+msgstr "음악 후크를 연결할 수 없습니다."
+
+msgid "music.error_files_unavailable"
+msgstr "게임 음악 파일을 찾을 수 없습니다."
+
+msgid "music.error_missing"
+msgstr "선택한 음악 파일이 없습니다. 게임의 기본 음악을 사용합니다."
+
 msgid "screen.rankings"
 msgstr "랭킹"
 

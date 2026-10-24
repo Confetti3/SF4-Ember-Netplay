@@ -9,6 +9,9 @@
 #include "../ui/NetworkFeedback.hxx"
 #include "sf4e__AwayAlert.hxx"
 #include "sf4e__Steam.hxx"
+#include "sf4e__Music.hxx"
+#include "../netplay/MusicPreferences.hxx"
+#include "../common/MusicPlaybackState.hxx"
 #include "sf4e__SelfTest.hxx"
 #include <iterator>
 
@@ -153,6 +156,13 @@ void Apply(netplay::EventKind kind, const std::string& error) {
 	}
 }
 
+bool CanEditMusic() {
+    const auto state = runtime->controller.GetSnapshot();
+    return Music::Available() && AtMainMenu() && !Game::Battle::System::ggpo &&
+        !netplay::Fighting(state.match) &&
+        (state.room == netplay::RoomState::Idle || state.room == netplay::RoomState::Joined);
+}
+
 bool CanEditLobby() {
 	if (!runtime->attached || !UserApp::netplay || !AtMainMenu() || runtime->pendingLobbySettings || runtime->readyIntent.Parked() ||
 		runtime->lobbyEditIntent.Parked() || !runtime->match) return false;
@@ -246,6 +256,7 @@ void StartHelper() {
     spdlog::info("Windows region country {}", runtime->automaticCountry.Present() ? runtime->automaticCountry.ToString() : std::string("none"));
     wchar_t gamePath[MAX_PATH] = {};
     if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) platform::SetGameDirectory(std::filesystem::path(gamePath).parent_path());
+    sf4e::Music::InitializeContent();
     loc::SetActive(platform::ResolveUiLocale(runtime->languagePreference));
     spdlog::info("Interface language {} (preference {}, game {})", loc::Tag(loc::Active()), runtime->languagePreference,
         platform::GameLanguage().empty() ? "unknown" : platform::GameLanguage());
@@ -277,6 +288,8 @@ void StartHelper() {
             runtime->preferences.country = netplay::ReadCountryPreference(saved);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
+            netplay::ReadMusicPreferences(saved, runtime->preferences);
+            spdlog::info("Music: restored menu={} match={}", runtime->preferences.lobbyMusic, runtime->preferences.matchMusic);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
             runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
@@ -443,7 +456,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
 	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
-		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+		!command.saveLocalPresentation && command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
@@ -785,6 +798,13 @@ void TickRuntime() {
 	ReleaseFinishedMatch();
 	ResolvePendingIntents(helperReady);
 	SettleRoomState(helperReady);
+	{
+		const auto state = runtime->controller.GetSnapshot();
+		const bool safeMenu = music::MenuPlaybackAllowed(NativeForegroundName(),
+			Game::Battle::System::ggpo != nullptr || netplay::Fighting(state.match));
+		sf4e::Music::Configure(runtime->preferences.lobbyMusic, runtime->preferences.matchMusic,
+			safeMenu);
+	}
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();

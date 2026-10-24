@@ -5,6 +5,7 @@
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__Steam.hxx"
 #include "sf4e__CustomContent.hxx"
+#include "sf4e__Music.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
@@ -209,6 +210,27 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         return DispatchOutcome::Dropped;
     }
 	const auto kind = command.command.kind;
+    if (command.saveLocalPresentation) {
+        // Merge only the fields owned by this local request and validate them
+        // together before queuing one durable write. No partial save is visible.
+        const bool musicChanged = command.preferences.lobbyMusic != runtime->preferences.lobbyMusic ||
+            command.preferences.matchMusic != runtime->preferences.matchMusic;
+        const bool layoutsChanged = command.preferences.buttonLayouts != runtime->preferences.buttonLayouts;
+        const bool musicEditable = CanEditMusic(), layoutsEditable = CanEditButtonLayoutNow();
+        if ((!musicEditable && !layoutsEditable) || (musicChanged && !musicEditable) || (layoutsChanged && !layoutsEditable))
+            return DispatchOutcome::Dropped;
+        auto next = runtime->preferences;
+        next.lobbyMusic = command.preferences.lobbyMusic;
+        next.matchMusic = command.preferences.matchMusic;
+        next.buttonLayouts = command.preferences.buttonLayouts;
+        if (!next.Valid()) return DispatchOutcome::Dropped;
+        if (OverlayPrefs::SavePlayerPreferences(next)) {
+            runtime->preferences = std::move(next);
+            if (layoutsChanged) Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+            Music::RetryMenu(); runtime->error.clear();
+        } else runtime->error = loc::T("runtime.preferences_queue_failed");
+        return DispatchOutcome::Dispatched;
+    }
     // Recheck queued invite work after callbacks and controller changes.
     // A replacement or Cancel must also invalidate a queued Join/Leave.
     if (command.discordRevision) {

@@ -6488,6 +6488,69 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
+msgid "music.title"
+msgstr "Muziek"
+
+msgid "music.detail"
+msgstr "Kies muziek van stages of personages. Beide keuzes worden op deze pc opgeslagen."
+
+msgid "music.lobby"
+msgstr "Menu- en lobbymuziek"
+
+msgid "music.lobby_default"
+msgstr "Standaard menumuziek"
+
+msgid "music.lobby_detail"
+msgstr "Kies muziek voor het titelscherm, de menu's en de lobby. De keuze wordt automatisch opgeslagen en bij het opstarten hersteld. Willekeurig kiest bij het starten en na een wedstrijd een geïnstalleerd nummer."
+
+msgid "music.match"
+msgstr "Muziek voor online wedstrijden"
+
+msgid "music.match_default"
+msgstr "Stagemuziek (standaard)"
+
+msgid "music.match_detail"
+msgstr "Geldt voor wedstrijden in online kamers, ook als toeschouwer; offline modi behouden hun eigen muziek. Kies een stage, een personage of Willekeurig. Willekeurig kiest voor elke wedstrijd een nummer, ook bij rematches. De eigen muziek van een aangepaste stage krijgt voorrang."
+
+msgid "music.reset"
+msgstr "Standaardmuziek herstellen"
+
+msgid "music.reset_detail"
+msgstr "Herstelt de oorspronkelijke menumuziek en de muziek van elke arena."
+
+msgid "music.random"
+msgstr "Willekeurig (stages en personages)"
+
+msgid "music.character_theme"
+msgstr "Personage: {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage: {0}"
+
+msgid "music.error_fallback"
+msgstr "De gekozen menumuziek kon niet worden geladen. Standaardmuziek hersteld."
+
+msgid "music.error_retry_default"
+msgstr "De gekozen menumuziek kon niet worden geladen. De standaardmuziek wordt geprobeerd."
+
+msgid "music.error_load_failed"
+msgstr "Menumuziek kon niet worden geladen. Kies Standaard om opnieuw te proberen."
+
+msgid "music.error_disabled"
+msgstr "Muziekkeuze is uitgeschakeld voor deze start."
+
+msgid "music.error_unsupported"
+msgstr "Muziekkeuze is niet beschikbaar voor dit uitvoerbare spelbestand."
+
+msgid "music.error_hook_failed"
+msgstr "De muziekhooks konden niet worden geïnstalleerd."
+
+msgid "music.error_files_unavailable"
+msgstr "De muziekbestanden van het spel zijn niet gevonden."
+
+msgid "music.error_missing"
+msgstr "Een gekozen muziekbestand ontbreekt. De standaardmuziek van het spel wordt gebruikt."
+
 msgid "screen.rankings"
 msgstr "Ranglijsten"
 

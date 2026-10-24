@@ -6488,6 +6488,69 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
+msgid "music.title"
+msgstr "Muzyka"
+
+msgid "music.detail"
+msgstr "Wybierz motywy aren lub postaci. Oba ustawienia są zapisywane na tym komputerze."
+
+msgid "music.lobby"
+msgstr "Muzyka menu i pokoju"
+
+msgid "music.lobby_default"
+msgstr "Domyślna muzyka menu"
+
+msgid "music.lobby_detail"
+msgstr "Wybierz muzykę ekranu tytułowego, menu i pokoju. Wybór jest zapisywany automatycznie i przywracany przy uruchomieniu. Losowo wybiera zainstalowany utwór przy uruchomieniu i po powrocie z walki."
+
+msgid "music.match"
+msgstr "Muzyka walk online"
+
+msgid "music.match_default"
+msgstr "Muzyka areny (domyślna)"
+
+msgid "music.match_detail"
+msgstr "Dotyczy walk w pokojach online, także podczas oglądania; tryby offline zachowują własną muzykę. Wybierz arenę, postać lub Losowo. Losowo wybiera utwór do każdej walki, także do rewanżów. Własna muzyka niestandardowej areny ma pierwszeństwo."
+
+msgid "music.reset"
+msgstr "Przywróć domyślną muzykę"
+
+msgid "music.reset_detail"
+msgstr "Przywraca oryginalną muzykę menu i muzykę każdej areny."
+
+msgid "music.random"
+msgstr "Losowo (areny i postacie)"
+
+msgid "music.character_theme"
+msgstr "Postać: {0}"
+
+msgid "music.stage_theme"
+msgstr "Arena: {0}"
+
+msgid "music.error_fallback"
+msgstr "Nie udało się wczytać wybranej muzyki menu. Przywrócono muzykę domyślną."
+
+msgid "music.error_retry_default"
+msgstr "Nie udało się wczytać wybranej muzyki menu. Próba wczytania muzyki domyślnej."
+
+msgid "music.error_load_failed"
+msgstr "Nie udało się wczytać muzyki menu. Wybierz Domyślna, aby spróbować ponownie."
+
+msgid "music.error_disabled"
+msgstr "Wybór muzyki jest wyłączony podczas tego uruchomienia."
+
+msgid "music.error_unsupported"
+msgstr "Wybór muzyki nie jest dostępny dla tego pliku wykonywalnego gry."
+
+msgid "music.error_hook_failed"
+msgstr "Nie udało się podłączyć hooków muzyki."
+
+msgid "music.error_files_unavailable"
+msgstr "Nie znaleziono plików muzycznych gry."
+
+msgid "music.error_missing"
+msgstr "Brakuje wybranego pliku muzycznego. Zostanie użyta domyślna muzyka gry."
+
 msgid "screen.rankings"
 msgstr "Rankingi"
 

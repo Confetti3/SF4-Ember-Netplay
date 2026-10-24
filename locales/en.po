@@ -6124,6 +6124,69 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
+msgid "music.title"
+msgstr "Music"
+
+msgid "music.detail"
+msgstr "Choose stage or character themes. Both choices are saved on this PC."
+
+msgid "music.lobby"
+msgstr "Menu and lobby music"
+
+msgid "music.lobby_default"
+msgstr "Default menu music"
+
+msgid "music.lobby_detail"
+msgstr "Choose the music for the title screen, menus and lobby. It is saved automatically and restored on startup. Random chooses an installed track on startup and when returning from a match."
+
+msgid "music.match"
+msgstr "Online match music"
+
+msgid "music.match_default"
+msgstr "Stage music (default)"
+
+msgid "music.match_detail"
+msgstr "Applies to online room matches, including spectating; offline modes keep their own music. Choose a stage, a character, or Random. Random selects a track for each match, including rematches. A custom stage's own music takes priority."
+
+msgid "music.reset"
+msgstr "Restore default music"
+
+msgid "music.reset_detail"
+msgstr "Restore the original menu music and each stage's music."
+
+msgid "music.random"
+msgstr "Random (stages and characters)"
+
+msgid "music.character_theme"
+msgstr "Character: {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage: {0}"
+
+msgid "music.error_fallback"
+msgstr "Could not load the selected menu music. Default music restored."
+
+msgid "music.error_retry_default"
+msgstr "Could not load the selected menu music. Trying the default music."
+
+msgid "music.error_load_failed"
+msgstr "Could not load menu music. Choose Default to try again."
+
+msgid "music.error_disabled"
+msgstr "Music selection is disabled for this launch."
+
+msgid "music.error_unsupported"
+msgstr "Music selection is unavailable for this game executable."
+
+msgid "music.error_hook_failed"
+msgstr "The music hooks could not be attached."
+
+msgid "music.error_files_unavailable"
+msgstr "Could not locate the game's music files."
+
+msgid "music.error_missing"
+msgstr "A selected music file is missing. The game's default music will be used."
+
 msgid "screen.rankings"
 msgstr "Rankings"
 

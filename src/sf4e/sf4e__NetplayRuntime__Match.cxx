@@ -1,3 +1,4 @@
+#include "sf4e__Music.hxx"
 #include "sf4e__NetplayRuntime.hxx"
 #include "sf4e__GameEvents.hxx"
 

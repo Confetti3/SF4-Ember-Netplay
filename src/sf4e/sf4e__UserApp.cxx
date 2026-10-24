@@ -31,6 +31,7 @@
 #include "sf4e__UserApp.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__Pad.hxx"
+#include "sf4e__Music.hxx"
 
 
 namespace SessionProtocol = sf4e::SessionProtocol;
@@ -124,6 +125,7 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     if (!fVsPreBattle::GoToVersus(settings, fUserApp::_OnVsPreBattleTasksRegistered)) {
         return MatchEntry::Deferred;
     }
+    fVsBattle::nextRequest.localMusic = sf4e::Music::ResolveMatchChoice();
     spdlog::info(
         "Netplay: starting match with rounds={} time={} training={}",
         client->_lobbyData.roundCount,

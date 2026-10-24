@@ -1,5 +1,6 @@
 #pragma once
 #include "../common/BoundedRead.hxx"
+#include "../common/GameFiles.hxx"
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
@@ -30,15 +31,13 @@ inline bool ReadFile(const std::filesystem::path& path, std::size_t most, std::v
 // game loads the file found is not verified.
 inline std::filesystem::path CommandFolder(const std::filesystem::path& game, const std::string& code) {
     static const char* const later[] = {"RYU", "GUL", "BLR", "VEG", "JHA", "CMY", "DAN", "GUY", "DDL", "RLN", "PSN", "DCP"};
-    static const char* const layers[] = {"patch_ae2_tu3/battle/regulation/ae2_111", "patch_ae2_tu2/battle/regulation/ae2_110",
-        "patch_ae2_tu1/battle/regulation/ae2_109", "dlc/04_ae2/battle/regulation/ae2", "dlc/03_character_free/battle/regulation/latest",
-        "patch/battle/regulation/latest_ae", "resource/battle/chara"};
     const bool newest = std::any_of(std::begin(later), std::end(later), [&](const char* one) { return code == one; });
     std::filesystem::path found;
-    std::error_code ignored;
-    for (std::size_t i = newest ? 0 : 1; i < sizeof layers / sizeof *layers; ++i) {
-        found = game / layers[i] / code;
-        if (std::filesystem::exists(found / (code + ".bcm"), ignored)) break;
+    for (std::size_t i = newest ? 0 : 1; i < std::size(files::GameLayers); ++i) {
+        const auto& layer = files::GameLayers[i];
+        if (!*layer.commands) continue;
+        found = game / layer.root / layer.commands / code;
+        if (files::Exists(found / (code + ".bcm"))) break;
     }
     return found;
 }

@@ -118,6 +118,8 @@ namespace sf4e {
 			// The stages Random may land on (P1 resolves Random with it).
 			selection::RandomPool randomPool;
 			netplay::PlayerPreferences preferences;
+    // Save local music and layouts atomically; never sent to the room controller.
+    bool saveLocalPresentation = false;
 			room::Action roomAction;
             int selectedDelay=-1;
             int previewSoundVolume=-1;
@@ -215,6 +217,9 @@ namespace sf4e {
 			bool canEditSelection = false;
             std::string selectionLockReason;
 			bool canEditPreferences = false;
+			bool canEditMusic = false;
+			std::string musicError;
+    music::ChoicesPtr musicChoices;
 			bool canEditLobby = false;
 			bool settingsPending = false;
             int selectedDelay=2, recommendedDelay=-1;

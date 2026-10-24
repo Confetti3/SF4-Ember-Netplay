@@ -1,4 +1,5 @@
 #include "SelectionArt.hxx"
+#include "../common/GameFiles.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../platform/Utf8.hxx"
@@ -413,9 +414,8 @@ SelectionImage SelectionArt::Portrait(int fighterId, bool large) {
     const auto paths = [&] {
         auto list = impl_->ImagePaths(key);
         const std::wstring code(fighter->code, fighter->code + 3);
-        for (const wchar_t* root : {L"patch_ae2_tu3", L"patch_ae2_tu2", L"patch_ae2", L"dlc/04_ae2",
-                                   L"dlc/03_character_free", L"resource"})
-            list.push_back(impl_->gameRoot + L"/" + root + L"/ui/chara_select/chara/sel_" + code + L".tex.emz");
+        for (const auto& layer : files::GameLayers)
+            list.push_back(impl_->gameRoot + L"/" + layer.root + L"/ui/chara_select/chara/sel_" + code + L".tex.emz");
         // Last resort when the game's portrait cannot be read or decoded: the
         // packaged original-outfit cutout, cropped the same way.
         const auto outfit = impl_->ImagePaths(std::string(fighter->code) + "/costume-0/color-0");

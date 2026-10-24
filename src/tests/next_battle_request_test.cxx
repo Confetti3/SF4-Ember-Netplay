@@ -23,12 +23,14 @@ int main() {
     // A Practice match's battle is prepared with Training rules and the
     // match's own seed.
     game.Enter(true, 1234);
+    game.pending.localMusic = 123;
     auto battle = game.Prepare();
-    CHECK(battle.training && battle.overrideSeed && battle.seed == 1234);
+    CHECK(battle.training && battle.overrideSeed && battle.seed == 1234 && battle.localMusic == 123);
+    CHECK(game.pending.localMusic == -1);
     // The match after it plays by its own rules and seed; neither carries over.
     game.Enter(false, 5678);
     battle = game.Prepare();
-    CHECK(!battle.training && battle.overrideSeed && battle.seed == 5678);
+    CHECK(!battle.training && battle.overrideSeed && battle.seed == 5678 && battle.localMusic == -1);
     // A battle the game prepares with no match entered (offline, or a second
     // preparation) gets nothing of the last match.
     battle = game.Prepare();
@@ -36,9 +38,10 @@ int main() {
     // A start that is deferred after a Practice match was entered but never
     // prepared leaves nothing for the next battle.
     game.Enter(true, 99);
+    game.pending.localMusic = 143;
     game.Defer();
     battle = game.Prepare();
-    CHECK(!battle.training && !battle.overrideSeed);
+    CHECK(!battle.training && !battle.overrideSeed && battle.localMusic == -1);
     // A seed of all ones is still the match's, not the absence of one.
     game.Enter(false, 0xffffffff);
     battle = game.Prepare();

@@ -63,8 +63,15 @@ void LayoutRoom() {
     room.view.canEditPreferences = false; JoinedRoom(room, 42); room.Frame(); room.Screen("player"); room.Choose("controls");
     room.Choose("fn-lp"); room.view.pads[0].held = {"RB"}; room.Frame(); room.view.pads[0].held.clear(); room.Frame();
     Check(LastLayout(room).buttons[5] == 0x10, "Room layout edit was locked");
+    room.view.canEditMusic = true;
+    room.Screen("music"); room.Press(MenuInput::Right);
+    const auto saves = [&] { return std::count_if(room.actions.begin(), room.actions.end(),
+        [](const ShellAction& action) { return action.saveLocalPresentation; }); };
+    const auto queued = saves();
     room.Wait(.5f);
-    Check(room.actions.back().padAction.kind == ControllerRequest::Kind::SaveLayouts, "Room edit did not autosave through the layout-only request");
+    Check(saves() == queued + 1 && room.actions.back().saveLocalPresentation &&
+        !room.actions.back().preferences.buttonLayouts.empty() && room.actions.back().preferences.lobbyMusic == sf4e::music::Random,
+        "Music and layout edits did not autosave together in one local request");
 }
 void LayoutCancelsAndEdges() {
     for (const auto* cancel : {"Start", "up"}) {

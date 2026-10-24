@@ -16,6 +16,7 @@ option(SF4E_CORE_TESTS_ONLY "Build game-independent migration tests without Wind
 add_library(sf4e_netplay_core STATIC "src/netplay/SessionController.cxx" "src/netplay/MatchResultOutbox.cxx")
 add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/StageCatalog.cxx" "src/common/InstalledContent.cxx")
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
+target_link_libraries(sf4e_netplay_core PUBLIC sf4e_selection)
 target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
 # Durable create-only and replacing file writes (platform/DurableFile.hxx), for
 # replays, settings and the updater's journal. Its bounded reader is header only.
@@ -23,10 +24,12 @@ if(WIN32)
     add_library(sf4e_durable_file STATIC "src/platform/DurableFile.cxx")
     target_compile_features(sf4e_durable_file PUBLIC cxx_std_17)
     add_library(sf4e_custom_content_files STATIC "src/platform/CustomContentFiles.cxx")
+    target_compile_features(sf4e_custom_content_files PUBLIC cxx_std_17)
     target_link_libraries(sf4e_custom_content_files PUBLIC sf4e_selection)
 endif()
 if(BUILD_TESTING)
     if(WIN32)
+        sf4e_add_unit_test(NAME NativeSignature SOURCES "src/tests/native_signature_test.cxx" STD 14)
         sf4e_add_unit_test(NAME CustomContentFiles SOURCES "src/tests/custom_content_files_test.cxx"
             STD 17 LIBS sf4e_custom_content_files TIMEOUT 15)
     endif()
@@ -59,6 +62,7 @@ if(BUILD_TESTING)
     endif()
     sf4e_add_unit_test(NAME MatchFrameMeter SOURCES "src/tests/match_frame_meter_test.cxx")
     sf4e_add_unit_test(NAME GfxActionPool SOURCES "src/tests/gfx_action_pool_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME MusicPlayback SOURCES "src/tests/music_playback_test.cxx" LIBS sf4e_selection)
     sf4e_add_unit_test(NAME SoundReconcile SOURCES "src/tests/sound_reconcile_test.cxx")
     sf4e_add_unit_test(NAME ReusableRecords SOURCES "src/tests/reusable_records_test.cxx")
     sf4e_add_unit_test(NAME NativeMatchResult SOURCES "src/tests/native_match_result_test.cxx" STD 11 TIMEOUT 15)
@@ -270,7 +274,7 @@ add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/Se
     "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx"
     "src/platform/GameDisplaySettings.cxx")
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
-target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE sf4e_durable_file "shell32" "ole32")
+target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization sf4e_selection PRIVATE sf4e_durable_file "shell32" "ole32")
 if(BUILD_TESTING)
     # It takes 2 s alone. Its saves are flushed writes, which take up to ten
     # times as long while other tests and builds use the disk.
@@ -287,7 +291,7 @@ install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.
 install(DIRECTORY "assets/flags" DESTINATION "assets" FILES_MATCHING PATTERN "flags.png" PATTERN "flags.json" PATTERN "LICENSE" PATTERN "README.md")
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
-target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/RankingsPanel.cxx src/ui/RankingsCards.cxx src/ui/MatchAnnouncements.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/RankingsPanel.cxx src/ui/RankingsCards.cxx src/ui/MatchAnnouncements.cxx src/ui/MusicPanel.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
 target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx src/ui/ApplicationShell__Create.cxx src/ui/ApplicationShell__Links.cxx src/ui/RoomCards.cxx src/ui/ApplicationShell__Updates.cxx src/ui/UpdatePrompt.cxx src/ui/CountryFlag.cxx src/ui/CountryPicker.cxx src/ui/NameMarks.cxx)
@@ -485,6 +489,10 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__AwayAlert.cxx"
     "src/sf4e/sf4e__InputLag.hxx"
     "src/sf4e/sf4e__InputLag.cxx"
+    "src/sf4e/sf4e__Music.cxx"
+    "src/sf4e/sf4e__Music.hxx"
+    "src/sf4e/sf4e__MusicRematch.cxx"
+    "src/sf4e/sf4e__MusicRematch.hxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
     "src/sf4e/sf4e__ReplayStore.hxx"

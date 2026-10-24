@@ -3,6 +3,7 @@
 #include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__InputLag.hxx"
+#include "sf4e__Music.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
 #include "../common/MementoGuards.hxx"
