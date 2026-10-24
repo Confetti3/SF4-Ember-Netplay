@@ -4,6 +4,7 @@
 #include "RoomFeedback.hxx"
 #include "RoomControls.hxx"
 #include "RoomCards.hxx"
+#include "RoomBoardLayout.hxx"
 #include "LatencyMark.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
@@ -164,10 +165,6 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
 std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  using namespace room;
  auto& nav=menu_.navigation; const auto& s=v.room;
- if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;leaveAsk_=-1;leaveAsked_=false;
-  std::snprintf(roomName_,sizeof(roomName_),"%s",s.name.c_str());roomCapacity_=s.capacity;
-  if(const auto* local=Member(s,s.localMember))if(local->table>=0&&local->table<static_cast<int>(s.tables.size()))selectedTable_=local->table;
- }
  std::vector<MenuEntry> rows;
   const bool mutableRoom=RoomActionsAvailable(v);
   const bool host=mutableRoom&&s.localMember&&s.localMember==room::ActingHost(s);
@@ -246,7 +243,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
    const unsigned unread=transcript_.Unread(muted_);
-   rows.push_back(Row("room-chat",loc::T("room.chat"),(unread?loc::Tf("room.chat.unread",unread)+" ":std::string())+loc::T("room.chat.detail")));
+   rows.push_back(Row("room-chat",loc::T("chat.history"),(unread?loc::Tf("room.chat.unread",unread)+" ":std::string())+loc::T("room.chat.detail")));
    if(unread)rows.back().value=std::to_string(unread);
    // Changing fighter needs a seat, so it lives in the table options (and X).
    rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
@@ -273,6 +270,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // A public room has no replacement: when its host is gone the room closes.
   if(v.session.recovery==netplay::Recovery::ReplacementOffered&&!s.serverOwned)
    rows.push_back(ConfirmRow("replace-room",loc::T("room.replace"),loc::T(v.canReplaceRoom?"room.replace.detail":"room.replace.waiting"),v.canReplaceRoom));
+  if(s.roomEpoch&&ChatGateOf(v)!=ChatGate::ReadOnly){
+   rows.push_back(Row("inline-chat",loc::T("room.compose_message"),loc::T("chat.inline_detail"),ChatTypable(v)));
+   rows.back().value=chat_;
+  }
   for(std::size_t i=0;i<rows.size();++i){auto& e=rows[i];
    if(e.id.compare(0,6,"table-")==0)e.right=s.members.empty()?"room-members":"member-"+std::to_string(s.members.front().id);
    else if(e.id.compare(0,7,"member-")==0)e.left="table-"+std::to_string(selectedTable_);
@@ -452,7 +453,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
 void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,
                                      const MenuVisualFeedback& feedback) {
  boardDrawn_=true;
- const float s=Scale(),gap=12*s;const bool wide=ImGui::GetContentRegionAvail().x>=820*s;
+ const float s=Scale(),gap=12*s;
  const auto focus=nav.Focus();const bool changed=focus!=roomBoardFocus_;
  const unsigned unread=transcript_.Unread(muted_);
  // The board renders in place of the menu list, so it uses the same smoothed
@@ -461,8 +462,6 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  const auto shown=[&](const MenuEntry& e){return feedback.Enabled(e);};
  const auto hint=[&](const MenuEntry& e){return feedback.Enabled(e)?"":loc::T(feedback.Pending(e)?"room.updating":"common.unavailable");};
  const auto origin=ImGui::GetCursorScreenPos();
- const float fullHeight=height;
- if(!wide)height=(std::max)(80*s,height-64*s);
  if(focus.compare(0,6,"table-")==0)selectedTable_=std::stoi(focus.substr(6));
  // B on your own table's card leaves your place there, cancels a start held
  // for a locked-in spectator, or says why a seat cannot be left yet; anywhere
@@ -568,19 +567,21 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   tip();
  };
  std::vector<const MenuEntry*> toolbar;
- for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
+ for(const auto& e:rows)if(e.id!="inline-chat"&&e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
+ // Measure both layouts together, always keeping an explanation line.
+ const float width=ImGui::GetContentRegionAvail().x;
+ const auto layout=MeasureRoomBoard(PartitionRoomBoard(rows),width,height);
+ const float leftWidth=layout.leftWidth,rightWidth=layout.rightWidth;
+ const int toolColumns=layout.columns;
+ const float toolsHeight=layout.toolsHeight,communityHeight=layout.communityHeight;
+ const float explanationHeight=layout.explanationHeight,boardHeight=height-explanationHeight-gap;
+ const bool wide=layout.wide;
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
  ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.SeeThrough()));
  if(wide){
   // The battle slots take the whole height on the left. Members, chat and the
   // room's actions share the right, and the focused row's explanation runs
   // under both.
-  const auto origin=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
-  const float explanationHeight=ImGui::GetFontSize()+4*s;
-  const float boardHeight=(std::max)(180*s,height-explanationHeight-gap),leftWidth=(width-gap)*.50f,rightWidth=width-leftWidth-gap;
-  const int toolColumns=rightWidth>=3*170*s?3:2;
-  const float toolsHeight=std::ceil(toolbar.size()/float(toolColumns))*48*s+8*s;
-  const float communityHeight=(std::max)(120*s,boardHeight-toolsHeight-gap);
   ImGui::BeginChild("Battle slots",ImVec2(leftWidth,boardHeight),0,ImGuiWindowFlags_NoNavInputs);
   const float rowHeight=(std::max)(100*s,(ImGui::GetContentRegionAvail().y-3*8*s)/4);
   for(const auto& e:rows)if(e.id.compare(0,6,"table-")==0)tableCard(e,rowHeight);
@@ -589,21 +590,11 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   ImGui::TextUnformatted(loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity).c_str());
   // Whole cards only. A free fraction of the board height always clipped the
   // bottom card through its portrait.
-  const float cardPitch=58*s+ImGui::GetStyle().ItemSpacing.y,childPadding=12*s;
-  const int memberRows=(std::max)(1,static_cast<int>(((communityHeight-48*s)*.56f-childPadding+ImGui::GetStyle().ItemSpacing.y)/cardPitch));
-  ImGui::BeginChild("Member list",ImVec2(0,memberRows*cardPitch-ImGui::GetStyle().ItemSpacing.y+childPadding),0,ImGuiWindowFlags_NoNavInputs);
+  ImGui::BeginChild("Member list",ImVec2(0,layout.memberHeight),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows)if(e.id.compare(0,7,"member-")==0)memberCard(e);
-  ImGui::EndChild();ImGui::TextUnformatted(loc::T("room.chat_heading"));
-  if(unread){const auto heading=ImGui::GetItemRectMin();const float lineHeight=ImGui::GetItemRectMax().y-heading.y;
-   DrawUnreadBadge(ImGui::GetItemRectMax().x+8*s+UnreadBadgeWidth(unread),heading.y+(lineHeight-18*s)*.5f,unread);}
-  ImGui::BeginChild("Recent chat",ImVec2(0,0),0,ImGuiWindowFlags_NoNavInputs);
-  // A message asks the atlas for its glyphs only while it is drawn inside the
-  // clip: a muted sender's, and one scrolled out of view, hold none.
-  DrawChatLog(v,true);
-  // Follow new messages only while the reader is already at the bottom.
-  if(ImGui::GetScrollY()>=ImGui::GetScrollMaxY()-1||chatShown_==0)ImGui::SetScrollHereY(1.f);
-  chatShown_=transcript_.Lines().size();
-  ImGui::EndChild();ImGui::EndChild();
+  ImGui::EndChild();
+  DrawRoomChat(v,action,ImGui::GetContentRegionAvail().y);
+  ImGui::EndChild();
   ImGui::SetCursorScreenPos(ImVec2(origin.x+leftWidth+gap,origin.y+communityHeight+gap));
   ImGui::BeginChild("Room actions",ImVec2(rightWidth,toolsHeight),0,ImGuiWindowFlags_NoNavInputs);
   const float w=(ImGui::GetContentRegionAvail().x-(toolColumns-1)*8*s)/toolColumns;
@@ -629,15 +620,21 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
   ImGui::EndChild();
  }else{
-  ImGui::BeginChild("Room stacked",ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
+  const float chatHeight=layout.chatHeight,stackHeight=layout.stackHeight;
+  ImGui::BeginChild("Room stacked",ImVec2(0,stackHeight),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows){
+   if(e.id=="inline-chat")continue;
    if(e.id.compare(0,6,"table-")==0)tableCard(e,(DescribeTableBanner(v,v.room.tables[std::stoi(e.id.substr(6))]).text.empty()?136:136+TableBannerHeight)*s);
    else if(e.id.compare(0,7,"member-")==0)memberCard(e);
    else button(e,ImGui::GetContentRegionAvail().x);
   }
   ImGui::EndChild();
-  ImGui::SetCursorScreenPos(ImVec2(origin.x,origin.y+height+4*s));
-  ImGui::BeginChild("Room action explanation",ImVec2(0,fullHeight-height-4*s));
+  ImGui::SetCursorScreenPos(ImVec2(origin.x,origin.y+stackHeight+gap));
+  ImGui::BeginChild("Room inline chat",ImVec2(0,chatHeight),0,ImGuiWindowFlags_NoNavInputs);
+  DrawRoomChat(v,action,ImGui::GetContentRegionAvail().y);
+  ImGui::EndChild();
+  ImGui::SetCursorScreenPos(ImVec2(origin.x,origin.y+height-layout.stackedExplanation+4*s));
+  ImGui::BeginChild("Room action explanation",ImVec2(0,layout.stackedExplanation-4*s));
   const auto selected=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==nav.Focus();});
   if(selected!=rows.end()){
    std::string explanation=selected->detail;

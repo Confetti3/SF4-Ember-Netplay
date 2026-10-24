@@ -93,6 +93,10 @@ public:
     // activated it this frame, so letters, Space, Backspace and Delete are
     // text and never menu keys.
     bool typesText = false;
+    // An embedded editor owns all menu buttons. It receives their pressed
+    // edges; the surrounding navigation receives none until it releases.
+    bool textOwner = false;
+    unsigned TextPressed() const { return textPressed_; }
     // What Back does on this screen when it is not the usual return; empty
     // for Back.
     std::string backHint;
@@ -211,7 +215,7 @@ private:
     bool noticeError_=false;
     unsigned noticePrevious_=~0u;
     int lastFrame_ = -2;
-    unsigned held_ = 0;
+    unsigned held_ = 0, textPrevious_ = ~0u, textPressed_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);
     UiClock clock_;
     MenuVisualFeedback feedback_;

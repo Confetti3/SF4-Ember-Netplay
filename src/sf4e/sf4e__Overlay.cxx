@@ -347,6 +347,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.languagePreference = snapshot.languagePreference;
 	view.checkUpdatesAtLaunch = snapshot.checkUpdatesAtLaunch;
 	view.automaticCountry = snapshot.automaticCountry;
+	view.focused = focused;
 	view.unixNow = static_cast<std::uint64_t>(std::time(nullptr));
 	// Both read their file once; the card's own outcome decides whether to ask.
 	static const bool showGameSettingsCard = !sf4e::platform::GameSettingsCardHidden();

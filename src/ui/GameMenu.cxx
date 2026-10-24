@@ -283,12 +283,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     columns=(std::max)(1,columns);
     const double now=clock_.Update(ImGui::GetTime());
     // A newly visible component cannot reuse its parent's opening press.
-    if(lastFrame_!=ImGui::GetFrameCount()-1) { navigation.NeutralGate(); lastEdit_.clear(); }
+    if(lastFrame_!=ImGui::GetFrameCount()-1) { navigation.NeutralGate(); lastEdit_.clear(); textPrevious_=~0u; }
     lastFrame_=ImGui::GetFrameCount();
     const bool modalAtStart=navigation.Editing()||navigation.Asking();
     // A choice belongs to the body that draws it, so the body stays live for it.
     const bool choosingAtStart=navigation.Choosing();
-    auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText,additionalInput); menuInput.time=now;
+    auto menuInput=ReadMenuInput((navigation.Editing()||textOwner)&&notice_.empty(),typesText||textOwner,additionalInput); menuInput.time=now;
     if(!listEnabled) menuInput.held=0;
     ReadEditInput(entries,menuInput);
     // A notice owns the input until dismissed, so the dismissing press can
@@ -304,6 +304,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
     held_=menuInput.held;
+    // Keyboard Select is withheld by ReadMenuInput for text editors, but
+    // belongs to the embedded editor just as pad Select does.
+    const unsigned editorHeld=noticeOpen?0:menuInput.held|(textOwner?(menuInput.keyboard&MenuInput::Select):0);
+    textPressed_=textOwner?(editorHeld&~textPrevious_):0;
+    textPrevious_=editorHeld;
+    if(textOwner&&!modalAtStart){menuInput.held=0;menuInput.acceptText=false;}
     // InputText consumes this frame's characters before the requested acceptance.
     // The navigation model still owns the neutral gate and Back/accept ordering.
     auto action=navigation.Update(menuInput,entries,columns,true,true);

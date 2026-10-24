@@ -2704,6 +2704,12 @@ msgstr "Для ввода нужна клавиатура. Enter отправл�
 msgid "chat.hint"
 msgstr "Напишите сообщение"
 
+msgid "chat.history"
+msgstr "История чата"
+
+msgid "chat.inline_detail"
+msgstr "Введите сообщение здесь, в комнате. Enter отправляет его, Escape возвращает управление комнатой."
+
 msgid "chat.send"
 msgstr "Отправить"
 

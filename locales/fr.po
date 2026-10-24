@@ -2703,6 +2703,12 @@ msgstr "Il faut un clavier pour écrire. Entrée envoie ; haut et bas font défi
 msgid "chat.hint"
 msgstr "Écrire un message"
 
+msgid "chat.history"
+msgstr "Historique du chat"
+
+msgid "chat.inline_detail"
+msgstr "Écrivez ici dans le salon. Entrée envoie le message ; Échap revient aux commandes du salon."
+
 msgid "chat.send"
 msgstr "Envoyer"
 

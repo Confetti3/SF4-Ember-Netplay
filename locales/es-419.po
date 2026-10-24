@@ -2488,6 +2488,12 @@ msgid "chat.detail"
 msgstr "Escribir requiere un teclado. Enter envía; las flechas arriba y abajo desplazan el chat."
 msgid "chat.hint"
 msgstr "Escribe un mensaje"
+msgid "chat.history"
+msgstr "Historial del chat"
+
+msgid "chat.inline_detail"
+msgstr "Escribe aquí en la sala. Enter envía el mensaje; Escape vuelve a los controles de la sala."
+
 msgid "chat.send"
 msgstr "Enviar"
 msgid "chat.sending"

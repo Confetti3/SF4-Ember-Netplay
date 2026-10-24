@@ -2704,6 +2704,12 @@ msgstr "入力にはキーボードが必要です。Enterで送信、上下キ�
 msgid "chat.hint"
 msgstr "メッセージを入力"
 
+msgid "chat.history"
+msgstr "チャット履歴"
+
+msgid "chat.inline_detail"
+msgstr "ここでルームのチャットを入力できます。Enterで送信、Escでルームの操作に戻ります。"
+
 msgid "chat.send"
 msgstr "送信"
 

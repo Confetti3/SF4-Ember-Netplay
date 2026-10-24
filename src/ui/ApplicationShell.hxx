@@ -1,4 +1,5 @@
 #pragma once
+#include "ChatComposer.hxx"
 #include <imgui.h>
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
@@ -43,6 +44,8 @@ namespace sf4e { namespace ui {
 // The shared shell has no game, transport, filesystem or bootstrap dependency.
 // Its caller supplies a copied view and translates actions on the owning thread.
 struct ShellView {
+    // Persistent OS window focus; ImGui's focus-loss event lasts only one frame.
+    bool focused = true;
     bool controllerAvailable = false, controllerFocus = false, controllerBack = false;
     bool controllerUnavailable = false;
     netplay::Snapshot session;
@@ -424,13 +427,11 @@ private:
     void FlushChat(const ShellView& view,const Submit& submit);
     void NoteChatGate(ChatGate gate,double now);
     void DrawChatLog(const ShellView& view,bool compact);
+    void DrawRoomChat(const ShellView& view,MenuAction& action,float height);
+    ChatComposer::Result DrawChatComposer(const ShellView& view,float width,bool inlineBox,bool activate=false);
+    ChatComposer chatComposer_;
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
-    // The Chat screen's message box, and the room left in the message at the right of the note line
-    // under it (`noteHeight` tall). A tournament match's watcher has neither.
-    void DrawChatBox(float x,float width,bool typable,float noteHeight);
-    // The room left in the message, in bytes, which the counter says.
-    int ChatBytesLeft() const;
     ChatTranscript transcript_;
     // A message sent and not yet seen in the room's chat. The draft stays in the box until it is, however
     // late, or until the room changes; `after` is the newest message already looked at. For 8 seconds
@@ -457,7 +458,6 @@ private:
     bool chatOpen_=false;
     // The text the message box last held. ImGui ignores the buffer it is given while the box has the
     // keyboard, so a draft the shell changed (sent, or a new room) is handed to the box again.
-    std::string chatBoxText_;
     std::size_t chatShown_=0;
     double saveAt_ = 0;
     double lastUiTime_ = -1;

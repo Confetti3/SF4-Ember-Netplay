@@ -2704,6 +2704,12 @@ msgstr "输入需要键盘。按 Enter 发送；上下方向键滚动聊天。"
 msgid "chat.hint"
 msgstr "输入消息"
 
+msgid "chat.history"
+msgstr "聊天记录"
+
+msgid "chat.inline_detail"
+msgstr "在此输入房间聊天内容。按 Enter 发送，按 Esc 返回房间操作。"
+
 msgid "chat.send"
 msgstr "发送"
 

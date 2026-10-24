@@ -2703,6 +2703,12 @@ msgstr "Psaní vyžaduje klávesnici. Enter odešle zprávu; šipky nahoru a dol
 msgid "chat.hint"
 msgstr "Napište zprávu"
 
+msgid "chat.history"
+msgstr "Historie chatu"
+
+msgid "chat.inline_detail"
+msgstr "Pište sem do chatu místnosti. Enter zprávu odešle; Escape vrátí ovládání místnosti."
+
 msgid "chat.send"
 msgstr "Odeslat"
 
