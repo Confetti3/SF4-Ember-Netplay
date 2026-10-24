@@ -24,8 +24,10 @@
 //
 // Start first and Back after is the game's pause, so only a Start that goes
 // down while Back is already held counts, and a Back pressed during the
-// pause's Start does nothing here. With the controls open, Back alone
-// does nothing here: inside them the menu's own Back button goes back.
+// pause's Start does nothing here. A Back that goes down while the game is
+// paused is its menu's, and neither resets nor saves however it ends. With
+// the controls open, Back alone does nothing here: inside them the menu's
+// own Back button goes back.
 //
 // Called back from Training by a room (TRAINING_IN_ROOMS.md), the controls
 // stay shut, so Back with Start opens nothing. While the call's banner offers
@@ -63,14 +65,15 @@ class TrainingPadGesture {
 public:
     static constexpr double HoldSeconds = .5;
     // physical: the pad's physical buttons now; open: the controls are open;
-    // call: whether a room is calling the player back.
-    TrainingPadEvents Update(std::uint32_t physical, bool open, double now, TrainingCall call = TrainingCall::None) {
+    // call: whether a room is calling the player back; paused: the game's
+    // pause menu is up.
+    TrainingPadEvents Update(std::uint32_t physical, bool open, double now, TrainingCall call = TrainingCall::None, bool paused = false) {
         TrainingPadEvents events;
         const bool back = (physical & PhysicalBack) != 0, start = (physical & PhysicalStart) != 0;
         if (back && !back_) {
             downAt_ = now; openAtPress_ = open; mine_ = !start; events.pressed = true;
             if (call == TrainingCall::GoNow && !open && !start) { events.goNow = true; used_ = true; armed_ = false; }
-            else { used_ = open || start; armed_ = !start; events.down = !used_; }
+            else { used_ = open || start || paused; armed_ = !start; events.down = !used_; }
         }
         if (!back) mine_ = false;
         // Start going down under the gesture's own Back is the gesture's,
@@ -240,12 +243,13 @@ public:
         float place[2] = {0, 0};
     };
     // standby: the dummy is on standby for a recording, as the game thread
-    // last published it (training::ChordStartsRecording).
+    // last published it (training::ChordStartsRecording); paused: the game's
+    // pause menu is up (TrainingPadGesture).
     Result Update(std::uint32_t physical, TrainingControls& controls, double now, TrainingCall call, const PadOwner& current, const float (&place)[2],
-        bool standby = false) {
+        bool standby = false, bool paused = false) {
         if (held_ && current != owner_) gesture_.Reset();
         Result result;
-        result.events = gesture_.Update(physical, controls.Open(), now, call);
+        result.events = gesture_.Update(physical, controls.Open(), now, call, paused);
         if (result.events.pressed) { owner_ = current; place_[0] = place[0]; place_[1] = place[1]; }
         held_ = (physical & PhysicalBack) != 0;
         if (result.events.open && standby) { result.events.open = false; result.events.record = true; }
