@@ -2521,8 +2521,8 @@ msgstr "다운로드한 패키지에 Launcher.exe 또는 Sidecar.dll이 없습�
 msgid "update.staging_path_failed"
 msgstr "설치 준비 경로를 읽지 못했습니다."
 
-msgid "update.validation_failed"
-msgstr "다운로드한 패키지 검증에 실패했습니다(필수 파일 누락)."
+msgid "update.validation_detail"
+msgstr "업데이트 검증 실패: {0}\n설치된 파일은 변경되지 않았습니다."
 
 msgid "update.cancelled"
 msgstr "설치 전에 업데이트를 취소했습니다."

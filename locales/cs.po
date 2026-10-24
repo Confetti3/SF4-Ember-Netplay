@@ -2521,8 +2521,8 @@ msgstr "Ve staženém balíčku chybí Launcher.exe nebo Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Přípravnou cestu nelze přečíst."
 
-msgid "update.validation_failed"
-msgstr "Stažený balíček neprošel ověřením (chybí potřebné soubory)."
+msgid "update.validation_detail"
+msgstr "Ověření aktualizace selhalo: {0}\nNainstalované soubory nebyly nahrazeny."
 
 msgid "update.cancelled"
 msgstr "Aktualizace byla před instalací zrušena."

@@ -2521,8 +2521,8 @@ msgstr "Nel pacchetto scaricato manca Launcher.exe o Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Percorso preparazione illeggibile."
 
-msgid "update.validation_failed"
-msgstr "Pacchetto scaricato non valido (mancano file richiesti)."
+msgid "update.validation_detail"
+msgstr "Verifica aggiornamento fallita: {0}\nI file installati non sono stati sostituiti."
 
 msgid "update.cancelled"
 msgstr "Aggiornamento annullato."

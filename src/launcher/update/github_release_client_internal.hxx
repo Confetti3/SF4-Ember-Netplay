@@ -45,7 +45,7 @@ namespace launcher {
 		bool IsAllowedUpdateUrl(const char* url);
 		bool FindPackageRoot(const wchar_t* searchRoot, wchar_t* outRoot, int outRootChars);
 		bool ValidateExtractedTree(const wchar_t* extractRoot);
-		bool ValidateStagedPackage(const wchar_t* stagingDir, const std::atomic<bool>& cancel = NeverCancelled, const Progress& progress = {});
+		bool ValidateStagedPackage(const wchar_t* stagingDir, const std::atomic<bool>& cancel = NeverCancelled, const Progress& progress = {}, std::string* reason = nullptr);
 
 		// Defined in github_release_download.cxx.
 		bool HexEqualsIgnoreCase(const std::string& a, const std::string& b);
