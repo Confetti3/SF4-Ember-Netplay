@@ -230,7 +230,8 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4 * s);
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::ColorConvertU32ToFloat4(v2::Colors().panel));
         ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(v2::Colors().accent));
-        ImGui::Begin("###V2 values", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings);
+        // A list taller than the column scrolls, with a scrollbar so its last choices are seen to be there.
+        ImGui::Begin("###V2 values", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings);
         ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         auto* pd = ImGui::GetWindowDrawList();
         const auto at = ImGui::GetCursorScreenPos();

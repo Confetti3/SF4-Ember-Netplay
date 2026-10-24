@@ -366,8 +366,19 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }
   const auto firstMember=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id.compare(0,7,"member-")==0;});
   const std::string memberRight=firstMember==rows.end()?"room-members":firstMember->id;
+  // The cabinets move as the board shows them, two rows of eight: left and right
+  // along a row (past its end to the members), up and down between the rows.
+  const auto afterCabinets=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id.compare(0,8,"matchup-")==0;});
+  const auto belowCabinets=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id.compare(0,8,"cabinet-")&&e.id.compare(0,8,"matchup-")&&e.id.compare(0,7,"member-");});
+  const std::string below=afterCabinets!=rows.end()?afterCabinets->id:belowCabinets!=rows.end()?belowCabinets->id:std::string();
   for(std::size_t i=0;i<rows.size();++i){auto& e=rows[i];
-   if(e.id.compare(0,6,"table-")==0||e.id.compare(0,8,"cabinet-")==0||e.id.compare(0,8,"matchup-")==0)e.right=memberRight;
+   if(s.arcade&&e.id.compare(0,8,"cabinet-")==0){
+    const int c=std::stoi(e.id.substr(8));const auto cab=[](int n){return "cabinet-"+std::to_string(n);};
+    e.left=c%8?cab(c-1):e.id;e.right=c%8<7?cab(c+1):memberRight;
+    if(c>=8)e.up=cab(c-8);
+    e.down=c<8?cab(c+8):below.empty()?e.id:below;
+   }
+   else if(e.id.compare(0,6,"table-")==0||e.id.compare(0,8,"matchup-")==0)e.right=memberRight;
    else if(e.id.compare(0,7,"member-")==0)e.left=s.arcade?"cabinet-"+std::to_string((std::max)(0,room::CabinetOf(s,s.localMember))):"table-"+std::to_string(selectedTable_);
    else {e.left=i?rows[i-1].id:e.id;e.right=i+1<rows.size()?rows[i+1].id:e.id;}
   }
