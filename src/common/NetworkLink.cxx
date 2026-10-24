@@ -1,6 +1,8 @@
 #include "NetworkLink.hxx"
 
 #include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
@@ -24,14 +26,40 @@ bool DefaultRouteInterface(DWORD& index) {
     inet_pton(AF_INET6, "2001:db8::1", &v6.sin6_addr);
     return GetBestInterfaceEx(reinterpret_cast<sockaddr*>(&v6), &index) == NO_ERROR;
 }
+
+// Under Wine an interface's alias is its Linux name and Z: maps to the
+// host's root, so the host's own entry for it says what it is.
+NetworkLink DetectLinuxNetworkLink(DWORD index, std::string* detail) {
+    MIB_IF_ROW2 row = {};
+    row.InterfaceIndex = index;
+    if (GetIfEntry2(&row) != NO_ERROR) { if (detail) *detail += " [wine, unreadable]"; return NetworkLink::Unknown; }
+    const std::wstring entry = std::wstring(L"Z:\\sys\\class\\net\\") + row.Alias + L"\\";
+    const auto exists = [&](const wchar_t* leaf) { return GetFileAttributesW((entry + leaf).c_str()) != INVALID_FILE_ATTRIBUTES; };
+    const auto read = [&](const wchar_t* leaf) {
+        std::ifstream file(entry + leaf);
+        return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    };
+    const bool wireless = exists(L"wireless"), device = exists(L"device");
+    std::string type = read(L"type");
+    type = type.substr(0, type.find('\n'));
+    const std::string uevent = read(L"uevent");
+    const auto at = uevent.find("DEVTYPE=");
+    const std::string devtype = at == std::string::npos ? std::string() : uevent.substr(at + 8, uevent.find('\n', at) - at - 8);
+    if (detail) {
+        char line[256];
+        std::snprintf(line, sizeof(line), " [wine %ls wireless=%d device=%d type=%s devtype=%s]", row.Alias, wireless ? 1 : 0, device ? 1 : 0,
+            type.c_str(), devtype.c_str());
+        *detail += line;
+    }
+    return LinuxInterfaceLink(wireless, device, type, devtype);
+}
 }
 
 NetworkLink DetectNetworkLink(std::string* detail) {
-    // Wine reports every host interface as Ethernet, Wi-Fi included.
-    if (GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "wine_get_version")) { if (detail) *detail = "wine"; return NetworkLink::Unknown; }
     DWORD index = 0;
     if (!DefaultRouteInterface(index)) { if (detail) *detail = "no default route"; return NetworkLink::Unknown; }
     if (detail) *detail = "route=if" + std::to_string(index);
+    if (GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "wine_get_version")) return DetectLinuxNetworkLink(index, detail);
     const auto note = [detail](const MIB_IF_ROW2& row) {
         if (!detail) return;
         char model[128] = {};

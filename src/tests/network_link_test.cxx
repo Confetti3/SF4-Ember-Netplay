@@ -131,11 +131,20 @@ int main() {
 	// A peer whose class is not known (an older build, or still checking) is not called open.
 	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::Unknown) == DirectBlock::None);
 	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::Unknown) == DirectBlock::LocalStrict);
+	// Under Wine, a link is claimed only when the Linux interface clearly is one.
+	CHECK(LinuxInterfaceLink(true, true, "1", "") == NetworkLink::Wireless);
+	CHECK(LinuxInterfaceLink(false, true, "1", "wlan") == NetworkLink::Wireless);
+	CHECK(LinuxInterfaceLink(false, true, "1", "") == NetworkLink::Wired);
+	// Bluetooth, mobile, a device with other framing, and a virtual interface.
+	CHECK(LinuxInterfaceLink(false, true, "1", "bluetooth") == NetworkLink::Unknown);
+	CHECK(LinuxInterfaceLink(false, true, "1", "wwan") == NetworkLink::Unknown);
+	CHECK(LinuxInterfaceLink(false, true, "772", "") == NetworkLink::Unknown);
+	CHECK(LinuxInterfaceLink(false, false, "1", "") == NetworkLink::Unknown);
 	// The live answer depends on the machine; it must only not fail.
 	std::string detail;
 	std::printf("This machine's link: %s\n", NetworkLinkLabel(DetectNetworkLink(&detail)));
 	std::printf("  %s\n", detail.c_str());
-	CHECK(detail.find("route=if") == 0 || detail == "no default route" || detail == "wine");
+	CHECK(detail.find("route=if") == 0 || detail == "no default route");
 	if (failures) return 1;
 	std::puts("NetworkLink test passed");
 	return 0;
