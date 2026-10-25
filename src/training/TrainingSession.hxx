@@ -196,14 +196,16 @@ inline int DummyHold(const FighterSample& dummy) {
 }
 // Fed the dummy once per simulated frame. The game does not say how long a
 // stun lasts, so each one is timed the first time it is seen, from its last
-// hit or change of reaction to the free frame, and known from then on.
+// hit or change of reaction to the free frame, and known from then on;
+// getting up, whose script alone sets its length, is known the first time.
 // Limitation: one length per attacking move and reaction; a counter hit's
 // extra frames replace it until the plain hit is seen again. Key on the hit's
 // own data if the two ever have to be told apart.
 class DummyWatch {
 public:
-    // attacker: the other fighter's action id.
-    DummySeen Observe(const FighterSample& dummy, int attacker) {
+    // attacker: the other fighter's action id. scripted: frames to the free
+    // frame by the dummy's script, -1 when it does not tell.
+    DummySeen Observe(const FighterSample& dummy, int attacker, int scripted = -1) {
         DummySeen seen; seen.stretch = stretch_;
         const int hold = DummyHold(dummy), held = (std::max)(0, hold);
         if (held) {
@@ -218,7 +220,7 @@ public:
             from_ = held; last_ = dummy;
             const auto known = learned_.find(key_);
             seen.held = held; seen.stretch = stretch_;
-            if (known != learned_.end()) seen.until = (std::max)(0, known->second - elapsed_);
+            seen.until = known != learned_.end() ? (std::max)(0, known->second - elapsed_) : scripted;
             free_ = -1;
         } else if (from_ && hold < 0) ++elapsed_;
         else if (from_) {

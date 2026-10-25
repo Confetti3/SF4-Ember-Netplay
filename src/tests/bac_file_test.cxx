@@ -13,6 +13,8 @@ struct ScriptRow {
     std::vector<std::array<int, 2>> flows; // {type, target}
     Ids guards;                            // hitboxes of type 0, which never hit
     int spawnAt = -1;                      // first frame of every effect spawn; -1 writes no frames
+    std::vector<bac::Speed> speeds;        // list 4, written in place of the skipped list
+    int interruptible = 0;                 // the header's
 };
 static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int, ScriptRow>& effects) {
     const std::size_t counts[] = {scripts.empty() ? 0 : static_cast<std::size_t>(scripts.rbegin()->first) + 1,
@@ -50,10 +52,18 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
             data.resize(data.size() + 32); // An effect command of another kind.
             data[data.size() - 32] = 5;
             for (const auto effect : row.effects) { Put16(data, 0); Put16(data, 2); Put32(data, effect); data.resize(data.size() + 24); }
-            list(9, 3); // A list the reader skips.
+            if (!row.speeds.empty()) {
+                const std::size_t record = lists.size();
+                Put16(lists, 4); Put16(lists, static_cast<std::uint32_t>(row.speeds.size()));
+                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
+                for (const auto& speed : row.speeds) { Put16(data, speed.from); Put16(data, speed.from + 1); }
+                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
+                for (const auto& speed : row.speeds) { std::uint32_t bits; std::memcpy(&bits, &speed.speed, 4); Put32(data, bits); }
+            } else list(9, 3); // A list the reader skips.
             const std::size_t at = out.size();
             out.resize(at + 0x18);
             out[at + 0x12] = static_cast<std::uint8_t>(listCount);
+            out[at + 4] = static_cast<std::uint8_t>(row.interruptible);
             out.insert(out.end(), lists.begin(), lists.end());
             out.insert(out.end(), data.begin(), data.end());
         }
@@ -77,6 +87,20 @@ int main() {
     CHECK(model.scripts[6].effects.empty() && !model.scripts[6].canHit);
     int first = -1, last = -1;
     CHECK(bac::ProjectileBoundary(model, 0, first, last) && first == 27 && last == 28);
+    // List 4 sets how many script frames a game frame plays: Balrog getting up
+    // plays 2 a frame up to 50, then 1, so it is free 29 frames on, at 54.
+    {
+        ScriptRow rise = Script({});
+        rise.speeds = {{0, 2.0f}, {50, 1.0f}};
+        rise.interruptible = 54;
+        const Bytes rising = Scripts({{0, rise}}, {});
+        bac::File read;
+        CHECK(ReadExact(rising, rising.size(), read, error));
+        const bac::Script& script = read.scripts[0];
+        CHECK(script.interruptible == 54 && script.speeds.size() == 2 && script.speeds[1].from == 50 && script.speeds[0].speed == 2.0f);
+        CHECK(bac::GameFrames(script, 0, 54) == 29 && bac::GameFrames(script, 2, 54) == 28 && bac::GameFrames(script, 54, 54) == 0);
+        CHECK(bac::GameFrames(model.scripts[0], 0, 10) == 10 && bac::GameFrames(bac::Script{{}, {}, {}, {}, {{0, 0.0f}}}, 0, 10) == -1);
+    }
     for (int action : {-1, 1, 2, 3, 4, 5, 6, 999}) {
         first = last = -1;
         CHECK(!bac::ProjectileBoundary(model, action, first, last) && first == -1 && last == -1);

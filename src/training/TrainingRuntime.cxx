@@ -438,6 +438,16 @@ const bac::File& FighterScripts(Native* system, unsigned side) {
         spdlog::warn("Training: no projectile frames for {}: {}", code, error);
     return scriptFiles[side];
 }
+// Frames until a dummy getting up is free, by its script, -1 when it is not
+// getting up. Getting up plays its script alone, so its first time is known
+// ahead too. The script reaches its end on the dummy's last held frame.
+int RiseFrames(Native* system, const FighterSample& dummy) {
+    const auto& scripts = FighterScripts(system, 1).scripts;
+    if (!dummy.valid || dummy.status != ActorStatus::Rise || dummy.action < 0 || dummy.action >= static_cast<int>(scripts.size())) return -1;
+    const bac::Script& script = scripts[dummy.action];
+    const int frames = bac::GameFrames(script, dummy.actionFrame, script.interruptible > 0 ? script.interruptible : script.total);
+    return frames < 0 ? -1 : frames + 1;
+}
 // Both fighters as the game holds them after an update. Only reads.
 // files: whether a move without attack frames may take them from the
 // fighter's script file.
@@ -550,7 +560,7 @@ void AfterUpdate(Native* system) {
         std::array<FighterSample, 2> fighters = ReadFighters(system, true);
         if (commitInput) for (int side = 0; side < 2; ++side) fighters[side].input = output[side].raw & FightButtons;
         // The dummy as its stun is timed, for a reply's wait now and its decision below.
-        const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action);
+        const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action, RiseFrames(system, fighters[1]));
         // A playback's waiting frames read the fight: the fighter playing it
         // in a neutral state, and a hit on the other one landing this frame.
         {

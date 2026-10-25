@@ -10,23 +10,34 @@
 
 // The game's script files (<CODE>.bac), read only as far as the frame meter
 // needs: which effect scripts it spawns (a fireball's hitbox lives in one),
-// when they spawn and whether they can hit.
+// when they spawn and whether they can hit, and how fast a script plays.
 // Owns only the model and its byte layout; it knows nothing of the game or
 // the overlay.
 namespace sf4e { namespace bac {
 // The largest stock file is under 512 KiB.
 constexpr std::size_t MaxBytes = 4 * 1024 * 1024;
 
+// A command of list 8: from frame first up to last, the body parts in parts
+// (training::OpenParts' bits) are open to what `to` names (2 a strike, 4 a
+// throw, 8 a fireball).
+// A command of list 4: from script frame `from`, the script moves on `speed`
+// of its frames each game frame, until the next one.
+struct Speed { int from; float speed; };
 // canHit: at least one hitbox can hit. effects: indices into File::effects.
 // spawns: one per entry of effects, the frames of the script its spawn
 // command covers, {-1, -1} when the file gives none.
-struct Script { bool canHit = false; std::vector<std::int32_t> effects; std::vector<std::array<int, 2>> spawns; };
+// speeds: its list 4. interruptible, total: its header's, in script frames.
+struct Script {
+    bool canHit = false; std::vector<std::int32_t> effects; std::vector<std::array<int, 2>> spawns;
+    std::vector<Speed> speeds; int interruptible = 0, total = 0;
+};
 // scripts: indexed by action id. An empty slot is an empty Script.
 struct File { std::vector<Script> scripts, effects; };
 
 namespace detail {
 constexpr std::size_t HeaderSize = 0x28, ScriptHeader = 0x18, ListSize = 12, FlowSize = 8, HitboxSize = 44, EtcSize = 32;
-constexpr unsigned Flow = 0, Hitbox = 7, Etc = 10;
+constexpr std::size_t SpeedSize = 4;
+constexpr unsigned Flow = 0, Speeds = 4, Hitbox = 7, Etc = 10;
 
 // One table of scripts. used: bytes read so far. The records of a real file
 // never share bytes, so together they fit in the file; this keeps offsets
@@ -40,6 +51,7 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
         const std::uint64_t at = in.U32(table + i * 4);
         if (!at) continue;
         if (!in.Has(at, ScriptHeader)) return fail("a script runs past the end of the file");
+        out[i].interruptible = in.U16(at + 4); out[i].total = in.U16(at + 6);
         const std::size_t lists = in.U16(at + 0x12);
         const std::uint64_t base = at + ScriptHeader;
         if (!in.Has(base, lists * ListSize)) return fail("a script's commands run past the end of the file");
@@ -48,7 +60,7 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
         for (std::size_t j = 0; j < lists; ++j) {
             const std::uint64_t list = base + j * ListSize;
             const unsigned type = in.U16(list);
-            const std::size_t size = type == Flow ? FlowSize : type == Hitbox ? HitboxSize : type == Etc ? EtcSize : 0;
+            const std::size_t size = type == Flow ? FlowSize : type == Speeds ? SpeedSize : type == Hitbox ? HitboxSize : type == Etc ? EtcSize : 0;
             if (!size) continue;
             const std::size_t commands = in.U16(list + 2);
             // The data offset counts from the list's own record.
@@ -67,6 +79,10 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
                     // Type 0 is the box that makes the foe guard; it never hits.
                     const auto id = static_cast<std::int32_t>(in.U32(record + 40));
                     if (in.data[record + 26] && id >= 0) out[i].canHit = true;
+                } else if (type == Speeds) {
+                    float speed;
+                    std::memcpy(&speed, in.data + record, sizeof speed);
+                    if (frames && in.Has(frames + k * 4, 4)) out[i].speeds.push_back({in.U16(frames + k * 4), speed});
                 } else if (in.U16(record) == 0 && in.U16(record + 2) == 2) {
                     const auto effect = static_cast<std::int32_t>(in.U32(record + 4));
                     if (effect < 0) continue;
@@ -96,6 +112,20 @@ inline bool Read(const std::uint8_t* bytes, std::size_t size, File& model, std::
         !Table(in, in.U16(0x0E), in.U32(0x18), file.effects, used, error)) return false;
     model = std::move(file);
     return true;
+}
+
+// Game frames the script takes from script frame `at` to `to`, each moving it
+// on by the speed in effect, 1 before any; -1 when the speeds never get there.
+inline int GameFrames(const Script& script, float at, int to) {
+    int frames = 0;
+    for (; at < to; ++frames) {
+        const Speed* now = nullptr;
+        for (const auto& speed : script.speeds) if (speed.from <= at && (!now || speed.from >= now->from)) now = &speed;
+        const float step = now ? now->speed : 1;
+        if (!(step > 0) || frames >= 4096) return -1;
+        at += step;
+    }
+    return frames;
 }
 
 // The attack boundary of a script whose attack is an effect it spawns (a

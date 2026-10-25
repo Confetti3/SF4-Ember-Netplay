@@ -58,6 +58,12 @@ int main() {
             "A knockdown was not one stretch with the hit that began it");
         Require(rising.until == 2, "Getting up was not timed on its own within a knockdown");
         Require(watch.Observe(sample(19, 400, 0, 20), 100).stretch != knocked.stretch, "A hit on a knocked down dummy did not begin a new stretch");
+        // Getting up's script tells its length the first time; what was timed comes first.
+        {
+            DummyWatch fresh;
+            Require(fresh.Observe(sample(20, 401, 0), 100, 30).until == 30, "Getting up's scripted length was not used the first time");
+            Require(watch.Observe(sample(20, 401, 0, 40), 100, 30).until == 2, "A scripted length overrode a timed one");
+        }
         watch.Reset();
         watch.Observe(sample(22, 500, 0), 100);
         Require(watch.Observe(sample(0, 0, 0), 0).freed == 2, "A block's end was not reported");
