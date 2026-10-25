@@ -84,7 +84,8 @@ pub struct ExportInfo {
 
 /// Reads an `.emberreplay` the way the game's import checks one: the magic, a
 /// used record naming the replay's size and CRC with the header's fighters,
-/// a title of at most 21 printable characters, and a whole replay header.
+/// a title of at most 21 printable characters or zero bytes (the game's own
+/// records leave it blank), and a whole replay header.
 pub fn read_export(export: &[u8]) -> Result<ExportInfo> {
     let invalid = Err(Error::InvalidField("replay"));
     if export.len() < EXPORT_HEADER + REPLAY_HEADER
@@ -107,7 +108,7 @@ pub fn read_export(export: &[u8]) -> Result<ExportInfo> {
     let title_valid = title <= 21
         && record[26..26 + title]
             .iter()
-            .all(|byte| (0x20..0x7F).contains(byte));
+            .all(|&byte| byte == 0 || (0x20..0x7F).contains(&byte));
     let described = record[4] != 0
         && read_u32(record, 5) == crc32(replay)
         && read_u32(record, 9) as usize == replay.len()
