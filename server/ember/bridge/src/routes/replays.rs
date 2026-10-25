@@ -237,10 +237,13 @@ pub async fn file(State(state): State<AppState>, Path(id): Path<String>) -> Resu
         .await?
         .ok_or_else(missing)?;
     let path = folder(&state).join(format!("{sha256}.emberreplay"));
-    let bytes = tokio::fs::read(&path).await.map_err(|error| {
-        eprintln!("replays: a listed file could not be read: {error}");
-        missing()
-    })?;
+    let bytes = tokio::task::spawn_blocking(move || std::fs::read(path))
+        .await
+        .map_err(|_| ApiFailure::unavailable())?
+        .map_err(|error| {
+            eprintln!("replays: a listed file could not be read: {error}");
+            missing()
+        })?;
     Ok((
         StatusCode::OK,
         [
