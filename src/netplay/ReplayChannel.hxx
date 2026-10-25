@@ -12,6 +12,10 @@
 //   one at a time, the next as soon as one is answered, and after a failure
 //   that may pass, again only after a wait that grows. A choice read as off
 //   stops them and empties the queue.
+// - The choice is read again on its own (WantsSharingRead): at once for a new
+//   scope, a while after a read that failed, every while it says no account,
+//   and at once when a change of it got no answer, since the change may have
+//   landed: until then the choice is unknown and nothing is shared.
 #include "Rankings.hxx"
 #include "../common/Country.hxx"
 #include "../common/SkillBadge.hxx"
@@ -90,6 +94,9 @@ class Requests {
 public:
 	static constexpr std::uint64_t GiveUpMs = 60000;
 	static constexpr std::uint64_t FirstWaitMs = 60000, LongestWaitMs = 30 * 60000, UnavailableWaitMs = 60 * 60000;
+	// When the choice is read again after a read the helper never took, and
+	// after any other failure or an answer of no account.
+	static constexpr std::uint64_t HelperRetryMs = 15000, SharingRetryMs = 10 * 60000;
 	enum class Kind { None, Sharing, Choice, Page, Download, Upload };
 
 	Status Published(std::uint64_t nowMs) const {
@@ -121,6 +128,7 @@ public:
 		sharing_ = page_ = choice_ = download_ = upload_ = {};
 		uploadAfterMs_ = 0;
 		failures_ = 0;
+		sharingReadAt_ = 0;
 	}
 
 	bool MayReadSharing() const { return !sharing_.id && !choice_.id; }
@@ -171,9 +179,15 @@ public:
 		return Kind::None;
 	}
 
+	// Whether the runtime should read the choice now (see above).
+	bool WantsSharingRead(std::uint64_t nowMs) const {
+		const bool unsure = !status_.sharing.loaded || status_.sharing.value == Sharing::NoAccount;
+		return !status_.bridge.empty() && !sharing_.id && !choice_.id && unsure && nowMs >= sharingReadAt_;
+	}
 	void FinishSharing(const std::string& failure, std::optional<Sharing> sharing, std::uint64_t nowMs) {
 		if (sharing) Install(*sharing, nowMs);
 		End(status_.sharing, sharing_, failure);
+		sharingReadAt_ = nowMs + (failure == "helper_unavailable" ? HelperRetryMs : SharingRetryMs);
 	}
 	void FinishChoice(const std::string& failure, std::optional<Sharing> sharing, std::uint64_t nowMs) {
 		if (sharing) Install(*sharing, nowMs);
@@ -181,6 +195,13 @@ public:
 		status_.choosing = 0;
 		status_.choiceFailure = failure;
 		choice_ = {};
+		// A change that went out and got no answer may have landed: the choice
+		// is unknown, so nothing is shared, until it is read again at once. One
+		// the helper never took changed nothing.
+		if (!failure.empty() && failure != "helper_unavailable") {
+			status_.sharing.loaded = false;
+			sharingReadAt_ = nowMs;
+		}
 	}
 	void FinishPage(const std::string& failure, std::optional<Page> page, std::uint64_t nowMs) {
 		if (page) {
@@ -265,7 +286,7 @@ private:
 	InFlight sharing_, page_, choice_, download_, upload_;
 	int pageFighter_ = -1;
 	bool pageMore_ = false;
-	std::uint64_t uploadAfterMs_ = 0;
+	std::uint64_t uploadAfterMs_ = 0, sharingReadAt_ = 0;
 	unsigned failures_ = 0;
 };
 

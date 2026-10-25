@@ -639,6 +639,7 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
+ replayChannel_.Hidden(v,identity_.UsableBridge(v),submit);
 }
 
 // The watched game's picture in a small window of its own in the top right

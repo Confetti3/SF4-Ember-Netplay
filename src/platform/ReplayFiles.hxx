@@ -17,8 +17,8 @@
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplaySlots.hxx"
 #include "../common/ReplayFileSafety.hxx"
+#include "../common/ReplayChannelQueue.hxx"
 
-namespace sf4e { namespace replaychannel { struct Game; } }
 
 namespace sf4e { namespace platform { namespace replays {
 
@@ -35,13 +35,10 @@ constexpr int kFirstMatchSlot = 280, kLastMatchSlot = replayslots::kSlots - 1;
 // running Steam client (its ActiveUser), empty when Steam is not running or
 // that account has no saves here. outbox holds replays on their way into the
 // archive (%LOCALAPPDATA%, so a failing archive folder does not stop it),
-// empty when Windows has no local settings folder. channel holds replays
-// waiting for the replay channel (ReplayChannelQueue.hxx), and downloads
-// the replays taken from it, in their own folder beside the archive so its
-// listing never shows them as the player's own.
+// empty when Windows has no local settings folder.
 struct Folders {
 	std::vector<std::filesystem::path> saves;
-	std::filesystem::path archive, active, outbox, channel, downloads;
+	std::filesystem::path archive, active, outbox;
 };
 Folders FindFolders();
 
@@ -116,8 +113,22 @@ ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write
 // its replay waits for the replay channel (ReplayChannelQueue.hxx).
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
 	const replaychannel::Game* channel = nullptr);
-// The replay channel's queued replays and where its downloads go.
-std::filesystem::path ChannelQueueFolder();
+// The replay channel's queue (ReplayChannelQueue.hxx) is owned by one worker:
+// listings, removals and clears run there in order, never on the game thread,
+// and a recording's enqueue takes the same lock. ShareChannel records the
+// choice the runtime holds for `emberId` and answers the sharing revision a
+// game takes at its start; any change moves it, and a game played under an
+// earlier revision is never queued, so one recorded before sharing went off
+// cannot reach the queue after it was cleared.
+std::uint64_t ShareChannel(const std::string& emberId, bool on);
+// Removes `emberId`'s queued replays (sharing read as off).
+void ClearChannel(const std::string& emberId);
+// Asks for a listing of the queue; TakeChannelRead hands over the newest.
+void WantChannelRead();
+bool TakeChannelRead(std::vector<replaychannel::Entry>& entries);
+// Removes a pair whose upload went or was refused for good.
+void RemoveChannelPair(const replaychannel::Entry& entry);
+// Where the replay channel's downloads go: %APPDATA%\sf4e\replay-channel.
 std::filesystem::path ChannelDownloadFolder();
 void NoteMatchEnd();
 

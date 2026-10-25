@@ -216,6 +216,11 @@ struct Runtime {
     // The replay channel: its requests, and the uploads of this player's games.
     netplay::channel::Requests replayChannel;
     replaychannel::Uploads replayUploads;
+    // The choice last handed to the queue's owner (platform::replays::
+    // ShareChannel) and the revision it answered, which a game takes at its start.
+    std::string replaySharedId;
+    bool replayShared = false;
+    std::uint64_t replaySharingRevision = 0;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;

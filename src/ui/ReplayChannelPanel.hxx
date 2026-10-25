@@ -43,7 +43,11 @@ public:
     bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone) const;
     bool TakeSaid(std::string& text, bool& error);
     void Conceal();
+    // Ember is hidden: the runtime still learns the usable service, so its
+    // uploads never wait on the menu being shown.
+    void Hidden(const ShellView& view, const std::string& bridge, const Submit& submit);
 private:
+    bool Introduce(const ShellView& view, const Submit& submit);
     struct Pending {
         netplay::tournament::Command command;
         bool sent = false;
@@ -61,9 +65,7 @@ private:
     bool wantPage_ = false, wantMore_ = false, wantSharing_ = false;
     std::optional<Pending> pending_;
     std::uint64_t lastRequest_ = 0, pageSeen_ = 0;
-    // When the choice was last asked for, by the runtime's clock, to ask again
-    // after a failure without asking every frame.
-    bool asked_ = false;
-    std::uint64_t askedMs_ = 0;
+    // The service and Ember ID last named to the runtime.
+    std::string introduced_;
 };
 } }

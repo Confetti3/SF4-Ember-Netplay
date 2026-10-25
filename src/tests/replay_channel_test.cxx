@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <iterator>
 
 using namespace sf4e;
@@ -53,10 +54,10 @@ static void Queue() {
 	const auto folder = std::filesystem::temp_directory_path() / "sf4e-replay-channel-test";
 	std::error_code ignored;
 	std::filesystem::remove_all(folder, ignored);
-	CHECK(replaychannel::Enqueue(folder, Body(1761393600, 1), AGame(3), 100, Write));
-	CHECK(replaychannel::Enqueue(folder, Body(1761393700, 2), AGame(4), 50, Write));
+	CHECK(replaychannel::Enqueue(folder, Body(1761393600, 1), AGame(3), 100, Write) == replaychannel::Enqueued::Queued);
+	CHECK(replaychannel::Enqueue(folder, Body(1761393700, 2), AGame(4), 50, Write) == replaychannel::Enqueued::Queued);
 	// The same body again keeps the pair it has.
-	CHECK(replaychannel::Enqueue(folder, Body(1761393600, 1), AGame(9), 200, Write));
+	CHECK(replaychannel::Enqueue(folder, Body(1761393600, 1), AGame(9), 200, Write) == replaychannel::Enqueued::Queued);
 	auto pending = replaychannel::Pending(folder, 300);
 	CHECK(pending.size() == 2);
 	CHECK(pending.size() == 2 && pending[0].value.generation == 4 && pending[1].value.generation == 3);
@@ -70,9 +71,9 @@ static void Queue() {
 	// An invalid game, or a body that is no replay, is never queued.
 	auto noRoom = AGame(5); noRoom.roomId = std::string(32, '0');
 	auto twoLines = AGame(5); twoLines.name = "Player\n1";
-	CHECK(!replaychannel::Enqueue(folder, Body(1761393800, 3), noRoom, 100, Write));
-	CHECK(!replaychannel::Enqueue(folder, Body(1761393800, 3), twoLines, 100, Write));
-	CHECK(!replaychannel::Enqueue(folder, replayslots::Bytes(16, 0), AGame(5), 100, Write));
+	CHECK(replaychannel::Enqueue(folder, Body(1761393800, 3), noRoom, 100, Write) == replaychannel::Enqueued::Refused);
+	CHECK(replaychannel::Enqueue(folder, Body(1761393800, 3), twoLines, 100, Write) == replaychannel::Enqueued::Refused);
+	CHECK(replaychannel::Enqueue(folder, replayslots::Bytes(16, 0), AGame(5), 100, Write) == replaychannel::Enqueued::Refused);
 	// A week later the older pair is gone, and Remove takes both files.
 	pending = replaychannel::Pending(folder, 50 + replaychannel::kQueueSeconds + 1);
 	CHECK(pending.size() == 1 && pending[0].value.generation == 3);
@@ -81,18 +82,18 @@ static void Queue() {
 		CHECK(!std::filesystem::exists(pending[0].replay) && !std::filesystem::exists(pending[0].game));
 	}
 	// A damaged .game is dropped with its export.
-	CHECK(replaychannel::Enqueue(folder, Body(1761393900, 4), AGame(6), 100, Write));
+	CHECK(replaychannel::Enqueue(folder, Body(1761393900, 4), AGame(6), 100, Write) == replaychannel::Enqueued::Queued);
 	for (const auto& entry : replaychannel::Pending(folder, 100)) { std::ofstream(entry.game, std::ios::trunc) << "x"; }
 	CHECK(replaychannel::Pending(folder, 100).empty());
 	// Stopping sharing clears that player's games, never another Ember ID's.
 	auto other = AGame(8); other.emberId = "emb1_player2";
-	CHECK(replaychannel::Enqueue(folder, Body(1761394000, 5), AGame(7), 100, Write));
-	CHECK(replaychannel::Enqueue(folder, Body(1761394100, 6), other, 100, Write));
+	CHECK(replaychannel::Enqueue(folder, Body(1761394000, 5), AGame(7), 100, Write) == replaychannel::Enqueued::Queued);
+	CHECK(replaychannel::Enqueue(folder, Body(1761394100, 6), other, 100, Write) == replaychannel::Enqueued::Queued);
 	replaychannel::Clear(folder, "emb1_player1");
 	pending = replaychannel::Pending(folder, 100);
 	CHECK(pending.size() == 1 && pending[0].value.emberId == "emb1_player2");
 	auto noId = AGame(9); noId.emberId.clear();
-	CHECK(!replaychannel::Enqueue(folder, Body(1761394200, 7), noId, 100, Write));
+	CHECK(replaychannel::Enqueue(folder, Body(1761394200, 7), noId, 100, Write) == replaychannel::Enqueued::Refused);
 	std::filesystem::remove_all(folder, ignored);
 }
 
@@ -100,6 +101,15 @@ static replaychannel::Entry Queued(const char* name, const char* emberId, std::u
 	replaychannel::Entry entry;
 	entry.game = name; entry.replay = name; entry.value = AGame(queuedAt); entry.value.emberId = emberId; entry.queuedAt = queuedAt;
 	return entry;
+}
+
+// One look as the runtime takes it: the scope first, a listing when one is
+// due (made at once here, as the queue's worker would make it), then the next pair.
+static const replaychannel::Entry* Look(replaychannel::Uploads& uploads, const std::string& scope, const std::string& emberId,
+	std::uint64_t nowMs, std::uint64_t unixNow, const std::function<std::vector<replaychannel::Entry>()>& read) {
+	uploads.Rescope(scope);
+	if (uploads.ReadDue(nowMs)) { uploads.Asked(); uploads.Read(read(), nowMs); }
+	return uploads.Next(emberId, unixNow);
 }
 
 // The uploads' one owner: a change of service or Ember ID forgets the pairs
@@ -111,25 +121,25 @@ static void Uploads() {
 	int reads = 0;
 	const auto read = [&] { ++reads; return folder; };
 	Uploads uploads;
-	const auto* next = uploads.Next("brg_1\nemb1_a", "emb1_a", 0, 200, read);
+	const auto* next = Look(uploads, "brg_1\nemb1_a", "emb1_a", 0, 200, read);
 	CHECK(next && next->game == "a1" && reads == 1 && uploads.Size() == 2);
 	uploads.Sent(*next);
 	// Another Ember ID: what was read and the one on its way are forgotten,
 	// and only that Ember ID's pairs go.
-	next = uploads.Next("brg_1\nemb1_b", "emb1_b", 20, 200, read);
+	next = Look(uploads, "brg_1\nemb1_b", "emb1_b", 20, 200, read);
 	CHECK(next && next->game == "b1" && reads == 2 && uploads.Size() == 1);
 	CHECK(!uploads.Answered(true));
 	// Back to the first: a failure keeps the pair; a new one is seen on the next read.
-	next = uploads.Next("brg_1\nemb1_a", "emb1_a", 30, 200, read);
+	next = Look(uploads, "brg_1\nemb1_a", "emb1_a", 30, 200, read);
 	uploads.Sent(*next);
 	CHECK(!uploads.Answered(false) && uploads.Size() == 2);
 	folder.push_back(Queued("a3", "emb1_a", 130));
-	next = uploads.Next("brg_1\nemb1_a", "emb1_a", 30 + Uploads::kCheckMs - 1, 200, read);
+	next = Look(uploads, "brg_1\nemb1_a", "emb1_a", 30 + Uploads::kCheckMs - 1, 200, read);
 	CHECK(next && next->game == "a1" && uploads.Size() == 2);
-	next = uploads.Next("brg_1\nemb1_a", "emb1_a", 30 + Uploads::kCheckMs, 200, read);
+	next = Look(uploads, "brg_1\nemb1_a", "emb1_a", 30 + Uploads::kCheckMs, 200, read);
 	CHECK(next && uploads.Size() == 3);
 	// Past its week, the first pair never goes, even from what was read.
-	next = uploads.Next("brg_1\nemb1_a", "emb1_a", 30 + Uploads::kCheckMs, 100 + replaychannel::kQueueSeconds + 1, read);
+	next = Look(uploads, "brg_1\nemb1_a", "emb1_a", 30 + Uploads::kCheckMs, 100 + replaychannel::kQueueSeconds + 1, read);
 	CHECK(next && next->game == "a2");
 	// Sent: out of the queue, and answered as the pair whose files go.
 	uploads.Sent(*next);
@@ -148,7 +158,7 @@ static void UploadLostAndRetried() {
 	const auto read = [&] { return folder; };
 	replaychannel::Uploads uploads;
 	const std::string scope = "brg_1\nemb1_a";
-	auto* next = uploads.Next(scope, "emb1_a", 0, 200, read);
+	auto* next = Look(uploads, scope, "emb1_a", 0, 200, read);
 	CHECK(next && requests.MayUpload(0));
 	requests.SentUpload(5, 0);
 	uploads.Sent(*next);
@@ -157,13 +167,47 @@ static void UploadLostAndRetried() {
 	CHECK(requests.Awaiting(5) == Kind::None);
 	const auto after = Requests::GiveUpMs + Requests::FirstWaitMs;
 	CHECK(!requests.MayUpload(after - 1) && requests.MayUpload(after));
-	next = uploads.Next(scope, "emb1_a", after, 200, read);
+	next = Look(uploads, scope, "emb1_a", after, 200, read);
 	CHECK(next && next->game == "a1");
 	requests.SentUpload(6, after);
 	uploads.Sent(*next);
 	CHECK(requests.Awaiting(6) == Kind::Upload);
 	const auto done = uploads.Answered(requests.FinishUpload("", after + 10));
 	CHECK(done && done->game == "a1" && uploads.Size() == 0);
+}
+
+// The choice is read again by the runtime: at once for a new scope, a while
+// after a failure (soon when the helper was not up), every while it says no
+// account, never while it is known, and at once after a change got no answer,
+// which leaves it unknown and shares nothing.
+static void SharingReads() {
+	Requests requests;
+	CHECK(!requests.WantsSharingRead(0));
+	requests.Scope("brg_1", "emb1_a");
+	CHECK(requests.WantsSharingRead(0));
+	requests.SentSharing(0, 0); // the helper was not up
+	CHECK(!requests.WantsSharingRead(Requests::HelperRetryMs - 1) && requests.WantsSharingRead(Requests::HelperRetryMs));
+	requests.SentSharing(1, 100);
+	CHECK(!requests.WantsSharingRead(200));
+	requests.FinishSharing("unavailable", std::nullopt, 200);
+	CHECK(!requests.WantsSharingRead(200 + Requests::SharingRetryMs - 1) && requests.WantsSharingRead(200 + Requests::SharingRetryMs));
+	requests.SentSharing(2, 1000000);
+	requests.FinishSharing("", Sharing::NoAccount, 1000000);
+	CHECK(requests.WantsSharingRead(1000000 + Requests::SharingRetryMs));
+	requests.SentSharing(3, 2000000);
+	requests.FinishSharing("", Sharing::On, 2000000);
+	CHECK(!requests.WantsSharingRead(9000000) && requests.SharesNow());
+	// Off goes out and its answer is lost: the choice is unknown, nothing is
+	// shared, and it is read again at once.
+	requests.SentChoice(7, 4, 9000000);
+	CHECK(!requests.SharesNow());
+	requests.Expire(9000000 + Requests::GiveUpMs);
+	CHECK(!requests.SharesNow() && !requests.Published(0).sharing.loaded && requests.WantsSharingRead(9000000 + Requests::GiveUpMs));
+	// One the helper never took changed nothing.
+	requests.SentSharing(5, 9100000);
+	requests.FinishSharing("", Sharing::On, 9100000);
+	requests.SentChoice(8, 0, 9100000);
+	CHECK(requests.SharesNow() && !requests.WantsSharingRead(9100000));
 }
 
 // Nothing goes before the choice is read as on; off stops it.
@@ -279,6 +323,7 @@ int main() {
 	Queue();
 	Uploads();
 	UploadLostAndRetried();
+	SharingReads();
 	UploadsWaitForTheChoice();
 	UploadFailures();
 	Pages();

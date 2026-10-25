@@ -11,6 +11,8 @@
 #include <cstring>
 #include <fstream>
 #include <condition_variable>
+#include <deque>
+#include <functional>
 #include <map>
 #include <mutex>
 #include <thread>
@@ -88,6 +90,91 @@ replayfiles::RecordingSnapshot RecordingSlots() {
  }
  return snapshot;
 }
+// A known folder of this user's, empty when Windows has none.
+fs::path KnownFolder(REFKNOWNFOLDERID id) {
+ PWSTR path = NULL;
+ fs::path folder;
+ if (SHGetKnownFolderPath(id, 0, NULL, &path) == S_OK) folder = fs::path(path);
+ CoTaskMemFree(path);
+ return folder;
+}
+
+// The replay channel's queue folder and its one worker. File work (listing,
+// removing, clearing) runs on the worker in the order asked; an enqueue from
+// the recording worker takes the same files lock, and checks the sharing
+// revision under it, so a clear always comes after every enqueue made under
+// the choice it ends.
+class ChannelQueue {
+public:
+ ChannelQueue() : folder_(KnownFolder(FOLDERID_LocalAppData)), thread_([this] { Run(); }) {
+  if (!folder_.empty()) folder_ = folder_ / L"sf4e" / L"replay-channel-queue";
+ }
+ ~ChannelQueue() { Stop(); }
+ std::uint64_t Share(const std::string& emberId, bool on) {
+  std::lock_guard<std::mutex> lock(files_);
+  if (emberId != emberId_ || on != on_) { emberId_ = emberId; on_ = on; ++revision_; }
+  return revision_;
+ }
+ replaychannel::Enqueued Enqueue(const slots::Bytes& body, const replaychannel::Game& game) {
+  std::lock_guard<std::mutex> lock(files_);
+  if (!on_ || game.revision != revision_ || game.emberId != emberId_) return replaychannel::Enqueued::Refused;
+  return replaychannel::Enqueue(folder_, body, game, static_cast<std::uint64_t>(_time64(nullptr)), PublishFile);
+ }
+ void Post(std::function<void()> job) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (stop_) return;
+  jobs_.push_back(std::move(job));
+  wake_.notify_one();
+ }
+ void Clear(const std::string& emberId) { Post([this, emberId] { std::lock_guard<std::mutex> lock(files_); replaychannel::Clear(folder_, emberId); }); }
+ void Remove(const replaychannel::Entry& entry) { Post([this, entry] { std::lock_guard<std::mutex> lock(files_); replaychannel::Remove(entry); }); }
+ void WantRead() {
+  Post([this] {
+   std::vector<replaychannel::Entry> entries;
+   { std::lock_guard<std::mutex> lock(files_); entries = replaychannel::Pending(folder_, static_cast<std::uint64_t>(_time64(nullptr))); }
+   std::lock_guard<std::mutex> lock(mutex_);
+   read_ = std::move(entries); fresh_ = true;
+  });
+ }
+ bool TakeRead(std::vector<replaychannel::Entry>& entries) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!fresh_) return false;
+  entries = std::move(read_); fresh_ = false;
+  return true;
+ }
+ void Stop() {
+  { std::lock_guard<std::mutex> lock(mutex_); stop_ = true; wake_.notify_all(); }
+  if (thread_.joinable()) thread_.join();
+ }
+private:
+ void Run() noexcept {
+  for (;;) {
+   std::function<void()> job;
+   {
+    std::unique_lock<std::mutex> lock(mutex_);
+    wake_.wait(lock, [&] { return stop_ || !jobs_.empty(); });
+    if (stop_) return;
+    job = std::move(jobs_.front()); jobs_.pop_front();
+   }
+   try { job(); } catch (...) {}
+  }
+ }
+ fs::path folder_;
+ std::mutex files_, mutex_;
+ std::condition_variable wake_;
+ std::deque<std::function<void()>> jobs_;
+ std::vector<replaychannel::Entry> read_;
+ bool fresh_ = false, stop_ = false, on_ = false;
+ std::string emberId_;
+ std::uint64_t revision_ = 0;
+ std::thread thread_;
+};
+std::atomic<ChannelQueue*> channelQueue{nullptr};
+ChannelQueue& Channel() {
+ static auto* const queue = [] { auto* started = new ChannelQueue; channelQueue.store(started); return started; }();
+ return *queue;
+}
+
 replayfiles::NamePublication PublishNames(const fs::path& archive, const slots::Bytes& body, const replayfiles::ReplayNames& names) {
  const auto path = replayfiles::NamesPath(archive, body);
  const auto published = replayfiles::PublishBodyNames(path, body, names, [&](const slots::Bytes& bytes) {
@@ -95,10 +182,14 @@ replayfiles::NamePublication PublishNames(const fs::path& archive, const slots::
   fs::create_directories(path.parent_path(), error);
   return !error && PublishFile(path, bytes);
  });
- // A room game is shared only once its names are bound to it for certain.
+ // A room game is shared only once its names are bound to it for certain. A
+ // queue write that failed is tried again with the names, which are then
+ // already bound; a game no longer shared is refused for good.
  if (published == replayfiles::NamePublication::Published && names.channel && !names.spectated) {
-  const bool queued = replaychannel::Enqueue(FindFolders().channel, body, *names.channel, static_cast<std::uint64_t>(_time64(nullptr)), PublishFile);
-  spdlog::info("Replay channel: {} table={} generation={}", queued ? "queued" : "could not queue", names.channel->table, names.channel->generation);
+  const auto queued = Channel().Enqueue(body, *names.channel);
+  spdlog::info("Replay channel: {} table={} generation={}", queued == replaychannel::Enqueued::Queued ? "queued" :
+   queued == replaychannel::Enqueued::Refused ? "not shared" : "could not queue yet", names.channel->table, names.channel->generation);
+  if (queued == replaychannel::Enqueued::Failed) return replayfiles::NamePublication::Retryable;
  }
  return published;
 }
@@ -216,15 +307,9 @@ Folders FindFolders() {
 	PWSTR appData = NULL, localAppData = NULL;
 	// Where replays go does not depend on Steam, so an outbox is drained even
 	// when no game's saves can be found.
-	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) {
-		folders.archive = fs::path(appData) / L"sf4e" / L"replays";
-		folders.downloads = fs::path(appData) / L"sf4e" / L"replay-channel";
-	}
+	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) folders.archive = fs::path(appData) / L"sf4e" / L"replays";
 	CoTaskMemFree(appData);
-	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) {
-		folders.outbox = fs::path(localAppData) / L"sf4e" / L"replay-outbox";
-		folders.channel = fs::path(localAppData) / L"sf4e" / L"replay-channel-queue";
-	}
+	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) folders.outbox = fs::path(localAppData) / L"sf4e" / L"replay-outbox";
 	CoTaskMemFree(localAppData);
 	if (folders.archive.empty() ||
 		RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS) return folders;
@@ -484,8 +569,15 @@ void NoteMatchEnd() {
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
 
-fs::path ChannelQueueFolder() { return FindFolders().channel; }
-fs::path ChannelDownloadFolder() { return FindFolders().downloads; }
+std::uint64_t ShareChannel(const std::string& emberId, bool on) { return Channel().Share(emberId, on); }
+void ClearChannel(const std::string& emberId) { Channel().Clear(emberId); }
+void WantChannelRead() { Channel().WantRead(); }
+bool TakeChannelRead(std::vector<replaychannel::Entry>& entries) { return Channel().TakeRead(entries); }
+void RemoveChannelPair(const replaychannel::Entry& entry) { Channel().Remove(entry); }
+fs::path ChannelDownloadFolder() {
+ static const fs::path folder = [] { const auto roaming = KnownFolder(FOLDERID_RoamingAppData); return roaming.empty() ? roaming : roaming / L"sf4e" / L"replay-channel"; }();
+ return folder;
+}
 
 void MarkWatched(const fs::path& file) {
 	try {
@@ -627,6 +719,7 @@ std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing() {
 }
 
 void StopListing() {
+ if (auto* queue = channelQueue.load()) queue->Stop();
  if (auto* worker = archiveWorker.load()) worker->Stop();
  if (auto* worker = provenanceWorker.load()) worker->Stop();
  if (auto* changes = recordingChanges.load()) changes->Stop();

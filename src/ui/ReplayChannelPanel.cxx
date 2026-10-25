@@ -18,9 +18,6 @@ namespace {
 using netplay::channel::Sharing;
 using netplay::tournament::Command;
 constexpr float StateCardHeight = 120;
-// How long a read of the choice waits before it is asked again: after one the
-// runtime never took, after the helper was not up yet, and after any other failure.
-constexpr std::uint64_t ScopeWaitMs = 5000, HelperWaitMs = 15000, AskAgainMs = 10 * 60000;
 
 MenuEntry Card(std::string id, std::string label, std::string detail) {
     auto card = InfoRow(std::move(id), std::move(label), {}, std::move(detail));
@@ -83,24 +80,19 @@ void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, c
     ShellAction action;
     action.command.generation = v.session.generation;
     action.tournament.bridgeId = bridge_;
-    // The choice, for the runtime's uploads: whenever the runtime holds none
-    // for this service and Ember ID (a new service, or another Ember ID, which
-    // forgets it), again a while after a read that failed (soon when only the
-    // helper was not up yet), and while it says no account, every while and
-    // on opening the screen or Options, since connecting Discord changes it.
-    const bool unscoped = status.bridge != bridge_;
+    // The choice: the runtime reads it again by itself once it has the
+    // service; the menu names the service, and on opening the screen or
+    // Options reads it now while it says no account, since connecting Discord
+    // changes it.
     const bool noAccount = status.sharing.loaded && status.sharing.value == Sharing::NoAccount;
-    const std::uint64_t wait = unscoped ? ScopeWaitMs : status.sharing.error == "helper_unavailable" ? HelperWaitMs : AskAgainMs;
-    const bool idle = !status.sharing.loading && !status.choosing;
-    const bool unread = unscoped || (idle && (!status.sharing.loaded || noAccount));
     if (!owned || (status.sharing.loaded && !noAccount)) wantSharing_ = false;
-    if ((wantSharing_ && idle) || (unread && (!asked_ || status.nowMs >= askedMs_ + wait))) {
-        wantSharing_ = false;
-        asked_ = true;
-        askedMs_ = status.nowMs;
-        auto read = action;
-        read.tournament.op = Command::Op::ReplaySharing;
-        submit(std::move(read));
+    if (Introduce(v, submit) || (wantSharing_ && !status.sharing.loading && !status.choosing)) {
+        if (wantSharing_ && status.bridge == bridge_) {
+            wantSharing_ = false;
+            auto read = action;
+            read.tournament.op = Command::Op::ReplaySharing;
+            submit(std::move(read));
+        }
         return;
     }
     if (pending_ && !pending_->sent) {
@@ -117,6 +109,25 @@ void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, c
     action.tournament.more = !wantPage_ && wantMore_;
     wantPage_ = wantMore_ = false;
     if (!submit(std::move(action))) Say(loc::T("error.queue_failed"), true);
+}
+
+// Names the usable service to the runtime with a read of the choice, once for
+// each service and Ember ID: the runtime reads it again by itself from then on.
+bool ReplayChannelPanel::Introduce(const ShellView& v, const Submit& submit) {
+    const std::string scope = bridge_ + "\n" + v.identity.emberId;
+    if (bridge_.empty() || v.replayChannel.bridge == bridge_ || introduced_ == scope) return false;
+    introduced_ = scope;
+    ShellAction read;
+    read.command.generation = v.session.generation;
+    read.tournament.op = Command::Op::ReplaySharing;
+    read.tournament.bridgeId = bridge_;
+    submit(std::move(read));
+    return true;
+}
+
+void ReplayChannelPanel::Hidden(const ShellView& v, const std::string& bridge, const Submit& submit) {
+    bridge_ = bridge;
+    Introduce(v, submit);
 }
 
 void ReplayChannelPanel::TakeAnswers(const ShellView& v, const Submit& submit) {

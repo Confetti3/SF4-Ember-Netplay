@@ -282,6 +282,7 @@ bool GetRuntimeChannelGame(replaychannel::Game& game) {
 	if (member == snapshot.members.end() || member->table < 0 || member->table >= room::TableCount || slot > 1) return false;
 	replaychannel::Game read;
 	read.emberId = channel.EmberId();
+	read.revision = runtime->replaySharingRevision;
 	read.roomId = replaychannel::RoomHex(runtime->room->RoomId());
 	read.table = member->table;
 	read.generation = runtime->match->Generation();

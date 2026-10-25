@@ -42,6 +42,9 @@ struct Game {
 	int side = -1;           // the player's slot, 0 or 1
 	std::string name;
 	std::string country;     // two upper-case letters, or empty
+	// The sharing revision the game was played under (platform::replays::
+	// ShareChannel); kept in memory only, never in the .game file.
+	std::uint64_t revision = 0;
 	bool Valid() const {
 		const auto hex = [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); };
 		const bool room = roomId.size() == 32 && std::all_of(roomId.begin(), roomId.end(), hex) &&
@@ -105,23 +108,27 @@ struct Entry {
 
 using CreateOnly = std::function<bool(const std::filesystem::path&, const replayslots::Bytes&)>;
 
-// Queues a bound replay's body for `game`. False when it could not be: no
-// queue folder, an invalid game, a body the export cannot be made of, or a
-// write that failed. A pair already there for this body is kept as it is.
-inline bool Enqueue(const std::filesystem::path& folder, const replayslots::Bytes& body, const Game& game,
+// What became of an enqueue: queued (or already there), refused for good (no
+// queue folder, an invalid game, a body the export cannot be made of), or a
+// write that failed and may pass on another try.
+enum class Enqueued { Queued, Refused, Failed };
+
+// Queues a bound replay's body for `game`. A pair already there for this body
+// is kept as it is.
+inline Enqueued Enqueue(const std::filesystem::path& folder, const replayslots::Bytes& body, const Game& game,
 	std::uint64_t now, const CreateOnly& createOnly) {
-	if (folder.empty() || !game.Valid()) return false;
+	if (folder.empty() || !game.Valid()) return Enqueued::Refused;
 	replayslots::Bytes exported;
-	if (!replayslots::ExportFromReplayAlone(body, exported)) return false;
+	if (!replayslots::ExportFromReplayAlone(body, exported)) return Enqueued::Refused;
 	const std::string key = Sha256Portable(std::string(reinterpret_cast<const char*>(body.data()), body.size()));
 	const auto replay = folder / (key + ".emberreplay"), side = folder / (key + ".game");
 	std::error_code error;
-	if (std::filesystem::exists(side, error)) return true;
+	if (std::filesystem::exists(side, error)) return Enqueued::Queued;
 	std::filesystem::create_directories(folder, error);
-	if (error) return false;
-	if (!std::filesystem::exists(replay, error) && !createOnly(replay, exported)) return false;
+	if (error) return Enqueued::Failed;
+	if (!std::filesystem::exists(replay, error) && !createOnly(replay, exported)) return Enqueued::Failed;
 	const auto text = GameText(game, now);
-	return createOnly(side, replayslots::Bytes(text.begin(), text.end()));
+	return createOnly(side, replayslots::Bytes(text.begin(), text.end())) ? Enqueued::Queued : Enqueued::Failed;
 }
 
 inline void Remove(const Entry& entry) {
@@ -188,22 +195,24 @@ inline void Clear(const std::filesystem::path& folder, const std::string& emberI
 // request state's alone (netplay::channel::Requests), so an answer, a request
 // lost and a retry never need two owners to agree. A change of scope forgets
 // everything read, so one Ember ID's game is never sent under another's
-// session. The folder is read again every kCheckMs, even while the first pair
-// keeps failing, so a pair past its week goes and a new one is seen.
+// session. The folder is listed again every kCheckMs, even while the first
+// pair keeps failing, so a pair past its week goes and a new one is seen. The
+// listing itself is made off the game thread (platform::replays): ReadDue
+// says when to ask for one, Read installs it when it comes.
 class Uploads {
 public:
 	static constexpr std::uint64_t kCheckMs = 30000;
-	using Read = std::function<std::vector<Entry>()>;
 
-	// The pair to send next for `emberId` under `scope`, or none. `read` lists
-	// the folder (Pending); `unixNow` drops a pair past its week before it goes.
-	const Entry* Next(const std::string& scope, const std::string& emberId, std::uint64_t nowMs, std::uint64_t unixNow, const Read& read) {
-		Rescope(scope);
-		if (!checked_ || nowMs - checkedMs_ >= kCheckMs) {
-			checked_ = true;
-			checkedMs_ = nowMs;
-			queue_ = read();
-		}
+	bool ReadDue(std::uint64_t nowMs) const { return !asked_ && (!checked_ || nowMs - checkedMs_ >= kCheckMs); }
+	void Asked() { asked_ = true; }
+	// A listing of the folder (Pending), made at `nowMs`.
+	void Read(std::vector<Entry> entries, std::uint64_t nowMs) {
+		queue_ = std::move(entries);
+		checked_ = true; asked_ = false; checkedMs_ = nowMs;
+	}
+	// The pair to send next for `emberId`, or none; `unixNow` drops a pair
+	// past its week before it goes.
+	const Entry* Next(const std::string& emberId, std::uint64_t unixNow) {
 		queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Entry& entry) {
 			return entry.value.emberId != emberId || unixNow > entry.queuedAt + kQueueSeconds; }), queue_.end());
 		return queue_.empty() ? nullptr : &queue_.front();
@@ -227,8 +236,8 @@ public:
 		queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Entry& queued) { return queued.game == entry.game; }), queue_.end());
 		return entry;
 	}
-	// Forgets what was read, so the folder is read on the next look.
-	void Forget() { queue_.clear(); uploading_.reset(); checked_ = false; }
+	// Forgets what was read, so the folder is listed on the next look.
+	void Forget() { queue_.clear(); uploading_.reset(); checked_ = asked_ = false; }
 	std::size_t Size() const { return queue_.size(); }
 
 private:
@@ -236,7 +245,7 @@ private:
 	std::vector<Entry> queue_;
 	std::optional<Entry> uploading_;
 	std::uint64_t checkedMs_ = 0;
-	bool checked_ = false;
+	bool checked_ = false, asked_ = false;
 };
 
 } }

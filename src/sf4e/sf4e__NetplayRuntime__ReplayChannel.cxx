@@ -49,7 +49,7 @@ json UploadRequest(const std::string& bridge, const replaychannel::Entry& entry)
 
 // A choice read as off: nothing this player played waits to go.
 void ForgetQueue() {
-	replaychannel::Clear(platform::replays::ChannelQueueFolder(), runtime->replayChannel.EmberId());
+	platform::replays::ClearChannel(runtime->replayChannel.EmberId());
 	runtime->replayChannel.Queued(0);
 }
 
@@ -130,7 +130,7 @@ bool TakeReplayChannelAnswer(const session::TournamentAnswer& answer) {
 		const auto failure = Failure(answer, true);
 		const auto state = answer.ok && answer.data.is_object() ? answer.data.value("state", std::string()) : std::string();
 		spdlog::info("Replay channel: upload {}", failure.empty() ? state : failure);
-		if (const auto done = runtime->replayUploads.Answered(requests.FinishUpload(failure, now))) replaychannel::Remove(*done);
+		if (const auto done = runtime->replayUploads.Answered(requests.FinishUpload(failure, now))) platform::replays::RemoveChannelPair(*done);
 		requests.Queued(runtime->replayUploads.Size());
 		return true;
 	}
@@ -144,13 +144,23 @@ void TickReplayChannel(bool helperReady, std::uint64_t nowMs) {
 	// Another Ember ID's choice is not this one's.
 	if (!requests.Bridge().empty() && requests.EmberId() != CurrentId()) requests.Scope({}, {});
 	requests.Expire(nowMs);
+	// The queue's owner learns each change of the choice: a game takes the
+	// revision it answers, and one played under an older revision is never queued.
+	const bool shares = requests.SharesNow();
+	if (shares != runtime->replayShared || requests.EmberId() != runtime->replaySharedId) {
+		runtime->replayShared = shares; runtime->replaySharedId = requests.EmberId();
+		runtime->replaySharingRevision = platform::replays::ShareChannel(requests.EmberId(), shares);
+	}
+	// The choice is read again here, not by the menu, so uploads never wait on it being shown.
+	if (helperReady && requests.WantsSharingRead(nowMs))
+		requests.SentSharing(SendBridgeRequest({{"op", "replay_sharing"}, {"bridge_id", requests.Bridge()}}), nowMs);
 	auto& uploads = runtime->replayUploads;
-	const auto scope = requests.Bridge() + "\n" + requests.EmberId();
-	uploads.Rescope(scope);
+	uploads.Rescope(requests.Bridge() + "\n" + requests.EmberId());
+	std::vector<replaychannel::Entry> listed;
+	if (platform::replays::TakeChannelRead(listed)) uploads.Read(std::move(listed), nowMs);
 	if (requests.Bridge().empty() || !helperReady || !requests.MayUpload(nowMs)) return;
-	const auto unixNow = static_cast<std::uint64_t>(_time64(nullptr));
-	const auto* entry = uploads.Next(scope, requests.EmberId(), nowMs, unixNow,
-		[&] { return replaychannel::Pending(platform::replays::ChannelQueueFolder(), unixNow); });
+	if (uploads.ReadDue(nowMs)) { uploads.Asked(); platform::replays::WantChannelRead(); }
+	const auto* entry = uploads.Next(requests.EmberId(), static_cast<std::uint64_t>(_time64(nullptr)));
 	requests.Queued(uploads.Size());
 	if (!entry) return;
 	const auto id = SendBridgeRequest(UploadRequest(requests.Bridge(), *entry));
