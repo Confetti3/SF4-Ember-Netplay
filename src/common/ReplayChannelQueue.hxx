@@ -62,16 +62,8 @@ inline std::string RoomHex(const std::array<std::uint8_t, 16>& room) {
 constexpr const char* kGameMagic = "ember-channel-game 1";
 inline std::string GameText(const Game& game, std::uint64_t queuedAt) {
 	std::ostringstream out;
-	out << kGameMagic << '
-' << game.roomId << '
-' << game.table << '
-' << game.generation << '
-' << game.side << '
-'
-		<< queuedAt << '
-' << (game.country.empty() ? "-" : game.country) << '
-' << game.name << '
-';
+	out << kGameMagic << '\n' << game.roomId << '\n' << game.table << '\n' << game.generation << '\n' << game.side << '\n'
+		<< queuedAt << '\n' << (game.country.empty() ? "-" : game.country) << '\n' << game.name << '\n';
 	return out.str();
 }
 inline bool ReadGame(const std::string& text, Game& game, std::uint64_t& queuedAt) {

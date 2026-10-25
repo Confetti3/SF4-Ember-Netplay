@@ -246,13 +246,13 @@ mod tests {
     #[test]
     fn requests_have_the_shapes_the_game_sends() {
         let upload = json!({ "op": "replay_upload", "bridge_id": "brg_x",
-            "file": "C:\replays\a.emberreplay", "room_id": "ab".repeat(16), "table": 1,
+            "file": r"C:\replays\a.emberreplay", "room_id": "ab".repeat(16), "table": 1,
             "generation": 4, "side": 0, "name": "Player 1", "country": "GB" });
         let sharing = json!({ "op": "replay_sharing", "bridge_id": "brg_x" });
         let share = json!({ "op": "replay_share", "bridge_id": "brg_x", "choice": { "sharing": false } });
         let list = json!({ "op": "replay_list", "bridge_id": "brg_x", "query": { "fighter": 23 } });
         let download = json!({ "op": "replay_download", "bridge_id": "brg_x",
-            "id": "cd".repeat(16), "folder": "C:\replays" });
+            "id": "cd".repeat(16), "folder": r"C:\replays" });
         for (value, op) in [
             (upload, "replay_upload"),
             (sharing, "replay_sharing"),
