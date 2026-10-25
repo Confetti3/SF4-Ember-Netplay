@@ -757,6 +757,15 @@ msgstr "Graj offline"
 msgid "home.offline_detail"
 msgstr "Trening, Versus, Arcade i inne tryby offline gry."
 
+msgid "training_select.title"
+msgstr "Trening"
+
+msgid "training_select.start"
+msgstr "Rozpocznij trening"
+
+msgid "training_select.start_detail"
+msgstr "Trening wczyta się z tymi postaciami na tej arenie."
+
 msgid "home.replays"
 msgstr "Powtórki"
 

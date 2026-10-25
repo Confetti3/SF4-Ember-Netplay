@@ -757,6 +757,15 @@ msgstr "Jugar sin conexión"
 msgid "home.offline_detail"
 msgstr "Entrenamiento, Versus, Arcade y los demás modos sin conexión del juego."
 
+msgid "training_select.title"
+msgstr "Entrenamiento"
+
+msgid "training_select.start"
+msgstr "Empezar entrenamiento"
+
+msgid "training_select.start_detail"
+msgstr "El entrenamiento carga con estos luchadores en este escenario."
+
 msgid "home.replays"
 msgstr "Repeticiones"
 

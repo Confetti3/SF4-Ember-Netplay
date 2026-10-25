@@ -21,6 +21,7 @@ sf4e_add_unit_test(NAME TrainingFacing SOURCES "src/tests/training_facing_test.c
 sf4e_add_unit_test(NAME TrainingRecordingBank SOURCES "src/tests/training_recording_bank_test.cxx" STD 14 LABELS training)
 sf4e_add_unit_test(NAME TrainingRecording SOURCES "src/tests/training_recording_test.cxx" STD 14 LABELS training)
 sf4e_add_unit_test(NAME TrainingPendingReply SOURCES "src/tests/training_pending_reply_test.cxx" STD 14 LABELS training)
+sf4e_add_unit_test(NAME TrainingStage SOURCES "src/tests/training_stage_test.cxx" LABELS training)
 sf4e_add_unit_test(NAME TrainingPadStandby SOURCES "src/tests/training_pad_standby_test.cxx" STD 14 LABELS training)
 sf4e_add_unit_test(NAME FighterCatalog SOURCES "src/tests/fighter_catalog_test.cxx" LIBS sf4e_selection TIMEOUT 15)
 sf4e_add_unit_test(NAME SessionController SOURCES "src/tests/session_controller_test.cxx" LIBS sf4e_netplay_core Threads::Threads TIMEOUT 15 LABELS room)
