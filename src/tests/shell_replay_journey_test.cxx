@@ -110,14 +110,14 @@ void ReplayJourneys() {
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shownRows){rows=shownRows;});h.Screen("replays");
   Check(h.shell.ReplayWants().listing&&!h.shell.ReplayWants().detail,"The Replays screen did not ask for a listing");
   Check(rows.size()==4&&rows[0].id=="replay-log"&&rows[1].id=="replay-channel"&&rows[2].id=="replay-folder","Replays retained settings above the list");
-  Check(rows[2].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay score and status separator wrong");
-  Check(rows[2].id=="replay:C:\\r\\a.emberreplay"&&rows[2].label==ReplayRowLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
+  Check(rows[3].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay score and status separator wrong");
+  Check(rows[3].id=="replay:C:\\r\\a.emberreplay"&&rows[3].label==ReplayRowLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
   // The portraits show the fighters, so the label names the players: a noted name, else the fighter.
-  Check(rows[2].label==shown.label+"  "+loc::Tf("replays.fighters",std::string("Ann"),std::string(loc::T("common.unavailable"))),"Replay row label did not name its players");
-  Check(rows[2].Match()&&rows[2].fighter1==0&&rows[2].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
+  Check(rows[3].label==shown.label+"  "+loc::Tf("replays.fighters",std::string("Ann"),std::string(loc::T("common.unavailable"))),"Replay row label did not name its players");
+  Check(rows[3].Match()&&rows[3].fighter1==0&&rows[3].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
   Check(rows[0].fighter1==-1&&!rows[0].Match(),"A plain row drew portraits");
-  Check(rows[2].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
-  Check(rows[2].choices.size()==6&&rows[2].choices[0].id=="watch"&&rows[2].choices[1].id=="watch-meter"&&rows[2].choices[2].id=="add"&&rows[2].choices[3].id=="export"&&rows[2].choices[4].id=="inputs"&&rows[2].choices[5].id=="show-folder","Replay choice order wrong");
+  Check(rows[3].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
+  Check(rows[3].choices.size()==6&&rows[3].choices[0].id=="watch"&&rows[3].choices[1].id=="watch-meter"&&rows[3].choices[2].id=="add"&&rows[3].choices[3].id=="export"&&rows[3].choices[4].id=="inputs"&&rows[3].choices[5].id=="show-folder","Replay choice order wrong");
   // Show in folder asks the services for the row's own file, and its answer is the status line.
   {const auto sent=h.actions.size();h.Choose("replay:C:\\r\\a.emberreplay");for(int i=0;i<5;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
    Check(h.actions.size()==sent+1&&h.actions.back().service==platform::ServiceAction::ShowReplayFile&&h.actions.back().servicePath=="C:\\r\\a.emberreplay"&&h.actions.back().replay.mode==sf4e::replay::Mode::None,"Show in folder did not ask for the replay's file");
