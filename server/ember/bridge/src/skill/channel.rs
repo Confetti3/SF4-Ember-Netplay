@@ -373,7 +373,12 @@ pub fn upload(
                     let (won, own, opponent, opponent_badge) = if report.winner == account {
                         (side, report.winner_badge, report.loser, report.loser_badge)
                     } else if report.loser == account {
-                        (other, report.loser_badge, report.winner, report.winner_badge)
+                        (
+                            other,
+                            report.loser_badge,
+                            report.winner,
+                            report.winner_badge,
+                        )
                     } else {
                         return Err(not_your_game());
                     };

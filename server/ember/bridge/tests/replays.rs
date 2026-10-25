@@ -837,7 +837,11 @@ async fn a_public_game_lists_the_classes_from_when_the_room_reported_it() {
     assert!(listed(&page(&bridge, &first, "?band=8").await).is_empty());
 
     // A game reported after the change shows what they hold at that report.
-    report_games(&fake, &room_id, &[(1, &first, &second), (2, &first, &second)]);
+    report_games(
+        &fake,
+        &room_id,
+        &[(1, &first, &second), (2, &first, &second)],
+    );
     ember_bridge::poll_rooms(bridge.state()).await;
     let next = Game::new(&room_id, 2, now(&bridge) - 30);
     uploaded(&bridge, &first, next.body(0, "Player 1", None)).await;
