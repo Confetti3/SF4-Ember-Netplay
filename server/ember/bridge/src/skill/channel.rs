@@ -8,7 +8,10 @@
 //! game sends it again. For a private room it is both players' uploads of
 //! the same game. A side's name and country are what
 //! that side's own upload sent; a side that never uploaded shows the
-//! listing it chose for the ranking board. Whether an account shares is
+//! listing it chose for the ranking board. A side's class is the one it held
+//! at the game: for a public room, when the host reported the game (kept with
+//! it, since an upload may come much later); for a private room, when that
+//! side uploaded. Whether an account shares is
 //! read each time a page is made, so changing it takes effect at once.
 use std::collections::HashSet;
 
@@ -121,10 +124,12 @@ fn find(tx: &Transaction<'_>, room_id: &str, table: u8, generation: u64) -> Resu
         .optional()?)
 }
 
+fn badge_text(badge: Option<SkillBadge>) -> Option<String> {
+    badge.and_then(|badge| serde_json::to_string(&badge).ok())
+}
+
 fn badge_json(side: &Side) -> Option<String> {
-    side.badge
-        .as_ref()
-        .and_then(|badge| serde_json::to_string(badge).ok())
+    badge_text(side.badge)
 }
 
 fn band_of(side: &Side) -> Option<u8> {
@@ -248,8 +253,10 @@ fn listing(tx: &Transaction<'_>, account: &str) -> Result<Option<(String, Option
 }
 
 /// Lists the game: gives a side that never uploaded its board listing (or a
-/// default name) and both sides the class they show now.
-fn publish(tx: &Transaction<'_>, game: &mut Stored, show: Show<'_>, now: u64) -> Result<()> {
+/// default name). The classes are already the sides' own at the game, kept
+/// when the room reported it or when that player uploaded, and are not
+/// worked out again here.
+fn publish(tx: &Transaction<'_>, game: &mut Stored) -> Result<()> {
     for (index, side) in game.sides.iter_mut().enumerate() {
         let Some(account) = side.account.clone() else {
             continue;
@@ -260,7 +267,6 @@ fn publish(tx: &Transaction<'_>, game: &mut Stored, show: Show<'_>, now: u64) ->
             side.name = Some(name);
             side.country = country;
         }
-        side.badge = badge(tx, &account, show, now)?;
     }
     game.published = true;
     Ok(())
@@ -309,15 +315,25 @@ fn insert(
     })
 }
 
-/// The side an upload speaks for, from the upload's own name and country.
-fn own_side(upload: &Upload<'_>) -> Side {
+/// The side an upload speaks for, from the upload's own name and country,
+/// holding the class `badge` it had at the game.
+fn own_side(upload: &Upload<'_>, badge: Option<SkillBadge>) -> Side {
     Side {
         account: Some(upload.account.to_owned()),
         name: Some(upload.request.name.clone()),
         country: upload.request.country.clone(),
         uploaded: true,
-        badge: None,
+        badge,
     }
+}
+
+/// A game a public room's host reported: the two accounts and the classes
+/// they held when it was reported.
+struct Report {
+    winner: String,
+    loser: String,
+    winner_badge: Option<SkillBadge>,
+    loser_badge: Option<SkillBadge>,
 }
 
 /// Stores `upload` and says what became of it. `account` is the uploader's
@@ -334,36 +350,50 @@ pub fn upload(
     let found = find(tx, &request.room_id, request.table, request.generation)?;
     let game = match found {
         None => {
-            let reported: Option<(String, String)> = tx
+            let reported: Option<Report> = tx
                 .query_row(
-                    "SELECT winner, loser FROM channel_games
+                    "SELECT winner, loser, winner_badge, loser_badge FROM channel_games
                      WHERE room_id = ?1 AND table_id = ?2 AND generation = ?3",
                     params![request.room_id, request.table, request.generation],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
+                    |row| {
+                        Ok(Report {
+                            winner: row.get(0)?,
+                            loser: row.get(1)?,
+                            winner_badge: badge_of_text(row.get(2)?),
+                            loser_badge: badge_of_text(row.get(3)?),
+                        })
+                    },
                 )
                 .optional()?;
             let mut sides = [Side::default(), Side::default()];
-            sides[side] = own_side(upload);
             match reported {
-                Some((winner, loser)) => {
-                    let opponent = if winner == account {
-                        loser
-                    } else if loser == account {
-                        winner.clone()
+                Some(report) => {
+                    // Both classes are the ones kept when the room reported
+                    // the game, however long ago that was.
+                    let (won, own, opponent, opponent_badge) = if report.winner == account {
+                        (side, report.winner_badge, report.loser, report.loser_badge)
+                    } else if report.loser == account {
+                        (other, report.loser_badge, report.winner, report.winner_badge)
                     } else {
                         return Err(not_your_game());
                     };
+                    sides[side] = own_side(upload, own);
                     sides[other].account = Some(opponent);
-                    let won = if winner == account { side } else { other };
+                    sides[other].badge = opponent_badge;
                     let mut game =
                         insert(tx, upload, sides, RoomKind::Public, Some(won as u8), now)?;
-                    publish(tx, &mut game, show, now)?;
+                    publish(tx, &mut game)?;
                     game
                 }
                 // A public room's game waits for its report: nobody but its
                 // two players can be bound to it.
                 None if public_room(tx, &request.room_id)? => return Err(not_reported()),
-                None => insert(tx, upload, sides, RoomKind::Private, None, now)?,
+                None => {
+                    // A private room's: each side's class is its own at the
+                    // time it uploads.
+                    sides[side] = own_side(upload, badge(tx, account, show, now)?);
+                    insert(tx, upload, sides, RoomKind::Private, None, now)?
+                }
             }
         }
         Some(mut game) => {
@@ -373,8 +403,9 @@ pub fn upload(
             if game.sides[side].account.as_deref() == Some(account) {
                 // The same player again, or a public game's second player
                 // sending their own side.
+                // Its class stays the one kept for the game.
                 if !game.sides[side].uploaded {
-                    let own = own_side(upload);
+                    let own = own_side(upload, None);
                     game.sides[side].name = own.name;
                     game.sides[side].country = own.country;
                     game.sides[side].uploaded = true;
@@ -384,10 +415,10 @@ pub fn upload(
                 && game.sides[other].account.as_deref() != Some(account)
             {
                 // The other player of a private room's game.
-                game.sides[side] = own_side(upload);
+                game.sides[side] = own_side(upload, badge(tx, account, show, now)?);
                 game.kind = RoomKind::Private;
                 game.winner = None;
-                publish(tx, &mut game, show, now)?;
+                publish(tx, &mut game)?;
             } else {
                 return Err(not_your_game());
             }
@@ -413,24 +444,51 @@ pub fn upload(
 }
 
 /// Records a game a public room host reported, between the Discord accounts
-/// of `winner` and `loser`. An upload of a public room's game is taken only
-/// once its game is recorded here (`upload`), so nothing is listed from here.
+/// of `winner` and `loser`, with the class each shows as it is reported: the
+/// class at the game, which a later upload lists whenever it comes. An upload
+/// of a public room's game is taken only once its game is recorded here
+/// (`upload`), so nothing is listed from here. A host reports its recent
+/// games on every poll; a game already recorded keeps its first classes.
 pub fn reported(
     tx: &Transaction<'_>,
+    show: Show<'_>,
     room_id: &str,
     table: u8,
     generation: u64,
     (winner, loser): (&EmberId, &EmberId),
     now: u64,
 ) -> Result<()> {
+    let known: bool = tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM channel_games
+                        WHERE room_id = ?1 AND table_id = ?2 AND generation = ?3)",
+        params![room_id, table, generation],
+        |row| row.get(0),
+    )?;
+    if known {
+        return Ok(());
+    }
     let (Some(winner), Some(loser)) = (account(tx, winner)?, account(tx, loser)?) else {
         return Ok(());
     };
     if winner != loser {
+        let (winner_badge, loser_badge) = (
+            badge(tx, &winner, show, now)?,
+            badge(tx, &loser, show, now)?,
+        );
         tx.execute(
-            "INSERT OR IGNORE INTO channel_games (room_id, table_id, generation, winner, loser, played_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![room_id, table, generation, winner, loser, now],
+            "INSERT OR IGNORE INTO channel_games
+                 (room_id, table_id, generation, winner, loser, winner_badge, loser_badge, played_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                room_id,
+                table,
+                generation,
+                winner,
+                loser,
+                badge_text(winner_badge),
+                badge_text(loser_badge),
+                now
+            ],
         )?;
     }
     Ok(())

@@ -10,13 +10,18 @@ CREATE TABLE replay_sharing (
 
 -- Public room games a room host reported, with both players' Discord
 -- accounts, kept 14 days. Not tied to the room's row: `rated_games` goes with
--- the room, and a replay can be uploaded after the room has closed.
+-- the room, and a replay can be uploaded after the room has closed. The two
+-- players' classes (as JSON, none for a player with no class to show) are the
+-- ones they held when the host reported the game, so an upload long after it
+-- still lists the class at the game.
 CREATE TABLE channel_games (
     room_id TEXT NOT NULL,
     table_id INTEGER NOT NULL,
     generation INTEGER NOT NULL,
     winner TEXT NOT NULL,
     loser TEXT NOT NULL,
+    winner_badge TEXT,
+    loser_badge TEXT,
     played_at INTEGER NOT NULL,
     PRIMARY KEY (room_id, table_id, generation)
 ) WITHOUT ROWID;
@@ -27,8 +32,9 @@ CREATE INDEX channel_games_played ON channel_games (played_at);
 -- player slots. A row is held (`published` 0) until both sides' accounts are
 -- known: a public room's host report, or the other player's upload of the same
 -- game. A side's name and country come from that side's own upload; `uploaded`
--- says it has made one. `badge` is the side's class as JSON when the game was
--- listed, and `band` its class number for filtering (none for the developer
+-- says it has made one. `badge` is the side's class as JSON at the game (a
+-- public room's: when the host reported it; a private room's: when that side
+-- uploaded), and `band` its class number for filtering (none for the developer
 -- mark). `seq` orders entries stably for paging; `id` is what is shown.
 CREATE TABLE channel_replays (
     seq INTEGER PRIMARY KEY,

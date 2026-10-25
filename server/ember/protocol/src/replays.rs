@@ -343,8 +343,9 @@ pub struct ChannelSide {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     pub fighter: u8,
-    /// The class the side held when the game was listed; absent for a player
-    /// who does not take part in ranking or had none yet.
+    /// The class the side held at the game (a public room's: when the room
+    /// reported it; a private room's: when that player uploaded); absent for
+    /// a player who does not take part in ranking or had none yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub badge: Option<SkillBadge>,
     /// The caller (in-game page only).

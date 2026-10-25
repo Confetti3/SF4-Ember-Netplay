@@ -227,6 +227,37 @@ async fn rate(bridge: &Bridge, account: &str, band: u8) {
         .unwrap();
 }
 
+/// Moves account `account`, which `rate` gave a rating, to the middle of `band`.
+async fn rerate(bridge: &Bridge, account: &str, band: u8) {
+    let account = account.to_owned();
+    let rating = 1050.0 + 100.0 * f64::from(band);
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE skill_ratings SET rating = ?2, band = ?3 WHERE discord_user_id = ?1",
+                rusqlite::params![account, rating, band],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+/// Takes `player` out of ranking, so they show no class.
+async fn leave_ranking(bridge: &Bridge, player: &Player) {
+    let (status, out) = call(
+        bridge,
+        player,
+        Method::PUT,
+        "/v1/ranking/me",
+        Some(json!({ "ranked": false })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{out}");
+}
+
 async fn count(bridge: &Bridge, table: &'static str) -> i64 {
     bridge
         .state()
@@ -772,6 +803,79 @@ async fn a_developer_shows_the_mark_and_hidden_classes_show_none() {
     uploaded(&hidden, &one, game.body(0, "Player 1", None)).await;
     let entry = public(&hidden, "").await["replays"][0].clone();
     assert!(entry["sides"][0].get("badge").is_none());
+}
+
+#[tokio::test]
+async fn a_public_game_lists_the_classes_from_when_the_room_reported_it() {
+    let (bridge, fake) = start(true, &[]).await;
+    let (first, second) = two(&bridge).await;
+    rate(&bridge, "100", 5).await;
+    rate(&bridge, "200", 3).await;
+    let room_id = played(&bridge, &fake, &first, &[(1, &first, &second)]).await;
+
+    // The classes change before the upload, and a later report of the same
+    // game does not take them either.
+    rerate(&bridge, "100", 8).await;
+    leave_ranking(&bridge, &second).await;
+    ember_bridge::poll_rooms(bridge.state()).await;
+
+    let game = Game::new(&room_id, 1, now(&bridge) - 60);
+    let answer = uploaded(&bridge, &second, game.body(1, "Player 2", None)).await;
+    assert_eq!(answer["state"], "published");
+    let entry = page(&bridge, &first, "").await["replays"][0].clone();
+    assert_eq!(entry["winner"], 0);
+    assert_eq!(
+        entry["sides"][0]["badge"],
+        json!({ "band": 5, "settled": true })
+    );
+    assert_eq!(
+        entry["sides"][1]["badge"],
+        json!({ "band": 3, "settled": true })
+    );
+    // Their class filter finds the class they held then.
+    assert_eq!(listed(&page(&bridge, &first, "?band=5").await).len(), 1);
+    assert!(listed(&page(&bridge, &first, "?band=8").await).is_empty());
+
+    // A game reported after the change shows what they hold at that report.
+    report_games(&fake, &room_id, &[(1, &first, &second), (2, &first, &second)]);
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let next = Game::new(&room_id, 2, now(&bridge) - 30);
+    uploaded(&bridge, &first, next.body(0, "Player 1", None)).await;
+    let newest = page(&bridge, &first, "").await["replays"][0].clone();
+    assert_eq!(
+        newest["sides"][0]["badge"],
+        json!({ "band": 8, "settled": true })
+    );
+    assert!(newest["sides"][1].get("badge").is_none());
+}
+
+#[tokio::test]
+async fn a_private_game_lists_each_sides_class_from_its_own_upload() {
+    let (bridge, _fake) = start(true, &[]).await;
+    let (first, second) = two(&bridge).await;
+    rate(&bridge, "100", 5).await;
+    rate(&bridge, "200", 3).await;
+    let room_id = private_room();
+    let game = Game::new(&room_id, 4, now(&bridge) - 60);
+
+    let held = uploaded(&bridge, &first, game.body(0, "Player 1", None)).await;
+    assert_eq!(held, json!({ "state": "held" }));
+    // Both classes move before the second player uploads.
+    rerate(&bridge, "100", 8).await;
+    rerate(&bridge, "200", 6).await;
+    let answer = uploaded(&bridge, &second, game.body(1, "Player 2", None)).await;
+    assert_eq!(answer["state"], "published");
+
+    let entry = page(&bridge, &second, "").await["replays"][0].clone();
+    assert_eq!(entry["room"], "private");
+    assert_eq!(
+        entry["sides"][0]["badge"],
+        json!({ "band": 5, "settled": true })
+    );
+    assert_eq!(
+        entry["sides"][1]["badge"],
+        json!({ "band": 6, "settled": true })
+    );
 }
 
 #[tokio::test]

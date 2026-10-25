@@ -27,6 +27,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     AppState,
     auth::Player,
+    db::Db,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
     routes::{
@@ -51,12 +52,19 @@ const PUBLIC_PAGE_SECS: u64 = 15;
 const SWEEP_SECS: u64 = 60 * 60;
 const ORPHAN_AGE: Duration = Duration::from_secs(60 * 60);
 
-/// Per-process state of the channel: the last public page and when the
-/// replay folder was last checked.
+/// Per-process state of the channel: the last public page, when the replay
+/// folder was last checked, and the lock that owns the files (below).
 #[derive(Default)]
 pub struct Shared {
     page: tokio::sync::Mutex<Option<(u64, Arc<ReplayPage>)>>,
     swept_at: AtomicU64,
+    /// Whoever holds it as a reader is putting a file in the folder and
+    /// recording the replay that names it (an upload, from before the file is
+    /// stored until its row is committed); the sweep holds it as the writer
+    /// while it reads which files are named and removes the others. So the
+    /// sweep never judges a file by a view that an upload has since made
+    /// stale, and never removes a file an upload has just stored or touched.
+    files: tokio::sync::RwLock<()>,
 }
 
 /// `POST /v1/replays`.
@@ -96,6 +104,8 @@ pub async fn upload(
     let size = u32::try_from(export.len()).map_err(|_| ApiFailure::unavailable())?;
     let sha256 = hex(&Sha256::digest(&export));
     let (folder, name) = (folder(&state), sha256.clone());
+    // Held until the row is committed: the sweep waits for it (`Shared::files`).
+    let _storing = state.replays.files.read().await;
     tokio::task::spawn_blocking(move || store(&folder, &name, &export))
         .await
         .map_err(|_| ApiFailure::unavailable())?
@@ -358,11 +368,18 @@ pub async fn maintain(state: &AppState, now: u64) {
     if now.saturating_sub(swept_at) < SWEEP_SECS {
         return;
     }
-    state.replays.swept_at.store(now, Ordering::Relaxed);
-    let Ok(kept) = state.db.read(channel::files_kept).await else {
+    sweep_files(&state.replays, &state.db, folder(state), now).await;
+}
+
+/// Removes the stray files from `folder` while no upload is between storing
+/// a file and recording it (`Shared::files`), judging them by the replays
+/// recorded once it has the lock.
+async fn sweep_files(shared: &Shared, db: &Db, folder: PathBuf, now: u64) {
+    let _sweeping = shared.files.write().await;
+    shared.swept_at.store(now, Ordering::Relaxed);
+    let Ok(kept) = db.read(channel::files_kept).await else {
         return;
     };
-    let folder = folder(state);
     let _ = tokio::task::spawn_blocking(move || sweep(&folder, &kept, ORPHAN_AGE)).await;
 }
 
@@ -386,6 +403,63 @@ mod tests {
         assert_eq!(sweep(&folder, &names, Duration::from_secs(3600)), 0);
         assert_eq!(sweep(&folder, &names, Duration::ZERO), 1);
         assert!(read(&kept).is_ok() && read(&stray).is_err());
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[tokio::test]
+    async fn the_sweep_waits_for_an_upload_to_record_its_file() {
+        let folder = std::env::temp_dir().join(format!("ember-replays-{}", hex(&random::<8>())));
+        let db = Db::open(FsPath::new(":memory:")).unwrap();
+        let shared = Shared::default();
+        let sha256 = "c".repeat(64);
+        store(&folder, &sha256, b"upload").unwrap();
+        let path = folder.join(format!("{sha256}.emberreplay"));
+        // Old enough to be swept if no replay names it.
+        let old = SystemTime::now() - 2 * ORPHAN_AGE;
+        let file = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+        file.set_modified(old).unwrap();
+        drop(file);
+
+        // The upload has stored its file and not yet recorded it: the sweep
+        // does not go ahead on a view without the row.
+        let storing = shared.files.read().await;
+        let waiting = tokio::time::timeout(
+            Duration::from_millis(200),
+            sweep_files(&shared, &db, folder.clone(), 1),
+        )
+        .await;
+        assert!(waiting.is_err());
+        assert!(path.exists());
+        assert_eq!(shared.swept_at.load(Ordering::Relaxed), 0);
+
+        // The upload records its replay and lets go: the file is named.
+        let named = sha256.clone();
+        db.write(move |tx| {
+            tx.execute(
+                "INSERT INTO channel_replays
+                     (id, room_id, table_id, generation, room_kind, uploaded0, uploaded1,
+                      fighter0, fighter1, played_at, sha256, size, published, created_at)
+                 VALUES ('1', 'room', 0, 1, 'public', 0, 0, 1, 2, 5, ?1, 6, 1, 5)",
+                [named],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+        drop(storing);
+        sweep_files(&shared, &db, folder.clone(), 1).await;
+        assert!(path.exists());
+        assert_eq!(shared.swept_at.load(Ordering::Relaxed), 1);
+
+        // Once no replay names it, the next sweep removes it.
+        db.write(|tx| {
+            tx.execute("DELETE FROM channel_replays", [])?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+        sweep_files(&shared, &db, folder.clone(), 2).await;
+        assert!(!path.exists());
         let _ = std::fs::remove_dir_all(&folder);
     }
 }
