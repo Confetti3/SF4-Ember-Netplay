@@ -65,7 +65,8 @@ private:
     bool wantPage_ = false, wantMore_ = false, wantSharing_ = false;
     std::optional<Pending> pending_;
     std::uint64_t lastRequest_ = 0, pageSeen_ = 0;
-    // The service and Ember ID last named to the runtime.
+    // The service and Ember ID last named to the runtime, and when, by its clock.
     std::string introduced_;
+    std::uint64_t introducedMs_ = 0;
 };
 } }

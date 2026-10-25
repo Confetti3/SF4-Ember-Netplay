@@ -205,10 +205,14 @@ public:
 
 	bool ReadDue(std::uint64_t nowMs) const { return !asked_ && (!checked_ || nowMs - checkedMs_ >= kCheckMs); }
 	void Asked() { asked_ = true; }
-	// A listing of the folder (Pending), made at `nowMs`.
+	// A listing of the folder (Pending), made at `nowMs`. One asked for before
+	// an upload finished may still hold that pair, whose removal comes after it
+	// on the worker: it is set aside, and a new listing is due at once.
 	void Read(std::vector<Entry> entries, std::uint64_t nowMs) {
+		asked_ = false;
+		if (stale_) { stale_ = false; checked_ = false; return; }
 		queue_ = std::move(entries);
-		checked_ = true; asked_ = false; checkedMs_ = nowMs;
+		checked_ = true; checkedMs_ = nowMs;
 	}
 	// The pair to send next for `emberId`, or none; `unixNow` drops a pair
 	// past its week before it goes.
@@ -233,11 +237,12 @@ public:
 		Entry entry = std::move(*uploading_);
 		uploading_.reset();
 		if (!done) return std::nullopt;
+		if (asked_) stale_ = true;
 		queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Entry& queued) { return queued.game == entry.game; }), queue_.end());
 		return entry;
 	}
 	// Forgets what was read, so the folder is listed on the next look.
-	void Forget() { queue_.clear(); uploading_.reset(); checked_ = asked_ = false; }
+	void Forget() { queue_.clear(); uploading_.reset(); checked_ = asked_ = stale_ = false; }
 	std::size_t Size() const { return queue_.size(); }
 
 private:
@@ -245,7 +250,7 @@ private:
 	std::vector<Entry> queue_;
 	std::optional<Entry> uploading_;
 	std::uint64_t checkedMs_ = 0;
-	bool checked_ = false, asked_ = false;
+	bool checked_ = false, asked_ = false, stale_ = false;
 };
 
 } }

@@ -147,6 +147,30 @@ static void Uploads() {
 	CHECK(done && done->game == "a2" && uploads.Size() == 1);
 }
 
+// A listing asked for before an upload finished is not taken: it may still
+// hold the pair just sent, whose removal comes after it.
+static void StaleListing() {
+	replaychannel::Uploads uploads;
+	uploads.Rescope("brg_1\nemb1_a");
+	uploads.Asked();
+	uploads.Read({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}, 0);
+	CHECK(!uploads.ReadDue(1));
+	const auto* next = uploads.Next("emb1_a", 200);
+	uploads.Sent(*next);
+	// A listing is due and asked for while the upload is on its way...
+	CHECK(uploads.ReadDue(replaychannel::Uploads::kCheckMs));
+	uploads.Asked();
+	// ...the upload finishes, then the old listing arrives with a1 in it.
+	const auto done = uploads.Answered(true);
+	CHECK(done && done->game == "a1");
+	uploads.Read({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}, replaychannel::Uploads::kCheckMs + 5);
+	next = uploads.Next("emb1_a", 200);
+	CHECK(next && next->game == "a2" && uploads.ReadDue(replaychannel::Uploads::kCheckMs + 5));
+	uploads.Asked();
+	uploads.Read({Queued("a2", "emb1_a", 110)}, replaychannel::Uploads::kCheckMs + 6);
+	CHECK(uploads.Size() == 1 && uploads.Next("emb1_a", 200)->game == "a2");
+}
+
 // The request state and the uploads together: an upload the helper never
 // answers ends at its time limit, waits, and the same pair goes again.
 static void UploadLostAndRetried() {
@@ -323,6 +347,7 @@ int main() {
 	Queue();
 	Uploads();
 	UploadLostAndRetried();
+	StaleListing();
 	SharingReads();
 	UploadsWaitForTheChoice();
 	UploadFailures();

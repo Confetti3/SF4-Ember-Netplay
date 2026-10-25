@@ -252,6 +252,34 @@ void NoServiceJourney() {
  Check(j.h.shell.Navigation().Screen() == "public-rooms", "The setup row does not open Public rooms");
 }
 
+// One frame with Ember hidden.
+void Hidden(Journey& j) {
+ ImGui::GetIO().DeltaTime = 1.f / 60; ImGui::NewFrame();
+ j.h.shell.Background(j.h.view, j.h.view.room, [&](ShellAction a) { j.h.actions.push_back(a); return true; });
+ ImGui::Render();
+}
+
+// Hidden, the menu still names the service to the runtime, as a replay
+// channel request (never anything else), again a few seconds after one the
+// runtime did not take, and no more once it holds it.
+void HiddenJourney() {
+ Journey j;
+ Learn(j);
+ // Another Ember ID: the runtime forgets the scope; Ember is hidden.
+ j.h.view.identity.emberId = "emb1_other"; j.h.view.replayChannel = netplay::channel::Status{};
+ const auto reads = Sent(j, Op::ReplaySharing).size();
+ for (int i = 0; i < 3; ++i) Hidden(j);
+ auto sent = Sent(j, Op::ReplaySharing);
+ Check(sent.size() == reads + 1 && sent.back()->bridgeId == "brg_1", "Hidden, the service was not named once");
+ Check(j.h.actions.back().tournament.op == Op::ReplaySharing, "The hidden naming was not a replay channel request");
+ j.h.view.replayChannel.nowMs = 4999; Hidden(j);
+ Check(Sent(j, Op::ReplaySharing).size() == reads + 1, "The naming was sent again too soon");
+ j.h.view.replayChannel.nowMs = 5000; Hidden(j);
+ Check(Sent(j, Op::ReplaySharing).size() == reads + 2, "A naming the runtime did not take was not sent again");
+ j.h.view.replayChannel.bridge = "brg_1"; j.h.view.replayChannel.nowMs = 20000; Hidden(j);
+ Check(Sent(j, Op::ReplaySharing).size() == reads + 2, "The naming went on after the runtime held the service");
+}
+
 // The choice is read wherever the player is, since uploads wait for it.
 void ReadAnywhereJourney() {
  Journey j;
@@ -264,7 +292,7 @@ void ReadAnywhereJourney() {
 int main() {
  try {
   OpeningJourney(); SharingJourney(); FilterJourney(); MoreAndRefreshJourney(); WatchJourney();
-  NoAccountJourney(); UnavailableJourney(); NoServiceJourney(); ReadAnywhereJourney();
+  NoAccountJourney(); UnavailableJourney(); NoServiceJourney(); ReadAnywhereJourney(); HiddenJourney();
   std::cout << "Replay channel journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

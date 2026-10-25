@@ -16,6 +16,8 @@
 namespace sf4e { namespace ui {
 namespace {
 using netplay::channel::Sharing;
+// How long a naming of the service the runtime did not take waits to be sent again.
+constexpr std::uint64_t IntroduceAgainMs = 5000;
 using netplay::tournament::Command;
 constexpr float StateCardHeight = 120;
 
@@ -111,17 +113,21 @@ void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, c
     if (!submit(std::move(action))) Say(loc::T("error.queue_failed"), true);
 }
 
-// Names the usable service to the runtime with a read of the choice, once for
-// each service and Ember ID: the runtime reads it again by itself from then on.
+// Names the usable service to the runtime with a read of the choice, until
+// the runtime holds it for this service and Ember ID: again a few seconds after
+// one that was not taken. From then on the runtime reads the choice by itself.
 bool ReplayChannelPanel::Introduce(const ShellView& v, const Submit& submit) {
+    const auto& status = v.replayChannel;
     const std::string scope = bridge_ + "\n" + v.identity.emberId;
-    if (bridge_.empty() || v.replayChannel.bridge == bridge_ || introduced_ == scope) return false;
-    introduced_ = scope;
+    if (bridge_.empty() || status.bridge == bridge_) return false;
+    if (introduced_ == scope && status.nowMs < introducedMs_ + IntroduceAgainMs) return false;
     ShellAction read;
     read.command.generation = v.session.generation;
     read.tournament.op = Command::Op::ReplaySharing;
     read.tournament.bridgeId = bridge_;
-    submit(std::move(read));
+    if (!submit(std::move(read))) return false;
+    introduced_ = scope;
+    introducedMs_ = status.nowMs;
     return true;
 }
 

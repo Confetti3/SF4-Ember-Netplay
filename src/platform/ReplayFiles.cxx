@@ -13,6 +13,7 @@
 #include <condition_variable>
 #include <deque>
 #include <functional>
+#include <future>
 #include <map>
 #include <mutex>
 #include <thread>
@@ -99,39 +100,39 @@ fs::path KnownFolder(REFKNOWNFOLDERID id) {
  return folder;
 }
 
-// The replay channel's queue folder and its one worker. File work (listing,
-// removing, clearing) runs on the worker in the order asked; an enqueue from
-// the recording worker takes the same files lock, and checks the sharing
-// revision under it, so a clear always comes after every enqueue made under
-// the choice it ends.
+// The replay channel's queue folder and its one worker. Every file operation
+// (an enqueue, a listing, a removal, a clear) is a job on the worker, done in
+// the order asked, so a clear always comes after every enqueue asked before
+// it. The sharing choice and its revision are memory only, under the jobs'
+// short lock: changing them never waits on the disk, and an enqueue checks
+// them when its job runs, so a game played under an older revision is refused
+// however late its names were bound.
 class ChannelQueue {
 public:
- ChannelQueue() : folder_(KnownFolder(FOLDERID_LocalAppData)), thread_([this] { Run(); }) {
-  if (!folder_.empty()) folder_ = folder_ / L"sf4e" / L"replay-channel-queue";
- }
+ ChannelQueue() : folder_(QueueFolder()), thread_([this] { Run(); }) {}
  ~ChannelQueue() { Stop(); }
  std::uint64_t Share(const std::string& emberId, bool on) {
-  std::lock_guard<std::mutex> lock(files_);
+  std::lock_guard<std::mutex> lock(mutex_);
   if (emberId != emberId_ || on != on_) { emberId_ = emberId; on_ = on; ++revision_; }
   return revision_;
  }
+ // From the recording worker, which waits for the answer; never the game thread.
  replaychannel::Enqueued Enqueue(const slots::Bytes& body, const replaychannel::Game& game) {
-  std::lock_guard<std::mutex> lock(files_);
-  if (!on_ || game.revision != revision_ || game.emberId != emberId_) return replaychannel::Enqueued::Refused;
-  return replaychannel::Enqueue(folder_, body, game, static_cast<std::uint64_t>(_time64(nullptr)), PublishFile);
+  auto answer = std::make_shared<std::promise<replaychannel::Enqueued>>();
+  auto done = answer->get_future();
+  if (!Post([this, body, game, answer] {
+   bool shared = false;
+   { std::lock_guard<std::mutex> lock(mutex_); shared = on_ && game.revision == revision_ && game.emberId == emberId_; }
+   answer->set_value(shared ? replaychannel::Enqueue(folder_, body, game, static_cast<std::uint64_t>(_time64(nullptr)), PublishFile)
+    : replaychannel::Enqueued::Refused);
+  })) return replaychannel::Enqueued::Refused;
+  try { return done.get(); } catch (...) { return replaychannel::Enqueued::Failed; }
  }
- void Post(std::function<void()> job) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (stop_) return;
-  jobs_.push_back(std::move(job));
-  wake_.notify_one();
- }
- void Clear(const std::string& emberId) { Post([this, emberId] { std::lock_guard<std::mutex> lock(files_); replaychannel::Clear(folder_, emberId); }); }
- void Remove(const replaychannel::Entry& entry) { Post([this, entry] { std::lock_guard<std::mutex> lock(files_); replaychannel::Remove(entry); }); }
+ void Clear(const std::string& emberId) { Post([this, emberId] { replaychannel::Clear(folder_, emberId); }); }
+ void Remove(const replaychannel::Entry& entry) { Post([entry] { replaychannel::Remove(entry); }); }
  void WantRead() {
   Post([this] {
-   std::vector<replaychannel::Entry> entries;
-   { std::lock_guard<std::mutex> lock(files_); entries = replaychannel::Pending(folder_, static_cast<std::uint64_t>(_time64(nullptr))); }
+   auto entries = replaychannel::Pending(folder_, static_cast<std::uint64_t>(_time64(nullptr)));
    std::lock_guard<std::mutex> lock(mutex_);
    read_ = std::move(entries); fresh_ = true;
   });
@@ -147,20 +148,32 @@ public:
   if (thread_.joinable()) thread_.join();
  }
 private:
+ static fs::path QueueFolder() {
+  const auto local = KnownFolder(FOLDERID_LocalAppData);
+  return local.empty() ? local : local / L"sf4e" / L"replay-channel-queue";
+ }
+ bool Post(std::function<void()> job) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (stop_) return false;
+  jobs_.push_back(std::move(job));
+  wake_.notify_one();
+  return true;
+ }
  void Run() noexcept {
   for (;;) {
    std::function<void()> job;
    {
     std::unique_lock<std::mutex> lock(mutex_);
     wake_.wait(lock, [&] { return stop_ || !jobs_.empty(); });
-    if (stop_) return;
+    // Jobs left at shutdown are dropped; an enqueue waiting on one is answered as failed.
+    if (stop_) { jobs_.clear(); return; }
     job = std::move(jobs_.front()); jobs_.pop_front();
    }
    try { job(); } catch (...) {}
   }
  }
- fs::path folder_;
- std::mutex files_, mutex_;
+ const fs::path folder_;
+ std::mutex mutex_;
  std::condition_variable wake_;
  std::deque<std::function<void()>> jobs_;
  std::vector<replaychannel::Entry> read_;
