@@ -7,13 +7,8 @@
 (function () {
   'use strict';
   var REFRESH_MS = 15000;
-  var FACE = 32;
-  // Native fighter IDs, as src/common/FighterMetadata.inc orders them and
-  // assets/faces.webp lays them out.
-  var FIGHTERS = ['Ryu', 'Ken', 'Chun-Li', 'E. Honda', 'Blanka', 'Zangief', 'Guile', 'Dhalsim', 'Balrog', 'Vega',
-    'Sagat', 'M. Bison', 'C. Viper', 'Rufus', 'El Fuerte', 'Abel', 'Seth', 'Akuma', 'Gouken', 'T. Hawk', 'Cammy',
-    'Fei Long', 'Dee Jay', 'Sakura', 'Rose', 'Gen', 'Dan', 'Guy', 'Cody', 'Ibuki', 'Makoto', 'Dudley', 'Adon',
-    'Hakan', 'Juri', 'Yun', 'Yang', 'Evil Ryu', 'Oni', 'Rolento', 'Elena', 'Poison', 'Hugo', 'Decapre'];
+  // Fighter portraits come from assets/players.js, which the page loads first.
+  var shared = window.EmberPlayers;
   var REGIONS = { use1: 'US East', usw1: 'US West', euc1: 'Europe', aps1: 'Asia Pacific' };
   var ROTATIONS = ['Winner stays', 'Loser stays', 'Both rotate'];
   // Sidecar build IDs of the releases public rooms run, newest first. Add the
@@ -67,21 +62,6 @@
 
   function chip(text, kind) { return el('span', 'room-chip' + (kind ? ' ' + kind : ''), text); }
 
-  function face(id) {
-    var tile = el('span', 'room-face');
-    if (typeof id === 'number' && id >= 0 && id < FIGHTERS.length) {
-      tile.style.backgroundPosition = (-id * FACE) + 'px 0';
-      tile.title = FIGHTERS[id];
-      tile.setAttribute('role', 'img');
-      tile.setAttribute('aria-label', FIGHTERS[id]);
-    } else {
-      tile.className += ' none';
-      tile.textContent = '?';
-      tile.title = 'No main yet';
-    }
-    return tile;
-  }
-
   function copy(text, done) {
     function fallback() {
       var area = document.createElement('textarea');
@@ -132,7 +112,7 @@
     var faces = el('div', 'room-faces');
     var fighters = Array.isArray(room.fighters) ? room.fighters : [];
     var shown = Math.min(fighters.length, 6);
-    for (var i = 0; i < shown; i++) faces.appendChild(face(fighters[i]));
+    for (var i = 0; i < shown; i++) faces.appendChild(shared.face(fighters[i], { title: 'No main yet' }));
     if (room.members > shown && shown > 0) faces.appendChild(el('span', 'room-more', '+' + (room.members - shown)));
     line.appendChild(faces);
 

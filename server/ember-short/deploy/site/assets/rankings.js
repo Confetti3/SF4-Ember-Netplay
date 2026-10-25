@@ -9,11 +9,13 @@
   // While the tab is shown the board is asked for again this often; nginx and
   // the bridge each keep it 15 s, so a change shows within about a minute.
   var REFRESH_MS = 30000;
-  // USF4's classes, band 1 to 10 (src/ui/NameMarks.cxx), and the colour
-  // family each pill takes.
-  var CLASSES = ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'Master', 'Grand Master'];
-  var TIERS = ['d', 'd', 'c', 'c', 'b', 'b', 'a', 'a', 'm', 'gm'];
+  // The classes, their colour families, flags and country names come from
+  // assets/players.js, which the page loads first.
+  var shared = window.EmberPlayers;
+  var CLASSES = shared.classes;
+  var TIERS = shared.tiers;
   var BANDS = CLASSES.length;
+  var countryName = shared.countryName;
   // Regions for the region filter, by the country codes the game sends.
   var REGIONS = [
     ['eu', 'Europe', 'AD AL AT AX BA BE BG BY CH CY CZ DE DK EE ES FI FO FR GB GG GI GR HR HU IE IM IS IT JE LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS RU SE SI SJ SK SM UA VA XK'],
@@ -28,12 +30,6 @@
   REGIONS.forEach(function (region) {
     region[2].split(' ').forEach(function (code) { REGION_OF[code] = region[0]; });
   });
-  // The flags in assets/flags.png, laid out as assets/flags.json says (both
-  // copies of the repository's assets/flags, flag-icons under MIT, which
-  // scripts/check-flag-atlas.py keeps equal). Drawn FLAG_WIDTH wide. Until the
-  // index loads, or if it cannot, a country shows its code.
-  var FLAG_WIDTH = 20;
-  var flagAtlas = null;
   var OTHER_REGION = 'other';
   var NO_COUNTRY = 'none';
   var COUNTRY = /^[A-Z]{2}$/;
@@ -71,18 +67,6 @@
   regionNames[OTHER_REGION] = 'Other';
   var graphemes = null;
   try { graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' }); } catch (error) { graphemes = null; }
-  var displayNames = null;
-  try { displayNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (error) { displayNames = null; }
-  var countryNames = {};
-  function countryName(code) {
-    if (!code) return 'No flag';
-    if (!countryNames[code]) {
-      var name = null;
-      try { name = displayNames ? displayNames.of(code) : null; } catch (error) { name = null; }
-      countryNames[code] = name && name !== code ? name : code;
-    }
-    return countryNames[code];
-  }
   function regionOf(player) { return player.country ? REGION_OF[player.country] || OTHER_REGION : OTHER_REGION; }
 
   // Case and accents fold away for search: "eric" finds "Éric". Folding a
@@ -124,35 +108,6 @@
     if (minutes < 60) return minutes + ' min ago';
     var hours = Math.floor(minutes / 60);
     return hours < 48 ? hours + ' h ago' : Math.floor(hours / 24) + ' days ago';
-  }
-
-  function pill(band) {
-    var node = el('span', 'rank-class tier-' + TIERS[band - 1], CLASSES[band - 1]);
-    node.title = 'Class ' + CLASSES[band - 1];
-    return node;
-  }
-  // A country's flag from the atlas, or its code where the atlas has none.
-  function flag(code) {
-    var atlas = flagAtlas;
-    var cell = atlas && code && Object.prototype.hasOwnProperty.call(atlas.countries, code) ? atlas.countries[code] : -1;
-    var node = el('span', 'rank-flag' + (code ? (cell >= 0 ? ' image' : '') : ' none'), cell >= 0 ? '' : code || '');
-    if (cell >= 0) {
-      var scale = FLAG_WIDTH / atlas.cellWidth;
-      var stepX = atlas.cellWidth + 2 * atlas.padding, stepY = atlas.cellHeight + 2 * atlas.padding;
-      node.style.width = FLAG_WIDTH + 'px';
-      node.style.height = atlas.cellHeight * scale + 'px';
-      node.style.backgroundSize = atlas.width * scale + 'px ' + atlas.height * scale + 'px';
-      node.style.backgroundPosition = -(cell % atlas.columns * stepX + atlas.padding) * scale + 'px ' +
-        -(Math.floor(cell / atlas.columns) * stepY + atlas.padding) * scale + 'px';
-      node.setAttribute('role', 'img');
-    }
-    if (code) {
-      node.title = countryName(code);
-      node.setAttribute('aria-label', countryName(code));
-    } else {
-      node.setAttribute('aria-hidden', 'true');
-    }
-    return node;
   }
 
   // The view in the URL fragment, which browsers never send: q, class (bands
@@ -240,9 +195,9 @@
 
   function row(player) {
     var item = el('li', 'rank-row');
-    item.appendChild(flag(player.country));
+    item.appendChild(shared.flag(player.country));
     item.appendChild(name(player));
-    item.appendChild(pill(player.band));
+    item.appendChild(shared.classPill(player.band));
     return item;
   }
 
@@ -485,11 +440,11 @@
   function groupHead(group) {
     var head = el('h2', 'rank-group-head');
     if (view.group === 'class') {
-      head.appendChild(pill(Number(group.key)));
+      head.appendChild(shared.classPill(Number(group.key)));
       head.appendChild(el('span', 'rank-group-title', CLASSES[Number(group.key) - 1]));
     } else {
       var code = group.key === NO_COUNTRY ? '' : group.key;
-      head.appendChild(flag(code));
+      head.appendChild(shared.flag(code));
       head.appendChild(el('span', 'rank-group-title', countryName(code)));
     }
     head.appendChild(el('span', 'rank-group-count', plural(group.players.length, 'player', 'players')));
@@ -785,19 +740,7 @@
   });
   // The flag index, read once beside the board; the board is drawn again
   // with flags when it arrives.
-  function validAtlas(index) {
-    var whole = function (value) { return typeof value === 'number' && value >= 0 && value % 1 === 0; };
-    return index && whole(index.cellWidth) && index.cellWidth > 0 && whole(index.cellHeight) && whole(index.padding) &&
-      whole(index.columns) && index.columns > 0 && whole(index.width) && whole(index.height) &&
-      index.countries && typeof index.countries === 'object' ? index : null;
-  }
-  fetch('/assets/flags.json', { credentials: 'omit' })
-    .then(function (response) { return response.ok ? response.json() : null; })
-    .then(function (index) {
-      flagAtlas = validAtlas(index);
-      if (flagAtlas && data.players) render();
-    })
-    .catch(function () {});
+  shared.loadFlags(function () { if (data.players) render(); });
   readHash();
   load(false);
 }());

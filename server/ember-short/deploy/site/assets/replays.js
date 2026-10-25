@@ -9,27 +9,17 @@
   // While the tab is shown and nothing is filtered, the first page is asked for
   // again this often; nginx and the bridge each keep it 15 s.
   var REFRESH_MS = 30000;
-  var FACE = 32;
   var PAGE_SIZE = 50;
   var MAX_NAME_FILTER = 32;
-  // Native fighter IDs, as src/common/FighterMetadata.inc orders them and
-  // assets/faces.webp lays them out.
-  var FIGHTERS = ['Ryu', 'Ken', 'Chun-Li', 'E. Honda', 'Blanka', 'Zangief', 'Guile', 'Dhalsim', 'Balrog', 'Vega',
-    'Sagat', 'M. Bison', 'C. Viper', 'Rufus', 'El Fuerte', 'Abel', 'Seth', 'Akuma', 'Gouken', 'T. Hawk', 'Cammy',
-    'Fei Long', 'Dee Jay', 'Sakura', 'Rose', 'Gen', 'Dan', 'Guy', 'Cody', 'Ibuki', 'Makoto', 'Dudley', 'Adon',
-    'Hakan', 'Juri', 'Yun', 'Yang', 'Evil Ryu', 'Oni', 'Rolento', 'Elena', 'Poison', 'Hugo', 'Decapre'];
-  // USF4's classes, band 1 to 10 (src/ui/NameMarks.cxx), and the colour
-  // family each pill takes; the same as the rankings page.
-  var CLASSES = ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'Master', 'Grand Master'];
-  var TIERS = ['d', 'd', 'c', 'c', 'b', 'b', 'a', 'a', 'm', 'gm'];
+  // Fighters, classes, portraits, flags and class pills come from
+  // assets/players.js, which the page loads first.
+  var shared = window.EmberPlayers;
+  var FIGHTERS = shared.fighters;
+  var CLASSES = shared.classes;
+  var TIERS = shared.tiers;
   var BANDS = CLASSES.length;
   var ID = /^[0-9a-f]{32}$/;
   var COUNTRY = /^[A-Z]{2}$/;
-  // The flags in assets/flags.png, laid out as assets/flags.json says, drawn
-  // FLAG_WIDTH wide. Until the index loads, or if it cannot, a country shows
-  // its code.
-  var FLAG_WIDTH = 20;
-  var flagAtlas = null;
 
   var classesBox = document.getElementById('classes');
   var search = document.getElementById('search');
@@ -58,17 +48,6 @@
 
   var graphemes = null;
   try { graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' }); } catch (error) { graphemes = null; }
-  var displayNames = null;
-  try { displayNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (error) { displayNames = null; }
-  var countryNames = {};
-  function countryName(code) {
-    if (!countryNames[code]) {
-      var name = null;
-      try { name = displayNames ? displayNames.of(code) : null; } catch (error) { name = null; }
-      countryNames[code] = name && name !== code ? name : code;
-    }
-    return countryNames[code];
-  }
   var dateFormat = null;
   try { dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch (error) { dateFormat = null; }
 
@@ -79,7 +58,7 @@
     return node;
   }
   function plural(count, one, many) { return count + ' ' + (count === 1 ? one : many); }
-  function fighterName(id) { return id >= 0 && id < FIGHTERS.length ? FIGHTERS[id] : 'Unknown fighter'; }
+  var fighterName = shared.fighterName;
 
   // A query as kept: at most 32 characters (what the bridge accepts), never
   // half of one, without control characters or edge spaces.
@@ -91,54 +70,6 @@
     view.q = clipped.toWellFormed ? clipped.toWellFormed() : clipped;
   }
   function query() { return view.q.trim(); }
-
-  function pill(badge) {
-    if (!badge) return null;
-    var node;
-    if (badge.developer) {
-      node = el('span', 'rank-class tier-dev', 'Dev');
-      node.title = 'Ember developer';
-      return node;
-    }
-    if (badge.band < 1) return null;
-    node = el('span', 'rank-class tier-' + TIERS[badge.band - 1], CLASSES[badge.band - 1]);
-    node.title = 'Class ' + CLASSES[badge.band - 1];
-    return node;
-  }
-  // A country's flag from the atlas, or its code where the atlas has none.
-  function flag(code) {
-    if (!code) return null;
-    var atlas = flagAtlas;
-    var cell = atlas && Object.prototype.hasOwnProperty.call(atlas.countries, code) ? atlas.countries[code] : -1;
-    var node = el('span', 'rank-flag' + (cell >= 0 ? ' image' : ''), cell >= 0 ? '' : code);
-    if (cell >= 0) {
-      var scale = FLAG_WIDTH / atlas.cellWidth;
-      var stepX = atlas.cellWidth + 2 * atlas.padding, stepY = atlas.cellHeight + 2 * atlas.padding;
-      node.style.width = FLAG_WIDTH + 'px';
-      node.style.height = atlas.cellHeight * scale + 'px';
-      node.style.backgroundSize = atlas.width * scale + 'px ' + atlas.height * scale + 'px';
-      node.style.backgroundPosition = -(cell % atlas.columns * stepX + atlas.padding) * scale + 'px ' +
-        -(Math.floor(cell / atlas.columns) * stepY + atlas.padding) * scale + 'px';
-      node.setAttribute('role', 'img');
-    }
-    node.title = countryName(code);
-    node.setAttribute('aria-label', countryName(code));
-    return node;
-  }
-  function face(id) {
-    var tile = el('span', 'room-face');
-    if (id >= 0 && id < FIGHTERS.length) {
-      tile.style.backgroundPosition = (-id * FACE) + 'px 0';
-      tile.setAttribute('role', 'img');
-      tile.setAttribute('aria-label', FIGHTERS[id]);
-    } else {
-      tile.className += ' none';
-      tile.textContent = '?';
-      tile.setAttribute('aria-hidden', 'true');
-    }
-    tile.title = fighterName(id);
-    return tile;
-  }
 
   function when(seconds) {
     var date = new Date(seconds * 1000);
@@ -152,15 +83,15 @@
     var won = entry.winner === index;
     var node = el('div', 'replay-side' + (won ? ' won' : ''));
     var player = entry.sides[index];
-    node.appendChild(face(player.fighter));
+    node.appendChild(shared.face(player.fighter, { title: 'Unknown fighter', hidden: true }));
     var who = el('span', 'replay-who');
     var line = el('span', 'replay-player');
     // An empty slot where a player shows no flag, so every name starts in line.
-    line.appendChild(flag(player.country) || el('span', 'rank-flag none'));
+    line.appendChild(player.country ? shared.flag(player.country) : el('span', 'rank-flag none'));
     var name = el('span', 'rank-name', player.name);
     name.title = player.name;
     line.appendChild(name);
-    var badge = pill(player.badge);
+    var badge = shared.badgePill(player.badge);
     if (badge) line.appendChild(badge);
     who.appendChild(line);
     var under = el('span', 'replay-under');
@@ -566,19 +497,7 @@
 
   // The flag index, read once beside the list; the list is drawn again with
   // flags when it arrives.
-  function validAtlas(index) {
-    var whole = function (value) { return typeof value === 'number' && value >= 0 && value % 1 === 0; };
-    return index && whole(index.cellWidth) && index.cellWidth > 0 && whole(index.cellHeight) && whole(index.padding) &&
-      whole(index.columns) && index.columns > 0 && whole(index.width) && whole(index.height) &&
-      index.countries && typeof index.countries === 'object' ? index : null;
-  }
-  fetch('/assets/flags.json', { credentials: 'omit' })
-    .then(function (response) { return response.ok ? response.json() : null; })
-    .then(function (index) {
-      flagAtlas = validAtlas(index);
-      if (flagAtlas && data.replays) render();
-    })
-    .catch(function () {});
+  shared.loadFlags(function () { if (data.replays) render(); });
   readHash();
   render();
   load(false);
