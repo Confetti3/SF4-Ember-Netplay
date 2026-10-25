@@ -490,7 +490,9 @@ void HomeGuides(){
  id.bridges={{"brg_1",ember,"Ember"}};h.Frame(0,2);
  Check(h.sent().back()->op==IdentityOp::BridgeList,"Home did not learn the services");
  h.answer();h.Frame(0,2);
- Check(!h.played().empty()&&h.played().back()->op==Command::Op::Refresh&&h.played().back()->bridgeId=="brg_1","Home did not read the matches");
+ // Other services' requests may follow it in the same frames (the replay channel names its service).
+ {const auto played=h.played();
+  Check(std::any_of(played.begin(),played.end(),[](const Command* c){return c->op==Command::Op::Refresh&&c->bridgeId=="brg_1";}),"Home did not read the matches");}
  Check(!h.row("home-matches"),"Home shows a matches row with no match ready");
  h.Screen("online");
  Check(h.row("identity")->detail==loc::T("home.identity_detail"),"Ember ID says to start with an ID and a service");
