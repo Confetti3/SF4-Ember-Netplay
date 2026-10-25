@@ -49,7 +49,10 @@ pub const REPLAY_NOT_FOUND: &str = "replay_not_found";
 
 /// An entry's id: 16 random bytes in lower-case hex.
 pub fn is_replay_id(id: &str) -> bool {
-    id.len() == 32 && id.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    id.len() == 32
+        && id
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 /// A room's id as the bridge and room hosts write it: 16 bytes in lower-case hex.
@@ -468,7 +471,10 @@ mod tests {
         let read = |text: &str| serde_json::from_str::<ReplaySharing>(text).unwrap();
         assert_eq!(read(r#"{"sharing":"on"}"#), ReplaySharing::On);
         assert_eq!(read(r#"{"sharing":"off"}"#), ReplaySharing::Off);
-        assert_eq!(read(r#"{"sharing":"no_account"}"#), ReplaySharing::NoAccount);
+        assert_eq!(
+            read(r#"{"sharing":"no_account"}"#),
+            ReplaySharing::NoAccount
+        );
     }
 
     #[test]
@@ -498,7 +504,22 @@ mod tests {
             more: false,
         };
         assert!(backwards.check().is_err());
-        assert!(ListQuery { band: Some(11), ..Default::default() }.check().is_err());
-        assert!(ListQuery { name: Some("ry".into()), fighter: Some(1), ..Default::default() }.check().is_ok());
+        assert!(
+            ListQuery {
+                band: Some(11),
+                ..Default::default()
+            }
+            .check()
+            .is_err()
+        );
+        assert!(
+            ListQuery {
+                name: Some("ry".into()),
+                fighter: Some(1),
+                ..Default::default()
+            }
+            .check()
+            .is_ok()
+        );
     }
 }

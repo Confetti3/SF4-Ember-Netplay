@@ -12,9 +12,9 @@ use std::{
 
 use ember_protocol::{
     replays::{
-        ListQuery, MAX_EXPORT, NOT_YOUR_GAME, REPLAY_INVALID, REPLAY_NOT_FOUND,
-        REPLAYS_PATH, ReplayPage, ReplaySharing, ReplayUpload, SHARING_PATH, SharingChoice,
-        UPLOAD_LIMIT, UploadAnswer, file_path, is_replay_id, read_export,
+        ListQuery, MAX_EXPORT, NOT_YOUR_GAME, REPLAY_INVALID, REPLAY_NOT_FOUND, REPLAYS_PATH,
+        ReplayPage, ReplaySharing, ReplayUpload, SHARING_PATH, SharingChoice, UPLOAD_LIMIT,
+        UploadAnswer, file_path, is_replay_id, read_export,
     },
     skill::NO_ACCOUNT,
 };
@@ -93,9 +93,7 @@ pub async fn sharing(
 
 /// A page of the channel.
 pub async fn list(shared: &Arc<Shared>, bridge_id: &str, query: ListQuery) -> Outcome {
-    query
-        .check()
-        .map_err(|_| Failure::new("invalid_request"))?;
+    query.check().map_err(|_| Failure::new("invalid_request"))?;
     let path = format!("{REPLAYS_PATH}{}", query_string(&query));
     let page: ReplayPage = call(shared, bridge_id, reqwest::Method::GET, path, None).await?;
     page.check().map_err(|_| invalid_response())?;
@@ -116,10 +114,12 @@ pub async fn download(shared: &Arc<Shared>, bridge_id: &str, id: &str, folder: &
         .call(reqwest::Method::GET, &url, None, None)
         .await?;
     if status != 200 {
-        return Err(match client::feature_answer(status, &bytes, 200, &REASONS, UNAVAILABLE) {
-            Err(failure) => failure,
-            Ok(_) => invalid_response(),
-        });
+        return Err(
+            match client::feature_answer(status, &bytes, 200, &REASONS, UNAVAILABLE) {
+                Err(failure) => failure,
+                Ok(_) => invalid_response(),
+            },
+        );
     }
     if bytes.len() > MAX_EXPORT || read_export(&bytes).is_err() {
         return Err(invalid_response());
@@ -129,11 +129,16 @@ pub async fn download(shared: &Arc<Shared>, bridge_id: &str, id: &str, folder: &
     tokio::task::spawn_blocking(move || write_once(&written, &bytes))
         .await
         .map_err(|_| Failure::new("internal"))??;
-    Ok(Some(serde_json::json!({ "file": target.to_string_lossy() })))
+    Ok(Some(
+        serde_json::json!({ "file": target.to_string_lossy() }),
+    ))
 }
 
 fn read_replay(path: &Path) -> Result<Vec<u8>, Failure> {
-    if path.extension().is_none_or(|extension| extension != "emberreplay") {
+    if path
+        .extension()
+        .is_none_or(|extension| extension != "emberreplay")
+    {
         return Err(Failure::new("invalid_path"));
     }
     let metadata = std::fs::metadata(path).map_err(|_| Failure::new("file_unreadable"))?;
@@ -151,7 +156,11 @@ fn read_replay(path: &Path) -> Result<Vec<u8>, Failure> {
 fn write_once(path: &Path, bytes: &[u8]) -> Result<(), Failure> {
     let failed = || Failure::new("file_unwritable");
     if let Ok(existing) = std::fs::read(path) {
-        return if existing == bytes { Ok(()) } else { Err(failed()) };
+        return if existing == bytes {
+            Ok(())
+        } else {
+            Err(failed())
+        };
     }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|_| failed())?;
@@ -248,7 +257,8 @@ mod tests {
             "file": r"C:\replays\a.emberreplay", "room_id": "ab".repeat(16), "table": 1,
             "generation": 4, "side": 0, "name": "Player 1", "country": "GB" });
         let sharing = json!({ "op": "replay_sharing", "bridge_id": "brg_x" });
-        let share = json!({ "op": "replay_share", "bridge_id": "brg_x", "choice": { "sharing": false } });
+        let share =
+            json!({ "op": "replay_share", "bridge_id": "brg_x", "choice": { "sharing": false } });
         let list = json!({ "op": "replay_list", "bridge_id": "brg_x", "query": { "fighter": 23 } });
         let download = json!({ "op": "replay_download", "bridge_id": "brg_x",
             "id": "cd".repeat(16), "folder": r"C:\replays" });
@@ -268,7 +278,10 @@ mod tests {
             json!({ "op": "replay_share", "bridge_id": "brg_x", "choice": { "sharing": "no" } }),
             json!({ "op": "replay_list", "bridge_id": "brg_x", "query": { "fighter": 1, "x": 1 } }),
         ] {
-            assert!(serde_json::from_value::<Request>(bad.clone()).is_err(), "{bad}");
+            assert!(
+                serde_json::from_value::<Request>(bad.clone()).is_err(),
+                "{bad}"
+            );
         }
     }
 
@@ -281,12 +294,16 @@ mod tests {
             }}))
             .unwrap()
         };
-        let reply = |status, body: &[u8]| client::feature_answer(status, body, 200, &REASONS, UNAVAILABLE);
+        let reply =
+            |status, body: &[u8]| client::feature_answer(status, body, 200, &REASONS, UNAVAILABLE);
         assert_eq!(reply(404, b"").unwrap_err().0, UNAVAILABLE);
         for reason in REASONS {
             assert_eq!(reply(403, &refusal(reason)).unwrap_err().0, reason);
         }
-        assert_eq!(reply(404, &refusal(REPLAY_NOT_FOUND)).unwrap_err().0, REPLAY_NOT_FOUND);
+        assert_eq!(
+            reply(404, &refusal(REPLAY_NOT_FOUND)).unwrap_err().0,
+            REPLAY_NOT_FOUND
+        );
     }
 
     #[test]
@@ -300,7 +317,10 @@ mod tests {
         };
         assert_eq!(
             query_string(&query),
-            format!("?fighter=23&band=9&name=Player%201%26x&before={}", "ab".repeat(16))
+            format!(
+                "?fighter=23&band=9&name=Player%201%26x&before={}",
+                "ab".repeat(16)
+            )
         );
     }
 
@@ -326,7 +346,10 @@ mod tests {
         assert_eq!(read_replay(&wrong_kind).unwrap_err().0, "invalid_path");
         let not_a_replay = dir.join("x.emberreplay");
         std::fs::write(&not_a_replay, b"EMBRPLY1").unwrap();
-        assert_eq!(read_replay(&not_a_replay).unwrap_err().0, "replay_unreadable");
+        assert_eq!(
+            read_replay(&not_a_replay).unwrap_err().0,
+            "replay_unreadable"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
