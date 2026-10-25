@@ -71,13 +71,19 @@ std::size_t Watches(const Journey& j, const std::string& file) {
   return a.replay.mode == replay::Mode::Watch && a.replay.path == file; }));
 }
 
+// The Ember ID and its services are learned first, as Online play reads them.
+void Learn(Journey& j) {
+ j.h.Screen("online"); j.h.Frame(0, 2);
+ j.answerIdentityUntilIdle();
+}
+
 void Open(Journey& j) {
  j.h.view.replays.ready = true;
+ Learn(j);
  j.h.Screen("replays");
  Check(j.row("replay-channel") != nullptr, "Replays has no Replay channel row");
  j.h.Choose("replay-channel"); j.h.Frame(0, 2);
  Check(j.h.shell.Navigation().Screen() == "replay-channel", "Replays does not open the Replay channel");
- j.answerIdentityUntilIdle();
 }
 
 const char* FighterNameOf(int id) { return selection::FindFighter(id)->name; }
@@ -224,8 +230,8 @@ void UnavailableJourney() {
 void NoServiceJourney() {
  Journey j(false);
  j.h.view.replays.ready = true;
- j.h.Screen("replays"); j.h.Choose("replay-channel"); j.h.Frame(0, 2);
- j.answerIdentityUntilIdle();
+ // An Ember ID that is off asks the services nothing.
+ j.h.Screen("replays"); j.h.Choose("replay-channel"); j.h.Frame(0, 4);
  Check(Sent(j, Op::ReplaySharing).empty() && Sent(j, Op::ReplayList).empty(), "A request went without a usable service");
  Check(j.row("rc-needs-setup") && j.row("rc-setup"), "No way to the setup without a service");
  j.h.Choose("rc-setup");
@@ -235,7 +241,8 @@ void NoServiceJourney() {
 // The choice is read wherever the player is, since uploads wait for it.
 void ReadAnywhereJourney() {
  Journey j;
- j.h.Screen("home"); j.answerIdentityUntilIdle(); j.h.Frame(0, 4);
+ Learn(j);
+ j.h.Screen("home"); j.h.Frame(0, 4);
  Check(Sent(j, Op::ReplaySharing).size() == 1 && Sent(j, Op::ReplayList).empty(), "The choice was not read away from the channel, or the channel was");
 }
 }
