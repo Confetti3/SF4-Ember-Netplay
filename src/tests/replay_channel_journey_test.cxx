@@ -72,9 +72,13 @@ std::size_t Watches(const Journey& j, const std::string& file) {
 }
 
 // The Ember ID and its services are learned first, as Online play reads them.
+// The choice read that sends is on its way, as the runtime shows it.
 void Learn(Journey& j) {
  j.h.Screen("online"); j.h.Frame(0, 2);
  j.answerIdentityUntilIdle();
+ if (!Sent(j, Op::ReplaySharing).empty()) {
+  j.h.view.replayChannel.bridge = "brg_1"; j.h.view.replayChannel.sharing.loading = true; j.h.Frame();
+ }
 }
 
 void Open(Journey& j) {
@@ -214,10 +218,20 @@ void NoAccountJourney() {
  AnswerPage(j, {}, false);
  Check(j.row(DiscordConnectScreen) && !j.row("rc-share"), "No Connect Discord for a player without an account");
  Check(j.row("rc-empty") != nullptr, "An empty channel has no card");
+ const auto reads = Sent(j, Op::ReplaySharing).size();
  j.h.Choose(DiscordConnectScreen);
  Check(j.h.shell.Navigation().Screen() == DiscordConnectScreen, "Connect Discord did not open");
  j.h.Press(MenuInput::Back);
  Check(j.h.shell.Navigation().Screen() == "replay-channel", "Back from Connect Discord did not return to the channel");
+ // Coming back reads the choice again: Discord may be connected now, and sharing then shows.
+ Check(Sent(j, Op::ReplaySharing).size() == reads + 1, "Coming back from Connect Discord did not read the choice again");
+ j.h.view.replayChannel.sharing.loading = true; j.h.Frame();
+ AnswerSharing(j, Sharing::On);
+ Check(j.row("rc-share") && j.row("rc-share")->value == loc::T("common.on") && !j.row(DiscordConnectScreen),
+  "Sharing did not show once Discord was connected");
+ // Options reads the choice again only while it says no account.
+ j.h.Press(MenuInput::Options);
+ Check(Sent(j, Op::ReplaySharing).size() == reads + 1, "Options read a known choice again");
 }
 
 void UnavailableJourney() {

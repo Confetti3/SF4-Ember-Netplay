@@ -213,12 +213,9 @@ struct Runtime {
     netplay::publicrooms::Status publicRooms;
     // Rankings: the requests in flight and what the interface sees.
     netplay::rankings::Requests rankings;
-    // The replay channel: its requests, the uploads of this player's games,
-    // and when the queue was last looked at.
+    // The replay channel: its requests, and the uploads of this player's games.
     netplay::channel::Requests replayChannel;
-    std::uint64_t replayQueueCheckedMs = 0;
-    std::vector<replaychannel::Entry> replayQueue;
-    std::optional<replaychannel::Entry> replayUploading;
+    replaychannel::Uploads replayUploads;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;

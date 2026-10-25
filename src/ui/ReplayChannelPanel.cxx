@@ -71,7 +71,9 @@ const netplay::channel::Page* ReplayChannelPanel::Current(const ShellView& v) co
 void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, const std::string& bridge, const Submit& submit) {
     const auto& status = v.replayChannel;
     const bool owned = Owns(screen);
-    if (owned && lastScreen_ != Screen) wantPage_ = true;
+    // Opening the screen reads the channel, and the choice too while it says
+    // no account: the player may have connected Discord since.
+    if (owned && lastScreen_ != Screen) wantPage_ = wantSharing_ = true;
     lastScreen_ = screen;
     bridge_ = bridge;
     // A choice or download not sent yet is dropped on leaving; one on its way is still answered.
@@ -83,12 +85,17 @@ void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, c
     action.tournament.bridgeId = bridge_;
     // The choice, for the runtime's uploads: whenever the runtime holds none
     // for this service and Ember ID (a new service, or another Ember ID, which
-    // forgets it), and again a while after a read that failed, soon when only
-    // the helper was not up yet.
+    // forgets it), again a while after a read that failed (soon when only the
+    // helper was not up yet), and while it says no account, every while and
+    // on opening the screen or Options, since connecting Discord changes it.
     const bool unscoped = status.bridge != bridge_;
+    const bool noAccount = status.sharing.loaded && status.sharing.value == Sharing::NoAccount;
     const std::uint64_t wait = unscoped ? ScopeWaitMs : status.sharing.error == "helper_unavailable" ? HelperWaitMs : AskAgainMs;
-    const bool unread = unscoped || (!status.sharing.loaded && !status.sharing.loading && !status.choosing);
-    if (unread && (!asked_ || status.nowMs >= askedMs_ + wait)) {
+    const bool idle = !status.sharing.loading && !status.choosing;
+    const bool unread = unscoped || (idle && (!status.sharing.loaded || noAccount));
+    if (!owned || (status.sharing.loaded && !noAccount)) wantSharing_ = false;
+    if ((wantSharing_ && idle) || (unread && (!asked_ || status.nowMs >= askedMs_ + wait))) {
+        wantSharing_ = false;
         asked_ = true;
         askedMs_ = status.nowMs;
         auto read = action;
@@ -241,7 +248,7 @@ void ReplayChannelPanel::Accept(const MenuAction& a) {
 
 bool ReplayChannelPanel::Shortcut(const MenuAction& a) {
     if (a.delta != MenuInput::Options || !Refreshable()) return false;
-    wantPage_ = true;
+    wantPage_ = wantSharing_ = true;
     return true;
 }
 

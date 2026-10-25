@@ -151,9 +151,11 @@ fn read_replay(path: &Path) -> Result<Vec<u8>, Failure> {
     Ok(bytes)
 }
 
-/// Writes `bytes` at `path` unless a file is there: through a part file
-/// linked into place, so a reader never sees half a replay and an existing
-/// file is never replaced. One there with the same bytes counts as written.
+/// Writes `bytes` at `path` unless a file is there: through a part file of
+/// this attempt's own, created new and linked into place once whole, so a
+/// reader never sees half a replay, two downloads of one entry never write
+/// the same part file, and an existing file is never replaced. One there with
+/// the same bytes counts as written.
 fn write_once(path: &Path, bytes: &[u8]) -> Result<(), Failure> {
     let failed = || Failure::new("file_unwritable");
     if let Ok(existing) = std::fs::read(path) {
@@ -166,9 +168,19 @@ fn write_once(path: &Path, bytes: &[u8]) -> Result<(), Failure> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|_| failed())?;
     }
+    let mut random = [0u8; 8];
+    getrandom::fill(&mut random).map_err(|_| failed())?;
     let mut part = PathBuf::from(path);
-    part.set_extension("part");
-    std::fs::write(&part, bytes).map_err(|_| failed())?;
+    part.set_extension(format!("{:016x}.part", u64::from_le_bytes(random)));
+    let written = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&part)
+        .and_then(|mut file| std::io::Write::write_all(&mut file, bytes).and_then(|()| file.sync_all()));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&part);
+        return Err(failed());
+    }
     let linked = std::fs::hard_link(&part, path);
     let _ = std::fs::remove_file(&part);
     match linked {
@@ -334,7 +346,30 @@ mod tests {
         assert!(write_once(&path, b"first").is_ok());
         assert!(write_once(&path, b"other").is_err());
         assert_eq!(std::fs::read(&path).unwrap(), b"first");
-        assert!(!dir.join("one.part").exists());
+        let parts = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter(|entry| entry.as_ref().unwrap().path().extension().is_some_and(|e| e == "part"))
+            .count();
+        assert_eq!(parts, 0, "a part file was left behind");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn downloads_of_one_entry_at_once_publish_a_whole_file() {
+        let dir = std::env::temp_dir().join(format!("sf4e-replays-race-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("one.emberreplay");
+        let bytes: Vec<u8> = (0..40_000u32).map(|n| n as u8).collect();
+        let threads: Vec<_> = (0..8)
+            .map(|_| {
+                let (path, bytes) = (path.clone(), bytes.clone());
+                std::thread::spawn(move || write_once(&path, &bytes).is_ok())
+            })
+            .collect();
+        for thread in threads {
+            assert!(thread.join().unwrap());
+        }
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -179,4 +179,57 @@ inline void Clear(const std::filesystem::path& folder, const std::string& emberI
 	for (const auto& entry : Pending(folder, 0)) if (entry.value.emberId == emberId) Remove(entry);
 }
 
+// The runtime's uploads of the queue: the pairs of one service and Ember ID
+// (its scope) read from the folder, and the one on its way. A change of scope
+// forgets all three together, so one Ember ID's game is never sent under
+// another's session. The folder is read again every kCheckMs, even while the
+// first pair keeps failing, so a pair past its week goes and a new one is seen.
+class Uploads {
+public:
+	static constexpr std::uint64_t kCheckMs = 30000;
+	using Read = std::function<std::vector<Entry>()>;
+
+	// The pair to send now for `emberId` under `scope`, or none. `read` lists
+	// the folder (Pending); `unixNow` drops a pair past its week before it goes.
+	const Entry* Next(const std::string& scope, const std::string& emberId, std::uint64_t nowMs, std::uint64_t unixNow, const Read& read) {
+		Rescope(scope);
+		if (uploading_) return nullptr;
+		if (!checked_ || nowMs - checkedMs_ >= kCheckMs) {
+			checked_ = true;
+			checkedMs_ = nowMs;
+			queue_ = read();
+		}
+		queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Entry& entry) {
+			return entry.value.emberId != emberId || unixNow > entry.queuedAt + kQueueSeconds; }), queue_.end());
+		return queue_.empty() ? nullptr : &queue_.front();
+	}
+	// Forgets everything read under another scope.
+	void Rescope(const std::string& scope) {
+		if (scope == scope_) return;
+		scope_ = scope;
+		Forget();
+	}
+	void Sent(const Entry& entry) { uploading_ = entry; }
+	// The answer to the pair on its way: `done` (sent, or refused for good)
+	// takes it out of the queue and answers the pair whose files go.
+	std::optional<Entry> Answered(bool done) {
+		if (!uploading_) return std::nullopt;
+		Entry entry = std::move(*uploading_);
+		uploading_.reset();
+		if (!done) return std::nullopt;
+		queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Entry& queued) { return queued.game == entry.game; }), queue_.end());
+		return entry;
+	}
+	// Forgets what was read, so the folder is read on the next look.
+	void Forget() { queue_.clear(); uploading_.reset(); checked_ = false; }
+	std::size_t Size() const { return queue_.size(); }
+
+private:
+	std::string scope_;
+	std::vector<Entry> queue_;
+	std::optional<Entry> uploading_;
+	std::uint64_t checkedMs_ = 0;
+	bool checked_ = false;
+};
+
 } }

@@ -376,6 +376,23 @@
     timer = document.hidden || filtered() ? null : setTimeout(function () { load(true); }, delay);
   }
 
+  // A timed refresh's first page over the pages Load more added: the page
+  // stands for its own span (new entries come in, hidden ones go), the older
+  // entries below it stay, and so do their cursor and whether more follow.
+  // Without older entries the page replaces what was shown.
+  function refreshed(loaded, page) {
+    var older = [];
+    if (loaded && page.replays.length) {
+      var listed = {};
+      page.replays.forEach(function (entry) { listed[entry.id] = true; });
+      var oldest = page.replays[page.replays.length - 1].played;
+      older = loaded.replays.filter(function (entry) { return !listed[entry.id] && entry.played <= oldest; });
+    }
+    return older.length ?
+      { replays: page.replays.concat(older), more: loaded.more, cursor: loaded.cursor, extra: true } :
+      { replays: page.replays, more: page.more, cursor: page.cursor, extra: false };
+  }
+
   // A fresh first page for the current filters. quiet: a timed refresh, which
   // draws the list again only when it changed, so the page does not jump under
   // someone reading it. Entries a refresh finds above the list are put on top
@@ -416,25 +433,12 @@
           data.phase = 'ready';
           data.failed = false;
           data.loadedAt = Date.now();
-          var known = data.replays && data.extra && quiet ? data.replays : null;
-          if (known) {
-            // An entry the first page no longer has in its span was hidden
-            // (its players stopped sharing): it goes from the pages below too.
-            var listed = {};
-            result.replays.forEach(function (entry) { listed[entry.id] = true; });
-            var oldest = result.replays.length ? result.replays[result.replays.length - 1].played_at : Infinity;
-            known = known.filter(function (entry) { return listed[entry.id] || entry.played_at < oldest; });
-          }
-          var at = known && known.length ? result.replays.findIndex(function (entry) { return entry.id === known[0].id; }) : -1;
-          if (at >= 0) {
-            // New entries on top of the pages already loaded.
-            data.replays = result.replays.slice(0, at).concat(known);
-          } else {
-            data.replays = result.replays;
-            data.more = result.more;
-            data.cursor = result.cursor;
-            data.extra = false;
-          }
+          var loaded = quiet && data.extra && data.replays ? data : null;
+          var next = refreshed(loaded, result);
+          data.replays = next.replays;
+          data.more = next.more;
+          data.cursor = next.cursor;
+          data.extra = next.extra;
         }
         var after = keyOf(data.phase, data.replays, data.more);
         if (!quiet || before !== after) {

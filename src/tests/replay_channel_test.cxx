@@ -96,6 +96,48 @@ static void Queue() {
 	std::filesystem::remove_all(folder, ignored);
 }
 
+static replaychannel::Entry Queued(const char* name, const char* emberId, std::uint64_t queuedAt) {
+	replaychannel::Entry entry;
+	entry.game = name; entry.replay = name; entry.value = AGame(queuedAt); entry.value.emberId = emberId; entry.queuedAt = queuedAt;
+	return entry;
+}
+
+// The uploads' one owner: a change of service or Ember ID forgets the pairs
+// read and the one on its way together; the folder is read again while the
+// first keeps failing, so a new pair is seen and one past its week goes.
+static void Uploads() {
+	using replaychannel::Uploads;
+	std::vector<replaychannel::Entry> folder{Queued("a1", "emb1_a", 100), Queued("b1", "emb1_b", 110), Queued("a2", "emb1_a", 120)};
+	int reads = 0;
+	const auto read = [&] { ++reads; return folder; };
+	Uploads uploads;
+	const auto* next = uploads.Next("brg_1\nemb1_a", "emb1_a", 0, 200, read);
+	CHECK(next && next->game == "a1" && reads == 1 && uploads.Size() == 2);
+	uploads.Sent(*next);
+	CHECK(!uploads.Next("brg_1\nemb1_a", "emb1_a", 10, 200, read));
+	// Another Ember ID: what was read and the one on its way are forgotten,
+	// and only that Ember ID's pairs go.
+	next = uploads.Next("brg_1\nemb1_b", "emb1_b", 20, 200, read);
+	CHECK(next && next->game == "b1" && reads == 2 && uploads.Size() == 1);
+	CHECK(!uploads.Answered(true));
+	// Back to the first: a failure keeps the pair; a new one is seen on the next read.
+	next = uploads.Next("brg_1\nemb1_a", "emb1_a", 30, 200, read);
+	uploads.Sent(*next);
+	CHECK(!uploads.Answered(false) && uploads.Size() == 2);
+	folder.push_back(Queued("a3", "emb1_a", 130));
+	next = uploads.Next("brg_1\nemb1_a", "emb1_a", 30 + Uploads::kCheckMs - 1, 200, read);
+	CHECK(next && next->game == "a1" && uploads.Size() == 2);
+	next = uploads.Next("brg_1\nemb1_a", "emb1_a", 30 + Uploads::kCheckMs, 200, read);
+	CHECK(next && uploads.Size() == 3);
+	// Past its week, the first pair never goes, even from what was read.
+	next = uploads.Next("brg_1\nemb1_a", "emb1_a", 30 + Uploads::kCheckMs, 100 + replaychannel::kQueueSeconds + 1, read);
+	CHECK(next && next->game == "a2");
+	// Sent: out of the queue, and answered as the pair whose files go.
+	uploads.Sent(*next);
+	const auto done = uploads.Answered(true);
+	CHECK(done && done->game == "a2" && uploads.Size() == 1);
+}
+
 // Nothing goes before the choice is read as on; off stops it.
 static void UploadsWaitForTheChoice() {
 	Requests requests;
@@ -207,6 +249,7 @@ static void Scope() {
 
 int main() {
 	Queue();
+	Uploads();
 	UploadsWaitForTheChoice();
 	UploadFailures();
 	Pages();

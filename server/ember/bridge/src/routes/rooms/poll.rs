@@ -126,11 +126,6 @@ fn apply(
     published: &BTreeSet<String>,
     now: u64,
 ) -> Result<()> {
-    let rooms = config.rooms.as_ref();
-    let show = skill::channel::Show {
-        classes_shown: rooms.is_some_and(|rooms| rooms.skill_badges),
-        developers: rooms.map_or(&[], |rooms| rooms.developers.as_slice()),
-    };
     let mut alive = BTreeSet::new();
     for room in reported {
         alive.insert(room.room_id.as_str());
@@ -188,7 +183,7 @@ fn apply(
                 details.own_delay,
             ],
         )?;
-        skill::record_games(tx, show, &room.room_id, room.games.as_ref(), now)?;
+        skill::record_games(tx, &room.room_id, room.games.as_ref(), now)?;
         // Bans last for the room's life and are never evicted: the supervisor
         // reports at most `MAX_ROOM_BANS` per room, and the table keeps all.
         for banned in &room.banned {

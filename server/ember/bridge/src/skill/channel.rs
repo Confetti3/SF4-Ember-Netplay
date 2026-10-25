@@ -413,80 +413,27 @@ pub fn upload(
 }
 
 /// Records a game a public room host reported, between the Discord accounts
-/// of `winner` and `loser`, and lists the replay uploaded for it already, if
-/// any. Each game is handled the first time it is reported.
+/// of `winner` and `loser`. An upload of a public room's game is taken only
+/// once its game is recorded here (`upload`), so nothing is listed from here.
 pub fn reported(
     tx: &Transaction<'_>,
-    show: Show<'_>,
     room_id: &str,
     table: u8,
     generation: u64,
     (winner, loser): (&EmberId, &EmberId),
     now: u64,
 ) -> Result<()> {
-    let known = tx
-        .query_row(
-            "SELECT 1 FROM channel_games WHERE room_id = ?1 AND table_id = ?2 AND generation = ?3",
-            params![room_id, table, generation],
-            |_| Ok(()),
-        )
-        .optional()?
-        .is_some();
-    if known {
-        return Ok(());
-    }
     let (Some(winner), Some(loser)) = (account(tx, winner)?, account(tx, loser)?) else {
         return Ok(());
     };
-    if winner == loser {
-        return Ok(());
+    if winner != loser {
+        tx.execute(
+            "INSERT OR IGNORE INTO channel_games (room_id, table_id, generation, winner, loser, played_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![room_id, table, generation, winner, loser, now],
+        )?;
     }
-    tx.execute(
-        "INSERT OR IGNORE INTO channel_games (room_id, table_id, generation, winner, loser, played_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![room_id, table, generation, winner, loser, now],
-    )?;
-    let Some(mut game) = find(tx, room_id, table, generation)? else {
-        return Ok(());
-    };
-    if game.published {
-        // A private pairing the host's report now confirms and settles.
-        let accounts = [
-            game.sides[0].account.as_deref(),
-            game.sides[1].account.as_deref(),
-        ];
-        let winning = if accounts == [Some(winner.as_str()), Some(loser.as_str())] {
-            0
-        } else if accounts == [Some(loser.as_str()), Some(winner.as_str())] {
-            1
-        } else {
-            // Paired as a private game by players the report does not name.
-            tx.execute("DELETE FROM channel_replays WHERE seq = ?1", [game.seq])?;
-            return Ok(());
-        };
-        game.kind = RoomKind::Public;
-        game.winner = Some(winning);
-        return save(tx, &game);
-    }
-    let Some(side) = game.sides.iter().position(|side| side.account.is_some()) else {
-        return Ok(());
-    };
-    let uploader = game.sides[side].account.clone().unwrap_or_default();
-    let opponent = if uploader == winner {
-        loser
-    } else if uploader == loser {
-        winner.clone()
-    } else {
-        // Not their game: the upload is dropped.
-        tx.execute("DELETE FROM channel_replays WHERE seq = ?1", [game.seq])?;
-        return Ok(());
-    };
-    game.sides[1 - side].account = Some(opponent);
-    game.kind = RoomKind::Public;
-    let won = if uploader == winner { side } else { 1 - side };
-    game.winner = Some(won as u8);
-    publish(tx, &mut game, show, now)?;
-    save(tx, &game)
+    Ok(())
 }
 
 /// The caller's choice to share their games.

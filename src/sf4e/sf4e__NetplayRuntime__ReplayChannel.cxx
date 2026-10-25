@@ -18,9 +18,6 @@ using internal::SendBridgeRequest;
 using Kind = netplay::channel::Requests::Kind;
 using netplay::channel::Sharing;
 
-// How often the queue folder is looked at while nothing is on its way.
-constexpr std::uint64_t QueueCheckMs = 30000;
-
 std::string CurrentId() { return runtime->room ? runtime->room->Identity().emberId : std::string(); }
 
 std::uint64_t SendIf(bool helperReady, const json& request) { return helperReady ? SendBridgeRequest(request) : 0; }
@@ -53,14 +50,13 @@ json UploadRequest(const std::string& bridge, const replaychannel::Entry& entry)
 // A choice read as off: nothing this player played waits to go.
 void ForgetQueue() {
 	replaychannel::Clear(platform::replays::ChannelQueueFolder(), runtime->replayChannel.EmberId());
-	runtime->replayQueue.clear();
 	runtime->replayChannel.Queued(0);
 }
 
+// A choice read anew may let an upload go now: the folder is read on the next look.
 void Installed(std::optional<Sharing> sharing) {
 	if (sharing == Sharing::Off) ForgetQueue();
-	// A choice read anew may let an upload go now.
-	runtime->replayQueueCheckedMs = 0;
+	runtime->replayUploads.Forget();
 }
 }
 
@@ -134,14 +130,8 @@ bool TakeReplayChannelAnswer(const session::TournamentAnswer& answer) {
 		const auto failure = Failure(answer, true);
 		const auto state = answer.ok && answer.data.is_object() ? answer.data.value("state", std::string()) : std::string();
 		spdlog::info("Replay channel: upload {}", failure.empty() ? state : failure);
-		if (requests.FinishUpload(failure, now) && runtime->replayUploading) {
-			replaychannel::Remove(*runtime->replayUploading);
-			auto& queue = runtime->replayQueue;
-			queue.erase(std::remove_if(queue.begin(), queue.end(), [&](const replaychannel::Entry& entry) {
-				return entry.game == runtime->replayUploading->game; }), queue.end());
-			requests.Queued(queue.size());
-		}
-		runtime->replayUploading.reset();
+		if (const auto done = runtime->replayUploads.Answered(requests.FinishUpload(failure, now))) replaychannel::Remove(*done);
+		requests.Queued(runtime->replayUploads.Size());
 		return true;
 	}
 	default:
@@ -154,23 +144,19 @@ void TickReplayChannel(bool helperReady, std::uint64_t nowMs) {
 	// Another Ember ID's choice is not this one's.
 	if (!requests.Bridge().empty() && requests.EmberId() != CurrentId()) requests.Scope({}, {});
 	requests.Expire(nowMs);
+	auto& uploads = runtime->replayUploads;
+	const auto scope = requests.Bridge() + "\n" + requests.EmberId();
+	uploads.Rescope(scope);
 	if (requests.Bridge().empty() || !helperReady || !requests.MayUpload(nowMs)) return;
-	if (runtime->replayQueue.empty() && nowMs - runtime->replayQueueCheckedMs < QueueCheckMs && runtime->replayQueueCheckedMs) return;
-	if (runtime->replayQueue.empty()) {
-		runtime->replayQueueCheckedMs = nowMs;
-		runtime->replayQueue = replaychannel::Pending(platform::replays::ChannelQueueFolder(), static_cast<std::uint64_t>(_time64(nullptr)));
-		// Another Ember ID's games wait for it.
-		auto& queue = runtime->replayQueue;
-		queue.erase(std::remove_if(queue.begin(), queue.end(), [&](const replaychannel::Entry& entry) {
-			return entry.value.emberId != requests.EmberId(); }), queue.end());
-		requests.Queued(runtime->replayQueue.size());
-		if (runtime->replayQueue.empty()) return;
-	}
-	const auto& entry = runtime->replayQueue.front();
-	const auto id = SendBridgeRequest(UploadRequest(requests.Bridge(), entry));
+	const auto unixNow = static_cast<std::uint64_t>(_time64(nullptr));
+	const auto* entry = uploads.Next(scope, requests.EmberId(), nowMs, unixNow,
+		[&] { return replaychannel::Pending(platform::replays::ChannelQueueFolder(), unixNow); });
+	requests.Queued(uploads.Size());
+	if (!entry) return;
+	const auto id = SendBridgeRequest(UploadRequest(requests.Bridge(), *entry));
 	// One that could not be handed over waits like a failed one, still first.
 	requests.SentUpload(id, nowMs);
-	if (id) runtime->replayUploading = entry;
+	if (id) uploads.Sent(*entry);
 }
 } // namespace internal
 } } // namespace sf4e::NetplayFacade

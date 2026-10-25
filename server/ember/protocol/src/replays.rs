@@ -87,10 +87,12 @@ pub struct ExportInfo {
     pub played_at: u64,
 }
 
-/// Reads an `.emberreplay` the way the game's import checks one: the magic, a
-/// used record naming the replay's size and CRC with the header's fighters,
-/// a title of at most 21 printable characters or zero bytes (the game's own
-/// records leave it blank), and a whole replay header.
+/// Reads an `.emberreplay` the way the game's import checks one
+/// (`ReplaySlots.hxx`, `Import`): the magic, a used record naming the
+/// replay's size and CRC with the header's fighters, a title of at most 21
+/// printable characters or zero bytes (the game's own records leave it
+/// blank), a date and time that exist, the slot bytes `0E 0E`, and a whole
+/// replay header.
 pub fn read_export(export: &[u8]) -> Result<ExportInfo> {
     let invalid = Err(Error::InvalidField("replay"));
     if export.len() < EXPORT_HEADER + REPLAY_HEADER
@@ -120,7 +122,16 @@ pub fn read_export(export: &[u8]) -> Result<ExportInfo> {
         // The record keeps each side's fighter at +71 and +105 (ReadRecordInfo).
         && u32::from(record[71]) == fighters[0]
         && u32::from(record[105]) == fighters[1];
-    if !title_valid || !described {
+    // PlausibleRecord's date and time: year at +51, month +53, day +54, hour
+    // +123, minute +124.
+    let year = u16::from_le_bytes([record[51], record[52]]);
+    let dated = (2009..=2199).contains(&year)
+        && (1..=12).contains(&record[53])
+        && (1..=31).contains(&record[54])
+        && record[123] < 24
+        && record[124] < 60;
+    let slot = export[8 + RECORD_BYTES..EXPORT_HEADER] == [0x0E, 0x0E];
+    if !title_valid || !described || !dated || !slot {
         return invalid;
     }
     let filetime = u64::from(read_u32(replay, 0x10)) | (u64::from(read_u32(replay, 0x14)) << 32);
@@ -426,6 +437,9 @@ mod tests {
         record[26..42].copy_from_slice(b"2026-10-25 12:00");
         record[71] = 39;
         record[105] = 23;
+        // Played 2025-10-25 12:00, as the game's records carry it.
+        record[51..53].copy_from_slice(&2025u16.to_le_bytes());
+        (record[53], record[54], record[123], record[124]) = (10, 25, 12, 0);
         let mut out = EXPORT_MAGIC.to_vec();
         out.extend_from_slice(&record);
         out.extend_from_slice(&[0x0E, 0x0E]);
@@ -451,9 +465,24 @@ mod tests {
         long_title[8 + 22] = 22;
         let mut magic = good.clone();
         magic[0] = b'X';
+        let mut no_date = good.clone();
+        no_date[8 + 53] = 0;
+        let mut late_hour = good.clone();
+        late_hour[8 + 123] = 24;
+        let mut slot = good.clone();
+        slot[8 + RECORD_BYTES] = 0;
         let mut too_big = good.clone();
         too_big.resize(MAX_EXPORT + 1, 0);
-        for bad in [changed_body, other_fighter, long_title, magic, too_big] {
+        for bad in [
+            changed_body,
+            other_fighter,
+            long_title,
+            magic,
+            no_date,
+            late_hour,
+            slot,
+            too_big,
+        ] {
             assert_eq!(read_export(&bad), Err(Error::InvalidField("replay")));
         }
     }

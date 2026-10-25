@@ -58,7 +58,7 @@ private:
     bool saidError_ = false;
     // -1 for every fighter, else the native id either side played.
     int fighter_ = -1;
-    bool wantPage_ = false, wantMore_ = false;
+    bool wantPage_ = false, wantMore_ = false, wantSharing_ = false;
     std::optional<Pending> pending_;
     std::uint64_t lastRequest_ = 0, pageSeen_ = 0;
     // When the choice was last asked for, by the runtime's clock, to ask again

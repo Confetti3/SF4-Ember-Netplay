@@ -26,6 +26,9 @@ fn export(time: u64) -> Vec<u8> {
     record[13..17].copy_from_slice(&(time as u32).to_le_bytes());
     record[71] = 39;
     record[105] = 23;
+    // Played 2025-10-25 12:00, as the game's records carry it.
+    record[51..53].copy_from_slice(&2025u16.to_le_bytes());
+    (record[53], record[54], record[123], record[124]) = (10, 25, 12, 0);
     let mut out = EXPORT_MAGIC.to_vec();
     out.extend_from_slice(&record);
     out.extend_from_slice(&[0x0E, 0x0E]);

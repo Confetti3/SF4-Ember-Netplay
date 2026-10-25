@@ -74,7 +74,6 @@ struct Game {
 /// its recent games on every poll; each counts the first time only.
 pub fn record_games(
     tx: &Transaction<'_>,
-    show: channel::Show<'_>,
     room_id: &str,
     games: Option<&serde_json::Value>,
     now: u64,
@@ -87,7 +86,6 @@ pub fn record_games(
         // The replay channel keeps every reported game, rated or not.
         channel::reported(
             tx,
-            show,
             room_id,
             game.table,
             game.generation,
