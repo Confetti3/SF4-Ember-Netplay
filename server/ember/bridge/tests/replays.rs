@@ -374,6 +374,8 @@ async fn a_private_game_is_listed_once_both_players_upload_it() {
 
     let answer = uploaded(&bridge, &second, game.body(1, "Player 2", Some("FR"))).await;
     assert_eq!(answer["state"], "published");
+    // The website page made before is kept for 15 s.
+    bridge.clock.advance(15);
     let site = public(&bridge, "").await;
     assert_eq!(
         listed(&site),
