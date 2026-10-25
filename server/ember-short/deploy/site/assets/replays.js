@@ -155,9 +155,11 @@
     node.appendChild(face(player.fighter));
     var who = el('span', 'replay-who');
     var line = el('span', 'replay-player');
-    var country = flag(player.country);
-    if (country) line.appendChild(country);
-    line.appendChild(el('span', 'rank-name', player.name));
+    // An empty slot where a player shows no flag, so every name starts in line.
+    line.appendChild(flag(player.country) || el('span', 'rank-flag none'));
+    var name = el('span', 'rank-name', player.name);
+    name.title = player.name;
+    line.appendChild(name);
     var badge = pill(player.badge);
     if (badge) line.appendChild(badge);
     who.appendChild(line);
