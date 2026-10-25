@@ -612,9 +612,8 @@ pub fn prune(tx: &Transaction<'_>, max_rows: i64, max_bytes: i64, now: u64) -> R
     }
     let mut oldest = Vec::new();
     {
-        let mut statement = tx.prepare(
-            "SELECT seq, size FROM channel_replays ORDER BY played_at, seq",
-        )?;
+        let mut statement =
+            tx.prepare("SELECT seq, size FROM channel_replays ORDER BY played_at, seq")?;
         let mut listed = statement.query([])?;
         while rows > max_rows || bytes > max_bytes {
             let Some(row) = listed.next()? else { break };
