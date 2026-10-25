@@ -376,21 +376,19 @@
     timer = document.hidden || filtered() ? null : setTimeout(function () { load(true); }, delay);
   }
 
-  // A timed refresh's first page over the pages Load more added: the page
-  // stands for its own span (new entries come in, hidden ones go), the older
-  // entries below it stay, and so do their cursor and whether more follow.
-  // Without older entries the page replaces what was shown.
+  // A timed refresh's first page over the pages Load more added. A page with
+  // nothing after it is the whole list and replaces what was shown. Otherwise
+  // the page stands for everything down to its last entry, and the loaded
+  // entries after that same entry follow it, with their cursor and whether
+  // more follow. When the loaded pages do not hold that entry (it is new, or
+  // the list moved under them), the page replaces them.
   function refreshed(loaded, page) {
-    var older = [];
-    if (loaded && page.replays.length) {
-      var listed = {};
-      page.replays.forEach(function (entry) { listed[entry.id] = true; });
-      var oldest = page.replays[page.replays.length - 1].played;
-      older = loaded.replays.filter(function (entry) { return !listed[entry.id] && entry.played <= oldest; });
-    }
-    return older.length ?
-      { replays: page.replays.concat(older), more: loaded.more, cursor: loaded.cursor, extra: true } :
-      { replays: page.replays, more: page.more, cursor: page.cursor, extra: false };
+    var fresh = { replays: page.replays, more: page.more, cursor: page.cursor, extra: false };
+    if (!loaded || !page.more || !page.replays.length) return fresh;
+    var last = page.replays[page.replays.length - 1].id;
+    var at = loaded.replays.findIndex(function (entry) { return entry.id === last; });
+    if (at < 0 || at === loaded.replays.length - 1) return fresh;
+    return { replays: page.replays.concat(loaded.replays.slice(at + 1)), more: loaded.more, cursor: loaded.cursor, extra: true };
   }
 
   // A fresh first page for the current filters. quiet: a timed refresh, which

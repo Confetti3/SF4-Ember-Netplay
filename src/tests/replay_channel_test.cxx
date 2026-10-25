@@ -114,7 +114,6 @@ static void Uploads() {
 	const auto* next = uploads.Next("brg_1\nemb1_a", "emb1_a", 0, 200, read);
 	CHECK(next && next->game == "a1" && reads == 1 && uploads.Size() == 2);
 	uploads.Sent(*next);
-	CHECK(!uploads.Next("brg_1\nemb1_a", "emb1_a", 10, 200, read));
 	// Another Ember ID: what was read and the one on its way are forgotten,
 	// and only that Ember ID's pairs go.
 	next = uploads.Next("brg_1\nemb1_b", "emb1_b", 20, 200, read);
@@ -136,6 +135,35 @@ static void Uploads() {
 	uploads.Sent(*next);
 	const auto done = uploads.Answered(true);
 	CHECK(done && done->game == "a2" && uploads.Size() == 1);
+}
+
+// The request state and the uploads together: an upload the helper never
+// answers ends at its time limit, waits, and the same pair goes again.
+static void UploadLostAndRetried() {
+	Requests requests;
+	requests.Scope("brg_1", "emb1_a");
+	requests.SentSharing(1, 0);
+	requests.FinishSharing("", Sharing::On, 0);
+	std::vector<replaychannel::Entry> folder{Queued("a1", "emb1_a", 100)};
+	const auto read = [&] { return folder; };
+	replaychannel::Uploads uploads;
+	const std::string scope = "brg_1\nemb1_a";
+	auto* next = uploads.Next(scope, "emb1_a", 0, 200, read);
+	CHECK(next && requests.MayUpload(0));
+	requests.SentUpload(5, 0);
+	uploads.Sent(*next);
+	CHECK(!requests.MayUpload(1));
+	requests.Expire(Requests::GiveUpMs);
+	CHECK(requests.Awaiting(5) == Kind::None);
+	const auto after = Requests::GiveUpMs + Requests::FirstWaitMs;
+	CHECK(!requests.MayUpload(after - 1) && requests.MayUpload(after));
+	next = uploads.Next(scope, "emb1_a", after, 200, read);
+	CHECK(next && next->game == "a1");
+	requests.SentUpload(6, after);
+	uploads.Sent(*next);
+	CHECK(requests.Awaiting(6) == Kind::Upload);
+	const auto done = uploads.Answered(requests.FinishUpload("", after + 10));
+	CHECK(done && done->game == "a1" && uploads.Size() == 0);
 }
 
 // Nothing goes before the choice is read as on; off stops it.
@@ -250,6 +278,7 @@ static void Scope() {
 int main() {
 	Queue();
 	Uploads();
+	UploadLostAndRetried();
 	UploadsWaitForTheChoice();
 	UploadFailures();
 	Pages();

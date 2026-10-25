@@ -79,6 +79,30 @@ inline ArchiveState ReadArchive(const std::filesystem::path& path, bool inRoot, 
  out = std::move(read);
  return ArchiveState::Valid;
 }
+// An export read for its content alone, wherever it is and whatever its name
+// (a replay channel download, a file a link names): a used record naming the
+// replay's size, CRC and fighters, with its save time. Archive listing and
+// backup proof keep ReadArchive, which also holds the archive's folder and
+// naming to account.
+inline ArchiveState ReadExport(const std::filesystem::path& path, ArchiveFile& out) {
+ if (path.extension() != L".emberreplay") return ArchiveState::Invalid;
+ auto file = durable::ReadBounded(path, kMostArchiveBytes);
+ if (file.status == durable::ReadStatus::Missing) return ArchiveState::Missing;
+ if (file.status != durable::ReadStatus::Read) return ArchiveState::Unreadable;
+ auto& bytes = file.bytes;
+ if (bytes.size() < replayslots::kExportHeaderBytes || !replayslots::WholeArchived(bytes, replayslots::ReadU32(bytes.data() + 8 + 5)))
+  return ArchiveState::Invalid;
+ ArchiveFile read;
+ const std::uint8_t* record = bytes.data() + 8;
+ const auto info = replayslots::ReadRecordInfo(record);
+ read.time = replayslots::ReadU32(record + 13);
+ read.crc = replayslots::ReadU32(record + 5);
+ read.fighters[0] = info.fighters[0]; read.fighters[1] = info.fighters[1];
+ read.bodyOffset = replayslots::kExportHeaderBytes;
+ read.contents = std::move(bytes);
+ out = std::move(read);
+ return ArchiveState::Valid;
+}
 // One publication policy, used with the actual create-only writer. Even a
 // confirmed damaged target is preserved for manual repair: a prior read
 // cannot authorize replacing a file another process may have just published.

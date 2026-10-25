@@ -282,6 +282,27 @@ static void TestDetailFailureBoundary() {
  CHECK(unreadable.revision == 4 && unreadable.state == DetailState::Unreadable && !unreadable.value);
  save(replay);
  CHECK(cache.Read(path, 5, folder).state == DetailState::Ready); // repaired without selecting another file
+ // A replay channel download: an export outside the archive, named by its
+ // entry, is read for its content.
+ {
+  Bytes exported;
+  CHECK(sf4e::replayslots::ExportFromReplayAlone(replay, exported));
+  const auto channel = folder.parent_path() / "replay-channel-detail";
+  fs::create_directories(channel);
+  const auto download = channel / (std::string(32, 'a') + ".emberreplay");
+  std::ofstream out(download, std::ios::binary | std::ios::trunc);
+  out.write(reinterpret_cast<const char*>(exported.data()), static_cast<std::streamsize>(exported.size()));
+  out.close();
+  DetailCache other;
+  auto read = other.Read(utf8(download), 1, folder);
+  CHECK(read.state == DetailState::Ready && read.value && read.value->match.rounds.size() == 1 && read.value->time == 1800000000);
+  exported.back() ^= 1;
+  std::ofstream damaged(download, std::ios::binary | std::ios::trunc);
+  damaged.write(reinterpret_cast<const char*>(exported.data()), static_cast<std::streamsize>(exported.size()));
+  damaged.close();
+  CHECK(other.Read(utf8(download), 2, folder).state == DetailState::Unreadable);
+  fs::remove_all(channel);
+ }
  // Each allocation from the reader through the initial Detail and its logs
  // must publish a matching failure completion, never indefinite loading.
  bool reachedSuccess = false;

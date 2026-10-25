@@ -590,8 +590,9 @@ pub fn files_kept(tx: &Transaction<'_>) -> Result<HashSet<String>> {
 }
 
 /// Forgets reported games after 14 days, uploads that found no partner after
-/// two, and the oldest listed replays past `max_rows` or `max_bytes`. The
-/// files no replay names any more are left to `routes::replays::sweep`.
+/// two, and the oldest replays past `max_rows` or `max_bytes`, held or
+/// listed, since both keep a file. The files no replay names any more are
+/// left to `routes::replays::sweep`.
 pub fn prune(tx: &Transaction<'_>, max_rows: i64, max_bytes: i64, now: u64) -> Result<()> {
     tx.execute(
         "DELETE FROM channel_games WHERE played_at < ?1",
@@ -602,7 +603,7 @@ pub fn prune(tx: &Transaction<'_>, max_rows: i64, max_bytes: i64, now: u64) -> R
         [now.saturating_sub(HELD_SECS)],
     )?;
     let (mut rows, mut bytes): (i64, i64) = tx.query_row(
-        "SELECT COUNT(*), COALESCE(SUM(size), 0) FROM channel_replays WHERE published = 1",
+        "SELECT COUNT(*), COALESCE(SUM(size), 0) FROM channel_replays",
         [],
         |row| Ok((row.get(0)?, row.get(1)?)),
     )?;
@@ -612,7 +613,7 @@ pub fn prune(tx: &Transaction<'_>, max_rows: i64, max_bytes: i64, now: u64) -> R
     let mut oldest = Vec::new();
     {
         let mut statement = tx.prepare(
-            "SELECT seq, size FROM channel_replays WHERE published = 1 ORDER BY played_at, seq",
+            "SELECT seq, size FROM channel_replays ORDER BY played_at, seq",
         )?;
         let mut listed = statement.query([])?;
         while rows > max_rows || bytes > max_bytes {
@@ -695,14 +696,15 @@ mod tests {
                  VALUES ('room', 0, 1, 'a', 'b', ?1), ('room', 0, 2, 'a', 'b', ?2)",
                 params![NOW - 15 * 24 * 60 * 60, NOW - 60],
             )?;
+            // The fresh held upload counts toward the caps like the rest.
             prune(tx, 4, i64::MAX, NOW)?;
-            assert_eq!(kept(tx), vec![11, 12, 13, 14, 21]);
+            assert_eq!(kept(tx), vec![12, 13, 14, 21]);
             let games: i64 =
                 tx.query_row("SELECT COUNT(*) FROM channel_games", [], |r| r.get(0))?;
             assert_eq!(games, 1);
             // 100 bytes each: 250 holds two.
             prune(tx, i64::MAX, 250, NOW)?;
-            assert_eq!(kept(tx), vec![13, 14, 21]);
+            assert_eq!(kept(tx), vec![14, 21]);
             Ok(())
         })
         .await

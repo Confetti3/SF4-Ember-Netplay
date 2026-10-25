@@ -6,6 +6,7 @@
 // until the helper has uploaded the export. The .game is written last, so a
 // pair without one is never sent and is cleared once old. Portable, so
 // ReplayChannelQueueTest runs it on folders it builds.
+#include "BoundedRead.hxx"
 #include "ReplaySlots.hxx"
 #include "Sha256.hxx"
 #include <algorithm>
@@ -13,9 +14,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
-#include <fstream>
 #include <functional>
-#include <iterator>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -29,6 +28,8 @@ namespace sf4e { namespace replaychannel {
 constexpr std::uint64_t kQueueSeconds = 7 * 24 * 3600;
 constexpr std::size_t kMostQueued = 200;
 constexpr std::size_t kMostNameBytes = 32;
+// A .game file is a few short lines; anything longer is not one.
+constexpr std::size_t kMostGameBytes = 4096;
 
 // The game a replay was, as the bridge keys it, and the player as their own
 // game shows them, with the Ember ID that played it, which alone uploads it.
@@ -130,8 +131,9 @@ inline void Remove(const Entry& entry) {
 }
 
 // The queued pairs, oldest first. A pair older than kQueueSeconds, a .game
-// that cannot be read and an export left without a .game for an hour are
-// removed on the way.
+// read whole that is not one, and an export left without a .game for an hour
+// are removed on the way; a .game that cannot be read now is kept for the
+// next look.
 inline std::vector<Entry> Pending(const std::filesystem::path& folder, std::uint64_t now) {
 	std::vector<Entry> entries;
 	if (folder.empty()) return entries;
@@ -150,10 +152,11 @@ inline std::vector<Entry> Pending(const std::filesystem::path& folder, std::uint
 		entry.game = path;
 		entry.replay = path;
 		entry.replay.replace_extension(L".emberreplay");
-		std::ifstream in(path, std::ios::binary);
-		const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+		auto read = durable::ReadBounded(path, kMostGameBytes);
+		if (read.status == durable::ReadStatus::CannotOpen || read.status == durable::ReadStatus::CannotRead) continue;
+		const std::string text(read.bytes.begin(), read.bytes.end());
 		std::error_code missing;
-		if (text.size() > 4096 || !ReadGame(text, entry.value, entry.queuedAt) || now > entry.queuedAt + kQueueSeconds ||
+		if (read.status != durable::ReadStatus::Read || !ReadGame(text, entry.value, entry.queuedAt) || now > entry.queuedAt + kQueueSeconds ||
 			!std::filesystem::exists(entry.replay, missing)) { Remove(entry); continue; }
 		entries.push_back(std::move(entry));
 	}
@@ -180,20 +183,22 @@ inline void Clear(const std::filesystem::path& folder, const std::string& emberI
 }
 
 // The runtime's uploads of the queue: the pairs of one service and Ember ID
-// (its scope) read from the folder, and the one on its way. A change of scope
-// forgets all three together, so one Ember ID's game is never sent under
-// another's session. The folder is read again every kCheckMs, even while the
-// first pair keeps failing, so a pair past its week goes and a new one is seen.
+// (its scope) read from the folder, and the pair the newest upload request
+// was for. Whether a request is on its way, and when the next may go, is the
+// request state's alone (netplay::channel::Requests), so an answer, a request
+// lost and a retry never need two owners to agree. A change of scope forgets
+// everything read, so one Ember ID's game is never sent under another's
+// session. The folder is read again every kCheckMs, even while the first pair
+// keeps failing, so a pair past its week goes and a new one is seen.
 class Uploads {
 public:
 	static constexpr std::uint64_t kCheckMs = 30000;
 	using Read = std::function<std::vector<Entry>()>;
 
-	// The pair to send now for `emberId` under `scope`, or none. `read` lists
+	// The pair to send next for `emberId` under `scope`, or none. `read` lists
 	// the folder (Pending); `unixNow` drops a pair past its week before it goes.
 	const Entry* Next(const std::string& scope, const std::string& emberId, std::uint64_t nowMs, std::uint64_t unixNow, const Read& read) {
 		Rescope(scope);
-		if (uploading_) return nullptr;
 		if (!checked_ || nowMs - checkedMs_ >= kCheckMs) {
 			checked_ = true;
 			checkedMs_ = nowMs;
@@ -209,9 +214,11 @@ public:
 		scope_ = scope;
 		Forget();
 	}
+	// The pair the newest request is for; a request lost to its time limit is
+	// simply followed by the next one.
 	void Sent(const Entry& entry) { uploading_ = entry; }
-	// The answer to the pair on its way: `done` (sent, or refused for good)
-	// takes it out of the queue and answers the pair whose files go.
+	// The answer to the newest request: `done` (sent, or refused for good)
+	// takes its pair out of the queue and answers the pair whose files go.
 	std::optional<Entry> Answered(bool done) {
 		if (!uploading_) return std::nullopt;
 		Entry entry = std::move(*uploading_);

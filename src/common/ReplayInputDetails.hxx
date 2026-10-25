@@ -67,7 +67,9 @@ public:
   try {
    const auto path = std::filesystem::u8path(file);
    replayfiles::ArchiveFile read;
-   if (replayfiles::ReadArchive(path, archive.empty() || path.parent_path() == archive, read) != replayfiles::ArchiveState::Valid) {
+   // An archived replay, or an export elsewhere read for its content (a replay channel download).
+   if (replayfiles::ReadArchive(path, archive.empty() || path.parent_path() == archive, read) != replayfiles::ArchiveState::Valid &&
+    replayfiles::ReadExport(path, read) != replayfiles::ArchiveState::Valid) {
     result.state = DetailState::Unreadable; return result;
    }
    const auto names = replayfiles::ReadBodyNames(archive, read.Body());
