@@ -6623,3 +6623,93 @@ msgstr "Ember-ontwikkelaar"
 
 msgid "rankings.developer_detail"
 msgstr "Ember-ontwikkelaars tonen dit teken in plaats van een klasse en staan niet op de ranglijst. Je potjes tellen wel mee."
+
+msgid "replays.channel_detail"
+msgstr "Kamerpotjes die spelers delen, nieuwste eerst. Kies er een om te kijken."
+
+msgid "channel.title"
+msgstr "Replaykanaal"
+
+msgid "channel.share"
+msgstr "Mijn kamerpotjes delen"
+
+msgid "channel.share_detail"
+msgstr "Aan: de potjes die je in Ember-kamers speelt gaan met je naam, vlag, personage en klasse naar het replaykanaal, in Ember en op embernetplay.link. Uit: er gaat niets heen en wat er al staat, wordt verborgen. Een potje staat er alleen zolang beide spelers delen."
+
+msgid "channel.queued"
+msgstr "Je potjes die wachten om verstuurd te worden: {0}."
+
+msgid "channel.connect_detail"
+msgstr "Delen hoort bij je Discord-account. Zolang er geen is gekoppeld, wordt geen van je potjes gedeeld."
+
+msgid "channel.shared_off"
+msgstr "Delen staat uit. Je potjes zijn verborgen in het replaykanaal."
+
+msgid "channel.fighter"
+msgstr "Personage"
+
+msgid "channel.all_fighters"
+msgstr "Alle personages"
+
+msgid "channel.fighter_detail"
+msgstr "Toont alleen potjes waarin een van beide spelers dit personage gebruikte."
+
+msgid "channel.loading"
+msgstr "Replaykanaal wordt gelezen"
+
+msgid "channel.empty"
+msgstr "Hier staan nog geen potjes"
+
+msgid "channel.empty_detail"
+msgstr "Potjes verschijnen zodra spelers die ze delen een kamerpotje afronden met replay-opname aan."
+
+msgid "channel.more"
+msgstr "Meer laden"
+
+msgid "channel.more_detail"
+msgstr "De volgende oudere potjes."
+
+msgid "channel.needs_setup"
+msgstr "Het replaykanaal gebruikt dezelfde dienst als openbare kamers. Stel dat eerst daar in."
+
+msgid "channel.failure.unavailable"
+msgstr "Deze dienst biedt het replaykanaal nog niet aan."
+
+msgid "channel.failure.not_found"
+msgstr "Dat potje staat niet meer in het replaykanaal."
+
+msgid "channel.downloaded"
+msgstr "Gedownload. Selecteer het opnieuw in het hoofdmenu om te kijken."
+
+msgid "channel.downloading"
+msgstr "Potje wordt gedownload"
+
+msgid "channel.watch"
+msgstr "Bekijken"
+
+msgid "channel.watch_detail"
+msgstr "Selecteren downloadt dit potje en speelt het af."
+
+msgid "channel.download"
+msgstr "Downloaden"
+
+msgid "channel.download_detail"
+msgstr "Selecteren downloadt dit potje. Het wordt afgespeeld vanuit het hoofdmenu, buiten een kamer."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Openbare kamer"
+
+msgid "channel.private_room"
+msgstr "Privékamer"
+
+msgid "channel.won"
+msgstr "{0} heeft gewonnen"
+
+msgid "channel.status"
+msgstr "Potjes in de lijst: {0}. Bijgewerkt {1}."

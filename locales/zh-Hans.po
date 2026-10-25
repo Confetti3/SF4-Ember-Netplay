@@ -6624,3 +6624,93 @@ msgstr "Ember 开发者"
 
 msgid "rankings.developer_detail"
 msgstr "Ember 开发者以此标记代替等级，不会列入排行榜。你的对战仍会计入。"
+
+msgid "replays.channel_detail"
+msgstr "玩家分享的房间对战，最新的在前。选择一场即可观看。"
+
+msgid "channel.title"
+msgstr "回放频道"
+
+msgid "channel.share"
+msgstr "分享我的房间对战"
+
+msgid "channel.share_detail"
+msgstr "开启时，你在 Ember 房间里打的对战会连同你的名字、旗帜、角色和等级发布到回放频道，可在 Ember 和 embernetplay.link 上查看。关闭时不会发布任何对战，已发布的也会被隐藏。只有双方玩家都分享时，对战才会被列出。"
+
+msgid "channel.queued"
+msgstr "等待发布的对战：{0} 场。"
+
+msgid "channel.connect_detail"
+msgstr "分享与你的 Discord 账号绑定。在关联账号之前，你的对战不会被分享。"
+
+msgid "channel.shared_off"
+msgstr "分享已关闭。你的对战在回放频道中被隐藏。"
+
+msgid "channel.fighter"
+msgstr "角色"
+
+msgid "channel.all_fighters"
+msgstr "所有角色"
+
+msgid "channel.fighter_detail"
+msgstr "只显示任一玩家使用了该角色的对战。"
+
+msgid "channel.loading"
+msgstr "正在读取回放频道"
+
+msgid "channel.empty"
+msgstr "这里还没有对战"
+
+msgid "channel.empty_detail"
+msgstr "分享对战的玩家在开启回放录制的情况下打完一场房间对战后，对战就会出现在这里。"
+
+msgid "channel.more"
+msgstr "加载更多"
+
+msgid "channel.more_detail"
+msgstr "更早的对战。"
+
+msgid "channel.needs_setup"
+msgstr "回放频道与公开房间使用同一服务。请先在那里设置。"
+
+msgid "channel.failure.unavailable"
+msgstr "此服务暂不提供回放频道。"
+
+msgid "channel.failure.not_found"
+msgstr "该对战已不在回放频道中。"
+
+msgid "channel.downloaded"
+msgstr "已下载。要观看，请在主菜单中再次选择它。"
+
+msgid "channel.downloading"
+msgstr "正在下载对战"
+
+msgid "channel.watch"
+msgstr "观看"
+
+msgid "channel.watch_detail"
+msgstr "选择后会下载并播放这场对战。"
+
+msgid "channel.download"
+msgstr "下载"
+
+msgid "channel.download_detail"
+msgstr "选择后会下载这场对战。可在主菜单（房间之外）播放。"
+
+msgid "channel.side"
+msgstr "{0}：{1}"
+
+msgid "channel.side_class"
+msgstr "{0}：{1}，{2}"
+
+msgid "channel.public_room"
+msgstr "公开房间"
+
+msgid "channel.private_room"
+msgstr "私人房间"
+
+msgid "channel.won"
+msgstr "{0} 获胜"
+
+msgid "channel.status"
+msgstr "已列出对战：{0} 场。更新：{1}。"

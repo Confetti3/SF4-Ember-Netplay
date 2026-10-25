@@ -6624,3 +6624,93 @@ msgstr "Ember 개발자"
 
 msgid "rankings.developer_detail"
 msgstr "Ember 개발자는 클래스 대신 이 표시가 나오며 랭킹에 오르지 않습니다. 대전은 계속 반영됩니다."
+
+msgid "replays.channel_detail"
+msgstr "플레이어가 공유한 방 대전을 최신순으로 보여 줍니다. 하나를 선택하면 시청할 수 있습니다."
+
+msgid "channel.title"
+msgstr "리플레이 채널"
+
+msgid "channel.share"
+msgstr "내 방 대전 공유"
+
+msgid "channel.share_detail"
+msgstr "켜면 Ember 방에서 한 대전이 이름, 국기, 캐릭터, 클래스와 함께 리플레이 채널에 올라가며, Ember와 embernetplay.link에서 볼 수 있습니다. 끄면 아무것도 올라가지 않고, 이미 올라간 대전은 숨겨집니다. 대전은 두 플레이어가 모두 공유하는 동안에만 표시됩니다."
+
+msgid "channel.queued"
+msgstr "전송을 기다리는 내 대전: {0}개."
+
+msgid "channel.connect_detail"
+msgstr "공유는 Discord 계정에 연결되어 있습니다. 계정을 연결하기 전에는 내 대전이 공유되지 않습니다."
+
+msgid "channel.shared_off"
+msgstr "공유가 꺼져 있습니다. 내 대전은 리플레이 채널에서 숨겨집니다."
+
+msgid "channel.fighter"
+msgstr "캐릭터"
+
+msgid "channel.all_fighters"
+msgstr "모든 캐릭터"
+
+msgid "channel.fighter_detail"
+msgstr "어느 한쪽 플레이어가 이 캐릭터를 사용한 대전만 보여 줍니다."
+
+msgid "channel.loading"
+msgstr "리플레이 채널을 읽는 중"
+
+msgid "channel.empty"
+msgstr "아직 대전이 없습니다"
+
+msgid "channel.empty_detail"
+msgstr "대전을 공유하는 플레이어가 리플레이 녹화를 켜고 방 대전을 마치면 여기에 표시됩니다."
+
+msgid "channel.more"
+msgstr "더 불러오기"
+
+msgid "channel.more_detail"
+msgstr "더 오래된 대전입니다."
+
+msgid "channel.needs_setup"
+msgstr "리플레이 채널은 공개 방과 같은 서비스를 사용합니다. 먼저 그곳에서 설정하세요."
+
+msgid "channel.failure.unavailable"
+msgstr "이 서비스는 아직 리플레이 채널을 제공하지 않습니다."
+
+msgid "channel.failure.not_found"
+msgstr "그 대전은 더 이상 리플레이 채널에 없습니다."
+
+msgid "channel.downloaded"
+msgstr "다운로드했습니다. 시청하려면 메인 메뉴에서 다시 선택하세요."
+
+msgid "channel.downloading"
+msgstr "대전을 다운로드하는 중"
+
+msgid "channel.watch"
+msgstr "시청"
+
+msgid "channel.watch_detail"
+msgstr "선택하면 이 대전을 다운로드하여 재생합니다."
+
+msgid "channel.download"
+msgstr "다운로드"
+
+msgid "channel.download_detail"
+msgstr "선택하면 이 대전을 다운로드합니다. 방 밖의 메인 메뉴에서 재생됩니다."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "공개 방"
+
+msgid "channel.private_room"
+msgstr "비공개 방"
+
+msgid "channel.won"
+msgstr "{0} 승리"
+
+msgid "channel.status"
+msgstr "표시된 대전: {0}개. 업데이트: {1}."

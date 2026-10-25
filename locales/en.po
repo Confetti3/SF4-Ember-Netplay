@@ -6258,3 +6258,93 @@ msgstr "Ember developer"
 
 msgid "rankings.developer_detail"
 msgstr "Ember developers show this mark in place of a class and are not on the board. Your games still count."
+
+msgid "replays.channel_detail"
+msgstr "Room games players share, newest first. Pick one to watch it."
+
+msgid "channel.title"
+msgstr "Replay channel"
+
+msgid "channel.share"
+msgstr "Share my room games"
+
+msgid "channel.share_detail"
+msgstr "On: the games you fight in Ember rooms go to the replay channel with your name, flag, fighter and class, in Ember and on embernetplay.link. Off: none go, and those already there are hidden. A game is listed only while both players share."
+
+msgid "channel.queued"
+msgstr "Your games waiting to go: {0}."
+
+msgid "channel.connect_detail"
+msgstr "Sharing belongs to your Discord account. Until one is connected, none of your games are shared."
+
+msgid "channel.shared_off"
+msgstr "Sharing is off. Your games are hidden from the replay channel."
+
+msgid "channel.fighter"
+msgstr "Fighter"
+
+msgid "channel.all_fighters"
+msgstr "All fighters"
+
+msgid "channel.fighter_detail"
+msgstr "Shows only games where either player used this fighter."
+
+msgid "channel.loading"
+msgstr "Reading the replay channel"
+
+msgid "channel.empty"
+msgstr "No games here yet"
+
+msgid "channel.empty_detail"
+msgstr "Games appear once players who share them finish a room game with replay recording on."
+
+msgid "channel.more"
+msgstr "Load more"
+
+msgid "channel.more_detail"
+msgstr "The next older games."
+
+msgid "channel.needs_setup"
+msgstr "The replay channel uses the same service as public rooms. Set it up there first."
+
+msgid "channel.failure.unavailable"
+msgstr "This service does not offer the replay channel yet."
+
+msgid "channel.failure.not_found"
+msgstr "That game is no longer on the replay channel."
+
+msgid "channel.downloaded"
+msgstr "Downloaded. Pick it again from the main menu to watch it."
+
+msgid "channel.downloading"
+msgstr "Downloading the game"
+
+msgid "channel.watch"
+msgstr "Watch"
+
+msgid "channel.watch_detail"
+msgstr "Select downloads this game and plays it."
+
+msgid "channel.download"
+msgstr "Download"
+
+msgid "channel.download_detail"
+msgstr "Select downloads this game. It plays from the main menu, outside a room."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Public room"
+
+msgid "channel.private_room"
+msgstr "Private room"
+
+msgid "channel.won"
+msgstr "{0} won"
+
+msgid "channel.status"
+msgstr "Games listed: {0}. Updated {1}."

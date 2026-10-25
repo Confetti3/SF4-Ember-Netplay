@@ -6623,3 +6623,93 @@ msgstr "Développeur d'Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Les développeurs d'Ember affichent cette marque à la place d'une classe et ne figurent pas au classement. Vos matchs comptent quand même."
+
+msgid "replays.channel_detail"
+msgstr "Matchs de salon partagés par les joueurs, du plus récent au plus ancien. Choisissez-en un pour le regarder."
+
+msgid "channel.title"
+msgstr "Canal des replays"
+
+msgid "channel.share"
+msgstr "Partager mes matchs de salon"
+
+msgid "channel.share_detail"
+msgstr "Activé : vos matchs dans les salons Ember vont sur le canal des replays avec votre nom, votre drapeau, votre personnage et votre classe, dans Ember et sur embernetplay.link. Désactivé : aucun n'est envoyé, et ceux qui y sont déjà sont masqués. Un match n'est listé que si les deux joueurs partagent."
+
+msgid "channel.queued"
+msgstr "Vos matchs en attente d'envoi : {0}."
+
+msgid "channel.connect_detail"
+msgstr "Le partage dépend de votre compte Discord. Tant qu'aucun n'est connecté, aucun de vos matchs n'est partagé."
+
+msgid "channel.shared_off"
+msgstr "Le partage est désactivé. Vos matchs sont masqués sur le canal des replays."
+
+msgid "channel.fighter"
+msgstr "Personnage"
+
+msgid "channel.all_fighters"
+msgstr "Tous les personnages"
+
+msgid "channel.fighter_detail"
+msgstr "Affiche seulement les matchs où l'un des joueurs a utilisé ce personnage."
+
+msgid "channel.loading"
+msgstr "Lecture du canal des replays"
+
+msgid "channel.empty"
+msgstr "Aucun match pour l'instant"
+
+msgid "channel.empty_detail"
+msgstr "Les matchs apparaissent quand les joueurs qui les partagent terminent un match en salon avec l'enregistrement des replays activé."
+
+msgid "channel.more"
+msgstr "Charger plus"
+
+msgid "channel.more_detail"
+msgstr "Les matchs plus anciens."
+
+msgid "channel.needs_setup"
+msgstr "Le canal des replays utilise le même service que les salons publics. Configurez-le d'abord là-bas."
+
+msgid "channel.failure.unavailable"
+msgstr "Ce service ne propose pas encore le canal des replays."
+
+msgid "channel.failure.not_found"
+msgstr "Ce match n'est plus sur le canal des replays."
+
+msgid "channel.downloaded"
+msgstr "Téléchargé. Sélectionnez-le de nouveau depuis le menu principal pour le regarder."
+
+msgid "channel.downloading"
+msgstr "Téléchargement du match"
+
+msgid "channel.watch"
+msgstr "Regarder"
+
+msgid "channel.watch_detail"
+msgstr "Sélectionner télécharge ce match et le lance."
+
+msgid "channel.download"
+msgstr "Télécharger"
+
+msgid "channel.download_detail"
+msgstr "Sélectionner télécharge ce match. Il se lance depuis le menu principal, hors d'un salon."
+
+msgid "channel.side"
+msgstr "{0} : {1}"
+
+msgid "channel.side_class"
+msgstr "{0} : {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Salon public"
+
+msgid "channel.private_room"
+msgstr "Salon privé"
+
+msgid "channel.won"
+msgstr "{0} a gagné"
+
+msgid "channel.status"
+msgstr "Matchs listés : {0}. Mis à jour {1}."

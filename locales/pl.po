@@ -6623,3 +6623,93 @@ msgstr "Twórca Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Twórcy Ember mają ten znak zamiast klasy i nie ma ich w rankingu. Twoje gry nadal się liczą."
+
+msgid "replays.channel_detail"
+msgstr "Gry z pokojów udostępniane przez graczy, od najnowszych. Wybierz grę, aby ją obejrzeć."
+
+msgid "channel.title"
+msgstr "Kanał powtórek"
+
+msgid "channel.share"
+msgstr "Udostępnianie moich gier z pokojów"
+
+msgid "channel.share_detail"
+msgstr "Włączone: gry rozegrane w pokojach Ember trafiają do kanału powtórek z Twoją nazwą, flagą, postacią i klasą, w Ember i na embernetplay.link. Wyłączone: żadna nie trafia, a te, które już tam są, zostają ukryte. Gra jest widoczna tylko wtedy, gdy udostępniają ją obaj gracze."
+
+msgid "channel.queued"
+msgstr "Twoje gry czekające na wysłanie: {0}."
+
+msgid "channel.connect_detail"
+msgstr "Udostępnianie jest powiązane z Twoim kontem Discord. Dopóki żadne nie jest połączone, żadna z Twoich gier nie jest udostępniana."
+
+msgid "channel.shared_off"
+msgstr "Udostępnianie jest wyłączone. Twoje gry są ukryte w kanale powtórek."
+
+msgid "channel.fighter"
+msgstr "Postać"
+
+msgid "channel.all_fighters"
+msgstr "Wszystkie postacie"
+
+msgid "channel.fighter_detail"
+msgstr "Pokazuje tylko gry, w których któryś z graczy użył tej postaci."
+
+msgid "channel.loading"
+msgstr "Wczytywanie kanału powtórek"
+
+msgid "channel.empty"
+msgstr "Nie ma tu jeszcze gier"
+
+msgid "channel.empty_detail"
+msgstr "Gry pojawiają się, gdy gracze, którzy je udostępniają, zakończą grę w pokoju z włączonym nagrywaniem powtórek."
+
+msgid "channel.more"
+msgstr "Wczytaj więcej"
+
+msgid "channel.more_detail"
+msgstr "Kolejne, starsze gry."
+
+msgid "channel.needs_setup"
+msgstr "Kanał powtórek korzysta z tej samej usługi co pokoje publiczne. Najpierw skonfiguruj ją tam."
+
+msgid "channel.failure.unavailable"
+msgstr "Ta usługa nie oferuje jeszcze kanału powtórek."
+
+msgid "channel.failure.not_found"
+msgstr "Tej gry nie ma już w kanale powtórek."
+
+msgid "channel.downloaded"
+msgstr "Pobrano. Wybierz ją ponownie w menu głównym, aby ją obejrzeć."
+
+msgid "channel.downloading"
+msgstr "Pobieranie gry"
+
+msgid "channel.watch"
+msgstr "Obejrzyj"
+
+msgid "channel.watch_detail"
+msgstr "Wybierz, aby pobrać i odtworzyć tę grę."
+
+msgid "channel.download"
+msgstr "Pobierz"
+
+msgid "channel.download_detail"
+msgstr "Wybierz, aby pobrać tę grę. Odtworzysz ją w menu głównym, poza pokojem."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Pokój publiczny"
+
+msgid "channel.private_room"
+msgstr "Pokój prywatny"
+
+msgid "channel.won"
+msgstr "Wygrana: {0}"
+
+msgid "channel.status"
+msgstr "Gry na liście: {0}. Odświeżono {1}."

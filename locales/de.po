@@ -6623,3 +6623,93 @@ msgstr "Ember-Entwickler"
 
 msgid "rankings.developer_detail"
 msgstr "Ember-Entwickler tragen dieses Zeichen statt einer Klasse und stehen nicht in der Rangliste. Ihre Spiele zählen trotzdem."
+
+msgid "replays.channel_detail"
+msgstr "Von Spielern geteilte Raumspiele, die neuesten zuerst. Wählen Sie eines, um es anzusehen."
+
+msgid "channel.title"
+msgstr "Replay-Kanal"
+
+msgid "channel.share"
+msgstr "Meine Raumspiele teilen"
+
+msgid "channel.share_detail"
+msgstr "Ein: Ihre Spiele in Ember-Räumen gehen mit Ihrem Namen, Ihrer Flagge, Ihrem Charakter und Ihrer Klasse an den Replay-Kanal, in Ember und auf embernetplay.link. Aus: keines geht hin, und bereits vorhandene werden ausgeblendet. Ein Spiel wird nur gelistet, solange beide Spieler teilen."
+
+msgid "channel.queued"
+msgstr "Ihre Spiele in der Warteschlange: {0}."
+
+msgid "channel.connect_detail"
+msgstr "Das Teilen hängt an Ihrem Discord-Konto. Solange keines verbunden ist, wird keines Ihrer Spiele geteilt."
+
+msgid "channel.shared_off"
+msgstr "Teilen ist aus. Ihre Spiele sind im Replay-Kanal ausgeblendet."
+
+msgid "channel.fighter"
+msgstr "Charakter"
+
+msgid "channel.all_fighters"
+msgstr "Alle Charaktere"
+
+msgid "channel.fighter_detail"
+msgstr "Zeigt nur Spiele, in denen einer der beiden Spieler diesen Charakter benutzt hat."
+
+msgid "channel.loading"
+msgstr "Replay-Kanal wird gelesen"
+
+msgid "channel.empty"
+msgstr "Noch keine Spiele hier"
+
+msgid "channel.empty_detail"
+msgstr "Spiele erscheinen, sobald Spieler, die sie teilen, ein Raumspiel mit aktivierter Replay-Aufzeichnung beenden."
+
+msgid "channel.more"
+msgstr "Mehr laden"
+
+msgid "channel.more_detail"
+msgstr "Die nächsten älteren Spiele."
+
+msgid "channel.needs_setup"
+msgstr "Der Replay-Kanal nutzt denselben Dienst wie öffentliche Räume. Richten Sie ihn zuerst dort ein."
+
+msgid "channel.failure.unavailable"
+msgstr "Dieser Dienst bietet den Replay-Kanal noch nicht an."
+
+msgid "channel.failure.not_found"
+msgstr "Dieses Spiel ist nicht mehr im Replay-Kanal."
+
+msgid "channel.downloaded"
+msgstr "Heruntergeladen. Wählen Sie es im Hauptmenü erneut aus, um es anzusehen."
+
+msgid "channel.downloading"
+msgstr "Spiel wird heruntergeladen"
+
+msgid "channel.watch"
+msgstr "Ansehen"
+
+msgid "channel.watch_detail"
+msgstr "Auswählen lädt dieses Spiel herunter und spielt es ab."
+
+msgid "channel.download"
+msgstr "Herunterladen"
+
+msgid "channel.download_detail"
+msgstr "Auswählen lädt dieses Spiel herunter. Es wird im Hauptmenü abgespielt, außerhalb eines Raums."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Öffentlicher Raum"
+
+msgid "channel.private_room"
+msgstr "Privater Raum"
+
+msgid "channel.won"
+msgstr "{0} hat gewonnen"
+
+msgid "channel.status"
+msgstr "Gelistete Spiele: {0}. Aktualisiert {1}."

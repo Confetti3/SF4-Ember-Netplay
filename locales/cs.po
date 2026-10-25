@@ -6623,3 +6623,93 @@ msgstr "Vývojář Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Vývojáři Ember mají místo třídy tuto značku a nejsou v žebříčku. Vaše hry se stále počítají."
+
+msgid "replays.channel_detail"
+msgstr "Hry z místností, které hráči sdílejí, od nejnovějších. Vyberte hru a přehrajte si ji."
+
+msgid "channel.title"
+msgstr "Kanál záznamů"
+
+msgid "channel.share"
+msgstr "Sdílet moje hry z místností"
+
+msgid "channel.share_detail"
+msgstr "Zapnuto: vaše hry z místností Ember se zveřejní v kanálu záznamů s vaším jménem, vlajkou, postavou a třídou, v Emberu i na embernetplay.link. Vypnuto: žádné se nezveřejní a ty, které tam už jsou, se skryjí. Hra se zobrazí jen tehdy, když sdílejí oba hráči."
+
+msgid "channel.queued"
+msgstr "Vaše hry čekající na odeslání: {0}."
+
+msgid "channel.connect_detail"
+msgstr "Sdílení je vázáno na váš účet Discord. Dokud žádný nepřipojíte, nesdílí se žádná z vašich her."
+
+msgid "channel.shared_off"
+msgstr "Sdílení je vypnuté. Vaše hry jsou v kanálu záznamů skryté."
+
+msgid "channel.fighter"
+msgstr "Postava"
+
+msgid "channel.all_fighters"
+msgstr "Všechny postavy"
+
+msgid "channel.fighter_detail"
+msgstr "Zobrazí jen hry, ve kterých tuto postavu použil kterýkoli z hráčů."
+
+msgid "channel.loading"
+msgstr "Načítání kanálu záznamů"
+
+msgid "channel.empty"
+msgstr "Zatím tu nejsou žádné hry"
+
+msgid "channel.empty_detail"
+msgstr "Hry se objeví, jakmile hráči, kteří je sdílejí, dohrají hru v místnosti se zapnutým nahráváním záznamu."
+
+msgid "channel.more"
+msgstr "Načíst další"
+
+msgid "channel.more_detail"
+msgstr "Další starší hry."
+
+msgid "channel.needs_setup"
+msgstr "Kanál záznamů používá stejnou službu jako veřejné místnosti. Nejdřív ji nastavte tam."
+
+msgid "channel.failure.unavailable"
+msgstr "Tato služba kanál záznamů zatím nenabízí."
+
+msgid "channel.failure.not_found"
+msgstr "Tato hra už v kanálu záznamů není."
+
+msgid "channel.downloaded"
+msgstr "Staženo. Chcete-li hru přehrát, vyberte ji znovu v hlavním menu."
+
+msgid "channel.downloading"
+msgstr "Stahování hry"
+
+msgid "channel.watch"
+msgstr "Přehrát"
+
+msgid "channel.watch_detail"
+msgstr "Výběr stáhne tuto hru a přehraje ji."
+
+msgid "channel.download"
+msgstr "Stáhnout"
+
+msgid "channel.download_detail"
+msgstr "Výběr stáhne tuto hru. Přehraje se z hlavního menu, mimo místnost."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Veřejná místnost"
+
+msgid "channel.private_room"
+msgstr "Soukromá místnost"
+
+msgid "channel.won"
+msgstr "Vítěz: {0}"
+
+msgid "channel.status"
+msgstr "Hry v seznamu: {0}. Aktualizováno {1}."

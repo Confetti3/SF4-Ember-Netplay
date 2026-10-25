@@ -6624,3 +6624,93 @@ msgstr "Ember開発者"
 
 msgid "rankings.developer_detail"
 msgstr "Ember開発者はクラスの代わりにこのマークが表示され、ランキングには載りません。対戦は引き続きカウントされます。"
+
+msgid "replays.channel_detail"
+msgstr "プレイヤーが共有したルームの対戦を、新しい順に表示します。選ぶと再生できます。"
+
+msgid "channel.title"
+msgstr "リプレイチャンネル"
+
+msgid "channel.share"
+msgstr "ルームの対戦を共有"
+
+msgid "channel.share_detail"
+msgstr "オンにすると、Emberのルームでプレイした対戦が、名前、国旗、キャラ、クラスとともにリプレイチャンネルに送られ、Ember内とembernetplay.linkで見られます。オフにすると何も送られず、すでにあるものも非表示になります。対戦は、両方のプレイヤーが共有している間だけ掲載されます。"
+
+msgid "channel.queued"
+msgstr "送信待ちの対戦：{0}件。"
+
+msgid "channel.connect_detail"
+msgstr "共有はDiscordアカウントに紐づきます。連携するまで、あなたの対戦は共有されません。"
+
+msgid "channel.shared_off"
+msgstr "共有はオフです。あなたの対戦はリプレイチャンネルで非表示になっています。"
+
+msgid "channel.fighter"
+msgstr "キャラ"
+
+msgid "channel.all_fighters"
+msgstr "すべてのキャラ"
+
+msgid "channel.fighter_detail"
+msgstr "どちらかのプレイヤーがこのキャラを使った対戦だけを表示します。"
+
+msgid "channel.loading"
+msgstr "リプレイチャンネルを読み込み中"
+
+msgid "channel.empty"
+msgstr "まだ対戦がありません"
+
+msgid "channel.empty_detail"
+msgstr "共有しているプレイヤーが、リプレイ録画をオンにしてルームの対戦を終えると、ここに表示されます。"
+
+msgid "channel.more"
+msgstr "さらに読み込む"
+
+msgid "channel.more_detail"
+msgstr "さらに古い対戦を読み込みます。"
+
+msgid "channel.needs_setup"
+msgstr "リプレイチャンネルは公開ルームと同じサービスを使います。先に公開ルームを設定してください。"
+
+msgid "channel.failure.unavailable"
+msgstr "このサービスはまだリプレイチャンネルに対応していません。"
+
+msgid "channel.failure.not_found"
+msgstr "その対戦はもうリプレイチャンネルにありません。"
+
+msgid "channel.downloaded"
+msgstr "ダウンロードしました。見るには、メインメニューからもう一度選んでください。"
+
+msgid "channel.downloading"
+msgstr "対戦をダウンロード中"
+
+msgid "channel.watch"
+msgstr "見る"
+
+msgid "channel.watch_detail"
+msgstr "選択すると、この対戦をダウンロードして再生します。"
+
+msgid "channel.download"
+msgstr "ダウンロード"
+
+msgid "channel.download_detail"
+msgstr "選択すると、この対戦をダウンロードします。再生はルームの外、メインメニューから行います。"
+
+msgid "channel.side"
+msgstr "{0}：{1}"
+
+msgid "channel.side_class"
+msgstr "{0}：{1}、{2}"
+
+msgid "channel.public_room"
+msgstr "公開ルーム"
+
+msgid "channel.private_room"
+msgstr "プライベートルーム"
+
+msgid "channel.won"
+msgstr "{0}の勝ち"
+
+msgid "channel.status"
+msgstr "掲載対戦：{0}件。更新：{1}。"

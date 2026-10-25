@@ -6624,3 +6624,93 @@ msgstr "Разработчик Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Разработчики Ember показывают эту отметку вместо класса и не попадают в таблицу. Ваши игры по-прежнему засчитываются."
+
+msgid "replays.channel_detail"
+msgstr "Матчи из лобби, которыми делятся игроки, сначала новые. Выберите матч, чтобы посмотреть."
+
+msgid "channel.title"
+msgstr "Канал записей"
+
+msgid "channel.share"
+msgstr "Делиться моими матчами из лобби"
+
+msgid "channel.share_detail"
+msgstr "Включено: матчи, которые вы играете в лобби Ember, попадают в канал записей с вашим именем, флагом, бойцом и классом, в Ember и на embernetplay.link. Выключено: ничего не отправляется, а уже опубликованные матчи скрываются. Матч виден, только пока им делятся оба игрока."
+
+msgid "channel.queued"
+msgstr "Ваши матчи, ожидающие отправки: {0}."
+
+msgid "channel.connect_detail"
+msgstr "Общий доступ привязан к вашему аккаунту Discord. Пока он не подключён, ваши матчи не публикуются."
+
+msgid "channel.shared_off"
+msgstr "Общий доступ выключен. Ваши матчи скрыты в канале записей."
+
+msgid "channel.fighter"
+msgstr "Боец"
+
+msgid "channel.all_fighters"
+msgstr "Все бойцы"
+
+msgid "channel.fighter_detail"
+msgstr "Показывает только матчи, в которых один из игроков выбрал этого бойца."
+
+msgid "channel.loading"
+msgstr "Чтение канала записей"
+
+msgid "channel.empty"
+msgstr "Матчей пока нет"
+
+msgid "channel.empty_detail"
+msgstr "Матчи появятся, когда игроки, которые ими делятся, завершат матч в лобби при включённой записи."
+
+msgid "channel.more"
+msgstr "Загрузить ещё"
+
+msgid "channel.more_detail"
+msgstr "Более старые матчи."
+
+msgid "channel.needs_setup"
+msgstr "Канал записей использует тот же сервис, что и открытые лобби. Сначала настройте его там."
+
+msgid "channel.failure.unavailable"
+msgstr "Этот сервис пока не поддерживает канал записей."
+
+msgid "channel.failure.not_found"
+msgstr "Этого матча больше нет в канале записей."
+
+msgid "channel.downloaded"
+msgstr "Загружено. Чтобы посмотреть, выберите запись ещё раз в главном меню."
+
+msgid "channel.downloading"
+msgstr "Загрузка матча"
+
+msgid "channel.watch"
+msgstr "Смотреть"
+
+msgid "channel.watch_detail"
+msgstr "Выбор загружает этот матч и запускает его."
+
+msgid "channel.download"
+msgstr "Загрузить"
+
+msgid "channel.download_detail"
+msgstr "Выбор загружает этот матч. Он воспроизводится из главного меню, вне лобби."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Открытое лобби"
+
+msgid "channel.private_room"
+msgstr "Закрытое лобби"
+
+msgid "channel.won"
+msgstr "Победа: {0}"
+
+msgid "channel.status"
+msgstr "Матчей в списке: {0}. Обновлено {1}."

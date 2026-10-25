@@ -6623,3 +6623,93 @@ msgstr "Sviluppatore di Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Gli sviluppatori di Ember mostrano questo segno al posto della classe e non sono in classifica. Le tue partite contano comunque."
+
+msgid "replays.channel_detail"
+msgstr "Partite di sala condivise dai giocatori, dalle più recenti. Scegline una per guardarla."
+
+msgid "channel.title"
+msgstr "Canale replay"
+
+msgid "channel.share"
+msgstr "Condividi le mie partite di sala"
+
+msgid "channel.share_detail"
+msgstr "Attivato: le partite che giochi nelle sale di Ember vanno al canale replay con il tuo nome, la tua bandiera, il tuo personaggio e la tua classe, in Ember e su embernetplay.link. Disattivato: non ne va nessuna e quelle già presenti vengono nascoste. Una partita compare solo finché entrambi i giocatori condividono."
+
+msgid "channel.queued"
+msgstr "Le tue partite in attesa di essere inviate: {0}."
+
+msgid "channel.connect_detail"
+msgstr "La condivisione dipende dal tuo account Discord. Finché non ne colleghi uno, nessuna delle tue partite viene condivisa."
+
+msgid "channel.shared_off"
+msgstr "La condivisione è disattivata. Le tue partite sono nascoste dal canale replay."
+
+msgid "channel.fighter"
+msgstr "Personaggio"
+
+msgid "channel.all_fighters"
+msgstr "Tutti i personaggi"
+
+msgid "channel.fighter_detail"
+msgstr "Mostra solo le partite in cui uno dei due giocatori ha usato questo personaggio."
+
+msgid "channel.loading"
+msgstr "Lettura del canale replay"
+
+msgid "channel.empty"
+msgstr "Ancora nessuna partita"
+
+msgid "channel.empty_detail"
+msgstr "Le partite compaiono quando i giocatori che le condividono finiscono una partita di sala con la registrazione dei replay attiva."
+
+msgid "channel.more"
+msgstr "Carica altro"
+
+msgid "channel.more_detail"
+msgstr "Le partite più vecchie."
+
+msgid "channel.needs_setup"
+msgstr "Il canale replay usa lo stesso servizio delle sale pubbliche. Configuralo prima lì."
+
+msgid "channel.failure.unavailable"
+msgstr "Questo servizio non offre ancora il canale replay."
+
+msgid "channel.failure.not_found"
+msgstr "Quella partita non è più nel canale replay."
+
+msgid "channel.downloaded"
+msgstr "Scaricata. Selezionala di nuovo dal menu principale per guardarla."
+
+msgid "channel.downloading"
+msgstr "Download della partita"
+
+msgid "channel.watch"
+msgstr "Guarda"
+
+msgid "channel.watch_detail"
+msgstr "Seleziona per scaricare e riprodurre questa partita."
+
+msgid "channel.download"
+msgstr "Scarica"
+
+msgid "channel.download_detail"
+msgstr "Seleziona per scaricare questa partita. Si riproduce dal menu principale, fuori da una sala."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Sala pubblica"
+
+msgid "channel.private_room"
+msgstr "Sala privata"
+
+msgid "channel.won"
+msgstr "{0} ha vinto"
+
+msgid "channel.status"
+msgstr "Partite elencate: {0}. Aggiornato {1}."

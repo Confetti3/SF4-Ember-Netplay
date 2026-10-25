@@ -6624,3 +6624,93 @@ msgstr "Desarrollador de Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Los desarrolladores de Ember muestran esta marca en lugar de una clase y no aparecen en la clasificación. Tus partidas siguen contando."
+
+msgid "replays.channel_detail"
+msgstr "Partidas de sala que comparten los jugadores, las más recientes primero. Elige una para verla."
+
+msgid "channel.title"
+msgstr "Canal de repeticiones"
+
+msgid "channel.share"
+msgstr "Compartir mis partidas de sala"
+
+msgid "channel.share_detail"
+msgstr "Activado: las partidas que juegas en salas de Ember van al canal de repeticiones con tu nombre, bandera, personaje y clase, en Ember y en embernetplay.link. Desactivado: no va ninguna, y las que ya están allí se ocultan. Una partida aparece solo mientras ambos jugadores comparten."
+
+msgid "channel.queued"
+msgstr "Tus partidas en espera de enviarse: {0}."
+
+msgid "channel.connect_detail"
+msgstr "Compartir depende de tu cuenta de Discord. Mientras no haya una conectada, no se comparte ninguna de tus partidas."
+
+msgid "channel.shared_off"
+msgstr "Compartir está desactivado. Tus partidas están ocultas en el canal de repeticiones."
+
+msgid "channel.fighter"
+msgstr "Personaje"
+
+msgid "channel.all_fighters"
+msgstr "Todos los personajes"
+
+msgid "channel.fighter_detail"
+msgstr "Muestra solo las partidas en las que alguno de los jugadores usó este personaje."
+
+msgid "channel.loading"
+msgstr "Leyendo el canal de repeticiones"
+
+msgid "channel.empty"
+msgstr "Aún no hay partidas aquí"
+
+msgid "channel.empty_detail"
+msgstr "Las partidas aparecen cuando los jugadores que las comparten terminan una partida de sala con la grabación de repeticiones activada."
+
+msgid "channel.more"
+msgstr "Cargar más"
+
+msgid "channel.more_detail"
+msgstr "Las siguientes partidas más antiguas."
+
+msgid "channel.needs_setup"
+msgstr "El canal de repeticiones usa el mismo servicio que las salas públicas. Primero configúralo allí."
+
+msgid "channel.failure.unavailable"
+msgstr "Este servicio aún no ofrece el canal de repeticiones."
+
+msgid "channel.failure.not_found"
+msgstr "Esa partida ya no está en el canal de repeticiones."
+
+msgid "channel.downloaded"
+msgstr "Descargada. Vuelve a elegirla en el menú principal para verla."
+
+msgid "channel.downloading"
+msgstr "Descargando la partida"
+
+msgid "channel.watch"
+msgstr "Ver"
+
+msgid "channel.watch_detail"
+msgstr "Seleccionar descarga esta partida y la reproduce."
+
+msgid "channel.download"
+msgstr "Descargar"
+
+msgid "channel.download_detail"
+msgstr "Seleccionar descarga esta partida. Se reproduce desde el menú principal, fuera de una sala."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Sala pública"
+
+msgid "channel.private_room"
+msgstr "Sala privada"
+
+msgid "channel.won"
+msgstr "{0} ganó"
+
+msgid "channel.status"
+msgstr "Partidas listadas: {0}. Actualizado {1}."

@@ -6143,3 +6143,93 @@ msgstr "Desenvolvedor do Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Desenvolvedores do Ember mostram esta marca no lugar da classe e não aparecem no ranking. Suas partidas continuam valendo."
+
+msgid "replays.channel_detail"
+msgstr "Partidas de sala que os jogadores compartilham, das mais recentes às mais antigas. Escolha uma para assistir."
+
+msgid "channel.title"
+msgstr "Canal de replays"
+
+msgid "channel.share"
+msgstr "Compartilhar minhas partidas de sala"
+
+msgid "channel.share_detail"
+msgstr "Ativado: as partidas que você joga em salas do Ember vão para o canal de replays com seu nome, bandeira, lutador e classe, no Ember e em embernetplay.link. Desativado: nenhuma vai, e as que já estão lá ficam ocultas. Uma partida só aparece enquanto os dois jogadores compartilham."
+
+msgid "channel.queued"
+msgstr "Suas partidas aguardando envio: {0}."
+
+msgid "channel.connect_detail"
+msgstr "O compartilhamento depende da sua conta do Discord. Enquanto não houver uma conectada, nenhuma das suas partidas é compartilhada."
+
+msgid "channel.shared_off"
+msgstr "O compartilhamento está desativado. Suas partidas ficam ocultas no canal de replays."
+
+msgid "channel.fighter"
+msgstr "Lutador"
+
+msgid "channel.all_fighters"
+msgstr "Todos os lutadores"
+
+msgid "channel.fighter_detail"
+msgstr "Mostra apenas partidas em que um dos jogadores usou este lutador."
+
+msgid "channel.loading"
+msgstr "Lendo o canal de replays"
+
+msgid "channel.empty"
+msgstr "Ainda não há partidas aqui"
+
+msgid "channel.empty_detail"
+msgstr "As partidas aparecem quando os jogadores que as compartilham terminam uma partida de sala com a gravação de replay ativada."
+
+msgid "channel.more"
+msgstr "Carregar mais"
+
+msgid "channel.more_detail"
+msgstr "As próximas partidas mais antigas."
+
+msgid "channel.needs_setup"
+msgstr "O canal de replays usa o mesmo serviço das salas públicas. Configure-o primeiro lá."
+
+msgid "channel.failure.unavailable"
+msgstr "Este serviço ainda não oferece o canal de replays."
+
+msgid "channel.failure.not_found"
+msgstr "Essa partida não está mais no canal de replays."
+
+msgid "channel.downloaded"
+msgstr "Baixada. Selecione-a de novo no menu principal para assistir."
+
+msgid "channel.downloading"
+msgstr "Baixando a partida"
+
+msgid "channel.watch"
+msgstr "Assistir"
+
+msgid "channel.watch_detail"
+msgstr "Selecionar baixa esta partida e a reproduz."
+
+msgid "channel.download"
+msgstr "Baixar"
+
+msgid "channel.download_detail"
+msgstr "Selecionar baixa esta partida. Ela é reproduzida no menu principal, fora de uma sala."
+
+msgid "channel.side"
+msgstr "{0}: {1}"
+
+msgid "channel.side_class"
+msgstr "{0}: {1}, {2}"
+
+msgid "channel.public_room"
+msgstr "Sala pública"
+
+msgid "channel.private_room"
+msgstr "Sala privada"
+
+msgid "channel.won"
+msgstr "{0} venceu"
+
+msgid "channel.status"
+msgstr "Partidas listadas: {0}. Atualizado {1}."
