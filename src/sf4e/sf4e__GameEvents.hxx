@@ -21,6 +21,13 @@ namespace sf4e {
             static void Install();
         };
 
+		// What Ember's Training select chose: both sides as the game takes them,
+		// and the stage (a custom stage plays on its fallback, as in rooms).
+		struct TrainingSides {
+			Dimps::GameEvents::VsMode::ConfirmedCharaConditions sides[2] = {};
+			int stage = 0;
+		};
+
 		// The one pending request to leave for Training, whole under one lock: the
 		// runtime posts it, the native menu reads, judges and consumes it. A
 		// consume names the serial it judged, so it never erases a newer request.
@@ -103,6 +110,26 @@ namespace sf4e {
 		{
 			static char* eventFlowDescription;
 			static void Install();
+		};
+
+		// Training on Training select's picks: chosen ones the idle main menu
+		// enters within two seconds, with no room or match open; a room's Training
+		// has none and plays on the Training stage.
+		struct TrainingMode {
+			// The overlay, on Start.
+			static void Choose(const TrainingSides& sides);
+			static bool Chosen();
+			// Game thread, entering Training: sets the stage and takes the chosen sides.
+			static void Enter();
+			// Game thread: with sides taken, Training's CharaSelect becomes
+			// VersusFromChr on them, once.
+			static void ReplaceCharaSelect(char*& eventName);
+		private:
+			static std::mutex chosenLock;
+			static std::optional<TrainingSides> chosen;
+			static ULONGLONG chosenUntil;
+			// Game thread only.
+			static std::optional<TrainingSides> pendingSides;
 		};
 
 		struct VsBattle : Dimps::GameEvents::VsBattle

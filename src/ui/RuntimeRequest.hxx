@@ -55,6 +55,8 @@ struct RuntimeRequest {
     // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
     // sent alone. The runtime decides whether it still holds.
     TrainingEntry training=TrainingEntry::None;
+    // Training select's Start: the overlay hands the game both picks and the stage; sent alone.
+    bool startTraining=false;
     // Leave the game this PC watches (ShellView::watchedGame), named as the
     // press saw it; sent alone. The runtime decides, when it takes it, whether
     // the room still needs an Unwatch or only the rest of the stream ends.

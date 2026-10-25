@@ -757,6 +757,15 @@ msgstr "离线游玩"
 msgid "home.offline_detail"
 msgstr "训练、对战、街机等游戏原有的离线模式。"
 
+msgid "training_select.title"
+msgstr "训练"
+
+msgid "training_select.start"
+msgstr "开始训练"
+
+msgid "training_select.start_detail"
+msgstr "用这些角色和场地开始训练。"
+
 msgid "home.replays"
 msgstr "回放"
 

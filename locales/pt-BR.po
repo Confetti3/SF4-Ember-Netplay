@@ -757,6 +757,15 @@ msgstr "Jogar offline"
 msgid "home.offline_detail"
 msgstr "Treino, Versus, Arcade e os outros modos offline do jogo."
 
+msgid "training_select.title"
+msgstr "Treino"
+
+msgid "training_select.start"
+msgstr "Iniciar treino"
+
+msgid "training_select.start_detail"
+msgstr "O treino carrega com estes lutadores neste cenário."
+
 msgid "home.replays"
 msgstr "Replays"
 

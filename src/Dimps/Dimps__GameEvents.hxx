@@ -318,6 +318,29 @@ namespace Dimps {
 			static __staticMethods staticMethods;
 		};
 
+		struct TrainingMode : Dimps::Event::EventBaseWithEC {
+			// Each side's choice, 0x14 bytes a side from +0x60: written by
+			// TrainingCharaSelect::storeSelection (0x639D60), read by
+			// TrainingVersus and TrainingBattle::setupPlayer. A side with
+			// `chosen` 0 is not set up; `cursorCharaID` is where its cursor
+			// starts the next character select.
+			struct Selection {
+				VsMode::ConfirmedCharaConditions conditions;
+				BYTE _unused[3];
+				int cursorCharaID;
+				BOOL chosen;
+			};
+			static Selection* GetSelection(TrainingMode* e, int side);
+		};
+
+		// The `push 0` (6A 00) giving the stage, then its music, in
+		// TrainingBattle::setupPlayer (0x638570): Training's stage is fixed there.
+		struct TrainingBattle {
+			static void Locate(HMODULE peRoot);
+			static BYTE* stagePush;
+			static BYTE* stageMusicPush;
+		};
+
 		struct VsPreBattle : Dimps::Event::EventBaseWithEC {
 			static void Locate(HMODULE peRoot);
 
