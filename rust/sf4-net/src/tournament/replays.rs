@@ -91,7 +91,8 @@ pub async fn sharing(
         ),
         None => (reqwest::Method::GET, None),
     };
-    let sharing: ReplaySharing = call(shared, bridge_id, None, method, SHARING_PATH.into(), body).await?;
+    let sharing: ReplaySharing =
+        call(shared, bridge_id, None, method, SHARING_PATH.into(), body).await?;
     to_json(&sharing)
 }
 
@@ -179,7 +180,9 @@ fn write_once(path: &Path, bytes: &[u8]) -> Result<(), Failure> {
         .write(true)
         .create_new(true)
         .open(&part)
-        .and_then(|mut file| std::io::Write::write_all(&mut file, bytes).and_then(|()| file.sync_all()));
+        .and_then(|mut file| {
+            std::io::Write::write_all(&mut file, bytes).and_then(|()| file.sync_all())
+        });
     if written.is_err() {
         let _ = std::fs::remove_file(&part);
         return Err(failed());
@@ -356,7 +359,14 @@ mod tests {
         assert_eq!(std::fs::read(&path).unwrap(), b"first");
         let parts = std::fs::read_dir(&dir)
             .unwrap()
-            .filter(|entry| entry.as_ref().unwrap().path().extension().is_some_and(|e| e == "part"))
+            .filter(|entry| {
+                entry
+                    .as_ref()
+                    .unwrap()
+                    .path()
+                    .extension()
+                    .is_some_and(|e| e == "part")
+            })
             .count();
         assert_eq!(parts, 0, "a part file was left behind");
         let _ = std::fs::remove_dir_all(&dir);
