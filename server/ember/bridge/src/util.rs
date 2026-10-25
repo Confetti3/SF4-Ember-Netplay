@@ -71,6 +71,11 @@ pub fn create_private(path: &Path) -> io::Result<File> {
     options.open(path)
 }
 
+/// Lower-case hex of `bytes`.
+pub fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
 pub fn new_id(prefix: &str) -> String {
     prefixed_id(prefix, random())
 }

@@ -48,6 +48,7 @@ pub struct AppState {
     delivery: Arc<Notify>,
     rooms: Arc<routes::rooms::Shared>,
     ranking_board: Arc<routes::ranking::PublicCache>,
+    replays: Arc<routes::replays::Shared>,
     stream_signal: tokio::sync::watch::Sender<u64>,
 }
 
@@ -70,6 +71,7 @@ impl AppState {
             delivery: Arc::new(Notify::new()),
             rooms: Arc::new(routes::rooms::Shared::default()),
             ranking_board: Arc::new(routes::ranking::PublicCache::default()),
+            replays: Arc::new(routes::replays::Shared::default()),
             stream_signal: tokio::sync::watch::channel(0).0,
         }
     }

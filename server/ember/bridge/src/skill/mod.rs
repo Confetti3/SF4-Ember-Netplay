@@ -9,6 +9,7 @@
 //! does one with a fighter whose account does not take part (`ranking`).
 //! Only the class (`SkillBadge`) ever leaves the bridge: inside room tickets,
 //! on the player's own standing and on the ranking board.
+pub mod channel;
 mod glicko;
 pub mod ranking;
 
@@ -73,6 +74,7 @@ struct Game {
 /// its recent games on every poll; each counts the first time only.
 pub fn record_games(
     tx: &Transaction<'_>,
+    show: channel::Show<'_>,
     room_id: &str,
     games: Option<&serde_json::Value>,
     now: u64,
@@ -82,6 +84,16 @@ pub fn record_games(
         .into_iter()
         .flatten();
     for game in games.filter_map(|game| Game::deserialize(game).ok()) {
+        // The replay channel keeps every reported game, rated or not.
+        channel::reported(
+            tx,
+            show,
+            room_id,
+            game.table,
+            game.generation,
+            (&game.winner, &game.loser),
+            now,
+        )?;
         let first = tx.execute(
             "INSERT OR IGNORE INTO rated_games (room_id, table_id, generation)
              SELECT room_id, ?2, ?3 FROM rooms WHERE room_id = ?1",

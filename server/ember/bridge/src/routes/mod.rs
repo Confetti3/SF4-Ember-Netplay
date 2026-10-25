@@ -12,6 +12,7 @@ pub mod play;
 pub mod policy;
 pub mod ranking;
 pub mod records;
+pub mod replays;
 pub mod reports;
 pub mod rooms;
 pub mod sessions;
@@ -112,6 +113,19 @@ pub fn router(state: AppState) -> Router {
         )
         .route(ember_protocol::skill::BOARD_PATH, get(ranking::board))
         .route("/v1/ranking/board/public", get(ranking::public_board))
+        .route(
+            ember_protocol::replays::REPLAYS_PATH,
+            get(replays::list).post(replays::upload),
+        )
+        .route(
+            ember_protocol::replays::SHARING_PATH,
+            get(replays::my_sharing).put(replays::choose_sharing),
+        )
+        .route(
+            ember_protocol::replays::PUBLIC_PATH,
+            get(replays::public_list),
+        )
+        .route("/v1/replays/{id}/file", get(replays::file))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))
@@ -248,6 +262,7 @@ pub async fn maintenance_once(state: &AppState) {
             Ok(())
         })
         .await;
+    replays::maintain(state, now).await;
     if done.is_ok() {
         state.committed();
     }

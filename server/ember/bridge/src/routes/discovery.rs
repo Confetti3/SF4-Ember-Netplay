@@ -58,6 +58,7 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         features.push(crate::routes::rooms::FEATURE.into());
         features.push(crate::routes::rooms::CONNECTION_FEATURE.into());
         features.push(ember_protocol::skill::RANKING_FEATURE.into());
+        features.push(ember_protocol::replays::REPLAY_CHANNEL_FEATURE.into());
     }
     // A connection's own settings say whether it may use these.
     features.push(ember_protocol::partner::LOOKUP_FEATURE.into());
