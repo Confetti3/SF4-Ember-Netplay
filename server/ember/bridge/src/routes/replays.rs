@@ -20,7 +20,7 @@ use axum::{
 };
 use ember_protocol::replays::{
     ListQuery, MAX_UPLOAD_BODY, REPLAY_INVALID, REPLAY_NOT_FOUND, ReplayPage, ReplayUpload,
-    SharingChoice, UPLOAD_LIMIT, UploadAnswer, UploadState, is_replay_id,
+    SharingChoice, UPLOAD_LIMIT, UploadAnswer, UploadState, archive_name, is_replay_id,
 };
 use sha2::{Digest, Sha256};
 
@@ -244,13 +244,16 @@ pub async fn file(State(state): State<AppState>, Path(id): Path<String>) -> Resu
             eprintln!("replays: a listed file could not be read: {error}");
             missing()
         })?;
+    // Named as Ember's archive names it, so a download put in the replay
+    // folder shows in the game's Replays list.
+    let name = archive_name(&bytes).unwrap_or_else(|| format!("{id}.emberreplay"));
     Ok((
         StatusCode::OK,
         [
             (header::CONTENT_TYPE, "application/octet-stream".to_owned()),
             (
                 header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{id}.emberreplay\""),
+                format!("attachment; filename=\"{name}\""),
             ),
             (header::CACHE_CONTROL, "public, max-age=300".to_owned()),
         ],

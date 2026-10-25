@@ -11,7 +11,7 @@ use common::{
 };
 use ember_protocol::{
     encoding::b64,
-    replays::{EXPORT_MAGIC, RECORD_BYTES, ReplayUpload, crc32},
+    replays::{EXPORT_MAGIC, RECORD_BYTES, ReplayUpload, archive_name, crc32},
 };
 use reqwest::{Method, StatusCode};
 use serde_json::{Value as Json_, json};
@@ -674,9 +674,11 @@ async fn the_file_is_the_export_for_a_listed_replay_and_nothing_else() {
     assert_eq!(response.status(), StatusCode::OK);
     let header = |name: &str| response.headers()[name].to_str().unwrap().to_owned();
     assert_eq!(header("content-type"), "application/octet-stream");
+    // Named as Ember's archive names it, so the Replays list shows it.
+    let named = archive_name(&export(now(&bridge) - 60, FIGHTERS, 1)).unwrap();
     assert_eq!(
         header("content-disposition"),
-        format!("attachment; filename=\"{id}.emberreplay\"")
+        format!("attachment; filename=\"{named}\"")
     );
     assert_eq!(header("cache-control"), "public, max-age=300");
     let bytes = response.bytes().await.unwrap();

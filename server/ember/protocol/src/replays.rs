@@ -131,6 +131,34 @@ pub fn read_export(export: &[u8]) -> Result<ExportInfo> {
     })
 }
 
+/// The name Ember's own archive gives an export, `20261025-143000-1a2b3c4d.emberreplay`:
+/// its record's save time (UTC) and the replay's CRC. The Replays list shows
+/// an export in the archive folder only under such a name.
+pub fn archive_name(export: &[u8]) -> Option<String> {
+    if export.len() < EXPORT_HEADER {
+        return None;
+    }
+    let saved = u64::from(read_u32(export, 8 + 13));
+    let crc = read_u32(export, 8 + 5);
+    let (days, seconds) = (saved / 86_400, saved % 86_400);
+    // Days since 1970 to a civil date (Howard Hinnant's algorithm).
+    let z = days as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let day_of_era = z - era * 146_097;
+    let year_of_era = (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let mp = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = year_of_era + era * 400 + i64::from(month <= 2);
+    Some(format!(
+        "{year:04}{month:02}{day:02}-{:02}{:02}{:02}-{crc:08x}.emberreplay",
+        seconds / 3600,
+        seconds / 60 % 60,
+        seconds % 60
+    ))
+}
+
 /// `POST /v1/replays`: one game the caller fought in an Ember room, keyed as
 /// the room host reports games (room, table, generation). `side` is the
 /// caller's player slot (0 or 1); `name` and `country` are how the caller's
@@ -427,6 +455,21 @@ mod tests {
         for bad in [changed_body, other_fighter, long_title, magic, too_big] {
             assert_eq!(read_export(&bad), Err(Error::InvalidField("replay")));
         }
+    }
+
+    #[test]
+    fn an_export_is_named_as_the_archive_names_it() {
+        let mut bytes = export(1_761_393_600);
+        bytes[8 + 13..8 + 17].copy_from_slice(&1_761_402_645u32.to_le_bytes());
+        bytes[8 + 5..8 + 9].copy_from_slice(&0x0a1b_2c3du32.to_le_bytes());
+        assert_eq!(
+            archive_name(&bytes).as_deref(),
+            Some("20251025-143045-0a1b2c3d.emberreplay")
+        );
+        let mut leap = bytes.clone();
+        leap[8 + 13..8 + 17].copy_from_slice(&951_782_400u32.to_le_bytes());
+        assert!(archive_name(&leap).unwrap().starts_with("20000229-000000-"));
+        assert_eq!(archive_name(&bytes[..10]), None);
     }
 
     #[test]
