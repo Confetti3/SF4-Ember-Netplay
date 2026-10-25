@@ -692,7 +692,8 @@ async fn the_file_is_the_export_for_a_listed_replay_and_nothing_else() {
         assert_eq!(refused["error"]["details"]["reason"], "replay_not_found");
     }
     // A held replay has no file to fetch.
-    let held = Game::new(&private_room(), 2, now(&bridge) - 60);
+    let private = private_room();
+    let held = Game::new(&private, 2, now(&bridge) - 60);
     uploaded(&bridge, &first, held.body(0, "Player 1", None)).await;
     let held_id: String = bridge
         .state()
