@@ -33,8 +33,8 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     Require(faces[0].first==0&&faces[1].first==1&&faces[0].second<faces[1].second,"Replay portraits were not player 1 left, player 2 right");
     Require(faces.size()<8||(faces[6].first==12&&faces[7].first==-1),"A replay with one fighter unknown did not keep its side");
     SetPortraitProbe({});
-    Require(rows.size()==6&&rows[2].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
-        rows[3].value==loc::T("replays.spectated")&&rows[4].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay tags changed");
+    Require(rows.size()==7&&rows[3].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
+        rows[4].value==loc::T("replays.spectated")&&rows[5].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay tags changed");
     shell.Navigation().Focus("replay:a",rows);
     draw(nullptr,MenuInput::Select,1);draw("replay-choices");
     for(int i=0;i<3;++i){draw(nullptr,MenuInput::Right,1);draw();}

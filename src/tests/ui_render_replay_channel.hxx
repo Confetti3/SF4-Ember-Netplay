@@ -36,12 +36,12 @@ void ShootReplayChannel(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
         Require(shell.Navigation().Screen()=="replay-channel","The Replay channel did not open");};
     view.replays.ready=true;
     channel.queued=3;
-    show(Sharing::On,full,-1,"replay-channel");
+    show(Sharing::On,full,-1,"replay-channel-on");
     channel.queued=0;
     show(Sharing::Off,full,-1,"replay-channel-off");
     show(Sharing::NoAccount,std::make_shared<Page>(),-1,"replay-channel-no-account");
     // A page that failed: the service has no channel.
-    channel.page=netplay::rankings::Answered<std::shared_ptr<const Page>>{};channel.page.error="replay_channel_unavailable";++channel.page.finished;
+    channel.sharing=netplay::rankings::Answered<Sharing>{};channel.sharing.error="replay_channel_unavailable";++channel.sharing.finished;channel.page=netplay::rankings::Answered<std::shared_ptr<const Page>>{};channel.page.error="replay_channel_unavailable";++channel.page.finished;
     page("replay-channel");draw(nullptr,0,6);draw("replay-channel-unavailable");
     channel=netplay::channel::Status{};
 }

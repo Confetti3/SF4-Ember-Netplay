@@ -224,7 +224,7 @@ void UnavailableJourney() {
  Journey j; Open(j);
  AnswerSharing(j, Sharing::On, "replay_channel_unavailable");
  AnswerPage(j, {}, false, -1, "replay_channel_unavailable");
- Check(j.row("rc-unavailable") != nullptr, "A service without the channel shows no card");
+ Check(j.row("rc-unavailable") && j.rows.size() == 1, "A service without the channel shows more than its card");
 }
 
 void NoServiceJourney() {

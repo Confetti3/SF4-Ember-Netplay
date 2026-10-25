@@ -153,6 +153,11 @@ std::vector<MenuEntry> ReplayChannelPanel::Rows(const ShellView& v, bool identit
     }
     std::vector<MenuEntry> rows;
     const bool ours = status.bridge == bridge_;
+    // A service without the channel has nothing to choose or list: its card
+    // alone, with a short heading so the reason fits in every language.
+    const auto missing = [&](const std::string& error, bool loaded) { return !loaded && error == "replay_channel_unavailable"; };
+    if (ours && (missing(status.sharing.error, status.sharing.loaded) || missing(status.page.error, status.page.loaded)))
+        return {Card("rc-unavailable", loc::T("common.unavailable"), FailureText("replay_channel_unavailable"))};
     // Sharing first: what happens to the player's own games.
     if (ours && status.sharing.loaded && status.sharing.value == Sharing::NoAccount) {
         auto connect = Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("channel.connect_detail"));
@@ -165,7 +170,10 @@ std::vector<MenuEntry> ReplayChannelPanel::Rows(const ShellView& v, bool identit
         rows.push_back(Value("rc-share", loc::T("channel.share"), loc::T(on ? "common.on" : "common.off"), std::move(detail),
             !pending_ && !status.choosing && !identityPending));
     } else {
-        rows.push_back(InfoRow("rc-share-reading", loc::T("channel.share"), loc::T("public.updating"), loc::T("channel.share_detail")));
+        // Read again a while after a failure; until then it says so.
+        const bool failed = ours && !status.sharing.loading && !status.sharing.error.empty();
+        rows.push_back(InfoRow("rc-share-reading", loc::T("channel.share"), loc::T(failed ? "common.unavailable" : "public.updating"),
+            failed ? FailureText(status.sharing.error) : std::string(loc::T("channel.share_detail"))));
     }
     rows.push_back(Value("rc-fighter", loc::T("channel.fighter"), fighter_ < 0 ? loc::T("channel.all_fighters") : FighterName(fighter_),
         loc::T("channel.fighter_detail")));
@@ -173,7 +181,6 @@ std::vector<MenuEntry> ReplayChannelPanel::Rows(const ShellView& v, bool identit
     if (!page) {
         const bool failed = ours && !status.page.error.empty() && !status.page.loading;
         if (!failed) { rows.push_back(Card("rc-loading", loc::T("channel.loading"), {})); return rows; }
-        if (status.page.error == "replay_channel_unavailable") { rows.push_back(Card("rc-unavailable", FailureText(status.page.error), {})); return rows; }
         auto retry = Row("rc-error", FailureText(status.page.error), {});
         retry.height = StateCardHeight; retry.hint = loc::T("public.try_again");
         rows.push_back(std::move(retry));
