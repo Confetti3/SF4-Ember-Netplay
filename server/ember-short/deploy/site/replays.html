@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta name="description" content="Replays of games played in SF4 Ember Netplay rooms. Filter by fighter, class and player name, and download a replay to watch in Ember.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SF4 Ember Netplay">
+<meta property="og:title" content="Replays">
+<meta property="og:description" content="Games played in SF4 Ember Netplay rooms, with both players, fighters and classes.">
+<meta property="og:url" content="https://embernetplay.link/replays">
+<meta property="og:image" content="https://embernetplay.link/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141312">
+<title>Replays</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/assets/ember-emblem.png" type="image/png">
+<link rel="preload" href="/assets/fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/inter-latin-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/replays.js" defer></script>
+</head>
+<body class="wide replays-page">
+<div class="shell">
+<header class="site-header">
+<a class="brand-home" href="/" aria-label="SF4 Ember Netplay home"><img src="/assets/ember-emblem.png" width="44" height="44" alt=""><span class="brand-text"><span class="brand-name">EMBER</span><span class="brand-sub">SF4 / Rollback netplay</span></span></a>
+<nav class="site-nav" aria-label="Site"><a href="/rooms">Public rooms</a><a href="/rankings">Rankings</a><a href="/replays" aria-current="page">Replays</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Download</a><a href="https://discord.gg/uPNqF5A5uq" rel="noopener">Discord</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay" rel="noopener">GitHub</a></nav>
+</header>
+<main>
+<h1>Replays</h1>
+<p class="lead">Games players shared from Ember rooms, newest first. Download one and play it in Ember.</p>
+
+<div class="rank-classes" id="classes" role="group" aria-label="Show replays with a player in this class"></div>
+
+<div class="rank-toolbar" id="toolbar">
+<label class="rank-search"><span class="offscreen">Find a player</span><input type="search" id="search" placeholder="Find a player" autocomplete="off" spellcheck="false" maxlength="32" aria-keyshortcuts="/"></label>
+<label class="rank-field"><span>Fighter</span><select id="fighter"><option value="">All fighters</option></select></label>
+</div>
+<div class="rank-bar" id="bar" hidden>
+<p class="room-summary rank-summary" id="summary" role="status" aria-live="polite"></p>
+<div class="rank-actions">
+<button type="button" class="room-refresh" id="clear" hidden>Clear filters</button>
+<button type="button" class="room-refresh" id="refresh">Refresh</button>
+</div>
+</div>
+
+<div class="replay-board" id="board" aria-busy="true">
+<p class="room-summary" id="loading">Loading replays...</p>
+<div class="rank-skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+</div>
+<div class="replay-more" id="more-box" hidden><button type="button" class="room-action" id="more">Load more</button></div>
+<p class="status room-status" id="status" role="status" aria-live="polite"></p>
+
+<div class="panel-grid">
+<section class="panel" id="watch">
+<h2>Watching a replay</h2>
+<p>Replays play in <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Ember</a>, not in the browser. Download a replay here, then in Ember open <strong>Replays</strong>, then <strong>Open a file</strong>. Or skip the download: <strong>Replays</strong>, then <strong>Replay channel</strong> lists the same games in the game and plays them.</p>
+</section>
+<section class="panel" id="sharing">
+<h2>What is listed</h2>
+<p>A game from an Ember room is listed once both players have Discord connected to their Ember ID and neither has turned sharing off. Each entry shows the names, fighters and classes the players had in that game, and the file itself.</p>
+<p class="note">To stop sharing your games, open <strong>Online play</strong>, then <strong>Replay channel</strong> in Ember. Your replays leave this list at once, and come back if you turn sharing on again.</p>
+</section>
+</div>
+<noscript><div class="panel"><p>This page needs JavaScript to list the replays. In Ember, choose <strong>Replays</strong>, then <strong>Replay channel</strong>, to see them there.</p></div></noscript>
+</main>
+<footer>
+<p class="links"><a href="/">Home</a><a href="/rooms">Public rooms</a><a href="/rankings">Rankings</a><a href="/replays">Replays</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Releases</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/issues" rel="noopener">Report a bug</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/blob/HEAD/ATTRIBUTION.md" rel="noopener">Attribution</a></p>
+<p>Ember is an unofficial port of <a href="https://codeberg.org/adanducci/sf4e" rel="noopener">sf4e</a> by Anthony Danducci and contributors. It is not affiliated with Capcom or Valve; Street Fighter and its characters belong to Capcom.</p>
+<p>Text set in Inter by the Inter Project Authors, under the <a href="/assets/fonts/OFL.txt">SIL Open Font License</a>. Flags from flag-icons by Panayiotis Lipiridis, under the <a href="/assets/flags-LICENSE.txt">MIT License</a>.</p>
+</footer>
+</div>
+</body>
+</html>

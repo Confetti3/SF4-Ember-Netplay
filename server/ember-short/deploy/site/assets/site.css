@@ -1,5 +1,5 @@
 /* embernetplay.link: the landing page, the public rooms page, the rankings
-   page, the link page and the 404 page.
+   page, the replays page, the link page and the 404 page.
    Colours follow src/ui/Theme.cxx. Inter is a Latin subset of the game's
    own font files; see fonts/OFL.txt. */
 @font-face {
@@ -649,4 +649,51 @@ footer a:hover { color: var(--ivory); }
   .rank-search { flex-basis: 100%; }
   .rank-actions { width: 100%; }
   .rank-actions .room-refresh { flex: 1 1 auto; }
+}
+
+/* The replays page: the replay channel Ember shows under Replays, Replay
+   channel. Filters reuse the rankings page's chips and fields; faces and
+   flags are the rooms page's and the rankings page's. */
+.tier-dev { color: var(--ember-light); }
+.replay-list { display: grid; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; }
+.replay-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1.5rem minmax(0, 1fr) 18rem;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 4px;
+}
+.replay-side { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.replay-side .room-face { flex: none; }
+.replay-who { display: flex; flex-direction: column; min-width: 0; }
+.replay-player { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.replay-player .rank-class, .replay-player .rank-flag, .replay-win { flex: none; }
+.replay-under { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.replay-fighter { color: var(--muted); font-size: 0.85rem; line-height: 1.3; }
+.replay-win {
+  padding: 0 7px;
+  color: var(--ink);
+  background: var(--ember);
+  border-radius: 9px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 18px;
+}
+.replay-vs { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; text-align: center; }
+.replay-end { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.replay-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; color: var(--muted); font-size: 0.85rem; text-align: right; }
+.replay-date { white-space: nowrap; }
+.replay-end .room-action { flex: none; }
+.replay-more { display: flex; justify-content: center; margin: 0 0 12px; }
+.replay-more .room-action:disabled { opacity: 0.6; cursor: progress; }
+@media (max-width: 700px) {
+  .replay-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .replay-vs { margin-left: 42px; }
+  .replay-end { justify-content: space-between; margin-top: 4px; }
+  .replay-meta { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 4px 10px; text-align: left; }
 }

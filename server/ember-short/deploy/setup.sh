@@ -15,12 +15,16 @@
 #   /usr/local/lib/ember-short/ember-short      the service binary (root-owned)
 #   /etc/systemd/system/ember-short.service     runs it as a transient user on 127.0.0.1:47810
 #   /etc/nginx/conf.d/ember-short.conf          request rate zones for /s/, /rooms.json,
-#                                               /rankings.json and /link/, the five-second cache of the room
-#                                               list and the one-minute cache of the board
-#   /var/lib/nginx/ember-rooms/, ember-rankings/  those caches (owned by nginx's www-data)
+#                                               /rankings.json, /replays.json, the replay files and
+#                                               /link/, the five-second cache of the room list, the
+#                                               one-minute cache of the board, the fifteen-second cache
+#                                               of the replay lists and the one-day cache of replay files
+#   /var/lib/nginx/ember-rooms/, ember-rankings/, ember-replays/, ember-replay-files/
+#                                               those caches (owned by nginx's www-data)
 #   /etc/nginx/snippets/ember-short.conf        /s/ proxy, the /j, /m, /r and /start page, the landing,
-#                                               rooms, rankings and 404 pages, the /rooms.json and
-#                                               /rankings.json proxies to the Ember bridge
+#                                               rooms, rankings, replays and 404 pages, the /rooms.json,
+#                                               /rankings.json, /replays.json and /replays/ID.emberreplay
+#                                               proxies to the Ember bridge
 #                                               (127.0.0.1:47820), the /link/ proxies to it and
 #                                               to the staging bridge (127.0.0.1:47821) and
 #                                               /assets/, without access logs
@@ -28,9 +32,9 @@
 #                                               and each of those locations include
 #   /etc/nginx/sites-available/embernetplay.link  one include line in the 443 server
 #   /var/www/embernetplay.link/open.html         the page room, match and public room links open
-#   /var/www/embernetplay.link/index.html, rooms.html, rankings.html, 404.html, favicon.ico, assets/
+#   /var/www/embernetplay.link/index.html, rooms.html, rankings.html, replays.html, 404.html, favicon.ico, assets/
 #                                               the landing page, the public rooms page, the
-#                                               rankings page, the 404 page and their scripts,
+#                                               rankings page, the replays page, the 404 page and their scripts,
 #                                               styles, fonts and images
 # index.html replaces the placeholder ~/ember-web/setup.sh wrote, which that
 # script leaves alone once a page is there. Files this script installed under
@@ -50,8 +54,8 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 # The site's files, relative to site/ here and to $ROOT on the server.
-PAGES="open.html index.html rooms.html rankings.html 404.html favicon.ico"
-ASSETS="assets/site.css assets/open.js assets/rooms.js assets/rankings.js assets/home.js assets/flags.png assets/flags.json assets/flags-LICENSE.txt assets/faces.webp assets/og.jpg assets/ember-emblem.png assets/ember-background.webp
+PAGES="open.html index.html rooms.html rankings.html replays.html 404.html favicon.ico"
+ASSETS="assets/site.css assets/open.js assets/rooms.js assets/rankings.js assets/replays.js assets/home.js assets/flags.png assets/flags.json assets/flags-LICENSE.txt assets/faces.webp assets/og.jpg assets/ember-emblem.png assets/ember-background.webp
     assets/ember-background.jpg assets/fonts/inter-latin-400.woff2 assets/fonts/inter-latin-600.woff2
     assets/fonts/OFL.txt"
 for file in bin/ember-short ember-short.service nginx/ember-short-zone.conf \
@@ -90,7 +94,7 @@ restore() {
     if [ -f "$backup/headers" ]; then cp -a "$backup/headers" /etc/nginx/snippets/ember-short-headers.conf; else rm -f /etc/nginx/snippets/ember-short-headers.conf; fi
 }
 
-install -d -o www-data -g www-data -m 0700 /var/lib/nginx/ember-rooms /var/lib/nginx/ember-rankings
+install -d -o www-data -g www-data -m 0700 /var/lib/nginx/ember-rooms /var/lib/nginx/ember-rankings \n    /var/lib/nginx/ember-replays /var/lib/nginx/ember-replay-files
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-zone.conf" /etc/nginx/conf.d/ember-short.conf
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-locations.conf" /etc/nginx/snippets/ember-short.conf
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-headers.conf" /etc/nginx/snippets/ember-short-headers.conf
@@ -159,7 +163,9 @@ for attempt in 1 2 3 4 5; do
 done
 echo "service: $(curl -fsS http://127.0.0.1:47810/s/health || echo 'no answer')"
 echo "public:  $(curl -fsS --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/s/health || echo 'no answer')"
-for page in '' rooms rooms.json rooms.html rankings rankings.json rankings.html assets/rankings.js assets/og.jpg j j/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
+# Printed, never checked: the *.html names answer 404 on purpose (internal), and
+# replays.json and the replay file answer 404 until the bridge has the replay routes.
+for page in '' rooms rooms.json rooms.html rankings rankings.json rankings.html assets/rankings.js replays replays.json replays.html assets/replays.js \n    replays/00000000000000000000000000000000.emberreplay assets/og.jpg j j/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
     assets/ember-background.webp no-such-page; do
     echo "/$page:  $(curl -sS -o /dev/null -w '%{http_code} %{content_type}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/$page)"
 done
