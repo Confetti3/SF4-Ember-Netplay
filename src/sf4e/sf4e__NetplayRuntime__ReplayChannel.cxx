@@ -53,10 +53,11 @@ void ForgetQueue() {
 	runtime->replayChannel.Queued(0);
 }
 
-// A choice read anew may let an upload go now: the folder is read on the next look.
+// A choice read anew may let an upload go now: the folder is listed again on
+// the next look, while an upload on its way keeps its pair for its answer.
 void Installed(std::optional<Sharing> sharing) {
 	if (sharing == Sharing::Off) ForgetQueue();
-	runtime->replayUploads.Forget();
+	runtime->replayUploads.Relist();
 }
 }
 

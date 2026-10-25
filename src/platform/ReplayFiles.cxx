@@ -31,6 +31,7 @@
 #include "ReplayArchiveIndex.hxx"
 #include "ReplayArchivePass.hxx"
 #include "ReplayArchiveWorker.hxx"
+#include "../common/OrderedWorker.hxx"
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplaySummaryCache.hxx"
@@ -109,78 +110,49 @@ fs::path KnownFolder(REFKNOWNFOLDERID id) {
 // however late its names were bound.
 class ChannelQueue {
 public:
- ChannelQueue() : folder_(QueueFolder()), thread_([this] { Run(); }) {}
- ~ChannelQueue() { Stop(); }
  std::uint64_t Share(const std::string& emberId, bool on) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(state_);
   if (emberId != emberId_ || on != on_) { emberId_ = emberId; on_ = on; ++revision_; }
   return revision_;
  }
  // From the recording worker, which waits for the answer; never the game thread.
  replaychannel::Enqueued Enqueue(const slots::Bytes& body, const replaychannel::Game& game) {
-  auto answer = std::make_shared<std::promise<replaychannel::Enqueued>>();
-  auto done = answer->get_future();
-  if (!Post([this, body, game, answer] {
+  return worker_.Ask<replaychannel::Enqueued>([this, body, game] {
    bool shared = false;
-   { std::lock_guard<std::mutex> lock(mutex_); shared = on_ && game.revision == revision_ && game.emberId == emberId_; }
-   answer->set_value(shared ? replaychannel::Enqueue(folder_, body, game, static_cast<std::uint64_t>(_time64(nullptr)), PublishFile)
-    : replaychannel::Enqueued::Refused);
-  })) return replaychannel::Enqueued::Refused;
-  try { return done.get(); } catch (...) { return replaychannel::Enqueued::Failed; }
+   { std::lock_guard<std::mutex> lock(state_); shared = on_ && game.revision == revision_ && game.emberId == emberId_; }
+   return shared ? replaychannel::Enqueue(folder_, body, game, static_cast<std::uint64_t>(_time64(nullptr)), PublishFile)
+    : replaychannel::Enqueued::Refused;
+  }, replaychannel::Enqueued::Failed);
  }
- void Clear(const std::string& emberId) { Post([this, emberId] { replaychannel::Clear(folder_, emberId); }); }
- void Remove(const replaychannel::Entry& entry) { Post([entry] { replaychannel::Remove(entry); }); }
+ void Clear(const std::string& emberId) { worker_.Post([this, emberId] { replaychannel::Clear(folder_, emberId); }); }
+ void Remove(const replaychannel::Entry& entry) { worker_.Post([entry] { replaychannel::Remove(entry); }); }
  void WantRead() {
-  Post([this] {
+  worker_.Post([this] {
    auto entries = replaychannel::Pending(folder_, static_cast<std::uint64_t>(_time64(nullptr)));
-   std::lock_guard<std::mutex> lock(mutex_);
+   std::lock_guard<std::mutex> lock(state_);
    read_ = std::move(entries); fresh_ = true;
   });
  }
  bool TakeRead(std::vector<replaychannel::Entry>& entries) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(state_);
   if (!fresh_) return false;
   entries = std::move(read_); fresh_ = false;
   return true;
  }
- void Stop() {
-  { std::lock_guard<std::mutex> lock(mutex_); stop_ = true; wake_.notify_all(); }
-  if (thread_.joinable()) thread_.join();
- }
+ void Stop() { worker_.Stop(); }
 private:
  static fs::path QueueFolder() {
   const auto local = KnownFolder(FOLDERID_LocalAppData);
   return local.empty() ? local : local / L"sf4e" / L"replay-channel-queue";
  }
- bool Post(std::function<void()> job) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (stop_) return false;
-  jobs_.push_back(std::move(job));
-  wake_.notify_one();
-  return true;
- }
- void Run() noexcept {
-  for (;;) {
-   std::function<void()> job;
-   {
-    std::unique_lock<std::mutex> lock(mutex_);
-    wake_.wait(lock, [&] { return stop_ || !jobs_.empty(); });
-    // Jobs left at shutdown are dropped; an enqueue waiting on one is answered as failed.
-    if (stop_) { jobs_.clear(); return; }
-    job = std::move(jobs_.front()); jobs_.pop_front();
-   }
-   try { job(); } catch (...) {}
-  }
- }
- const fs::path folder_;
- std::mutex mutex_;
- std::condition_variable wake_;
- std::deque<std::function<void()>> jobs_;
+ const fs::path folder_ = QueueFolder();
+ std::mutex state_;
  std::vector<replaychannel::Entry> read_;
- bool fresh_ = false, stop_ = false, on_ = false;
+ bool fresh_ = false, on_ = false;
  std::string emberId_;
  std::uint64_t revision_ = 0;
- std::thread thread_;
+ // Last, so it starts after everything its jobs use and stops before it goes.
+ OrderedWorker worker_;
 };
 std::atomic<ChannelQueue*> channelQueue{nullptr};
 ChannelQueue& Channel() {

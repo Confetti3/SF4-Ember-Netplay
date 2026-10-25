@@ -3,9 +3,14 @@
 // (netplay/ReplayChannel.hxx): uploads only once the choice is read as on,
 // waits after failures, final failures, pages that append, and a change of
 // service forgetting what was asked.
+#include "../common/OrderedWorker.hxx"
 #include "../common/ReplayChannelQueue.hxx"
 #include "../netplay/ReplayChannel.hxx"
 
+#include <atomic>
+#include <chrono>
+#include <mutex>
+#include <thread>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -169,6 +174,55 @@ static void StaleListing() {
 	uploads.Asked();
 	uploads.Read({Queued("a2", "emb1_a", 110)}, replaychannel::Uploads::kCheckMs + 6);
 	CHECK(uploads.Size() == 1 && uploads.Next("emb1_a", 200)->game == "a2");
+}
+
+// A choice read while an upload is on its way lists the folder again but
+// keeps the pair: its answer still takes it out, once.
+static void RelistKeepsTheUpload() {
+	replaychannel::Uploads uploads;
+	uploads.Rescope("brg_1\nemb1_a");
+	uploads.Asked();
+	uploads.Read({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}, 0);
+	uploads.Sent(*uploads.Next("emb1_a", 200));
+	uploads.Relist();
+	CHECK(uploads.ReadDue(1));
+	const auto done = uploads.Answered(true);
+	CHECK(done && done->game == "a1" && !uploads.Answered(true));
+	uploads.Asked();
+	uploads.Read({Queued("a2", "emb1_a", 110)}, 2);
+	CHECK(uploads.Size() == 1 && uploads.Next("emb1_a", 200)->game == "a2");
+	// A listing asked before the relist is set aside.
+	uploads.Asked();
+	uploads.Relist();
+	uploads.Read({Queued("a1", "emb1_a", 100)}, 3);
+	CHECK(uploads.Size() == 1 && uploads.Next("emb1_a", 200)->game == "a2" && uploads.ReadDue(3));
+}
+
+// The queue's worker: answers in order; a job that throws answers `failed`;
+// at Stop a job not started is dropped and its waiting caller is answered
+// `failed` at once, even while another job is still running.
+static void Worker() {
+	{
+		OrderedWorker worker;
+		CHECK(worker.Ask<int>([] { return 7; }, -1) == 7);
+		CHECK(worker.Ask<int>([]() -> int { throw 1; }, -1) == -1);
+	}
+	OrderedWorker worker;
+	std::mutex gate;
+	std::unique_lock<std::mutex> held(gate);
+	std::atomic<bool> running{false};
+	worker.Post([&] { running = true; std::lock_guard<std::mutex> wait(gate); });
+	while (!running) std::this_thread::yield();
+	std::atomic<int> answer{0};
+	std::thread asker([&] { answer = worker.Ask<int>([] { return 7; }, -1); });
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	std::thread stopper([&] { worker.Stop(); });
+	for (int i = 0; i < 200 && answer == 0; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	CHECK(answer == -1); // answered while the first job still runs
+	held.unlock();
+	asker.join();
+	stopper.join();
+	CHECK(!worker.Post([] {}) && worker.Ask<int>([] { return 7; }, -1) == -1);
 }
 
 // The request state and the uploads together: an upload the helper never
@@ -348,6 +402,8 @@ int main() {
 	Uploads();
 	UploadLostAndRetried();
 	StaleListing();
+	RelistKeepsTheUpload();
+	Worker();
 	SharingReads();
 	UploadsWaitForTheChoice();
 	UploadFailures();

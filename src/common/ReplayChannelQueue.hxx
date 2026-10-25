@@ -241,8 +241,12 @@ public:
 		queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Entry& queued) { return queued.game == entry.game; }), queue_.end());
 		return entry;
 	}
-	// Forgets what was read, so the folder is listed on the next look.
+	// Forgets what was read and the pair on its way: a change of scope.
 	void Forget() { queue_.clear(); uploading_.reset(); checked_ = asked_ = stale_ = false; }
+	// Lists the folder again on the next look, keeping the pair on its way,
+	// whose answer still takes it out of the queue; a listing already asked
+	// for may predate a change, so it is set aside.
+	void Relist() { checked_ = false; if (asked_) stale_ = true; }
 	std::size_t Size() const { return queue_.size(); }
 
 private:
