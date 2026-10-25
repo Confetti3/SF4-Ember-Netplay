@@ -54,7 +54,7 @@ private:
     void Say(std::string text, bool error) { said_ = std::move(text); saidError_ = error; }
     void TakeAnswers(const ShellView& view, const Submit& submit);
 
-    std::string bridge_, lastScreen_, said_, readFor_;
+    std::string bridge_, lastScreen_, said_;
     bool saidError_ = false;
     // -1 for every fighter, else the native id either side played.
     int fighter_ = -1;

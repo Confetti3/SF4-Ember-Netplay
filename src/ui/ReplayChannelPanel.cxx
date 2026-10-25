@@ -18,8 +18,9 @@ namespace {
 using netplay::channel::Sharing;
 using netplay::tournament::Command;
 constexpr float StateCardHeight = 120;
-// How long a failed read of the choice waits before it is asked again.
-constexpr std::uint64_t AskAgainMs = 10 * 60000;
+// How long a read of the choice waits before it is asked again: after one the
+// runtime never took, after the helper was not up yet, and after any other failure.
+constexpr std::uint64_t ScopeWaitMs = 5000, HelperWaitMs = 15000, AskAgainMs = 10 * 60000;
 
 MenuEntry Card(std::string id, std::string label, std::string detail) {
     auto card = InfoRow(std::move(id), std::move(label), {}, std::move(detail));
@@ -80,12 +81,14 @@ void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, c
     ShellAction action;
     action.command.generation = v.session.generation;
     action.tournament.bridgeId = bridge_;
-    // The choice, for the runtime's uploads: once for each service, and again
-    // a while after a read that failed.
-    const bool unread = status.bridge != bridge_ || (!status.sharing.loaded && !status.sharing.loading && !status.choosing &&
-        status.nowMs >= askedMs_ + AskAgainMs);
-    if (unread && readFor_ != bridge_ + "\n" + std::to_string(status.sharing.finished)) {
-        readFor_ = bridge_ + "\n" + std::to_string(status.sharing.finished);
+    // The choice, for the runtime's uploads: whenever the runtime holds none
+    // for this service and Ember ID (a new service, or another Ember ID, which
+    // forgets it), and again a while after a read that failed, soon when only
+    // the helper was not up yet.
+    const bool unscoped = status.bridge != bridge_;
+    const std::uint64_t wait = unscoped ? ScopeWaitMs : status.sharing.error == "helper_unavailable" ? HelperWaitMs : AskAgainMs;
+    const bool unread = unscoped || (!status.sharing.loaded && !status.sharing.loading && !status.choosing);
+    if (unread && (!askedMs_ || status.nowMs >= askedMs_ + wait)) {
         askedMs_ = status.nowMs;
         auto read = action;
         read.tournament.op = Command::Op::ReplaySharing;
