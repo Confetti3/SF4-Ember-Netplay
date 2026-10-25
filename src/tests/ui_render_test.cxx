@@ -334,6 +334,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 
 #include "ui_render_public_rooms.hxx"
 #include "ui_render_rankings.hxx"
+#include "ui_render_replay_channel.hxx"
 #include "ui_render_match_hud.hxx"
 #include "ui_render_chat.hxx"
 #include "ui_render_latency.hxx"
@@ -1056,6 +1057,8 @@ int main(int argc, char** argv) {
                 ShootPublicRooms(shell,view,draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();},answerTickets,holdIdentity,heldTicket);
                 // Rankings: your class in each state and the board by class (ui_render_rankings.hxx).
                 ShootRankings(shell,view,draw,page);
+                // The Replay channel: sharing on and off, no account, a service without it (ui_render_replay_channel.hxx).
+                ShootReplayChannel(shell,view,draw,page);
                 view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
                 page("create");draw(nullptr,0,8);draw("create-public");
                 view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;

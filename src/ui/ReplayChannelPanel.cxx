@@ -88,7 +88,8 @@ void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, c
     const bool unscoped = status.bridge != bridge_;
     const std::uint64_t wait = unscoped ? ScopeWaitMs : status.sharing.error == "helper_unavailable" ? HelperWaitMs : AskAgainMs;
     const bool unread = unscoped || (!status.sharing.loaded && !status.sharing.loading && !status.choosing);
-    if (unread && (!askedMs_ || status.nowMs >= askedMs_ + wait)) {
+    if (unread && (!asked_ || status.nowMs >= askedMs_ + wait)) {
+        asked_ = true;
         askedMs_ = status.nowMs;
         auto read = action;
         read.tournament.op = Command::Op::ReplaySharing;

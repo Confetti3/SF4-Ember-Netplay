@@ -63,6 +63,7 @@ private:
     std::uint64_t lastRequest_ = 0, pageSeen_ = 0;
     // When the choice was last asked for, by the runtime's clock, to ask again
     // after a failure without asking every frame.
+    bool asked_ = false;
     std::uint64_t askedMs_ = 0;
 };
 } }
