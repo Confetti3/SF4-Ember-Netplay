@@ -58,7 +58,7 @@ struct Page {
 // rest wait and are tried again.
 inline bool UploadFinal(const std::string& failure) {
 	return failure == "replay_invalid" || failure == "replay_not_your_game" || failure == "invalid_request" ||
-		failure == "invalid_path" || failure == "replay_unreadable" || failure == "file_unreadable";
+		failure == "invalid_path" || failure == "replay_unreadable";
 }
 
 struct Status {
@@ -151,9 +151,10 @@ public:
 
 	// Whether an upload may go now: the player shares, nothing is on its way,
 	// and no wait after a failure is running.
-	bool MayUpload(std::uint64_t nowMs) const {
-		return status_.sharing.loaded && status_.sharing.value == Sharing::On && !upload_.id && nowMs >= uploadAfterMs_;
-	}
+	bool MayUpload(std::uint64_t nowMs) const { return SharesNow() && !upload_.id && nowMs >= uploadAfterMs_; }
+	// The choice read last is on and no other is on its way: a game played now
+	// may wait to be shared.
+	bool SharesNow() const { return status_.sharing.loaded && status_.sharing.value == Sharing::On && !choice_.id; }
 	void SentUpload(std::uint64_t id, std::uint64_t nowMs) {
 		if (!id) { Wait(nowMs, false); return; }
 		upload_ = {id, nowMs};

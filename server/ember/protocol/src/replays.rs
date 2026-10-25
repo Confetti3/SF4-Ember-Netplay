@@ -46,6 +46,8 @@ pub const REPLAY_INVALID: &str = "replay_invalid";
 pub const NOT_YOUR_GAME: &str = "replay_not_your_game";
 pub const UPLOAD_LIMIT: &str = "replay_upload_limit";
 pub const REPLAY_NOT_FOUND: &str = "replay_not_found";
+/// A public room's game the room host has not reported yet: sent again later.
+pub const NOT_REPORTED: &str = "replay_not_reported";
 
 /// An entry's id: 16 random bytes in lower-case hex.
 pub fn is_replay_id(id: &str) -> bool {

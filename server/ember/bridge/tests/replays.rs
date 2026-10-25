@@ -279,31 +279,32 @@ async fn a_public_game_is_listed_when_a_player_uploads_it_after_the_host_report(
 }
 
 #[tokio::test]
-async fn an_upload_before_the_host_report_waits_for_it() {
+async fn an_upload_before_the_host_report_is_sent_again_after_it() {
     let (bridge, fake) = start(false, &[]).await;
     let (first, second) = two(&bridge).await;
     let room_id = open_room(&bridge, &first, "198.51.100.1", 8).await;
     report(&fake, &room_id, 2, 1, &[]);
     let game = Game::new(&room_id, 1, now(&bridge) - 60);
 
-    let answer = uploaded(&bridge, &first, game.body(0, "Player 1", None)).await;
-    assert_eq!(answer, json!({ "state": "held" }));
-    assert!(listed(&page(&bridge, &first, "").await).is_empty());
+    // Nothing is kept for a public room's game before its report, so nobody
+    // can bind an upload to it first.
+    let (status, refused) = upload(&bridge, &first, game.body(0, "Player 1", None)).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{refused}");
+    assert_eq!(refused["error"]["details"]["reason"], "replay_not_reported");
+    assert_eq!(count(&bridge, "channel_replays").await, 0);
     assert!(listed(&public(&bridge, "").await).is_empty());
 
     report_games(&fake, &room_id, &[(1, &first, &second)]);
     ember_bridge::poll_rooms(bridge.state()).await;
+    let answer = uploaded(&bridge, &first, game.body(0, "Player 1", None)).await;
+    assert_eq!(answer["state"], "published");
     let after = page(&bridge, &first, "").await;
     assert_eq!(after["replays"].as_array().unwrap().len(), 1);
     let entry = &after["replays"][0];
     assert_eq!(entry["room"], "public");
     assert_eq!(entry["winner"], 0);
     assert_eq!(entry["sides"][0]["name"], "Player 1");
-    assert_eq!(entry["sides"][1]["name"], "Player 2");
-    // Sending it again says where it is listed.
-    let again = uploaded(&bridge, &first, game.body(0, "Player 1", None)).await;
-    assert_eq!(again["state"], "published");
-    assert_eq!(again["id"], entry["id"]);
+    assert_eq!(entry["id"], answer["id"]);
 }
 
 #[tokio::test]
@@ -323,16 +324,19 @@ async fn an_upload_for_a_game_the_host_reported_without_the_player_is_refused() 
     );
     assert_eq!(count(&bridge, "channel_replays").await, 0);
 
-    // A held upload for a game the report then names others for is dropped.
-    let held = Game::new(&room_id, 2, now(&bridge) - 50);
-    let answer = uploaded(&bridge, &third, held.body(0, "Player 3", None)).await;
-    assert_eq!(answer["state"], "held");
+    // Before the room reports a game, an outsider's upload of it is not kept,
+    // and once it does, it is refused as above.
+    let next = Game::new(&room_id, 2, now(&bridge) - 50);
+    let (status, _) = upload(&bridge, &third, next.body(0, "Player 3", None)).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
     report_games(
         &fake,
         &room_id,
         &[(1, &first, &second), (2, &first, &second)],
     );
     ember_bridge::poll_rooms(bridge.state()).await;
+    let (status, _) = upload(&bridge, &third, next.body(0, "Player 3", None)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
     assert_eq!(count(&bridge, "channel_replays").await, 0);
 }
 

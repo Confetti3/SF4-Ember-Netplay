@@ -117,6 +117,9 @@ void ReplayChannelPanel::TakeAnswers(const ShellView& v, const Submit& submit) {
     if (status.page.finished != pageSeen_) {
         pageSeen_ = status.page.finished;
         if (ours && !status.page.error.empty() && status.page.loaded) Say(FailureText(status.page.error), true);
+        // A filter changed while a page was on its way, which the runtime then
+        // did not take: the page for the filter shown is asked for now.
+        if (ours && status.page.error.empty() && status.fighter != fighter_ && Owns(lastScreen_)) wantPage_ = true;
     }
     if (!pending_ || !pending_->sent) return;
     const auto request = pending_->command.request;

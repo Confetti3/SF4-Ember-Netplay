@@ -94,7 +94,8 @@ restore() {
     if [ -f "$backup/headers" ]; then cp -a "$backup/headers" /etc/nginx/snippets/ember-short-headers.conf; else rm -f /etc/nginx/snippets/ember-short-headers.conf; fi
 }
 
-install -d -o www-data -g www-data -m 0700 /var/lib/nginx/ember-rooms /var/lib/nginx/ember-rankings \n    /var/lib/nginx/ember-replays /var/lib/nginx/ember-replay-files
+install -d -o www-data -g www-data -m 0700 /var/lib/nginx/ember-rooms /var/lib/nginx/ember-rankings \
+    /var/lib/nginx/ember-replays /var/lib/nginx/ember-replay-files
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-zone.conf" /etc/nginx/conf.d/ember-short.conf
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-locations.conf" /etc/nginx/snippets/ember-short.conf
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-headers.conf" /etc/nginx/snippets/ember-short-headers.conf
@@ -165,7 +166,8 @@ echo "service: $(curl -fsS http://127.0.0.1:47810/s/health || echo 'no answer')"
 echo "public:  $(curl -fsS --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/s/health || echo 'no answer')"
 # Printed, never checked: the *.html names answer 404 on purpose (internal), and
 # replays.json and the replay file answer 404 until the bridge has the replay routes.
-for page in '' rooms rooms.json rooms.html rankings rankings.json rankings.html assets/rankings.js replays replays.json replays.html assets/replays.js \n    replays/00000000000000000000000000000000.emberreplay assets/og.jpg j j/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
+for page in '' rooms rooms.json rooms.html rankings rankings.json rankings.html assets/rankings.js replays replays.json replays.html assets/replays.js \
+    replays/00000000000000000000000000000000.emberreplay assets/og.jpg j j/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
     assets/ember-background.webp no-such-page; do
     echo "/$page:  $(curl -sS -o /dev/null -w '%{http_code} %{content_type}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/$page)"
 done

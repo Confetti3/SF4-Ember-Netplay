@@ -3,9 +3,10 @@
 //! Discord account's choice to share its games.
 //!
 //! A replay is listed once the bridge knows both players' accounts. For a
-//! public room that is the host's report of the game, whichever of the
-//! report and the upload comes first. For a private room it is both
-//! players' uploads of the same game. A side's name and country are what
+//! public room that is the host's report of the game: an upload of a public
+//! room's game before its report is refused as not reported yet, and the
+//! game sends it again. For a private room it is both players' uploads of
+//! the same game. A side's name and country are what
 //! that side's own upload sent; a side that never uploaded shows the
 //! listing it chose for the ranking board. Whether an account shares is
 //! read each time a page is made, so changing it takes effect at once.
@@ -15,7 +16,8 @@ use ember_protocol::{
     EmberId,
     api::ErrorCode,
     replays::{
-        ChannelReplay, ChannelSide, ExportInfo, ListQuery, NOT_YOUR_GAME, PAGE_SIZE, ReplayPage,
+        ChannelReplay, ChannelSide, ExportInfo, ListQuery, NOT_REPORTED, NOT_YOUR_GAME, PAGE_SIZE,
+        ReplayPage,
         ReplaySharing, ReplayUpload, RoomKind, UploadAnswer, UploadState,
     },
     skill::{NO_ACCOUNT, SkillBadge},
@@ -177,6 +179,24 @@ fn refuse(reason: &'static str, message: &'static str) -> ApiFailure {
 
 fn not_your_game() -> ApiFailure {
     refuse(NOT_YOUR_GAME, "That game is not one this account played.")
+}
+
+fn not_reported() -> ApiFailure {
+    ApiFailure::new(
+        ErrorCode::ServiceUnavailable,
+        "The room has not reported that game yet; send it again later.",
+    )
+    .detail("reason", NOT_REPORTED)
+}
+
+/// Whether `room_id` is a public room's: open now, or one with a reported game.
+fn public_room(tx: &Transaction<'_>, room_id: &str) -> Result<bool> {
+    Ok(tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM rooms WHERE room_id = ?1)
+             OR EXISTS (SELECT 1 FROM channel_games WHERE room_id = ?1)",
+        [room_id],
+        |row| row.get(0),
+    )?)
 }
 
 /// Whether `account` shares its games.
@@ -341,6 +361,9 @@ pub fn upload(
                     publish(tx, &mut game, show, now)?;
                     game
                 }
+                // A public room's game waits for its report: nobody but its
+                // two players can be bound to it.
+                None if public_room(tx, &request.room_id)? => return Err(not_reported()),
                 None => insert(tx, upload, sides, RoomKind::Private, None, now)?,
             }
         }
@@ -438,6 +461,8 @@ pub fn reported(
         } else if accounts == [Some(loser.as_str()), Some(winner.as_str())] {
             1
         } else {
+            // Paired as a private game by players the report does not name.
+            tx.execute("DELETE FROM channel_replays WHERE seq = ?1", [game.seq])?;
             return Ok(());
         };
         game.kind = RoomKind::Public;

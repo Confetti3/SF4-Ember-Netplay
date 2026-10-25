@@ -26,11 +26,16 @@ A replay is published when all of these hold:
 2. Neither player has turned sharing off.
 3. The bridge knows both sides' accounts:
    - Public room: the room host's games report gives the winner and loser
-     (`skill::record_games`). One player's upload is enough.
+     (`skill::record_games`). One player's upload is enough. An upload that
+     comes before the report is refused as not reported yet (nothing is
+     kept, so nobody else can bind a replay to the game first) and the game
+     sends it again after a wait.
    - Private room: the bridge has no host report, so the replay is held until
      both players have uploaded the same game (room, table, generation).
 
-Sharing is on by default. Turning it off hides every published replay of that
+Sharing is on by default. Only games played while the choice is known to be
+on are queued, tagged with the Ember ID that played them, which alone uploads
+them. Turning it off hides every published replay of that
 player at once (they are filtered on every read, not deleted) and stops new
 ones. Turning it back on lists them again. The choice may change at any time.
 It is kept per Discord account, like the ranking choice, so it follows the
@@ -85,7 +90,7 @@ Capability `replay_channel` (only when `rooms.enabled`). Routes:
 | `GET /v1/replays/{id}/file` | none | the `.emberreplay` bytes (`application/octet-stream`), cached 5 minutes |
 
 List filters (query): `fighter` (FighterCatalog id, either side), `band`
-(1-10, either side), `name` (case-insensitive substring of either name),
+(1-10, either side), `name` (substring of either name, without case for ASCII letters),
 `before` (cursor: an entry id from the last page). 50 per page, newest first.
 
 Storage: migration 031 adds `replay_sharing` (per Discord account),

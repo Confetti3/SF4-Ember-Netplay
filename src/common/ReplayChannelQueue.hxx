@@ -31,9 +31,10 @@ constexpr std::size_t kMostQueued = 200;
 constexpr std::size_t kMostNameBytes = 32;
 
 // The game a replay was, as the bridge keys it, and the player as their own
-// game shows them. Never the opponent's name: each side's name comes from
-// that side's own upload.
+// game shows them, with the Ember ID that played it, which alone uploads it.
+// Never the opponent's name: each side's name comes from that side's own upload.
 struct Game {
+	std::string emberId;
 	std::string roomId;      // 32 lower-case hex digits
 	int table = -1;
 	std::uint64_t generation = 0;
@@ -45,7 +46,10 @@ struct Game {
 		const bool room = roomId.size() == 32 && std::all_of(roomId.begin(), roomId.end(), hex) &&
 			roomId.find_first_not_of('0') != std::string::npos;
 		const bool flag = country.empty() || (country.size() == 2 && std::all_of(country.begin(), country.end(), [](char c) { return c >= 'A' && c <= 'Z'; }));
-		const bool line = std::none_of(name.begin(), name.end(), [](char c) { return static_cast<unsigned char>(c) < 0x20 || c == 0x7F; });
+		const auto oneLine = [](const std::string& text) {
+			return std::none_of(text.begin(), text.end(), [](char c) { return static_cast<unsigned char>(c) < 0x20 || c == 0x7F; });
+		};
+		const bool line = oneLine(name) && !emberId.empty() && emberId.size() <= 128 && oneLine(emberId);
 		return room && table >= 0 && table < 256 && (side == 0 || side == 1) && !name.empty() && name.size() <= kMostNameBytes && line && flag;
 	}
 };
@@ -62,14 +66,14 @@ inline std::string RoomHex(const std::array<std::uint8_t, 16>& room) {
 constexpr const char* kGameMagic = "ember-channel-game 1";
 inline std::string GameText(const Game& game, std::uint64_t queuedAt) {
 	std::ostringstream out;
-	out << kGameMagic << '\n' << game.roomId << '\n' << game.table << '\n' << game.generation << '\n' << game.side << '\n'
+	out << kGameMagic << '\n' << game.emberId << '\n' << game.roomId << '\n' << game.table << '\n' << game.generation << '\n' << game.side << '\n'
 		<< queuedAt << '\n' << (game.country.empty() ? "-" : game.country) << '\n' << game.name << '\n';
 	return out.str();
 }
 inline bool ReadGame(const std::string& text, Game& game, std::uint64_t& queuedAt) {
 	std::istringstream in(text);
-	std::string magic, room, table, generation, side, queued, country, name, rest;
-	if (!std::getline(in, magic) || magic != kGameMagic || !std::getline(in, room) || !std::getline(in, table) ||
+	std::string magic, ember, room, table, generation, side, queued, country, name, rest;
+	if (!std::getline(in, magic) || magic != kGameMagic || !std::getline(in, ember) || !std::getline(in, room) || !std::getline(in, table) ||
 		!std::getline(in, generation) || !std::getline(in, side) || !std::getline(in, queued) ||
 		!std::getline(in, country) || !std::getline(in, name) || std::getline(in, rest)) return false;
 	const auto number = [](const std::string& digits, std::uint64_t& out) {
@@ -80,6 +84,7 @@ inline bool ReadGame(const std::string& text, Game& game, std::uint64_t& queuedA
 	std::uint64_t tableValue = 0, sideValue = 0;
 	Game read;
 	if (!number(table, tableValue) || !number(generation, read.generation) || !number(side, sideValue) || !number(queued, queuedAt)) return false;
+	read.emberId = ember;
 	read.roomId = room;
 	read.table = tableValue < 256 ? static_cast<int>(tableValue) : -1;
 	read.side = sideValue < 2 ? static_cast<int>(sideValue) : -1;
@@ -169,8 +174,9 @@ inline std::vector<Entry> Pending(const std::filesystem::path& folder, std::uint
 	return entries;
 }
 
-inline void Clear(const std::filesystem::path& folder) {
-	for (const auto& entry : Pending(folder, 0)) Remove(entry);
+// Removes the pairs `emberId` played: that player stopped sharing.
+inline void Clear(const std::filesystem::path& folder, const std::string& emberId) {
+	for (const auto& entry : Pending(folder, 0)) if (entry.value.emberId == emberId) Remove(entry);
 }
 
 } }

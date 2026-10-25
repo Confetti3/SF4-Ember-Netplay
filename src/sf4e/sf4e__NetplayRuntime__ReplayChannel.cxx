@@ -50,9 +50,9 @@ json UploadRequest(const std::string& bridge, const replaychannel::Entry& entry)
 	return request;
 }
 
-// A choice read as off: nothing of the player's waits to go.
+// A choice read as off: nothing this player played waits to go.
 void ForgetQueue() {
-	replaychannel::Clear(platform::replays::ChannelQueueFolder());
+	replaychannel::Clear(platform::replays::ChannelQueueFolder(), runtime->replayChannel.EmberId());
 	runtime->replayQueue.clear();
 	runtime->replayChannel.Queued(0);
 }
@@ -159,6 +159,10 @@ void TickReplayChannel(bool helperReady, std::uint64_t nowMs) {
 	if (runtime->replayQueue.empty()) {
 		runtime->replayQueueCheckedMs = nowMs;
 		runtime->replayQueue = replaychannel::Pending(platform::replays::ChannelQueueFolder(), static_cast<std::uint64_t>(_time64(nullptr)));
+		// Another Ember ID's games wait for it.
+		auto& queue = runtime->replayQueue;
+		queue.erase(std::remove_if(queue.begin(), queue.end(), [&](const replaychannel::Entry& entry) {
+			return entry.value.emberId != requests.EmberId(); }), queue.end());
 		requests.Queued(runtime->replayQueue.size());
 		if (runtime->replayQueue.empty()) return;
 	}

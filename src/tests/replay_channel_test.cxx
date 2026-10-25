@@ -22,6 +22,7 @@ static int failures = 0;
 
 static replaychannel::Game AGame(std::uint64_t generation) {
 	replaychannel::Game game;
+	game.emberId = "emb1_player1";
 	game.roomId = "0123456789abcdef0123456789abcdef";
 	game.table = 1; game.generation = generation; game.side = 0; game.name = "Player 1"; game.country = "GB";
 	return game;
@@ -59,7 +60,7 @@ static void Queue() {
 	auto pending = replaychannel::Pending(folder, 300);
 	CHECK(pending.size() == 2);
 	CHECK(pending.size() == 2 && pending[0].value.generation == 4 && pending[1].value.generation == 3);
-	CHECK(pending.size() == 2 && pending[1].value.name == "Player 1" && pending[1].value.country == "GB");
+	CHECK(pending.size() == 2 && pending[1].value.name == "Player 1" && pending[1].value.country == "GB" && pending[1].value.emberId == "emb1_player1");
 	// What the helper uploads is an export the game can import.
 	if (!pending.empty()) {
 		std::ifstream in(pending[0].replay, std::ios::binary);
@@ -83,9 +84,15 @@ static void Queue() {
 	CHECK(replaychannel::Enqueue(folder, Body(1761393900, 4), AGame(6), 100, Write));
 	for (const auto& entry : replaychannel::Pending(folder, 100)) { std::ofstream(entry.game, std::ios::trunc) << "x"; }
 	CHECK(replaychannel::Pending(folder, 100).empty());
+	// Stopping sharing clears that player's games, never another Ember ID's.
+	auto other = AGame(8); other.emberId = "emb1_player2";
 	CHECK(replaychannel::Enqueue(folder, Body(1761394000, 5), AGame(7), 100, Write));
-	replaychannel::Clear(folder);
-	CHECK(replaychannel::Pending(folder, 100).empty());
+	CHECK(replaychannel::Enqueue(folder, Body(1761394100, 6), other, 100, Write));
+	replaychannel::Clear(folder, "emb1_player1");
+	pending = replaychannel::Pending(folder, 100);
+	CHECK(pending.size() == 1 && pending[0].value.emberId == "emb1_player2");
+	auto noId = AGame(9); noId.emberId.clear();
+	CHECK(!replaychannel::Enqueue(folder, Body(1761394200, 7), noId, 100, Write));
 	std::filesystem::remove_all(folder, ignored);
 }
 
@@ -99,7 +106,10 @@ static void UploadsWaitForTheChoice() {
 	requests.FinishSharing("", Sharing::Off, 10);
 	CHECK(!requests.MayUpload(10));
 	requests.SentChoice(1, 12, 20);
+	// A choice on its way holds back uploads and new games until it is answered.
+	CHECK(!requests.SharesNow() && !requests.MayUpload(20));
 	requests.FinishChoice("", Sharing::On, 30);
+	CHECK(requests.SharesNow());
 	CHECK(requests.Published(30).chose == 1 && requests.MayUpload(30));
 	requests.SentUpload(13, 30);
 	CHECK(requests.Awaiting(13) == Kind::Upload && !requests.MayUpload(30));

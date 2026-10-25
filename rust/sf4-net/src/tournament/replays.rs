@@ -12,7 +12,7 @@ use std::{
 
 use ember_protocol::{
     replays::{
-        ListQuery, MAX_EXPORT, NOT_YOUR_GAME, REPLAY_INVALID, REPLAY_NOT_FOUND, REPLAYS_PATH,
+        ListQuery, MAX_EXPORT, NOT_REPORTED, NOT_YOUR_GAME, REPLAY_INVALID, REPLAY_NOT_FOUND, REPLAYS_PATH,
         ReplayPage, ReplaySharing, ReplayUpload, SHARING_PATH, SharingChoice, UPLOAD_LIMIT,
         UploadAnswer, file_path, is_replay_id, read_export,
     },
@@ -23,8 +23,9 @@ use serde::de::DeserializeOwned;
 use super::{Failure, Outcome, Shared, check_path, client};
 
 /// Refusals of the replay routes that the game words apart.
-const REASONS: [&str; 5] = [
+const REASONS: [&str; 6] = [
     NO_ACCOUNT,
+    NOT_REPORTED,
     REPLAY_INVALID,
     NOT_YOUR_GAME,
     UPLOAD_LIMIT,

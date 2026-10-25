@@ -415,6 +415,14 @@
           data.failed = false;
           data.loadedAt = Date.now();
           var known = data.replays && data.extra && quiet ? data.replays : null;
+          if (known) {
+            // An entry the first page no longer has in its span was hidden
+            // (its players stopped sharing): it goes from the pages below too.
+            var listed = {};
+            result.replays.forEach(function (entry) { listed[entry.id] = true; });
+            var oldest = result.replays.length ? result.replays[result.replays.length - 1].played_at : Infinity;
+            known = known.filter(function (entry) { return listed[entry.id] || entry.played_at < oldest; });
+          }
           var at = known && known.length ? result.replays.findIndex(function (entry) { return entry.id === known[0].id; }) : -1;
           if (at >= 0) {
             // New entries on top of the pages already loaded.
@@ -461,6 +469,7 @@
         if (!page) {
           status.textContent = 'Could not load older replays. Try again.';
           moreButton.disabled = false;
+          schedule(REFRESH_MS);
           return;
         }
         var seen = {};

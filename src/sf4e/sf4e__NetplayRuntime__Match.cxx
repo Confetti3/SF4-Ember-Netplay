@@ -272,12 +272,16 @@ void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFra
 
 bool GetRuntimeChannelGame(replaychannel::Game& game) {
 	if (!runtime || !runtime->match || !runtime->room || !UserApp::netplay || LocalIsSpectator()) return false;
+	// Only a game played while the player shares, as this Ember ID, waits to go.
+	const auto& channel = runtime->replayChannel;
+	if (!channel.SharesNow() || channel.EmberId().empty() || channel.EmberId() != runtime->room->Identity().emberId) return false;
 	const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 	const auto member = std::find_if(snapshot.members.begin(), snapshot.members.end(),
 		[&](const room::Member& item) { return item.id == snapshot.localMember; });
 	const auto slot = runtime->match->LocalSlot();
 	if (member == snapshot.members.end() || member->table < 0 || member->table >= room::TableCount || slot > 1) return false;
 	replaychannel::Game read;
+	read.emberId = channel.EmberId();
 	read.roomId = replaychannel::RoomHex(runtime->room->RoomId());
 	read.table = member->table;
 	read.generation = runtime->match->Generation();
