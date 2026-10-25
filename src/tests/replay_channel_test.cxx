@@ -198,6 +198,28 @@ static void RelistKeepsTheUpload() {
 	CHECK(uploads.Size() == 1 && uploads.Next("emb1_a", 200)->game == "a2" && uploads.ReadDue(3));
 }
 
+// Sharing went off: the pairs the runtime held go at once, so none of the
+// cleared ones is sent before a listing made after the clear; the pair on
+// its way keeps its answer.
+static void DiscardOnOff() {
+	replaychannel::Uploads uploads;
+	uploads.Rescope("brg_1\nemb1_a");
+	uploads.Asked();
+	uploads.Read({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}, 0);
+	uploads.Sent(*uploads.Next("emb1_a", 200));
+	uploads.Asked();
+	uploads.Discard();
+	CHECK(uploads.Size() == 0 && !uploads.Next("emb1_a", 200));
+	// A listing asked before the clear is set aside.
+	uploads.Read({Queued("a2", "emb1_a", 110)}, 1);
+	CHECK(!uploads.Next("emb1_a", 200) && uploads.ReadDue(1));
+	const auto done = uploads.Answered(true);
+	CHECK(done && done->game == "a1");
+	uploads.Asked();
+	uploads.Read({}, 2);
+	CHECK(!uploads.Next("emb1_a", 200));
+}
+
 // The queue's worker: answers in order; a job that throws answers `failed`;
 // at Stop a job not started is dropped and its waiting caller is answered
 // `failed` at once, even while another job is still running.
@@ -403,6 +425,7 @@ int main() {
 	UploadLostAndRetried();
 	StaleListing();
 	RelistKeepsTheUpload();
+	DiscardOnOff();
 	Worker();
 	SharingReads();
 	UploadsWaitForTheChoice();

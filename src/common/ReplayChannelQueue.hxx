@@ -247,6 +247,9 @@ public:
 	// whose answer still takes it out of the queue; a listing already asked
 	// for may predate a change, so it is set aside.
 	void Relist() { checked_ = false; if (asked_) stale_ = true; }
+	// Drops the pairs read (sharing went off and they were cleared) until a
+	// listing made after now; the pair on its way keeps its answer.
+	void Discard() { queue_.clear(); Relist(); }
 	std::size_t Size() const { return queue_.size(); }
 
 private:

@@ -377,6 +377,7 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 	case Op::RankingBoard:
 		DispatchRankings(command, helperReady);
 		return;
+	case Op::ReplayScope:
 	case Op::ReplaySharing:
 	case Op::ReplayShare:
 	case Op::ReplayList:

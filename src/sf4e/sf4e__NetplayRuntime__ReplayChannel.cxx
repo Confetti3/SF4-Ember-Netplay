@@ -40,7 +40,7 @@ json ListRequest(const Command& command, const netplay::channel::Status& status)
 
 json UploadRequest(const std::string& bridge, const replaychannel::Entry& entry) {
 	const auto& game = entry.value;
-	json request = {{"op", "replay_upload"}, {"bridge_id", bridge}, {"file", Utf8(entry.replay)},
+	json request = {{"op", "replay_upload"}, {"bridge_id", bridge}, {"ember_id", game.emberId}, {"file", Utf8(entry.replay)},
 		{"room_id", game.roomId}, {"table", game.table}, {"generation", game.generation},
 		{"side", game.side}, {"name", game.name}};
 	if (!game.country.empty()) request["country"] = game.country;
@@ -55,17 +55,24 @@ void ForgetQueue() {
 
 // A choice read anew may let an upload go now: the folder is listed again on
 // the next look, while an upload on its way keeps its pair for its answer.
+// Off also drops every pair the runtime holds, so none of the cleared ones
+// goes before a listing made after the clear.
 void Installed(std::optional<Sharing> sharing) {
-	if (sharing == Sharing::Off) ForgetQueue();
-	runtime->replayUploads.Relist();
+	if (sharing == Sharing::Off) { ForgetQueue(); runtime->replayUploads.Discard(); }
+	else runtime->replayUploads.Relist();
 }
 }
 
 namespace internal {
 void DispatchReplayChannel(const Command& command, bool helperReady) {
-	if (command.bridgeId.empty()) return;
 	auto& requests = runtime->replayChannel;
-	requests.Scope(command.bridgeId, CurrentId());
+	// The usable service, or none: the scope every other request and the
+	// uploads run under. The runtime then reads the choice by itself.
+	if (command.op == Command::Op::ReplayScope) {
+		requests.Scope(command.bridgeId, command.bridgeId.empty() ? std::string() : CurrentId());
+		return;
+	}
+	if (command.bridgeId.empty() || command.bridgeId != requests.Bridge()) return;
 	const auto now = GetTickCount64();
 	switch (command.op) {
 	case Command::Op::ReplaySharing:

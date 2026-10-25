@@ -57,7 +57,7 @@ struct Command {
 	enum class Op : std::uint8_t {
 		None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket, Watch,
 		RankingStanding, RankingChoose, RankingBoard,
-		ReplaySharing, ReplayShare, ReplayList, ReplayDownload,
+		ReplayScope, ReplaySharing, ReplayShare, ReplayList, ReplayDownload,
 	} op = Op::None;
 	std::string bridgeId, matchId;
 	// RoomCreate names and sizes the new room; RoomTicket names the room to join.
@@ -70,7 +70,8 @@ struct Command {
 	// country code the board lists (no listing when the name is empty).
 	bool ranked = false;
 	std::string listingName, listingCountry;
-	// ReplayShare: share the player's room games or not. ReplayList: the
+	// ReplayScope: the replay channel's service, which may be none (bridgeId
+	// empty). ReplayShare: share the player's room games or not. ReplayList: the
 	// fighter either side played (-1 for any), and whether to list the page
 	// after the entries already listed. ReplayDownload: the entry to download.
 	bool sharing = false, more = false;

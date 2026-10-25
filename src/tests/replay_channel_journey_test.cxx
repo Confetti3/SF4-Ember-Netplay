@@ -72,11 +72,11 @@ std::size_t Watches(const Journey& j, const std::string& file) {
 }
 
 // The Ember ID and its services are learned first, as Online play reads them.
-// The choice read that sends is on its way, as the runtime shows it.
+// The menu names the service; the runtime takes it and reads the choice.
 void Learn(Journey& j) {
  j.h.Screen("online"); j.h.Frame(0, 2);
  j.answerIdentityUntilIdle();
- if (!Sent(j, Op::ReplaySharing).empty()) {
+ if (!Sent(j, Op::ReplayScope).empty()) {
   j.h.view.replayChannel.bridge = "brg_1"; j.h.view.replayChannel.sharing.loading = true; j.h.Frame();
  }
 }
@@ -94,14 +94,15 @@ const char* FighterNameOf(int id) { return selection::FindFighter(id)->name; }
 
 void OpeningJourney() {
  Journey j; Open(j);
- const auto reads = Sent(j, Op::ReplaySharing);
- Check(reads.size() == 1 && reads[0]->bridgeId == "brg_1", "The sharing choice was not read once");
+ const auto scopes = Sent(j, Op::ReplayScope);
+ Check(scopes.size() == 1 && scopes[0]->bridgeId == "brg_1", "The service was not named to the runtime once");
+ Check(Sent(j, Op::ReplaySharing).empty(), "The menu read the choice the runtime is reading");
  const auto lists = Sent(j, Op::ReplayList);
  Check(lists.size() == 1 && lists[0]->fighter == -1 && !lists[0]->more, "Opening did not read the first page for every fighter");
  Check(j.row("rc-loading") && j.row("rc-share-reading"), "No loading rows before the answers");
  // Frames pass without answers: nothing is asked again.
  j.h.Frame(0, 30);
- Check(Sent(j, Op::ReplaySharing).size() == 1 && Sent(j, Op::ReplayList).size() == 1, "Requests were sent again every frame");
+ Check(Sent(j, Op::ReplayScope).size() == 1 && Sent(j, Op::ReplayList).size() == 1, "Requests were sent again every frame");
  AnswerSharing(j, Sharing::On);
  AnswerPage(j, {Game('b', 200, "Player 1", 23, "Player 2", 39), Game('a', 100, "Player 3", 1, "Player 4", 2)}, true);
  std::vector<std::string> ids;
@@ -246,7 +247,8 @@ void NoServiceJourney() {
  j.h.view.replays.ready = true;
  // An Ember ID that is off asks the services nothing.
  j.h.Screen("replays"); j.h.Choose("replay-channel"); j.h.Frame(0, 4);
- Check(Sent(j, Op::ReplaySharing).empty() && Sent(j, Op::ReplayList).empty(), "A request went without a usable service");
+ Check(Sent(j, Op::ReplayScope).empty() && Sent(j, Op::ReplaySharing).empty() && Sent(j, Op::ReplayList).empty(),
+  "A request went without a usable service");
  Check(j.row("rc-needs-setup") && j.row("rc-setup"), "No way to the setup without a service");
  j.h.Choose("rc-setup");
  Check(j.h.shell.Navigation().Screen() == "public-rooms", "The setup row does not open Public rooms");
@@ -267,17 +269,33 @@ void HiddenJourney() {
  Learn(j);
  // Another Ember ID: the runtime forgets the scope; Ember is hidden.
  j.h.view.identity.emberId = "emb1_other"; j.h.view.replayChannel = netplay::channel::Status{};
- const auto reads = Sent(j, Op::ReplaySharing).size();
+ const auto named = Sent(j, Op::ReplayScope).size();
  for (int i = 0; i < 3; ++i) Hidden(j);
- auto sent = Sent(j, Op::ReplaySharing);
- Check(sent.size() == reads + 1 && sent.back()->bridgeId == "brg_1", "Hidden, the service was not named once");
- Check(j.h.actions.back().tournament.op == Op::ReplaySharing, "The hidden naming was not a replay channel request");
+ auto sent = Sent(j, Op::ReplayScope);
+ Check(sent.size() == named + 1 && sent.back()->bridgeId == "brg_1", "Hidden, the service was not named once");
+ Check(j.h.actions.back().tournament.op == Op::ReplayScope, "The hidden naming was not a replay channel request");
  j.h.view.replayChannel.nowMs = 4999; Hidden(j);
- Check(Sent(j, Op::ReplaySharing).size() == reads + 1, "The naming was sent again too soon");
+ Check(Sent(j, Op::ReplayScope).size() == named + 1, "The naming was sent again too soon");
  j.h.view.replayChannel.nowMs = 5000; Hidden(j);
- Check(Sent(j, Op::ReplaySharing).size() == reads + 2, "A naming the runtime did not take was not sent again");
+ Check(Sent(j, Op::ReplayScope).size() == named + 2, "A naming the runtime did not take was not sent again");
  j.h.view.replayChannel.bridge = "brg_1"; j.h.view.replayChannel.nowMs = 20000; Hidden(j);
- Check(Sent(j, Op::ReplaySharing).size() == reads + 2, "The naming went on after the runtime held the service");
+ Check(Sent(j, Op::ReplayScope).size() == named + 2, "The naming went on after the runtime held the service");
+}
+
+// A service the player forgets is named as none, so the runtime drops its
+// scope and the choice it held; approving it again names it afresh.
+void ForgetServiceJourney() {
+ Journey j;
+ Learn(j);
+ const auto bridges = j.h.view.identity.bridges;
+ j.h.view.identity.bridges.clear(); j.h.Frame(0, 2);
+ auto sent = Sent(j, Op::ReplayScope);
+ Check(sent.back()->bridgeId.empty(), "Forgetting the service did not name none to the runtime");
+ j.h.view.replayChannel = netplay::channel::Status{}; j.h.Frame(0, 2);
+ const auto none = Sent(j, Op::ReplayScope).size();
+ j.h.view.identity.bridges = bridges; j.h.view.replayChannel.nowMs = 10000; j.h.Frame(0, 2);
+ sent = Sent(j, Op::ReplayScope);
+ Check(sent.size() == none + 1 && sent.back()->bridgeId == "brg_1", "Approving the service again did not name it afresh");
 }
 
 // The choice is read wherever the player is, since uploads wait for it.
@@ -285,14 +303,14 @@ void ReadAnywhereJourney() {
  Journey j;
  Learn(j);
  j.h.Screen("home"); j.h.Frame(0, 4);
- Check(Sent(j, Op::ReplaySharing).size() == 1 && Sent(j, Op::ReplayList).empty(), "The choice was not read away from the channel, or the channel was");
+ Check(Sent(j, Op::ReplayScope).size() == 1 && Sent(j, Op::ReplayList).empty(), "The service was not named away from the channel, or the channel was read");
 }
 }
 
 int main() {
  try {
   OpeningJourney(); SharingJourney(); FilterJourney(); MoreAndRefreshJourney(); WatchJourney();
-  NoAccountJourney(); UnavailableJourney(); NoServiceJourney(); ReadAnywhereJourney(); HiddenJourney();
+  NoAccountJourney(); UnavailableJourney(); NoServiceJourney(); ReadAnywhereJourney(); HiddenJourney(); ForgetServiceJourney();
   std::cout << "Replay channel journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

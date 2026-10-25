@@ -52,8 +52,8 @@ async fn connect_discord(running: &ember_bridge::Running, user_id: &str, ember_i
         .unwrap();
 }
 
-fn upload(bridge_id: &str, file: &std::path::Path, room_id: &str, side: u8, name: &str) -> Value {
-    json!({ "op": "replay_upload", "bridge_id": bridge_id, "file": file.to_string_lossy(),
+fn upload(bridge_id: &str, ember_id: &str, file: &std::path::Path, room_id: &str, side: u8, name: &str) -> Value {
+    json!({ "op": "replay_upload", "bridge_id": bridge_id, "ember_id": ember_id, "file": file.to_string_lossy(),
         "room_id": room_id, "table": 0, "generation": 1, "side": side, "name": name, "country": "GB" })
 }
 
@@ -85,11 +85,14 @@ async fn two_players_share_a_private_game_and_one_stops_sharing() {
     let bytes = export(now() - 600);
     std::fs::write(&file, &bytes).unwrap();
     let room_id = "5".repeat(32);
-    let held = ok(first.ask(upload(&bridge_id, &file, &room_id, 0, "Player 1")).await);
+    // An upload names the Ember ID that played the game; under another the
+    // helper sends nothing.
+    assert_eq!(refused(first.ask(upload(&bridge_id, &second_id, &file, &room_id, 0, "Player 1")).await), "identity_changed");
+    let held = ok(first.ask(upload(&bridge_id, &first_id, &file, &room_id, 0, "Player 1")).await);
     assert_eq!(held, json!({ "state": "held" }));
     let list = json!({ "op": "replay_list", "bridge_id": bridge_id, "query": {} });
     assert_eq!(ok(first.ask(list.clone()).await), json!({ "replays": [] }));
-    let published = ok(second.ask(upload(&bridge_id, &file, &room_id, 1, "Player 2")).await);
+    let published = ok(second.ask(upload(&bridge_id, &second_id, &file, &room_id, 1, "Player 2")).await);
     assert_eq!(published["state"], "published");
     let id = published["id"].as_str().unwrap().to_owned();
 
@@ -131,7 +134,7 @@ async fn two_players_share_a_private_game_and_one_stops_sharing() {
     // A file that is no replay never leaves the PC.
     let junk = first_dirs.0.join("junk.emberreplay");
     std::fs::write(&junk, b"EMBRPLY1 not a replay").unwrap();
-    assert_eq!(refused(first.ask(upload(&bridge_id, &junk, &room_id, 0, "Player 1")).await), "replay_unreadable");
+    assert_eq!(refused(first.ask(upload(&bridge_id, &first_id, &junk, &room_id, 0, "Player 1")).await), "replay_unreadable");
 
     first.task.abort();
     second.task.abort();

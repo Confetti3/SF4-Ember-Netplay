@@ -78,7 +78,8 @@ void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, c
     // A choice or download not sent yet is dropped on leaving; one on its way is still answered.
     if (!owned) { wantPage_ = wantMore_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
     TakeAnswers(v, submit);
-    if (bridge_.empty()) return;
+    // Nothing else is asked until the runtime holds the service.
+    if (Introduce(v, submit) || bridge_.empty() || status.bridge != bridge_) return;
     ShellAction action;
     action.command.generation = v.session.generation;
     action.tournament.bridgeId = bridge_;
@@ -88,13 +89,11 @@ void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, c
     // changes it.
     const bool noAccount = status.sharing.loaded && status.sharing.value == Sharing::NoAccount;
     if (!owned || (status.sharing.loaded && !noAccount)) wantSharing_ = false;
-    if (Introduce(v, submit) || (wantSharing_ && !status.sharing.loading && !status.choosing)) {
-        if (wantSharing_ && status.bridge == bridge_) {
-            wantSharing_ = false;
-            auto read = action;
-            read.tournament.op = Command::Op::ReplaySharing;
-            submit(std::move(read));
-        }
+    if (wantSharing_ && !status.sharing.loading && !status.choosing) {
+        wantSharing_ = false;
+        auto read = action;
+        read.tournament.op = Command::Op::ReplaySharing;
+        submit(std::move(read));
         return;
     }
     if (pending_ && !pending_->sent) {
@@ -113,19 +112,19 @@ void ReplayChannelPanel::Update(const ShellView& v, const std::string& screen, c
     if (!submit(std::move(action))) Say(loc::T("error.queue_failed"), true);
 }
 
-// Names the usable service to the runtime with a read of the choice, until
-// the runtime holds it for this service and Ember ID: again a few seconds after
-// one that was not taken. From then on the runtime reads the choice by itself.
+// Names the usable service to the runtime (ReplayScope), or that there is
+// none, whenever the runtime holds another: again a few seconds after one it
+// did not take. The runtime then reads the choice by itself.
 bool ReplayChannelPanel::Introduce(const ShellView& v, const Submit& submit) {
     const auto& status = v.replayChannel;
     const std::string scope = bridge_ + "\n" + v.identity.emberId;
-    if (bridge_.empty() || status.bridge == bridge_) return false;
+    if (status.bridge == bridge_) return false;
     if (introduced_ == scope && status.nowMs < introducedMs_ + IntroduceAgainMs) return false;
-    ShellAction read;
-    read.command.generation = v.session.generation;
-    read.tournament.op = Command::Op::ReplaySharing;
-    read.tournament.bridgeId = bridge_;
-    if (!submit(std::move(read))) return false;
+    ShellAction named;
+    named.command.generation = v.session.generation;
+    named.tournament.op = Command::Op::ReplayScope;
+    named.tournament.bridgeId = bridge_;
+    if (!submit(std::move(named))) return false;
     introduced_ = scope;
     introducedMs_ = status.nowMs;
     return true;

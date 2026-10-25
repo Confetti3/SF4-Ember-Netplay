@@ -11,6 +11,7 @@ use std::{
 };
 
 use ember_protocol::{
+    EmberId,
     replays::{
         ListQuery, MAX_EXPORT, NOT_REPORTED, NOT_YOUR_GAME, REPLAY_INVALID, REPLAY_NOT_FOUND,
         REPLAYS_PATH, ReplayPage, ReplaySharing, ReplayUpload, SHARING_PATH, SharingChoice,
@@ -35,6 +36,7 @@ const UNAVAILABLE: &str = "replay_channel_unavailable";
 
 /// What the game says of a game it archived, beside the file.
 pub struct Upload {
+    pub ember_id: EmberId,
     pub file: String,
     pub room_id: String,
     pub table: u8,
@@ -66,6 +68,7 @@ pub async fn upload(shared: &Arc<Shared>, bridge_id: &str, upload: Upload) -> Ou
     let answer: UploadAnswer = call(
         shared,
         bridge_id,
+        Some(&upload.ember_id),
         reqwest::Method::POST,
         REPLAYS_PATH.into(),
         Some(body),
@@ -88,7 +91,7 @@ pub async fn sharing(
         ),
         None => (reqwest::Method::GET, None),
     };
-    let sharing: ReplaySharing = call(shared, bridge_id, method, SHARING_PATH.into(), body).await?;
+    let sharing: ReplaySharing = call(shared, bridge_id, None, method, SHARING_PATH.into(), body).await?;
     to_json(&sharing)
 }
 
@@ -96,7 +99,7 @@ pub async fn sharing(
 pub async fn list(shared: &Arc<Shared>, bridge_id: &str, query: ListQuery) -> Outcome {
     query.check().map_err(|_| Failure::new("invalid_request"))?;
     let path = format!("{REPLAYS_PATH}{}", query_string(&query));
-    let page: ReplayPage = call(shared, bridge_id, reqwest::Method::GET, path, None).await?;
+    let page: ReplayPage = call(shared, bridge_id, None, reqwest::Method::GET, path, None).await?;
     page.check().map_err(|_| invalid_response())?;
     to_json(&page)
 }
@@ -224,15 +227,17 @@ fn percent_encode(text: &str) -> String {
     out
 }
 
-/// One replay route under the player session, read as `T`.
+/// One replay route under the player session, read as `T`; with `as_id`, only
+/// under that Ember ID's session.
 async fn call<T: DeserializeOwned>(
     shared: &Arc<Shared>,
     bridge_id: &str,
+    as_id: Option<&EmberId>,
     method: reqwest::Method,
     path: String,
     body: Option<Vec<u8>>,
 ) -> Result<T, Failure> {
-    let answered = client::with_session(shared, bridge_id, |bridge, token| {
+    let operation = |bridge: super::bridges::Approved, token: zeroize::Zeroizing<String>| {
         let (method, url, body) = (
             method.clone(),
             format!("{}{path}", bridge.origin),
@@ -242,8 +247,11 @@ async fn call<T: DeserializeOwned>(
             let (status, response) = shared.client.call(method, &url, Some(&token), body).await?;
             client::feature_answer(status, &response, 200, &REASONS, UNAVAILABLE).map(Some)
         }
-    })
-    .await?;
+    };
+    let answered = match as_id {
+        Some(ember_id) => client::with_session_as(shared, bridge_id, ember_id, operation).await?,
+        None => client::with_session(shared, bridge_id, operation).await?,
+    };
     serde_json::from_value(answered.ok_or_else(invalid_response)?).map_err(|_| invalid_response())
 }
 
@@ -266,7 +274,7 @@ mod tests {
 
     #[test]
     fn requests_have_the_shapes_the_game_sends() {
-        let upload = json!({ "op": "replay_upload", "bridge_id": "brg_x",
+        let upload = json!({ "op": "replay_upload", "bridge_id": "brg_x", "ember_id": "emb1_x",
             "file": r"C:\replays\a.emberreplay", "room_id": "ab".repeat(16), "table": 1,
             "generation": 4, "side": 0, "name": "Player 1", "country": "GB" });
         let sharing = json!({ "op": "replay_sharing", "bridge_id": "brg_x" });

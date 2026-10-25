@@ -470,9 +470,18 @@ pub(super) fn current_id(shared: &Shared) -> Result<EmberId, Failure> {
         .ok_or_else(|| Failure::new("identity_unavailable"))
 }
 
-async fn session(shared: &Arc<Shared>, bridge: &Approved) -> Result<Zeroizing<String>, Failure> {
+async fn session(
+    shared: &Arc<Shared>,
+    bridge: &Approved,
+    expected: Option<&EmberId>,
+) -> Result<Zeroizing<String>, Failure> {
     // A session opened by an identity the player has since replaced is never reused.
     let ember_id = current_id(shared)?;
+    // A session is only for the identity the request is on behalf of, when
+    // it names one: its token stays that identity's whatever happens after.
+    if expected.is_some_and(|expected| *expected != ember_id) {
+        return Err(Failure::new("identity_changed"));
+    }
     if let Some(token) = shared.client.cached(bridge, &ember_id) {
         return Ok(token);
     }
@@ -526,12 +535,40 @@ where
     F: Fn(Approved, Zeroizing<String>) -> Fut,
     Fut: std::future::Future<Output = Outcome>,
 {
+    session_run(shared, bridge_id, None, operation).await
+}
+
+/// `with_session`, only as `ember_id`: refused as `identity_changed`, before
+/// anything is sent, once the player's identity is another.
+pub(super) async fn with_session_as<F, Fut>(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    ember_id: &EmberId,
+    operation: F,
+) -> Outcome
+where
+    F: Fn(Approved, Zeroizing<String>) -> Fut,
+    Fut: std::future::Future<Output = Outcome>,
+{
+    session_run(shared, bridge_id, Some(ember_id), operation).await
+}
+
+async fn session_run<F, Fut>(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    expected: Option<&EmberId>,
+    operation: F,
+) -> Outcome
+where
+    F: Fn(Approved, Zeroizing<String>) -> Fut,
+    Fut: std::future::Future<Output = Outcome>,
+{
     let bridge = approved(shared, bridge_id)?;
-    let token = session(shared, &bridge).await?;
+    let token = session(shared, &bridge, expected).await?;
     match operation(bridge.clone(), token).await {
         Err(Failure(code)) if code == "unauthenticated" => {
             shared.client.forget_session(bridge_id);
-            let token = session(shared, &bridge).await?;
+            let token = session(shared, &bridge, expected).await?;
             operation(bridge, token).await
         }
         other => other,

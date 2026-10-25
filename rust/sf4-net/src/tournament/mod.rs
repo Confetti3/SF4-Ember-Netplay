@@ -201,6 +201,8 @@ pub enum Request {
     /// replay channel, with the game's key and the player's own side and name.
     ReplayUpload {
         bridge_id: String,
+        /// The Ember ID that played the game, which alone may upload it.
+        ember_id: String,
         file: String,
         room_id: String,
         table: u8,
@@ -810,6 +812,7 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::RankingBoard { bridge_id } => ranking::board(shared, &bridge_id).await,
         Request::ReplayUpload {
             bridge_id,
+            ember_id,
             file,
             room_id,
             table,
@@ -818,7 +821,9 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             name,
             country,
         } => {
+            let ember_id = EmberId::parse(&ember_id).map_err(|_| Failure::new("invalid_request"))?;
             let upload = replays::Upload {
+                ember_id,
                 file,
                 room_id,
                 table,
