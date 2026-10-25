@@ -1,5 +1,7 @@
 #pragma once
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -26,10 +28,11 @@ struct Speed { int from; float speed; };
 // canHit: at least one hitbox can hit. effects: indices into File::effects.
 // spawns: one per entry of effects, the frames of the script its spawn
 // command covers, {-1, -1} when the file gives none.
-// speeds: its list 4. interruptible, total: its header's, in script frames.
+// speeds: its list 4. last, interruptible, total: its header's last attack,
+// interruptible and last frames, in script frames.
 struct Script {
     bool canHit = false; std::vector<std::int32_t> effects; std::vector<std::array<int, 2>> spawns;
-    std::vector<Speed> speeds; int interruptible = 0, total = 0;
+    std::vector<Speed> speeds; int last = 0, interruptible = 0, total = 0;
 };
 // scripts: indexed by action id. An empty slot is an empty Script.
 struct File { std::vector<Script> scripts, effects; };
@@ -51,7 +54,7 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
         const std::uint64_t at = in.U32(table + i * 4);
         if (!at) continue;
         if (!in.Has(at, ScriptHeader)) return fail("a script runs past the end of the file");
-        out[i].interruptible = in.U16(at + 4); out[i].total = in.U16(at + 6);
+        out[i].last = in.U16(at + 2); out[i].interruptible = in.U16(at + 4); out[i].total = in.U16(at + 6);
         const std::size_t lists = in.U16(at + 0x12);
         const std::uint64_t base = at + ScriptHeader;
         if (!in.Has(base, lists * ListSize)) return fail("a script's commands run past the end of the file");
@@ -126,6 +129,20 @@ inline int GameFrames(const Script& script, float at, int to) {
         at += step;
     }
     return frames;
+}
+
+// Game frames a hit or block reaction takes from script frame `at`, moving
+// `speed` a frame, to its interruptible frame. The game spreads the frames up
+// to its last over the stun at one speed, the stun less one frame after
+// hitstop, then plays on at speed 1 (Actor::setupStunSlide, updateHitStun);
+// at speed 1 the two agree. -1 without a speed or a last frame before the end.
+// Read off Balrog's reactions to five of Ryu's normals.
+inline int StunFrames(const Script& script, float at, float speed) {
+    const int end = script.interruptible > 0 ? script.interruptible : script.total;
+    if (!(speed > 0) || script.last <= 0 || end <= script.last) return -1;
+    const long stretched = (std::max)(0L, std::lround(script.last / speed) - 1 - std::lround(at / speed));
+    at += stretched * speed;
+    return static_cast<int>(stretched) + (std::max)(0, static_cast<int>(std::ceil(end - at - 0.001f)));
 }
 
 // The attack boundary of a script whose attack is an effect it spawns (a

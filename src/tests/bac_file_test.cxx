@@ -99,7 +99,15 @@ int main() {
         const bac::Script& script = read.scripts[0];
         CHECK(script.interruptible == 54 && script.speeds.size() == 2 && script.speeds[1].from == 50 && script.speeds[0].speed == 2.0f);
         CHECK(bac::GameFrames(script, 0, 54) == 29 && bac::GameFrames(script, 2, 54) == 28 && bac::GameFrames(script, 54, 54) == 0);
-        CHECK(bac::GameFrames(model.scripts[0], 0, 10) == 10 && bac::GameFrames(bac::Script{{}, {}, {}, {}, {{0, 0.0f}}}, 0, 10) == -1);
+        CHECK(bac::GameFrames(model.scripts[0], 0, 10) == 10 && bac::GameFrames(bac::Script{{}, {}, {}, {{0, 0.0f}}}, 0, 10) == -1);
+    }
+    // A reaction as the game played Balrog's to Ryu's 5LP, 5MP, 5HP and 2MK,
+    // first frame after hitstop, and 5LP's at speed 1 again: frames to free less one.
+    {
+        const auto reaction = [](int last, int interruptible) { bac::Script script; script.last = last; script.interruptible = interruptible; return script; };
+        CHECK(bac::StunFrames(reaction(10, 14), 1.25f, 1.25f) == 12 && bac::StunFrames(reaction(12, 16), 0.6f, 0.6f) == 23);
+        CHECK(bac::StunFrames(reaction(39, 43), 2.4375f, 2.4375f) == 21 && bac::StunFrames(reaction(12, 16), 1, 1) == 15);
+        CHECK(bac::StunFrames(reaction(10, 14), 9.75f, 1) == 5 && bac::StunFrames(reaction(10, 14), 1, 0) == -1 && bac::StunFrames(reaction(0, 14), 1, 1) == -1);
     }
     for (int action : {-1, 1, 2, 3, 4, 5, 6, 999}) {
         first = last = -1;
