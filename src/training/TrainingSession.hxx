@@ -175,7 +175,8 @@ inline int ReplyLead(const ReplySchedule& schedule) {
 // frames from now to that free frame, -1 while not known. free: frames since
 // that free frame (0 on it), -1 while held or before any stun; out: what it
 // came out of while free counts. stretch: counts the hits, blocks and
-// reactions, so a change says the wait began again.
+// reactions, so a change says the wait began again; a knockdown is one with
+// the hit that began it.
 struct DummySeen { int freed = 0, held = 0, until = -1, free = -1, out = 0; unsigned stretch = 0; };
 // What the dummy's status holds it in, numbered as DummyPlan::when: 1 hit
 // or dizzy, 2 blockstun, 3 knocked down or getting up, 0 free. Not the
@@ -208,8 +209,11 @@ public:
         if (held) {
             if (!from_ || dummy.status != last_.status || dummy.action != last_.action || dummy.actionFrame < last_.actionFrame ||
                 dummy.comboDamage > last_.comboDamage) {
+                // A knockdown goes on from the hit that began it, lying down
+                // into getting up: one stretch, each part timed on its own.
+                if (!from_ || held != 3 || dummy.comboDamage > last_.comboDamage) ++stretch_;
                 // Getting up takes the same time whatever knocked the dummy down.
-                ++stretch_; elapsed_ = 0; key_ = Key(dummy.status, dummy.action, held == 3 ? -1 : attacker);
+                elapsed_ = 0; key_ = Key(dummy.status, dummy.action, held == 3 ? -1 : attacker);
             } else ++elapsed_;
             from_ = held; last_ = dummy;
             const auto known = learned_.find(key_);

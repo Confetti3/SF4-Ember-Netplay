@@ -31,22 +31,34 @@ struct PendingReply {
 // played; dropped: the pending reply went before it began; none: the stretch
 // was to reply with a recording and no slot that is on can be one.
 struct ReplyStep { bool stopped = false, made = false, started = false, dropped = false, none = false; };
+// Whether the plan replies to the stretch: to what holds the dummy, else to
+// what it came out of. A typed reply that begins with a hold (a charge) and
+// replies on getting up begins with a hit, which may knock the dummy down,
+// so the hold goes in from the hit; it is let go if the hit ends standing.
+inline bool RepliesTo(const DummyPlan& plan, const DummySeen& seen) {
+    const int cause = seen.held ? seen.held : seen.out;
+    return cause && (plan.when == 4 || plan.when == cause || (plan.when == 3 && seen.held == 1 && plan.hold >= 0));
+}
 class ReplyDecision {
 public:
     // Each observed frame, once the session has committed it. roll: any
-    // random number; each stretch rolls its chance once, as it is first seen.
+    // random number; each stretch rolls its chance once, as it is first seen
+    // to be one the plan replies to.
     ReplyStep Observe(const DummyPlan& plan, const DummySeen& seen, Session& session, unsigned roll) {
         ReplyStep step;
-        // Hit again: a reply already begun is dropped, and this stretch decides anew.
-        if (seen.held && seen.stretch != decided_ && session.Replying()) { session.StopReply(); step.stopped = true; }
-        const int cause = seen.held ? seen.held : seen.out;
-        if (pending_ && (seen.stretch != reply_.stretch || !cause || !SamePlan(plan, reply_.plan) ||
+        const bool repliesTo = RepliesTo(plan, seen);
+        // Hit again, or the stretch turned out to be none the plan replies
+        // to: a reply already begun is dropped, and a new stretch decides anew.
+        if (session.Replying() && ((seen.held && seen.stretch != decided_) || (seen.stretch == decided_ && !repliesTo))) {
+            session.StopReply(); step.stopped = true;
+        }
+        if (pending_ && (seen.stretch != reply_.stretch || !repliesTo || !SamePlan(plan, reply_.plan) ||
                 session.Bank().Revision() != reply_.revision || session.Epoch() != reply_.epoch)) {
             Reset(); step.dropped = true;
         }
-        if (!pending_ && cause && seen.stretch != decided_) {
+        if (!pending_ && repliesTo && seen.stretch != decided_) {
             decided_ = seen.stretch;
-            if (DummyReplies(plan, cause, roll)) { step.made = Make(plan, seen.stretch, session); step.none = !step.made; }
+            if (roll % 100 < static_cast<unsigned>(plan.chance)) { step.made = Make(plan, seen.stretch, session); step.none = !step.made; }
         }
         if (pending_ && ReplyBegins(reply_.schedule, seen)) {
             pending_ = false;

@@ -538,6 +538,32 @@ int main() {
                     }
                 }
             }
+            {
+                // A knockdown as the game plays it: the hit, lying down, getting
+                // up, shorter each than the charge. A charge replying on getting
+                // up holds from the hit through all three, so it comes out
+                // charged the first time too; a hit that ends standing lets it go.
+                auto reply = Plan({"[2]8K"});
+                reply.when = 3;
+                std::vector<unsigned> knockdown(5, 0u);
+                knockdown.insert(knockdown.end(), 33, ActorStatus::Damage);
+                knockdown.insert(knockdown.end(), 19, ActorStatus::Down);
+                knockdown.insert(knockdown.end(), 30, ActorStatus::Rise);
+                knockdown.insert(knockdown.end(), 120, 0u);
+                for (const int timing : {-1, 0, 2}) {
+                    Dummy dummy;
+                    const Run first = play(dummy, reply, timing, knockdown, Down);
+                    Require(first.free == 87 && first.read[6] == Down && first.button + 1 == first.free + (std::max)(Lead(reply) + 2, timing) &&
+                        first.move == first.button + 1 && !first.dropped, "A charge reply did not hold from the hit through a knockdown not seen before");
+                    const Run timed = play(dummy, reply, timing, knockdown, Down);
+                    Require(timed.button + 1 == timed.free + timing && (timing < 0 || timed.move == timed.button + 1) && !timed.dropped,
+                        "A charge reply's button did not meet the end of a timed knockdown");
+                }
+                Dummy standing;
+                const Run hit = play(standing, reply, 0, statuses(ActorStatus::Damage, 33, 0u, 0), Down);
+                Require(hit.read[6] == Down && hit.dropped && hit.move < 0 && hit.ended >= 0 && hit.ended <= 40,
+                    "A charge reply on getting up went on after a hit that ended standing");
+            }
         }
         std::puts("Training dummy control checks passed.");
         return 0;
