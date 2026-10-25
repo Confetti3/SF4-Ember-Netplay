@@ -17,8 +17,7 @@ use ember_protocol::{
     api::ErrorCode,
     replays::{
         ChannelReplay, ChannelSide, ExportInfo, ListQuery, NOT_REPORTED, NOT_YOUR_GAME, PAGE_SIZE,
-        ReplayPage,
-        ReplaySharing, ReplayUpload, RoomKind, UploadAnswer, UploadState,
+        ReplayPage, ReplaySharing, ReplayUpload, RoomKind, UploadAnswer, UploadState,
     },
     skill::{NO_ACCOUNT, SkillBadge},
 };
