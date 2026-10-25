@@ -94,12 +94,13 @@ List filters (query): `fighter` (FighterCatalog id, either side), `band`
 `before` (cursor: an entry id from the last page). 50 per page, newest first.
 
 Storage: migration 031 adds `replay_sharing` (per Discord account),
-`channel_games` (room, table, generation, winner and loser accounts, played
-at; written by `record_games` for every reported game and kept 14 days, since
-`rated_games` goes with the room) and `channel_replays` (one row per game: id,
+`channel_games` (room, table, generation, winner and loser accounts and
+their classes at the report, played at; written by `record_games` for every
+reported game and kept 14 days, since `rated_games` goes with the room) and `channel_replays` (one row per game: id,
 room kind, both accounts, names, fighters, bands, winner, played at, file
 sha256, size, which sides uploaded). Files live in the bridge's state folder
-under `replays/<sha256>.emberreplay`, created only where none exists.
+under `replays/<sha256>.emberreplay`, created only where none exists; the
+hourly sweep of files no row names waits for uploads under way.
 
 Limits: 300 uploads per account a day; the oldest replays are pruned past
 200,000 entries or 10 GB, whichever comes first; held private-room uploads
