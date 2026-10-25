@@ -403,10 +403,14 @@ const char* ReportChannel(updates::UpdateChannel channel) {
 Report Collect(const std::filesystem::path& directory, Metadata meta, const CrashContext& crash, const std::function<bool()>& cancelled,
     const Account& account, const std::function<void(const std::filesystem::path&)>& afterRead) {
     Report report; report.meta=std::move(meta);
+    // A crash report carries the crash record only when this crash wrote it:
+    // an older one would name another crash, and the tracker would group it there.
+    bool attachCrashRecord=true;
     if (report.meta.kind=="crash") {
         report.meta.exitCode=crash.exitCode; report.meta.exceptionCode=crash.exceptionCode; report.meta.crashAddress=crash.address;
         std::error_code ec;
-        if (std::filesystem::last_write_time(directory/L"sf4e-crash.log",ec)>=crash.started&&!ec) {
+        attachCrashRecord=std::filesystem::last_write_time(directory/L"sf4e-crash.log",ec)>=crash.started&&!ec;
+        if (attachCrashRecord) {
             std::ifstream file(directory/L"sf4e-crash.log",std::ios::binary); std::array<char,2048> bytes{};
             file.read(bytes.data(),static_cast<std::streamsize>(bytes.size()));
             const std::string header(bytes.data(),static_cast<std::size_t>(file.gcount()));
@@ -420,6 +424,7 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
     }
     for (const char* name:{"sf4e.log","launcher.log","sf4e-crash.log","sf4-net.log"}) {
         if (cancelled&&cancelled()) throw std::runtime_error("cancelled");
+        if (!attachCrashRecord&&name==std::string_view("sf4e-crash.log")) continue;
         std::error_code ec; if (!std::filesystem::is_regular_file(directory/name,ec)||ec) continue;
         const auto tail=ReadTail(directory/name,LogLimit);
         if (afterRead) afterRead(directory/name);
