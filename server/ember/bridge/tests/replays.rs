@@ -584,13 +584,20 @@ async fn a_game_against_a_player_without_an_account_is_held() {
     assert_eq!(status, StatusCode::FORBIDDEN);
 
     connect_discord(&bridge, "200", &second).await;
-    report_games(&fake, &room_id, &[(1, &first, &second), (2, &second, &first)]);
+    report_games(
+        &fake,
+        &room_id,
+        &[(1, &first, &second), (2, &second, &first)],
+    );
     ember_bridge::poll_rooms(bridge.state()).await;
     let next = Game::new(&room_id, 2, now(&bridge) - 30);
     let answer = uploaded(&bridge, &first, next.body(0, "Player 1", None)).await;
     assert_eq!(answer["state"], "published");
     let theirs = page(&bridge, &second, "").await;
-    assert_eq!(listed(&theirs), vec![answer["id"].as_str().unwrap().to_owned()]);
+    assert_eq!(
+        listed(&theirs),
+        vec![answer["id"].as_str().unwrap().to_owned()]
+    );
     assert_eq!(theirs["replays"][0]["sides"][1]["own"], true);
     assert_eq!(theirs["replays"][0]["winner"], 1);
 }

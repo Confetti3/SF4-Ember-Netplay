@@ -386,7 +386,12 @@ pub fn upload(
                     // the game, however long ago that was.
                     let uploader = upload.ember_id.as_str();
                     let (won, own, opponent, opponent_badge) = if report.winner_id == uploader {
-                        (side, report.winner_badge, report.loser_id, report.loser_badge)
+                        (
+                            side,
+                            report.winner_badge,
+                            report.loser_id,
+                            report.loser_badge,
+                        )
                     } else if report.loser_id == uploader {
                         (
                             other,

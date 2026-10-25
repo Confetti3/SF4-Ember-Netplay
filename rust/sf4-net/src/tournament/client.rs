@@ -853,7 +853,11 @@ mod tests {
                         Ok(read) => request.extend_from_slice(&buffer[..read]),
                     }
                 }
-                let line = String::from_utf8_lossy(&request).lines().next().unwrap_or_default().to_owned();
+                let line = String::from_utf8_lossy(&request)
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned();
                 let _ = held.send(line);
                 if let Some(released) = released.take() {
                     let _ = released.await;
