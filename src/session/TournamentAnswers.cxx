@@ -195,7 +195,8 @@ bool IsTournamentPlayOp(const std::string& op) {
 	return op == "match_claim" || op == "room_publish" || op == "game_prepare" || op == "game_report" ||
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
-		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board";
+		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
+		op == "replay_sharing" || op == "replay_share" || op == "replay_list" || op == "replay_download" || op == "replay_upload";
 }
 
 std::optional<TournamentAnswer> ReadTournamentAnswer(const nlohmann::json& event) {
@@ -435,6 +436,75 @@ std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const json
 			board.push_back(std::move(entry));
 		}
 		return board;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+std::optional<netplay::channel::Sharing> DecodeSharing(const nlohmann::json& data) {
+	using netplay::channel::Sharing;
+	try {
+		const auto sharing = Text(Strict(data, {"sharing"}), "sharing", 16);
+		if (sharing == "on") return Sharing::On;
+		if (sharing == "off") return Sharing::Off;
+		if (sharing == "no_account") return Sharing::NoAccount;
+		return std::nullopt;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+std::optional<netplay::channel::Page> DecodeChannelPage(const nlohmann::json& data) {
+	using namespace netplay::channel;
+	try {
+		const auto& object = Strict(data, {"replays", "more"});
+		const auto& rows = object.at("replays");
+		if (!rows.is_array() || rows.size() > PageSize) return std::nullopt;
+		Page page;
+		if (const auto more = object.find("more"); more != object.end()) {
+			if (!more->is_boolean()) return std::nullopt;
+			page.more = more->get<bool>();
+		}
+		for (const auto& row : rows) {
+			Strict(row, {"id", "played_at", "room", "sides", "winner", "size"});
+			Entry entry;
+			entry.id = Text(row, "id", 32);
+			if (!IsHex(entry.id, 32)) return std::nullopt;
+			entry.playedAt = Seconds(row, "played_at");
+			const auto room = Text(row, "room", 16);
+			if (room != "public" && room != "private") return std::nullopt;
+			entry.publicRoom = room == "public";
+			if (row.find("winner") != row.end()) entry.winner = static_cast<int>(Small(row, "winner", 1));
+			entry.size = Small(row, "size", 51335);
+			const auto& sides = row.at("sides");
+			if (!sides.is_array() || sides.size() != 2) return std::nullopt;
+			for (int side = 0; side < 2; ++side) {
+				const auto& value = Strict(sides[side], {"name", "country", "fighter", "badge", "own"});
+				const auto listing = DecodeListing(json{{"name", value.at("name")}});
+				auto& shown = entry.sides[side];
+				shown.name = listing.name;
+				if (value.find("country") != value.end()) shown.country = DecodeListing(json{{"name", "x"}, {"country", value.at("country")}}).country;
+				shown.fighter = static_cast<int>(Small(value, "fighter", 63));
+				if (const auto badge = value.find("badge"); badge != value.end()) shown.badge = DecodeBadge(*badge);
+				if (const auto own = value.find("own"); own != value.end()) {
+					if (!own->is_boolean()) return std::nullopt;
+					shown.own = own->get<bool>();
+				}
+			}
+			if (!page.entries.empty() && page.entries.back().playedAt < entry.playedAt) return std::nullopt;
+			page.entries.push_back(std::move(entry));
+		}
+		return page;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+std::optional<std::string> DecodeChannelFile(const nlohmann::json& data) {
+	try {
+		const auto file = Text(Strict(data, {"file"}), "file", 1024);
+		if (file.empty()) return std::nullopt;
+		return file;
 	} catch (const std::exception&) {
 		return std::nullopt;
 	}

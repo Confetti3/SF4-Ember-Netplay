@@ -256,6 +256,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(PublicRoomsPanel::Owns(screen)){
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
  }else if(RankingsPanel::Owns(screen)){rows=rankings_.Rows(v,screen,identity_.Waiting(),title);
+ }else if(ReplayChannelPanel::Owns(screen)){rows=replayChannel_.Rows(v,identity_.Waiting(),idle,title);
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(ReplaysPanel::Owns(screen)){rows=replays_.Rows(v,screen,idle,title);
  }else if(screen=="settings"){
@@ -450,6 +451,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  if(IdentityPanel::Owns(screen)){std::string own;Tone ownTone=Tone::Neutral;if(identity_.Status(own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(PublicRoomsPanel::Owns(screen)||screen=="create"){std::string own=status;Tone ownTone=statusTone;if(publicRooms_.Status(v,screen,own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(RankingsPanel::Owns(screen)){std::string own=status;Tone ownTone=statusTone;if(rankings_.Status(v,screen,own,ownTone)){status=own;statusTone=ownTone;}}
+ if(ReplayChannelPanel::Owns(screen)){std::string own=status;Tone ownTone=statusTone;if(replayChannel_.Status(v,screen,own,ownTone)){status=own;statusTone=ownTone;}}
  if(v.controllerUnavailable){status=loc::T(v.session.room==RoomState::Idle?"controller.disconnected":"controller.disconnected_room");statusTone=Tone::Error;}
  if(v.session.room==RoomState::Opening&&v.session.openingStalled){status=loc::T("room.opening_stalled");statusTone=Tone::Error;}
  const std::string sessionProblem=SessionProblem(v.session);
@@ -499,6 +501,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(publicRooms_.Activate(a,nav))return;
  }
  if(RankingsPanel::Owns(screen)){if(a.id==DiscordConnectScreen){identity_.Activate(a,v,nav);return;}if(rankings_.Activate(a,v,nav))return;}
+ if(ReplayChannelPanel::Owns(screen)){if(a.id==DiscordConnectScreen){identity_.Activate(a,v,nav);return;}if(replayChannel_.Activate(a,v,nav))return;}
  if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
  if(ControllerActivate(a,v,submit))return;
  // An opening room keeps its own screen, with its Stop row, until it joins.
@@ -513,7 +516,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
- else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
+ else if(a.id=="replays"||a.id=="controllers"||a.id==ReplayChannelPanel::Screen)nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
  else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
@@ -548,6 +551,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(a.id=="launch-update-check")SetLaunchCheck(a.delta>0);
  else if(a.id=="country-search")countryPicker_.Search(a.text);
  else if(ReplaysPanel::Owns(screen))replays_.Accept(a);
+ else if(ReplayChannelPanel::Owns(screen))replayChannel_.Accept(a);
  else if(CreateAdjust(a)){}
  else{
   auto prior=preferences_;
@@ -729,6 +733,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  {std::string said;if(publicRooms_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
  {std::string said;if(rankings_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
+ replayChannel_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit);
+ {std::string said;bool failed=false;if(replayChannel_.TakeSaid(said,failed)){notice_=said;noticeTone_=failed?Tone::Error:Tone::Success;noticeUntil_=now+6;}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
  if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();notice_=loc::T("public.setup_done");noticeTone_=Tone::Success;noticeUntil_=now+4;}
  // A tournament match that ended is announced wherever the player is: the
@@ -900,7 +906,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // On the country picker a typed letter goes to a country, so letters are no shortcuts there.
  if(screen==CountryPicker::Screen){menu_.typesText=true;if(!nav.Editing())for(const ImWchar typed:ImGui::GetIO().InputQueueCharacters){const auto row=countryPicker_.Jump(typed,nav.Focus());if(!row.empty())nav.Focus(row,rows);}}
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
- else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
+ else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable())||(ReplayChannelPanel::Owns(screen)&&replayChannel_.Refreshable()))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
@@ -938,6 +944,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(inRoom)RoomShortcut(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
   else if(RankingsPanel::Owns(screen))rankings_.Shortcut(a);
+  else if(ReplayChannelPanel::Owns(screen))replayChannel_.Shortcut(a);
  }else if(a.kind==MenuAction::Chosen){
   if(roomScreen)RoomAction(a,v,submit);
   else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);

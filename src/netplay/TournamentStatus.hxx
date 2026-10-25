@@ -48,7 +48,7 @@ struct Assignment {
 	bool ExpiredBy(std::uint64_t unixNow) const { return Expired() || (Waiting() && Lapsed(unixNow)); }
 };
 
-// The three public room ops and the three ranking ops ride the same channel as
+// The three public room ops, the three ranking ops and the replay channel's ride the same channel as
 // the tournament ones: they are bridge requests the helper answers by request
 // id, and their answers reach the runtime beside the assignment list's
 // (PublicRooms.hxx, Rankings.hxx). Watch asks to watch a match, and Stop ends
@@ -57,6 +57,7 @@ struct Command {
 	enum class Op : std::uint8_t {
 		None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket, Watch,
 		RankingStanding, RankingChoose, RankingBoard,
+		ReplaySharing, ReplayShare, ReplayList, ReplayDownload,
 	} op = Op::None;
 	std::string bridgeId, matchId;
 	// RoomCreate names and sizes the new room; RoomTicket names the room to join.
@@ -69,6 +70,12 @@ struct Command {
 	// country code the board lists (no listing when the name is empty).
 	bool ranked = false;
 	std::string listingName, listingCountry;
+	// ReplayShare: share the player's room games or not. ReplayList: the
+	// fighter either side played (-1 for any), and whether to list the page
+	// after the entries already listed. ReplayDownload: the entry to download.
+	bool sharing = false, more = false;
+	int fighter = -1;
+	std::string replayId;
 	// The interface's identity for a public room or ranking choice request,
 	// increasing, chosen by its panel. The runtime carries it to the request's
 	// answer, and a newer one supersedes a create, ticket or choice in flight.
@@ -77,10 +84,10 @@ struct Command {
 	bool Valid() const {
 		return bridgeId.size() <= MaxField && matchId.size() <= MaxField && roomId.size() <= MaxField &&
 			roomName.size() <= 64 && capacity >= 0 && capacity <= 16 && listingName.size() <= 32 &&
-			listingCountry.size() <= 2;
+			listingCountry.size() <= 2 && replayId.size() <= 64 && fighter >= -1 && fighter < 64;
 	}
 	std::size_t Bytes() const {
-		return bridgeId.size() + matchId.size() + roomName.size() + roomId.size() + listingName.size() + listingCountry.size();
+		return bridgeId.size() + matchId.size() + roomName.size() + roomId.size() + listingName.size() + listingCountry.size() + replayId.size();
 	}
 };
 

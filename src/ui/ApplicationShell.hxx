@@ -14,6 +14,7 @@
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/Rankings.hxx"
+#include "../netplay/ReplayChannel.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
@@ -33,6 +34,7 @@
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
 #include "RankingsPanel.hxx"
+#include "ReplayChannelPanel.hxx"
 #include "ReplaysPanel.hxx"
 #include "ProblemReportPanel.hxx"
 #include "UpdatePrompt.hxx"
@@ -169,6 +171,7 @@ struct ShellView {
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
     netplay::rankings::Status rankings;
+    netplay::channel::Status replayChannel;
     // Ember's replay archive, newest first, and what the runtime says of
     // replays (RuntimeSnapshot::Replays, ui/ReplaysView.hxx), as published.
     // A replay link's file waits there until the player answers: the Replays
@@ -280,6 +283,7 @@ public:
         identity_.Conceal();
         publicRooms_.Conceal();
         rankings_.Conceal();
+        replayChannel_.Conceal();
         // A link that was going on by itself starts again when Ember reopens,
         // with the services read again (identity_.Conceal dropped that read).
         roomLinkOpening_ = roomLinkOpening_ || publicRooms_.FollowingLink();
@@ -311,6 +315,7 @@ private:
     IdentityPanel identity_;
     PublicRoomsPanel publicRooms_;
     RankingsPanel rankings_;
+    ReplayChannelPanel replayChannel_;
     ReplaysPanel replays_;
     ProblemReportPanel reportPanel_;
     CountryPicker countryPicker_;

@@ -18,6 +18,8 @@
 #include "../common/ReplaySlots.hxx"
 #include "../common/ReplayFileSafety.hxx"
 
+namespace sf4e { namespace replaychannel { struct Game; } }
+
 namespace sf4e { namespace platform { namespace replays {
 
 // The slots a Versus battle saves into: the match list Sidecar gives the game
@@ -33,10 +35,13 @@ constexpr int kFirstMatchSlot = 280, kLastMatchSlot = replayslots::kSlots - 1;
 // running Steam client (its ActiveUser), empty when Steam is not running or
 // that account has no saves here. outbox holds replays on their way into the
 // archive (%LOCALAPPDATA%, so a failing archive folder does not stop it),
-// empty when Windows has no local settings folder.
+// empty when Windows has no local settings folder. channel holds replays
+// waiting for the replay channel (ReplayChannelQueue.hxx), and downloads
+// the replays taken from it, in their own folder beside the archive so its
+// listing never shows them as the player's own.
 struct Folders {
 	std::vector<std::filesystem::path> saves;
-	std::filesystem::path archive, active, outbox;
+	std::filesystem::path archive, active, outbox, channel, downloads;
 };
 Folders FindFolders();
 
@@ -107,7 +112,13 @@ ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write
 // so initial attribution uses account, slot change, fighters and native save
 // time within this match's lifetime. Body-bound notes thereafter are exact.
 // Both also ask for an archive pass (Archive).
-void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled);
+// A room game the player fights in names `channel`: once its names are bound,
+// its replay waits for the replay channel (ReplayChannelQueue.hxx).
+void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
+	const replaychannel::Game* channel = nullptr);
+// The replay channel's queued replays and where its downloads go.
+std::filesystem::path ChannelQueueFolder();
+std::filesystem::path ChannelDownloadFolder();
 void NoteMatchEnd();
 
 // Remembers that an archived replay was played with Watch now (watched.txt in

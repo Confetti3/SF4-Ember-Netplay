@@ -12,6 +12,7 @@ mod client;
 mod discord;
 mod play;
 mod ranking;
+mod replays;
 mod rooms;
 mod sign_in;
 mod sites;
@@ -26,7 +27,11 @@ use std::{
 };
 
 use ember_protocol::{
-    EmberId, encoding::Counter, play::PublishRoom, report::Outcome as GameOutcome,
+    EmberId,
+    encoding::Counter,
+    play::PublishRoom,
+    replays::{ListQuery, SharingChoice},
+    report::Outcome as GameOutcome,
     skill::RankingChoice,
 };
 use serde::{Deserialize, Serialize};
@@ -192,6 +197,39 @@ pub enum Request {
     RankingBoard {
         bridge_id: String,
     },
+    /// Uploads a game's archived replay (`file`, an `.emberreplay`) to the
+    /// replay channel, with the game's key and the player's own side and name.
+    ReplayUpload {
+        bridge_id: String,
+        file: String,
+        room_id: String,
+        table: u8,
+        generation: u64,
+        side: u8,
+        name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        country: Option<String>,
+    },
+    /// The player's choice to share their games on the replay channel.
+    ReplaySharing {
+        bridge_id: String,
+    },
+    ReplayShare {
+        bridge_id: String,
+        choice: SharingChoice,
+    },
+    /// A page of the replay channel.
+    ReplayList {
+        bridge_id: String,
+        #[serde(default)]
+        query: ListQuery,
+    },
+    /// Downloads a channel entry into `folder`, answered with its file.
+    ReplayDownload {
+        bridge_id: String,
+        id: String,
+        folder: String,
+    },
     GamePrepare {
         bridge_id: String,
         match_id: String,
@@ -258,6 +296,11 @@ impl Request {
             Self::RankingStanding { .. } => "ranking_standing",
             Self::RankingChoose { .. } => "ranking_choose",
             Self::RankingBoard { .. } => "ranking_board",
+            Self::ReplayUpload { .. } => "replay_upload",
+            Self::ReplaySharing { .. } => "replay_sharing",
+            Self::ReplayShare { .. } => "replay_share",
+            Self::ReplayList { .. } => "replay_list",
+            Self::ReplayDownload { .. } => "replay_download",
             Self::GamePrepare { .. } => "game_prepare",
             Self::GameReport { .. } => "game_report",
             Self::MatchLeave { .. } => "match_leave",
@@ -765,6 +808,37 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             ranking::choose(shared, &bridge_id, choice).await
         }
         Request::RankingBoard { bridge_id } => ranking::board(shared, &bridge_id).await,
+        Request::ReplayUpload {
+            bridge_id,
+            file,
+            room_id,
+            table,
+            generation,
+            side,
+            name,
+            country,
+        } => {
+            let upload = replays::Upload {
+                file,
+                room_id,
+                table,
+                generation,
+                side,
+                name,
+                country,
+            };
+            replays::upload(shared, &bridge_id, upload).await
+        }
+        Request::ReplaySharing { bridge_id } => replays::sharing(shared, &bridge_id, None).await,
+        Request::ReplayShare { bridge_id, choice } => {
+            replays::sharing(shared, &bridge_id, Some(choice)).await
+        }
+        Request::ReplayList { bridge_id, query } => replays::list(shared, &bridge_id, query).await,
+        Request::ReplayDownload {
+            bridge_id,
+            id,
+            folder,
+        } => replays::download(shared, &bridge_id, &id, &folder).await,
         Request::GamePrepare {
             bridge_id,
             match_id,

@@ -42,6 +42,7 @@
 #include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/RankingRequests.hxx"
+#include "../netplay/ReplayChannel.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
@@ -212,6 +213,12 @@ struct Runtime {
     netplay::publicrooms::Status publicRooms;
     // Rankings: the requests in flight and what the interface sees.
     netplay::rankings::Requests rankings;
+    // The replay channel: its requests, the uploads of this player's games,
+    // and when the queue was last looked at.
+    netplay::channel::Requests replayChannel;
+    std::uint64_t replayQueueCheckedMs = 0;
+    std::vector<replaychannel::Entry> replayQueue;
+    std::optional<replaychannel::Entry> replayUploading;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;
@@ -461,6 +468,11 @@ void ExpirePublicRooms(std::uint64_t nowMs);
 void DispatchRankings(const netplay::tournament::Command& command, bool helperReady);
 bool TakeRankingsAnswer(const session::TournamentAnswer& answer);
 void ExpireRankings(std::uint64_t nowMs);
+// The replay channel (sf4e__NetplayRuntime__ReplayChannel.cxx), the same way,
+// and its uploads, which go on their own.
+void DispatchReplayChannel(const netplay::tournament::Command& command, bool helperReady);
+bool TakeReplayChannelAnswer(const session::TournamentAnswer& answer);
+void TickReplayChannel(bool helperReady, std::uint64_t nowMs);
 
 // Controllers (sf4e__NetplayRuntime__Input.cxx).
 std::string DeviceName(const input::Device& device);

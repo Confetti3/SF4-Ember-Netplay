@@ -1,14 +1,19 @@
 #pragma once
 #include "ReplaySlots.hxx"
+#include "ReplayChannelQueue.hxx"
 #include "ReplayFileSafety.hxx"
 #include "Sha256.hxx"
 #include <algorithm>
 #include <cstdio>
 #include <ctime>
+#include <optional>
 #include <utility>
 
 namespace sf4e { namespace replayfiles {
-struct ReplayNames { std::string players[2]; bool spectated = false; };
+// The players' names Ember noted at a match's start, and for a room game the
+// local player fought, the game it was, which queues the replay for the
+// replay channel once the names are bound (ReplayChannelQueue.hxx).
+struct ReplayNames { std::string players[2]; bool spectated = false; std::optional<replaychannel::Game> channel; };
 struct RecordedSlot { replayslots::Bytes body, checksum; };
 
 // Native metadata has no verified Ember session/player identity. At the

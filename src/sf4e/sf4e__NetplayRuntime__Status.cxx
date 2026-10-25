@@ -419,6 +419,7 @@ PostPublishState Publish() {
     snapshot.tournament = TournamentStatus();
     snapshot.publicRooms = runtime->publicRooms;
     snapshot.rankings = runtime->rankings.Published(GetTickCount64());
+    snapshot.replayChannel = runtime->replayChannel.Published(GetTickCount64());
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();

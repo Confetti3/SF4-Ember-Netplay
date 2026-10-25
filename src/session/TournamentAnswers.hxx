@@ -9,13 +9,16 @@
 
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/Rankings.hxx"
+#include "../netplay/ReplayChannel.hxx"
 #include "../netplay/TournamentStatus.hxx"
 
 // The helper's answers to tournament play requests (match_claim,
 // room_publish, game_prepare, game_report, match_leave, match_watch,
 // match_unwatch, assignment_list) and
 // to public room requests (room_list, room_create, room_ticket) and ranking
-// requests (ranking_standing, ranking_choose, ranking_board),
+// requests (ranking_standing, ranking_choose, ranking_board) and replay
+// channel requests (replay_sharing, replay_share, replay_list, replay_download,
+// replay_upload),
 // held apart from the identity answers the Ember ID screens show. Each is
 // decoded completely into a typed reply, or not at all: a malformed answer
 // never reaches the state machine half-read.
@@ -50,5 +53,11 @@ std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::j
 // A ranking_standing or ranking_choose answer's standing, and a ranking_board answer's board.
 std::optional<netplay::rankings::Standing> DecodeStanding(const nlohmann::json& data);
 std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const nlohmann::json& data);
+
+// The replay channel: a replay_sharing or replay_share answer's choice, a
+// replay_list answer's page, and the file a replay_download answer wrote.
+std::optional<netplay::channel::Sharing> DecodeSharing(const nlohmann::json& data);
+std::optional<netplay::channel::Page> DecodeChannelPage(const nlohmann::json& data);
+std::optional<std::string> DecodeChannelFile(const nlohmann::json& data);
 
 } }

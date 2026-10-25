@@ -270,6 +270,25 @@ void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFra
 			capture.table, generation, capture.slot, static_cast<int>(result));
 }
 
+bool GetRuntimeChannelGame(replaychannel::Game& game) {
+	if (!runtime || !runtime->match || !runtime->room || !UserApp::netplay || LocalIsSpectator()) return false;
+	const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
+	const auto member = std::find_if(snapshot.members.begin(), snapshot.members.end(),
+		[&](const room::Member& item) { return item.id == snapshot.localMember; });
+	const auto slot = runtime->match->LocalSlot();
+	if (member == snapshot.members.end() || member->table < 0 || member->table >= room::TableCount || slot > 1) return false;
+	replaychannel::Game read;
+	read.roomId = replaychannel::RoomHex(runtime->room->RoomId());
+	read.table = member->table;
+	read.generation = runtime->match->Generation();
+	read.side = static_cast<int>(slot);
+	read.name = netplay::rankings::ListingName(member->name);
+	read.country = member->country.ToString();
+	if (!read.Valid()) return false;
+	game = std::move(read);
+	return true;
+}
+
 bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints) {
 	if (!runtime || !runtime->match || !UserApp::netplay || runtime->match->GetPhase() != session::IrohMatchSession::Phase::Started) return false;
 	endpoints.localPort = UserApp::netplay->client._ggpoPort;

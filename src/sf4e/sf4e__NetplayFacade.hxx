@@ -25,6 +25,8 @@
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/Rankings.hxx"
+#include "../netplay/ReplayChannel.hxx"
+#include "../common/ReplayChannelQueue.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/ReplayFiles.hxx"
@@ -278,6 +280,8 @@ namespace sf4e {
             netplay::publicrooms::Status publicRooms;
             // The player's ranking standing, the board and the last choice's answer.
             netplay::rankings::Status rankings;
+            // The replay channel: the player's choice to share, the page listed, a download and the uploads.
+            netplay::channel::Status replayChannel;
 		};
 		// Everything the overlay draws from, built on the game thread at the end
 		// of each outer tick and never changed afterwards. It owns its values:
@@ -366,6 +370,9 @@ namespace sf4e {
 		// A rollback-confirmed native result, with the save frame it was
 		// captured at and the input frame confirmed when it was published.
 		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame);
+		// The room game this PC fights in now, as the replay channel keys it,
+		// with the player's own name and flag; false when it watches or plays none.
+		bool GetRuntimeChannelGame(replaychannel::Game& game);
 		// The room has committed the end of the current match (any result).
 		// Notices about losing that match's stream or peer are moot then.
 		bool IsRuntimeMatchEndCommitted();

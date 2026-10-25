@@ -90,11 +90,17 @@ replayfiles::RecordingSnapshot RecordingSlots() {
 }
 replayfiles::NamePublication PublishNames(const fs::path& archive, const slots::Bytes& body, const replayfiles::ReplayNames& names) {
  const auto path = replayfiles::NamesPath(archive, body);
- return replayfiles::PublishBodyNames(path, body, names, [&](const slots::Bytes& bytes) {
+ const auto published = replayfiles::PublishBodyNames(path, body, names, [&](const slots::Bytes& bytes) {
   std::error_code error;
   fs::create_directories(path.parent_path(), error);
   return !error && PublishFile(path, bytes);
  });
+ // A room game is shared only once its names are bound to it for certain.
+ if (published == replayfiles::NamePublication::Published && names.channel && !names.spectated) {
+  const bool queued = replaychannel::Enqueue(FindFolders().channel, body, *names.channel, static_cast<std::uint64_t>(_time64(nullptr)), PublishFile);
+  spdlog::info("Replay channel: {} table={} generation={}", queued ? "queued" : "could not queue", names.channel->table, names.channel->generation);
+ }
+ return published;
 }
 replayfiles::RecordingWorker& Provenance() {
  // Explicit shutdown joins this owner outside the loader lock, as it does
@@ -210,9 +216,15 @@ Folders FindFolders() {
 	PWSTR appData = NULL, localAppData = NULL;
 	// Where replays go does not depend on Steam, so an outbox is drained even
 	// when no game's saves can be found.
-	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) folders.archive = fs::path(appData) / L"sf4e" / L"replays";
+	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) {
+		folders.archive = fs::path(appData) / L"sf4e" / L"replays";
+		folders.downloads = fs::path(appData) / L"sf4e" / L"replay-channel";
+	}
 	CoTaskMemFree(appData);
-	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) folders.outbox = fs::path(localAppData) / L"sf4e" / L"replay-outbox";
+	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) {
+		folders.outbox = fs::path(localAppData) / L"sf4e" / L"replay-outbox";
+		folders.channel = fs::path(localAppData) / L"sf4e" / L"replay-channel-queue";
+	}
 	CoTaskMemFree(localAppData);
 	if (folders.archive.empty() ||
 		RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS) return folders;
@@ -448,7 +460,8 @@ replayfiles::ArchiveWorker& Archiver() {
 }
 }
 
-void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled) {
+void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
+ const replaychannel::Game* channel) {
  try { Archiver().Want(); } catch (...) {}
  try {
   if (p1.size() > 1024 || p2.size() > 1024) { Provenance().Invalidate(); return; }
@@ -457,6 +470,7 @@ void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectatin
   event.time = static_cast<std::uint64_t>(_time64(nullptr));
   event.recordingEnabled = recordingEnabled;
   event.names = {{p1, p2}, spectating}; event.fighters[0] = fighter1; event.fighters[1] = fighter2;
+  if (channel && !spectating && channel->Valid()) event.names.channel = *channel;
   Provenance().Post(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
@@ -469,6 +483,9 @@ void NoteMatchEnd() {
   Provenance().Post(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
+
+fs::path ChannelQueueFolder() { return FindFolders().channel; }
+fs::path ChannelDownloadFolder() { return FindFolders().downloads; }
 
 void MarkWatched(const fs::path& file) {
 	try {

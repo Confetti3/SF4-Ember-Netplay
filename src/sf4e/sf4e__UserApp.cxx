@@ -240,9 +240,11 @@ static RuntimeGgpoStart StartRuntimeGgpo() {
         auto* const root = App::GetRootEvent();
         auto* const progress = root ? *RootEvent::GetProgressData(root) : nullptr;
         const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0;
+        sf4e::replaychannel::Game channel;
+        const bool roomGame = sf4e::NetplayFacade::GetRuntimeChannelGame(channel);
         sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name, netplay->spectating,
             netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID,
-            recordingEnabled);
+            recordingEnabled, roomGame ? &channel : nullptr);
     }
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
     sf4e::NetplayFacade::ResetGgpoBattleWatch();
