@@ -674,7 +674,7 @@ async fn the_file_is_the_export_for_a_listed_replay_and_nothing_else() {
         header("content-disposition"),
         format!("attachment; filename=\"{id}.emberreplay\"")
     );
-    assert_eq!(header("cache-control"), "public, max-age=86400");
+    assert_eq!(header("cache-control"), "public, max-age=300");
     let bytes = response.bytes().await.unwrap();
     assert_eq!(
         &bytes[..],

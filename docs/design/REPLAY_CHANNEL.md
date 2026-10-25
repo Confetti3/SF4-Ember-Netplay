@@ -53,21 +53,23 @@ player to any PC.
 ## Flow
 
 ```
-game: match ends ──▶ archive binds names ──▶ upload queue file
-       (%LOCALAPPDATA%\sf4e\replay-channel\<sha256>.upload)
-game ──small JSON op──▶ helper (reads the queue file itself)
+game: match ends ──▶ archive binds names ──▶ queue pair
+       (%LOCALAPPDATA%\sf4e\replay-channel-queue\<sha256>.emberreplay + .game)
+game ──small JSON op naming the file──▶ helper (reads the file itself)
 helper ──HTTPS + player session──▶ bridge POST /v1/replays
 bridge: verify, store file + row ──▶ list / file routes
 site: /replays.json (nginx cache) and /replays/<id>.emberreplay
-game: browse via helper ──▶ helper downloads into the archive ──▶ Watch
+game: browse via helper ──▶ helper downloads ──▶ Watch
 ```
 
-The game never sends replay bytes over its 8 KiB helper channel. It writes a
-queue file and names it; the helper accepts only names inside its own queue
-folder (no paths), reads the file, uploads and removes it on success or on a
-refusal that will never change. Downloads are written by the helper into
-`%APPDATA%\sf4e\replays\channel\` and answered with the file name, which the
-Replays screen's Watch then plays through the existing import.
+The game never sends replay bytes over its 8 KiB helper channel. It queues
+the export with a `.game` file beside it (the room, table, generation, side,
+name and flag) and names the export to the helper, which checks that it is an
+`.emberreplay` the game could import, uploads it and answers. The game removes
+the pair once the upload went or was refused for good, and drops pairs older
+than a week. Downloads are written by the helper into
+`%APPDATA%\sf4e\replay-channel\<id>.emberreplay`, never over another file,
+and answered with the file, which Watch then plays through the existing import.
 
 ## Bridge
 
@@ -80,7 +82,7 @@ Capability `replay_channel` (only when `rooms.enabled`). Routes:
 | `PUT /v1/replays/me` | player session | `{"sharing": bool}`, answered with `ReplaySharing` |
 | `GET /v1/replays` | player session | `ReplayPage` for the game, filters below |
 | `GET /v1/replays/public` | none | the same page for the website, cached 15 s |
-| `GET /v1/replays/{id}/file` | none | the `.emberreplay` bytes (`application/octet-stream`) |
+| `GET /v1/replays/{id}/file` | none | the `.emberreplay` bytes (`application/octet-stream`), cached 5 minutes |
 
 List filters (query): `fighter` (FighterCatalog id, either side), `band`
 (1-10, either side), `name` (case-insensitive substring of either name),
@@ -107,15 +109,17 @@ entry with both fighters' faces (the existing faces sprite), names, flags of
 class pills, the date, and a Download button. Watching is in game: the page
 says so and links the Ember download. `/replays.json` proxies
 `/v1/replays/public` (15 s cache), `/replays/<id>.emberreplay` proxies the
-file route (1 day cache, immutable). noindex like `/rankings`.
+file route (5 minute cache, so a player who stops sharing leaves the links soon). noindex like `/rankings`.
 
 ## Game
 
-- Replays screen: a new "Replay channel" row opens the channel list, newest
-  first, with a fighter filter. Choosing an entry downloads it (helper) and
-  starts Watch; it is then in the player's own archive too.
-- Online play: "Replay channel" opens the player's sharing choice
-  (Share my matches: On / Off) with a line saying what is shared.
+- Replays, Replay channel: the sharing choice first (Share my room games:
+  On / Off, or Connect Discord without an account), a fighter filter, then
+  the channel newest first with Load more. Choosing an entry downloads it
+  (helper, into %APPDATA%\sf4e\replay-channel) and plays it from the main
+  menu; in a room it is only downloaded.
+- The choice is read as soon as a service is usable, wherever the player is,
+  since uploads go only once it is known to be on. Off empties the queue.
 - The upload worker sends one queued upload at a time while the selected
   bridge offers `replay_channel`, retrying with backoff; queue files older
   than 7 days are dropped.

@@ -252,7 +252,7 @@ pub async fn file(State(state): State<AppState>, Path(id): Path<String>) -> Resu
                 header::CONTENT_DISPOSITION,
                 format!("attachment; filename=\"{id}.emberreplay\""),
             ),
-            (header::CACHE_CONTROL, "public, max-age=86400".to_owned()),
+            (header::CACHE_CONTROL, "public, max-age=300".to_owned()),
         ],
         bytes,
     )
