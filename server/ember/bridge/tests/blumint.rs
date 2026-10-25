@@ -479,6 +479,48 @@ async fn a_busy_player_is_refused_until_their_match_ends() {
     assert_ne!(next["matchId"], id.as_str());
 }
 
+// The match link's page asks, with no credential, whether its match is over
+// before it opens Ember, so a link left from a decided or closed set does not.
+#[tokio::test]
+async fn a_match_link_reads_over_once_the_set_is_decided_or_closed() {
+    let f = fixture().await;
+    let over = |id: String| {
+        let url = f.bridge.url(&format!("/v1/matches/{id}/link"));
+        let client = f.bridge.client.clone();
+        async move { common::read(client.get(url).send().await.unwrap()).await }
+    };
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 1).await;
+    let decided = created["matchId"].as_str().unwrap().to_owned();
+    assert_eq!(
+        over(decided.clone()).await,
+        (StatusCode::OK, json!({ "over": false }))
+    );
+    win(&f, &decided, 0, "game-1").await;
+    assert_eq!(
+        over(decided).await,
+        (StatusCode::OK, json!({ "over": true }))
+    );
+    let (_, created) = create(&f, "set-2", 2).await;
+    let closed = created["matchId"].as_str().unwrap().to_owned();
+    assert_eq!(
+        over(closed.clone()).await,
+        (StatusCode::OK, json!({ "over": false }))
+    );
+    let (status, _) = close(
+        &f,
+        json!({ "idempotencyKey": "set-2", "reason": "replaced" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        over(closed).await,
+        (StatusCode::OK, json!({ "over": true }))
+    );
+    let (status, _) = over("emt_00000000-0000-4000-8000-000000000000".into()).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
 // BluMint closes a match it no longer needs by the key it created it under,
 // and waits for the 200 before it creates the players' next one. A closed
 // match frees its players and is sent nothing more; a closed key makes no

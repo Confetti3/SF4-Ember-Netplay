@@ -210,8 +210,15 @@ The answer to `POST /v1/matches`, and `GET /v1/matches/{id}`, carry the
 match's `play_url`: `https://embernetplay.link/m#<bridge id>/<match id>`. It is
 the same for both players and safe to put in messages: only the match's two
 assigned Ember IDs can claim the match, and anyone else's Ember finds no such
-match in their list. The link itself does not expire, so you can store it;
-the match it opens does if nobody plays it (see "Matches nobody plays").
+match in their list. You can store the link, but it plays only while its
+match is open; a match nobody plays ends by itself (see "Matches nobody
+plays"). Once the match is completed, cancelled, failed or expired, the page
+says the match is over and asks for the newest link instead of opening Ember,
+and an Ember still in the match's room leaves it within about 10 seconds, or
+once the game on screen ends (a minute at most). The page learns this from
+`GET /v1/matches/{id}/link`, which needs no credential and answers only
+`{"over": true}` or `{"over": false}` (`404` for a match the bridge does not
+have).
 
 The page asks the player to choose Open in Ember, which hands Ember
 `ember://tournament/open?bridge=...&match=...`, and opens it by itself in a

@@ -14,14 +14,16 @@
 # What it changes:
 #   /usr/local/lib/ember-short/ember-short      the service binary (root-owned)
 #   /etc/systemd/system/ember-short.service     runs it as a transient user on 127.0.0.1:47810
-#   /etc/nginx/conf.d/ember-short.conf          request rate zones for /s/, /rooms.json and
-#                                               /rankings.json, the five-second cache of the room
+#   /etc/nginx/conf.d/ember-short.conf          request rate zones for /s/, /rooms.json,
+#                                               /rankings.json and /link/, the five-second cache of the room
 #                                               list and the one-minute cache of the board
 #   /var/lib/nginx/ember-rooms/, ember-rankings/  those caches (owned by nginx's www-data)
 #   /etc/nginx/snippets/ember-short.conf        /s/ proxy, the /j, /m, /r and /start page, the landing,
 #                                               rooms, rankings and 404 pages, the /rooms.json and
 #                                               /rankings.json proxies to the Ember bridge
-#                                               (127.0.0.1:47820) and /assets/, without access logs
+#                                               (127.0.0.1:47820), the /link/ proxies to it and
+#                                               to the staging bridge (127.0.0.1:47821) and
+#                                               /assets/, without access logs
 #   /etc/nginx/snippets/ember-short-headers.conf  HSTS, nosniff and no-referrer, which the server
 #                                               and each of those locations include
 #   /etc/nginx/sites-available/embernetplay.link  one include line in the 443 server
