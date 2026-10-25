@@ -5,6 +5,7 @@
 // account, a service without the channel, and no service at all.
 #include "public_rooms_journey_support.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../ui/NameMarks.hxx"
 #include "../ui/SignInSites.hxx"
 namespace {
 using netplay::channel::Entry;

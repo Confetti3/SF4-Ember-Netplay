@@ -70,6 +70,8 @@ async fn two_players_share_a_private_game_and_one_stops_sharing() {
     assert_eq!(ok(first.ask(sharing.clone()).await), json!({ "sharing": "no_account" }));
     let off = json!({ "op": "replay_share", "bridge_id": bridge_id, "choice": { "sharing": false } });
     assert_eq!(refused(first.ask(off.clone()).await), "no_discord_account");
+    // The second player's first request makes them known to the bridge too.
+    assert_eq!(ok(second.ask(sharing.clone()).await), json!({ "sharing": "no_account" }));
 
     connect_discord(&running, "100", &first_id).await;
     connect_discord(&running, "200", &second_id).await;
