@@ -561,6 +561,40 @@ async fn a_player_without_a_discord_account_shares_nothing() {
     assert_eq!(mine, json!({ "sharing": "on" }));
 }
 
+// A reported game is kept whatever accounts its players have. An upload whose
+// opponent has no account is held; once the opponent connects one, a later
+// game's upload lists both.
+#[tokio::test]
+async fn a_game_against_a_player_without_an_account_is_held() {
+    let (bridge, fake) = start(false, &[]).await;
+    let first = player(&bridge, 1).await;
+    connect_discord(&bridge, "100", &first).await;
+    let second = player(&bridge, 2).await;
+    let room_id = played(&bridge, &fake, &first, &[(1, &first, &second)]).await;
+    assert_eq!(count(&bridge, "channel_games").await, 1);
+
+    let game = Game::new(&room_id, 1, now(&bridge) - 60);
+    let answer = uploaded(&bridge, &first, game.body(0, "Player 1", None)).await;
+    assert_eq!(answer, json!({ "state": "held" }));
+    assert!(listed(&public(&bridge, "").await).is_empty());
+    // A stranger cannot fill the side with no account.
+    let third = player(&bridge, 3).await;
+    connect_discord(&bridge, "300", &third).await;
+    let (status, _) = upload(&bridge, &third, game.body(1, "Player 3", None)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    connect_discord(&bridge, "200", &second).await;
+    report_games(&fake, &room_id, &[(1, &first, &second), (2, &second, &first)]);
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let next = Game::new(&room_id, 2, now(&bridge) - 30);
+    let answer = uploaded(&bridge, &first, next.body(0, "Player 1", None)).await;
+    assert_eq!(answer["state"], "published");
+    let theirs = page(&bridge, &second, "").await;
+    assert_eq!(listed(&theirs), vec![answer["id"].as_str().unwrap().to_owned()]);
+    assert_eq!(theirs["replays"][0]["sides"][1]["own"], true);
+    assert_eq!(theirs["replays"][0]["winner"], 1);
+}
+
 #[tokio::test]
 async fn pages_are_newest_first_and_filter_by_fighter_class_and_name() {
     let (bridge, fake) = start(true, &[]).await;

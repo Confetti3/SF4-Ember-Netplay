@@ -25,8 +25,10 @@ A replay is published when all of these hold:
    there is nowhere to keep a choice to stop sharing, so the replay is held.
 2. Neither player has turned sharing off.
 3. The bridge knows both sides' accounts:
-   - Public room: the room host's games report gives the winner and loser
-     (`skill::record_games`). One player's upload is enough. An upload that
+   - Public room: the room host's games report gives the winner's and
+     loser's Ember IDs (`skill::record_games`, every reported game), and their
+     accounts are looked up when an upload comes. One player's upload is
+     enough; one whose opponent has no account then is held. An upload that
      comes before the report is refused as not reported yet (nothing is
      kept, so nobody else can bind a replay to the game first) and the game
      sends it again after a wait.
@@ -94,7 +96,7 @@ List filters (query): `fighter` (FighterCatalog id, either side), `band`
 `before` (cursor: an entry id from the last page). 50 per page, newest first.
 
 Storage: migration 031 adds `replay_sharing` (per Discord account),
-`channel_games` (room, table, generation, winner and loser accounts and
+`channel_games` (room, table, generation, winner and loser Ember IDs and
 their classes at the report, played at; written by `record_games` for every
 reported game and kept 14 days, since `rated_games` goes with the room) and `channel_replays` (one row per game: id,
 room kind, both accounts, names, fighters, bands, winner, played at, file

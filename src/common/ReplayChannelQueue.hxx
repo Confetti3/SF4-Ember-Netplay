@@ -197,20 +197,24 @@ inline void Clear(const std::filesystem::path& folder, const std::string& emberI
 // everything read, so one Ember ID's game is never sent under another's
 // session. The folder is listed again every kCheckMs, even while the first
 // pair keeps failing, so a pair past its week goes and a new one is seen. The
-// listing itself is made off the game thread (platform::replays): ReadDue
-// says when to ask for one, Read installs it when it comes.
+// listing itself is made off the game thread (platform::replays), one at a
+// time: ReadDue says when to ask for one, Ask gives the ticket it carries
+// there and back, and Read installs it when it comes. Each change that may
+// make a listing out of date (a new scope, a choice read, sharing off, an
+// upload done) takes a new ticket, so a listing asked for before it is set
+// aside and the next is due at once.
 class Uploads {
 public:
 	static constexpr std::uint64_t kCheckMs = 30000;
 
 	bool ReadDue(std::uint64_t nowMs) const { return !asked_ && (!checked_ || nowMs - checkedMs_ >= kCheckMs); }
-	void Asked() { asked_ = true; }
-	// A listing of the folder (Pending), made at `nowMs`. One asked for before
-	// an upload finished may still hold that pair, whose removal comes after it
-	// on the worker: it is set aside, and a new listing is due at once.
-	void Read(std::vector<Entry> entries, std::uint64_t nowMs) {
-		asked_ = false;
-		if (stale_) { stale_ = false; checked_ = false; return; }
+	std::uint64_t Ask() { asked_ = ++ticket_; return asked_; }
+	// A listing of the folder (Pending) asked for as `ticket`, made at `nowMs`.
+	// Only the one awaited is taken, and only while nothing changed since.
+	void Read(std::vector<Entry> entries, std::uint64_t ticket, std::uint64_t nowMs) {
+		if (!asked_ || ticket != asked_) return;
+		asked_ = 0;
+		if (ticket != ticket_) { checked_ = false; return; }
 		queue_ = std::move(entries);
 		checked_ = true; checkedMs_ = nowMs;
 	}
@@ -237,16 +241,18 @@ public:
 		Entry entry = std::move(*uploading_);
 		uploading_.reset();
 		if (!done) return std::nullopt;
-		if (asked_) stale_ = true;
+		// Its removal comes after a listing already asked for, which may hold it.
+		++ticket_;
 		queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Entry& queued) { return queued.game == entry.game; }), queue_.end());
 		return entry;
 	}
-	// Forgets what was read and the pair on its way: a change of scope.
-	void Forget() { queue_.clear(); uploading_.reset(); checked_ = asked_ = stale_ = false; }
+	// Forgets what was read and the pair on its way: a change of scope. A
+	// listing on its way is still awaited, and set aside.
+	void Forget() { queue_.clear(); uploading_.reset(); checked_ = false; ++ticket_; }
 	// Lists the folder again on the next look, keeping the pair on its way,
 	// whose answer still takes it out of the queue; a listing already asked
 	// for may predate a change, so it is set aside.
-	void Relist() { checked_ = false; if (asked_) stale_ = true; }
+	void Relist() { checked_ = false; ++ticket_; }
 	// Drops the pairs read (sharing went off and they were cleared) until a
 	// listing made after now; the pair on its way keeps its answer.
 	void Discard() { queue_.clear(); Relist(); }
@@ -257,7 +263,9 @@ private:
 	std::vector<Entry> queue_;
 	std::optional<Entry> uploading_;
 	std::uint64_t checkedMs_ = 0;
-	bool checked_ = false, asked_ = false, stale_ = false;
+	// The newest ticket, and the one of the listing awaited (0: none).
+	std::uint64_t ticket_ = 0, asked_ = 0;
+	bool checked_ = false;
 };
 
 } }

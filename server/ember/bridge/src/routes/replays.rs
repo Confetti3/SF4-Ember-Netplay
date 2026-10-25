@@ -122,6 +122,7 @@ pub async fn upload(
                 developers: &developers,
             };
             let upload = channel::Upload {
+                ember_id: &player.ember_id,
                 account: &account,
                 request: &request,
                 info,

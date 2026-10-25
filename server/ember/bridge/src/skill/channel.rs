@@ -3,10 +3,11 @@
 //! Discord account's choice to share its games.
 //!
 //! A replay is listed once the bridge knows both players' accounts. For a
-//! public room that is the host's report of the game: an upload of a public
-//! room's game before its report is refused as not reported yet, and the
-//! game sends it again. For a private room it is both players' uploads of
-//! the same game. A side's name and country are what
+//! public room that is the host's report of the game, which names both
+//! players' Ember IDs, and their accounts when the upload comes: an upload of
+//! a public room's game before its report is refused as not reported yet, and
+//! the game sends it again; one whose other player has no account is held.
+//! For a private room it is both players' uploads of the same game. A side's name and country are what
 //! that side's own upload sent; a side that never uploaded shows the
 //! listing it chose for the ranking board. A side's class is the one it held
 //! at the game: for a public room, when the host reported the game (kept with
@@ -170,6 +171,8 @@ fn save(tx: &Transaction<'_>, game: &Stored) -> Result<()> {
 
 /// What an upload brings to a game.
 pub struct Upload<'a> {
+    /// The uploader's Ember ID, which played the game, and its Discord account.
+    pub ember_id: &'a EmberId,
     pub account: &'a str,
     pub request: &'a ReplayUpload,
     pub info: ExportInfo,
@@ -327,13 +330,24 @@ fn own_side(upload: &Upload<'_>, badge: Option<SkillBadge>) -> Side {
     }
 }
 
-/// A game a public room's host reported: the two accounts and the classes
-/// they held when it was reported.
+/// A game a public room's host reported: the two players' Ember IDs and the
+/// classes they held when it was reported.
 struct Report {
-    winner: String,
-    loser: String,
+    winner_id: String,
+    loser_id: String,
     winner_badge: Option<SkillBadge>,
     loser_badge: Option<SkillBadge>,
+}
+
+/// The Discord account of the Ember ID `ember_id`, kept as text.
+fn account_of(tx: &Transaction<'_>, ember_id: &str) -> Result<Option<String>> {
+    Ok(tx
+        .query_row(
+            "SELECT user_id FROM discord_accounts WHERE ember_id = ?1",
+            [ember_id],
+            |row| row.get(0),
+        )
+        .optional()?)
 }
 
 /// Stores `upload` and says what became of it. `account` is the uploader's
@@ -352,13 +366,13 @@ pub fn upload(
         None => {
             let reported: Option<Report> = tx
                 .query_row(
-                    "SELECT winner, loser, winner_badge, loser_badge FROM channel_games
+                    "SELECT winner_id, loser_id, winner_badge, loser_badge FROM channel_games
                      WHERE room_id = ?1 AND table_id = ?2 AND generation = ?3",
                     params![request.room_id, request.table, request.generation],
                     |row| {
                         Ok(Report {
-                            winner: row.get(0)?,
-                            loser: row.get(1)?,
+                            winner_id: row.get(0)?,
+                            loser_id: row.get(1)?,
                             winner_badge: badge_of_text(row.get(2)?),
                             loser_badge: badge_of_text(row.get(3)?),
                         })
@@ -370,24 +384,30 @@ pub fn upload(
                 Some(report) => {
                     // Both classes are the ones kept when the room reported
                     // the game, however long ago that was.
-                    let (won, own, opponent, opponent_badge) = if report.winner == account {
-                        (side, report.winner_badge, report.loser, report.loser_badge)
-                    } else if report.loser == account {
+                    let uploader = upload.ember_id.as_str();
+                    let (won, own, opponent, opponent_badge) = if report.winner_id == uploader {
+                        (side, report.winner_badge, report.loser_id, report.loser_badge)
+                    } else if report.loser_id == uploader {
                         (
                             other,
                             report.loser_badge,
-                            report.winner,
+                            report.winner_id,
                             report.winner_badge,
                         )
                     } else {
                         return Err(not_your_game());
                     };
                     sides[side] = own_side(upload, own);
-                    sides[other].account = Some(opponent);
+                    // The opponent's account as it is now; without one (or
+                    // with the uploader's own) the game is held.
+                    sides[other].account =
+                        account_of(tx, &opponent)?.filter(|opponent| opponent != account);
                     sides[other].badge = opponent_badge;
                     let mut game =
                         insert(tx, upload, sides, RoomKind::Public, Some(won as u8), now)?;
-                    publish(tx, &mut game)?;
+                    if game.sides[other].account.is_some() {
+                        publish(tx, &mut game)?;
+                    }
                     game
                 }
                 // A public room's game waits for its report: nobody but its
@@ -415,7 +435,8 @@ pub fn upload(
                     game.sides[side].country = own.country;
                     game.sides[side].uploaded = true;
                 }
-            } else if !game.published
+            } else if game.kind == RoomKind::Private
+                && !game.published
                 && game.sides[side].account.is_none()
                 && game.sides[other].account.as_deref() != Some(account)
             {
@@ -448,12 +469,13 @@ pub fn upload(
     })
 }
 
-/// Records a game a public room host reported, between the Discord accounts
-/// of `winner` and `loser`, with the class each shows as it is reported: the
-/// class at the game, which a later upload lists whenever it comes. An upload
-/// of a public room's game is taken only once its game is recorded here
-/// (`upload`), so nothing is listed from here. A host reports its recent
-/// games on every poll; a game already recorded keeps its first classes.
+/// Records a game a public room host reported, between the Ember IDs
+/// `winner` and `loser`, with the class each shows as it is reported (none
+/// without a Discord account): the class at the game, which a later upload
+/// lists whenever it comes. An upload of a public room's game is taken only
+/// once its game is recorded here (`upload`), so nothing is listed from here.
+/// A host reports its recent games on every poll; a game already recorded
+/// keeps its first classes.
 pub fn reported(
     tx: &Transaction<'_>,
     show: Show<'_>,
@@ -472,30 +494,31 @@ pub fn reported(
     if known {
         return Ok(());
     }
-    let (Some(winner), Some(loser)) = (account(tx, winner)?, account(tx, loser)?) else {
+    if winner == loser {
         return Ok(());
-    };
-    if winner != loser {
-        let (winner_badge, loser_badge) = (
-            badge(tx, &winner, show, now)?,
-            badge(tx, &loser, show, now)?,
-        );
-        tx.execute(
-            "INSERT OR IGNORE INTO channel_games
-                 (room_id, table_id, generation, winner, loser, winner_badge, loser_badge, played_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                room_id,
-                table,
-                generation,
-                winner,
-                loser,
-                badge_text(winner_badge),
-                badge_text(loser_badge),
-                now
-            ],
-        )?;
     }
+    let class = |ember_id: &EmberId| -> Result<Option<SkillBadge>> {
+        match account(tx, ember_id)? {
+            Some(account) => badge(tx, &account, show, now),
+            None => Ok(None),
+        }
+    };
+    let (winner_badge, loser_badge) = (class(winner)?, class(loser)?);
+    tx.execute(
+        "INSERT OR IGNORE INTO channel_games
+             (room_id, table_id, generation, winner_id, loser_id, winner_badge, loser_badge, played_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            room_id,
+            table,
+            generation,
+            winner.as_str(),
+            loser.as_str(),
+            badge_text(winner_badge),
+            badge_text(loser_badge),
+            now
+        ],
+    )?;
     Ok(())
 }
 
@@ -754,7 +777,7 @@ mod tests {
             add(tx, 20, 20, false, NOW - 3 * 24 * 60 * 60);
             add(tx, 21, 21, false, NOW - 60);
             tx.execute(
-                "INSERT INTO channel_games (room_id, table_id, generation, winner, loser, played_at)
+                "INSERT INTO channel_games (room_id, table_id, generation, winner_id, loser_id, played_at)
                  VALUES ('room', 0, 1, 'a', 'b', ?1), ('room', 0, 2, 'a', 'b', ?2)",
                 params![NOW - 15 * 24 * 60 * 60, NOW - 60],
             )?;
