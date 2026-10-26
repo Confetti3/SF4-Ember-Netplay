@@ -32,7 +32,7 @@ void RoomShortcutOnPanelScreen() {
  h.Press(MenuInput::Options);Check(h.shell.Navigation().Screen()=="room","Y again did not return to the board from the table options");
 }
 }
-void RoomJourneys() {
+static void RoomBoardJourneys() {
  using namespace sf4e;
  Harness h;h.Frame();
  // Back names where it goes: out of Ember from an idle Home, and while a
@@ -504,6 +504,12 @@ void RoomJourneys() {
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.mainFighter==DisplayedAfter(3),"Portrait retry lost the selected main");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  Check(h.shell.Navigation().Screen()=="profile","Retried portrait save did not return to Profile");
+}
+// Each journey owns a Harness and with it the ImGui context, so they run one
+// after another: a Harness built while another is alive destroys the current
+// context on its way out and leaves the outer one without any.
+void RoomJourneys() {
+ RoomBoardJourneys();
  RetrySaveOnPanelScreens();
  RoomShortcutOnPanelScreen();
 }
