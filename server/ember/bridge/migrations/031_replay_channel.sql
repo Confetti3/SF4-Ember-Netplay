@@ -30,9 +30,9 @@ CREATE TABLE channel_games (
 CREATE INDEX channel_games_played ON channel_games (played_at);
 
 -- One row per game with an uploaded replay. Side 0 and 1 are the game's
--- player slots. A row is held (`published` 0) until both sides' accounts are
--- known: a public room's host report and both players' accounts when it was
--- uploaded, or the other player's upload of the same private room game. A
+-- player slots. A public room's game is stored only once its host reported it
+-- and both players have accounts, and is listed at once; a private room's is
+-- held (`published` 0) until the other player uploads the same game. A
 -- side's name and country come from that side's own upload; `uploaded` says
 -- it has made one. `badge` is the side's class as JSON at the game (a
 -- public room's: when the host reported it; a private room's: when that side

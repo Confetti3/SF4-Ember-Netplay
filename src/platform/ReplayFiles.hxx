@@ -123,10 +123,8 @@ void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectatin
 std::uint64_t ShareChannel(const std::string& emberId, bool on);
 // Removes `emberId`'s queued replays (sharing read as off).
 void ClearChannel(const std::string& emberId);
-// Asks for a listing of the queue as `ticket`; TakeChannelRead hands over
-// the newest with the ticket it was asked as.
-void WantChannelRead(std::uint64_t ticket);
-bool TakeChannelRead(std::vector<replaychannel::Entry>& entries, std::uint64_t& ticket);
+// A listing of the queue, made on its worker after every file job asked before it.
+replaychannel::Uploads::Made ChannelListing();
 // Removes a pair whose upload went or was refused for good.
 void RemoveChannelPair(const replaychannel::Entry& entry);
 // Where the replay channel's downloads go: %APPDATA%\sf4e\replay-channel.

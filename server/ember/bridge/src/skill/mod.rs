@@ -228,7 +228,7 @@ fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge>
 }
 
 /// The Discord account connected to `ember_id`.
-fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
+pub(crate) fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
     Ok(tx
         .query_row(
             "SELECT user_id FROM discord_accounts WHERE ember_id = ?1",

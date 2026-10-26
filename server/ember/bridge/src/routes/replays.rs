@@ -34,7 +34,10 @@ use crate::{
         play::playing,
         rooms::{self, classes_shown, developers},
     },
-    skill::channel::{self, MAX_BYTES, MAX_ROWS, Show},
+    skill::{
+        self,
+        channel::{self, MAX_BYTES, MAX_ROWS, Show},
+    },
     util::{create_private, hex, random},
 };
 
@@ -81,7 +84,7 @@ pub async fn upload(
     let ember_id = player.ember_id.clone();
     let Some(account) = state
         .db
-        .read(move |tx| channel::uploader(tx, &ember_id))
+        .read(move |tx| skill::account(tx, &ember_id))
         .await?
     else {
         // Without an account there is nowhere to keep a choice to share.
@@ -123,7 +126,6 @@ pub async fn upload(
             };
             let upload = channel::Upload {
                 ember_id: &player.ember_id,
-                account: &account,
                 request: &request,
                 info,
                 sha256: &sha256,

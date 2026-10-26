@@ -28,7 +28,8 @@ A replay is published when all of these hold:
    - Public room: the room host's games report gives the winner's and
      loser's Ember IDs (`skill::record_games`, every reported game), and their
      accounts are looked up when an upload comes. One player's upload is
-     enough; one whose opponent has no account then is held. An upload that
+     enough; one whose opponent has no account then is answered held and not
+     kept, since the opponent never queued it and nothing could list it. An upload that
      comes before the report is refused as not reported yet (nothing is
      kept, so nobody else can bind a replay to the game first) and the game
      sends it again after a wait.

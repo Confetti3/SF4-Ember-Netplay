@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <future>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -197,24 +198,25 @@ inline void Clear(const std::filesystem::path& folder, const std::string& emberI
 // everything read, so one Ember ID's game is never sent under another's
 // session. The folder is listed again every kCheckMs, even while the first
 // pair keeps failing, so a pair past its week goes and a new one is seen. The
-// listing itself is made off the game thread (platform::replays), one at a
-// time: ReadDue says when to ask for one, Ask gives the ticket it carries
-// there and back, and Read installs it when it comes. Each change that may
-// make a listing out of date (a new scope, a choice read, sharing off, an
-// upload done) takes a new ticket, so a listing asked for before it is set
-// aside and the next is due at once.
+// listing itself is made off the game thread, on the queue's worker
+// (platform::replays): ReadDue says when to ask for one, Listing holds its
+// future and Take installs it once made. Each change that may make a listing
+// out of date (a new scope, a choice read, sharing off, an upload done) lets
+// go of the one on its way and asks again at once; the worker makes the new
+// one after the file work asked before it.
 class Uploads {
 public:
 	static constexpr std::uint64_t kCheckMs = 30000;
+	using Made = std::future<std::vector<Entry>>;
 
-	bool ReadDue(std::uint64_t nowMs) const { return !asked_ && (!checked_ || nowMs - checkedMs_ >= kCheckMs); }
-	std::uint64_t Ask() { asked_ = ++ticket_; return asked_; }
-	// A listing of the folder (Pending) asked for as `ticket`, made at `nowMs`.
-	// Only the one awaited is taken, and only while nothing changed since.
-	void Read(std::vector<Entry> entries, std::uint64_t ticket, std::uint64_t nowMs) {
-		if (!asked_ || ticket != asked_) return;
-		asked_ = 0;
-		if (ticket != ticket_) { checked_ = false; return; }
+	bool ReadDue(std::uint64_t nowMs) const { return !listing_.valid() && (!checked_ || nowMs - checkedMs_ >= kCheckMs); }
+	void Listing(Made listing) { listing_ = std::move(listing); }
+	// Installs the listing on its way once it is made, at `nowMs`; one the
+	// worker could not make (dropped, or failed) installs as empty.
+	void Take(std::uint64_t nowMs) {
+		if (!listing_.valid() || listing_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return;
+		std::vector<Entry> entries;
+		try { entries = listing_.get(); } catch (...) {}
 		queue_ = std::move(entries);
 		checked_ = true; checkedMs_ = nowMs;
 	}
@@ -241,18 +243,17 @@ public:
 		Entry entry = std::move(*uploading_);
 		uploading_.reset();
 		if (!done) return std::nullopt;
-		// Its removal comes after a listing already asked for, which may hold it.
-		++ticket_;
+		// A listing already asked for may still hold it: its removal comes after.
+		Relist();
 		queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Entry& queued) { return queued.game == entry.game; }), queue_.end());
 		return entry;
 	}
-	// Forgets what was read and the pair on its way: a change of scope. A
-	// listing on its way is still awaited, and set aside.
-	void Forget() { queue_.clear(); uploading_.reset(); checked_ = false; ++ticket_; }
+	// Forgets what was read, the listing and the pair on its way: a change of scope.
+	void Forget() { queue_.clear(); uploading_.reset(); Relist(); }
 	// Lists the folder again on the next look, keeping the pair on its way,
 	// whose answer still takes it out of the queue; a listing already asked
-	// for may predate a change, so it is set aside.
-	void Relist() { checked_ = false; ++ticket_; }
+	// for may predate a change, so it is let go.
+	void Relist() { listing_ = Made(); checked_ = false; }
 	// Drops the pairs read (sharing went off and they were cleared) until a
 	// listing made after now; the pair on its way keeps its answer.
 	void Discard() { queue_.clear(); Relist(); }
@@ -262,9 +263,8 @@ private:
 	std::string scope_;
 	std::vector<Entry> queue_;
 	std::optional<Entry> uploading_;
+	Made listing_;
 	std::uint64_t checkedMs_ = 0;
-	// The newest ticket, and the one of the listing awaited (0: none).
-	std::uint64_t ticket_ = 0, asked_ = 0;
 	bool checked_ = false;
 };
 

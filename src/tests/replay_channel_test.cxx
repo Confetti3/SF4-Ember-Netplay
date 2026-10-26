@@ -108,12 +108,26 @@ static replaychannel::Entry Queued(const char* name, const char* emberId, std::u
 	return entry;
 }
 
+// A listing made already, and one asked for whose promise the test keeps.
+using Listed = std::promise<std::vector<replaychannel::Entry>>;
+static replaychannel::Uploads::Made Made(std::vector<replaychannel::Entry> entries) {
+	Listed made;
+	made.set_value(std::move(entries));
+	return made.get_future();
+}
+static Listed Ask(replaychannel::Uploads& uploads) {
+	Listed listing;
+	uploads.Listing(listing.get_future());
+	return listing;
+}
+
 // One look as the runtime takes it: the scope first, a listing when one is
 // due (made at once here, as the queue's worker would make it), then the next pair.
 static const replaychannel::Entry* Look(replaychannel::Uploads& uploads, const std::string& scope, const std::string& emberId,
 	std::uint64_t nowMs, std::uint64_t unixNow, const std::function<std::vector<replaychannel::Entry>()>& read) {
 	uploads.Rescope(scope);
-	if (uploads.ReadDue(nowMs)) { const auto ticket = uploads.Ask(); uploads.Read(read(), ticket, nowMs); }
+	if (uploads.ReadDue(nowMs)) uploads.Listing(Made(read()));
+	uploads.Take(nowMs);
 	return uploads.Next(emberId, unixNow);
 }
 
@@ -156,24 +170,24 @@ static void Uploads() {
 // hold the pair just sent, whose removal comes after it.
 static void StaleListing() {
 	replaychannel::Uploads uploads;
-	std::uint64_t ticket = 0;
+	Listed listing;
 	uploads.Rescope("brg_1\nemb1_a");
-	ticket = uploads.Ask();
-	uploads.Read({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}, ticket, 0);
+	listing = Ask(uploads);
+	listing.set_value({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}); uploads.Take(0);
 	CHECK(!uploads.ReadDue(1));
 	const auto* next = uploads.Next("emb1_a", 200);
 	uploads.Sent(*next);
 	// A listing is due and asked for while the upload is on its way...
 	CHECK(uploads.ReadDue(replaychannel::Uploads::kCheckMs));
-	ticket = uploads.Ask();
+	listing = Ask(uploads);
 	// ...the upload finishes, then the old listing arrives with a1 in it.
 	const auto done = uploads.Answered(true);
 	CHECK(done && done->game == "a1");
-	uploads.Read({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}, ticket, replaychannel::Uploads::kCheckMs + 5);
+	listing.set_value({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}); uploads.Take(replaychannel::Uploads::kCheckMs + 5);
 	next = uploads.Next("emb1_a", 200);
 	CHECK(next && next->game == "a2" && uploads.ReadDue(replaychannel::Uploads::kCheckMs + 5));
-	ticket = uploads.Ask();
-	uploads.Read({Queued("a2", "emb1_a", 110)}, ticket, replaychannel::Uploads::kCheckMs + 6);
+	listing = Ask(uploads);
+	listing.set_value({Queued("a2", "emb1_a", 110)}); uploads.Take(replaychannel::Uploads::kCheckMs + 6);
 	CHECK(uploads.Size() == 1 && uploads.Next("emb1_a", 200)->game == "a2");
 }
 
@@ -181,22 +195,22 @@ static void StaleListing() {
 // keeps the pair: its answer still takes it out, once.
 static void RelistKeepsTheUpload() {
 	replaychannel::Uploads uploads;
-	std::uint64_t ticket = 0;
+	Listed listing;
 	uploads.Rescope("brg_1\nemb1_a");
-	ticket = uploads.Ask();
-	uploads.Read({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}, ticket, 0);
+	listing = Ask(uploads);
+	listing.set_value({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}); uploads.Take(0);
 	uploads.Sent(*uploads.Next("emb1_a", 200));
 	uploads.Relist();
 	CHECK(uploads.ReadDue(1));
 	const auto done = uploads.Answered(true);
 	CHECK(done && done->game == "a1" && !uploads.Answered(true));
-	ticket = uploads.Ask();
-	uploads.Read({Queued("a2", "emb1_a", 110)}, ticket, 2);
+	listing = Ask(uploads);
+	listing.set_value({Queued("a2", "emb1_a", 110)}); uploads.Take(2);
 	CHECK(uploads.Size() == 1 && uploads.Next("emb1_a", 200)->game == "a2");
 	// A listing asked before the relist is set aside.
-	ticket = uploads.Ask();
+	listing = Ask(uploads);
 	uploads.Relist();
-	uploads.Read({Queued("a1", "emb1_a", 100)}, ticket, 3);
+	listing.set_value({Queued("a1", "emb1_a", 100)}); uploads.Take(3);
 	CHECK(uploads.Size() == 1 && uploads.Next("emb1_a", 200)->game == "a2" && uploads.ReadDue(3));
 }
 
@@ -205,44 +219,47 @@ static void RelistKeepsTheUpload() {
 // its way keeps its answer.
 static void DiscardOnOff() {
 	replaychannel::Uploads uploads;
-	std::uint64_t ticket = 0;
+	Listed listing;
 	uploads.Rescope("brg_1\nemb1_a");
-	ticket = uploads.Ask();
-	uploads.Read({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}, ticket, 0);
+	listing = Ask(uploads);
+	listing.set_value({Queued("a1", "emb1_a", 100), Queued("a2", "emb1_a", 110)}); uploads.Take(0);
 	uploads.Sent(*uploads.Next("emb1_a", 200));
-	ticket = uploads.Ask();
+	listing = Ask(uploads);
 	uploads.Discard();
 	CHECK(uploads.Size() == 0 && !uploads.Next("emb1_a", 200));
 	// A listing asked before the clear is set aside.
-	uploads.Read({Queued("a2", "emb1_a", 110)}, ticket, 1);
+	listing.set_value({Queued("a2", "emb1_a", 110)}); uploads.Take(1);
 	CHECK(!uploads.Next("emb1_a", 200) && uploads.ReadDue(1));
 	const auto done = uploads.Answered(true);
 	CHECK(done && done->game == "a1");
-	ticket = uploads.Ask();
-	uploads.Read({}, ticket, 2);
+	listing = Ask(uploads);
+	listing.set_value({}); uploads.Take(2);
 	CHECK(!uploads.Next("emb1_a", 200));
 }
 
-// A listing asked for under one scope is set aside under the next, also
-// across sharing turned off and on again: none of the pairs it holds goes. A
-// listing never asked for (an old ticket) changes nothing.
+// A listing asked for under one scope is let go under the next, also across
+// sharing turned off and on again: none of the pairs it holds goes, and the
+// next is asked at once. A listing the worker dropped installs as empty.
 static void ListingAcrossScopes() {
 	replaychannel::Uploads uploads;
 	uploads.Rescope("brg_1\nemb1_a");
-	const auto first = uploads.Ask();
+	auto first = Ask(uploads);
 	uploads.Rescope("brg_1\nemb1_b");
 	uploads.Discard();
 	uploads.Relist();
-	// One listing at a time: the next waits for the one on its way.
-	CHECK(!uploads.ReadDue(0));
-	uploads.Read({Queued("b1", "emb1_b", 100)}, first + 7, 0);
-	CHECK(!uploads.ReadDue(0));
-	uploads.Read({Queued("b1", "emb1_b", 100)}, first, 0);
-	CHECK(uploads.Size() == 0 && !uploads.Next("emb1_b", 200) && uploads.ReadDue(0));
-	const auto second = uploads.Ask();
-	uploads.Read({Queued("b2", "emb1_b", 110)}, second, 1);
+	CHECK(uploads.ReadDue(0));
+	auto second = Ask(uploads);
+	first.set_value({Queued("b1", "emb1_b", 100)});
+	uploads.Take(0);
+	CHECK(uploads.Size() == 0 && !uploads.Next("emb1_b", 200) && !uploads.ReadDue(0));
+	second.set_value({Queued("b2", "emb1_b", 110)});
+	uploads.Take(1);
 	const auto* next = uploads.Next("emb1_b", 200);
 	CHECK(next && next->game == "b2" && !uploads.ReadDue(2));
+	uploads.Relist();
+	{ Listed dropped; uploads.Listing(dropped.get_future()); }
+	uploads.Take(3);
+	CHECK(uploads.Size() == 0 && !uploads.ReadDue(4));
 }
 
 // The queue's worker: answers in order; a job that throws answers `failed`;

@@ -164,11 +164,9 @@ void TickReplayChannel(bool helperReady, std::uint64_t nowMs) {
 		requests.SentSharing(SendBridgeRequest({{"op", "replay_sharing"}, {"bridge_id", requests.Bridge()}}), nowMs);
 	auto& uploads = runtime->replayUploads;
 	uploads.Rescope(requests.Bridge() + "\n" + requests.EmberId());
-	std::vector<replaychannel::Entry> listed;
-	std::uint64_t ticket = 0;
-	if (platform::replays::TakeChannelRead(listed, ticket)) uploads.Read(std::move(listed), ticket, nowMs);
+	uploads.Take(nowMs);
 	if (requests.Bridge().empty() || !helperReady || !requests.MayUpload(nowMs)) return;
-	if (uploads.ReadDue(nowMs)) platform::replays::WantChannelRead(uploads.Ask());
+	if (uploads.ReadDue(nowMs)) uploads.Listing(platform::replays::ChannelListing());
 	const auto* entry = uploads.Next(requests.EmberId(), static_cast<std::uint64_t>(_time64(nullptr)));
 	requests.Queued(uploads.Size());
 	if (!entry) return;

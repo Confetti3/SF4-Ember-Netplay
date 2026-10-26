@@ -6,14 +6,15 @@
 //! public room that is the host's report of the game, which names both
 //! players' Ember IDs, and their accounts when the upload comes: an upload of
 //! a public room's game before its report is refused as not reported yet, and
-//! the game sends it again; one whose other player has no account is held.
-//! For a private room it is both players' uploads of the same game. A side's name and country are what
-//! that side's own upload sent; a side that never uploaded shows the
-//! listing it chose for the ranking board. A side's class is the one it held
-//! at the game: for a public room, when the host reported the game (kept with
-//! it, since an upload may come much later); for a private room, when that
-//! side uploaded. Whether an account shares is
-//! read each time a page is made, so changing it takes effect at once.
+//! the game sends it again; one whose other player has no account then is
+//! answered held and not kept, since nothing could list it later. For a
+//! private room it is both players' uploads of the same game. A side's name
+//! and country are what that side's own upload sent; a side that never
+//! uploaded shows the listing it chose for the ranking board. A side's class
+//! is the one it held at the game: for a public room, when the host reported
+//! the game (kept with it, since an upload may come much later); for a
+//! private room, when that side uploaded. Whether an account shares is read
+//! each time a page is made, so changing it takes effect at once.
 use std::collections::HashSet;
 
 use ember_protocol::{
@@ -25,7 +26,10 @@ use ember_protocol::{
     },
     skill::{NO_ACCOUNT, SkillBadge},
 };
-use rusqlite::{OptionalExtension, Row as SqlRow, Transaction, params, types::Value};
+use rusqlite::{
+    OptionalExtension, Row as SqlRow, Transaction, params,
+    types::{Type, Value},
+};
 
 use super::{Developers, account, badge_of};
 use crate::{
@@ -171,9 +175,8 @@ fn save(tx: &Transaction<'_>, game: &Stored) -> Result<()> {
 
 /// What an upload brings to a game.
 pub struct Upload<'a> {
-    /// The uploader's Ember ID, which played the game, and its Discord account.
+    /// The uploader's Ember ID, which played the game.
     pub ember_id: &'a EmberId,
-    pub account: &'a str,
     pub request: &'a ReplayUpload,
     pub info: ExportInfo,
     pub sha256: &'a str,
@@ -318,11 +321,11 @@ fn insert(
     })
 }
 
-/// The side an upload speaks for, from the upload's own name and country,
-/// holding the class `badge` it had at the game.
-fn own_side(upload: &Upload<'_>, badge: Option<SkillBadge>) -> Side {
+/// The side an upload by `account` speaks for, from the upload's own name and
+/// country, holding the class `badge` it had at the game.
+fn own_side(upload: &Upload<'_>, account: &str, badge: Option<SkillBadge>) -> Side {
     Side {
-        account: Some(upload.account.to_owned()),
+        account: Some(account.to_owned()),
         name: Some(upload.request.name.clone()),
         country: upload.request.country.clone(),
         uploaded: true,
@@ -333,34 +336,43 @@ fn own_side(upload: &Upload<'_>, badge: Option<SkillBadge>) -> Side {
 /// A game a public room's host reported: the two players' Ember IDs and the
 /// classes they held when it was reported.
 struct Report {
-    winner_id: String,
-    loser_id: String,
+    winner_id: EmberId,
+    loser_id: EmberId,
     winner_badge: Option<SkillBadge>,
     loser_badge: Option<SkillBadge>,
 }
 
-/// The Discord account of the Ember ID `ember_id`, kept as text.
-fn account_of(tx: &Transaction<'_>, ember_id: &str) -> Result<Option<String>> {
-    Ok(tx
-        .query_row(
-            "SELECT user_id FROM discord_accounts WHERE ember_id = ?1",
-            [ember_id],
-            |row| row.get(0),
-        )
-        .optional()?)
+/// An Ember ID this bridge stored.
+fn ember_id_at(row: &SqlRow<'_>, index: usize) -> rusqlite::Result<EmberId> {
+    let text: String = row.get(index)?;
+    EmberId::parse(&text).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(index, Type::Text, Box::new(error))
+    })
 }
 
-/// Stores `upload` and says what became of it. `account` is the uploader's
-/// Discord account.
+const HELD: UploadAnswer = UploadAnswer {
+    state: UploadState::Held,
+    id: None,
+};
+
+/// Stores `upload` and says what became of it. The uploader's Discord
+/// account is read here, with everything else the upload is judged by.
 pub fn upload(
     tx: &Transaction<'_>,
     show: Show<'_>,
     upload: &Upload<'_>,
     now: u64,
 ) -> Result<UploadAnswer> {
+    let Some(account) = account(tx, upload.ember_id)? else {
+        // Without an account there is nowhere to keep a choice to share.
+        return Ok(UploadAnswer {
+            state: UploadState::NotShared,
+            id: None,
+        });
+    };
+    let account = account.as_str();
     let request = upload.request;
     let (side, other) = (usize::from(request.side), 1 - usize::from(request.side));
-    let account = upload.account;
     let found = find(tx, &request.room_id, request.table, request.generation)?;
     let game = match found {
         None => {
@@ -371,8 +383,8 @@ pub fn upload(
                     params![request.room_id, request.table, request.generation],
                     |row| {
                         Ok(Report {
-                            winner_id: row.get(0)?,
-                            loser_id: row.get(1)?,
+                            winner_id: ember_id_at(row, 0)?,
+                            loser_id: ember_id_at(row, 1)?,
                             winner_badge: badge_of_text(row.get(2)?),
                             loser_badge: badge_of_text(row.get(3)?),
                         })
@@ -384,15 +396,15 @@ pub fn upload(
                 Some(report) => {
                     // Both classes are the ones kept when the room reported
                     // the game, however long ago that was.
-                    let uploader = upload.ember_id.as_str();
-                    let (won, own, opponent, opponent_badge) = if report.winner_id == uploader {
+                    let uploader = upload.ember_id;
+                    let (won, own, opponent, opponent_badge) = if report.winner_id == *uploader {
                         (
                             side,
                             report.winner_badge,
                             report.loser_id,
                             report.loser_badge,
                         )
-                    } else if report.loser_id == uploader {
+                    } else if report.loser_id == *uploader {
                         (
                             other,
                             report.loser_badge,
@@ -402,17 +414,18 @@ pub fn upload(
                     } else {
                         return Err(not_your_game());
                     };
-                    sides[side] = own_side(upload, own);
-                    // The opponent's account as it is now; without one (or
-                    // with the uploader's own) the game is held.
-                    sides[other].account =
-                        account_of(tx, &opponent)?.filter(|opponent| opponent != account);
+                    // The opponent's account as it is now. Without one the
+                    // game could never be listed: the opponent never queued
+                    // it, so nothing is kept.
+                    let Some(opponent) = account(tx, &opponent)? else {
+                        return Ok(HELD);
+                    };
+                    sides[side] = own_side(upload, account, own);
+                    sides[other].account = Some(opponent);
                     sides[other].badge = opponent_badge;
                     let mut game =
                         insert(tx, upload, sides, RoomKind::Public, Some(won as u8), now)?;
-                    if game.sides[other].account.is_some() {
-                        publish(tx, &mut game)?;
-                    }
+                    publish(tx, &mut game)?;
                     game
                 }
                 // A public room's game waits for its report: nobody but its
@@ -421,7 +434,7 @@ pub fn upload(
                 None => {
                     // A private room's: each side's class is its own at the
                     // time it uploads.
-                    sides[side] = own_side(upload, badge(tx, account, show, now)?);
+                    sides[side] = own_side(upload, account, badge(tx, account, show, now)?);
                     insert(tx, upload, sides, RoomKind::Private, None, now)?
                 }
             }
@@ -435,20 +448,18 @@ pub fn upload(
                 // sending their own side.
                 // Its class stays the one kept for the game.
                 if !game.sides[side].uploaded {
-                    let own = own_side(upload, None);
+                    let own = own_side(upload, account, None);
                     game.sides[side].name = own.name;
                     game.sides[side].country = own.country;
                     game.sides[side].uploaded = true;
                 }
-            } else if game.kind == RoomKind::Private
-                && !game.published
+            } else if !game.published
                 && game.sides[side].account.is_none()
                 && game.sides[other].account.as_deref() != Some(account)
             {
-                // The other player of a private room's game.
-                game.sides[side] = own_side(upload, badge(tx, account, show, now)?);
-                game.kind = RoomKind::Private;
-                game.winner = None;
+                // The other player of a private room's game: only those are
+                // stored with a side that has no account.
+                game.sides[side] = own_side(upload, account, badge(tx, account, show, now)?);
                 publish(tx, &mut game)?;
             } else {
                 return Err(not_your_game());
@@ -717,11 +728,6 @@ pub fn prune(tx: &Transaction<'_>, max_rows: i64, max_bytes: i64, now: u64) -> R
         tx.execute("DELETE FROM channel_replays WHERE seq = ?1", [seq])?;
     }
     Ok(())
-}
-
-/// The Discord account connected to `ember_id`, if any.
-pub fn uploader(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
-    account(tx, ember_id)
 }
 
 #[cfg(test)]

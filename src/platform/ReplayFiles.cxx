@@ -126,18 +126,10 @@ public:
  }
  void Clear(const std::string& emberId) { worker_.Post([this, emberId] { replaychannel::Clear(folder_, emberId); }); }
  void Remove(const replaychannel::Entry& entry) { worker_.Post([entry] { replaychannel::Remove(entry); }); }
- void WantRead(std::uint64_t ticket) {
-  worker_.Post([this, ticket] {
-   auto entries = replaychannel::Pending(folder_, static_cast<std::uint64_t>(_time64(nullptr)));
-   std::lock_guard<std::mutex> lock(state_);
-   read_ = std::move(entries); readTicket_ = ticket; fresh_ = true;
-  });
- }
- bool TakeRead(std::vector<replaychannel::Entry>& entries, std::uint64_t& ticket) {
-  std::lock_guard<std::mutex> lock(state_);
-  if (!fresh_) return false;
-  entries = std::move(read_); ticket = readTicket_; fresh_ = false;
-  return true;
+ replaychannel::Uploads::Made Listing() {
+  return worker_.Submit<std::vector<replaychannel::Entry>>([this] {
+   return replaychannel::Pending(folder_, static_cast<std::uint64_t>(_time64(nullptr)));
+  }, {});
  }
  void Stop() { worker_.Stop(); }
 private:
@@ -147,10 +139,9 @@ private:
  }
  const fs::path folder_ = QueueFolder();
  std::mutex state_;
- std::vector<replaychannel::Entry> read_;
- bool fresh_ = false, on_ = false;
+ bool on_ = false;
  std::string emberId_;
- std::uint64_t revision_ = 0, readTicket_ = 0;
+ std::uint64_t revision_ = 0;
  // Last, so it starts after everything its jobs use and stops before it goes.
  OrderedWorker worker_;
 };
@@ -556,8 +547,7 @@ void NoteMatchEnd() {
 
 std::uint64_t ShareChannel(const std::string& emberId, bool on) { return Channel().Share(emberId, on); }
 void ClearChannel(const std::string& emberId) { Channel().Clear(emberId); }
-void WantChannelRead(std::uint64_t ticket) { Channel().WantRead(ticket); }
-bool TakeChannelRead(std::vector<replaychannel::Entry>& entries, std::uint64_t& ticket) { return Channel().TakeRead(entries, ticket); }
+replaychannel::Uploads::Made ChannelListing() { return Channel().Listing(); }
 void RemoveChannelPair(const replaychannel::Entry& entry) { Channel().Remove(entry); }
 fs::path ChannelDownloadFolder() {
  static const fs::path folder = [] { const auto roaming = KnownFolder(FOLDERID_RoamingAppData); return roaming.empty() ? roaming : roaming / L"sf4e" / L"replay-channel"; }();
