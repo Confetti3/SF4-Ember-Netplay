@@ -58,8 +58,13 @@ fn bound(fighters: &[EndpointId], watchers: &[EndpointId]) -> Seats {
     })
 }
 
+/// The seats `text` names, read from the whole parse and from the commit's
+/// view (`Committed::view`), which must agree.
 fn read(text: &str) -> Option<Seats> {
-    Seats::read(&serde_json::from_str(text).unwrap())
+    let whole = Seats::read(&serde_json::from_str(text).unwrap());
+    let view = Seats::read(&crate::coordination::envelope_view(text).unwrap());
+    assert_eq!(whole, view, "{text}");
+    whole
 }
 
 fn key() -> EndpointId {
@@ -361,7 +366,7 @@ async fn commit(recovery: &RecoverySession, checkpoint: String) {
             dedup_id: format!("watch-{base}"),
             term,
             base,
-            checkpoint,
+            checkpoint: checkpoint.into(),
             admin: None,
         })
         .await

@@ -71,7 +71,18 @@ fn endpoint_text(text: &str) -> Option<EndpointId> {
 /// that is malformed, equals a primary endpoint or is held by two rows is
 /// dropped from its rows; the members stay.
 pub fn committed_latency_roster(checkpoint: &str) -> Result<LatencyRoster, RosterInvalid> {
-    let envelope: Value = serde_json::from_str(checkpoint).map_err(|_| RosterInvalid)?;
+    latency_roster_in(super::envelope_view(checkpoint).as_ref())
+}
+
+/// `committed_latency_roster` of a commit, from its view.
+pub fn latency_roster_of(committed: &super::Committed) -> Result<LatencyRoster, RosterInvalid> {
+    latency_roster_in(committed.view())
+}
+
+/// `committed_latency_roster` of a parsed envelope or its view, `None` for a
+/// checkpoint that is not JSON.
+pub(crate) fn latency_roster_in(envelope: Option<&Value>) -> Result<LatencyRoster, RosterInvalid> {
+    let envelope = envelope.ok_or(RosterInvalid)?;
     let root = envelope.get("checkpoint").ok_or(RosterInvalid)?;
     let rows = root
         .get("members")
@@ -213,7 +224,7 @@ impl super::Store {
                     dedup_id: format!("latency-test-{index}-{offset}"),
                     term,
                     base,
-                    checkpoint: checkpoint.clone(),
+                    checkpoint: checkpoint.as_str().into(),
                     admin: None,
                 };
                 base += 1;
@@ -231,6 +242,12 @@ impl super::Store {
         receipts.iter().filter(|receipt| receipt.accepted).count()
     }
 
+    /// Holds the store lock until the returned guard is dropped, as a long
+    /// apply or snapshot build would.
+    pub async fn hold_lock(&self) -> impl Sized + '_ {
+        self.0.lock().await
+    }
+
     /// Installs a snapshot of the current state machine whose committed
     /// checkpoint is `checkpoint`, at the same revision and term.
     pub async fn install_checkpoint_snapshot(&self, checkpoint: &str) {
@@ -241,7 +258,7 @@ impl super::Store {
             let committed = &memory.machine.committed;
             machine.committed = std::sync::Arc::new(super::Committed::new(
                 committed.revision(),
-                checkpoint.to_owned(),
+                checkpoint.into(),
                 committed.request().to_owned(),
                 committed.term(),
             ));

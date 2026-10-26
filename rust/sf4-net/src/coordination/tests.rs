@@ -244,7 +244,7 @@ fn the_largest_rpc_bodies_fit_their_transport_bounds() {
         dedup_id: escaped,
         term: high,
         base: high,
-        checkpoint: String::new(),
+        checkpoint: "".into(),
         admin: Some(AdminEntry::ProbeReservation(ProbeReservation {
             room: [u8::MAX; 16],
             source_incarnation: high,
@@ -330,6 +330,248 @@ fn the_largest_rpc_bodies_fit_their_transport_bounds() {
     }
 }
 
+/// Records every RPC body and answers each append with success.
+#[derive(Default)]
+struct RecordingTransport {
+    bodies: std::sync::Mutex<Vec<(u64, &'static str, Vec<u8>)>>,
+}
+
+impl RpcTransport for RecordingTransport {
+    fn call(
+        &self,
+        target: u64,
+        _: String,
+        method: &'static str,
+        body: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = io::Result<Vec<u8>>> + Send + '_>> {
+        self.bodies.lock().unwrap().push((target, method, body));
+        Box::pin(async { Ok(serde_json::to_vec(&AppendEntriesResponse::<u64>::Success).unwrap()) })
+    }
+}
+
+fn append_request(leader_commit: u64, checkpoint: &str) -> AppendEntriesRequest<RoomTypes> {
+    let leader = openraft::CommittedLeaderId::new(3, 1);
+    AppendEntriesRequest {
+        vote: Vote::new_committed(3, 1),
+        prev_log_id: Some(LogId::new(leader, 6)),
+        leader_commit: Some(LogId::new(leader, leader_commit)),
+        entries: vec![Entry {
+            log_id: LogId::new(leader, 7),
+            payload: EntryPayload::Normal(Proposal {
+                request: "7".into(),
+                dedup_id: "native:1:3:7".into(),
+                term: 3,
+                base: 6,
+                checkpoint: checkpoint.into(),
+                admin: None,
+            }),
+        }],
+    }
+}
+
+#[tokio::test]
+async fn followers_sent_the_same_append_share_one_encoded_body() {
+    let transport = Arc::new(RecordingTransport::default());
+    let mut network = Network::new(transport.clone());
+    let mut first = network.new_client(2, &BasicNode::new("2")).await;
+    let mut second = network.new_client(3, &BasicNode::new("3")).await;
+    let checkpoint =
+        json!({"checkpoint": {"members": [], "journal": "x".repeat(64 * 1024)}}).to_string();
+    let option = || RPCOption::new(Duration::from_secs(1));
+    let request = append_request(6, &checkpoint);
+    first
+        .append_entries(request.clone(), option())
+        .await
+        .unwrap();
+    second
+        .append_entries(request.clone(), option())
+        .await
+        .unwrap();
+    let encodes = || {
+        network
+            .appends
+            .encodes
+            .load(std::sync::atomic::Ordering::Relaxed)
+    };
+    assert_eq!(encodes(), 1);
+    {
+        let bodies = transport.bodies.lock().unwrap();
+        assert_eq!(bodies.len(), 2);
+        assert_eq!((bodies[0].0, bodies[0].1), (2, "append"));
+        assert_eq!((bodies[1].0, bodies[1].1), (3, "append"));
+        assert_eq!(bodies[0].2, bodies[1].2);
+        // The bytes each follower would have encoded for itself.
+        let own = serde_json::to_vec(&CompressedJsonWire::encode(&request).unwrap()).unwrap();
+        assert_eq!(bodies[0].2, own);
+        // The checkpoint is still a JSON string inside the entry.
+        let decoded = serde_json::from_slice::<CompressedJsonWire>(&bodies[0].2)
+            .unwrap()
+            .decode::<serde_json::Value>()
+            .unwrap();
+        assert_eq!(
+            decoded["entries"][0]["payload"]["Normal"]["checkpoint"],
+            serde_json::Value::String(checkpoint.clone())
+        );
+    }
+    // Another commit index is another request, encoded on its own.
+    let next = append_request(7, &checkpoint);
+    first.append_entries(next.clone(), option()).await.unwrap();
+    assert_eq!(encodes(), 2);
+    // Requests in step a commit behind are still served from the memo.
+    second.append_entries(request, option()).await.unwrap();
+    second.append_entries(next, option()).await.unwrap();
+    assert_eq!(encodes(), 2);
+    let bodies = transport.bodies.lock().unwrap();
+    assert_eq!(bodies[2].2, bodies[4].2);
+    assert_eq!(bodies[0].2, bodies[3].2);
+    assert_ne!(bodies[0].2, bodies[2].2);
+}
+
+#[tokio::test]
+async fn concurrent_streams_encode_one_append_once() {
+    let transport = Arc::new(RecordingTransport::default());
+    let mut network = Network::new(transport.clone());
+    let checkpoint = "y".repeat(256 * 1024);
+    let request = append_request(6, &checkpoint);
+    let mut tasks = tokio::task::JoinSet::new();
+    for id in 2..=9 {
+        let mut peer = network
+            .new_client(id, &BasicNode::new(id.to_string()))
+            .await;
+        let request = request.clone();
+        tasks.spawn(async move {
+            peer.append_entries(request, RPCOption::new(Duration::from_secs(1)))
+                .await
+                .unwrap();
+        });
+    }
+    while let Some(result) = tasks.join_next().await {
+        result.unwrap();
+    }
+    assert_eq!(
+        network
+            .appends
+            .encodes
+            .load(std::sync::atomic::Ordering::Relaxed),
+        1
+    );
+    let bodies = transport.bodies.lock().unwrap();
+    assert_eq!(bodies.len(), 8);
+    assert!(bodies.iter().all(|(_, _, body)| *body == bodies[0].2));
+}
+
+#[test]
+fn a_shared_checkpoint_serializes_as_the_same_string() {
+    let proposal = Proposal {
+        request: "7".into(),
+        dedup_id: "d".into(),
+        term: 1,
+        base: 0,
+        checkpoint: "{\"a\":\"\\u0001\"}".into(),
+        admin: None,
+    };
+    assert_eq!(
+        serde_json::to_string(&proposal).unwrap(),
+        r#"{"request":"7","dedup_id":"d","term":1,"base":0,"checkpoint":"{\"a\":\"\\u0001\"}","admin":null}"#
+    );
+    let back: Proposal = serde_json::from_str(&serde_json::to_string(&proposal).unwrap()).unwrap();
+    assert_eq!(back.checkpoint, proposal.checkpoint);
+    let committed = Committed::new(4, proposal.checkpoint.clone(), "7".into(), 1);
+    assert_eq!(
+        serde_json::to_string(&committed).unwrap(),
+        r#"{"revision":4,"checkpoint":"{\"a\":\"\\u0001\"}","request":"7","term":1}"#
+    );
+}
+
+/// A snapshot built from an older state machine never replaces one that was
+/// installed while it was being encoded outside the lock.
+#[tokio::test]
+async fn a_snapshot_installed_during_a_build_is_kept() {
+    let older = Store::default();
+    let newer = Store::default();
+    assert_eq!(older.apply_checkpoints(&["first".into()]).await, 1);
+    assert_eq!(
+        newer
+            .apply_checkpoints(&["first".into(), "second".into()])
+            .await,
+        2
+    );
+    // The build reads its source under the lock, then encodes without it.
+    let source = older.snapshot_source().await;
+    let (stale_meta, stale_data) = snapshot_of(&source).unwrap();
+    // Meanwhile a newer snapshot is installed.
+    let (installed_meta, installed_data) = snapshot_of(&newer.snapshot_source().await).unwrap();
+    older
+        .clone()
+        .install_snapshot(
+            &installed_meta,
+            Box::new(Cursor::new(installed_data.clone())),
+        )
+        .await
+        .unwrap();
+    // The build's store step keeps the installed one.
+    assert!(!older.keep_snapshot(&stale_meta, &stale_data).await);
+    let current = older.clone().get_current_snapshot().await.unwrap().unwrap();
+    assert_eq!(current.meta.last_log_id, installed_meta.last_log_id);
+    assert_eq!((*current.snapshot).into_inner(), installed_data);
+    assert_eq!(older.committed().await.checkpoint(), "second");
+    // A build of the same or a later state replaces it as before.
+    let rebuilt = older.clone().build_snapshot().await.unwrap();
+    assert_eq!(rebuilt.meta.last_log_id, installed_meta.last_log_id);
+    assert_eq!(older.apply_checkpoints(&["third".into()]).await, 1);
+    let later = older.clone().build_snapshot().await.unwrap();
+    assert!(later.meta.last_log_id > installed_meta.last_log_id);
+    let current = older.clone().get_current_snapshot().await.unwrap().unwrap();
+    assert_eq!(current.meta.last_log_id, later.meta.last_log_id);
+    assert_eq!(
+        decode_snapshot(&(*current.snapshot).into_inner())
+            .unwrap()
+            .committed
+            .checkpoint(),
+        "third"
+    );
+}
+
+/// The snapshot is encoded while the store lock is free.
+#[tokio::test]
+async fn a_snapshot_build_does_not_hold_the_store_lock_while_encoding() {
+    let store = Store::default();
+    store.apply_checkpoints(&["x".repeat(512 * 1024)]).await;
+    let source = store.snapshot_source().await;
+    // The lock is free once the source is read.
+    let guard = tokio::time::timeout(Duration::from_millis(100), store.hold_lock())
+        .await
+        .expect("store lock free after the source read");
+    drop(guard);
+    let (meta, data) = snapshot_of(&source).unwrap();
+    assert!(store.keep_snapshot(&meta, &data).await);
+}
+
+/// The lock-free committed revision follows every commit and every
+/// installed snapshot.
+#[tokio::test]
+async fn the_committed_revision_is_read_without_the_store_lock() {
+    let (_bus, nodes) = cluster(1).await;
+    let node = &nodes[0];
+    assert_eq!(node.committed_revision(), 0);
+    let receipt = node
+        .propose(proposal(node, "1", 0, "first state"))
+        .await
+        .unwrap();
+    assert!(receipt.accepted);
+    assert_eq!(node.committed_revision(), 1);
+    let store = node.store();
+    assert_eq!(store.apply_checkpoints(&["second".into()]).await, 1);
+    assert_eq!(node.committed_revision(), node.committed().await.revision());
+    store.install_checkpoint_snapshot("replaced").await;
+    assert_eq!(node.committed_revision(), node.committed().await.revision());
+    // Read while the store is locked.
+    let guard = store.hold_lock().await;
+    assert_eq!(node.committed_revision(), 2);
+    drop(guard);
+    stop(nodes).await;
+}
+
 async fn stop(nodes: Vec<Arc<Coordinator>>) {
     for node in nodes {
         node.raft.shutdown().await.unwrap();
@@ -379,7 +621,7 @@ async fn a_follower_announces_each_commit_and_shares_its_checkpoint() {
     // digest is the checkpoint's.
     let first = nodes[1].committed().await;
     assert_eq!((first.revision, first.request.as_str()), (1, "one"));
-    assert_eq!(first.checkpoint, "first state");
+    assert_eq!(&*first.checkpoint, "first state");
     assert_eq!(first.digest(), crate::recovery::sha256(b"first state"));
     let again = nodes[1].committed().await;
     assert!(Arc::ptr_eq(&first, &again) && first.same_commit(&again));
@@ -442,7 +684,7 @@ async fn commitment_deduplication_and_checkpoint_transfer() {
         .await
         .unwrap();
     assert_eq!(
-        restored.committed().await.checkpoint,
+        &*restored.committed().await.checkpoint,
         "complete private room state"
     );
     assert_eq!(restored.committed().await.revision, 1);
@@ -684,7 +926,7 @@ async fn a_singleton_handoff_elects_the_successor_and_replicates() {
         .unwrap();
     assert!(receipt.accepted);
     tokio::time::timeout(Duration::from_secs(5), async {
-        while nodes[2].committed().await.checkpoint != "handed over" {
+        while &*nodes[2].committed().await.checkpoint != "handed over" {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
     })
@@ -707,7 +949,7 @@ async fn majority_recovers_and_old_leader_is_fenced() {
     nodes[1].raft.trigger().elect().await.unwrap();
     let successor = wait_for_successor(&nodes, "majority recovery").await;
     assert_eq!(
-        nodes[successor].committed().await.checkpoint,
+        &*nodes[successor].committed().await.checkpoint,
         "live match generation 9"
     );
     assert!(

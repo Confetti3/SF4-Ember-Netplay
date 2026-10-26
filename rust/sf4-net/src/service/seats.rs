@@ -177,11 +177,11 @@ impl Actor {
         {
             return roster.clone();
         }
-        let envelope = serde_json::from_slice::<Value>(committed.checkpoint().as_bytes()).ok();
-        let roster = envelope
-            .as_ref()
-            .and_then(|envelope| self.committed_roster(envelope));
-        if let Some(envelope) = &envelope
+        // The commit's view holds every path these reads take, and the
+        // latency roster reads the same one.
+        let envelope = committed.view();
+        let roster = envelope.and_then(|envelope| self.committed_roster(envelope));
+        if let Some(envelope) = envelope
             && !self.server_owned()
         {
             match Seats::read(envelope) {

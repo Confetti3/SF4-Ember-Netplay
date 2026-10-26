@@ -5,7 +5,7 @@
 //! Neither snapshots nor RPC errors are logged: checkpoints contain private
 //! admission state. C++ owns rule validation; only committed checkpoints escape.
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     fmt::Debug,
     future::Future,
     io::{self, Cursor, Read, Write},
@@ -34,8 +34,12 @@ use tokio::sync::{Mutex, watch};
 
 mod latency_roster;
 mod server_owned;
-pub use latency_roster::{LatencyRoster, LatencyRow, RosterInvalid, committed_latency_roster};
+mod view;
+pub use latency_roster::{
+    LatencyRoster, LatencyRow, RosterInvalid, committed_latency_roster, latency_roster_of,
+};
 pub use server_owned::Ownership;
+pub use view::envelope_view;
 
 pub const MAX_CHECKPOINT: usize = 1024 * 1024;
 pub const MAX_MEMBERS: usize = 16;
@@ -172,7 +176,9 @@ pub struct Proposal {
     pub dedup_id: String,
     pub term: u64,
     pub base: u64,
-    pub checkpoint: String,
+    /// Shared by the log entry, its clones and the commit. It serializes as
+    /// the same JSON string a `String` would.
+    pub checkpoint: Arc<str>,
     #[serde(default)]
     pub admin: Option<AdminEntry>,
 }
@@ -213,12 +219,16 @@ pub struct Receipt {
 #[derive(Default, Serialize, Deserialize)]
 pub struct Committed {
     revision: u64,
-    checkpoint: String,
+    checkpoint: Arc<str>,
     request: String,
     term: u64,
     /// The checkpoint's SHA-256, hashed on first use.
     #[serde(skip)]
     digest: OnceLock<[u8; 32]>,
+    /// The parts of the checkpoint the helper reads, read on first use
+    /// (`view`).
+    #[serde(skip)]
+    view: OnceLock<Option<Value>>,
 }
 
 impl Committed {
@@ -230,6 +240,11 @@ impl Committed {
         &self.checkpoint
     }
 
+    /// The checkpoint text itself, shared rather than copied.
+    pub fn checkpoint_shared(&self) -> Arc<str> {
+        self.checkpoint.clone()
+    }
+
     pub fn request(&self) -> &str {
         &self.request
     }
@@ -238,14 +253,25 @@ impl Committed {
         self.term
     }
 
-    fn new(revision: u64, checkpoint: String, request: String, term: u64) -> Self {
+    fn new(revision: u64, checkpoint: Arc<str>, request: String, term: u64) -> Self {
         Self {
             revision,
             checkpoint,
             request,
             term,
             digest: OnceLock::new(),
+            view: OnceLock::new(),
         }
+    }
+
+    /// The checkpoint's members, room members, tables and tournament
+    /// binding, read once per commit (`view::envelope_view`); `None` when
+    /// the checkpoint is not JSON. Every reader of the committed roster
+    /// takes it from here instead of parsing the whole checkpoint again.
+    pub fn view(&self) -> Option<&Value> {
+        self.view
+            .get_or_init(|| view::envelope_view(&self.checkpoint))
+            .as_ref()
     }
 
     /// The SHA-256 of the checkpoint, all zeroes for none.
@@ -603,15 +629,39 @@ impl Store {
         pair_revision: u64,
     ) -> bool {
         let committed = self.committed().await;
-        committed_probe_pair_bound(
-            &committed.checkpoint,
+        probe_pair_identities_valid(
             source_incarnation,
             target_incarnation,
             source_endpoint,
             target_endpoint,
             pair_revision,
-        )
+        ) && committed.view().is_some_and(|envelope| {
+            probe_pair_bound_in(
+                envelope,
+                source_incarnation,
+                target_incarnation,
+                source_endpoint,
+                target_endpoint,
+                pair_revision,
+            )
+        })
     }
+}
+
+fn probe_pair_identities_valid(
+    source_incarnation: u64,
+    target_incarnation: u64,
+    source_endpoint: &str,
+    target_endpoint: &str,
+    pair_revision: u64,
+) -> bool {
+    !(source_incarnation == 0
+        || target_incarnation == 0
+        || source_incarnation == target_incarnation
+        || source_endpoint.is_empty()
+        || target_endpoint.is_empty()
+        || source_endpoint == target_endpoint
+        || pair_revision == 0)
 }
 
 /// Validate the native room projection which a committed probe is allowed to
@@ -627,19 +677,38 @@ pub fn committed_probe_pair_bound(
     pair_revision: u64,
 ) -> bool {
     if checkpoint.is_empty()
-        || source_incarnation == 0
-        || target_incarnation == 0
-        || source_incarnation == target_incarnation
-        || source_endpoint.is_empty()
-        || target_endpoint.is_empty()
-        || source_endpoint == target_endpoint
-        || pair_revision == 0
+        || !probe_pair_identities_valid(
+            source_incarnation,
+            target_incarnation,
+            source_endpoint,
+            target_endpoint,
+            pair_revision,
+        )
     {
         return false;
     }
-    let Ok(envelope) = serde_json::from_str::<Value>(checkpoint) else {
+    let Some(envelope) = envelope_view(checkpoint) else {
         return false;
     };
+    probe_pair_bound_in(
+        &envelope,
+        source_incarnation,
+        target_incarnation,
+        source_endpoint,
+        target_endpoint,
+        pair_revision,
+    )
+}
+
+/// `committed_probe_pair_bound` on a parsed envelope, or its view.
+fn probe_pair_bound_in(
+    envelope: &Value,
+    source_incarnation: u64,
+    target_incarnation: u64,
+    source_endpoint: &str,
+    target_endpoint: &str,
+    pair_revision: u64,
+) -> bool {
     // Raft stores the complete native SessionProposal JSON.  The portable
     // RecoveryCheckpoint used for pair binding is its nested `checkpoint`
     // member; accepting a flat object here would allow tests or a malformed
@@ -727,17 +796,50 @@ impl RaftLogReader<RoomTypes> for Store {
             .collect())
     }
 }
-impl RaftSnapshotBuilder<RoomTypes> for Store {
-    async fn build_snapshot(&mut self) -> Result<Snapshot<RoomTypes>, StoreError> {
+impl Store {
+    /// The state machine a snapshot is built from, copied under the lock:
+    /// cheap, since the checkpoint itself is shared.
+    async fn snapshot_source(&self) -> Machine {
+        self.0.lock().await.machine.clone()
+    }
+
+    /// Keeps a built snapshot as the current one unless the stored one is
+    /// newer. OpenRaft builds snapshots on a task of their own, so an
+    /// installed snapshot can land between `snapshot_source` and this.
+    /// Returns whether it was kept.
+    async fn keep_snapshot(&self, meta: &SnapshotMeta<u64, BasicNode>, data: &[u8]) -> bool {
         let mut memory = self.0.lock().await;
-        let data =
-            encode_snapshot(&memory.machine).map_err(|e| StorageIOError::read_state_machine(&e))?;
-        let meta = SnapshotMeta {
-            last_log_id: memory.machine.applied,
-            last_membership: memory.machine.membership.clone(),
-            snapshot_id: format!("{:?}", memory.machine.applied),
-        };
-        memory.snapshot = Some((meta.clone(), data.clone()));
+        if memory
+            .snapshot
+            .as_ref()
+            .is_some_and(|(stored, _)| stored.last_log_id > meta.last_log_id)
+        {
+            return false;
+        }
+        memory.snapshot = Some((meta.clone(), data.to_vec()));
+        true
+    }
+}
+
+/// The snapshot of `machine`: its metadata and its encoded bytes.
+fn snapshot_of(machine: &Machine) -> io::Result<(SnapshotMeta<u64, BasicNode>, Vec<u8>)> {
+    let data = encode_snapshot(machine)?;
+    let meta = SnapshotMeta {
+        last_log_id: machine.applied,
+        last_membership: machine.membership.clone(),
+        snapshot_id: format!("{:?}", machine.applied),
+    };
+    Ok((meta, data))
+}
+
+impl RaftSnapshotBuilder<RoomTypes> for Store {
+    /// Encodes outside the store lock, so apply and the actor's reads do not
+    /// wait for it.
+    async fn build_snapshot(&mut self) -> Result<Snapshot<RoomTypes>, StoreError> {
+        let machine = self.snapshot_source().await;
+        let (meta, data) =
+            snapshot_of(&machine).map_err(|e| StorageIOError::read_state_machine(&e))?;
+        self.keep_snapshot(&meta, &data).await;
         Ok(Snapshot {
             meta,
             snapshot: Box::new(Cursor::new(data)),
@@ -999,7 +1101,88 @@ pub trait RpcTransport: Send + Sync + 'static {
     ) -> Pin<Box<dyn Future<Output = io::Result<Vec<u8>>> + Send + '_>>;
 }
 #[derive(Clone)]
-pub struct Network(pub Arc<dyn RpcTransport>);
+pub struct Network {
+    transport: Arc<dyn RpcTransport>,
+    /// Shared by every follower's `Peer`.
+    appends: Arc<AppendBodies>,
+}
+impl Network {
+    pub fn new(transport: Arc<dyn RpcTransport>) -> Self {
+        Self {
+            transport,
+            appends: Arc::default(),
+        }
+    }
+}
+
+/// An append that carries entries, named by what fixes its content: the
+/// leader's vote, the entry before them, the leader's commit and the first
+/// and last entry. An entry never changes under its LogId, so two requests
+/// with one key encode to the same bytes.
+type AppendKey = (
+    Vote<u64>,
+    Option<LogId<u64>>,
+    Option<LogId<u64>>,
+    LogId<u64>,
+    LogId<u64>,
+);
+/// How many encoded appends are kept: the newest commit and the one before
+/// it, for a follower a step behind.
+const APPEND_BODIES: usize = 2;
+type AppendBody = Arc<std::sync::OnceLock<Option<Arc<Vec<u8>>>>>;
+
+/// The RPC bodies of the last appends, encoded once for every follower that
+/// is sent the same request. Each replication stream runs on its own task, so
+/// a stream that finds the key encoding waits for it rather than encoding a
+/// second time.
+#[derive(Default)]
+struct AppendBodies {
+    slots: std::sync::Mutex<VecDeque<(AppendKey, AppendBody)>>,
+    #[cfg(test)]
+    encodes: std::sync::atomic::AtomicU64,
+}
+impl AppendBodies {
+    /// The encoded body of `request`, `None` when it cannot be encoded.
+    fn body(&self, request: &AppendEntriesRequest<RoomTypes>) -> Option<Arc<Vec<u8>>> {
+        let encode = || {
+            #[cfg(test)]
+            self.encodes
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let wire = CompressedJsonWire::encode(request).ok()?;
+            serde_json::to_vec(&wire).ok().map(Arc::new)
+        };
+        // A heartbeat is small; keep the slots for the bodies that are not.
+        let (Some(first), Some(last)) = (request.entries.first(), request.entries.last()) else {
+            return encode();
+        };
+        let key = (
+            request.vote,
+            request.prev_log_id,
+            request.leader_commit,
+            first.log_id,
+            last.log_id,
+        );
+        let body = {
+            let mut slots = self
+                .slots
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            match slots.iter().find(|(slot, _)| *slot == key) {
+                Some((_, body)) => body.clone(),
+                None => {
+                    let body = AppendBody::default();
+                    slots.push_back((key, body.clone()));
+                    if slots.len() > APPEND_BODIES {
+                        slots.pop_front();
+                    }
+                    body
+                }
+            }
+        };
+        body.get_or_init(encode).clone()
+    }
+}
+
 pub struct Peer {
     network: Network,
     id: u64,
@@ -1015,27 +1198,36 @@ impl RaftNetworkFactory<RoomTypes> for Network {
         }
     }
 }
+// This error shape is required by OpenRaft's network trait.
+fn rpc_failed<E: std::error::Error>() -> RPCError<u64, BasicNode, E> {
+    RPCError::Network(NetworkError::new(&io::Error::other(
+        "room coordination RPC failed",
+    )))
+}
 impl Peer {
-    // This error shape is required by OpenRaft's network trait.
     #[allow(clippy::result_large_err)]
     async fn request<T: Serialize, R: DeserializeOwned, E: std::error::Error>(
         &self,
         method: &'static str,
         value: T,
     ) -> Result<R, RPCError<u64, BasicNode, E>> {
-        let error = || {
-            RPCError::Network(NetworkError::new(&io::Error::other(
-                "room coordination RPC failed",
-            )))
-        };
-        let bytes = serde_json::to_vec(&value).map_err(|_| error())?;
+        let bytes = serde_json::to_vec(&value).map_err(|_| rpc_failed())?;
+        self.send(method, bytes).await
+    }
+
+    #[allow(clippy::result_large_err)]
+    async fn send<R: DeserializeOwned, E: std::error::Error>(
+        &self,
+        method: &'static str,
+        bytes: Vec<u8>,
+    ) -> Result<R, RPCError<u64, BasicNode, E>> {
         let response = self
             .network
-            .0
+            .transport
             .call(self.id, self.address.clone(), method, bytes)
             .await
-            .map_err(|_| error())?;
-        serde_json::from_slice(&response).map_err(|_| error())
+            .map_err(|_| rpc_failed())?;
+        serde_json::from_slice(&response).map_err(|_| rpc_failed())
     }
 }
 impl RaftNetwork<RoomTypes> for Peer {
@@ -1044,12 +1236,10 @@ impl RaftNetwork<RoomTypes> for Peer {
         request: AppendEntriesRequest<RoomTypes>,
         _: RPCOption,
     ) -> Result<AppendEntriesResponse<u64>, RPCError<u64, BasicNode, RaftError<u64>>> {
-        let wire = CompressedJsonWire::encode(&request).map_err(|_| {
-            RPCError::Network(NetworkError::new(&io::Error::other(
-                "room coordination RPC failed",
-            )))
-        })?;
-        self.request("append", wire).await
+        // The same bytes `request` would send: the shared body is the
+        // serialized wire envelope.
+        let body = self.network.appends.body(&request).ok_or_else(rpc_failed)?;
+        self.send("append", body.as_ref().clone()).await
     }
     async fn vote(
         &mut self,
@@ -1090,6 +1280,8 @@ pub struct Coordinator {
     /// validation. A delayed control Admission must not pass a precheck,
     /// straddle an authenticated removal, and re-add that retired process.
     pub(crate) membership_operations: Mutex<()>,
+    /// Follows the store's committed revision (`committed_revision`).
+    committed_revision: watch::Receiver<u64>,
 }
 impl Coordinator {
     pub async fn new(incarnation: u64, transport: Arc<dyn RpcTransport>) -> io::Result<Self> {
@@ -1154,8 +1346,9 @@ impl Coordinator {
         .validate()
         .map_err(|_| io::Error::other("invalid room coordination configuration"))?;
         let store = Store::with_node_limit(ownership.max_nodes());
+        let committed_revision = store.committed_changes().await;
         let (log, machine) = Adaptor::new(store.clone());
-        let network = Network(transport);
+        let network = Network::new(transport);
         let raft = Raft::new(incarnation, Arc::new(config), network.clone(), log, machine)
             .await
             .map_err(|_| io::Error::other("room coordinator startup failed"))?;
@@ -1171,6 +1364,7 @@ impl Coordinator {
             #[cfg(test)]
             authority_barriers: std::sync::atomic::AtomicU64::new(0),
             membership_operations: Mutex::new(()),
+            committed_revision,
         })
     }
     pub fn raft(&self) -> &RoomRaft {
@@ -1203,7 +1397,7 @@ impl Coordinator {
             .ok_or_else(|| io::Error::other("room leader route unavailable"))?;
         let bytes = self
             .network
-            .0
+            .transport
             .call(leader, node.addr.clone(), "authority", vec![0])
             .await?;
         let claim: AuthorityClaim = serde_json::from_slice(&bytes)
@@ -1330,6 +1524,14 @@ impl Coordinator {
             .learner_ids()
             .collect()
     }
+    /// The committed revision, read without the store lock: the value the
+    /// store last published for `committed_changes`, which it publishes under
+    /// the lock in the same step that replaces the commit. The actor looks
+    /// at it every tick and takes the lock only when it moved.
+    pub fn committed_revision(&self) -> u64 {
+        *self.committed_revision.borrow()
+    }
+
     pub async fn committed(&self) -> Arc<Committed> {
         self.store.committed().await
     }
@@ -1423,7 +1625,7 @@ impl Coordinator {
                 .ok_or_else(|| io::Error::other("room leader route unavailable"))?;
             let bytes = self
                 .network
-                .0
+                .transport
                 .call(
                     leader,
                     node.addr.clone(),

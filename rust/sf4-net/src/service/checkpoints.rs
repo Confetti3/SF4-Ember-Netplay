@@ -263,11 +263,27 @@ impl Actor {
     /// leader status: followers become usable replicas after applying the
     /// committed log, while native writes remain gated by `leader_local`.
     pub(super) async fn pump_committed_checkpoint(&mut self) -> io::Result<()> {
-        let Some(recovery) = self.recovery.clone() else {
+        // Departure grace exists only to answer the old room's authority
+        // RPCs. Its native side is closed and never acknowledges a transfer,
+        // so an export would only hold the actor at the fast tick until it
+        // timed out.
+        if self.retirement_started.is_some() {
+            return Ok(());
+        }
+        let Some(recovery) = self.recovery.as_ref() else {
             return Ok(());
         };
-        // This runs on every actor tick; the committed value is shared, so
-        // looking at it copies nothing.
+        // This runs on every actor tick: compare the revision the store last
+        // published, which takes no lock, and look at the store only when it
+        // is past the last export. Compared on every tick rather than taken
+        // from a change notice, since a timed-out transfer lowers
+        // `last_exported_revision` with no new commit.
+        let latest = recovery.committed_revision();
+        if latest == 0 || latest <= self.last_exported_revision {
+            return Ok(());
+        }
+        let recovery = recovery.clone();
+        // The committed value is shared, so looking at it copies nothing.
         let committed = recovery.committed().await;
         if committed.revision() == 0 || committed.revision() <= self.last_exported_revision {
             return Ok(());
@@ -290,14 +306,13 @@ impl Actor {
         let Some(base_revision) = committed.revision().checked_sub(1) else {
             return Ok(());
         };
-        let transfer = CheckpointTransfer::new(
+        // No copy and no second hash: the transfer shares the committed
+        // checkpoint and the digest the commit already holds.
+        let transfer = CheckpointTransfer::from_committed(
             recovery.room,
             transfer_id,
-            committed.term(),
             base_revision,
-            committed.revision(),
-            // The one copy: the transfer owns its bytes.
-            committed.checkpoint().as_bytes().to_vec(),
+            &committed,
         )?;
         if let Some(retained) = self.observe_commit(recovery.room, &committed) {
             self.schedule_membership_reconciliation(
@@ -562,7 +577,7 @@ impl Actor {
         let committed_exact = committed.revision() == key.revision
             && committed.term() == key.term
             && committed.request() == key.transfer.to_string()
-            && committed.checkpoint().as_bytes() == transfer.bytes
+            && committed.checkpoint().as_bytes() == &*transfer.bytes
             && transfer.room == key.room
             && transfer.transfer == key.transfer
             && transfer.base_revision == key.base_revision

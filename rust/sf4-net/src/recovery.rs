@@ -6,7 +6,7 @@
 //! sockets are deliberately outside this state machine and are never closed
 //! when coordination is unavailable.
 
-use std::{collections::BTreeSet, io, time::Duration};
+use std::{collections::BTreeSet, io, sync::Arc, time::Duration};
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use iroh::{EndpointAddr, EndpointId};
@@ -455,6 +455,12 @@ impl RecoverySession {
         self.coordinator.committed().await
     }
 
+    /// The committed revision, without the store lock
+    /// (`Coordinator::committed_revision`).
+    pub fn committed_revision(&self) -> u64 {
+        self.coordinator.committed_revision()
+    }
+
     pub fn voter_ids(&self) -> BTreeSet<u64> {
         self.coordinator.voter_ids()
     }
@@ -590,8 +596,10 @@ impl RecoverySession {
         {
             return Err(io::Error::other("invalid checkpoint proposal"));
         }
-        let checkpoint = String::from_utf8(transfer.bytes.clone())
-            .map_err(|_| io::Error::other("checkpoint must be UTF-8 JSON"))?;
+        let checkpoint = transfer
+            .text
+            .clone()
+            .ok_or_else(|| io::Error::other("checkpoint must be UTF-8 JSON"))?;
         Ok(Proposal {
             // Preserve the native SessionProposal request as the Raft request
             // identity. Followers use this exact value when replaying the
@@ -635,7 +643,7 @@ impl RecoverySession {
                 ),
                 term,
                 base: self.committed().await.revision(),
-                checkpoint: String::new(),
+                checkpoint: "".into(),
                 admin: Some(AdminEntry::ProbeReservation(ProbeReservation {
                     room: self.room,
                     source_incarnation,
@@ -734,8 +742,12 @@ pub struct CheckpointTransfer {
     pub term: u64,
     pub base_revision: u64,
     pub revision: u64,
-    pub bytes: Vec<u8>,
+    /// Shared, not copied, with the commit it was read from.
+    pub bytes: Arc<[u8]>,
     pub digest: [u8; 32],
+    /// The same bytes as text when they are UTF-8: the one buffer a proposal,
+    /// its log entries and the commit share.
+    text: Option<Arc<str>>,
 }
 
 impl CheckpointTransfer {
@@ -747,18 +759,68 @@ impl CheckpointTransfer {
         revision: u64,
         bytes: Vec<u8>,
     ) -> io::Result<Self> {
-        if bytes.is_empty() || bytes.len() > MAX_CHECKPOINT_BYTES {
-            return Err(io::Error::other("checkpoint size out of bounds"));
-        }
+        Self::check_size(bytes.len())?;
+        let digest = sha256(&bytes);
+        Self::with_digest(room, transfer, term, base_revision, revision, bytes, digest)
+    }
+
+    /// `new` for bytes whose SHA-256 is already known to be `digest`.
+    fn with_digest(
+        room: [u8; 16],
+        transfer: u64,
+        term: u64,
+        base_revision: u64,
+        revision: u64,
+        bytes: Vec<u8>,
+        digest: [u8; 32],
+    ) -> io::Result<Self> {
+        Self::check_size(bytes.len())?;
+        let (bytes, text) = match String::from_utf8(bytes) {
+            Ok(text) => {
+                let text = Arc::<str>::from(text);
+                (Arc::<[u8]>::from(text.clone()), Some(text))
+            }
+            Err(error) => (Arc::<[u8]>::from(error.into_bytes()), None),
+        };
         Ok(Self {
             room,
             transfer,
             term,
             base_revision,
             revision,
-            digest: sha256(&bytes),
             bytes,
+            digest,
+            text,
         })
+    }
+
+    /// The transfer of `committed`, sharing its checkpoint and the SHA-256
+    /// it already holds.
+    pub fn from_committed(
+        room: [u8; 16],
+        transfer: u64,
+        base_revision: u64,
+        committed: &Committed,
+    ) -> io::Result<Self> {
+        Self::check_size(committed.checkpoint().len())?;
+        let text = committed.checkpoint_shared();
+        Ok(Self {
+            room,
+            transfer,
+            term: committed.term(),
+            base_revision,
+            revision: committed.revision(),
+            bytes: Arc::<[u8]>::from(text.clone()),
+            digest: committed.digest(),
+            text: Some(text),
+        })
+    }
+
+    fn check_size(length: usize) -> io::Result<()> {
+        if length == 0 || length > MAX_CHECKPOINT_BYTES {
+            return Err(io::Error::other("checkpoint size out of bounds"));
+        }
+        Ok(())
     }
     pub fn digest_hex(&self) -> String {
         hex_digest(&self.digest)
@@ -869,13 +931,15 @@ impl IncomingTransfer {
         if self.bytes.len() != self.length || sha256(&self.bytes) != self.digest {
             return Err(io::Error::other("checkpoint digest mismatch"));
         }
-        CheckpointTransfer::new(
+        // Hashed just above.
+        CheckpointTransfer::with_digest(
             self.room,
             self.transfer,
             self.term,
             self.base_revision,
             self.revision,
             self.bytes,
+            self.digest,
         )
     }
 }

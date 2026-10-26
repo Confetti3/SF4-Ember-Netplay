@@ -479,7 +479,8 @@ async fn near_limit_checkpoint_obeys_four_credit_window_and_cumulative_acks() {
                 .unwrap()
                 .finish()
                 .unwrap()
-                .bytes,
+                .bytes
+                .to_vec(),
             bytes
         );
         source
@@ -1149,6 +1150,102 @@ async fn an_abandoned_coordinated_room_keeps_its_vote_for_the_grace() {
         assert!(actor.recovery.is_none() && actor.room.is_none());
         assert!(actor.retirement_started.is_none());
         assert!(recovery.coordinator.current_leader().is_some());
+        recovery.stop().await;
+        host.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// Commits a native checkpoint replayable as transfer `transfer` on the
+/// leader's coordination.
+async fn commit_native(recovery: &crate::recovery::RecoverySession, transfer: u64, checkpoint: &str) {
+    let base = recovery.committed().await.revision();
+    let receipt = recovery
+        .coordinator
+        .propose(crate::coordination::Proposal {
+            request: transfer.to_string(),
+            dedup_id: format!("test:{transfer}"),
+            term: recovery.coordinator.current_term(),
+            base,
+            checkpoint: checkpoint.into(),
+            admin: None,
+        })
+        .await
+        .unwrap();
+    assert!(receipt.accepted);
+}
+
+/// A helper in departure grace answers authority RPCs only: a commit applied
+/// then is not exported to a native side that has closed the room.
+#[tokio::test]
+async fn departure_grace_exports_no_commit() {
+    timeout(Duration::from_secs(30), async {
+        let host = endpoint().await;
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let seed =
+            Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600).unwrap();
+        let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(host.clone(), events_tx);
+        let (_invite, recovery) = led_host(&mut actor, seed).await;
+        commit_native(&recovery, 17, "{\"checkpoint\":{}}").await;
+        actor.enter_departure_grace();
+        actor.pump_committed_checkpoint().await.unwrap();
+        assert!(actor.outgoing_transfer.is_none());
+        assert_eq!(actor.last_exported_revision, 0);
+        while let Ok(event) = events.try_recv() {
+            assert!(!matches!(event, Event::CheckpointBegin { .. }));
+        }
+        // The gate is the grace alone: the same commit exports without it.
+        actor.retirement_started = None;
+        actor.pump_committed_checkpoint().await.unwrap();
+        assert!(actor.outgoing_transfer.is_some());
+        assert!(matches!(
+            next(&mut events, "checkpoint_begin").await,
+            Event::CheckpointBegin { transfer: 17, revision: 1, .. }
+        ));
+        recovery.stop().await;
+        host.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// The pump takes the store lock only for a revision past the last export,
+/// read from the revision the store publishes; a timed-out export is retried.
+#[tokio::test]
+async fn the_checkpoint_pump_waits_on_the_store_only_for_a_new_revision() {
+    timeout(Duration::from_secs(30), async {
+        let host = endpoint().await;
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let seed =
+            Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600).unwrap();
+        let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(host.clone(), events_tx);
+        let (_invite, recovery) = led_host(&mut actor, seed).await;
+        commit_native(&recovery, 17, "{\"checkpoint\":{}}").await;
+        actor.last_exported_revision = 1;
+        {
+            // Nothing new: the pump returns while the store is locked.
+            let _held = recovery.coordinator.store().hold_lock().await;
+            timeout(Duration::from_millis(500), actor.pump_committed_checkpoint())
+                .await
+                .expect("the pump waited on the store lock")
+                .unwrap();
+        }
+        assert!(actor.outgoing_transfer.is_none());
+        // A timed-out export lowers the last export with no new commit, and
+        // the next pump replays the commit.
+        actor.last_exported_revision = 0;
+        actor.pump_committed_checkpoint().await.unwrap();
+        assert!(matches!(
+            next(&mut events, "checkpoint_begin").await,
+            Event::CheckpointBegin { transfer: 17, revision: 1, .. }
+        ));
         recovery.stop().await;
         host.close().await;
     })
@@ -5141,7 +5238,7 @@ async fn a_probe_reservation_wait_does_not_block_the_actor() {
                 dedup_id: "roster".into(),
                 term: state.term,
                 base: recovery.committed().await.revision(),
-                checkpoint: roster.to_string(),
+                checkpoint: roster.to_string().into(),
                 admin: None,
             })
             .await
@@ -5496,7 +5593,7 @@ impl ReservationFixture {
                 dedup_id: "roster".into(),
                 term: state.term,
                 base: recovery.committed().await.revision(),
-                checkpoint: roster.to_string(),
+                checkpoint: roster.to_string().into(),
                 admin: None,
             })
             .await
@@ -5893,7 +5990,7 @@ impl ReservationFixture {
                 dedup_id: format!("roster:{revision}"),
                 term: self.term,
                 base: self.recovery.committed().await.revision(),
-                checkpoint: roster.to_string(),
+                checkpoint: roster.to_string().into(),
                 admin: None,
             })
             .await
