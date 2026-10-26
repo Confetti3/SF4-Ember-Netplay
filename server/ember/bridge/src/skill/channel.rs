@@ -417,7 +417,7 @@ pub fn upload(
                     // The opponent's account as it is now. Without one the
                     // game could never be listed: the opponent never queued
                     // it, so nothing is kept.
-                    let Some(opponent) = account(tx, &opponent)? else {
+                    let Some(opponent) = super::account(tx, &opponent)? else {
                         return Ok(HELD);
                     };
                     sides[side] = own_side(upload, account, own);
