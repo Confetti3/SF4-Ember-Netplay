@@ -4,6 +4,7 @@
 // and its status line reports it only then. The same line the supervisor's own
 // tests build is parsed here.
 #include "../../server/roomhost/RoomHost.hxx"
+#include <limits>
 #include <string>
 
 #include "test_support.hxx"
@@ -64,11 +65,26 @@ void TestRoomFollowsTheConfiguration() {
 		CHECK(!roomhost::EnableConfiguredRoom(server, config, 91));
 	}
 }
+
+// How long an idle room sleeps: until its next timer, but never less than a
+// tick (no spin on a deadline that is due or a few ms away) and never more than
+// QuietWaitMs, which is also how soon stdin closing is noticed.
+void TestIdleWait() {
+	const auto none = (std::numeric_limits<std::uint64_t>::max)();
+	CHECK(roomhost::TickWaitMs == 16 && roomhost::QuietWaitMs == 250);
+	CHECK(roomhost::IdleWaitMs(none) == roomhost::QuietWaitMs);
+	CHECK(roomhost::IdleWaitMs(90000) == roomhost::QuietWaitMs);
+	CHECK(roomhost::IdleWaitMs(251) == roomhost::QuietWaitMs && roomhost::IdleWaitMs(250) == 250);
+	CHECK(roomhost::IdleWaitMs(100) == 100 && roomhost::IdleWaitMs(17) == 17);
+	CHECK(roomhost::IdleWaitMs(16) == roomhost::TickWaitMs && roomhost::IdleWaitMs(5) == roomhost::TickWaitMs);
+	CHECK(roomhost::IdleWaitMs(0) == roomhost::TickWaitMs);
+}
 }
 
 int main() {
 	TestParse();
 	TestRoomFollowsTheConfiguration();
+	TestIdleWait();
 	std::puts("Room host config test passed");
 	return 0;
 }

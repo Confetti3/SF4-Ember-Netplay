@@ -39,6 +39,17 @@ bool ParseConfig(const std::string& line, Config& config, std::string& error);
 // server will not take it.
 bool EnableConfiguredRoom(SessionServer& server, const Config& config, std::uint64_t roomEpoch);
 
+// How long the host sleeps between ticks: the game's rate while anything
+// moves, and at most QuietWaitMs while only a room deadline is ahead. A helper
+// event ends either wait at once (HelperClient::WaitForIncoming).
+constexpr std::uint64_t TickWaitMs = 16, QuietWaitMs = 250;
+// The wait for a room whose next timer is due in `nextDueMs` (the largest value
+// when none runs): until then, but not less than a tick and not more than
+// QuietWaitMs, so stdin closing is noticed within that.
+constexpr std::uint64_t IdleWaitMs(std::uint64_t nextDueMs) {
+	return nextDueMs < TickWaitMs ? TickWaitMs : nextDueMs > QuietWaitMs ? QuietWaitMs : nextDueMs;
+}
+
 // One line of the child protocol, without its newline.
 std::string HostedLine(const std::string& invitation, const std::string& region);
 std::string ClosedLine(const std::string& reason);
@@ -55,10 +66,15 @@ public:
 	// is the reason for the closed line.
 	bool Tick(std::uint64_t nowMs);
 	bool Hosted() const { return hosted_; }
-	// Hosted, empty and with nothing in flight: no proposal, decode, ban or
-	// timer waits on the next tick, so the caller may tick slowly until a
-	// helper event arrives.
-	bool Quiet() const;
+	// How long the caller may sleep after a tick at nowMs before the next one,
+	// a helper event cutting it short. TickWaitMs while a game is on or starting
+	// (a table Ready, Playing or Paused), anything is in flight (a proposal,
+	// checkpoint, recovery candidate, ban, queued message or send that waits for
+	// the helper), the room is closing or not hosted yet, or recovery failed;
+	// otherwise IdleWaitMs of the room's next timer, so occupied rooms that only
+	// sit in the lobby tick a few times a second and every timer still fires on
+	// time.
+	std::uint64_t WaitMs(std::uint64_t nowMs) const;
 	// True once the room ends on its own: the room model closed it (a kick at the
 	// ban cap) or its last member left with a Leave. The host then says closed
 	// with CloseReason(), runs the close sequence and exits.

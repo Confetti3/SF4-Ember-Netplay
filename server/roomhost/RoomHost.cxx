@@ -236,12 +236,24 @@ void RoomHost::Report(std::uint64_t nowMs) {
 	haveReported_ = true;
 }
 
-bool RoomHost::Quiet() const {
-	if (!hosted_ || closing_ || !server_ || !pendingBans_.empty() || recoveryFailedSinceMs_) return false;
-	if (room_->ProposalInFlight() || room_->CheckpointPending()) return false;
-	if (server_->HasRecoveryCandidate() || server_->PendingProposal()) return false;
+std::uint64_t RoomHost::WaitMs(std::uint64_t nowMs) const {
+	if (!hosted_ || closing_ || !server_ || !pendingBans_.empty() || recoveryFailedSinceMs_) return TickWaitMs;
+	if (room_->ProposalInFlight() || room_->CheckpointPending()) return TickWaitMs;
+	if (server_->HasRecoveryCandidate() || server_->PendingProposal()) return TickWaitMs;
 	const auto* snapshot = server_->RoomSnapshot();
-	return snapshot && snapshot->members.empty() && !snapshot->closed;
+	if (!snapshot || snapshot->closed) return TickWaitMs;
+	// A game being started, played or resolved is paced by the tick.
+	for (const auto& table : snapshot->tables)
+		if (table.phase == room::TablePhase::Ready || table.phase == room::TablePhase::Playing ||
+			table.phase == room::TablePhase::Paused) return TickWaitMs;
+	// Work that finishes without a helper event: a transfer under way, a reply
+	// or marker parked until the helper takes it, and queued messages the
+	// server has yet to read.
+	const auto recovery = room_->RecoveryState();
+	if (recovery.checkpointActive || recovery.pendingCheckpointAck || recovery.pendingCommittedMarker ||
+		recovery.pendingPublicEffects || recovery.pendingTerminalReplays || recovery.terminalReplaysInFlight ||
+		recovery.serverQueueMessages || recovery.clientQueueMessages) return TickWaitMs;
+	return IdleWaitMs(server_->NextRoomDueMs(nowMs));
 }
 
 bool RoomHost::Tick(std::uint64_t nowMs) {

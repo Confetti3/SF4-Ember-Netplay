@@ -20,10 +20,6 @@
 using namespace sf4e;
 
 namespace {
-// While members are in the room, or anything is in flight, the room ticks at
-// the game's rate; an empty, settled room only this often. A helper event
-// ends either wait at once (HelperClient::WaitForIncoming).
-constexpr std::uint64_t TickMs = 16, QuietTickMs = 250;
 // The supervisor gives a room 30 s to say hosted, and 10 s to exit once its
 // stdin closes; both limits here are inside those.
 constexpr std::uint64_t HelperConnectMs = 15000, HostedMs = 25000, LeaveMs = 4000;
@@ -126,7 +122,11 @@ int main() {
 		const auto tick = NowMs();
 		if (!host.Tick(tick)) fail(host.Error());
 		if (!host.Hosted() && tick - started >= HostedMs) fail("host_timeout");
-		const auto period = host.Quiet() ? QuietTickMs : TickMs;
+		// The room says how long it may sleep after this tick: a tick while
+		// anything moves, otherwise until its next timer, at most 250 ms (so
+		// stdin closing is noticed within that). A helper event ends the wait
+		// at once.
+		const auto period = host.WaitMs(tick);
 		const auto spent = NowMs() - tick;
 		if (spent < period) helper->Client().WaitForIncoming(static_cast<unsigned>(period - spent));
 	}
