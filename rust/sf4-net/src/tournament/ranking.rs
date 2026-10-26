@@ -109,7 +109,7 @@ mod tests {
         ] {
             let parsed: Request = serde_json::from_value(value.clone()).expect("a request");
             assert_eq!(parsed.op(), op);
-            assert!(!parsed.is_identity());
+            assert_eq!(parsed.lane(), crate::tournament::Lane::Bridge);
             assert_eq!(serde_json::to_value(&parsed).unwrap(), value);
         }
         for bad in [

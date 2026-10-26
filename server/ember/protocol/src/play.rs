@@ -76,6 +76,9 @@ pub fn roster_digest(p1: &EmberId, p2: &EmberId) -> Result<String> {
 
 /// The capabilities feature of a bridge that reads a claim's `ready`.
 pub const CLAIM_READY_FEATURE: &str = "matches.claim_ready";
+/// The capabilities feature of a bridge that reads a claim's `held_binding`
+/// and answers `ClaimAnswer::Unchanged` to it.
+pub const CLAIM_UNCHANGED_FEATURE: &str = "matches.claim_unchanged";
 
 /// `match.claim`: an assigned fighter offers this helper run's endpoint.
 /// Claiming again renews the claim and any provisioning lease it holds.
@@ -98,11 +101,23 @@ pub struct Claim {
     /// them out of the binding at once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub watch: Option<bool>,
+    /// The digest (`Binding::digest`) of the binding this helper holds for
+    /// the match, verified. Sent only to a bridge that lists
+    /// `CLAIM_UNCHANGED_FEATURE`, since an older one refuses a field it does
+    /// not know. Only a claim carrying it may be answered
+    /// `ClaimAnswer::Unchanged`, so a helper that never sends it never sees
+    /// that answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held_binding: Option<String>,
 }
 
 impl Claim {
     pub fn check(&self) -> Result<()> {
-        check_helper(&self.endpoint_id, &self.helper_instance_id, &self.build_id)
+        check_helper(&self.endpoint_id, &self.helper_instance_id, &self.build_id)?;
+        if let Some(held) = &self.held_binding {
+            decode_b64u::<32>(held, "held_binding")?;
+        }
+        Ok(())
     }
 }
 
@@ -126,6 +141,12 @@ pub enum ClaimAnswer {
         invitation: String,
         binding: Option<Box<SignedBinding>>,
     },
+    /// The match's room, whose binding is still exactly the one the claim
+    /// said it holds (`Claim::held_binding`), so it is left out. Answered
+    /// only to a claim that carried `held_binding`: every other claim gets
+    /// `Room` as before, and a helper that never sends the field never sees
+    /// this answer, which it would refuse.
+    Unchanged { room_id: String, invitation: String },
 }
 
 /// `room.publish`: the room a fighter hosts for the match. A first room needs
@@ -263,6 +284,12 @@ impl Binding {
     /// The slot `endpoint_id` holds, if it is one of the two fighters.
     pub fn slot_of(&self, endpoint_id: &str) -> Option<u8> {
         (0..2u8).find(|&slot| self.fighters[slot as usize].endpoint_id == endpoint_id)
+    }
+
+    /// Unpadded base64url SHA-256 of the binding's canonical bytes, the ones
+    /// its signature covers: what a claim's `held_binding` names.
+    pub fn digest(&self) -> Result<String> {
+        json::digest(self)
     }
 }
 
@@ -771,6 +798,109 @@ mod tests {
         let mut unknown = older;
         unknown["seat"] = 0.into();
         assert!(serde_json::from_value::<Claim>(unknown).is_err());
+    }
+
+    // A claim names the binding it holds only when its helper sets it, and
+    // only as a digest; unset, the claim is the bytes an older bridge reads.
+    #[test]
+    fn a_claim_names_the_binding_it_holds_only_when_asked() {
+        let older = serde_json::json!({
+            "endpoint_id": "a".repeat(64),
+            "helper_instance_id": "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01",
+            "build_id": "build",
+        });
+        let claim: Claim = serde_json::from_value(older.clone()).unwrap();
+        assert_eq!(claim.held_binding, None);
+        assert_eq!(serde_json::to_value(&claim).unwrap(), older);
+        let digest = crate::encoding::b64u(&[7; 32]);
+        let holding = Claim {
+            held_binding: Some(digest.clone()),
+            ..claim.clone()
+        };
+        assert!(holding.check().is_ok());
+        let sent = serde_json::to_value(&holding).unwrap();
+        assert_eq!(sent["held_binding"], digest.as_str());
+        assert_eq!(serde_json::from_value::<Claim>(sent).unwrap(), holding);
+        for wrong in [String::new(), "x".repeat(43), format!("{digest}A")] {
+            let claim = Claim {
+                held_binding: Some(wrong),
+                ..claim.clone()
+            };
+            assert_eq!(claim.check(), Err(Error::InvalidEncoding("held_binding")));
+        }
+    }
+
+    // The answers a claim without `held_binding` gets keep their bytes; the
+    // unchanged answer is one more role, carrying the room and its
+    // invitation and no binding.
+    #[test]
+    fn the_unchanged_answer_is_its_own_role() {
+        let room = serde_json::json!({
+            "role": "room", "room_id": "0".repeat(32), "invitation": "sf4e3:x", "binding": null,
+        });
+        let parsed: ClaimAnswer = serde_json::from_value(room.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&parsed).unwrap(), room);
+        let unchanged = ClaimAnswer::Unchanged {
+            room_id: "0".repeat(32),
+            invitation: "sf4e3:x".into(),
+        };
+        let sent = serde_json::to_value(&unchanged).unwrap();
+        assert_eq!(
+            sent,
+            serde_json::json!({ "role": "unchanged", "room_id": "0".repeat(32), "invitation": "sf4e3:x" })
+        );
+        assert_eq!(
+            serde_json::from_value::<ClaimAnswer>(sent).unwrap(),
+            unchanged
+        );
+    }
+
+    // The digest is of the canonical bytes, so it moves with any field,
+    // `issued_at` included, and not with how the JSON was written.
+    #[test]
+    fn a_binding_digest_names_its_bytes() {
+        let (a, b) = (key(1), key(2));
+        let binding = Binding {
+            version: VERSION,
+            bridge_id: "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11".into(),
+            match_id: "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12".into(),
+            assignment_generation: Counter(1),
+            binding_revision: Counter(1),
+            room_id: "0123456789abcdef0123456789abcdef".into(),
+            build_id: "build".into(),
+            games_to_win: 2,
+            rules_digest: rules_digest(&rules()).unwrap(),
+            roster_digest: roster_digest(a.ember_id(), b.ember_id()).unwrap(),
+            fighters: [
+                BoundFighter {
+                    ember_id: a.ember_id().clone(),
+                    endpoint_id: "a".repeat(64),
+                },
+                BoundFighter {
+                    ember_id: b.ember_id().clone(),
+                    endpoint_id: "b".repeat(64),
+                },
+            ],
+            issued_at: 100,
+            starting_wins: [0, 0],
+            watchers: vec![],
+        };
+        let digest = binding.digest().unwrap();
+        assert_eq!(digest, json::digest(&binding).unwrap());
+        assert_eq!(digest.len(), 43);
+        let reread: Binding =
+            serde_json::from_str(&serde_json::to_string_pretty(&binding).unwrap()).unwrap();
+        assert_eq!(reread.digest().unwrap(), digest);
+        let later = Binding {
+            issued_at: 101,
+            ..binding.clone()
+        };
+        assert_ne!(later.digest().unwrap(), digest);
+        let moved = Binding {
+            binding_revision: Counter(2),
+            ..binding
+        };
+        assert_ne!(moved.digest().unwrap(), digest);
     }
 
     /// Seeded mutation fuzzing of what a helper or the bridge reads from the

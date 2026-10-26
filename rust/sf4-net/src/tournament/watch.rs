@@ -178,11 +178,24 @@ mod tests {
             waiting.unwrap(),
             json!({ "role": "waiting", "retry_after": 10, "reason": "full" })
         );
+        // A field a newer bridge adds is ignored; the game sees the answer
+        // without it.
+        let extra = present(
+            json!({ "state": "room", "room_id": "a".repeat(32), "invitation": "x", "binding": null }),
+        );
+        assert_eq!(
+            extra.unwrap(),
+            json!({ "role": "room", "room_id": "a".repeat(32), "invitation": "x" })
+        );
+        // A known field of the wrong type, or a value no bridge sends, is
+        // still refused.
         for bad in [
             json!({ "state": "room", "room_id": "A".repeat(32), "invitation": "sf4e3:x" }),
             json!({ "state": "room", "room_id": "a".repeat(32), "invitation": "" }),
             json!({ "state": "waiting", "retry_after": 10, "reason": "later" }),
-            json!({ "state": "room", "room_id": "a".repeat(32), "invitation": "x", "binding": null }),
+            json!({ "state": "room", "room_id": 7, "invitation": "sf4e3:x" }),
+            json!({ "state": "waiting", "retry_after": "10", "reason": "full" }),
+            json!({ "state": "waiting", "retry_after": -1, "reason": "full" }),
         ] {
             assert_eq!(present(bad).unwrap_err().0, "bridge_invalid_response");
         }
@@ -285,6 +298,7 @@ mod tests {
             build_id: "b1".into(),
             ready: None,
             watch: None,
+            held_binding: None,
         };
         let sent = std::sync::Mutex::new(Vec::new());
         let send = |fails: bool| {

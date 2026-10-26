@@ -24,6 +24,9 @@ pub(super) struct Routes {
     pub connect: Action,
     pub remove: Action,
     pub cancel: Action,
+    /// A sign-in the bridge started but whose page was not opened is ended
+    /// at once (best effort), so it holds none of the site's starts.
+    pub end_unopened: bool,
 }
 
 /// The player's connected account on the bridge, or `account: null`.
@@ -48,15 +51,13 @@ pub async fn status(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> O
 /// Starts a sign-in and opens the site's page in the browser, if
 /// `is_sign_in_page` says it is the site's own; anything else the bridge
 /// answers is not opened. The account appears once the player finishes
-/// there; `status` reads it. With `end_unopened`, a sign-in the bridge
-/// started but whose page was not opened is ended at once (best effort), so
-/// it holds none of the site's starts.
+/// there; `status` reads it. The routes say whether a sign-in whose page
+/// was not opened is ended (`Routes::end_unopened`).
 pub async fn connect(
     shared: &Arc<Shared>,
     bridge_id: &str,
     routes: &Routes,
     is_sign_in_page: impl Fn(&str) -> bool,
-    end_unopened: bool,
 ) -> Outcome {
     let started = proven(
         shared,
@@ -73,7 +74,7 @@ pub async fn connect(
         .ok_or_else(|| Failure::new("bridge_invalid_response"))
         .and_then(|started| browser::open(&started.authorize_url));
     if let Err(failure) = opened {
-        if end_unopened {
+        if routes.end_unopened {
             let _ = cancel(shared, bridge_id, routes).await;
         }
         return Err(failure);

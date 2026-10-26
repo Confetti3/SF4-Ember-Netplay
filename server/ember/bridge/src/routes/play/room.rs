@@ -6,7 +6,7 @@
 use ember_protocol::{
     EmberId,
     encoding::Counter,
-    play::{self, Binding, BoundFighter, BoundWatcher, SignedBinding},
+    play::{self, Binding, BoundFighter, BoundWatcher, ClaimAnswer, SignedBinding},
 };
 use rusqlite::{
     OptionalExtension, Transaction,
@@ -89,6 +89,8 @@ pub(super) struct Room {
     pub fighters_revision: u64,
     /// The watchers the binding names. Stored as no value when there are none.
     pub bound_watchers: Vec<BoundWatcher>,
+    /// When the current room was published: the binding's `issued_at`.
+    pub published_at: Option<u64>,
 }
 
 /// The match's room, made if the match has none yet.
@@ -106,7 +108,7 @@ pub(super) fn peek(tx: &Transaction<'_>, match_id: &str) -> Result<Room> {
     Ok(tx
         .query_row(
             "SELECT lease_id, lease_holder, lease_fence, lease_expires_at, room_id, invitation_sealed,
-                    binding_revision, bound_endpoints, fighters_revision, bound_watchers
+                    binding_revision, bound_endpoints, fighters_revision, bound_watchers, published_at
              FROM match_rooms WHERE match_id = ?1",
             [match_id],
             |row| {
@@ -124,6 +126,7 @@ pub(super) fn peek(tx: &Transaction<'_>, match_id: &str) -> Result<Room> {
                         .get::<_, Option<Json<_>>>(9)?
                         .map(|stored| stored.0)
                         .unwrap_or_default(),
+                    published_at: row.get(10)?,
                 })
             },
         )
@@ -179,14 +182,64 @@ pub(super) fn bind(
     Ok(fighters_moved)
 }
 
-/// The signed binding of `current`, the room as it stands, when both
-/// fighters have claimed.
-pub(super) fn binding(
+/// A claim's answer once the match has a room: the room, its invitation and
+/// the signed binding once both fighters have claimed. When the claim says
+/// it holds exactly that binding (`held`, its `held_binding`), the answer is
+/// `Unchanged`, without the binding and without signing it again. A claim
+/// that names none gets `Room`, as every claim did before.
+pub(super) fn claim_answer(
     ctx: &Ctx,
     fighter: &PlayedMatch,
     claimed: &[ClaimRow],
     current: Room,
-) -> Result<Option<SignedBinding>> {
+    held: Option<&str>,
+) -> Result<ClaimAnswer> {
+    let (room_id, invitation) = invitation(ctx, &current)?;
+    let binding = match unsigned(ctx, fighter, claimed, current)? {
+        Some(binding) => binding,
+        None => {
+            return Ok(ClaimAnswer::Room {
+                room_id,
+                invitation,
+                binding: None,
+            });
+        }
+    };
+    if let Some(held) = held {
+        let digest = binding.digest().map_err(|_| ApiFailure::unavailable())?;
+        if digest == held {
+            return Ok(ClaimAnswer::Unchanged {
+                room_id,
+                invitation,
+            });
+        }
+    }
+    Ok(ClaimAnswer::Room {
+        room_id,
+        invitation,
+        binding: Some(Box::new(sign(ctx, &binding)?)),
+    })
+}
+
+fn sign(ctx: &Ctx, binding: &Binding) -> Result<SignedBinding> {
+    ctx.keys
+        .sign_binding(binding)
+        .map_err(|_| ApiFailure::unavailable())
+}
+
+/// The binding of `current` when both fighters have claimed, unsigned. Its
+/// `issued_at` is when the room was published, not when this answer is
+/// made, so the binding stays the same bytes, and its signature the same,
+/// until something it names changes (each such change also moves its
+/// revision or generation). A helper holding it can then tell a renewal
+/// that changes nothing from a new binding. Nothing reads a binding's
+/// `issued_at`; a permit carries its own.
+fn unsigned(
+    ctx: &Ctx,
+    fighter: &PlayedMatch,
+    claimed: &[ClaimRow],
+    current: Room,
+) -> Result<Option<Binding>> {
     let (Some(room_id), Some(bound)) = (current.room_id, endpoints(fighter, claimed)) else {
         return Ok(None);
     };
@@ -213,15 +266,11 @@ pub(super) fn binding(
                 endpoint_id: bound[1].clone(),
             },
         ],
-        issued_at: ctx.now,
+        issued_at: current.published_at.unwrap_or(ctx.now),
         starting_wins,
         watchers: current.bound_watchers,
     };
-    Ok(Some(
-        ctx.keys
-            .sign_binding(&binding)
-            .map_err(|_| ApiFailure::unavailable())?,
-    ))
+    Ok(Some(binding))
 }
 
 /// The published room's id and its current invitation.

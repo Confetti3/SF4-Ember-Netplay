@@ -74,6 +74,7 @@ fn routes(site: &str) -> Result<Routes, Failure> {
         connect: Action::SiteConnect,
         remove: Action::SiteRemove,
         cancel: Action::SiteCancel,
+        end_unopened: true,
     })
 }
 
@@ -105,13 +106,9 @@ pub async fn connect(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outco
     if !listed.sign_in {
         return Err(Failure::new("sign_in_off"));
     }
-    sign_in::connect(
-        shared,
-        bridge_id,
-        &routes,
-        |url| is_declared_page(url, &listed.authorize_origin, &listed.authorize_path),
-        true,
-    )
+    sign_in::connect(shared, bridge_id, &routes, |url| {
+        is_declared_page(url, &listed.authorize_origin, &listed.authorize_path)
+    })
     .await
 }
 

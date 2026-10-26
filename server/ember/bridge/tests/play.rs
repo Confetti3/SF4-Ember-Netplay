@@ -589,3 +589,74 @@ async fn forged_and_misdirected_reports_are_refused() {
     assert_eq!(decided["attempt_state"], "accepted");
     assert_eq!(state(&f, &id).await["scores"][0]["wins"], 1);
 }
+
+// A claim that changes nothing gets the binding it got before, byte for
+// byte and signature included, however much later it comes: a binding's
+// `issued_at` is when its room was published. Both fighters hold the same
+// binding, and a change it names moves it.
+#[tokio::test]
+async fn a_renewal_that_changes_nothing_gets_the_same_signed_binding() {
+    let f = fixture().await;
+    let id = create(&f, "play-stable", "ember-room-v1", 2).await;
+    bound(&f, &id).await;
+    let (_, first) = claim(&f, &f.a, &id, &endpoint(&f.a), BUILD).await;
+    assert!(first["binding"]["signature"].is_string(), "{first}");
+    f.bridge.clock.advance(10);
+    let (_, again) = claim(&f, &f.a, &id, &endpoint(&f.a), BUILD).await;
+    assert_eq!(again["binding"], first["binding"]);
+    let (_, theirs) = claim(&f, &f.b, &id, &endpoint(&f.b), BUILD).await;
+    assert_eq!(theirs["binding"], first["binding"]);
+    f.bridge.clock.advance(10);
+    let (_, moved) = claim(&f, &f.b, &id, &"e".repeat(64), BUILD).await;
+    assert_eq!(moved["binding"]["binding"]["binding_revision"], "2");
+    assert_ne!(moved["binding"]["signature"], first["binding"]["signature"]);
+    assert_eq!(
+        moved["binding"]["binding"]["issued_at"],
+        first["binding"]["binding"]["issued_at"]
+    );
+}
+
+// A claim that names the binding its helper holds (`held_binding`) is
+// answered `unchanged`, without the binding, while that binding is current;
+// any other digest, or a binding that has since moved, gets the binding. A
+// claim that names none is answered as before.
+#[tokio::test]
+async fn a_claim_naming_its_current_binding_is_answered_unchanged() {
+    let f = fixture().await;
+    let id = create(&f, "play-unchanged", "ember-room-v1", 2).await;
+    bound(&f, &id).await;
+    let (_, first) = claim(&f, &f.a, &id, &endpoint(&f.a), BUILD).await;
+    let held: ember_protocol::play::Binding =
+        serde_json::from_value(first["binding"]["binding"].clone()).unwrap();
+    let digest = held.digest().unwrap();
+    let path = format!("/v1/matches/{id}/claims");
+    let named = |digest: String| {
+        act(
+            &f,
+            &f.a,
+            Action::MatchClaim,
+            &path,
+            json!({
+                "endpoint_id": endpoint(&f.a),
+                "build_id": BUILD,
+                "helper_instance_id": "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01",
+                "held_binding": digest,
+            }),
+        )
+    };
+    let (status, unchanged) = named(digest.clone()).await;
+    assert_eq!(status, StatusCode::OK, "{unchanged}");
+    assert_eq!(
+        unchanged,
+        json!({ "role": "unchanged", "room_id": first["room_id"], "invitation": first["invitation"] })
+    );
+    let (_, other) = named(ember_protocol::encoding::b64u(&[0; 32])).await;
+    assert_eq!(other["role"], "room");
+    assert_eq!(other["binding"], first["binding"]);
+    claim(&f, &f.b, &id, &"e".repeat(64), BUILD).await;
+    let (_, moved) = named(digest).await;
+    assert_eq!(moved["role"], "room");
+    assert_eq!(moved["binding"]["binding"]["binding_revision"], "2");
+    let (_, plain) = claim(&f, &f.a, &id, &endpoint(&f.a), BUILD).await;
+    assert_eq!(plain["binding"], moved["binding"]);
+}

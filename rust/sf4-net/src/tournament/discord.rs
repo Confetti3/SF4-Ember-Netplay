@@ -18,6 +18,7 @@ pub(super) fn routes() -> Routes {
         connect: Action::DiscordConnect,
         remove: Action::DiscordRemove,
         cancel: Action::DiscordCancel,
+        end_unopened: false,
     }
 }
 

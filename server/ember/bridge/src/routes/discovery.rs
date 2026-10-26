@@ -39,6 +39,7 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         "matches.play".to_owned(),
         ember_protocol::play::CLAIM_READY_FEATURE.to_owned(),
         ember_protocol::play::WATCH_FEATURE.to_owned(),
+        ember_protocol::play::CLAIM_UNCHANGED_FEATURE.to_owned(),
         "lobbies".to_owned(),
         "tournaments".to_owned(),
         "records".to_owned(),

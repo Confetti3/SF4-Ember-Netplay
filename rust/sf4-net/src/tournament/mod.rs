@@ -223,52 +223,79 @@ pub enum Request {
     },
 }
 
-impl Request {
-    fn op(&self) -> &'static str {
-        match self {
-            Self::IdentityStatus {} => "identity_status",
-            Self::IdentityEnable { .. } => "identity_enable",
-            Self::IdentityUnlock { .. } => "identity_unlock",
-            Self::IdentityExport { .. } => "identity_export",
-            Self::IdentityPreviewImport { .. } => "identity_preview_import",
-            Self::IdentityImport { .. } => "identity_import",
-            Self::IdentityReset { .. } => "identity_reset",
-            Self::BridgeList {} => "bridge_list",
-            Self::BridgeInspect { .. } => "bridge_inspect",
-            Self::BridgeApprove { .. } => "bridge_approve",
-            Self::BridgeForget { .. } => "bridge_forget",
-            Self::LinkList { .. } => "link_list",
-            Self::LinkClaim { .. } => "link_claim",
-            Self::LinkCancel { .. } => "link_cancel",
-            Self::LinkRemove { .. } => "link_remove",
-            Self::DiscordStatus { .. } => "discord_status",
-            Self::DiscordConnect { .. } => "discord_connect",
-            Self::DiscordRemove { .. } => "discord_remove",
-            Self::DiscordCancel { .. } => "discord_cancel",
-            Self::SiteStatus { .. } => "site_status",
-            Self::SiteConnect { .. } => "site_connect",
-            Self::SiteRemove { .. } => "site_remove",
-            Self::SiteCancel { .. } => "site_cancel",
-            Self::AssignmentList { .. } => "assignment_list",
-            Self::MatchClaim { .. } => "match_claim",
-            Self::RoomPublish { .. } => "room_publish",
-            Self::RoomList { .. } => "room_list",
-            Self::RoomCreate { .. } => "room_create",
-            Self::RoomTicket { .. } => "room_ticket",
-            Self::RankingStanding { .. } => "ranking_standing",
-            Self::RankingChoose { .. } => "ranking_choose",
-            Self::RankingBoard { .. } => "ranking_board",
-            Self::GamePrepare { .. } => "game_prepare",
-            Self::GameReport { .. } => "game_report",
-            Self::MatchLeave { .. } => "match_leave",
-            Self::MatchWatch { .. } => "match_watch",
-            Self::MatchUnwatch { .. } => "match_unwatch",
-        }
-    }
+/// Where a request runs. Identity jobs run one at a time, in order, on a
+/// blocking thread; local jobs touch only this run's stores, one at a time,
+/// and never wait for an HTTP slot; bridge jobs run concurrently up to
+/// `HTTP_CONCURRENCY`, starting in the order they came.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Lane {
+    Identity,
+    Local,
+    Bridge,
+}
 
-    fn is_identity(&self) -> bool {
-        self.op().starts_with("identity_")
-    }
+/// Each request's op name, as serde's `rename_all` spells its tag, and its
+/// lane, written once. Both matches are exhaustive, so a new variant must be
+/// named and routed here.
+macro_rules! requests {
+    ($($variant:ident => $op:literal, $lane:ident;)*) => {
+        impl Request {
+            fn op(&self) -> &'static str {
+                match self {
+                    $(Self::$variant { .. } => $op,)*
+                }
+            }
+
+            fn lane(&self) -> Lane {
+                match self {
+                    $(Self::$variant { .. } => Lane::$lane,)*
+                }
+            }
+        }
+
+        #[cfg(test)]
+        const REQUESTS: &[(&str, Lane)] = &[$(($op, Lane::$lane),)*];
+    };
+}
+
+requests! {
+    IdentityStatus => "identity_status", Identity;
+    IdentityEnable => "identity_enable", Identity;
+    IdentityUnlock => "identity_unlock", Identity;
+    IdentityExport => "identity_export", Identity;
+    IdentityPreviewImport => "identity_preview_import", Identity;
+    IdentityImport => "identity_import", Identity;
+    IdentityReset => "identity_reset", Identity;
+    BridgeList => "bridge_list", Local;
+    BridgeInspect => "bridge_inspect", Bridge;
+    BridgeApprove => "bridge_approve", Bridge;
+    BridgeForget => "bridge_forget", Local;
+    LinkList => "link_list", Bridge;
+    LinkClaim => "link_claim", Bridge;
+    LinkCancel => "link_cancel", Bridge;
+    LinkRemove => "link_remove", Bridge;
+    DiscordStatus => "discord_status", Bridge;
+    DiscordConnect => "discord_connect", Bridge;
+    DiscordRemove => "discord_remove", Bridge;
+    DiscordCancel => "discord_cancel", Bridge;
+    SiteStatus => "site_status", Bridge;
+    SiteConnect => "site_connect", Bridge;
+    SiteRemove => "site_remove", Bridge;
+    SiteCancel => "site_cancel", Bridge;
+    AssignmentList => "assignment_list", Bridge;
+    MatchClaim => "match_claim", Bridge;
+    RoomPublish => "room_publish", Bridge;
+    RoomList => "room_list", Bridge;
+    RoomCreate => "room_create", Bridge;
+    RoomTicket => "room_ticket", Bridge;
+    RankingStanding => "ranking_standing", Bridge;
+    RankingChoose => "ranking_choose", Bridge;
+    RankingBoard => "ranking_board", Bridge;
+    GamePrepare => "game_prepare", Bridge;
+    GameReport => "game_report", Bridge;
+    MatchLeave => "match_leave", Local;
+    MatchWatch => "match_watch", Bridge;
+    MatchUnwatch => "match_unwatch", Bridge;
 }
 
 /// Why a request failed: a stable, secret-free code for the native UI.
@@ -303,19 +330,33 @@ struct Job {
     request: Request,
 }
 
-/// Where the IPC reader submits requests.
+/// Where the IPC reader submits requests: one queue per lane, so a request
+/// never waits behind another lane's work. The native side matches answers
+/// by `request_id`, so answers of different lanes may arrive in any order.
 #[derive(Clone)]
 pub struct Handle {
-    jobs: mpsc::Sender<Job>,
+    identity: mpsc::Sender<Job>,
+    local: mpsc::Sender<Job>,
+    bridge: mpsc::Sender<Job>,
     events: mpsc::Sender<Event>,
 }
 
 impl Handle {
-    /// Queues a request, or answers `busy` at once when the queue is full.
+    /// Queues a request on its lane, or answers `busy` at once when that
+    /// lane's queue is full.
+    ///
+    /// Routing here does not change the one way identity and bridge work
+    /// still meet: a bridge job that signs (`client::prove`) only tries the
+    /// identity lock, so it fails with `identity_busy` while a long identity
+    /// job (an export or an unlock) holds it, as before.
     pub fn submit(&self, request_id: u64, request: Request) {
         let op = request.op();
-        if self
-            .jobs
+        let queue = match request.lane() {
+            Lane::Identity => &self.identity,
+            Lane::Local => &self.local,
+            Lane::Bridge => &self.bridge,
+        };
+        if queue
             .try_send(Job {
                 request_id,
                 request,
@@ -407,9 +448,13 @@ fn spawn_with(
     home_region: HomeRegion,
     open: impl FnOnce() -> (Identity, bridges::Store, spool::Spool) + Send + 'static,
 ) -> (Handle, tokio::task::JoinHandle<()>) {
-    let (jobs, mut receiver) = mpsc::channel::<Job>(QUEUE);
+    let (identity_jobs, mut identity_queue) = mpsc::channel::<Job>(QUEUE);
+    let (local_jobs, mut local_queue) = mpsc::channel::<Job>(QUEUE);
+    let (bridge_jobs, mut bridge_queue) = mpsc::channel::<Job>(QUEUE);
     let handle = Handle {
-        jobs,
+        identity: identity_jobs,
+        local: local_jobs,
+        bridge: bridge_jobs,
         events: events.clone(),
     };
     let task = tokio::spawn(async move {
@@ -434,9 +479,7 @@ fn spawn_with(
         });
         // An initial status lets the native side render without asking.
         respond(&events, &shared, 0, "identity_status", Ok(None)).await;
-        // Identity operations run one at a time, in order; bridge requests
-        // run concurrently up to the HTTP bound.
-        let (identity_jobs, mut identity_queue) = mpsc::channel::<Job>(QUEUE);
+        // Identity operations run one at a time, in order.
         let serial = {
             let shared = shared.clone();
             let events = events.clone();
@@ -448,6 +491,19 @@ fn spawn_with(
                         tokio::task::spawn_blocking(move || identity_request(&worker, job.request))
                             .await
                             .unwrap_or_else(|_| Err(Failure::new("internal")));
+                    respond(&events, &shared, job.request_id, op, outcome).await;
+                }
+            })
+        };
+        // Local operations, which reach no bridge, run one at a time, in
+        // order, and take no HTTP slot.
+        let local = {
+            let shared = shared.clone();
+            let events = events.clone();
+            tokio::spawn(async move {
+                while let Some(job) = local_queue.recv().await {
+                    let op = job.request.op();
+                    let outcome = local_request(&shared, job.request).await;
                     respond(&events, &shared, job.request_id, op, outcome).await;
                 }
             })
@@ -467,17 +523,11 @@ fn spawn_with(
                 }
             })
         });
-        // Bridge jobs start only when an HTTP slot is free, so the bounded
-        // channel is the only place they wait; the set owns every running one.
+        // Bridge jobs start only when an HTTP slot is free, so their bounded
+        // channel is the only place they wait, and in order, since the
+        // semaphore is fair; the set owns every running one.
         let mut running = tokio::task::JoinSet::new();
-        while let Some(job) = receiver.recv().await {
-            if job.request.is_identity() {
-                if let Err(full) = identity_jobs.try_send(job) {
-                    let job = full.into_inner();
-                    busy(&events, job.request_id, job.request.op());
-                }
-                continue;
-            }
+        while let Some(job) = bridge_queue.recv().await {
             let Ok(permit) = shared.http.clone().acquire_owned().await else {
                 break;
             };
@@ -492,6 +542,7 @@ fn spawn_with(
             });
         }
         serial.abort();
+        local.abort();
         if let Some(resend) = resend {
             resend.abort();
         }
@@ -642,7 +693,9 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
     }
 }
 
-async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
+/// A request that reaches no bridge: this run's bridge list and what it
+/// verified for a match.
+async fn local_request(shared: &Arc<Shared>, request: Request) -> Outcome {
     match request {
         Request::BridgeList {} => {
             let (bridges, removed) = {
@@ -654,6 +707,28 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             };
             Ok(Some(json!({ "bridges": bridges, "removed": removed })))
         }
+        Request::BridgeForget { bridge_id } => {
+            let store = shared.clone();
+            let id = bridge_id.clone();
+            tokio::task::spawn_blocking(move || {
+                store
+                    .bridges
+                    .lock()
+                    .map_err(|_| Failure::new("internal"))?
+                    .forget(&id)
+            })
+            .await
+            .map_err(|_| Failure::new("internal"))??;
+            shared.client.forget_session(&bridge_id);
+            Ok(None)
+        }
+        Request::MatchLeave { match_id } => play::forget(shared, &match_id),
+        _ => Err(Failure::new("invalid_request")),
+    }
+}
+
+async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
+    match request {
         Request::BridgeInspect { origin } => {
             let (profile, offered) = shared.client.inspect(&origin).await?;
             Ok(Some(
@@ -684,21 +759,6 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             }
             Ok(None)
         }
-        Request::BridgeForget { bridge_id } => {
-            let store = shared.clone();
-            let id = bridge_id.clone();
-            tokio::task::spawn_blocking(move || {
-                store
-                    .bridges
-                    .lock()
-                    .map_err(|_| Failure::new("internal"))?
-                    .forget(&id)
-            })
-            .await
-            .map_err(|_| Failure::new("internal"))??;
-            shared.client.forget_session(&bridge_id);
-            Ok(None)
-        }
         Request::LinkList { bridge_id } => client::links(shared, &bridge_id).await,
         Request::LinkClaim {
             bridge_id,
@@ -721,7 +781,6 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
                 &bridge_id,
                 &discord::routes(),
                 discord::is_sign_in_page,
-                false,
             )
             .await
         }
@@ -789,7 +848,6 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             )
             .await
         }
-        Request::MatchLeave { match_id } => play::forget(shared, &match_id),
         Request::MatchWatch {
             bridge_id,
             match_id,
@@ -800,5 +858,186 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             match_id,
         } => watch::unwatch_match(shared, &bridge_id, &match_id).await,
         _ => Err(Failure::new("invalid_request")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, time::Duration};
+
+    use super::*;
+
+    // Every op the list names is the tag serde reads for its variant, each
+    // appears once, and only identity ops run on the identity lane, as the
+    // `identity_` prefix routed them before.
+    #[test]
+    fn each_request_is_named_and_routed_once() {
+        let mut seen = HashSet::new();
+        for &(op, lane) in REQUESTS {
+            assert!(seen.insert(op), "{op} listed twice");
+            assert_eq!(lane == Lane::Identity, op.starts_with("identity_"), "{op}");
+            match serde_json::from_value::<Request>(json!({ "op": op })) {
+                Ok(request) => {
+                    assert_eq!(request.op(), op);
+                    assert_eq!(request.lane(), lane);
+                }
+                Err(error) => assert!(
+                    !error.to_string().contains("unknown variant"),
+                    "{op}: {error}"
+                ),
+            }
+        }
+        assert_eq!(seen.len(), 37);
+        let local: Vec<_> = REQUESTS
+            .iter()
+            .filter(|(_, lane)| *lane == Lane::Local)
+            .map(|(op, _)| *op)
+            .collect();
+        assert_eq!(local, ["bridge_list", "bridge_forget", "match_leave"]);
+        let forget: Request =
+            serde_json::from_value(json!({ "op": "bridge_forget", "bridge_id": "brg_x" })).unwrap();
+        assert_eq!((forget.op(), forget.lane()), ("bridge_forget", Lane::Local));
+    }
+
+    /// An origin that takes every connection and never answers, counting them.
+    async fn silent_origin() -> (
+        String,
+        Arc<std::sync::atomic::AtomicUsize>,
+        tokio::task::JoinHandle<()>,
+    ) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let taken = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counted = taken.clone();
+        let task = tokio::spawn(async move {
+            let mut held = Vec::new();
+            while let Ok((socket, _)) = listener.accept().await {
+                counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                held.push(socket);
+            }
+        });
+        (origin, taken, task)
+    }
+
+    async fn answer(events: &mut mpsc::Receiver<Event>) -> (u64, String, bool, Option<String>) {
+        let event = tokio::time::timeout(Duration::from_secs(10), events.recv())
+            .await
+            .expect("an answer in time")
+            .expect("worker running");
+        let Event::Tournament {
+            request_id,
+            op,
+            ok,
+            reason,
+            ..
+        } = event
+        else {
+            panic!("not a tournament answer");
+        };
+        (request_id, op, ok, reason)
+    }
+
+    // Four bridge requests hang on an origin that never answers and a fifth
+    // waits for their HTTP slots; identity and local requests sent after
+    // them answer at once. Once the origin goes away, every bridge request
+    // answers, and no more than four were ever in flight.
+    #[tokio::test]
+    async fn identity_status_answers_while_four_bridge_requests_hang() {
+        let mut seed = [0; 16];
+        getrandom::fill(&mut seed).unwrap();
+        let dir =
+            std::env::temp_dir().join(ember_protocol::encoding::prefixed_id("sf4-net-lanes", seed));
+        let (sender, mut events) = mpsc::channel(64);
+        let (handle, task) = spawn_in(
+            sender,
+            dir.join("identity"),
+            dir.join("tournament"),
+            false,
+            "a".repeat(64),
+            Box::new(|| None),
+            Vec::new(),
+        );
+        // The status every worker sends once its stores are open.
+        assert_eq!(answer(&mut events).await.0, 0);
+        let (origin, taken, silent) = silent_origin().await;
+        for id in 1..=5 {
+            let inspect = json!({ "op": "bridge_inspect", "origin": origin });
+            handle.submit(id, serde_json::from_value(inspect).unwrap());
+        }
+        let started = tokio::time::Instant::now();
+        while taken.load(std::sync::atomic::Ordering::SeqCst) < HTTP_CONCURRENCY {
+            assert!(
+                started.elapsed() < Duration::from_secs(10),
+                "bridge requests not sent"
+            );
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        for (id, request) in [
+            (10, json!({ "op": "identity_status" })),
+            (11, json!({ "op": "bridge_list" })),
+            (12, json!({ "op": "match_leave", "match_id": "emt_x" })),
+        ] {
+            handle.submit(id, serde_json::from_value(request).unwrap());
+        }
+        let mut answered = Vec::new();
+        for _ in 0..3 {
+            let (id, op, ok, _) = answer(&mut events).await;
+            assert!(ok, "{op}");
+            answered.push(id);
+        }
+        answered.sort_unstable();
+        assert_eq!(answered, [10, 11, 12]);
+        // Well inside the 15 s a hanging bridge request may take.
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(
+            taken.load(std::sync::atomic::Ordering::SeqCst),
+            HTTP_CONCURRENCY
+        );
+
+        silent.abort();
+        let mut failed = Vec::new();
+        for _ in 0..5 {
+            let (id, op, ok, reason) = answer(&mut events).await;
+            assert_eq!((op.as_str(), ok), ("bridge_inspect", false));
+            assert_eq!(reason.as_deref(), Some("bridge_unreachable"));
+            failed.push(id);
+        }
+        failed.sort_unstable();
+        assert_eq!(failed, [1, 2, 3, 4, 5]);
+        drop(handle);
+        let _ = tokio::time::timeout(Duration::from_secs(10), task).await;
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // A full lane answers `busy` at once, and only that lane is full.
+    #[tokio::test]
+    async fn a_full_lane_answers_busy() {
+        let (events, mut answers) = mpsc::channel(4 * QUEUE);
+        let (identity, _identity_queue) = mpsc::channel(1);
+        let (local, _local_queue) = mpsc::channel(1);
+        let (bridge, _bridge_queue) = mpsc::channel(1);
+        let handle = Handle {
+            identity,
+            local,
+            bridge,
+            events,
+        };
+        let submit = |id: u64, request: Value| {
+            handle.submit(id, serde_json::from_value(request).unwrap());
+        };
+        submit(
+            1,
+            json!({ "op": "bridge_inspect", "origin": "http://127.0.0.1:9" }),
+        );
+        submit(
+            2,
+            json!({ "op": "bridge_inspect", "origin": "http://127.0.0.1:9" }),
+        );
+        submit(3, json!({ "op": "identity_status" }));
+        submit(4, json!({ "op": "bridge_list" }));
+        let (id, op, ok, reason) = answer(&mut answers).await;
+        assert_eq!((id, op.as_str(), ok), (2, "bridge_inspect", false));
+        assert_eq!(reason.as_deref(), Some("busy"));
+        assert!(answers.try_recv().is_err());
     }
 }

@@ -12,8 +12,9 @@ use ember_protocol::{
     challenge::{Action, Method},
     encoding::{Counter, is_prefixed_id, prefixed_id},
     play::{
-        Binding, CLAIM_READY_FEATURE, Claim, ClaimAnswer, Observation, Permit, Prepare,
-        PrepareAnswer, PublishRoom, SignedBinding, SignedPermit, TABLE, WATCH_FEATURE,
+        Binding, CLAIM_READY_FEATURE, CLAIM_UNCHANGED_FEATURE, Claim, ClaimAnswer, Observation,
+        Permit, Prepare, PrepareAnswer, PublishRoom, SignedBinding, SignedPermit, TABLE,
+        WATCH_FEATURE,
     },
     report::Outcome as GameOutcome,
     skill::RANKING_FEATURE,
@@ -31,9 +32,18 @@ use super::{
 /// what each bridge offered when its capabilities were last read.
 #[derive(Default)]
 pub struct State {
-    bindings: HashMap<String, Binding>,
+    bindings: HashMap<String, Held>,
     permits: HashMap<(String, u64), Permit>,
     features: HashMap<String, Features>,
+}
+
+/// A binding this run verified, as the bridge signed it, with the key that
+/// verified it and its digest, which a claim names (`Claim::held_binding`).
+#[derive(Clone)]
+struct Held {
+    signed: SignedBinding,
+    key: ember_protocol::PublicKey,
+    digest: String,
 }
 
 /// The optional features of a bridge that a claim, a watch request or a room
@@ -47,6 +57,8 @@ pub(super) struct Features {
     /// It serves the ranking routes and reads a ticket request's
     /// `developer_badge`.
     pub ranking: bool,
+    /// It reads a claim's `held_binding` and may answer it `Unchanged`.
+    pub unchanged: bool,
 }
 
 impl Features {
@@ -56,6 +68,7 @@ impl Features {
             ready: lists(CLAIM_READY_FEATURE),
             watch: lists(WATCH_FEATURE),
             ranking: lists(RANKING_FEATURE),
+            unchanged: lists(CLAIM_UNCHANGED_FEATURE),
         }
     }
 }
@@ -156,7 +169,10 @@ pub(super) async fn bridge_key(
         .ok_or_else(|| Failure::new("untrusted_signature"))
 }
 
-/// Verifies a binding and that it seats this endpoint as this identity.
+/// Verifies a binding and that it seats this endpoint as this identity. The
+/// signature of the very binding this run holds for the match, byte for
+/// byte, is not checked again while the bridge still has the key that
+/// verified it; every other check runs each time.
 async fn accept_binding(
     shared: &Arc<Shared>,
     bridge: &Approved,
@@ -164,10 +180,26 @@ async fn accept_binding(
     room_id: &str,
     signed: &SignedBinding,
 ) -> Result<Value, Failure> {
-    let key = bridge_key(shared, bridge, &signed.kid).await?;
-    let binding = signed
-        .verify(&key, &signed.kid)
-        .map_err(|_| Failure::new("untrusted_signature"))?;
+    let verified = play_state(shared)?
+        .bindings
+        .get(match_id)
+        .filter(|held| held.signed == *signed && bridge.key(&signed.kid) == Some(held.key))
+        .map(|held| (held.key, held.digest.clone()));
+    let (key, digest) = match verified {
+        Some(verified) => verified,
+        None => {
+            let key = bridge_key(shared, bridge, &signed.kid).await?;
+            signed
+                .verify(&key, &signed.kid)
+                .map_err(|_| Failure::new("untrusted_signature"))?;
+            let digest = signed
+                .binding
+                .digest()
+                .map_err(|_| Failure::new("internal"))?;
+            (key, digest)
+        }
+    };
+    let binding = &signed.binding;
     let me = client::current_id(shared)?;
     let slot = binding.slot_of(&shared.endpoint_id);
     let mine = slot.is_some_and(|slot| binding.fighters[usize::from(slot)].ember_id == me);
@@ -186,11 +218,37 @@ async fn accept_binding(
     if state
         .bindings
         .get(match_id)
-        .is_none_or(|held| order(binding) >= order(held))
+        .is_none_or(|held| order(binding) >= order(&held.signed.binding))
     {
-        state.bindings.insert(match_id.to_owned(), binding.clone());
+        state.bindings.insert(
+            match_id.to_owned(),
+            Held {
+                signed: signed.clone(),
+                key,
+                digest,
+            },
+        );
     }
     Ok(view)
+}
+
+/// The binding this run holds for `match_id` from `bridge`, while the bridge
+/// still has the key that verified it: the one a claim names, so a bridge
+/// with nothing new can answer without it. One whose key the bridge no
+/// longer lists is not named, so the bridge sends the binding again.
+fn held_binding(
+    shared: &Shared,
+    bridge: &Approved,
+    match_id: &str,
+) -> Result<Option<Held>, Failure> {
+    Ok(play_state(shared)?
+        .bindings
+        .get(match_id)
+        .filter(|held| {
+            held.signed.binding.bridge_id == bridge.bridge_id
+                && bridge.key(&held.signed.kid) == Some(held.key)
+        })
+        .cloned())
 }
 
 /// The checked fields of a binding the game reads, `local_slot` being this
@@ -212,12 +270,17 @@ fn binding_view(binding: &Binding, slot: Option<u8>) -> Value {
     })
 }
 
-/// The claim answer for the game, with the binding checked.
+/// The claim answer for the game, with the binding checked. `held` is the
+/// binding the claim named (`Claim::held_binding`), if it named one: an
+/// `Unchanged` answer means that binding, and the game reads the same answer
+/// as if the bridge had sent it again. Only a claim that named one may be
+/// answered so.
 async fn present(
     shared: &Arc<Shared>,
     bridge: &Approved,
     match_id: &str,
     answer: ClaimAnswer,
+    held: Option<Held>,
 ) -> Outcome {
     let value = match answer {
         ClaimAnswer::Room {
@@ -231,6 +294,14 @@ async fn present(
                 }
                 None => None,
             };
+            json!({ "role": "room", "room_id": room_id, "invitation": invitation, "binding": bound })
+        }
+        ClaimAnswer::Unchanged {
+            room_id,
+            invitation,
+        } => {
+            let held = held.ok_or_else(|| Failure::new("bridge_invalid_response"))?;
+            let bound = accept_binding(shared, bridge, match_id, &room_id, &held.signed).await?;
             json!({ "role": "room", "room_id": room_id, "invitation": invitation, "binding": bound })
         }
         other => serde_json::to_value(other).map_err(|_| Failure::new("internal"))?,
@@ -299,7 +370,8 @@ pub async fn assignments(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
 
 /// Claims `match_id` with this helper run's endpoint, saying whether the
 /// fighter has pressed Ready at its table. Claiming again renews a
-/// provisioning lease and picks up a newer binding.
+/// provisioning lease and picks up a newer binding; it names the binding it
+/// holds, so a bridge that has nothing newer answers without it.
 pub async fn claim_match(
     shared: &Arc<Shared>,
     bridge_id: &str,
@@ -314,19 +386,25 @@ pub async fn claim_match(
         build_id: build.to_owned(),
         ready: None,
         watch: None,
+        held_binding: None,
     };
     claim.check().map_err(|_| Failure::new("invalid_request"))?;
     client::with_session(shared, bridge_id, |bridge, token| {
         let claim = claim.clone();
         async move {
             let path = format!("/v1/matches/{match_id}/claims");
-            let value = send_claim(shared, &bridge, claim, ready, |command| {
+            let held = held_binding(shared, &bridge, match_id)?;
+            let claim = Claim {
+                held_binding: held.as_ref().map(|held| held.digest.clone()),
+                ..claim
+            };
+            let (value, named) = send_claim(shared, &bridge, claim, ready, |command| {
                 proven(shared, &bridge, &token, Action::MatchClaim, &path, command)
             })
             .await?;
             let answer: ClaimAnswer = serde_json::from_value(value)
                 .map_err(|_| Failure::new("bridge_invalid_response"))?;
-            present(shared, &bridge, match_id, answer).await
+            present(shared, &bridge, match_id, answer, held.filter(|_| named)).await
         }
     })
     .await
@@ -341,14 +419,16 @@ pub async fn claim_match(
 ///
 /// Only a Ready claim needs a feature. A claim never needs `watch`: one to a
 /// bridge last seen without it goes without, and an upgrade is heard once a
-/// claim to the bridge fails, as one does while it restarts.
+/// claim to the bridge fails, as one does while it restarts. The same holds
+/// for `held_binding`, which goes only to a bridge that answers it; the
+/// answer comes back with whether the claim carried it.
 pub(super) async fn send_claim<F, Sent>(
     shared: &Arc<Shared>,
     bridge: &Approved,
     claim: Claim,
     ready: bool,
     send: F,
-) -> Result<Value, Failure>
+) -> Result<(Value, bool), Failure>
 where
     F: FnOnce(Value) -> Sent,
     Sent: std::future::Future<Output = Result<Value, Failure>>,
@@ -358,14 +438,16 @@ where
     let claim = Claim {
         ready: (ready && offered.ready).then_some(true),
         watch: offered.watch.then_some(true),
+        held_binding: claim.held_binding.filter(|_| offered.unchanged),
         ..claim
     };
+    let named = claim.held_binding.is_some();
     let command = serde_json::to_value(&claim).map_err(|_| Failure::new("internal"))?;
     let sent = send(command).await;
     if sent.is_err() {
         forget_features(shared, bridge)?;
     }
-    sent
+    sent.map(|answer| (answer, named))
 }
 
 pub(super) fn play_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>, Failure> {
@@ -390,7 +472,7 @@ pub async fn publish_room(
                 proven(shared, &bridge, &token, Action::RoomPublish, &path, command).await?;
             let answer: ClaimAnswer = serde_json::from_value(value)
                 .map_err(|_| Failure::new("bridge_invalid_response"))?;
-            present(shared, &bridge, match_id, answer).await
+            present(shared, &bridge, match_id, answer, None).await
         }
     })
     .await
@@ -412,7 +494,7 @@ pub async fn prepare_game(
         .map_err(|_| Failure::new("internal"))?
         .bindings
         .get(match_id)
-        .cloned()
+        .map(|held| held.signed.binding.clone())
         .ok_or_else(|| Failure::new("not_bound"))?;
     let prepare = Prepare {
         assignment_generation: binding.assignment_generation,
@@ -716,6 +798,7 @@ mod tests {
             build_id: "b1".into(),
             ready: None,
             watch: None,
+            held_binding: None,
         };
         let sent = std::sync::Mutex::new(Vec::new());
         let send = |fails: bool| {
@@ -848,7 +931,8 @@ mod tests {
             Features {
                 ready: true,
                 watch: false,
-                ranking: false
+                ranking: false,
+                unchanged: false,
             }
         );
         let watch = Features::of(&capabilities(&["matches.play", WATCH_FEATURE]));
@@ -857,13 +941,227 @@ mod tests {
             Features {
                 ready: false,
                 watch: true,
-                ranking: false
+                ranking: false,
+                unchanged: false,
             }
         );
         assert!(Features::of(&capabilities(&[RANKING_FEATURE])).ranking);
+        assert!(Features::of(&capabilities(&[CLAIM_UNCHANGED_FEATURE])).unchanged);
         assert_eq!(
             Features::of(&capabilities(&["matches.play"])),
             Features::default()
         );
+    }
+
+    // A claim names the binding it holds only to a bridge that lists the
+    // feature, since an older one refuses the field, and says whether it did.
+    // A claim that fails makes the next one read the capabilities again, so
+    // a bridge put back to one without the feature is heard.
+    #[tokio::test]
+    async fn a_claim_names_its_binding_only_to_a_bridge_that_answers_it() {
+        let dir = std::env::temp_dir().join(prefixed_id("sf4-net-held", random().unwrap()));
+        let shared = shared_in(&dir);
+        let mode = Arc::new(std::sync::atomic::AtomicU8::new(3));
+        let (origin, _) = capabilities_server(mode.clone()).await;
+        let bridge = Approved {
+            bridge_id: "brg_x".into(),
+            origin,
+            display_name: "Bridge".into(),
+            approved_at: 0,
+            keys: Vec::new(),
+        };
+        let digest = ember_protocol::encoding::b64u(&[7; 32]);
+        let claim = Claim {
+            endpoint_id: "a".repeat(64),
+            helper_instance_id: "ins_test".into(),
+            build_id: "b1".into(),
+            ready: None,
+            watch: None,
+            held_binding: Some(digest.clone()),
+        };
+        let sent = std::sync::Mutex::new(Vec::new());
+        let send = |fails: bool| {
+            let sent = &sent;
+            move |command: Value| async move {
+                sent.lock()
+                    .unwrap()
+                    .push(command.get("held_binding").cloned());
+                if fails {
+                    Err(Failure::new("bridge_unavailable"))
+                } else {
+                    Ok(json!({}))
+                }
+            }
+        };
+        let claimed =
+            |claim: Claim, fails: bool| send_claim(&shared, &bridge, claim, false, send(fails));
+        assert!(claimed(claim.clone(), false).await.unwrap().1);
+        let unnamed = Claim {
+            held_binding: None,
+            ..claim.clone()
+        };
+        assert!(!claimed(unnamed, false).await.unwrap().1);
+        assert!(claimed(claim.clone(), true).await.is_err());
+        mode.store(2, std::sync::atomic::Ordering::SeqCst);
+        assert!(!claimed(claim, false).await.unwrap().1);
+        assert_eq!(
+            *sent.lock().unwrap(),
+            vec![Some(json!(digest)), None, Some(json!(digest)), None]
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // The binding a claim named comes back as `Unchanged`, and the game reads
+    // the same answer as when the bridge sent the binding. A bridge that
+    // answers so to a claim that named none is refused. The very binding
+    // this run verified is not verified again while the bridge lists its
+    // key; one the bridge's keys no longer cover is neither named nor taken
+    // on trust.
+    #[tokio::test]
+    async fn an_unchanged_answer_is_the_binding_the_claim_named() {
+        let dir = std::env::temp_dir().join(prefixed_id("sf4-net-unchanged", random().unwrap()));
+        let shared = shared_in(&dir);
+        shared
+            .identity
+            .lock()
+            .unwrap()
+            .enable(crate::identity::Protection::Passphrase("a test passphrase"))
+            .unwrap();
+        let me = client::current_id(&shared).unwrap();
+        let closed = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", closed.local_addr().unwrap());
+        drop(closed);
+        let signer =
+            ember_protocol::SigningIdentity::from_seed(&zeroize::Zeroizing::new([5; 32])).unwrap();
+        let bridge = Approved {
+            bridge_id: prefixed_id("brg", [1; 16]),
+            origin,
+            display_name: "Bridge".into(),
+            approved_at: 0,
+            keys: vec![ember_protocol::api::SigningKey {
+                kty: "OKP".into(),
+                crv: "Ed25519".into(),
+                alg: "EdDSA".into(),
+                usage: "sig".into(),
+                kid: "k5".into(),
+                x: signer.public_key().to_b64u(),
+            }],
+        };
+        let other = ember_protocol::SigningIdentity::from_seed(&zeroize::Zeroizing::new([6; 32]))
+            .unwrap()
+            .ember_id()
+            .clone();
+        let match_id = prefixed_id("emt", [2; 16]);
+        let room_id = "0123456789abcdef0123456789abcdef".to_owned();
+        let binding = Binding {
+            version: ember_protocol::play::VERSION,
+            bridge_id: bridge.bridge_id.clone(),
+            match_id: match_id.clone(),
+            assignment_generation: Counter(1),
+            binding_revision: Counter(1),
+            room_id: room_id.clone(),
+            build_id: "b1".into(),
+            games_to_win: 2,
+            rules_digest: ember_protocol::encoding::b64u(&[3; 32]),
+            roster_digest: ember_protocol::play::roster_digest(&me, &other).unwrap(),
+            fighters: [
+                ember_protocol::play::BoundFighter {
+                    ember_id: me.clone(),
+                    endpoint_id: shared.endpoint_id.clone(),
+                },
+                ember_protocol::play::BoundFighter {
+                    ember_id: other,
+                    endpoint_id: "b".repeat(64),
+                },
+            ],
+            issued_at: 100,
+            starting_wins: [0, 0],
+            watchers: Vec::new(),
+        };
+        let signed = binding.sign(&signer, "k5").unwrap();
+        let room = || ClaimAnswer::Room {
+            room_id: room_id.clone(),
+            invitation: "sf4e3:x".into(),
+            binding: Some(Box::new(signed.clone())),
+        };
+        let unchanged = || ClaimAnswer::Unchanged {
+            room_id: room_id.clone(),
+            invitation: "sf4e3:x".into(),
+        };
+
+        // Nothing held yet: nothing to name, and an unchanged answer to a
+        // claim that named nothing is refused.
+        assert!(held_binding(&shared, &bridge, &match_id).unwrap().is_none());
+        let refused = present(&shared, &bridge, &match_id, unchanged(), None).await;
+        assert_eq!(refused.unwrap_err().0, "bridge_invalid_response");
+
+        let sent = present(&shared, &bridge, &match_id, room(), None)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(sent["binding"]["local_slot"], json!(0));
+        let held = held_binding(&shared, &bridge, &match_id).unwrap().unwrap();
+        assert_eq!(held.digest, binding.digest().unwrap());
+        let kept = present(&shared, &bridge, &match_id, unchanged(), Some(held.clone()))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(kept, sent);
+
+        // The held bytes are taken without a second signature check: here
+        // they carry a signature that would fail one. Any other bytes are
+        // checked and refused.
+        let forged = SignedBinding {
+            signature: binding
+                .sign(
+                    &ember_protocol::SigningIdentity::from_seed(&zeroize::Zeroizing::new([9; 32]))
+                        .unwrap(),
+                    "k5",
+                )
+                .unwrap()
+                .signature,
+            ..signed.clone()
+        };
+        let check = |signed: &SignedBinding| {
+            let answer = ClaimAnswer::Room {
+                room_id: room_id.clone(),
+                invitation: "sf4e3:x".into(),
+                binding: Some(Box::new(signed.clone())),
+            };
+            present(&shared, &bridge, &match_id, answer, None)
+        };
+        assert_eq!(check(&forged).await.unwrap_err().0, "untrusted_signature");
+        play_state(&shared)
+            .unwrap()
+            .bindings
+            .get_mut(&match_id)
+            .unwrap()
+            .signed = forged.clone();
+        assert!(check(&forged).await.is_ok());
+
+        // A bridge whose keys no longer cover the held binding: it is not
+        // named, and the same bytes are checked again, which here means
+        // asking the bridge for its keys.
+        let rotated = Approved {
+            keys: Vec::new(),
+            ..bridge.clone()
+        };
+        assert!(
+            held_binding(&shared, &rotated, &match_id)
+                .unwrap()
+                .is_none()
+        );
+        let answer = ClaimAnswer::Room {
+            room_id: room_id.clone(),
+            invitation: "sf4e3:x".into(),
+            binding: Some(Box::new(forged)),
+        };
+        let refetched = present(&shared, &rotated, &match_id, answer, None).await;
+        assert_eq!(refetched.unwrap_err().0, "bridge_unreachable");
+
+        // Leaving the match drops it.
+        forget(&shared, &match_id).unwrap();
+        assert!(held_binding(&shared, &bridge, &match_id).unwrap().is_none());
+        let _ = std::fs::remove_dir_all(dir);
     }
 }
