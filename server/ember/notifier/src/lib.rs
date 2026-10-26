@@ -113,6 +113,8 @@ impl Notifier {
                  id TEXT PRIMARY KEY, type TEXT NOT NULL, body BLOB NOT NULL, received_at INTEGER NOT NULL,
                  discord_done INTEGER NOT NULL, twitch_done INTEGER NOT NULL,
                  attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL, last_error TEXT);
+             CREATE INDEX IF NOT EXISTS inbox_due ON inbox (next_at)
+                 WHERE discord_done = 0 OR twitch_done = 0;
              CREATE TABLE IF NOT EXISTS matches (id TEXT PRIMARY KEY, label TEXT NOT NULL);",
         )
         .map_err(|error| format!("cannot prepare database: {error}"))?;

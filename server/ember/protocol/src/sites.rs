@@ -148,7 +148,6 @@ pub struct SiteAccount {
 
 /// An account a lookup found, linked on the asking connection.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct FoundAccount {
     pub site: String,
     /// The ID as the lookup named it.

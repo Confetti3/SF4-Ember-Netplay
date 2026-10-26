@@ -13,7 +13,7 @@ use ember_protocol::{
     api::{ApiError, ErrorCode},
     json,
     matches::{CreateMatch, DeliveryState, MatchState},
-    partner::{LOOKUP_PATH, Lookup, MAX_LOOKUP},
+    partner::{LOOKUP_PATH, Lookup, LookupAnswer, MAX_LOOKUP},
     sites::SiteAccount,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -156,34 +156,6 @@ fn lookup_of(accounts: &[&Account]) -> Lookup {
     lookup
 }
 
-/// A lookup answer as the connector reads it: the fields it uses, and
-/// anything else ignored, so a field a later bridge adds does not stop an
-/// older connector finding players.
-#[derive(Deserialize)]
-struct LookupView {
-    #[serde(default)]
-    players: Vec<PlayerView>,
-    #[serde(default)]
-    accounts: Vec<AccountView>,
-}
-
-#[derive(Deserialize)]
-struct PlayerView {
-    discord_user_id: String,
-    ember_id: EmberId,
-    participant_id: String,
-}
-
-#[derive(Deserialize)]
-struct AccountView {
-    site: String,
-    /// As the lookup named it.
-    id: String,
-    ember_id: EmberId,
-    participant_id: String,
-    connected_at: u64,
-}
-
 /// `GET /v1/capabilities`, as far as the connector reads it.
 #[derive(Deserialize)]
 struct CapabilitiesView {
@@ -208,7 +180,7 @@ fn sites_of(capabilities: CapabilitiesView) -> HashMap<String, bool> {
 }
 
 /// The players a lookup answer names, by the account they were asked as.
-fn found_in(answer: LookupView) -> impl Iterator<Item = (Account, Player)> {
+fn found_in(answer: LookupAnswer) -> impl Iterator<Item = (Account, Player)> {
     let sites = answer.accounts.into_iter().map(|found| {
         let account = Account::Site {
             site: found.site,
@@ -460,7 +432,7 @@ impl BridgeClient {
         Some(sites)
     }
 
-    async fn lookup_once(&self, accounts: &[&Account]) -> Result<LookupView, BridgeError> {
+    async fn lookup_once(&self, accounts: &[&Account]) -> Result<LookupAnswer, BridgeError> {
         let request = self.post(LOOKUP_PATH).json(&lookup_of(accounts));
         self.answer(request).await
     }
@@ -608,7 +580,7 @@ mod tests {
     #[test]
     fn answers_are_read_past_fields_a_later_bridge_adds() {
         let player1 = "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";
-        let answer: LookupView = serde_json::from_value(json!({
+        let answer: LookupAnswer = serde_json::from_value(json!({
             "players": [{ "discord_user_id": "274220342558756145", "ember_id": player1, "participant_id": "epl_a", "since": 1 }],
             "accounts": [{ "site": "startgg", "id": "77", "user_id": "77", "ember_id": player1, "participant_id": "epl_b", "connected_at": 5, "verified": true }],
             "next": null,
@@ -616,7 +588,7 @@ mod tests {
         .unwrap();
         assert_eq!(found_in(answer).count(), 2);
         // A Discord-only answer leaves `accounts` out.
-        let answer: LookupView = serde_json::from_value(json!({ "players": [] })).unwrap();
+        let answer: LookupAnswer = serde_json::from_value(json!({ "players": [] })).unwrap();
         assert_eq!(found_in(answer).count(), 0);
         let capabilities: CapabilitiesView = serde_json::from_value(json!({
             "api_version": "1",

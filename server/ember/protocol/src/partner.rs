@@ -34,11 +34,11 @@ pub struct Lookup {
 /// The players found, in the order asked. An account with no connected
 /// Ember ID, or whose link the player removed, is left out.
 ///
-/// Its readers refuse fields they do not know (`deny_unknown_fields`, as
-/// ember-brackets reads it), so a field added later must be left out while
-/// empty, as `accounts` is, or every older reader stops matching players.
+/// Readers built from this crate ignore fields they do not know. Helpers and
+/// connectors released before that was so still refuse them, so a field added
+/// later must be left out while empty, as `accounts` is, until those builds
+/// have aged out.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct LookupAnswer {
     pub players: Vec<FoundPlayer>,
     /// Left out when empty, so an answer to a Discord-only lookup is what it
@@ -48,7 +48,6 @@ pub struct LookupAnswer {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct FoundPlayer {
     pub discord_user_id: String,
     pub ember_id: EmberId,
@@ -75,7 +74,6 @@ pub enum Outcome {
 
 /// One finished match's result.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct MatchResult {
     #[serde(rename = "type")]
     pub kind: String,
@@ -93,7 +91,6 @@ pub struct MatchResult {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct ResultParticipant {
     pub participant_id: String,
     pub ember_id: EmberId,

@@ -34,8 +34,11 @@ use crate::{
     store::Store,
 };
 
-/// How often a worker wakes when nothing wakes it.
+/// The longest a worker sleeps when nothing wakes it. The clock can be
+/// advanced, so a deadline is never trusted for longer than this.
 const WAKE_SECS: u64 = 60;
+/// The shortest it sleeps, so a deadline already passed cannot spin it.
+const MIN_WAKE_SECS: u64 = 1;
 /// Tries at a report that waits on its own (the site deferred it, or failed
 /// on it after a read that worked) before its set is left to the organizer.
 /// The result waits a minute after the first, doubling up to an hour: 12
@@ -98,6 +101,36 @@ struct State {
     /// at the longest interval, without asking again, until a set opens.
     played_out: bool,
     window_end_logged: bool,
+}
+
+impl State {
+    /// Seconds to sleep before the next pass is worth making: until the
+    /// earliest time something is due (the scheduled read, which only comes
+    /// once the window opens, a deferred report, the bridge read-back),
+    /// after a failure's wait is over, and at most `WAKE_SECS`. A result
+    /// received wakes the worker sooner.
+    fn wait_secs(&self, window: &Window, now: u64) -> u64 {
+        if self.finished {
+            return WAKE_SECS;
+        }
+        let scheduled = match window.phase(now) {
+            Phase::Before => window.from.map(|from| from.max(self.schedule.at())),
+            Phase::Open => Some(self.schedule.at()),
+            Phase::After => None,
+        };
+        let deferred = self.deferred.values().map(Backoff::at);
+        // A failure's wait holds back the reads, not the bridge read-back.
+        let read = scheduled
+            .into_iter()
+            .chain(deferred)
+            .min()
+            .map(|at| at.max(self.retry.at()));
+        read.into_iter()
+            .chain([self.reconcile.next])
+            .min()
+            .map_or(WAKE_SECS, |at| at.saturating_sub(now))
+            .clamp(MIN_WAKE_SECS, WAKE_SECS)
+    }
 }
 
 /// What a pass's results did.
@@ -185,8 +218,12 @@ impl Bracket {
     pub async fn run(self: Arc<Self>) {
         loop {
             self.pass(false).await;
-            let wait = Duration::from_secs(WAKE_SECS);
-            let _ = tokio::time::timeout(wait, self.wake.notified()).await;
+            let wait = {
+                let state = self.state.lock().await;
+                state.wait_secs(&self.window, self.context.clock.now())
+            };
+            let _ =
+                tokio::time::timeout(Duration::from_secs(wait), self.wake.notified()).await;
         }
     }
 
@@ -785,5 +822,74 @@ impl Bracket {
         };
         self.end(set_id, tracked, progress, format_args!("{why}"))?;
         Ok(Settle::Done)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn state(schedule: Backoff) -> State {
+        let mut reconcile = reconcile::Memory::default();
+        // The read-back is not due for a while.
+        reconcile.next = 10_000;
+        State {
+            schedule,
+            retry: Backoff::retry(),
+            deferred: HashMap::new(),
+            reconcile,
+            phases: PhaseWatch::default(),
+            last_read: None,
+            finished: false,
+            played_out: false,
+            window_end_logged: false,
+        }
+    }
+
+    #[test]
+    fn the_worker_sleeps_until_the_earliest_deadline_but_never_past_the_ceiling() {
+        let open = Window::default();
+        let mut schedule = Backoff::new(30, 600);
+        schedule.grow(1_000);
+        let mut state = state(schedule);
+        // The next scheduled read is 30 s away.
+        assert_eq!(state.wait_secs(&open, 1_000), 30);
+        assert_eq!(state.wait_secs(&open, 1_020), 10);
+        // One minute at most, whatever is due later.
+        state.schedule.longest(1_000);
+        assert_eq!(state.wait_secs(&open, 1_000), WAKE_SECS);
+        // Never zero, so a deadline already passed cannot spin the worker.
+        assert_eq!(state.wait_secs(&open, 5_000), MIN_WAKE_SECS);
+        // A deferred report is a deadline too.
+        let mut deferred = Backoff::retry();
+        deferred.hold(1_000);
+        deferred.longest(1_000);
+        state.deferred.insert("whd_1".into(), deferred);
+        let mut soon = Backoff::new(5, 5);
+        soon.grow(1_000);
+        state.deferred.insert("whd_2".into(), soon);
+        assert_eq!(state.wait_secs(&open, 1_000), 5);
+        // A failure's wait holds every read back, so nothing is due before it.
+        state.retry.grow(1_000);
+        assert_eq!(state.wait_secs(&open, 1_000), WAKE_SECS);
+        // The bridge read-back is not held back by it.
+        state.reconcile.next = 1_020;
+        assert_eq!(state.wait_secs(&open, 1_000), 20);
+        // Done: nothing is read again.
+        state.finished = true;
+        assert_eq!(state.wait_secs(&open, 1_000), WAKE_SECS);
+    }
+
+    #[test]
+    fn a_bracket_waits_for_its_window_and_stops_scheduling_after_it() {
+        let window = Window {
+            from: Some(1_040),
+            until: Some(2_000),
+        };
+        let state = state(Backoff::new(30, 600));
+        assert_eq!(state.wait_secs(&window, 1_000), 40);
+        assert_eq!(state.wait_secs(&window, 1_035), 5);
+        // After it, only a result or a deferral asks for a pass.
+        assert_eq!(state.wait_secs(&window, 2_500), WAKE_SECS);
     }
 }

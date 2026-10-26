@@ -108,7 +108,7 @@ impl Claim {
 
 /// What a claim returns.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "role", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "role", rename_all = "snake_case")]
 pub enum ClaimAnswer {
     /// No room yet and this fighter holds the provisioning lease: host one
     /// and publish it with this lease before it expires.
@@ -344,7 +344,7 @@ impl Prepare {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "state", rename_all = "snake_case")]
 pub enum PrepareAnswer {
     /// Waiting for the other fighter's matching description.
     Pending {

@@ -198,7 +198,6 @@ impl SignedRoomTicket {
 
 /// One open room in a listing.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct RoomSummary {
     pub room_id: String,
     pub name: String,
@@ -299,7 +298,6 @@ impl RoomSummary {
 /// `GET /v1/rooms`: at most 100 open rooms, joinable ones with the most free
 /// seats first.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct RoomList {
     pub rooms: Vec<RoomSummary>,
     /// When the bridge made this listing (unix seconds), so a client can age
@@ -466,7 +464,6 @@ pub enum RoomState {
 
 /// A room as the connection that created it sees it.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct ConnectionRoom {
     pub room: RoomSummary,
     pub state: RoomState,
@@ -477,7 +474,6 @@ pub struct ConnectionRoom {
 /// `GET /v1/rooms` with a provider credential: the connection's rooms that
 /// are not closed, newest first.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct ConnectionRoomList {
     pub rooms: Vec<ConnectionRoom>,
 }
@@ -819,9 +815,9 @@ mod tests {
         let text = serde_json::to_string(&list).unwrap();
         assert!(text.ends_with(r#""listed_at":1234}"#), "{text}");
         assert_eq!(serde_json::from_str::<RoomList>(&text).unwrap(), list);
-        // Unknown fields are still refused.
+        // An answer read by clients ignores a field it does not know.
         let extra = text.replacen('{', r#"{"total":1,"#, 1);
-        assert!(serde_json::from_str::<RoomList>(&extra).is_err());
+        assert_eq!(serde_json::from_str::<RoomList>(&extra).unwrap(), list);
     }
 
     #[test]
@@ -963,8 +959,9 @@ te"
             "a".repeat(64)
         );
         assert!(json::parse_as::<TicketRequest>(extra.as_bytes(), 1024).is_err());
+        // A listing is an answer: an unknown field is ignored, not refused.
         let extra = br#"{"rooms":[],"total":0}"#;
-        assert!(json::parse_as::<RoomList>(extra, 1024).is_err());
+        assert!(json::parse_as::<RoomList>(extra, 1024).unwrap().rooms.is_empty());
         // A ticket no longer carries a moderator flag.
         let id = key(1).ember_id().clone();
         let mut value = json::to_value(&ticket(&id)).unwrap();

@@ -25,6 +25,19 @@ use crate::{
 
 const RETRY: &[u64] = &[2, 10, 30, 120, 600];
 const GIVE_UP_SECS: u64 = 24 * 60 * 60;
+/// The longest the worker sleeps with nothing due. The clock is wall time
+/// plus an offset a test advances, so a deadline is never trusted for longer.
+const IDLE_CEILING_SECS: u64 = 60;
+/// The shortest it sleeps, so a failing query cannot spin it.
+const IDLE_FLOOR_SECS: u64 = 1;
+
+/// The rows still to deliver. The partial index `inbox_due` (`lib.rs`) serves
+/// this term and `NEXT_DUE`, so neither reads the stored bodies of finished
+/// events; keep their `WHERE` equal to the index's.
+const DUE: &str = "SELECT id, body, discord_done, twitch_done, attempts, received_at FROM inbox
+                   WHERE (discord_done = 0 OR twitch_done = 0) AND next_at <= ?1
+                   ORDER BY received_at LIMIT 8";
+const NEXT_DUE: &str = "SELECT MIN(next_at) FROM inbox WHERE discord_done = 0 OR twitch_done = 0";
 
 impl Notifier {
     /// Verifies, filters and durably records one delivery.
@@ -104,10 +117,7 @@ impl Notifier {
             let now = self.0.clock.now();
             let due: Vec<(String, Vec<u8>, bool, bool, u32, u64)> = match self.0.db.lock() {
                 Ok(db) => db
-                    .prepare(
-                        "SELECT id, body, discord_done, twitch_done, attempts, received_at FROM inbox
-                         WHERE (discord_done = 0 OR twitch_done = 0) AND next_at <= ?1 ORDER BY received_at LIMIT 8",
-                    )
+                    .prepare(DUE)
                     .and_then(|mut statement| {
                         statement
                             .query_map([now], |row| {
@@ -119,7 +129,18 @@ impl Notifier {
                 Err(_) => Vec::new(),
             };
             if due.is_empty() {
-                let _ = tokio::time::timeout(Duration::from_secs(1), self.0.wake.notified()).await;
+                // Sleep until the earliest retry, or until `accept` records
+                // an event (`notify_one` keeps a permit, so one that lands
+                // after the query above is not missed).
+                let wait = self
+                    .next_due()
+                    .map_or(IDLE_FLOOR_SECS, |next| match next {
+                        Some(at) => at.saturating_sub(now),
+                        None => IDLE_CEILING_SECS,
+                    })
+                    .clamp(IDLE_FLOOR_SECS, IDLE_CEILING_SECS);
+                let _ = tokio::time::timeout(Duration::from_secs(wait), self.0.wake.notified())
+                    .await;
                 continue;
             }
             for (id, body, discord_done, twitch_done, attempts, received) in due {
@@ -127,6 +148,13 @@ impl Notifier {
                     .await;
             }
         }
+    }
+
+    /// The earliest `next_at` of an event still to deliver; `Err` when the
+    /// database cannot be read.
+    fn next_due(&self) -> Result<Option<u64>, ()> {
+        let db = self.0.db.lock().map_err(|_| ())?;
+        db.query_row(NEXT_DUE, [], |row| row.get(0)).map_err(|_| ())
     }
 
     async fn deliver(
@@ -238,9 +266,68 @@ pub(crate) async fn receive(
         timestamp: get(webhook::HEADER_TIMESTAMP),
         signature: get(webhook::HEADER_SIGNATURE),
     };
-    match notifier.accept(&headers, &body) {
+    // The write is synced to disk: keep it off the runtime's threads.
+    let accepted = tokio::task::spawn_blocking(move || notifier.accept(&headers, &body)).await;
+    match accepted {
         // A duplicate is acknowledged too: it is already recorded.
-        Ok(_) => StatusCode::NO_CONTENT,
-        Err(status) => status,
+        Ok(Ok(_)) => StatusCode::NO_CONTENT,
+        Ok(Err(status)) => status,
+        Err(_) => StatusCode::SERVICE_UNAVAILABLE,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use rusqlite::Connection;
+
+    use super::{DUE, NEXT_DUE};
+    use crate::{Clock, Config, Notifier};
+
+    fn plan(db: &Connection, query: &str, parameters: usize) -> String {
+        let mut statement = db.prepare(&format!("EXPLAIN QUERY PLAN {query}")).unwrap();
+        statement
+            .query_map(rusqlite::params_from_iter(vec![0; parameters]), |row| {
+                row.get::<_, String>(3)
+            })
+            .unwrap()
+            .map(Result::unwrap)
+            .collect::<Vec<_>>()
+            .join("; ")
+    }
+
+    #[test]
+    fn the_due_queries_read_the_partial_index() {
+        let mut bytes = [0u8; 8];
+        getrandom::fill(&mut bytes).unwrap();
+        let dir: PathBuf = std::env::temp_dir().join(format!(
+            "ember-notifier-index-{}",
+            ember_protocol::encoding::b64u(&bytes)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let database = dir.join("inbox.sqlite3");
+        Notifier::new(
+            Config {
+                listen: "127.0.0.1:0".into(),
+                bridge_origin: "http://127.0.0.1:1".into(),
+                secrets: vec!["whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oLkPBEB3QKLYQ=".into()],
+                database: database.clone(),
+                discord: None,
+                twitch: None,
+                bot: None,
+                names: Default::default(),
+            },
+            Clock::default(),
+        )
+        .unwrap();
+        let db = Connection::open(&database).unwrap();
+        for (query, parameters) in [(DUE, 1), (NEXT_DUE, 0)] {
+            let plan = plan(&db, query, parameters);
+            assert!(plan.contains("inbox_due"), "{query}: {plan}");
+            assert!(!plan.contains("SCAN inbox"), "{query}: {plan}");
+        }
+        drop(db);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

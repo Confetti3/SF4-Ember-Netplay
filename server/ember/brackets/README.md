@@ -268,7 +268,11 @@ Secrets are only ever read from files, never written to the log.
   makes it read at once. After a read that finds a change, or creates,
   reports or restarts a match, the next comes `poll_secs` later (at least 30,
   default 120); each read that finds the same open sets doubles the wait, up
-  to `max_poll_secs` (default 600).
+  to `max_poll_secs` (default 600). Each tournament's worker sleeps until its
+  next read is due (a minute at most, and a result wakes it at once), so a
+  `poll_secs` below 60 is now kept, and spends more of the 500-a-month
+  Challonge budget than the same setting did when the worker woke only once
+  a minute.
 - `active_from`, `active_until`: optional, in UTC and in exactly this form:
   `2026-10-24T17:30:00Z`. Outside this
   window the bracket is not read on a schedule and no match is created. A
