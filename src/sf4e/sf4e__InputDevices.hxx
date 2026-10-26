@@ -2,7 +2,12 @@
 #include "../netplay/InputAssignment.hxx"
 namespace sf4e { namespace input {
 // Call only on the game thread after native main-menu readiness.
-std::vector<Device> ReadDevices();
+// The keyboard row's buttons cost a 248-key scan. Its one reader is a capture
+// waiting for every key to be released, so a caller with capture idle passes
+// false and the row reads 0 (ScanKeyboard fills it in later if a capture
+// starts in the same tick).
+std::vector<Device> ReadDevices(bool scanKeyboard = true);
+void ScanKeyboard(std::vector<Device>& devices);
 void ReleaseFromSide(int side);
 bool AssignToSide(const Device& device, int side, bool fight);
 // Game-thread live input seam. Fails neutral on disconnected/replaced devices

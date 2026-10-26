@@ -267,6 +267,31 @@ namespace sf4e {
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;
+				// The local side of the GGPO session. StartGGPO sets it where it
+				// learns the local handle (None until then), StartSpectating where
+				// it clears the handle, and RetireGgpoSession resets it. A session
+				// concept only: the room seat (NetplayFacade's LocalIsSpectator,
+				// UserApp::netplay->spectating) answers before and after a session.
+				enum class SessionRole { None, Fighter, HostFighter, Spectator };
+				static SessionRole sessionRole;
+				// The session has a local fighter. Not so for a spectator, nor for a
+				// fighter's session before StartGGPO has its local handle: what
+				// `localPlayerHandle == GGPO_INVALID_HANDLE` answered. Read only
+				// while a session is live or inside a callback.
+				static bool LocalFighter() {
+					return sessionRole == SessionRole::Fighter || sessionRole == SessionRole::HostFighter;
+				}
+				// P1 holds a closed battle's session open to drain its spectator
+				// streams (NetplayFacade::NotifyMatchEnded). A flag on top of
+				// PHASE_BATTLE_CLOSING, not a phase: free_buffer and the memento
+				// guards still see that phase during the drain. Cleared when the
+				// session is retired, and by CancelDeferredGgpoClose and
+				// ShutdownNetplay.
+				static bool drainingSpectators;
+				// Inside a fatal or draining session the callbacks touch no engine
+				// state but keep GGPO's frame count moving: advance is still
+				// called and save hands out the inert token.
+				static bool CallbacksInert() { return simGate.fatalError || drainingSpectators; }
 				// The GGPO frame of the state the engine holds (each save, and
 				// a rollback's load), and the order a frame is simulated,
 				// sampled and saved in.
@@ -304,9 +329,15 @@ namespace sf4e {
 				// when no connection warning is active. HUD only.
 				static int DisconnectCountdownMs();
 				// `spectatorSyncDeadlineMs`: how long the fighters wait for a spectator to synchronize.
-				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay,
-					std::uint64_t spectatorSyncDeadlineMs);
-				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port);
+				// Both return false with the notice that says why in `failure`, and
+				// abort nothing: the caller aborts once, with that notice. A session
+				// that failed after it was created is still live until then.
+				static bool StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay,
+					std::uint64_t spectatorSyncDeadlineMs, const char*& failure);
+				static bool StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port,
+					const char*& failure);
+				// What both starts share, in one order (see the definition).
+				static void BeginSession(const char* label, bool spectator);
 				// A match steps the battle one frame at a time whatever the
 				// player's FrameRate setting (BattleStep.hxx); the setting
 				// comes back when the battle closes.

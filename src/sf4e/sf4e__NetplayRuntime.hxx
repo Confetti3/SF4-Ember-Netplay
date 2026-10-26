@@ -65,6 +65,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <variant>
 #include <ctime>
 #include <spdlog/spdlog.h>
 #include "../discord/Ticket.hxx"
@@ -102,7 +103,64 @@ struct TraceFields {
     }
 };
 
-using Intent = netplay::ParkedIntent<RuntimeCommand>;
+// A RuntimeCommand is one of these families. Each holds the fields its handler
+// reads, under the RuntimeCommand names, so a handler reads `command.x` as it
+// did. Every family but Identity and Tournament carries the controller
+// generation it was made for (`command.command.generation`), and its handler
+// checks that first.
+namespace commands {
+struct Identity { netplay::IdentityRequest identity; };
+struct Tournament { netplay::tournament::Command tournament; };
+struct Training { netplay::Command command; TrainingEntry training = TrainingEntry::None; };
+struct LeaveWatchedGame { netplay::Command command; netplay::WatchedGame leaveWatchedGame; };
+struct DiscordInvite {
+    netplay::Command command;
+    discord::InviteAction discordAction = discord::InviteAction::None;
+    std::uint64_t discordRevision = 0;
+};
+struct PreviewSound { netplay::Command command; int previewSoundVolume = -1; };
+struct Replay { netplay::Command command; replay::Request replay; };
+struct ShortInvitation { netplay::Command command; };
+struct Pad { netplay::Command command; gamepads::ControllerRequest padAction; };
+struct Input { netplay::Command command; input::Action inputAction = input::Action::None; };
+struct Service {
+    netplay::Command command;
+    platform::ServiceAction service = platform::ServiceAction::None;
+    std::string servicePath;
+    launcher::InstallOffer updateOffer;
+    SteamId steamProfile;
+    reports::Submission reportSubmission;
+};
+// A room command: netplay::Command and what its kinds carry.
+struct Room {
+    netplay::Command command;
+    // With JoinInvite or LeaveRoom from a Discord invitation: re-validated here.
+    std::uint64_t discordRevision = 0;
+    netplay::PlayerPreferences preferences;
+    std::string publicTicket;
+    std::optional<room::Rules> createdRules;
+    JoinKind join = JoinKind::Private;
+    bool practiceRoom = false;
+    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
+    Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
+    int stage = 0;
+    selection::RandomPool randomPool;
+    room::Action roomAction;
+    int selectedDelay = -1;
+};
+}
+using TypedCommand = std::variant<commands::Identity, commands::Tournament, commands::Training, commands::LeaveWatchedGame,
+    commands::DiscordInvite, commands::PreviewSound, commands::Replay, commands::ShortInvitation, commands::Pad,
+    commands::Input, commands::Service, commands::Room>;
+// The one place that decides which family a submitted command is. A command
+// with several families' fields set is the first of: identity, tournament,
+// Training from the room, leave the watched game, Discord invite action, sound
+// preview, replay, short link, pad request, input action, service, else a room
+// command. So the hidden shell's submit, which fills identity and a room
+// command together, is an identity request.
+TypedCommand Classify(RuntimeCommand command);
+
+using Intent = netplay::ParkedIntent<TypedCommand>;
 
 // The networking errors that stay until networking is back. They are kept as a
 // kind and a code, and their sentence is made from the catalog when it is
@@ -124,7 +182,7 @@ struct Runtime {
     const char* discordStatusId = "discord.unavailable_gameplay_ok";
     std::string discordPublished;
     ULONGLONG discordLastPublish = 0;
-    std::array<std::uint64_t,8> discordPresenceKey{};
+    std::array<std::uint64_t,11> discordPresenceKey{};
     bool discordPresenceKeyValid=false;
 
     input::Assignment input;
@@ -333,6 +391,28 @@ struct PostPublishState {
     netplay::Snapshot session;
     bool discordCanSwitch=false, canOpenRoom=false;
 };
+
+// What the player may do now, decided in one place. Publish copies it into the
+// snapshot the interface draws (same field names); Dispatch and the other
+// game-thread decisions take it fresh where they decide (CurrentGates), so a
+// press meets the state it is judged by, not the last published snapshot,
+// which is a tick old and up to six in a throttled fight.
+struct RuntimeGates {
+    bool canEditPreferences = false, canEditSelection = false, canEditLobby = false, canChangeController = false;
+    bool readyGate = false, canReady = false, canOpenRoom = false, canTrain = false, discordCanSwitch = false;
+    bool delayLocked = false, canProbe = false, canApplyDelay = false;
+    int localSlot = -1;
+    int selectedDelay = 2;
+    // The seated table's rules, else the lobby's, else the player's own: what a
+    // Ready checks the fighter selection against (the snapshot's lobbySettings).
+    bool editionSelect = true;
+};
+// Changes nothing: it reads the runtime, the room client and the battle hooks.
+// `state`, `atMainMenu`, `controllerReady` and `helperReady` are passed so that
+// Publish judges by exactly the values it publishes.
+RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool controllerReady, bool helperReady);
+// ComputeGates from the state as it is now.
+RuntimeGates CurrentGates();
 
 // The runtime object; null until StartHelper and after StopHelper.
 extern Runtime* runtime;

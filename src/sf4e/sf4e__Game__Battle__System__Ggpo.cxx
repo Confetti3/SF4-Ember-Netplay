@@ -57,7 +57,7 @@ struct NetplayWindow {
                 (now - startMs) / 1000.0, pingMin, pingMax, p.riftFramesEma, maxAbsRift, localBehind, remoteBehind,
                 rollbacks, resimFrames, maxDepth, stallTicks, p.msSlowedTotal - slowedAtStart,
                 p.msSpedUpTotal - spedUpAtStart, p.recommendationsReceived - recsAtStart);
-            if (fSystem::ggpo && fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) {
+            if (fSystem::ggpo && !fSystem::LocalFighter()) {
                 spdlog::info("Spectator [{:.0f}s]: maxBacklog={} catchUpFrames={}",
                     (now - startMs) / 1000.0, spectator.maxBacklog, spectator.catchUpFrames);
             }
@@ -101,9 +101,8 @@ static sf4e::SpectatorLinks s_spectatorLinks;
 static sf4e::SpectatorStreamWatch s_streamWatch;
 
 std::size_t fSystem::SpectatorStreamCount() {
-    // players[0] is the local handle only on P1, which is the only client that
-    // adds GGPO_PLAYERTYPE_SPECTATOR peers.
-    if (!ggpo || localPlayerHandle == GGPO_INVALID_HANDLE || players[0].handle != localPlayerHandle) return 0;
+    // Only P1 (the fighter in players[0]) adds GGPO_PLAYERTYPE_SPECTATOR peers.
+    if (!ggpo || sessionRole != SessionRole::HostFighter) return 0;
     return s_spectatorPolicy.Count();
 }
 
@@ -268,6 +267,10 @@ void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
     // it out (LeaveOrphanedNetplayBattle); nothing here touches the gate,
     // so an offline battle that follows is never left frozen.
     simGate.OnSessionClosed();
+    // No session, so no role and nothing left to drain. Every reader of the
+    // role is gated on a live session or runs inside a callback.
+    sessionRole = SessionRole::None;
+    drainingSpectators = false;
 }
 
 // The engine update for a netplay battle whose session is gone. Nobody may
@@ -320,7 +323,7 @@ void fSystem::AbortGgpoMatch(const char* reason, sf4e::NoticeSeverity severity, 
     // own stream failure, unless the player left it. The runtime learns why when
     // the battle closes, and leaves the game without its lock-in instead of
     // ending the view silently.
-    if (cause == AbortCause::Failure && ggpo && localPlayerHandle == GGPO_INVALID_HANDLE && !MatchResultKnown()) {
+    if (cause == AbortCause::Failure && ggpo && !LocalFighter() && !MatchResultKnown()) {
         sf4e::NetplayFacade::NotifyRuntimeSpectatorStreamFailed();
     }
     simGate.OnFatal();
@@ -373,24 +376,39 @@ void fSystem::RestoreBattleStep() {
     spdlog::info("Battle step: the game's setting {} is back", s_matchStep.Saved());
 }
 
-void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, std::uint64_t spectatorSyncDeadlineMs) {
-    matchTelemetry.Reset();
+// The callback set both session kinds use (NETPLAY_INVARIANTS.md).
+static GGPOSessionCallbacks SessionCallbacks() {
+    GGPOSessionCallbacks cb = { 0 };
+    cb.begin_game = fSystem::ggpo_begin_game_callback;
+    cb.advance_frame = fSystem::ggpo_advance_frame_callback;
+    cb.load_game_state = fSystem::ggpo_load_game_state_callback;
+    cb.save_game_state = fSystem::ggpo_save_game_state_callback;
+    cb.free_buffer = fSystem::ggpo_free_buffer;
+    cb.on_event = fSystem::ggpo_on_event_callback;
+    cb.log_game_state = fSystem::ggpo_log_game_state;
+    return cb;
+}
+
+// The one session start sequence, for a fighter's session and a spectator's,
+// before GGPO is asked for either. The order is: a leftover session retired
+// (which resets the telemetry, the HUD and the role itself), then everything
+// the new session starts clean with.
+void fSystem::BeginSession(const char* label, bool spectator) {
     rollbackHud.Reset();
-    if (!inPlayers || numPlayers < 2 || numPlayers > static_cast<int>(sf4e::room::MaxMatchParticipants)) {
-        sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.invalid_roster"));
-        return;
-    }
     FixBattleStepForMatch();
     diag::InitFromEnvironment();
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
     if (ggpo) {
-        spdlog::warn("StartGGPO: closing leftover GGPO session before rematch/restart");
-        RetireGgpoSession("leftover_before_start");
+        spdlog::warn("{}: closing leftover GGPO session before {}", label, spectator ? "restart" : "rematch/restart");
+        RetireGgpoSession(spectator ? "leftover_before_spectating" : "leftover_before_start");
     }
+    matchTelemetry.Reset(spectator);
     diag::G().ResetForMatch(diag::NowMs());
     ResetNativeResultMatch();
     // A new session starts clean: the last match's abort reason is moot.
     sf4e::NetplayFacade::ClearMatchNotice();
+    // No fighter handles yet (and none at all on a spectator client); stale
+    // ones from an earlier match must not classify this session's events.
     for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }
     // The savestate pool must start empty. A slot still holding records here
     // is leaked from the previous match, most often via the deferred-close
@@ -398,30 +416,38 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     // never runs CloseBattle's free loop. Reclaim without engine calls: the
     // previous battle's objects are gone, so ClearKey through those pointers
     // would fault. Reusing a dirty slot is what corrupts the next match.
-    LogSaveSlotOccupancy("start_ggpo_entry");
+    LogSaveSlotOccupancy(spectator ? "start_spectating_entry" : "start_ggpo_entry");
     LogSaveStateFreePolicy();
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
-        SaveState::Reclaim(&saveStates[i], "start_ggpo", i);
+        SaveState::Reclaim(&saveStates[i], spectator ? "start_spectating" : "start_ggpo", i);
     }
     simGate.OnSessionStarted();
-    s_streamWatch.Start(GetTickCount64(), false);
+    s_streamWatch.Start(GetTickCount64(), spectator);
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     s_disconnectTimeoutMs = 0;
     s_abortLatch.Reset();
     sf4e::memento::DiscardPendingAbort();
     localPlayerHandle = GGPO_INVALID_HANDLE;
+    // A fighter's role is known once its local handle is (StartGGPO).
+    sessionRole = spectator ? SessionRole::Spectator : SessionRole::None;
     ggpoTimeline.Reset();
+    // A claimed netplay battle leaves straight back to the menu, past the
+    // native start and results flow, whether or not its session then starts:
+    // one that does not is orphaned and leaves on its own (F-016).
+    nNextBattleStartFlowTarget = BF__MATCH_START;
+    fVsBattle::bTerminateOnNextLeftBattle = true;
+}
 
-    GGPOSessionCallbacks cb = { 0 };
-    cb.begin_game = ggpo_begin_game_callback;
-    cb.advance_frame = ggpo_advance_frame_callback;
-    cb.load_game_state = ggpo_load_game_state_callback;
-    cb.save_game_state = ggpo_save_game_state_callback;
-    cb.free_buffer = ggpo_free_buffer;
-    cb.on_event = ggpo_on_event_callback;
-    cb.log_game_state = ggpo_log_game_state;
+bool fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, std::uint64_t spectatorSyncDeadlineMs,
+    const char*& failure) {
+    if (!inPlayers || numPlayers < 2 || numPlayers > static_cast<int>(sf4e::room::MaxMatchParticipants)) {
+        failure = sf4e::loc::T("runtime.invalid_roster");
+        return false;
+    }
+    BeginSession("StartGGPO", false);
 
+    GGPOSessionCallbacks cb = SessionCallbacks();
     spdlog::info(
         "GGPO: starting session localPort={} players={} frameDelay={}",
         port,
@@ -439,12 +465,13 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     if (result != GGPO_OK) {
         spdlog::error("GGPO session could not start: {}", (int)result);
         ggpo = nullptr;
-        AbortGgpoMatch(sf4e::loc::T("runtime.ggpo_start_failed"));
-        return;
+        failure = sf4e::loc::T("runtime.ggpo_start_failed");
+        return false;
     }
     spdlog::info("GGPO: session started localPort={}", port);
     spdlog::info("GGPO: fp {}", sf4e::statehash::FpEnvironment());
     sf4e::crash::NoteMatchBoundary("start_ggpo");
+    // Fighter links only (NETPLAY_INVARIANTS.md): the spectator backend rejects it.
     sf4e::GgpoDisconnectTolerance::Apply(ggpo);
 
     int localPlayerIdx = -1;
@@ -453,8 +480,8 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         result = ggpo_add_player(ggpo, inPlayers + i, &players[i].handle);
         if (!GGPO_SUCCEEDED(result)) {
             spdlog::error("GGPO session could not add player: {}", (int)result);
-            AbortGgpoMatch(sf4e::loc::T("runtime.ggpo_add_players_failed"));
-            return;
+            failure = sf4e::loc::T("runtime.ggpo_add_players_failed");
+            return false;
         }
 
         if (players[i].type == GGPO_PLAYERTYPE_LOCAL) {
@@ -462,6 +489,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
             if (!GGPO_SUCCEEDED(delayResult)) spdlog::warn("GGPO: set_frame_delay({}) returned {}", frameDelay, (int)delayResult);
             matchTelemetry.AppliedDelay(frameDelay, GGPO_SUCCEEDED(delayResult));
             localPlayerHandle = players[i].handle;
+            sessionRole = i == 0 ? SessionRole::HostFighter : SessionRole::Fighter;
             localPlayerIdx = i;
         }
     }
@@ -486,49 +514,13 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     }
     s_spectatorPolicy.Start(GetTickCount64(), spectatorHandles, spectatorSyncDeadlineMs);
     s_spectatorLinks.Start(std::move(spectatorSlots));
-
-    nNextBattleStartFlowTarget = BF__MATCH_START;
-    fVsBattle::bTerminateOnNextLeftBattle = true;
+    return true;
 }
 
-void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port) {
-    rollbackHud.Reset();
-    FixBattleStepForMatch();
-    diag::InitFromEnvironment();
-    sf4e::NetplayFacade::CancelDeferredGgpoClose();
-    if (ggpo) {
-        spdlog::warn("StartSpectating: closing leftover GGPO session before restart");
-        RetireGgpoSession("leftover_before_spectating");
-    }
-    matchTelemetry.Reset(true);
-    diag::G().ResetForMatch(diag::NowMs());
-    ResetNativeResultMatch();
-    sf4e::NetplayFacade::ClearMatchNotice();
-    // Same rationale as StartGGPO: the pool must start empty.
-    LogSaveSlotOccupancy("start_spectating_entry");
-    for (int i = 0; i < NUM_SAVE_STATES; i++) {
-        SaveState::Reclaim(&saveStates[i], "start_spectating", i);
-    }
-    simGate.OnSessionStarted();
-    ResetPacerForSession();
-    s_lastDisconnectFlags = 0;
-    s_disconnectTimeoutMs = 0;
-    s_abortLatch.Reset();
-    sf4e::memento::DiscardPendingAbort();
-    s_streamWatch.Start(GetTickCount64(), true);
-    // No fighter handles on a spectator client; stale ones from an earlier
-    // match must not classify the host stream's events.
-    for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }
-    localPlayerHandle = GGPO_INVALID_HANDLE;
-    ggpoTimeline.Reset();
-    GGPOSessionCallbacks cb = { 0 };
-    cb.begin_game = ggpo_begin_game_callback;
-    cb.advance_frame = ggpo_advance_frame_callback;
-    cb.load_game_state = ggpo_load_game_state_callback;
-    cb.save_game_state = ggpo_save_game_state_callback;
-    cb.free_buffer = ggpo_free_buffer;
-    cb.on_event = ggpo_on_event_callback;
-    cb.log_game_state = ggpo_log_game_state;
+bool fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port,
+    const char*& failure) {
+    BeginSession("StartSpectating", true);
+    GGPOSessionCallbacks cb = SessionCallbacks();
 
     GGPOErrorCode result = ggpo_start_spectating(
         &ggpo,
@@ -549,9 +541,9 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     sf4e::crash::NoteMatchBoundary("start_spectating");
     // No disconnect tolerance: GGPO's spectator backend has no silence timeout, so
     // this link ends through the match session and the teardown timers.
-
-    nNextBattleStartFlowTarget = BF__MATCH_START;
-    fVsBattle::bTerminateOnNextLeftBattle = true;
+    const bool started = result == GGPO_OK && ggpo != nullptr;
+    if (!started) failure = sf4e::loc::T("runtime.ggpo_start_failed");
+    return started;
 }
 
 bool fSystem::ggpo_begin_game_callback(const char*)
@@ -565,7 +557,7 @@ void fSystem::PollMatchTelemetry() {
     if (!ggpo) return;
     const auto now = GetTickCount64();
     // A spectator has no local fighter handle; do not label its host link as fighter RTT.
-    matchTelemetry.spectator = localPlayerHandle == GGPO_INVALID_HANDLE;
+    matchTelemetry.spectator = !LocalFighter();
     if (!matchTelemetry.PollDue(now)) return;
     GGPONetworkStats stats{};
     matchTelemetry.Sample(now, !simGate.connectionWarningActive && GetRemoteNetworkStats(stats) ? stats.network.ping : -1);
@@ -635,7 +627,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
     // late input. Neither touches the engine, but both keep GGPO's frame
     // count moving: a rollback that ends short of its target fails GGPO's
     // frame-count ASSERT, which calls exit(1) in release builds too.
-    if (simGate.fatalError || sf4e::NetplayFacade::DrainingSpectators()) {
+    if (CallbacksInert()) {
         ggpo_advance_frame(ggpo);
         return true;
     }
@@ -699,7 +691,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
 bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
 {
     GgpoCallbackScope _callbackScope;
-    if (simGate.fatalError || sf4e::NetplayFacade::DrainingSpectators()) {
+    if (CallbacksInert()) {
         return true;
     }
     rollbackHud.Begin(GetTickCount64());
@@ -732,7 +724,7 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
     // later rollback in the same poll loads it, so these frames all share the
     // inert token: loading it touches nothing in either state, and freeing it
     // is ignored.
-    if (simGate.fatalError || sf4e::NetplayFacade::DrainingSpectators()) {
+    if (CallbacksInert()) {
         *buffer = &s_inertSaveState;
         *checksum = 0;
         return true;
@@ -837,7 +829,7 @@ void fSystem::ggpo_free_buffer(void* buffer)
 static bool IsSpectatorHandle(GGPOPlayerHandle handle) {
     // A spectator client has one peer, the host stream; every event it sees
     // is about the link it depends on.
-    if (fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) {
+    if (!fSystem::LocalFighter()) {
         return false;
     }
     for (int i = 0; i < 2; i++) {
@@ -893,7 +885,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         // has already left the session, which is not a warning. The same
         // holds once the result is confirmed: the opponent may leave the
         // win screen first.
-        if (IsSpectatorHandle(info->u.connection_interrupted.player) || sf4e::NetplayFacade::DrainingSpectators() ||
+        if (IsSpectatorHandle(info->u.connection_interrupted.player) || drainingSpectators ||
             MatchResultKnown()) {
             break;
         }
@@ -938,7 +930,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
             break;
         }
         // The fight already ended; the opponent closing its own session is expected.
-        if (sf4e::NetplayFacade::DrainingSpectators()) {
+        if (drainingSpectators) {
             break;
         }
         if (system) {
@@ -949,7 +941,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         s_disconnectTimeoutMs = 0;
         if (!MatchResultKnown()) {
             sf4e::NetplayFacade::PushAlert(
-                sf4e::loc::T(localPlayerHandle == GGPO_INVALID_HANDLE ? "runtime.spectator_stream_lost" : "runtime.opponent_disconnected"),
+                sf4e::loc::T(!LocalFighter() ? "runtime.spectator_stream_lost" : "runtime.opponent_disconnected"),
                 sf4e::NoticeSeverity::Error
             );
         }

@@ -171,7 +171,9 @@ static bool StartMatchInputLag() {
 // its battle loaded. Failed: this PC could not set GGPO up.
 enum class RuntimeGgpoStart { Started, NoStream, Failed };
 
-static RuntimeGgpoStart StartRuntimeGgpo() {
+// A Failed start from fSystem::StartGGPO or StartSpectating names its reason in
+// `failure`; the other failures leave it null.
+static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
     static_assert(sizeof(sf4e::Pad::System::Inputs) == sf4e::session::GgpoInputBytes, "Recalculate gameplay packet admission when SF4 inputs change");
     sf4e::NetplayFacade::RuntimeMatchEndpoints endpoints;
     if (!sf4e::NetplayFacade::GetRuntimeMatchEndpoints(endpoints)) return RuntimeGgpoStart::NoStream;
@@ -192,11 +194,12 @@ static RuntimeGgpoStart StartRuntimeGgpo() {
     netplay->startScoreKnown = table != nullptr;
     if (table)
         for (int side = 0; side < 2; ++side) netplay->startScore[side] = table->score[side];
+    bool started = false;
     if (endpoints.localSlot >= 2) {
         if (!endpoints.remotePorts[0]) return RuntimeGgpoStart::NoStream;
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
         char loopback[] = "127.0.0.1";
-        fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0]);
+        started = fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0], failure);
         // The HUD keeps this game's delay, as its grant carries it, until the
         // stream ends, as it keeps the starting score.
         const auto& seats = netplay->client._matchData.inputDelay;
@@ -233,10 +236,10 @@ static RuntimeGgpoStart StartRuntimeGgpo() {
         spdlog::info("Netplay: match delay seats={}/{} local_slot={} applied={}",
             netplay->client._matchData.inputDelay[0], netplay->client._matchData.inputDelay[1],
             endpoints.localSlot, netplay->delay);
-        fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay,
-            netplay->client.SpectatorSyncDeadlineMs());
+        started = fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay,
+            netplay->client.SpectatorSyncDeadlineMs(), failure);
     }
-    if (fSystem::ggpo != nullptr) {
+    if (started) {
         auto* const root = App::GetRootEvent();
         auto* const progress = root ? *RootEvent::GetProgressData(root) : nullptr;
         const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0;
@@ -246,7 +249,7 @@ static RuntimeGgpoStart StartRuntimeGgpo() {
     }
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
     sf4e::NetplayFacade::ResetGgpoBattleWatch();
-    return fSystem::ggpo != nullptr ? RuntimeGgpoStart::Started : RuntimeGgpoStart::Failed;
+    return started ? RuntimeGgpoStart::Started : RuntimeGgpoStart::Failed;
 }
 
 // A spectator without its stream watches the next game at the table, and
@@ -267,8 +270,10 @@ void fUserApp::_OnVsBattleTasksRegistered() {
     else if (!StartMatchInputLag())
         fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.input_lag_unavailable"));
     else {
-        const auto start = StartRuntimeGgpo();
-        if (start != RuntimeGgpoStart::Started) fSystem::AbortGgpoMatch(RuntimeGgpoStartNotice(start));
+        // The one abort of a failed start, with the start's own reason when it has one.
+        const char* failure = nullptr;
+        const auto start = StartRuntimeGgpo(failure);
+        if (start != RuntimeGgpoStart::Started) fSystem::AbortGgpoMatch(failure ? failure : RuntimeGgpoStartNotice(start));
     }
 }
 
@@ -423,11 +428,13 @@ void fUserApp::Steam_PostUpdate() {
 
     // Reported every tick. On the loss edge an active healthy GGPO fight
     // degrades instead of being killed; outside that case the loss falls
-    // back to full failure (Phase 7).
+    // back to full failure (Phase 7). The reason is read only on that edge, so
+    // a healthy tick does not look it up.
+    const bool sessionHealthy = !netplayStepFailed && !serverStepFailed;
     sf4e::NetplayFacade::ObserveControlPlane(
         sf4e::NetplayFacade::ControlPlaneCause::SessionClient,
-        !netplayStepFailed && !serverStepFailed,
-        sf4e::loc::T(netplayStepFailed ? "runtime.room_link_lost" : "runtime.session_server_error")
+        sessionHealthy,
+        sessionHealthy ? "" : sf4e::loc::T(netplayStepFailed ? "runtime.room_link_lost" : "runtime.session_server_error")
     );
     // The room's updates of this tick are in: the Training call is reconciled
     // with them before the next battle update can leave for it.

@@ -87,6 +87,9 @@ namespace OverlayPrefs {
 	nlohmann::json ToJson(const Data& data);
 
 	bool Load(Data& out);
+	// Only the saved gameplay device's identity, read as Load would, without
+	// copying the rest of the profile. Empty when none is saved or Load fails.
+	std::optional<gamepads::Identity> DeviceIdentity();
 	// Start outside DllMain; keep the writer alive across D3D device resets.
 	void StartPersistence();
 	void StopPersistence();

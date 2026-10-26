@@ -60,7 +60,7 @@ void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
 
 static void PublishConfirmedNativeMatchResult() {
     if (s_nativeResultEmitted || !fSystem::ggpo ||
-        fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) return;
+        !fSystem::LocalFighter()) return;
     int confirmed = -1;
     if (!GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))) return;
     const auto sample = s_nativeResultTimeline.ConfirmedSample(confirmed);
@@ -114,6 +114,8 @@ int fSystem::nNextBattleStartFlowTarget = -1;
 int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
 
 GGPOPlayerHandle fSystem::localPlayerHandle = GGPO_INVALID_HANDLE;
+fSystem::SessionRole fSystem::sessionRole = fSystem::SessionRole::None;
+bool fSystem::drainingSpectators = false;
 sf4e::statehash::GgpoTimeline fSystem::ggpoTimeline;
 GGPOSession* fSystem::ggpo = nullptr;
 sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
@@ -353,7 +355,7 @@ static bool PlayGgpoFrame(rSystem* system) {
     case sf4e::gate::POLICY_CONTINUE:
         break;
     case sf4e::gate::POLICY_FATAL:
-        if (fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) {
+        if (!fSystem::LocalFighter()) {
             EndSpectatorStream((int)result);
             return false;
         }
@@ -468,7 +470,7 @@ void fSystem::BattleUpdate() {
             return;
         }
         GGPOErrorCode result = GGPO_OK;
-        if (localPlayerHandle != GGPO_INVALID_HANDLE) {
+        if (LocalFighter()) {
             for (int i = 0; i < 2; i++) {
                 if (players[i].type == GGPO_PLAYERTYPE_LOCAL) {
                     fPadSystem::Inputs inputs;
@@ -536,7 +538,7 @@ void fSystem::BattleUpdate() {
         if (!PlayGgpoFrame(_this)) {
             return;
         }
-        if (localPlayerHandle == GGPO_INVALID_HANDLE) {
+        if (!LocalFighter()) {
             CatchUpSpectator(_this);
         }
     }
@@ -664,7 +666,7 @@ void fSystem::CloseBattle() {
         // Decide defer *before* close so a prior spectator defer flag cannot
         // leave this session open across rematch.
         sf4e::NetplayFacade::NotifyMatchEnded();
-        if (!sf4e::NetplayFacade::DrainingSpectators()) {
+        if (!drainingSpectators) {
             RetireGgpoSession("battle_close");
             summaryEmitted = true;
         }

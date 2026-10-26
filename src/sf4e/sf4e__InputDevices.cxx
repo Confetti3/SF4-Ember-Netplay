@@ -76,7 +76,15 @@ bool Connected(const Device& device) {
     return name&&*name?device.name==name:device.name=="Controller "+std::to_string(device.index+1);
 }
 }
-std::vector<Device> ReadDevices() {
+void ScanKeyboard(std::vector<Device>& devices) {
+    for (auto& device : devices) if (device.type == Dimps::Pad::PADTYPE_RAWINPUT) {
+        device.buttons = 0;
+        // Ignore mouse buttons; pressing Change controller must not select a mouse.
+        for (int key = VK_BACK; key < 256; ++key)
+            if (GetAsyncKeyState(key) & 0x8000) device.buttons = 1;
+    }
+}
+std::vector<Device> ReadDevices(bool scanKeyboard) {
     using namespace Dimps::Pad;
     std::vector<Device> result;
     auto* pad = System::staticMethods.GetSingleton();
@@ -84,10 +92,8 @@ std::vector<Device> ReadDevices() {
     if (!pad || !controllers) return result;
     Device keyboard; keyboard.type = PADTYPE_RAWINPUT; keyboard.index = 0;
     keyboard.name = "Keyboard"; keyboard.connected = true;
-    // Ignore mouse buttons; pressing Change controller must not select a mouse.
-    for (int key = VK_BACK; key < 256; ++key)
-        if (GetAsyncKeyState(key) & 0x8000) keyboard.buttons = 1;
     result.push_back(keyboard);
+    if (scanKeyboard) ScanKeyboard(result);
     const auto& methods = System_XInput::publicMethods;
     // This native backend owns XInput indices 0..3 AND DirectInput indices 4+.
     // See docs/validation/CONTROLLER_SELECTION_VALIDATION.md for the native call evidence.

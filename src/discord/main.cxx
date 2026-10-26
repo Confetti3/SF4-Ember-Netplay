@@ -21,6 +21,8 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,LPWSTR,int) {
     if(!bridge.Open(pipe)) return 2;
     bool running=true, pending=false;
     std::string accepted, lastSent, clearedFor;
+    // What lastSent said, kept beside it so it is never parsed again.
+    bool lastShow=false, lastSecret=false;
     std::uint64_t sequence=0, epoch=0;
     auto client=std::make_unique<discordpp::Client>();
     client->SetApplicationId(SF4E_DISCORD_APPLICATION_ID);
@@ -39,6 +41,10 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,LPWSTR,int) {
             accepted=std::move(secret); // one bounded slot, drained outside SDK callbacks
     });
     Json latest;
+    // latest as serialized, with its show and secret: rebuilt only when a
+    // presence is received or its secret expires, not on every pass.
+    std::string serialized;
+    bool hidden=false, noSecret=true, received=false;
     ULONGLONG nextUpdate=0, lastInput=GetTickCount64(), backoff=1000;
     const auto started=static_cast<std::uint64_t>(std::time(nullptr));
     const std::set<std::string> activities={"Starting Ember","In menus","Playing offline","In a room","Queued","Ready","Fighting","Spectating"};
@@ -56,7 +62,7 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,LPWSTR,int) {
                 const auto size=value.at("size").get<int>(), capacity=value.at("capacity").get<int>();
                 if(size<0 || size>16 || capacity<0 || capacity>16 || size>capacity ||
                     value.at("party").get<std::string>().size()>64 || value.at("secret").get<std::string>().size()>128) { running=false; break; }
-                epoch=roomEpoch; latest=value; lastInput=GetTickCount64();
+                epoch=roomEpoch; latest=value; lastInput=GetTickCount64(); received=true;
             } catch(...) { running=false; break; }
         }
         discordpp::RunCallbacks();
@@ -66,16 +72,21 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,LPWSTR,int) {
         }
         if(!running || GetTickCount64()-lastInput>15000) break;
         if(!latest.is_null()) {
-            if(latest.value("expires",std::uint64_t(0))<=static_cast<std::uint64_t>(std::time(nullptr))) latest["secret"]="";
-            const auto serialized=latest.dump();
-            const bool hidden=!latest.at("show").get<bool>();
+            if(latest.at("secret")!="" && latest.value("expires",std::uint64_t(0))<=static_cast<std::uint64_t>(std::time(nullptr))) {
+                latest["secret"]=""; received=true;
+            }
+            if(received) {
+                received=false;
+                serialized=latest.dump();
+                hidden=!latest.at("show").get<bool>();
+                noSecret=latest.at("secret")=="";
+            }
             // Clear immediately when disabled or when a previous invitation
             // becomes unsafe; the replacement presence is still coalesced.
-            if(!lastSent.empty() && (hidden || latest.at("secret")=="")) {
-                const auto previous=Json::parse(lastSent);
-                if(clearedFor!=serialized && ((hidden && previous.at("show")==true) || previous.at("secret")!="")) { client->ClearRichPresence(); clearedFor=serialized; }
+            if(!lastSent.empty() && (hidden || noSecret)) {
+                if(clearedFor!=serialized && ((hidden && lastShow) || lastSecret)) { client->ClearRichPresence(); clearedFor=serialized; }
             }
-            if(hidden) { lastSent=serialized; }
+            if(hidden) { lastSent=serialized; lastShow=!hidden; lastSecret=!noSecret; }
             else if(!pending && GetTickCount64()>=nextUpdate && serialized!=lastSent) {
                 discordpp::Activity activity;
                 activity.SetType(discordpp::ActivityTypes::Playing);
@@ -92,9 +103,9 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,LPWSTR,int) {
                 if(!secret.empty()) { discordpp::ActivitySecrets secrets; secrets.SetJoin(secret); activity.SetSecrets(secrets); }
                 activity.SetSupportedPlatforms(discordpp::ActivityGamePlatforms::Desktop);
                 pending=true; nextUpdate=GetTickCount64()+5000;
-                client->UpdateRichPresence(activity,[&,serialized](const discordpp::ClientResult& result) {
+                client->UpdateRichPresence(activity,[&,serialized,sentSecret=!noSecret](const discordpp::ClientResult& result) {
                     pending=false;
-                    if(result.Successful()) { lastSent=serialized; backoff=1000; }
+                    if(result.Successful()) { lastSent=serialized; lastShow=true; lastSecret=sentSecret; backoff=1000; }
                     else { lastSent.clear(); nextUpdate=GetTickCount64()+backoff; backoff=(std::min)(backoff*2,ULONGLONG(30000)); }
                     running=bridge.Send(Json{{"type","status"},{"available",result.Successful()},{"registered",registered}}.dump()) && running;
                 });

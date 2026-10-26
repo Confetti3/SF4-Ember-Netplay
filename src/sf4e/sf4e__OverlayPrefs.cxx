@@ -210,21 +210,34 @@ namespace OverlayPrefs {
         return j;
     }
 
-    bool Load(Data& out) {
-        std::lock_guard<std::mutex> lock(cacheMutex);
+    namespace {
+        // A failed load (no "overlay" section yet, settings busy or unreadable)
+        // is remembered briefly, so a fresh install does not open settings.lock
+        // and parse settings.json on every game-thread tick until the first
+        // overlay save. It is retried after a few seconds, never held until a
+        // save, so a lock the launcher holds for a moment cannot pin defaults.
+        constexpr ULONGLONG LoadRetryMs = 3000;
+        bool loadFailed = false;
+        ULONGLONG loadFailedAt = 0;
+
+        // Callers hold cacheMutex.
+        bool LoadLocked(Data& out) {
 		// Device recreation must not reload older disk state over queued edits.
 		if (haveCached) { out = cached; return true; }
+		const ULONGLONG now = GetTickCount64();
+		if (loadFailed && now - loadFailedAt < LoadRetryMs) return false;
+		const auto failed = [&] { loadFailed = true; loadFailedAt = now; return false; };
 		nlohmann::json j;
 		std::string error;
 		netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
 		if (!store.LoadOverlay(j, error)) {
 			spdlog::warn("{}", error);
-			return false;
+			return failed();
 		}
 
 		try {
 			if (!j.is_object()) {
-				return false;
+				return failed();
 			}
 
 			FromJson(j, out);
@@ -240,13 +253,28 @@ namespace OverlayPrefs {
 			Clamp(out);
 			cached = out;
 			haveCached = true;
+			loadFailed = false;
 			return true;
 		}
 		catch (...) {
 			spdlog::warn("Could not parse overlay preferences in settings.json");
-			return false;
+			return failed();
 		}
-	}
+        }
+    }
+
+    bool Load(Data& out) {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        return LoadLocked(out);
+    }
+
+    std::optional<gamepads::Identity> DeviceIdentity() {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        if (haveCached) return cached.deviceIdentity;
+        Data data;
+        if (!LoadLocked(data)) return std::nullopt;
+        return data.deviceIdentity;
+    }
 
 	void StartPersistence() {
 		if (writer) return;

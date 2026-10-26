@@ -832,6 +832,32 @@ void TestEnteredBattleRequestCancelled() {
 	CHECK(prepared() && !prepared());
 	std::cout << "TestEnteredBattleRequestCancelled passed\n";
 }
+
+// The gates a press is judged by now (CurrentGates) are the ones Publish shows,
+// computed in one place, when nothing has moved in between.
+void TestGatesMatchPublished() {
+	namespace facade = sf4e::NetplayFacade;
+	const auto same = [] {
+		facade::internal::Publish();
+		const auto gates = facade::internal::CurrentGates();
+		const auto published = facade::GetRuntimeSnapshotShared();
+		CHECK(gates.canEditPreferences == published->canEditPreferences && gates.canEditSelection == published->canEditSelection);
+		CHECK(gates.canEditLobby == published->canEditLobby && gates.canChangeController == published->canChangeController);
+		CHECK(gates.readyGate == published->readyGate && gates.canReady == published->canReady);
+		CHECK(gates.canOpenRoom == published->canOpenRoom && gates.canTrain == published->canTrain);
+		CHECK(gates.discordCanSwitch == published->discordCanSwitch && gates.delayLocked == published->delayLocked);
+		CHECK(gates.canProbe == published->canProbe && gates.canApplyDelay == published->canApplyDelay);
+		CHECK(gates.localSlot == published->localSlot && gates.selectedDelay == published->selectedDelay);
+		CHECK(gates.editionSelect == published->lobbySettings.editionSelect);
+	};
+	{
+		RuntimeRoom r;
+		same();
+		r.Projection(1);
+		same();
+	}
+	std::cout << "TestGatesMatchPublished passed\n";
+}
 }
 int main() {
 	for (const bool queued : {false, true})
@@ -847,6 +873,7 @@ int main() {
 	TestFinishedWatchEndsOnlyTheView();
 	TestSpectatorSitOutNotice();
 	TestEnteredBattleRequestCancelled();
+	TestGatesMatchPublished();
 	std::cout << "Spectator runtime tests passed\n";
 	return 0;
 }

@@ -658,7 +658,7 @@ static void CallOutOfTraining() {
 	in.inTraining = training::ControlsAvailable();
 	in.atMainMenu = AtMainMenu();
 	in.autoAccept = runtime->preferences.trainingAutoReady;
-	in.canReady = GetRuntimeSnapshotShared()->canReady;
+	in.canReady = CurrentGates().canReady;
 	in.generation = training::ReadPlace().generation;
 	in.choosingFighter = FighterSelectorShown(room.roomEpoch);
 	// From the press until its seat flag commits, it fails or its budget ends

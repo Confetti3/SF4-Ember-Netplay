@@ -176,7 +176,7 @@ fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src, const Chara
 
 void fSystem::CaptureMeterSample(rSystem* src, bool show) {
     int confirmed = -1;
-    if (localPlayerHandle == GGPO_INVALID_HANDLE) { sf4e::training::ObserveMatch(src, 0, -1); return; }
+    if (!LocalFighter()) { sf4e::training::ObserveMatch(src, 0, -1); return; }
     if (show && !(ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed)))) confirmed = -1;
     sf4e::training::ObserveMatch(src, ggpoTimeline.Held(), confirmed);
 }
@@ -186,7 +186,7 @@ void fSystem::CaptureMeterSample(rSystem* src, bool show) {
 // does not. A spectator has no save callback: the input it simulated is the
 // confirmed one it just consumed.
 static int SimulatedStateFrame() {
-    if (fSystem::localPlayerHandle != GGPO_INVALID_HANDLE) {
+    if (fSystem::LocalFighter()) {
         return fSystem::ggpoTimeline.Next();
     }
     int confirmed = -1;
