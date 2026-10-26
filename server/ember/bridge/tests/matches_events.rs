@@ -855,3 +855,61 @@ async fn a_match_with_games_expires_only_after_a_quiet_day() {
     // What was decided stays on the record.
     assert_eq!(expired["scores"][0]["wins"], 1);
 }
+
+// A state this bridge does not know (a newer bridge wrote it before a
+// rollback) is never read as another state: the match answers unavailable,
+// lists leave it out, and maintenance passes over it.
+#[tokio::test]
+async fn a_match_in_a_state_this_bridge_does_not_know_is_unavailable_and_left_alone() {
+    let mut f = fixture().await;
+    let (id, _) = create_match(&f).await;
+    assert_eq!(assignment_rows(&mut f).await.len(), 1);
+    let changed = id.clone();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE matches SET state = 'a_later_state', expires_at = 0 WHERE id = ?1",
+                [changed],
+            )?;
+            // Something the same maintenance pass removes, to see it commit.
+            Ok(tx.execute(
+                "INSERT INTO auth_challenges (id, ember_id, public_key, canonical, expires_at)
+                 VALUES ('stale', 'x', 'x', x'', 0)",
+                [],
+            )?)
+        })
+        .await
+        .unwrap();
+
+    let (status, _) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(assignment_rows(&mut f).await.is_empty());
+
+    // Past its expiry, maintenance neither expires it nor stops.
+    ember_bridge::maintain(f.bridge.state()).await;
+    let read = id.clone();
+    let (state, stale): (String, i64) = f
+        .bridge
+        .state()
+        .db
+        .read(move |tx| {
+            Ok((
+                tx.query_row("SELECT state FROM matches WHERE id = ?1", [read], |row| {
+                    row.get(0)
+                })?,
+                tx.query_row(
+                    "SELECT COUNT(*) FROM auth_challenges WHERE id = 'stale'",
+                    [],
+                    |row| row.get(0),
+                )?,
+            ))
+        })
+        .await
+        .unwrap();
+    assert_eq!((state.as_str(), stale), ("a_later_state", 0));
+}

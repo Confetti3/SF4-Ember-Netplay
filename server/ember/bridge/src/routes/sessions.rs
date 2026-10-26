@@ -462,7 +462,6 @@ impl Call {
                 work(tx, &ctx, &ember_id, command)
             })
             .await?;
-        state.committed();
         Ok(answer)
     }
 }

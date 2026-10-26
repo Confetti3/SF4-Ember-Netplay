@@ -102,7 +102,7 @@ pub async fn stream(
         .db
         .read(move |tx| events::list(tx, &probe, after, 1))
         .await?;
-    let signal = state.stream_signal.subscribe();
+    let signal = state.db.commits();
     let initial = Stream {
         state,
         viewer,

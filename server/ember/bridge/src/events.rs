@@ -12,6 +12,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 
 use crate::{
     config::Config,
+    db,
     error::{ApiFailure, Result},
     util::new_id,
 };
@@ -77,6 +78,8 @@ pub fn emit(tx: &Transaction<'_>, config: &Config, now: u64, event: NewEvent<'_>
         ],
     )?;
     fan_out(tx, seq, &event, &envelope.kind, now)?;
+    // Its readers and its webhook deliveries are woken once this commits.
+    db::queued();
     Ok(seq)
 }
 

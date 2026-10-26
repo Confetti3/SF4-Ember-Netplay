@@ -442,17 +442,13 @@ async fn callback(
         })
         .await;
     match stored {
-        Ok(Stored::Connected(ember_id)) => {
-            state.committed();
-            pages.connected(&shown, &ember_id)
-        }
+        Ok(Stored::Connected(ember_id)) => pages.connected(&shown, &ember_id),
         Ok(Stored::Asking {
             from,
             to,
             replaced,
             confirmation,
         }) => {
-            state.committed();
             let replaced = replaced.as_deref();
             match from {
                 Some(from) => pages.moving(&confirmation, &shown, &from, &to, replaced),
@@ -535,13 +531,11 @@ async fn decide(
     let (ember_id, username) = match decided {
         Ok(Some(Decided::Answered(ember_id, username))) => (ember_id, username),
         Ok(Some(Decided::Changed)) => {
-            state.committed();
             return pages.changed();
         }
         Ok(None) => return pages.not_waiting(),
         Err(_) => return pages.not_saved(),
     };
-    state.committed();
     if moves {
         pages.connected(&username, &ember_id)
     } else if refused {

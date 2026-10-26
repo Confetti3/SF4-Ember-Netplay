@@ -99,6 +99,5 @@ pub async fn lookup(
             Ok(answer)
         })
         .await?;
-    state.committed();
     Ok(ok(&answer))
 }

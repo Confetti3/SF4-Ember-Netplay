@@ -34,6 +34,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 
 use crate::{
     ctx::Ctx,
+    db,
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
 };
@@ -70,7 +71,7 @@ pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Tournament>> {
                 external_tournament_id: row.get(3)?,
                 revision: row.get(4)?,
                 state: row.get(5)?,
-                format: Format::parse(&row.get::<_, String>(6)?).unwrap_or(Format::SingleElimination),
+                format: db::known(row, 6, Format::parse)?,
                 games_to_win: row.get(7)?,
                 finals_games_to_win: row.get(8)?,
                 grand_final_reset: row.get(9)?,

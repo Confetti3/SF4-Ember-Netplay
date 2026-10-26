@@ -186,24 +186,20 @@ async fn access_log(request: Request, next: Next) -> Response {
 /// `maintenance_once` forever.
 pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<()>) {
     let ctx = Ctx::of(&state);
-    match state
+    if let Err(error) = state
         .db
         .write(move |tx| blumint::end_unkeyed(tx, &ctx))
         .await
     {
-        Ok(()) => state.committed(),
-        Err(error) => {
-            eprintln!("maintenance: could not end the unkeyed BluMint matches: {error:?}")
-        }
+        eprintln!("maintenance: could not end the unkeyed BluMint matches: {error:?}")
     }
     let now = state.now();
-    match state
+    if let Err(error) = state
         .db
         .write(move |tx| delivery::status::resume(tx, now))
         .await
     {
-        Ok(()) => state.committed(),
-        Err(error) => eprintln!("maintenance: could not record the restart: {error:?}"),
+        eprintln!("maintenance: could not record the restart: {error:?}")
     }
     let _ = resumed.send(());
     loop {
@@ -223,7 +219,8 @@ pub async fn maintenance_once(state: &AppState) {
     let ctx = Ctx::of(state);
     let now = ctx.now;
     let cutoff = now.saturating_sub(RETENTION_SECS);
-    let done = state
+    // A failed pass changes nothing and the next one tries again.
+    let _ = state
         .db
         .write(move |tx| {
             reports::expire(tx, &ctx)?;
@@ -247,7 +244,4 @@ pub async fn maintenance_once(state: &AppState) {
             Ok(())
         })
         .await;
-    if done.is_ok() {
-        state.committed();
-    }
 }

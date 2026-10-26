@@ -158,10 +158,7 @@ pub async fn open(
         None
     };
     match stored {
-        Some(room) => {
-            state.committed();
-            Ok(room)
-        }
+        Some(room) => Ok(room),
         None => {
             let _ = supervisor.delete(&room_id).await;
             forget(state, &room_id).await;

@@ -176,7 +176,6 @@ pub async fn create(
             make(tx, &ctx, &connection_id, &key, &set, &digest)
         })
         .await?;
-    state.committed();
     Ok(into_response(answer))
 }
 

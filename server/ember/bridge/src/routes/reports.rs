@@ -28,7 +28,8 @@ use crate::{
     http::{Body, json as respond},
     routes::{
         ledger::{
-            Cause, Match, bump, load, match_event, participants, scores, settle, unready_before,
+            Cause, Match, bump, load, load_listed, match_event, participants, scores, settle,
+            unready_before,
         },
         matches,
         play::{self, fighter},
@@ -107,7 +108,6 @@ pub async fn submit_route(
             submit(tx, &ctx, &id, &signed)
         })
         .await?;
-    state.committed();
     Ok(respond(status, &receipt))
 }
 
@@ -401,7 +401,9 @@ pub fn expire(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
         // that started and broke (abort), or a lone result, still goes to
         // review (spec 17.2).
         let reports = first_reports(tx, &attempt_id)?;
-        let current = load(tx, &match_id)?.ok_or_else(ApiFailure::unavailable)?;
+        let Some(current) = load_listed(tx, &match_id)? else {
+            continue;
+        };
         let short_of_partner_wait = first_report_at.is_some_and(|at| at + PARTNER_SECS > ctx.now);
         if short_of_partner_wait && !settles_early(tx, &current, &reports)? {
             continue;

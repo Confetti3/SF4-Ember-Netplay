@@ -139,7 +139,6 @@ pub async fn lookup(
                 .collect::<Vec<EmberId>>())
         })
         .await?;
-    state.committed();
     Ok(ok(&json!({ "discord": found })))
 }
 

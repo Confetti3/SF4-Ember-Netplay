@@ -31,6 +31,7 @@ use crate::{
     audit::audit,
     auth::{self, Role},
     ctx::Ctx,
+    db,
     error::{ApiFailure, Result},
     events::{self, NewEvent, Viewer, emit},
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
@@ -81,7 +82,7 @@ fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Lobby>> {
                 revision: row.get(4)?,
                 open: row.get::<_, String>(5)? == "open",
                 games_to_win: row.get(6)?,
-                rotation: Rotation::parse(&row.get::<_, String>(7)?).unwrap_or(Rotation::WinnerStays),
+                rotation: db::known(row, 7, Rotation::parse)?,
                 required_build_id: row.get(8)?,
                 metadata: serde_json::from_str(&row.get::<_, String>(9)?).unwrap_or_default(),
                 current_match_id: row.get(10)?,
@@ -655,7 +656,6 @@ pub async fn create(
             })
         })
         .await?;
-    state.committed();
     Ok(into_response(result))
 }
 
@@ -756,7 +756,6 @@ pub async fn join(
             })
         })
         .await?;
-    state.committed();
     Ok(into_response(result))
 }
 
@@ -819,7 +818,6 @@ pub async fn leave(
             })
         })
         .await?;
-    state.committed();
     Ok(into_response(result))
 }
 
@@ -903,6 +901,5 @@ pub async fn close(
             })
         })
         .await?;
-    state.committed();
     Ok(into_response(result))
 }

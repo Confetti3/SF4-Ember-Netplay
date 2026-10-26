@@ -99,13 +99,23 @@ pub trait Queue: Send + Sync + 'static {
     ) -> Result<()>;
 }
 
-/// Runs passes of `queue` forever, waiting for a commit or a second when
-/// nothing was due.
+/// The longest a worker with nothing due waits before it looks again. A
+/// commit that queued work wakes every worker at once (`db::queued`), but a
+/// write from another process (the command line, an operator's script) wakes
+/// none, so the wait stays short.
+const IDLE_SECS: u64 = 1;
+
+/// Runs passes of `queue` forever, waiting for a commit that queued work, or
+/// `IDLE_SECS`, when nothing was due.
 pub async fn run<Q: Queue>(state: AppState, queue: Q) {
     let queue = Arc::new(queue);
+    let mut commits = state.db.commits();
     loop {
+        // Marked seen before the pass, so a commit during the pass ends the
+        // wait that follows it.
+        commits.borrow_and_update();
         if !pass(&state, &queue).await {
-            let _ = tokio::time::timeout(Duration::from_secs(1), state.delivery.notified()).await;
+            let _ = tokio::time::timeout(Duration::from_secs(IDLE_SECS), commits.changed()).await;
         }
     }
 }
@@ -171,4 +181,90 @@ fn settle<T>(now: u64, leased: &Leased<T>, outcome: Outcome) -> Option<Record> {
         first_attempt_at,
         settled,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        sync::atomic::{AtomicUsize, Ordering},
+        time::Instant,
+    };
+
+    use super::*;
+    use crate::{Clock, Config, Db, Keys, integrations};
+
+    /// A queue with nothing to send that counts its passes.
+    struct Counting(Arc<AtomicUsize>);
+
+    impl Queue for Counting {
+        type Item = ();
+
+        fn lease(&self, _: &Transaction<'_>, _: u64, _: u64) -> Result<Vec<Leased<()>>> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(Vec::new())
+        }
+
+        async fn attempt(&self, _: &AppState, _: &()) -> Outcome {
+            Outcome::Cancelled
+        }
+
+        fn record(&self, _: &Transaction<'_>, _: &Leased<()>, _: &Record) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    async fn until(passes: &[Arc<AtomicUsize>], count: usize) {
+        while passes
+            .iter()
+            .any(|pass| pass.load(Ordering::SeqCst) < count)
+        {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn one_commit_wakes_every_queue() {
+        let db = Db::open(std::path::Path::new(":memory:")).unwrap();
+        let state = AppState::new(
+            Config::initial("brg_test".into()),
+            Keys::generate(),
+            integrations::Secrets::default(),
+            db,
+            Clock::default(),
+        );
+        let passes: Vec<Arc<AtomicUsize>> = (0..4).map(|_| Arc::default()).collect();
+        let workers: Vec<_> = passes
+            .iter()
+            .map(|pass| tokio::spawn(run(state.clone(), Counting(pass.clone()))))
+            .collect();
+        // Each worker found nothing on its first pass and waits.
+        until(&passes, 1).await;
+        let waiting = Instant::now();
+        // A write that queued something.
+        state
+            .db
+            .write(|_| {
+                crate::db::queued();
+                Ok(())
+            })
+            .await
+            .unwrap();
+        until(&passes, 2).await;
+        // All four passed again well before any wait could have run out.
+        assert!(
+            waiting.elapsed() < Duration::from_millis(IDLE_SECS * 1000 * 3 / 4),
+            "{:?}",
+            waiting.elapsed()
+        );
+        // A write that queued nothing wakes none of them.
+        let quiet = Instant::now();
+        state.db.write(|_| Ok(())).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        if quiet.elapsed() < Duration::from_millis(IDLE_SECS * 1000 / 2) {
+            assert!(passes.iter().all(|pass| pass.load(Ordering::SeqCst) == 2));
+        }
+        for worker in workers {
+            worker.abort();
+        }
+    }
 }

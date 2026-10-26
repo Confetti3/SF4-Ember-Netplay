@@ -18,10 +18,11 @@ use super::{BATCH, Leased, Outcome, Queue, Record, Settled, results::BluMint};
 use crate::{
     AppState,
     audit::audit,
+    db,
     error::{ApiFailure, Result},
     routes::{
         blumint::{self, liveness},
-        ledger::load,
+        ledger::{load, load_listed},
         policy,
     },
 };
@@ -83,6 +84,7 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
              state = 'queued', next_at = 0, attempts = 0, first_at = NULL",
         params![match_id, status.to_string(), now],
     )?;
+    db::queued();
     Ok(())
 }
 
@@ -92,7 +94,10 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
 /// is unchanged.
 pub fn observe_lapsed(tx: &Transaction<'_>, now: u64) -> Result<()> {
     for id in liveness::sweep(tx, now)? {
-        observe(tx, &id, now)?;
+        // A match whose stored state this bridge does not know is passed over.
+        if load_listed(tx, &id)?.is_some() {
+            observe(tx, &id, now)?;
+        }
     }
     Ok(())
 }

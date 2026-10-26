@@ -31,7 +31,10 @@ use crate::{
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
         expiry::{self, EXPIRED_LISTED_SECS},
-        ledger::{Cause, Match, bump, load, match_event, release, settle, stale, unready_before},
+        ledger::{
+            Cause, Match, bump, load, load_listed, match_event, release, settle, stale,
+            unready_before,
+        },
         lobbies, policy,
     },
     tournament,
@@ -143,7 +146,6 @@ pub async fn create(
             )
         })
         .await?;
-    state.committed();
     Ok(respond(result))
 }
 
@@ -459,6 +461,12 @@ pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> R
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             let mut assignments = Vec::with_capacity(rows.len());
             for (id, connection, state, revision, slot, games_to_win, rules, metadata, opponent, created_at, expires_at) in rows {
+                // A state this bridge does not know (a newer bridge wrote it
+                // before a rollback) is left out rather than shown.
+                if MatchState::parse(&state).is_none() {
+                    eprintln!("ember-bridge: match {id} has a stored state this bridge does not know; not listed");
+                    continue;
+                }
                 let (wins, _) = scores(tx, &id)?;
                 let rules: serde_json::Value = serde_json::from_str(&rules).unwrap_or_default();
                 let metadata: serde_json::Value = serde_json::from_str(&metadata).unwrap_or_default();
@@ -547,7 +555,6 @@ pub async fn cancel(
             })
         })
         .await?;
-    state.committed();
     Ok(respond(result))
 }
 
@@ -721,7 +728,6 @@ pub async fn adjudicate(
             })
         })
         .await?;
-    state.committed();
     Ok(respond(result))
 }
 
@@ -931,7 +937,9 @@ pub fn on_unlink(
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for id in ids {
-        let found = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
+        let Some(found) = load_listed(tx, &id)? else {
+            continue;
+        };
         // A game in progress waits for the organizer with the rest of the match.
         tx.execute(
             "UPDATE attempts SET state = 'review' WHERE match_id = ?1 AND state = 'permitted'",

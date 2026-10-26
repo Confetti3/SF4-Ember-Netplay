@@ -26,7 +26,7 @@ mod util;
 
 use std::{net::SocketAddr, sync::Arc};
 
-use tokio::{net::TcpListener, sync::Notify, task::JoinHandle};
+use tokio::{net::TcpListener, task::JoinHandle};
 
 pub use config::Config;
 pub use db::Db;
@@ -43,12 +43,8 @@ pub struct AppState {
     pub db: Db,
     pub clock: Clock,
     rate: Arc<rate::Limiter>,
-    /// Wakes event streams and the delivery worker after a commit.
-    events: Arc<Notify>,
-    delivery: Arc<Notify>,
     rooms: Arc<routes::rooms::Shared>,
     ranking_board: Arc<routes::ranking::PublicCache>,
-    stream_signal: tokio::sync::watch::Sender<u64>,
 }
 
 impl AppState {
@@ -66,24 +62,13 @@ impl AppState {
             db,
             clock,
             rate: Arc::new(rate::Limiter::default()),
-            events: Arc::new(Notify::new()),
-            delivery: Arc::new(Notify::new()),
             rooms: Arc::new(routes::rooms::Shared::default()),
             ranking_board: Arc::new(routes::ranking::PublicCache::default()),
-            stream_signal: tokio::sync::watch::channel(0).0,
         }
     }
 
     pub fn now(&self) -> u64 {
         self.clock.now()
-    }
-
-    /// Call after a transaction that may have written events.
-    fn committed(&self) {
-        self.events.notify_waiters();
-        self.delivery.notify_one();
-        self.stream_signal
-            .send_modify(|generation| *generation += 1);
     }
 }
 

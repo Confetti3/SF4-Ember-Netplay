@@ -120,7 +120,6 @@ pub async fn create(
             )
         })
         .await?;
-    state.committed();
     Ok(into_response(result))
 }
 
@@ -178,7 +177,6 @@ pub async fn register(
             })
         })
         .await?;
-    state.committed();
     Ok(into_response(result))
 }
 
@@ -237,7 +235,6 @@ pub async fn withdraw_route(
             })
         })
         .await?;
-    state.committed();
     Ok(into_response(result))
 }
 
@@ -293,7 +290,6 @@ pub async fn start(
             })
         })
         .await?;
-    state.committed();
     Ok(into_response(result))
 }
 
@@ -347,6 +343,5 @@ pub async fn cancel(
             })
         })
         .await?;
-    state.committed();
     Ok(into_response(result))
 }

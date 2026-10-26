@@ -469,6 +469,63 @@ async fn the_supervisors_reports_become_at_most_one_event_per_room_per_poll() {
     assert_eq!(f.room_events(&f.provider).await.len(), 5);
 }
 
+/// The room's stored sealed invitation, and the rows the bridge's database
+/// connection has changed so far.
+async fn stored(f: &Fixture, room_id: &str) -> (Vec<u8>, i64) {
+    let room_id = room_id.to_owned();
+    f.bridge
+        .state()
+        .db
+        .read(move |tx| {
+            let sealed = tx.query_row(
+                "SELECT invitation_sealed FROM rooms WHERE room_id = ?1",
+                [&room_id],
+                |row| row.get(0),
+            )?;
+            let changes = tx.query_row("SELECT total_changes()", [], |row| row.get(0))?;
+            Ok((sealed, changes))
+        })
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_poll_that_changes_nothing_writes_nothing_and_says_nothing() {
+    let f = fixture().await;
+    let room = f.open(&f.provider, &f.members[0]).await;
+    let id = room.room.room_id.clone();
+    report_details(
+        &f.fake,
+        &id,
+        json!({ "name": "Fight Night", "capacity": 4, "locked": false, "host_name": "Player 1",
+            "fighters": [3, 255] }),
+    );
+    f.reported(&id, 2, 1).await;
+    let events = f.room_events(&f.provider).await.len();
+    let (sealed, changes) = stored(&f, &id).await;
+
+    // Two identical polls: the invitation keeps its bytes, no row is written
+    // and no event is.
+    f.poll().await;
+    f.poll().await;
+    assert_eq!(stored(&f, &id).await, (sealed.clone(), changes));
+    assert_eq!(f.room_events(&f.provider).await.len(), events);
+
+    // A count changing writes the room, and still keeps the invitation.
+    f.reported(&id, 3, 1).await;
+    let (still, after) = stored(&f, &id).await;
+    assert_eq!(still, sealed);
+    assert!(after > changes);
+    assert_eq!(f.room_events(&f.provider).await.len(), events + 1);
+
+    // A new invitation is sealed again.
+    f.fake.lock().unwrap().rooms[0]["invitation"] = json!("sf4e3:another");
+    f.poll().await;
+    assert_ne!(stored(&f, &id).await.0, sealed);
+    // The room's view does not carry the invitation: no event.
+    assert_eq!(f.room_events(&f.provider).await.len(), events + 1);
+}
+
 #[tokio::test]
 async fn a_connection_lists_and_reads_only_its_own_rooms() {
     let f = fixture().await;

@@ -221,6 +221,7 @@ fn refuse(reason: &'static str) -> ApiFailure {
 }
 
 /// A room as the bridge last knew it.
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Room {
     room_id: String,
     name: String,
@@ -632,7 +633,6 @@ pub async fn close(
             room.view(&config)
         })
         .await?;
-    state.committed();
     Ok(ok(&view))
 }
 

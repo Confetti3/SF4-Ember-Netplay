@@ -14,6 +14,7 @@ use serde_json::json;
 
 use crate::{
     ctx::Ctx,
+    db,
     delivery::{progress, status},
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
@@ -47,45 +48,52 @@ pub struct Match {
     pub starting_wins: [u8; 2],
 }
 
+/// The match `id`. A state or delivery state this bridge does not know (a
+/// newer bridge wrote it before a rollback) fails the read: the match answers
+/// as unavailable rather than being read as some other state.
 pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
-    Ok(tx
-        .query_row(
-            "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
-                    lobby_id, tournament_id, delivery_state, starting_wins_p1, starting_wins_p2
-             FROM matches WHERE id = ?1",
-            [id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, u64>(4)?,
-                    row.get::<_, u64>(5)?,
-                    row.get::<_, String>(6)?,
-                    row.get::<_, u8>(7)?,
-                    row.get::<_, Option<String>>(8)?,
-                    row.get::<_, Option<String>>(9)?,
-                    row.get::<_, String>(10)?,
-                    [row.get::<_, u8>(11)?, row.get::<_, u8>(12)?],
-                ))
-            },
-        )
-        .optional()?
-        .map(|row| Match {
-            id: row.0,
-            tenant_id: row.1,
-            connection_id: row.2,
-            external_match_id: row.3,
-            revision: row.4,
-            generation: row.5,
-            state: MatchState::parse(&row.6).unwrap_or(MatchState::Failed),
-            games_to_win: row.7,
-            lobby_id: row.8,
-            tournament_id: row.9,
-            delivery: DeliveryState::parse(&row.10).unwrap_or(DeliveryState::Ambiguous),
-            starting_wins: row.11,
-        }))
+    Ok(read(tx, id)?)
+}
+
+/// `load` for a pass over many matches: one whose stored state this bridge
+/// does not know is logged and passed over (`None`), so it never stops the
+/// others.
+pub fn load_listed(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
+    match read(tx, id) {
+        Err(error) if db::unknown(&error) => {
+            eprintln!(
+                "ember-bridge: match {id} has a stored state this bridge does not know; skipped"
+            );
+            Ok(None)
+        }
+        read => Ok(read?),
+    }
+}
+
+fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Match>> {
+    tx.query_row(
+        "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
+                lobby_id, tournament_id, delivery_state, starting_wins_p1, starting_wins_p2
+         FROM matches WHERE id = ?1",
+        [id],
+        |row| {
+            Ok(Match {
+                id: row.get(0)?,
+                tenant_id: row.get(1)?,
+                connection_id: row.get(2)?,
+                external_match_id: row.get(3)?,
+                revision: row.get(4)?,
+                generation: row.get(5)?,
+                state: db::known(row, 6, MatchState::parse)?,
+                games_to_win: row.get(7)?,
+                lobby_id: row.get(8)?,
+                tournament_id: row.get(9)?,
+                delivery: db::known(row, 10, DeliveryState::parse)?,
+                starting_wins: [row.get(11)?, row.get(12)?],
+            })
+        },
+    )
+    .optional()
 }
 
 /// Whether the identity has an active match on the connection other than `except`.
@@ -172,6 +180,8 @@ pub fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) ->
     if changed != 1 {
         return Err(stale(found.revision));
     }
+    // A match that ends here has its result to send (`delivery::results`).
+    db::queued();
     // A claim's `ready` is otherwise left as the fighter last said
     // (`unready_before`). Each Ember claims a change of its own seat's Ready
     // within seconds.
