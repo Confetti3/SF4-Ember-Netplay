@@ -264,9 +264,12 @@ pub(super) async fn send_proven(
         shared,
         bridge,
         Some(token),
-        action,
-        Method::Post,
-        path,
+        None,
+        client::Operation {
+            action,
+            method: Method::Post,
+            path,
+        },
         command,
     )
     .await?;

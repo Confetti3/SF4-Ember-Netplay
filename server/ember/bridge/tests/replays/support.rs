@@ -1,5 +1,6 @@
 //! What the replay channel tests share: the bridge with public rooms, two
 //! players, a replay export, and the requests the tests make.
+use crate::common;
 pub use crate::common::{
     Bridge, Player,
     public_rooms::{open_room, player, send},

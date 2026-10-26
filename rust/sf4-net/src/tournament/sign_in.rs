@@ -14,7 +14,7 @@ use serde_json::json;
 
 use super::{
     Failure, Outcome, Shared, browser,
-    client::{answer, prove, with_session},
+    client::{Operation, answer, prove, with_session},
 };
 
 /// What differs between the sign-ins: the bridge's routes and proof actions.
@@ -129,9 +129,12 @@ async fn proven(
                 shared,
                 &bridge,
                 Some(&token),
-                action,
-                method,
-                path,
+                None,
+                Operation {
+                    action,
+                    method,
+                    path,
+                },
                 json!({}),
             )
             .await?;

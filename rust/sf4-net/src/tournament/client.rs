@@ -380,21 +380,6 @@ pub(super) fn approved(shared: &Shared, bridge_id: &str) -> Result<Approved, Fai
         .ok_or_else(|| Failure::new("bridge_not_approved"))
 }
 
-/// Requests a challenge for `command`, checks it, and signs it. The identity
-/// lock is only tried: a key operation in progress makes this `identity_busy`
-/// rather than blocking a runtime thread.
-pub(super) async fn prove(
-    shared: &Shared,
-    bridge: &Approved,
-    token: Option<&str>,
-    action: Action,
-    method: Method,
-    path: &str,
-    command: Value,
-) -> Result<Vec<u8>, Failure> {
-    prove_as(shared, bridge, token, None, action, method, path, command).await
-}
-
 /// The unlocked identity's signer, which must be `expected` when named.
 fn signer_of<'a>(
     identity: &'a crate::identity::Identity,
@@ -409,18 +394,25 @@ fn signer_of<'a>(
     Ok(signer)
 }
 
-/// `prove`, signed only by `expected` when it names an identity: one that
-/// has replaced it since, even while the challenge was asked for, is refused
-/// as `identity_changed` and nothing is signed.
-#[allow(clippy::too_many_arguments)]
-async fn prove_as(
+/// The operation a proof is for: what the challenge must name.
+pub(super) struct Operation<'a> {
+    pub action: Action,
+    pub method: Method,
+    pub path: &'a str,
+}
+
+/// Requests a challenge for `operation` with `command`, checks it, and signs
+/// it, as `expected` when that names an identity: one that has replaced it
+/// since, even while the challenge was asked for, is refused as
+/// `identity_changed` and nothing is signed. The identity lock is only tried:
+/// a key operation in progress makes this `identity_busy` rather than
+/// blocking a runtime thread.
+pub(super) async fn prove(
     shared: &Shared,
     bridge: &Approved,
     token: Option<&str>,
     expected: Option<&EmberId>,
-    action: Action,
-    method: Method,
-    path: &str,
+    operation: Operation<'_>,
     command: Value,
 ) -> Result<Vec<u8>, Failure> {
     let command = json::to_value(&command).map_err(|_| Failure::new("internal"))?;
@@ -433,9 +425,9 @@ async fn prove_as(
     };
     let request = json!({
         "public_key": public_key,
-        "action": action,
-        "method": method,
-        "path": path,
+        "action": operation.action,
+        "method": operation.method,
+        "path": operation.path,
         "request_digest": command_digest(&command),
     });
     let (status, body) = shared
@@ -464,9 +456,9 @@ async fn prove_as(
             bridge_id: &bridge.bridge_id,
             audience: &bridge.origin,
             ember_id: signer.ember_id(),
-            action,
-            method,
-            path,
+            action: operation.action,
+            method: operation.method,
+            path: operation.path,
             command: &command,
         };
         challenge
@@ -516,14 +508,16 @@ async fn session(
         shared.client.check_pin(bridge).await?;
     }
     // Proven by the identity the session is cached for, and no other.
-    let body = prove_as(
+    let body = prove(
         shared,
         bridge,
         None,
         Some(&ember_id),
-        Action::SessionCreate,
-        Method::Post,
-        "/v1/sessions",
+        Operation {
+            action: Action::SessionCreate,
+            method: Method::Post,
+            path: "/v1/sessions",
+        },
         json!({ "requested_scopes": ["self:read", "tournament:participate"] }),
     )
     .await?;
@@ -648,9 +642,12 @@ pub async fn claim(
             shared,
             &bridge,
             Some(&token),
-            Action::LinkClaim,
-            Method::Post,
-            "/v1/link-claims",
+            None,
+            Operation {
+                action: Action::LinkClaim,
+                method: Method::Post,
+                path: "/v1/link-claims",
+            },
             command,
         )
         .await?;
@@ -678,9 +675,12 @@ pub async fn cancel_claim(shared: &Arc<Shared>, bridge_id: &str, claim_id: &str)
             shared,
             &bridge,
             Some(&token),
-            Action::LinkCancel,
-            Method::Post,
-            &path,
+            None,
+            Operation {
+                action: Action::LinkCancel,
+                method: Method::Post,
+                path: &path,
+            },
             json!({ "claim_id": claim_id }),
         )
         .await?;
@@ -708,9 +708,12 @@ pub async fn remove_link(shared: &Arc<Shared>, bridge_id: &str, link_id: &str) -
             shared,
             &bridge,
             Some(&token),
-            Action::LinkRemove,
-            Method::Delete,
-            &path,
+            None,
+            Operation {
+                action: Action::LinkRemove,
+                method: Method::Delete,
+                path: &path,
+            },
             json!({ "link_id": link_id }),
         )
         .await?;
@@ -817,30 +820,17 @@ mod tests {
         }
     }
 
-    // An identity replaced while a session is being opened never proves it:
-    // the session is refused before anything is signed, and none is cached.
-    #[tokio::test]
-    async fn a_session_is_proven_only_by_the_identity_it_is_for() {
-        use crate::identity::Protection;
+    /// A bridge on loopback that reports each request's first line, holds the
+    /// first one until it is let go, and answers every request with `reply`.
+    fn hold_first_request(
+        listener: tokio::net::TcpListener,
+        reply: String,
+    ) -> (
+        tokio::sync::mpsc::UnboundedReceiver<String>,
+        tokio::sync::oneshot::Sender<()>,
+    ) {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let dir = std::env::temp_dir().join(ember_protocol::encoding::prefixed_id(
-            "sf4-net-session",
-            rand::random::<[u8; 16]>(),
-        ));
-        let shared = super::super::test_support::shared_pinning(&dir, &[]);
-        shared
-            .identity
-            .lock()
-            .unwrap()
-            .enable(Protection::Passphrase("a long passphrase"))
-            .unwrap();
-        let first = current_id(&shared).unwrap();
-
-        // A bridge that holds the challenge request until it is let go, and
-        // counts every request.
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let origin = format!("http://{}", listener.local_addr().unwrap());
-        let (held, mut asked) = tokio::sync::mpsc::unbounded_channel();
+        let (held, asked) = tokio::sync::mpsc::unbounded_channel();
         let (release, released) = tokio::sync::oneshot::channel::<()>();
         tokio::spawn(async move {
             let mut released = Some(released);
@@ -862,11 +852,53 @@ mod tests {
                 if let Some(released) = released.take() {
                     let _ = released.await;
                 }
-                let _ = socket
-                    .write_all(b"HTTP/1.1 201 Created\r\ncontent-type: application/json\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}")
-                    .await;
+                let _ = socket.write_all(reply.as_bytes()).await;
             }
         });
+        (asked, release)
+    }
+
+    /// A JSON answer with `status`, as a bridge sends it.
+    fn json_reply(status: &str, body: &str) -> String {
+        format!(
+            "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+            body.len()
+        )
+    }
+
+    /// Replaces the player's identity, which is `old`, with another one.
+    fn replace_identity(shared: &Shared, old: &EmberId) {
+        use crate::identity::Protection;
+        let mut identity = shared.identity.lock().unwrap();
+        identity.reset(Some(old)).unwrap();
+        identity
+            .enable(Protection::Passphrase("another long passphrase"))
+            .unwrap();
+    }
+
+    // An identity replaced while a session is being opened never proves it:
+    // the session is refused before anything is signed, and none is cached.
+    #[tokio::test]
+    async fn a_session_is_proven_only_by_the_identity_it_is_for() {
+        use crate::identity::Protection;
+        let dir = std::env::temp_dir().join(ember_protocol::encoding::prefixed_id(
+            "sf4-net-session",
+            rand::random::<[u8; 16]>(),
+        ));
+        let shared = super::super::test_support::shared_pinning(&dir, &[]);
+        shared
+            .identity
+            .lock()
+            .unwrap()
+            .enable(Protection::Passphrase("a long passphrase"))
+            .unwrap();
+        let first = current_id(&shared).unwrap();
+
+        // A bridge that holds the challenge request until it is let go, and
+        // counts every request.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let (mut asked, release) = hold_first_request(listener, json_reply("201 Created", "{}"));
         let bridge = Approved {
             bridge_id: ember_protocol::encoding::prefixed_id("brg", [1; 16]),
             origin,
@@ -880,13 +912,7 @@ mod tests {
         };
         let line = asked.recv().await.unwrap();
         assert!(line.starts_with("POST /v1/auth/challenges"), "{line}");
-        {
-            let mut identity = shared.identity.lock().unwrap();
-            identity.reset(Some(&first)).unwrap();
-            identity
-                .enable(Protection::Passphrase("another long passphrase"))
-                .unwrap();
-        }
+        replace_identity(&shared, &first);
         assert_ne!(current_id(&shared).unwrap(), first);
         release.send(()).unwrap();
 
@@ -896,6 +922,75 @@ mod tests {
             "{refused:?}"
         );
         assert!(asked.try_recv().is_err(), "a session was asked for");
+        assert!(shared.client.cached(&bridge, &first).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // The same while a built-in's origin is being checked, which comes before
+    // the challenge is asked for: the identity is found replaced when the
+    // proof begins, and no challenge is requested.
+    #[tokio::test]
+    async fn an_identity_replaced_during_the_pin_check_proves_nothing() {
+        use super::super::builtin::Builtin;
+        use crate::identity::Protection;
+        let dir = std::env::temp_dir().join(ember_protocol::encoding::prefixed_id(
+            "sf4-net-session-pin",
+            rand::random::<[u8; 16]>(),
+        ));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let x = ember_protocol::SigningIdentity::from_seed(&Zeroizing::new([9; 32]))
+            .unwrap()
+            .public_key()
+            .to_b64u();
+        let pin = Builtin {
+            bridge_id: ember_protocol::encoding::prefixed_id("brg", [9; 16]),
+            origin: origin.clone(),
+            display_name: "Pinned".into(),
+            keys: vec![("k9".into(), x)],
+        };
+        let shared = super::super::test_support::shared_pinning(&dir, std::slice::from_ref(&pin));
+        shared
+            .identity
+            .lock()
+            .unwrap()
+            .enable(Protection::Passphrase("a long passphrase"))
+            .unwrap();
+        let first = current_id(&shared).unwrap();
+
+        // The pinned origin describes the pinned bridge, once it is let go.
+        let profile = BridgeProfile {
+            bridge_id: pin.bridge_id.clone(),
+            origin: origin.clone(),
+            display_name: pin.display_name.clone(),
+            api_versions: vec!["v1".into()],
+            capabilities_url: format!("{origin}/v1/capabilities"),
+            signing_keys_url: format!("{origin}/v1/signing-keys"),
+        };
+        let (mut asked, release) = hold_first_request(
+            listener,
+            json_reply("200 OK", &serde_json::to_string(&profile).unwrap()),
+        );
+        let bridge = pin.entry();
+        let opening = {
+            let (shared, bridge, first) = (shared.clone(), bridge.clone(), first.clone());
+            tokio::spawn(async move { session(&shared, &bridge, Some(&first)).await.map(|_| ()) })
+        };
+        let line = asked.recv().await.unwrap();
+        assert!(
+            line.starts_with(&format!("GET {WELL_KNOWN_PATH}")),
+            "{line}"
+        );
+        replace_identity(&shared, &first);
+        assert_ne!(current_id(&shared).unwrap(), first);
+        release.send(()).unwrap();
+
+        let refused = opening.await.unwrap();
+        assert!(
+            matches!(&refused, Err(Failure(code)) if code == "identity_changed"),
+            "{refused:?}"
+        );
+        assert!(asked.try_recv().is_err(), "a challenge was asked for");
         assert!(shared.client.cached(&bridge, &first).is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }
