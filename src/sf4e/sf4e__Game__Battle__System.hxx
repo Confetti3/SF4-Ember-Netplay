@@ -264,6 +264,29 @@ namespace sf4e {
 				// The frame meter's sample of the frame just played. show: off
 				// inside a rollback, where nothing new is confirmed.
 				static void CaptureMeterSample(Dimps::Game::Battle::System* src, bool show);
+				// The one frame step every pass that plays given inputs runs:
+				// the played frame, a rollback's re-simulated frame, an
+				// orphaned battle and the rollback stress harness. Both pads
+				// read the inputs as playback for this engine update only; the
+				// pure-sound state is synced first when syncSoundBeforeStep
+				// (the played frame and the orphan, never a re-simulated frame
+				// nor the stress harness); then the undetoured engine update
+				// runs. Playback mode is off again when it returns.
+				static void StepEngine(Dimps::Game::Battle::System* src, const sf4e::Pad::System::Inputs inputs[2], bool syncSoundBeforeStep);
+				// A frame of the present, or one GGPO re-simulates inside a
+				// rollback (ggpo_advance_frame_callback). Only diagnostics
+				// timing and the pre-step sound sync differ between them.
+				enum class FramePass { Live, Resim };
+				// ggpo_synchronize_input and its diagnostics record, nothing
+				// else: the caller classifies the code, drains, aborts or ends
+				// a spectator stream, then notes the disconnect flags.
+				static GGPOErrorCode ReadGgpoInputs(sf4e::Pad::System::Inputs inputs[2], int* disconnectFlags, FramePass pass);
+				// A frame on GGPO's synchronized inputs, once the caller's
+				// policy accepted them: strips the reserved bits from both
+				// sides, StepEngine, samples the frame, then ggpo_advance_frame
+				// saves it (and may poll and roll back over it). Returns the
+				// advance result for the caller's policy. Never drains.
+				static GGPOErrorCode SimulateGgpoFrame(Dimps::Game::Battle::System* src, sf4e::Pad::System::Inputs inputs[2], FramePass pass);
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;

@@ -334,20 +334,70 @@ int fSystem::RestoreFromMemento(Memento* m, GameMementoKey::MementoID* id) {
 }
 
 
+// It is important that this calls the _original_, undetoured method: the
+// detoured fSystem::BattleUpdate is restricted to the same update-halting
+// that a frame of the present is, and a re-simulated frame must not be.
+void fSystem::StepEngine(rSystem* system, const fPadSystem::Inputs inputs[2], bool syncSoundBeforeStep) {
+    // Playback mode ends with the engine update, on every exit: the sample,
+    // ggpo_advance_frame's save and any nested GGPO work must not read the
+    // stale playback inputs, nor may it leak into later engine work.
+    PlaybackFrameScopeGuard _playbackGuard;
+    fPadSystem::playbackFrame = 0;
+    fPadSystem::playbackData[0][0] = inputs[0];
+    fPadSystem::playbackData[0][1] = inputs[1];
+    if (syncSoundBeforeStep && fSoundPlayerManager::bUsePureSounds) {
+        fSoundPlayerManager::SyncState();
+    }
+    diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
+    (system->*rSystem::publicMethods.BattleUpdate)();
+}
+
+GGPOErrorCode fSystem::ReadGgpoInputs(fPadSystem::Inputs inputs[2], int* disconnectFlags, FramePass pass) {
+    GGPOErrorCode result;
+    if (pass == FramePass::Live) {
+        diag::ScopedTimer _t(diag::OP_SYNC_INPUT);
+        result = ggpo_synchronize_input(ggpo, (void*)inputs, sizeof(fPadSystem::Inputs) * 2, disconnectFlags);
+    }
+    else {
+        result = ggpo_synchronize_input(ggpo, (void*)inputs, sizeof(fPadSystem::Inputs) * 2, disconnectFlags);
+    }
+    if (diag::Enabled()) {
+        diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
+    }
+    return result;
+}
+
+GGPOErrorCode fSystem::SimulateGgpoFrame(rSystem* system, fPadSystem::Inputs inputs[2], FramePass pass) {
+    // The game is never shown the reserved bits (TrainingRuntime.hxx), in a
+    // frame of the present or its re-simulation alike.
+    inputs[0].rawOn = sf4e::training::ClearReservedInputBits(inputs[0].rawOn);
+    inputs[1].rawOn = sf4e::training::ClearReservedInputBits(inputs[1].rawOn);
+    const bool live = pass == FramePass::Live;
+    const GGPOErrorCode err = sf4e::statehash::GgpoTimeline::Simulate(
+        [&] { StepEngine(system, inputs, live); },
+        [&] { CaptureSimulatedFrame(system, inputs); },
+        [&]() -> GGPOErrorCode {
+            // The live advance is timed on its own; inside a rollback it is
+            // already part of the enclosing advance.
+            if (!live) {
+                return ggpo_advance_frame(ggpo);
+            }
+            diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
+            return ggpo_advance_frame(ggpo);
+        });
+    if (diag::Enabled()) {
+        diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
+    }
+    return err;
+}
+
 // One deterministic frame from GGPO's inputs: synchronize, run the engine
 // update, advance. False when no frame was played: a transient refusal, or an
 // abort that retired the session.
 static bool PlayGgpoFrame(rSystem* system) {
     fPadSystem::Inputs ggpoInputs[2] = { {0, 0}, {0, 0} };
     int disconnect_flags = 0;
-    GGPOErrorCode result;
-    {
-        diag::ScopedTimer _t(diag::OP_SYNC_INPUT);
-        result = ggpo_synchronize_input(fSystem::ggpo, (void*)ggpoInputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
-    }
-    if (diag::Enabled()) {
-        diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
-    }
+    const GGPOErrorCode result = fSystem::ReadGgpoInputs(ggpoInputs, &disconnect_flags, fSystem::FramePass::Live);
     if (fSystem::DrainPendingAbort()) {
         return false;
     }
@@ -371,32 +421,7 @@ static bool PlayGgpoFrame(rSystem* system) {
         return false;
     }
     NoteDisconnectFlags(disconnect_flags);
-    // The game is never shown the reserved bits (TrainingRuntime.hxx).
-    ggpoInputs[0].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[0].rawOn);
-    ggpoInputs[1].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[1].rawOn);
-    const GGPOErrorCode err = sf4e::statehash::GgpoTimeline::Simulate(
-        [&] {
-            // Playback mode is off again (the guard) before
-            // ggpo_advance_frame: the save callback and any nested GGPO work
-            // must not read the stale playback inputs.
-            PlaybackFrameScopeGuard _playbackGuard;
-            fPadSystem::playbackFrame = 0;
-            fPadSystem::playbackData[0][0] = ggpoInputs[0];
-            fPadSystem::playbackData[0][1] = ggpoInputs[1];
-            if (fSoundPlayerManager::bUsePureSounds) {
-                fSoundPlayerManager::SyncState();
-            }
-            diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
-            (system->*rSystem::publicMethods.BattleUpdate)();
-        },
-        [&] { fSystem::CaptureSimulatedFrame(system, ggpoInputs); },
-        [&] {
-            diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
-            return ggpo_advance_frame(fSystem::ggpo);
-        });
-    if (diag::Enabled()) {
-        diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
-    }
+    const GGPOErrorCode err = fSystem::SimulateGgpoFrame(system, ggpoInputs, fSystem::FramePass::Live);
     if (fSystem::DrainPendingAbort()) {
         return false;
     }

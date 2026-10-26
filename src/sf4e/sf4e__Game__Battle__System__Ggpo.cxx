@@ -294,14 +294,8 @@ void LeaveOrphanedNetplayBattle(rSystem* system) {
         spdlog::error("Netplay battle still alive {} updates after losing its session ready={} flow={}",
             kOrphanOverdueFrames, readyState, *rSystem::staticVars.CurrentBattleFlow);
     }
-    PlaybackFrameScopeGuard _playbackGuard;
-    fPadSystem::playbackFrame = 0;
-    fPadSystem::playbackData[0][0] = { 0, 0 };
-    fPadSystem::playbackData[0][1] = { 0, 0 };
-    if (fSoundPlayerManager::bUsePureSounds) {
-        fSoundPlayerManager::SyncState();
-    }
-    (system->*rSystem::publicMethods.BattleUpdate)();
+    const fPadSystem::Inputs neutral[2] = { {0, 0}, {0, 0} };
+    fSystem::StepEngine(system, neutral, true);
 }
 
 void fSystem::AbortGgpoMatch(const char* reason, sf4e::NoticeSeverity severity, AbortCause cause) {
@@ -637,43 +631,20 @@ bool fSystem::ggpo_advance_frame_callback(int)
 
     // Make sure we fetch new inputs from GGPO and use those to update
     // the game state instead of reading from the selected input device.
-    GGPOErrorCode result = ggpo_synchronize_input(ggpo, (void*)inputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
-    if (diag::Enabled()) {
-        diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
-    }
+    GGPOErrorCode result = ReadGgpoInputs(inputs, &disconnect_flags, FramePass::Resim);
     if (!GGPO_SUCCEEDED(result)) {
         AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
         if (ggpo) ggpo_advance_frame(ggpo);
         return true;
     }
     NoteDisconnectFlags(disconnect_flags);
-    // As in a frame of the present (PlayGgpoFrame): the game is never shown
-    // the reserved bits.
-    inputs[0].rawOn = sf4e::training::ClearReservedInputBits(inputs[0].rawOn);
-    inputs[1].rawOn = sf4e::training::ClearReservedInputBits(inputs[1].rawOn);
 
-    // Restored on every exit; rollback resimulation must never leak
-    // playback mode into subsequent engine work.
-    PlaybackFrameScopeGuard _playbackGuard;
-    fPadSystem::playbackFrame = 0;
-    fPadSystem::playbackData[0][0] = inputs[0];
-    fPadSystem::playbackData[0][1] = inputs[1];
-
-    // Actually update.
-    // It's important that this calls the _original_, undetoured method-
-    // if it called fSystem::BattleUpdate, it'd be restricted to the same
-    // update-halting that the detoured method is.
+    // The same step as a frame of the present (PlayGgpoFrame), on the
+    // undetoured engine update, without the pre-step sound sync. Playback
+    // mode ends with the engine update there too, so this frame's sample and
+    // save see the pads as the live frame's do.
     rSystem* system = rSystem::staticMethods.GetSingleton();
-    result = sf4e::statehash::GgpoTimeline::Simulate(
-        [&] {
-            diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
-            (system->*rSystem::publicMethods.BattleUpdate)();
-        },
-        [&] { CaptureSimulatedFrame(system, inputs); },
-        [&] { return ggpo_advance_frame(ggpo); });
-    if (diag::Enabled()) {
-        diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)result);
-    }
+    result = SimulateGgpoFrame(system, inputs, FramePass::Resim);
     if (!GGPO_SUCCEEDED(result)) {
         AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
     }
