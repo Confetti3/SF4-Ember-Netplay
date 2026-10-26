@@ -39,7 +39,7 @@ void DrawStrip(std::string& elided,const Strip& strip,const std::vector<TableCar
   if(lit)d->AddRect(strip.min[i],strip.max[i],palette::Ember,4*s,0,2*s);
   const float stripHeight=strip.max[i].y-strip.min[i].y,optionWidth=strip.max[i].x-strip.min[i].x;
   // Our own action labels must fit; the probe holds every locale to that.
-  ReportMenuText(("board-strip-"+options[i].label).c_str(),14*s,stripHeight,
+  if(MenuProbesActive())ReportMenuText(("board-strip-"+options[i].label).c_str(),14*s,stripHeight,
    ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,options[i].label.c_str()).x,optionWidth-12*s);
   DrawCardText(elided,ImVec2(strip.min[i].x+6*s,strip.min[i].y+(stripHeight-14*s)*.5f),optionWidth-12*s,options[i].label,14*s,
    options[i].live?palette::Ivory:palette::Muted,true);

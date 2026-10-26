@@ -11,6 +11,10 @@ void SetMenuTextProbe(MenuTextProbe probe);
 // Surfaces that draw their own text (the room board) report through the same
 // probe, so the harness can check them for overflow too.
 void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth);
+// A text or card probe is installed. A report whose id or width is built only
+// for the probe is skipped without one, so production frames build no probe
+// strings and measure no probe-only text.
+bool MenuProbesActive();
 using MenuCardProbe = std::function<void(const char*,ImVec2,ImVec2)>;
 void SetMenuCardProbe(MenuCardProbe probe);
 // The room board reports its cards and their option strips the same way.

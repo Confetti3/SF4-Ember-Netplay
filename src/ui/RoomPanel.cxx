@@ -562,7 +562,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float badge=e.id=="room-chat"&&unread?UnreadBadgeWidth(unread)+8*s:0;
   if(badge)DrawUnreadBadge(p.x+width-8*s,p.y+11*s,unread);
   // Our own action labels must fit; only player-supplied text may elide.
-  ReportMenuText(("board-"+e.id).c_str(),16*s,40*s,
+  if(MenuProbesActive())ReportMenuText(("board-"+e.id).c_str(),16*s,40*s,
    ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,e.label.c_str()).x,width-24*s-badge);
   text(ImVec2(p.x+12*s,p.y+11*s),width-24*s-badge,e.label,16*s,shown(e)?palette::Ivory:palette::Muted);
   tip();

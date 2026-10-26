@@ -37,6 +37,7 @@
 #include "ProblemReportPanel.hxx"
 #include "UpdatePrompt.hxx"
 #include "CountryPicker.hxx"
+#include "ScreenPanel.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -314,6 +315,14 @@ private:
     ReplaysPanel replays_;
     ProblemReportPanel reportPanel_;
     CountryPicker countryPicker_;
+    // The panels that own screens (ApplicationShell__Screens.cxx): each takes
+    // the parts of a drawn frame that belong to its screens (ScreenPanel).
+    // Update, Conceal and IdentityPanel::Hidden stay calls to every panel.
+    class IdentityScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens;
+    // The panel that owns `screen`, or null for the shell's own screens, the room's among them.
+    static const ScreenPanel* OwnerOf(const std::string& screen);
+    // The width of the public rooms list: the whole window on a narrow one, else the left pane.
+    static float PublicListWidth();
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);

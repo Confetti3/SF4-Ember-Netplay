@@ -305,6 +305,16 @@ int main(int argc, char** argv) {
     SetActive(Locale::PtBR); CHECK(std::string(T("settings.language")) == "Idioma");
     SetActive(Locale::Es419); CHECK(std::string(T("settings.language")) == "Idioma");
     SetActive(Locale::En); CHECK(std::string(T("missing.test.id")) == "missing.test.id");
+    // Lookups share one key per thread: a long missing id echoes itself, and a
+    // shorter id after it still finds its own text.
+    {
+        const char* longMissing = "missing.test.id.longer.than.any.small.string.buffer.and.any.catalog.id";
+        SetActive(Locale::PtBR);
+        CHECK(T(longMissing) == longMissing);
+        CHECK(std::string(T("settings.language")) == "Idioma");
+        CHECK(T(longMissing) == longMissing);
+        SetActive(Locale::En);
+    }
     CHECK(std::string(Tag(Locale::PtBR)) == "pt-BR" && std::string(NativeName(Locale::Es419)) == "Español (Latinoamérica)");
     std::cout << "Localization resolution, parser, catalogs and formatting passed\n";
 }

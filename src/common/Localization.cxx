@@ -178,14 +178,24 @@ void EnsureCatalogs() {
     });
 }
 
-const char* Lookup(const Catalog& catalog, const char* id) {
-    const auto found = catalog.find(id ? id : "");
+// The catalogs are keyed by std::string and C++17 has no heterogeneous
+// unordered_map lookup, so a lookup needs the id as a std::string. Most ids are
+// longer than the small-string buffer; one key per thread, reused, keeps a
+// lookup from allocating once it has grown to the longest id.
+const std::string& LookupKey(const char* id) {
+    thread_local std::string key;
+    key.assign(id ? id : "");
+    return key;
+}
+
+const char* Lookup(const Catalog& catalog, const std::string& key) {
+    const auto found = catalog.find(key);
     return found == catalog.end() || found->second.empty() ? nullptr : found->second.c_str();
 }
 
 const char* EnglishText(const char* id) {
     EnsureCatalogs();
-    if (const auto* value = Lookup(catalogs[0], id)) return value;
+    if (const auto* value = Lookup(catalogs[0], LookupKey(id))) return value;
     return id ? id : "";
 }
 }
@@ -235,8 +245,9 @@ Locale Active() {
 const char* T(const char* id) {
     EnsureCatalogs();
     const auto index = activeIndex.load(std::memory_order_acquire);
-    if (const auto* value = Lookup(catalogs[index], id)) return value;
-    if (index != 0) if (const auto* value = Lookup(catalogs[0], id)) return value;
+    const auto& key = LookupKey(id);
+    if (const auto* value = Lookup(catalogs[index], key)) return value;
+    if (index != 0) if (const auto* value = Lookup(catalogs[0], key)) return value;
     return id ? id : "";
 }
 

@@ -48,12 +48,15 @@ public:
     // The newest message sequence taken in, or 0 before any.
     std::uint64_t LastSequence() const { return lastSequence_; }
     // Messages from others, newer than the last MarkRead, that the player has
-    // not muted.
+    // not muted. Counted again only when the lines, the read mark or the muted
+    // set changed since the last call.
     unsigned Unread(const std::set<room::MemberId>& muted) const;
     void MarkRead() { readThrough_ = lastSequence_; }
 private:
     void Append(ChatLine line);
     ChatLine EventLine(ChatLine::Kind kind, room::MemberId who) const;
+    // The snapshot's member ids, sorted and without repeats, into `ids`.
+    static void MemberIds(const room::Snapshot& snapshot, std::vector<room::MemberId>& ids);
     void Diff(const room::Snapshot& snapshot);
     struct SeenTable { room::MemberId p1 = 0, p2 = 0; std::uint32_t score[2] = {0, 0}; std::uint64_t setGeneration = 0; };
     std::deque<ChatLine> lines_;
@@ -61,7 +64,17 @@ private:
     room::MemberId host_ = 0;
     // Every name seen in this room, so a result or a message can name a member who has since left.
     std::map<room::MemberId, std::string> names_;
-    std::set<room::MemberId> present_;
+    // The members of the last snapshot taken in, and of the one being taken
+    // in, as sorted ids. Both keep their storage from frame to frame, so a
+    // room's frames take its members in without allocating.
+    std::vector<room::MemberId> present_, now_;
     std::array<SeenTable, room::TableCount> tables_;
+    // Moves on every change to lines_; with readThrough_ and the muted set it
+    // says whether unread_ still holds.
+    std::uint64_t linesRevision_ = 0;
+    mutable bool unreadKnown_ = false;
+    mutable unsigned unread_ = 0;
+    mutable std::uint64_t unreadRevision_ = 0, unreadThrough_ = 0;
+    mutable std::set<room::MemberId> unreadMuted_;
 };
 } }

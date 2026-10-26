@@ -90,6 +90,28 @@ void TranscriptLogic(){
  // A different room starts again from its own history.
  s.roomEpoch=6;s.chat.clear();s.chat.push_back({1,2,"New room"});
  Check(t.Update(s,n)&&t.Lines().size()==1&&t.Lines()[0].text=="New room"&&t.Unread({})==0,"A different room kept the old transcript or counted its history as unread");
+ // The unread count is kept from one call to the next and follows every
+ // change: a new message, the muted set and the read mark.
+ room::Snapshot r;r.roomEpoch=9;r.localMember=1;r.host=1;
+ for(const room::MemberId id:{1,7,4}){room::Member m;m.id=id;m.name="Member "+std::to_string(id);r.members.push_back(m);}
+ for(int i=0;i<4;++i)r.tables[i].id=i;
+ ui::ChatTranscript u;std::vector<ui::RoomNotice> none;
+ u.Update(r,none);Check(u.Unread({})==0,"An empty room counted unread messages");
+ r.chat.push_back({1,7,"One"});u.Update(r,none);
+ Check(u.Unread({})==1&&u.Unread({7})==0&&u.Unread({})==1,"The kept unread count missed a message or a change of the muted set");
+ r.chat.push_back({2,4,"Two"});u.Update(r,none);
+ Check(u.Unread({7})==1&&u.Unread({})==2,"The kept unread count missed a new message");
+ u.MarkRead();Check(u.Unread({})==0&&u.Unread({7})==0,"The kept unread count missed the read mark");
+ // Two members leave and two join between snapshots: those who left are
+ // announced by id, those who joined in the room's order, each once.
+ r.members.erase(r.members.begin()+1,r.members.end());
+ for(const room::MemberId id:{9,3}){room::Member m;m.id=id;m.name="Member "+std::to_string(id);r.members.push_back(m);}
+ const auto before=u.Lines().size();u.Update(r,none);u.Update(r,none);
+ const auto& moved=u.Lines();
+ Check(moved.size()==before+4&&moved[before].kind==ChatLine::Kind::Left&&moved[before].sender==4&&
+  moved[before+1].kind==ChatLine::Kind::Left&&moved[before+1].sender==7&&moved[before+1].name=="Member 7"&&
+  moved[before+2].kind==ChatLine::Kind::Joined&&moved[before+2].sender==9&&moved[before+3].kind==ChatLine::Kind::Joined&&moved[before+3].sender==3,
+  "Members who left or joined together were not announced once each, in order");
 }
 }
 void ChatJourneys(){

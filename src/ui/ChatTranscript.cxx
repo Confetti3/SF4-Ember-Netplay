@@ -9,10 +9,18 @@ void ChatTranscript::Clear() {
     names_.clear();
     present_.clear();
     tables_ = {};
+    ++linesRevision_;
 }
 void ChatTranscript::Append(ChatLine line) {
     lines_.push_back(std::move(line));
     while (lines_.size() > MaximumLines) lines_.pop_front();
+    ++linesRevision_;
+}
+void ChatTranscript::MemberIds(const room::Snapshot& snapshot, std::vector<room::MemberId>& ids) {
+    ids.clear();
+    for (const auto& member : snapshot.members) ids.push_back(member.id);
+    std::sort(ids.begin(), ids.end());
+    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
 }
 ChatLine ChatTranscript::EventLine(ChatLine::Kind kind, room::MemberId who) const {
     ChatLine line;
@@ -27,6 +35,7 @@ bool ChatTranscript::Update(const room::Snapshot& snapshot, const std::vector<Ro
     if (fresh) { Clear(); epoch_ = snapshot.roomEpoch; }
     if (!snapshot.roomEpoch) return fresh;
     for (const auto& member : snapshot.members) names_[member.id] = member.name;
+    MemberIds(snapshot, now_);
     // What happened in the room comes first: a member who joined and spoke in
     // the same snapshot is announced before the words.
     if (!fresh) Diff(snapshot);
@@ -55,8 +64,7 @@ bool ChatTranscript::Update(const room::Snapshot& snapshot, const std::vector<Ro
     // What was already said when this player arrived is history, not news.
     if (fresh) readThrough_ = lastSequence_;
     host_ = snapshot.host;
-    present_.clear();
-    for (const auto& member : snapshot.members) present_.insert(member.id);
+    present_.swap(now_);
     for (std::size_t i = 0; i < snapshot.tables.size(); ++i) {
         const auto& table = snapshot.tables[i];
         auto& seen = tables_[i];
@@ -67,11 +75,11 @@ bool ChatTranscript::Update(const room::Snapshot& snapshot, const std::vector<Ro
     return fresh;
 }
 void ChatTranscript::Diff(const room::Snapshot& snapshot) {
-    std::set<room::MemberId> now;
-    for (const auto& member : snapshot.members) now.insert(member.id);
+    // now_ holds this snapshot's members (Update), present_ the last one's.
+    const auto in = [](const std::vector<room::MemberId>& ids, room::MemberId id) { return std::binary_search(ids.begin(), ids.end(), id); };
     // A member who left and one who was removed read the same: the snapshot does not say which.
-    for (const auto id : present_) if (!now.count(id)) Append(EventLine(ChatLine::Kind::Left, id));
-    for (const auto& member : snapshot.members) if (!present_.count(member.id)) Append(EventLine(ChatLine::Kind::Joined, member.id));
+    for (const auto id : present_) if (!in(now_, id)) Append(EventLine(ChatLine::Kind::Left, id));
+    for (const auto& member : snapshot.members) if (!in(present_, member.id)) Append(EventLine(ChatLine::Kind::Joined, member.id));
     // Only a member with the host's powers is announced, never a watcher left holding the field.
     const auto host = room::ActingHost(snapshot);
     if (host_ && host && host != host_) Append(EventLine(ChatLine::Kind::NewHost, host));
@@ -102,9 +110,13 @@ void ChatTranscript::Diff(const room::Snapshot& snapshot) {
     }
 }
 unsigned ChatTranscript::Unread(const std::set<room::MemberId>& muted) const {
+    if (unreadKnown_ && unreadRevision_ == linesRevision_ && unreadThrough_ == readThrough_ && unreadMuted_ == muted) return unread_;
     unsigned count = 0;
     for (const auto& line : lines_)
         if (line.kind == ChatLine::Kind::Message && line.sequence > readThrough_ && !line.own && !muted.count(line.sender)) ++count;
+    unread_ = count; unreadKnown_ = true;
+    unreadRevision_ = linesRevision_; unreadThrough_ = readThrough_;
+    if (unreadMuted_ != muted) unreadMuted_ = muted;
     return count;
 }
 } }
