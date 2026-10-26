@@ -4,6 +4,9 @@
 #include "room_authority_support.hxx"
 #include <limits>
 
+// The result dispute window of RoomModelDetail.hxx, which tests do not include.
+constexpr std::uint64_t ResultDisputeTimeoutMs = 30000;
+
 // The events are exactly one Ready timeout, of `member` at `table`.
 static bool TimedOut(const std::vector<Event>& events, MemberId member, std::uint8_t table) {
 	return events.size() == 1 && events[0].kind == Event::Kind::ReadyTimeout && events[0].member == member && events[0].table == table;
