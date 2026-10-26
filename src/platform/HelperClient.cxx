@@ -1,30 +1,50 @@
 #include "HelperClient.hxx"
 
 #include <limits>
-#include <vector>
 
 namespace sf4e { namespace platform {
+using namespace helper_frame;
 namespace {
-const size_t MaxPayload = 512 * 1024;
-const size_t MaxMessages = 128;
-const size_t MaxQueuedBytes = 8 * 1024 * 1024;
-const DWORD IoTimeoutMs = 15000;
-const DWORD HeaderSize = 14;
 struct Handle {
     HANDLE value;
     explicit Handle(HANDLE handle = nullptr) : value(handle) {}
     ~Handle() { if (value && value != INVALID_HANDLE_VALUE) { CloseHandle(value); } }
 };
+// The header read the connected worker keeps posted while it waits. Every exit
+// cancels it and waits for the cancel to land, so the kernel is done with this
+// buffer and OVERLAPPED before they leave the stack and the pipe closes.
+struct PendingRead {
+    HANDLE pipe;
+    OVERLAPPED operation;
+    uint8_t header[HeaderSize];
+    bool posted;
+    explicit PendingRead(HANDLE handle) : pipe(handle), operation(), posted(false) {}
+    ~PendingRead() {
+        if (!posted) { return; }
+        CancelIoEx(pipe, &operation);
+        DWORD ignored = 0;
+        GetOverlappedResult(pipe, &operation, &ignored, TRUE);
+    }
+};
 }
 
 HelperClient::HelperClient() : outgoing_(MaxMessages, MaxQueuedBytes), incoming_(MaxMessages, MaxQueuedBytes) {
     stop_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    sendWake_ = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    readEvent_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    writeEvent_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
 }
-HelperClient::~HelperClient() { Stop(); if (stop_) { CloseHandle(stop_); } }
+HelperClient::~HelperClient() {
+    Stop();
+    if (stop_) { CloseHandle(stop_); }
+    if (sendWake_) { CloseHandle(sendWake_); }
+    if (readEvent_) { CloseHandle(readEvent_); }
+    if (writeEvent_) { CloseHandle(writeEvent_); }
+}
 
 bool HelperClient::Start(const HelperBootstrap& bootstrap) {
-    if (!stop_ || started_ || worker_.joinable() || state_ != HelperState::Stopped || bootstrap.version != 1
-        || bootstrap.helperPid == 0 || bootstrap.pipeName[95] != 0 || !bootstrap.pipeName[0]) { return false; }
+    if (!stop_ || !sendWake_ || !readEvent_ || !writeEvent_ || started_ || worker_.joinable() || state_ != HelperState::Stopped
+        || bootstrap.version != 1 || bootstrap.helperPid == 0 || bootstrap.pipeName[95] != 0 || !bootstrap.pipeName[0]) { return false; }
     const std::wstring name(bootstrap.pipeName), prefix = L"\\\\.\\pipe\\sf4-net-";
     if (name.size() != prefix.size() + 32 || name.compare(0, prefix.size(), prefix) != 0) { return false; }
     for (size_t i = prefix.size(); i < name.size(); ++i) {
@@ -37,14 +57,20 @@ bool HelperClient::Start(const HelperBootstrap& bootstrap) {
     return true;
 }
 
-bool HelperClient::Send(const std::string& payload, uint64_t* requestId) {
-    if (payload.empty() || payload.size() > MaxPayload || state_ != HelperState::Connected) { return false; }
+bool HelperClient::Send(std::string payload, uint64_t* requestId) {
+    // Moved into the message first, so its destructor wipes it on every return
+    // below; a moved-from short string keeps its characters, so wipe that too.
+    OutgoingMessage message; message.payload = std::move(payload);
+    WipeText(payload);
+    const size_t size = message.payload.size();
+    if (size == 0 || size > MaxPayload || state_ != HelperState::Connected) { return false; }
     std::lock_guard<std::mutex> lock(sendMutex_);
     if (nextId_ > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) { return false; }
-    OutgoingMessage message; message.id = nextId_; message.payload = payload;
-    if (!outgoing_.TryPush(std::move(message), payload.size())) { return false; }
+    message.id = nextId_;
+    if (!outgoing_.TryPush(std::move(message), size)) { return false; }
     if (requestId) { *requestId = nextId_; }
     ++nextId_;
+    SetEvent(sendWake_);
     return true;
 }
 
@@ -55,21 +81,21 @@ void HelperClient::Stop() {
     state_ = HelperState::Stopped;
 }
 
-bool HelperClient::Transfer(HANDLE pipe, void* data, DWORD size, bool write) {
-    Handle event(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-    if (!event.value) { error_ = GetLastError(); return false; }
+// Moves `size` bytes, waiting on the pipe and the stop signal together so a
+// blocked transfer ends when the client stops or `deadline` passes.
+bool HelperClient::Transfer(HANDLE pipe, void* data, DWORD size, bool write, ULONGLONG deadline) {
+    const HANDLE event = write ? writeEvent_ : readEvent_;
     DWORD offset = 0;
-    const ULONGLONG deadline = GetTickCount64() + IoTimeoutMs;
     while (offset < size) {
-        OVERLAPPED operation = {}; operation.hEvent = event.value;
-        ResetEvent(event.value);
+        OVERLAPPED operation = {}; operation.hEvent = event;
+        ResetEvent(event);
         DWORD transferred = 0;
         auto buffer = static_cast<uint8_t*>(data) + offset;
         const BOOL success = write ? WriteFile(pipe, buffer, size - offset, &transferred, &operation)
             : ReadFile(pipe, buffer, size - offset, &transferred, &operation);
         if (!success && GetLastError() != ERROR_IO_PENDING) { error_ = GetLastError(); return false; }
         if (!success) {
-            HANDLE waits[] = { stop_, event.value };
+            HANDLE waits[] = { stop_, event };
             const ULONGLONG now = GetTickCount64();
             const DWORD remaining = now < deadline ? static_cast<DWORD>(deadline - now) : 0;
             if (WaitForMultipleObjects(2, waits, FALSE, remaining) != WAIT_OBJECT_0 + 1) {
@@ -87,33 +113,22 @@ bool HelperClient::Transfer(HANDLE pipe, void* data, DWORD size, bool write) {
 
 bool HelperClient::WriteFrame(HANDLE pipe, const HelperMessage& message) {
     if (message.payload.empty() || message.payload.size() > MaxPayload) { return false; }
-    std::vector<uint8_t> bytes(HeaderSize + message.payload.size());
-    const uint32_t length = static_cast<uint32_t>(10 + message.payload.size());
-    for (int i = 0; i < 4; ++i) { bytes[i] = static_cast<uint8_t>(length >> (24 - 8 * i)); }
-    bytes[4] = 0; bytes[5] = 1;
-    for (int i = 0; i < 8; ++i) { bytes[6 + i] = static_cast<uint8_t>(message.id >> (56 - 8 * i)); }
-    memcpy(bytes.data() + HeaderSize, message.payload.data(), message.payload.size());
-    const bool success = Transfer(pipe, bytes.data(), static_cast<DWORD>(bytes.size()), true);
-    // A frame may carry the bootstrap nonce or a passphrase; none outlives its write.
-    SecureZeroMemory(bytes.data(), bytes.size());
-    return success;
+    // The header and the payload go as two writes on the byte-mode pipe under
+    // one deadline. The payload, which may carry the bootstrap nonce or a
+    // passphrase, is not copied here; the caller wipes it after the write.
+    uint8_t header[HeaderSize];
+    EncodeHeader(message.id, message.payload.size(), header);
+    const ULONGLONG deadline = GetTickCount64() + IoTimeoutMs;
+    return Transfer(pipe, header, HeaderSize, true, deadline)
+        && Transfer(pipe, const_cast<char*>(message.payload.data()), static_cast<DWORD>(message.payload.size()), true, deadline);
 }
 
-bool HelperClient::ReadFrame(HANDLE pipe, HelperMessage& message) {
-    uint8_t header[HeaderSize];
-    if (!Transfer(pipe, header, HeaderSize, false)) { return false; }
-    uint32_t length = 0;
-    for (int i = 0; i < 4; ++i) { length = (length << 8) | header[i]; }
-    if (length <= 10 || length > MaxPayload + 10 || header[4] != 0 || header[5] != 1) {
-        error_ = ERROR_INVALID_DATA; return false;
-    }
-    message.id = 0;
-    for (int i = 0; i < 8; ++i) { message.id = (message.id << 8) | header[6 + i]; }
-    if (message.id == 0 || message.id > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
-        error_ = ERROR_INVALID_DATA; return false;
-    }
-    message.payload.resize(length - 10);
-    return Transfer(pipe, &message.payload[0], static_cast<DWORD>(message.payload.size()), false);
+bool HelperClient::ReadFrame(HANDLE pipe, HelperMessage& message, uint8_t (&header)[HeaderSize], DWORD have) {
+    if (have < HeaderSize && !Transfer(pipe, header + have, HeaderSize - have, false, GetTickCount64() + IoTimeoutMs)) { return false; }
+    uint32_t size = 0;
+    if (!DecodeHeader(header, message.id, size)) { error_ = ERROR_INVALID_DATA; return false; }
+    message.payload.resize(size);
+    return Transfer(pipe, &message.payload[0], size, false, GetTickCount64() + IoTimeoutMs);
 }
 
 void HelperClient::Run(HelperBootstrap bootstrap) {
@@ -129,10 +144,13 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
     bool authenticated = false;
     ULONG pid = 0;
     if (pipe.value != INVALID_HANDLE_VALUE && GetNamedPipeServerProcessId(pipe.value, &pid) && pid == bootstrap.helperPid) {
+        // The id 1 exchange stays on the blocking path, before any read is posted.
         HelperMessage request; request.id = 1;
         request.payload.assign(reinterpret_cast<const char*>(bootstrap.nonce), sizeof(bootstrap.nonce));
         HelperMessage response;
-        authenticated = WriteFrame(pipe.value, request) && ReadFrame(pipe.value, response) && response.id == 1 && response.payload == "SF4N";
+        uint8_t header[HeaderSize];
+        authenticated = WriteFrame(pipe.value, request) && ReadFrame(pipe.value, response, header, 0)
+            && response.id == 1 && response.payload == "SF4N";
         SecureZeroMemory(&request.payload[0], request.payload.size());
     } else { error_ = ERROR_ACCESS_DENIED; }
     SecureZeroMemory(&bootstrap, sizeof(bootstrap));
@@ -141,8 +159,9 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
     uint64_t lastReceived = 1;
     HelperMessage pendingIncoming;
     bool hasPendingIncoming = false;
+    // Declared after the pipe, so it is cancelled before the pipe closes.
+    PendingRead read(pipe.value);
     while (WaitForSingleObject(stop_, 0) == WAIT_TIMEOUT) {
-        HelperMessage message;
         // Bound work in each direction so outgoing traffic cannot starve reads.
         OutgoingMessage sending;
         for (size_t i = 0; i < 8 && outgoing_.TryPop(sending); ++i) {
@@ -162,22 +181,46 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
                 pendingIncoming = {};
                 hasPendingIncoming = false;
                 NotifyIncoming();
-            } else {
-                WaitForSingleObject(stop_, 2);
-                continue;
             }
         }
-        DWORD available = 0;
-        if (!PeekNamedPipe(pipe.value, nullptr, 0, nullptr, &available, nullptr)) { error_ = GetLastError(); MarkFailed(); return; }
-        if (available > 0) {
-            if (!ReadFrame(pipe.value, message) || message.id <= lastReceived) { error_ = ERROR_INVALID_DATA; MarkFailed(); return; }
-            lastReceived = message.id;
-            const size_t size = message.payload.size();
-            if (!incoming_.TryPush(message, size)) {
-                pendingIncoming = std::move(message);
-                hasPendingIncoming = true;
-            } else { NotifyIncoming(); }
-        } else { WaitForSingleObject(stop_, 2); }
+        // One header read stays posted while the worker waits, and none while
+        // a frame is held back: that is the backpressure. A read that
+        // completes at once still sets its event and is taken below.
+        if (!read.posted && !hasPendingIncoming) {
+            read.operation = OVERLAPPED(); read.operation.hEvent = readEvent_;
+            ResetEvent(readEvent_);
+            if (!ReadFile(pipe.value, read.header, HeaderSize, nullptr, &read.operation) && GetLastError() != ERROR_IO_PENDING) {
+                error_ = GetLastError(); MarkFailed(); return;
+            }
+            read.posted = true;
+        }
+        // Each pass waits for the stop signal, a Send or the helper's output,
+        // so a room with nothing happening costs nothing. More than one
+        // bounded batch queued: write again before waiting. Only a held-back
+        // frame is retried on a timer, since the mailbox's consumer gives no
+        // signal when it makes room.
+        const DWORD timeout = hasPendingIncoming ? 2 : outgoing_.Empty() ? INFINITE : 0;
+        const HANDLE waits[] = { stop_, sendWake_, readEvent_ };
+        const DWORD woke = WaitForMultipleObjects(read.posted ? 3 : 2, waits, FALSE, timeout);
+        if (woke == WAIT_OBJECT_0) { return; }
+        if (woke == WAIT_FAILED) { error_ = GetLastError(); MarkFailed(); return; }
+        // Looked at after any wake, since a Send that wins the wait must not
+        // starve the read.
+        if (!read.posted || WaitForSingleObject(readEvent_, 0) != WAIT_OBJECT_0) { continue; }
+        read.posted = false;
+        DWORD got = 0;
+        if (!GetOverlappedResult(pipe.value, &read.operation, &got, FALSE)) { error_ = GetLastError(); MarkFailed(); return; }
+        // The rest of the frame is read as before, under its own deadlines.
+        HelperMessage message;
+        if (got == 0 || !ReadFrame(pipe.value, message, read.header, got) || message.id <= lastReceived) {
+            error_ = ERROR_INVALID_DATA; MarkFailed(); return;
+        }
+        lastReceived = message.id;
+        const size_t size = message.payload.size();
+        if (!incoming_.TryPush(message, size)) {
+            pendingIncoming = std::move(message);
+            hasPendingIncoming = true;
+        } else { NotifyIncoming(); }
     }
 }
 

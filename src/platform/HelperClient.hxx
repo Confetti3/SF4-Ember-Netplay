@@ -1,6 +1,7 @@
 #pragma once
 
 #include "HelperProcess.hxx"
+#include "HelperFrame.hxx"
 #include "../common/TickCount.hxx"
 #include "../netplay/BoundedMailbox.hxx"
 #include "../common/WipeText.hxx"
@@ -46,7 +47,9 @@ public:
     bool Start(int readFd, int writeFd);
     int LastError() const { return error_.load(); } // errno, or 0
 #endif
-    bool Send(const std::string& payload, uint64_t* requestId = nullptr);
+    // Takes the payload by value: a caller's temporary (often a dump that may
+    // hold a passphrase) moves in, and every copy is wiped once it is gone.
+    bool Send(std::string payload, uint64_t* requestId = nullptr);
     bool TryReceive(HelperMessage& message) { return incoming_.TryPop(message); }
     // Returns at once while an event waits for TryReceive or the worker has
     // failed, otherwise when either happens or after `timeoutMs`. A consumer
@@ -74,14 +77,21 @@ private:
     }
 #ifdef _WIN32
     void Run(HelperBootstrap bootstrap);
-    bool Transfer(HANDLE pipe, void* data, DWORD size, bool write);
+    bool Transfer(HANDLE pipe, void* data, DWORD size, bool write, ULONGLONG deadline);
     bool WriteFrame(HANDLE pipe, const HelperMessage& message);
-    bool ReadFrame(HANDLE pipe, HelperMessage& message);
+    // `have` bytes of `header` have been read already (0 to read it all).
+    bool ReadFrame(HANDLE pipe, HelperMessage& message, uint8_t (&header)[helper_frame::HeaderSize], DWORD have);
     HANDLE stop_ = nullptr;
+    // Send sets this auto-reset event after queueing, so the worker wakes to
+    // write instead of looking at the queue on a timer.
+    HANDLE sendWake_ = nullptr;
+    // One event per direction, kept for the client's life. The read event
+    // also carries the header read the connected worker keeps posted.
+    HANDLE readEvent_ = nullptr, writeEvent_ = nullptr;
     std::atomic<DWORD> error_{ERROR_SUCCESS};
 #else
     void Run(int readFd, int writeFd);
-    bool Transfer(int fd, void* data, size_t size, bool write);
+    bool Transfer(int fd, void* data, size_t size, bool write, uint64_t deadline);
     bool WriteFrame(int fd, const HelperMessage& message);
     bool ReadFrame(int fd, HelperMessage& message);
     // The worker polls the read end beside the helper's pipe; Stop writes to
