@@ -41,7 +41,7 @@ flowchart LR
     nginx -->|"/s/v1/"| short
     nginx -->|"bridge.embernetplay.link"| bridge
     nginx -->|"bridge-staging.embernetplay.link"| bstaging
-    nginx -->|"/rooms.json, cached 5 s"| bridge
+    nginx -->|"/rooms.json, cached 5 s, gzip"| bridge
     bridge <-->|"HTTP + shared secret:<br/>create, status poll every 5 s, close"| rooms
     rooms -->|"starts one per room<br/>config on stdin, status on stdout"| roomhost
     roomhost <-->|"stdio frames"| rhelper
@@ -143,6 +143,18 @@ sequenceDiagram
   end
 ```
 
+- The 5 s poll costs the bridge little when nothing changed: each room the
+  supervisor lists carries a `rev` that moves only when a field the room host
+  reported changed, and the bridge skips a room whose `rev` it has already
+  applied (see [public rooms](../design/PUBLIC_ROOMS.md)). A supervisor that
+  sends no `rev` is applied every poll as before.
+- The public rooms list and the rankings board are served gzipped to clients
+  that ask for it: nginx compresses `/rooms.json`, `/rankings.json` and the
+  bridge's `GET /v1/rooms` (JSON only, with `Vary: Accept-Encoding`). Browsers
+  ask by default, and the helper's HTTP client sends `Accept-Encoding: gzip`
+  and decodes the answer within the size limit it already applies, so the
+  in-game Public rooms list, polled every 15 s, and the web pages move fewer
+  bytes. A client that does not ask gets the plain body.
 - If the room host stops, the room is closed; there is no new leader.
 - A kick bans the Ember ID for the room's life (at most 512 per room).
 - Players never learn each other's addresses through the room; only fighters

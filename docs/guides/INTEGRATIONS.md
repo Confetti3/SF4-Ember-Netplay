@@ -204,6 +204,18 @@ Both players need the same Ember build; the second player's game is refused
 with `incompatible_build` otherwise. `required_build_id` is your label for the
 build and is not checked against the game.
 
+A game claims its match again to renew its place, and every claim's answer can
+carry the room's signed binding. A bridge that lists `matches.claim_unchanged`
+in its capabilities `features` lets a claim carry `held_binding`, the digest
+(unpadded base64url SHA-256 of the binding's canonical bytes) of the binding
+the helper already holds and has verified. If the room's binding is still
+exactly that one, the answer has the role `unchanged`, with the `room_id` and
+`invitation` and without the binding; otherwise it is the usual `room` answer.
+A helper that does not send `held_binding` gets the answer it always got, and
+an older helper, which refuses a role it does not know, never sees
+`unchanged`. A binding's `issued_at` is the time the room was published, so a
+renewal that changes nothing repeats the same binding.
+
 ### A Play button
 
 The answer to `POST /v1/matches`, and `GET /v1/matches/{id}`, carry the

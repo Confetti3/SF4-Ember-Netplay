@@ -159,6 +159,20 @@ lists queue rotation and multi-table scheduling as future work.
   set waits until their match ends, and lobbies do not seat a player whose bracket set is
   waiting. A correction reopens a set and clears what it fed while no later set has a
   game; finished tournaments are final.
+- **Claims that name the binding they hold.** A bridge that lists `matches.claim_unchanged`
+  in its capabilities `features` reads an optional `held_binding` on a claim: the unpadded
+  base64url SHA-256 of the canonical bytes of the signed binding the helper holds and has
+  verified for that match (the same bytes the signature covers). When the room's binding
+  still has exactly that digest, the claim is answered with the `unchanged` role, which
+  carries `room_id` and `invitation` and leaves the binding out; the helper presents its
+  held binding to the game as it would a `room` answer. In every other case the answer is
+  `room`, as before. A helper sends the field only to a bridge that lists the feature and
+  only when it holds a verified binding, so a helper that does not send `held_binding` gets
+  the answer it always got, and an older helper, which would refuse an answer role it does
+  not know, never sees `unchanged`. A binding's `issued_at` is the time the room was
+  published, not the time of the answer, so a renewal that changes nothing names the same
+  bytes and the same signature. Nothing reads `issued_at` of a binding; a permit carries
+  its own.
 
 ## Deviations from the specification
 
