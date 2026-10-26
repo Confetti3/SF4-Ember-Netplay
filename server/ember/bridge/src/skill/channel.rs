@@ -464,16 +464,15 @@ pub fn upload(
     for known in game.sides.iter().filter_map(|side| side.account.as_deref()) {
         shared &= sharing_on(tx, known)?;
     }
-    let state = if !shared {
-        UploadState::NotShared
+    Ok(if !shared {
+        UploadAnswer::NOT_SHARED
     } else if game.published {
-        UploadState::Published
+        UploadAnswer {
+            state: UploadState::Published,
+            id: Some(game.id),
+        }
     } else {
-        UploadState::Held
-    };
-    Ok(UploadAnswer {
-        state,
-        id: (state == UploadState::Published).then_some(game.id),
+        UploadAnswer::HELD
     })
 }
 

@@ -268,14 +268,13 @@ impl UploadAnswer {
         state: UploadState::NotShared,
         id: None,
     };
-    /// Held for the other side (`UploadState::Held`).
+    /// Not listed yet: held for the other side's upload, or not kept since the
+    /// other side has no account.
     pub const HELD: Self = Self {
         state: UploadState::Held,
         id: None,
     };
-}
 
-impl UploadAnswer {
     pub fn check(&self) -> Result<()> {
         if self.id.as_deref().is_none_or(is_replay_id) {
             Ok(())

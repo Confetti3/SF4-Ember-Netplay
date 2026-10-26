@@ -22,15 +22,17 @@ document covers only the channel.
 A replay is published when all of these hold:
 
 1. Both players have a Discord account linked to their Ember ID. Without one
-   there is nowhere to keep a choice to stop sharing, so the replay is held.
+   there is nowhere to keep a choice to stop sharing: an uploader without one
+   is answered not shared, and one whose opponent has none is answered held;
+   nothing is kept either way.
 2. Neither player has turned sharing off.
 3. The bridge knows both sides' accounts:
    - Public room: the room host's games report gives the winner's and
      loser's Ember IDs (`skill::record_games`, every reported game), and their
      accounts are looked up when an upload comes. One player's upload is
      enough; one whose opponent has no account then is answered held and not
-     kept, since the opponent never queued it and nothing could list it. An upload that
-     comes before the report is refused as not reported yet (nothing is
+     kept, since the opponent never queued it and nothing could list it. An
+     upload that comes before the report is refused as not reported yet (nothing is
      kept, so nobody else can bind a replay to the game first) and the game
      sends it again after a wait.
    - Private room: the bridge has no host report, so the replay is held until
