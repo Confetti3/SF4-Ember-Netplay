@@ -3,7 +3,7 @@
 use ember_protocol::{
     EmberId,
     api::ErrorCode,
-    event::Kind,
+    event::{EventScore, Kind, TournamentMatchCompletedData},
     matches::Score,
     tournament::{self as bracket, Blocked, Source, Status},
 };
@@ -13,7 +13,7 @@ use serde_json::json;
 use super::{
     closed, load,
     progress::progress,
-    state::{Entrant, load_bracket, save, set_json},
+    state::{load_bracket, player, save, set_completed, set_json},
     touch, tournament_event,
 };
 use crate::{
@@ -52,26 +52,30 @@ pub fn on_match_completed(
     let revision = touch(tx, &tournament.id, ctx.now)?;
     let state = bracket.states[node];
     let eliminated = bracket::eliminated(&bracket.plan, &bracket.states, node);
-    let mut data = set_json(&bracket, node);
-    data["match_id"] = match_id.into();
-    data["walkover"] = false.into();
-    data["winner"] = bracket.entrant(state.winner()).map(Entrant::public).into();
-    data["loser"] = bracket.entrant(state.loser()).map(Entrant::public).into();
-    data["scores"] = json!(scores);
-    data["eliminated"] = json!(bracket.entrant(eliminated).map(|entrant| &entrant.ember_id));
-    data["winner_next"] = bracket.next(node, Source::Winner).into();
-    data["loser_next"] = if eliminated.is_some() {
-        None
-    } else {
-        bracket.next(node, Source::Loser)
-    }
-    .into();
+    let data = TournamentMatchCompletedData {
+        match_id: Some(match_id.to_owned()),
+        walkover: false,
+        winner: bracket.entrant(state.winner()).map(player),
+        loser: bracket.entrant(state.loser()).map(player),
+        scores: Some(scores.iter().map(EventScore::from).collect()),
+        eliminated: bracket
+            .entrant(eliminated)
+            .map(|entrant| entrant.ember_id.clone()),
+        winner_next: bracket.next(node, Source::Winner).map(str::to_owned),
+        // Present, and `null` when the loser leaves or has no next set.
+        loser_next: Some(if eliminated.is_some() {
+            None
+        } else {
+            bracket.next(node, Source::Loser).map(str::to_owned)
+        }),
+        ..set_completed(&bracket, node)
+    };
     tournament_event(
         tx,
         ctx,
         &tournament,
         Kind::TournamentMatchCompleted,
-        data,
+        serde_json::to_value(data).unwrap_or_default(),
         revision,
     )?;
     let tournament = load(tx, tournament_id)?.ok_or_else(ApiFailure::unavailable)?;

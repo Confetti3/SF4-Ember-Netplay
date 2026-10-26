@@ -35,7 +35,7 @@ use axum::{
 use ember_protocol::{
     EmberId,
     api::ErrorCode,
-    event::Kind,
+    event::{Kind, RoomEventData},
     rooms::{
         BANNED, CLOSED_BY_CONNECTION, CloseRoom, ConnectionCreateRoom, ConnectionRoom,
         ConnectionRoomList, CreateRoom, INVALID_NAME, NOT_LINKED, ROOM_FULL, ROOM_LIMIT,
@@ -43,7 +43,6 @@ use ember_protocol::{
     },
 };
 use rusqlite::{OptionalExtension, Row, Transaction, params};
-use serde_json::Value;
 
 use self::{
     create::{Owner, open},
@@ -384,11 +383,11 @@ fn announce(
         [connection_id],
         |row| row.get(0),
     )?;
-    let mut data =
-        serde_json::to_value(room.view(config)?).map_err(|_| ApiFailure::unavailable())?;
-    if let (Some(reason), Value::Object(fields)) = (reason, &mut data) {
-        fields.insert("reason".into(), reason.into());
-    }
+    let data = serde_json::to_value(RoomEventData {
+        room: room.view(config)?,
+        reason: reason.map(str::to_owned),
+    })
+    .map_err(|_| ApiFailure::unavailable())?;
     emit(
         tx,
         config,

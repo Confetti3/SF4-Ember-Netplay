@@ -11,7 +11,7 @@ use ember_protocol::{
     EmberId,
     api::ErrorCode,
     encoding::{Counter, is_prefixed_id},
-    event::Kind,
+    event::{EventParticipant, GameConfirmedData, Kind, MatchCreatedData},
     json,
     matches::{CreateMatch, MatchState, Participant as Assigned, Resolution, Rules},
     play::play_url,
@@ -323,16 +323,24 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
         ctx,
         &found,
         Kind::MatchCreated,
-        json!({
-            "match_id": id,
-            "external_match_id": new.external_match_id,
-            "match_revision": "1",
-            "assignment_generation": "1",
-            "state": MatchState::AwaitingPlayers,
-            "games_to_win": new.rules.games_to_win,
-            "participants": roster,
-            "metadata": new.metadata,
-        }),
+        serde_json::to_value(MatchCreatedData {
+            match_id: id.clone(),
+            external_match_id: new.external_match_id.to_owned(),
+            match_revision: Counter(1),
+            assignment_generation: Counter(1),
+            state: Some(MatchState::AwaitingPlayers),
+            games_to_win: new.rules.games_to_win,
+            participants: roster
+                .into_iter()
+                .map(|p| EventParticipant {
+                    slot: p.slot,
+                    participant_id: p.participant_id,
+                    ember_id: p.ember_id,
+                })
+                .collect(),
+            metadata: new.metadata.clone(),
+        })
+        .unwrap_or_default(),
     )?;
     Ok(id)
 }
@@ -813,15 +821,18 @@ fn apply_adjudication(
                 .map(|p| p.ember_id.clone());
             events.push((
                 Kind::GameConfirmed,
-                json!({
-                    "match_id": found.id,
-                    "attempt_id": attempt_id,
-                    "seq": seq,
-                    "outcome": outcome,
-                    "winner_id": winner,
-                    "resolution": Resolution::OrganizerAdjudication,
-                    "adjudication_id": adjudication_id,
-                }),
+                serde_json::to_value(GameConfirmedData {
+                    match_id: found.id.clone(),
+                    match_revision: None,
+                    attempt_id,
+                    seq,
+                    outcome: outcome.into(),
+                    winner_id: winner,
+                    resolution: Some(Resolution::OrganizerAdjudication),
+                    adjudication_id: Some(adjudication_id.clone()),
+                    report_ids: None,
+                })
+                .unwrap_or_default(),
             ));
         }
         AdjudicationKind::VoidGame => {

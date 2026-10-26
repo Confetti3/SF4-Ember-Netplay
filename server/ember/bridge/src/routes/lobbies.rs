@@ -17,7 +17,7 @@ use ember_protocol::{
     EmberId,
     api::ErrorCode,
     encoding::{Counter, is_prefixed_id},
-    event::Kind,
+    event::{EventScore, EventStreak, Kind, LobbyCreatedData, LobbySetCompletedData},
     json,
     lobby::{CreateLobby, JoinLobby, Rotation},
     matches::{Participant as Assigned, Rules, Score},
@@ -433,20 +433,24 @@ pub fn on_set_completed(
         ctx,
         &after,
         Kind::LobbySetCompleted,
-        json!({
-            "lobby_id": after.id,
-            "lobby_revision": revision.to_string(),
-            "match_id": match_id,
-            "set": lobby.sets_started,
-            "games_to_win": lobby.games_to_win,
-            "rotation": lobby.rotation,
-            "winner_id": winner.ember_id,
-            "loser_id": loser.ember_id,
-            "scores": scores,
-            "streak": after.streak_holder.as_ref().map(|holder| json!({ "ember_id": holder, "sets": after.streak })),
-            "removed": dropped,
-            "queue": ids(&waiting),
-        }),
+        serde_json::to_value(LobbySetCompletedData {
+            lobby_id: after.id.clone(),
+            lobby_revision: Counter(revision),
+            match_id: match_id.to_owned(),
+            set: lobby.sets_started,
+            games_to_win: lobby.games_to_win,
+            rotation: Some(lobby.rotation),
+            winner_id: winner.ember_id.clone(),
+            loser_id: Some(loser.ember_id.clone()),
+            scores: scores.iter().map(EventScore::from).collect(),
+            streak: after.streak_holder.as_ref().map(|holder| EventStreak {
+                ember_id: holder.clone(),
+                sets: after.streak,
+            }),
+            removed: dropped,
+            queue: ids(&waiting).into_iter().cloned().collect(),
+        })
+        .unwrap_or_default(),
     )?;
     if let Some(mut data) = started {
         data["lobby_revision"] = revision.to_string().into();
@@ -643,14 +647,15 @@ pub async fn create(
                     &ctx,
                     &lobby,
                     Kind::LobbyCreated,
-                    json!({
-                        "lobby_id": id,
-                        "external_lobby_id": command.external_lobby_id,
-                        "lobby_revision": "1",
-                        "games_to_win": command.games_to_win,
-                        "rotation": command.rotation,
-                        "metadata": command.metadata,
-                    }),
+                    serde_json::to_value(LobbyCreatedData {
+                        lobby_id: id.clone(),
+                        external_lobby_id: command.external_lobby_id.clone(),
+                        lobby_revision: Counter(1),
+                        games_to_win: command.games_to_win,
+                        rotation: command.rotation,
+                        metadata: command.metadata.clone(),
+                    })
+                    .unwrap_or_default(),
                 )?;
                 Ok((StatusCode::CREATED, snapshot(tx, &lobby)?))
             })

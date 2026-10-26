@@ -1,6 +1,7 @@
 //! The persisted bracket: entrants, and each node's slots, status and match.
 use ember_protocol::{
     EmberId,
+    event::{EventPlayer, TournamentMatchCompletedData},
     tournament::{self as bracket, Node, NodeState, Slot, Source, Status},
 };
 use rusqlite::{Transaction, params};
@@ -196,6 +197,25 @@ pub fn save(
         )?;
     }
     Ok(())
+}
+
+/// `set_json` as the start of a `tournament.match.completed`'s data.
+pub fn set_completed(bracket: &Bracket, node: usize) -> TournamentMatchCompletedData {
+    let plan = &bracket.plan[node];
+    TournamentMatchCompletedData {
+        node,
+        side: Some(plan.side),
+        round: plan.round,
+        label: Some(plan.label.clone()),
+        ..TournamentMatchCompletedData::default()
+    }
+}
+
+/// An entrant as event data names them: by Ember ID only.
+pub fn player(entrant: &Entrant) -> EventPlayer {
+    EventPlayer {
+        ember_id: entrant.ember_id.clone(),
+    }
 }
 
 pub fn set_json(bracket: &Bracket, node: usize) -> serde_json::Value {

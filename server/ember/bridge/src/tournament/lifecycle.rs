@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use ember_protocol::{
     EmberId,
     api::ErrorCode,
-    event::Kind,
+    event::{EventSeed, Kind, TournamentCreatedData, TournamentStartedData},
     tournament::{self as bracket, CreateTournament, Format, RegisterEntrant, Status},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -84,14 +84,17 @@ pub fn create(
         ctx,
         &tournament,
         Kind::TournamentCreated,
-        json!({
-            "external_tournament_id": command.external_tournament_id,
-            "format": command.format,
-            "games_to_win": command.games_to_win,
-            "finals_games_to_win": finals,
-            "grand_final_reset": reset,
-            "metadata": command.metadata,
-        }),
+        serde_json::to_value(TournamentCreatedData {
+            tournament_id: None,
+            tournament_revision: None,
+            external_tournament_id: command.external_tournament_id.clone(),
+            format: Some(command.format),
+            games_to_win: command.games_to_win,
+            finals_games_to_win: Some(finals),
+            grand_final_reset: reset,
+            metadata: command.metadata.clone(),
+        })
+        .unwrap_or_default(),
         1,
     )?;
     Ok(Applied::Changed(tournament))
@@ -268,10 +271,9 @@ pub fn start(
     let seeds: Vec<_> = order
         .iter()
         .enumerate()
-        .map(|(seed, entrant)| {
-            let mut player = entrant.public();
-            player["seed"] = (seed + 1).into();
-            player
+        .map(|(seed, entrant)| EventSeed {
+            ember_id: entrant.ember_id.clone(),
+            seed: seed + 1,
         })
         .collect();
     let tournament = load(tx, &tournament.id)?.ok_or_else(ApiFailure::unavailable)?;
@@ -280,7 +282,14 @@ pub fn start(
         ctx,
         &tournament,
         Kind::TournamentStarted,
-        json!({ "format": tournament.format, "entrants": seeds, "sets": plan.len() }),
+        serde_json::to_value(TournamentStartedData {
+            tournament_id: None,
+            tournament_revision: None,
+            format: Some(tournament.format),
+            entrants: seeds,
+            sets: plan.len(),
+        })
+        .unwrap_or_default(),
         revision,
     )?;
     audit(

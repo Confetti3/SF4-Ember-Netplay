@@ -1,9 +1,17 @@
-//! CloudEvents 1.0 envelope for bridge events (spec 20.2).
-use serde::{Deserialize, Serialize};
+//! CloudEvents 1.0 envelope for bridge events (spec 20.2), and the typed
+//! data of the kinds a service announces.
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Deserializer, Serialize, de::DeserializeOwned};
 
 use crate::{
-    Error, Result,
+    EmberId, Error, Result,
     encoding::{Counter, OriginPolicy, check_origin, is_prefixed_id},
+    lobby::Rotation,
+    matches::{MatchState, Resolution, Score},
+    report::Outcome,
+    rooms::ConnectionRoom,
+    tournament::{Format, Side},
 };
 
 pub const SPEC_VERSION: &str = "1.0";
@@ -212,6 +220,309 @@ impl Event {
     pub fn kind(&self) -> Option<Kind> {
         Kind::from_full(&self.kind)
     }
+
+    /// The data read as one kind's typed data, or `None` when it does not
+    /// have that shape. The data types ignore keys they do not know.
+    pub fn data_as<T: DeserializeOwned>(&self) -> Option<T> {
+        serde_json::from_value(serde_json::Value::Object(self.data.clone())).ok()
+    }
+}
+
+// The typed data of the kinds a service announces. The bridge builds its
+// event data from these, and readers decode them with `Event::data_as`.
+//
+// The wire rules they keep: a key the bridge writes as `null` is a plain
+// `Option` that serializes `null`, never skipped; a key the bridge leaves out
+// of some events is skipped when `None`. Events are stored JCS-canonical, so
+// the order of the fields here never reaches the wire.
+//
+// The rules for reading: no type refuses an unknown key, so a newer bridge
+// does not stop an older reader. The keys an announcement cannot do without
+// are required; every other key has a default, and an enum a reader does not
+// need is an `Option` so that its absence does not hide the event. The bridge
+// always writes those keys.
+
+/// Reads a key that is absent (`None`), `null` (`Some(None)`) or a value.
+fn present<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
+
+fn first_to_one() -> u8 {
+    1
+}
+
+/// A player named only by Ember ID: no account handles.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EventPlayer {
+    pub ember_id: EmberId,
+}
+
+/// One player's games won in a set.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EventScore {
+    pub ember_id: EmberId,
+    pub wins: u8,
+}
+
+impl From<&Score> for EventScore {
+    fn from(score: &Score) -> Self {
+        Self {
+            ember_id: score.ember_id.clone(),
+            wins: score.wins,
+        }
+    }
+}
+
+/// One seat of a match's roster.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EventParticipant {
+    #[serde(default)]
+    pub slot: u8,
+    #[serde(default)]
+    pub participant_id: String,
+    pub ember_id: EmberId,
+}
+
+/// A bracket entrant and its seed, 1 first.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EventSeed {
+    pub ember_id: EmberId,
+    pub seed: usize,
+}
+
+/// A tournament entrant and the place they finished, 1 first.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EventPlacement {
+    pub ember_id: EmberId,
+    pub placement: u32,
+}
+
+/// Who holds a lobby's streak, as the lobby stored the ID, and for how many
+/// sets.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EventStreak {
+    pub ember_id: String,
+    pub sets: u64,
+}
+
+/// Data of `match.created`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MatchCreatedData {
+    #[serde(default)]
+    pub match_id: String,
+    #[serde(default)]
+    pub external_match_id: String,
+    #[serde(default)]
+    pub match_revision: Counter,
+    #[serde(default)]
+    pub assignment_generation: Counter,
+    #[serde(default)]
+    pub state: Option<MatchState>,
+    #[serde(default = "first_to_one")]
+    pub games_to_win: u8,
+    pub participants: Vec<EventParticipant>,
+    #[serde(default)]
+    pub metadata: BTreeMap<String, String>,
+}
+
+/// Data of `match.score.changed`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScoreChangedData {
+    #[serde(default)]
+    pub match_id: String,
+    #[serde(default)]
+    pub match_revision: Counter,
+    #[serde(default)]
+    pub games_to_win: u8,
+    #[serde(default)]
+    pub scores: Vec<EventScore>,
+}
+
+/// Data of `match.game.confirmed`. An organizer's decision names its
+/// `adjudication_id`; two agreeing fighters' reports name their `report_ids`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GameConfirmedData {
+    #[serde(default)]
+    pub match_id: String,
+    /// Set by the ledger when the game settles.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub match_revision: Option<Counter>,
+    #[serde(default)]
+    pub attempt_id: String,
+    #[serde(default)]
+    pub seq: u64,
+    /// `p1_win`, `p2_win` or `draw`.
+    #[serde(default)]
+    pub outcome: String,
+    /// `null` for a draw.
+    #[serde(default)]
+    pub winner_id: Option<EmberId>,
+    #[serde(default)]
+    pub resolution: Option<Resolution>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adjudication_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_ids: Option<Vec<String>>,
+}
+
+impl GameConfirmedData {
+    /// The outcome as the report's enum, or `None` for a name it does not
+    /// have.
+    pub fn result(&self) -> Option<Outcome> {
+        Outcome::deserialize(
+            serde::de::value::StrDeserializer::<serde::de::value::Error>::new(&self.outcome),
+        )
+        .ok()
+    }
+}
+
+/// Data of `tournament.created`. Like every tournament event, its
+/// `tournament_id` and `tournament_revision` are set by the tournament's
+/// event writer.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TournamentCreatedData {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournament_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournament_revision: Option<Counter>,
+    #[serde(default)]
+    pub external_tournament_id: String,
+    #[serde(default)]
+    pub format: Option<Format>,
+    #[serde(default = "first_to_one")]
+    pub games_to_win: u8,
+    #[serde(default)]
+    pub finals_games_to_win: Option<u8>,
+    #[serde(default)]
+    pub grand_final_reset: bool,
+    #[serde(default)]
+    pub metadata: BTreeMap<String, String>,
+}
+
+/// Data of `tournament.started`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TournamentStartedData {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournament_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournament_revision: Option<Counter>,
+    #[serde(default)]
+    pub format: Option<Format>,
+    #[serde(default)]
+    pub entrants: Vec<EventSeed>,
+    #[serde(default)]
+    pub sets: usize,
+}
+
+/// Data of `tournament.match.completed`: a set was played, or a walkover
+/// decided it. A walkover has no `match_id`, `scores` or `loser_next`.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TournamentMatchCompletedData {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournament_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournament_revision: Option<Counter>,
+    #[serde(default)]
+    pub node: usize,
+    #[serde(default)]
+    pub side: Option<Side>,
+    #[serde(default)]
+    pub round: u32,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub match_id: Option<String>,
+    #[serde(default)]
+    pub walkover: bool,
+    #[serde(default)]
+    pub winner: Option<EventPlayer>,
+    #[serde(default)]
+    pub loser: Option<EventPlayer>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scores: Option<Vec<EventScore>>,
+    /// The player who left the tournament, or `null`.
+    #[serde(default)]
+    pub eliminated: Option<EmberId>,
+    /// The label of the winner's next set, or `null`.
+    #[serde(default)]
+    pub winner_next: Option<String>,
+    /// Absent for a walkover; `null` when the loser has no next set.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub loser_next: Option<Option<String>>,
+}
+
+/// Data of `tournament.completed`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TournamentCompletedData {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournament_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournament_revision: Option<Counter>,
+    #[serde(default)]
+    pub format: Option<Format>,
+    pub placements: Vec<EventPlacement>,
+}
+
+/// Data of `lobby.created`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LobbyCreatedData {
+    #[serde(default)]
+    pub lobby_id: String,
+    #[serde(default)]
+    pub external_lobby_id: String,
+    #[serde(default)]
+    pub lobby_revision: Counter,
+    #[serde(default = "first_to_one")]
+    pub games_to_win: u8,
+    pub rotation: Rotation,
+    #[serde(default)]
+    pub metadata: BTreeMap<String, String>,
+}
+
+/// Data of `lobby.set.completed`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LobbySetCompletedData {
+    pub lobby_id: String,
+    #[serde(default)]
+    pub lobby_revision: Counter,
+    #[serde(default)]
+    pub match_id: String,
+    #[serde(default)]
+    pub set: u64,
+    #[serde(default)]
+    pub games_to_win: u8,
+    #[serde(default)]
+    pub rotation: Option<Rotation>,
+    pub winner_id: EmberId,
+    #[serde(default)]
+    pub loser_id: Option<EmberId>,
+    #[serde(default)]
+    pub scores: Vec<EventScore>,
+    /// `null` when nobody holds a streak.
+    #[serde(default)]
+    pub streak: Option<EventStreak>,
+    #[serde(default)]
+    pub removed: Vec<EmberId>,
+    #[serde(default)]
+    pub queue: Vec<EmberId>,
+}
+
+/// Data of the `room.*` kinds: the room as its connection sees it, and on
+/// `room.closed` why it closed.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoomEventData {
+    #[serde(flatten)]
+    pub room: ConnectionRoom,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 }
 
 /// `^io\.ember\.[a-z_]+(\.[a-z_]+)+\.v1$`.

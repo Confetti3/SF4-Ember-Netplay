@@ -5,7 +5,7 @@ use ember_protocol::{
     EmberId,
     api::ErrorCode,
     encoding::Counter,
-    event::Kind,
+    event::{EventScore, Kind, ScoreChangedData},
     matches::{DeliveryState, MatchCompleted, MatchState, Resolution, Score},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -369,7 +369,13 @@ pub fn settle(
             ctx,
             found,
             Kind::ScoreChanged,
-            json!({ "match_id": found.id, "match_revision": revision_text, "games_to_win": n, "scores": score_rows }),
+            serde_json::to_value(ScoreChangedData {
+                match_id: found.id.clone(),
+                match_revision: Counter(revision),
+                games_to_win: n,
+                scores: score_rows.iter().map(EventScore::from).collect(),
+            })
+            .unwrap_or_default(),
         )?;
     }
     if let (

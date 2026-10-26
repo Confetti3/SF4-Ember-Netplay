@@ -12,7 +12,7 @@ use axum::{
 };
 use ember_protocol::{
     api::ErrorCode,
-    event::Kind,
+    event::{GameConfirmedData, Kind},
     json,
     matches::MatchState,
     play::SignedPermit,
@@ -305,15 +305,18 @@ fn decide(
         };
         events.push((
             Kind::GameConfirmed,
-            json!({
-                "match_id": current.id,
-                "attempt_id": attempt_id,
-                "seq": seq,
-                "outcome": outcome_name(result),
-                "winner_id": winner,
-                "resolution": ember_protocol::matches::Resolution::PlayerAgreement,
-                "report_ids": report_ids,
-            }),
+            serde_json::to_value(GameConfirmedData {
+                match_id: current.id.clone(),
+                match_revision: None,
+                attempt_id: attempt_id.to_owned(),
+                seq,
+                outcome: outcome_name(result).to_owned(),
+                winner_id: winner,
+                resolution: Some(ember_protocol::matches::Resolution::PlayerAgreement),
+                adjudication_id: None,
+                report_ids: Some(report_ids.clone()),
+            })
+            .unwrap_or_default(),
         ));
     } else {
         tx.execute(

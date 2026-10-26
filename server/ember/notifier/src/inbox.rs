@@ -9,12 +9,11 @@ use axum::{
 };
 use ember_protocol::{
     encoding::OriginPolicy,
-    event::{Event, Kind},
+    event::{Event, Kind, LobbyCreatedData, MatchCreatedData, TournamentCreatedData},
     json,
     webhook::{self, Headers, Secret},
 };
 use rusqlite::params;
-use serde_json::Value;
 
 use crate::{
     Notifier,
@@ -59,14 +58,17 @@ impl Notifier {
         // Later events name their match, lobby or tournament by the label it
         // was created with.
         let labelled = match event.kind() {
-            Some(Kind::MatchCreated) => Some(("match_id", match_label(&event.data))),
-            Some(Kind::LobbyCreated) => {
-                Some(("lobby_id", title_of(&event.data, "Lobby").to_owned()))
-            }
-            Some(Kind::TournamentCreated) => Some((
-                "tournament_id",
-                title_of(&event.data, "Tournament").to_owned(),
-            )),
+            Some(Kind::MatchCreated) => event
+                .data_as::<MatchCreatedData>()
+                .map(|data| (data.match_id.clone(), match_label(&data.metadata))),
+            Some(Kind::LobbyCreated) => event.data_as::<LobbyCreatedData>().map(|data| {
+                let label = title_of(&data.metadata, "Lobby").to_owned();
+                (data.lobby_id, label)
+            }),
+            Some(Kind::TournamentCreated) => event.data_as::<TournamentCreatedData>().map(|data| {
+                let label = title_of(&data.metadata, "Tournament").to_owned();
+                (data.tournament_id.unwrap_or_default(), label)
+            }),
             _ => None,
         };
         let mut db = self
@@ -94,12 +96,7 @@ impl Notifier {
             )
             .map_err(unavailable)?
             == 1;
-        if let (true, Some((key, label))) = (fresh, labelled) {
-            let id = event
-                .data
-                .get(key)
-                .and_then(Value::as_str)
-                .unwrap_or_default();
+        if let (true, Some((id, label))) = (fresh, labelled) {
             tx.execute(
                 "INSERT OR IGNORE INTO matches (id, label) VALUES (?1, ?2)",
                 params![id, label.chars().take(100).collect::<String>()],
