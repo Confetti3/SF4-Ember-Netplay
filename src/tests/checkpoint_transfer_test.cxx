@@ -59,7 +59,7 @@ static void CompareDecoders() {
         }
         auto longer = text; longer.insert(random() % (longer.size() + 1), 1, alphabet[random() % 64]); compare(longer, 64);
     }
-    for (const char* text : {"", "A", "AB", "ABC", "ABCD", "AAA=", "AA==", "A-_B", "____", "AAEC_f7_", "AB\x80C", "ab+/"})
+    for (const char* text : {"", "A", "AB", "ABC", "ABCD", "AAA=", "AA==", "A-_B", "____", "AAEC_f7_", "AB\x80" "C", "ab+/"})
         for (std::size_t maximum : {std::size_t(0), std::size_t(1), std::size_t(2), std::size_t(3), std::size_t(6), std::size_t(64)})
             compare(text, maximum);
     Check(accepted > 1000 && rejected > 1000);
