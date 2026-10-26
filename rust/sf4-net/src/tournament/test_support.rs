@@ -86,3 +86,49 @@ pub(super) fn shared_pinning(dir: &std::path::Path, builtins: &[Builtin]) -> Arc
         home_region: Box::new(|| None),
     })
 }
+
+/// A bridge on loopback that reports each request's first line, holds the
+/// first one until it is let go, and answers every request with `reply`.
+pub(super) fn hold_first_request(
+    listener: tokio::net::TcpListener,
+    reply: String,
+) -> (
+    tokio::sync::mpsc::UnboundedReceiver<String>,
+    tokio::sync::oneshot::Sender<()>,
+) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let (held, asked) = tokio::sync::mpsc::unbounded_channel();
+    let (release, released) = tokio::sync::oneshot::channel::<()>();
+    tokio::spawn(async move {
+        let mut released = Some(released);
+        while let Ok((mut socket, _)) = listener.accept().await {
+            let mut request = Vec::new();
+            let mut buffer = [0; 1024];
+            while !request.windows(4).any(|end| end == b"\r\n\r\n") {
+                match socket.read(&mut buffer).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(read) => request.extend_from_slice(&buffer[..read]),
+                }
+            }
+            let line = String::from_utf8_lossy(&request)
+                .lines()
+                .next()
+                .unwrap_or_default()
+                .to_owned();
+            let _ = held.send(line);
+            if let Some(released) = released.take() {
+                let _ = released.await;
+            }
+            let _ = socket.write_all(reply.as_bytes()).await;
+        }
+    });
+    (asked, release)
+}
+
+/// A JSON answer with `status`, as a bridge sends it.
+pub(super) fn json_reply(status: &str, body: &str) -> String {
+    format!(
+        "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+        body.len()
+    )
+}

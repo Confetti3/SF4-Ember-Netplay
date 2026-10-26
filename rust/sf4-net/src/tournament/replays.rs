@@ -251,10 +251,7 @@ async fn call<T: DeserializeOwned>(
             client::feature_answer(status, &response, 200, &REASONS, UNAVAILABLE).map(Some)
         }
     };
-    let answered = match as_id {
-        Some(ember_id) => client::with_session_as(shared, bridge_id, ember_id, operation).await?,
-        None => client::with_session(shared, bridge_id, operation).await?,
-    };
+    let answered = client::with_session_for(shared, bridge_id, as_id, operation).await?;
     serde_json::from_value(answered.ok_or_else(invalid_response)?).map_err(|_| invalid_response())
 }
 

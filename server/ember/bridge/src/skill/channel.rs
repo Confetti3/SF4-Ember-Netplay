@@ -388,23 +388,24 @@ pub fn upload(
                 Some(report) => {
                     // Both classes are the ones kept when the room reported
                     // the game, however long ago that was.
-                    let (won, own, opponent, opponent_badge) = if report.winner_id == *upload.ember_id {
-                        (
-                            side,
-                            report.winner_badge,
-                            report.loser_id,
-                            report.loser_badge,
-                        )
-                    } else if report.loser_id == *upload.ember_id {
-                        (
-                            other,
-                            report.loser_badge,
-                            report.winner_id,
-                            report.winner_badge,
-                        )
-                    } else {
-                        return Err(not_your_game());
-                    };
+                    let (won, own, opponent, opponent_badge) =
+                        if report.winner_id == *upload.ember_id {
+                            (
+                                side,
+                                report.winner_badge,
+                                report.loser_id,
+                                report.loser_badge,
+                            )
+                        } else if report.loser_id == *upload.ember_id {
+                            (
+                                other,
+                                report.loser_badge,
+                                report.winner_id,
+                                report.winner_badge,
+                            )
+                        } else {
+                            return Err(not_your_game());
+                        };
                     // The opponent's account as it is now. Without one the
                     // game could never be listed: the opponent never queued
                     // it, so nothing is kept.
