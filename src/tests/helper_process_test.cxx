@@ -51,8 +51,8 @@ public:
     ~FakePipe() { Close(); }
     FakePipe(const FakePipe&) = delete;
     FakePipe& operator=(const FakePipe&) = delete;
-    // Starts `client` on this pipe and answers its id 1 exchange.
-    bool Connect(HelperClient& client) {
+    // Starts `client` on this pipe and answers its id 1 exchange with `answer`.
+    bool Connect(HelperClient& client, const std::string& answer = helper_frame::AuthenticationAnswer()) {
         if (pipe_ == INVALID_HANDLE_VALUE || !client.Start(bootstrap_)) { return false; }
         OVERLAPPED operation = {}; operation.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
         bool connected = ConnectNamedPipe(pipe_, &operation) != FALSE;
@@ -64,7 +64,7 @@ public:
         }
         CloseHandle(operation.hEvent);
         uint64_t id = 0; std::string nonce;
-        if (!connected || !Read(id, nonce) || id != 1 || nonce.size() != sizeof(bootstrap_.nonce) || !Write(1, "SF4N")) { return false; }
+        if (!connected || !Read(id, nonce) || id != 1 || nonce.size() != sizeof(bootstrap_.nonce) || !Write(1, answer)) { return false; }
         const ULONGLONG until = GetTickCount64() + 5000;
         while (client.State() == HelperState::Connecting && GetTickCount64() < until) { Sleep(1); }
         return client.State() == HelperState::Connected;
@@ -143,6 +143,7 @@ static void FakePipeCases() {
         FakePipe fake;
         HelperClient client;
         CHECK(fake.Connect(client));
+        CHECK(client.HelperIpcVersion() == helper_frame::IpcVersion);
         const std::string command = "{\"type\":\"status\"}";
         const ULONGLONG started = GetTickCount64();
         for (uint64_t round = 0; round < 50; ++round) {
@@ -195,6 +196,39 @@ static void FakePipeCases() {
         writer.join();
         CHECK(written);
         CHECK(client.State() == HelperState::Connected);
+        client.Stop();
+    }
+    // The authentication answer carries the helper's IPC version. A bare SF4N
+    // (the Discord companion, or a helper from before the version) connects
+    // with version 0, which a room refuses; any other answer fails the client.
+    {
+        FakePipe fake;
+        HelperClient client;
+        CHECK(fake.Connect(client, "SF4N"));
+        CHECK(client.HelperIpcVersion() == 0);
+        client.Stop();
+    }
+    {
+        FakePipe fake;
+        HelperClient client;
+        CHECK(!fake.Connect(client, "SF4X"));
+        CHECK(client.State() == HelperState::Failed);
+        client.Stop();
+    }
+    // A raw-body frame is a payload like any other to the client: it arrives
+    // byte for byte, and a raw-body command goes out the same way.
+    {
+        FakePipe fake;
+        HelperClient client;
+        CHECK(fake.Connect(client));
+        const std::string chunk("\0\1\xff", 3);
+        const auto event = helper_frame::EncodeRawBody("{\"type\":\"checkpoint_chunk\"}", chunk.data(), chunk.size());
+        CHECK(!event.empty() && fake.Write(2, event));
+        HelperMessage message;
+        CHECK(NextEvent(client, message) && message.payload == event);
+        uint64_t id = 0, got = 0;
+        std::string payload;
+        CHECK(client.Send(event, &id) && fake.Read(got, payload) && got == id && payload == event);
         client.Stop();
     }
     // A header that arrives in pieces is put back together.
@@ -272,6 +306,8 @@ int wmain(int argc, wchar_t** argv) {
         HelperClient client;
         CHECK(client.Start(helper.Bootstrap()));
         CHECK(WaitConnected(client));
+        // The helper built with this game answers with the same IPC version.
+        CHECK(client.HelperIpcVersion() == helper_frame::IpcVersion);
         uint64_t request = 0;
         CHECK(client.Send("{\"type\":\"status\"}", &request) && request == 2);
         CHECK(WaitMessage(client, "\"request_id\":2"));

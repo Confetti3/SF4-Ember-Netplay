@@ -194,13 +194,13 @@ bool IrohRoom::HandleConnected(const json& event) {
 	return true;
 }
 
-bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type) {
+bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type, std::optional<std::string_view> body) {
 	const auto identity = event.at("peer").get<std::string>();
 	const auto peer = FindPeer(identity);
 	if (peer == peers_.end()) return true; // Late event for a departed peer.
 	if (type == "peer_session") return BeginPeerSession(peer, event.at("incarnation").get<std::uint64_t>());
 	if (type == "peer_departed") return PeerDeparted(peer);
-	if (type == "message") return ReceiveControlMessage(peer, event);
+	if (type == "message") return ReceiveControlMessage(peer, event, body);
 	// control_closed. A close for a superseded connection says nothing about
 	// the one this record holds now.
 	const auto control = event.at("control").get<std::uint64_t>();
@@ -280,9 +280,11 @@ bool IrohRoom::PeerDeparted(std::map<Connection, Peer>::iterator peer) {
 	return true;
 }
 
-bool IrohRoom::ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, const json& event) {
+bool IrohRoom::ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, const json& event,
+	std::optional<std::string_view> body) {
 	const auto id = event.at("message_id").get<std::int64_t>();
-	auto payload = event.at("payload").get<std::string>();
+	// A raw-body frame carries the text as it is; a JSON one as a string field.
+	auto payload = body ? std::string(*body) : event.at("payload").get<std::string>();
 	// A message that repeats a number or does not parse is skipped on its own;
 	// the room and the peer's later messages carry on.
 	json decoded;
@@ -331,8 +333,10 @@ SendResult IrohRoom::SendRemote(Connection connection, const std::string& payloa
 	// Named for the control this record holds: the helper refuses the send if
 	// that endpoint has since connected again for a session this room has
 	// not been told about, instead of delivering old numbering into it.
-	if (!Command(json{{"type", "send"}, {"epoch", epoch_}, {"peer", peer->second.identity}, {"control", *peer->second.control},
-		{"message_id", messageId}, {"payload", payload}}.dump())) return SendResult::QueueFull;
+	// The payload goes as the frame's raw body, not escaped into the header.
+	const auto header = json{{"type", "send"}, {"epoch", epoch_}, {"peer", peer->second.identity},
+		{"control", *peer->second.control}, {"message_id", messageId}}.dump();
+	if (!Command(platform::helper_frame::EncodeRawBody(header, payload.data(), payload.size()))) return SendResult::QueueFull;
 	++peer->second.nextId;
 	if (id) *id = messageId;
 	return SendResult::Queued;

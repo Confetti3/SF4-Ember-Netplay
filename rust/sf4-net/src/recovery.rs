@@ -8,7 +8,6 @@
 
 use std::{collections::BTreeSet, io, sync::Arc, time::Duration};
 
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use iroh::{EndpointAddr, EndpointId};
 use openraft::{BasicNode, ChangeMembers};
 use serde::{Deserialize, Serialize};
@@ -825,7 +824,8 @@ impl CheckpointTransfer {
     pub fn digest_hex(&self) -> String {
         hex_digest(&self.digest)
     }
-    pub fn encode_chunk(&self, offset: usize) -> io::Result<String> {
+    /// The chunk of the checkpoint that starts at `offset`.
+    pub fn chunk(&self, offset: usize) -> io::Result<&[u8]> {
         let end = offset
             .checked_add(CHECKPOINT_CHUNK_BYTES)
             .unwrap_or(self.bytes.len())
@@ -833,7 +833,7 @@ impl CheckpointTransfer {
         if offset >= end || offset > self.bytes.len() {
             return Err(io::Error::other("invalid checkpoint chunk offset"));
         }
-        Ok(URL_SAFE_NO_PAD.encode(&self.bytes[offset..end]))
+        Ok(&self.bytes[offset..end])
     }
 }
 
@@ -901,13 +901,9 @@ impl IncomingTransfer {
             started: tokio::time::Instant::now(),
         })
     }
-    pub fn push(&mut self, offset: usize, encoded: &str) -> io::Result<usize> {
-        if encoded.len() > 24 * 1024 {
-            return Err(io::Error::other("checkpoint chunks must be contiguous"));
-        }
-        let decoded = URL_SAFE_NO_PAD
-            .decode(encoded)
-            .map_err(|_| io::Error::other("invalid checkpoint base64"))?;
+    /// Appends the chunk `decoded` at `offset`, or checks an exact retry of
+    /// bytes already held, and returns the chunk's end.
+    pub fn push(&mut self, offset: usize, decoded: &[u8]) -> io::Result<usize> {
         let end = offset
             .checked_add(decoded.len())
             .ok_or_else(|| io::Error::other("checkpoint chunk exceeds bounds"))?;
@@ -915,10 +911,10 @@ impl IncomingTransfer {
             return Err(io::Error::other("checkpoint chunk exceeds bounds"));
         }
         if offset == self.bytes.len() {
-            self.bytes.extend_from_slice(&decoded);
+            self.bytes.extend_from_slice(decoded);
         } else if offset > self.bytes.len()
             || end > self.bytes.len()
-            || self.bytes[offset..end] != decoded
+            || self.bytes[offset..end] != *decoded
         {
             return Err(io::Error::other("checkpoint chunks must be contiguous"));
         }
@@ -1157,16 +1153,16 @@ mod tests {
             &source.digest_hex(),
         )
         .unwrap();
-        let first = source.encode_chunk(0).unwrap();
-        assert_eq!(incoming.push(0, &first).unwrap(), CHECKPOINT_CHUNK_BYTES);
+        let first = source.chunk(0).unwrap();
+        assert_eq!(incoming.push(0, first).unwrap(), CHECKPOINT_CHUNK_BYTES);
         assert_eq!(
-            incoming.push(0, &first).unwrap(),
+            incoming.push(0, first).unwrap(),
             CHECKPOINT_CHUNK_BYTES,
             "an exact retained chunk returns only its own end offset"
         );
         assert!(
             incoming
-                .push(0, &URL_SAFE_NO_PAD.encode(vec![8; CHECKPOINT_CHUNK_BYTES]))
+                .push(0, &[8; CHECKPOINT_CHUNK_BYTES])
                 .is_err(),
             "a changed retry must not receive credit for retained bytes"
         );
@@ -1174,7 +1170,7 @@ mod tests {
             incoming
                 .push(
                     CHECKPOINT_CHUNK_BYTES,
-                    &source.encode_chunk(CHECKPOINT_CHUNK_BYTES).unwrap(),
+                    source.chunk(CHECKPOINT_CHUNK_BYTES).unwrap(),
                 )
                 .unwrap(),
             source.bytes.len()

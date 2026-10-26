@@ -149,8 +149,10 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
         request.payload.assign(reinterpret_cast<const char*>(bootstrap.nonce), sizeof(bootstrap.nonce));
         HelperMessage response;
         uint8_t header[HeaderSize];
+        uint16_t version = 0;
         authenticated = WriteFrame(pipe.value, request) && ReadFrame(pipe.value, response, header, 0)
-            && response.id == 1 && response.payload == "SF4N";
+            && response.id == 1 && ReadAuthenticationAnswer(response.payload, version);
+        ipcVersion_ = version;
         SecureZeroMemory(&request.payload[0], request.payload.size());
     } else { error_ = ERROR_ACCESS_DENIED; }
     SecureZeroMemory(&bootstrap, sizeof(bootstrap));

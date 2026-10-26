@@ -18,6 +18,7 @@
 #include <deque>
 #include <map>
 #include <optional>
+#include <string_view>
 #include <nlohmann/json_fwd.hpp>
 
 namespace sf4e { namespace session {
@@ -286,7 +287,9 @@ private:
 		const std::set<std::string>& connected);
 	bool BeginPeerSession(std::map<Connection, Peer>::iterator peer, std::uint64_t incarnation);
 	bool PeerDeparted(std::map<Connection, Peer>::iterator peer);
-	bool ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, const nlohmann::json& event);
+	// `body` is the payload of a raw-body helper frame, which `event` then lacks.
+	bool ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, const nlohmann::json& event,
+		std::optional<std::string_view> body);
 	std::map<std::string, std::uint64_t> memberIncarnations_;
 	std::set<std::string> committedMembers_;
 	bool haveCommittedMembers_ = false;
@@ -299,10 +302,13 @@ private:
 	bool Queue(std::deque<Message>& destination, Message message);
 	void Fail(const char* code);
 	bool ConsumeGameEvent(const nlohmann::json& event, const std::string& type);
-    bool ConsumeCoordinationEvent(const nlohmann::json& event, const std::string& type);
+    // `body`, when set, is a raw-body frame's checkpoint chunk.
+    bool ConsumeCoordinationEvent(const nlohmann::json& event, const std::string& type,
+        std::optional<std::string_view> body = std::nullopt);
     // Poll branches; false stops Poll for this tick.
     bool HandleConnected(const nlohmann::json& event);
-    bool HandleControlTraffic(const nlohmann::json& event, const std::string& type);
+    bool HandleControlTraffic(const nlohmann::json& event, const std::string& type,
+        std::optional<std::string_view> body = std::nullopt);
     bool HandleHelperError(const nlohmann::json& event);
     void PumpCheckpoint();
     // 1 deliver, 0 park at the client queue head, -1 drop. Parses a message

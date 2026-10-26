@@ -2,7 +2,18 @@
 use super::*;
 
 impl Actor {
+    #[cfg(test)]
     pub(super) fn start_outgoing_checkpoint(&mut self, transfer: CheckpointTransfer) {
+        self.export_checkpoint(transfer, false);
+    }
+
+    /// Starts the export of a committed checkpoint. `own` is set when the
+    /// commit is this helper's pending proposal, which the native side sent
+    /// and may still hold: it is offered a `checkpoint_committed_local`
+    /// marker in place of the bytes, and answers with the full length
+    /// (decoded from its copy) or 0 (send it all). Either answer, or the
+    /// transfer timeout, ends the marker; 0 turns it into the full transfer.
+    pub(super) fn export_checkpoint(&mut self, transfer: CheckpointTransfer, own: bool) {
         // One native receiver owns one reassembly buffer. Never replace an
         // export already in flight; the newly committed revision remains in
         // the replicated state machine and the watcher starts it after the
@@ -25,6 +36,7 @@ impl Actor {
             end_sent: false,
             begin_sent: false,
             started: tokio::time::Instant::now(),
+            local: own,
         });
         // A completed transfer is not visible to native code until its marker
         // arrives. Preserve revision order when a new commit becomes available
@@ -117,7 +129,7 @@ impl Actor {
         base_revision: u64,
         revision: u64,
         offset: u32,
-        data: String,
+        data: crate::wire::IpcBytes,
     ) -> io::Result<()> {
         let mut retry = false;
         let next_offset = if let Some(incoming) = self.incoming_transfer.as_mut() {
@@ -130,32 +142,28 @@ impl Actor {
                 Err(failed("invalid checkpoint identity"))
             } else {
                 incoming
-                    .push(offset as usize, &data)
+                    .push(offset as usize, &data.0)
                     .map(|acknowledged| acknowledged as u32)
             }
         } else if let Some((pending, cursor)) = self.pending_checkpoint_retry.as_mut() {
             retry = true;
-            let decoded = URL_SAFE_NO_PAD
-                .decode(data.as_bytes())
-                .map_err(|_| failed("invalid checkpoint retry chunk"));
-            decoded.and_then(|decoded| {
-                let end = (*cursor).saturating_add(decoded.len());
-                if pending.epoch != epoch
-                    || pending.room != room
-                    || pending.transfer != transfer
-                    || pending.term != term
-                    || pending.base_revision != base_revision
-                    || pending.revision != revision
-                    || offset as usize != *cursor
-                    || decoded.is_empty()
-                    || decoded.len() > CHECKPOINT_CHUNK_BYTES
-                    || end > pending.length
-                {
-                    return Err(failed("invalid checkpoint retry chunk"));
-                }
+            let end = (*cursor).saturating_add(data.0.len());
+            if pending.epoch != epoch
+                || pending.room != room
+                || pending.transfer != transfer
+                || pending.term != term
+                || pending.base_revision != base_revision
+                || pending.revision != revision
+                || offset as usize != *cursor
+                || data.0.is_empty()
+                || data.0.len() > CHECKPOINT_CHUNK_BYTES
+                || end > pending.length
+            {
+                Err(failed("invalid checkpoint retry chunk"))
+            } else {
                 *cursor = end;
                 Ok(end as u32)
-            })
+            }
         } else {
             Err(failed("checkpoint transfer missing"))
         };
@@ -322,7 +330,7 @@ impl Actor {
                 false,
             );
         }
-        if self
+        let own = self
             .pending_checkpoint_proposal
             .as_ref()
             .is_some_and(|key| {
@@ -335,15 +343,15 @@ impl Actor {
                     && key.revision == transfer.revision
                     && key.length == transfer.bytes.len()
                     && key.digest == transfer.digest
-            })
-        {
+            });
+        if own {
             // Durable local application, rather than the client-write waiter,
             // completes proposal ownership. A late worker result is fenced by
             // the missing key and cannot replay the effect twice.
             self.pending_checkpoint_proposal = None;
             self.pending_checkpoint_retry = None;
         }
-        self.start_outgoing_checkpoint(transfer);
+        self.export_checkpoint(transfer, own);
         Ok(())
     }
 
@@ -444,6 +452,29 @@ impl Actor {
         if offset as usize > outgoing.transfer.bytes.len() {
             return self.error(0, "invalid_checkpoint_ack");
         }
+        if outgoing.local {
+            // The answer to a `checkpoint_committed_local` marker: the full
+            // length when the native side decoded the proposal it still
+            // held, which also marks the revision exported, or 0 when it no
+            // longer had that copy, which sends the whole transfer instead.
+            if !outgoing.begin_sent {
+                return self.error(0, "invalid_checkpoint_ack");
+            }
+            if offset as usize == outgoing.transfer.bytes.len() {
+                let revision = outgoing.transfer.revision;
+                self.outgoing_transfer = None;
+                self.last_exported_revision = revision;
+                return Ok(());
+            }
+            if offset != 0 {
+                return self.error(0, "invalid_checkpoint_ack");
+            }
+            outgoing.local = false;
+            outgoing.begin_sent = false;
+            outgoing.started = tokio::time::Instant::now();
+            self.pump_outgoing_checkpoint();
+            return Ok(());
+        }
         if offset as usize == outgoing.transfer.bytes.len() && outgoing.end_sent {
             let finished = outgoing.transfer.transfer;
             let transfer = outgoing.transfer.clone();
@@ -488,6 +519,26 @@ impl Actor {
             return;
         };
         let transfer = &outgoing.transfer;
+        if outgoing.local {
+            // The commit is the proposal the native side sent: one marker
+            // with its identity takes the place of the whole transfer.
+            if !outgoing.begin_sent
+                && self.emit_bulk(Event::CheckpointCommittedLocal {
+                    epoch: self.epoch,
+                    room: transfer.room,
+                    transfer: transfer.transfer,
+                    term: transfer.term,
+                    base_revision: transfer.base_revision,
+                    revision: transfer.revision,
+                    length: transfer.bytes.len() as u32,
+                    digest: transfer.digest_hex(),
+                })
+            {
+                outgoing.begin_sent = true;
+            }
+            self.outgoing_transfer = Some(outgoing);
+            return;
+        }
         if !outgoing.begin_sent {
             if !self.emit_bulk(Event::CheckpointBegin {
                 epoch: self.epoch,
@@ -509,7 +560,8 @@ impl Actor {
         {
             let offset = outgoing.next_offset;
             let end = (offset + CHECKPOINT_CHUNK_BYTES).min(transfer.bytes.len());
-            let data = URL_SAFE_NO_PAD.encode(&transfer.bytes[offset..end]);
+            // Raw bytes: the IPC writer sends them as a frame's body.
+            let data = crate::wire::IpcBytes(transfer.bytes[offset..end].to_vec());
             if !self.emit_bulk(Event::CheckpointChunk {
                 epoch: self.epoch,
                 room: transfer.room,
@@ -597,7 +649,7 @@ impl Actor {
                 && self.outgoing_transfer.is_none()
                 && self.pending_checkpoint_committed.is_none()
             {
-                self.start_outgoing_checkpoint(transfer);
+                self.export_checkpoint(transfer, true);
             }
         }
         self.last_coordination_state = None;

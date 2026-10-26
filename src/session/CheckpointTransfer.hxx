@@ -4,6 +4,7 @@
 #include <array>
 #include <algorithm>
 #include <optional>
+#include <string_view>
 
 namespace sf4e { namespace coordination {
 constexpr std::size_t MaximumCheckpoint = 1024 * 1024;
@@ -49,13 +50,20 @@ public:
             active_=true; complete_=false; began_=now; return true;
         } catch (const nlohmann::json::exception&) { return false; }
     }
-    bool Chunk(const nlohmann::json& message) {
+    // `raw` is the body of a raw-body helper frame: the chunk's bytes as they
+    // are. Without it the chunk is the base64 "data" field of a JSON message.
+    bool Chunk(const nlohmann::json& message, std::optional<std::string_view> raw = std::nullopt) {
         try {
             if (!active_ || complete_ || !identity_.Matches(message) || message.at("offset")!=bytes_.size()) return false;
+            const auto received=bytes_.size();
+            if (raw) {
+                if (raw->empty() || raw->size()>CheckpointChunk || raw->size()>identity_.length-received) return false;
+                bytes_.append(raw->data(), raw->size());
+                return true;
+            }
             // Decoded straight onto the body, read in place: no copy of the
             // text and no intermediate buffer. A rejected chunk leaves the
             // body as it was.
-            const auto received=bytes_.size();
             if (!DecodeAppend(message.at("data").get_ref<const std::string&>(),bytes_,CheckpointChunk)) return false;
             const auto decoded=bytes_.size()-received;
             if (!decoded || decoded>identity_.length-received) { bytes_.resize(received); return false; }
@@ -70,22 +78,35 @@ public:
         } catch (const nlohmann::json::exception&) { return false; }
     }
     std::optional<std::size_t> CompleteReplayAcknowledgment(
-        const nlohmann::json& message, const std::string& type) const {
+        const nlohmann::json& message, const std::string& type,
+        std::optional<std::string_view> raw = std::nullopt) const {
         if (!active_ || !complete_) return std::nullopt;
         try {
             if (!identity_.Matches(message)) return std::nullopt;
             if (type == "checkpoint_chunk") {
                 const auto offset = message.at("offset").get<std::size_t>();
                 std::string decoded;
-                if (!DecodeAppend(message.at("data").get_ref<const std::string&>(), decoded, CheckpointChunk) || decoded.empty() ||
-                    offset > bytes_.size() || decoded.size() > bytes_.size() - offset ||
-                    bytes_.compare(offset, decoded.size(), decoded) != 0) return std::nullopt;
-                return offset + decoded.size();
+                if (!raw && !DecodeAppend(message.at("data").get_ref<const std::string&>(), decoded, CheckpointChunk)) return std::nullopt;
+                const std::string_view chunk = raw ? *raw : std::string_view(decoded);
+                if (chunk.empty() || chunk.size() > CheckpointChunk ||
+                    offset > bytes_.size() || chunk.size() > bytes_.size() - offset ||
+                    bytes_.compare(offset, chunk.size(), chunk.data(), chunk.size()) != 0) return std::nullopt;
+                return offset + chunk.size();
             }
             if (type == "checkpoint_end" && message.at("length") == identity_.length &&
                 message.at("digest") == identity_.digest) return identity_.length;
         } catch (const nlohmann::json::exception&) {}
         return std::nullopt;
+    }
+    // Holds `bytes` as the complete body of `identity` without a transfer:
+    // the leader's own proposal, hashed into `identity` when it was made,
+    // which the helper reports committed instead of sending it back. Refused
+    // while another body is held.
+    bool Adopt(const TransferIdentity& identity, std::string bytes, std::uint64_t now) {
+        if (active_ || !identity.transfer || !identity.term || !identity.length ||
+            identity.length>MaximumCheckpoint || bytes.size()!=identity.length) return false;
+        identity_=identity; bytes_=std::move(bytes);
+        active_=complete_=true; began_=now; return true;
     }
     void Reset() { active_=complete_=false; bytes_.clear(); identity_={}; began_=0; }
     bool Expired(std::uint64_t now) const {

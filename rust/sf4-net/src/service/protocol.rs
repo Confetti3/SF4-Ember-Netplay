@@ -111,7 +111,8 @@ pub enum Command {
         base_revision: u64,
         revision: u64,
         offset: u32,
-        data: String,
+        /// Base64 in a JSON payload; the body of a raw-body frame.
+        data: crate::wire::IpcBytes,
     },
     CheckpointEnd {
         epoch: u64,
@@ -205,7 +206,8 @@ pub enum Event {
         base_revision: u64,
         revision: u64,
         offset: u32,
-        data: String,
+        /// Base64 in a JSON payload; the body of a raw-body frame.
+        data: crate::wire::IpcBytes,
     },
     CheckpointEnd {
         epoch: u64,
@@ -224,6 +226,20 @@ pub enum Event {
         offset: u32,
     },
     CheckpointCommitted {
+        epoch: u64,
+        room: [u8; 16],
+        transfer: u64,
+        term: u64,
+        base_revision: u64,
+        revision: u64,
+        length: u32,
+        digest: String,
+    },
+    /// In place of `checkpoint_begin` through `checkpoint_committed` when the
+    /// commit is the proposal this native side sent: it decodes its own copy
+    /// and answers with `checkpoint_ack` at `length`, or at 0 for the full
+    /// transfer when it no longer holds that copy.
+    CheckpointCommittedLocal {
         epoch: u64,
         room: [u8; 16],
         transfer: u64,

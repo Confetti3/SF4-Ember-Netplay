@@ -412,8 +412,7 @@ async fn near_limit_checkpoint_obeys_four_credit_window_and_cumulative_acks() {
                         ..
                     } => {
                         assert_eq!(offset as usize, received);
-                        let decoded = URL_SAFE_NO_PAD.decode(&data).unwrap();
-                        received += decoded.len();
+                        received += data.0.len();
                         target
                             .checkpoint_chunk(
                                 1,
@@ -3283,7 +3282,7 @@ async fn held_checkpoint_and_admission_writes_do_not_block_actor_or_import_stale
                     base_revision: 0,
                     revision: 1,
                     offset: 0,
-                    data: URL_SAFE_NO_PAD.encode(&body),
+                    data: crate::wire::IpcBytes(body.clone()),
                 },
             ))
             .await
@@ -3359,7 +3358,7 @@ async fn held_checkpoint_and_admission_writes_do_not_block_actor_or_import_stale
                     base_revision: 0,
                     revision: 1,
                     offset: 0,
-                    data: URL_SAFE_NO_PAD.encode(&body),
+                    data: crate::wire::IpcBytes(body.clone()),
                 },
             ))
             .await
@@ -3927,6 +3926,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
     });
     let bytes = serde_json::to_vec(&body).unwrap();
     let digest = recovery::hex_digest(&recovery::sha256(&bytes));
+    let digest_hex = digest.clone();
     host_commands
         .send(Request {
             id: 2,
@@ -3956,7 +3956,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
                     base_revision: 0,
                     revision: 1,
                     offset: offset as u32,
-                    data: URL_SAFE_NO_PAD.encode(chunk),
+                    data: crate::wire::IpcBytes(chunk.to_vec()),
                 },
             })
             .await
@@ -3982,14 +3982,29 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
     let replayed = "committed checkpoint replayed to the guest";
     let guest_started = phase(replayed, Duration::from_secs(15), async {
         let mut guest_started = false;
-        loop {
+        let mut guest_committed = false;
+        let mut host_marked = false;
+        while !guest_committed || !host_marked {
             tokio::select! {
                 event = host_events.recv() => match event.unwrap() {
+                    // The host proposed this commit itself: it gets one marker
+                    // in place of the transfer and answers it at full length.
+                    Event::CheckpointCommittedLocal { transfer, revision, length, digest: marked, .. } => {
+                        assert_eq!(transfer, 7);
+                        assert_eq!(revision, 1);
+                        assert_eq!(length as usize, bytes.len());
+                        assert_eq!(marked, digest_hex);
+                        host_marked = true;
+                        host_commands.send(Request { id: 23, command: Command::CheckpointAck { epoch: 1, room, transfer, offset: length } }).await.unwrap();
+                    }
+                    Event::CheckpointBegin { transfer: 7, .. } => {
+                        panic!("the host's own commit came back as a full transfer");
+                    }
                     Event::CheckpointBegin { transfer, .. } => {
                         host_commands.send(Request { id: 20, command: Command::CheckpointAck { epoch: 1, room, transfer, offset: 0 } }).await.unwrap();
                     }
                     Event::CheckpointChunk { transfer, offset, data, .. } => {
-                        let next = offset + URL_SAFE_NO_PAD.decode(data).unwrap().len() as u32;
+                        let next = offset + data.0.len() as u32;
                         host_commands.send(Request { id: 21, command: Command::CheckpointAck { epoch: 1, room, transfer, offset: next } }).await.unwrap();
                     }
                     Event::CheckpointEnd { transfer, length, .. } => {
@@ -4004,7 +4019,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
                         guest_commands.send(Request { id: 30, command: Command::CheckpointAck { epoch: 1, room, transfer, offset: 0 } }).await.unwrap();
                     }
                     Event::CheckpointChunk { transfer, offset, data, .. } => {
-                        let next = offset + URL_SAFE_NO_PAD.decode(data).unwrap().len() as u32;
+                        let next = offset + data.0.len() as u32;
                         guest_commands.send(Request { id: 31, command: Command::CheckpointAck { epoch: 1, room, transfer, offset: next } }).await.unwrap();
                     }
                     Event::CheckpointEnd { transfer, length, .. } => {
@@ -4013,13 +4028,14 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
                     Event::CheckpointCommitted { transfer, revision, .. } => {
                         assert_eq!(transfer, 7);
                         assert_eq!(revision, 1);
-                        return guest_started;
+                        guest_committed = true;
                     }
                     Event::Error { code, .. } => panic!("guest helper error: {code}"),
                     _ => {},
                 },
             }
         }
+        guest_started
     })
     .await;
     assert!(guest_started);
@@ -7472,6 +7488,7 @@ async fn a_control_message_nested_past_the_native_limit_is_dropped() {
     .unwrap();
 }
 
+mod checkpoint_pipe;
 mod join_deadline;
 mod match_watch;
 mod membership_retirement;

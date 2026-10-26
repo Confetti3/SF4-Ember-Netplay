@@ -46,6 +46,9 @@ bool HelperClient::Start(int readFd, int writeFd) {
     signal(SIGPIPE, SIG_IGN);
     started_ = true;
     readFd_ = readFd; writeFd_ = writeFd;
+    // No authentication exchange carries a version here: the room host and its
+    // stdio helper are built from one tree.
+    ipcVersion_ = IpcVersion;
     state_ = HelperState::Connected;
     worker_ = std::thread(&HelperClient::Run, this, readFd, writeFd);
     return true;

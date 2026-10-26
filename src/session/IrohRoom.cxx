@@ -55,6 +55,12 @@ bool IrohRoom::Command(const std::string& payload) {
 bool IrohRoom::Begin(bool host) {
 	if (state_ != State::Idle || helper_.State() != platform::HelperState::Connected ||
 		epoch_ == (std::numeric_limits<std::uint64_t>::max)()) return false;
+	// Room traffic uses raw-body frames, which only a helper of this IPC
+	// version reads; one from another build is refused here, not mid-room.
+	if (helper_.HelperIpcVersion() != platform::helper_frame::IpcVersion) {
+		spdlog::warn("Room: helper IPC version {} differs from {}", helper_.HelperIpcVersion(), platform::helper_frame::IpcVersion);
+		return false;
+	}
 	// The previous epoch's abandon must reach the helper before this epoch's
 	// command, or the helper answers the new room with leave_in_progress.
 	if (abandonPending_) {
@@ -413,10 +419,11 @@ void IrohRoom::WatchLatency(bool wanted) {
     const auto view=latency_.Due(epoch_, room_, now);
     if (view && watch(view, true)) latency_.Sent(view, epoch_, room_, now);
 }
-bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& type) {
+bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& type,
+    std::optional<std::string_view> body) {
     if (type!="coordination_state" && type!="control_rebound" && type!="checkpoint_begin" &&
         type!="checkpoint_chunk" && type!="checkpoint_end" && type!="checkpoint_ack" &&
-        type!="checkpoint_committed" && type!="probe_result") return false;
+        type!="checkpoint_committed" && type!="checkpoint_committed_local" && type!="probe_result") return false;
     const auto room=event.at("room").get<std::array<std::uint8_t,16>>();
     if (room_==std::array<std::uint8_t,16>{}) room_=room;
     if (room!=room_) return true;
@@ -503,12 +510,12 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
     }
     if (type=="checkpoint_chunk" || type=="checkpoint_end") {
         if(checkpointReceiver_.Complete()) {
-            const auto acknowledged=checkpointReceiver_.CompleteReplayAcknowledgment(event,type);
+            const auto acknowledged=checkpointReceiver_.CompleteReplayAcknowledgment(event,type,body);
             if(acknowledged) acknowledgeCheckpoint(*acknowledged);
             else ++checkpointTransferErrors_;
             return true;
         }
-        const bool accepted=type=="checkpoint_chunk" ? checkpointReceiver_.Chunk(event) : checkpointReceiver_.End(event);
+        const bool accepted=type=="checkpoint_chunk" ? checkpointReceiver_.Chunk(event,body) : checkpointReceiver_.End(event);
         if (!accepted) {
             ++checkpointTransferErrors_;
             checkpointReceiver_.Reset(); error_="invalid_checkpoint_transfer"; return true;
@@ -517,6 +524,24 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         // never enter Command(), whose failure is terminal for normal control.
         acknowledgeCheckpoint(checkpointReceiver_.Offset());
         return true;
+    }
+    if (type=="checkpoint_committed_local") {
+        // The helper committed this room's own proposal and did not send it
+        // back. The copy proposed here becomes the received body, and the
+        // answer is the full length; without that exact copy (a term change,
+        // a checkpoint-scope error or the proposal timeout cleared it) the
+        // answer 0 asks for the full transfer instead.
+        const auto transfer=event.at("transfer").get<std::uint64_t>();
+        const bool own=!proposalBytes_.empty() && !checkpointReceiver_.Active() &&
+            proposalIdentity_.Matches(event) && event.at("length")==proposalIdentity_.length &&
+            event.at("digest")==proposalIdentity_.digest &&
+            checkpointReceiver_.Adopt(proposalIdentity_,proposalBytes_,GetTickCount64());
+        pendingCheckpointAck_=json{{"type","checkpoint_ack"},{"epoch",epoch_},{"room",room_},
+            {"transfer",transfer},{"offset",own ? proposalIdentity_.length : std::size_t(0)}};
+        if (helper_.Send(pendingCheckpointAck_.dump())) pendingCheckpointAck_=nullptr;
+        if (!own) return true;
+        // From here it is a received transfer whose committed marker arrived.
+        return ConsumeCoordinationEvent(event,"checkpoint_committed");
     }
     if (type=="checkpoint_committed") {
         if (!checkpointReceiver_.Complete() || !checkpointReceiver_.Identity().Matches(event) ||
@@ -832,8 +857,20 @@ void IrohRoom::Poll() {
 	// Bound dispatch independently of each transport's application-message cap.
 	for (int budget = 0; budget < 8 && helper_.TryReceive(frame); ++budget) {
 		try {
-			const auto event = json::parse(frame.payload);
+			// A raw-body frame is a JSON header plus the chunk or message body.
+			std::size_t headerSize = 0;
+			const auto kind = platform::helper_frame::SplitPayload(frame.payload, headerSize);
+			if (kind == platform::helper_frame::PayloadKind::Invalid) { Fail("invalid_helper_event"); return; }
+			const char* const header = kind == platform::helper_frame::PayloadKind::Raw ?
+				frame.payload.data() + platform::helper_frame::RawPrefix : nullptr;
+			const auto event = kind == platform::helper_frame::PayloadKind::Raw ?
+				json::parse(header, header + headerSize) : json::parse(frame.payload);
 			const auto type = event.at("type").get<std::string>();
+			std::optional<std::string_view> body;
+			if (kind == platform::helper_frame::PayloadKind::Raw) {
+				if (type != "checkpoint_chunk" && type != "message") { Fail("invalid_helper_event"); return; }
+				body = std::string_view(header + headerSize, frame.payload.size() - platform::helper_frame::RawPrefix - headerSize);
+			}
 			helperLoad_.lastEventMs = GetTickCount64(); helperLoad_.lastEventType = type;
 			if (type == "helper_stall") {
 				spdlog::warn("Helper: actor {} {} after {} ms", event.at("ended").get<bool>() ? "resumed from" : "stuck in",
@@ -901,7 +938,7 @@ void IrohRoom::Poll() {
                 }
             }
 			if (state_ == State::Closing || state_ == State::Idle || state_ == State::Failed) continue;
-			if (ConsumeCoordinationEvent(event,type)) continue;
+			if (ConsumeCoordinationEvent(event,type,body)) continue;
 			if (type == "discord_invite") {
                 const auto token = event.at("secret").get<std::string>();
                 if (token.size()>128 || token.size()<6 || (token.compare(0,5,"emd1:") && token.compare(0,5,"emd2:"))) { Fail("invalid_discord_invite"); return; }
@@ -928,7 +965,7 @@ void IrohRoom::Poll() {
 			} else if (type == "member_latency") {
 				latency_.Read(event, epoch_, room_);
 			} else if (type == "message" || type == "control_closed" || type == "peer_departed" || type == "peer_session") {
-				if (!HandleControlTraffic(event, type)) return;
+				if (!HandleControlTraffic(event, type, body)) return;
 			} else if (type == "error") {
 				if (!HandleHelperError(event)) return;
 			}

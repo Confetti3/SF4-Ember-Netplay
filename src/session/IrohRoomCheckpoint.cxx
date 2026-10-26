@@ -315,10 +315,10 @@ void IrohRoom::PumpCheckpoint() {
     while (proposalSent_<proposalBytes_.size() &&
         proposalSent_-proposalAcknowledged_<4*coordination::CheckpointChunk && budget--) {
         auto message=proposalIdentity_.Envelope("checkpoint_chunk");
-        // Encoded from the proposal in place, without a copy of the chunk.
+        // The chunk goes as the frame's raw body, copied once from the proposal.
         const auto size=(std::min)(coordination::CheckpointChunk,proposalBytes_.size()-proposalSent_);
-        message["offset"]=proposalSent_; message["data"]=coordination::Encode(proposalBytes_.data()+proposalSent_,size);
-        if (!helper_.Send(message.dump())) return;
+        message["offset"]=proposalSent_;
+        if (!helper_.Send(platform::helper_frame::EncodeRawBody(message.dump(),proposalBytes_.data()+proposalSent_,size))) return;
         proposalSent_+=size;
     }
     if (!proposalEnded_ && proposalAcknowledged_==proposalBytes_.size()) {

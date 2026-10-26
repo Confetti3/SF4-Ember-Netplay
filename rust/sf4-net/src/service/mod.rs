@@ -8,7 +8,6 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use iroh::{
     Endpoint, EndpointAddr, EndpointId,
     endpoint::{Connection, RecvStream, SendStream},
@@ -159,7 +158,7 @@ mod stall;
 mod tests;
 
 use entry::TaskScope;
-pub use entry::{run, run_on_port};
+pub use entry::{decode_command, decode_event, encode_command, encode_event, run, run_on_port};
 use events::EventOutbox;
 use join::JoinVia;
 use probes::{selected_probe_route, serve_probe};
@@ -390,6 +389,9 @@ struct OutgoingCheckpoint {
     end_sent: bool,
     begin_sent: bool,
     started: tokio::time::Instant,
+    /// A `checkpoint_committed_local` marker rather than the bytes; its
+    /// marker is out once `begin_sent` is set.
+    local: bool,
 }
 
 #[derive(Clone)]

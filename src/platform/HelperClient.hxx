@@ -61,6 +61,10 @@ public:
             [this] { return !incoming_.Empty() || state_.load() == HelperState::Failed; });
     }
     HelperState State() const { return state_.load(); }
+    // The IPC version the helper's authentication answer carried (0 for a
+    // bare "SF4N"), known once Connected. A stdio helper comes from the same
+    // build, so it has helper_frame::IpcVersion.
+    uint16_t HelperIpcVersion() const { return ipcVersion_.load(); }
     void Stop();
 private:
     // The worker, after pushing to incoming_ or setting Failed. Taking the
@@ -105,6 +109,7 @@ private:
 #endif
     std::thread worker_;
     std::atomic<HelperState> state_{HelperState::Stopped};
+    std::atomic<uint16_t> ipcVersion_{0};
     std::mutex sendMutex_;
     uint64_t nextId_ = 2;
     bool started_ = false;
