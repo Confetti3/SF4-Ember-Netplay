@@ -1,6 +1,11 @@
 #Requires -Version 7
 # Import-safe operations. Invoke-NightlyPublish owns preparation and phase ordering;
 # the entry script supplies the lock, transcript and the build/package operations.
+# Callers also dot-source BuildEnvironment.ps1 (Invoke-StablePublish uses Assert-EmberChannel
+# and Get-EmberBuildTarget) and BuildProvenance.ps1 (Nightly snapshots use its fingerprint).
+# The draft, verify, publish release machine is shared: Invoke-StablePublish (run by
+# github-release.ps1) uses it for Stable, bound to the Stable repository by its channel.
+# Retention stays Nightly-only.
 function Invoke-NightlyNative([string]$Command, [string[]]$Arguments, [string]$InputText) {
     # Bytes, not the string: a piped string gets a CRLF after its last line,
     # which bash reading the script from ssh takes for a command named CR.
@@ -27,6 +32,54 @@ function Test-NightlyTag([string]$Tag) {
     return $Tag -cmatch '^v[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}-nightly[0-9]{8}(\.[0-9]+)?$'
 }
 
+# The channel decides the repository; nothing else does. A channel's build-target.json entry
+# and a pending record can only agree with this list, never widen it.
+function Get-EmberReleaseRepository([string]$Channel) {
+    switch -CaseSensitive ($Channel) {
+        'stable' { return 'Confetti3/SF4-Ember-Netplay' }
+        'nightly' { return 'Confetti3/SF4-Ember-Netplay-Nightly' }
+        default { throw "Unknown release channel: $Channel" }
+    }
+}
+
+function Get-EmberRepositoryChannel([string]$Repository) {
+    foreach ($channel in @('stable', 'nightly')) {
+        if ($Repository -ieq (Get-EmberReleaseRepository $channel)) { return $channel }
+    }
+    throw 'Release operations are confined to the Stable and Nightly repositories.'
+}
+
+function Get-EmberChannelName([string]$Channel) {
+    if ($Channel -ceq 'nightly') { return 'Nightly' }
+    return 'Stable'
+}
+
+# Product release tags: v1.4.1, or a pre-release such as v1.5.0-rc1 or v1.5.0-beta2.
+function Test-StableTag([string]$Tag) {
+    return $Tag -cmatch '^v[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}(-(rc|beta)[0-9]+)?$'
+}
+
+function Test-EmberTag([string]$Repository, [string]$Tag) {
+    if ((Get-EmberRepositoryChannel $Repository) -ceq 'nightly') { return Test-NightlyTag $Tag }
+    return Test-StableTag $Tag
+}
+
+# The one product VERSION line of a CMakeLists.txt, as text and numbers.
+function Get-EmberCMakeVersion([string[]]$Lines) {
+    $versionLines = @($Lines | Where-Object { $_ -match '^\s+VERSION ' })
+    if ($versionLines.Count -ne 1 -or $versionLines[0].Trim() -notmatch '^VERSION (([0-9]{1,9})\.([0-9]{1,9})\.([0-9]{1,9}))$') {
+        throw 'Expected one VERSION X.Y.Z line in CMakeLists.txt.'
+    }
+    return [pscustomobject]@{text=$Matches[1];major=[int]$Matches[2];minor=[int]$Matches[3];patch=[int]$Matches[4]}
+}
+
+# Nightly stays one minor version ahead of Stable, so every Stable release is followed by a renumber.
+function Assert-NightlyMinorAhead([object]$Nightly, [object]$Stable) {
+    if ($Nightly.major -ne $Stable.major -or $Nightly.minor -ne $Stable.minor + 1) {
+        throw "Nightly CMake version $($Nightly.text) must be one minor version ahead of Stable $($Stable.text) (expected $($Stable.major).$($Stable.minor + 1).x); renumber nightly after the Stable release."
+    }
+}
+
 function Select-NightlyReleases([object[]]$Releases) {
     return $Releases | Where-Object { Test-NightlyTag $_.tagName } |
         # A cast, not Parse: ConvertFrom-Json hands a DateTime, and Parse would read
@@ -39,8 +92,8 @@ function Select-NightlyReleases([object[]]$Releases) {
 # fields for a missing tag or release, and a NOT_FOUND error on the repository field
 # when the repository itself is missing. Authentication, network and any other
 # failures stay errors, so they can never be mistaken for an empty history.
-function Invoke-NightlyQuery([string]$Repository, [string]$Query, [hashtable]$Variables = @{}) {
-    Assert-NightlyRepository $Repository
+function Invoke-EmberQuery([string]$Repository, [string]$Query, [hashtable]$Variables = @{}) {
+    Get-EmberRepositoryChannel $Repository | Out-Null
     $owner, $name = $Repository.Split('/')
     $arguments = @('api', 'graphql', '-f', "query=$Query", '-f', "owner=$owner", '-f', "name=$name")
     foreach ($key in @($Variables.Keys | Sort-Object)) { $arguments += @('-f', "$key=$($Variables[$key])") }
@@ -57,6 +110,11 @@ function Invoke-NightlyQuery([string]$Repository, [string]$Query, [hashtable]$Va
     }
     return [pscustomobject]@{status=$status;data=$response.data;
         detail="exit $($result.exitCode): $(($result.output | ForEach-Object { "$_" }) -join "`n")"}
+}
+
+function Invoke-NightlyQuery([string]$Repository, [string]$Query, [hashtable]$Variables = @{}) {
+    Assert-NightlyRepository $Repository
+    return Invoke-EmberQuery $Repository $Query $Variables
 }
 
 # A repository without a default-branch commit has no history to read and cannot take tags.
@@ -104,11 +162,11 @@ function Invoke-NightlyLinuxBuild([string]$ScriptPath, [string]$Revision, [strin
         (ConvertTo-NightlyWslPath $ArchivePath), (ConvertTo-NightlyWslPath $ArtifactsPath)) 'Nightly Linux build or libc dependency check failed.'
 }
 
-function Assert-NightlyCleanHead([string]$SourceRoot, [string]$Revision = '') {
+function Assert-NightlyCleanHead([string]$SourceRoot, [string]$Revision = '', [string]$Subject = 'Nightly') {
     $dirty = @(Invoke-NightlyCommand git @('-C', $SourceRoot, 'status', '--porcelain', '--untracked-files=all') 'Could not check worktree cleanliness.')
-    if ($dirty.Count) { throw "Nightly requires committed source and no untracked non-ignored files:`n$($dirty -join "`n")" }
+    if ($dirty.Count) { throw "$Subject requires committed source and no untracked non-ignored files:`n$($dirty -join "`n")" }
     $head = (Invoke-NightlyCommand git @('-C', $SourceRoot, 'rev-parse', 'HEAD') 'Could not resolve HEAD.').Trim()
-    if ($head -cnotmatch '^[0-9a-f]{40}$' -or ($Revision -and $head -cne $Revision)) { throw 'Source commit changed during the Nightly run.' }
+    if ($head -cnotmatch '^[0-9a-f]{40}$' -or ($Revision -and $head -cne $Revision)) { throw "Source commit changed during the $Subject run." }
     return $head
 }
 
@@ -225,21 +283,53 @@ function Invoke-NightlyHostStage([object]$Destination, [string]$BuildId, [object
     }
 }
 
-# The release and tag behind one Nightly tag. GraphQL finds draft releases too (REST's
-# by-tag endpoint only finds published ones), then full REST metadata is read by
+# The release and tag behind one tag of the Stable or Nightly repository. GraphQL finds draft releases
+# too (REST's by-tag endpoint only finds published ones), then full REST metadata is read by
 # database ID, as gh does: https://github.com/cli/cli/blob/trunk/pkg/cmd/release/shared/fetch.go
-function Get-NightlyTagState([string]$Repository, [string]$Tag) {
-    if (!(Test-NightlyTag $Tag)) { throw 'Invalid Nightly tag.' }
+function Get-EmberTagState([string]$Repository, [string]$Tag) {
+    $name = Get-EmberChannelName (Get-EmberRepositoryChannel $Repository)
+    if (!(Test-EmberTag $Repository $Tag)) { throw "Invalid $name tag." }
     $query = 'query($owner: String!, $name: String!, $tag: String!, $ref: String!) { repository(owner: $owner, name: $name) { release(tagName: $tag) { databaseId } ref(qualifiedName: $ref) { target { oid } } } }'
-    $outcome = Invoke-NightlyQuery $Repository $query @{tag=$Tag;ref="refs/tags/$Tag"}
-    if ($outcome.status -cne 'found') { throw "Could not resolve Nightly release identity ($($outcome.status)): $($outcome.detail)" }
+    $outcome = Invoke-EmberQuery $Repository $query @{tag=$Tag;ref="refs/tags/$Tag"}
+    if ($outcome.status -cne 'found') { throw "Could not resolve $name release identity ($($outcome.status)): $($outcome.detail)" }
     $release = $null
     $id = $outcome.data.repository.release.databaseId
     if ($id) {
-        if ("$id" -notmatch '^[1-9][0-9]*$') { throw 'Invalid Nightly release database ID.' }
-        $release = Invoke-NightlyCommand gh @('api', "repos/$Repository/releases/$id") 'Could not inspect Nightly release.' | ConvertFrom-Json
+        if ("$id" -notmatch '^[1-9][0-9]*$') { throw "Invalid $name release database ID." }
+        $release = Invoke-NightlyCommand gh @('api', "repos/$Repository/releases/$id") "Could not inspect $name release." | ConvertFrom-Json
     }
     return [pscustomobject]@{release=$release;tagSha=[string]$outcome.data.repository.ref.target.oid}
+}
+
+# Retention and every other Nightly-only caller stay confined to the Nightly repository.
+function Get-NightlyTagState([string]$Repository, [string]$Tag) {
+    if (!(Test-NightlyTag $Tag)) { throw 'Invalid Nightly tag.' }
+    Assert-NightlyRepository $Repository
+    return Get-EmberTagState $Repository $Tag
+}
+
+# What a prepared record means for its channel. The repository comes from the channel, never from
+# the record: the record must agree with it. Records written before Stable used this machine have
+# no channel and are Nightly. Stable's tag already exists on the remote (the draft is made with
+# --verify-tag) and it becomes Latest only when it is published; Nightly's tag is created by the
+# publication itself and is never Latest.
+function Get-EmberReleasePlan([object]$Pending) {
+    $channel = [string]$Pending.channel
+    if (!$channel) { $channel = 'nightly' }
+    $repository = Get-EmberReleaseRepository $channel
+    if ([string]$Pending.repository -ine $repository) {
+        throw "A $channel release can only be published to $repository."
+    }
+    $name = Get-EmberChannelName $channel
+    if ($channel -ceq 'nightly') {
+        return [pscustomobject]@{channel=$channel;name=$name;repository=$repository;prerelease=$true;latest=$false;
+            tagMustExist=$false;title="SF4 Ember Netplay Nightly $($Pending.label)"}
+    }
+    if (!(Test-StableTag $Pending.tag)) { throw 'Invalid Stable tag.' }
+    $prerelease = [bool]$Pending.prerelease
+    if ($prerelease -ne ($Pending.tag -cmatch '-(rc|beta)[0-9]+$')) { throw 'The Stable tag and its pre-release flag disagree.' }
+    return [pscustomobject]@{channel=$channel;name=$name;repository=$repository;prerelease=$prerelease;latest=!$prerelease;
+        tagMustExist=$true;title="SF4 Ember Netplay $($Pending.tag)"}
 }
 
 # The notes exactly as hashed when the record was prepared, read once per publication.
@@ -247,9 +337,10 @@ function Read-NightlyNotes([object]$Pending) {
     return (Read-NightlyPinnedText $Pending.notes).TrimStart([char]0xFEFF).Replace("`r`n", "`n").TrimEnd()
 }
 
-function Assert-NightlyReleaseIdentity([object]$Release, [object]$Pending, [string]$Notes, [switch]$AllowIncomplete) {
-    if ($Release.tag_name -cne $Pending.tag -or !$Release.prerelease -or
-        ([string]$Release.body).Replace("`r`n", "`n").TrimEnd() -cne $Notes) { throw 'Existing release does not match the prepared Nightly identity.' }
+function Assert-EmberReleaseIdentity([object]$Release, [object]$Pending, [string]$Notes, [switch]$AllowIncomplete) {
+    $plan = Get-EmberReleasePlan $Pending
+    if ($Release.tag_name -cne $Pending.tag -or [bool]$Release.prerelease -ne $plan.prerelease -or
+        ([string]$Release.body).Replace("`r`n", "`n").TrimEnd() -cne $Notes) { throw "Existing release does not match the prepared $($plan.name) identity." }
     foreach ($asset in $Release.assets) {
         $expected = @($Pending.assets | Where-Object name -CEQ $asset.name)
         if ($expected.Count -ne 1) { throw "Unexpected remote asset: $($asset.name)" }
@@ -261,14 +352,19 @@ function Assert-NightlyReleaseIdentity([object]$Release, [object]$Pending, [stri
 }
 
 # Decides the one remote step that moves the observed release towards the prepared one.
-function Get-NightlyNextStep([object]$State, [object]$Pending, [string]$Notes) {
+function Get-EmberNextStep([object]$State, [object]$Pending, [string]$Notes) {
+    $plan = Get-EmberReleasePlan $Pending
     $release = $State.release
     if (!$release) {
-        # A tag without our release is a collision, never a recovery target.
-        if ($State.tagSha) { throw 'Prepared Nightly tag already exists without its release; refusing to reuse it.' }
+        if ($plan.tagMustExist) {
+            if (!$State.tagSha) { throw "The $($plan.name) release tag is not on the remote; push it before publishing." }
+        } elseif ($State.tagSha) {
+            # A tag without our release is a collision, never a recovery target.
+            throw 'Prepared Nightly tag already exists without its release; refusing to reuse it.'
+        }
         return [pscustomobject]@{action='create';target=$Pending.tag}
     }
-    Assert-NightlyReleaseIdentity $release $Pending $Notes -AllowIncomplete
+    Assert-EmberReleaseIdentity $release $Pending $Notes -AllowIncomplete
     # GitHub can leave a zero-byte starter asset when an upload is interrupted.
     # Repair only that incomplete asset in our draft; never replace public bytes.
     foreach ($asset in @($release.assets)) {
@@ -279,49 +375,74 @@ function Get-NightlyNextStep([object]$State, [object]$Pending, [string]$Notes) {
     }
     foreach ($asset in $Pending.assets) {
         if (@($release.assets | Where-Object name -CEQ $asset.name).Count) { continue }
-        if (!$release.draft) { throw 'Published Nightly has missing assets; refusing to change public artifacts.' }
+        if (!$release.draft) { throw "Published $($plan.name) has missing assets; refusing to change public artifacts." }
         return [pscustomobject]@{action='upload';target=$asset.path}
     }
-    if (@($release.assets).Count -ne @($Pending.assets).Count) { throw 'Nightly draft asset set is incomplete.' }
+    if (@($release.assets).Count -ne @($Pending.assets).Count) { throw "$($plan.name) draft asset set is incomplete." }
     if ($release.draft) { return [pscustomobject]@{action='publish';target=$Pending.tag} }
     return [pscustomobject]@{action='done';target=$Pending.tag}
 }
 
-function Publish-NightlyRelease([object]$Pending) {
-    Assert-NightlyRepository $Pending.repository
-    if ($Pending.phase -cne 'staged') { throw 'Nightly publication requires verified staging first.' }
+# Draft, upload, verify every asset digest against the record, then publish: for either channel.
+function Publish-EmberRelease([object]$Pending) {
+    $plan = Get-EmberReleasePlan $Pending
+    $name = $plan.name
+    if ($Pending.phase -cne 'staged') { throw "$name publication requires verified staging first." }
     Assert-NightlyArtifacts @($Pending.assets)
     # The draft is created from, and compared with, this verified text; the file is not read again.
     $notes = Read-NightlyNotes $Pending
-    $repository = $Pending.repository
+    $repository = $plan.repository
     $previous = $null
     # Read, take one step, read back. The read after a mutation is its verification:
     # a step that is still due right after it ran was not confirmed.
     for ($pass = 0; $pass -lt 2 * @($Pending.assets).Count + 4; $pass++) {
-        $step = Get-NightlyNextStep (Get-NightlyTagState $repository $Pending.tag) $Pending $notes
+        $step = Get-EmberNextStep (Get-EmberTagState $repository $Pending.tag) $Pending $notes
         if ($step.action -ceq 'done') { return "https://github.com/$repository/releases/tag/$($Pending.tag)" }
         if ($previous -and $previous.action -ceq $step.action -and $previous.target -ceq $step.target) {
-            throw "Nightly $($step.action) of $($step.target) could not be confirmed by reading the release back."
+            throw "$name $($step.action) of $($step.target) could not be confirmed by reading the release back."
         }
         switch ($step.action) {
             'create' {
-                Invoke-NightlyCommand gh @('release', 'create', $Pending.tag, '--repo', $repository,
-                    '--draft', '--prerelease', '--title', "SF4 Ember Netplay Nightly $($Pending.label)", '--notes', $notes) 'Could not create the Nightly draft.' | Out-Null
+                $arguments = @('release', 'create', $Pending.tag, '--repo', $repository, '--draft')
+                if ($plan.prerelease) { $arguments += '--prerelease' }
+                if ($plan.tagMustExist) { $arguments += '--verify-tag' }
+                $arguments += @('--title', $plan.title)
+                if ($plan.channel -ceq 'nightly') {
+                    $arguments += @('--notes', $notes)
+                    Invoke-NightlyCommand gh $arguments "Could not create the $name draft." | Out-Null
+                } else {
+                    # Stable notes are long enough to approach the command-line limit, so the verified
+                    # text goes through a private file written from it, not from the release-notes file.
+                    $notesFile = [IO.Path]::Combine([IO.Path]::GetTempPath(), "release-notes-$([Guid]::NewGuid().ToString('N')).md")
+                    try {
+                        [IO.File]::WriteAllText($notesFile, $notes, [Text.UTF8Encoding]::new($false))
+                        Invoke-NightlyCommand gh ($arguments + @('--notes-file', $notesFile)) "Could not create the $name draft." | Out-Null
+                    } finally { if (Test-Path -LiteralPath $notesFile) { Remove-Item -LiteralPath $notesFile } }
+                }
             }
             'delete-asset' {
                 Invoke-NightlyCommand gh @('api', '--method', 'DELETE',
-                    "repos/$repository/releases/assets/$($step.target)") 'Could not remove incomplete Nightly draft upload.' | Out-Null
+                    "repos/$repository/releases/assets/$($step.target)") "Could not remove incomplete $name draft upload." | Out-Null
             }
             'upload' {
-                Invoke-NightlyCommand gh @('release', 'upload', $Pending.tag, $step.target, '--repo', $repository) 'Could not upload Nightly draft asset.' | Out-Null
+                Invoke-NightlyCommand gh @('release', 'upload', $Pending.tag, $step.target, '--repo', $repository) "Could not upload $name draft asset." | Out-Null
             }
             'publish' {
-                Invoke-NightlyCommand gh @('release', 'edit', $Pending.tag, '--repo', $repository, '--draft=false') 'Nightly GitHub publication failed.' | Out-Null
+                $arguments = @('release', 'edit', $Pending.tag, '--repo', $repository, '--draft=false')
+                if ($plan.latest) { $arguments += '--latest' }
+                Invoke-NightlyCommand gh $arguments "$name GitHub publication failed." | Out-Null
             }
         }
         $previous = $step
     }
-    throw 'Nightly publication did not settle; inspect the draft before retrying.'
+    throw "$name publication did not settle; inspect the draft before retrying."
+}
+
+# Complete-NightlyPublication publishes through this wrapper, so it stays Nightly-only.
+function Publish-NightlyRelease([object]$Pending) {
+    Assert-NightlyRepository $Pending.repository
+    if ([string]$Pending.channel -and [string]$Pending.channel -cne 'nightly') { throw 'Nightly publication cannot publish another channel.' }
+    return Publish-EmberRelease $Pending
 }
 
 # Both recorded identities are checked on every read, before any deletion: a replaced
@@ -504,11 +625,8 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
         }
     } else { Write-Host 'No previous Nightly release; collecting notes since origin/release.' }
 
-    $versionLines = @(Get-Content -LiteralPath (Join-Path $CheckoutRoot 'CMakeLists.txt') | Where-Object { $_ -match '^\s+VERSION ' })
-    if ($versionLines.Count -ne 1 -or $versionLines[0].Trim() -notmatch '^VERSION ([0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9})$') {
-        throw 'Expected one VERSION X.Y.Z line in CMakeLists.txt.'
-    }
-    $baseLabel = "$($Matches[1])-nightly$((& $Operations.Now).ToUniversalTime().ToString('yyyyMMdd', [cultureinfo]::InvariantCulture))"
+    $nightlyVersion = Get-EmberCMakeVersion @(Get-Content -LiteralPath (Join-Path $CheckoutRoot 'CMakeLists.txt'))
+    $baseLabel = "$($nightlyVersion.text)-nightly$((& $Operations.Now).ToUniversalTime().ToString('yyyyMMdd', [cultureinfo]::InvariantCulture))"
     # Include tags without releases as well.
     $existingTags = @()
     if ($repositoryFound) {
@@ -525,16 +643,25 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     $nightlyTag = "v$nightlyLabel"
     $notesPath = Join-Path $OutDirectory "nightly-$nightlyLabel.md"
     $baseline = $previousSource
+    $releaseFetched = $false
     if (!$baseline) {
         $baseline = 'origin/release'
         if ($Local) {
             Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'cat-file', '-e', "$baseline^{commit}") 'Local mode requires an existing origin/release ref for the initial changelog baseline; fetch it before running with -Local.' | Out-Null
         } else {
             Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'fetch', 'origin', 'release') 'Could not fetch the initial Stable changelog baseline.' | Out-Host
+            $releaseFetched = $true
         }
     } else {
         Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'cat-file', '-e', "$baseline^{commit}") 'Previous Nightly Source commit is unavailable locally; restore its history before publishing.' | Out-Null
     }
+    # The one-minor-ahead rule reads Stable's current version, so a stale origin/release must not be used.
+    # -Local does not fetch; it fails closed when the ref or its CMakeLists.txt is missing.
+    if (!$Local -and !$releaseFetched) {
+        Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'fetch', 'origin', 'release') 'Could not fetch the Stable release branch for the Nightly version check.' | Out-Host
+    }
+    $stableLines = @(Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'show', 'origin/release:CMakeLists.txt') 'Could not read origin/release:CMakeLists.txt for the Nightly version check; fetch origin release first.')
+    Assert-NightlyMinorAhead $nightlyVersion (Get-EmberCMakeVersion ($stableLines | ForEach-Object { "$_" }))
     $commitRange = "$baseline..$sourceRevision"
     $subjects = @(Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'log', '--first-parent', '--max-count=60', '--format=%s', $commitRange) 'Could not collect Nightly commit subjects.')
     $commitCount = [int](Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'rev-list', '--first-parent', '--count', $commitRange) 'Could not count Nightly commits.')
@@ -595,7 +722,7 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     if (!$WhatIf) {
         $destinations = if (!$SkipRoomHosts) { @(Get-NightlyRoomDestinations) } else { @() }
         $pending = [pscustomobject]@{
-            repository=$releaseRepository;tag=$nightlyTag;label=$nightlyLabel;phase='prepared'
+            repository=$releaseRepository;channel='nightly';tag=$nightlyTag;label=$nightlyLabel;phase='prepared'
             snapshot=$snapshot;buildId=$publicBuildId;destinations=@($destinations)
             assets=@($releaseAssets | ForEach-Object { Get-NightlyArtifact $_ })
             notes=(Get-NightlyArtifact $notesPath)
@@ -616,4 +743,91 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
         Write-Host "Asset: $asset  SHA-256: $((Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant())"
     }
     Write-Host "Pruned tags: $(if ($prunedTags.Count) { $prunedTags -join ', ' } else { '(none)' })"
+}
+
+# The whole Stable release below github-release.ps1. $Operations supplies what packages
+# (scriptblocks: Target, Package, Upgrade, Installer); git and gh go through Invoke-NightlyCommand.
+# The repository is the Stable channel's, never an argument. The tag is pushed first, the release
+# is made as a draft, every asset is read back against its recorded SHA-256, and only then is it
+# published (and made Latest). The prepared record in the output folder lets a run that stopped
+# partway, such as a failed large upload, continue with the same files; no other run may reuse a
+# draft. $SourceRoot, $OutDirectory and $NotesFile are absolute or relative to $SourceRoot.
+function Invoke-StablePublish([string]$SourceRoot, [string]$Tag, [string]$OutDirectory, [string]$NotesFile,
+                              [string]$PreviousVersion, [hashtable]$Operations) {
+    $target = & $Operations.Target $SourceRoot
+    # Before any git or gh call: a Nightly checkout carries a build that trusts the staging bridge.
+    Assert-EmberChannel $target 'stable' 'Stable publication'
+    $repository = Get-EmberReleaseRepository 'stable'
+    if ($target.githubRepo -and [string]$target.githubRepo -ine $repository) {
+        throw "build-target.json names $($target.githubRepo); Stable publishes only to $repository."
+    }
+    # A pre-release (v1.1.0-rc1, v1.1.0-beta2) reaches only players on the
+    # pre-release update channel and never becomes the latest release.
+    if ($Tag -notmatch '^v([0-9]+\.[0-9]+\.[0-9]+)(-(?:rc|beta)[0-9]+)?$') { throw 'Use a full product release tag, such as v0.8.0 or v0.8.0-rc1.' }
+    $productVersion = $Matches[1]
+    $prerelease = [bool]$Matches[2]
+    $version = $productVersion + $Matches[2]
+    if (![IO.Path]::IsPathRooted($OutDirectory)) { $OutDirectory = Join-Path $SourceRoot $OutDirectory }
+    $revision = Assert-NightlyCleanHead $SourceRoot '' 'Stable publication'
+    $tagRevision = Invoke-NightlyNative git @('-C', $SourceRoot, 'rev-parse', "$Tag^{commit}")
+    if ($tagRevision.exitCode -or "$($tagRevision.output)".Trim() -cne $revision) { throw 'The release tag must point at the current source commit.' }
+    $cmakeVersion = Get-EmberCMakeVersion @(Get-Content -LiteralPath (Join-Path $SourceRoot 'CMakeLists.txt'))
+    if ($cmakeVersion.text -cne $productVersion) { throw 'Tag and CMake product version differ.' }
+    if (!$NotesFile) { $NotesFile = "docs/release-notes/RELEASE_NOTES_$Tag.md" }
+    if (![IO.Path]::IsPathRooted($NotesFile)) { $NotesFile = Join-Path $SourceRoot $NotesFile }
+    if (!(Test-Path -LiteralPath $NotesFile)) { throw "Missing release notes: $NotesFile" }
+    $pendingPath = Join-Path $OutDirectory "release-pending-$Tag.json"
+    if (Test-Path -LiteralPath $pendingPath) {
+        $pending = Get-Content -LiteralPath $pendingPath -Raw | ConvertFrom-Json
+        if ([string]$pending.channel -cne 'stable' -or $pending.tag -cne $Tag -or [string]$pending.repository -ine $repository -or
+            $pending.snapshot.revision -cne $revision) {
+            throw "The pending release record $pendingPath does not match this tag, repository and source commit; check the draft, then remove the record."
+        }
+        Assert-NightlyArtifacts (@($pending.assets) + @($pending.notes))
+        Write-Host "Resuming $Tag from $pendingPath; nothing is repackaged."
+    } else {
+        $state = Get-EmberTagState $repository $Tag
+        if ($state.release) { throw 'The release already exists; refusing to replace published assets.' }
+        if (!$state.tagSha) { throw "The tag $Tag is not on $repository; push it before publishing." }
+        # Pre-releases carry no upgrade package: their testers take the complete one.
+        if (!$prerelease) {
+            if (!$PreviousVersion) {
+                $latest = (Invoke-NightlyCommand gh @('release', 'view', '--repo', $repository, '--json', 'tagName') 'Could not resolve the previous published version.' | ConvertFrom-Json).tagName
+                if ($latest -notmatch '^v([0-9]+\.[0-9]+\.[0-9]+)$') { throw 'Could not resolve the previous published version.' }
+                $PreviousVersion = $Matches[1]
+            }
+            if ($PreviousVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $PreviousVersion -eq $version) { throw 'Invalid previous release version.' }
+            $baseZip = Join-Path $OutDirectory "sf4-ember-netplay-$PreviousVersion.zip"
+            if (!(Test-Path -LiteralPath $baseZip -PathType Leaf) -or !(Test-Path -LiteralPath ($baseZip + '.sha256') -PathType Leaf)) {
+                throw "Keep the verified previous full package and checksum in ${OutDirectory}: sf4-ember-netplay-$PreviousVersion.zip"
+            }
+            $previousAssets = (Invoke-NightlyCommand gh @('release', 'view', "v$PreviousVersion", '--repo', $repository, '--json', 'assets') 'Could not read the previous release assets.' | ConvertFrom-Json).assets
+            $published = @($previousAssets | Where-Object { $_.name -ceq "sf4-ember-netplay-$PreviousVersion.zip" }) | Select-Object -First 1
+            $baseHash = (Get-FileHash -LiteralPath $baseZip -Algorithm SHA256).Hash.ToLowerInvariant()
+            if (!$published -or !$published.digest -or $published.digest -ine "sha256:$baseHash") { throw 'Local previous package does not match the published release asset.' }
+        }
+        $package = & $Operations.Package $OutDirectory $version
+        $assets = @($package.zipPath, "$($package.zipPath).sha256")
+        if (!$prerelease) {
+            $upgradePath = & $Operations.Upgrade $PreviousVersion $version $baseZip $package.zipPath $OutDirectory
+            $assets += @($upgradePath, "$upgradePath.sha256")
+        }
+        $installerPath = & $Operations.Installer $package.folderPath $version $OutDirectory
+        $assets += @($installerPath, "$installerPath.sha256")
+        if ($package.gitRev -cne $revision) { throw 'Packaged source revision changed.' }
+        Assert-NightlyCleanHead $SourceRoot $revision 'Stable publication' | Out-Null
+        # 'staged' is the phase Publish-EmberRelease takes: Stable has no host staging, so the
+        # hashed files are ready as soon as they are packaged.
+        $pending = [pscustomobject]@{
+            channel='stable';repository=$repository;tag=$Tag;label=$version;phase='staged';prerelease=$prerelease
+            snapshot=[pscustomobject]@{revision=$revision;fingerprint=[string]$package.sourceFingerprint}
+            assets=@($assets | ForEach-Object { Get-NightlyArtifact $_ })
+            notes=(Get-NightlyArtifact $NotesFile)
+        }
+        Save-NightlyState $pendingPath $pending
+    }
+    $url = Publish-EmberRelease $pending
+    Remove-Item -LiteralPath $pendingPath
+    Write-Host "Published: $url"
+    return $url
 }

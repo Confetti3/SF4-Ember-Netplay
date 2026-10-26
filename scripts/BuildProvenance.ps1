@@ -64,6 +64,15 @@ function Invoke-DefaultTests([object]$Ctest, [string]$BuildRoot, [string]$Exclud
     if ($missing) { throw "Default CTest did not run: $($missing -join ', ')" }
     $passedOnRerun
 }
+# Only a Nightly build trusts the staging bridge. A receipt without the field predates
+# the check, so it is refused like a mismatch; rebuild the checkout to record it.
+function Assert-ReceiptChannel([object]$Receipt, [string]$Channel) {
+    $expected = $Channel -ceq 'nightly'
+    if ($Receipt.stagingBridge -isnot [bool] -or $Receipt.stagingBridge -ne $expected) {
+        throw "The build receipt's staging bridge setting does not match the $Channel channel; rebuild with scripts/build-current.ps1."
+    }
+}
+
 function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot) {
     Assert-CMakeSource $SourceRoot $BuildRoot
     $receipt = Get-Content -LiteralPath (Join-Path $BuildRoot 'build-provenance.json') -Raw | ConvertFrom-Json

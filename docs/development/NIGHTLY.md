@@ -3,8 +3,12 @@
 Nightly is the daily test build of SF4 Ember Netplay. It may break, and its
 rooms work only with other Nightly players. FRaccie and other contributors
 merge feature branches into `nightly`. After each Stable release, merge
-`release` into `nightly`; keep Nightly's CMake version one minor version ahead
-of Stable.
+`release` into `nightly`, then renumber: Nightly's CMake version stays one minor
+version ahead of Stable (Stable 1.4.x, Nightly 1.5.0). The publisher enforces
+this. It fetches `origin/release`, reads that branch's `CMakeLists.txt` and stops
+before building unless Nightly has the same major version and Stable's minor plus
+one; any patch number is accepted. If the ref or file cannot be read the run
+fails closed, so `-Local` needs `origin/release` to be present already.
 
 Nightly requires **PowerShell 7 or later** (`pwsh`). The publisher, importable
 Nightly operations and both Nightly PowerShell tests declare `#Requires -Version 7`,
@@ -168,6 +172,13 @@ overwritten: move aside a previous dry run's artifacts before reusing its label.
 Every run appends a transcript in `dist/nightly-logs/yyyyMMdd-HHmmss.log`;
 notes and artifacts remain in `dist`. Local test/build success does not
 establish live gameplay acceptance or installation of the public room hosts.
+
+The draft, verify and publish steps are shared with Stable: `Publish-EmberRelease`
+takes its repository, tag rules, pre-release flag and Latest handling from the
+record's channel (`nightly`, or `stable` for `scripts/github-release.ps1`), and the
+repository for a channel is fixed in `NightlyOperations.ps1`, never read from a
+parameter or the pending record. Retention, host staging and the pending state in
+`dist/nightly-pending.json` stay Nightly-only; a record without a channel is Nightly.
 
 `publish-nightly.ps1` only takes the lock, starts the transcript and calls
 `Invoke-NightlyPublish` in `NightlyOperations.ps1` with the build, package,

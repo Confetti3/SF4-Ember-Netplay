@@ -4,8 +4,10 @@ param([string]$VersionLabel = '', [string]$OutDir = 'dist', [switch]$SkipBuild,
       [string]$DiscordSdkArchive = $env:SF4E_DISCORD_SDK_ARCHIVE)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 Push-Location $repo
 try {
+    Assert-EmberChannel (Get-EmberBuildTarget $repo) 'stable' 'Stable release packaging'
     if (!$SkipBuild) {
         & (Join-Path $PSScriptRoot 'build-current.ps1') -VisualStudioPath $VisualStudioPath -VcpkgRoot $VcpkgRoot -DiscordSdkArchive $DiscordSdkArchive
     }

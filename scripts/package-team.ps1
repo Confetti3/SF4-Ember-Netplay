@@ -12,6 +12,8 @@ $BuildDir = [IO.Path]::GetFullPath($BuildDir)
 $InstallDir = [IO.Path]::GetFullPath($InstallDir)
 if ($BuildDir -ne (Join-Path $repo $designation.buildDirectory) -or $InstallDir -ne (Join-Path $repo $designation.installDirectory)) { throw 'Use the designated build and stage directories from build-target.json' }
 $receipt = Assert-BuildReceipt $repo $BuildDir $InstallDir
+# Both channels package through this script; the receipt must still belong to this checkout's channel.
+Assert-ReceiptChannel $receipt $designation.channel
 if (!$receipt.testsPassed) { throw 'The current build has no passing test receipt' }
 if (!$receipt.baseRevision -or $receipt.baseRevision -ne (& git -C $repo rev-parse HEAD)) { throw 'The build receipt is for a different source commit; rebuild the release commit.' }
 if (!$VersionLabel) { $VersionLabel = (Get-Date).ToString("yyyyMMdd-HHmmss", [cultureinfo]::InvariantCulture) }

@@ -35,6 +35,13 @@ function Get-EmberBuildTarget([string]$SourceRoot) {
     return $target
 }
 
+# Publication and packaging for one channel must never run from the other channel's checkout.
+function Assert-EmberChannel([object]$Target, [string]$Expected, [string]$Purpose) {
+    if ($Target.channel -cne $Expected) {
+        throw "$Purpose requires the $Expected channel, but this checkout is designated $($Target.channel) in build-target.json."
+    }
+}
+
 function Get-EmberToolPaths([string]$SourceRoot, [string]$VisualStudioPath, [string]$VcpkgRoot) {
     if (!$VisualStudioPath) { $VisualStudioPath = $env:SF4E_VISUAL_STUDIO_PATH }
     if (!$VisualStudioPath) {

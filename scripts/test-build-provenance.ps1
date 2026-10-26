@@ -129,3 +129,25 @@ $designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-
 try { Get-EmberBuildTarget $standalone | Out-Null; throw 'Unexpected acceptance' }
 catch { if ($_.Exception.Message -notlike 'Ambiguous build target:*') { throw } }
 Write-Output 'PASS duplicate checkout designation rejected'
+
+# Stable publication and packaging refuse the Nightly checkout; a receipt must match its channel's staging bridge.
+$designation.channels.nightly.buildDirectory = 'build/nightly'
+$designation.channels.nightly.sourceDirectory = 'nightly'
+$designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-target.json')
+Assert-EmberChannel (Get-EmberBuildTarget $standalone) 'stable' 'Stable publication'
+try { Assert-EmberChannel (Get-EmberBuildTarget $nightly) 'stable' 'Stable publication'; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'Stable publication requires the stable channel*nightly*') { throw } }
+try { Assert-EmberChannel (Get-EmberBuildTarget $standalone) 'nightly' 'Nightly publication'; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'Nightly publication requires the nightly channel*stable*') { throw } }
+Write-Output 'PASS the channel guard accepts its own checkout and refuses the other channel'
+function Expect-ChannelRejection([object]$Receipt, [string]$Channel) {
+    try { Assert-ReceiptChannel $Receipt $Channel; throw 'Unexpected acceptance' }
+    catch { if ($_.Exception.Message -notlike "The build receipt's staging bridge setting does not match*") { throw } }
+}
+Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$false}) 'stable'
+Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$true}) 'nightly'
+Expect-ChannelRejection ([pscustomobject]@{stagingBridge=$true}) 'stable'
+Expect-ChannelRejection ([pscustomobject]@{stagingBridge=$false}) 'nightly'
+Expect-ChannelRejection ([pscustomobject]@{sourceRoot='predates the field'}) 'stable'
+Expect-ChannelRejection ([pscustomobject]@{stagingBridge='true'}) 'nightly'
+Write-Output 'PASS a receipt must record the staging bridge setting of its own channel; a missing field is refused'
