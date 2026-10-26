@@ -266,7 +266,6 @@ pub async fn count(bridge: &Bridge, table: &'static str) -> i64 {
         .unwrap()
 }
 
-
 /// Where the bridge keeps the replay files.
 pub fn bridge_folder(bridge: &Bridge) -> std::path::PathBuf {
     bridge
