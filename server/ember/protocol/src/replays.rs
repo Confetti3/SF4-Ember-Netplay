@@ -263,6 +263,19 @@ pub struct UploadAnswer {
 }
 
 impl UploadAnswer {
+    /// Not shared: the uploader has no account, or a player stopped sharing.
+    pub const NOT_SHARED: Self = Self {
+        state: UploadState::NotShared,
+        id: None,
+    };
+    /// Held for the other side (`UploadState::Held`).
+    pub const HELD: Self = Self {
+        state: UploadState::Held,
+        id: None,
+    };
+}
+
+impl UploadAnswer {
     pub fn check(&self) -> Result<()> {
         if self.id.as_deref().is_none_or(is_replay_id) {
             Ok(())

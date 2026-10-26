@@ -3,9 +3,9 @@
 // channel's queue folder is its user). Submit posts a job and gives the
 // future of its answer, which the game thread may look at without waiting;
 // Ask waits for it, from another thread, never the game's. The job alone owns
-// the promise of that answer, so one that throws answers `failed`, and one
-// dropped at Stop leaves a broken promise (Ask answers `failed`): no caller is
-// left waiting. Portable, so ReplayChannelTest runs it.
+// that answer: one that throws puts its exception in it, and one dropped at
+// Stop breaks it, so no caller is left waiting (Ask answers `failed` for
+// both). Portable, so ReplayChannelTest runs it.
 #include <condition_variable>
 #include <deque>
 #include <functional>
@@ -33,20 +33,16 @@ public:
 		return true;
 	}
 	template <class T>
-	std::future<T> Submit(std::function<T()> job, T failed) {
-		auto promise = std::make_shared<std::promise<T>>();
-		auto answer = promise->get_future();
-		// Dropped unrun when the worker has stopped: its promise breaks.
-		Post([promise = std::move(promise), job = std::move(job), failed]() {
-			try { promise->set_value(job()); }
-			catch (...) { try { promise->set_value(failed); } catch (...) {} }
-		});
+	std::future<T> Submit(std::function<T()> job) {
+		auto task = std::make_shared<std::packaged_task<T()>>(std::move(job));
+		auto answer = task->get_future();
+		// Dropped unrun when the worker has stopped: its answer breaks.
+		Post([task = std::move(task)] { (*task)(); });
 		return answer;
 	}
 	template <class T>
 	T Ask(std::function<T()> job, T failed) {
-		auto answer = Submit<T>(std::move(job), failed);
-		try { return answer.get(); } catch (...) { return failed; }
+		try { return Submit<T>(std::move(job)).get(); } catch (...) { return failed; }
 	}
 	// Drops the jobs not started, which answers every Ask waiting on one, then
 	// waits for the job under way.

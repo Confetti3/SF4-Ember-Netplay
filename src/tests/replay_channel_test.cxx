@@ -262,14 +262,24 @@ static void ListingAcrossScopes() {
 	CHECK(uploads.Size() == 0 && !uploads.ReadDue(4));
 }
 
-// The queue's worker: answers in order; a job that throws answers `failed`;
-// at Stop a job not started is dropped and its waiting caller is answered
-// `failed` at once, even while another job is still running.
+// The queue's worker: answers in order; a job that throws answers `failed`
+// (a submitted one holds its exception); at Stop a job not started is
+// dropped and its waiting caller is answered `failed` at once, even while
+// another job is still running, and a submitted one's answer breaks.
 static void Worker() {
 	{
 		OrderedWorker worker;
 		CHECK(worker.Ask<int>([] { return 7; }, -1) == 7);
 		CHECK(worker.Ask<int>([]() -> int { throw 1; }, -1) == -1);
+		auto thrown = worker.Submit<int>([]() -> int { throw 1; });
+		bool threw = false;
+		try { thrown.get(); } catch (int) { threw = true; }
+		CHECK(threw);
+		worker.Stop();
+		auto dropped = worker.Submit<int>([] { return 7; });
+		bool broke = false;
+		try { dropped.get(); } catch (const std::future_error&) { broke = true; }
+		CHECK(broke);
 	}
 	OrderedWorker worker;
 	std::mutex gate;

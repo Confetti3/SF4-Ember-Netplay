@@ -350,11 +350,6 @@ fn ember_id_at(row: &SqlRow<'_>, index: usize) -> rusqlite::Result<EmberId> {
     })
 }
 
-const HELD: UploadAnswer = UploadAnswer {
-    state: UploadState::Held,
-    id: None,
-};
-
 /// Stores `upload` and says what became of it. The uploader's Discord
 /// account is read here, with everything else the upload is judged by.
 pub fn upload(
@@ -363,14 +358,11 @@ pub fn upload(
     upload: &Upload<'_>,
     now: u64,
 ) -> Result<UploadAnswer> {
-    let Some(account) = account(tx, upload.ember_id)? else {
+    let Some(uploader) = account(tx, upload.ember_id)? else {
         // Without an account there is nowhere to keep a choice to share.
-        return Ok(UploadAnswer {
-            state: UploadState::NotShared,
-            id: None,
-        });
+        return Ok(UploadAnswer::NOT_SHARED);
     };
-    let account = account.as_str();
+    let uploader = uploader.as_str();
     let request = upload.request;
     let (side, other) = (usize::from(request.side), 1 - usize::from(request.side));
     let found = find(tx, &request.room_id, request.table, request.generation)?;
@@ -396,15 +388,14 @@ pub fn upload(
                 Some(report) => {
                     // Both classes are the ones kept when the room reported
                     // the game, however long ago that was.
-                    let uploader = upload.ember_id;
-                    let (won, own, opponent, opponent_badge) = if report.winner_id == *uploader {
+                    let (won, own, opponent, opponent_badge) = if report.winner_id == *upload.ember_id {
                         (
                             side,
                             report.winner_badge,
                             report.loser_id,
                             report.loser_badge,
                         )
-                    } else if report.loser_id == *uploader {
+                    } else if report.loser_id == *upload.ember_id {
                         (
                             other,
                             report.loser_badge,
@@ -417,10 +408,10 @@ pub fn upload(
                     // The opponent's account as it is now. Without one the
                     // game could never be listed: the opponent never queued
                     // it, so nothing is kept.
-                    let Some(opponent) = super::account(tx, &opponent)? else {
-                        return Ok(HELD);
+                    let Some(opponent) = account(tx, &opponent)? else {
+                        return Ok(UploadAnswer::HELD);
                     };
-                    sides[side] = own_side(upload, account, own);
+                    sides[side] = own_side(upload, uploader, own);
                     sides[other].account = Some(opponent);
                     sides[other].badge = opponent_badge;
                     let mut game =
@@ -434,7 +425,7 @@ pub fn upload(
                 None => {
                     // A private room's: each side's class is its own at the
                     // time it uploads.
-                    sides[side] = own_side(upload, account, badge(tx, account, show, now)?);
+                    sides[side] = own_side(upload, uploader, badge(tx, uploader, show, now)?);
                     insert(tx, upload, sides, RoomKind::Private, None, now)?
                 }
             }
@@ -443,23 +434,23 @@ pub fn upload(
             if game.fighters != upload.info.fighters {
                 return Err(not_your_game());
             }
-            if game.sides[side].account.as_deref() == Some(account) {
+            if game.sides[side].account.as_deref() == Some(uploader) {
                 // The same player again, or a public game's second player
                 // sending their own side.
                 // Its class stays the one kept for the game.
                 if !game.sides[side].uploaded {
-                    let own = own_side(upload, account, None);
+                    let own = own_side(upload, uploader, None);
                     game.sides[side].name = own.name;
                     game.sides[side].country = own.country;
                     game.sides[side].uploaded = true;
                 }
             } else if !game.published
                 && game.sides[side].account.is_none()
-                && game.sides[other].account.as_deref() != Some(account)
+                && game.sides[other].account.as_deref() != Some(uploader)
             {
                 // The other player of a private room's game: only those are
                 // stored with a side that has no account.
-                game.sides[side] = own_side(upload, account, badge(tx, account, show, now)?);
+                game.sides[side] = own_side(upload, uploader, badge(tx, uploader, show, now)?);
                 publish(tx, &mut game)?;
             } else {
                 return Err(not_your_game());

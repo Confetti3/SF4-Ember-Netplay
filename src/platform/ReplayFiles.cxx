@@ -129,7 +129,7 @@ public:
  replaychannel::Uploads::Made Listing() {
   return worker_.Submit<std::vector<replaychannel::Entry>>([this] {
    return replaychannel::Pending(folder_, static_cast<std::uint64_t>(_time64(nullptr)));
-  }, {});
+  });
  }
  void Stop() { worker_.Stop(); }
 private:

@@ -20,7 +20,7 @@ use axum::{
 };
 use ember_protocol::replays::{
     ListQuery, MAX_UPLOAD_BODY, REPLAY_INVALID, REPLAY_NOT_FOUND, ReplayPage, ReplayUpload,
-    SharingChoice, UPLOAD_LIMIT, UploadAnswer, UploadState, archive_name, is_replay_id,
+    SharingChoice, UPLOAD_LIMIT, UploadAnswer, archive_name, is_replay_id,
 };
 use sha2::{Digest, Sha256};
 
@@ -88,10 +88,7 @@ pub async fn upload(
         .await?
     else {
         // Without an account there is nowhere to keep a choice to share.
-        return Ok(ok(&UploadAnswer {
-            state: UploadState::NotShared,
-            id: None,
-        }));
+        return Ok(ok(&UploadAnswer::NOT_SHARED));
     };
     let now = state.now();
     state
