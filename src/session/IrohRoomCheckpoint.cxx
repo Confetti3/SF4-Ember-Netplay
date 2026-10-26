@@ -245,6 +245,9 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
     }
     for(auto it=clientMessages_.begin();it!=clientMessages_.end();) {
         bool remove=false;
+        // Only a terminal replay can be removed. Every edge into this queue
+        // classifies what it queues, so other messages are not parsed here.
+        if(it->tag.classified && !it->tag.terminalReplay) { ++it; continue; }
         try {
             const auto queued=json::parse(it->payload);
             if(queued.contains("_terminal_replay")) {
@@ -312,10 +315,11 @@ void IrohRoom::PumpCheckpoint() {
     while (proposalSent_<proposalBytes_.size() &&
         proposalSent_-proposalAcknowledged_<4*coordination::CheckpointChunk && budget--) {
         auto message=proposalIdentity_.Envelope("checkpoint_chunk");
-        const auto bytes=proposalBytes_.substr(proposalSent_,coordination::CheckpointChunk);
-        message["offset"]=proposalSent_; message["data"]=coordination::Encode(bytes);
+        // Encoded from the proposal in place, without a copy of the chunk.
+        const auto size=(std::min)(coordination::CheckpointChunk,proposalBytes_.size()-proposalSent_);
+        message["offset"]=proposalSent_; message["data"]=coordination::Encode(proposalBytes_.data()+proposalSent_,size);
         if (!helper_.Send(message.dump())) return;
-        proposalSent_+=bytes.size();
+        proposalSent_+=size;
     }
     if (!proposalEnded_ && proposalAcknowledged_==proposalBytes_.size()) {
         auto message=proposalIdentity_.Envelope("checkpoint_end");

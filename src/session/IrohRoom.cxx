@@ -4,6 +4,7 @@
 #include "HelperErrorScope.hxx"
 #include "../common/InputDelay.hxx"
 #include "RoomMessageQueue.hxx"
+#include "RoomMessageTag.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/EnvFlag.hxx"
@@ -17,6 +18,11 @@ using nlohmann::json;
 
 bool SameQueuedRoomRetry(const Message& queued, const Message& incoming) {
 	if (queued.connection != incoming.connection || queued.payload != incoming.payload) return false;
+	if (incoming.tag.classified) {
+		const auto kind = static_cast<room::ActionKind>(incoming.tag.actionKind);
+		return incoming.tag.roomAction && (kind == room::ActionKind::AcknowledgeTerminal ||
+			kind == room::ActionKind::RecordResult || kind == room::ActionKind::MatchFinished);
+	}
 	try {
 		const auto decoded = json::parse(incoming.payload).get<SessionProtocol::RoomActionMessage>();
 		return decoded.type == SessionProtocol::MT_ROOM_ACTION &&
@@ -542,9 +548,53 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
     return true;
 }
 
+int IrohRoom::CommitGate(const EffectEnvelope& token) const {
+    // An effect in the activated journal is committed whatever its term.
+    // That is how a successor's replay reaches this client after a handoff:
+    // the replay keeps the term it was committed in, which by then is older
+    // than the coordination term.
+    const bool activated=token.revision<=effectsRevision_ &&
+        std::find(appliedEffects_.begin(),appliedEffects_.end(),token)!=appliedEffects_.end();
+    if(activated) return 1;
+    // An older term's effect that is not in the activated journal may
+    // never commit; drop it rather than park it at the queue head. If it
+    // did commit, activation replays its public form.
+    if(token.term<coordination_.term) return -1;
+    // The helper's committed effect stream and its coordination watch are
+    // independent.  A private grant can therefore beat the watch which
+    // announces the checkpoint that activates its recipient mapping. Keep
+    // the bounded client queue parked until that activation either makes
+    // the token deliverable or rejects the staged checkpoint; dropping it
+    // here strands a valid native grant permanently.
+    if(token.term>coordination_.term || token.revision>effectsRevision_) return 0;
+    return -1;
+}
+
+int IrohRoom::DeliverCommitted(Message& message, const EffectEnvelope& token, json& payload) {
+    const auto recipient=effectRecipients_.find(token.recipient);
+    if(recipient==effectRecipients_.end() || recipient->second.host!=token.endpoint.host ||
+        recipient->second.user!=token.endpoint.user ||
+        !deliveredEffects_.insert({token.term,token.sequence}).second) return -1;
+    message.payload=payload.dump();
+    message.body=std::make_shared<json>(std::move(payload));
+    return 1;
+}
+
 int IrohRoom::AuthorizedEffect(Message& message) {
     if(!coordination_.active) return 1;
     try {
+        // Parked on an earlier poll: its token was decoded and its digest
+        // checked against these same bytes on first sight. Only the
+        // activation gate can have changed since; the payload is parsed
+        // again once, to deliver it.
+        if(message.checkedCommit) {
+            const auto token=message.checkedCommit;
+            const int verdict=CommitGate(*token);
+            if(verdict<=0) return verdict;
+            auto payload=json::parse(message.payload);
+            payload.erase("_commit");
+            return DeliverCommitted(message,*token,payload);
+        }
         auto payload=json::parse(message.payload);
         // Receipt-derived terminal notifications are a local replay namespace.
         // They are created only while activating an authenticated checkpoint,
@@ -573,42 +623,29 @@ int IrohRoom::AuthorizedEffect(Message& message) {
                 queued->second.type!=key.type || !deliveredTerminalReplays_.insert(key).second) return -1;
             payload.erase("_terminal_replay");
             terminalReplayInFlight_.erase(queued);
-            message.payload=payload.dump(); return 1;
+            message.payload=payload.dump();
+            message.body=std::make_shared<json>(std::move(payload));
+            return 1;
         }
         if(!payload.contains("_commit")) {
             const auto messageType=payload.value("type",std::string());
             const bool fromLeader=coordination_.writable && PeerIdentity(message.connection)==coordination_.leader;
-            return fromLeader && ((pendingAdmission_ && (messageType=="hello_resp" || messageType=="join_rej")) ||
-                IsVerificationType(messageType)) ? 1 : -1;
+            if(!(fromLeader && ((pendingAdmission_ && (messageType=="hello_resp" || messageType=="join_rej")) ||
+                IsVerificationType(messageType)))) return -1;
+            message.body=std::make_shared<json>(std::move(payload));
+            return 1;
         }
         const auto token=payload.at("_commit").get<EffectEnvelope>();
         payload.erase("_commit");
+        // The digest is checked on first sight, before the gate, so a corrupt
+        // or forged token claiming a future term or revision is dropped now
+        // instead of parking the queue. It stays SHA-256 over the canonical
+        // dump of the parsed payload without its token.
         if(PayloadDigest(payload)!=token.payloadDigest) return -1;
-        // An effect in the activated journal is committed whatever its term.
-        // That is how a successor's replay reaches this client after a handoff:
-        // the replay keeps the term it was committed in, which by then is older
-        // than the coordination term.
-        const bool activated=token.revision<=effectsRevision_ &&
-            std::find(appliedEffects_.begin(),appliedEffects_.end(),token)!=appliedEffects_.end();
-        if(!activated) {
-            // An older term's effect that is not in the activated journal may
-            // never commit; drop it rather than park it at the queue head. If it
-            // did commit, activation replays its public form.
-            if(token.term<coordination_.term) return -1;
-            // The helper's committed effect stream and its coordination watch are
-            // independent.  A private grant can therefore beat the watch which
-            // announces the checkpoint that activates its recipient mapping. Keep
-            // the bounded client queue parked until that activation either makes
-            // the token deliverable or rejects the staged checkpoint; dropping it
-            // here strands a valid native grant permanently.
-            if(token.term>coordination_.term || token.revision>effectsRevision_) return 0;
-            return -1;
-        }
-        const auto recipient=effectRecipients_.find(token.recipient);
-        if(recipient==effectRecipients_.end() || recipient->second.host!=token.endpoint.host ||
-            recipient->second.user!=token.endpoint.user ||
-            !deliveredEffects_.insert({token.term,token.sequence}).second) return -1;
-        message.payload=payload.dump(); return 1;
+        const int verdict=CommitGate(token);
+        if(verdict==0) message.checkedCommit=std::make_shared<EffectEnvelope>(token);
+        if(verdict<=0) return verdict;
+        return DeliverCommitted(message,token,payload);
     } catch(const std::exception&) { return -1; }
 }
 
@@ -628,7 +665,9 @@ void IrohRoom::PumpCommittedEffects() {
         }
         queuedBytes_+=bytes.size();
         terminalReplayInFlight_.emplace(effect.key,effect);
-        clientMessages_.push_back({1,0,std::move(bytes),""});
+        // Classified from the object it was encoded from; marked as a
+        // terminal replay here, where it is made.
+        clientMessages_.push_back({1,0,std::move(bytes),"",ClassifyRoomMessage(payload)});
     }
     while(!pendingPublicEffects_.empty() && clientMessages_.size()<MaximumQueuedMessages) {
         const auto& effect=pendingPublicEffects_.front();
@@ -638,7 +677,7 @@ void IrohRoom::PumpCommittedEffects() {
         if(bytes.size()>MaximumPayload) {pendingPublicEffects_.pop_front(); continue;}
         if(bytes.size()>MaximumQueuedBytes-queuedBytes_) break;
         queuedBytes_+=bytes.size();
-        clientMessages_.push_back({1,0,std::move(bytes),""});
+        clientMessages_.push_back({1,0,std::move(bytes),"",ClassifyRoomMessage(payload)});
         pendingPublicEffects_.pop_front();
     }
 }

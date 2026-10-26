@@ -305,7 +305,15 @@ private:
     bool HandleControlTraffic(const nlohmann::json& event, const std::string& type);
     bool HandleHelperError(const nlohmann::json& event);
     void PumpCheckpoint();
+    // 1 deliver, 0 park at the client queue head, -1 drop. Parses a message
+    // once, attaches the parsed payload as its body when it delivers, and
+    // caches a parked effect's checked token on the message.
     int AuthorizedEffect(Message& message);
+    // The activation gate for a committed effect whose digest has been checked.
+    int CommitGate(const EffectEnvelope& token) const;
+    // Recipient and duplicate checks, then rewrites the payload without its
+    // token and attaches `payload` as the body.
+    int DeliverCommitted(Message& message, const EffectEnvelope& token, nlohmann::json& payload);
     void PumpCommittedEffects();
     struct StagedCheckpoint {
         coordination::TransferIdentity identity;

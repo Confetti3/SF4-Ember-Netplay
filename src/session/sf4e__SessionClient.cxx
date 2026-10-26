@@ -477,6 +477,7 @@ int SessionClient::Step()
 	if (_helloPending) {
 		json hello = SessionProtocol::SessionHelloMsg();
         if(_customRoomsRequired) hello["admission"]=BuildJoinRequest();
+        _transport->BeginAdmission();
         const auto sent=Send(hello,nullptr);
         if(sent==session::SendResult::NotConnected || sent==session::SendResult::QueueFull) return 0;
         if(sent!=session::SendResult::Queued) return -1;
@@ -530,11 +531,16 @@ int SessionClient::Step()
 	}
 	for (const auto& message : incoming) {
 		json msg;
-		try {
-			msg = json::parse(message.payload);
-		}
-		catch (const json::exception&) {
-			continue;
+		// A room transport hands over the payload it already parsed to
+		// authorize it; it equals json::parse(message.payload).
+		if (message.body) msg = std::move(*message.body);
+		else {
+			try {
+				msg = json::parse(message.payload);
+			}
+			catch (const json::exception&) {
+				continue;
+			}
 		}
 
 		SessionProtocol::MessageType type;

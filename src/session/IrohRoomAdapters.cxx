@@ -1,6 +1,7 @@
 // IrohRoom: the ServerTransport and ClientTransport views handed to the session layer.
 #include "IrohRoom.hxx"
 #include "RoomMessageQueue.hxx"
+#include "RoomMessageTag.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/EnvFlag.hxx"
@@ -73,7 +74,8 @@ public:
 		}
 		if (!room->localOpen_ || payload.empty() || payload.size() > MaximumPayload ||
 			room->serverLocalNextId_ == (std::numeric_limits<std::int64_t>::max)()) return false;
-		return room->Queue(room->clientMessages_, {1, room->serverLocalNextId_++, payload, ""});
+		// Classified once here, for the queue and the local client.
+		return room->Queue(room->clientMessages_, {1, room->serverLocalNextId_++, payload, "", ClassifyRoomMessage(payload)});
 	}
 	void Close() override {
 		if (room->epoch_==epoch) {
@@ -114,19 +116,30 @@ public:
             }
             room->queuedBytes_-=bytes;
             if(allowed>0) {
-                try {
-                    const auto decoded=json::parse(room->clientMessages_.front().payload);
-                    const auto type=decoded.value("type",std::string());
-                    // A bare hello_resp is only the CID half of an admission
-                    // exchange; rejected custom admissions send join_rej
-                    // immediately afterward. Keep the pending fence through
-                    // that response. A committed hello_resp is terminal and
-                    // carries its authenticated membership in the commit
-                    // envelope, while join_rej is always terminal.
-                    if(type=="join_rej" || (type=="hello_resp" && decoded.contains("_commit")))
-                        room->pendingAdmission_=false;
-                } catch(const json::exception&) {}
-                messages.push_back(std::move(room->clientMessages_.front()));
+                // A bare hello_resp is only the CID half of an admission
+                // exchange; rejected custom admissions send join_rej
+                // immediately afterward. Keep the pending fence through
+                // that response. A committed hello_resp is terminal and
+                // carries its authenticated membership in the commit
+                // envelope, while join_rej is always terminal. Read from the
+                // payload as it is delivered: the body AuthorizedEffect
+                // parsed, else the tag of the unchanged payload.
+                auto& head=room->clientMessages_.front();
+                std::string type;
+                bool committed=false;
+                if(head.body) {
+                    if(head.body->is_object()) {
+                        const auto field=head.body->find("type");
+                        if(field!=head.body->end() && field->is_string()) type=field->get<std::string>();
+                        committed=head.body->contains("_commit");
+                    }
+                } else {
+                    const auto tag=TagOf(head);
+                    type=tag.type; committed=tag.committed;
+                }
+                if(type=="join_rej" || (type=="hello_resp" && committed))
+                    room->pendingAdmission_=false;
+                messages.push_back(std::move(head));
             }
             room->clientMessages_.pop_front();
 		}
@@ -137,10 +150,6 @@ public:
 		// Gameplay belongs to the separately authorized raw UDP bridge. Never
 		// put legacy GGPO frame payloads on the reliable room connection.
 		if (!reliable || payload.empty() || payload.size() > MaximumPayload) return SendResult::InvalidPayload;
-		try {
-			const auto decoded=json::parse(payload);
-			if(decoded.value("type",std::string())=="hello") room->pendingAdmission_=true;
-		} catch(const json::exception&) {}
 		if (!room->hosting_) {
 			if (room->peers_.empty()) return SendResult::NotConnected;
 			const auto owner=room->coordination_.active ? room->ConnectionForIdentity(room->coordination_.leader) : room->peers_.begin()->first;
@@ -148,9 +157,17 @@ public:
 		}
 		if (room->localNextId_ == (std::numeric_limits<std::int64_t>::max)()) return SendResult::Failed;
 		const auto messageId = room->localNextId_++;
-		if (!room->Queue(room->serverMessages_, {1, messageId, payload, ""})) return SendResult::QueueFull;
+		// Classified once here; the server queue and SessionServer read the tag.
+		if (!room->Queue(room->serverMessages_, {1, messageId, payload, "", ClassifyRoomMessage(payload)})) return SendResult::QueueFull;
 		if (id) *id = messageId;
 		return SendResult::Queued;
+	}
+	// The admission fence opens before the hello is sent, as it did when the
+	// hello was recognised inside Send: under the same conditions, ahead of the
+	// hosting and peer checks, so a hello refused as NotConnected and retried
+	// has already opened it.
+	void BeginAdmission() override {
+		if (State() == ConnectionState::Connected && room->state_ != IrohRoom::State::Degraded) room->pendingAdmission_=true;
 	}
 	void Close() override { if (!closed && room->epoch_ == epoch) room->Leave(); closed = true; }
 };

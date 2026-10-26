@@ -38,8 +38,38 @@ static void TestLocalMatchGenerations() {
 	CHECK(authority.SnapshotFor(queuer).localMatchGenerations[0] == 0);
 }
 
+// A snapshot built without its chat is the full snapshot with the chat left
+// empty, field for field, for every recipient and in every phase; a field
+// added to Snapshot and missed by the chat-less copy fails here.
+static void TestSnapshotWithoutChat() {
+	RoomAuthority authority("Without chat", 8, 313);
+	const auto host = Join(authority, 0, true);
+	const auto p1 = Join(authority, 1), p2 = Join(authority, 2), queuer = Join(authority, 3);
+	const auto same = [&]() {
+		for (const auto member : {host, p1, p2, queuer, MemberId(9999)}) {
+			auto expected = nlohmann::json(authority.SnapshotFor(member));
+			expected["chat"] = nlohmann::json::array();
+			CHECK(nlohmann::json(authority.SnapshotFor(member, false)) == expected);
+			CHECK(nlohmann::json(authority.SnapshotFor(member, true)) == nlohmann::json(authority.SnapshotFor(member)));
+			CHECK(authority.SnapshotFor(member, false).chat.empty());
+		}
+	};
+	same();
+	for (const auto member : {p1, p2, queuer}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	Action chat = TableAction(authority, p1, 0, ActionKind::Chat);
+	chat.text = "hello";
+	CHECK(authority.Apply(p1, chat).accepted);
+	CHECK(!authority.SnapshotFor(host).chat.empty());
+	same();
+	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	same();
+	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	same();
+}
+
 int main() {
 	TestLocalMatchGenerations();
+	TestSnapshotWithoutChat();
 	if (failures) return 1;
 	std::puts("RoomSnapshot test passed");
 	return 0;

@@ -4,6 +4,7 @@
 // session from the same endpoint agree on which handle owns queued work.
 #include "IrohRoom.hxx"
 #include "RoomMessageQueue.hxx"
+#include "RoomMessageTag.hxx"
 #include "../common/SkillBadgeJson.hxx"
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
@@ -281,7 +282,7 @@ bool IrohRoom::PeerDeparted(std::map<Connection, Peer>::iterator peer) {
 
 bool IrohRoom::ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, const json& event) {
 	const auto id = event.at("message_id").get<std::int64_t>();
-	const auto payload = event.at("payload").get<std::string>();
+	auto payload = event.at("payload").get<std::string>();
 	// A message that repeats a number or does not parse is skipped on its own;
 	// the room and the peer's later messages carry on.
 	json decoded;
@@ -314,7 +315,10 @@ bool IrohRoom::ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, 
 	// A public host has no local client to drain the client queue, so a member
 	// sending commit-tagged payloads would fill it and fail the room.
 	if (publicHost_ && (effect || leaderHandshake || leaderVerification)) return true;
-	return Queue((effect || leaderHandshake || leaderVerification) ? clientMessages_ : serverMessages_, {peer->first, id, payload, ""});
+	// Classified from this one parse; neither queue nor the session layer
+	// parses it again to learn its kind.
+	return Queue((effect || leaderHandshake || leaderVerification) ? clientMessages_ : serverMessages_,
+		{peer->first, id, std::move(payload), "", ClassifyRoomMessage(decoded)});
 }
 
 SendResult IrohRoom::SendRemote(Connection connection, const std::string& payload, std::int64_t* id) {

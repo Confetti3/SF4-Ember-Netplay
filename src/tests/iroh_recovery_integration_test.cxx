@@ -63,6 +63,7 @@ public:
         return inner_->Send(payload,reliable,id);
     }
     std::string PeerAddress() const override {return inner_->PeerAddress();}
+    void BeginAdmission() override {inner_->BeginAdmission();}
     void Close() override {inner_->Close();}
 private:
     std::unique_ptr<session::ClientTransport> inner_;

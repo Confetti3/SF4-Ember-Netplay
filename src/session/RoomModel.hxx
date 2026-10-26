@@ -618,6 +618,8 @@ public:
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
 	Snapshot SnapshotFor(MemberId member) const;
+	// As SnapshotFor, but with the chat left empty, and not copied, when withChat is false.
+	Snapshot SnapshotFor(MemberId member, bool withChat) const;
 	std::uint64_t NextMemberId() const { return nextMemberId_; }
 
 	// Marks a fresh room server-owned (see RoomModelServerOwned.cxx). False, and
@@ -669,6 +671,12 @@ public:
 	// Pending results which have not reached their deadline, and unresolved
 	// results already paused for host review, are not timer work.
 	bool HasDueTimerTransition(std::uint64_t nowMs) const;
+	// Milliseconds from nowMs until HasDueTimerTransition first turns true if
+	// nothing else changes: zero when one is due now, the largest value when no
+	// timer is running. A caller that sleeps between ticks wakes by then. A
+	// permit's age counts on from the sample AgePermitHolds took, so a caller
+	// that stops ticking for long should not rely on a permit's figure.
+	std::uint64_t NextDueMs(std::uint64_t nowMs) const;
 	std::vector<Event> AdvanceTime(std::uint64_t nowMs);
 	// Recovery rebases result deadlines against a fresh monotonic clock. The
 	// first owner tick resumes the paused timer; no wall-clock deadline elapses

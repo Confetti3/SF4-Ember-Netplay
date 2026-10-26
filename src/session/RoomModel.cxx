@@ -1,5 +1,6 @@
 #include "RoomModel.hxx"
 #include "RoomModelDetail.hxx"
+#include <limits>
 
 namespace sf4e { namespace room {
 using namespace detail;
@@ -34,8 +35,36 @@ std::uint32_t RoomAuthority::IdleSeconds(MemberId member) const {
 	return static_cast<std::uint32_t>((std::min)(ms / 1000, static_cast<std::uint64_t>(MaximumIdleSeconds)));
 }
 
-Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
-	Snapshot result = snapshot_;
+Snapshot RoomAuthority::SnapshotFor(MemberId member) const { return SnapshotFor(member, true); }
+
+Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
+	// Room chat is most of a busy room's snapshot. Without it, every other
+	// field is copied and the chat is left empty; a field added to Snapshot
+	// must be added here too (RoomSnapshot checks both forms agree).
+	Snapshot result;
+	if (withChat) result = snapshot_;
+	else {
+		result.protocolVersion = snapshot_.protocolVersion;
+		result.roomEpoch = snapshot_.roomEpoch;
+		result.revision = snapshot_.revision;
+		result.name = snapshot_.name;
+		result.capacity = snapshot_.capacity;
+		result.locked = snapshot_.locked;
+		result.closed = snapshot_.closed;
+		result.serverOwned = snapshot_.serverOwned;
+		result.practice = snapshot_.practice;
+		result.delayPolicy = snapshot_.delayPolicy;
+		result.host = snapshot_.host;
+		result.localMember = snapshot_.localMember;
+		result.members = snapshot_.members;
+		result.tables = snapshot_.tables;
+		result.terminalPending = snapshot_.terminalPending;
+		result.localTerminalPending = snapshot_.localTerminalPending;
+		result.localTerminalGenerations = snapshot_.localTerminalGenerations;
+		result.localMatchGenerationsSent = snapshot_.localMatchGenerationsSent;
+		result.localMatchGenerations = snapshot_.localMatchGenerations;
+		result.tournament = snapshot_.tournament;
+	}
 	result.localMember = Find(member) ? member : 0;
 	for (auto& item : result.members) item.idleSeconds = IdleSeconds(item.id);
 	for (std::size_t i = 0; i < TableCount; ++i) {
@@ -849,6 +878,34 @@ bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
 			TimerDue(resultPendingSince_[i], ResultDisputeTimeoutMs, nowMs)) return true;
 	}
 	return false;
+}
+
+std::uint64_t RoomAuthority::NextDueMs(std::uint64_t nowMs) const {
+	auto next = (std::numeric_limits<std::uint64_t>::max)();
+	// Time left on a table deadline that started at `since`, read on the clock
+	// TimerDue reads, so a deadline is zero here exactly when it is due there.
+	const auto left = [&](std::uint64_t since, std::uint64_t timeout) {
+		const auto age = recoveryPaused_ ? since : (std::max)(nowMs, nowMs_) - since;
+		next = (std::min)(next, age >= timeout ? std::uint64_t(0) : timeout - age);
+	};
+	for (std::size_t i = 0; i < TableCount; ++i) {
+		const auto& table = snapshot_.tables[i];
+		// The same four conditions as HasDueTimerTransition, in the same order.
+		if (readyWaitingFor_[i] && WaitingForReady(table) == readyWaitingFor_[i]) left(readyWaitingSince_[i], ReadyTimeoutMs);
+		if (table.spectatorHold) left(startHeldSince_[i], SpectatorStartHoldMs);
+		if (table.permitGeneration) {
+			const auto age = PermitAgeAt(i, nowMs);
+			if (PermitCalledOff(table, age)) return 0;
+			// Not called off: the age is under both limits, which are the hold
+			// while the permit is pending and the window less its margin once
+			// a permit is held (PermitWindow is zero with none).
+			if (PermitPending(table)) next = (std::min)(next, PermitHoldMs - age);
+			const auto window = PermitWindow(table);
+			if (window > PermitStartMarginMs) next = (std::min)(next, window - PermitStartMarginMs - age);
+		}
+		if (table.resultPending && table.phase == TablePhase::Playing) left(resultPendingSince_[i], ResultDisputeTimeoutMs);
+	}
+	return next;
 }
 
 bool RoomAuthority::TimerDue(std::uint64_t since, std::uint64_t timeout, std::uint64_t nowMs) const {

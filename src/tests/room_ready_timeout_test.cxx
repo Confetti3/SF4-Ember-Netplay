@@ -2,6 +2,7 @@
 // leaves the seat after ReadyTimeoutMs without a room action, and the room
 // says who (Event::Kind::ReadyTimeout).
 #include "room_authority_support.hxx"
+#include <limits>
 
 // The events are exactly one Ready timeout, of `member` at `table`.
 static bool TimedOut(const std::vector<Event>& events, MemberId member, std::uint8_t table) {
@@ -26,6 +27,77 @@ static void TestReadyTimeout() {
 	const auto* standing = FindMember(authority.SnapshotView(), p2);
 	CHECK(standing && standing->status == MemberStatus::Idle && standing->table == -1);
 	CHECK(!WatchesByChoice(table, p2));
+}
+
+// NextDueMs is the time left until HasDueTimerTransition turns true: zero
+// exactly when it is true, and a deadline that is true from then on.
+static const auto NoTimer = (std::numeric_limits<std::uint64_t>::max)();
+
+static void TestNextDueMs() {
+	RoomAuthority idle("No timers", 4, 1);
+	const auto lone = Join(idle, 0, true);
+	CHECK(idle.NextDueMs(0) == NoTimer && idle.NextDueMs(1000000) == NoTimer);
+	CHECK(idle.Apply(lone, TableAction(idle, lone, 0, ActionKind::Queue)).accepted);
+	CHECK(idle.NextDueMs(5000) == NoTimer); // seated alone, nobody ready
+
+	// A Ready at 1000 ms starts the opponent's 90 s clock.
+	RoomAuthority authority("Next deadline", 4, 1);
+	const auto p1 = Join(authority, 0, true), p2 = Join(authority, 1);
+	for (const auto member : {p1, p2})
+		CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	authority.AdvanceTime(1000);
+	CHECK(authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Ready)).accepted);
+	CHECK(authority.NextDueMs(1000) == ReadyTimeoutMs);
+	CHECK(authority.NextDueMs(50000) == ReadyTimeoutMs - 49000);
+	CHECK(authority.NextDueMs(0) == ReadyTimeoutMs); // a backward clock input leaves the room's own clock
+	for (const std::uint64_t now : {1000ull, 5000ull, 90999ull, 91000ull, 95000ull})
+		CHECK(authority.HasDueTimerTransition(now) == (authority.NextDueMs(now) == 0));
+	const auto left = authority.NextDueMs(1000);
+	CHECK(!authority.HasDueTimerTransition(1000 + left - 1) && authority.HasDueTimerTransition(1000 + left));
+	CHECK(TimedOut(authority.AdvanceTime(1000 + left), p2, 0));
+	CHECK(authority.NextDueMs(1000 + left) == NoTimer); // the seat cleared, nobody waits
+
+	// A paused room holds ages, so what is left does not move with the clock.
+	RoomAuthority source("Paused", 4, 1);
+	const auto a = Join(source, 0, true), b = Join(source, 1);
+	for (const auto member : {a, b})
+		CHECK(source.Apply(member, TableAction(source, member, 0, ActionKind::Queue)).accepted);
+	CHECK(source.Apply(a, TableAction(source, a, 0, ActionKind::Ready)).accepted);
+	source.AdvanceTime(60000);
+	CHECK(source.NextDueMs(60000) == 30000);
+	source.PauseForRecovery();
+	CHECK(source.NextDueMs(0) == 30000 && source.NextDueMs(500000) == 30000);
+	CHECK(!source.HasDueTimerTransition(500000));
+	source.AdvancePausedTimers(29999);
+	CHECK(source.NextDueMs(0) == 1);
+	source.AdvancePausedTimers(1);
+	CHECK(source.NextDueMs(0) == 0 && source.HasDueTimerTransition(0));
+}
+
+// A game's result that nobody settles is disputed after ResultDisputeTimeoutMs,
+// and the paused table that follows runs no timer.
+static void TestNextDueMsResultDispute() {
+	RoomAuthority authority("Dispute", 8, 1);
+	const auto host = Join(authority, 0, true);
+	const auto p1 = Join(authority, 1), p2 = Join(authority, 2);
+	(void)host;
+	for (const auto member : {p1, p2})
+		CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	const auto seats = authority.SnapshotView().tables[0];
+	for (const auto member : {seats.p1, seats.p2})
+		CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	CHECK(authority.BeginMatch(0, seats.p1, seats.p2).accepted);
+	CHECK(authority.NextDueMs(0) == NoTimer); // playing, no result yet
+	auto finished = TableAction(authority, p1, 0, ActionKind::MatchFinished);
+	finished.matchGeneration = authority.SnapshotView().tables[0].matchGeneration;
+	CHECK(authority.Apply(p1, finished).accepted);
+	authority.AdvanceTime(10000);
+	CHECK(authority.NextDueMs(10000) == ResultDisputeTimeoutMs - 10000);
+	for (const std::uint64_t now : {10000ull, 29999ull, 30000ull, 45000ull})
+		CHECK(authority.HasDueTimerTransition(now) == (authority.NextDueMs(now) == 0));
+	CHECK(!authority.AdvanceTime(ResultDisputeTimeoutMs).empty());
+	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Paused);
+	CHECK(authority.NextDueMs(60000) == NoTimer && !authority.HasDueTimerTransition(60000));
 }
 
 static void TestReadyTimeoutActivity() {
@@ -197,6 +269,8 @@ static void TestReadyTimeoutMemberReceipt() {
 
 int main() {
 	TestReadyTimeout();
+	TestNextDueMs();
+	TestNextDueMsResultDispute();
 	TestReadyTimeoutActivity();
 	TestReadyTimeoutRecoveryAndWire();
 	TestReadyTimeoutExclusions();

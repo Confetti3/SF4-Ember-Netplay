@@ -14,6 +14,7 @@
 #include "sf4e__SessionProtocol.hxx"
 #include "sf4e__SessionServer.hxx"
 #include "RoomMessageQueue.hxx"
+#include "RoomMessageTag.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
@@ -32,6 +33,13 @@ bool IsRecoveryBatchableMessage(const session::Message& message) {
 	// Diagnostic prefixes have no room mutation. Commit a bounded ordered
 	// batch rather than one quorum round-trip per verification frame.
 	if (session::IsRoomVerificationMessage(message)) return true;
+	// Classified where a room transport queued it; other transports' messages
+	// are parsed here.
+	if (message.tag.classified) {
+		const auto kind = static_cast<room::ActionKind>(message.tag.actionKind);
+		return message.tag.roomAction && message.tag.protocolVersion == room::ProtocolVersion &&
+			(kind == room::ActionKind::RecordResult || kind == room::ActionKind::AcknowledgeTerminal);
+	}
 	try {
 		const auto payload = json::parse(message.payload);
 		SessionProtocol::MessageType type;
@@ -134,6 +142,7 @@ int SessionServer::Listen(uint16_t port) {
 
 bool SessionServer::IsStaleMatchAck(const session::Message& message) const {
 	if (message.payload.find("\"game_") == std::string::npos) return false;
+	if (message.tag.classified && message.tag.type != "game_prepared" && message.tag.type != "game_ready") return false;
 	try {
 		const auto payload = json::parse(message.payload);
 		const auto type = payload.value("type", std::string());

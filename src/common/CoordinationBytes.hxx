@@ -32,33 +32,61 @@ inline std::string Sha256(const std::string& bytes) {
     return result;
 }
 #endif
-inline std::string Encode(const std::string& bytes) {
+// Unpadded base64url, the helper's checkpoint chunk encoding.
+inline std::string Encode(const char* data, std::size_t size) {
     const char* alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    std::string result; result.reserve((bytes.size() * 4 + 2) / 3);
+    std::string result; result.reserve((size * 4 + 2) / 3);
     std::uint32_t bits = 0; unsigned count = 0;
-    for (unsigned char value : bytes) {
-        bits = (bits << 8) | value; count += 8;
+    for (std::size_t i = 0; i < size; ++i) {
+        bits = (bits << 8) | static_cast<unsigned char>(data[i]); count += 8;
         while (count >= 6) { count -= 6; result += alphabet[(bits >> count) & 63]; }
     }
     if (count) result += alphabet[(bits << (6 - count)) & 63];
     return result;
 }
-inline bool Decode(const std::string& text, std::string& bytes, std::size_t maximum) {
+inline std::string Encode(const std::string& bytes) { return Encode(bytes.data(), bytes.size()); }
+
+namespace bytes_detail {
+// The value of each base64url character, 64 for every other byte.
+struct DecodeTable {
+    unsigned char value[256];
+    constexpr DecodeTable() : value() {
+        for (int i = 0; i < 256; ++i) value[i] = 64;
+        for (int i = 0; i < 26; ++i) { value['A' + i] = static_cast<unsigned char>(i); value['a' + i] = static_cast<unsigned char>(26 + i); }
+        for (int i = 0; i < 10; ++i) value['0' + i] = static_cast<unsigned char>(52 + i);
+        value[static_cast<unsigned char>('-')] = 62; value[static_cast<unsigned char>('_')] = 63;
+    }
+};
+constexpr DecodeTable Base64Url{};
+}
+
+// Decodes unpadded base64url text and appends it to `out`, at most `maximum`
+// bytes. Rejects, leaving `out` as it was: text longer than `maximum` bytes
+// can encode, a length of 1 modulo 4, a character outside the alphabet, and
+// non-zero trailing bits.
+inline bool DecodeAppend(const std::string& text, std::string& out, std::size_t maximum) {
     if (text.size() > (maximum * 4 + 2) / 3 || text.size() % 4 == 1) return false;
-    const std::string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    std::string decoded; decoded.reserve(text.size() * 3 / 4);
+    const auto original = out.size();
+    out.reserve(original + text.size() * 3 / 4);
     std::uint32_t bits = 0; unsigned count = 0;
-    for (char value : text) {
-        const auto index = alphabet.find(value);
-        if (index == std::string::npos) return false;
-        bits = (bits << 6) | static_cast<std::uint32_t>(index); count += 6;
+    std::size_t decoded = 0;
+    for (const char value : text) {
+        const auto index = bytes_detail::Base64Url.value[static_cast<unsigned char>(value)];
+        if (index == 64) { out.resize(original); return false; }
+        bits = (bits << 6) | index; count += 6;
         if (count >= 8) {
             count -= 8;
-            if (decoded.size() >= maximum) return false;
-            decoded += static_cast<char>((bits >> count) & 255);
+            if (decoded >= maximum) { out.resize(original); return false; }
+            out += static_cast<char>((bits >> count) & 255);
+            ++decoded;
         }
     }
-    if (count && (bits & ((1u << count) - 1))) return false;
+    if (count && (bits & ((1u << count) - 1))) { out.resize(original); return false; }
+    return true;
+}
+inline bool Decode(const std::string& text, std::string& bytes, std::size_t maximum) {
+    std::string decoded;
+    if (!DecodeAppend(text, decoded, maximum)) return false;
     bytes = std::move(decoded); return true;
 }
 } }

@@ -2,6 +2,7 @@
 
 #include <map>
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <string>
@@ -175,6 +176,9 @@ namespace sf4e {
 		bool RecoveryEnabled() const { return _recovery.Enabled(); }
 		bool RecoveryWritable() const { return _recovery.Writable(); }
 		bool HasRecoveryCandidate() const { return _recoveryCandidateReady; }
+		// Milliseconds from nowMs until the room's next timer transition is due
+		// (RoomAuthority::NextDueMs); the largest value without a custom room.
+		std::uint64_t NextRoomDueMs(std::uint64_t nowMs) const;
 		bool RecoveryCandidateOverflowed() const { return _candidate.overflow; }
 		bool ProposeCheckpoint(std::uint64_t request, std::uint64_t term, std::uint64_t baseRevision,
 			const nlohmann::json& checkpoint);

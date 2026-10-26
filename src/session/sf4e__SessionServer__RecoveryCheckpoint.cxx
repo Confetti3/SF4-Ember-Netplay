@@ -294,7 +294,8 @@ json SessionServer::RecoveryCheckpoint() const {
 bool SessionServer::RestoreRecoveryCheckpoint(const json& value) {
 	try {
 		auto history = value.value("effect_journal", std::vector<session::EffectEnvelope>{});
-		if (json(history).dump().size() > session::MaxEffectJournalBytes) return RefuseRestore("effect_journal");
+		// The same size as json(history).dump(), without a JSON copy of the journal.
+		if (session::EffectJournalBytes(history) > session::MaxEffectJournalBytes) return RefuseRestore("effect_journal");
 		const auto authority = value.value("authority", json::object());
 		if (authority.empty()) return RestoreRecoveryState(value, std::move(history), nullptr);
 		const session::AuthorityStamp stamp{authority.value("term", 0ULL), authority.value("revision", 0ULL), authority.value("writable", false)};

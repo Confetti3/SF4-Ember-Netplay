@@ -1,8 +1,69 @@
 #include "../session/CheckpointTransfer.hxx"
+#include <cstdint>
 #include <iostream>
+#include <random>
 #include <stdexcept>
 using namespace sf4e::coordination;
 static void Check(bool value) { if (!value) throw std::runtime_error("checkpoint transfer regression"); }
+
+// The decoder as it was before the table: a linear search of the alphabet per
+// character. The table decoder must give the same bytes and the same verdict
+// for every input.
+static bool ReferenceDecode(const std::string& text, std::string& bytes, std::size_t maximum) {
+    if (text.size() > (maximum * 4 + 2) / 3 || text.size() % 4 == 1) return false;
+    const std::string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    std::string decoded; decoded.reserve(text.size() * 3 / 4);
+    std::uint32_t bits = 0; unsigned count = 0;
+    for (char value : text) {
+        const auto index = alphabet.find(value);
+        if (index == std::string::npos) return false;
+        bits = (bits << 6) | static_cast<std::uint32_t>(index); count += 6;
+        if (count >= 8) {
+            count -= 8;
+            if (decoded.size() >= maximum) return false;
+            decoded += static_cast<char>((bits >> count) & 255);
+        }
+    }
+    if (count && (bits & ((1u << count) - 1))) return false;
+    bytes = std::move(decoded); return true;
+}
+
+static void CompareDecoders() {
+    std::mt19937 random(20261026);
+    const std::string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    unsigned accepted = 0, rejected = 0;
+    const auto compare = [&](const std::string& text, std::size_t maximum) {
+        std::string expected = "prior", actual = "prior";
+        const bool reference = ReferenceDecode(text, expected, maximum);
+        Check(Decode(text, actual, maximum) == reference && actual == expected);
+        // Appending keeps what was there and adds exactly the same bytes; a
+        // rejection leaves it untouched.
+        std::string appended = "prefix";
+        Check(DecodeAppend(text, appended, maximum) == reference);
+        Check(appended == (reference ? "prefix" + expected : std::string("prefix")));
+        if (reference) ++accepted; else ++rejected;
+    };
+    for (int round = 0; round < 4000; ++round) {
+        std::string bytes(random() % 64, '\0');
+        for (auto& byte : bytes) byte = static_cast<char>(random() & 255);
+        const auto text = Encode(bytes);
+        Check(Encode(bytes.data(), bytes.size()) == text);
+        const std::size_t maximum = random() % 3 == 0 ? bytes.size() - (bytes.empty() ? 0 : random() % 2) : 64;
+        compare(text, maximum);
+        // Malformed: a character changed to any byte, a character dropped or
+        // added, and trailing bits set.
+        if (!text.empty()) {
+            auto changed = text; changed[random() % changed.size()] = static_cast<char>(random() & 255); compare(changed, 64);
+            auto shorter = text; shorter.erase(random() % shorter.size(), 1); compare(shorter, 64);
+            auto trailing = text; trailing.back() = alphabet[random() % 64]; compare(trailing, 64);
+        }
+        auto longer = text; longer.insert(random() % (longer.size() + 1), 1, alphabet[random() % 64]); compare(longer, 64);
+    }
+    for (const char* text : {"", "A", "AB", "ABC", "ABCD", "AAA=", "AA==", "A-_B", "____", "AAEC_f7_", "AB\x80C", "ab+/"})
+        for (std::size_t maximum : {std::size_t(0), std::size_t(1), std::size_t(2), std::size_t(3), std::size_t(6), std::size_t(64)})
+            compare(text, maximum);
+    Check(accepted > 1000 && rejected > 1000);
+}
 int main() {
     try {
         Check(Sha256("abc")=="ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
@@ -12,6 +73,7 @@ int main() {
         Check(!Decode("A",decoded,4));
         Check(!Decode("AAA=",decoded,4));
         Check(!Decode("AAAA",decoded,2));
+        CompareDecoders();
         const std::string body(MaximumCheckpoint,'x');
         TransferIdentity id; id.room[0]=1; id.epoch=1; id.transfer=7; id.term=3;
         id.baseRevision=5; id.revision=6; id.length=body.size(); id.digest=Sha256(body);

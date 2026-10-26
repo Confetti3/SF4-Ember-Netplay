@@ -1,5 +1,6 @@
 #include "../session/sf4e__SessionServer.hxx"
 #include "../session/RoomRecoveryRuntime.hxx"
+#include "../session/RoomMessageTag.hxx"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -2043,6 +2044,254 @@ static std::uint64_t ApplyAsRejoinedMember(const ParticipantRoom& fixture, const
 	return recovery.AppliedRevision();
 }
 
+// A member's own game behind the scripted helper, with the committed leader
+// as a peer, for the client queue's effect gate: live effects arrive from the
+// leader, commits arrive as transfers, and RoomRecoveryRuntime activates them
+// against a replica server.
+struct ParkedEffectRoom {
+	ParticipantRoom fixture{SetupStage::FightersPrepared};
+	static constexpr session::Connection self = 2;
+	json checkpoint;
+	session::RosterRow local;
+	FakeHelperPipe pipe;
+	platform::HelperClient helper;
+	std::shared_ptr<session::IrohRoom> room;
+	std::unique_ptr<session::ClientTransport> client;
+	const std::array<std::uint8_t, 16> id{{9}};
+	const std::string leader = std::string(64, 'a');
+	std::int64_t nextMessage = 2;
+
+	ParkedEffectRoom() {
+		checkpoint = fixture.server.RecoveryCheckpoint();
+		CHECK(session::ActiveRosterRow(checkpoint.at("members"), ParticipantRoom::IdentityOf(self), local) && local.member);
+		pipe.Connect(helper);
+		room = std::make_shared<session::IrohRoom>(helper);
+		CHECK(room->Join("invitation", "build"));
+		client = room->Client();
+		CHECK(client != nullptr);
+		std::map<std::string, std::uint64_t> incarnations{{leader, 1}};
+		for (const auto& row : checkpoint.at("members"))
+			if (!row.value("frozen", false))
+				incarnations[row.at("data").at("authenticatedEndpoint").get<std::string>()] = row.at("incarnation").get<std::uint64_t>();
+		pipe.Send({{"type", "status"}, {"request_id", 1}, {"endpoint", ParticipantRoom::IdentityOf(self)}, {"fixed_port", 0}});
+		pipe.Send({{"type", "coordination_state"}, {"epoch", 1}, {"room", id}, {"term", 1}, {"revision", 2},
+			{"incarnation", ParticipantRoom::IncarnationOf(self)}, {"leader", leader}, {"writable", true}, {"leader_local", false}});
+		pipe.Send({{"type", "control_rebound"}, {"epoch", 1}, {"room", id}, {"leader", leader},
+			{"member_incarnations", incarnations}, {"members", json::array({leader})}});
+	}
+	// This member's data_update committed at `revision` in term 1.
+	session::EffectEnvelope Projection(std::uint64_t revision) const {
+		session::EffectEnvelope effect;
+		effect.sequence = revision; effect.roomEpoch = 9; effect.term = 1; effect.revision = revision;
+		effect.recipient = local.member; effect.endpoint = local.endpoint; effect.type = "data_update";
+		effect.publicPayload = json{{"type", "data_update"}, {"marker", revision}};
+		effect.payloadDigest = session::PayloadDigest(effect.publicPayload);
+		return effect;
+	}
+	std::string Proposal(std::uint64_t revision, const std::vector<session::EffectEnvelope>& journal,
+		const std::vector<session::EffectEnvelope>& effects) const {
+		session::SessionProposal proposal;
+		proposal.request = revision; proposal.term = 1; proposal.baseRevision = revision - 1;
+		proposal.checkpoint = checkpoint;
+		proposal.checkpoint["effect_journal"] = journal;
+		proposal.effects = effects;
+		proposal.effectsDigest = session::EffectsDigest(proposal.effects);
+		return json(proposal).dump();
+	}
+	// The leader's live send of one committed effect.
+	void SendLive(const std::string& wire) {
+		pipe.Send({{"type", "message"}, {"epoch", 1}, {"peer", leader}, {"message_id", nextMessage++}, {"payload", wire}});
+	}
+	void Transfer(std::uint64_t revision, const std::string& bytes) {
+		const json transfer{{"epoch", 1}, {"room", id}, {"transfer", revision}, {"term", 1},
+			{"base_revision", revision - 1}, {"revision", revision}};
+		auto begin = transfer; begin["type"] = "checkpoint_begin";
+		begin["length"] = bytes.size(); begin["digest"] = coordination::Sha256(bytes);
+		pipe.Send(begin);
+		for (std::size_t offset = 0; offset < bytes.size(); offset += coordination::CheckpointChunk) {
+			auto chunk = transfer; chunk["type"] = "checkpoint_chunk";
+			chunk["offset"] = offset; chunk["data"] = coordination::Encode(bytes.substr(offset, coordination::CheckpointChunk));
+			pipe.Send(chunk);
+		}
+		auto end = begin; end["type"] = "checkpoint_end"; pipe.Send(end);
+		auto committed = begin; committed["type"] = "checkpoint_committed"; pipe.Send(committed);
+	}
+	// Polls the client long enough for every helper event sent so far to be
+	// handled (the room handles at most 8 per poll).
+	void Settle(std::vector<session::Message>& received, int polls = 50) {
+		for (int tick = 0; tick < polls; ++tick) {
+			CHECK(client->Poll(received, 8));
+			pipe.Drain();
+			Sleep(1);
+		}
+	}
+};
+
+// This member's live data_update of commit k arrives before commit k is
+// staged and parks at the head of the client queue. Commits k and k+1 are then
+// both staged and one RoomRecoveryRuntime::Tick activates them. k+1 supersedes
+// that projection; its compacted journal keeps k's envelope digest-only, so the
+// parked effect is still authenticated and delivered rather than dropped.
+static void TestParkedProjectionAcrossStagedCommits() {
+	ParkedEffectRoom member;
+	const auto first = member.Projection(1), second = member.Projection(2);
+	const std::vector<std::string> proposals{member.Proposal(1, {}, {first}), member.Proposal(2, {first}, {second})};
+	{
+		const auto decoded = session::CheckpointDecodeWorker::Decode(1, proposals[1]);
+		CHECK(decoded.ok && decoded.journal.size() == 2);
+		CHECK(decoded.journal[0] == first && decoded.journal[0].publicPayload.is_null());
+		CHECK(decoded.journal[1] == second && !decoded.journal[1].publicPayload.is_null());
+	}
+	member.SendLive(session::CommittedEffectWire(first, first.publicPayload.dump()));
+	std::vector<session::Message> received;
+	member.Settle(received);
+	// Parked: its commit is not activated yet.
+	CHECK(received.empty());
+	const auto parked = member.room->RecoveryState();
+	CHECK(parked.clientQueueMessages == 1 && parked.clientHeadCommitted && parked.clientHeadRevision == 1);
+
+	for (std::uint64_t revision = 1; revision <= 2; ++revision) member.Transfer(revision, proposals[revision - 1]);
+	// Both commits staged before the runtime runs.
+	for (int tick = 0; tick < 5000 && member.room->CommittedCheckpointsBehindHead() < 1; ++tick) {
+		member.room->Poll();
+		member.pipe.Drain();
+		Sleep(1);
+	}
+	CHECK(member.room->CommittedCheckpointsBehindHead() == 1);
+	const auto replica = member.fixture.Replica();
+	session::RoomRecoveryRuntime recovery;
+	CHECK(recovery.Tick(*replica, *member.room));
+	CHECK(recovery.AppliedRevision() == 2 && recovery.Error().empty() && !member.room->CheckpointPending());
+
+	// The parked effect of commit k is delivered first, then commit k+1's replay.
+	CHECK(member.client->Poll(received, 8));
+	CHECK(received.size() == 2);
+	if (received.size() == 2) {
+		const auto delivered = json::parse(received[0].payload), replayed = json::parse(received[1].payload);
+		CHECK(delivered.at("marker") == 1 && !delivered.contains("_commit"));
+		CHECK(replayed.at("marker") == 2 && !replayed.contains("_commit"));
+	}
+}
+
+// A committed effect whose commit is still pending parks at the client queue
+// head, so its digest is checked on first sight: a corrupt payload, or a forged
+// token claiming a future term or revision, is dropped at once instead of
+// parking the queue. The valid effect behind them parks, and stays parked
+// across polls, until its commit activates.
+static void TestCorruptTokenDroppedOnFirstSight() {
+	ParkedEffectRoom member;
+	const auto first = member.Projection(1);
+	auto corrupt = first.publicPayload; corrupt["marker"] = 99;
+	member.SendLive(session::CommittedEffectWire(first, corrupt.dump()));
+	auto future = first; future.term = 5; future.revision = 7; future.sequence = 70;
+	member.SendLive(session::CommittedEffectWire(future, corrupt.dump()));
+	member.SendLive(session::CommittedEffectWire(first, first.publicPayload.dump()));
+	std::vector<session::Message> received;
+	member.Settle(received);
+	CHECK(received.empty());
+	const auto parked = member.room->RecoveryState();
+	CHECK(parked.clientQueueMessages == 1 && parked.clientHeadCommitted &&
+		parked.clientHeadRevision == 1 && parked.clientHeadSequence == 1 && parked.clientHeadTerm == 1);
+	// A pending transfer of its commit changes nothing until it activates.
+	const auto proposal = member.Proposal(1, {}, {first});
+	member.pipe.Send({{"type", "checkpoint_begin"}, {"epoch", 1}, {"room", member.id}, {"transfer", 1}, {"term", 1},
+		{"base_revision", 0}, {"revision", 1}, {"length", proposal.size()}, {"digest", coordination::Sha256(proposal)}});
+	member.Settle(received);
+	CHECK(received.empty() && member.room->RecoveryState().clientQueueMessages == 1);
+}
+
+// The tag a room edge fills from its one parse says what each reader that
+// used to parse the payload concluded, for every shape of payload.
+static void TestRoomMessageTags() {
+	const auto action = [](room::ActionKind kind, std::uint32_t version) {
+		protocol::RoomActionMessage message;
+		message.action.kind = kind; message.action.protocolVersion = version; message.action.actionId = 7;
+		return json(message);
+	};
+	auto malformedAction = action(room::ActionKind::RecordResult, room::ProtocolVersion);
+	malformedAction["action"] = "not an action";
+	std::vector<std::string> payloads = {
+		action(room::ActionKind::RecordResult, room::ProtocolVersion).dump(),
+		action(room::ActionKind::AcknowledgeTerminal, room::ProtocolVersion).dump(),
+		action(room::ActionKind::MatchFinished, room::ProtocolVersion).dump(),
+		action(room::ActionKind::RecordResult, room::ProtocolVersion - 1).dump(),
+		action(room::ActionKind::Ready, room::ProtocolVersion).dump(),
+		malformedAction.dump(),
+		json{{"type", "battle_hash"}, {"frameIdx", 3}}.dump(),
+		json{{"type", "battle_snapshot"}}.dump(),
+		json{{"type", 5}}.dump(),
+		json{{"type", "hello_resp"}, {"_commit", json::object()}}.dump(),
+		json{{"type", "room_event"}, {"_terminal_replay", json::object()}}.dump(),
+		json{{"kind", "no type"}}.dump(),
+		"[1,2]", "\"room_action\"", "not json", ""};
+	for (const auto& payload : payloads) {
+		const session::Message plain{4, 9, payload, ""};
+		session::Message tagged = plain;
+		tagged.tag = session::ClassifyRoomMessage(payload);
+		CHECK(tagged.tag.classified);
+		// The verification and retry readers agree with their own parse.
+		CHECK(session::IsRoomVerificationMessage(tagged) == session::IsRoomVerificationMessage(plain));
+		CHECK(session::SameQueuedRoomRetry(plain, tagged) == session::SameQueuedRoomRetry(plain, plain));
+		const auto decoded = json::parse(payload, nullptr, false);
+		const bool object = !decoded.is_discarded() && decoded.is_object();
+		std::string type;
+		if (object && decoded.contains("type") && decoded.at("type").is_string()) type = decoded.at("type").get<std::string>();
+		CHECK(tagged.tag.type == type);
+		CHECK(tagged.tag.committed == (object && decoded.contains("_commit")));
+		CHECK(tagged.tag.terminalReplay == (object && decoded.contains("_terminal_replay")));
+		bool roomAction = false;
+		std::uint32_t version = 0;
+		room::ActionKind kind = room::ActionKind::Join;
+		if (object) {
+			try {
+				const auto parsed = decoded.get<protocol::RoomActionMessage>();
+				roomAction = parsed.type == protocol::MT_ROOM_ACTION;
+				version = parsed.action.protocolVersion; kind = parsed.action.kind;
+			} catch (const std::exception&) {}
+		}
+		CHECK(tagged.tag.roomAction == roomAction);
+		if (roomAction) CHECK(tagged.tag.protocolVersion == version && tagged.tag.actionKind == static_cast<std::uint8_t>(kind));
+		// Classifying the parsed object is the same as classifying its text.
+		if (!decoded.is_discarded()) {
+			const auto fromObject = session::ClassifyRoomMessage(decoded);
+			CHECK(fromObject.type == tagged.tag.type && fromObject.committed == tagged.tag.committed &&
+				fromObject.terminalReplay == tagged.tag.terminalReplay && fromObject.verification == tagged.tag.verification &&
+				fromObject.roomAction == tagged.tag.roomAction && fromObject.actionKind == tagged.tag.actionKind &&
+				fromObject.protocolVersion == tagged.tag.protocolVersion);
+		}
+	}
+}
+
+// The admission fence opens when the client says it is about to send its
+// hello, not by recognising the hello inside Send. Only then does a bare
+// hello_resp from the leader reach the client, with its parsed body attached
+// at drain; join_rej closes the fence again.
+static void TestAdmissionFence() {
+	ParkedEffectRoom member;
+	std::vector<session::Message> received;
+	member.Settle(received);
+	const auto hello = json{{"type", "hello_resp"}, {"cid", {{"host", "relay"}, {"user", "early"}}}};
+	member.SendLive(hello.dump());
+	member.Settle(received);
+	CHECK(received.empty());
+	member.client->BeginAdmission();
+	member.SendLive(hello.dump());
+	member.Settle(received);
+	CHECK(received.size() == 1);
+	if (received.size() == 1) {
+		CHECK(json::parse(received[0].payload) == hello);
+		CHECK(received[0].body && *received[0].body == hello);
+	}
+	received.clear();
+	member.SendLive(json{{"type", "join_rej"}}.dump());
+	member.Settle(received);
+	CHECK(received.size() == 1 && json::parse(received[0].payload).at("type") == "join_rej");
+	received.clear();
+	member.SendLive(hello.dump());
+	member.Settle(received);
+	CHECK(received.empty());
+}
+
 // The spectator leaves before the start and rejoins, again and again, while
 // that generation still names its endpoint. Each rejoin is a new member and
 // incarnation. The endpoint never has more than one frozen row, and every
@@ -2091,6 +2340,10 @@ int main() {
 		SetupStage::AllPrepared, SetupStage::Started})
 		for (const bool disconnect : {true, false}) TestParticipantDepartureCheckpoint(stage, disconnect);
 	TestRejoinAfterPreStartDeparture();
+	TestParkedProjectionAcrossStagedCommits();
+	TestCorruptTokenDroppedOnFirstSight();
+	TestRoomMessageTags();
+	TestAdmissionFence();
 	TestServerOwnedRoom();
 	auto* transport = new MockTransport();
 	SessionServer server("room", "build", true, 3, {0, 99},

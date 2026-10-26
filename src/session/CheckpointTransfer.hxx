@@ -52,10 +52,14 @@ public:
     bool Chunk(const nlohmann::json& message) {
         try {
             if (!active_ || complete_ || !identity_.Matches(message) || message.at("offset")!=bytes_.size()) return false;
-            std::string decoded;
-            if (!Decode(message.at("data").get<std::string>(),decoded,CheckpointChunk) || decoded.empty() ||
-                decoded.size()>identity_.length-bytes_.size()) return false;
-            bytes_+=decoded; return true;
+            // Decoded straight onto the body, read in place: no copy of the
+            // text and no intermediate buffer. A rejected chunk leaves the
+            // body as it was.
+            const auto received=bytes_.size();
+            if (!DecodeAppend(message.at("data").get_ref<const std::string&>(),bytes_,CheckpointChunk)) return false;
+            const auto decoded=bytes_.size()-received;
+            if (!decoded || decoded>identity_.length-received) { bytes_.resize(received); return false; }
+            return true;
         } catch (const nlohmann::json::exception&) { return false; }
     }
     bool End(const nlohmann::json& message) {
@@ -73,7 +77,7 @@ public:
             if (type == "checkpoint_chunk") {
                 const auto offset = message.at("offset").get<std::size_t>();
                 std::string decoded;
-                if (!Decode(message.at("data").get<std::string>(), decoded, CheckpointChunk) || decoded.empty() ||
+                if (!DecodeAppend(message.at("data").get_ref<const std::string&>(), decoded, CheckpointChunk) || decoded.empty() ||
                     offset > bytes_.size() || decoded.size() > bytes_.size() - offset ||
                     bytes_.compare(offset, decoded.size(), decoded) != 0) return std::nullopt;
                 return offset + decoded.size();
