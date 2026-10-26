@@ -83,6 +83,10 @@ pub struct Shared {
     /// Polls started, counted so a create refused for the room limit can
     /// reuse a poll that began after its refusal instead of queueing another.
     polls: AtomicU64,
+    /// The supervisor's `rev` of each room as the last committed poll applied
+    /// it, by room id. Only the poll reads or writes it, while it holds
+    /// `poll`.
+    applied: std::sync::Mutex<std::collections::HashMap<String, u64>>,
 }
 
 impl Default for Shared {
@@ -91,6 +95,7 @@ impl Default for Shared {
             poll: tokio::sync::Mutex::new(()),
             down: AtomicBool::new(false),
             polls: AtomicU64::new(0),
+            applied: Default::default(),
         }
     }
 }

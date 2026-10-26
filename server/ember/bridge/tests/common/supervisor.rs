@@ -41,6 +41,17 @@ pub struct Fake {
     pub fail_delete: bool,
     /// `GET /rooms` requests received.
     pub listed: usize,
+    /// Holds the answer to `POST /rooms` after the room is hosted and listed
+    /// and before the creator is told, which is the window in which the
+    /// bridge has not stored the invitation yet.
+    pub after_create: Option<Arc<Gate>>,
+    /// Lists each room with the `rev` the real supervisor adds. Off, the
+    /// list is what an older supervisor answers. The rev moves when `report`,
+    /// `report_details` or `touch` change the room; a test that edits
+    /// `rooms` directly calls `touch`.
+    pub revs: bool,
+    /// The last rev handed out.
+    pub rev: u64,
 }
 
 #[derive(Default)]
@@ -73,20 +84,28 @@ pub async fn fake_supervisor() -> (Supervisor, String) {
             gate.arrived.notify_one();
             gate.release.notified().await;
         }
-        let mut fake = fake.lock().unwrap();
-        if let Some(reason) = fake.refuse {
-            return (
-                AxumStatus::CONFLICT,
-                json!({ "reason": reason }).to_string(),
-            );
-        }
         let room_id = body["room_id"].as_str().unwrap().to_owned();
-        fake.created.push(body.clone());
-        fake.rooms.push(json!({
-            "room_id": room_id, "members": 0, "capacity": body["capacity"],
-            "tables_playing": 0, "invitation": format!("sf4e3:{room_id}"), "banned": [],
-            "opened": false,
-        }));
+        let after_create = {
+            let mut fake = fake.lock().unwrap();
+            if let Some(reason) = fake.refuse {
+                return (
+                    AxumStatus::CONFLICT,
+                    json!({ "reason": reason }).to_string(),
+                );
+            }
+            fake.created.push(body.clone());
+            let rev = next_rev(&mut fake);
+            fake.rooms.push(json!({
+                "room_id": room_id, "members": 0, "capacity": body["capacity"],
+                "tables_playing": 0, "invitation": format!("sf4e3:{room_id}"), "banned": [],
+                "opened": false, "rev": rev,
+            }));
+            fake.after_create.clone()
+        };
+        if let Some(gate) = after_create {
+            gate.arrived.notify_one();
+            gate.release.notified().await;
+        }
         (
             AxumStatus::CREATED,
             json!({ "invitation": format!("sf4e3:{room_id}"), "region": "use1" }).to_string(),
@@ -99,10 +118,13 @@ pub async fn fake_supervisor() -> (Supervisor, String) {
             if !authorized(&headers) || fake.down {
                 return (AxumStatus::INTERNAL_SERVER_ERROR, "{}".into());
             }
-            (
-                Json::Array(fake.rooms.clone()).to_string(),
-                fake.list_hold.clone(),
-            )
+            let mut rooms = fake.rooms.clone();
+            if !fake.revs {
+                for room in &mut rooms {
+                    room.as_object_mut().map(|room| room.remove("rev"));
+                }
+            }
+            (Json::Array(rooms).to_string(), fake.list_hold.clone())
         };
         if let Some(gate) = hold {
             gate.arrived.notify_one();
@@ -137,31 +159,45 @@ pub async fn fake_supervisor() -> (Supervisor, String) {
     (fake, url)
 }
 
-/// What the stand-in reports for `room_id`.
-pub fn report(fake: &Supervisor, room_id: &str, members: u32, tables: u32, banned: &[&str]) {
+fn next_rev(fake: &mut Fake) -> u64 {
+    fake.rev += 1;
+    fake.rev
+}
+
+/// Changes the room `room_id` as `edit` says and moves its rev, as the
+/// supervisor does for a report that differs.
+fn change(fake: &Supervisor, room_id: &str, edit: impl FnOnce(&mut Json)) {
     let mut fake = fake.lock().unwrap();
+    let rev = next_rev(&mut fake);
     let room = fake
         .rooms
         .iter_mut()
         .find(|room| room["room_id"] == room_id)
         .expect("the supervisor hosts the room");
-    room["members"] = json!(members);
-    // The supervisor latches the first member it sees.
-    room["opened"] = json!(room["opened"] == true || members >= 1);
-    room["tables_playing"] = json!(tables);
-    room["banned"] = json!(banned);
+    edit(room);
+    room["rev"] = json!(rev);
+}
+
+/// Moves the rev of `room_id` after a test edited the room in `rooms` itself.
+pub fn touch(fake: &Supervisor, room_id: &str) {
+    change(fake, room_id, |_| {});
+}
+
+/// What the stand-in reports for `room_id`.
+pub fn report(fake: &Supervisor, room_id: &str, members: u32, tables: u32, banned: &[&str]) {
+    change(fake, room_id, |room| {
+        room["members"] = json!(members);
+        // The supervisor latches the first member it sees.
+        room["opened"] = json!(room["opened"] == true || members >= 1);
+        room["tables_playing"] = json!(tables);
+        room["banned"] = json!(banned);
+    });
 }
 
 /// What the stand-in reports as the room host's `details` for `room_id`, as
 /// the supervisor would pass it on: any JSON value.
 pub fn report_details(fake: &Supervisor, room_id: &str, details: Json) {
-    let mut fake = fake.lock().unwrap();
-    let room = fake
-        .rooms
-        .iter_mut()
-        .find(|room| room["room_id"] == room_id)
-        .expect("the supervisor hosts the room");
-    room["details"] = details;
+    change(fake, room_id, |room| room["details"] = details);
 }
 
 /// The integration secrets of a bridge whose supervisor is this one.

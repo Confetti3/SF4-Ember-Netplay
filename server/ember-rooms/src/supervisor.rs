@@ -55,6 +55,12 @@ pub struct RoomInfo {
     /// left out when there are none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub games: Option<serde_json::Value>,
+    /// Changes whenever any other reported field of this room changes, and
+    /// only then: a caller that saw this value for the room has seen the
+    /// room as it is. Unique within this process and seeded from the clock at
+    /// start, so a restarted supervisor never repeats an earlier value. The
+    /// number is only ever compared for equality.
+    pub rev: u64,
 }
 
 /// `GET /limits`: what the supervisor runs with now, so an operator can see
@@ -97,6 +103,9 @@ pub enum CreateError {
     HostFailed,
 }
 
+/// What the host last reported, compared field by field to tell whether a
+/// status said anything new.
+#[derive(PartialEq)]
 struct Live {
     members: u32,
     tables_playing: u32,
@@ -118,6 +127,8 @@ struct Room {
     closing: bool,
     /// Present once the host has reported `hosted`.
     live: Option<Live>,
+    /// `RoomInfo::rev`: drawn from `Inner::next_rev` each time `live` changes.
+    rev: u64,
 }
 
 /// The part of the configuration a reload replaces while rooms run. A room
@@ -144,6 +155,10 @@ struct Inner {
     rooms: std::collections::HashMap<String, Room>,
     draining: bool,
     next_seq: u64,
+    /// The last `RoomInfo::rev` handed out. It starts at the clock, in
+    /// microseconds, which stays below 2^53 for centuries, so the numbers
+    /// survive a JSON reader that holds them as doubles.
+    next_rev: u64,
     limits: Limits,
     reloads: u64,
 }
@@ -176,6 +191,7 @@ impl Supervisor {
             rooms: Default::default(),
             draining: false,
             next_seq: 0,
+            next_rev: rev_seed(),
             limits: Limits::of(&settings.config),
             reloads: 0,
         };
@@ -266,6 +282,7 @@ impl Supervisor {
                     close: close.clone(),
                     closing: false,
                     live: None,
+                    rev: 0,
                 },
             );
             self.publish_count(&inner);
@@ -386,6 +403,7 @@ impl Supervisor {
                         opened: live.opened,
                         details: live.details.clone(),
                         games: live.games.clone(),
+                        rev: room.rev,
                     },
                 ))
             })
@@ -442,10 +460,19 @@ impl Supervisor {
         }
     }
 
+    /// Records what the host reported. The room's `rev` moves only when some
+    /// reported field differs from the last report, so a host that repeats
+    /// itself leaves it where it was.
     fn set_live(&self, key: &str, mut live: Live) {
-        if let Some(room) = self.lock().rooms.get_mut(key) {
+        let mut guard = self.lock();
+        let inner = &mut *guard;
+        if let Some(room) = inner.rooms.get_mut(key) {
             live.opened |= room.live.as_ref().is_some_and(|previous| previous.opened);
-            room.live = Some(live);
+            if room.live.as_ref() != Some(&live) {
+                inner.next_rev += 1;
+                room.rev = inner.next_rev;
+                room.live = Some(live);
+            }
         }
     }
 
@@ -454,6 +481,14 @@ impl Supervisor {
         inner.rooms.remove(key);
         self.publish_count(&inner);
     }
+}
+
+/// Where this process's `RoomInfo::rev` numbers start: the clock in
+/// microseconds, so they differ from any earlier process's.
+fn rev_seed() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| u64::try_from(since.as_micros()).unwrap_or(0))
 }
 
 /// Whether nothing on this machine holds the UDP port. The room host binds

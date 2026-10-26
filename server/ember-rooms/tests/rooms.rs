@@ -215,6 +215,50 @@ async fn the_list_carries_the_hosts_latest_status() {
     assert_eq!(rooms[0]["banned"], json!(["banned-4"]));
 }
 
+/// A room's `rev` moves when a reported field does and never otherwise: a
+/// host that repeats its status, and any number of lists, leave it alone.
+#[tokio::test]
+async fn a_rooms_rev_moves_only_when_a_reported_field_changes() {
+    let harness = harness(|_, _| {});
+    harness.create(1, "repeat-status").await;
+    harness.create(2, "normal").await;
+    let first = harness.list().await;
+    let quiet = first[1]["rev"].as_u64().expect("a rev");
+    assert_ne!(first[0]["rev"], first[1]["rev"]);
+
+    // Two members are reported three times over; the rev is where the first
+    // of them left it, however many arrived.
+    let mut seen = 0;
+    for _ in 0..200 {
+        let rooms = harness.list().await;
+        if rooms[0]["members"] == 2 {
+            seen = rooms[0]["rev"].as_u64().expect("a rev");
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert_ne!(seen, 0);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    for _ in 0..3 {
+        let rooms = harness.list().await;
+        assert_eq!(rooms[0]["rev"], seen);
+        // Another room's reports never move this one's.
+        assert_eq!(rooms[1]["rev"], quiet);
+    }
+
+    // A status that differs moves it.
+    for _ in 0..400 {
+        if harness.list().await[0]["members"] == 3 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let rooms = harness.list().await;
+    assert_eq!(rooms[0]["members"], 3);
+    assert!(rooms[0]["rev"].as_u64().unwrap() > seen);
+    assert_eq!(rooms[1]["rev"], quiet);
+}
+
 #[tokio::test]
 async fn the_list_carries_the_hosts_details_whole() {
     let harness = harness(|_, _| {});

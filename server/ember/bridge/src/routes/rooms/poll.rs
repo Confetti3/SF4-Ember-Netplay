@@ -3,7 +3,11 @@
 //! capacity, lock, listing details) come in, and an open room it no longer
 //! reports is closed. A connection's rooms announce what changed on its
 //! stream.
-use std::{collections::BTreeSet, sync::atomic::Ordering, time::Duration};
+use std::{
+    collections::{BTreeSet, HashMap},
+    sync::atomic::Ordering,
+    time::Duration,
+};
 
 use ember_protocol::{EmberId, event::Kind, play::MAX_INVITATION, rooms::ENDED};
 use rusqlite::{Transaction, params};
@@ -13,6 +17,29 @@ use super::{
     supervisor::Supervisor,
 };
 use crate::{AppState, Keys, config::Config, error::Result, skill};
+
+/// The supervisor's `rev` of each room the bridge has applied, by room id.
+type Revs = HashMap<String, u64>;
+
+/// The revisions the last committed poll of `state` applied.
+fn applied_revs(state: &AppState) -> Revs {
+    state
+        .rooms
+        .applied
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone()
+}
+
+/// Remembers `revs` as what `state`'s polls have applied. Called only after
+/// the write that applied them committed.
+fn remember_revs(state: &AppState, revs: Revs) {
+    *state
+        .rooms
+        .applied
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = revs;
+}
 
 /// How often the supervisor is asked which rooms are alive.
 const POLL_SECS: u64 = 5;
@@ -85,11 +112,16 @@ async fn poll_once(state: &AppState, supervisor: &Supervisor<'_>) {
     }
     let now = state.now();
     let (keys, config) = (state.keys.clone(), state.config.clone());
-    // A failed write changes nothing; the next poll tries again.
-    let _ = state
+    let before = applied_revs(state);
+    // A failed write changes nothing; the next poll tries again. What a
+    // committed one applied is remembered, and only then.
+    if let Ok(applied) = state
         .db
-        .write(move |tx| apply(tx, &keys, &config, &reported, &published, now))
-        .await;
+        .write(move |tx| apply(tx, &keys, &config, &reported, &published, &before, now))
+        .await
+    {
+        remember_revs(state, applied);
+    }
 }
 
 /// The ids of the open rooms whose creation has finished.
@@ -114,29 +146,57 @@ async fn published_rooms(state: &AppState) -> BTreeSet<String> {
 /// the report was requested; only those rooms are closed when it omits them.
 /// A room the report leaves as it was is not written at all, so a poll that
 /// changes nothing dirties no page and, writing no event, wakes nobody.
+///
+/// `seen` is the `rev` of each room as the last committed poll applied it. A
+/// room whose report carries the same `rev` is skipped whole: its fields, its
+/// games and its bans came in with that report. A report without a `rev` is
+/// always applied. The answer is what `seen` becomes once this write commits:
+/// the rooms this report carried a `rev` for and that were open and published
+/// when it was applied (so a room whose creation had not stored its
+/// invitation yet is applied again at the next poll, whatever its `rev`), and
+/// no room the report leaves out.
 fn apply(
     tx: &Transaction<'_>,
     keys: &Keys,
     config: &Config,
     rooms: &[Reported],
     published: &BTreeSet<String>,
+    seen: &Revs,
     now: u64,
-) -> Result<()> {
+) -> Result<Revs> {
     let mut alive = BTreeSet::new();
+    let mut applied = Revs::new();
     for room in rooms {
         alive.insert(room.room_id.as_str());
+        if let Some(rev) = room.rev
+            && seen.get(&room.room_id) == Some(&rev)
+        {
+            applied.insert(room.room_id.clone(), rev);
+            continue;
+        }
         // A room still being created (no invitation stored yet) is left to
         // its creator's request to finish, and a closed one stays closed.
         let before = load(tx, &room.room_id)?
             .filter(|before| before.closed_at.is_none() && before.invitation_sealed.is_some());
+        // Whether the room's row was open and published when this report was
+        // applied, which is what makes its `rev` worth remembering.
+        let mut matched = false;
         let after = match &before {
             Some(before) => {
                 let after = reported(before, room, keys, now);
-                let written = after != *before && store(tx, &after)?;
-                written.then_some(after)
+                if after == *before {
+                    matched = true;
+                    None
+                } else {
+                    matched = store(tx, &after)?;
+                    matched.then_some(after)
+                }
             }
             None => None,
         };
+        if let (Some(rev), true) = (room.rev, matched) {
+            applied.insert(room.room_id.clone(), rev);
+        }
         skill::record_games(tx, &room.room_id, room.games.as_ref(), now)?;
         // Bans last for the room's life and are never evicted: the supervisor
         // reports at most `MAX_ROOM_BANS` per room, and the table keeps all.
@@ -204,7 +264,7 @@ fn apply(
         [cutoff],
     )?;
     tx.execute("DELETE FROM rooms WHERE closed_at <= ?1", [cutoff])?;
-    Ok(())
+    Ok(applied)
 }
 
 /// The room as one report leaves it: what the room's record would hold after
@@ -462,6 +522,7 @@ mod tests {
             opened: Some(true),
             details: None,
             games: None,
+            rev: None,
         };
         assert_eq!(reported(&before, &same, &keys, 99), before);
         let new = Reported {

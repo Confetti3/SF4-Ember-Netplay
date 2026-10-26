@@ -176,6 +176,8 @@ has one, so a room without games lists exactly what it did before. The bridge
 reads each game by itself and rates each once, by room, table and generation,
 so the host repeats its recent games in every status.
 
+Each `GET /rooms` entry also carries `rev`, a number that changes when any other field of the entry changes and only then. The bridge skips an entry whose `rev` it has already applied (remembering it only once the room's row was written or found unchanged and the write committed); an entry without a usable `rev`, from an older supervisor, is applied every poll.
+
 `creator` is the Ember ID of the player who made the room. The room host
 passes it to its helper as `HostPublic.creator`.
 

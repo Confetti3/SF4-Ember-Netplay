@@ -98,6 +98,17 @@ pub struct Reported {
     /// later (`skill::record_games`) and none fails the report.
     #[serde(default)]
     pub games: Option<serde_json::Value>,
+    /// Changes whenever anything else in this report changes, and only then.
+    /// A supervisor that does not say (an older one) or says something that
+    /// is not a number leaves it empty, and the report is applied every poll.
+    #[serde(default, deserialize_with = "lenient_rev")]
+    pub rev: Option<u64>,
+}
+
+/// A `rev` that is not an unsigned integer counts as absent, so it never
+/// fails the report.
+fn lenient_rev<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<u64>, D::Error> {
+    Ok(Option::<serde_json::Value>::deserialize(deserializer)?.and_then(|value| value.as_u64()))
 }
 
 /// A refusal's body: `{"reason": "..."}`, or `{"error": "..."}`.
