@@ -69,6 +69,8 @@ static ImTextureID WatchedPicture(unsigned width, unsigned height) {
 }
 static sf4e::ui::FighterSelector s_fighterSelectors[3];
 static sf4e::ui::ApplicationShell shell;
+// The room the drawn shell shows, kept across frames (DrawApplicationHome).
+static sf4e::ui::RoomCarry s_roomCarry;
 static sf4e::ui::OverlayPresentation presentation;
 static sf4e::OverlayPrefs::Data s_prefs;
 // The menu takes the keys and the mouse: shown, with the focus.
@@ -264,7 +266,7 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
     view.identity = snapshot.identity;
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
     view.identityRefusal = snapshot.identityRefusal;
-    shell.Background(view, snapshot.room, [](sf4e::ui::ShellAction action) {
+    shell.Background(view, snapshot.Room(), [](sf4e::ui::ShellAction action) {
         sf4e::NetplayFacade::RuntimeCommand request;
         request.command = std::move(action.command);
         request.identity = std::move(action.identity);
@@ -280,24 +282,14 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.controllerFocus = controllerNavigation.FocusRequested();
     view.controllerBack = controllerNavigation.BackRequested();
 	view.session = snapshot.session;
-	view.room = snapshot.room;
+	// The room is lent from the last frame's copy unless the published one
+	// changed (it is copied once per change, not per frame) and given back
+	// after the frame. Idle times and start holds were stamped when the
+	// snapshot was sent; the shell counts them on from the stamp where it
+	// reads them, so the room is never patched.
+	s_roomCarry.Lend(view, snapshot.room);
+	if (snapshot.roomReceivedMs) view.roomElapsedMs = GetTickCount64() - snapshot.roomReceivedMs;
 	view.roomNotices = snapshot.roomNotices;
-	// Idle times and start holds were stamped when the snapshot was sent;
-	// count on since. A hold that has run out still holds until the room says
-	// otherwise, so it keeps its last millisecond.
-	if (snapshot.roomReceivedMs) {
-		const auto elapsedMs = GetTickCount64() - snapshot.roomReceivedMs;
-		const auto since = static_cast<std::uint32_t>((std::min<std::uint64_t>)(elapsedMs / 1000, sf4e::room::MaximumIdleSeconds));
-		for (auto& member : view.room.members)
-			if (member.status != sf4e::room::MemberStatus::Playing)
-				member.idleSeconds = (std::min)(member.idleSeconds + since, sf4e::room::MaximumIdleSeconds);
-		for (auto& table : view.room.tables) {
-			if (table.holdRemainingMs)
-				table.holdRemainingMs = elapsedMs < table.holdRemainingMs ? static_cast<std::uint32_t>(table.holdRemainingMs - elapsedMs) : 1;
-			if (table.readyRemainingMs)
-				table.readyRemainingMs = elapsedMs < table.readyRemainingMs ? static_cast<std::uint32_t>(table.readyRemainingMs - elapsedMs) : 1;
-		}
-	}
 	view.preferences = snapshot.preferences;
 	view.lobbySettings = snapshot.lobbySettings;
 	view.helperReady = snapshot.helperReady;
@@ -463,6 +455,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     );
     if (shell.BoardDrawn()) sf4e::NetplayFacade::NoteLatencyBoard(view.room.roomEpoch);
     if (shell.SelectionDrawn()) sf4e::NetplayFacade::NoteFighterSelector(view.room.roomEpoch);
+    s_roomCarry.Return(view);
     if (!open) presentation.Close("Back on Ember's Home");
 }
 
@@ -591,7 +584,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // in private rooms only; the runtime reads nothing for it otherwise.
     namespace meter = sf4e::match_frame_meter;
     sf4e::training::WatchMatches(meter::Watched(meter::Wanted(snapshot.preferences.matchFrameMeter, snapshot.practiceMatch),
-        snapshot.room.serverOwned, snapshot.replays.meterShown));
+        snapshot.Room().serverOwned, snapshot.replays.meterShown));
     // How far back a held meter reaches and whether it starts over after a pause, as the Meter settings page chose.
     const auto meterOptions = sf4e::ui::TrainingMeterOptions();
     sf4e::training::SetMeterHistory(meterOptions.history, meterOptions.continuous);
@@ -690,8 +683,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // the call who sat down. The room is the snapshot's; the unread count is
     // the room screen's own.
     const bool inRoom = snapshot.session.room == sf4e::netplay::RoomState::Joined;
-    if (training.available && inRoom) layers.trainingRoom = sf4e::ui::DescribeTrainingRoom(snapshot.room, shell.UnreadChat());
-    if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.room, call);
+    if (training.available && inRoom) layers.trainingRoom = sf4e::ui::DescribeTrainingRoom(snapshot.Room(), shell.UnreadChat());
+    if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.Room(), call);
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
     layers.padHint = snapshot.padHint;

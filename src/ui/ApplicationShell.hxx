@@ -18,13 +18,16 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
+#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <functional>
 #include <vector>
 #include <set>
 #include <map>
 #include <memory>
 #include <optional>
+#include <utility>
 #include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
 #include "../common/ControllerView.hxx"
@@ -48,6 +51,11 @@ struct ShellView {
     bool controllerUnavailable = false;
     netplay::Snapshot session;
     room::Snapshot room;
+    // How long ago `room` was stamped, in ms (RuntimeSnapshot::roomReceivedMs to
+    // now; 0 without a stamp). Idle times and start holds count on from the
+    // stamp where they are read (RoomIdleSeconds, RoomRemainingMs), so `room`
+    // is never patched and a frame can be lent the same copy as the last (RoomCarry).
+    std::uint64_t roomElapsedMs = 0;
     // The room events the chat shows that no snapshot carries (ChatTranscript).
     std::vector<RoomNotice> roomNotices;
     netplay::PlayerPreferences preferences;
@@ -175,6 +183,50 @@ struct ShellView {
     // A replay link's file waits there until the player answers: the Replays
     // screen opens with the question as its first row.
     ReplaysView replays;
+};
+
+// A member's idle seconds `elapsedMs` after the room stamped them. A member
+// in a game is not idle, so theirs stay as sent; none counts past
+// room::MaximumIdleSeconds.
+inline std::uint32_t RoomIdleSeconds(const room::Member& member, std::uint64_t elapsedMs) {
+    if (member.status == room::MemberStatus::Playing) return member.idleSeconds;
+    const auto since = static_cast<std::uint32_t>((std::min<std::uint64_t>)(elapsedMs / 1000, room::MaximumIdleSeconds));
+    return (std::min)(member.idleSeconds + since, room::MaximumIdleSeconds);
+}
+// A countdown the room stamped (a table's holdRemainingMs or readyRemainingMs)
+// `elapsedMs` later. None sent stays none; one that has run out still holds
+// until the room says otherwise, so it keeps its last millisecond.
+inline std::uint32_t RoomRemainingMs(std::uint32_t remainingMs, std::uint64_t elapsedMs) {
+    if (!remainingMs) return 0;
+    return elapsedMs < remainingMs ? static_cast<std::uint32_t>(remainingMs - elapsedMs) : 1;
+}
+
+// The room a drawn frame shows, kept from one frame to the next so that a
+// room that has not changed is not copied again every frame. The runtime
+// publishes one immutable room per change (RuntimeSnapshot::room) and shares
+// it until the next, so the published pointer itself says whether the room
+// changed; it is held here, so no later room can take its address. Lend moves
+// the kept copy into the view, copying the published room over it first only
+// when it is another; Return takes it back once the frame is drawn. Null is
+// the empty room.
+class RoomCarry {
+public:
+    void Lend(ShellView& view, const std::shared_ptr<const room::Snapshot>& room) {
+        if (lent_ || !filled_ || room != source_) {
+            kept_ = room ? *room : room::Snapshot();
+            source_ = room; filled_ = true; ++copies_;
+        }
+        view.room = std::move(kept_);
+        lent_ = true;
+    }
+    void Return(ShellView& view) { kept_ = std::move(view.room); lent_ = false; }
+    // How many times Lend copied a room (for tests).
+    std::uint64_t Copies() const { return copies_; }
+private:
+    std::shared_ptr<const room::Snapshot> source_;
+    room::Snapshot kept_;
+    std::uint64_t copies_ = 0;
+    bool lent_ = false, filled_ = false;
 };
 
 // The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the

@@ -38,13 +38,15 @@ const char* StatusName(room::MemberStatus status) {
 // "Idle 4 min" for a member who has done nothing in the room for a minute
 // or more while waiting (not in a game, not ready, not watching one), else
 // empty. A waiting member who said they are in Training is shown as that
-// instead: it is why they are quiet.
-std::string IdleText(const room::Member& member) {
+// instead: it is why they are quiet. The room stamped the idle time
+// `elapsedMs` ago (ShellView::roomElapsedMs).
+std::string IdleText(const room::Member& member, std::uint64_t elapsedMs) {
     const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
         member.status == room::MemberStatus::Seated;
     if (waiting && member.training) return loc::T("room.in_training");
-    if (!waiting || member.idleSeconds < 60) return {};
-    const unsigned minutes = member.idleSeconds / 60;
+    const auto idleSeconds = RoomIdleSeconds(member, elapsedMs);
+    if (!waiting || idleSeconds < 60) return {};
+    const unsigned minutes = idleSeconds / 60;
     return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
 }
 // A held start is waiting on people, not preparing anything.
@@ -524,7 +526,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    seat.caption=f?f->name:loc::T("room.fighter_not_shared");
    if(m->id==v.room.localMember)seat.caption+=loc::T("room.suffix_you");
    if(t.streakHolder==m->id&&t.streak>=2)seat.streak=loc::Tf("room.streak",t.streak);
-   if(!t.ready[side])seat.idle=IdleText(*m);
+   if(!t.ready[side])seat.idle=IdleText(*m,v.roomElapsedMs);
   }
   // A first-to-N table names its set and rotation where the round settings
   // would be; those stay on the table's rules rows.
@@ -552,7 +554,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
   card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();
   const auto status=MemberStatusText(v.room,*m,false,true);
-  const auto idle=IdleText(*m);
+  const auto idle=IdleText(*m,v.roomElapsedMs);
   card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
   pressBody(e,DrawMemberCard(card));
  };

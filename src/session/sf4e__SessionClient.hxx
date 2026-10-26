@@ -74,6 +74,11 @@ namespace sf4e {
 		// GetTickCount64 when the room snapshot last arrived; members' idle
 		// times count on from it.
 		std::uint64_t RoomSnapshotReceivedMs() const { return _roomSnapshotReceivedMs; }
+		// Changes with every whole replacement of the room snapshot, the only way it
+		// changes, and is never repeated by any client in this process (0 is the
+		// empty room a client starts with). Readers that keep something derived from
+		// the room rebuild it when this moves.
+		std::uint64_t RoomSnapshotSequence() const { return _roomSnapshotSequence; }
 		// Menu readiness uses live room authority, not the immutable projection
 		// retained by native gameplay while the previous match drains.
 		bool LocalSelectionLocked(int slot) const;
@@ -198,6 +203,9 @@ namespace sf4e {
 		std::uint64_t _stepCounter = 0;
 		room::Snapshot _roomSnapshot;
 		std::uint64_t _roomSnapshotReceivedMs = 0;
+		std::uint64_t _roomSnapshotSequence = 0;
+		// The next RoomSnapshotSequence, shared by every client in the process.
+		static std::uint64_t NextRoomSnapshotSequence();
 		std::string _roomError;
 		std::uint64_t _nextRoomActionId = 1;
 		struct RetainedRoomRetry {

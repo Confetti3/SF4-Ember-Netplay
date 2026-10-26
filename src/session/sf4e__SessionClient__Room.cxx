@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <limits>
+#include <atomic>
 
 #include <windows.h>
 
@@ -370,6 +371,11 @@ SessionClient::~SessionClient()
 	Disconnect();
 }
 
+std::uint64_t SessionClient::NextRoomSnapshotSequence() {
+	static std::atomic<std::uint64_t> sequence{0};
+	return ++sequence;
+}
+
 bool SessionClient::HandleRoomSnapshot(json& msg) {
 	SessionProtocol::RoomSnapshotMessage snapshot;
 	try { msg.get_to(snapshot); }
@@ -382,11 +388,6 @@ bool SessionClient::HandleRoomSnapshot(json& msg) {
 			(*snapshotField)["protocol_version"].get<long long>() != static_cast<long long>(room::ProtocolVersion);
 		_roomError = otherProtocol ? "runtime.build_mismatch" : "runtime.room_request_failed"; return false;
 	}
-	// The owner leaves out chat this client already holds (it advertised
-	// roomChatDelta). Keep the current room's chat; a different room has
-	// none to keep.
-	if (snapshot.chatUnchanged && _roomSnapshot.roomEpoch && snapshot.snapshot.roomEpoch == _roomSnapshot.roomEpoch)
-		snapshot.snapshot.chat = _roomSnapshot.chat;
 	if (snapshot.snapshot.protocolVersion != room::ProtocolVersion ||
 		(snapshot.snapshot.localMember == 0 && _customRoomsRequired)) {
 		spdlog::warn("Client: incompatible room protocol {} (this build speaks {})", snapshot.snapshot.protocolVersion, room::ProtocolVersion);
@@ -394,8 +395,15 @@ bool SessionClient::HandleRoomSnapshot(json& msg) {
 	}
     if(_roomSnapshot.roomEpoch && (snapshot.snapshot.roomEpoch!=_roomSnapshot.roomEpoch ||
         snapshot.snapshot.revision<_roomSnapshot.revision)) return true;
+	// The owner leaves out chat this client already holds (it advertised
+	// roomChatDelta). Keep the current room's chat; a different room has
+	// none to keep. It moves over rather than being copied, since the room
+	// it belongs to is replaced on the next line.
+	if (snapshot.chatUnchanged && _roomSnapshot.roomEpoch && snapshot.snapshot.roomEpoch == _roomSnapshot.roomEpoch)
+		snapshot.snapshot.chat = std::move(_roomSnapshot.chat);
 	_roomSnapshot = std::move(snapshot.snapshot);
 	_roomSnapshotReceivedMs = GetTickCount64();
+	_roomSnapshotSequence = NextRoomSnapshotSequence();
 	_customRoomsSeen = true;
 	if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
 	ReconcileTerminalAcks();
@@ -434,6 +442,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
         (result.result.snapshot.roomEpoch==_roomSnapshot.roomEpoch && result.result.snapshot.revision>=_roomSnapshot.revision))) {
 		_roomSnapshot = std::move(result.result.snapshot);
 		_roomSnapshotReceivedMs = GetTickCount64();
+		_roomSnapshotSequence = NextRoomSnapshotSequence();
 		_customRoomsSeen = true;
 		if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
 		ReconcileTerminalAcks();

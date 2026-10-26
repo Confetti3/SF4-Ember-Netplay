@@ -64,26 +64,52 @@ std::string RoomErrorText(const std::string& error) {
     if (logged != error) { logged = error; spdlog::warn("Room error without a message: {}", error); }
     return loc::T("runtime.room_request_failed");
 }
+// The room as this player's screen shows it and its member list, built once
+// per change and shared by every snapshot published until the next. The
+// client replaces its room only whole, each time under a new sequence, so the
+// sequence and what decides the class emblems are the whole key.
+struct ShownRoom {
+	std::shared_ptr<const room::Snapshot> room;
+	std::vector<netplay::MemberView> members;
+	std::uint64_t sequence = 0;
+	bool emblems = false;
+};
+static ShownRoom shownRoom;
+static const ShownRoom& ShownRoomOf(const SessionClient& client) {
+	// A class is the bridge's word only in a room this client joined as
+	// public, which it knows from its own join; a private room's host
+	// writes its own snapshot, so any class in one is dropped here. So are
+	// all of them for a player who hides class emblems on their screen.
+	const bool emblems = runtime->room && runtime->room->ServerOwned() && runtime->preferences.classEmblems;
+	const auto sequence = client.RoomSnapshotSequence();
+	if (shownRoom.room && shownRoom.sequence == sequence && shownRoom.emblems == emblems) return shownRoom;
+	auto built = std::make_shared<room::Snapshot>(client.GetRoomSnapshot());
+	if (!emblems) for (auto& member : built->members) member.badge = SkillBadge();
+	shownRoom.members.clear();
+	if (built->roomEpoch) {
+		for (const auto& member : built->members) {
+			netplay::MemberView view(member.name);
+			view.role = member.seat >= 0 ? netplay::MemberRole::Player : netplay::MemberRole::Spectator;
+			view.ready = member.seat >= 0 && member.seat < 2 && member.table >= 0 &&
+				member.table < static_cast<std::int8_t>(room::TableCount) &&
+				built->tables[member.table].ready[member.seat];
+			shownRoom.members.push_back(std::move(view));
+		}
+	}
+	shownRoom.room = std::move(built);
+	shownRoom.sequence = sequence;
+	shownRoom.emblems = emblems;
+	return shownRoom;
+}
 static void FillRoomView(RuntimeSnapshot& snapshot) {
 	if (runtime->attached && UserApp::netplay) {
-		snapshot.room = UserApp::netplay->client.GetRoomSnapshot();
-		// A class is the bridge's word only in a room this client joined as
-		// public, which it knows from its own join; a private room's host
-		// writes its own snapshot, so any class in one is dropped here. So are
-		// all of them for a player who hides class emblems on their screen.
-		if (!runtime->room || !runtime->room->ServerOwned() || !runtime->preferences.classEmblems)
-			for (auto& member : snapshot.room.members) member.badge = SkillBadge();
+		const auto& shown = ShownRoomOf(UserApp::netplay->client);
+		snapshot.room = shown.room;
+		const room::Snapshot& current = *shown.room;
 		snapshot.roomReceivedMs = UserApp::netplay->client.RoomSnapshotReceivedMs();
 		snapshot.roomNotices.assign(runtime->roomNotices.begin(), runtime->roomNotices.end());
-		if (snapshot.room.roomEpoch) {
-			for (const auto& member : snapshot.room.members) {
-				netplay::MemberView view(member.name);
-				view.role = member.seat >= 0 ? netplay::MemberRole::Player : netplay::MemberRole::Spectator;
-				view.ready = member.seat >= 0 && member.seat < 2 && member.table >= 0 &&
-					member.table < static_cast<std::int8_t>(room::TableCount) &&
-					snapshot.room.tables[member.table].ready[member.seat];
-				snapshot.members.push_back(std::move(view));
-			}
+		if (current.roomEpoch) {
+			snapshot.members = shown.members;
 		} else {
 			for (const auto& member : UserApp::netplay->client._lobbyData.members) {
 				netplay::MemberView view(member.name);
@@ -100,16 +126,16 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
 		// What the player may do (localSlot, the gates, the delay) is ComputeGates';
 		// this fills in what the interface shows beside it.
 		const room::Member* localMember = nullptr;
-		if (snapshot.room.roomEpoch) {
-			const auto local = std::find_if(snapshot.room.members.begin(), snapshot.room.members.end(),
-				[&](const room::Member& member) { return member.id == snapshot.room.localMember; });
-			if (local != snapshot.room.members.end()) localMember = &*local;
+		if (current.roomEpoch) {
+			const auto local = std::find_if(current.members.begin(), current.members.end(),
+				[&](const room::Member& member) { return member.id == current.localMember; });
+			if (local != current.members.end()) localMember = &*local;
 			if (!client.RoomError().empty()) snapshot.helperError = RoomErrorText(client.RoomError());
 		}
-		if (snapshot.room.roomEpoch) {
+		if (current.roomEpoch) {
 			const bool seated = localMember && localMember->table >= 0 && localMember->table < room::TableCount &&
 				localMember->seat >= 0 && localMember->seat < 2;
-			const auto* table = seated ? &snapshot.room.tables[localMember->table] : nullptr;
+			const auto* table = seated ? &current.tables[localMember->table] : nullptr;
             if (table) {
                 snapshot.lobbySettings.editionSelect = table->rules.editionSelect;
                 snapshot.lobbySettings.roundCount = table->rules.roundCount;
@@ -125,9 +151,9 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                         probe.pairRevision==table->revision) {
                         snapshot.probeRoute=ClassifyRoute(probe.route);
                         snapshot.probeRelay=RelayRegion(probe.route);
-                        const auto opponentMember=std::find_if(snapshot.room.members.begin(),snapshot.room.members.end(),
+                        const auto opponentMember=std::find_if(current.members.begin(),current.members.end(),
                             [&](const room::Member& m){return m.id==opponent;});
-                        if(opponentMember!=snapshot.room.members.end()){snapshot.probeOpponent=opponentMember->name;snapshot.probeOpponentNat=opponentMember->nat;}
+                        if(opponentMember!=current.members.end()){snapshot.probeOpponent=opponentMember->name;snapshot.probeOpponentNat=opponentMember->nat;}
                         snapshot.probeP50Us=probe.p50RttUs; snapshot.probeP95Us=probe.p95RttUs; snapshot.probeP99Us=probe.p99RttUs;
                         snapshot.probeJitterUs=probe.jitterUs; snapshot.probeBenchmark=probe.benchmark;
                         snapshot.probeStatus=probe.status; snapshot.probeSamples=probe.samples; snapshot.probeLost=probe.lost;
@@ -137,6 +163,9 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                 }
             }
 		}
+	} else if (shownRoom.room) {
+		// Out of the room: let the last one go.
+		shownRoom = ShownRoom();
 	}
 }
 
@@ -145,7 +174,7 @@ static void FillLockReasons(RuntimeSnapshot& snapshot) {
     if (!snapshot.canEditSelection) {
         snapshot.selectionLockReason = !snapshot.atMainMenu ? loc::T("runtime.lock.return_to_menu_fighter") :
             runtime->pendingAbort ? loc::T("runtime.lock.previous_game_closing") :
-			snapshot.room.localTerminalPending ? loc::T("runtime.lock.teardown") :
+			snapshot.Room().localTerminalPending ? loc::T("runtime.lock.teardown") :
 			runtime->recoveringMatch || snapshot.session.control != netplay::Health::Healthy ? loc::T("runtime.lock.room_recovering") :
             snapshot.session.readyPending || runtime->readyIntent.Parked() ? loc::T("runtime.lock.ready_pending") :
             loc::T("runtime.lock.selection_update");
@@ -156,7 +185,8 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
     if (runtime->discordClient && runtime->discordClient->State() == platform::HelperState::Connected) {
         const auto nowTick=GetTickCount64();
         // A public room admits by ticket, so its invitation alone would admit nobody.
-        const bool offersInvitation = runtime->room && !snapshot.room.serverOwned;
+        const room::Snapshot& current = snapshot.Room();
+        const bool offersInvitation = runtime->room && !current.serverOwned;
         // A tournament match's room, played or watched, is never offered to friends. Keyed to
         // what this game is doing, not the room's binding: it also covers the window where the
         // match's room is open but not bound yet.
@@ -172,13 +202,13 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
         const std::array<std::uint64_t,11> key{{runtime->eventSystemReady,
             runtime->offlineRequested || (runtime->eventSystemReady && !snapshot.atMainMenu && snapshot.session.room==netplay::RoomState::Idle),
             static_cast<std::uint64_t>(runtime->preferences.discordPresence) | (static_cast<std::uint64_t>(runtime->preferences.discordInvites)<<1),
-            snapshot.session.generation.room,snapshot.room.revision,
+            snapshot.session.generation.room,current.revision,
             static_cast<std::uint64_t>(snapshot.session.room) | (static_cast<std::uint64_t>(snapshot.session.match)<<8) |
                 (static_cast<std::uint64_t>(snapshot.session.control)<<16),
-            snapshot.room.localMember,static_cast<std::uint64_t>(snapshot.atMainMenu),
-            snapshot.room.roomEpoch,invitationHash,
+            current.localMember,static_cast<std::uint64_t>(snapshot.atMainMenu),
+            current.roomEpoch,invitationHash,
             static_cast<std::uint64_t>(offersInvitation) | (static_cast<std::uint64_t>(holdsMatchRoom)<<1) |
-                (static_cast<std::uint64_t>(snapshot.room.serverOwned)<<2)}};
+                (static_cast<std::uint64_t>(current.serverOwned)<<2)}};
         const bool publishDue=nowTick-runtime->discordLastPublish>=1000;
         if (runtime->discordPresenceKeyValid && key==runtime->discordPresenceKey) {
             // Nothing changed. The companion exits after 15 s without a message, so the
@@ -186,7 +216,7 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
             if (publishDue && runtime->discordClient->Send(runtime->discordPublished)) runtime->discordLastPublish=nowTick;
             return;
         }
-        discord::PresenceInput input(snapshot.session, snapshot.room);
+        discord::PresenceInput input(snapshot.session, current);
         input.ready = runtime->eventSystemReady;
         input.offline = runtime->offlineRequested || (input.ready && !snapshot.atMainMenu &&
             snapshot.session.room == netplay::RoomState::Idle);

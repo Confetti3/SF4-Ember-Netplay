@@ -180,8 +180,9 @@ bool HoldingStart(const ShellView& v, const room::Table& t) {
 std::string HoldText(const ShellView& v, const room::Table& t) {
     if (!t.spectatorHold || t.phase != room::TablePhase::Ready) return {};
     // An older host sends no time left: say how long it can last.
-    if (!t.holdRemainingMs) return loc::Tf("room.waiting_spectators", room::SpectatorStartHoldMs / 1000);
-    const unsigned seconds = (std::max)(1u, (t.holdRemainingMs + 999) / 1000);
+    const auto holdMs = RoomRemainingMs(t.holdRemainingMs, v.roomElapsedMs);
+    if (!holdMs) return loc::Tf("room.waiting_spectators", room::SpectatorStartHoldMs / 1000);
+    const unsigned seconds = (std::max)(1u, (holdMs + 999) / 1000);
     if (HoldingStart(v, t)) return loc::Tf("room.hold.waiting_you", seconds);
     // The room knows which locked-in spectators are still returning; the
     // snapshot names who is locked in, which is who the start can wait for.
@@ -195,16 +196,18 @@ std::string HoldText(const ShellView& v, const room::Table& t) {
 }
 std::string HoldStatus(const ShellView& v, const room::Table& t) {
     if (!t.spectatorHold || t.phase != room::TablePhase::Ready) return {};
-    if (!t.holdRemainingMs) return loc::T("room.phase.holding");
-    const unsigned seconds = (std::max)(1u, (t.holdRemainingMs + 999) / 1000);
+    const auto holdMs = RoomRemainingMs(t.holdRemainingMs, v.roomElapsedMs);
+    if (!holdMs) return loc::T("room.phase.holding");
+    const unsigned seconds = (std::max)(1u, (holdMs + 999) / 1000);
     return HoldingStart(v, t) ? loc::Tf("room.hold.waiting_you", seconds) : loc::Tf("room.hold.status", seconds);
 }
 ReadyDeadline DescribeReadyDeadline(const ShellView& v, const room::Table& t) {
     ReadyDeadline deadline;
     if (v.room.closed || !t.p1 || !t.p2 || (t.phase != room::TablePhase::Idle && t.phase != room::TablePhase::Waiting)) return deadline;
-    if (t.phase == room::TablePhase::Waiting && t.ready[0] != t.ready[1] && t.readyRemainingMs && t.readyRemainingMs <= 30000) {
+    const auto readyMs = RoomRemainingMs(t.readyRemainingMs, v.roomElapsedMs);
+    if (t.phase == room::TablePhase::Waiting && t.ready[0] != t.ready[1] && readyMs && readyMs <= 30000) {
         deadline.seat = t.ready[0] ? 1 : 0;
-        deadline.seconds = (t.readyRemainingMs + 999) / 1000;
+        deadline.seconds = (readyMs + 999) / 1000;
     }
     const auto place = room::PlaceOf(v.room, v.room.localMember);
     const auto window = static_cast<unsigned>((std::max)(v.trainingReadySeconds, 0));

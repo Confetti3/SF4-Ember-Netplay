@@ -234,6 +234,7 @@ void SessionClient::Disconnect() {
 	_matchData.Clear();
 	_cid = {};
 	_roomSnapshot = {};
+	_roomSnapshotSequence = NextRoomSnapshotSequence();
 	_roomError.clear();
 	_customRoomsSeen = false;
 	_nextRoomActionId = 1;

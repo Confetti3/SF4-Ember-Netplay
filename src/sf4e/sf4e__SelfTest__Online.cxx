@@ -39,7 +39,7 @@ void UseKeyboard(const RuntimeSnapshot& now) {
 }
 
 void ReadyAsRyu(const RuntimeSnapshot& now, int table) {
-	const auto& seats = now.room.tables[table];
+	const auto& seats = now.Room().tables[table];
 	if (!seats.p1 || !seats.p2 || now.session.match != netplay::MatchState::None || now.session.readyPending) return;
 	RuntimeCommand request = Command(netplay::CommandKind::Ready);
 	request.character.charaID = 0; request.character.unc_edition = Dimps::Game::Battle::ED_USF4;
