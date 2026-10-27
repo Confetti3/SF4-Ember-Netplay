@@ -853,10 +853,10 @@ static void TestSharedRoom() {
 	CHECK(first->room && first->Room().name == "Room" && first->Room().members.size() == 2);
 	// A private room's classes are not shown; the client's own room keeps them.
 	CHECK(!first->Room().members[0].badge.Present() && client.GetRoomSnapshot().members[0].badge.HasClass());
-	CHECK(first->members.size() == 2 && first->members[0].name == "Player 1" && first->members[1].name == "Player 2");
+	CHECK(first->Members().size() == 2 && first->Members()[0].name == "Player 1" && first->Members()[1].name == "Player 2");
 	// Unchanged, the next snapshot shares the same room and its member list.
 	const auto second = publish();
-	CHECK(second != first && second->room == first->room && second->members.size() == 2);
+	CHECK(second != first && second->room == first->room && second->Members().size() == 2);
 	// A setting that cannot show a class in this room changes nothing.
 	runtime->preferences.classEmblems = !runtime->preferences.classEmblems;
 	CHECK(publish()->room == first->room);
@@ -873,7 +873,7 @@ static void TestSharedRoom() {
 	deliver(newer);
 	const auto renamed = publish();
 	CHECK(renamed->room != resent->room && renamed->Room().members[1].name == "Player 2 renamed");
-	CHECK(renamed->members[1].name == "Player 2 renamed");
+	CHECK(renamed->Members()[1].name == "Player 2 renamed");
 	// What was published is never changed by what came after.
 	CHECK(first->Room().revision == 1 && first->Room().members[1].name == "Player 2");
 	// Out of the room, no room is published.

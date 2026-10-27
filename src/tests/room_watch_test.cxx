@@ -487,7 +487,7 @@ int main() {
 	TestHostStaysWithTheFighters();
 	TestBindingForms();
 	TestCheckpointKeepsWatchers();
-	if (failures) std::printf("%d failure(s)\n", failures);
+	if (TEST_FAILURES()) std::printf("%d failure(s)\n", TEST_FAILURES());
 	else std::printf("room watch tests passed\n");
-	return failures ? 1 : 0;
+	return TEST_EXIT_CODE();
 }
