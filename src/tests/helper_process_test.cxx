@@ -3,10 +3,10 @@
 #include <cwchar>
 #include <string>
 #include <thread>
+#include "test_support.hxx"
+#define EXPECT_WITH_WIN32(c) EXPECT_MSG(c, "win32=%lu", GetLastError())
 
 using namespace sf4e::platform;
-static int failures = 0;
-#define CHECK(c) do { if (!(c)) { std::printf("FAIL line %d: %s (win32=%lu)\n", __LINE__, #c, GetLastError()); ++failures; } } while (0)
 
 static bool WaitConnected(HelperClient& client) {
     const ULONGLONG until = GetTickCount64() + 15000;
@@ -142,28 +142,28 @@ static void FakePipeCases() {
     {
         FakePipe fake;
         HelperClient client;
-        CHECK(fake.Connect(client));
-        CHECK(client.HelperIpcVersion() == helper_frame::IpcVersion);
+        EXPECT_WITH_WIN32(fake.Connect(client));
+        EXPECT_WITH_WIN32(client.HelperIpcVersion() == helper_frame::IpcVersion);
         const std::string command = "{\"type\":\"status\"}";
         const ULONGLONG started = GetTickCount64();
         for (uint64_t round = 0; round < 50; ++round) {
             uint64_t id = 0, got = 0;
             std::string payload;
-            CHECK(client.Send(command, &id) && id == round + 2);
-            CHECK(fake.Read(got, payload) && got == id && payload == command);
-            CHECK(fake.Write(round + 2, "{\"type\":\"reply\"}"));
+            EXPECT_WITH_WIN32(client.Send(command, &id) && id == round + 2);
+            EXPECT_WITH_WIN32(fake.Read(got, payload) && got == id && payload == command);
+            EXPECT_WITH_WIN32(fake.Write(round + 2, "{\"type\":\"reply\"}"));
             HelperMessage message;
-            CHECK(NextEvent(client, message) && message.id == round + 2 && message.payload == "{\"type\":\"reply\"}");
+            EXPECT_WITH_WIN32(NextEvent(client, message) && message.id == round + 2 && message.payload == "{\"type\":\"reply\"}");
         }
         const ULONGLONG took = GetTickCount64() - started;
         std::printf("fake helper: 50 command and event round trips took %llu ms\n", took);
-        CHECK(took < 5000);
+        EXPECT_WITH_WIN32(took < 5000);
         const ULONGLONG stopping = GetTickCount64();
         client.Stop();
-        CHECK(GetTickCount64() - stopping < 1000);
-        CHECK(client.State() == HelperState::Stopped);
+        EXPECT_WITH_WIN32(GetTickCount64() - stopping < 1000);
+        EXPECT_WITH_WIN32(client.State() == HelperState::Stopped);
         // Stopping while a read is posted is not an error.
-        CHECK(client.LastError() == ERROR_SUCCESS);
+        EXPECT_WITH_WIN32(client.LastError() == ERROR_SUCCESS);
     }
     // More events than the mailbox holds, written while nobody takes them:
     // the worker holds one back and stops reading, commands still go out,
@@ -171,7 +171,7 @@ static void FakePipeCases() {
     {
         FakePipe fake;
         HelperClient client;
-        CHECK(fake.Connect(client));
+        EXPECT_WITH_WIN32(fake.Connect(client));
         const uint64_t count = 300;
         bool written = true;
         std::thread writer([&fake, &written, count] {
@@ -180,11 +180,11 @@ static void FakePipeCases() {
             }
         });
         Sleep(500);
-        CHECK(client.State() == HelperState::Connected);
+        EXPECT_WITH_WIN32(client.State() == HelperState::Connected);
         uint64_t sent = 0, got = 0;
         std::string payload;
-        CHECK(client.Send("{\"type\":\"ack\"}", &sent));
-        CHECK(fake.Read(got, payload) && got == sent && payload == "{\"type\":\"ack\"}");
+        EXPECT_WITH_WIN32(client.Send("{\"type\":\"ack\"}", &sent));
+        EXPECT_WITH_WIN32(fake.Read(got, payload) && got == sent && payload == "{\"type\":\"ack\"}");
         uint64_t expected = 2;
         HelperMessage message;
         while (expected < 2 + count && NextEvent(client, message)) {
@@ -192,10 +192,10 @@ static void FakePipeCases() {
             ++expected;
         }
         std::printf("fake helper: %llu of %llu events arrived in order through a full mailbox\n", expected - 2, count);
-        CHECK(expected == 2 + count);
+        EXPECT_WITH_WIN32(expected == 2 + count);
         writer.join();
-        CHECK(written);
-        CHECK(client.State() == HelperState::Connected);
+        EXPECT_WITH_WIN32(written);
+        EXPECT_WITH_WIN32(client.State() == HelperState::Connected);
         client.Stop();
     }
     // The authentication answer carries the helper's IPC version. A bare SF4N
@@ -204,15 +204,15 @@ static void FakePipeCases() {
     {
         FakePipe fake;
         HelperClient client;
-        CHECK(fake.Connect(client, "SF4N"));
-        CHECK(client.HelperIpcVersion() == 0);
+        EXPECT_WITH_WIN32(fake.Connect(client, "SF4N"));
+        EXPECT_WITH_WIN32(client.HelperIpcVersion() == 0);
         client.Stop();
     }
     {
         FakePipe fake;
         HelperClient client;
-        CHECK(!fake.Connect(client, "SF4X"));
-        CHECK(client.State() == HelperState::Failed);
+        EXPECT_WITH_WIN32(!fake.Connect(client, "SF4X"));
+        EXPECT_WITH_WIN32(client.State() == HelperState::Failed);
         client.Stop();
     }
     // A raw-body frame is a payload like any other to the client: it arrives
@@ -220,32 +220,32 @@ static void FakePipeCases() {
     {
         FakePipe fake;
         HelperClient client;
-        CHECK(fake.Connect(client));
+        EXPECT_WITH_WIN32(fake.Connect(client));
         const std::string chunk("\0\1\xff", 3);
         const auto event = helper_frame::EncodeRawBody("{\"type\":\"checkpoint_chunk\"}", chunk.data(), chunk.size());
-        CHECK(!event.empty() && fake.Write(2, event));
+        EXPECT_WITH_WIN32(!event.empty() && fake.Write(2, event));
         HelperMessage message;
-        CHECK(NextEvent(client, message) && message.payload == event);
+        EXPECT_WITH_WIN32(NextEvent(client, message) && message.payload == event);
         uint64_t id = 0, got = 0;
         std::string payload;
-        CHECK(client.Send(event, &id) && fake.Read(got, payload) && got == id && payload == event);
+        EXPECT_WITH_WIN32(client.Send(event, &id) && fake.Read(got, payload) && got == id && payload == event);
         client.Stop();
     }
     // A header that arrives in pieces is put back together.
     {
         FakePipe fake;
         HelperClient client;
-        CHECK(fake.Connect(client));
+        EXPECT_WITH_WIN32(fake.Connect(client));
         const std::string payload = "{\"type\":\"split\"}";
         const std::string frame = FakePipe::Frame(2, payload);
-        CHECK(fake.WriteRaw(frame.data(), 5));
+        EXPECT_WITH_WIN32(fake.WriteRaw(frame.data(), 5));
         Sleep(100);
-        CHECK(fake.WriteRaw(frame.data() + 5, 6));
+        EXPECT_WITH_WIN32(fake.WriteRaw(frame.data() + 5, 6));
         Sleep(100);
-        CHECK(fake.WriteRaw(frame.data() + 11, frame.size() - 11));
+        EXPECT_WITH_WIN32(fake.WriteRaw(frame.data() + 11, frame.size() - 11));
         HelperMessage message;
-        CHECK(NextEvent(client, message) && message.id == 2 && message.payload == payload);
-        CHECK(client.State() == HelperState::Connected);
+        EXPECT_WITH_WIN32(NextEvent(client, message) && message.id == 2 && message.payload == payload);
+        EXPECT_WITH_WIN32(client.State() == HelperState::Connected);
         client.Stop();
     }
     // A frame of another version, and an id that goes backwards, fail the
@@ -253,25 +253,25 @@ static void FakePipeCases() {
     {
         FakePipe fake;
         HelperClient client;
-        CHECK(fake.Connect(client));
+        EXPECT_WITH_WIN32(fake.Connect(client));
         std::string frame = FakePipe::Frame(2, "{}");
         frame[5] = 2;
-        CHECK(fake.WriteRaw(frame.data(), frame.size()));
-        CHECK(WaitFailed(client));
-        CHECK(client.LastError() == ERROR_INVALID_DATA);
+        EXPECT_WITH_WIN32(fake.WriteRaw(frame.data(), frame.size()));
+        EXPECT_WITH_WIN32(WaitFailed(client));
+        EXPECT_WITH_WIN32(client.LastError() == ERROR_INVALID_DATA);
         client.Stop();
     }
     {
         FakePipe fake;
         HelperClient client;
-        CHECK(fake.Connect(client));
-        CHECK(fake.Write(3, "{\"type\":\"first\"}"));
-        CHECK(fake.Write(2, "{\"type\":\"stale\"}"));
-        CHECK(WaitFailed(client));
-        CHECK(client.LastError() == ERROR_INVALID_DATA);
+        EXPECT_WITH_WIN32(fake.Connect(client));
+        EXPECT_WITH_WIN32(fake.Write(3, "{\"type\":\"first\"}"));
+        EXPECT_WITH_WIN32(fake.Write(2, "{\"type\":\"stale\"}"));
+        EXPECT_WITH_WIN32(WaitFailed(client));
+        EXPECT_WITH_WIN32(client.LastError() == ERROR_INVALID_DATA);
         HelperMessage message;
-        CHECK(client.TryReceive(message) && message.id == 3);
-        CHECK(!client.TryReceive(message));
+        EXPECT_WITH_WIN32(client.TryReceive(message) && message.id == 3);
+        EXPECT_WITH_WIN32(!client.TryReceive(message));
         client.Stop();
     }
     // A helper that closes its end while the worker waits fails the client at
@@ -279,15 +279,15 @@ static void FakePipeCases() {
     {
         FakePipe fake;
         HelperClient client;
-        CHECK(fake.Connect(client));
+        EXPECT_WITH_WIN32(fake.Connect(client));
         Sleep(50);
         const ULONGLONG started = GetTickCount64();
         fake.Close();
-        CHECK(WaitFailed(client));
+        EXPECT_WITH_WIN32(WaitFailed(client));
         const ULONGLONG took = GetTickCount64() - started;
         std::printf("fake helper closed: client Failed after %llu ms with error %lu\n", took, client.LastError());
-        CHECK(took < 1000);
-        CHECK(client.LastError() == ERROR_BROKEN_PIPE);
+        EXPECT_WITH_WIN32(took < 1000);
+        EXPECT_WITH_WIN32(client.LastError() == ERROR_BROKEN_PIPE);
         client.Stop();
     }
 }
@@ -298,40 +298,40 @@ int wmain(int argc, wchar_t** argv) {
     FakePipeCases();
     {
         HelperProcess helper;
-        CHECK(helper.Start(executable, GetCurrentProcessId()));
+        EXPECT_WITH_WIN32(helper.Start(executable, GetCurrentProcessId()));
         if (!helper.IsRunning()) { std::printf("Helper start error %lu\n", helper.LastError()); return 1; }
         const DWORD pid = helper.Bootstrap().helperPid;
         HANDLE process = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-        CHECK(process != nullptr);
+        EXPECT_WITH_WIN32(process != nullptr);
         HelperClient client;
-        CHECK(client.Start(helper.Bootstrap()));
-        CHECK(WaitConnected(client));
+        EXPECT_WITH_WIN32(client.Start(helper.Bootstrap()));
+        EXPECT_WITH_WIN32(WaitConnected(client));
         // The helper built with this game answers with the same IPC version.
-        CHECK(client.HelperIpcVersion() == helper_frame::IpcVersion);
+        EXPECT_WITH_WIN32(client.HelperIpcVersion() == helper_frame::IpcVersion);
         uint64_t request = 0;
-        CHECK(client.Send("{\"type\":\"status\"}", &request) && request == 2);
-        CHECK(WaitMessage(client, "\"request_id\":2"));
+        EXPECT_WITH_WIN32(client.Send("{\"type\":\"status\"}", &request) && request == 2);
+        EXPECT_WITH_WIN32(WaitMessage(client, "\"request_id\":2"));
         WindowProbe probe = { pid, false }; EnumWindows(FindWindow, reinterpret_cast<LPARAM>(&probe));
-        CHECK(!probe.found);
-        CHECK(client.Send("{\"type\":\"leave\",\"epoch\":999}"));
-        CHECK(WaitMessage(client, "stale_epoch"));
-        CHECK(helper.IsRunning());
-        CHECK(client.Send("{\"type\":\"shutdown\"}"));
-        CHECK(WaitMessage(client, "\"type\":\"stopped\""));
-        CHECK(WaitForSingleObject(process, 5000) == WAIT_OBJECT_0);
-        DWORD exitCode = 99; CHECK(GetExitCodeProcess(process, &exitCode) && exitCode == 0);
+        EXPECT_WITH_WIN32(!probe.found);
+        EXPECT_WITH_WIN32(client.Send("{\"type\":\"leave\",\"epoch\":999}"));
+        EXPECT_WITH_WIN32(WaitMessage(client, "stale_epoch"));
+        EXPECT_WITH_WIN32(helper.IsRunning());
+        EXPECT_WITH_WIN32(client.Send("{\"type\":\"shutdown\"}"));
+        EXPECT_WITH_WIN32(WaitMessage(client, "\"type\":\"stopped\""));
+        EXPECT_WITH_WIN32(WaitForSingleObject(process, 5000) == WAIT_OBJECT_0);
+        DWORD exitCode = 99; EXPECT_WITH_WIN32(GetExitCodeProcess(process, &exitCode) && exitCode == 0);
         CloseHandle(process); client.Stop(); helper.Stop(0);
-        CHECK(!helper.IsRunning());
+        EXPECT_WITH_WIN32(!helper.IsRunning());
     }
     // A helper that dies while the client waits for events ends the wait at
     // once with the client Failed, not when the wait runs out: the room host
     // sleeps here between ticks.
     {
         HelperProcess helper;
-        CHECK(helper.Start(executable, GetCurrentProcessId()));
+        EXPECT_WITH_WIN32(helper.Start(executable, GetCurrentProcessId()));
         HelperClient client;
-        CHECK(client.Start(helper.Bootstrap()));
-        CHECK(WaitConnected(client));
+        EXPECT_WITH_WIN32(client.Start(helper.Bootstrap()));
+        EXPECT_WITH_WIN32(WaitConnected(client));
         std::thread killer([&helper] { Sleep(300); helper.Stop(0); });
         const ULONGLONG started = GetTickCount64();
         HelperMessage message;
@@ -341,22 +341,22 @@ int wmain(int argc, wchar_t** argv) {
         }
         const ULONGLONG took = GetTickCount64() - started;
         std::printf("helper killed: WaitForIncoming saw Failed after %llu ms\n", took);
-        CHECK(client.State() == HelperState::Failed);
-        CHECK(took < 3000);
+        EXPECT_WITH_WIN32(client.State() == HelperState::Failed);
+        EXPECT_WITH_WIN32(took < 3000);
         killer.join();
         client.Stop();
     }
     // Authentication failures must never reach the command service.
     for (int mode = 0; mode < 3; ++mode) {
         HelperProcess helper;
-        CHECK(helper.Start(executable, GetCurrentProcessId() + (mode == 2 ? 1 : 0)));
+        EXPECT_WITH_WIN32(helper.Start(executable, GetCurrentProcessId() + (mode == 2 ? 1 : 0)));
         HelperBootstrap invalid = helper.Bootstrap();
         if (mode == 0) { invalid.nonce[0] ^= 1; }
         if (mode == 1) { invalid.helperPid = GetCurrentProcessId(); }
         HelperClient client;
-        CHECK(client.Start(invalid));
-        CHECK(!WaitConnected(client));
-        CHECK(client.State() == HelperState::Failed);
+        EXPECT_WITH_WIN32(client.Start(invalid));
+        EXPECT_WITH_WIN32(!WaitConnected(client));
+        EXPECT_WITH_WIN32(client.State() == HelperState::Failed);
         client.Stop(); helper.Stop(0);
         SecureZeroMemory(&invalid, sizeof(invalid));
     }
@@ -364,12 +364,12 @@ int wmain(int argc, wchar_t** argv) {
     HANDLE child = nullptr;
     {
         HelperProcess supervisor;
-        CHECK(supervisor.Start(executable, GetCurrentProcessId()));
+        EXPECT_WITH_WIN32(supervisor.Start(executable, GetCurrentProcessId()));
         child = OpenProcess(SYNCHRONIZE, FALSE, supervisor.Bootstrap().helperPid);
-        CHECK(child != nullptr);
+        EXPECT_WITH_WIN32(child != nullptr);
     }
-    CHECK(WaitForSingleObject(child, 5000) == WAIT_OBJECT_0);
+    EXPECT_WITH_WIN32(WaitForSingleObject(child, 5000) == WAIT_OBJECT_0);
     CloseHandle(child);
-    std::printf("HelperProcess: %d failure(s); x86 supervisor/x64 helper, IPC authentication, hidden startup, shutdown and job cleanup checked\n", failures);
-    return failures ? 1 : 0;
+    std::printf("HelperProcess: %d failure(s); x86 supervisor/x64 helper, IPC authentication, hidden startup, shutdown and job cleanup checked\n", TEST_FAILURES());
+    return TEST_EXIT_CODE();
 }

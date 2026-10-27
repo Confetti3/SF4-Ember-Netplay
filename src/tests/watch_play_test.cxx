@@ -7,12 +7,10 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include "test_support.hxx"
 
 using namespace sf4e::netplay::tournament;
 using Kind = WatchOutput::Kind;
-
-static int failures = 0;
-#define CHECK(condition) do { if (!(condition)) { std::printf("FAIL line %d: %s\n", __LINE__, #condition); ++failures; } } while (false)
 
 static const std::string RoomA(32, 'a');
 static const std::string RoomB(32, 'b');
@@ -53,31 +51,31 @@ static std::vector<WatchOutput> Tick(WatchPlay& play, std::uint64_t nowMs, const
 // the bridge says; a full match waits with its reason and a place ends it.
 static void TestAsking() {
 	WatchPlay play;
-	CHECK(Tick(play, 0).empty() && play.GetPhase() == WatchPhase::Idle);
+	EXPECT(Tick(play, 0).empty() && play.GetPhase() == WatchPhase::Idle);
 	play.Start("brg_1", "emt_1", 100);
-	CHECK(play.GetPhase() == WatchPhase::Asking && play.BridgeId() == "brg_1" && play.MatchId() == "emt_1");
-	CHECK(Count(Tick(play, 100), Kind::Watch) == 1);
+	EXPECT(play.GetPhase() == WatchPhase::Asking && play.BridgeId() == "brg_1" && play.MatchId() == "emt_1");
+	EXPECT(Count(Tick(play, 100), Kind::Watch) == 1);
 	// Nothing more while the answer is out.
-	CHECK(Tick(play, 100 + 60000).empty());
+	EXPECT(Tick(play, 100 + 60000).empty());
 	play.OnReply(Waiting("not_bound"), 200);
-	CHECK(play.GetPhase() == WatchPhase::Waiting && !play.Full());
-	CHECK(Tick(play, 200 + WatchIntervalMs - 1).empty());
-	CHECK(Count(Tick(play, 200 + WatchIntervalMs), Kind::Watch) == 1);
+	EXPECT(play.GetPhase() == WatchPhase::Waiting && !play.Full());
+	EXPECT(Tick(play, 200 + WatchIntervalMs - 1).empty());
+	EXPECT(Count(Tick(play, 200 + WatchIntervalMs), Kind::Watch) == 1);
 	// A longer wait the bridge asks for is kept, and so is a full match's reason.
 	play.OnReply(Waiting("full", 30000), 20000);
-	CHECK(play.GetPhase() == WatchPhase::Waiting && play.Full());
-	CHECK(Tick(play, 49999).empty() && Count(Tick(play, 50000), Kind::Watch) == 1);
+	EXPECT(play.GetPhase() == WatchPhase::Waiting && play.Full());
+	EXPECT(Tick(play, 49999).empty() && Count(Tick(play, 50000), Kind::Watch) == 1);
 	// A room answer clears it and asks again in ten seconds.
 	play.OnReply(Room(RoomA), 50100);
-	CHECK(!play.Full());
-	CHECK(Count(Tick(play, 50100 + WatchIntervalMs - 1), Kind::Watch) == 0);
-	CHECK(Count(Tick(play, 50100 + WatchIntervalMs), Kind::Watch) == 1);
+	EXPECT(!play.Full());
+	EXPECT(Count(Tick(play, 50100 + WatchIntervalMs - 1), Kind::Watch) == 0);
+	EXPECT(Count(Tick(play, 50100 + WatchIntervalMs), Kind::Watch) == 1);
 	// Never sooner than a second, whatever the bridge says.
 	WatchPlay quick;
 	quick.Start("brg_1", "emt_1", 0);
 	Tick(quick, 0);
 	quick.OnReply(Waiting("no_room", 1), 100);
-	CHECK(Tick(quick, 1099).empty() && Count(Tick(quick, 1100), Kind::Watch) == 1);
+	EXPECT(Tick(quick, 1099).empty() && Count(Tick(quick, 1100), Kind::Watch) == 1);
 }
 
 // A room answer is joined once, as an observer would: with its invitation, not
@@ -88,15 +86,15 @@ static void TestJoiningTheRoom() {
 	Tick(play, 0);
 	play.OnReply(Room(RoomA), 10);
 	auto outputs = Tick(play, 20);
-	CHECK(Count(outputs, Kind::Join) == 1 && outputs[0].invitation == "sf4e3:" + RoomA);
-	CHECK(play.GetPhase() == WatchPhase::Joining);
+	EXPECT(Count(outputs, Kind::Join) == 1 && outputs[0].invitation == "sf4e3:" + RoomA);
+	EXPECT(play.GetPhase() == WatchPhase::Joining);
 	RoomView opening;
 	opening.opening = true;
-	CHECK(Count(Tick(play, 30, opening), Kind::Join) == 0 && Count(Tick(play, 9000, opening), Kind::Join) == 0);
-	CHECK(Tick(play, 9500, Joined(RoomA)).empty() && play.GetPhase() == WatchPhase::Watching);
+	EXPECT(Count(Tick(play, 30, opening), Kind::Join) == 0 && Count(Tick(play, 9000, opening), Kind::Join) == 0);
+	EXPECT(Tick(play, 9500, Joined(RoomA)).empty() && play.GetPhase() == WatchPhase::Watching);
 	// It keeps asking while it watches, which keeps the watcher live.
 	play.OnReply(Room(RoomA), 9500);
-	CHECK(Count(Tick(play, 9500 + WatchIntervalMs, Joined(RoomA)), Kind::Watch) == 1 && play.GetPhase() == WatchPhase::Watching);
+	EXPECT(Count(Tick(play, 9500 + WatchIntervalMs, Joined(RoomA)), Kind::Watch) == 1 && play.GetPhase() == WatchPhase::Watching);
 }
 
 // A join the room refused, or whose handshake closed because the bind that
@@ -106,11 +104,11 @@ static void TestJoinIsRetried() {
 	play.Start("brg_1", "emt_1", 0);
 	Tick(play, 0);
 	play.OnReply(Room(RoomA), 10);
-	CHECK(Count(Tick(play, 1000), Kind::Join) == 1);
+	EXPECT(Count(Tick(play, 1000), Kind::Join) == 1);
 	// Closed `not admitted`: not in a room, nothing opening.
-	CHECK(Count(Tick(play, 1000 + WatchIntervalMs - 1), Kind::Join) == 0);
-	CHECK(Count(Tick(play, 1000 + WatchIntervalMs), Kind::Join) == 1);
-	CHECK(Count(Tick(play, 1000 + WatchIntervalMs + 1), Kind::Join) == 0);
+	EXPECT(Count(Tick(play, 1000 + WatchIntervalMs - 1), Kind::Join) == 0);
+	EXPECT(Count(Tick(play, 1000 + WatchIntervalMs), Kind::Join) == 1);
+	EXPECT(Count(Tick(play, 1000 + WatchIntervalMs + 1), Kind::Join) == 0);
 }
 
 // A replaced room: the watcher leaves the old one and joins the new one.
@@ -121,16 +119,16 @@ static void TestFollowsAReplacedRoom() {
 	play.OnReply(Room(RoomA), 10);
 	Tick(play, 20);
 	Tick(play, 30, Joined(RoomA));
-	CHECK(play.GetPhase() == WatchPhase::Watching);
+	EXPECT(play.GetPhase() == WatchPhase::Watching);
 	Tick(play, WatchIntervalMs + 10, Joined(RoomA));
 	play.OnReply(Room(RoomB), WatchIntervalMs + 20);
 	auto outputs = Tick(play, WatchIntervalMs + 30, Joined(RoomA));
-	CHECK(Count(outputs, Kind::Leave) == 1 && Count(outputs, Kind::Join) == 0);
-	CHECK(Count(Tick(play, WatchIntervalMs + 40, Joined(RoomA)), Kind::Leave) == 0);
+	EXPECT(Count(outputs, Kind::Leave) == 1 && Count(outputs, Kind::Join) == 0);
+	EXPECT(Count(Tick(play, WatchIntervalMs + 40, Joined(RoomA)), Kind::Leave) == 0);
 	outputs = Tick(play, WatchIntervalMs + 50);
-	CHECK(Count(outputs, Kind::Join) == 1 && outputs[0].invitation == "sf4e3:" + RoomB);
+	EXPECT(Count(outputs, Kind::Join) == 1 && outputs[0].invitation == "sf4e3:" + RoomB);
 	Tick(play, WatchIntervalMs + 60, Joined(RoomB));
-	CHECK(play.GetPhase() == WatchPhase::Watching);
+	EXPECT(play.GetPhase() == WatchPhase::Watching);
 }
 
 // Sent away by a rebind it asks again at once; a revocation ends the watch
@@ -143,16 +141,16 @@ static void TestKickedAsksAtOnce() {
 	Tick(play, 20);
 	Tick(play, 30, Joined(RoomA));
 	// Not for a second: its next ask is nine seconds off.
-	CHECK(Tick(play, 100, Joined(RoomA)).empty());
+	EXPECT(Tick(play, 100, Joined(RoomA)).empty());
 	play.OnRoomEnded(WatchRoomEnd::Removed, 200);
-	CHECK(play.GetPhase() == WatchPhase::Waiting && play.Notice() == WatchNotice::None);
+	EXPECT(play.GetPhase() == WatchPhase::Waiting && play.Notice() == WatchNotice::None);
 	// The room it left is not joined again before the bridge says.
 	auto outputs = Tick(play, 200);
-	CHECK(Count(outputs, Kind::Watch) == 1 && Count(outputs, Kind::Join) == 0 && Count(outputs, Kind::Leave) == 0);
+	EXPECT(Count(outputs, Kind::Watch) == 1 && Count(outputs, Kind::Join) == 0 && Count(outputs, Kind::Leave) == 0);
 	play.OnFailure("revoked", 300);
-	CHECK(play.GetPhase() == WatchPhase::Refused && play.Reason() == "revoked");
-	CHECK(play.Notice() == WatchNotice::Removed && play.NoticeSequence() == 1);
-	CHECK(Tick(play, 100000).empty() && !play.Active());
+	EXPECT(play.GetPhase() == WatchPhase::Refused && play.Reason() == "revoked");
+	EXPECT(play.Notice() == WatchNotice::Removed && play.NoticeSequence() == 1);
+	EXPECT(Tick(play, 100000).empty() && !play.Active());
 	// Sent away and then readmitted, it joins what the bridge names.
 	play.Start("brg_1", "emt_1", 0);
 	Tick(play, 0);
@@ -162,7 +160,7 @@ static void TestKickedAsksAtOnce() {
 	play.OnRoomEnded(WatchRoomEnd::Removed, 200);
 	Tick(play, 200);
 	play.OnReply(Room(RoomA), 250);
-	CHECK(Count(Tick(play, 260), Kind::Join) == 1);
+	EXPECT(Count(Tick(play, 260), Kind::Join) == 1);
 }
 
 // A closed room is said once, and the bridge says what comes next.
@@ -174,12 +172,12 @@ static void TestRoomClosed() {
 	Tick(play, 20);
 	Tick(play, 30, Joined(RoomA));
 	play.OnRoomEnded(WatchRoomEnd::Closed, 500);
-	CHECK(play.Notice() == WatchNotice::RoomClosed && play.NoticeSequence() == 1 && play.Active());
-	CHECK(Count(Tick(play, 500), Kind::Watch) == 1);
+	EXPECT(play.Notice() == WatchNotice::RoomClosed && play.NoticeSequence() == 1 && play.Active());
+	EXPECT(Count(Tick(play, 500), Kind::Watch) == 1);
 	// Nothing under way, nothing to say.
 	WatchPlay idle;
 	idle.OnRoomEnded(WatchRoomEnd::Closed, 5);
-	CHECK(idle.Notice() == WatchNotice::None && idle.GetPhase() == WatchPhase::Idle);
+	EXPECT(idle.Notice() == WatchNotice::None && idle.GetPhase() == WatchPhase::Idle);
 }
 
 // Stopping tells the bridge, then leaves the room; one that never asked says
@@ -193,16 +191,16 @@ static void TestStop() {
 	Tick(play, 30, Joined(RoomA));
 	play.Stop();
 	auto outputs = Tick(play, 40, Joined(RoomA));
-	CHECK(outputs.size() == 2 && outputs[0].kind == Kind::Unwatch && outputs[1].kind == Kind::Leave);
-	CHECK(play.GetPhase() == WatchPhase::Idle && Tick(play, 100000).empty());
+	EXPECT(outputs.size() == 2 && outputs[0].kind == Kind::Unwatch && outputs[1].kind == Kind::Leave);
+	EXPECT(play.GetPhase() == WatchPhase::Idle && Tick(play, 100000).empty());
 	play.OnReply(Room(RoomB), 100);
 	play.OnFailure("revoked", 100);
-	CHECK(play.GetPhase() == WatchPhase::Idle && Tick(play, 200000).empty());
+	EXPECT(play.GetPhase() == WatchPhase::Idle && Tick(play, 200000).empty());
 	// Before the first ask there is nothing to tell the bridge, and no room to leave.
 	WatchPlay early;
 	early.Start("brg_1", "emt_1", 0);
 	early.Stop();
-	CHECK(Tick(early, 10).empty());
+	EXPECT(Tick(early, 10).empty());
 	// Waiting for a room: it tells the bridge but has no room to leave.
 	WatchPlay waiting;
 	waiting.Start("brg_1", "emt_1", 0);
@@ -210,10 +208,10 @@ static void TestStop() {
 	waiting.OnReply(Waiting("no_room"), 10);
 	waiting.Stop();
 	outputs = Tick(waiting, 20);
-	CHECK(outputs.size() == 1 && outputs[0].kind == Kind::Unwatch);
+	EXPECT(outputs.size() == 1 && outputs[0].kind == Kind::Unwatch);
 	// Stopping twice says it once.
 	waiting.Stop();
-	CHECK(Tick(waiting, 30).empty());
+	EXPECT(Tick(waiting, 30).empty());
 }
 
 // Refused for good, a watcher stops; for a moment, it asks again.
@@ -224,17 +222,17 @@ static void TestFailures() {
 		play.Start("brg_1", "emt_1", 0);
 		Tick(play, 0);
 		play.OnFailure(code, 10);
-		CHECK(play.GetPhase() == WatchPhase::Refused && play.Reason() == code && !play.Active());
+		EXPECT(play.GetPhase() == WatchPhase::Refused && play.Reason() == code && !play.Active());
 		// Never in the room, so there is nothing to leave and nothing to tell the bridge.
-		CHECK(Tick(play, 20).empty() && play.Notice() == WatchNotice::None);
+		EXPECT(Tick(play, 20).empty() && play.Notice() == WatchNotice::None);
 	}
 	for (const char* code : {"helper_unavailable", "rate_limited", "bridge_invalid_response", "unavailable", "bridge_unreachable"}) {
 		WatchPlay play;
 		play.Start("brg_1", "emt_1", 0);
 		Tick(play, 0);
 		play.OnFailure(code, 100);
-		CHECK(play.Active() && Tick(play, 100 + WatchRetryMs - 1).empty());
-		CHECK(Count(Tick(play, 100 + WatchRetryMs), Kind::Watch) == 1);
+		EXPECT(play.Active() && Tick(play, 100 + WatchRetryMs - 1).empty());
+		EXPECT(Count(Tick(play, 100 + WatchRetryMs), Kind::Watch) == 1);
 	}
 	// Refused in the room leaves it at once.
 	WatchPlay play;
@@ -244,17 +242,17 @@ static void TestFailures() {
 	Tick(play, 20);
 	Tick(play, 30, Joined(RoomA));
 	play.OnFailure("not_allowed", 40);
-	CHECK(play.Notice() == WatchNotice::Removed);
+	EXPECT(play.Notice() == WatchNotice::Removed);
 	const auto outputs = Tick(play, 50, Joined(RoomA));
-	CHECK(outputs.size() == 1 && outputs[0].kind == Kind::Leave);
+	EXPECT(outputs.size() == 1 && outputs[0].kind == Kind::Leave);
 	// The helper gone ends the watch the same way, without a notice.
 	WatchPlay lost;
 	lost.Start("brg_1", "emt_1", 0);
 	lost.Abandon("helper_lost");
-	CHECK(lost.GetPhase() == WatchPhase::Refused && lost.Reason() == "helper_lost" && lost.Notice() == WatchNotice::None);
+	EXPECT(lost.GetPhase() == WatchPhase::Refused && lost.Reason() == "helper_lost" && lost.Notice() == WatchNotice::None);
 	WatchPlay idle;
 	idle.Abandon("helper_lost");
-	CHECK(idle.GetPhase() == WatchPhase::Idle);
+	EXPECT(idle.GetPhase() == WatchPhase::Idle);
 }
 
 // A match that is over is left once its last battle closes, or after the hold.
@@ -267,17 +265,17 @@ static void TestFinished() {
 		Tick(play, 20);
 		Tick(play, 30, Joined(RoomA));
 		play.OnFailure("finished", 40);
-		CHECK(play.GetPhase() == WatchPhase::Finished && play.Notice() == WatchNotice::Finished && !play.Active());
+		EXPECT(play.GetPhase() == WatchPhase::Finished && play.Notice() == WatchNotice::Finished && !play.Active());
 		auto fighting = Joined(RoomA);
 		fighting.fighting = true;
-		CHECK(Tick(play, 50, fighting).empty());
-		CHECK(Tick(play, 50 + FinalBattleHoldMs - 1, fighting).empty());
+		EXPECT(Tick(play, 50, fighting).empty());
+		EXPECT(Tick(play, 50 + FinalBattleHoldMs - 1, fighting).empty());
 		if (closes) {
-			CHECK(Count(Tick(play, 1000, Joined(RoomA)), Kind::Leave) == 1);
+			EXPECT(Count(Tick(play, 1000, Joined(RoomA)), Kind::Leave) == 1);
 		} else {
-			CHECK(Count(Tick(play, 50 + FinalBattleHoldMs, fighting), Kind::Leave) == 1);
+			EXPECT(Count(Tick(play, 50 + FinalBattleHoldMs, fighting), Kind::Leave) == 1);
 		}
-		CHECK(Tick(play, 200000, fighting).empty());
+		EXPECT(Tick(play, 200000, fighting).empty());
 	}
 	// Stopping a finished watch leaves at once, and does not tell a bridge that is done.
 	WatchPlay play;
@@ -287,16 +285,16 @@ static void TestFinished() {
 	Tick(play, 20);
 	Tick(play, 30, Joined(RoomA));
 	play.OnFailure("stale_revision", 40);
-	CHECK(play.Reason() == "stale_revision" && play.GetPhase() == WatchPhase::Finished);
+	EXPECT(play.Reason() == "stale_revision" && play.GetPhase() == WatchPhase::Finished);
 	play.Stop();
 	const auto outputs = Tick(play, 50, Joined(RoomA));
-	CHECK(outputs.size() == 1 && outputs[0].kind == Kind::Leave && play.GetPhase() == WatchPhase::Idle);
+	EXPECT(outputs.size() == 1 && outputs[0].kind == Kind::Leave && play.GetPhase() == WatchPhase::Idle);
 	// A match over before the watcher was ever in the room has no notice.
 	WatchPlay early;
 	early.Start("brg_1", "emt_1", 0);
 	Tick(early, 0);
 	early.OnFailure("finished", 10);
-	CHECK(early.GetPhase() == WatchPhase::Finished && early.Notice() == WatchNotice::None && Tick(early, 20).empty());
+	EXPECT(early.GetPhase() == WatchPhase::Finished && early.Notice() == WatchNotice::None && Tick(early, 20).empty());
 }
 
 // A new watch forgets the last one's room, notice and phase.
@@ -311,9 +309,9 @@ static void TestRestart() {
 	play.Stop();
 	Tick(play, 50, Joined(RoomA));
 	play.Start("brg_2", "emt_2", 1000);
-	CHECK(play.GetPhase() == WatchPhase::Asking && play.BridgeId() == "brg_2" && play.MatchId() == "emt_2" && play.Notice() == WatchNotice::None);
+	EXPECT(play.GetPhase() == WatchPhase::Asking && play.BridgeId() == "brg_2" && play.MatchId() == "emt_2" && play.Notice() == WatchNotice::None);
 	const auto outputs = Tick(play, 1000);
-	CHECK(outputs.size() == 1 && outputs[0].kind == Kind::Watch);
+	EXPECT(outputs.size() == 1 && outputs[0].kind == Kind::Watch);
 }
 
 // A room the player opened or joined by hand is not the match's. Whatever the
@@ -334,17 +332,17 @@ static void TestNeverActsOnAForeignRoom() {
 	play.Start("brg_1", "emt_1", 0);
 	Tick(play, 0);
 	play.OnReply(Waiting("no_room"), 10);
-	CHECK(play.GetPhase() == WatchPhase::Waiting);
-	CHECK(Tick(play, 20, Opening()).empty());
+	EXPECT(play.GetPhase() == WatchPhase::Waiting);
+	EXPECT(Tick(play, 20, Opening()).empty());
 	// The room opens with guests in it. Nothing is said to the runtime but the bridge, once.
 	auto outputs = Tick(play, 30, Joined(HandRoom));
-	CHECK(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0 && Count(outputs, Kind::Unwatch) == 1);
-	CHECK(play.GetPhase() == WatchPhase::Refused && play.Reason() == "other_room" && !play.Active());
+	EXPECT(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0 && Count(outputs, Kind::Unwatch) == 1);
+	EXPECT(play.GetPhase() == WatchPhase::Refused && play.Reason() == "other_room" && !play.Active());
 	// A late answer does not bring it back, and the room is never left.
 	play.OnReply(Room(RoomA), 40);
 	for (std::uint64_t now = 50; now < 200000; now += 5000) {
 		outputs = Tick(play, now, Joined(HandRoom));
-		CHECK(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0 && Count(outputs, Kind::Watch) == 0);
+		EXPECT(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0 && Count(outputs, Kind::Watch) == 0);
 	}
 	// The same when the answer names the room before the hand-made one is seen.
 	WatchPlay answered;
@@ -352,8 +350,8 @@ static void TestNeverActsOnAForeignRoom() {
 	Tick(answered, 0);
 	answered.OnReply(Room(RoomA), 10);
 	outputs = Tick(answered, 15, Joined(HandRoom));
-	CHECK(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0 && answered.GetPhase() == WatchPhase::Refused);
-	CHECK(Tick(answered, 20, Joined(HandRoom)).empty());
+	EXPECT(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0 && answered.GetPhase() == WatchPhase::Refused);
+	EXPECT(Tick(answered, 20, Joined(HandRoom)).empty());
 	// Stopping a watch that is waiting, or has a room named but not joined, leaves nothing of the player's.
 	for (const bool named : {false, true}) {
 		WatchPlay stopped;
@@ -362,17 +360,17 @@ static void TestNeverActsOnAForeignRoom() {
 		stopped.OnReply(named ? Room(RoomA) : Waiting("not_bound"), 10);
 		stopped.Stop();
 		outputs = Tick(stopped, 20, Joined(HandRoom));
-		CHECK(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0);
-		CHECK(Tick(stopped, 30, Joined(HandRoom)).empty());
+		EXPECT(Count(outputs, Kind::Leave) == 0 && Count(outputs, Kind::Join) == 0);
+		EXPECT(Tick(stopped, 30, Joined(HandRoom)).empty());
 	}
 	// A watch that ended by itself (revoked while it waited to retry a join) leaves nothing either.
 	WatchPlay revoked;
 	revoked.Start("brg_1", "emt_1", 0);
 	Tick(revoked, 0);
 	revoked.OnReply(Room(RoomA), 10);
-	CHECK(Count(Tick(revoked, 20), Kind::Join) == 1);
+	EXPECT(Count(Tick(revoked, 20), Kind::Join) == 1);
 	revoked.OnFailure("revoked", 30);
-	CHECK(Count(Tick(revoked, 40, Joined(HandRoom)), Kind::Leave) == 0);
+	EXPECT(Count(Tick(revoked, 40, Joined(HandRoom)), Kind::Leave) == 0);
 	// What it did join it still leaves: stopped in the match's room, stopped while its join is
 	// under way, and the match's old room once the bridge names another.
 	WatchPlay own;
@@ -382,14 +380,14 @@ static void TestNeverActsOnAForeignRoom() {
 	Tick(own, 20);
 	Tick(own, 30, Joined(RoomA));
 	own.Stop();
-	CHECK(Count(Tick(own, 40, Joined(RoomA)), Kind::Leave) == 1);
+	EXPECT(Count(Tick(own, 40, Joined(RoomA)), Kind::Leave) == 1);
 	WatchPlay joining;
 	joining.Start("brg_1", "emt_1", 0);
 	Tick(joining, 0);
 	joining.OnReply(Room(RoomA), 10);
 	Tick(joining, 20);
 	joining.Stop();
-	CHECK(Count(Tick(joining, 30, Opening()), Kind::Leave) == 1);
+	EXPECT(Count(Tick(joining, 30, Opening()), Kind::Leave) == 1);
 	// A join long abandoned (the handshake closed, the retry not yet due) is not one under way.
 	WatchPlay stale;
 	stale.Start("brg_1", "emt_1", 0);
@@ -397,18 +395,18 @@ static void TestNeverActsOnAForeignRoom() {
 	stale.OnReply(Room(RoomA), 10);
 	Tick(stale, 20);
 	stale.Stop();
-	CHECK(Count(Tick(stale, 20 + WatchIntervalMs, Opening()), Kind::Leave) == 0);
+	EXPECT(Count(Tick(stale, 20 + WatchIntervalMs, Opening()), Kind::Leave) == 0);
 	// A join that failed leaves nothing under way: the room that opens next (an accepted
 	// Discord invitation, drained the frame after the watch stopped) is not the watch's.
 	WatchPlay failed;
 	failed.Start("brg_1", "emt_1", 0);
 	Tick(failed, 0);
 	failed.OnReply(Room(RoomA), 10);
-	CHECK(Count(Tick(failed, 20), Kind::Join) == 1);
-	CHECK(Tick(failed, 1000).empty());
+	EXPECT(Count(Tick(failed, 20), Kind::Join) == 1);
+	EXPECT(Tick(failed, 1000).empty());
 	failed.Stop();
-	CHECK(Count(Tick(failed, 2000, Opening()), Kind::Leave) == 0);
-	CHECK(Count(Tick(failed, 3000, Joined(HandRoom)), Kind::Leave) == 0);
+	EXPECT(Count(Tick(failed, 2000, Opening()), Kind::Leave) == 0);
+	EXPECT(Count(Tick(failed, 3000, Joined(HandRoom)), Kind::Leave) == 0);
 }
 
 // A room opened or joined by hand beside a match would be left alone by the
@@ -425,34 +423,34 @@ static void TestHandOpenedRoomsAreRefused() {
 		CommandKind::SavePreferences, CommandKind::RoomAction, CommandKind::ReplaceRoom};
 	TournamentPlay idlePlay;
 	WatchPlay idleWatch;
-	for (const auto kind : opening) CHECK(!refused(kind, idlePlay, idleWatch));
+	for (const auto kind : opening) EXPECT(!refused(kind, idlePlay, idleWatch));
 	// A fighter who is still claiming has no room yet, which can last minutes
 	// while the opponent claims: the case that stalled the match.
 	TournamentPlay fighter;
 	fighter.Start("brg_1", "emt_1", 0);
-	CHECK(fighter.GetPhase() == Phase::Claiming);
-	for (const auto kind : opening) CHECK(refused(kind, fighter, idleWatch));
-	for (const auto kind : others) CHECK(!refused(kind, fighter, idleWatch));
+	EXPECT(fighter.GetPhase() == Phase::Claiming);
+	for (const auto kind : opening) EXPECT(refused(kind, fighter, idleWatch));
+	for (const auto kind : others) EXPECT(!refused(kind, fighter, idleWatch));
 	// Every phase of a played match that holds its room, and none that does not.
 	for (const auto phase : {Phase::Claiming, Phase::Opening, Phase::InRoom})
-		for (const auto kind : opening) CHECK(RefusesHandOpenedRoom(kind, phase, WatchPhase::Idle));
+		for (const auto kind : opening) EXPECT(RefusesHandOpenedRoom(kind, phase, WatchPhase::Idle));
 	for (const auto phase : {Phase::Idle, Phase::Finished, Phase::Failed})
-		for (const auto kind : opening) CHECK(!RefusesHandOpenedRoom(kind, phase, WatchPhase::Idle));
+		for (const auto kind : opening) EXPECT(!RefusesHandOpenedRoom(kind, phase, WatchPhase::Idle));
 	// Stopping the match gives the player the menu back.
 	fighter.Stop();
-	for (const auto kind : opening) CHECK(!refused(kind, fighter, idleWatch));
+	for (const auto kind : opening) EXPECT(!refused(kind, fighter, idleWatch));
 	// A watcher is held from the first ask, until it stops.
 	WatchPlay watcher;
 	watcher.Start("brg_1", "emt_1", 0);
 	Tick(watcher, 0);
-	for (const auto kind : opening) CHECK(refused(kind, idlePlay, watcher));
-	for (const auto kind : others) CHECK(!refused(kind, idlePlay, watcher));
+	for (const auto kind : opening) EXPECT(refused(kind, idlePlay, watcher));
+	for (const auto kind : others) EXPECT(!refused(kind, idlePlay, watcher));
 	for (const auto phase : {WatchPhase::Asking, WatchPhase::Waiting, WatchPhase::Joining, WatchPhase::Watching})
-		for (const auto kind : opening) CHECK(RefusesHandOpenedRoom(kind, Phase::Idle, phase));
+		for (const auto kind : opening) EXPECT(RefusesHandOpenedRoom(kind, Phase::Idle, phase));
 	for (const auto phase : {WatchPhase::Idle, WatchPhase::Finished, WatchPhase::Refused})
-		for (const auto kind : opening) CHECK(!RefusesHandOpenedRoom(kind, Phase::Idle, phase));
+		for (const auto kind : opening) EXPECT(!RefusesHandOpenedRoom(kind, Phase::Idle, phase));
 	watcher.Stop();
-	for (const auto kind : opening) CHECK(!refused(kind, idlePlay, watcher));
+	for (const auto kind : opening) EXPECT(!refused(kind, idlePlay, watcher));
 }
 
 int main() {
@@ -468,7 +466,7 @@ int main() {
 	TestRestart();
 	TestNeverActsOnAForeignRoom();
 	TestHandOpenedRoomsAreRefused();
-	if (failures) std::printf("%d failure(s)\n", failures);
+	if (TEST_FAILURES()) std::printf("%d failure(s)\n", TEST_FAILURES());
 	else std::printf("watch play tests passed\n");
-	return failures ? 1 : 0;
+	return TEST_EXIT_CODE();
 }
