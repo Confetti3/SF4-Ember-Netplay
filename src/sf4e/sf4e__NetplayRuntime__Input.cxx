@@ -34,9 +34,10 @@ void LogGameplayController(const input::Device& device, const char* reason) {
 }
 
 namespace {
+// Runs every tick while the saved controller is missing or only stood in for.
 void RestoreMenuController() {
     OverlayPrefs::Data prefs;
-    OverlayPrefs::Load(prefs);
+    OverlayPrefs::LoadEachTick(prefs);
     input::Device saved;
     saved.type = prefs.deviceType; saved.index = prefs.deviceIdx;
     if (prefs.deviceIdentity) saved.identity = *prefs.deviceIdentity;

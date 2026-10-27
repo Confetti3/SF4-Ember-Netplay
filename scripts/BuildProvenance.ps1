@@ -71,6 +71,12 @@ function Assert-ReceiptChannel([object]$Receipt, [string]$Channel) {
     if ($Receipt.stagingBridge -isnot [bool] -or $Receipt.stagingBridge -ne $expected) {
         throw "The build receipt's staging bridge setting does not match the $Channel channel; rebuild with scripts/build-current.ps1."
     }
+    # The channel alone does not prove a Stable build: a checkout whose parent folder has no
+    # build-target.json reads its own file, which names only the top-level (stable) entry, so a
+    # Nightly checkout set up that way reads as stable. A Stable build comes only from release.
+    if ($Channel -ceq 'stable' -and [string]$Receipt.branch -cne 'release') {
+        throw "The build receipt is from branch '$($Receipt.branch)'; Stable builds come only from the release branch."
+    }
 }
 
 function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot) {

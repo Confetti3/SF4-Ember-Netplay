@@ -8,6 +8,9 @@ $repo = Split-Path $PSScriptRoot -Parent
 Push-Location $repo
 try {
     Assert-EmberChannel (Get-EmberBuildTarget $repo) 'stable' 'Stable release packaging'
+    $branch = & git -C $repo branch --show-current
+    if ($LASTEXITCODE) { throw 'Could not read the current branch.' }
+    Assert-EmberStableBranch $branch 'Stable release packaging'
     if (!$SkipBuild) {
         & (Join-Path $PSScriptRoot 'build-current.ps1') -VisualStudioPath $VisualStudioPath -VcpkgRoot $VcpkgRoot -DiscordSdkArchive $DiscordSdkArchive
     }

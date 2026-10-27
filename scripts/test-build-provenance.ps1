@@ -144,10 +144,36 @@ function Expect-ChannelRejection([object]$Receipt, [string]$Channel) {
     try { Assert-ReceiptChannel $Receipt $Channel; throw 'Unexpected acceptance' }
     catch { if ($_.Exception.Message -notlike "The build receipt's staging bridge setting does not match*") { throw } }
 }
-Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$false}) 'stable'
-Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$true}) 'nightly'
+Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$false;branch='release'}) 'stable'
+Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$true;branch='nightly'}) 'nightly'
 Expect-ChannelRejection ([pscustomobject]@{stagingBridge=$true}) 'stable'
 Expect-ChannelRejection ([pscustomobject]@{stagingBridge=$false}) 'nightly'
 Expect-ChannelRejection ([pscustomobject]@{sourceRoot='predates the field'}) 'stable'
 Expect-ChannelRejection ([pscustomobject]@{stagingBridge='true'}) 'nightly'
 Write-Output 'PASS a receipt must record the staging bridge setting of its own channel; a missing field is refused'
+
+# A Nightly checkout whose parent folder has no build-target.json falls back to its own file,
+# which names only the top-level entry, so it reads as stable. The receipt's branch still refuses it.
+$fallbackParent = Join-Path $fixture 'fallback-parent'
+$fallback = Join-Path $fallbackParent 'sf4-nightly'
+New-Item -ItemType Directory -Path $fallback | Out-Null
+@{sourceDirectory='.';buildDirectory='build/current';installDirectory='build/current/stage'} | ConvertTo-Json | Set-Content (Join-Path $fallback 'build-target.json')
+& git -C $fallback init -q -b nightly
+if ($LASTEXITCODE) { throw 'git init failed' }
+$fallbackTarget = Get-EmberBuildTarget $fallback
+if ($fallbackTarget.channel -ne 'stable') { throw 'The fallback designation no longer reads as stable; revisit this case' }
+Assert-EmberChannel $fallbackTarget 'stable' 'Stable publication'
+$fallbackBranch = & git -C $fallback branch --show-current
+$fallbackReceipt = [pscustomobject]@{stagingBridge=$false;branch=$fallbackBranch}
+try { Assert-ReceiptChannel $fallbackReceipt 'stable'; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike "The build receipt is from branch 'nightly'; Stable builds come only from the release branch.") { throw } }
+try { Assert-EmberStableBranch $fallbackBranch 'Stable release packaging'; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike "Stable release packaging requires the release branch, but this checkout is on 'nightly'.") { throw } }
+foreach ($branch in @($null, '', 'Release', 'release-candidate')) {
+    try { Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$false;branch=$branch}) 'stable'; throw 'Unexpected acceptance' }
+    catch { if ($_.Exception.Message -notlike "The build receipt is from branch*") { throw } }
+    try { Assert-EmberStableBranch $branch 'Stable publication'; throw 'Unexpected acceptance' }
+    catch { if ($_.Exception.Message -notlike 'Stable publication requires the release branch*') { throw } }
+}
+Assert-EmberStableBranch 'release' 'Stable publication'
+Write-Output 'PASS a fallback-designated checkout off the release branch reads as stable but its receipt and branch are refused for Stable'

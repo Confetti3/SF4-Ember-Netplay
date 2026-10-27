@@ -98,6 +98,7 @@ try {
         $script:stableVersion = '1.1.0'
         $script:activeRepository = $repository
         $script:tagCommit = ''
+        $script:currentBranch = 'nightly'
         $script:showFails = $false
         $script:gameRunning = $false
         $script:receipt = [pscustomobject]@{sourceFingerprint=$snapshot.fingerprint;baseRevision=$snapshot.revision}
@@ -123,7 +124,7 @@ try {
                 if ($script:tagCommit -and $Arguments[-1] -like '*^{commit}') { return $script:tagCommit }
                 return $script:head
             }
-            if ($Arguments -contains 'branch') { return 'nightly' }
+            if ($Arguments -contains 'branch') { return $script:currentBranch }
             if ($Arguments -contains 'fetch' -or $Arguments -contains 'merge' -or $Arguments -contains 'cat-file') { return }
             if ($Arguments -contains 'show') {
                 Check ($Arguments[-1] -ceq 'origin/release:CMakeLists.txt') 'The Stable version was read from another ref'
@@ -844,6 +845,7 @@ try {
             Reset-Fake
             $script:activeRepository = $stableRepository
             $script:stableTarget = [pscustomobject]@{channel='stable';buildDirectory='build/current';installDirectory='build/current/stage'}
+            $script:currentBranch = 'release'
             $script:remoteTags[$Tag] = 'a' * 40
             $baseZip = Join-Path $dist 'sf4-ember-netplay-1.1.0.zip'
             Set-Content -LiteralPath $baseZip -Value 'previous release zip'
@@ -865,6 +867,16 @@ try {
         Reject { Invoke-Stable } '*publishes only to Confetti3/SF4-Ember-Netplay*'
         Check ($script:commands.Count -eq 0) 'A Stable target naming the Nightly repository reached an external command'
         Pass 'Stable publication from the Nightly checkout, or toward the Nightly repository, refuses before any external command'
+
+        # A Nightly checkout whose parent folder has no build-target.json reads its own file, which names only
+        # the top-level entry: Get-EmberBuildTarget calls it stable, with no branch or repository.
+        foreach ($branch in @('nightly', '', 'fix/some-branch')) {
+            Initialize-Stable
+            $script:currentBranch = $branch
+            Reject { Invoke-Stable } '*Stable publication requires the release branch*'
+            Check (@(Get-CommandLabels) -join '|' -ceq "git -C $source branch --show-current") "A stable-designated checkout on '$branch' ran more than the branch read before refusing"
+        }
+        Pass 'a checkout designated stable only by its own build-target.json is refused off the release branch before gh or a build step'
 
         Initialize-Stable
         Invoke-Stable

@@ -42,6 +42,15 @@ function Assert-EmberChannel([object]$Target, [string]$Expected, [string]$Purpos
     }
 }
 
+# The channel is not enough for Stable: a checkout whose parent folder has no build-target.json
+# falls back to its own file, which names only the top-level (stable) entry, so a Nightly checkout
+# set up that way reads as stable. Stable work also requires the release branch.
+function Assert-EmberStableBranch([string]$Branch, [string]$Purpose) {
+    if ("$Branch".Trim() -cne 'release') {
+        throw "$Purpose requires the release branch, but this checkout is on '$("$Branch".Trim())'."
+    }
+}
+
 function Get-EmberToolPaths([string]$SourceRoot, [string]$VisualStudioPath, [string]$VcpkgRoot) {
     if (!$VisualStudioPath) { $VisualStudioPath = $env:SF4E_VISUAL_STUDIO_PATH }
     if (!$VisualStudioPath) {

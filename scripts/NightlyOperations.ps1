@@ -1,8 +1,8 @@
 #Requires -Version 7
 # Import-safe operations. Invoke-NightlyPublish owns preparation and phase ordering;
 # the entry script supplies the lock, transcript and the build/package operations.
-# Callers also dot-source BuildEnvironment.ps1 (Invoke-StablePublish uses Assert-EmberChannel
-# and Get-EmberBuildTarget) and BuildProvenance.ps1 (Nightly snapshots use its fingerprint).
+# Callers also dot-source BuildEnvironment.ps1 (Invoke-StablePublish uses Assert-EmberChannel,
+# Assert-EmberStableBranch and Get-EmberBuildTarget) and BuildProvenance.ps1 (Nightly snapshots use its fingerprint).
 # The draft, verify, publish release machine is shared: Invoke-StablePublish (run by
 # github-release.ps1) uses it for Stable, bound to the Stable repository by its channel.
 # Retention stays Nightly-only.
@@ -761,6 +761,10 @@ function Invoke-StablePublish([string]$SourceRoot, [string]$Tag, [string]$OutDir
     if ($target.githubRepo -and [string]$target.githubRepo -ine $repository) {
         throw "build-target.json names $($target.githubRepo); Stable publishes only to $repository."
     }
+    # The first git call, before any gh call or build step: a checkout that reads as stable only
+    # because it fell back to its own build-target.json is still refused off the release branch.
+    $branch = Invoke-NightlyCommand git @('-C', $SourceRoot, 'branch', '--show-current') 'Could not read the current branch.'
+    Assert-EmberStableBranch $branch 'Stable publication'
     # A pre-release (v1.1.0-rc1, v1.1.0-beta2) reaches only players on the
     # pre-release update channel and never becomes the latest release.
     if ($Tag -notmatch '^v([0-9]+\.[0-9]+\.[0-9]+)(-(?:rc|beta)[0-9]+)?$') { throw 'Use a full product release tag, such as v0.8.0 or v0.8.0-rc1.' }

@@ -424,6 +424,9 @@ bool LocalIsSpectator();
 // spectator's stream is live, else empty.
 netplay::WatchedGame WatchedGameNow();
 bool AtMainMenu();
+// Tests only: makes AtMainMenu answer `value`; nullopt restores the native check.
+// Do not Publish while it is true: Publish at the main menu reads the game's pads.
+void SetAtMainMenuForTest(std::optional<bool> value);
 void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
 bool CanEditLobby();

@@ -92,13 +92,16 @@ struct RuntimeRoom {
 		protocol::RoomSnapshotMessage message; message.snapshot = snapshot;
 		Deliver(json(message));
 	}
-	// The native roster for `generation`: the two fighters, then this PC.
-	void Projection(std::uint64_t generation) {
+	// The native roster for `generation`: the two fighters, then this PC; or,
+	// with `local` 0 or 1, this PC in that fighter's slot.
+	void Projection(std::uint64_t generation, std::size_t local = 2) {
 		protocol::SessionDataUpdate update;
 		update.lobbyData.members.resize(3);
-		update.lobbyData.members[0].connId = {"room", "p1"};
-		update.lobbyData.members[1].connId = {"room", "p2"};
-		update.lobbyData.members[2].connId = Client()._cid;
+		int other = 0;
+		for (std::size_t slot = 0; slot < update.lobbyData.members.size(); ++slot) {
+			if (slot == local) update.lobbyData.members[slot].connId = Client()._cid;
+			else update.lobbyData.members[slot].connId = {"room", other++ ? "p2" : "p1"};
+		}
 		update.matchGeneration = generation;
 		Deliver(json(update));
 	}
@@ -858,6 +861,82 @@ void TestGatesMatchPublished() {
 	}
 	std::cout << "TestGatesMatchPublished passed\n";
 }
+
+// A Ready parked by hand, as Dispatch parks one, for the controller's generation now.
+static void ParkReady(sf4e::NetplayFacade::internal::Runtime& runtime) {
+	namespace internal = sf4e::NetplayFacade::internal;
+	internal::commands::Room ready;
+	ready.command = {sf4e::netplay::CommandKind::Ready, runtime.controller.GetSnapshot().generation, {}};
+	runtime.readyIntent.Defer(internal::TypedCommand(ready), ready.command.generation, GetTickCount64(),
+		internal::Intent::Budget::Timed);
+	CHECK(runtime.readyIntent.Parked());
+}
+
+// Decisions read the gates when they decide, not as the last Publish left them.
+// A parked Ready whose seat is gone this tick is cleared quietly by this tick's
+// ResolvePendingIntents, though the published snapshot still shows the seat.
+// And within one DrainCommands batch a command sees what an earlier one did: an
+// Unready clears the parked Ready, so a controller change pressed after it in
+// the same batch is taken, though the published gate is still closed.
+void TestGatesAreCurrent() {
+	namespace facade = sf4e::NetplayFacade;
+	namespace internal = sf4e::NetplayFacade::internal;
+	{
+		RuntimeRoom r;
+		auto& runtime = *r.runtime;
+		// Still seated: the parked press stays.
+		r.Projection(1, 0);
+		ParkReady(runtime);
+		runtime.error.clear();
+		internal::ResolvePendingIntents(true);
+		CHECK(runtime.readyIntent.Parked() && runtime.error.empty());
+		runtime.readyIntent.Clear();
+		// Seated when published, then moved to the spectator slot this tick.
+		internal::Publish();
+		CHECK(facade::GetRuntimeSnapshotShared()->localSlot == 0);
+		r.Projection(1, 2);
+		ParkReady(runtime);
+		internal::ResolvePendingIntents(true);
+		CHECK(facade::GetRuntimeSnapshotShared()->localSlot == 0);
+		CHECK(!runtime.readyIntent.Active() && runtime.error.empty());
+	}
+	{
+		RuntimeRoom r;
+		auto& runtime = *r.runtime;
+		r.Projection(1, 0);
+		// A controller change (an input action), or an Unready room action.
+		const auto submit = [&](bool unready) {
+			facade::RuntimeCommand command;
+			command.command = {sf4e::netplay::CommandKind::RoomAction, runtime.controller.GetSnapshot().generation, {}};
+			if (unready) command.roomAction.kind = sf4e::room::ActionKind::Unready;
+			else command.inputAction = sf4e::input::Action::BeginCapture;
+			CHECK(facade::SubmitRuntimeCommand(std::move(command)));
+		};
+		// The last Publish shows the gate closed (it ran away from the main menu).
+		internal::Publish();
+		CHECK(!facade::GetRuntimeSnapshotShared()->canChangeController);
+		// At the main menu from here on, with no Publish: Publish at the main
+		// menu reads the game's pads, which this process does not have.
+		internal::SetAtMainMenuForTest(true);
+		CHECK(internal::CurrentGates().canChangeController);
+		// A parked Ready closes the gate: a controller change alone is refused.
+		ParkReady(runtime);
+		CHECK(!internal::CurrentGates().canChangeController);
+		submit(false);
+		internal::DrainCommands(true);
+		CHECK(runtime.input.State() == sf4e::input::Capture::Idle && runtime.readyIntent.Parked());
+		// Unready, then a controller change, in one batch with no Publish between.
+		submit(true);
+		submit(false);
+		internal::DrainCommands(true);
+		CHECK(!runtime.readyIntent.Active());
+		CHECK(!facade::GetRuntimeSnapshotShared()->canChangeController);
+		CHECK(runtime.input.State() == sf4e::input::Capture::ReleaseAll);
+		runtime.input.Cancel();
+		internal::SetAtMainMenuForTest(std::nullopt);
+	}
+	std::cout << "TestGatesAreCurrent passed\n";
+}
 }
 int main() {
 	for (const bool queued : {false, true})
@@ -874,6 +953,7 @@ int main() {
 	TestSpectatorSitOutNotice();
 	TestEnteredBattleRequestCancelled();
 	TestGatesMatchPublished();
+	TestGatesAreCurrent();
 	std::cout << "Spectator runtime tests passed\n";
 	return 0;
 }

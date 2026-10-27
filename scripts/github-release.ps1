@@ -1,6 +1,6 @@
 #Requires -Version 7
 # Publish an already-tagged, locally verified Ember release. Never rebuild in CI.
-# The checkout must be the Stable channel's, and the release goes to the Stable repository:
+# The checkout must be the Stable channel's, on the release branch, and the release goes to the Stable repository:
 # neither is a parameter. Invoke-StablePublish (NightlyOperations.ps1) holds the steps.
 param([Parameter(Mandatory=$true)][string]$Tag, [string]$OutDir = 'dist',
       [string]$NotesFile = '', [string]$PreviousVersion = '')

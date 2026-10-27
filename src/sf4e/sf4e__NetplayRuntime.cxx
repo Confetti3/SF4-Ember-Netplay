@@ -52,7 +52,15 @@ netplay::WatchedGame WatchedGameNow() {
 	return {runtime->enteredTable, runtime->enteredGeneration};
 }
 
+// Tests only: a value here answers AtMainMenu instead of the native event
+// system, which a test process does not have. Never set in the game. While it
+// is true a test must not Publish: Publish at the main menu reads the game's
+// pads and System singleton.
+static std::optional<bool> atMainMenuForTest;
+void SetAtMainMenuForTest(std::optional<bool> value) { atMainMenuForTest = value; }
+
 bool AtMainMenu() {
+	if (atMainMenuForTest) return *atMainMenuForTest;
 	// Platform initialization precedes the native event-system singleton. The
 	// getter dereferences that singleton before it can return a root pointer.
 	if (!runtime || !runtime->ready || !runtime->eventSystemReady) return false;
