@@ -325,7 +325,7 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
     } catch (const std::exception&) { return false; }
 }
 
-void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}}; }
+void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}, {"instant_rematch", value.instantRematch}}; }
 void from_json(const nlohmann::json& json, Rules& value) {
 	const auto format = ReadInt(json, "format", 0, MaxSetLength);
 	value.format = static_cast<SetFormat>(format);
@@ -334,6 +334,10 @@ void from_json(const nlohmann::json& json, Rules& value) {
 	value.editionSelect = json.at("edition_select").get<bool>();
 	value.roundCount = static_cast<std::uint8_t>(ReadInt(json, "round_count", 1, 99));
 	value.roundTime = static_cast<std::uint16_t>(ReadInt(json, "round_time", 30, 9999));
+	// A room from before the prompt existed sends none: on, as a new table is.
+	const auto instant = json.find("instant_rematch");
+	if (instant != json.end() && !instant->is_boolean()) throw std::invalid_argument("room instant rematch field");
+	value.instantRematch = instant == json.end() || instant->get<bool>();
 	// "training" and "time_before_practice", from the per-table Practice match
 	// the room's own flag replaced, are not read.
 	if (!value.Valid()) throw std::invalid_argument("room rules");

@@ -187,9 +187,13 @@ void NativeCapture() {
  for(const auto context:{MenuContext::PracticeMatch,MenuContext::WatchedMatch})
   Check(ControllerMenuAvailable(context)&&sf4e::input::ControllerOpensMenu(context)&&sf4e::input::MenuShownIn(context)&&
    sf4e::input::MenuOverFight(context),"Start could not open Ember over a fight it is shown over");
+ // The WIN screen's post-match prompt is shown over the fight and the pad drives
+ // it, but Start does not open the menu there.
+ Check(ControllerMenuAvailable(MenuContext::MatchResult)&&!sf4e::input::ControllerOpensMenu(MenuContext::MatchResult)&&
+  sf4e::input::MenuShownIn(MenuContext::MatchResult)&&sf4e::input::MenuOverFight(MenuContext::MatchResult),"The post-match prompt could not show over WIN");
  Check(!sf4e::input::MenuShownIn(MenuContext::OfflineTraining),"Ember's menu was shown over offline Training's controls");
  for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,
-  MenuContext::PracticeMatch,MenuContext::WatchedMatch}){
+  MenuContext::PracticeMatch,MenuContext::WatchedMatch,MenuContext::MatchResult}){
   Check(sf4e::input::FightKeepsMenuAway(true,context)==!sf4e::input::MenuOverFight(context)&&!sf4e::input::FightKeepsMenuAway(false,context),
    "A fight kept the menu away where it is shown over the fight, or let it in elsewhere");
  }

@@ -4403,6 +4403,72 @@ msgstr "両者とも順番待ちの最後に並び、次の二人が席に着き
 msgid "rules.rotation.needs_set"
 msgstr "先にセットの長さを選んでください。セットなしでは交代しません。"
 
+msgid "rules.instant_rematch"
+msgstr "即再戦"
+
+msgid "rules.instant_rematch.detail"
+msgstr "各試合の後、WIN画面で10秒間、両者が再戦・キャラクター選択・ルームに戻るから選びます。"
+
+msgid "postmatch.choose"
+msgstr "もう一戦？"
+
+msgid "postmatch.waiting_for"
+msgstr "{0}を待っています"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0}が再戦を希望"
+
+msgid "postmatch.wants_next"
+msgstr "{0}が次の試合を希望"
+
+msgid "postmatch.starting"
+msgstr "次の試合を開始"
+
+msgid "postmatch.opponent_left"
+msgstr "{0}が席を離れました"
+
+msgid "postmatch.seconds_left"
+msgstr "残り{0}秒"
+
+msgid "postmatch.rematch"
+msgstr "再戦"
+
+msgid "postmatch.next_game"
+msgstr "次の試合"
+
+msgid "postmatch.again.detail"
+msgstr "同じキャラとルールのまま。二人とも選ぶとすぐに次の試合が始まり、ルームには戻りません。"
+
+msgid "postmatch.queue_waiting"
+msgstr "順番待ちの人がいる間は再戦できません。"
+
+msgid "postmatch.not_seated"
+msgstr "このテーブルの席にもう座っていません。"
+
+msgid "postmatch.character_select"
+msgstr "キャラクター選択"
+
+msgid "postmatch.character_select.detail"
+msgstr "ルームで別のキャラを選んでから準備完了にします。"
+
+msgid "postmatch.back"
+msgstr "ルームに戻る"
+
+msgid "postmatch.back.keep_seat"
+msgstr "ルームに戻ります。席はそのまま、準備完了ではありません。10秒間応答がなくても同じです。"
+
+msgid "postmatch.back.leave_seat"
+msgstr "席を離れてルームから観戦します。10秒間応答がなくても同じです。"
+
+msgid "postmatch.state.choosing"
+msgstr "選択中"
+
+msgid "postmatch.state.ready"
+msgstr "準備完了"
+
+msgid "postmatch.state.left"
+msgstr "席を離れた"
+
 msgid "rules.set_summary"
 msgstr "{0}、{1}"
 

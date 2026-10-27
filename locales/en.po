@@ -4037,6 +4037,72 @@ msgstr "Both players go to the back of the queue and the next two sit down."
 msgid "rules.rotation.needs_set"
 msgstr "Choose a set length first. With no set length nobody rotates."
 
+msgid "rules.instant_rematch"
+msgstr "Instant rematch"
+
+msgid "rules.instant_rematch.detail"
+msgstr "After each game both fighters choose Rematch, Character select or Back to room over the WIN screen, for 10 seconds."
+
+msgid "postmatch.choose"
+msgstr "Play again?"
+
+msgid "postmatch.waiting_for"
+msgstr "Waiting for {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} wants a rematch"
+
+msgid "postmatch.wants_next"
+msgstr "{0} wants the next game"
+
+msgid "postmatch.starting"
+msgstr "Starting the next game"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} left the seat"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s to choose"
+
+msgid "postmatch.rematch"
+msgstr "Rematch"
+
+msgid "postmatch.next_game"
+msgstr "Next game"
+
+msgid "postmatch.again.detail"
+msgstr "Same fighters and rules. The next game starts as soon as both of you choose it, without going back to the room."
+
+msgid "postmatch.queue_waiting"
+msgstr "No rematch while someone waits in the queue."
+
+msgid "postmatch.not_seated"
+msgstr "You are no longer seated at this table."
+
+msgid "postmatch.character_select"
+msgstr "Character select"
+
+msgid "postmatch.character_select.detail"
+msgstr "Choose another fighter in the room, then Ready."
+
+msgid "postmatch.back"
+msgstr "Back to room"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Back to the room. You keep your seat, not ready. No answer in 10 seconds does the same."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Leave your seat and watch from the room. No answer in 10 seconds does the same."
+
+msgid "postmatch.state.choosing"
+msgstr "Choosing"
+
+msgid "postmatch.state.ready"
+msgstr "Ready"
+
+msgid "postmatch.state.left"
+msgstr "Left the seat"
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 

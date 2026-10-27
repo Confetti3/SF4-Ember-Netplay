@@ -80,6 +80,8 @@ inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool 
     const bool rotates=rules.format!=room::SetFormat::Unlimited;
     rows.push_back(Value("rotation",loc::T("rules.rotation"),RotationText(rules.rotation),
         !rotates?loc::T("rules.rotation.needs_set"):enabled?RotationDetail(rules.rotation):reason,enabled&&rotates));
+    rows.push_back(Value("instant-rematch",loc::T("rules.instant_rematch"),loc::T(rules.instantRematch?"common.on":"common.off"),
+        enabled?loc::T("rules.instant_rematch.detail"):reason,enabled));
 }
 // Create's choice of a Practice room, fixed for the room's life (room::Snapshot::practice).
 inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
@@ -102,6 +104,7 @@ inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
         Step(rules.format,lengths,a.delta);
     }
     else if(a.id=="rotation"&&rules.format!=room::SetFormat::Unlimited) Step(rules.rotation,{0,1,2},a.delta);
+    else if(a.id=="instant-rematch") rules.instantRematch=a.delta>0;
     else return false;
     return true;
 }

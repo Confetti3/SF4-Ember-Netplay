@@ -327,6 +327,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
     view.watchedGame = snapshot.watchedGame;
+    view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
     // Taken before Ember draws anything this frame, so it holds the game's picture alone.
     if (view.watchedGame.Active() && snapshot.preferences.pictureMode != sf4e::netplay::PictureOff) {
         const auto& size = ImGui::GetMainViewport()->Size;
@@ -519,6 +520,11 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         presentation.Open(openRequest.kind == sf4e::ui::MenuPads::Kind::Play ? "the Network item" : "Start");
         if (openRequest.kind == sf4e::ui::MenuPads::Kind::Play) shell.ShowPlay();
     }
+    // The WIN screen of a room game this PC fought: the post-match prompt opens over it, once per game.
+    static bool matchResultShown = false;
+    const bool matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
+    if (matchResult && !matchResultShown) presentation.Open("the match result");
+    matchResultShown = matchResult;
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open("a Discord invite"); inviteShown=true; }
     if (!snapshot.discordPending) inviteShown=false;

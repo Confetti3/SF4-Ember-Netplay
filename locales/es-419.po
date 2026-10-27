@@ -3922,6 +3922,72 @@ msgstr "Los dos jugadores vuelven al final de la cola y se sientan los dos sigui
 msgid "rules.rotation.needs_set"
 msgstr "Elige primero una duración de set. Sin duración nadie cambia."
 
+msgid "rules.instant_rematch"
+msgstr "Revancha inmediata"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Después de cada partida, los dos luchadores eligen Revancha, Selección de luchador o Volver a la sala en la pantalla WIN, durante 10 segundos."
+
+msgid "postmatch.choose"
+msgstr "¿Otra?"
+
+msgid "postmatch.waiting_for"
+msgstr "Esperando a {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} quiere la revancha"
+
+msgid "postmatch.wants_next"
+msgstr "{0} quiere la siguiente partida"
+
+msgid "postmatch.starting"
+msgstr "Empieza la siguiente partida"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} dejó el asiento"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s para elegir"
+
+msgid "postmatch.rematch"
+msgstr "Revancha"
+
+msgid "postmatch.next_game"
+msgstr "Siguiente partida"
+
+msgid "postmatch.again.detail"
+msgstr "Mismos luchadores y reglas. La siguiente partida empieza en cuanto los dos la elijan, sin volver a la sala."
+
+msgid "postmatch.queue_waiting"
+msgstr "No hay revancha mientras alguien espera en la cola."
+
+msgid "postmatch.not_seated"
+msgstr "Ya no estás sentado en esta mesa."
+
+msgid "postmatch.character_select"
+msgstr "Selección de luchador"
+
+msgid "postmatch.character_select.detail"
+msgstr "Elige otro luchador en la sala y marca Listo."
+
+msgid "postmatch.back"
+msgstr "Volver a la sala"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Volver a la sala. Conservas tu asiento, sin Listo. No responder en 10 segundos hace lo mismo."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Deja tu asiento y mira desde la sala. No responder en 10 segundos hace lo mismo."
+
+msgid "postmatch.state.choosing"
+msgstr "Eligiendo"
+
+msgid "postmatch.state.ready"
+msgstr "Listo"
+
+msgid "postmatch.state.left"
+msgstr "Dejó el asiento"
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 

@@ -4402,6 +4402,72 @@ msgstr "Oba hráči jdou na konec fronty a usednou další dva."
 msgid "rules.rotation.needs_set"
 msgstr "Nejprve zvolte délku setu. Bez ní se nikdo nestřídá."
 
+msgid "rules.instant_rematch"
+msgstr "Okamžitá odveta"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Po každé hře si oba bojovníci na obrazovce WIN po dobu 10 sekund vyberou Odvetu, Výběr postavy nebo Zpět do místnosti."
+
+msgid "postmatch.choose"
+msgstr "Ještě jednou?"
+
+msgid "postmatch.waiting_for"
+msgstr "Čeká se na: {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0}: chce odvetu"
+
+msgid "postmatch.wants_next"
+msgstr "{0}: chce další hru"
+
+msgid "postmatch.starting"
+msgstr "Další hra začíná"
+
+msgid "postmatch.opponent_left"
+msgstr "{0}: místo uvolněno"
+
+msgid "postmatch.seconds_left"
+msgstr "Na výběr zbývá: {0} s"
+
+msgid "postmatch.rematch"
+msgstr "Odveta"
+
+msgid "postmatch.next_game"
+msgstr "Další hra"
+
+msgid "postmatch.again.detail"
+msgstr "Stejní bojovníci a pravidla. Další hra začne, jakmile ji zvolíte oba, bez návratu do místnosti."
+
+msgid "postmatch.queue_waiting"
+msgstr "Žádná odveta, dokud někdo čeká ve frontě."
+
+msgid "postmatch.not_seated"
+msgstr "U tohoto stolu už nesedíš."
+
+msgid "postmatch.character_select"
+msgstr "Výběr postavy"
+
+msgid "postmatch.character_select.detail"
+msgstr "Vyber v místnosti jiného bojovníka, pak Připraven."
+
+msgid "postmatch.back"
+msgstr "Zpět do místnosti"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Zpět do místnosti. Místo ti zůstane, bez připravenosti. Žádná odpověď do 10 sekund udělá totéž."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Uvolni místo a sleduj z místnosti. Žádná odpověď do 10 sekund udělá totéž."
+
+msgid "postmatch.state.choosing"
+msgstr "Vybírá"
+
+msgid "postmatch.state.ready"
+msgstr "Připraven"
+
+msgid "postmatch.state.left"
+msgstr "Místo uvolněno"
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 

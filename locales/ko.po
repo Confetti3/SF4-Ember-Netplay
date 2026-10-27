@@ -4403,6 +4403,72 @@ msgstr "두 플레이어 모두 대기열 맨 뒤로 가고 다음 두 사람이
 msgid "rules.rotation.needs_set"
 msgstr "먼저 세트 길이를 고르세요. 세트가 없으면 아무도 교대하지 않습니다."
 
+msgid "rules.instant_rematch"
+msgstr "즉시 재대전"
+
+msgid "rules.instant_rematch.detail"
+msgstr "매 게임 후 WIN 화면에서 10초 동안 두 캐릭터가 재대전, 캐릭터 선택, 방으로 돌아가기 중에서 고릅니다."
+
+msgid "postmatch.choose"
+msgstr "한 판 더?"
+
+msgid "postmatch.waiting_for"
+msgstr "{0} 기다리는 중"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} 님이 재대전을 원합니다"
+
+msgid "postmatch.wants_next"
+msgstr "{0} 님이 다음 게임을 원합니다"
+
+msgid "postmatch.starting"
+msgstr "다음 게임 시작"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} 님이 자리를 비웠습니다"
+
+msgid "postmatch.seconds_left"
+msgstr "선택까지 {0}초"
+
+msgid "postmatch.rematch"
+msgstr "재대전"
+
+msgid "postmatch.next_game"
+msgstr "다음 게임"
+
+msgid "postmatch.again.detail"
+msgstr "같은 캐릭터와 규칙. 두 사람 모두 고르면 방으로 돌아가지 않고 바로 다음 게임이 시작됩니다."
+
+msgid "postmatch.queue_waiting"
+msgstr "대기열에 누군가 있으면 재대전할 수 없습니다."
+
+msgid "postmatch.not_seated"
+msgstr "이 테이블에 더 이상 앉아 있지 않습니다."
+
+msgid "postmatch.character_select"
+msgstr "캐릭터 선택"
+
+msgid "postmatch.character_select.detail"
+msgstr "방에서 다른 캐릭터를 고른 뒤 준비하세요."
+
+msgid "postmatch.back"
+msgstr "방으로 돌아가기"
+
+msgid "postmatch.back.keep_seat"
+msgstr "방으로 돌아갑니다. 자리는 유지되고 준비는 해제됩니다. 10초 동안 응답이 없어도 같습니다."
+
+msgid "postmatch.back.leave_seat"
+msgstr "자리를 비우고 방에서 관전합니다. 10초 동안 응답이 없어도 같습니다."
+
+msgid "postmatch.state.choosing"
+msgstr "고르는 중"
+
+msgid "postmatch.state.ready"
+msgstr "준비"
+
+msgid "postmatch.state.left"
+msgstr "자리 비움"
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 

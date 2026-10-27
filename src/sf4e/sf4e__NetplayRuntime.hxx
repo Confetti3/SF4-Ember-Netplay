@@ -340,6 +340,8 @@ bool LocalIsSpectator();
 // spectator's stream is live, else empty.
 netplay::WatchedGame WatchedGameNow();
 bool AtMainMenu();
+// The post-match prompt's WIN (or DRAW) screen (sf4e__NetplayRuntime__Status.cxx).
+bool PostMatchPromptDue();
 void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
 bool CanEditLobby();

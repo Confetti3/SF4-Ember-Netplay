@@ -612,6 +612,7 @@ int main() {
     defaults.publicTableRules.rotation = sf4e::room::RotationMode::LoserStays;
     defaults.publicTableRules.roundCount = 5;
     defaults.publicTableRules.roundTime = 60;
+    defaults.tableRules.instantRematch = false;
     CHECK(asyncStore.SaveLauncher({{"roomDefaults", sf4e::netplay::RoomPreferences(defaults)}}, error));
     CHECK(asyncStore.SaveLauncher({{"inputDelay", 4}}, error));
     CHECK(asyncStore.LoadLauncher(result, error));
@@ -620,7 +621,14 @@ int main() {
     CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 && restored.roomPublic &&
         restored.tableRules.format == sf4e::room::SetFormat::Ft10 && restored.tableRules.rotation == sf4e::room::RotationMode::BothRotate);
     CHECK(restored.publicTableRules == defaults.publicTableRules && !(restored.publicTableRules == restored.tableRules));
-    CHECK(restored.tableRules == defaults.tableRules && restored.tableRules.roundTime == 9999);
+    CHECK(restored.tableRules == defaults.tableRules && restored.tableRules.roundTime == 9999 && !restored.tableRules.instantRematch);
+    // Defaults saved before Instant rematch existed have it on.
+    {
+        auto older = result;
+        older["roomDefaults"].erase("instantRematch");
+        sf4e::netplay::PlayerPreferences fromOlder;
+        CHECK(sf4e::netplay::ReadRoomPreferences(older, fromOlder) && fromOlder.tableRules.instantRematch);
+    }
     // A Practice room is chosen for one room on Create, never kept with the defaults.
     for (const auto* saved : {&result["roomDefaults"], &result["roomDefaults"]["publicRules"]})
         CHECK(!saved->contains("practice") && !saved->contains("training") && !saved->contains("timeBeforePractice"));
@@ -670,7 +678,7 @@ int main() {
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
         Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},
-        Json{{"roundTime", 120}}}) {
+        Json{{"roundTime", 120}}, Json{{"instantRematch", 1}}}) {
         CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", invalid}}, restored));
         CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
     }
