@@ -19,6 +19,7 @@
 // A link naming the staging bridge offers Nightly, the only Ember that trusts it.
 (function () {
   'use strict';
+  var site = window.EmberSite;
   var ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
   // brg_ or emt_ and a lowercase version 4 UUID, as the bridge writes them.
   var ID = /^[a-z]{3}_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -33,10 +34,7 @@
   var VERSION_NOTE = 'Public rooms and tournaments need Ember 1.1.0 or newer.';
   var NIGHTLY_NOTE = 'This link is for Ember\'s staging bridge, which only Ember Nightly 1.4.0 or newer opens. ' +
     'Download the newest Nightly at the top of the list.';
-  // The Stable release a tournament match asks for. Both fighters need the
-  // same build, so a match page names this one; bump it with each release,
-  // as rooms.js names each room build.
-  var STABLE_VERSION = '1.4.1';
+  var STABLE_VERSION = site.STABLE_VERSION;
   // How long the page waits after Open in Ember before it guesses Ember did not open.
   var OPEN_WAIT_MS = 2000;
   // How long after that click Ember taking focus still counts as Ember opening:
@@ -135,25 +133,7 @@
   }
 
   function copy(text, done) {
-    var status = document.getElementById('status');
-    function fallback() {
-      var area = document.createElement('textarea');
-      area.value = text;
-      area.setAttribute('readonly', '');
-      area.style.position = 'fixed';
-      area.style.opacity = '0';
-      document.body.appendChild(area);
-      area.select();
-      var ok = false;
-      try { ok = document.execCommand('copy'); } catch (error) { ok = false; }
-      document.body.removeChild(area);
-      status.textContent = ok ? done : 'Select the address in the address bar and copy it.';
-    }
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(function () { status.textContent = done; }, fallback);
-    } else {
-      fallback();
-    }
+    site.copy(document.getElementById('status'), text, done, 'Select the address in the address bar and copy it.', true);
   }
 
   // Where a tournament site sends a player it could not find.

@@ -6,6 +6,7 @@
 // player. Names are the players' own words, so they only ever go in as text.
 (function () {
   'use strict';
+  var site = window.EmberSite;
   // While the tab is shown the board is asked for again this often; nginx and
   // the bridge each keep it 15 s, so a change shows within about a minute.
   var REFRESH_MS = 30000;
@@ -111,12 +112,7 @@
     view.needle = fold(view.q).text.trim();
   }
 
-  function el(tag, className, text) {
-    var node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  }
+  var el = site.el;
   function plural(count, one, many) { return count + ' ' + (count === 1 ? one : many); }
   function ago(seconds) {
     if (seconds < 60) return 'just now';
@@ -616,25 +612,7 @@
     search.focus();
   }
 
-  function copy(text, done, failed) {
-    function fallback() {
-      var area = document.createElement('textarea');
-      area.value = text;
-      area.setAttribute('readonly', '');
-      area.className = 'offscreen';
-      document.body.appendChild(area);
-      area.select();
-      var ok = false;
-      try { ok = document.execCommand('copy'); } catch (error) { ok = false; }
-      document.body.removeChild(area);
-      status.textContent = ok ? done : failed;
-    }
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(function () { status.textContent = done; }, fallback);
-    } else {
-      fallback();
-    }
-  }
+  function copy(text, done, failed) { site.copy(status, text, done, failed); }
 
   // The players shown, as lines of text in the order on screen.
   function listText() {
