@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
 use super::{
-    Failure, Outcome, Shared, browser,
+    Code, Failure, Outcome, Shared, browser,
     client::approved,
     sign_in::{self, Routes},
 };
@@ -66,7 +66,7 @@ pub(super) fn listed(sites: Option<&RawValue>) -> Vec<Listed> {
 
 fn routes(site: &str) -> Result<Routes, Failure> {
     if !is_site_id(site) {
-        return Err(Failure::new("invalid_request"));
+        return Err(Failure::new(Code::InvalidRequest));
     }
     Ok(Routes {
         start_path: start_path(site),
@@ -75,6 +75,9 @@ fn routes(site: &str) -> Result<Routes, Failure> {
         remove: Action::SiteRemove,
         cancel: Action::SiteCancel,
         end_unopened: true,
+        // Only `connect` opens a page, and it names the page the bridge
+        // declared once it has read it.
+        is_sign_in_page: Box::new(|_| false),
     })
 }
 
@@ -85,7 +88,7 @@ pub async fn status(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcom
 /// Starts a sign-in on `site` and opens its page, which must be on the
 /// authorize origin and path the bridge's capabilities declare for it.
 pub async fn connect(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcome {
-    let routes = routes(site)?;
+    let mut routes = routes(site)?;
     let origin = approved(shared, bridge_id)?.origin;
     // The bridge is trusted already, so capabilities it does not serve now
     // mean it is down for the moment, not that it is no tournament service.
@@ -93,23 +96,23 @@ pub async fn connect(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outco
         .client
         .capabilities(&origin)
         .await
-        .map_err(|Failure(code)| match code.as_str() {
-            "not_a_bridge" => Failure::new("service_unavailable"),
-            _ => Failure(code),
+        .map_err(|failure| match failure {
+            Failure::Local(Code::NotABridge) => Failure::new(Code::ServiceUnavailable),
+            other => other,
         })?;
     let listed = offered
         .sign_in_sites
         .into_iter()
         .find(|listed| listed.id == site)
-        .ok_or_else(|| Failure::new("not_found"))?;
+        .ok_or_else(|| Failure::new(Code::NotFound))?;
     // Listed with its sign-in off: the bridge would refuse the start.
     if !listed.sign_in {
-        return Err(Failure::new("sign_in_off"));
+        return Err(Failure::new(Code::SignInOff));
     }
-    sign_in::connect(shared, bridge_id, &routes, |url| {
+    routes.is_sign_in_page = Box::new(move |url| {
         is_declared_page(url, &listed.authorize_origin, &listed.authorize_path)
-    })
-    .await
+    });
+    sign_in::connect(shared, bridge_id, &routes).await
 }
 
 pub async fn remove(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcome {

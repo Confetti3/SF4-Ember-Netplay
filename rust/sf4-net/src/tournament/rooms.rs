@@ -19,9 +19,9 @@ use ember_protocol::{
 use serde_json::Value;
 
 use super::{
-    Failure, Outcome, Shared,
+    Code, Failure, Outcome, Shared,
     bridges::Approved,
-    client,
+    client::{self, Body, BridgeCall, Refusals, Verb},
     play::{self, bridge_key},
 };
 
@@ -41,36 +41,34 @@ const REASONS: [&str; 8] = [
     ROOM_LOCKED,
 ];
 
-/// A create that asked for each player's own input delay and was refused or
-/// answered without it: a bridge that does not know the option. It is told to
-/// the player as it is and never retried as a room with the shared delay.
-const OWN_DELAY_UNSUPPORTED: &str = "own_delay_unsupported";
+/// A 404 naming none of the room reasons is a bridge that does not offer
+/// rooms.
+const REFUSALS: Refusals<'static> = Refusals {
+    reasons: &REASONS,
+    missing: Some(Code::RoomsUnavailable),
+};
 
 fn invalid_request() -> Failure {
-    Failure::new("invalid_request")
+    Failure::new(Code::InvalidRequest)
 }
 
 /// A failed create, worded for the option it asked for. A bridge that predates
 /// `own_delay` refuses the body it does not know as an invalid request, which
 /// for such a create can be nothing else: the helper checked every other field
-/// before sending.
+/// before sending. A create that asked for each player's own input delay and
+/// was refused or answered without it is told to the player as
+/// `own_delay_unsupported` and never retried as a room with the shared delay.
 fn create_failure(failure: Failure, own_delay: bool) -> Failure {
-    if own_delay && failure.0 == "invalid_request" {
-        Failure::new(OWN_DELAY_UNSUPPORTED)
-    } else {
-        failure
+    match failure {
+        Failure::Bridge(code) if own_delay && code == "invalid_request" => {
+            Failure::new(Code::OwnDelayUnsupported)
+        }
+        other => other,
     }
 }
 
 fn invalid_response() -> Failure {
-    Failure::new("bridge_invalid_response")
-}
-
-/// The bridge's answer as JSON when it is `success`. A refusal is the
-/// bridge's own reason when it names one of the room reasons. A 404 without
-/// one is a bridge that does not offer rooms.
-fn reply(status: u16, body: &[u8], success: u16) -> Result<Value, Failure> {
-    client::feature_answer(status, body, success, &REASONS, "rooms_unavailable")
+    Failure::new(Code::BridgeInvalidResponse)
 }
 
 /// A build ID as a query value: the bridge's rules, with everything outside
@@ -108,34 +106,20 @@ fn check_room_id(room_id: &str) -> Result<(), Failure> {
 }
 
 fn to_json<T: serde::Serialize>(value: &T) -> Result<Value, Failure> {
-    serde_json::to_value(value).map_err(|_| Failure::new("internal"))
-}
-
-fn parse<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, Failure> {
-    serde_json::from_value(value).map_err(|_| invalid_response())
+    serde_json::to_value(value).map_err(|_| Failure::new(Code::Internal))
 }
 
 /// The open rooms of `build`, each checked, with the details their room hosts
 /// reported (`detail=1`; a bridge that does not know it leaves them out). One
 /// invalid summary fails the whole listing.
 pub async fn list(shared: &Arc<Shared>, bridge_id: &str, build: &str) -> Outcome {
-    let url_tail = list_path(build)?;
-    client::with_session(shared, bridge_id, |bridge, token| {
-        let url = format!("{}{url_tail}", bridge.origin);
-        async move {
-            let (status, body) = shared
-                .client
-                .call(reqwest::Method::GET, &url, Some(&token), None)
-                .await?;
-            let list: RoomList = parse(reply(status, &body, 200)?)?;
-            if list.rooms.len() > MAX_LISTED || list.rooms.iter().any(|room| room.check().is_err())
-            {
-                return Err(invalid_response());
-            }
-            Ok(Some(to_json(&list)?))
-        }
-    })
-    .await
+    let path = list_path(build)?;
+    let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(REFUSALS);
+    let list: RoomList = client::request_as(shared, bridge_id, &call).await?;
+    if list.rooms.len() > MAX_LISTED || list.rooms.iter().any(|room| room.check().is_err()) {
+        return Err(invalid_response());
+    }
+    Ok(Some(to_json(&list)?))
 }
 
 /// The ticket request this helper makes for `build`, checked. The class and
@@ -172,27 +156,19 @@ pub async fn create(
         own_delay,
     };
     command.check().map_err(|error| match error {
-        ProtocolError::InvalidField("name") => Failure::new(INVALID_NAME),
+        ProtocolError::InvalidField("name") => Failure::new(Code::InvalidName),
         _ => invalid_request(),
     })?;
     // Nothing is opened that this helper could not then take a ticket for.
     ticket_request(&shared.endpoint_id, build, false)?;
-    let body = serde_json::to_vec(&command).map_err(|_| Failure::new("internal"))?;
-    let created = client::with_session(shared, bridge_id, |bridge, token| {
-        let (url, body) = (format!("{}/v1/rooms", bridge.origin), body.clone());
-        let command = &command;
-        async move {
-            let (status, response) = shared
-                .client
-                .call_within(
-                    reqwest::Method::POST,
-                    &url,
-                    Some(&token),
-                    Some(body),
-                    Some(client::CREATE_TIMEOUT),
-                )
-                .await?;
-            let room: RoomSummary = parse(reply(status, &response, 201)?)?;
+    let body = serde_json::to_vec(&command).map_err(|_| Failure::new(Code::Internal))?;
+    let call = BridgeCall::new(Verb::Post, "/v1/rooms", &[201])
+        .body(Body::Json(&body))
+        .refusals(REFUSALS)
+        .timeout(client::CREATE_TIMEOUT);
+    let room: RoomSummary = client::request_as(shared, bridge_id, &call)
+        .await
+        .and_then(|room: RoomSummary| {
             let asked = room.name == command.name
                 && room.capacity == command.capacity
                 && room.build_id == command.build_id;
@@ -202,17 +178,14 @@ pub async fn create(
             // A room made without what was asked for is not entered.
             if room.own_delay != command.own_delay {
                 return Err(if command.own_delay {
-                    Failure::new(OWN_DELAY_UNSUPPORTED)
+                    Failure::new(Code::OwnDelayUnsupported)
                 } else {
                     invalid_response()
                 });
             }
-            Ok(Some(to_json(&room)?))
-        }
-    })
-    .await
-    .map_err(|failure| create_failure(failure, own_delay))?;
-    let room: RoomSummary = parse(created.ok_or_else(invalid_response)?)?;
+            Ok(room)
+        })
+        .map_err(|failure| create_failure(failure, own_delay))?;
     // A second session call, so a session that lapses between the two steps
     // renews without asking the bridge for another room.
     admit(shared, bridge_id, &room.room_id, build).await
@@ -229,24 +202,22 @@ pub async fn ticket(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build:
 async fn admit(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str) -> Outcome {
     ticket_request(&shared.endpoint_id, build, false)?;
     let path = format!("/v1/rooms/{room_id}/tickets");
-    client::with_session(shared, bridge_id, |bridge, token| {
-        let url = format!("{}{path}", bridge.origin);
-        async move {
-            // What the bridge offers, read once a run; a failed read asks as
-            // an older build would, which every bridge answers.
-            let ranking = play::features(shared, &bridge, play::Need::Nothing)
-                .await
-                .is_ok_and(|features| features.ranking);
-            let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, ranking)?)
-                .map_err(|_| Failure::new("internal"))?;
-            let (status, response) = shared
-                .client
-                .call(reqwest::Method::POST, &url, Some(&token), Some(body))
-                .await?;
-            let admission: RoomAdmission = parse(reply(status, &response, 201)?)?;
-            verify(shared, &bridge, &admission, room_id, build).await?;
-            Ok(Some(to_json(&admission)?))
-        }
+    let path = &path;
+    client::with_session(shared, bridge_id, |bridge, token| async move {
+        // What the bridge offers, read once a run; a failed read asks as
+        // an older build would, which every bridge answers.
+        let ranking = play::features(shared, &bridge, play::Need::Nothing)
+            .await
+            .is_ok_and(|features| features.ranking);
+        let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, ranking)?)
+            .map_err(|_| Failure::new(Code::Internal))?;
+        let call = BridgeCall::new(Verb::Post, path, &[201])
+            .body(Body::Json(&body))
+            .refusals(REFUSALS);
+        let admission: RoomAdmission =
+            client::fetch_as(shared, &bridge, Some(&token), &call).await?;
+        verify(shared, &bridge, &admission, room_id, build).await?;
+        Ok(Some(to_json(&admission)?))
     })
     .await
 }
@@ -266,7 +237,7 @@ async fn verify(
     let key = bridge_key(shared, bridge, &signed.kid).await?;
     let ticket = signed
         .verify(&key, &signed.kid)
-        .map_err(|_| Failure::new("untrusted_signature"))?;
+        .map_err(|_| Failure::new(Code::UntrustedSignature))?;
     let me = client::current_id(shared)?;
     let room = &admission.room;
     if ticket.bridge_id != bridge.bridge_id
@@ -276,7 +247,7 @@ async fn verify(
         || room.room_id != room_id
         || room.build_id != build
     {
-        return Err(Failure::new("binding_mismatch"));
+        return Err(Failure::new(Code::BindingMismatch));
     }
     Ok(())
 }
@@ -290,6 +261,10 @@ mod tests {
 
     fn request(value: Value) -> Request {
         serde_json::from_value(value).expect("a request")
+    }
+
+    fn reply(status: u16, body: &[u8], success: u16) -> Result<Value, Failure> {
+        client::answer(status, body, &[success], &REFUSALS)
     }
 
     #[test]
@@ -344,13 +319,16 @@ mod tests {
     #[test]
     fn a_create_for_each_players_own_delay_fails_visibly_on_a_bridge_that_does_not_know_it() {
         let refused = reply(400, &old_bridge_refusal(), 201).unwrap_err();
-        assert_eq!(refused.0, "invalid_request");
+        assert_eq!(refused.as_str(), "invalid_request");
         // Asked for the option, it is the option that is missing; it is never
         // retried without it, so the player is told.
-        assert_eq!(create_failure(refused, true).0, OWN_DELAY_UNSUPPORTED);
+        assert_eq!(
+            create_failure(refused, true).as_str(),
+            "own_delay_unsupported"
+        );
         // The shared delay asked for nothing, so the refusal stays what it was.
         let refused = reply(400, &old_bridge_refusal(), 201).unwrap_err();
-        assert_eq!(create_failure(refused, false).0, "invalid_request");
+        assert_eq!(create_failure(refused, false).as_str(), "invalid_request");
         // Every other failure keeps its own word, with or without the option.
         for code in [
             "room_limit",
@@ -359,7 +337,10 @@ mod tests {
             "unavailable",
             "http_502",
         ] {
-            assert_eq!(create_failure(Failure::new(code), true).0, code);
+            assert_eq!(
+                create_failure(Failure::Bridge(code.into()), true).as_str(),
+                code
+            );
         }
     }
 
@@ -376,30 +357,42 @@ mod tests {
         assert!(REASONS.contains(&"room_locked"));
         for reason in REASONS {
             let body = refusal("stale_revision", Some(reason));
-            assert_eq!(reply(409, &body, 201).unwrap_err().0, reason);
+            assert_eq!(reply(409, &body, 201).unwrap_err().as_str(), reason);
         }
         // The reason wins over the status, so a missing room is not "no rooms".
         let body = refusal("not_found", Some(ROOM_NOT_FOUND));
-        assert_eq!(reply(404, &body, 201).unwrap_err().0, "room_not_found");
+        assert_eq!(
+            reply(404, &body, 201).unwrap_err().as_str(),
+            "room_not_found"
+        );
         // A reason the game does not know falls back to the error code.
         let body = refusal("forbidden", Some("something_new"));
-        assert_eq!(reply(403, &body, 201).unwrap_err().0, "forbidden");
+        assert_eq!(reply(403, &body, 201).unwrap_err().as_str(), "forbidden");
         let body = refusal("rate_limited", None);
-        assert_eq!(reply(429, &body, 201).unwrap_err().0, "rate_limited");
+        assert_eq!(reply(429, &body, 201).unwrap_err().as_str(), "rate_limited");
         let body = refusal("unauthenticated", None);
-        assert_eq!(reply(401, &body, 201).unwrap_err().0, "unauthenticated");
+        assert_eq!(
+            reply(401, &body, 201).unwrap_err().as_str(),
+            "unauthenticated"
+        );
         // A bridge without the feature answers 404 with no room reason, or
         // with no JSON at all.
         let body = refusal("not_found", None);
-        assert_eq!(reply(404, &body, 200).unwrap_err().0, "rooms_unavailable");
-        assert_eq!(reply(404, b"", 200).unwrap_err().0, "rooms_unavailable");
-        assert_eq!(reply(502, b"", 200).unwrap_err().0, "http_502");
+        assert_eq!(
+            reply(404, &body, 200).unwrap_err().as_str(),
+            "rooms_unavailable"
+        );
+        assert_eq!(
+            reply(404, b"", 200).unwrap_err().as_str(),
+            "rooms_unavailable"
+        );
+        assert_eq!(reply(502, b"", 200).unwrap_err().as_str(), "http_502");
         assert_eq!(
             reply(200, b"{\"rooms\":[]}", 200).unwrap(),
             json!({ "rooms": [] })
         );
         // Only the success status counts as success.
-        assert_eq!(reply(200, b"{}", 201).unwrap_err().0, "http_200");
+        assert_eq!(reply(200, b"{}", 201).unwrap_err().as_str(), "http_200");
     }
 
     #[test]
@@ -430,7 +423,7 @@ mod tests {
         assert_eq!(build_query("build-1.2_x~").unwrap(), "build-1.2_x~");
         assert_eq!(build_query("a b&c=d/e").unwrap(), "a%20b%26c%3Dd%2Fe");
         for bad in ["", "caf\u{e9}", &"b".repeat(MAX_BUILD + 1)] {
-            assert_eq!(build_query(bad).unwrap_err().0, "invalid_request");
+            assert_eq!(build_query(bad).unwrap_err().as_str(), "invalid_request");
         }
         assert!(build_query(&"b".repeat(MAX_BUILD)).is_ok());
         assert!(check_room_id("0123456789abcdef0123456789abcdef").is_ok());

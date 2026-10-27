@@ -9,6 +9,7 @@
 //! Every operation here is synchronous and may block on disk, DPAPI or the
 //! Argon2 KDF. Callers run it on a blocking worker, never on the helper's
 //! network executor or a game thread.
+pub(crate) mod durable;
 mod envelope;
 mod platform;
 
@@ -74,6 +75,28 @@ pub enum Failure {
     ConfirmationMismatch,
     ReplacementNotConfirmed,
     Io,
+}
+
+impl Failure {
+    /// The code on the IPC wire, as serde spells the variant.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::PermissionDenied => "permission_denied",
+            Self::Corrupt => "corrupt",
+            Self::UnsupportedEnvelope => "unsupported_envelope",
+            Self::WrongPassphrase => "wrong_passphrase",
+            Self::DecryptFailed => "decrypt_failed",
+            Self::KeyMissing => "key_missing",
+            Self::MetadataMismatch => "metadata_mismatch",
+            Self::RandomUnavailable => "random_unavailable",
+            Self::InvalidPassphrase => "invalid_passphrase",
+            Self::PassphraseRequired => "passphrase_required",
+            Self::WrongState => "wrong_state",
+            Self::ConfirmationMismatch => "confirmation_mismatch",
+            Self::ReplacementNotConfirmed => "replacement_not_confirmed",
+            Self::Io => "io",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -791,24 +814,10 @@ fn read_bounded(path: &Path, max: usize) -> Result<Option<Vec<u8>>, Failure> {
 
 /// Writes through a sibling temporary file and moves it into place.
 fn write_replacing(path: &Path, bytes: &[u8]) -> Result<(), Failure> {
-    let suffix: [u8; 8] = random()?;
-    let name = path.file_name().ok_or(Failure::Io)?.to_string_lossy();
-    let temp = path.with_file_name(format!("{TEMP_PREFIX}{name}-{}", b64u(&suffix)));
-    let result = (|| {
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        drop(file);
-        platform::replace(&temp, path)
-    })();
-    if let Err(error) = result {
-        let _ = fs::remove_file(&temp);
-        return Err(io_failure(error));
-    }
-    Ok(())
+    durable::replace(path, bytes, durable::Existing::Replace).map_err(|error| match error {
+        durable::Error::Random => Failure::RandomUnavailable,
+        durable::Error::Io(error) => io_failure(error),
+    })
 }
 
 fn io_failure(error: io::Error) -> Failure {
@@ -818,10 +827,17 @@ fn io_failure(error: io::Error) -> Failure {
     }
 }
 
-fn now() -> u64 {
+/// Seconds since the Unix epoch, or `None` when the clock reads before it.
+/// Each caller words that as its own failure.
+pub(crate) fn unix_now() -> Option<u64> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
+        .ok()
+        .map(|elapsed| elapsed.as_secs())
+}
+
+fn now() -> u64 {
+    unix_now().unwrap_or(0)
 }
 
 #[cfg(test)]

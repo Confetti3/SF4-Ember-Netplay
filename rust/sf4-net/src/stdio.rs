@@ -15,13 +15,7 @@ use std::io;
 use iroh::Endpoint;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::{
-    service,
-    wire::{self, ControlFrame},
-};
-
-const FEED_BUFFER: usize = 64 * 1024;
-const SHUTDOWN: &[u8] = br#"{"type":"shutdown"}"#;
+use crate::{service, wire::OnEof};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Options {
@@ -97,7 +91,7 @@ where
 /// `serve` with the exact UDP port for the coordination endpoint of a room
 /// this process hosts (`--coordination-port`).
 pub async fn serve_on_port<R, W>(
-    mut input: R,
+    input: R,
     output: W,
     endpoint: Endpoint,
     relay_only: bool,
@@ -107,48 +101,14 @@ where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    let (mut feed, commands) = tokio::io::duplex(FEED_BUFFER);
-    let forwarder = tokio::spawn(async move { forward(&mut input, &mut feed).await });
-    let result = service::run_on_port(
-        tokio::io::join(commands, output),
+    service::run_on_port(
+        tokio::io::join(input, output),
         endpoint,
         relay_only,
         coordination_port,
+        OnEof::Shutdown,
     )
-    .await;
-    forwarder.abort();
-    result
-}
-
-/// Copies command frames to the service and turns the end of `input` into a
-/// shutdown command. After that it keeps the feed open: the service reads a
-/// closed feed as a lost IPC connection, which would race the shutdown.
-async fn forward<R, W>(input: &mut R, feed: &mut W) -> io::Result<()>
-where
-    R: AsyncRead + Unpin,
-    W: AsyncWrite + Unpin,
-{
-    let mut last_id = 1;
-    loop {
-        match wire::read_ipc(input).await {
-            Ok(frame) => {
-                last_id = last_id.max(frame.message_id);
-                wire::write_ipc(feed, &frame).await?;
-            }
-            Err(error) if error.kind() == io::ErrorKind::UnexpectedEof => break,
-            // A malformed frame closes the feed, which fails the service.
-            Err(error) => return Err(error),
-        }
-    }
-    wire::write_ipc(
-        feed,
-        &ControlFrame {
-            message_id: last_id.saturating_add(1).min(i64::MAX as u64),
-            payload: SHUTDOWN.to_vec(),
-        },
-    )
-    .await?;
-    std::future::pending().await
+    .await
 }
 
 /// Process entry for `--stdio` (arguments after the program name). Returns the
@@ -233,6 +193,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::wire::{self, ControlFrame};
 
     fn args(list: &[&str]) -> Result<Options, String> {
         parse_args(list.iter().map(|argument| argument.to_string()))
@@ -263,7 +224,13 @@ mod tests {
             })
         );
         assert_eq!(
-            args(&["--stdio", "--coordination-port", "45770", "--bind-port", "45760"]),
+            args(&[
+                "--stdio",
+                "--coordination-port",
+                "45770",
+                "--bind-port",
+                "45760"
+            ]),
             Ok(Options {
                 bind_port: Some(45760),
                 coordination_port: Some(45770),
@@ -274,9 +241,21 @@ mod tests {
             &["--stdio", "--coordination-port"][..],
             &["--stdio", "--coordination-port", "0"],
             &["--stdio", "--coordination-port", "65536"],
-            &["--stdio", "--coordination-port", "1", "--coordination-port", "2"],
+            &[
+                "--stdio",
+                "--coordination-port",
+                "1",
+                "--coordination-port",
+                "2",
+            ],
             &["--stdio", "--coordination-port", "45760", "--relay-only"],
-            &["--stdio", "--bind-port", "45760", "--coordination-port", "45760"],
+            &[
+                "--stdio",
+                "--bind-port",
+                "45760",
+                "--coordination-port",
+                "45760",
+            ],
         ] {
             assert!(args(bad).is_err(), "{bad:?} must be refused");
         }
@@ -397,6 +376,28 @@ mod tests {
         })
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_command_id_that_does_not_rise_fails_the_service() {
+        // The first command's ID must be above 1, as on the pipe, and each
+        // later one above the last; the end of input afterwards does not turn
+        // the failure into a clean stop.
+        for ids in [&[1][..], &[2, 2], &[5, 4]] {
+            timeout(Duration::from_secs(20), async {
+                let ((mut commands, input), (_events, output)) = (duplex(4096), duplex(4096));
+                let service = tokio::spawn(serve(input, output, endpoint().await, false));
+                for &id in ids {
+                    wire::write_ipc(&mut commands, &command(id, r#"{"type":"status"}"#))
+                        .await
+                        .unwrap();
+                }
+                drop(commands);
+                assert!(service.await.unwrap().is_err(), "{ids:?}");
+            })
+            .await
+            .unwrap();
+        }
     }
 
     #[tokio::test]

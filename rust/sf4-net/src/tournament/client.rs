@@ -4,7 +4,7 @@
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 
 use ember_protocol::{
@@ -16,11 +16,11 @@ use ember_protocol::{
     encoding::{OriginPolicy, check_origin, is_prefixed_id},
     json,
 };
-use serde::Deserialize;
+use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::{Value, json, value::RawValue};
 use zeroize::Zeroizing;
 
-use super::{Failure, Outcome, Shared, bridges::Approved, sites};
+use super::{Code, Failure, Locked, Outcome, Shared, bridges::Approved, sites};
 
 const MAX_RESPONSE: usize = 64 * 1024;
 /// How long creating a room may take. The bridge waits up to 30 s for the
@@ -31,8 +31,8 @@ pub(super) const CREATE_TIMEOUT: Duration = Duration::from_secs(45);
 const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
 /// Renew a cached session this long before it expires.
 const SESSION_MARGIN_SECS: u64 = 30;
-/// A built-in bridge whose origin no longer serves its pinned ID.
-const PIN_MISMATCH: &str = "pinned_bridge_mismatch";
+/// The bridge's code for a session it no longer accepts.
+const UNAUTHENTICATED: &str = "unauthenticated";
 
 /// A bridge session, valid only for the origin that issued it and the
 /// Ember ID that opened it.
@@ -49,13 +49,11 @@ pub struct Client {
 }
 
 pub(super) fn now() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
+    crate::identity::unix_now().unwrap_or(0)
 }
 
 fn unreachable() -> Failure {
-    Failure::new("bridge_unreachable")
+    Failure::new(Code::BridgeUnreachable)
 }
 
 impl Client {
@@ -136,7 +134,7 @@ impl Client {
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(|_| unreachable())? {
             if bytes.len() + chunk.len() > MAX_RESPONSE {
-                return Err(Failure::new("bridge_response_too_large"));
+                return Err(Failure::new(Code::BridgeResponseTooLarge));
             }
             bytes.extend_from_slice(&chunk);
         }
@@ -157,15 +155,17 @@ impl Client {
     async fn check_pin(&self, bridge: &Approved) -> Result<(), Failure> {
         match self.profile(&bridge.origin).await {
             Ok(profile) if profile.bridge_id == bridge.bridge_id => Ok(()),
-            Ok(_) => Err(Failure::new(PIN_MISMATCH)),
-            Err(Failure(code)) if code == "bridge_mismatch" => Err(Failure::new(PIN_MISMATCH)),
+            Ok(_) => Err(Failure::new(Code::PinnedBridgeMismatch)),
+            Err(Failure::Local(Code::BridgeMismatch)) => {
+                Err(Failure::new(Code::PinnedBridgeMismatch))
+            }
             Err(failure) => Err(failure),
         }
     }
 
     /// The discovery document at `origin`, which must describe that origin.
     async fn profile(&self, origin: &str) -> Result<BridgeProfile, Failure> {
-        check_origin(origin, POLICY).map_err(|_| Failure::new("invalid_origin"))?;
+        check_origin(origin, POLICY).map_err(|_| Failure::new(Code::InvalidOrigin))?;
         let (status, body) = self
             .call(
                 reqwest::Method::GET,
@@ -175,13 +175,13 @@ impl Client {
             )
             .await?;
         if status != 200 {
-            return Err(Failure::new("not_a_bridge"));
+            return Err(Failure::new(Code::NotABridge));
         }
         let profile: BridgeProfile =
-            json::parse_as(&body, MAX_RESPONSE).map_err(|_| Failure::new("not_a_bridge"))?;
+            json::parse_as(&body, MAX_RESPONSE).map_err(|_| Failure::new(Code::NotABridge))?;
         // A bridge must describe the origin it is served from.
         if profile.origin != origin || !is_prefixed_id(&profile.bridge_id, "brg") {
-            return Err(Failure::new("bridge_mismatch"));
+            return Err(Failure::new(Code::BridgeMismatch));
         }
         Ok(profile)
     }
@@ -191,7 +191,7 @@ impl Client {
     /// not understand is dropped, never failing the document that Discord,
     /// approval and match play also read.
     pub async fn capabilities(&self, origin: &str) -> Result<Offered, Failure> {
-        check_origin(origin, POLICY).map_err(|_| Failure::new("invalid_origin"))?;
+        check_origin(origin, POLICY).map_err(|_| Failure::new(Code::InvalidOrigin))?;
         let (status, body) = self
             .call(
                 reqwest::Method::GET,
@@ -201,18 +201,18 @@ impl Client {
             )
             .await?;
         if status != 200 {
-            return Err(Failure::new("not_a_bridge"));
+            return Err(Failure::new(Code::NotABridge));
         }
-        let offered = Offered::read(&body).ok_or_else(|| Failure::new("not_a_bridge"))?;
+        let offered = Offered::read(&body).ok_or_else(|| Failure::new(Code::NotABridge))?;
         if offered.capabilities.api_version != "v1" {
-            return Err(Failure::new("unsupported_bridge"));
+            return Err(Failure::new(Code::UnsupportedBridge));
         }
         Ok(offered)
     }
 
     /// The bridge's public signing keys, from the approved origin only.
     pub async fn signing_keys(&self, origin: &str) -> Result<Vec<SigningKey>, Failure> {
-        check_origin(origin, POLICY).map_err(|_| Failure::new("invalid_origin"))?;
+        check_origin(origin, POLICY).map_err(|_| Failure::new(Code::InvalidOrigin))?;
         let (status, body) = self
             .call(
                 reqwest::Method::GET,
@@ -222,10 +222,10 @@ impl Client {
             )
             .await?;
         if status != 200 {
-            return Err(Failure::new("not_a_bridge"));
+            return Err(Failure::new(Code::NotABridge));
         }
         let keys: SigningKeys =
-            json::parse_as(&body, MAX_RESPONSE).map_err(|_| Failure::new("not_a_bridge"))?;
+            json::parse_as(&body, MAX_RESPONSE).map_err(|_| Failure::new(Code::NotABridge))?;
         Ok(keys.keys)
     }
 }
@@ -314,34 +314,224 @@ impl<'de> Deserialize<'de> for Members<'de> {
     }
 }
 
-/// The bridge's answer, as a failure code when it is not a success.
-pub(super) fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value, Failure> {
-    if expected.contains(&status) {
-        return json::parse(body, MAX_RESPONSE)
-            .and_then(|value| json::from_value::<Value>(&value))
-            .map_err(|_| Failure::new("bridge_invalid_response"));
-    }
-    Err(refusal(status, body, &[]))
+/// An HTTP verb a bridge route is called with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Verb {
+    Get,
+    Post,
+    Put,
+    Delete,
 }
 
-/// The answer of a route an older bridge may not serve: `answer` for
-/// `success`, a refusal as `refusal` words it with `reasons`, except that a
-/// 404 naming none of them is a bridge without the route, `missing`.
-pub(super) fn feature_answer(
+impl Verb {
+    fn http(self) -> reqwest::Method {
+        match self {
+            Self::Get => reqwest::Method::GET,
+            Self::Post => reqwest::Method::POST,
+            Self::Put => reqwest::Method::PUT,
+            Self::Delete => reqwest::Method::DELETE,
+        }
+    }
+
+    /// The method a proof of a command is made for: the one verb the request
+    /// is sent with, so the two cannot differ. Routes with other verbs take
+    /// no proof.
+    fn proven(self) -> Option<Method> {
+        match self {
+            Self::Post => Some(Method::Post),
+            Self::Delete => Some(Method::Delete),
+            Self::Get | Self::Put => None,
+        }
+    }
+}
+
+/// What a bridge call carries.
+#[derive(Clone, Copy)]
+pub(super) enum Body<'a> {
+    None,
+    /// A JSON body the session token alone authorizes.
+    Json(&'a [u8]),
+    /// A command proven by the identity for `action`, sent with its proof.
+    Proven {
+        action: Action,
+        command: &'a Value,
+    },
+}
+
+/// How a route's refusals are worded: a bridge's `details.reason` that is one
+/// of `reasons` is the failure as it is, and a 404 naming none of them is a
+/// bridge without the route, `missing`, when there is one to name.
+#[derive(Clone, Copy)]
+pub(super) struct Refusals<'a> {
+    pub reasons: &'a [&'a str],
+    pub missing: Option<Code>,
+}
+
+impl Refusals<'static> {
+    /// The bridge's error code or `http_<status>`, nothing worded apart.
+    pub(super) const NONE: Self = Self {
+        reasons: &[],
+        missing: None,
+    };
+}
+
+/// One authenticated call to a bridge: the verb and path, what it carries, the
+/// statuses that are its answer and how it is refused.
+pub(super) struct BridgeCall<'a> {
+    verb: Verb,
+    path: &'a str,
+    body: Body<'a>,
+    success: &'a [u16],
+    refusals: Refusals<'a>,
+    timeout: Option<Duration>,
+}
+
+impl<'a> BridgeCall<'a> {
+    pub(super) fn new(verb: Verb, path: &'a str, success: &'a [u16]) -> Self {
+        Self {
+            verb,
+            path,
+            body: Body::None,
+            success,
+            refusals: Refusals::NONE,
+            timeout: None,
+        }
+    }
+
+    pub(super) fn body(self, body: Body<'a>) -> Self {
+        Self { body, ..self }
+    }
+
+    pub(super) fn refusals(self, refusals: Refusals<'a>) -> Self {
+        Self { refusals, ..self }
+    }
+
+    /// The call's total time in place of the client's own.
+    pub(super) fn timeout(self, timeout: Duration) -> Self {
+        Self {
+            timeout: Some(timeout),
+            ..self
+        }
+    }
+}
+
+/// Sends `call` to `bridge`, proving its command first when it carries one,
+/// and answers the bridge's status and body. `token` is the session's, or
+/// none for the call that opens one.
+pub(super) async fn send(
+    shared: &Arc<Shared>,
+    bridge: &Approved,
+    token: Option<&str>,
+    call: &BridgeCall<'_>,
+) -> Result<(u16, Vec<u8>), Failure> {
+    let body = match call.body {
+        Body::None => None,
+        Body::Json(bytes) => Some(bytes.to_vec()),
+        Body::Proven { action, command } => {
+            let method = call
+                .verb
+                .proven()
+                .ok_or_else(|| Failure::new(Code::Internal))?;
+            Some(prove(shared, bridge, token, action, method, call.path, command).await?)
+        }
+    };
+    shared
+        .client
+        .call_within(
+            call.verb.http(),
+            &format!("{}{}", bridge.origin, call.path),
+            token,
+            body,
+            call.timeout,
+        )
+        .await
+}
+
+/// `send`, and the bridge's answer as JSON.
+pub(super) async fn fetch(
+    shared: &Arc<Shared>,
+    bridge: &Approved,
+    token: Option<&str>,
+    call: &BridgeCall<'_>,
+) -> Result<Value, Failure> {
+    let (status, body) = send(shared, bridge, token, call).await?;
+    answer(status, &body, call.success, &call.refusals)
+}
+
+/// `send`, and the bridge's answer read as `T`.
+pub(super) async fn fetch_as<T: DeserializeOwned>(
+    shared: &Arc<Shared>,
+    bridge: &Approved,
+    token: Option<&str>,
+    call: &BridgeCall<'_>,
+) -> Result<T, Failure> {
+    let (status, body) = send(shared, bridge, token, call).await?;
+    read(status, &body, call.success, &call.refusals)
+}
+
+/// `call` under a session on `bridge_id`, and the bridge's answer as JSON.
+pub(super) async fn request(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    call: &BridgeCall<'_>,
+) -> Result<Value, Failure> {
+    with_session(shared, bridge_id, |bridge, token| async move {
+        fetch(shared, &bridge, Some(&token), call).await
+    })
+    .await
+}
+
+/// `call` under a session on `bridge_id`, and the bridge's answer read as `T`.
+pub(super) async fn request_as<T: DeserializeOwned>(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    call: &BridgeCall<'_>,
+) -> Result<T, Failure> {
+    with_session(shared, bridge_id, |bridge, token| async move {
+        fetch_as(shared, &bridge, Some(&token), call).await
+    })
+    .await
+}
+
+/// The bridge's answer, as a failure code when it is not a success.
+pub(super) fn answer(
     status: u16,
     body: &[u8],
-    success: u16,
-    reasons: &[&str],
-    missing: &str,
+    success: &[u16],
+    refusals: &Refusals<'_>,
 ) -> Result<Value, Failure> {
-    if status == success {
-        return answer(status, body, &[success]);
+    if success.contains(&status) {
+        return json::parse(body, MAX_RESPONSE)
+            .and_then(|value| json::from_value::<Value>(&value))
+            .map_err(|_| Failure::new(Code::BridgeInvalidResponse));
     }
-    let failure = refusal(status, body, reasons);
-    if status == 404 && !reasons.contains(&failure.0.as_str()) {
-        return Err(Failure::new(missing));
+    Err(refused(status, body, refusals))
+}
+
+/// The bridge's answer read as `T`, as a failure code when it is not a
+/// success or is not a `T`.
+pub(super) fn read<T: DeserializeOwned>(
+    status: u16,
+    body: &[u8],
+    success: &[u16],
+    refusals: &Refusals<'_>,
+) -> Result<T, Failure> {
+    if success.contains(&status) {
+        return json::parse_as(body, MAX_RESPONSE)
+            .map_err(|_| Failure::new(Code::BridgeInvalidResponse));
     }
-    Err(failure)
+    Err(refused(status, body, refusals))
+}
+
+/// The failure for an answer that is not a success of its route.
+fn refused(status: u16, body: &[u8], refusals: &Refusals<'_>) -> Failure {
+    let failure = refusal(status, body, refusals.reasons);
+    match refusals.missing {
+        Some(missing) if status == 404 && !refusals.reasons.contains(&failure.as_str()) => {
+            Failure::new(missing)
+        }
+        _ => failure,
+    }
 }
 
 /// The failure for a bridge's refusal: its `details.reason` when that is one
@@ -359,48 +549,43 @@ pub(super) fn refusal(status: u16, body: &[u8], reasons: &[&str]) -> Failure {
             .and_then(|code| code.as_str().map(str::to_owned))
             .unwrap_or_else(|| format!("http_{status}"))
     };
-    Failure(reason.unwrap_or_else(code))
+    Failure::Bridge(reason.unwrap_or_else(code))
 }
 
 /// Whether this build pins `bridge_id` (builtin.rs).
 pub(super) fn pinned(shared: &Shared, bridge_id: &str) -> Result<bool, Failure> {
-    Ok(shared
-        .bridges
-        .lock()
-        .map_err(|_| Failure::new("internal"))?
-        .pins(bridge_id))
+    Ok(shared.bridges.locked()?.pins(bridge_id))
 }
 
 pub(super) fn approved(shared: &Shared, bridge_id: &str) -> Result<Approved, Failure> {
     shared
         .bridges
-        .lock()
-        .map_err(|_| Failure::new("internal"))?
+        .locked()?
         .get(bridge_id)
-        .ok_or_else(|| Failure::new("bridge_not_approved"))
+        .ok_or_else(|| Failure::new(Code::BridgeNotApproved))
 }
 
 /// Requests a challenge for `command`, checks it, and signs it. The identity
 /// lock is only tried: a key operation in progress makes this `identity_busy`
 /// rather than blocking a runtime thread.
-pub(super) async fn prove(
+async fn prove(
     shared: &Shared,
     bridge: &Approved,
     token: Option<&str>,
     action: Action,
     method: Method,
     path: &str,
-    command: Value,
+    command: &Value,
 ) -> Result<Vec<u8>, Failure> {
-    let command = json::to_value(&command).map_err(|_| Failure::new("internal"))?;
+    let command = json::to_value(command).map_err(|_| Failure::new(Code::Internal))?;
     let public_key = {
         let identity = shared
             .identity
             .try_lock()
-            .map_err(|_| Failure::new("identity_busy"))?;
+            .map_err(|_| Failure::new(Code::IdentityBusy))?;
         identity
             .signer()
-            .ok_or_else(|| Failure::new("identity_unavailable"))?
+            .ok_or_else(|| Failure::new(Code::IdentityUnavailable))?
             .public_key()
     };
     let request = json!({
@@ -416,22 +601,22 @@ pub(super) async fn prove(
             reqwest::Method::POST,
             &format!("{}/v1/auth/challenges", bridge.origin),
             token,
-            Some(serde_json::to_vec(&request).map_err(|_| Failure::new("internal"))?),
+            Some(serde_json::to_vec(&request).map_err(|_| Failure::new(Code::Internal))?),
         )
         .await?;
     if status != 201 {
-        return Err(answer(status, &body, &[]).unwrap_err());
+        return Err(refusal(status, &body, &[]));
     }
     let challenge: Challenge = json::parse_as(&body, MAX_PROOF_BODY)
-        .map_err(|_| Failure::new("bridge_invalid_response"))?;
+        .map_err(|_| Failure::new(Code::BridgeInvalidResponse))?;
     let proof = {
         let identity = shared
             .identity
             .try_lock()
-            .map_err(|_| Failure::new("identity_busy"))?;
+            .map_err(|_| Failure::new(Code::IdentityBusy))?;
         let signer = identity
             .signer()
-            .ok_or_else(|| Failure::new("identity_unavailable"))?;
+            .ok_or_else(|| Failure::new(Code::IdentityUnavailable))?;
         // The challenge must name the approved bridge, our ID, and exactly
         // this operation and command; anything else is never signed.
         let expected = Expected {
@@ -445,11 +630,11 @@ pub(super) async fn prove(
         };
         challenge
             .sign(signer, &expected, now(), POLICY)
-            .map_err(|_| Failure::new("challenge_mismatch"))?
+            .map_err(|_| Failure::new(Code::ChallengeMismatch))?
     };
     ProvenRequest { command, proof }
         .to_json()
-        .map_err(|_| Failure::new("internal"))
+        .map_err(|_| Failure::new(Code::Internal))
 }
 
 #[derive(Deserialize)]
@@ -463,11 +648,11 @@ pub(super) fn current_id(shared: &Shared) -> Result<EmberId, Failure> {
     let identity = shared
         .identity
         .try_lock()
-        .map_err(|_| Failure::new("identity_busy"))?;
+        .map_err(|_| Failure::new(Code::IdentityBusy))?;
     identity
         .signer()
         .map(|signer| signer.ember_id().clone())
-        .ok_or_else(|| Failure::new("identity_unavailable"))
+        .ok_or_else(|| Failure::new(Code::IdentityUnavailable))
 }
 
 async fn session(shared: &Arc<Shared>, bridge: &Approved) -> Result<Zeroizing<String>, Failure> {
@@ -480,27 +665,12 @@ async fn session(shared: &Arc<Shared>, bridge: &Approved) -> Result<Zeroizing<St
     if pinned {
         shared.client.check_pin(bridge).await?;
     }
-    let body = prove(
-        shared,
-        bridge,
-        None,
-        Action::SessionCreate,
-        Method::Post,
-        "/v1/sessions",
-        json!({ "requested_scopes": ["self:read", "tournament:participate"] }),
-    )
-    .await?;
-    let (status, response) = shared
-        .client
-        .call(
-            reqwest::Method::POST,
-            &format!("{}/v1/sessions", bridge.origin),
-            None,
-            Some(body),
-        )
-        .await?;
-    let created: SessionCreated = serde_json::from_value(answer(status, &response, &[201])?)
-        .map_err(|_| Failure::new("bridge_invalid_response"))?;
+    let command = json!({ "requested_scopes": ["self:read", "tournament:participate"] });
+    let call = BridgeCall::new(Verb::Post, "/v1/sessions", &[201]).body(Body::Proven {
+        action: Action::SessionCreate,
+        command: &command,
+    });
+    let created: SessionCreated = fetch_as(shared, bridge, None, &call).await?;
     let token = Zeroizing::new(created.session_token);
     if let Ok(mut sessions) = shared.client.sessions.lock() {
         sessions.insert(
@@ -520,16 +690,22 @@ async fn session(shared: &Arc<Shared>, bridge: &Approved) -> Result<Zeroizing<St
 }
 
 /// Runs `operation` with a session, retrying once with a new session if the
-/// bridge no longer accepts the cached one.
-pub(super) async fn with_session<F, Fut>(shared: &Arc<Shared>, bridge_id: &str, operation: F) -> Outcome
+/// bridge no longer accepts the cached one. The operation is called again, so
+/// a caller borrows what it sends (a reference is copied into each future)
+/// and clones none of it.
+pub(super) async fn with_session<T, F, Fut>(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    mut operation: F,
+) -> Result<T, Failure>
 where
-    F: Fn(Approved, Zeroizing<String>) -> Fut,
-    Fut: std::future::Future<Output = Outcome>,
+    F: FnMut(Approved, Zeroizing<String>) -> Fut,
+    Fut: std::future::Future<Output = Result<T, Failure>>,
 {
     let bridge = approved(shared, bridge_id)?;
     let token = session(shared, &bridge).await?;
     match operation(bridge.clone(), token).await {
-        Err(Failure(code)) if code == "unauthenticated" => {
+        Err(Failure::Bridge(code)) if code == UNAUTHENTICATED => {
             shared.client.forget_session(bridge_id);
             let token = session(shared, &bridge).await?;
             operation(bridge, token).await
@@ -553,19 +729,8 @@ async fn activate(shared: &Arc<Shared>, bridge_id: &str) {
 }
 
 pub async fn links(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
-    with_session(shared, bridge_id, |bridge, token| async move {
-        let (status, body) = shared
-            .client
-            .call(
-                reqwest::Method::GET,
-                &format!("{}/v1/links", bridge.origin),
-                Some(&token),
-                None,
-            )
-            .await?;
-        Ok(Some(answer(status, &body, &[200])?))
-    })
-    .await
+    let call = BridgeCall::new(Verb::Get, "/v1/links", &[200]);
+    request(shared, bridge_id, &call).await.map(Some)
 }
 
 pub async fn claim(
@@ -575,92 +740,40 @@ pub async fn claim(
     code: &str,
 ) -> Outcome {
     if code.len() > 16 || connection_id.is_empty() || connection_id.len() > 64 {
-        return Err(Failure::new("invalid_request"));
+        return Err(Failure::new(Code::InvalidRequest));
     }
-    with_session(shared, bridge_id, |bridge, token| async move {
-        let command = json!({ "code": code, "connection_id": connection_id, "consent": true });
-        let body = prove(
-            shared,
-            &bridge,
-            Some(&token),
-            Action::LinkClaim,
-            Method::Post,
-            "/v1/link-claims",
-            command,
-        )
-        .await?;
-        let (status, response) = shared
-            .client
-            .call(
-                reqwest::Method::POST,
-                &format!("{}/v1/link-claims", bridge.origin),
-                Some(&token),
-                Some(body),
-            )
-            .await?;
-        Ok(Some(answer(status, &response, &[201])?))
-    })
-    .await
+    let command = json!({ "code": code, "connection_id": connection_id, "consent": true });
+    let call = BridgeCall::new(Verb::Post, "/v1/link-claims", &[201]).body(Body::Proven {
+        action: Action::LinkClaim,
+        command: &command,
+    });
+    request(shared, bridge_id, &call).await.map(Some)
 }
 
 pub async fn cancel_claim(shared: &Arc<Shared>, bridge_id: &str, claim_id: &str) -> Outcome {
     if !is_prefixed_id(claim_id, "lkc") {
-        return Err(Failure::new("invalid_request"));
+        return Err(Failure::new(Code::InvalidRequest));
     }
-    with_session(shared, bridge_id, |bridge, token| async move {
-        let path = format!("/v1/link-claims/{claim_id}/cancel");
-        let body = prove(
-            shared,
-            &bridge,
-            Some(&token),
-            Action::LinkCancel,
-            Method::Post,
-            &path,
-            json!({ "claim_id": claim_id }),
-        )
-        .await?;
-        let (status, response) = shared
-            .client
-            .call(
-                reqwest::Method::POST,
-                &format!("{}{path}", bridge.origin),
-                Some(&token),
-                Some(body),
-            )
-            .await?;
-        Ok(Some(answer(status, &response, &[200])?))
-    })
-    .await
+    let path = format!("/v1/link-claims/{claim_id}/cancel");
+    let command = json!({ "claim_id": claim_id });
+    let call = BridgeCall::new(Verb::Post, &path, &[200]).body(Body::Proven {
+        action: Action::LinkCancel,
+        command: &command,
+    });
+    request(shared, bridge_id, &call).await.map(Some)
 }
 
 pub async fn remove_link(shared: &Arc<Shared>, bridge_id: &str, link_id: &str) -> Outcome {
     if !is_prefixed_id(link_id, "lnk") {
-        return Err(Failure::new("invalid_request"));
+        return Err(Failure::new(Code::InvalidRequest));
     }
-    with_session(shared, bridge_id, |bridge, token| async move {
-        let path = format!("/v1/links/{link_id}");
-        let body = prove(
-            shared,
-            &bridge,
-            Some(&token),
-            Action::LinkRemove,
-            Method::Delete,
-            &path,
-            json!({ "link_id": link_id }),
-        )
-        .await?;
-        let (status, response) = shared
-            .client
-            .call(
-                reqwest::Method::DELETE,
-                &format!("{}{path}", bridge.origin),
-                Some(&token),
-                Some(body),
-            )
-            .await?;
-        Ok(Some(answer(status, &response, &[200])?))
-    })
-    .await
+    let path = format!("/v1/links/{link_id}");
+    let command = json!({ "link_id": link_id });
+    let call = BridgeCall::new(Verb::Delete, &path, &[200]).body(Body::Proven {
+        action: Action::LinkRemove,
+        command: &command,
+    });
+    request(shared, bridge_id, &call).await.map(Some)
 }
 
 #[cfg(test)]
@@ -778,5 +891,115 @@ mod tests {
         };
         assert!(client.cached(&at("https://a.example"), &ember_id).is_some());
         assert!(client.cached(&at("https://b.example"), &ember_id).is_none());
+    }
+
+    /// A proof is made for the method the request is sent with, so the two
+    /// cannot differ, and a route that takes no proof has none.
+    #[test]
+    fn a_proof_is_made_for_the_verb_the_request_is_sent_with() {
+        assert_eq!(Verb::Post.proven(), Some(Method::Post));
+        assert_eq!(Verb::Delete.proven(), Some(Method::Delete));
+        assert_eq!(Verb::Get.proven(), None);
+        assert_eq!(Verb::Put.proven(), None);
+        assert_eq!(Verb::Post.http(), reqwest::Method::POST);
+        assert_eq!(Verb::Delete.http(), reqwest::Method::DELETE);
+        assert_eq!(Verb::Get.http(), reqwest::Method::GET);
+        assert_eq!(Verb::Put.http(), reqwest::Method::PUT);
+    }
+
+    fn refusal_body(code: &str, reason: Option<&str>) -> Vec<u8> {
+        let details = reason.map_or(json!({}), |reason| json!({ "reason": reason }));
+        serde_json::to_vec(&json!({ "error": {
+            "code": code, "message": "m", "retryable": false, "request_id": "req_1",
+            "details": details,
+        }}))
+        .unwrap()
+    }
+
+    /// An answer read as a type is held to the same strict rules as one read
+    /// as JSON first and then as the type, and refused with the same code.
+    #[test]
+    fn a_typed_answer_is_read_as_strictly_as_an_untyped_one() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        #[serde(deny_unknown_fields)]
+        struct Shape {
+            a: u64,
+        }
+        let none = Refusals::NONE;
+        assert_eq!(
+            read::<Shape>(201, br#"{"a":1}"#, &[200, 201], &none).unwrap(),
+            Shape { a: 1 }
+        );
+        assert_eq!(
+            answer(201, br#"{"a":1}"#, &[200, 201], &none).unwrap(),
+            json!({ "a": 1 })
+        );
+        for body in [
+            &br#"{"a":1,"b":2}"#[..],
+            br#"{"a":1,"a":1}"#,
+            br#"{"a":1.5}"#,
+            br#"{"a":9007199254740993}"#,
+            br#"{"a":"1"}"#,
+            br#"{"a":1} {}"#,
+            b"",
+        ] {
+            let typed = read::<Shape>(200, body, &[200], &none).unwrap_err();
+            assert_eq!(typed.as_str(), "bridge_invalid_response", "{body:?}");
+        }
+        // The untyped read keeps what the type would refuse, as before.
+        assert!(answer(200, br#"{"a":1,"b":2}"#, &[200], &none).is_ok());
+        assert!(answer(200, br#"{"a":1,"a":1}"#, &[200], &none).is_err());
+        // A status that is not a success is refused alike, by code.
+        let body = refusal_body("forbidden", None);
+        assert_eq!(
+            read::<Shape>(403, &body, &[200], &none)
+                .unwrap_err()
+                .as_str(),
+            "forbidden"
+        );
+        assert_eq!(
+            answer(403, &body, &[200], &none).unwrap_err().as_str(),
+            "forbidden"
+        );
+    }
+
+    /// A refusal is the bridge's code, kept apart from the helper's own: a
+    /// code this build does not know is `http_<status>`, and a 404 naming no
+    /// reason is a bridge without the route only for a route that says so.
+    #[test]
+    fn a_refusal_is_the_bridges_code_or_the_status_and_a_404_may_be_a_missing_route() {
+        let body = refusal_body("brand_new_code", None);
+        let unknown = refusal(409, &body, &[]);
+        assert!(matches!(&unknown, Failure::Bridge(code) if code == "http_409"));
+        let known = refusal(403, &refusal_body("forbidden", None), &[]);
+        assert!(matches!(&known, Failure::Bridge(code) if code == "forbidden"));
+        let reasons = ["room_full"];
+        let worded = refusal(409, &refusal_body("forbidden", Some("room_full")), &reasons);
+        assert!(matches!(&worded, Failure::Bridge(code) if code == "room_full"));
+
+        let route = Refusals {
+            reasons: &reasons,
+            missing: Some(Code::RoomsUnavailable),
+        };
+        let missing = answer(404, &refusal_body("not_found", None), &[200], &route);
+        assert!(matches!(
+            missing,
+            Err(Failure::Local(Code::RoomsUnavailable))
+        ));
+        let named = answer(
+            404,
+            &refusal_body("not_found", Some("room_full")),
+            &[200],
+            &route,
+        );
+        assert!(matches!(named, Err(Failure::Bridge(code)) if code == "room_full"));
+        let other = answer(403, &refusal_body("forbidden", None), &[200], &route);
+        assert!(matches!(other, Err(Failure::Bridge(code)) if code == "forbidden"));
+        let plain = Refusals {
+            reasons: &reasons,
+            missing: None,
+        };
+        let not_found = answer(404, &refusal_body("not_found", None), &[200], &plain);
+        assert!(matches!(not_found, Err(Failure::Bridge(code)) if code == "not_found"));
     }
 }

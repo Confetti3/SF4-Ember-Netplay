@@ -716,3 +716,28 @@ fn oversized_files_are_refused_before_reading() {
         (State::Unavailable, Some(Failure::Corrupt))
     );
 }
+
+/// The code a failure carries over IPC is the name serde gives the variant,
+/// which the native side has always read.
+#[test]
+fn a_failure_code_is_its_serialized_name() {
+    for failure in [
+        Failure::PermissionDenied,
+        Failure::Corrupt,
+        Failure::UnsupportedEnvelope,
+        Failure::WrongPassphrase,
+        Failure::DecryptFailed,
+        Failure::KeyMissing,
+        Failure::MetadataMismatch,
+        Failure::RandomUnavailable,
+        Failure::InvalidPassphrase,
+        Failure::PassphraseRequired,
+        Failure::WrongState,
+        Failure::ConfirmationMismatch,
+        Failure::ReplacementNotConfirmed,
+        Failure::Io,
+    ] {
+        let named = serde_json::to_value(failure).unwrap();
+        assert_eq!(named.as_str(), Some(failure.as_str()), "{failure:?}");
+    }
+}

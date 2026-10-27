@@ -35,6 +35,16 @@ pub const GAME_HEADER: usize = 2 + 16 + 8;
 // supports this size. Every send also checks the current QUIC datagram limit.
 pub const MAX_UDP_PAYLOAD: usize = 65_507;
 
+/// What the end of a service's command input means.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OnEof {
+    /// The IPC connection is lost, as when the game's pipe closes.
+    LostIpc,
+    /// The parent is gone or has closed its end: stop as if sent
+    /// `Command::Shutdown`.
+    Shutdown,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct ControlFrame {
     pub message_id: u64,
@@ -102,12 +112,14 @@ async fn write_frame<W: AsyncWrite + Unpin>(
     {
         return Err(invalid("invalid control frame"));
     }
-    writer
-        .write_u32((CONTROL_HEADER + frame.payload.len()) as u32)
-        .await?;
-    writer.write_u16(VERSION).await?;
-    writer.write_u64(frame.message_id).await?;
-    writer.write_all(&frame.payload).await?;
+    // One buffer and one write: on an unbuffered pipe each small header write
+    // would be a call of its own.
+    let mut bytes = Vec::with_capacity(4 + CONTROL_HEADER + frame.payload.len());
+    bytes.extend_from_slice(&((CONTROL_HEADER + frame.payload.len()) as u32).to_be_bytes());
+    bytes.extend_from_slice(&VERSION.to_be_bytes());
+    bytes.extend_from_slice(&frame.message_id.to_be_bytes());
+    bytes.extend_from_slice(&frame.payload);
+    writer.write_all(&bytes).await?;
     writer.flush().await
 }
 
@@ -294,6 +306,74 @@ mod tests {
         };
         assert!(write_control(&mut bytes, &invalid).await.is_err());
         assert!(bytes.is_empty());
+    }
+
+    /// A writer that keeps each write call apart.
+    #[derive(Default)]
+    struct Calls {
+        writes: Vec<Vec<u8>>,
+        flushes: usize,
+    }
+
+    impl AsyncWrite for Calls {
+        fn poll_write(
+            mut self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+            buf: &[u8],
+        ) -> std::task::Poll<io::Result<usize>> {
+            self.writes.push(buf.to_vec());
+            std::task::Poll::Ready(Ok(buf.len()))
+        }
+
+        fn poll_flush(
+            mut self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<io::Result<()>> {
+            self.flushes += 1;
+            std::task::Poll::Ready(Ok(()))
+        }
+
+        fn poll_shutdown(
+            self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<io::Result<()>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+    }
+
+    /// A frame is the length, the version, the message ID and the payload,
+    /// handed to the stream in one write and one flush.
+    #[tokio::test]
+    async fn a_frame_is_written_whole_with_one_write_and_one_flush() {
+        let payload = br#"{"type":"status"}"#.to_vec();
+        let mut expected = ((CONTROL_HEADER + payload.len()) as u32)
+            .to_be_bytes()
+            .to_vec();
+        expected.extend(VERSION.to_be_bytes());
+        expected.extend(0x0102_0304_0506_0708u64.to_be_bytes());
+        expected.extend(&payload);
+        let frame = ControlFrame {
+            message_id: 0x0102_0304_0506_0708,
+            payload,
+        };
+        for control in [true, false] {
+            let mut calls = Calls::default();
+            if control {
+                write_control(&mut calls, &frame).await.unwrap();
+            } else {
+                write_ipc(&mut calls, &frame).await.unwrap();
+            }
+            assert_eq!(calls.writes, [expected.clone()]);
+            assert_eq!(calls.flushes, 1);
+        }
+        // A frame the bound refuses reaches the stream in no part.
+        let mut calls = Calls::default();
+        let oversized = ControlFrame {
+            message_id: 1,
+            payload: vec![0; MAX_CONTROL_PAYLOAD + 1],
+        };
+        assert!(write_control(&mut calls, &oversized).await.is_err());
+        assert!(calls.writes.is_empty() && calls.flushes == 0);
     }
 
     #[test]

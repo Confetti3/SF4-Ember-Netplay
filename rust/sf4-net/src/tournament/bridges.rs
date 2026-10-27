@@ -11,19 +11,20 @@
 //! has its own list here and is written only when that list changes.
 use std::{
     fs,
-    io::Write,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use ember_protocol::{
     api::{BridgeProfile, SigningKey},
-    encoding::{OriginPolicy, b64u, check_origin, is_prefixed_id},
+    encoding::{OriginPolicy, check_origin, is_prefixed_id},
     json,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-use super::{Failure, builtin::Builtin};
+use crate::identity::durable::{self, Existing};
+
+use super::{Code, Failure, builtin::Builtin};
 
 const FILE: &str = "bridges.json";
 const FORMAT: &str = "ember-bridges";
@@ -187,11 +188,15 @@ impl Store {
         own.chain(pinned).collect()
     }
 
+    /// The trusted bridge `bridge_id`, found in the order `list` gives and
+    /// cloned alone.
     pub fn get(&self, bridge_id: &str) -> Option<Approved> {
-        self.list()
-            .into_iter()
-            .map(|listed| listed.bridge)
+        self.approved
+            .iter()
+            .filter(|bridge| !self.live().any(|pin| same_bridge(pin, bridge)))
+            .chain(self.live())
             .find(|bridge| bridge.bridge_id == bridge_id)
+            .cloned()
     }
 
     /// Whether this build pins `bridge_id`: its keys are never replaced, and
@@ -236,7 +241,7 @@ impl Store {
             .cloned();
         if let Some(pin) = pin {
             if pin.origin != profile.origin {
-                return Err(Failure::new("bridge_changed"));
+                return Err(Failure::new(Code::BridgeChanged));
             }
             return self.restore(&pin);
         }
@@ -255,10 +260,10 @@ impl Store {
             keys: usable(keys),
         };
         if !valid(&entry) {
-            return Err(Failure::new("invalid_bridge"));
+            return Err(Failure::new(Code::InvalidBridge));
         }
         if self.live().any(|pin| pin.origin == entry.origin) {
-            return Err(Failure::new("bridge_changed"));
+            return Err(Failure::new(Code::BridgeChanged));
         }
         // One entry per bridge ID and per origin: a bridge that changed its
         // ID at the same origin is a different bridge and replaces it.
@@ -268,7 +273,7 @@ impl Store {
             .cloned()
             .partition(|bridge| same_bridge(bridge, &entry));
         if kept.len() >= MAX_BRIDGES {
-            return Err(Failure::new("too_many_bridges"));
+            return Err(Failure::new(Code::TooManyBridges));
         }
         let approved_id = entry.bridge_id.clone();
         kept.push(entry);
@@ -314,13 +319,13 @@ impl Store {
     /// are pinned and never replaced.
     pub fn set_keys(&mut self, bridge_id: &str, keys: Vec<SigningKey>) -> Result<(), Failure> {
         if self.pins(bridge_id) {
-            return Err(Failure::new("bridge_pinned"));
+            return Err(Failure::new(Code::BridgePinned));
         }
         let mut updated = self.approved.clone();
         let entry = updated
             .iter_mut()
             .find(|bridge| bridge.bridge_id == bridge_id)
-            .ok_or_else(|| Failure::new("bridge_not_approved"))?;
+            .ok_or_else(|| Failure::new(Code::BridgeNotApproved))?;
         entry.keys = usable(keys);
         self.save_approved(updated)
     }
@@ -414,7 +419,7 @@ impl Store {
     }
 
     fn save<T: Serialize>(&self, name: &str, file: &T) -> Result<(), Failure> {
-        let bytes = serde_json::to_vec_pretty(file).map_err(|_| Failure::new("io"))?;
+        let bytes = serde_json::to_vec_pretty(file).map_err(|_| Failure::new(Code::Io))?;
         write_atomic(&self.dir, name, &bytes)
     }
 }
@@ -452,28 +457,14 @@ fn remember(list: &mut Vec<String>, bridge_id: String) {
     }
 }
 
-/// Writes `name` in `dir` through a temp file and a rename, so a crash leaves
+/// Writes `name` in `dir` through a temp file and a move, so a crash leaves
 /// the old file or the new one, never half of one.
 fn write_atomic(dir: &Path, name: &str, bytes: &[u8]) -> Result<(), Failure> {
     if dir.as_os_str().is_empty() || !dir.is_absolute() {
-        return Err(Failure::new("io"));
+        return Err(Failure::new(Code::Io));
     }
-    fs::create_dir_all(dir).map_err(|_| Failure::new("io"))?;
-    let mut suffix = [0u8; 8];
-    getrandom::fill(&mut suffix).map_err(|_| Failure::new("io"))?;
-    let temp = dir.join(format!(".tmp-{name}-{}", b64u(&suffix)));
-    let result = (|| {
-        let mut file = fs::File::create(&temp)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        drop(file);
-        fs::rename(&temp, dir.join(name))
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temp);
-        return Err(Failure::new("io"));
-    }
-    Ok(())
+    fs::create_dir_all(dir).map_err(|_| Failure::new(Code::Io))?;
+    durable::replace(&dir.join(name), bytes, Existing::Replace).map_err(|_| Failure::new(Code::Io))
 }
 
 /// At most 8 keys, each a usable Ed25519 signature key.

@@ -19,6 +19,7 @@ pub(super) fn routes() -> Routes {
         remove: Action::DiscordRemove,
         cancel: Action::DiscordCancel,
         end_unopened: false,
+        is_sign_in_page: Box::new(is_sign_in_page),
     }
 }
 

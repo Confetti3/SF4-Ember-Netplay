@@ -3,15 +3,15 @@
 //! sent from there until the bridge answers for it. A report that cannot be
 //! written is reported as not saved; nothing here makes a native game wait.
 use std::{
-    fs,
-    io::Write,
+    fs, io,
     path::{Path, PathBuf},
 };
 
-use ember_protocol::{encoding::b64u, json, report::SignedReport};
+use ember_protocol::{json, report::SignedReport};
 use serde::{Deserialize, Serialize};
 
-use super::Failure;
+use super::{Code, Failure};
+use crate::identity::durable::{self, Existing};
 
 const FORMAT: &str = "ember-game-report";
 const PREFIX: &str = "report-";
@@ -63,10 +63,10 @@ impl Spool {
         ))
     }
 
-    /// Writes `entry` durably: a flushed temporary file renamed into place.
-    /// Rewriting the same observation is a no-op.
+    /// Writes `entry` durably: a flushed temporary file moved into place,
+    /// written through to disk. Rewriting the same observation is a no-op.
     pub fn put(&self, entry: &Entry) -> Result<(), Failure> {
-        let not_saved = || Failure::new("report_not_saved");
+        let not_saved = || Failure::new(Code::ReportNotSaved);
         if !self.usable() {
             return Err(not_saved());
         }
@@ -79,21 +79,14 @@ impl Spool {
             return Err(not_saved());
         }
         let bytes = serde_json::to_vec(entry).map_err(|_| not_saved())?;
-        let mut suffix = [0u8; 8];
-        getrandom::fill(&mut suffix).map_err(|_| not_saved())?;
-        let temp = self.dir.join(format!(".tmp-{}", b64u(&suffix)));
-        let written = (|| {
-            let mut file = fs::File::create(&temp)?;
-            file.write_all(&bytes)?;
-            file.sync_all()?;
-            drop(file);
-            fs::rename(&temp, &path)
-        })();
-        if written.is_err() {
-            let _ = fs::remove_file(&temp);
-            return Err(not_saved());
+        match durable::replace(&path, &bytes, Existing::Keep) {
+            Ok(()) => Ok(()),
+            // The same observation, written meanwhile.
+            Err(durable::Error::Io(error)) if error.kind() == io::ErrorKind::AlreadyExists => {
+                Ok(())
+            }
+            Err(_) => Err(not_saved()),
         }
-        Ok(())
     }
 
     /// Every pending entry, oldest first. Unreadable files are skipped and
@@ -141,7 +134,7 @@ mod tests {
 
     use super::*;
 
-    fn report(observation: &str) -> SignedReport {
+    pub(super) fn report(observation: &str) -> SignedReport {
         let a = SigningIdentity::from_seed(&Zeroizing::new([1; 32])).unwrap();
         let b = SigningIdentity::from_seed(&Zeroizing::new([2; 32])).unwrap();
         let permit = Permit {
@@ -224,5 +217,91 @@ mod tests {
         );
         assert!(spool.put(&entry).is_err());
         assert!(spool.pending().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod resend_tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    use ember_protocol::{SigningIdentity, encoding::prefixed_id};
+    use zeroize::Zeroizing;
+
+    use super::tests::report;
+    use super::*;
+    use crate::{
+        identity::Protection,
+        tournament::{builtin::Builtin, play::deliver_pending, test_support::shared_pinning},
+    };
+
+    /// A loopback origin that takes each connection and closes it at once,
+    /// counting them: a bridge that cannot answer.
+    async fn dropping_origin() -> (String, Arc<AtomicUsize>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let taken = Arc::new(AtomicUsize::new(0));
+        let counted = taken.clone();
+        tokio::spawn(async move {
+            while let Ok((socket, _)) = listener.accept().await {
+                counted.fetch_add(1, Ordering::SeqCst);
+                drop(socket);
+            }
+        });
+        (origin, taken)
+    }
+
+    fn pin(origin: String, seed: u8) -> Builtin {
+        let key = SigningIdentity::from_seed(&Zeroizing::new([seed; 32]))
+            .unwrap()
+            .public_key()
+            .to_b64u();
+        Builtin {
+            bridge_id: prefixed_id("brg", [seed; 16]),
+            origin,
+            display_name: "Bridge".into(),
+            keys: vec![(format!("k{seed}"), key)],
+        }
+    }
+
+    // A pass stops sending to a bridge at its first failure to answer, and
+    // still sends the other bridges' reports; the reports all stay.
+    #[tokio::test]
+    async fn a_pass_stops_at_a_bridge_that_does_not_answer() {
+        let dir = std::env::temp_dir().join(prefixed_id("sf4-net-resend", [8; 16]));
+        let _ = fs::remove_dir_all(&dir);
+        let ((one, asked_one), (two, asked_two)) =
+            (dropping_origin().await, dropping_origin().await);
+        let (first, second) = (pin(one, 7), pin(two, 9));
+        let shared = shared_pinning(&dir, &[first.clone(), second.clone()]);
+        shared
+            .identity
+            .lock()
+            .unwrap()
+            .enable(Protection::Passphrase("a test passphrase"))
+            .unwrap();
+        let queued = [
+            (&first, 1),
+            (&first, 2),
+            (&second, 3),
+            (&first, 4),
+            (&second, 5),
+        ];
+        for (n, (bridge, at)) in queued.into_iter().enumerate() {
+            let entry = Entry::new(
+                &bridge.bridge_id,
+                "emt_x",
+                report(&format!("obs_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9b{n:02}")),
+                at,
+            );
+            shared.spool.put(&entry).unwrap();
+        }
+        deliver_pending(&shared).await;
+        assert_eq!(asked_one.load(Ordering::SeqCst), 1, "one try at the first");
+        assert_eq!(asked_two.load(Ordering::SeqCst), 1, "one try at the second");
+        assert_eq!(shared.spool.pending().len(), 5);
+        let _ = fs::remove_dir_all(&dir);
     }
 }

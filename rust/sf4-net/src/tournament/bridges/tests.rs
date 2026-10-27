@@ -263,7 +263,7 @@ fn a_removed_builtin_stays_removed_until_approved_again() {
     // Its ID is never approved at another origin.
     let elsewhere = profile(9, "https://bridge.one.example");
     let refused = store.approve(&elsewhere, Vec::new()).unwrap_err();
-    assert_eq!(refused.0, "bridge_changed");
+    assert_eq!(refused.as_str(), "bridge_changed");
     let _ = fs::remove_dir_all(&dir);
 }
 
@@ -274,7 +274,7 @@ fn an_approval_cannot_evict_a_builtin() {
     let mut store = Store::open(dir.clone(), &pinned());
     let other = profile(2, PINNED_ORIGIN);
     let refused = store.approve(&other, Vec::new()).unwrap_err();
-    assert_eq!(refused.0, "bridge_changed");
+    assert_eq!(refused.as_str(), "bridge_changed");
     assert_eq!(store.list(), Store::open(dir.clone(), &pinned()).list());
     // Removed, it gives the origin up to the bridge the player approves.
     store.forget(&pin.bridge_id).unwrap();
@@ -302,7 +302,7 @@ fn builtins_take_none_of_the_players_approvals() {
     let refused = store
         .approve(&profile(99, "https://one-more.example"), Vec::new())
         .unwrap_err();
-    assert_eq!(refused.0, "too_many_bridges");
+    assert_eq!(refused.as_str(), "too_many_bridges");
     // The built-in itself can still be removed and approved again.
     let pin = profile(9, PINNED_ORIGIN);
     store.forget(&pin.bridge_id).unwrap();
@@ -387,7 +387,7 @@ fn a_builtins_keys_are_never_replaced() {
     let refused = store
         .set_keys(&pin.bridge_id, vec![signing_key("k5", key(5))])
         .unwrap_err();
-    assert_eq!(refused.0, "bridge_pinned");
+    assert_eq!(refused.as_str(), "bridge_pinned");
     let kept = store.get(&pin.bridge_id).unwrap();
     assert!(kept.key("k9").is_some() && kept.key("k5").is_none());
     // An approved bridge's keys still follow its origin.
@@ -439,4 +439,40 @@ fn no_folder_means_no_store() {
             .is_err()
     );
     assert!(!std::path::Path::new(FILE).exists());
+}
+
+/// One bridge is found as `list` gives it, whichever record holds it: a
+/// player's approval, a built-in, an approval a live built-in covers (the
+/// built-in is the one found), and a removed built-in (not found).
+#[test]
+fn one_bridge_is_found_as_the_listing_gives_it() {
+    let dir = temp_dir("get");
+    let pin = profile(9, PINNED_ORIGIN);
+    // A build without the built-in saved an approval of it.
+    Store::open(dir.clone(), &[])
+        .approve(&pin, Vec::new())
+        .unwrap();
+    let mut store = Store::open(dir.clone(), &pinned());
+    store
+        .approve(&profile(1, "https://bridge.one.example"), Vec::new())
+        .unwrap();
+    let ids = [1u8, 9, 2].map(|byte| profile(byte, "").bridge_id);
+    for id in &ids {
+        assert_eq!(
+            store.get(id),
+            listed(&store, id).map(|listed| listed.bridge),
+            "{id}"
+        );
+    }
+    assert!(store.get(&ids[0]).is_some());
+    let found = store.get(&ids[1]).expect("the built-in");
+    assert!(found.key("k9").is_some(), "the built-in's record is found");
+    assert!(store.get(&ids[2]).is_none());
+    store.forget(&ids[1]).unwrap();
+    assert_eq!(store.get(&ids[1]), None);
+    assert_eq!(
+        store.get(&ids[1]),
+        listed(&store, &ids[1]).map(|l| l.bridge)
+    );
+    let _ = fs::remove_dir_all(&dir);
 }

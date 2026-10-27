@@ -6,16 +6,18 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     endpoint: Endpoint,
     relay_only: bool,
 ) -> io::Result<()> {
-    run_on_port(stream, endpoint, relay_only, None).await
+    run_on_port(stream, endpoint, relay_only, None, wire::OnEof::LostIpc).await
 }
 
 /// `run` with the exact UDP port the coordination endpoint binds when this
-/// process hosts a room. Hosting fails if the port cannot be bound.
+/// process hosts a room, and what the end of the command input means.
+/// Hosting fails if the port cannot be bound.
 pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     stream: S,
     endpoint: Endpoint,
     relay_only: bool,
     coordination_port: Option<u16>,
+    on_eof: wire::OnEof,
 ) -> io::Result<()> {
     let (mut reader, mut writer) = tokio::io::split(stream);
     let (commands, receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
@@ -30,9 +32,13 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     );
     let reader_task = tokio::spawn(async move {
         let mut last_id = 1;
-        while let Ok(mut frame) = wire::read_ipc(&mut reader).await {
+        let ended = loop {
+            let mut frame = match wire::read_ipc(&mut reader).await {
+                Ok(frame) => frame,
+                Err(error) => break Some(error),
+            };
             if frame.message_id <= last_id {
-                break;
+                break None;
             }
             last_id = frame.message_id;
             let parsed = decode_command(&frame.payload);
@@ -40,7 +46,7 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
             // request wipes its own copy, and this one goes now.
             zeroize::Zeroize::zeroize(&mut frame.payload);
             let Ok(command) = parsed else {
-                break;
+                break None;
             };
             if let Command::Tournament { request } = command {
                 tournament.submit(frame.message_id, request);
@@ -54,7 +60,27 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
                 .await
                 .is_err()
             {
-                break;
+                break None;
+            }
+        };
+        // The input ended, even inside a frame: with `OnEof::Shutdown` that is
+        // a stop, sent as a command with the next message ID, and the reader
+        // then waits, since a reader that ended would report a lost IPC
+        // connection. A malformed frame or an ID that does not rise fails.
+        if on_eof == wire::OnEof::Shutdown
+            && ended.is_some_and(|error| error.kind() == io::ErrorKind::UnexpectedEof)
+        {
+            let id = last_id.saturating_add(1).min(i64::MAX as u64);
+            if id > last_id
+                && commands
+                    .send(Request {
+                        id,
+                        command: Command::Shutdown,
+                    })
+                    .await
+                    .is_ok()
+            {
+                std::future::pending::<()>().await;
             }
         }
         let _ = failed_ipc.send(true);

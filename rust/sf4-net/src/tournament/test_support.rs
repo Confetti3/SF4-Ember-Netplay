@@ -83,6 +83,7 @@ pub(super) fn shared_pinning(dir: &std::path::Path, builtins: &[Builtin]) -> Arc
             false,
             crate::identity::Cost::DEFAULT,
         )),
+        status_sent: std::sync::Mutex::new(None),
         bridges: std::sync::Mutex::new(super::bridges::Store::open(dir.join("bridges"), builtins)),
         client: client::Client::new(),
         http: Arc::new(tokio::sync::Semaphore::new(1)),

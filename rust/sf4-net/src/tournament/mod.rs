@@ -301,24 +301,146 @@ requests! {
     MatchUnwatch => "match_unwatch", Bridge;
 }
 
-/// Why a request failed: a stable, secret-free code for the native UI.
+/// A code the helper itself words for a failure, as the native UI is shown
+/// it. The bridge's own codes are `Failure::Bridge`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Code {
+    BindingMismatch,
+    BridgeChanged,
+    BridgeInvalidResponse,
+    BridgeMismatch,
+    BridgeNotApproved,
+    BridgePinned,
+    BridgeResponseTooLarge,
+    BridgeUnreachable,
+    BrowserUnavailable,
+    ChallengeMismatch,
+    Corrupt,
+    FileUnreadable,
+    IdentityBusy,
+    IdentityUnavailable,
+    Internal,
+    InvalidBridge,
+    InvalidName,
+    InvalidOrigin,
+    InvalidPath,
+    InvalidRequest,
+    Io,
+    MatchLeft,
+    NotABridge,
+    NotBound,
+    NotFound,
+    OwnDelayUnsupported,
+    PermitMismatch,
+    PinnedBridgeMismatch,
+    RankingUnavailable,
+    ReportNotSaved,
+    RoomsUnavailable,
+    ServiceUnavailable,
+    SignInOff,
+    TooManyBridges,
+    UnknownPermit,
+    UnsupportedBridge,
+    UntrustedSignature,
+    WatchUnsupported,
+}
+
+impl Code {
+    /// The code on the IPC wire.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::BindingMismatch => "binding_mismatch",
+            Self::BridgeChanged => "bridge_changed",
+            Self::BridgeInvalidResponse => "bridge_invalid_response",
+            Self::BridgeMismatch => "bridge_mismatch",
+            Self::BridgeNotApproved => "bridge_not_approved",
+            Self::BridgePinned => "bridge_pinned",
+            Self::BridgeResponseTooLarge => "bridge_response_too_large",
+            Self::BridgeUnreachable => "bridge_unreachable",
+            Self::BrowserUnavailable => "browser_unavailable",
+            Self::ChallengeMismatch => "challenge_mismatch",
+            Self::Corrupt => "corrupt",
+            Self::FileUnreadable => "file_unreadable",
+            Self::IdentityBusy => "identity_busy",
+            Self::IdentityUnavailable => "identity_unavailable",
+            Self::Internal => "internal",
+            Self::InvalidBridge => "invalid_bridge",
+            Self::InvalidName => "invalid_name",
+            Self::InvalidOrigin => "invalid_origin",
+            Self::InvalidPath => "invalid_path",
+            Self::InvalidRequest => "invalid_request",
+            Self::Io => "io",
+            Self::MatchLeft => "match_left",
+            Self::NotABridge => "not_a_bridge",
+            Self::NotBound => "not_bound",
+            Self::NotFound => "not_found",
+            Self::OwnDelayUnsupported => "own_delay_unsupported",
+            Self::PermitMismatch => "permit_mismatch",
+            Self::PinnedBridgeMismatch => "pinned_bridge_mismatch",
+            Self::RankingUnavailable => "ranking_unavailable",
+            Self::ReportNotSaved => "report_not_saved",
+            Self::RoomsUnavailable => "rooms_unavailable",
+            Self::ServiceUnavailable => "service_unavailable",
+            Self::SignInOff => "sign_in_off",
+            Self::TooManyBridges => "too_many_bridges",
+            Self::UnknownPermit => "unknown_permit",
+            Self::UnsupportedBridge => "unsupported_bridge",
+            Self::UntrustedSignature => "untrusted_signature",
+            Self::WatchUnsupported => "watch_unsupported",
+        }
+    }
+}
+
+/// Why a request failed: a stable, secret-free code for the native UI. The
+/// helper's own decisions, key storage and the bridge's refusals are kept
+/// apart, so a decision on one never reads another's code by its spelling:
+/// a bridge answering `internal` is not this helper failing.
 #[derive(Debug)]
-pub struct Failure(pub String);
+pub enum Failure {
+    Local(Code),
+    Identity(identity::Failure),
+    /// A bridge's error code, or the reason it gives that a caller words
+    /// apart, or `http_<status>` when its answer names neither.
+    Bridge(String),
+}
 
 impl From<identity::Failure> for Failure {
     fn from(failure: identity::Failure) -> Self {
-        Self(
-            serde_json::to_value(failure)
-                .ok()
-                .and_then(|value| value.as_str().map(str::to_owned))
-                .unwrap_or_else(|| "io".into()),
-        )
+        Self::Identity(failure)
     }
 }
 
 impl Failure {
-    fn new(code: &str) -> Self {
-        Self(code.into())
+    fn new(code: Code) -> Self {
+        Self::Local(code)
+    }
+
+    /// The code on the IPC wire.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Local(code) => code.as_str(),
+            Self::Identity(failure) => failure.as_str(),
+            Self::Bridge(code) => code,
+        }
+    }
+
+    fn into_reason(self) -> String {
+        match self {
+            Self::Bridge(code) => code,
+            other => other.as_str().to_owned(),
+        }
+    }
+}
+
+/// A std `Mutex` locked for a request: a poisoned lock is this helper's own
+/// failure.
+trait Locked<T> {
+    fn locked(&self) -> Result<std::sync::MutexGuard<'_, T>, Failure>;
+}
+
+impl<T> Locked<T> for Mutex<T> {
+    fn locked(&self) -> Result<std::sync::MutexGuard<'_, T>, Failure> {
+        self.lock().map_err(|_| Failure::new(Code::Internal))
     }
 }
 
@@ -393,6 +515,8 @@ fn busy(events: &mpsc::Sender<Event>, request_id: u64, op: &str) {
 
 pub(crate) struct Shared {
     identity: Mutex<Identity>,
+    /// The identity status the last answer that carried one held (`respond`).
+    status_sent: Mutex<Option<identity::Status>>,
     bridges: Mutex<bridges::Store>,
     client: client::Client,
     http: Arc<Semaphore>,
@@ -480,6 +604,7 @@ fn spawn_with(
         }
         let shared = Arc::new(Shared {
             identity: Mutex::new(identity),
+            status_sent: Mutex::new(None),
             bridges: Mutex::new(bridges),
             client: client::Client::new(),
             http: Arc::new(Semaphore::new(HTTP_CONCURRENCY)),
@@ -490,7 +615,7 @@ fn spawn_with(
             home_region,
         });
         // An initial status lets the native side render without asking.
-        respond(&events, &shared, 0, "identity_status", Ok(None)).await;
+        respond(&events, &shared, 0, "identity_status", Ok(None), None).await;
         // Identity operations run one at a time, in order.
         let serial = {
             let shared = shared.clone();
@@ -499,11 +624,11 @@ fn spawn_with(
                 while let Some(job) = identity_queue.recv().await {
                     let op = job.request.op();
                     let worker = shared.clone();
-                    let outcome =
+                    let (outcome, status) =
                         tokio::task::spawn_blocking(move || identity_request(&worker, job.request))
                             .await
-                            .unwrap_or_else(|_| Err(Failure::new("internal")));
-                    respond(&events, &shared, job.request_id, op, outcome).await;
+                            .unwrap_or_else(|_| (Err(Failure::new(Code::Internal)), None));
+                    respond(&events, &shared, job.request_id, op, outcome, status).await;
                 }
             })
         };
@@ -516,7 +641,7 @@ fn spawn_with(
                 while let Some(job) = local_queue.recv().await {
                     let op = job.request.op();
                     let outcome = local_request(&shared, job.order, job.request).await;
-                    respond(&events, &shared, job.request_id, op, outcome).await;
+                    respond(&events, &shared, job.request_id, op, outcome, None).await;
                 }
             })
         };
@@ -550,7 +675,7 @@ fn spawn_with(
                 let _permit = permit;
                 let op = job.request.op();
                 let outcome = bridge_request(&shared, job.order, job.request).await;
-                respond(&events, &shared, job.request_id, op, outcome).await;
+                respond(&events, &shared, job.request_id, op, outcome, None).await;
             });
         }
         serial.abort();
@@ -575,23 +700,42 @@ fn tournament_directory() -> PathBuf {
         .unwrap_or_default()
 }
 
+/// Answers a request. An identity answer always carries the identity status,
+/// `status` when the identity job read it under its own lock; any other answer
+/// carries it only when it differs from the one last sent, since the native
+/// side keeps the last view it was given when an answer has none. Nothing here
+/// waits on the identity lock: one held by a key operation omits the status
+/// rather than blocking a runtime thread, and an omitted one is not counted as
+/// sent.
 async fn respond(
     events: &mpsc::Sender<Event>,
     shared: &Shared,
     request_id: u64,
     op: &str,
     outcome: Outcome,
+    status: Option<identity::Status>,
 ) {
-    // Only tried: an identity operation holding the lock omits the status
-    // rather than blocking a runtime thread.
-    let status = shared
-        .identity
-        .try_lock()
-        .ok()
-        .and_then(|identity| serde_json::to_value(identity.status()).ok());
+    let status = status.or_else(|| {
+        shared
+            .identity
+            .try_lock()
+            .ok()
+            .map(|identity| identity.status())
+    });
+    let status = status.filter(|status| {
+        let Ok(mut sent) = shared.status_sent.lock() else {
+            return true;
+        };
+        let carried = op.starts_with("identity_") || sent.as_ref() != Some(status);
+        if carried {
+            *sent = Some(status.clone());
+        }
+        carried
+    });
+    let status = status.and_then(|status| serde_json::to_value(status).ok());
     let (ok, reason, data) = match outcome {
         Ok(data) => (true, None, data),
-        Err(Failure(code)) => (false, Some(code), None),
+        Err(failure) => (false, Some(failure.into_reason()), None),
     };
     // Waits for queue room instead of dropping: answers are rare and the
     // native side must see each one.
@@ -610,7 +754,7 @@ async fn respond(
 fn check_path(path: &str) -> Result<&Path, Failure> {
     let candidate = Path::new(path);
     if path.is_empty() || path.len() > MAX_PATH || !candidate.is_absolute() || path.contains('\0') {
-        return Err(Failure::new("invalid_path"));
+        return Err(Failure::new(Code::InvalidPath));
     }
     Ok(candidate)
 }
@@ -618,19 +762,19 @@ fn check_path(path: &str) -> Result<&Path, Failure> {
 fn read_backup(path: &str) -> Result<Zeroizing<Vec<u8>>, Failure> {
     use std::io::Read;
     let path = check_path(path)?;
-    let file = std::fs::File::open(path).map_err(|_| Failure::new("file_unreadable"))?;
+    let file = std::fs::File::open(path).map_err(|_| Failure::new(Code::FileUnreadable))?;
     if file
         .metadata()
-        .map_err(|_| Failure::new("file_unreadable"))?
+        .map_err(|_| Failure::new(Code::FileUnreadable))?
         .len()
         > MAX_BACKUP_FILE as u64
     {
-        return Err(Failure::new("corrupt"));
+        return Err(Failure::new(Code::Corrupt));
     }
     let mut bytes = Zeroizing::new(Vec::new());
     file.take(MAX_BACKUP_FILE as u64 + 1)
         .read_to_end(&mut bytes)
-        .map_err(|_| Failure::new("file_unreadable"))?;
+        .map_err(|_| Failure::new(Code::FileUnreadable))?;
     Ok(bytes)
 }
 
@@ -640,11 +784,19 @@ fn protection(passphrase: Option<&Zeroizing<String>>) -> Protection<'_> {
     })
 }
 
-fn identity_request(shared: &Shared, request: Request) -> Outcome {
-    let mut identity = shared
-        .identity
-        .lock()
-        .map_err(|_| Failure::new("internal"))?;
+/// An identity request, and the identity status as it stands after it, read
+/// under the same lock.
+fn identity_request(shared: &Shared, request: Request) -> (Outcome, Option<identity::Status>) {
+    let mut identity = match shared.identity.locked() {
+        Ok(identity) => identity,
+        Err(failure) => return (Err(failure), None),
+    };
+    let outcome = run_identity(shared, &mut identity, request);
+    let status = identity.status();
+    (outcome, Some(status))
+}
+
+fn run_identity(shared: &Shared, identity: &mut Identity, request: Request) -> Outcome {
     match request {
         Request::IdentityStatus {} => Ok(None),
         Request::IdentityEnable { passphrase } => {
@@ -659,7 +811,7 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
             let target = check_path(&path)?;
             // The game names a file in its own backups folder, which may not exist yet.
             if let Some(parent) = target.parent() {
-                std::fs::create_dir_all(parent).map_err(|_| Failure::new("io"))?;
+                std::fs::create_dir_all(parent).map_err(|_| Failure::new(Code::Io))?;
             }
             identity.export(target, &passphrase)?;
             Ok(Some(json!({ "path": path })))
@@ -676,8 +828,8 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
             local_passphrase,
             replace,
         } => {
-            let expected =
-                EmberId::parse(&expected_ember_id).map_err(|_| Failure::new("invalid_request"))?;
+            let expected = EmberId::parse(&expected_ember_id)
+                .map_err(|_| Failure::new(Code::InvalidRequest))?;
             let bytes = read_backup(&path)?;
             identity.import(
                 &bytes,
@@ -695,13 +847,13 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
                 .as_deref()
                 .map(EmberId::parse)
                 .transpose()
-                .map_err(|_| Failure::new("invalid_request"))?;
+                .map_err(|_| Failure::new(Code::InvalidRequest))?;
             identity.reset(confirm.as_ref())?;
             // Sessions belong to the retired key.
             shared.client.forget_sessions();
             Ok(None)
         }
-        _ => Err(Failure::new("invalid_request")),
+        _ => Err(Failure::new(Code::InvalidRequest)),
     }
 }
 
@@ -711,10 +863,7 @@ async fn local_request(shared: &Arc<Shared>, order: u64, request: Request) -> Ou
     match request {
         Request::BridgeList {} => {
             let (bridges, removed) = {
-                let store = shared
-                    .bridges
-                    .lock()
-                    .map_err(|_| Failure::new("internal"))?;
+                let store = shared.bridges.locked()?;
                 (store.list(), store.removed())
             };
             Ok(Some(json!({ "bridges": bridges, "removed": removed })))
@@ -722,20 +871,14 @@ async fn local_request(shared: &Arc<Shared>, order: u64, request: Request) -> Ou
         Request::BridgeForget { bridge_id } => {
             let store = shared.clone();
             let id = bridge_id.clone();
-            tokio::task::spawn_blocking(move || {
-                store
-                    .bridges
-                    .lock()
-                    .map_err(|_| Failure::new("internal"))?
-                    .forget(&id)
-            })
-            .await
-            .map_err(|_| Failure::new("internal"))??;
+            tokio::task::spawn_blocking(move || store.bridges.locked()?.forget(&id))
+                .await
+                .map_err(|_| Failure::new(Code::Internal))??;
             shared.client.forget_session(&bridge_id);
             Ok(None)
         }
         Request::MatchLeave { match_id } => play::forget(shared, &match_id, order),
-        _ => Err(Failure::new("invalid_request")),
+        _ => Err(Failure::new(Code::InvalidRequest)),
     }
 }
 
@@ -751,21 +894,17 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
         Request::BridgeApprove { origin, bridge_id } => {
             let (profile, _) = shared.client.inspect(&origin).await?;
             if profile.bridge_id != bridge_id {
-                return Err(Failure::new("bridge_changed"));
+                return Err(Failure::new(Code::BridgeChanged));
             }
             // The keys that sign this bridge's bindings and permits, from
             // the origin being approved.
             let keys = shared.client.signing_keys(&origin).await?;
             let store = shared.clone();
             let displaced = tokio::task::spawn_blocking(move || {
-                store
-                    .bridges
-                    .lock()
-                    .map_err(|_| Failure::new("internal"))?
-                    .approve(&profile, keys)
+                store.bridges.locked()?.approve(&profile, keys)
             })
             .await
-            .map_err(|_| Failure::new("internal"))??;
+            .map_err(|_| Failure::new(Code::Internal))??;
             // A replaced profile's session is never offered to another origin.
             for id in displaced.iter().chain([&bridge_id]) {
                 shared.client.forget_session(id);
@@ -789,13 +928,7 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             sign_in::status(shared, &bridge_id, &discord::routes()).await
         }
         Request::DiscordConnect { bridge_id } => {
-            sign_in::connect(
-                shared,
-                &bridge_id,
-                &discord::routes(),
-                discord::is_sign_in_page,
-            )
-            .await
+            sign_in::connect(shared, &bridge_id, &discord::routes()).await
         }
         Request::DiscordRemove { bridge_id } => {
             sign_in::remove(shared, &bridge_id, &discord::routes()).await
@@ -870,7 +1003,7 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             bridge_id,
             match_id,
         } => watch::unwatch_match(shared, &bridge_id, &match_id).await,
-        _ => Err(Failure::new("invalid_request")),
+        _ => Err(Failure::new(Code::InvalidRequest)),
     }
 }
 
@@ -1019,6 +1152,127 @@ mod tests {
         assert_eq!(failed, [1, 2, 3, 4, 5]);
         drop(handle);
         let _ = tokio::time::timeout(Duration::from_secs(10), task).await;
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // The codes the game reads are spelled as they always were, and a bridge's
+    // own code or a key-storage failure is worded as it was.
+    #[test]
+    fn failure_codes_are_the_words_the_game_reads() {
+        for (code, word) in [
+            (Code::BindingMismatch, "binding_mismatch"),
+            (Code::BridgeChanged, "bridge_changed"),
+            (Code::BridgeInvalidResponse, "bridge_invalid_response"),
+            (Code::BridgeMismatch, "bridge_mismatch"),
+            (Code::BridgeNotApproved, "bridge_not_approved"),
+            (Code::BridgePinned, "bridge_pinned"),
+            (Code::BridgeResponseTooLarge, "bridge_response_too_large"),
+            (Code::BridgeUnreachable, "bridge_unreachable"),
+            (Code::BrowserUnavailable, "browser_unavailable"),
+            (Code::ChallengeMismatch, "challenge_mismatch"),
+            (Code::Corrupt, "corrupt"),
+            (Code::FileUnreadable, "file_unreadable"),
+            (Code::IdentityBusy, "identity_busy"),
+            (Code::IdentityUnavailable, "identity_unavailable"),
+            (Code::Internal, "internal"),
+            (Code::InvalidBridge, "invalid_bridge"),
+            (Code::InvalidName, "invalid_name"),
+            (Code::InvalidOrigin, "invalid_origin"),
+            (Code::InvalidPath, "invalid_path"),
+            (Code::InvalidRequest, "invalid_request"),
+            (Code::Io, "io"),
+            (Code::MatchLeft, "match_left"),
+            (Code::NotABridge, "not_a_bridge"),
+            (Code::NotBound, "not_bound"),
+            (Code::NotFound, "not_found"),
+            (Code::OwnDelayUnsupported, "own_delay_unsupported"),
+            (Code::PermitMismatch, "permit_mismatch"),
+            (Code::PinnedBridgeMismatch, "pinned_bridge_mismatch"),
+            (Code::RankingUnavailable, "ranking_unavailable"),
+            (Code::ReportNotSaved, "report_not_saved"),
+            (Code::RoomsUnavailable, "rooms_unavailable"),
+            (Code::ServiceUnavailable, "service_unavailable"),
+            (Code::SignInOff, "sign_in_off"),
+            (Code::TooManyBridges, "too_many_bridges"),
+            (Code::UnknownPermit, "unknown_permit"),
+            (Code::UnsupportedBridge, "unsupported_bridge"),
+            (Code::UntrustedSignature, "untrusted_signature"),
+            (Code::WatchUnsupported, "watch_unsupported"),
+        ] {
+            assert_eq!(Failure::new(code).as_str(), word);
+            assert_eq!(Failure::new(code).into_reason(), word);
+        }
+        let from_identity: Failure = identity::Failure::WrongPassphrase.into();
+        assert_eq!(from_identity.as_str(), "wrong_passphrase");
+        let bridge = Failure::Bridge("http_502".into());
+        assert_eq!(bridge.as_str(), "http_502");
+        assert_eq!(bridge.into_reason(), "http_502");
+    }
+
+    /// The identity member of the next answer, whether it has one.
+    async fn carried(events: &mut mpsc::Receiver<Event>) -> Option<Value> {
+        let Some(Event::Tournament { identity, .. }) = events.recv().await else {
+            panic!("not a tournament answer");
+        };
+        identity
+    }
+
+    // An identity answer always carries the status. Any other answer carries
+    // it when it differs from the last one sent, and a status that could not
+    // be read (the lock held by a key operation) is neither sent nor counted
+    // as sent.
+    #[tokio::test]
+    async fn the_identity_status_travels_with_identity_answers_and_when_it_changes() {
+        let dir = std::env::temp_dir().join(ember_protocol::encoding::prefixed_id(
+            "sf4-net-status",
+            [5; 16],
+        ));
+        let shared = test_support::shared_pinning(&dir, &[]);
+        let (sender, mut events) = mpsc::channel(8);
+        let answer = |op: &'static str| {
+            let (sender, shared) = (&sender, &shared);
+            async move { respond(sender, shared, 1, op, Ok(None), None).await }
+        };
+
+        answer("bridge_list").await;
+        let first = carried(&mut events)
+            .await
+            .expect("the first status is sent");
+        assert_eq!(first["state"], "disabled");
+        answer("bridge_list").await;
+        assert!(carried(&mut events).await.is_none(), "unchanged");
+        answer("identity_status").await;
+        assert_eq!(carried(&mut events).await, Some(first));
+
+        // The lock held: the status is left out and not counted as sent.
+        shared
+            .identity
+            .lock()
+            .unwrap()
+            .enable(identity::Protection::Passphrase("a test passphrase"))
+            .unwrap();
+        let held = shared.identity.lock().unwrap();
+        answer("bridge_list").await;
+        assert!(carried(&mut events).await.is_none(), "locked");
+        drop(held);
+        answer("bridge_list").await;
+        let changed = carried(&mut events).await.expect("the new status is sent");
+        assert_eq!(changed["state"], "ready");
+        answer("bridge_list").await;
+        assert!(carried(&mut events).await.is_none(), "unchanged again");
+
+        // An identity job's own reading is the one sent.
+        let status = shared.identity.lock().unwrap().status();
+        respond(
+            &sender,
+            &shared,
+            2,
+            "identity_unlock",
+            Ok(None),
+            Some(status),
+        )
+        .await;
+        assert_eq!(carried(&mut events).await, Some(changed));
         let _ = std::fs::remove_dir_all(dir);
     }
 

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use ember_protocol::{
     api::Capabilities,
-    challenge::{Action, Method},
+    challenge::Action,
     encoding::{Counter, is_prefixed_id, prefixed_id},
     play::{
         Binding, CLAIM_READY_FEATURE, CLAIM_UNCHANGED_FEATURE, Claim, ClaimAnswer, Observation,
@@ -19,12 +19,13 @@ use ember_protocol::{
     report::Outcome as GameOutcome,
     skill::RANKING_FEATURE,
 };
+use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use super::{
-    Failure, Outcome, Shared,
+    Code, Failure, Locked, Outcome, Shared,
     bridges::Approved,
-    client::{self, answer, now},
+    client::{self, Body, BridgeCall, Verb, now},
     spool::Entry,
 };
 
@@ -138,7 +139,7 @@ pub(super) fn check_match_id(match_id: &str) -> Result<(), Failure> {
     if is_prefixed_id(match_id, "emt") {
         Ok(())
     } else {
-        Err(Failure::new("invalid_request"))
+        Err(Failure::new(Code::InvalidRequest))
     }
 }
 
@@ -154,23 +155,23 @@ pub(super) async fn bridge_key(
         return Ok(key);
     }
     if client::pinned(shared, &bridge.bridge_id)? {
-        return Err(Failure::new("untrusted_signature"));
+        return Err(Failure::new(Code::UntrustedSignature));
     }
     let keys = shared.client.signing_keys(&bridge.origin).await?;
     let store = shared.clone();
     let id = bridge.bridge_id.clone();
     let refreshed = tokio::task::spawn_blocking(move || {
-        let mut bridges = store.bridges.lock().map_err(|_| Failure::new("internal"))?;
+        let mut bridges = store.bridges.locked()?;
         bridges.set_keys(&id, keys)?;
         bridges
             .get(&id)
-            .ok_or_else(|| Failure::new("bridge_not_approved"))
+            .ok_or_else(|| Failure::new(Code::BridgeNotApproved))
     })
     .await
-    .map_err(|_| Failure::new("internal"))??;
+    .map_err(|_| Failure::new(Code::Internal))??;
     refreshed
         .key(kid)
-        .ok_or_else(|| Failure::new("untrusted_signature"))
+        .ok_or_else(|| Failure::new(Code::UntrustedSignature))
 }
 
 /// Verifies a binding and that it seats this endpoint as this identity. The
@@ -195,11 +196,11 @@ async fn accept_binding(
             let key = bridge_key(shared, bridge, &signed.kid).await?;
             signed
                 .verify(&key, &signed.kid)
-                .map_err(|_| Failure::new("untrusted_signature"))?;
+                .map_err(|_| Failure::new(Code::UntrustedSignature))?;
             let digest = signed
                 .binding
                 .digest()
-                .map_err(|_| Failure::new("internal"))?;
+                .map_err(|_| Failure::new(Code::Internal))?;
             (key, digest)
         }
     };
@@ -212,10 +213,10 @@ async fn accept_binding(
         || binding.room_id != room_id
         || !mine
     {
-        return Err(Failure::new("binding_mismatch"));
+        return Err(Failure::new(Code::BindingMismatch));
     }
     let view = binding_view(binding, slot);
-    let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
+    let mut state = shared.play.locked()?;
     // An answer can arrive after a newer one (a claim sent before its room
     // was replaced): the newer binding stays the one permits are checked against.
     let order = |binding: &Binding| (binding.assignment_generation.0, binding.binding_revision.0);
@@ -304,72 +305,31 @@ async fn present(
             room_id,
             invitation,
         } => {
-            let held = held.ok_or_else(|| Failure::new("bridge_invalid_response"))?;
+            let held = held.ok_or_else(|| Failure::new(Code::BridgeInvalidResponse))?;
             let bound = accept_binding(shared, bridge, match_id, &room_id, &held.signed).await?;
             json!({ "role": "room", "room_id": room_id, "invitation": invitation, "binding": bound })
         }
-        other => serde_json::to_value(other).map_err(|_| Failure::new("internal"))?,
+        other => serde_json::to_value(other).map_err(|_| Failure::new(Code::Internal))?,
     };
     Ok(Some(value))
 }
 
-/// Sends one proven player operation and reads its JSON answer.
-async fn proven(
+/// Sends one proven player operation and reads its answer as `T`.
+pub(super) async fn proven<T: DeserializeOwned>(
     shared: &Arc<Shared>,
     bridge: &Approved,
     token: &str,
     action: Action,
     path: &str,
-    command: Value,
-) -> Result<Value, Failure> {
-    let (status, response) = send_proven(shared, bridge, token, action, path, command).await?;
-    answer(status, &response, &[200])
-}
-
-/// Sends one proven player operation, answering its status and body.
-pub(super) async fn send_proven(
-    shared: &Arc<Shared>,
-    bridge: &Approved,
-    token: &str,
-    action: Action,
-    path: &str,
-    command: Value,
-) -> Result<(u16, Vec<u8>), Failure> {
-    let body = client::prove(
-        shared,
-        bridge,
-        Some(token),
-        action,
-        Method::Post,
-        path,
-        command,
-    )
-    .await?;
-    shared
-        .client
-        .call(
-            reqwest::Method::POST,
-            &format!("{}{path}", bridge.origin),
-            Some(token),
-            Some(body),
-        )
-        .await
+    command: &Value,
+) -> Result<T, Failure> {
+    let call = BridgeCall::new(Verb::Post, path, &[200]).body(Body::Proven { action, command });
+    client::fetch_as(shared, bridge, Some(token), &call).await
 }
 
 pub async fn assignments(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
-    client::with_session(shared, bridge_id, |bridge, token| async move {
-        let (status, body) = shared
-            .client
-            .call(
-                reqwest::Method::GET,
-                &format!("{}/v1/assignments", bridge.origin),
-                Some(&token),
-                None,
-            )
-            .await?;
-        Ok(Some(answer(status, &body, &[200])?))
-    })
-    .await
+    let call = BridgeCall::new(Verb::Get, "/v1/assignments", &[200]);
+    client::request(shared, bridge_id, &call).await.map(Some)
 }
 
 /// Claims `match_id` with this helper run's endpoint, saying whether the
@@ -395,7 +355,7 @@ pub async fn claim_match(
     {
         let mut state = play_state(shared)?;
         match state.left.get(match_id) {
-            Some(&left) if left > order => return Err(Failure::new("match_left")),
+            Some(&left) if left > order => return Err(Failure::new(Code::MatchLeft)),
             // The lane starts its claims in the order they came, so every
             // claim submitted before the leave has started by now.
             Some(_) => {
@@ -412,24 +372,33 @@ pub async fn claim_match(
         watch: None,
         held_binding: None,
     };
-    claim.check().map_err(|_| Failure::new("invalid_request"))?;
-    client::with_session(shared, bridge_id, |bridge, token| {
-        let claim = claim.clone();
-        async move {
-            let path = format!("/v1/matches/{match_id}/claims");
-            let held = held_binding(shared, &bridge, match_id)?;
-            let claim = Claim {
-                held_binding: held.as_ref().map(|held| held.digest.clone()),
-                ..claim
-            };
-            let (value, named) = send_claim(shared, &bridge, claim, ready, |command| {
-                proven(shared, &bridge, &token, Action::MatchClaim, &path, command)
-            })
-            .await?;
-            let answer: ClaimAnswer = serde_json::from_value(value)
-                .map_err(|_| Failure::new("bridge_invalid_response"))?;
-            present(shared, &bridge, match_id, answer, held.filter(|_| named)).await
-        }
+    claim
+        .check()
+        .map_err(|_| Failure::new(Code::InvalidRequest))?;
+    let claim = &claim;
+    client::with_session(shared, bridge_id, |bridge, token| async move {
+        let path = format!("/v1/matches/{match_id}/claims");
+        let held = held_binding(shared, &bridge, match_id)?;
+        let claim = Claim {
+            held_binding: held.as_ref().map(|held| held.digest.clone()),
+            ..claim.clone()
+        };
+        let (path, sent_to, sent_with) = (&path, &bridge, &token);
+        let (value, named) = send_claim(shared, &bridge, claim, ready, |command| async move {
+            proven::<Value>(
+                shared,
+                sent_to,
+                sent_with,
+                Action::MatchClaim,
+                path,
+                &command,
+            )
+            .await
+        })
+        .await?;
+        let answer: ClaimAnswer = serde_json::from_value(value)
+            .map_err(|_| Failure::new(Code::BridgeInvalidResponse))?;
+        present(shared, &bridge, match_id, answer, held.filter(|_| named)).await
     })
     .await
 }
@@ -466,7 +435,7 @@ where
         ..claim
     };
     let named = claim.held_binding.is_some();
-    let command = serde_json::to_value(&claim).map_err(|_| Failure::new("internal"))?;
+    let command = serde_json::to_value(&claim).map_err(|_| Failure::new(Code::Internal))?;
     let sent = send(command).await;
     if sent.is_err() {
         forget_features(shared, bridge)?;
@@ -475,7 +444,7 @@ where
 }
 
 pub(super) fn play_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>, Failure> {
-    shared.play.lock().map_err(|_| Failure::new("internal"))
+    shared.play.locked()
 }
 
 /// Publishes the room this game hosts for `match_id`.
@@ -486,18 +455,15 @@ pub async fn publish_room(
     room: PublishRoom,
 ) -> Outcome {
     check_match_id(match_id)?;
-    room.check().map_err(|_| Failure::new("invalid_request"))?;
-    let command = serde_json::to_value(&room).map_err(|_| Failure::new("internal"))?;
-    client::with_session(shared, bridge_id, |bridge, token| {
-        let command = command.clone();
-        async move {
-            let path = format!("/v1/matches/{match_id}/room");
-            let value =
-                proven(shared, &bridge, &token, Action::RoomPublish, &path, command).await?;
-            let answer: ClaimAnswer = serde_json::from_value(value)
-                .map_err(|_| Failure::new("bridge_invalid_response"))?;
-            present(shared, &bridge, match_id, answer, None).await
-        }
+    room.check()
+        .map_err(|_| Failure::new(Code::InvalidRequest))?;
+    let command = serde_json::to_value(&room).map_err(|_| Failure::new(Code::Internal))?;
+    let command = &command;
+    client::with_session(shared, bridge_id, |bridge, token| async move {
+        let path = format!("/v1/matches/{match_id}/room");
+        let answer: ClaimAnswer =
+            proven(shared, &bridge, &token, Action::RoomPublish, &path, command).await?;
+        present(shared, &bridge, match_id, answer, None).await
     })
     .await
 }
@@ -514,12 +480,11 @@ pub async fn prepare_game(
     check_match_id(match_id)?;
     let binding = shared
         .play
-        .lock()
-        .map_err(|_| Failure::new("internal"))?
+        .locked()?
         .bindings
         .get(match_id)
         .map(|held| held.signed.binding.clone())
-        .ok_or_else(|| Failure::new("not_bound"))?;
+        .ok_or_else(|| Failure::new(Code::NotBound))?;
     let prepare = Prepare {
         assignment_generation: binding.assignment_generation,
         binding_revision: binding.binding_revision,
@@ -533,40 +498,34 @@ pub async fn prepare_game(
     };
     prepare
         .check()
-        .map_err(|_| Failure::new("invalid_request"))?;
-    let command = serde_json::to_value(&prepare).map_err(|_| Failure::new("internal"))?;
-    client::with_session(shared, bridge_id, |bridge, token| {
-        let command = command.clone();
-        let (binding, prepare) = (binding.clone(), prepare.clone());
-        async move {
-            let path = format!("/v1/matches/{match_id}/attempts/prepare");
-            let value = proven(
-                shared,
-                &bridge,
-                &token,
-                Action::AttemptPrepare,
-                &path,
-                command,
-            )
-            .await?;
-            let answer: PrepareAnswer = serde_json::from_value(value)
-                .map_err(|_| Failure::new("bridge_invalid_response"))?;
-            match answer {
-                PrepareAnswer::Pending { retry_after } => Ok(Some(
-                    json!({ "state": "pending", "retry_after": retry_after }),
-                )),
-                PrepareAnswer::Permitted { permit } => {
-                    let permit =
-                        accept_permit(shared, &bridge, &binding, &prepare, &permit).await?;
-                    Ok(Some(json!({
-                        "state": "permitted",
-                        "permit_id": permit.permit_id,
-                        "attempt_id": permit.attempt_id,
-                        "match_generation": permit.match_generation,
-                        "issued_at": permit.issued_at,
-                        "start_by": permit.start_by,
-                    })))
-                }
+        .map_err(|_| Failure::new(Code::InvalidRequest))?;
+    let command = serde_json::to_value(&prepare).map_err(|_| Failure::new(Code::Internal))?;
+    let (command, binding, prepare) = (&command, &binding, &prepare);
+    client::with_session(shared, bridge_id, |bridge, token| async move {
+        let path = format!("/v1/matches/{match_id}/attempts/prepare");
+        let answer: PrepareAnswer = proven(
+            shared,
+            &bridge,
+            &token,
+            Action::AttemptPrepare,
+            &path,
+            command,
+        )
+        .await?;
+        match answer {
+            PrepareAnswer::Pending { retry_after } => Ok(Some(
+                json!({ "state": "pending", "retry_after": retry_after }),
+            )),
+            PrepareAnswer::Permitted { permit } => {
+                let permit = accept_permit(shared, &bridge, binding, prepare, &permit).await?;
+                Ok(Some(json!({
+                    "state": "permitted",
+                    "permit_id": permit.permit_id,
+                    "attempt_id": permit.attempt_id,
+                    "match_generation": permit.match_generation,
+                    "issued_at": permit.issued_at,
+                    "start_by": permit.start_by,
+                })))
             }
         }
     })
@@ -584,7 +543,7 @@ async fn accept_permit(
     let key = bridge_key(shared, bridge, &signed.kid).await?;
     let permit = signed
         .verify(&key, &signed.kid)
-        .map_err(|_| Failure::new("untrusted_signature"))?;
+        .map_err(|_| Failure::new(Code::UntrustedSignature))?;
     let same = permit.bridge_id == bridge.bridge_id
         && permit.match_id == binding.match_id
         && permit.assignment_generation == binding.assignment_generation
@@ -597,9 +556,9 @@ async fn accept_permit(
         && permit.p1_id == binding.fighters[0].ember_id
         && permit.p2_id == binding.fighters[1].ember_id;
     if !same {
-        return Err(Failure::new("permit_mismatch"));
+        return Err(Failure::new(Code::PermitMismatch));
     }
-    let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
+    let mut state = shared.play.locked()?;
     state.permits.insert(
         (permit.match_id.clone(), permit.match_generation.0),
         permit.clone(),
@@ -623,12 +582,11 @@ pub async fn report_game(
     check_match_id(match_id)?;
     let permit = shared
         .play
-        .lock()
-        .map_err(|_| Failure::new("internal"))?
+        .locked()?
         .permits
         .get(&(match_id.to_owned(), match_generation.0))
         .cloned()
-        .ok_or_else(|| Failure::new("unknown_permit"))?;
+        .ok_or_else(|| Failure::new(Code::UnknownPermit))?;
     let observation = Observation {
         observation_id: prefixed_id("obs", random()?),
         result,
@@ -641,21 +599,21 @@ pub async fn report_game(
         let identity = shared
             .identity
             .try_lock()
-            .map_err(|_| Failure::new("identity_busy"))?;
+            .map_err(|_| Failure::new(Code::IdentityBusy))?;
         let signer = identity
             .signer()
-            .ok_or_else(|| Failure::new("identity_unavailable"))?;
+            .ok_or_else(|| Failure::new(Code::IdentityUnavailable))?;
         permit
             .report(signer.ember_id(), observation)
             .and_then(|report| report.sign(signer))
-            .map_err(|_| Failure::new("invalid_request"))?
+            .map_err(|_| Failure::new(Code::InvalidRequest))?
     };
     let entry = Entry::new(bridge_id, match_id, signed, now());
     let store = shared.clone();
     let queued = entry.clone();
     tokio::task::spawn_blocking(move || store.spool.put(&queued))
         .await
-        .map_err(|_| Failure::new("report_not_saved"))??;
+        .map_err(|_| Failure::new(Code::ReportNotSaved))??;
     let delivered = deliver_one(shared, &entry).await;
     Ok(Some(json!({
         "saved": true,
@@ -665,63 +623,101 @@ pub async fn report_game(
     })))
 }
 
-/// Codes after which sending the same report again cannot succeed.
-fn settled(code: &str) -> bool {
-    matches!(
-        code,
-        "stale_revision"
-            | "idempotency_conflict"
-            | "invalid_signature"
-            | "invalid_request"
-            | "not_found"
-            | "forbidden"
-            | "bridge_not_approved"
-    )
+/// Failures after which sending the same report again cannot succeed: the
+/// bridge's refusals of the report itself, and the helper's own when the
+/// report is invalid or its bridge is no longer approved.
+fn settled(failure: &Failure) -> bool {
+    match failure {
+        Failure::Bridge(code) => matches!(
+            code.as_str(),
+            "stale_revision"
+                | "idempotency_conflict"
+                | "invalid_signature"
+                | "invalid_request"
+                | "not_found"
+                | "forbidden"
+        ),
+        Failure::Local(code) => matches!(
+            code,
+            Code::InvalidRequest | Code::NotFound | Code::BridgeNotApproved
+        ),
+        Failure::Identity(_) => false,
+    }
+}
+
+/// How sending one spooled report ended.
+enum Delivery {
+    /// The bridge has it, with this receipt.
+    Delivered(Value),
+    /// The bridge refused it for good, or its bridge is gone: dropped.
+    Settled,
+    /// Kept for a later try, for this failure.
+    Kept(Failure),
 }
 
 /// Sends one spooled report. Removes it once the bridge has answered for it
 /// either way; keeps it when the answer may change on a later try.
-async fn deliver_one(shared: &Arc<Shared>, entry: &Entry) -> Option<Value> {
+async fn deliver(shared: &Arc<Shared>, entry: &Entry) -> Option<Delivery> {
     let body = serde_json::to_vec(&entry.report).ok()?;
-    let match_id = entry.match_id.clone();
-    let outcome = client::with_session(shared, &entry.bridge_id, |bridge, token| {
-        let body = body.clone();
-        let match_id = match_id.clone();
-        async move {
-            let (status, response) = shared
-                .client
-                .call(
-                    reqwest::Method::POST,
-                    &format!("{}/v1/matches/{match_id}/reports", bridge.origin),
-                    Some(&token),
-                    Some(body),
-                )
-                .await?;
-            Ok(Some(answer(status, &response, &[200, 201])?))
-        }
-    })
-    .await;
-    match outcome {
-        Ok(receipt) => {
-            shared.spool.done(entry);
-            receipt
-        }
-        Err(Failure(code)) if settled(&code) => {
-            shared.spool.done(entry);
-            None
-        }
-        Err(_) => None,
+    let path = format!("/v1/matches/{}/reports", entry.match_id);
+    let call = BridgeCall::new(Verb::Post, &path, &[200, 201]).body(Body::Json(&body));
+    Some(
+        match client::request(shared, &entry.bridge_id, &call).await {
+            Ok(receipt) => {
+                shared.spool.done(entry);
+                Delivery::Delivered(receipt)
+            }
+            Err(failure) if settled(&failure) => {
+                shared.spool.done(entry);
+                Delivery::Settled
+            }
+            Err(failure) => Delivery::Kept(failure),
+        },
+    )
+}
+
+/// The receipt, when the bridge has the report.
+async fn deliver_one(shared: &Arc<Shared>, entry: &Entry) -> Option<Value> {
+    match deliver(shared, entry).await {
+        Some(Delivery::Delivered(receipt)) => Some(receipt),
+        _ => None,
     }
 }
 
-/// One pass over the spool, oldest report first.
+/// Whether a failure says the bridge cannot be reached or is failing, so that
+/// sending it another report now would fail the same way.
+fn unreachable_bridge(failure: &Failure) -> bool {
+    match failure {
+        Failure::Local(code) => {
+            matches!(code, Code::BridgeUnreachable | Code::BridgeResponseTooLarge)
+        }
+        Failure::Bridge(code) => {
+            code.len() == 8
+                && code.starts_with("http_5")
+                && code[6..].bytes().all(|b| b.is_ascii_digit())
+        }
+        Failure::Identity(_) => false,
+    }
+}
+
+/// One pass over the spool, oldest report first. A bridge that fails to
+/// answer is not sent its other reports in this pass; they wait for the next,
+/// still oldest first.
 pub async fn deliver_pending(shared: &Arc<Shared>) {
     let store = shared.clone();
     let pending = tokio::task::spawn_blocking(move || store.spool.pending())
         .await
         .unwrap_or_default();
+    let mut failing: Vec<String> = Vec::new();
     for entry in pending {
-        deliver_one(shared, &entry).await;
+        if failing.contains(&entry.bridge_id) {
+            continue;
+        }
+        if let Some(Delivery::Kept(failure)) = deliver(shared, &entry).await
+            && unreachable_bridge(&failure)
+        {
+            failing.push(entry.bridge_id.clone());
+        }
     }
 }
 
@@ -729,7 +725,7 @@ pub async fn deliver_pending(shared: &Arc<Shared>) {
 /// remembers that the leave was submitted at `order`, so a claim submitted
 /// before it cannot hold the match again (`claim_match`).
 pub fn forget(shared: &Shared, match_id: &str, order: u64) -> Outcome {
-    let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
+    let mut state = shared.play.locked()?;
     state.bindings.remove(match_id);
     state.permits.retain(|(id, _), _| id != match_id);
     let left = state.left.entry(match_id.to_owned()).or_insert(order);
@@ -739,7 +735,7 @@ pub fn forget(shared: &Shared, match_id: &str, order: u64) -> Outcome {
 
 fn random() -> Result<[u8; 16], Failure> {
     let mut bytes = [0; 16];
-    getrandom::fill(&mut bytes).map_err(|_| Failure::new("internal"))?;
+    getrandom::fill(&mut bytes).map_err(|_| Failure::new(Code::Internal))?;
     Ok(bytes)
 }
 
@@ -834,7 +830,7 @@ mod tests {
             move |command: Value| async move {
                 sent.lock().unwrap().push(command.get("ready").cloned());
                 if fails {
-                    Err(Failure::new("bridge_unavailable"))
+                    Err(Failure::Bridge("bridge_unavailable".into()))
                 } else {
                     Ok(json!({}))
                 }
@@ -901,11 +897,11 @@ mod tests {
         let mut bridge = pin.entry();
         assert!(bridge_key(&shared, &bridge, "k9").await.is_ok());
         let refused = bridge_key(&shared, &bridge, "k5").await.unwrap_err();
-        assert_eq!(refused.0, "untrusted_signature");
+        assert_eq!(refused.as_str(), "untrusted_signature");
         // The same entry under an ID this build does not pin.
         bridge.bridge_id = prefixed_id("brg", [8; 16]);
         let fetched = bridge_key(&shared, &bridge, "k5").await.unwrap_err();
-        assert_eq!(fetched.0, "bridge_unreachable");
+        assert_eq!(fetched.as_str(), "bridge_unreachable");
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -1015,7 +1011,7 @@ mod tests {
                     .unwrap()
                     .push(command.get("held_binding").cloned());
                 if fails {
-                    Err(Failure::new("bridge_unavailable"))
+                    Err(Failure::Bridge("bridge_unavailable".into()))
                 } else {
                     Ok(json!({}))
                 }
@@ -1121,7 +1117,7 @@ mod tests {
         // claim that named nothing is refused.
         assert!(held_binding(&shared, &bridge, &match_id).unwrap().is_none());
         let refused = present(&shared, &bridge, &match_id, unchanged(), None).await;
-        assert_eq!(refused.unwrap_err().0, "bridge_invalid_response");
+        assert_eq!(refused.unwrap_err().as_str(), "bridge_invalid_response");
 
         let sent = present(&shared, &bridge, &match_id, room(), None)
             .await
@@ -1158,7 +1154,10 @@ mod tests {
             };
             present(&shared, &bridge, &match_id, answer, None)
         };
-        assert_eq!(check(&forged).await.unwrap_err().0, "untrusted_signature");
+        assert_eq!(
+            check(&forged).await.unwrap_err().as_str(),
+            "untrusted_signature"
+        );
         play_state(&shared)
             .unwrap()
             .bindings
@@ -1185,11 +1184,68 @@ mod tests {
             binding: Some(Box::new(forged)),
         };
         let refetched = present(&shared, &rotated, &match_id, answer, None).await;
-        assert_eq!(refetched.unwrap_err().0, "bridge_unreachable");
+        assert_eq!(refetched.unwrap_err().as_str(), "bridge_unreachable");
 
         // Leaving the match drops it.
         forget(&shared, &match_id, 0).unwrap();
         assert!(held_binding(&shared, &bridge, &match_id).unwrap().is_none());
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // A report is dropped for the refusals that sending it again cannot
+    // change, whichever side words them, and a pass leaves a bridge that
+    // cannot be reached alone for the rest of the pass.
+    #[test]
+    fn reports_settle_on_refusals_of_either_side_and_not_on_trouble_reaching_a_bridge() {
+        let bridge = |code: &str| Failure::Bridge(code.into());
+        for code in [
+            "stale_revision",
+            "idempotency_conflict",
+            "invalid_signature",
+            "invalid_request",
+            "not_found",
+            "forbidden",
+        ] {
+            assert!(settled(&bridge(code)), "{code}");
+        }
+        for code in [
+            "rate_limited",
+            "unauthenticated",
+            "http_502",
+            "internal",
+            "bridge_not_approved",
+        ] {
+            assert!(!settled(&bridge(code)), "{code}");
+        }
+        for code in [
+            Code::InvalidRequest,
+            Code::NotFound,
+            Code::BridgeNotApproved,
+        ] {
+            assert!(settled(&Failure::new(code)), "{code:?}");
+        }
+        for code in [Code::BridgeUnreachable, Code::Internal, Code::IdentityBusy] {
+            assert!(!settled(&Failure::new(code)), "{code:?}");
+        }
+        assert!(!settled(&Failure::Identity(crate::identity::Failure::Io)));
+
+        for failure in [
+            Failure::new(Code::BridgeUnreachable),
+            Failure::new(Code::BridgeResponseTooLarge),
+            bridge("http_500"),
+            bridge("http_503"),
+        ] {
+            assert!(unreachable_bridge(&failure), "{failure:?}");
+        }
+        for failure in [
+            Failure::new(Code::Internal),
+            Failure::new(Code::IdentityBusy),
+            bridge("http_404"),
+            bridge("http_5000"),
+            bridge("http_5x1"),
+            bridge("rate_limited"),
+        ] {
+            assert!(!unreachable_bridge(&failure), "{failure:?}");
+        }
     }
 }
