@@ -203,9 +203,12 @@ async fn an_unanswered_marker_times_out_like_a_transfer() {
         receiver.recv().await,
         Some(Event::CheckpointCommittedLocal { transfer: 33, .. })
     ));
-    // A game that does not know the marker ignores it. The slot is freed by
-    // the transfer timeout, which reports it and leaves the revision to the
-    // pump, which then exports it in full.
+    // An old game never gets here: it fails the id-1 authentication against
+    // this helper's versioned answer. This game leaves a marker unanswered
+    // when it is Closing, Idle or Failed, or the marker names an epoch or
+    // room it is not in. The slot is then freed by the transfer timeout,
+    // which reports it and leaves the revision to the pump, which exports it
+    // in full.
     actor.outgoing_transfer.as_mut().unwrap().started =
         tokio::time::Instant::now() - CHECKPOINT_TRANSFER_TIMEOUT - Duration::from_millis(1);
     actor.expire_checkpoint_transfers();
