@@ -6,6 +6,7 @@
 #include "RoomCards.hxx"
 #include "V2.hxx"
 #include "LatencyMark.hxx"
+#include "MenuProbes.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -835,11 +836,14 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
     int over=-1,pressed=-1;
     for(std::size_t i=0;i<options.size();++i){
      ImGui::SetCursorScreenPos(ImVec2(strip.min.x+i*(ow+8*s),strip.min.y));ImGui::PushID(e.id.c_str());ImGui::PushID(static_cast<int>(i));
-     if(ImGui::InvisibleButton("##option",ImVec2(ow,strip.H()))&&!nav.Asking()&&!nav.Editing())pressed=static_cast<int>(i);
+     // The open chooser is itself a question, so its own options answer it.
+     if(ImGui::InvisibleButton("##option",ImVec2(ow,strip.H()))&&(choosing||!nav.Asking())&&!nav.Editing())pressed=static_cast<int>(i);
      if(ImGui::IsItemHovered())over=static_cast<int>(i);
      ImGui::PopID();ImGui::PopID();
+     ReportMenuCard((e.id+"/"+std::to_string(i)).c_str(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
     }
     const bool hovered=hit(e,b);
+    ReportMenuCard(e.id.c_str(),b.min,b.max);
     if(choosing){
      // The chosen side follows the mouse, but only a moving one takes the choice.
      if(over>=0&&pointerMoved)nav.ChoiceIndex(static_cast<std::size_t>(over));
