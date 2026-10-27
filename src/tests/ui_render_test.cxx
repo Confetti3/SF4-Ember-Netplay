@@ -351,6 +351,282 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_pad_setup.hxx"
 #include "ui_render_flags.hxx"
 
+// The native art checks below run when a game folder or the packaged previews
+// are supplied. Each waits for its own assets to load; main runs them in this order.
+void CheckNativePortraits(sf4e::ui::SelectionArt& art) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    int loaded = 0;
+    do {
+        art.Pump(); loaded = 0;
+        for (int id = 0; id < sf4e::selection::FighterCount; ++id) {
+            const auto portrait = art.Portrait(id);
+            if (portrait.missing) throw std::runtime_error(std::string("Native portrait decode failed: ") + sf4e::selection::FindFighter(id)->code);
+            if (portrait.texture) ++loaded;
+        }
+        if (loaded == sf4e::selection::FighterCount) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    } while (std::chrono::steady_clock::now() < deadline);
+    Require(loaded == sf4e::selection::FighterCount, "Native portrait loading timed out");
+    std::printf("All 44 native portraits decoded and uploaded to DX9.\n");
+}
+void CheckCostumePhotos(sf4e::ui::SelectionArt& art) {
+    int loaded = 0;
+    // Exercise the real file decoder/upload path for every costume photo.
+    // Also settle these asynchronous loads before taking UI captures.
+    const auto costumeDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    int expected = 0;
+    for (int id = 0; id < sf4e::selection::FighterCount; ++id)
+        expected += sf4e::selection::CostumeCount(id) - 1;
+    do {
+        art.Pump(); loaded = 0;
+        for (int id = 0; id < sf4e::selection::FighterCount; ++id)
+            for (int costume = 1; costume < sf4e::selection::CostumeCount(id); ++costume) {
+                const auto photo = art.Appearance(id, costume, 0);
+                if (photo.missing) throw std::runtime_error(std::string("Costume decode failed: ") +
+                    sf4e::selection::FindFighter(id)->code + "/" + std::to_string(costume));
+                if (photo.texture) ++loaded;
+            }
+        if (loaded == expected) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    } while (std::chrono::steady_clock::now() < costumeDeadline);
+    Require(loaded == expected, "Costume photo loading timed out");
+    std::printf("All %d alternate costume photos decoded and uploaded to DX9.\n", expected);
+}
+void CheckStagePhotos(sf4e::ui::SelectionArt& art) {
+    int loaded = 0;
+    const auto stageDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    do {
+        art.Pump(); loaded = 0;
+        for (const auto& stage : sf4e::selection::StageList()) {
+            const auto photo = art.Stage(stage.id);
+            if (photo.missing) throw std::runtime_error(std::string("Stage photo decode failed: ") + stage.code);
+            if (photo.texture) {
+                Require(photo.width * 9 == photo.height * 16, "Stage photo aspect ratio changed");
+                ++loaded;
+            }
+        }
+        if (loaded == sf4e::selection::VersusStageCount) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    } while (std::chrono::steady_clock::now() < stageDeadline);
+    Require(loaded == sf4e::selection::VersusStageCount, "Stage photo loading timed out");
+    std::printf("All 28 stage photos decoded and uploaded to DX9.\n");
+}
+void CheckRandomStageTile(sf4e::ui::SelectionArt& art, const std::string& root) {
+    // The Random card is the game's character-select random tile, cropped
+    // to its content, so it is not held to the 16:9 stage framing. A run
+    // without a game folder (UiRenderGallery) has only the packaged art.
+    if (std::filesystem::is_directory(std::filesystem::path(root))) {
+        const auto randomDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+        sf4e::ui::SelectionImage randomTile;
+        do {
+            art.Pump();
+            randomTile = art.Stage(sf4e::selection::RandomStageId);
+            Require(!randomTile.missing, "Random stage tile decode failed");
+            if (randomTile.texture) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        } while (std::chrono::steady_clock::now() < randomDeadline);
+        Require(randomTile.texture && randomTile.width > 0 && randomTile.height > 0, "Random stage tile loading timed out");
+        std::printf("Random stage tile decoded and uploaded to DX9 (%dx%d).\n", randomTile.width, randomTile.height);
+    } else std::printf("No game folder: the Random stage tile is not checked.\n");
+}
+void CheckUltraPhotos(sf4e::ui::SelectionArt& art, const std::string& assets) {
+    int loaded = 0;
+    std::vector<std::pair<int, int>> ultraPhotos;
+    for (int id = 0; id < sf4e::selection::FighterCount; ++id) for (int ultra = 0; ultra < 2; ++ultra) {
+        const std::string path = assets + "/" + sf4e::selection::FindFighter(id)->code + "/ultra-" + std::to_string(ultra) + ".png";
+        const bool present = std::ifstream(path, std::ios::binary).good();
+        // The archived 2010 guides cover both Ultras for every SSFIV fighter.
+        if (sf4e::selection::EditionAllowed(id, 1, true)) Require(present, "Missing archived SSFIV Ultra photo");
+        if (present) ultraPhotos.emplace_back(id, ultra);
+    }
+    const auto ultraDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    do {
+        art.Pump(); loaded = 0;
+        for (const auto& option : ultraPhotos) {
+            const auto photo = art.Ultra(option.first, option.second);
+            Require(!photo.missing, "Ultra photo decode failed");
+            if (photo.texture) {
+                Require(photo.width == 256 && photo.height == 144, "Ultra photo framing changed");
+                ++loaded;
+            }
+        }
+        if (loaded == static_cast<int>(ultraPhotos.size())) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    } while (std::chrono::steady_clock::now() < ultraDeadline);
+    Require(loaded == static_cast<int>(ultraPhotos.size()), "Ultra photo loading timed out");
+    std::printf("All %d supplied Ultra photos decoded and uploaded to DX9.\n", loaded);
+}
+void CheckNumberedColorCutouts(sf4e::ui::SelectionArt& art, const std::string& assets) {
+    int loaded = 0;
+    // Load numbered color assets in bounded groups, allowing the real
+    // texture cache to evict previous groups as it does during browsing.
+    struct ColorPhoto { int fighter, costume, color; };
+    std::vector<ColorPhoto> colorPhotos;
+    for (int id = 0; id < sf4e::selection::FighterCount; ++id)
+        for (int costume = 0; costume < sf4e::selection::CostumeCount(id); ++costume)
+            for (int color = 0; color < sf4e::selection::ColorCount(id, costume); ++color) {
+                const std::string stem = assets + "/" + sf4e::selection::FindFighter(id)->code +
+                    "/costume-" + std::to_string(costume) + "/color-" + std::to_string(color);
+                // Sheet-cropped palettes ship as a cutout alone; a
+                // preserved photograph must always have its cutout.
+                const bool photo = GetFileAttributesA((stem + ".png").c_str()) != INVALID_FILE_ATTRIBUTES;
+                const bool cutout = GetFileAttributesA((stem + "-cutout.png").c_str()) != INVALID_FILE_ATTRIBUTES;
+                Require(!photo || cutout, "Numbered color photograph has not been masked");
+                if (cutout) colorPhotos.push_back({id, costume, color});
+            }
+    for (std::size_t first = 0; first < colorPhotos.size(); first += 32) {
+        const std::size_t end = (std::min)(first + 32, colorPhotos.size());
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        do {
+            art.Pump(); loaded = 0;
+            for (std::size_t i = first; i < end; ++i) {
+                const auto& key = colorPhotos[i];
+                const auto photo = art.Appearance(key.fighter, key.costume, key.color);
+                Require(!photo.missing, "Numbered color decode failed");
+                if (photo.texture) ++loaded;
+            }
+            if (loaded == static_cast<int>(end - first)) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        } while (std::chrono::steady_clock::now() < deadline);
+        Require(loaded == static_cast<int>(end - first), "Numbered color loading timed out");
+    }
+    std::printf("All %d supplied numbered color cutouts decoded and uploaded to DX9.\n", static_cast<int>(colorPhotos.size()));
+}
+void CheckOriginalOutfitPreview(sf4e::ui::SelectionArt& art) {
+    const auto originalDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    bool originalLoaded = false;
+    do {
+        art.Pump();
+        originalLoaded = art.Appearance(0, 0, 0).texture != 0;
+        if (originalLoaded) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    } while (std::chrono::steady_clock::now() < originalDeadline);
+    Require(originalLoaded, "Original outfit preview failed");
+}
+// The Ember background and the packaged input prompts, for a run with a device.
+void LoadMenuArt(Renderer& renderer, std::unique_ptr<sf4e::ui::SelectionArt>& art) {
+    if(!art)art.reset(new sf4e::ui::SelectionArt(renderer.device,L"",L"" SF4E_TEST_ASSET_ROOT));
+    sf4e::ui::SetMenuArt(art.get());
+    const auto brandDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(!art->MenuBackdrop().texture&&std::chrono::steady_clock::now()<brandDeadline){
+        art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    Require(art->MenuBackdrop().texture!=0,"Ember background failed to load");
+    for(const auto* prompt:promptAssets){
+        const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(3);
+        while(!art->InputPrompt(prompt).texture&&std::chrono::steady_clock::now()<deadline){art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+        Require(art->InputPrompt(prompt).texture!=0,"Packaged Kenney prompt failed to load");
+    }
+}
+template<class Draw>
+void ShootGameSettingsCard(sf4e::ui::ShellView& view,const Draw& draw) {
+    using namespace sf4e;using namespace ui;
+    // The launch card opens once for mismatched game settings. Right
+    // moves to "Don't show again" and Back declines it, so this covers
+    // the two-button notice without writing the real preference.
+    view.showGameSettingsCard=true;
+    view.gameSettings.frameRate="SMOOTH";view.gameSettings.msaa="4X";
+    draw("game-settings-card");
+    Require(ImGui::GetTopMostPopupModal()!=nullptr,"Game settings card did not open");
+    draw(nullptr,MenuInput::Right,1);draw();
+    Require(ImGui::GetTopMostPopupModal()!=nullptr,"Choosing the alternative closed the card early");
+    draw(nullptr,MenuInput::Back,1);draw();
+    Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
+    view.gameSettings={};view.showGameSettingsCard=false;
+}
+template<class Draw,class Page>
+void CheckFighterSelectHint(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,int height,float dpi,const sf4e::ui::MenuTextProbe& overflowProbe,const Draw& draw,const Page& page) {
+    using namespace sf4e;using namespace ui;
+    // Fighter select's hint is two lines: each label over its value.
+    page("home");
+    for(int i=0;i<8&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+    std::vector<MenuEntry> homeRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){homeRows=rows;});
+    std::set<std::string> drawn;
+    SetMenuTextProbe([&](const char* id,float text,float interior,float width,float available){drawn.insert(id);overflowProbe(id,text,interior,width,available);});
+    draw("home-selection");
+    SetMenuTextProbe(overflowProbe);SetMenuEntriesProbe({});
+    const auto row=std::find_if(homeRows.begin(),homeRows.end(),[](const MenuEntry& e){return e.id=="selection";});
+    Require(shell.Navigation().Focus()=="selection"&&row!=homeRows.end()&&row->columns.size()==3&&
+        row->columns[0].first==loc::T("selection.fighter")&&row->columns[0].second=="Ken"&&
+        row->columns[1].second==view.hintAppearance&&row->columns[2].second==view.hintUltra,"Fighter select's hint lost its columns");
+    // A window under 420 units tall keeps two lines (GameMenu::HomeLines) and the one-line detail.
+    const bool floors=height>=420*dpi;
+    for(int i=0;i<3;++i)Require(floors==(drawn.count("home-hint/"+std::to_string(i))&&drawn.count("home-hint/"+std::to_string(i)+"-value")),
+        floors?"Home did not draw Fighter select's labels over their values":"A short Home drew Fighter select's columns");
+}
+template<class Draw,class Page>
+void CheckTextEditBack(sf4e::ui::ApplicationShell& shell,const Draw& draw,const Page& page) {
+    using namespace sf4e;using namespace ui;
+    // Real editor activation and cancellation through the same input snapshot.
+    page("player");draw(nullptr,MenuInput::Select,1);draw("text-edit");draw(nullptr,MenuInput::Back,1);draw();
+    Require(!shell.Navigation().Editing()&&shell.Navigation().Screen()=="player","Text Back escaped the screen");
+}
+template<class Draw,class Page>
+void CheckAboutReader(sf4e::ui::ApplicationShell& shell,const Draw& draw,const Page& page) {
+    using namespace sf4e;using namespace ui;
+    // Long text opens in a reader; a language opens as a list; Home
+    // keeps its help line under a status.
+    page("about");draw(nullptr,MenuInput::Select,1);draw("about-reader");
+    Require(shell.Navigation().Reading(),"About's controls did not open in the reader");
+    draw(nullptr,MenuInput::Back,1);draw();Require(!shell.Navigation().Reading(),"Back did not close the reader");
+}
+template<class Draw,class Page>
+void CheckLanguageChoice(sf4e::ui::ApplicationShell& shell,const Draw& draw,const Page& page) {
+    using namespace sf4e;using namespace ui;
+    page("interface");
+    for(int i=0;i<12&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+    draw(nullptr,MenuInput::Select,1);draw("language-choice");
+    Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
+    draw(nullptr,MenuInput::Back,1);draw();
+}
+template<class Draw,class Page>
+void CheckControllerStatusHint(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page) {
+    using namespace sf4e;using namespace ui;
+    std::string controllerStatus;Tone controllerTone=Tone::Neutral;
+    SetMenuStatusProbe([&](const char* status,Tone tone){controllerStatus=status;controllerTone=tone;});
+    view.padHint=loc::Tf("controller.using_for_now","Saved pad","Other pad");page("home");
+    Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Provisional controller hint did not reach Home's status");
+    view.error="The helper stopped responding. Ember is restarting it.";draw("home-status");
+    Require(controllerStatus==view.error&&controllerTone==Tone::Error,"Controller hint replaced a Home error");
+    view.error.clear();view.padHint=loc::Tf("controller.connected_adopted","Saved pad");draw("controller-restored");
+    Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Restored controller hint did not reach Home's status");
+    view.padHint.clear();SetMenuStatusProbe({});
+    view.inputCapture=input::Capture::ReleaseAll;draw("controller-assignment");view.inputCapture=input::Capture::Idle;
+}
+template<class Draw,class Page>
+void CheckSettingsSaveErrorAndPortraitRetry(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page) {
+    using namespace sf4e;using namespace ui;
+    view.settingsError="The settings directory is temporarily unavailable.";page("settings");draw("save-error");
+    page("main-character");
+    for(int i=0;i<50&&shell.Navigation().Focus()!="retry-save";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+    // Down preserves the grid column; the short final row may require
+    // moving right to reach its last action.
+    for(int i=0;i<8&&shell.Navigation().Focus()!="retry-save";++i){draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);}
+    Require(shell.Navigation().Focus()=="retry-save","Portrait retry is unreachable");draw("portrait-save-error");
+}
+template<class Availability,class ShowGallery>
+void ShootEveryFighterGallery(sf4e::selection::Pick& pick,const Availability& availability,const ShowGallery& showGallery) {
+    using namespace sf4e;using namespace ui;
+    const auto savedPick=pick;
+    for(int id=0;id<selection::FighterCount;++id){
+        const std::string code=selection::FindFighter(id)->code;
+        pick=selection::Pick{};pick.fighter=id;showGallery("costumes","gallery-"+code);
+        for(int costume:selection::AllowedCostumes(id,availability(id))){
+            pick.costume=costume;showGallery("colors","gallery-"+code+"-"+std::to_string(costume));
+        }
+    }
+    pick=savedPick;std::printf("Every fighter's costume and color galleries drawn.\n");
+}
+template<class Draw>
+void CheckSelectOnRandomPoolRestoresStage(sf4e::ui::FighterSelector& selector,sf4e::selection::RandomPool& stagePool,const Draw& draw) {
+    using namespace sf4e;using namespace ui;
+    // Select on the Random pool puts a skipped stage back (the page
+    // opens on the Training Stage, which the fixture skips).
+    selector.Navigation().Home();selector.Navigation().Push("random-pool");draw();
+    draw(nullptr,MenuInput::Select,1);draw();
+    Require(stagePool.Excluded()==std::vector<int>{15},"Select did not put a skipped stage back in the Random pool");
+}
+
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
     try {
@@ -370,152 +646,16 @@ int main(int argc, char** argv) {
             const std::string root = argv[2];
             const std::string assets = argc > 3 ? argv[3] : "assets/selection";
             art.reset(new sf4e::ui::SelectionArt(renderer.device, std::wstring(root.begin(), root.end()), std::wstring(assets.begin(), assets.end())));
-            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-            int loaded = 0;
-            do {
-                art->Pump(); loaded = 0;
-                for (int id = 0; id < sf4e::selection::FighterCount; ++id) {
-                    const auto portrait = art->Portrait(id);
-                    if (portrait.missing) throw std::runtime_error(std::string("Native portrait decode failed: ") + sf4e::selection::FindFighter(id)->code);
-                    if (portrait.texture) ++loaded;
-                }
-                if (loaded == sf4e::selection::FighterCount) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            } while (std::chrono::steady_clock::now() < deadline);
-            Require(loaded == sf4e::selection::FighterCount, "Native portrait loading timed out");
-            std::printf("All 44 native portraits decoded and uploaded to DX9.\n");
-            // Exercise the real file decoder/upload path for every costume photo.
-            // Also settle these asynchronous loads before taking UI captures.
-            const auto costumeDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-            int expected = 0;
-            for (int id = 0; id < sf4e::selection::FighterCount; ++id)
-                expected += sf4e::selection::CostumeCount(id) - 1;
-            do {
-                art->Pump(); loaded = 0;
-                for (int id = 0; id < sf4e::selection::FighterCount; ++id)
-                    for (int costume = 1; costume < sf4e::selection::CostumeCount(id); ++costume) {
-                        const auto photo = art->Appearance(id, costume, 0);
-                        if (photo.missing) throw std::runtime_error(std::string("Costume decode failed: ") +
-                            sf4e::selection::FindFighter(id)->code + "/" + std::to_string(costume));
-                        if (photo.texture) ++loaded;
-                    }
-                if (loaded == expected) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            } while (std::chrono::steady_clock::now() < costumeDeadline);
-            Require(loaded == expected, "Costume photo loading timed out");
-            std::printf("All %d alternate costume photos decoded and uploaded to DX9.\n", expected);
-            const auto stageDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-            do {
-                art->Pump(); loaded = 0;
-                for (const auto& stage : sf4e::selection::StageList()) {
-                    const auto photo = art->Stage(stage.id);
-                    if (photo.missing) throw std::runtime_error(std::string("Stage photo decode failed: ") + stage.code);
-                    if (photo.texture) {
-                        Require(photo.width * 9 == photo.height * 16, "Stage photo aspect ratio changed");
-                        ++loaded;
-                    }
-                }
-                if (loaded == sf4e::selection::VersusStageCount) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            } while (std::chrono::steady_clock::now() < stageDeadline);
-            Require(loaded == sf4e::selection::VersusStageCount, "Stage photo loading timed out");
-            std::printf("All 28 stage photos decoded and uploaded to DX9.\n");
-            // The Random card is the game's character-select random tile, cropped
-            // to its content, so it is not held to the 16:9 stage framing. A run
-            // without a game folder (UiRenderGallery) has only the packaged art.
-            if (std::filesystem::is_directory(std::filesystem::path(root))) {
-                const auto randomDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-                sf4e::ui::SelectionImage randomTile;
-                do {
-                    art->Pump();
-                    randomTile = art->Stage(sf4e::selection::RandomStageId);
-                    Require(!randomTile.missing, "Random stage tile decode failed");
-                    if (randomTile.texture) break;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                } while (std::chrono::steady_clock::now() < randomDeadline);
-                Require(randomTile.texture && randomTile.width > 0 && randomTile.height > 0, "Random stage tile loading timed out");
-                std::printf("Random stage tile decoded and uploaded to DX9 (%dx%d).\n", randomTile.width, randomTile.height);
-            } else std::printf("No game folder: the Random stage tile is not checked.\n");
-            std::vector<std::pair<int, int>> ultraPhotos;
-            for (int id = 0; id < sf4e::selection::FighterCount; ++id) for (int ultra = 0; ultra < 2; ++ultra) {
-                const std::string path = assets + "/" + sf4e::selection::FindFighter(id)->code + "/ultra-" + std::to_string(ultra) + ".png";
-                const bool present = std::ifstream(path, std::ios::binary).good();
-                // The archived 2010 guides cover both Ultras for every SSFIV fighter.
-                if (sf4e::selection::EditionAllowed(id, 1, true)) Require(present, "Missing archived SSFIV Ultra photo");
-                if (present) ultraPhotos.emplace_back(id, ultra);
-            }
-            const auto ultraDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-            do {
-                art->Pump(); loaded = 0;
-                for (const auto& option : ultraPhotos) {
-                    const auto photo = art->Ultra(option.first, option.second);
-                    Require(!photo.missing, "Ultra photo decode failed");
-                    if (photo.texture) {
-                        Require(photo.width == 256 && photo.height == 144, "Ultra photo framing changed");
-                        ++loaded;
-                    }
-                }
-                if (loaded == static_cast<int>(ultraPhotos.size())) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            } while (std::chrono::steady_clock::now() < ultraDeadline);
-            Require(loaded == static_cast<int>(ultraPhotos.size()), "Ultra photo loading timed out");
-            std::printf("All %d supplied Ultra photos decoded and uploaded to DX9.\n", loaded);
-            // Load numbered color assets in bounded groups, allowing the real
-            // texture cache to evict previous groups as it does during browsing.
-            struct ColorPhoto { int fighter, costume, color; };
-            std::vector<ColorPhoto> colorPhotos;
-            for (int id = 0; id < sf4e::selection::FighterCount; ++id)
-                for (int costume = 0; costume < sf4e::selection::CostumeCount(id); ++costume)
-                    for (int color = 0; color < sf4e::selection::ColorCount(id, costume); ++color) {
-                        const std::string stem = assets + "/" + sf4e::selection::FindFighter(id)->code +
-                            "/costume-" + std::to_string(costume) + "/color-" + std::to_string(color);
-                        // Sheet-cropped palettes ship as a cutout alone; a
-                        // preserved photograph must always have its cutout.
-                        const bool photo = GetFileAttributesA((stem + ".png").c_str()) != INVALID_FILE_ATTRIBUTES;
-                        const bool cutout = GetFileAttributesA((stem + "-cutout.png").c_str()) != INVALID_FILE_ATTRIBUTES;
-                        Require(!photo || cutout, "Numbered color photograph has not been masked");
-                        if (cutout) colorPhotos.push_back({id, costume, color});
-                    }
-            for (std::size_t first = 0; first < colorPhotos.size(); first += 32) {
-                const std::size_t end = (std::min)(first + 32, colorPhotos.size());
-                const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-                do {
-                    art->Pump(); loaded = 0;
-                    for (std::size_t i = first; i < end; ++i) {
-                        const auto& key = colorPhotos[i];
-                        const auto photo = art->Appearance(key.fighter, key.costume, key.color);
-                        Require(!photo.missing, "Numbered color decode failed");
-                        if (photo.texture) ++loaded;
-                    }
-                    if (loaded == static_cast<int>(end - first)) break;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                } while (std::chrono::steady_clock::now() < deadline);
-                Require(loaded == static_cast<int>(end - first), "Numbered color loading timed out");
-            }
-            std::printf("All %d supplied numbered color cutouts decoded and uploaded to DX9.\n", static_cast<int>(colorPhotos.size()));
-            const auto originalDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-            bool originalLoaded = false;
-            do {
-                art->Pump();
-                originalLoaded = art->Appearance(0, 0, 0).texture != 0;
-                if (originalLoaded) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            } while (std::chrono::steady_clock::now() < originalDeadline);
-            Require(originalLoaded, "Original outfit preview failed");
+            CheckNativePortraits(*art);
+            CheckCostumePhotos(*art);
+            CheckStagePhotos(*art);
+            CheckRandomStageTile(*art, root);
+            CheckUltraPhotos(*art, assets);
+            CheckNumberedColorCutouts(*art, assets);
+            CheckOriginalOutfitPreview(*art);
         }
         if(!headless) {
-            if(!art)art.reset(new sf4e::ui::SelectionArt(renderer.device,L"",L"" SF4E_TEST_ASSET_ROOT));
-            sf4e::ui::SetMenuArt(art.get());
-            const auto brandDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
-            while(!art->MenuBackdrop().texture&&std::chrono::steady_clock::now()<brandDeadline){
-                art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            }
-            Require(art->MenuBackdrop().texture!=0,"Ember background failed to load");
-            for(const auto* prompt:promptAssets){
-                const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(3);
-                while(!art->InputPrompt(prompt).texture&&std::chrono::steady_clock::now()<deadline){art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
-                Require(art->InputPrompt(prompt).texture!=0,"Packaged Kenney prompt failed to load");
-            }
+            LoadMenuArt(renderer, art);
         }
         struct Size { int w, h; float dpi; };
         // English and the padded pseudo locale sweep every size. The
@@ -661,18 +801,7 @@ int main(int argc, char** argv) {
             };
             const auto page=[&](const char* screen){shell.Navigation().Home();if(std::string(screen)!="home")shell.Navigation().Push(screen);draw(screen);};
             SetMenuGlyphs(3,0x40000,0x20000);
-            // The launch card opens once for mismatched game settings. Right
-            // moves to "Don't show again" and Back declines it, so this covers
-            // the two-button notice without writing the real preference.
-            view.showGameSettingsCard=true;
-            view.gameSettings.frameRate="SMOOTH";view.gameSettings.msaa="4X";
-            draw("game-settings-card");
-            Require(ImGui::GetTopMostPopupModal()!=nullptr,"Game settings card did not open");
-            draw(nullptr,MenuInput::Right,1);draw();
-            Require(ImGui::GetTopMostPopupModal()!=nullptr,"Choosing the alternative closed the card early");
-            draw(nullptr,MenuInput::Back,1);draw();
-            Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
-            view.gameSettings={};view.showGameSettingsCard=false;
+            ShootGameSettingsCard(view,draw);
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
@@ -681,56 +810,14 @@ int main(int argc, char** argv) {
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
-            // Fighter select's hint is two lines: each label over its value.
-            {
-                page("home");
-                for(int i=0;i<8&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
-                std::vector<MenuEntry> homeRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){homeRows=rows;});
-                std::set<std::string> drawn;
-                SetMenuTextProbe([&](const char* id,float text,float interior,float width,float available){drawn.insert(id);overflowProbe(id,text,interior,width,available);});
-                draw("home-selection");
-                SetMenuTextProbe(overflowProbe);SetMenuEntriesProbe({});
-                const auto row=std::find_if(homeRows.begin(),homeRows.end(),[](const MenuEntry& e){return e.id=="selection";});
-                Require(shell.Navigation().Focus()=="selection"&&row!=homeRows.end()&&row->columns.size()==3&&
-                    row->columns[0].first==loc::T("selection.fighter")&&row->columns[0].second=="Ken"&&
-                    row->columns[1].second==view.hintAppearance&&row->columns[2].second==view.hintUltra,"Fighter select's hint lost its columns");
-                // A window under 420 units tall keeps two lines (GameMenu::HomeLines) and the one-line detail.
-                const bool floors=size.h>=420*size.dpi;
-                for(int i=0;i<3;++i)Require(floors==(drawn.count("home-hint/"+std::to_string(i))&&drawn.count("home-hint/"+std::to_string(i)+"-value")),
-                    floors?"Home did not draw Fighter select's labels over their values":"A short Home drew Fighter select's columns");
-            }
+            CheckFighterSelectHint(shell,view,size.h,size.dpi,overflowProbe,draw,page);
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw("home-last-row");
-            // Real editor activation and cancellation through the same input snapshot.
-            page("player");draw(nullptr,MenuInput::Select,1);draw("text-edit");draw(nullptr,MenuInput::Back,1);draw();
-            Require(!shell.Navigation().Editing()&&shell.Navigation().Screen()=="player","Text Back escaped the screen");
-            // Long text opens in a reader; a language opens as a list; Home
-            // keeps its help line under a status.
-            page("about");draw(nullptr,MenuInput::Select,1);draw("about-reader");
-            Require(shell.Navigation().Reading(),"About's controls did not open in the reader");
-            draw(nullptr,MenuInput::Back,1);draw();Require(!shell.Navigation().Reading(),"Back did not close the reader");
-            page("interface");
-            for(int i=0;i<12&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
-            draw(nullptr,MenuInput::Select,1);draw("language-choice");
-            Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
-            draw(nullptr,MenuInput::Back,1);draw();
-            std::string controllerStatus;Tone controllerTone=Tone::Neutral;
-            SetMenuStatusProbe([&](const char* status,Tone tone){controllerStatus=status;controllerTone=tone;});
-            view.padHint=loc::Tf("controller.using_for_now","Saved pad","Other pad");page("home");
-            Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Provisional controller hint did not reach Home's status");
-            view.error="The helper stopped responding. Ember is restarting it.";draw("home-status");
-            Require(controllerStatus==view.error&&controllerTone==Tone::Error,"Controller hint replaced a Home error");
-            view.error.clear();view.padHint=loc::Tf("controller.connected_adopted","Saved pad");draw("controller-restored");
-            Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Restored controller hint did not reach Home's status");
-            view.padHint.clear();SetMenuStatusProbe({});
-            view.inputCapture=input::Capture::ReleaseAll;draw("controller-assignment");view.inputCapture=input::Capture::Idle;
-            view.settingsError="The settings directory is temporarily unavailable.";page("settings");draw("save-error");
-            page("main-character");
-            for(int i=0;i<50&&shell.Navigation().Focus()!="retry-save";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
-            // Down preserves the grid column; the short final row may require
-            // moving right to reach its last action.
-            for(int i=0;i<8&&shell.Navigation().Focus()!="retry-save";++i){draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);}
-            Require(shell.Navigation().Focus()=="retry-save","Portrait retry is unreachable");draw("portrait-save-error");
+            CheckTextEditBack(shell,draw,page);
+            CheckAboutReader(shell,draw,page);
+            CheckLanguageChoice(shell,draw,page);
+            CheckControllerStatusHint(shell,view,draw,page);
+            CheckSettingsSaveErrorAndPortraitRetry(shell,view,draw,page);
             view.settingsError.clear();shell=ApplicationShell{};
             page("selection");
             // A gallery page once every preview on it has loaded, with its cards checked.
@@ -761,15 +848,8 @@ int main(int argc, char** argv) {
             // SF4E_UI_RENDER_GALLERY: once per run, every fighter's costumes and
             // each costume's colors, so every preview is loaded and drawn.
             if(art&&galleryRun&&!galleryShown){
-                galleryShown=true;const auto savedPick=pick;
-                for(int id=0;id<selection::FighterCount;++id){
-                    const std::string code=selection::FindFighter(id)->code;
-                    pick=selection::Pick{};pick.fighter=id;showGallery("costumes","gallery-"+code);
-                    for(int costume:selection::AllowedCostumes(id,availability(id))){
-                        pick.costume=costume;showGallery("colors","gallery-"+code+"-"+std::to_string(costume));
-                    }
-                }
-                pick=savedPick;std::printf("Every fighter's costume and color galleries drawn.\n");
+                galleryShown=true;
+                ShootEveryFighterGallery(pick,availability,showGallery);
             }
             for(const char* screen:{"roster","appearance","costumes","colors","ultra","stage","random-pool","options"}){
                 if(std::string(screen)=="costumes"||std::string(screen)=="colors"){showGallery(screen,screen);continue;}
@@ -783,11 +863,7 @@ int main(int argc, char** argv) {
                     pick.ultra=savedUltra;
                 }
             }
-            // Select on the Random pool puts a skipped stage back (the page
-            // opens on the Training Stage, which the fixture skips).
-            selector.Navigation().Home();selector.Navigation().Push("random-pool");draw();
-            draw(nullptr,MenuInput::Select,1);draw();
-            Require(stagePool.Excluded()==std::vector<int>{15},"Select did not put a skipped stage back in the Random pool");
+            CheckSelectOnRandomPoolRestoresStage(selector,stagePool,draw);
             ShootCustomContent(selector,pick,stage,stagePool,selectorContent,draw);
             selector.Navigation().Home();selector.Navigation().Push("roster");draw();
             // The grid opens on its first card (not Ryu in USFIV's order), so two steps right land on a fighter other than the saved Ryu.

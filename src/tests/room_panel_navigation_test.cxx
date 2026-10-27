@@ -46,6 +46,15 @@ template <typename Work> std::size_t AllocationsOf(Work&& work) {
     countAllocations = false;
     return allocations.load();
 }
+// A notice with no heading is not an error; ShowError is.
+void TestNoticeWithoutHeadingIsNotAnError() {
+    using namespace sf4e::ui;
+    GameMenu menu;
+    menu.ShowNotice("Advice");
+    Check(menu.NoticeOpen() && !menu.NoticeError(), "A notice with no heading read as an error");
+    menu.ShowError("Ready failed");
+    Check(menu.NoticeError(), "An error notice did not read as one");
+}
 }
 
 int main() try {
@@ -730,14 +739,7 @@ int main() try {
         view.room.members[1].training = false; ++view.room.revision; targets.clear(); frame(); frame();
         Check(!targets.count("table-0/banner"), "The Training call stayed on the card after the opponent came back");
     }
-    // A notice with no heading is not an error; ShowError is.
-    {
-        GameMenu menu;
-        menu.ShowNotice("Advice");
-        Check(menu.NoticeOpen() && !menu.NoticeError(), "A notice with no heading read as an error");
-        menu.ShowError("Ready failed");
-        Check(menu.NoticeError(), "An error notice did not read as one");
-    }
+    TestNoticeWithoutHeadingIsNotAnError();
     // Both fighters are ready and a locked-in spectator holds the start.
     shell.Navigation().Home(); shell.Navigation().Push("room-table");
     view.room.tables[0].phase = room::TablePhase::Ready; view.room.tables[0].spectatorHold = true;
