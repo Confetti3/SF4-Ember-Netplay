@@ -5,6 +5,7 @@ param([string]$VersionLabel = '', [string]$OutDir = 'dist', [switch]$SkipBuild,
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
+. (Join-Path $PSScriptRoot 'Packaging.ps1')
 Push-Location $repo
 try {
     Assert-EmberChannel (Get-EmberBuildTarget $repo) 'stable' 'Stable release packaging'
@@ -14,6 +15,6 @@ try {
     if (!$SkipBuild) {
         & (Join-Path $PSScriptRoot 'build-current.ps1') -VisualStudioPath $VisualStudioPath -VcpkgRoot $VcpkgRoot -DiscordSdkArchive $DiscordSdkArchive
     }
-    . (Join-Path $PSScriptRoot 'package-team.ps1') -OutDir $OutDir -VersionLabel $VersionLabel
-    Write-Host "Verified local package: $script:PackageZipPath"
+    $package = New-EmberPackage -OutDir $OutDir -VersionLabel $VersionLabel
+    Write-Host "Verified local package: $($package.zipPath)"
 } finally { Pop-Location }

@@ -9,25 +9,22 @@ $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 . (Join-Path $PSScriptRoot 'NightlyOperations.ps1')
+. (Join-Path $PSScriptRoot 'Packaging.ps1')
 $source = Split-Path $PSScriptRoot -Parent
-# The package scripts are dot-sourced, as before, and report their outputs through variables.
+# The packaging functions return what they made; their console output stays out of the result.
 $operations = @{
     Target = { param($SourceRoot) Get-EmberBuildTarget $SourceRoot }
     Package = {
         param($OutDirectory, $Label)
-        . (Join-Path $PSScriptRoot 'package-team.ps1') -OutDir $OutDirectory -VersionLabel $Label | Out-Host
-        [pscustomobject]@{zipPath=$script:PackageZipPath;folderPath=$script:PackageFolderPath;gitRev=$script:PackageGitRev;
-            sourceFingerprint=$receipt.sourceFingerprint}
+        New-EmberPackage -OutDir $OutDirectory -VersionLabel $Label
     }
     Upgrade = {
         param($From, $To, $BaseZip, $TargetZip, $OutDirectory)
-        . (Join-Path $PSScriptRoot 'package-upgrade.ps1') -FromVersion $From -ToVersion $To -BaseZip $BaseZip -TargetZip $TargetZip -OutDir $OutDirectory | Out-Host
-        $script:UpgradeZipPath
+        (New-EmberUpgradePackage -FromVersion $From -ToVersion $To -BaseZip $BaseZip -TargetZip $TargetZip -OutDir $OutDirectory).zipPath
     }
     Installer = {
         param($PackageDir, $Label, $OutDirectory)
-        . (Join-Path $PSScriptRoot 'package-installer.ps1') -PackageDir $PackageDir -VersionLabel $Label -OutDir $OutDirectory | Out-Host
-        $script:InstallerPath
+        (New-EmberInstaller -PackageDir $PackageDir -VersionLabel $Label -OutDir $OutDirectory).installerPath
     }
 }
 Push-Location $source

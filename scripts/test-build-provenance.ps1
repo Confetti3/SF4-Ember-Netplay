@@ -63,6 +63,19 @@ Expect-Rejection 'The build has the in-game self-test*'
 [IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
 Assert-BuildReceipt $source $build $stage | Out-Null
 Write-Output 'PASS self-test build refused by receipt, missing field and cache'
+# -SkipFingerprint drops only the fresh fingerprint of the tree: a changed tree passes, every other check still rejects.
+[IO.File]::WriteAllText((Join-Path $source 'feature.cxx'), 'newer feature')
+Assert-BuildReceipt $source $build $stage -SkipFingerprint | Out-Null
+[IO.File]::WriteAllText((Join-Path $stage 'Sidecar.dll'), 'stale other build')
+try { Assert-BuildReceipt $source $build $stage -SkipFingerprint | Out-Null; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'Staged binary changed*') { throw } }
+[IO.File]::WriteAllText((Join-Path $stage 'Sidecar.dll'), 'fixture only - not executable')
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$fixture")
+try { Assert-BuildReceipt $source $build $stage -SkipFingerprint | Out-Null; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'CMake source mismatch*') { throw } }
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
+[IO.File]::WriteAllText((Join-Path $source 'feature.cxx'), 'current feature')
+Write-Output 'PASS the receipt check without the fresh fingerprint still refuses a changed binary and a foreign CMake source'
 
 # A fake CTest whose first run fails HelperRust; a rerun fails it again only when $failAgain says so.
 $tests = Join-Path $fixture 'tests'
@@ -177,3 +190,29 @@ foreach ($branch in @($null, '', 'Release', 'release-candidate')) {
 }
 Assert-EmberStableBranch 'release' 'Stable publication'
 Write-Output 'PASS a fallback-designated checkout off the release branch reads as stable but its receipt and branch are refused for Stable'
+
+# Entering the compiler environment is once per process: a process that already holds the same installation and
+# target architecture returns at once (the path below has no vcvarsall.bat, so running it would throw), while another
+# architecture or installation still runs it.
+$vcSaved = @{VSINSTALLDIR=$env:VSINSTALLDIR;VSCMD_ARG_TGT_ARCH=$env:VSCMD_ARG_TGT_ARCH}
+try {
+    $vcRoot = Join-Path $fixture 'vs'
+    $env:VSINSTALLDIR = "$vcRoot\"
+    $env:VSCMD_ARG_TGT_ARCH = 'x86'
+    Enter-EmberVcEnvironment $vcRoot
+    Enter-EmberVcEnvironment ($vcRoot.ToUpperInvariant() + '\') 'x86'
+    foreach ($case in @(@($vcRoot, 'x64'), @((Join-Path $fixture 'other-vs'), 'x86'))) {
+        try { Enter-EmberVcEnvironment $case[0] $case[1] 2>$null; throw 'Unexpected skip' }
+        catch { if ($_.Exception.Message -ne 'Compiler environment failed') { throw } }
+    }
+    $env:VSINSTALLDIR = $null
+    try { Enter-EmberVcEnvironment $vcRoot 2>$null; throw 'Unexpected skip' }
+    catch { if ($_.Exception.Message -ne 'Compiler environment failed') { throw } }
+} finally {
+    $env:VSINSTALLDIR = $vcSaved.VSINSTALLDIR
+    $env:VSCMD_ARG_TGT_ARCH = $vcSaved.VSCMD_ARG_TGT_ARCH
+}
+Write-Output 'PASS the compiler environment is entered once per installation and architecture'
+# The receipt names what the default test run leaves out; build-current.ps1 and run-package-tests.ps1 share this string.
+if ($EmberExcludedTests -cne 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke') { throw 'The default test exclusions changed; the build receipt and docs name them' }
+Write-Output 'PASS the default test exclusions are the ones the receipt names'

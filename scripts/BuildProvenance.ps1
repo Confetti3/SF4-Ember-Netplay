@@ -1,4 +1,8 @@
 $ErrorActionPreference = 'Stop'
+# Public-network and live Discord checks require a separate explicit run. The build receipt names them
+# (testsExcluded), so testsPassed never implies they ran (ledger A-015). build-current.ps1 and
+# run-package-tests.ps1 both exclude exactly these.
+$EmberExcludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
 function Get-SourceFingerprint([string]$SourceRoot) {
     $paths = [string[]]@(& git -C $SourceRoot ls-files --cached --others --exclude-standard)
     if ($LASTEXITCODE) { throw 'Source inventory failed' }
@@ -79,7 +83,10 @@ function Assert-ReceiptChannel([object]$Receipt, [string]$Channel) {
     }
 }
 
-function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot) {
+# -SkipFingerprint leaves out only the fresh fingerprint of the tree (about 2-3 s); the receipt's own paths,
+# the self-test flags, the staged binary hashes and the dependency checks all still run. A caller uses it only
+# when it re-establishes freshness itself shortly after (Invoke-NightlyPublish does, with Assert-NightlySource).
+function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot, [switch]$SkipFingerprint) {
     Assert-CMakeSource $SourceRoot $BuildRoot
     $receipt = Get-Content -LiteralPath (Join-Path $BuildRoot 'build-provenance.json') -Raw | ConvertFrom-Json
     if ($receipt.sourceRoot -ne $SourceRoot -or $receipt.buildRoot -ne $BuildRoot -or $receipt.stageRoot -ne $StageRoot) { throw 'Build receipt path mismatch' }
@@ -88,7 +95,7 @@ function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$S
     if ($receipt.selfTest -ne $false -or (Select-String -LiteralPath (Join-Path $BuildRoot 'CMakeCache.txt') -Pattern '^SF4E_SELFTEST:BOOL=ON' -Quiet)) {
         throw 'The build has the in-game self-test; rebuild with scripts/build-current.ps1 without -SelfTest'
     }
-    if ($receipt.sourceFingerprint -ne (Get-SourceFingerprint $SourceRoot)) { throw 'Source changed since verified build; rebuild with scripts/build-current.ps1' }
+    if (!$SkipFingerprint -and $receipt.sourceFingerprint -ne (Get-SourceFingerprint $SourceRoot)) { throw 'Source changed since verified build; rebuild with scripts/build-current.ps1' }
     foreach ($binary in $receipt.binaries) {
         if ((Get-FileHash -LiteralPath (Join-Path $StageRoot $binary.path)).Hash -ne $binary.sha256) { throw "Staged binary changed: $($binary.path)" }
     }

@@ -6,6 +6,8 @@
 # The draft, verify, publish release machine is shared: Invoke-StablePublish (run by
 # github-release.ps1) uses it for Stable, bound to the Stable repository by its channel.
 # Retention stays Nightly-only.
+. (Join-Path $PSScriptRoot 'PackageFiles.ps1')
+
 function Invoke-NightlyNative([string]$Command, [string[]]$Arguments, [string]$InputText) {
     # Bytes, not the string: a piped string gets a CRLF after its last line,
     # which bash reading the script from ssh takes for a command named CR.
@@ -190,10 +192,13 @@ function Assert-NightlyPendingSource([object]$Pending, [object]$Snapshot) {
 }
 
 function Assert-NightlyBuildSnapshot([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot,
-                                    [object]$Snapshot, [string]$PackageDirectory) {
+                                    [object]$Snapshot, [string]$PackageDirectory, [switch]$SkipFingerprint) {
     # The receipt check fingerprints the tree itself; tying the receipt to the snapshot
     # covers the content, so only HEAD is left to compare here. Returns the receipt.
-    $receipt = Assert-BuildReceipt $SourceRoot $BuildRoot $StageRoot
+    # -SkipFingerprint drops that fresh fingerprint and keeps every other check: the receipt must still
+    # equal the snapshot, the packaged receipt too, the staged binaries must hash as recorded and HEAD
+    # must be clean and unmoved. Assert-NightlySource fingerprints again before the pending record.
+    $receipt = Assert-BuildReceipt $SourceRoot $BuildRoot $StageRoot -SkipFingerprint:$SkipFingerprint
     if ($receipt.sourceFingerprint -cne $Snapshot.fingerprint -or $receipt.baseRevision -cne $Snapshot.revision) {
         throw 'Build receipt does not match the clean Nightly snapshot.'
     }
@@ -209,12 +214,12 @@ function Assert-NightlyBuildSnapshot([string]$SourceRoot, [string]$BuildRoot, [s
 
 function Get-NightlyArtifact([string]$Path) {
     [pscustomobject]@{path=[IO.Path]::GetFullPath($Path);name=(Split-Path $Path -Leaf);
-        sha256=(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()}
+        sha256=(Get-FileSha256 $Path)}
 }
 
 function Assert-NightlyArtifacts([object[]]$Artifacts) {
     foreach ($artifact in @($Artifacts | Where-Object { $_ })) {
-        if ((Get-FileHash -LiteralPath $artifact.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $artifact.sha256) {
+        if ((Get-FileSha256 $artifact.path) -cne $artifact.sha256) {
             throw "Prepared artifact changed: $($artifact.path)"
         }
     }
@@ -678,11 +683,12 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     $installerPath = & $Operations.Installer $package.folderPath $nightlyLabel $OutDirectory $VisualStudioPath
     $releaseAssets += @($installerPath, "$installerPath.sha256")
     if ($package.gitRev -cne $sourceRevision) { throw 'Packaged source revision changed.' }
-    Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot $package.folderPath | Out-Null
+    # Packaging fingerprinted the tree seconds ago and Assert-NightlySource does again before the pending record.
+    Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot $package.folderPath -SkipFingerprint | Out-Null
     # GetHash reads every on-disk byte through BCrypt SHA256, formatting each
     # digest byte with %02hhx: 64 lowercase hex characters, no prefix or separators.
-    $publicBuildId = (Get-FileHash -LiteralPath (Join-Path $stageDirectory 'Sidecar.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
-    $packagedBuildId = (Get-FileHash -LiteralPath (Join-Path $package.folderPath 'Sidecar.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
+    $publicBuildId = Get-FileSha256 (Join-Path $stageDirectory 'Sidecar.dll')
+    $packagedBuildId = Get-FileSha256 (Join-Path $package.folderPath 'Sidecar.dll')
     if ($publicBuildId -ne $packagedBuildId) { throw 'Staged and packaged Sidecar.dll build ids differ.' }
     if ($publicBuildId -cnotmatch '^[0-9a-f]{64}$') { throw 'Expected a SHA-256 public rooms build id.' }
     Write-Host "Public rooms build: $publicBuildId"
@@ -740,7 +746,7 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     Write-Host "Public rooms build: $publicBuildId"
     Write-Host "Notes: $notesPath"
     foreach ($asset in $releaseAssets) {
-        Write-Host "Asset: $asset  SHA-256: $((Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant())"
+        Write-Host "Asset: $asset  SHA-256: $(Get-FileSha256 $asset)"
     }
     Write-Host "Pruned tags: $(if ($prunedTags.Count) { $prunedTags -join ', ' } else { '(none)' })"
 }
@@ -807,7 +813,7 @@ function Invoke-StablePublish([string]$SourceRoot, [string]$Tag, [string]$OutDir
             }
             $previousAssets = (Invoke-NightlyCommand gh @('release', 'view', "v$PreviousVersion", '--repo', $repository, '--json', 'assets') 'Could not read the previous release assets.' | ConvertFrom-Json).assets
             $published = @($previousAssets | Where-Object { $_.name -ceq "sf4-ember-netplay-$PreviousVersion.zip" }) | Select-Object -First 1
-            $baseHash = (Get-FileHash -LiteralPath $baseZip -Algorithm SHA256).Hash.ToLowerInvariant()
+            $baseHash = Get-FileSha256 $baseZip
             if (!$published -or !$published.digest -or $published.digest -ine "sha256:$baseHash") { throw 'Local previous package does not match the published release asset.' }
         }
         $package = & $Operations.Package $OutDirectory $version

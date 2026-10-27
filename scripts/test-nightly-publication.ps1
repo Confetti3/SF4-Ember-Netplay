@@ -92,6 +92,7 @@ try {
         $script:head = $snapshot.revision
         $script:fingerprint = $snapshot.fingerprint
         $script:fingerprintCalls = 0
+        $script:receiptSkips = @()
         $script:failOn = ''
         $script:serverAvailable = $true
         $script:repositoryMode = ''
@@ -106,7 +107,7 @@ try {
         New-Item -ItemType Directory -Path $dist | Out-Null
     }
     function Get-SourceFingerprint([string]$SourceRoot) { $script:fingerprintCalls++; return $script:fingerprint }
-    function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot) { return $script:receipt }
+    function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot, [switch]$SkipFingerprint) { $script:receiptSkips += ,[bool]$SkipFingerprint; return $script:receipt }
     function New-FakeExit([int]$Code, [object[]]$Output) { [pscustomobject]@{PSTypeName='NightlyFakeExit';exitCode=$Code;output=$Output} }
     # The single native boundary: fake failures become a non-zero exit, as a real command's would.
     function Invoke-NightlyNative([string]$Command, [string[]]$Arguments, [string]$InputText) {
@@ -713,6 +714,8 @@ try {
         Check ($release.body -like "*Source: $($snapshot.revision)*- Fix a fixture bug*") 'Release notes lack the source and subjects'
         Check ($release.body -notlike '*run once more*') 'Release notes name a rerun the build did not have'
         Check ($script:fingerprintCalls -eq 2) "Fresh run fingerprinted the source $($script:fingerprintCalls) times"
+        # The receipt check after the build is complete; the one after packaging leaves out only the fresh fingerprint.
+        Check ((@($script:receiptSkips) | ForEach-Object { "$_" }) -join ',' -ceq 'False,True') "Receipt checks skipped the fingerprint as $(@($script:receiptSkips) -join ','), expected False,True"
         Check (@(Get-CommandLabels | Select-Object -Skip (Find-Command 'ssh *vps* cleanup') | Where-Object { $_ -like 'git *' }).Count -eq 0) 'Fresh run consulted the source between remote operations'
         Pass 'a fresh run syncs, builds, packages, prepares hosts, then stages and publishes in order with one prepare-time source check'
 
@@ -997,7 +1000,7 @@ try {
         $workspace = Join-Path $fixture 'workspace'
         $nightlyScripts = Join-Path $workspace 'sf4-nightly/scripts'
         New-Item -ItemType Directory -Path $nightlyScripts -Force | Out-Null
-        foreach ($name in @('github-release.ps1', 'BuildEnvironment.ps1', 'NightlyOperations.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $nightlyScripts }
+        foreach ($name in @('github-release.ps1', 'BuildEnvironment.ps1', 'NightlyOperations.ps1', 'Packaging.ps1', 'PackageFiles.ps1', 'BuildProvenance.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $nightlyScripts }
         @{sourceDirectory='sf4-current';buildDirectory='build/current';installDirectory='build/current/stage';
           channels=@{nightly=@{sourceDirectory='sf4-nightly';buildDirectory='build/current';installDirectory='build/current/stage';branch='nightly';githubRepo=$repository}}} |
             ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $workspace 'build-target.json')

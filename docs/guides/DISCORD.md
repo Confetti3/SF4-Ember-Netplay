@@ -10,7 +10,7 @@ The supplied SDK is **1.10.19337**, archive `DiscordSocialSdk-1.10.19337.zip`, S
 
 ## Build and package
 
-Build with `scripts/build-current.ps1 -DiscordSdkArchive <original archive>`, or set `SF4E_DISCORD_SDK_ARCHIVE`. It enables `SF4E_BUILD_DISCORD=ON`, and CMake verifies the archive against the pin. The companion is an isolated MSVC x64/C++20 external project; game architecture and compiler standard are unchanged. `scripts/build-discord-local.ps1 -RustChecks` still runs formatting, Rust tests and Clippy.
+Build with `scripts/build-current.ps1 -DiscordSdkArchive <original archive>`, or set `SF4E_DISCORD_SDK_ARCHIVE`. It enables `SF4E_BUILD_DISCORD=ON`, and CMake verifies the archive against the pin. The companion is an isolated MSVC x64/C++20 external project; game architecture and compiler standard are unchanged. `scripts/test-full-quality.ps1` runs formatting, Rust tests and Clippy.
 
 Then run `scripts/package-team.ps1`. It uses `build/current` and `build/current/stage` from `build-target.json` and rejects other folders. The shared inventory requires `ember-discord.exe`, `discord_partner_sdk.dll`, `discord-build.json`, and `notices/Discord-SDK.txt`. Packaging rejects an unset application ID or missing Discord runtime. Updater and installer validation use the same inventory. The SDK is statically linked only through its import library; its supplied x64 runtime DLL must ship beside the companion. No SDK voice features are used.
 

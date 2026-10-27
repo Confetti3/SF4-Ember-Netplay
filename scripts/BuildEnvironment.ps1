@@ -68,7 +68,13 @@ function Get-EmberToolPaths([string]$SourceRoot, [string]$VisualStudioPath, [str
     [pscustomobject]@{VisualStudioPath=[IO.Path]::GetFullPath($VisualStudioPath);VcpkgRoot=[IO.Path]::GetFullPath($VcpkgRoot)}
 }
 
+# Runs vcvarsall once per process. vcvarsall prepends to PATH, INCLUDE and LIB each time it runs, so a second
+# entry would double them; when this process already holds the environment of the same installation and target
+# architecture (VSINSTALLDIR and VSCMD_ARG_TGT_ARCH, which vcvarsall sets), it returns at once.
 function Enter-EmberVcEnvironment([string]$VisualStudioPath, [string]$Architecture = 'x86') {
+    $entered = $env:VSINSTALLDIR
+    if ($entered -and $env:VSCMD_ARG_TGT_ARCH -ceq $Architecture -and
+        [IO.Path]::GetFullPath($entered).TrimEnd('\','/') -ieq [IO.Path]::GetFullPath($VisualStudioPath).TrimEnd('\','/')) { return }
     $environment = & cmd.exe /d /s /c "`"$VisualStudioPath\VC\Auxiliary\Build\vcvarsall.bat`" $Architecture >nul && set"
     if ($LASTEXITCODE) { throw 'Compiler environment failed' }
     foreach ($entry in $environment) { if ($entry -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($Matches[1],$Matches[2],'Process') } }

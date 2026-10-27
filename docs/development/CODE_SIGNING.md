@@ -34,10 +34,12 @@ The workflow [`.github/workflows/release-windows.yml`](https://github.com/Confet
 ## Option C — Your own certificate
 
 ```powershell
-# After build + package, with a .pfx on disk:
+# With a .pfx on disk. Signing rewrites the files and the build receipt hashes the staged
+# binaries, so sign a copy of Launcher.exe, Sidecar.dll, sf4-net.exe and Updater.exe,
+# never build/current/stage itself:
 $env:SF4E_SIGN_PFX = "C:\path\codesign.pfx"
 $env:SF4E_SIGN_PFX_PASSWORD = "..."
-powershell -File scripts/sign-release-binaries.ps1 -InputDir msvc-out\relwithdebinfo
+powershell -File scripts/sign-release-binaries.ps1 -InputDir C:\path\to\copy-of-the-binaries
 ```
 
 ## Verify signatures after signing
