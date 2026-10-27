@@ -3,32 +3,34 @@
 #include <string>
 #include <vector>
 #include <limits>
+// The dependency-free SHA-256: the digest off Windows, where the room host has
+// no CNG, the fallback when CNG fails, and the reference CNG is tested against.
+#include "Sha256.hxx"
 #ifdef _WIN32
 #include <windows.h>
 #include <bcrypt.h>
-#else
-// Off Windows the room host has no CNG; the dependency-free SHA-256 (the
-// reference the Windows path is tested against) is the digest.
-#include "Sha256.hxx"
 #endif
 
 namespace sf4e { namespace coordination {
+// Lowercase hex SHA-256, the one digest for checkpoint transfers, committed
+// effects (recovery_detail::Sha256) and replay summaries.
 #ifndef _WIN32
 inline std::string Sha256(const std::string& bytes) { return Sha256Portable(bytes); }
 #else
 inline std::string Sha256(const std::string& bytes) {
-    if (bytes.size() > (std::numeric_limits<ULONG>::max)()) return {};
-    BCRYPT_ALG_HANDLE algorithm = nullptr;
-    if (BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0) < 0) return {};
+    // One provider handle for the process; CNG algorithm handles may be used
+    // from several threads at once (the checkpoint decode worker hashes too).
+    static const BCRYPT_ALG_HANDLE algorithm = [] {
+        BCRYPT_ALG_HANDLE handle = nullptr;
+        return BCryptOpenAlgorithmProvider(&handle, BCRYPT_SHA256_ALGORITHM, nullptr, 0) >= 0 ? handle : nullptr;
+    }();
     unsigned char digest[32] = {};
-    const auto status = BCryptHash(algorithm, nullptr, 0,
-        reinterpret_cast<PUCHAR>(const_cast<char*>(bytes.data())), static_cast<ULONG>(bytes.size()),
-        digest, sizeof(digest));
-    BCryptCloseAlgorithmProvider(algorithm, 0);
-    if (status < 0) return {};
-    const char* hex = "0123456789abcdef";
+    if (!algorithm || bytes.size() > (std::numeric_limits<ULONG>::max)() ||
+        BCryptHash(algorithm, nullptr, 0, reinterpret_cast<PUCHAR>(const_cast<char*>(bytes.data())),
+            static_cast<ULONG>(bytes.size()), digest, sizeof(digest)) < 0) return Sha256Portable(bytes);
+    static constexpr char hex[] = "0123456789abcdef";
     std::string result; result.reserve(64);
-    for (auto value : digest) { result += hex[value >> 4]; result += hex[value & 15]; }
+    for (const auto value : digest) { result.push_back(hex[value >> 4]); result.push_back(hex[value & 0xfU]); }
     return result;
 }
 #endif

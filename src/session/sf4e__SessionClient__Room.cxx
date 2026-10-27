@@ -102,6 +102,54 @@ void SessionClient::TrySendPendingJoinRequest() {
 	}
 }
 
+void SessionClient::PumpTerminalAcks() {
+	// Every recipient acknowledges a durable terminal event through the same
+	// authenticated room action path. Reuse one action ID for the exact
+	// room/table/generation so arbitrary response latency cannot evict its proof.
+	for (auto pending = _pendingTerminalAcks.begin(); pending != _pendingTerminalAcks.end();) {
+		if (_roomSnapshot.roomEpoch && _roomSnapshot.roomEpoch != pending->roomEpoch) {
+			pending = _pendingTerminalAcks.erase(pending);
+			continue;
+		}
+		if (!_customRoomsSeen || !_roomSnapshot.roomEpoch || _stepCounter < pending->nextStep) {
+			++pending;
+			continue;
+		}
+		// A reliable send can be accepted by the local transport while its
+		// room-result reply is lost during leader recovery. Bound the in-flight
+		// wait and retry the same idempotent table/generation acknowledgement;
+		// otherwise the Application clears its local queue after the first send
+		// and the receipt can remain blocked forever.
+		if (!pending->actionId) {
+			if (_nextRoomActionId == (std::numeric_limits<std::uint64_t>::max)()) {
+				pending->nextStep = _stepCounter + 4;
+				++pending;
+				continue;
+			}
+			pending->actionId = _nextRoomActionId++;
+		}
+		room::Action acknowledgment;
+		acknowledgment.kind = room::ActionKind::AcknowledgeTerminal;
+		acknowledgment.protocolVersion = room::ProtocolVersion;
+		acknowledgment.actionId = pending->actionId;
+		acknowledgment.roomEpoch = pending->roomEpoch;
+		acknowledgment.table = pending->table;
+		acknowledgment.matchGeneration = pending->generation;
+		acknowledgment.tableRevision = pending->table < room::TableCount ? _roomSnapshot.tables[pending->table].revision : 0;
+		SessionProtocol::RoomActionMessage message;
+		message.action = acknowledgment;
+		json payload = message;
+		if (Send(payload, nullptr) == session::SendResult::Queued) {
+			RememberSentRoomAction(acknowledgment);
+			pending->nextStep = _stepCounter + 8;
+			++pending;
+		} else {
+			pending->nextStep = _stepCounter + 4;
+			++pending;
+		}
+	}
+}
+
 void SessionClient::ReconcileTerminalAcks() {
 	for (auto pending = _pendingTerminalAcks.begin(); pending != _pendingTerminalAcks.end();) {
 		if (pending->roomEpoch != _roomSnapshot.roomEpoch) {

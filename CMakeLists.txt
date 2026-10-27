@@ -140,7 +140,7 @@ if(BUILD_TESTING)
     set_tests_properties(HeapCorruptionCapture PROPERTIES TIMEOUT 90)
 endif()
 
-add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomModelServerOwned.cxx" "src/session/RoomDigest.cxx")
+add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomModelServerOwned.cxx" "src/session/RoomModelTerminal.cxx" "src/session/RoomModelTimers.cxx" "src/session/RoomDigest.cxx")
 target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
 target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json "bcrypt")
 # The game's Steam client through steam_api.dll (profile overlay, remote storage).
@@ -564,6 +564,7 @@ add_library(Session STATIC
     "src/session/sf4e__SessionClient.hxx"
     "src/session/sf4e__SessionClient.cxx"
     "src/session/sf4e__SessionClient__Room.cxx"
+    "src/session/sf4e__SessionClient__Verification.cxx"
     "src/session/sf4e__SessionProtocol.hxx"
     "src/session/sf4e__SessionServer.hxx"
     "src/session/IrohMatchSession.cxx"

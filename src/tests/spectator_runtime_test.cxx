@@ -189,7 +189,7 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 		r.Deliver(json(message));
 	}
 	internal::DrainRoomEvents();
-	CHECK(runtime->committedEndGeneration == first);
+	CHECK(runtime->teardown.committedEndGeneration == first);
 	r.Match().End();
 	r.room->AbandonMatch(first);
 	tick();
@@ -221,20 +221,20 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 	CHECK(runtime->recoveringMatch);
 	if (alreadyEnded) {
 		// The room already ended that game: no abort, no lock release, nothing kept.
-		CHECK(!runtime->pendingAbort && !runtime->spectatorLockRelease.Pending());
+		CHECK(!runtime->teardown.pendingAbort && !runtime->spectatorLockRelease.Pending());
 		r.transport->writable = true;
 		internal::RetryPendingAbort();
 		CHECK(r.KeptUnwatches(second) == 0 && r.KeptUnwatches(first) == 0);
 	} else {
 		// Refused: kept for the attempted game, with its lock release.
-		CHECK(runtime->pendingAbort && runtime->pendingAbort->matchGeneration == second &&
-			runtime->pendingAbort->kind == room::ActionKind::Unwatch && runtime->pendingAbort->keepWatching);
+		CHECK(runtime->teardown.pendingAbort && runtime->teardown.pendingAbort->matchGeneration == second &&
+			runtime->teardown.pendingAbort->kind == room::ActionKind::Unwatch && runtime->teardown.pendingAbort->keepWatching);
 		CHECK(runtime->spectatorLockRelease.Pending() && runtime->spectatorLockRelease.Generation() == second);
 		CHECK(r.KeptUnwatches(second) == 0);
 		// Retried once the transport takes it, and the room accepts it.
 		r.transport->writable = true;
 		internal::RetryPendingAbort();
-		CHECK(!runtime->pendingAbort && r.KeptUnwatches(second) == 1 && r.KeptUnwatches(first) == 0);
+		CHECK(!runtime->teardown.pendingAbort && r.KeptUnwatches(second) == 1 && r.KeptUnwatches(first) == 0);
 		auto sent = r.transport->sent.back().at("action").get<room::Action>();
 		// Replayed under this member's own action ids, which the room orders per member.
 		sent.actionId = member * 1000 + authority.SnapshotView().revision + 1;
@@ -350,9 +350,9 @@ static void StartGgpoSession() {
 static void StreamWatchedGame(WatchedGame& game) {
 	StartGgpoSession();
 	auto* runtime = game.r.runtime;
-	runtime->matchEntered = true;
-	runtime->enteredGeneration = game.generation;
-	runtime->enteredTable = 0;
+	runtime->entry.matchEntered = true;
+	runtime->entry.enteredGeneration = game.generation;
+	runtime->entry.enteredTable = 0;
 	const auto watched = sf4e::NetplayFacade::internal::WatchedGameNow();
 	CHECK(watched.Active() && watched.table == 0 && watched.generation == game.generation);
 }
@@ -474,7 +474,7 @@ void TestSpectatorLeavesWatchedGame() {
 	facade::ClearMatchNotice();
 	const auto sentBefore = game.r.transport->sent.size();
 	const auto releaseClear = [&] {
-		return !runtime->spectatorLockRelease.Pending() && !runtime->pendingAbort && runtime->spectatorStreamFailedGeneration == 0;
+		return !runtime->spectatorLockRelease.Pending() && !runtime->teardown.pendingAbort && runtime->entry.spectatorStreamFailedGeneration == 0;
 	};
 	SubmitStopWatching(game);
 	facade::internal::DrainCommands(true);
@@ -610,7 +610,7 @@ void TestTableChangeLeavesWithoutFailure() {
 		CHECK(!sf4e::Game::Battle::System::ggpo && runtime->recoveringMatch);
 		CHECK(std::string(status.lastError) == sf4e::loc::T("runtime.returning_room") && status.lastErrorSeverity == sf4e::NoticeSeverity::Info);
 		facade::TickRuntime();
-		CHECK(!runtime->spectatorLockRelease.Pending() && runtime->spectatorStreamFailedGeneration == 0);
+		CHECK(!runtime->spectatorLockRelease.Pending() && runtime->entry.spectatorStreamFailedGeneration == 0);
 		CHECK(runtime->lockInDrops == before && facade::GetRuntimeSnapshotShared()->lockInDrops == before);
 		CHECK(SentActions(game, room::ActionKind::LockSpectating, sentBefore).empty());
 		facade::ClearMatchNotice();
@@ -707,7 +707,7 @@ void TestFinishedWatchEndsOnlyTheView() {
 		facade::internal::DrainCommands(true);
 		CheckLeftTheStream();
 		CHECK(SentActions(game, room::ActionKind::Unwatch, sentBefore).empty());
-		CHECK(!runtime->spectatorLockRelease.Pending() && !runtime->pendingAbort);
+		CHECK(!runtime->spectatorLockRelease.Pending() && !runtime->teardown.pendingAbort);
 		facade::ClearMatchNotice();
 	}
 	std::cout << "TestFinishedWatchEndsOnlyTheView passed\n";
@@ -759,10 +759,10 @@ void TestSpectatorSitOutNotice() {
 	game.Tick();
 	game.r.Deliver(json{{"type", "game_start"}, {"generation", game.generation}});
 	game.Tick();
-	CHECK(game.r.Match().GetPhase() == Phase::Started && !runtime->matchEntered);
+	CHECK(game.r.Match().GetPhase() == Phase::Started && !runtime->entry.matchEntered);
 	// The entry has waited for the main menu since before P1's deadline.
-	runtime->entryDeferredGeneration = game.generation;
-	runtime->entryDeferredSinceMs = GetTickCount64() - sf4e::SpectatorPolicy::SyncDeadlineMs;
+	runtime->entry.entryDeferredGeneration = game.generation;
+	runtime->entry.entryDeferredSinceMs = GetTickCount64() - sf4e::SpectatorPolicy::SyncDeadlineMs;
 	facade::ClearMatchNotice();
 	facade::internal::TickMatch();
 	const auto status = facade::GetStatus();
@@ -809,10 +809,10 @@ void TestEnteredBattleRequestCancelled() {
 		leave.command = {sf4e::netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}};
 		CHECK(facade::SubmitRuntimeCommand(std::move(leave)));
 		sf4e::NetplayFacade::internal::DrainCommands(true);
-		CHECK(runtime->leaveRequested && game.r.room->leaveCalls == 0);
+		CHECK(runtime->leave.leaveRequested && game.r.room->leaveCalls == 0);
 		CHECK(!prepared());
 		runtime->room.reset();
-		runtime->leaveRequested = false;
+		runtime->leave.leaveRequested = false;
 	}
 	{
 		WatchedGame game(true);

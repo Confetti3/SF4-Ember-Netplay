@@ -35,7 +35,8 @@ namespace recovery_detail {
 
 using sf4e::Sha256Portable;
 
-// Defined in RoomDigest.cxx, so this header stays free of Windows headers.
+// Defined in RoomDigest.cxx as coordination::Sha256 (CoordinationBytes.hxx),
+// so this header stays free of Windows headers.
 std::string Sha256(const std::string& input);
 
 inline bool IsSha256(const std::string& value) {

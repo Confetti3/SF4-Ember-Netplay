@@ -154,6 +154,8 @@ namespace sf4e {
 
 		// Public for testing
 		session::SendResult Send(nlohmann::json& msg, int64_t* outMessageNum);
+		// Send, logging a refused send as "Client: could not <what>!".
+		session::SendResult SendLogged(nlohmann::json& msg, const char* what, int64_t* outMessageNum = nullptr);
 
 		// Connection related data - public for testing
 		std::string _sidecarHash;
@@ -269,11 +271,18 @@ namespace sf4e {
 		bool HandleDataUpdate(nlohmann::json& msg);
 		bool HandleBattleSnapshot(nlohmann::json& msg);
 		bool HandleBattleHash(nlohmann::json& msg);
+		// Step's desync verification (sf4e__SessionClient__Verification.cxx):
+		// publishes this player's aged snapshots and confirmed hashes, and
+		// compares the remote ones buffered by the two handlers above.
+		void StepBattleVerification();
 		void ProjectSelectedRoomTable();
 		void TrySendPendingJoinRequest();
 		// The admission the hello and the fallback join_req both carry.
 		SessionProtocol::SessionJoinRequest BuildJoinRequest() const;
 		void ReconcileTerminalAcks();
+		// Step's retries of the pending terminal acknowledgements, one action
+		// ID per table and generation.
+		void PumpTerminalAcks();
 		RetainedRoomRetry* RetryRecord(room::ActionKind kind);
 		session::SendResult RetryRoomLifecycleAction(room::Action action,
 			std::uint64_t actionId, room::ActionKind expectedKind);
