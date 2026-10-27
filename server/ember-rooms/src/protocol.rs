@@ -787,7 +787,7 @@ mod tests {
         assert!(bridge.contains(&format!(
             "const MAX_GAMES_REPORT: usize = {MAX_GAMES_BYTES};"
         )));
-        let rooms = read("ember/protocol/src/rooms.rs");
+        let rooms = read("ember/protocol/src/rooms/mod.rs");
         assert!(rooms.contains(&format!(
             "pub const MAX_ROOM_BANS: usize = {MAX_ROOM_BANS};"
         )));
