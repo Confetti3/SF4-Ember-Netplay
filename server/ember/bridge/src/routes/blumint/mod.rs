@@ -19,7 +19,7 @@
 //! after each game that does not end it (`delivery::progress`), then its
 //! result, or an abort for a match that ended without one
 //! (`delivery::results`). A match whose result the two games disputed is
-//! cancelled where it would wait for review (`matches::needs_review`), since
+//! cancelled where it would wait for review (`ledger::needs_review`), since
 //! BluMint has no organizer review, and its abort lets BluMint ask for the
 //! set again. A match that expires (`expiry::expire_stale`), a lifetime
 //! after its last game or 24 hours after its creation, is sent as an abort
@@ -52,7 +52,6 @@ use crate::{
     http::{Body, GENERAL_BODY, ok},
     linking::{Ask, find_and_link},
     routes::policy,
-    util::outbound_client,
 };
 
 /// The three callbacks BluMint calls, as `register` tells BluMint them.
@@ -188,9 +187,7 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
         "secret": token,
     });
     let origin = &state.config.origin;
-    let client = outbound_client()
-        .build()
-        .map_err(|error| error.to_string())?;
+    let client = state.http.client().map_err(|error| error.to_string())?;
     let partway = |error: String| {
         format!(
             "{error}; the earlier callback credentials and the new one, {credential}, stay valid until a registration succeeds"

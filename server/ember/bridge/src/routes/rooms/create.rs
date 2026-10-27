@@ -19,7 +19,7 @@ use super::{
 use crate::{
     AppState,
     error::{ApiFailure, Result},
-    routes::matches,
+    routes::ledger,
     util::random,
 };
 
@@ -197,7 +197,7 @@ fn reserve(
             participant_id,
             ..
         } => {
-            if !matches::linked(tx, connection_id, participant_id, creator)? {
+            if !ledger::linked(tx, connection_id, participant_id, creator)? {
                 return Err(refuse(NOT_LINKED));
             }
             (None, Some(connection_id.as_str()))

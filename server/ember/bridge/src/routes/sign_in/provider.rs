@@ -25,7 +25,7 @@ use crate::{
         sites::{Encoding, Method, UsernameRule},
     },
     linking::Site,
-    util::{outbound_client, read_bounded},
+    util::{Outbound, read_bounded},
 };
 
 /// What a proof authorizes on a sign-in's routes.
@@ -278,12 +278,12 @@ impl OAuth {
 
     /// Exchanges the code and reads who signed in, or None on any failure.
     /// The token is dropped here.
-    pub async fn user(&self, redirect_uri: &str, code: &str) -> Option<SignedIn> {
+    pub async fn user(&self, http: &Outbound, redirect_uri: &str, code: &str) -> Option<SignedIn> {
         #[derive(Deserialize)]
         struct Token {
             access_token: String,
         }
-        let client = outbound_client().build().ok()?;
+        let client = http.client().ok()?;
         let fields = [
             ("grant_type", "authorization_code"),
             ("code", code),

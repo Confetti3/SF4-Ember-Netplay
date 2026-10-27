@@ -19,7 +19,7 @@ use crate::{
     error::{ApiFailure, Result},
     events::{self, Viewer},
     http::ok,
-    routes::matches::viewer_of,
+    routes::ledger::{DRAWN_GAMES, P1_GAMES, P2_GAMES},
 };
 
 const DEFAULT_RECENT: usize = 10;
@@ -69,12 +69,10 @@ fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<V
         Viewer::Organizer { tenant_id } => (None, Some(tenant_id.as_str())),
         Viewer::Player { .. } => (None, None),
     };
-    tx.prepare(
+    tx.prepare(&format!(
         "SELECT m.id, m.state, m.games_to_win, m.lobby_id, m.metadata, m.updated_at, p.slot,
                 o.participant_id, o.ember_id, m.tournament_id,
-                (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p1_win'),
-                (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p2_win'),
-                (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'draw'),
+                {P1_GAMES}, {P2_GAMES}, {DRAWN_GAMES},
                 m.starting_wins_p1, m.starting_wins_p2
          FROM match_participants p
          JOIN matches m ON m.id = p.match_id AND m.assignment_generation = p.assignment_generation
@@ -82,8 +80,8 @@ fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<V
            ON o.match_id = m.id AND o.assignment_generation = m.assignment_generation AND o.slot != p.slot
          WHERE p.ember_id = ?1 AND m.state IN ('completed', 'cancelled')
            AND (?2 IS NULL OR m.connection_id = ?2) AND (?3 IS NULL OR m.tenant_id = ?3)
-         ORDER BY m.updated_at DESC, m.rowid DESC",
-    )?
+         ORDER BY m.updated_at DESC, m.rowid DESC"
+    ))?
     .query_map(params![ember_id.as_str(), connection, tenant], |row| {
         let slot: u8 = row.get(6)?;
         let p1: u32 = row.get(10)?;
@@ -139,7 +137,7 @@ pub async fn record(
     Path(ember_id): Path<String>,
     Query(query): Query<RecordQuery>,
 ) -> Result<Response> {
-    let viewer = viewer_of(&auth::any(&state, &headers).await?)?;
+    let viewer = Viewer::of(&auth::any(&state, &headers).await?)?;
     let ember_id = EmberId::parse(&ember_id).map_err(|_| ApiFailure::not_found())?;
     if let Viewer::Player { ember_id: own } = &viewer
         && *own != ember_id
@@ -252,14 +250,12 @@ struct Standing {
 pub fn lobby_standings(tx: &Transaction<'_>, lobby_id: &str) -> Result<Vec<serde_json::Value>> {
     let mut table: BTreeMap<String, Standing> = BTreeMap::new();
     let rows = tx
-        .prepare(
-            "SELECT m.games_to_win, p.slot, p.ember_id, p.participant_id,
-                    (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p1_win'),
-                    (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p2_win')
+        .prepare(&format!(
+            "SELECT m.games_to_win, p.slot, p.ember_id, p.participant_id, {P1_GAMES}, {P2_GAMES}
              FROM matches m
              JOIN match_participants p ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
-             WHERE m.lobby_id = ?1 AND m.state = 'completed'",
-        )?
+             WHERE m.lobby_id = ?1 AND m.state = 'completed'"
+        ))?
         .query_map([lobby_id], |row| {
             Ok((
                 row.get::<_, u32>(0)?,

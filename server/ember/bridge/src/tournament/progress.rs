@@ -22,8 +22,8 @@ use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
     routes::{
+        ledger::{self, NewMatch, ORGANIZER_PROFILE},
         lobbies,
-        matches::{self, NewMatch, ORGANIZER_PROFILE},
     },
 };
 
@@ -43,12 +43,12 @@ fn start_node(
         return Ok(None);
     };
     for entrant in [first, second] {
-        if !matches::linked(
+        if !ledger::linked(
             tx,
             &tournament.connection_id,
             &entrant.participant_id,
             &entrant.ember_id,
-        )? || matches::busy(tx, &tournament.connection_id, &entrant.ember_id, "")?
+        )? || ledger::busy(tx, &tournament.connection_id, &entrant.ember_id, "")?
         {
             return Ok(None);
         }
@@ -81,7 +81,7 @@ fn start_node(
         ember_id: roster[usize::from(slot)].ember_id.clone(),
         slot,
     });
-    let match_id = matches::insert_match(
+    let match_id = ledger::insert_match(
         tx,
         ctx,
         &NewMatch {
@@ -121,7 +121,7 @@ pub(super) fn progress(
         if before[node].status == Status::Playing
             && let Some(match_id) = bracket.matches[node].clone()
         {
-            freed.extend(matches::cancel_tournament_set(
+            freed.extend(ledger::cancel_tournament_set(
                 tx,
                 ctx,
                 &match_id,

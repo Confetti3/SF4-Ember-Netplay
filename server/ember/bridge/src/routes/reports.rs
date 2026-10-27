@@ -28,12 +28,10 @@ use crate::{
     http::{Body, json as respond},
     routes::{
         ledger::{
-            Cause, Match, bump, load, load_listed, match_event, participants, scores, settle,
-            unready_before,
+            Cause, Match, bump, load, load_listed, match_event, needs_review, participants, scores,
+            settle, unready_before,
         },
-        matches,
         play::{self, fighter},
-        policy,
     },
     util::new_id,
 };
@@ -352,22 +350,18 @@ fn hold(
     if changed == 0 || current.state.is_terminal() || current.state == MatchState::NeedsReview {
         return Ok(());
     }
-    matches::needs_review(tx, ctx, &current, reason, Some(attempt_id))
+    needs_review(tx, ctx, &current, reason, Some(attempt_id))
 }
 
 /// Whether the reports are one abort or cancel on a connection that restarts
 /// disputes, which need not wait out `PARTNER_SECS`. A lone win or draw always
 /// does: a late second report can still agree with it.
-fn settles_early(
-    tx: &Transaction<'_>,
-    current: &Match,
-    reports: &[(String, GameReport)],
-) -> Result<bool> {
+fn settles_early(current: &Match, reports: &[(String, GameReport)]) -> Result<bool> {
     let [(_, report)] = reports else {
         return Ok(false);
     };
     Ok(matches!(report.result, Outcome::Abort | Outcome::Cancel)
-        && !policy::of(tx, &current.connection_id)?.reviews_disputes)
+        && !current.policy()?.reviews_disputes)
 }
 
 /// Holds attempts whose second report never came, and permitted games that
@@ -408,7 +402,7 @@ pub fn expire(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
             continue;
         };
         let short_of_partner_wait = first_report_at.is_some_and(|at| at + PARTNER_SECS > ctx.now);
-        if short_of_partner_wait && !settles_early(tx, &current, &reports)? {
+        if short_of_partner_wait && !settles_early(&current, &reports)? {
             continue;
         }
         match reports.as_slice() {

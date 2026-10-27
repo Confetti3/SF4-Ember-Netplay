@@ -208,6 +208,9 @@ pub async fn post_signed(
         Ok(address) => address,
         Err(error) => return Err(retry(error)),
     };
+    // Built for this attempt alone: it pins the host to the address just
+    // checked and refuses plain http, which a shared client cannot do per
+    // destination (`util::Outbound` serves the bridge's configured services).
     let mut builder = crate::util::outbound_client();
     if let Some(host) = url.host_str()
         && literal_ip(&url).is_none()

@@ -23,7 +23,7 @@ use crate::{
     audit::audit,
     ctx::Ctx,
     error::{ApiFailure, Result},
-    routes::{lobbies, matches},
+    routes::{ledger, lobbies},
     util::new_id,
 };
 
@@ -114,7 +114,7 @@ pub fn register(
             "Registration for this tournament is closed.",
         ));
     }
-    if !matches::linked(
+    if !ledger::linked(
         tx,
         &tournament.connection_id,
         &command.participant_id,
@@ -325,7 +325,7 @@ pub fn cancel(
             if state.status == Status::Playing
                 && let Some(match_id) = &bracket.matches[node]
             {
-                freed.extend(matches::cancel_tournament_set(
+                freed.extend(ledger::cancel_tournament_set(
                     tx,
                     ctx,
                     match_id,
@@ -356,7 +356,7 @@ pub fn cancel(
         "ok",
         Some(reason),
     )?;
-    matches::release_players(tx, ctx, &tournament.connection_id, &freed)?;
+    ledger::release_players(tx, ctx, &tournament.connection_id, &freed)?;
     // Entrants a ready set held back from lobbies are free now.
     let everyone: Vec<EmberId> = entrants(tx, &tournament.id)?
         .into_iter()
@@ -420,7 +420,7 @@ fn withdraw(
     if tournament.state == "running" {
         let mut bracket = load_bracket(tx, tournament)?;
         let freed = progress(tx, ctx, tournament, &mut bracket)?;
-        matches::release_players(tx, ctx, &tournament.connection_id, &freed)?;
+        ledger::release_players(tx, ctx, &tournament.connection_id, &freed)?;
     }
     Ok(())
 }

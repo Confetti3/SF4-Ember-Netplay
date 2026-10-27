@@ -5,7 +5,7 @@ use ember_protocol::tournament::Status;
 use rusqlite::Transaction;
 
 use super::state::Bracket;
-use crate::{error::Result, routes::matches};
+use crate::{error::Result, routes::ledger};
 
 /// One round robin entrant's results. A walkover counts as a set won or lost
 /// with no games.
@@ -43,7 +43,7 @@ pub fn round_robin_table(tx: &Transaction<'_>, bracket: &Bracket) -> Result<Vec<
         if state.status == Status::Played
             && let Some(match_id) = &bracket.matches[node]
         {
-            let (wins, _) = matches::scores(tx, match_id)?;
+            let (wins, _) = ledger::scores(tx, match_id)?;
             for slot in 0..2 {
                 if let Some(seed) = state.slots[slot].entrant() {
                     rows[seed].games_won += u32::from(wins[slot]);

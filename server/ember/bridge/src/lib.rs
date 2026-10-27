@@ -45,6 +45,8 @@ pub struct AppState {
     rate: Arc<rate::Limiter>,
     rooms: Arc<routes::rooms::Shared>,
     ranking_board: Arc<routes::ranking::PublicCache>,
+    /// The client shared by the calls to the bridge's configured services.
+    http: util::Outbound,
 }
 
 impl AppState {
@@ -64,6 +66,7 @@ impl AppState {
             rate: Arc::new(rate::Limiter::default()),
             rooms: Arc::new(routes::rooms::Shared::default()),
             ranking_board: Arc::new(routes::ranking::PublicCache::default()),
+            http: util::Outbound::default(),
         }
     }
 

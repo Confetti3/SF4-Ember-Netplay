@@ -19,7 +19,7 @@ use super::{
 use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
-    routes::matches,
+    routes::ledger,
 };
 
 /// Called by the match code in the transaction that completes a tournament set.
@@ -80,7 +80,7 @@ pub fn on_match_completed(
     )?;
     let tournament = load(tx, tournament_id)?.ok_or_else(ApiFailure::unavailable)?;
     let freed = progress(tx, ctx, &tournament, &mut bracket)?;
-    matches::release_players(tx, ctx, &tournament.connection_id, &freed)
+    ledger::release_players(tx, ctx, &tournament.connection_id, &freed)
 }
 
 /// Called by the match code before any correction of a tournament set that
@@ -136,7 +136,7 @@ pub fn on_reopen(
     let mut games = vec![false; bracket.plan.len()];
     for (later, id) in bracket.matches.iter().enumerate() {
         if let Some(id) = id {
-            games[later] = matches::has_games(tx, id)?;
+            games[later] = ledger::has_games(tx, id)?;
         }
     }
     let cancelled = match bracket::reopen(&bracket.plan, &mut bracket.states, node, |later| {
@@ -163,7 +163,7 @@ pub fn on_reopen(
         if let Some(id) = bracket.matches[later].take() {
             // The caller hands these players on once the reopened set's
             // match is active again, so its own players stay reserved for it.
-            freed.extend(matches::cancel_tournament_set(
+            freed.extend(ledger::cancel_tournament_set(
                 tx,
                 ctx,
                 &id,

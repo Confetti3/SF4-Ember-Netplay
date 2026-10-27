@@ -24,7 +24,10 @@ use crate::{
     ctx::Ctx,
     error::ApiFailure,
     http::{Body, idempotency_key},
-    routes::matches::{NewMatch, busy, idempotent, insert_match, into_response},
+    routes::{
+        idempotency::idempotent,
+        ledger::{NewMatch, busy, insert_match},
+    },
 };
 
 #[derive(Deserialize)]
@@ -176,7 +179,8 @@ pub async fn create(
             make(tx, &ctx, &connection_id, &key, &set, &digest)
         })
         .await?;
-    Ok(into_response(answer))
+    let (status, body) = answer;
+    Ok(crate::http::json(status, &body))
 }
 
 /// The set BluMint asks for, and the digest a key's requests are compared by.

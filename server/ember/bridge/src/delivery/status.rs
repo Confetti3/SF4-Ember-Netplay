@@ -35,7 +35,7 @@ const MAX_COMMIT_WAIT_SECS: u64 = 10;
 /// started on has nothing to say yet.
 pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
     let found = load(tx, match_id)?.ok_or_else(ApiFailure::unavailable)?;
-    if found.state.is_terminal() || !policy::of(tx, &found.connection_id)?.reports_progress {
+    if found.state.is_terminal() || !found.policy()?.reports_progress {
         return Ok(());
     }
     let last: Option<(String, u64)> = tx

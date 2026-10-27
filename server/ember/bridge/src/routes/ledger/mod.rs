@@ -1,6 +1,12 @@
 //! The match ledger shared by every route that changes a match: loading it,
 //! moving its revision, its events, and settling its score after an attempt
 //! is decided, whoever decided it (an organizer or two agreeing fighters).
+//! Creating a match is in `create`, and ending one early or holding it for
+//! review in `lifecycle`.
+mod create;
+mod lifecycle;
+
+pub use create::{NewMatch, ORGANIZER_PROFILE, insert_match, linked};
 use ember_protocol::{
     EmberId,
     api::ErrorCode,
@@ -8,17 +14,21 @@ use ember_protocol::{
     event::{EventScore, Kind, ScoreChangedData},
     matches::{DeliveryState, MatchCompleted, MatchState, Resolution, Score},
 };
+pub use lifecycle::{
+    cancel_and_release, cancel_lobby_set, cancel_tournament_set, has_games, needs_review, on_unlink,
+};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Serialize;
 use serde_json::json;
 
 use crate::{
+    config::Policy,
     ctx::Ctx,
     db,
     delivery::{progress, status},
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
-    routes::{expiry, lobbies},
+    routes::{expiry, lobbies, policy},
     tournament,
 };
 
@@ -46,6 +56,16 @@ pub struct Match {
     pub delivery: DeliveryState,
     /// Games each slot had won when the match started, P1 first.
     pub starting_wins: [u8; 2],
+    /// Its connection's policy (`routes::policy`), read with the match since
+    /// it never changes; None when the connection's record cannot give one.
+    policy: Option<Policy>,
+}
+
+impl Match {
+    /// Its connection's policy, as `policy::of` reads it.
+    pub fn policy(&self) -> Result<Policy> {
+        self.policy.ok_or_else(ApiFailure::unavailable)
+    }
 }
 
 /// The match `id`. A state or delivery state this bridge does not know (a
@@ -72,9 +92,10 @@ pub fn load_listed(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
 
 fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Match>> {
     tx.query_row(
-        "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
-                lobby_id, tournament_id, delivery_state, starting_wins_p1, starting_wins_p2
-         FROM matches WHERE id = ?1",
+        "SELECT m.id, m.tenant_id, m.connection_id, m.external_match_id, m.revision, m.assignment_generation, m.state,
+                m.games_to_win, m.lobby_id, m.tournament_id, m.delivery_state, m.starting_wins_p1, m.starting_wins_p2,
+                c.kind, c.disputes
+         FROM matches m LEFT JOIN provider_connections c ON c.id = m.connection_id WHERE m.id = ?1",
         [id],
         |row| {
             Ok(Match {
@@ -90,6 +111,10 @@ fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Match>> {
                 tournament_id: row.get(9)?,
                 delivery: db::known(row, 10, DeliveryState::parse)?,
                 starting_wins: [row.get(11)?, row.get(12)?],
+                policy: match (row.get::<_, Option<String>>(13)?, row.get::<_, Option<String>>(14)?) {
+                    (Some(kind), Some(disputes)) => policy::of_record(&kind, &disputes),
+                    _ => None,
+                },
             })
         },
     )
@@ -136,27 +161,34 @@ pub fn participants(tx: &Transaction<'_>, id: &str, generation: u64) -> Result<V
     .collect()
 }
 
+/// A match's accepted games won by P1, as SQL over its `matches` row
+/// aliased `m`. These three are the one definition of a match's score: every
+/// count of its games (`scores`, `GET /v1/assignments`, records and lobby
+/// standings) reads them.
+pub const P1_GAMES: &str = "(SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p1_win')";
+/// `P1_GAMES` for P2.
+pub const P2_GAMES: &str = "(SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p2_win')";
+/// `P1_GAMES` for a drawn game.
+pub const DRAWN_GAMES: &str = "(SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'draw')";
+
 /// Wins per slot, from the ledger rather than any room score: the match's
-/// starting wins plus its accepted games, and the accepted attempts.
+/// starting wins plus its accepted games, and the accepted games that were
+/// won (a draw is in neither).
 pub fn scores(tx: &Transaction<'_>, id: &str) -> Result<([u8; 2], Vec<String>)> {
-    let mut wins: [u8; 2] = tx.query_row(
-        "SELECT starting_wins_p1, starting_wins_p2 FROM matches WHERE id = ?1",
+    let wins: [u8; 2] = tx.query_row(
+        &format!(
+            "SELECT m.starting_wins_p1 + {P1_GAMES}, m.starting_wins_p2 + {P2_GAMES} FROM matches m WHERE m.id = ?1"
+        ),
         [id],
         |row| Ok([row.get(0)?, row.get(1)?]),
     )?;
-    let mut accepted = Vec::new();
-    let rows = tx
-        .prepare("SELECT id, outcome FROM attempts WHERE match_id = ?1 AND state = 'accepted' ORDER BY seq")?
-        .query_map([id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    for (attempt, outcome) in rows {
-        match outcome.as_str() {
-            "p1_win" => wins[0] += 1,
-            "p2_win" => wins[1] += 1,
-            _ => continue,
-        }
-        accepted.push(attempt);
-    }
+    let accepted = tx
+        .prepare(
+            "SELECT id FROM attempts WHERE match_id = ?1 AND state = 'accepted' AND outcome IN ('p1_win', 'p2_win')
+             ORDER BY seq",
+        )?
+        .query_map([id], |row| row.get(0))?
+        .collect::<rusqlite::Result<Vec<String>>>()?;
     Ok((wins, accepted))
 }
 
@@ -184,8 +216,11 @@ pub fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) ->
     db::queued();
     // A claim's `ready` is otherwise left as the fighter last said
     // (`unready_before`). Each Ember claims a change of its own seat's Ready
-    // within seconds.
-    status::observe(tx, &found.id, now)?;
+    // within seconds. Only a platform that hears a set's status has one to
+    // observe, and an ended match has none (`status::observe`).
+    if !state.is_terminal() && found.policy()?.reports_progress {
+        status::observe(tx, &found.id, now)?;
+    }
     Ok(revision)
 }
 

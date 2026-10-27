@@ -45,7 +45,7 @@ pub fn game_settled(
     if found.state == MatchState::Completed
         || next != MatchState::BetweenGames
         || !raised
-        || !policy::of(tx, &found.connection_id)?.reports_progress
+        || !found.policy()?.reports_progress
     {
         return Ok(());
     }
@@ -70,9 +70,7 @@ pub fn keep_reported_wins(
     wins_before: [u8; 2],
     wins: [u8; 2],
 ) -> Result<()> {
-    if (0..2).all(|slot| wins[slot] >= wins_before[slot])
-        || !policy::of(tx, &found.connection_id)?.reports_progress
-    {
+    if (0..2).all(|slot| wins[slot] >= wins_before[slot]) || !found.policy()?.reports_progress {
         return Ok(());
     }
     // Sent at least once, whatever its state since: a report the next lease

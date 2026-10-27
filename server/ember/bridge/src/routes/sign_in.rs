@@ -388,7 +388,10 @@ async fn callback(
         end_claimed(&state, &site, hash, now).await;
         return pages.busy();
     }
-    let user = match oauth.user(&redirect_uri(&state, &site), &code).await {
+    let user = match oauth
+        .user(&state.http, &redirect_uri(&state, &site), &code)
+        .await
+    {
         Some(SignedIn::User(user)) => user,
         Some(SignedIn::Unusable(username)) => {
             end_claimed(&state, &site, hash, now).await;

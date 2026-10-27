@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AppState,
-    util::{outbound_client, read_bounded},
+    util::{Outbound, read_bounded},
 };
 
 /// Starting a room host takes longer than an ordinary request.
@@ -40,6 +40,7 @@ const MAX_LIST_ANSWER: usize = MAX_ROOMS_REPORTED * MAX_ROOM_REPORT;
 pub struct Supervisor<'a> {
     base: &'a str,
     secret: &'a str,
+    http: &'a Outbound,
 }
 
 /// What a call to the supervisor can come to.
@@ -136,16 +137,18 @@ impl<'a> Supervisor<'a> {
                 .rooms_supervisor_secret
                 .as_deref()?
                 .as_str(),
+            http: &state.http,
         })
     }
 
-    fn client() -> Result<reqwest::Client, Failure> {
-        outbound_client().build().map_err(|_| Failure::Unavailable)
+    fn client(&self) -> Result<&reqwest::Client, Failure> {
+        self.http.client().map_err(|_| Failure::Unavailable)
     }
 
     pub async fn create(&self, room: &Create<'_>) -> Result<Created, Failure> {
         let body = serde_json::to_vec(room).map_err(|_| Failure::Unavailable)?;
-        let response = Self::client()?
+        let response = self
+            .client()?
             .post(format!("{}/rooms", self.base))
             .bearer_auth(self.secret)
             .timeout(CREATE_TIMEOUT)
@@ -170,7 +173,8 @@ impl<'a> Supervisor<'a> {
     }
 
     pub async fn list(&self) -> Result<Vec<Reported>, Failure> {
-        let response = Self::client()?
+        let response = self
+            .client()?
             .get(format!("{}/rooms", self.base))
             .bearer_auth(self.secret)
             .send()
@@ -189,7 +193,8 @@ impl<'a> Supervisor<'a> {
     /// nobody arrives.
     /// Closes a room; a room the supervisor no longer has counts as closed.
     pub async fn delete(&self, room_id: &str) -> Result<(), Failure> {
-        let response = Self::client()?
+        let response = self
+            .client()?
             .delete(format!("{}/rooms/{room_id}", self.base))
             .bearer_auth(self.secret)
             .send()
