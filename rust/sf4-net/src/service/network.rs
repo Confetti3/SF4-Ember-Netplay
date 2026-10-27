@@ -247,10 +247,10 @@ mod tests {
                 None
             );
         }
-        let timed_out = io::Error::new(io::ErrorKind::TimedOut, transport::HANDSHAKE_TIMED_OUT);
+        let timed_out = transport::timed_out();
         assert_eq!(join_error_reason(&timed_out, true, true), Some("timeout"));
         assert_eq!(join_error_reason(&timed_out, true, false), None);
-        let unreachable = io::Error::new(io::ErrorKind::ConnectionAborted, transport::HOST_UNREACHABLE);
+        let unreachable = transport::host_unreachable();
         for public in [false, true] {
             assert_eq!(
                 join_error_reason(&unreachable, true, public),

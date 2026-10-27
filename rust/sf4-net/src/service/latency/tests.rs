@@ -727,7 +727,7 @@ async fn a_batch_with_an_invalid_then_a_valid_checkpoint_is_a_skip_and_revokes()
     let seats: Vec<Seat> = members.iter().map(Member::seat).collect();
     let valid = checkpoint(&seats, &[]);
     let member = &mut members[0];
-    let (_, before) = member.recovery.coordinator.committed_observed().await;
+    let (_, before) = member.recovery.coordinator.store().committed_observed().await;
     let revocation = member.actor.latency.authority().revocation;
     let accepted = member
         .recovery
@@ -736,7 +736,7 @@ async fn a_batch_with_an_invalid_then_a_valid_checkpoint_is_a_skip_and_revokes()
         .apply_checkpoints(&["{\"checkpoint\": 1}".into(), valid])
         .await;
     assert_eq!(accepted, 2);
-    let (_, after) = member.recovery.coordinator.committed_observed().await;
+    let (_, after) = member.recovery.coordinator.store().committed_observed().await;
     assert_eq!(after, before + 2);
     member.actor.latency_refresh().await;
     let authority = member.actor.latency.authority();
@@ -783,13 +783,13 @@ async fn two_snapshots_at_one_revision_skip_close_slots_and_reject_a_queued_open
     // Two snapshots at the committed revision: another checkpoint, then the
     // original one again.
     let store = first[0].recovery.coordinator.store();
-    let (committed, _) = first[0].recovery.coordinator.committed_observed().await;
+    let (committed, _) = first[0].recovery.coordinator.store().committed_observed().await;
     let revision = committed.revision();
     store
         .install_checkpoint_snapshot("{\"checkpoint\": 2}")
         .await;
     store.install_checkpoint_snapshot(&valid).await;
-    let (committed, _) = first[0].recovery.coordinator.committed_observed().await;
+    let (committed, _) = first[0].recovery.coordinator.store().committed_observed().await;
     assert_eq!(committed.revision(), revision);
     let revocation = first[0].actor.latency.authority().revocation;
     let result = first[0]

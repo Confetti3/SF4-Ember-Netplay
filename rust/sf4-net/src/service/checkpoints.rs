@@ -286,13 +286,13 @@ impl Actor {
         // is past the last export. Compared on every tick rather than taken
         // from a change notice, since a timed-out transfer lowers
         // `last_exported_revision` with no new commit.
-        let latest = recovery.committed_revision();
+        let latest = recovery.coordinator.committed_revision();
         if latest == 0 || latest <= self.last_exported_revision {
             return Ok(());
         }
         let recovery = recovery.clone();
         // The committed value is shared, so looking at it copies nothing.
-        let committed = recovery.committed().await;
+        let committed = recovery.coordinator.store().committed().await;
         if committed.revision() == 0 || committed.revision() <= self.last_exported_revision {
             return Ok(());
         }
@@ -625,7 +625,7 @@ impl Actor {
         // the locally applied committed record authorizes native
         // replay and membership effects; the periodic watcher uses
         // this same durable observation if the waiter never returns.
-        let committed = recovery.committed().await;
+        let committed = recovery.coordinator.store().committed().await;
         let committed_exact = committed.revision() == key.revision
             && committed.term() == key.term
             && committed.request() == key.transfer.to_string()

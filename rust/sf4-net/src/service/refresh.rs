@@ -93,7 +93,7 @@ impl Actor {
     /// commits on its own task, so each commit wakes the actor to hand the
     /// checkpoint to the native side; the forwarding ends with the store.
     pub(super) async fn install_recovery(&mut self, session: crate::recovery::RecoverySession) {
-        let mut commits = session.coordinator.committed_changes().await;
+        let mut commits = session.coordinator.store().committed_changes().await;
         let wake = self.wake.clone();
         tokio::spawn(async move {
             while commits.changed().await.is_ok() {
@@ -135,7 +135,11 @@ impl Actor {
             .collect();
         self.pending_coordination_refresh = Some(key.clone());
         self.tasks.spawn(async move {
-            let (applied_members, applied_history) = recovery.applied_membership_provenance().await;
+            let (applied_members, applied_history) = recovery
+                .coordinator
+                .store()
+                .applied_membership_provenance()
+                .await;
             let mut retired = BTreeSet::new();
             for incarnation in retired_candidates {
                 if recovery.rpc.is_retired(incarnation).await {
@@ -143,8 +147,13 @@ impl Actor {
                 }
             }
             let state = recovery.state().await;
-            let committed = recovery.committed().await;
-            let joint = recovery.applied_joint_goal().await.is_some();
+            let committed = recovery.coordinator.store().committed().await;
+            let joint = recovery
+                .coordinator
+                .store()
+                .applied_joint_goal()
+                .await
+                .is_some();
             let leader = recovery.coordinator.current_leader();
             Completion::CoordinationRefresh(
                 key,
@@ -431,7 +440,7 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
-        let committed_now = recovery.committed().await;
+        let committed_now = recovery.coordinator.store().committed().await;
         let current_term = recovery.coordinator.current_term();
         let current_leader = recovery.coordinator.current_leader();
         let current = key.epoch == self.epoch

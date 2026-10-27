@@ -60,8 +60,8 @@ impl Actor {
         });
         if let Some(recovery) = self.recovery.clone() {
             let state = recovery.state().await;
-            let voters = recovery.applied_voter_ids().await;
-            let applied_members = recovery.applied_member_ids().await;
+            let voters = recovery.coordinator.store().applied_voters().await;
+            let applied_members = recovery.coordinator.store().applied_members().await;
             let coordination_only_departure = self.hosted.is_none()
                 && self.committed_native_members.is_none()
                 && applied_members.contains(&recovery.incarnation)
@@ -113,7 +113,7 @@ impl Actor {
                     let coordination_member_removed = timeout(LEAVE_STEP_TIMEOUT, async {
                         loop {
                             if !recovery
-                                .applied_member_ids()
+                                .coordinator.store().applied_members()
                                 .await
                                 .contains(&recovery.incarnation)
                             {
@@ -127,7 +127,10 @@ impl Actor {
                             // equivalent committed exclusion proof for this
                             // one-way departure route.
                             if recovery
-                                .confirm_departure(state.term, recovery.committed().await.revision())
+                                .confirm_departure(
+                                    state.term,
+                                    recovery.coordinator.store().committed().await.revision(),
+                                )
                                 .await
                                 .is_ok()
                             {
@@ -226,7 +229,7 @@ impl Actor {
                             // Leave, and one that has gone leaves nobody to
                             // hand the room to.
                             if !recovery
-                                .applied_voter_ids()
+                                .coordinator.store().applied_voters()
                                 .await
                                 .contains(&recovery.incarnation)
                             {
@@ -254,7 +257,8 @@ impl Actor {
                             // failure.
                             let singleton = timeout(Duration::from_secs(2), async {
                                 loop {
-                                    let applied = recovery.applied_voter_ids().await;
+                                    let applied =
+                                        recovery.coordinator.store().applied_voters().await;
                                     if applied.len() == 1 && applied.contains(&recovery.incarnation)
                                     {
                                         break true;
@@ -291,12 +295,12 @@ impl Actor {
                 // can stop replicating to the departing follower before its
                 // local metrics learn that fact, so followers also query the
                 // current leader's authenticated voter claim.
-                let minimum_revision = recovery.committed().await.revision();
+                let minimum_revision = recovery.coordinator.store().committed().await.revision();
                 let mut leader_confirmed_departure = false;
                 let removed = timeout(LEAVE_STEP_TIMEOUT, async {
                     loop {
                         if !recovery
-                            .applied_voter_ids()
+                            .coordinator.store().applied_voters()
                             .await
                             .contains(&recovery.incarnation)
                         {
@@ -308,7 +312,7 @@ impl Actor {
                         // command is handled.  There is then no remote
                         // successor left to query: the local committed
                         // membership and leader proof are the handoff.
-                        if recovery.applied_voter_ids().await.len() == 1
+                        if recovery.coordinator.store().applied_voters().await.len() == 1
                             && recovery.coordinator.current_leader() == Some(recovery.incarnation)
                         {
                             leader_confirmed_departure = true;

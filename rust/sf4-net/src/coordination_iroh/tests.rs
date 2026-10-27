@@ -50,7 +50,7 @@ async fn authenticated_iroh_commit_and_host_loss() {
     assert!(nodes[0].propose(proposal).await.unwrap().accepted);
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            if nodes[1].committed().await.revision() == 1 && nodes[2].committed().await.revision() == 1
+            if nodes[1].store().committed().await.revision() == 1 && nodes[2].store().committed().await.revision() == 1
             {
                 break;
             }
@@ -80,7 +80,7 @@ async fn authenticated_iroh_commit_and_host_loss() {
         &nodes[2]
     };
     assert_eq!(
-        successor.committed().await.checkpoint(),
+        successor.store().committed().await.checkpoint(),
         "active generation 42"
     );
     for i in 1..3 {
@@ -326,7 +326,7 @@ async fn concurrent_calls_share_one_dialed_connection() {
     let serving = tokio::spawn(server.clone().serve(coordinator.clone()));
     let expected = server.identity().to_string();
     let call = || {
-        <IrohRpc as RpcTransport>::call(client.as_ref(), 1, expected.clone(), "authority", vec![0])
+        <IrohRpc as RpcTransport>::call(client.as_ref(), 1, expected.clone(), Method::Authority, vec![0])
     };
     let served = || {
         server
@@ -401,7 +401,7 @@ async fn canceled_rpc_closes_the_cached_connection_before_retry() {
         caller.as_ref(),
         2,
         receiver.identity().to_string(),
-        "authority",
+        Method::Authority,
         vec![0],
     );
     cancel_once_received(read, &mut received).await;
@@ -415,7 +415,7 @@ async fn canceled_rpc_closes_the_cached_connection_before_retry() {
         caller.as_ref(),
         2,
         receiver.identity().to_string(),
-        "append",
+        Method::Append,
         vec![0],
     );
     cancel_once_received(call, &mut received).await;
@@ -513,7 +513,7 @@ async fn unanswering_target_cannot_starve_calls_to_others() {
         let caller = caller.clone();
         let expected = silent.identity().to_string();
         silent_calls.spawn(async move {
-            <IrohRpc as RpcTransport>::call(caller.as_ref(), 3, expected, "append", vec![0]).await
+            <IrohRpc as RpcTransport>::call(caller.as_ref(), 3, expected, Method::Append, vec![0]).await
         });
     }
     // The calls past the target's bound are refused at once; the rest wait.
@@ -539,7 +539,7 @@ async fn unanswering_target_cannot_starve_calls_to_others() {
             caller.as_ref(),
             2,
             live.identity().to_string(),
-            "authority",
+            Method::Authority,
             vec![0],
         ),
     )

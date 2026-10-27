@@ -160,7 +160,7 @@ async fn a_room_keeps_admitting_members_past_the_departed_history_bound() {
             .unwrap();
         let _ = learner.raft.shutdown().await;
     }
-    let (members, history) = nodes[0].applied_membership_provenance().await;
+    let (members, history) = nodes[0].store().applied_membership_provenance().await;
     assert_eq!(members, BTreeSet::from([1]));
     assert!(history.len() <= RETAINED_RETIRED_MEMBER_HISTORY + 1);
     // The newest departure is still remembered, the first is not.

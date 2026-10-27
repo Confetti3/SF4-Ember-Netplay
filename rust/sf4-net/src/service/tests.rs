@@ -36,7 +36,7 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
-        let (applied, history) = recovery.applied_membership_provenance().await;
+        let (applied, history) = recovery.coordinator.store().applied_membership_provenance().await;
         let confirmed: Vec<u64> = self
             .pending_retired_incarnations
             .iter()
@@ -1097,7 +1097,7 @@ async fn an_unconfirmed_departure_is_released_by_the_next_epoch() {
             .await
             .unwrap();
         assert_eq!(
-            host_recovery.applied_voter_ids().await,
+            host_recovery.coordinator.store().applied_voters().await,
             BTreeSet::from([host_recovery.incarnation])
         );
         host_recovery.stop().await;
@@ -1159,7 +1159,7 @@ async fn an_abandoned_coordinated_room_keeps_its_vote_for_the_grace() {
 /// Commits a native checkpoint replayable as transfer `transfer` on the
 /// leader's coordination.
 async fn commit_native(recovery: &crate::recovery::RecoverySession, transfer: u64, checkpoint: &str) {
-    let base = recovery.committed().await.revision();
+    let base = recovery.coordinator.store().committed().await.revision();
     let receipt = recovery
         .coordinator
         .propose(crate::coordination::Proposal {
@@ -2674,7 +2674,7 @@ async fn fresh_learner_accepts_membership_only_from_invitation_authority() {
         .unwrap();
         assert_eq!(guest.coordinator.current_leader(), None);
         assert_eq!(
-            guest.applied_membership_provenance().await,
+            guest.coordinator.store().applied_membership_provenance().await,
             (BTreeSet::new(), BTreeSet::new())
         );
 
@@ -2753,28 +2753,28 @@ async fn delayed_admission_cannot_readd_authenticated_removed_voter() {
 
         // This is the service Admission precheck before its await. The
         // authenticated method-7 removal then commits in that window.
-        let (precheck_members, precheck_history) = host.applied_membership_provenance().await;
+        let (precheck_members, precheck_history) = host.coordinator.store().applied_membership_provenance().await;
         assert!(precheck_members.contains(&admission.incarnation));
         assert!(precheck_history.contains(&admission.incarnation));
         assert_eq!(
             host.coordinator
-                .dispatch(admission.incarnation, "remove", &[0])
+                .dispatch(admission.incarnation, crate::coordination::Method::Remove, &[0])
                 .await
                 .unwrap(),
             vec![1]
         );
-        let (members, history) = host.applied_membership_provenance().await;
+        let (members, history) = host.coordinator.store().applied_membership_provenance().await;
         assert_eq!(members, BTreeSet::from([host.incarnation]));
         assert!(history.contains(&admission.incarnation));
 
         assert!(host.add_learner(&admission).await.is_err());
         assert!(host.rpc.is_retired(admission.incarnation).await);
         assert_eq!(
-            host.applied_member_ids().await,
+            host.coordinator.store().applied_members().await,
             BTreeSet::from([host.incarnation])
         );
         assert_eq!(
-            host.applied_voter_ids().await,
+            host.coordinator.store().applied_voters().await,
             BTreeSet::from([host.incarnation])
         );
 
@@ -2823,7 +2823,7 @@ async fn successor_rejects_replayed_admission_from_applied_membership_history() 
             .unwrap();
         assert!(
             !recovery
-                .applied_member_ids()
+                .coordinator.store().applied_members()
                 .await
                 .contains(&admission.incarnation)
         );
@@ -2850,7 +2850,7 @@ async fn successor_rejects_replayed_admission_from_applied_membership_history() 
         );
         assert!(
             !recovery
-                .applied_member_ids()
+                .coordinator.store().applied_members()
                 .await
                 .contains(&admission.incarnation)
         );
@@ -3519,7 +3519,7 @@ async fn overlapping_admissions_are_serialized_and_reach_current_voter_default()
 
         while !actor.admissions.contains_key(&first.incarnation)
             || !actor.admissions.contains_key(&second.incarnation)
-            || recovery.applied_voter_ids().await.len() != 3
+            || recovery.coordinator.store().applied_voters().await.len() != 3
         {
             let completion = timeout(Duration::from_secs(10), actor.tasks.join_next())
                 .await
@@ -3529,7 +3529,7 @@ async fn overlapping_admissions_are_serialized_and_reach_current_voter_default()
             actor.completed(completion).await.unwrap();
         }
         assert_eq!(
-            recovery.applied_voter_ids().await,
+            recovery.coordinator.store().applied_voters().await,
             BTreeSet::from([recovery.incarnation, first.incarnation, second.incarnation])
         );
         actor.tasks.abort_all();
@@ -3775,7 +3775,7 @@ async fn expired_probe_authorization_completion_never_installs_or_dials() {
             Ok(ProbeAuthorization {
                 term: recovery.coordinator.current_term(),
                 leader: recovery.coordinator.current_leader(),
-                revision: recovery.committed().await.revision(),
+                revision: recovery.coordinator.store().committed().await.revision(),
                 expires: now().unwrap() + 60,
                 // Its window has run out on the monotonic clock, whatever the wall
                 // clock says.
@@ -4728,7 +4728,7 @@ async fn a_rejoining_incarnation_supersedes_the_older_one_of_its_endpoint() {
         ));
         timeout(Duration::from_secs(30), async {
             loop {
-                let members = recovery.applied_member_ids().await;
+                let members = recovery.coordinator.store().applied_members().await;
                 if members.contains(&new.incarnation) && !members.contains(&old.incarnation) {
                     break;
                 }
@@ -4773,12 +4773,7 @@ async fn failed_attempts_say_at_which_stage_they_failed() {
     let local = endpoint().await;
     let (events, mut receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(local.clone(), events);
-    let unreachable = || {
-        io::Error::new(
-            io::ErrorKind::ConnectionAborted,
-            transport::HOST_UNREACHABLE,
-        )
-    };
+    let unreachable = transport::host_unreachable;
     // A join whose connection never opened, with no home relay connected here
     // (the test endpoint has none): the relay is what is missing.
     actor.epoch = 1;
@@ -4816,7 +4811,7 @@ async fn failed_attempts_say_at_which_stage_they_failed() {
         ),
         (
             5,
-            io::Error::new(io::ErrorKind::TimedOut, transport::HANDSHAKE_TIMED_OUT),
+            transport::timed_out(),
             "timeout",
         ),
     ] {
@@ -4842,7 +4837,7 @@ async fn failed_attempts_say_at_which_stage_they_failed() {
         (6, transport::admission_refused()),
         (
             7,
-            io::Error::new(io::ErrorKind::TimedOut, transport::HANDSHAKE_TIMED_OUT),
+            transport::timed_out(),
         ),
     ] {
         actor.epoch = epoch;
@@ -5028,7 +5023,7 @@ async fn learner_follower() -> LearnerFollower {
     follower.next_transport_message = TRANSPORT_MESSAGE_ID_BASE + 1;
     follower.controls.insert(fixture.host.id(), worker);
     while learner.coordinator.current_leader() != Some(fixture.recovery.incarnation)
-        || learner.applied_voter_ids().await != BTreeSet::from([fixture.recovery.incarnation])
+        || learner.coordinator.store().applied_voters().await != BTreeSet::from([fixture.recovery.incarnation])
     {
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
@@ -5170,20 +5165,20 @@ async fn removing_a_voter_does_not_wait_for_an_unreachable_voter() {
             (dead_primary.id(), dead.incarnation),
         ]));
         let term = recovery.state().await.term;
-        let revision = recovery.committed().await.revision();
+        let revision = recovery.coordinator.store().committed().await.revision();
         actor.spawn_membership_operation(retained, term, revision);
         // The replacement voter set leaves out the voter that cannot answer,
         // so the change commits instead of waiting on it.
         complete_next(&mut actor).await;
         assert_eq!(
-            recovery.applied_voter_ids().await,
+            recovery.coordinator.store().applied_voters().await,
             BTreeSet::from([recovery.incarnation])
         );
         assert!(actor.retired_incarnations.contains(&leaving.incarnation));
         // The unreachable voter keeps its membership as a learner.
         assert!(
             recovery
-                .applied_member_ids()
+                .coordinator.store().applied_members()
                 .await
                 .contains(&dead.incarnation)
         );
@@ -5253,7 +5248,7 @@ async fn a_probe_reservation_wait_does_not_block_the_actor() {
                 request: "roster".into(),
                 dedup_id: "roster".into(),
                 term: state.term,
-                base: recovery.committed().await.revision(),
+                base: recovery.coordinator.store().committed().await.revision(),
                 checkpoint: roster.to_string().into(),
                 admin: None,
             })
@@ -5608,7 +5603,7 @@ impl ReservationFixture {
                 request: "roster".into(),
                 dedup_id: "roster".into(),
                 term: state.term,
-                base: recovery.committed().await.revision(),
+                base: recovery.coordinator.store().committed().await.revision(),
                 checkpoint: roster.to_string().into(),
                 admin: None,
             })
@@ -6005,7 +6000,7 @@ impl ReservationFixture {
                 request: format!("roster:{revision}"),
                 dedup_id: format!("roster:{revision}"),
                 term: self.term,
-                base: self.recovery.committed().await.revision(),
+                base: self.recovery.coordinator.store().committed().await.revision(),
                 checkpoint: roster.to_string().into(),
                 admin: None,
             })

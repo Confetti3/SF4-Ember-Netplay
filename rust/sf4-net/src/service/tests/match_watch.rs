@@ -358,7 +358,7 @@ async fn refusal(from: &Endpoint, host: &Endpoint) -> Vec<u8> {
 /// Commits `checkpoint` on the leader's coordination.
 async fn commit(recovery: &RecoverySession, checkpoint: String) {
     let term = recovery.state().await.term;
-    let base = recovery.committed().await.revision();
+    let base = recovery.coordinator.store().committed().await.revision();
     let receipt = recovery
         .coordinator
         .propose(crate::coordination::Proposal {
@@ -388,7 +388,13 @@ async fn a_bound_room_takes_a_control_only_from_an_endpoint_it_names() {
             ),
         )
         .await;
-        let revision = fixture.recovery.committed().await.revision();
+        let revision = fixture
+            .recovery
+            .coordinator
+            .store()
+            .committed()
+            .await
+            .revision();
         // The gate reads the roster the next refresh caches.
         loop {
             if let Event::CoordinationState { revision: read, .. } =

@@ -1236,7 +1236,7 @@ impl Actor {
                     let current = epoch == self.epoch
                         && self.control_rejoin_member(peer) == Some(incarnation);
                     let active = if let Some(recovery) = &self.recovery {
-                        recovery.applied_member_ids().await.contains(&incarnation)
+                        recovery.coordinator.store().applied_members().await.contains(&incarnation)
                     } else {
                         false
                     };

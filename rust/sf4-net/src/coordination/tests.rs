@@ -31,7 +31,7 @@ impl RpcTransport for TestNetwork {
         &self,
         target: u64,
         _: String,
-        method: &'static str,
+        method: Method,
         body: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = io::Result<Vec<u8>>> + Send + '_>> {
         Box::pin(async move {
@@ -40,12 +40,12 @@ impl RpcTransport for TestNetwork {
                 return Err(io::Error::other("test partition"));
             }
             drop(isolated);
-            if method == "append" {
+            if method == Method::Append {
                 let delay = self.bus.append_delay_ms.load(Ordering::Relaxed);
                 if delay != 0 {
                     tokio::time::sleep(Duration::from_millis(delay)).await;
                 }
-            } else if method == "snapshot" {
+            } else if method == Method::Snapshot {
                 self.bus.snapshot_rpc_count.fetch_add(1, Ordering::Relaxed);
                 let rpc_delay = self.bus.snapshot_rpc_delay_ms.load(Ordering::Relaxed);
                 if rpc_delay != 0 {
@@ -293,6 +293,27 @@ fn wire_one_body<T: Serialize>(value: &T) -> Vec<u8> {
 }
 
 #[test]
+fn the_rpc_method_bytes_are_fixed() {
+    let methods = [
+        (Method::Append, 1, "append"),
+        (Method::Vote, 2, "vote"),
+        (Method::Snapshot, 3, "snapshot"),
+        (Method::Authority, 4, "authority"),
+        (Method::Propose, 5, "propose"),
+        (Method::Elect, 6, "elect"),
+        (Method::Remove, 7, "remove"),
+    ];
+    for (method, byte, name) in methods {
+        assert_eq!(method.byte(), byte);
+        assert_eq!(Method::from_byte(byte), Some(method));
+        assert_eq!(method.name(), name);
+    }
+    for byte in [0, 8, 255] {
+        assert_eq!(Method::from_byte(byte), None);
+    }
+}
+
+#[test]
 fn the_coordination_wire_is_versioned_bounded_and_verified() {
     let checkpoint = sample_checkpoint(64 * 1024);
     let request = append_request(6, &checkpoint);
@@ -426,14 +447,14 @@ async fn wire_one_bodies_and_snapshots_are_refused_without_a_panic() {
     let (_bus, nodes) = cluster(1).await;
     let node = &nodes[0];
     let append = wire_one_body(&append_request(6, "first state"));
-    assert!(node.dispatch(2, "append", &append).await.is_err());
+    assert!(node.dispatch(2, Method::Append, &append).await.is_err());
     let heartbeat = wire_one_body(&AppendEntriesRequest::<RoomTypes> {
         vote: Vote::new_committed(3, 2),
         prev_log_id: None,
         entries: vec![],
         leader_commit: None,
     });
-    assert!(node.dispatch(2, "append", &heartbeat).await.is_err());
+    assert!(node.dispatch(2, Method::Append, &heartbeat).await.is_err());
     let leader = openraft::CommittedLeaderId::new(3, 2);
     let snapshot = serde_json::to_vec(&json!({
         "vote": Vote::new_committed(3, 2),
@@ -447,7 +468,7 @@ async fn wire_one_bodies_and_snapshots_are_refused_without_a_panic() {
         "done": false,
     }))
     .unwrap();
-    assert!(node.dispatch(2, "snapshot", &snapshot).await.is_err());
+    assert!(node.dispatch(2, Method::Snapshot, &snapshot).await.is_err());
 
     // A snapshot under the old magic is refused, as installed and as read.
     let source = node.store().snapshot_source().await;
@@ -464,7 +485,7 @@ async fn wire_one_bodies_and_snapshots_are_refused_without_a_panic() {
             .is_err()
     );
     // The node still serves.
-    assert!(node.dispatch(2, "authority", &[0]).await.is_ok());
+    assert!(node.dispatch(2, Method::Authority, &[0]).await.is_ok());
     stop(nodes).await;
 }
 
@@ -504,7 +525,7 @@ async fn a_proposal_is_compressed_once_for_every_follower() {
         loop {
             let mut applied = true;
             for node in &nodes[1..] {
-                applied &= node.committed().await.checkpoint() == checkpoint;
+                applied &= node.store().committed().await.checkpoint() == checkpoint;
             }
             if applied {
                 break;
@@ -642,10 +663,10 @@ impl RpcTransport for RecordingTransport {
         &self,
         target: u64,
         _: String,
-        method: &'static str,
+        method: Method,
         body: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = io::Result<Vec<u8>>> + Send + '_>> {
-        self.bodies.lock().unwrap().push((target, method, body));
+        self.bodies.lock().unwrap().push((target, method.name(), body));
         Box::pin(async { Ok(serde_json::to_vec(&AppendEntriesResponse::<u64>::Success).unwrap()) })
     }
 }
@@ -860,9 +881,9 @@ async fn the_committed_revision_is_read_without_the_store_lock() {
     assert_eq!(node.committed_revision(), 1);
     let store = node.store();
     assert_eq!(store.apply_checkpoints(&["second".into()]).await, 1);
-    assert_eq!(node.committed_revision(), node.committed().await.revision());
+    assert_eq!(node.committed_revision(), node.store().committed().await.revision());
     store.install_checkpoint_snapshot("replaced").await;
-    assert_eq!(node.committed_revision(), node.committed().await.revision());
+    assert_eq!(node.committed_revision(), node.store().committed().await.revision());
     // Read while the store is locked.
     let guard = store.hold_lock().await;
     assert_eq!(node.committed_revision(), 2);
@@ -897,8 +918,8 @@ async fn simultaneous_authority_claims_share_one_fresh_read_barrier() {
 #[tokio::test]
 async fn a_follower_announces_each_commit_and_shares_its_checkpoint() {
     let (_bus, nodes) = cluster(3).await;
-    let mut commits = nodes[1].committed_changes().await;
-    let empty = nodes[1].committed().await;
+    let mut commits = nodes[1].store().committed_changes().await;
+    let empty = nodes[1].store().committed().await;
     assert_eq!((empty.revision, empty.digest()), (0, [0; 32]));
     assert!(
         nodes[0]
@@ -917,11 +938,11 @@ async fn a_follower_announces_each_commit_and_shares_its_checkpoint() {
     .expect("the follower's commit was announced");
     // One shared value per commit: a second look is the same value, and its
     // digest is the checkpoint's.
-    let first = nodes[1].committed().await;
+    let first = nodes[1].store().committed().await;
     assert_eq!((first.revision, first.request.as_str()), (1, "one"));
     assert_eq!(&*first.checkpoint, "first state");
     assert_eq!(first.digest(), crate::recovery::sha256(b"first state"));
-    let again = nodes[1].committed().await;
+    let again = nodes[1].store().committed().await;
     assert!(Arc::ptr_eq(&first, &again) && first.same_commit(&again));
     assert!(!first.same_commit(&empty));
 
@@ -992,8 +1013,8 @@ async fn commitment_deduplication_and_checkpoint_transfer() {
 #[tokio::test]
 async fn two_member_partition_never_commits_a_second_host() {
     let (bus, nodes) = cluster(2).await;
-    assert_eq!(nodes[0].applied_voter_ids().await, BTreeSet::from([1, 2]));
-    assert_eq!(nodes[1].applied_voter_ids().await, BTreeSet::from([1, 2]));
+    assert_eq!(nodes[0].store().applied_voters().await, BTreeSet::from([1, 2]));
+    assert_eq!(nodes[1].store().applied_voters().await, BTreeSet::from([1, 2]));
     assert!(
         nodes[0]
             .propose(proposal(&nodes[0], "initial", 0, "host one"))
@@ -1008,20 +1029,20 @@ async fn two_member_partition_never_commits_a_second_host() {
     )
     .await;
     assert!(attempted.is_err() || attempted.unwrap().is_err());
-    assert_eq!(nodes[0].committed().await.revision, 1);
-    assert_eq!(nodes[1].committed().await.revision, 1);
+    assert_eq!(nodes[0].store().committed().await.revision, 1);
+    assert_eq!(nodes[1].store().committed().await.revision, 1);
     stop(nodes).await;
 }
 
 #[tokio::test]
 async fn admitted_voter_can_commit_its_own_non_native_departure() {
     let (_, nodes) = cluster(2).await;
-    assert_eq!(nodes[0].applied_voter_ids().await, BTreeSet::from([1, 2]));
-    let response = nodes[0].dispatch(2, "remove", &[0]).await.unwrap();
+    assert_eq!(nodes[0].store().applied_voters().await, BTreeSet::from([1, 2]));
+    let response = nodes[0].dispatch(2, Method::Remove, &[0]).await.unwrap();
     assert_eq!(response, vec![1]);
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            if nodes[0].applied_voter_ids().await == BTreeSet::from([1]) {
+            if nodes[0].store().applied_voters().await == BTreeSet::from([1]) {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(25)).await;
@@ -1054,8 +1075,8 @@ async fn coordination_only_learner_is_removed_before_departure_proof() {
         .unwrap();
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            let voters = nodes[0].applied_voter_ids().await;
-            let members = nodes[0].applied_member_ids().await;
+            let voters = nodes[0].store().applied_voters().await;
+            let members = nodes[0].store().applied_members().await;
             if voters == BTreeSet::from([1, 2]) && members.contains(&3) {
                 break;
             }
@@ -1068,10 +1089,10 @@ async fn coordination_only_learner_is_removed_before_departure_proof() {
     // A native Join rejection leaves the helper as an authenticated
     // learner. Its authenticated self-removal must use RemoveNodes,
     // rather than the voter-only replacement transition.
-    assert_eq!(nodes[0].dispatch(3, "remove", &[0]).await.unwrap(), vec![1]);
+    assert_eq!(nodes[0].dispatch(3, Method::Remove, &[0]).await.unwrap(), vec![1]);
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            if !nodes[0].applied_member_ids().await.contains(&3) {
+            if !nodes[0].store().applied_members().await.contains(&3) {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(25)).await;
@@ -1117,7 +1138,7 @@ async fn only_a_voter_asks_for_a_vote_and_only_as_a_candidate() {
         .unwrap();
     let follower = &nodes[1];
     tokio::time::timeout(Duration::from_secs(5), async {
-        while !follower.applied_member_ids().await.contains(&4) {
+        while !follower.store().applied_members().await.contains(&4) {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
     })
@@ -1132,7 +1153,7 @@ async fn only_a_voter_asks_for_a_vote_and_only_as_a_candidate() {
     // A learner is not a candidate.
     assert!(
         follower
-            .dispatch(4, "vote", &request(Vote::new(term + 5, 4)))
+            .dispatch(4, Method::Vote, &request(Vote::new(term + 5, 4)))
             .await
             .is_err()
     );
@@ -1140,7 +1161,7 @@ async fn only_a_voter_asks_for_a_vote_and_only_as_a_candidate() {
     // carrying a committed vote is not one.
     assert!(
         follower
-            .dispatch(3, "vote", &request(Vote::new_committed(term + 5, 3)))
+            .dispatch(3, Method::Vote, &request(Vote::new_committed(term + 5, 3)))
             .await
             .is_err()
     );
@@ -1149,7 +1170,7 @@ async fn only_a_voter_asks_for_a_vote_and_only_as_a_candidate() {
     // A voter's candidate request is still answered.
     assert!(
         follower
-            .dispatch(3, "vote", &request(Vote::new(term, 3)))
+            .dispatch(3, Method::Vote, &request(Vote::new(term, 3)))
             .await
             .is_ok()
     );
@@ -1175,8 +1196,8 @@ async fn a_leader_removing_itself_still_commits_and_hands_over() {
         .await
         .unwrap();
     tokio::time::timeout(Duration::from_secs(5), async {
-        while nodes[1].applied_voter_ids().await != BTreeSet::from([2, 3])
-            || nodes[2].applied_voter_ids().await != BTreeSet::from([2, 3])
+        while nodes[1].store().applied_voters().await != BTreeSet::from([2, 3])
+            || nodes[2].store().applied_voters().await != BTreeSet::from([2, 3])
         {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
@@ -1205,13 +1226,13 @@ async fn a_singleton_handoff_elects_the_successor_and_replicates() {
         .await
         .unwrap();
     tokio::time::timeout(Duration::from_secs(5), async {
-        while nodes[1].applied_voter_ids().await != BTreeSet::from([2]) {
+        while nodes[1].store().applied_voters().await != BTreeSet::from([2]) {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
     })
     .await
     .expect("successor never applied the singleton membership");
-    assert_eq!(nodes[1].dispatch(1, "elect", &[0]).await.unwrap(), vec![1]);
+    assert_eq!(nodes[1].dispatch(1, Method::Elect, &[0]).await.unwrap(), vec![1]);
     nodes[1]
         .raft
         .wait(Some(Duration::from_secs(5)))
@@ -1224,7 +1245,7 @@ async fn a_singleton_handoff_elects_the_successor_and_replicates() {
         .unwrap();
     assert!(receipt.accepted);
     tokio::time::timeout(Duration::from_secs(5), async {
-        while &*nodes[2].committed().await.checkpoint != "handed over" {
+        while &*nodes[2].store().committed().await.checkpoint != "handed over" {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
     })
@@ -1247,7 +1268,7 @@ async fn majority_recovers_and_old_leader_is_fenced() {
     nodes[1].raft.trigger().elect().await.unwrap();
     let successor = wait_for_successor(&nodes, "majority recovery").await;
     assert_eq!(
-        &*nodes[successor].committed().await.checkpoint,
+        &*nodes[successor].store().committed().await.checkpoint,
         "live match generation 9"
     );
     assert!(
@@ -1348,13 +1369,13 @@ async fn an_abandoned_joint_membership_is_finished_without_its_old_quorum() {
         .is_err()
     );
     tokio::time::timeout(Duration::from_secs(10), async {
-        while nodes[0].applied_joint_goal().await.is_none() {
+        while nodes[0].store().applied_joint_goal().await.is_none() {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
     })
     .await
     .expect("the abandoned joint configuration commits");
-    assert_eq!(nodes[0].applied_joint_goal().await, Some(goal.clone()));
+    assert_eq!(nodes[0].store().applied_joint_goal().await, Some(goal.clone()));
     // Then the other two drop: the old half has lost its quorum, so a read
     // that needs both halves cannot finish it.
     bus.append_delay_ms.store(0, Ordering::Relaxed);
@@ -1369,8 +1390,8 @@ async fn an_abandoned_joint_membership_is_finished_without_its_old_quorum() {
             .expect("the uniform half commits with the goal's own quorum")
             .unwrap()
     );
-    assert_eq!(nodes[0].applied_joint_goal().await, None);
-    assert_eq!(nodes[0].applied_voter_ids().await, goal);
+    assert_eq!(nodes[0].store().applied_joint_goal().await, None);
+    assert_eq!(nodes[0].store().applied_voters().await, goal);
     tokio::time::timeout(Duration::from_secs(5), nodes[0].raft.ensure_linearizable())
         .await
         .expect("the room commits again")
@@ -1382,6 +1403,8 @@ async fn an_abandoned_joint_membership_is_finished_without_its_old_quorum() {
     stop(nodes).await;
 }
 
+// Store helpers the latency tests drive the state machine with.
+mod store_support;
 // Relay-sized appends and snapshot transfer to new replicas.
 mod transfer;
 // Departed-member history and its bound.

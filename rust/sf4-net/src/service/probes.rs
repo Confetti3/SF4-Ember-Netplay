@@ -216,7 +216,7 @@ impl Actor {
                 Ok(ProbeAuthorization {
                     term: state.term,
                     leader: recovery.coordinator.current_leader(),
-                    revision: recovery.committed().await.revision(),
+                    revision: recovery.coordinator.store().committed().await.revision(),
                     expires,
                     deadline,
                 })
@@ -241,7 +241,7 @@ impl Actor {
             return Ok(());
         };
         let valid = if let Ok(authorization) = &result {
-            let committed_revision = recovery.committed().await.revision();
+            let committed_revision = recovery.coordinator.store().committed().await.revision();
             key.epoch == self.epoch
                 && self.room == Some(key.room)
                 && recovery.room == key.room
@@ -504,15 +504,19 @@ impl Actor {
         // replaced the seats: the check is stale, not invalid, and is dropped
         // with no permission and no closed control.
         let reserved = move |recovery: crate::recovery::RecoverySession| async move {
+            let reservation = crate::coordination::ProbeReservation {
+                room: recovery.room,
+                source_incarnation,
+                target_incarnation,
+                request,
+                pair_revision,
+                term,
+                expires,
+            };
             recovery
-                .probe_reserved(
-                    source_incarnation,
-                    target_incarnation,
-                    request,
-                    pair_revision,
-                    term,
-                    expires,
-                )
+                .coordinator
+                .store()
+                .probe_reserved(&reservation)
                 .await
         };
         let settled = move |recovery: crate::recovery::RecoverySession| async move {

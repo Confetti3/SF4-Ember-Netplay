@@ -225,8 +225,8 @@ impl Actor {
                 if recovery.coordinator.current_leader() == Some(recovery.incarnation) {
                     // An abandoned joint configuration first: every other
                     // change below commits through its quorum.
-                    recovery.finish_joint_membership().await?;
-                    let applied_voters = recovery.applied_voter_ids().await;
+                    recovery.coordinator.finish_joint_membership().await?;
+                    let applied_voters = recovery.coordinator.store().applied_voters().await;
                     let voter_removals = pending
                         .intersection(&applied_voters)
                         .copied()
@@ -270,7 +270,7 @@ impl Actor {
                     if recovery.coordinator.current_term() != term {
                         return Err(failed("obsolete membership operation"));
                     }
-                    let voters_after = recovery.applied_voter_ids().await;
+                    let voters_after = recovery.coordinator.store().applied_voters().await;
                     // Only members the coordination group does not hold yet are
                     // added. Adding a learner waits for it to catch up, so
                     // repeating it for one that has gone away would hold this
@@ -278,7 +278,7 @@ impl Actor {
                     // added back: a match room fences members the native
                     // roster still lists, and a retry after a stale completion
                     // finds them already removed.
-                    let members_before = recovery.applied_member_ids().await;
+                    let members_before = recovery.coordinator.store().applied_members().await;
                     for admission in admissions.values().filter(|admission| {
                         retained.contains(&admission.primary_endpoint)
                             && !pending.contains(&admission.incarnation)
@@ -287,7 +287,7 @@ impl Actor {
                     }) {
                         recovery.add_learner(admission).await?;
                     }
-                    let members = recovery.applied_member_ids().await;
+                    let members = recovery.coordinator.store().applied_members().await;
                     let learner_removals = pending
                         .intersection(&members)
                         .filter(|incarnation| !voters_after.contains(incarnation))
@@ -298,7 +298,7 @@ impl Actor {
                         restore_stable_voters(&recovery, &snapshot).await?;
                     }
                 }
-                let members = recovery.applied_member_ids().await;
+                let members = recovery.coordinator.store().applied_members().await;
                 let confirmed_retirements = pending
                     .difference(&members)
                     .copied()
@@ -435,7 +435,7 @@ impl Actor {
                     if recovery.coordinator.current_term() == key.term
                         && recovery.coordinator.current_leader() == key.leader
                     {
-                        let current = recovery.applied_voter_ids().await;
+                        let current = recovery.coordinator.store().applied_voters().await;
                         let voters = admission_voters(
                             &current,
                             candidates,
@@ -464,7 +464,11 @@ impl Actor {
                         recovery.admit(admission).await?;
                     }
                 }
-                let (members, history) = recovery.applied_membership_provenance().await;
+                let (members, history) = recovery
+                    .coordinator
+                    .store()
+                    .applied_membership_provenance()
+                    .await;
                 if admissions.iter().any(|admission| {
                     history.contains(&admission.incarnation)
                         && !members.contains(&admission.incarnation)
@@ -492,7 +496,7 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
-        let committed_revision = recovery.committed().await.revision();
+        let committed_revision = recovery.coordinator.store().committed().await.revision();
         let current = key.epoch == self.epoch
             && self.room == Some(key.room)
             && recovery.room == key.room
@@ -500,7 +504,11 @@ impl Actor {
             && recovery.coordinator.current_term() == key.term
             && committed_revision == key.revision;
         if current && let Ok(result) = result {
-            let (_, history) = recovery.applied_membership_provenance().await;
+            let (_, history) = recovery
+                .coordinator
+                .store()
+                .applied_membership_provenance()
+                .await;
             let confirmed = result.confirmed_retirements;
             self.apply_confirmed_retirements(confirmed.clone(), &history);
             // Only now, with the old quorum no longer needing it, does a
@@ -537,7 +545,11 @@ impl Actor {
         let mut published_roster_changed = false;
         let mut accepted = BTreeSet::new();
         if current_room && let Ok(result) = result {
-            let (members, history) = recovery.applied_membership_provenance().await;
+            let (members, history) = recovery
+                .coordinator
+                .store()
+                .applied_membership_provenance()
+                .await;
             for admission in result.admissions {
                 if self
                     .pending_admissions
@@ -680,7 +692,7 @@ async fn restore_stable_voters(
         voters: eligible,
     } = snapshot;
     let desired = snapshot.desired();
-    let current = recovery.applied_voter_ids().await;
+    let current = recovery.coordinator.store().applied_voters().await;
     if current.len() > desired {
         // The leader keeps its vote, then the voters that still answer. The
         // joint change commits through the current voters, so a set that
@@ -709,7 +721,7 @@ async fn restore_stable_voters(
     if current.len() == desired {
         return Ok(());
     }
-    let members = recovery.applied_member_ids().await;
+    let members = recovery.coordinator.store().applied_members().await;
     // Only promote members with a live control link. A voter that cannot
     // acknowledge the joint membership freezes every later commit; the next
     // refresh retries once the member reconnects or leaves the roster.

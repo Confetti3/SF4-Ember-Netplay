@@ -192,7 +192,7 @@ impl Room {
     }
 
     async fn voters(&self) -> BTreeSet<u64> {
-        self.recovery.applied_voter_ids().await
+        self.recovery.coordinator.store().applied_voters().await
     }
 
     fn closed(&self, peer: EndpointId) -> bool {
@@ -326,7 +326,7 @@ async fn a_stranger_is_fenced_at_the_bind_and_closed_once_its_retirement_is_conf
         assert!(
             !room
                 .recovery
-                .applied_member_ids()
+                .coordinator.store().applied_members()
                 .await
                 .contains(&stranger.incarnation)
         );
@@ -447,7 +447,7 @@ async fn a_fighter_back_on_a_new_endpoint_before_the_bind_leaves_the_room_commit
         assert!(
             !room
                 .recovery
-                .applied_member_ids()
+                .coordinator.store().applied_members()
                 .await
                 .contains(&back.incarnation)
         );
@@ -713,7 +713,7 @@ async fn a_stranger_that_keeps_presenting_admissions_is_still_retired_and_closed
             assert!(
                 !room
                     .recovery
-                    .applied_member_ids()
+                    .coordinator.store().applied_members()
                     .await
                     .contains(&incarnation)
             );
@@ -872,8 +872,8 @@ async fn a_follower_keeps_its_control_to_a_leader_the_binding_does_not_name() {
         // The other fighter is named by the native checkpoint but offline.
         room.incarnations.insert(members[2], u64::MAX);
         room.commit(&members, tournament(&members[1..], &[])).await;
-        let revision = room.recovery.committed().await.revision();
-        while fighter.session.committed().await.revision() < revision {
+        let revision = room.recovery.coordinator.store().committed().await.revision();
+        while fighter.session.coordinator.store().committed().await.revision() < revision {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
         follower.refresh().await;

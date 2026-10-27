@@ -294,7 +294,7 @@ impl Actor {
         {
             return;
         }
-        let voters = recovery.applied_voter_ids().await;
+        let voters = recovery.coordinator.store().applied_voters().await;
         let candidate = voters.into_iter().find(|incarnation| {
             *incarnation != lost_leader
                 && !self.pending_retired_incarnations.contains(incarnation)
@@ -482,7 +482,11 @@ impl Actor {
                 {
                     return Err(failed("retired coordination incarnation"));
                 }
-                let (applied, applied_history) = recovery.applied_membership_provenance().await;
+                let (applied, applied_history) = recovery
+                    .coordinator
+                    .store()
+                    .applied_membership_provenance()
+                    .await;
                 if admission.incarnation != recovery.incarnation
                     && !applied.contains(&admission.incarnation)
                     && (self
@@ -541,7 +545,11 @@ impl Actor {
                 let Some(recovery) = self.recovery.clone() else {
                     return Ok(false);
                 };
-                let (applied, applied_history) = recovery.applied_membership_provenance().await;
+                let (applied, applied_history) = recovery
+                    .coordinator
+                    .store()
+                    .applied_membership_provenance()
+                    .await;
                 let leader_primary = if let Some(leader) = recovery.coordinator.current_leader() {
                     self.admissions
                         .get(&leader)
@@ -655,7 +663,7 @@ impl Actor {
         }
         if let Some(recovery) = &self.recovery
             && recovery
-                .applied_member_ids()
+                .coordinator.store().applied_members()
                 .await
                 .contains(&recovery.incarnation)
         {

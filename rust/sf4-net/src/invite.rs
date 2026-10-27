@@ -26,6 +26,11 @@ const RECOVERY_PREFIX: &str = "sf4e3:";
 const LEGACY_PREFIX: &str = "sf4e1:";
 const DISCORD_PREFIX: &str = "emd1:";
 const RECOVERY_DISCORD_PREFIX: &str = "emd2:";
+/// The bytes of a compact record before its build: all a Discord text
+/// carries.
+const HEADER: usize = 91;
+/// The same for an sf4e3 record, which adds the coordination route.
+const RECOVERY_HEADER: usize = HEADER + 32 + 8 + 8;
 // Stable wire IDs, independent of relay-map iteration order. Never reorder or
 // reuse these entries; a different dictionary requires a new invite version.
 const RELAYS: [&str; 4] = [
@@ -101,6 +106,12 @@ fn invalid() -> io::Error {
     )
 }
 
+/// The payload of a Discord text, emd1 or emd2.
+fn discord_payload(text: &str) -> Option<&str> {
+    text.strip_prefix(DISCORD_PREFIX)
+        .or_else(|| text.strip_prefix(RECOVERY_DISCORD_PREFIX))
+}
+
 fn relay_allowed(relay: &RelayUrl) -> bool {
     // Match entire normalized URLs from the pinned Iroh release. Suffix checks
     // would admit credentials, arbitrary paths, ports, and look-alike hosts.
@@ -117,19 +128,11 @@ impl Invite {
             return Err(invalid());
         }
         let text = text.trim_matches(|character: char| character.is_ascii_whitespace());
-        if let Some(payload) = text
-            .strip_prefix(DISCORD_PREFIX)
-            .or_else(|| text.strip_prefix(RECOVERY_DISCORD_PREFIX))
-        {
+        if let Some(payload) = discord_payload(text) {
             if text.len() != 127 || build.is_empty() || build.len() > 128 {
                 return Err(invalid());
             }
-            let mut bytes = URL_SAFE_NO_PAD.decode(payload).map_err(|_| invalid())?;
-            if bytes.len() != 91 {
-                return Err(invalid());
-            }
-            bytes.extend_from_slice(build.as_bytes());
-            let invite = Self::decode_compact(&bytes)?;
+            let invite = Self::decode_discord(payload, build)?;
             invite.validate(now)?;
             Ok(invite)
         } else {
@@ -142,17 +145,16 @@ impl Invite {
     }
 
     /// Export only to the authenticated local Discord bridge, never logs.
+    /// The text carries the first `HEADER` bytes of the record alone, for a
+    /// recovery invitation too: neither its route nor its build.
     pub fn encode_discord(&self) -> io::Result<String> {
-        let encoded = self.encode()?;
-        let bytes = URL_SAFE_NO_PAD
-            .decode(&encoded[PREFIX.len()..])
-            .map_err(|_| invalid())?;
+        let bytes = self.compact_bytes()?;
         let prefix = if self.coordination_endpoint.is_some() {
             RECOVERY_DISCORD_PREFIX
         } else {
             DISCORD_PREFIX
         };
-        Ok(format!("{prefix}{}", URL_SAFE_NO_PAD.encode(&bytes[..91])))
+        Ok(format!("{prefix}{}", URL_SAFE_NO_PAD.encode(&bytes[..HEADER])))
     }
 
     pub fn create(
@@ -219,28 +221,13 @@ impl Invite {
     /// word leaves the helper, never the invitation.
     pub fn rejection_reason(text: &str, now: u64, build: &str) -> &'static str {
         let text = text.trim_matches(|character: char| character.is_ascii_whitespace());
-        let decode = |payload: &str| URL_SAFE_NO_PAD.decode(payload).ok();
         let invite = if text.len() > MAX_INVITE_LENGTH {
             None
-        } else if let Some(payload) = text
-            .strip_prefix(DISCORD_PREFIX)
-            .or_else(|| text.strip_prefix(RECOVERY_DISCORD_PREFIX))
-        {
+        } else if let Some(payload) = discord_payload(text) {
             // A Discord invitation carries no build; it takes the local one.
-            decode(payload)
-                .filter(|bytes| bytes.len() == 91)
-                .and_then(|mut bytes| {
-                    bytes.extend_from_slice(build.as_bytes());
-                    Self::decode_compact(&bytes).ok()
-                })
-        } else if let Some(payload) = text.strip_prefix(PREFIX) {
-            decode(payload).and_then(|bytes| Self::decode_compact(&bytes).ok())
-        } else if let Some(payload) = text.strip_prefix(RECOVERY_PREFIX) {
-            decode(payload).and_then(|bytes| Self::decode_recovery_compact(&bytes).ok())
-        } else if let Some(payload) = text.strip_prefix(LEGACY_PREFIX) {
-            decode(payload).and_then(|bytes| serde_json::from_slice::<Self>(&bytes).ok())
+            Self::decode_discord(payload, build).ok()
         } else {
-            None
+            Self::decode_text(text).ok()
         };
         match invite {
             Some(invite) if invite.version != VERSION => "old_version",
@@ -261,59 +248,71 @@ impl Invite {
         if text.len() > MAX_INVITE_LENGTH {
             return Err(invalid());
         }
-        let invite = if let Some(payload) = text.strip_prefix(PREFIX) {
-            let bytes = URL_SAFE_NO_PAD.decode(payload).map_err(|_| invalid())?;
-            Self::decode_compact(&bytes)?
-        } else if let Some(payload) = text.strip_prefix(RECOVERY_PREFIX) {
-            let bytes = URL_SAFE_NO_PAD.decode(payload).map_err(|_| invalid())?;
-            Self::decode_recovery_compact(&bytes)?
-        } else {
-            let bytes = URL_SAFE_NO_PAD
-                .decode(text.strip_prefix(LEGACY_PREFIX).ok_or_else(invalid)?)
-                .map_err(|_| invalid())?;
-            serde_json::from_slice(&bytes).map_err(|_| invalid())?
-        };
+        let invite = Self::decode_text(text)?;
         invite.validate(now)?;
         Ok(invite)
     }
 
-    fn decode_compact(bytes: &[u8]) -> io::Result<Self> {
-        // LE protocol version (2), endpoint (32), relay ID (1), room (16),
-        // capability (32), LE expiry (8), then the UTF-8 build ID (1..128).
-        if !(92..=219).contains(&bytes.len()) {
+    /// The invitation an sf4e2, sf4e3 or legacy sf4e1 text holds, before
+    /// `validate`. Any other text, a Discord one included, is refused.
+    fn decode_text(text: &str) -> io::Result<Self> {
+        let decode = |payload: &str| URL_SAFE_NO_PAD.decode(payload).map_err(|_| invalid());
+        if let Some(payload) = text.strip_prefix(PREFIX) {
+            Self::decode_compact(&decode(payload)?)
+        } else if let Some(payload) = text.strip_prefix(RECOVERY_PREFIX) {
+            Self::decode_recovery_compact(&decode(payload)?)
+        } else {
+            let bytes = decode(text.strip_prefix(LEGACY_PREFIX).ok_or_else(invalid)?)?;
+            serde_json::from_slice(&bytes).map_err(|_| invalid())
+        }
+    }
+
+    /// The invitation a Discord text's `payload` holds, before `validate`:
+    /// exactly the record's header, which takes the reader's `build`.
+    fn decode_discord(payload: &str, build: &str) -> io::Result<Self> {
+        let mut bytes = URL_SAFE_NO_PAD.decode(payload).map_err(|_| invalid())?;
+        if bytes.len() != HEADER {
             return Err(invalid());
         }
-        Ok(Self {
-            version: u16::from_le_bytes(bytes[0..2].try_into().map_err(|_| invalid())?),
-            endpoint: EndpointId::from_bytes(bytes[2..34].try_into().map_err(|_| invalid())?)
-                .map_err(|_| invalid())?,
-            relay: RELAYS
-                .get(bytes[34] as usize)
-                .ok_or_else(invalid)?
-                .parse()
-                .map_err(|_| invalid())?,
-            room: bytes[35..51].try_into().map_err(|_| invalid())?,
-            capability: bytes[51..83].try_into().map_err(|_| invalid())?,
-            expires: u64::from_le_bytes(bytes[83..91].try_into().map_err(|_| invalid())?),
-            build: std::str::from_utf8(&bytes[91..])
-                .map_err(|_| invalid())?
-                .to_owned(),
-            coordination_endpoint: None,
-            authority_term: 0,
-            authority_incarnation: 0,
-        })
+        bytes.extend_from_slice(build.as_bytes());
+        Self::decode_compact(&bytes)
+    }
+
+    fn decode_compact(bytes: &[u8]) -> io::Result<Self> {
+        Self::decode_record(bytes, false)
     }
 
     fn decode_recovery_compact(bytes: &[u8]) -> io::Result<Self> {
-        // sf4e3 extends the sf4e2 record with the authenticated coordination
-        // endpoint and the committed authority term/incarnation.
-        if !(140..=267).contains(&bytes.len()) {
+        Self::decode_record(bytes, true)
+    }
+
+    /// A compact record: LE protocol version (2), endpoint (32), relay ID
+    /// (1), room (16), capability (32), LE expiry (8), the `HEADER`; sf4e3
+    /// (`recovery`) extends it with the authenticated coordination endpoint
+    /// (32) and the committed LE authority term (8) and incarnation (8); then
+    /// the UTF-8 build ID (1..128).
+    fn decode_record(bytes: &[u8], recovery: bool) -> io::Result<Self> {
+        let build_at = if recovery { RECOVERY_HEADER } else { HEADER };
+        if !(build_at + 1..=build_at + 128).contains(&bytes.len()) {
             return Err(invalid());
         }
+        let u64_at = |at: usize| -> io::Result<u64> {
+            Ok(u64::from_le_bytes(
+                bytes[at..at + 8].try_into().map_err(|_| invalid())?,
+            ))
+        };
+        let endpoint_at = |at: usize| -> io::Result<EndpointId> {
+            EndpointId::from_bytes(bytes[at..at + 32].try_into().map_err(|_| invalid())?)
+                .map_err(|_| invalid())
+        };
+        let (coordination_endpoint, authority_term, authority_incarnation) = if recovery {
+            (Some(endpoint_at(91)?), u64_at(123)?, u64_at(131)?)
+        } else {
+            (None, 0, 0)
+        };
         Ok(Self {
             version: u16::from_le_bytes(bytes[0..2].try_into().map_err(|_| invalid())?),
-            endpoint: EndpointId::from_bytes(bytes[2..34].try_into().map_err(|_| invalid())?)
-                .map_err(|_| invalid())?,
+            endpoint: endpoint_at(2)?,
             relay: RELAYS
                 .get(bytes[34] as usize)
                 .ok_or_else(invalid)?
@@ -321,23 +320,33 @@ impl Invite {
                 .map_err(|_| invalid())?,
             room: bytes[35..51].try_into().map_err(|_| invalid())?,
             capability: bytes[51..83].try_into().map_err(|_| invalid())?,
-            expires: u64::from_le_bytes(bytes[83..91].try_into().map_err(|_| invalid())?),
-            coordination_endpoint: Some(
-                EndpointId::from_bytes(bytes[91..123].try_into().map_err(|_| invalid())?)
-                    .map_err(|_| invalid())?,
-            ),
-            authority_term: u64::from_le_bytes(bytes[123..131].try_into().map_err(|_| invalid())?),
-            authority_incarnation: u64::from_le_bytes(
-                bytes[131..139].try_into().map_err(|_| invalid())?,
-            ),
-            build: std::str::from_utf8(&bytes[139..])
+            expires: u64_at(83)?,
+            build: std::str::from_utf8(&bytes[build_at..])
                 .map_err(|_| invalid())?
                 .to_owned(),
+            coordination_endpoint,
+            authority_term,
+            authority_incarnation,
         })
     }
 
     /// Call only for explicit clipboard/invite export. Never log the result.
     pub fn encode(&self) -> io::Result<String> {
+        let bytes = self.compact_bytes()?;
+        let prefix = if self.coordination_endpoint.is_some() {
+            RECOVERY_PREFIX
+        } else {
+            PREFIX
+        };
+        let text = format!("{prefix}{}", URL_SAFE_NO_PAD.encode(bytes));
+        if text.len() > MAX_INVITE_LENGTH {
+            return Err(invalid());
+        }
+        Ok(text)
+    }
+
+    /// The compact record `decode_record` reads.
+    fn compact_bytes(&self) -> io::Result<Vec<u8>> {
         let relay = RELAYS
             .iter()
             .position(|url| {
@@ -348,7 +357,7 @@ impl Invite {
         if self.build.is_empty() || self.build.len() > 128 {
             return Err(invalid());
         }
-        let mut bytes = Vec::with_capacity(139 + self.build.len());
+        let mut bytes = Vec::with_capacity(RECOVERY_HEADER + self.build.len());
         bytes.extend_from_slice(&self.version.to_le_bytes());
         bytes.extend_from_slice(self.endpoint.as_bytes());
         bytes.push(relay as u8);
@@ -361,16 +370,7 @@ impl Invite {
             bytes.extend_from_slice(&self.authority_incarnation.to_le_bytes());
         }
         bytes.extend_from_slice(self.build.as_bytes());
-        let prefix = if self.coordination_endpoint.is_some() {
-            RECOVERY_PREFIX
-        } else {
-            PREFIX
-        };
-        let text = format!("{prefix}{}", URL_SAFE_NO_PAD.encode(bytes));
-        if text.len() > MAX_INVITE_LENGTH {
-            return Err(invalid());
-        }
-        Ok(text)
+        Ok(bytes)
     }
 
     pub fn address(&self) -> EndpointAddr {
@@ -886,5 +886,149 @@ mod tests {
         let mut wrong = invite();
         wrong.version = 2;
         assert!(Invite::parse(&wrong.encode().unwrap(), 101).is_err());
+    }
+
+    /// One fixed invitation, private and with a recovery route, in every
+    /// text form this build writes or reads. The texts are frozen here: a
+    /// change to any of them is a change to what other builds exchange.
+    fn golden(recovery: bool) -> Invite {
+        Invite {
+            version: VERSION,
+            endpoint: iroh::SecretKey::from_bytes(&[7; 32]).public(),
+            relay: RELAYS[1].parse().unwrap(),
+            room: [0x11; 16],
+            capability: [0x22; 32],
+            expires: 1_000_000,
+            build: "golden-build".into(),
+            coordination_endpoint: recovery.then(|| iroh::SecretKey::from_bytes(&[9; 32]).public()),
+            authority_term: if recovery { 3 } else { 0 },
+            authority_incarnation: if recovery { 5 } else { 0 },
+        }
+    }
+
+
+    const GOLDEN_SF4E1: &str = concat!(
+        "sf4e1:eyJ2ZXJzaW9uIjoxLCJlbmRwb2ludCI6ImVhNGE2YzYzZTI5YzUyMGFiZWY1NTA3YjEzMmVjNW",
+        "Y5OTU0Nzc2YWViZWJlN2I5MjQyMWVlYTY5MTQ0NmQyMmMiLCJyZWxheSI6Imh0dHBzOi8vdXN3MS0xLn",
+        "JlbGF5Lm4wLmlyb2gubGluay4vIiwicm9vbSI6WzE3LDE3LDE3LDE3LDE3LDE3LDE3LDE3LDE3LDE3LD",
+        "E3LDE3LDE3LDE3LDE3LDE3XSwiY2FwYWJpbGl0eSI6WzM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LD",
+        "M0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LDM0LD",
+        "M0LDM0LDM0XSwiZXhwaXJlcyI6MTAwMDAwMCwiYnVpbGQiOiJnb2xkZW4tYnVpbGQiLCJjb29yZGluYX",
+        "Rpb25fZW5kcG9pbnQiOm51bGwsImF1dGhvcml0eV90ZXJtIjowLCJhdXRob3JpdHlfaW5jYXJuYXRpb2",
+        "4iOjB9",
+    );
+    const GOLDEN_SF4E2: &str = concat!(
+        "sf4e2:AQDqSmxj4pxSCr71UHsTLsX5lUd2rr6-e5JCHuppFEbSLAERERERERERERERERERERERIiIiIi",
+        "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiJAQg8AAAAAAGdvbGRlbi1idWlsZA",
+    );
+    const GOLDEN_SF4E3: &str = concat!(
+        "sf4e3:AQDqSmxj4pxSCr71UHsTLsX5lUd2rr6-e5JCHuppFEbSLAERERERERERERERERERERERIiIiIi",
+        "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiJAQg8AAAAAAP0XJDhaoMdbZPt4zWAvodmR_ev3axPFjt",
+        "cC6sg16fYYAwAAAAAAAAAFAAAAAAAAAGdvbGRlbi1idWlsZA",
+    );
+    const GOLDEN_EMD1: &str = concat!(
+        "emd1:AQDqSmxj4pxSCr71UHsTLsX5lUd2rr6-e5JCHuppFEbSLAERERERERERERERERERERERIiIiIiI",
+        "iIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiJAQg8AAAAAAA",
+    );
+    // emd2 carries the same header bytes: `encode_discord` keeps only them.
+    const GOLDEN_EMD2: &str = concat!(
+        "emd2:AQDqSmxj4pxSCr71UHsTLsX5lUd2rr6-e5JCHuppFEbSLAERERERERERERERERERERERIiIiIiI",
+        "iIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiJAQg8AAAAAAA",
+    );
+
+    #[test]
+    fn every_invitation_form_reads_and_writes_the_frozen_texts() {
+        let (plain, recovery) = (golden(false), golden(true));
+        let written = [
+            legacy(&plain),
+            plain.encode().unwrap(),
+            recovery.encode().unwrap(),
+            plain.encode_discord().unwrap(),
+            recovery.encode_discord().unwrap(),
+        ];
+        assert_eq!(
+            written,
+            [GOLDEN_SF4E1, GOLDEN_SF4E2, GOLDEN_SF4E3, GOLDEN_EMD1, GOLDEN_EMD2]
+        );
+        let now = 999_000;
+        let same = |a: &Invite, b: &Invite| {
+            a.version == b.version
+                && a.endpoint == b.endpoint
+                && a.relay == b.relay
+                && a.room == b.room
+                && a.capability == b.capability
+                && a.expires == b.expires
+                && a.build == b.build
+                && a.coordination_endpoint == b.coordination_endpoint
+                && a.authority_term == b.authority_term
+                && a.authority_incarnation == b.authority_incarnation
+        };
+        // Accepted: each text reads back as its invitation. A Discord text
+        // carries the header alone, so emd2 reads as the private invitation.
+        for (text, expected) in [
+            (GOLDEN_SF4E1, &plain),
+            (GOLDEN_SF4E2, &plain),
+            (GOLDEN_SF4E3, &recovery),
+            (GOLDEN_EMD1, &plain),
+            (GOLDEN_EMD2, &plain),
+        ] {
+            let read = Invite::parse_for_build(text, now, "golden-build").unwrap();
+            assert!(same(&read, expected), "{text}");
+            assert!(same(&Invite::parse_for_build(&format!(" {text}
+"), now, "golden-build").unwrap(), expected));
+            if text.starts_with("sf4e") {
+                assert!(same(&Invite::parse(text, now).unwrap(), expected), "{text}");
+            } else {
+                // `parse` reads no Discord text; it has no build to add.
+                assert!(Invite::parse(text, now).is_err(), "{text}");
+                // A Discord text takes whatever build the reader has.
+                let other = Invite::parse_for_build(text, now, "other-build").unwrap();
+                assert_eq!(other.build(), "other-build");
+            }
+        }
+        // Refused, and why.
+        for text in [GOLDEN_SF4E1, GOLDEN_SF4E2, GOLDEN_SF4E3] {
+            assert!(Invite::parse_for_build(text, now, "other-build").is_err());
+            assert_eq!(Invite::rejection_reason(text, now, "other-build"), "other_build");
+            assert_eq!(Invite::rejection_reason(text, now, "golden-build-longer"), "malformed");
+        }
+        for text in written.iter() {
+            assert!(Invite::parse_for_build(text, 1_000_000, "golden-build").is_err());
+            assert_eq!(Invite::rejection_reason(text, 1_000_000, "golden-build"), "expired");
+            assert!(Invite::parse(text, 1_000_000).is_err());
+            for cut in [1, 4, 8] {
+                let short = &text[..text.len() - cut];
+                assert!(Invite::parse_for_build(short, now, "golden-build").is_err(), "{short}");
+            }
+            let body = &text[text.find(':').unwrap() + 1..];
+            for prefix in ["sf4e0:", "sf4e4:", "emd0:", "emd3:", "SF4E2:", ""] {
+                let other = format!("{prefix}{body}");
+                assert!(Invite::parse_for_build(&other, now, "golden-build").is_err(), "{other}");
+                assert_eq!(Invite::rejection_reason(&other, now, "golden-build"), "malformed");
+            }
+        }
+        for text in [GOLDEN_EMD1, GOLDEN_EMD2] {
+            assert!(Invite::parse_for_build(text, now, "").is_err());
+            assert!(Invite::parse_for_build(text, now, &"b".repeat(129)).is_err());
+        }
+        // A text that would be accepted has no reason of its own.
+        for text in written.iter() {
+            assert_eq!(Invite::rejection_reason(text, now, "golden-build"), "malformed");
+        }
+        // Each cut of a compact text, at a whole Base64 group, names why.
+        for (text, reason) in [
+            (&GOLDEN_SF4E2[..GOLDEN_SF4E2.len() - 4], "malformed"),
+            (&GOLDEN_SF4E3[..GOLDEN_SF4E3.len() - 4], "malformed"),
+        ] {
+            assert!(Invite::parse_for_build(text, now, "golden-build").is_err());
+            assert_eq!(Invite::rejection_reason(text, now, "golden-build"), reason);
+        }
+        // Another invitation version.
+        let mut old = plain.clone();
+        old.version = VERSION - 1;
+        for text in [legacy(&old), old.encode().unwrap()] {
+            assert!(Invite::parse_for_build(&text, now, "golden-build").is_err());
+            assert_eq!(Invite::rejection_reason(&text, now, "golden-build"), "old_version");
+        }
     }
 }

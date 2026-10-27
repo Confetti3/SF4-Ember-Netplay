@@ -90,7 +90,7 @@ async fn expired_invite_reauthenticates_only_the_admitted_endpoint_after_handoff
         let (client, accepted) = tokio::join!(
             async {
                 let connection = a.connect(address(server), CONTROL_ALPN).await.unwrap();
-                connect_control_on_expected(connection, &invite, Some(server.id())).await
+                connect_control_on_proof(connection, &invite.proof(), Some(server.id())).await
             },
             async {
                 let connection = server.accept().await.unwrap().await.unwrap();

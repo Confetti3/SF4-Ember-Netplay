@@ -31,18 +31,22 @@ impl Actor {
                     let watchers = self.takes_observers();
                     self.tasks.spawn(async move {
                         if let (Some(incarnation), Some(recovery)) = (member, recovery) {
-                            let result =
-                                if recovery.applied_member_ids().await.contains(&incarnation) {
-                                    let accepting = transport::Accepting {
-                                        member: Some(peer),
-                                        watchers,
-                                    };
-                                    transport::accept_control_for(connection, &invite, accepting)
-                                        .await
-                                } else {
-                                    connection.close(1u32.into(), b"member retired");
-                                    Err(failed("member retired"))
+                            let result = if recovery
+                                .coordinator
+                                .store()
+                                .applied_members()
+                                .await
+                                .contains(&incarnation)
+                            {
+                                let accepting = transport::Accepting {
+                                    member: Some(peer),
+                                    watchers,
                                 };
+                                transport::accept_control_for(connection, &invite, accepting).await
+                            } else {
+                                connection.close(1u32.into(), b"member retired");
+                                Err(failed("member retired"))
+                            };
                             Completion::MemberControl(epoch, incarnation, result)
                         } else {
                             let accepting = transport::Accepting {
