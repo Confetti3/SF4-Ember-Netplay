@@ -21,10 +21,7 @@ use ember_protocol::{
     webhook::{self, Headers, Secret},
 };
 
-use crate::{
-    Connector, log,
-    sets::Received,
-};
+use crate::{Connector, log, sets::Received};
 
 pub(crate) const MAX_BODY: usize = 64 * 1024;
 

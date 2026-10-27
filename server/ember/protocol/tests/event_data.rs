@@ -634,10 +634,9 @@ fn an_unknown_value_in_an_enum_nobody_reads_reads_as_absent() {
     let completed: TournamentCompletedData =
         serde_json::from_value(json!({ "format": later, "placements": [] })).unwrap();
     assert_eq!(completed.format, None);
-    let lobby_set: LobbySetCompletedData = serde_json::from_value(
-        json!({ "lobby_id": "elb_1", "winner_id": A, "rotation": later }),
-    )
-    .unwrap();
+    let lobby_set: LobbySetCompletedData =
+        serde_json::from_value(json!({ "lobby_id": "elb_1", "winner_id": A, "rotation": later }))
+            .unwrap();
     assert_eq!(lobby_set.rotation, None);
     // A known value and null still read as before.
     let known: LobbySetCompletedData = serde_json::from_value(
@@ -650,11 +649,7 @@ fn an_unknown_value_in_an_enum_nobody_reads_reads_as_absent() {
     assert_eq!(null.side, None);
 
     // The enums an announcement reads refuse it.
-    assert!(
-        serde_json::from_value::<TournamentCreatedData>(json!({ "format": later })).is_err()
-    );
-    assert!(
-        serde_json::from_value::<TournamentStartedData>(json!({ "format": later })).is_err()
-    );
+    assert!(serde_json::from_value::<TournamentCreatedData>(json!({ "format": later })).is_err());
+    assert!(serde_json::from_value::<TournamentStartedData>(json!({ "format": later })).is_err());
     assert!(serde_json::from_value::<LobbyCreatedData>(json!({ "rotation": later })).is_err());
 }

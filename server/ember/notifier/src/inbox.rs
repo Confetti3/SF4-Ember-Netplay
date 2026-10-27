@@ -118,7 +118,14 @@ impl Notifier {
                     .and_then(|mut statement| {
                         statement
                             .query_map([now], |row| {
-                                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?))
+                                Ok((
+                                    row.get(0)?,
+                                    row.get(1)?,
+                                    row.get(2)?,
+                                    row.get(3)?,
+                                    row.get(4)?,
+                                    row.get(5)?,
+                                ))
                             })?
                             .collect()
                     })
@@ -136,8 +143,8 @@ impl Notifier {
                         None => IDLE_CEILING_SECS,
                     })
                     .clamp(IDLE_FLOOR_SECS, IDLE_CEILING_SECS);
-                let _ = tokio::time::timeout(Duration::from_secs(wait), self.0.wake.notified())
-                    .await;
+                let _ =
+                    tokio::time::timeout(Duration::from_secs(wait), self.0.wake.notified()).await;
                 continue;
             }
             for (id, body, discord_done, twitch_done, attempts, received) in due {

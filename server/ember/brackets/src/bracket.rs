@@ -222,8 +222,7 @@ impl Bracket {
                 let state = self.state.lock().await;
                 state.wait_secs(&self.window, self.context.clock.now())
             };
-            let _ =
-                tokio::time::timeout(Duration::from_secs(wait), self.wake.notified()).await;
+            let _ = tokio::time::timeout(Duration::from_secs(wait), self.wake.notified()).await;
         }
     }
 

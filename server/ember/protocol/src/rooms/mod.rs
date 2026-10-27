@@ -662,7 +662,12 @@ te"
         assert!(json::parse_as::<TicketRequest>(extra.as_bytes(), 1024).is_err());
         // A listing is an answer: an unknown field is ignored, not refused.
         let extra = br#"{"rooms":[],"total":0}"#;
-        assert!(json::parse_as::<RoomList>(extra, 1024).unwrap().rooms.is_empty());
+        assert!(
+            json::parse_as::<RoomList>(extra, 1024)
+                .unwrap()
+                .rooms
+                .is_empty()
+        );
         // A ticket no longer carries a moderator flag.
         let id = key(1).ember_id().clone();
         let mut value = json::to_value(&ticket(&id)).unwrap();
