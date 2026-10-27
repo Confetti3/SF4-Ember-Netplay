@@ -327,6 +327,29 @@ fn the_coordination_wire_is_versioned_bounded_and_verified() {
     let mut checksum = body.clone();
     *checksum.last_mut().unwrap() ^= 0x01;
     assert!(refused(&checksum));
+    // A stream whose adler32 trailer is cut off holds every checkpoint byte,
+    // and it is refused all the same.
+    let compressed = compress_checkpoint(&checkpoint).unwrap();
+    let length = checkpoint.len() as u64;
+    assert_eq!(&*inflate_checkpoint(&compressed, length).unwrap(), checkpoint.as_str());
+    let untrailed = &compressed[..compressed.len() - 4];
+    assert!(inflate_checkpoint(untrailed, length).is_err());
+    let mut cut_trailer = encode_append(&append_request(6, ""), &CompressedCheckpoints::default()).unwrap();
+    cut_trailer.truncate(cut_trailer.len() - 12);
+    cut_trailer.extend_from_slice(&length.to_le_bytes());
+    cut_trailer.extend_from_slice(&(untrailed.len() as u32).to_le_bytes());
+    cut_trailer.extend_from_slice(untrailed);
+    assert!(refused(&cut_trailer));
+    // A stream longer than its declared length is refused.
+    assert!(inflate_checkpoint(&compressed, length - 1).is_err());
+    // The checks that need no inflating run before any checkpoint is
+    // inflated: the zlib bytes are only sliced off the body.
+    let mut garbage = cut_trailer.clone();
+    let tail = garbage.len() - untrailed.len();
+    garbage[tail..].fill(0xa5);
+    let (_, read) = read_append(&garbage).unwrap();
+    assert_eq!(read, vec![(length, &garbage[tail..])]);
+    assert!(refused(&garbage));
     // A declared text length that does not match.
     let lengths = 5 + header_length;
     let mut declared = body.clone();

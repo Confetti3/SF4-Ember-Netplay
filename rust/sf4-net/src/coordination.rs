@@ -15,7 +15,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
+use flate2::{
+    Compression, Decompress, FlushDecompress, Status, read::ZlibDecoder, write::ZlibEncoder,
+};
 use openraft::{
     BasicNode, ChangeMembers, Config, Entry, EntryPayload, LogId, OptionalSend, Raft, RaftStorage,
     Snapshot, SnapshotMeta, SnapshotPolicy, StorageError, StorageIOError, StoredMembership, Vote,
@@ -159,20 +161,39 @@ fn compress_checkpoint(text: &str) -> io::Result<Arc<[u8]>> {
 }
 
 /// The checkpoint text `compressed` holds. It must inflate to exactly
-/// `length` bytes of UTF-8, and its zlib stream must end where the bytes do;
-/// zlib's own checksum covers the inflated bytes.
+/// `length` bytes of UTF-8, and its zlib stream must end, adler32 trailer
+/// included, where the bytes do. zlib's checksum covers the inflated bytes
+/// only when the stream end is required: a reader that stops at the end of
+/// its input accepts a stream whose trailer is cut off. The output never
+/// grows past `length` + 1 bytes.
 fn inflate_checkpoint(compressed: &[u8], length: u64) -> io::Result<Arc<str>> {
     if length > MAX_SNAPSHOT as u64 {
         return Err(too_large());
     }
-    let mut decoder = ZlibDecoder::new(compressed);
-    let mut raw = Vec::with_capacity(length as usize);
-    decoder
-        .by_ref()
-        .take(MAX_SNAPSHOT as u64 + 1)
-        .read_to_end(&mut raw)?;
-    if raw.len() as u64 != length || decoder.total_in() as usize != compressed.len() {
-        return Err(io::Error::other("invalid room coordination digest"));
+    let digest = || io::Error::other("invalid room coordination digest");
+    let mut raw = Vec::with_capacity(length as usize + 1);
+    let mut inflater = Decompress::new(true);
+    loop {
+        let progress = (inflater.total_in(), inflater.total_out());
+        let input = compressed
+            .get(inflater.total_in() as usize..)
+            .ok_or_else(digest)?;
+        let status = inflater
+            .decompress_vec(input, &mut raw, FlushDecompress::Finish)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
+        if status == Status::StreamEnd {
+            break;
+        }
+        // Out of room (the stream is longer than declared), or out of input
+        // before the stream ended (a cut stream or a missing trailer).
+        if raw.len() as u64 > length
+            || progress == (inflater.total_in(), inflater.total_out())
+        {
+            return Err(digest());
+        }
+    }
+    if raw.len() as u64 != length || inflater.total_in() as usize != compressed.len() {
+        return Err(digest());
     }
     String::from_utf8(raw)
         .map(Arc::from)
@@ -270,15 +291,27 @@ fn encode_append(
     Ok(body)
 }
 
-/// Reads an `encode_append` body, inflating and checking each checkpoint.
-/// It runs in the RPC's dispatch, before Raft and so outside the store lock.
-/// The declared text lengths together stay within `MAX_SNAPSHOT`, the bound
-/// wire 1 put on the whole inflated request.
+/// Reads an `encode_append` body, inflating and checking each checkpoint:
+/// `read_append`, then `inflate_append`. The RPC's dispatch runs the two
+/// itself, before Raft and so outside the store lock, with its own checks
+/// between them.
+#[cfg(test)]
 fn decode_append(bytes: &[u8]) -> io::Result<AppendEntriesRequest<RoomTypes>> {
-    let (mut request, mut reader) = read_header::<AppendEntriesRequest<RoomTypes>>(bytes)?;
+    let (request, checkpoints) = read_append(bytes)?;
+    inflate_append(request, checkpoints)
+}
+
+/// The header of an `encode_append` body and each normal entry's declared
+/// text length and zlib bytes, in entry order. Every check that needs no
+/// inflating runs here, so a body that fails one is refused before any
+/// checkpoint is inflated. The declared text lengths together stay within
+/// `MAX_SNAPSHOT`, the bound wire 1 put on the whole inflated request.
+fn read_append(bytes: &[u8]) -> io::Result<(AppendEntriesRequest<RoomTypes>, Vec<(u64, &[u8])>)> {
+    let (request, mut reader) = read_header::<AppendEntriesRequest<RoomTypes>>(bytes)?;
     let mut declared = 0u64;
-    for entry in &mut request.entries {
-        if let EntryPayload::Normal(proposal) = &mut entry.payload {
+    let mut checkpoints = Vec::new();
+    for entry in &request.entries {
+        if let EntryPayload::Normal(proposal) = &entry.payload {
             let length = reader.u64()?;
             let compressed_length = reader.u32()? as usize;
             let compressed = reader.take(compressed_length)?;
@@ -286,15 +319,31 @@ fn decode_append(bytes: &[u8]) -> io::Result<AppendEntriesRequest<RoomTypes>> {
             if !proposal.checkpoint.is_empty() || declared > MAX_SNAPSHOT as u64 {
                 return Err(invalid_body());
             }
-            if length != 0 {
-                proposal.checkpoint = inflate_checkpoint(compressed, length)?;
-            } else if !compressed.is_empty() {
+            if length == 0 && !compressed.is_empty() {
                 return Err(invalid_body());
             }
+            checkpoints.push((length, compressed));
         }
     }
     if !reader.rest().is_empty() {
         return Err(invalid_body());
+    }
+    Ok((request, checkpoints))
+}
+
+/// Puts each checkpoint `read_append` found back into its entry, inflated.
+fn inflate_append(
+    mut request: AppendEntriesRequest<RoomTypes>,
+    checkpoints: Vec<(u64, &[u8])>,
+) -> io::Result<AppendEntriesRequest<RoomTypes>> {
+    let mut checkpoints = checkpoints.into_iter();
+    for entry in &mut request.entries {
+        if let EntryPayload::Normal(proposal) = &mut entry.payload {
+            let (length, compressed) = checkpoints.next().ok_or_else(invalid_body)?;
+            if length != 0 {
+                proposal.checkpoint = inflate_checkpoint(compressed, length)?;
+            }
+        }
     }
     Ok(request)
 }
@@ -1949,10 +1998,17 @@ impl Coordinator {
             }
             "append" => {
                 // Inflated and checked here, before Raft takes the store lock.
-                let request = decode_append(bytes).map_err(|_| bad())?;
-                if request.entries.len() > 1 || request.vote.leader_id.node_id != source {
+                // The checks that need no inflating come first.
+                let (request, checkpoints) = read_append(bytes).map_err(|_| bad())?;
+                if request.entries.len() > 1
+                    || request.vote.leader_id.node_id != source
+                    || checkpoints
+                        .iter()
+                        .any(|(length, _)| *length > MAX_CHECKPOINT as u64)
+                {
                     return Err(bad());
                 }
+                let request = inflate_append(request, checkpoints).map_err(|_| bad())?;
                 for entry in &request.entries {
                     if let EntryPayload::Normal(p) = &entry.payload
                         && (p.checkpoint.len() > MAX_CHECKPOINT
