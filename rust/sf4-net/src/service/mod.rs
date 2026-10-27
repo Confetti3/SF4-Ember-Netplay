@@ -101,41 +101,6 @@ const MAX_RETIRED_INCARNATIONS: usize = crate::coordination::MAX_RETIRED_MEMBER_
 // native logical message ID is carried in `NativeControlMessage` so C++ can
 // preserve its IPC correlation without sharing the QUIC frame counter.
 const TRANSPORT_MESSAGE_ID_BASE: u64 = 2;
-/// How deep the JSON handed to the native side may nest: the depth at which
-/// serde_json stops. The native side copies and prints what it parses
-/// recursively, on a thread stack sized for real messages.
-const MAX_NATIVE_JSON_DEPTH: usize = 128;
-
-/// Whether `text` nests no deeper than MAX_NATIVE_JSON_DEPTH. Only brackets
-/// outside strings count; whether it is valid JSON is for the native side.
-fn native_json_depth_ok(text: &[u8]) -> bool {
-    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
-    for &byte in text {
-        if in_string {
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == b'"' {
-                in_string = false;
-            }
-            continue;
-        }
-        match byte {
-            b'"' => in_string = true,
-            b'[' | b'{' => {
-                depth += 1;
-                if depth > MAX_NATIVE_JSON_DEPTH {
-                    return false;
-                }
-            }
-            b']' | b'}' => depth = depth.saturating_sub(1),
-            _ => {}
-        }
-    }
-    true
-}
-
 mod checkpoints;
 mod controls;
 mod departure;
@@ -165,6 +130,25 @@ use probes::{selected_probe_route, serve_probe};
 use protocol::NativeControlMessage;
 pub use protocol::{Command, Event};
 use short_links::{ShortLinks, ShortPublished};
+
+use checkpoints::{CheckpointProposalKey, OutgoingCheckpoint, PendingCheckpointCommitted};
+use controls::ParkedControl;
+use games::GameSlot;
+#[cfg(test)]
+use games::GameDiagnostics;
+use members::{
+    AdmissionOperationKey, AdmissionOperationResult, ControlBinding, DeferredAdmission,
+    MembershipOperationKey, MembershipOperationResult, applied_member_incarnations,
+};
+use probes::{
+    OwnProbe, PendingProbeInvalidation, ProbeAuthorization, ProbeAuthorizationKey,
+    ProbeCompletion, ProbePermission, ProbeReservationKey,
+};
+use protocol::{CoordinationControl, native_json_depth_ok};
+#[cfg(test)]
+use protocol::MAX_NATIVE_JSON_DEPTH;
+use refresh::{CoordinationRefresh, CoordinationRefreshKey};
+use seats::primary_members;
 
 struct Request {
     id: u64,
@@ -229,292 +213,44 @@ enum Completion {
     ProbeReservation(ProbeReservationKey, probes::ReservationWait),
 }
 
-#[derive(Clone, PartialEq, Eq)]
-struct CheckpointProposalKey {
-    epoch: u64,
-    room: [u8; 16],
-    incarnation: u64,
-    transfer: u64,
-    term: u64,
-    base_revision: u64,
-    revision: u64,
-    length: usize,
-    digest: [u8; 32],
-}
-
-#[derive(Clone, PartialEq, Eq)]
-struct CoordinationRefreshKey {
-    sequence: u64,
-    epoch: u64,
-    room: [u8; 16],
-    incarnation: u64,
-    term: u64,
-    leader: Option<u64>,
-}
-
-struct CoordinationRefresh {
-    state: AuthorityState,
-    leader: Option<u64>,
-    applied_members: BTreeSet<u64>,
-    applied_history: BTreeSet<u64>,
-    retired: BTreeSet<u64>,
-    committed: Arc<crate::coordination::Committed>,
-    /// The applied membership is a joint configuration nobody finished.
-    joint: bool,
-}
-
-#[derive(Clone, PartialEq, Eq)]
-struct MembershipOperationKey {
-    sequence: u64,
-    epoch: u64,
-    room: [u8; 16],
-    incarnation: u64,
-    term: u64,
-    revision: u64,
-}
-
-struct MembershipOperationResult {
-    confirmed_retirements: BTreeSet<u64>,
-}
-
-#[derive(Clone, PartialEq, Eq)]
-struct AdmissionOperationKey {
-    sequence: u64,
-    epoch: u64,
-    room: [u8; 16],
-    incarnation: u64,
-    term: u64,
-    leader: Option<u64>,
-    peer: EndpointId,
-    fingerprint: Vec<u8>,
-    add_member_if_leader: bool,
-}
-
-struct AdmissionOperationResult {
-    admissions: Vec<Admission>,
-}
-
-struct DeferredAdmission {
-    peer: EndpointId,
-    admissions: Vec<Admission>,
-    add_member_if_leader: bool,
-    fingerprint: Vec<u8>,
-    /// Controls whose session this operation's outcome settles: those that
-    /// presented one of its admissions. Roster work carries none.
-    bindings: Vec<ControlBinding>,
-}
-
-/// A control waiting for the admission operation it presented.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-struct ControlBinding {
-    peer: EndpointId,
-    control: u64,
-    incarnation: u64,
-}
-
-#[derive(Clone, PartialEq, Eq)]
-struct ProbeAuthorizationKey {
-    epoch: u64,
-    room: [u8; 16],
-    incarnation: u64,
-    peer: EndpointId,
-    target_incarnation: u64,
-    request: u64,
-    pair_revision: u64,
-    benchmark: bool,
-}
-
-/// A probe reservation whose Raft entry this replica had not applied yet when
-/// the control frame arrived.
-#[derive(Clone, PartialEq, Eq)]
-struct ProbeReservationKey {
-    epoch: u64,
-    peer: EndpointId,
-    /// The control worker that presented the frame, or 0 when the peer had
-    /// none. A wait that ends unapplied may close only this exact control.
-    control: u64,
-    request: u64,
-    pair_revision: u64,
-    expires: u64,
-}
-
-struct ProbeAuthorization {
-    term: u64,
-    leader: Option<u64>,
-    revision: u64,
-    expires: u64,
-    /// When the authorization stops being usable, on this PC's monotonic
-    /// clock, counted from when it was requested.
-    deadline: tokio::time::Instant,
-}
-
-struct GameSlot {
-    auth: GameAuthorization,
-    local_port: u16,
-    waiting: bool,
-    task: Option<AbortHandle>,
-    stats: Option<Arc<BridgeStats>>,
-    route_connection: Option<Connection>,
-    expires: tokio::time::Instant,
-    /// Stable id of the accepted connection whose handshake is running as
-    /// `task`. Candidates handshake one at a time; only this one's completion
-    /// counts, and one that arrives after it was retired is ignored.
-    candidate: Option<usize>,
-    diagnostics: GameDiagnostics,
-}
-
-/// What a gameplay slot saw before it linked. It is reported with the slot's
-/// close or failure so a link that never formed can be told from one that broke.
-#[derive(Default)]
-struct GameDiagnostics {
-    refused_incoming: u32,
-    /// Accepted connections that failed their handshake without ending the slot.
-    rejected_candidates: u32,
-}
-
-impl GameDiagnostics {
-    fn describe(&self, waiting: bool) -> String {
-        format!(
-            "waiting={} refused_incoming={} rejected_candidates={}",
-            waiting, self.refused_incoming, self.rejected_candidates
-        )
-    }
-}
-
-struct OutgoingCheckpoint {
-    transfer: CheckpointTransfer,
-    next_offset: usize,
-    in_flight: BTreeSet<u32>,
-    acked_offset: u32,
-    end_sent: bool,
-    begin_sent: bool,
-    started: tokio::time::Instant,
-    /// A `checkpoint_committed_local` marker rather than the bytes; its
-    /// marker is out once `begin_sent` is set.
-    local: bool,
-}
-
-#[derive(Clone)]
-struct PendingCheckpointCommitted {
-    epoch: u64,
-    room: [u8; 16],
-    transfer: u64,
-    term: u64,
-    base_revision: u64,
-    revision: u64,
-    length: u32,
-    digest: String,
-}
-
-/// A control connection from an endpoint that already has a worker. It is not
-/// started until that worker has delivered every frame it received, so the old
-/// connection's frames, a departure among them, reach the native side under
-/// the old control identity and ahead of anything the replacement sends.
-struct ParkedControl {
-    epoch: u64,
-    channel: ControlChannel,
-    joined_invite: Option<Invite>,
-    /// Id of the worker this candidate waits behind, or None when the peer
-    /// had no worker. Only that worker may be replaced by this candidate.
-    behind: Option<u64>,
-    since: Instant,
-}
-
-#[derive(Clone)]
-struct PendingProbeInvalidation {
-    request: u64,
-    pair_revision: u64,
-    route: String,
-}
-
-/// Permission for a peer to open a probe connection to this helper, installed
-/// by the peer's reservation. It covers only probes this helper answers.
-struct ProbePermission {
-    request: u64,
-    pair_revision: u64,
-    expires: tokio::time::Instant,
-}
-
-/// A check this helper runs against a peer, from its command until its
-/// completion. The peer may check us at the same time, with the same request
-/// id and pair revision, so this is kept apart from `ProbePermission`.
-struct OwnProbe {
-    request: u64,
-    pair_revision: u64,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-enum CoordinationControl {
-    Admission {
-        admission: Admission,
-    },
-    Membership {
-        admissions: Vec<Admission>,
-        /// Incarnations whose committed Raft membership no longer contains
-        /// the process. This explicit tombstone lets coordination-only
-        /// departures revoke every replica even when no native checkpoint
-        /// roster ever contained the member.
-        #[serde(default)]
-        retired: Vec<u64>,
-    },
-    ProbeReservation {
-        room: [u8; 16],
-        /// The primary endpoint and process incarnation on the sending side.
-        source: EndpointId,
-        source_incarnation: u64,
-        /// The admitted process incarnation that must accept the reservation.
-        target_incarnation: u64,
-        request: u64,
-        pair_revision: u64,
-        term: u64,
-        expires: u64,
-    },
-    /// A non-leader member is leaving. Its native Leave may never have been
-    /// committed (the room was unwritable, or the seat was not yet admitted),
-    /// and its control stays open until the committed leader has excluded
-    /// its vote. Without this the leader would only learn of the departure
-    /// from a control close after that exclusion, which in a two-voter room
-    /// it can no longer commit. The receiver hands the departure to its
-    /// native room at once, as it does for an expired departure grace.
-    Departure {
-        room: [u8; 16],
-        incarnation: u64,
-    },
-}
-
-struct ProbeCompletion {
-    peer: EndpointId,
-    request: u64,
-    pair_revision: u64,
-    samples_us: Vec<u64>,
-    connection: Option<Connection>,
-    report: bool,
-    route_changed: bool,
-    /// The route the measurement observed; unset when it must be read from
-    /// `connection`.
-    route: Option<String>,
-    metrics: crate::probe::Metrics,
-}
-impl GameSlot {
-    /// Why a slot closed without a gameplay link, or `None` once it had one.
-    fn unlinked_reason(&self, cause: &str) -> Option<String> {
-        self.stats
-            .is_none()
-            .then(|| format!("{cause}: {}", self.diagnostics.describe(self.waiting)))
-    }
-}
-
-impl Drop for GameSlot {
-    fn drop(&mut self) {
-        if let Some(task) = &self.task {
-            task.abort();
-        }
-    }
-}
-
 fn failed(code: &'static str) -> io::Error {
     io::Error::other(code)
+}
+
+/// The error event of `code` for request `request_id`, with no peer or
+/// reason.
+fn error_event(request_id: u64, epoch: u64, code: &str) -> Event {
+    Event::Error {
+        probe_failure: None,
+        request_id,
+        epoch,
+        peer: None,
+        code: code.into(),
+        reason: None,
+    }
+}
+
+/// A live gameplay link's counters, for `Event::Statistics`.
+fn statistics_event(
+    epoch: u64,
+    peer: EndpointId,
+    generation: u64,
+    stats: &BridgeStats,
+    route: String,
+) -> Event {
+    Event::Statistics {
+        epoch,
+        peer,
+        generation,
+        sent_packets: stats.sent_packets.load(Ordering::Relaxed),
+        received_packets: stats.received_packets.load(Ordering::Relaxed),
+        sent_bytes: stats.sent_bytes.load(Ordering::Relaxed),
+        received_bytes: stats.received_bytes.load(Ordering::Relaxed),
+        rejected_packets: stats.rejected_packets.load(Ordering::Relaxed),
+        congestion_events: stats.congestion_events.load(Ordering::Relaxed),
+        local_drops: stats.local_drops.load(Ordering::Relaxed),
+        route,
+    }
 }
 #[cfg(test)]
 tokio::task_local! {
@@ -548,79 +284,17 @@ fn status(request_id: u64, endpoint: &Endpoint, epoch: u64, peers: usize, games:
     }
 }
 
-/// Extract the primary Iroh identities and exact process incarnations from
-/// the committed native `SessionProposal` envelope. C++ binds these from its
-/// authenticated room-member map; Rust only uses a complete, validated list
-/// to reconcile Raft membership after commit. A server-owned room can
-/// stand with no member when `allow_empty`.
-fn primary_members(
-    envelope: &serde_json::Value,
-    allow_empty: bool,
-) -> Option<BTreeMap<EndpointId, u64>> {
-    let members = envelope.get("checkpoint")?.get("members")?.as_array()?;
-    // A recovery checkpoint may retain started spectator tombstones in
-    // addition to the sixteen active room members. Bound the total separately
-    // from the active roster so a valid 16-member room plus frozen entries is
-    // still reconcilable without allowing an unbounded snapshot projection.
-    const MAX_FROZEN_MEMBERS: usize = 4 * (MAX_CONTROL_PEERS + 1);
-    if (members.is_empty() && !allow_empty)
-        || members.len() > MAX_CONTROL_PEERS + 1 + MAX_FROZEN_MEMBERS
-    {
-        return None;
-    }
-    let mut endpoints = BTreeMap::new();
-    let mut active = 0usize;
-    for member in members {
-        if member.get("frozen").and_then(serde_json::Value::as_bool) == Some(true) {
-            continue;
-        }
-        active += 1;
-        if active > MAX_CONTROL_PEERS + 1 {
-            return None;
-        }
-        let data = member.get("data")?;
-        let text = data
-            .get("authenticatedEndpoint")
-            .or_else(|| data.get("authenticated_endpoint"))?
-            .as_str()?;
-        let endpoint = text.parse::<EndpointId>().ok()?;
-        let incarnation = member.get("incarnation")?.as_u64()?;
-        if incarnation == 0 || endpoints.insert(endpoint, incarnation).is_some() {
-            return None;
-        }
-    }
-    (allow_empty || !endpoints.is_empty()).then_some(endpoints)
-}
-
-/// Build the native endpoint-to-incarnation view from the membership this
-/// replica has actually applied. Historical admissions can temporarily retain
-/// both a retired and a fresh process incarnation for the same stable Iroh
-/// endpoint. Publishing every remembered admission would make numeric sort
-/// order choose one at random. An ambiguous applied endpoint stays absent
-/// until joint consensus and retirement leave one exact incarnation.
-fn applied_member_incarnations(
-    admissions: &BTreeMap<u64, Admission>,
-    applied: &BTreeSet<u64>,
-    retiring: &BTreeSet<u64>,
-) -> BTreeMap<String, u64> {
-    let mut candidates = BTreeMap::<String, Option<u64>>::new();
-    for (incarnation, admission) in admissions {
-        if !applied.contains(incarnation) || retiring.contains(incarnation) {
-            continue;
-        }
-        candidates
-            .entry(admission.primary_endpoint.to_string())
-            .and_modify(|current| {
-                if *current != Some(*incarnation) {
-                    *current = None;
-                }
-            })
-            .or_insert(Some(*incarnation));
-    }
-    candidates
-        .into_iter()
-        .filter_map(|(endpoint, incarnation)| incarnation.map(|value| (endpoint, value)))
-        .collect()
+/// The parts of a CoordinationState that decide whether it is sent again. A
+/// membership change alone moves neither term nor revision, so the counts are
+/// part of it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct CoordinationMarker {
+    term: u64,
+    revision: u64,
+    writable: bool,
+    leader_local: bool,
+    voter_count: usize,
+    learner_count: usize,
 }
 
 struct Actor {
@@ -686,12 +360,9 @@ struct Actor {
     pending_admission_bindings: Vec<ControlBinding>,
     deferred_admissions: VecDeque<DeferredAdmission>,
     pending_membership_publications: BTreeSet<EndpointId>,
-    /// Term, revision, writable, leader_local, voter and learner count of
-    /// the last CoordinationState sent. A membership change alone moves
-    /// neither term nor revision, so the counts are part of it.
-    last_coordination_state: Option<(u64, u64, bool, bool, usize, usize)>,
+    /// What the last CoordinationState sent said.
+    last_coordination_state: Option<CoordinationMarker>,
     coordination_writable: bool,
-    last_control_rebound: Option<(String, Vec<String>, BTreeMap<String, u64>)>,
     unwritable_leader_since: Option<(u64, u64, Instant)>,
     /// At most one committed-leader control rebind may be in flight. Without
     /// this fence a follower that has learned a new leader but has not yet
@@ -801,14 +472,7 @@ impl Actor {
     /// client filters events by its current epoch, so an error tagged with the
     /// helper's previous epoch would leave that attempt joining forever.
     fn error_at(&self, request_id: u64, epoch: u64, code: &str) -> io::Result<()> {
-        self.emit(Event::Error {
-            probe_failure: None,
-            request_id,
-            epoch,
-            peer: None,
-            code: code.into(),
-            reason: None,
-        })
+        self.emit(error_event(request_id, epoch, code))
     }
 
     /// An error whose `reason` says at which stage it failed (`relay_unreachable`,
@@ -827,13 +491,13 @@ impl Actor {
 
     // Additive, allowlisted diagnostics: keep the existing error code so older
     // native clients still treat a rejected probe as a nonfatal operation.
-    fn probe_error(&self, reason: u8) -> io::Result<()> {
+    fn probe_error(&self, failure: probes::ProbeFailure) -> io::Result<()> {
         self.emit(Event::Error {
             request_id: 0,
             epoch: self.epoch,
             peer: None,
             code: "probe_unavailable".into(),
-            probe_failure: Some(reason),
+            probe_failure: Some(failure as u8),
             reason: None,
         })
     }
@@ -901,7 +565,6 @@ impl Actor {
         self.deferred_admissions.clear();
         self.pending_membership_publications.clear();
         self.last_coordination_state = None;
-        self.last_control_rebound = None;
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
         self.pending_game_admissions.clear();
@@ -946,9 +609,47 @@ impl Actor {
         epoch == self.epoch && epoch != 0
     }
 
-    fn command(&mut self, request: Request) -> io::Result<bool> {
+    /// Tests only: `command` with IPC channels that never deliver or fail.
+    #[cfg(test)]
+    async fn command_now(&mut self, request: Request) -> io::Result<bool> {
+        let (_commands, mut commands) = mpsc::channel(1);
+        let (_failed, mut failed_ipc) = watch::channel(false);
+        self.command(request, &mut commands, &mut failed_ipc).await
+    }
+
+    /// Runs one native command; false when the helper is to stop. A Leave
+    /// keeps answering `commands` while the departure runs, and ends early
+    /// when `failed_ipc` reports the pipe lost.
+    async fn command(
+        &mut self,
+        request: Request,
+        commands: &mut mpsc::Receiver<Request>,
+        failed_ipc: &mut watch::Receiver<bool>,
+    ) -> io::Result<bool> {
         let id = request.id;
         match request.command {
+            Command::CheckpointBegin { epoch, room, transfer, term, base_revision, revision, length, digest } =>
+                if self.checkpoint_begin(epoch, room, transfer, term, base_revision, revision, length, digest).await.is_err() {
+                    self.error(id, "checkpoint_begin_rejected")?;
+                },
+            Command::CheckpointChunk { epoch, room, transfer, term, base_revision, revision, offset, data } =>
+                if self.checkpoint_chunk(epoch, room, transfer, term, base_revision, revision, offset, data).await.is_err() {
+                    self.error(id, "checkpoint_chunk_rejected")?;
+                },
+            Command::CheckpointEnd { epoch, room, transfer, term, base_revision, revision, length, digest } =>
+                if self.checkpoint_end(epoch, room, transfer, term, base_revision, revision, length, digest).await.is_err() {
+                    self.error(id, "checkpoint_not_committed")?;
+                },
+            Command::CheckpointAck { epoch, room, transfer, offset } =>
+                if self.checkpoint_ack(epoch, room, transfer, offset).is_err() {
+                    self.error(id, "checkpoint_ack_rejected")?;
+                },
+            Command::ProbeRequest { epoch, room, peer, request, pair_revision, benchmark } => {
+                self.spawn_probe(epoch, room, peer, request, pair_revision, benchmark).await?;
+            }
+            Command::Leave { epoch, abandon } => {
+                return self.leave_command(epoch, abandon, commands, failed_ipc).await;
+            }
             Command::Status => self.emit(status(
                 id,
                 &self.endpoint,
@@ -996,86 +697,14 @@ impl Actor {
             } => self.join_command(id, epoch, &invitation, build, observer)?,
             Command::ShortInvite { epoch } => self.short_invite_command(epoch)?,
             Command::LatencyWatch { epoch, room, view, on } => self.latency_watch(epoch, room, view, on),
-            Command::Leave { epoch, abandon } => {
-                let _ = abandon;
-                if !self.matches(epoch) {
-                    self.error(id, "stale_epoch")?;
-                    return Ok(true);
-                }
-                self.clear_room();
-                self.emit(Event::RoomClosed { epoch })?;
-            }
             Command::Send {
                 epoch,
                 peer,
                 message_id,
                 payload,
                 control,
-            } => {
-                if !self.matches(epoch) {
-                    self.error(id, "stale_epoch")?;
-                    return Ok(true);
-                }
-                let current = self.controls.get(&peer).map(ControlWorker::id);
-                if control != 0 && current != Some(control) {
-                    let reason = if current.is_some() {
-                        "replaced"
-                    } else {
-                        "missing"
-                    };
-                    self.control_send_failed(id, peer, reason)?;
-                    return Ok(true);
-                }
-                if payload.is_empty() || payload.len() > MAX_CONTROL_PAYLOAD {
-                    self.error(id, "invalid_control_size")?;
-                    return Ok(true);
-                }
-                let Ok(wire_payload) = serde_json::to_string(&NativeControlMessage {
-                    kind: "native_control".into(),
-                    message_id,
-                    payload,
-                }) else {
-                    self.error(id, "control_send_failed")?;
-                    return Ok(true);
-                };
-                if wire_payload.len() > MAX_CONTROL_PAYLOAD {
-                    self.error(id, "invalid_control_size")?;
-                    return Ok(true);
-                }
-                let transport_id = self.next_transport_message;
-                self.next_transport_message = self.next_transport_message.saturating_add(1);
-                let result = self
-                    .controls
-                    .get(&peer)
-                    .ok_or("missing")
-                    .and_then(|control| {
-                        control
-                            .try_send(ControlFrame {
-                                message_id: transport_id,
-                                payload: wire_payload.into_bytes(),
-                            })
-                            .map_err(QueueError::label)
-                    });
-                if let Err(reason) = result {
-                    self.control_send_failed(id, peer, reason)?;
-                } else {
-                    self.emit(Event::Sent {
-                        request_id: id,
-                        epoch,
-                        message_id,
-                    })?;
-                }
-            }
-            Command::CloseControl { epoch, peer } => {
-                if !self.matches(epoch) {
-                    self.error(id, "stale_epoch")?;
-                    return Ok(true);
-                }
-                if self.controls.contains_key(&peer) {
-                    self.close_control(peer)?;
-                }
-                // Never closes separately authorized gameplay connections.
-            }
+            } => self.send_native(id, epoch, peer, message_id, payload, control)?,
+            Command::CloseControl { epoch, peer } => self.close_control_command(id, epoch, peer)?,
             Command::PrepareGame {
                 epoch,
                 peer,
@@ -1085,150 +714,26 @@ impl Actor {
                 local_port,
                 max_packet,
                 dial,
-            } => {
-                if !self.matches(epoch)
-                    || self.room != Some(room)
-                    || generation <= self.closed_generation
-                    || generation > i64::MAX as u64
-                    || room == [0; 16]
-                    || capability == [0; 32]
-                    || local_port == 0
-                    || max_packet == 0
-                    || max_packet > wire::MAX_UDP_PAYLOAD
-                    || peer == self.endpoint.id()
-                    || self.games.contains_key(&peer)
-                    || self.games.len() >= MAX_GAME_LINKS
-                    || self
-                        .games
-                        .values()
-                        .any(|game| game.auth.key.generation != generation)
-                    || self.tasks.len() >= MAX_TASKS
-                {
-                    self.error(id, "invalid_game_registration")?;
-                    return Ok(true);
-                }
-                let auth = GameAuthorization {
-                    peer,
-                    key: MatchKey { room, generation },
-                    capability,
-                    max_packet,
-                };
-                let mut slot = GameSlot {
-                    auth: auth.clone(),
-                    local_port,
-                    // The listener accepts an authorized connection from the
-                    // dialer, which always dials a new one.
-                    waiting: !dial,
-                    task: None,
-                    stats: None,
-                    route_connection: None,
-                    expires: tokio::time::Instant::now() + transport::PREPARED_GAME_TIMEOUT,
-                    candidate: None,
-                    diagnostics: GameDiagnostics::default(),
-                };
-                if dial {
-                    let endpoint = self.endpoint.clone();
-                    let address = self
-                        .host_address
-                        .as_ref()
-                        .filter(|a| a.id == peer)
-                        .cloned()
-                        .unwrap_or_else(|| EndpointAddr::new(peer));
-                    slot.task = Some(self.tasks.spawn(async move {
-                        let result = transport::connect_game(&endpoint, address, auth).await;
-                        Completion::Game(epoch, peer, generation, result)
-                    }));
-                }
-                self.games.insert(peer, slot);
-                // Preparation already suspends latency (`Unavailable(InMatch)`).
-                self.latency_games_changed();
-                self.emit(Event::GameWaiting {
-                    epoch,
-                    peer,
-                    generation,
-                })?;
-            }
-            Command::EndMatch { epoch, generation } => {
-                if !self.matches(epoch)
-                    || generation == 0
-                    || generation > i64::MAX as u64
-                    || self
-                        .games
-                        .values()
-                        .any(|game| game.auth.key.generation != generation)
-                {
-                    self.error(id, "stale_match")?;
-                    return Ok(true);
-                }
-                self.closed_generation = self.closed_generation.max(generation);
-                let slots = std::mem::take(&mut self.games);
-                for (peer, slot) in slots {
-                    if let Some((connection, task)) = self.pending_game_admissions.remove(&peer) {
-                        connection.close(0u32.into(), b"match ended during admission");
-                        task.abort();
-                    }
-                    self.emit(Event::GameClosed {
-                        epoch,
-                        peer,
-                        generation,
-                        reason: slot.unlinked_reason("ended before gameplay link"),
-                    })?;
-                }
-            }
+            } => self.prepare_game(
+                id, epoch, peer, room, generation, capability, local_port, max_packet, dial,
+            )?,
+            Command::EndMatch { epoch, generation } => self.end_match(id, epoch, generation)?,
             Command::EndPeer {
                 epoch,
                 peer,
                 generation,
-            } => {
-                if !self.matches(epoch)
-                    || generation == 0
-                    || generation > i64::MAX as u64
-                    || generation <= self.closed_generation
-                {
-                    self.error(id, "stale_match")?;
-                    return Ok(true);
-                }
-                // Per-link teardown is intentionally idempotent.  A bridge
-                // may have already observed the remote close before the
-                // authority's game_peer_end message reaches this helper.
-                let Some(slot) = self.games.get(&peer) else {
-                    return Ok(true);
-                };
-                if slot.auth.key.generation != generation {
-                    self.error(id, "stale_match")?;
-                    return Ok(true);
-                }
-                let slot = self.games.remove(&peer);
-                if let Some((connection, task)) = self.pending_game_admissions.remove(&peer) {
-                    connection.close(0u32.into(), b"peer ended during admission");
-                    task.abort();
-                }
-                self.emit(Event::GameClosed {
-                    epoch,
-                    peer,
-                    generation,
-                    reason: slot
-                        .and_then(|slot| slot.unlinked_reason("peer ended before gameplay link")),
-                })?;
-            }
-            Command::CheckpointBegin { .. }
-            | Command::CheckpointChunk { .. }
-            | Command::CheckpointEnd { .. }
-            | Command::CheckpointAck { .. }
-            | Command::ProbeRequest { .. } => {
-                self.error(id, "async_command_not_dispatched")?;
-            }
+            } => self.end_peer(id, epoch, peer, generation)?,
         }
         Ok(true)
     }
 
     async fn completed(&mut self, completion: Completion) -> io::Result<()> {
-        let (completion, joined_invite) = match completion {
+        match completion {
             Completion::GuestControl(epoch, invite, result, latency) => {
                 if result.is_ok() {
                     self.latency_adopt(epoch, latency);
                 }
-                (Completion::Control(epoch, result), Some(invite))
+                self.completed_control(epoch, result, Some(invite)).await
             }
             Completion::MemberControl(epoch, incarnation, result) => {
                 if let Ok(channel) = &result {
@@ -1245,7 +750,7 @@ impl Actor {
                         return Ok(());
                     }
                 }
-                (Completion::Control(epoch, result), None)
+                self.completed_control(epoch, result, None).await
             }
             Completion::Reconnect(epoch, peer, result) => {
                 if epoch == self.epoch {
@@ -1267,13 +772,8 @@ impl Actor {
                 {
                     self.host_address = Some(EndpointAddr::new(peer).with_relay_url(relay));
                 }
-                (Completion::Control(epoch, result), retrying_join)
+                self.completed_control(epoch, result, retrying_join).await
             }
-            other => (other, None),
-        };
-        match completion {
-            Completion::GuestControl(..) | Completion::MemberControl(..) => unreachable!(),
-            Completion::Reconnect(..) => unreachable!(),
             Completion::CheckpointProposal(key, transfer, _waiter_result) => {
                 self.completed_checkpoint_proposal(key, transfer, _waiter_result)
                     .await
@@ -1295,9 +795,7 @@ impl Actor {
             Completion::ClassifiedGame(incoming, result) => {
                 self.completed_classified_game(incoming, result).await
             }
-            Completion::Control(epoch, result) => {
-                self.completed_control(epoch, result, joined_invite).await
-            }
+            Completion::Control(epoch, result) => self.completed_control(epoch, result, None).await,
             Completion::Game(epoch, peer, generation, result) => {
                 self.completed_game(epoch, peer, generation, result).await
             }
@@ -1323,51 +821,6 @@ impl Actor {
                 self.completed_short_adopt(epoch, code, found)
             }
         }
-    }
-
-    async fn completed_hosted(
-        &mut self,
-        epoch: u64,
-        result: io::Result<Invite>,
-        latency: Option<latency::LatencyEndpoint>,
-    ) -> io::Result<()> {
-        if epoch != self.epoch || !self.opening {
-            return Ok(());
-        }
-        self.opening = false;
-        match result {
-            Ok(invite) => {
-                let invite = match self.setup_host_recovery(invite).await {
-                    Ok(invite) => invite,
-                    Err(_) => {
-                        self.clear_room();
-                        self.error(0, "coordination_unavailable")?;
-                        return Ok(());
-                    }
-                };
-                self.room = Some(invite.room());
-                self.latency_adopt(epoch, latency);
-                let (latency, latency_relay) = self.latency_route();
-                self.emit(Event::Hosted {
-                    epoch,
-                    invitation: invite.encode()?,
-                    room: invite.room(),
-                    latency,
-                    latency_relay,
-                })?;
-                self.emit(Event::DiscordInvite {
-                    epoch,
-                    invitation: invite.encode()?,
-                    secret: invite.encode_discord()?,
-                })?;
-                self.hosted = Some(invite);
-                self.room_invite = self.hosted.clone();
-            }
-            Err(error) => {
-                self.error_because(0, "host_unavailable", network::host_failure_reason(&error))?
-            }
-        }
-        Ok(())
     }
 
     async fn run(
@@ -1396,33 +849,8 @@ impl Actor {
                     Some(request) => {
                         tick_now(tick.as_mut());
                         let _step = busy.enter(stall::command_stage(&request.command));
-                        let id = request.id;
-                        match request.command {
-                            Command::CheckpointBegin { epoch, room, transfer, term, base_revision, revision, length, digest } =>
-                                if self.checkpoint_begin(epoch, room, transfer, term, base_revision, revision, length, digest).await.is_err() {
-                                    self.error(id, "checkpoint_begin_rejected")?;
-                                },
-                            Command::CheckpointChunk { epoch, room, transfer, term, base_revision, revision, offset, data } =>
-                                if self.checkpoint_chunk(epoch, room, transfer, term, base_revision, revision, offset, data).await.is_err() {
-                                    self.error(id, "checkpoint_chunk_rejected")?;
-                                },
-                            Command::CheckpointEnd { epoch, room, transfer, term, base_revision, revision, length, digest } =>
-                                if self.checkpoint_end(epoch, room, transfer, term, base_revision, revision, length, digest).await.is_err() {
-                                    self.error(id, "checkpoint_not_committed")?;
-                                },
-                            Command::CheckpointAck { epoch, room, transfer, offset } =>
-                                if self.checkpoint_ack(epoch, room, transfer, offset).is_err() {
-                                    self.error(id, "checkpoint_ack_rejected")?;
-                                },
-                            Command::ProbeRequest { epoch, room, peer, request, pair_revision, benchmark } => {
-                                self.spawn_probe(epoch, room, peer, request, pair_revision, benchmark).await?;
-                            }
-                            Command::Leave { epoch, abandon } => {
-                                if !self.leave_command(epoch, abandon, &mut commands, &mut failed_ipc).await? {
-                                    return Ok(());
-                                }
-                            }
-                            command => if !self.command(Request { id, command })? { return Ok(()); },
+                        if !self.command(request, &mut commands, &mut failed_ipc).await? {
+                            return Ok(());
                         }
                     },
                     None => return Err(failed("IPC disconnected")),
@@ -1499,42 +927,7 @@ impl Actor {
                 _ = statistics.tick() => {
                     let _step = busy.enter("statistics");
                     statistics_ticks = statistics_ticks.wrapping_add(1);
-                    self.emit_coordination_state().await?;
-                    busy.stage("statistics:latency");
-                    self.latency_second().await;
-                    busy.stage("statistics");
-                    if let Ok(time) = now() {
-                        self.renew_invitation(time);
-                        self.pump_short_link(time);
-                    }
-                    // Room or not: the settings screen shows it. A report that
-                    // found the queue busy is not counted as sent.
-                    let summary = network::network_summary(&self.endpoint);
-                    if reported_network.as_ref() != Some(&summary) && self.emit_bulk(summary.clone().into()) {
-                        reported_network = Some(summary);
-                    }
-                    // While a room is open, not only during a match: a report that
-                    // stops at match end must mean the actor stopped (F-008). With
-                    // no game it comes every few seconds rather than every second,
-                    // and covers every second since the last one sent.
-                    let due = !self.games.is_empty()
-                        || (self.room.is_some() && statistics_ticks % IDLE_LOAD_REPORT_SECS == 0);
-                    if due && self.events.has_headroom() {
-                        self.emit(load.report(self.epoch, self.events.capacity()))?;
-                    } else if self.room.is_none() && self.games.is_empty() {
-                        load.clear();
-                    }
-                    for (peer, slot) in &self.games {
-                        if !self.events.has_headroom() { break; }
-                        if let Some(stats) = &slot.stats {
-                            self.emit(Event::Statistics { epoch: self.epoch, peer: *peer, generation: slot.auth.key.generation,
-                                sent_packets: stats.sent_packets.load(Ordering::Relaxed), received_packets: stats.received_packets.load(Ordering::Relaxed),
-                                sent_bytes: stats.sent_bytes.load(Ordering::Relaxed), received_bytes: stats.received_bytes.load(Ordering::Relaxed),
-                                rejected_packets: stats.rejected_packets.load(Ordering::Relaxed), congestion_events: stats.congestion_events.load(Ordering::Relaxed),
-                                local_drops: stats.local_drops.load(Ordering::Relaxed),
-                                route: slot.route_connection.as_ref().map(selected_probe_route).unwrap_or_else(|| "unavailable".into()) })?;
-                        }
-                    }
+                    self.second(statistics_ticks, &busy, &mut load, &mut reported_network).await?;
                 }
             }
         }

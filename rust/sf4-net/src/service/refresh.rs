@@ -1,6 +1,27 @@
 //! Recovery session setup and applying refreshed coordination state.
 use super::*;
 
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct CoordinationRefreshKey {
+    pub(super) sequence: u64,
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) incarnation: u64,
+    pub(super) term: u64,
+    pub(super) leader: Option<u64>,
+}
+
+pub(super) struct CoordinationRefresh {
+    pub(super) state: AuthorityState,
+    pub(super) leader: Option<u64>,
+    pub(super) applied_members: BTreeSet<u64>,
+    pub(super) applied_history: BTreeSet<u64>,
+    pub(super) retired: BTreeSet<u64>,
+    pub(super) committed: Arc<crate::coordination::Committed>,
+    /// The applied membership is a joint configuration nobody finished.
+    pub(super) joint: bool,
+}
+
 impl Actor {
     /// An invitation lasts INVITE_LIFETIME from when it was made, and a room
     /// can outlive that: every copy, and every rejoin of a member who left,
@@ -101,6 +122,12 @@ impl Actor {
             }
         });
         self.recovery = Some(session);
+    }
+
+    /// Sends the CoordinationState now even when it is unchanged.
+    pub(super) async fn republish_coordination_state(&mut self) -> io::Result<()> {
+        self.last_coordination_state = None;
+        self.emit_coordination_state().await
     }
 
     pub(super) async fn emit_coordination_state(&mut self) -> io::Result<()> {
@@ -244,7 +271,7 @@ impl Actor {
         let became_local_leader = state.leader_local
             && self
                 .last_coordination_state
-                .is_none_or(|marker| !marker.3 || marker.0 != state.term);
+                .is_none_or(|marker| !marker.leader_local || marker.term != state.term);
         if state.leader_local && (!retired_for_broadcast.is_empty() || became_local_leader) {
             self.queue_membership_publication();
         }
@@ -300,11 +327,18 @@ impl Actor {
                 }
             }
         }
-        let leader_coord = state.leader.clone();
+        // `state.leader` names the coordination endpoint here, as text. It
+        // is read once; an admission matches when its endpoint is the one
+        // that text writes exactly.
+        let leader_coord = state
+            .leader
+            .parse::<EndpointId>()
+            .ok()
+            .filter(|endpoint| endpoint.to_string() == state.leader);
         let leader_admission = self
             .admissions
             .values()
-            .find(|admission| admission.coordination_endpoint.to_string() == leader_coord)
+            .find(|admission| Some(admission.coordination_endpoint) == leader_coord)
             .cloned();
         let leader = leader_admission
             .as_ref()
@@ -319,14 +353,14 @@ impl Actor {
             state.writable = false;
         }
         self.coordination_writable = state.writable;
-        let marker = (
-            state.term,
-            state.revision,
-            state.writable,
-            state.leader_local,
-            state.voter_count,
-            state.learner_count,
-        );
+        let marker = CoordinationMarker {
+            term: state.term,
+            revision: state.revision,
+            writable: state.writable,
+            leader_local: state.leader_local,
+            voter_count: state.voter_count,
+            learner_count: state.learner_count,
+        };
         if self.last_coordination_state != Some(marker) {
             if !self.emit_bulk(Event::CoordinationState {
                 epoch: self.epoch,
@@ -389,12 +423,12 @@ impl Actor {
         // ControlRebound is a routing event. Defer it while a new leader is
         // only present in admissions; the native router must retain its live
         // endpoint until the replacement control socket is ready.
-        let leader_ready = !state.leader.is_empty()
-            && (state.leader == self.endpoint.id().to_string()
-                || self
-                    .controls
-                    .keys()
-                    .any(|peer| peer.to_string() == state.leader));
+        // `state.leader` now names the leader's primary endpoint, the one
+        // `leader_admission` binds, and is empty without one.
+        let leader_ready = leader_admission.as_ref().is_some_and(|admission| {
+            admission.primary_endpoint == self.endpoint.id()
+                || self.controls.contains_key(&admission.primary_endpoint)
+        });
         if state.leader.is_empty() {
             return Ok(());
         }
@@ -404,27 +438,22 @@ impl Actor {
             }
             return Ok(());
         }
-        let rebound_marker = (
-            state.leader.clone(),
-            members.clone(),
-            member_incarnations.clone(),
-        );
         // ControlRebound is an idempotent native routing snapshot.  Repeat
         // the current snapshot on the one-second coordination cadence even
-        // when the marker is unchanged: a joining native owner may not have
+        // when it is unchanged: a joining native owner may not have
         // installed its IPC reader when the first snapshot was emitted, and
         // caching that send would strand it in Joining forever.  Bulk queue
-        // reserve still bounds retries during checkpoint pressure.
-        if !self.emit_bulk(Event::ControlRebound {
+        // reserve still bounds retries during checkpoint pressure. The native
+        // side also clears its rebound state on a term change, a leader-scoped
+        // error, the leader's control_closed and Fail(), and only the next
+        // snapshot restores it.
+        self.emit_bulk(Event::ControlRebound {
             epoch: self.epoch,
             room: recovery.room,
             leader: state.leader,
             members,
             member_incarnations,
-        }) {
-            return Ok(());
-        }
-        self.last_control_rebound = Some(rebound_marker);
+        });
         Ok(())
     }
 
@@ -495,7 +524,6 @@ impl Actor {
             // will establish the next positive claim.
             self.coordination_writable = false;
             self.last_coordination_state = None;
-            self.last_control_rebound = None;
             self.unwritable_leader_since = None;
             self.emit_coordination_state().await?;
         }

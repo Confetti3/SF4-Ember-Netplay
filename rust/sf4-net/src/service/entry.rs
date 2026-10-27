@@ -133,7 +133,6 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         pending_membership_publications: BTreeSet::new(),
         last_coordination_state: None,
         coordination_writable: false,
-        last_control_rebound: None,
         unwritable_leader_since: None,
         reconnect_target: None,
         pending_game_admissions: BTreeMap::new(),

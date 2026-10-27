@@ -95,6 +95,25 @@ openraft::declare_raft_types!(pub RoomTypes: D = Proposal, R = Receipt, Node = B
 pub type RoomRaft = Raft<RoomTypes>;
 type StoreError = StorageError<u64>;
 
+/// The error `Coordinator::propose` ends with when another proposal holds
+/// this leader; `is_proposal_busy` tells it from the others.
+#[derive(Debug)]
+struct ProposalBusy;
+
+impl std::fmt::Display for ProposalBusy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("room proposal busy")
+    }
+}
+
+impl std::error::Error for ProposalBusy {}
+
+pub fn is_proposal_busy(error: &io::Error) -> bool {
+    error
+        .get_ref()
+        .is_some_and(|inner| inner.is::<ProposalBusy>())
+}
+
 pub struct Coordinator {
     room: [u8; 16],
     incarnation: u64,
@@ -392,7 +411,7 @@ impl Coordinator {
         let _serial = self
             .proposals
             .try_lock()
-            .map_err(|_| io::Error::other("room proposal busy"))?;
+            .map_err(|_| io::Error::other(ProposalBusy))?;
         self.raft
             .ensure_linearizable()
             .await

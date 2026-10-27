@@ -123,8 +123,28 @@ impl From<NetworkSummary> for Event {
 /// Why a host attempt failed, from the error its task ended with. Only a home
 /// relay that never came online has a reason the player can act on.
 pub(super) fn host_failure_reason(error: &io::Error) -> Option<&'static str> {
-    (error.to_string() == "relay_unavailable").then_some("relay_unreachable")
+    error
+        .get_ref()
+        .is_some_and(|inner| inner.is::<RelayUnavailable>())
+        .then_some("relay_unreachable")
 }
+
+/// A host attempt whose home relay never came online.
+pub(super) fn relay_unavailable() -> io::Error {
+    io::Error::other(RelayUnavailable)
+}
+
+/// `relay_unavailable`'s payload, written as the text it always had.
+#[derive(Debug)]
+struct RelayUnavailable;
+
+impl std::fmt::Display for RelayUnavailable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("relay_unavailable")
+    }
+}
+
+impl std::error::Error for RelayUnavailable {}
 
 /// Why the first control connection of a join failed, from the error it ended
 /// with. A public host's refusal (`PublicRefused`) is `refused`; a handshake
@@ -262,7 +282,7 @@ mod tests {
             );
         }
         assert_eq!(
-            host_failure_reason(&failed("relay_unavailable")),
+            host_failure_reason(&relay_unavailable()),
             Some("relay_unreachable")
         );
         assert_eq!(host_failure_reason(&failed("clock")), None);

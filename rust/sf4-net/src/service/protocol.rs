@@ -1,6 +1,81 @@
 //! IPC schema between the native client and the helper: commands in, events out.
 use super::*;
 
+/// How deep the JSON handed to the native side may nest: the depth at which
+/// serde_json stops. The native side copies and prints what it parses
+/// recursively, on a thread stack sized for real messages.
+pub(super) const MAX_NATIVE_JSON_DEPTH: usize = 128;
+
+/// Whether `text` nests no deeper than MAX_NATIVE_JSON_DEPTH. Only brackets
+/// outside strings count; whether it is valid JSON is for the native side.
+pub(super) fn native_json_depth_ok(text: &[u8]) -> bool {
+    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+    for &byte in text {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match byte {
+            b'"' => in_string = true,
+            b'[' | b'{' => {
+                depth += 1;
+                if depth > MAX_NATIVE_JSON_DEPTH {
+                    return false;
+                }
+            }
+            b']' | b'}' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    true
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub(super) enum CoordinationControl {
+    Admission {
+        admission: Admission,
+    },
+    Membership {
+        admissions: Vec<Admission>,
+        /// Incarnations whose committed Raft membership no longer contains
+        /// the process. This explicit tombstone lets coordination-only
+        /// departures revoke every replica even when no native checkpoint
+        /// roster ever contained the member.
+        #[serde(default)]
+        retired: Vec<u64>,
+    },
+    ProbeReservation {
+        room: [u8; 16],
+        /// The primary endpoint and process incarnation on the sending side.
+        source: EndpointId,
+        source_incarnation: u64,
+        /// The admitted process incarnation that must accept the reservation.
+        target_incarnation: u64,
+        request: u64,
+        pair_revision: u64,
+        term: u64,
+        expires: u64,
+    },
+    /// A non-leader member is leaving. Its native Leave may never have been
+    /// committed (the room was unwritable, or the seat was not yet admitted),
+    /// and its control stays open until the committed leader has excluded
+    /// its vote. Without this the leader would only learn of the departure
+    /// from a control close after that exclusion, which in a two-voter room
+    /// it can no longer commit. The receiver hands the departure to its
+    /// native room at once, as it does for an expired departure grace.
+    Departure {
+        room: [u8; 16],
+        incarnation: u64,
+    },
+}
+
 // No Debug derive: invitations and match capabilities must not reach logs.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -566,7 +641,8 @@ impl TryFrom<MemberLatencyWire> for MemberLatencyRow {
 /// String for the existing IPC API, but emit valid JSON payloads as a
 /// RawValue so the wrapper adds only its small envelope overhead.
 pub(super) struct NativeControlMessage {
-    pub(super) kind: String,
+    /// `native_control` on every message this helper sends, borrowed.
+    pub(super) kind: std::borrow::Cow<'static, str>,
     pub(super) message_id: u64,
     pub(super) payload: String,
 }
@@ -580,7 +656,8 @@ impl Serialize for NativeControlMessage {
         let mut state = serializer.serialize_struct("NativeControlMessage", 3)?;
         state.serialize_field("type", &self.kind)?;
         state.serialize_field("message_id", &self.message_id)?;
-        if let Ok(raw) = serde_json::value::RawValue::from_string(self.payload.clone()) {
+        // Borrowed: the same text `RawValue::from_string` keeps, with no copy.
+        if let Ok(raw) = serde_json::from_str::<&serde_json::value::RawValue>(&self.payload) {
             state.serialize_field("payload", &raw)?;
         } else {
             state.serialize_field("payload", &self.payload)?;
@@ -610,7 +687,7 @@ impl<'de> Deserialize<'de> for NativeControlMessage {
             encoded.to_owned()
         };
         Ok(Self {
-            kind: wire.kind,
+            kind: wire.kind.into(),
             message_id: wire.message_id,
             payload,
         })

@@ -1,6 +1,86 @@
 //! Admission and retirement of room members.
 use super::{seats::Voters, *};
 
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct MembershipOperationKey {
+    pub(super) sequence: u64,
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) incarnation: u64,
+    pub(super) term: u64,
+    pub(super) revision: u64,
+}
+
+pub(super) struct MembershipOperationResult {
+    pub(super) confirmed_retirements: BTreeSet<u64>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct AdmissionOperationKey {
+    pub(super) sequence: u64,
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) incarnation: u64,
+    pub(super) term: u64,
+    pub(super) leader: Option<u64>,
+    pub(super) peer: EndpointId,
+    /// The admissions the operation presents, shared with its clones.
+    pub(super) admissions: Arc<[Admission]>,
+    pub(super) add_member_if_leader: bool,
+}
+
+pub(super) struct AdmissionOperationResult {
+    pub(super) admissions: Vec<Admission>,
+}
+
+pub(super) struct DeferredAdmission {
+    pub(super) peer: EndpointId,
+    pub(super) admissions: Vec<Admission>,
+    pub(super) add_member_if_leader: bool,
+    /// Controls whose session this operation's outcome settles: those that
+    /// presented one of its admissions. Roster work carries none.
+    pub(super) bindings: Vec<ControlBinding>,
+}
+
+/// A control waiting for the admission operation it presented.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) struct ControlBinding {
+    pub(super) peer: EndpointId,
+    pub(super) control: u64,
+    pub(super) incarnation: u64,
+}
+
+/// Build the native endpoint-to-incarnation view from the membership this
+/// replica has actually applied. Historical admissions can temporarily retain
+/// both a retired and a fresh process incarnation for the same stable Iroh
+/// endpoint. Publishing every remembered admission would make numeric sort
+/// order choose one at random. An ambiguous applied endpoint stays absent
+/// until joint consensus and retirement leave one exact incarnation.
+pub(super) fn applied_member_incarnations(
+    admissions: &BTreeMap<u64, Admission>,
+    applied: &BTreeSet<u64>,
+    retiring: &BTreeSet<u64>,
+) -> BTreeMap<String, u64> {
+    let mut candidates = BTreeMap::<String, Option<u64>>::new();
+    for (incarnation, admission) in admissions {
+        if !applied.contains(incarnation) || retiring.contains(incarnation) {
+            continue;
+        }
+        candidates
+            .entry(admission.primary_endpoint.to_string())
+            .and_modify(|current| {
+                if *current != Some(*incarnation) {
+                    *current = None;
+                }
+            })
+            .or_insert(Some(*incarnation));
+    }
+    candidates
+        .into_iter()
+        .filter_map(|(endpoint, incarnation)| incarnation.map(|value| (endpoint, value)))
+        .collect()
+}
+
 impl Actor {
     pub(super) fn remember_admission(&mut self, admission: Admission) {
         let incarnation = admission.incarnation;
@@ -331,15 +411,13 @@ impl Actor {
         if admissions.is_empty() {
             return Ok(());
         }
-        let fingerprint = serde_json::to_vec(&admissions)
-            .map_err(|_| failed("coordination admission encoding failed"))?;
-        let same = |key_peer: EndpointId, key_fingerprint: &[u8], key_add: bool| {
-            key_peer == peer && key_fingerprint == fingerprint && key_add == add_member_if_leader
+        let same = |key_peer: EndpointId, key_admissions: &[Admission], key_add: bool| {
+            key_peer == peer && key_admissions == admissions && key_add == add_member_if_leader
         };
         if self
             .pending_admission_operation
             .as_ref()
-            .is_some_and(|key| same(key.peer, &key.fingerprint, key.add_member_if_leader))
+            .is_some_and(|key| same(key.peer, &key.admissions, key.add_member_if_leader))
         {
             self.pending_admission_bindings.extend(binding);
             return Ok(());
@@ -347,7 +425,7 @@ impl Actor {
         if let Some(deferred) = self.deferred_admissions.iter_mut().find(|deferred| {
             same(
                 deferred.peer,
-                &deferred.fingerprint,
+                &deferred.admissions,
                 deferred.add_member_if_leader,
             )
         }) {
@@ -361,7 +439,6 @@ impl Actor {
             peer,
             admissions,
             add_member_if_leader,
-            fingerprint,
             bindings: binding.into_iter().collect(),
         });
         self.start_next_admission_operation();
@@ -389,7 +466,7 @@ impl Actor {
             term: recovery.coordinator.current_term(),
             leader: recovery.coordinator.current_leader(),
             peer: deferred.peer,
-            fingerprint: deferred.fingerprint,
+            admissions: deferred.admissions.as_slice().into(),
             add_member_if_leader: deferred.add_member_if_leader,
         };
         self.pending_admission_bindings = deferred.bindings;
@@ -518,9 +595,7 @@ impl Actor {
         // Stale completions leave the pre-write retirement fences in
         // place. The next exact committed-roster refresh retries the
         // operation through the current authority.
-        self.last_coordination_state = None;
-        self.last_control_rebound = None;
-        self.emit_coordination_state().await?;
+        self.republish_coordination_state().await?;
         Ok(())
     }
 
@@ -592,9 +667,7 @@ impl Actor {
             // accepts the current full snapshot.
             self.queue_membership_publication();
         }
-        self.last_coordination_state = None;
-        self.last_control_rebound = None;
-        self.emit_coordination_state().await?;
+        self.republish_coordination_state().await?;
         self.start_next_admission_operation();
         Ok(())
     }

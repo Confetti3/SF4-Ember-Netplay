@@ -16,6 +16,50 @@ use serde_json::Value;
 
 use super::*;
 
+/// Extract the primary Iroh identities and exact process incarnations from
+/// the committed native `SessionProposal` envelope. C++ binds these from its
+/// authenticated room-member map; Rust only uses a complete, validated list
+/// to reconcile Raft membership after commit. A server-owned room can
+/// stand with no member when `allow_empty`.
+pub(super) fn primary_members(
+    envelope: &serde_json::Value,
+    allow_empty: bool,
+) -> Option<BTreeMap<EndpointId, u64>> {
+    let members = envelope.get("checkpoint")?.get("members")?.as_array()?;
+    // A recovery checkpoint may retain started spectator tombstones in
+    // addition to the sixteen active room members. Bound the total separately
+    // from the active roster so a valid 16-member room plus frozen entries is
+    // still reconcilable without allowing an unbounded snapshot projection.
+    const MAX_FROZEN_MEMBERS: usize = 4 * (MAX_CONTROL_PEERS + 1);
+    if (members.is_empty() && !allow_empty)
+        || members.len() > MAX_CONTROL_PEERS + 1 + MAX_FROZEN_MEMBERS
+    {
+        return None;
+    }
+    let mut endpoints = BTreeMap::new();
+    let mut active = 0usize;
+    for member in members {
+        if member.get("frozen").and_then(serde_json::Value::as_bool) == Some(true) {
+            continue;
+        }
+        active += 1;
+        if active > MAX_CONTROL_PEERS + 1 {
+            return None;
+        }
+        let data = member.get("data")?;
+        let text = data
+            .get("authenticatedEndpoint")
+            .or_else(|| data.get("authenticated_endpoint"))?
+            .as_str()?;
+        let endpoint = text.parse::<EndpointId>().ok()?;
+        let incarnation = member.get("incarnation")?.as_u64()?;
+        if incarnation == 0 || endpoints.insert(endpoint, incarnation).is_some() {
+            return None;
+        }
+    }
+    (allow_empty || !endpoints.is_empty()).then_some(endpoints)
+}
+
 /// A commit's native roster, with the room and the commit it was read from
 /// (`Actor::observe_commit`).
 pub(super) type SeenCommit = (

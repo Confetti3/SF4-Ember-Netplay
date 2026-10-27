@@ -267,7 +267,6 @@ pub(super) fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Act
         pending_membership_publications: BTreeSet::new(),
         last_coordination_state: None,
         coordination_writable: false,
-        last_control_rebound: None,
         unwritable_leader_since: None,
         reconnect_target: None,
         pending_game_admissions: BTreeMap::new(),
@@ -890,7 +889,7 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
         .unwrap();
     assert!(
         actor
-            .command(Request {
+            .command_now(Request {
                 id: 6,
                 command: Command::Join {
                     epoch: 1,
@@ -898,7 +897,7 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
                     build: "test-build".into(),
                     observer: false,
                 },
-            })
+            }).await
             .unwrap()
     );
     assert!(matches!(
@@ -975,10 +974,10 @@ async fn a_refused_join_names_the_epoch_it_asked_for() {
     };
     assert!(
         actor
-            .command(Request {
+            .command_now(Request {
                 id: 5,
                 command: join(2),
-            })
+            }).await
             .unwrap()
     );
     assert!(matches!(
@@ -1357,15 +1356,14 @@ async fn a_refused_admission_queue_closes_the_control_without_a_session() {
                 term: 0,
                 leader: None,
                 peer: actor.endpoint.id(),
-                fingerprint: Vec::new(),
+                admissions: Arc::from([]),
                 add_member_if_leader: false,
             });
-            for index in 0..MAX_CONTROL_PEERS {
+            for _ in 0..MAX_CONTROL_PEERS {
                 actor.deferred_admissions.push_back(DeferredAdmission {
                     peer: actor.endpoint.id(),
                     admissions: Vec::new(),
                     add_member_if_leader: false,
-                    fingerprint: vec![index as u8],
                     bindings: Vec::new(),
                 });
             }
@@ -1593,7 +1591,7 @@ async fn a_completion_settles_only_the_control_pending_for_its_incarnation() {
             term: recovery.coordinator.current_term(),
             leader: recovery.coordinator.current_leader(),
             peer: remote.id(),
-            fingerprint: vec![sequence as u8],
+            admissions: Arc::from([]),
             add_member_if_leader: false,
         };
         let binding = |control, incarnation| ControlBinding {
@@ -1922,10 +1920,10 @@ async fn incomplete_game_marker_does_not_block_actor_commands() {
     .unwrap();
     assert!(
         actor
-            .command(Request {
+            .command_now(Request {
                 id: 17,
                 command: Command::Status
-            })
+            }).await
             .unwrap()
     );
     assert!(matches!(
@@ -1934,13 +1932,13 @@ async fn incomplete_game_marker_does_not_block_actor_commands() {
     ));
     assert!(
         actor
-            .command(Request {
+            .command_now(Request {
                 id: 19,
                 command: Command::EndMatch {
                     epoch: 7,
                     generation: 3
                 }
-            })
+            }).await
             .unwrap()
     );
     assert!(actor.pending_game_admissions.is_empty());
@@ -1988,10 +1986,10 @@ async fn incomplete_game_marker_does_not_block_actor_commands() {
 
     assert!(
         !actor
-            .command(Request {
+            .command_now(Request {
                 id: 18,
                 command: Command::Shutdown
-            })
+            }).await
             .unwrap()
     );
     drop(client);
@@ -4082,13 +4080,13 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         ..test_actor(host.clone(), events_tx)
     };
     actor
-        .command(Request {
+        .command_now(Request {
             id: 1,
             command: Command::Leave {
                 epoch: 1,
                 abandon: false,
             },
-        })
+        }).await
         .unwrap();
     let _ = next(&mut events, "room_closed").await;
     assert!(actor.begin(2, "test-build"));
@@ -4101,13 +4099,13 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
     // An old leave request and a late old-host completion cannot close or
     // replace the new room, even though its endpoint is unchanged.
     actor
-        .command(Request {
+        .command_now(Request {
             id: 2,
             command: Command::Leave {
                 epoch: 1,
                 abandon: false,
             },
-        })
+        }).await
         .unwrap();
     assert!(
         matches!(events.recv().await, Some(Event::Error { code, .. }) if code == "stale_epoch")
@@ -4856,7 +4854,7 @@ async fn failed_attempts_say_at_which_stage_they_failed() {
     actor.epoch = 3;
     actor.opening = true;
     actor
-        .completed_hosted(3, Err(failed("relay_unavailable")), None)
+        .completed_hosted(3, Err(network::relay_unavailable()), None)
         .await
         .unwrap();
     assert!(matches!(
@@ -6909,7 +6907,7 @@ fn short_join(epoch: u64, invitation: &str, build: &str) -> Request {
 }
 
 async fn joined_reason(guest: &mut Actor, events: &mut mpsc::Receiver<Event>, epoch: u64, text: &str, build: &str) -> Option<String> {
-    assert!(guest.command(short_join(epoch, text, build)).unwrap());
+    assert!(guest.command_now(short_join(epoch, text, build)).await.unwrap());
     complete_short(guest).await;
     match timeout(Duration::from_secs(5), events.recv()).await.unwrap().unwrap() {
         Event::Error { epoch: refused, ref code, reason, .. } => {
@@ -6979,7 +6977,7 @@ async fn a_short_link_opens_the_room_it_was_made_for() {
     // goes on to dial the host the record names.
     let code = crate::short_invite::display_code(&invite.short_code());
     for (epoch, pasted) in [(1, link.clone()), (2, code.to_lowercase()), (3, format!(" {code}\r\n"))] {
-        assert!(guest.command(short_join(epoch, &pasted, "test-build")).unwrap());
+        assert!(guest.command_now(short_join(epoch, &pasted, "test-build")).await.unwrap());
         assert_eq!(guest.room, None);
         complete_short(&mut guest).await;
         assert_eq!(guest.room, Some(invite.room()));
@@ -7093,7 +7091,14 @@ async fn a_new_leader_keeps_a_shared_short_link_current() {
 /// Marks `actor` as the room's coordination leader in `term`, as a refresh
 /// that saw it lead would.
 fn leads(actor: &mut Actor, term: u64) {
-    actor.last_coordination_state = Some((term, 1, true, true, 1, 0));
+    actor.last_coordination_state = Some(CoordinationMarker {
+        term,
+        revision: 1,
+        writable: true,
+        leader_local: true,
+        voter_count: 1,
+        learner_count: 0,
+    });
 }
 
 /// This member's copy of the room's invitation once it leads: the same room
@@ -7357,7 +7362,7 @@ async fn a_short_link_that_cannot_be_opened_says_why() {
 
     // A Leave while the lookup runs drops its answer.
     guest.short.service = service;
-    assert!(guest.command(short_join(7, &missing_link, "test-build")).unwrap());
+    assert!(guest.command_now(short_join(7, &missing_link, "test-build")).await.unwrap());
     guest.clear_room();
     while let Some(finished) = guest.tasks.join_next().await {
         if let Ok(completion) = finished {

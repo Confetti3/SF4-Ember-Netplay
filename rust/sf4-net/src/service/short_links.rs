@@ -336,7 +336,7 @@ impl Actor {
         let Some(room) = self.short.room.as_ref() else {
             let leading = self
                 .last_coordination_state
-                .is_some_and(|marker| marker.3);
+                .is_some_and(|marker| marker.leader_local);
             if self.short.adopt_at != 0 && time >= self.short.adopt_at && leading {
                 self.adopt_short_link();
             }

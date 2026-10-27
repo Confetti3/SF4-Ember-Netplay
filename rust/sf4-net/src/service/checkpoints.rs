@@ -1,6 +1,44 @@
 //! Room checkpoint transfer: inbound begin/chunk/end, outbound pump, acknowledgements.
 use super::*;
 
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct CheckpointProposalKey {
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) incarnation: u64,
+    pub(super) transfer: u64,
+    pub(super) term: u64,
+    pub(super) base_revision: u64,
+    pub(super) revision: u64,
+    pub(super) length: usize,
+    pub(super) digest: [u8; 32],
+}
+
+pub(super) struct OutgoingCheckpoint {
+    pub(super) transfer: CheckpointTransfer,
+    pub(super) next_offset: usize,
+    pub(super) in_flight: BTreeSet<u32>,
+    pub(super) acked_offset: u32,
+    pub(super) end_sent: bool,
+    pub(super) begin_sent: bool,
+    pub(super) started: tokio::time::Instant,
+    /// A `checkpoint_committed_local` marker rather than the bytes; its
+    /// marker is out once `begin_sent` is set.
+    pub(super) local: bool,
+}
+
+#[derive(Clone)]
+pub(super) struct PendingCheckpointCommitted {
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) transfer: u64,
+    pub(super) term: u64,
+    pub(super) base_revision: u64,
+    pub(super) revision: u64,
+    pub(super) length: u32,
+    pub(super) digest: String,
+}
+
 impl Actor {
     #[cfg(test)]
     pub(super) fn start_outgoing_checkpoint(&mut self, transfer: CheckpointTransfer) {
@@ -652,8 +690,7 @@ impl Actor {
                 self.export_checkpoint(transfer, true);
             }
         }
-        self.last_coordination_state = None;
-        self.emit_coordination_state().await?;
+        self.republish_coordination_state().await?;
         Ok(())
     }
 }

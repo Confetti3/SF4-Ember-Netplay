@@ -143,14 +143,7 @@ impl Actor {
         let Ok(payload) = serde_json::to_string(&frame) else {
             return true;
         };
-        let id = self.next_transport_message;
-        self.next_transport_message = self.next_transport_message.saturating_add(1);
-        if let Some(control) = self.controls.get(&target) {
-            let _ = control.try_send(ControlFrame {
-                message_id: id,
-                payload: payload.into_bytes(),
-            });
-        }
+        let _ = self.send_frame(Some(target), payload.into_bytes());
         true
     }
 

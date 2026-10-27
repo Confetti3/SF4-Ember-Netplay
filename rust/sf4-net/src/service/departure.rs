@@ -369,9 +369,7 @@ impl Actor {
                     self.error(0, "leave_successor_unconfirmed")?;
                     return Ok(Departure::Unconfirmed);
                 }
-                self.last_coordination_state = None;
-                self.last_control_rebound = None;
-                let _ = self.emit_coordination_state().await;
+                let _ = self.republish_coordination_state().await;
             }
             // A native RoomAction Leave may have committed the membership
             // removal before this helper receives the explicit Leave.  The
@@ -504,14 +502,11 @@ impl Actor {
                         }
                         Command::Leave { epoch: requested_epoch, abandon: true } => {
                             if requested_epoch != epoch || requested_epoch == 0 {
-                                let _ = events.try_send(Event::Error {
-                                    probe_failure: None,
-                                    request_id: request.id,
-                                    epoch: status_epoch,
-                                    peer: None,
-                                    code: "stale_epoch".into(),
-                                    reason: None,
-                                });
+                                let _ = events.try_send(error_event(
+                                    request.id,
+                                    status_epoch,
+                                    "stale_epoch",
+                                ));
                                 continue;
                             }
                             drop(leave);
@@ -527,23 +522,9 @@ impl Actor {
                                 // manufacture RoomClosed before the old
                                 // quorum has committed our exclusion and a
                                 // successor has proved its authority.
-                                Event::Error {
-                                    probe_failure: None,
-                                    request_id: request.id,
-                                    epoch: status_epoch,
-                                    peer: None,
-                                    code: "leave_in_progress".into(),
-                                    reason: None,
-                                }
+                                error_event(request.id, status_epoch, "leave_in_progress")
                             } else {
-                                Event::Error {
-                                    probe_failure: None,
-                                    request_id: request.id,
-                                    epoch: status_epoch,
-                                    peer: None,
-                                    code: "stale_epoch".into(),
-                                    reason: None,
-                                }
+                                error_event(request.id, status_epoch, "stale_epoch")
                             };
                             let _ = events.try_send(event);
                         }
@@ -553,24 +534,18 @@ impl Actor {
                         | Command::HostPublic { epoch: requested, .. }
                         | Command::Join { epoch: requested, .. }
                         | Command::JoinPublic { epoch: requested, .. } => {
-                            let _ = events.try_send(Event::Error {
-                                probe_failure: None,
-                                request_id: request.id,
-                                epoch: requested,
-                                peer: None,
-                                code: "leave_in_progress".into(),
-                                reason: None,
-                            });
+                            let _ = events.try_send(error_event(
+                                request.id,
+                                requested,
+                                "leave_in_progress",
+                            ));
                         }
                         _ => {
-                            let _ = events.try_send(Event::Error {
-                                probe_failure: None,
-                                request_id: request.id,
-                                epoch: status_epoch,
-                                peer: None,
-                                code: "leave_in_progress".into(),
-                                reason: None,
-                            });
+                            let _ = events.try_send(error_event(
+                                request.id,
+                                status_epoch,
+                                "leave_in_progress",
+                            ));
                         }
                     }
                 }
@@ -612,7 +587,6 @@ impl Actor {
         self.deferred_admissions.clear();
         self.pending_membership_publications.clear();
         self.last_coordination_state = None;
-        self.last_control_rebound = None;
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
         self.pending_game_admissions.clear();

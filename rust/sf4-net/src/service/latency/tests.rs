@@ -335,21 +335,10 @@ pub(super) async fn accept_one(actor: &mut Actor) {
 
 /// Prepares a game on `actor`, as the native side does before a match.
 pub(super) fn prepare_game(actor: &mut Actor, peer: EndpointId) {
-    let id = 7_000;
+    // What `Command::PrepareGame` runs.
+    let epoch = actor.epoch;
     actor
-        .command(Request {
-            id,
-            command: Command::PrepareGame {
-                epoch: actor.epoch,
-                peer,
-                room: ROOM,
-                generation: 1,
-                capability: [7; 32],
-                local_port: 41_000,
-                max_packet: 1200,
-                dial: false,
-            },
-        })
+        .prepare_game(7_000, epoch, peer, ROOM, 1, [7; 32], 41_000, 1200, false)
         .expect("prepare game");
     assert!(!actor.games.is_empty(), "the game slot is held at once");
 }
@@ -868,7 +857,7 @@ async fn the_endpoint_guard_closes_an_obsolete_or_aborted_tasks_endpoint() {
     actor
         .completed_hosted(
             2,
-            Err(crate::service::failed("relay_unavailable")),
+            Err(crate::service::network::relay_unavailable()),
             Some(LatencyEndpoint::new(failed_host.clone())),
         )
         .await
