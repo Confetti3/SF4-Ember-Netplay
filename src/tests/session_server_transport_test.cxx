@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <set>
 #include <string>
@@ -2061,7 +2062,9 @@ struct ParkedEffectRoom {
 	const std::string leader = std::string(64, 'a');
 	std::int64_t nextMessage = 2;
 
-	ParkedEffectRoom() {
+	// `leaderLocal`: the helper reports this game's room as the committed
+	// leader, so it may propose checkpoints of its own.
+	explicit ParkedEffectRoom(bool leaderLocal = false) {
 		checkpoint = fixture.server.RecoveryCheckpoint();
 		CHECK(session::ActiveRosterRow(checkpoint.at("members"), ParticipantRoom::IdentityOf(self), local) && local.member);
 		pipe.Connect(helper);
@@ -2075,7 +2078,7 @@ struct ParkedEffectRoom {
 				incarnations[row.at("data").at("authenticatedEndpoint").get<std::string>()] = row.at("incarnation").get<std::uint64_t>();
 		pipe.Send({{"type", "status"}, {"request_id", 1}, {"endpoint", ParticipantRoom::IdentityOf(self)}, {"fixed_port", 0}});
 		pipe.Send({{"type", "coordination_state"}, {"epoch", 1}, {"room", id}, {"term", 1}, {"revision", 2},
-			{"incarnation", ParticipantRoom::IncarnationOf(self)}, {"leader", leader}, {"writable", true}, {"leader_local", false}});
+			{"incarnation", ParticipantRoom::IncarnationOf(self)}, {"leader", leader}, {"writable", true}, {"leader_local", leaderLocal}});
 		pipe.Send({{"type", "control_rebound"}, {"epoch", 1}, {"room", id}, {"leader", leader},
 			{"member_incarnations", incarnations}, {"members", json::array({leader})}});
 	}
@@ -2198,6 +2201,170 @@ static void TestCorruptTokenDroppedOnFirstSight() {
 		{"base_revision", 0}, {"revision", 1}, {"length", proposal.size()}, {"digest", coordination::Sha256(proposal)}});
 	member.Settle(received);
 	CHECK(received.empty() && member.room->RecoveryState().clientQueueMessages == 1);
+}
+
+// The leader's own commit marker. When the helper commits the record this game
+// proposed, it sends checkpoint_committed_local instead of the bytes, and the
+// game answers checkpoint_ack: the full length when it adopts the copy it still
+// holds, 0 when it cannot, after which the helper sends the whole transfer.
+namespace local_commit {
+void PollRoom(ParkedEffectRoom& member, int polls = 5) {
+	for (int tick = 0; tick < polls; ++tick) { member.room->Poll(); member.pipe.Drain(); Sleep(1); }
+}
+// Leader of term 1 at revision 2: this game proposes revision 3 as transfer 3,
+// and the scripted helper credits every chunk until the game sends its end, as
+// the helper does before it commits the record.
+coordination::TransferIdentity Propose(ParkedEffectRoom& member, const std::string& bytes) {
+	for (int tick = 0; tick < 5000 && member.room->GetState() != session::IrohRoom::State::Ready; ++tick) PollRoom(member, 1);
+	CHECK(member.room->GetState() == session::IrohRoom::State::Ready && member.room->Coordination().leaderLocal);
+	CHECK(member.room->ProposeCheckpointBytes(3, 1, 2, bytes));
+	coordination::TransferIdentity identity;
+	identity.room = member.id; identity.epoch = 1; identity.transfer = 3; identity.term = 1;
+	identity.baseRevision = 2; identity.revision = 3; identity.length = bytes.size(); identity.digest = coordination::Sha256(bytes);
+	for (int round = 0; round < 500 && !member.room->RecoveryState().proposalEnded; ++round) {
+		member.pipe.Send({{"type", "checkpoint_ack"}, {"epoch", 1}, {"room", member.id}, {"transfer", identity.transfer},
+			{"offset", member.room->RecoveryState().proposalSent}});
+		PollRoom(member, 2);
+	}
+	const auto state = member.room->RecoveryState();
+	CHECK(state.proposalEnded && state.proposalAcknowledged == bytes.size() && member.room->ProposalInFlight());
+	return identity;
+}
+// The checkpoint_ack offsets the game sent for `transfer` since `received`
+// was last cleared. Raw-body chunk frames parse as discarded values and are skipped.
+std::vector<std::size_t> Acks(ParkedEffectRoom& member, std::uint64_t transfer) {
+	std::vector<std::size_t> offsets;
+	for (const auto& command : member.pipe.received) {
+		if (!command.is_object() || command.value("type", std::string()) != "checkpoint_ack" ||
+			command.at("transfer") != transfer) continue;
+		CHECK(command.at("epoch") == 1 && command.at("room") == member.id);
+		offsets.push_back(command.at("offset").get<std::size_t>());
+	}
+	return offsets;
+}
+// Sends the marker for `identity` and returns the one answer the game gave it.
+std::size_t MarkerAnswer(ParkedEffectRoom& member, const coordination::TransferIdentity& identity) {
+	auto marker = identity.Envelope("checkpoint_committed_local");
+	marker["length"] = identity.length; marker["digest"] = identity.digest;
+	member.pipe.Send(marker);
+	member.pipe.received.clear();
+	PollRoom(member);
+	const auto answers = Acks(member, identity.transfer);
+	CHECK(answers.size() == 1);
+	return answers.empty() ? (std::numeric_limits<std::size_t>::max)() : answers.front();
+}
+// Waits for `count` staged commits and returns the head.
+session::IrohRoom::CommittedCheckpoint Staged(ParkedEffectRoom& member, std::size_t count) {
+	session::IrohRoom::CommittedCheckpoint head;
+	for (int tick = 0; tick < 5000 && member.room->CommittedCheckpointsBehindHead() + 1 < count; ++tick) PollRoom(member, 1);
+	for (int tick = 0; tick < 5000 && !member.room->TakeCommittedCheckpoint(head); ++tick) PollRoom(member, 1);
+	CHECK(member.room->CommittedCheckpointsBehindHead() + 1 == count && head.proposal != nullptr);
+	return head;
+}
+bool Same(const coordination::TransferIdentity& left, const coordination::TransferIdentity& right) {
+	return left.room == right.room && left.epoch == right.epoch && left.transfer == right.transfer &&
+		left.term == right.term && left.baseRevision == right.baseRevision && left.revision == right.revision &&
+		left.length == right.length && left.digest == right.digest;
+}
+// The helper's full transfer of `bytes` as transfer 3, after an answer of 0,
+// is received, acknowledged to its full length and staged like any commit.
+void ExpectFullTransferStaged(ParkedEffectRoom& member, const std::string& bytes, std::size_t staged) {
+	// A checkpoint-scope helper error counts as one; the transfer adds none.
+	const auto errors = member.room->RecoveryState().checkpointTransferErrors;
+	member.pipe.received.clear();
+	member.Transfer(3, bytes);
+	auto head = Staged(member, staged);
+	if (staged == 2) {
+		CHECK(head.identity.transfer == 2 && member.room->DiscardCommittedCheckpoint(head.identity));
+		head = Staged(member, 1);
+	}
+	CHECK(head.identity.transfer == 3 && head.identity.revision == 3 && head.identity.length == bytes.size() &&
+		head.identity.digest == coordination::Sha256(bytes) && head.proposal->request == 3);
+	const auto acks = Acks(member, 3);
+	CHECK(!acks.empty() && acks.back() == bytes.size());
+	CHECK(!member.room->ProposalInFlight() && member.room->RecoveryState().checkpointTransferErrors == errors);
+}
+}
+
+// Success: the marker for the exact proposal is answered with the full length,
+// and the retained bytes are staged as the commit without a transfer.
+static void TestLocalCommitAdoptsOwnProposal() {
+	using namespace local_commit;
+	ParkedEffectRoom member(true);
+	const auto bytes = member.Proposal(3, {}, {member.Projection(3)});
+	const auto identity = Propose(member, bytes);
+	CHECK(MarkerAnswer(member, identity) == bytes.size());
+	const auto head = Staged(member, 1);
+	CHECK(Same(head.identity, identity) && head.proposal->request == 3 && head.proposal->effects.size() == 1);
+	const auto state = member.room->RecoveryState();
+	CHECK(state.proposalStatus == "committed" && !member.room->ProposalInFlight() && state.checkpointTransferErrors == 0);
+}
+
+// Each way the retained proposal can be missing or wrong is answered with 0,
+// and the full transfer that follows is accepted.
+static void TestLocalCommitFallsBackToFullTransfer() {
+	using namespace local_commit;
+	// A term change cleared the retained copy before the marker arrived.
+	{
+		ParkedEffectRoom member(true);
+		const auto bytes = member.Proposal(3, {}, {member.Projection(3)});
+		const auto identity = Propose(member, bytes);
+		member.pipe.Send({{"type", "coordination_state"}, {"epoch", 1}, {"room", member.id}, {"term", 2}, {"revision", 3},
+			{"incarnation", ParticipantRoom::IncarnationOf(member.self)}, {"leader", member.leader}, {"writable", true},
+			{"leader_local", true}});
+		PollRoom(member);
+		CHECK(!member.room->ProposalInFlight() && member.room->RecoveryState().proposalStatus == "term_changed");
+		CHECK(MarkerAnswer(member, identity) == 0);
+		CHECK(!member.room->CheckpointPending());
+		ExpectFullTransferStaged(member, bytes, 1);
+	}
+	// A checkpoint-scope helper error cleared it.
+	{
+		ParkedEffectRoom member(true);
+		const auto bytes = member.Proposal(3, {}, {member.Projection(3)});
+		const auto identity = Propose(member, bytes);
+		member.pipe.Send({{"type", "error"}, {"epoch", 1}, {"code", "checkpoint_send_timeout"}});
+		PollRoom(member);
+		CHECK(!member.room->ProposalInFlight() && member.room->RecoveryState().proposalStatus == "checkpoint_send_timeout");
+		CHECK(member.room->GetState() == session::IrohRoom::State::Ready);
+		CHECK(MarkerAnswer(member, identity) == 0);
+		CHECK(!member.room->CheckpointPending());
+		ExpectFullTransferStaged(member, bytes, 1);
+	}
+	// The receiver holds another transfer, here revision 2 still arriving.
+	// The answer is 0 and nothing is adopted; once that transfer completes, the
+	// full transfer of the own proposal is staged behind it.
+	{
+		ParkedEffectRoom member(true);
+		const auto bytes = member.Proposal(3, {}, {member.Projection(3)});
+		const auto previous = member.Proposal(2, {}, {member.Projection(2)});
+		const auto identity = Propose(member, bytes);
+		member.pipe.Send({{"type", "checkpoint_begin"}, {"epoch", 1}, {"room", member.id}, {"transfer", 2}, {"term", 1},
+			{"base_revision", 1}, {"revision", 2}, {"length", previous.size()}, {"digest", coordination::Sha256(previous)}});
+		PollRoom(member);
+		CHECK(member.room->RecoveryState().checkpointActive && member.room->RecoveryState().checkpointTransfer == 2);
+		CHECK(MarkerAnswer(member, identity) == 0);
+		const auto busy = member.room->RecoveryState();
+		CHECK(busy.checkpointTransfer == 2 && !busy.checkpointComplete && member.room->ProposalInFlight());
+		member.Transfer(2, previous);
+		ExpectFullTransferStaged(member, bytes, 2);
+		CHECK(member.room->RecoveryState().proposalStatus == "committed");
+	}
+	// The committed record is not the one proposed here: same transfer, other
+	// bytes. The digest differs, so the answer is 0 and the committed bytes
+	// arrive in full.
+	{
+		ParkedEffectRoom member(true);
+		const auto bytes = member.Proposal(3, {}, {member.Projection(3)});
+		const auto committed = member.Proposal(3, {}, {});
+		CHECK(committed != bytes);
+		auto identity = Propose(member, bytes);
+		identity.length = committed.size(); identity.digest = coordination::Sha256(committed);
+		CHECK(MarkerAnswer(member, identity) == 0);
+		CHECK(!member.room->CheckpointPending() && !member.room->RecoveryState().checkpointActive);
+		ExpectFullTransferStaged(member, committed, 1);
+		CHECK(Staged(member, 1).proposal->effects.empty());
+	}
 }
 
 // The tag a room edge fills from its one parse says what each reader that
@@ -2342,6 +2509,8 @@ int main() {
 	TestRejoinAfterPreStartDeparture();
 	TestParkedProjectionAcrossStagedCommits();
 	TestCorruptTokenDroppedOnFirstSight();
+	TestLocalCommitAdoptsOwnProposal();
+	TestLocalCommitFallsBackToFullTransfer();
 	TestRoomMessageTags();
 	TestAdmissionFence();
 	TestServerOwnedRoom();
