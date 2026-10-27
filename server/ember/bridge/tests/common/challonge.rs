@@ -1,6 +1,10 @@
 //! The stand-in Challonge, the bridge configured with the shipped Challonge
 //! definition pointed at it, and the requests the Challonge sign-in tests
 //! make, on the shared sign-in helpers (`common::sign_in`, `common::sites`).
+//!
+//! Every test binary that has `common` builds this, so what a binary does
+//! not use is not a mistake.
+#![allow(unused_imports)]
 use std::sync::Arc;
 
 use ember_bridge::{
@@ -10,12 +14,12 @@ use ember_bridge::{
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
 
-use crate::common::{
+use super::{
     Bridge, Player,
     sign_in::{Code, FakeSite, definition},
     sites::{self, bridge_with_sites},
 };
-pub use crate::common::{
+pub use super::{
     sign_in::{Gate, User, confirmation, player},
     sites::{
         LIMITS, TestSite, connect_discord, database_holds, direct, insert_account, link_of,

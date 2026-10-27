@@ -26,7 +26,7 @@ const SUBSCRIPTION_TYPE: &str = "channel.chat.message";
 /// Twitch's own limit is ten seconds from the welcome to the subscription.
 const WELCOME_WAIT: Duration = Duration::from_secs(10);
 /// Time allowed beyond the keepalive timeout the welcome names.
-const KEEPALIVE_GRACE: Duration = Duration::from_secs(2);
+pub const KEEPALIVE_GRACE: Duration = Duration::from_secs(2);
 const MAX_FRAME: usize = 1024 * 1024;
 const FIRST_RETRY_SECS: u64 = 1;
 const LAST_RETRY_SECS: u64 = 60;

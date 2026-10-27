@@ -1,14 +1,14 @@
 //! BluMint's partner API against a stand-in BluMint: player lookup by Discord
 //! account, match creation with a Play link and its refusals, closes, and
-//! registration of the three endpoints. tests/blumint_reports.rs covers what
-//! the bridge reports to BluMint.
+//! registration of the three endpoints. tests/blumint_results.rs and
+//! tests/blumint_presence.rs cover what the bridge reports to BluMint.
 mod common;
 
 use common::{
     Player,
     blumint::*,
     play::{BUILD, claim, endpoint},
-    results,
+    results, seed,
 };
 use ember_bridge::{config, integrations::Secrets};
 use reqwest::StatusCode;
@@ -424,19 +424,7 @@ async fn a_busy_player_is_refused_until_their_match_ends() {
     let f = fixture().await;
     let mut lou = f.bridge.player(3);
     f.bridge.open_session(&mut lou).await;
-    let lou_id = lou.id().as_str().to_owned();
-    f.bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES ('99', ?1, 'lou', 1)",
-                [lou_id],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
+    seed::link_discord(f.bridge.state(), "99", lou.id().as_str(), "lou").await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let (_, created) = create(&f, "set-1", 1).await;
     let id = created["matchId"].as_str().unwrap().to_owned();

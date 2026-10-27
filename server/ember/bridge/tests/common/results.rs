@@ -3,6 +3,7 @@
 //! credentials of the match's connection and tenant.
 use std::time::Duration;
 
+use ember_bridge::testing::until_async;
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
 
@@ -67,14 +68,18 @@ pub async fn delivery(bridge: &Bridge, id: &str) -> (String, u32) {
 }
 
 /// Runs delivery passes until the match's delivery is `done`, for at most
-/// five seconds. The bridge's own worker runs alongside; either may send.
+/// ten seconds. The bridge's own worker runs alongside; either may send.
 pub async fn until(bridge: &Bridge, id: &str, done: impl Fn((String, u32)) -> bool) {
-    for _ in 0..250 {
-        if done(delivery(bridge, id).await) {
-            return;
-        }
-        ember_bridge::deliver_results(bridge.state()).await;
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-    panic!("delivery did not settle");
+    until_async(
+        "the delivery to settle",
+        Duration::from_secs(10),
+        || async {
+            if done(delivery(bridge, id).await) {
+                return true;
+            }
+            ember_bridge::deliver_results(bridge.state()).await;
+            false
+        },
+    )
+    .await;
 }

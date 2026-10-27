@@ -5,16 +5,13 @@
 //! sign-ins and proofs to itself; an unknown site; and a third site the
 //! bridge has no code for, defined only in configuration. Discord's own
 //! flow is covered by tests/discord.rs and Challonge's by tests/challonge.rs.
-#[allow(dead_code, unused_imports)]
-#[path = "challonge/support.rs"]
-mod challonge;
 mod common;
 #[path = "startgg/support.rs"]
 mod support;
 
 use std::sync::Arc;
 
-use common::{Bridge, code, sign_in};
+use common::{Bridge, challonge, code, sign_in};
 use ember_bridge::config::{SignInSite, sites::Limits};
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;

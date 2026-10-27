@@ -896,7 +896,12 @@ async fn corrections_through_a_walkover() {
 #[tokio::test]
 async fn an_unknown_format_or_rotation_does_not_stop_completion_or_expiry() {
     let f = fixture(4).await;
-    let id = create(&f, "later-format", json!({ "format": "single_elimination" })).await;
+    let id = create(
+        &f,
+        "later-format",
+        json!({ "format": "single_elimination" }),
+    )
+    .await;
     register(&f, &id, 0).await;
     register(&f, &id, 1).await;
     let side = f.bracket("later-side", 0, 2).await;
@@ -959,12 +964,9 @@ async fn an_unknown_format_or_rotation_does_not_stop_completion_or_expiry() {
     f.bridge
         .state()
         .db
-        .write(move |tx| {
-            Ok(tx.execute(
-                "UPDATE matches SET expires_at = 0 WHERE id = ?1",
-                [stale],
-            )?)
-        })
+        .write(
+            move |tx| Ok(tx.execute("UPDATE matches SET expires_at = 0 WHERE id = ?1", [stale])?),
+        )
         .await
         .unwrap();
     ember_bridge::maintain(f.bridge.state()).await;

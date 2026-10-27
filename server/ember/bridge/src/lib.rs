@@ -21,6 +21,8 @@ mod rate;
 mod routes;
 mod secrets;
 mod skill;
+#[cfg(feature = "test-support")]
+pub mod testing;
 mod tournament;
 mod util;
 

@@ -37,6 +37,7 @@ use zeroize::Zeroizing;
 
 pub use config::{Bot, Config, Discord, Interactions, Twitch};
 pub use ember_protocol::client::Clock;
+pub use eventsub::KEEPALIVE_GRACE;
 pub use format::Message;
 pub use interactions::register_commands;
 

@@ -1434,7 +1434,7 @@ binding: it never receives one, and `WatchPlay` never emits Bind.
   - The adapter routes (`bridge/src/routes/blumint/`) are untouched, and
     `spectators` stays ignored.
   - Protected tests are not edited: `tests/discord.rs`, `tests/blumint.rs`,
-    `tests/blumint_reports.rs`, `src/tests/discord_connect_journey_test.cxx`
+    `tests/blumint_results.rs`, `tests/blumint_presence.rs`, `src/tests/discord_connect_journey_test.cxx`
     and `src/tests/builtin_service_journey_test.cxx`.
   - New shared bridge test helpers are added beside the old ones in
     `bridge/tests/common`, never changed in place.

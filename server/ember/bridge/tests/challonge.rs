@@ -6,15 +6,12 @@
 //! connections that find players by Challonge username. No token leaves the
 //! bridge.
 mod common;
-#[path = "challonge/support.rs"]
-mod support;
 
-use common::{Bridge, code};
+use common::{Bridge, challonge::*, code, seed};
 use ember_bridge::{config::sites::Limits, integrations::Secrets};
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::json;
-use support::*;
 
 #[tokio::test]
 async fn a_player_connects_challonge_through_the_bridge_page() {
@@ -307,20 +304,16 @@ async fn sign_in_is_off_without_the_client_secret_but_an_account_can_go() {
     let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
     assert_eq!(capabilities["sign_in_sites"][0]["sign_in"], false);
     let player1 = player(&bridge, 1).await;
-    let ember_id = player1.id().as_str().to_owned();
-    bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO site_accounts (site, user_id, ember_id, username, username_key, connected_at)
-                 VALUES ('challonge', '1001', ?1, 'Player_1', 'player_1', 1)",
-                [&ember_id],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
+    seed::link_site(
+        bridge.state(),
+        "challonge",
+        "1001",
+        player1.id().as_str(),
+        "Player_1",
+        Some("player_1"),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(
         CHALLONGE.try_start(&bridge, &player1).await.0,

@@ -4,19 +4,25 @@
 #![allow(dead_code)]
 
 pub mod blumint;
+pub mod challonge;
+pub mod discord;
 pub mod league;
 pub mod play;
 pub mod public_rooms;
 pub mod receiver;
 pub mod results;
+pub mod seed;
 pub mod sign_in;
 pub mod sites;
 pub mod supervisor;
 pub mod watch;
 
-use std::path::PathBuf;
+use std::ops::Deref;
 
-use ember_bridge::{AppState, Clock, Config, Db, Keys, Running, config};
+use ember_bridge::{
+    Config, config,
+    testing::{Loopback, connection},
+};
 use ember_protocol::{
     EmberId, SigningIdentity,
     challenge::{Action, Challenge, Expected, Method, ProvenRequest, command_digest},
@@ -27,38 +33,40 @@ use reqwest::{Client, Response, StatusCode};
 use serde_json::{Value as Json, json};
 use zeroize::Zeroizing;
 
+/// The shared loopback bridge, with two mock tenants, the mock browser, and
+/// a client that follows no redirect.
 pub struct Bridge {
-    pub running: Option<Running>,
-    pub origin: String,
-    pub bridge_id: String,
+    loopback: Loopback,
     pub client: Client,
-    pub clock: Clock,
-    dir: PathBuf,
 }
 
-impl Drop for Bridge {
-    fn drop(&mut self) {
-        if let Some(running) = self.running.take() {
-            running.abort();
-        }
-        let _ = std::fs::remove_dir_all(&self.dir);
+impl Deref for Bridge {
+    type Target = Loopback;
+
+    fn deref(&self) -> &Loopback {
+        &self.loopback
     }
 }
 
-fn connection(id: &str) -> config::Connection {
-    config::Connection {
-        id: id.into(),
-        kind: "mock".into(),
-        environment: "local".into(),
-        display_name: format!("Mock {id}"),
-        enabled: true,
-        api_base: None,
-        discord_lookup: false,
-        lookup_sites: Vec::new(),
-        disputes: None,
-        results_url: None,
-        rooms: None,
-    }
+/// What this bridge's tests have in common beyond the shared configuration.
+fn tenants(config: &mut Config) {
+    config.display_name = "Test bridge".into();
+    config.mock_browser = true;
+    config.tenants = vec![
+        config::Tenant {
+            id: "t1".into(),
+            name: "Tenant one".into(),
+            connections: vec![
+                connection("mock-a", "Mock mock-a"),
+                connection("mock-b", "Mock mock-b"),
+            ],
+        },
+        config::Tenant {
+            id: "t2".into(),
+            name: "Tenant two".into(),
+            connections: vec![connection("mock-c", "Mock mock-c")],
+        },
+    ];
 }
 
 impl Bridge {
@@ -72,62 +80,20 @@ impl Bridge {
         adjust: impl FnOnce(&mut Config),
         integrations: ember_bridge::integrations::Secrets,
     ) -> Self {
-        let dir = std::env::temp_dir().join(format!(
-            "ember-bridge-test-{}",
-            ember_protocol::encoding::b64u(&rand16())
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let origin = format!("http://{}", listener.local_addr().unwrap());
-        let bridge_id = ember_protocol::encoding::prefixed_id("brg", rand16());
-        let mut config = Config {
-            bridge_id: bridge_id.clone(),
-            display_name: "Test bridge".into(),
-            origin: origin.clone(),
-            listen: "127.0.0.1:0".into(),
-            database: dir.join("bridge.sqlite3"),
-            secrets: dir.join("secrets.json"),
-            allow_loopback_http: true,
-            allow_private_webhooks: true,
-            mock_browser: true,
-            discord: None,
-            sign_in_sites: Vec::new(),
-            integration_secrets: None,
-            rooms: None,
-            match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
-            tenants: vec![
-                config::Tenant {
-                    id: "t1".into(),
-                    name: "Tenant one".into(),
-                    connections: vec![connection("mock-a"), connection("mock-b")],
-                },
-                config::Tenant {
-                    id: "t2".into(),
-                    name: "Tenant two".into(),
-                    connections: vec![connection("mock-c")],
-                },
-            ],
-        };
-        adjust(&mut config);
-        config.validate().unwrap();
-        let db = Db::open(&config.database).unwrap();
-        let clock = Clock::default();
-        // Saved so `restart` can load the same keys, as a real restart does.
-        let keys = Keys::generate();
-        keys.save_new(&config.secrets).unwrap();
-        let state = AppState::new(config, keys, integrations, db, clock.clone());
-        ember_bridge::sync_config(&state).await.unwrap();
-        let running = ember_bridge::start(state, listener).unwrap();
+        let loopback = Loopback::start_with(
+            |config| {
+                tenants(config);
+                adjust(config);
+            },
+            integrations,
+        )
+        .await;
         Self {
-            running: Some(running),
-            origin,
-            bridge_id,
+            loopback,
             client: Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .build()
                 .unwrap(),
-            clock,
-            dir,
         }
     }
 
@@ -147,33 +113,7 @@ impl Bridge {
         adjust: impl FnOnce(&mut Config),
         integrations: ember_bridge::integrations::Secrets,
     ) {
-        let running = self.running.take().unwrap();
-        let mut config = (*running.state.config).clone();
-        running.abort();
-        adjust(&mut config);
-        config.validate().unwrap();
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        self.origin = format!("http://{}", listener.local_addr().unwrap());
-        config.origin = self.origin.clone();
-        let keys = Keys::load(&config.secrets).unwrap();
-        let db = Db::open(&config.database).unwrap();
-        let state = AppState::new(config, keys, integrations, db, self.clock.clone());
-        self.running = Some(ember_bridge::start(state, listener).unwrap());
-        let served = self
-            .client
-            .get(self.url("/.well-known/ember-bridge.json"))
-            .send()
-            .await
-            .unwrap();
-        assert_eq!(served.status(), StatusCode::OK);
-    }
-
-    pub fn state(&self) -> &AppState {
-        &self.running.as_ref().unwrap().state
-    }
-
-    pub fn url(&self, path: &str) -> String {
-        format!("{}{path}", self.origin)
+        self.loopback.restart_with(adjust, integrations).await;
     }
 
     pub async fn provider(&self, connection: &str) -> String {
@@ -434,12 +374,6 @@ pub async fn read(response: Response) -> (StatusCode, Json) {
 
 pub fn code(body: &Json) -> &str {
     body["error"]["code"].as_str().unwrap_or("")
-}
-
-fn rand16() -> [u8; 16] {
-    let mut bytes = [0; 16];
-    getrandom::fill(&mut bytes).unwrap();
-    bytes
 }
 
 pub fn value(json: Json) -> Value {

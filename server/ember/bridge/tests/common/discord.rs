@@ -1,13 +1,18 @@
 //! The stand-in Discord, the bridge configured for it, and the requests the
 //! Discord sign-in tests make, on the sign-in helpers both sites share
 //! (`common::sign_in`).
+//!
+//! Every test binary that has `common` builds this, so what a binary does
+//! not use is not a mistake.
+#![allow(unused_imports)]
 use ember_bridge::{config, integrations::Secrets};
+
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
 use zeroize::Zeroizing;
 
-pub use crate::common::sign_in::{Gate, confirmation, player};
-use crate::common::{
+pub use super::sign_in::{Gate, confirmation, player};
+use super::{
     Bridge, Player,
     sign_in::{self, Code, FakeSite, Routes},
 };

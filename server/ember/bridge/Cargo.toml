@@ -7,6 +7,12 @@ rust-version.workspace = true
 publish.workspace = true
 license.workspace = true
 
+[features]
+# `ember_bridge::testing`: what the tests of this workspace share to run a
+# bridge on loopback. Off in every build for deployment; the tests turn it on
+# through dev-dependencies.
+test-support = []
+
 [dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "query", "form"] }
 base64 = "0.22"
@@ -28,3 +34,5 @@ zeroize = "1"
 
 [dev-dependencies]
 ed25519-dalek = "=3.0.0"
+# The tests of this crate use the same testing module as the other crates.
+ember-bridge = { path = ".", features = ["test-support"] }

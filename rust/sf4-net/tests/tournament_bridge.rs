@@ -19,7 +19,7 @@ use tournament_support::*;
 /// browser opens. A site the bridge does not list is not found.
 #[tokio::test]
 async fn sign_in_sites_through_the_helper() {
-    let dirs = Dirs::new("sites");
+    let dirs = dirs("sites");
     let pages = "http://127.0.0.1:9";
     let sites = vec![
         site("challonge", "challonge", "Challonge", pages),
@@ -86,7 +86,7 @@ async fn sign_in_sites_through_the_helper() {
 /// Discord's refused page is left as it always was.
 #[tokio::test]
 async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
-    let dirs = Dirs::new("mixed");
+    let dirs = dirs("mixed");
     let public = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", public.local_addr().unwrap());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -234,7 +234,7 @@ async fn provider_call(origin: &str, token: &str, path: &str, body: Value) -> Va
 
 #[tokio::test]
 async fn link_an_identity_through_the_helper() {
-    let dirs = Dirs::new("e2e");
+    let dirs = dirs("e2e");
     let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let provider = ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "e2e")
         .await
@@ -421,7 +421,7 @@ async fn bridge_document(origin: &str, path: &str) -> Value {
 // bridge, it is not trusted at all, and is sent nothing past the check.
 #[tokio::test]
 async fn a_pinned_bridge_is_trusted_without_an_approval() {
-    let dirs = Dirs::new("pinned");
+    let dirs = dirs("pinned");
     let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let profile = bridge_document(&origin, "/.well-known/ember-bridge.json").await;
     let bridge_id = profile["bridge_id"].as_str().unwrap().to_owned();
@@ -550,7 +550,7 @@ async fn linked_worker(
 
 #[tokio::test]
 async fn play_a_set_through_two_helpers() {
-    let dirs = Dirs::new("play");
+    let dirs = dirs("play");
     let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let provider = ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "play")
         .await
@@ -697,7 +697,7 @@ fn submit(worker: &Worker, request_id: u64, request: Value) {
 // the leave holds the match again.
 #[tokio::test]
 async fn a_claim_sent_before_leaving_does_not_hold_the_match_again() {
-    let dirs = Dirs::new("leave");
+    let dirs = dirs("leave");
     let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let provider = ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "leave")
         .await

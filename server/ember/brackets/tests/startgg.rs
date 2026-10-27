@@ -50,9 +50,18 @@ async fn fake() -> FakeStartgg {
 }
 
 async fn world(fake: &FakeStartgg, challonge: bool) -> World {
+    world_serving(fake, challonge, true).await
+}
+
+/// `world`, whose connector answers on its results URL only when
+/// `serve_results`. Without it the bridge's own delivery of a finished match
+/// fails instead of reaching the connector, so a test that hands the
+/// connector a result of its own is not raced by the real one.
+async fn world_serving(fake: &FakeStartgg, challonge: bool, serve_results: bool) -> World {
     let world = World::start(Setup {
         challonge,
         extra: vec![extra(fake)],
+        serve_results,
         ..Setup::default()
     })
     .await;
@@ -337,7 +346,10 @@ async fn a_completed_event_is_not_read_again() {
 #[tokio::test]
 async fn games_that_do_not_add_up_to_the_score_are_not_reported() {
     let fake = fake().await;
-    let world = world(&fake, false).await;
+    // The result below is the test's own, under the id the bridge's would
+    // have: the bridge's must not reach the connector first.
+    let world = world_serving(&fake, false, false).await;
+
     world.connector.pass(true).await;
     let match_id = world.bridge.matches().await[0].1.clone();
     world.play(&match_id, &[1, 0, 1]).await;

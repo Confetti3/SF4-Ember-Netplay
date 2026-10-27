@@ -68,7 +68,10 @@ fn announces_a_room_from_creation_to_closing() {
     let mut data = room("waiting", 0);
     data["spectators"] = json!(3);
     data["room"]["badge"] = json!("new");
-    assert_eq!(announcer.render(&event("room.created", data)).unwrap(), created);
+    assert_eq!(
+        announcer.render(&event("room.created", data)).unwrap(),
+        created
+    );
 
     // Changes are not announced, and neither is data that is not a room.
     assert!(

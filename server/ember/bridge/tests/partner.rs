@@ -8,9 +8,9 @@ mod common;
 use common::{
     Bridge, Player, code,
     receiver::{Receiver, receiver},
-    results,
+    results, seed,
 };
-use ember_bridge::{AppState, Config, Keys, config, integrations::Secrets};
+use ember_bridge::{AppState, Config, config, integrations::Secrets, testing::reconfigured};
 use ember_protocol::{
     challenge::{Action, Method},
     partner::{LookupAnswer, MatchResult, Outcome, RESULT_TYPE, result_id},
@@ -103,19 +103,7 @@ async fn start() -> (Bridge, Receiver, String) {
 /// (tests/discord.rs covers the sign-in itself).
 async fn connect_discord(bridge: &Bridge, accounts: &[(&str, &Player)]) {
     for (user_id, player) in accounts {
-        let (user_id, ember_id) = ((*user_id).to_owned(), player.id().as_str().to_owned());
-        bridge
-            .state()
-            .db
-            .write(move |tx| {
-                tx.execute(
-                    "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, 'name', 1)",
-                    rusqlite::params![user_id, ember_id],
-                )?;
-                Ok(())
-            })
-            .await
-            .unwrap();
+        seed::link_discord(bridge.state(), user_id, player.id().as_str(), "name").await;
     }
 }
 
@@ -456,16 +444,7 @@ impl Fixture {
     /// A bridge over the same database whose configuration and secrets are
     /// these, as after the operator changed them.
     fn reconfigured(&self, edit: impl FnOnce(&mut Config), secrets: Secrets) -> AppState {
-        let state = self.bridge.state();
-        let mut config = (*state.config).clone();
-        edit(&mut config);
-        AppState::new(
-            config,
-            Keys::generate(),
-            secrets,
-            state.db.clone(),
-            self.bridge.clock.clone(),
-        )
+        reconfigured(self.bridge.state(), edit, secrets)
     }
 }
 
@@ -698,20 +677,7 @@ async fn a_match_made_before_the_connection_had_a_results_url_is_never_sent() {
 
 /// Gives the match a permitted game nobody reports, and lets it time out.
 async fn let_a_game_go_silent(f: &Fixture, id: &str) {
-    let id = id.to_owned();
-    f.bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO attempts (id, match_id, assignment_generation, seq, source, state, created_at, start_by, permit_id)
-                 VALUES ('att_silent', ?1, 1, 1, 'player_agreement', 'permitted', 0, 0, 'pmt_silent')",
-                [&id],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
+    seed::silent_permitted_attempt(f.bridge.state(), id).await;
     f.bridge.clock.advance(31 * 60);
     ember_bridge::maintain(f.bridge.state()).await;
 }

@@ -335,6 +335,7 @@ dependencies = [
  "base64 0.22.1",
  "chacha20poly1305",
  "ed25519-dalek",
+ "ember-bridge",
  "ember-protocol",
  "futures-util",
  "getrandom 0.3.4",

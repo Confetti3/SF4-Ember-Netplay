@@ -10,7 +10,7 @@ use serde_json::{Value as Json, json};
 use zeroize::Zeroizing;
 
 use super::{
-    Bridge, Player,
+    Bridge, Player, seed,
     sign_in::{self, Routes},
 };
 
@@ -125,19 +125,7 @@ pub async fn link_of(
 /// Writes the Discord account a Discord sign-in would, as tests/partner.rs
 /// does.
 pub async fn connect_discord(bridge: &Bridge, user_id: &str, player: &Player) {
-    let (user_id, ember_id) = (user_id.to_owned(), player.id().as_str().to_owned());
-    bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, 'player1', 1)",
-                [&user_id, &ember_id],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
+    seed::link_discord(bridge.state(), user_id, player.id().as_str(), "player1").await;
 }
 
 /// Writes an account on `site` straight into the bridge's database.
@@ -148,25 +136,15 @@ pub async fn insert_account(
     player: &Player,
     key: Option<&str>,
 ) -> rusqlite::Result<()> {
-    let (site, user_id, ember_id, key) = (
-        site.to_owned(),
-        user_id.to_owned(),
-        player.id().as_str().to_owned(),
-        key.map(str::to_owned),
-    );
-    bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO site_accounts (site, user_id, ember_id, username, username_key, connected_at)
-                 VALUES (?1, ?2, ?3, 'Renamed', ?4, 1)",
-                rusqlite::params![site, user_id, ember_id, key],
-            )?;
-            Ok(())
-        })
-        .await
-        .map_err(|_| rusqlite::Error::QueryReturnedNoRows)
+    seed::link_site(
+        bridge.state(),
+        site,
+        user_id,
+        player.id().as_str(),
+        "Renamed",
+        key,
+    )
+    .await
 }
 
 /// A configured sign-in site on a test bridge, by its ID, and the requests

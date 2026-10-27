@@ -102,14 +102,7 @@ pub fn challonge_tournament(dir: &Path, kind: CredentialKind, api_base: &str) ->
 }
 
 pub fn temp(name: &str) -> PathBuf {
-    let mut bytes = [0u8; 8];
-    getrandom::fill(&mut bytes).unwrap();
-    let dir = std::env::temp_dir().join(format!(
-        "ember-brackets-{name}-{}",
-        ember_protocol::encoding::b64u(&bytes)
-    ));
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    ember_bridge::testing::temp_dir(&format!("ember-brackets-{name}"))
 }
 
 pub fn result_secret() -> Secret {
