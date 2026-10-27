@@ -66,6 +66,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/players/{ember_id}/record", get(records::record))
         .route("/v1/matches", post(matches::create))
         .route("/v1/matches/{id}", get(matches::get))
+        .route("/v1/matches/{id}/link", get(matches::link))
         .route("/v1/matches/{id}/cancel", post(matches::cancel))
         .route("/v1/matches/{id}/adjudications", post(matches::adjudicate))
         .route("/v1/matches/{id}/claims", post(play::claim_route))

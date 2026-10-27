@@ -7,7 +7,11 @@
 // the player: a name of 1 to 40 letters, digits, spaces and . ' & -, starting
 // with a letter or digit (SITE), is shown as text, and any other is dropped.
 // It reads the link from the URL
-// fragment, which is never sent to the server, and makes no requests of its own.
+// fragment, which is never sent to the server. Its one request asks whether
+// a match is over (/link/BRIDGE/MATCH, which nginx hands to that bridge), and
+// a match that is over shows that instead of opening Ember, so a link left
+// from an earlier match sends nobody back to it. When the answer does not
+// come, the page works as it did before.
 // It offers the ember: link on the player's click, and opens it by itself only
 // for a match (/m) in a browser where Ember has opened from a match page that
 // named the same required version: a browser without Ember's handler would
@@ -28,6 +32,13 @@
   // A site's name on its connect link: letters, digits, spaces and . ' & -.
   var SITE = /^[\p{L}\p{N}][\p{L}\p{N} .'&-]{0,39}$/u;
   var STAGING_BRIDGE = 'brg_1195478b-ac7e-4bc9-90af-c74eac5c747b';
+  var PRODUCTION_BRIDGE = 'brg_0dbc0598-2312-4ce3-9df8-e160330565e6';
+  // How long a match page waits to learn whether the match is over before it
+  // opens Ember anyway. A later answer that it is over still shows.
+  var OVER_WAIT_MS = 3000;
+  var OVER_TITLE = 'This match is over';
+  var OVER_LEAD = 'This match has ended, so its link no longer opens it. If you have another match to play, ' +
+    'open the newest match link from your tournament site.';
   var STABLE_DOWNLOAD = 'https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest';
   // Nightly builds are pre-releases, so the repository has no latest release.
   var NIGHTLY_DOWNLOAD = 'https://github.com/Confetti3/SF4-Ember-Netplay-Nightly/releases';
@@ -94,6 +105,7 @@
     var staging = parts[0] === STAGING_BRIDGE;
     return {
       bridge: parts[0],
+      match: parts[1],
       need: staging ? 'nightly' : STABLE_VERSION,
       needText: staging ? 'This match needs the newest Ember Nightly on both players\' PCs.' :
         'This match needs Ember ' + STABLE_VERSION + ' on both players\' PCs. Ember shows its version in the corner of Home.',
@@ -188,6 +200,7 @@
       'update-how'].forEach(function (id) {
       byId(id).hidden = true;
     });
+    byId('phone').hidden = !PHONE;
     byId('open').classList.add('primary');
     byId('update').classList.remove('primary');
     byId('not-opened-download').textContent = NOT_OPENED_DOWNLOAD;
@@ -257,21 +270,64 @@
       document.getElementById('copy-code').hidden = false;
     }
     document.getElementById('fallback').hidden = false;
+    var proceed = function () {};
     if (PHONE) {
       document.getElementById('fallback-title').textContent = PHONE_FALLBACK_TITLE;
       document.getElementById('fallback-lead').textContent = (found.needText ? found.needText + ' ' : '') + PHONE_FALLBACK_LEAD;
+    } else {
+      document.getElementById('link').hidden = false;
+      var known = found.need && rememberedOpen() === found.need;
+      if (found.need) showNeed(found, known);
+      // A match opens by itself once per link while this page is open, and only
+      // where Ember opened before from a match page asking for the same version.
+      if (path === '/m' && found.link !== autoOpened && known) {
+        proceed = function () {
+          autoOpened = found.link;
+          document.getElementById('after').textContent = AUTO_AFTER;
+          location.href = found.ember;
+        };
+      }
+    }
+    if (found.match) checkOver(found, proceed);
+    else proceed();
+  }
+
+  // Asks the match's bridge whether the match is over, then calls proceed
+  // unless it is. Only Ember's own two bridges are asked: nginx on this site
+  // reaches no other. No answer within OVER_WAIT_MS, or any failure, proceeds.
+  function checkOver(found, proceed) {
+    if (!window.fetch || (found.bridge !== PRODUCTION_BRIDGE && found.bridge !== STAGING_BRIDGE)) {
+      proceed();
       return;
     }
-    document.getElementById('link').hidden = false;
-    var known = found.need && rememberedOpen() === found.need;
-    if (found.need) showNeed(found, known);
-    // A match opens by itself once per link while this page is open, and only
-    // where Ember opened before from a match page asking for the same version.
-    if (path === '/m' && found.link !== autoOpened && known) {
-      autoOpened = found.link;
-      document.getElementById('after').textContent = AUTO_AFTER;
-      location.href = found.ember;
+    var proceeded = false;
+    function go() {
+      if (proceeded) return;
+      proceeded = true;
+      clearTimeout(timer);
+      if (current === found) proceed();
     }
+    var timer = setTimeout(go, OVER_WAIT_MS);
+    fetch('/link/' + found.bridge + '/' + found.match, { cache: 'no-store', credentials: 'omit' })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (body) {
+        if (current !== found) return;
+        if (body && body.over === true) {
+          proceeded = true;
+          clearTimeout(timer);
+          showOver();
+        } else {
+          go();
+        }
+      }, go);
+  }
+
+  // The match a link names has ended: nothing to open, get or copy.
+  function showOver() {
+    ['link', 'fallback', 'get', 'phone'].forEach(function (id) { document.getElementById(id).hidden = true; });
+    document.getElementById('title').textContent = OVER_TITLE;
+    document.getElementById('lead').textContent = OVER_LEAD;
+    document.title = OVER_TITLE;
   }
 
   // A match plays only when both fighters run the same build, and Ember cannot
@@ -355,7 +411,6 @@
     FALLBACK_TITLE = document.getElementById('fallback-title').textContent;
     TOURNAMENTS_TITLE = document.getElementById('tournaments-title').textContent;
     PHONE = onPhone();
-    document.getElementById('phone').hidden = !PHONE;
     document.getElementById('open').addEventListener('click', function () {
       if (current && current.ember) opened();
     });

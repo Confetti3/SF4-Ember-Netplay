@@ -103,6 +103,23 @@ pub async fn get(
     Ok(ok(&body))
 }
 
+/// `GET /v1/matches/{id}/link`: whether the match a link names is over, for
+/// the match link's page, which asks before it opens Ember so that a link
+/// left from a finished match does not open it. It needs no credential and
+/// says nothing else: the match ID in a link is already the secret, and over
+/// (completed, cancelled, failed or expired) is all the page needs. An
+/// unknown match is not found.
+pub async fn link(State(state): State<AppState>, Path(id): Path<String>) -> Result<Response> {
+    let over = state
+        .db
+        .read(move |tx| {
+            let found = load(tx, &id)?.ok_or_else(ApiFailure::not_found)?;
+            Ok(found.state.is_terminal())
+        })
+        .await?;
+    Ok(ok(&json!({ "over": over })))
+}
+
 /// `GET /v1/assignments`: the caller's own matches only, with what a player
 /// needs to pick one: the set length and score, the round, the opponent's
 /// fingerprint and whether the game is played through Ember. Each row has the

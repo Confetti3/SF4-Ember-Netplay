@@ -10,7 +10,7 @@ mod read;
 pub use adjudicate::adjudicate;
 pub use cancel::cancel;
 pub use create::create;
-pub use read::{assignments, get};
+pub use read::{assignments, get, link};
 
 use crate::error::{ApiFailure, Result};
 

@@ -156,9 +156,15 @@ players. It is a web page that opens Ember on the match, by itself in a
 browser where Ember opened from it before, and otherwise tells the player how
 to get Ember or to open the link on the PC they play on. It is the same for
 both and safe to send in your messages: only the two assigned Ember IDs can
-play the match, and anyone else's Ember finds no such match. The link itself does not
-expire, but a match nobody plays does: the bridge ends it 24 hours after you
-created it at the latest (see "Reports").
+play the match, and anyone else's Ember finds no such match. The link works
+only while its match is open. Once the set is decided, you close the match, or
+it expires, the page says the match is over and asks for the newest link
+instead of opening Ember, and players still in the match's room in Ember leave
+it within about 10 seconds, or once the game on screen ends (a minute at
+most). A match nobody plays expires 24 hours after you created it at the
+latest (see "Reports"), so close a match as soon as the bracket moves on
+without it: until then its players stay in it, and your next match for them is
+refused with `player_busy`.
 
 Every request under one `Idempotency-Key` answers the match that key made,
 even after the match has ended, for a day. After that the key answers
