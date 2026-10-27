@@ -1,39 +1,45 @@
 //! The public error contract (spec 19.5) and bridge discovery documents.
 use serde::{Deserialize, Serialize};
 
+use crate::wire_enum::wire_enum;
+
 pub const API_VERSION: &str = "v1";
 pub const WELL_KNOWN_PATH: &str = "/.well-known/ember-bridge.json";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ErrorCode {
-    InvalidRequest,
-    UnsupportedVersion,
-    Unauthenticated,
-    Forbidden,
-    NotFound,
-    ChallengeExpired,
-    ChallengeUsed,
-    InvalidSignature,
-    IdentityUnavailable,
-    LinkExpired,
-    LinkPendingApproval,
-    LinkConflict,
-    IdempotencyConflict,
-    StaleRevision,
-    StaleAssignment,
-    LeaseConflict,
-    UnsupportedRules,
-    IncompatibleBuild,
-    ReportConflict,
-    NeedsReview,
-    RateLimited,
-    ResyncRequired,
-    ServiceUnavailable,
-    /// A sign-in site refused a start for its own limits (`sites`):
-    /// the day's or month's requests to the site are spent, or the hour's
-    /// starts across the bridge are. Not the service failing; try later.
-    SignInBusy,
+wire_enum! {
+    serde
+    /// An error code a client may meet. An unknown one fails to read, so a
+    /// reader built before a code was added refuses the whole error.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub enum ErrorCode {
+        InvalidRequest = "invalid_request",
+        UnsupportedVersion = "unsupported_version",
+        Unauthenticated = "unauthenticated",
+        Forbidden = "forbidden",
+        NotFound = "not_found",
+        ChallengeExpired = "challenge_expired",
+        ChallengeUsed = "challenge_used",
+        InvalidSignature = "invalid_signature",
+        IdentityUnavailable = "identity_unavailable",
+        LinkExpired = "link_expired",
+        LinkPendingApproval = "link_pending_approval",
+        LinkConflict = "link_conflict",
+        IdempotencyConflict = "idempotency_conflict",
+        StaleRevision = "stale_revision",
+        StaleAssignment = "stale_assignment",
+        LeaseConflict = "lease_conflict",
+        UnsupportedRules = "unsupported_rules",
+        IncompatibleBuild = "incompatible_build",
+        ReportConflict = "report_conflict",
+        NeedsReview = "needs_review",
+        RateLimited = "rate_limited",
+        ResyncRequired = "resync_required",
+        ServiceUnavailable = "service_unavailable",
+        /// A sign-in site refused a start for its own limits (`sites`):
+        /// the day's or month's requests to the site are spent, or the hour's
+        /// starts across the bridge are. Not the service failing; try later.
+        SignInBusy = "sign_in_busy",
+    }
 }
 
 impl ErrorCode {

@@ -7,6 +7,7 @@ use crate::{
     EmberId, Error, PublicKey, Result, SigningIdentity,
     encoding::{Counter, decode_b64u, is_prefixed_id},
     json::{self, Value},
+    play::{Observation, is_hex},
     sign::Domain,
 };
 
@@ -58,6 +59,62 @@ pub struct GameReport {
     pub helper_instance_id: String,
 }
 
+/// The coordinates of one official attempt: what a permit and every report
+/// made under it must agree on. The version, the observation, the reporter
+/// and the result are not part of it. It is a view for comparing and
+/// copying, never a wire form.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AttemptKey<'a> {
+    pub bridge_id: &'a str,
+    pub match_id: &'a str,
+    pub assignment_generation: Counter,
+    pub attempt_id: &'a str,
+    pub permit_id: &'a str,
+    pub room_id: &'a str,
+    pub table_id: u8,
+    pub match_generation: Counter,
+    pub p1_id: &'a EmberId,
+    pub p2_id: &'a EmberId,
+    pub rules_digest: &'a str,
+    pub roster_digest: &'a str,
+    pub build_id: &'a str,
+}
+
+impl AttemptKey<'_> {
+    /// The report `reporter_id` makes of this attempt, naming `opponent_id`.
+    pub(crate) fn report(
+        &self,
+        reporter_id: EmberId,
+        opponent_id: EmberId,
+        observation: Observation,
+    ) -> GameReport {
+        GameReport {
+            version: VERSION,
+            bridge_id: self.bridge_id.to_owned(),
+            match_id: self.match_id.to_owned(),
+            assignment_generation: self.assignment_generation,
+            attempt_id: self.attempt_id.to_owned(),
+            permit_id: self.permit_id.to_owned(),
+            observation_id: observation.observation_id,
+            room_id: self.room_id.to_owned(),
+            table_id: self.table_id,
+            match_generation: self.match_generation,
+            reporter_id,
+            opponent_id,
+            p1_id: self.p1_id.clone(),
+            p2_id: self.p2_id.clone(),
+            rules_digest: self.rules_digest.to_owned(),
+            roster_digest: self.roster_digest.to_owned(),
+            build_id: self.build_id.to_owned(),
+            result: observation.result,
+            capture_frame: observation.capture_frame,
+            confirmed_input_frame: observation.confirmed_input_frame,
+            observed_at: observation.observed_at,
+            helper_instance_id: observation.helper_instance_id,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SignedReport {
@@ -83,14 +140,7 @@ impl GameReport {
                 is_prefixed_id(&self.helper_instance_id, "ins"),
                 "helper_instance_id",
             ),
-            (
-                self.room_id.len() == 32
-                    && self
-                        .room_id
-                        .bytes()
-                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
-                "room_id",
-            ),
+            (is_hex(&self.room_id, 32), "room_id"),
             (self.version == VERSION, "version"),
             (self.table_id <= 3, "table_id"),
             (
@@ -145,23 +195,29 @@ impl GameReport {
         })
     }
 
+    /// The attempt this report is about.
+    pub fn key(&self) -> AttemptKey<'_> {
+        AttemptKey {
+            bridge_id: &self.bridge_id,
+            match_id: &self.match_id,
+            assignment_generation: self.assignment_generation,
+            attempt_id: &self.attempt_id,
+            permit_id: &self.permit_id,
+            room_id: &self.room_id,
+            table_id: self.table_id,
+            match_generation: self.match_generation,
+            p1_id: &self.p1_id,
+            p2_id: &self.p2_id,
+            rules_digest: &self.rules_digest,
+            roster_digest: &self.roster_digest,
+            build_id: &self.build_id,
+        }
+    }
+
     /// True when two reports describe the same attempt and outcome. Different
     /// observation IDs, times and confirmation frames are not disagreement.
     pub fn agrees_with(&self, other: &GameReport) -> bool {
-        self.bridge_id == other.bridge_id
-            && self.match_id == other.match_id
-            && self.assignment_generation == other.assignment_generation
-            && self.attempt_id == other.attempt_id
-            && self.permit_id == other.permit_id
-            && self.room_id == other.room_id
-            && self.table_id == other.table_id
-            && self.match_generation == other.match_generation
-            && self.p1_id == other.p1_id
-            && self.p2_id == other.p2_id
-            && self.rules_digest == other.rules_digest
-            && self.roster_digest == other.roster_digest
-            && self.build_id == other.build_id
-            && self.result == other.result
+        self.key() == other.key() && self.result == other.result
     }
 }
 

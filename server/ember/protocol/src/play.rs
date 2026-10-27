@@ -17,8 +17,8 @@ use crate::{
     encoding::{Counter, decode_b64u, is_prefixed_id},
     json,
     matches::{Rules, games_to_win_valid, starts_at_zero},
-    report::{GameReport, Outcome},
-    sign::Domain,
+    report::{AttemptKey, GameReport, Outcome},
+    sign::{BridgeSigned, Domain, bridge_sign, bridge_verify},
 };
 
 /// The rules profile of matches whose games the fighters report: the room's
@@ -273,11 +273,11 @@ impl Binding {
     }
 
     pub fn sign(&self, key: &SigningIdentity, kid: &str) -> Result<SignedBinding> {
-        self.check()?;
+        let (binding, kid, signature) = bridge_sign(self, key, kid)?;
         Ok(SignedBinding {
-            binding: self.clone(),
-            kid: kid.to_owned(),
-            signature: key.sign(Domain::Binding, &json::to_value(self)?),
+            binding,
+            kid,
+            signature,
         })
     }
 
@@ -290,6 +290,14 @@ impl Binding {
     /// its signature covers: what a claim's `held_binding` names.
     pub fn digest(&self) -> Result<String> {
         json::digest(self)
+    }
+}
+
+impl BridgeSigned for Binding {
+    const DOMAIN: Domain = Domain::Binding;
+
+    fn check(&self) -> Result<()> {
+        Binding::check(self)
     }
 }
 
@@ -306,16 +314,7 @@ impl SignedBinding {
     /// own consistency. Whether it is the expected bridge and match is the
     /// caller's check.
     pub fn verify(&self, key: &PublicKey, kid: &str) -> Result<&Binding> {
-        if self.kid != kid {
-            return Err(Error::Mismatch("kid"));
-        }
-        self.binding.check()?;
-        key.verify(
-            Domain::Binding,
-            &json::to_value(&self.binding)?,
-            &self.signature,
-        )?;
-        Ok(&self.binding)
+        bridge_verify(&self.binding, &self.kid, &self.signature, key, kid)
     }
 }
 
@@ -359,15 +358,34 @@ impl Prepare {
 
     /// The fields both fighters must agree on (the endpoint is each one's own).
     pub fn same_game(&self, other: &Prepare) -> bool {
-        self.assignment_generation == other.assignment_generation
-            && self.binding_revision == other.binding_revision
-            && self.room_id == other.room_id
-            && self.table_id == other.table_id
-            && self.match_generation == other.match_generation
-            && self.rules_digest == other.rules_digest
-            && self.roster_digest == other.roster_digest
-            && self.build_id == other.build_id
+        self.game_key() == other.game_key()
     }
+
+    fn game_key(&self) -> GameKey<'_> {
+        GameKey {
+            assignment_generation: self.assignment_generation,
+            binding_revision: self.binding_revision,
+            room_id: &self.room_id,
+            table_id: self.table_id,
+            match_generation: self.match_generation,
+            rules_digest: &self.rules_digest,
+            roster_digest: &self.roster_digest,
+            build_id: &self.build_id,
+        }
+    }
+}
+
+/// What both fighters' descriptions of a game must share.
+#[derive(PartialEq, Eq)]
+struct GameKey<'a> {
+    assignment_generation: Counter,
+    binding_revision: Counter,
+    room_id: &'a str,
+    table_id: u8,
+    match_generation: Counter,
+    rules_digest: &'a str,
+    roster_digest: &'a str,
+    build_id: &'a str,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -438,11 +456,11 @@ impl Permit {
     }
 
     pub fn sign(&self, key: &SigningIdentity, kid: &str) -> Result<SignedPermit> {
-        self.check()?;
+        let (permit, kid, signature) = bridge_sign(self, key, kid)?;
         Ok(SignedPermit {
-            permit: self.clone(),
-            kid: kid.to_owned(),
-            signature: key.sign(Domain::Permit, &json::to_value(self)?),
+            permit,
+            kid,
+            signature,
         })
     }
 
@@ -456,49 +474,33 @@ impl Permit {
         } else {
             return Err(Error::Mismatch("reporter is not a fighter"));
         };
-        let report = GameReport {
-            version: crate::report::VERSION,
-            bridge_id: self.bridge_id.clone(),
-            match_id: self.match_id.clone(),
-            assignment_generation: self.assignment_generation,
-            attempt_id: self.attempt_id.clone(),
-            permit_id: self.permit_id.clone(),
-            observation_id: observation.observation_id,
-            room_id: self.room_id.clone(),
-            table_id: self.table_id,
-            match_generation: self.match_generation,
-            reporter_id: reporter.clone(),
-            opponent_id: opponent,
-            p1_id: self.p1_id.clone(),
-            p2_id: self.p2_id.clone(),
-            rules_digest: self.rules_digest.clone(),
-            roster_digest: self.roster_digest.clone(),
-            build_id: self.build_id.clone(),
-            result: observation.result,
-            capture_frame: observation.capture_frame,
-            confirmed_input_frame: observation.confirmed_input_frame,
-            observed_at: observation.observed_at,
-            helper_instance_id: observation.helper_instance_id,
-        };
+        let report = self.key().report(reporter.clone(), opponent, observation);
         report.check()?;
         Ok(report)
     }
 
+    /// The attempt this permit authorizes.
+    pub fn key(&self) -> AttemptKey<'_> {
+        AttemptKey {
+            bridge_id: &self.bridge_id,
+            match_id: &self.match_id,
+            assignment_generation: self.assignment_generation,
+            attempt_id: &self.attempt_id,
+            permit_id: &self.permit_id,
+            room_id: &self.room_id,
+            table_id: self.table_id,
+            match_generation: self.match_generation,
+            p1_id: &self.p1_id,
+            p2_id: &self.p2_id,
+            rules_digest: &self.rules_digest,
+            roster_digest: &self.roster_digest,
+            build_id: &self.build_id,
+        }
+    }
+
     /// True when `report` is about this attempt, field for field.
     pub fn covers(&self, report: &GameReport) -> bool {
-        report.bridge_id == self.bridge_id
-            && report.match_id == self.match_id
-            && report.assignment_generation == self.assignment_generation
-            && report.attempt_id == self.attempt_id
-            && report.permit_id == self.permit_id
-            && report.room_id == self.room_id
-            && report.table_id == self.table_id
-            && report.match_generation == self.match_generation
-            && report.p1_id == self.p1_id
-            && report.p2_id == self.p2_id
-            && report.rules_digest == self.rules_digest
-            && report.roster_digest == self.roster_digest
-            && report.build_id == self.build_id
+        self.key() == report.key()
     }
 }
 
@@ -513,6 +515,14 @@ pub struct Observation {
     pub helper_instance_id: String,
 }
 
+impl BridgeSigned for Permit {
+    const DOMAIN: Domain = Domain::Permit;
+
+    fn check(&self) -> Result<()> {
+        Permit::check(self)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SignedPermit {
@@ -523,16 +533,7 @@ pub struct SignedPermit {
 
 impl SignedPermit {
     pub fn verify(&self, key: &PublicKey, kid: &str) -> Result<&Permit> {
-        if self.kid != kid {
-            return Err(Error::Mismatch("kid"));
-        }
-        self.permit.check()?;
-        key.verify(
-            Domain::Permit,
-            &json::to_value(&self.permit)?,
-            &self.signature,
-        )?;
-        Ok(&self.permit)
+        bridge_verify(&self.permit, &self.kid, &self.signature, key, kid)
     }
 }
 

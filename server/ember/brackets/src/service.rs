@@ -369,7 +369,7 @@ impl Service {
             .into_iter()
             .enumerate()
             .filter_map(|(index, value)| {
-                let wire = serde_json::from_value::<WireSet>(value.clone()).ok();
+                let wire = WireSet::deserialize(&value).ok();
                 let blank_phase = wire.as_ref().is_some_and(WireSet::has_blank_phase);
                 let set = wire.and_then(WireSet::into_set);
                 let name = || {

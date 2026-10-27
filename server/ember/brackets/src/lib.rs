@@ -20,20 +20,14 @@ pub mod site;
 mod startgg;
 mod store;
 
-use std::{
-    net::SocketAddr,
-    sync::{
-        Arc,
-        atomic::{AtomicI64, Ordering},
-    },
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{Router, extract::DefaultBodyLimit, routing::post};
 use ember_protocol::webhook::Secret;
 use tokio::{net::TcpListener, task::JoinHandle};
 
 pub use config::{Adapter, Bridge, Config, Credential, CredentialKind, Results, Tournament};
+pub use ember_protocol::client::Clock;
 pub use rounds::{Hold, RoundRule, Rounds, Side};
 
 use bracket::{Bracket, Context};
@@ -133,48 +127,6 @@ mod tests {
                 }
             }
         }
-    }
-}
-
-/// Unix seconds: the wall clock, or for tests a clock that stands still
-/// until it is moved.
-#[derive(Clone)]
-pub struct Clock {
-    offset: Arc<AtomicI64>,
-    wall: bool,
-}
-
-impl Default for Clock {
-    fn default() -> Self {
-        Self {
-            offset: Arc::default(),
-            wall: true,
-        }
-    }
-}
-
-impl Clock {
-    /// A clock that reads `at` until it is moved.
-    pub fn frozen(at: u64) -> Self {
-        Self {
-            offset: Arc::new(AtomicI64::new(at as i64)),
-            wall: false,
-        }
-    }
-
-    pub fn now(&self) -> u64 {
-        let wall = if self.wall {
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map_or(0, |elapsed| elapsed.as_secs() as i64)
-        } else {
-            0
-        };
-        (wall + self.offset.load(Ordering::Relaxed)).max(0) as u64
-    }
-
-    pub fn advance(&self, seconds: i64) {
-        self.offset.fetch_add(seconds, Ordering::Relaxed);
     }
 }
 

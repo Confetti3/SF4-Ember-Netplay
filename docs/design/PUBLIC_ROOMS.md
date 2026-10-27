@@ -49,7 +49,7 @@ game -- helper --HTTPS--> bridge /v1/rooms          (list, create, ticket)
 helper --iroh--> sf4e-room-host + its sf4-net child  (authority, sole voter)
 ```
 
-- `server/ember/protocol/src/rooms.rs`: shared types below.
+- `server/ember/protocol/src/rooms/`: shared types below.
 - `server/ember/bridge/src/routes/rooms.rs`, `migrations/012_rooms.sql`.
 - `server/ember-rooms`: supervisor, loopback only.
 - `server/roomhost/`: `sf4e-room-host`. `RoomHost` is the portable core; the

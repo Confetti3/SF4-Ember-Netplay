@@ -8,6 +8,8 @@
 //! use this one.
 pub mod api;
 pub mod challenge;
+#[cfg(feature = "client")]
+pub mod client;
 pub mod discord;
 pub mod encoding;
 mod error;
@@ -27,6 +29,7 @@ pub mod sites;
 pub mod skill;
 pub mod tournament;
 pub mod webhook;
+mod wire_enum;
 
 pub use error::Error;
 pub use id::{EmberId, PublicKey, SigningIdentity};

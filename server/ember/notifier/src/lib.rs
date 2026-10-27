@@ -24,11 +24,7 @@ mod twitch_room;
 
 use std::{
     net::SocketAddr,
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicI64, Ordering},
-    },
-    time::{SystemTime, UNIX_EPOCH},
+    sync::{Arc, Mutex},
 };
 
 use axum::{Router, routing::post};
@@ -40,27 +36,12 @@ use tokio::{net::TcpListener, sync::Notify, task::JoinHandle};
 use zeroize::Zeroizing;
 
 pub use config::{Bot, Config, Discord, Interactions, Twitch};
+pub use ember_protocol::client::Clock;
 pub use format::Message;
 pub use interactions::register_commands;
 
 use config::resolve;
 use sent::http_client;
-
-#[derive(Clone, Default)]
-pub struct Clock(Arc<AtomicI64>);
-
-impl Clock {
-    pub fn now(&self) -> u64 {
-        let wall = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_secs() as i64);
-        (wall + self.0.load(Ordering::Relaxed)).max(0) as u64
-    }
-
-    pub fn advance(&self, seconds: i64) {
-        self.0.fetch_add(seconds, Ordering::Relaxed);
-    }
-}
 
 struct Inner {
     config: Config,

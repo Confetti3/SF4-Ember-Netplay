@@ -4,10 +4,7 @@
 //! behind a class never leaves the bridge.
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Error, Result,
-    rooms::{is_false, is_player_name},
-};
+use crate::{Error, Result, encoding::is_false, rooms::is_player_name};
 
 /// The capability a bridge with the ranking routes offers.
 pub const RANKING_FEATURE: &str = "ranking";

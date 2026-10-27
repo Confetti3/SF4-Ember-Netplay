@@ -12,6 +12,7 @@ use crate::{
     report::Outcome,
     rooms::ConnectionRoom,
     tournament::{Format, Side},
+    wire_enum::wire_enum,
 };
 
 pub const SPEC_VERSION: &str = "1.0";
@@ -23,136 +24,58 @@ pub const SCHEMA_PREFIX: &str = "urn:ember:identity-tournament:v1:";
 const MAX_TYPE: usize = 160;
 const MAX_SUBJECT: usize = 256;
 
-/// The frozen v1 event families. `full()` gives the wire type.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Kind {
-    LinkPending,
-    LinkCompleted,
-    LinkRemoved,
-    MatchCreated,
-    AssignmentChanged,
-    RoomReady,
-    PlayerPresent,
-    PlayerReady,
-    MatchStarted,
-    AttemptAuthorized,
-    GameReported,
-    GameConfirmed,
-    ScoreChanged,
-    NeedsReview,
-    MatchCompleted,
-    MatchCancelled,
-    MatchFailed,
-    MatchExpired,
-    MatchCorrected,
-    DeliverySucceeded,
-    DeliveryFailed,
-    DeliveryAmbiguous,
-    LobbyCreated,
-    LobbyQueueChanged,
-    LobbySetStarted,
-    LobbySetCompleted,
-    LobbyClosed,
-    TournamentCreated,
-    TournamentEntrantsChanged,
-    TournamentStarted,
-    TournamentMatchStarted,
-    TournamentMatchCompleted,
-    TournamentMatchReopened,
-    TournamentCompleted,
-    TournamentCancelled,
-    RoomCreated,
-    RoomOpened,
-    RoomChanged,
-    RoomClosed,
+wire_enum! {
+    plain
+    /// The frozen v1 event families. `full()` gives the wire type. Each is named
+    /// by the short family name from spec 20.2.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub enum Kind {
+        LinkPending = "identity.link.pending",
+        LinkCompleted = "identity.link.completed",
+        LinkRemoved = "identity.link.removed",
+        MatchCreated = "match.created",
+        AssignmentChanged = "match.assignment.changed",
+        RoomReady = "match.room.ready",
+        PlayerPresent = "match.player.present",
+        PlayerReady = "match.player.ready",
+        MatchStarted = "match.started",
+        AttemptAuthorized = "match.attempt.authorized",
+        GameReported = "match.game.reported",
+        GameConfirmed = "match.game.confirmed",
+        ScoreChanged = "match.score.changed",
+        NeedsReview = "match.needs_review",
+        MatchCompleted = "match.completed",
+        MatchCancelled = "match.cancelled",
+        MatchFailed = "match.failed",
+        MatchExpired = "match.expired",
+        MatchCorrected = "match.corrected",
+        DeliverySucceeded = "provider.delivery.succeeded",
+        DeliveryFailed = "provider.delivery.failed",
+        DeliveryAmbiguous = "provider.delivery.ambiguous",
+        LobbyCreated = "lobby.created",
+        LobbyQueueChanged = "lobby.queue.changed",
+        LobbySetStarted = "lobby.set.started",
+        LobbySetCompleted = "lobby.set.completed",
+        LobbyClosed = "lobby.closed",
+        TournamentCreated = "tournament.created",
+        TournamentEntrantsChanged = "tournament.entrants.changed",
+        TournamentStarted = "tournament.started",
+        TournamentMatchStarted = "tournament.match.started",
+        TournamentMatchCompleted = "tournament.match.completed",
+        TournamentMatchReopened = "tournament.match.reopened",
+        TournamentCompleted = "tournament.completed",
+        TournamentCancelled = "tournament.cancelled",
+        RoomCreated = "room.created",
+        RoomOpened = "room.opened",
+        RoomChanged = "room.changed",
+        RoomClosed = "room.closed",
+    }
 }
 
 impl Kind {
-    pub const ALL: [Kind; 39] = [
-        Self::LinkPending,
-        Self::LinkCompleted,
-        Self::LinkRemoved,
-        Self::MatchCreated,
-        Self::AssignmentChanged,
-        Self::RoomReady,
-        Self::PlayerPresent,
-        Self::PlayerReady,
-        Self::MatchStarted,
-        Self::AttemptAuthorized,
-        Self::GameReported,
-        Self::GameConfirmed,
-        Self::ScoreChanged,
-        Self::NeedsReview,
-        Self::MatchCompleted,
-        Self::MatchCancelled,
-        Self::MatchFailed,
-        Self::MatchExpired,
-        Self::MatchCorrected,
-        Self::DeliverySucceeded,
-        Self::DeliveryFailed,
-        Self::DeliveryAmbiguous,
-        Self::LobbyCreated,
-        Self::LobbyQueueChanged,
-        Self::LobbySetStarted,
-        Self::LobbySetCompleted,
-        Self::LobbyClosed,
-        Self::TournamentCreated,
-        Self::TournamentEntrantsChanged,
-        Self::TournamentStarted,
-        Self::TournamentMatchStarted,
-        Self::TournamentMatchCompleted,
-        Self::TournamentMatchReopened,
-        Self::TournamentCompleted,
-        Self::TournamentCancelled,
-        Self::RoomCreated,
-        Self::RoomOpened,
-        Self::RoomChanged,
-        Self::RoomClosed,
-    ];
-
     /// The short family name from spec 20.2.
     pub fn name(self) -> &'static str {
-        match self {
-            Self::LinkPending => "identity.link.pending",
-            Self::LinkCompleted => "identity.link.completed",
-            Self::LinkRemoved => "identity.link.removed",
-            Self::MatchCreated => "match.created",
-            Self::AssignmentChanged => "match.assignment.changed",
-            Self::RoomReady => "match.room.ready",
-            Self::PlayerPresent => "match.player.present",
-            Self::PlayerReady => "match.player.ready",
-            Self::MatchStarted => "match.started",
-            Self::AttemptAuthorized => "match.attempt.authorized",
-            Self::GameReported => "match.game.reported",
-            Self::GameConfirmed => "match.game.confirmed",
-            Self::ScoreChanged => "match.score.changed",
-            Self::NeedsReview => "match.needs_review",
-            Self::MatchCompleted => "match.completed",
-            Self::MatchCancelled => "match.cancelled",
-            Self::MatchFailed => "match.failed",
-            Self::MatchExpired => "match.expired",
-            Self::MatchCorrected => "match.corrected",
-            Self::DeliverySucceeded => "provider.delivery.succeeded",
-            Self::DeliveryFailed => "provider.delivery.failed",
-            Self::DeliveryAmbiguous => "provider.delivery.ambiguous",
-            Self::LobbyCreated => "lobby.created",
-            Self::LobbyQueueChanged => "lobby.queue.changed",
-            Self::LobbySetStarted => "lobby.set.started",
-            Self::LobbySetCompleted => "lobby.set.completed",
-            Self::LobbyClosed => "lobby.closed",
-            Self::TournamentCreated => "tournament.created",
-            Self::TournamentEntrantsChanged => "tournament.entrants.changed",
-            Self::TournamentStarted => "tournament.started",
-            Self::TournamentMatchStarted => "tournament.match.started",
-            Self::TournamentMatchCompleted => "tournament.match.completed",
-            Self::TournamentMatchReopened => "tournament.match.reopened",
-            Self::TournamentCompleted => "tournament.completed",
-            Self::TournamentCancelled => "tournament.cancelled",
-            Self::RoomCreated => "room.created",
-            Self::RoomOpened => "room.opened",
-            Self::RoomChanged => "room.changed",
-            Self::RoomClosed => "room.closed",
-        }
+        self.as_str()
     }
 
     /// `io.ember.tournament.<name>.v1`.
@@ -161,7 +84,11 @@ impl Kind {
     }
 
     pub fn from_full(text: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|kind| kind.full() == text)
+        Self::parse(
+            text.strip_prefix(NAMESPACE)?
+                .strip_prefix("tournament.")?
+                .strip_suffix(".v1")?,
+        )
     }
 
     /// Identity events are private to the linked player and the provider
@@ -591,9 +518,54 @@ pub fn rfc3339(unix: u64) -> String {
     )
 }
 
+/// Unix seconds of `YYYY-MM-DDTHH:MM:SSZ`, the one form `rfc3339` writes.
+/// The formatter checks the date back, so 2026-02-29 is refused.
+pub fn parse_rfc3339(text: &str) -> Option<u64> {
+    if !is_rfc3339_utc(text) {
+        return None;
+    }
+    let field = |range: std::ops::Range<usize>| text[range].parse::<i64>().ok();
+    let (year, month, day) = (field(0..4)?, field(5..7)?, field(8..10)?);
+    let (hour, minute, second) = (field(11..13)?, field(14..16)?, field(17..19)?);
+    // Howard Hinnant's days-from-civil.
+    let shifted_year = if month <= 2 { year - 1 } else { year };
+    let era = shifted_year.div_euclid(400);
+    let year_of_era = shifted_year.rem_euclid(400);
+    let day_of_year = (153 * ((month + 9) % 12) + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    let days = era * 146_097 + day_of_era - 719_468;
+    let unix = u64::try_from(days * 86_400 + hour * 3_600 + minute * 60 + second).ok()?;
+    (rfc3339(unix) == text).then_some(unix)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn window_times_are_utc_in_one_form() {
+        for (text, unix) in [
+            ("1970-01-01T00:00:00Z", 0),
+            ("2026-10-18T19:00:00Z", 1_792_350_000),
+            ("2024-02-29T23:59:59Z", 1_709_251_199),
+            ("2030-01-01T03:00:00Z", 1_893_466_800),
+        ] {
+            assert_eq!(parse_rfc3339(text), Some(unix), "{text}");
+        }
+        for text in [
+            "2026-10-18T19:00:00",
+            "2026-10-18T19:00:00.750Z",
+            "2026-10-18T19:00:00+00:00",
+            "2026-10-18 19:00:00Z",
+            "2026-02-29T00:00:00Z",
+            "2026-13-01T00:00:00Z",
+            "2026-10-18T24:00:00Z",
+            "2026-10-18T19:60:00Z",
+            "1969-12-31T23:59:59Z",
+        ] {
+            assert_eq!(parse_rfc3339(text), None, "{text}");
+        }
+    }
 
     #[test]
     fn every_kind_is_a_valid_type() {

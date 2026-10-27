@@ -202,6 +202,22 @@ pub fn check_origin(origin: &str, policy: OriginPolicy) -> Result<()> {
     }
 }
 
+/// A property written only when set, the way a room's own delay is: a
+/// listing or request for any other room is byte for byte what it was before,
+/// so a reader that refuses unknown fields never meets it.
+pub(crate) fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+/// Single-line text of 1 to `max` bytes: no control characters and no
+/// leading or trailing whitespace.
+pub(crate) fn is_single_line(text: &str, max: usize) -> bool {
+    !text.is_empty()
+        && text.len() <= max
+        && !text.chars().any(char::is_control)
+        && text.trim() == text
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

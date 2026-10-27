@@ -2,6 +2,10 @@
 //! room, and the objects of the bridge's room routes (see
 //! `docs/design/PUBLIC_ROOMS.md`).
 //!
+//! The ticket is in `ticket`, the routes of a provider connection in
+//! `connection`; this module holds what a player's routes carry, and
+//! re-exports the other two so every item keeps its path.
+//!
 //! A ticket is signed with the bridge's own key under its own domain, using
 //! the same canonical JSON and Ed25519 rules as bindings and permits. Only a
 //! room host verifies it, against the key the bridge gave the supervisor when
@@ -9,15 +13,21 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    EmberId, Error, PublicKey, Result, SigningIdentity,
-    encoding::is_prefixed_id,
-    json,
+    Error, Result,
+    encoding::{is_false, is_single_line},
     matches::games_to_win_valid,
-    play::{MAX_INVITATION, VERSION, check_build, is_hex},
+    play::{MAX_INVITATION, check_build, is_hex},
     relay,
-    sign::Domain,
-    skill::SkillBadge,
 };
+
+mod connection;
+mod ticket;
+
+pub use connection::{
+    CLOSED_BY_CONNECTION, CloseRoom, ConnectionCreateRoom, ConnectionRoom, ConnectionRoomList,
+    ENDED, NOT_LINKED, ROOM_PAGE, RoomCreator, RoomState, join_url,
+};
+pub use ticket::{RoomTicket, SignedRoomTicket};
 
 /// Refusal reasons of the room routes.
 pub const ROOM_LIMIT: &str = "room_limit";
@@ -59,21 +69,10 @@ pub const MAX_ROTATION: u8 = 2;
 pub const MAX_ROOM_BANS: usize = 512;
 const MAX_REGION: usize = 8;
 
-/// A room property written only when set, the way a room's own delay is: a
-/// listing or request for any other room is byte for byte what it was before,
-/// so a reader that refuses unknown fields never meets it.
-pub(crate) fn is_false(value: &bool) -> bool {
-    !*value
-}
-
 /// A room name: 1 to 64 bytes of single-line text with no control characters
 /// and no leading or trailing whitespace.
 pub fn check_room_name(name: &str) -> Result<()> {
-    let valid = !name.is_empty()
-        && name.len() <= MAX_NAME
-        && !name.chars().any(char::is_control)
-        && name.trim() == name;
-    if valid {
+    if is_single_line(name, MAX_NAME) {
         Ok(())
     } else {
         Err(Error::InvalidField("name"))
@@ -93,10 +92,7 @@ pub fn check_host_name(name: &str) -> Result<()> {
 /// single-line text with no control characters and no leading or trailing
 /// whitespace.
 pub fn is_player_name(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() <= MAX_HOST_NAME
-        && !name.chars().any(char::is_control)
-        && name.trim() == name
+    is_single_line(name, MAX_HOST_NAME)
 }
 
 /// Whether `format` is one a table can play: unlimited or first to 1 to 10.
@@ -109,90 +105,6 @@ fn check_capacity(capacity: u8) -> Result<()> {
         Ok(())
     } else {
         Err(Error::InvalidField("capacity"))
-    }
-}
-
-/// Admission to one room for one helper endpoint, signed by the bridge.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RoomTicket {
-    pub version: u8,
-    pub bridge_id: String,
-    pub room_id: String,
-    pub ember_id: EmberId,
-    /// The joiner's helper endpoint.
-    pub endpoint_id: String,
-    pub issued_at: u64,
-    pub expires_at: u64,
-    /// The joiner's skill badge, for a joiner who asked for it
-    /// (`TicketRequest::skill_badge`) and has one. Written only when present,
-    /// so a ticket without one is byte for byte what it was before.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub badge: Option<SkillBadge>,
-}
-
-impl RoomTicket {
-    pub fn check(&self) -> Result<()> {
-        let fields = [
-            (self.version == VERSION, "version"),
-            (is_prefixed_id(&self.bridge_id, "brg"), "bridge_id"),
-            (is_hex(&self.room_id, 32), "room_id"),
-            (is_hex(&self.endpoint_id, 64), "endpoint_id"),
-            (
-                self.issued_at.checked_add(TICKET_SECS) == Some(self.expires_at),
-                "expires_at",
-            ),
-        ];
-        if let Some((_, field)) = fields.iter().find(|(valid, _)| !valid) {
-            return Err(Error::InvalidField(field));
-        }
-        self.badge.as_ref().map_or(Ok(()), SkillBadge::check)
-    }
-
-    pub fn sign(&self, key: &SigningIdentity, kid: &str) -> Result<SignedRoomTicket> {
-        self.check()?;
-        Ok(SignedRoomTicket {
-            ticket: self.clone(),
-            kid: kid.to_owned(),
-            signature: key.sign(Domain::RoomTicket, &json::to_value(self)?),
-        })
-    }
-
-    /// Whether this ticket admits `endpoint_id` to `room_id` at `now` (unix
-    /// seconds): the room and endpoint match, it was not issued more than the
-    /// allowed skew ahead of `now`, and it has not expired.
-    pub fn admits(&self, room_id: &str, endpoint_id: &str, now: u64) -> bool {
-        self.room_id == room_id
-            && self.endpoint_id == endpoint_id
-            && self.issued_at <= now.saturating_add(TICKET_SKEW_SECS)
-            && now < self.expires_at
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct SignedRoomTicket {
-    pub ticket: RoomTicket,
-    pub kid: String,
-    pub signature: String,
-}
-
-impl SignedRoomTicket {
-    /// Checks the signature against the bridge key the room was created with
-    /// and the ticket's own consistency. It does not look at the clock; see
-    /// [`RoomTicket::admits`]. Whether it is the expected bridge is the
-    /// caller's check.
-    pub fn verify(&self, key: &PublicKey, kid: &str) -> Result<&RoomTicket> {
-        if self.kid != kid {
-            return Err(Error::Mismatch("kid"));
-        }
-        self.ticket.check()?;
-        key.verify(
-            Domain::RoomTicket,
-            &json::to_value(&self.ticket)?,
-            &self.signature,
-        )?;
-        Ok(&self.ticket)
     }
 }
 
@@ -395,124 +307,24 @@ impl RoomAdmission {
     }
 }
 
-/// A creator who is not linked on the calling connection.
-pub const NOT_LINKED: &str = "not_linked";
-/// Why a room a connection created closed: the connection closed it, or it
-/// ended on its own (it emptied, its creator never came, or its host stopped).
-pub const CLOSED_BY_CONNECTION: &str = "closed_by_connection";
-pub const ENDED: &str = "ended";
-const MAX_REASON: usize = 256;
-
-/// The page a room link opens. It hands Ember the room, or offers to install
-/// Ember first. The room rides in the fragment, which browsers never send.
-pub const ROOM_PAGE: &str = "https://embernetplay.link/r#";
-
-/// A room's link. Not a secret: the room is public, and admission is still
-/// the ticket's.
-pub fn join_url(bridge_id: &str, room_id: &str) -> String {
-    format!("{ROOM_PAGE}{bridge_id}/{room_id}")
-}
-
-/// The player a connection opens a room for: linked on that connection.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RoomCreator {
-    pub participant_id: String,
-    pub ember_id: EmberId,
-}
-
-/// `POST /v1/rooms` with a provider credential: a room for a linked player,
-/// who goes in first and moderates it.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ConnectionCreateRoom {
-    pub name: String,
-    pub capacity: u8,
-    pub build_id: String,
-    pub creator: RoomCreator,
-}
-
-impl ConnectionCreateRoom {
-    /// The room part, as a player's request would carry it.
-    pub fn room(&self) -> CreateRoom {
-        CreateRoom {
-            name: self.name.clone(),
-            capacity: self.capacity,
-            build_id: self.build_id.clone(),
-            region: None,
-            own_delay: false,
-        }
-    }
-
-    pub fn check(&self) -> Result<()> {
-        if self.creator.participant_id.is_empty() || self.creator.participant_id.len() > 128 {
-            return Err(Error::InvalidField("creator"));
-        }
-        self.room().check()
-    }
-}
-
-/// Where a connection's room stands: waiting for its creator, open to anyone,
-/// or closed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RoomState {
-    Waiting,
-    Open,
-    Closed,
-}
-
-/// A room as the connection that created it sees it.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ConnectionRoom {
-    pub room: RoomSummary,
-    pub state: RoomState,
-    pub creator_ember_id: EmberId,
-    pub join_url: String,
-}
-
-/// `GET /v1/rooms` with a provider credential: the connection's rooms that
-/// are not closed, newest first.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ConnectionRoomList {
-    pub rooms: Vec<ConnectionRoom>,
-}
-
-/// `POST /v1/rooms/{room_id}/close`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CloseRoom {
-    pub reason: String,
-}
-
-impl CloseRoom {
-    pub fn check(&self) -> Result<()> {
-        if self.reason.is_empty()
-            || self.reason.len() > MAX_REASON
-            || self.reason.chars().any(char::is_control)
-        {
-            return Err(Error::InvalidField("reason"));
-        }
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use zeroize::Zeroizing;
 
-    use crate::matches::MAX_GAMES_TO_WIN;
+    use crate::{json, matches::MAX_GAMES_TO_WIN};
+
+    use crate::{EmberId, SigningIdentity, play::VERSION};
 
     use super::*;
 
-    const BRIDGE: &str = "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11";
-    const ROOM: &str = "0123456789abcdef0123456789abcdef";
+    pub(super) const BRIDGE: &str = "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11";
+    pub(super) const ROOM: &str = "0123456789abcdef0123456789abcdef";
 
-    fn key(byte: u8) -> SigningIdentity {
+    pub(super) fn key(byte: u8) -> SigningIdentity {
         SigningIdentity::from_seed(&Zeroizing::new([byte; 32])).unwrap()
     }
 
-    fn ticket(ember_id: &EmberId) -> RoomTicket {
+    pub(super) fn ticket(ember_id: &EmberId) -> RoomTicket {
         RoomTicket {
             version: VERSION,
             bridge_id: BRIDGE.into(),
@@ -553,117 +365,6 @@ mod tests {
             rotation: Some(1),
             ..summary()
         }
-    }
-
-    #[test]
-    fn tickets_verify_only_under_their_domain_key_and_kid() {
-        let (bridge, player) = (key(9), key(1));
-        let signed = ticket(player.ember_id()).sign(&bridge, "k1").unwrap();
-        assert_eq!(
-            signed.verify(&bridge.public_key(), "k1").unwrap(),
-            &signed.ticket
-        );
-        assert_eq!(
-            signed.verify(&bridge.public_key(), "k2"),
-            Err(Error::Mismatch("kid"))
-        );
-        assert!(signed.verify(&player.public_key(), "k1").is_err());
-        let mut tampered = signed.clone();
-        tampered.ticket.endpoint_id = "b".repeat(64);
-        assert_eq!(
-            tampered.verify(&bridge.public_key(), "k1"),
-            Err(Error::InvalidSignature)
-        );
-        let mut tampered = signed.clone();
-        tampered.ticket.room_id = "f".repeat(32);
-        assert!(tampered.verify(&bridge.public_key(), "k1").is_err());
-        let mut tampered = signed;
-        tampered.ticket.ember_id = key(2).ember_id().clone();
-        assert!(tampered.verify(&bridge.public_key(), "k1").is_err());
-    }
-
-    #[test]
-    fn a_ticket_signature_is_not_a_binding_or_permit_signature() {
-        let (bridge, player) = (key(9), key(1));
-        let value = json::to_value(&ticket(player.ember_id())).unwrap();
-        let signature = bridge.sign(Domain::RoomTicket, &value);
-        let public = bridge.public_key();
-        assert!(
-            public
-                .verify(Domain::RoomTicket, &value, &signature)
-                .is_ok()
-        );
-        for other in [Domain::Binding, Domain::Permit] {
-            assert!(public.verify(other, &value, &signature).is_err());
-            assert_ne!(
-                other.signing_bytes(&value),
-                Domain::RoomTicket.signing_bytes(&value)
-            );
-        }
-        assert!(
-            Domain::RoomTicket
-                .signing_bytes(&value)
-                .starts_with(b"EMBER:ROOM-TICKET:1\n")
-        );
-    }
-
-    #[test]
-    fn signing_refuses_an_inconsistent_ticket() {
-        let bridge = key(9);
-        let id = key(1).ember_id().clone();
-        let good = ticket(&id);
-        let broken = [
-            RoomTicket {
-                version: 2,
-                ..good.clone()
-            },
-            RoomTicket {
-                bridge_id: "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11".into(),
-                ..good.clone()
-            },
-            RoomTicket {
-                room_id: "abc".into(),
-                ..good.clone()
-            },
-            RoomTicket {
-                endpoint_id: "A".repeat(64),
-                ..good.clone()
-            },
-            RoomTicket {
-                expires_at: good.issued_at + TICKET_SECS + 1,
-                ..good.clone()
-            },
-            RoomTicket {
-                expires_at: good.issued_at,
-                ..good.clone()
-            },
-            // A badge that is not one.
-            RoomTicket {
-                badge: Some(SkillBadge::class(0, true)),
-                ..good.clone()
-            },
-        ];
-        for ticket in broken {
-            assert!(ticket.sign(&bridge, "k1").is_err(), "{ticket:?}");
-        }
-        assert!(good.sign(&bridge, "k1").is_ok());
-    }
-
-    #[test]
-    fn admission_checks_room_endpoint_and_the_clock() {
-        let t = ticket(key(1).ember_id());
-        let endpoint = "a".repeat(64);
-        assert!(t.admits(ROOM, &endpoint, 1000));
-        assert!(t.admits(ROOM, &endpoint, 1059));
-        assert!(!t.admits(ROOM, &endpoint, 1060));
-        assert!(!t.admits(ROOM, &endpoint, 5000));
-        assert!(!t.admits(&"f".repeat(32), &endpoint, 1000));
-        assert!(!t.admits(ROOM, &"b".repeat(64), 1000));
-        // Issued up to 30 s ahead of the verifier's clock is accepted.
-        assert!(t.admits(ROOM, &endpoint, 970));
-        assert!(!t.admits(ROOM, &endpoint, 969));
-        assert!(t.admits(ROOM, &endpoint, 0) == (1000 <= TICKET_SKEW_SECS));
-        assert!(!ticket(key(1).ember_id()).admits(ROOM, &endpoint, u64::MAX));
     }
 
     #[test]

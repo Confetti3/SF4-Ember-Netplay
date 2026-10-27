@@ -1,5 +1,10 @@
 //! Frozen signature and encryption domains (spec 9.3).
-use crate::json::Value;
+use serde::Serialize;
+
+use crate::{
+    Error, PublicKey, Result, SigningIdentity,
+    json::{self, Value},
+};
 
 /// Additional-data prefix of the local encrypted key store.
 pub const KEY_LOCAL_DOMAIN: &[u8] = b"EMBER:KEY-LOCAL:1\n";
@@ -35,4 +40,42 @@ impl Domain {
         bytes.extend_from_slice(&value.canonical());
         bytes
     }
+}
+
+/// An object a bridge signs with its own key under one domain: a room
+/// binding, a game permit or a room ticket. It is checked, then signed over
+/// its canonical bytes, and verified the same way in the other direction.
+pub(crate) trait BridgeSigned: Serialize + Clone {
+    const DOMAIN: Domain;
+
+    fn check(&self) -> Result<()>;
+}
+
+/// Checks `value`, then signs it: the value, the key ID and the signature,
+/// for the signed wrapper to hold.
+pub(crate) fn bridge_sign<T: BridgeSigned>(
+    value: &T,
+    key: &SigningIdentity,
+    kid: &str,
+) -> Result<(T, String, String)> {
+    value.check()?;
+    let signature = key.sign(T::DOMAIN, &json::to_value(value)?);
+    Ok((value.clone(), kid.to_owned(), signature))
+}
+
+/// The key ID must be the trusted one, then the value's own consistency must
+/// hold, then the signature must be good, in that order.
+pub(crate) fn bridge_verify<'a, T: BridgeSigned>(
+    value: &'a T,
+    kid: &str,
+    signature: &str,
+    key: &PublicKey,
+    expected_kid: &str,
+) -> Result<&'a T> {
+    if kid != expected_kid {
+        return Err(Error::Mismatch("kid"));
+    }
+    value.check()?;
+    key.verify(T::DOMAIN, &json::to_value(value)?, signature)?;
+    Ok(value)
 }

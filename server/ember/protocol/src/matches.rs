@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     EmberId, Error, Result,
     encoding::{Counter, is_prefixed_id},
+    wire_enum::wire_enum,
 };
 
 pub const MAX_EXTERNAL_ID: usize = 256;
@@ -100,12 +101,7 @@ impl CreateMatch {
     /// Shape only. Whether each participant's Ember ID is that participant's
     /// current approved link is the bridge's check.
     pub fn check(&self) -> Result<()> {
-        if self.external_match_id.is_empty() || self.external_match_id.len() > MAX_EXTERNAL_ID {
-            return Err(Error::InvalidField("external_match_id"));
-        }
-        if self.game != "usf4" {
-            return Err(Error::InvalidField("game"));
-        }
+        check_provider_head(&self.external_match_id, "external_match_id", &self.game)?;
         let [a, b] = self.participants.as_slice() else {
             return Err(Error::InvalidField("participants"));
         };
@@ -126,10 +122,7 @@ impl CreateMatch {
         if self.result_policy != "two_player_agreement_or_review" {
             return Err(Error::InvalidField("result_policy"));
         }
-        if self.required_build_id.is_empty() || self.required_build_id.len() > 128 {
-            return Err(Error::InvalidField("required_build_id"));
-        }
-        check_metadata(&self.metadata)
+        check_provider_tail(&self.required_build_id, &self.metadata)
     }
 
     /// Participants ordered by slot.
@@ -137,6 +130,35 @@ impl CreateMatch {
         let [a, b] = [&self.participants[0], &self.participants[1]];
         if a.slot == 0 { [a, b] } else { [b, a] }
     }
+}
+
+/// The first two checks of every provider create command (a match, a lobby
+/// or a tournament): the provider's own ID for it, and the game.
+pub(crate) fn check_provider_head(
+    external_id: &str,
+    external_field: &'static str,
+    game: &str,
+) -> Result<()> {
+    if external_id.is_empty() || external_id.len() > MAX_EXTERNAL_ID {
+        return Err(Error::InvalidField(external_field));
+    }
+    if game != "usf4" {
+        return Err(Error::InvalidField("game"));
+    }
+    Ok(())
+}
+
+/// The last two checks of every provider create command: the required build,
+/// by length only because it is the provider's label and the bridge never
+/// compares it with a build, then the metadata.
+pub(crate) fn check_provider_tail(
+    required_build_id: &str,
+    metadata: &BTreeMap<String, String>,
+) -> Result<()> {
+    if required_build_id.is_empty() || required_build_id.len() > 128 {
+        return Err(Error::InvalidField("required_build_id"));
+    }
+    check_metadata(metadata)
 }
 
 /// Display-only metadata: lowercase keys, bounded values, never policy.
@@ -163,25 +185,27 @@ pub fn check_metadata(metadata: &BTreeMap<String, String>) -> Result<()> {
     Ok(())
 }
 
-/// Set-level lifecycle (spec 17.1). This branch reaches only the states that
-/// need no native integration; the rest are named so the wire form is fixed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MatchState {
-    Created,
-    AwaitingPlayers,
-    Provisioning,
-    Ready,
-    Running,
-    BetweenGames,
-    AwaitingReports,
-    NeedsReview,
-    Completed,
-    Cancelled,
-    Failed,
-    /// Nobody played it before its `expires_at`. Unlike `cancelled`, nothing
-    /// called it off, and it is not a request to play it again.
-    Expired,
+wire_enum! {
+    serde
+    /// Set-level lifecycle (spec 17.1). This branch reaches only the states that
+    /// need no native integration; the rest are named so the wire form is fixed.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub enum MatchState {
+        Created = "created",
+        AwaitingPlayers = "awaiting_players",
+        Provisioning = "provisioning",
+        Ready = "ready",
+        Running = "running",
+        BetweenGames = "between_games",
+        AwaitingReports = "awaiting_reports",
+        NeedsReview = "needs_review",
+        Completed = "completed",
+        Cancelled = "cancelled",
+        Failed = "failed",
+        /// Nobody played it before its `expires_at`. Unlike `cancelled`, nothing
+        /// called it off, and it is not a request to play it again.
+        Expired = "expired",
+    }
 }
 
 impl MatchState {
@@ -191,44 +215,19 @@ impl MatchState {
             Self::Completed | Self::Cancelled | Self::Failed | Self::Expired
         )
     }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Created => "created",
-            Self::AwaitingPlayers => "awaiting_players",
-            Self::Provisioning => "provisioning",
-            Self::Ready => "ready",
-            Self::Running => "running",
-            Self::BetweenGames => "between_games",
-            Self::AwaitingReports => "awaiting_reports",
-            Self::NeedsReview => "needs_review",
-            Self::Completed => "completed",
-            Self::Cancelled => "cancelled",
-            Self::Failed => "failed",
-            Self::Expired => "expired",
-        }
-    }
-
-    pub fn parse(text: &str) -> Option<Self> {
-        serde_json::from_value(serde_json::Value::String(text.to_owned())).ok()
-    }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DeliveryState {
-    NotRequired,
-    Queued,
-    Delivering,
-    Delivered,
-    Retrying,
-    Failed,
-    Ambiguous,
-}
-
-impl DeliveryState {
-    pub fn parse(text: &str) -> Option<Self> {
-        serde_json::from_value(serde_json::Value::String(text.to_owned())).ok()
+wire_enum! {
+    serde
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub enum DeliveryState {
+        NotRequired = "not_required",
+        Queued = "queued",
+        Delivering = "delivering",
+        Delivered = "delivered",
+        Retrying = "retrying",
+        Failed = "failed",
+        Ambiguous = "ambiguous",
     }
 }
 

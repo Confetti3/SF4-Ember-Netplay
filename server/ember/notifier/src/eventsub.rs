@@ -14,7 +14,7 @@ use std::{
 
 use futures_util::StreamExt;
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::{Value, json, value::RawValue};
 use tokio::net::TcpStream;
 use tokio_websockets::{ClientBuilder, Limits, MaybeTlsStream, WebSocketStream};
 
@@ -37,7 +37,17 @@ const SEEN: usize = 128;
 struct Frame {
     metadata: Metadata,
     #[serde(default)]
-    payload: Value,
+    payload: Payload,
+}
+
+/// What a frame carries. A chat event is left as text until it is known to
+/// be wanted: most lines on a busy channel are not.
+#[derive(Default, Deserialize)]
+struct Payload {
+    #[serde(default)]
+    session: Value,
+    #[serde(default)]
+    event: Option<Box<RawValue>>,
 }
 
 #[derive(Deserialize)]
@@ -111,7 +121,7 @@ impl Notifier {
             match frame.metadata.message_type.as_str() {
                 "notification" => self.notification(&frame, seen),
                 "session_reconnect" => {
-                    let Some(next) = frame.payload["session"]["reconnect_url"].as_str() else {
+                    let Some(next) = frame.payload.session["reconnect_url"].as_str() else {
                         return "reconnect without a URL".into();
                     };
                     match self.hand_off(&mut socket, keepalive, next, seen).await {
@@ -204,9 +214,18 @@ impl Notifier {
         {
             return;
         }
-        let Ok(event) = serde_json::from_value::<ChatEvent>(frame.payload["event"].clone()) else {
+        let Some(raw) = frame.payload.event.as_deref() else {
             return;
         };
+        let Ok(event) = serde_json::from_str::<ChatEvent>(raw.get()) else {
+            return;
+        };
+        let Some(twitch) = &self.0.config.twitch else {
+            return;
+        };
+        if !event.asks_for_room(&twitch.broadcaster_id) {
+            return;
+        }
         // Creating a room takes a network round trip; the socket keeps reading.
         let this = self.clone();
         tokio::spawn(async move { this.on_chat(event).await });
@@ -228,7 +247,7 @@ async fn open(url: &str) -> Result<(Socket, Welcome), String> {
         if frame.metadata.message_type != "session_welcome" {
             continue;
         }
-        let session = &frame.payload["session"];
+        let session = &frame.payload.session;
         return match (
             session["id"].as_str(),
             session["keepalive_timeout_seconds"].as_u64(),

@@ -10,7 +10,8 @@ use std::{
 
 use ember_protocol::{
     EmberId,
-    api::{ApiError, ErrorCode},
+    api::ErrorCode,
+    client::{BridgeClient as Client, Failure},
     json,
     matches::{CreateMatch, DeliveryState, MatchState},
     partner::{LOOKUP_PATH, Lookup, LookupAnswer, MAX_LOOKUP},
@@ -20,7 +21,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use zeroize::Zeroizing;
 
 use crate::{
-    http::{bounded_body, http_client},
+    http::http_client,
     sets::Ended,
     site::{Account, Entry},
 };
@@ -43,8 +44,7 @@ impl fmt::Display for BridgeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Refused { code, message } => {
-                let code = serde_json::to_value(code).unwrap_or_default();
-                write!(f, "{} ({message})", code.as_str().unwrap_or("refused"))
+                write!(f, "{} ({message})", code.as_str())
             }
             Self::Unavailable => f.write_str("the bridge could not be reached"),
         }
@@ -312,32 +312,24 @@ struct Cancel<'a> {
 }
 
 pub(crate) struct BridgeClient {
-    http: reqwest::Client,
-    api: String,
-    credential: Zeroizing<String>,
+    client: Client,
     known: Mutex<Known>,
 }
 
 impl BridgeClient {
     pub fn new(api: &str, credential: Zeroizing<String>) -> Result<Self, String> {
         Ok(Self {
-            http: http_client()?,
-            api: api.trim_end_matches('/').to_owned(),
-            credential,
+            client: Client::new(http_client()?, api, credential),
             known: Mutex::default(),
         })
     }
 
     fn get(&self, path: &str) -> reqwest::RequestBuilder {
-        self.http
-            .get(format!("{}{path}", self.api))
-            .bearer_auth(self.credential.as_str())
+        self.client.get(path)
     }
 
     fn post(&self, path: &str) -> reqwest::RequestBuilder {
-        self.http
-            .post(format!("{}{path}", self.api))
-            .bearer_auth(self.credential.as_str())
+        self.client.post(path)
     }
 
     /// The players connected to these accounts, asked for in lookups of at
@@ -492,20 +484,16 @@ impl BridgeClient {
         &self,
         request: reqwest::RequestBuilder,
     ) -> Result<T, BridgeError> {
-        let response = request.send().await.map_err(|_| BridgeError::Unavailable)?;
-        let success = response.status().is_success();
-        let body = bounded_body(response, MAX_ANSWER)
+        self.client
+            .answer(request, MAX_ANSWER)
             .await
-            .ok_or(BridgeError::Unavailable)?;
-        if success {
-            return json::parse_as(&body, MAX_ANSWER).map_err(|_| BridgeError::Unavailable);
-        }
-        let refusal: ApiError =
-            json::parse_as(&body, MAX_ANSWER).map_err(|_| BridgeError::Unavailable)?;
-        Err(BridgeError::Refused {
-            code: refusal.error.code,
-            message: refusal.error.message.chars().take(200).collect(),
-        })
+            .map_err(|failure| match failure {
+                Failure::Unavailable => BridgeError::Unavailable,
+                Failure::Refused(error) => BridgeError::Refused {
+                    code: error.code,
+                    message: error.message.chars().take(200).collect(),
+                },
+            })
     }
 }
 

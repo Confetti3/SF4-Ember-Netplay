@@ -9,7 +9,7 @@ license.workspace = true
 
 [dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
-ember-protocol = { path = "../protocol" }
+ember-protocol = { path = "../protocol", features = ["client"] }
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls-no-provider"] }
 rusqlite = { version = "0.40.2", features = ["bundled", "fallible_uint"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
