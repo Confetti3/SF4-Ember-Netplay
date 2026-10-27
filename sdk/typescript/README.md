@@ -116,7 +116,7 @@ npm test
 The tests that use a bridge (`bridge`, `play`, `lookup`, `rooms`, `results` and `watch`)
 require the real binary named by `EMBER_BRIDGE_TEST_BINARY` and fail if it is
 missing. The `contract` test holds the SDK's event names, room objects and enums to the protocol: it needs the protocol's contract example (`cargo build --locked -p ember-protocol --example contract` in `server/ember`, into the same `CARGO_TARGET_DIR` as the bridge, or `EMBER_PROTOCOL_CONTRACT_BINARY` / `EMBER_PROTOCOL_CONTRACT`) and fails if it is missing. The default Windows build's `BridgeSdk` CTest builds that binary in
-its own build tree, runs `npm ci`, compiles the SDK and runs all tests. Node 22.18 or later runs the TypeScript sources
+its own build tree, runs `npm ci` when the lockfile, the node or npm version or the installed tree changed, compiles the SDK and runs all tests. Node 22.18 or later runs the TypeScript sources
 directly, as long as it was built with TypeScript support: some Linux
 distribution packages leave it out (`node -p process.features.typescript`
 prints `false`), so use the nodejs.org build there. `npm run build` emits

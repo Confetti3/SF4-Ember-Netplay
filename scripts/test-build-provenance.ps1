@@ -77,13 +77,16 @@ catch { if ($_.Exception.Message -notlike 'CMake source mismatch*') { throw } }
 [IO.File]::WriteAllText((Join-Path $source 'feature.cxx'), 'current feature')
 Write-Output 'PASS the receipt check without the fresh fingerprint still refuses a changed binary and a foreign CMake source'
 
-# A fake CTest whose first run fails HelperRust; a rerun fails it again only when $failAgain says so.
+# A fake CTest whose first run fails HelperRust; a rerun fails it again only when $failAgain says so, and a
+# first run leaves out the test $omit names. Its tests are the ones a receipt with testsPassed must show as run
+# (the $missing list of Invoke-DefaultTests): the helper and Ember Rust suites, the SDK and the publisher's suites.
 $tests = Join-Path $fixture 'tests'
 New-Item -ItemType Directory -Path (Join-Path $tests 'Testing/Temporary') | Out-Null
 $fakeCtest = {
     $rerun = $args -contains '--rerun-failed'
-    $failing = if ($rerun) { $failAgain } else { 'HelperRust' }
-    $cases = foreach ($name in $(if ($rerun) { 'HelperRust' } else { 'HelperRust', 'EmberRust', 'BridgeSdk' })) {
+    $failing = if ($rerun) { $failAgain } elseif ($omit) { $null } else { 'HelperRust' }
+    $cases = foreach ($name in $(if ($rerun) { 'HelperRust' } else { 'HelperRust', 'EmberRust', 'BridgeSdk', 'BuildProvenance', 'NightlyPublication', 'NightlyPaths', 'PackageFiles' })) {
+        if ($name -eq $omit) { continue }
         if ($name -eq $failing) { "<testcase name=`"$name`" status=`"fail`"><failure/></testcase>" } else { "<testcase name=`"$name`" status=`"run`"/>" }
     }
     Set-Content -LiteralPath $args[[Array]::IndexOf($args, '--output-junit') + 1] -Value "<testsuite>$($cases -join '')</testsuite>"
@@ -95,6 +98,7 @@ function Expect-TestFailure([string]$Expected, [scriptblock]$Run) {
     catch { if ($_.Exception.Message -notlike $Expected) { throw } }
 }
 $failAgain = $null
+$omit = $null
 $passedOnRerun = @(Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 -RerunFailed 3>$null 6>$null)
 if (($passedOnRerun -join ',') -ne 'HelperRust') { throw "Rerun reported '$($passedOnRerun -join ',')'" }
 Expect-TestFailure 'Tests failed' { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 6>$null }
@@ -102,6 +106,15 @@ $failAgain = 'HelperRust'
 Expect-TestFailure 'Tests failed, and again*' { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 -RerunFailed 6>$null }
 $global:LASTEXITCODE = 0
 Write-Output 'PASS a failed test passes on one rerun only with -RerunFailed, and a second failure stops the build'
+# A run that leaves out any one of the tests the components name is refused, whichever one it is.
+$failAgain = $null
+foreach ($name in 'HelperRust', 'EmberRust', 'BridgeSdk', 'BuildProvenance', 'NightlyPublication', 'NightlyPaths', 'PackageFiles') {
+    $omit = $name
+    Expect-TestFailure "Default CTest did not run: $name" { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 6>$null }
+}
+$omit = $null
+$global:LASTEXITCODE = 0
+Write-Output 'PASS a CTest run without one of the suites the receipt components name is refused'
 Write-Output "Fixtures retained at $fixture"
 
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')

@@ -1,5 +1,5 @@
 # The C++ sources of the public room host, one path per line, relative to the source root.
-# Read by server/roomhost/build-linux.sh (g++ alone, no CMake). The groups are the CMake targets whose sources
+# Read by CMake (cmake/sf4e_roomhost_sources.cmake) and by server/roomhost/build-linux.sh (g++ alone). The groups are the CMake targets whose sources
 # they are: room_model = sf4e_room_model, selection = the catalog part of sf4e_selection, session_server =
 # sf4e_session_server, iroh_room = sf4e_iroh_room, common = the part of sf4e_common the host uses, and host =
 # the sf4e-room-host target. host_posix is what Linux builds in place of host_windows (and of the Windows helper

@@ -64,7 +64,10 @@ function Invoke-DefaultTests([object]$Ctest, [string]$BuildRoot, [string]$Exclud
     $ran = @(foreach ($file in @($junit, $rerunJunit) | Where-Object { Test-Path -LiteralPath $_ }) {
         ([xml](Get-Content -Raw -LiteralPath $file)).testsuite.testcase | Where-Object { $_.status -eq 'run' -and !$_.failure } | ForEach-Object { $_.name }
     })
-    $missing = @('HelperRust','EmberRust','BridgeSdk') | Where-Object { $_ -notin $ran }
+    # The helper and Ember Rust suites, the SDK and the publisher's PowerShell suites (cmake/sf4e_test_targets.cmake;
+    # build-current.ps1 no longer runs those scripts itself). A CMake edit cannot drop one silently, and
+    # scripts/test-build-provenance.ps1 names the same set in its fake CTest.
+    $missing = @('HelperRust','EmberRust','BridgeSdk','BuildProvenance','NightlyPublication','NightlyPaths','PackageFiles') | Where-Object { $_ -notin $ran }
     if ($missing) { throw "Default CTest did not run: $($missing -join ', ')" }
     $passedOnRerun
 }

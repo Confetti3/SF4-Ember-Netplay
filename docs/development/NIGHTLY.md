@@ -186,7 +186,7 @@ installer and WSL steps as replaceable operations. Focused tests call the
 import-safe operations, and the whole run, with every external command and
 build step faked; they check ordering, dry runs, pending resumes and recovery.
 The optional Bash checks use inert files in a temporary directory.
-`build-current.ps1` runs both test scripts:
+The default test set runs them as the CTest entries `NightlyPublication` and `NightlyPaths` (beside `BuildProvenance` and `PackageFiles`); by hand they are:
 
 ```powershell
 pwsh -NoProfile -File ./scripts/test-nightly-publication.ps1

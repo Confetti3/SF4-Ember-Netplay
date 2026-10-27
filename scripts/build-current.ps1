@@ -6,13 +6,8 @@ $repo = Split-Path $PSScriptRoot -Parent
 $target = Get-EmberBuildTarget $repo
 $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
-& (Join-Path $PSScriptRoot 'test-build-provenance.ps1')
-# The package hash formats and the packaging functions' contract; nothing here builds or publishes.
-& (Join-Path $PSScriptRoot 'test-package-files.ps1')
-# The Nightly publisher's tests mock git, gh, ssh, scp and WSL, so they are safe to run here.
-# The Bash checks need Git for Windows' bash.exe; a build without one fails rather than skipping them.
-& (Join-Path $PSScriptRoot 'test-nightly-publication.ps1')
-& (Join-Path $PSScriptRoot 'test-nightly-paths.ps1') -BashPath (Get-EmberGitBash)
+# The scripts' own suites (test-build-provenance.ps1, test-package-files.ps1, test-nightly-publication.ps1 and
+# test-nightly-paths.ps1) are CTest entries (cmake/sf4e_test_targets.cmake) that Invoke-DefaultTests requires.
 $build = Join-Path $repo $target.buildDirectory
 $stage = Join-Path $repo $target.installDirectory
 # A run that stops before the end leaves no receipt, so packaging cannot take an
@@ -74,7 +69,7 @@ $binaries = foreach ($file in Get-ChildItem -LiteralPath $stage -Recurse -File |
 }
 $components = @(
     [ordered]@{name='Windows native build and local staging';platform='windows';status='passed'},
-    [ordered]@{name='Default CTest including helper Rust, Ember Rust and BridgeSdk';platform='windows';status=$(if ($SkipTests) {'unexecuted'} else {'passed'})},
+    [ordered]@{name='Default CTest including helper Rust, Ember Rust, BridgeSdk and the publisher script suites (BuildProvenance, NightlyPublication, NightlyPaths, PackageFiles)';platform='windows';status=$(if ($SkipTests) {'unexecuted'} else {'passed'})},
     [ordered]@{name='Supplemental service, lint and Linux checks (scripts/test-full-quality.ps1)';platform='windows/linux';status='unexecuted'},
     [ordered]@{name='Public network matrix (scripts/test-current-network.ps1)';platform='windows';status='unexecuted'},
     [ordered]@{name='Live Discord and gameplay acceptance';platform='live';status='unexecuted'})

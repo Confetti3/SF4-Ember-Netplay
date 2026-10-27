@@ -13,6 +13,67 @@
 #       runtime opens the fixed Local\SF4Ember* link mailboxes.
 # Any other test's files, pipes and named objects carry a pid or random name.
 set(SF4E_TEST_LOCKS loopback_udp_ports ember_processes ember_runtime)
+
+# Every test carries at least one label, so a retest can pick a family with
+# `ctest -L <label>` (or leave one out with -LE) instead of a name pattern. A
+# label outside this list, or a test without any, stops the configure.
+#   unit       one native test executable (every sf4e_add_unit_test test has it)
+#   ui         the overlay, menus and shell: it links sf4e_ui or sf4e_recovery,
+#              or renders the screens
+#   room       the room model, the session server, the room host, the Iroh room
+#              and the tournament and watch play: it links their libraries or is
+#              named for them
+#   ggpo       GGPO over loopback UDP
+#   replay     replay files, the archive, the recorder and playback
+#   training   training mode
+#   discord    the Discord companion
+#   helper     runs the Rust helper (sf4-net.exe) or tests the code that starts it
+#   rust       a cargo test suite (HelperRust, EmberRust, PublicRoomsChain)
+#   sdk        the TypeScript SDK against the bridge (BridgeSdk)
+#   publisher  a PowerShell suite for building, packaging and publishing
+#              (BuildProvenance, NightlyPublication, NightlyPaths, PackageFiles)
+#   script     any PowerShell suite, the publisher's and the updater's
+#   network    needs the public Iroh relay and address lookup (SF4E_NETWORK_TESTS)
+# The area labels are given where a test links the area's library or is named
+# for it, so they select the main tests of an area rather than every test that
+# touches it. HelperRust and PublicRoomsChain build into rust-test-target in the
+# build folder, EmberRust and BridgeSdk into rust-ember-target: a targeted cargo
+# run must not write into either folder while ctest runs a suite that uses it.
+set(SF4E_TEST_LABELS unit ui room ggpo replay training discord helper rust sdk publisher script network)
+#   sf4e_test_labels(LABELS <label...> TESTS <test...>)
+# Adds the labels to tests that exist already, whatever registered them.
+function(sf4e_test_labels)
+    cmake_parse_arguments(PARSE_ARGV 0 arg "" "" "LABELS;TESTS")
+    if(arg_UNPARSED_ARGUMENTS OR NOT arg_LABELS OR NOT arg_TESTS)
+        message(FATAL_ERROR "sf4e_test_labels: needs LABELS <label...> TESTS <test...>")
+    endif()
+    foreach(label IN LISTS arg_LABELS)
+        if(NOT label IN_LIST SF4E_TEST_LABELS)
+            message(FATAL_ERROR "sf4e_test_labels: '${label}' is not one of ${SF4E_TEST_LABELS}")
+        endif()
+    endforeach()
+    foreach(test IN LISTS arg_TESTS)
+        if(NOT TEST "${test}")
+            message(FATAL_ERROR "sf4e_test_labels: no test named '${test}'")
+        endif()
+        set_property(TEST "${test}" APPEND PROPERTY LABELS ${arg_LABELS})
+    endforeach()
+endfunction()
+# Stops the configure when a registered test has no label. Called where
+# registration ends, so a test added with a bare add_test is noticed.
+function(sf4e_check_test_labels)
+    get_property(tests DIRECTORY PROPERTY TESTS)
+    set(unlabeled "")
+    foreach(test IN LISTS tests)
+        get_property(labels TEST "${test}" PROPERTY LABELS)
+        if(NOT labels)
+            list(APPEND unlabeled "${test}")
+        endif()
+    endforeach()
+    if(unlabeled)
+        message(FATAL_ERROR "Tests without a label (sf4e_test_labels in cmake/sf4e_tests.cmake): ${unlabeled}")
+    endif()
+endfunction()
 #   sf4e_test_locks(<test> <lock...>)
 function(sf4e_test_locks test)
     if(ARGC LESS 2)
@@ -31,14 +92,15 @@ endfunction()
 # the target takes the directory's standard.
 #   sf4e_add_unit_test(NAME <Name> SOURCES <files...> [LIBS <libs...>]
 #       [STD <11|14|17>] [TIMEOUT <seconds>] [SKIP_RETURN_CODE <code>]
-#       [LOCKS <lock...>])
+#       [LOCKS <lock...>] [LABELS <label...>])
+# The test is labeled unit, and with LABELS as well.
 # A mistake stops the configure rather than dropping a setting: each option
 # once, with values that are not empty, one each for NAME and the numbers. A
 # mistyped option after SOURCES or LIBS lands in their list, so each source must
 # exist and each library be a target or a name with a lowercase letter.
 function(sf4e_add_unit_test)
     set(single NAME STD TIMEOUT SKIP_RETURN_CODE)
-    set(keywords ${single} SOURCES LIBS LOCKS)
+    set(keywords ${single} SOURCES LIBS LOCKS LABELS)
     foreach(keyword IN LISTS keywords)
         set(arg_${keyword} "")
     endforeach()
@@ -112,4 +174,5 @@ function(sf4e_add_unit_test)
     if("LOCKS" IN_LIST seen)
         sf4e_test_locks(${arg_NAME} ${arg_LOCKS})
     endif()
+    sf4e_test_labels(LABELS unit ${arg_LABELS} TESTS ${arg_NAME})
 endfunction()
