@@ -175,7 +175,7 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
   if(SamePreferences(v.preferences,savingPreferences_)&&v.settingsError.empty()){
    saveQueued_=false;retrySave_=false;preferencesDirty_=!SamePreferences(preferences_,savingPreferences_);
    if(profileSavePending_&&!preferencesDirty_){
-    profileSavePending_=false;error_.clear();notice_=loc::Tf("notice.profile_saved",selection::FindFighter(v.preferences.mainFighter)->name);noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;
+    profileSavePending_=false;error_.clear();ShowNotice(loc::Tf("notice.profile_saved",selection::FindFighter(v.preferences.mainFighter)->name),Tone::Success,ImGui::GetTime()+3);
     if(nav.Screen()=="main-character")nav.Return();
    }
   }else if(ImGui::GetTime()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_=loc::T("error.settings_not_saved");}
@@ -227,11 +227,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[2].info=true;
   rows[1].value=selection::FindFighter(preferences_.mainFighter)->name;
   rows[2].value=record.available?loc::Tf("profile.record_value",record.wins,record.losses):loc::T("common.unavailable");
-  rows.push_back(Value("share-steam",loc::T("profile.share_steam"),preferences_.shareSteamProfile?loc::T("common.on"):loc::T("common.off"),loc::T("profile.share_steam_detail"),v.canEditPreferences));
+  rows.push_back(OnOffValue(preferences_,"share-steam",loc::T("profile.share_steam"),loc::T("profile.share_steam_detail"),v.canEditPreferences));
  }else if(screen=="main-character"){
   title=loc::T("profile.choose_main_title");
   for(const int id:selection::RosterDisplayOrder){rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
-   rows.back().hint=loc::T("menu.hint.save_main");}
+   rows.back().hint=loc::T("menu.hint.save_main");rows.back().key=static_cast<std::uint64_t>(id);}
  }else if(screen=="online"){
   // A room needs a controller and networking; a row blocked by one says which.
   const char* blocked=!v.controllerReady?loc::T("room.controller_required"):v.network==netplay::NetworkAvailability::Unavailable?loc::T("runtime.networking_unavailable"):nullptr;
@@ -269,7 +269,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="problem-reports"){
   // The setting's pane says what a report holds; Select reads it in full.
   title=loc::T("reports.settings_title");
-  auto send=Value("send-reports",loc::T("reports.setting"),preferences_.sendProblemReports?loc::T("common.on"):loc::T("common.off"),
+  auto send=OnOffValue(preferences_,"send-reports",loc::T("reports.setting"),
    loc::Tf("reports.setting_detail",reports::AutomaticPerDay)+"\n\n"+loc::T("reports.payload")+"\n\n"+loc::T("reports.what_is_sent"),v.canEditPreferences);
   send.reading=true;
   rows={send,Row("sent-reports",loc::T("reports.sent_list"),loc::T("reports.sent_list_detail"))};
@@ -295,31 +295,31 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
   const auto languageValue=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
    std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
-  rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
+  rows={OnOffValue(preferences_,"hud",loc::T("settings.match_hud"),reason,v.canEditPreferences),
    Value("hud-layout",loc::T("settings.match_hud_layout"),MatchStripLayoutName(preferences_.matchHudLayout),loc::T("settings.match_hud_layout_detail"),v.canEditPreferences),
    Value("hud-name-offset",loc::T("settings.name_offset"),MatchHudNameOffsetText(preferences_.matchHudNameOffset),loc::T("settings.name_offset_detail"),v.canEditPreferences&&preferences_.matchHudLayout==1),
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
    Value("hud-position",loc::T("settings.match_hud_position"),MatchStripAnchorName(preferences_.matchHudAnchor),loc::T("settings.match_hud_position_detail"),v.canEditPreferences),
    Value("hud-spacing",loc::T("settings.edge_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.edge_spacing_detail"),v.canEditPreferences),
-   Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
+   OnOffValue(preferences_,"ready-sound",loc::T("settings.ready_sound"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
-   Value("shortcut-hint",loc::T("settings.shortcut_hint"),preferences_.showShortcutHint?loc::T("common.on"):loc::T("common.off"),loc::T("settings.shortcut_hint_detail"),v.canEditPreferences),
-   Value("class-emblems",loc::T("settings.class_emblems"),preferences_.classEmblems?loc::T("common.on"):loc::T("common.off"),loc::T("settings.class_emblems_detail"),v.canEditPreferences),
+   OnOffValue(preferences_,"shortcut-hint",loc::T("settings.shortcut_hint"),loc::T("settings.shortcut_hint_detail"),v.canEditPreferences),
+   OnOffValue(preferences_,"class-emblems",loc::T("settings.class_emblems"),loc::T("settings.class_emblems_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
  }else if(screen=="training-replays"){
   title=loc::T("settings.training_replays_title");
-  rows={Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),
+  rows={OnOffValue(preferences_,"match-frame-meter",loc::T("settings.match_frame_meter"),
     loc::T(match_frame_meter::Allowed(v.room.serverOwned)?"settings.match_frame_meter_detail":"settings.match_frame_meter_private"),v.canEditPreferences),
-   Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
-   Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences),
-   Value("watched-picture",loc::T("settings.watched_picture"),preferences_.watchedPicture?loc::T("common.on"):loc::T("common.off"),loc::T("settings.watched_picture_detail"),v.canEditPreferences)};
+   OnOffValue(preferences_,"training-auto-ready",loc::T("settings.training_auto_ready"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
+   OnOffValue(preferences_,"replay-save-watched",loc::T("replays.save_watched"),loc::T("replays.save_watched_detail"),v.canEditPreferences),
+   OnOffValue(preferences_,"watched-picture",loc::T("settings.watched_picture"),loc::T("settings.watched_picture_detail"),v.canEditPreferences)};
  }else if(screen=="discord"){
-  title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
-   Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
+  title=loc::T("discord.title");rows={OnOffValue(preferences_,"presence",loc::T("discord.show_activity"),v.discordStatus,v.canEditPreferences),
+   OnOffValue(preferences_,"invites",loc::T("discord.allow_invitations"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
    // The account tournaments use, which may not be the one in the Discord app.
    identity_.TournamentAccountRow(v)};
  }else if(screen=="discord-invitation"){
@@ -555,26 +555,10 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
   else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,preferences_.matchHudAnchor+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
-  else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
-  else if(a.id=="class-emblems")preferences_.classEmblems=a.delta>0;
-  else if(a.id=="watched-picture")preferences_.watchedPicture=a.delta>0;
-  else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
-  else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
-  else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
-  else if(a.id=="lower-input-lag")preferences_.lowerInputLag=a.delta>0;
-  else if(a.id=="lower-keyboard-lag")preferences_.lowerKeyboardLag=a.delta>0;
+  else if(AdjustOnOff(preferences_,a.id,a.delta)){}
   else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
-  else if(a.id=="faster-display")preferences_.fasterDisplay=a.delta>0;
-  else if(a.id=="borderless")preferences_.borderless=a.delta>0;
-  else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
-  else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
-  else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
-  else if(a.id=="shortcut-hint")preferences_.showShortcutHint=a.delta>0;
-  else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
-  else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
-  else if(a.id=="send-reports")preferences_.sendProblemReports=a.delta>0;
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else if(a.id=="delay-policy")preferences_.roomDelayPolicy=a.delta>0?room::DelayPolicy::Own:room::DelayPolicy::Shared;
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
@@ -718,11 +702,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  identity_.Update(v,nav.Screen(),submit,now);
  publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),identity_.Waiting(),submit,now);
  UpdatePublicBridge(v,nav.Screen());
- {std::string said;if(publicRooms_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
+ {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
- {std::string said;if(rankings_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
+ {std::string said;if(rankings_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
- if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();notice_=loc::T("public.setup_done");noticeTone_=Tone::Success;noticeUntil_=now+4;}
+ if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();ShowNotice(loc::T("public.setup_done"),Tone::Success,now+4);}
  // A tournament match that ended is announced wherever the player is: the
  // room it was played in closes with it.
  if(v.tournament.phase!=tournamentPhase_){
@@ -730,11 +714,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // One ended for a lost connection says so in the same words on both sides:
   // the tournament is setting up a new match, which Ember does not start itself.
   if(v.tournament.phase==Phase::Finished&&v.tournament.reason==netplay::tournament::ConnectionLostReason){
-   notice_=loc::T("tournament.connection_lost_notice");noticeTone_=Tone::Pending;noticeUntil_=now+30;
+   ShowNotice(loc::T("tournament.connection_lost_notice"),Tone::Pending,now+30);
   }
-  else if(v.tournament.phase==Phase::Finished){notice_=loc::T("tournament.done_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;}
+  else if(v.tournament.phase==Phase::Finished){ShowNotice(loc::T("tournament.done_notice"),Tone::Success,now+12);}
   else if(v.tournament.phase==Phase::Failed){
-   notice_=loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason));noticeTone_=Tone::Error;noticeUntil_=now+20;
+   ShowNotice(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,now+20);
   }
   tournamentPhase_=v.tournament.phase;
  }
@@ -743,9 +727,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   using netplay::tournament::WatchNotice;
   watchNoticeSequence_=v.tournament.watch.noticeSequence;
   switch(v.tournament.watch.notice){
-  case WatchNotice::Finished:notice_=loc::T("tournament.watch.finished_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;break;
-  case WatchNotice::Removed:notice_=loc::T("tournament.watch.removed_notice");noticeTone_=Tone::Error;noticeUntil_=now+20;break;
-  case WatchNotice::RoomClosed:notice_=loc::T("tournament.watch.room_closed_notice");noticeTone_=Tone::Pending;noticeUntil_=now+12;break;
+  case WatchNotice::Finished:ShowNotice(loc::T("tournament.watch.finished_notice"),Tone::Success,now+12);break;
+  case WatchNotice::Removed:ShowNotice(loc::T("tournament.watch.removed_notice"),Tone::Error,now+20);break;
+  case WatchNotice::RoomClosed:ShowNotice(loc::T("tournament.watch.room_closed_notice"),Tone::Pending,now+12);break;
   default:break;
   }
  }
@@ -765,7 +749,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // A match newly assigned is announced outside a room, so the player never
  // has to go looking for it.
  if(v.session.room==RoomState::Idle&&identity_.TakeAssigned(v)){
-  notice_=loc::T("tournament.assigned_notice");noticeTone_=Tone::Success;noticeUntil_=now+15;
+  ShowNotice(loc::T("tournament.assigned_notice"),Tone::Success,now+15);
  }
  // A Discord connect link opens Connect Discord for its service, where the
  // player decides. In a room it waits until the room closes.
@@ -773,7 +757,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   connectLinkSequence_=v.tournament.connect.sequence;pendingConnect_=v.tournament.connect.bridge;
   // In a room the link waits, and so is no longer fresh when it opens.
   if(v.session.room!=RoomState::Idle)pendingConnectStale_=true;
-  if(v.session.room!=RoomState::Idle){notice_=loc::T("connect.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+15;}
+  if(v.session.room!=RoomState::Idle){ShowNotice(loc::T("connect.link_waiting"),Tone::Pending,now+15);}
  }
  if(!pendingConnect_.empty()&&v.session.room==RoomState::Idle){
   // A link the player just clicked goes on by itself; one that arrived
@@ -853,7 +837,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(screen==CountryPicker::Screen)portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return countryPicker_.DrawRow(e,v.automaticCountry,min,max);};
  if(screen=="main-character")portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
   if(e.id.compare(0,5,"main-")!=0)return false;
-  const int id=std::stoi(e.id.substr(5));DrawMainPortrait(id,id==v.preferences.mainFighter,min,max);return true;
+  const int id=static_cast<int>(e.key);DrawMainPortrait(id,id==v.preferences.mainFighter,min,max);return true;
  };
  GameMenu::Detail profilePreview;
  if(screen=="controllers")profilePreview=[&](const std::string& id){

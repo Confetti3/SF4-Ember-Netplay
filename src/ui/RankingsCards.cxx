@@ -121,10 +121,10 @@ bool DrawRankingsRow(const ShellView& v, const MenuEntry& e, ImVec2 min, ImVec2 
         DrawMarkedRow(e, min, max, {}, {listed ? standing->listing.country : CountryCode(), {}}, false);
     } else if (e.id == "rkb-you") DrawMarkedRow(e, min, max, {}, {CountryCode(), standing ? Shown(*standing) : SkillBadge()}, false);
     else if (StartsWith(e.id, "rkb-class:")) {
-        const auto badge = SkillBadge::OfClass(static_cast<std::uint8_t>(std::stoi(e.id.substr(10))), true);
+        const auto badge = SkillBadge::OfClass(static_cast<std::uint8_t>(e.key), true);
         DrawMarkedRow(e, min, max, {CountryCode(), badge}, {}, false);
     } else {
-        const auto index = static_cast<std::size_t>(std::stoul(e.id.substr(6)));
+        const auto index = static_cast<std::size_t>(e.key);
         if (!board || index >= board->size()) return false;
         const auto& entry = (*board)[index];
         DrawMarkedRow(e, min, max, {entry.listing.country, {}}, {}, entry.own);

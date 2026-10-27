@@ -41,6 +41,7 @@
 #include "UpdatePrompt.hxx"
 #include "CountryPicker.hxx"
 #include "ScreenPanel.hxx"
+#include "RuntimeRequest.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -236,57 +237,15 @@ void DrawUnreadBadge(float right,float top,unsigned count);
 // "Ready in N s" for a player called out of Training: ShellView::trainingReadySeconds, in words.
 std::string TrainingReadyText(int seconds);
 
-struct ShellAction {
-    netplay::Command command{netplay::CommandKind::HostRoom};
-    platform::ServiceAction service = platform::ServiceAction::None;
-    // With ShowReplayFile: the archived replay, as its row names it, whose folder opens.
-    std::string servicePath;
-    // With UpdateNow or SkipUpdate: the launch offer the player was shown.
-    launcher::InstallOffer updateOffer;
-    // With OpenSteamProfile: the member's profile to open.
-    SteamId steamProfile;
-    reports::Submission reportSubmission;
-            input::Action inputAction = input::Action::None;
-    gamepads::ControllerRequest padAction;
-    discord::InviteAction discordAction = discord::InviteAction::None;
-    std::uint64_t discordRevision = 0;
-    netplay::PlayerPreferences preferences;
-    room::Action roomAction;
-    int selectedDelay=-1;
-    // Plays the challenger call-out once at this volume (percent); -1 plays nothing.
-    int previewSoundVolume=-1;
-    // Asks for the room's short link; nothing else is sent.
-    bool shortInvitation=false;
-    // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
-    // sent alone. The runtime decides whether it still holds.
-    TrainingEntry training=TrainingEntry::None;
-    // Leave the game this PC watches (ShellView::watchedGame), named as the
-    // press saw it; sent alone. The runtime decides, when it takes it, whether
-    // the room still needs an Unwatch or only the rest of the stream ends.
-    netplay::WatchedGame leaveWatchedGame;
+// What a press asks: a request for the runtime (RuntimeRequest), or a step of
+// the chosen Ultra or color, which is the overlay's alone.
+struct ShellAction : RuntimeRequest {
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
         enum class Field { None, Ultra, Color } field = Field::None;
         int delta = 0;
     } selectionStep;
-    // An identity or bridge request; op None for everything else.
-    netplay::IdentityRequest identity;
-    // Refresh the assignment list, play a match or stop; op None for everything else.
-    netplay::tournament::Command tournament;
-    // With a JoinInvite: the signed ticket (JSON) of a public room's admission.
-    std::string publicTicket;
-    // With the JoinInvite of a public room just created: the table rules chosen
-    // on Create, which the runtime sets once the creator is in it as host.
-    std::optional<room::Rules> createdRules;
-    // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
-    bool practiceRoom = false;
-    // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
-    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
-    // What the Replays screen asks of the game: an archived replay (its
-    // file, as its row names it) to add or to watch, the game's own list, or
-    // no to a replay link. Nothing is sent to the room.
-    replay::Request replay;
 };
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
@@ -448,7 +407,18 @@ private:
     // A public room still named with the default is named for its host.
     void ApplyPublicDefaultName();
     void QuickJoin(const ShellView& view);
+    // The notice line: `text` in `tone` until ImGui time `until`.
+    void ShowNotice(std::string text,Tone tone,double until){notice_=std::move(text);noticeTone_=tone;noticeUntil_=until;}
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
+    // RoomEntries' builders, one per room screen: the board, the table's
+    // options, the members, one member, the chat and the room's settings.
+    struct RoomScreenRows;
+    void RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomTableRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomMembersRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomChatRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);
     // What B does on the board while your own table card is focused: leave your

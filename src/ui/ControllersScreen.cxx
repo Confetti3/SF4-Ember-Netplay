@@ -119,12 +119,12 @@ std::vector<MenuEntry> PlayerControllerRows(const netplay::PlayerPreferences& p,
         ConfirmRow("keyboard", loc::T("player.use_keyboard"), loc::T("player.use_keyboard_detail"), canChange),
         Value("button-prompts", loc::T("player.button_prompts"), ButtonPromptValue(p.buttonPrompts), promptDetail, canEdit),
         std::move(layout), Row("game-buttons", loc::T("player.game_buttons"), loc::T("player.game_buttons_detail"), idle),
-        Value("background-play", loc::T("player.background_play"), loc::T(p.backgroundPlay ? "common.on" : "common.off"), loc::T("player.background_play_detail"), canEdit),
-        Value("lower-input-lag", loc::T("player.lower_input_lag"), loc::T(p.lowerInputLag ? "common.on" : "common.off"), loc::T("player.lower_input_lag_detail"), canEdit),
-        Value("lower-keyboard-lag", loc::T("player.lower_keyboard_lag"), loc::T(p.lowerKeyboardLag ? "common.on" : "common.off"), loc::T("player.lower_keyboard_lag_detail"), canEdit),
-        Value("faster-display", loc::T("player.faster_display"), loc::T(p.fasterDisplay ? "common.on" : "common.off"), loc::T("player.faster_display_detail"), canEdit),
-        Value("borderless", loc::T("player.borderless"), loc::T(p.borderless ? "common.on" : "common.off"), loc::T("player.borderless_detail"), canEdit),
-        Value("game-reads-pads", loc::T("player.game_reads"), loc::T(p.controllerLayer ? "common.off" : "common.on"), gameDetail, canEdit)};
+        OnOffValue(p, "background-play", loc::T("player.background_play"), loc::T("player.background_play_detail"), canEdit),
+        OnOffValue(p, "lower-input-lag", loc::T("player.lower_input_lag"), loc::T("player.lower_input_lag_detail"), canEdit),
+        OnOffValue(p, "lower-keyboard-lag", loc::T("player.lower_keyboard_lag"), loc::T("player.lower_keyboard_lag_detail"), canEdit),
+        OnOffValue(p, "faster-display", loc::T("player.faster_display"), loc::T("player.faster_display_detail"), canEdit),
+        OnOffValue(p, "borderless", loc::T("player.borderless"), loc::T("player.borderless_detail"), canEdit),
+        OnOffValue(p, "game-reads-pads", loc::T("player.game_reads"), gameDetail, canEdit)};
 }
 namespace {
 void Picture(const PadView& pad, float pixels, float alpha = 1) {

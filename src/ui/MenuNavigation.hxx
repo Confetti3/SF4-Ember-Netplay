@@ -84,6 +84,11 @@ struct MenuEntry {
     // ({{"a"},{"b"}}) whose type has an array member initializer.
     int fighter1 = -1, fighter2 = -1;
     bool Match() const { return fighter1 >= 0 || fighter2 >= 0; }
+    // What a keyed row's id names after its prefix (a table's number in
+    // "table-", a member's id in "member-", a fighter in "main-" and so on),
+    // as its builder set it, so the row's card reads it instead of parsing
+    // the id back. The id stays the row's name for focus and probes.
+    std::uint64_t key = 0;
     // Home draws these, when there are any, in place of detail on its help
     // line: each label over its value, one column per pair (Fighter select's
     // fighter, costume and color, Ultra). detail still says it all in one line.
