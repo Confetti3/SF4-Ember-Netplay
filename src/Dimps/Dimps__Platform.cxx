@@ -78,25 +78,9 @@ void Main::Locate(HMODULE peRoot) {
     staticMethods.GetFocusStateSingleton = (void*(*)())(peRootOffset + 0x2b5fd0);
 }
 
-Main::Win32_WindowData** Main::GetWindowData(Main* m) {
-    return (Win32_WindowData**)((unsigned int)m + 0x490);
-}
-
 void Main::Close() {
     Main* main = staticMethods.GetSingleton();
     if (main) PostMessageW((*GetWindowData(main))->hWnd, WM_CLOSE, 0, 0);
-}
-
-int* Main::GetRenderingThread(Main* m) {
-    return (int*)((unsigned int)m + 0x110);
-}
-
-DisplayBlock* Main::GetDisplay(Main* m) {
-    return (DisplayBlock*)((unsigned int)m + 0xdc);
-}
-
-int* Main::StartupRenderingThread(void* params) {
-    return (int*)((unsigned int)params + 0x70);
 }
 
 void GFxApp::Locate(HMODULE peRoot) {
@@ -104,14 +88,6 @@ void GFxApp::Locate(HMODULE peRoot) {
     *(PVOID*)&publicMethods.GetFrameDelta_Float = (PVOID)(peRootOffset + 0x2b65a0);
     *(PVOID*)&publicMethods.SetFrameDelta_Float = (PVOID)(peRootOffset + 0x2b66e0);
     staticMethods.GetSingleton = (GFxApp*(*)())(peRootOffset + 0x2b7660);
-}
-
-GFxApp::ObjectPool<IEmSpriteAction>* GFxApp::GetActionPool(GFxApp* a) {
-    return (GFxApp::ObjectPool<IEmSpriteAction>*)((unsigned int)a + 0x4);
-}
-
-GFxApp::ObjectPool<IEmSpriteNode>* GFxApp::GetNodePool(GFxApp* a) {
-    return (GFxApp::ObjectPool<IEmSpriteNode>*)((unsigned int)a + 0x24);
 }
 
 void Sound::Locate(HMODULE peRoot) {

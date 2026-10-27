@@ -262,7 +262,13 @@ namespace sf4e {
 			bool pendingJoinDirect = false;
 			std::string helperError;
             std::string gameplayInputError;
-            std::vector<netplay::MemberView> members;
+            // The member list shown with `room`, built and shared the same
+            // way; null without one. Read it through Members().
+            std::shared_ptr<const std::vector<netplay::MemberView>> members;
+            const std::vector<netplay::MemberView>& Members() const {
+                static const std::vector<netplay::MemberView> none;
+                return members ? *members : none;
+            }
             netplay::NetworkAvailability network = netplay::NetworkAvailability::Starting;
             platform::ServiceSnapshot services;
             std::string controller;

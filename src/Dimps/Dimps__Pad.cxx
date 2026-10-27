@@ -102,22 +102,6 @@ void System::Locate(HMODULE peRoot) {
 	staticMethods.GetSingleton = (System * (*)())(peRootOffset + 0x119480);
 }
 
-int* System::GetUpdating(System* s) {
-	return (int*)((unsigned int)s + 0xf4);
-}
-
-int* System::PlayerEntry::DeviceIndex(System::PlayerEntry* e) {
-	return (int*)((unsigned int)e + 0x0);
-}
-
-int* System::PlayerEntry::DeviceType(System::PlayerEntry* e) {
-	return (int*)((unsigned int)e + 0x44);
-}
-
-int* System::PlayerEntry::AssignedController(System::PlayerEntry* e) {
-	return (int*)((unsigned int)e + 0x48);
-}
-
 void System_RawInput::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)(&publicMethods.SetDeviceInUse) = (PVOID)(peRootOffset + 0x2e1310);

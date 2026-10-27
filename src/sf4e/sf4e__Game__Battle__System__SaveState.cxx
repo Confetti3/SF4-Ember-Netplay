@@ -1,4 +1,6 @@
-// sf4e::Game::Battle::System: save states, semantic state hashing and snapshot capture.
+// sf4e::Game::Battle::System: saving and loading save states. Hashing is in
+// sf4e__Game__Battle__System__StateHash.cxx, releasing in
+// sf4e__Game__Battle__System__SaveStateRelease.cxx.
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "sf4e__MementoGuards.hxx"
 
@@ -8,7 +10,7 @@
 // docs/design/GGPO_LIFECYCLE.md). Debug builds assert this; engine-memento work
 // must never move to a background thread.
 static DWORD s_saveStateThreadId = 0;
-static void AssertSaveStateThreadAffinity() {
+void AssertSaveStateThreadAffinity() {
     DWORD tid = GetCurrentThreadId();
     if (s_saveStateThreadId == 0) {
         s_saveStateThreadId = tid;
@@ -38,7 +40,7 @@ static void AssertSaveStateThreadAffinity() {
 static constexpr std::size_t kSaveStateKeyReservation = 96;
 
 // The live simulation frame, for diagnostics; -1 outside a battle.
-static int SimulatedFrame() {
+int SimulatedFrame() {
     rSystem* system = rSystem::staticMethods.GetSingleton();
     return system ? (int)rSystem::GetNumFramesSimulated_FixedPoint(system)->integral : -1;
 }
@@ -52,254 +54,32 @@ fSystem::SaveState::SaveState() {
     managerState.Reserve(8);
 }
 
-std::map<int, std::pair<StateSnapshot, fSystem::StateSnapshotMeta>> fSystem::snapshotMap;
-fSystem::HashCheckpoint fSystem::hashCheckpoints[fSystem::NUM_HASH_CHECKPOINTS];
-
-const char* const fSystem::CharaSemantics::kFieldNames[kFields] = {
-    "status", "side", "rootX", "rootY", "rootZ", "rootW",
-    "vitality", "vitalityMax", "revenge", "revengeMax", "recoverable", "recoverableMax",
-    "super", "superMax", "scTime", "scTimeMax", "ucTime", "ucTimeMax", "comboDamage", "damage",
-    // Action timing (v0.8.6): the running move, how far into it the
-    // character is, its posture, and the side's time scale (hitstop and
-    // slowdown). A replay that keeps positions and health but lands a move
-    // on a different frame differs here.
-    "action", "actionFrame", "posture", "timeScale",
-};
-
-// Hashing these words with Hasher::U32 is byte-for-byte what F32, I32 and
-// Fixed emit for the same values, so the v2 hash is unchanged.
-fSystem::CharaSemantics fSystem::CaptureCharaSemantics(rSystem* src, int side) {
-    CharaActor::__publicMethods& m = CharaActor::publicMethods;
-    CharaUnit* unit = (src->*rSystem::publicMethods.GetCharaUnit)();
-    CharaActor* a = (unit->*CharaUnit::publicMethods.GetActorByIndex)(side);
-    CharaSemantics out;
-    uint32_t* v = out.v;
-    const auto raw = [](const void* value) {
-        uint32_t word;
-        memcpy(&word, value, sizeof(word));
-        return word;
-    };
-    FixedPoint fp;
-    const auto fixed = [&](auto getter) {
-        (a->*getter)(&fp);
-        return raw(&fp);
-    };
-    *v++ = (a->*m.GetStatus)();
-    *v++ = (a->*m.GetCurrentSide)();
-    const float* rootPos = (a->*m.GetCurrentRootPosition)();
-    for (int c = 0; c < 4; c++) {
-        *v++ = raw(&rootPos[c]);
-    }
-    *v++ = fixed(m.GetVitalityAmt_FixedPoint);
-    *v++ = fixed(m.GetVitalityMax_FixedPoint);
-    *v++ = fixed(m.GetRevengeAmt_FixedPoint);
-    *v++ = fixed(m.GetRevengeMax_FixedPoint);
-    *v++ = fixed(m.GetRecoverableVitalityAmt_FixedPoint);
-    *v++ = fixed(m.GetRecoverableVitalityMax_FixedPoint);
-    *v++ = fixed(m.GetSuperComboAmt_FixedPoint);
-    *v++ = fixed(m.GetSuperComboMax_FixedPoint);
-    *v++ = fixed(m.GetSCTimeAmt_FixedPoint);
-    *v++ = fixed(m.GetSCTimeMax_FixedPoint);
-    *v++ = fixed(m.GetUCTimeAmt_FixedPoint);
-    *v++ = fixed(m.GetUCTimeMax_FixedPoint);
-    *v++ = fixed(m.GetComboDamage);
-    *v++ = fixed(m.GetDamage);
-    *v++ = (a->*m.GetActionID)();
-    *v++ = fixed(m.GetActionFrame);
-    *v++ = (a->*m.GetActionPosture)();
-    (src->*rSystem::publicMethods.GetUnitTimeScale_Fixed)(&fp, side);
-    *v++ = raw(&fp);
-    assert(v == out.v + CharaSemantics::kFields);
+fSystem::SaveState::BattleFlowGlobals fSystem::SaveState::BattleFlowGlobals::Capture() {
+    BattleFlowGlobals out;
+    out.CurrentBattleFlow = *rSystem::staticVars.CurrentBattleFlow;
+    out.PreviousBattleFlow = *rSystem::staticVars.PreviousBattleFlow;
+    out.CurrentBattleFlowSubstate = *rSystem::staticVars.CurrentBattleFlowSubstate;
+    out.PreviousBattleFlowSubstate = *rSystem::staticVars.PreviousBattleFlowSubstate;
+    out.CurrentBattleFlowFrame = *rSystem::staticVars.CurrentBattleFlowFrame;
+    out.CurrentBattleFlowSubstateFrame = *rSystem::staticVars.CurrentBattleFlowSubstateFrame;
+    out.PreviousBattleFlowFrame = *rSystem::staticVars.PreviousBattleFlowFrame;
+    out.PreviousBattleFlowSubstateFrame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame;
+    out.BattleFlowSubstateCallable_aa9258 = *rSystem::staticVars.BattleFlowSubstateCallable_aa9258;
+    out.BattleFlowCallback_CallEveryFrame_aa9254 = *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254;
     return out;
 }
 
-// Computes the v2 semantic hashes for the current frame. Coverage is
-// deliberately conservative: the frame counter, battle-flow numeric state,
-// and per-character semantic values read through engine getters (the same
-// values the legacy snapshot exchanges, which are known deterministic
-// across peers, plus action id, action frame, posture and time scale).
-// Explicitly EXCLUDED: the battle-flow function pointers,
-// the raw GameManager block (shallow pointer fields), GameMementoKey bytes,
-// sound maps (process-local pointer keys), the battle RNG (System+0x54, not
-// saved in any memento and read only by presentation, see DESYNC_V2.md),
-// and all presentation/log/overlay state.
-fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
-    const CharaSemantics chara[2] = { CaptureCharaSemantics(src, 0), CaptureCharaSemantics(src, 1) };
-    return ComputeSemanticHashes(src, chara);
-}
-
-fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src, const CharaSemantics chara[2]) {
-    using sf4e::statehash::Hasher;
-    SemanticHashes out;
-
-    FixedPoint* numFrames = rSystem::GetNumFramesSimulated_FixedPoint(src);
-
-    Hasher flow;
-    flow.Fixed(numFrames->fractional, numFrames->integral);
-    flow.U32(*rSystem::staticVars.CurrentBattleFlow);
-    flow.U32(*rSystem::staticVars.PreviousBattleFlow);
-    flow.U32(*rSystem::staticVars.CurrentBattleFlowSubstate);
-    flow.U32(*rSystem::staticVars.PreviousBattleFlowSubstate);
-    flow.Fixed(
-        rSystem::staticVars.CurrentBattleFlowFrame->fractional,
-        rSystem::staticVars.CurrentBattleFlowFrame->integral
-    );
-    flow.Fixed(
-        rSystem::staticVars.CurrentBattleFlowSubstateFrame->fractional,
-        rSystem::staticVars.CurrentBattleFlowSubstateFrame->integral
-    );
-    flow.Fixed(
-        rSystem::staticVars.PreviousBattleFlowFrame->fractional,
-        rSystem::staticVars.PreviousBattleFlowFrame->integral
-    );
-    flow.Fixed(
-        rSystem::staticVars.PreviousBattleFlowSubstateFrame->fractional,
-        rSystem::staticVars.PreviousBattleFlowSubstateFrame->integral
-    );
-    out.flow = flow.Value();
-
-    for (int i = 0; i < 2; i++) {
-        Hasher ch;
-        for (uint32_t word : chara[i].v) {
-            ch.U32(word);
-        }
-        out.chara[i] = ch.Value();
-    }
-
-    Hasher overall;
-    overall.U64(out.flow);
-    overall.U64(out.chara[0]);
-    overall.U64(out.chara[1]);
-    out.overall = overall.Value();
-    return out;
-}
-
-void fSystem::CaptureMeterSample(rSystem* src, bool show) {
-    int confirmed = -1;
-    if (!LocalFighter()) { sf4e::training::ObserveMatch(src, 0, -1); return; }
-    if (show && !(ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed)))) confirmed = -1;
-    sf4e::training::ObserveMatch(src, ggpoTimeline.Held(), confirmed);
-}
-
-// The GGPO state frame the frame just simulated reaches. The engine counter is
-// a signed 16-bit field and wraps during a long match; this frame identity
-// does not. A spectator has no save callback: the input it simulated is the
-// confirmed one it just consumed.
-static int SimulatedStateFrame() {
-    if (fSystem::LocalFighter()) {
-        return fSystem::ggpoTimeline.Next();
-    }
-    int confirmed = -1;
-    return fSystem::ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))
-        ? sf4e::statehash::StateFrameAfterInput(confirmed) : -1;
-}
-
-static void CaptureHashCheckpoint(rSystem* src, int stateFrame, const fSystem::CharaSemantics chara[2]) {
-    const int ringIndex = sf4e::statehash::CheckpointRingIndex(stateFrame);
-    if (ringIndex < 0) {
-        return;
-    }
-    fSystem::HashCheckpoint& slot = fSystem::hashCheckpoints[ringIndex];
-    // Rollback resimulation legitimately re-captures a frame with corrected
-    // values. The GGPO input-confirmation boundary gates exchange, rather
-    // than elapsed engine frames (which have a different frame origin).
-    sf4e::statehash::PrepareCheckpointIdentity(slot.frameIdx,slot.ggpoStateFrame,slot.sent,stateFrame);
-    slot.engineFrame = rSystem::GetNumFramesSimulated_FixedPoint(src)->integral;
-    slot.flow = *rSystem::staticVars.CurrentBattleFlow;
-    slot.substate = *rSystem::staticVars.CurrentBattleFlowSubstate;
-    {
-        diag::ScopedTimer _hashTimer(diag::OP_SEMANTIC_HASH);
-        slot.hashes = fSystem::ComputeSemanticHashes(src, chara);
-    }
-    slot.valid = true;
-}
-
-void fSystem::CaptureSimulatedFrame(rSystem* src, const fPadSystem::Inputs inputs[2]) {
-    const int stateFrame = SimulatedStateFrame();
-    CharaUnit* unit = (src->*rSystem::publicMethods.GetCharaUnit)();
-    if (stateFrame <= 0 || !unit || !unit->playerActors[0] || !unit->playerActors[1]) {
-        return;
-    }
-    const CharaSemantics chara[2] = { CaptureCharaSemantics(src, 0), CaptureCharaSemantics(src, 1) };
-    TraceFrame(src, stateFrame, inputs, chara);
-    CaptureHashCheckpoint(src, stateFrame, chara);
-}
-
-fSystem::HashCheckpoint* fSystem::FindHashCheckpoint(int frameIdx) {
-    const int ringIndex = sf4e::statehash::CheckpointRingIndex(frameIdx);
-    if (ringIndex < 0) {
-        return nullptr;
-    }
-    HashCheckpoint& slot =
-        hashCheckpoints[ringIndex];
-    return (slot.valid && slot.frameIdx == frameIdx) ? &slot : nullptr;
-}
-
-void fSystem::ClearHashCheckpoints() {
-    for (int i = 0; i < NUM_HASH_CHECKPOINTS; i++) {
-        hashCheckpoints[i] = HashCheckpoint();
-    }
-    ClearFrameTrace();
-}
-
-void fSystem::CaptureSnapshot(rSystem* src) {
-    int frameIdx = rSystem::GetNumFramesSimulated_FixedPoint(src)->integral;
-
-    // Only capture snapshots every second.
-    if (frameIdx % 60 != 0) {
-        return;
-    }
-
-    auto iter = snapshotMap.find(frameIdx);
-    if (iter != snapshotMap.end()) {
-        snapshotMap.erase(iter);
-    }
-    // Entries are normally retired by SessionClient::Step once sent and
-    // confirmed. When the control plane is lost that never happens, and the
-    // signed 16-bit engine counter wraps in a long match, so keep the map
-    // bounded to the last ten seconds of checkpoints.
-    for (auto old = snapshotMap.begin(); old != snapshotMap.end();) {
-        if (old->first > frameIdx || frameIdx - old->first > 600) {
-            old = snapshotMap.erase(old);
-        }
-        else {
-            ++old;
-        }
-    }
-
-    StateSnapshot snapshot;
-    snapshot.frameIdx = frameIdx;
-
-    CharaActor::__publicMethods& methods = CharaActor::publicMethods;
-    CharaUnit* lpCharaUnit = (src->*rSystem::publicMethods.GetCharaUnit)();
-    for (int i = 0; i < 2; i++) {
-        CharaActor* a = (lpCharaUnit->*CharaUnit::publicMethods.GetActorByIndex)(i);
-        memcpy_s(
-            snapshot.chara[i].rootPos,
-            sizeof(float) * 4,
-            (a->*methods.GetCurrentRootPosition)(),
-            sizeof(float) * 4
-        );
-        snapshot.chara[i].status = (a->*methods.GetStatus)();
-        snapshot.chara[i].side = (a->*methods.GetCurrentSide)();
-
-        (a->*methods.GetVitalityAmt_FixedPoint)(&snapshot.chara[i].vit);
-        (a->*methods.GetVitalityMax_FixedPoint)(&snapshot.chara[i].vitmax);
-        (a->*methods.GetRevengeAmt_FixedPoint)(&snapshot.chara[i].revenge);
-        (a->*methods.GetRevengeMax_FixedPoint)(&snapshot.chara[i].revengemax);
-        (a->*methods.GetRecoverableVitalityAmt_FixedPoint)(&snapshot.chara[i].recoverable);
-        (a->*methods.GetRecoverableVitalityMax_FixedPoint)(&snapshot.chara[i].recoverablemax);
-        (a->*methods.GetSuperComboAmt_FixedPoint)(&snapshot.chara[i].super);
-        (a->*methods.GetSuperComboMax_FixedPoint)(&snapshot.chara[i].supermax);
-        (a->*methods.GetSCTimeAmt_FixedPoint)(&snapshot.chara[i].sctimeamt);
-        (a->*methods.GetSCTimeMax_FixedPoint)(&snapshot.chara[i].sctimemax);
-        (a->*methods.GetUCTimeAmt_FixedPoint)(&snapshot.chara[i].uctime);
-        (a->*methods.GetUCTimeMax_FixedPoint)(&snapshot.chara[i].uctimemax);
-        (a->*methods.GetComboDamage)(&snapshot.chara[i].combodamage);
-        (a->*methods.GetDamage)(&snapshot.chara[i].damage);
-    }
-    StateSnapshotMeta meta{ false, false };
-    snapshotMap.emplace(frameIdx, std::make_pair(std::move(snapshot), meta));
+void fSystem::SaveState::BattleFlowGlobals::Restore() const {
+    *rSystem::staticVars.CurrentBattleFlow = CurrentBattleFlow;
+    *rSystem::staticVars.PreviousBattleFlow = PreviousBattleFlow;
+    *rSystem::staticVars.CurrentBattleFlowSubstate = CurrentBattleFlowSubstate;
+    *rSystem::staticVars.PreviousBattleFlowSubstate = PreviousBattleFlowSubstate;
+    *rSystem::staticVars.CurrentBattleFlowFrame = CurrentBattleFlowFrame;
+    *rSystem::staticVars.CurrentBattleFlowSubstateFrame = CurrentBattleFlowSubstateFrame;
+    *rSystem::staticVars.PreviousBattleFlowFrame = PreviousBattleFlowFrame;
+    *rSystem::staticVars.PreviousBattleFlowSubstateFrame = PreviousBattleFlowSubstateFrame;
+    *rSystem::staticVars.BattleFlowSubstateCallable_aa9258 = BattleFlowSubstateCallable_aa9258;
+    *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254 = BattleFlowCallback_CallEveryFrame_aa9254;
 }
 
 // Looks up `key` in a flat save record. Records are appended in
@@ -326,16 +106,7 @@ void CopyIntoPlace(fSystem::SaveState* src) {
     }
     rSystem* system = rSystem::staticMethods.GetSingleton();
 
-    *rSystem::staticVars.CurrentBattleFlow = src->d.CurrentBattleFlow;
-    *rSystem::staticVars.PreviousBattleFlow = src->d.PreviousBattleFlow;
-    *rSystem::staticVars.CurrentBattleFlowSubstate = src->d.CurrentBattleFlowSubstate;
-    *rSystem::staticVars.PreviousBattleFlowSubstate = src->d.PreviousBattleFlowSubstate;
-    *rSystem::staticVars.CurrentBattleFlowFrame = src->d.CurrentBattleFlowFrame;
-    *rSystem::staticVars.CurrentBattleFlowSubstateFrame = src->d.CurrentBattleFlowSubstateFrame;
-    *rSystem::staticVars.PreviousBattleFlowFrame = src->d.PreviousBattleFlowFrame;
-    *rSystem::staticVars.PreviousBattleFlowSubstateFrame = src->d.PreviousBattleFlowSubstateFrame;
-    *rSystem::staticVars.BattleFlowSubstateCallable_aa9258 = src->d.BattleFlowSubstateCallable_aa9258;
-    *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254 = src->d.BattleFlowCallback_CallEveryFrame_aa9254;
+    src->d.flow.Restore();
     memcpy_s((system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager), &src->d.gameManager, sizeof(GameManager));
 
     // Restore only what the state recorded. An adapter or manager that did
@@ -372,276 +143,6 @@ void CopyIntoPlace(fSystem::SaveState* src) {
     // Force the system to reload from the replaced mementos.
     if (!sf4e::Game::MementoFailure::restore)
         fSystem::RestoreAllFromInternalMementos(system, &GGPO_MEMENTO_ID);
-}
-
-// The engine's ClearKey (0x52F3D0) reads only the key's own fields, the
-// mementoable object's vtable and the payload, and every memento destructor it
-// reaches touches memento-owned memory alone (docs/design/SAVESTATE_FREE.md).
-// So a saved payload is released through a copy of its key: the live key and
-// the object holding it are never written. The original engine function, not
-// the tracking detour, since the copy is not a key the engine knows.
-static bool ReleaseDetached(fSystem::SaveState* victim, const std::pair<rKey*, rKey>& entry, const char* operation) {
-    if (!entry.first || (victim->keyFailure && !entry.second.mementos)) return false;
-    if (!sf4e::memento::CheckRelease(victim, entry.first, entry.second, operation)) return false;
-    if (!entry.second.mementos) return true;
-    // ClearKey still calls through the mementoable object, which lives with
-    // the key; a key the engine no longer tracks means that object is gone.
-    if (!sf4e::memento::CheckKeyWrite(victim, entry.first, entry.second, operation, false)) return false;
-    sf4e::memento::ForgetPayload(victim, entry.second.mementos);
-    rKey detached = entry.second;
-    (detached.*rKey::publicMethods.ClearKey)();
-    sf4e::memento::NoteRelease();
-    return true;
-}
-
-void Clear(fSystem::SaveState* victim) {
-    // Only release payloads this state still has a claim on. A state whose
-    // ownership was handed back (see SaveState::Free) holds stale copies
-    // whose payloads now belong to the live keys; clearing through them
-    // would be a double free.
-    if (victim->ownsKeys) {
-        for (auto iter = victim->keys.begin(); iter != victim->keys.end(); iter++) {
-            if (!ReleaseDetached(victim, *iter, "clear.release")) continue;
-            // Only the legacy round trip gets here owning keys, with this
-            // payload installed at the live key; drop that reference to it.
-            // An empty saved key is released without a liveness check, so
-            // check before touching the live one.
-            if (sf4e::memento::CheckKeyWrite(victim, iter->first, iter->second, "clear.zero", false) &&
-                iter->first->mementos == iter->second.mementos)
-                memset(iter->first, 0, sizeof(rKey));
-        }
-    }
-    sf4e::memento::ForgetPayloads(victim);
-    victim->keys.clear();
-    victim->ownsKeys = true;
-    victim->keyFailure = false;
-
-    // Restore all non-memento-key state to a sane default. Slot reuse must
-    // also reset frame metadata so a stale callback identity can never be
-    // attributed to a new frame.
-    victim->used = false;
-    victim->simulationFrame = -1;
-    victim->ggpoFrame = -1;
-    victim->d.CurrentBattleFlow = 0;
-    victim->d.PreviousBattleFlow = 0;
-    victim->d.CurrentBattleFlowSubstate = 0;
-    victim->d.PreviousBattleFlowSubstate = 0;
-    victim->d.CurrentBattleFlowFrame = { 0, 0 };
-    victim->d.CurrentBattleFlowSubstateFrame = { 0, 0 };
-    victim->d.PreviousBattleFlowFrame = { 0, 0 };
-    victim->d.PreviousBattleFlowSubstateFrame = { 0, 0 };
-    victim->d.BattleFlowSubstateCallable_aa9258 = nullptr;
-    victim->d.BattleFlowCallback_CallEveryFrame_aa9254 = nullptr;
-    victim->criPlayerState.clear();
-    victim->managerState.Reset();
-}
-
-void fSystem::SaveState::Reclaim(SaveState* victim, const char* reason, int slotIndex) {
-    if (!victim->used && victim->keys.empty()) {
-        return;
-    }
-    // Process totals, so a field log can set abandoned payloads against the
-    // process memory slope. Payload sizes are engine-owned and not known here
-    // (ledger A-010).
-    static uint64_t s_reclaimedSlots = 0, s_reclaimedKeys = 0;
-    ++s_reclaimedSlots;
-    if (victim->ownsKeys) s_reclaimedKeys += victim->keys.size();
-    spdlog::warn(
-        "SaveState: reclaiming leaked slot {} ({}) used={} keys={} owned={} simFrame={} ggpoFrame={} process_total_slots={} process_total_owned_keys={}",
-        slotIndex,
-        reason ? reason : "?",
-        victim->used,
-        victim->keys.size(),
-        victim->ownsKeys,
-        victim->simulationFrame,
-        victim->ggpoFrame,
-        s_reclaimedSlots,
-        s_reclaimedKeys
-    );
-    // Drop the records without engine calls. At the points that call this
-    // (session start, post-teardown sweep) the battle objects the keys point
-    // at are either gone or owned by a fresh battle, so ClearKey through
-    // those pointers is exactly what must not happen.
-    victim->ownsKeys = false;
-    Clear(victim);
-}
-
-// Read once per process. SF4E_LEGACY_SAVESTATE_FREE=1 selects the v0.8.5
-// round-trip release for A/B comparison; SF4E_SAVESTATE_FREE_VERIFY=1 checks
-// that each release leaves the live game state untouched.
-struct SaveStateFreePolicy {
-    bool legacyRoundTrip;
-    bool verify;
-};
-
-static const SaveStateFreePolicy& FreePolicy() {
-    static const SaveStateFreePolicy policy = {
-        sf4e::EnvFlag("SF4E_LEGACY_SAVESTATE_FREE"),
-        sf4e::EnvFlag("SF4E_SAVESTATE_FREE_VERIFY"),
-    };
-    return policy;
-}
-
-const char* SaveStateFreePathName() {
-    return FreePolicy().legacyRoundTrip ? "legacy_round_trip" : "detached";
-}
-
-void LogSaveStateFreePolicy() {
-    spdlog::info(
-        "SaveState: free path={} verify={} tracked_keys={}",
-        FreePolicy().legacyRoundTrip ? "legacy_round_trip" : "detached",
-        FreePolicy().verify,
-        fKey::trackedKeys.size()
-    );
-}
-
-// Everything a release must not change: the semantic gameplay hash, the
-// battle-flow globals, the GameManager block and, for the detached path, every
-// live memento key byte. The legacy round trip hands the temporary save's
-// payloads to the live keys by design, so its key bytes always differ.
-static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
-    sf4e::statehash::Hasher hasher;
-    rSystem* system = rSystem::staticMethods.GetSingleton();
-    if (!system) {
-        return 0;
-    }
-    hasher.U64(fSystem::ComputeSemanticHashes(system).overall);
-    const auto bytes = [&](const void* data, size_t size) {
-        const auto* cursor = static_cast<const uint8_t*>(data);
-        for (size_t i = 0; i < size; i++) {
-            hasher.U8(cursor[i]);
-        }
-    };
-    bytes(rSystem::staticVars.CurrentBattleFlow, sizeof(DWORD));
-    bytes(rSystem::staticVars.CurrentBattleFlowSubstate, sizeof(DWORD));
-    bytes(rSystem::staticVars.CurrentBattleFlowFrame, sizeof(FixedPoint));
-    bytes((system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager));
-    if (includeKeys) {
-        for (rKey* key : fKey::trackedKeys) {
-            hasher.U32(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key)));
-            bytes(key, sizeof(rKey));
-        }
-    }
-    return hasher.Value();
-}
-
-// Default release: each saved payload through a copy of its key (see
-// ReleaseDetached), then the records are dropped.
-static void FreeDetached(fSystem::SaveState* victim) {
-    diag::ScopedTimer _t(diag::OP_FREE_SWAP);
-    if (victim->ownsKeys) {
-        for (const auto& entry : victim->keys) ReleaseDetached(victim, entry, "free.release");
-    }
-    // The payloads were released above; Clear must only drop the records.
-    victim->ownsKeys = false;
-    Clear(victim);
-}
-
-void fSystem::SaveState::Free(SaveState* victim) {
-    diag::ScopedTimer _freeTimer(diag::OP_FREE_TOTAL);
-    AssertSaveStateThreadAffinity();
-    const auto& policy = FreePolicy();
-    const uint64_t before = policy.verify ? HashLiveStateForFreeCheck(!policy.legacyRoundTrip) : 0;
-    if (policy.legacyRoundTrip) {
-        FreeByRoundTrip(victim);
-    }
-    else {
-        FreeDetached(victim);
-    }
-    if (policy.verify) {
-        const uint64_t after = HashLiveStateForFreeCheck(!policy.legacyRoundTrip);
-        if (after != before) {
-            spdlog::error(
-                "SaveState: releasing a state changed live game state (path={} simFrame={} before={:016x} after={:016x})",
-                policy.legacyRoundTrip ? "legacy_round_trip" : "detached",
-                rSystem::staticMethods.GetSingleton()
-                    ? (int)rSystem::GetNumFramesSimulated_FixedPoint(rSystem::staticMethods.GetSingleton())->integral
-                    : -1,
-                before,
-                after
-            );
-        }
-    }
-    if (diag::Enabled()) {
-        uint32_t occupied = 0;
-        for (int i = 0; i < NUM_SAVE_STATES; i++) {
-            if (saveStates[i].used) {
-                occupied++;
-            }
-        }
-        diag::G().occupiedSaveSlots.Update(occupied);
-    }
-    if (sf4e::crash::HeapCheckEnabled()) sf4e::crash::HeapCheckpoint("free", SimulatedFrame());
-}
-
-// v0.8.5 release, kept for SF4E_LEGACY_SAVESTATE_FREE A/B comparison.
-void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
-    // The round trip restores the victim before releasing it, so a descriptor
-    // that would fail release validation must not be installed at all.
-    if (victim->keyFailure || !sf4e::memento::AllReleasable(victim)) {
-        FreeDetached(victim);
-        return;
-    }
-    SaveState tmp;
-    sf4e::Game::MementoFailure::restore = false;
-
-    {
-        diag::ScopedTimer _t(diag::OP_FREE_TMP_SAVE);
-        if (!SaveState::Save(&tmp, true)) {
-            // Without a complete copy of the live state there is nothing
-            // safe to round-trip back into place; release detached instead.
-            spdlog::warn("SaveState: round-trip release could not save the live state; releasing detached");
-            FreeDetached(victim);
-            return;
-        }
-    }
-
-    // Calls to clear SF4's mementos delegate those calls to the mementoable
-    // object. If the mementoable object pointer isn't valid, the key can't
-    // be cleared. This isn't relevant to SF4's training mode, because clearing
-    // is only ever done on re-initialization after a save, but manually
-    // clearing keys when releasing the state is necessary for GGPO to avoid
-    // memory leaks.
-    //
-    // Copy the victim state into the engine. Once the victim state is copied,
-    // the mementoable object pointers in each key are valid, and each key can
-    // be safely cleared.
-    {
-        diag::ScopedTimer _t(diag::OP_FREE_VICTIM_INSTALL);
-        CopyIntoPlace(victim);
-    }
-    const bool victimRestoreFailed = sf4e::Game::MementoFailure::restore;
-    {
-        diag::ScopedTimer _t(diag::OP_FREE_CLEAR);
-        Clear(victim);
-    }
-
-    // Restore the state at the start of the function.
-    //
-    // CopyIntoPlace copies each key struct back into its live slot, which
-    // hands ownership of every memento payload back to the engine. `tmp`
-    // still holds identical copies pointing at those same payloads, so its
-    // ownership record is now stale and must be dropped WITHOUT calling
-    // ClearKey — releasing it through the engine would free the payloads the
-    // live keys just took back. Being short-lived is not sufficient: `tmp`
-    // has no destructor, and CloseBattle calls Free in a loop, so a stale
-    // claim here is freed again by the next iteration's Clear().
-    {
-        diag::ScopedTimer _t(diag::OP_FREE_LIVE_RESTORE);
-        sf4e::Game::MementoFailure::restore = false;
-        CopyIntoPlace(&tmp);
-        sf4e::memento::ForgetPayloads(&tmp);
-        tmp.ownsKeys = false;
-        tmp.keys.clear();
-    }
-    if (victimRestoreFailed || sf4e::Game::MementoFailure::restore) {
-        // The live battle did not come back whole; it cannot be played on
-        // (ledger A-001). Only this legacy A/B release restores live state.
-        spdlog::error("SaveState: round-trip release could not restore the live battle; leaving it");
-        sf4e::memento::RequestAbort();
-        if (rSystem* system = rSystem::staticMethods.GetSingleton())
-            *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
-    }
 }
 
 bool fSystem::SaveState::Load(SaveState* src) {
@@ -860,16 +361,7 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     }
 
     diag::ScopedTimer _globalsTimer(temporary ? -1 : diag::OP_SAVE_GLOBALS);
-    dst->d.CurrentBattleFlow = *rSystem::staticVars.CurrentBattleFlow;
-    dst->d.PreviousBattleFlow = *rSystem::staticVars.PreviousBattleFlow;
-    dst->d.CurrentBattleFlowSubstate = *rSystem::staticVars.CurrentBattleFlowSubstate;
-    dst->d.PreviousBattleFlowSubstate = *rSystem::staticVars.PreviousBattleFlowSubstate;
-    dst->d.CurrentBattleFlowFrame = *rSystem::staticVars.CurrentBattleFlowFrame;
-    dst->d.CurrentBattleFlowSubstateFrame = *rSystem::staticVars.CurrentBattleFlowSubstateFrame;
-    dst->d.PreviousBattleFlowFrame = *rSystem::staticVars.PreviousBattleFlowFrame;
-    dst->d.PreviousBattleFlowSubstateFrame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame;
-    dst->d.BattleFlowSubstateCallable_aa9258 = *rSystem::staticVars.BattleFlowSubstateCallable_aa9258;
-    dst->d.BattleFlowCallback_CallEveryFrame_aa9254 = *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254;
+    dst->d.flow = BattleFlowGlobals::Capture();
 
     memcpy_s(&dst->d.gameManager, sizeof(GameManager), (system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager));
     sf4e::replay::Capture(*Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton(), dst->d.replayRecorder);

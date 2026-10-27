@@ -8,7 +8,7 @@ namespace {
 // IsRuntimeMatchEndCommitted: that is the last game this PC set up successfully,
 // and a later one whose setup failed would pass for it.
 bool GenerationFinished(const room::Table& table, std::uint64_t generation) {
-	return (generation && runtime->committedEndGeneration == generation) || netplay::GenerationEnded(table, generation);
+	return (generation && runtime->teardown.committedEndGeneration == generation) || netplay::GenerationEnded(table, generation);
 }
 
 // Records the lock release a spectator owes the room after its own setup or
@@ -62,9 +62,9 @@ void ReportMatchAbort() {
 		return;
 	}
 	if (client.SendRoomAction(action) != session::SendResult::Queued) {
-		if (!runtime->pendingAbort || runtime->pendingAbort->matchGeneration == action.matchGeneration)
-			runtime->pendingAbort.reset(new room::Action(action));
-		if (!runtime->pendingAbortDeadline) runtime->pendingAbortDeadline = GetTickCount64() + 30000;
+		if (!runtime->teardown.pendingAbort || runtime->teardown.pendingAbort->matchGeneration == action.matchGeneration)
+			runtime->teardown.pendingAbort.reset(new room::Action(action));
+		if (!runtime->teardown.pendingAbortDeadline) runtime->teardown.pendingAbortDeadline = GetTickCount64() + 30000;
 	}
 }
 
@@ -85,10 +85,10 @@ static void HandleSessionlessClose(std::uint64_t closedGeneration) {
 	const auto matchState = runtime->controller.GetSnapshot().match;
 	const bool inProgress = matchState == netplay::MatchState::Playing || matchState == netplay::MatchState::Preparing;
 	// The runtime tears these down itself and then waits for the session to retire.
-	if (runtime->leaveRequested || runtime->replacementPending) return;
-	const auto action = netplay::SessionlessCloseAction(runtime->matchEntered, runtime->enteredGeneration, closedGeneration,
+	if (runtime->leave.leaveRequested || runtime->replacementPending) return;
+	const auto action = netplay::SessionlessCloseAction(runtime->entry.matchEntered, runtime->entry.enteredGeneration, closedGeneration,
 		runtime->match->Generation(), runtime->recoveringMatch, inProgress, LocalIsSpectator(), IsRuntimeMatchEndCommitted(),
-		runtime->spectatorStreamFailedGeneration == closedGeneration);
+		runtime->entry.spectatorStreamFailedGeneration == closedGeneration);
 	if (action == netplay::SessionlessClose::Ignore) return;
 	spdlog::info("Netplay: battle for generation {} closed without its session spectator={} action={}",
 		closedGeneration, LocalIsSpectator(), action == netplay::SessionlessClose::Abort ? "abort" :
@@ -123,14 +123,14 @@ static void RejectMatchEntry() {
 static void ObserveDeferredEntry() {
 	const auto generation = runtime->match->Generation();
 	const auto now = GetTickCount64();
-	if (runtime->entryDeferredGeneration != generation) {
-		runtime->entryDeferredGeneration = generation;
-		runtime->entryDeferredSinceMs = now;
+	if (runtime->entry.entryDeferredGeneration != generation) {
+		runtime->entry.entryDeferredGeneration = generation;
+		runtime->entry.entryDeferredSinceMs = now;
 		spdlog::info("Match: entry deferred, not at the main menu generation={} spectator={}", generation, LocalIsSpectator());
 	}
 	// The same deadline P1 waits by (a shorter one at a tournament match's bound table).
 	const auto deadline = UserApp::netplay ? UserApp::netplay->client.SpectatorSyncDeadlineMs() : SpectatorPolicy::SyncDeadlineMs;
-	if (SpectatorPolicy::EntryGate(false, LocalIsSpectator(), now - runtime->entryDeferredSinceMs, deadline) !=
+	if (SpectatorPolicy::EntryGate(false, LocalIsSpectator(), now - runtime->entry.entryDeferredSinceMs, deadline) !=
 		SpectatorPolicy::EntryStep::SitOut) return;
 	// P1 has stopped waiting for this spectator, and entering later would join
 	// a stream it no longer serves. The room still lists it for the next game.
@@ -143,7 +143,7 @@ static void ObserveDeferredEntry() {
 // The room has committed the end of the current match (any result).
 bool IsRuntimeMatchEndCommitted() {
 	return runtime && runtime->match && runtime->match->Generation() &&
-		runtime->committedEndGeneration == runtime->match->Generation();
+		runtime->teardown.committedEndGeneration == runtime->match->Generation();
 }
 
 // A match is being prepared or played, or its GGPO session is live for the
@@ -156,17 +156,17 @@ bool IsRuntimeMatchLive() {
 
 void NotifyRuntimeBattleClosedWithoutSession() {
 	// Called from battle teardown: only record it. TickMatch acts on it.
-	if (!runtime || !runtime->match || !runtime->matchEntered) return;
-	runtime->sessionlessCloseGeneration = runtime->enteredGeneration;
+	if (!runtime || !runtime->match || !runtime->entry.matchEntered) return;
+	runtime->entry.sessionlessCloseGeneration = runtime->entry.enteredGeneration;
 }
 
 void NotifyRuntimeSpectatorStreamFailed() {
-	if (!runtime || !runtime->match || !runtime->matchEntered) return;
-	runtime->spectatorStreamFailedGeneration = runtime->enteredGeneration;
+	if (!runtime || !runtime->match || !runtime->entry.matchEntered) return;
+	runtime->entry.spectatorStreamFailedGeneration = runtime->entry.enteredGeneration;
 	// The spectator keeps watching later games but loses its lock-in, and that
 	// is owed however the rest of this generation goes: a result committed
 	// before the battle closes must not cancel it. Arm it now for the tick.
-	ArmSpectatorLockRelease(runtime->enteredGeneration, false);
+	ArmSpectatorLockRelease(runtime->entry.enteredGeneration, false);
 }
 
 void EndRuntimeSpectatorStream(std::size_t slot) {
@@ -184,7 +184,7 @@ bool IsRuntimeSpectator() { return LocalIsSpectator(); }
 void NotifyRuntimeMatchEnded() {
 	// Called from battle teardown: defer owning-object changes until TickRuntime.
 	if (!runtime || !runtime->match) return;
-	runtime->matchEnded = true;
+	runtime->teardown.matchEnded = true;
 	// Retiring the session next resets the telemetry the ping comes from. The
 	// opponent is the match's own, not whoever the table seats by the time the
 	// tick takes this.
@@ -211,10 +211,10 @@ void NotifyRuntimeMatchEnded() {
 	}
 	// Keep a native-finish notice separate from resultPending: a successful
 	// result callback may already be waiting for its peer confirmation.
-	runtime->matchFinishedPending = true;
-	runtime->finishActionId=runtime->finishRetryAt=0;
-	runtime->matchFinishedAction.reset();
-		runtime->matchFinishedGeneration = generation;
+	runtime->teardown.matchFinishedPending = true;
+	runtime->teardown.finishActionId=runtime->teardown.finishRetryAt=0;
+	runtime->teardown.matchFinishedAction.reset();
+		runtime->teardown.matchFinishedGeneration = generation;
 	runtime->matchFinishedTable = table;
 }
 
@@ -228,8 +228,8 @@ void NotifyRuntimeMatchEnded() {
 // already left this generation.
 void PollSpectatorExit() {
 	if (!runtime || !runtime->match) return;
-	if (!runtime->terminalAckPending || !Game::Battle::System::ggpo || !LocalIsSpectator() ||
-		runtime->terminalAckGeneration != runtime->match->Generation()) {
+	if (!runtime->teardown.terminalAckPending || !Game::Battle::System::ggpo || !LocalIsSpectator() ||
+		runtime->teardown.terminalAckGeneration != runtime->match->Generation()) {
 		runtime->match->ClearSpectatorExit();
 		return;
 	}
@@ -346,7 +346,7 @@ netplay::DispatchOutcome LeaveWatchedGame(const netplay::WatchedGame& asked) {
 	const auto& room = client.GetRoomSnapshot();
 	auto leave = netplay::LeaveOfWatchedGame(room, game);
 	// The game's end event can come before the snapshot shows it.
-	if (leave != netplay::WatchedLeave::None && runtime->committedEndGeneration == game.generation) leave = netplay::WatchedLeave::EndView;
+	if (leave != netplay::WatchedLeave::None && runtime->teardown.committedEndGeneration == game.generation) leave = netplay::WatchedLeave::EndView;
 	if (leave == netplay::WatchedLeave::None) return netplay::DispatchOutcome::Dropped;
 	if (leave == netplay::WatchedLeave::EndView) {
 		// The room needs nothing: the rest of the stream ends the way the
@@ -378,16 +378,16 @@ netplay::DispatchOutcome LeaveWatchedGame(const netplay::WatchedGame& asked) {
 }
 
 void RetryPendingAbort() {
-	if (runtime->pendingAbort && runtime->attached && UserApp::netplay) {
+	if (runtime->teardown.pendingAbort && runtime->attached && UserApp::netplay) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
-		const auto& action = *runtime->pendingAbort;
+		const auto& action = *runtime->teardown.pendingAbort;
 		// Kept while the projection lags the generation; its deadline bounds that.
 		const bool current = runtime->match && runtime->match->AttemptedGeneration() == action.matchGeneration &&
 			action.table < room::TableCount && snapshot.roomEpoch == action.roomEpoch &&
 			!GenerationFinished(snapshot.tables[action.table], action.matchGeneration);
 		if (!current) {
-			runtime->pendingAbort.reset();
-			runtime->pendingAbortDeadline = 0;
+			runtime->teardown.pendingAbort.reset();
+			runtime->teardown.pendingAbortDeadline = 0;
 		} else if (runtime->controller.GetSnapshot().control == netplay::Health::Healthy &&
 			[&]() {
 				// A room snapshot may advance its table revision while this exact
@@ -397,12 +397,12 @@ void RetryPendingAbort() {
 				retry.tableRevision = snapshot.tables[retry.table].revision;
 				return UserApp::netplay->client.SendRoomAction(retry);
 			}() == session::SendResult::Queued) {
-			runtime->pendingAbort.reset();
-			runtime->pendingAbortDeadline = 0;
-		} else if (runtime->pendingAbortDeadline && GetTickCount64() >= runtime->pendingAbortDeadline) {
+			runtime->teardown.pendingAbort.reset();
+			runtime->teardown.pendingAbortDeadline = 0;
+		} else if (runtime->teardown.pendingAbortDeadline && GetTickCount64() >= runtime->teardown.pendingAbortDeadline) {
 			runtime->error = loc::T("runtime.teardown_report_failed");
-			runtime->pendingAbort.reset();
-			runtime->pendingAbortDeadline = 0;
+			runtime->teardown.pendingAbort.reset();
+			runtime->teardown.pendingAbortDeadline = 0;
 			const auto matchState = runtime->controller.GetSnapshot().match;
 			Apply(matchState == netplay::MatchState::Playing || matchState == netplay::MatchState::Preparing ?
 				netplay::EventKind::GameplayLost : netplay::EventKind::ControlLost, runtime->error);
@@ -418,7 +418,7 @@ void SettleOwedAbort() {
 	const auto generation = owed.Generation();
 	if (!generation) return;
 	netplay::tournament::OwedAbort::View view;
-	view.ended = runtime->committedEndGeneration == generation || (UserApp::netplay &&
+	view.ended = runtime->teardown.committedEndGeneration == generation || (UserApp::netplay &&
 		GenerationFinished(UserApp::netplay->client.GetRoomSnapshot().tables[room::TournamentTable], generation));
 	const auto* capture = runtime->resultOutbox.Captured();
 	view.captured = capture && capture->generation == generation && capture->table == room::TournamentTable;
@@ -461,42 +461,42 @@ void RetrySpectatorLockRelease() {
 }
 
 void RetryMatchFinished() {
-	if (runtime->matchFinishedPending && runtime->attached && UserApp::netplay) {
+	if (runtime->teardown.matchFinishedPending && runtime->attached && UserApp::netplay) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 		// A table that already left play (the result reports ended it) would
 		// reject the finish with WrongGeneration, so there is nothing to send.
 		const auto* table = runtime->matchFinishedTable < room::TableCount ?
 			&snapshot.tables[runtime->matchFinishedTable] : nullptr;
-		const bool current = runtime->match && runtime->match->Generation() == runtime->matchFinishedGeneration &&
-			table && snapshot.roomEpoch && table->matchGeneration == runtime->matchFinishedGeneration &&
+		const bool current = runtime->match && runtime->match->Generation() == runtime->teardown.matchFinishedGeneration &&
+			table && snapshot.roomEpoch && table->matchGeneration == runtime->teardown.matchFinishedGeneration &&
 			(table->phase == room::TablePhase::Playing || table->phase == room::TablePhase::Paused);
 		if (!current) {
-			runtime->matchFinishedPending = false;
-			runtime->matchFinishedGeneration = 0;
-			runtime->finishActionId=runtime->finishRetryAt=0;
-			runtime->matchFinishedAction.reset();
-		} else if (runtime->controller.GetSnapshot().control == netplay::Health::Healthy && GetTickCount64()>=runtime->finishRetryAt) {
+			runtime->teardown.matchFinishedPending = false;
+			runtime->teardown.matchFinishedGeneration = 0;
+			runtime->teardown.finishActionId=runtime->teardown.finishRetryAt=0;
+			runtime->teardown.matchFinishedAction.reset();
+		} else if (runtime->controller.GetSnapshot().control == netplay::Health::Healthy && GetTickCount64()>=runtime->teardown.finishRetryAt) {
 			const auto now=GetTickCount64();
 			room::Action action;
-			if(runtime->matchFinishedAction) action=*runtime->matchFinishedAction;
+			if(runtime->teardown.matchFinishedAction) action=*runtime->teardown.matchFinishedAction;
 			else {
 				action.kind = room::ActionKind::MatchFinished;
 				action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
 				action.table = runtime->matchFinishedTable;
 				action.tableRevision = snapshot.tables[action.table].revision;
-				action.matchGeneration = runtime->matchFinishedGeneration;
+				action.matchGeneration = runtime->teardown.matchFinishedGeneration;
 			}
-			auto actionId=runtime->finishActionId;
+			auto actionId=runtime->teardown.finishActionId;
 			const auto sent=actionId ? UserApp::netplay->client.RetryMatchFinished(action,actionId) :
 				UserApp::netplay->client.SendRoomAction(action,&actionId);
 			if(sent==session::SendResult::Queued) {
-				if(!runtime->finishActionId) {
-					runtime->finishActionId=actionId;
-					runtime->matchFinishedAction=action;
+				if(!runtime->teardown.finishActionId) {
+					runtime->teardown.finishActionId=actionId;
+					runtime->teardown.matchFinishedAction=action;
 				}
-				runtime->finishRetryAt=now+netplay::MatchResultOutbox::RetryDelayMs;
+				runtime->teardown.finishRetryAt=now+netplay::MatchResultOutbox::RetryDelayMs;
 			} else if(sent==session::SendResult::NotConnected || sent==session::SendResult::QueueFull)
-				runtime->finishRetryAt=now+netplay::MatchResultOutbox::UnsentRetryDelayMs;
+				runtime->teardown.finishRetryAt=now+netplay::MatchResultOutbox::UnsentRetryDelayMs;
 		}
 	}
 }
@@ -547,18 +547,18 @@ void PumpResultOutbox() {
 void TickMatch() {
 	if (runtime->match) {
 		diag::ScopedTimer lifecycleTimer(diag::OP_MATCH_LIFECYCLE);
-		if (runtime->matchEnded) {
-			runtime->matchEnded = false; runtime->match->End();
+		if (runtime->teardown.matchEnded) {
+			runtime->teardown.matchEnded = false; runtime->match->End();
 			Apply(netplay::EventKind::MatchEnded);
 		}
-		if (runtime->sessionlessCloseGeneration) {
-			const auto closedGeneration = runtime->sessionlessCloseGeneration;
-			runtime->sessionlessCloseGeneration = 0;
+		if (runtime->entry.sessionlessCloseGeneration) {
+			const auto closedGeneration = runtime->entry.sessionlessCloseGeneration;
+			runtime->entry.sessionlessCloseGeneration = 0;
 			HandleSessionlessClose(closedGeneration);
 		}
 		if (runtime->match && !runtime->match->Tick(Game::Battle::System::ggpo != nullptr)) {
 			// A spectator in the game lost its one link, to P1: its stream, not a seat.
-			runtime->error = loc::T(LocalIsSpectator() && runtime->matchEntered ?
+			runtime->error = loc::T(LocalIsSpectator() && runtime->entry.matchEntered ?
 				"runtime.spectator_stream_lost" : "runtime.match_connection_lost");
 			// A spectator has no seat to lose: a control reconnect that briefly
 			// empties the projection must not turn its stream failure into a room exit.
@@ -591,12 +591,12 @@ void TickMatch() {
 			const bool sessionLive = runtime->match->Live();
 			// The entry of an older generation whose battle is gone would make the
 			// controller refuse this grant, and nothing else would ever release it.
-			if (netplay::StaleMatchEntry(sessionLive, runtime->matchEntered, runtime->enteredGeneration,
+			if (netplay::StaleMatchEntry(sessionLive, runtime->entry.matchEntered, runtime->entry.enteredGeneration,
 				runtime->match->Generation(), Game::Battle::System::ggpo != nullptr)) {
 				const auto stale = runtime->controller.GetSnapshot().match;
 				if (stale == netplay::MatchState::Playing || stale == netplay::MatchState::Preparing) {
 					spdlog::warn("Netplay: generation {} never closed locally (match={}); releasing it for generation {}",
-						runtime->enteredGeneration, static_cast<int>(stale), runtime->match->Generation());
+						runtime->entry.enteredGeneration, static_cast<int>(stale), runtime->match->Generation());
 					Apply(netplay::EventKind::MatchEnded);
 				}
 				ResetMatchEntry();
@@ -609,22 +609,22 @@ void TickMatch() {
 			// A grant withdrawn before the battle was entered (a spectator whose
 			// link came up after the start) has no battle to close; this ends
 			// Preparing so the shell reopens.
-			if (!sessionLive && !runtime->matchEntered && state.match == netplay::MatchState::Preparing)
+			if (!sessionLive && !runtime->entry.matchEntered && state.match == netplay::MatchState::Preparing)
 				Apply(netplay::EventKind::MatchEnded);
-			if (phase == session::IrohMatchSession::Phase::Started && !runtime->matchEntered) {
+			if (phase == session::IrohMatchSession::Phase::Started && !runtime->entry.matchEntered) {
 				Apply(netplay::EventKind::GameplayReady);
 				const auto entry = UserApp::EnterAuthorizedMatch();
-				runtime->matchEntered = entry == UserApp::MatchEntry::Entered;
-				if (runtime->matchEntered) {
-					runtime->enteredGeneration = runtime->match->Generation();
+				runtime->entry.matchEntered = entry == UserApp::MatchEntry::Entered;
+				if (runtime->entry.matchEntered) {
+					runtime->entry.enteredGeneration = runtime->match->Generation();
 					const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 					const auto* local = room::FindMember(room, room.localMember);
-					runtime->enteredTable = local ? local->table : -1;
+					runtime->entry.enteredTable = local ? local->table : -1;
 				}
 				else if (entry == UserApp::MatchEntry::Rejected) RejectMatchEntry();
 				else if (!AtMainMenu()) ObserveDeferredEntry();
 			}
-			if (runtime->matchEntered && GetGgpoSyncPhase() == GgpoSyncPhase::Running) Apply(netplay::EventKind::MatchStarted);
+			if (runtime->entry.matchEntered && GetGgpoSyncPhase() == GgpoSyncPhase::Running) Apply(netplay::EventKind::MatchStarted);
 			if (runtime->match && runtime->controller.GetSnapshot().room == netplay::RoomState::Joined &&
 				runtime->controller.GetSnapshot().match == netplay::MatchState::Playing) {
 				const auto& roster = runtime->match->Roster();
@@ -634,7 +634,7 @@ void TickMatch() {
 				});
 				if (missing && !UserApp::netplay->client.GetRoomSnapshot().roomEpoch) Apply(netplay::EventKind::ControlLost, loc::T("runtime.participant_left_room"));
 				else if (missing && runtime->participantLeftGeneration != runtime->match->Generation() &&
-					runtime->committedEndGeneration != runtime->match->Generation()) {
+					runtime->teardown.committedEndGeneration != runtime->match->Generation()) {
 					// Custom rooms: the authority ends the game itself (MatchEnded/
 					// Abort). The survivor was never told why, only that GGPO
 					// timed out. Say it once per game.
@@ -657,12 +657,12 @@ void ReleaseFinishedMatch() {
 	// Queue the receipt acknowledgement only after both durable boundaries
 	// have passed. SessionClient retains the authenticated action until its
 	// accepted reply, so a control reconnect cannot release the table early.
-	if (runtime->terminalAckPending && runtime->terminalOutcomeConsumed && UserApp::netplay &&
+	if (runtime->teardown.terminalAckPending && runtime->teardown.terminalOutcomeConsumed && UserApp::netplay &&
 		runtime->match && !Game::Battle::System::ggpo &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
-		if (UserApp::netplay->client.AcknowledgeTerminal(runtime->terminalAckTable,
-			runtime->terminalAckGeneration) == session::SendResult::Queued) {
-			runtime->terminalAckPending = false;
+		if (UserApp::netplay->client.AcknowledgeTerminal(runtime->teardown.terminalAckTable,
+			runtime->teardown.terminalAckGeneration) == session::SendResult::Queued) {
+			runtime->teardown.terminalAckPending = false;
 		}
 	}
 	if (runtime->recoveringMatch && runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle && AtMainMenu()) {

@@ -453,7 +453,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 	case netplay::Effect::CloseSession:
         if(IsRuntimeRecoveryEnabled() && runtime->attached && UserApp::netplay &&
             UserApp::netplay->client.GetRoomSnapshot().localMember) {
-            runtime->leaveRequested=true;
+            runtime->leave.leaveRequested=true;
             CancelLocalMatch(GgpoEnd::Retire("leave_room"));
         } else CloseRoom();
         break;
@@ -676,7 +676,9 @@ bool AutoDelayMeasuring() {
 // has a game link to this PC: a queued opponent who watched the last game
 // keeps one until that game's spectators are released.
 static bool AutoCheckClear(const std::string& peer, int tableIndex) {
-    if(runtime->room->Game(peer).state!=session::IrohRoom::GameState::Closed) return false;
+    // No mapping reads as Closed, as the copying Game() does.
+    const auto* game=runtime->room->FindGame(peer);
+    if(game && game->state!=session::IrohRoom::GameState::Closed) return false;
     const auto* committed=UserApp::server->RoomSnapshot();
     if(!committed || tableIndex<0 || tableIndex>=static_cast<int>(room::TableCount)) return true;
     return room::ProbePairCommitted(UserApp::netplay->client.GetRoomSnapshot().tables[tableIndex],committed->tables[tableIndex]);
@@ -779,20 +781,20 @@ void DrainRoomEvents() {
 					UserApp::netplay->client.GetRoomSnapshot().roomEpoch, event.table, event.matchGeneration, event.result) :
 					netplay::MatchResultOutbox::TerminalResult::Unrelated;
 				ObserveTournamentTerminal(event, resultTerminal);
-				if(event.matchGeneration==runtime->matchFinishedGeneration && event.table==runtime->matchFinishedTable) {
-					runtime->matchFinishedPending=false;
-					runtime->finishActionId=runtime->finishRetryAt=0;
-					runtime->matchFinishedAction.reset();
+				if(event.matchGeneration==runtime->teardown.matchFinishedGeneration && event.table==runtime->matchFinishedTable) {
+					runtime->teardown.matchFinishedPending=false;
+					runtime->teardown.finishActionId=runtime->teardown.finishRetryAt=0;
+					runtime->teardown.matchFinishedAction.reset();
 				}
 				// The room's terminal receipt is an authenticated, per-recipient
 				// lifecycle record. Receiving this event only starts local
 				// consumption; AcknowledgeTerminal is queued below after profile
 				// persistence and native/helper retirement.
 				if (event.terminalReplay && event.matchGeneration && runtime->room) {
-					runtime->terminalAckPending = true;
-					runtime->terminalOutcomeConsumed = true; // spectators and aborts need no profile write
-					runtime->terminalAckTable = event.table;
-					runtime->terminalAckGeneration = event.matchGeneration;
+					runtime->teardown.terminalAckPending = true;
+					runtime->teardown.terminalOutcomeConsumed = true; // spectators and aborts need no profile write
+					runtime->teardown.terminalAckTable = event.table;
+					runtime->teardown.terminalAckGeneration = event.matchGeneration;
 					const auto* capture = runtime->resultOutbox.Captured();
 					const bool countedResult = event.result == room::MatchResult::P1Win ||
 						event.result == room::MatchResult::P2Win;
@@ -800,12 +802,12 @@ void DrainRoomEvents() {
 						resultTerminal == netplay::MatchResultOutbox::TerminalResult::Confirmed;
 					// Profile persistence is completed by the poll below, which
 					// waits for the writer to report the revision on disk.
-					if (profileMatch) runtime->terminalOutcomeConsumed = false;
+					if (profileMatch) runtime->teardown.terminalOutcomeConsumed = false;
 				}
 				// The game this PC took up, also one whose setup failed.
 				if (runtime->match && event.matchGeneration && event.matchGeneration == runtime->match->AttemptedGeneration())
-					runtime->committedEndGeneration = event.matchGeneration;
-				spdlog::log(runtime->matchEndLog.First(event.table, event.matchGeneration) ? spdlog::level::info : spdlog::level::debug,
+					runtime->teardown.committedEndGeneration = event.matchGeneration;
+				spdlog::log(runtime->teardown.matchEndLog.First(event.table, event.matchGeneration) ? spdlog::level::info : spdlog::level::debug,
 					"Room: match ended table={} generation={} result={} replay={}",
 					event.table, event.matchGeneration, static_cast<int>(event.result), event.terminalReplay);
             }
@@ -831,9 +833,9 @@ void PersistTerminalOutcome() {
 	// stops the write from landing releases the receipt instead, since it
 	// gates the whole table's next match (MatchResultOutbox::PersistProfile).
 	const auto* capturedResult = runtime->resultOutbox.Captured();
-	if (runtime->terminalAckPending && !runtime->terminalOutcomeConsumed && runtime->room && capturedResult &&
-		runtime->terminalAckGeneration == capturedResult->generation &&
-		runtime->terminalAckTable == capturedResult->table && capturedResult->slot < 2 &&
+	if (runtime->teardown.terminalAckPending && !runtime->teardown.terminalOutcomeConsumed && runtime->room && capturedResult &&
+		runtime->teardown.terminalAckGeneration == capturedResult->generation &&
+		runtime->teardown.terminalAckTable == capturedResult->table && capturedResult->slot < 2 &&
 		(capturedResult->result == room::MatchResult::P1Win || capturedResult->result == room::MatchResult::P2Win)) {
 		netplay::ProfileStore store;
 		store.queue = [] { return OverlayPrefs::QueuePlayerPreferences(runtime->preferences); };
@@ -850,7 +852,7 @@ void PersistTerminalOutcome() {
 			runtime->error = loc::T("runtime.match_record_not_saved");
 			break;
 		}
-		runtime->terminalOutcomeConsumed = true;
+		runtime->teardown.terminalOutcomeConsumed = true;
 	}
 }
 
@@ -858,7 +860,7 @@ void DrainActionReplies() {
 	if (runtime->attached && UserApp::netplay) {
         SessionClient::ActionReply reply;
         while (UserApp::netplay->client.TakeActionReply(reply)) {
-            if(reply.actionId==runtime->leaveActionId && reply.accepted) runtime->leaveAcknowledged=true;
+            if(reply.actionId==runtime->leave.leaveActionId && reply.accepted) runtime->leave.leaveAcknowledged=true;
 			// Only the authority's acceptance ends a spectator's lock release.
 			if (reply.accepted) runtime->spectatorLockRelease.Acknowledged(reply.actionId);
 			// A refused Ready fails now, with the room's reason, instead of
@@ -877,10 +879,10 @@ void DrainActionReplies() {
 			// opponent's result closed it first); the authority will never
 			// accept the finish report, and retrying it every 500 ms made a
 			// checkpoint proposal per retry for the rest of the lobby wait.
-			if (reply.actionId==runtime->finishActionId && (reply.accepted || reply.reason==room::RejectReason::WrongGeneration)) {
-				runtime->matchFinishedPending=false;
-				runtime->finishActionId=runtime->finishRetryAt=0;
-				runtime->matchFinishedAction.reset();
+			if (reply.actionId==runtime->teardown.finishActionId && (reply.accepted || reply.reason==room::RejectReason::WrongGeneration)) {
+				runtime->teardown.matchFinishedPending=false;
+				runtime->teardown.finishActionId=runtime->teardown.finishRetryAt=0;
+				runtime->teardown.matchFinishedAction.reset();
 			}
         }
     }

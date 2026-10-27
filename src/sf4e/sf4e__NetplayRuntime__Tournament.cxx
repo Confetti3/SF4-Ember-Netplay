@@ -399,7 +399,7 @@ void TickTournament(bool helperReady) {
 	// The fighters' link dropped (GGPO warns before it gives up): a game that
 	// then ends in an abort ended for the lost connection, whichever fighter's
 	// abort the room takes first, so both fighters are told the same.
-	if (runtime->match && runtime->matchEntered && !LocalIsSpectator() && Game::Battle::System::DisconnectCountdownMs() >= 0)
+	if (runtime->match && runtime->entry.matchEntered && !LocalIsSpectator() && Game::Battle::System::DisconnectCountdownMs() >= 0)
 		runtime->tournament.OnConnectionLost(runtime->match->Generation());
 	for (const auto& answer : runtime->room->TakeTournamentAnswers()) TakeAnswer(answer, now);
 	const auto before = runtime->tournament.GetPhase();

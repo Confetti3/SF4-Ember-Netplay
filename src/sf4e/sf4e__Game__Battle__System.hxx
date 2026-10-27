@@ -161,7 +161,11 @@ namespace sf4e {
 						Platform::SoundObjectPool<4>::SaveState
 					>> managerState;
 
-					struct GlobalData {
+					// The ten battle-flow globals, two contiguous engine blocks
+					// (0x664994..0x6649A3 and 0x6A9254..0x6A926B), listed once:
+					// Save captures them, CopyIntoPlace restores them and Clear
+					// zeroes them.
+					struct BattleFlowGlobals {
 						DWORD CurrentBattleFlow = 0;
 						DWORD PreviousBattleFlow = 0;
 						DWORD CurrentBattleFlowSubstate = 0;
@@ -172,6 +176,15 @@ namespace sf4e {
 						FixedPoint PreviousBattleFlowSubstateFrame = { 0, 0 };
 						void (*BattleFlowSubstateCallable_aa9258)(Dimps::Game::Battle::System * s) = nullptr;
 						void (*BattleFlowCallback_CallEveryFrame_aa9254)(Dimps::Game::Battle::System * s) = nullptr;
+
+						// Reads the live globals.
+						static BattleFlowGlobals Capture();
+						// Writes these values into the live globals.
+						void Restore() const;
+					};
+
+					struct GlobalData {
+						BattleFlowGlobals flow;
 
 						Dimps::Game::Battle::GameManager gameManager = { 0 };
 						sf4e::replay::Snapshot replayRecorder = {};

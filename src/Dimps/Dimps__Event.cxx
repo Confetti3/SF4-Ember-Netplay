@@ -17,14 +17,6 @@ void Event::Locate(HMODULE peRoot) {
 	EventController::Locate(peRoot);
 }
 
-char* EventBase::GetName(EventBase* e) {
-	return (char*)((unsigned int)e + 0xc);
-}
-
-EventController** EventBase::GetSourceController(EventBase* e) {
-	return (EventController**)((unsigned int)e + 0x8);
-}
-
 void EventBase::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 

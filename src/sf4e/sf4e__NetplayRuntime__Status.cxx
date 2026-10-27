@@ -70,7 +70,7 @@ std::string RoomErrorText(const std::string& error) {
 // sequence and what decides the class emblems are the whole key.
 struct ShownRoom {
 	std::shared_ptr<const room::Snapshot> room;
-	std::vector<netplay::MemberView> members;
+	std::shared_ptr<const std::vector<netplay::MemberView>> members;
 	std::uint64_t sequence = 0;
 	bool emblems = false;
 };
@@ -85,16 +85,18 @@ static const ShownRoom& ShownRoomOf(const SessionClient& client) {
 	if (shownRoom.room && shownRoom.sequence == sequence && shownRoom.emblems == emblems) return shownRoom;
 	auto built = std::make_shared<room::Snapshot>(client.GetRoomSnapshot());
 	if (!emblems) for (auto& member : built->members) member.badge = SkillBadge();
-	shownRoom.members.clear();
+	shownRoom.members.reset();
 	if (built->roomEpoch) {
+		auto members = std::make_shared<std::vector<netplay::MemberView>>();
 		for (const auto& member : built->members) {
 			netplay::MemberView view(member.name);
 			view.role = member.seat >= 0 ? netplay::MemberRole::Player : netplay::MemberRole::Spectator;
 			view.ready = member.seat >= 0 && member.seat < 2 && member.table >= 0 &&
 				member.table < static_cast<std::int8_t>(room::TableCount) &&
 				built->tables[member.table].ready[member.seat];
-			shownRoom.members.push_back(std::move(view));
+			members->push_back(std::move(view));
 		}
+		shownRoom.members = std::move(members);
 	}
 	shownRoom.room = std::move(built);
 	shownRoom.sequence = sequence;
@@ -110,14 +112,16 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
 		snapshot.roomNotices.assign(runtime->roomNotices.begin(), runtime->roomNotices.end());
 		if (current.roomEpoch) {
 			snapshot.members = shown.members;
-		} else {
+		} else if (!UserApp::netplay->client._lobbyData.members.empty()) {
+			auto members = std::make_shared<std::vector<netplay::MemberView>>();
 			for (const auto& member : UserApp::netplay->client._lobbyData.members) {
 				netplay::MemberView view(member.name);
-				const auto slot = snapshot.members.size();
+				const auto slot = members->size();
 				view.role = slot < 2 ? netplay::MemberRole::Player : netplay::MemberRole::Spectator;
 				view.ready = slot < 2 && UserApp::netplay->client._matchData.readyMessageNum[slot] != -1;
-				snapshot.members.push_back(std::move(view));
+				members->push_back(std::move(view));
 			}
+			snapshot.members = std::move(members);
 		}
 		const auto& client = UserApp::netplay->client;
 		snapshot.lobbySettings.editionSelect = client._lobbyData.editionSelect;
@@ -173,7 +177,7 @@ static void FillLockReasons(RuntimeSnapshot& snapshot) {
     // Report the actual gate; a pending transition is not the same as Ready.
     if (!snapshot.canEditSelection) {
         snapshot.selectionLockReason = !snapshot.atMainMenu ? loc::T("runtime.lock.return_to_menu_fighter") :
-            runtime->pendingAbort ? loc::T("runtime.lock.previous_game_closing") :
+            runtime->teardown.pendingAbort ? loc::T("runtime.lock.previous_game_closing") :
 			snapshot.Room().localTerminalPending ? loc::T("runtime.lock.teardown") :
 			runtime->recoveringMatch || snapshot.session.control != netplay::Health::Healthy ? loc::T("runtime.lock.room_recovering") :
             snapshot.session.readyPending || runtime->readyIntent.Parked() ? loc::T("runtime.lock.ready_pending") :
@@ -257,9 +261,9 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
         if (runtime->match) fields.matchError = runtime->match->LastFailure();
         fields.nativeSocket = Game::Battle::System::ggpo != nullptr;
         fields.resultPending = runtime->resultOutbox.Pending();
-        fields.finishPending = runtime->matchFinishedPending;
-        fields.leavePending = runtime->leaveRequested;
-        fields.terminalPending = runtime->terminalAckPending;
+        fields.finishPending = runtime->teardown.matchFinishedPending;
+        fields.leavePending = runtime->leave.leaveRequested;
+        fields.terminalPending = runtime->teardown.terminalAckPending;
         fields.authorityWritable = !snapshot.session.coordinated || snapshot.session.authorityWritable;
         fields.readyRequested = snapshot.readyRequested; fields.readyGate = snapshot.readyGate;
         if (runtime->room) fields.probe = runtime->room->Probe().status;
@@ -327,10 +331,10 @@ std::uint64_t PublishFingerprint() {
         mixString(UserApp::netplay->client.RoomError());
         mix(UserApp::netplay->client._outstandingReadyRequestNumber);
     }
-    mixString(runtime->error); mix(runtime->matchInputFault); mix(runtime->matchInput.connected);
+    mixString(runtime->error); mix(runtime->matchBinding.matchInputFault); mix(runtime->matchBinding.matchInput.connected);
     mix(runtime->helper ? static_cast<std::uint64_t>(runtime->helper->State()) : 0);
     mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
-    mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->pendingAbort != nullptr);
+    mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->teardown.pendingAbort != nullptr);
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
     mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
@@ -405,7 +409,7 @@ bool CanTrain(const netplay::Snapshot& session, bool atMainMenu, const room::Sna
     return atMainMenu && session.room == netplay::RoomState::Joined &&
         (session.match == netplay::MatchState::None || session.match == netplay::MatchState::PostMatch) &&
         session.control == netplay::Health::Healthy &&
-        !session.readyPending && !runtime->readyIntent.Parked() && !runtime->pendingAbort &&
+        !session.readyPending && !runtime->readyIntent.Parked() && !runtime->teardown.pendingAbort &&
         // A closed room keeps its members until it is left; nobody trains out of it.
         !room.closed && !AdmittedToWatch(room, retired) && room::TrainingCall::MayTrain(room);
 }
@@ -485,12 +489,12 @@ RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool 
 			gates.canEditSelection = gates.canEditSelection && healthyControl &&
 				!runtime->recoveringMatch && !room.localTerminalPending;
 		}
-		gates.readyGate = gates.readyGate && !runtime->pendingAbort;
-		gates.canReady = gates.canReady && !runtime->pendingAbort;
-		gates.canEditSelection = gates.canEditSelection && !runtime->pendingAbort;
+		gates.readyGate = gates.readyGate && !runtime->teardown.pendingAbort;
+		gates.canReady = gates.canReady && !runtime->teardown.pendingAbort;
+		gates.canEditSelection = gates.canEditSelection && !runtime->teardown.pendingAbort;
 	}
 	gates.canChangeController = gates.canEditSelection && !runtime->readyIntent.Parked() &&
-		!state.readyPending && !runtime->lobbyEditIntent.Parked() && !runtime->pendingAbort;
+		!state.readyPending && !runtime->lobbyEditIntent.Parked() && !runtime->teardown.pendingAbort;
 	gates.readyGate = gates.readyGate && controllerReady;
 	gates.canReady = gates.canReady && gates.readyGate;
 	gates.canTrain = CanTrain(state, atMainMenu, room, RetiredMatchGeneration());
@@ -560,8 +564,8 @@ PostPublishState Publish() {
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
 	snapshot.replays.archive = platform::replays::LatestListing();
 	snapshot.replays.detail = platform::replays::LatestDetail();
-	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
-		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
+	snapshot.matchWaitsForMenu = runtime->match && !runtime->entry.matchEntered && !snapshot.atMainMenu &&
+		runtime->entry.entryDeferredGeneration && runtime->entry.entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
     snapshot.watchedGame = WatchedGameNow();
@@ -594,11 +598,11 @@ PostPublishState Publish() {
 	snapshot.settingsPending = OverlayPrefs::PersistencePending() || runtime->pendingLobbySettings != nullptr || runtime->lobbyEditIntent.Parked() != nullptr;
 	snapshot.settingsError = OverlayPrefs::PersistenceError();
 	snapshot.helperError = runtime->error;
-    snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&!LocalIsSpectator()?
+    snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchBinding.matchInputFault&&runtime->match&&!LocalIsSpectator()?
         loc::Tf(std::any_of(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) {
-            return pad.state != gamepads::RowState::Absent && !runtime->matchInput.identity.guid.empty() &&
-                gamepads::Same(pad.identity, runtime->matchInput.identity) && pad.slot != runtime->matchInput.index;
-        }) ? "runtime.match_input_moved" : "runtime.match_input_blocked", DeviceName(runtime->matchInput)):std::string();
+            return pad.state != gamepads::RowState::Absent && !runtime->matchBinding.matchInput.identity.guid.empty() &&
+                gamepads::Same(pad.identity, runtime->matchBinding.matchInput.identity) && pad.slot != runtime->matchBinding.matchInput.index;
+        }) ? "runtime.match_input_moved" : "runtime.match_input_blocked", DeviceName(runtime->matchBinding.matchInput)):std::string();
 	snapshot.offlineRequested = runtime->offlineRequested;
 	snapshot.pendingJoinLink = runtime->pendingJoinLink;
 	snapshot.pendingJoinSequence = runtime->pendingJoinSequence;

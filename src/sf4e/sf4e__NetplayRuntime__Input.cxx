@@ -300,7 +300,7 @@ bool BindRuntimeInput(int localSlot) {
     if(!input::AssignToSide(device, localSlot, true)) {
         runtime->error=loc::T("runtime.controller_assignment_unverified");return false;
     }
-    runtime->matchInput=device;runtime->matchInputSide=localSlot;runtime->matchInputFault=false;
+    runtime->matchBinding.matchInput=device;runtime->matchBinding.matchInputSide=localSlot;runtime->matchBinding.matchInputFault=false;
     spdlog::info("Input: P{} plays with {} {} '{}'", localSlot + 1,
         device.type == input::PadKeyboard ? "keyboard" : device.type == input::PadXInput ? "xinput" : "dinput",
         device.index, device.identity.guid.empty() ? device.name : device.identity.name);
@@ -310,8 +310,8 @@ bool BindRuntimeInput(int localSlot) {
 bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     mapped=raw=0;
     if(!runtime||!runtime->attached)return false;
-    const bool valid=side==runtime->matchInputSide&&input::ReadAssignedInput(runtime->matchInput,side,mapped,raw);
-    runtime->matchInputFault=!valid;
+    const bool valid=side==runtime->matchBinding.matchInputSide&&input::ReadAssignedInput(runtime->matchBinding.matchInput,side,mapped,raw);
+    runtime->matchBinding.matchInputFault=!valid;
     // The tournament self-test plays its own fighter; nothing without SF4E_SELFTEST.
     selftest::MatchInput(side,mapped,raw);
     return valid;

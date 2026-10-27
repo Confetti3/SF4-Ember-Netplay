@@ -182,7 +182,9 @@ namespace Dimps {
 				int hasFocus;
 			} Win32_WindowData;
 
-			static Win32_WindowData** GetWindowData(Main* m);
+			static Win32_WindowData** GetWindowData(Main* m) {
+				return (Win32_WindowData**)((unsigned int)m + 0x490);
+			}
 			// Asks the game to close, as its window's close button does; nothing
 			// before Main is up.
 			static void Close();
@@ -190,18 +192,24 @@ namespace Dimps {
 			// (0x780380) and read only through the vtable's 0xA4 getter. Run
 			// (0x780600) starts the "Afx Rendering" thread when it is 1;
 			// otherwise each frame renders on the game thread.
-			static int* GetRenderingThread(Main* m);
+			static int* GetRenderingThread(Main* m) {
+				return (int*)((unsigned int)m + 0x110);
+			}
 			// The startup parameters' copy of the flag, which ApplyStartupParams
 			// stores into Main. The rest of Initialize latches it: the graphics
 			// device's app init (0x405210) turns it into deferred resource
 			// releases (device+0xAA4), which only a frame with the flag still on
 			// drains (0x405580). Changing Main's flag after Initialize leaves the
 			// releases queued for good.
-			static int* StartupRenderingThread(void* params);
+			static int* StartupRenderingThread(void* params) {
+				return (int*)((unsigned int)params + 0x70);
+			}
 			// The display settings WriteDisplayConfig saves (0x77D5F0). The game
 			// refills them from the device's (D3D::GetDisplay) when it applies
 			// the brightness option (0x68F8E0), at startup and as its options close.
-			static DisplayBlock* GetDisplay(Main* m);
+			static DisplayBlock* GetDisplay(Main* m) {
+				return (DisplayBlock*)((unsigned int)m + 0xdc);
+			}
 		};
 
 		struct GFxApp
@@ -227,9 +235,13 @@ namespace Dimps {
 				GFxApp* (*GetSingleton)();
 			} __staticMethods;
 
-			static ObjectPool<Dimps::Eva::IEmSpriteAction>* GetActionPool(GFxApp* a);
+			static ObjectPool<Dimps::Eva::IEmSpriteAction>* GetActionPool(GFxApp* a) {
+				return (GFxApp::ObjectPool<Dimps::Eva::IEmSpriteAction>*)((unsigned int)a + 0x4);
+			}
 			// static ObjectPool<void*> GetBatchPool(GFxApp* a);
-			static ObjectPool<Dimps::Eva::IEmSpriteNode>* GetNodePool(GFxApp* a);
+			static ObjectPool<Dimps::Eva::IEmSpriteNode>* GetNodePool(GFxApp* a) {
+				return (GFxApp::ObjectPool<Dimps::Eva::IEmSpriteNode>*)((unsigned int)a + 0x24);
+			}
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;
 			static __staticMethods staticMethods;

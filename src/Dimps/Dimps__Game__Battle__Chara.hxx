@@ -222,7 +222,10 @@ namespace Dimps {
 					} __mementoableMethods;
 
 					static void Locate(HMODULE peRoot);
-					static GameMementoKey* GetKey(Afterimage* mementoable);
+					// The IMementoable subobject is at object +0x60 and the key at +0x6B10.
+					static GameMementoKey* GetKey(Afterimage* mementoable) {
+						return (GameMementoKey*)((unsigned int)mementoable - 0x60 + 0x6b10);
+					}
 					static __mementoableMethods mementoableMethods;
 				};
 

@@ -12,8 +12,12 @@ namespace Dimps {
 		struct EventController;
 
 		struct EventBase {
-			static char* GetName(EventBase* e);
-			static EventController** GetSourceController(EventBase* e);
+			static char* GetName(EventBase* e) {
+				return (char*)((unsigned int)e + 0xc);
+			}
+			static EventController** GetSourceController(EventBase* e) {
+				return (EventController**)((unsigned int)e + 0x8);
+			}
 			static void Locate(HMODULE peRoot);
 
 			typedef struct __publicMethods {

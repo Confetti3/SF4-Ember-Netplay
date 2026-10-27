@@ -193,17 +193,33 @@ namespace Dimps {
                 // in the System object, which is _not_ the base of the object-
                 // it's at offset 0x4. These helpers can make things a little
                 // more clear when invoking IMementoable methods.
-                static System* ToMementoable(System* s);
-                static System* FromMementoable(System* s);
+                static System* ToMementoable(System* s) {
+                    return (System*)((unsigned int)s + 0x4);
+                }
+                static System* FromMementoable(System* s) {
+                    return (System*)((unsigned int)s - 0x4);
+                }
 
                 static void Locate(HMODULE peRoot);
-                static FixedPoint* GetNumFramesSimulated_FixedPoint(System* s);
-                static int* GetBattleExitType(System* s);
-                static int* GetFirstCharaToSimulate(System* s);
+                static FixedPoint* GetNumFramesSimulated_FixedPoint(System* s) {
+                    return (FixedPoint*)((unsigned int)s + 0xdd4);
+                }
+                static int* GetBattleExitType(System* s) {
+                    return (int*)((unsigned int)s + 0xe40);
+                }
+                static int* GetFirstCharaToSimulate(System* s) {
+                    return (int*)((unsigned int)s + 0xd74);
+                }
 
-                static int* GetReadyState(System* s);
-                static Eva::EmRandom* GetRandom(System* s);
-                static Request** GetRequest(System* s);
+                static int* GetReadyState(System* s) {
+                    return (int*)((unsigned int)s + 0xdf8);
+                }
+                static Eva::EmRandom* GetRandom(System* s) {
+                    return (Eva::EmRandom*)((unsigned int)s + 0x50);
+                }
+                static Request** GetRequest(System* s) {
+                    return (Request**)((unsigned int)s + 0x98);
+                }
                 // A side's PlayerControl as the battle plays it, null outside a
                 // battle. The battle keeps two copies of its players, 0x2B8
                 // bytes a side with the control at +0x1C: the one it plays
@@ -216,24 +232,45 @@ namespace Dimps {
                 // changes no control. Neither copy is in the battle's memento.
                 static int* GetPlayerControl(System* s, int side);
                 // The same side's control in the menu's copy.
-                static int* GetMenuPlayerControl(System* s, int side);
-                static DWORD* GetSkipRelatedFlags_0xd8c(System* s);
-                static DWORD* GetSimulationFlags(System* s);
-                static int* GetPausingPlayer(System* s);
+                static int* GetMenuPlayerControl(System* s, int side) {
+                    return (int*)((unsigned int)s + 0x6d8 + side * 0x2b8 + 0x1c);
+                }
+                static DWORD* GetSkipRelatedFlags_0xd8c(System* s) {
+                    return (DWORD*)((unsigned int)s + 0xd8c);
+                }
+                static DWORD* GetSimulationFlags(System* s) {
+                    return (DWORD*)((unsigned int)s + 0x1454);
+                }
+                static int* GetPausingPlayer(System* s) {
+                    // 0x5DB7BE stores the player after Pause::Unit Open at 0x5DB799.
+                    // 0x5DB673 (forced close), 0x5DB8C4 (resume), and 0x5DA896
+                    // (CloseBattle/SYS START reset) store -1. Training hold leaves it unset.
+                    return (int*)((unsigned int)s + 0x1458);
+                }
                 // +0x1464, the Battle Log's half speed: read through vtable
                 // +0x1DC (0x5D9FB0) and written through +0x1E0 (0x5D9FC0), both
                 // plain dword accesses. The replay battle's "BATTLE CHECK SLOW"
                 // task (0x484170) flips it on a Select press in the fight, and
                 // 0x5DA5F0 zeroes it with the simulation flags.
-                static int* GetSlowMotion(System* s);
+                static int* GetSlowMotion(System* s) {
+                    return (int*)((unsigned int)s + 0x1464);
+                }
                 // +0x14A4, the key RecordToInternalMementoKey (0x5DAAB0) and its
                 // restore use for the battle's own memento. The constructor
                 // (0x5D94B0) zeroes it; the record initializes it while its
                 // mementoableObject is null.
-                static GameMementoKey* GetMementoKey(System* s);
-                static FixedPoint* GetTransitionProgress(System* s);
-                static FixedPoint* GetTransitionSpeed(System* s);
-                static int* GetTransitionType(System* s);
+                static GameMementoKey* GetMementoKey(System* s) {
+                    return (GameMementoKey*)((unsigned int)s + 0x14a4);
+                }
+                static FixedPoint* GetTransitionProgress(System* s) {
+                    return (FixedPoint*)((unsigned int)s + 0xe24);
+                }
+                static FixedPoint* GetTransitionSpeed(System* s) {
+                    return (FixedPoint*)((unsigned int)s + 0xe28);
+                }
+                static int* GetTransitionType(System* s) {
+                    return (int*)((unsigned int)s + 0xe20);
+                }
                 static __mementoableMethods mementoableMethods;
                 static __publicMethods publicMethods;
                 static __staticMethods staticMethods;

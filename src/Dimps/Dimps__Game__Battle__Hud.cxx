@@ -78,102 +78,6 @@ Hud::Announce::View** Hud::Announce::Unit::GetView(Unit* u) {
 	return (View**)((unsigned int)u + 0x38);
 }
 
-Task** Hud::Announce::Unit::GetHudAnnounceUpdateTask(Unit* u) {
-	return (Task**)((unsigned int)u + 0x8);
-}
-
-dDeque_0x10* Hud::Announce::View::GetQueuedAnnouncements(View* v) {
-	return (dDeque_0x10*)((unsigned int)v + 0xb8);
-}
-
-Dimps::Game::Sprite::Control** Hud::Announce::View::GetActiveControl(View* v) {
-	return (Dimps::Game::Sprite::Control**)((unsigned int)v + 0xd0);
-}
-
-WORD* Hud::Announce::Round::GetCurrentRound(Round* c) {
-	return (WORD*)((unsigned int)c + 0x2c);
-}
-
-IEmSpriteNode** Hud::Announce::Round::GetRoundActionNode(Round* c) {
-	return (IEmSpriteNode**)((unsigned int)c + 0x1c);
-}
-
-IEmSpriteNode** Hud::Announce::Round::GetRoundNumberNode(Round* c) {
-	return (IEmSpriteNode**)((unsigned int)c + 0x24);
-}
-
-Hud::Announce::Round** Hud::Announce::View::GetRoundControl(View* v) {
-	return (Round**)((unsigned int)v + 0x20);
-}
-
-SingleNodeControl** Hud::Announce::View::GetFinalRoundControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x28);
-}
-
-SingleNodeControl** Hud::Announce::View::GetExtraRoundControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x30);
-}
-
-SingleNodeControl** Hud::Announce::View::GetFightControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x38);
-}
-
-SingleNodeControl** Hud::Announce::View::GetKoControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x40);
-}
-
-SingleNodeControl** Hud::Announce::View::GetDoubleKoControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x48);
-}
-
-SingleNodeControl** Hud::Announce::View::GetTimeControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x50);
-}
-
-SingleNodeControl** Hud::Announce::View::GetDrawControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x58);
-}
-
-SingleNodeControl** Hud::Announce::View::GetPerfectControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x60);
-}
-
-SingleNodeControl** Hud::Announce::View::GetWinControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x68);
-}
-
-SingleNodeControl** Hud::Announce::View::GetLoseControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x70);
-}
-
-SingleNodeControl** Hud::Announce::View::GetWins1Control(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x78);
-}
-
-SingleNodeControl** Hud::Announce::View::GetWins2Control(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x80);
-}
-
-SingleNodeControl** Hud::Announce::View::GetSuccessControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x88);
-}
-
-SingleNodeControl** Hud::Announce::View::GetClearControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x90);
-}
-
-SingleNodeControl** Hud::Announce::View::GetReadyGoControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0x98);
-}
-
-SingleNodeControl** Hud::Announce::View::GetEditionControl(View* v) {
-	return (SingleNodeControl**)((unsigned int)v + 0xa0);
-}
-
-Task** Hud::Cockpit::Unit::GetHudCockpitUpdateTask(Unit* u) {
-	return (Task**)((unsigned int)u + 0x8);
-}
-
 void Hud::Cockpit::Unit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
@@ -187,14 +91,6 @@ void Hud::Cockpit::View::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.Update = (PVOID)(peRootOffset + 0x1764b0);
 }
 
-Task** Hud::Continue::Unit::GetHudContinueUpdateTask(Unit* u) {
-	return (Task**)((unsigned int)u + 0x8);
-}
-
-Task** Hud::Cursor::Unit::GetHudCursorUpdateTask(Unit* u) {
-	return (Task**)((unsigned int)u + 0x8);
-}
-
 void Hud::Cursor::Unit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
@@ -206,14 +102,6 @@ void Hud::Notice::Bonus::Locate(HMODULE peRoot) {
 
 	*(PVOID*)&publicMethods.Enable = (PVOID)(peRootOffset + 0x189770);
 	*(PVOID*)&publicMethods.Disable = (PVOID)(peRootOffset + 0x1898c0);
-}
-
-IEmSpriteNode** Hud::Notice::Bonus::GetActiveSprite(Bonus* b) {
-	return (IEmSpriteNode**)((unsigned int)b + 0x64);
-}
-
-DWORD* Hud::Notice::Bonus::GetCurrentBonus(Bonus* b) {
-	return (DWORD*)((unsigned int)b + 0x74);
 }
 
 int32_t* Hud::Notice::Bonus::GetScore(Bonus* b) {
@@ -230,10 +118,6 @@ void Hud::Notice::Combo::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.Enable = (PVOID)(peRootOffset + 0x18a0e0);
 }
 
-uint32_t* Hud::Notice::Combo::GetComboLength(Combo* c) {
-	return (uint32_t*)((unsigned int)c + 0x60);
-}
-
 int32_t* Hud::Notice::Combo::GetScore(Combo* c) {
 	return (int32_t*)((unsigned int)c + 0x64);
 }
@@ -242,47 +126,14 @@ DWORD* Hud::Notice::Combo::GetIsActive(Combo* c) {
 	return (DWORD*)((unsigned int)c + 0x68);
 }
 
-DWORD* Hud::Notice::Combo::GetShouldShowAdjective(Combo* c) {
-	return (DWORD*)((unsigned int)c + 0x6c);
-}
-
-WithReleaser<Hud::Notice::Bonus>* Hud::Notice::Player::GetBonuses(Player* p) {
-	return (WithReleaser<Hud::Notice::Bonus>*)((unsigned int)p + 0x28);
-}
-
-WithReleaser<Hud::Notice::Combo>* Hud::Notice::Player::GetCombo(Player* p) {
-	return (WithReleaser<Hud::Notice::Combo>*)((unsigned int)p + 0x20);
-}
-
-dDeque_0x10* Hud::Notice::Player::GetQueuedBonusNotices(Player* p) {
-	return (dDeque_0x10*)((unsigned int)p + 0x50);
-}
-
-dDeque_0x10* Hud::Notice::Player::GetQueuedComboNotices(Player* p) {
-	return (dDeque_0x10*)((unsigned int)p + 0x38);
-
-}
-
 void Hud::Notice::Unit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
 	*(PVOID*)&publicMethods.RestoreFromInternalMementoKey = (PVOID)(peRootOffset + 0x1886c0);
 }
 
-Task** Hud::Notice::Unit::GetHudNoticeUpdateTask(Unit* u) {
-	return (Task**)((unsigned int)u + 0x8);
-}
-
 Hud::Notice::View** Hud::Notice::Unit::GetView(Unit* u) {
 	return (View**)((unsigned int)u + 0x18);
-}
-
-Task** Hud::Result::Unit::GetHudResultUpdateTask(Unit* u) {
-	return (Task**)((unsigned int)u + 0x8);
-}
-
-WithReleaser<Hud::Notice::Player>* Hud::Notice::View::GetPlayers(View* v) {
-	return (WithReleaser<Hud::Notice::Player>*)((unsigned int)v + 0x20);
 }
 
 void Hud::Result::Unit::Locate(HMODULE peRoot) {
@@ -291,56 +142,16 @@ void Hud::Result::Unit::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.HudResult_Update = (PVOID)(peRootOffset + 0x1834d0);
 }
 
-Task** Hud::Subtitle::Unit::GetHudSubtitleUpdateTask(Unit* u) {
-	return (Task**)((unsigned int)u + 0x8);
-}
-
 void Hud::Subtitle::Unit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
 	*(PVOID*)&publicMethods.HudSubtitle_Update = (PVOID)(peRootOffset + 0x18e2c0);
 }
 
-Task** Hud::Training::Unit::GetHudTrainingUpdateTask(Unit* u) {
-	return (Task**)((unsigned int)u + 0x8);
-}
-
 void Hud::Training::Unit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
 	*(PVOID*)&publicMethods.HudTraining_Update = (PVOID)(peRootOffset + 0x18f290);
-}
-
-Hud::Announce::Unit** Unit::GetAnnounce(Unit* u) {
-	return (Announce::Unit**)((unsigned int)u + 0x20);
-}
-
-Hud::Cockpit::Unit** Unit::GetCockpit(Unit* u) {
-	return (Cockpit::Unit**)((unsigned int)u + 0x18);
-}
-
-Hud::Continue::Unit** Unit::GetContinue(Unit* u) {
-	return (Continue::Unit**)((unsigned int)u + 0x2c);
-}
-
-Hud::Cursor::Unit** Unit::GetCursor(Unit* u) {
-	return (Cursor::Unit**)((unsigned int)u + 0x24);
-}
-
-Hud::Notice::Unit** Unit::GetNotice(Unit* u) {
-	return (Notice::Unit**)((unsigned int)u + 0x1c);
-}
-
-Hud::Result::Unit** Unit::GetResult(Unit* u) {
-	return (Result::Unit**)((unsigned int)u + 0x28);
-}
-
-Hud::Subtitle::Unit** Unit::GetSubtitle(Unit* u) {
-	return (Subtitle::Unit**)((unsigned int)u + 0x30);
-}
-
-Hud::Training::Unit** Unit::GetTraining(Unit* u) {
-	return (Training::Unit**)((unsigned int)u + 0x34);
 }
 
 void Unit::ResetUnits(Unit* u) {

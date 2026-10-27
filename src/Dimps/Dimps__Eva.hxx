@@ -81,16 +81,34 @@ namespace Dimps {
 				TS_UNK3 = 0x3
 			};
 
-			static DWORD* Get0x8(Task* t);
-			static DWORD* GetFlags(Task* t);
-			static Task** GetNext(Task* t);
-			static Task** GetPrevious(Task* t);
-			static DWORD* GetPhase(Task* t);
-			static int* GetPriority(Task* t);
+			static DWORD* Get0x8(Task* t) {
+				return (DWORD*)((unsigned int)t + 0x8);
+			}
+			static DWORD* GetFlags(Task* t) {
+				return (DWORD*)((unsigned int)t + 0x4);
+			}
+			static Task** GetNext(Task* t) {
+				return (Task**)((unsigned int)t + 0x20);
+			}
+			static Task** GetPrevious(Task* t) {
+				return (Task**)((unsigned int)t + 0x1c);
+			}
+			static DWORD* GetPhase(Task* t) {
+				return (DWORD*)((unsigned int)t + 0x2c);
+			}
+			static int* GetPriority(Task* t) {
+				return (int*)((unsigned int)t + 0xc);
+			}
 			static DWORD* GetState(Task* t);
-			static void** GetTaskData(Task* t);
-			static IEmTaskFunctor** GetCancelFunctor(Task* t);
-			static IEmTaskFunctor** GetWorkFunctor(Task* t);
+			static void** GetTaskData(Task* t) {
+				return (void**)((unsigned int)t + 0x30);
+			}
+			static IEmTaskFunctor** GetCancelFunctor(Task* t) {
+				return (IEmTaskFunctor**)((unsigned int)t + 0x18);
+			}
+			static IEmTaskFunctor** GetWorkFunctor(Task* t) {
+				return (IEmTaskFunctor**)((unsigned int)t + 0x14);
+			}
 		};
 
 		struct TaskCore {
@@ -104,9 +122,15 @@ namespace Dimps {
 			} __publicMethods;
 
 			static void Locate(HMODULE peRoot);
-			static Task** GetTaskBuffer(TaskCore* c);
-			static size_t* GetTaskDataSize(TaskCore* c);
-			static Task* GetTaskHead(TaskCore* c);
+			static Task** GetTaskBuffer(TaskCore* c) {
+				return *(Task***)((unsigned int)c + 0x38);
+			}
+			static size_t* GetTaskDataSize(TaskCore* c) {
+				return (size_t*)((unsigned int)c + 0x24);
+			}
+			static Task* GetTaskHead(TaskCore* c) {
+				return *(Task**)((unsigned int)c + 0x48);
+			}
 			static __publicMethods publicMethods;
 		};
 

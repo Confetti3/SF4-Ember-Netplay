@@ -345,7 +345,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.gameSettings = sf4e::platform::GameDisplaySettings();
 	view.showGameSettingsCard = showGameSettingsCard;
 	view.build = sf4e::sidecarHash;
-	view.members = snapshot.members;
+	view.members = snapshot.Members();
     view.network = snapshot.network; view.services = snapshot.services;
     view.controller = snapshot.controller;
     view.discordPending=snapshot.discordPending; view.discordConfirm=snapshot.discordConfirm;

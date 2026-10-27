@@ -96,22 +96,6 @@ void GameManager::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.GetNativeResultIndex = (PVOID)(peRootOffset + 0x1d1370);
 }
 
-Task** Battle::Pause::Unit::GetPauseTask(Unit* u) {
-	return (Task**)((unsigned int)u + 0x14);
-}
-
-int* SoundPlayerManager::GetNumAdapters(SoundPlayerManager* m) {
-	return (int*)((unsigned int)m + 0x8);
-}
-
-SoundPlayerManager::CriPlayerAdapter** SoundPlayerManager::GetAdapters(SoundPlayerManager* m) {
-	return (SoundPlayerManager::CriPlayerAdapter**)((unsigned int)m + 0x4);
-}
-
-SoundPlayerManager::AdapterPool* SoundPlayerManager::GetAdapterPool(SoundPlayerManager* m) {
-	return (AdapterPool*)((unsigned int)m + 0xc);
-}
-
 void SoundPlayerManager::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)&staticMethods.Factory = (PVOID)(peRootOffset + 0x194010);
@@ -132,8 +116,4 @@ void SoundPlayerManager::CriPlayerAdapter::Locate(HMODULE peRoot) {
 void SoundUnit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)&publicMethods.IsStillPlaying = (PVOID)(peRootOffset + 0x191dd0);
-}
-
-SoundPlayerManager** SoundUnit::GetManagerArray(SoundUnit* u) {
-	return (SoundPlayerManager**)((unsigned int)u + 0xc);
 }
