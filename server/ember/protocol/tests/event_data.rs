@@ -612,3 +612,49 @@ fn reading_tells_null_from_absent() {
         serde_json::from_value(json!({ "rotation": "winner_stays" })).unwrap();
     assert_eq!(created.games_to_win, 1);
 }
+
+// An enum no announcement reads takes a value this build does not know as
+// absent, so the event still reads; one an announcement reads still refuses it.
+#[test]
+fn an_unknown_value_in_an_enum_nobody_reads_reads_as_absent() {
+    let later = "a_later_value";
+    let created: MatchCreatedData = serde_json::from_value(json!({
+        "match_id": "emt_1", "state": later,
+        "participants": [{ "ember_id": A }, { "ember_id": B }],
+    }))
+    .unwrap();
+    assert_eq!((created.state, created.participants.len()), (None, 2));
+    let confirmed: GameConfirmedData =
+        serde_json::from_value(json!({ "outcome": "draw", "resolution": later })).unwrap();
+    assert_eq!(confirmed.resolution, None);
+    assert_eq!(confirmed.result(), Some(Outcome::Draw));
+    let set: TournamentMatchCompletedData =
+        serde_json::from_value(json!({ "side": later, "walkover": true })).unwrap();
+    assert_eq!(set.side, None);
+    let completed: TournamentCompletedData =
+        serde_json::from_value(json!({ "format": later, "placements": [] })).unwrap();
+    assert_eq!(completed.format, None);
+    let lobby_set: LobbySetCompletedData = serde_json::from_value(
+        json!({ "lobby_id": "elb_1", "winner_id": A, "rotation": later }),
+    )
+    .unwrap();
+    assert_eq!(lobby_set.rotation, None);
+    // A known value and null still read as before.
+    let known: LobbySetCompletedData = serde_json::from_value(
+        json!({ "lobby_id": "elb_1", "winner_id": A, "rotation": "loser_stays" }),
+    )
+    .unwrap();
+    assert_eq!(known.rotation, Some(Rotation::LoserStays));
+    let null: TournamentMatchCompletedData =
+        serde_json::from_value(json!({ "side": null })).unwrap();
+    assert_eq!(null.side, None);
+
+    // The enums an announcement reads refuse it.
+    assert!(
+        serde_json::from_value::<TournamentCreatedData>(json!({ "format": later })).is_err()
+    );
+    assert!(
+        serde_json::from_value::<TournamentStartedData>(json!({ "format": later })).is_err()
+    );
+    assert!(serde_json::from_value::<LobbyCreatedData>(json!({ "rotation": later })).is_err());
+}

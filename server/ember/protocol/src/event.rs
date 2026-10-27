@@ -239,8 +239,12 @@ impl Event {
 // The rules for reading: no type refuses an unknown key, so a newer bridge
 // does not stop an older reader. The keys an announcement cannot do without
 // are required; every other key has a default, and an enum a reader does not
-// need is an `Option` so that its absence does not hide the event. The bridge
-// always writes those keys.
+// need is an `Option` so that its absence does not hide the event. Such an
+// enum is also read with `lenient`, so that a value a newer bridge added
+// reads as `None` rather than hiding the event; only an enum a reader does
+// read (a tournament's format in its created and started events, a lobby's
+// rotation in its created event) can stop an announcement. The bridge always
+// writes those keys.
 
 /// Reads a key that is absent (`None`), `null` (`Some(None)`) or a value.
 fn present<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
@@ -249,6 +253,17 @@ where
     T: Deserialize<'de>,
 {
     Option::<T>::deserialize(deserializer).map(Some)
+}
+
+/// Reads an optional enum no reader depends on: absent, `null` or a value
+/// this build does not know all read as `None`.
+fn lenient<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: DeserializeOwned,
+{
+    Ok(Option::<serde_json::Value>::deserialize(deserializer)?
+        .and_then(|value| serde_json::from_value(value).ok()))
 }
 
 fn first_to_one() -> u8 {
@@ -320,7 +335,7 @@ pub struct MatchCreatedData {
     pub match_revision: Counter,
     #[serde(default)]
     pub assignment_generation: Counter,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient")]
     pub state: Option<MatchState>,
     #[serde(default = "first_to_one")]
     pub games_to_win: u8,
@@ -361,7 +376,7 @@ pub struct GameConfirmedData {
     /// `null` for a draw.
     #[serde(default)]
     pub winner_id: Option<EmberId>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient")]
     pub resolution: Option<Resolution>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adjudication_id: Option<String>,
@@ -428,7 +443,7 @@ pub struct TournamentMatchCompletedData {
     pub tournament_revision: Option<Counter>,
     #[serde(default)]
     pub node: usize,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient")]
     pub side: Option<Side>,
     #[serde(default)]
     pub round: u32,
@@ -466,7 +481,7 @@ pub struct TournamentCompletedData {
     pub tournament_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tournament_revision: Option<Counter>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient")]
     pub format: Option<Format>,
     pub placements: Vec<EventPlacement>,
 }
@@ -499,7 +514,7 @@ pub struct LobbySetCompletedData {
     pub set: u64,
     #[serde(default)]
     pub games_to_win: u8,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient")]
     pub rotation: Option<Rotation>,
     pub winner_id: EmberId,
     #[serde(default)]

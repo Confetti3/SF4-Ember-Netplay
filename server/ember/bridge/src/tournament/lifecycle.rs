@@ -14,7 +14,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::json;
 
 use super::{
-    Applied, Tournament, closed, load,
+    Applied, Tournament, closed, load, load_listed,
     progress::progress,
     state::{Entrant, entrants, load_bracket, registered_count},
     touch, tournament_event,
@@ -382,7 +382,9 @@ pub fn on_unlink(
         .query_map(params![connection_id, ember_id.as_str()], |row| row.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for id in ids {
-        let tournament = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
+        let Some(tournament) = load_listed(tx, &id)? else {
+            continue;
+        };
         withdraw(tx, ctx, &tournament, ember_id, "identity_unlinked")?;
     }
     Ok(())

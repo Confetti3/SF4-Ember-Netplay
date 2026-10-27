@@ -67,7 +67,30 @@ struct Lobby {
     streak: u64,
 }
 
+/// The lobby `id`. A rotation this bridge does not know (a newer bridge wrote
+/// it before a rollback) fails the read: the lobby answers as unavailable
+/// rather than rotating some other way.
 fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Lobby>> {
+    Ok(read(tx, id)?)
+}
+
+/// `load` for a pass over many lobbies, such as the ones a freed or unlinked
+/// player waits in: one whose stored rotation this bridge does not know is
+/// logged and passed over (`None`), so it never stops the others or the
+/// write that freed the player.
+fn load_listed(tx: &Transaction<'_>, id: &str) -> Result<Option<Lobby>> {
+    match read(tx, id) {
+        Err(error) if db::unknown(&error) => {
+            eprintln!(
+                "ember-bridge: lobby {id} has a stored rotation this bridge does not know; skipped"
+            );
+            Ok(None)
+        }
+        read => Ok(read?),
+    }
+}
+
+fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Lobby>> {
     tx.query_row(
         "SELECT id, tenant_id, connection_id, external_lobby_id, revision, state, games_to_win, rotation,
                 required_build_id, metadata, current_match_id, sets_started, sets_completed, streak_holder, streak
@@ -94,7 +117,6 @@ fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Lobby>> {
         },
     )
     .optional()
-    .map_err(Into::into)
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -519,6 +541,9 @@ pub fn on_players_free(
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         for id in lobbies {
+            if load_listed(tx, &id)?.is_none() {
+                continue;
+            }
             // A freed player can take a seat even when the set cannot start
             // yet; that is a change the lobby announces like any other.
             let before = seated_ids(tx, &id)?;
@@ -555,7 +580,9 @@ pub fn on_unlink(
         .query_map(params![connection_id, ember_id.as_str()], |row| row.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for id in lobbies {
-        let lobby = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
+        let Some(lobby) = load_listed(tx, &id)? else {
+            continue;
+        };
         remove(tx, ctx, &lobby, ember_id, "identity_unlinked")?;
     }
     Ok(())

@@ -13,7 +13,7 @@ use rusqlite::{Transaction, params};
 use serde_json::json;
 
 use super::{
-    MATCH_PREFIX, Tournament, load,
+    MATCH_PREFIX, Tournament, load_listed,
     standings::round_robin_table,
     state::{Bracket, load_bracket, player, save, set_completed, set_json},
     touch, tournament_event,
@@ -291,7 +291,9 @@ pub fn on_players_free(
         ids.extend(found);
     }
     for id in ids {
-        let tournament = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
+        let Some(tournament) = load_listed(tx, &id)? else {
+            continue;
+        };
         let mut bracket = load_bracket(tx, &tournament)?;
         progress(tx, ctx, &tournament, &mut bracket)?;
     }

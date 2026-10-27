@@ -57,7 +57,30 @@ pub struct Tournament {
     pub metadata: BTreeMap<String, String>,
 }
 
+/// The tournament `id`. A format this bridge does not know (a newer bridge
+/// wrote it before a rollback) fails the read: the tournament answers as
+/// unavailable rather than being run as some other format.
 pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Tournament>> {
+    Ok(read(tx, id)?)
+}
+
+/// `load` for a pass over many tournaments, such as the ones a freed or
+/// unlinked player is entered in: one whose stored format this bridge does
+/// not know is logged and passed over (`None`), so it never stops the others
+/// or the write that freed the player.
+pub fn load_listed(tx: &Transaction<'_>, id: &str) -> Result<Option<Tournament>> {
+    match read(tx, id) {
+        Err(error) if db::unknown(&error) => {
+            eprintln!(
+                "ember-bridge: tournament {id} has a stored format this bridge does not know; skipped"
+            );
+            Ok(None)
+        }
+        read => Ok(read?),
+    }
+}
+
+fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Tournament>> {
     tx.query_row(
         "SELECT id, tenant_id, connection_id, external_tournament_id, revision, state, format, games_to_win,
                 finals_games_to_win, grand_final_reset, required_build_id, metadata
@@ -81,7 +104,6 @@ pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Tournament>> {
         },
     )
     .optional()
-    .map_err(Into::into)
 }
 
 /// Whether a request that may be retried changed anything. Both answer with

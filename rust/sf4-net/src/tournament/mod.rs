@@ -22,7 +22,10 @@ mod watch;
 
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use ember_protocol::{
@@ -327,6 +330,10 @@ pub type HomeRegion = Box<dyn Fn() -> Option<&'static str> + Send + Sync>;
 
 struct Job {
     request_id: u64,
+    /// When the request was submitted, counted across every lane, so a lane
+    /// can tell whether a request came before one another lane ran first
+    /// (a claim queued before a `match_leave`).
+    order: u64,
     request: Request,
 }
 
@@ -339,6 +346,8 @@ pub struct Handle {
     local: mpsc::Sender<Job>,
     bridge: mpsc::Sender<Job>,
     events: mpsc::Sender<Event>,
+    /// The next request's `Job::order`.
+    order: Arc<AtomicU64>,
 }
 
 impl Handle {
@@ -351,6 +360,7 @@ impl Handle {
     /// job (an export or an unlock) holds it, as before.
     pub fn submit(&self, request_id: u64, request: Request) {
         let op = request.op();
+        let order = self.order.fetch_add(1, Ordering::SeqCst);
         let queue = match request.lane() {
             Lane::Identity => &self.identity,
             Lane::Local => &self.local,
@@ -359,6 +369,7 @@ impl Handle {
         if queue
             .try_send(Job {
                 request_id,
+                order,
                 request,
             })
             .is_err()
@@ -456,6 +467,7 @@ fn spawn_with(
         local: local_jobs,
         bridge: bridge_jobs,
         events: events.clone(),
+        order: Arc::new(AtomicU64::new(1)),
     };
     let task = tokio::spawn(async move {
         let opened = tokio::task::spawn_blocking(open).await;
@@ -503,7 +515,7 @@ fn spawn_with(
             tokio::spawn(async move {
                 while let Some(job) = local_queue.recv().await {
                     let op = job.request.op();
-                    let outcome = local_request(&shared, job.request).await;
+                    let outcome = local_request(&shared, job.order, job.request).await;
                     respond(&events, &shared, job.request_id, op, outcome).await;
                 }
             })
@@ -537,7 +549,7 @@ fn spawn_with(
             running.spawn(async move {
                 let _permit = permit;
                 let op = job.request.op();
-                let outcome = bridge_request(&shared, job.request).await;
+                let outcome = bridge_request(&shared, job.order, job.request).await;
                 respond(&events, &shared, job.request_id, op, outcome).await;
             });
         }
@@ -694,8 +706,8 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
 }
 
 /// A request that reaches no bridge: this run's bridge list and what it
-/// verified for a match.
-async fn local_request(shared: &Arc<Shared>, request: Request) -> Outcome {
+/// verified for a match. `order` is the request's `Job::order`.
+async fn local_request(shared: &Arc<Shared>, order: u64, request: Request) -> Outcome {
     match request {
         Request::BridgeList {} => {
             let (bridges, removed) = {
@@ -722,12 +734,13 @@ async fn local_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             shared.client.forget_session(&bridge_id);
             Ok(None)
         }
-        Request::MatchLeave { match_id } => play::forget(shared, &match_id),
+        Request::MatchLeave { match_id } => play::forget(shared, &match_id, order),
         _ => Err(Failure::new("invalid_request")),
     }
 }
 
-async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
+/// A request to a bridge. `order` is the request's `Job::order`.
+async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> Outcome {
     match request {
         Request::BridgeInspect { origin } => {
             let (profile, offered) = shared.client.inspect(&origin).await?;
@@ -800,7 +813,7 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             match_id,
             build,
             ready,
-        } => play::claim_match(shared, &bridge_id, &match_id, &build, ready).await,
+        } => play::claim_match(shared, &bridge_id, &match_id, &build, ready, order).await,
         Request::RoomPublish {
             bridge_id,
             match_id,
@@ -1021,6 +1034,7 @@ mod tests {
             local,
             bridge,
             events,
+            order: Arc::new(AtomicU64::new(1)),
         };
         let submit = |id: u64, request: Value| {
             handle.submit(id, serde_json::from_value(request).unwrap());

@@ -35,6 +35,10 @@ pub struct State {
     bindings: HashMap<String, Held>,
     permits: HashMap<(String, u64), Permit>,
     features: HashMap<String, Features>,
+    /// The matches the game left, each with the submission order of its
+    /// latest `match_leave`. A claim submitted before that leave but run
+    /// after it is dropped, so it cannot hold the match again.
+    left: HashMap<String, u64>,
 }
 
 /// A binding this run verified, as the bridge signed it, with the key that
@@ -372,14 +376,34 @@ pub async fn assignments(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
 /// fighter has pressed Ready at its table. Claiming again renews a
 /// provisioning lease and picks up a newer binding; it names the binding it
 /// holds, so a bridge that has nothing newer answers without it.
+///
+/// `order` is when the claim was submitted. Bridge requests wait for an HTTP
+/// slot while a `match_leave` runs at once, so a claim submitted before the
+/// game left the match can reach here after it: that claim fails
+/// `match_left` without reaching the bridge, rather than renewing the lease
+/// and restoring the binding of a match the game has left. A claim
+/// submitted after the leave runs as any other.
 pub async fn claim_match(
     shared: &Arc<Shared>,
     bridge_id: &str,
     match_id: &str,
     build: &str,
     ready: bool,
+    order: u64,
 ) -> Outcome {
     check_match_id(match_id)?;
+    {
+        let mut state = play_state(shared)?;
+        match state.left.get(match_id) {
+            Some(&left) if left > order => return Err(Failure::new("match_left")),
+            // The lane starts its claims in the order they came, so every
+            // claim submitted before the leave has started by now.
+            Some(_) => {
+                state.left.remove(match_id);
+            }
+            None => {}
+        }
+    }
     let claim = Claim {
         endpoint_id: shared.endpoint_id.clone(),
         helper_instance_id: shared.instance_id.clone(),
@@ -701,11 +725,15 @@ pub async fn deliver_pending(shared: &Arc<Shared>) {
     }
 }
 
-/// Drops what this run verified for a match, once the game leaves it.
-pub fn forget(shared: &Shared, match_id: &str) -> Outcome {
+/// Drops what this run verified for a match, once the game leaves it, and
+/// remembers that the leave was submitted at `order`, so a claim submitted
+/// before it cannot hold the match again (`claim_match`).
+pub fn forget(shared: &Shared, match_id: &str, order: u64) -> Outcome {
     let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
     state.bindings.remove(match_id);
     state.permits.retain(|(id, _), _| id != match_id);
+    let left = state.left.entry(match_id.to_owned()).or_insert(order);
+    *left = (*left).max(order);
     Ok(None)
 }
 
@@ -1160,7 +1188,7 @@ mod tests {
         assert_eq!(refetched.unwrap_err().0, "bridge_unreachable");
 
         // Leaving the match drops it.
-        forget(&shared, &match_id).unwrap();
+        forget(&shared, &match_id, 0).unwrap();
         assert!(held_binding(&shared, &bridge, &match_id).unwrap().is_none());
         let _ = std::fs::remove_dir_all(dir);
     }

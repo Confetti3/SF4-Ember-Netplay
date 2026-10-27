@@ -612,3 +612,100 @@ async fn link_two(origin: &str, provider: &str) -> Vec<Value> {
     }
     participants
 }
+
+// A value a newer bridge added to an enum no announcement reads hides
+// nothing: the match keeps its label and every announcement still goes out.
+#[test]
+fn an_unknown_value_in_an_enum_nobody_reads_hides_nothing() {
+    let fixture: Value =
+        serde_json::from_slice(&std::fs::read(examples().join("webhook-fixture.json")).unwrap())
+            .unwrap();
+    let dir = temp("later-enum");
+    let (a, b) = (
+        "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja",
+        "emb1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    );
+    let clock = Clock::default();
+    let notifier = Notifier::new(
+        Config {
+            listen: "127.0.0.1:0".into(),
+            bridge_origin: "https://bridge.ember.example".into(),
+            secrets: vec![fixture["secret_base64"].as_str().unwrap().into()],
+            database: dir.join("inbox.sqlite3"),
+            discord: None,
+            twitch: None,
+            bot: None,
+            names: [(a.to_owned(), "Player A".to_owned())].into(),
+        },
+        clock.clone(),
+    )
+    .unwrap();
+    let created = lobby_event(
+        "match.created",
+        json!({
+            "match_id": "emt_1", "state": "a_later_state", "games_to_win": 2,
+            "participants": [
+                { "slot": 0, "participant_id": "p1", "ember_id": a },
+                { "slot": 1, "participant_id": "p2", "ember_id": b },
+            ],
+            "metadata": { "round_label": "Grand final" },
+        }),
+    );
+    let body = serde_json::to_vec(&created).unwrap();
+    let secret =
+        ember_protocol::webhook::Secret::parse(fixture["secret_base64"].as_str().unwrap()).unwrap();
+    let headers = ember_protocol::webhook::sign(&[&secret], &created.id, clock.now(), &body).unwrap();
+    assert_eq!(notifier.accept(&headers, &body), Ok(true));
+    let announced = notifier.render(&created).unwrap();
+    assert_eq!(announced.title, "Grand final");
+    // The label match.created brought names the match's later events.
+    let cancelled = notifier
+        .render(&lobby_event(
+            "match.cancelled",
+            json!({ "match_id": "emt_1", "state": "cancelled" }),
+        ))
+        .unwrap();
+    assert_eq!(cancelled.title, "Grand final");
+
+    let draw = notifier
+        .render(&lobby_event(
+            "match.game.confirmed",
+            json!({ "match_id": "emt_1", "outcome": "draw", "winner_id": null, "resolution": "a_later_resolution" }),
+        ))
+        .unwrap();
+    assert_eq!(draw.text, "Draw. The game is replayed.");
+    let set = notifier
+        .render(&lobby_event(
+            "lobby.set.completed",
+            json!({ "lobby_id": "elb_1", "winner_id": a, "rotation": "a_later_rotation", "queue": [] }),
+        ))
+        .unwrap();
+    assert!(set.text.starts_with("Player A wins the set."), "{}", set.text);
+    let advanced = notifier
+        .render(&lobby_event(
+            "tournament.match.completed",
+            json!({
+                "tournament_id": "etn_1", "side": "a_later_side", "label": "Final",
+                "walkover": true, "winner": { "ember_id": a },
+            }),
+        ))
+        .unwrap();
+    assert_eq!(advanced.text, "Player A wins Final by walkover.");
+    let finished = notifier
+        .render(&lobby_event(
+            "tournament.completed",
+            json!({ "tournament_id": "etn_1", "format": "a_later_format", "placements": [{ "ember_id": a, "placement": 1 }] }),
+        ))
+        .unwrap();
+    assert_eq!(finished.text, "Champion: Player A.");
+    // A format the announcement reads still stops it.
+    assert!(
+        notifier
+            .render(&lobby_event(
+                "tournament.created",
+                json!({ "tournament_id": "etn_1", "format": "a_later_format" }),
+            ))
+            .is_none()
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
