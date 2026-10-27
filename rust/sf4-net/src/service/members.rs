@@ -878,4 +878,20 @@ mod tests {
         let voters = admission_voters(&BTreeSet::from([1, 2, 3]), vec![4], 2, |_| false, |_| true);
         assert_eq!(voters, BTreeSet::from([1, 2, 3]));
     }
+
+    // A pending or retired incarnation is dropped from the current voters and
+    // never chosen from the candidates, so the set is refilled from the rest.
+    #[test]
+    fn stable_voters_never_reselect_pending_or_retired_incarnations() {
+        let pending_retired = BTreeSet::from([2]);
+        let retired = BTreeSet::from([3]);
+        let voters = admission_voters(
+            &BTreeSet::from([1, 2, 3]),
+            vec![1, 2, 3, 4],
+            3,
+            |id| pending_retired.contains(&id) || retired.contains(&id),
+            |_| true,
+        );
+        assert_eq!(voters, BTreeSet::from([1, 4]));
+    }
 }
