@@ -26,6 +26,7 @@ static void TestProfileSteam() {
 }
 int main() {
     TestProfileSteam();
+    if (TEST_FAILURES()) return TEST_EXIT_CODE();
     std::puts("RoomSteamProfile test passed");
     return 0;
 }
