@@ -212,17 +212,295 @@ fn probe_binding_requires_committed_fighter_pair_and_exact_revision() {
     ));
 }
 
-#[test]
-fn compressed_coordination_wire_is_versioned_bounded_and_verified() {
-    let payload = "room-checkpoint".repeat(32 * 1024);
-    let wire = CompressedJsonWire::encode(&payload).unwrap();
-    let encoded = serde_json::to_vec(&wire).unwrap();
-    assert!(encoded.len() < payload.len() / 4);
-    assert_eq!(wire.decode::<String>().unwrap(), payload);
+/// A checkpoint of about `bytes` bytes shaped like a native one: JSON rows
+/// of numbers and hex, so it compresses about as well as the real thing.
+fn sample_checkpoint(bytes: usize) -> String {
+    let mut state = 0x9e37_79b9_7f4a_7c15u64;
+    let mut next = || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state
+    };
+    let mut journal = Vec::new();
+    let mut length = 0;
+    let mut frame = 0u64;
+    while length < bytes {
+        frame += 1 + next() % 3;
+        let row = json!({
+            "frame": frame,
+            "member": next() % 16,
+            "input": format!("{:016x}", next()),
+            "state": format!("{:016x}{:016x}{:016x}", next(), next(), next()),
+            "confirmed": next() % 2 == 0,
+        });
+        length += row.to_string().len() + 1;
+        journal.push(row);
+    }
+    json!({"checkpoint": {"members": [], "room": {"snapshot": {"members": [], "tables": []}}, "journal": journal}})
+        .to_string()
+}
 
-    let mut corrupted = CompressedJsonWire::encode(&payload).unwrap();
-    corrupted.digest[0] ^= 0x80;
-    assert!(corrupted.decode::<String>().is_err());
+/// A checkpoint of about `bytes` bytes made of room snapshots that differ
+/// in a few fields, as a room's per-recipient snapshots do; zlib shrinks
+/// these about ten times, like the appends `docs/design/MATCH_WATCH.md`
+/// measured.
+fn alike_checkpoint(bytes: usize) -> String {
+    let mut snapshots = Vec::new();
+    let mut length = 0;
+    let mut recipient = 0u64;
+    while length < bytes {
+        recipient += 1;
+        let members = (0..8)
+            .map(|member| {
+                json!({
+                    "id": member,
+                    "name": format!("Player {member}"),
+                    "fighter": (member * 7 + recipient) % 44,
+                    "costume": member % 10,
+                    "ready": member % 2 == 0,
+                    "endpoint": format!("{:064x}", member * 0x1234_5678_9abc_def1u64),
+                })
+            })
+            .collect::<Vec<_>>();
+        let snapshot = json!({
+            "recipient": recipient,
+            "revision": 1000 + recipient,
+            "snapshot": {"members": members, "tables": [{"revision": recipient, "p1": 1, "p2": 2}]},
+        });
+        length += snapshot.to_string().len() + 1;
+        snapshots.push(snapshot);
+    }
+    json!({"checkpoint": {"members": [], "room": {"snapshots": snapshots}}}).to_string()
+}
+
+/// Wire 1's append body: the request as JSON, then zlib, blake3 and base64
+/// in a JSON envelope. Kept here to measure against and to show a helper of
+/// wire 2 refuses it.
+fn wire_one_body<T: Serialize>(value: &T) -> Vec<u8> {
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    let raw = serde_json::to_vec(value).unwrap();
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::fast());
+    encoder.write_all(&raw).unwrap();
+    let compressed = encoder.finish().unwrap();
+    serde_json::to_vec(&json!({
+        "version": 1,
+        "length": raw.len() as u64,
+        "digest": blake3::hash(&raw).as_bytes(),
+        "data": URL_SAFE_NO_PAD.encode(compressed),
+    }))
+    .unwrap()
+}
+
+#[test]
+fn the_coordination_wire_is_versioned_bounded_and_verified() {
+    let checkpoint = sample_checkpoint(64 * 1024);
+    let request = append_request(6, &checkpoint);
+    let body = encode_append(&request, &CompressedCheckpoints::default()).unwrap();
+    assert_eq!(body[0], COORDINATION_WIRE_VERSION);
+    assert!(body.len() < checkpoint.len() / 2, "{}", body.len());
+    // The checkpoint is not in the JSON header.
+    let header_length = u32::from_le_bytes(body[1..5].try_into().unwrap()) as usize;
+    let header: serde_json::Value = serde_json::from_slice(&body[5..5 + header_length]).unwrap();
+    assert_eq!(header["entries"][0]["payload"]["Normal"]["checkpoint"], json!(""));
+    let decoded = decode_append(&body).unwrap();
+    let EntryPayload::Normal(proposal) = &decoded.entries[0].payload else {
+        panic!("normal entry");
+    };
+    assert_eq!(&*proposal.checkpoint, checkpoint.as_str());
+    assert_eq!(decoded.vote, request.vote);
+    assert_eq!(decoded.leader_commit, request.leader_commit);
+
+    // Every damaged body is refused, none panics.
+    let refused = |body: &[u8]| decode_append(body).is_err();
+    for length in 0..body.len().min(64) {
+        assert!(refused(&body[..length]), "cut at {length}");
+    }
+    assert!(refused(&body[..body.len() - 1]));
+    let mut longer = body.clone();
+    longer.push(0);
+    assert!(refused(&longer));
+    let mut version = body.clone();
+    version[0] = 1;
+    assert!(refused(&version));
+    // zlib's checksum covers the inflated bytes.
+    let mut checksum = body.clone();
+    *checksum.last_mut().unwrap() ^= 0x01;
+    assert!(refused(&checksum));
+    // A declared text length that does not match.
+    let lengths = 5 + header_length;
+    let mut declared = body.clone();
+    declared[lengths] ^= 0x01;
+    assert!(refused(&declared));
+    let mut huge = body.clone();
+    huge[lengths..lengths + 8].copy_from_slice(&(MAX_SNAPSHOT as u64 + 1).to_le_bytes());
+    assert!(refused(&huge));
+    // A checkpoint that is not UTF-8.
+    let mut binary = append_request(6, "");
+    let invalid = [0xff, 0xfe, 0xfd];
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::fast());
+    encoder.write_all(&invalid).unwrap();
+    let zlib = encoder.finish().unwrap();
+    let mut not_text = encode_append(&binary, &CompressedCheckpoints::default()).unwrap();
+    not_text.truncate(not_text.len() - 12);
+    not_text.extend_from_slice(&(invalid.len() as u64).to_le_bytes());
+    not_text.extend_from_slice(&(zlib.len() as u32).to_le_bytes());
+    not_text.extend_from_slice(&zlib);
+    assert!(refused(&not_text));
+    // Checkpoint text in the header rather than beside it.
+    if let EntryPayload::Normal(proposal) = &mut binary.entries[0].payload {
+        proposal.checkpoint = "smuggled".into();
+    }
+    let mut header = serde_json::to_vec(&binary).unwrap();
+    let mut smuggled = vec![COORDINATION_WIRE_VERSION];
+    smuggled.extend_from_slice(&(header.len() as u32).to_le_bytes());
+    smuggled.append(&mut header);
+    smuggled.extend_from_slice(&[0; 12]);
+    assert!(refused(&smuggled));
+    // An empty checkpoint goes as two zero lengths and reads back empty.
+    let empty = encode_append(&append_request(6, ""), &CompressedCheckpoints::default()).unwrap();
+    assert!(empty.ends_with(&[0; 12]));
+    let EntryPayload::Normal(proposal) = &decode_append(&empty).unwrap().entries[0].payload else {
+        panic!("normal entry");
+    };
+    assert!(proposal.checkpoint.is_empty());
+
+    // A snapshot body carries its data as it is.
+    let leader = openraft::CommittedLeaderId::new(3, 1);
+    let snapshot = InstallSnapshotRequest::<RoomTypes> {
+        vote: Vote::new_committed(3, 1),
+        meta: SnapshotMeta {
+            last_log_id: Some(LogId::new(leader, 7)),
+            last_membership: StoredMembership::default(),
+            snapshot_id: "7".into(),
+        },
+        offset: 0,
+        data: (0..=255).collect(),
+        done: true,
+    };
+    let body = encode_install_snapshot(snapshot.clone()).unwrap();
+    assert!(body.ends_with(&snapshot.data));
+    let decoded = decode_install_snapshot(&body).unwrap();
+    assert_eq!((decoded.offset, decoded.done), (0, true));
+    assert_eq!(decoded.data, snapshot.data);
+    let mut version = body.clone();
+    version[0] = 1;
+    assert!(decode_install_snapshot(&version).is_err());
+    for length in 0..32 {
+        assert!(decode_install_snapshot(&body[..length]).is_err());
+    }
+    let window = InstallSnapshotRequest {
+        data: vec![0; SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW + 1],
+        ..snapshot
+    };
+    assert!(decode_install_snapshot(&encode_install_snapshot(window).unwrap()).is_err());
+}
+
+/// A helper of wire 1 that reached this one (the ALPN keeps it out first)
+/// is refused on every body it can send, and its snapshot is not read.
+#[tokio::test]
+async fn wire_one_bodies_and_snapshots_are_refused_without_a_panic() {
+    let (_bus, nodes) = cluster(1).await;
+    let node = &nodes[0];
+    let append = wire_one_body(&append_request(6, "first state"));
+    assert!(node.dispatch(2, "append", &append).await.is_err());
+    let heartbeat = wire_one_body(&AppendEntriesRequest::<RoomTypes> {
+        vote: Vote::new_committed(3, 2),
+        prev_log_id: None,
+        entries: vec![],
+        leader_commit: None,
+    });
+    assert!(node.dispatch(2, "append", &heartbeat).await.is_err());
+    let leader = openraft::CommittedLeaderId::new(3, 2);
+    let snapshot = serde_json::to_vec(&json!({
+        "vote": Vote::new_committed(3, 2),
+        "meta": SnapshotMeta::<u64, BasicNode> {
+            last_log_id: Some(LogId::new(leader, 1)),
+            last_membership: StoredMembership::default(),
+            snapshot_id: "1".into(),
+        },
+        "offset": 0,
+        "data": "AQID",
+        "done": false,
+    }))
+    .unwrap();
+    assert!(node.dispatch(2, "snapshot", &snapshot).await.is_err());
+
+    // A snapshot under the old magic is refused, as installed and as read.
+    let source = node.store().snapshot_source().await;
+    let (meta, mut data) = snapshot_of(&source).unwrap();
+    assert_eq!(&data[..8], b"sf4rs002");
+    assert!(decode_snapshot(&data).is_ok());
+    data[..8].copy_from_slice(b"sf4rs001");
+    assert!(decode_snapshot(&data).is_err());
+    assert!(
+        node.store()
+            .clone()
+            .install_snapshot(&meta, Box::new(Cursor::new(data)))
+            .await
+            .is_err()
+    );
+    // The node still serves.
+    assert!(node.dispatch(2, "authority", &[0]).await.is_ok());
+    stop(nodes).await;
+}
+
+/// The append body sizes of a 460 KB checkpoint on both wires.
+#[test]
+fn a_460_kb_checkpoint_append_is_smaller_on_wire_two() {
+    for (shape, checkpoint) in [
+        ("varied", sample_checkpoint(460 * 1024)),
+        ("alike", alike_checkpoint(460 * 1024)),
+    ] {
+        let request = append_request(6, &checkpoint);
+        let wire_one = wire_one_body(&request);
+        let wire_two = encode_append(&request, &CompressedCheckpoints::default()).unwrap();
+        eprintln!(
+            "{shape} checkpoint {} bytes: wire 1 append {} bytes, wire 2 append {} bytes ({:.1}%)",
+            checkpoint.len(),
+            wire_one.len(),
+            wire_two.len(),
+            100.0 * wire_two.len() as f64 / wire_one.len() as f64
+        );
+        assert!(wire_two.len() < wire_one.len());
+    }
+}
+
+/// The leader compresses its proposal once; the appends to both followers
+/// take those bytes.
+#[tokio::test]
+async fn a_proposal_is_compressed_once_for_every_follower() {
+    let (_bus, nodes) = cluster(3).await;
+    let checkpoint = sample_checkpoint(64 * 1024);
+    let receipt = nodes[0]
+        .propose(proposal(&nodes[0], "one", 0, &checkpoint))
+        .await
+        .unwrap();
+    assert!(receipt.accepted);
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let mut applied = true;
+            for node in &nodes[1..] {
+                applied &= node.committed().await.checkpoint() == checkpoint;
+            }
+            if applied {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        nodes[0]
+            .network
+            .appends
+            .checkpoints
+            .compressions
+            .load(Ordering::Relaxed),
+        1
+    );
+    stop(nodes).await;
 }
 
 #[test]
@@ -272,7 +550,7 @@ fn the_largest_rpc_bodies_fit_their_transport_bounds() {
         .map(|id| (*id, BasicNode::new("f".repeat(128))))
         .collect::<BTreeMap<_, _>>();
     let membership = openraft::Membership::new(vec![ids.clone(), ids.clone()], nodes);
-    let snapshot = serde_json::to_vec(&InstallSnapshotWire::encode(InstallSnapshotRequest {
+    let snapshot = encode_install_snapshot(InstallSnapshotRequest {
         vote: Vote::new_committed(high, high),
         meta: SnapshotMeta {
             last_log_id: Some(log_id),
@@ -282,7 +560,7 @@ fn the_largest_rpc_bodies_fit_their_transport_bounds() {
         offset: high,
         data: vec![u8::MAX; SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW],
         done: true,
-    }))
+    })
     .unwrap();
     assert!(
         snapshot.len() <= MAX_SNAPSHOT_REQUEST,
@@ -401,17 +679,14 @@ async fn followers_sent_the_same_append_share_one_encoded_body() {
         assert_eq!((bodies[1].0, bodies[1].1), (3, "append"));
         assert_eq!(bodies[0].2, bodies[1].2);
         // The bytes each follower would have encoded for itself.
-        let own = serde_json::to_vec(&CompressedJsonWire::encode(&request).unwrap()).unwrap();
+        let own = encode_append(&request, &CompressedCheckpoints::default()).unwrap();
         assert_eq!(bodies[0].2, own);
-        // The checkpoint is still a JSON string inside the entry.
-        let decoded = serde_json::from_slice::<CompressedJsonWire>(&bodies[0].2)
-            .unwrap()
-            .decode::<serde_json::Value>()
-            .unwrap();
-        assert_eq!(
-            decoded["entries"][0]["payload"]["Normal"]["checkpoint"],
-            serde_json::Value::String(checkpoint.clone())
-        );
+        // The follower reads the checkpoint back unchanged.
+        let decoded = decode_append(&bodies[0].2).unwrap();
+        let EntryPayload::Normal(proposal) = &decoded.entries[0].payload else {
+            panic!("normal entry");
+        };
+        assert_eq!(&*proposal.checkpoint, checkpoint.as_str());
     }
     // Another commit index is another request, encoded on its own.
     let next = append_request(7, &checkpoint);

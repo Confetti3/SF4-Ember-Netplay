@@ -147,6 +147,68 @@ async fn raw_rpc(connection: &Connection, method: u8, body: &[u8]) -> io::Result
     read_body(&mut recv, MAX_RPC_RESPONSE).await
 }
 
+/// A helper of coordination wire 1 is refused at the QUIC handshake, and a
+/// wire 1 body that arrives anyway fails its own stream while the node goes
+/// on serving.
+#[tokio::test]
+async fn a_helper_of_another_coordination_wire_is_refused_cleanly() {
+    let version = crate::coordination::COORDINATION_WIRE_VERSION;
+    assert!(ALPN.ends_with(format!("/{version}").as_bytes()));
+    let room = [12; 16];
+    let server = IrohRpc::bind(room, 1, false).await.unwrap();
+    let client = IrohRpc::bind(room, 2, false).await.unwrap();
+    server.admit(2, client.address()).await.unwrap();
+    let coordinator = Arc::new(
+        Coordinator::new_for_room(room, 1, server.clone())
+            .await
+            .unwrap(),
+    );
+    coordinator
+        .raft()
+        .initialize(BTreeMap::from([(
+            1,
+            BasicNode::new(server.identity().to_string()),
+        )]))
+        .await
+        .unwrap();
+    coordinator
+        .raft()
+        .wait(Some(Duration::from_secs(5)))
+        .current_leader(1, "single leader")
+        .await
+        .unwrap();
+    let serving = tokio::spawn(server.clone().serve(coordinator.clone()));
+
+    let old = timeout(
+        Duration::from_secs(10),
+        client
+            .endpoint
+            .connect(server.address(), b"sf4e/coordination/1"),
+    )
+    .await
+    .unwrap();
+    assert!(old.is_err(), "a wire 1 ALPN is refused");
+
+    let connection = client.endpoint.connect(server.address(), ALPN).await.unwrap();
+    let append = serde_json::to_vec(&serde_json::json!({
+        "version": 1,
+        "length": 2,
+        "digest": vec![0u8; 32],
+        "data": "eJwDAAAAAAE",
+    }))
+    .unwrap();
+    assert!(raw_rpc(&connection, 1, &append).await.is_err());
+    let snapshot = br#"{"vote":{},"meta":{},"offset":0,"data":"AQID","done":false}"#;
+    assert!(raw_rpc(&connection, 3, snapshot).await.is_err());
+    assert!(raw_rpc(&connection, 4, &[0]).await.is_ok());
+    assert!(!serving.is_finished());
+
+    serving.abort();
+    coordinator.raft().shutdown().await.unwrap();
+    server.close().await;
+    client.close().await;
+}
+
 #[tokio::test]
 async fn served_connections_and_bodies_stay_within_their_bounds() {
     let room = [12; 16];

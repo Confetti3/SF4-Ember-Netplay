@@ -138,7 +138,7 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
             }],
             leader_commit: None,
         };
-        serde_json::to_vec(&CompressedJsonWire::encode(&request).unwrap()).unwrap()
+        encode_append(&request, &CompressedCheckpoints::default()).unwrap()
     };
     let private = node(&bus, 20, Ownership::Private).await;
     let member = node(&bus, 21, Ownership::Member { host: 1 }).await;
@@ -151,7 +151,7 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
     // A snapshot's membership is bounded the same way.
     let snapshot = |nodes: u64| {
         let log_id = LogId::new(openraft::CommittedLeaderId::new(2, 1), 2);
-        serde_json::to_vec(&InstallSnapshotWire::encode(InstallSnapshotRequest {
+        encode_install_snapshot(InstallSnapshotRequest {
             vote: Vote::new_committed(2, 1),
             meta: SnapshotMeta {
                 last_log_id: Some(log_id),
@@ -161,7 +161,7 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
             offset: 0,
             data: vec![1, 2, 3],
             done: false,
-        }))
+        })
         .unwrap()
     };
     assert!(
@@ -183,7 +183,7 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
         .map(|id| (*id, BasicNode::new("f".repeat(128))))
         .collect::<BTreeMap<_, _>>();
     let log_id = LogId::new(openraft::CommittedLeaderId::new(high, high), high);
-    let largest = serde_json::to_vec(&InstallSnapshotWire::encode(InstallSnapshotRequest {
+    let largest = encode_install_snapshot(InstallSnapshotRequest {
         vote: Vote::new_committed(high, high),
         meta: SnapshotMeta {
             last_log_id: Some(log_id),
@@ -196,7 +196,7 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
         offset: high,
         data: vec![u8::MAX; SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW],
         done: true,
-    }))
+    })
     .unwrap();
     assert!(largest.len() <= MAX_SNAPSHOT_REQUEST, "{}", largest.len());
     let claim = serde_json::to_vec(&AuthorityClaim {
@@ -248,7 +248,7 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
             entries: vec![],
             leader_commit: None,
         };
-        serde_json::to_vec(&CompressedJsonWire::encode(&request).unwrap()).unwrap()
+        encode_append(&request, &CompressedCheckpoints::default()).unwrap()
     };
     let snapshot = |source: u64, term: u64| {
         let log_id = LogId::new(openraft::CommittedLeaderId::new(term, source), 1);
@@ -256,7 +256,7 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
             vec![BTreeSet::from([source])],
             BTreeMap::from([(source, BasicNode::new("x"))]),
         );
-        serde_json::to_vec(&InstallSnapshotWire::encode(InstallSnapshotRequest {
+        encode_install_snapshot(InstallSnapshotRequest {
             vote: Vote::new_committed(term, source),
             meta: SnapshotMeta {
                 last_log_id: Some(log_id),
@@ -266,7 +266,7 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
             offset: 0,
             data: vec![1, 2, 3],
             done: false,
-        }))
+        })
         .unwrap()
     };
     let last = control.raft.metrics().borrow().last_log_index;

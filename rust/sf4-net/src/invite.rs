@@ -472,7 +472,7 @@ impl Invite {
             version: VERSION,
             room: self.room,
             capability: self.capability,
-            build: self.build.clone(),
+            build: proof_build(&self.build),
             observer,
         }
     }
@@ -490,13 +490,27 @@ impl Invite {
         self.validate(self.expires.saturating_sub(1))?;
         if proof.version != VERSION
             || proof.room != self.room
-            || proof.build != self.build
+            || proof.build != proof_build(&self.build)
             || !bool::from(proof.capability.ct_eq(&self.capability))
         {
             return Err(invalid());
         }
         Ok(())
     }
+}
+
+/// The build a room proof names: the invitation's build, the Sidecar.dll
+/// hash, followed by this helper's coordination wire version. The two
+/// binaries ship together, but the Sidecar hash alone would not tell two
+/// packages apart that share a Sidecar.dll and differ in their helper, so
+/// the host refuses a joiner whose helper speaks another coordination wire,
+/// before any coordination link is made. The invitation text itself still
+/// carries the Sidecar hash alone, which keeps its form and length.
+fn proof_build(build: &str) -> String {
+    format!(
+        "{build}+coordination{}",
+        crate::coordination::COORDINATION_WIRE_VERSION
+    )
 }
 
 #[derive(Serialize, Deserialize)]
@@ -823,6 +837,34 @@ mod tests {
         let mut extended = original.clone();
         extended.expires = 4000;
         assert!(original.admit(&extended.proof(), 3700).is_err());
+    }
+
+    #[test]
+    fn a_proof_names_the_helper_coordination_wire_beside_the_sidecar_build() {
+        let original = invite();
+        let proof = original.proof();
+        assert_eq!(proof.build, "test-sidecar-hash+coordination2");
+        assert_eq!(original.build(), "test-sidecar-hash");
+        assert!(original.admit(&proof, 101).is_ok());
+        // A helper of the same Sidecar.dll that names only the Sidecar hash,
+        // as wire 1 helpers do, or another wire, is refused.
+        for build in [
+            "test-sidecar-hash",
+            "test-sidecar-hash+coordination1",
+            "test-sidecar-hash+coordination3",
+        ] {
+            let mut other = original.proof();
+            other.build = build.into();
+            assert!(original.admit(&other, 101).is_err(), "{build}");
+            assert!(original.admit_member(&other).is_err(), "{build}");
+        }
+        // A wire 1 host compares a proof against its bare Sidecar hash, so
+        // it refuses this helper's proof the same way.
+        assert_ne!(proof.build, original.build());
+        // The invitation text is unchanged: it still carries the bare build.
+        let token = original.encode().unwrap();
+        let parsed = Invite::parse_for_build(&token, 101, "test-sidecar-hash").unwrap();
+        assert_eq!(parsed.build(), "test-sidecar-hash");
     }
 
     #[test]

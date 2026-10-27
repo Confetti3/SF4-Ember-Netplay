@@ -24,7 +24,9 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-const ALPN: &[u8] = b"sf4e/coordination/1";
+/// Ends with `COORDINATION_WIRE_VERSION`: a helper of another coordination
+/// wire is refused at the QUIC handshake, before any RPC body is read.
+const ALPN: &[u8] = b"sf4e/coordination/2";
 const MAX_RPC: usize = MAX_SNAPSHOT;
 const RPC_TIMEOUT: Duration = Duration::from_secs(10);
 const CONNECTION_IDLE_TIMEOUT: Duration = Duration::from_secs(30);

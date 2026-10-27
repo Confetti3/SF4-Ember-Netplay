@@ -15,7 +15,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
 use openraft::{
     BasicNode, ChangeMembers, Config, Entry, EntryPayload, LogId, OptionalSend, Raft, RaftStorage,
@@ -62,7 +61,16 @@ pub const MAX_PROPOSE_REQUEST: usize = 16 * 1024;
 pub const MAX_SNAPSHOT_REQUEST: usize = 128 * 1024;
 pub const MAX_RPC_RESPONSE: usize = 64 * 1024;
 const RECENT_REQUESTS: usize = 128;
-const SNAPSHOT_MAGIC: [u8; 8] = *b"sf4rs001";
+/// The room coordination wire: the append and snapshot RPC bodies and the
+/// snapshot encoding. The coordination ALPN ends with it, and a room proof
+/// carries it beside the Sidecar build (`invite::RoomProof`), so helpers of
+/// two coordination wires never share a room even when their Sidecar.dll is
+/// the same.
+pub const COORDINATION_WIRE_VERSION: u8 = 2;
+/// Snapshots of coordination wire 2. A snapshot of wire 1 (`sf4rs001`) is
+/// not read: snapshots live in memory only and travel only inside one room,
+/// whose members share a wire.
+const SNAPSHOT_MAGIC: [u8; 8] = *b"sf4rs002";
 const SNAPSHOT_HEADER_BYTES: usize = SNAPSHOT_MAGIC.len() + size_of::<u64>() + 32;
 const AUTHORITY_CLAIM_COALESCE: Duration = Duration::from_millis(500);
 /// The same for the sole voter of a server-owned room; see `authority_claim`.
@@ -72,97 +80,262 @@ openraft::declare_raft_types!(pub RoomTypes: D = Proposal, R = Receipt, Node = B
 pub type RoomRaft = Raft<RoomTypes>;
 type StoreError = StorageError<u64>;
 
+fn invalid_body() -> io::Error {
+    io::Error::other("invalid room coordination envelope")
+}
+
+fn too_large() -> io::Error {
+    io::Error::other("room coordination message too large")
+}
+
+/// Reads the fields of a binary RPC body in order, never past its end.
+struct BodyReader<'a>(&'a [u8]);
+
+impl<'a> BodyReader<'a> {
+    fn take(&mut self, length: usize) -> io::Result<&'a [u8]> {
+        if length > self.0.len() {
+            return Err(invalid_body());
+        }
+        let (head, rest) = self.0.split_at(length);
+        self.0 = rest;
+        Ok(head)
+    }
+
+    fn u8(&mut self) -> io::Result<u8> {
+        Ok(self.take(1)?[0])
+    }
+
+    fn u32(&mut self) -> io::Result<u32> {
+        let bytes = self.take(size_of::<u32>())?;
+        Ok(u32::from_le_bytes(bytes.try_into().map_err(|_| invalid_body())?))
+    }
+
+    fn u64(&mut self) -> io::Result<u64> {
+        let bytes = self.take(size_of::<u64>())?;
+        Ok(u64::from_le_bytes(bytes.try_into().map_err(|_| invalid_body())?))
+    }
+
+    fn rest(self) -> &'a [u8] {
+        self.0
+    }
+}
+
+/// The start of a binary RPC body: the coordination wire version, then the
+/// JSON header's length (u32, little endian) and the header. `extra` is the
+/// room to reserve for what follows it.
+fn body_with_header<T: Serialize>(header: &T, extra: usize) -> io::Result<Vec<u8>> {
+    let header = serde_json::to_vec(header).map_err(io::Error::other)?;
+    if header.len() > MAX_SNAPSHOT {
+        return Err(too_large());
+    }
+    let mut body = Vec::with_capacity(1 + size_of::<u32>() + header.len() + extra);
+    body.push(COORDINATION_WIRE_VERSION);
+    body.extend_from_slice(&(header.len() as u32).to_le_bytes());
+    body.extend_from_slice(&header);
+    Ok(body)
+}
+
+/// The JSON header of a binary RPC body, and a reader of what follows it.
+/// A body of another wire version, such as wire 1's JSON, is refused here.
+fn read_header<T: DeserializeOwned>(bytes: &[u8]) -> io::Result<(T, BodyReader<'_>)> {
+    let mut reader = BodyReader(bytes);
+    if reader.u8()? != COORDINATION_WIRE_VERSION {
+        return Err(invalid_body());
+    }
+    let length = reader.u32()? as usize;
+    let header = serde_json::from_slice(reader.take(length)?).map_err(|_| invalid_body())?;
+    Ok((header, reader))
+}
+
+/// A checkpoint compressed for the wire.
+fn compress_checkpoint(text: &str) -> io::Result<Arc<[u8]>> {
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::fast());
+    encoder.write_all(text.as_bytes())?;
+    let compressed = encoder.finish()?;
+    if compressed.len() > MAX_SNAPSHOT {
+        return Err(too_large());
+    }
+    Ok(compressed.into())
+}
+
+/// The checkpoint text `compressed` holds. It must inflate to exactly
+/// `length` bytes of UTF-8, and its zlib stream must end where the bytes do;
+/// zlib's own checksum covers the inflated bytes.
+fn inflate_checkpoint(compressed: &[u8], length: u64) -> io::Result<Arc<str>> {
+    if length > MAX_SNAPSHOT as u64 {
+        return Err(too_large());
+    }
+    let mut decoder = ZlibDecoder::new(compressed);
+    let mut raw = Vec::with_capacity(length as usize);
+    decoder
+        .by_ref()
+        .take(MAX_SNAPSHOT as u64 + 1)
+        .read_to_end(&mut raw)?;
+    if raw.len() as u64 != length || decoder.total_in() as usize != compressed.len() {
+        return Err(io::Error::other("invalid room coordination digest"));
+    }
+    String::from_utf8(raw)
+        .map(Arc::from)
+        .map_err(|_| invalid_body())
+}
+
+/// How many compressed checkpoints a node keeps: as many as the encoded
+/// appends it keeps.
+const COMPRESSED_CHECKPOINTS: usize = APPEND_BODIES;
+
+/// The checkpoints this node compressed for the wire, each kept beside the
+/// text it was compressed from. The leader compresses its proposal once, on
+/// the proposing task (`Coordinator::propose`), and every append that carries
+/// that entry takes the same bytes. A log entry and its clones share the
+/// text, so the text is found by its pointer; holding it here keeps that
+/// pointer from naming any other text while it is kept.
+#[derive(Default)]
+struct CompressedCheckpoints {
+    kept: std::sync::Mutex<VecDeque<(Arc<str>, Arc<[u8]>)>>,
+    #[cfg(test)]
+    compressions: std::sync::atomic::AtomicU64,
+}
+
+impl CompressedCheckpoints {
+    fn kept(&self) -> std::sync::MutexGuard<'_, VecDeque<(Arc<str>, Arc<[u8]>)>> {
+        self.kept
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// The compressed bytes of `text`, compressed now, outside the lock,
+    /// when they are not kept already.
+    fn compress(&self, text: &Arc<str>) -> io::Result<Arc<[u8]>> {
+        let find = |kept: &VecDeque<(Arc<str>, Arc<[u8]>)>| {
+            kept.iter()
+                .find(|(source, _)| Arc::ptr_eq(source, text))
+                .map(|(_, compressed)| compressed.clone())
+        };
+        if let Some(compressed) = find(&self.kept()) {
+            return Ok(compressed);
+        }
+        #[cfg(test)]
+        self.compressions
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let compressed = compress_checkpoint(text)?;
+        let mut kept = self.kept();
+        if find(&kept).is_none() {
+            kept.push_back((text.clone(), compressed.clone()));
+            if kept.len() > COMPRESSED_CHECKPOINTS {
+                kept.pop_front();
+            }
+        }
+        Ok(compressed)
+    }
+}
+
+/// An append's RPC body. After the version and header (`body_with_header`),
+/// whose JSON is the request with every checkpoint left empty, each normal
+/// entry's checkpoint follows in entry order as
+/// `text length: u64 | zlib length: u32 | zlib bytes`, little endian; an
+/// empty checkpoint is two zero lengths. The checkpoint goes in compressed,
+/// once, and is never escaped into the JSON.
+fn encode_append(
+    request: &AppendEntriesRequest<RoomTypes>,
+    checkpoints: &CompressedCheckpoints,
+) -> io::Result<Vec<u8>> {
+    // Cloning shares each checkpoint; the header's copies are then emptied.
+    let mut header = request.clone();
+    let mut texts = Vec::new();
+    for entry in &mut header.entries {
+        if let EntryPayload::Normal(proposal) = &mut entry.payload {
+            let text = std::mem::replace(&mut proposal.checkpoint, Arc::from(""));
+            let compressed = if text.is_empty() {
+                None
+            } else {
+                Some(checkpoints.compress(&text)?)
+            };
+            texts.push((text.len() as u64, compressed));
+        }
+    }
+    let extra = texts
+        .iter()
+        .map(|(_, compressed)| 12 + compressed.as_ref().map_or(0, |bytes| bytes.len()))
+        .sum();
+    let mut body = body_with_header(&header, extra)?;
+    for (length, compressed) in &texts {
+        let compressed = compressed.as_deref().unwrap_or_default();
+        body.extend_from_slice(&length.to_le_bytes());
+        body.extend_from_slice(&(compressed.len() as u32).to_le_bytes());
+        body.extend_from_slice(compressed);
+    }
+    if body.len() > MAX_SNAPSHOT {
+        return Err(too_large());
+    }
+    Ok(body)
+}
+
+/// Reads an `encode_append` body, inflating and checking each checkpoint.
+/// It runs in the RPC's dispatch, before Raft and so outside the store lock.
+/// The declared text lengths together stay within `MAX_SNAPSHOT`, the bound
+/// wire 1 put on the whole inflated request.
+fn decode_append(bytes: &[u8]) -> io::Result<AppendEntriesRequest<RoomTypes>> {
+    let (mut request, mut reader) = read_header::<AppendEntriesRequest<RoomTypes>>(bytes)?;
+    let mut declared = 0u64;
+    for entry in &mut request.entries {
+        if let EntryPayload::Normal(proposal) = &mut entry.payload {
+            let length = reader.u64()?;
+            let compressed_length = reader.u32()? as usize;
+            let compressed = reader.take(compressed_length)?;
+            declared = declared.saturating_add(length);
+            if !proposal.checkpoint.is_empty() || declared > MAX_SNAPSHOT as u64 {
+                return Err(invalid_body());
+            }
+            if length != 0 {
+                proposal.checkpoint = inflate_checkpoint(compressed, length)?;
+            } else if !compressed.is_empty() {
+                return Err(invalid_body());
+            }
+        }
+    }
+    if !reader.rest().is_empty() {
+        return Err(invalid_body());
+    }
+    Ok(request)
+}
+
+/// A snapshot RPC's header: everything but its data.
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct CompressedJsonWire {
-    version: u8,
-    length: u64,
-    digest: [u8; 32],
-    data: String,
-}
-
-impl CompressedJsonWire {
-    fn encode<T: Serialize>(value: &T) -> io::Result<Self> {
-        let raw = serde_json::to_vec(value).map_err(io::Error::other)?;
-        if raw.len() > MAX_SNAPSHOT {
-            return Err(io::Error::other("room coordination message too large"));
-        }
-        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::fast());
-        encoder.write_all(&raw)?;
-        let compressed = encoder.finish()?;
-        if compressed.len() > MAX_SNAPSHOT {
-            return Err(io::Error::other("room coordination message too large"));
-        }
-        Ok(Self {
-            version: 1,
-            length: raw.len() as u64,
-            digest: *blake3::hash(&raw).as_bytes(),
-            data: URL_SAFE_NO_PAD.encode(compressed),
-        })
-    }
-
-    fn decode<T: DeserializeOwned>(self) -> io::Result<T> {
-        if self.version != 1 || self.length > MAX_SNAPSHOT as u64 || self.data.len() > MAX_SNAPSHOT
-        {
-            return Err(io::Error::other("invalid room coordination envelope"));
-        }
-        let compressed = URL_SAFE_NO_PAD
-            .decode(self.data)
-            .map_err(|_| io::Error::other("invalid room coordination encoding"))?;
-        if compressed.len() > MAX_SNAPSHOT {
-            return Err(io::Error::other("room coordination message too large"));
-        }
-        let mut decoder = ZlibDecoder::new(compressed.as_slice());
-        let mut raw = Vec::with_capacity(self.length as usize);
-        decoder
-            .by_ref()
-            .take(MAX_SNAPSHOT as u64 + 1)
-            .read_to_end(&mut raw)?;
-        if raw.len() as u64 != self.length
-            || decoder.total_in() as usize != compressed.len()
-            || blake3::hash(&raw).as_bytes() != &self.digest
-        {
-            return Err(io::Error::other("invalid room coordination digest"));
-        }
-        serde_json::from_slice(&raw).map_err(io::Error::other)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct InstallSnapshotWire {
+struct InstallSnapshotHeader {
     vote: Vote<u64>,
     meta: SnapshotMeta<u64, BasicNode>,
     offset: u64,
-    data: String,
     done: bool,
 }
 
-impl InstallSnapshotWire {
-    fn encode(request: InstallSnapshotRequest<RoomTypes>) -> Self {
-        Self {
-            vote: request.vote,
-            meta: request.meta,
-            offset: request.offset,
-            data: URL_SAFE_NO_PAD.encode(request.data),
-            done: request.done,
-        }
-    }
+/// A snapshot RPC's body: the version and header (`body_with_header`), then
+/// the snapshot data as it is.
+fn encode_install_snapshot(request: InstallSnapshotRequest<RoomTypes>) -> io::Result<Vec<u8>> {
+    let header = InstallSnapshotHeader {
+        vote: request.vote,
+        meta: request.meta,
+        offset: request.offset,
+        done: request.done,
+    };
+    let mut body = body_with_header(&header, request.data.len())?;
+    body.extend_from_slice(&request.data);
+    Ok(body)
+}
 
-    fn decode(self) -> io::Result<InstallSnapshotRequest<RoomTypes>> {
-        let data = URL_SAFE_NO_PAD
-            .decode(self.data)
-            .map_err(|_| io::Error::other("invalid room snapshot encoding"))?;
-        if data.len() > SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW {
-            return Err(io::Error::other("room snapshot window too large"));
-        }
-        Ok(InstallSnapshotRequest {
-            vote: self.vote,
-            meta: self.meta,
-            offset: self.offset,
-            data,
-            done: self.done,
-        })
+fn decode_install_snapshot(bytes: &[u8]) -> io::Result<InstallSnapshotRequest<RoomTypes>> {
+    let (header, reader) = read_header::<InstallSnapshotHeader>(bytes)?;
+    let data = reader.rest();
+    if data.len() > SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW {
+        return Err(io::Error::other("room snapshot window too large"));
     }
+    Ok(InstallSnapshotRequest {
+        vote: header.vote,
+        meta: header.meta,
+        offset: header.offset,
+        data: data.to_vec(),
+        done: header.done,
+    })
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -176,8 +349,9 @@ pub struct Proposal {
     pub dedup_id: String,
     pub term: u64,
     pub base: u64,
-    /// Shared by the log entry, its clones and the commit. It serializes as
-    /// the same JSON string a `String` would.
+    /// Shared by the log entry, its clones and the commit. An append
+    /// carries it compressed beside its JSON header (`encode_append`); as
+    /// JSON it is the same string a `String` would be.
     pub checkpoint: Arc<str>,
     #[serde(default)]
     pub admin: Option<AdminEntry>,
@@ -1138,6 +1312,8 @@ type AppendBody = Arc<std::sync::OnceLock<Option<Arc<Vec<u8>>>>>;
 #[derive(Default)]
 struct AppendBodies {
     slots: std::sync::Mutex<VecDeque<(AppendKey, AppendBody)>>,
+    /// The checkpoints the bodies carry, compressed.
+    checkpoints: CompressedCheckpoints,
     #[cfg(test)]
     encodes: std::sync::atomic::AtomicU64,
 }
@@ -1148,8 +1324,7 @@ impl AppendBodies {
             #[cfg(test)]
             self.encodes
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let wire = CompressedJsonWire::encode(request).ok()?;
-            serde_json::to_vec(&wire).ok().map(Arc::new)
+            encode_append(request, &self.checkpoints).ok().map(Arc::new)
         };
         // A heartbeat is small; keep the slots for the bodies that are not.
         let (Some(first), Some(last)) = (request.entries.first(), request.entries.last()) else {
@@ -1236,8 +1411,7 @@ impl RaftNetwork<RoomTypes> for Peer {
         request: AppendEntriesRequest<RoomTypes>,
         _: RPCOption,
     ) -> Result<AppendEntriesResponse<u64>, RPCError<u64, BasicNode, RaftError<u64>>> {
-        // The same bytes `request` would send: the shared body is the
-        // serialized wire envelope.
+        // Every follower sent this request is sent the same bytes.
         let body = self.network.appends.body(&request).ok_or_else(rpc_failed)?;
         self.send("append", body.as_ref().clone()).await
     }
@@ -1256,8 +1430,8 @@ impl RaftNetwork<RoomTypes> for Peer {
         InstallSnapshotResponse<u64>,
         RPCError<u64, BasicNode, RaftError<u64, InstallSnapshotError>>,
     > {
-        self.request("snapshot", InstallSnapshotWire::encode(request))
-            .await
+        let body = encode_install_snapshot(request).map_err(|_| rpc_failed())?;
+        self.send("snapshot", body).await
     }
 }
 
@@ -1648,6 +1822,12 @@ impl Coordinator {
         if self.raft.metrics().borrow().current_term != proposal.term {
             return Err(io::Error::other("obsolete room authority"));
         }
+        // Compressed once, here on the proposing task rather than on a
+        // replication stream; every append carrying the entry takes these
+        // bytes. Should it fail, the append encoder compresses it itself.
+        if proposal.admin.is_none() && !proposal.checkpoint.is_empty() {
+            let _ = self.network.appends.checkpoints.compress(&proposal.checkpoint);
+        }
         let response = self
             .raft
             .client_write(proposal)
@@ -1768,10 +1948,8 @@ impl Coordinator {
                 Ok(vec![1])
             }
             "append" => {
-                let request = serde_json::from_slice::<CompressedJsonWire>(bytes)
-                    .map_err(|_| bad())?
-                    .decode::<AppendEntriesRequest<RoomTypes>>()
-                    .map_err(|_| bad())?;
+                // Inflated and checked here, before Raft takes the store lock.
+                let request = decode_append(bytes).map_err(|_| bad())?;
                 if request.entries.len() > 1 || request.vote.leader_id.node_id != source {
                     return Err(bad());
                 }
@@ -1807,10 +1985,7 @@ impl Coordinator {
                     .map_err(|_| bad())
             }
             "snapshot" => {
-                let request = serde_json::from_slice::<InstallSnapshotWire>(bytes)
-                    .map_err(|_| bad())?
-                    .decode()
-                    .map_err(|_| bad())?;
+                let request = decode_install_snapshot(bytes).map_err(|_| bad())?;
                 if request.vote.leader_id.node_id != source
                     || request.data.len() > SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW
                     || request
