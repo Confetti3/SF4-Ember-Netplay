@@ -55,12 +55,16 @@
 //! supervisor kills the child. Objects with an unknown `type` and blank lines
 //! are ignored so the child can grow new messages.
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
 /// The most accounts a room may ban in its lifetime, and so the most a
 /// `status` line can list. The same number is `ember_protocol::rooms::
 /// MAX_ROOM_BANS` (this crate does not depend on ember-protocol), the helper's
-/// ban set and the room model in `server/roomhost`; keep them equal.
+/// ban set and the room model's `MaximumKickedAccounts`, which the room host
+/// asserts in `server/roomhost/RoomHostStatus.hxx`. These limits are listed
+/// together in `server/roomhost/README.md`, "Status line limits", and a test
+/// below checks the other definitions against these.
 pub const MAX_ROOM_BANS: usize = 512;
 
 /// The most a status line's `details` object may weigh as compact JSON. The
@@ -87,7 +91,9 @@ pub const MAX_GAMES_BYTES: usize = 6144;
 /// (`ember_protocol::play::MAX_INVITATION`, 4112 with its key and quotes) and
 /// about 100 bytes of the rest of the object, plus `MAX_DETAILS_BYTES` of
 /// details, plus `MAX_GAMES_BYTES` of games: roughly 43 000 bytes. 128 KiB is
-/// 3 times that.
+/// 3 times that. The room host ends the room itself rather than write a line
+/// over 60 000 bytes (`MaximumStatusLineBytes`, under its `SupervisorLineBytes`,
+/// which is this number).
 pub const MAX_LINE_BYTES: usize = 128 * 1024;
 
 const MAX_TOKEN_BYTES: usize = 128;
@@ -173,16 +179,15 @@ pub enum ChildMessage {
         #[serde(default)]
         banned: Vec<String>,
         /// Filled by `parse_line`, never by serde: the line's `details` member
-        /// is read as raw text and decoded on its own, so one too deeply
-        /// nested for the parser is absent instead of failing the line. Any
-        /// JSON value that is left is here; `usable_details` decides whether
-        /// it is kept.
+        /// as the room host wrote it, never decoded, when it is a JSON object
+        /// within the limits (`bounded`). Anything else is absent and the line
+        /// is still sound.
         #[serde(skip)]
-        details: Option<serde_json::Value>,
+        details: Option<Box<RawValue>>,
         /// Filled by `parse_line` the same way, from the line's `games`
-        /// member; `usable_games` decides whether it is kept.
+        /// member, when it is an array within the limits.
         #[serde(skip)]
-        games: Option<serde_json::Value>,
+        games: Option<Box<RawValue>>,
     },
     Closed {
         #[serde(default)]
@@ -192,39 +197,48 @@ pub enum ChildMessage {
     Unknown,
 }
 
-/// A raw member of a status as the supervisor keeps it: a JSON value of the
-/// right kind whose compact form is at most `max_bytes` and whose nesting is
-/// at most `MAX_DETAILS_DEPTH`. Anything else is dropped, and the room
-/// carries on without it. (`parse_line` has already left out a member too
-/// deeply nested to decode, so that is never the line's error.)
-fn bounded(
-    value: Option<serde_json::Value>,
-    kind: fn(&serde_json::Value) -> bool,
-    max_bytes: usize,
-) -> Option<serde_json::Value> {
-    fn depth(value: &serde_json::Value) -> usize {
-        match value {
-            serde_json::Value::Array(items) => 1 + items.iter().map(depth).max().unwrap_or(0),
-            serde_json::Value::Object(fields) => 1 + fields.values().map(depth).max().unwrap_or(0),
-            _ => 0,
+/// How deeply a JSON text nests: the most arrays and objects open at once.
+/// The text is one the parser has already checked, so counting brackets
+/// outside strings is enough.
+fn nesting(json: &str) -> usize {
+    let (mut open, mut deepest) = (0usize, 0usize);
+    let (mut in_string, mut escaped) = (false, false);
+    for byte in json.bytes() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match byte {
+            b'"' => in_string = true,
+            b'[' | b'{' => {
+                open += 1;
+                deepest = deepest.max(open);
+            }
+            b']' | b'}' => open = open.saturating_sub(1),
+            _ => {}
         }
     }
-    let value = value?;
-    let fits = kind(&value)
-        && depth(&value) <= MAX_DETAILS_DEPTH
-        && serde_json::to_vec(&value).is_ok_and(|bytes| bytes.len() <= max_bytes);
-    fits.then_some(value)
+    deepest
 }
 
-/// The `details` of a status: an object of at most `MAX_DETAILS_BYTES`.
-pub fn usable_details(details: Option<serde_json::Value>) -> Option<serde_json::Value> {
-    bounded(details, serde_json::Value::is_object, MAX_DETAILS_BYTES)
-}
-
-/// The `games` of a status: an array of at most `MAX_GAMES_BYTES`. The
-/// supervisor does not read the games; the bridge judges each one.
-pub fn usable_games(games: Option<serde_json::Value>) -> Option<serde_json::Value> {
-    bounded(games, serde_json::Value::is_array, MAX_GAMES_BYTES)
+/// A raw member of a status as the supervisor keeps it: a JSON value that
+/// starts with `open` (`{` for an object, `[` for an array), is at most
+/// `max_bytes` as written and nests at most `MAX_DETAILS_DEPTH` deep. Anything
+/// else is dropped, and the room carries on without it. The supervisor does
+/// not read what it keeps; the bridge judges it.
+fn bounded(raw: Option<Box<RawValue>>, open: u8, max_bytes: usize) -> Option<Box<RawValue>> {
+    let raw = raw?;
+    let text = raw.get();
+    let fits = text.as_bytes().first() == Some(&open)
+        && text.len() <= max_bytes
+        && nesting(text) <= MAX_DETAILS_DEPTH;
+    fits.then_some(raw)
 }
 
 /// A line's top-level members: `details` and `games` as raw text (the parser
@@ -233,8 +247,8 @@ pub fn usable_games(games: Option<serde_json::Value>) -> Option<serde_json::Valu
 /// included, whichever way its name is spelled.
 struct Envelope {
     rest: serde_json::Map<String, serde_json::Value>,
-    details: Option<Box<serde_json::value::RawValue>>,
-    games: Option<Box<serde_json::value::RawValue>>,
+    details: Option<Box<RawValue>>,
+    games: Option<Box<RawValue>>,
 }
 
 impl<'de> Deserialize<'de> for Envelope {
@@ -285,10 +299,10 @@ impl<'de> Deserialize<'de> for Envelope {
 
 /// Parses one line, without its newline. The parser owns the boundary: the
 /// line must be one well-formed JSON object, and its `details` and `games`
-/// members are read as raw text and decoded on their own. A `details` the
-/// decoder's own depth limit refuses is left out and the line is decoded
-/// without it, and so is `games`, so what the room host says about its
-/// listing and its games can never make a sound line an error.
+/// members are kept as raw text, never decoded. One that is not of its kind,
+/// is too big or nests too deep is left out and the line is decoded without
+/// it, so what the room host says about its listing and its games can never
+/// make a sound line an error.
 pub fn parse_line(line: &[u8]) -> Result<ChildMessage, String> {
     let line = line.trim_ascii();
     if line.is_empty() {
@@ -307,8 +321,8 @@ pub fn parse_line(line: &[u8]) -> Result<ChildMessage, String> {
         ..
     } = &mut message
     {
-        *details_slot = details.and_then(|raw| serde_json::from_str(raw.get()).ok());
-        *games_slot = games.and_then(|raw| serde_json::from_str(raw.get()).ok());
+        *details_slot = bounded(details, b'{', MAX_DETAILS_BYTES);
+        *games_slot = bounded(games, b'[', MAX_GAMES_BYTES);
     }
     Ok(message)
 }
@@ -496,11 +510,16 @@ mod tests {
         assert!(matches!(parse_line(b"  \r"), Ok(ChildMessage::Unknown)));
     }
 
+    /// What the supervisor keeps of a raw member, decoded to compare.
+    fn decoded(raw: Option<Box<RawValue>>) -> Option<serde_json::Value> {
+        raw.map(|raw| serde_json::from_str(raw.get()).expect("kept members are JSON"))
+    }
+
     fn details_of(line: &[u8]) -> Option<serde_json::Value> {
         let Ok(ChildMessage::Status { details, .. }) = parse_line(line) else {
             panic!("expected a status");
         };
-        usable_details(details)
+        decoded(details)
     }
 
     #[test]
@@ -580,7 +599,10 @@ mod tests {
         else {
             panic!("expected a status");
         };
-        assert_eq!((members, invitation.as_str(), details), (1, "i", None));
+        assert_eq!(
+            (members, invitation.as_str(), decoded(details)),
+            (1, "i", None)
+        );
         // The most a line can hold, about 60 000 levels, is still no error
         // and no recursion, on a status or on any other message.
         for kind in ["hosted", "status"] {
@@ -611,14 +633,17 @@ mod tests {
         else {
             panic!("expected a status");
         };
-        assert_eq!((members, details), (2, None));
+        assert_eq!((members, decoded(details)), (2, None));
         assert!(invitation.starts_with('i'));
         // The same member, shallow, is read whole.
         let line = r#"{"type":"status","members":2,"invitation":"i","details" : {"s": "]}\"", "n": [ 1 ] } }"#;
         let Ok(ChildMessage::Status { details, .. }) = parse_line(line.as_bytes()) else {
             panic!("expected a status");
         };
-        assert_eq!(details, Some(serde_json::json!({ "s": "]}\"", "n": [1] })));
+        assert_eq!(
+            decoded(details),
+            Some(serde_json::json!({ "s": "]}\"", "n": [1] }))
+        );
     }
 
     #[test]
@@ -678,7 +703,7 @@ mod tests {
         let Ok(ChildMessage::Status { games, .. }) = parse_line(line) else {
             panic!("a games member must never fail a sound line");
         };
-        usable_games(games)
+        decoded(games)
     }
 
     #[test]
@@ -726,11 +751,46 @@ mod tests {
         .unwrap();
         assert!(line.len() > 42_000, "{}", line.len());
         assert!(line.len() * 3 < MAX_LINE_BYTES, "{}", line.len());
+        // And under the room host's own budget (`MaximumStatusLineBytes`).
+        assert!(line.len() < 60_000, "{}", line.len());
         let Ok(ChildMessage::Status { banned, games, .. }) = parse_line(line.as_bytes()) else {
             panic!("expected a status");
         };
         assert_eq!(banned.len(), MAX_ROOM_BANS);
-        assert!(usable_games(games).is_some());
+        assert!(games.is_some());
+    }
+
+    /// The limits this crate shares with the room host, the bridge and
+    /// ember-protocol are written out in each of them (`server/roomhost/
+    /// README.md`, "Status line limits"); this reads the other definitions so
+    /// that none can drift from these.
+    #[test]
+    fn the_limits_agree_with_the_room_host_and_the_bridge() {
+        let server = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let read = |path: &str| {
+            std::fs::read_to_string(server.join(path))
+                .unwrap_or_else(|error| panic!("{path}: {error}"))
+        };
+        let host = read("roomhost/RoomHostStatus.hxx");
+        assert_eq!(MAX_LINE_BYTES, 128 * 1024);
+        assert!(host.contains("constexpr std::size_t SupervisorLineBytes = 128 * 1024;"));
+        assert!(host.contains(&format!(
+            "constexpr std::size_t SupervisorDetailsBytes = {MAX_DETAILS_BYTES}, SupervisorGamesBytes = {MAX_GAMES_BYTES};"
+        )));
+        assert!(host.contains(&format!(
+            "static_assert(room::MaximumKickedAccounts == {MAX_ROOM_BANS},"
+        )));
+        let bridge = read("ember/bridge/src/routes/rooms/supervisor.rs");
+        assert!(bridge.contains(&format!(
+            "const MAX_DETAILS_REPORT: usize = {MAX_DETAILS_BYTES};"
+        )));
+        assert!(bridge.contains(&format!(
+            "const MAX_GAMES_REPORT: usize = {MAX_GAMES_BYTES};"
+        )));
+        let rooms = read("ember/protocol/src/rooms.rs");
+        assert!(rooms.contains(&format!(
+            "pub const MAX_ROOM_BANS: usize = {MAX_ROOM_BANS};"
+        )));
     }
 
     #[tokio::test]

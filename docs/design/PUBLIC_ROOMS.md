@@ -350,4 +350,5 @@ sends `JoinPublic`.
   The unit uses `KillMode=mixed`, so systemd's SIGTERM reaches the supervisor
   only; room hosts are closed by the supervisor, not signalled.
 - A status line from a room host is at most 128 KiB. The largest valid one (512
-  Ember IDs and a 4096 byte invitation) is about 35 KB.
+  Ember IDs, a 4096 byte invitation, details and games) is about 43 KB; the
+  limits and their homes are tabled in server/roomhost/README.md.

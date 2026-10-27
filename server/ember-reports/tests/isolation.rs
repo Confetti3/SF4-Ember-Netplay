@@ -70,7 +70,7 @@ async fn long_unknown_module_chain_is_isolated_and_worker_slot_is_reusable() {
     // Confirm the fixture really walks through more than the export limit.
     let short = worker
         .walk(
-            frame_pointer_chain(256, 1),
+            &frame_pointer_chain(256, 1),
             temp.0.clone(),
             Duration::from_secs(5),
         )
@@ -86,7 +86,7 @@ async fn long_unknown_module_chain_is_isolated_and_worker_slot_is_reusable() {
     let bytes = frame_pointer_chain(300_000, THREADS as u32);
     let started = Instant::now();
     let walk = worker
-        .walk(bytes, temp.0.clone(), Duration::from_secs(1))
+        .walk(&bytes, temp.0.clone(), Duration::from_secs(1))
         .await;
     assert!(
         matches!(walk.status, WalkStatus::Timeout | WalkStatus::WorkerFailed),
@@ -99,7 +99,7 @@ async fn long_unknown_module_chain_is_isolated_and_worker_slot_is_reusable() {
     assert!(gate.reserve().is_ok());
     let healthy = worker
         .walk(
-            frame_pointer_chain(256, 1),
+            &frame_pointer_chain(256, 1),
             temp.0.clone(),
             Duration::from_secs(5),
         )

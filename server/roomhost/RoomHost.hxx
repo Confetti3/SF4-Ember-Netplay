@@ -54,6 +54,43 @@ constexpr std::uint64_t IdleWaitMs(std::uint64_t nextDueMs) {
 std::string HostedLine(const std::string& invitation, const std::string& region);
 std::string ClosedLine(const std::string& reason);
 
+// The status lines a hosted room gives the supervisor and the bans it gives the
+// helper, each its own step. Portable and with no helper, so a test can drive it
+// over a SessionServer of its own.
+class RoomReporter {
+public:
+	using Emit = std::function<void(const std::string& line)>;
+	// Asks the helper to ban an account; false when its queue is full.
+	using Ban = std::function<bool(const std::string& account)>;
+	// Emits the status line when anything it says has changed. Everything it says
+	// comes from the snapshot (which moves its revision on every change), the
+	// committed bans and won games (which change with a commit, and so with the
+	// applied revision) and the invitation: while none of those has moved,
+	// nothing is copied or compared. A committed ban seen here for the first time
+	// waits for ForwardBans. False when the line is over MaximumStatusLineBytes;
+	// nothing is emitted then.
+	bool Report(const SessionServer& server, const room::Snapshot& snapshot, std::uint64_t appliedRevision,
+		const std::string& invitation, const Emit& emit, std::uint64_t nowMs);
+	// Gives the helper each waiting ban once it has been committed for NoticeMs
+	// and no commit is in flight; one the helper's queue refuses is tried again on
+	// the next call. The room model has already removed and banned the account;
+	// the helper's ban is the outer door. It closes the member's control at once,
+	// so it waits a moment for the kick's commit to carry the removal notice to
+	// that member.
+	void ForwardBans(const SessionServer& server, const Ban& ban, std::uint64_t nowMs);
+	// A committed ban has not reached the helper yet.
+	bool BansPending() const { return !pendingBans_.empty(); }
+
+private:
+	std::set<std::string> forwardedBans_;
+	// When each ban not yet given to the helper was first seen.
+	std::map<std::string, std::uint64_t> pendingBans_;
+	// The snapshot and applied revisions the last Report looked at.
+	std::uint64_t reportedSnapshotRevision_ = 0, reportedAppliedRevision_ = 0;
+	Status reported_;
+	bool haveReported_ = false;
+};
+
 class RoomHost {
 public:
 	using Emit = std::function<void(const std::string& line)>;
@@ -94,7 +131,10 @@ public:
 private:
 	class AccountTransport;
 	void Attach();
-	void ForwardBans(const std::vector<std::string>& banned, std::uint64_t nowMs);
+	// The steps of a tick's report, in this order (Report).
+	void NoteInvitation();
+	bool EmitHosted(std::uint64_t nowMs);
+	void DetectModelClose(const room::Snapshot& snapshot, std::uint64_t nowMs);
 	void Report(std::uint64_t nowMs);
 	bool Fail(const std::string& reason);
 
@@ -111,13 +151,7 @@ private:
 	// The supervisor treats an empty invitation as a protocol error, and the
 	// room hides its invitation while control reconnects: keep the last one.
 	std::string invitation_;
-	std::set<std::string> forwardedBans_;
-	// When each ban not yet given to the helper was first seen.
-	std::map<std::string, std::uint64_t> pendingBans_;
-	// The snapshot and applied revisions the last Report looked at; see Report.
-	std::uint64_t reportedSnapshotRevision_ = 0, reportedAppliedRevision_ = 0;
-	Status reported_;
-	bool haveReported_ = false;
+	RoomReporter reporter_;
 };
 
 } }
