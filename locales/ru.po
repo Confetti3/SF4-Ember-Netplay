@@ -4776,6 +4776,72 @@ msgstr "Оба игрока встают в конец очереди, а сад
 msgid "rules.rotation.needs_set"
 msgstr "Сначала выберите длину поединка. Без неё никто не меняется."
 
+msgid "rules.instant_rematch"
+msgstr "Мгновенный реванш"
+
+msgid "rules.instant_rematch.detail"
+msgstr "После каждой игры оба бойца 10 секунд выбирают на экране WIN: Реванш, Выбор бойца или Назад в комнату."
+
+msgid "postmatch.choose"
+msgstr "Ещё раз?"
+
+msgid "postmatch.waiting_for"
+msgstr "Ждём: {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0}: хочет реванш"
+
+msgid "postmatch.wants_next"
+msgstr "{0}: хочет следующую игру"
+
+msgid "postmatch.starting"
+msgstr "Следующая игра начинается"
+
+msgid "postmatch.opponent_left"
+msgstr "{0}: не за столом"
+
+msgid "postmatch.seconds_left"
+msgstr "Осталось на выбор: {0} с"
+
+msgid "postmatch.rematch"
+msgstr "Реванш"
+
+msgid "postmatch.next_game"
+msgstr "Следующая игра"
+
+msgid "postmatch.again.detail"
+msgstr "Те же бойцы и правила. Следующая игра начнётся, как только вы оба её выберете, без возврата в комнату."
+
+msgid "postmatch.queue_waiting"
+msgstr "Реванша нет, пока кто-то ждёт в очереди."
+
+msgid "postmatch.not_seated"
+msgstr "Вы больше не сидите за этим столом."
+
+msgid "postmatch.character_select"
+msgstr "Выбор бойца"
+
+msgid "postmatch.character_select.detail"
+msgstr "Выберите другого бойца в комнате, затем Готов."
+
+msgid "postmatch.back"
+msgstr "Назад в комнату"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Назад в комнату. Место остаётся за вами, без готовности. Без ответа за 10 секунд будет так же."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Встаньте и смотрите из комнаты. Без ответа за 10 секунд будет так же."
+
+msgid "postmatch.state.choosing"
+msgstr "Выбирает"
+
+msgid "postmatch.state.ready"
+msgstr "Готов"
+
+msgid "postmatch.state.left"
+msgstr "Не за столом"
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 

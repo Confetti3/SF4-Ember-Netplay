@@ -458,6 +458,8 @@ bool AtMainMenu();
 // Tests only: makes AtMainMenu answer `value`; nullopt restores the native check.
 // Do not Publish while it is true: Publish at the main menu reads the game's pads.
 void SetAtMainMenuForTest(std::optional<bool> value);
+// The post-match prompt's WIN (or DRAW) screen (sf4e__NetplayRuntime__Status.cxx).
+bool PostMatchPromptDue();
 void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
 bool CanEditLobby();

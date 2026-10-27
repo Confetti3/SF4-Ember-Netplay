@@ -4776,6 +4776,72 @@ msgstr "Les deux joueurs retournent au bout de la file et les deux suivants s'as
 msgid "rules.rotation.needs_set"
 msgstr "Choisissez d'abord une longueur de set. Sans longueur, personne ne change."
 
+msgid "rules.instant_rematch"
+msgstr "Revanche immédiate"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Après chaque partie, les deux combattants choisissent Revanche, Sélection personnage ou Retour au salon sur l'écran WIN, pendant 10 secondes."
+
+msgid "postmatch.choose"
+msgstr "On remet ça ?"
+
+msgid "postmatch.waiting_for"
+msgstr "En attente de {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} veut une revanche"
+
+msgid "postmatch.wants_next"
+msgstr "{0} veut la partie suivante"
+
+msgid "postmatch.starting"
+msgstr "La partie suivante démarre"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} a quitté sa place"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s pour choisir"
+
+msgid "postmatch.rematch"
+msgstr "Revanche"
+
+msgid "postmatch.next_game"
+msgstr "Partie suivante"
+
+msgid "postmatch.again.detail"
+msgstr "Mêmes combattants, mêmes règles. La partie suivante démarre dès que vous la choisissez tous les deux, sans repasser par le salon."
+
+msgid "postmatch.queue_waiting"
+msgstr "Pas de revanche tant que quelqu'un attend dans la file."
+
+msgid "postmatch.not_seated"
+msgstr "Vous n'êtes plus assis à cette table."
+
+msgid "postmatch.character_select"
+msgstr "Sélection personnage"
+
+msgid "postmatch.character_select.detail"
+msgstr "Choisissez un autre combattant dans le salon, puis Prêt."
+
+msgid "postmatch.back"
+msgstr "Retour au salon"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Retour au salon. Vous gardez votre place, pas prêt. Sans réponse en 10 secondes, c'est pareil."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Quittez votre place et regardez depuis le salon. Sans réponse en 10 secondes, c'est pareil."
+
+msgid "postmatch.state.choosing"
+msgstr "Choisit"
+
+msgid "postmatch.state.ready"
+msgstr "Prêt"
+
+msgid "postmatch.state.left"
+msgstr "A quitté sa place"
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 

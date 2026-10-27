@@ -354,7 +354,10 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		if (draining || !gates.readyGate) {
 			Defer(runtime->readyIntent, command);
 			// Ready is the explicit handoff from post-match spectator draining.
-			if (draining) RetireFinishedMatch("iroh_rematch");
+			// Over the WIN screen the press waits for it to play out: both games
+			// leave it on the same frame, and one leaving early would stall the
+			// other's battle without its inputs.
+			if (draining && !PostMatchPromptDue()) RetireFinishedMatch("iroh_rematch");
 			return DispatchOutcome::Deferred;
 		}
 	}

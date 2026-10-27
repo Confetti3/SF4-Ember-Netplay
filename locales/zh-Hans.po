@@ -4777,6 +4777,72 @@ msgstr "双方都回到队列末尾，由接下来的两人入座。"
 msgid "rules.rotation.needs_set"
 msgstr "请先选择每组局数。不限局数时没有人轮换。"
 
+msgid "rules.instant_rematch"
+msgstr "即时再战"
+
+msgid "rules.instant_rematch.detail"
+msgstr "每局结束后，双方在 WIN 画面有 10 秒选择再战、角色选择或返回房间。"
+
+msgid "postmatch.choose"
+msgstr "再来一局？"
+
+msgid "postmatch.waiting_for"
+msgstr "等待 {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} 想要再战"
+
+msgid "postmatch.wants_next"
+msgstr "{0} 想要下一局"
+
+msgid "postmatch.starting"
+msgstr "下一局即将开始"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} 离开了席位"
+
+msgid "postmatch.seconds_left"
+msgstr "剩余 {0} 秒"
+
+msgid "postmatch.rematch"
+msgstr "再战"
+
+msgid "postmatch.next_game"
+msgstr "下一局"
+
+msgid "postmatch.again.detail"
+msgstr "角色和规则不变。双方都选择后立即开始下一局，不回到房间。"
+
+msgid "postmatch.queue_waiting"
+msgstr "有人在队列中等待时不能再战。"
+
+msgid "postmatch.not_seated"
+msgstr "你已不在这张桌子的席位上。"
+
+msgid "postmatch.character_select"
+msgstr "角色选择"
+
+msgid "postmatch.character_select.detail"
+msgstr "在房间里选择其他角色，然后准备。"
+
+msgid "postmatch.back"
+msgstr "返回房间"
+
+msgid "postmatch.back.keep_seat"
+msgstr "返回房间。保留你的席位，未准备。10 秒内不回应效果相同。"
+
+msgid "postmatch.back.leave_seat"
+msgstr "离开席位，在房间里观战。10 秒内不回应效果相同。"
+
+msgid "postmatch.state.choosing"
+msgstr "选择中"
+
+msgid "postmatch.state.ready"
+msgstr "准备"
+
+msgid "postmatch.state.left"
+msgstr "已离席"
+
 msgid "rules.set_summary"
 msgstr "{0}，{1}"
 

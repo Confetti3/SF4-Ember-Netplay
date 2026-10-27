@@ -14,10 +14,13 @@ namespace sf4e { namespace input {
 // WatchedMatch: a room game this PC only watches, under rollback. Start or
 // F10 opens Ember's menu over it, where the spectator leaves the game (Stop
 // watching); the game keeps running underneath, as it does for the fighters.
-enum class MenuContext { Unavailable, MainMenu, OfflineTraining, ReplayExport, PracticeMatch, WatchedMatch };
+// MatchResult: the WIN (or DRAW) screen of a room game this PC fought, at a table with
+// Instant rematch on (room::Rules::instantRematch). Ember's post-match prompt
+// opens over it by itself; Start does not open the menu there.
+enum class MenuContext { Unavailable, MainMenu, OfflineTraining, ReplayExport, PracticeMatch, WatchedMatch, MatchResult };
 // A room game Ember's menu is shown over: the one place a fight does not keep it away.
 inline bool MenuOverFight(MenuContext context) {
-    return context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch;
+    return context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch || context == MenuContext::MatchResult;
 }
 // The pad drives Ember's menus at the main menu, the training controls in
 // offline Training (opened there by Back and Start, TrainingPad.hxx), and the
@@ -25,7 +28,7 @@ inline bool MenuOverFight(MenuContext context) {
 // and over a fight.
 inline bool ControllerMenuAvailable(MenuContext context) { return context != MenuContext::Unavailable; }
 inline bool ControllerOpensMenu(MenuContext context) {
-    return context == MenuContext::MainMenu || MenuOverFight(context);
+    return context == MenuContext::MainMenu || context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch;
 }
 // Where Ember's menu can be shown: offline Training has its own controls.
 inline bool MenuShownIn(MenuContext context) {

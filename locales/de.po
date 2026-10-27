@@ -4776,6 +4776,72 @@ msgstr "Beide stellen sich hinten in der Warteschlange an, die nächsten zwei se
 msgid "rules.rotation.needs_set"
 msgstr "Wähle zuerst eine Satzlänge. Ohne Satzlänge wechselt niemand."
 
+msgid "rules.instant_rematch"
+msgstr "Sofort-Revanche"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Nach jedem Spiel wählen beide Kämpfer auf dem WIN-Bildschirm 10 Sekunden lang Revanche, Charakterauswahl oder Zurück in den Raum."
+
+msgid "postmatch.choose"
+msgstr "Noch eine Runde?"
+
+msgid "postmatch.waiting_for"
+msgstr "Warte auf {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} will eine Revanche"
+
+msgid "postmatch.wants_next"
+msgstr "{0} will das nächste Spiel"
+
+msgid "postmatch.starting"
+msgstr "Nächstes Spiel startet"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} hat den Platz verlassen"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s zum Wählen"
+
+msgid "postmatch.rematch"
+msgstr "Revanche"
+
+msgid "postmatch.next_game"
+msgstr "Nächstes Spiel"
+
+msgid "postmatch.again.detail"
+msgstr "Gleiche Kämpfer und Regeln. Das nächste Spiel startet, sobald ihr beide es wählt, ohne Umweg über den Raum."
+
+msgid "postmatch.queue_waiting"
+msgstr "Keine Revanche, solange jemand in der Warteschlange wartet."
+
+msgid "postmatch.not_seated"
+msgstr "Du sitzt nicht mehr an diesem Tisch."
+
+msgid "postmatch.character_select"
+msgstr "Charakterauswahl"
+
+msgid "postmatch.character_select.detail"
+msgstr "Wähle im Raum einen anderen Kämpfer, dann Bereit."
+
+msgid "postmatch.back"
+msgstr "Zurück in den Raum"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Zurück in den Raum. Du behältst deinen Platz, nicht bereit. Keine Antwort in 10 Sekunden bewirkt dasselbe."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Verlasse deinen Platz und schau im Raum zu. Keine Antwort in 10 Sekunden bewirkt dasselbe."
+
+msgid "postmatch.state.choosing"
+msgstr "Wählt"
+
+msgid "postmatch.state.ready"
+msgstr "Bereit"
+
+msgid "postmatch.state.left"
+msgstr "Platz verlassen"
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 

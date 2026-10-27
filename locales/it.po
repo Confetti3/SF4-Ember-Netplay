@@ -4776,6 +4776,72 @@ msgstr "Entrambi i giocatori tornano in fondo alla coda e si siedono i due succe
 msgid "rules.rotation.needs_set"
 msgstr "Scegli prima una durata del set. Senza durata nessuno cambia."
 
+msgid "rules.instant_rematch"
+msgstr "Rivincita immediata"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Dopo ogni partita entrambi i lottatori scelgono Rivincita, Seleziona personaggio o Torna alla stanza sulla schermata WIN, per 10 secondi."
+
+msgid "postmatch.choose"
+msgstr "Un'altra?"
+
+msgid "postmatch.waiting_for"
+msgstr "In attesa di {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} vuole la rivincita"
+
+msgid "postmatch.wants_next"
+msgstr "{0} vuole la prossima partita"
+
+msgid "postmatch.starting"
+msgstr "Inizia la prossima partita"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} ha lasciato il posto"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s per scegliere"
+
+msgid "postmatch.rematch"
+msgstr "Rivincita"
+
+msgid "postmatch.next_game"
+msgstr "Prossima partita"
+
+msgid "postmatch.again.detail"
+msgstr "Stessi lottatori e regole. La prossima partita inizia appena la scegliete entrambi, senza tornare alla stanza."
+
+msgid "postmatch.queue_waiting"
+msgstr "Niente rivincita finché qualcuno aspetta in coda."
+
+msgid "postmatch.not_seated"
+msgstr "Non sei più seduto a questo tavolo."
+
+msgid "postmatch.character_select"
+msgstr "Seleziona personaggio"
+
+msgid "postmatch.character_select.detail"
+msgstr "Scegli un altro lottatore nella stanza, poi Pronto."
+
+msgid "postmatch.back"
+msgstr "Torna alla stanza"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Torna alla stanza. Mantieni il posto, non pronto. Nessuna risposta in 10 secondi fa lo stesso."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Lascia il posto e guarda dalla stanza. Nessuna risposta in 10 secondi fa lo stesso."
+
+msgid "postmatch.state.choosing"
+msgstr "Sceglie"
+
+msgid "postmatch.state.ready"
+msgstr "Pronto"
+
+msgid "postmatch.state.left"
+msgstr "Ha lasciato il posto"
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 

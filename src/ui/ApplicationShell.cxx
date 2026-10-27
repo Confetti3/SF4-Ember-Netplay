@@ -628,6 +628,7 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  if(preferencesDirty_&&OnlyRoomSettingsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
+ UpdatePostMatch(v,room,ImGui::GetTime(),submit,nullptr);
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
@@ -674,6 +675,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
   shortCopyUntil_ = RebaseUiTimestamp(shortCopyUntil_, lastUiTime_, now);
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
+  if(postMatch_)postMatch_->until = RebaseUiTimestamp(postMatch_->until, lastUiTime_, now);
   roomUpdateStarted_ = -1;
  }
  lastUiTime_ = now;
@@ -697,6 +699,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   languageDirty_=false;
  }
  UpdateRoomTransitions(v,now);
+ UpdatePostMatch(v,v.room,now,submit,open);
  TrackLiveGames(v,now);
  TrackLockIn(v,now);
  UpdateChat(v,submit);
@@ -789,10 +792,16 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // After every other source of a notice this frame, so the question never takes a place they are about to.
  UpdateLaunchCheck(v,now,submit);
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
+ const bool postMatchScreen=nav.Screen()=="post-match";
+ if(postMatchScreen){
+  // A panel in the middle of the WIN screen, which stays in sight around it.
+  const ImVec2 size((std::min)(vp->Size.x-32*Scale(),720*Scale()),(std::min)(vp->Size.y-32*Scale(),600*Scale()));
+  ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+(vp->Size.x-size.x)/2,vp->Pos.y+(vp->Size.y-size.y)/2));ImGui::SetNextWindowSize(size);
+ }
  if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
- menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
+ menu_.backInert=false;menu_.backdrop=!v.SeeThrough()&&!postMatchScreen;
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
  // The wide room board shows the picture at the top of its column instead (DrawRoomBoard).
  if(v.watchedPicture&&!(nav.Screen()=="room"&&boardLayout_!=BoardLayout::Stacked&&(!preferences_.roomMembersHidden||!preferences_.roomChatHidden)))
@@ -817,6 +826,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ImGui::End();ImGui::PopStyleVar(2);return;
  }
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
+ if(screen=="post-match"){DrawPostMatch(v,now,submit,open);ImGui::End();ImGui::PopStyleVar(2);return;}
  if(screen=="report") {
   const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);
   if(intent.service!=platform::ServiceAction::None){

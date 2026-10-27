@@ -12,7 +12,8 @@ namespace sf4e { namespace netplay {
 // One set of table rules, whole: ReadTableRules reads it back.
 inline nlohmann::json TableRulesJson(const room::Rules& rules) {
     return {{"format", static_cast<int>(rules.format)}, {"rotation", static_cast<int>(rules.rotation)},
-        {"editionSelect", rules.editionSelect}, {"roundCount", rules.roundCount}, {"roundTime", rules.roundTime}};
+        {"editionSelect", rules.editionSelect}, {"roundCount", rules.roundCount}, {"roundTime", rules.roundTime},
+        {"instantRematch", rules.instantRematch}};
 }
 // The private room's rules sit beside the room's own fields, the public room's under "publicRules".
 inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
@@ -44,7 +45,8 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
 inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     for (const char* key : {"format", "rotation", "roundCount", "roundTime"})
         if (object.contains(key) && !object[key].is_number_integer()) return false;
-    if (object.contains("editionSelect") && !object["editionSelect"].is_boolean()) return false;
+    for (const char* key : {"editionSelect", "instantRematch"})
+        if (object.contains(key) && !object[key].is_boolean()) return false;
     const auto number = [&](const char* key, std::int64_t current, std::int64_t largest, std::int64_t& read) {
         read = object.value(key, current);
         return read >= 0 && read <= largest;
@@ -60,6 +62,7 @@ inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     rules.roundCount = static_cast<std::uint8_t>(rounds);
     rules.roundTime = static_cast<std::uint16_t>(time);
     rules.editionSelect = object.value("editionSelect", rules.editionSelect);
+    rules.instantRematch = object.value("instantRematch", rules.instantRematch);
     return rules.Valid();
 }
 

@@ -4776,6 +4776,72 @@ msgstr "Beide spelers sluiten achteraan de wachtrij aan en de volgende twee gaan
 msgid "rules.rotation.needs_set"
 msgstr "Kies eerst een setlengte. Zonder setlengte wisselt niemand."
 
+msgid "rules.instant_rematch"
+msgstr "Directe rematch"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Na elk potje kiezen beide vechters op het WIN-scherm 10 seconden lang Rematch, Personage kiezen of Terug naar de room."
+
+msgid "postmatch.choose"
+msgstr "Nog een keer?"
+
+msgid "postmatch.waiting_for"
+msgstr "Wachten op {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} wil een rematch"
+
+msgid "postmatch.wants_next"
+msgstr "{0} wil het volgende potje"
+
+msgid "postmatch.starting"
+msgstr "Volgende potje start"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} heeft de plek verlaten"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s om te kiezen"
+
+msgid "postmatch.rematch"
+msgstr "Rematch"
+
+msgid "postmatch.next_game"
+msgstr "Volgend potje"
+
+msgid "postmatch.again.detail"
+msgstr "Dezelfde vechters en regels. Het volgende potje start zodra jullie het allebei kiezen, zonder terug naar de room."
+
+msgid "postmatch.queue_waiting"
+msgstr "Geen rematch zolang er iemand in de wachtrij staat."
+
+msgid "postmatch.not_seated"
+msgstr "Je zit niet meer aan deze tafel."
+
+msgid "postmatch.character_select"
+msgstr "Personage kiezen"
+
+msgid "postmatch.character_select.detail"
+msgstr "Kies een andere vechter in de room en meld je daarna klaar."
+
+msgid "postmatch.back"
+msgstr "Terug naar de room"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Terug naar de room. Je houdt je plek, niet klaar. Geen antwoord binnen 10 seconden doet hetzelfde."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Verlaat je plek en kijk mee vanuit de room. Geen antwoord binnen 10 seconden doet hetzelfde."
+
+msgid "postmatch.state.choosing"
+msgstr "Kiest"
+
+msgid "postmatch.state.ready"
+msgstr "Klaar"
+
+msgid "postmatch.state.left"
+msgstr "Plek verlaten"
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 

@@ -163,6 +163,9 @@ struct ShellView {
     // input::MenuContext::WatchedMatch): Ember's menu is open over it, and Stop
     // watching leaves it. Empty when nothing is watched.
     netplay::WatchedGame watchedGame;
+    // The WIN screen of a room game this PC fought, at a table with Instant
+    // rematch on (input::MenuContext::MatchResult): the post-match prompt opens.
+    bool matchResult = false;
     // That game's picture, for the top of the wide room board's column or the
     // menu's top right corner, over an opaque menu (PlayerPreferences::watchedPicture);
     // null when it is not wanted or could not be taken.
@@ -458,6 +461,27 @@ private:
     // watching, moved, or took a place, or their spectator view dropped
     // (ShellView::lockInDrops). The player's own Release gets none.
     void TrackLockIn(const ShellView& view, double now);
+    // The post-match prompt (ApplicationShell__PostMatch.cxx), opened over the
+    // WIN screen (ShellView::matchResult) on its own screen, "post-match". It
+    // keeps the table and the opponent of the game it follows, and the
+    // generation of that game: a new one at the table ends it, unless both
+    // fighters chose Rematch, when it stays until that game is loading.
+    struct PostMatchPrompt {
+        int table = -1;
+        room::MemberId opponent = 0;
+        std::uint64_t generation = 0;
+        double until = 0;
+        bool chose = false, starting = false;
+    };
+    std::optional<PostMatchPrompt> postMatch_;
+    bool matchResultSeen_ = false;
+    // What Back to room, Character select or no answer leaves to do once the
+    // game is over and the room takes it: leave the seat, or open fighter select.
+    enum class AfterPostMatch { None, LeaveSeat, FighterSelect } afterPostMatch_ = AfterPostMatch::None;
+    // Opens, times out and ends the prompt; open is null while Ember is hidden.
+    void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
+    void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);
+    void DrawPostMatch(const ShellView& view, double now, const Submit& submit, bool* open);
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;

@@ -307,6 +307,7 @@ input::MenuContext MenuContextNow(bool atMainMenu) {
     // the menu's Stop watching and the leave it sends agree.
     const bool watchedMatch = WatchedGameNow().Active();
     return atMainMenu ? input::MenuContext::MainMenu :
+        PostMatchPromptDue() ? input::MenuContext::MatchResult :
         training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
         replaystore::GetStatus().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
         practiceFight ? input::MenuContext::PracticeMatch :
@@ -352,6 +353,21 @@ std::uint64_t PublishFingerprint() {
 }
 
 namespace internal {
+// The WIN (or DRAW) screen of a room game this PC fought, once the game's result is
+// known, at a table whose rules ask (room::Rules::instantRematch). A Practice
+// room and a tournament's table have no rematch to offer.
+bool PostMatchPromptDue() {
+    using rSystem = Dimps::Game::Battle::System;
+    if (!Game::Battle::System::ggpo || LocalIsSpectator() || !runtime->entry.matchEntered || !runtime->attached || !UserApp::netplay ||
+        !rSystem::staticVars.CurrentBattleFlow || !IsRuntimeMatchEndCommitted()) return false;
+    const auto flow = *rSystem::staticVars.CurrentBattleFlow;
+    if (flow != rSystem::BF__MATCH_RESULT && flow != rSystem::BF__DRAW_RESULT) return false;
+    const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+    const auto table = runtime->entry.enteredTable;
+    return !room.practice && !room.tournament.Active() && table >= 0 && table < static_cast<int>(room.tables.size()) &&
+        room.tables[table].rules.instantRematch;
+}
+
 // This PC is one of the watchers of a game starting or not yet over: a
 // locked-in spectator whose table holds its start for them, a spectator in the
 // roster frozen at the start (the room says Watching), or a member queued at

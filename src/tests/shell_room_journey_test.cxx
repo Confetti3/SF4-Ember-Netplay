@@ -2,6 +2,7 @@
 #include "shell_additional_journeys.hxx"
 #include <algorithm>
 #include <iterator>
+#include <map>
 namespace {
 // The retry row a failed save adds to every screen stays the shell's on the
 // panels' screens too: the Ember ID panel never takes it, and the rankings and
@@ -528,4 +529,70 @@ void RoomJourneys() {
  RoomBoardJourneys();
  RetrySaveOnPanelScreens();
  RoomShortcutOnPanelScreen();
+}
+// The post-match prompt over the WIN screen: Rematch sends the room's Ready
+// and the prompt stays until the next game starts; no answer after a game
+// with no set length leaves the seat once the game is over; inside a set it
+// keeps the seat; a queue greys Rematch out.
+void PostMatchJourneys() {
+ using namespace sf4e;
+ Harness h;JoinedRoom(h,12);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;
+ h.view.room.host=1;h.view.room.revision=3;
+ room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;h.view.room.members.push_back(local);
+ room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;h.view.room.members.push_back(peer);
+ auto& t=h.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
+ h.Screen("room");
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+ const auto row=[&](const char* id)->const MenuEntry&{
+  const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
+  if(it==rows.end())throw std::runtime_error(std::string("Post-match row missing: ")+id+" on "+h.shell.Navigation().Screen()+" after "+std::to_string(h.actions.size())+" actions");return *it;};
+ const auto win=[&]{h.view.session.match=netplay::MatchState::Playing;h.view.atMainMenu=false;h.view.matchResult=true;h.Frame();};
+ const auto gameOver=[&]{h.view.matchResult=false;h.view.session.match=netplay::MatchState::PostMatch;h.view.atMainMenu=true;
+  t.phase=room::TablePhase::Waiting;h.open=true;h.Frame();};
+ win();
+ Check(h.shell.Navigation().Screen()=="post-match"&&row("again").label==loc::T("postmatch.rematch")&&row("again").enabled,"WIN did not open the post-match prompt");
+ h.Choose("again");Check(h.actions.back().command.kind==Kind::Rematch,"Rematch did not send the room's Ready");
+ // Both chose: the room starts the next game at once; the prompt covers the
+ // room until that game loads, past its own timer.
+ // The other Ready and the new game can arrive in one snapshot.
+ // The press is held while the WIN plays out: past the timer, before the room shows it.
+ {const auto sent=h.actions.size();h.Wait(11);
+  Check(h.shell.Navigation().Screen()=="post-match"&&h.actions.size()==sent,"A Rematch the room did not show yet was taken for no answer");}
+ t.ready[0]=true;h.Wait(11);
+ Check(h.shell.Navigation().Screen()=="post-match","Having chosen Rematch, the prompt did not wait for the opponent");
+ gameOver();
+ t.ready[1]=true;t.matchGeneration=6;t.phase=room::TablePhase::Playing;h.Wait(11);
+ Check(h.shell.Navigation().Screen()=="post-match"&&!row("again").enabled,"The room showed before the chosen rematch loaded");
+ t.ready[0]=t.ready[1]=false;h.view.session.match=netplay::MatchState::Preparing;h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match","The next game loading did not end the prompt");
+ // No answer with no set length: Ember steps aside over WIN, then leaves the seat in the room.
+ h.view.matchResult=false;h.Frame();win();const auto before=h.actions.size();h.Wait(11);
+ Check(!h.open&&h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==before,"No answer did not close the prompt over WIN");
+ gameOver();h.Frame();
+ Check(h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue,"No answer after the game did not leave the seat");
+ // Inside a set: Next game, and Back keeps the seat.
+ t.rules.format=room::SetFormat::Ft2;t.matchGeneration=7;t.phase=room::TablePhase::Playing;h.view.room.tables[0].queue={3};
+ win();Check(row("again").label==loc::T("postmatch.next_game")&&row("again").enabled,"A set's game did not offer Next game despite the queue");
+ const auto midSet=h.actions.size();h.Press(MenuInput::Back);gameOver();h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==midSet,"Back inside a set left the seat");
+ // The set over, someone queued: no rematch.
+ t.matchGeneration=8;t.phase=room::TablePhase::Playing;t.lastSet.generation=8;t.lastSet.p1=1;t.lastSet.p2=2;h.view.matchResult=false;h.Frame();win();
+ Check(row("again").label==loc::T("postmatch.rematch")&&!row("again").enabled&&row("again").detail==loc::T("postmatch.queue_waiting"),
+  "Rematch was offered while someone waits in the queue");
+ // A WIN cut short: the game is over before anyone answered and the opponent
+ // has left. Then the room board takes a seat by mouse.
+ gameOver();t.p2=0;h.view.room.members[1].table=h.view.room.members[1].seat=-1;h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match","The prompt stayed over the room after the game was over");
+ t.p1=0;t.queue.clear();h.view.room.members[0].table=h.view.room.members[0].seat=-1;++h.view.room.revision;h.Frame();h.Frame();
+ std::map<std::string,ImVec2> cards;
+ SetMenuCardProbe([&](const char* id,ImVec2 a,ImVec2 b){cards[id]=ImVec2((a.x+b.x)/2,(a.y+b.y)/2);});
+ const auto click=[&](const char* id){
+  h.Frame();const auto at=cards.at(id);auto& io=ImGui::GetIO();
+  io.AddMousePosEvent(at.x,at.y);h.Frame();io.AddMouseButtonEvent(0,true);h.Frame();io.AddMouseButtonEvent(0,false);h.Frame();
+ };
+ click("table-0");Check(h.shell.Navigation().Choosing(),"After the prompt a click on the table did not open the seat chooser");
+ const auto sat=h.actions.size();click("table-0/0");
+ Check(h.actions.size()==sat+1&&h.actions.back().roomAction.kind==room::ActionKind::Queue,"After the prompt a click on Play as P1 did nothing");
+ SetMenuCardProbe({});
+ SetMenuEntriesProbe({});
 }
