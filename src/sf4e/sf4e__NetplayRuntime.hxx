@@ -130,6 +130,7 @@ struct Service {
     platform::ServiceAction service = platform::ServiceAction::None;
     std::string servicePath;
     launcher::InstallOffer updateOffer;
+    updates::UpdateChannel updateChannel = updates::UpdateChannel::Stable;
     SteamId steamProfile;
     reports::Submission reportSubmission;
 };

@@ -610,7 +610,7 @@ TypedCommand Classify(RuntimeCommand command) {
 	if (command.service != platform::ServiceAction::None) {
 		commands::Service service; service.command = std::move(command.command);
 		service.service = command.service; service.servicePath = std::move(command.servicePath);
-		service.updateOffer = std::move(command.updateOffer); service.steamProfile = command.steamProfile;
+		service.updateOffer = std::move(command.updateOffer); service.updateChannel = command.updateChannel; service.steamProfile = command.steamProfile;
 		service.reportSubmission = std::move(command.reportSubmission);
 		return TypedCommand(std::move(service));
 	}
