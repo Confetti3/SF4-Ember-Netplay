@@ -4421,6 +4421,18 @@ msgstr "{0} 想要再战"
 msgid "postmatch.wants_next"
 msgstr "{0} 想要下一局"
 
+msgid "postmatch.king.next"
+msgstr "下一位：{0}"
+
+msgid "postmatch.king.waiting"
+msgstr "等待挑战者"
+
+msgid "postmatch.king.stays"
+msgstr "留守"
+
+msgid "postmatch.king.waits"
+msgstr "等待下一位"
+
 msgid "postmatch.starting"
 msgstr "下一局即将开始"
 

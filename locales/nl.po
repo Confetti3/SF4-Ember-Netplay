@@ -4420,6 +4420,18 @@ msgstr "{0} wil een rematch"
 msgid "postmatch.wants_next"
 msgstr "{0} wil het volgende potje"
 
+msgid "postmatch.king.next"
+msgstr "Volgende: {0}"
+
+msgid "postmatch.king.waiting"
+msgstr "Wachten op een uitdager"
+
+msgid "postmatch.king.stays"
+msgstr "Blijft zitten"
+
+msgid "postmatch.king.waits"
+msgstr "Wacht op de volgende"
+
 msgid "postmatch.starting"
 msgstr "Volgende potje start"
 

@@ -4420,6 +4420,18 @@ msgstr "{0} vuole la rivincita"
 msgid "postmatch.wants_next"
 msgstr "{0} vuole la prossima partita"
 
+msgid "postmatch.king.next"
+msgstr "Prossimo: {0}"
+
+msgid "postmatch.king.waiting"
+msgstr "In attesa di uno sfidante"
+
+msgid "postmatch.king.stays"
+msgstr "Resta"
+
+msgid "postmatch.king.waits"
+msgstr "Aspetta il prossimo"
+
 msgid "postmatch.starting"
 msgstr "Inizia la prossima partita"
 

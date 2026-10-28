@@ -491,6 +491,28 @@ void ArcadeJourneys() {
   Check(a.actions.size()==sent+1&&a.actions.back().roomAction.kind==room::ActionKind::Queue&&a.actions.back().roomAction.table==0&&
    a.actions.back().roomAction.seat==0,"A paired member could not move to cabinet 1");
  }
+ {
+  // King of the hill after a set: nothing to choose, the set's winner stays on
+  // and its loser waits, and no answer keeps the seat.
+  Harness k;JoinedRoom(k,15);k.view.session.generation.room=1;k.view.session.control=netplay::Health::Healthy;
+  k.view.room.host=1;k.view.room.revision=3;k.view.room.arcade=room::KingRoom;
+  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;k.view.room.members.push_back(local);
+  room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;k.view.room.members.push_back(peer);
+  auto& t=k.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
+  k.view.room.cabinets[0]=1;k.view.room.cabinets[8]=2;
+  k.Screen("room");
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
+  t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.score[0]=t.score[1]=0;
+  k.view.session.match=netplay::MatchState::Playing;k.view.atMainMenu=false;k.view.matchResult=true;k.Frame();
+  Check(k.shell.Navigation().Screen()=="post-match"&&row("again")==rows.end()&&row("back")!=rows.end(),"King of the hill offered a Rematch after a set");
+  Check(row("pm-you")->value==loc::T("postmatch.king.stays")&&row("pm-opponent")->value==loc::T("postmatch.king.waits"),"The set's winner and loser were not shown");
+  Check(row("back")->detail==loc::T("postmatch.back.keep_seat"),"Back after a King of the hill set said it gives up the seat");
+  const auto sent=k.actions.size();k.Wait(11);
+  k.view.matchResult=false;k.view.session.match=netplay::MatchState::PostMatch;k.view.atMainMenu=true;t.phase=room::TablePhase::Waiting;k.open=true;k.Frame(0,5);
+  Check(std::none_of(k.actions.begin()+sent,k.actions.end(),[](const ShellAction& a){return a.roomAction.kind==room::ActionKind::Unqueue;}),"No answer after a King of the hill set left the cabinet");
+  SetMenuEntriesProbe({});
+ }
 }
 // The post-match prompt over the WIN screen: Rematch sends the room's Ready
 // and the prompt stays until the next game starts; no answer after a game

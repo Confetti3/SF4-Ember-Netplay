@@ -4420,6 +4420,18 @@ msgstr "{0}: chce odvetu"
 msgid "postmatch.wants_next"
 msgstr "{0}: chce další hru"
 
+msgid "postmatch.king.next"
+msgstr "Další: {0}"
+
+msgid "postmatch.king.waiting"
+msgstr "Čeká se na vyzyvatele"
+
+msgid "postmatch.king.stays"
+msgstr "Zůstává"
+
+msgid "postmatch.king.waits"
+msgstr "Čeká na dalšího"
+
 msgid "postmatch.starting"
 msgstr "Další hra začíná"
 
