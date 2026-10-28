@@ -176,12 +176,13 @@ void fSystem::UpdateInputs() {
         // The call back from a room, as its owner offered it when this poll
         // began; go now is the pad's only while nobody else has the press
         // (TrainingCallInput.hxx).
-        const bool free=!sf4e::Overlay::CapturesMenuInput()&&!sf4e::battlePause.Paused();
+        const bool paused=sf4e::battlePause.Paused();
+        const bool free=!sf4e::Overlay::CapturesMenuInput()&&!paused;
         const auto call=!offeredCall.Live()?sf4e::input::TrainingCall::None:
             free&&device.type==sf4e::input::PadXInput?sf4e::input::TrainingCall::GoNow:sf4e::input::TrainingCall::Called;
         const auto place=sf4e::training::ReadPlace();
         sf4e::input::PadOwner owner;owner.generation=place.generation;owner.epoch=focus.epoch;
-        const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x,sf4e::training::ChordStartsRecording());
+        const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x,sf4e::training::ChordStartsRecording(),paused);
         const auto& events=result.events;
         ownedByGesture=events.owned;
         // View's go now is accepted, as the chord is, only under the focus
