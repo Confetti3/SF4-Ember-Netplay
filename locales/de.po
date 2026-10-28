@@ -4972,6 +4972,84 @@ msgstr "Übungskampf"
 msgid "room.rules_summary_practice"
 msgstr "Übungskampf, {0} Runden, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Raumtyp"
+
+msgid "room.type.classic"
+msgstr "Klassisch"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "Spieler stellen sich an einem Tisch an und spielen dort."
+
+msgid "room.type.arcade_detail"
+msgstr "Sechzehn Automaten: Setz dich an einen freien und spiel gegen den, der am längsten wartet. Nach einem Set wählen beide Revanche und spielen erneut, sonst spielt jeder gegen den Nächsten, der wartet."
+
+msgid "room.arcade_status"
+msgstr "Arcade-Raum / nur mit Einladung"
+
+msgid "room.arcade_locked_status"
+msgstr "Arcade-Raum gesperrt / nur mit Einladung"
+
+msgid "room.arcade_sit"
+msgstr "Hinsetzen"
+
+msgid "room.arcade_sit_detail"
+msgstr "Hier hinsetzen: Du spielst gegen den, der am längsten wartet, oder wartest auf den Nächsten, der sich setzt."
+
+msgid "room.arcade_waiting"
+msgstr "Wartet"
+
+msgid "room.cabinet_free"
+msgstr "MÜNZE EINWERFEN"
+
+msgid "room.type.king"
+msgstr "King of the Hill"
+
+msgid "room.type.king_detail"
+msgstr "Sechzehn Automaten, alle Paare spielen gleichzeitig: Der Sieger eines Sets bleibt sitzen und spielt gegen den nächsten Herausforderer. Die längste aktuelle Siegesserie hält den Spitzenplatz."
+
+msgid "room.cabinet_row"
+msgstr "Automat {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "frei"
+
+msgid "room.arcade_move_detail"
+msgstr "Zwischen den Spielen an diesen Automaten wechseln. Gegner und Serie bleiben dir."
+
+msgid "room.arcade_vs"
+msgstr "gegen {0}"
+
+msgid "room.rematch"
+msgstr "Revanche"
+
+msgid "room.rematch_detail"
+msgstr "Noch einmal gegen denselben Gegner. Es geht los, sobald ihr beide das wählt."
+
+msgid "room.new_opponent"
+msgstr "Neuer Gegner"
+
+msgid "room.new_opponent_detail"
+msgstr "Sitzen bleiben und gegen den spielen, der am längsten wartet, oder auf den Nächsten warten, der sich setzt."
+
+msgid "room.rematch_ask"
+msgstr "Revanche?"
+
+msgid "room.rematch_chosen"
+msgstr "Revanche gewählt"
+
+msgid "room.top_slot"
+msgstr "SPITZENPLATZ"
+
+msgid "room.top_slot_none"
+msgstr "Gewinne ein Set, um den Spitzenplatz zu holen."
+
+msgid "room.rules.arcade"
+msgstr "Die Regeln eines Arcade-Raums werden beim Erstellen festgelegt und gelten an jedem Tisch."
+
 msgid "room.practice"
 msgstr "Übungsraum"
 
@@ -7439,3 +7517,12 @@ msgstr "Direkt in den Trainingsmodus, ohne die Frage nach Kampfanfragen."
 
 msgid "home.training_unavailable"
 msgstr "Training ist gerade nicht möglich: Verlasse zuerst den Raum oder das Match und gehe zurück ins Hauptmenü des Spiels."
+
+msgid "room.arcade_versus"
+msgstr "vs. {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs. {1}"
+
+msgid "room.matchup_detail"
+msgstr "Automaten {0} und {1}"

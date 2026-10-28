@@ -4973,6 +4973,84 @@ msgstr "练习对战"
 msgid "room.rules_summary_practice"
 msgstr "练习对战，{0} 回合，{1} 秒，Edition Select {2}"
 
+msgid "room.type"
+msgstr "房间类型"
+
+msgid "room.type.classic"
+msgstr "经典"
+
+msgid "room.type.arcade"
+msgstr "街机"
+
+msgid "room.type.classic_detail"
+msgstr "玩家在桌前排队，并在该桌对战。"
+
+msgid "room.type.arcade_detail"
+msgstr "十六台街机：坐到任意空位，与等待最久的玩家对战。一局结束后，双方都选“再战”就再打一局，否则各自与下一位等待的玩家对战。"
+
+msgid "room.arcade_status"
+msgstr "街机房间 / 仅限邀请"
+
+msgid "room.arcade_locked_status"
+msgstr "街机房间已锁定 / 仅限邀请"
+
+msgid "room.arcade_sit"
+msgstr "坐下"
+
+msgid "room.arcade_sit_detail"
+msgstr "坐在这里：与等待最久的玩家对战，或等待下一位入座的玩家。"
+
+msgid "room.arcade_waiting"
+msgstr "等待中"
+
+msgid "room.cabinet_free"
+msgstr "请投币"
+
+msgid "room.type.king"
+msgstr "擂台赛"
+
+msgid "room.type.king_detail"
+msgstr "十六台街机，所有对局同时进行：一局的胜者留在座位上迎战下一位挑战者。当前连胜最长的玩家占据擂主之位。"
+
+msgid "room.cabinet_row"
+msgstr "街机 {0}：{1}"
+
+msgid "room.cabinet_open"
+msgstr "空闲"
+
+msgid "room.arcade_move_detail"
+msgstr "在两局之间换到这台街机。你的对手和连胜都会保留。"
+
+msgid "room.arcade_vs"
+msgstr "对 {0}"
+
+msgid "room.rematch"
+msgstr "再战"
+
+msgid "room.rematch_detail"
+msgstr "与同一位对手再打一局。双方都选择后开始。"
+
+msgid "room.new_opponent"
+msgstr "换对手"
+
+msgid "room.new_opponent_detail"
+msgstr "留在座位上，与等待最久的玩家对战，或等待下一位入座的玩家。"
+
+msgid "room.rematch_ask"
+msgstr "再战？"
+
+msgid "room.rematch_chosen"
+msgstr "已选再战"
+
+msgid "room.top_slot"
+msgstr "擂主"
+
+msgid "room.top_slot_none"
+msgstr "赢下一局即可成为擂主。"
+
+msgid "room.rules.arcade"
+msgstr "街机房间的规则在创建时设定，适用于每一桌。"
+
 msgid "room.practice"
 msgstr "练习房间"
 
@@ -7440,3 +7518,12 @@ msgstr "不询问对战请求设置，直接进入训练模式。"
 
 msgid "home.training_unavailable"
 msgstr "现在无法进入训练：请先离开房间或对战，并回到游戏主菜单。"
+
+msgid "room.arcade_versus"
+msgstr "对 {0}"
+
+msgid "room.matchup"
+msgstr "{0} 对 {1}"
+
+msgid "room.matchup_detail"
+msgstr "机台 {0} 和 {1}"

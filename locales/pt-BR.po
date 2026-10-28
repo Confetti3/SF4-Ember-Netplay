@@ -4492,6 +4492,84 @@ msgstr "Partida de prática"
 msgid "room.rules_summary_practice"
 msgstr "Partida de prática, {0} rounds, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Tipo de sala"
+
+msgid "room.type.classic"
+msgstr "Clássica"
+
+msgid "room.type.arcade"
+msgstr "Fliperama"
+
+msgid "room.type.classic_detail"
+msgstr "Os jogadores entram na fila de uma mesa e jogam nela."
+
+msgid "room.type.arcade_detail"
+msgstr "Dezesseis fliperamas: sente em qualquer um livre e jogue contra quem espera há mais tempo. Depois de um set, se os dois escolherem Revanche jogam de novo; se não, cada um joga com o próximo que espera."
+
+msgid "room.arcade_status"
+msgstr "Sala de fliperama / só por convite"
+
+msgid "room.arcade_locked_status"
+msgstr "Sala de fliperama trancada / só por convite"
+
+msgid "room.arcade_sit"
+msgstr "Sentar"
+
+msgid "room.arcade_sit_detail"
+msgstr "Sente aqui: você joga contra quem espera há mais tempo, ou espera o próximo que sentar."
+
+msgid "room.arcade_waiting"
+msgstr "Aguardando"
+
+msgid "room.cabinet_free"
+msgstr "INSIRA FICHA"
+
+msgid "room.type.king"
+msgstr "Rei da colina"
+
+msgid "room.type.king_detail"
+msgstr "Dezesseis fliperamas, todos os pares jogam ao mesmo tempo: quem vence um set fica sentado e enfrenta o próximo desafiante. A maior sequência de vitórias atual fica com o topo."
+
+msgid "room.cabinet_row"
+msgstr "Fliperama {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "livre"
+
+msgid "room.arcade_move_detail"
+msgstr "Mude para este fliperama entre as partidas. Seu adversário e sua sequência continuam com você."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Revanche"
+
+msgid "room.rematch_detail"
+msgstr "Jogue de novo contra o mesmo adversário. Começa quando os dois escolherem."
+
+msgid "room.new_opponent"
+msgstr "Novo adversário"
+
+msgid "room.new_opponent_detail"
+msgstr "Continue sentado e jogue contra quem espera há mais tempo, ou espere o próximo que sentar."
+
+msgid "room.rematch_ask"
+msgstr "Revanche?"
+
+msgid "room.rematch_chosen"
+msgstr "Revanche escolhida"
+
+msgid "room.top_slot"
+msgstr "TOPO"
+
+msgid "room.top_slot_none"
+msgstr "Vença um set para ficar com o topo."
+
+msgid "room.rules.arcade"
+msgstr "As regras de uma sala de fliperama são definidas ao criá-la e valem em todas as mesas."
+
 msgid "room.practice"
 msgstr "Sala de prática"
 
@@ -6959,3 +7037,12 @@ msgstr "Ir direto para o modo Treino, sem a pergunta de pedido de luta."
 
 msgid "home.training_unavailable"
 msgstr "O treino não está disponível agora: saia primeiro da sala ou da partida e volte ao menu principal do jogo."
+
+msgid "room.arcade_versus"
+msgstr "vs. {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs. {1}"
+
+msgid "room.matchup_detail"
+msgstr "Fliperamas {0} e {1}"

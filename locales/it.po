@@ -4972,6 +4972,84 @@ msgstr "Partita di pratica"
 msgid "room.rules_summary_practice"
 msgstr "Partita di pratica, {0} round, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Tipo di stanza"
+
+msgid "room.type.classic"
+msgstr "Classica"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "I giocatori si mettono in coda a un tavolo e giocano lì."
+
+msgid "room.type.arcade_detail"
+msgstr "Sedici cabinati: siediti a uno libero e gioca contro chi aspetta da più tempo. Dopo un set, se entrambi scelgono Rivincita giocate di nuovo, altrimenti ognuno gioca con il prossimo in attesa."
+
+msgid "room.arcade_status"
+msgstr "Stanza arcade / solo su invito"
+
+msgid "room.arcade_locked_status"
+msgstr "Stanza arcade chiusa / solo su invito"
+
+msgid "room.arcade_sit"
+msgstr "Siediti"
+
+msgid "room.arcade_sit_detail"
+msgstr "Siediti qui: giochi contro chi aspetta da più tempo, oppure aspetti il prossimo che si siede."
+
+msgid "room.arcade_waiting"
+msgstr "In attesa"
+
+msgid "room.cabinet_free"
+msgstr "INSERISCI GETTONE"
+
+msgid "room.type.king"
+msgstr "Re della collina"
+
+msgid "room.type.king_detail"
+msgstr "Sedici cabinati, tutte le coppie giocano insieme: chi vince un set resta seduto e affronta il prossimo sfidante. La serie di vittorie in corso più lunga tiene il primo posto."
+
+msgid "room.cabinet_row"
+msgstr "Cabinato {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "libero"
+
+msgid "room.arcade_move_detail"
+msgstr "Spostati a questo cabinato tra una partita e l'altra. Avversario e serie restano con te."
+
+msgid "room.arcade_vs"
+msgstr "contro {0}"
+
+msgid "room.rematch"
+msgstr "Rivincita"
+
+msgid "room.rematch_detail"
+msgstr "Gioca di nuovo contro lo stesso avversario. Inizia quando la scegliete entrambi."
+
+msgid "room.new_opponent"
+msgstr "Nuovo avversario"
+
+msgid "room.new_opponent_detail"
+msgstr "Resta seduto e gioca contro chi aspetta da più tempo, oppure aspetta il prossimo che si siede."
+
+msgid "room.rematch_ask"
+msgstr "Rivincita?"
+
+msgid "room.rematch_chosen"
+msgstr "Rivincita scelta"
+
+msgid "room.top_slot"
+msgstr "PRIMO POSTO"
+
+msgid "room.top_slot_none"
+msgstr "Vinci un set per prendere il primo posto."
+
+msgid "room.rules.arcade"
+msgstr "Le regole di una stanza arcade si scelgono alla creazione e valgono a ogni tavolo."
+
 msgid "room.practice"
 msgstr "Sala di pratica"
 
@@ -7439,3 +7517,12 @@ msgstr "Vai direttamente alla modalità Allenamento, senza la domanda sulle rich
 
 msgid "home.training_unavailable"
 msgstr "L'allenamento ora non è disponibile: esci prima dalla stanza o dall'incontro e torna al menu principale del gioco."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Cabinati {0} e {1}"

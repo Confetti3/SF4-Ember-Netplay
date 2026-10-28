@@ -4972,6 +4972,84 @@ msgstr "Cvičný zápas"
 msgid "room.rules_summary_practice"
 msgstr "Cvičný zápas, {0} kol, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Typ místnosti"
+
+msgid "room.type.classic"
+msgstr "Klasická"
+
+msgid "room.type.arcade"
+msgstr "Herna"
+
+msgid "room.type.classic_detail"
+msgstr "Hráči čekají ve frontě u stolu a hrají u něj."
+
+msgid "room.type.arcade_detail"
+msgstr "Šestnáct automatů: sedněte si k libovolnému volnému a hrajte s tím, kdo čeká nejdéle. Po setu oba zvolí Odvetu a hrají znovu, jinak každý hraje s dalším čekajícím."
+
+msgid "room.arcade_status"
+msgstr "Místnost herny / jen na pozvání"
+
+msgid "room.arcade_locked_status"
+msgstr "Místnost herny zamčená / jen na pozvání"
+
+msgid "room.arcade_sit"
+msgstr "Posadit se"
+
+msgid "room.arcade_sit_detail"
+msgstr "Sedněte si sem: hrajete s tím, kdo čeká nejdéle, nebo počkáte na dalšího hráče."
+
+msgid "room.arcade_waiting"
+msgstr "Čeká"
+
+msgid "room.cabinet_free"
+msgstr "VHOĎ MINCI"
+
+msgid "room.type.king"
+msgstr "Král kopce"
+
+msgid "room.type.king_detail"
+msgstr "Šestnáct automatů, všechny dvojice hrají najednou: vítěz setu zůstává sedět a hraje s dalším vyzyvatelem. Nejdelší aktuální série výher drží první místo."
+
+msgid "room.cabinet_row"
+msgstr "Automat {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "volný"
+
+msgid "room.arcade_move_detail"
+msgstr "Mezi hrami se přesuňte k tomuto automatu. Soupeř i vaše série zůstávají."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Odveta"
+
+msgid "room.rematch_detail"
+msgstr "Hrát znovu se stejným soupeřem. Začne, jakmile to zvolíte oba."
+
+msgid "room.new_opponent"
+msgstr "Nový soupeř"
+
+msgid "room.new_opponent_detail"
+msgstr "Zůstaňte sedět a hrajte s tím, kdo čeká nejdéle, nebo počkejte na dalšího hráče."
+
+msgid "room.rematch_ask"
+msgstr "Odveta?"
+
+msgid "room.rematch_chosen"
+msgstr "Odveta zvolena"
+
+msgid "room.top_slot"
+msgstr "PRVNÍ MÍSTO"
+
+msgid "room.top_slot_none"
+msgstr "Vyhrajte set a získejte první místo."
+
+msgid "room.rules.arcade"
+msgstr "Pravidla místnosti herny se volí při jejím vytvoření a platí u každého stolu."
+
 msgid "room.practice"
 msgstr "Tréninková místnost"
 
@@ -7439,3 +7517,12 @@ msgstr "Přejít rovnou do režimu Trénink, bez otázky na výzvy k zápasu."
 
 msgid "home.training_unavailable"
 msgstr "Trénink teď není k dispozici: nejdřív opusť místnost nebo zápas a vrať se do hlavního menu hry."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Automaty {0} a {1}"

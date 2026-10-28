@@ -4973,6 +4973,84 @@ msgstr "練習対戦"
 msgid "room.rules_summary_practice"
 msgstr "練習対戦、{0}ラウンド、{1}秒、Edition Select {2}"
 
+msgid "room.type"
+msgstr "ルームタイプ"
+
+msgid "room.type.classic"
+msgstr "クラシック"
+
+msgid "room.type.arcade"
+msgstr "アーケード"
+
+msgid "room.type.classic_detail"
+msgstr "テーブルごとに順番を待ち、そのテーブルで対戦します。"
+
+msgid "room.type.arcade_detail"
+msgstr "16台の筐体：空いている台に座ると、いちばん長く待っている人と対戦します。セット後、二人ともリマッチを選べば再戦、そうでなければそれぞれ次に待っている人と対戦します。"
+
+msgid "room.arcade_status"
+msgstr "アーケードルーム / 招待のみ"
+
+msgid "room.arcade_locked_status"
+msgstr "アーケードルーム（ロック中） / 招待のみ"
+
+msgid "room.arcade_sit"
+msgstr "席に着く"
+
+msgid "room.arcade_sit_detail"
+msgstr "ここに座る：いちばん長く待っている人と対戦するか、次に座る人を待ちます。"
+
+msgid "room.arcade_waiting"
+msgstr "待機中"
+
+msgid "room.cabinet_free"
+msgstr "コインを入れてください"
+
+msgid "room.type.king"
+msgstr "キング・オブ・ザ・ヒル"
+
+msgid "room.type.king_detail"
+msgstr "16台の筐体で全ペアが同時に対戦：セットの勝者は席に残り、次の挑戦者と戦います。現在の連勝がいちばん長い人がトップの座に就きます。"
+
+msgid "room.cabinet_row"
+msgstr "筐体 {0}：{1}"
+
+msgid "room.cabinet_open"
+msgstr "空き"
+
+msgid "room.arcade_move_detail"
+msgstr "試合の合間にこの筐体へ移ります。対戦相手と連勝はそのままです。"
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "リマッチ"
+
+msgid "room.rematch_detail"
+msgstr "同じ相手ともう一度対戦します。二人とも選ぶと始まります。"
+
+msgid "room.new_opponent"
+msgstr "新しい相手"
+
+msgid "room.new_opponent_detail"
+msgstr "席に座ったまま、いちばん長く待っている人と対戦するか、次に座る人を待ちます。"
+
+msgid "room.rematch_ask"
+msgstr "リマッチ？"
+
+msgid "room.rematch_chosen"
+msgstr "リマッチ選択済み"
+
+msgid "room.top_slot"
+msgstr "トップの座"
+
+msgid "room.top_slot_none"
+msgstr "セットに勝ってトップの座を取ろう。"
+
+msgid "room.rules.arcade"
+msgstr "アーケードルームのルールは作成時に決まり、すべてのテーブルに適用されます。"
+
 msgid "room.practice"
 msgstr "練習ルーム"
 
@@ -7440,3 +7518,12 @@ msgstr "乱入設定の確認なしで、すぐにトレーニングモードに
 
 msgid "home.training_unavailable"
 msgstr "今はトレーニングを開けません。先にルームや対戦を抜けて、ゲームのメインメニューに戻ってください。"
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "筐体 {0} と {1}"

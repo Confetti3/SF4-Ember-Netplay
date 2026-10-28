@@ -4607,6 +4607,84 @@ msgstr "Practice match"
 msgid "room.rules_summary_practice"
 msgstr "Practice match, {0} rounds, {1} s, Edition Select {2}"
 
+msgid "room.type"
+msgstr "Room type"
+
+msgid "room.type.classic"
+msgstr "Classic"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "Players queue at a table and play there."
+
+msgid "room.type.arcade_detail"
+msgstr "Sixteen cabinets: sit at any free one and play whoever has waited longest. After a set, both choose Rematch to play again, or each plays the next one waiting."
+
+msgid "room.arcade_status"
+msgstr "Arcade room / invitation only"
+
+msgid "room.arcade_locked_status"
+msgstr "Arcade room locked / invitation only"
+
+msgid "room.arcade_sit"
+msgstr "Sit down"
+
+msgid "room.arcade_sit_detail"
+msgstr "Sit here: you play whoever has waited longest, or wait for the next player to sit down."
+
+msgid "room.arcade_waiting"
+msgstr "Waiting"
+
+msgid "room.cabinet_free"
+msgstr "INSERT COIN"
+
+msgid "room.type.king"
+msgstr "King of the hill"
+
+msgid "room.type.king_detail"
+msgstr "Sixteen cabinets, every pair playing at once: a set's winner stays seated and plays the next challenger. The longest current win streak holds the top slot."
+
+msgid "room.cabinet_row"
+msgstr "Cabinet {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "free"
+
+msgid "room.arcade_move_detail"
+msgstr "Move to this cabinet between games. Your opponent and your streak stay with you."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Rematch"
+
+msgid "room.rematch_detail"
+msgstr "Play the same opponent again. It starts once both of you choose it."
+
+msgid "room.new_opponent"
+msgstr "New opponent"
+
+msgid "room.new_opponent_detail"
+msgstr "Stay seated and play whoever has waited longest, or wait for the next player to sit down."
+
+msgid "room.rematch_ask"
+msgstr "Rematch?"
+
+msgid "room.rematch_chosen"
+msgstr "Rematch chosen"
+
+msgid "room.top_slot"
+msgstr "TOP SLOT"
+
+msgid "room.top_slot_none"
+msgstr "Win a set to take the top slot."
+
+msgid "room.rules.arcade"
+msgstr "An Arcade room's rules are set when it is created and apply at every table."
+
 msgid "room.practice"
 msgstr "Practice room"
 
@@ -7074,3 +7152,12 @@ msgstr "Go straight into Training mode, without the Fight Request question."
 
 msgid "home.training_unavailable"
 msgstr "Training is not available now: leave the room or match first, and go back to the game's main menu."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Cabinets {0} and {1}"

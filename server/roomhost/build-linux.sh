@@ -77,6 +77,7 @@ src/session/RoomModel.cxx
 src/session/RoomModelActions.cxx
 src/session/RoomModelJson.cxx
 src/session/RoomModelTournament.cxx
+src/session/RoomModelArcade.cxx
 src/session/RoomModelServerOwned.cxx
 src/session/RoomDigest.cxx
 src/common/FighterCatalog.cxx

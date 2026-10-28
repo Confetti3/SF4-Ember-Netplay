@@ -97,6 +97,9 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
         d->AddRect(capTop,capBottom,ivory,5*s,0,1.5f*s);
         // 12 and 16 at the legend's 32-pixel prompts, and in step at other sizes.
         if(keyFont<=0)keyFont=(std::strlen(glyph)>1?12:16)*size/32;
+        // A long legend ("PgDn") shrinks to fit inside the cap instead of running past it.
+        const float room=capBottom.x-capTop.x-4*s,wide=ImGui::GetFont()->CalcTextSizeA(keyFont,FLT_MAX,0,glyph).x;
+        if(wide>room&&wide>0)keyFont*=room/wide;
         const ImVec2 text=ImGui::GetFont()->CalcTextSizeA(keyFont,FLT_MAX,0,glyph);
         d->AddText(ImGui::GetFont(),keyFont,ImVec2((capTop.x+capBottom.x-text.x)*.5f,(capTop.y+capBottom.y-text.y)*.5f),ivory,glyph);
         return;

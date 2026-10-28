@@ -98,6 +98,15 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     return pressed;
 }
 
+void Glow(ImDrawList* d, ImVec2 min, ImVec2 max, ImU32 color, float strength, float reach, float rounding) {
+    const int rings = 6;
+    for (int i = 1; i <= rings; ++i) {
+        const float out = reach * i / rings;
+        d->AddRect(ImVec2(min.x - out, min.y - out), ImVec2(max.x + out, max.y + out),
+            color::Alpha(color, strength * (1 - (i - 1) / static_cast<float>(rings))), rounding + out, 0, reach / rings + 1);
+    }
+}
+
 int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec2 block) {
     const float s = Scale(), w = (std::min)(300 * s, ImGui::GetContentRegionAvail().x), h = w * 9 / 16;
     const auto p = ImGui::GetCursorScreenPos();
@@ -318,9 +327,10 @@ int Tabs(const std::vector<std::string>& labels, int current) {
     int pressed = -1;
     // The keys that step the tabs sit at the strip's ends (LB and RB, Page Up and Down
     // on the keyboard), each also a button to the previous or next tab.
-    const float cap = 30 * s, capRoom = labels.size() > 1 ? cap + 12 * s : 0;
+    // Keyboard keys are wider caps, so "PgUp" and "PgDn" read at full size.
+    const bool keys = KeyboardPrompts();
+    const float cap = (keys ? 40 : 30) * s, capRoom = labels.size() > 1 ? cap + 12 * s : 0;
     if (capRoom > 0) {
-        const bool keys = KeyboardPrompts();
         const char* glyphs[] = {keys ? "PgUp" : "LB", keys ? "PgDn" : "RB"};
         for (int side = 0; side < 2; ++side) {
             const ImVec2 at(side ? origin.x + full - cap : origin.x, origin.y + (height - cap) * .5f);
