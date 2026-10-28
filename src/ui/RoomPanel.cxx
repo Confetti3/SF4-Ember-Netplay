@@ -547,8 +547,13 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   return nav.Choosing()&&nav.DialogId()==e.id&&nav.ChoiceIndex()<e.choices.size()?e.choices[nav.ChoiceIndex()].detail:std::string();
  };
  // A card's body press does what Select does on it. Its strip options are the card's callers' to answer.
+ // Your own place's Ready and Leave are on a strip that shows only once its
+ // card is focused, so a first press there only focuses it.
  const auto pressBody=[&](const MenuEntry& e,const CardInteraction& hit){
-  if(hit.kind==CardInteraction::Kind::Pressed&&hit.option<0&&!nav.Asking()&&!nav.Editing()){nav.Focus(e.id,rows);action=nav.Choose(rows);}
+  if(hit.kind==CardInteraction::Kind::Pressed&&hit.option<0&&!nav.Asking()&&!nav.Editing()){
+   const bool firstOnOwnPlace=OnOwnPlace(place,e.id)&&e.id!=focus;
+   nav.Focus(e.id,rows);if(!firstOnOwnPlace)action=nav.Choose(rows);
+  }
  };
  const auto tableCard=[&](const MenuEntry& e,float h){
   const auto& t=v.room.tables[static_cast<std::size_t>(e.key)];
