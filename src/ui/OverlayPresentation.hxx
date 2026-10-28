@@ -102,8 +102,9 @@ private:
 // for a frame's answer, and only where the game thread last placed it.
 //
 // The game thread asks for opens (the pad's Start wants the shell, the native
-// Network item its Play page; opens before the next frame coalesce, and Play
-// outranks Controls) and says, first in each pad update, where the game is.
+// Network item its Play page, the native Training item Training select; opens
+// before the next frame coalesce, and Training outranks Play, which outranks
+// Controls) and says, first in each pad update, where the game is.
 // The menu may hold the pads only where the presentation is available: never
 // while a match is prepared or played (but for a Practice match this PC
 // fights, whose fighter gives the game neutral input while the menu is
@@ -120,7 +121,7 @@ private:
 // shown the menu, with no moment between where a reader sees neither.
 class MenuPads {
 public:
-    enum class Kind : int { None = 0, Controls = 1, Play = 2 };
+    enum class Kind : int { None = 0, Controls = 1, Play = 2, Training = 3 };
     struct Taken { Kind kind = Kind::None; std::uint32_t through = 0; };
     // Game thread.
     void Request(Kind kind) {

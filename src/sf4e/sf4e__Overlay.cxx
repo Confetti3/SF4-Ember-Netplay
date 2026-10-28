@@ -108,6 +108,8 @@ static sf4e::ui::OverlayLifecycle s_lifecycle;
 // window procedure (F10 is the game's key otherwise).
 static std::atomic<bool> s_menuAvailable{false};
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
+// Training's other side, chosen on Training select (saved as trainingDummy).
+static rVsMode::ConfirmedCharaConditions trainingDummy = {0,0,0,0,0,0,0,0,14};
 
 // The window's keys and mouse are Ember's while its menu is shown with the
 // focus or the training controls are open (TrainingPad.hxx: CapturesInput).
@@ -151,6 +153,10 @@ static int OnMainMenuModeSelected(int mode) {
     if (!sf4e::input::NativeSelectionAllowed(lock, mode)) {
         spdlog::warn("Main menu: selection {} refused while a room or match is open", mode);
         return 1;
+    }
+    // Training offline starts from Ember's Training select, which sends the game on.
+    if (mode == rMainMenu::MainMenuItemID::MMI_TRAINING && lock == sf4e::input::NativeMenuLock::None) {
+        s_menuPads.Request(sf4e::ui::MenuPads::Kind::Training); return 1;
     }
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
     s_menuPads.Request(sf4e::ui::MenuPads::Kind::Play); return 1;
@@ -221,6 +227,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	if (sf4e::OverlayPrefs::Load(prefs)) {
 		s_prefs = prefs;
         sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, prefs.lobby);
+        sf4e::OverlayPrefs::ToConfirmed(trainingDummy, prefs.trainingDummy);
         lobbyMenuCharaID = prefs.lobby.charaID; lobbyStageID = prefs.stageID;
         lobbyRandomPool = prefs.randomPool;
 	}
@@ -253,6 +260,21 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
         if (stageId) { *stageId = stagedStage; lobbyRandomPool = stagedPool; }
     }
 
+}
+
+// Training select's dummy: the same selector with no stage, kept to the dummy's
+// own pick (the player's per-fighter memory is not its).
+static void DrawTrainingDummy(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
+	auto pick = sf4e::selection::FromNative(trainingDummy);
+	const sf4e::selection::InstalledContent* installed = snapshot.installedContent.get();
+	const auto available = [&](int fighter) { return snapshot.fighterAvailability[fighter]; };
+	const std::string error = sf4e::selection::Available(pick, true, available(pick.fighter), installed) ? std::string() :
+		sf4e::loc::T("runtime.selection_combination_unavailable");
+	const int shown = pick.fighter;
+	s_fighterSelectors[1].Draw(pick, true, s_selectionArt.get(), available, nullptr, snapshot.canEditSelection, error, nullptr, installed);
+	if (!snapshot.canEditSelection || pick.fighter < 0 || pick.fighter >= sf4e::selection::FighterCount) return;
+	if (pick.fighter != shown) sf4e::selection::Normalize(pick, true, &snapshot.fighterAvailability[pick.fighter], installed);
+	sf4e::selection::ToNative(pick, trainingDummy);
 }
 
 // Hidden, the shell still takes identity answers, ends a cancelled Discord
@@ -379,6 +401,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
     view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", fighter ? fighter->name : sf4e::loc::T("card.choose_fighter"),
         sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
+    const auto* dummy = sf4e::selection::FindFighter(trainingDummy.charaID);
+    view.dummySummary = sf4e::loc::Tf("runtime.selection_summary", dummy ? dummy->name : sf4e::loc::T("card.choose_fighter"),
+        sf4e::ui::CostumeLabel(sf4e::selection::FromNative(trainingDummy), snapshot.installedContent.get()), trainingDummy.color + 1, sf4e::ui::UltraLabel(trainingDummy.ultraCombo));
     view.fighterName = fighter ? fighter->name : sf4e::loc::T("card.choose_fighter");
     if (fighter) {
         view.hintFighter = fighter->name; view.hintUltra = sf4e::ui::ShortUltraLabel(summaryPick.ultra);
@@ -398,6 +423,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
         snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()))
         view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
+    if (!sf4e::selection::Available(sf4e::selection::FromNative(trainingDummy), true,
+        snapshot.fighterAvailability[trainingDummy.charaID], snapshot.installedContent.get()))
+        view.dummyError = sf4e::loc::T("runtime.selection_unavailable");
     // Outside a fight the shell status line carries the notice; transient
     // info ("Connection restored.") belongs to the match HUD only.
     if (view.error.empty() && status.lastError[0] && status.lastErrorSeverity != sf4e::NoticeSeverity::Info) view.error = status.lastError;
@@ -411,6 +439,20 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			sf4e::ui::Step(ultra ? pick.ultra : pick.color, ultra ? sf4e::selection::AllowedUltras(pick.fighter, pick.edition) :
 				sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()), step.delta);
 			sf4e::selection::ToNative(pick, lobbyConditions);
+			return true;
+		}
+		// Training select's Start: the main menu enters Training with these
+		// once it is idle (GameEvents::TrainingMode). Not from a room or match.
+		if (action.startTraining) {
+			if (!snapshot.atMainMenu || snapshot.session.room != sf4e::netplay::RoomState::Idle || snapshot.session.match != sf4e::netplay::MatchState::None)
+				return false;
+			sf4e::GameEvents::TrainingSides sides;
+			sides.sides[0] = lobbyConditions;
+			sides.sides[0].charaID = static_cast<BYTE>(lobbyMenuCharaID);
+			sides.sides[1] = trainingDummy;
+			sides.stage = sf4e::selection::ResolveStage(lobbyStageID, sf4e::localRand(), lobbyRandomPool, snapshot.installedContent->stages);
+			sf4e::GameEvents::TrainingMode::Choose(sides);
+			presentation.Close("Training select");
 			return true;
 		}
 		sf4e::NetplayFacade::RuntimeCommand request;
@@ -446,7 +488,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		if (action.training == sf4e::TrainingEntry::Room) presentation.Close("Training from the room");
 		return true;
 	}, [&] {
-		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
+		if (shell.SelectingDummy()) DrawTrainingDummy(snapshot);
+		else DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
 			(snapshot.session.room == sf4e::netplay::RoomState::Idle || snapshot.localSlot == 0) ? &lobbyStageID : nullptr, snapshot);
 	}
 #ifdef SF4E_DEVELOPER_UI
@@ -490,8 +533,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     s_menuAvailable = presentation.Available();
     const auto openRequest = s_menuPads.Take();
     if (openRequest.kind != sf4e::ui::MenuPads::Kind::None && presentation.Available()) {
-        presentation.Open(openRequest.kind == sf4e::ui::MenuPads::Kind::Play ? "the Network item" : "Start");
+        presentation.Open(openRequest.kind == sf4e::ui::MenuPads::Kind::Play ? "the Network item" :
+            openRequest.kind == sf4e::ui::MenuPads::Kind::Training ? "the Training item" : "Start");
         if (openRequest.kind == sf4e::ui::MenuPads::Kind::Play) shell.ShowPlay();
+        if (openRequest.kind == sf4e::ui::MenuPads::Kind::Training) shell.ShowTraining();
     }
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open("a Discord invite"); inviteShown=true; }
@@ -790,6 +835,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     }
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;
+    sf4e::OverlayPrefs::FromConfirmed(prefs.trainingDummy, trainingDummy);
     prefs.randomPool = lobbyRandomPool;
     // Every edit is remembered for the fighter it was made on.
     if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;

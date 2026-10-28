@@ -29,6 +29,7 @@ static int CheckPerFighterPicks() {
     data.lobby.charaID = 12; data.lobby.costume = 2; data.lobby.color = 5;
     data.fighters[3].costume = 1; data.fighters[3].color = 7;
     data.fighters[5].costume = 200;
+    data.trainingDummy.charaID = 3; data.trainingDummy.costume = 2; data.trainingDummy.color = 4;
     Prefs::Clamp(data);
     Prefs::Data loaded;
     Prefs::FromJson(Prefs::ToJson(data), loaded);
@@ -36,6 +37,8 @@ static int CheckPerFighterPicks() {
     check(loaded.fighters[12].costume == 2 && loaded.fighters[12].color == 5, "current fighter's pick did not round-trip");
     check(loaded.fighters[3].costume == 1 && loaded.fighters[3].color == 7, "a second fighter's pick did not stay separate");
     check(loaded.fighters[5].costume < sf4e::selection::CostumeCount(5), "an out-of-range remembered costume was not clamped");
+    check(loaded.trainingDummy.charaID == 3 && loaded.trainingDummy.costume == 2 && loaded.trainingDummy.color == 4 &&
+        loaded.fighters[3].costume == 1, "the Training dummy did not round-trip apart from the player's own picks");
 
     // Random is a saved local choice. It survives the preferences, while bonus
     // rounds and unknown ids keep the previous choice or fall back to 0.

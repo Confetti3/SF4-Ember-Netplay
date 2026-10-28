@@ -757,6 +757,15 @@ msgstr "Jouer hors ligne"
 msgid "home.offline_detail"
 msgstr "Entraînement, Versus, Arcade et les autres modes hors ligne du jeu."
 
+msgid "training_select.title"
+msgstr "Entraînement"
+
+msgid "training_select.start"
+msgstr "Lancer l'entraînement"
+
+msgid "training_select.start_detail"
+msgstr "L'entraînement se charge avec ces personnages dans ce niveau."
+
 msgid "home.replays"
 msgstr "Replays"
 

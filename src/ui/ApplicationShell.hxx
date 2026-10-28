@@ -129,6 +129,8 @@ struct ShellView {
     input::MenuButtons menuButtons;
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
+    // The Training dummy's pick, as selectionSummary reads (Training select).
+    std::string dummySummary,dummyError;
     // The chosen fighter, Ultra, appearance, fighter options and stage, for
     // the table page's rows; ultraSteps and colorSteps when there is more than
     // one to step through.
@@ -266,6 +268,11 @@ public:
             else menu_.navigation.Home();
         }
     }
+    // The game's Play offline > Training: Ember's Training select.
+    void ShowTraining() { menu_.navigation.Home(); menu_.navigation.Push("training"); }
+    // Fighter select is open from Training select's Dummy row: the overlay
+    // draws the dummy's pick in it.
+    bool SelectingDummy() const { return selectionForDummy_ && menu_.navigation.Screen() == "selection" && menu_.navigation.Parent() == "training"; }
     MenuNavigation& Navigation() { return menu_.navigation; }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
@@ -382,6 +389,8 @@ private:
     bool selectionFresh_=false;
     // The page fighter select opens on (EmbeddedReturn::openOn).
     std::string selectionOpenOn_;
+    // Training select opened fighter select on its Dummy row (SelectingDummy).
+    bool selectionForDummy_=false;
     // The screen an opening room was started from, as the controller recorded
     // it when it accepted the command: hosting, or joining (an invitation
     // or a Discord join). Read only while the room is opening.
@@ -400,6 +409,9 @@ private:
     std::vector<MenuEntry> RoomSetupRows(const ShellView& view,const std::string& screen,bool opening,const char* reason,std::string& title);
     void CreateActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     bool CreateAdjust(const MenuAction& action);
+    // Training select: both picks and the stage, then Start Training (ApplicationShell__Training.cxx).
+    std::vector<MenuEntry> TrainingSelectRows(const ShellView& view,std::string& title) const;
+    void TrainingSelectActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     // The Create screen, with Practice room off (createPractice_).
     void OpenCreate();
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
