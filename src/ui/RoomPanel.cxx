@@ -832,8 +832,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    if(const auto hide=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="room-hide-picture";});hide!=rows.end())
     hideButton(*hide,ImVec2(to.x-8*s,at.y+8*s));
   };
-  // An Arcade room's Small picture stands at the column's top, over Members.
-  columnPicture_=!narrow&&!ultra&&v.room.arcade&&v.watchedPicture&&preferences_.pictureMode==netplay::PictureSmall;
+  // The Small picture stands at the column's top, over Members.
+  columnPicture_=!narrow&&!ultra&&v.watchedPicture&&preferences_.pictureMode==netplay::PictureSmall;
   v2::Box picture{};
   if(!ultra&&!narrow)ArrangeRoom(area,tables,members,chat,&picture);
   if(columnPicture_){panel(picture);const v2::Box in=v2::Inset(picture,12*s,12*s);showPicture(in.min,in.max);}
