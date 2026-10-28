@@ -6,6 +6,8 @@ if(NOT BUILD_TESTING)
 endif()
 sf4e_add_unit_test(NAME CheckpointTransfer SOURCES "src/tests/checkpoint_transfer_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json bcrypt)
 sf4e_add_unit_test(NAME RoomLoadWindow SOURCES "src/tests/room_load_window_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json LABELS room)
+sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" STD 17
+    LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15 LABELS replay)
 
 # Links Sidecar's own crash record, so the test runs the production handler.
 # It needs spdlog and GGPO, so it stays out of the core-only build.
