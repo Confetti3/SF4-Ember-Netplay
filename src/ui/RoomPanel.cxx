@@ -179,12 +179,6 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // itself and keeps everyone else out; the room refuses seat, watch, rules
   // and kick changes there, so they are not offered.
   const bool tournamentRoom=s.tournament.Active();
-  // A short wide board folds the room's settings and invitation copies into
-  // one More… row, so members and chat keep their height; each is one of its choices.
-  MenuEntry more=Row("more",loc::T("room.more"),loc::T("room.more.detail"));
-  const auto share=[&](MenuEntry e){
-   if(boardLayout_==BoardLayout::WideShort)more.choices.push_back({e.id,e.label,e.detail,e.enabled});else rows.push_back(std::move(e));
-  };
   const bool boundTable=tournamentRoom&&selectedTable_==room::TournamentTable;
  const auto* local=Member(s,s.localMember);
  const auto& t=s.tables[selectedTable_];
@@ -244,6 +238,12 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  const bool host=c.host;
  const bool tournamentRoom=c.tournamentRoom;
  const room::Member* const local=c.local;
+  // A short wide board folds the room's settings and invitation copies into
+  // one More… row, so members and chat keep their height; each is one of its choices.
+  MenuEntry more=Row("more",loc::T("room.more"),loc::T("room.more.detail"));
+  const auto share=[&](MenuEntry e){
+   if(boardLayout_==BoardLayout::WideShort)more.choices.push_back({e.id,e.label,e.detail,e.enabled});else rows.push_back(std::move(e));
+  };
   if(s.roomEpoch){
    const auto mine=room::PlaceOf(s,s.localMember);
    for(const auto& table:s.tables){
