@@ -20,6 +20,7 @@ vcpkg_from_github(
         "spectator-catch-up.patch"
         "bound-input-decoding.patch"
         "sync-retry-timer.patch"
+        "event-queue-size.patch"
 )
 
 # One canonical policy is compiled by both GGPO and the portable tests.
