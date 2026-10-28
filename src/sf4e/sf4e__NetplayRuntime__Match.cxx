@@ -633,12 +633,12 @@ void TickMatch() {
 					return std::none_of(members.begin(), members.end(), [&](const SessionProtocol::MemberData& member) { return member.connId == id; });
 				});
 				if (missing && !UserApp::netplay->client.GetRoomSnapshot().roomEpoch) Apply(netplay::EventKind::ControlLost, loc::T("runtime.participant_left_room"));
-				else if (missing && runtime->participantLeftGeneration != runtime->match->Generation() &&
+				else if (missing && runtime->teardown.participantLeftGeneration != runtime->match->Generation() &&
 					runtime->teardown.committedEndGeneration != runtime->match->Generation()) {
 					// Custom rooms: the authority ends the game itself (MatchEnded/
 					// Abort). The survivor was never told why, only that GGPO
 					// timed out. Say it once per game.
-					runtime->participantLeftGeneration = runtime->match->Generation();
+					runtime->teardown.participantLeftGeneration = runtime->match->Generation();
 					PushAlert(loc::T("runtime.participant_left"), NoticeSeverity::Warning);
 				}
 			}
