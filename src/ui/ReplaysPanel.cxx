@@ -79,7 +79,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   title=loc::T("replays.title");
   for(const auto& set:Sets(v)){
    const auto& newest=*set.front();const auto wins=SetScore(set);
-   rows.push_back(Row("set:"+PathOf(newest),newest.names[0]+" "+std::to_string(wins.first)+"-"+std::to_string(wins.second)+" "+newest.names[1],loc::Tf("replays.set_detail",set.size())));
+   rows.push_back(Row("set:"+PathOf(newest),newest.names[0]+" "+std::to_string(wins.first)+"-"+std::to_string(wins.second)+" "+newest.names[1],loc::Tf("replays.set_matches",set.size())));
    rows.back().userText=true;rows.back().value=newest.label;rows.back().height=72;
    for(std::size_t game=set.size();game-->0;){
     const auto& r=*set[game];const std::string score=r.summary?ScoreText(*r.summary):std::string();

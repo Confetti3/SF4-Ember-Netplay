@@ -7316,7 +7316,7 @@ msgstr "Partidas"
 msgid "replays.tab.sets"
 msgstr "Sets"
 
-msgid "replays.set_detail"
+msgid "replays.set_matches"
 msgstr "{0} partidas"
 
 msgid "replays.game"

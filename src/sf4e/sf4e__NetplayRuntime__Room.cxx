@@ -630,6 +630,7 @@ TypedCommand Classify(RuntimeCommand command) {
 	roomCommand.createdRules = std::move(command.createdRules);
 	roomCommand.join = command.join;
 	roomCommand.practiceRoom = command.practiceRoom;
+	roomCommand.arcadeRoom = command.arcadeRoom;
 	roomCommand.delayPolicy = command.delayPolicy;
 	roomCommand.character = command.character;
 	roomCommand.stage = command.stage;

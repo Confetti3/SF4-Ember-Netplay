@@ -7800,7 +7800,7 @@ msgstr "매치"
 msgid "replays.tab.sets"
 msgstr "세트"
 
-msgid "replays.set_detail"
+msgid "replays.set_matches"
 msgstr "매치 {0}개"
 
 msgid "replays.game"

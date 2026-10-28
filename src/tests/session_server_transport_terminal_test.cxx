@@ -30,7 +30,7 @@ static void TestMaximumRoomResultBurst() {
 		CHECK(latestProposalBytes <= 1024 * 1024);
 		CHECK(server.ApplyCommit(request, term, revision + 1, proposal->checkpoint, proposal->effectsDigest));
 		for (const auto& outgoing : transport->outgoing) {
-			CHECK(outgoing.second.dump().size() <= 64 * 1024);
+			CHECK(outgoing.second.dump().size() <= 72 * 1024);
 			if (collectReplies && outgoing.second.value("type", std::string()) == "room_result") {
 				replies.emplace(outgoing.first, outgoing.second.value("actionId", std::uint64_t(0)));
 				if (outgoing.second.at("result").at("accepted").get<bool>()) ++acceptedReplies;

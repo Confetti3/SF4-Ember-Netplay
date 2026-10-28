@@ -7799,7 +7799,7 @@ msgstr "Wedstrijden"
 msgid "replays.tab.sets"
 msgstr "Sets"
 
-msgid "replays.set_detail"
+msgid "replays.set_matches"
 msgstr "{0} wedstrijden"
 
 msgid "replays.game"

@@ -112,7 +112,7 @@ public:
     }
     void Sent(const room::Action& action, std::uint64_t nowMs) {
         if (active_ && action.kind == room::ActionKind::SetRoomType) sentAtMs_ = nowMs;
-        if (!active_ || action.kind != room::ActionKind::SetRules || action.table >= room::TableCount) return;
+        if (!active_ || (action.kind != room::ActionKind::SetRules && action.kind != room::ActionKind::NameTable) || action.table >= room::TableCount) return;
         sentTable_ = action.table; sentRevision_ = action.tableRevision; sentAtMs_ = nowMs;
     }
 

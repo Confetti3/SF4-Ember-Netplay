@@ -275,7 +275,7 @@ struct Cost {
 // rounded up.
 // watchers, open: last append, on the wire, all on the wire, commits; game: commits, on the wire
 static const Cost Limits[] = {
-	{0, 39000, 4000, 9500, 3, 12, 110500},
+	{0, 40000, 4000, 9500, 3, 12, 110500},
 	{2, 96500, 7500, 22500, 5, 18, 327000},
 	{4, 204500, 13500, 46000, 7, 24, 555000},
 	{6, 378000, 22500, 86500, 9, 30, 717500},

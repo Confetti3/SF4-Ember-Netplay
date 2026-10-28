@@ -7799,7 +7799,7 @@ msgstr "Mecze"
 msgid "replays.tab.sets"
 msgstr "Sety"
 
-msgid "replays.set_detail"
+msgid "replays.set_matches"
 msgstr "Mecze: {0}"
 
 msgid "replays.game"

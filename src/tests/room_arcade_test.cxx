@@ -252,7 +252,7 @@ int main() {
 		std::printf("room arcade threw: %s\n", error.what());
 		return 1;
 	}
-	if (failures) std::printf("%d room arcade check(s) failed\n", failures);
+	if (TEST_FAILURES()) std::printf("%d room arcade check(s) failed\n", TEST_FAILURES());
 	else std::printf("room arcade: ok\n");
-	return failures ? 1 : 0;
+	return TEST_FAILURES() ? 1 : 0;
 }

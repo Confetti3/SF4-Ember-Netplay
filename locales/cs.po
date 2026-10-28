@@ -7799,7 +7799,7 @@ msgstr "Zápasy"
 msgid "replays.tab.sets"
 msgstr "Sety"
 
-msgid "replays.set_detail"
+msgid "replays.set_matches"
 msgstr "Zápasy: {0}"
 
 msgid "replays.game"

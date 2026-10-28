@@ -574,7 +574,7 @@ template<class Draw,class Page>
 void CheckLanguageChoice(sf4e::ui::ApplicationShell& shell,const Draw& draw,const Page& page) {
     using namespace sf4e;using namespace ui;
     page("interface");
-    for(int i=0;i<12&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+    for(int i=0;i<16&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
     draw(nullptr,MenuInput::Select,1);draw("language-choice");
     Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
     draw(nullptr,MenuInput::Back,1);draw();
@@ -1100,8 +1100,7 @@ int main(int argc, char** argv) {
                 // bottom one is never cut through its portrait.
                 const auto* members=FindWindow("Member list");
                 const float pitch=58*Scale()+ImGui::GetStyle().ItemSpacing.y;
-                // A child without a border has no padding of its own.
-                const float content=members->Size.y+ImGui::GetStyle().ItemSpacing.y;
+                const float content=members->Size.y-12*Scale()+ImGui::GetStyle().ItemSpacing.y;
                 Require(content>=pitch-.5f&&std::fabs(content/pitch-std::floor(content/pitch+.5f))<.02f,
                     "Member list height is not a whole number of member cards");
             }

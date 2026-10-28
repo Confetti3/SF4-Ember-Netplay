@@ -217,7 +217,7 @@ static void TestEachTableAndItsName() {
 	}
 	room.Run(100);
 	CHECK(names == 2 && std::string(room.rules.Ended()) == "done");
-	for (int i = 0; i < static_cast<int>(room::TableCount); ++i) CHECK(room.Table(i).rules == setup.rules[i] && room.Table(i).name == setup.names[i]);
+	for (int i = 0; i < static_cast<int>(room::ClassicTableCount); ++i) CHECK(room.Table(i).rules == setup.rules[i] && room.Table(i).name == setup.names[i]);
 	// The host naming a table by hand ends it, as their own rules do.
 	Room renamed;
 	renamed.rules.Start(setup, renamed.now);

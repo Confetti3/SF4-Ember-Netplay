@@ -143,6 +143,7 @@ struct Room {
     std::optional<netplay::TableSetup> createdRules;
     JoinKind join = JoinKind::Private;
     bool practiceRoom = false;
+    room::RoomType arcadeRoom = room::ClassicRoom;
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
     int stage = 0;
