@@ -1226,6 +1226,12 @@ msgstr "Vyzkoušet ohlášení"
 msgid "settings.ready_sound_test_detail"
 msgstr "Jednou přehraje ohlášení v této hlasitosti."
 
+msgid "settings.lobby_music"
+msgstr "Nekonečná hudba v lobby"
+
+msgid "settings.lobby_music_detail"
+msgstr "Hlavní menu místo své hudby hraje hudbu náhodné scény nebo postavy, po každém zápase jinou. Změna platí od příštího zápasu."
+
 msgid "settings.shortcut_hint"
 msgstr "Nápověda zkratky menu"
 

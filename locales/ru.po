@@ -1227,6 +1227,12 @@ msgstr "Проверить объявление"
 msgid "settings.ready_sound_test_detail"
 msgstr "Один раз воспроизводит объявление с этой громкостью."
 
+msgid "settings.lobby_music"
+msgstr "Бесконечная музыка лобби"
+
+msgid "settings.lobby_music_detail"
+msgstr "В главном меню вместо его музыки играет случайная тема арены или бойца, после каждого матча новая. Изменение вступает в силу после следующего матча."
+
 msgid "settings.shortcut_hint"
 msgstr "Подсказка клавиши меню"
 

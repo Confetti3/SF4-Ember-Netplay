@@ -1226,6 +1226,12 @@ msgstr "试听播报"
 msgid "settings.ready_sound_test_detail"
 msgstr "以此音量播放一次。"
 
+msgid "settings.lobby_music"
+msgstr "无尽大厅音乐"
+
+msgid "settings.lobby_music_detail"
+msgstr "主菜单播放随机场地或角色的主题曲而非自身音乐，每场对战后更换。更改在下一场对战后生效。"
+
 msgid "settings.shortcut_hint"
 msgstr "菜单快捷键提示"
 

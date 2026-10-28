@@ -107,6 +107,8 @@ add_executable(CountriesTest "src/tests/countries_test.cxx")
 target_link_libraries(CountriesTest PRIVATE sf4e_localization nlohmann_json::nlohmann_json)
 add_test(NAME Countries COMMAND CountriesTest "${CMAKE_SOURCE_DIR}" "$<TARGET_FILE_DIR:Sidecar>")
 
+sf4e_add_unit_test(NAME LobbyMusic SOURCES "src/tests/lobby_music_test.cxx" LIBS sf4e_selection STD 17 TIMEOUT 15)
+
 # It takes 2 s alone. Its saves are flushed writes, which take up to ten
 # times as long while other tests and builds use the disk.
 sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)

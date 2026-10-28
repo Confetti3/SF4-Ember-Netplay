@@ -1226,6 +1226,12 @@ msgstr "Probar aviso"
 msgid "settings.ready_sound_test_detail"
 msgstr "Reproduce el aviso una vez con este volumen."
 
+msgid "settings.lobby_music"
+msgstr "Música de lobby sin fin"
+
+msgid "settings.lobby_music_detail"
+msgstr "El menú principal reproduce el tema de un escenario o luchador al azar en lugar de su propia música, uno nuevo después de cada partida. Un cambio se aplica tras la siguiente partida."
+
 msgid "settings.shortcut_hint"
 msgstr "Aviso del atajo del menú"
 

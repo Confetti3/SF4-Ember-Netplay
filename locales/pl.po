@@ -1226,6 +1226,12 @@ msgstr "Testuj zapowiedź"
 msgid "settings.ready_sound_test_detail"
 msgstr "Odtwarza zapowiedź raz z tą głośnością."
 
+msgid "settings.lobby_music"
+msgstr "Niekończąca się muzyka lobby"
+
+msgid "settings.lobby_music_detail"
+msgstr "Menu główne odtwarza losowy motyw areny lub postaci zamiast własnej muzyki, po każdej walce nowy. Zmiana obowiązuje po następnej walce."
+
 msgid "settings.shortcut_hint"
 msgstr "Podpowiedź skrótu menu"
 
