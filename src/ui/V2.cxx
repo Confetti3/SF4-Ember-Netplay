@@ -10,9 +10,9 @@
 namespace sf4e { namespace ui { namespace v2 {
 namespace {
 bool on = false;
-float ChipFont() { return ImGui::GetFontSize() * .78f; }
 float TextWidth(const std::string& text, float size, ImFont* font = ImGui::GetFont()) { return font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x; }
 }
+float ChipFont() { return ImGui::GetFontSize() * .78f; }
 std::string Fit(const std::string& text, float width, float size, ImFont* font, bool probe) {
     if (!font) font = ImGui::GetFont();
     const float measured = font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x;

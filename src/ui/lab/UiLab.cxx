@@ -12,7 +12,7 @@
 //   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
 // --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk) with V2 on, a created room joined at once,
 //   and writes each step there; exits 3 when a step fails
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -233,6 +233,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string shot, keys, screen, recovery, check, walkFile;
     bool inRoom = false, pip = false;
+    std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
     std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
@@ -247,6 +248,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--keys" && more) keys = args[++i];
         else if (args[i] == "--shot" && more) shot = args[++i];
         else if (args[i] == "--room") inRoom = true;
+        else if (args[i] == "--postmatch" && more) { postMatch = args[++i]; inRoom = true; }
         else if (args[i] == "--picture" && more) pictureMode = std::atoi(args[++i].c_str());
         else if (args[i] == "--hide" && more) hidePanes = args[++i];
         else if (args[i] == "--pip") pip = true;
@@ -293,6 +295,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     view.preferences.tvMode = tv;
     view.preferences.welcomed = !welcome;
     if (inRoom) JoinRoom(view);
+    // Table 1's game just ended on the WIN screen: FRaccie (P1) against Akira, game 1 of a first to 2.
+    if (!postMatch.empty()) {
+        auto& t = view.room.tables[0];
+        t.phase = room::TablePhase::Playing; t.matchGeneration = 1; t.rules.format = room::SetFormat::Ft2; t.score[0] = 1; t.score[1] = 0;
+        t.ready[0] = postMatch == "you"; t.ready[1] = postMatch == "they";
+        view.session.match = netplay::MatchState::Playing; view.atMainMenu = false;
+    }
     if (update) { view.services.launchOffer = launcher::InstallOffer{updates::UpdateChannel::Nightly, "v1.3.0", "lab"}; view.services.installedVersion = "v1.2.0"; }
     if (publicLab) PublicLab(view);
     // The helper's side for --public: each Ember ID request answered, the room list on asking.
@@ -310,7 +319,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool open = true, bar = shot.empty();
     std::size_t size = 0;
     std::vector<unsigned> script;
-    { std::stringstream list(keys); std::string key; while (std::getline(list, key, ',')) script.push_back(KeyBit(key)); }
+    // "click:x:y" in --keys clicks the mouse there instead of pressing a key.
+    std::vector<ImVec2> clickAt;
+    { std::stringstream list(keys); std::string key; while (std::getline(list, key, ',')) {
+        ImVec2 at(-FLT_MAX, -FLT_MAX);
+        script.push_back(std::sscanf(key.c_str(), "click:%f:%f", &at.x, &at.y) == 2 ? 0 : KeyBit(key)); clickAt.push_back(at); } }
     const auto submit = [&](ui::ShellAction action) {
         // Saving is instant here: the shell reads what it saved back from the view.
         if (action.command.kind == netplay::CommandKind::SavePreferences) view.preferences = action.preferences;
@@ -324,7 +337,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (action.identity.op != netplay::IdentityOp::None) { view.identityTicket = action.identity.ticket; view.identityRequest = view.identity.requestId = view.identityTicket + 100; view.identity.ok = true; }
         return true;
     };
-    int frame = 0;
+    int frame = 0, winFrame = -1;
     // --check: what the menus report on a frame, kept from the last one drawn.
     std::set<std::string> found;
     std::vector<std::tuple<std::string, ImVec2, ImVec2>> cards;
@@ -363,25 +376,36 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         art.Pump();
         ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame();
         // Scripted shots keep the real mouse out of it: hovering a card focuses it.
-        if (!shot.empty()) ImGui::GetIO().AddMousePosEvent(-FLT_MAX, -FLT_MAX);
-        ImGui::NewFrame();
-        found.clear(); cards.clear();
         // A scripted key is held for 3 frames and released for 3, from frame 30 (a new screen ignores its first frames).
-        unsigned held = PadButtons();
         const int scripted = frame - 30;
         const std::size_t step = scripted < 0 ? script.size() : static_cast<std::size_t>(scripted / 6);
+        if (!shot.empty()) {
+            const ImVec2 at = step < script.size() ? clickAt[step] : ImVec2(-FLT_MAX, -FLT_MAX);
+            ImGui::GetIO().AddMousePosEvent(at.x, at.y);
+            ImGui::GetIO().AddMouseButtonEvent(ImGuiMouseButton_Left, at.x > -FLT_MAX && scripted % 6 == 1);
+        }
+        ImGui::NewFrame();
+        found.clear(); cards.clear();
+        // Scripted shots keep the real pad out of it too.
+        const unsigned real = shot.empty() ? PadButtons() : 0;
+        unsigned held = real;
         if (step < script.size() && scripted % 6 < 3) held |= script[step];
-        if (walkLog && frame > 30) held |= walk.Frame(shell.Navigation(), [&](bool pass, const std::string& name, const std::string& detail) {
+        if (walkLog.is_open() && frame > 30) held |= walk.Frame(shell.Navigation(), [&](bool pass, const std::string& name, const std::string& detail) {
             walkLog << (pass ? "PASS " : "FAIL ") << name << (detail.empty() ? "" : ": " + detail) << std::endl;
         });
         ui::SetMenuInput({held, ImGui::GetTime()});
-        ui::SetMenuGlyphs(pad || PadButtons() ? input::PadXInput : input::PadKeyboard, input::MenuButtons{});
+        ui::SetMenuGlyphs(pad || real ? input::PadXInput : input::PadKeyboard, input::MenuButtons{});
         if (ImGui::IsKeyPressed(ImGuiKey_F1)) bar = !bar;
         if (ImGui::IsKeyPressed(ImGuiKey_F2)) { size = (size + 1) % std::size(Sizes); ResizeWindow(hwnd, Sizes[size].w, Sizes[size].h); }
         if (ImGui::IsKeyPressed(ImGuiKey_F3)) view.preferences.lookV2 = !view.preferences.lookV2;
         if (ImGui::IsKeyPressed(ImGuiKey_F4)) textSize = textSize >= 1.5f ? 1 : textSize + .25f;
         if (ImGui::IsKeyPressed(ImGuiKey_F5)) { const bool look = view.preferences.lookV2; inRoom = !inRoom; view = FakeView(look); if (inRoom) JoinRoom(view); }
         if (frame == 2 && !screen.empty()) shell.Navigation().Push(screen);
+        // The WIN screen comes once the room board has settled and the art is in, so a shot
+        // shows the prompt's first seconds.
+        if (!postMatch.empty() && !view.matchResult && frame >= 10 && art.MenuBackdrop().texture) { view.matchResult = true; winFrame = frame; }
+        // "left": the opponent gives up the seat once the prompt is up.
+        if (postMatch == "left" && winFrame >= 0 && frame == winFrame + 2) { view.room.tables[0].p2 = 0; view.room.members[1].table = view.room.members[1].seat = -1; }
         // As the Toasts board: a room notice, a match called and, newest, a Discord invitation.
         if (toasts && frame == 3) shell.Say(loc::T("notice.left_room"), ui::Tone::Success, 600, ui::ToastKind::Room);
         if (toasts && frame == 4) shell.Say(loc::T("tournament.assigned_notice"), ui::Tone::Pending, 600, ui::ToastKind::Match, {{loc::T("toast.open"), "tournament-matches", ""}, {loc::T("updates.launch_later")}});
@@ -445,7 +469,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             strip.pingMs = 96; strip.rollbackFrames = 2; strip.appliedDelay = 2; strip.layout = hud; strip.spectators = 3; strip.score = "2 - 1";
             ui::DrawMatchStrip(strip);
             if (toasts) shell.Background(view, view.room, submit);
-        } else shell.Draw(view, &open, submit, [&] { selector.Draw(pick, false, &art, [&](int) { return available; }); });
+        } else {
+            if (!postMatch.empty()) {
+                const auto* vp = ImGui::GetMainViewport();
+                ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
+                ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
+                ui::DrawMenuBackdrop(false);
+                ImGui::End();
+            }
+            shell.Draw(view, &open, submit, [&] { selector.Draw(pick, false, &art, [&](int) { return available; }); });
+        }
         open = true;
         if (bar) {
             ImGui::SetNextWindowPos(ImVec2(8, 8), ImGuiCond_Always, ImVec2(0, 0));
@@ -461,7 +494,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         ++frame;
         if (snap) { char name[64]; std::snprintf(name, sizeof(name), "uilab-%d.bmp", frame); SaveShot(name); }
         // Scripted runs give the art time to load and the last key time to settle.
-        if (!shot.empty() && frame > static_cast<int>(script.size()) * 6 + 60 && (!walkLog || walk.Done()) && art.MenuBackdrop().texture) { SaveShot(shot); break; }
+        if (!shot.empty() && frame > static_cast<int>(script.size()) * 6 + 60 && (postMatch.empty() || (winFrame >= 0 && frame > winFrame + 20)) && (!walkLog.is_open() || walk.Done()) && art.MenuBackdrop().texture) { SaveShot(shot); break; }
         device->Present(nullptr, nullptr, nullptr, nullptr);
     }
     // Two cards overlap when they cross without one holding the other (a card and its option strip).

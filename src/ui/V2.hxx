@@ -106,6 +106,7 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
 // A state word on its tone at 18 %: "Ready", "Live", "D 42 ms". Returns its width.
 float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone);
 float ChipWidth(const std::string& text);
+float ChipFont();
 // `text` cut with "..." to `width` at `size` (the current font when none). The
 // text probe is told its full width unless `probe` is false (a line shown whole elsewhere).
 std::string Fit(const std::string& text, float width, float size, ImFont* font = nullptr, bool probe = true);

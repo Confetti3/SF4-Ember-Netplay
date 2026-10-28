@@ -885,7 +885,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool postMatchScreen=nav.Screen()=="post-match";
  if(postMatchScreen){
   // A panel in the middle of the WIN screen, which stays in sight around it.
-  const ImVec2 size((std::min)(vp->Size.x-32*Scale(),720*Scale()),(std::min)(vp->Size.y-32*Scale(),600*Scale()));
+  const ImVec2 size((std::min)(vp->Size.x-32*Scale(),720*Scale()),(std::min)(vp->Size.y-32*Scale(),(v2::On()?420:600)*Scale()));
   ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+(vp->Size.x-size.x)/2,vp->Pos.y+(vp->Size.y-size.y)/2));ImGui::SetNextWindowSize(size);
  }
  if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
