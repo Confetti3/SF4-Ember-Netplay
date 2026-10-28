@@ -77,6 +77,15 @@ namespace sf4e {
 				static sf4e::pacing::PacingController pacer;
 				static int nExtraFramesToSimulate;
 				static int nNextBattleStartFlowTarget;
+				// Each fighter's Rematch over the WIN in the frame being played
+				// (bit 0 P1, bit 1 P2), from GGPO's inputs; and how many games
+				// this battle restarted in place because both chose it.
+				static unsigned rematchChoices;
+				static void TakeRematchChoices(sf4e::Pad::System::Inputs inputs[2]);
+				// A result waits over the WIN for the rematch that may follow it in place.
+				static bool ResultHeld();
+				// Games of this battle that went on to a rematch in place, once confirmed.
+				static unsigned GamesPlayedInPlace();
 				static int nRandomizeLocalInputsEveryXFramesInGGPO;
 
 				static bool extendedLoadRequest;
@@ -97,6 +106,7 @@ namespace sf4e {
 				static void OnBattleFlow_BattleStart(System* s);
 				void SysMain_HandleTrainingModeFeatures();
 				void SysMain_UpdatePauseState();
+				int GetGameMode();
 
 				// Canonical semantic hashes (desync detection v2). One
 				// overall hash plus subsystem hashes for mismatch

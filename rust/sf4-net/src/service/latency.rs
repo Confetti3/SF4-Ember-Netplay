@@ -13,7 +13,10 @@ use std::{
     time::Duration,
 };
 
-use iroh::{EndpointId, endpoint::Incoming};
+use iroh::{
+    EndpointId,
+    endpoint::{Connection, Incoming},
+};
 use tokio::{
     sync::{Semaphore, watch},
     task::{AbortHandle, JoinError, JoinSet},
@@ -22,7 +25,7 @@ use tokio::{
 
 use super::{
     Actor, Event, MAX_CONTROL_PEERS,
-    protocol::{LatencyState, LatencyUnavailable, MemberLatencyRow},
+    protocol::{LatencyRoute, LatencyState, LatencyUnavailable, MemberLatencyRow},
 };
 use crate::coordination::Committed;
 
@@ -61,7 +64,7 @@ pub(super) struct OutboundSlot {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(super) generation: u64,
     pub(super) guard: SlotGuard,
-    pub(super) value: Option<u16>,
+    pub(super) value: Option<Sample>,
 }
 
 /// The dialer's state for one member of the active view.
@@ -83,7 +86,7 @@ struct View {
     view: u64,
     lease: Instant,
     /// The last value of each member, kept for `VALUE_TTL` once it plays.
-    last: BTreeMap<u64, (u64, u16, Instant)>,
+    last: BTreeMap<u64, (u64, Sample, Instant)>,
     /// The table last sent.
     sent: Option<Vec<MemberLatencyRow>>,
 }
@@ -193,6 +196,22 @@ fn milliseconds(rtt: Duration) -> u16 {
     ((rtt.as_micros() + 500) / 1000).clamp(1, 999) as u16
 }
 
+/// A value: whole milliseconds and the path they were measured over.
+pub(super) type Sample = (u16, LatencyRoute);
+
+/// The route of the connection's selected path; a relay while none is selected.
+fn route(connection: &Connection) -> LatencyRoute {
+    let direct = connection
+        .paths()
+        .iter()
+        .any(|path| path.is_selected() && !path.is_relay());
+    if direct {
+        LatencyRoute::Direct
+    } else {
+        LatencyRoute::Relay
+    }
+}
+
 fn row(member: u64, incarnation: u64, state: LatencyState) -> MemberLatencyRow {
     MemberLatencyRow {
         member,
@@ -205,8 +224,8 @@ fn unavailable(member: u64, incarnation: u64, reason: LatencyUnavailable) -> Mem
     row(member, incarnation, LatencyState::Unavailable { reason })
 }
 
-fn value(member: u64, incarnation: u64, rtt_ms: u16) -> MemberLatencyRow {
-    row(member, incarnation, LatencyState::Value { rtt_ms })
+fn value(member: u64, incarnation: u64, (rtt_ms, route): Sample) -> MemberLatencyRow {
+    row(member, incarnation, LatencyState::Value { rtt_ms, route })
 }
 
 impl Latency {
@@ -550,7 +569,7 @@ impl Actor {
             else {
                 continue;
             };
-            let rtt = milliseconds(rtt);
+            let rtt = (milliseconds(rtt), route(&slot.guard.connection));
             slot.value = Some(rtt);
             if let Some(view) = &mut self.latency.view {
                 view.last
@@ -783,14 +802,16 @@ impl Actor {
         dial.failure = None;
         dial.backoff = REDIAL_FIRST;
         let generation = dial.generation;
-        let rtt = milliseconds(opened.rtt);
         let OutboundOpened {
             binding,
             connection,
             send,
             recv,
+            rtt,
             ..
         } = opened;
+        let guard = SlotGuard::new(connection, send, recv);
+        let rtt = (milliseconds(rtt), route(&guard.connection));
         if let Some(view) = &mut self.latency.view {
             view.last
                 .insert(member, (binding.incarnation, rtt, Instant::now()));
@@ -800,7 +821,7 @@ impl Actor {
             OutboundSlot {
                 binding,
                 generation,
-                guard: SlotGuard::new(connection, send, recv),
+                guard,
                 value: Some(rtt),
             },
         );

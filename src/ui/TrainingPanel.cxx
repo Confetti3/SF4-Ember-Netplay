@@ -1,4 +1,5 @@
 #include "TrainingPanel.hxx"
+#include "V2.hxx"
 #include "Theme.hxx"
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
@@ -148,7 +149,9 @@ int StepDummy(int kind,int value,int delta) {
     const auto& choices=DummyChoices(kind);
     const auto found=std::find(choices.begin(),choices.end(),value);
     if(found==choices.end()) return choices[0];
-    return choices[(found-choices.begin()+choices.size()+(delta>0?1:choices.size()-1))%choices.size()];
+    // A jump of more than one (a value picked in V2's panel) lands where it was picked.
+    const int n=static_cast<int>(choices.size());
+    return choices[((static_cast<int>(found-choices.begin())+delta)%n+n)%n];
 }
 // A hotkey's key as the hint and its row show it.
 std::string KeyName(int which) { return lab.keys[which]<0?loc::T("common.off"):TrainingKeyName(lab.keys[which]); }
@@ -177,6 +180,29 @@ void PickReply(const training::View& view,const TrainingSubmit& submit,int step)
     if(!BuildReplyPlan(text,lab.plan,plan,error)) { Notice(loc::Tf("training.invalid",error),true); return; }
     lab.pickCustom=pick==ReplyCustom; lab.replyMoves=text; SavePractice();
     SendPlan(view,submit);
+}
+// V2: a value row's values in the order Left and Right step through them, in
+// the words the row shows (OfferSteps), so Select opens them all at once. The
+// reply's pick list keeps Select for its moves' field.
+void OfferTrainingValues(std::vector<MenuEntry>& rows) {
+    const char* sizes[]={"size.small","size.standard","size.large"};
+    for(auto& e:rows) {
+        std::vector<std::string> labels;
+        if(e.value==loc::T("common.on")||e.value==loc::T("common.off")) labels={loc::T("common.off"),loc::T("common.on")};
+        else if(e.id.compare(0,6,"dummy-")==0) {
+            const std::string which=e.id.substr(6);
+            const int kind=which=="action"?0:which=="guard"?1:which=="counter"?2:which=="quick"?3:4;
+            for(const int value:DummyChoices(kind)) labels.push_back(DummyLabel(kind,value));
+        }
+        else if(e.id=="reply") for(const char* name:ReplyNames) labels.push_back(loc::T(name));
+        else if(e.id=="reply-chance") for(int chance=25;chance<=100;chance+=25) labels.push_back(std::to_string(chance)+"%");
+        else if(e.id=="reply-timing") for(int t=-MaxReplyTiming;t<=MaxReplyTiming;++t) labels.push_back((t>0?"+":"")+std::to_string(t)+" f");
+        else if(e.id=="meter-style") labels={loc::T("training.meter.style.angled"),loc::T("training.meter.style.flat"),loc::T("training.meter.style.classic")};
+        else if(e.id=="frames-shown") for(const int n:MeterShownChoices) labels.push_back(std::to_string(n));
+        else if(e.id=="hud-size"||e.id=="bar-height") for(const char* size:sizes) labels.push_back(loc::T(size));
+        else if(e.id=="meter-position") for(const int at:MeterPositions) labels.push_back(std::to_string(at)+"%");
+        OfferSteps(e,labels);
+    }
 }
 std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& screen) {
     LoadPractice();
@@ -210,9 +236,9 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
         const int step=a.delta>0?1:-1;
         if(a.id.compare(0,5,"reply")==0) {
             if(a.id=="reply-move") { PickReply(view,submit,step); return; }
-            if(a.id=="reply") lab.plan.when=(lab.plan.when+5+step)%5;
-            else if(a.id=="reply-chance") lab.plan.chance=(std::max)(25,(std::min)(100,lab.plan.chance+25*step));
-            else if(a.id=="reply-timing") lab.plan.timing=(std::max)(-MaxReplyTiming,(std::min)(MaxReplyTiming,lab.plan.timing+step));
+            if(a.id=="reply") lab.plan.when=((lab.plan.when+a.delta)%5+5)%5;
+            else if(a.id=="reply-chance") lab.plan.chance=(std::max)(25,(std::min)(100,lab.plan.chance+25*a.delta));
+            else if(a.id=="reply-timing") lab.plan.timing=(std::max)(-MaxReplyTiming,(std::min)(MaxReplyTiming,lab.plan.timing+a.delta));
             else if(a.id=="reply-stance") lab.plan.varyStance=a.delta>0;
             else return;
             SavePractice();
@@ -425,8 +451,9 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
     const float unit=(std::min)(Scale(),(std::min)(size.x/500.f,size.y/500.f));
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x*.5f,vp->Pos.y+vp->Size.y*.5f),ImGuiCond_Always,ImVec2(.5f,.5f));
     ImGui::SetNextWindowSize(size,ImGuiCond_Always);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,ImVec4(.075f,.07f,.065f,.97f));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,v2::On()?ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel,.97f)):ImVec4(.075f,.07f,.065f,.97f));
     ImGui::PushStyleColor(ImGuiCol_Border,ImVec4(1,.53f,.22f,.8f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,v2::On()?4*unit:ImGui::GetStyle().WindowRounding);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(16*unit,12*unit));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(10*unit,6*unit));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(8*unit,6*unit));
@@ -441,7 +468,7 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
         DrawTrainingPanel(view,submit);
         ImGui::SetWindowFontScale(1);
     }
-    ImGui::End();ImGui::PopStyleVar(4);ImGui::PopStyleColor(2);
+    ImGui::End();ImGui::PopStyleVar(5);ImGui::PopStyleColor(2);
 }
 void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  using namespace training;if(!v.available)return;
@@ -577,6 +604,15 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
  // A recorded reply with no slot that can be one would do nothing; the page says so.
  else if(screen=="reply"&&lab.plan.when!=0&&lab.replyMoves.empty()&&!v.replyable){status=loc::T("training.reply.no_recordings_on");statusTone=Tone::Pending;}
+ // V2: every value in a panel, and the lab's pages as tabs that LB and RB step through.
+ trainingMenu.tabs.clear();trainingMenu.tab=-1;
+ if(v2::On()){
+  OfferTrainingValues(rows);
+  trainingMenu.tabs={{"dummy",loc::T("training.dummy")},{"tools",loc::T("training.position")},{"reply",loc::T("training.reply")},
+   {"recording",loc::T("training.dummy_recording")},{"frame-data",loc::T("training.frame_data")},{"hud",loc::T("training.hud")},{"history",loc::T("training.input_history")}};
+  for(int i=0;i<static_cast<int>(trainingMenu.tabs.size());++i)if(trainingMenu.tabs[i].first==screen)trainingMenu.tab=i;
+  if(trainingMenu.tab<0&&screen!="home")trainingMenu.tabs.clear();
+ }
  trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"||screen=="hud"||screen=="meter-settings"||screen=="meter-classic"?.58f:.5f;
  const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
@@ -585,6 +621,8 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
  },recordingGrid?2:1,{},GameMenu::Body{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize,recordingGrid?30:100,false,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
+ // A V2 tab names its page; the pages are the lab's, one level under it.
+ if(a.kind==MenuAction::Shortcut&&!a.id.empty()){if(screen!="home")nav.Return();if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}

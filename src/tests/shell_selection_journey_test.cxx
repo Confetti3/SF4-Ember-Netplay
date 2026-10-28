@@ -2,6 +2,49 @@
 #include "shell_additional_journeys.hxx"
 #include <algorithm>
 #include <iterator>
+// V2: the right mouse button is Back, and closes an open value panel first.
+void RightClickBack(){
+ using namespace sf4e;
+ Harness h;h.view.preferences.lookV2=true;h.Frame();
+ auto& io=ImGui::GetIO();
+ const auto rightClick=[&]{io.AddMouseButtonEvent(1,true);h.Frame();io.AddMouseButtonEvent(1,false);h.Frame();h.Frame();};
+ h.Screen("replays");rightClick();
+ Check(h.shell.Navigation().Screen()=="home","A right click in V2 did not go back");
+}
+// V2: a member's actions open at their row; Kick still asks first, on the member's page.
+void MemberPopout(){
+ using namespace sf4e;
+ Harness h;h.view.preferences.lookV2=true;h.Frame();
+ JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.capacity=8;
+ for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
+ h.Screen("room");h.FocusOn("member-2");h.Press(MenuInput::Select);
+ Check(h.shell.Navigation().Choosing()&&h.shell.Navigation().Screen()=="room","A member's Select did not open their actions in place");
+ for(int i=0;i<2;++i)h.Press(MenuInput::Down);
+ h.Press(MenuInput::Select);h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="room-member"&&h.shell.Navigation().Confirming(),"Kick from the popout did not ask first");
+}
+// V2: the Members panel's Hide folds it to its heading and saves it; Show on
+// that heading unfolds it again, and More… can too.
+void RoomPartsHide(){
+ using namespace sf4e;
+ Harness h;h.view.preferences.lookV2=true;h.Frame();
+ JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.capacity=8;
+ for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
+ h.Screen("room");h.Choose("room-hide-members");h.Wait(1);h.Frame();
+ const auto saved=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;});
+ Check(saved!=h.actions.rend()&&!saved->preferences.roomShowMembers&&saved->preferences.roomShowChat,"Hide on the Members panel did not save it hidden");
+ h.view.preferences=saved->preferences;h.Frame();
+ bool gone=false;try{h.FocusOn("member-2");}catch(const std::runtime_error&){gone=true;}
+ Check(gone,"A hidden Members panel's rows are still on the board");
+ h.Choose("room-show-members");h.Wait(1);h.Frame();
+ const auto shown=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;});
+ Check(shown!=h.actions.rend()&&shown->preferences.roomShowMembers,"Show on the folded Members panel did not unfold it");
+ h.view.preferences=shown->preferences;
+ h.Frame();
+ h.Choose("room-hide-members");h.Wait(1);h.Frame();
+ h.Choose("room-more");
+ Check(h.shell.Navigation().Choosing(),"More… did not open");
+}
 // A keyboard player reaches everything a pad does: F, T and C are X, Y and
 // View, Escape always goes back, and Delete leaves the seat that B leaves.
 void KeyboardJourneys(){
@@ -126,7 +169,7 @@ void PresentationJourneys(){
   if(std::strcmp(id,"scale")==0)otherRow=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);
  });h.Frame();SetMenuCardProbe({});
  auto& io=ImGui::GetIO();io.AddMousePosEvent(otherRow.x,otherRow.y);h.Frame();
- Check(h.shell.Navigation().Focus()=="hud","Mouse hover stole controller focus");
+ Check(h.shell.Navigation().Focus()=="look","Mouse hover stole controller focus");
  io.AddMousePosEvent(leftArrow.x,leftArrow.y);h.Frame();io.AddMouseButtonEvent(0,true);h.Frame();
  io.AddMouseButtonEvent(0,false);h.Frame(0,40);
  Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Visible value arrows did not adjust on click");

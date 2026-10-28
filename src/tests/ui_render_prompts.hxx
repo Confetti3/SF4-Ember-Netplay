@@ -36,7 +36,8 @@ void ShootButtonPrompts(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
         const auto names=ButtonPositionNames(input::PadXInput,scenario.brand);
         const auto& strip=LastTrainingStrip();
         Require(std::find(strip.pieces.begin(),strip.pieces.end(),names.view)!=strip.pieces.end(),"Training strip lost brand's View name");
-        Require(std::find(strip.pieces.begin(),strip.pieces.end(),names.start)!=strip.pieces.end(),"Training strip lost brand's Start name");
+        // An Xbox-type pad opens the controls with R3 alone (TrainingPad.hxx), so the strip names R3, not Start.
+        Require(std::find(strip.pieces.begin(),strip.pieces.end(),"R3")!=strip.pieces.end(),"Training strip lost R3, the pad's way to the controls");
         mode=0;
     }
     SetMenuGlyphs(input::PadKeyboard,0,0);draw("prompts-keyboard");

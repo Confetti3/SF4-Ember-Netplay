@@ -237,6 +237,18 @@ msgstr "Обновления"
 msgid "updates.downloaded_mb"
 msgstr "Загружено: {0:.1f} МБ"
 
+msgid "updates.downloaded_of_mb"
+msgstr "Загружено: {0:.1f} из {1:.1f} МБ"
+
+msgid "updates.step_found"
+msgstr "Найдено"
+
+msgid "updates.step_verified"
+msgstr "Проверено"
+
+msgid "updates.step_installed"
+msgstr "Установлено"
+
 msgid "services.checking"
 msgstr "Проверка обновлений..."
 
@@ -429,6 +441,12 @@ msgstr "Перемещение"
 
 msgid "menu.adjust"
 msgstr "Настроить"
+
+msgid "speech.position"
+msgstr "{0} из {1}"
+
+msgid "speech.change"
+msgstr "Влево или вправо, чтобы изменить"
 
 msgid "rules.edition_select"
 msgstr "Выбор издания"
@@ -800,10 +818,10 @@ msgid "replays.save_watched_detail"
 msgstr "Также сохраняет матчи, которые вы смотрите как зритель. Если выключено, сохраняются только ваши матчи."
 
 msgid "settings.watched_picture"
-msgstr "Просматриваемая игра в углу"
+msgstr "Картинка просматриваемой игры"
 
 msgid "settings.watched_picture_detail"
-msgstr "Когда меню Ember открыто поверх игры, которую вы смотрите, показывает её маленькой в правом верхнем углу поверх непрозрачного меню, а не затемнённой за ним."
+msgstr "Игра, которую вы смотрите, поверх меню Ember: Малый — в углу, его можно перетащить; Большой — на месте столов в комнате; Нет — затемнена за меню."
 
 msgid "replays.share"
 msgstr "Share my replays"
@@ -1387,7 +1405,7 @@ msgid "about.controls"
 msgstr "Управление"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A выбирает, B возвращает назад. PlayStation: Крест выбирает, Круг возвращает назад. Switch: B выбирает, A возвращает назад, как в меню игры. Контроллер, настроенный в Ember: Кнопка, выбранная для слабого удара ногой, выбирает, а для среднего удара ногой возвращает назад независимо от раскладки кнопок. Клавиатура: стрелки, Enter и Escape. Крестовина перемещает; Влево и Вправо меняют значение. Возврат на главном экране скрывает Ember. F10 или Start на контроллере снова открывает его в главном меню игры.\n\nВ комнате A на ячейке позволяет выбрать место, A на своём месте сообщает о готовности, B покидает место или очередь (на других контроллерах кнопки в тех же позициях). На Xbox X открывает Бойца, Y Настройки, View Чат; нажмите снова для возврата в комнату. PlayStation использует Квадрат, Треугольник и Share или Create; Switch Y, X и Minus.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На контроллере удерживайте View (Share, Create или Minus) и нажмите Start."
+msgstr "Xbox: A выбирает, B возвращает назад. PlayStation: Крест выбирает, Круг возвращает назад. Switch: B выбирает, A возвращает назад, как в меню игры. Контроллер, настроенный в Ember: Кнопка, выбранная для слабого удара ногой, выбирает, а для среднего удара ногой возвращает назад независимо от раскладки кнопок. Клавиатура: стрелки, Enter и Escape. Крестовина перемещает; Влево и Вправо меняют значение. Возврат на главном экране скрывает Ember. F10 или Start на контроллере снова открывает его в главном меню игры.\n\nВ комнате A на ячейке позволяет выбрать место, A на своём месте сообщает о готовности, B покидает место или очередь (на других контроллерах кнопки в тех же позициях). На Xbox X открывает Бойца, Y Настройки, View Чат; нажмите снова для возврата в комнату. PlayStation использует Квадрат, Треугольник и Share или Create; Switch Y, X и Minus.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На контроллере удерживайте View (Share, Create или Minus) и нажмите Start. На геймпаде Xbox их также открывает нажатие правого стика (R3)."
 
 msgid "about.controls_keyboard"
 msgstr "На клавиатуре Пробел тоже выбирает, а Backspace тоже возвращает назад. В лобби F открывает «Боец», T открывает «Опции», C открывает «Чат». Escape всегда возвращает назад, даже на вашем месте; Delete освобождает место или очередь."
@@ -4866,6 +4884,12 @@ msgstr "Поединков подряд: {0}"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Напрямую {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Ретранслятор {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Примерный пинг: около {0} ms."
 
@@ -5214,11 +5238,236 @@ msgstr "Счётчик кадров в матчах, автоготовност�
 msgid "settings.training_replays_title"
 msgstr "ТРЕНИРОВКА И ПОВТОРЫ"
 
+msgid "settings.accessibility"
+msgstr "Специальные возможности"
+
+msgid "settings.accessibility_detail"
+msgstr "Голос, который читает меню Ember вслух."
+
+msgid "settings.accessibility_title"
+msgstr "СПЕЦИАЛЬНЫЕ ВОЗМОЖНОСТИ"
+
+msgid "speech.setting"
+msgstr "Озвучивание"
+
+msgid "speech.setting_detail"
+msgstr "Читает меню Ember вслух, пока вы по ним перемещаетесь. F1 останавливает голос."
+
+msgid "speech.intro"
+msgstr "Озвучивание включено. Перемещайтесь, чтобы услышать каждый пункт. Нажмите {0}, чтобы услышать, что он делает; нажмите ещё раз, чтобы остановить. Другие параметры находятся в разделе Настройки, Специальные возможности."
+
+msgid "speech.rate"
+msgstr "Скорость речи"
+
+msgid "speech.rate_detail"
+msgstr "Насколько быстро говорит голос. 0 означает обычный темп."
+
+msgid "speech.volume"
+msgstr "Громкость речи"
+
+msgid "speech.volume_detail"
+msgstr "Насколько громко говорит голос."
+
+msgid "speech.details"
+msgstr "Читать описания автоматически"
+
+msgid "speech.details_detail"
+msgstr "Читает описание строки само, если вы ненадолго на ней задержитесь. Если выключено, описание читает F2 по запросу."
+
+msgid "speech.hints"
+msgstr "Читать подсказки кнопок"
+
+msgid "speech.hints_detail"
+msgstr "Читает, что делают ваши кнопки в строке, на которой вы задержались."
+
+msgid "speech.read_position"
+msgstr "Читать позицию"
+
+msgid "speech.read_position_detail"
+msgstr "После названия и значения строки называет её место в списке, например 3 из 12."
+
+msgid "speech.more"
+msgstr "{0}, чтобы узнать больше"
+
+msgid "speech.help"
+msgstr "{0} для справки по любому пункту"
+
+msgid "speech.remind"
+msgstr "Напоминать о кнопке описания"
+
+msgid "speech.remind_detail"
+msgstr "После названия строки с описанием говорит, какая кнопка его читает. Автоматически перестаёт после трёх нажатий кнопки."
+
+msgid "speech.remind_auto"
+msgstr "До 3 нажатий"
+
+msgid "speech.tick"
+msgstr "Звук описания"
+
+msgid "speech.tick_detail"
+msgstr "Когда напоминание прекратится, тихий щелчок после названия строки сообщит, что у неё есть описание."
+
+msgid "speech.notice"
+msgstr "Уведомление. Нажмите {0}, чтобы прослушать его."
+
+msgid "speech.chime"
+msgstr "Звук уведомлений"
+
+msgid "speech.chime_detail"
+msgstr "Короткий звук перед тем, как голос сообщит, что уведомление открылось само."
+
+msgid "speech.chime_volume"
+msgstr "Громкость звука уведомлений"
+
+msgid "speech.chime_volume_detail"
+msgstr "Насколько громко звучит звук уведомлений."
+
+msgid "speech.voice"
+msgstr "Голос"
+
+msgid "speech.voice_detail"
+msgstr "В Linux и на Steam Deck Ember один раз скачивает естественный голос для вашего языка (около 90 МБ) и сохраняет его. Пока он не готов, а также для языков без такого голоса, говорит системный голос."
+
+msgid "speech.voice_system"
+msgstr "Системный голос"
+
+msgid "speech.voice_downloading"
+msgstr "Загрузка: {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Естественный голос"
+
+msgid "speech.voice_download_failed"
+msgstr "Ошибка загрузки"
+
+msgid "speech.voice_ready"
+msgstr "Естественный голос готов и теперь говорит он."
+
+msgid "speech.voice_failed"
+msgstr "Не удалось скачать естественный голос, поэтому говорит системный голос. Ember попробует снова при следующем запуске."
+
+msgid "speech.pack"
+msgstr "Голосовой пакет: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Не загружен, {0} МБ"
+
+msgid "speech.pack_current"
+msgstr "Загружен, {0} МБ"
+
+msgid "speech.pack_outdated"
+msgstr "Доступно обновление, {0} МБ"
+
+msgid "speech.pack_removed"
+msgstr "Удалён"
+
+msgid "speech.pack_detail"
+msgstr "Каждая фраза Ember, один раз записанная естественным голосом. Загружается сама, когда озвучивание включено; выберите, чтобы загрузить заново или обновить."
+
+msgid "speech.pack_download"
+msgstr "Загрузить"
+
+msgid "speech.pack_remove"
+msgstr "Удалить голосовой пакет"
+
+msgid "speech.pack_remove_detail"
+msgstr "Удаляет голосовой пакет с этого компьютера. Пока вы не загрузите его снова, говорит системный голос."
+
+msgid "speech.pack_downloading"
+msgstr "Загружается голос: {0} ({1} МБ). Пока он не готов, говорит системный голос."
+
+msgid "speech.pack_failed"
+msgstr "Не удалось загрузить голосовой пакет, поэтому говорит системный голос. Чтобы повторить, выберите голосовой пакет в разделе Настройки, Специальные возможности."
+
+msgid "speech.no_windows_voice"
+msgstr "Озвучивание включено, но в Windows нет голоса для речи. Добавьте его в параметрах Windows в разделе Время и язык, Речь."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Озвучивание включено, но speech-dispatcher недоступен. В Linux и на Steam Deck Ember говорит через speech-dispatcher, которому также нужен python3."
+
 msgid "room.table_footer_practice"
 msgstr "Тренировочный матч"
 
 msgid "room.rules_summary_practice"
 msgstr "Тренировочный матч, раундов: {0}, {1} с, Edition Select {2}"
+
+msgid "room.type"
+msgstr "Тип комнаты"
+
+msgid "room.type.classic"
+msgstr "Классическая"
+
+msgid "room.type.arcade"
+msgstr "Аркада"
+
+msgid "room.type.classic_detail"
+msgstr "Игроки встают в очередь к столу и играют за ним."
+
+msgid "room.type.arcade_detail"
+msgstr "Шестнадцать автоматов: садитесь за любой свободный и играйте с тем, кто ждёт дольше всех. После сета, если оба выберут Реванш, играете снова; иначе каждый играет со следующим ожидающим."
+
+msgid "room.arcade_status"
+msgstr "Аркадная комната / только по приглашению"
+
+msgid "room.arcade_locked_status"
+msgstr "Аркадная комната закрыта / только по приглашению"
+
+msgid "room.arcade_sit"
+msgstr "Сесть"
+
+msgid "room.arcade_sit_detail"
+msgstr "Сесть здесь: вы играете с тем, кто ждёт дольше всех, или ждёте следующего игрока."
+
+msgid "room.arcade_waiting"
+msgstr "Ждёт"
+
+msgid "room.cabinet_free"
+msgstr "ВСТАВЬТЕ МОНЕТУ"
+
+msgid "room.type.king"
+msgstr "Царь горы"
+
+msgid "room.type.king_detail"
+msgstr "Шестнадцать автоматов, все пары играют одновременно: победитель сета остаётся на месте и играет со следующим претендентом. Самая длинная текущая серия побед занимает вершину."
+
+msgid "room.cabinet_row"
+msgstr "Автомат {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "свободен"
+
+msgid "room.arcade_move_detail"
+msgstr "Пересесть за этот автомат между играми. Соперник и серия остаются с вами."
+
+msgid "room.arcade_vs"
+msgstr "против {0}"
+
+msgid "room.rematch"
+msgstr "Реванш"
+
+msgid "room.rematch_detail"
+msgstr "Сыграть с тем же соперником ещё раз. Начнётся, когда оба выберете реванш."
+
+msgid "room.new_opponent"
+msgstr "Новый соперник"
+
+msgid "room.new_opponent_detail"
+msgstr "Остаться на месте и играть с тем, кто ждёт дольше всех, или ждать следующего игрока."
+
+msgid "room.rematch_ask"
+msgstr "Реванш?"
+
+msgid "room.rematch_chosen"
+msgstr "Реванш выбран"
+
+msgid "room.top_slot"
+msgstr "ВЕРШИНА"
+
+msgid "room.top_slot_none"
+msgstr "Выиграйте сет, чтобы занять вершину."
+
+msgid "room.rules.arcade"
+msgstr "Правила аркадной комнаты задаются при её создании и действуют за каждым столом."
 
 msgid "room.practice"
 msgstr "Тренировочное лобби"
@@ -7219,6 +7468,84 @@ msgstr "Эмблемы классов"
 msgid "settings.class_emblems_detail"
 msgstr "Показывает класс каждого игрока рядом с его именем в открытых лобби. Если выключено, они скрыты только на вашем экране. Другие по-прежнему видят ваш класс, и ваши игры засчитываются."
 
+msgid "settings.look"
+msgstr "Внешний вид"
+
+msgid "settings.look.classic"
+msgstr "Классический"
+
+msgid "settings.look.v2"
+msgstr "V2 (предпросмотр)"
+
+msgid "settings.look_detail"
+msgstr "Новый внешний вид Ember, он ещё в работе. Вернуться можно в любой момент: меняется только вид экранов."
+
+msgid "settings.tv_mode"
+msgstr "Режим ТВ"
+
+msgid "settings.tv_mode_detail"
+msgstr "Для телевизора в другом конце комнаты: всё на четверть крупнее, внутри безопасной зоны 5% по краям."
+
+msgid "menu.pages"
+msgstr "Страницы"
+
+msgid "room.controls_detail"
+msgstr "Ваш контроллер и его кнопки, не выходя из комнаты."
+
+msgid "settings.picture_corner"
+msgstr "Угол картинки"
+
+msgid "settings.picture_corner_detail"
+msgstr "В каком углу стоит картинка просматриваемой игры. Мышью её можно перетащить в другой угол."
+
+msgid "settings.picture_size"
+msgstr "Размер картинки"
+
+msgid "settings.picture_size_detail"
+msgstr "Насколько велика картинка просматриваемой игры. Мышью можно тянуть за её уголок."
+
+msgid "settings.tab.player"
+msgstr "Игрок"
+
+msgid "settings.tab.matches"
+msgstr "Матчи"
+
+msgid "settings.tab.interface"
+msgstr "Интерфейс"
+
+msgid "settings.tab.accessibility"
+msgstr "Доступность"
+
+msgid "settings.tab.online"
+msgstr "Онлайн"
+
+msgid "settings.tab.about"
+msgstr "О программе"
+
+msgid "settings.group.look"
+msgstr "Внешний вид"
+
+msgid "settings.group.sounds"
+msgstr "Звуки"
+
+msgid "settings.group.text"
+msgstr "Текст и язык"
+
+msgid "settings.group.help"
+msgstr "Подсказки на экране"
+
+msgid "settings.panel.open"
+msgstr "Открыто"
+
+msgid "settings.panel.closed"
+msgstr "Закрыто"
+
+msgid "settings.panel.open_action"
+msgstr "Открыть панель"
+
+msgid "settings.panel.close_action"
+msgstr "Закрыть панель"
+
 
 msgid "class.developer"
 msgstr "Dev"
@@ -7228,3 +7555,552 @@ msgstr "Разработчик Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Разработчики Ember показывают эту отметку вместо класса и не попадают в таблицу. Ваши игры по-прежнему засчитываются."
+
+msgid "room.v2.board"
+msgstr "Обзор"
+
+msgid "room.v2.tables"
+msgstr "СТОЛЫ"
+
+msgid "room.v2.table"
+msgstr "СТОЛ {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "Играют: {0} · смотрят: {1}"
+
+msgid "room.v2.group_playing"
+msgstr "ИГРАЮТ"
+
+msgid "room.v2.group_at_table"
+msgstr "ЗА СТОЛОМ"
+
+msgid "room.v2.group_watching"
+msgstr "СМОТРЯТ"
+
+msgid "room.v2.group_in_room"
+msgstr "В КОМНАТЕ"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · ОНЛАЙН · ЗАКРЫТАЯ КОМНАТА"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · ОНЛАЙН · ОТКРЫТАЯ КОМНАТА"
+
+msgid "room.v2.invitation_only"
+msgstr "Только по приглашению"
+
+msgid "room.v2.listed"
+msgstr "В списке открытых комнат"
+
+msgid "room.v2.type_message"
+msgstr "Напишите сообщение"
+
+msgid "room.v2.more"
+msgstr "Ещё…"
+
+msgid "room.v2.more_detail"
+msgstr "Настройки ячейки, настройки лобби и ссылки-приглашения."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Картинка"
+
+msgid "room.v2.picture_none"
+msgstr "Нет"
+
+msgid "room.v2.part_detail"
+msgstr "Показывает или скрывает эту часть комнаты. Остальные части занимают её место."
+
+msgid "room.v2.picture_detail"
+msgstr "Игра, которую вы смотрите: маленькая в углу, большая на месте столов или никакой."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Маленькое окно поверх меню. Перетащите его в другой угол или потяните за край, чтобы изменить размер."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Большая, на месте столов в комнате."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Без картинки: игра остаётся затемнённой за меню."
+
+msgid "room.v2.hide"
+msgstr "Скрыть"
+
+msgid "room.v2.hide_members"
+msgstr "Скрыть участников"
+
+msgid "room.v2.hide_chat"
+msgstr "Скрыть чат"
+
+msgid "room.v2.hide_picture"
+msgstr "Скрыть картинку"
+
+msgid "room.v2.hide_detail"
+msgstr "Сворачивает до заголовка. «Показать» разворачивает обратно."
+
+msgid "room.v2.show"
+msgstr "Показать"
+
+msgid "room.v2.show_detail"
+msgstr "Разворачивает полностью."
+
+msgid "room.v2.copy_invite"
+msgstr "Приглашение"
+
+msgid "room.v2.copy_link"
+msgstr "Короткая ссылка"
+
+msgid "settings.room_show_members_detail"
+msgstr "Панель участников комнаты. Если она скрыта, столбец занимает чат, а если скрыты обе — столы на всю ширину."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Панель чата комнаты. Если она скрыта, столбец занимают участники, а если скрыты обе — столы на всю ширину."
+
+msgid "room.v2.unread"
+msgstr "Непрочитано: {0}"
+
+msgid "online.eyebrow"
+msgstr "EMBER · ОНЛАЙН"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · ОНЛАЙН · СОЗДАНИЕ"
+
+msgid "online.eyebrow_join"
+msgstr "ОНЛАЙН · ВХОД"
+
+msgid "online.eyebrow_browse"
+msgstr "ОНЛАЙН · ОБЗОР"
+
+msgid "public.your_region"
+msgstr "Ваш регион {0}"
+
+msgid "home.notifications"
+msgstr "Уведомления"
+
+msgid "notifications.none"
+msgstr "Пока ничего."
+
+msgid "notifications.none_detail"
+msgstr "То, что сообщает Ember, например скопированная ссылка или покинутая комната, хранится здесь до конца сеанса."
+
+msgid "home.news"
+msgstr "Новости"
+
+msgid "news.heading"
+msgstr "НОВОСТИ"
+
+msgid "news.more"
+msgstr "Выберите «Новости» в списке, чтобы увидеть каждый выпуск."
+
+msgid "news.none"
+msgstr "Новостей пока нет"
+
+msgid "news.none_detail"
+msgstr "Новости берутся из выпусков Ember после проверки обновлений."
+
+msgid "settings.group.room_layout"
+msgstr "Раскладка комнаты"
+
+msgid "settings.room_column"
+msgstr "Ширина колонки"
+
+msgid "settings.room_column_detail"
+msgstr "Какую часть доски комнаты занимает колонка с участниками и чатом. В комнате мышь тоже перетаскивает линию между ними."
+
+msgid "settings.room_split"
+msgstr "Участники и чат"
+
+msgid "settings.room_split_detail"
+msgstr "Как делится колонка: участники над чатом. Чат всегда сохраняет три строки. В комнате мышь тоже перетаскивает линию между ними."
+
+msgid "settings.room_preset"
+msgstr "Готовая раскладка"
+
+msgid "settings.room_preset_detail"
+msgstr "«Сначала доска» отдаёт место столам, «Сначала чат» — разговору; «Сбалансированная» — посередине."
+
+msgid "settings.room_preset.board"
+msgstr "Сначала доска"
+
+msgid "settings.room_preset.balanced"
+msgstr "Сбалансированная"
+
+msgid "settings.room_preset.chat"
+msgstr "Сначала чат"
+
+msgid "settings.room_layout_reset"
+msgstr "Восстановить по умолчанию"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Возвращает колонку и деление между участниками и чатом к «Сбалансированной»."
+
+msgid "menu.choices_count"
+msgstr "Вариантов: {0}"
+
+msgid "menu.choices_keys"
+msgstr "Направления — выбор · Выбрать — принять · Назад — оставить {0}"
+
+msgid "selection.costume"
+msgstr "Костюм"
+
+msgid "selection.color_row"
+msgstr "Цвет"
+
+msgid "selection.ready_with"
+msgstr "Готов: {0}"
+
+msgid "selection.ready_detail"
+msgstr "Оставить этого бойца и вернуться."
+
+msgid "country.first_letter"
+msgstr "ПЕРВАЯ БУКВА"
+
+msgid "country.letter_detail"
+msgstr "Стран: {0}"
+
+msgid "country.board_help"
+msgstr "Буква показывает свои страны. С клавиатуры введите букву, чтобы перейти к ней."
+
+msgid "news.tab.all"
+msgstr "Все"
+
+msgid "news.tab.updates"
+msgstr "Обновления Ember"
+
+msgid "news.tab.changelog"
+msgstr "Изменения"
+
+msgid "news.kind.update"
+msgstr "Обновление"
+
+msgid "news.new"
+msgstr "Новое"
+
+msgid "news.update_now_detail"
+msgstr "Закрывает игру и устанавливает {0} через Launcher. Ваши настройки сохраняются."
+
+msgid "replays.tab.matches"
+msgstr "Матчи"
+
+msgid "replays.tab.sets"
+msgstr "Сеты"
+
+msgid "replays.set_detail"
+msgstr "Матчей: {0}"
+
+msgid "replays.game"
+msgstr "Матч {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Бойцы"
+
+msgid "replays.fact.played"
+msgstr "Сыгран"
+
+msgid "replays.fact.length"
+msgstr "Длительность"
+
+msgid "keyboard.recent"
+msgstr "Недавние:"
+
+msgid "keyboard.type"
+msgstr "Ввод"
+
+msgid "keyboard.delete"
+msgstr "Удалить"
+
+msgid "keyboard.space"
+msgstr "Пробел"
+
+msgid "keyboard.capitals"
+msgstr "Заглавные"
+
+msgid "keyboard.done"
+msgstr "Готово"
+
+msgid "welcome.title"
+msgstr "Добро пожаловать"
+
+msgid "welcome.step"
+msgstr "ДОБРО ПОЖАЛОВАТЬ · ШАГ {0} ИЗ {1}"
+
+msgid "welcome.speech_title"
+msgstr "Включить озвучку в Ember?"
+
+msgid "welcome.speech_text"
+msgstr "Ember может зачитывать каждое меню вслух. Это можно изменить в любой момент в настройках."
+
+msgid "welcome.speech_on"
+msgstr "Да, читать меню вслух"
+
+msgid "welcome.speech_on_detail"
+msgstr "Использует экранный диктор, если он запущен, иначе голос Windows."
+
+msgid "welcome.speech_off"
+msgstr "Без озвучки"
+
+msgid "welcome.speech_off_detail"
+msgstr "Её можно включить позже."
+
+msgid "welcome.language_title"
+msgstr "Какой язык использовать в Ember?"
+
+msgid "welcome.language_text"
+msgstr "Меню Ember будут на этом языке. Игра сохранит свой."
+
+msgid "welcome.controller_title"
+msgstr "Каким контроллером вы будете играть?"
+
+msgid "welcome.controller_text"
+msgstr "Ember везде показывает кнопки этого контроллера."
+
+msgid "welcome.controller_ready"
+msgstr "Готов: {0}."
+
+msgid "welcome.look_title"
+msgstr "Какой вид вам нужен?"
+
+msgid "welcome.look_text"
+msgstr "Переключить можно в любой момент в настройках: меняется только вид экранов."
+
+msgid "welcome.look_classic"
+msgstr "Классический"
+
+msgid "welcome.look_classic_detail"
+msgstr "Меню Ember, как всегда."
+
+msgid "welcome.look_v2"
+msgstr "V2 (предпросмотр)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Новый вид Ember, ещё в разработке."
+
+msgid "welcome.chosen"
+msgstr "Выбрано"
+
+msgid "welcome.next"
+msgstr "Далее"
+
+msgid "welcome.start"
+msgstr "Начать игру"
+
+msgid "welcome.next_detail"
+msgstr "К следующему вопросу."
+
+msgid "welcome.skip"
+msgstr "Пропустить"
+
+msgid "welcome.skip_detail"
+msgstr "Сразу на главный экран. Всё это есть и в настройках."
+
+msgid "welcome.previous"
+msgstr "Предыдущий шаг"
+
+msgid "screen.awards"
+msgstr "Награды"
+
+msgid "awards.titles"
+msgstr "Титулы"
+
+msgid "awards.icons"
+msgstr "Значки"
+
+msgid "awards.card"
+msgstr "Твоя карточка"
+
+msgid "awards.card_detail"
+msgstr "Твоя карточка такой, какой её видят другие. Выбор открывает награды: титулы и значки, которые можно носить."
+
+msgid "awards.entry_detail"
+msgstr "Титулы и значки, которые ты получил, и как получить остальные. Выбери один, чтобы носить его на карточке."
+
+msgid "awards.earned_count"
+msgstr "Получено {0} из {1}"
+
+msgid "awards.card_heading"
+msgstr "ТВОЯ КАРТОЧКА · КАК ЕЁ ВИДЯТ ДРУГИЕ"
+
+msgid "awards.where_heading"
+msgstr "ГДЕ ОНА ВИДНА"
+
+msgid "awards.on_card"
+msgstr "На карточке"
+
+msgid "awards.earned"
+msgstr "Получено"
+
+msgid "awards.locked"
+msgstr "Закрыто"
+
+msgid "awards.wear"
+msgstr "Надеть на карточку"
+
+msgid "awards.detail_worn"
+msgstr "На твоей карточке."
+
+msgid "awards.detail_earned"
+msgstr "Получено. Выбор надевает на карточку."
+
+msgid "awards.detail_locked"
+msgstr "Закрыто. {0}."
+
+msgid "tier.ash"
+msgstr "Пепел"
+
+msgid "tier.copper"
+msgstr "Медь"
+
+msgid "tier.silver"
+msgstr "Серебро"
+
+msgid "tier.gold"
+msgstr "Золото"
+
+msgid "tier.ember"
+msgstr "Ember"
+
+msgid "award.entrant.title"
+msgstr "УЧАСТНИК EMBER"
+
+msgid "award.entrant.icon"
+msgstr "Искра"
+
+msgid "award.entrant.how"
+msgstr "Сыграй один сет в любой сетке Ember"
+
+msgid "award.launch-night.title"
+msgstr "НОЧЬ ЗАПУСКА"
+
+msgid "award.launch-night.icon"
+msgstr "Перемотка"
+
+msgid "award.launch-night.how"
+msgstr "Сыграй во время события запуска Ember"
+
+msgid "award.weekly-top16.title"
+msgstr "ТОП-16 НЕДЕЛИ"
+
+msgid "award.weekly-top16.icon"
+msgstr "Лавр"
+
+msgid "award.weekly-top16.how"
+msgstr "Войди в топ-16 на Ember Weekly"
+
+msgid "award.rollback-regular.title"
+msgstr "ЗАВСЕГДАТАЙ ROLLBACK"
+
+msgid "award.rollback-regular.icon"
+msgstr "Календарь"
+
+msgid "award.rollback-regular.how"
+msgstr "Сыграй в 10 Ember Weekly за сезон"
+
+msgid "award.weekly-top8.title"
+msgstr "ТОП-8 НЕДЕЛИ"
+
+msgid "award.weekly-top8.icon"
+msgstr "Восьмиугольник 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Войди в топ-8 на Ember Weekly"
+
+msgid "award.by-ear.title"
+msgstr "НА СЛУХ"
+
+msgid "award.by-ear.icon"
+msgstr "Звуковая волна"
+
+msgid "award.by-ear.how"
+msgstr "Выиграй сет в сетке только со звуком"
+
+msgid "award.monthly-finalist.title"
+msgstr "ФИНАЛИСТ МЕСЯЦА"
+
+msgid "award.monthly-finalist.icon"
+msgstr "Медаль"
+
+msgid "award.monthly-finalist.how"
+msgstr "Дойди до гранд-финала Ember Monthly"
+
+msgid "award.organizer.title"
+msgstr "ОРГАНИЗАТОР ТУРНИРОВ"
+
+msgid "award.organizer.icon"
+msgstr "Флаг"
+
+msgid "award.organizer.how"
+msgstr "Выдаётся командой Ember организаторам"
+
+msgid "award.commentary.title"
+msgstr "КОММЕНТАТОР"
+
+msgid "award.commentary.icon"
+msgstr "Микрофон"
+
+msgid "award.commentary.how"
+msgstr "Выдаётся комментаторам трансляций"
+
+msgid "award.season1-veteran.title"
+msgstr "ВЕТЕРАН 1-ГО СЕЗОНА"
+
+msgid "award.season1-veteran.icon"
+msgstr "Герб"
+
+msgid "award.season1-veteran.how"
+msgstr "Войди в топ-32 на каждом Monthly 1-го сезона"
+
+msgid "award.cup-champion.title"
+msgstr "ЧЕМПИОН EMBER CUP"
+
+msgid "award.cup-champion.icon"
+msgstr "Корона"
+
+msgid "award.cup-champion.how"
+msgstr "Выиграй Ember Cup в конце сезона"
+
+msgid "toast.kind.invitation"
+msgstr "ПРИГЛАШЕНИЕ"
+
+msgid "toast.kind.room"
+msgstr "КОМНАТА"
+
+msgid "toast.kind.update"
+msgstr "ОБНОВЛЕНИЕ"
+
+msgid "toast.kind.match"
+msgstr "МАТЧ"
+
+msgid "toast.kind.system"
+msgstr "СИСТЕМА"
+
+msgid "toast.join"
+msgstr "Войти"
+
+msgid "toast.open"
+msgstr "Открыть"
+
+msgid "discord.invitation_notice"
+msgstr "Вас пригласили в комнату через Discord."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} готов к установке."
+
+msgid "home.training"
+msgstr "Тренировка"
+
+msgid "home.training_detail"
+msgstr "Сразу перейти в режим тренировки, без вопроса о вызовах на бой."
+
+msgid "home.training_unavailable"
+msgstr "Тренировка сейчас недоступна: сначала выйдите из комнаты или матча и вернитесь в главное меню игры."
+
+msgid "room.arcade_versus"
+msgstr "против {0}"
+
+msgid "room.matchup"
+msgstr "{0} против {1}"
+
+msgid "room.matchup_detail"
+msgstr "Автоматы {0} и {1}"

@@ -2,6 +2,8 @@
 // confirmed publication. Split from sf4e__Game__Battle__System.cxx.
 #include "sf4e__Game__Battle__System__Internal.hxx"
 
+#include <optional>
+
 // Native result state is captured in GGPO saves, including resimulation. The
 // history is rewound to each restored state; the emitted latch is deliberately
 // match state and survives a rollback so a
@@ -9,9 +11,34 @@
 sf4e::native_result::Timeline s_nativeResultTimeline;
 bool s_nativeResultEmitted = false;
 
+// A result an in-place rematch may follow waits over the WIN: the room hears
+// it as a game of the running match once the next game's fight is confirmed,
+// or as the match's end when the battle closes instead.
+struct HeldResult { sf4e::room::MatchResult result; std::uint64_t captureFrame, confirmedFrame; };
+static std::optional<HeldResult> s_heldResult;
+static int s_resultFrame = -1;  // save frame of the last result published
+static unsigned s_gamesReported = 0;  // games of this battle the room heard
+
 void ResetNativeResultMatch() {
     s_nativeResultTimeline.Reset();
     s_nativeResultEmitted = false;
+    s_heldResult.reset();
+    s_resultFrame = -1;
+    s_gamesReported = 0;
+}
+
+bool fSystem::ResultHeld() { return s_heldResult.has_value(); }
+unsigned fSystem::GamesPlayedInPlace() { return s_gamesReported; }
+
+static void ReportNativeResult(const HeldResult& held, bool continued) {
+    sf4e::NetplayFacade::NotifyRuntimeMatchResult(held.result, held.captureFrame, held.confirmedFrame, s_gamesReported, continued);
+    if (continued) ++s_gamesReported;
+}
+
+void FlushHeldNativeResult() {
+    if (!s_heldResult) return;
+    ReportNativeResult(*s_heldResult, false);
+    s_heldResult.reset();
 }
 
 // The outcome is settled: this fighter confirmed it natively, or the room
@@ -46,36 +73,39 @@ void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
     else if (flowValue == rSystem::BF__DRAW_RESULT) {
         flow = sf4e::native_result::Flow::DrawResult;
     }
+    else if (flowValue == rSystem::BF__READY || flowValue == rSystem::BF__FIGHT) {
+        flow = sf4e::native_result::Flow::Fight;
+    }
 
     s_nativeResultTimeline.Capture(stateFrame, flow, winnerIndex);
 }
 
 void PublishConfirmedNativeMatchResult() {
-    if (s_nativeResultEmitted || !fSystem::ggpo ||
-        !fSystem::LocalFighter()) return;
+    if (!fSystem::ggpo || !fSystem::LocalFighter()) return;
     int confirmed = -1;
     if (!GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))) return;
+    if (s_heldResult) {
+        const int fight = s_nativeResultTimeline.ConfirmedFightAfter(s_resultFrame, confirmed);
+        if (fight < 0) return;
+        spdlog::info("Match result: game {} went on to a rematch in this battle (fight confirmed at frame {})", s_gamesReported + 1, fight);
+        ReportNativeResult(*s_heldResult, true);
+        s_heldResult.reset();
+        s_nativeResultEmitted = false;
+        s_resultFrame = fight;
+    }
+    if (s_nativeResultEmitted) return;
     const auto sample = s_nativeResultTimeline.ConfirmedSample(confirmed);
-    const auto result = sample.result;
-    if (result == sf4e::native_result::Result::None) return;
+    if (sample.result == sf4e::native_result::Result::None || sample.frame <= s_resultFrame) return;
 
     s_nativeResultEmitted = true;
-    spdlog::info("Match result: confirmed native outcome={} input_frame={} save_frame={}", static_cast<int>(result), confirmed, sample.frame);
-    const auto captureFrame = static_cast<std::uint64_t>(sample.frame);
-    const auto confirmedFrame = static_cast<std::uint64_t>(confirmed < 0 ? 0 : confirmed);
-    switch (result) {
-    case sf4e::native_result::Result::P1Win:
-        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P1Win, captureFrame, confirmedFrame);
-        break;
-    case sf4e::native_result::Result::P2Win:
-        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P2Win, captureFrame, confirmedFrame);
-        break;
-    case sf4e::native_result::Result::Draw:
-        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::Draw, captureFrame, confirmedFrame);
-        break;
-    case sf4e::native_result::Result::None:
-        break;
-    }
+    s_resultFrame = sample.frame;
+    spdlog::info("Match result: confirmed native outcome={} input_frame={} save_frame={}", static_cast<int>(sample.result), confirmed, sample.frame);
+    const HeldResult held{
+        sample.result == sf4e::native_result::Result::P1Win ? sf4e::room::MatchResult::P1Win :
+        sample.result == sf4e::native_result::Result::P2Win ? sf4e::room::MatchResult::P2Win : sf4e::room::MatchResult::Draw,
+        static_cast<std::uint64_t>(sample.frame), static_cast<std::uint64_t>(confirmed < 0 ? 0 : confirmed)};
+    if (sf4e::NetplayFacade::RematchInPlaceOffered(held.result)) s_heldResult = held;
+    else ReportNativeResult(held, false);
 }
 
 // The frame loop only publishes after a successful advance. Once the fight

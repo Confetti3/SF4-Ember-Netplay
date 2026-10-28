@@ -2,8 +2,10 @@
 #include "ApplicationShell.hxx"
 #include "MenuRows.hxx"
 #include "ReplaySummaryText.hxx"
+#include "MenuDialogs.hxx"
 #include "Theme.hxx"
 #include "../platform/ReplaySets.hxx"
+#include "V2.hxx"
 #include "../platform/Utf8.hxx"
 #include "../common/ReplayLink.hxx"
 #include <algorithm>
@@ -35,6 +37,19 @@ void ReplaysPanel::Update(const ShellView& v,MenuNavigation& nav) {
 std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,bool idle,std::string& title) const {
  const auto& r=v.replays;std::vector<MenuEntry> rows;
  if(screen=="replay-inputs"){title=loc::T("replays.inputs");InputsRows(v,rows);
+ }else if(screen=="replay-sets"){
+  // V2's Sets: a row a set, its score by who won each match; Select offers each match to watch.
+  title=loc::T("replays.title");
+  for(const auto& set:Sets(v)){
+   const auto& newest=*set.front();const auto wins=SetScore(set);
+   rows.push_back(Row("set:"+PathOf(newest),newest.names[0]+" "+std::to_string(wins.first)+"-"+std::to_string(wins.second)+" "+newest.names[1],loc::Tf("replays.set_detail",set.size())));
+   rows.back().userText=true;rows.back().value=newest.label;rows.back().height=72;
+   for(std::size_t game=set.size();game-->0;){
+    const auto& r=*set[game];const std::string score=r.summary?ScoreText(*r.summary):std::string();
+    rows.back().choices.push_back({"game:"+PathOf(r),loc::Tf("replays.game",set.size()-game)+(score.empty()?"":"  "+score),loc::T("replays.watch_detail"),idle&&v.replays.ready});
+   }
+   rows.back().chosen=rows.back().choices.front().id;
+  }
  }else if(screen=="replay-export"){
   // Each part of the caption on or off, with its text; Generate sends it with the export.
   title=loc::T("export.title");
@@ -100,7 +115,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   if(!r.archive||r.archive->empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   // A row is its file, not its place: the list is listed again while a row's choices are open.
   // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
-  if(r.archive)for(const auto& replay:*r.archive)rows.push_back(ReplayRow(v,replay,idle));
+  if(r.archive)for(const auto& replay:*r.archive){rows.push_back(ReplayRow(v,replay,idle));if(v2::On())rows.back().height=72;}
  }
  return rows;
 }
@@ -296,5 +311,99 @@ bool ReplaysPanel::Status(const ShellView& v,const std::string& screen,std::stri
  }
  if(v.replays.notice.empty())return false;
  status=v.replays.notice;tone=v.replays.noticeError?Tone::Error:Tone::Success;return true;
+}
+std::vector<std::pair<std::string,std::string>> ReplaysPanel::Tabs(const ShellView& v) const {
+ std::vector<std::pair<std::string,std::string>> tabs{{"replays",loc::T("replays.tab.matches")}};
+ if(!Sets(v).empty())tabs.push_back({"replay-sets",loc::T("replays.tab.sets")});
+ if(!exportPath_.empty()||(v.replays.archive&&!v.replays.archive->empty()))tabs.push_back({"replay-export",loc::T("export.title")});
+ return tabs;
+}
+void ReplaysPanel::ExportFrom(const ShellView& v,const std::string& focus) {
+ const Replay* r=RowReplay(v,focus);
+ if(!r&&exportPath_.empty()&&v.replays.archive&&!v.replays.archive->empty())r=&v.replays.archive->front();
+ if(r)OpenExport(v,*r);
+}
+bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImVec2 max) const {
+ const Replay* r=RowReplay(v,e.id);
+ if(!r)return false;
+ auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
+ const bool set=e.id[0]=='s';
+ // The right end: what Ember knows of it as a chip, and the date.
+ float right=max.x-16*s;
+ const float dateWidth=ImGui::CalcTextSize(r->label.c_str()).x;
+ d->AddText(ImVec2(right-dateWidth,min.y+(max.y-min.y-ImGui::GetFontSize())*.5f),c.muted,r->label.c_str());
+ right-=dateWidth+14*s;
+ const std::string tags=set?std::string():ReplayTagsText(r->spectated,r->watched,r->video);
+ if(!tags.empty()){right-=v2::ChipWidth(tags);v2::Chip(d,ImVec2(right,min.y+(max.y-min.y-ImGui::GetFontSize()*.78f-8*s)*.5f),tags,c.muted);right-=14*s;}
+ // The players and the score between them (a set's by match), the fighters or the set's length under them.
+ std::string score=r->summary?ScoreText(*r->summary):std::string();
+ if(set)for(const auto& one:Sets(v))if(one.front()==r){const auto wins=SetScore(one);score=std::to_string(wins.first)+"-"+std::to_string(wins.second);}
+ const float x=min.x+16*s,top=min.y+10*s;
+ ImGui::PushFont(HeadingFont());
+ const std::string a=ReplayPlayerName(r->names,0),b=ReplayPlayerName(r->names,1);
+ const float room=(right-x-ImGui::CalcTextSize(score.empty()?"-":score.c_str()).x-24*s)*.5f;
+ const std::string fa=FitLabel(a,room),fb=FitLabel(b,room);
+ for(const auto& name:r->names)NoteUserText(name);
+ float at=x;
+ d->AddText(ImVec2(at,top),c.text,fa.c_str());at+=ImGui::CalcTextSize(fa.c_str()).x+12*s;
+ const std::string mid=score.empty()?"-":score;
+ d->AddText(ImVec2(at,top),c.accent,mid.c_str());at+=ImGui::CalcTextSize(mid.c_str()).x+12*s;
+ d->AddText(ImVec2(at,top),c.text,fb.c_str());
+ const float below=top+ImGui::GetFontSize()+4*s;
+ ImGui::PopFont();
+ const std::string sub=set?e.detail:FightersText(*r)+(r->summary?" \xC2\xB7 "+MatchText(*r->summary):"");
+ d->AddText(ImVec2(x,below),c.muted,FitLabel(sub,right-x).c_str());
+ return true;
+}
+void ReplaysPanel::DrawDetail(const ShellView& v,const std::string& screen,const std::string& id,MenuNavigation& nav,const std::vector<MenuEntry>& rows) const {
+ auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
+ if(screen=="replay-export"){
+  // What the video will show, over a small screen: the names, the line, the set's score, Ember's mark and the frame meter.
+  const auto p=ImGui::GetCursorScreenPos();const float w=ImGui::GetContentRegionAvail().x,h=w*9/16;
+  const ImVec2 q(p.x+w,p.y+h);
+  d->AddRectFilledMultiColor(p,q,c.header,c.header,c.panel,c.panel);
+  d->AddRect(p,q,c.border,4*s,0,s);
+  for(const float side:{.3f,.7f})d->AddRectFilled(ImVec2(p.x+w*side-15*s,q.y-h*.16f-90*s*h/400),ImVec2(p.x+w*side+15*s,q.y-h*.16f),side<.5f?c.hover:c.button,4*s);
+  d->AddRectFilled(ImVec2(p.x+w*.04f,p.y+h*.06f),ImVec2(p.x+w*.44f,p.y+h*.06f+10*s),c.accentLight);
+  d->AddRectFilled(ImVec2(p.x+w*.56f,p.y+h*.06f),ImVec2(p.x+w*.96f,p.y+h*.06f+10*s),c.accentLight);
+  if(caption_.names){
+   for(const auto& name:caption_.name)NoteUserText(name);
+   d->AddText(ImVec2(p.x+w*.04f,p.y+h*.15f),c.text,caption_.name[0].c_str());
+   d->AddText(ImVec2(q.x-w*.04f-ImGui::CalcTextSize(caption_.name[1].c_str()).x,p.y+h*.15f),c.text,caption_.name[1].c_str());
+  }
+  const auto centred=[&](const std::string& text,float y,ImU32 ground,ImU32 ink){
+   const float tw=ImGui::CalcTextSize(text.c_str()).x,cx=p.x+(w-tw)*.5f;
+   if(ground)d->AddRectFilled(ImVec2(cx-8*s,y-2*s),ImVec2(cx+tw+8*s,y+ImGui::GetFontSize()+2*s),ground,3*s);
+   d->AddText(ImVec2(cx,y),ink,text.c_str());
+  };
+  if(caption_.line){NoteUserText(caption_.text);centred(caption_.text,p.y+h*.14f,v2::color::Alpha(c.ink,.85f),c.text);}
+  if(caption_.set)centred(std::to_string(caption_.wins[0])+" - "+std::to_string(caption_.wins[1]),p.y+h*.24f,0,c.accent);
+  if(caption_.mark)v2::BrandMark(d,ImVec2(q.x-36*s,q.y-36*s),24*s);
+  if(meter_)d->AddRectFilled(ImVec2(p.x+w*.06f,q.y-h*.04f-12*s),ImVec2(q.x-w*.06f,q.y-h*.04f),c.accentLight);
+  ImGui::Dummy(ImVec2(w,h));
+  return;
+ }
+ const Replay* r=RowReplay(v,id);
+ const auto row=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
+ if(!r||row==rows.end())return;
+ const bool set=id[0]=='s';
+ ImGui::PushFont(HeadingFont());
+ for(const auto& name:r->names)NoteUserText(name);
+ ImGui::TextWrapped("%s",set?row->label.c_str():loc::Tf("replays.fighters",ReplayPlayerName(r->names,0),ReplayPlayerName(r->names,1)).c_str());
+ ImGui::PopFont();
+ ImGui::Dummy(ImVec2(0,6*s));
+ if(set)v2::Fact(loc::T("replays.tab.matches"),std::to_string(row->choices.size()));
+ else v2::Fact(loc::T("replays.fact.fighters"),FightersText(*r));
+ v2::Fact(loc::T("replays.fact.played"),r->label);
+ if(!set&&r->summary)v2::Fact(loc::T("replays.fact.length"),MatchText(*r->summary));
+ // Watch now opens the row's choices, as Select does.
+ ImGui::Dummy(ImVec2(0,6*s));
+ ImGui::PushStyleColor(ImGuiCol_Button,ImGui::ColorConvertU32ToFloat4(c.accent));
+ ImGui::PushStyleColor(ImGuiCol_ButtonHovered,ImGui::ColorConvertU32ToFloat4(c.accentLight));
+ ImGui::PushStyleColor(ImGuiCol_Text,ImGui::ColorConvertU32ToFloat4(c.ink));
+ ImGui::PushFont(HeadingFont());
+ if(ImGui::Button(loc::T("replays.watch"),ImVec2(-1,52*s)))nav.Ask(id,rows);
+ ImGui::PopFont();
+ ImGui::PopStyleColor(3);
 }
 } }

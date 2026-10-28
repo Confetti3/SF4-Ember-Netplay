@@ -55,8 +55,46 @@ bool fSystem::extendedSaveRequest = false;
 GameMementoKey::MementoID fSystem::mementoLoadRequest = { 0xffffffff, 0xffffffff };
 GameMementoKey::MementoID fSystem::mementoSaveRequest = { 0xffffffff, 0xffffffff };
 
+unsigned fSystem::rematchChoices = 0;
+// The GGPO frame that last restarted the match: a resimulated frame does not
+// count again. Games in one battle restart their own frame count; GGPO's runs on.
+static int rematchFrame = -1;
+
+void fSystem::TakeRematchChoices(fPadSystem::Inputs inputs[2]) {
+    rematchChoices = 0;
+    for (int i = 0; i < 2; i++) {
+        if (inputs[i].rawOn & sf4e::NetplayFacade::RematchInputBit) rematchChoices |= 1u << i;
+        inputs[i].rawOn &= ~sf4e::NetplayFacade::RematchInputBit;
+    }
+    if (rematchChoices != 3) return;
+    // Both chose: the WIN's last wait (MATCH_RESULT step 5 until its frame
+    // 300, DRAW_RESULT step 2 until frame 30) ends on this frame, as its own
+    // timeout ends it. Both games read the same inputs on the same frame.
+    const auto flow = *rSystem::staticVars.CurrentBattleFlow, step = *rSystem::staticVars.CurrentBattleFlowSubstate;
+    const short last = flow == rSystem::BF__MATCH_RESULT && step == 5 ? 300 : flow == rSystem::BF__DRAW_RESULT && step == 2 ? 30 : 0;
+    auto* frame = rSystem::staticVars.CurrentBattleFlowSubstateFrame;
+    if (last && frame->integral < last - 1)
+        *frame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame = { 0, static_cast<short>(last - 1) };
+}
+
+// The match end (BF__BTL_OVER, 0x5de1d0) reads the game mode to choose what
+// follows. Online it leaves the battle; offline Versus (mode 4) starts the
+// next match in this battle (requestRoundStart(1)). When both fighters chose
+// Rematch over the WIN it reads 4: no main menu and no VS load.
+int fSystem::GetGameMode() {
+    const int mode = (this->*rSystem::publicMethods.GetGameMode)();
+    if (!ggpo || rematchChoices != 3 || *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__BTL_OVER) return mode;
+    const int frame = ggpoTimeline.Held();
+    if (frame != rematchFrame) {
+        rematchFrame = frame;
+        spdlog::info("Rematch: both chose it over the WIN, the next game starts in this battle (frame {})", frame);
+    }
+    return 4;
+}
+
 void fSystem::Install() {
     void (fSystem:: * _fBattleUpdate)() = &BattleUpdate;
+    int (fSystem:: * _fGetGameMode)() = &GetGameMode;
     void (fSystem:: * _fCloseBattle)() = &CloseBattle;
     void (fSystem:: * _fSysMain_HandleTrainingModeFeatures)() = &SysMain_HandleTrainingModeFeatures;
     void (fSystem:: * _fSysMain_UpdatePauseState)() = &SysMain_UpdatePauseState;
@@ -73,6 +111,7 @@ void fSystem::Install() {
     DetourAttach((PVOID*)&rSystem::publicMethods.SysMain_HandleTrainingModeFeatures, *(PVOID*)&_fSysMain_HandleTrainingModeFeatures);
     DetourAttach((PVOID*)&rSystem::publicMethods.SysMain_UpdatePauseState, *(PVOID*)&_fSysMain_UpdatePauseState);
     DetourAttach((PVOID*)&rSystem::staticMethods.OnBattleFlow_BattleStart, OnBattleFlow_BattleStart);
+    DetourAttach((PVOID*)&rSystem::publicMethods.GetGameMode, *(PVOID*)&_fGetGameMode);
 }
 
 
@@ -110,8 +149,9 @@ GGPOErrorCode fSystem::ReadGgpoInputs(fPadSystem::Inputs inputs[2], int* disconn
 }
 
 GGPOErrorCode fSystem::SimulateGgpoFrame(rSystem* system, fPadSystem::Inputs inputs[2], FramePass pass) {
-    // The game is never shown the reserved bits (TrainingRuntime.hxx), in a
-    // frame of the present or its re-simulation alike.
+    // The game is never shown the reserved bits (TrainingRuntime.hxx) or a
+    // Rematch, in a frame of the present or its re-simulation alike.
+    TakeRematchChoices(inputs);
     inputs[0].rawOn = sf4e::training::ClearReservedInputBits(inputs[0].rawOn);
     inputs[1].rawOn = sf4e::training::ClearReservedInputBits(inputs[1].rawOn);
     const bool live = pass == FramePass::Live;
@@ -407,6 +447,7 @@ void fSystem::CloseBattle() {
     // The engine is closing this battle, so a session retired from here on
     // (now, or later by the spectator drain) leaves no orphan behind.
     const bool netplayBattle = simGate.OnNativeBattleClosed();
+    rematchFrame = -1; rematchChoices = 0;
     sf4e::battlePause.CloseBattle();
     sf4e::training::CloseBattle();
     sf4e::replayplayback::CloseBattle();
@@ -418,6 +459,7 @@ void fSystem::CloseBattle() {
     if (ggpo) NoteHeapParticleNames(_this);
     if (ggpo) {
         PublishConfirmedNativeMatchResult();
+        FlushHeldNativeResult();
         int confirmedInput = -1;
         ggpo_get_last_confirmed_frame(ggpo, &confirmedInput);
         const auto candidate = s_nativeResultTimeline.Latest();

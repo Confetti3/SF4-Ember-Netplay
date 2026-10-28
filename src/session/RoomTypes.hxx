@@ -37,7 +37,8 @@ using ActionId = std::uint64_t;
 // 2: tables end first-to-N sets and rotate their queue.
 // 3: a room can be bound to a tournament match; its table 0 then seats only
 // the bound fighters and waits for the bridge's permit before each game.
-constexpr std::uint32_t ProtocolVersion = 3;
+// 4: a room has eight tables (TableCount).
+constexpr std::uint32_t ProtocolVersion = 4;
 constexpr std::size_t MaximumMembers = MaxMembers;
 constexpr std::size_t MaximumRoomNameBytes = 64;
 constexpr std::size_t MaximumChatMessages = 100;
@@ -117,9 +118,16 @@ enum class ActionKind : std::uint8_t {
 	// changes nothing else at the table, so it is taken during a game too.
 	// Appended so older authorities reject it as an unknown kind.
 	NameTable,
+	// An Arcade room's fighter after a set: play the same opponent again, or
+	// part and play whoever waits longest.
+	Rematch,
+	NewOpponent,
+	// The host of a new public room makes it an Arcade room
+	// (Action::roomType) with the rules of all its tables, while alone in it.
+	SetRoomType,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::NameTable;
+constexpr ActionKind LastActionKind = ActionKind::SetRoomType;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -277,6 +285,14 @@ struct Table {
 	MemberId streakHolder = 0;
 	std::uint32_t streak = 0;
 	bool resultPending = false;
+	// An Arcade room's pair after a set (Snapshot::arcade): each fighter's
+	// Rematch so far. Nobody readies until both chose it; New opponent from
+	// either parts the pair.
+	bool deciding = false;
+	bool rematch[2] = { false, false };
+	// An Arcade room's table with one fighter waiting alone: when they began
+	// to wait. The lowest has waited longest.
+	std::uint64_t waitingSince = 0;
 	// Both fighters are ready and the start is waiting, for at most
 	// SpectatorStartHoldMs, on a locked-in spectator still retiring the
 	// previous game.
@@ -328,6 +344,19 @@ struct Snapshot {
 	// is created and fixed for its life, public or private. Serialized only
 	// when Own, so a Shared room's wire form is unchanged.
 	DelayPolicy delayPolicy = DelayPolicy::Shared;
+	// The room's type (RoomType), fixed for its life. In an Arcade or King of
+	// the hill room a member sits at any free cabinet and plays the player who
+	// has waited longest, at whichever table is free: a table is a pair, not a
+	// place. Its rules are the room's, set when it is created. Serialized only
+	// when not Classic, with the three fields below.
+	RoomType arcade = ClassicRoom;
+	// Who sits at each cabinet (0: free), the sets each has won in a row in
+	// King of the hill, and its top slot: the cabinet with the longest current
+	// streak, -1 for none, which keeps it until someone beats that streak or
+	// beats them.
+	std::array<MemberId, CabinetCount> cabinets = {};
+	std::array<std::uint16_t, CabinetCount> streaks = {};
+	std::int8_t topSlot = -1;
 	MemberId host = 0;
 	MemberId localMember = 0;
 	std::vector<Member> members;
@@ -385,6 +414,13 @@ struct Action {
 	// own stream or setup failed: leave this game only. The watch stays, the
 	// lock-in does not. A player's own Stop watching never sets it.
 	bool keepWatching = false;
+	// RecordResult: games of this match played before the reported one in
+	// the same battle, and whether a rematch in place followed it (the match
+	// stays open). Written only when set.
+	std::uint32_t game = 0;
+	bool continued = false;
+	// SetRoomType: the type. Written only when set.
+	RoomType roomType = ClassicRoom;
 };
 
 struct Event {

@@ -182,7 +182,8 @@ void fSystem::UpdateInputs() {
             free&&device.type==sf4e::input::PadXInput?sf4e::input::TrainingCall::GoNow:sf4e::input::TrainingCall::Called;
         const auto place=sf4e::training::ReadPlace();
         sf4e::input::PadOwner owner;owner.generation=place.generation;owner.epoch=focus.epoch;
-        const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x,sf4e::training::ChordStartsRecording(),paused);
+        // R3 is the quick way to the controls on an Xbox pad only (TrainingPad.hxx).
+        const auto result=trainingPad.Update(device.type==sf4e::input::PadXInput?physical:physical&~sf4e::input::PhysicalQuick,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x,sf4e::training::ChordStartsRecording(),paused);
         const auto& events=result.events;
         ownedByGesture=events.owned;
         // View's go now is accepted, as the chord is, only under the focus

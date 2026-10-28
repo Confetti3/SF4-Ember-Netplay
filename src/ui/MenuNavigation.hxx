@@ -13,10 +13,14 @@ struct MenuInput {
     // Fighter, Options and Chat are the Xbox X, Y and View shortcuts and the
     // F, T and C keys. The overlay passes a ControllerSample's buttons
     // straight in, so both enums number them alike (asserted in
-    // ControllerNavigation.hxx); 64 is left for the sample's Menu button.
+    // ControllerNavigation.hxx). Start is the sample's Menu button: it opens
+    // Ember, and while Ember is shown only the on-screen keyboard reads it (Done).
     // Leave is the Delete key: it leaves your seat from your own table card,
-    // which a pad does with B.
-    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512, Leave=1024 };
+    // which a pad does with B. PrevTab and NextTab are LB and RB (Page Up and Down):
+    // the V2 tabs over a screen (GameMenu::tabs). Describe is the accessibility
+    // button, RT and F2: speech reads the focused row's description (MenuNarrator);
+    // the menu itself does nothing with it.
+    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Start=64, Fighter=128, Options=256, Chat=512, Leave=1024, PrevTab=2048, NextTab=4096, Describe=8192 };
     unsigned held = 0;
     double time = 0;
     bool acceptText = false;
@@ -47,6 +51,9 @@ struct MenuEntry {
     // A value row whose Select still opens its page: Left/Right change the
     // value in place, Select shows the choices in full.
     bool opens = false;
+    // V2: its choices are actions, opened as a small menu at the row itself
+    // (where it was clicked) rather than as a value panel or a page.
+    bool popout = false;
     // In a grid, an ordinary action (Retry saving) under the cards: it and
     // every entry after it form the grid's footer, one full-width row each
     // (MenuGridCells).
@@ -61,7 +68,7 @@ struct MenuEntry {
     std::string hint;
     std::size_t textLimit = 256;
     // Explicit pane transitions; empty preserves ordinary list/grid movement.
-    std::string left, right;
+    std::string left, right, up, down;
     // Presentation-only grace during a healthy room checkpoint. Never authorizes an action.
     bool pending = false;
     // A detail that embeds a player's name, or is a chat message.
@@ -77,6 +84,8 @@ struct MenuEntry {
     // A disabled row's pane says nothing more than its detail does: no "Unavailable".
     bool quiet = false;
     bool valueHighlighted = false;
+    // V2: the heading this row sits under; a new one starts a group of cards.
+    std::string group;
     // A match's row (a replay): each side's fighter as a small native
     // portrait at that end of the row, player 1 on the left. -1 for both
     // draws none; -1 for one draws an unknown fighter on that side. Two
@@ -98,6 +107,11 @@ struct MenuEntry {
 // legend agree. A reader wins over text, text over choices, choices over a
 // confirmation (a confirmation that also carries choices asks by choosing).
 enum class SelectOpens { Nothing, Reader, Edit, Choice, Confirm, Activate };
+// A value that is a number ("3", "100%", "-2 f"): V2 steps it with the arrows only.
+inline bool MenuValueIsNumber(const MenuEntry& e) {
+    const char c = e.value.empty() ? 0 : e.value[0];
+    return e.adjustable && ((c >= '0' && c <= '9') || ((c == '+' || c == '-') && e.value.size() > 1));
+}
 inline SelectOpens MenuSelectOpens(const MenuEntry& e) {
     if (!e.enabled || e.info) return SelectOpens::Nothing;
     if (e.reading) return SelectOpens::Reader;
@@ -167,6 +181,10 @@ public:
     void ConfirmSelected(bool accept) { if (Confirming()) confirmSelected_ = accept; }
     // The highlighted option of an open choice.
     std::size_t ChoiceIndex() const { return choiceIndex_; }
+    // How many options an open choice shows on a row (MenuChoiceColumns); its owner sets it.
+    std::size_t choiceColumns = 1;
+    // Select steps a value that has no choices on (V2; GameMenu sets it each frame).
+    bool selectSteps = false;
     void ChoiceIndex(std::size_t index) { if (index < choiceIds_.size()) choiceIndex_ = index; }
     const std::string& EditingId() const { return Editing() ? modalId_ : NoId(); }
     // The entry an open confirmation or choice belongs to.
@@ -222,7 +240,8 @@ public:
         case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; secret_=e.secret; draft_=e.secret?std::string():e.value; editAccept_=true; return {};
         case SelectOpens::Choice: case SelectOpens::Confirm: Open(e); return {};
         case SelectOpens::Activate: return {MenuAction::Activate,e.id};
-        case SelectOpens::Nothing: break;
+        // V2: Select on a word value with no list of choices steps it on; numbers keep their arrows.
+        case SelectOpens::Nothing: if (selectSteps && e.adjustable && e.enabled && !e.info && !MenuValueIsNumber(e)) return {MenuAction::Adjust,e.id,{},1}; break;
         }
         return {};
     }
@@ -286,11 +305,14 @@ public:
             }
             return deferText ? MenuAction{MenuAction::SubmitText} : AcceptText(entries);
         }
-        const unsigned shortcut=pressed&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat|MenuInput::Leave);
+        const unsigned shortcut=pressed&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat|MenuInput::Leave|MenuInput::PrevTab|MenuInput::NextTab);
         if(shortcut&&mode_==Modal::None) return {MenuAction::Shortcut,{},{},static_cast<int>(shortcut&(~shortcut+1))};
         if(Choosing()) {
-            if((pressed&(MenuInput::Left|MenuInput::Up))&&choiceIndex_>0) --choiceIndex_;
-            if((pressed&(MenuInput::Right|MenuInput::Down))&&choiceIndex_+1<choiceIds_.size()) ++choiceIndex_;
+            // In a grid of options (choiceColumns), Up and Down move a row; Left and Right one option.
+            const std::size_t up=pressed&MenuInput::Up?choiceColumns:pressed&MenuInput::Left?1:0;
+            const std::size_t down=pressed&MenuInput::Down?choiceColumns:pressed&MenuInput::Right?1:0;
+            if(up&&choiceIndex_>=up) choiceIndex_-=up;
+            if(down&&choiceIndex_+down<choiceIds_.size()) choiceIndex_+=down;
             return pressed&MenuInput::Select ? Pick(choiceIndex_,entries) : MenuAction{};
         }
         if(Confirming()) {
@@ -309,8 +331,8 @@ public:
         if(!move||entries.empty()) return {};
         auto& s=states_[Screen()]; const auto& e=entries[s.index];
         int delta=(direction&MenuInput::Left)?-1:(direction&MenuInput::Right)?1:0;
-        const auto& neighbor=delta<0?e.left:e.right;
-        if(delta&&!neighbor.empty()){Focus(neighbor,entries);return {};}
+        const auto& neighbor=delta<0?e.left:delta>0?e.right:direction&MenuInput::Up?e.up:e.down;
+        if(!neighbor.empty()){Focus(neighbor,entries);return {};}
         int index=static_cast<int>(s.index), count=static_cast<int>(entries.size());
         // A grid's footer rows sit under its cards, one per line.
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;

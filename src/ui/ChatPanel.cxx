@@ -1,4 +1,5 @@
 #include "ApplicationShell.hxx"
+#include "V2.hxx"
 #include <imgui_internal.h>
 #include "Theme.hxx"
 #include "RoomFeedback.hxx"
@@ -182,7 +183,8 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
             const std::string name = line.name.empty() ? std::string(loc::T("room.member_left")) : line.name;
             const char* you = loc::T("room.you");
             const float tag = 12 * s, tagWidth = ImGui::GetFont()->CalcTextSizeA(tag, FLT_MAX, 0, you).x + 10 * s;
-            ImGui::PushStyleColor(ImGuiCol_Text, ToneColor(line.own ? Tone::Success : Tone::Pending));
+            // V2: other people's names in the brand's accent.
+            ImGui::PushStyleColor(ImGuiCol_Text, line.own ? ToneColor(Tone::Success) : v2::On() ? ImGui::ColorConvertU32ToFloat4(v2::Colors().accent) : ToneColor(Tone::Pending));
             ImGui::TextUnformatted(FitLabel(name, width - (line.own ? tagWidth + 6 * s : 0)).c_str());
             ImGui::PopStyleColor();
             if (ImGui::IsItemVisible()) NoteUserText(line.name);
@@ -251,7 +253,7 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
 
     ImGui::SetCursorPosX(x);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8 * s, 6 * s));
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, BoardPanelColor(v.SeeThrough()));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, v2::BoardGround(v.SeeThrough()));
     ImGui::BeginChild("Chat transcript", ImVec2(width, logHeight), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoNavInputs);
     ReportMenuCard("chat-transcript", ImGui::GetWindowPos(), ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowSize().x, ImGui::GetWindowPos().y + ImGui::GetWindowSize().y));
     // Opening the screen shows the newest message; after that the view follows new ones only while it is at the bottom.

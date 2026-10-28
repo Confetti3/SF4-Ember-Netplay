@@ -10,6 +10,7 @@
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
+#include "../netplay/SpeechPreferenceJson.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -208,8 +209,9 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"showMatchHud", &PlayerPreferences::showMatchHud, true}, {"matchHudRaised", &PlayerPreferences::matchHudRaised, false},
         {"showShortcutHint", &PlayerPreferences::showShortcutHint, true},
         {"readySound", &PlayerPreferences::readySound, true}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady, false},
-        {"classEmblems", &PlayerPreferences::classEmblems, true},
-        {"watchedPicture", &PlayerPreferences::watchedPicture, false},
+        {"classEmblems", &PlayerPreferences::classEmblems, true}, {"lookV2", &PlayerPreferences::lookV2, false}, {"tvMode", &PlayerPreferences::tvMode, false},
+        {"welcomed", &PlayerPreferences::welcomed, true},
+        {"roomShowMembers", &PlayerPreferences::roomShowMembers, true}, {"roomShowChat", &PlayerPreferences::roomShowChat, true},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true}, {"borderless", &PlayerPreferences::borderless, false},
@@ -313,6 +315,26 @@ static void CountryRoundTrips(const Path& root) {
     netplay::PlayerPreferences invalid; invalid.country.kind=CountryPreference::Kind::Code; CHECK(!invalid.Valid());
 }
 
+// Speech is one object in the netplay section; an older profile has none, and
+// a field out of range or of another type loads as its default alone.
+static void SpeechRoundTrips(const Path& root) {
+    using namespace sf4e;
+    const auto folder=root/L"speech";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    netplay::PlayerPreferences prefs; prefs.speech={true,-4,60,false,true,true,false,30,true,false,2,netplay::SpeechPreferences::Never}; CHECK(prefs.Valid());
+    Json saved; netplay::WriteSpeechPreferences(prefs,saved);
+    CHECK(store.SaveLauncher(saved,error));
+    CHECK(Json::parse(Read(folder/L"settings.json"))["netplay"]["speech"]["rate"]==-4);
+    Json loaded; CHECK(store.LoadLauncher(loaded,error));
+    CHECK(netplay::ReadSpeechPreferences(loaded)==prefs.speech);
+    CHECK(netplay::ReadSpeechPreferences(Json::object())==netplay::SpeechPreferences());
+    CHECK(!netplay::SpeechPreferences().enabled);
+    const auto odd=netplay::ReadSpeechPreferences({{"speech",{{"enabled",1},{"rate",11},{"volume",55},{"details",false}}}});
+    CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&!odd.hints&&!odd.position&&odd.chime&&odd.chimeVolume==60&&!odd.introHeard&&odd.tick&&odd.describeUsed==0&&odd.Reminds());
+    netplay::PlayerPreferences invalid; invalid.speech.volume=0; CHECK(!invalid.Valid());
+}
+
 static void ControllerLayerRoundTrip(const Path& root) {
     SettingsStore store((root / L"controller-layer").wstring());
     std::string error; Json saved;
@@ -390,6 +412,9 @@ int main() {
     CHECK(store.SaveLauncher({{"matchHudNameOffset",-20}},error));
     CHECK(store.LoadLauncher(result,error)&&result["matchHudNameOffset"]==-20);
     CHECK(sf4e::netplay::ReadMatchHudNameOffset(result)==-20);
+    // The award worn on the card stays in the netplay section until the backend stores it.
+    CHECK(store.SaveLauncher({{"wornTitle","organizer"},{"wornIcon","by-ear"}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["wornTitle"]=="organizer"&&result["wornIcon"]=="by-ear");
     // A profile from before 1.1.0, the wrong type, out of range, or a number past an
     // int's range (which a plain conversion would wrap into range) is Default.
     using sf4e::netplay::ReadMatchHudNameOffset;
@@ -414,6 +439,22 @@ int main() {
     CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudAnchor"]==5);
     CHECK(store.SaveLauncher({{"matchHudAnchor",4}},error));
     discordDefaults.matchHudAnchor=0;
+    // The room board's layout grips: in range, and kept in the netplay section.
+    CHECK(discordDefaults.roomColumn==sf4e::netplay::DefaultRoomColumn&&discordDefaults.roomSplit==sf4e::netplay::DefaultRoomSplit);
+    discordDefaults.roomColumn=sf4e::netplay::MaxRoomColumn+1;CHECK(!discordDefaults.Valid());
+    discordDefaults.roomColumn=sf4e::netplay::MinRoomColumn;discordDefaults.roomSplit=sf4e::netplay::MinRoomSplit-1;CHECK(!discordDefaults.Valid());
+    discordDefaults.roomSplit=sf4e::netplay::MaxRoomSplit;CHECK(discordDefaults.Valid());
+    discordDefaults.roomColumn=sf4e::netplay::DefaultRoomColumn;discordDefaults.roomSplit=sf4e::netplay::DefaultRoomSplit;
+    CHECK(store.SaveLauncher({{"roomColumn",48},{"roomSplit",44}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["roomColumn"]==48&&result["roomSplit"]==44);
+    CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["roomColumn"]==48);
+    // The watched game's picture: small by default, three modes, kept in the netplay section.
+    CHECK(discordDefaults.pictureMode==sf4e::netplay::PictureSmall);
+    discordDefaults.pictureMode=sf4e::netplay::PictureOff+1;CHECK(!discordDefaults.Valid());
+    discordDefaults.pictureMode=sf4e::netplay::PictureBig;CHECK(discordDefaults.Valid());
+    discordDefaults.pictureMode=sf4e::netplay::PictureSmall;
+    CHECK(store.SaveLauncher({{"pictureMode",2}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["pictureMode"]==2&&Json::parse(Read(path / L"settings.json"))["netplay"]["pictureMode"]==2);
     CHECK(discordDefaults.matchHudLayout==1); // Split by default.
     discordDefaults.matchHudLayout=-1;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudLayout=2;CHECK(!discordDefaults.Valid());
@@ -677,6 +718,7 @@ int main() {
     BoolPreferenceRoundTrips(root);
     ButtonPromptRoundTrips(root);
     CountryRoundTrips(root);
+    SpeechRoundTrips(root);
     ControllerLayerRoundTrip(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";

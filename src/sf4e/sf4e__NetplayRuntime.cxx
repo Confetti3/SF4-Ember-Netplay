@@ -192,7 +192,7 @@ void AttachRoom() {
 		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
 		auto rules = runtime->preferences.tableRules;
 		UserApp::server->EnableCustomRooms(runtime->preferences.roomName,
-			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy);
+			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy, runtime->arcadeRoom);
         const auto& authority=runtime->room->Coordination();
         if(authority.active) UserApp::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
@@ -261,12 +261,24 @@ void StartHelper() {
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
             runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= netplay::MaxMatchHudAnchor ? hudAnchor : 0;
+            const int pictureSpot = saved.contains("pictureSpot") && saved["pictureSpot"].is_number_integer() ? saved["pictureSpot"].get<int>() : 0;
+            runtime->preferences.pictureSpot = pictureSpot >= 0 && pictureSpot <= 11 ? pictureSpot : 0;
+            // Before pictureMode there was the bool watchedPicture, off by default: everyone starts on Small now.
+            const int pictureMode = saved.contains("pictureMode") && saved["pictureMode"].is_number_integer() ? saved["pictureMode"].get<int>() : netplay::PictureSmall;
+            runtime->preferences.pictureMode = pictureMode >= netplay::PictureSmall && pictureMode <= netplay::PictureOff ? pictureMode : netplay::PictureSmall;
+            const auto worn = [&](const char* key) { return saved.contains(key) && saved[key].is_string() ? saved[key].get<std::string>() : std::string(); };
+            runtime->preferences.wornTitle = worn("wornTitle"); runtime->preferences.wornIcon = worn("wornIcon");
+            const auto percent = [&](const char* key, int fallback) { return saved.contains(key) && saved[key].is_number_integer() ? saved[key].get<int>() : fallback; };
+            const int roomColumn = percent("roomColumn", netplay::DefaultRoomColumn), roomSplit = percent("roomSplit", netplay::DefaultRoomSplit);
+            runtime->preferences.roomColumn = roomColumn >= netplay::MinRoomColumn && roomColumn <= netplay::MaxRoomColumn ? roomColumn : netplay::DefaultRoomColumn;
+            runtime->preferences.roomSplit = roomSplit >= netplay::MinRoomSplit && roomSplit <= netplay::MaxRoomSplit ? roomSplit : netplay::DefaultRoomSplit;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
             runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
             runtime->preferences.country = netplay::ReadCountryPreference(saved);
             const auto since = saved.find("shareReplaysSince");
             runtime->preferences.shareReplaysSince = since != saved.end() && since->is_number_unsigned() ? since->get<std::uint64_t>() : 0;
+            runtime->preferences.speech = netplay::ReadSpeechPreferences(saved);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
@@ -279,6 +291,8 @@ void StartHelper() {
             runtime->preferences.roomMemberShare = members >= netplay::MinRoomMemberShare && members <= netplay::MaxRoomMemberShare ? members : 56;
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
+    // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
+    if (!saved.contains("inputDelay")) runtime->preferences.welcomed = false;
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     {
         // Read once and cleared, so the helper never inherits the code.
@@ -594,6 +608,7 @@ static void SettleRoomState(bool helperReady) {
         replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
         replacement.preferences=runtime->preferences;
         replacement.practiceRoom=runtime->practiceRoom;
+        replacement.arcadeRoom=runtime->arcadeRoom;
         replacement.delayPolicy=runtime->delayPolicy;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }

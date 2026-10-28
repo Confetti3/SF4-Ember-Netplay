@@ -6,11 +6,12 @@ namespace sf4e { namespace room {
 
 class RoomAuthority {
 public:
-	// practice and delayPolicy are the room's for its life (Snapshot::practice,
-	// Snapshot::delayPolicy); nothing changes them later.
+	// practice, delayPolicy and arcade are the room's for its life
+	// (Snapshot::practice, Snapshot::delayPolicy, Snapshot::arcade); nothing
+	// changes them later.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
 		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
-		DelayPolicy delayPolicy = DelayPolicy::Shared);
+		DelayPolicy delayPolicy = DelayPolicy::Shared, RoomType arcade = ClassicRoom);
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -267,6 +268,17 @@ private:
 	// Takes the member off every table's watch lists and clears its lock-in.
 	void StopWatching(MemberId member);
 	void SeatQueued(Table& table);
+	// An Arcade room's seating (RoomModelArcade.cxx).
+	Result ApplyArcadeSit(MemberId member, const Action& action);
+	Result ApplyRematch(MemberId member, const Action& action, Table* table);
+	Result ApplySetRoomType(MemberId member, const Action& action);
+	Table* Waiter(MemberId member, MemberId parted, const Table* except);
+	void JoinTable(MemberId member, Table& table);
+	void PairArcade(MemberId member, MemberId parted);
+	void ArcadeSetEnded(Table& table, MemberId winner, MemberId loser);
+	void ArcadeVacated(Table& table, MemberId left);
+	void StandUp(MemberId member);
+	void CrownTopSlot();
 	void FillVacancy(Table& table, int seat);
 	// A first-to-N table whose score just reached N: records the set, moves the
 	// streak, and sends the rotated fighters to the back of the queue.
@@ -343,6 +355,12 @@ private:
 	std::uint64_t nextChatSequence_ = 1;
 	std::array<MemberId, TableCount> resultReporter_ = {};
 	std::array<MatchResult, TableCount> pendingResult_ = {};
+	// A battle's later games (in-place rematches) report into the same match:
+	// the game the pending report is for, whether a rematch followed it, and
+	// how many games of the match were scored without ending it.
+	std::array<std::uint32_t, TableCount> pendingGame_ = {};
+	std::array<bool, TableCount> pendingContinued_ = {};
+	std::array<std::uint32_t, TableCount> gamesScored_ = {};
 	std::array<std::uint64_t, TableCount> resultPendingSince_ = {};
 	std::array<std::uint64_t, TableCount> startHeldSince_ = {};
 	std::array<std::uint64_t, TableCount> readyWaitingSince_ = {};

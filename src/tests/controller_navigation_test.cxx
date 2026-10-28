@@ -80,6 +80,10 @@ void NativeReader() {
   ControllerButtons(0,PadXInput,xinput::X)==MenuInput::Fighter&&ControllerButtons(0,PadXInput,xinput::Y)==MenuInput::Options&&
   ControllerButtons(0,PadXInput,xinput::View)==MenuInput::Chat,"An Xbox button reached the menu as another action");
  Check(ControllerButtons(0,PadXInput,xinput::Start)==Button::Menu&&(Button::Menu&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat))==0,"Start became a menu shortcut");
+ // RT, the fourth button of a stick's bottom row too, is the accessibility button, unless it confirms or goes back.
+ Check(ControllerButtons(0,PadXInput,xinput::RT)==MenuInput::Describe&&ControllerButtons(0,PadDirectInput,xinput::RT)==MenuInput::Describe,"RT is not the accessibility button");
+ MenuButtons onRt; onRt.confirm=xinput::RT; onRt.back=xinput::B;
+ Check(ControllerButtons(0,PadXInput,xinput::RT,onRt)==MenuInput::Select,"RT bound to confirm also described");
  // A stick confirms on its third button and goes back on its second, as the game's menus do.
  Check(ControllerButtons(0x40,PadDirectInput,1u<<18)==MenuInput::Select&&ControllerButtons(0x80,PadDirectInput,1u<<17)==MenuInput::Back,"A stick lost the game's menu buttons");
  Check(ControllerButtons(0x10,PadDirectInput,1u<<19)==0,"A stick's LP still selected");
@@ -252,6 +256,19 @@ void PracticeFightPresses(){
 // pressed while Back is held opens the controls or closes them. None of the
 // three clashes with another: the chord never resets or saves, a hold saves
 // once, and the game's pause (Start first) never opens or resets.
+// R3 on an Xbox pad: a press opens or closes the controls on its own, once
+// per press, never under the call, and the game never sees it.
+void TrainingPadQuick(){
+ using namespace sf4e::input;
+ TrainingPadGesture pad;double now=0;
+ const auto step=[&](unsigned physical,bool open=false,TrainingCall call=TrainingCall::None){now+=1.0/60;return pad.Update(physical,open,now,call);};
+ const unsigned quick=PhysicalQuick;
+ auto e=step(quick);Check(e.open&&!e.close&&!e.reset&&!e.save&&(e.owned&quick),"R3 did not open the controls");
+ Check(!step(quick).Any(),"Holding R3 acted twice");
+ step(0);e=step(quick,true);Check(e.close&&!e.open,"R3 did not close the open controls");
+ step(0);Check(!step(quick,false,TrainingCall::Called).Any(),"R3 opened the controls under the call");
+ step(0);step(PhysicalBack);Check(!step(PhysicalBack|quick).open,"R3 opened the controls while Back was held");
+}
 void TrainingPadChord(){
  using namespace sf4e::input;
  TrainingPadGesture pad;double now=0;
@@ -832,9 +849,7 @@ void FlyoutIgnoresChoices(){
  press(MenuInput::Select);Check(chosen==0,"A flyout row with choices picked an option");
 }
 void ScreenNames(){
- for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","controllers","button-layout","button-layout-button","defaults","interface","training-replays","problem-reports","sent-reports","developer",
-   "discord","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","discord-connect","sign-in-site","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin",
-   "roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report"})
+ for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","controllers","button-layout","button-layout-button","defaults","interface","training-replays","problem-reports","sent-reports","developer","discord","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","discord-connect","sign-in-site","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin","roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","awards","awards-icons","accessibility","welcome"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
 }
 void ProfileRecords(){
@@ -859,5 +874,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

@@ -99,10 +99,10 @@ static DispatchOutcome Handle(commands::Tournament& command, bool helperReady, A
 }
 static DispatchOutcome Handle(commands::Training& command, bool, Attempt) {
 	if (!Current(command.command)) return DispatchOutcome::Dropped;
-	// Training from a room sends no room command: the game alone moves, and only
-	// if the room allows it now, not as it was when the player pressed.
+	// Training from a room or Home sends no room command: the game alone moves, and
+	// only if that still holds now, not as it was when the player pressed.
 	if (TrainingRequestHolds(command.command.generation)) sf4e::GameEvents::MainMenu::RequestTraining(command.command.generation);
-	else runtime->error = loc::T("room.training.unavailable");
+	else runtime->error = loc::T(command.training == TrainingEntry::Home ? "home.training_unavailable" : "room.training.unavailable");
 	return DispatchOutcome::Dropped;
 }
 static DispatchOutcome Handle(commands::LeaveWatchedGame& command, bool, Attempt attempt) {
@@ -327,6 +327,11 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 			runtime->readyIntent.Clear();
 			return DispatchOutcome::Dropped;
 		}
+		// Over the WIN of a game that may go on in place, the Ready that started
+		// it still holds the seat: the Rematch waits there as the choice the
+		// inputs carry, and takes the checks below after the battle if it closes.
+		if (kind == netplay::CommandKind::Rematch && Game::Battle::System::ResultHeld() && internal::PostMatchPromptDue())
+			return Defer(runtime->readyIntent, command);
 		auto* client = UserApp::netplay ? &UserApp::netplay->client : nullptr;
 		const bool inFlight = runtime->readyIntent.Parked() || runtime->controller.GetSnapshot().readyPending ||
 			(client && (client->_outstandingReadyRequestNumber != -1 ||
@@ -448,6 +453,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		runtime->displayName = runtime->preferences.displayName;
 		runtime->error.clear(); runtime->offlineRequested = false;
 		runtime->practiceRoom = decision.effect == netplay::Effect::HostRoom && command.practiceRoom;
+		runtime->arcadeRoom = decision.effect == netplay::Effect::HostRoom ? command.arcadeRoom : room::ClassicRoom;
 		runtime->delayPolicy = decision.effect == netplay::Effect::HostRoom ? command.delayPolicy : room::DelayPolicy::Shared;
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
@@ -457,9 +463,9 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		// Only a room just created carries its tables: the join of a public one,
 		// or a private one hosted from a template.
 		if ((runtime->join == JoinKind::Public || decision.effect == netplay::Effect::HostRoom) && command.createdRules) {
-			runtime->createdRules.Start(*command.createdRules, GetTickCount64());
-			spdlog::info("Room: created room tables armed format={} rotation={} named={}",
-				static_cast<int>(command.createdRules->rules[0].format), static_cast<int>(command.createdRules->rules[0].rotation),
+			runtime->createdRules.Start(*command.createdRules, GetTickCount64(), command.arcadeRoom);
+			spdlog::info("Room: created room tables armed format={} rotation={} type={} named={}",
+				static_cast<int>(command.createdRules->rules[0].format), static_cast<int>(command.createdRules->rules[0].rotation), static_cast<int>(command.arcadeRoom),
 				std::count_if(command.createdRules->names.begin(), command.createdRules->names.end(), [](const std::string& name) { return !name.empty(); }));
 		} else runtime->createdRules.Cancel("other_room");
 		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
@@ -479,6 +485,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         runtime->replacementPending=true;
         // The replacement is the same kind of room as the one it replaces.
         runtime->practiceRoom=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice;
+        runtime->arcadeRoom=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().arcade : room::ClassicRoom;
         runtime->delayPolicy=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");
@@ -575,7 +582,7 @@ namespace internal {
 TypedCommand Classify(RuntimeCommand command) {
 	if (command.identity.op != netplay::IdentityOp::None) return commands::Identity{std::move(command.identity)};
 	if (command.tournament.op != netplay::tournament::Command::Op::None) return commands::Tournament{std::move(command.tournament)};
-	if (command.training == TrainingEntry::Room) {
+	if (command.training != TrainingEntry::None) {
 		commands::Training training; training.command = std::move(command.command); training.training = command.training;
 		return TypedCommand(std::move(training));
 	}
@@ -953,12 +960,12 @@ void ResolvePendingIntents(bool helperReady) {
 			runtime->error = loc::T("runtime.room_catchup_timeout");
 		}
 	// A Ready ends without a notice once the room shows its seat is gone (the
-	// player stood up, or was removed). Left armed, it ran out its budget and
+	// player stood up, or was removed) or the other seat empty. Left armed, it ran out its budget and
 	// blamed the previous match. Only the committed room decides this: a leave
 	// the room refuses keeps the press.
 	if (runtime->attached && UserApp::netplay &&
 		netplay::DropReadyWithoutSeat(runtime->readyIntent, UserApp::netplay->client.GetRoomSnapshot()))
-		spdlog::info("Ready: dropped, the seat it was pressed from is gone");
+		spdlog::info("Ready: dropped, its seat or the opponent's is empty");
 	// A parked Ready or lobby edit that never gets its turn is reported, not
 	// forgotten: the player pressed it and GGPO was already retired for it.
 	if (runtime->readyIntent.Expired(now)) FailReady(loc::T("runtime.ready.previous_match_timeout"));

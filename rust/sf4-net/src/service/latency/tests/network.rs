@@ -205,7 +205,7 @@ fn values(rows: &[MemberLatencyRow], count: usize) -> bool {
     rows.len() == count
         && rows
             .iter()
-            .all(|row| matches!(row.state, LatencyState::Value { rtt_ms } if (1..=999).contains(&rtt_ms)))
+            .all(|row| matches!(row.state, LatencyState::Value { rtt_ms, .. } if (1..=999).contains(&rtt_ms)))
 }
 
 fn is_value(state: LatencyState) -> bool {
@@ -594,7 +594,16 @@ async fn a_public_room_measures_over_relays_even_with_a_direct_route() {
             );
         }
         let rows = member.latency_events().pop().expect("a table").1;
-        assert!(is_value(rows[0].state), "{rows:?}");
+        assert!(
+            matches!(
+                rows[0].state,
+                LatencyState::Value {
+                    route: LatencyRoute::Relay,
+                    ..
+                }
+            ),
+            "{rows:?}"
+        );
         assert_eq!(member.latency_endpoint().addr().ip_addrs().count(), 0);
     }
     assert!(direct.close_reason().is_none());

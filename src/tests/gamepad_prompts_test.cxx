@@ -120,4 +120,14 @@ static void Names() {
         CHECK(Same(direct.view,"Select")&&Same(direct.start,"Start"));
     }
 }
-int main() { Detection(); Resolution(); Glyphs(); Names(); RelayoutNames(); }
+// Speech names a button as the player's pad or stick prints it.
+static void SpokenNames() {
+    const auto names = NamesOf(DefaultLayout);
+    CHECK(ui::SpokenButton("A", {Brand::Xbox}, &names) == "A" && ui::SpokenButton("LB", {Brand::Xbox}, &names) == "LB");
+    CHECK(ui::SpokenButton("A", {Brand::PlayStation, PlayStationArt::PS4}, &names) == "Cross");
+    CHECK(ui::SpokenButton("RB", {Brand::PlayStation, PlayStationArt::PS4}, &names) == "R1");
+    CHECK(ui::SpokenButton("A", {Brand::Nintendo}, &names) == "B" && ui::SpokenButton("LT", {Brand::Nintendo}, &names) == "ZL");
+    CHECK(ui::SpokenButton("A", {Brand::Stick}, &names) == "LK");
+    CHECK(ui::SpokenButton("Enter", {}, &names) == "Enter" && ui::SpokenButton("Esc", {}, &names) == "Escape" && ui::SpokenButton("F1", {}, &names) == "F1");
+}
+int main() { Detection(); Resolution(); Glyphs(); Names(); RelayoutNames(); SpokenNames(); }

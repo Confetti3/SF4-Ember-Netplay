@@ -27,6 +27,11 @@ static Action TableAction(const RoomAuthority& authority, MemberId member, std::
 	return action;
 }
 
+static MemberStatus StatusOf(const RoomAuthority& authority, MemberId member) {
+	for (const auto& value : authority.SnapshotView().members) if (value.id == member) return value.status;
+	return MemberStatus::Idle;
+}
+
 static MemberId Join(RoomAuthority& authority, int index, bool host = false) {
 	const auto result = authority.Join("Player" + std::to_string(index), Peer(index), host);
 	EXPECT(result.accepted);

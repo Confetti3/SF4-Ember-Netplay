@@ -1,9 +1,109 @@
 #include "ApplicationShell.hxx"
 #include "../common/Localization.hxx"
+#include "MenuDialogs.hxx"
+#include "MenuRows.hxx"
+#include "Theme.hxx"
+#include "V2.hxx"
 #include "../platform/UiPreferencesStore.hxx"
+#include <algorithm>
+#include <sstream>
 #include <utility>
 
 namespace sf4e { namespace ui {
+namespace {
+// The release a News row is of ("news-<index>"), or null.
+const launcher::ReleaseNews* NewsOf(const ShellView& v,const std::string& id) {
+ const auto& news=v.services.update.news;
+ if(id.compare(0,5,"news-")!=0||id.find_first_not_of("0123456789",5)!=std::string::npos||id.size()==5)return nullptr;
+ const std::size_t i=std::stoul(id.substr(5));
+ return i<news.size()?&news[i]:nullptr;
+}
+const char* NewsKind(const launcher::ReleaseNews& n){return loc::T(n.stable?"news.kind.update":"news.tab.changelog");}
+}
+std::vector<MenuEntry> ApplicationShell::NewsRows(const ShellView& v,const std::string& screen,std::string& title) const {
+ title=loc::T("home.news");
+ std::vector<MenuEntry> rows;
+ const auto& news=v.services.update.news;const auto& offer=v.services.launchOffer;
+ for(std::size_t i=0;i<news.size();++i){
+  const auto& n=news[i];
+  if(screen!="news"&&n.stable!=(screen=="news-updates"))continue;
+  // Each release reads in full; the notes are plain text already (PlainReleaseNotes).
+  rows.push_back(Row("news-"+std::to_string(i),n.title,(n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag)+"\n\n"+n.notes));
+  rows.back().reading=true;
+  if(!v2::On())continue;
+  // V2: the card says the kind and whether it is newer than this PC's version; Update now follows the offered release.
+  rows.back().value=std::string(NewsKind(n))+(n.newer?std::string(" \xC2\xB7 ")+loc::T("news.new"):"");rows.back().height=84;
+  if(offer&&offer->tag==n.tag)rows.push_back(ConfirmRow("news-update-now",loc::T("updates.launch_now"),loc::Tf("news.update_now_detail",n.title),v.canEditPreferences&&!v.services.pending));
+ }
+ if(rows.empty())rows.push_back(Row("news-none",loc::T("news.none"),loc::T("news.none_detail"),false));
+ return rows;
+}
+// V2: All, then a tab for each kind of release the list has.
+void ApplicationShell::NewsTabs(const ShellView& v,const std::string& screen) {
+ const auto& news=v.services.update.news;
+ const auto any=[&](bool stable){return std::any_of(news.begin(),news.end(),[&](const launcher::ReleaseNews& n){return n.stable==stable;});};
+ menu_.tabs={{"news",loc::T("news.tab.all")}};
+ if(any(true))menu_.tabs.push_back({"news-updates",loc::T("news.tab.updates")});
+ if(any(false))menu_.tabs.push_back({"news-changelog",loc::T("news.tab.changelog")});
+ for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==screen){menu_.tab=i;menu_.eyebrow=std::string(loc::T("home.news"))+" \xC2\xB7 "+menu_.tabs[i].second;}
+}
+bool ApplicationShell::DrawNewsCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImVec2 max) const {
+ const auto* n=NewsOf(v,e.id);
+ if(!n)return false;
+ auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
+ const float x=min.x+14*s,right=max.x-14*s,top=min.y+12*s;
+ v2::Chip(d,ImVec2(x,top),NewsKind(*n),n->stable?c.accent:c.muted);
+ float at=right-ImGui::CalcTextSize(n->date.c_str()).x;
+ d->AddText(ImVec2(at,top+2*s),c.muted,n->date.c_str());
+ if(n->newer){const char* fresh=loc::T("news.new");at-=ImGui::CalcTextSize(fresh).x+10*s;d->AddText(ImVec2(at,top+2*s),c.accent,fresh);}
+ ImGui::PushFont(HeadingFont());
+ NoteUserText(n->title);
+ d->AddText(ImVec2(x,max.y-12*s-ImGui::GetFontSize()),c.text,FitLabel(n->title,right-x).c_str());
+ ImGui::PopFont();
+ return true;
+}
+void ApplicationShell::DrawNewsDetail(const ShellView& v,const std::string& id,const std::vector<MenuEntry>& rows) {
+ const auto* n=NewsOf(v,id);
+ if(!n)return;
+ auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
+ // The hero band across the pane's top: the kind's chip and the title over the kind's ground.
+ const ImVec2 a=ImGui::GetWindowPos(),b(a.x+ImGui::GetWindowWidth(),a.y+150*s);
+ d->PushClipRect(a,b,false);
+ const ImU32 far=n->stable?v2::color::Alpha(c.accent,.4f):c.header;
+ d->AddRectFilledMultiColor(a,b,c.header,far,far,c.header);
+ d->AddLine(ImVec2(a.x,b.y-s),ImVec2(b.x,b.y-s),c.border,s);
+ d->PopClipRect();
+ ImGui::PushFont(HeadingFont());
+ const float title=ImGui::GetFontSize()*1.4f;
+ NoteUserText(n->title);
+ d->AddText(HeadingFont(),title,ImVec2(a.x+24*s,b.y-18*s-title),c.text,n->title.c_str());
+ ImGui::PopFont();
+ v2::Chip(d,ImVec2(a.x+24*s,b.y-28*s-title-ImGui::GetFontSize()),NewsKind(*n),n->stable?c.accent:c.muted);
+ ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x+8*s,b.y+16*s));
+ ImGui::TextDisabled("%s",(n->date.empty()?n->tag:n->date+" \xC2\xB7 "+n->tag).c_str());
+ ImGui::Dummy(ImVec2(0,4*s));
+ // The notes a line each, with the accent's mark; their own list marks give way to it.
+ std::istringstream notes(n->notes);
+ for(std::string line;std::getline(notes,line);){
+  line.erase(0,line.find_first_not_of(" \t-*"));
+  if(line.empty())continue;
+  NoteUserText(line);
+  const auto p=ImGui::GetCursorScreenPos();
+  d->AddRectFilled(ImVec2(p.x,p.y+ImGui::GetFontSize()*.35f),ImVec2(p.x+6*s,p.y+ImGui::GetFontSize()*.35f+6*s),c.accent);
+  ImGui::Indent(18*s);v2::Wrapped(line);ImGui::Unindent(18*s);
+ }
+ // Update now on the offered release, at the pane's foot: the same as its row, which asks first.
+ if(!v.services.launchOffer||v.services.launchOffer->tag!=n->tag)return;
+ const float button=52*s,foot=a.y+ImGui::GetWindowHeight()-16*s-button;
+ if(ImGui::GetCursorScreenPos().y<foot)ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x,foot));
+ ImGui::PushStyleColor(ImGuiCol_Button,ImGui::ColorConvertU32ToFloat4(c.accent));
+ ImGui::PushStyleColor(ImGuiCol_ButtonHovered,ImGui::ColorConvertU32ToFloat4(c.accentLight));
+ ImGui::PushStyleColor(ImGuiCol_Text,ImGui::ColorConvertU32ToFloat4(c.ink));
+ ImGui::PushFont(HeadingFont());
+ if(ImGui::Button(loc::T("updates.launch_now"),ImVec2(0,button))){menu_.navigation.Focus("news-update-now",rows);menu_.navigation.Choose(rows);}
+ ImGui::PopFont();
+ ImGui::PopStyleColor(3);
+}
 // The first Home asks the service for the launch check; the service's policy
 // decides whether one is due, and the question is put up only once its offer
 // exists and the player is free to answer it. Ask again until the service has
@@ -36,6 +136,11 @@ void ApplicationShell::UpdateLaunchCheck(const ShellView& v,double now,const Sub
   updateGeneration_=v.session.generation;
   updatePrompt_.Asked(*offer);
   menu_.ShowNotice(UpdatePrompt::Dialog(*offer,v.services.installedVersion.empty()?v.build:v.services.installedVersion));
+ }
+ // A new offer is a toast too, News' Update now a press away.
+ if(v.services.launchOffer&&v.services.launchOffer->tag!=updateToastTag_){
+  updateToastTag_=v.services.launchOffer->tag;
+  Say(loc::Tf("updates.ready_notice",updateToastTag_),Tone::Neutral,20,ToastKind::Update,{{loc::T("updates.launch_now"),"news","news-update-now"},{loc::T("updates.launch_later")}});
  }
 }
 // The question closed: Update now and Skip this version send the offer the

@@ -50,6 +50,7 @@
 #include "../netplay/MatchHudPreference.hxx"
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
+#include "../netplay/SpeechPreferenceJson.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/StageCatalog.hxx"
@@ -230,6 +231,11 @@ struct Runtime {
 		std::uint64_t entryDeferredGeneration = 0;
 		ULONGLONG entryDeferredSinceMs = 0;
 	} entry;
+	// The post-match prompt opened over this battle's WIN. It stays over the
+	// battle's close and, after a Rematch, over the main menu while the next
+	// game is prepared: until the main menu is back with no Rematch coming, or
+	// the next battle is entered.
+	bool promptOverBattle = false;
 	// The lock release that failure owes the room. It outlives the battle: it
 	// stays pending, resent as needed, until the room confirms it, the player
 	// locks in again, or it expires, whatever the room commits meanwhile.
@@ -266,9 +272,10 @@ struct Runtime {
 	// Not part of MatchTeardown: CloseRoom does not reset it.
 	std::uint8_t matchFinishedTable = 0;
     bool replacementPending=false;
-    // The Practice choice of the room this PC hosts: the player's on Create,
-    // the closed room's for a replacement, false for a room it joins.
+    // The Practice and Arcade choices of the room this PC hosts: the player's
+    // on Create, the closed room's for a replacement, false for a room it joins.
     bool practiceRoom=false;
+    room::RoomType arcadeRoom=room::ClassicRoom;
     // The delay policy of the room this PC hosts, chosen the same way.
     room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
     // The player's Leave of the room. CloseRoom resets it whole.

@@ -4,7 +4,9 @@
 #include "ProblemReportPanel.hxx"
 #include "SelectionArt.hxx"
 #include "Theme.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
+#include "../netplay/SettingsStore.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/Utf8.hxx"
 #include <windows.h>
@@ -93,7 +95,12 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     // Pads reach the menu only through RecoveryController; the backend is
     // built without gamepad support, so ImGui gamepad navigation stays off.
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window));
+    // The game's helper is not running, so the player's Look is read from their settings, never written.
+    nlohmann::json saved; std::string settingsError;
+    const bool read = netplay::SettingsStore(netplay::SettingsStore::DefaultDirectory()).LoadLauncher(saved, settingsError) && saved.is_object();
+    const auto look = read ? saved.find("lookV2") : saved.end();
+    v2::SetOn(read && look != saved.end() && look->is_boolean() && look->get<bool>());
+    ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window), 1.f, v2::On());
     ImGui_ImplWin32_Init(window); ImGui_ImplDX9_Init(device);
     wchar_t executable[32768]={};GetModuleFileNameW(nullptr,executable,32768);
     auto art=std::make_unique<SelectionArt>(device,gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring(),std::move(artLog));
@@ -136,7 +143,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
             ImGui_ImplDX9_InvalidateDeviceObjects(); params.BackBufferWidth = client.right; params.BackBufferHeight = client.bottom;
             if (FAILED(device->Reset(&params))) { MsgWaitForMultipleObjects(0,nullptr,FALSE,50,QS_ALLINPUT); continue; }
         }
-        if (ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window))) ImGui_ImplDX9_InvalidateDeviceObjects();
+        if (ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window), 1.f, v2::On())) ImGui_ImplDX9_InvalidateDeviceObjects();
         art->Pump();
         ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();
         // ReadMenuInput adds these keys to the pad bits itself; here they only

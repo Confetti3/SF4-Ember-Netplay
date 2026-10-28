@@ -14,7 +14,9 @@ namespace native_result {
 enum class Flow : std::uint8_t {
 	Other = 0,
 	MatchResult,
-	DrawResult
+	DrawResult,
+	// A round being fought: after a result, a new game in the same battle.
+	Fight
 };
 
 enum class Result : std::uint8_t {
@@ -52,13 +54,14 @@ public:
 		auto& sample = samples_[stateFrame % Capacity];
 		sample.frame = stateFrame;
 		sample.result = Decode(flow, winnerIndex);
+		sample.fight = flow == Flow::Fight;
 	}
 	void Rewind(int stateFrame) {
 		if (stateFrame < 0) { Reset(); return; }
 		for (auto& sample : samples_)
 			if (sample.frame > stateFrame) sample = {};
 	}
-	struct Sample { int frame = -1; Result result = Result::None; };
+	struct Sample { int frame = -1; Result result = Result::None; bool fight = false; };
 	// The newest outcome whose inputs are all confirmed, with the save frame
 	// it was captured at (a tournament report carries both frames).
 	Sample ConfirmedSample(int lastConfirmedInput) const {
@@ -70,6 +73,15 @@ public:
 		return latest;
 	}
 	Result Confirmed(int lastConfirmedInput) const { return ConfirmedSample(lastConfirmedInput).result; }
+	// The first confirmed fight after `frame`, or -1: the battle went on to
+	// another game after the result captured there.
+	int ConfirmedFightAfter(int frame, int lastConfirmedInput) const {
+		int first = -1;
+		for (const auto& sample : samples_)
+			if (sample.fight && sample.frame > frame && statehash::IsConfirmedCheckpoint(sample.frame, lastConfirmedInput) &&
+				(first < 0 || sample.frame < first)) first = sample.frame;
+		return first;
+	}
 	// Newest captured outcome regardless of confirmation, for teardown logs.
 	Sample Latest() const {
 		Sample latest;

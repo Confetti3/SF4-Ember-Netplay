@@ -12,9 +12,11 @@ std::optional<launcher::InstallOffer> UpdatePrompt::Due(const platform::ServiceS
 
 NoticeDialog UpdatePrompt::Dialog(const launcher::InstallOffer& offer, const std::string& installed) {
     // Later is highlighted: a press meant for the menu behind must not close the game.
+    // V2 names Updates beside the mark and the offer's channel at the top right.
     return NoticeDialog{loc::Tf("updates.launch_text", offer.tag, installed), loc::T("updates.launch_heading"),
         {{loc::T("updates.launch_now"), NoticeResult::UpdateNow}, {loc::T("updates.launch_later")},
-         {loc::T("updates.launch_skip"), NoticeResult::SkipUpdate}}, 1};
+         {loc::T("updates.launch_skip"), NoticeResult::SkipUpdate}}, 1,
+        loc::T("updates.title"), {loc::T(updates::GetUpdateChannelInfo(offer.channel).labelKey), v2::Colors().accent}};
 }
 
 std::optional<launcher::InstallOffer> UpdatePrompt::Close() {

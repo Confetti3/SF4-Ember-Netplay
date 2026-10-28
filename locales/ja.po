@@ -237,6 +237,18 @@ msgstr "アップデート"
 msgid "updates.downloaded_mb"
 msgstr "{0:.1f} MBダウンロード済み"
 
+msgid "updates.downloaded_of_mb"
+msgstr "{1:.1f} MB中 {0:.1f} MBダウンロード済み"
+
+msgid "updates.step_found"
+msgstr "検出"
+
+msgid "updates.step_verified"
+msgstr "検証済み"
+
+msgid "updates.step_installed"
+msgstr "インストール済み"
+
 msgid "services.checking"
 msgstr "更新を確認中..."
 
@@ -429,6 +441,12 @@ msgstr "移動"
 
 msgid "menu.adjust"
 msgstr "調整"
+
+msgid "speech.position"
+msgstr "{1}件中{0}件目"
+
+msgid "speech.change"
+msgstr "左右で変更"
 
 msgid "rules.edition_select"
 msgstr "エディションセレクト"
@@ -800,10 +818,10 @@ msgid "replays.save_watched_detail"
 msgstr "観戦した対戦も保存します。オフでは自分がプレイした対戦だけを保存します。"
 
 msgid "settings.watched_picture"
-msgstr "観戦中の試合を隅に表示"
+msgstr "観戦中の試合の映像"
 
 msgid "settings.watched_picture_detail"
-msgstr "観戦中の試合の上でEmberのメニューを開くと、メニューの後ろに暗く表示する代わりに、不透明なメニューの右上に小さく表示します。"
+msgstr "観戦中の試合を Ember のメニューの上に表示：小はドラッグできる隅に、大はルーム画面のテーブルの位置に、なしはメニューの後ろで暗く表示。"
 
 msgid "replays.share"
 msgstr "Share my replays"
@@ -1387,7 +1405,7 @@ msgid "about.controls"
 msgstr "操作方法"
 
 msgid "about.controls_detail"
-msgstr "Xbox: Aで選択、Bで戻ります。PlayStation: クロスで選択、サークルで戻ります。Switch: ゲームのメニューと同様、Bで選択、Aで戻ります。Emberで設定したコントローラー: 弱キック用に選んだボタンで選択、中キック用に選んだボタンで戻ります。ボタン配置を変更しても同じです。キーボード: 矢印、Enter、Escape。十字キーで移動し、左右で値を変えます。ホームで戻るとEmberが隠れます。ゲームのメインメニューでF10、またはコントローラーのStartを押すと再び開きます。\n\nルームでは、テーブル上でAを押すと席を選べます。自分の席でAを押すと準備完了になり、Bで席や順番待ちから抜けます。他のコントローラーでは同じ位置のボタンを使います。XboxではXでファイター、Yでオプション、Viewでチャットを開きます。もう一度押すとルームに戻ります。PlayStationはスクエア、トライアングル、ShareまたはCreate、SwitchはY、X、Minusを使います。\n\nトレーニングではF6で操作を開き、F5でHUDを隠し、F7で録画、F8で再生します。コントローラーではView（Share、Create、Minus）を押しながらStartを押してください。"
+msgstr "Xbox: Aで選択、Bで戻ります。PlayStation: クロスで選択、サークルで戻ります。Switch: ゲームのメニューと同様、Bで選択、Aで戻ります。Emberで設定したコントローラー: 弱キック用に選んだボタンで選択、中キック用に選んだボタンで戻ります。ボタン配置を変更しても同じです。キーボード: 矢印、Enter、Escape。十字キーで移動し、左右で値を変えます。ホームで戻るとEmberが隠れます。ゲームのメインメニューでF10、またはコントローラーのStartを押すと再び開きます。\n\nルームでは、テーブル上でAを押すと席を選べます。自分の席でAを押すと準備完了になり、Bで席や順番待ちから抜けます。他のコントローラーでは同じ位置のボタンを使います。XboxではXでファイター、Yでオプション、Viewでチャットを開きます。もう一度押すとルームに戻ります。PlayStationはスクエア、トライアングル、ShareまたはCreate、SwitchはY、X、Minusを使います。\n\nトレーニングではF6で操作を開き、F5でHUDを隠し、F7で録画、F8で再生します。コントローラーではView（Share、Create、Minus）を押しながらStartを押してください。Xboxコントローラーでは、右スティックの押し込み（R3）でも開きます。"
 
 msgid "about.controls_keyboard"
 msgstr "キーボードでは Space でも選択、Backspace でも戻ります。ルームでは F でキャラ、T で設定、C でチャットを開きます。Esc は自分の席の上でも常に戻ります。Delete で席や順番待ちから抜けます。"
@@ -4867,6 +4885,12 @@ msgstr "{0}セット連続"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "直接 {0} ms"
+
+msgid "room.latency.relay"
+msgstr "リレー {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "推定Ping：約{0} ms。"
 
@@ -5215,11 +5239,236 @@ msgstr "対戦中のフレームメーター、トレーニング後の自動準
 msgid "settings.training_replays_title"
 msgstr "トレーニングとリプレイ"
 
+msgid "settings.accessibility"
+msgstr "アクセシビリティ"
+
+msgid "settings.accessibility_detail"
+msgstr "Emberのメニューを読み上げる音声。"
+
+msgid "settings.accessibility_title"
+msgstr "アクセシビリティ"
+
+msgid "speech.setting"
+msgstr "音声読み上げ"
+
+msgid "speech.setting_detail"
+msgstr "Emberのメニューを移動に合わせて読み上げます。F1で読み上げを止めます。"
+
+msgid "speech.intro"
+msgstr "音声読み上げがオンになりました。移動すると各項目を読み上げます。{0}を押すと項目の説明を、もう一度押すと停止します。その他の設定は「設定」の「アクセシビリティ」にあります。"
+
+msgid "speech.rate"
+msgstr "読み上げ速度"
+
+msgid "speech.rate_detail"
+msgstr "音声の話す速さです。0が標準の速さです。"
+
+msgid "speech.volume"
+msgstr "読み上げ音量"
+
+msgid "speech.volume_detail"
+msgstr "音声の大きさです。"
+
+msgid "speech.details"
+msgstr "説明を自動で読み上げ"
+
+msgid "speech.details_detail"
+msgstr "項目にしばらく留まると、その説明を自動で読み上げます。オフのときはF2で読み上げます。"
+
+msgid "speech.hints"
+msgstr "ボタンのヒントを読み上げ"
+
+msgid "speech.hints_detail"
+msgstr "留まっている項目で、どのボタンが何をするかを読み上げます。"
+
+msgid "speech.read_position"
+msgstr "位置を読み上げ"
+
+msgid "speech.read_position_detail"
+msgstr "項目の名前と値の後に、一覧での位置を読み上げます（例：12件中3件目）。"
+
+msgid "speech.more"
+msgstr "{0}で詳細"
+
+msgid "speech.help"
+msgstr "{0}で各項目のヘルプ"
+
+msgid "speech.remind"
+msgstr "説明ボタンを案内"
+
+msgid "speech.remind_detail"
+msgstr "説明がある項目の名前の後に、それを読み上げるボタンを伝えます。自動では、ボタンを3回使うと案内しなくなります。"
+
+msgid "speech.remind_auto"
+msgstr "3回使うまで"
+
+msgid "speech.tick"
+msgstr "説明の合図音"
+
+msgid "speech.tick_detail"
+msgstr "案内が止まった後は、項目名の後の小さな音で説明があることを知らせます。"
+
+msgid "speech.notice"
+msgstr "お知らせです。{0}を押すと読み上げます。"
+
+msgid "speech.chime"
+msgstr "お知らせの効果音"
+
+msgid "speech.chime_detail"
+msgstr "お知らせが自動で開いたことを音声で伝える前に、短い効果音を鳴らします。"
+
+msgid "speech.chime_volume"
+msgstr "効果音の音量"
+
+msgid "speech.chime_volume_detail"
+msgstr "お知らせの効果音の大きさです。"
+
+msgid "speech.voice"
+msgstr "音声"
+
+msgid "speech.voice_detail"
+msgstr "LinuxとSteam Deckでは、Emberはお使いの言語の自然な音声を一度だけダウンロードし（約90 MB）、保存します。準備ができるまで、また対応する音声がない言語では、システムの音声が読み上げます。"
+
+msgid "speech.voice_system"
+msgstr "システムの音声"
+
+msgid "speech.voice_downloading"
+msgstr "ダウンロード中、{0}%"
+
+msgid "speech.voice_natural"
+msgstr "自然な音声"
+
+msgid "speech.voice_download_failed"
+msgstr "ダウンロード失敗"
+
+msgid "speech.voice_ready"
+msgstr "自然な音声の準備ができました。これからはこの音声で読み上げます。"
+
+msgid "speech.voice_failed"
+msgstr "自然な音声をダウンロードできなかったため、システムの音声で読み上げます。Emberは次回の起動時に再試行します。"
+
+msgid "speech.pack"
+msgstr "音声パック（{0}）"
+
+msgid "speech.pack_missing"
+msgstr "未ダウンロード、{0} MB"
+
+msgid "speech.pack_current"
+msgstr "ダウンロード済み、{0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "更新あり、{0} MB"
+
+msgid "speech.pack_removed"
+msgstr "削除済み"
+
+msgid "speech.pack_detail"
+msgstr "Emberが話すすべての文を自然な音声で一度録音したものです。音声読み上げがオンのとき自動でダウンロードされます。選択すると再ダウンロードまたは更新します。"
+
+msgid "speech.pack_download"
+msgstr "ダウンロード"
+
+msgid "speech.pack_remove"
+msgstr "音声パックを削除"
+
+msgid "speech.pack_remove_detail"
+msgstr "このPCから音声パックを削除します。再びダウンロードするまでシステムの音声が読み上げます。"
+
+msgid "speech.pack_downloading"
+msgstr "{0}の音声をダウンロードしています（{1} MB）。準備ができるまでシステムの音声が読み上げます。"
+
+msgid "speech.pack_failed"
+msgstr "音声パックをダウンロードできなかったため、システムの音声で読み上げます。再試行するには、「設定」の「アクセシビリティ」で音声パックを選択してください。"
+
+msgid "speech.no_windows_voice"
+msgstr "音声読み上げはオンですが、Windowsに読み上げ用の音声がありません。Windowsの設定の「時刻と言語」の「音声」で追加してください。"
+
+msgid "speech.no_speech_dispatcher"
+msgstr "音声読み上げはオンですが、speech-dispatcherに接続できませんでした。LinuxとSteam Deckでは、Emberはspeech-dispatcherで読み上げます。python3も必要です。"
+
 msgid "room.table_footer_practice"
 msgstr "練習対戦"
 
 msgid "room.rules_summary_practice"
 msgstr "練習対戦、{0}ラウンド、{1}秒、Edition Select {2}"
+
+msgid "room.type"
+msgstr "ルームタイプ"
+
+msgid "room.type.classic"
+msgstr "クラシック"
+
+msgid "room.type.arcade"
+msgstr "アーケード"
+
+msgid "room.type.classic_detail"
+msgstr "テーブルごとに順番を待ち、そのテーブルで対戦します。"
+
+msgid "room.type.arcade_detail"
+msgstr "16台の筐体：空いている台に座ると、いちばん長く待っている人と対戦します。セット後、二人ともリマッチを選べば再戦、そうでなければそれぞれ次に待っている人と対戦します。"
+
+msgid "room.arcade_status"
+msgstr "アーケードルーム / 招待のみ"
+
+msgid "room.arcade_locked_status"
+msgstr "アーケードルーム（ロック中） / 招待のみ"
+
+msgid "room.arcade_sit"
+msgstr "席に着く"
+
+msgid "room.arcade_sit_detail"
+msgstr "ここに座る：いちばん長く待っている人と対戦するか、次に座る人を待ちます。"
+
+msgid "room.arcade_waiting"
+msgstr "待機中"
+
+msgid "room.cabinet_free"
+msgstr "コインを入れてください"
+
+msgid "room.type.king"
+msgstr "キング・オブ・ザ・ヒル"
+
+msgid "room.type.king_detail"
+msgstr "16台の筐体で全ペアが同時に対戦：セットの勝者は席に残り、次の挑戦者と戦います。現在の連勝がいちばん長い人がトップの座に就きます。"
+
+msgid "room.cabinet_row"
+msgstr "筐体 {0}：{1}"
+
+msgid "room.cabinet_open"
+msgstr "空き"
+
+msgid "room.arcade_move_detail"
+msgstr "試合の合間にこの筐体へ移ります。対戦相手と連勝はそのままです。"
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "リマッチ"
+
+msgid "room.rematch_detail"
+msgstr "同じ相手ともう一度対戦します。二人とも選ぶと始まります。"
+
+msgid "room.new_opponent"
+msgstr "新しい相手"
+
+msgid "room.new_opponent_detail"
+msgstr "席に座ったまま、いちばん長く待っている人と対戦するか、次に座る人を待ちます。"
+
+msgid "room.rematch_ask"
+msgstr "リマッチ？"
+
+msgid "room.rematch_chosen"
+msgstr "リマッチ選択済み"
+
+msgid "room.top_slot"
+msgstr "トップの座"
+
+msgid "room.top_slot_none"
+msgstr "セットに勝ってトップの座を取ろう。"
+
+msgid "room.rules.arcade"
+msgstr "アーケードルームのルールは作成時に決まり、すべてのテーブルに適用されます。"
 
 msgid "room.practice"
 msgstr "練習ルーム"
@@ -7220,6 +7469,84 @@ msgstr "クラスエンブレム"
 msgid "settings.class_emblems_detail"
 msgstr "公開ルームで各プレイヤーの名前の横にクラスを表示します。オフにすると自分の画面でのみ非表示になります。ほかの人にはあなたのクラスが表示され、対戦もカウントされます。"
 
+msgid "settings.look"
+msgstr "外観"
+
+msgid "settings.look.classic"
+msgstr "クラシック"
+
+msgid "settings.look.v2"
+msgstr "V2（プレビュー）"
+
+msgid "settings.look_detail"
+msgstr "制作中の Ember の新しい外観です。いつでも元に戻せます。変わるのは画面の見た目だけです。"
+
+msgid "settings.tv_mode"
+msgstr "テレビモード"
+
+msgid "settings.tv_mode_detail"
+msgstr "離れた場所のテレビ向け：すべてを4分の1大きくし、画面端から5%のセーフエリア内に収めます。"
+
+msgid "menu.pages"
+msgstr "ページ"
+
+msgid "room.controls_detail"
+msgstr "ルームを出ずに、コントローラーとボタンを設定します。"
+
+msgid "settings.picture_corner"
+msgstr "画面の位置"
+
+msgid "settings.picture_corner_detail"
+msgstr "観戦中の試合の画面を置く角です。マウスで別の角へドラッグすることもできます。"
+
+msgid "settings.picture_size"
+msgstr "画面の大きさ"
+
+msgid "settings.picture_size_detail"
+msgstr "観戦中の試合の画面の大きさです。マウスでつまみをドラッグして変えることもできます。"
+
+msgid "settings.tab.player"
+msgstr "プレイヤー"
+
+msgid "settings.tab.matches"
+msgstr "対戦"
+
+msgid "settings.tab.interface"
+msgstr "インターフェース"
+
+msgid "settings.tab.accessibility"
+msgstr "アクセシビリティ"
+
+msgid "settings.tab.online"
+msgstr "オンライン"
+
+msgid "settings.tab.about"
+msgstr "情報"
+
+msgid "settings.group.look"
+msgstr "外観"
+
+msgid "settings.group.sounds"
+msgstr "サウンド"
+
+msgid "settings.group.text"
+msgstr "文字と言語"
+
+msgid "settings.group.help"
+msgstr "画面のヘルプ"
+
+msgid "settings.panel.open"
+msgstr "開いています"
+
+msgid "settings.panel.closed"
+msgstr "閉じています"
+
+msgid "settings.panel.open_action"
+msgstr "パネルを開く"
+
+msgid "settings.panel.close_action"
+msgstr "パネルを閉じる"
+
 
 msgid "class.developer"
 msgstr "開発"
@@ -7229,3 +7556,552 @@ msgstr "Ember開発者"
 
 msgid "rankings.developer_detail"
 msgstr "Ember開発者はクラスの代わりにこのマークが表示され、ランキングには載りません。対戦は引き続きカウントされます。"
+
+msgid "room.v2.board"
+msgstr "ボード"
+
+msgid "room.v2.tables"
+msgstr "テーブル"
+
+msgid "room.v2.table"
+msgstr "テーブル {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "対戦中 {0} · 観戦中 {1}"
+
+msgid "room.v2.group_playing"
+msgstr "対戦中"
+
+msgid "room.v2.group_at_table"
+msgstr "テーブルで待機"
+
+msgid "room.v2.group_watching"
+msgstr "観戦中"
+
+msgid "room.v2.group_in_room"
+msgstr "ルーム内"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · オンライン · プライベートルーム"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · オンライン · 公開ルーム"
+
+msgid "room.v2.invitation_only"
+msgstr "招待のみ"
+
+msgid "room.v2.listed"
+msgstr "公開ルームに掲載"
+
+msgid "room.v2.type_message"
+msgstr "メッセージを入力"
+
+msgid "room.v2.more"
+msgstr "その他…"
+
+msgid "room.v2.more_detail"
+msgstr "対戦席の設定、ルーム設定、招待リンク。"
+
+msgid "room.v2.part_state"
+msgstr "{0}：{1}"
+
+msgid "room.v2.picture"
+msgstr "映像"
+
+msgid "room.v2.picture_none"
+msgstr "なし"
+
+msgid "room.v2.part_detail"
+msgstr "ルーム画面のこの部分を表示または非表示にします。ほかの部分がその場所を使います。"
+
+msgid "room.v2.picture_detail"
+msgstr "観戦中の試合：隅に小さく、テーブルの位置に大きく、または表示なし。"
+
+msgid "room.v2.picture_small_detail"
+msgstr "メニューの上の小さなウィンドウです。ドラッグで別の隅へ動かし、端をドラッグでサイズを変えられます。"
+
+msgid "room.v2.picture_big_detail"
+msgstr "大きく、ルーム画面のテーブルの位置に表示します。"
+
+msgid "room.v2.picture_off_detail"
+msgstr "映像なし：試合はメニューの後ろで暗く表示されたままです。"
+
+msgid "room.v2.hide"
+msgstr "隠す"
+
+msgid "room.v2.hide_members"
+msgstr "メンバーを隠す"
+
+msgid "room.v2.hide_chat"
+msgstr "チャットを隠す"
+
+msgid "room.v2.hide_picture"
+msgstr "映像を隠す"
+
+msgid "room.v2.hide_detail"
+msgstr "見出しだけに折りたたみます。「表示」で元に戻ります。"
+
+msgid "room.v2.show"
+msgstr "表示"
+
+msgid "room.v2.show_detail"
+msgstr "元の大きさに広げます。"
+
+msgid "room.v2.copy_invite"
+msgstr "招待"
+
+msgid "room.v2.copy_link"
+msgstr "短縮リンク"
+
+msgid "settings.room_show_members_detail"
+msgstr "ルーム画面のメンバー欄です。隠すとチャットが列を使い、両方隠すとテーブルが全幅を使います。"
+
+msgid "settings.room_show_chat_detail"
+msgstr "ルーム画面のチャット欄です。隠すとメンバーが列を使い、両方隠すとテーブルが全幅を使います。"
+
+msgid "room.v2.unread"
+msgstr "未読 {0} 件"
+
+msgid "online.eyebrow"
+msgstr "EMBER · オンライン"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · オンライン · ホスト"
+
+msgid "online.eyebrow_join"
+msgstr "オンライン · 参加"
+
+msgid "online.eyebrow_browse"
+msgstr "オンライン · 一覧"
+
+msgid "public.your_region"
+msgstr "あなたの地域 {0}"
+
+msgid "home.notifications"
+msgstr "通知"
+
+msgid "notifications.none"
+msgstr "まだありません。"
+
+msgid "notifications.none_detail"
+msgstr "リンクのコピーやルームからの退出など、Ember からのお知らせはこのセッション中ここに残ります。"
+
+msgid "home.news"
+msgstr "ニュース"
+
+msgid "news.heading"
+msgstr "ニュース"
+
+msgid "news.more"
+msgstr "すべてのリリースはリストのニュースから。"
+
+msgid "news.none"
+msgstr "まだニュースはありません"
+
+msgid "news.none_detail"
+msgstr "アップデート確認の後、Ember のリリースからニュースが届きます。"
+
+msgid "settings.group.room_layout"
+msgstr "ルームのレイアウト"
+
+msgid "settings.room_column"
+msgstr "列の幅"
+
+msgid "settings.room_column_detail"
+msgstr "ルームのボードのうち、メンバーとチャットの列が占める割合です。ルームでは、マウスで境界線をドラッグすることもできます。"
+
+msgid "settings.room_split"
+msgstr "メンバーとチャット"
+
+msgid "settings.room_split_detail"
+msgstr "列の分け方です：チャットの上にメンバー。チャットは常に3行を保ちます。ルームでは、マウスで境界線をドラッグすることもできます。"
+
+msgid "settings.room_preset"
+msgstr "既定のレイアウト"
+
+msgid "settings.room_preset_detail"
+msgstr "「ボード優先」は卓に、「チャット優先」は会話に場所を譲ります。「バランス」はその中間です。"
+
+msgid "settings.room_preset.board"
+msgstr "ボード優先"
+
+msgid "settings.room_preset.balanced"
+msgstr "バランス"
+
+msgid "settings.room_preset.chat"
+msgstr "チャット優先"
+
+msgid "settings.room_layout_reset"
+msgstr "初期設定に戻す"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "列と、メンバーとチャットの分け方を「バランス」に戻します。"
+
+msgid "menu.choices_count"
+msgstr "{0} 件の選択肢"
+
+msgid "menu.choices_keys"
+msgstr "方向で移動 · 決定で選ぶ · 戻るで {0} のまま"
+
+msgid "selection.costume"
+msgstr "コスチューム"
+
+msgid "selection.color_row"
+msgstr "カラー"
+
+msgid "selection.ready_with"
+msgstr "{0}で準備完了"
+
+msgid "selection.ready_detail"
+msgstr "このファイターのまま戻ります。"
+
+msgid "country.first_letter"
+msgstr "最初の文字"
+
+msgid "country.letter_detail"
+msgstr "国: {0}"
+
+msgid "country.board_help"
+msgstr "文字を選ぶとその国が表示されます。キーボードでは文字を入力して移動できます。"
+
+msgid "news.tab.all"
+msgstr "すべて"
+
+msgid "news.tab.updates"
+msgstr "Ember の更新"
+
+msgid "news.tab.changelog"
+msgstr "変更履歴"
+
+msgid "news.kind.update"
+msgstr "更新"
+
+msgid "news.new"
+msgstr "新着"
+
+msgid "news.update_now_detail"
+msgstr "ゲームを閉じ、Launcher で {0} をインストールします。設定はそのまま残ります。"
+
+msgid "replays.tab.matches"
+msgstr "対戦"
+
+msgid "replays.tab.sets"
+msgstr "セット"
+
+msgid "replays.set_detail"
+msgstr "{0} 試合"
+
+msgid "replays.game"
+msgstr "第 {0} 試合"
+
+msgid "replays.fact.fighters"
+msgstr "ファイター"
+
+msgid "replays.fact.played"
+msgstr "対戦日時"
+
+msgid "replays.fact.length"
+msgstr "長さ"
+
+msgid "keyboard.recent"
+msgstr "最近:"
+
+msgid "keyboard.type"
+msgstr "入力"
+
+msgid "keyboard.delete"
+msgstr "削除"
+
+msgid "keyboard.space"
+msgstr "スペース"
+
+msgid "keyboard.capitals"
+msgstr "大文字"
+
+msgid "keyboard.done"
+msgstr "完了"
+
+msgid "welcome.title"
+msgstr "ようこそ"
+
+msgid "welcome.step"
+msgstr "ようこそ · ステップ {0}/{1}"
+
+msgid "welcome.speech_title"
+msgstr "Ember に読み上げてもらいますか？"
+
+msgid "welcome.speech_text"
+msgstr "Ember はすべてのメニューを読み上げられます。設定でいつでも変更できます。"
+
+msgid "welcome.speech_on"
+msgstr "はい、メニューを読み上げる"
+
+msgid "welcome.speech_on_detail"
+msgstr "スクリーンリーダーが動いていればそれを、なければ Windows の音声を使います。"
+
+msgid "welcome.speech_off"
+msgstr "読み上げなし"
+
+msgid "welcome.speech_off_detail"
+msgstr "あとでオンにできます。"
+
+msgid "welcome.language_title"
+msgstr "Ember の言語はどれにしますか？"
+
+msgid "welcome.language_text"
+msgstr "Ember のメニューはこの言語になります。ゲームの言語はそのままです。"
+
+msgid "welcome.controller_title"
+msgstr "どのコントローラーで遊びますか？"
+
+msgid "welcome.controller_text"
+msgstr "Ember はどこでもそのコントローラーのボタン画像を表示します。"
+
+msgid "welcome.controller_ready"
+msgstr "準備完了: {0}。"
+
+msgid "welcome.look_title"
+msgstr "どの見た目にしますか？"
+
+msgid "welcome.look_text"
+msgstr "設定でいつでも切り替えられます。変わるのは画面の見た目だけです。"
+
+msgid "welcome.look_classic"
+msgstr "クラシック"
+
+msgid "welcome.look_classic_detail"
+msgstr "これまでどおりの Ember のメニュー。"
+
+msgid "welcome.look_v2"
+msgstr "V2（プレビュー）"
+
+msgid "welcome.look_v2_detail"
+msgstr "Ember の新しい見た目。まだ制作中です。"
+
+msgid "welcome.chosen"
+msgstr "選択中"
+
+msgid "welcome.next"
+msgstr "次へ"
+
+msgid "welcome.start"
+msgstr "プレイを始める"
+
+msgid "welcome.next_detail"
+msgstr "次の質問へ進みます。"
+
+msgid "welcome.skip"
+msgstr "スキップ"
+
+msgid "welcome.skip_detail"
+msgstr "すぐにホームへ。ここにあるものはすべて設定にもあります。"
+
+msgid "welcome.previous"
+msgstr "前のステップ"
+
+msgid "screen.awards"
+msgstr "アワード"
+
+msgid "awards.titles"
+msgstr "称号"
+
+msgid "awards.icons"
+msgstr "アイコン"
+
+msgid "awards.card"
+msgstr "あなたのカード"
+
+msgid "awards.card_detail"
+msgstr "他のプレイヤーから見たあなたのカード。選択するとアワードを開きます。付けられる称号とアイコンの一覧です。"
+
+msgid "awards.entry_detail"
+msgstr "獲得した称号とアイコン、そして残りの獲得方法。選択するとカードに付けます。"
+
+msgid "awards.earned_count"
+msgstr "{1}個中{0}個獲得"
+
+msgid "awards.card_heading"
+msgstr "あなたのカード · 他の人からの見え方"
+
+msgid "awards.where_heading"
+msgstr "表示される場所"
+
+msgid "awards.on_card"
+msgstr "カードに装着中"
+
+msgid "awards.earned"
+msgstr "獲得済み"
+
+msgid "awards.locked"
+msgstr "未獲得"
+
+msgid "awards.wear"
+msgstr "カードに付ける"
+
+msgid "awards.detail_worn"
+msgstr "カードに装着中。"
+
+msgid "awards.detail_earned"
+msgstr "獲得済み。選択するとカードに付けます。"
+
+msgid "awards.detail_locked"
+msgstr "未獲得。{0}。"
+
+msgid "tier.ash"
+msgstr "アッシュ"
+
+msgid "tier.copper"
+msgstr "カッパー"
+
+msgid "tier.silver"
+msgstr "シルバー"
+
+msgid "tier.gold"
+msgstr "ゴールド"
+
+msgid "tier.ember"
+msgstr "エンバー"
+
+msgid "award.entrant.title"
+msgstr "EMBER参加者"
+
+msgid "award.entrant.icon"
+msgstr "スパーク"
+
+msgid "award.entrant.how"
+msgstr "Emberのトーナメントで1セット対戦する"
+
+msgid "award.launch-night.title"
+msgstr "ローンチナイト"
+
+msgid "award.launch-night.icon"
+msgstr "リワインド"
+
+msgid "award.launch-night.how"
+msgstr "Emberのローンチイベント中にプレイする"
+
+msgid "award.weekly-top16.title"
+msgstr "ウィークリー TOP16"
+
+msgid "award.weekly-top16.icon"
+msgstr "月桂冠"
+
+msgid "award.weekly-top16.how"
+msgstr "Ember Weeklyで16位以内に入る"
+
+msgid "award.rollback-regular.title"
+msgstr "ロールバック常連"
+
+msgid "award.rollback-regular.icon"
+msgstr "カレンダー"
+
+msgid "award.rollback-regular.how"
+msgstr "1シーズンでEmber Weeklyに10回参加する"
+
+msgid "award.weekly-top8.title"
+msgstr "ウィークリー TOP8"
+
+msgid "award.weekly-top8.icon"
+msgstr "八角形8"
+
+msgid "award.weekly-top8.how"
+msgstr "Ember Weeklyで8位以内に入る"
+
+msgid "award.by-ear.title"
+msgstr "耳で勝つ"
+
+msgid "award.by-ear.icon"
+msgstr "音波"
+
+msgid "award.by-ear.how"
+msgstr "音声のみのトーナメントで1セット勝つ"
+
+msgid "award.monthly-finalist.title"
+msgstr "マンスリー決勝進出"
+
+msgid "award.monthly-finalist.icon"
+msgstr "メダル"
+
+msgid "award.monthly-finalist.how"
+msgstr "Ember Monthlyでグランドファイナルに進出する"
+
+msgid "award.organizer.title"
+msgstr "大会主催者"
+
+msgid "award.organizer.icon"
+msgstr "旗"
+
+msgid "award.organizer.how"
+msgstr "Emberスタッフがイベント主催者に授与"
+
+msgid "award.commentary.title"
+msgstr "実況担当"
+
+msgid "award.commentary.icon"
+msgstr "マイク"
+
+msgid "award.commentary.how"
+msgstr "配信の実況者に授与"
+
+msgid "award.season1-veteran.title"
+msgstr "シーズン1ベテラン"
+
+msgid "award.season1-veteran.icon"
+msgstr "紋章"
+
+msgid "award.season1-veteran.how"
+msgstr "シーズン1の全マンスリーで32位以内に入る"
+
+msgid "award.cup-champion.title"
+msgstr "EMBER CUP王者"
+
+msgid "award.cup-champion.icon"
+msgstr "王冠"
+
+msgid "award.cup-champion.how"
+msgstr "シーズン最後のEmber Cupで優勝する"
+
+msgid "toast.kind.invitation"
+msgstr "招待"
+
+msgid "toast.kind.room"
+msgstr "ルーム"
+
+msgid "toast.kind.update"
+msgstr "アップデート"
+
+msgid "toast.kind.match"
+msgstr "対戦"
+
+msgid "toast.kind.system"
+msgstr "システム"
+
+msgid "toast.join"
+msgstr "参加"
+
+msgid "toast.open"
+msgstr "開く"
+
+msgid "discord.invitation_notice"
+msgstr "Discordでルームに招待されました。"
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} をインストールできます。"
+
+msgid "home.training"
+msgstr "トレーニング"
+
+msgid "home.training_detail"
+msgstr "乱入設定の確認なしで、すぐにトレーニングモードに入ります。"
+
+msgid "home.training_unavailable"
+msgstr "今はトレーニングを開けません。先にルームや対戦を抜けて、ゲームのメインメニューに戻ってください。"
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "筐体 {0} と {1}"

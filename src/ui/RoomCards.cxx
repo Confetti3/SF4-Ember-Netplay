@@ -1,4 +1,5 @@
 #include "RoomCards.hxx"
+#include "V2.hxx"
 #include "CountryFlag.hxx"
 #include "GameMenu.hxx"
 #include "MenuProbes.hxx"
@@ -77,14 +78,18 @@ void FlushCardTip(std::string& elided) {
 bool DrawCardButton(const std::string& id,ImVec2 size,bool focused,bool scrollTo,bool disabled) {
  const float s=Scale();
  ImGui::PushID(id.c_str());
- ImGui::PushStyleColor(ImGuiCol_Button,focused?ImVec4(.40f,.23f,.12f,.9f):ImVec4(.10f,.09f,.08f,.94f));
+ const bool look=v2::On();
+ ImGui::PushStyleColor(ImGuiCol_Button,look?ImGui::ColorConvertU32ToFloat4(focused?v2::Colors().header:v2::color::Alpha(v2::Colors().frame,.94f)):
+  focused?ImVec4(.40f,.23f,.12f,.9f):ImVec4(.10f,.09f,.08f,.94f));
+ ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,look?4*s:ImGui::GetStyle().FrameRounding);
  // An open choice leaves only its own options live.
  ImGui::BeginDisabled(disabled);
  const bool clicked=ImGui::Button("##room-entry",size);
  ImGui::EndDisabled();
- ImGui::PopStyleColor();ImGui::PopID();
+ ImGui::PopStyleVar();ImGui::PopStyleColor();ImGui::PopID();
  if(focused){
-  ImGui::GetWindowDrawList()->AddRect(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),palette::Ember,0,0,2*s);
+  if(look)v2::Focus(ImGui::GetWindowDrawList(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
+  else ImGui::GetWindowDrawList()->AddRect(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),palette::Ember,0,0,2*s);
   if(scrollTo)ImGui::SetScrollHereY(.5f);
  }
  return clicked;
@@ -109,7 +114,9 @@ CardInteraction DrawTableCard(const TableCardView& card) {
  const ImU32 bannerColor=ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
  if(!card.name.empty()&&cardVisible)NoteUserText(card.name);
  text(ImVec2(p.x+12*s,p.y+7*s),width*.57f,loc::Tf("room.battle_slot",card.slot+1)+(card.name.empty()?std::string():" \xC2\xB7 "+card.name),16*s,palette::Ivory);
- text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,card.phase,14*s,palette::Ember);
+ // V2: the table's state as a chip at the card's right end.
+ if(v2::On()&&!card.phase.empty())v2::Chip(ImGui::GetWindowDrawList(),ImVec2(p.x+width-12*s-v2::ChipWidth(card.phase),p.y+6*s),card.phase,palette::Ember);
+ else text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,card.phase,14*s,palette::Ember);
  // A full pair shows its running win count where "VS" would sit; the gap
  // between the two sides grows to fit however long the rematch run gets.
  const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(18*s,FLT_MAX,0,card.middle.c_str()).x+12*s);
@@ -213,6 +220,17 @@ CardInteraction DrawMemberCard(const MemberCardView& card) {
  const bool pressed=DrawCardButton(card.id,ImVec2(width,58*s),card.focused,card.focusChanged,card.disabled);
  const bool hovered=ImGui::IsItemHovered();
  DrawCharacterPortrait(card.mainFighter,ImVec2(p.x+6*s,p.y+5*s),ImVec2(p.x+54*s,p.y+53*s));
+ if(v2::On()){
+  // V2: the player tag (flag, class, name, ping) over the status line.
+  v2::Tag(ImGui::GetWindowDrawList(),ImVec2(p.x+64*s,p.y+6*s),width-98*s,{card.label,{},{},card.marks,card.latency},v2::TagSize::S);
+  DrawNetworkLinkGlyph(ImGui::GetWindowDrawList(),ImVec2(p.x+width-28*s,p.y+8*s),16*s,card.link);
+  elided=NetworkLinkName(card.link);
+  if(!card.latency.tip.empty())elided+="\n"+card.latency.tip;
+  DrawCardText(elided,ImVec2(p.x+64*s,p.y+33*s),width-76*s,card.status,14*s,palette::Muted);
+  ReportMenuCardText(card.id,card.status);
+  FlushCardTip(elided);
+  return Interaction({},pressed,hovered);
+ }
  // The flag and the class lead the name; with neither the name keeps its place.
  const auto marks=DrawNameMarks(ImGui::GetWindowDrawList(),p.x+64*s,p.y+7*s,16*s,card.marks);
  // The ping sits left of the link mark, and the name gives way to it.
@@ -269,5 +287,15 @@ bool DrawPartHeading(const char* id,const std::string& title,bool shown,bool foc
     titleRight=(std::min)(p.x+width,left+ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,title.c_str()).x);
     if(ImGui::IsItemHovered())ImGui::SetTooltip("%s",elided.empty()?tip.c_str():(title+"\n"+tip).c_str());
     return pressed;
+}
+void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
+ const float s=Scale(),h=max.y-min.y,face=h-12*s;auto* d=ImGui::GetWindowDrawList();
+ DrawCharacterPortrait(card.mainFighter,ImVec2(min.x+6*s,min.y+6*s),ImVec2(min.x+6*s+face,max.y-6*s));
+ const float x=min.x+16*s+face,w=max.x-x-44*s;
+ v2::Tag(d,ImVec2(x,min.y+5*s),w,{card.label,{},{},card.marks,card.latency},v2::TagSize::S);
+ std::string elided;
+ DrawCardText(elided,ImVec2(x,max.y-20*s),w,card.status,14*s,palette::Muted);
+ DrawNetworkLinkGlyph(d,ImVec2(max.x-30*s,min.y+(h-16*s)*.5f),16*s,card.link);
+ NoteUserText(card.name);
 }
 } }

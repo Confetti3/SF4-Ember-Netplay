@@ -58,7 +58,9 @@ std::vector<Group> Groups(const training::View& view, bool shortcuts, const std:
     };
     if (shortcuts) {
         Group controls{{}, true};
-        if (pad) controls.pieces = {{Piece::Button, back, 0}, {Piece::Plus, "+", 2 * unit}, {Piece::Button, names.start, 2 * unit}};
+        // An Xbox pad opens them with R3 alone; other pads with the chord.
+        if (device == input::PadXInput) controls.pieces = {{Piece::Button, "R3", 0}};
+        else if (pad) controls.pieces = {{Piece::Button, back, 0}, {Piece::Plus, "+", 2 * unit}, {Piece::Button, names.start, 2 * unit}};
         else controls.pieces = {{Piece::Key, "F6", 0}};
         controls.pieces.push_back({Piece::Chip, loc::T("training.controls_chip"), Gap * unit});
         groups.push_back(controls);

@@ -147,6 +147,8 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 }
 
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
+	// An Arcade room's rules are the room's, chosen when it was created.
+	if (snapshot_.arcade) return Reject(RejectReason::Unauthorized);
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
 	if (GameUnderWay(*table) || !action.rules.Valid()) return Reject(RejectReason::InvalidRules);
 	// A different set length or rotation starts a new set. Round count, time and
@@ -159,13 +161,14 @@ Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table
 
 Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* table) {
 	if (HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
+	if (snapshot_.arcade) return ApplyArcadeSit(member, action);
+	const bool asked = action.seat == 0 || action.seat == 1;
 	for (const auto& other : snapshot_.tables) {
 		if (other.p1 == member || other.p2 == member) return Reject(RejectReason::AlreadySeated);
 		if (std::find(other.queue.begin(), other.queue.end(), member) != other.queue.end()) return Reject(RejectReason::AlreadyQueued);
 	}
 	// A named seat is that seat or nothing: it must be open, with nobody
 	// queued first. A Queue with no seat takes the first open one, or waits.
-	const bool asked = action.seat == 0 || action.seat == 1;
 	if (asked && !SeatOpenNow(*table, action.seat)) return Reject(RejectReason::InvalidSeat);
 	// Watching is not a seat: a watcher who sits down stops watching.
 	StopWatching(member);
@@ -202,6 +205,8 @@ Result RoomAuthority::ApplyUnqueue(MemberId member, Table* table) {
 	const int seat = table->p1 == member ? 0 : table->p2 == member ? 1 : -1;
 	if (seat < 0) return Reject(RejectReason::NotQueued);
 	if (table->phase == TablePhase::Playing || table->phase == TablePhase::Paused) return Reject(RejectReason::WrongPhase);
+	// In an Arcade room it is standing up from the cabinet.
+	if (snapshot_.arcade) { RemoveFromTable(member); return Accept(); }
 	if (seat == 0) table->p1 = 0; else table->p2 = 0;
 	if (auto* standing = Find(member)) standing->delayLocked = false;
 	ClearReadiness(*table);
@@ -281,6 +286,8 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 	if (!IsParticipant(*table, member)) return Reject(RejectReason::NotSeated);
 	if (action.kind == ActionKind::Ready && HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
 	if (table->phase != TablePhase::Waiting && table->phase != TablePhase::Ready) return Reject(RejectReason::WrongPhase);
+	// An Arcade pair readies again only once both chose Rematch.
+	if (table->deciding) return Reject(RejectReason::WrongPhase);
 	const int seat = table->p1 == member ? 0 : 1;
 	if (action.inputDelay > InputDelayWireCeiling) return Reject(RejectReason::Unauthorized);
 	// What an earlier build could choose above the limit plays at the limit.
@@ -348,27 +355,40 @@ Result RoomAuthority::ApplyRecordResult(MemberId member, const Action& action, T
 	if (table->phase != TablePhase::Playing || !IsParticipant(*table, member)) return Reject(RejectReason::WrongPhase);
 	if (action.matchGeneration != table->matchGeneration) return Reject(RejectReason::WrongGeneration);
 	if (action.result != MatchResult::P1Win && action.result != MatchResult::P2Win && action.result != MatchResult::Draw) return Reject(RejectReason::WrongPhase);
-	if (resultReporter_[table->id] == member)
-		return pendingResult_[table->id] == action.result ? Reject(RejectReason::DuplicateResult) :
+	const auto id = table->id;
+	if (action.game < gamesScored_[id]) return Reject(RejectReason::DuplicateResult);
+	// A report for a later game than the pending one replaces it.
+	const bool sameGame = table->resultPending && pendingGame_[id] == action.game;
+	if (resultReporter_[id] == member && sameGame)
+		return pendingResult_[id] == action.result ? Reject(RejectReason::DuplicateResult) :
 			Reject(RejectReason::WrongPhase);
-	if (table->resultPending) {
-		if (resultReporter_[table->id] == 0 && pendingResult_[table->id] == MatchResult::Abort) {
-			resultReporter_[table->id] = member;
-			pendingResult_[table->id] = action.result;
-			resultPendingSince_[table->id] = nowMs_;
-			Touch(*table);
-			return Accept();
-		}
-		if (pendingResult_[table->id] != action.result) {
-			table->phase = TablePhase::Paused; Touch(*table);
-			return Accept({Event{Event::Kind::ResultDisputed, table->id, table->matchGeneration, member, action.result}});
-		}
-		return EndMatch(table->id, table->matchGeneration, action.result);
+	const auto open = [&] {
+		resultReporter_[id] = member;
+		pendingResult_[id] = action.result;
+		pendingGame_[id] = action.game;
+		pendingContinued_[id] = action.continued;
+		table->resultPending = true;
+		resultPendingSince_[id] = nowMs_;
+		Touch(*table);
+		return Accept();
+	};
+	if (!table->resultPending || (resultReporter_[id] == 0 && pendingResult_[id] == MatchResult::Abort) ||
+		pendingGame_[id] < action.game) return open();
+	if (!sameGame) return Reject(RejectReason::DuplicateResult);
+	if (pendingResult_[id] != action.result) {
+		table->phase = TablePhase::Paused; Touch(*table);
+		return Accept({Event{Event::Kind::ResultDisputed, id, table->matchGeneration, member, action.result}});
 	}
-	resultReporter_[table->id] = member;
-	pendingResult_[table->id] = action.result;
-	table->resultPending = true;
-	resultPendingSince_[table->id] = nowMs_;
+	if (!action.continued || !pendingContinued_[id]) return EndMatch(id, table->matchGeneration, action.result);
+	// Both fighters went on to a rematch in the same battle: the game counts,
+	// and the match, its spectators and its stream go on.
+	RecordWonGame(id, *table, action.result);
+	if (action.result == MatchResult::P1Win) ++table->score[0];
+	else if (action.result == MatchResult::P2Win) ++table->score[1];
+	gamesScored_[id] = action.game + 1;
+	table->resultPending = false;
+	resultReporter_[id] = 0;
+	resultPendingSince_[id] = 0;
 	Touch(*table);
 	return Accept();
 }
@@ -476,6 +496,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::Rename) return ApplyRename(member, action);
 	if (action.kind == ActionKind::SetTraining) return ApplySetTraining(member, action);
 	if (action.kind == ActionKind::Typing) return ApplyTyping(member, action);
+	if (action.kind == ActionKind::SetRoomType) return ApplySetRoomType(member, action);
 	Table* table = FindTable(action.table);
 	if (!table) return Reject(RejectReason::UnknownTable);
 	if (action.kind == ActionKind::NameTable) return ApplyNameTable(member, action, table);
@@ -527,6 +548,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::CancelResult) return ApplyCancelResult(member, action, table);
 	if (action.kind == ActionKind::AbortMatch) return ApplyAbortMatch(member, action, table);
 	if (action.kind == ActionKind::LockSpectating) return ApplyLockSpectating(member, action, table, item);
+	if (action.kind == ActionKind::Rematch || action.kind == ActionKind::NewOpponent) return ApplyRematch(member, action, table);
 	return Reject(RejectReason::Unauthorized);
 }
 

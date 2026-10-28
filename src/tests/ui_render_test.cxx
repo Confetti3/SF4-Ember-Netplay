@@ -805,7 +805,7 @@ int main(int argc, char** argv) {
             const auto page=[&](const char* screen){shell.Navigation().Home();if(std::string(screen)!="home")shell.Navigation().Push(screen);draw(screen);};
             SetMenuGlyphs(3,0x40000,0x20000);
             ShootGameSettingsCard(view,draw);
-            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","accessibility","discord","about"})page(screen);
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);
@@ -1100,7 +1100,8 @@ int main(int argc, char** argv) {
                 // bottom one is never cut through its portrait.
                 const auto* members=FindWindow("Member list");
                 const float pitch=58*Scale()+ImGui::GetStyle().ItemSpacing.y;
-                const float content=members->Size.y-12*Scale()+ImGui::GetStyle().ItemSpacing.y;
+                // A child without a border has no padding of its own.
+                const float content=members->Size.y+ImGui::GetStyle().ItemSpacing.y;
                 Require(content>=pitch-.5f&&std::fabs(content/pitch-std::floor(content/pitch+.5f))<.02f,
                     "Member list height is not a whole number of member cards");
             }
@@ -1173,6 +1174,16 @@ int main(int argc, char** argv) {
                 page("create");draw(nullptr,0,8);draw("create-public");
                 view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;
                 view.preferences.roomPublic=false;view.preferences.roomName="Private room";shell.Navigation().Home();draw(nullptr,0,4);
+                {
+                    // Create with each room type chosen, once the notice of the room
+                    // just left has gone.
+                    page("create");draw(nullptr,0,200);
+                    for(int i=0;i<12&&shell.Navigation().Focus()!="room-type";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+                    Require(shell.Navigation().Focus()=="room-type","Create's Room type row is unreachable");
+                    draw(nullptr,MenuInput::Right,1);draw("create-arcade");
+                    draw(nullptr,MenuInput::Right,1);draw("create-king");
+                    shell.Navigation().Home();draw(nullptr,0,4);
+                }
                 {
                     // Home leads with a tournament match ready to play; Ember ID itself is
                     // under Online play. A match link names the service the matches are read from.

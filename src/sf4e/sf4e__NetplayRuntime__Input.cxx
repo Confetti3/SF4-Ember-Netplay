@@ -317,6 +317,8 @@ bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     if(!runtime||!runtime->attached)return false;
     const bool valid=side==runtime->matchBinding.matchInputSide&&input::ReadAssignedInput(runtime->matchBinding.matchInput,side,mapped,raw);
     runtime->matchBinding.matchInputFault=!valid;
+    // A Rematch pressed over the WIN waits there as the parked Ready.
+    if(valid&&Game::Battle::System::ResultHeld()&&internal::PostMatchPromptDue()&&runtime->readyIntent.Active())raw|=RematchInputBit;
     // The tournament self-test plays its own fighter; nothing without SF4E_SELFTEST.
     selftest::MatchInput(side,mapped,raw);
     return valid;

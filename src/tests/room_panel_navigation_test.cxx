@@ -5,6 +5,7 @@
 #include "../ui/RoomControls.hxx"
 #include "../ui/RoomFeedback.hxx"
 #include "../ui/Theme.hxx"
+#include "../ui/V2.hxx"
 #include "imgui_test_support.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -1559,6 +1560,58 @@ int main() try {
         Check(carry.Copies() == 6 && next.room.members.size() == 6, "A room lent twice was not copied");
         carry.Return(next);
     }
+    // The mouse opens a free table's seat chooser and picks Play as P1 or
+    // Options from its strip, in both looks, at a game's screen sizes and
+    // interface scales (scale = max(DPI, height / 1080)).
+    {
+        view = ShellView{};
+        view.controllerReady = true; view.canReady = true; view.canEditSelection = true;
+        view.session.room = netplay::RoomState::Joined; view.session.control = netplay::Health::Healthy;
+        view.session.generation.room = 2;
+        view.room.roomEpoch = 9; view.room.localMember = 1; view.room.host = 1; view.room.capacity = 16;
+        for (int i = 0; i < 4; ++i) view.room.tables[i].id = i;
+        room::Member alone; alone.id = 1; alone.name = "Local"; view.room.members = {alone};
+        const auto click = [&](ImVec2 point) {
+            io.AddMousePosEvent(point.x, point.y); frame();
+            io.AddMouseButtonEvent(0, true); frame();
+            io.AddMouseButtonEvent(0, false); frame();
+        };
+        const std::pair<float, ImVec2> screens[] = {{1.f, {1280, 800}}, {1.f, {1920, 1080}}, {1.5f, {1920, 1080}},
+            {1.34f, {2560, 1440}}, {2.f, {3840, 2160}}};
+        for (const bool look : {false, true}) for (const auto& [scale, size] : screens) {
+            view.preferences.lookV2 = look; v2::SetOn(look); ApplyTheme(scale); io.Fonts->Build(); io.DisplaySize = size;
+            targets.clear();
+            for (const char* option : {"table-0/0", "table-0/2"}) {
+                shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
+                click(targets.at("table-0"));
+                Check(shell.Navigation().Choosing(), "A click on a free table did not open the seat chooser");
+                frame(); // the strip reports its place once drawn
+                const auto before = actions.size();
+                click(targets.at(option));
+                const bool sat = actions.size() == before + 1 && actions.back().roomAction.kind == room::ActionKind::Queue;
+                if (option[8] == '0' ? !sat : shell.Navigation().Screen() == "room") {
+                    std::cerr << "V2 " << look << " scale " << scale << " size " << size.x << "x" << size.y << " " << option << '\n';
+                    Check(false, "A click on the seat chooser's strip picked nothing");
+                }
+            }
+        }
+        // V2's More... popout closes on a click outside it, and that click does nothing else.
+        view.preferences.lookV2 = true; v2::SetOn(true); ApplyTheme(1.f); io.Fonts->Build(); io.DisplaySize = ImVec2(1920, 1080);
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
+        click(targets.at("room-more"));
+        Check(shell.Navigation().Choosing(), "A click on More... did not open its popout");
+        const auto before = actions.size();
+        click(ImVec2(300, 600)); frame();
+        Check(!shell.Navigation().Choosing() && shell.Navigation().Screen() == "room" && actions.size() == before,
+            "A click outside More...'s popout did not just close it");
+        // A V2 header's chips are the screen's this frame: Online play shows its relay once, not once per frame.
+        shell.Navigation().Push("online"); frame(); frame();
+        const int drawn = ImGui::GetDrawData()->TotalVtxCount;
+        for (int i = 0; i < 10; ++i) frame();
+        Check(shell.Navigation().Screen() == "online" && ImGui::GetDrawData()->TotalVtxCount == drawn, "A V2 header gathered its chips over frames");
+        view.preferences.lookV2 = false; v2::SetOn(false); ApplyTheme(1.f); io.Fonts->Build(); io.DisplaySize = ImVec2(1280, 960);
+    }
+
     SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({});
     std::cout << "Room controls and uninterrupted controller, keyboard, mouse and queue frames passed.\n";
     return 0;

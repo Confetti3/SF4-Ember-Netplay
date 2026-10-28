@@ -9,6 +9,7 @@
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
+#include "../netplay/SpeechPreferenceJson.hxx"
 
 #include <algorithm>
 #include <fstream>
@@ -329,11 +330,12 @@ namespace OverlayPrefs {
         nlohmann::json values={{"displayName", preferences.displayName}, {"mainFighter",preferences.mainFighter}, {"inputDelay", preferences.inputDelay}, {"autoInputDelay", preferences.autoInputDelay}, {"autoDelayStyle", preferences.autoDelayStyle},
 			{"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
 			{"roundTimeIntegral", preferences.lobby.roundTime},
-            {"matchHudSize",preferences.matchHudSize},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"matchHudNameOffset",preferences.matchHudNameOffset},{"readySoundVolume",preferences.readySoundVolume},{"shareReplaysSince",preferences.shareReplaysSince},
+            {"matchHudSize",preferences.matchHudSize},{"matchHudAnchor",preferences.matchHudAnchor},{"pictureSpot",preferences.pictureSpot},{"pictureMode",preferences.pictureMode},{"wornTitle",preferences.wornTitle},{"wornIcon",preferences.wornIcon},{"roomColumn",preferences.roomColumn},{"roomSplit",preferences.roomSplit},{"matchHudLayout",preferences.matchHudLayout},{"matchHudNameOffset",preferences.matchHudNameOffset},{"readySoundVolume",preferences.readySoundVolume},{"shareReplaysSince",preferences.shareReplaysSince},
             {"interfaceScale", preferences.interfaceScale}, {"roomSideWidth", preferences.roomSideWidth}, {"roomMemberShare", preferences.roomMemberShare}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
         netplay::WriteBoolPreferences(preferences, values);
         netplay::WriteButtonPrompts(preferences, values);
         netplay::WriteCountryPreference(preferences, values);
+        netplay::WriteSpeechPreferences(preferences, values);
         values["controllerMappings"] = preferences.controllerMappings;
         values["buttonLayouts"] = gamepads::LayoutsToJson(preferences.buttonLayouts);
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);

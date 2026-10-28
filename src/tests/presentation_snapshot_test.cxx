@@ -305,6 +305,11 @@ static void TestTrainingRoster(const sf4e::netplay::Snapshot& session, const sf4
 	live = authority.SnapshotFor(watcher);
 	CHECK(room::FindMember(live, watcher)->status == room::MemberStatus::Watching);
 	CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, session, true, live, 0));
+	// Training from Home holds only with no room and no match, at the main menu.
+	auto home = session; home.room = sf4e::netplay::RoomState::Idle; home.match = sf4e::netplay::MatchState::None;
+	CHECK(!facade::TrainingHolds(TrainingEntry::Home, made, session, true, live, 0));
+	CHECK(facade::TrainingHolds(TrainingEntry::Home, made, home, true, room::Snapshot{}, 0));
+	CHECK(!facade::TrainingHolds(TrainingEntry::Home, made, home, false, room::Snapshot{}, 0));
 	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	CHECK(record.Take(GetTickCount64(), watcherJudged(session)) == Taken::Dropped && none());
 	CHECK(act(watcher, room::ActionKind::Unwatch, 0));

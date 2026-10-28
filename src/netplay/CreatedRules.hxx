@@ -23,6 +23,9 @@ namespace sf4e { namespace netplay {
 // member or the host changes, and when the host edits any table's rules by
 // hand (a SetRules or NameTable of their own, or a table that shows other
 // rules than it had or was given): whatever is left is theirs.
+//
+// An Arcade room's type and rules (the first table's) go in one SetRoomType
+// instead, while the creator is alone in it; a room that shows the type is done.
 class CreatedRules {
 public:
     // How long the room may take to admit the creator after the create.
@@ -32,9 +35,9 @@ public:
     // A SetRules with no answer by then is sent again.
     static constexpr std::uint64_t RetryMs = 1500;
 
-    void Start(const TableSetup& setup, std::uint64_t nowMs) {
+    void Start(const TableSetup& setup, std::uint64_t nowMs, room::RoomType type = room::ClassicRoom) {
         *this = CreatedRules();
-        active_ = true; setup_ = setup; armedAtMs_ = nowMs;
+        active_ = true; setup_ = setup; type_ = type; armedAtMs_ = nowMs;
     }
     void Cancel(const char* why) { if (active_) { active_ = false; ended_ = why; } }
     bool Active() const { return active_; }
@@ -62,8 +65,21 @@ public:
         }
         if (room.roomEpoch != roomEpoch_ || room.localMember != host_ || room.host != host_) { Cancel("room_changed"); return false; }
         if (nowMs >= deadlineMs_) { Cancel("deadline"); return false; }
+        if (type_) {
+            if (room.arcade) { Cancel(room.arcade == type_ ? "done" : "edited"); return false; }
+            if (!canSend || (sentAtMs_ && nowMs - sentAtMs_ < RetryMs)) return false;
+            action = room::Action();
+            action.kind = room::ActionKind::SetRoomType;
+            action.roomEpoch = room.roomEpoch;
+            action.revision = room.revision;
+            action.rules = setup_.rules[0];
+            action.roomType = type_;
+            return true;
+        }
         int next = -1;
-        for (const auto& table : room.tables) {
+        // Only the tables a room plays at take rules; the others stay as they are.
+        for (std::size_t i = 0; i < room::TablesInPlay(room); ++i) {
+            const auto& table = room.tables[i];
             auto& done = confirmed_[table.id];
             const bool set = table.rules == setup_.rules[table.id] && table.name == setup_.names[table.id];
             if (done) {
@@ -95,7 +111,8 @@ public:
         return true;
     }
     void Sent(const room::Action& action, std::uint64_t nowMs) {
-        if (!active_ || action.table >= room::TableCount) return;
+        if (active_ && action.kind == room::ActionKind::SetRoomType) sentAtMs_ = nowMs;
+        if (!active_ || action.kind != room::ActionKind::SetRules || action.table >= room::TableCount) return;
         sentTable_ = action.table; sentRevision_ = action.tableRevision; sentAtMs_ = nowMs;
     }
 
@@ -103,6 +120,7 @@ private:
     bool active_ = false;
     const char* ended_ = "";
     TableSetup setup_;
+    room::RoomType type_ = room::ClassicRoom;
     std::uint64_t armedAtMs_ = 0;
     // Set at the creator's first sight of the room as its host.
     std::uint64_t roomEpoch_ = 0;

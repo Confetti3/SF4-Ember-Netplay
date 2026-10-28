@@ -25,10 +25,49 @@ struct LobbySettings {
     }
 };
 
+// Ember's own speech for its menus (platform/Speech.hxx), off until the
+// player turns it on. rate is the voice's, -10 to 10 around its normal pace;
+// volume is percent in steps of ten. details: a row's description is read by
+// itself once the player stays on it, not only when asked for (F2). hints: its
+// button hint is read with it. position: each row is followed by its place in
+// the list ("3 of 12"). chime: a notice that opens by itself plays a short
+// chime first, at chimeVolume percent in steps of ten. introHeard: speech
+// has told the player how it works. describeUsed: how often the player has
+// asked for a description, up to three. remind: a row with a description
+// names the accessibility button after its name: Auto until describeUsed
+// reaches three, On always, Off never; tick: past that, a soft tick does.
+struct SpeechPreferences {
+    enum Remind { Auto, Always, Never };
+    bool enabled = false;
+    int rate = 0;
+    int volume = 100;
+    bool details = false, hints = false, position = false, chime = true;
+    int chimeVolume = 60;
+    bool introHeard = false, tick = true;
+    int describeUsed = 0, remind = Auto;
+    // Whether a row with a description names the accessibility button now.
+    bool Reminds() const { return remind == Always || (remind == Auto && describeUsed < 3); }
+    bool operator==(const SpeechPreferences& other) const {
+        return enabled == other.enabled && rate == other.rate && volume == other.volume && details == other.details && hints == other.hints &&
+            position == other.position && chime == other.chime && chimeVolume == other.chimeVolume && introHeard == other.introHeard &&
+            tick == other.tick && describeUsed == other.describeUsed && remind == other.remind;
+    }
+    bool Valid() const {
+        return rate >= -10 && rate <= 10 && volume >= 10 && volume <= 100 && volume % 10 == 0 && chimeVolume >= 10 && chimeVolume <= 100 && chimeVolume % 10 == 0 &&
+            describeUsed >= 0 && describeUsed <= 3 && remind >= Auto && remind <= Never;
+    }
+};
+
 // How far the name plates move either way, in 720p game units.
 constexpr int MaxMatchHudNameOffset = 60;
 // The match HUD positions run from 0 (bottom center) to this one (top center).
 constexpr int MaxMatchHudAnchor = 5;
+// The V2 room board's layout grips (Customise.dc.html), in percent: the members
+// and chat column's share of the board's width, and the members' share of that
+// column over chat. Each snaps to its step from the default.
+constexpr int PictureSmall = 0, PictureBig = 1, PictureOff = 2;
+constexpr int MinRoomColumn = 28, MaxRoomColumn = 60, DefaultRoomColumn = 36, RoomColumnStep = 4;
+constexpr int MinRoomSplit = 26, MaxRoomSplit = 74, DefaultRoomSplit = 56, RoomSplitStep = 6;
 constexpr int MinRoomSideWidth = 35;
 constexpr int MaxRoomSideWidth = 60;
 constexpr int MinRoomMemberShare = 20;
@@ -75,6 +114,15 @@ struct PlayerPreferences {
     // Where the strip sits: 0 bottom center, 1 bottom left, 2 bottom right, 3 top left, 4 top right,
     // 5 top center (above the game's round timer).
     int matchHudAnchor = 0;
+    // Where the watched game's picture sits: its corner (0 top right, 1 top
+    // left, 2 bottom right, 3 bottom left) plus 4 times its size (0 small,
+    // 1 medium, 2 large). Set from Settings or by dragging the picture.
+    int pictureSpot = 0;
+    // The award (v2::Awards' id) whose title, and whose icon, the player wears;
+    // empty for the identity's own. Kept here until the backend stores it.
+    std::string wornTitle, wornIcon;
+    // The room board's column and the members' share of it (MinRoomColumn).
+    int roomColumn = DefaultRoomColumn, roomSplit = DefaultRoomSplit;
     // 0 the Ember strip (one panel), 1 split: names over the game's PLAYER labels and a small telemetry panel.
     int matchHudLayout = 1;
     // Moves the split layout's name plates down (positive) or up, in 720p game units.
@@ -85,12 +133,24 @@ struct PlayerPreferences {
     // Public room classes show beside players' names on this screen. Off hides
     // them here only: games still count and others still see this player's.
     bool classEmblems = true;
+    // Ember's V2 look (Settings > Interface > Look); off keeps the classic one.
+    bool lookV2 = false;
+    // TV mode (Settings > Interface, V2 look): a quarter larger, inside a 5% safe area.
+    bool tvMode = false;
+    // The first-run welcome (speech, language, controller, look) was shown or
+    // skipped. A profile saved before it existed counts as welcomed; a fresh
+    // install is set false when the runtime loads it (StartHelper).
+    bool welcomed = true;
     // Called out of Training to their table, the player is readied at once
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;
-    // Ember's menu over a game the player watches shows it small in its top
-    // right corner over an opaque menu, instead of dimmed behind the menu.
-    bool watchedPicture = false;
+    // The game the player watches, over Ember's menu: PictureSmall in a corner
+    // (pictureSpot) over an opaque menu, PictureBig in the V2 room board's
+    // tables' place (a corner elsewhere), PictureOff dimmed behind the menu.
+    int pictureMode = PictureSmall;
+    // The V2 room board's Members and Chat panels; hidden, the other one or
+    // the tables take their place.
+    bool roomShowMembers = true, roomShowChat = true;
     // The training frame meter over the player's own matches and those they
     // watch. It only reads the game and shows confirmed frames.
     bool matchFrameMeter = false;
@@ -157,6 +217,7 @@ struct PlayerPreferences {
         roomSideWidth = from.roomSideWidth; roomMemberShare = from.roomMemberShare;
         roomMembersHidden = from.roomMembersHidden; roomChatHidden = from.roomChatHidden;
     }
+    SpeechPreferences speech;
     LobbySettings lobby;
     std::string roomName = "Private room";
     int roomCapacity = 16;
@@ -173,12 +234,12 @@ struct PlayerPreferences {
         if (roomTemplates.size() > MaxRoomTemplates || !std::all_of(roomTemplates.begin(), roomTemplates.end(), [](const RoomTemplate& saved) { return saved.Valid(); })) return false;
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidBoundButtons(layout.bound) && gamepads::ValidExtraCopies(layout.extras); })) return false;
         if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay || autoDelayStyle < 0 || autoDelayStyle >= AutoDelayStyles ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || roomSideWidth < MinRoomSideWidth || roomSideWidth > MaxRoomSideWidth ||
+            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || roomSideWidth < MinRoomSideWidth || roomSideWidth > MaxRoomSideWidth ||
             roomMemberShare < MinRoomMemberShare || roomMemberShare > MaxRoomMemberShare || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        return country.Valid() && tableRules.Valid() && publicTableRules.Valid();
+        return country.Valid() && speech.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
 

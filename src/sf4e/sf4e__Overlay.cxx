@@ -1,6 +1,7 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__SelfTest.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Pad.hxx"
@@ -13,6 +14,7 @@
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLayers.hxx"
 #include "../ui/Theme.hxx"
+#include "../ui/V2.hxx"
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
@@ -304,6 +306,7 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
         request.identity = std::move(action.identity);
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
+        request.arcadeRoom = action.arcadeRoom;
         return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
     });
 }
@@ -340,10 +343,13 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
     view.watchedGame = snapshot.watchedGame;
     view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
+    view.rematchChoices = snapshot.rematchChoices; view.gamesInPlace = snapshot.gamesInPlace;
     // Taken before Ember draws anything this frame, so it holds the game's picture alone.
-    if (view.watchedGame.Active() && snapshot.preferences.watchedPicture) {
+    if (view.watchedGame.Active() && snapshot.preferences.pictureMode != sf4e::netplay::PictureOff) {
         const auto& size = ImGui::GetMainViewport()->Size;
-        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * sf4e::ui::WatchedPictureTakenShare), static_cast<unsigned>(size.y * sf4e::ui::WatchedPictureTakenShare));
+        // The texture is made once, at the largest size the picture can be shown, so any size stays sharp.
+        const float share = sf4e::ui::WatchedPictureTaken;
+        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * share), static_cast<unsigned>(size.y * share));
     }
     view.lockInDrops = snapshot.lockInDrops;
 	view.canEditPreferences = snapshot.canEditPreferences;
@@ -487,6 +493,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
         request.practiceRoom = action.practiceRoom;
+        request.arcadeRoom = action.arcadeRoom;
         request.delayPolicy = action.delayPolicy;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
@@ -495,9 +502,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.training = action.training;
 		request.leaveWatchedGame = action.leaveWatchedGame;
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
-		// Training from inside a room: the menu closes behind it while the runtime
+		// Training from a room or Home: the menu closes behind it while the runtime
 		// sends the game on.
-		if (action.training == sf4e::TrainingEntry::Room) presentation.Close("Training from the room");
+		if (action.training != sf4e::TrainingEntry::None) presentation.Close("Training");
 		return true;
 	}, [&] {
 		if (shell.SelectingDummy()) DrawTrainingDummy(snapshot);
@@ -536,7 +543,12 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
-    if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
+    // V2 sizes text by the em, a quarter larger in TV mode; v2::On() is still last frame's look.
+    const bool lookV2 = sf4e::ui::v2::On();
+    if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale * (lookV2 && snapshot.preferences.tvMode ? 1.25f : 1.f), lookV2))
+        ImGui_ImplDX9_InvalidateDeviceObjects();
+    // The look the HUD and the menus draw in (Settings > Interface > Look); the shell follows its own edits sooner.
+    sf4e::ui::v2::SetOn(snapshot.preferences.lookV2);
     // A replay being exported can be followed or cancelled from Ember's menu,
     // so the menu stays available over the battle log while it runs; a
     // Practice match's fighter ends the game from it, and a spectator leaves
@@ -617,7 +629,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // or a watched game); in Training and over an export it is the game's pause.
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open("Start");
     ImGui::NewFrame();
-    sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
+    unsigned menuButtons = controllerNavigation.Buttons();
+    // The menu self-test presses the menu's buttons itself, with the menu shown.
+    if (sf4e::selftest::MenuFrame(shell.Navigation(), menuButtons) && !presentation.Visible() && presentation.Available()) presentation.Open("the menu self-test");
+    sf4e::ui::SetMenuInput({menuButtons, ImGui::GetTime()});
     for (const auto& pad : snapshot.pads) if (pad.gameplay) sf4e::ui::SetMenuPromptBrand(snapshot.promptBrand, gamepads::NamesOf(pad.table));
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.menu,snapshot.promptBrand);
     if (presentation.Reopened()) shell.ShowPlay();

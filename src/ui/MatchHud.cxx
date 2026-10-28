@@ -4,6 +4,7 @@
 // telemetry are arranged differs. The declarations live in Theme.hxx with the other
 // presentation views.
 #include "Theme.hxx"
+#include "V2.hxx"
 #include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
 #include "../netplay/PlayerPreferences.hxx"
@@ -44,6 +45,14 @@ std::array<MatchTelemetryCell,3> MatchTelemetryCells(const MatchStripView& view)
         {loc::T("match.rollback"),std::to_string(view.rollbackFrames)+"f","99f"},
         {loc::T("match.delay"),Frames(view.appliedDelay),"99f"}}};
 }
+// A telemetry value's colour: Ivory, but in the V2 look a fighter's ping takes
+// its latency band's tone (under 80 ms, under 150 ms, above), as the player tag does.
+static ImU32 CellColor(const MatchStripView& view,int cell,ImU32 color) {
+    if(!v2::On()||view.spectator||cell!=0||view.pingMs<0)return color;
+    return ImGui::ColorConvertFloat4ToU32(ToneColor(view.pingMs<80?Tone::Success:view.pingMs<150?Tone::Pending:Tone::Error));
+}
+// Panels round at V2's 4 px.
+static float Round(float classic,float s) { return v2::On()?4*s:classic; }
 void DrawMatchNotice(const std::string& message,int severity) {
     if(message.empty())return;
     const auto* vp=ImGui::GetMainViewport();
@@ -90,8 +99,8 @@ std::string FitText(std::string t,float maxWidth,float size){
 // A neutral panel keeps the telemetry readable on bright stages, but a solid block
 // pulled the eye mid-fight: let the stage show through a little. Quiet border.
 void DrawPanelBox(ImDrawList* draw,ImVec2 p,float w,float h,float s){
-    draw->AddRectFilled(p,ImVec2(p.x+w,p.y+h),IM_COL32(20,19,18,200),6*s);
-    draw->AddRect(p,ImVec2(p.x+w,p.y+h),IM_COL32(88,76,65,100),6*s);
+    draw->AddRectFilled(p,ImVec2(p.x+w,p.y+h),IM_COL32(20,19,18,200),Round(6*s,s));
+    draw->AddRect(p,ImVec2(p.x+w,p.y+h),v2::On()?v2::color::Alpha(v2::Colors().border,.8f):IM_COL32(88,76,65,100),Round(6*s,s));
 }
 // Link state / notice line beside a panel, `top` its upper edge. Same width as the
 // panel, own background so it reads against any stage; colour follows severity.
@@ -180,7 +189,7 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
             ReportMenuText(("hud-telemetry/"+std::to_string(i)).c_str(),22*s,MatchHeight*s,valueX-x+valueWidth,column-4*s);
         }
         const auto value=FitText(cell.value,x+column-valueX-4*s,22*s);
-        text(valueX,p.y+29*s,value,22*s,IM_COL32(243,235,221,255));
+        text(valueX,p.y+29*s,value,22*s,CellColor(view,i,IM_COL32(243,235,221,255)));
     }
 }
 
@@ -206,8 +215,8 @@ Plate MakePlate(const MatchStripView& view,int side,float edge,float y,float k,f
 void DrawPlate(ImDrawList* draw,const Plate& p,bool withLink=true){
     const float k=p.k,glyph=p.font*.9f,gap=6*k;
     // Opaque: the plate hides the game's own PLAYER label.
-    draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(20,19,18,255),5*k);
-    draw->AddRect(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(88,76,65,110),5*k);
+    draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(20,19,18,255),Round(5*k,k));
+    draw->AddRect(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),v2::On()?v2::color::Alpha(v2::Colors().border,.8f):IM_COL32(88,76,65,110),Round(5*k,k));
     // The Ember rule on the outer edge, in line with the life bar's end.
     const float rule=p.right?p.x1-7*k:p.x0+4*k;
     draw->AddRectFilled(ImVec2(rule,p.y0+4*k),ImVec2(rule+3*k,p.y1-4*k),palette::Ember,1.5f*k);
@@ -230,7 +239,7 @@ Telemetry MakeTelemetry(const MatchStripView& view,float s,float maxWidth){
     struct Spec{MatchTelemetryCell text;ImU32 color=palette::Ivory;};
     std::vector<Spec> specs;
     if(!view.score.empty())specs.push_back({{"",view.score,""},IM_COL32(255,135,56,230)});
-    for(auto& cell:MatchTelemetryCells(view))specs.push_back({std::move(cell)});
+    {int index=0;for(auto& cell:MatchTelemetryCells(view))specs.push_back({std::move(cell),CellColor(view,index++,palette::Ivory)});}
     if(view.spectators>0)specs.push_back({{loc::T("room.status.watching"),std::to_string(view.spectators),"99"}});
     float total=0;
     for(const auto& spec:specs){

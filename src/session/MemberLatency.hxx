@@ -20,10 +20,12 @@ struct MemberLatency {
 	State state = State::Measuring;
 	// A value's estimate, in whole milliseconds.
 	unsigned rttMs = 0;
+	// Whether a value was measured through a relay rather than directly.
+	bool relay = false;
 	// Why it is unavailable: unreachable, refused, in_match, no_latency_route or room_unavailable.
 	std::string reason;
 	bool operator==(const MemberLatency& other) const {
-		return incarnation == other.incarnation && state == other.state && rttMs == other.rttMs && reason == other.reason;
+		return incarnation == other.incarnation && state == other.state && rttMs == other.rttMs && relay == other.relay && reason == other.reason;
 	}
 	bool operator!=(const MemberLatency& other) const { return !(*this == other); }
 };
@@ -73,6 +75,9 @@ public:
 					entry.state = MemberLatency::State::Value;
 					entry.rttMs = row.at("rtt_ms").get<unsigned>();
 					if (!entry.rttMs || entry.rttMs > 999) return false;
+					const auto route = row.at("route").get<std::string>();
+					if (route != "direct" && route != "relay") return false;
+					entry.relay = route == "relay";
 				} else if (state == "unavailable") {
 					entry.state = MemberLatency::State::Unavailable;
 					entry.reason = row.at("reason").get<std::string>();

@@ -121,6 +121,12 @@ inline bool ProbePairCommitted(const Table& seen, const Table& committed) {
 inline bool PracticeKindValid(const Snapshot& room) {
 	return !room.practice || (!room.serverOwned && !room.tournament.Active());
 }
+// An Arcade room, public or private, is never a tournament's and seats from no
+// queue.
+inline bool ArcadeKindValid(const Snapshot& room) {
+	return !room.arcade || (room.arcade <= KingRoom && !room.tournament.Active() &&
+		std::all_of(room.tables.begin(), room.tables.end(), [](const Table& table) { return table.queue.empty(); }));
+}
 
 // The round time a table's games are played at: its rules', or in a Practice
 // room the longest, since its games end only when the time runs out.
@@ -173,6 +179,16 @@ struct Place {
 	// In a queue: the place in it, from 1 for the member who plays next.
 	int position = 0;
 };
+// The tables a room's members can sit at, watch or set rules for; the others
+// stay empty.
+inline std::size_t TablesInPlay(const Snapshot& room) { return room.arcade ? TableCount : ClassicTableCount; }
+
+// The cabinet `member` sits at in an Arcade room, or -1.
+inline int CabinetOf(const Snapshot& room, MemberId member) {
+	const auto at = std::find(room.cabinets.begin(), room.cabinets.end(), member);
+	return member && at != room.cabinets.end() ? static_cast<int>(at - room.cabinets.begin()) : -1;
+}
+
 inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 	Place place;
 	const auto* member = FindMember(snapshot, id);

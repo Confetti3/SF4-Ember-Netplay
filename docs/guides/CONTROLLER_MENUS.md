@@ -76,6 +76,20 @@ F5 toggles the passive training meter, F6 the controls, F7 standby, record and s
 
 When a room calls you back from Training, the banner offers Go now: Enter, or View on an Xbox pad, leaves at once instead of after its two seconds. That View press only goes now; it does not also reset or save the position. During the call Back and Start do not open the training controls, and that Start does not pause the game. Other pads are shown Enter, and their Select still resets and saves.
 
+## The V2 look
+
+Settings > Interface > Look switches between Classic and V2 (preview). V2 changes only how the screens look: every row and shortcut above works the same. What V2 adds:
+
+- Tabs, such as Settings' six: LB and RB step them, Page Up and Page Down on the keyboard; with the mouse, click a tab or the LB and RB marks at the strip's ends.
+- The header's Back button and the right mouse button both go back, as B and Escape do. Back first closes an open panel, popout or question.
+- Settings panels: A, Enter or a click opens the panel on the left; B, Escape or a right click closes it.
+- Values: A or Enter flips a switch; Left and Right, or a click on an arrow, step a number; A or Enter opens a choice's panel with every choice, and B keeps the old one.
+- Popouts: a room member's actions and the room's More… open beside the row, or where you clicked. B, Escape or a right click closes them.
+- The on-screen keyboard: with a pad, a text row opens a keyboard. The D-pad moves, A types, X deletes, Y adds a space, LB switches capitals, Start is Done and B cancels.
+- Toasts: a new toast with buttons takes the focus. A or Enter takes its first button, B or Escape its Later, and any other press goes on as usual.
+
+See [V2 menus](V2_MENUS.md) for every V2 screen with pictures.
+
 ## Runtime acceptance checklist
 
 These checks require your physical controllers and a running game; synthetic tests are not substitutes:

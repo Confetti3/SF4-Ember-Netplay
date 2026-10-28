@@ -235,6 +235,29 @@ New room invitations use `sf4e3:` and Discord invitations use compact `emd2:`
 secrets. Copy a fresh invitation after an authority change; old authority
 references and expired invitations are rejected.
 
+## The room in the V2 look
+
+With Settings > Interface > Look set to V2, the room is one board: tables on
+the left, members and chat on the right, and Ready up, Wait in Training,
+Controllers, More… and Leave room along the bottom. A table card has its own
+Ready up and Leave seat buttons. Members are grouped as Playing, At a table,
+Watching and In the room, each with a ping such as Direct 46 ms or Relay
+59 ms.
+
+- **Member actions:** select a member with A (Enter, or a click). Mute
+  member, Steam profile and, for the host, Kick member and Transfer host open
+  as a popout. Kick and Transfer host still ask first.
+- **More…** holds Table options, Room settings and the invitation links.
+- **Layout:** drag the grip on the line between the tables and the right
+  column to change the column's width, and the grip between members and chat
+  to share the column. With a pad or the keyboard, use Settings > Interface >
+  Room layout: Column width, Members and chat, Ready-made layout and Restore
+  defaults.
+- **Watching:** with the watched game's picture on, the board shows it large
+  over one row of table cards. The column grip makes it bigger.
+
+See [V2 menus](V2_MENUS.md#the-room-board).
+
 ## Validation status
 
 See [CUSTOM_ROOMS_STATUS.md](../validation/CUSTOM_ROOMS_STATUS.md) for the exact build and test

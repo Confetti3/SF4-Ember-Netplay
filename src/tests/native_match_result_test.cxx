@@ -86,12 +86,29 @@ static void TestConfirmationAfterSimulationStops() {
     EXPECT(timeline.Latest().frame == -1 && timeline.Latest().result == Result::None);
 }
 
+// After a result, the battle may go on to a game in place: only a confirmed
+// fight after the result's frame says so, never a predicted one.
+static void TestFightAfterResult() {
+    Timeline timeline;
+    timeline.Capture(100, Flow::Fight, -1);
+    timeline.Capture(110, Flow::MatchResult, 1);
+    timeline.Capture(120, Flow::Other, -1);
+    CHECK(timeline.ConfirmedFightAfter(110, 200) == -1);
+    timeline.Capture(125, Flow::Fight, -1);
+    timeline.Capture(126, Flow::Fight, -1);
+    CHECK(timeline.ConfirmedFightAfter(110, 120) == -1);
+    CHECK(timeline.ConfirmedFightAfter(110, 130) == 125);
+    timeline.Rewind(121);
+    CHECK(timeline.ConfirmedFightAfter(110, 130) == -1);
+}
+
 int main() {
     TestResultSurvivesContinuousRollback();
     TestConfirmationAfterSimulationStops();
     TestPredictionCannotAwardWinner();
     TestRetainedTimelineAndShortResultFlow();
     TestDrawInvalidFramesAndLongMatches();
+    TestFightAfterResult();
     if (TEST_FAILURES()) std::printf("%d native result test(s) failed\n", TEST_FAILURES());
     else std::puts("Native result confirmation and continuous-rollback tests passed");
     return TEST_EXIT_CODE();

@@ -6,6 +6,7 @@
 #include "../common/ButtonPrompts.hxx"
 #include "../common/ButtonLayout.hxx"
 #include "../common/MenuButtons.hxx"
+#include <cctype>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -77,7 +78,7 @@ inline const char* PromptAsset(const char* glyph, gamepads::PromptBrand brand = 
 inline bool KeyCapGlyph(const char* glyph) {
     // The function keys F1 to F12 too, which the replay controls use.
     const bool function=glyph[0]=='F'&&glyph[1]>='1'&&glyph[1]<='9'&&(!glyph[2]||(glyph[1]=='1'&&glyph[2]>='0'&&glyph[2]<='2'&&!glyph[3]));
-    return function||!std::strcmp(glyph,"F")||!std::strcmp(glyph,"T")||!std::strcmp(glyph,"C")||!std::strcmp(glyph,"Del")||!std::strcmp(glyph,"Bksp")||!std::strcmp(glyph,"Space");
+    return function||!std::strcmp(glyph,"F")||!std::strcmp(glyph,"T")||!std::strcmp(glyph,"C")||!std::strcmp(glyph,"Del")||!std::strcmp(glyph,"Bksp")||!std::strcmp(glyph,"Space")||!std::strcmp(glyph,"PgUp")||!std::strcmp(glyph,"PgDn");
 }
 inline std::string PromptLabel(const char* glyph,const std::string& label,gamepads::PromptBrand brand,const gamepads::FightNames* names=MenuPromptNames()) {
     if(!std::strcmp(glyph,"Ctrl+Enter"))return "Ctrl+Enter "+label;
@@ -96,6 +97,9 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
         d->AddRect(capTop,capBottom,ivory,5*s,0,1.5f*s);
         // 12 and 16 at the legend's 32-pixel prompts, and in step at other sizes.
         if(keyFont<=0)keyFont=(std::strlen(glyph)>1?12:16)*size/32;
+        // A long legend ("PgDn") shrinks to fit inside the cap instead of running past it.
+        const float room=capBottom.x-capTop.x-4*s,wide=ImGui::GetFont()->CalcTextSizeA(keyFont,FLT_MAX,0,glyph).x;
+        if(wide>room&&wide>0)keyFont*=room/wide;
         const ImVec2 text=ImGui::GetFont()->CalcTextSizeA(keyFont,FLT_MAX,0,glyph);
         d->AddText(ImGui::GetFont(),keyFont,ImVec2((capTop.x+capBottom.x-text.x)*.5f,(capTop.y+capBottom.y-text.y)*.5f),ivory,glyph);
         return;
@@ -117,6 +121,17 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
         const char* name=BrandGlyph(glyph,brand,names).name;
         d->AddText(ImGui::GetFont(),12*size/32,ImVec2(at.x,at.y+8*size/32),ivory,*name?name:glyph);
     }
+}
+// A prompt's name as speech says it: a stick's own button name, else the last
+// word of its art, so a pad's button is named as its brand prints it
+// ("playstation_button_color_cross" is Cross, "xbox_lb" is LB, "keyboard_enter" Enter).
+inline std::string SpokenButton(const char* glyph,gamepads::PromptBrand brand=MenuPromptBrand(),const gamepads::FightNames* names=MenuPromptNames()) {
+    const auto found=BrandGlyph(glyph,brand,names);
+    if(*found.name)return found.name;
+    const char* last=std::strrchr(found.asset,'_');
+    std::string word=last?last+1:found.asset;
+    for(std::size_t i=0;i<word.size();++i)if(i==0||word.size()<=2)word[i]=static_cast<char>(std::toupper(static_cast<unsigned char>(word[i])));
+    return word;
 }
 // A screen's own button, shown after the standard ones.
 struct LegendHint { const char* glyph; std::string label; };

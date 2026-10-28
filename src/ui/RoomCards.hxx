@@ -18,6 +18,8 @@ constexpr float TableBannerHeight=22;
 // tip that explains it. With neither, nothing is drawn.
 struct LatencyMark {
     std::string text,tip;
+    // V2's chip: the estimate with its route, "Direct 44 ms"; none while unknown.
+    std::string routed;
     ImU32 color=IM_COL32(181,169,155,255);
 };
 
@@ -97,4 +99,7 @@ struct MemberCardView {
     bool focused=false,focusChanged=false,disabled=false;
 };
 CardInteraction DrawMemberCard(const MemberCardView& card);
+// The same member as a V2 list row in `min`-`max`: portrait, player tag, status
+// and link mark. The list draws the row's ground, focus and press.
+void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max);
 } }

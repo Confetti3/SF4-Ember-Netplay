@@ -237,6 +237,18 @@ msgstr "Updates"
 msgid "updates.downloaded_mb"
 msgstr "{0:.1f} MB gedownload"
 
+msgid "updates.downloaded_of_mb"
+msgstr "{0:.1f} MB van {1:.1f} MB gedownload"
+
+msgid "updates.step_found"
+msgstr "Gevonden"
+
+msgid "updates.step_verified"
+msgstr "Gecontroleerd"
+
+msgid "updates.step_installed"
+msgstr "Geïnstalleerd"
+
 msgid "services.checking"
 msgstr "Zoeken naar updates..."
 
@@ -429,6 +441,12 @@ msgstr "Navigeren"
 
 msgid "menu.adjust"
 msgstr "Aanpassen"
+
+msgid "speech.position"
+msgstr "{0} van {1}"
+
+msgid "speech.change"
+msgstr "Links of rechts om te wijzigen"
 
 msgid "rules.edition_select"
 msgstr "Editie kiezen"
@@ -800,10 +818,10 @@ msgid "replays.save_watched_detail"
 msgstr "Slaat ook wedstrijden op die je als toeschouwer bekijkt. Uit slaat alleen wedstrijden op die je zelf speelt."
 
 msgid "settings.watched_picture"
-msgstr "Bekeken spel in een hoek"
+msgstr "Beeld van het bekeken spel"
 
 msgid "settings.watched_picture_detail"
-msgstr "Met het menu van Ember open boven een spel dat je bekijkt, toont het spel klein rechtsboven over een dicht menu in plaats van gedimd erachter."
+msgstr "Het spel dat je bekijkt, boven het menu van Ember: Klein in een hoek die je kunt verslepen, Groot op de plek van de tafels op het kamerbord, Geen gedimd achter het menu."
 
 msgid "replays.share"
 msgstr "Mijn replays delen"
@@ -1387,7 +1405,7 @@ msgid "about.controls"
 msgstr "Besturing"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A selecteert en B gaat terug. PlayStation: Kruis selecteert en Cirkel gaat terug. Switch: B selecteert en A gaat terug, zoals in de menu's van het spel. Een in Ember ingestelde controller: De knop gekozen voor Lichte trap selecteert en die voor Middelzware trap gaat terug, ongeacht de knopindeling. Toetsenbord: pijlen, Enter en Escape. Het richtingspad beweegt; Links en Rechts veranderen een waarde. Teruggaan op Home verbergt Ember. F10, of Start op een controller, opent het weer in het hoofdmenu van het spel.\n\nIn een kamer laat A op een tafel je een plek kiezen, maakt A op je eigen plek je gereed en verlaat B je plek of de wachtrij (op andere controllers de knoppen op dezelfde posities). Op Xbox opent X Vechter, Y Opties en View Chat; druk nogmaals om terug te keren naar de kamer. PlayStation gebruikt Vierkant, Driehoek en Share of Create; Switch gebruikt Y, X en Minus.\n\nIn training opent F6 de bediening, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Houd op een controller View (Share, Create of Minus) vast en druk op Start."
+msgstr "Xbox: A selecteert en B gaat terug. PlayStation: Kruis selecteert en Cirkel gaat terug. Switch: B selecteert en A gaat terug, zoals in de menu's van het spel. Een in Ember ingestelde controller: De knop gekozen voor Lichte trap selecteert en die voor Middelzware trap gaat terug, ongeacht de knopindeling. Toetsenbord: pijlen, Enter en Escape. Het richtingspad beweegt; Links en Rechts veranderen een waarde. Teruggaan op Home verbergt Ember. F10, of Start op een controller, opent het weer in het hoofdmenu van het spel.\n\nIn een kamer laat A op een tafel je een plek kiezen, maakt A op je eigen plek je gereed en verlaat B je plek of de wachtrij (op andere controllers de knoppen op dezelfde posities). Op Xbox opent X Vechter, Y Opties en View Chat; druk nogmaals om terug te keren naar de kamer. PlayStation gebruikt Vierkant, Driehoek en Share of Create; Switch gebruikt Y, X en Minus.\n\nIn training opent F6 de bediening, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Houd op een controller View (Share, Create of Minus) vast en druk op Start. Op een Xbox-controller opent indrukken van de rechterstick (R3) ze ook."
 
 msgid "about.controls_keyboard"
 msgstr "Op het toetsenbord selecteert Spatie ook en gaat Backspace ook terug. In een kamer opent F Vechter, T Opties en C Chat. Escape gaat altijd terug, ook op je eigen plaats; Delete verlaat je plaats of wachtrij."
@@ -4866,6 +4884,12 @@ msgstr "{0} sets op rij"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Direct {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Relay {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Geschatte ping: ongeveer {0} ms."
 
@@ -5214,11 +5238,236 @@ msgstr "De framemeter in wedstrijden, automatisch gereed na Training en welke we
 msgid "settings.training_replays_title"
 msgstr "TRAINING EN REPLAYS"
 
+msgid "settings.accessibility"
+msgstr "Toegankelijkheid"
+
+msgid "settings.accessibility_detail"
+msgstr "Spraak die de menu's van Ember voorleest."
+
+msgid "settings.accessibility_title"
+msgstr "TOEGANKELIJKHEID"
+
+msgid "speech.setting"
+msgstr "Spraak"
+
+msgid "speech.setting_detail"
+msgstr "Leest de menu's van Ember voor terwijl je erdoorheen gaat. F1 stopt de stem."
+
+msgid "speech.intro"
+msgstr "Spraak staat aan. Beweeg om elk item te horen. Druk op {0} om te horen wat het doet; druk opnieuw om te stoppen. Meer opties staan in Instellingen, Toegankelijkheid."
+
+msgid "speech.rate"
+msgstr "Spreeksnelheid"
+
+msgid "speech.rate_detail"
+msgstr "Hoe snel de stem spreekt. 0 is het normale tempo."
+
+msgid "speech.volume"
+msgstr "Spraakvolume"
+
+msgid "speech.volume_detail"
+msgstr "Hoe luid de stem spreekt."
+
+msgid "speech.details"
+msgstr "Beschrijvingen automatisch voorlezen"
+
+msgid "speech.details_detail"
+msgstr "Leest de beschrijving van een rij vanzelf voor als je er even op blijft staan. Uit leest F2 ze op verzoek."
+
+msgid "speech.hints"
+msgstr "Knophints voorlezen"
+
+msgid "speech.hints_detail"
+msgstr "Leest voor wat je knoppen doen op de rij waarop je blijft staan."
+
+msgid "speech.read_position"
+msgstr "Positie voorlezen"
+
+msgid "speech.read_position_detail"
+msgstr "Zegt na de naam en waarde van een rij de plaats in de lijst, zoals 3 van 12."
+
+msgid "speech.more"
+msgstr "{0} voor meer"
+
+msgid "speech.help"
+msgstr "{0} voor hulp bij elk item"
+
+msgid "speech.remind"
+msgstr "Herinner me aan de beschrijfknop"
+
+msgid "speech.remind_detail"
+msgstr "Zegt na de naam van een rij met een beschrijving welke knop die voorleest. Automatisch stopt zodra je de knop drie keer hebt gebruikt."
+
+msgid "speech.remind_auto"
+msgstr "Tot 3 keer gebruikt"
+
+msgid "speech.tick"
+msgstr "Beschrijvingstik"
+
+msgid "speech.tick_detail"
+msgstr "Zodra de herinnering stopt, zegt een zachte tik na de naam van een rij dat die een beschrijving heeft."
+
+msgid "speech.notice"
+msgstr "Melding. Druk op {0} om ze te horen."
+
+msgid "speech.chime"
+msgstr "Meldingsgeluid"
+
+msgid "speech.chime_detail"
+msgstr "Een kort geluid voordat de spraak zegt dat er vanzelf een melding is geopend."
+
+msgid "speech.chime_volume"
+msgstr "Volume meldingsgeluid"
+
+msgid "speech.chime_volume_detail"
+msgstr "Hoe luid het meldingsgeluid klinkt."
+
+msgid "speech.voice"
+msgstr "Stem"
+
+msgid "speech.voice_detail"
+msgstr "Op Linux en de Steam Deck downloadt Ember één keer een natuurlijke stem voor je taal (ongeveer 90 MB) en bewaart die. Tot ze klaar is, en voor talen zonder zo'n stem, spreekt de systeemstem."
+
+msgid "speech.voice_system"
+msgstr "Systeemstem"
+
+msgid "speech.voice_downloading"
+msgstr "Downloaden, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Natuurlijke stem"
+
+msgid "speech.voice_download_failed"
+msgstr "Download mislukt"
+
+msgid "speech.voice_ready"
+msgstr "De natuurlijke stem is klaar en spreekt vanaf nu."
+
+msgid "speech.voice_failed"
+msgstr "De natuurlijke stem kon niet worden gedownload, dus spreekt de systeemstem. Ember probeert het opnieuw bij de volgende start."
+
+msgid "speech.pack"
+msgstr "Stempakket {0}"
+
+msgid "speech.pack_missing"
+msgstr "Niet gedownload, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Gedownload, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Update beschikbaar, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Verwijderd"
+
+msgid "speech.pack_detail"
+msgstr "Elke zin die Ember zegt, één keer opgenomen met een natuurlijke stem. Wordt vanzelf gedownload als spraak aan staat; selecteer om opnieuw te downloaden of bij te werken."
+
+msgid "speech.pack_download"
+msgstr "Downloaden"
+
+msgid "speech.pack_remove"
+msgstr "Stempakket verwijderen"
+
+msgid "speech.pack_remove_detail"
+msgstr "Verwijdert het stempakket van deze pc. De systeemstem spreekt tot je het opnieuw downloadt."
+
+msgid "speech.pack_downloading"
+msgstr "De stem voor {0} wordt gedownload ({1} MB). Tot ze klaar is, spreekt de systeemstem."
+
+msgid "speech.pack_failed"
+msgstr "Het stempakket kon niet worden gedownload, dus spreekt de systeemstem. Selecteer het stempakket in Instellingen, Toegankelijkheid om het opnieuw te proberen."
+
+msgid "speech.no_windows_voice"
+msgstr "Spraak staat aan, maar Windows heeft geen stem om mee te spreken. Voeg er een toe via Windows-instellingen, Tijd en taal, Spraak."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Spraak staat aan, maar speech-dispatcher was niet bereikbaar. Op Linux en de Steam Deck spreekt Ember via speech-dispatcher, dat ook python3 nodig heeft."
+
 msgid "room.table_footer_practice"
 msgstr "Oefenwedstrijd"
 
 msgid "room.rules_summary_practice"
 msgstr "Oefenwedstrijd, {0} rondes, {1} s, Edition Select {2}"
+
+msgid "room.type"
+msgstr "Soort kamer"
+
+msgid "room.type.classic"
+msgstr "Klassiek"
+
+msgid "room.type.arcade"
+msgstr "Arcade"
+
+msgid "room.type.classic_detail"
+msgstr "Spelers staan in de rij bij een tafel en spelen daar."
+
+msgid "room.type.arcade_detail"
+msgstr "Zestien kasten: ga aan een vrije zitten en speel tegen wie het langst wacht. Na een set kiezen beiden Rematch om opnieuw te spelen, anders speelt ieder tegen de volgende die wacht."
+
+msgid "room.arcade_status"
+msgstr "Arcadekamer / alleen op uitnodiging"
+
+msgid "room.arcade_locked_status"
+msgstr "Arcadekamer op slot / alleen op uitnodiging"
+
+msgid "room.arcade_sit"
+msgstr "Gaan zitten"
+
+msgid "room.arcade_sit_detail"
+msgstr "Ga hier zitten: je speelt tegen wie het langst wacht, of wacht op de volgende die gaat zitten."
+
+msgid "room.arcade_waiting"
+msgstr "Wacht"
+
+msgid "room.cabinet_free"
+msgstr "WERP MUNT IN"
+
+msgid "room.type.king"
+msgstr "King of the hill"
+
+msgid "room.type.king_detail"
+msgstr "Zestien kasten, alle paren spelen tegelijk: de winnaar van een set blijft zitten en speelt tegen de volgende uitdager. De langste huidige winreeks heeft de toppositie."
+
+msgid "room.cabinet_row"
+msgstr "Kast {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "vrij"
+
+msgid "room.arcade_move_detail"
+msgstr "Ga tussen twee potjes naar deze kast. Je tegenstander en je reeks blijven."
+
+msgid "room.arcade_vs"
+msgstr "tegen {0}"
+
+msgid "room.rematch"
+msgstr "Rematch"
+
+msgid "room.rematch_detail"
+msgstr "Speel opnieuw tegen dezelfde tegenstander. Het begint zodra jullie het allebei kiezen."
+
+msgid "room.new_opponent"
+msgstr "Nieuwe tegenstander"
+
+msgid "room.new_opponent_detail"
+msgstr "Blijf zitten en speel tegen wie het langst wacht, of wacht op de volgende die gaat zitten."
+
+msgid "room.rematch_ask"
+msgstr "Rematch?"
+
+msgid "room.rematch_chosen"
+msgstr "Rematch gekozen"
+
+msgid "room.top_slot"
+msgstr "TOPPOSITIE"
+
+msgid "room.top_slot_none"
+msgstr "Win een set om de toppositie te pakken."
+
+msgid "room.rules.arcade"
+msgstr "De regels van een arcadekamer worden bij het maken gekozen en gelden aan elke tafel."
 
 msgid "room.practice"
 msgstr "Oefenkamer"
@@ -7219,6 +7468,84 @@ msgstr "Klasse-emblemen"
 msgid "settings.class_emblems_detail"
 msgstr "Toont de klasse van elke speler naast zijn naam in openbare kamers. Uit verbergt ze alleen op jouw scherm. Anderen zien de jouwe nog steeds en je potjes tellen nog steeds mee."
 
+msgid "settings.look"
+msgstr "Uiterlijk"
+
+msgid "settings.look.classic"
+msgstr "Klassiek"
+
+msgid "settings.look.v2"
+msgstr "V2 (voorproef)"
+
+msgid "settings.look_detail"
+msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw. Je kunt altijd terugschakelen: alleen hoe de schermen eruitzien verandert."
+
+msgid "settings.tv_mode"
+msgstr "Tv-modus"
+
+msgid "settings.tv_mode_detail"
+msgstr "Voor een tv aan de andere kant van de kamer: alles een kwart groter, binnen een veilige rand van 5%."
+
+msgid "menu.pages"
+msgstr "Pagina's"
+
+msgid "room.controls_detail"
+msgstr "Je controller en zijn knoppen, zonder de kamer te verlaten."
+
+msgid "settings.picture_corner"
+msgstr "Hoek van het beeld"
+
+msgid "settings.picture_corner_detail"
+msgstr "In welke hoek het beeld van de bekeken wedstrijd staat. Met een muis kun je het ook naar een andere hoek slepen."
+
+msgid "settings.picture_size"
+msgstr "Grootte van het beeld"
+
+msgid "settings.picture_size_detail"
+msgstr "Hoe groot het beeld van de bekeken wedstrijd is. Met een muis kun je ook aan de greep slepen."
+
+msgid "settings.tab.player"
+msgstr "Speler"
+
+msgid "settings.tab.matches"
+msgstr "Wedstrijden"
+
+msgid "settings.tab.interface"
+msgstr "Interface"
+
+msgid "settings.tab.accessibility"
+msgstr "Toegankelijkheid"
+
+msgid "settings.tab.online"
+msgstr "Online"
+
+msgid "settings.tab.about"
+msgstr "Over"
+
+msgid "settings.group.look"
+msgstr "Uiterlijk"
+
+msgid "settings.group.sounds"
+msgstr "Geluiden"
+
+msgid "settings.group.text"
+msgstr "Tekst en taal"
+
+msgid "settings.group.help"
+msgstr "Hulp op het scherm"
+
+msgid "settings.panel.open"
+msgstr "Open"
+
+msgid "settings.panel.closed"
+msgstr "Gesloten"
+
+msgid "settings.panel.open_action"
+msgstr "Paneel openen"
+
+msgid "settings.panel.close_action"
+msgstr "Paneel sluiten"
+
 
 msgid "class.developer"
 msgstr "Dev"
@@ -7228,3 +7555,552 @@ msgstr "Ember-ontwikkelaar"
 
 msgid "rankings.developer_detail"
 msgstr "Ember-ontwikkelaars tonen dit teken in plaats van een klasse en staan niet op de ranglijst. Je potjes tellen wel mee."
+
+msgid "room.v2.board"
+msgstr "Bord"
+
+msgid "room.v2.tables"
+msgstr "TAFELS"
+
+msgid "room.v2.table"
+msgstr "TAFEL {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "{0} spelen · {1} kijken"
+
+msgid "room.v2.group_playing"
+msgstr "SPELEN"
+
+msgid "room.v2.group_at_table"
+msgstr "AAN EEN TAFEL"
+
+msgid "room.v2.group_watching"
+msgstr "KIJKEN"
+
+msgid "room.v2.group_in_room"
+msgstr "IN DE KAMER"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · ONLINE · PRIVÉKAMER"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · ONLINE · OPENBARE KAMER"
+
+msgid "room.v2.invitation_only"
+msgstr "Alleen op uitnodiging"
+
+msgid "room.v2.listed"
+msgstr "Staat in Openbare kamers"
+
+msgid "room.v2.type_message"
+msgstr "Typ een bericht"
+
+msgid "room.v2.more"
+msgstr "Meer…"
+
+msgid "room.v2.more_detail"
+msgstr "Tafelopties, kamerinstellingen en uitnodigingslinks."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Beeld"
+
+msgid "room.v2.picture_none"
+msgstr "Geen"
+
+msgid "room.v2.part_detail"
+msgstr "Toont of verbergt dit deel van het kamerbord. De andere delen nemen zijn plaats in."
+
+msgid "room.v2.picture_detail"
+msgstr "Het spel dat je bekijkt: klein in een hoek, groot op de plek van de tafels, of geen."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Een klein venster boven het menu. Sleep het naar een andere hoek, of sleep de rand om het groter of kleiner te maken."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Groot, op de plek van de tafels op het kamerbord."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Geen beeld: het spel blijft gedimd achter het menu."
+
+msgid "room.v2.hide"
+msgstr "Verbergen"
+
+msgid "room.v2.hide_members"
+msgstr "Leden verbergen"
+
+msgid "room.v2.hide_chat"
+msgstr "Chat verbergen"
+
+msgid "room.v2.hide_picture"
+msgstr "Beeld verbergen"
+
+msgid "room.v2.hide_detail"
+msgstr "Klapt het in tot de kop. Tonen klapt het weer uit."
+
+msgid "room.v2.show"
+msgstr "Tonen"
+
+msgid "room.v2.show_detail"
+msgstr "Klapt het weer helemaal uit."
+
+msgid "room.v2.copy_invite"
+msgstr "Uitnodiging"
+
+msgid "room.v2.copy_link"
+msgstr "Korte link"
+
+msgid "settings.room_show_members_detail"
+msgstr "Het paneel Leden op het kamerbord. Verborgen neemt Chat de kolom, of de tafels de volle breedte."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Het paneel Chat op het kamerbord. Verborgen neemt Leden de kolom, of de tafels de volle breedte."
+
+msgid "room.v2.unread"
+msgstr "{0} ongelezen"
+
+msgid "online.eyebrow"
+msgstr "EMBER · ONLINE"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · ONLINE · HOSTEN"
+
+msgid "online.eyebrow_join"
+msgstr "ONLINE · DEELNEMEN"
+
+msgid "online.eyebrow_browse"
+msgstr "ONLINE · BLADEREN"
+
+msgid "public.your_region"
+msgstr "Jouw regio {0}"
+
+msgid "home.notifications"
+msgstr "Meldingen"
+
+msgid "notifications.none"
+msgstr "Nog niets."
+
+msgid "notifications.none_detail"
+msgstr "Wat Ember meldt, zoals een gekopieerde link of een verlaten kamer, blijft hier staan voor deze sessie."
+
+msgid "home.news"
+msgstr "Nieuws"
+
+msgid "news.heading"
+msgstr "NIEUWS"
+
+msgid "news.more"
+msgstr "Kies Nieuws in de lijst voor elke release."
+
+msgid "news.none"
+msgstr "Nog geen nieuws"
+
+msgid "news.none_detail"
+msgstr "Het nieuws komt uit Embers releases zodra de updatecontrole gelopen heeft."
+
+msgid "settings.group.room_layout"
+msgstr "Kamerindeling"
+
+msgid "settings.room_column"
+msgstr "Kolombreedte"
+
+msgid "settings.room_column_detail"
+msgstr "Hoeveel van het bord van de kamer de kolom met leden en chat inneemt. In een kamer sleept de muis ook de lijn ertussen."
+
+msgid "settings.room_split"
+msgstr "Leden en chat"
+
+msgid "settings.room_split_detail"
+msgstr "Hoe de kolom verdeeld is: leden boven chat. Chat houdt altijd drie regels. In een kamer sleept de muis ook de lijn ertussen."
+
+msgid "settings.room_preset"
+msgstr "Kant-en-klare indeling"
+
+msgid "settings.room_preset_detail"
+msgstr "Bord eerst geeft de tafels de ruimte, Chat eerst het gesprek; Gebalanceerd zit ertussenin."
+
+msgid "settings.room_preset.board"
+msgstr "Bord eerst"
+
+msgid "settings.room_preset.balanced"
+msgstr "Gebalanceerd"
+
+msgid "settings.room_preset.chat"
+msgstr "Chat eerst"
+
+msgid "settings.room_layout_reset"
+msgstr "Standaard herstellen"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Zet de kolom en de verdeling tussen leden en chat terug op Gebalanceerd."
+
+msgid "menu.choices_count"
+msgstr "{0} keuzes"
+
+msgid "menu.choices_keys"
+msgstr "Richtingen bewegen · Kiezen neemt · Terug houdt {0}"
+
+msgid "selection.costume"
+msgstr "Kostuum"
+
+msgid "selection.color_row"
+msgstr "Kleur"
+
+msgid "selection.ready_with"
+msgstr "Klaar met {0}"
+
+msgid "selection.ready_detail"
+msgstr "Houd deze vechter en ga terug."
+
+msgid "country.first_letter"
+msgstr "EERSTE LETTER"
+
+msgid "country.letter_detail"
+msgstr "Landen: {0}"
+
+msgid "country.board_help"
+msgstr "Een letter toont zijn landen. Met een toetsenbord typ je een letter om erheen te springen."
+
+msgid "news.tab.all"
+msgstr "Alles"
+
+msgid "news.tab.updates"
+msgstr "Ember-updates"
+
+msgid "news.tab.changelog"
+msgstr "Wijzigingen"
+
+msgid "news.kind.update"
+msgstr "Update"
+
+msgid "news.new"
+msgstr "Nieuw"
+
+msgid "news.update_now_detail"
+msgstr "Sluit het spel en installeert {0} met de Launcher. Je instellingen blijven bewaard."
+
+msgid "replays.tab.matches"
+msgstr "Wedstrijden"
+
+msgid "replays.tab.sets"
+msgstr "Sets"
+
+msgid "replays.set_detail"
+msgstr "{0} wedstrijden"
+
+msgid "replays.game"
+msgstr "Wedstrijd {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Vechters"
+
+msgid "replays.fact.played"
+msgstr "Gespeeld"
+
+msgid "replays.fact.length"
+msgstr "Duur"
+
+msgid "keyboard.recent"
+msgstr "Recent:"
+
+msgid "keyboard.type"
+msgstr "Typen"
+
+msgid "keyboard.delete"
+msgstr "Wissen"
+
+msgid "keyboard.space"
+msgstr "Spatie"
+
+msgid "keyboard.capitals"
+msgstr "Hoofdletters"
+
+msgid "keyboard.done"
+msgstr "Klaar"
+
+msgid "welcome.title"
+msgstr "Welkom"
+
+msgid "welcome.step"
+msgstr "WELKOM · STAP {0} VAN {1}"
+
+msgid "welcome.speech_title"
+msgstr "Wil je dat Ember voorleest?"
+
+msgid "welcome.speech_text"
+msgstr "Ember kan elk menu hardop voorlezen. Je kunt dit altijd wijzigen in Instellingen."
+
+msgid "welcome.speech_on"
+msgstr "Ja, lees menu's voor"
+
+msgid "welcome.speech_on_detail"
+msgstr "Gebruikt je schermlezer als die draait, anders Windows-spraak."
+
+msgid "welcome.speech_off"
+msgstr "Geen spraak"
+
+msgid "welcome.speech_off_detail"
+msgstr "Je kunt het later aanzetten."
+
+msgid "welcome.language_title"
+msgstr "Welke taal moet Ember gebruiken?"
+
+msgid "welcome.language_text"
+msgstr "De menu's van Ember gebruiken deze taal. Het spel houdt zijn eigen taal."
+
+msgid "welcome.controller_title"
+msgstr "Met welke controller ga je spelen?"
+
+msgid "welcome.controller_text"
+msgstr "Ember toont overal de knopafbeeldingen van die controller."
+
+msgid "welcome.controller_ready"
+msgstr "Klaar: {0}."
+
+msgid "welcome.look_title"
+msgstr "Welk uiterlijk wil je?"
+
+msgid "welcome.look_text"
+msgstr "Je kunt altijd wisselen in Instellingen: alleen hoe de schermen eruitzien verandert."
+
+msgid "welcome.look_classic"
+msgstr "Klassiek"
+
+msgid "welcome.look_classic_detail"
+msgstr "De menu's van Ember zoals ze altijd waren."
+
+msgid "welcome.look_v2"
+msgstr "V2 (voorproef)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw."
+
+msgid "welcome.chosen"
+msgstr "Gekozen"
+
+msgid "welcome.next"
+msgstr "Volgende"
+
+msgid "welcome.start"
+msgstr "Begin met spelen"
+
+msgid "welcome.next_detail"
+msgstr "Door naar de volgende vraag."
+
+msgid "welcome.skip"
+msgstr "Overslaan"
+
+msgid "welcome.skip_detail"
+msgstr "Meteen naar Start. Alles hier staat ook in Instellingen."
+
+msgid "welcome.previous"
+msgstr "Vorige stap"
+
+msgid "screen.awards"
+msgstr "Onderscheidingen"
+
+msgid "awards.titles"
+msgstr "Titels"
+
+msgid "awards.icons"
+msgstr "Iconen"
+
+msgid "awards.card"
+msgstr "Jouw kaart"
+
+msgid "awards.card_detail"
+msgstr "Jouw kaart zoals anderen hem zien. Selecteer opent je onderscheidingen: de titels en iconen die je kunt dragen."
+
+msgid "awards.entry_detail"
+msgstr "De titels en iconen die je hebt verdiend, en hoe je de rest verdient. Selecteer er een om hem op je kaart te dragen."
+
+msgid "awards.earned_count"
+msgstr "{0} van {1} verdiend"
+
+msgid "awards.card_heading"
+msgstr "JOUW KAART · ZOALS ANDEREN HEM ZIEN"
+
+msgid "awards.where_heading"
+msgstr "WAAR HIJ TE ZIEN IS"
+
+msgid "awards.on_card"
+msgstr "Op je kaart"
+
+msgid "awards.earned"
+msgstr "Verdiend"
+
+msgid "awards.locked"
+msgstr "Vergrendeld"
+
+msgid "awards.wear"
+msgstr "Op kaart zetten"
+
+msgid "awards.detail_worn"
+msgstr "Op je kaart."
+
+msgid "awards.detail_earned"
+msgstr "Verdiend. Selecteer zet hem op je kaart."
+
+msgid "awards.detail_locked"
+msgstr "Vergrendeld. {0}."
+
+msgid "tier.ash"
+msgstr "As"
+
+msgid "tier.copper"
+msgstr "Koper"
+
+msgid "tier.silver"
+msgstr "Zilver"
+
+msgid "tier.gold"
+msgstr "Goud"
+
+msgid "tier.ember"
+msgstr "Ember"
+
+msgid "award.entrant.title"
+msgstr "EMBER-DEELNEMER"
+
+msgid "award.entrant.icon"
+msgstr "Vonk"
+
+msgid "award.entrant.how"
+msgstr "Speel één set in een Ember-bracket"
+
+msgid "award.launch-night.title"
+msgstr "LANCEERAVOND"
+
+msgid "award.launch-night.icon"
+msgstr "Terugspoelen"
+
+msgid "award.launch-night.how"
+msgstr "Speel tijdens het lanceringsevenement van Ember"
+
+msgid "award.weekly-top16.title"
+msgstr "WEEKLY TOP 16"
+
+msgid "award.weekly-top16.icon"
+msgstr "Lauwerkrans"
+
+msgid "award.weekly-top16.how"
+msgstr "Eindig in de top 16 van een Ember Weekly"
+
+msgid "award.rollback-regular.title"
+msgstr "ROLLBACK-VASTE KLANT"
+
+msgid "award.rollback-regular.icon"
+msgstr "Kalender"
+
+msgid "award.rollback-regular.how"
+msgstr "Doe mee aan 10 Ember Weeklies in één seizoen"
+
+msgid "award.weekly-top8.title"
+msgstr "WEEKLY TOP 8"
+
+msgid "award.weekly-top8.icon"
+msgstr "Achthoek 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Eindig in de top 8 van een Ember Weekly"
+
+msgid "award.by-ear.title"
+msgstr "OP HET GEHOOR"
+
+msgid "award.by-ear.icon"
+msgstr "Geluidsgolf"
+
+msgid "award.by-ear.how"
+msgstr "Win een set in de bracket met alleen geluid"
+
+msgid "award.monthly-finalist.title"
+msgstr "MAANDFINALIST"
+
+msgid "award.monthly-finalist.icon"
+msgstr "Medaille"
+
+msgid "award.monthly-finalist.how"
+msgstr "Haal de grote finale van een Ember Monthly"
+
+msgid "award.organizer.title"
+msgstr "TOERNOOIORGANISATOR"
+
+msgid "award.organizer.icon"
+msgstr "Vlag"
+
+msgid "award.organizer.how"
+msgstr "Door het Ember-team toegekend aan organisatoren"
+
+msgid "award.commentary.title"
+msgstr "COMMENTATOR"
+
+msgid "award.commentary.icon"
+msgstr "Microfoon"
+
+msgid "award.commentary.how"
+msgstr "Toegekend aan stream-commentatoren"
+
+msgid "award.season1-veteran.title"
+msgstr "SEIZOEN 1-VETERAAN"
+
+msgid "award.season1-veteran.icon"
+msgstr "Wapen"
+
+msgid "award.season1-veteran.how"
+msgstr "Eindig in de top 32 van elke Monthly van seizoen 1"
+
+msgid "award.cup-champion.title"
+msgstr "EMBER CUP-KAMPIOEN"
+
+msgid "award.cup-champion.icon"
+msgstr "Kroon"
+
+msgid "award.cup-champion.how"
+msgstr "Win de Ember Cup aan het eind van het seizoen"
+
+msgid "toast.kind.invitation"
+msgstr "UITNODIGING"
+
+msgid "toast.kind.room"
+msgstr "KAMER"
+
+msgid "toast.kind.update"
+msgstr "UPDATE"
+
+msgid "toast.kind.match"
+msgstr "WEDSTRIJD"
+
+msgid "toast.kind.system"
+msgstr "SYSTEEM"
+
+msgid "toast.join"
+msgstr "Meedoen"
+
+msgid "toast.open"
+msgstr "Openen"
+
+msgid "discord.invitation_notice"
+msgstr "Je bent via Discord uitgenodigd in een kamer."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} staat klaar om te installeren."
+
+msgid "home.training"
+msgstr "Training"
+
+msgid "home.training_detail"
+msgstr "Ga direct naar de Training-modus, zonder de Fight Request-vraag."
+
+msgid "home.training_unavailable"
+msgstr "Training kan nu niet: verlaat eerst de room of match en ga terug naar het hoofdmenu van de game."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Kasten {0} en {1}"

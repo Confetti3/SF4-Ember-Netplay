@@ -1,5 +1,7 @@
 #include "ApplicationShell.hxx"
 #include "MenuRows.hxx"
+#include "Theme.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cstdint>
@@ -39,11 +41,15 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
  rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
- // Only a private room can be a Practice room, which has no round time to choose.
- const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_;
+ // Any new room has a type; only a private one can be a Practice room, which
+ // has no round time to choose.
+ const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_,arcade=screen=="create"&&createArcade_;
+ if(screen=="create")rows.push_back(RoomTypeRow(createArcade_,can));
  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
  rows.push_back(DelayPolicyRow(preferences_.roomDelayPolicy,can));
  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason,practice);
+ // An Arcade pair rematches after every set, so nobody stays or rotates.
+ if(arcade)rows.erase(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="rotation";}));
  if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
   Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
    can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
@@ -55,7 +61,7 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
  using namespace netplay;
  if(a.id=="create")OpenCreate();
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
- else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy);}
+ else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,createArcade_);}
  else if(a.id=="delete-template"&&createTemplate_>=0&&createTemplate_<static_cast<int>(preferences_.roomTemplates.size())){
   preferences_.roomTemplates.erase(preferences_.roomTemplates.begin()+createTemplate_);
   createTemplate_=-1;createTables_.reset();preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
@@ -70,6 +76,7 @@ bool ApplicationShell::CreateAdjust(const MenuAction& a) {
   ApplyRoomTemplate((createTemplate_+1+(a.delta>0?1:count))%(count+1)-1);
   return true;
  }
+ if(a.id=="room-type"){createArcade_=static_cast<room::RoomType>((std::max)(0,(std::min)(2,static_cast<int>(createArcade_)+a.delta)));return true;}
  if(a.id!="practice-room")return false;
  createPractice_=a.delta>0;
  return true;
@@ -127,7 +134,7 @@ void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& 
 
 // Create public room opens Create on Public, which stays the default until changed.
 void ApplicationShell::OpenCreate() {
- createPractice_=false;createTemplate_=-1;createTables_.reset();menu_.navigation.Push("create");
+ createPractice_=false;createArcade_=room::ClassicRoom;createTemplate_=-1;createTables_.reset();menu_.navigation.Push("create");
 }
 void ApplicationShell::OpenPublicCreate() {
  if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
@@ -143,5 +150,61 @@ void ApplicationShell::ApplyPublicDefaultName() {
  if(name.empty())return;
  preferences_.roomName=loc::Tf("public.default_name",name);
  preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
+}
+
+// V2's Create, as the design's board: the room's settings and the table's rules
+// in two panels (one above the other on a narrow screen), the focused row's
+// words under them and the button that opens the room. The rows and their
+// order are RoomSetupRows'; up and down still walk them in that order.
+void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback) {
+ const float s=Scale(),width=ImGui::GetContentRegionAvail().x,rowHeight=48*s,valueWidth=164*s;
+ auto* d=ImGui::GetWindowDrawList();
+ const auto focus=nav.Focus();
+ const bool changed=focus!=createFocus_;
+ createFocus_=focus;
+ // Room: up to its delay policy; Rules: the rest; the button: Create or Stop.
+ std::vector<const MenuEntry*> panels[2];const MenuEntry* button=nullptr;
+ for(std::size_t i=0,p=0;i<rows.size();++i){
+  if(rows[i].id=="host"||rows[i].id=="cancel-open")button=&rows[i];
+  else{panels[p].push_back(&rows[i]);if(rows[i].id=="delay-policy")p=1;}
+ }
+ const auto origin=ImGui::GetCursorScreenPos();
+ const bool across=!v2::Narrow(ImGui::GetWindowWidth(),s);
+ const float panelWidth=across?(width-24*s)*.5f:width;
+ const char* names[]={loc::T("screen.room"),loc::T("room.table_rules")};
+ float bottom=origin.y;
+ for(int i=0;i<2;++i){
+  const ImVec2 at(origin.x+(across?i*(panelWidth+24*s):0),across||!i?origin.y:bottom+12*s);
+  const float inner=panels[i].size()*(rowHeight+4*s);
+  const v2::Box panel{at,ImVec2(at.x+panelWidth,at.y+40*s+12*s+inner)};
+  float y=v2::Panel(d,panel,names[i]).min.y+8*s;
+  for(const MenuEntry* row:panels[i]){
+   const auto& e=*row;
+   const v2::Box r{ImVec2(at.x+12*s,y),ImVec2(panel.max.x-12*s,y+rowHeight)};
+   y+=rowHeight+4*s;
+   const bool focused=e.id==focus,hovered=PressEntry(nav,rows,e,r,action,changed,valueWidth).hovered;
+   v2::RowGround(d,r,focused,hovered);
+   DrawMenuRow(d,e,r,feedback.Enabled(e),valueWidth,14*s);
+   if(focused){
+    v2::Focus(d,r.min,r.max);
+    if(!e.choices.empty())menu_.bodyChoices={r,{panel.min,ImVec2(panel.max.x,origin.y+height)}};
+   }
+  }
+  bottom=(std::max)(bottom,panel.max.y);
+ }
+ // The focused row's words, then the button.
+ const auto shown=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==focus;});
+ const v2::Box words{ImVec2(origin.x,bottom+12*s),ImVec2(origin.x+width,bottom+12*s+52*s)};
+ v2::Words(d,words,shown!=rows.end()?shown->label:std::string(),shown!=rows.end()?shown->detail:std::string(),false);
+ float end=words.max.y;
+ if(button){
+  const auto& e=*button;
+  const float w=(std::min)(width,(std::max)(260*s,ImGui::CalcTextSize(e.label.c_str()).x+48*s));
+  const v2::Box b{ImVec2(origin.x+width-w,end+12*s),ImVec2(origin.x+width,end+12*s+48*s)};
+  v2::Button(d,b,e.label,v2::ButtonKind::Primary,e.id==focus,PressEntry(nav,rows,e,b,action,changed).hovered,feedback.Enabled(e));
+  end=b.max.y;
+ }
+ ImGui::SetCursorScreenPos(ImVec2(origin.x,end));
+ ImGui::Dummy(ImVec2(width,0));
 }
 } }

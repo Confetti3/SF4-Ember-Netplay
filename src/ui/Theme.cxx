@@ -49,6 +49,7 @@ std::optional<loc::Locale> CatalogInAtlas(loc::Locale active) {
 // What the current atlas holds, and the script-font ranges it was built from,
 // which ImGui reads by pointer and so must outlive the build.
 std::optional<loc::Locale> atlasCatalog;
+bool atlasEm = false;
 float interfaceSize = 1.f;
 ImVector<ImWchar> scriptRanges[ScriptFontCount];
 
@@ -162,7 +163,7 @@ void NoteUserText(const std::string& utf8, UserTextRole role) {
     }
 }
 void SetAtlasBuildLog(std::function<void(const char*)> log) { atlasBuildLog = std::move(log); }
-bool ApplyTheme(float displayScale, float interfaceScale) {
+bool ApplyTheme(float displayScale, float interfaceScale, bool em) {
     interfaceSize = interfaceScale;
     const float scale = (std::max)(1.f, (std::min)(displayScale * interfaceScale, 3.f));
     auto& io = ImGui::GetIO();
@@ -175,13 +176,14 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     const bool userGlyphsAdded = !std::includes(atlasUserGlyphs.begin(), atlasUserGlyphs.end(), wantedUserGlyphs.begin(), wantedUserGlyphs.end());
     const bool userGlyphsDue = userGlyphsAdded && (!userGlyphBuildSeen || now - lastUserGlyphBuild >= rebuildInterval);
     if (io.Fonts->Fonts.Size == 3 &&
-        std::fabs(io.Fonts->Fonts[0]->FontSize - BodySize) < .01f &&
-        std::fabs(io.FontGlobalScale - scale) < .001f && atlasCatalog == catalog && !userGlyphsDue)
+        std::fabs(io.Fonts->Fonts[0]->FontSize * io.Fonts->Fonts[0]->Scale - BodySize) < .01f &&
+        std::fabs(io.FontGlobalScale - scale) < .001f && atlasCatalog == catalog && atlasEm == em && !userGlyphsDue)
         return false;
     io.FontDefault = nullptr;
     io.Fonts->Clear();
     BuildScriptRanges(catalog, wantedUserGlyphs);
     atlasCatalog = catalog;
+    atlasEm = em;
     if (userGlyphsAdded) { lastUserGlyphBuild = now; userGlyphBuildSeen = true; }
     atlasUserGlyphs = wantedUserGlyphs;
     // The catalog's font merges first so it draws the Han characters Japanese
@@ -194,6 +196,7 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
         // BuildRanges always writes the terminator; one entry means no glyphs.
         if (!drawsCatalog(font) && scriptRanges[font].Size > 1) mergeOrder.push_back(font);
     const float sizes[] = {BodySize, 28.f, 16.f};
+    float spans[] = {1.f, 1.f, 1.f};
     for (int i = 0; i < 3; ++i) {
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
@@ -210,9 +213,15 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
         config.OversampleH = dense ? 1 : 3; config.OversampleV = dense ? 1 : 2;
         const auto* data = i == 1 ? fonts::Heading : fonts::Body;
         const int bytes = static_cast<int>(i == 1 ? sizeof(fonts::Heading) : sizeof(fonts::Body));
+        // V2 sizes text as the design boards do, by the em (CSS font-size), where
+        // ImGui sizes it by its line span: Inter's span is 1.21 em, so the body and
+        // heading fonts bake that much larger, lifted to stay centred on their size.
+        if (em && i != 2) spans[i] = (std::max)(1.f, FontLineSpanEm(data, static_cast<std::size_t>(bytes)));
+        const float baked = std::round(sizes[i] * spans[i]);
+        config.GlyphOffset.y = -baked * (spans[i] - 1) / (2 * spans[i]);
         std::snprintf(config.Name, sizeof(config.Name), "%s %.0fpx",
-            i == 1 ? "Inter SemiBold" : "Inter Regular", sizes[i]*scale);
-        io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(data), bytes, sizes[i], &config);
+            i == 1 ? "Inter SemiBold" : "Inter Regular", baked*scale);
+        io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(data), bytes, baked, &config);
         for (const auto font : mergeOrder) {
             ImFontConfig merged;
             merged.MergeMode = true;
@@ -233,8 +242,8 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
             const float interSpan = FontLineSpanEm(data, static_cast<std::size_t>(bytes));
             const float cjkSpan = FontLineSpanEm(source.data, source.bytes);
             const float fit = interSpan > 0 && cjkSpan > 0 ? (std::max)(1.f, (std::min)(cjkSpan / interSpan, 1.3f)) : 1.f;
-            const float mergedSize = sizes[i] * fit;
-            merged.GlyphOffset.y = 0;
+            const float mergedSize = baked * fit;
+            merged.GlyphOffset.y = config.GlyphOffset.y;
             merged.RasterizerDensity = i == 0 ? config.RasterizerDensity : (std::min)(config.RasterizerDensity, 2.f);
             std::snprintf(merged.Name, sizeof(merged.Name), "Noto Sans CJK %.0fpx", mergedSize*scale);
             io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(source.data), static_cast<int>(source.bytes), mergedSize, &merged);
@@ -245,6 +254,11 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     const int markIndex = io.Fonts->AddCustomRectRegular(brand::Size, brand::Size);
     IM_ASSERT(markIndex == 0); // Clear above makes this the first custom rectangle.
     const bool built = io.Fonts->Build();
+    // A size passed with a font is its em from here; the default size stays sizes[i].
+    for (int i = 0; i < 3 && i < io.Fonts->Fonts.Size; ++i) {
+        io.Fonts->Fonts[i]->FontSize /= spans[i];
+        io.Fonts->Fonts[i]->Scale = sizes[i] / io.Fonts->Fonts[i]->FontSize;
+    }
     unsigned char* pixels = nullptr;
     int atlasWidth = 0, atlasHeight = 0;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &atlasWidth, &atlasHeight);

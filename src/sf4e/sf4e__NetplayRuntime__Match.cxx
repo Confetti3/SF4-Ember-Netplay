@@ -247,7 +247,8 @@ void PollSpectatorExit() {
 		PushAlert(loc::T("runtime.spectator_close_timeout"), NoticeSeverity::Warning);
 }
 
-void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame) {
+void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame,
+	unsigned game, bool continued) {
 	// Native observer calls on the outer game tick, never while resimulating.
 	if (!runtime || !runtime->match || !UserApp::netplay || LocalIsSpectator() ||
 		(result != room::MatchResult::P1Win && result != room::MatchResult::P2Win && result != room::MatchResult::Draw)) return;
@@ -265,9 +266,19 @@ void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFra
 	capture.result = result;
 	capture.captureFrame = captureFrame;
 	capture.confirmedFrame = confirmedFrame;
+	capture.game = game;
+	capture.continued = continued;
 	if (runtime->resultOutbox.Capture(capture))
-		spdlog::info("Match result: captured table={} generation={} slot={} outcome={}",
-			capture.table, generation, capture.slot, static_cast<int>(result));
+		spdlog::info("Match result: captured table={} generation={} game={} continued={} slot={} outcome={}",
+			capture.table, generation, game, continued, capture.slot, static_cast<int>(result));
+	if (!continued) return;
+	// The rematch both chose has started: their Rematch is spent, and the
+	// prompt waits for this game's WIN. The room never sends a game of a
+	// running match a terminal receipt, so the profile counts it here.
+	runtime->readyIntent.Clear();
+	runtime->promptOverBattle = false;
+	if (runtime->preferences.record.Record(capture.roomId, capture.table, generation, capture.slot, result, game))
+		OverlayPrefs::QueuePlayerPreferences(runtime->preferences);
 }
 
 bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints) {
@@ -530,6 +541,7 @@ void PumpResultOutbox() {
 			action.roomEpoch = submission.roomEpoch; action.revision = submission.revision;
 			action.table = submission.table; action.tableRevision = submission.tableRevision;
 			action.matchGeneration = submission.generation; action.result = submission.result;
+			action.game = submission.game; action.continued = submission.continued;
 			std::uint64_t actionId = submission.actionId;
 			const auto sent = actionId ? UserApp::netplay->client.RetryRoomResult(action, actionId) :
 				UserApp::netplay->client.SendRoomAction(action, &actionId);
@@ -617,6 +629,7 @@ void TickMatch() {
 				runtime->entry.matchEntered = entry == UserApp::MatchEntry::Entered;
 				if (runtime->entry.matchEntered) {
 					runtime->entry.enteredGeneration = runtime->match->Generation();
+					runtime->promptOverBattle = false;
 					const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 					const auto* local = room::FindMember(room, room.localMember);
 					runtime->entry.enteredTable = local ? local->table : -1;

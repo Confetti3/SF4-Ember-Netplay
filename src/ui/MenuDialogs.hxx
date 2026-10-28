@@ -4,6 +4,7 @@
 #include <vector>
 
 namespace sf4e { namespace ui {
+struct MenuChoice;
 // Elides text to width with "...". Text probes measure the original label,
 // never this result, so an ellipsis cannot pass for a label that fits.
 std::string FitLabel(const std::string& text,float width);
@@ -25,4 +26,12 @@ float DialogButtonsHeight(const std::vector<DialogButton>& buttons,float height)
 // in screen coordinates. Pair with EndDialogCard.
 void BeginDialogCard(const char* id,ImVec2 at,ImVec2 size);
 void EndDialogCard();
+// The columns a choice of `count` options is drawn in: one in the classic
+// look; in V2 all options show at once, up to four to a row.
+std::size_t MenuChoiceColumns(std::size_t count);
+// V2's choice popup: its cells share one width that fits the longest label,
+// up to MenuChoiceColumns across; when that many of that width do not fit,
+// fewer, down to one column that Up and Down move through.
+struct MenuChoiceGrid { std::size_t across; float cell; };
+MenuChoiceGrid MenuChoiceLayout(const std::vector<MenuChoice>& choices);
 } }

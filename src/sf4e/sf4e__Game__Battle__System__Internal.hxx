@@ -94,6 +94,8 @@ void ResetNativeResultMatch();
 void CaptureNativeMatchResult(rSystem* system, int stateFrame);
 bool MatchResultKnown();
 void PublishConfirmedNativeMatchResult();
+// The battle is closing: a result held for a rematch in place ends the match.
+void FlushHeldNativeResult();
 
 // Defined in sf4e__Game__Battle__System__Ggpo.cxx.
 void NoteDisconnectFlags(int flags);

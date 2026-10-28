@@ -65,7 +65,8 @@ inline bool IsTableAction(ActionKind kind) {
 	kind == ActionKind::Ready || kind == ActionKind::Unready ||
 	kind == ActionKind::SetRules || kind == ActionKind::RecordResult ||
 		kind == ActionKind::MatchFinished || kind == ActionKind::CancelResult || kind == ActionKind::AbortMatch ||
-		kind == ActionKind::AcknowledgeTerminal || kind == ActionKind::PermitReady;
+		kind == ActionKind::AcknowledgeTerminal || kind == ActionKind::PermitReady ||
+		kind == ActionKind::Rematch || kind == ActionKind::NewOpponent;
 }
 
 inline int ReadInt(const nlohmann::json& object, const char* key, int low, int high) {

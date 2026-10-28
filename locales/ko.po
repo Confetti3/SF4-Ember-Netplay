@@ -237,6 +237,18 @@ msgstr "업데이트"
 msgid "updates.downloaded_mb"
 msgstr "{0:.1f} MB 다운로드됨"
 
+msgid "updates.downloaded_of_mb"
+msgstr "{1:.1f} MB 중 {0:.1f} MB 다운로드됨"
+
+msgid "updates.step_found"
+msgstr "찾음"
+
+msgid "updates.step_verified"
+msgstr "확인됨"
+
+msgid "updates.step_installed"
+msgstr "설치됨"
+
 msgid "services.checking"
 msgstr "업데이트 확인 중..."
 
@@ -429,6 +441,12 @@ msgstr "이동"
 
 msgid "menu.adjust"
 msgstr "조정"
+
+msgid "speech.position"
+msgstr "{1}개 중 {0}번째"
+
+msgid "speech.change"
+msgstr "좌우로 변경"
 
 msgid "rules.edition_select"
 msgstr "에디션 선택"
@@ -800,10 +818,10 @@ msgid "replays.save_watched_detail"
 msgstr "관전자로 시청한 대전도 저장합니다. 끄면 직접 플레이한 대전만 저장합니다."
 
 msgid "settings.watched_picture"
-msgstr "관전 중인 게임을 구석에"
+msgstr "관전 중인 게임 화면"
 
 msgid "settings.watched_picture_detail"
-msgstr "관전 중인 게임 위에 Ember 메뉴를 열면 메뉴 뒤에 어둡게 보이는 대신 불투명한 메뉴의 오른쪽 위에 작게 표시합니다."
+msgstr "관전 중인 게임을 Ember 메뉴 위에 표시: 작게는 끌어 옮길 수 있는 구석에, 크게는 방 화면의 테이블 자리에, 표시 안 함은 메뉴 뒤에 어둡게."
 
 msgid "replays.share"
 msgstr "Share my replays"
@@ -1387,7 +1405,7 @@ msgid "about.controls"
 msgstr "조작법"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A로 선택하고 B로 돌아갑니다. PlayStation: 크로스로 선택하고 서클로 돌아갑니다. Switch: 게임 메뉴와 같이 B로 선택하고 A로 돌아갑니다. Ember에서 설정한 컨트롤러: 약 킥에 선택한 버튼으로 선택하고 중 킥에 선택한 버튼으로 돌아갑니다. 버튼 배치를 바꿔도 같습니다. 키보드: 방향키, Enter, Escape. 방향 패드로 이동하고 왼쪽과 오른쪽으로 값을 바꿉니다. 홈에서 돌아가면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10 또는 컨트롤러의 Start를 누르면 다시 열립니다.\n\n방에서는 테이블에서 A를 눌러 자리를 고르고 자기 자리에서 A를 눌러 준비합니다. B를 누르면 자리나 대기열에서 나갑니다. 다른 컨트롤러에서는 같은 위치의 버튼을 사용합니다. Xbox에서 X는 파이터, Y는 옵션, View는 채팅을 엽니다. 다시 누르면 방으로 돌아갑니다. PlayStation은 스퀘어, 트라이앵글, Share 또는 Create를 사용하고 Switch는 Y, X, Minus를 사용합니다.\n\n훈련에서 F6은 조작을 열고 F5는 HUD를 숨기며 F7은 녹화하고 F8은 재생합니다. 컨트롤러에서는 View(Share, Create 또는 Minus)를 누른 채 Start를 누르세요."
+msgstr "Xbox: A로 선택하고 B로 돌아갑니다. PlayStation: 크로스로 선택하고 서클로 돌아갑니다. Switch: 게임 메뉴와 같이 B로 선택하고 A로 돌아갑니다. Ember에서 설정한 컨트롤러: 약 킥에 선택한 버튼으로 선택하고 중 킥에 선택한 버튼으로 돌아갑니다. 버튼 배치를 바꿔도 같습니다. 키보드: 방향키, Enter, Escape. 방향 패드로 이동하고 왼쪽과 오른쪽으로 값을 바꿉니다. 홈에서 돌아가면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10 또는 컨트롤러의 Start를 누르면 다시 열립니다.\n\n방에서는 테이블에서 A를 눌러 자리를 고르고 자기 자리에서 A를 눌러 준비합니다. B를 누르면 자리나 대기열에서 나갑니다. 다른 컨트롤러에서는 같은 위치의 버튼을 사용합니다. Xbox에서 X는 파이터, Y는 옵션, View는 채팅을 엽니다. 다시 누르면 방으로 돌아갑니다. PlayStation은 스퀘어, 트라이앵글, Share 또는 Create를 사용하고 Switch는 Y, X, Minus를 사용합니다.\n\n훈련에서 F6은 조작을 열고 F5는 HUD를 숨기며 F7은 녹화하고 F8은 재생합니다. 컨트롤러에서는 View(Share, Create 또는 Minus)를 누른 채 Start를 누르세요. Xbox 컨트롤러에서는 오른쪽 스틱 누르기(R3)로도 열립니다."
 
 msgid "about.controls_keyboard"
 msgstr "키보드에서는 Space로도 선택하고 Backspace로도 돌아갑니다. 방에서는 F로 캐릭터, T로 옵션, C로 채팅을 엽니다. Esc는 내 자리에서도 항상 돌아가며, Delete로 자리나 대기열에서 나갑니다."
@@ -4867,6 +4885,12 @@ msgstr "{0}세트 연속"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "직접 {0} ms"
+
+msgid "room.latency.relay"
+msgstr "릴레이 {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "예상 핑: 약 {0} ms."
 
@@ -5215,11 +5239,236 @@ msgstr "대전 중 프레임 미터, 트레이닝 복귀 시 자동 준비, 저�
 msgid "settings.training_replays_title"
 msgstr "트레이닝과 리플레이"
 
+msgid "settings.accessibility"
+msgstr "접근성"
+
+msgid "settings.accessibility_detail"
+msgstr "Ember의 메뉴를 소리 내어 읽어 주는 음성입니다."
+
+msgid "settings.accessibility_title"
+msgstr "접근성"
+
+msgid "speech.setting"
+msgstr "음성"
+
+msgid "speech.setting_detail"
+msgstr "Ember의 메뉴를 이동할 때마다 소리 내어 읽습니다. F1을 누르면 음성이 멈춥니다."
+
+msgid "speech.intro"
+msgstr "음성이 켜졌습니다. 이동하면 각 항목을 들을 수 있습니다. {0}을(를) 누르면 무엇을 하는지 듣고, 다시 누르면 멈춥니다. 더 많은 옵션은 설정, 접근성에 있습니다."
+
+msgid "speech.rate"
+msgstr "음성 속도"
+
+msgid "speech.rate_detail"
+msgstr "음성이 말하는 속도입니다. 0이 기본 속도입니다."
+
+msgid "speech.volume"
+msgstr "음성 볼륨"
+
+msgid "speech.volume_detail"
+msgstr "음성의 크기입니다."
+
+msgid "speech.details"
+msgstr "설명 자동으로 읽기"
+
+msgid "speech.details_detail"
+msgstr "항목에 잠시 머무르면 설명을 저절로 읽습니다. 꺼져 있으면 F2를 누를 때 읽습니다."
+
+msgid "speech.hints"
+msgstr "버튼 안내 읽기"
+
+msgid "speech.hints_detail"
+msgstr "머무르고 있는 항목에서 어떤 버튼이 무엇을 하는지 읽습니다."
+
+msgid "speech.read_position"
+msgstr "위치 읽기"
+
+msgid "speech.read_position_detail"
+msgstr "항목 이름과 값 다음에 목록에서의 위치를 읽습니다(예: 12개 중 3번째)."
+
+msgid "speech.more"
+msgstr "{0}로 자세히"
+
+msgid "speech.help"
+msgstr "{0}로 각 항목 도움말"
+
+msgid "speech.remind"
+msgstr "설명 버튼 알림"
+
+msgid "speech.remind_detail"
+msgstr "설명이 있는 항목 이름 다음에 그것을 읽는 버튼을 알려 줍니다. 자동은 버튼을 세 번 사용하면 멈춥니다."
+
+msgid "speech.remind_auto"
+msgstr "3번 사용할 때까지"
+
+msgid "speech.tick"
+msgstr "설명 알림음"
+
+msgid "speech.tick_detail"
+msgstr "알림이 멈춘 뒤에는 항목 이름 다음의 작은 소리로 설명이 있음을 알립니다."
+
+msgid "speech.notice"
+msgstr "알림입니다. {0}을(를) 누르면 들을 수 있습니다."
+
+msgid "speech.chime"
+msgstr "알림음"
+
+msgid "speech.chime_detail"
+msgstr "알림이 저절로 열렸다고 음성이 말하기 전에 짧은 소리가 납니다."
+
+msgid "speech.chime_volume"
+msgstr "알림음 볼륨"
+
+msgid "speech.chime_volume_detail"
+msgstr "알림음의 크기입니다."
+
+msgid "speech.voice"
+msgstr "음성"
+
+msgid "speech.voice_detail"
+msgstr "Linux와 Steam Deck에서 Ember는 사용 중인 언어의 자연스러운 음성을 한 번 내려받아(약 90 MB) 보관합니다. 준비될 때까지, 그리고 해당 음성이 없는 언어에서는 시스템 음성이 말합니다."
+
+msgid "speech.voice_system"
+msgstr "시스템 음성"
+
+msgid "speech.voice_downloading"
+msgstr "다운로드 중, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "자연스러운 음성"
+
+msgid "speech.voice_download_failed"
+msgstr "다운로드 실패"
+
+msgid "speech.voice_ready"
+msgstr "자연스러운 음성이 준비되었습니다. 이제부터 이 음성으로 말합니다."
+
+msgid "speech.voice_failed"
+msgstr "자연스러운 음성을 내려받지 못해 시스템 음성이 말합니다. Ember는 다음에 시작할 때 다시 시도합니다."
+
+msgid "speech.pack"
+msgstr "음성 팩({0})"
+
+msgid "speech.pack_missing"
+msgstr "다운로드 안 됨, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "다운로드됨, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "업데이트 있음, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "제거됨"
+
+msgid "speech.pack_detail"
+msgstr "Ember가 말하는 모든 문장을 자연스러운 음성으로 한 번 녹음한 것입니다. 음성이 켜져 있으면 저절로 다운로드됩니다. 선택하면 다시 다운로드하거나 업데이트합니다."
+
+msgid "speech.pack_download"
+msgstr "다운로드"
+
+msgid "speech.pack_remove"
+msgstr "음성 팩 제거"
+
+msgid "speech.pack_remove_detail"
+msgstr "이 PC에서 음성 팩을 삭제합니다. 다시 다운로드할 때까지 시스템 음성이 말합니다."
+
+msgid "speech.pack_downloading"
+msgstr "{0} 음성을 다운로드하는 중입니다({1} MB). 준비될 때까지 시스템 음성이 말합니다."
+
+msgid "speech.pack_failed"
+msgstr "음성 팩을 다운로드하지 못해 시스템 음성이 말합니다. 다시 시도하려면 설정, 접근성에서 음성 팩을 선택하세요."
+
+msgid "speech.no_windows_voice"
+msgstr "음성이 켜져 있지만 Windows에 말할 음성이 없습니다. Windows 설정의 시간 및 언어, 음성에서 추가하세요."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "음성이 켜져 있지만 speech-dispatcher에 연결할 수 없습니다. Linux와 Steam Deck에서는 Ember가 speech-dispatcher로 말하며, python3도 필요합니다."
+
 msgid "room.table_footer_practice"
 msgstr "연습 대전"
 
 msgid "room.rules_summary_practice"
 msgstr "연습 대전, {0}라운드, {1}초, Edition Select {2}"
+
+msgid "room.type"
+msgstr "방 유형"
+
+msgid "room.type.classic"
+msgstr "클래식"
+
+msgid "room.type.arcade"
+msgstr "아케이드"
+
+msgid "room.type.classic_detail"
+msgstr "플레이어가 테이블마다 줄을 서서 그 테이블에서 대전합니다."
+
+msgid "room.type.arcade_detail"
+msgstr "16대의 기기: 빈 자리에 앉으면 가장 오래 기다린 사람과 대전합니다. 세트가 끝나면 둘 다 재대결을 고르면 다시 하고, 아니면 각자 다음 대기자와 대전합니다."
+
+msgid "room.arcade_status"
+msgstr "아케이드 방 / 초대 전용"
+
+msgid "room.arcade_locked_status"
+msgstr "아케이드 방 잠김 / 초대 전용"
+
+msgid "room.arcade_sit"
+msgstr "자리에 앉기"
+
+msgid "room.arcade_sit_detail"
+msgstr "여기에 앉기: 가장 오래 기다린 사람과 대전하거나, 다음에 앉을 사람을 기다립니다."
+
+msgid "room.arcade_waiting"
+msgstr "대기 중"
+
+msgid "room.cabinet_free"
+msgstr "코인을 넣으세요"
+
+msgid "room.type.king"
+msgstr "킹 오브 더 힐"
+
+msgid "room.type.king_detail"
+msgstr "16대의 기기에서 모든 쌍이 동시에 대전: 세트 승자는 자리에 남아 다음 도전자와 대전합니다. 현재 연승이 가장 긴 사람이 정상 자리를 차지합니다."
+
+msgid "room.cabinet_row"
+msgstr "기기 {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "비어 있음"
+
+msgid "room.arcade_move_detail"
+msgstr "경기 사이에 이 기기로 옮깁니다. 상대와 연승은 그대로 유지됩니다."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "재대결"
+
+msgid "room.rematch_detail"
+msgstr "같은 상대와 다시 대전합니다. 둘 다 고르면 시작됩니다."
+
+msgid "room.new_opponent"
+msgstr "새 상대"
+
+msgid "room.new_opponent_detail"
+msgstr "자리에 앉은 채 가장 오래 기다린 사람과 대전하거나, 다음에 앉을 사람을 기다립니다."
+
+msgid "room.rematch_ask"
+msgstr "재대결?"
+
+msgid "room.rematch_chosen"
+msgstr "재대결 선택함"
+
+msgid "room.top_slot"
+msgstr "정상 자리"
+
+msgid "room.top_slot_none"
+msgstr "세트를 이겨 정상 자리를 차지하세요."
+
+msgid "room.rules.arcade"
+msgstr "아케이드 방의 규칙은 만들 때 정해지며 모든 테이블에 적용됩니다."
 
 msgid "room.practice"
 msgstr "연습 방"
@@ -7220,6 +7469,84 @@ msgstr "클래스 엠블럼"
 msgid "settings.class_emblems_detail"
 msgstr "공개 방에서 각 플레이어의 이름 옆에 클래스를 표시합니다. 끄면 내 화면에서만 숨겨집니다. 다른 사람에게는 내 클래스가 계속 보이고 대전도 계속 반영됩니다."
 
+msgid "settings.look"
+msgstr "모양"
+
+msgid "settings.look.classic"
+msgstr "클래식"
+
+msgid "settings.look.v2"
+msgstr "V2 (미리 보기)"
+
+msgid "settings.look_detail"
+msgstr "아직 만드는 중인 Ember의 새 모양입니다. 언제든 되돌릴 수 있으며, 화면의 모양만 바뀝니다."
+
+msgid "settings.tv_mode"
+msgstr "TV 모드"
+
+msgid "settings.tv_mode_detail"
+msgstr "방 건너편 TV용: 모든 것을 4분의 1 더 크게 하고, 가장자리 5% 안전 영역 안에 둡니다."
+
+msgid "menu.pages"
+msgstr "페이지"
+
+msgid "room.controls_detail"
+msgstr "방을 나가지 않고 컨트롤러와 버튼을 설정합니다."
+
+msgid "settings.picture_corner"
+msgstr "화면 위치"
+
+msgid "settings.picture_corner_detail"
+msgstr "관전 중인 경기 화면이 놓이는 모서리입니다. 마우스로 다른 모서리로 끌어 옮길 수도 있습니다."
+
+msgid "settings.picture_size"
+msgstr "화면 크기"
+
+msgid "settings.picture_size_detail"
+msgstr "관전 중인 경기 화면의 크기입니다. 마우스로 손잡이를 끌어 바꿀 수도 있습니다."
+
+msgid "settings.tab.player"
+msgstr "플레이어"
+
+msgid "settings.tab.matches"
+msgstr "대전"
+
+msgid "settings.tab.interface"
+msgstr "인터페이스"
+
+msgid "settings.tab.accessibility"
+msgstr "접근성"
+
+msgid "settings.tab.online"
+msgstr "온라인"
+
+msgid "settings.tab.about"
+msgstr "정보"
+
+msgid "settings.group.look"
+msgstr "모양"
+
+msgid "settings.group.sounds"
+msgstr "소리"
+
+msgid "settings.group.text"
+msgstr "글자와 언어"
+
+msgid "settings.group.help"
+msgstr "화면 도움말"
+
+msgid "settings.panel.open"
+msgstr "열림"
+
+msgid "settings.panel.closed"
+msgstr "닫힘"
+
+msgid "settings.panel.open_action"
+msgstr "패널 열기"
+
+msgid "settings.panel.close_action"
+msgstr "패널 닫기"
+
 
 msgid "class.developer"
 msgstr "개발"
@@ -7229,3 +7556,552 @@ msgstr "Ember 개발자"
 
 msgid "rankings.developer_detail"
 msgstr "Ember 개발자는 클래스 대신 이 표시가 나오며 랭킹에 오르지 않습니다. 대전은 계속 반영됩니다."
+
+msgid "room.v2.board"
+msgstr "보드"
+
+msgid "room.v2.tables"
+msgstr "테이블"
+
+msgid "room.v2.table"
+msgstr "테이블 {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "대전 중 {0} · 관전 중 {1}"
+
+msgid "room.v2.group_playing"
+msgstr "대전 중"
+
+msgid "room.v2.group_at_table"
+msgstr "테이블 대기"
+
+msgid "room.v2.group_watching"
+msgstr "관전 중"
+
+msgid "room.v2.group_in_room"
+msgstr "방 안"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · 온라인 · 비공개 방"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · 온라인 · 공개 방"
+
+msgid "room.v2.invitation_only"
+msgstr "초대 전용"
+
+msgid "room.v2.listed"
+msgstr "공개 방에 표시됨"
+
+msgid "room.v2.type_message"
+msgstr "메시지 입력"
+
+msgid "room.v2.more"
+msgstr "더 보기…"
+
+msgid "room.v2.more_detail"
+msgstr "테이블 옵션, 방 설정, 초대 링크."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "화면"
+
+msgid "room.v2.picture_none"
+msgstr "표시 안 함"
+
+msgid "room.v2.part_detail"
+msgstr "방 화면의 이 부분을 표시하거나 숨깁니다. 나머지 부분이 그 자리를 채웁니다."
+
+msgid "room.v2.picture_detail"
+msgstr "관전 중인 게임: 구석에 작게, 테이블 자리에 크게, 또는 표시 안 함."
+
+msgid "room.v2.picture_small_detail"
+msgstr "메뉴 위의 작은 창입니다. 다른 구석으로 끌어 옮기거나 가장자리를 끌어 크기를 바꿀 수 있습니다."
+
+msgid "room.v2.picture_big_detail"
+msgstr "크게, 방 화면의 테이블 자리에 표시합니다."
+
+msgid "room.v2.picture_off_detail"
+msgstr "화면 없음: 게임은 메뉴 뒤에 어둡게 남습니다."
+
+msgid "room.v2.hide"
+msgstr "숨기기"
+
+msgid "room.v2.hide_members"
+msgstr "참가자 숨기기"
+
+msgid "room.v2.hide_chat"
+msgstr "채팅 숨기기"
+
+msgid "room.v2.hide_picture"
+msgstr "화면 숨기기"
+
+msgid "room.v2.hide_detail"
+msgstr "제목만 남기고 접습니다. 표시를 누르면 다시 펼쳐집니다."
+
+msgid "room.v2.show"
+msgstr "표시"
+
+msgid "room.v2.show_detail"
+msgstr "원래 크기로 펼칩니다."
+
+msgid "room.v2.copy_invite"
+msgstr "초대"
+
+msgid "room.v2.copy_link"
+msgstr "짧은 링크"
+
+msgid "settings.room_show_members_detail"
+msgstr "방 화면의 참가자 패널입니다. 숨기면 채팅이 열을 차지하고, 둘 다 숨기면 테이블이 전체 너비를 차지합니다."
+
+msgid "settings.room_show_chat_detail"
+msgstr "방 화면의 채팅 패널입니다. 숨기면 참가자가 열을 차지하고, 둘 다 숨기면 테이블이 전체 너비를 차지합니다."
+
+msgid "room.v2.unread"
+msgstr "읽지 않음 {0}"
+
+msgid "online.eyebrow"
+msgstr "EMBER · 온라인"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · 온라인 · 호스트"
+
+msgid "online.eyebrow_join"
+msgstr "온라인 · 참가"
+
+msgid "online.eyebrow_browse"
+msgstr "온라인 · 둘러보기"
+
+msgid "public.your_region"
+msgstr "내 지역 {0}"
+
+msgid "home.notifications"
+msgstr "알림"
+
+msgid "notifications.none"
+msgstr "아직 없습니다."
+
+msgid "notifications.none_detail"
+msgstr "링크 복사나 방 나가기처럼 Ember가 알린 내용은 이번 세션 동안 여기에 남습니다."
+
+msgid "home.news"
+msgstr "소식"
+
+msgid "news.heading"
+msgstr "소식"
+
+msgid "news.more"
+msgstr "모든 릴리스는 목록의 소식에서 볼 수 있습니다."
+
+msgid "news.none"
+msgstr "아직 소식이 없습니다"
+
+msgid "news.none_detail"
+msgstr "업데이트 확인 후 Ember 릴리스에서 소식을 가져옵니다."
+
+msgid "settings.group.room_layout"
+msgstr "방 레이아웃"
+
+msgid "settings.room_column"
+msgstr "열 너비"
+
+msgid "settings.room_column_detail"
+msgstr "방 보드에서 멤버와 채팅 열이 차지하는 비율입니다. 방에서는 마우스로 그 사이의 선을 끌 수도 있습니다."
+
+msgid "settings.room_split"
+msgstr "멤버와 채팅"
+
+msgid "settings.room_split_detail"
+msgstr "열을 나누는 방식: 채팅 위에 멤버. 채팅은 항상 세 줄을 유지합니다. 방에서는 마우스로 그 사이의 선을 끌 수도 있습니다."
+
+msgid "settings.room_preset"
+msgstr "기본 제공 레이아웃"
+
+msgid "settings.room_preset_detail"
+msgstr "보드 우선은 테이블에, 채팅 우선은 대화에 자리를 줍니다. 균형은 그 중간입니다."
+
+msgid "settings.room_preset.board"
+msgstr "보드 우선"
+
+msgid "settings.room_preset.balanced"
+msgstr "균형"
+
+msgid "settings.room_preset.chat"
+msgstr "채팅 우선"
+
+msgid "settings.room_layout_reset"
+msgstr "기본값 복원"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "열과 멤버·채팅 비율을 균형으로 되돌립니다."
+
+msgid "menu.choices_count"
+msgstr "선택지 {0}개"
+
+msgid "menu.choices_keys"
+msgstr "방향으로 이동 · 선택으로 고르기 · 뒤로는 {0} 유지"
+
+msgid "selection.costume"
+msgstr "코스튬"
+
+msgid "selection.color_row"
+msgstr "색상"
+
+msgid "selection.ready_with"
+msgstr "{0}(으)로 준비 완료"
+
+msgid "selection.ready_detail"
+msgstr "이 파이터를 유지하고 돌아갑니다."
+
+msgid "country.first_letter"
+msgstr "첫 글자"
+
+msgid "country.letter_detail"
+msgstr "국가: {0}"
+
+msgid "country.board_help"
+msgstr "글자를 고르면 해당 국가가 표시됩니다. 키보드로 글자를 입력해 이동할 수 있습니다."
+
+msgid "news.tab.all"
+msgstr "전체"
+
+msgid "news.tab.updates"
+msgstr "Ember 업데이트"
+
+msgid "news.tab.changelog"
+msgstr "변경 사항"
+
+msgid "news.kind.update"
+msgstr "업데이트"
+
+msgid "news.new"
+msgstr "새 소식"
+
+msgid "news.update_now_detail"
+msgstr "게임을 닫고 Launcher로 {0}을(를) 설치합니다. 설정은 그대로 유지됩니다."
+
+msgid "replays.tab.matches"
+msgstr "매치"
+
+msgid "replays.tab.sets"
+msgstr "세트"
+
+msgid "replays.set_detail"
+msgstr "매치 {0}개"
+
+msgid "replays.game"
+msgstr "{0}번째 매치"
+
+msgid "replays.fact.fighters"
+msgstr "파이터"
+
+msgid "replays.fact.played"
+msgstr "플레이"
+
+msgid "replays.fact.length"
+msgstr "길이"
+
+msgid "keyboard.recent"
+msgstr "최근:"
+
+msgid "keyboard.type"
+msgstr "입력"
+
+msgid "keyboard.delete"
+msgstr "삭제"
+
+msgid "keyboard.space"
+msgstr "스페이스"
+
+msgid "keyboard.capitals"
+msgstr "대문자"
+
+msgid "keyboard.done"
+msgstr "완료"
+
+msgid "welcome.title"
+msgstr "환영합니다"
+
+msgid "welcome.step"
+msgstr "환영합니다 · {1}단계 중 {0}단계"
+
+msgid "welcome.speech_title"
+msgstr "Ember가 소리 내어 읽어 줄까요?"
+
+msgid "welcome.speech_text"
+msgstr "Ember는 모든 메뉴를 소리 내어 읽을 수 있습니다. 설정에서 언제든지 바꿀 수 있습니다."
+
+msgid "welcome.speech_on"
+msgstr "예, 메뉴를 읽어 주세요"
+
+msgid "welcome.speech_on_detail"
+msgstr "화면 낭독기가 실행 중이면 그것을, 아니면 Windows 음성을 사용합니다."
+
+msgid "welcome.speech_off"
+msgstr "음성 없음"
+
+msgid "welcome.speech_off_detail"
+msgstr "나중에 켤 수 있습니다."
+
+msgid "welcome.language_title"
+msgstr "Ember에서 어떤 언어를 쓸까요?"
+
+msgid "welcome.language_text"
+msgstr "Ember 메뉴가 이 언어로 표시됩니다. 게임은 자체 언어를 유지합니다."
+
+msgid "welcome.controller_title"
+msgstr "어떤 컨트롤러로 플레이하나요?"
+
+msgid "welcome.controller_text"
+msgstr "Ember는 어디서나 그 컨트롤러의 버튼 그림을 보여 줍니다."
+
+msgid "welcome.controller_ready"
+msgstr "준비됨: {0}."
+
+msgid "welcome.look_title"
+msgstr "어떤 모양을 원하나요?"
+
+msgid "welcome.look_text"
+msgstr "설정에서 언제든지 바꿀 수 있습니다. 화면 모양만 바뀝니다."
+
+msgid "welcome.look_classic"
+msgstr "클래식"
+
+msgid "welcome.look_classic_detail"
+msgstr "늘 그랬던 Ember 메뉴."
+
+msgid "welcome.look_v2"
+msgstr "V2 (미리 보기)"
+
+msgid "welcome.look_v2_detail"
+msgstr "아직 만들고 있는 Ember의 새 모양."
+
+msgid "welcome.chosen"
+msgstr "선택됨"
+
+msgid "welcome.next"
+msgstr "다음"
+
+msgid "welcome.start"
+msgstr "플레이 시작"
+
+msgid "welcome.next_detail"
+msgstr "다음 질문으로 넘어갑니다."
+
+msgid "welcome.skip"
+msgstr "건너뛰기"
+
+msgid "welcome.skip_detail"
+msgstr "바로 홈으로 갑니다. 여기 있는 모든 것은 설정에도 있습니다."
+
+msgid "welcome.previous"
+msgstr "이전 단계"
+
+msgid "screen.awards"
+msgstr "어워드"
+
+msgid "awards.titles"
+msgstr "칭호"
+
+msgid "awards.icons"
+msgstr "아이콘"
+
+msgid "awards.card"
+msgstr "내 카드"
+
+msgid "awards.card_detail"
+msgstr "다른 사람에게 보이는 내 카드입니다. 선택하면 어워드가 열립니다. 달 수 있는 칭호와 아이콘이 있습니다."
+
+msgid "awards.entry_detail"
+msgstr "획득한 칭호와 아이콘, 나머지를 얻는 방법입니다. 하나를 선택하면 카드에 답니다."
+
+msgid "awards.earned_count"
+msgstr "{1}개 중 {0}개 획득"
+
+msgid "awards.card_heading"
+msgstr "내 카드 · 다른 사람에게 보이는 모습"
+
+msgid "awards.where_heading"
+msgstr "표시되는 곳"
+
+msgid "awards.on_card"
+msgstr "카드에 표시 중"
+
+msgid "awards.earned"
+msgstr "획득"
+
+msgid "awards.locked"
+msgstr "잠김"
+
+msgid "awards.wear"
+msgstr "카드에 달기"
+
+msgid "awards.detail_worn"
+msgstr "카드에 표시 중입니다."
+
+msgid "awards.detail_earned"
+msgstr "획득했습니다. 선택하면 카드에 답니다."
+
+msgid "awards.detail_locked"
+msgstr "잠김. {0}."
+
+msgid "tier.ash"
+msgstr "애시"
+
+msgid "tier.copper"
+msgstr "코퍼"
+
+msgid "tier.silver"
+msgstr "실버"
+
+msgid "tier.gold"
+msgstr "골드"
+
+msgid "tier.ember"
+msgstr "엠버"
+
+msgid "award.entrant.title"
+msgstr "EMBER 참가자"
+
+msgid "award.entrant.icon"
+msgstr "불씨"
+
+msgid "award.entrant.how"
+msgstr "Ember 대진표에서 한 세트 플레이"
+
+msgid "award.launch-night.title"
+msgstr "런칭 나이트"
+
+msgid "award.launch-night.icon"
+msgstr "되감기"
+
+msgid "award.launch-night.how"
+msgstr "Ember 런칭 이벤트 중에 플레이"
+
+msgid "award.weekly-top16.title"
+msgstr "위클리 TOP 16"
+
+msgid "award.weekly-top16.icon"
+msgstr "월계관"
+
+msgid "award.weekly-top16.how"
+msgstr "Ember Weekly에서 16위 안에 들기"
+
+msgid "award.rollback-regular.title"
+msgstr "롤백 단골"
+
+msgid "award.rollback-regular.icon"
+msgstr "달력"
+
+msgid "award.rollback-regular.how"
+msgstr "한 시즌에 Ember Weekly 10회 참가"
+
+msgid "award.weekly-top8.title"
+msgstr "위클리 TOP 8"
+
+msgid "award.weekly-top8.icon"
+msgstr "팔각형 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Ember Weekly에서 8위 안에 들기"
+
+msgid "award.by-ear.title"
+msgstr "귀로 듣고"
+
+msgid "award.by-ear.icon"
+msgstr "음파"
+
+msgid "award.by-ear.how"
+msgstr "오디오 전용 대진표에서 한 세트 승리"
+
+msgid "award.monthly-finalist.title"
+msgstr "먼슬리 결승 진출"
+
+msgid "award.monthly-finalist.icon"
+msgstr "메달"
+
+msgid "award.monthly-finalist.how"
+msgstr "Ember Monthly 그랜드 파이널 진출"
+
+msgid "award.organizer.title"
+msgstr "대회 주최자"
+
+msgid "award.organizer.icon"
+msgstr "깃발"
+
+msgid "award.organizer.how"
+msgstr "Ember 운영진이 이벤트 주최자에게 수여"
+
+msgid "award.commentary.title"
+msgstr "해설"
+
+msgid "award.commentary.icon"
+msgstr "마이크"
+
+msgid "award.commentary.how"
+msgstr "방송 해설자에게 수여"
+
+msgid "award.season1-veteran.title"
+msgstr "시즌 1 베테랑"
+
+msgid "award.season1-veteran.icon"
+msgstr "문장"
+
+msgid "award.season1-veteran.how"
+msgstr "시즌 1 모든 먼슬리에서 32위 안에 들기"
+
+msgid "award.cup-champion.title"
+msgstr "EMBER CUP 챔피언"
+
+msgid "award.cup-champion.icon"
+msgstr "왕관"
+
+msgid "award.cup-champion.how"
+msgstr "시즌 마지막 Ember Cup 우승"
+
+msgid "toast.kind.invitation"
+msgstr "초대"
+
+msgid "toast.kind.room"
+msgstr "방"
+
+msgid "toast.kind.update"
+msgstr "업데이트"
+
+msgid "toast.kind.match"
+msgstr "매치"
+
+msgid "toast.kind.system"
+msgstr "시스템"
+
+msgid "toast.join"
+msgstr "참가"
+
+msgid "toast.open"
+msgstr "열기"
+
+msgid "discord.invitation_notice"
+msgstr "Discord에서 방 초대를 받았습니다."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} 설치 준비가 되었습니다."
+
+msgid "home.training"
+msgstr "트레이닝"
+
+msgid "home.training_detail"
+msgstr "난입 설정을 묻지 않고 바로 트레이닝 모드로 들어갑니다."
+
+msgid "home.training_unavailable"
+msgstr "지금은 트레이닝을 열 수 없습니다. 먼저 룸이나 대전에서 나가 게임 메인 메뉴로 돌아가세요."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "기체 {0}, {1}"

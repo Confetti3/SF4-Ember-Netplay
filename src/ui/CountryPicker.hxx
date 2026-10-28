@@ -35,12 +35,22 @@ public:
     // Draws a country row, and Automatic's, with its flag before the name; false
     // for the other rows, which draw as usual (GameMenu::Card).
     bool DrawRow(const MenuEntry& entry, const CountryCode& automatic, ImVec2 min, ImVec2 max) const;
+    // V2's board (Country.dc.html): Automatic and Hidden, the letters the names
+    // start with seven across, and two across the countries of the focused
+    // letter (or of the focused country's). Up, Down, Left and Right go across
+    // the grids; Select on a letter goes to its first country (a letter's row
+    // is "letter-" and that country's code). False where the language has too
+    // many initials for a grid (CJK): the list stays.
+    bool Lettered() const;
+    std::vector<MenuEntry> BoardRows(const CountryPreference& current, const CountryCode& automatic, bool enabled, const std::string& focused);
+    void DrawBoard(const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, const CountryCode& automatic);
 private:
     struct Name { CountryCode code; std::string text; std::wstring wide; wchar_t initial = 0; };
     // The countries by name in the active catalog, built again when it changes.
     const std::vector<Name>& Names() const;
     std::vector<const Name*> Shown() const;
-    std::string search_;
+    std::string search_, boardFocus_;
+    wchar_t letter_ = 0;
     mutable std::vector<Name> names_;
     mutable std::string namesKey_;
 };

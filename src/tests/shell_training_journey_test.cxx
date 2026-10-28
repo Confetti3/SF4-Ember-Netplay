@@ -20,12 +20,12 @@ void TrainingSettingsAndHome() {
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Choose("settings");
- const std::vector<std::string> settings={"player","country","defaults","interface","training-replays","discord","problem-reports","about"};
+ const std::vector<std::string> settings={"player","country","defaults","interface","training-replays","accessibility","discord","problem-reports","about"};
  Check(rows.size()==settings.size(),"Settings row count changed");
  for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
  h.Choose("interface");
- const std::vector<std::string> interfaceRows={"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","shortcut-hint","class-emblems","scale","language"};
- Check(rows.size()==interfaceRows.size(),"Interface no longer has its 12 rows");
+ const std::vector<std::string> interfaceRows={"look","hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","shortcut-hint","class-emblems","scale","language"};
+ Check(rows.size()==interfaceRows.size(),"Interface no longer has its 14 rows");
  for(std::size_t i=0;i<interfaceRows.size();++i)Check(rows[i].id==interfaceRows[i],"Interface order changed");
  h.Press(MenuInput::Back);h.Choose("training-replays");
  Check(rows.size()==5&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="replay-share"&&rows[4].id=="watched-picture","Training and replays settings order wrong");
@@ -35,6 +35,10 @@ void TrainingSettingsAndHome() {
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.trainingAutoReady,"Training auto-ready did not save from new screen");
  h.view.preferences=h.actions.back().preferences;h.Frame();
+ // Speech starts off, and its other rows wait for it. (Turning it on here
+ // would speak through the PC's voice.)
+ h.Screen("settings");h.Choose("accessibility");
+ Check(rows.size()==11&&rows[0].id=="speech"&&rows[0].enabled&&rows[0].adjustable&&!rows[1].enabled&&!rows[5].enabled,"Accessibility rows wrong while speech is off");
  // Country opens its picker on the saved choice; a country saves and goes back to Settings.
  h.Screen("settings");h.Choose("country");
  Check(h.shell.Navigation().Screen()=="country"&&h.shell.Navigation().Focus()=="country-auto","The country picker did not open on Automatic");
@@ -217,12 +221,29 @@ void PracticeRoomCreate() {
  Check(row("practice-room")->value==loc::T("common.off"),"Practice room was still on when Create opened again");
  h.Choose("host");
  Check(h.actions.back().command.kind==Kind::HostRoom&&!h.actions.back().practiceRoom,"A room created with Practice room off asked for one");
- // A public room is never one, and the gameplay defaults do not offer it.
- h.FocusOn("visibility");h.Press(MenuInput::Right);
- Check(row("practice-room")==rows.end()&&row("time")!=rows.end(),"Public Create offered Practice room");
+ // Room type: Classic unless Arcade is chosen, and back to Classic on the next visit.
+ h.Screen("online");h.Choose("create");
+ Check(row("room-type")!=rows.end()&&row("room-type")->value==loc::T("room.type.classic"),"Create did not open on a Classic room");
+ h.FocusOn("room-type");h.Press(MenuInput::Right);
+ Check(row("room-type")->value==loc::T("room.type.arcade")&&row("room-type")->detail==loc::T("room.type.arcade_detail"),"Room type did not turn to Arcade");
+ Check(row("set-length")!=rows.end()&&row("rotation")==rows.end(),"An Arcade room offered who stays after a set");
+ h.Choose("host");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().arcadeRoom==room::ArcadeRoom,"Create room did not ask for an Arcade room");
+ h.Screen("online");h.Choose("create");
+ Check(row("room-type")->value==loc::T("room.type.classic"),"Arcade was still chosen when Create opened again");
+ h.Choose("host");
+ Check(h.actions.back().arcadeRoom==room::ClassicRoom,"A Classic room asked to be an Arcade room");
+ // King of the hill is the third type; nothing else about the layout is asked.
+ h.Screen("online");h.Choose("create");h.FocusOn("room-type");h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Right);
+ Check(row("room-type")->value==loc::T("room.type.king")&&row("arcade-view")==rows.end(),"Room type did not step to King of the hill");
+ h.Choose("host");
+ Check(h.actions.back().arcadeRoom==room::KingRoom,"Create room did not ask for King of the hill");
+ // A public room may have any type but is never a Practice room; the gameplay defaults offer neither.
+ h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
+ Check(row("practice-room")==rows.end()&&row("room-type")!=rows.end()&&row("time")!=rows.end(),"Public Create offered Practice room, or no room type");
  h.Press(MenuInput::Left);
  h.Screen("defaults");
- Check(row("practice-room")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room");
+ Check(row("practice-room")==rows.end()&&row("room-type")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room or a room type");
  SetMenuEntriesProbe({});
 }
 // Create offers the room's delay policy: Same for both to begin with, kept with

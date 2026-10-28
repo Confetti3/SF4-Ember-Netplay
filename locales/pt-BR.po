@@ -237,6 +237,18 @@ msgstr "Atualizações"
 msgid "updates.downloaded_mb"
 msgstr "Baixados {0:.1f} MB"
 
+msgid "updates.downloaded_of_mb"
+msgstr "Baixados {0:.1f} MB de {1:.1f} MB"
+
+msgid "updates.step_found"
+msgstr "Encontrada"
+
+msgid "updates.step_verified"
+msgstr "Verificada"
+
+msgid "updates.step_installed"
+msgstr "Instalada"
+
 msgid "services.checking"
 msgstr "Buscando atualizações..."
 
@@ -429,6 +441,12 @@ msgstr "Navegar"
 
 msgid "menu.adjust"
 msgstr "Ajustar"
+
+msgid "speech.position"
+msgstr "{0} de {1}"
+
+msgid "speech.change"
+msgstr "Esquerda ou direita para alterar"
 
 msgid "rules.edition_select"
 msgstr "Seleção de edição"
@@ -800,10 +818,10 @@ msgid "replays.save_watched_detail"
 msgstr "Também salva as partidas que você assiste como espectador. Desativado salva apenas as que você joga."
 
 msgid "settings.watched_picture"
-msgstr "Partida assistida no canto"
+msgstr "Imagem da partida assistida"
 
 msgid "settings.watched_picture_detail"
-msgstr "Com o menu do Ember aberto sobre uma partida que você assiste, mostra ela pequena no canto superior direito sobre um menu opaco em vez de escurecida atrás."
+msgstr "A partida que você assiste, sobre o menu do Ember: Pequeno num canto que você pode arrastar, Grande no lugar das mesas da sala, Nenhuma escurecida atrás do menu."
 
 msgid "replays.share"
 msgstr "Share my replays"
@@ -1387,7 +1405,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A seleciona e B volta. PlayStation: Cruz seleciona e Círculo volta. Switch: B seleciona e A volta, como nos menus do jogo. Um controle configurado no Ember: O botão escolhido para Chute fraco seleciona e o de Chute médio volta, qualquer que seja o layout de botões. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start em um controle, abre-o novamente no menu principal do jogo.\n\nEm uma sala, A em uma mesa permite escolher um assento, A no seu assento indica que está pronto e B deixa seu assento ou lugar na fila (em outros controles, os botões nas mesmas posições). No Xbox, X abre Lutador, Y Opções e View Chat; pressione novamente para voltar à sala. PlayStation usa Quadrado, Triângulo e Share ou Create; Switch usa Y, X e Minus.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz. Em um controle, segure View (Share, Create ou Minus) e pressione Start."
+msgstr "Xbox: A seleciona e B volta. PlayStation: Cruz seleciona e Círculo volta. Switch: B seleciona e A volta, como nos menus do jogo. Um controle configurado no Ember: O botão escolhido para Chute fraco seleciona e o de Chute médio volta, qualquer que seja o layout de botões. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start em um controle, abre-o novamente no menu principal do jogo.\n\nEm uma sala, A em uma mesa permite escolher um assento, A no seu assento indica que está pronto e B deixa seu assento ou lugar na fila (em outros controles, os botões nas mesmas posições). No Xbox, X abre Lutador, Y Opções e View Chat; pressione novamente para voltar à sala. PlayStation usa Quadrado, Triângulo e Share ou Create; Switch usa Y, X e Minus.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz. Em um controle, segure View (Share, Create ou Minus) e pressione Start. Em um controle Xbox, pressionar o analógico direito (R3) também os abre."
 
 msgid "about.controls_keyboard"
 msgstr "No teclado, Espaço também seleciona e Backspace também volta. Numa sala, F abre Lutador, T abre Opções e C abre Bate-papo. Esc sempre volta, mesmo no seu próprio lugar; Delete deixa seu lugar ou a fila."
@@ -4383,6 +4401,12 @@ msgstr "{0} sets seguidos"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Direto {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Relay {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Ping estimado: cerca de {0} ms."
 
@@ -4731,11 +4755,236 @@ msgstr "Medidor de frames nas partidas, pronto automático após o treino e quai
 msgid "settings.training_replays_title"
 msgstr "TREINO E REPLAYS"
 
+msgid "settings.accessibility"
+msgstr "Acessibilidade"
+
+msgid "settings.accessibility_detail"
+msgstr "Voz que lê os menus do Ember em voz alta."
+
+msgid "settings.accessibility_title"
+msgstr "ACESSIBILIDADE"
+
+msgid "speech.setting"
+msgstr "Voz"
+
+msgid "speech.setting_detail"
+msgstr "Lê os menus do Ember em voz alta enquanto você navega por eles. F1 para a voz."
+
+msgid "speech.intro"
+msgstr "A voz está ativada. Mova-se para ouvir cada item. Pressione {0} para ouvir o que ele faz; pressione de novo para parar. Mais opções ficam em Configurações, Acessibilidade."
+
+msgid "speech.rate"
+msgstr "Velocidade da voz"
+
+msgid "speech.rate_detail"
+msgstr "A velocidade com que a voz fala. 0 é o ritmo normal."
+
+msgid "speech.volume"
+msgstr "Volume da voz"
+
+msgid "speech.volume_detail"
+msgstr "O volume com que a voz fala."
+
+msgid "speech.details"
+msgstr "Ler descrições automaticamente"
+
+msgid "speech.details_detail"
+msgstr "Lê a descrição de uma linha sozinha quando você fica nela por um momento. Desativado, F2 a lê quando você pedir."
+
+msgid "speech.hints"
+msgstr "Ler dicas de botões"
+
+msgid "speech.hints_detail"
+msgstr "Lê o que cada um dos seus botões faz na linha em que você fica."
+
+msgid "speech.read_position"
+msgstr "Ler posição"
+
+msgid "speech.read_position_detail"
+msgstr "Depois do nome e do valor de uma linha, diz a posição dela na lista, como 3 de 12."
+
+msgid "speech.more"
+msgstr "{0} para mais"
+
+msgid "speech.help"
+msgstr "{0} para ajuda em qualquer item"
+
+msgid "speech.remind"
+msgstr "Lembrar do botão de descrição"
+
+msgid "speech.remind_detail"
+msgstr "Depois do nome de uma linha com descrição, diz qual botão a lê. Automático para depois que você usar o botão três vezes."
+
+msgid "speech.remind_auto"
+msgstr "Até usar 3 vezes"
+
+msgid "speech.tick"
+msgstr "Som de descrição"
+
+msgid "speech.tick_detail"
+msgstr "Quando o lembrete para, um som suave depois do nome de uma linha indica que ela tem descrição."
+
+msgid "speech.notice"
+msgstr "Aviso. Pressione {0} para ouvi-lo."
+
+msgid "speech.chime"
+msgstr "Som de aviso"
+
+msgid "speech.chime_detail"
+msgstr "Um som curto antes de a voz dizer que um aviso se abriu sozinho."
+
+msgid "speech.chime_volume"
+msgstr "Volume do som de aviso"
+
+msgid "speech.chime_volume_detail"
+msgstr "O volume do som de aviso."
+
+msgid "speech.voice"
+msgstr "Voz"
+
+msgid "speech.voice_detail"
+msgstr "No Linux e no Steam Deck, o Ember baixa uma única vez uma voz natural para o seu idioma (cerca de 90 MB) e a mantém. Até ela ficar pronta, e para idiomas sem uma, fala a voz do sistema."
+
+msgid "speech.voice_system"
+msgstr "Voz do sistema"
+
+msgid "speech.voice_downloading"
+msgstr "Baixando, {0}%"
+
+msgid "speech.voice_natural"
+msgstr "Voz natural"
+
+msgid "speech.voice_download_failed"
+msgstr "Falha no download"
+
+msgid "speech.voice_ready"
+msgstr "A voz natural está pronta e fala a partir de agora."
+
+msgid "speech.voice_failed"
+msgstr "Não foi possível baixar a voz natural, então fala a voz do sistema. O Ember tenta de novo na próxima vez que iniciar."
+
+msgid "speech.pack"
+msgstr "Pacote de voz: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Não baixado, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Baixado, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Atualização disponível, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Removido"
+
+msgid "speech.pack_detail"
+msgstr "Cada frase que o Ember diz, gravada uma vez com uma voz natural. É baixada sozinha quando a voz está ativada; selecione para baixar de novo ou atualizar."
+
+msgid "speech.pack_download"
+msgstr "Baixar"
+
+msgid "speech.pack_remove"
+msgstr "Remover pacote de voz"
+
+msgid "speech.pack_remove_detail"
+msgstr "Apaga o pacote de voz deste PC. A voz do sistema fala até você baixá-lo de novo."
+
+msgid "speech.pack_downloading"
+msgstr "Baixando a voz em {0} ({1} MB). A voz do sistema fala até ela ficar pronta."
+
+msgid "speech.pack_failed"
+msgstr "Não foi possível baixar o pacote de voz, então fala a voz do sistema. Para tentar de novo, selecione o pacote de voz em Configurações, Acessibilidade."
+
+msgid "speech.no_windows_voice"
+msgstr "A voz está ativada, mas o Windows não tem nenhuma voz para falar. Adicione uma nas Configurações do Windows, em Hora e idioma, Fala."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "A voz está ativada, mas não foi possível acessar o speech-dispatcher. No Linux e no Steam Deck, o Ember fala pelo speech-dispatcher, que também precisa do python3."
+
 msgid "room.table_footer_practice"
 msgstr "Partida de prática"
 
 msgid "room.rules_summary_practice"
 msgstr "Partida de prática, {0} rounds, {1} s, Edition Select {2}"
+
+msgid "room.type"
+msgstr "Tipo de sala"
+
+msgid "room.type.classic"
+msgstr "Clássica"
+
+msgid "room.type.arcade"
+msgstr "Fliperama"
+
+msgid "room.type.classic_detail"
+msgstr "Os jogadores entram na fila de uma mesa e jogam nela."
+
+msgid "room.type.arcade_detail"
+msgstr "Dezesseis fliperamas: sente em qualquer um livre e jogue contra quem espera há mais tempo. Depois de um set, se os dois escolherem Revanche jogam de novo; se não, cada um joga com o próximo que espera."
+
+msgid "room.arcade_status"
+msgstr "Sala de fliperama / só por convite"
+
+msgid "room.arcade_locked_status"
+msgstr "Sala de fliperama trancada / só por convite"
+
+msgid "room.arcade_sit"
+msgstr "Sentar"
+
+msgid "room.arcade_sit_detail"
+msgstr "Sente aqui: você joga contra quem espera há mais tempo, ou espera o próximo que sentar."
+
+msgid "room.arcade_waiting"
+msgstr "Aguardando"
+
+msgid "room.cabinet_free"
+msgstr "INSIRA FICHA"
+
+msgid "room.type.king"
+msgstr "Rei da colina"
+
+msgid "room.type.king_detail"
+msgstr "Dezesseis fliperamas, todos os pares jogam ao mesmo tempo: quem vence um set fica sentado e enfrenta o próximo desafiante. A maior sequência de vitórias atual fica com o topo."
+
+msgid "room.cabinet_row"
+msgstr "Fliperama {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "livre"
+
+msgid "room.arcade_move_detail"
+msgstr "Mude para este fliperama entre as partidas. Seu adversário e sua sequência continuam com você."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Revanche"
+
+msgid "room.rematch_detail"
+msgstr "Jogue de novo contra o mesmo adversário. Começa quando os dois escolherem."
+
+msgid "room.new_opponent"
+msgstr "Novo adversário"
+
+msgid "room.new_opponent_detail"
+msgstr "Continue sentado e jogue contra quem espera há mais tempo, ou espere o próximo que sentar."
+
+msgid "room.rematch_ask"
+msgstr "Revanche?"
+
+msgid "room.rematch_chosen"
+msgstr "Revanche escolhida"
+
+msgid "room.top_slot"
+msgstr "TOPO"
+
+msgid "room.top_slot_none"
+msgstr "Vença um set para ficar com o topo."
+
+msgid "room.rules.arcade"
+msgstr "As regras de uma sala de fliperama são definidas ao criá-la e valem em todas as mesas."
 
 msgid "room.practice"
 msgstr "Sala de prática"
@@ -6736,6 +6985,84 @@ msgstr "Emblemas de classe"
 msgid "settings.class_emblems_detail"
 msgstr "Mostra a classe de cada jogador ao lado do nome nas salas públicas. Desativado oculta só na sua tela. Os outros continuam vendo a sua, e suas partidas continuam valendo."
 
+msgid "settings.look"
+msgstr "Aparência"
+
+msgid "settings.look.classic"
+msgstr "Clássica"
+
+msgid "settings.look.v2"
+msgstr "V2 (prévia)"
+
+msgid "settings.look_detail"
+msgstr "A nova aparência do Ember, ainda em construção. Você pode voltar a qualquer momento: só muda a aparência das telas."
+
+msgid "settings.tv_mode"
+msgstr "Modo TV"
+
+msgid "settings.tv_mode_detail"
+msgstr "Para uma TV do outro lado da sala: tudo um quarto maior, dentro de uma margem segura de 5%."
+
+msgid "menu.pages"
+msgstr "Páginas"
+
+msgid "room.controls_detail"
+msgstr "Seu controle e os botões dele, sem sair da sala."
+
+msgid "settings.picture_corner"
+msgstr "Canto da imagem"
+
+msgid "settings.picture_corner_detail"
+msgstr "Em qual canto fica a imagem da partida assistida. Com um mouse você também pode arrastá-la para outro canto."
+
+msgid "settings.picture_size"
+msgstr "Tamanho da imagem"
+
+msgid "settings.picture_size_detail"
+msgstr "O tamanho da imagem da partida assistida. Com um mouse você também pode arrastar a alça."
+
+msgid "settings.tab.player"
+msgstr "Jogador"
+
+msgid "settings.tab.matches"
+msgstr "Partidas"
+
+msgid "settings.tab.interface"
+msgstr "Interface"
+
+msgid "settings.tab.accessibility"
+msgstr "Acessibilidade"
+
+msgid "settings.tab.online"
+msgstr "Online"
+
+msgid "settings.tab.about"
+msgstr "Sobre"
+
+msgid "settings.group.look"
+msgstr "Aparência"
+
+msgid "settings.group.sounds"
+msgstr "Sons"
+
+msgid "settings.group.text"
+msgstr "Texto e idioma"
+
+msgid "settings.group.help"
+msgstr "Ajuda na tela"
+
+msgid "settings.panel.open"
+msgstr "Aberto"
+
+msgid "settings.panel.closed"
+msgstr "Fechado"
+
+msgid "settings.panel.open_action"
+msgstr "Abrir painel"
+
+msgid "settings.panel.close_action"
+msgstr "Fechar painel"
+
 
 msgid "class.developer"
 msgstr "Dev"
@@ -6745,3 +7072,552 @@ msgstr "Desenvolvedor do Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Desenvolvedores do Ember mostram esta marca no lugar da classe e não aparecem no ranking. Suas partidas continuam valendo."
+
+msgid "room.v2.board"
+msgstr "Quadro"
+
+msgid "room.v2.tables"
+msgstr "MESAS"
+
+msgid "room.v2.table"
+msgstr "MESA {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "{0} jogando · {1} assistindo"
+
+msgid "room.v2.group_playing"
+msgstr "JOGANDO"
+
+msgid "room.v2.group_at_table"
+msgstr "EM UMA MESA"
+
+msgid "room.v2.group_watching"
+msgstr "ASSISTINDO"
+
+msgid "room.v2.group_in_room"
+msgstr "NA SALA"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · ONLINE · SALA PRIVADA"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · ONLINE · SALA PÚBLICA"
+
+msgid "room.v2.invitation_only"
+msgstr "Só com convite"
+
+msgid "room.v2.listed"
+msgstr "Listada em Salas públicas"
+
+msgid "room.v2.type_message"
+msgstr "Digite uma mensagem"
+
+msgid "room.v2.more"
+msgstr "Mais…"
+
+msgid "room.v2.more_detail"
+msgstr "Opções da mesa, configurações da sala e links de convite."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Imagem"
+
+msgid "room.v2.picture_none"
+msgstr "Nenhuma"
+
+msgid "room.v2.part_detail"
+msgstr "Mostra ou oculta esta parte da sala. As outras partes ocupam o lugar dela."
+
+msgid "room.v2.picture_detail"
+msgstr "A partida que você assiste: pequena num canto, grande no lugar das mesas ou nenhuma."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Uma janela pequena sobre o menu. Arraste-a para outro canto ou arraste a borda para mudar o tamanho."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Grande, no lugar das mesas da sala."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Sem imagem: a partida fica escurecida atrás do menu."
+
+msgid "room.v2.hide"
+msgstr "Ocultar"
+
+msgid "room.v2.hide_members"
+msgstr "Ocultar membros"
+
+msgid "room.v2.hide_chat"
+msgstr "Ocultar bate-papo"
+
+msgid "room.v2.hide_picture"
+msgstr "Ocultar imagem"
+
+msgid "room.v2.hide_detail"
+msgstr "Recolhe até o título. Mostrar abre de novo."
+
+msgid "room.v2.show"
+msgstr "Mostrar"
+
+msgid "room.v2.show_detail"
+msgstr "Abre no tamanho completo."
+
+msgid "room.v2.copy_invite"
+msgstr "Convite"
+
+msgid "room.v2.copy_link"
+msgstr "Link curto"
+
+msgid "settings.room_show_members_detail"
+msgstr "O painel Membros da sala. Oculto, o bate-papo ocupa a coluna, ou as mesas toda a largura."
+
+msgid "settings.room_show_chat_detail"
+msgstr "O painel Bate-papo da sala. Oculto, os membros ocupam a coluna, ou as mesas toda a largura."
+
+msgid "room.v2.unread"
+msgstr "{0} não lidas"
+
+msgid "online.eyebrow"
+msgstr "EMBER · ONLINE"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · ONLINE · HOSPEDAR"
+
+msgid "online.eyebrow_join"
+msgstr "ONLINE · ENTRAR"
+
+msgid "online.eyebrow_browse"
+msgstr "ONLINE · EXPLORAR"
+
+msgid "public.your_region"
+msgstr "Sua região {0}"
+
+msgid "home.notifications"
+msgstr "Notificações"
+
+msgid "notifications.none"
+msgstr "Nada ainda."
+
+msgid "notifications.none_detail"
+msgstr "O que o Ember avisa, como um link copiado ou uma sala deixada, fica aqui durante esta sessão."
+
+msgid "home.news"
+msgstr "Notícias"
+
+msgid "news.heading"
+msgstr "NOTÍCIAS"
+
+msgid "news.more"
+msgstr "Escolha Notícias na lista para ver cada versão."
+
+msgid "news.none"
+msgstr "Ainda sem notícias"
+
+msgid "news.none_detail"
+msgstr "As notícias vêm das versões do Ember depois da verificação de atualizações."
+
+msgid "settings.group.room_layout"
+msgstr "Layout da sala"
+
+msgid "settings.room_column"
+msgstr "Largura da coluna"
+
+msgid "settings.room_column_detail"
+msgstr "Quanto do quadro da sala a coluna de membros e chat ocupa. Na sala, o mouse também arrasta a linha entre eles."
+
+msgid "settings.room_split"
+msgstr "Membros e chat"
+
+msgid "settings.room_split_detail"
+msgstr "Como a coluna é dividida: membros acima do chat. O chat sempre mantém três linhas. Na sala, o mouse também arrasta a linha entre eles."
+
+msgid "settings.room_preset"
+msgstr "Layout pronto"
+
+msgid "settings.room_preset_detail"
+msgstr "Quadro primeiro dá o espaço às mesas, Chat primeiro à conversa; Equilibrado fica no meio."
+
+msgid "settings.room_preset.board"
+msgstr "Quadro primeiro"
+
+msgid "settings.room_preset.balanced"
+msgstr "Equilibrado"
+
+msgid "settings.room_preset.chat"
+msgstr "Chat primeiro"
+
+msgid "settings.room_layout_reset"
+msgstr "Restaurar padrões"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Volta a coluna e a divisão entre membros e chat para Equilibrado."
+
+msgid "menu.choices_count"
+msgstr "{0} opções"
+
+msgid "menu.choices_keys"
+msgstr "Direções movem · Selecionar escolhe · Voltar mantém {0}"
+
+msgid "selection.costume"
+msgstr "Traje"
+
+msgid "selection.color_row"
+msgstr "Cor"
+
+msgid "selection.ready_with"
+msgstr "Pronto com {0}"
+
+msgid "selection.ready_detail"
+msgstr "Manter este lutador e voltar."
+
+msgid "country.first_letter"
+msgstr "PRIMEIRA LETRA"
+
+msgid "country.letter_detail"
+msgstr "Países: {0}"
+
+msgid "country.board_help"
+msgstr "Uma letra mostra seus países. Com um teclado, digite uma letra para ir até ela."
+
+msgid "news.tab.all"
+msgstr "Tudo"
+
+msgid "news.tab.updates"
+msgstr "Atualizações do Ember"
+
+msgid "news.tab.changelog"
+msgstr "Mudanças"
+
+msgid "news.kind.update"
+msgstr "Atualização"
+
+msgid "news.new"
+msgstr "Novo"
+
+msgid "news.update_now_detail"
+msgstr "Fecha o jogo e instala {0} com o Launcher. Suas configurações são mantidas."
+
+msgid "replays.tab.matches"
+msgstr "Partidas"
+
+msgid "replays.tab.sets"
+msgstr "Sets"
+
+msgid "replays.set_detail"
+msgstr "{0} partidas"
+
+msgid "replays.game"
+msgstr "Partida {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Lutadores"
+
+msgid "replays.fact.played"
+msgstr "Jogada"
+
+msgid "replays.fact.length"
+msgstr "Duração"
+
+msgid "keyboard.recent"
+msgstr "Recentes:"
+
+msgid "keyboard.type"
+msgstr "Digitar"
+
+msgid "keyboard.delete"
+msgstr "Apagar"
+
+msgid "keyboard.space"
+msgstr "Espaço"
+
+msgid "keyboard.capitals"
+msgstr "Maiúsculas"
+
+msgid "keyboard.done"
+msgstr "Pronto"
+
+msgid "welcome.title"
+msgstr "Boas-vindas"
+
+msgid "welcome.step"
+msgstr "BOAS-VINDAS · ETAPA {0} DE {1}"
+
+msgid "welcome.speech_title"
+msgstr "Quer que o Ember leia em voz alta?"
+
+msgid "welcome.speech_text"
+msgstr "O Ember pode ler cada menu em voz alta. Você pode mudar isso a qualquer momento em Configurações."
+
+msgid "welcome.speech_on"
+msgstr "Sim, ler os menus"
+
+msgid "welcome.speech_on_detail"
+msgstr "Usa seu leitor de tela se houver um aberto; senão, a voz do Windows."
+
+msgid "welcome.speech_off"
+msgstr "Sem voz"
+
+msgid "welcome.speech_off_detail"
+msgstr "Você pode ativar depois."
+
+msgid "welcome.language_title"
+msgstr "Qual idioma o Ember deve usar?"
+
+msgid "welcome.language_text"
+msgstr "Os menus do Ember usam este idioma. O jogo mantém o dele."
+
+msgid "welcome.controller_title"
+msgstr "Com qual controle você vai jogar?"
+
+msgid "welcome.controller_text"
+msgstr "O Ember mostra em todo lugar as imagens dos botões desse controle."
+
+msgid "welcome.controller_ready"
+msgstr "Pronto: {0}."
+
+msgid "welcome.look_title"
+msgstr "Qual visual você quer?"
+
+msgid "welcome.look_text"
+msgstr "Você pode trocar a qualquer momento em Configurações: só muda a aparência das telas."
+
+msgid "welcome.look_classic"
+msgstr "Clássico"
+
+msgid "welcome.look_classic_detail"
+msgstr "Os menus do Ember como sempre foram."
+
+msgid "welcome.look_v2"
+msgstr "V2 (prévia)"
+
+msgid "welcome.look_v2_detail"
+msgstr "O novo visual do Ember, ainda em construção."
+
+msgid "welcome.chosen"
+msgstr "Escolhido"
+
+msgid "welcome.next"
+msgstr "Avançar"
+
+msgid "welcome.start"
+msgstr "Começar a jogar"
+
+msgid "welcome.next_detail"
+msgstr "Ir para a próxima pergunta."
+
+msgid "welcome.skip"
+msgstr "Pular"
+
+msgid "welcome.skip_detail"
+msgstr "Ir direto para o Início. Tudo isto também está em Configurações."
+
+msgid "welcome.previous"
+msgstr "Etapa anterior"
+
+msgid "screen.awards"
+msgstr "Conquistas"
+
+msgid "awards.titles"
+msgstr "Títulos"
+
+msgid "awards.icons"
+msgstr "Ícones"
+
+msgid "awards.card"
+msgstr "Seu cartão"
+
+msgid "awards.card_detail"
+msgstr "Seu cartão como os outros o veem. Selecionar abre suas conquistas: os títulos e ícones que você pode usar."
+
+msgid "awards.entry_detail"
+msgstr "Os títulos e ícones que você conquistou e como conquistar o resto. Selecione um para usá-lo no seu cartão."
+
+msgid "awards.earned_count"
+msgstr "{0} de {1} conquistados"
+
+msgid "awards.card_heading"
+msgstr "SEU CARTÃO · COMO OS OUTROS VEEM"
+
+msgid "awards.where_heading"
+msgstr "ONDE APARECE"
+
+msgid "awards.on_card"
+msgstr "No seu cartão"
+
+msgid "awards.earned"
+msgstr "Conquistado"
+
+msgid "awards.locked"
+msgstr "Bloqueado"
+
+msgid "awards.wear"
+msgstr "Usar no cartão"
+
+msgid "awards.detail_worn"
+msgstr "No seu cartão."
+
+msgid "awards.detail_earned"
+msgstr "Conquistado. Selecionar coloca no seu cartão."
+
+msgid "awards.detail_locked"
+msgstr "Bloqueado. {0}."
+
+msgid "tier.ash"
+msgstr "Cinza"
+
+msgid "tier.copper"
+msgstr "Cobre"
+
+msgid "tier.silver"
+msgstr "Prata"
+
+msgid "tier.gold"
+msgstr "Ouro"
+
+msgid "tier.ember"
+msgstr "Ember"
+
+msgid "award.entrant.title"
+msgstr "PARTICIPANTE EMBER"
+
+msgid "award.entrant.icon"
+msgstr "Faísca"
+
+msgid "award.entrant.how"
+msgstr "Jogue um set em qualquer chave do Ember"
+
+msgid "award.launch-night.title"
+msgstr "NOITE DE LANÇAMENTO"
+
+msgid "award.launch-night.icon"
+msgstr "Retroceder"
+
+msgid "award.launch-night.how"
+msgstr "Jogue durante o evento de lançamento do Ember"
+
+msgid "award.weekly-top16.title"
+msgstr "TOP 16 SEMANAL"
+
+msgid "award.weekly-top16.icon"
+msgstr "Louro"
+
+msgid "award.weekly-top16.how"
+msgstr "Termine no top 16 de um Ember Weekly"
+
+msgid "award.rollback-regular.title"
+msgstr "FREQUENTADOR DO ROLLBACK"
+
+msgid "award.rollback-regular.icon"
+msgstr "Calendário"
+
+msgid "award.rollback-regular.how"
+msgstr "Participe de 10 Ember Weekly em uma temporada"
+
+msgid "award.weekly-top8.title"
+msgstr "TOP 8 SEMANAL"
+
+msgid "award.weekly-top8.icon"
+msgstr "Octógono 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Termine no top 8 de um Ember Weekly"
+
+msgid "award.by-ear.title"
+msgstr "DE OUVIDO"
+
+msgid "award.by-ear.icon"
+msgstr "Onda sonora"
+
+msgid "award.by-ear.how"
+msgstr "Vença um set na chave só de áudio"
+
+msgid "award.monthly-finalist.title"
+msgstr "FINALISTA MENSAL"
+
+msgid "award.monthly-finalist.icon"
+msgstr "Medalha"
+
+msgid "award.monthly-finalist.how"
+msgstr "Chegue à grande final de um Ember Monthly"
+
+msgid "award.organizer.title"
+msgstr "ORGANIZADOR DE TORNEIOS"
+
+msgid "award.organizer.icon"
+msgstr "Bandeira"
+
+msgid "award.organizer.how"
+msgstr "Concedido pela equipe do Ember a quem organiza eventos"
+
+msgid "award.commentary.title"
+msgstr "NOS COMENTÁRIOS"
+
+msgid "award.commentary.icon"
+msgstr "Microfone"
+
+msgid "award.commentary.how"
+msgstr "Concedido a quem comenta nas transmissões"
+
+msgid "award.season1-veteran.title"
+msgstr "VETERANO DA TEMPORADA 1"
+
+msgid "award.season1-veteran.icon"
+msgstr "Brasão"
+
+msgid "award.season1-veteran.how"
+msgstr "Termine no top 32 em todo Monthly da temporada 1"
+
+msgid "award.cup-champion.title"
+msgstr "CAMPEÃO DA EMBER CUP"
+
+msgid "award.cup-champion.icon"
+msgstr "Coroa"
+
+msgid "award.cup-champion.how"
+msgstr "Vença a Ember Cup de fim de temporada"
+
+msgid "toast.kind.invitation"
+msgstr "CONVITE"
+
+msgid "toast.kind.room"
+msgstr "SALA"
+
+msgid "toast.kind.update"
+msgstr "ATUALIZAÇÃO"
+
+msgid "toast.kind.match"
+msgstr "PARTIDA"
+
+msgid "toast.kind.system"
+msgstr "SISTEMA"
+
+msgid "toast.join"
+msgstr "Entrar"
+
+msgid "toast.open"
+msgstr "Abrir"
+
+msgid "discord.invitation_notice"
+msgstr "Você foi convidado para uma sala no Discord."
+
+msgid "updates.ready_notice"
+msgstr "O Ember {0} está pronto para instalar."
+
+msgid "home.training"
+msgstr "Treino"
+
+msgid "home.training_detail"
+msgstr "Ir direto para o modo Treino, sem a pergunta de pedido de luta."
+
+msgid "home.training_unavailable"
+msgstr "O treino não está disponível agora: saia primeiro da sala ou da partida e volte ao menu principal do jogo."
+
+msgid "room.arcade_versus"
+msgstr "vs. {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs. {1}"
+
+msgid "room.matchup_detail"
+msgstr "Fliperamas {0} e {1}"

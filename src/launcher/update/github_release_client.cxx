@@ -509,6 +509,8 @@ namespace launcher {
 		if (!installed) installed = "";
 		try {
 			Version bestVersion;
+			std::vector<ReleaseNews> news;
+			const auto current = ParseVersion(installed);
 			const auto releases = nlohmann::json::parse(body);
 			if (!releases.is_array()) throw std::runtime_error("not a release list");
 			const auto flag = [](const nlohmann::json& release, const char* key) {
@@ -523,16 +525,23 @@ namespace launcher {
 					(info.skipGithubPrerelease && flag(release, "prerelease"))) continue;
 				UpdateCheckResult candidate;
 				ReadRelease(release, candidate);
+				// GitHub lists the newest first; "published_at" is "2026-10-14T18:02:11Z".
+				if (news.size() < 5) {
+					const auto name = Text(release, "name");
+					news.push_back({candidate.latestVersion, name.empty() ? candidate.latestVersion : name,
+						Text(release, "published_at").substr(0, 10), candidate.releaseNotes, candidate.releaseUrl,
+						ClassifyReleaseKind(*version) == ReleaseKind::Stable, current && CompareVersions(*version, *current) > 0});
+				}
 				if (candidate.ok && (!best.ok || CompareVersions(*version, bestVersion) > 0)) {
 					best = std::move(candidate);
 					bestVersion = *version;
 				}
 			}
+			best.news = std::move(news);
 			if (best.ok) {
 				// A build without a version label, such as a developer build,
 				// is offered the channel's best release. An installed kind the
 				// channel does not accept can go back to its best release.
-				const auto current = ParseVersion(installed);
 				const int order = current ? CompareVersions(bestVersion, *current) : 1;
 				best.goesBack = order < 0 && current && !info.Accepts(ClassifyReleaseKind(*current));
 				best.updateAvailable = order > 0 || best.goesBack;

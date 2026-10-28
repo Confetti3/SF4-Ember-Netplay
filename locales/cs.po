@@ -237,6 +237,18 @@ msgstr "Aktualizace"
 msgid "updates.downloaded_mb"
 msgstr "Staženo {0:.1f} MB"
 
+msgid "updates.downloaded_of_mb"
+msgstr "Staženo {0:.1f} MB z {1:.1f} MB"
+
+msgid "updates.step_found"
+msgstr "Nalezeno"
+
+msgid "updates.step_verified"
+msgstr "Ověřeno"
+
+msgid "updates.step_installed"
+msgstr "Nainstalováno"
+
 msgid "services.checking"
 msgstr "Kontrola aktualizací..."
 
@@ -429,6 +441,12 @@ msgstr "Pohyb"
 
 msgid "menu.adjust"
 msgstr "Upravit"
+
+msgid "speech.position"
+msgstr "{0} z {1}"
+
+msgid "speech.change"
+msgstr "Vlevo nebo vpravo pro změnu"
 
 msgid "rules.edition_select"
 msgstr "Výběr edice"
@@ -800,10 +818,10 @@ msgid "replays.save_watched_detail"
 msgstr "Ukládá i zápasy, které sleduješ jako divák. Vypnuto ukládá pouze zápasy, které hraješ."
 
 msgid "settings.watched_picture"
-msgstr "Sledovaná hra v rohu"
+msgstr "Obraz sledované hry"
 
 msgid "settings.watched_picture_detail"
-msgstr "Když otevřete menu Emberu nad hrou, kterou sledujete, zobrazí ji zmenšenou v pravém horním rohu nad plným menu místo ztlumené za ním."
+msgstr "Sledovaná hra nad nabídkou Emberu: Malé v rohu, které lze přetáhnout, Velké místo stolů v místnosti, Žádný – ztlumená za nabídkou."
 
 msgid "replays.share"
 msgstr "Share my replays"
@@ -1387,7 +1405,7 @@ msgid "about.controls"
 msgstr "Ovládání"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A vybírá a B se vrací. PlayStation: Kříž vybírá a Kruh se vrací. Switch: B vybírá a A se vrací, stejně jako v nabídce hry. Ovladač nastavený v Ember: Tlačítko zvolené pro Lehký kop vybírá a tlačítko pro Střední kop se vrací bez ohledu na rozložení tlačítek. Klávesnice: šipky, Enter a Escape. Směrový kříž pohybuje; Vlevo a Vpravo mění hodnotu. Návrat na Domů skryje Ember. F10 nebo Start na ovladači jej znovu otevře v hlavní nabídce hry.\n\nV místnosti vám A na stole umožní vybrat místo, A na vlastním místě vás připraví a B opustí místo nebo frontu (na jiných ovladačích tlačítka na stejných pozicích). Na Xbox X otevře Bojovníka, Y Možnosti a View Chat; dalším stiskem se vrátíte do místnosti. PlayStation používá Čtverec, Trojúhelník a Share nebo Create; Switch Y, X a Minus.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači držte View (Share, Create nebo Minus) a stiskněte Start."
+msgstr "Xbox: A vybírá a B se vrací. PlayStation: Kříž vybírá a Kruh se vrací. Switch: B vybírá a A se vrací, stejně jako v nabídce hry. Ovladač nastavený v Ember: Tlačítko zvolené pro Lehký kop vybírá a tlačítko pro Střední kop se vrací bez ohledu na rozložení tlačítek. Klávesnice: šipky, Enter a Escape. Směrový kříž pohybuje; Vlevo a Vpravo mění hodnotu. Návrat na Domů skryje Ember. F10 nebo Start na ovladači jej znovu otevře v hlavní nabídce hry.\n\nV místnosti vám A na stole umožní vybrat místo, A na vlastním místě vás připraví a B opustí místo nebo frontu (na jiných ovladačích tlačítka na stejných pozicích). Na Xbox X otevře Bojovníka, Y Možnosti a View Chat; dalším stiskem se vrátíte do místnosti. PlayStation používá Čtverec, Trojúhelník a Share nebo Create; Switch Y, X a Minus.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači držte View (Share, Create nebo Minus) a stiskněte Start. Na ovladači Xbox je otevře také stisk pravé páčky (R3)."
 
 msgid "about.controls_keyboard"
 msgstr "Na klávesnici také Mezerník vybírá a Backspace vrací zpět. V místnosti F otevře Bojovníka, T Možnosti a C Chat. Escape vždy vrací zpět, i na vašem vlastním místě; Delete opustí vaše místo nebo frontu."
@@ -4866,6 +4884,12 @@ msgstr "Sety v řadě: {0}"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.direct"
+msgstr "Přímo {0} ms"
+
+msgid "room.latency.relay"
+msgstr "Relé {0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Odhadovaný ping: asi {0} ms."
 
@@ -5214,11 +5238,236 @@ msgstr "Měřič snímků v zápasech, automatická připravenost po tréninku a
 msgid "settings.training_replays_title"
 msgstr "TRÉNINK A ZÁZNAMY"
 
+msgid "settings.accessibility"
+msgstr "Přístupnost"
+
+msgid "settings.accessibility_detail"
+msgstr "Hlas, který čte nabídky Emberu nahlas."
+
+msgid "settings.accessibility_title"
+msgstr "PŘÍSTUPNOST"
+
+msgid "speech.setting"
+msgstr "Hlas"
+
+msgid "speech.setting_detail"
+msgstr "Čte nabídky Emberu nahlas, jak se jimi pohybujete. F1 hlas zastaví."
+
+msgid "speech.intro"
+msgstr "Hlas je zapnutý. Pohybem uslyšíte každou položku. Stiskněte {0} a uslyšíte, co dělá; dalším stiskem čtení zastavíte. Další možnosti najdete v Nastavení, Přístupnost."
+
+msgid "speech.rate"
+msgstr "Rychlost hlasu"
+
+msgid "speech.rate_detail"
+msgstr "Jak rychle hlas mluví. 0 je jeho běžné tempo."
+
+msgid "speech.volume"
+msgstr "Hlasitost hlasu"
+
+msgid "speech.volume_detail"
+msgstr "Jak hlasitě hlas mluví."
+
+msgid "speech.details"
+msgstr "Číst popisy automaticky"
+
+msgid "speech.details_detail"
+msgstr "Přečte popis řádku sám, když na něm chvíli zůstanete. Když je vypnuto, přečte ho F2 na požádání."
+
+msgid "speech.hints"
+msgstr "Číst nápovědu tlačítek"
+
+msgid "speech.hints_detail"
+msgstr "Přečte, co na řádku, na kterém zůstanete, dělají vaše tlačítka."
+
+msgid "speech.read_position"
+msgstr "Číst pozici"
+
+msgid "speech.read_position_detail"
+msgstr "Po názvu a hodnotě řádku řekne jeho pozici v seznamu, například 3 z 12."
+
+msgid "speech.more"
+msgstr "{0} pro více"
+
+msgid "speech.help"
+msgstr "{0} pro nápovědu ke každé položce"
+
+msgid "speech.remind"
+msgstr "Připomínat tlačítko popisu"
+
+msgid "speech.remind_detail"
+msgstr "Po názvu řádku, který má popis, řekne, které tlačítko ho přečte. Automaticky přestane, jakmile tlačítko použijete třikrát."
+
+msgid "speech.remind_auto"
+msgstr "Do 3 použití"
+
+msgid "speech.tick"
+msgstr "Zvuk popisu"
+
+msgid "speech.tick_detail"
+msgstr "Jakmile připomínka skončí, tiché cvaknutí po názvu řádku oznámí, že má popis."
+
+msgid "speech.notice"
+msgstr "Oznámení. Stiskněte {0} a uslyšíte ho."
+
+msgid "speech.chime"
+msgstr "Zvuk oznámení"
+
+msgid "speech.chime_detail"
+msgstr "Krátký zvuk před tím, než hlas řekne, že se samo otevřelo oznámení."
+
+msgid "speech.chime_volume"
+msgstr "Hlasitost zvuku oznámení"
+
+msgid "speech.chime_volume_detail"
+msgstr "Jak hlasitě zní zvuk oznámení."
+
+msgid "speech.voice"
+msgstr "Hlas"
+
+msgid "speech.voice_detail"
+msgstr "V Linuxu a na Steam Decku Ember jednou stáhne přirozený hlas pro váš jazyk (asi 90 MB) a ponechá si ho. Dokud není připravený, a pro jazyky bez něj, mluví systémový hlas."
+
+msgid "speech.voice_system"
+msgstr "Systémový hlas"
+
+msgid "speech.voice_downloading"
+msgstr "Stahování, {0} %"
+
+msgid "speech.voice_natural"
+msgstr "Přirozený hlas"
+
+msgid "speech.voice_download_failed"
+msgstr "Stažení selhalo"
+
+msgid "speech.voice_ready"
+msgstr "Přirozený hlas je připravený a od teď mluví on."
+
+msgid "speech.voice_failed"
+msgstr "Přirozený hlas se nepodařilo stáhnout, proto mluví systémový hlas. Ember to zkusí znovu při příštím spuštění."
+
+msgid "speech.pack"
+msgstr "Hlasový balíček: {0}"
+
+msgid "speech.pack_missing"
+msgstr "Nestaženo, {0} MB"
+
+msgid "speech.pack_current"
+msgstr "Staženo, {0} MB"
+
+msgid "speech.pack_outdated"
+msgstr "Dostupná aktualizace, {0} MB"
+
+msgid "speech.pack_removed"
+msgstr "Odebráno"
+
+msgid "speech.pack_detail"
+msgstr "Každý řádek, který Ember říká, nahraný jednou přirozeným hlasem. Stáhne se sám, když je hlas zapnutý; výběrem ho stáhnete znovu nebo aktualizujete."
+
+msgid "speech.pack_download"
+msgstr "Stáhnout"
+
+msgid "speech.pack_remove"
+msgstr "Odebrat hlasový balíček"
+
+msgid "speech.pack_remove_detail"
+msgstr "Odstraní hlasový balíček z tohoto počítače. Dokud ho znovu nestáhnete, mluví systémový hlas."
+
+msgid "speech.pack_downloading"
+msgstr "Stahuje se hlas pro jazyk {0} ({1} MB). Dokud není připravený, mluví systémový hlas."
+
+msgid "speech.pack_failed"
+msgstr "Hlasový balíček se nepodařilo stáhnout, proto mluví systémový hlas. Chcete-li to zkusit znovu, vyberte hlasový balíček v Nastavení, Přístupnost."
+
+msgid "speech.no_windows_voice"
+msgstr "Hlas je zapnutý, ale Windows nemají žádný hlas, kterým by mluvily. Přidejte ho v Nastavení Windows v části Čas a jazyk, Řeč."
+
+msgid "speech.no_speech_dispatcher"
+msgstr "Hlas je zapnutý, ale speech-dispatcher není dostupný. V Linuxu a na Steam Decku mluví Ember přes speech-dispatcher, který potřebuje také python3."
+
 msgid "room.table_footer_practice"
 msgstr "Cvičný zápas"
 
 msgid "room.rules_summary_practice"
 msgstr "Cvičný zápas, {0} kol, {1} s, Edition Select {2}"
+
+msgid "room.type"
+msgstr "Typ místnosti"
+
+msgid "room.type.classic"
+msgstr "Klasická"
+
+msgid "room.type.arcade"
+msgstr "Herna"
+
+msgid "room.type.classic_detail"
+msgstr "Hráči čekají ve frontě u stolu a hrají u něj."
+
+msgid "room.type.arcade_detail"
+msgstr "Šestnáct automatů: sedněte si k libovolnému volnému a hrajte s tím, kdo čeká nejdéle. Po setu oba zvolí Odvetu a hrají znovu, jinak každý hraje s dalším čekajícím."
+
+msgid "room.arcade_status"
+msgstr "Místnost herny / jen na pozvání"
+
+msgid "room.arcade_locked_status"
+msgstr "Místnost herny zamčená / jen na pozvání"
+
+msgid "room.arcade_sit"
+msgstr "Posadit se"
+
+msgid "room.arcade_sit_detail"
+msgstr "Sedněte si sem: hrajete s tím, kdo čeká nejdéle, nebo počkáte na dalšího hráče."
+
+msgid "room.arcade_waiting"
+msgstr "Čeká"
+
+msgid "room.cabinet_free"
+msgstr "VHOĎ MINCI"
+
+msgid "room.type.king"
+msgstr "Král kopce"
+
+msgid "room.type.king_detail"
+msgstr "Šestnáct automatů, všechny dvojice hrají najednou: vítěz setu zůstává sedět a hraje s dalším vyzyvatelem. Nejdelší aktuální série výher drží první místo."
+
+msgid "room.cabinet_row"
+msgstr "Automat {0}: {1}"
+
+msgid "room.cabinet_open"
+msgstr "volný"
+
+msgid "room.arcade_move_detail"
+msgstr "Mezi hrami se přesuňte k tomuto automatu. Soupeř i vaše série zůstávají."
+
+msgid "room.arcade_vs"
+msgstr "vs {0}"
+
+msgid "room.rematch"
+msgstr "Odveta"
+
+msgid "room.rematch_detail"
+msgstr "Hrát znovu se stejným soupeřem. Začne, jakmile to zvolíte oba."
+
+msgid "room.new_opponent"
+msgstr "Nový soupeř"
+
+msgid "room.new_opponent_detail"
+msgstr "Zůstaňte sedět a hrajte s tím, kdo čeká nejdéle, nebo počkejte na dalšího hráče."
+
+msgid "room.rematch_ask"
+msgstr "Odveta?"
+
+msgid "room.rematch_chosen"
+msgstr "Odveta zvolena"
+
+msgid "room.top_slot"
+msgstr "PRVNÍ MÍSTO"
+
+msgid "room.top_slot_none"
+msgstr "Vyhrajte set a získejte první místo."
+
+msgid "room.rules.arcade"
+msgstr "Pravidla místnosti herny se volí při jejím vytvoření a platí u každého stolu."
 
 msgid "room.practice"
 msgstr "Tréninková místnost"
@@ -7219,6 +7468,84 @@ msgstr "Emblémy tříd"
 msgid "settings.class_emblems_detail"
 msgstr "Zobrazuje třídu každého hráče u jeho jména ve veřejných místnostech. Vypnutí je skryje jen na vaší obrazovce. Ostatní vaši třídu stále vidí a vaše hry se stále počítají."
 
+msgid "settings.look"
+msgstr "Vzhled"
+
+msgid "settings.look.classic"
+msgstr "Klasický"
+
+msgid "settings.look.v2"
+msgstr "V2 (náhled)"
+
+msgid "settings.look_detail"
+msgstr "Nový vzhled Emberu, který ještě vzniká. Kdykoli můžete přepnout zpět: mění se jen vzhled obrazovek."
+
+msgid "settings.tv_mode"
+msgstr "Režim TV"
+
+msgid "settings.tv_mode_detail"
+msgstr "Pro televizi na druhé straně místnosti: vše o čtvrtinu větší, uvnitř bezpečného okraje 5 %."
+
+msgid "menu.pages"
+msgstr "Stránky"
+
+msgid "room.controls_detail"
+msgstr "Tvůj ovladač a jeho tlačítka, aniž bys opustil místnost."
+
+msgid "settings.picture_corner"
+msgstr "Roh obrazu"
+
+msgid "settings.picture_corner_detail"
+msgstr "Ve kterém rohu je obraz sledované hry. Myší ho můžete přetáhnout i do jiného rohu."
+
+msgid "settings.picture_size"
+msgstr "Velikost obrazu"
+
+msgid "settings.picture_size_detail"
+msgstr "Jak velký je obraz sledované hry. Myší můžete táhnout i za jeho úchyt."
+
+msgid "settings.tab.player"
+msgstr "Hráč"
+
+msgid "settings.tab.matches"
+msgstr "Zápasy"
+
+msgid "settings.tab.interface"
+msgstr "Rozhraní"
+
+msgid "settings.tab.accessibility"
+msgstr "Přístupnost"
+
+msgid "settings.tab.online"
+msgstr "Online"
+
+msgid "settings.tab.about"
+msgstr "O aplikaci"
+
+msgid "settings.group.look"
+msgstr "Vzhled"
+
+msgid "settings.group.sounds"
+msgstr "Zvuky"
+
+msgid "settings.group.text"
+msgstr "Text a jazyk"
+
+msgid "settings.group.help"
+msgstr "Nápověda na obrazovce"
+
+msgid "settings.panel.open"
+msgstr "Otevřeno"
+
+msgid "settings.panel.closed"
+msgstr "Zavřeno"
+
+msgid "settings.panel.open_action"
+msgstr "Otevřít panel"
+
+msgid "settings.panel.close_action"
+msgstr "Zavřít panel"
+
 
 msgid "class.developer"
 msgstr "Dev"
@@ -7228,3 +7555,552 @@ msgstr "Vývojář Ember"
 
 msgid "rankings.developer_detail"
 msgstr "Vývojáři Ember mají místo třídy tuto značku a nejsou v žebříčku. Vaše hry se stále počítají."
+
+msgid "room.v2.board"
+msgstr "Přehled"
+
+msgid "room.v2.tables"
+msgstr "STOLY"
+
+msgid "room.v2.table"
+msgstr "STŮL {0}"
+
+msgid "room.v2.tables_summary"
+msgstr "Hraje: {0} · sleduje: {1}"
+
+msgid "room.v2.group_playing"
+msgstr "HRAJÍ"
+
+msgid "room.v2.group_at_table"
+msgstr "U STOLU"
+
+msgid "room.v2.group_watching"
+msgstr "SLEDUJÍ"
+
+msgid "room.v2.group_in_room"
+msgstr "V MÍSTNOSTI"
+
+msgid "room.v2.eyebrow_private"
+msgstr "EMBER · ONLINE · SOUKROMÁ MÍSTNOST"
+
+msgid "room.v2.eyebrow_public"
+msgstr "EMBER · ONLINE · VEŘEJNÁ MÍSTNOST"
+
+msgid "room.v2.invitation_only"
+msgstr "Jen na pozvánku"
+
+msgid "room.v2.listed"
+msgstr "Uvedeno ve Veřejných místnostech"
+
+msgid "room.v2.type_message"
+msgstr "Napište zprávu"
+
+msgid "room.v2.more"
+msgstr "Další…"
+
+msgid "room.v2.more_detail"
+msgstr "Možnosti stolu, nastavení místnosti a odkazy s pozvánkou."
+
+msgid "room.v2.part_state"
+msgstr "{0}: {1}"
+
+msgid "room.v2.picture"
+msgstr "Obraz"
+
+msgid "room.v2.picture_none"
+msgstr "Žádný"
+
+msgid "room.v2.part_detail"
+msgstr "Zobrazí nebo skryje tuto část místnosti. Ostatní části zaberou její místo."
+
+msgid "room.v2.picture_detail"
+msgstr "Sledovaná hra: malá v rohu, velká místo stolů, nebo žádná."
+
+msgid "room.v2.picture_small_detail"
+msgstr "Malé okno nad nabídkou. Přetáhněte ho do jiného rohu nebo táhněte jeho okraj a změňte velikost."
+
+msgid "room.v2.picture_big_detail"
+msgstr "Velký, místo stolů v místnosti."
+
+msgid "room.v2.picture_off_detail"
+msgstr "Bez obrazu: hra zůstane ztlumená za nabídkou."
+
+msgid "room.v2.hide"
+msgstr "Skrýt"
+
+msgid "room.v2.hide_members"
+msgstr "Skrýt členy"
+
+msgid "room.v2.hide_chat"
+msgstr "Skrýt chat"
+
+msgid "room.v2.hide_picture"
+msgstr "Skrýt obraz"
+
+msgid "room.v2.hide_detail"
+msgstr "Sbalí ho na nadpis. Zobrazit ho zase rozbalí."
+
+msgid "room.v2.show"
+msgstr "Zobrazit"
+
+msgid "room.v2.show_detail"
+msgstr "Rozbalí ho na plnou velikost."
+
+msgid "room.v2.copy_invite"
+msgstr "Pozvánka"
+
+msgid "room.v2.copy_link"
+msgstr "Krátký odkaz"
+
+msgid "settings.room_show_members_detail"
+msgstr "Panel Členové v místnosti. Když je skrytý, sloupec zabere chat, nebo stoly celou šířku."
+
+msgid "settings.room_show_chat_detail"
+msgstr "Panel Chat v místnosti. Když je skrytý, sloupec zaberou členové, nebo stoly celou šířku."
+
+msgid "room.v2.unread"
+msgstr "Nepřečtené: {0}"
+
+msgid "online.eyebrow"
+msgstr "EMBER · ONLINE"
+
+msgid "online.eyebrow_host"
+msgstr "EMBER · ONLINE · HOSTOVÁNÍ"
+
+msgid "online.eyebrow_join"
+msgstr "ONLINE · PŘIPOJENÍ"
+
+msgid "online.eyebrow_browse"
+msgstr "ONLINE · PROCHÁZENÍ"
+
+msgid "public.your_region"
+msgstr "Váš region {0}"
+
+msgid "home.notifications"
+msgstr "Oznámení"
+
+msgid "notifications.none"
+msgstr "Zatím nic."
+
+msgid "notifications.none_detail"
+msgstr "Co Ember oznámí, třeba zkopírovaný odkaz nebo opuštěnou místnost, tu zůstane po tuto relaci."
+
+msgid "home.news"
+msgstr "Novinky"
+
+msgid "news.heading"
+msgstr "NOVINKY"
+
+msgid "news.more"
+msgstr "Vyber Novinky v seznamu pro každé vydání."
+
+msgid "news.none"
+msgstr "Zatím žádné novinky"
+
+msgid "news.none_detail"
+msgstr "Novinky pocházejí z vydání Emberu po kontrole aktualizací."
+
+msgid "settings.group.room_layout"
+msgstr "Rozvržení místnosti"
+
+msgid "settings.room_column"
+msgstr "Šířka sloupce"
+
+msgid "settings.room_column_detail"
+msgstr "Kolik z tabule místnosti zabírá sloupec se členy a chatem. V místnosti myš také přetahuje čáru mezi nimi."
+
+msgid "settings.room_split"
+msgstr "Členové a chat"
+
+msgid "settings.room_split_detail"
+msgstr "Jak je sloupec rozdělen: členové nad chatem. Chat si vždy ponechá tři řádky. V místnosti myš také přetahuje čáru mezi nimi."
+
+msgid "settings.room_preset"
+msgstr "Hotové rozvržení"
+
+msgid "settings.room_preset_detail"
+msgstr "Nejdřív tabule dává místo stolům, Nejdřív chat konverzaci; Vyvážené je mezi nimi."
+
+msgid "settings.room_preset.board"
+msgstr "Nejdřív tabule"
+
+msgid "settings.room_preset.balanced"
+msgstr "Vyvážené"
+
+msgid "settings.room_preset.chat"
+msgstr "Nejdřív chat"
+
+msgid "settings.room_layout_reset"
+msgstr "Obnovit výchozí"
+
+msgid "settings.room_layout_reset_detail"
+msgstr "Vrátí sloupec a rozdělení mezi členy a chat na Vyvážené."
+
+msgid "menu.choices_count"
+msgstr "Možnosti: {0}"
+
+msgid "menu.choices_keys"
+msgstr "Směry posouvají · Vybrat zvolí · Zpět ponechá {0}"
+
+msgid "selection.costume"
+msgstr "Kostým"
+
+msgid "selection.color_row"
+msgstr "Barva"
+
+msgid "selection.ready_with"
+msgstr "Připraven s {0}"
+
+msgid "selection.ready_detail"
+msgstr "Ponechat tohoto bojovníka a vrátit se."
+
+msgid "country.first_letter"
+msgstr "PRVNÍ PÍSMENO"
+
+msgid "country.letter_detail"
+msgstr "Země: {0}"
+
+msgid "country.board_help"
+msgstr "Písmeno ukáže své země. Na klávesnici napiš písmeno a přeskoč na něj."
+
+msgid "news.tab.all"
+msgstr "Vše"
+
+msgid "news.tab.updates"
+msgstr "Aktualizace Emberu"
+
+msgid "news.tab.changelog"
+msgstr "Změny"
+
+msgid "news.kind.update"
+msgstr "Aktualizace"
+
+msgid "news.new"
+msgstr "Nové"
+
+msgid "news.update_now_detail"
+msgstr "Zavře hru a nainstaluje {0} pomocí Launcheru. Tvoje nastavení zůstanou."
+
+msgid "replays.tab.matches"
+msgstr "Zápasy"
+
+msgid "replays.tab.sets"
+msgstr "Sety"
+
+msgid "replays.set_detail"
+msgstr "Zápasy: {0}"
+
+msgid "replays.game"
+msgstr "Zápas {0}"
+
+msgid "replays.fact.fighters"
+msgstr "Bojovníci"
+
+msgid "replays.fact.played"
+msgstr "Hráno"
+
+msgid "replays.fact.length"
+msgstr "Délka"
+
+msgid "keyboard.recent"
+msgstr "Nedávné:"
+
+msgid "keyboard.type"
+msgstr "Psát"
+
+msgid "keyboard.delete"
+msgstr "Smazat"
+
+msgid "keyboard.space"
+msgstr "Mezera"
+
+msgid "keyboard.capitals"
+msgstr "Velká písmena"
+
+msgid "keyboard.done"
+msgstr "Hotovo"
+
+msgid "welcome.title"
+msgstr "Vítejte"
+
+msgid "welcome.step"
+msgstr "VÍTEJTE · KROK {0} Z {1}"
+
+msgid "welcome.speech_title"
+msgstr "Má Ember číst nahlas?"
+
+msgid "welcome.speech_text"
+msgstr "Ember umí číst nahlas každou nabídku. Kdykoli to můžete změnit v Nastavení."
+
+msgid "welcome.speech_on"
+msgstr "Ano, číst nabídky"
+
+msgid "welcome.speech_on_detail"
+msgstr "Použije čtečku obrazovky, pokud běží, jinak hlas Windows."
+
+msgid "welcome.speech_off"
+msgstr "Bez hlasu"
+
+msgid "welcome.speech_off_detail"
+msgstr "Můžete ho zapnout později."
+
+msgid "welcome.language_title"
+msgstr "Jaký jazyk má Ember používat?"
+
+msgid "welcome.language_text"
+msgstr "Nabídky Emberu používají tento jazyk. Hra si ponechá svůj."
+
+msgid "welcome.controller_title"
+msgstr "Jakým ovladačem budete hrát?"
+
+msgid "welcome.controller_text"
+msgstr "Ember všude ukazuje obrázky tlačítek tohoto ovladače."
+
+msgid "welcome.controller_ready"
+msgstr "Připraveno: {0}."
+
+msgid "welcome.look_title"
+msgstr "Jaký vzhled chcete?"
+
+msgid "welcome.look_text"
+msgstr "Kdykoli to můžete přepnout v Nastavení: mění se jen vzhled obrazovek."
+
+msgid "welcome.look_classic"
+msgstr "Klasický"
+
+msgid "welcome.look_classic_detail"
+msgstr "Nabídky Emberu tak, jak byly vždy."
+
+msgid "welcome.look_v2"
+msgstr "V2 (náhled)"
+
+msgid "welcome.look_v2_detail"
+msgstr "Nový vzhled Emberu, stále ve vývoji."
+
+msgid "welcome.chosen"
+msgstr "Zvoleno"
+
+msgid "welcome.next"
+msgstr "Další"
+
+msgid "welcome.start"
+msgstr "Začít hrát"
+
+msgid "welcome.next_detail"
+msgstr "Na další otázku."
+
+msgid "welcome.skip"
+msgstr "Přeskočit"
+
+msgid "welcome.skip_detail"
+msgstr "Rovnou na Domů. Vše zde je také v Nastavení."
+
+msgid "welcome.previous"
+msgstr "Předchozí krok"
+
+msgid "screen.awards"
+msgstr "Ocenění"
+
+msgid "awards.titles"
+msgstr "Tituly"
+
+msgid "awards.icons"
+msgstr "Ikony"
+
+msgid "awards.card"
+msgstr "Tvoje karta"
+
+msgid "awards.card_detail"
+msgstr "Tvoje karta, jak ji vidí ostatní. Výběr otevře tvá ocenění: tituly a ikony, které můžeš nosit."
+
+msgid "awards.entry_detail"
+msgstr "Tituly a ikony, které jsi získal, a jak získat ostatní. Vyber jeden a nos ho na své kartě."
+
+msgid "awards.earned_count"
+msgstr "Získáno {0} z {1}"
+
+msgid "awards.card_heading"
+msgstr "TVOJE KARTA · JAK JI VIDÍ OSTATNÍ"
+
+msgid "awards.where_heading"
+msgstr "KDE SE ZOBRAZUJE"
+
+msgid "awards.on_card"
+msgstr "Na tvé kartě"
+
+msgid "awards.earned"
+msgstr "Získáno"
+
+msgid "awards.locked"
+msgstr "Zamčeno"
+
+msgid "awards.wear"
+msgstr "Dát na kartu"
+
+msgid "awards.detail_worn"
+msgstr "Na tvé kartě."
+
+msgid "awards.detail_earned"
+msgstr "Získáno. Výběr ho dá na tvou kartu."
+
+msgid "awards.detail_locked"
+msgstr "Zamčeno. {0}."
+
+msgid "tier.ash"
+msgstr "Popel"
+
+msgid "tier.copper"
+msgstr "Měď"
+
+msgid "tier.silver"
+msgstr "Stříbro"
+
+msgid "tier.gold"
+msgstr "Zlato"
+
+msgid "tier.ember"
+msgstr "Ember"
+
+msgid "award.entrant.title"
+msgstr "ÚČASTNÍK EMBER"
+
+msgid "award.entrant.icon"
+msgstr "Jiskra"
+
+msgid "award.entrant.how"
+msgstr "Odehraj jeden set v libovolném pavouku Ember"
+
+msgid "award.launch-night.title"
+msgstr "NOC SPUŠTĚNÍ"
+
+msgid "award.launch-night.icon"
+msgstr "Přetočení"
+
+msgid "award.launch-night.how"
+msgstr "Hraj během události ke spuštění Emberu"
+
+msgid "award.weekly-top16.title"
+msgstr "TOP 16 TÝDNE"
+
+msgid "award.weekly-top16.icon"
+msgstr "Vavřín"
+
+msgid "award.weekly-top16.how"
+msgstr "Skonči v top 16 na Ember Weekly"
+
+msgid "award.rollback-regular.title"
+msgstr "ROLLBACKOVÝ ŠTAMGAST"
+
+msgid "award.rollback-regular.icon"
+msgstr "Kalendář"
+
+msgid "award.rollback-regular.how"
+msgstr "Zúčastni se 10 turnajů Ember Weekly v jedné sezóně"
+
+msgid "award.weekly-top8.title"
+msgstr "TOP 8 TÝDNE"
+
+msgid "award.weekly-top8.icon"
+msgstr "Osmiúhelník 8"
+
+msgid "award.weekly-top8.how"
+msgstr "Skonči v top 8 na Ember Weekly"
+
+msgid "award.by-ear.title"
+msgstr "PO SLUCHU"
+
+msgid "award.by-ear.icon"
+msgstr "Zvuková vlna"
+
+msgid "award.by-ear.how"
+msgstr "Vyhraj set v pavouku jen se zvukem"
+
+msgid "award.monthly-finalist.title"
+msgstr "FINALISTA MĚSÍCE"
+
+msgid "award.monthly-finalist.icon"
+msgstr "Medaile"
+
+msgid "award.monthly-finalist.how"
+msgstr "Dostaň se do velkého finále Ember Monthly"
+
+msgid "award.organizer.title"
+msgstr "POŘADATEL TURNAJŮ"
+
+msgid "award.organizer.icon"
+msgstr "Vlajka"
+
+msgid "award.organizer.how"
+msgstr "Uděluje tým Emberu pořadatelům akcí"
+
+msgid "award.commentary.title"
+msgstr "KOMENTÁTOR"
+
+msgid "award.commentary.icon"
+msgstr "Mikrofon"
+
+msgid "award.commentary.how"
+msgstr "Uděluje se komentátorům streamů"
+
+msgid "award.season1-veteran.title"
+msgstr "VETERÁN 1. SEZÓNY"
+
+msgid "award.season1-veteran.icon"
+msgstr "Erb"
+
+msgid "award.season1-veteran.how"
+msgstr "Skonči v top 32 v každém Monthly 1. sezóny"
+
+msgid "award.cup-champion.title"
+msgstr "ŠAMPION EMBER CUP"
+
+msgid "award.cup-champion.icon"
+msgstr "Koruna"
+
+msgid "award.cup-champion.how"
+msgstr "Vyhraj Ember Cup na konci sezóny"
+
+msgid "toast.kind.invitation"
+msgstr "POZVÁNKA"
+
+msgid "toast.kind.room"
+msgstr "MÍSTNOST"
+
+msgid "toast.kind.update"
+msgstr "AKTUALIZACE"
+
+msgid "toast.kind.match"
+msgstr "ZÁPAS"
+
+msgid "toast.kind.system"
+msgstr "SYSTÉM"
+
+msgid "toast.join"
+msgstr "Připojit se"
+
+msgid "toast.open"
+msgstr "Otevřít"
+
+msgid "discord.invitation_notice"
+msgstr "Máš pozvánku do místnosti na Discordu."
+
+msgid "updates.ready_notice"
+msgstr "Ember {0} je připraven k instalaci."
+
+msgid "home.training"
+msgstr "Trénink"
+
+msgid "home.training_detail"
+msgstr "Přejít rovnou do režimu Trénink, bez otázky na výzvy k zápasu."
+
+msgid "home.training_unavailable"
+msgstr "Trénink teď není k dispozici: nejdřív opusť místnost nebo zápas a vrať se do hlavního menu hry."
+
+msgid "room.arcade_versus"
+msgstr "vs {0}"
+
+msgid "room.matchup"
+msgstr "{0} vs {1}"
+
+msgid "room.matchup_detail"
+msgstr "Automaty {0} a {1}"

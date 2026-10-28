@@ -8,3 +8,4 @@ endif()
 sf4e_hex_bytes("${sf4e_brand_path}" sf4e_brand_bytes)
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/EmbeddedBrand.hxx" CONTENT
     "#pragma once\nnamespace sf4e { namespace ui { namespace brand {\nconstexpr int Size = 128;\nstatic const unsigned char Pixels[] = {\n${sf4e_brand_bytes}\n};\n} } }\n")
+

@@ -7,6 +7,9 @@
 #include "ProblemReportPanel.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../common/Localization.hxx"
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <optional>
 
 namespace sf4e { namespace ui {
@@ -42,6 +45,69 @@ inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(u
 inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& state,std::string& offered) {
     if(!state.update.ok||!state.update.updateAvailable||state.pending||state.update.latestVersion==offered)return;
     offered=state.update.latestVersion;menu.navigation.Prefer("install");
+}
+// V2's left column of the launch window (Recovery.dc.html): why it opened, or
+// the latest service result; the focused row's words in a box; and while an
+// update is fetched its bar and checks (Update.dc.html: found, verified,
+// installed). The rows are the cards on the right.
+inline void DrawRecoveryPane(const platform::ServiceSnapshot& state,const std::string& status,Tone tone,const MenuEntry* row) {
+    const float s=Scale();
+    const auto& c=v2::Colors();
+    auto* d=ImGui::GetWindowDrawList();
+    if(!status.empty())v2::Paragraph(status,18*s,tone==Tone::Success||tone==Tone::Pending?ImGui::ColorConvertFloat4ToU32(ToneColor(tone)):c.text);
+    // A box of words under a muted heading, on the frame's ground.
+    const auto box=[&](const char* id,const std::string& heading,const std::string& words,DetailText kind){
+        ImGui::Dummy(ImVec2(0,8*s));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg,ImGui::ColorConvertU32ToFloat4(c.frame));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(16*s,12*s));
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,4*s);
+        ImGui::BeginChild(id,ImVec2(-1,0),ImGuiChildFlags_AutoResizeY|ImGuiChildFlags_AlwaysUseWindowPadding|ImGuiChildFlags_Borders,ImGuiWindowFlags_NoNavInputs);
+        NoteDetailText(words,kind);
+        v2::Paragraph(heading,15*s,c.muted);
+        v2::Paragraph(words,16*s,c.text);
+        ImGui::EndChild();
+        ImGui::PopStyleVar(2);ImGui::PopStyleColor();
+    };
+    // A reader's row (the release notes) shows its first line; Select opens the rest.
+    if(row&&!row->detail.empty())box("recovery-row",row->label,row->reading?row->detail.substr(0,row->detail.find('\n')):row->detail,row->detailText);
+    // A found update's first notes, as the offer shows them; the What's new row reads them all.
+    const auto& notes=state.update.releaseNotes;
+    if(state.update.ok&&state.update.updateAvailable&&!state.pending&&!notes.empty()&&!(row&&row->reading)){
+        std::size_t end=0;
+        for(int line=0;line<4&&end!=std::string::npos;++line)end=notes.find('\n',end?end+1:0);
+        box("recovery-notes",loc::T("updates.whats_new"),notes.substr(0,end),DetailText::Chat);
+    }
+    if(!state.pending||state.lastAction!=platform::ServiceAction::InstallUpdate)return;
+    ImGui::Dummy(ImVec2(0,16*s));
+    const float w=ImGui::GetContentRegionAvail().x,font=ImGui::GetFontSize();
+    const auto at=ImGui::GetCursorScreenPos();
+    const float done=state.stageTotal?(std::min)(1.f,float(state.stageDone)/state.stageTotal):-1;
+    d->AddRectFilled(at,ImVec2(at.x+w,at.y+14*s),c.frame,4*s);
+    // No total yet (extracting, a step just begun): a block runs along the bar.
+    const float from=done<0?(w-w/4)*(.5f+.5f*std::sin(float(ImGui::GetTime())*2)):0,to=done<0?from+w/4:w*done;
+    d->AddRectFilled(ImVec2(at.x+from,at.y),ImVec2(at.x+to,at.y+14*s),c.accent,4*s);
+    d->AddRect(at,ImVec2(at.x+w,at.y+14*s),c.border,4*s,0,s);
+    const std::string words=state.updateStage==launcher::UpdateStage::Downloading&&state.stageTotal?
+        loc::Tf("updates.downloaded_of_mb",state.stageDone/1048576.0,state.stageTotal/1048576.0):state.message;
+    d->PushClipRect(ImVec2(at.x,at.y+20*s),ImVec2(at.x+w-56*s,at.y+20*s+font),true);
+    d->AddText(ImVec2(at.x,at.y+20*s),c.text,words.c_str());
+    d->PopClipRect();
+    if(done>=0){
+        const std::string pct=std::to_string(int(done*100))+"%";
+        d->AddText(ImVec2(at.x+w-ImGui::CalcTextSize(pct.c_str()).x,at.y+20*s),c.muted,pct.c_str());
+    }
+    // The checks: found, verified once past Verifying, installed when the updater has it.
+    const bool ticks[]={state.update.updateAvailable,state.updateStage>launcher::UpdateStage::Verifying,state.installed};
+    const char* names[]={loc::T("updates.step_found"),loc::T("updates.step_verified"),loc::T("updates.step_installed")};
+    float x=at.x;const float y=at.y+28*s+font+font*.5f;
+    for(int i=0;i<3;++i){
+        const ImU32 tone=ticks[i]?ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Success)):c.muted;
+        if(ticks[i])d->AddPolyline(std::array<ImVec2,3>{ImVec2(x,y),ImVec2(x+4*s,y+4*s),ImVec2(x+11*s,y-5*s)}.data(),3,tone,0,2.5f*s);
+        else d->AddCircle(ImVec2(x+5*s,y),5*s,tone,0,1.5f*s);
+        d->AddText(ImVec2(x+18*s,y-font*.5f),tone,names[i]);
+        x+=18*s+ImGui::CalcTextSize(names[i]).x+20*s;
+    }
+    ImGui::Dummy(ImVec2(w,28*s+font*2));
 }
 // Rendering returns intent only. The launcher owns dialogs, services and exit.
 // messageTone is the launcher message's own severity: a selected folder is
@@ -130,7 +196,20 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     // stable-status screen, which recovery is not. fitStatus: launcher messages
     // run to several lines and name the files to move and the folders to look in.
     menu.fitStatus=true;
-    const auto action=menu.Draw(updates?loc::T("updates.title"):loc::T("recovery.title"),rows,status.c_str(),[&](const std::string&){
+    // V2: the words and the update's progress on the left, the rows as cards
+    // on the right with Retry or a found update marked as the thing to do. Too
+    // narrow for the column, the status goes to the hint bar.
+    const bool look=v2::On();
+    const float s=Scale(),width=vp->Size.x;
+    const bool column=look&&!v2::Narrow(width,s)&&width-2*v2::SideMargin(width,s)>=820*s;
+    menu.paneLeft=menu.customDetail=look;menu.backdrop=!look;menu.listWidth=look?520.f:0;
+    if(look)for(auto& row:rows)row.valueHighlighted=row.id=="install"||(row.id=="retry"&&!updates);
+    const auto action=menu.Draw(updates?loc::T("updates.title"):loc::T("recovery.title"),rows,column?"":status.c_str(),[&](const std::string& id){
+        if(look){
+            const auto row=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
+            DrawRecoveryPane(state,status,tone,row==rows.end()?nullptr:&*row);
+            return;
+        }
         if(!state.pending)return;
         // An installing update with no total (extracting, or a step just begun) gets Dear ImGui's moving bar.
         if(state.stageTotal)ImGui::ProgressBar((std::min)(1.f,float(state.stageDone)/state.stageTotal),ImVec2(-1,0));

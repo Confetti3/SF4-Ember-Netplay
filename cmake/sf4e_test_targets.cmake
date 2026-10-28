@@ -55,6 +55,7 @@ sf4e_add_unit_test(NAME RoomSnapshot SOURCES "src/tests/room_snapshot_test.cxx" 
 sf4e_add_unit_test(NAME RoomSteamProfile SOURCES "src/tests/room_steam_profile_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomCountry SOURCES "src/tests/room_country_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomSets SOURCES "src/tests/room_sets_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+sf4e_add_unit_test(NAME RoomArcade SOURCES "src/tests/room_arcade_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME RoomTournament SOURCES "src/tests/room_tournament_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play LABELS room)
 sf4e_add_unit_test(NAME IdentityEvents SOURCES "src/tests/identity_events_test.cxx" "src/session/IdentityEvents.cxx"
@@ -153,7 +154,20 @@ sf4e_add_unit_test(NAME NativeSelectionAvailability SOURCES src/tests/native_sel
 sf4e_add_unit_test(NAME WineBuiltin SOURCES src/tests/wine_builtin_test.cxx STD 17)
 sf4e_add_unit_test(NAME Win32Cursor SOURCES src/tests/win32_cursor_test.cxx LIBS sf4e_ui LABELS ui)
 sf4e_add_unit_test(NAME CountryPicker SOURCES src/tests/country_picker_test.cxx LIBS sf4e_ui TIMEOUT 30 LABELS ui)
+sf4e_add_unit_test(NAME V2Layout SOURCES src/tests/v2_layout_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME MenuSpeech SOURCES src/tests/menu_speech_test.cxx LIBS sf4e_localization STD 17 LABELS ui)
+sf4e_add_unit_test(NAME SpeechLinux SOURCES src/tests/speech_linux_test.cxx STD 17)
+sf4e_add_unit_test(NAME SpeechWine SOURCES src/tests/speech_wine_test.cxx LIBS sf4e_ui STD 17 SKIP_RETURN_CODE 77)
+# The relay runs on the player's Linux host, so its own test needs a Python 3; skipped without one.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME SpeechRelay COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/speech_relay_test.py" "${CMAKE_SOURCE_DIR}/src/platform/speech_relay.py")
+endif()
 target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
+# The UI lab (src/ui/lab/UiLab.cxx): the shell in a window of its own, for working on layouts.
+add_executable(UiLab WIN32 "src/ui/lab/UiLab.cxx")
+target_compile_definitions(UiLab PRIVATE SF4E_LAB_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
+target_link_libraries(UiLab PRIVATE sf4e_ui "d3d9" "xinput" "shell32")
 add_test(NAME UiRender COMMAND UiRenderTest)
 # Each sweep takes under a minute with the GPU transforming vertices. The
 # budgets cover an adapter without hardware transform, where the CPU does

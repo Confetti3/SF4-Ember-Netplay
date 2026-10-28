@@ -1,5 +1,6 @@
 #pragma once
 #include <imgui.h>
+#include "RoomCards.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/TrainingEntry.hxx"
@@ -10,6 +11,7 @@
 #include "../netplay/SessionController.hxx"
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/PlayerPreferences.hxx"
+#include "../platform/Speech.hxx"
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
@@ -23,6 +25,7 @@
 #include "UpdateChannelPick.hxx"
 #include <array>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <vector>
 #include <set>
@@ -62,6 +65,14 @@ struct ShellView {
     // The room events the chat shows that no snapshot carries (ChatTranscript).
     std::vector<RoomNotice> roomNotices;
     netplay::PlayerPreferences preferences;
+    // The title and icon the player wears on their card. The identity's
+    // backend fills them once it awards titles; none until then.
+    std::string playerTitle;
+    v2::Tier playerTier = v2::Tier::None;
+    int playerIcon = -1;
+    // The awards earned (v2::Awards' ids), which the Awards wall lets the
+    // player wear; empty until the backend fills it, so all locked.
+    std::vector<std::string> earnedAwards;
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
     bool canReplaceRoom = false;
@@ -168,9 +179,12 @@ struct ShellView {
     // The WIN screen of a room game this PC fought, at a table with Instant
     // rematch on (input::MenuContext::MatchResult): the post-match prompt opens.
     bool matchResult = false;
-    // That game's picture, for the top of the wide room board's column or the
-    // menu's top right corner, over an opaque menu (PlayerPreferences::watchedPicture);
-    // null when it is not wanted or could not be taken.
+    // Over that WIN, the seats whose player chose Rematch (bit 1 = P1, 2 = P2),
+    // and the games of the battle that went on to a rematch in place.
+    unsigned rematchChoices = 0, gamesInPlace = 0;
+    // That game's picture, for the menu's top right corner over an opaque
+    // menu (PlayerPreferences::pictureMode); null when it is not wanted or
+    // could not be taken.
     ImTextureID watchedPicture{};
     // Ember's menu shows the watched game through itself, dimmed, instead.
     bool SeeThrough() const { return watchedGame.Active() && !watchedPicture; }
@@ -264,6 +278,12 @@ struct ShellAction : RuntimeRequest {
 // tournament match's watcher: it reads the chat and has no box to write in.
 enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable, ReadOnly };
 
+// What a toast is about, said over it (Toasts board); None says nothing.
+enum class ToastKind { None, Invitation, Room, Update, Match, System };
+// A toast's button: it opens `screen` at its `row`, where the player acts on
+// the notice; one without a screen is Later, which only puts the toast away.
+struct ToastAction { std::string label, screen, row; };
+
 class ApplicationShell {
 public:
     using Submit = std::function<bool(ShellAction)>;
@@ -283,6 +303,12 @@ public:
     // draws the dummy's pick in it.
     bool SelectingDummy() const { return selectionForDummy_ && menu_.navigation.Screen() == "selection" && menu_.navigation.Parent() == "training"; }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // A notice from outside the shell (the lab's toasts): the status line's
+    // for `seconds`, and a toast in V2.
+    // A kind and up to two actions go on its toast.
+    void Say(std::string text, Tone tone, double seconds, ToastKind kind = ToastKind::None, std::vector<ToastAction> actions = {}) {
+        noticeExtra_ = {text, kind, std::move(actions)}; notice_ = std::move(text); noticeTone_ = tone; noticeUntil_ = ImGui::GetTime() + seconds;
+    }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
     // What the screen on show needs the replay workers to read (ReplaysPanel::Wanted).
@@ -364,6 +390,17 @@ private:
     void UpdatePublicBridge(const ShellView& view,const std::string& screen);
     void CopyShortInvitation(const ShellView& view,const Submit& submit);
     std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
+    // V2 Settings (ApplicationShell__Settings.cxx): the tabs as screen id and label, whether a screen is one, and its rows.
+    static std::vector<std::pair<std::string,std::string>> SettingsTabs();
+    static bool SettingsTab(const std::string& screen);
+    // The tab a screen belongs to ("tab-matches" for its panel "tab-matches/1"), and the rows whose panel shows a preview.
+    static std::string SettingsTabOf(const std::string& screen);
+    static bool SettingsPreview(const std::string& id);
+    // V2's Settings tab (GameMenu body): the rail of panels, the shown panel's rows and preview, the focused row's words.
+    void DrawSettingsBoard(const std::vector<MenuEntry>& entries,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback,const GameMenu::Detail& preview);
+    // V2 value panels (ApplicationShell__Values.cxx): each value row's values as choices.
+    static void OfferValues(std::vector<MenuEntry>& rows);
+    std::vector<MenuEntry> SettingsTabRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
     std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
     void PublishPlayerCard(const ShellView& view);
     void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
@@ -380,6 +417,21 @@ private:
     void UpdateLaunchCheck(const ShellView& view,double now,const Submit& submit);
     void FinishUpdatePrompt(NoticeResult result,const Submit& submit);
     void SetLaunchCheck(bool enabled);
+    // News: the channel's releases, newest first, under a tab for all and V2's
+    // tabs for each kind there is (news-updates, news-changelog), and in V2 Update
+    // now under the release the launch check offers (ApplicationShell__Updates.cxx).
+    static bool NewsScreen(const std::string& screen) { return screen=="news"||screen=="news-updates"||screen=="news-changelog"; }
+    std::vector<MenuEntry> NewsRows(const ShellView& view,const std::string& screen,std::string& title) const;
+    void NewsTabs(const ShellView& view,const std::string& screen);
+    // V2: a release's card (its kind, New, date and title), and its pane: the
+    // hero band, the notes a line each and the Update now button when offered.
+    bool DrawNewsCard(const ShellView& view,const MenuEntry& row,ImVec2 min,ImVec2 max) const;
+    void DrawNewsDetail(const ShellView& view,const std::string& id,const std::vector<MenuEntry>& rows);
+    // Settings, Accessibility, and what speech tells as the shell draws (ApplicationShell__Accessibility.cxx).
+    std::vector<MenuEntry> AccessibilityRows(const ShellView& view) const;
+    bool AdjustSpeech(const MenuAction& action);
+    bool ActivateSpeech(const MenuAction& action);
+    void UpdateSpeech();
     UpdatePrompt updatePrompt_;
     netplay::Generation updateGeneration_;
     // The failed skips the service had counted when the view was last drawn.
@@ -389,6 +441,13 @@ private:
     bool updateNowReported_=false;
     // The Settings row's value, seeded from the view once and then the shell's own.
     bool launchCheck_=true,launchCheckSeeded_=false;
+    // Told once a session that speech is on but no voice could speak; speech
+    // just turned on, to be told how it works; and the natural voice's
+    // download state last told.
+    bool speechNoticeShown_=false,speechIntro_=false;
+    speech::Voice voiceTold_=speech::Voice::System;
+    // The update offer last raised as a toast.
+    std::string updateToastTag_;
     std::string launchCheckSaveError_;
     // Help & about's channel row, picked as in the Updates window.
     ChannelPick channelPick_;
@@ -433,8 +492,27 @@ private:
     // Training select: both picks and the stage, then Start Training (ApplicationShell__Training.cxx).
     std::vector<MenuEntry> TrainingSelectRows(const ShellView& view,std::string& title) const;
     void TrainingSelectActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
-    // The Create screen, with Practice room off (createPractice_).
+    // V2's Create (GameMenu body): the Room and Rules panels, the focused row's words, and the Create button.
+    // The awards wall (ApplicationShell__Awards.cxx): "awards" for titles, "awards-icons" for icons.
+    static bool AwardsScreen(const std::string& screen) { return screen == "awards" || screen == "awards-icons"; }
+    static const v2::Award* WornAward(const ShellView& v, const std::string& id);
+    static std::string EarnedCount(const ShellView& v);
+    static int AwardColumns();
+    std::vector<MenuEntry> AwardRows(const ShellView& v, const std::string& screen, std::string& title) const;
+    void DrawAwardsBoard(const ShellView& v, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback);
+    void DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback);
+    // The Create screen, a Classic room with Practice room off (createArcade_, createPractice_).
     void OpenCreate();
+    // Settings > Interface > Language, also the welcome's.
+    MenuEntry LanguageRow() const;
+    // The watched game's picture: Small, Big or Off (PlayerPreferences::pictureMode).
+    MenuEntry PictureModeRow(const ShellView& v) const;
+    // The first-run welcome (ApplicationShell__FirstRun.cxx): speech, language,
+    // controller and look, a step at a time, each a few rows, Next and Skip.
+    std::vector<MenuEntry> WelcomeRows(const ShellView& view,std::string& title);
+    // Its own rows and Back; false for a row another screen owns (Language, Choose controller).
+    bool WelcomeActivate(const MenuAction& action);
+    void DrawWelcomeBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height);
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
     void OpenPublicCreate();
     // A public room still named with the default is named for its host.
@@ -478,18 +556,23 @@ private:
     // keeps the table and the opponent of the game it follows, and the
     // generation of that game: a new one at the table ends it, unless both
     // fighters chose Rematch, when it stays until that game is loading.
+    // What Back to room, Character select or no answer leaves to do once the
+    // game is over and the room takes it: leave the seat, or open fighter select.
+    enum class AfterPostMatch { None, LeaveSeat, FighterSelect } afterPostMatch_ = AfterPostMatch::None;
     struct PostMatchPrompt {
         int table = -1;
         room::MemberId opponent = 0;
         std::uint64_t generation = 0;
         double until = 0;
         bool chose = false, starting = false;
+        // Back to room or Character select over the WIN: the prompt shows the
+        // choice until the game is over, then does `after`.
+        bool left = false;
+        AfterPostMatch after = AfterPostMatch::None;
     };
     std::optional<PostMatchPrompt> postMatch_;
     bool matchResultSeen_ = false;
-    // What Back to room, Character select or no answer leaves to do once the
-    // game is over and the room takes it: leave the seat, or open fighter select.
-    enum class AfterPostMatch { None, LeaveSeat, FighterSelect } afterPostMatch_ = AfterPostMatch::None;
+    unsigned gamesInPlaceSeen_ = 0;
     // Opens, times out and ends the prompt; open is null while Ember is hidden.
     void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
     void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);
@@ -497,14 +580,33 @@ private:
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;
+    // A member's card as the room board and the V2 Members list draw it; no id when `row` names no member.
+    MemberCardView RoomMemberCard(const ShellView& view,const MenuEntry& row) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
+    // The V2 room board's tables and its members-over-chat column in `area`, as the
+    // player's layout grips set them (PlayerPreferences::roomColumn); a folded panel's
+    // box is its heading's strip and the other takes the column, or, both folded, the
+    // two strips stand in a narrow column. RoomGrips draws the grips on the edges
+    // shown, after the panes, and a drag sets them again.
+    static constexpr float FoldedPanelHeight = 48, FoldedColumnWidth = 280;
+    void ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat) const;
+    void RoomGrips(v2::Box area);
+    // Settings' picture of that layout, with the same grips.
+    void DrawRoomLayoutPreview();
+    // A room's V2 board in its type's layout, in place of the table cards (RoomPanelArcade.cxx).
+    void DrawArcadeBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,ImVec2 size,
+                         room::RoomType type);
     std::string roomBoardFocus_;
     // How the board last laid itself out, which the next frame's rows follow:
     // stacked in one list, wide with its column, or wide on a screen under 820
     // lines, which folds its sharing and settings into More…. Only a wide
     // board shows the chat as a part of its column.
     enum class BoardLayout { Stacked, Wide, WideShort } boardLayout_=BoardLayout::Wide;
+    // The Create board's focus last frame: a new one scrolls into view.
+    std::string createFocus_, awardsFocus_;
+// The Settings tab's rows by panel, its header's path and the focus last drawn (SettingsTabRows, DrawSettingsBoard).
+std::vector<MenuEntry> settingsRows_;std::string settingsEyebrow_,settingsFocus_;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.
@@ -559,23 +661,34 @@ private:
     bool profileSavePending_ = false;
     netplay::PlayerPreferences savingPreferences_;
     room::MemberId selectedMember_ = 0;
+// A member action from a popout that asks first (kick, transfer-host): asked on the member's page once it opens.
+std::string memberAsk_;
     std::uint64_t inviteRevision_ = 0;
     std::uint64_t tableGeneration_ = 0;
     int generationTable_ = -1;
     double roomUpdateUntil_ = 0;
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;
+    // The V2 room board drew the watched game's picture, cinema style, so the corner window stays away.
+    bool boardPicture_ = false;
+    // The same, kept to the next frame, for the room's rows (its Hide row).
+    bool pictureOnBoard_ = false;
     bool boardDrawn_ = false;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
-    // Create's Practice room choice for the private room it opens. Never saved:
-    // every visit to Create starts with it off.
+    // Create's Practice room and Arcade choices for the private room it opens.
+    // Never saved: every visit to Create starts with them off.
     bool createPractice_ = false;
     // The template Create was set from (-1 none), and its tables. Like the
     // Practice room choice, every visit to Create starts without one.
     int createTemplate_ = -1;
     std::optional<netplay::TableSetup> createTables_;
+    // The welcome's step (0 speech to 3 look), whether it was offered this
+    // launch, and the speech answer (ponytail: kept until speech settings land).
+    int welcomeStep_ = 0;
+    bool welcomeOffered_ = false;
+    room::RoomType createArcade_ = room::ClassicRoom;
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.
@@ -611,12 +724,31 @@ private:
     // B on a seat that would lose a score or hand the seat over asks first: the
     // table whose card carries the question, and whether it is open yet.
     int leaveAsk_=-1;
+    // More… asked again by the room's rows: after a switch it holds (moreChosen_
+    // is the option it opens on), or as the picture's Small, Big and Off (morePicture_).
+    bool moreAsk_=false,morePicture_=false;
+    std::string moreChosen_;
     bool leaveAsked_=false;
     // When each table's live game was first seen, for the host's stuck-game row.
     struct LiveGame { std::uint64_t generation=0; double since=-1; };
     std::array<LiveGame,room::TableCount> liveGames_;
     std::string notice_;
     double noticeUntil_=0;
+    // The notices and refusals said lately, newest first: V2's toasts while
+    // they last and the Notifications screen's rows (ApplicationShell__Toasts.cxx).
+    struct Toast { unsigned id; std::string text; Tone tone; double at, until; ToastKind kind; std::vector<ToastAction> actions; };
+    std::deque<Toast> toasts_;
+    std::string noticeSeen_, errorSeen_;
+    unsigned toastCount_=0;
+    // The kind and actions Say gave notice_, while it still says that text.
+    struct NoticeExtra { std::string text; ToastKind kind=ToastKind::None; std::vector<ToastAction> actions; } noticeExtra_;
+    // The action toast that holds focus over the open menu (0 for none), and
+    // an action its buttons or rows asked for: the toast's id and the action's index.
+    unsigned toastFocus_=0;
+    std::pair<unsigned,std::size_t> toastAsked_{0,0};
+    void DrawToasts(double now,bool overMatch,bool listed=false);
+    void AnswerToast(double now);
+    std::vector<MenuEntry> NotificationRows(double now,std::string& title) const;
     // Copy short link was pressed before the link existed: copy it when it
     // arrives, or the full invitation on a failure or at the deadline.
     bool shortCopyPending_=false;

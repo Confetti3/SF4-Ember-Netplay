@@ -1,4 +1,5 @@
 #include "GameMenu.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
 #include "Theme.hxx"
 #include "SelectionArt.hxx"
@@ -7,13 +8,15 @@
 #include "MenuDialogs.hxx"
 #include "CountryFlag.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../platform/Speech.hxx"
 #include <imgui.h>
+#include <algorithm>
 #include <cstring>
 #include <utility>
 
 namespace sf4e { namespace ui {
 namespace { MenuInput input; MenuAction forwarded; SelectionArt* menuArt=nullptr;
-const char* selectGlyph="LK";const char* backGlyph="MK";PlayerCardView playerCard;
+const char* selectGlyph="LK";const char* backGlyph="MK";PlayerCardView playerCard;std::vector<MenuNewsItem> news;
 int menuDeviceType=0;
 gamepads::PromptBrand promptBrand;
 gamepads::FightNames promptNames=gamepads::NamesOf(gamepads::DefaultLayout);
@@ -86,6 +89,28 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
 }
 }
 void SetMenuPlayerCard(PlayerCardView view){playerCard=std::move(view);}
+void SetMenuNews(std::vector<MenuNewsItem> items){news=std::move(items);}
+const std::vector<MenuNewsItem>& MenuNews(){return news;}
+const PlayerCardView& MenuPlayerCard(){return playerCard;}
+const char* MenuSelectGlyph(){return selectGlyph;}
+const char* MenuBackGlyph(){return backGlyph;}
+bool DrawMenuBackdrop(bool v2){
+    const SelectionImage art=menuArt?menuArt->MenuBackdrop():SelectionImage{};
+    if(!art.texture)return false;
+    // The whole screen, also around a window kept inside TV mode's safe area.
+    const auto* vp=ImGui::GetMainViewport();const auto p=vp->Pos,size=vp->Size,end=ImVec2(p.x+size.x,p.y+size.y);auto* d=ImGui::GetWindowDrawList();
+    d->PushClipRect(p,end);
+    ImVec2 uv0(0,0),uv1(1,1);
+    const float sourceAspect=float(art.width)/art.height,targetAspect=size.x/size.y;
+    if(targetAspect<sourceAspect){const float span=targetAspect/sourceAspect;uv0.x=1-span;}
+    else {const float span=sourceAspect/targetAspect;uv0.y=(1-span)*.5f;uv1.y=1-uv0.y;}
+    d->AddImage(art.texture,p,end,uv0,uv1);
+    // V2: the website's left-heavy tint, so the cards on the left read and the art shows on the right.
+    if(v2)d->AddRectFilledMultiColor(p,end,IM_COL32(20,19,18,245),IM_COL32(20,19,18,128),IM_COL32(20,19,18,160),IM_COL32(20,19,18,250));
+    else d->AddRectFilledMultiColor(p,end,IM_COL32(16,15,14,220),IM_COL32(16,15,14,75),IM_COL32(16,15,14,110),IM_COL32(16,15,14,235));
+    d->PopClipRect();
+    return true;
+}
 float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool rightAligned){
     // Shrunk to the card like its caption, so a long translation stays whole.
     const float s=Scale(),pad=4*s,natural=ImGui::GetFontSize();
@@ -106,6 +131,13 @@ RosterGrid LayOutRosterGrid(float windowWidth){
     const float list=(windowWidth>=820*s?windowWidth*share:windowWidth)-ImGui::GetStyle().ScrollbarSize;
     const float card=(list-gap*(columns-1))/columns;
     RosterGrid grid;
+    // V2 (the Fighter design board): eight across beside the preview, fewer on a narrow screen.
+    if(v2::On()){
+        const float room=v2::Narrow(windowWidth,s)?windowWidth:windowWidth*.55f;
+        grid.columns=(std::max)(3,(std::min)(8,static_cast<int>(room/(76*s))));
+        grid.cardHeight=(std::min)(120.f,(room-gap*(grid.columns-1))/grid.columns/s*.9f+26);grid.listShare=.55f;
+        return grid;
+    }
     if(card>=56*s){
         // Portraits are about square; the caption strip and its padding come on top.
         grid.columns=selection::RosterGridColumns;grid.cardHeight=(std::min)(100.f,card/s*.9f+26);grid.listShare=share;
@@ -170,6 +202,11 @@ void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFall
 void SetMenuGlyphs(int type,const input::MenuButtons& buttons,gamepads::PromptBrand brand){
     SetMenuGlyphs(type,buttons.confirm,buttons.back,buttons.confirmGlyph,buttons.backGlyph,brand);
 }
+namespace { netplay::SpeechPreferences menuSpeech; int menuDescribes=0; }
+void SetMenuSpeech(const netplay::SpeechPreferences& speech){ menuSpeech=speech; }
+int TakeMenuDescribes(){ return std::exchange(menuDescribes,0); }
+void SayMenuNotice(const std::string& text){ if(menuSpeech.enabled&&!text.empty())speech::Say({text},false,menuSpeech.rate,menuSpeech.volume); }
+std::string AccessibilityKeyName(){ return KeyboardPrompts()?std::string("F2"):SpokenButton("RT"); }
 gamepads::PromptBrand MenuPromptBrand(){ return promptBrand; }
 const gamepads::FightNames* MenuPromptNames(){ return &promptNames; }
 void SetMenuPromptBrand(gamepads::PromptBrand brand,const gamepads::FightNames& names){ promptBrand=brand;promptNames=names; }
@@ -197,12 +234,12 @@ unsigned KeyboardMenuBits(bool typesText) {
     struct Mapping { ImGuiKey key; unsigned bit; };
     static const Mapping always[]={
         {ImGuiKey_UpArrow,MenuInput::Up},{ImGuiKey_DownArrow,MenuInput::Down},{ImGuiKey_LeftArrow,MenuInput::Left},
-        {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back}};
+        {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back},{ImGuiKey_F2,MenuInput::Describe}};
     // Letters, Space, Backspace and Delete belong to a text field while one
     // is being typed in.
     static const Mapping menuOnly[]={
         {ImGuiKey_Space,MenuInput::Select},{ImGuiKey_Backspace,MenuInput::Back},
-        {ImGuiKey_F,MenuInput::Fighter},{ImGuiKey_T,MenuInput::Options},{ImGuiKey_C,MenuInput::Chat},{ImGuiKey_Delete,MenuInput::Leave}};
+        {ImGuiKey_F,MenuInput::Fighter},{ImGuiKey_T,MenuInput::Options},{ImGuiKey_C,MenuInput::Chat},{ImGuiKey_Delete,MenuInput::Leave},{ImGuiKey_PageUp,MenuInput::PrevTab},{ImGuiKey_PageDown,MenuInput::NextTab}};
     unsigned bits=0;
     for(const auto& mapping:always) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
     if(!typesText&&!ImGui::GetIO().WantTextInput)
@@ -292,6 +329,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // A choice belongs to the body that draws it, so the body stays live for it.
     const bool choosingAtStart=navigation.Choosing();
     auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText,additionalInput); menuInput.time=now;
+    const unsigned rawHeld=menuInput.held;
     if(!listEnabled) menuInput.held=0;
     ReadEditInput(entries,menuInput);
     // A notice owns the input until dismissed, so the dismissing press can
@@ -306,9 +344,17 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         else if(pressed&MenuInput::Select) DismissNotice(noticeButtons_[noticeSelected_].result);
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
+    toastPressed=0;
+    if(toastFocused&&!noticeOpen) {toastPressed=menuInput.held&~toastPrevious_; toastPrevious_=menuInput.held; menuInput.held=0;}
+    else toastPrevious_=~0u;
     held_=menuInput.held;
+    // Read before a notice takes the input: the accessibility button works in one too.
+    const bool describe=(rawHeld&MenuInput::Describe)&&!(describeHeld_&MenuInput::Describe);describeHeld_=rawHeld;
     // InputText consumes this frame's characters before the requested acceptance.
     // The navigation model still owns the neutral gate and Back/accept ordering.
+    {const auto open=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
+     navigation.choiceColumns=navigation.Choosing()&&open!=entries.end()?(open->popout?1:MenuChoiceLayout(open->choices).across):1;}
+    navigation.selectSteps=v2::On();
     auto action=navigation.Update(menuInput,entries,columns,true,true);
     const bool acceptEditText=action.kind==MenuAction::SubmitText;
     if(acceptEditText)action={};
@@ -317,6 +363,25 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     bool backRequested=false;
     if(statusProbe)statusProbe(status,statusTone);
     if(entriesProbe)entriesProbe(entries);
+    // LB/RB move between the V2 tabs, as a Shortcut naming the tab; elsewhere they do nothing.
+    if(action.kind==MenuAction::Shortcut&&(action.delta==MenuInput::PrevTab||action.delta==MenuInput::NextTab)){
+        const int next=tab+(action.delta==MenuInput::NextTab?1:-1);
+        action=v2::On()&&next>=0&&next<static_cast<int>(tabs.size())?MenuAction{MenuAction::Shortcut,tabs[next].first}:MenuAction{};
+    }
+    // An open dialog owns the header and the legend: Back cancels it, and
+    // Select names the button it highlights.
+    std::string dialogSelect,dialogBack;
+    const bool dialog=DialogLegend(entries,dialogSelect,dialogBack);
+    // Both looks speak the same rows (MenuNarrator).
+    const auto focusedEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
+    MenuEntry presentationEntry;
+    if(focusedEntry!=entries.end()) { presentationEntry=*focusedEntry; presentationEntry.enabled=feedback_.Enabled(*focusedEntry); }
+    const bool adjustable=!dialog&&focusedEntry!=entries.end()&&presentationEntry.adjustable&&presentationEntry.enabled;
+    const char* primary=!listEnabled?nullptr:dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
+    // The on-screen keyboard's key the pad is on is its highlighted button.
+    const std::string key=SpokenKey(entries);
+    Narrate(title,entries,focusedEntry==entries.end()?nullptr:&presentationEntry,!key.empty()?key:dialog?dialogSelect:std::string(),primary,adjustable,now,describe);
+    if(v2::On())return DrawV2(title,entries,status,detail,columns,card,body,cardHeight,statusTone,home,flyout,action,menuInput.held,modalAtStart,choosingAtStart,acceptEditText,noticeOpen);
     const bool changed=lastScreen_!=navigation.Screen();
     // Scaled like every other breakpoint, so a 1.5x interface on a 1024-wide
     // window takes the same layout decision as the header and the galleries.
@@ -331,17 +396,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         homeLift=(std::min)((std::max)(0.f,homeTop-16*Scale()),(std::max)(0.f,rows+footer-windowSize.y*.61f));
         homeTop-=homeLift;
     }
-    bool drewBackdrop=false;
-    if(menuArt&&!flyout&&backdrop) {
-        const auto art=menuArt->MenuBackdrop();const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
-        if(art.texture){auto* d=ImGui::GetWindowDrawList();drewBackdrop=true;
-            ImVec2 uv0(0,0),uv1(1,1);
-            const float sourceAspect=float(art.width)/art.height,targetAspect=size.x/size.y;
-            if(targetAspect<sourceAspect){const float span=targetAspect/sourceAspect;uv0.x=1-span;}
-            else {const float span=sourceAspect/targetAspect;uv0.y=(1-span)*.5f;uv1.y=1-uv0.y;}
-            d->AddImage(art.texture,p,ImVec2(p.x+size.x,p.y+size.y),uv0,uv1);
-            d->AddRectFilledMultiColor(p,ImVec2(p.x+size.x,p.y+size.y),IM_COL32(16,15,14,220),IM_COL32(16,15,14,75),IM_COL32(16,15,14,110),IM_COL32(16,15,14,235));}
-    }
+    const bool drewBackdrop=!flyout&&backdrop&&DrawMenuBackdrop(false);
     if(home)ImGui::SetCursorPos(ImVec2(homeMargin,homeTop));
     if(flyout) {
         ImGui::TextColored(ToneColor(Tone::Pending),"%s",loc::Tf("menu.flyout_title",title).c_str());
@@ -349,10 +404,6 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     }
     const auto headerTop=ImGui::GetCursorScreenPos();
     if(!flyout) MenuHeader(title,home);
-    // An open dialog owns the header and the legend: Back cancels it, and
-    // Select names the button it highlights.
-    std::string dialogSelect,dialogBack;
-    const bool dialog=DialogLegend(entries,dialogSelect,dialogBack);
     const auto editingEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.EditingId();});
     const char* selectPrompt=KeyboardPrompts()&&notice_.empty()&&navigation.Editing()&&editingEntry!=entries.end()&&editingEntry->multiline?"Ctrl+Enter":selectGlyph;
     // Home's header button leaves Ember, so it is offered only with a place to name.
@@ -390,11 +441,6 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // The legend and the list are measured before the status, so a long status
     // can be given exactly what they leave.
     const auto mouseDelta=ImGui::GetIO().MouseDelta;const bool pointerMoved=mouseDelta.x!=0||mouseDelta.y!=0;
-    const auto focusedEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
-    MenuEntry presentationEntry;
-    if(focusedEntry!=entries.end()) { presentationEntry=*focusedEntry; presentationEntry.enabled=feedback_.Enabled(*focusedEntry); }
-    const bool adjustable=!dialog&&focusedEntry!=entries.end()&&presentationEntry.adjustable&&presentationEntry.enabled;
-    const char* primary=!listEnabled?nullptr:dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
     const bool wide=ImGui::GetContentRegionAvail().x>=(flyout?640:820)*unit;
     // Reserve the actual footer items and their spacing, not a guessed margin.
     const float footerSpacing=8*unit+2*ImGui::GetStyle().ItemSpacing.y+
@@ -470,7 +516,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             ImGui::SetCursorPos(ImVec2(8*unit,(std::max)(0.f,(feedbackHeight-ImGui::CalcTextSize(status,nullptr,false,wrapWidth).y)*.5f)));
         }
         if(fitFeedback){ImGui::PushTextWrapPos(wrapWidth);ImGui::TextUnformatted(status);ImGui::PopTextWrapPos();}
-        else ImGui::TextWrapped("%s",status);
+        else v2::Wrapped(status);
         ImGui::PopStyleColor();ImGui::EndChild();
     }
     const float bodyTop=ImGui::GetCursorScreenPos().y;
@@ -487,10 +533,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             // A compact gallery's card already carries its label, so its two
             // lines go to what the label does not say: the explanation, then
             // what is saved.
-            if(!compactGallery&&!leanDetail){if(it->userText)NoteUserText(it->label);ImGui::TextWrapped("%s",it->label.c_str());}
+            if(!compactGallery&&!leanDetail){if(it->userText)NoteUserText(it->label);v2::Wrapped(it->label);}
             ImGui::PopStyleColor();
-            if(!it->detail.empty()){NoteDetailText(it->detail,it->detailText);ImGui::TextWrapped("%s",it->detail.c_str());}
-            if(!it->value.empty()){if(it->userText||it->text)NoteUserText(it->value);ImGui::TextWrapped("%s",it->value.c_str());}
+            if(!it->detail.empty()){NoteDetailText(it->detail,it->detailText);v2::Wrapped(it->detail);}
+            if(!it->value.empty()){if(it->userText||it->text)NoteUserText(it->value);v2::Wrapped(it->value);}
             if(!visualEnabled&&!it->quiet) ImGui::TextDisabled("%s",loc::T(feedback_.Pending(*it)?"room.updating":"common.unavailable"));
             }
             if(detail) detail(it->id);
@@ -661,6 +707,15 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         if(backRequested) return ownsBack?MenuAction{MenuAction::Back}:navigation.Return();
         return action;
     }
+    return Finish(entries,action,backRequested,acceptEditText,static_cast<bool>(body),noticeOpen);
+}
+MenuAction GameMenu::Finish(const std::vector<MenuEntry>& entries,MenuAction action,bool backRequested,bool acceptEditText,bool body,bool noticeOpen) {
+    // A value picked in its panel (OfferSteps) is the steps to it, as Left and Right would take.
+    if(action.kind==MenuAction::Chosen&&action.text.size()>1&&action.text[0]=='#'){
+        const auto row=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==action.id;});
+        const int steps=row==entries.end()||row->chosen.size()<2?0:std::stoi(action.text.substr(1))-std::stoi(row->chosen.substr(1));
+        action=steps?MenuAction{MenuAction::Adjust,action.id,{},steps}:MenuAction{};
+    }
     // A renderer popup may survive a model cancellation by one frame. Close it
     // without rendering stale controls or reading a draft that was already cleared.
     DrawConfirmationModal(entries,action);
@@ -694,5 +749,32 @@ void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 r
     EndDialogCard();
     ReportMenuCard("list-card",at,ImVec2(at.x+width,at.y+height));
     ImGui::SetCursorScreenPos(cursor);
+}
+// The narrator follows every frame, so turning speech on says the new value
+// instead of the whole screen. describe is a press of the accessibility button
+// (RT, F2); F1 also stops speech while a menu shows.
+void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now,bool describe) {
+    SpokenFrame frame{title,focus};
+    frame.entries=&entries;
+    frame.notice=!notice_.empty()&&!noticeAsked_;
+    for(const auto& noticeButton:noticeButtons_)frame.buttons.push_back(noticeButton.label);
+    frame.accessKey=AccessibilityKeyName();
+    // The focused entry may be a copy, so its place comes from its id.
+    if(focus){frame.index=static_cast<std::size_t>(std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==focus->id;})-entries.begin());frame.count=entries.size();}
+    frame.button=button;
+    if(!button.empty()) {
+        const auto& owner=navigation.Editing()?navigation.EditingId():navigation.DialogId();
+        const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==owner;});
+        frame.question=!notice_.empty()?notice_:entry!=entries.end()?entry->label:std::string();
+    }
+    if(primary)frame.hint=SpokenButton(selectGlyph)+": "+primary;
+    if(adjustable)frame.hint+=(frame.hint.empty()?"":". ")+std::string(loc::T("speech.change"));
+    const auto said=narrator_.Update(frame,now,menuSpeech,menuSpeech.enabled&&describe);
+    if(!menuSpeech.enabled)return;
+    if(said.stop||ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
+    if(said.chime&&menuSpeech.chime)speech::Chime(menuSpeech.chimeVolume);
+    if(!said.parts.empty())speech::Say(said.parts,said.interrupt,menuSpeech.rate,menuSpeech.volume,said.tick);
+    if(describe&&!said.parts.empty())++menuDescribes;
+    speech::Render(said.render,menuSpeech.rate);
 }
 } }

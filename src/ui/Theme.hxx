@@ -38,15 +38,18 @@ inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.
 constexpr float WatchedMatchWindowAlpha = .72f;
 // The watched game's picture in the menu's corner: its share of the screen's width and height.
 constexpr float WatchedPictureShare = .25f;
-// Its copy is taken at this share, about the width of the room board's column.
-constexpr float WatchedPictureTakenShare = .5f;
+// The same for a PlayerPreferences::pictureSpot: small (this share), medium or large.
+inline float WatchedPictureShareFor(int spot) { const float shares[] = {WatchedPictureShare, .33f, .42f}; return shares[spot / 4 < 0 ? 0 : spot / 4 > 2 ? 2 : spot / 4]; }
+// The picture's copy, at the largest share it is shown: the V2 room board's cinema picture.
+constexpr float WatchedPictureTaken = .62f;
 inline ImVec4 BoardPanelColor(bool seeThrough) { return ImVec4(.08f,.075f,.07f,seeThrough ? .6f : .84f); }
 
 // Call between frames. A true result requires backend font texture recreation.
 // Text is drawn at `displayScale` times the player's Interface size (Scale()):
 // over the game the larger of Windows' DPI scale and the picture's height over
-// 1080 lines, in the recovery window Windows' DPI scale alone.
-bool ApplyTheme(float displayScale, float interfaceScale = 1.f);
+// 1080 lines, in the recovery window Windows' DPI scale alone. With `em` (the
+// V2 look) a size passed with a font is its em, as on the design boards.
+bool ApplyTheme(float displayScale, float interfaceScale = 1.f, bool em = false);
 // What player text is, from most to least worth atlas space when more distinct
 // characters are on screen than the atlas can hold.
 enum class UserTextRole { Name, Chat, Draft };

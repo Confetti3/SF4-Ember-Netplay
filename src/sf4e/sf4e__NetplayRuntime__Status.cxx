@@ -306,8 +306,28 @@ input::MenuContext MenuContextNow(bool atMainMenu) {
     // the game the snapshot names and the room action's dispatch reads, so
     // the menu's Stop watching and the leave it sends agree.
     const bool watchedMatch = WatchedGameNow().Active();
-    return atMainMenu ? input::MenuContext::MainMenu :
-        PostMatchPromptDue() ? input::MenuContext::MatchResult :
+    // The WIN ends and the battle closes before the main menu is back, and
+    // the game counts as running until then: the prompt stays over it. After
+    // a Rematch it also covers the main menu while the next game is prepared,
+    // until that battle is entered.
+    if (PostMatchPromptDue()) runtime->promptOverBattle = true;
+    else if (atMainMenu && runtime->promptOverBattle) {
+        // A Rematch is coming while this PC's Ready is on its way or shown, facing an opponent.
+        const auto match = runtime->controller.GetSnapshot().match;
+        bool readied = runtime->readyIntent.Active();
+        if (!readied && UserApp::netplay) {
+            const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+            const auto place = room::PlaceOf(room, room.localMember);
+            // The Readies that started the game just played stand until its match ends.
+            const auto phase = place.kind == room::Place::Kind::Seat ? room.tables[place.table].phase : room::TablePhase::Idle;
+            readied = place.kind == room::Place::Kind::Seat && room.tables[place.table].ready[place.seat] &&
+                phase != room::TablePhase::Playing && phase != room::TablePhase::Paused &&
+                room::SeatOpponent(room, static_cast<std::uint8_t>(place.table), room.localMember);
+        }
+        runtime->promptOverBattle = match == netplay::MatchState::Preparing || (match == netplay::MatchState::PostMatch && readied);
+    }
+    return runtime->promptOverBattle ? input::MenuContext::MatchResult :
+        atMainMenu ? input::MenuContext::MainMenu :
         training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
         replaystore::GetStatus().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
         practiceFight ? input::MenuContext::PracticeMatch :
@@ -344,29 +364,52 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
     mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
-    mix(runtime->preferences.autoDelayStyle); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.shareReplaysSince); mix(runtime->preferences.roomSideWidth); mix(runtime->preferences.roomMemberShare);
+    mix(runtime->preferences.autoDelayStyle); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.shareReplaysSince); mix(runtime->preferences.roomSideWidth); mix(runtime->preferences.roomMemberShare); mix(runtime->preferences.pictureSpot); mix(runtime->preferences.pictureMode); mix(runtime->preferences.roomColumn); mix(runtime->preferences.roomSplit);
+    mixString(runtime->preferences.wornTitle); mixString(runtime->preferences.wornIcon);
+    { const auto& speech = runtime->preferences.speech; mix(speech.enabled); mix(speech.rate); mix(speech.volume); mix(speech.details); mix(speech.hints); mix(speech.position); mix(speech.chime); mix(speech.chimeVolume);
+      mix(speech.introHeard); mix(speech.tick); mix(speech.describeUsed); mix(speech.remind); }
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());
+    mix(Game::Battle::System::rematchChoices); mix(Game::Battle::System::GamesPlayedInPlace());
     return h;
 }
 }
 
 namespace internal {
-// The WIN (or DRAW) screen of a room game this PC fought, once the game's result is
-// known, at a table whose rules ask (room::Rules::instantRematch). A Practice
-// room and a tournament's table have no rematch to offer.
-bool PostMatchPromptDue() {
-    using rSystem = Dimps::Game::Battle::System;
-    if (!Game::Battle::System::ggpo || LocalIsSpectator() || !runtime->entry.matchEntered || !runtime->attached || !UserApp::netplay ||
-        !rSystem::staticVars.CurrentBattleFlow || !IsRuntimeMatchEndCommitted()) return false;
-    const auto flow = *rSystem::staticVars.CurrentBattleFlow;
-    if (flow != rSystem::BF__MATCH_RESULT && flow != rSystem::BF__DRAW_RESULT) return false;
+// A room game this PC fights, at a table whose rules ask for a prompt over the
+// WIN (room::Rules::instantRematch). A Practice room and a tournament's table
+// have no rematch to offer.
+static const room::Table* RematchTable() {
+    if (!Game::Battle::System::ggpo || LocalIsSpectator() || !runtime->entry.matchEntered || !runtime->attached || !UserApp::netplay) return nullptr;
     const auto& room = UserApp::netplay->client.GetRoomSnapshot();
     const auto table = runtime->entry.enteredTable;
-    return !room.practice && !room.tournament.Active() && table >= 0 && table < static_cast<int>(room.tables.size()) &&
-        room.tables[table].rules.instantRematch;
+    if (room.practice || room.tournament.Active() || table < 0 || table >= static_cast<int>(room.tables.size()) ||
+        !room.tables[table].rules.instantRematch) return nullptr;
+    return &room.tables[table];
 }
+
+// The WIN (or DRAW) screen of such a game, once its result is known: held for
+// a rematch in place, or the match's end committed by the room.
+bool PostMatchPromptDue() {
+    using rSystem = Dimps::Game::Battle::System;
+    if (!RematchTable() || !rSystem::staticVars.CurrentBattleFlow ||
+        !(Game::Battle::System::ResultHeld() || IsRuntimeMatchEndCommitted())) return false;
+    const auto flow = *rSystem::staticVars.CurrentBattleFlow;
+    return flow == rSystem::BF__MATCH_RESULT || flow == rSystem::BF__DRAW_RESULT;
+}
+}
+
+// A game that ends a first-to-N set ends the match: the table rotates.
+bool RematchInPlaceOffered(room::MatchResult result) {
+    const auto* table = internal::RematchTable();
+    if (!table) return false;
+    const auto goal = static_cast<std::uint32_t>(table->rules.format);
+    const int seat = result == room::MatchResult::P1Win ? 0 : result == room::MatchResult::P2Win ? 1 : -1;
+    return goal == 0 || seat < 0 || table->score[seat] + 1 < goal;
+}
+
+namespace internal {
 
 // This PC is one of the watchers of a game starting or not yet over: a
 // locked-in spectator whose table holds its start for them, a spectator in the
@@ -586,6 +629,8 @@ PostPublishState Publish() {
 		runtime->entry.entryDeferredGeneration && runtime->entry.entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
+    snapshot.rematchChoices = Game::Battle::System::rematchChoices;
+    snapshot.gamesInPlace = Game::Battle::System::GamesPlayedInPlace();
     snapshot.watchedGame = WatchedGameNow();
     snapshot.lockInDrops = runtime->lockInDrops;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
@@ -774,6 +819,7 @@ void NoteChatTyping(std::uint64_t roomGeneration) {
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
     bool atMainMenu, const room::Snapshot& room, std::uint64_t retiredGeneration) {
     if (!runtime || !(session.generation == made) || !atMainMenu) return false;
+    if (entry == TrainingEntry::Home) return session.room == netplay::RoomState::Idle && session.match == netplay::MatchState::None;
     return entry == TrainingEntry::Room && internal::CanTrain(session, atMainMenu, room, retiredGeneration);
 }
 
@@ -781,8 +827,12 @@ bool TrainingRequestHolds(const netplay::Generation& made) {
     if (!runtime) return false;
     // The client's room as it is now, which may be newer than the last published snapshot.
     const bool attached = runtime->attached && UserApp::netplay;
-    return TrainingHolds(TrainingEntry::Room, made, runtime->controller.GetSnapshot(),
-        internal::AtMainMenu(), attached ? UserApp::netplay->client.GetRoomSnapshot() : room::Snapshot{}, internal::RetiredMatchGeneration());
+    const auto session = runtime->controller.GetSnapshot();
+    const auto room = attached ? UserApp::netplay->client.GetRoomSnapshot() : room::Snapshot{};
+    // Either way in: from a room as the room allows, or from Home with no room at all.
+    for (const auto entry : {TrainingEntry::Room, TrainingEntry::Home})
+        if (TrainingHolds(entry, made, session, internal::AtMainMenu(), room, internal::RetiredMatchGeneration())) return true;
+    return false;
 }
 
 std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared() { return bridge::LatestRuntime(); }

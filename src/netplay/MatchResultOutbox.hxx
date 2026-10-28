@@ -18,6 +18,10 @@ struct MatchResultCapture {
     // when it was published; zero when unknown.
     std::uint64_t captureFrame = 0;
     std::uint64_t confirmedFrame = 0;
+    // Games of the same battle before this one; a continued game was
+    // followed by a rematch in place and leaves the match open.
+    unsigned game = 0;
+    bool continued = false;
 
     bool Valid() const;
     std::string ProfileKey() const;
@@ -40,6 +44,8 @@ struct MatchResultSubmission {
     std::uint64_t generation = 0;
     std::uint8_t table = 0;
     room::MatchResult result = room::MatchResult::Abort;
+    unsigned game = 0;
+    bool continued = false;
     // Zero allocates the first action ID. A nonzero value retries the exact
     // previously queued result identity without growing the server queue.
     std::uint64_t actionId = 0;

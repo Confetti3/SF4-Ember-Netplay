@@ -71,7 +71,7 @@ struct Room {
 	const room::Table& Table(int i) const { return authority.SnapshotView().tables[i]; }
 	bool AllChosen() const {
 		const auto& tables = authority.SnapshotView().tables;
-		return std::all_of(tables.begin(), tables.end(), [](const room::Table& t) { return t.rules == Chosen(); });
+		return std::all_of(tables.begin(), tables.begin() + room::ClassicTableCount, [](const room::Table& t) { return t.rules == Chosen(); });
 	}
 };
 }
@@ -79,7 +79,7 @@ struct Room {
 // One table at a time, each sent only after the last shows the chosen rules.
 static void TestOneTableAtATime() {
 	Room room;
-	for (int table = 0; table < static_cast<int>(room::TableCount); ++table) {
+	for (int table = 0; table < static_cast<int>(room::ClassicTableCount); ++table) {
 		const auto sent = room.Run(500);
 		EXPECT(sent.size() == 1 && sent.front().table == table);
 		if (sent.size() == 1) EXPECT(room.Apply(sent.front()));
@@ -226,7 +226,22 @@ static void TestEachTableAndItsName() {
 	CHECK(!renamed.rules.Active() && std::string(renamed.rules.Ended()) == "edited");
 }
 
+// An Arcade room's type and rules go in one SetRoomType, sent again until the
+// room shows the type, and the operation is then done.
+static void TestRoomType() {
+	Room room;
+	room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::KingRoom);
+	room::Action sent;
+	CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRoomType && sent.roomType == room::KingRoom);
+	CHECK(room.Run(CreatedRules::RetryMs - 16).empty());
+	CHECK(room.authority.Apply(room.creator, sent).accepted);
+	CHECK(room.Run(32).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "done");
+	const auto& shown = room.authority.SnapshotView();
+	CHECK(shown.arcade == room::KingRoom && shown.tables[7].rules == Chosen());
+}
+
 int main() {
+	TestRoomType();
 	TestOneTableAtATime();
 	TestEachTableAndItsName();
 	TestStaleAndFenced();

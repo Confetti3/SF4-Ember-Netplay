@@ -358,7 +358,7 @@ void CreateWithRulesJourney(){
  const auto hidden=[&]{h.view.room=authority.SnapshotFor(creator);ImGui::NewFrame();
   h.shell.Background(h.view,h.view.room,[&](ShellAction a){h.actions.push_back(a);return true;});ImGui::Render();};
  Check(authority.Apply(creator,*first).accepted,"Table 1's rules were refused");
- for(int table=1;table<static_cast<int>(room::TableCount);++table){
+ for(int table=1;table<static_cast<int>(room::ClassicTableCount);++table){
   hidden();now+=100;
   const auto sent=tick();
   Check(sent&&sent->table==table,"The next table's rules were not sent while Ember was hidden");
@@ -367,7 +367,7 @@ void CreateWithRulesJourney(){
  }
  hidden();now+=100;
  Check(!tick()&&!runtime.Active()&&std::string(runtime.Ended())=="done","The rules did not finish while Ember was hidden");
- for(const auto& table:authority.SnapshotView().tables)Check(table.rules==rules.rules[0],"A table did not end up with the chosen rules");
+ for(std::size_t table=0;table<room::ClassicTableCount;++table)Check(authority.SnapshotView().tables[table].rules==rules.rules[0],"A table did not end up with the chosen rules");
  h.Frame(0,120);
  Check(shellRules()==0,"The shell sent rules of its own");
 }

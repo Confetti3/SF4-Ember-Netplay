@@ -35,6 +35,11 @@ public:
               int* stageId = nullptr, bool editable = true, const std::string& selectionError = {},
               selection::RandomPool* randomPool = nullptr, const selection::InstalledContent* installed = nullptr);
 private:
+    // V2's board (Fighter.dc.html): its grid eight across, the preview and the rows beside it.
+    static constexpr int BoardColumns = 8;
+    void DrawBoard(const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback,
+                   const selection::Pick& pick, SelectionArt* art, const AvailabilityReader& readAvailability);
+    std::string boardFocus_;
     GameMenu menu_;
     Page page_ = Page::Fighter;
     // The page opened for one change (EmbeddedReturn::openOn), or empty.

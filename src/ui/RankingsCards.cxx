@@ -5,6 +5,7 @@
 #include "PublicRoomsCards.hxx"
 #include "RoomCards.hxx"
 #include "Theme.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
 #include <cfloat>
 #include <initializer_list>
@@ -102,6 +103,63 @@ bool StateCard(const std::string& id) {
         if (id == card) return true;
     return false;
 }
+
+// V2 (the Rankings design board): your class as a big emblem beside your tag,
+// its name and its line; you and the board's players as S tags, you with the
+// You chip; a class's heading in the accent with its count. False for the
+// rest, which draw as Classic does.
+bool DrawV2Row(const MenuEntry& e, const Standing* standing, const std::vector<netplay::rankings::BoardEntry>* board, ImVec2 min, ImVec2 max) {
+    const float s = Scale(), h = max.y - min.y;
+    const auto& c = v2::Colors();
+    auto* d = ImGui::GetWindowDrawList();
+    // You: as the board lists you, else as rooms show you.
+    const auto& card = MenuPlayerCard();
+    v2::TagView you;
+    you.name = standing && standing->listed ? standing->listing.name : card.name;
+    you.marks.country = standing && standing->listed ? standing->listing.country : card.country;
+    const auto chip = [&](float right) {
+        const std::string text = loc::T("rankings.you");
+        const float w = v2::ChipWidth(text);
+        v2::Chip(d, ImVec2(right - w, min.y + (h - ImGui::GetFontSize() * .78f - 8 * s) * .5f), text, c.accent);
+        return w + 12 * s;
+    };
+    if (e.id == "rk-standing" && standing) {
+        const float pad = 20 * s, emblem = 80 * s;
+        const NameMarks marks{CountryCode(), Shown(*standing)};
+        const float mark = NameMarksWidth(marks, emblem), x = min.x + pad + (mark > 0 ? mark + 14 * s : 0), room = max.x - pad - x;
+        DrawNameMarks(d, min.x + pad, min.y + (h - emblem) * .5f, emblem, marks);
+        float y = min.y + (h - 26 * s - 26 * s - 20 * s) * .5f;
+        y += v2::Tag(d, ImVec2(x, y), room, you, v2::TagSize::S) + 4 * s;
+        d->AddText(HeadingFont(), 20 * s, ImVec2(x, y), c.text, e.label.c_str());
+        d->AddText(ImGui::GetFont(), 16 * s, ImVec2(x, y + 26 * s), c.muted, e.detail.substr(0, e.detail.find('\n')).c_str());
+        return true;
+    }
+    if (e.id == "rkb-you") {
+        you.marks.badge = standing ? Shown(*standing) : SkillBadge();
+        const float right = max.x - 16 * s - ImGui::CalcTextSize(e.value.c_str()).x;
+        d->AddText(ImVec2(right, min.y + (h - ImGui::GetFontSize()) * .5f), c.muted, e.value.c_str());
+        const float x = min.x + 16 * s, room = right - 12 * s - chip(right - 12 * s) - x;
+        v2::Tag(d, ImVec2(x, min.y + (h - 26 * s) * .5f), room, you, v2::TagSize::S);
+        return true;
+    }
+    if (StartsWith(e.id, "rkb-class:")) {
+        const float size = 14 * s, y = min.y + (h - size) * .5f;
+        d->AddText(HeadingFont(), size, ImVec2(min.x + 16 * s, y), c.accent, e.label.c_str());
+        d->AddText(ImGui::GetFont(), size, ImVec2(max.x - 16 * s - ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, e.value.c_str()).x, y), c.muted, e.value.c_str());
+        return true;
+    }
+    if (StartsWith(e.id, "rkb-p:")) {
+        const auto index = static_cast<std::size_t>(std::stoul(e.id.substr(6)));
+        if (!board || index >= board->size()) return false;
+        const auto& entry = (*board)[index];
+        v2::TagView tag;
+        tag.name = entry.listing.name; tag.marks = {entry.listing.country, SkillBadge::OfClass(entry.band, true)};
+        const float x = min.x + 12 * s, right = max.x - 12 * s;
+        v2::Tag(d, ImVec2(x, min.y + (h - 26 * s) * .5f), (entry.own ? right - chip(right) : right) - x, tag, v2::TagSize::S);
+        return true;
+    }
+    return false;
+}
 }
 
 bool DrawRankingsRow(const ShellView& v, const MenuEntry& e, ImVec2 min, ImVec2 max) {
@@ -114,6 +172,7 @@ bool DrawRankingsRow(const ShellView& v, const MenuEntry& e, ImVec2 min, ImVec2 
     if (!known) return false;
     // A board of hundreds paints only the rows in view.
     if (!ImGui::IsRectVisible(min, max)) return true;
+    if (v2::On() && DrawV2Row(e, standing, board, min, max)) return true;
     if (StateCard(e.id)) DrawStateCard(e, min, max);
     else if (e.id == "rk-standing" && standing) DrawStandingCard(e, *standing, min, max);
     else if (e.id == "rk-board-as") {

@@ -91,7 +91,7 @@ jobs:
       - name: Build and run the room and tournament suites
         run: |
           set -euo pipefail
-          RM="src/session/RoomModel.cxx src/session/RoomModelActions.cxx src/session/RoomModelJson.cxx src/session/RoomModelTournament.cxx src/session/RoomModelServerOwned.cxx src/session/RoomModelTerminal.cxx src/session/RoomModelTimers.cxx src/session/RoomDigest.cxx"
+          RM="src/session/RoomModel.cxx src/session/RoomModelActions.cxx src/session/RoomModelJson.cxx src/session/RoomModelTournament.cxx src/session/RoomModelArcade.cxx src/session/RoomModelServerOwned.cxx src/session/RoomModelTerminal.cxx src/session/RoomModelTimers.cxx src/session/RoomDigest.cxx"
           mkdir -p build/room
           g++ -std=c++17 -O1 -pthread -o build/room/room_tournament_test src/tests/room_tournament_test.cxx $RM &
           room=$!
