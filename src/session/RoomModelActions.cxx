@@ -327,27 +327,40 @@ Result RoomAuthority::ApplyRecordResult(MemberId member, const Action& action, T
 	if (table->phase != TablePhase::Playing || !IsParticipant(*table, member)) return Reject(RejectReason::WrongPhase);
 	if (action.matchGeneration != table->matchGeneration) return Reject(RejectReason::WrongGeneration);
 	if (action.result != MatchResult::P1Win && action.result != MatchResult::P2Win && action.result != MatchResult::Draw) return Reject(RejectReason::WrongPhase);
-	if (resultReporter_[table->id] == member)
-		return pendingResult_[table->id] == action.result ? Reject(RejectReason::DuplicateResult) :
+	const auto id = table->id;
+	if (action.game < gamesScored_[id]) return Reject(RejectReason::DuplicateResult);
+	// A report for a later game than the pending one replaces it.
+	const bool sameGame = table->resultPending && pendingGame_[id] == action.game;
+	if (resultReporter_[id] == member && sameGame)
+		return pendingResult_[id] == action.result ? Reject(RejectReason::DuplicateResult) :
 			Reject(RejectReason::WrongPhase);
-	if (table->resultPending) {
-		if (resultReporter_[table->id] == 0 && pendingResult_[table->id] == MatchResult::Abort) {
-			resultReporter_[table->id] = member;
-			pendingResult_[table->id] = action.result;
-			resultPendingSince_[table->id] = nowMs_;
-			Touch(*table);
-			return Accept();
-		}
-		if (pendingResult_[table->id] != action.result) {
-			table->phase = TablePhase::Paused; Touch(*table);
-			return Accept({Event{Event::Kind::ResultDisputed, table->id, table->matchGeneration, member, action.result}});
-		}
-		return EndMatch(table->id, table->matchGeneration, action.result);
+	const auto open = [&] {
+		resultReporter_[id] = member;
+		pendingResult_[id] = action.result;
+		pendingGame_[id] = action.game;
+		pendingContinued_[id] = action.continued;
+		table->resultPending = true;
+		resultPendingSince_[id] = nowMs_;
+		Touch(*table);
+		return Accept();
+	};
+	if (!table->resultPending || (resultReporter_[id] == 0 && pendingResult_[id] == MatchResult::Abort) ||
+		pendingGame_[id] < action.game) return open();
+	if (!sameGame) return Reject(RejectReason::DuplicateResult);
+	if (pendingResult_[id] != action.result) {
+		table->phase = TablePhase::Paused; Touch(*table);
+		return Accept({Event{Event::Kind::ResultDisputed, id, table->matchGeneration, member, action.result}});
 	}
-	resultReporter_[table->id] = member;
-	pendingResult_[table->id] = action.result;
-	table->resultPending = true;
-	resultPendingSince_[table->id] = nowMs_;
+	if (!action.continued || !pendingContinued_[id]) return EndMatch(id, table->matchGeneration, action.result);
+	// Both fighters went on to a rematch in the same battle: the game counts,
+	// and the match, its spectators and its stream go on.
+	RecordWonGame(id, *table, action.result);
+	if (action.result == MatchResult::P1Win) ++table->score[0];
+	else if (action.result == MatchResult::P2Win) ++table->score[1];
+	gamesScored_[id] = action.game + 1;
+	table->resultPending = false;
+	resultReporter_[id] = 0;
+	resultPendingSince_[id] = 0;
 	Touch(*table);
 	return Accept();
 }

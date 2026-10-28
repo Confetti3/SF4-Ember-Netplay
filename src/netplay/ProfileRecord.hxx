@@ -18,7 +18,8 @@ inline bool HasRandomRoomId(const RandomRoomId& roomId) {
 // its process epoch can be reused by another room.  Keep the version marker
 // in the persisted key so future formats can coexist with both this format
 // and legacy epoch-based strings already stored in `recent`.
-inline std::string ProfileResultKeyV2(const RandomRoomId& roomId, unsigned table, std::uint64_t generation) {
+// A later game of the same battle (an in-place rematch) adds its number.
+inline std::string ProfileResultKeyV2(const RandomRoomId& roomId, unsigned table, std::uint64_t generation, unsigned game = 0) {
     static constexpr char Hex[] = "0123456789abcdef";
     std::string key = "v2:";
     key.reserve(64);
@@ -27,6 +28,7 @@ inline std::string ProfileResultKeyV2(const RandomRoomId& roomId, unsigned table
         key.push_back(Hex[byte & 0xf]);
     }
     key += ":" + std::to_string(table) + ":" + std::to_string(generation);
+    if (game) key += ":" + std::to_string(game);
     return key;
 }
 
@@ -38,10 +40,10 @@ struct ProfileRecord {
     std::uint64_t wins=0,losses=0;
     bool available=true;
     std::deque<std::string> recent;
-    bool Record(const RandomRoomId& roomId,unsigned table,std::uint64_t generation,unsigned localSlot,room::MatchResult result) {
+    bool Record(const RandomRoomId& roomId,unsigned table,std::uint64_t generation,unsigned localSlot,room::MatchResult result,unsigned game=0) {
         if(!available||!HasRandomRoomId(roomId)||!generation||table>=room::TableCount||localSlot>=2||
             (result!=room::MatchResult::P1Win&&result!=room::MatchResult::P2Win))return false;
-        const auto key=ProfileResultKeyV2(roomId,table,generation);
+        const auto key=ProfileResultKeyV2(roomId,table,generation,game);
         if(std::find(recent.begin(),recent.end(),key)!=recent.end())return false;
         // The persisted counters describe a bounded total history.  Reject
         // the exact limit as well as values past it so one more result can

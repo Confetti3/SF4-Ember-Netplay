@@ -7,6 +7,7 @@
 #include "sf4e__MementoGuards.hxx"
 #include "../common/MementoGuards.hxx"
 #include "sf4e__CustomContent.hxx"
+#include <optional>
 
 static_assert(sf4e::NativePauseOrHoldFlag == rSystem::SSF_PAUSE_OR_HOLD, "BattlePause.hxx flag differs from the native one");
 
@@ -17,9 +18,28 @@ static_assert(sf4e::NativePauseOrHoldFlag == rSystem::SSF_PAUSE_OR_HOLD, "Battle
 sf4e::native_result::Timeline s_nativeResultTimeline;
 static bool s_nativeResultEmitted = false;
 
+// A result an in-place rematch may follow waits over the WIN: the room hears
+// it as a game of the running match once the next game's fight is confirmed,
+// or as the match's end when the battle closes instead.
+struct HeldResult { sf4e::room::MatchResult result; std::uint64_t captureFrame, confirmedFrame; };
+static std::optional<HeldResult> s_heldResult;
+static int s_resultFrame = -1;  // save frame of the last result published
+static unsigned s_gamesReported = 0;  // games of this battle the room heard
+
 void ResetNativeResultMatch() {
     s_nativeResultTimeline.Reset();
     s_nativeResultEmitted = false;
+    s_heldResult.reset();
+    s_resultFrame = -1;
+    s_gamesReported = 0;
+}
+
+bool fSystem::ResultHeld() { return s_heldResult.has_value(); }
+unsigned fSystem::GamesPlayedInPlace() { return s_gamesReported; }
+
+static void ReportNativeResult(const HeldResult& held, bool continued) {
+    sf4e::NetplayFacade::NotifyRuntimeMatchResult(held.result, held.captureFrame, held.confirmedFrame, s_gamesReported, continued);
+    if (continued) ++s_gamesReported;
 }
 
 // The outcome is settled: this fighter confirmed it natively, or the room
@@ -54,36 +74,39 @@ void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
     else if (flowValue == rSystem::BF__DRAW_RESULT) {
         flow = sf4e::native_result::Flow::DrawResult;
     }
+    else if (flowValue == rSystem::BF__READY || flowValue == rSystem::BF__FIGHT) {
+        flow = sf4e::native_result::Flow::Fight;
+    }
 
     s_nativeResultTimeline.Capture(stateFrame, flow, winnerIndex);
 }
 
 static void PublishConfirmedNativeMatchResult() {
-    if (s_nativeResultEmitted || !fSystem::ggpo ||
-        fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) return;
+    if (!fSystem::ggpo || fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) return;
     int confirmed = -1;
     if (!GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))) return;
+    if (s_heldResult) {
+        const int fight = s_nativeResultTimeline.ConfirmedFightAfter(s_resultFrame, confirmed);
+        if (fight < 0) return;
+        spdlog::info("Match result: game {} went on to a rematch in this battle (fight confirmed at frame {})", s_gamesReported + 1, fight);
+        ReportNativeResult(*s_heldResult, true);
+        s_heldResult.reset();
+        s_nativeResultEmitted = false;
+        s_resultFrame = fight;
+    }
+    if (s_nativeResultEmitted) return;
     const auto sample = s_nativeResultTimeline.ConfirmedSample(confirmed);
-    const auto result = sample.result;
-    if (result == sf4e::native_result::Result::None) return;
+    if (sample.result == sf4e::native_result::Result::None || sample.frame <= s_resultFrame) return;
 
     s_nativeResultEmitted = true;
-    spdlog::info("Match result: confirmed native outcome={} input_frame={} save_frame={}", static_cast<int>(result), confirmed, sample.frame);
-    const auto captureFrame = static_cast<std::uint64_t>(sample.frame);
-    const auto confirmedFrame = static_cast<std::uint64_t>(confirmed < 0 ? 0 : confirmed);
-    switch (result) {
-    case sf4e::native_result::Result::P1Win:
-        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P1Win, captureFrame, confirmedFrame);
-        break;
-    case sf4e::native_result::Result::P2Win:
-        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P2Win, captureFrame, confirmedFrame);
-        break;
-    case sf4e::native_result::Result::Draw:
-        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::Draw, captureFrame, confirmedFrame);
-        break;
-    case sf4e::native_result::Result::None:
-        break;
-    }
+    s_resultFrame = sample.frame;
+    spdlog::info("Match result: confirmed native outcome={} input_frame={} save_frame={}", static_cast<int>(sample.result), confirmed, sample.frame);
+    const HeldResult held{
+        sample.result == sf4e::native_result::Result::P1Win ? sf4e::room::MatchResult::P1Win :
+        sample.result == sf4e::native_result::Result::P2Win ? sf4e::room::MatchResult::P2Win : sf4e::room::MatchResult::Draw,
+        static_cast<std::uint64_t>(sample.frame), static_cast<std::uint64_t>(confirmed < 0 ? 0 : confirmed)};
+    if (sf4e::NetplayFacade::RematchInPlaceOffered(held.result)) s_heldResult = held;
+    else ReportNativeResult(held, false);
 }
 
 // The frame loop only publishes after a successful advance. Once the fight
@@ -136,8 +159,46 @@ bool fSystem::extendedSaveRequest = false;
 GameMementoKey::MementoID fSystem::mementoLoadRequest = { 0xffffffff, 0xffffffff };
 GameMementoKey::MementoID fSystem::mementoSaveRequest = { 0xffffffff, 0xffffffff };
 
+unsigned fSystem::rematchChoices = 0;
+// The GGPO frame that last restarted the match: a resimulated frame does not
+// count again. Games in one battle restart their own frame count; GGPO's runs on.
+static int rematchFrame = -1;
+
+void fSystem::TakeRematchChoices(fPadSystem::Inputs inputs[2]) {
+    rematchChoices = 0;
+    for (int i = 0; i < 2; i++) {
+        if (inputs[i].rawOn & sf4e::NetplayFacade::RematchInputBit) rematchChoices |= 1u << i;
+        inputs[i].rawOn &= ~sf4e::NetplayFacade::RematchInputBit;
+    }
+    if (rematchChoices != 3) return;
+    // Both chose: the WIN's last wait (MATCH_RESULT step 5 until its frame
+    // 300, DRAW_RESULT step 2 until frame 30) ends on this frame, as its own
+    // timeout ends it. Both games read the same inputs on the same frame.
+    const auto flow = *rSystem::staticVars.CurrentBattleFlow, step = *rSystem::staticVars.CurrentBattleFlowSubstate;
+    const short last = flow == rSystem::BF__MATCH_RESULT && step == 5 ? 300 : flow == rSystem::BF__DRAW_RESULT && step == 2 ? 30 : 0;
+    auto* frame = rSystem::staticVars.CurrentBattleFlowSubstateFrame;
+    if (last && frame->integral < last - 1)
+        *frame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame = { 0, static_cast<short>(last - 1) };
+}
+
+// The match end (BF__BTL_OVER, 0x5de1d0) reads the game mode to choose what
+// follows. Online it leaves the battle; offline Versus (mode 4) starts the
+// next match in this battle (requestRoundStart(1)). When both fighters chose
+// Rematch over the WIN it reads 4: no main menu and no VS load.
+int fSystem::GetGameMode() {
+    const int mode = (this->*rSystem::publicMethods.GetGameMode)();
+    if (!ggpo || rematchChoices != 3 || *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__BTL_OVER) return mode;
+    const int frame = ggpoTimeline.Held();
+    if (frame != rematchFrame) {
+        rematchFrame = frame;
+        spdlog::info("Rematch: both chose it over the WIN, the next game starts in this battle (frame {})", frame);
+    }
+    return 4;
+}
+
 void fSystem::Install() {
     void (fSystem:: * _fBattleUpdate)() = &BattleUpdate;
+    int (fSystem:: * _fGetGameMode)() = &GetGameMode;
     void (fSystem:: * _fCloseBattle)() = &CloseBattle;
     void (fSystem:: * _fSysMain_HandleTrainingModeFeatures)() = &SysMain_HandleTrainingModeFeatures;
     void (fSystem:: * _fSysMain_UpdatePauseState)() = &SysMain_UpdatePauseState;
@@ -154,6 +215,7 @@ void fSystem::Install() {
     DetourAttach((PVOID*)&rSystem::publicMethods.SysMain_HandleTrainingModeFeatures, *(PVOID*)&_fSysMain_HandleTrainingModeFeatures);
     DetourAttach((PVOID*)&rSystem::publicMethods.SysMain_UpdatePauseState, *(PVOID*)&_fSysMain_UpdatePauseState);
     DetourAttach((PVOID*)&rSystem::staticMethods.OnBattleFlow_BattleStart, OnBattleFlow_BattleStart);
+    DetourAttach((PVOID*)&rSystem::publicMethods.GetGameMode, *(PVOID*)&_fGetGameMode);
 }
 
 // The notice view keeps one player per simulated fighter and the memento room
@@ -369,7 +431,8 @@ static bool PlayGgpoFrame(rSystem* system) {
         return false;
     }
     NoteDisconnectFlags(disconnect_flags);
-    // The game is never shown the reserved bits (TrainingRuntime.hxx).
+    // The game is never shown the reserved bits (TrainingRuntime.hxx) or a Rematch.
+    fSystem::TakeRematchChoices(ggpoInputs);
     ggpoInputs[0].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[0].rawOn);
     ggpoInputs[1].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[1].rawOn);
     const GGPOErrorCode err = sf4e::statehash::GgpoTimeline::Simulate(
@@ -638,6 +701,7 @@ void fSystem::CloseBattle() {
     // The engine is closing this battle, so a session retired from here on
     // (now, or later by the spectator drain) leaves no orphan behind.
     const bool netplayBattle = simGate.OnNativeBattleClosed();
+    rematchFrame = -1; rematchChoices = 0;
     sf4e::battlePause.CloseBattle();
     sf4e::training::CloseBattle();
     sf4e::replayplayback::CloseBattle();
@@ -649,6 +713,7 @@ void fSystem::CloseBattle() {
     if (ggpo) NoteHeapParticleNames(_this);
     if (ggpo) {
         PublishConfirmedNativeMatchResult();
+        if (s_heldResult) { ReportNativeResult(*s_heldResult, false); s_heldResult.reset(); }
         int confirmedInput = -1;
         ggpo_get_last_confirmed_frame(ggpo, &confirmedInput);
         const auto candidate = s_nativeResultTimeline.Latest();

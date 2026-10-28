@@ -741,6 +741,7 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	table->phase = TablePhase::Playing;
 	table->resultPending = false;
 	resultReporter_[tableId] = 0;
+	gamesScored_[tableId] = 0;
 	activeMatchRecipients_[tableId].clear();
 	const auto freezeRecipient = [&](MemberId member) {
 		if (!member || std::any_of(activeMatchRecipients_[tableId].begin(), activeMatchRecipients_[tableId].end(),

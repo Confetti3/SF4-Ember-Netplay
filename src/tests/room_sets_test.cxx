@@ -267,6 +267,42 @@ static void TestSetHistoryOnTheWire() {
 	CHECK(t.lastSet.p1 == 0 && t.streakHolder == 0 && t.streak == 0);
 }
 
+// Games played in place in one battle (an instant rematch) report into the
+// match that started it: each counts at once, the match stays open for its
+// spectators, and the last one ends it.
+static void TestGamesPlayedInPlace() {
+	RoomAuthority authority("Rematch", 8, 1);
+	const MemberId host = Join(authority, 0, true);
+	const MemberId a = Join(authority, 1), b = Join(authority, 2);
+	QueueAll(authority, {a, b});
+	SetRules(authority, host, SetFormat::Ft3, RotationMode::WinnerStays);
+	for (const auto member : {a, b}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	CHECK(authority.BeginMatch(0, a, b).accepted);
+	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
+	const auto report = [&](MemberId member, unsigned game, bool continued, MatchResult result) {
+		Action action = TableAction(authority, member, 0, ActionKind::RecordResult);
+		action.matchGeneration = generation; action.game = game; action.continued = continued; action.result = result;
+		return authority.Apply(member, action);
+	};
+	CHECK(report(a, 0, true, MatchResult::P1Win).accepted);
+	const auto scored = report(b, 0, true, MatchResult::P1Win);
+	CHECK(scored.accepted && scored.events.empty());
+	{
+		const auto& t = authority.SnapshotView().tables[0];
+		CHECK(t.phase == TablePhase::Playing && t.matchGeneration == generation && !t.resultPending);
+		CHECK(t.score[0] == 1 && t.score[1] == 0);
+	}
+	// A late retry of a counted game counts nothing again.
+	CHECK(report(a, 0, true, MatchResult::P1Win).reason == RejectReason::DuplicateResult);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1);
+	// One side's battle closed instead: the match ends with this game.
+	CHECK(report(b, 1, true, MatchResult::P2Win).accepted);
+	CHECK(report(a, 1, false, MatchResult::P2Win).accepted);
+	const auto& t = authority.SnapshotView().tables[0];
+	CHECK(t.phase == TablePhase::Waiting && t.score[0] == 1 && t.score[1] == 1);
+	CHECK(!authority.TerminalMembers(0, generation).empty());
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
@@ -276,6 +312,7 @@ int main() {
 		TestRulesChangeStartsANewSet();
 		TestRotatedFighterKeepsItsReceipt();
 		TestSetHistoryOnTheWire();
+		TestGamesPlayedInPlace();
 	} catch (const std::exception& error) {
 		std::printf("room sets threw: %s\n", error.what());
 		return 1;

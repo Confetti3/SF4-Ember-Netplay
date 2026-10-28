@@ -291,6 +291,11 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 			runtime->readyIntent.Clear();
 			return DispatchOutcome::Dropped;
 		}
+		// Over the WIN of a game that may go on in place, the Ready that started
+		// it still holds the seat: the Rematch waits there as the choice the
+		// inputs carry, and takes the checks below after the battle if it closes.
+		if (kind == netplay::CommandKind::Rematch && Game::Battle::System::ResultHeld() && internal::PostMatchPromptDue())
+			return Defer(runtime->readyIntent, command);
 		auto* client = UserApp::netplay ? &UserApp::netplay->client : nullptr;
 		const bool inFlight = runtime->readyIntent.Parked() || runtime->controller.GetSnapshot().readyPending ||
 			(client && (client->_outstandingReadyRequestNumber != -1 ||

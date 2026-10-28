@@ -159,6 +159,9 @@ namespace sf4e {
             unsigned captureCandidate = 0;
             std::uint64_t padHintUntil = 0;
             input::MenuContext menuContext = input::MenuContext::Unavailable;
+            // Over the WIN, the players who chose Rematch (bit 1 = P1, 2 = P2);
+            // and the games of this battle that went on to one in place.
+            unsigned rematchChoices = 0, gamesInPlace = 0;
             // The game this PC only watches now (MenuContext::WatchedMatch), by
             // its own match rather than the table, which moves on first.
             netplay::WatchedGame watchedGame;
@@ -363,7 +366,13 @@ namespace sf4e {
 		bool IsRuntimeSpectator();
 		// A rollback-confirmed native result, with the save frame it was
 		// captured at and the input frame confirmed when it was published.
-		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame);
+		// `game` counts the games before it in this battle; a `continued` one
+		// was followed by a rematch in place and leaves the match open.
+		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame,
+			unsigned game, bool continued);
+		// The WIN this result brings up may restart the battle in place: the
+		// table offers instant rematches and the result leaves its set open.
+		bool RematchInPlaceOffered(room::MatchResult result);
 		// The room has committed the end of the current match (any result).
 		// Notices about losing that match's stream or peer are moot then.
 		bool IsRuntimeMatchEndCommitted();
@@ -381,6 +390,10 @@ namespace sf4e {
 		};
 		bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints);
         bool BindRuntimeInput(int localSlot);
+        // The raw input bit that carries this player's Rematch over the WIN to
+        // the other game (one of TrainingRuntime.hxx's retired bits). Both set
+        // on a frame: the next game starts in this battle. Never shown to the game.
+        constexpr unsigned RematchInputBit = 0x20000000;
         bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw);
 		void ReleaseRuntimePortToGgpo();
 		void InitFromPayload(const NetplayConfig& cfg);

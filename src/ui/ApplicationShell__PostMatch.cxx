@@ -31,10 +31,23 @@ int SeatOf(const room::Table& t, room::MemberId member) {
 bool MidSet(const room::Table& t, std::uint64_t generation) {
     return t.rules.format != room::SetFormat::Unlimited && t.lastSet.generation != generation;
 }
+// A seat's Ready for the next game. The room clears the Readies that started
+// this one only when its match ends, after the WIN of a game that may go on in place.
+bool Readied(const room::Table& t, int seat, std::uint64_t generation) {
+    const bool live = t.matchGeneration == generation && (t.phase == room::TablePhase::Playing || t.phase == room::TablePhase::Paused);
+    return seat >= 0 && !live && t.ready[seat];
+}
 }
 
 void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot& snapshot, double now, const Submit& submit, bool* open) {
     using namespace netplay; auto& nav = menu_.navigation;
+    // The battle went on to the rematch both chose: that WIN's prompt is done,
+    // and the next game's WIN opens its own.
+    if (v.gamesInPlace != gamesInPlaceSeen_) {
+        gamesInPlaceSeen_ = v.gamesInPlace;
+        if (postMatch_) ClosePostMatch(v, AfterPostMatch::None, open);
+        matchResultSeen_ = false;
+    }
     if (open) {
         const auto place = room::PlaceOf(snapshot, snapshot.localMember);
         // Only over the game's WIN: the game over, the room is shown, not a new prompt.
@@ -62,16 +75,19 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         // The press counts until the room shows it: the runtime holds it while
         // the WIN plays out and resends it after. A Ready the room takes back
         // later can be pressed again.
-        if (p.chose && mine >= 0 && t->ready[mine]) p.chose = false;
+        if (p.chose && Readied(*t, mine, p.generation)) p.chose = false;
         if (p.left) {
             if (!Fighting(v.session.match) || v.atMainMenu) ClosePostMatch(v, p.after, open);
             return;
         }
-        const bool ready = mine >= 0 && (p.chose || t->ready[mine] || v.readyRequested);
+        const bool ready = mine >= 0 && (p.chose || Readied(*t, mine, p.generation) || v.readyRequested);
         // Both chose Rematch: the room starts the next game at once, and the
         // prompt covers the room and the game's main menu until the game
-        // loads. The snapshot can bring the other Ready and the new game together.
-        if (t && !p.starting && ready && theirs >= 0 && (t->ready[theirs] || t->matchGeneration != p.generation)) {
+        // loads. The snapshot can bring the other Ready and the new game
+        // together. Over the WIN the other's choice arrives with their inputs,
+        // and the battle restarts in place.
+        if (t && !p.starting && ready && theirs >= 0 &&
+            (Readied(*t, theirs, p.generation) || t->matchGeneration != p.generation || (v.rematchChoices >> theirs & 1))) {
             p.starting = true; p.until = now + StartGraceSeconds;
         }
         if (!t || (p.starting ? (v.session.match == MatchState::Playing && t->matchGeneration != p.generation) || now >= p.until :
@@ -112,8 +128,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const auto& t = v.room.tables[p.table];
     const int mine = SeatOf(t, v.room.localMember), theirs = SeatOf(t, p.opponent);
     const bool midSet = MidSet(t, p.generation);
-    const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || t.ready[mine] || v.readyRequested));
-    const bool theyChose = p.starting || (theirs >= 0 && t.ready[theirs]);
+    const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyRequested));
+    const bool theyChose = p.starting || Readied(t, theirs, p.generation);
     const auto* opponent = room::FindMember(v.room, p.opponent);
     const auto* local = room::FindMember(v.room, v.room.localMember);
     const std::string name = opponent ? opponent->name : loc::T("room.player");
@@ -189,9 +205,13 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
                 v2::Chip(d, ImVec2(r.max.x - 12 * s - chip, r.min.y + (rowHeight - line) * .5f), word, tone);
                 y += rowHeight + 8 * s;
             }
-            // What the focused button does.
+            // What the focused button does, in the room the longest one takes, so
+            // the buttons stay put while the focus moves.
+            float words = 0;
+            for (int i = 0; i < 3; ++i) words = (std::max)(words, v2::Paragraph(nullptr, ImVec2(), width, entries[i].detail, 17 * s, c.muted));
             const auto focused = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == nav.Focus(); });
-            if (focused != entries.end()) y += v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted) + 24 * s;
+            if (focused != entries.end()) v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted);
+            y += words + 24 * s;
             // The buttons, each with its pad or key glyph, set apart from the players' rows.
             const char* glyphs[] = {MenuSelectGlyph(), keys ? "F" : "X", MenuBackGlyph()};
             const float w = (width - 24 * s) / 3, glyph = 26 * s, font = 17 * s;

@@ -514,6 +514,17 @@ void PostMatchJourneys() {
  Check(h.shell.Navigation().Screen()=="post-match","The prompt left the main menu showing while the next game was prepared");
  h.view.session.match=netplay::MatchState::Playing;h.Frame();
  Check(h.shell.Navigation().Screen()!="post-match","The next game playing did not end the prompt");
+ // In place: both Rematch choices travel with the inputs over the WIN and the
+ // battle goes on to the next game, with no new room game. That ends the
+ // prompt, and the next game's WIN opens its own.
+ // The Readies that started the game stand until its match ends: no choice yet.
+ t.ready[0]=t.ready[1]=true;h.view.matchResult=false;h.Frame();win();
+ Check(row("again").enabled&&row("pm-you").value!=loc::T("postmatch.state.ready"),"The Ready that started the game was taken for a Rematch");
+ h.Choose("again");h.view.rematchChoices=3;h.Frame();
+ h.view.rematchChoices=0;h.view.matchResult=false;h.view.gamesInPlace=1;h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match","A rematch in place did not end the prompt");
+ win();Check(h.shell.Navigation().Screen()=="post-match"&&row("again").enabled,"The next WIN in the same battle opened no prompt");
+ h.view.matchResult=false;h.view.gamesInPlace=0;t.ready[0]=t.ready[1]=false;h.Frame();
  // No answer with no set length: Ember steps aside over WIN, then leaves the seat in the room.
  h.view.matchResult=false;h.Frame();win();const auto before=h.actions.size();h.Wait(11);
  Check(!h.open&&h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==before,"No answer did not close the prompt over WIN");

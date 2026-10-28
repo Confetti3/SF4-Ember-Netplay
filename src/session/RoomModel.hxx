@@ -572,6 +572,11 @@ struct Action {
 	// own stream or setup failed: leave this game only. The watch stays, the
 	// lock-in does not. A player's own Stop watching never sets it.
 	bool keepWatching = false;
+	// RecordResult: games of this match played before the reported one in
+	// the same battle, and whether a rematch in place followed it (the match
+	// stays open). Written only when set.
+	std::uint32_t game = 0;
+	bool continued = false;
 };
 
 struct Event {
@@ -936,6 +941,12 @@ private:
 	std::uint64_t nextChatSequence_ = 1;
 	std::array<MemberId, TableCount> resultReporter_ = {};
 	std::array<MatchResult, TableCount> pendingResult_ = {};
+	// A battle's later games (in-place rematches) report into the same match:
+	// the game the pending report is for, whether a rematch followed it, and
+	// how many games of the match were scored without ending it.
+	std::array<std::uint32_t, TableCount> pendingGame_ = {};
+	std::array<bool, TableCount> pendingContinued_ = {};
+	std::array<std::uint32_t, TableCount> gamesScored_ = {};
 	std::array<std::uint64_t, TableCount> resultPendingSince_ = {};
 	std::array<std::uint64_t, TableCount> startHeldSince_ = {};
 	std::array<std::uint64_t, TableCount> readyWaitingSince_ = {};

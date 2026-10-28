@@ -165,6 +165,9 @@ struct ShellView {
     // The WIN screen of a room game this PC fought, at a table with Instant
     // rematch on (input::MenuContext::MatchResult): the post-match prompt opens.
     bool matchResult = false;
+    // Over that WIN, the seats whose player chose Rematch (bit 1 = P1, 2 = P2),
+    // and the games of the battle that went on to a rematch in place.
+    unsigned rematchChoices = 0, gamesInPlace = 0;
     // That game's picture, for the menu's top right corner over an opaque
     // menu (PlayerPreferences::pictureMode); null when it is not wanted or
     // could not be taken.
@@ -508,6 +511,7 @@ private:
     };
     std::optional<PostMatchPrompt> postMatch_;
     bool matchResultSeen_ = false;
+    unsigned gamesInPlaceSeen_ = 0;
     // Opens, times out and ends the prompt; open is null while Ember is hidden.
     void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
     void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);

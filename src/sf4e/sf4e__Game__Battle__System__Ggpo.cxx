@@ -656,7 +656,8 @@ bool fSystem::ggpo_advance_frame_callback(int)
     }
     NoteDisconnectFlags(disconnect_flags);
     // As in a frame of the present (PlayGgpoFrame): the game is never shown
-    // the reserved bits.
+    // the reserved bits or a Rematch.
+    fSystem::TakeRematchChoices(inputs);
     inputs[0].rawOn = sf4e::training::ClearReservedInputBits(inputs[0].rawOn);
     inputs[1].rawOn = sf4e::training::ClearReservedInputBits(inputs[1].rawOn);
 

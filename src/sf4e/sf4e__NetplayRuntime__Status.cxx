@@ -306,7 +306,10 @@ input::MenuContext MenuContextNow(bool atMainMenu) {
         if (!readied && UserApp::netplay) {
             const auto& room = UserApp::netplay->client.GetRoomSnapshot();
             const auto place = room::PlaceOf(room, room.localMember);
+            // The Readies that started the game just played stand until its match ends.
+            const auto phase = place.kind == room::Place::Kind::Seat ? room.tables[place.table].phase : room::TablePhase::Idle;
             readied = place.kind == room::Place::Kind::Seat && room.tables[place.table].ready[place.seat] &&
+                phase != room::TablePhase::Playing && phase != room::TablePhase::Paused &&
                 room::SeatOpponent(room, static_cast<std::uint8_t>(place.table), room.localMember);
         }
         runtime->promptOverBattle = match == netplay::MatchState::Preparing || (match == netplay::MatchState::PostMatch && readied);
@@ -356,25 +359,45 @@ std::uint64_t PublishFingerprint() {
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());
+    mix(Game::Battle::System::rematchChoices); mix(Game::Battle::System::GamesPlayedInPlace());
     return h;
 }
 }
 
 namespace internal {
-// The WIN (or DRAW) screen of a room game this PC fought, once the game's result is
-// known, at a table whose rules ask (room::Rules::instantRematch). A Practice
-// room and a tournament's table have no rematch to offer.
-bool PostMatchPromptDue() {
-    using rSystem = Dimps::Game::Battle::System;
-    if (!Game::Battle::System::ggpo || LocalIsSpectator() || !runtime->matchEntered || !runtime->attached || !UserApp::netplay ||
-        !rSystem::staticVars.CurrentBattleFlow || !IsRuntimeMatchEndCommitted()) return false;
-    const auto flow = *rSystem::staticVars.CurrentBattleFlow;
-    if (flow != rSystem::BF__MATCH_RESULT && flow != rSystem::BF__DRAW_RESULT) return false;
+// A room game this PC fights, at a table whose rules ask for a prompt over the
+// WIN (room::Rules::instantRematch). A Practice room and a tournament's table
+// have no rematch to offer.
+static const room::Table* RematchTable() {
+    if (!Game::Battle::System::ggpo || LocalIsSpectator() || !runtime->matchEntered || !runtime->attached || !UserApp::netplay) return nullptr;
     const auto& room = UserApp::netplay->client.GetRoomSnapshot();
     const auto table = runtime->enteredTable;
-    return !room.practice && !room.tournament.Active() && table >= 0 && table < static_cast<int>(room.tables.size()) &&
-        room.tables[table].rules.instantRematch;
+    if (room.practice || room.tournament.Active() || table < 0 || table >= static_cast<int>(room.tables.size()) ||
+        !room.tables[table].rules.instantRematch) return nullptr;
+    return &room.tables[table];
 }
+
+// The WIN (or DRAW) screen of such a game, once its result is known: held for
+// a rematch in place, or the match's end committed by the room.
+bool PostMatchPromptDue() {
+    using rSystem = Dimps::Game::Battle::System;
+    if (!RematchTable() || !rSystem::staticVars.CurrentBattleFlow ||
+        !(Game::Battle::System::ResultHeld() || IsRuntimeMatchEndCommitted())) return false;
+    const auto flow = *rSystem::staticVars.CurrentBattleFlow;
+    return flow == rSystem::BF__MATCH_RESULT || flow == rSystem::BF__DRAW_RESULT;
+}
+}
+
+// A game that ends a first-to-N set ends the match: the table rotates.
+bool RematchInPlaceOffered(room::MatchResult result) {
+    const auto* table = internal::RematchTable();
+    if (!table) return false;
+    const auto goal = static_cast<std::uint32_t>(table->rules.format);
+    const int seat = result == room::MatchResult::P1Win ? 0 : result == room::MatchResult::P2Win ? 1 : -1;
+    return goal == 0 || seat < 0 || table->score[seat] + 1 < goal;
+}
+
+namespace internal {
 
 // This PC is one of the watchers of a game starting or not yet over: a
 // locked-in spectator whose table holds its start for them, a spectator in the
@@ -500,6 +523,8 @@ PostPublishState Publish() {
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
+    snapshot.rematchChoices = Game::Battle::System::rematchChoices;
+    snapshot.gamesInPlace = Game::Battle::System::GamesPlayedInPlace();
     snapshot.watchedGame = WatchedGameNow();
     snapshot.lockInDrops = runtime->lockInDrops;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
