@@ -79,5 +79,8 @@ reported; the spot checks above stand in for it.
 - The VPS bridge deploy of migrations 031 to 049 and the desk's trusted
   host default (`SF4E_EMBER_SERVICE`) are owner decisions from the 10-21
   desk review, unchanged by this merge.
-- In-game checks of FRaccie's merged features and of the review's
-  behavior changes (HANDOFF.md section 2).
+- The two-PC self-tests (room host and guest, tournament host and guest)
+  and in-game checks of FRaccie's merged features and of the review's
+  behavior changes (HANDOFF.md section 2). The single-PC self-tests pass
+  on the desktop with the self-test build of d560c208: training (13
+  steps), replay (9) and room layout (7).
