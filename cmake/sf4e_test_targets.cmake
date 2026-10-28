@@ -179,6 +179,7 @@ set_tests_properties(SelectionArt PROPERTIES TIMEOUT 60)
 
 sf4e_add_unit_test(NAME NetworkLink SOURCES "src/tests/network_link_test.cxx" LIBS sf4e_common TIMEOUT 30)
 sf4e_add_unit_test(NAME HttpPostCancel SOURCES "src/tests/http_post_cancel_test.cxx" STD 17 LIBS sf4e_common ws2_32 TIMEOUT 60)
+sf4e_add_unit_test(NAME HttpUpdateMetadata SOURCES "src/tests/http_update_metadata_test.cxx" STD 17 LIBS sf4e_common ws2_32 TIMEOUT 60)
 
 sf4e_add_unit_test(NAME SessionClientTransport SOURCES "src/tests/session_client_transport_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9" LABELS room)
 sf4e_add_unit_test(NAME IrohMatchSession SOURCES "src/tests/iroh_match_session_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9" LABELS room)

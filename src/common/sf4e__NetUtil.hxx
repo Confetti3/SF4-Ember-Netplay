@@ -59,6 +59,11 @@ namespace sf4e {
 		int outBodyLen
 	);
 
+    // Bounded across the whole response, with cancellation during DNS/connect/read.
+    // A truncated, oversized or interrupted response is never returned as success.
+    bool HttpGetUpdateMetadata(const char* host, int port, bool https, const char* path,
+        int budgetMs, const std::function<bool()>& cancelled, std::string& body);
+
 	// Download https?://host/path to a local file. Follows redirects.
 	bool HttpDownloadUrlUtf8(
 		const char* url,

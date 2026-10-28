@@ -83,7 +83,7 @@ namespace launcher {
     // channel's highest listed release with a package, and whether it is
     // newer than the installed version.
     UpdateCheckResult ParseGithubReleases(const std::string& body, const char* installed, UpdateChannel channel);
-	UpdateCheckResult CheckForUpdate(UpdateChannel channel);
+	UpdateCheckResult CheckForUpdate(UpdateChannel channel, const std::atomic<bool>& cancel = NeverCancelled, int budgetMs = 15000);
 	// Goes through Downloading, Verifying, Extracting and Preparing, reporting
 	// each to `progress` for the status line. Each step starts with a report of
 	// (0, 0). Setting `cancel` stops the update with "update.cancelled", up to
