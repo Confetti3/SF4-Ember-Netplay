@@ -583,13 +583,17 @@ MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEnt
  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
  return card;
 }
-void ApplicationShell::ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat) const {
+void ApplicationShell::ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat,v2::Box* picture) const {
  // A folded panel is its heading's strip and the other takes the column; both
  // folded, the two strips in a narrow column and the tables the rest.
  const float s=Scale(),strip=FoldedPanelHeight*s;
  const bool showMembers=preferences_.roomShowMembers,showChat=preferences_.roomShowChat;
  tables=area;
  chat=v2::CutRight(tables,showMembers||showChat?area.W()*preferences_.roomColumn/100:FoldedColumnWidth*s,24*s);
+ if(columnPicture_){
+  const auto* vp=ImGui::GetMainViewport();
+  const v2::Box top=v2::CutTop(chat,(chat.W()-24*s)*vp->Size.y/vp->Size.x+24*s,16*s);if(picture)*picture=top;
+ }
  if(showMembers&&showChat)members=v2::CutTop(chat,(chat.H()-16*s)*preferences_.roomSplit/100,16*s);
  else if(showMembers){members=chat;chat=v2::CutBottom(members,strip,16*s);}
  else{members=v2::CutTop(chat,strip,16*s);if(!showChat)chat.max.y=chat.min.y+strip;}
@@ -818,8 +822,21 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    members=v2::CutLeft(tables,(showMembers?480:FoldedColumnWidth)*s,24*s);chat=v2::CutRight(tables,(showChat?520:FoldedColumnWidth)*s,24*s);
    if(!showMembers)members.max.y=members.min.y+FoldedPanelHeight*s;if(!showChat)chat.max.y=chat.min.y+FoldedPanelHeight*s;
   }
-  else if(!narrow)ArrangeRoom(area,tables,members,chat);
-
+  // The watched game's picture between at and to, with what is watched and Hide on it;
+  // the corner window stays away this frame.
+  const auto showPicture=[&](ImVec2 at,ImVec2 to){
+   d->AddImage(v.watchedPicture,at,to);d->AddRect(at,to,c.border,0,0,s);
+   const auto watched=std::find_if(v.room.tables.begin(),v.room.tables.end(),[&](const room::Table& t){return std::find(t.spectators.begin(),t.spectators.end(),v.room.localMember)!=t.spectators.end();});
+   if(watched!=v.room.tables.end())v2::Chip(d,ImVec2(at.x+8*s,at.y+8*s),std::string(loc::T("room.status.watching"))+" \xC2\xB7 "+loc::Tf("room.v2.table",watched->id+1),c.accent);
+   boardPicture_=true;
+   if(const auto hide=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="room-hide-picture";});hide!=rows.end())
+    hideButton(*hide,ImVec2(to.x-8*s,at.y+8*s));
+  };
+  // An Arcade room's Small picture stands at the column's top, over Members.
+  columnPicture_=!narrow&&!ultra&&v.room.arcade&&v.watchedPicture&&preferences_.pictureMode==netplay::PictureSmall;
+  v2::Box picture{};
+  if(!ultra&&!narrow)ArrangeRoom(area,tables,members,chat,&picture);
+  if(columnPicture_){panel(picture);const v2::Box in=v2::Inset(picture,12*s,12*s);showPicture(in.min,in.max);}
   if(!narrow||part==0){
    // The tables, under their heading and how many play and watch.
    std::size_t playing=0,watching=0;bool banners=false;
@@ -874,13 +891,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    if(v.watchedPicture&&preferences_.pictureMode==netplay::PictureBig&&!narrow&&ph>=120*s){
     const float pw=ph*vp->Size.x/vp->Size.y;const v2::Box pic=v2::CutTop(tables,ph,8*s);
     const ImVec2 at(pic.min.x+(pic.W()-pw)*.5f,pic.min.y),to(at.x+pw,pic.max.y);
-    d->AddImage(v.watchedPicture,at,to);d->AddRect(at,to,c.border,0,0,s);
-    const auto watched=std::find_if(v.room.tables.begin(),v.room.tables.end(),[&](const room::Table& t){return std::find(t.spectators.begin(),t.spectators.end(),v.room.localMember)!=t.spectators.end();});
-    if(watched!=v.room.tables.end())v2::Chip(d,ImVec2(at.x+8*s,at.y+8*s),std::string(loc::T("room.status.watching"))+" \xC2\xB7 "+loc::Tf("room.v2.table",watched->id+1),c.accent);
-    boardPicture_=true;
-    // Hide, over the picture's top right corner, turns the picture off.
-    if(const auto hide=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="room-hide-picture";});hide!=rows.end())
-     hideButton(*hide,ImVec2(to.x-8*s,at.y+8*s));
+    showPicture(at,to);
    }
    // An Arcade or King of the hill room as its cabinets (RoomPanelArcade.cxx); a
    // Classic room keeps its table cards.
@@ -1025,6 +1036,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    }
   }
   if(!narrow&&!ultra)RoomGrips(area);
+  columnPicture_=false;
   ImGui::PopStyleColor();
  }else if(wide){
   // The battle slots take the whole height on the left. Members, chat and the
