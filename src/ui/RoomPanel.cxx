@@ -734,7 +734,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   v2::Box area{origin,ImVec2(origin.x+ImGui::GetContentRegionAvail().x,origin.y+height)};
   ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
   // A row's box: a press is Select on it, the moving pointer focuses it. True while hovered.
-  const auto hit=[&](const MenuEntry& e,const v2::Box& b){return PressEntry(nav,rows,e,b,action,changed).hovered;};
+  const auto hit=[&](const MenuEntry& e,const v2::Box& b){ReportMenuCard(e.id.c_str(),b.min,b.max);return PressEntry(nav,rows,e,b,action,changed).hovered;};
   const auto ground=[&](ImDrawList* dl,const v2::Box& b,ImU32 fill,ImU32 edge){dl->AddRectFilled(b.min,b.max,fill,4*s);dl->AddRect(b.min,b.max,edge,4*s,0,s);};
   const auto panel=[&](const v2::Box& b){ground(d,b,v2::PanelGround(v.SeeThrough()),c.border);};
   // A panel's Hide: a small row button whose top right corner is at `corner`. Returns its width.
@@ -843,7 +843,6 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
      ReportMenuCard((e.id+"/"+std::to_string(i)).c_str(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
     }
     const bool hovered=hit(e,b);
-    ReportMenuCard(e.id.c_str(),b.min,b.max);
     if(choosing){
      // The chosen side follows the mouse, but only a moving one takes the choice.
      if(over>=0&&pointerMoved)nav.ChoiceIndex(static_cast<std::size_t>(over));

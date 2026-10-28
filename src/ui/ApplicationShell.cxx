@@ -931,6 +931,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool roomScreen=screen.compare(0,4,"room")==0;
  // V2: Select on a value opens all its values in a panel (the room boards keep their own).
  if(v2::On()&&!roomScreen)OfferValues(rows);
+ // Each screen sets its header's eyebrow and chips below, every frame.
+ menu_.eyebrow.clear();menu_.headerChips.clear();
  // Kick or Make host from a member's popout asks its question on the member's page.
  if(screen=="room-member"&&!memberAsk_.empty()){menu_.navigation.Focus(memberAsk_,rows);menu_.navigation.Choose(rows);memberAsk_.clear();}
  // V2: a room's header says what kind of room it is, who it admits and how full it is.

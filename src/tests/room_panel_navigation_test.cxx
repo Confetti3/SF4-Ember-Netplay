@@ -1432,6 +1432,20 @@ int main() try {
                 }
             }
         }
+        // V2's More... popout closes on a click outside it, and that click does nothing else.
+        view.preferences.lookV2 = true; v2::SetOn(true); ApplyTheme(1.f); io.Fonts->Build(); io.DisplaySize = ImVec2(1920, 1080);
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
+        click(targets.at("room-more"));
+        Check(shell.Navigation().Choosing(), "A click on More... did not open its popout");
+        const auto before = actions.size();
+        click(ImVec2(300, 600)); frame();
+        Check(!shell.Navigation().Choosing() && shell.Navigation().Screen() == "room" && actions.size() == before,
+            "A click outside More...'s popout did not just close it");
+        // A V2 header's chips are the screen's this frame: Online play shows its relay once, not once per frame.
+        shell.Navigation().Push("online"); frame(); frame();
+        const int drawn = ImGui::GetDrawData()->TotalVtxCount;
+        for (int i = 0; i < 10; ++i) frame();
+        Check(shell.Navigation().Screen() == "online" && ImGui::GetDrawData()->TotalVtxCount == drawn, "A V2 header gathered its chips over frames");
         view.preferences.lookV2 = false; v2::SetOn(false); ApplyTheme(1.f); io.Fonts->Build(); io.DisplaySize = ImVec2(1280, 960);
     }
 

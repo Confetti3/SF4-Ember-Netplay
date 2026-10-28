@@ -198,11 +198,14 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     // A value's choices: a panel on its own card, inside the cards' column, so
     // the detail pane and its preview stay in view. Picking one closes it.
     const auto Values = [&](v2::Box focusCard, v2::Box list) {
+        if (popoutClose_ && navigation.Choosing()) navigation.Cancel();
+        popoutClose_ = false;
         if (!navigation.Choosing() || focusedEntry == entries.end() || focusCard.W() <= 0 || !notice_.empty()) { popoutOpen_ = false; return false; }
         const auto& e = *focusedEntry;
         // Select on a switch flips it: no popup for two words.
         if (MenuValueIsToggle(e)) { navigation.Cancel(); action = {MenuAction::Adjust, e.id, {}, e.value == loc::T("common.on") ? -1 : 1}; return false; }
         const auto grid = MenuChoiceLayout(e.choices);
+        bool closeOutside = false;
         const std::size_t count = e.choices.size(), across = e.popout ? 1 : grid.across, lines = (count + across - 1) / across;
         const float row = (e.popout ? 44 : 48) * s, inner = (e.popout ? 8 : 6) * s, foot = e.popout ? 0 : 30 * s;
         const float height = lines * row + (lines - 1) * inner + 24 * s + (e.popout ? 22 : 38) * s + foot;
@@ -210,6 +213,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             // A popout opens where it was asked for: at the click, or beside the row for the pad
             // and keys, and turns back at the screen's edges.
             if (!popoutOpen_) popoutAt_ = ImGui::IsMouseReleased(ImGuiMouseButton_Left) ? ImGui::GetMousePos() : ImVec2(focusCard.max.x - 24 * s, focusCard.min.y);
+            else closeOutside = true;
             popoutOpen_ = true;
             const float w = 300 * s, h = (std::min)(height, size.y - 16 * s);
             ImVec2 at = popoutAt_;
@@ -273,6 +277,10 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             if (selected && lastChoice_ != i) ImGui::SetScrollHereY(.5f);
         }
         lastChoice_ = navigation.ChoiceIndex();
+        // A click outside an open popout closes it. The board under it was drawn
+        // while it was still open, so that click does nothing else.
+        // It closes on the next frame, after the hint bar's Back has had this click.
+        popoutClose_ = closeOutside && navigation.Choosing() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !ImGui::IsWindowHovered();
         ImGui::PopStyleVar();
         if (!e.popout && navigation.Choosing()) {
             const auto chosen = std::find_if(e.choices.begin(), e.choices.end(), [&](const MenuChoice& o) { return o.id == e.chosen; });

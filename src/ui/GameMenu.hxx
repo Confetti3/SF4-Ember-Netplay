@@ -292,7 +292,7 @@ private:
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
     // Where an open popout sits (V2 Values); set on the frame it opens.
-ImVec2 popoutAt_{};bool popoutOpen_=false;
+ImVec2 popoutAt_{};bool popoutOpen_=false,popoutClose_=false;
 std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_;
 v2::HeaderChip noticeChip_{};
     std::vector<NoticeButton> noticeButtons_;
