@@ -46,7 +46,6 @@ pub async fn draft(
             Ok(Ok(()))
         })
         .await?;
-    state.committed();
     done.map_err(ApiFailure::invalid)?;
     Ok(json(StatusCode::CREATED, &json!({ "id": id })))
 }
@@ -244,7 +243,6 @@ pub async fn change(
             Ok(Ok(()))
         })
         .await?;
-    state.committed();
     match done {
         Ok(()) => Ok(ok(&json!({}))),
         Err(None) => Err(ApiFailure::not_found()),
@@ -310,7 +308,6 @@ pub async fn create(
         .db
         .write(move |tx| caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, &path))
         .await?;
-    state.committed();
     if let Some(limits) = oauth.limits
         && !spend(&state, site.id(), &organizer, 1, limits).await?
     {
@@ -352,7 +349,6 @@ pub async fn create(
             Ok(())
         })
         .await?;
-    state.committed();
     Ok(json(
         StatusCode::CREATED,
         &json!({ "tournament": created.id, "link": created.link }),
@@ -402,7 +398,6 @@ pub async fn ready(
             Ok(Ok(()))
         })
         .await?;
-    state.committed();
     match done {
         Ok(()) => Ok(ok(&json!({}))),
         Err(None) => Err(ApiFailure::not_found()),
@@ -451,7 +446,6 @@ pub async fn start_bracket(
         .db
         .write(move |tx| caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, &path))
         .await?;
-    state.committed();
     if let Some(limits) = oauth.limits
         && !spend(&state, site.id(), &organizer, 1, limits).await?
     {
@@ -506,7 +500,6 @@ pub async fn transition(
         .db
         .write(move |tx| caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, &path))
         .await?;
-    state.committed();
     if let Some(limits) = oauth.limits
         && !spend(&state, site.id(), &organizer, 1, limits).await?
     {

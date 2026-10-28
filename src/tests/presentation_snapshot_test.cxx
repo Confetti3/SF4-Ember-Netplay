@@ -4,7 +4,11 @@
 // of that shape ended in 0xC0000374 within a fraction of a second. This runs
 // the same hammer through the publication path, and pins the notice rules and
 // the command queue's lifetime across a runtime restart.
+#include "session_client_mock.hxx"
 #include "../sf4e/sf4e__NetplayFacade.hxx"
+#include "../sf4e/sf4e__NetplayRuntime.hxx"
+#include "../sf4e/sf4e__UserApp.hxx"
+#include "../session/RoomModel.hxx"
 #include "../sf4e/sf4e__RuntimeBridge.hxx"
 #include "../sf4e/sf4e__GameEvents.hxx"
 #include "../Dimps/Dimps.hxx"
@@ -806,6 +810,82 @@ static void TestRuntimeJudgesTraining() {
 	Dimps::App::GetRootEvent = originalRoot;
 }
 
+// The room is published as one immutable copy per change of the client's
+// room, shared by every snapshot until the next, with class emblems dropped
+// where they are not shown, and never changed once published.
+static void TestSharedRoom() {
+	namespace room = sf4e::room;
+	namespace protocol = sf4e::SessionProtocol;
+	using nlohmann::json;
+	sf4e::NetplayConfig config = {};
+	facade::InitFromPayload(config);
+	facade::ConfigureHelper({}, ERROR_FILE_NOT_FOUND);
+	facade::StartHelper();
+	const auto originalRoot = Dimps::App::GetRootEvent;
+	Dimps::App::GetRootEvent = NoRootEvent;
+	facade::NotifyRuntimeGameReady();
+	facade::TickRuntime();
+	auto* runtime = facade::internal::runtime;
+	CHECK(runtime != nullptr);
+	sf4e::SessionClient::Callbacks callbacks{};
+	std::string name = "Player 1";
+	sf4e::UserApp::netplay.reset(new sf4e::UserApp::Netplay(callbacks, "build", 30000, name, 0, 0, 2));
+	auto& client = sf4e::UserApp::netplay->client;
+	auto* transport = new sf4e::test::MockClient();
+	CHECK(client.Connect(std::unique_ptr<sf4e::session::ClientTransport>(transport), false) == 0);
+	transport->state = sf4e::session::ConnectionState::Connected;
+	CHECK(client.Step() == 0);
+	protocol::SessionHelloResp hello; hello.cid = {"room", "local"};
+	transport->Push(json(hello)); CHECK(client.Step() == 0);
+	runtime->attached = true;
+	const auto deliver = [&](const room::Snapshot& snapshot) {
+		protocol::RoomSnapshotMessage message; message.snapshot = snapshot;
+		transport->Push(json(message)); CHECK(client.Step() == 0);
+	};
+	const auto publish = [] { facade::internal::Publish(); return facade::GetRuntimeSnapshotShared(); };
+	room::Snapshot sent; sent.roomEpoch = 9; sent.revision = 1; sent.name = "Room"; sent.localMember = 1;
+	for (std::size_t i = 0; i < room::TableCount; ++i) sent.tables[i].id = static_cast<std::uint8_t>(i);
+	room::Member local; local.id = 1; local.name = "Player 1"; local.badge = sf4e::SkillBadge::OfClass(4, true);
+	room::Member other; other.id = 2; other.name = "Player 2";
+	sent.members = {local, other};
+	deliver(sent);
+	const auto first = publish();
+	CHECK(first->room && first->Room().name == "Room" && first->Room().members.size() == 2);
+	// A private room's classes are not shown; the client's own room keeps them.
+	CHECK(!first->Room().members[0].badge.Present() && client.GetRoomSnapshot().members[0].badge.HasClass());
+	CHECK(first->Members().size() == 2 && first->Members()[0].name == "Player 1" && first->Members()[1].name == "Player 2");
+	// Unchanged, the next snapshot shares the same room and its member list.
+	const auto second = publish();
+	CHECK(second != first && second->room == first->room && second->Members().size() == 2);
+	// A setting that cannot show a class in this room changes nothing.
+	runtime->preferences.classEmblems = !runtime->preferences.classEmblems;
+	CHECK(publish()->room == first->room);
+	runtime->preferences.classEmblems = !runtime->preferences.classEmblems;
+	// A resend at the same revision is a new room: its idle times are new.
+	deliver(sent);
+	const auto resent = publish();
+	CHECK(resent->room != first->room && resent->Room().revision == 1);
+	// An older one is not taken, and the room stays as shared.
+	auto older = sent; older.revision = 0;
+	deliver(older);
+	CHECK(publish()->room == resent->room);
+	auto newer = sent; newer.revision = 2; newer.members[1].name = "Player 2 renamed";
+	deliver(newer);
+	const auto renamed = publish();
+	CHECK(renamed->room != resent->room && renamed->Room().members[1].name == "Player 2 renamed");
+	CHECK(renamed->Members()[1].name == "Player 2 renamed");
+	// What was published is never changed by what came after.
+	CHECK(first->Room().revision == 1 && first->Room().members[1].name == "Player 2");
+	// Out of the room, no room is published.
+	runtime->attached = false;
+	const auto out = publish();
+	CHECK(!out->room && out->Room().members.empty() && !out->Room().roomEpoch);
+	sf4e::UserApp::netplay.reset();
+	facade::StopHelper();
+	Dimps::App::GetRootEvent = originalRoot;
+	std::cout << "Shared room passed\n";
+}
+
 // The pending request is one record: a newer request made while an older one is
 // being judged is neither erased by the older one's consume nor paired with its deadline.
 static void TestTrainingRequestRecord() {
@@ -836,6 +916,7 @@ int main() {
 	TestTrainingRequestRecord();
 	TestTrainingRequestTake();
 	TestRuntimeJudgesTraining();
+	TestSharedRoom();
 	std::cout << "Presentation snapshot passed\n";
 	return 0;
 }

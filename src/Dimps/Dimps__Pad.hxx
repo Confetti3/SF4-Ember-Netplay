@@ -33,9 +33,15 @@ namespace Dimps {
 			struct PlayerEntry {
 				BYTE pad[80];
 
-				static int* DeviceType(PlayerEntry* e);
-				static int* DeviceIndex(PlayerEntry* e);
-				static int* AssignedController(PlayerEntry* e);
+				static int* DeviceType(PlayerEntry* e) {
+					return (int*)((unsigned int)e + 0x44);
+				}
+				static int* DeviceIndex(PlayerEntry* e) {
+					return (int*)((unsigned int)e + 0x0);
+				}
+				static int* AssignedController(PlayerEntry* e) {
+					return (int*)((unsigned int)e + 0x48);
+				}
 			};
 
 			typedef struct __publicMethods {
@@ -77,7 +83,9 @@ namespace Dimps {
 			// (common/FocusGate.hxx).
 			static BYTE* focusGate;
 			// The update reads and publishes inputs, gate included, only while this is set.
-			static int* GetUpdating(System* s);
+			static int* GetUpdating(System* s) {
+				return (int*)((unsigned int)s + 0xf4);
+			}
 		};
 
 		struct System_RawInput {

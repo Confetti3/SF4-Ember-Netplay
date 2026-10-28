@@ -175,8 +175,10 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
         text(x,p.y+33*s,cell.label,16*s,IM_COL32(181,169,155,255));
         const float valueX=x+(cell.label.empty()?0:TextWidth(16*s,cell.label)+8*s);
         // A translated label must leave room for its whole value, at its widest.
-        const float valueWidth=(std::max)(TextWidth(22*s,cell.value),TextWidth(22*s,cell.reserve));
-        ReportMenuText(("hud-telemetry/"+std::to_string(i)).c_str(),22*s,MatchHeight*s,valueX-x+valueWidth,column-4*s);
+        if(MenuProbesActive()){
+            const float valueWidth=(std::max)(TextWidth(22*s,cell.value),TextWidth(22*s,cell.reserve));
+            ReportMenuText(("hud-telemetry/"+std::to_string(i)).c_str(),22*s,MatchHeight*s,valueX-x+valueWidth,column-4*s);
+        }
         const auto value=FitText(cell.value,x+column-valueX-4*s,22*s);
         text(valueX,p.y+29*s,value,22*s,IM_COL32(243,235,221,255));
     }
@@ -256,7 +258,7 @@ void DrawTelemetry(ImDrawList* draw,const Telemetry& t,ImVec2 p){
         if(!c.label.empty())draw->AddText(font,SplitLabel*s,ImVec2(tx,p.y+(t.h-SplitLabel*s)*.5f+1.5f*s),palette::Muted,c.label.c_str());
         const float room=c.width-20*s-label;
         const auto value=FitText(c.value,room,SplitValue*s);
-        ReportMenuText(("hud-telemetry-split/"+std::to_string(index)).c_str(),SplitValue*s,t.h,label+TextWidth(SplitValue*s,c.value),c.width-20*s);
+        if(MenuProbesActive())ReportMenuText(("hud-telemetry-split/"+std::to_string(index)).c_str(),SplitValue*s,t.h,label+TextWidth(SplitValue*s,c.value),c.width-20*s);
         draw->AddText(font,SplitValue*s,ImVec2(tx+label,p.y+(t.h-SplitValue*s)*.5f),c.color,value.c_str());
         x+=c.width;++index;
     }

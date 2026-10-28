@@ -225,6 +225,18 @@ pub fn create_server(name: &str) -> io::Result<NamedPipeServer> {
     }
 }
 
+/// The answer to an accepted authentication frame: `SF4N` and the IPC version.
+/// A game built for another IPC version refuses it, and this build's game
+/// opens no room with a helper whose answer differs.
+pub fn authentication_answer() -> ControlFrame {
+    let mut payload = b"SF4N".to_vec();
+    payload.extend_from_slice(&wire::IPC_VERSION.to_be_bytes());
+    ControlFrame {
+        message_id: 1,
+        payload,
+    }
+}
+
 pub async fn authenticate(
     mut pipe: NamedPipeServer,
     bootstrap: &Bootstrap,
@@ -248,14 +260,7 @@ pub async fn authenticate(
             if !accepted {
                 return Err(denied());
             }
-            wire::write_control(
-                &mut pipe,
-                &ControlFrame {
-                    message_id: 1,
-                    payload: b"SF4N".to_vec(),
-                },
-            )
-            .await?;
+            wire::write_control(&mut pipe, &authentication_answer()).await?;
             return Ok(pipe);
         }
     })
@@ -297,7 +302,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             wire::read_control(&mut client).await.unwrap().payload,
-            b"SF4N"
+            [b'S', b'F', b'4', b'N', 0, 2]
         );
         assert!(task.await.unwrap().is_ok());
     }

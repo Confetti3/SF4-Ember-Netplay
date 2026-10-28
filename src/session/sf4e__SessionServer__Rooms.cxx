@@ -274,6 +274,10 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 	if (_recovery.Enabled()) FinishRecoveryCandidate();
 }
 
+std::uint64_t SessionServer::NextRoomDueMs(std::uint64_t nowMs) const {
+	return _roomAuthority ? _roomAuthority->NextDueMs(nowMs) : (std::numeric_limits<std::uint64_t>::max)();
+}
+
 SessionServer::SeatedPairs SessionServer::SeatedPairsOf(const room::Snapshot& snapshot) {
 	SeatedPairs pairs;
 	for (std::size_t i = 0; i < room::TableCount; ++i) pairs[i] = {snapshot.tables[i].p1, snapshot.tables[i].p2};
@@ -396,12 +400,12 @@ void SessionServer::BroadcastRoomState(const std::vector<room::Event>& events) {
 		const auto member = roomMembers.find(client.conn);
 		if (member == roomMembers.end()) continue;
 		SessionProtocol::RoomSnapshotMessage snapshot;
-		snapshot.snapshot = _roomAuthority->SnapshotFor(member->second);
 		// Room chat is most of a snapshot and rarely changes. A client that
-		// accepts it gets the chat only when its committed copy is stale.
+		// accepts it gets the chat only when its committed copy is stale;
+		// while that copy is current the chat is not copied at all.
 		snapshot.chatUnchanged = client.chatDelta && client.chatSent && client.chatVersion == chat;
-		if (snapshot.chatUnchanged) snapshot.snapshot.chat.clear();
-		else if (client.chatDelta) {
+		snapshot.snapshot = _roomAuthority->SnapshotFor(member->second, !snapshot.chatUnchanged);
+		if (!snapshot.chatUnchanged && client.chatDelta) {
 			// Counts as held once it commits; until then a later snapshot in the
 			// same candidate, which supersedes this one, carries the chat too.
 			if (_recovery.Enabled() && !_recoveryFlushing) _candidate.chatSent[client.conn] = chat;

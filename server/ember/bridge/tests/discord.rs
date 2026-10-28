@@ -4,15 +4,12 @@
 //! disconnect, cancel or newer sign-in ends sign-ins in flight, a platform's
 //! links follow the account, and a bridge without Discord offers none of it.
 mod common;
-#[path = "discord/support.rs"]
-mod support;
 
-use common::Bridge;
+use common::{Bridge, discord::*, seed};
 use ember_bridge::integrations::Secrets;
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
-use support::*;
 
 #[tokio::test]
 async fn a_player_connects_discord_once_per_sign_in() {
@@ -418,19 +415,7 @@ async fn an_account_can_be_disconnected_after_sign_in_is_turned_off() {
     assert_eq!(cancel(&bridge, &kate).await.0, StatusCode::OK);
 
     // An account connected while sign-in was on is still found by BluMint.
-    let ember_id = kate.id().to_string();
-    bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, 'kate', 0)",
-                rusqlite::params![KATE, ember_id],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
+    seed::link_discord_at(bridge.state(), KATE, kate.id().as_str(), "kate", 0).await;
     let provider = bridge.provider(BLUMINT).await;
     assert_eq!(
         lookup(&bridge, &provider, &[KATE]).await,

@@ -127,7 +127,6 @@ pub async fn create(
             }
         })
         .await?;
-    state.committed();
     Ok(json(StatusCode::CREATED, &created))
 }
 
@@ -164,7 +163,6 @@ pub async fn approve_route(
         .db
         .write(move |tx| approve(tx, &ctx, &actor.owner(), &id, &command))
         .await?;
-    state.committed();
     Ok(ok(&link))
 }
 
@@ -243,7 +241,6 @@ pub async fn claim_route(
             claim(tx, &ctx, &ember_id, &request.proof.challenge_id, &command)
         })
         .await?;
-    state.committed();
     Ok(json(StatusCode::CREATED, &outcome?))
 }
 
@@ -399,7 +396,6 @@ pub async fn remove(
                 .await?
         }
     };
-    state.committed();
     Ok(ok(&result))
 }
 

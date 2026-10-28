@@ -89,7 +89,7 @@ impl Helper {
         )
         .await?;
         let response = wire::read_control(&mut pipe).await?;
-        if response.message_id != 1 || response.payload != b"SF4N" {
+        if response.message_id != 1 || response != sf4_net::ipc::authentication_answer() {
             return Err(io::Error::other("authentication failed"));
         }
         Ok(Self {
@@ -115,7 +115,7 @@ impl Helper {
         timeout(Duration::from_secs(20), async {
             loop {
                 let frame = wire::read_ipc(&mut self.pipe).await?;
-                let event: Event = serde_json::from_slice(&frame.payload)?;
+                let event: Event = sf4_net::service::decode_event(&frame.payload)?;
                 if let Event::Error { code, .. } = &event {
                     return Err(io::Error::other(format!("helper: {code}")));
                 }

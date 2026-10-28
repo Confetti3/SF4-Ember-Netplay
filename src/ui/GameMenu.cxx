@@ -118,6 +118,7 @@ void SetMenuTextProbe(MenuTextProbe probe){textProbe=std::move(probe);}
 void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth){
     if(textProbe)textProbe(id,textHeight,interiorHeight,textWidth,availableWidth);
 }
+bool MenuProbesActive(){return static_cast<bool>(textProbe)||static_cast<bool>(cardProbe);}
 void SetMenuCardProbe(MenuCardProbe probe){cardProbe=std::move(probe);}
 void ReportMenuCard(const char* id,ImVec2 min,ImVec2 max){if(cardProbe)cardProbe(id,min,max);}
 void SetMenuCardTextProbe(MenuCardTextProbe probe){cardTextProbe=std::move(probe);}
@@ -267,9 +268,11 @@ void GameMenu::DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const ch
                 clipped(x,0,w,palette::Muted,fit(c.first,w).c_str(),0);
                 clipped(x,line,w,palette::Ivory,fit(c.second,w).c_str(),0);
                 // The probe measures the full text, so a cut one counts as an overflow.
-                const std::string probe="home-hint/"+std::to_string(i);
-                ReportMenuText(probe.c_str(),font,line,measure(c.first),w);
-                ReportMenuText((probe+"-value").c_str(),font,line,measure(c.second),w);
+                if(MenuProbesActive()){
+                    const std::string probe="home-hint/"+std::to_string(i);
+                    ReportMenuText(probe.c_str(),font,line,measure(c.first),w);
+                    ReportMenuText((probe+"-value").c_str(),font,line,measure(c.second),w);
+                }
                 x+=w+gap;
             }
         }

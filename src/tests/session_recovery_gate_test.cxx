@@ -263,6 +263,72 @@ int main() {
 		}
 	}
 
+	// Superseded projections become digest-only before any budget pressure and
+	// are erased only once more than four revisions behind the newest revision
+	// in the journal. The newest chat-bearing snapshot keeps its replay copy
+	// while later ones say chat_unchanged. Unique projections and other effects
+	// keep theirs, and every kept envelope still equals its original identity.
+	{
+		std::vector<EffectEnvelope> journal;
+		std::uint64_t sequence = 0;
+		const auto projection = [&](const char* type, std::uint64_t recipient, std::uint64_t revision, bool chat) {
+			auto entry = effect;
+			entry.sequence = ++sequence; entry.revision = revision; entry.recipient = recipient; entry.type = type;
+			entry.endpoint.user = "peer-" + std::to_string(recipient);
+			nlohmann::json snapshot{{"revision", revision}};
+			if (chat) snapshot["chat"] = nlohmann::json::array({{{"sequence", 1}, {"text", "hello"}}});
+			else snapshot["chat_unchanged"] = true;
+			entry.publicPayload = std::string(type) == "room_snapshot"
+				? nlohmann::json{{"type", type}, {"snapshot", snapshot}}
+				: nlohmann::json{{"type", type}, {"matchGeneration", revision}};
+			entry.payloadDigest = sf4e::session::PayloadDigest(entry.publicPayload);
+			journal.push_back(entry);
+		};
+		projection("room_snapshot", 2, 1, true); // unique for its recipient, however old
+		for (std::uint64_t revision = 1; revision <= 10; ++revision) {
+			projection("room_snapshot", 1, revision, revision == 3);
+			projection("data_update", 1, revision, false);
+			if (revision == 2) {
+				auto result = effect;
+				result.sequence = ++sequence; result.revision = 2;
+				journal.push_back(result);
+			}
+		}
+		const auto original = journal;
+		std::vector<std::size_t> sizes;
+		for (const auto& entry : journal) sizes.push_back(nlohmann::json(entry).dump().size());
+		sf4e::session::CompactEffectJournal(journal, sizes);
+		assert(journal.size() == 13 && sizes.size() == journal.size());
+		for (std::size_t i = 0; i < journal.size(); ++i) {
+			assert(sizes[i] == nlohmann::json(journal[i]).dump().size());
+			assert(std::find(original.begin(), original.end(), journal[i]) != original.end());
+			const auto& entry = journal[i];
+			if (entry.type == "room_result") assert(entry.revision == 2 && !entry.publicPayload.is_null());
+			else if (entry.recipient == 2) assert(entry.revision == 1 && !entry.publicPayload.is_null());
+			else {
+				assert(entry.revision >= 6 || (entry.type == "room_snapshot" && entry.revision == 3));
+				const bool copy = entry.revision == 10 || (entry.type == "room_snapshot" && entry.revision == 3);
+				assert(copy == !entry.publicPayload.is_null());
+			}
+		}
+		// A live token for a superseded data_update three revisions behind still
+		// authenticates against the compacted journal.
+		auto parked = std::find_if(original.begin(), original.end(), [](const EffectEnvelope& entry) {
+			return entry.type == "data_update" && entry.revision == 7;
+		});
+		assert(parked != original.end());
+		const auto token = sf4e::session::EffectCommitToken(*parked).get<EffectEnvelope>();
+		assert(std::find(journal.begin(), journal.end(), token) != journal.end());
+		// Compacting again changes nothing, and the untracked overload agrees.
+		auto again = journal; auto againSizes = sizes;
+		sf4e::session::CompactEffectJournal(again, againSizes);
+		assert(again == journal && againSizes == sizes);
+		auto untracked = original;
+		sf4e::session::CompactEffectJournal(untracked);
+		assert(untracked == journal);
+		for (std::size_t i = 0; i < journal.size(); ++i) assert(untracked[i].publicPayload == journal[i].publicPayload);
+	}
+
 	// The CNG digest is the standard SHA-256, as is the portable reference: the
 	// Rust helper checks the same digests. Includes the empty input, block
 	// boundaries and a large input.

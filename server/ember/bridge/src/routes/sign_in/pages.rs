@@ -98,7 +98,7 @@ impl Pages {
     /// What happens to a tournament match the player's links ended, and to
     /// its game in progress. A restarting site's match ends, the game with
     /// it; a reviewing site's may instead wait for an organizer, who may
-    /// count the game (`matches::on_unlink`).
+    /// count the game (`ledger::on_unlink`).
     fn after_ending(&self) -> String {
         let restarting = self.listed(Some(true)).map(|names| {
             format!(

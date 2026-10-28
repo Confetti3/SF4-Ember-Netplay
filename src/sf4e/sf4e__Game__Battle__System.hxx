@@ -161,7 +161,11 @@ namespace sf4e {
 						Platform::SoundObjectPool<4>::SaveState
 					>> managerState;
 
-					struct GlobalData {
+					// The ten battle-flow globals, two contiguous engine blocks
+					// (0x664994..0x6649A3 and 0x6A9254..0x6A926B), listed once:
+					// Save captures them, CopyIntoPlace restores them and Clear
+					// zeroes them.
+					struct BattleFlowGlobals {
 						DWORD CurrentBattleFlow = 0;
 						DWORD PreviousBattleFlow = 0;
 						DWORD CurrentBattleFlowSubstate = 0;
@@ -172,6 +176,15 @@ namespace sf4e {
 						FixedPoint PreviousBattleFlowSubstateFrame = { 0, 0 };
 						void (*BattleFlowSubstateCallable_aa9258)(Dimps::Game::Battle::System * s) = nullptr;
 						void (*BattleFlowCallback_CallEveryFrame_aa9254)(Dimps::Game::Battle::System * s) = nullptr;
+
+						// Reads the live globals.
+						static BattleFlowGlobals Capture();
+						// Writes these values into the live globals.
+						void Restore() const;
+					};
+
+					struct GlobalData {
+						BattleFlowGlobals flow;
 
 						Dimps::Game::Battle::GameManager gameManager = { 0 };
 						sf4e::replay::Snapshot replayRecorder = {};
@@ -264,9 +277,57 @@ namespace sf4e {
 				// The frame meter's sample of the frame just played. show: off
 				// inside a rollback, where nothing new is confirmed.
 				static void CaptureMeterSample(Dimps::Game::Battle::System* src, bool show);
+				// The one frame step every pass that plays given inputs runs:
+				// the played frame, a rollback's re-simulated frame, an
+				// orphaned battle and the rollback stress harness. Both pads
+				// read the inputs as playback for this engine update only; the
+				// pure-sound state is synced first when syncSoundBeforeStep
+				// (the played frame and the orphan, never a re-simulated frame
+				// nor the stress harness); then the undetoured engine update
+				// runs. Playback mode is off again when it returns.
+				static void StepEngine(Dimps::Game::Battle::System* src, const sf4e::Pad::System::Inputs inputs[2], bool syncSoundBeforeStep);
+				// A frame of the present, or one GGPO re-simulates inside a
+				// rollback (ggpo_advance_frame_callback). Only diagnostics
+				// timing and the pre-step sound sync differ between them.
+				enum class FramePass { Live, Resim };
+				// ggpo_synchronize_input and its diagnostics record, nothing
+				// else: the caller classifies the code, drains, aborts or ends
+				// a spectator stream, then notes the disconnect flags.
+				static GGPOErrorCode ReadGgpoInputs(sf4e::Pad::System::Inputs inputs[2], int* disconnectFlags, FramePass pass);
+				// A frame on GGPO's synchronized inputs, once the caller's
+				// policy accepted them: strips the reserved bits from both
+				// sides, StepEngine, samples the frame, then ggpo_advance_frame
+				// saves it (and may poll and roll back over it). Returns the
+				// advance result for the caller's policy. Never drains.
+				static GGPOErrorCode SimulateGgpoFrame(Dimps::Game::Battle::System* src, sf4e::Pad::System::Inputs inputs[2], FramePass pass);
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;
+				// The local side of the GGPO session. StartGGPO sets it where it
+				// learns the local handle (None until then), StartSpectating where
+				// it clears the handle, and RetireGgpoSession resets it. A session
+				// concept only: the room seat (NetplayFacade's LocalIsSpectator,
+				// UserApp::netplay->spectating) answers before and after a session.
+				enum class SessionRole { None, Fighter, HostFighter, Spectator };
+				static SessionRole sessionRole;
+				// The session has a local fighter. Not so for a spectator, nor for a
+				// fighter's session before StartGGPO has its local handle: what
+				// `localPlayerHandle == GGPO_INVALID_HANDLE` answered. Read only
+				// while a session is live or inside a callback.
+				static bool LocalFighter() {
+					return sessionRole == SessionRole::Fighter || sessionRole == SessionRole::HostFighter;
+				}
+				// P1 holds a closed battle's session open to drain its spectator
+				// streams (NetplayFacade::NotifyMatchEnded). A flag on top of
+				// PHASE_BATTLE_CLOSING, not a phase: free_buffer and the memento
+				// guards still see that phase during the drain. Cleared when the
+				// session is retired, and by CancelDeferredGgpoClose and
+				// ShutdownNetplay.
+				static bool drainingSpectators;
+				// Inside a fatal or draining session the callbacks touch no engine
+				// state but keep GGPO's frame count moving: advance is still
+				// called and save hands out the inert token.
+				static bool CallbacksInert() { return simGate.fatalError || drainingSpectators; }
 				// The GGPO frame of the state the engine holds (each save, and
 				// a rollback's load), and the order a frame is simulated,
 				// sampled and saved in.
@@ -304,9 +365,15 @@ namespace sf4e {
 				// when no connection warning is active. HUD only.
 				static int DisconnectCountdownMs();
 				// `spectatorSyncDeadlineMs`: how long the fighters wait for a spectator to synchronize.
-				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay,
-					std::uint64_t spectatorSyncDeadlineMs);
-				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port);
+				// Both return false with the notice that says why in `failure`, and
+				// abort nothing: the caller aborts once, with that notice. A session
+				// that failed after it was created is still live until then.
+				static bool StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay,
+					std::uint64_t spectatorSyncDeadlineMs, const char*& failure);
+				static bool StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port,
+					const char*& failure);
+				// What both starts share, in one order (see the definition).
+				static void BeginSession(const char* label, bool spectator);
 				// A match steps the battle one frame at a time whatever the
 				// player's FrameRate setting (BattleStep.hxx); the setting
 				// comes back when the battle closes.

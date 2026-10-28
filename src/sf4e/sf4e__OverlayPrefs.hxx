@@ -86,7 +86,20 @@ namespace OverlayPrefs {
 	void FromJson(const nlohmann::json& section, Data& out);
 	nlohmann::json ToJson(const Data& data);
 
+	// A one-shot read: it reads the disk whenever nothing is cached, even
+	// right after a failed read.
 	bool Load(Data& out);
+	// Load for a caller that may run every tick: after a failed read it skips
+	// the disk for a few seconds and returns false.
+	bool LoadEachTick(Data& out);
+	// Only the saved gameplay device's identity, read as Load would, without
+	// copying the rest of the profile. Empty when none is saved or Load fails.
+	// Read every tick, so after a failed read it skips the disk for a few
+	// seconds and returns empty.
+	std::optional<gamepads::Identity> DeviceIdentity();
+	// Tests only: loads read this settings folder instead of the user's, and
+	// the cached profile and failed-read memory are cleared. Saves are unchanged.
+	void UseDirectoryForTest(const std::wstring& directory);
 	// Start outside DllMain; keep the writer alive across D3D device resets.
 	void StartPersistence();
 	void StopPersistence();

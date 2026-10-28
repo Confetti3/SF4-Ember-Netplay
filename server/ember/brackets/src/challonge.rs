@@ -11,7 +11,10 @@ use reqwest::{
     Method,
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue},
 };
-use serde::{Deserialize, Deserializer, de::DeserializeOwned};
+use serde::{
+    Deserialize, Deserializer,
+    de::{DeserializeOwned, IgnoredAny},
+};
 use serde_json::{Value, json};
 use zeroize::Zeroizing;
 
@@ -106,14 +109,15 @@ impl Challonge {
         })
     }
 
-    /// One request. `None` when Challonge answers 404.
-    async fn call(
+    /// One request, answered with the body of a success, however it reads.
+    /// `None` when Challonge answers 404.
+    async fn fetch(
         &self,
         priority: Priority,
         method: Method,
         path: &str,
         body: Option<Value>,
-    ) -> Result<Option<Value>, SiteError> {
+    ) -> Result<Option<Vec<u8>>, SiteError> {
         self.budget.spend(priority)?;
         let mut request = self
             .http
@@ -124,13 +128,7 @@ impl Challonge {
         }
         let (status, body) = http::exchange(request, MAX_ANSWER, "Challonge").await?;
         if status.is_success() {
-            return if body.is_empty() {
-                Ok(Some(Value::Null))
-            } else {
-                serde_json::from_slice(&body)
-                    .map(Some)
-                    .map_err(|_| unexpected())
-            };
+            return Ok(Some(body));
         }
         let message = match error_detail(&body) {
             Some(detail) => format!("Challonge answered {}: {detail}", status.as_u16()),
@@ -150,6 +148,42 @@ impl Challonge {
             _ if status.is_server_error() => Err(SiteError::Unavailable(message)),
             _ => Err(SiteError::Refused(message)),
         }
+    }
+
+    /// One request, its answer read as JSON. `None` when Challonge answers 404.
+    async fn call(
+        &self,
+        priority: Priority,
+        method: Method,
+        path: &str,
+        body: Option<Value>,
+    ) -> Result<Option<Value>, SiteError> {
+        let Some(body) = self.fetch(priority, method, path, body).await? else {
+            return Ok(None);
+        };
+        if body.is_empty() {
+            Ok(Some(Value::Null))
+        } else {
+            serde_json::from_slice(&body)
+                .map(Some)
+                .map_err(|_| unexpected())
+        }
+    }
+
+    /// A request whose 404 means the request itself is wrong, its answer read
+    /// as a `T`.
+    async fn fetch_as<T: DeserializeOwned>(
+        &self,
+        priority: Priority,
+        method: Method,
+        path: &str,
+        body: Option<Value>,
+    ) -> Result<T, SiteError> {
+        let body = self
+            .fetch(priority, method, path, body)
+            .await?
+            .ok_or_else(|| SiteError::Refused("Challonge answered 404".into()))?;
+        parse_body(&body)
     }
 
     /// A request whose 404 means the request itself is wrong.
@@ -174,8 +208,8 @@ impl Challonge {
         let mut items = Vec::new();
         for page in 1..=MAX_PAGES {
             let path = with_query(path, &format!("page={page}&per_page={PER_PAGE}"));
-            let answer = self.call_found(priority, Method::GET, &path, None).await?;
-            let Data { data: page }: Data<Vec<T>> = parse(answer)?;
+            let Data { data: page }: Data<Vec<T>> =
+                self.fetch_as(priority, Method::GET, &path, None).await?;
             let last = page.len() < PER_PAGE;
             items.extend(page);
             if last {
@@ -190,8 +224,8 @@ impl Challonge {
     /// Whether a list has any item, in one request of one item.
     async fn any(&self, priority: Priority, path: &str) -> Result<bool, SiteError> {
         let path = with_query(path, "page=1&per_page=1");
-        let answer = self.call_found(priority, Method::GET, &path, None).await?;
-        let Data { data: items }: Data<Vec<Value>> = parse(answer)?;
+        let Data { data: items }: Data<Vec<IgnoredAny>> =
+            self.fetch_as(priority, Method::GET, &path, None).await?;
         Ok(!items.is_empty())
     }
 
@@ -285,22 +319,21 @@ impl Challonge {
         }
         let path = format!("/matches/{id}.json");
         let Some(answer) = self
-            .call(priority(purpose), Method::GET, &path, None)
+            .fetch(priority(purpose), Method::GET, &path, None)
             .await?
         else {
             return Ok(None);
         };
-        let Data { data: resource }: Data<Resource<MatchAttributes>> = parse(answer)?;
+        let Data { data: resource }: Data<Resource<MatchAttributes>> = parse_body(&answer)?;
         Ok(Some(self.set_of(RawSet::from(resource))))
     }
 
     /// The tournament's `state` decides when Challonge gives it; otherwise
     /// the matches say whether everything looks played.
     async fn read_standing(&self) -> Result<Standing, SiteError> {
-        let answer = self
-            .call_found(Priority::CanWait, Method::GET, ".json", None)
+        let Data { data: tournament }: Data<Resource<TournamentAttributes>> = self
+            .fetch_as(Priority::CanWait, Method::GET, ".json", None)
             .await?;
-        let Data { data: tournament }: Data<Resource<TournamentAttributes>> = parse(answer)?;
         if let Some(state) = tournament.attributes.state {
             return Ok(match state.as_str() {
                 state if OVER.contains(&state) => Standing::Finished,
@@ -417,6 +450,10 @@ fn unexpected() -> SiteError {
 
 fn parse<T: DeserializeOwned>(value: Value) -> Result<T, SiteError> {
     serde_json::from_value(value).map_err(|_| unexpected())
+}
+
+fn parse_body<T: DeserializeOwned>(body: &[u8]) -> Result<T, SiteError> {
+    serde_json::from_slice(body).map_err(|_| unexpected())
 }
 
 /// A set ID taken from Challonge, before it goes back into a URL.

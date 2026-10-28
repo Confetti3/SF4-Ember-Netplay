@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 
 use ember_protocol::{
     encoding::{OriginPolicy, check_origin},
-    event::{is_rfc3339_utc, rfc3339},
+    event::parse_rfc3339,
     json,
+    sites::is_site_id,
 };
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
@@ -254,7 +255,7 @@ impl Tournament {
                     "{key}: the service names each account's site; bridge_site is not used"
                 ));
             }
-            _ if !is_bridge_site(self.bridge_site()) => {
+            _ if !is_site_id(self.bridge_site()) => {
                 return Err(format!(
                     "{key}: bridge_site is 1 to 32 lowercase letters, digits or -"
                 ));
@@ -292,7 +293,7 @@ impl Tournament {
             field
                 .as_deref()
                 .map(|text| {
-                    parse_utc(text).ok_or_else(|| {
+                    parse_rfc3339(text).ok_or_else(|| {
                         format!(
                             "{}: {name} is a UTC time such as 2026-10-18T18:00:00Z",
                             self.key()
@@ -378,34 +379,6 @@ pub(crate) fn is_service_base(base: &str, allow_loopback_http: bool) -> bool {
                 .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
     });
     check_origin(origin, policy).is_ok() && plain_path
-}
-
-/// A bridge sign-in site's ID: 1 to 32 lowercase letters, digits or `-`.
-fn is_bridge_site(text: &str) -> bool {
-    (1..=32).contains(&text.len())
-        && text
-            .bytes()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
-}
-
-/// Unix seconds of `YYYY-MM-DDTHH:MM:SSZ`, the one form a window takes.
-/// The protocol's formatter checks the date back, so 2026-02-29 is refused.
-fn parse_utc(text: &str) -> Option<u64> {
-    if !is_rfc3339_utc(text) {
-        return None;
-    }
-    let field = |range: std::ops::Range<usize>| text[range].parse::<i64>().ok();
-    let (year, month, day) = (field(0..4)?, field(5..7)?, field(8..10)?);
-    let (hour, minute, second) = (field(11..13)?, field(14..16)?, field(17..19)?);
-    // Howard Hinnant's days-from-civil.
-    let shifted_year = if month <= 2 { year - 1 } else { year };
-    let era = shifted_year.div_euclid(400);
-    let year_of_era = shifted_year.rem_euclid(400);
-    let day_of_year = (153 * ((month + 9) % 12) + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    let days = era * 146_097 + day_of_era - 719_468;
-    let unix = u64::try_from(days * 86_400 + hour * 3_600 + minute * 60 + second).ok()?;
-    (rfc3339(unix) == text).then_some(unix)
 }
 
 impl Config {
@@ -583,31 +556,6 @@ mod tests {
         }
         assert!(is_service_base("http://127.0.0.1:9000/svc", true));
         assert!(!is_service_base("http://10.0.0.5:9000", true));
-    }
-
-    #[test]
-    fn window_times_are_utc_in_one_form() {
-        for (text, unix) in [
-            ("1970-01-01T00:00:00Z", 0),
-            ("2026-10-18T19:00:00Z", 1_792_350_000),
-            ("2024-02-29T23:59:59Z", 1_709_251_199),
-            ("2030-01-01T03:00:00Z", 1_893_466_800),
-        ] {
-            assert_eq!(parse_utc(text), Some(unix), "{text}");
-        }
-        for text in [
-            "2026-10-18T19:00:00",
-            "2026-10-18T19:00:00.750Z",
-            "2026-10-18T19:00:00+00:00",
-            "2026-10-18 19:00:00Z",
-            "2026-02-29T00:00:00Z",
-            "2026-13-01T00:00:00Z",
-            "2026-10-18T24:00:00Z",
-            "2026-10-18T19:60:00Z",
-            "1969-12-31T23:59:59Z",
-        ] {
-            assert_eq!(parse_utc(text), None, "{text}");
-        }
     }
 
     #[test]

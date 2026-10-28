@@ -1,8 +1,8 @@
 //! A room's own delay on the public wire. The property is written only when it
 //! is set, so every message about a room with the shared delay is what it was
-//! before, and a reader that refuses unknown fields (every one of them does)
-//! never meets the field. The frozen readers below are the room types as they
-//! were before the field existed.
+//! before, and a reader that refuses unknown fields (every helper released
+//! before answers were made tolerant does) never meets the field. The frozen
+//! readers below are the room types as they were before the field existed.
 use ember_protocol::{
     SigningIdentity, json,
     play::VERSION,

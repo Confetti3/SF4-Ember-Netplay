@@ -1,6 +1,86 @@
 //! Admission and retirement of room members.
 use super::{seats::Voters, *};
 
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct MembershipOperationKey {
+    pub(super) sequence: u64,
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) incarnation: u64,
+    pub(super) term: u64,
+    pub(super) revision: u64,
+}
+
+pub(super) struct MembershipOperationResult {
+    pub(super) confirmed_retirements: BTreeSet<u64>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct AdmissionOperationKey {
+    pub(super) sequence: u64,
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) incarnation: u64,
+    pub(super) term: u64,
+    pub(super) leader: Option<u64>,
+    pub(super) peer: EndpointId,
+    /// The admissions the operation presents, shared with its clones.
+    pub(super) admissions: Arc<[Admission]>,
+    pub(super) add_member_if_leader: bool,
+}
+
+pub(super) struct AdmissionOperationResult {
+    pub(super) admissions: Vec<Admission>,
+}
+
+pub(super) struct DeferredAdmission {
+    pub(super) peer: EndpointId,
+    pub(super) admissions: Vec<Admission>,
+    pub(super) add_member_if_leader: bool,
+    /// Controls whose session this operation's outcome settles: those that
+    /// presented one of its admissions. Roster work carries none.
+    pub(super) bindings: Vec<ControlBinding>,
+}
+
+/// A control waiting for the admission operation it presented.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) struct ControlBinding {
+    pub(super) peer: EndpointId,
+    pub(super) control: u64,
+    pub(super) incarnation: u64,
+}
+
+/// Build the native endpoint-to-incarnation view from the membership this
+/// replica has actually applied. Historical admissions can temporarily retain
+/// both a retired and a fresh process incarnation for the same stable Iroh
+/// endpoint. Publishing every remembered admission would make numeric sort
+/// order choose one at random. An ambiguous applied endpoint stays absent
+/// until joint consensus and retirement leave one exact incarnation.
+pub(super) fn applied_member_incarnations(
+    admissions: &BTreeMap<u64, Admission>,
+    applied: &BTreeSet<u64>,
+    retiring: &BTreeSet<u64>,
+) -> BTreeMap<String, u64> {
+    let mut candidates = BTreeMap::<String, Option<u64>>::new();
+    for (incarnation, admission) in admissions {
+        if !applied.contains(incarnation) || retiring.contains(incarnation) {
+            continue;
+        }
+        candidates
+            .entry(admission.primary_endpoint.to_string())
+            .and_modify(|current| {
+                if *current != Some(*incarnation) {
+                    *current = None;
+                }
+            })
+            .or_insert(Some(*incarnation));
+    }
+    candidates
+        .into_iter()
+        .filter_map(|(endpoint, incarnation)| incarnation.map(|value| (endpoint, value)))
+        .collect()
+}
+
 impl Actor {
     pub(super) fn remember_admission(&mut self, admission: Admission) {
         let incarnation = admission.incarnation;
@@ -225,8 +305,8 @@ impl Actor {
                 if recovery.coordinator.current_leader() == Some(recovery.incarnation) {
                     // An abandoned joint configuration first: every other
                     // change below commits through its quorum.
-                    recovery.finish_joint_membership().await?;
-                    let applied_voters = recovery.applied_voter_ids().await;
+                    recovery.coordinator.finish_joint_membership().await?;
+                    let applied_voters = recovery.coordinator.store().applied_voters().await;
                     let voter_removals = pending
                         .intersection(&applied_voters)
                         .copied()
@@ -270,7 +350,7 @@ impl Actor {
                     if recovery.coordinator.current_term() != term {
                         return Err(failed("obsolete membership operation"));
                     }
-                    let voters_after = recovery.applied_voter_ids().await;
+                    let voters_after = recovery.coordinator.store().applied_voters().await;
                     // Only members the coordination group does not hold yet are
                     // added. Adding a learner waits for it to catch up, so
                     // repeating it for one that has gone away would hold this
@@ -278,7 +358,7 @@ impl Actor {
                     // added back: a match room fences members the native
                     // roster still lists, and a retry after a stale completion
                     // finds them already removed.
-                    let members_before = recovery.applied_member_ids().await;
+                    let members_before = recovery.coordinator.store().applied_members().await;
                     for admission in admissions.values().filter(|admission| {
                         retained.contains(&admission.primary_endpoint)
                             && !pending.contains(&admission.incarnation)
@@ -287,7 +367,7 @@ impl Actor {
                     }) {
                         recovery.add_learner(admission).await?;
                     }
-                    let members = recovery.applied_member_ids().await;
+                    let members = recovery.coordinator.store().applied_members().await;
                     let learner_removals = pending
                         .intersection(&members)
                         .filter(|incarnation| !voters_after.contains(incarnation))
@@ -298,7 +378,7 @@ impl Actor {
                         restore_stable_voters(&recovery, &snapshot).await?;
                     }
                 }
-                let members = recovery.applied_member_ids().await;
+                let members = recovery.coordinator.store().applied_members().await;
                 let confirmed_retirements = pending
                     .difference(&members)
                     .copied()
@@ -331,15 +411,13 @@ impl Actor {
         if admissions.is_empty() {
             return Ok(());
         }
-        let fingerprint = serde_json::to_vec(&admissions)
-            .map_err(|_| failed("coordination admission encoding failed"))?;
-        let same = |key_peer: EndpointId, key_fingerprint: &[u8], key_add: bool| {
-            key_peer == peer && key_fingerprint == fingerprint && key_add == add_member_if_leader
+        let same = |key_peer: EndpointId, key_admissions: &[Admission], key_add: bool| {
+            key_peer == peer && key_admissions == admissions && key_add == add_member_if_leader
         };
         if self
             .pending_admission_operation
             .as_ref()
-            .is_some_and(|key| same(key.peer, &key.fingerprint, key.add_member_if_leader))
+            .is_some_and(|key| same(key.peer, &key.admissions, key.add_member_if_leader))
         {
             self.pending_admission_bindings.extend(binding);
             return Ok(());
@@ -347,7 +425,7 @@ impl Actor {
         if let Some(deferred) = self.deferred_admissions.iter_mut().find(|deferred| {
             same(
                 deferred.peer,
-                &deferred.fingerprint,
+                &deferred.admissions,
                 deferred.add_member_if_leader,
             )
         }) {
@@ -361,7 +439,6 @@ impl Actor {
             peer,
             admissions,
             add_member_if_leader,
-            fingerprint,
             bindings: binding.into_iter().collect(),
         });
         self.start_next_admission_operation();
@@ -389,7 +466,7 @@ impl Actor {
             term: recovery.coordinator.current_term(),
             leader: recovery.coordinator.current_leader(),
             peer: deferred.peer,
-            fingerprint: deferred.fingerprint,
+            admissions: deferred.admissions.as_slice().into(),
             add_member_if_leader: deferred.add_member_if_leader,
         };
         self.pending_admission_bindings = deferred.bindings;
@@ -435,7 +512,7 @@ impl Actor {
                     if recovery.coordinator.current_term() == key.term
                         && recovery.coordinator.current_leader() == key.leader
                     {
-                        let current = recovery.applied_voter_ids().await;
+                        let current = recovery.coordinator.store().applied_voters().await;
                         let voters = admission_voters(
                             &current,
                             candidates,
@@ -464,7 +541,11 @@ impl Actor {
                         recovery.admit(admission).await?;
                     }
                 }
-                let (members, history) = recovery.applied_membership_provenance().await;
+                let (members, history) = recovery
+                    .coordinator
+                    .store()
+                    .applied_membership_provenance()
+                    .await;
                 if admissions.iter().any(|admission| {
                     history.contains(&admission.incarnation)
                         && !members.contains(&admission.incarnation)
@@ -492,7 +573,7 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
-        let committed_revision = recovery.committed().await.revision();
+        let committed_revision = recovery.coordinator.store().committed().await.revision();
         let current = key.epoch == self.epoch
             && self.room == Some(key.room)
             && recovery.room == key.room
@@ -500,7 +581,11 @@ impl Actor {
             && recovery.coordinator.current_term() == key.term
             && committed_revision == key.revision;
         if current && let Ok(result) = result {
-            let (_, history) = recovery.applied_membership_provenance().await;
+            let (_, history) = recovery
+                .coordinator
+                .store()
+                .applied_membership_provenance()
+                .await;
             let confirmed = result.confirmed_retirements;
             self.apply_confirmed_retirements(confirmed.clone(), &history);
             // Only now, with the old quorum no longer needing it, does a
@@ -510,9 +595,7 @@ impl Actor {
         // Stale completions leave the pre-write retirement fences in
         // place. The next exact committed-roster refresh retries the
         // operation through the current authority.
-        self.last_coordination_state = None;
-        self.last_control_rebound = None;
-        self.emit_coordination_state().await?;
+        self.republish_coordination_state().await?;
         Ok(())
     }
 
@@ -537,7 +620,11 @@ impl Actor {
         let mut published_roster_changed = false;
         let mut accepted = BTreeSet::new();
         if current_room && let Ok(result) = result {
-            let (members, history) = recovery.applied_membership_provenance().await;
+            let (members, history) = recovery
+                .coordinator
+                .store()
+                .applied_membership_provenance()
+                .await;
             for admission in result.admissions {
                 if self
                     .pending_admissions
@@ -580,9 +667,7 @@ impl Actor {
             // accepts the current full snapshot.
             self.queue_membership_publication();
         }
-        self.last_coordination_state = None;
-        self.last_control_rebound = None;
-        self.emit_coordination_state().await?;
+        self.republish_coordination_state().await?;
         self.start_next_admission_operation();
         Ok(())
     }
@@ -680,7 +765,7 @@ async fn restore_stable_voters(
         voters: eligible,
     } = snapshot;
     let desired = snapshot.desired();
-    let current = recovery.applied_voter_ids().await;
+    let current = recovery.coordinator.store().applied_voters().await;
     if current.len() > desired {
         // The leader keeps its vote, then the voters that still answer. The
         // joint change commits through the current voters, so a set that
@@ -709,7 +794,7 @@ async fn restore_stable_voters(
     if current.len() == desired {
         return Ok(());
     }
-    let members = recovery.applied_member_ids().await;
+    let members = recovery.coordinator.store().applied_members().await;
     // Only promote members with a live control link. A voter that cannot
     // acknowledge the joint membership freezes every later commit; the next
     // refresh retries once the member reconnects or leaves the roster.
@@ -792,5 +877,21 @@ mod tests {
         // The set is kept whole when it already has the count.
         let voters = admission_voters(&BTreeSet::from([1, 2, 3]), vec![4], 2, |_| false, |_| true);
         assert_eq!(voters, BTreeSet::from([1, 2, 3]));
+    }
+
+    // A pending or retired incarnation is dropped from the current voters and
+    // never chosen from the candidates, so the set is refilled from the rest.
+    #[test]
+    fn stable_voters_never_reselect_pending_or_retired_incarnations() {
+        let pending_retired = BTreeSet::from([2]);
+        let retired = BTreeSet::from([3]);
+        let voters = admission_voters(
+            &BTreeSet::from([1, 2, 3]),
+            vec![1, 2, 3, 4],
+            3,
+            |id| pending_retired.contains(&id) || retired.contains(&id),
+            |_| true,
+        );
+        assert_eq!(voters, BTreeSet::from([1, 4]));
     }
 }

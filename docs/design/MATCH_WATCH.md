@@ -467,9 +467,12 @@ a per-match revocation. Nothing else.
 - Anyone else gets `not_found`.
 
 **BluMint.** Writes for a `blumint` connection (`bridge/src/config.rs`,
-`Connection::is_blumint`) answer `403 forbidden`, with reason
-`connection_fixed`, in phase 1. That guarantees no BluMint behaviour change,
-whoever holds that tenant's organizer credential (§12 Q5).
+`Policy::fixed_watchers`) answer `403 forbidden`, with reason
+`connection_fixed`, whoever holds that tenant's organizer credential (§12 Q5).
+Phase 1 kept BluMint closed to watchers. Since 2026-10-22 a BluMint
+connection is always open to link holders (`ConnectionWatch::load`), with no
+staff and no denials, so anyone holding the `matchUrl` may watch within the
+link-holder cap.
 
 **Audit.** Every write is audited in its transaction (`bridge/src/audit.rs:7-22`).
 The actions are `watch.link_holders.set`, `watch.staff.add`,
@@ -543,7 +546,7 @@ in phase 1.
 | `LINK_HOLDER_CAP` | 2 | bridge constant |
 | watch poll | 10 s | game `WatchIntervalMs` |
 | watcher liveness | 60 s since `last_seen_at` | bridge |
-| watcher GGPO sync deadline at a bound table | 2 s | `SpectatorPolicy` (§6.6) |
+| watcher GGPO sync deadline at a bound table | 5 s (2 s until 2026-10-23) | `SpectatorPolicy` (§6.6) |
 
 The cap and ceiling are constants until an organizer needs a knob. They are
 lower than the 4 and 8 first designed, because of the load measurement in §6.6
@@ -1102,10 +1105,14 @@ What each watcher costs:
 
 Decisions:
 
-- **Shorter sync deadline.** At a bound table, a watcher's GGPO sync
-  deadline is 2 s instead of 5 s (`SpectatorPolicy` gets the deadline from
-  its caller).
-  - A slow or hostile watcher can then add at most 2 s to a game start.
+- **Sync deadline.** At a bound table, a watcher's GGPO sync deadline is
+  5 s, the same as any other table (`SpectatorPolicy` gets the deadline from
+  its caller, so the two can differ again).
+  - A slow or hostile watcher can then add at most 5 s to a game start.
+  - It was 2 s until 2026-10-23. A watcher of a BluMint match, joining
+    through a relay, finished loading the battle about 4 s after the
+    fighters synchronized and was dropped before the fight; in a first to 1 set
+    there is no next game to watch.
   - A watcher dropped from one game keeps its place for the next, since
     `ApplyLeaveGame` keeps it watching.
   - Not waiting at all is not possible: GGPO itself withholds RUNNING until
@@ -1427,7 +1434,7 @@ binding: it never receives one, and `WatchPlay` never emits Bind.
   - The adapter routes (`bridge/src/routes/blumint/`) are untouched, and
     `spectators` stays ignored.
   - Protected tests are not edited: `tests/discord.rs`, `tests/blumint.rs`,
-    `tests/blumint_reports.rs`, `src/tests/discord_connect_journey_test.cxx`
+    `tests/blumint_results.rs`, `tests/blumint_presence.rs`, `src/tests/discord_connect_journey_test.cxx`
     and `src/tests/builtin_service_journey_test.cxx`.
   - New shared bridge test helpers are added beside the old ones in
     `bridge/tests/common`, never changed in place.
@@ -1580,7 +1587,7 @@ binding: it never receives one, and `WatchPlay` never emits Bind.
   - Leave passes host to a fighter.
   - TransferHost to a watcher is refused.
   - A fighter rejoining takes host back from a watcher.
-- **Spectator policy.** The bound-table sync deadline of 2 s drops a
+- **Spectator policy.** The bound-table sync deadline of 5 s drops a
   non-syncing watcher, and it stays placed for the next game.
 - **Fixture.** `to_json` of a bound snapshot with watchers equals the shared
   fixture.
@@ -1705,8 +1712,9 @@ Settled on 2026-10-19:
    setting, in INTEGRATIONS.md and in the organizer guide.
 3. **Watcher chat:** none in phase 1. Watchers read the fighters' chat.
 4. **The watch link:** the existing `/m` match link, with no new link form.
-5. **BluMint:** connections stay closed to watchers in phase 1, and
-   `spectators` stays ignored.
+5. **BluMint:** connections stayed closed to watchers in phase 1; since
+   2026-10-22 they are open to link holders (§3.4). `spectators` stays
+   ignored.
 6. **Endpoint ties (for the design owner):** the later arrival wins between
    equals (§4.2 step 3), which stops two watchers swapping an endpoint on
    every poll. It lets an allowed link holder take another's endpoint and keep

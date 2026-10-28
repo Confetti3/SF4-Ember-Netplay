@@ -3,6 +3,7 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 . (Join-Path $PSScriptRoot 'NightlyOperations.ps1')
+. (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 $originalCulture = [cultureinfo]::CurrentCulture
 try {
     # A day-first culture for the whole run: nothing here may depend on the build PC's date format.
@@ -10,6 +11,7 @@ try {
     $fixture = Join-Path ([IO.Path]::GetTempPath()) ('nightly-publication-' + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $fixture | Out-Null
     $repository = 'Confetti3/SF4-Ember-Netplay-Nightly'
+    $stableRepository = 'Confetti3/SF4-Ember-Netplay'
     $dist = Join-Path $fixture 'dist'
     $statePath = Join-Path $dist 'nightly-pending.json'
     $cleanupPath = Join-Path $dist 'nightly-cleanup.json'
@@ -90,16 +92,22 @@ try {
         $script:head = $snapshot.revision
         $script:fingerprint = $snapshot.fingerprint
         $script:fingerprintCalls = 0
+        $script:receiptSkips = @()
         $script:failOn = ''
         $script:serverAvailable = $true
         $script:repositoryMode = ''
+        $script:stableVersion = '1.1.0'
+        $script:activeRepository = $repository
+        $script:tagCommit = ''
+        $script:currentBranch = 'nightly'
+        $script:showFails = $false
         $script:gameRunning = $false
         $script:receipt = [pscustomobject]@{sourceFingerprint=$snapshot.fingerprint;baseRevision=$snapshot.revision}
         if (Test-Path -LiteralPath $dist) { Remove-Item -LiteralPath $dist -Recurse }
         New-Item -ItemType Directory -Path $dist | Out-Null
     }
     function Get-SourceFingerprint([string]$SourceRoot) { $script:fingerprintCalls++; return $script:fingerprint }
-    function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot) { return $script:receipt }
+    function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot, [switch]$SkipFingerprint) { $script:receiptSkips += ,[bool]$SkipFingerprint; return $script:receipt }
     function New-FakeExit([int]$Code, [object[]]$Output) { [pscustomobject]@{PSTypeName='NightlyFakeExit';exitCode=$Code;output=$Output} }
     # The single native boundary: fake failures become a non-zero exit, as a real command's would.
     function Invoke-NightlyNative([string]$Command, [string[]]$Arguments, [string]$InputText) {
@@ -113,9 +121,17 @@ try {
         $text = "$Command $($Arguments -join ' ')"
         if ($Command -eq 'git') {
             if ($Arguments -contains 'status') { return $script:dirty }
-            if ($Arguments -contains 'rev-parse') { return $script:head }
-            if ($Arguments -contains 'branch') { return 'nightly' }
+            if ($Arguments -contains 'rev-parse') {
+                if ($script:tagCommit -and $Arguments[-1] -like '*^{commit}') { return $script:tagCommit }
+                return $script:head
+            }
+            if ($Arguments -contains 'branch') { return $script:currentBranch }
             if ($Arguments -contains 'fetch' -or $Arguments -contains 'merge' -or $Arguments -contains 'cat-file') { return }
+            if ($Arguments -contains 'show') {
+                Check ($Arguments[-1] -ceq 'origin/release:CMakeLists.txt') 'The Stable version was read from another ref'
+                if ($script:showFails) { throw 'fatal: invalid object name origin/release' }
+                return @('project(SF4E', "    VERSION $($script:stableVersion)", ')')
+            }
             if ($Arguments -contains 'log') { return @('Add a fixture feature', 'Fix a fixture bug') }
             if ($Arguments -contains 'rev-list') { return '2' }
             if ($Arguments -contains 'archive') {
@@ -159,7 +175,7 @@ try {
         if ($Command -ne 'gh') { throw "Unexpected external command: $text" }
         if ($Arguments[0] -eq 'release') {
             $repoIndex = [Array]::IndexOf($Arguments, '--repo')
-            Check ($repoIndex -ge 0 -and $Arguments[$repoIndex + 1] -ceq $repository) 'Missing explicit --repo'
+            Check ($repoIndex -ge 0 -and $Arguments[$repoIndex + 1] -ceq $script:activeRepository) 'Missing explicit --repo'
             if ($script:repositoryMode) { throw 'Could not resolve to a Repository' }
             $tag = $Arguments[2]
             switch ($Arguments[1]) {
@@ -167,14 +183,28 @@ try {
                     return ConvertTo-Json -InputObject @($script:remoteReleases.Values | Where-Object { !$_.draft } |
                         ForEach-Object { [pscustomobject]@{tagName=$_.tag_name;createdAt=$_.createdAt} }) -Depth 8
                 }
-                view { return @{body=$script:remoteReleases[$tag].body} | ConvertTo-Json }
+                view {
+                    if ($Arguments[-1] -ceq 'tagName') { return @{tagName=$script:latestTag} | ConvertTo-Json }
+                    if ($Arguments[-1] -ceq 'assets') { return @{assets=@($script:remoteReleases[$tag].assets)} | ConvertTo-Json -Depth 8 }
+                    return @{body=$script:remoteReleases[$tag].body} | ConvertTo-Json
+                }
                 create {
                     Check ($Arguments -contains '--draft') 'Release must be created as a draft'
+                    Check ($Arguments -notcontains '--latest') 'Latest was set when the draft was created'
+                    Check (($Arguments -contains '--verify-tag') -eq ($script:activeRepository -ceq $stableRepository)) 'Only a Stable draft verifies an existing tag'
                     if ($script:failOn -eq 'ignore-create') { return }
-                    Check ($Arguments -notcontains '--notes-file') 'Draft notes were read from disk again'
+                    # Only Stable passes its verified text through a private file (never the release-notes file itself).
+                    Check ($Arguments -notcontains '--notes-file' -or $script:activeRepository -ceq $stableRepository) 'Draft notes were read from disk again'
                     $notesIndex = [Array]::IndexOf($Arguments, '--notes')
-                    $script:remoteReleases[$tag] = [pscustomobject]@{id=100;tag_name=$tag;draft=$true;prerelease=$true;
-                        body=$Arguments[$notesIndex + 1];assets=@();createdAt='2026-10-08T12:00:00Z'}
+                    if ($Arguments -contains '--notes-file') {
+                        $notesFile = $Arguments[[Array]::IndexOf($Arguments, '--notes-file') + 1]
+                        Check ($notesFile -ne $script:stableNotesPath -and (Test-Path -LiteralPath $notesFile)) 'The Stable draft was not made from a private copy of the verified notes'
+                        $script:lastNotesFile = $notesFile
+                        $notesText = [IO.File]::ReadAllText($notesFile)
+                    } else { $notesText = $Arguments[$notesIndex + 1] }
+                    $script:remoteReleases[$tag] = [pscustomobject]@{id=100;tag_name=$tag;draft=$true;prerelease=($Arguments -contains '--prerelease');
+                        name=$Arguments[[Array]::IndexOf($Arguments, '--title') + 1];latest=$false;
+                        body=$notesText;assets=@();createdAt='2026-10-08T12:00:00Z'}
                     # Simulate an uncertain result after GitHub accepted the mutation.
                     if ($script:failOn -eq 'after-create') { $script:failOn=''; throw 'injected failure after create' }
                 }
@@ -190,6 +220,7 @@ try {
                 edit {
                     if ($script:failOn -eq 'ignore-publish') { return }
                     $script:remoteReleases[$tag].draft = $false
+                    $script:remoteReleases[$tag].latest = $Arguments -contains '--latest'
                     $script:remoteTags[$tag] = 'c' * 40
                     if ($script:failOn -eq 'after-publish') { $script:failOn=''; throw 'injected failure after public visibility' }
                 }
@@ -204,7 +235,7 @@ try {
                 $name, $value = $Arguments[$index + 1].Split('=', 2)
                 $fields[$name] = $value
             }
-            Check ($fields.owner -ceq 'Confetti3' -and $fields.name -ceq 'SF4-Ember-Netplay-Nightly') 'GraphQL escaped Nightly repository'
+            Check ("$($fields.owner)/$($fields.name)" -ceq $script:activeRepository) 'GraphQL escaped the channel repository'
             switch ($script:repositoryMode) {
                 missing {
                     return New-FakeExit 1 @((ConvertTo-FakeJson @{data=@{repository=$null};errors=@(@{type='NOT_FOUND';path=@('repository');message='Could not resolve to a Repository'})}),
@@ -226,7 +257,7 @@ try {
         }
         if ($Arguments[0] -eq 'api') {
             $endpoint = @($Arguments | Where-Object { $_ -like 'repos/*' })[0]
-            Check ($endpoint.StartsWith("repos/$repository/")) 'API escaped the Nightly repository'
+            Check ($endpoint.StartsWith("repos/$($script:activeRepository)/")) 'API escaped the channel repository'
             if ($endpoint -match '/releases/assets/([0-9]+)$' -and $Arguments -contains 'DELETE') {
                 $id = $Matches[1]
                 foreach ($release in $script:remoteReleases.Values) {
@@ -683,6 +714,8 @@ try {
         Check ($release.body -like "*Source: $($snapshot.revision)*- Fix a fixture bug*") 'Release notes lack the source and subjects'
         Check ($release.body -notlike '*run once more*') 'Release notes name a rerun the build did not have'
         Check ($script:fingerprintCalls -eq 2) "Fresh run fingerprinted the source $($script:fingerprintCalls) times"
+        # The receipt check after the build is complete; the one after packaging leaves out only the fresh fingerprint.
+        Check ((@($script:receiptSkips) | ForEach-Object { "$_" }) -join ',' -ceq 'False,True') "Receipt checks skipped the fingerprint as $(@($script:receiptSkips) -join ','), expected False,True"
         Check (@(Get-CommandLabels | Select-Object -Skip (Find-Command 'ssh *vps* cleanup') | Where-Object { $_ -like 'git *' }).Count -eq 0) 'Fresh run consulted the source between remote operations'
         Pass 'a fresh run syncs, builds, packages, prepares hosts, then stages and publishes in order with one prepare-time source check'
 
@@ -706,6 +739,37 @@ try {
         Invoke-Publish @{SkipRoomHosts=$true}
         Check ($script:remoteReleases['v1.2.0-nightly20261008'].body -like '*Passed only when run once more: HelperRust, EmberRust*') 'Release notes do not name the tests that passed on rerun'
         Pass 'release notes name the tests that passed only when run once more'
+
+        # The fixture Nightly is 1.2.0: only a Stable minor of 1.1 (any patch) is one minor behind it.
+        foreach ($stable in @('1.2.0', '1.3.0', '1.0.0', '2.1.0')) {
+            Reset-Fake
+            $script:stableVersion = $stable
+            Reject { Invoke-Publish } '*must be one minor version ahead of Stable*'
+            Check (!(Test-Ran 'op *') -and !(Test-Ran 'gh release create*')) "Stable $stable let an unnumbered Nightly reach the build"
+        }
+        Reset-Fake
+        $script:stableVersion = '1.1.9'
+        Invoke-Publish @{SkipRoomHosts=$true}
+        Check (!$script:remoteReleases['v1.2.0-nightly20261008'].draft) 'A Nightly one minor ahead of Stable did not publish'
+        Reset-Fake
+        $script:showFails = $true
+        Reject { Invoke-Publish } '*Could not read origin/release:CMakeLists.txt*'
+        Check (!(Test-Ran 'op *')) 'An unreadable Stable version reached the build'
+        Reset-Fake
+        $script:showFails = $true
+        Reject { Invoke-Publish @{Local=$true} } '*Could not read origin/release:CMakeLists.txt*'
+        Check (!(Test-Ran 'op *')) 'An unavailable origin/release reached the build under -Local'
+        Reset-Fake
+        Invoke-Publish @{Local=$true; SkipRoomHosts=$true}
+        Check (!(Test-Ran 'git * fetch *')) 'The -Local run fetched'
+        # With a previous Nightly the baseline is not origin/release, yet the version check still needs a fresh ref.
+        Reset-Fake
+        $script:remoteReleases['v1.2.0-nightly20261007'] = [pscustomobject]@{id=99;tag_name='v1.2.0-nightly20261007';draft=$false;prerelease=$true;
+            createdAt='2026-10-07T12:00:00Z';body="Notes`nSource: $('b' * 40)`n";assets=@()}
+        Invoke-Publish @{SkipRoomHosts=$true}
+        Check (@(Get-CommandLabels | Where-Object { $_ -like 'git * fetch origin release' }).Count -eq 1) 'The Stable ref was not fetched exactly once for the version check'
+        Check ((Find-Command 'git * fetch origin release') -lt (Find-Command 'git * show *')) 'The Stable version was read before its ref was fetched'
+        Pass 'a Nightly that is not one minor ahead of the fetched origin/release is refused before the build, and an unreadable Stable version fails closed'
 
         Reset-Fake
         $script:repositoryMode = 'missing'
@@ -747,6 +811,225 @@ try {
         Invoke-Publish
         Check (!(Test-Ran 'git * fetch *') -and !(Test-Ran 'op *') -and !(Test-Ran 'gh *')) 'A running game did not skip the run'
         Pass 'unchanged source only runs retention, and a running game skips the run'
+        # ---- Stable: the same release machine, bound to the Stable repository by its channel.
+        $stableNotes = Join-Path $fixture 'RELEASE_NOTES_stable.md'
+        Write-Fixture $stableNotes "Stable fixture notes`n"
+        $script:stableNotesPath = $stableNotes
+        $stableOperations = @{
+            Target = { param($Root) $script:stableTarget }
+            Package = {
+                param($OutDir, $Label)
+                Add-Step 'Package'
+                $folder = Join-Path $OutDir "sf4-ember-netplay-$Label"
+                New-Item -ItemType Directory -Path $folder | Out-Null
+                Set-Content -LiteralPath "$folder.zip" -Value "inert zip $Label"
+                Set-Content -LiteralPath "$folder.zip.sha256" -Value "inert zip hash $Label"
+                [pscustomobject]@{zipPath="$folder.zip";folderPath=$folder;gitRev=$script:head;sourceFingerprint=$snapshot.fingerprint}
+            }
+            Upgrade = {
+                param($From, $To, $BaseZip, $TargetZip, $OutDir)
+                Add-Step 'Upgrade'
+                Check ((Test-Path -LiteralPath $BaseZip) -and (Test-Path -LiteralPath $TargetZip)) 'The upgrade was not built from the checked previous and new packages'
+                $path = Join-Path $OutDir "sf4-ember-netplay-upgrade-$From-to-$To.zip"
+                Set-Content -LiteralPath $path -Value "inert upgrade $From $To"
+                Set-Content -LiteralPath "$path.sha256" -Value 'inert upgrade hash'
+                $path
+            }
+            Installer = {
+                param($PackageDir, $Label, $OutDir)
+                Add-Step 'Installer'
+                $path = Join-Path $OutDir "sf4-ember-netplay-$Label-setup.exe"
+                Set-Content -LiteralPath $path -Value "inert installer $Label"
+                Set-Content -LiteralPath "$path.sha256" -Value 'inert installer hash'
+                $path
+            }
+        }
+        function Initialize-Stable([string]$Tag = 'v1.2.0') {
+            Reset-Fake
+            $script:activeRepository = $stableRepository
+            $script:stableTarget = [pscustomobject]@{channel='stable';buildDirectory='build/current';installDirectory='build/current/stage'}
+            $script:currentBranch = 'release'
+            $script:remoteTags[$Tag] = 'a' * 40
+            $baseZip = Join-Path $dist 'sf4-ember-netplay-1.1.0.zip'
+            Set-Content -LiteralPath $baseZip -Value 'previous release zip'
+            Set-Content -LiteralPath "$baseZip.sha256" -Value 'previous release hash'
+            $script:remoteReleases['v1.1.0'] = [pscustomobject]@{id=50;tag_name='v1.1.0';draft=$false;prerelease=$false;body='';createdAt='2026-09-01T12:00:00Z';
+                assets=@([pscustomobject]@{name='sf4-ember-netplay-1.1.0.zip';digest="sha256:$((Get-FileHash -LiteralPath $baseZip -Algorithm SHA256).Hash.ToLowerInvariant())"})}
+            $script:latestTag = 'v1.1.0'
+        }
+        function Invoke-Stable([string]$Tag = 'v1.2.0', [string]$Previous = '1.1.0') {
+            Invoke-StablePublish $source $Tag $dist $stableNotes $Previous $stableOperations | Out-Null
+        }
+        $stablePending = Join-Path $dist 'release-pending-v1.2.0.json'
+
+        Initialize-Stable
+        $script:stableTarget = [pscustomobject]@{channel='nightly';githubRepo=$repository;buildDirectory='build/current';installDirectory='build/current/stage'}
+        Reject { Invoke-Stable } '*Stable publication requires the stable channel*'
+        Check ($script:commands.Count -eq 0) 'A Nightly checkout reached git, gh or a build step before the Stable refusal'
+        $script:stableTarget = [pscustomobject]@{channel='stable';githubRepo=$repository}
+        Reject { Invoke-Stable } '*publishes only to Confetti3/SF4-Ember-Netplay*'
+        Check ($script:commands.Count -eq 0) 'A Stable target naming the Nightly repository reached an external command'
+        Pass 'Stable publication from the Nightly checkout, or toward the Nightly repository, refuses before any external command'
+
+        # A Nightly checkout whose parent folder has no build-target.json reads its own file, which names only
+        # the top-level entry: Get-EmberBuildTarget calls it stable, with no branch or repository.
+        foreach ($branch in @('nightly', '', 'fix/some-branch')) {
+            Initialize-Stable
+            $script:currentBranch = $branch
+            Reject { Invoke-Stable } '*Stable publication requires the release branch*'
+            Check (@(Get-CommandLabels) -join '|' -ceq "git -C $source branch --show-current") "A stable-designated checkout on '$branch' ran more than the branch read before refusing"
+        }
+        Pass 'a checkout designated stable only by its own build-target.json is refused off the release branch before gh or a build step'
+
+        Initialize-Stable
+        Invoke-Stable
+        $order = @('git * status *', 'gh api graphql *', 'gh release view v1.1.0 *', 'op Package', 'op Upgrade', 'op Installer',
+            'gh release create v1.2.0 *', 'gh release upload *', 'gh release edit v1.2.0 *')
+        $last = -1
+        foreach ($pattern in $order) {
+            $index = Find-Command $pattern
+            Check ($index -gt $last) "Stable order broke at: $pattern"
+            $last = $index
+        }
+        $release = $script:remoteReleases['v1.2.0']
+        $labels = Get-CommandLabels
+        $uploads = @(0..($labels.Count - 1) | Where-Object { $labels[$_] -like 'gh release upload *' })
+        Check ($uploads.Count -eq 6 -and $uploads[-1] -lt (Find-Command 'gh release edit v1.2.0 *')) 'Stable did not upload all six assets before publishing'
+        Check (!$release.draft -and !$release.prerelease -and $release.latest -and @($release.assets).Count -eq 6) 'Stable did not become a public Latest release with six assets'
+        Check ($release.name -ceq 'SF4 Ember Netplay v1.2.0' -and $release.body -ceq 'Stable fixture notes') 'Stable title or notes changed'
+        Check (!(Test-Path $stablePending)) 'A finished Stable release left its pending record'
+        Check ($script:lastNotesFile -and !(Test-Path -LiteralPath $script:lastNotesFile)) 'The private notes copy was left behind'
+        Check (!(Test-Ran 'ssh *') -and !(Test-Ran 'scp *') -and !(Test-Ran 'gh api --method*') -and !(Test-Ran 'gh release delete*') -and !(Test-Ran 'gh release list*')) 'Stable publication staged hosts or ran retention'
+        Pass 'Stable publishes through draft, upload, read-back and publish; Latest is set only at publish and retention is not involved'
+
+        Initialize-Stable 'v1.2.0-rc1'
+        Invoke-Stable 'v1.2.0-rc1' ''
+        $release = $script:remoteReleases['v1.2.0-rc1']
+        Check (!$release.draft -and $release.prerelease -and !$release.latest -and @($release.assets).Count -eq 4) 'A Stable pre-release was not a four-asset pre-release that is not Latest'
+        Check (!(Test-Ran 'op Upgrade') -and !(Test-Ran 'gh release view *')) 'A Stable pre-release built an upgrade or read the previous release'
+        Pass 'a Stable pre-release carries no upgrade package, keeps the pre-release flag and is not made Latest'
+
+        Initialize-Stable
+        Invoke-Stable 'v1.2.0' ''
+        Check (Test-Ran 'gh release view --repo * --json tagName') 'The previous version was not resolved from the latest release'
+        Check (!$script:remoteReleases['v1.2.0'].draft) 'A run that resolved the previous version did not publish'
+        Initialize-Stable
+        $script:remoteReleases['v1.2.0'] = [pscustomobject]@{id=60;tag_name='v1.2.0';draft=$false;prerelease=$false;body='x';assets=@();createdAt='2026-10-01T12:00:00Z'}
+        Reject { Invoke-Stable } '*The release already exists*'
+        $script:remoteReleases['v1.2.0'].draft = $true
+        Reject { Invoke-Stable } '*The release already exists*'
+        Check (!(Test-Ran 'op *') -and !(Test-Ran 'gh release create*') -and !(Test-Ran 'gh release upload*') -and !(Test-Ran 'gh release edit*')) 'An existing release was modified'
+        Initialize-Stable
+        $script:remoteTags.Remove('v1.2.0')
+        Reject { Invoke-Stable } '*is not on Confetti3/SF4-Ember-Netplay*'
+        Check (!(Test-Ran 'op *')) 'An unpushed tag reached packaging'
+        Initialize-Stable
+        $script:tagCommit = 'f' * 40
+        Reject { Invoke-Stable } '*must point at the current source commit*'
+        $script:tagCommit = ''
+        Reject { Invoke-Stable 'v1.3.0' } '*Tag and CMake product version differ*'
+        $script:dirty = @(' M tracked.cxx')
+        Reject { Invoke-Stable } '*Stable publication requires committed source*'
+        Check (!(Test-Ran 'op *') -and !(Test-Ran 'gh *')) 'A bad tag, version or tree reached packaging or gh'
+        Pass 'Stable refuses an existing release (draft or public), an unpushed tag, a moved tag, a version mismatch and dirty source'
+
+        Initialize-Stable
+        $script:remoteReleases['v1.1.0'].assets[0].digest = 'sha256:' + ('f' * 64)
+        Reject { Invoke-Stable } '*does not match the published release asset*'
+        Initialize-Stable
+        Remove-Item -LiteralPath (Join-Path $dist 'sf4-ember-netplay-1.1.0.zip.sha256')
+        Reject { Invoke-Stable } '*Keep the verified previous full package*'
+        Check (!(Test-Ran 'op *') -and !(Test-Ran 'gh release create*')) 'A bad previous package reached packaging or the draft'
+        Pass 'the previous full package must match its published asset digest before anything is packaged'
+
+        foreach ($failure in @('after-create', 'starter-upload', 'after-upload', 'after-publish')) {
+            Initialize-Stable
+            $script:failOn = $failure
+            Reject { Invoke-Stable } '*injected failure*'
+            Check (Test-Path $stablePending) 'An interrupted Stable release lost its pending record'
+            Invoke-Stable
+            $release = $script:remoteReleases['v1.2.0']
+            Check (!$release.draft -and $release.latest -and @($release.assets).Count -eq 6 -and !(Test-Path $stablePending)) "Stable did not resume after $failure"
+            Check (@(Get-CommandLabels | Where-Object { $_ -like 'op Package' }).Count -eq 1) 'A Stable resume packaged again'
+            Check (@(Get-CommandLabels | Where-Object { $_ -like 'gh release create *' }).Count -eq 1) 'A Stable resume created a second release'
+        }
+        Initialize-Stable
+        $script:failOn = 'ignore-publish'
+        Reject { Invoke-Stable } '*could not be confirmed by reading the release back*'
+        Check ($script:remoteReleases['v1.2.0'].draft -and (Test-Path $stablePending)) 'An unconfirmed Stable publication was treated as done'
+        Initialize-Stable
+        $script:failOn = 'after-upload'
+        Reject { Invoke-Stable } '*injected failure*'
+        $script:remoteReleases['v1.2.0'].assets[0].digest = 'sha256:' + ('f' * 64)
+        Reject { Invoke-Stable } '*Remote asset identity*'
+        Check ($script:remoteReleases['v1.2.0'].draft) 'A Stable release with a wrong remote digest became public'
+        Initialize-Stable
+        $script:failOn = 'after-upload'
+        Reject { Invoke-Stable } '*injected failure*'
+        $record = Get-Content $stablePending -Raw | ConvertFrom-Json
+        Set-Content -LiteralPath $record.assets[0].path -Value 'changed after packaging'
+        Reject { Invoke-Stable } '*Prepared artifact changed*'
+        Check ($script:remoteReleases['v1.2.0'].draft) 'A changed local asset reached publication'
+        Initialize-Stable
+        $script:failOn = 'after-upload'
+        Reject { Invoke-Stable } '*injected failure*'
+        $script:head = 'f' * 40
+        Reject { Invoke-Stable } '*does not match this tag, repository and source commit*'
+        Check ($script:remoteReleases['v1.2.0'].draft) 'A pending record for another commit reached publication'
+        Pass 'an interrupted Stable release resumes from its record without repackaging; wrong digests, changed files and another commit stop it as a draft'
+
+        $legacy = [pscustomobject]@{repository=$repository;tag='v1.2.0-nightly20261008';label='1.2.0-nightly20261008'}
+        $plan = Get-EmberReleasePlan $legacy
+        Check ($plan.channel -ceq 'nightly' -and $plan.prerelease -and !$plan.latest -and !$plan.tagMustExist -and $plan.title -ceq 'SF4 Ember Netplay Nightly 1.2.0-nightly20261008') 'A record without a channel is not a Nightly release'
+        Reject { Get-EmberReleasePlan ([pscustomobject]@{channel='stable';repository=$repository;tag='v1.2.0'}) } '*can only be published to Confetti3/SF4-Ember-Netplay*'
+        Reject { Get-EmberReleasePlan ([pscustomobject]@{channel='nightly';repository=$stableRepository;tag='v1.2.0-nightly20261008'}) } '*can only be published to Confetti3/SF4-Ember-Netplay-Nightly*'
+        Reject { Get-EmberReleasePlan ([pscustomobject]@{channel='stable';repository=$stableRepository;tag='v1.2.0-rc1';prerelease=$false}) } '*pre-release flag disagree*'
+        Reject { Get-EmberReleasePlan ([pscustomobject]@{channel='stable';repository=$stableRepository;tag='v1.2.0';prerelease=$true}) } '*pre-release flag disagree*'
+        Reject { Get-EmberReleasePlan ([pscustomobject]@{channel='stable';repository=$stableRepository;tag='v1.2.0-nightly20261008';prerelease=$false}) } '*Invalid Stable tag*'
+        Reject { Get-EmberReleaseRepository 'beta' } '*Unknown release channel*'
+        Reject { Publish-NightlyRelease ([pscustomobject]@{channel='stable';repository=$stableRepository;tag='v1.2.0';phase='staged'}) } '*confined*'
+        Reject { Get-NightlyTagState $stableRepository 'v1.2.0-nightly20261008' } '*confined*'
+        Reject { Get-NightlyTagState $repository 'v1.2.0' } '*Invalid Nightly tag*'
+        Reject { Invoke-NightlyRetention $stableRepository $cleanupPath } '*confined*'
+        Reject { Get-EmberTagState 'someone/another-repo' 'v1.2.0' } '*confined*'
+        Reject { Get-EmberTagState $stableRepository 'v1.2.0-nightly20261008' } '*Invalid Stable tag*'
+        Pass 'the repository follows the channel: records, tags and retention cannot cross between the Stable and Nightly repositories'
+
+        # The script itself, started from a checkout the workspace designates as Nightly, with stub git and gh that
+        # record any call: it must refuse on the channel before it reaches either.
+        $workspace = Join-Path $fixture 'workspace'
+        $nightlyScripts = Join-Path $workspace 'sf4-nightly/scripts'
+        New-Item -ItemType Directory -Path $nightlyScripts -Force | Out-Null
+        foreach ($name in @('github-release.ps1', 'BuildEnvironment.ps1', 'NightlyOperations.ps1', 'Packaging.ps1', 'PackageFiles.ps1', 'BuildProvenance.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $nightlyScripts }
+        @{sourceDirectory='sf4-current';buildDirectory='build/current';installDirectory='build/current/stage';
+          channels=@{nightly=@{sourceDirectory='sf4-nightly';buildDirectory='build/current';installDirectory='build/current/stage';branch='nightly';githubRepo=$repository}}} |
+            ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $workspace 'build-target.json')
+        $stubs = Join-Path $fixture 'stubs'
+        New-Item -ItemType Directory -Path $stubs | Out-Null
+        $marker = Join-Path $fixture 'external-called.txt'
+        foreach ($name in @('gh', 'git')) {
+            if ($IsWindows) { Set-Content -LiteralPath (Join-Path $stubs "$name.cmd") -Value @('@echo off', "echo $name>>`"$marker`"", 'exit /b 1') }
+            else {
+                $stub = Join-Path $stubs $name
+                Set-Content -LiteralPath $stub -Value @('#!/bin/sh', "echo $name >> '$marker'", 'exit 1')
+                & chmod +x $stub
+            }
+        }
+        $savedPath = $env:PATH
+        try {
+            $env:PATH = "$stubs$([IO.Path]::PathSeparator)$savedPath"
+            # Positive control: the stubs are what a call from the child would reach.
+            # The functions above shadow git and gh in this process; resolve the applications on PATH instead.
+            & (Get-Command git -CommandType Application | Select-Object -First 1).Source --version 2>&1 | Out-Null
+            & (Get-Command gh -CommandType Application | Select-Object -First 1).Source --version 2>&1 | Out-Null
+            Check ((Test-Path -LiteralPath $marker) -and @(Get-Content -LiteralPath $marker).Count -eq 2) 'The stub git and gh are not first on PATH, so the refusal test proves nothing'
+            Remove-Item -LiteralPath $marker
+            $output = & (Get-Process -Id $PID).Path -NoProfile -File (Join-Path $nightlyScripts 'github-release.ps1') -Tag v9.9.9 2>&1
+            $exitCode = $LASTEXITCODE
+        } finally { $env:PATH = $savedPath }
+        Check ($exitCode -ne 0 -and "$output" -like '*requires the stable channel*') "github-release.ps1 from the Nightly checkout did not refuse on the channel: $output"
+        Check (!(Test-Path -LiteralPath $marker)) 'github-release.ps1 from the Nightly checkout reached git or gh'
+        Pass 'github-release.ps1 started from the Nightly checkout refuses on the channel before any git or gh call'
         Write-Output "$passed/$passed Nightly publication test groups passed; no external commands executed"
     } finally {
         # The resolved recursive target must be the exact isolated fixture we created.

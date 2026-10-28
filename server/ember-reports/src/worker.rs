@@ -17,8 +17,9 @@ impl Worker {
     pub fn new(executable: PathBuf) -> Self {
         Self { executable }
     }
-    pub async fn walk(&self, bytes: Vec<u8>, symbols: PathBuf, deadline: Duration) -> Walk {
-        let mut fallback = raw_facts(&bytes);
+    /// The dump is borrowed: the caller keeps it to store once the walk is done.
+    pub async fn walk(&self, bytes: &[u8], symbols: PathBuf, deadline: Duration) -> Walk {
+        let mut fallback = raw_facts(bytes);
         #[cfg(target_os = "linux")]
         {
             let mut command = limited_command(&self.executable, deadline);
@@ -111,7 +112,7 @@ enum Failure {
 #[cfg(target_os = "linux")]
 async fn exchange(
     mut command: tokio::process::Command,
-    bytes: Vec<u8>,
+    bytes: &[u8],
     deadline: Duration,
 ) -> Result<Vec<u8>, Failure> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -125,7 +126,7 @@ async fn exchange(
     let result = tokio::time::timeout_at(expires, async {
         // Drain stdout while writing stdin; neither pipe may block the other.
         let write = async {
-            input.write_all(&bytes).await?;
+            input.write_all(bytes).await?;
             input.shutdown().await?;
             drop(input);
             Ok::<_, io::Error>(())
@@ -230,7 +231,7 @@ mod tests {
             .args(["-c", "echo $$ > \"$1\"; while :; do :; done", "worker-test"])
             .arg(&pid_file);
         assert!(matches!(
-            exchange(command, vec![], Duration::from_secs(1)).await,
+            exchange(command, &[], Duration::from_secs(1)).await,
             Err(Failure::Timeout)
         ));
         let pid = std::fs::read_to_string(&pid_file)
@@ -246,7 +247,7 @@ mod tests {
     async fn worker_limits_are_set_before_exec() {
         let mut command = limited_command(std::path::Path::new("/bin/sh"), Duration::from_secs(2));
         command.args(["-c", "ulimit -v; ulimit -t; ulimit -c"]);
-        let output = exchange(command, vec![], Duration::from_secs(2))
+        let output = exchange(command, &[], Duration::from_secs(2))
             .await
             .unwrap();
         assert_eq!(

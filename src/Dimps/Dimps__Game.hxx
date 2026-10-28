@@ -57,8 +57,12 @@ namespace Dimps {
 				BOOL editionSelect;
 			};
 
-			static NextBattleType* GetNextBattleType(ProgressData* data);
-			static BattleTypeSettings* GetBattleTypeSettings(ProgressData* data);
+			static NextBattleType* GetNextBattleType(ProgressData* data) {
+				return (NextBattleType*)((unsigned int)data + 0xec);
+			}
+			static BattleTypeSettings* GetBattleTypeSettings(ProgressData* data) {
+				return (BattleTypeSettings*)((unsigned int)data + 0xf0);
+			}
 		};
 
 		// Dimps::Game::ReplayInfoList, the game's 310 replay slots (vector at
@@ -236,14 +240,20 @@ namespace Dimps {
 					void(Control::* Enable_0x588450)();
 				} __publicMethods;
 
-				static DWORD* GetEnabled(Control* c);
+				static DWORD* GetEnabled(Control* c) {
+					return (DWORD*)((unsigned int)c + 0x18);
+				}
 				static void Locate(HMODULE peRoot);
 				static __publicMethods publicMethods;
 			};
 
 			struct SingleNodeControl : Control {
-				static int* GetCurrentFrame(SingleNodeControl* c);
-				static IEmSpriteNode** GetSpriteNode(SingleNodeControl* c);
+				static int* GetCurrentFrame(SingleNodeControl* c) {
+					return (int*)((unsigned int)c + 0x28);
+				}
+				static IEmSpriteNode** GetSpriteNode(SingleNodeControl* c) {
+					return (IEmSpriteNode**)((unsigned int)c + 0x1c);
+				}
 			};
 		}
 	}

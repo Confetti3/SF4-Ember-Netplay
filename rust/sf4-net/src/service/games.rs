@@ -1,6 +1,56 @@
 //! Gameplay links: incoming connections, stream classification, bridges and their end.
 use super::*;
 
+pub(super) struct GameSlot {
+    pub(super) auth: GameAuthorization,
+    pub(super) local_port: u16,
+    pub(super) waiting: bool,
+    pub(super) task: Option<AbortHandle>,
+    pub(super) stats: Option<Arc<BridgeStats>>,
+    pub(super) route_connection: Option<Connection>,
+    pub(super) expires: tokio::time::Instant,
+    /// Stable id of the accepted connection whose handshake is running as
+    /// `task`. Candidates handshake one at a time; only this one's completion
+    /// counts, and one that arrives after it was retired is ignored.
+    pub(super) candidate: Option<usize>,
+    pub(super) diagnostics: GameDiagnostics,
+}
+
+/// What a gameplay slot saw before it linked. It is reported with the slot's
+/// close or failure so a link that never formed can be told from one that broke.
+#[derive(Default)]
+pub(super) struct GameDiagnostics {
+    pub(super) refused_incoming: u32,
+    /// Accepted connections that failed their handshake without ending the slot.
+    pub(super) rejected_candidates: u32,
+}
+
+impl GameDiagnostics {
+    pub(super) fn describe(&self, waiting: bool) -> String {
+        format!(
+            "waiting={} refused_incoming={} rejected_candidates={}",
+            waiting, self.refused_incoming, self.rejected_candidates
+        )
+    }
+}
+
+impl GameSlot {
+    /// Why a slot closed without a gameplay link, or `None` once it had one.
+    pub(super) fn unlinked_reason(&self, cause: &str) -> Option<String> {
+        self.stats
+            .is_none()
+            .then(|| format!("{cause}: {}", self.diagnostics.describe(self.waiting)))
+    }
+}
+
+impl Drop for GameSlot {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task {
+            task.abort();
+        }
+    }
+}
+
 impl Actor {
     pub(super) async fn completed_incoming(
         &mut self,
@@ -31,18 +81,22 @@ impl Actor {
                     let watchers = self.takes_observers();
                     self.tasks.spawn(async move {
                         if let (Some(incarnation), Some(recovery)) = (member, recovery) {
-                            let result =
-                                if recovery.applied_member_ids().await.contains(&incarnation) {
-                                    let accepting = transport::Accepting {
-                                        member: Some(peer),
-                                        watchers,
-                                    };
-                                    transport::accept_control_for(connection, &invite, accepting)
-                                        .await
-                                } else {
-                                    connection.close(1u32.into(), b"member retired");
-                                    Err(failed("member retired"))
+                            let result = if recovery
+                                .coordinator
+                                .store()
+                                .applied_members()
+                                .await
+                                .contains(&incarnation)
+                            {
+                                let accepting = transport::Accepting {
+                                    member: Some(peer),
+                                    watchers,
                                 };
+                                transport::accept_control_for(connection, &invite, accepting).await
+                            } else {
+                                connection.close(1u32.into(), b"member retired");
+                                Err(failed("member retired"))
+                            };
                             Completion::MemberControl(epoch, incarnation, result)
                         } else {
                             let accepting = transport::Accepting {
@@ -164,33 +218,21 @@ impl Actor {
                     .map(|permission| (permission.request, permission.pair_revision))
                     .unwrap_or((0, 0));
                 self.tasks.spawn(async move {
-                    let result =
-                        match serve_probe(connection, send, recv, room, request, pair_revision)
+                    let connection =
+                        serve_probe(connection, send, recv, room, request, pair_revision)
                             .await
-                        {
-                            Ok(connection) => Ok(ProbeCompletion {
-                                peer,
-                                request,
-                                pair_revision,
-                                samples_us: Vec::new(),
-                                connection: Some(connection),
-                                report: false,
-                                route_changed: false,
-                                route: None,
-                                metrics: crate::probe::Metrics::default(),
-                            }),
-                            Err(_) => Ok(ProbeCompletion {
-                                peer,
-                                request,
-                                pair_revision,
-                                samples_us: Vec::new(),
-                                connection: None,
-                                report: false,
-                                route_changed: false,
-                                route: None,
-                                metrics: crate::probe::Metrics::default(),
-                            }),
-                        };
+                            .ok();
+                    let result = Ok(ProbeCompletion {
+                        peer,
+                        request,
+                        pair_revision,
+                        samples_us: Vec::new(),
+                        connection,
+                        report: false,
+                        route_changed: false,
+                        route: None,
+                        metrics: crate::probe::Metrics::default(),
+                    });
                     Completion::Probe(epoch, result)
                 });
             }
@@ -333,19 +375,13 @@ impl Actor {
                 .map(selected_probe_route)
                 .unwrap_or_else(|| "unavailable".into());
             if let Some(stats) = slot.stats.as_ref() {
-                self.emit(Event::Statistics {
+                self.emit(statistics_event(
                     epoch,
                     peer,
                     generation,
-                    sent_packets: stats.sent_packets.load(Ordering::Relaxed),
-                    received_packets: stats.received_packets.load(Ordering::Relaxed),
-                    sent_bytes: stats.sent_bytes.load(Ordering::Relaxed),
-                    received_bytes: stats.received_bytes.load(Ordering::Relaxed),
-                    rejected_packets: stats.rejected_packets.load(Ordering::Relaxed),
-                    congestion_events: stats.congestion_events.load(Ordering::Relaxed),
-                    local_drops: stats.local_drops.load(Ordering::Relaxed),
-                    route: route.clone(),
-                })?;
+                    stats,
+                    route.clone(),
+                ))?;
             }
             if let Some(reason) = failure {
                 self.emit(Event::GameFailed {
@@ -409,5 +445,156 @@ impl Actor {
                 Ok(())
             }
         }
+    }
+}
+
+impl Actor {
+    /// `Command::PrepareGame`: a gameplay slot for `peer`, dialed or
+    /// waited for.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn prepare_game(
+        &mut self,
+        id: u64,
+        epoch: u64,
+        peer: EndpointId,
+        room: [u8; 16],
+        generation: u64,
+        capability: [u8; 32],
+        local_port: u16,
+        max_packet: usize,
+        dial: bool,
+    ) -> io::Result<()> {
+        if !self.matches(epoch)
+            || self.room != Some(room)
+            || generation <= self.closed_generation
+            || generation > i64::MAX as u64
+            || room == [0; 16]
+            || capability == [0; 32]
+            || local_port == 0
+            || max_packet == 0
+            || max_packet > wire::MAX_UDP_PAYLOAD
+            || peer == self.endpoint.id()
+            || self.games.contains_key(&peer)
+            || self.games.len() >= MAX_GAME_LINKS
+            || self
+                .games
+                .values()
+                .any(|game| game.auth.key.generation != generation)
+            || self.tasks.len() >= MAX_TASKS
+        {
+            self.error(id, "invalid_game_registration")?;
+            return Ok(());
+        }
+        let auth = GameAuthorization {
+            peer,
+            key: MatchKey { room, generation },
+            capability,
+            max_packet,
+        };
+        let mut slot = GameSlot {
+            auth: auth.clone(),
+            local_port,
+            // The listener accepts an authorized connection from the
+            // dialer, which always dials a new one.
+            waiting: !dial,
+            task: None,
+            stats: None,
+            route_connection: None,
+            expires: tokio::time::Instant::now() + transport::PREPARED_GAME_TIMEOUT,
+            candidate: None,
+            diagnostics: GameDiagnostics::default(),
+        };
+        if dial {
+            let endpoint = self.endpoint.clone();
+            let address = self
+                .host_address
+                .as_ref()
+                .filter(|a| a.id == peer)
+                .cloned()
+                .unwrap_or_else(|| EndpointAddr::new(peer));
+            slot.task = Some(self.tasks.spawn(async move {
+                let result = transport::connect_game(&endpoint, address, auth).await;
+                Completion::Game(epoch, peer, generation, result)
+            }));
+        }
+        self.games.insert(peer, slot);
+        // Preparation already suspends latency (`Unavailable(InMatch)`).
+        self.latency_games_changed();
+        self.emit(Event::GameWaiting {
+            epoch,
+            peer,
+            generation,
+        })?;
+        Ok(())
+    }
+
+    /// `Command::EndMatch`: every slot of `generation` closes.
+    pub(super) fn end_match(&mut self, id: u64, epoch: u64, generation: u64) -> io::Result<()> {
+        if !self.matches(epoch)
+            || generation == 0
+            || generation > i64::MAX as u64
+            || self
+                .games
+                .values()
+                .any(|game| game.auth.key.generation != generation)
+        {
+            self.error(id, "stale_match")?;
+            return Ok(());
+        }
+        self.closed_generation = self.closed_generation.max(generation);
+        let slots = std::mem::take(&mut self.games);
+        for (peer, slot) in slots {
+            if let Some((connection, task)) = self.pending_game_admissions.remove(&peer) {
+                connection.close(0u32.into(), b"match ended during admission");
+                task.abort();
+            }
+            self.emit(Event::GameClosed {
+                epoch,
+                peer,
+                generation,
+                reason: slot.unlinked_reason("ended before gameplay link"),
+            })?;
+        }
+        Ok(())
+    }
+
+    /// `Command::EndPeer`: `peer`'s slot of `generation` closes.
+    pub(super) fn end_peer(
+        &mut self,
+        id: u64,
+        epoch: u64,
+        peer: EndpointId,
+        generation: u64,
+    ) -> io::Result<()> {
+        if !self.matches(epoch)
+            || generation == 0
+            || generation > i64::MAX as u64
+            || generation <= self.closed_generation
+        {
+            self.error(id, "stale_match")?;
+            return Ok(());
+        }
+        // Per-link teardown is intentionally idempotent.  A bridge
+        // may have already observed the remote close before the
+        // authority's game_peer_end message reaches this helper.
+        let Some(slot) = self.games.get(&peer) else {
+            return Ok(());
+        };
+        if slot.auth.key.generation != generation {
+            self.error(id, "stale_match")?;
+            return Ok(());
+        }
+        let slot = self.games.remove(&peer);
+        if let Some((connection, task)) = self.pending_game_admissions.remove(&peer) {
+            connection.close(0u32.into(), b"peer ended during admission");
+            task.abort();
+        }
+        self.emit(Event::GameClosed {
+            epoch,
+            peer,
+            generation,
+            reason: slot.and_then(|slot| slot.unlinked_reason("peer ended before gameplay link")),
+        })?;
+        Ok(())
     }
 }

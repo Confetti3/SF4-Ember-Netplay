@@ -285,6 +285,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   for(const int id:RosterDisplayOrder){
    const bool owned=!readAvailability||!FighterLocked(id,readAvailability(id));
    rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,owned?locked:loc::T("selection.not_owned"),editable&&owned),"menu.hint.save_fighter",editable&&owned));
+   rows.back().key=static_cast<std::uint64_t>(id);
   }
   const auto grid=LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
   columns=grid.columns;cardHeight=grid.cardHeight;menu_.wideListShare=grid.listShare;
@@ -302,10 +303,12 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    // pack, which fits the compact gallery's two lines with the saved choice.
    rows.push_back(Saving(Row("costume-"+std::to_string(costume),costume==0?loc::T("selection.original"):selection::IsCustomCostume(costume)?CostumeLabel(option,installed):loc::Tf("selection.alternate",costume),
     !usable?std::string(loc::T("selection.no_colors")):editable?CostumeLabel(option,installed):CostumeLabel(option,installed)+"\n"+locked,editable&&usable),"menu.hint.save_costume",editable));
+   rows.back().key=static_cast<std::uint64_t>(costume);
   }else for(int color:AllowedColors(pick.fighter,pick.costume,availability,installed)){
    // A custom color is named by the setup program, else numbered like the rest.
    const std::string name=installed&&selection::IsCustomColor(color)?installed->Name(pick.fighter,pick.costume,color):std::string();
    rows.push_back(Saving(Row("color-"+std::to_string(color),name.empty()?loc::Tf("selection.color",color+1):name,editable?"":locked,editable),"menu.hint.save_color",editable));
+   rows.back().key=static_cast<std::uint64_t>(color);
   }
   columns=(std::max)(2,(std::min)(4,static_cast<int>(ImGui::GetContentRegionAvail().x/(300*Scale()))));
  }else if(screen=="ultra"){
@@ -315,13 +318,17 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
     auto row=Saving(Row("ultra-"+std::to_string(ultra),UltraLabel(ultra),
     ultra==2?loc::T("selection.ultra_double.detail"):FindFighter(pick.fighter)->ultras[ultra],editable),"menu.hint.save_ultra",editable);
    if(ultra==pick.ultra)row.value=loc::T("selection.saved");
+   row.key=static_cast<std::uint64_t>(ultra);
    rows.push_back(std::move(row));
   }
  }else if(screen=="stage"){
   page_=Page::Stage;title=loc::T("selection.stage_title");
   rows.push_back(Saving(Row("stage-"+std::to_string(RandomStageId),loc::T("selection.random_stage"),stageId?loc::T("selection.random_stage.detail"):loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
-  for(const auto& stage:StageList())rows.push_back(Saving(Row("stage-"+std::to_string(stage.id),stage.name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
-  for(int id:customStages)rows.push_back(Saving(Row("stage-"+std::to_string(id),StageLabel(id,installed),stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
+  rows.back().key=static_cast<std::uint64_t>(RandomStageId);
+  for(const auto& stage:StageList()){rows.push_back(Saving(Row("stage-"+std::to_string(stage.id),stage.name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
+   rows.back().key=static_cast<std::uint64_t>(stage.id);}
+  for(int id:customStages){rows.push_back(Saving(Row("stage-"+std::to_string(id),StageLabel(id,installed),stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
+   rows.back().key=static_cast<std::uint64_t>(id);}
   if(stageId&&randomPool){
    rows.push_back(Row("random-pool",loc::T("selection.random_pool"),loc::Tf("selection.random_pool.detail",randomPool->Count(customStages),VersusStageCount+static_cast<int>(customStages.size()))));
    rows.back().wide=true;
@@ -343,6 +350,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    auto row=Row("pool-"+std::to_string(id),StageLabel(id,installed),loc::T(last?"selection.random_pool_last":in?"selection.random_pool_in":"selection.random_pool_out"),
     editable&&randomPool&&!last);
    if(row.enabled)row.hint=loc::T(in?"menu.hint.skip_stage":"menu.hint.include_stage");
+   row.key=static_cast<std::uint64_t>(id);
    rows.push_back(std::move(row));
   }
   columns=(std::max)(2,(std::min)(4,static_cast<int>(ImGui::GetContentRegionAvail().x/(220*Scale()))));
@@ -389,7 +397,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // An Ultra's card is its photo; Ultra Double is one large W on a dark panel.
  // A badge in the top-right corner names the Ultra (I, II or W); SAVED stays top-left.
  if(screen=="ultra")card=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
-  const int ultra=std::stoi(e.id.substr(6));
+  const int ultra=static_cast<int>(e.key);
   const float labelHeight=ImGui::GetTextLineHeight()+4*Scale();
   const ImVec2 top(min.x+3,min.y+3),bottom(max.x-3,max.y-labelHeight);
   if(ultra==2){
@@ -411,7 +419,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  };
  if(screen=="roster"||screen=="stage"||pool||screen=="costumes"||screen=="colors")card=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
   if(e.id=="waiting"||e.wide)return false;
-  const int id=std::stoi(e.id.substr(screen=="roster"||screen=="costumes"?8:pool?5:6));
+  const int id=static_cast<int>(e.key);
   const float labelHeight=ImGui::GetTextLineHeight()+4*Scale();
   const auto image=!art?Missing():screen=="roster"?art->Portrait(id):screen=="stage"||pool?art->Stage(id):
    art->Appearance(pick.fighter,screen=="costumes"?id:pick.costume,screen=="costumes"?PreviewColor(pick.fighter,id,availability,installed):id);

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use iroh::EndpointId;
 
-use crate::coordination::{Committed, LatencyRoster, RosterInvalid, committed_latency_roster};
+use crate::coordination::{Committed, LatencyRoster, RosterInvalid, latency_roster_of};
 
 /// This helper's binding in its room: primary endpoint, latency endpoint and
 /// process incarnation.
@@ -162,7 +162,9 @@ pub(crate) struct Change {
     pub roster: bool,
 }
 
-type CommitKey = (u64, u64, [u8; 32]);
+/// The last commit read: compared by revision and term, then as the same
+/// commit (`Committed::same_commit`), which is almost always the pointer test.
+type CommitKey = Arc<Committed>;
 
 /// Turns store observations into the authority, keeping the revocation
 /// counter and the parse cache. It lives as long as the helper.
@@ -202,16 +204,18 @@ impl Observer {
             .and_then(|(_, roster)| roster.as_ref().ok().cloned())
     }
 
-    fn roster(&mut self, committed: &Committed) -> Result<Arc<LatencyRoster>, RosterInvalid> {
-        let key = (committed.revision(), committed.term(), committed.digest());
+    fn roster(&mut self, committed: &Arc<Committed>) -> Result<Arc<LatencyRoster>, RosterInvalid> {
         if let Some((cached, result)) = &self.cache
-            && *cached == key
+            && cached.revision() == committed.revision()
+            && cached.term() == committed.term()
+            && cached.same_commit(committed)
         {
             return result.clone();
         }
         self.parses += 1;
-        let result = committed_latency_roster(committed.checkpoint()).map(Arc::new);
-        self.cache = Some((key, result.clone()));
+        // The commit's own view: the actor's roster read shares its parse.
+        let result = latency_roster_of(committed).map(Arc::new);
+        self.cache = Some((committed.clone(), result.clone()));
         result
     }
 

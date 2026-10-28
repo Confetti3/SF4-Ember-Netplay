@@ -2,15 +2,12 @@
 //! created on Challonge: each is added to the Challonge event under their
 //! Challonge username, once, and only while sign-ups are open.
 mod common;
-#[allow(dead_code, unused_imports)]
-#[path = "challonge/support.rs"]
-mod support;
 
+use common::challonge::*;
 use common::{sign_in, sites::bridge_with_desk};
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
-use support::*;
 
 #[tokio::test]
 async fn players_sign_up_through_ember_and_join_the_challonge_event() {

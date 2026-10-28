@@ -7,19 +7,13 @@
 #include <csignal>
 #include <cstring>
 #include <limits>
-#include <vector>
 #include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
 
 namespace sf4e { namespace platform {
+using namespace helper_frame;
 namespace {
-const size_t MaxPayload = 512 * 1024;
-const size_t MaxMessages = 128;
-const size_t MaxQueuedBytes = 8 * 1024 * 1024;
-const uint64_t IoTimeoutMs = 15000;
-const size_t HeaderSize = 14;
-
 void CloseFd(int& fd) { if (fd >= 0) { close(fd); fd = -1; } }
 bool SetNonBlocking(int fd) {
     const int flags = fcntl(fd, F_GETFL);
@@ -52,17 +46,25 @@ bool HelperClient::Start(int readFd, int writeFd) {
     signal(SIGPIPE, SIG_IGN);
     started_ = true;
     readFd_ = readFd; writeFd_ = writeFd;
+    // No authentication exchange carries a version here: the room host and its
+    // stdio helper are built from one tree.
+    ipcVersion_ = IpcVersion;
     state_ = HelperState::Connected;
     worker_ = std::thread(&HelperClient::Run, this, readFd, writeFd);
     return true;
 }
 
-bool HelperClient::Send(const std::string& payload, uint64_t* requestId) {
-    if (payload.empty() || payload.size() > MaxPayload || state_ != HelperState::Connected) { return false; }
+bool HelperClient::Send(std::string payload, uint64_t* requestId) {
+    // Moved into the message first, so its destructor wipes it on every return
+    // below; a moved-from short string keeps its characters, so wipe that too.
+    OutgoingMessage message; message.payload = std::move(payload);
+    WipeText(payload);
+    const size_t size = message.payload.size();
+    if (size == 0 || size > MaxPayload || state_ != HelperState::Connected) { return false; }
     std::lock_guard<std::mutex> lock(sendMutex_);
     if (nextId_ > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) { return false; }
-    OutgoingMessage message; message.id = nextId_; message.payload = payload;
-    if (!outgoing_.TryPush(std::move(message), payload.size())) { return false; }
+    message.id = nextId_;
+    if (!outgoing_.TryPush(std::move(message), size)) { return false; }
     if (requestId) { *requestId = nextId_; }
     ++nextId_;
     const char byte = 0;
@@ -81,10 +83,9 @@ void HelperClient::Stop() {
 }
 
 // Moves `size` bytes, waiting on the pipe and the stop signal together so a
-// blocked transfer ends when the client stops or the deadline passes.
-bool HelperClient::Transfer(int fd, void* data, size_t size, bool write) {
+// blocked transfer ends when the client stops or `deadline` passes.
+bool HelperClient::Transfer(int fd, void* data, size_t size, bool write, uint64_t deadline) {
     size_t offset = 0;
-    const uint64_t deadline = GetTickCount64() + IoTimeoutMs;
     while (offset < size) {
         pollfd waits[2] = {};
         waits[0].fd = stopPipe_[0]; waits[0].events = POLLIN;
@@ -105,36 +106,30 @@ bool HelperClient::Transfer(int fd, void* data, size_t size, bool write) {
 
 bool HelperClient::WriteFrame(int fd, const HelperMessage& message) {
     if (message.payload.empty() || message.payload.size() > MaxPayload) { return false; }
-    std::vector<uint8_t> bytes(HeaderSize + message.payload.size());
-    const uint32_t length = static_cast<uint32_t>(10 + message.payload.size());
-    for (int i = 0; i < 4; ++i) { bytes[i] = static_cast<uint8_t>(length >> (24 - 8 * i)); }
-    bytes[4] = 0; bytes[5] = 1;
-    for (int i = 0; i < 8; ++i) { bytes[6 + i] = static_cast<uint8_t>(message.id >> (56 - 8 * i)); }
-    memcpy(bytes.data() + HeaderSize, message.payload.data(), message.payload.size());
-    const bool success = Transfer(fd, bytes.data(), bytes.size(), true);
-    // A frame may carry a passphrase; none outlives its write.
-    WipeText(reinterpret_cast<char*>(bytes.data()), bytes.size());
-    return success;
+    // The header and the payload go as two writes under one deadline. The
+    // payload, which may carry a passphrase, is not copied here; the caller
+    // wipes it after the write.
+    uint8_t header[HeaderSize];
+    EncodeHeader(message.id, message.payload.size(), header);
+    const uint64_t deadline = GetTickCount64() + IoTimeoutMs;
+    return Transfer(fd, header, HeaderSize, true, deadline)
+        && Transfer(fd, const_cast<char*>(message.payload.data()), message.payload.size(), true, deadline);
 }
 
 bool HelperClient::ReadFrame(int fd, HelperMessage& message) {
     uint8_t header[HeaderSize];
-    if (!Transfer(fd, header, HeaderSize, false)) { return false; }
-    uint32_t length = 0;
-    for (int i = 0; i < 4; ++i) { length = (length << 8) | header[i]; }
-    if (length <= 10 || length > MaxPayload + 10 || header[4] != 0 || header[5] != 1) { error_ = EBADMSG; return false; }
-    message.id = 0;
-    for (int i = 0; i < 8; ++i) { message.id = (message.id << 8) | header[6 + i]; }
-    if (message.id == 0 || message.id > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) { error_ = EBADMSG; return false; }
-    message.payload.resize(length - 10);
-    return Transfer(fd, &message.payload[0], message.payload.size(), false);
+    if (!Transfer(fd, header, HeaderSize, false, GetTickCount64() + IoTimeoutMs)) { return false; }
+    uint32_t size = 0;
+    if (!DecodeHeader(header, message.id, size)) { error_ = EBADMSG; return false; }
+    message.payload.resize(size);
+    return Transfer(fd, &message.payload[0], message.payload.size(), false, GetTickCount64() + IoTimeoutMs);
 }
 
 // The same work as the Windows worker: bounded writes, then one read when the
 // helper has written, with one frame held back while the incoming mailbox is
-// full so the helper feels the backpressure instead of losing an event. Unlike
-// that worker it does not look every 2 ms: each pass waits in one poll for the
-// stop signal, a Send (the wake pipe) or the helper's output, so a room with
+// full so the helper feels the backpressure instead of losing an event. As
+// there, each pass waits in one poll for the stop signal, a Send (the wake
+// pipe) or the helper's output, so a room with
 // nothing happening costs nothing. Only a held-back frame is retried on a timer,
 // since the mailbox's consumer gives no signal when it makes room.
 void HelperClient::Run(int readFd, int writeFd) {

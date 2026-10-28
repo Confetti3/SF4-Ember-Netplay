@@ -60,78 +60,7 @@ void System::Locate(HMODULE peRoot) {
     staticVars.CurrentBattleFlowSubstateFrame = (FixedPoint*)(peRootOffset + 0x6a9268);
 }
 
-int* System::GetBattleExitType(System* s) {
-    return (int*)((unsigned int)s + 0xe40);
-}
-
-int* System::GetFirstCharaToSimulate(System* s) {
-    return (int*)((unsigned int)s + 0xd74);
-}
-
-FixedPoint* System::GetNumFramesSimulated_FixedPoint(System* s) {
-    return (FixedPoint*)((unsigned int)s + 0xdd4);
-}
-
-int* System::GetReadyState(System* s) {
-    return (int*)((unsigned int)s + 0xdf8);
-}
-
-EmRandom* System::GetRandom(System* s) {
-    return (EmRandom*)((unsigned int)s + 0x50);
-}
-
-Request** System::GetRequest(System* s) {
-    return (Request**)((unsigned int)s + 0x98);
-}
-
 int* System::GetPlayerControl(System* s, int side) {
     BYTE* players = *(BYTE**)((unsigned int)s + 0x9c);
     return players ? (int*)(players + side * 0x2b8 + 0x1c) : nullptr;
-}
-
-int* System::GetMenuPlayerControl(System* s, int side) {
-    return (int*)((unsigned int)s + 0x6d8 + side * 0x2b8 + 0x1c);
-}
-
-DWORD* System::GetSkipRelatedFlags_0xd8c(System* s) {
-    return (DWORD*)((unsigned int)s + 0xd8c);
-}
-
-DWORD* System::GetSimulationFlags(System* s) {
-    return (DWORD*)((unsigned int)s + 0x1454);
-}
-
-int* System::GetPausingPlayer(System* s) {
-    // 0x5DB7BE stores the player after Pause::Unit Open at 0x5DB799.
-    // 0x5DB673 (forced close), 0x5DB8C4 (resume), and 0x5DA896
-    // (CloseBattle/SYS START reset) store -1. Training hold leaves it unset.
-    return (int*)((unsigned int)s + 0x1458);
-}
-
-int* System::GetSlowMotion(System* s) {
-    return (int*)((unsigned int)s + 0x1464);
-}
-
-Dimps::Game::GameMementoKey* System::GetMementoKey(System* s) {
-    return (Dimps::Game::GameMementoKey*)((unsigned int)s + 0x14a4);
-}
-
-FixedPoint* System::GetTransitionProgress(System* s) {
-    return (FixedPoint*)((unsigned int)s + 0xe24);
-}
-
-FixedPoint* System::GetTransitionSpeed(System* s) {
-    return (FixedPoint*)((unsigned int)s + 0xe28);
-}
-
-int* System::GetTransitionType(System* s) {
-    return (int*)((unsigned int)s + 0xe20);
-}
-
-System* System::ToMementoable(System* s) {
-    return (System*)((unsigned int)s + 0x4);
-}
-
-System* System::FromMementoable(System* s) {
-    return (System*)((unsigned int)s - 0x4);
 }

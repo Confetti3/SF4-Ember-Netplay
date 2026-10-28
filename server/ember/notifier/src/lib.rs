@@ -29,11 +29,7 @@ mod twitch_room;
 
 use std::{
     net::SocketAddr,
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicI64, Ordering},
-    },
-    time::{SystemTime, UNIX_EPOCH},
+    sync::{Arc, Mutex},
 };
 
 use axum::{Router, routing::post};
@@ -45,27 +41,13 @@ use tokio::{net::TcpListener, sync::Notify, task::JoinHandle};
 use zeroize::Zeroizing;
 
 pub use config::{Bot, Brackets, Config, Discord, Interactions, Roles, Twitch};
+pub use ember_protocol::client::Clock;
+pub use eventsub::KEEPALIVE_GRACE;
 pub use format::Message;
 pub use interactions::register_commands;
 
 use config::resolve;
 use sent::http_client;
-
-#[derive(Clone, Default)]
-pub struct Clock(Arc<AtomicI64>);
-
-impl Clock {
-    pub fn now(&self) -> u64 {
-        let wall = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_secs() as i64);
-        (wall + self.0.load(Ordering::Relaxed)).max(0) as u64
-    }
-
-    pub fn advance(&self, seconds: i64) {
-        self.0.fetch_add(seconds, Ordering::Relaxed);
-    }
-}
 
 struct Inner {
     config: Config,
@@ -118,6 +100,8 @@ impl Notifier {
                  id TEXT PRIMARY KEY, type TEXT NOT NULL, body BLOB NOT NULL, received_at INTEGER NOT NULL,
                  discord_done INTEGER NOT NULL, twitch_done INTEGER NOT NULL,
                  attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL, last_error TEXT);
+             CREATE INDEX IF NOT EXISTS inbox_due ON inbox (next_at)
+                 WHERE discord_done = 0 OR twitch_done = 0;
              CREATE TABLE IF NOT EXISTS matches (id TEXT PRIMARY KEY, label TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS feeds (tournament TEXT PRIMARY KEY, posted INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS award_cursor (id INTEGER PRIMARY KEY CHECK (id = 1), n INTEGER NOT NULL);

@@ -45,6 +45,11 @@ impl ChatEvent {
             .iter()
             .any(|badge| matches!(badge.set_id.as_str(), "broadcaster" | "moderator"))
     }
+
+    /// Whether this is a `!room` from the host of the channel `broadcaster_id`.
+    pub(crate) fn asks_for_room(&self, broadcaster_id: &str) -> bool {
+        self.broadcaster_user_id == broadcaster_id && self.is_room_command() && self.is_from_host()
+    }
 }
 
 impl Notifier {
@@ -67,10 +72,7 @@ impl Notifier {
         let Some(creator) = twitch.room_creator.clone() else {
             return;
         };
-        if event.broadcaster_user_id != twitch.broadcaster_id
-            || !event.is_room_command()
-            || !event.is_from_host()
-        {
+        if !event.asks_for_room(&twitch.broadcaster_id) {
             return;
         }
         // A creator who already has a room gets that room's link again.

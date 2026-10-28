@@ -19,7 +19,7 @@ use tournament_support::*;
 /// browser opens. A site the bridge does not list is not found.
 #[tokio::test]
 async fn sign_in_sites_through_the_helper() {
-    let dirs = Dirs::new("sites");
+    let dirs = dirs("sites");
     let pages = "http://127.0.0.1:9";
     let sites = vec![
         site("challonge", "challonge", "Challonge", pages),
@@ -89,7 +89,7 @@ async fn sign_in_sites_through_the_helper() {
 /// Discord's refused page is left as it always was.
 #[tokio::test]
 async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
-    let dirs = Dirs::new("mixed");
+    let dirs = dirs("mixed");
     let public = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", public.local_addr().unwrap());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -237,7 +237,7 @@ async fn provider_call(origin: &str, token: &str, path: &str, body: Value) -> Va
 
 #[tokio::test]
 async fn link_an_identity_through_the_helper() {
-    let dirs = Dirs::new("e2e");
+    let dirs = dirs("e2e");
     let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let provider = ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "e2e")
         .await
@@ -424,7 +424,7 @@ async fn bridge_document(origin: &str, path: &str) -> Value {
 // bridge, it is not trusted at all, and is sent nothing past the check.
 #[tokio::test]
 async fn a_pinned_bridge_is_trusted_without_an_approval() {
-    let dirs = Dirs::new("pinned");
+    let dirs = dirs("pinned");
     let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let profile = bridge_document(&origin, "/.well-known/ember-bridge.json").await;
     let bridge_id = profile["bridge_id"].as_str().unwrap().to_owned();
@@ -553,7 +553,7 @@ async fn linked_worker(
 
 #[tokio::test]
 async fn play_a_set_through_two_helpers() {
-    let dirs = Dirs::new("play");
+    let dirs = dirs("play");
     let (running, origin) = bridge(&dirs.0, Vec::new()).await;
     let provider = ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "play")
         .await
@@ -697,5 +697,128 @@ async fn play_a_set_through_two_helpers() {
         .ask(json!({ "op": "replay_archive", "path": dirs.0.join("game-1.emberreplay"), "sides": { "a": "Ann", "b": "Bob Ü", "side": 0, "country": "BE" } }))
         .await;
     assert_eq!((ok, reason.as_deref()), (false, Some("replays_unsupported")));
+    running.abort();
+}
+
+/// An origin that takes every connection and never answers, counting them.
+async fn silent_origin() -> (
+    String,
+    std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    tokio::task::JoinHandle<()>,
+) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let taken = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counted = taken.clone();
+    let task = tokio::spawn(async move {
+        let mut held = Vec::new();
+        while let Ok((socket, _)) = listener.accept().await {
+            counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            held.push(socket);
+        }
+    });
+    (origin, taken, task)
+}
+
+/// A request as the native side sends it, under its own request id.
+fn submit(worker: &Worker, request_id: u64, request: Value) {
+    let command: Command =
+        serde_json::from_value(json!({ "type": "tournament", "request": request })).unwrap();
+    let Command::Tournament { request } = command else {
+        unreachable!()
+    };
+    worker.handle.submit(request_id, request);
+}
+
+// A leave runs at once while bridge requests wait for an HTTP slot, so a
+// claim sent before it can reach the bridge after it. That claim is dropped:
+// the binding of the match the game left is not restored. A claim sent after
+// the leave holds the match again.
+#[tokio::test]
+async fn a_claim_sent_before_leaving_does_not_hold_the_match_again() {
+    let dirs = dirs("leave");
+    let (running, origin) = bridge(&dirs.0, Vec::new()).await;
+    let provider = ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "leave")
+        .await
+        .unwrap();
+    let (host_endpoint, guest_endpoint) = ("a".repeat(64), "b".repeat(64));
+    let host_dirs = Dirs(dirs.0.join("host"));
+    let guest_dirs = Dirs(dirs.0.join("guest"));
+    let (mut host, host_id, bridge_id, host_link) =
+        linked_worker(&host_dirs, &host_endpoint, &origin, &provider, "host").await;
+    let (mut guest, guest_id, _, guest_link) =
+        linked_worker(&guest_dirs, &guest_endpoint, &origin, &provider, "guest").await;
+    let created = provider_call(
+        &origin,
+        &provider,
+        "/v1/matches",
+        json!({
+            "external_match_id": "helper-leave",
+            "game": "usf4",
+            "participants": [
+                { "participant_id": host_link["participant_id"], "ember_id": host_id, "slot": 0 },
+                { "participant_id": guest_link["participant_id"], "ember_id": guest_id, "slot": 1 },
+            ],
+            "rules": {
+                "games_to_win": 2, "draw_policy": "replay_no_score", "native_rules_profile": "ember-room-v1",
+                "edition_policy": "ultra_only", "character_policy": "unrestricted_between_games",
+                "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
+            },
+            "observer_policy": "authorized_only",
+            "result_policy": "two_player_agreement_or_review",
+            "required_build_id": "ember",
+            "metadata": {},
+        }),
+    )
+    .await;
+    let match_id = created["match_id"].as_str().unwrap().to_owned();
+    let claim = json!({ "op": "match_claim", "bridge_id": bridge_id, "match_id": match_id, "build": "build-1" });
+    let (ok, reason, _, lease) = host.ask(claim.clone()).await;
+    assert!(ok, "{reason:?}");
+    let (_, _, _, wait) = guest.ask(claim.clone()).await;
+    assert_eq!(wait["role"], "wait");
+    let (ok, reason, _, _) = host
+        .ask(json!({ "op": "room_publish", "bridge_id": bridge_id, "match_id": match_id, "room": {
+            "room_id": "0123456789abcdef0123456789abcdef", "invitation": "sf4e3:test",
+            "lease_id": lease["lease_id"], "fence": lease["fence"], "replaces": null,
+        }}))
+        .await;
+    assert!(ok, "{reason:?}");
+    let (_, _, _, joined) = guest.ask(claim.clone()).await;
+    assert_eq!(joined["binding"]["local_slot"], 1);
+
+    // Four bridge requests hang on an origin that never answers, holding
+    // every HTTP slot, so the guest's next claim waits behind them.
+    let (silent, taken, task) = silent_origin().await;
+    for id in 1..=4 {
+        submit(&guest, id, json!({ "op": "bridge_inspect", "origin": silent }));
+    }
+    let started = tokio::time::Instant::now();
+    while taken.load(std::sync::atomic::Ordering::SeqCst) < 4 {
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(10),
+            "bridge requests not sent"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    submit(&guest, 10, claim.clone());
+    submit(&guest, 11, json!({ "op": "match_leave", "match_id": match_id }));
+    let (ok, reason, _, _) = guest.next_answer(11).await;
+    assert!(ok, "{reason:?}");
+    // The origin goes away, the slots free up, and the claim runs after the leave.
+    task.abort();
+    let (ok, reason, _, _) = guest.next_answer(10).await;
+    assert_eq!((ok, reason.as_deref()), (false, Some("match_left")));
+    let prepare = json!({ "op": "game_prepare", "bridge_id": bridge_id, "match_id": match_id, "match_generation": "3" });
+    let (ok, reason, _, _) = guest.ask(prepare.clone()).await;
+    assert_eq!((ok, reason.as_deref()), (false, Some("not_bound")));
+
+    // A claim sent after the leave holds it again, as before.
+    let (ok, reason, _, again) = guest.ask(claim).await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(again["binding"]["local_slot"], 1);
+    let (ok, reason, _, pending) = guest.ask(prepare).await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(pending["state"], "pending");
     running.abort();
 }

@@ -2,7 +2,7 @@
 //! room's only voter for its whole life, and every other node is a learner
 //! that takes the log from that host and from nobody else. A room that loses
 //! its host is not recovered; see `docs/design/PUBLIC_ROOMS.md`.
-use super::MAX_MEMBERS;
+use super::{MAX_MEMBERS, Method};
 
 /// How a coordinator takes part in its room.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -46,11 +46,14 @@ impl Ownership {
     /// A host is the leader for good, so nothing appends to it, asks it for a
     /// vote or hands it a snapshot. A member takes everything from its host
     /// and from nothing else, and grants no votes.
-    pub fn serves(self, source: u64, method: &str) -> bool {
+    pub fn serves(self, source: u64, method: Method) -> bool {
         match self {
             Self::Private => true,
-            Self::Host => !matches!(method, "append" | "vote" | "snapshot" | "elect"),
-            Self::Member { host } => source == host && method != "vote",
+            Self::Host => !matches!(
+                method,
+                Method::Append | Method::Vote | Method::Snapshot | Method::Elect
+            ),
+            Self::Member { host } => source == host && method != Method::Vote,
         }
     }
 

@@ -199,6 +199,59 @@ impl LoadWindow {
     }
 }
 
+impl Actor {
+    /// The once-a-second work of the actor's loop: coordination state, the
+    /// latency board, the invitation and short link, the network summary,
+    /// the load report and each live link's statistics. `ticks` counts the
+    /// seconds; `load` and `reported_network` are the loop's.
+    pub(super) async fn second(
+        &mut self,
+        ticks: u64,
+        busy: &Busy,
+        load: &mut LoadWindow,
+        reported_network: &mut Option<network::NetworkSummary>,
+    ) -> io::Result<()> {
+        self.emit_coordination_state().await?;
+        busy.stage("statistics:latency");
+        self.latency_second().await;
+        busy.stage("statistics");
+        if let Ok(time) = now() {
+            self.renew_invitation(time);
+            self.pump_short_link(time);
+        }
+        // Room or not: the settings screen shows it. A report that
+        // found the queue busy is not counted as sent.
+        let summary = network::network_summary(&self.endpoint);
+        if reported_network.as_ref() != Some(&summary) && self.emit_bulk(summary.clone().into()) {
+            *reported_network = Some(summary);
+        }
+        // While a room is open, not only during a match: a report that
+        // stops at match end must mean the actor stopped (F-008). With
+        // no game it comes every few seconds rather than every second,
+        // and covers every second since the last one sent.
+        let due = !self.games.is_empty()
+            || (self.room.is_some() && ticks % IDLE_LOAD_REPORT_SECS == 0);
+        if due && self.events.has_headroom() {
+            self.emit(load.report(self.epoch, self.events.capacity()))?;
+        } else if self.room.is_none() && self.games.is_empty() {
+            load.clear();
+        }
+        for (peer, slot) in &self.games {
+            if !self.events.has_headroom() { break; }
+            if let Some(stats) = &slot.stats {
+                let route = slot
+                    .route_connection
+                    .as_ref()
+                    .map(selected_probe_route)
+                    .unwrap_or_else(|| "unavailable".into());
+                let generation = slot.auth.key.generation;
+                self.emit(statistics_event(self.epoch, *peer, generation, stats, route))?;
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -5,7 +5,11 @@
 use std::sync::{Arc, Mutex};
 
 use axum::{Router, http::StatusCode, routing::post};
-use ember_bridge::{AppState, Clock, Config, Db, Keys, config, integrations::Secrets};
+use ember_bridge::{
+    AppState, Clock, Db, Keys, config,
+    integrations::Secrets,
+    testing::{TempDir, connection, loopback_config},
+};
 use zeroize::Zeroizing;
 
 #[tokio::test]
@@ -27,48 +31,17 @@ async fn registration_works_without_a_running_bridge() {
     let api_base = format!("http://{}/api", listener.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(listener, app).await });
 
-    let dir = std::env::temp_dir().join(format!(
-        "ember-bridge-command-{}",
-        ember_protocol::encoding::b64u(&rand16())
-    ));
-    std::fs::create_dir_all(&dir).unwrap();
-    let config = Config {
-        bridge_id: ember_protocol::encoding::prefixed_id("brg", rand16()),
-        display_name: "Test bridge".into(),
-        origin: "https://bridge.example".into(),
-        listen: "127.0.0.1:0".into(),
-        database: dir.join("bridge.sqlite3"),
-        secrets: dir.join("secrets.json"),
-        allow_loopback_http: true,
-        allow_private_webhooks: true,
-        mock_browser: false,
-        discord: None,
-        sign_in_sites: Vec::new(),
-        desk: None,
-        integration_secrets: None,
-        rooms: None,
-        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
-        replay_retention: None,
-        archive: None,
-        trusted_proxies: Vec::new(),
-        tenants: vec![config::Tenant {
-            id: "bm".into(),
-            name: "BluMint".into(),
-            connections: vec![config::Connection {
-                id: "blumint-test".into(),
-                kind: "blumint".into(),
-                environment: "staging".into(),
-                display_name: "BluMint (test)".into(),
-                enabled: true,
-                api_base: Some(api_base),
-                discord_lookup: false,
-                lookup_sites: Vec::new(),
-                disputes: None,
-                results_url: None,
-                rooms: None,
-            }],
-        }],
-    };
+    let dir = TempDir::new("ember-bridge-command");
+    let mut config = loopback_config(&dir, "https://bridge.example");
+    let mut blumint = connection("blumint-test", "BluMint (test)");
+    blumint.kind = "blumint".into();
+    blumint.environment = "staging".into();
+    blumint.api_base = Some(api_base);
+    config.tenants = vec![config::Tenant {
+        id: "bm".into(),
+        name: "BluMint".into(),
+        connections: vec![blumint],
+    }];
     config.validate().unwrap();
     let db = Db::open(&config.database).unwrap();
     let secrets = Secrets {
@@ -85,11 +58,4 @@ async fn registration_works_without_a_running_bridge() {
         .await
         .unwrap();
     assert_eq!(*calls.lock().unwrap(), 3);
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-fn rand16() -> [u8; 16] {
-    let mut bytes = [0; 16];
-    getrandom::fill(&mut bytes).unwrap();
-    bytes
 }

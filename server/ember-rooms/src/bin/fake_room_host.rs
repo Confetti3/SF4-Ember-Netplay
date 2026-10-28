@@ -13,6 +13,8 @@
 //! - `unknown-types`: prints messages of unknown type around `hosted`.
 //! - `members:<n>`: reports `hosted` and `n` members, `n / 2` playing tables
 //!   and one banned id, `banned-<n>`.
+//! - `repeat-status`: reports `hosted`, then the same status of two members
+//!   three times, and two seconds later one of three members.
 //! - `occupied-then-empty`: reports `hosted`, one member, then none.
 //! - `last-member-left`: like `occupied-then-empty`, then says `closed` on its
 //!   own and exits 0 half a second later, whatever its stdin does.
@@ -151,6 +153,13 @@ fn main() -> ExitCode {
         "unknown-types" => {
             send(&json!({ "type": "future-thing" }));
             send(&status(0, 0, Vec::new()));
+        }
+        "repeat-status" => {
+            for _ in 0..3 {
+                send(&status(2, 1, vec!["banned-2".to_owned()]));
+            }
+            std::thread::sleep(Duration::from_secs(2));
+            send(&status(3, 1, vec!["banned-2".to_owned()]));
         }
         "occupied-then-empty" => {
             send(&status(1, 0, Vec::new()));

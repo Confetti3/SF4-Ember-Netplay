@@ -70,6 +70,11 @@ impl Backoff {
         now >= self.at
     }
 
+    /// The time it is waiting for.
+    pub fn at(&self) -> u64 {
+        self.at
+    }
+
     /// Waits from `now`: `min` the first time since a reset, then twice the
     /// last wait, at most `max`. Returns how many times it has grown since
     /// the reset, so the first of a run can be logged.

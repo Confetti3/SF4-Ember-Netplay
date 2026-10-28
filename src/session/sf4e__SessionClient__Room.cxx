@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <limits>
+#include <atomic>
 
 #include <windows.h>
 
@@ -98,6 +99,54 @@ void SessionClient::TrySendPendingJoinRequest() {
 	if (sent != session::SendResult::NotConnected && sent != session::SendResult::QueueFull) {
 		spdlog::warn("Client: join request send failed (result {})", static_cast<int>(sent));
 		_roomError = "runtime.room_request_failed";
+	}
+}
+
+void SessionClient::PumpTerminalAcks() {
+	// Every recipient acknowledges a durable terminal event through the same
+	// authenticated room action path. Reuse one action ID for the exact
+	// room/table/generation so arbitrary response latency cannot evict its proof.
+	for (auto pending = _pendingTerminalAcks.begin(); pending != _pendingTerminalAcks.end();) {
+		if (_roomSnapshot.roomEpoch && _roomSnapshot.roomEpoch != pending->roomEpoch) {
+			pending = _pendingTerminalAcks.erase(pending);
+			continue;
+		}
+		if (!_customRoomsSeen || !_roomSnapshot.roomEpoch || _stepCounter < pending->nextStep) {
+			++pending;
+			continue;
+		}
+		// A reliable send can be accepted by the local transport while its
+		// room-result reply is lost during leader recovery. Bound the in-flight
+		// wait and retry the same idempotent table/generation acknowledgement;
+		// otherwise the Application clears its local queue after the first send
+		// and the receipt can remain blocked forever.
+		if (!pending->actionId) {
+			if (_nextRoomActionId == (std::numeric_limits<std::uint64_t>::max)()) {
+				pending->nextStep = _stepCounter + 4;
+				++pending;
+				continue;
+			}
+			pending->actionId = _nextRoomActionId++;
+		}
+		room::Action acknowledgment;
+		acknowledgment.kind = room::ActionKind::AcknowledgeTerminal;
+		acknowledgment.protocolVersion = room::ProtocolVersion;
+		acknowledgment.actionId = pending->actionId;
+		acknowledgment.roomEpoch = pending->roomEpoch;
+		acknowledgment.table = pending->table;
+		acknowledgment.matchGeneration = pending->generation;
+		acknowledgment.tableRevision = pending->table < room::TableCount ? _roomSnapshot.tables[pending->table].revision : 0;
+		SessionProtocol::RoomActionMessage message;
+		message.action = acknowledgment;
+		json payload = message;
+		if (Send(payload, nullptr) == session::SendResult::Queued) {
+			RememberSentRoomAction(acknowledgment);
+			pending->nextStep = _stepCounter + 8;
+			++pending;
+		} else {
+			pending->nextStep = _stepCounter + 4;
+			++pending;
+		}
 	}
 }
 
@@ -370,6 +419,11 @@ SessionClient::~SessionClient()
 	Disconnect();
 }
 
+std::uint64_t SessionClient::NextRoomSnapshotSequence() {
+	static std::atomic<std::uint64_t> sequence{0};
+	return ++sequence;
+}
+
 bool SessionClient::HandleRoomSnapshot(json& msg) {
 	SessionProtocol::RoomSnapshotMessage snapshot;
 	try { msg.get_to(snapshot); }
@@ -382,11 +436,6 @@ bool SessionClient::HandleRoomSnapshot(json& msg) {
 			(*snapshotField)["protocol_version"].get<long long>() != static_cast<long long>(room::ProtocolVersion);
 		_roomError = otherProtocol ? "runtime.build_mismatch" : "runtime.room_request_failed"; return false;
 	}
-	// The owner leaves out chat this client already holds (it advertised
-	// roomChatDelta). Keep the current room's chat; a different room has
-	// none to keep.
-	if (snapshot.chatUnchanged && _roomSnapshot.roomEpoch && snapshot.snapshot.roomEpoch == _roomSnapshot.roomEpoch)
-		snapshot.snapshot.chat = _roomSnapshot.chat;
 	if (snapshot.snapshot.protocolVersion != room::ProtocolVersion ||
 		(snapshot.snapshot.localMember == 0 && _customRoomsRequired)) {
 		spdlog::warn("Client: incompatible room protocol {} (this build speaks {})", snapshot.snapshot.protocolVersion, room::ProtocolVersion);
@@ -394,8 +443,15 @@ bool SessionClient::HandleRoomSnapshot(json& msg) {
 	}
     if(_roomSnapshot.roomEpoch && (snapshot.snapshot.roomEpoch!=_roomSnapshot.roomEpoch ||
         snapshot.snapshot.revision<_roomSnapshot.revision)) return true;
+	// The owner leaves out chat this client already holds (it advertised
+	// roomChatDelta). Keep the current room's chat; a different room has
+	// none to keep. It moves over rather than being copied, since the room
+	// it belongs to is replaced on the next line.
+	if (snapshot.chatUnchanged && _roomSnapshot.roomEpoch && snapshot.snapshot.roomEpoch == _roomSnapshot.roomEpoch)
+		snapshot.snapshot.chat = std::move(_roomSnapshot.chat);
 	_roomSnapshot = std::move(snapshot.snapshot);
 	_roomSnapshotReceivedMs = GetTickCount64();
+	_roomSnapshotSequence = NextRoomSnapshotSequence();
 	_customRoomsSeen = true;
 	if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
 	ReconcileTerminalAcks();
@@ -434,6 +490,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
         (result.result.snapshot.roomEpoch==_roomSnapshot.roomEpoch && result.result.snapshot.revision>=_roomSnapshot.revision))) {
 		_roomSnapshot = std::move(result.result.snapshot);
 		_roomSnapshotReceivedMs = GetTickCount64();
+		_roomSnapshotSequence = NextRoomSnapshotSequence();
 		_customRoomsSeen = true;
 		if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
 		ReconcileTerminalAcks();

@@ -2,7 +2,12 @@
 //! The children are `fake_room_host`, which behaves by room name.
 #![cfg(feature = "test-fake-host")]
 
-use std::{collections::BTreeMap, time::Duration};
+use std::{
+    cell::{Cell, RefCell},
+    collections::BTreeMap,
+    future::Future,
+    time::{Duration, Instant},
+};
 
 use axum::{
     Router,
@@ -118,17 +123,47 @@ impl Harness {
 
     /// Waits until the supervisor holds `count` rooms.
     async fn rooms_settle_at(&self, count: usize) {
-        for _ in 0..500 {
-            if self.supervisor.room_count() == count {
-                return;
-            }
-            tokio::time::sleep(Duration::from_millis(20)).await;
-        }
-        panic!(
+        let settled = polled(Duration::from_secs(10), || async {
+            self.supervisor.room_count() == count
+        })
+        .await;
+        assert!(
+            settled,
             "expected {count} rooms, have {}",
             self.supervisor.room_count()
         );
     }
+}
+
+/// Waits until `ready` holds, looking every 20 ms, and fails naming `what`
+/// when `limit` has passed. For something that is to become true; a test
+/// that something does not happen waits a window of its own.
+async fn until<F, Fut>(what: &str, limit: Duration, ready: F)
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = bool>,
+{
+    assert!(
+        polled(limit, ready).await,
+        "gave up waiting for {what} after {limit:?}"
+    );
+}
+
+/// Whether `ready` held within `limit`, for a wait that has more to say than
+/// a name when it did not.
+async fn polled<F, Fut>(limit: Duration, mut ready: F) -> bool
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = bool>,
+{
+    let started = Instant::now();
+    while !ready().await {
+        if started.elapsed() >= limit {
+            return false;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    true
 }
 
 #[tokio::test]
@@ -203,28 +238,78 @@ async fn the_list_carries_the_hosts_latest_status() {
     let harness = harness(|_, _| {});
     harness.create(1, "members:4").await;
     // The status line follows `hosted` a moment later.
-    for _ in 0..200 {
-        if harness.list().await[0]["members"] == 4 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    until(
+        "the list to show 4 members",
+        Duration::from_secs(4),
+        || async { harness.list().await[0]["members"] == 4 },
+    )
+    .await;
     let rooms = harness.list().await;
     assert_eq!(rooms[0]["members"], 4);
     assert_eq!(rooms[0]["tables_playing"], 2);
     assert_eq!(rooms[0]["banned"], json!(["banned-4"]));
 }
 
+/// A room's `rev` moves when a reported field does and never otherwise: a
+/// host that repeats its status, and any number of lists, leave it alone.
+#[tokio::test]
+async fn a_rooms_rev_moves_only_when_a_reported_field_changes() {
+    let harness = harness(|_, _| {});
+    harness.create(1, "repeat-status").await;
+    harness.create(2, "normal").await;
+    let first = harness.list().await;
+    let quiet = first[1]["rev"].as_u64().expect("a rev");
+    assert_ne!(first[0]["rev"], first[1]["rev"]);
+
+    // Two members are reported three times over; the rev is where the first
+    // of them left it, however many arrived.
+    let seen = Cell::new(0);
+    until(
+        "the list to show 2 members",
+        Duration::from_secs(4),
+        || async {
+            let rooms = harness.list().await;
+            let both = rooms[0]["members"] == 2;
+            if both {
+                seen.set(rooms[0]["rev"].as_u64().expect("a rev"));
+            }
+            both
+        },
+    )
+    .await;
+    let seen = seen.get();
+    assert_ne!(seen, 0);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    for _ in 0..3 {
+        let rooms = harness.list().await;
+        assert_eq!(rooms[0]["rev"], seen);
+        // Another room's reports never move this one's.
+        assert_eq!(rooms[1]["rev"], quiet);
+    }
+
+    // A status that differs moves it.
+    until(
+        "the list to show 3 members",
+        Duration::from_secs(8),
+        || async { harness.list().await[0]["members"] == 3 },
+    )
+    .await;
+    let rooms = harness.list().await;
+    assert_eq!(rooms[0]["members"], 3);
+    assert!(rooms[0]["rev"].as_u64().unwrap() > seen);
+    assert_eq!(rooms[1]["rev"], quiet);
+}
+
 #[tokio::test]
 async fn the_list_carries_the_hosts_details_whole() {
     let harness = harness(|_, _| {});
     harness.create(1, "details").await;
-    for _ in 0..200 {
-        if harness.list().await[0].get("details").is_some() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    until(
+        "the list to carry details",
+        Duration::from_secs(4),
+        || async { harness.list().await[0].get("details").is_some() },
+    )
+    .await;
     let rooms = harness.list().await;
     assert_eq!(rooms[0]["members"], 1);
     // The supervisor's own capacity is the creation one; the details are the host's.
@@ -251,12 +336,12 @@ fn fake_ember_id(index: usize) -> String {
 async fn the_list_carries_the_latest_statuss_games_and_omits_none() {
     let harness = harness(|_, _| {});
     harness.create(1, "games").await;
-    for _ in 0..200 {
-        if harness.list().await[0].get("games").is_some() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    until(
+        "the list to carry games",
+        Duration::from_secs(4),
+        || async { harness.list().await[0].get("games").is_some() },
+    )
+    .await;
     let rooms = harness.list().await;
     assert_eq!(rooms[0]["members"], 1);
     assert_eq!(
@@ -270,12 +355,12 @@ async fn the_list_carries_the_latest_statuss_games_and_omits_none() {
     );
     // A room that never reported any lists what it always did.
     harness.create(2, "members:2").await;
-    for _ in 0..200 {
-        if harness.list().await[1]["members"] == 2 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    until(
+        "the second room to show 2 members",
+        Duration::from_secs(4),
+        || async { harness.list().await[1]["members"] == 2 },
+    )
+    .await;
     let rooms = harness.list().await;
     assert_eq!(rooms[1]["members"], 2);
     assert!(rooms[1].get("games").is_none(), "{}", rooms[1]);
@@ -288,12 +373,12 @@ async fn malformed_details_leave_the_room_up_and_the_list_answering() {
     let harness = harness(|_, _| {});
     let (code, _) = harness.create(1, "bad-details").await;
     assert_eq!(code, StatusCode::CREATED);
-    for _ in 0..200 {
-        if harness.list().await[0]["members"] == 1 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    until(
+        "the list to show 1 member",
+        Duration::from_secs(4),
+        || async { harness.list().await[0]["members"] == 1 },
+    )
+    .await;
     tokio::time::sleep(Duration::from_millis(300)).await;
     let rooms = harness.list().await;
     assert_eq!(rooms.len(), 1);
@@ -310,12 +395,12 @@ async fn deeply_nested_details_leave_the_room_up_and_the_list_answering() {
     let harness = harness(|_, _| {});
     let (code, _) = harness.create(1, "deep-details").await;
     assert_eq!(code, StatusCode::CREATED);
-    for _ in 0..200 {
-        if harness.list().await[0]["members"] == 1 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    until(
+        "the list to show 1 member",
+        Duration::from_secs(4),
+        || async { harness.list().await[0]["members"] == 1 },
+    )
+    .await;
     tokio::time::sleep(Duration::from_millis(300)).await;
     let rooms = harness.list().await;
     assert_eq!(rooms.len(), 1);
@@ -335,13 +420,12 @@ async fn a_room_that_filled_and_emptied_between_polls_is_listed_as_opened() {
     // Both statuses follow `hosted` at once; give them time to land before the
     // first list, which is then the only look at the room.
     tokio::time::sleep(Duration::from_millis(300)).await;
-    for _ in 0..200 {
-        let rooms = harness.list().await;
-        if rooms[0]["opened"] == true {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    until(
+        "the room to be listed as opened",
+        Duration::from_secs(4),
+        || async { harness.list().await[0]["opened"] == true },
+    )
+    .await;
     tokio::time::sleep(Duration::from_millis(200)).await;
     let rooms = harness.list().await;
     assert_eq!(rooms[0]["opened"], true);
@@ -354,12 +438,12 @@ async fn a_maximum_size_status_is_accepted_and_listed_whole() {
     let (code, _) = harness.create(1, "max-status").await;
     assert_eq!(code, StatusCode::CREATED);
     // The status follows `hosted` a moment later.
-    for _ in 0..200 {
-        if harness.list().await[0]["members"] == 1 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    until(
+        "the list to show 1 member",
+        Duration::from_secs(4),
+        || async { harness.list().await[0]["members"] == 1 },
+    )
+    .await;
     let rooms = harness.list().await;
     assert_eq!(rooms.len(), 1);
     assert_eq!(rooms[0]["members"], 1);
@@ -739,9 +823,11 @@ async fn an_empty_room_closes_after_the_grace_period() {
 
 #[tokio::test]
 async fn a_room_with_members_is_left_open() {
-    let harness = harness(|_, tuning| tuning.empty_close = Duration::from_millis(300));
+    let empty_close = Duration::from_millis(300);
+    let harness = harness(|_, tuning| tuning.empty_close = empty_close);
     harness.create(1, "members:2").await;
-    tokio::time::sleep(Duration::from_millis(1200)).await;
+    // Long enough for the room, were it empty, to have been closed.
+    tokio::time::sleep(empty_close * 4).await;
     assert_eq!(harness.supervisor.room_count(), 1);
     assert_eq!(harness.list().await.len(), 1);
 }
@@ -756,14 +842,15 @@ async fn a_room_its_host_closes_leaves_the_list_at_once() {
     assert_eq!(code, StatusCode::CREATED);
     let (code, _) = harness.create(2, "last-member-left").await;
     assert_eq!(code, StatusCode::CREATED);
-    let mut listed = Vec::new();
-    for _ in 0..100 {
-        listed = harness.list().await;
-        if listed.len() == 1 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    let listed = RefCell::new(Vec::new());
+    until("one room to be listed", Duration::from_secs(2), || async {
+        let now = harness.list().await;
+        let one = now.len() == 1;
+        *listed.borrow_mut() = now;
+        one
+    })
+    .await;
+    let listed = listed.into_inner();
     // Out of the list while its host is still closing, then off the books.
     assert_eq!(harness.supervisor.room_count(), 2);
     assert_eq!(listed.len(), 1, "{listed:?}");
@@ -782,12 +869,12 @@ async fn draining_refuses_new_rooms_and_finishes_when_the_rooms_end() {
         let supervisor = harness.supervisor.clone();
         async move { supervisor.drain().await }
     });
-    for _ in 0..200 {
-        if harness.supervisor.is_draining() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
+    until(
+        "the supervisor to drain",
+        Duration::from_secs(2),
+        || async { harness.supervisor.is_draining() },
+    )
+    .await;
     let (code, reply) = harness.create(2, "normal").await;
     assert_eq!(
         (code, reply),

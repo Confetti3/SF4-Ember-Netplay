@@ -5,12 +5,10 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include "test_support.hxx"
 
 using namespace sf4e::netplay::rankings;
 using Kind = Requests::Kind;
-
-static int failures = 0;
-#define CHECK(condition) do { if (!(condition)) { std::printf("FAIL line %d: %s\n", __LINE__, #condition); ++failures; } } while (false)
 
 static Standing Ranked(std::uint8_t band) {
 	Standing standing;
@@ -30,12 +28,12 @@ static void ReadThenChoice() {
 	requests.Scope("brg_1", "emb1_a");
 	requests.SentStanding(10, 0);
 	requests.SentChoice(7, 11, 0);
-	CHECK(requests.Awaiting(10) == Kind::None && !requests.Published(0).standing.loading);
-	CHECK(requests.Awaiting(11) == Kind::Choice);
+	EXPECT(requests.Awaiting(10) == Kind::None && !requests.Published(0).standing.loading);
+	EXPECT(requests.Awaiting(11) == Kind::Choice);
 	requests.FinishChoice("", OptedOut(), 0);
 	const auto& status = requests.Published(0);
-	CHECK(status.chose == 7 && status.choosing == 0 && status.choiceFailure.empty());
-	CHECK(status.standing.value.kind == Standing::Kind::OptedOut && status.standing.revision == 1);
+	EXPECT(status.chose == 7 && status.choosing == 0 && status.choiceFailure.empty());
+	EXPECT(status.standing.value.kind == Standing::Kind::OptedOut && status.standing.revision == 1);
 }
 
 // No read goes while a choice is in flight: the choice answers with the standing after it.
@@ -43,10 +41,10 @@ static void ChoiceThenRead() {
 	Requests requests;
 	requests.Scope("brg_1", "emb1_a");
 	requests.SentChoice(3, 20, 0);
-	CHECK(!requests.MayReadStanding() && requests.MayReadBoard());
+	EXPECT(!requests.MayReadStanding() && requests.MayReadBoard());
 	requests.FinishChoice("choice_too_soon", std::nullopt, 0);
-	CHECK(requests.MayReadStanding() && requests.Published(0).choiceFailure == "choice_too_soon" && requests.Published(0).chose == 3);
-	CHECK(requests.Published(0).standing.revision == 0);
+	EXPECT(requests.MayReadStanding() && requests.Published(0).choiceFailure == "choice_too_soon" && requests.Published(0).chose == 3);
+	EXPECT(requests.Published(0).standing.revision == 0);
 }
 
 // A failed refresh ends the request but keeps the value and its revision.
@@ -59,13 +57,13 @@ static void FailedRefresh() {
 	requests.FinishStanding("bridge_unreachable", std::nullopt, 90000);
 	const auto status = requests.Published(91000);
 	const auto& standing = status.standing;
-	CHECK(standing.loaded && standing.value.badge.band == 5 && standing.revision == 1 && standing.finished == 2);
+	EXPECT(standing.loaded && standing.value.badge.band == 5 && standing.revision == 1 && standing.finished == 2);
 	// Its age counts from when it arrived, not from the failed refresh or from when it is shown.
-	CHECK(status.AgeSeconds(standing) == 90);
-	CHECK(standing.error == "bridge_unreachable" && !standing.loading);
+	EXPECT(status.AgeSeconds(standing) == 90);
+	EXPECT(standing.error == "bridge_unreachable" && !standing.loading);
 	requests.SentBoard(3, 0);
 	requests.FinishBoard("bridge_invalid_response", std::nullopt, 0);
-	CHECK(!requests.Published(0).board.loaded && requests.Published(0).board.revision == 0 && requests.Published(0).board.finished == 1);
+	EXPECT(!requests.Published(0).board.loaded && requests.Published(0).board.revision == 0 && requests.Published(0).board.finished == 1);
 }
 
 // Another service or Ember ID forgets every answer, retires the requests on
@@ -80,14 +78,14 @@ static void ScopeChange() {
 	requests.SentChoice(9, 3, 0);
 	requests.Scope("brg_1", "emb1_b");
 	const auto& status = requests.Published(0);
-	CHECK(status.emberId == "emb1_b" && !status.standing.loaded && !status.board.loaded && !status.board.loading);
-	CHECK(status.chose == 9 && status.choiceFailure == "unavailable" && status.choosing == 0);
-	CHECK(status.standing.finished == 1 && status.standing.revision == 1);
-	for (const std::uint64_t late : {1u, 2u, 3u}) CHECK(requests.Awaiting(late) == Kind::None);
+	EXPECT(status.emberId == "emb1_b" && !status.standing.loaded && !status.board.loaded && !status.board.loading);
+	EXPECT(status.chose == 9 && status.choiceFailure == "unavailable" && status.choosing == 0);
+	EXPECT(status.standing.finished == 1 && status.standing.revision == 1);
+	for (const std::uint64_t late : {1u, 2u, 3u}) EXPECT(requests.Awaiting(late) == Kind::None);
 	// The same scope again changes nothing.
 	requests.SentStanding(4, 0);
 	requests.Scope("brg_1", "emb1_b");
-	CHECK(requests.Awaiting(4) == Kind::Standing);
+	EXPECT(requests.Awaiting(4) == Kind::Standing);
 }
 
 // A request the helper could not take ends at once; one it never answers ends after the limit.
@@ -95,14 +93,14 @@ static void LostRequests() {
 	Requests requests;
 	requests.Scope("brg_1", "emb1_a");
 	requests.SentStanding(0, 0);
-	CHECK(requests.Published(0).standing.error == "helper_unavailable" && requests.Published(0).standing.finished == 1);
+	EXPECT(requests.Published(0).standing.error == "helper_unavailable" && requests.Published(0).standing.finished == 1);
 	requests.SentChoice(5, 0, 0);
-	CHECK(requests.Published(0).chose == 5 && requests.Published(0).choiceFailure == "helper_unavailable");
+	EXPECT(requests.Published(0).chose == 5 && requests.Published(0).choiceFailure == "helper_unavailable");
 	requests.SentBoard(6, 1000);
 	requests.Expire(1000 + Requests::GiveUpMs - 1);
-	CHECK(requests.Awaiting(6) == Kind::Board);
+	EXPECT(requests.Awaiting(6) == Kind::Board);
 	requests.Expire(1000 + Requests::GiveUpMs);
-	CHECK(requests.Awaiting(6) == Kind::None && requests.Published(0).board.error == "unavailable");
+	EXPECT(requests.Awaiting(6) == Kind::None && requests.Published(0).board.error == "unavailable");
 }
 
 int main() {
@@ -111,7 +109,7 @@ int main() {
 	FailedRefresh();
 	ScopeChange();
 	LostRequests();
-	if (failures) std::printf("%d failure(s)\n", failures);
+	if (TEST_FAILURES()) std::printf("%d failure(s)\n", TEST_FAILURES());
 	else std::printf("ranking request tests passed\n");
-	return failures ? 1 : 0;
+	return TEST_EXIT_CODE();
 }

@@ -11,10 +11,9 @@
 #include <fcntl.h>
 #include <thread>
 #include <unistd.h>
+#include "test_support.hxx"
 
 using namespace sf4e::platform;
-static int failures = 0;
-#define CHECK(c) do { if (!(c)) { std::printf("FAIL line %d: %s\n", __LINE__, #c); ++failures; } } while (0)
 
 // A checkpoint chunk is 16 KiB of bytes in about 22 KiB of JSON; a frame of
 // this size is many times the pipe buffer.
@@ -45,30 +44,30 @@ int main() {
     {
         Pipes p;
         HelperClient client;
-        CHECK(client.Start(p.fromHelper[0], p.toHelper[1]));
+        EXPECT(client.Start(p.fromHelper[0], p.toHelper[1]));
         p.fromHelper[0] = p.toHelper[1] = -1; // owned by the client now
-        CHECK(client.Send(std::string(FrameBytes, 'x')));
+        EXPECT(client.Send(std::string(FrameBytes, 'x')));
         std::this_thread::sleep_for(std::chrono::milliseconds(500)); // the pipe is full
-        CHECK(client.State() == HelperState::Connected);
+        EXPECT(client.State() == HelperState::Connected);
         const uint64_t before = GetTickCount64();
         client.Stop();
         const uint64_t took = GetTickCount64() - before;
         std::printf("stalled reader: Stop took %llu ms\n", static_cast<unsigned long long>(took));
-        CHECK(took < 2000);
-        CHECK(client.State() == HelperState::Stopped);
-        CHECK(client.LastError() == ECANCELED);
+        EXPECT(took < 2000);
+        EXPECT(client.State() == HelperState::Stopped);
+        EXPECT(client.LastError() == ECANCELED);
     }
 
     // A reader that drains late still gets the whole frame, byte for byte.
     {
         Pipes p;
         HelperClient client;
-        CHECK(client.Start(p.fromHelper[0], p.toHelper[1]));
+        EXPECT(client.Start(p.fromHelper[0], p.toHelper[1]));
         p.fromHelper[0] = p.toHelper[1] = -1;
         std::string payload(FrameBytes, '\0');
         for (size_t i = 0; i < payload.size(); ++i) { payload[i] = static_cast<char>('a' + i % 26); }
         uint64_t id = 0;
-        CHECK(client.Send(payload, &id));
+        EXPECT(client.Send(payload, &id));
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
         std::string received;
         char buffer[4096];
@@ -79,9 +78,9 @@ int main() {
             if (n <= 0) { break; }
             received.append(buffer, static_cast<size_t>(n));
         }
-        CHECK(received.size() == total);
-        CHECK(received.size() == total && received.compare(14, std::string::npos, payload) == 0);
-        CHECK(client.State() == HelperState::Connected);
+        EXPECT(received.size() == total);
+        EXPECT(received.size() == total && received.compare(14, std::string::npos, payload) == 0);
+        EXPECT(client.State() == HelperState::Connected);
         client.Stop();
     }
 
@@ -89,12 +88,12 @@ int main() {
     {
         Pipes p;
         HelperClient client;
-        CHECK(client.Start(p.fromHelper[0], p.toHelper[1]));
+        EXPECT(client.Start(p.fromHelper[0], p.toHelper[1]));
         p.fromHelper[0] = p.toHelper[1] = -1;
         close(p.toHelper[0]); p.toHelper[0] = -1;
-        CHECK(client.Send(std::string(FrameBytes, 'x')));
-        CHECK(WaitFor(client, HelperState::Failed, 2000));
-        CHECK(client.LastError() == EPIPE);
+        EXPECT(client.Send(std::string(FrameBytes, 'x')));
+        EXPECT(WaitFor(client, HelperState::Failed, 2000));
+        EXPECT(client.LastError() == EPIPE);
         client.Stop();
     }
 
@@ -102,15 +101,15 @@ int main() {
     {
         Pipes p;
         HelperClient client;
-        CHECK(client.Start(p.fromHelper[0], p.toHelper[1]));
+        EXPECT(client.Start(p.fromHelper[0], p.toHelper[1]));
         p.fromHelper[0] = p.toHelper[1] = -1;
         const uint64_t before = GetTickCount64();
-        CHECK(client.Send(std::string(FrameBytes, 'x')));
-        CHECK(WaitFor(client, HelperState::Failed, 20000));
+        EXPECT(client.Send(std::string(FrameBytes, 'x')));
+        EXPECT(WaitFor(client, HelperState::Failed, 20000));
         const uint64_t took = GetTickCount64() - before;
         std::printf("stalled reader: write failed after %llu ms\n", static_cast<unsigned long long>(took));
-        CHECK(took >= 14000 && took < 17000);
-        CHECK(client.LastError() == ETIMEDOUT);
+        EXPECT(took >= 14000 && took < 17000);
+        EXPECT(client.LastError() == ETIMEDOUT);
         client.Stop();
     }
 
@@ -120,12 +119,12 @@ int main() {
     {
         Pipes p;
         HelperClient client;
-        CHECK(client.Start(p.fromHelper[0], p.toHelper[1]));
+        EXPECT(client.Start(p.fromHelper[0], p.toHelper[1]));
         p.fromHelper[0] = p.toHelper[1] = -1;
         uint64_t before = GetTickCount64();
         client.WaitForIncoming(200);
         uint64_t took = GetTickCount64() - before;
-        CHECK(took >= 150 && took < 1000);
+        EXPECT(took >= 150 && took < 1000);
         const std::string payload = "{\"type\":\"ready\"}";
         std::string frame(14, '\0');
         const uint32_t length = static_cast<uint32_t>(10 + payload.size());
@@ -135,22 +134,22 @@ int main() {
         frame += payload;
         std::thread([&] {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            CHECK(write(p.fromHelper[1], frame.data(), frame.size()) == static_cast<ssize_t>(frame.size()));
+            EXPECT(write(p.fromHelper[1], frame.data(), frame.size()) == static_cast<ssize_t>(frame.size()));
         }).detach();
         before = GetTickCount64();
         client.WaitForIncoming(5000);
         took = GetTickCount64() - before;
         std::printf("event: WaitForIncoming returned after %llu ms\n", static_cast<unsigned long long>(took));
-        CHECK(took >= 50 && took < 1000);
+        EXPECT(took >= 50 && took < 1000);
         HelperMessage message;
-        CHECK(client.TryReceive(message));
-        CHECK(message.id == 2 && message.payload == payload);
-        CHECK(!client.TryReceive(message));
+        EXPECT(client.TryReceive(message));
+        EXPECT(message.id == 2 && message.payload == payload);
+        EXPECT(!client.TryReceive(message));
         // Nothing new: the next wait runs out.
         before = GetTickCount64();
         client.WaitForIncoming(100);
         took = GetTickCount64() - before;
-        CHECK(took >= 80);
+        EXPECT(took >= 80);
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
         client.Stop();
     }
@@ -161,7 +160,7 @@ int main() {
     {
         Pipes p;
         HelperClient client;
-        CHECK(client.Start(p.fromHelper[0], p.toHelper[1]));
+        EXPECT(client.Start(p.fromHelper[0], p.toHelper[1]));
         p.fromHelper[0] = p.toHelper[1] = -1;
         const std::string payload = "{\"type\":\"ready\"}";
         std::string frames;
@@ -173,25 +172,25 @@ int main() {
             for (int i = 0; i < 8; ++i) { frame[6 + i] = static_cast<char>(id >> (56 - 8 * i)); }
             frames += frame + payload;
         }
-        CHECK(write(p.fromHelper[1], frames.data(), frames.size()) == static_cast<ssize_t>(frames.size()));
+        EXPECT(write(p.fromHelper[1], frames.data(), frames.size()) == static_cast<ssize_t>(frames.size()));
         // Let the worker queue all three.
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         HelperMessage message;
-        CHECK(client.TryReceive(message) && message.id == 2);
+        EXPECT(client.TryReceive(message) && message.id == 2);
         uint64_t before = GetTickCount64();
         client.WaitForIncoming(2000);
         uint64_t took = GetTickCount64() - before;
         std::printf("queued: WaitForIncoming returned after %llu ms with events left\n", static_cast<unsigned long long>(took));
-        CHECK(took < 100);
-        CHECK(client.TryReceive(message) && message.id == 3);
-        CHECK(client.TryReceive(message) && message.id == 4);
+        EXPECT(took < 100);
+        EXPECT(client.TryReceive(message) && message.id == 3);
+        EXPECT(client.TryReceive(message) && message.id == 4);
         before = GetTickCount64();
         client.WaitForIncoming(100);
         took = GetTickCount64() - before;
-        CHECK(took >= 80);
+        EXPECT(took >= 80);
         client.Stop();
     }
 
-    std::printf(failures ? "helper_client_posix_test: %d failure(s)\n" : "helper_client_posix_test: ok\n", failures);
-    return failures ? 1 : 0;
+    std::printf(TEST_FAILURES() ? "helper_client_posix_test: %d failure(s)\n" : "helper_client_posix_test: ok\n", TEST_FAILURES());
+    return TEST_EXIT_CODE();
 }

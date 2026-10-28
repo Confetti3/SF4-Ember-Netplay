@@ -45,6 +45,9 @@ pub fn queue(
             now
         ],
     )?;
+    if user_id.is_some() {
+        crate::db::queued();
+    }
     Ok(())
 }
 

@@ -222,7 +222,7 @@ static std::string EmberId(std::size_t index) {
 	return id;
 }
 
-// The supervisor's line limit is 64 KiB. A full ban list of maximum-length
+// The supervisor's line limit is 128 KiB. A full ban list of maximum-length
 // Ember IDs and a generous invitation must stay under the host's own budget.
 static void TestFullStatusLineFitsTheBudget() {
 	std::vector<std::string> banned;

@@ -7,6 +7,7 @@
 
 #include <array>
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <limits>
@@ -34,7 +35,8 @@ namespace recovery_detail {
 
 using sf4e::Sha256Portable;
 
-// Defined in RoomDigest.cxx, so this header stays free of Windows headers.
+// Defined in RoomDigest.cxx as coordination::Sha256 (CoordinationBytes.hxx),
+// so this header stays free of Windows headers.
 std::string Sha256(const std::string& input);
 
 inline bool IsSha256(const std::string& value) {
@@ -153,6 +155,59 @@ inline bool SupersedableProjection(const EffectEnvelope& effect) {
 	return effect.type == "room_snapshot" || effect.type == "data_update";
 }
 
+// A superseded projection without a replay copy is kept this many revisions
+// behind the newest revision in the journal being compacted. Its envelope is
+// what authenticates a live token parked behind staged commits, and staging
+// parks at four commits, so a parked token is at most three revisions behind;
+// four leaves one commit of margin.
+static constexpr std::uint64_t SupersededProjectionRevisions = 4;
+
+// A room_snapshot replay copy that carries the room chat itself rather than
+// saying chat_unchanged. Never throws on an odd payload.
+inline bool ChatBearingSnapshot(const EffectEnvelope& effect) {
+	if (effect.type != "room_snapshot" || !effect.publicPayload.is_object()) return false;
+	const auto snapshot = effect.publicPayload.find("snapshot");
+	if (snapshot == effect.publicPayload.end() || !snapshot->is_object()) return false;
+	const auto unchanged = snapshot->find("chat_unchanged");
+	return unchanged == snapshot->end() || !unchanged->is_boolean() || !unchanged->get<bool>();
+}
+
+// Supersession, before any budget pressure. A projection followed by a later
+// one for the same (recipient, type) keeps its envelope but drops its replay
+// copy: a successor replays only the newest projection, and the envelope alone
+// still authenticates a live token for it (EffectEnvelope::operator== ignores
+// the payload). The newest chat-bearing snapshot of a recipient keeps its copy
+// while every later one says chat_unchanged, so a replay still carries the
+// chat. A superseded entry without a copy is erased once it is more than
+// SupersededProjectionRevisions behind the newest revision among the entries
+// compacted, never the owner's authority revision, so the leader (history plus
+// candidate) and a follower (journal plus effects) compute the same journal.
+inline void DropSupersededProjectionPayloads(std::vector<EffectEnvelope>& history, std::vector<std::size_t>& encoded) {
+	std::uint64_t newest = 0;
+	for (const auto& effect : history) newest = (std::max)(newest, effect.revision);
+	std::set<room::MemberId> laterSnapshot, laterData, laterChat;
+	std::vector<char> superseded(history.size(), 0);
+	for (std::size_t index = history.size(); index-- > 0;) {
+		auto& effect = history[index];
+		if (!SupersedableProjection(effect)) continue;
+		const bool snapshot = effect.type == "room_snapshot";
+		superseded[index] = !(snapshot ? laterSnapshot : laterData).insert(effect.recipient).second;
+		const bool newestChat = snapshot && ChatBearingSnapshot(effect) && laterChat.insert(effect.recipient).second;
+		if (!superseded[index] || effect.publicPayload.is_null() || newestChat) continue;
+		effect.publicPayload = nullptr;
+		encoded[index] = nlohmann::json(effect).dump().size();
+	}
+	std::size_t kept = 0;
+	for (std::size_t index = 0; index < history.size(); ++index) {
+		if (superseded[index] && history[index].publicPayload.is_null() &&
+			newest - history[index].revision > SupersededProjectionRevisions) continue;
+		if (kept != index) { history[kept] = std::move(history[index]); encoded[kept] = encoded[index]; }
+		++kept;
+	}
+	history.erase(history.begin() + static_cast<std::ptrdiff_t>(kept), history.end());
+	encoded.erase(encoded.begin() + static_cast<std::ptrdiff_t>(kept), encoded.end());
+}
+
 inline std::size_t EffectJournalBytes(const std::vector<EffectEnvelope>& history) {
 	std::size_t bytes = 2; // JSON array brackets.
 	for (std::size_t i = 0; i < history.size(); ++i) {
@@ -199,6 +254,7 @@ inline void CompactEffectJournal(std::vector<EffectEnvelope>& history, std::vect
 			history.erase(history.begin() + item); encoded.erase(encoded.begin() + item); --diagnostics;
 		} else ++item;
 	}
+	DropSupersededProjectionPayloads(history, encoded);
 	std::size_t bytes = history.empty() ? 2 : history.size() + 1;
 	for (const auto size : encoded) bytes += size;
 	const auto erase = [&](std::size_t index) {

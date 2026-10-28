@@ -7,7 +7,7 @@ use serde_json::json;
 use crate::{
     error::Result,
     events,
-    routes::matches,
+    routes::ledger,
     tournament::{Tournament, entrants, load_bracket, round_robin_table, set_json},
 };
 
@@ -45,7 +45,7 @@ pub fn snapshot(tx: &Transaction<'_>, tournament: &Tournament) -> Result<serde_j
             if let Some(match_id) = &bracket.matches[node]
                 && matches!(state.status, Status::Playing | Status::Played)
             {
-                set["wins"] = json!(matches::scores(tx, match_id)?.0);
+                set["wins"] = json!(ledger::scores(tx, match_id)?.0);
             }
             sets.push(set);
         }

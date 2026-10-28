@@ -38,6 +38,80 @@ async fn delayed_departure_does_not_retire_a_new_incarnation_at_the_same_endpoin
     host.close().await;
 }
 
+/// The committed roster and seats read from a commit's view are the ones the
+/// whole checkpoint names, for each endpoint spelling, wrong-type leaf and
+/// repeated key.
+#[test]
+fn the_commit_view_names_the_same_roster_and_seats() {
+    let (a, b) = (
+        iroh::SecretKey::from_bytes(&[1; 32]).public().to_string(),
+        iroh::SecretKey::from_bytes(&[2; 32]).public().to_string(),
+    );
+    let tournament = serde_json::json!({"fighters": [{"endpoint": a}, {"endpoint": b}]});
+    let rows = [
+        serde_json::json!({"incarnation": 7, "data": {"authenticatedEndpoint": a}}),
+        serde_json::json!({"incarnation": 7, "data": {"authenticated_endpoint": a}}),
+        serde_json::json!({"incarnation": 7, "data": {"authenticatedEndpoint": 1, "authenticated_endpoint": a}}),
+        serde_json::json!({"incarnation": 7, "data": {"authenticated_endpoint": b, "authenticatedEndpoint": a}}),
+        serde_json::json!({"incarnation": "7", "data": {"authenticatedEndpoint": a}}),
+        serde_json::json!({"incarnation": 7.0, "data": {"authenticatedEndpoint": a}}),
+        serde_json::json!({"incarnation": 7, "frozen": "true", "data": {"authenticatedEndpoint": a}}),
+        serde_json::json!({"incarnation": 7, "frozen": true, "data": {"authenticatedEndpoint": a}}),
+        serde_json::json!({"incarnation": 7, "data": null}),
+        serde_json::json!({"incarnation": 7}),
+        serde_json::json!([7]),
+    ];
+    let mut texts = Vec::new();
+    for row in &rows {
+        for tournament in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            tournament.clone(),
+            serde_json::json!([]),
+        ] {
+            let envelope = serde_json::json!({
+                "journal": {"payload": "x".repeat(512)},
+                "checkpoint": {
+                    "members": [row, {"incarnation": 8, "data": {"authenticatedEndpoint": b}}],
+                    "room": {"snapshot": {"members": [], "tournament": tournament}}
+                }
+            });
+            texts.push(envelope.to_string());
+        }
+    }
+    let members = serde_json::json!([{"incarnation": 7, "data": {"authenticatedEndpoint": a}}]);
+    texts.extend([
+        format!(r#"{{"checkpoint":{{"members":"x"}},"checkpoint":{{"members":{members}}}}}"#),
+        format!(r#"{{"checkpoint":{{"members":{members}}},"checkpoint":{{"members":"x"}}}}"#),
+        format!(r#"{{"checkpoint":{{"members":{members},"members":[]}}}}"#),
+        format!(r#"{{"checkpoint":{{"members":[],"members":{members}}}}}"#),
+        format!(
+            r#"{{"checkpoint":{{"members":{members},"room":{{"snapshot":{{"tournament":{tournament},"tournament":{{}}}}}}}}}}"#
+        ),
+        format!(
+            r#"{{"checkpoint":{{"members":{members},"room":{{"snapshot":{{"tournament":{{}},"tournament":{tournament}}}}}}}}}"#
+        ),
+        r#"{"checkpoint":[]}"#.to_owned(),
+        "[]".to_owned(),
+    ]);
+    for text in &texts {
+        let whole: serde_json::Value = serde_json::from_str(text).unwrap();
+        let view = crate::coordination::envelope_view(text).unwrap();
+        for allow_empty in [false, true] {
+            assert_eq!(
+                primary_members(&whole, allow_empty),
+                primary_members(&view, allow_empty),
+                "{text}"
+            );
+        }
+        assert_eq!(
+            seats::Seats::read(&whole),
+            seats::Seats::read(&view),
+            "{text}"
+        );
+    }
+}
+
 #[test]
 fn committed_rosters_require_unambiguous_nonzero_incarnations() {
     let endpoint = iroh::SecretKey::generate().public();

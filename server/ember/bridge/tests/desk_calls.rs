@@ -4,9 +4,6 @@
 //! again, with the players pinged and the match link, and the score once the
 //! set is done. Against a stand-in Discord webhook.
 mod common;
-#[allow(dead_code, unused_imports)]
-#[path = "challonge/support.rs"]
-mod support;
 
 use std::{
     collections::VecDeque,
@@ -14,11 +11,11 @@ use std::{
 };
 
 use axum::{Router, body::Bytes, extract::Path, routing::post};
+use common::challonge::*;
 use common::{Bridge, Player, sign_in, sites::connect_discord};
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
-use support::*;
 
 /// A stand-in Discord webhook: what it was posted, and the statuses to
 /// answer with (in order) before it answers 204. A 429 says retry after a

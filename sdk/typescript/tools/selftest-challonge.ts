@@ -19,9 +19,7 @@
 import { readFileSync } from "node:fs";
 
 import type { Json } from "../src/index.ts";
-
-type Body = { [key: string]: Json };
-const isBody = (value: Json | undefined): value is Body => typeof value === "object" && value !== null && !Array.isArray(value);
+import { type Body, isBody } from "./body.ts";
 
 /**
  * The local run configuration: a JSON file kept outside the repository (it

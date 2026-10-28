@@ -51,9 +51,11 @@ int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons
         if(ImGui::Button((FitLabel(button.label,room)+"###DialogButton").c_str(),ImVec2(width,height)))clicked=i;
         if(selected&&moved&&ImGui::IsItemHovered(ImGuiHoveredFlags_NoNavOverride))*selected=i;
         ImGui::EndDisabled();ImGui::PopStyleVar();ImGui::PopStyleColor(2);
-        const auto measured=ImGui::CalcTextSize(button.label.c_str());
-        ReportMenuText((std::string(probe)+"/"+std::to_string(i)).c_str(),measured.y,height-2*style.FramePadding.y,measured.x,room);
-        ReportMenuCard((std::string(probe)+"/"+std::to_string(i)).c_str(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
+        if(MenuProbesActive()){
+            const auto measured=ImGui::CalcTextSize(button.label.c_str());
+            ReportMenuText((std::string(probe)+"/"+std::to_string(i)).c_str(),measured.y,height-2*style.FramePadding.y,measured.x,room);
+            ReportMenuCard((std::string(probe)+"/"+std::to_string(i)).c_str(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
+        }
         ImGui::PopID();
     }
     return clicked;
@@ -226,9 +228,11 @@ void GameMenu::DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction&
                 else if(moved&&ImGui::IsItemHovered()) navigation.ChoiceIndex(i);
                 if(selected&&(appearing||lastChoice_!=i)) ImGui::SetScrollHereY(.5f);
                 ImGui::PopStyleVar();ImGui::PopStyleColor();
-                const auto measured=ImGui::CalcTextSize(option.label.c_str());
-                ReportMenuText(("choice/"+option.id).c_str(),measured.y,row-2*ImGui::GetStyle().FramePadding.y,measured.x,room);
-                ReportMenuCard(("choice/"+option.id).c_str(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
+                if(MenuProbesActive()){
+                    const auto measured=ImGui::CalcTextSize(option.label.c_str());
+                    ReportMenuText(("choice/"+option.id).c_str(),measured.y,row-2*ImGui::GetStyle().FramePadding.y,measured.x,room);
+                    ReportMenuCard(("choice/"+option.id).c_str(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
+                }
                 ImGui::PopID();
             }
             ImGui::EndChild();

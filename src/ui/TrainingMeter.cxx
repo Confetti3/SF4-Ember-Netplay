@@ -159,6 +159,39 @@ void DrawStops(ImDrawList* draw, const MeterView& meter, int side, BarWindow win
         if (index < 0 || !meter.frames[index].cells[side].afterStop) continue;
         StopLine(draw, ImVec2(origin.x + i * cell, origin.y), height, slant);
     }
+// A run's length, centred over its cells where the number fits. A neutral run
+// or a single cell carries none.
+void RunLength(ImDrawList* draw, ImVec2 origin, float slant, float cell, float height, float digits, int from, int to, MeterKind kind, ImU32 colour) {
+    if (kind == MeterKind::Neutral || to - from < 2) return;
+    const auto text = std::to_string(to - from);
+    const ImVec2 extent = ImGui::GetFont()->CalcTextSizeA(digits, FLT_MAX, 0, text.c_str());
+    if (extent.x + 2 > (to - from) * cell) return;
+    Edged(draw, digits, ImVec2(origin.x + slant / 2 + (from + to) * cell / 2 - extent.x / 2, origin.y + (height - extent.y) / 2), colour, text.c_str());
+}
+// The walk both slanted bars share over their `cells` cells, left to right.
+// cell(i, shown) draws a cell with a frame and returns the kind its run
+// counts it as; missing(i) draws one with none yet, which ends no run. A cell
+// that starts a new count inside a run of its own kind (a cancel, each hit
+// of a combo) is parted from the one before by edge(i). Each run is passed to
+// run(from, to, kind) as it ends; the leftmost cell shown starts a run
+// whatever came before it, and the last ends at the newest frame, short of
+// the right edge until the bars are full.
+template <class Cell, class Missing, class Edge, class Run>
+void WalkRuns(const MeterView& meter, int side, BarWindow window, int cells, Cell cell, Missing missing, Edge edge, Run run) {
+    int runStart = -1, runEnd = 0; MeterKind runKind = MeterKind::Neutral;
+    for (int i = 0; i < cells; ++i) {
+        const int index = CellFrame(meter, window, i);
+        if (index < 0) { missing(i); continue; }
+        // The model resolved each cell as it arrived (training::MeterCell).
+        const auto& shown = meter.frames[index].cells[side];
+        const MeterKind kind = cell(i, shown);
+        const bool split = runStart >= 0 && shown.split;
+        if (split && kind == runKind && kind != MeterKind::Neutral) edge(i);
+        if (runStart < 0) { runStart = i; runKind = kind; }
+        else if (kind != runKind || split) { run(runStart, i, runKind); runStart = i; runKind = kind; }
+        runEnd = i + 1;
+    }
+    if (runStart >= 0) run(runStart, runEnd, runKind);
 }
 // Stable's flat bars: a cell's colour is its state group, so an attack is one
 // colour from start to end; a bright line marks a new native action.
@@ -190,36 +223,22 @@ void AngledBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin
             ImVec2(origin.x + to, origin.y + height), ImVec2(origin.x + from, origin.y + height), colour);
     };
     quad(0, width - slant, IM_COL32(28, 29, 29, 100));
-    const auto label = [&](int from, int to, MeterKind kind) {
-        if (kind == MeterKind::Neutral || to - from < 2) return;
-        const auto text = std::to_string(to - from);
-        const ImVec2 extent = ImGui::GetFont()->CalcTextSizeA(digits, FLT_MAX, 0, text.c_str());
-        if (extent.x + 2 > (to - from) * cell) return;
-        Edged(draw, digits, ImVec2(origin.x + slant / 2 + (from + to) * cell / 2 - extent.x / 2, origin.y + (height - extent.y) / 2), palette::Ivory, text.c_str());
-    };
-    // The run lengths are drawn last, over the counting marks.
+    // The run lengths are drawn last, over the counting marks. The list is
+    // kept from one bar to the next, so a drawn bar does not allocate it.
     struct Run { int from, to; MeterKind kind; };
-    std::vector<Run> runs;
-    int runStart = -1, runEnd = 0; MeterKind runKind = MeterKind::Neutral;
-    for (int i = 0; i < window.cells; ++i) {
-        const int index = CellFrame(meter, window, i);
-        if (index < 0) continue;
-        // The model resolved each cell as it arrived (training::MeterCell);
-        // the leftmost cell shown starts a run whatever came before it.
-        const auto& shown = meter.frames[index].cells[side];
-        const auto kind = shown.kind;
-        quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), TrainingCellColor(shown, true));
-        const bool split = runStart >= 0 && shown.split;
-        if (split && kind == runKind && kind != MeterKind::Neutral) quad(i * cell - 1, i * cell + 1, IM_COL32(10, 10, 10, 255));
-        if (runStart < 0) { runStart = i; runKind = kind; }
-        else if (kind != runKind || split) { runs.push_back({runStart, i, runKind}); runStart = i; runKind = kind; }
-        runEnd = i + 1;
-    }
-    // The last run ends at the newest frame, short of the right edge until the bars are full.
-    if (runStart >= 0) runs.push_back({runStart, runEnd, runKind});
+    static std::vector<Run> runs;
+    runs.clear();
+    WalkRuns(meter, side, window, window.cells,
+        [&](int i, const MeterCell& shown) {
+            quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), TrainingCellColor(shown, true));
+            return shown.kind;
+        },
+        [](int) {},
+        [&](int i) { quad(i * cell - 1, i * cell + 1, IM_COL32(10, 10, 10, 255)); },
+        [&](int from, int to, MeterKind kind) { runs.push_back({from, to, kind}); });
     CountMarks(draw, origin, cell, height, slant, window.cells);
     DrawStops(draw, meter, side, window, origin, cell, height, slant);
-    for (const auto& run : runs) label(run.from, run.to, run.kind);
+    for (const auto& run : runs) RunLength(draw, origin, slant, cell, height, digits, run.from, run.to, run.kind, palette::Ivory);
 }
 // The last reading stays until the next one replaces it, dimmed while that
 // one is being measured.
@@ -438,8 +457,14 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
             const auto readings = Readings(meter, side);
             const char tag[3] = {'P', static_cast<char>('1' + side), 0};
             // Labels where there is room for them, coloured ticks with the numbers where there is not.
+            // Each label and value is measured once, here, and drawn at that width.
+            static std::vector<ImVec2> widths;
+            widths.clear();
             float labelled = ImGui::CalcTextSize(tag).x + gap;
-            for (const auto& reading : readings) labelled += ImGui::GetFont()->CalcTextSizeA(small, FLT_MAX, 0, reading.label.c_str()).x + 4 * hudScale + ImGui::CalcTextSize(reading.value.c_str()).x + gap;
+            for (const auto& reading : readings) {
+                widths.push_back(ImVec2(ImGui::GetFont()->CalcTextSizeA(small, FLT_MAX, 0, reading.label.c_str()).x, ImGui::CalcTextSize(reading.value.c_str()).x));
+                labelled += widths.back().x + 4 * hudScale + widths.back().y + gap;
+            }
             const bool labels = labelled <= half;
             float x = at.x + side * half;
             Edged(draw, line, ImVec2(x, at.y), side ? IM_COL32(120, 190, 255, 255) : IM_COL32(255, 120, 110, 255), tag);
@@ -450,14 +475,14 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
                 // A result always names itself: hit, block or whiff is the news.
                 if (labels || i + 1 == readings.size() || reading.value.empty()) {
                     draw->AddText(ImGui::GetFont(), small, ImVec2(x, at.y + line - small - 1), palette::Ember, reading.label.c_str());
-                    x += ImGui::GetFont()->CalcTextSizeA(small, FLT_MAX, 0, reading.label.c_str()).x + 4 * hudScale;
+                    x += widths[i].x + 4 * hudScale;
                 } else {
                     draw->AddRectFilled(ImVec2(x, at.y + line * .25f), ImVec2(x + 3 * hudScale, at.y + line * .85f), colour);
                     x += 5 * hudScale;
                 }
                 const bool move = reading.kind == ReadingKind::Startup || reading.kind == ReadingKind::Active || reading.kind == ReadingKind::Recovery;
                 Edged(draw, line, ImVec2(x, at.y), move ? IM_COL32(255, 255, 255, 255) : colour, reading.value.c_str());
-                x += ImGui::CalcTextSize(reading.value.c_str()).x + gap;
+                x += widths[i].y + gap;
             }
         }
         ImGui::Dummy(ImVec2(full, line));
@@ -517,31 +542,19 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
                 ImVec2(origin.x + to, origin.y + height), ImVec2(origin.x + from, origin.y + height), colour);
         };
         quad(0, cells * cell, IM_COL32(12, 12, 14, 200));
-        const auto label = [&](int from, int to, MeterKind kind) {
-            if (kind == MeterKind::Neutral || to - from < 2) return;
-            const auto text = std::to_string(to - from);
-            const ImVec2 extent = ImGui::GetFont()->CalcTextSizeA(digits, FLT_MAX, 0, text.c_str());
-            if (extent.x + 2 > (to - from) * cell) return;
-            Edged(draw, digits, ImVec2(origin.x + slant / 2 + (from + to) * cell / 2 - extent.x / 2, origin.y + (height - extent.y) / 2), IM_COL32(255, 255, 255, 255), text.c_str());
-        };
-        int runStart = -1, runEnd = 0; MeterKind runKind = MeterKind::Neutral;
-        for (int i = 0; i < cells; ++i) {
-            const int at = index(i);
+        // Each run's length is drawn as the run ends, before the cells after it.
+        WalkRuns(meter, side, window, cells,
+            [&](int i, const MeterCell& shown) {
+                // Meaty frames, as the model marked them once the other was up (MeterCell::meaty).
+                const MeterKind kind = options.classicColors && shown.meaty ? MeterKind::Meaty : shown.kind;
+                quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), options.classicColors ? ClassicColor(kind) : TrainingCellColor(shown, true));
+                return kind;
+            },
             // Frames still to come stay dim, so the bar keeps its length.
-            if (at < 0) { quad(i * cell, (i + 1) * cell - 1, IM_COL32(48, 50, 54, 120)); continue; }
-            const auto& shown = meter.frames[at].cells[side];
-            // Meaty frames, as the model marked them once the other was up (MeterCell::meaty).
-            const MeterKind kind = options.classicColors && shown.meaty ? MeterKind::Meaty : shown.kind;
-            quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), options.classicColors ? ClassicColor(kind) : TrainingCellColor(shown, true));
-            // A new count inside a run (a cancel, each hit of a combo) is parted by a dark edge.
-            const bool split = runStart >= 0 && shown.split;
-            if (split && kind == runKind && kind != MeterKind::Neutral) quad(i * cell - 1, i * cell + 1, IM_COL32(12, 12, 14, 255));
-            if (runStart < 0) { runStart = i; runKind = kind; }
-            else if (kind != runKind || split) { label(runStart, i, runKind); runStart = i; runKind = kind; }
-            runEnd = i + 1;
-        }
+            [&](int i) { quad(i * cell, (i + 1) * cell - 1, IM_COL32(48, 50, 54, 120)); },
+            [&](int i) { quad(i * cell - 1, i * cell + 1, IM_COL32(12, 12, 14, 255)); },
+            [&](int from, int to, MeterKind kind) { RunLength(draw, origin, slant, cell, height, digits, from, to, kind, IM_COL32(255, 255, 255, 255)); });
         DrawStops(draw, meter, side, window, origin, cell, height, slant);
-        if (runStart >= 0) label(runStart, runEnd, runKind);
         if (options.classicExtras) {
             // Earlier frames lie to the left, later ones to the right, of what is shown.
             if (index(0) > 0) Edged(draw, digits, ImVec2(origin.x - digits * .45f, origin.y + (height - digits) / 2), IM_COL32(255, 214, 72, 255), "<");

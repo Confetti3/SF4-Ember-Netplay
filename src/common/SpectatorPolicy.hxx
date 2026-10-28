@@ -13,8 +13,8 @@
 //    late load costs the fighters nothing. If no fighter ever synchronizes,
 //    the fighters' own GGPO disconnect tolerance ends the session, so no
 //    spectator drop is needed.
-//    At a tournament match's bound table the deadline is shorter
-//    (BoundSyncDeadlineMs): a watcher is never worth more than that to a set.
+//    At a tournament match's bound table the deadline is BoundSyncDeadlineMs,
+//    kept as its own constant so it can differ from SyncDeadlineMs.
 //  - backlog: send_queue_len is the spectator's count of unacknowledged
 //    frames. GGPO itself gives up at 63 (its pending-output ring). Sampling
 //    starts SyncDeadlineMs after RUNNING: each end of a GGPO link
@@ -42,7 +42,11 @@ public:
 	// A watcher of a tournament match's bound table: the fighters' set waits at
 	// most this long for it to synchronize, so a slow or hostile watcher costs a
 	// game start no more.
-	static constexpr std::uint64_t BoundSyncDeadlineMs = 2000;
+	// This was 2 s until 2026-10-23. A watcher joining a BluMint match through a
+	// relay loaded the battle about 4 s after the fighters had synchronized and
+	// was dropped before it entered the fight; in a first to 1 set there is no
+	// next game to watch. 5 s matches every other table.
+	static constexpr std::uint64_t BoundSyncDeadlineMs = 5000;
 	static constexpr std::uint64_t SyncDeadlineFor(bool boundTable) { return boundTable ? BoundSyncDeadlineMs : SyncDeadlineMs; }
 	static constexpr std::uint64_t SampleIntervalMs = 200;
 	static constexpr int SlowQueueFrames = 32;

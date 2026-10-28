@@ -2,15 +2,12 @@
 //! redeemed a single-use invite gets organizer access, the web desk and
 //! the desk's actions; everyone else is told how to get in.
 mod common;
-#[allow(dead_code, unused_imports)]
-#[path = "challonge/support.rs"]
-mod support;
 
+use common::challonge::*;
 use common::{Bridge, sign_in};
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::json;
-use support::*;
 
 #[tokio::test]
 async fn only_an_invited_organizer_runs_tournaments() {

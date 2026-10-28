@@ -487,13 +487,13 @@ case as passed.
 
 | Required window | Existing acceptance entry point |
 | --- | --- |
-| Proposal held before commitment, including same-term preparation | `SessionServerTransportTest::TestSameTermProposalPause`; `IrohRecoveryIntegrationTest --scenario same-term-preparing` |
+| Proposal held before commitment, including same-term preparation | `SessionServerTransportCommitTest::TestSameTermProposalPause`; `IrohRecoveryIntegrationTest --scenario same-term-preparing` |
 | Commit applied before effect delivery; majority migration | `IrohRecoveryIntegrationTest --scenario majority` |
 | Leadership change during preparation; two-voter loss and explicit replacement | `IrohRecoveryIntegrationTest --scenario preparing`, `preparing-minority`, and `minority` |
 | Active gameplay and results already committed before migration | `IrohRecoveryIntegrationTest --scenario started` and `committed-result` |
 | Graceful moderator and coordination-leader departure | `IrohRecoveryIntegrationTest --scenario departure` |
 | Fresh helper admission and rejection of retired incarnations | `IrohRoomIntegrationTest`, `RoomAuthorityTest`, and Rust admission/history regressions |
-| Result deadline suspension/rebasing and native ownership beyond 30/120 seconds | `SessionServerTransportTest`, `NativeRepairTimingTest`, and `IrohAuthorizedMatchTest` |
+| Result deadline suspension/rebasing and native ownership beyond 30/120 seconds | `SessionServerTransportTerminalTest`, `SessionServerTransportCommitTest`, `NativeRepairTimingTest`, and `IrohAuthorizedMatchTest` |
 | Chunk credit, retained completed transfers, and duplicate terminal backpressure | `CheckpointTransferTest`, Rust transfer regressions, and `IrohRoomIntegrationTest --queue-acks` |
 | Gameplay dials its own connection after a connection check; explicit Apply and manual Ready | `IrohAuthorizedMatchTest`, `RoomPanelNavigationTest`, and `UiRenderTest` |
 | Four tables, spectators, and repeated rematches | `CustomRoomGameTest` and `CustomRoomGameTest --single-table` |

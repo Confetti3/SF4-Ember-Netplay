@@ -37,13 +37,15 @@ const char* StatusName(room::MemberStatus status) {
 // "Idle 4 min" for a member who has done nothing in the room for a minute
 // or more while waiting (not in a game, not ready, not watching one), else
 // empty. A waiting member who said they are in Training is shown as that
-// instead: it is why they are quiet.
-std::string IdleText(const room::Member& member) {
+// instead: it is why they are quiet. The room stamped the idle time
+// `elapsedMs` ago (ShellView::roomElapsedMs).
+std::string IdleText(const room::Member& member, std::uint64_t elapsedMs) {
     const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
         member.status == room::MemberStatus::Seated;
     if (waiting && member.training) return loc::T("room.in_training");
-    if (!waiting || member.idleSeconds < 60) return {};
-    const unsigned minutes = member.idleSeconds / 60;
+    const auto idleSeconds = RoomIdleSeconds(member, elapsedMs);
+    if (!waiting || idleSeconds < 60) return {};
+    const unsigned minutes = idleSeconds / 60;
     return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
 }
 // A held start is waiting on people, not preparing anything.
@@ -149,6 +151,20 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
 }
 
 
+// What every room screen's rows read of the room, worked out once a frame
+// by RoomEntries before it hands the screen to its builder.
+struct ApplicationShell::RoomScreenRows {
+    const ShellView& v;
+    const room::Snapshot& s;
+    MenuNavigation& nav;
+    bool mutableRoom, host, tournamentRoom, boundTable;
+    const room::Member* local;
+    // The selected table.
+    const room::Table& t;
+    bool active;
+    room::Place place;
+    bool seated, elsewhere, queued, watching;
+};
 std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  using namespace room;
  auto& nav=menu_.navigation; const auto& s=v.room;
@@ -195,7 +211,39 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  // A queued member is listed as a spectator of the game it waits out without
  // having chosen to watch it.
  const bool watching=room::WatchesByChoice(t,s.localMember);
-  if(screen=="room"){
+ const RoomScreenRows c{v,s,nav,mutableRoom,host,tournamentRoom,boundTable,local,t,active,place,seated,elsewhere,queued,watching};
+ if(screen=="room")RoomBoardRows(rows,c);
+ else if(screen=="room-table")RoomTableRows(rows,c);
+ else if(screen=="room-members")RoomMembersRows(rows,c);
+ else if(screen=="room-member")RoomMemberRows(rows,c);
+ else if(screen=="room-chat")RoomChatRows(rows,c);
+ else if(screen=="room-admin")RoomAdminRows(rows,c);
+ if(!active) {
+  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="appearance"||row.id=="stage"||row.id=="fighter-options"||row.id=="check-connection"||
+   row.id=="input-delay"||row.id=="queue"||row.id=="watch") {
+    // Per table: a cached explanation never shows on another table's row.
+    const auto key=screen+"/"+std::to_string(selectedTable_)+"/"+row.id;
+    if(roomUpdateVisible_)row.detail=RoomWaitReason(v);
+    else if(RoomCheckpointPending(v)) {
+     // Only reuse an explanation for the same action. Labels, values and
+     // eligibility always come from the live snapshot, never this cache.
+     const auto previous=roomDetails_.find(key);
+     if(row.detail==RoomWaitReason(v)&&previous!=roomDetails_.end())
+      row.detail=previous->second;
+    }else if(mutableRoom)roomDetails_[key]=row.detail;
+   }
+ }
+ return rows;
+}
+void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ using namespace room;
+ const ShellView& v=c.v;
+ const room::Snapshot& s=c.s;
+ MenuNavigation& nav=c.nav;
+ const bool mutableRoom=c.mutableRoom;
+ const bool host=c.host;
+ const bool tournamentRoom=c.tournamentRoom;
+ const room::Member* const local=c.local;
   if(s.roomEpoch){
    const auto mine=room::PlaceOf(s,s.localMember);
    for(const auto& table:s.tables){
@@ -203,7 +251,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     std::string detail=loc::Tf("room.table_detail",Name(s,table.p1),Name(s,table.p2),PhaseName(table),
      table.queue.size(),table.spectators.size()+table.watchingNext.size(),local?StatusName(local->status):loc::T("room.connecting"));
     rows.push_back(Row("table-"+std::to_string(table.id),loc::Tf("room.table_occupancy",table.id+1,occupied),detail));
-    rows.back().detailText=DetailText::Name;
+    rows.back().detailText=DetailText::Name;rows.back().key=table.id;
     const bool ownTable=mine.table==static_cast<int>(table.id);
     if(ChoosesSeat(s))rows.back().choices=SeatChoices(v,table);
     else if(mine.kind==Place::Kind::Seat&&ownTable){
@@ -239,7 +287,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    if(v.watchedGame.Active())share(Row("picture-swap",loc::T(watchedPicture_?"room.picture_behind":"room.picture_show"),loc::T("room.picture_swap.detail")));
    // Hidden members leave the pad's reach with the cards.
    if(!preferences_.roomMembersHidden)for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),MemberStatusText(s,m,false,false)));
-    rows.back().userText=true;}
+    rows.back().userText=true;rows.back().key=m.id;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
    const unsigned unread=transcript_.Unread(muted_);
    rows.push_back(Row("room-chat",loc::T("room.chat"),(unread?loc::Tf("room.chat.unread",unread)+" ":std::string())+loc::T("room.chat.detail")));
@@ -279,7 +327,22 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    else if(e.id.compare(0,7,"member-")==0)e.left="table-"+std::to_string(selectedTable_);
    else {e.left=i?rows[i-1].id:e.id;e.right=i+1<rows.size()?rows[i+1].id:e.id;}
   }
-  }else if(screen=="room-table"){
+}
+void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ using namespace room;
+ const ShellView& v=c.v;
+ const room::Snapshot& s=c.s;
+ const bool mutableRoom=c.mutableRoom;
+ const bool host=c.host;
+ const bool boundTable=c.boundTable;
+ const room::Member* const local=c.local;
+ const room::Table& t=c.t;
+ const bool active=c.active;
+ const room::Place& place=c.place;
+ const bool seated=c.seated;
+ const bool elsewhere=c.elsewhere;
+ const bool queued=c.queued;
+ const bool watching=c.watching;
    const std::string reason=!mutableRoom?RoomWaitReason(v):
     loc::T(elsewhere?"room.leave_current_table":"room.choose_action");
   // The table's rules: the host edits them in place and applies them in one
@@ -401,12 +464,20 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rows.push_back(ConfirmRow("cancel-result",loc::T("room.cancel_stuck"),stale?std::string(loc::T("room.cancel_stuck.detail")):
     loc::Tf("room.cancel_stuck.in_progress",room::StaleGameSeconds/60),stale));
   }
- }else if(screen=="room-members"){
+}
+void ApplicationShell::RoomMembersRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ using namespace room;
+ const room::Snapshot& s=c.s;
   for(const auto& m:s.members){
    rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),MemberStatusText(s,m,muted_.count(m.id)>0,false)));
-   rows.back().value=NetworkLinkName(m.link);rows.back().userText=true;
+   rows.back().value=NetworkLinkName(m.link);rows.back().userText=true;rows.back().key=m.id;
   }
-  }else if(screen=="room-member"){
+}
+void ApplicationShell::RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ using namespace room;
+ const room::Snapshot& s=c.s;
+ const bool host=c.host;
+ const bool tournamentRoom=c.tournamentRoom;
    const auto* m=Member(s,selectedMember_);const bool other=m&&m->id!=s.localMember;
    rows.push_back(Row("mute",loc::T(muted_.count(selectedMember_)?"room.unmute_member":"room.mute_member"),loc::T(m?"room.mute_member.detail":"room.member_left.detail"),other));
    // Only a member who chose to show the room their profile has one to open.
@@ -420,35 +491,25 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rows.push_back(ConfirmRow("transfer-host",loc::T("room.transfer_host"),m?loc::Tf("room.transfer_host.detail",m->name):loc::T("room.member_left.detail"),
     host&&other&&!room::IsWatcher(s,selectedMember_)));
    rows.back().detailText=DetailText::Name;
- }else if(screen=="room-chat"){
+}
+void ApplicationShell::RoomChatRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ using namespace room;
+ const ShellView& v=c.v;
   // The one row: the message box is drawn by DrawChatScreen, and Enter in it is this row's Select. It is
   // there to send once there is something to send, and not again while that same text is on its way.
   rows.push_back(Row("compose",loc::T("room.compose_message"),loc::T("chat.detail"),
    ChatTypable(v)&&HasChatText(chat_)&&!queuedChat_&&!(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_)));
   rows.back().value=chat_;rows.back().hint=loc::T("chat.send");
- }else if(screen=="room-admin"){
+}
+void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ using namespace room;
+ const room::Snapshot& s=c.s;
+ const bool host=c.host;
   rows.push_back(TextRow("rename",loc::T("room.name"),roomName_,64,host));
   rows.push_back(Value("room-capacity",loc::T("room.capacity"),std::to_string(roomCapacity_),loc::T("room.capacity.detail"),host));
   rows.push_back(Value("lock",loc::T("room.admission"),loc::T(s.locked?"room.locked":"room.open"),loc::T("room.admission.detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
- }
- if(!active) {
-  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="appearance"||row.id=="stage"||row.id=="fighter-options"||row.id=="check-connection"||
-   row.id=="input-delay"||row.id=="queue"||row.id=="watch") {
-    // Per table: a cached explanation never shows on another table's row.
-    const auto key=screen+"/"+std::to_string(selectedTable_)+"/"+row.id;
-    if(roomUpdateVisible_)row.detail=RoomWaitReason(v);
-    else if(RoomCheckpointPending(v)) {
-     // Only reuse an explanation for the same action. Labels, values and
-     // eligibility always come from the live snapshot, never this cache.
-     const auto previous=roomDetails_.find(key);
-     if(row.detail==RoomWaitReason(v)&&previous!=roomDetails_.end())
-      row.detail=previous->second;
-    }else if(mutableRoom)roomDetails_[key]=row.detail;
-   }
- }
- return rows;
 }
 void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,
                                      const MenuVisualFeedback& feedback) {
@@ -491,7 +552,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   if(hit.kind==CardInteraction::Kind::Pressed&&hit.option<0&&!nav.Asking()&&!nav.Editing()){nav.Focus(e.id,rows);action=nav.Choose(rows);}
  };
  const auto tableCard=[&](const MenuEntry& e,float h){
-  const auto& t=v.room.tables[std::stoi(e.id.substr(6))];
+  const auto& t=v.room.tables[static_cast<std::size_t>(e.key)];
   // The seat chooser, or on your own focused place what A and B do there.
   const bool choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
   const bool ownPlace=!nav.Asking()&&onOwnPlace&&e.id==focus;
@@ -525,7 +586,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    seat.caption=f?f->name:loc::T("room.fighter_not_shared");
    if(m->id==v.room.localMember)seat.caption+=loc::T("room.suffix_you");
    if(t.streakHolder==m->id&&t.streak>=2)seat.streak=loc::Tf("room.streak",t.streak);
-   if(!t.ready[side])seat.idle=IdleText(*m);
+   if(!t.ready[side])seat.idle=IdleText(*m,v.roomElapsedMs);
   }
   // A first-to-N table names its set and rotation where the round settings
   // would be; those stay on the table's rules rows.
@@ -547,13 +608,13 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
  };
  const auto memberCard=[&](const MenuEntry& e){
-  const auto* m=Member(v.room,std::stoull(e.id.substr(7)));if(!m)return;
+  const auto* m=Member(v.room,e.key);if(!m)return;
   MemberCardView card;card.id=e.id;card.name=m->name;card.label=e.label;card.link=m->link;card.marks={m->country,m->badge};
   card.latency=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
   card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
   card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();
   const auto status=MemberStatusText(v.room,*m,false,true);
-  const auto idle=IdleText(*m);
+  const auto idle=IdleText(*m,v.roomElapsedMs);
   card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
   pressBody(e,DrawMemberCard(card));
  };
@@ -566,7 +627,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float badge=e.id=="room-chat"&&unread?UnreadBadgeWidth(unread)+8*s:0;
   if(badge)DrawUnreadBadge(p.x+width-8*s,p.y+11*s,unread);
   // Our own action labels must fit; only player-supplied text may elide.
-  ReportMenuText(("board-"+e.id).c_str(),16*s,40*s,
+  if(MenuProbesActive())ReportMenuText(("board-"+e.id).c_str(),16*s,40*s,
    ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,e.label.c_str()).x,width-24*s-badge);
   text(ImVec2(p.x+12*s,p.y+11*s),width-24*s-badge,e.label,16*s,!shown(e)?palette::Muted:danger?ImGui::GetColorU32(ToneColor(Tone::Error)):palette::Ivory);
   tip();
@@ -722,7 +783,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  }else{
   ImGui::BeginChild("Room stacked",ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows){
-   if(e.id.compare(0,6,"table-")==0)tableCard(e,(DescribeTableBanner(v,v.room.tables[std::stoi(e.id.substr(6))]).text.empty()?136:136+TableBannerHeight)*s);
+   if(e.id.compare(0,6,"table-")==0)tableCard(e,(DescribeTableBanner(v,v.room.tables[static_cast<std::size_t>(e.key)]).text.empty()?136:136+TableBannerHeight)*s);
    else if(e.id.compare(0,7,"member-")==0){if(!preferences_.roomMembersHidden)memberCard(e);}
    else button(e,ImGui::GetContentRegionAvail().x);
   }
@@ -817,7 +878,7 @@ void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
    elsewhere?"room.lock_in_ended.moved":"room.lock_in_ended.stopped";
  }
  if(v.lockInDrops>lockInDropsSeen_)reason="room.lock_in_ended.dropped";
- if(reason){notice_=loc::T(reason);noticeTone_=Tone::Pending;noticeUntil_=now+8;}
+ if(reason){ShowNotice(loc::T(reason),Tone::Pending,now+8);}
  lockedInTable_=lockedAt;lockInEpoch_=v.room.roomEpoch;lockInDropsSeen_=v.lockInDrops;
 }
 bool ApplicationShell::GameIsStale(std::size_t table) const {

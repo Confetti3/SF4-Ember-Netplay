@@ -44,7 +44,9 @@ namespace Dimps {
 						Platform::list_entry<ColorFadeData>* (ColorFade::* Spawn)(void* sourceData);
 					} __publicMethods;
 
-					static Platform::list<ColorFadeData>* GetList(ColorFade* fade);
+					static Platform::list<ColorFadeData>* GetList(ColorFade* fade) {
+						return (Platform::list<ColorFadeData>*)((unsigned int)fade + 12);
+					}
 					static void Locate(HMODULE peRoot);
 
 					static __publicMethods publicMethods;

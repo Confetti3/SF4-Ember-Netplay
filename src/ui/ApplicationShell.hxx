@@ -19,13 +19,16 @@
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
 #include "UpdateChannelPick.hxx"
+#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <functional>
 #include <vector>
 #include <set>
 #include <map>
 #include <memory>
 #include <optional>
+#include <utility>
 #include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
 #include "../common/ControllerView.hxx"
@@ -38,6 +41,8 @@
 #include "ProblemReportPanel.hxx"
 #include "UpdatePrompt.hxx"
 #include "CountryPicker.hxx"
+#include "ScreenPanel.hxx"
+#include "RuntimeRequest.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -48,6 +53,11 @@ struct ShellView {
     bool controllerUnavailable = false;
     netplay::Snapshot session;
     room::Snapshot room;
+    // How long ago `room` was stamped, in ms (RuntimeSnapshot::roomReceivedMs to
+    // now; 0 without a stamp). Idle times and start holds count on from the
+    // stamp where they are read (RoomIdleSeconds, RoomRemainingMs), so `room`
+    // is never patched and a frame can be lent the same copy as the last (RoomCarry).
+    std::uint64_t roomElapsedMs = 0;
     // The room events the chat shows that no snapshot carries (ChatTranscript).
     std::vector<RoomNotice> roomNotices;
     netplay::PlayerPreferences preferences;
@@ -177,6 +187,50 @@ struct ShellView {
     ReplaysView replays;
 };
 
+// A member's idle seconds `elapsedMs` after the room stamped them. A member
+// in a game is not idle, so theirs stay as sent; none counts past
+// room::MaximumIdleSeconds.
+inline std::uint32_t RoomIdleSeconds(const room::Member& member, std::uint64_t elapsedMs) {
+    if (member.status == room::MemberStatus::Playing) return member.idleSeconds;
+    const auto since = static_cast<std::uint32_t>((std::min<std::uint64_t>)(elapsedMs / 1000, room::MaximumIdleSeconds));
+    return (std::min)(member.idleSeconds + since, room::MaximumIdleSeconds);
+}
+// A countdown the room stamped (a table's holdRemainingMs or readyRemainingMs)
+// `elapsedMs` later. None sent stays none; one that has run out still holds
+// until the room says otherwise, so it keeps its last millisecond.
+inline std::uint32_t RoomRemainingMs(std::uint32_t remainingMs, std::uint64_t elapsedMs) {
+    if (!remainingMs) return 0;
+    return elapsedMs < remainingMs ? static_cast<std::uint32_t>(remainingMs - elapsedMs) : 1;
+}
+
+// The room a drawn frame shows, kept from one frame to the next so that a
+// room that has not changed is not copied again every frame. The runtime
+// publishes one immutable room per change (RuntimeSnapshot::room) and shares
+// it until the next, so the published pointer itself says whether the room
+// changed; it is held here, so no later room can take its address. Lend moves
+// the kept copy into the view, copying the published room over it first only
+// when it is another; Return takes it back once the frame is drawn. Null is
+// the empty room.
+class RoomCarry {
+public:
+    void Lend(ShellView& view, const std::shared_ptr<const room::Snapshot>& room) {
+        if (lent_ || !filled_ || room != source_) {
+            kept_ = room ? *room : room::Snapshot();
+            source_ = room; filled_ = true; ++copies_;
+        }
+        view.room = std::move(kept_);
+        lent_ = true;
+    }
+    void Return(ShellView& view) { kept_ = std::move(view.room); lent_ = false; }
+    // How many times Lend copied a room (for tests).
+    std::uint64_t Copies() const { return copies_; }
+private:
+    std::shared_ptr<const room::Snapshot> source_;
+    room::Snapshot kept_;
+    std::uint64_t copies_ = 0;
+    bool lent_ = false, filled_ = false;
+};
+
 // The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
 // height of a line of text. UnreadBadgeWidth is what it takes, for the text beside it to leave room.
 float UnreadBadgeWidth(unsigned count);
@@ -184,62 +238,15 @@ void DrawUnreadBadge(float right,float top,unsigned count);
 // "Ready in N s" for a player called out of Training: ShellView::trainingReadySeconds, in words.
 std::string TrainingReadyText(int seconds);
 
-struct ShellAction {
-    netplay::Command command{netplay::CommandKind::HostRoom};
-    platform::ServiceAction service = platform::ServiceAction::None;
-    // With ShowReplayFile: the archived replay, as its row names it, whose folder opens.
-    std::string servicePath;
-    // With UpdateNow or SkipUpdate: the launch offer the player was shown.
-    launcher::InstallOffer updateOffer;
-    // With SwitchUpdateChannel: the channel the player confirmed.
-    updates::UpdateChannel updateChannel = updates::UpdateChannel::Stable;
-    // With OpenSteamProfile: the member's profile to open.
-    SteamId steamProfile;
-    reports::Submission reportSubmission;
-            input::Action inputAction = input::Action::None;
-    gamepads::ControllerRequest padAction;
-    discord::InviteAction discordAction = discord::InviteAction::None;
-    std::uint64_t discordRevision = 0;
-    netplay::PlayerPreferences preferences;
-    room::Action roomAction;
-    int selectedDelay=-1;
-    // Plays the challenger call-out once at this volume (percent); -1 plays nothing.
-    int previewSoundVolume=-1;
-    // Asks for the room's short link; nothing else is sent.
-    bool shortInvitation=false;
-    // Saves only the settings a room leaves open, button layouts and the room
-    // board's column, from `preferences` (PlayerPreferences::CopyRoomSettings); sent alone.
-    bool roomSettings=false;
-    // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
-    // sent alone. The runtime decides whether it still holds.
-    TrainingEntry training=TrainingEntry::None;
-    // Leave the game this PC watches (ShellView::watchedGame), named as the
-    // press saw it; sent alone. The runtime decides, when it takes it, whether
-    // the room still needs an Unwatch or only the rest of the stream ends.
-    netplay::WatchedGame leaveWatchedGame;
+// What a press asks: a request for the runtime (RuntimeRequest), or a step of
+// the chosen Ultra or color, which is the overlay's alone.
+struct ShellAction : RuntimeRequest {
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
         enum class Field { None, Ultra, Color } field = Field::None;
         int delta = 0;
     } selectionStep;
-    // An identity or bridge request; op None for everything else.
-    netplay::IdentityRequest identity;
-    // Refresh the assignment list, play a match or stop; op None for everything else.
-    netplay::tournament::Command tournament;
-    // With a JoinInvite: the signed ticket (JSON) of a public room's admission.
-    std::string publicTicket;
-    // With the JoinInvite of a public room just created: the table rules chosen
-    // on Create, which the runtime sets once the creator is in it as host.
-    std::optional<room::Rules> createdRules;
-    // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
-    bool practiceRoom = false;
-    // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
-    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
-    // What the Replays screen asks of the game: an archived replay (its
-    // file, as its row names it) to add or to watch, the game's own list, or
-    // no to a replay link. Nothing is sent to the room.
-    replay::Request replay;
 };
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
@@ -323,6 +330,14 @@ private:
     ReplaysPanel replays_;
     ProblemReportPanel reportPanel_;
     CountryPicker countryPicker_;
+    // The panels that own screens (ApplicationShell__Screens.cxx): each takes
+    // the parts of a drawn frame that belong to its screens (ScreenPanel).
+    // Update, Conceal and IdentityPanel::Hidden stay calls to every panel.
+    class IdentityScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens;
+    // The panel that owns `screen`, or null for the shell's own screens, the room's among them.
+    static const ScreenPanel* OwnerOf(const std::string& screen);
+    // The width of the public rooms list: the whole window on a narrow one, else the left pane.
+    static float PublicListWidth();
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);
@@ -398,7 +413,18 @@ private:
     // A public room still named with the default is named for its host.
     void ApplyPublicDefaultName();
     void QuickJoin(const ShellView& view);
+    // The notice line: `text` in `tone` until ImGui time `until`.
+    void ShowNotice(std::string text,Tone tone,double until){notice_=std::move(text);noticeTone_=tone;noticeUntil_=until;}
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
+    // RoomEntries' builders, one per room screen: the board, the table's
+    // options, the members, one member, the chat and the room's settings.
+    struct RoomScreenRows;
+    void RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomTableRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomMembersRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomChatRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);
     // What B does on the board while your own table card is focused: leave your

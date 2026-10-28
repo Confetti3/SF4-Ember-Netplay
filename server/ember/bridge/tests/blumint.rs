@@ -1,14 +1,14 @@
 //! BluMint's partner API against a stand-in BluMint: player lookup by Discord
 //! account, match creation with a Play link and its refusals, closes, and
-//! registration of the three endpoints. tests/blumint_reports.rs covers what
-//! the bridge reports to BluMint.
+//! registration of the three endpoints. tests/blumint_results.rs and
+//! tests/blumint_presence.rs cover what the bridge reports to BluMint.
 mod common;
 
 use common::{
     Player,
     blumint::*,
     play::{BUILD, claim, endpoint},
-    results,
+    results, seed,
 };
 use ember_bridge::{config, integrations::Secrets};
 use reqwest::StatusCode;
@@ -167,17 +167,8 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
         )
     );
     assert_eq!(
-        (&created["matchUrl"], &created["pageUrl"]),
-        (
-            &json!(format!(
-                "ember://tournament/open?bridge={}&match={id}",
-                f.bridge.bridge_id
-            )),
-            &json!(format!(
-                "https://embernetplay.link/m#{}/{id}",
-                f.bridge.bridge_id
-            ))
-        )
+        created["matchUrl"],
+        format!("https://embernetplay.link/m#{}/{id}", f.bridge.bridge_id).as_str()
     );
     assert_eq!(match_state(&f, &id).await, "awaiting_players");
 
@@ -433,19 +424,7 @@ async fn a_busy_player_is_refused_until_their_match_ends() {
     let f = fixture().await;
     let mut lou = f.bridge.player(3);
     f.bridge.open_session(&mut lou).await;
-    let lou_id = lou.id().as_str().to_owned();
-    f.bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES ('99', ?1, 'lou', 1)",
-                [lou_id],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
+    seed::link_discord(f.bridge.state(), "99", lou.id().as_str(), "lou").await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let (_, created) = create(&f, "set-1", 1).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
@@ -486,6 +465,48 @@ async fn a_busy_player_is_refused_until_their_match_ends() {
     let (status, next) = create_with(&f, "set-2", against_lou(&f.kate, &lou)).await;
     assert_eq!(status, StatusCode::OK, "{next}");
     assert_ne!(next["matchId"], id.as_str());
+}
+
+// The match link's page asks, with no credential, whether its match is over
+// before it opens Ember, so a link left from a decided or closed set does not.
+#[tokio::test]
+async fn a_match_link_reads_over_once_the_set_is_decided_or_closed() {
+    let f = fixture().await;
+    let over = |id: String| {
+        let url = f.bridge.url(&format!("/v1/matches/{id}/link"));
+        let client = f.bridge.client.clone();
+        async move { common::read(client.get(url).send().await.unwrap()).await }
+    };
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 1).await;
+    let decided = created["matchId"].as_str().unwrap().to_owned();
+    assert_eq!(
+        over(decided.clone()).await,
+        (StatusCode::OK, json!({ "over": false }))
+    );
+    win(&f, &decided, 0, "game-1").await;
+    assert_eq!(
+        over(decided).await,
+        (StatusCode::OK, json!({ "over": true }))
+    );
+    let (_, created) = create(&f, "set-2", 2).await;
+    let closed = created["matchId"].as_str().unwrap().to_owned();
+    assert_eq!(
+        over(closed.clone()).await,
+        (StatusCode::OK, json!({ "over": false }))
+    );
+    let (status, _) = close(
+        &f,
+        json!({ "idempotencyKey": "set-2", "reason": "replaced" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        over(closed).await,
+        (StatusCode::OK, json!({ "over": true }))
+    );
+    let (status, _) = over("emt_00000000-0000-4000-8000-000000000000".into()).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
 // BluMint closes a match it no longer needs by the key it created it under,

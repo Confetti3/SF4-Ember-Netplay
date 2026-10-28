@@ -7,7 +7,7 @@ use std::{
 };
 
 use axum::{Router, body::Bytes, http::HeaderMap, routing::post};
-use ember_bridge::{AppState, Config as BridgeConfig, Db, Keys, config};
+use ember_bridge::testing::{Loopback, until};
 use ember_notifier::{Clock, Config, Discord, Notifier, Twitch};
 use ember_protocol::{event::Event, json, webhook::Headers};
 use serde_json::{Value, json};
@@ -17,14 +17,7 @@ fn examples() -> PathBuf {
 }
 
 fn temp(name: &str) -> PathBuf {
-    let mut bytes = [0u8; 8];
-    getrandom::fill(&mut bytes).unwrap();
-    let dir = std::env::temp_dir().join(format!(
-        "ember-notifier-{name}-{}",
-        ember_protocol::encoding::b64u(&bytes)
-    ));
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    ember_bridge::testing::temp_dir(&format!("ember-notifier-{name}"))
 }
 
 #[test]
@@ -267,15 +260,14 @@ impl Captured {
     /// The posts once `count` have arrived; fails if more arrive or the
     /// count is not reached within 30 s.
     async fn wait_for(&self, count: usize) -> Vec<(HeaderMap, Value)> {
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
-        loop {
-            let posts = self.0.lock().unwrap().clone();
-            if posts.len() >= count || tokio::time::Instant::now() >= deadline {
-                assert_eq!(posts.len(), count, "{posts:?}");
-                return posts;
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
+        let mut posts = Vec::new();
+        until(&format!("{count} posts"), Duration::from_secs(30), || {
+            posts = self.0.lock().unwrap().clone();
+            posts.len() >= count
+        })
+        .await;
+        assert_eq!(posts.len(), count, "{posts:?}");
+        posts
     }
 }
 
@@ -321,58 +313,10 @@ async fn call(origin: &str, token: &str, path: &str, key: &str, body: Value) -> 
 #[tokio::test]
 async fn announces_a_set_on_discord_and_twitch() {
     let dir = temp("e2e");
-    // The bridge.
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let origin = format!("http://{}", listener.local_addr().unwrap());
-    let mut bytes = [0u8; 16];
-    getrandom::fill(&mut bytes).unwrap();
-    let bridge_config = BridgeConfig {
-        bridge_id: ember_protocol::encoding::prefixed_id("brg", bytes),
-        display_name: "Bridge".into(),
-        origin: origin.clone(),
-        listen: "127.0.0.1:0".into(),
-        database: dir.join("bridge.sqlite3"),
-        secrets: dir.join("secrets.json"),
-        allow_loopback_http: true,
-        allow_private_webhooks: true,
-        mock_browser: false,
-        discord: None,
-        sign_in_sites: Vec::new(),
-        desk: None,
-        integration_secrets: None,
-        rooms: None,
-        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
-        replay_retention: None,
-        archive: None,
-        trusted_proxies: Vec::new(),
-        tenants: vec![config::Tenant {
-            id: "local".into(),
-            name: "Local".into(),
-            connections: vec![config::Connection {
-                id: "mock-local".into(),
-                kind: "mock".into(),
-                environment: "local".into(),
-                display_name: "Mock".into(),
-                enabled: true,
-                api_base: None,
-                discord_lookup: false,
-                lookup_sites: Vec::new(),
-                disputes: None,
-                results_url: None,
-                rooms: None,
-            }],
-        }],
-    };
-    let state = AppState::new(
-        bridge_config,
-        Keys::generate(),
-        Default::default(),
-        Db::open(&dir.join("bridge.sqlite3")).unwrap(),
-        Default::default(),
-    );
-    ember_bridge::sync_config(&state).await.unwrap();
-    let running = ember_bridge::start(state, listener).unwrap();
-    let organizer = ember_bridge::issue_credential(&running.state, None, Some("local"), "notifier")
+    // The bridge: its tenant `local` has the mock connection `mock-local`.
+    let bridge = Loopback::start_with(|_| {}, Default::default()).await;
+    let origin = bridge.origin.clone();
+    let organizer = ember_bridge::issue_credential(bridge.state(), None, Some("local"), "notifier")
         .await
         .unwrap();
 
@@ -431,7 +375,7 @@ async fn announces_a_set_on_discord_and_twitch() {
 
     // Two linked players and an FT1 set decided by an organizer.
     let provider =
-        ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "provider")
+        ember_bridge::issue_credential(bridge.state(), Some("mock-local"), None, "provider")
             .await
             .unwrap();
     let participants = link_two(&origin, &provider).await;
@@ -502,7 +446,6 @@ async fn announces_a_set_on_discord_and_twitch() {
     for task in tasks {
         task.abort();
     }
-    running.abort();
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -620,4 +563,107 @@ async fn link_two(origin: &str, provider: &str) -> Vec<Value> {
         participants.push(json!({ "participant_id": link["participant_id"], "ember_id": identity.ember_id(), "slot": slot }));
     }
     participants
+}
+
+// A value a newer bridge added to an enum no announcement reads hides
+// nothing: the match keeps its label and every announcement still goes out.
+#[test]
+fn an_unknown_value_in_an_enum_nobody_reads_hides_nothing() {
+    let fixture: Value =
+        serde_json::from_slice(&std::fs::read(examples().join("webhook-fixture.json")).unwrap())
+            .unwrap();
+    let dir = temp("later-enum");
+    let (a, b) = (
+        "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja",
+        "emb1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    );
+    let clock = Clock::default();
+    let notifier = Notifier::new(
+        Config {
+            listen: "127.0.0.1:0".into(),
+            bridge_origin: "https://bridge.ember.example".into(),
+            secrets: vec![fixture["secret_base64"].as_str().unwrap().into()],
+            database: dir.join("inbox.sqlite3"),
+            discord: None,
+            twitch: None,
+            bot: None,
+            brackets: None,
+            names: [(a.to_owned(), "Player A".to_owned())].into(),
+        },
+        clock.clone(),
+    )
+    .unwrap();
+    let created = lobby_event(
+        "match.created",
+        json!({
+            "match_id": "emt_1", "state": "a_later_state", "games_to_win": 2,
+            "participants": [
+                { "slot": 0, "participant_id": "p1", "ember_id": a },
+                { "slot": 1, "participant_id": "p2", "ember_id": b },
+            ],
+            "metadata": { "round_label": "Grand final" },
+        }),
+    );
+    let body = serde_json::to_vec(&created).unwrap();
+    let secret =
+        ember_protocol::webhook::Secret::parse(fixture["secret_base64"].as_str().unwrap()).unwrap();
+    let headers =
+        ember_protocol::webhook::sign(&[&secret], &created.id, clock.now(), &body).unwrap();
+    assert_eq!(notifier.accept(&headers, &body), Ok(true));
+    let announced = notifier.render(&created).unwrap();
+    assert_eq!(announced.title, "Grand final");
+    // The label match.created brought names the match's later events.
+    let cancelled = notifier
+        .render(&lobby_event(
+            "match.cancelled",
+            json!({ "match_id": "emt_1", "state": "cancelled" }),
+        ))
+        .unwrap();
+    assert_eq!(cancelled.title, "Grand final");
+
+    let draw = notifier
+        .render(&lobby_event(
+            "match.game.confirmed",
+            json!({ "match_id": "emt_1", "outcome": "draw", "winner_id": null, "resolution": "a_later_resolution" }),
+        ))
+        .unwrap();
+    assert_eq!(draw.text, "Draw. The game is replayed.");
+    let set = notifier
+        .render(&lobby_event(
+            "lobby.set.completed",
+            json!({ "lobby_id": "elb_1", "winner_id": a, "rotation": "a_later_rotation", "queue": [] }),
+        ))
+        .unwrap();
+    assert!(
+        set.text.starts_with("Player A wins the set."),
+        "{}",
+        set.text
+    );
+    let advanced = notifier
+        .render(&lobby_event(
+            "tournament.match.completed",
+            json!({
+                "tournament_id": "etn_1", "side": "a_later_side", "label": "Final",
+                "walkover": true, "winner": { "ember_id": a },
+            }),
+        ))
+        .unwrap();
+    assert_eq!(advanced.text, "Player A wins Final by walkover.");
+    let finished = notifier
+        .render(&lobby_event(
+            "tournament.completed",
+            json!({ "tournament_id": "etn_1", "format": "a_later_format", "placements": [{ "ember_id": a, "placement": 1 }] }),
+        ))
+        .unwrap();
+    assert_eq!(finished.text, "Champion: Player A.");
+    // A format the announcement reads still stops it.
+    assert!(
+        notifier
+            .render(&lobby_event(
+                "tournament.created",
+                json!({ "tournament_id": "etn_1", "format": "a_later_format" }),
+            ))
+            .is_none()
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }

@@ -110,8 +110,9 @@ bridge's `/.well-known/ember-bridge.json`, such as
 
 **Data use.** Ember uses and keeps the IDs BluMint sends, and the Ember IDs
 its lookup returns, only to put those players into matches in BluMint's
-events, to report those matches to BluMint, and to let the event staff who
-chose to watch do so. It shares them with no one else and keeps them secure.
+events, and to report those matches to BluMint. It shares them with no one
+else and keeps them secure. A watcher in a match's room sees its players'
+names there, as in any Ember room.
 
 ## Match creation
 
@@ -147,25 +148,23 @@ Idempotency-Key: tA1b2-round-1-match-1
 The answer:
 
 ```json
-{
-  "matchId": "emt_...",
-  "matchUrl": "ember://tournament/open?bridge=brg_...&match=emt_...",
-  "pageUrl": "https://embernetplay.link/m#brg_.../emt_..."
-}
+{ "matchId": "emt_...", "matchUrl": "https://embernetplay.link/m#brg_.../emt_..." }
 ```
 
-Use `matchUrl` as the match's Play button. It opens Ember on the match with
-no web page in between, and Ember joins the match's room by itself once the
-player is free. It only works where Ember is installed and has been started
-once on that PC. `pageUrl` is the same match as a web page, which also offers
-Ember to a player who does not have it: link it as a fallback, such as
-"Don't have Ember?".
-
-Both links are the same for both players and safe to send in your messages:
-only the two assigned Ember IDs can play the match, and anyone else's Ember
-finds no such match. The links themselves do not expire, but a match nobody
-plays does: the bridge ends it 24 hours after you
-created it at the latest (see "Reports").
+Use the returned `matchUrl` as the match's Play button and send it to both
+players. It is a web page that opens Ember on the match, by itself in a
+browser where Ember opened from it before, and otherwise tells the player how
+to get Ember or to open the link on the PC they play on. It is the same for
+both and safe to send in your messages: only the two assigned Ember IDs can
+play the match, and anyone else's Ember finds no such match. The link works
+only while its match is open. Once the set is decided, you close the match, or
+it expires, the page says the match is over and asks for the newest link
+instead of opening Ember, and players still in the match's room in Ember leave
+it within about 10 seconds, or once the game on screen ends (a minute at
+most). A match nobody plays expires 24 hours after you created it at the
+latest (see "Reports"), so close a match as soon as the bracket moves on
+without it: until then its players stay in it, and your next match for them is
+refused with `player_busy`.
 
 Every request under one `Idempotency-Key` answers the match that key made,
 even after the match has ended, for a day. After that the key answers
@@ -373,10 +372,10 @@ so BluMint never receives a second, different result for a match.
    return to BluMint to register again.
 4. **Play:** assigned matches appear automatically, with a notice and a
    **Tournament matches** row on Home, and a list under
-   **Online play > Ember ID > Tournament matches**. A player who clicks the
-   `matchUrl` while free goes straight into the match's room; from the list,
-   they press the match's **Play** row. Players can also paste either link
-   there. Check the reports and the result on BluMint.
+   **Online play > Ember ID > Tournament matches**. A player who opens the
+   `matchUrl` in Ember while free goes straight into the match's room; from
+   the list, they press the match's **Play** row. Players can also paste the
+   `matchUrl` there. Check the reports and the result on BluMint.
 
 ## Not built yet
 
@@ -387,8 +386,12 @@ so BluMint never receives a second, different result for a match.
   staging is registered on the staging bridge.
 - **Tested on real hardware.** Automated tests cover tournament play, but a
   two-PC match on real hardware has not been done yet.
-- **Watching.** `spectators` is sent and not read yet; the listed staff
-  cannot watch a match through Ember.
+- **Watching.** Anyone with an Ember ID who holds a match's `matchUrl` and
+  runs the players' Ember build can watch it from inside its room, up to 2
+  watchers a match. Watchers cannot play or chat. `spectators` is sent and
+  not read yet, so the listed staff get no reserved place.
+  A watcher joins the players' room, so it can learn their public IP
+  addresses when Ember finds a direct path, as any room member can.
 - **Forfeits.** Ember sends no `termination` report, because it has no
   concede action. A player who quits is not reported as a forfeit; the match
   ends as an abort, and BluMint's own hold decides what happens to a player

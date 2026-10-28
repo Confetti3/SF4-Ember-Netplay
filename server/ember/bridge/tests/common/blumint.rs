@@ -15,12 +15,16 @@ use axum::{
     response::{IntoResponse, Response},
     routing::post,
 };
-use ember_bridge::{AppState, Keys, config, integrations::Secrets};
+use ember_bridge::{
+    AppState, config,
+    integrations::Secrets,
+    testing::{self, reconfigured, until_async},
+};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
 use zeroize::Zeroizing;
 
-use super::{Bridge, Player, play::Table, results};
+use super::{Bridge, Player, play::Table, results, seed};
 
 pub const KATE: &str = "274220342558756145";
 pub const SAM: &str = "1725265127372152396";
@@ -175,19 +179,7 @@ pub async fn fixture_adjusted(
     bridge.open_session(&mut sam).await;
     // Both connected Discord (tests/discord.rs covers the sign-in itself).
     for (user_id, name, player) in [(KATE, "kate", &kate), (SAM, "sam", &sam)] {
-        let ember_id = player.id().as_str().to_owned();
-        bridge
-            .state()
-            .db
-            .write(move |tx| {
-                tx.execute(
-                    "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, 1)",
-                    rusqlite::params![user_id, ember_id, name],
-                )?;
-                Ok(())
-            })
-            .await
-            .unwrap();
+        seed::link_discord(bridge.state(), user_id, player.id().as_str(), name).await;
     }
     Fixture {
         bridge,
@@ -204,39 +196,16 @@ pub async fn fixture_adjusted(
 pub async fn discord_player(f: &Fixture, byte: u8, user_id: &str, name: &str) -> Player {
     let mut player = f.bridge.player(byte);
     f.bridge.open_session(&mut player).await;
-    let (ember_id, user_id, name) = (
-        player.id().as_str().to_owned(),
-        user_id.to_owned(),
-        name.to_owned(),
-    );
-    f.bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, 1)",
-                rusqlite::params![user_id, ember_id, name],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
+    seed::link_discord(f.bridge.state(), user_id, player.id().as_str(), name).await;
     player
 }
 
 fn connection(id: &str, api_base: Option<String>) -> config::Connection {
     config::Connection {
-        id: id.into(),
         kind: "blumint".into(),
         environment: "staging".into(),
-        display_name: "BluMint (test)".into(),
-        enabled: true,
         api_base,
-        discord_lookup: false,
-        lookup_sites: Vec::new(),
-        disputes: None,
-        results_url: None,
-        rooms: None,
+        ..testing::connection(id, "BluMint (test)")
     }
 }
 
@@ -418,7 +387,7 @@ fn unkeyed(mut body: Json) -> (String, Json) {
 }
 
 async fn settle(f: &Fixture, id: &str) {
-    for _ in 0..250 {
+    until_async("the reports to settle", Duration::from_secs(10), || async {
         let (match_id, now) = (id.to_owned(), f.bridge.clock.now());
         let due: bool = f
             .bridge
@@ -442,12 +411,12 @@ async fn settle(f: &Fixture, id: &str) {
             .await
             .unwrap();
         if !due {
-            return;
+            return true;
         }
         ember_bridge::deliver_results(f.bridge.state()).await;
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-    panic!("reports did not settle");
+        false
+    })
+    .await;
 }
 
 /// Kate's and Sam's teams with their wins, as every report carries them.
@@ -554,14 +523,7 @@ pub async fn void_game(f: &Fixture, id: &str, nth: usize, key: &str) -> StatusCo
 /// A bridge on the fixture's database with BluMint's key, for a test whose
 /// own bridge has none, so only the delivery passes it runs send.
 pub fn keyed_state(f: &Fixture) -> AppState {
-    let state = f.bridge.state();
-    AppState::new(
-        (*state.config).clone(),
-        Keys::generate(),
-        keyed(),
-        state.db.clone(),
-        f.bridge.clock.clone(),
-    )
+    reconfigured(f.bridge.state(), |_| {}, keyed())
 }
 
 /// The match's state, as the bridge's own match route reads it.

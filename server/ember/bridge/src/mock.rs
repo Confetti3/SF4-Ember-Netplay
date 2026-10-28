@@ -302,7 +302,6 @@ pub async fn approve(
         .db
         .write(move |tx| linking::approve(tx, &ctx, &Owner::Browser(&browser), &intent, &command))
         .await?;
-    state.committed();
     Ok(Redirect::to(&format!("/mock/{connection}/link")).into_response())
 }
 
@@ -344,7 +343,6 @@ pub async fn remove(
             )
         })
         .await?;
-    state.committed();
     Ok(Redirect::to(&format!("/mock/{connection}/link")).into_response())
 }
 

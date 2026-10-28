@@ -18,6 +18,7 @@
 #include <deque>
 #include <map>
 #include <optional>
+#include <string_view>
 #include <nlohmann/json_fwd.hpp>
 
 namespace sf4e { namespace session {
@@ -50,7 +51,7 @@ public:
         std::size_t datagramLimit=0;
         void ObserveStatistics(const nlohmann::json& event);
 	};
-    const std::map<std::string, GameSnapshot>& Games() const { return games_; }
+    const std::map<std::string, GameSnapshot>& Games() const { return room_.games; }
     // The helper process's load over its last second. The actor's 2 ms tick
     // shares the runtime workers with every bridge task, so its lag is the
     // scheduling delay a gameplay packet can also see. samples is zero until
@@ -129,14 +130,14 @@ public:
 	// GGPO releases its socket, retire the entire helper epoch and await room_closed.
 	bool CloseFailedRoom(bool ggpoOwnsSocket);
 	void Poll();
-	State GetState() const { return state_; }
+	State GetState() const { return room_.state; }
 	// A server-owned (public) room, as its host or as a member that joined with JoinPublic.
-	bool ServerOwned() const { return publicHost_ || publicMember_; }
+	bool ServerOwned() const { return room_.publicHost || room_.publicMember; }
 	// Hidden while the link to the leader is down. They survive that loss: the
 	// helper sends a joiner's invitation once, at join, and refreshes it only
 	// when the authority changes, which clears them here first.
-	const std::string& Invitation() const { return state_ == State::Degraded ? NoInvitation() : invitation_; }
-	const std::string& DiscordInvitation() const { return state_ == State::Degraded ? NoInvitation() : discordInvitation_; }
+	const std::string& Invitation() const { return room_.state == State::Degraded ? NoInvitation() : room_.invitation; }
+	const std::string& DiscordInvitation() const { return room_.state == State::Degraded ? NoInvitation() : room_.discordInvitation; }
 	// The room's short link (https://embernetplay.link/j#...), once asked for.
 	// The helper answers each request once: the link, which then stays valid
 	// for the room's life, even across a change of leader, or a failure,
@@ -144,12 +145,12 @@ public:
 	// invitation instead. Returns false, and counts a failure, when no
 	// request could be sent.
 	bool RequestShortInvitation();
-	const std::string& ShortInvitation() const { return state_ == State::Degraded ? NoInvitation() : shortInvitation_; }
-	bool ShortInvitationPending() const { return shortPending_; }
+	const std::string& ShortInvitation() const { return room_.state == State::Degraded ? NoInvitation() : room_.shortInvitation; }
+	bool ShortInvitationPending() const { return room_.shortPending; }
 	std::uint64_t ShortInvitationFailures() const { return shortFailures_; }
-	const std::string& Error() const { return error_; }
+	const std::string& Error() const { return room_.error; }
 	std::uint64_t Epoch() const { return epoch_; }
-	virtual std::array<std::uint8_t, 16> RoomId() const { return room_; }
+	virtual std::array<std::uint8_t, 16> RoomId() const { return room_.id; }
 	std::string PeerIdentity(Connection connection) const;
 	std::uint64_t PeerIncarnation(Connection connection) const;
 	virtual const std::string& LocalIdentity() const { return localIdentity_; }
@@ -164,11 +165,11 @@ public:
 	// a relay string that is not a code reads as "other".
 	static NetworkSummary ReadNetworkReport(const nlohmann::json& event);
 	// Where the last host or join attempt failed, when the helper said.
-	FailureStage Stage() const { return failureStage_; }
+	FailureStage Stage() const { return room_.failureStage; }
 	// The helper's label for that failure (`refused`, `timeout`, `host_unreachable`,
 	// ...), empty when it gave none or one this build does not know. Diagnostics
 	// only: the player's wording comes from Stage().
-	const std::string& FailureReason() const { return failureReason_; }
+	const std::string& FailureReason() const { return room_.failureReason; }
 	// The Ember identity and bridge state from the helper's tournament events.
 	// Endpoint-level like the network report: kept with or without a room.
 	const netplay::IdentityView& Identity() const { return identity_; }
@@ -178,8 +179,8 @@ public:
 	// a tournament event whose request_id is *requestId. The caller wipes the
 	// request text, which may hold a passphrase; this wipes its own copy.
 	bool SendTournament(const std::string& request, std::uint64_t* requestId);
-    virtual const CoordinationSnapshot& Coordination() const { return coordination_; }
-    const ProbeSnapshot& Probe() const { return probe_; }
+    virtual const CoordinationSnapshot& Coordination() const { return room_.coordination; }
+    const ProbeSnapshot& Probe() const { return room_.probe; }
     RecoverySnapshot RecoveryState() const;
     // bytes is the encoded proposal (SessionProposal::encoded). Deliberately not
     // an overload on json: json converts to std::string implicitly and throws.
@@ -195,13 +196,13 @@ public:
     bool DiscardCommittedCheckpoint(const coordination::TransferIdentity& identity);
     // Received commits waiting behind the staged head, not counting the head.
     std::size_t CommittedCheckpointsBehindHead() const {
-        return committedCheckpoints_.empty() ? 0 : committedCheckpoints_.size() - 1;
+        return replica_.committedCheckpoints.empty() ? 0 : replica_.committedCheckpoints.size() - 1;
     }
     virtual bool ReadyForMatch() const;
-    bool ProposalInFlight() const { return !proposalBytes_.empty(); }
+    bool ProposalInFlight() const { return !sender_.bytes.empty(); }
     // A received commit is being decoded on the worker thread, or is staged
     // and not yet activated: work that completes without a helper event.
-    bool CheckpointPending() const { return !decoding_.empty() || !committedCheckpoints_.empty(); }
+    bool CheckpointPending() const { return !replica_.decoding.empty() || !replica_.committedCheckpoints.empty(); }
     bool RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark=false);
     Connection ConnectionForIdentity(const std::string& identity) const;
     std::map<Connection,std::string> ControlIdentities() const;
@@ -221,12 +222,19 @@ public:
 	// Stop waiting for game_closed on this generation's mappings. The helper
 	// clears them when it runs end_match, so only the lost event is skipped.
 	virtual void AbandonMatch(std::uint64_t generation);
-	virtual GameSnapshot Game(const std::string& peer) const;
+	// The mapping for this peer, or null when it has none: read in place, for
+	// the match session's reads on every tick. Virtual for the test double.
+	virtual const GameSnapshot* FindGame(const std::string& peer) const;
+	// A copy of that mapping, or a Closed snapshot when there is none.
+	GameSnapshot Game(const std::string& peer) const {
+		const auto* game = FindGame(peer);
+		return game ? *game : GameSnapshot();
+	}
 	std::unique_ptr<ServerTransport> Server();
 	std::unique_ptr<ClientTransport> Client();
 	// This member's latency route for the current room, from the helper's
 	// hosted or connected event; none until then and after every Host or Join.
-	const LatencyRoute& LocalLatency() const { return localLatency_; }
+	const LatencyRoute& LocalLatency() const { return room_.localLatency; }
 	// The room board's latency subscription: on while `wanted` and the room is
 	// open, renewed every few seconds, and off otherwise (MemberLatency.hxx).
 	void WatchLatency(bool wanted);
@@ -286,12 +294,9 @@ private:
 		const std::set<std::string>& connected);
 	bool BeginPeerSession(std::map<Connection, Peer>::iterator peer, std::uint64_t incarnation);
 	bool PeerDeparted(std::map<Connection, Peer>::iterator peer);
-	bool ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, const nlohmann::json& event);
-	std::map<std::string, std::uint64_t> memberIncarnations_;
-	std::set<std::string> committedMembers_;
-	bool haveCommittedMembers_ = false;
-	// Active rows in the applied commit's roster: members, not frozen history.
-	std::size_t committedLiveMembers_ = 0;
+	// `body` is the payload of a raw-body helper frame, which `event` then lacks.
+	bool ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, const nlohmann::json& event,
+		std::optional<std::string_view> body);
 	bool Begin(bool host);
 	bool Command(const std::string& payload);
 	PeerEnd EndPeerCommand(const std::string& peer, std::uint64_t generation, bool failWhenFull);
@@ -299,13 +304,26 @@ private:
 	bool Queue(std::deque<Message>& destination, Message message);
 	void Fail(const char* code);
 	bool ConsumeGameEvent(const nlohmann::json& event, const std::string& type);
-    bool ConsumeCoordinationEvent(const nlohmann::json& event, const std::string& type);
+    // `body`, when set, is a raw-body frame's checkpoint chunk.
+    bool ConsumeCoordinationEvent(const nlohmann::json& event, const std::string& type,
+        std::optional<std::string_view> body = std::nullopt);
     // Poll branches; false stops Poll for this tick.
     bool HandleConnected(const nlohmann::json& event);
-    bool HandleControlTraffic(const nlohmann::json& event, const std::string& type);
+    bool HandleControlTraffic(const nlohmann::json& event, const std::string& type,
+        std::optional<std::string_view> body = std::nullopt);
     bool HandleHelperError(const nlohmann::json& event);
     void PumpCheckpoint();
-    int AuthorizedEffect(Message& message);
+    // What the client queue does with the message at its head: deliver it,
+    // park it there, or drop it.
+    enum class EffectVerdict { Deliver, Park, Drop };
+    // Parses a message once, attaches the parsed payload as its body when it
+    // delivers, and caches a parked effect's checked token on the message.
+    EffectVerdict AuthorizedEffect(Message& message);
+    // The activation gate for a committed effect whose digest has been checked.
+    EffectVerdict CommitGate(const EffectEnvelope& token) const;
+    // Recipient and duplicate checks, then rewrites the payload without its
+    // token and attaches `payload` as the body.
+    EffectVerdict DeliverCommitted(Message& message, const EffectEnvelope& token, nlohmann::json& payload);
     void PumpCommittedEffects();
     struct StagedCheckpoint {
         coordination::TransferIdentity identity;
@@ -358,102 +376,146 @@ private:
         const coordination::TransferIdentity& identity,
         std::vector<TerminalReplayEffect>& effects,
         std::set<TerminalReplayKey>& activeKeys) const;
-	platform::HelperClient& helper_; // Supervisor outlives this room and its adapters.
-	State state_ = State::Idle;
-	bool hosting_ = false;
-	// Hosting a server-owned room: this process has no local client.
-	bool publicHost_ = false;
-	// Joined a server-owned room through JoinPublic.
-	bool publicMember_ = false;
-	bool roomCommandQueued_ = false;
-	bool leavePending_ = false;
-    bool leaveAbandon_=false;
-    std::uint64_t leaveRetryAt_=0;
-    // Departure cannot depend on the helper confirming it. Every retryable
-    // leave failure re-arms the send, but only until this deadline; after that
-    // the room is released locally so the player is never stuck in Closing.
-    std::uint64_t leaveDeadline_=0;
-    // A departure the helper never confirmed is abandoned at that deadline on
-    // its own epoch. The abandon is kept until the helper accepts it whatever
-    // the room does next; the helper rejects it as stale once a newer epoch
-    // has begun, by which point that epoch released the room instead.
-    bool abandonPending_=false;
-    std::uint64_t abandonEpoch_=0, abandonRetryAt_=0;
-	bool localOpen_ = false;
-	bool pendingAdmission_ = false;
-	bool serverOpen_ = false;
-	std::uint64_t epoch_ = 0;
-	Connection nextConnection_ = 2; // 1 is the hosting player's in-process client.
-	std::int64_t localNextId_ = 2;
-	std::int64_t serverLocalNextId_ = 2;
-	std::array<std::uint8_t, 16> room_ = {};
-	std::string invitation_, discordInvitation_;
-	std::string shortInvitation_;
-	bool shortPending_ = false;
-	std::uint64_t shortFailures_ = 0;
-	std::string error_;
-	std::string localIdentity_;
-	LatencyRoute localLatency_;
-	LatencySubscription latency_;
 	// Applies the latency fields of a hosted or connected event when it has them.
 	void ReadLocalLatency(const nlohmann::json& event);
+	// Commits whose bytes are being decoded off the game thread, oldest first.
+	// They count toward the staging capacity and are staged in this order.
+	struct PendingDecode {
+		std::uint64_t ticket=0;
+		coordination::TransferIdentity identity;
+		std::uint64_t previousReceivedRevision=0;
+	};
+	void SubmitCommittedCheckpoint(const coordination::TransferIdentity& identity);
+	void CompleteCommittedCheckpoints();
+	void FinishCommittedCheckpoint(CheckpointDecodeWorker::Result&& decoded);
+	void StageCommittedCheckpoint(const coordination::TransferIdentity& identity,
+		CheckpointDecodeWorker::Result&& decoded);
+	void LogLoad(const RoomLoadWindow::Report& report);
+	// Every game mapping closed now, its virtual port released.
+	void CloseAllGames();
+	void ClearInvitations();
+	// Ready once the coordination is writable and this member is rebound.
+	void ReadyIfRebound();
+
+	platform::HelperClient& helper_; // Supervisor outlives this room and its adapters.
+
+	// One room epoch: everything Begin starts afresh for each Host or Join. A
+	// field added here is reset with the rest; what outlives an epoch is kept
+	// outside it, below.
+	struct EpochState {
+		State state = State::Idle;
+		bool hosting = false;
+		// Hosting a server-owned room: this process has no local client.
+		bool publicHost = false;
+		// Joined a server-owned room through JoinPublic.
+		bool publicMember = false;
+		bool localOpen = false;
+		bool pendingAdmission = false;
+		bool serverOpen = false;
+		std::int64_t localNextId = 2;
+		std::int64_t serverLocalNextId = 2;
+		std::array<std::uint8_t, 16> id = {};
+		std::string invitation, discordInvitation;
+		std::string shortInvitation;
+		bool shortPending = false;
+		std::string error;
+		LatencyRoute localLatency;
+		FailureStage failureStage = FailureStage::Unknown;
+		std::string failureReason;
+		std::uint64_t closedGeneration = 0;
+		std::map<std::string, GameSnapshot> games;
+		std::map<Connection, Peer> peers;
+		// The authenticated roster from control_rebound: endpoint and incarnation.
+		std::map<std::string, std::uint64_t> memberIncarnations;
+		std::deque<Message> serverMessages;
+		std::deque<Message> clientMessages;
+		std::vector<Connection> closed;
+		std::size_t queuedBytes = 0;
+		CoordinationSnapshot coordination;
+		ProbeSnapshot probe;
+		RoomLoadWindow loadWindow;
+	};
+	EpochState room_;
+
+	// The leader's checkpoint proposal on its way to the helper: begun, sent in
+	// chunks under a four-chunk credit window, ended once all is acknowledged.
+	// Empty bytes mean no proposal is in flight.
+	struct CheckpointSender {
+		coordination::TransferIdentity identity;
+		std::string bytes;
+		std::size_t sent = 0, acknowledged = 0;
+		bool begun = false, ended = false;
+		std::uint64_t startedMs = 0;
+		std::uint64_t timeouts = 0, transferErrors = 0;
+		std::string status;
+	};
+	CheckpointSender sender_;
+
+	// The committed-checkpoint side: transfers received from the helper, the
+	// commits decoded and staged behind the head, and what the applied commit
+	// lets through to the local client.
+	struct CommittedReplica {
+		coordination::CheckpointReceiver checkpointReceiver;
+		std::uint64_t checkpointRestarts = 0, checkpointTimeouts = 0, checkpointTransferErrors = 0;
+		std::deque<StagedCheckpoint> committedCheckpoints;
+		std::deque<PendingDecode> decoding;
+		nlohmann::json pendingCheckpointAck;
+		nlohmann::json pendingCommittedMarker;
+		std::vector<EffectEnvelope> appliedEffects;
+		std::set<std::pair<std::uint64_t, std::uint64_t>> deliveredEffects;
+		std::map<room::MemberId, room::ConnectionRef> effectRecipients;
+		std::uint64_t effectsRevision = 0;
+		std::uint64_t receivedRevision = 0;
+		std::deque<EffectEnvelope> pendingPublicEffects;
+		std::deque<TerminalReplayEffect> pendingTerminalReplayEffects;
+		std::map<TerminalReplayKey, TerminalReplayEffect> terminalReplayInFlight;
+		std::set<TerminalReplayKey> deliveredTerminalReplays;
+		std::set<std::string> committedMembers;
+		bool haveCommittedMembers = false;
+		// Active rows in the applied commit's roster: members, not frozen history.
+		std::size_t committedLiveMembers = 0;
+	};
+	CommittedReplica replica_;
+
+	// Leaving the room. The first five are this epoch's departure. The abandon
+	// of an epoch whose departure the helper never confirmed outlives it.
+	struct Departure {
+		// The Host or Join command reached the helper: a Leave waits for its answer.
+		bool roomCommandQueued = false;
+		// A leave the helper has not accepted yet, retried from retryAt.
+		bool pending = false;
+		bool abandon = false;
+		std::uint64_t retryAt = 0;
+		// Departure cannot depend on the helper confirming it. Every retryable
+		// leave failure re-arms the send, but only until this deadline; after that
+		// the room is released locally so the player is never stuck in Closing.
+		std::uint64_t deadline = 0;
+		// A departure the helper never confirmed is abandoned at that deadline on
+		// its own epoch. The abandon is kept until the helper accepts it whatever
+		// the room does next; the helper rejects it as stale once a newer epoch
+		// has begun, by which point that epoch released the room instead.
+		bool abandonPending = false;
+		std::uint64_t abandonEpoch = 0, abandonRetryAt = 0;
+		void BeginEpoch() { roomCommandQueued = pending = abandon = false; retryAt = deadline = 0; }
+	};
+	Departure departure_;
+
+	// Outlives every epoch.
+	std::uint64_t epoch_ = 0;
+	Connection nextConnection_ = 2; // 1 is the hosting player's in-process client.
+	std::uint64_t shortFailures_ = 0;
+	std::string localIdentity_;
+	LatencySubscription latency_;
 	std::optional<std::uint16_t> localUdpPort_;
 	NetworkSummary network_;
 	netplay::IdentityView identity_;
 	// Bounded: a runtime that stopped draining cannot grow it without limit.
 	std::deque<TournamentAnswer> tournamentAnswers_;
-	FailureStage failureStage_ = FailureStage::Unknown;
-	std::string failureReason_;
-	std::uint64_t closedGeneration_ = 0;
-	std::map<std::string, GameSnapshot> games_;
-	std::map<Connection, Peer> peers_;
-	std::deque<Message> serverMessages_;
-	std::deque<Message> clientMessages_;
-	std::vector<Connection> closed_;
-	std::size_t queuedBytes_ = 0;
-    CoordinationSnapshot coordination_;
-    ProbeSnapshot probe_;
-    coordination::CheckpointReceiver checkpointReceiver_;
-    std::uint64_t checkpointRestarts_=0, checkpointTimeouts_=0, checkpointTransferErrors_=0;
-    std::deque<StagedCheckpoint> committedCheckpoints_;
-    // Commits whose bytes are being decoded off the game thread, oldest first.
-    // They count toward the staging capacity and are staged in this order.
-    struct PendingDecode {
-        std::uint64_t ticket=0;
-        coordination::TransferIdentity identity;
-        std::uint64_t previousReceivedRevision=0;
-    };
-    void SubmitCommittedCheckpoint(const coordination::TransferIdentity& identity);
-    void CompleteCommittedCheckpoints();
-    void FinishCommittedCheckpoint(CheckpointDecodeWorker::Result&& decoded);
-    void StageCommittedCheckpoint(const coordination::TransferIdentity& identity,
-        CheckpointDecodeWorker::Result&& decoded);
-    HelperLoadSnapshot helperLoad_;
-    RoomLoadWindow loadWindow_;
-    void LogLoad(const RoomLoadWindow::Report& report);
-    std::deque<PendingDecode> decoding_;
-    std::uint64_t nextDecodeTicket_=1;
-    // SF4E_ROOM_WORKER=0 decodes inline on the game thread instead.
-    bool decodeOffThread_=true;
-    CheckpointDecodeWorker decoder_;
-    coordination::TransferIdentity proposalIdentity_;
-    std::string proposalBytes_;
-    std::size_t proposalSent_=0, proposalAcknowledged_=0;
-    bool proposalBegun_=false, proposalEnded_=false;
-    std::uint64_t proposalStartedMs_=0;
-    std::uint64_t proposalTimeouts_=0, proposalTransferErrors_=0;
-    std::string proposalStatus_;
-    nlohmann::json pendingCheckpointAck_;
-    nlohmann::json pendingCommittedMarker_;
-    std::vector<EffectEnvelope> appliedEffects_;
-    std::set<std::pair<std::uint64_t,std::uint64_t>> deliveredEffects_;
-    std::map<room::MemberId,room::ConnectionRef> effectRecipients_;
-    std::uint64_t effectsRevision_=0;
-    std::uint64_t receivedRevision_=0;
-    std::deque<EffectEnvelope> pendingPublicEffects_;
-    std::deque<TerminalReplayEffect> pendingTerminalReplayEffects_;
-    std::map<TerminalReplayKey,TerminalReplayEffect> terminalReplayInFlight_;
-    std::set<TerminalReplayKey> deliveredTerminalReplays_;
+	HelperLoadSnapshot helperLoad_;
+	std::uint64_t nextDecodeTicket_=1;
+	// SF4E_ROOM_WORKER=0 decodes inline on the game thread instead; read at each Begin.
+	bool decodeOffThread_=true;
+	CheckpointDecodeWorker decoder_;
 };
 
 } }

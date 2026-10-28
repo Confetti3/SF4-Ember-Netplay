@@ -12,7 +12,7 @@ use axum::{
 };
 use ember_protocol::{
     api::ErrorCode,
-    event::Kind,
+    event::{GameConfirmedData, Kind},
     facts::GameFacts,
     json,
     matches::MatchState,
@@ -29,11 +29,10 @@ use crate::{
     http::{Body, json as respond},
     routes::{
         ledger::{
-            Cause, Match, bump, load, match_event, participants, scores, settle, unready_before,
+            Cause, Match, bump, load, load_listed, match_event, needs_review, participants, scores,
+            settle, unready_before,
         },
-        matches,
         play::{self, fighter},
-        policy,
     },
     util::new_id,
 };
@@ -108,7 +107,6 @@ pub async fn submit_route(
             submit(tx, &ctx, &id, &signed)
         })
         .await?;
-    state.committed();
     Ok(respond(status, &receipt))
 }
 
@@ -318,15 +316,18 @@ fn decide(
         };
         events.push((
             Kind::GameConfirmed,
-            json!({
-                "match_id": current.id,
-                "attempt_id": attempt_id,
-                "seq": seq,
-                "outcome": outcome_name(result),
-                "winner_id": winner,
-                "resolution": ember_protocol::matches::Resolution::PlayerAgreement,
-                "report_ids": report_ids,
-            }),
+            serde_json::to_value(GameConfirmedData {
+                match_id: current.id.clone(),
+                match_revision: None,
+                attempt_id: attempt_id.to_owned(),
+                seq,
+                outcome: outcome_name(result).to_owned(),
+                winner_id: winner,
+                resolution: Some(ember_protocol::matches::Resolution::PlayerAgreement),
+                adjudication_id: None,
+                report_ids: Some(report_ids.clone()),
+            })
+            .unwrap_or_default(),
         ));
     } else {
         tx.execute(
@@ -362,22 +363,18 @@ fn hold(
     if changed == 0 || current.state.is_terminal() || current.state == MatchState::NeedsReview {
         return Ok(());
     }
-    matches::needs_review(tx, ctx, &current, reason, Some(attempt_id))
+    needs_review(tx, ctx, &current, reason, Some(attempt_id))
 }
 
 /// Whether the reports are one abort or cancel on a connection that restarts
 /// disputes, which need not wait out `PARTNER_SECS`. A lone win or draw always
 /// does: a late second report can still agree with it.
-fn settles_early(
-    tx: &Transaction<'_>,
-    current: &Match,
-    reports: &[(String, GameReport)],
-) -> Result<bool> {
+fn settles_early(current: &Match, reports: &[(String, GameReport)]) -> Result<bool> {
     let [(_, report)] = reports else {
         return Ok(false);
     };
     Ok(matches!(report.result, Outcome::Abort | Outcome::Cancel)
-        && !policy::of(tx, &current.connection_id)?.reviews_disputes)
+        && !current.policy()?.reviews_disputes)
 }
 
 /// Holds attempts whose second report never came, and permitted games that
@@ -414,9 +411,11 @@ pub fn expire(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
         // that started and broke (abort), or a lone result, still goes to
         // review (spec 17.2).
         let reports = first_reports(tx, &attempt_id)?;
-        let current = load(tx, &match_id)?.ok_or_else(ApiFailure::unavailable)?;
+        let Some(current) = load_listed(tx, &match_id)? else {
+            continue;
+        };
         let short_of_partner_wait = first_report_at.is_some_and(|at| at + PARTNER_SECS > ctx.now);
-        if short_of_partner_wait && !settles_early(tx, &current, &reports)? {
+        if short_of_partner_wait && !settles_early(&current, &reports)? {
             continue;
         }
         match reports.as_slice() {

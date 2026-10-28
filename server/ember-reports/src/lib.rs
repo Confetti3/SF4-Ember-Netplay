@@ -224,7 +224,7 @@ async fn process(app: Arc<App>, report: intake::Report, ticket: Option<Arc<Ticke
     let walk = if let Some(bytes) = &report.minidump {
         app.worker
             .walk(
-                bytes.clone(),
+                bytes,
                 app.config.state_dir.join("symbols"),
                 Duration::from_secs(app.config.limits.processing_secs),
             )

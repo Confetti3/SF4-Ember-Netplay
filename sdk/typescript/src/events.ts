@@ -66,7 +66,8 @@ export interface BridgeEvent {
 
 export class EventError extends Error {}
 
-const FIELDS = ["specversion", "id", "source", "type", "subject", "time", "datacontenttype", "dataschema", "emberseq", "data"];
+/** The keys of an event, exactly. The protocol's list is checked by test/contract.test.ts. */
+export const EVENT_FIELDS = ["specversion", "id", "source", "type", "subject", "time", "datacontenttype", "dataschema", "emberseq", "data"];
 
 /**
  * Parses a verified webhook body or one event from the replay API. Unknown
@@ -77,7 +78,7 @@ export function parseEvent(payload: string | Uint8Array | Json): BridgeEvent {
     typeof payload === "string" ? parseStrict(payload) : payload instanceof Uint8Array ? parseStrict(Buffer.from(payload).toString("utf8")) : payload;
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw new EventError("an event is an object");
   const keys = Object.keys(value);
-  if (keys.length !== FIELDS.length || !FIELDS.every((field) => keys.includes(field))) throw new EventError("unexpected event fields");
+  if (keys.length !== EVENT_FIELDS.length || !EVENT_FIELDS.every((field) => keys.includes(field))) throw new EventError("unexpected event fields");
   const { specversion, id, source, type, subject, time, datacontenttype, dataschema, emberseq, data } = value;
   const sequence = counter(emberseq);
   if (specversion !== "1.0" || typeof id !== "string" || !prefixedId(id, "evt") ||
@@ -103,7 +104,41 @@ export interface RoomSummary {
   /** The host's relay region code, such as `use1`. */
   region: string;
   created_at: number;
+  /** Each fighter plays at the input delay they chose. Present only when true. */
+  own_delay?: boolean;
+  /**
+   * The moderator's name. This and the four fields after it are the room host's
+   * own report: only in a listing that asked for details, and left out where the
+   * bridge or the host does not know them.
+   */
+  host_name?: string;
+  /** The members' main characters, the moderator first; 255 where there is none. */
+  fighters?: number[];
+  /** The moderator has the room locked: nobody new gets in. */
+  locked?: boolean;
+  /** The first table's set format. */
+  set_format?: number;
+  /** The first table's rotation: 0 to 2. */
+  rotation?: number;
 }
+
+/** Every key of a `RoomSummary`. Listing it as a `Record` makes the compiler hold it to the interface; test/contract.test.ts holds it to the protocol. */
+export const ROOM_SUMMARY_KEYS = Object.keys({
+  room_id: true,
+  name: true,
+  build_id: true,
+  members: true,
+  capacity: true,
+  tables_playing: true,
+  region: true,
+  created_at: true,
+  own_delay: true,
+  host_name: true,
+  fighters: true,
+  locked: true,
+  set_format: true,
+  rotation: true,
+} satisfies Record<keyof RoomSummary, true>);
 
 /** `waiting` until the creator is in, then `open`, then `closed`. */
 export type RoomState = "waiting" | "open" | "closed";
@@ -117,11 +152,19 @@ export interface ConnectionRoom {
   join_url: string;
 }
 
+/** Every key of a `ConnectionRoom`, held to the interface and the protocol like `ROOM_SUMMARY_KEYS`. */
+export const CONNECTION_ROOM_KEYS = Object.keys({
+  room: true,
+  state: true,
+  creator_ember_id: true,
+  join_url: true,
+} satisfies Record<keyof ConnectionRoom, true>);
+
 /** Why a room closed: your `closeRoom`, or it ended on its own (it emptied, its creator never came, or its host stopped). */
 export type RoomCloseReason = "closed_by_connection" | "ended";
 
-const ROOM_STATES: readonly string[] = ["waiting", "open", "closed"];
-const ROOM_CLOSE_REASONS: readonly string[] = ["closed_by_connection", "ended"];
+export const ROOM_STATES: readonly string[] = ["waiting", "open", "closed"];
+export const ROOM_CLOSE_REASONS: readonly string[] = ["closed_by_connection", "ended"];
 
 /** `room.created`, `room.opened` and `room.changed` carry the room as it stands; `room.closed` adds why. */
 export type RoomEvent =

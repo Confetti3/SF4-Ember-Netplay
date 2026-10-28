@@ -17,7 +17,7 @@ async fn bounded_relay_sized_append_does_not_forfeit_healthy_quorum() {
     .expect("healthy bounded append failed");
     assert!(receipt.accepted);
     assert_eq!(
-        nodes[0].committed().await.checkpoint.len(),
+        nodes[0].store().committed().await.checkpoint.len(),
         checkpoint.len()
     );
     stop(nodes).await;
@@ -75,7 +75,7 @@ async fn bounded_relay_snapshot_bootstraps_a_fresh_learner() {
     .expect("bounded relay snapshot admission failed");
     tokio::time::timeout(Duration::from_secs(14), async {
         loop {
-            if nodes[1].committed().await.revision == 12 {
+            if nodes[1].store().committed().await.revision == 12 {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(25)).await;
@@ -149,7 +149,7 @@ async fn bounded_relay_snapshot_batches_a_four_chunk_credit_window() {
         .expect("relay snapshot learner admission failed");
     let caught_up = tokio::time::timeout(Duration::from_secs(14), async {
         loop {
-            if nodes[1].committed().await.revision == 12 {
+            if nodes[1].store().committed().await.revision == 12 {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(25)).await;
@@ -171,10 +171,13 @@ async fn bounded_relay_snapshot_batches_a_four_chunk_credit_window() {
 #[tokio::test]
 async fn snapshot_preserves_removed_member_provenance_for_new_replica() {
     let (_, nodes) = cluster(2).await;
-    assert_eq!(nodes[0].dispatch(2, "remove", &[0]).await.unwrap(), vec![1]);
+    assert_eq!(
+        nodes[0].dispatch(2, Method::Remove, &[0]).await.unwrap(),
+        vec![1]
+    );
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            if nodes[0].applied_member_ids().await == BTreeSet::from([1]) {
+            if nodes[0].store().applied_members().await == BTreeSet::from([1]) {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(25)).await;

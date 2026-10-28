@@ -7,14 +7,14 @@ use std::collections::BTreeSet;
 use ember_protocol::{
     EmberId,
     api::ErrorCode,
-    event::Kind,
+    event::{EventSeed, Kind, TournamentCreatedData, TournamentStartedData},
     tournament::{self as bracket, CreateTournament, Format, RegisterEntrant, Status},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::json;
 
 use super::{
-    Applied, Tournament, closed, load,
+    Applied, Tournament, closed, load, load_listed,
     progress::progress,
     state::{Entrant, entrants, load_bracket, registered_count},
     touch, tournament_event,
@@ -23,7 +23,7 @@ use crate::{
     audit::audit,
     ctx::Ctx,
     error::{ApiFailure, Result},
-    routes::{lobbies, matches},
+    routes::{ledger, lobbies},
     util::new_id,
 };
 
@@ -84,14 +84,17 @@ pub fn create(
         ctx,
         &tournament,
         Kind::TournamentCreated,
-        json!({
-            "external_tournament_id": command.external_tournament_id,
-            "format": command.format,
-            "games_to_win": command.games_to_win,
-            "finals_games_to_win": finals,
-            "grand_final_reset": reset,
-            "metadata": command.metadata,
-        }),
+        serde_json::to_value(TournamentCreatedData {
+            tournament_id: None,
+            tournament_revision: None,
+            external_tournament_id: command.external_tournament_id.clone(),
+            format: Some(command.format),
+            games_to_win: command.games_to_win,
+            finals_games_to_win: Some(finals),
+            grand_final_reset: reset,
+            metadata: command.metadata.clone(),
+        })
+        .unwrap_or_default(),
         1,
     )?;
     Ok(Applied::Changed(tournament))
@@ -111,7 +114,7 @@ pub fn register(
             "Registration for this tournament is closed.",
         ));
     }
-    if !matches::linked(
+    if !ledger::linked(
         tx,
         &tournament.connection_id,
         &command.participant_id,
@@ -268,10 +271,9 @@ pub fn start(
     let seeds: Vec<_> = order
         .iter()
         .enumerate()
-        .map(|(seed, entrant)| {
-            let mut player = entrant.public();
-            player["seed"] = (seed + 1).into();
-            player
+        .map(|(seed, entrant)| EventSeed {
+            ember_id: entrant.ember_id.clone(),
+            seed: seed + 1,
         })
         .collect();
     let tournament = load(tx, &tournament.id)?.ok_or_else(ApiFailure::unavailable)?;
@@ -280,7 +282,14 @@ pub fn start(
         ctx,
         &tournament,
         Kind::TournamentStarted,
-        json!({ "format": tournament.format, "entrants": seeds, "sets": plan.len() }),
+        serde_json::to_value(TournamentStartedData {
+            tournament_id: None,
+            tournament_revision: None,
+            format: Some(tournament.format),
+            entrants: seeds,
+            sets: plan.len(),
+        })
+        .unwrap_or_default(),
         revision,
     )?;
     audit(
@@ -316,7 +325,7 @@ pub fn cancel(
             if state.status == Status::Playing
                 && let Some(match_id) = &bracket.matches[node]
             {
-                freed.extend(matches::cancel_tournament_set(
+                freed.extend(ledger::cancel_tournament_set(
                     tx,
                     ctx,
                     match_id,
@@ -347,7 +356,7 @@ pub fn cancel(
         "ok",
         Some(reason),
     )?;
-    matches::release_players(tx, ctx, &tournament.connection_id, &freed)?;
+    ledger::release_players(tx, ctx, &tournament.connection_id, &freed)?;
     // Entrants a ready set held back from lobbies are free now.
     let everyone: Vec<EmberId> = entrants(tx, &tournament.id)?
         .into_iter()
@@ -373,7 +382,9 @@ pub fn on_unlink(
         .query_map(params![connection_id, ember_id.as_str()], |row| row.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for id in ids {
-        let tournament = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
+        let Some(tournament) = load_listed(tx, &id)? else {
+            continue;
+        };
         withdraw(tx, ctx, &tournament, ember_id, "identity_unlinked")?;
     }
     Ok(())
@@ -409,7 +420,7 @@ fn withdraw(
     if tournament.state == "running" {
         let mut bracket = load_bracket(tx, tournament)?;
         let freed = progress(tx, ctx, tournament, &mut bracket)?;
-        matches::release_players(tx, ctx, &tournament.connection_id, &freed)?;
+        ledger::release_players(tx, ctx, &tournament.connection_id, &freed)?;
     }
     Ok(())
 }

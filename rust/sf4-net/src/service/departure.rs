@@ -60,8 +60,8 @@ impl Actor {
         });
         if let Some(recovery) = self.recovery.clone() {
             let state = recovery.state().await;
-            let voters = recovery.applied_voter_ids().await;
-            let applied_members = recovery.applied_member_ids().await;
+            let voters = recovery.coordinator.store().applied_voters().await;
+            let applied_members = recovery.coordinator.store().applied_members().await;
             let coordination_only_departure = self.hosted.is_none()
                 && self.committed_native_members.is_none()
                 && applied_members.contains(&recovery.incarnation)
@@ -113,7 +113,7 @@ impl Actor {
                     let coordination_member_removed = timeout(LEAVE_STEP_TIMEOUT, async {
                         loop {
                             if !recovery
-                                .applied_member_ids()
+                                .coordinator.store().applied_members()
                                 .await
                                 .contains(&recovery.incarnation)
                             {
@@ -127,7 +127,10 @@ impl Actor {
                             // equivalent committed exclusion proof for this
                             // one-way departure route.
                             if recovery
-                                .confirm_departure(state.term, recovery.committed().await.revision())
+                                .confirm_departure(
+                                    state.term,
+                                    recovery.coordinator.store().committed().await.revision(),
+                                )
                                 .await
                                 .is_ok()
                             {
@@ -226,7 +229,7 @@ impl Actor {
                             // Leave, and one that has gone leaves nobody to
                             // hand the room to.
                             if !recovery
-                                .applied_voter_ids()
+                                .coordinator.store().applied_voters()
                                 .await
                                 .contains(&recovery.incarnation)
                             {
@@ -254,7 +257,8 @@ impl Actor {
                             // failure.
                             let singleton = timeout(Duration::from_secs(2), async {
                                 loop {
-                                    let applied = recovery.applied_voter_ids().await;
+                                    let applied =
+                                        recovery.coordinator.store().applied_voters().await;
                                     if applied.len() == 1 && applied.contains(&recovery.incarnation)
                                     {
                                         break true;
@@ -291,12 +295,12 @@ impl Actor {
                 // can stop replicating to the departing follower before its
                 // local metrics learn that fact, so followers also query the
                 // current leader's authenticated voter claim.
-                let minimum_revision = recovery.committed().await.revision();
+                let minimum_revision = recovery.coordinator.store().committed().await.revision();
                 let mut leader_confirmed_departure = false;
                 let removed = timeout(LEAVE_STEP_TIMEOUT, async {
                     loop {
                         if !recovery
-                            .applied_voter_ids()
+                            .coordinator.store().applied_voters()
                             .await
                             .contains(&recovery.incarnation)
                         {
@@ -308,7 +312,7 @@ impl Actor {
                         // command is handled.  There is then no remote
                         // successor left to query: the local committed
                         // membership and leader proof are the handoff.
-                        if recovery.applied_voter_ids().await.len() == 1
+                        if recovery.coordinator.store().applied_voters().await.len() == 1
                             && recovery.coordinator.current_leader() == Some(recovery.incarnation)
                         {
                             leader_confirmed_departure = true;
@@ -365,9 +369,7 @@ impl Actor {
                     self.error(0, "leave_successor_unconfirmed")?;
                     return Ok(Departure::Unconfirmed);
                 }
-                self.last_coordination_state = None;
-                self.last_control_rebound = None;
-                let _ = self.emit_coordination_state().await;
+                let _ = self.republish_coordination_state().await;
             }
             // A native RoomAction Leave may have committed the membership
             // removal before this helper receives the explicit Leave.  The
@@ -500,14 +502,11 @@ impl Actor {
                         }
                         Command::Leave { epoch: requested_epoch, abandon: true } => {
                             if requested_epoch != epoch || requested_epoch == 0 {
-                                let _ = events.try_send(Event::Error {
-                                    probe_failure: None,
-                                    request_id: request.id,
-                                    epoch: status_epoch,
-                                    peer: None,
-                                    code: "stale_epoch".into(),
-                                    reason: None,
-                                });
+                                let _ = events.try_send(error_event(
+                                    request.id,
+                                    status_epoch,
+                                    "stale_epoch",
+                                ));
                                 continue;
                             }
                             drop(leave);
@@ -523,23 +522,9 @@ impl Actor {
                                 // manufacture RoomClosed before the old
                                 // quorum has committed our exclusion and a
                                 // successor has proved its authority.
-                                Event::Error {
-                                    probe_failure: None,
-                                    request_id: request.id,
-                                    epoch: status_epoch,
-                                    peer: None,
-                                    code: "leave_in_progress".into(),
-                                    reason: None,
-                                }
+                                error_event(request.id, status_epoch, "leave_in_progress")
                             } else {
-                                Event::Error {
-                                    probe_failure: None,
-                                    request_id: request.id,
-                                    epoch: status_epoch,
-                                    peer: None,
-                                    code: "stale_epoch".into(),
-                                    reason: None,
-                                }
+                                error_event(request.id, status_epoch, "stale_epoch")
                             };
                             let _ = events.try_send(event);
                         }
@@ -549,24 +534,18 @@ impl Actor {
                         | Command::HostPublic { epoch: requested, .. }
                         | Command::Join { epoch: requested, .. }
                         | Command::JoinPublic { epoch: requested, .. } => {
-                            let _ = events.try_send(Event::Error {
-                                probe_failure: None,
-                                request_id: request.id,
-                                epoch: requested,
-                                peer: None,
-                                code: "leave_in_progress".into(),
-                                reason: None,
-                            });
+                            let _ = events.try_send(error_event(
+                                request.id,
+                                requested,
+                                "leave_in_progress",
+                            ));
                         }
                         _ => {
-                            let _ = events.try_send(Event::Error {
-                                probe_failure: None,
-                                request_id: request.id,
-                                epoch: status_epoch,
-                                peer: None,
-                                code: "leave_in_progress".into(),
-                                reason: None,
-                            });
+                            let _ = events.try_send(error_event(
+                                request.id,
+                                status_epoch,
+                                "leave_in_progress",
+                            ));
                         }
                     }
                 }
@@ -608,7 +587,6 @@ impl Actor {
         self.deferred_admissions.clear();
         self.pending_membership_publications.clear();
         self.last_coordination_state = None;
-        self.last_control_rebound = None;
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
         self.pending_game_admissions.clear();

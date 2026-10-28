@@ -10,7 +10,9 @@ use std::{
     time::Duration,
 };
 
-use ember_notifier::{Config, Twitch};
+use ember_bridge::testing::until;
+use ember_notifier::{Config, KEEPALIVE_GRACE, Twitch};
+
 use ember_protocol::{EmberId, rooms::RoomCreator};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
@@ -19,6 +21,13 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_websockets::{Message, ServerBuilder, WebSocketStream};
 
 type Ws = WebSocketStream<TcpStream>;
+
+/// The keepalive timeout the test's welcome gives; the notifier ends a silent
+/// session after it and `KEEPALIVE_GRACE` more.
+const KEEPALIVE_TIMEOUT: Duration = Duration::from_secs(1);
+/// The keepalives the first session gets, and how far apart.
+const KEEPALIVES: u32 = 8;
+const KEEPALIVE_EVERY: Duration = Duration::from_millis(500);
 
 fn frame(kind: &str, id: &str, payload: Value) -> Message {
     Message::text(
@@ -115,15 +124,9 @@ fn config(helix: &Mock, bridge: &Mock, eventsub_url: &str) -> Config {
     config
 }
 
-async fn until(mut done: impl FnMut() -> bool) {
-    for _ in 0..400 {
-        if done() {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-    panic!("timed out");
-}
+/// How long a test waits for something to happen. Generous: it only matters
+/// when something is wrong.
+const WAIT: Duration = Duration::from_secs(10);
 
 fn chats(helix: &Mock) -> Vec<Value> {
     helix
@@ -238,7 +241,7 @@ async fn a_moderator_opens_a_room_and_the_session_survives_a_reconnect_and_a_dro
     // whose message came on the old connection during the handoff, and once
     // more after the reconnect; the viewer's request and the repeat were
     // ignored.
-    until(|| chats(&helix).len() == 4).await;
+    until("four chat messages", WAIT, || chats(&helix).len() == 4).await;
     let posted = chats(&helix);
     for text in posted.iter().map(|body| body["message"].as_str().unwrap()) {
         assert!(text.contains(&link()), "{text}");
@@ -260,7 +263,10 @@ async fn a_moderator_opens_a_room_and_the_session_survives_a_reconnect_and_a_dro
     );
 
     // After the drop the next session subscribes again; the reconnect did not.
-    until(|| subscriptions(&helix).len() == 2).await;
+    until("a second subscription", WAIT, || {
+        subscriptions(&helix).len() == 2
+    })
+    .await;
     let subscribed = subscriptions(&helix);
     assert_eq!(
         subscribed[0],
@@ -295,12 +301,16 @@ async fn keepalives_hold_a_session_and_silence_ends_it() {
         async move {
             // A one second timeout, and keepalives for longer than that and
             // its grace: the session must stay.
-            ws.send(welcome(&format!("w{index}"), &format!("sess{index}"), 1))
-                .await
-                .unwrap();
+            ws.send(welcome(
+                &format!("w{index}"),
+                &format!("sess{index}"),
+                KEEPALIVE_TIMEOUT.as_secs(),
+            ))
+            .await
+            .unwrap();
             if index == 0 {
-                for n in 0..8 {
-                    tokio::time::sleep(Duration::from_millis(500)).await;
+                for n in 0..KEEPALIVES {
+                    tokio::time::sleep(KEEPALIVE_EVERY).await;
                     ws.send(frame("session_keepalive", &format!("k{n}"), json!({})))
                         .await
                         .unwrap();
@@ -315,12 +325,22 @@ async fn keepalives_hold_a_session_and_silence_ends_it() {
     let (_, tasks) = notifier(config(&helix, &bridge, &url))
         .start(TcpListener::bind("127.0.0.1:0").await.unwrap())
         .unwrap();
-    until(|| subscriptions(&helix).len() == 1).await;
-    tokio::time::sleep(Duration::from_millis(3500)).await;
+    until("the first subscription", WAIT, || {
+        subscriptions(&helix).len() == 1
+    })
+    .await;
+    // Watched while keepalives still arrive: past the time silence would end
+    // the session, and before the keepalives stop.
+    let window = KEEPALIVE_TIMEOUT + KEEPALIVE_GRACE + Duration::from_millis(500);
+    assert!(window < KEEPALIVE_EVERY * KEEPALIVES);
+    tokio::time::sleep(window).await;
     assert_eq!(connections.load(Ordering::SeqCst), 1);
     // Silence: the timeout and grace pass, then a reconnect and a new
     // subscription.
-    until(|| subscriptions(&helix).len() == 2).await;
+    until("a reconnect and a new subscription", WAIT, || {
+        subscriptions(&helix).len() == 2
+    })
+    .await;
     assert_eq!(connections.load(Ordering::SeqCst), 2);
     for task in tasks {
         task.abort();
@@ -363,7 +383,10 @@ async fn a_refused_subscription_is_retried_and_other_chat_is_ignored() {
         .start(TcpListener::bind("127.0.0.1:0").await.unwrap())
         .unwrap();
     // The first subscription is refused (401); the second session's is not.
-    until(|| refusals.load(Ordering::SeqCst) == 2).await;
+    until("the refused subscription to be tried again", WAIT, || {
+        refusals.load(Ordering::SeqCst) == 2
+    })
+    .await;
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert!(chats(&helix).is_empty());
     assert!(bridge.requests().iter().all(|r| r.path != "/v1/rooms"));

@@ -125,3 +125,28 @@ host exits 0 within about half a second with its helper gone. The fixture's
 `--remote <invitation>` mode joins such a host from Windows with two clients
 (the host must be configured with the fixture's room id, bridge id, build id,
 ticket key and kid, and creator; the fixture's header lists them).
+
+## Status line limits
+
+The room host, the supervisor and the bridge each bound the status line on
+their own, so the numbers are written out in each and must agree. The
+supervisor's test `the_limits_agree_with_the_room_host_and_the_bridge`
+(`server/ember-rooms/src/protocol.rs`) reads the other definitions and fails
+when one drifts; the room host's own side is `static_assert`s in
+`RoomHostStatus.hxx` and the `RoomHostConfig` test.
+
+| Limit | Value | Where |
+| --- | --- | --- |
+| Bans a room keeps for its lifetime | 512 | `room::MaximumKickedAccounts` (`src/session/RoomModel.hxx`), `MAX_ROOM_BANS` in `server/ember-rooms/src/protocol.rs` and in `server/ember/protocol/src/rooms.rs` (which the helper and the bridge use) |
+| Won games a status carries | 32 | `MaximumWonGames` (`src/common/SkillBadge.hxx`) |
+| A status line, as the supervisor reads it | 128 KiB | `MAX_LINE_BYTES` (protocol.rs), `SupervisorLineBytes` (`RoomHostStatus.hxx`); a longer line is a protocol error and the child is killed |
+| A status line, as the room host writes it | 60 000 bytes | `MaximumStatusLineBytes` (`RoomHostStatus.hxx`); the host ends the room with `status_too_large` rather than write a longer one |
+| The `details` object | 2048 bytes as written | `MAX_DETAILS_BYTES` (protocol.rs), `SupervisorDetailsBytes` (`RoomHostStatus.hxx`), `MAX_DETAILS_REPORT` (`server/ember/bridge/src/routes/rooms/supervisor.rs`); a larger one is dropped and the room stays up |
+| The `games` array | 6144 bytes as written | `MAX_GAMES_BYTES` (protocol.rs), `SupervisorGamesBytes` (`RoomHostStatus.hxx`), `MAX_GAMES_REPORT` (bridge); a larger one is dropped the same way |
+
+The largest valid line: 512 Ember IDs of 57 bytes (60 with quotes and a comma,
+30 720 bytes), an invitation of at most 4096 bytes (`MAX_INVITATION`), the
+largest details and the largest games (32 games of two Ember IDs and two
+numbers, at most 186 bytes each, about 6 000 bytes), and about 100 bytes for
+the rest: about 43 KB. That is under the host's 60 000 bytes, which is under
+the supervisor's 128 KiB, so a sound host is never killed for its line.

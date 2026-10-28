@@ -4,12 +4,16 @@
 #![allow(dead_code)]
 
 use std::{
-    path::PathBuf,
+    path::Path,
     sync::{Arc, Mutex},
     time::Duration,
 };
 
-use ember_bridge::{AppState, Clock, Config, Db, Keys, config, integrations::Secrets};
+use ember_bridge::{
+    Clock,
+    integrations::Secrets,
+    testing::{loopback_config, serve, supervisor as stand_in},
+};
 use ember_protocol::{
     api::SigningKeys,
     rooms::{RoomAdmission, RoomList},
@@ -26,41 +30,17 @@ use tokio::{
 };
 use zeroize::Zeroizing;
 
-pub const SECRET: &str = "test-secret";
-pub const BUILD: &str = "build-1";
+/// The stand-in room supervisor is the bridge tests' own.
+pub use ember_bridge::testing::{
+    TempDir as Dirs,
+    supervisor::{BUILD, SECRET, Supervisor, fake_supervisor},
+};
+
 pub const MISSING_ROOM: &str = "0123456789abcdef0123456789abcdef";
 
-pub struct Dirs(pub PathBuf);
-
-impl Drop for Dirs {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
 pub fn dirs(label: &str) -> Dirs {
-    let mut random = [0u8; 16];
-    getrandom::fill(&mut random).unwrap();
-    let dir = std::env::temp_dir().join(format!(
-        "sf4-public-rooms-{label}-{}",
-        ember_protocol::encoding::b64u(&random)
-    ));
-    std::fs::create_dir_all(&dir).unwrap();
-    Dirs(dir)
+    Dirs::new(&format!("sf4-public-rooms-{label}"))
 }
-
-/// What the stand-in supervisor holds.
-#[derive(Default)]
-pub struct Fake {
-    /// `POST /rooms` bodies, as received.
-    pub created: Vec<Value>,
-    /// What `GET /rooms` lists.
-    pub rooms: Vec<Value>,
-    /// How long `POST /rooms` takes to answer.
-    pub create_delay: Duration,
-}
-
-pub type Supervisor = Arc<Mutex<Fake>>;
 
 /// A helper's home relay region, which the test sets while the helper runs.
 pub type Region = Arc<Mutex<Option<&'static str>>>;
@@ -97,19 +77,6 @@ pub async fn read_raw(stream: &mut TcpStream) -> Option<(String, Vec<u8>)> {
     Some((head, data[head_end..head_end + length].to_vec()))
 }
 
-/// Reads one HTTP/1.1 request the supervisor accepts: its method, its path and
-/// its body.
-pub async fn read_request(stream: &mut TcpStream) -> Option<(String, String, Vec<u8>)> {
-    let (head, body) = read_raw(stream).await?;
-    let mut parts = head.lines().next()?.split(' ');
-    let method = parts.next()?.to_owned();
-    let path = parts.next()?.to_owned();
-    let authorized = head
-        .to_ascii_lowercase()
-        .contains(&format!("authorization: bearer {SECRET}"));
-    authorized.then(|| (method, path, body))
-}
-
 pub async fn answer(stream: &mut TcpStream, status: &str, body: &str) {
     let response = format!(
         "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
@@ -119,84 +86,19 @@ pub async fn answer(stream: &mut TcpStream, status: &str, body: &str) {
     let _ = stream.shutdown().await;
 }
 
-pub async fn handle(fake: Supervisor, mut stream: TcpStream) {
-    let Some((method, path, body)) = read_request(&mut stream).await else {
-        return answer(&mut stream, "401 Unauthorized", "{}").await;
-    };
-    match (method.as_str(), path.as_str()) {
-        ("POST", "/rooms") => {
-            let body: Value = serde_json::from_slice(&body).unwrap();
-            let room_id = body["room_id"].as_str().unwrap().to_owned();
-            let delay = fake.lock().unwrap().create_delay;
-            tokio::time::sleep(delay).await;
-            let reply = {
-                let mut fake = fake.lock().unwrap();
-                fake.created.push(body.clone());
-                fake.rooms.push(json!({
-                    "room_id": room_id, "members": 0, "capacity": body["capacity"],
-                    "tables_playing": 0, "invitation": format!("sf4e3:{room_id}"), "banned": [],
-                }));
-                json!({ "invitation": format!("sf4e3:{room_id}"), "region": "use1" })
-            };
-            answer(&mut stream, "201 Created", &reply.to_string()).await;
-        }
-        ("GET", "/rooms") => {
-            let rooms = Value::Array(fake.lock().unwrap().rooms.clone());
-            answer(&mut stream, "200 OK", &rooms.to_string()).await;
-        }
-        ("DELETE", path) if path.starts_with("/rooms/") => {
-            let id = path.trim_start_matches("/rooms/").to_owned();
-            fake.lock()
-                .unwrap()
-                .rooms
-                .retain(|room| room["room_id"] != id.as_str());
-            answer(&mut stream, "204 No Content", "").await;
-        }
-        _ => answer(&mut stream, "404 Not Found", "{}").await,
-    }
-}
-
-pub async fn fake_supervisor() -> (Supervisor, String) {
-    let fake = Supervisor::default();
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let url = format!("http://{}", listener.local_addr().unwrap());
-    let serving = fake.clone();
-    tokio::spawn(async move {
-        while let Ok((stream, _)) = listener.accept().await {
-            tokio::spawn(handle(serving.clone(), stream));
-        }
-    });
-    (fake, url)
-}
-
-/// What the stand-in reports for `room_id`.
+/// What the stand-in reports for `room_id`: `members` and `banned`, and no
+/// table playing.
 pub fn report(fake: &Supervisor, room_id: &str, members: u32, banned: &[&str]) {
-    let mut fake = fake.lock().unwrap();
-    let room = fake
-        .rooms
-        .iter_mut()
-        .find(|room| room["room_id"] == room_id)
-        .expect("the supervisor hosts the room");
-    room["members"] = json!(members);
-    room["banned"] = json!(banned);
+    stand_in::report(fake, room_id, members, 0, banned);
 }
 
 /// What the stand-in reports as the room host's `details` for `room_id`.
 pub fn set_details(fake: &Supervisor, room_id: &str, details: Value) {
-    let mut fake = fake.lock().unwrap();
-    let room = fake
-        .rooms
-        .iter_mut()
-        .find(|room| room["room_id"] == room_id)
-        .expect("the supervisor hosts the room");
-    room["details"] = details;
+    stand_in::report_details(fake, room_id, details);
 }
 
 /// A bridge on loopback, with public rooms when `supervisor` names one.
-pub async fn bridge(
-    dir: &std::path::Path,
-    supervisor: Option<String>,
-) -> (ember_bridge::Running, String) {
+pub async fn bridge(dir: &Path, supervisor: Option<String>) -> (ember_bridge::Running, String) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
     (
@@ -208,64 +110,22 @@ pub async fn bridge(
 /// A bridge that listens on `listener` and describes itself as served from
 /// `origin`, which is where a stand-in in front of it listens.
 pub async fn bridge_at(
-    dir: &std::path::Path,
+    dir: &Path,
     supervisor: Option<String>,
     listener: TcpListener,
     origin: String,
     supervisor_secret: &str,
 ) -> ember_bridge::Running {
-    let mut random = [0u8; 16];
-    getrandom::fill(&mut random).unwrap();
+    let mut config = loopback_config(dir, &origin);
     let rooms = supervisor.is_some();
-    let config = Config {
-        bridge_id: ember_protocol::encoding::prefixed_id("brg", random),
-        display_name: "Loopback bridge".into(),
-        origin,
-        listen: "127.0.0.1:0".into(),
-        database: dir.join("bridge.sqlite3"),
-        secrets: dir.join("secrets.json"),
-        allow_loopback_http: true,
-        allow_private_webhooks: true,
-        mock_browser: false,
-        discord: None,
-        sign_in_sites: Vec::new(),
-        integration_secrets: rooms.then(|| "unused-in-tests.json".into()),
-        desk: None,
-        replay_retention: None,
-        archive: None,
-        trusted_proxies: Vec::new(),
-        rooms: supervisor.map(|supervisor_url| config::Rooms {
-            supervisor_url,
-            skill_badges: false,
-            developers: Vec::new(),
-        }),
-        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
-        tenants: vec![config::Tenant {
-            id: "local".into(),
-            name: "Local".into(),
-            connections: vec![config::Connection {
-                id: "mock-local".into(),
-                kind: "mock".into(),
-                environment: "local".into(),
-                display_name: "Mock provider".into(),
-                enabled: true,
-                api_base: None,
-                discord_lookup: false,
-                lookup_sites: Vec::new(),
-                disputes: None,
-                results_url: None,
-                rooms: None,
-            }],
-        }],
-    };
+    if let Some(url) = supervisor {
+        stand_in::enable(&mut config, url);
+    }
     let secrets = Secrets {
         rooms_supervisor_secret: rooms.then(|| Zeroizing::new(supervisor_secret.into())),
         ..Default::default()
     };
-    let db = Db::open(&config.database).unwrap();
-    let state = AppState::new(config, Keys::generate(), secrets, db, Clock::default());
-    ember_bridge::sync_config(&state).await.unwrap();
-    ember_bridge::start(state, listener).unwrap()
+    serve(config, secrets, Clock::default(), listener).await
 }
 
 /// What an older bridge answers to a create with a field it does not know: its

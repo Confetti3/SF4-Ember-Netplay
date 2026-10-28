@@ -2,7 +2,8 @@
 //! from the gameplay endpoint: shutting down consensus cannot retire GGPO links.
 use crate::coordination::{
     AuthorityClaim, Coordinator, MAX_PROPOSE_REQUEST, MAX_RPC_RESPONSE, MAX_SNAPSHOT,
-    MAX_SNAPSHOT_REQUEST, MAX_VOTE_REQUEST, Ownership, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
+    MAX_SNAPSHOT_REQUEST, MAX_VOTE_REQUEST, Method, Ownership, RpcTransport,
+    SNAPSHOT_FRAGMENT_BYTES,
 };
 use retired::RetiredFilter;
 use iroh::{
@@ -24,7 +25,9 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-const ALPN: &[u8] = b"sf4e/coordination/1";
+/// Ends with `COORDINATION_WIRE_VERSION`: a helper of another coordination
+/// wire is refused at the QUIC handshake, before any RPC body is read.
+const ALPN: &[u8] = b"sf4e/coordination/2";
 const MAX_RPC: usize = MAX_SNAPSHOT;
 const RPC_TIMEOUT: Duration = Duration::from_secs(10);
 const CONNECTION_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
@@ -171,13 +174,13 @@ impl Drop for TargetSlot<'_> {
 
 /// The largest request body each method can carry. Only an append holds a
 /// checkpoint; the single-byte methods carry a fixed marker.
-fn request_ceiling(method: &str) -> usize {
+fn request_ceiling(method: Method) -> usize {
     match method {
-        "append" => MAX_RPC,
-        "vote" => MAX_VOTE_REQUEST,
-        "snapshot" => MAX_SNAPSHOT_REQUEST,
-        "propose" => MAX_PROPOSE_REQUEST,
-        _ => 1,
+        Method::Append => MAX_RPC,
+        Method::Vote => MAX_VOTE_REQUEST,
+        Method::Snapshot => MAX_SNAPSHOT_REQUEST,
+        Method::Propose => MAX_PROPOSE_REQUEST,
+        Method::Authority | Method::Elect | Method::Remove => 1,
     }
 }
 
@@ -212,22 +215,16 @@ impl Drop for ConnectionUseGuard {
     }
 }
 impl IrohRpc {
+    /// Tests only: `bind_owned` for a private room on the default port.
+    #[cfg(test)]
     pub async fn bind(room: [u8; 16], incarnation: u64, relay_only: bool) -> io::Result<Arc<Self>> {
-        Self::bind_on(room, incarnation, relay_only, None).await
+        Self::bind_owned(room, incarnation, relay_only, None, Ownership::Private).await
     }
 
-    /// `bind` with the IPv4 socket on exactly `port`, with no fallback to
-    /// another one. A headless room host is given the port it must hold.
-    pub async fn bind_on(
-        room: [u8; 16],
-        incarnation: u64,
-        relay_only: bool,
-        port: Option<u16>,
-    ) -> io::Result<Arc<Self>> {
-        Self::bind_owned(room, incarnation, relay_only, port, Ownership::Private).await
-    }
-
-    /// `bind_on` for a node that takes part in its room as `ownership`.
+    /// The coordination endpoint of a node that takes part in its room as
+    /// `ownership`. With `port`, the IPv4 socket is on exactly that port, with
+    /// no fallback to another one: a headless room host is given the port it
+    /// must hold.
     pub async fn bind_owned(
         room: [u8; 16],
         incarnation: u64,
@@ -518,7 +515,7 @@ impl IrohRpc {
             .map(|binding| binding.coordination.id.to_string())
             .ok_or_else(failure)?;
         let bytes =
-            <Self as RpcTransport>::call(self, target, expected, "authority", vec![0]).await?;
+            <Self as RpcTransport>::call(self, target, expected, Method::Authority, vec![0]).await?;
         serde_json::from_slice(&bytes).map_err(|_| failure())
     }
 
@@ -532,7 +529,8 @@ impl IrohRpc {
             .get(&target)
             .map(|binding| binding.coordination.id.to_string())
             .ok_or_else(failure)?;
-        let bytes = <Self as RpcTransport>::call(self, target, expected, "elect", vec![0]).await?;
+        let bytes =
+            <Self as RpcTransport>::call(self, target, expected, Method::Elect, vec![0]).await?;
         if bytes != [1] {
             return Err(failure());
         }
@@ -551,7 +549,8 @@ impl IrohRpc {
             .get(&target)
             .map(|binding| binding.coordination.id.to_string())
             .ok_or_else(failure)?;
-        let bytes = <Self as RpcTransport>::call(self, target, expected, "remove", vec![0]).await?;
+        let bytes =
+            <Self as RpcTransport>::call(self, target, expected, Method::Remove, vec![0]).await?;
         if bytes != [1] {
             return Err(failure());
         }
@@ -629,8 +628,8 @@ impl IrohRpc {
                                     return Err(failure());
                                 }
                                 if room != owner.room || target != owner.incarnation { return Err(failure()); }
-                                let method = match method { 1 => "append", 2 => "vote", 3 => "snapshot", 4 => "authority", 5 => "propose", 6 => "elect", 7 => "remove", _ => return Err(failure()) };
-                                if retired.is_some() && method != "authority" { return Err(failure()); }
+                                let Some(method) = Method::from_byte(method) else { return Err(failure()) };
+                                if retired.is_some() && method != Method::Authority { return Err(failure()); }
                                 // The announced size is held against the endpoint's
                                 // and the shared allowance before any of it is read,
                                 // and the body grows only as its bytes arrive.
@@ -641,7 +640,7 @@ impl IrohRpc {
                                 let response = coordinator.dispatch(source, method, &body).await?;
                                 write_body(&mut send, &response).await?;
                                 send.finish().map_err(|_| failure())?;
-                                if method == "remove" && response == [1] {
+                                if method == Method::Remove && response == [1] {
                                     owner.retire(source).await;
                                 }
                                 Ok::<(), io::Error>(())
@@ -706,7 +705,7 @@ impl RpcTransport for IrohRpc {
         &self,
         target: u64,
         expected: String,
-        method: &'static str,
+        method: Method,
         body: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = io::Result<Vec<u8>>> + Send + '_>> {
         Box::pin(async move {
@@ -735,24 +734,14 @@ impl RpcTransport for IrohRpc {
                 // append still in flight beside it. Dropping its stream halves
                 // resets that stream alone.
                 let mut connection_guard = ConnectionUseGuard::new(connection.clone());
-                if method == "authority" {
+                if method == Method::Authority {
                     connection_guard.succeeded();
                 }
                 let (mut send, mut recv) = connection.open_bi().await.map_err(|_| failure())?;
                 send.write_all(&self.room).await.map_err(|_| failure())?;
                 send.write_u64(self.incarnation).await?;
                 send.write_u64(target).await?;
-                send.write_u8(match method {
-                    "append" => 1,
-                    "vote" => 2,
-                    "snapshot" => 3,
-                    "authority" => 4,
-                    "propose" => 5,
-                    "elect" => 6,
-                    "remove" => 7,
-                    _ => return Err(failure()),
-                })
-                .await?;
+                send.write_u8(method.byte()).await?;
                 write_body(&mut send, &body).await?;
                 send.finish().map_err(|_| failure())?;
                 // Every response is a small Raft reply, receipt or claim.

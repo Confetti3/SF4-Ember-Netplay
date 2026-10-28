@@ -65,6 +65,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <variant>
 #include <ctime>
 #include <spdlog/spdlog.h>
 #include "../discord/Ticket.hxx"
@@ -102,7 +103,66 @@ struct TraceFields {
     }
 };
 
-using Intent = netplay::ParkedIntent<RuntimeCommand>;
+// A RuntimeCommand is one of these families. Each holds the fields its handler
+// reads, under the RuntimeCommand names, so a handler reads `command.x` as it
+// did. Every family but Identity and Tournament carries the controller
+// generation it was made for (`command.command.generation`), and its handler
+// checks that first.
+namespace commands {
+struct Identity { netplay::IdentityRequest identity; };
+struct Tournament { netplay::tournament::Command tournament; };
+struct Training { netplay::Command command; TrainingEntry training = TrainingEntry::None; };
+struct LeaveWatchedGame { netplay::Command command; netplay::WatchedGame leaveWatchedGame; };
+struct DiscordInvite {
+    netplay::Command command;
+    discord::InviteAction discordAction = discord::InviteAction::None;
+    std::uint64_t discordRevision = 0;
+};
+struct PreviewSound { netplay::Command command; int previewSoundVolume = -1; };
+struct Replay { netplay::Command command; replay::Request replay; };
+struct ShortInvitation { netplay::Command command; };
+struct Pad { netplay::Command command; gamepads::ControllerRequest padAction; };
+// Save only the settings a room leaves open, from `preferences` (RuntimeRequest::roomSettings).
+struct RoomSettings { netplay::Command command; netplay::PlayerPreferences preferences; };
+struct Input { netplay::Command command; input::Action inputAction = input::Action::None; };
+struct Service {
+    netplay::Command command;
+    platform::ServiceAction service = platform::ServiceAction::None;
+    std::string servicePath;
+    launcher::InstallOffer updateOffer;
+    SteamId steamProfile;
+    reports::Submission reportSubmission;
+};
+// A room command: netplay::Command and what its kinds carry.
+struct Room {
+    netplay::Command command;
+    // With JoinInvite or LeaveRoom from a Discord invitation: re-validated here.
+    std::uint64_t discordRevision = 0;
+    netplay::PlayerPreferences preferences;
+    std::string publicTicket;
+    std::optional<room::Rules> createdRules;
+    JoinKind join = JoinKind::Private;
+    bool practiceRoom = false;
+    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
+    Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
+    int stage = 0;
+    selection::RandomPool randomPool;
+    room::Action roomAction;
+    int selectedDelay = -1;
+};
+}
+using TypedCommand = std::variant<commands::Identity, commands::Tournament, commands::Training, commands::LeaveWatchedGame,
+    commands::DiscordInvite, commands::PreviewSound, commands::Replay, commands::ShortInvitation, commands::Pad,
+    commands::RoomSettings, commands::Input, commands::Service, commands::Room>;
+// The one place that decides which family a submitted command is. A command
+// with several families' fields set is the first of: identity, tournament,
+// Training from the room, leave the watched game, Discord invite action, sound
+// preview, replay, short link, pad request, room settings save, input action, service, else a room
+// command. So the hidden shell's submit, which fills identity and a room
+// command together, is an identity request.
+TypedCommand Classify(RuntimeCommand command);
+
+using Intent = netplay::ParkedIntent<TypedCommand>;
 
 // The networking errors that stay until networking is back. They are kept as a
 // kind and a code, and their sentence is made from the catalog when it is
@@ -124,7 +184,7 @@ struct Runtime {
     const char* discordStatusId = "discord.unavailable_gameplay_ok";
     std::string discordPublished;
     ULONGLONG discordLastPublish = 0;
-    std::array<std::uint64_t,8> discordPresenceKey{};
+    std::array<std::uint64_t,11> discordPresenceKey{};
     bool discordPresenceKeyValid=false;
 
     input::Assignment input;
@@ -139,26 +199,36 @@ struct Runtime {
     bool runningControllerLayer = true;
     std::optional<gamepads::PromptBrand> loggedPromptBrand;
     gamepads::ButtonPrompts loggedButtonPrompts = gamepads::ButtonPrompts::Automatic;
-    input::Device matchInput;
-    int matchInputSide=-1;
-    bool matchInputFault=false;
+    // The device bound to the local fighter for the match, its side, and
+    // whether its last read failed. CloseRoom resets the binding whole.
+    struct MatchInputBinding {
+        input::Device matchInput;
+        int matchInputSide=-1;
+        bool matchInputFault=false;
+    } matchBinding;
     std::vector<input::Device> inputDevices;
     platform::ApplicationServices services;
     bool updateClosing = false;
 	std::unique_ptr<platform::HelperClient> helper;
 	std::shared_ptr<session::IrohRoom> room;
 	std::unique_ptr<session::IrohMatchSession> match;
-	bool matchEntered = false;
-	// The generation whose battle the runtime entered, while matchEntered, and
-	// the table this member was at when it entered (the game WatchedGameNow names).
-	std::uint64_t enteredGeneration = 0;
-	int enteredTable = -1;
-	// Set when a netplay battle closes with its GGPO session already retired:
-	// the generation that was entered. TickMatch decides what it means.
-	std::uint64_t sessionlessCloseGeneration = 0;
-	// The generation whose GGPO session was retired by this spectator's own
-	// stream failure (not by the game finishing). Read when its battle closes.
-	std::uint64_t spectatorStreamFailedGeneration = 0;
+	// The entry of the granted match's battle. ResetMatchEntry resets it whole.
+	struct MatchEntry {
+		bool matchEntered = false;
+		// The generation whose battle the runtime entered, while matchEntered, and
+		// the table this member was at when it entered (the game WatchedGameNow names).
+		std::uint64_t enteredGeneration = 0;
+		int enteredTable = -1;
+		// Set when a netplay battle closes with its GGPO session already retired:
+		// the generation that was entered. TickMatch decides what it means.
+		std::uint64_t sessionlessCloseGeneration = 0;
+		// The generation whose GGPO session was retired by this spectator's own
+		// stream failure (not by the game finishing). Read when its battle closes.
+		std::uint64_t spectatorStreamFailedGeneration = 0;
+		// When the current grant's entry first waited for the main menu.
+		std::uint64_t entryDeferredGeneration = 0;
+		ULONGLONG entryDeferredSinceMs = 0;
+	} entry;
 	// The lock release that failure owes the room. It outlives the battle: it
 	// stays pending, resent as needed, until the room confirms it, the player
 	// locks in again, or it expires, whatever the room commits meanwhile.
@@ -166,25 +236,45 @@ struct Runtime {
 	// Lock-ins this member lost because its own view failed while locked in
 	// (RuntimeSnapshot::lockInDrops). Only ever grows, so the shell tells each once.
 	std::uint64_t lockInDrops = 0;
-	// When the current grant's entry first waited for the main menu.
-	std::uint64_t entryDeferredGeneration = 0;
-	ULONGLONG entryDeferredSinceMs = 0;
-	bool matchEnded = false;
-	bool matchFinishedPending = false;
 	bool recoveringMatch = false;
 	netplay::MatchResultOutbox resultOutbox;
-    std::uint64_t finishActionId=0, finishRetryAt=0;
-	std::optional<room::Action> matchFinishedAction;
+	// The current match's end and terminal receipt. CloseRoom resets it whole.
+	struct MatchTeardown {
+		bool matchEnded = false;
+		bool matchFinishedPending = false;
+		std::uint64_t finishActionId=0, finishRetryAt=0;
+		std::optional<room::Action> matchFinishedAction;
+		// A terminal receipt is released only after its local outcome has been
+		// persisted and native/helper teardown has reached Idle. MatchEnded itself
+		// is deliberately insufficient: spectators have no profile write, while a
+		// fighter may still own GGPO's socket when the event is delivered.
+		bool terminalAckPending = false;
+		bool terminalOutcomeConsumed = false;
+		std::uint8_t terminalAckTable = 0;
+		std::uint64_t terminalAckGeneration = 0;
+		std::uint64_t matchFinishedGeneration = 0;
+		std::unique_ptr<room::Action> pendingAbort;
+		ULONGLONG pendingAbortDeadline = 0;
+		// The current match's generation once the room has committed its end
+		// (any result). Nothing about that match needs the player afterwards.
+		std::uint64_t committedEndGeneration = 0;
+		netplay::MatchEndLog matchEndLog;
+	} teardown;
+	// Not part of MatchTeardown: CloseRoom does not reset it.
+	std::uint8_t matchFinishedTable = 0;
     bool replacementPending=false;
     // The Practice choice of the room this PC hosts: the player's on Create,
     // the closed room's for a replacement, false for a room it joins.
     bool practiceRoom=false;
     // The delay policy of the room this PC hosts, chosen the same way.
     room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
-    bool leaveRequested=false, leaveAcknowledged=false;
+    // The player's Leave of the room. CloseRoom resets it whole.
+    struct RoomLeave {
+        bool leaveRequested=false, leaveAcknowledged=false;
+        std::uint64_t leaveActionId=0, leaveRetryAt=0, leaveDeadline=0;
+    } leave;
     // Set with the join, cleared when the room closes.
     JoinKind join=JoinKind::Private;
-    std::uint64_t leaveActionId=0, leaveRetryAt=0, leaveDeadline=0;
     int selectedDelay=2;
     std::uint64_t nextProbeRequest=1;
     // The interface's last identity request: its ticket, the helper request it
@@ -253,18 +343,6 @@ struct Runtime {
     session::RoomRecoveryRuntime recovery;
     session::RecoveryProgress recoveryProgress;
     std::uint64_t observedAuthorityTerm=0;
-	// A terminal receipt is released only after its local outcome has been
-	// persisted and native/helper teardown has reached Idle. MatchEnded itself
-	// is deliberately insufficient: spectators have no profile write, while a
-	// fighter may still own GGPO's socket when the event is delivered.
-	bool terminalAckPending = false;
-	bool terminalOutcomeConsumed = false;
-	std::uint8_t terminalAckTable = 0;
-	std::uint64_t terminalAckGeneration = 0;
-	std::uint64_t matchFinishedGeneration = 0;
-	std::uint8_t matchFinishedTable = 0;
-	std::unique_ptr<room::Action> pendingAbort;
-	ULONGLONG pendingAbortDeadline = 0;
 	// Presses the room could not take yet. A room action (Queue, Watch, chat
 	// and the like) gets a short budget behind the authority fence, and none
 	// while it waits on the match teardown it triggered. A Ready/Rematch press
@@ -300,10 +378,6 @@ struct Runtime {
 	std::uint64_t readyFailureSequence = 0;
 	// Generation for which "a participant left" was already announced.
 	std::uint64_t participantLeftGeneration = 0;
-	// The current match's generation once the room has committed its end
-	// (any result). Nothing about that match needs the player afterwards.
-	std::uint64_t committedEndGeneration = 0;
-	netplay::MatchEndLog matchEndLog;
 	// `error` is cleared by only a handful of successful actions, so every
 	// transient message otherwise stayed pinned for the session and hid save
 	// feedback. Transient errors expire; the helper-unavailable startup
@@ -346,6 +420,28 @@ struct PostPublishState {
     bool discordCanSwitch=false, canOpenRoom=false;
 };
 
+// What the player may do now, decided in one place. Publish copies it into the
+// snapshot the interface draws (same field names); Dispatch and the other
+// game-thread decisions take it fresh where they decide (CurrentGates), so a
+// press meets the state it is judged by, not the last published snapshot,
+// which is a tick old and up to six in a throttled fight.
+struct RuntimeGates {
+    bool canEditPreferences = false, canEditSelection = false, canEditLobby = false, canChangeController = false;
+    bool readyGate = false, canReady = false, canOpenRoom = false, canTrain = false, discordCanSwitch = false;
+    bool delayLocked = false, canProbe = false, canApplyDelay = false;
+    int localSlot = -1;
+    int selectedDelay = 2;
+    // The seated table's rules, else the lobby's, else the player's own: what a
+    // Ready checks the fighter selection against (the snapshot's lobbySettings).
+    bool editionSelect = true;
+};
+// Changes nothing: it reads the runtime, the room client and the battle hooks.
+// `state`, `atMainMenu`, `controllerReady` and `helperReady` are passed so that
+// Publish judges by exactly the values it publishes.
+RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool controllerReady, bool helperReady);
+// ComputeGates from the state as it is now.
+RuntimeGates CurrentGates();
+
 // The runtime object; null until StartHelper and after StopHelper.
 extern Runtime* runtime;
 
@@ -356,6 +452,9 @@ bool LocalIsSpectator();
 // spectator's stream is live, else empty.
 netplay::WatchedGame WatchedGameNow();
 bool AtMainMenu();
+// Tests only: makes AtMainMenu answer `value`; nullopt restores the native check.
+// Do not Publish while it is true: Publish at the main menu reads the game's pads.
+void SetAtMainMenuForTest(std::optional<bool> value);
 void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
 bool CanEditLobby();

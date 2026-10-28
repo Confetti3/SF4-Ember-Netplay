@@ -10,11 +10,15 @@
 #include <imgui.h>
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
+#include <cstdint>
+#include <numeric>
 #include <utility>
 
 namespace sf4e { namespace ui {
 namespace {
 using netplay::publicrooms::Room;
+using PublicList = netplay::publicrooms::Status;
 using netplay::tournament::Command;
 // The runtime answers every request, if only with a refusal after its own
 // limit; this only keeps the panel from waiting on an answer that cannot come.
@@ -32,22 +36,52 @@ unsigned FreeSeats(const Room& room) { return room.capacity > room.members ? roo
 // region is known, then the most free seats, the most players, the oldest, and
 // finally the ID so the order never wobbles. The bridge's own order breaks no
 // ties that survive these, so it is the input only for a stable sort.
-std::vector<const Room*> Sorted(const std::vector<Room>& rooms, const std::string& region) {
+bool Before(const Room& a, const Room& b, const std::string& region) {
+    if (Joinable(a) != Joinable(b)) return Joinable(a);
+    if (!region.empty() && (a.region == region) != (b.region == region)) return a.region == region;
+    if (FreeSeats(a) != FreeSeats(b)) return FreeSeats(a) > FreeSeats(b);
+    if (a.members != b.members) return a.members > b.members;
+    if (a.createdAt != b.createdAt) return a.createdAt < b.createdAt;
+    return a.id < b.id;
+}
+
+// The order the last list was sorted into, as positions in its rooms, kept
+// while the same panel asks again for the same refresh and region: the screen
+// asks every frame, and the list changes once per refresh. `listed` is the
+// refresh count; the size and a pass over the neighbours (no allocation, one
+// comparison per room) guard against a list that was replaced without it.
+struct SortedOrder {
+    const void* owner = nullptr;
+    std::uint64_t listed = 0;
+    std::string region;
+    std::vector<std::size_t> order;
+};
+SortedOrder sortedOrder;
+
+std::vector<const Room*> Sorted(const void* owner, const PublicList& list, const std::string& region) {
+    const auto& rooms = list.rooms;
+    auto& cached = sortedOrder;
+    bool current = cached.owner == owner && cached.listed == list.listed && cached.region == region && cached.order.size() == rooms.size();
+    for (std::size_t i = 1; current && i < cached.order.size(); ++i)
+        if (Before(rooms[cached.order[i]], rooms[cached.order[i - 1]], region)) current = false;
+    if (!current) {
+        cached.owner = owner;
+        cached.listed = list.listed;
+        cached.region = region;
+        cached.order.resize(rooms.size());
+        std::iota(cached.order.begin(), cached.order.end(), std::size_t(0));
+        std::stable_sort(cached.order.begin(), cached.order.end(), [&](std::size_t a, std::size_t b) {
+            return Before(rooms[a], rooms[b], region);
+        });
+    }
     std::vector<const Room*> sorted;
-    for (const auto& room : rooms) sorted.push_back(&room);
-    std::stable_sort(sorted.begin(), sorted.end(), [&](const Room* a, const Room* b) {
-        if (Joinable(*a) != Joinable(*b)) return Joinable(*a);
-        if (!region.empty() && (a->region == region) != (b->region == region)) return a->region == region;
-        if (FreeSeats(*a) != FreeSeats(*b)) return FreeSeats(*a) > FreeSeats(*b);
-        if (a->members != b->members) return a->members > b->members;
-        if (a->createdAt != b->createdAt) return a->createdAt < b->createdAt;
-        return a->id < b->id;
-    });
+    sorted.reserve(cached.order.size());
+    for (std::size_t index : cached.order) sorted.push_back(&rooms[index]);
     return sorted;
 }
 
-std::vector<const Room*> Listing(const std::vector<Room>& rooms, const std::string& region, PublicRoomsPanel::Filter filter) {
-    auto listing = Sorted(rooms, region);
+std::vector<const Room*> Listing(const void* owner, const PublicList& list, const std::string& region, PublicRoomsPanel::Filter filter) {
+    auto listing = Sorted(owner, list, region);
     const bool near = filter == PublicRoomsPanel::Filter::Near && !region.empty();
     listing.erase(std::remove_if(listing.begin(), listing.end(), [&](const Room* room) {
         return near ? room->region != region : filter == PublicRoomsPanel::Filter::Seats && !Joinable(*room);
@@ -339,7 +373,7 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
     if (list.loading && manualRefresh_) { status = loc::T("public.updating"); tone = Tone::Pending; return true; }
     // A failed refresh leaves the list as it was, so the age still says how stale it is.
     if (!status.empty() || !listed || list.rooms.empty()) return false;
-    const auto shown = Listing(list.rooms, KnownRegion(v), filter_).size();
+    const auto shown = Listing(this, list, KnownRegion(v), filter_).size();
     const std::string updated = UpdatedText(now - listedAt_);
     status = shown == list.rooms.size() ? loc::Tf("public.status_listed", list.rooms.size(), updated) :
         loc::Tf("public.status_filtered", shown, list.rooms.size(), updated);
@@ -349,7 +383,7 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
 
 std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, const std::string& region) const {
     if (v.publicRooms.bridge != bridge_) return std::nullopt;
-    for (const Room* room : Sorted(v.publicRooms.rooms, region)) {
+    for (const Room* room : Sorted(this, v.publicRooms, region)) {
         if (!Joinable(*room) || refused_.count(room->id) || (!region.empty() && room->region != region)) continue;
         return room->id;
     }
@@ -425,7 +459,7 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
         rows.push_back(Wide(InfoRow("pr-loading", loc::T("public.loading_card"), {}, {}), 3 * CardHeight + 16));
         return rows;
     }
-    const auto shown = Listing(list.rooms, region, filter);
+    const auto shown = Listing(this, list, region, filter);
     for (const Room* room : shown) {
         auto row = Row("pr-room:" + room->id, room->name, RoomDetail(*room), free && Joinable(*room));
         row.userText = true; row.detailText = DetailText::Name; row.hint = loc::T("online.join"); row.quiet = true;

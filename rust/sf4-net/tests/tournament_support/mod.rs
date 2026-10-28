@@ -5,7 +5,7 @@
 //! the way the native side drives it.
 
 use std::{
-    path::{Path, PathBuf},
+    path::Path,
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -13,7 +13,11 @@ use std::{
     time::Duration,
 };
 
-use ember_bridge::{AppState, Clock, Config, Db, Keys, config, integrations::Secrets};
+use ember_bridge::{
+    Clock, config,
+    integrations::Secrets,
+    testing::{loopback_config, serve},
+};
 use serde_json::{Value, json};
 use sf4_net::{
     service::{Command, Event},
@@ -27,30 +31,11 @@ use tokio::{
 use zeroize::Zeroizing;
 
 /// A test's own folder, removed when the test ends.
-pub struct Dirs(pub PathBuf);
+pub use ember_bridge::testing::{TempDir as Dirs, random16};
 
-impl Dirs {
-    /// A new folder under the system's temporary folder, named for `kind`.
-    pub fn new(kind: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!(
-            "sf4-tournament-{kind}-{}",
-            ember_protocol::encoding::b64u(&random16())
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        Self(dir)
-    }
-}
-
-impl Drop for Dirs {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-pub fn random16() -> [u8; 16] {
-    let mut bytes = [0; 16];
-    getrandom::fill(&mut bytes).unwrap();
-    bytes
+/// A new folder under the system's temporary folder, named for `kind`.
+pub fn dirs(kind: &str) -> Dirs {
+    Dirs::new(&format!("sf4-tournament-{kind}"))
 }
 
 /// A loopback bridge with these sign-in sites, each with a client secret,
@@ -80,51 +65,15 @@ pub async fn start_bridge(
         discord_client_secret: discord.then(|| Zeroizing::new("discord-secret".to_owned())),
         ..Default::default()
     };
-    let integration_secrets = (!sites.is_empty() || discord).then(|| dir.join("integrations.json"));
-    let config = Config {
-        bridge_id: ember_protocol::encoding::prefixed_id("brg", random16()),
-        display_name: "Loopback bridge".into(),
-        origin: origin.to_owned(),
-        listen: "127.0.0.1:0".into(),
-        database: dir.join("bridge.sqlite3"),
-        secrets: dir.join("secrets.json"),
-        allow_loopback_http: true,
-        allow_private_webhooks: true,
-        mock_browser: false,
-        discord: discord.then(|| config::Discord {
-            client_id: "1546980049692135514".into(),
-            api_base: "http://127.0.0.1:9/api".into(),
-        }),
-        sign_in_sites: sites,
-        integration_secrets,
-        desk: None,
-        replay_retention: None,
-        archive: None,
-        trusted_proxies: Vec::new(),
-        rooms: None,
-        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
-        tenants: vec![config::Tenant {
-            id: "local".into(),
-            name: "Local".into(),
-            connections: vec![config::Connection {
-                id: "mock-local".into(),
-                kind: "mock".into(),
-                environment: "local".into(),
-                display_name: "Mock provider".into(),
-                enabled: true,
-                api_base: None,
-                discord_lookup: false,
-                lookup_sites: Vec::new(),
-                disputes: None,
-                results_url: None,
-                rooms: None,
-            }],
-        }],
-    };
-    let db = Db::open(&config.database).unwrap();
-    let state = AppState::new(config, Keys::generate(), secrets, db, Clock::default());
-    ember_bridge::sync_config(&state).await.unwrap();
-    ember_bridge::start(state, listener).unwrap()
+    let mut config = loopback_config(dir, origin);
+    config.integration_secrets =
+        (!sites.is_empty() || discord).then(|| dir.join("integrations.json"));
+    config.discord = discord.then(|| config::Discord {
+        client_id: "1546980049692135514".into(),
+        api_base: "http://127.0.0.1:9/api".into(),
+    });
+    config.sign_in_sites = sites;
+    serve(config, secrets, Clock::default(), listener).await
 }
 
 /// The site `deploy/sites/<file>.json` defines, listed as `id` and named
@@ -144,6 +93,30 @@ pub fn site(file: &str, id: &str, name: &str, origin: &str) -> config::SignInSit
     site["authorize_url"] = local(&site["authorize_url"]);
     site["token_url"] = local(&site["token_url"]);
     site["user"]["url"] = local(&site["user"]["url"]);
+    // The organizer sign-in's requests go to the site's host as well.
+    if let Some(organizer) = site.get_mut("organizer") {
+        let mut pending = vec![organizer];
+        while let Some(part) = pending.pop() {
+            match part {
+                Value::Object(fields) => {
+                    for (key, value) in fields.iter_mut() {
+                        if key.ends_with("url") && value.is_string() {
+                            // Kept as written after the host: the URLs hold
+                            // `{tournament}` placeholders a parse would escape.
+                            let url = value.as_str().unwrap_or_default();
+                            let rest = url.split_once("://").map_or("", |(_, rest)| rest);
+                            let after_host = rest.find('/').map_or("", |at| &rest[at..]);
+                            *value = json!(format!("{origin}{after_host}"));
+                        } else {
+                            pending.push(value);
+                        }
+                    }
+                }
+                Value::Array(items) => pending.extend(items.iter_mut()),
+                _ => {}
+            }
+        }
+    }
     site["hosts"] = json!(["127.0.0.1"]);
     serde_json::from_value(site).unwrap()
 }

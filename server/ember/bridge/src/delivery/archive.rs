@@ -104,12 +104,7 @@ impl Queue for Archive {
                 .await;
             match pack {
                 Ok(Some(pack)) => {
-                    if let Some(error) = put(
-                        format!("sets/{id}.emberpack"),
-                        pack,
-                    )
-                    .await
-                    {
+                    if let Some(error) = put(format!("sets/{id}.emberpack"), pack).await {
                         return retry(error);
                     }
                 }

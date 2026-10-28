@@ -664,6 +664,11 @@ int wmain(int argc, wchar_t** argv) {
 				CHECK(disconnected == 0); CHECK(ggpo_advance_frame(ggpo[i]) == GGPO_OK);
 				++frames[i]; inputAdded[i] = false;
 		};
+		// Only helper load reports sent after match sampling begins count: the
+		// latest report before it covers the lobby, such as a join's wait for
+		// its coordination route.
+		std::vector<std::uint64_t> loadSamplesAtStart(Count);
+		for (std::size_t i = 0; i < Count; ++i) loadSamplesAtStart[i] = rooms[i]->HelperLoad().samples;
 		// The 45 s allowance covers 60 frames; scale it for a long timed run.
 		wait([&]() {
 			const double tickStart = diag::NowMs();
@@ -676,9 +681,9 @@ int wmain(int argc, wchar_t** argv) {
 					while ((diag::NowMs() - spinStart) * 1000.0 < gameCostUs) {}
 				});
 				traceTableZero();
-				for (const auto& room : rooms) {
-					const auto& load = room->HelperLoad();
-					if (!load.samples) continue;
+				for (std::size_t i = 0; i < Count; ++i) {
+					const auto& load = rooms[i]->HelperLoad();
+					if (load.samples <= loadSamplesAtStart[i]) continue;
 					helperTickLagMaxUs = (std::max)(helperTickLagMaxUs, load.actorTickLagMaxUs);
 					helperTickBodyMaxUs = (std::max)(helperTickBodyMaxUs, load.actorTickBodyMaxUs);
 					helperEventFreeMin = (std::min)(helperEventFreeMin, load.eventQueueFreeMin);

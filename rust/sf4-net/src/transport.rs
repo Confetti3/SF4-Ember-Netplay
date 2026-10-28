@@ -243,6 +243,50 @@ impl Drop for PendingConnection {
     }
 }
 
+/// Runs `handshake` and closes `connection` unless it ends in Ok: on an
+/// error, and when the caller drops it before it ends.
+async fn close_unless_ok<T>(
+    connection: Connection,
+    handshake: impl Future<Output = io::Result<T>>,
+) -> io::Result<T> {
+    let mut pending = PendingConnection(Some(connection));
+    let result = handshake.await;
+    if result.is_ok() {
+        pending.0 = None;
+    }
+    result
+}
+
+/// `close_unless_ok` with `handshake` bounded by `deadline`; running out of
+/// time is the error `late` makes, and closes the connection too.
+async fn guarded<T>(
+    connection: Connection,
+    deadline: Instant,
+    late: fn() -> io::Error,
+    handshake: impl Future<Output = io::Result<T>>,
+) -> io::Result<T> {
+    close_unless_ok(connection, async {
+        tokio::time::timeout_at(deadline, handshake)
+            .await
+            .map_err(|_| late())?
+    })
+    .await
+}
+
+/// `guarded` until `HANDSHAKE_TIMEOUT` from now, as the generic failure.
+async fn guarded_handshake<T>(
+    connection: Connection,
+    handshake: impl Future<Output = io::Result<T>>,
+) -> io::Result<T> {
+    guarded(
+        connection,
+        Instant::now() + HANDSHAKE_TIMEOUT,
+        failed,
+        handshake,
+    )
+    .await
+}
+
 /// The dialer's send half of a gameplay handshake. Dropping it before
 /// `confirm` completes resets the stream instead of letting the transport
 /// finish it, so an abandoned attempt can never look like a confirmation to
@@ -295,34 +339,85 @@ impl Drop for GameDialSend {
 /// the host ever opened, as opposed to one that opened and was then refused.
 pub const HOST_UNREACHABLE: &str = "host_unreachable";
 
-pub fn is_host_unreachable(error: &io::Error) -> bool {
-    error.to_string() == HOST_UNREACHABLE
-}
-
 /// The message of the error a joiner gets when a public host read its proof
 /// and answered with `PublicRefused`: the connection opened and the host's
 /// admission policy turned it away. A silent close, a timeout and an
 /// unreachable host are never this.
 pub const ADMISSION_REFUSED: &str = "admission_refused";
 
-pub(crate) fn admission_refused() -> io::Error {
-    io::Error::new(io::ErrorKind::ConnectionAborted, ADMISSION_REFUSED)
-}
-
-pub fn is_admission_refused(error: &io::Error) -> bool {
-    error.to_string() == ADMISSION_REFUSED
-}
-
 /// The message of the error a join gets when the connection opened and the
 /// handshake then ran out of time.
 pub const HANDSHAKE_TIMED_OUT: &str = "handshake_timeout";
 
-fn timed_out() -> io::Error {
-    io::Error::new(io::ErrorKind::TimedOut, HANDSHAKE_TIMED_OUT)
+/// The handshake outcomes a join tells apart. Each travels inside the
+/// `io::Error` it ends in, whose message and kind are what they always were:
+/// the native side reads the message.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Handshake {
+    HostUnreachable,
+    AdmissionRefused,
+    TimedOut,
+}
+
+impl Handshake {
+    fn message(self) -> &'static str {
+        match self {
+            Self::HostUnreachable => HOST_UNREACHABLE,
+            Self::AdmissionRefused => ADMISSION_REFUSED,
+            Self::TimedOut => HANDSHAKE_TIMED_OUT,
+        }
+    }
+
+    fn error(self) -> io::Error {
+        let kind = match self {
+            Self::HostUnreachable | Self::AdmissionRefused => io::ErrorKind::ConnectionAborted,
+            Self::TimedOut => io::ErrorKind::TimedOut,
+        };
+        io::Error::new(kind, self)
+    }
+
+    fn of(error: &io::Error) -> Option<Self> {
+        error.get_ref()?.downcast_ref::<Self>().copied()
+    }
+}
+
+impl std::fmt::Display for Handshake {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.message())
+    }
+}
+
+/// As the message string's, so an error prints as it did.
+impl std::fmt::Debug for Handshake {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self.message(), f)
+    }
+}
+
+impl std::error::Error for Handshake {}
+
+pub(crate) fn host_unreachable() -> io::Error {
+    Handshake::HostUnreachable.error()
+}
+
+pub fn is_host_unreachable(error: &io::Error) -> bool {
+    Handshake::of(error) == Some(Handshake::HostUnreachable)
+}
+
+pub(crate) fn admission_refused() -> io::Error {
+    Handshake::AdmissionRefused.error()
+}
+
+pub fn is_admission_refused(error: &io::Error) -> bool {
+    Handshake::of(error) == Some(Handshake::AdmissionRefused)
+}
+
+pub(crate) fn timed_out() -> io::Error {
+    Handshake::TimedOut.error()
 }
 
 pub fn is_handshake_timeout(error: &io::Error) -> bool {
-    error.to_string() == HANDSHAKE_TIMED_OUT
+    Handshake::of(error) == Some(Handshake::TimedOut)
 }
 
 pub async fn connect_control(endpoint: &Endpoint, invite: &Invite) -> io::Result<ControlChannel> {
@@ -351,31 +446,28 @@ pub(crate) async fn connect_control_at<P: Serialize + Sync>(
     proof: &P,
     public: bool,
 ) -> io::Result<ControlChannel> {
-    let unreachable = || io::Error::new(io::ErrorKind::ConnectionAborted, HOST_UNREACHABLE);
     // Set once the connection opens, so a timeout says which stage ran out.
     let dialed = std::sync::atomic::AtomicBool::new(false);
     let result = timeout(HANDSHAKE_TIMEOUT, async {
         let connection = endpoint
             .connect(address, CONTROL_ALPN)
             .await
-            .map_err(|_| unreachable())?;
+            .map_err(|_| host_unreachable())?;
         dialed.store(true, std::sync::atomic::Ordering::Relaxed);
-        let mut pending = PendingConnection(Some(connection.clone()));
         let expected = Some(invite.endpoint());
-        let result = if public {
-            connect_public_on_proof(connection, proof, expected).await
-        } else {
-            connect_control_on_proof(connection, proof, expected).await
-        };
-        if result.is_ok() {
-            pending.0 = None;
-        }
-        result
+        close_unless_ok(connection.clone(), async {
+            if public {
+                connect_public_on_proof(connection, proof, expected).await
+            } else {
+                connect_control_on_proof(connection, proof, expected).await
+            }
+        })
+        .await
     })
     .await;
     match result {
         Ok(result) => result,
-        Err(_) if !dialed.load(std::sync::atomic::Ordering::Relaxed) => Err(unreachable()),
+        Err(_) if !dialed.load(std::sync::atomic::Ordering::Relaxed) => Err(host_unreachable()),
         // Only a public join says the handshake timed out; a private room's
         // host keeps the generic failure.
         Err(_) if public => Err(timed_out()),
@@ -388,7 +480,7 @@ pub async fn connect_control_on(
     connection: Connection,
     invite: &Invite,
 ) -> io::Result<ControlChannel> {
-    connect_control_on_expected(connection, invite, Some(invite.endpoint())).await
+    connect_control_on_proof(connection, &invite.proof(), Some(invite.endpoint())).await
 }
 
 /// Rebind a control route to an already admitted room member. The invitation
@@ -423,21 +515,12 @@ pub(crate) async fn connect_control_to_with<P: Serialize + Sync>(
     .map_err(|_| failed())?
 }
 
-async fn connect_control_on_expected(
-    connection: Connection,
-    invite: &Invite,
-    expected: Option<EndpointId>,
-) -> io::Result<ControlChannel> {
-    connect_control_on_proof(connection, &invite.proof(), expected).await
-}
-
 pub(crate) async fn connect_control_on_proof<P: Serialize + Sync>(
     connection: Connection,
     proof: &P,
     expected: Option<EndpointId>,
 ) -> io::Result<ControlChannel> {
-    let mut pending = PendingConnection(Some(connection.clone()));
-    let result = timeout(HANDSHAKE_TIMEOUT, async {
+    guarded_handshake(connection.clone(), async {
         if connection.alpn() != CONTROL_ALPN
             || expected.is_some_and(|expected| connection.remote_id() != expected)
         {
@@ -452,11 +535,6 @@ pub(crate) async fn connect_control_on_proof<P: Serialize + Sync>(
         Ok(control_channel(connection, (send, recv)))
     })
     .await
-    .map_err(|_| failed())?;
-    if result.is_ok() {
-        pending.0 = None;
-    }
-    result
 }
 
 /// What a room takes on a control's handshake.
@@ -488,8 +566,7 @@ async fn accept_control_policy(
     accepting: Accepting,
     clock: u64,
 ) -> io::Result<ControlChannel> {
-    let mut pending = PendingConnection(Some(connection.clone()));
-    let result = timeout(HANDSHAKE_TIMEOUT, async {
+    guarded_handshake(connection.clone(), async {
         if connection.alpn() != CONTROL_ALPN {
             return Err(failed());
         }
@@ -510,11 +587,6 @@ async fn accept_control_policy(
         Ok(control_channel(connection, (send, recv)))
     })
     .await
-    .map_err(|_| failed())?;
-    if result.is_ok() {
-        pending.0 = None;
-    }
-    result
 }
 
 /// Supplied over authenticated control IPC for a single authorized peer/match.
@@ -722,8 +794,7 @@ pub async fn accept_game_stream_until(
     connection: &Connection,
     deadline: Instant,
 ) -> io::Result<GameStream> {
-    let mut pending = PendingConnection(Some(connection.clone()));
-    let result = tokio::time::timeout_at(deadline, async {
+    guarded(connection.clone(), deadline, failed, async {
         if connection.alpn() != GAME_ALPN {
             return Err(failed());
         }
@@ -731,11 +802,6 @@ pub async fn accept_game_stream_until(
         classify_game_stream(send, recv).await
     })
     .await
-    .map_err(|_| failed())?;
-    if result.is_ok() {
-        pending.0 = None;
-    }
-    result
 }
 
 async fn classify_game_stream(send: SendStream, mut recv: RecvStream) -> io::Result<GameStream> {
@@ -775,8 +841,7 @@ pub async fn accept_game(
     connection: Connection,
     auth: GameAuthorization,
 ) -> io::Result<GameConnection> {
-    let mut pending = PendingConnection(Some(connection.clone()));
-    let result = timeout(HANDSHAKE_TIMEOUT, async {
+    guarded_handshake(connection.clone(), async {
         if connection.alpn() != GAME_ALPN || connection.remote_id() != auth.peer {
             return Err(failed());
         }
@@ -788,11 +853,6 @@ pub async fn accept_game(
         }
     })
     .await
-    .map_err(|_| failed())?;
-    if result.is_ok() {
-        pending.0 = None;
-    }
-    result
 }
 
 pub async fn accept_game_stream_with(
@@ -818,8 +878,7 @@ pub async fn accept_game_stream_with_until(
     mut recv: RecvStream,
     deadline: Instant,
 ) -> io::Result<GameConnection> {
-    let mut pending = PendingConnection(Some(connection.clone()));
-    let result = tokio::time::timeout_at(deadline, async {
+    guarded(connection.clone(), deadline, failed, async {
         let proof: GameProof = read_handshake(&mut recv).await?;
         auth.validate(&connection, &proof)?;
         send_handshake(&mut send, &auth.proof()).await?;
@@ -842,11 +901,6 @@ pub async fn accept_game_stream_with_until(
         })
     })
     .await
-    .map_err(|_| failed())?;
-    if result.is_ok() {
-        pending.0 = None;
-    }
-    result
 }
 
 #[cfg(test)]

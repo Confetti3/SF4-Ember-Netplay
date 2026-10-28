@@ -26,8 +26,7 @@ use crate::{
     http::{GENERAL_BODY, is_idempotency_key, ok},
     routes::{
         idempotency,
-        ledger::{Match, load},
-        matches::cancel_and_release,
+        ledger::{Match, cancel_and_release, load, load_listed},
     },
 };
 
@@ -94,7 +93,6 @@ pub async fn close(
             Ok(())
         })
         .await?;
-    state.committed();
     Ok(ok(&json!({ "closed": true })))
 }
 
@@ -172,7 +170,7 @@ pub fn end_unkeyed(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
         .query_map([], |row| row.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for id in ids {
-        if let Some(found) = load(tx, &id)? {
+        if let Some(found) = load_listed(tx, &id)? {
             end(
                 tx,
                 ctx,

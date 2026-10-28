@@ -13,6 +13,9 @@ inline bool IsVerificationType(const std::string& type) {
     return type == "battle_hash" || type == "battle_snapshot";
 }
 inline bool IsRoomVerificationMessage(const Message& message) {
+    // Classified where it was queued (RoomMessageTag.hxx); other transports'
+    // messages are parsed here.
+    if (message.tag.classified) return message.tag.verification;
     try {
         const auto payload = nlohmann::json::parse(message.payload);
         return IsVerificationType(payload.value("type", std::string()));

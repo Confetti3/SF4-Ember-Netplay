@@ -263,19 +263,19 @@ async fn banning_on_a_private_room_or_with_bad_input_is_an_error() {
         },
     };
     // A private room.
-    assert!(actor.command(ban(1, &account)).unwrap());
+    assert!(actor.command_now(ban(1, &account)).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { request_id: 8, ref code, .. } if code == "invalid_room_state"
     ));
     // A public host, with a stale epoch and with something that is no ID.
     actor.public = Some(PublicRoom::Host(host_state()));
-    assert!(actor.command(ban(2, &account)).unwrap());
+    assert!(actor.command_now(ban(2, &account)).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { ref code, .. } if code == "stale_epoch"
     ));
-    assert!(actor.command(ban(1, "not an id")).unwrap());
+    assert!(actor.command_now(ban(1, "not an id")).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { ref code, .. } if code == "invalid_request"
@@ -308,7 +308,7 @@ async fn a_ban_past_the_limit_is_an_error_and_keeps_every_ban() {
             account: account.to_string(),
         },
     };
-    assert!(actor.command(ban(extra.ember_id())).unwrap());
+    assert!(actor.command_now(ban(extra.ember_id())).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { request_id: 9, ref code, .. } if code == "ban_limit"
@@ -319,7 +319,7 @@ async fn a_ban_past_the_limit_is_an_error_and_keeps_every_ban() {
     assert!(!host.is_banned(extra.ember_id()));
     assert!(host.is_banned(first.ember_id()));
     // A repeat of a held ban is not an error.
-    assert!(actor.command(ban(first.ember_id())).unwrap());
+    assert!(actor.command_now(ban(first.ember_id())).await.unwrap());
     assert!(events.try_recv().is_err());
     own.close().await;
 }
@@ -342,7 +342,7 @@ async fn host_public_marks_the_room_server_owned_and_refuses_a_bad_key() {
         },
     };
     let host_public = |epoch, key: &str| host_public_in(epoch, key, [5; 16]);
-    assert!(actor.command(host_public(1, "not a key")).unwrap());
+    assert!(actor.command_now(host_public(1, "not a key")).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { epoch: 1, request_id: 3, ref code, .. } if code == "invalid_request"
@@ -351,14 +351,14 @@ async fn host_public_marks_the_room_server_owned_and_refuses_a_bad_key() {
 
     // An all-zero room id is refused like a bad key, and the epoch is free.
     let key = identity(9).public_key().to_b64u();
-    assert!(actor.command(host_public_in(2, &key, [0; 16])).unwrap());
+    assert!(actor.command_now(host_public_in(2, &key, [0; 16])).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { epoch: 2, request_id: 3, ref code, .. } if code == "invalid_request"
     ));
     assert!(!actor.server_owned() && !actor.opening);
 
-    assert!(actor.command(host_public(3, &key)).unwrap());
+    assert!(actor.command_now(host_public(3, &key)).await.unwrap());
     assert!(actor.server_owned() && actor.opening);
     assert!(actor.is_public_host());
     assert!(events.try_recv().is_err());
@@ -369,13 +369,13 @@ async fn host_public_marks_the_room_server_owned_and_refuses_a_bad_key() {
     // A private host is not server-owned.
     assert!(
         actor
-            .command(Request {
+            .command_now(Request {
                 id: 4,
                 command: Command::Host {
                     epoch: 4,
                     build: BUILD.into(),
                 },
-            })
+            }).await
             .unwrap()
     );
     assert!(!actor.server_owned() && actor.opening);
@@ -401,7 +401,7 @@ async fn join_public_marks_the_room_server_owned_and_keeps_the_ticket() {
     };
     assert!(
         actor
-            .command(join_public(1, invite.encode().unwrap()))
+            .command_now(join_public(1, invite.encode().unwrap())).await
             .unwrap()
     );
     assert!(actor.server_owned() && !actor.is_public_host());
@@ -411,7 +411,7 @@ async fn join_public_marks_the_room_server_owned_and_keeps_the_ticket() {
     assert!(!actor.server_owned() && actor.member_ticket().is_none());
 
     // A refused invitation clears the marker and names the epoch asked for.
-    assert!(actor.command(join_public(2, "sf4e3:bad".into())).unwrap());
+    assert!(actor.command_now(join_public(2, "sf4e3:bad".into())).await.unwrap());
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { epoch: 2, request_id: 6, ref code, .. }
@@ -478,7 +478,7 @@ async fn the_coordination_endpoint_binds_the_given_port_or_hosting_fails() {
         .local_addr()
         .unwrap()
         .port();
-    let session = crate::recovery::RecoverySession::host_on([5; 16], own.id(), false, Some(free))
+    let session = crate::recovery::RecoverySession::host_in([5; 16], own.id(), false, Some(free), false)
         .await
         .unwrap();
     // The port is held by the coordination endpoint now.
@@ -488,7 +488,7 @@ async fn the_coordination_endpoint_binds_the_given_port_or_hosting_fails() {
     let held = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
     let held_port = held.local_addr().unwrap().port();
     assert!(
-        crate::recovery::RecoverySession::host_on([6; 16], own.id(), false, Some(held_port))
+        crate::recovery::RecoverySession::host_in([6; 16], own.id(), false, Some(held_port), false)
             .await
             .is_err()
     );

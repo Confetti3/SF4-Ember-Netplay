@@ -155,7 +155,6 @@ pub async fn redeem(
             Ok(used == 1)
         })
         .await?;
-    state.committed();
     if !taken {
         return Err(wrong());
     }

@@ -34,9 +34,10 @@ void LogGameplayController(const input::Device& device, const char* reason) {
 }
 
 namespace {
+// Runs every tick while the saved controller is missing or only stood in for.
 void RestoreMenuController() {
     OverlayPrefs::Data prefs;
-    OverlayPrefs::Load(prefs);
+    OverlayPrefs::LoadEachTick(prefs);
     input::Device saved;
     saved.type = prefs.deviceType; saved.index = prefs.deviceIdx;
     if (prefs.deviceIdentity) saved.identity = *prefs.deviceIdentity;
@@ -77,7 +78,11 @@ void RestoreMenuController() {
 void CaptureMenuInput() {
     if (GetTickCount64() >= runtime->padHintUntil) runtime->padHint.clear();
     if (AtMainMenu()) {
-        runtime->inputDevices = input::ReadDevices();
+        // The keyboard's held bit is read only by a capture waiting for every
+        // key to be released. Pad rows never show the keyboard, so the
+        // Controllers page has no use for it either.
+        const bool keyboardScanned = runtime->input.State() != input::Capture::Idle;
+        runtime->inputDevices = input::ReadDevices(keyboardScanned);
         input::LogInventory(runtime->inputDevices);
         const auto setup = Gamepads::ReadFrame().setup;
         if (!setup.state.active && setup.outcome != gamepads::SetupEnd::Saved) runtime->setupAdoption.reset();
@@ -95,6 +100,8 @@ void CaptureMenuInput() {
         // a provisional choice is not replaced or captured over meanwhile.
         if (!runtime->inputInitialized && !setup.state.active && runtime->input.State()==input::Capture::Idle &&
             runtime->controller.GetSnapshot().room==netplay::RoomState::Idle) RestoreMenuController();
+        // RestoreMenuController can begin a capture after the read above.
+        if (!keyboardScanned && runtime->input.State() != input::Capture::Idle) input::ScanKeyboard(runtime->inputDevices);
         const int previousIndex = runtime->input.Selected().index;
         const bool captured = runtime->input.Tick(runtime->inputDevices);
         const auto& chosen = runtime->input.Selected();
@@ -119,9 +126,9 @@ void CaptureMenuInput() {
     const auto layer = Gamepads::ReadFrame();
     if (layer.mode == gamepads::Layer::Active) runtime->preferences.buttonLayouts = layer.layouts;
     runtime->padLayer = layer.mode; runtime->runningControllerLayer = layer.requested;
-    OverlayPrefs::Data prefs; OverlayPrefs::Load(prefs);
+    const auto savedIdentity = OverlayPrefs::DeviceIdentity();
     const auto native = DirectInputFilter::ReadControllers();
-    runtime->pads = runtime->padInventory.Build(layer.mode, layer.pads, runtime->inputDevices, native, runtime->input.Selected(), prefs.deviceIdentity);
+    runtime->pads = runtime->padInventory.Build(layer.mode, layer.pads, runtime->inputDevices, native, runtime->input.Selected(), savedIdentity);
     for (auto& pad : runtime->pads) {
         if (pad.state == gamepads::RowState::Absent) {
             const auto match = std::find_if(runtime->preferences.buttonLayouts.begin(), runtime->preferences.buttonLayouts.end(), [&](const gamepads::StoredLayout& layout) { return gamepads::Same(layout.identity, pad.identity); });
@@ -157,7 +164,7 @@ void CaptureMenuInput() {
 
 bool CanChooseControllerNow() {
     const auto current = runtime->controller.GetSnapshot();
-    return AtMainMenu() && GetRuntimeSnapshotShared()->canChangeController && !runtime->readyIntent.Parked() &&
+    return AtMainMenu() && CurrentGates().canChangeController && !runtime->readyIntent.Parked() &&
         !current.readyPending && (current.match == netplay::MatchState::None || current.match == netplay::MatchState::PostMatch);
 }
 
@@ -197,9 +204,9 @@ input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex) {
 }
 
 bool CanEditButtonLayoutNow() {
-    const auto view = GetRuntimeSnapshotShared();
+    const auto gates = CurrentGates();
     return AtMainMenu() && !netplay::Fighting(runtime->controller.GetSnapshot().match) &&
-        (view->canEditPreferences || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle);
+        (gates.canEditPreferences || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle);
 }
 
 // The settings a room leaves open (PlayerPreferences::CopyRoomSettings), when
@@ -223,7 +230,7 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
         const auto current = Gamepads::ReadFrame().setup;
         if (!current.state.active || current.padId != request.id) return;
         if (request.command != gamepads::SetupCommand::Save) { Gamepads::ControlSetup(request.command, request.step); return; }
-        if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle || !GetRuntimeSnapshotShared()->canEditPreferences) {
+        if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle || !CurrentGates().canEditPreferences) {
             Gamepads::ControlSetup(gamepads::SetupCommand::LeftMenu, 0); return;
         }
         const auto before = Gamepads::ReadFrame().setup;
@@ -237,7 +244,7 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
     const auto found = std::find_if(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) { return pad.id == request.id; });
     if (found == runtime->pads.end()) return;
     const auto& pad = *found;
-    const auto view = GetRuntimeSnapshotShared();
+    const auto gates = CurrentGates();
     if (request.kind == Kind::Layout || request.kind == Kind::RemoveLayout) {
         if (!CanEditButtonLayoutNow() || runtime->padLayer != gamepads::Layer::Active ||
             (pad.state != gamepads::RowState::Recognised && pad.state != gamepads::RowState::Steam)) return;
@@ -253,7 +260,7 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
     }
     if (request.kind == Kind::Prompt) { Gamepads::SetupPrompt(pad.identity); return; }
     if (request.kind == Kind::Setup) {
-        if (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && view->canEditPreferences && runtime->padLayer == gamepads::Layer::Active &&
+        if (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && gates.canEditPreferences && runtime->padLayer == gamepads::Layer::Active &&
             (pad.state == gamepads::RowState::Recognised || pad.state == gamepads::RowState::Unmapped || pad.state == gamepads::RowState::GameRead))
         {
             if (Gamepads::ReadFrame().setup.state.active) return;
@@ -263,7 +270,7 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
         return;
     }
     if (request.kind == Kind::Forget) {
-        if (!view->canEditPreferences || runtime->padLayer != gamepads::Layer::Active || !runtime->preferences.controllerMappings.count(pad.identity.guid)) return;
+        if (!gates.canEditPreferences || runtime->padLayer != gamepads::Layer::Active || !runtime->preferences.controllerMappings.count(pad.identity.guid)) return;
         auto preferences = runtime->preferences; preferences.controllerMappings.erase(pad.identity.guid);
         if (!OverlayPrefs::SavePlayerPreferences(preferences)) return;
         runtime->preferences = std::move(preferences);
@@ -298,7 +305,7 @@ bool BindRuntimeInput(int localSlot) {
     if(!input::AssignToSide(device, localSlot, true)) {
         runtime->error=loc::T("runtime.controller_assignment_unverified");return false;
     }
-    runtime->matchInput=device;runtime->matchInputSide=localSlot;runtime->matchInputFault=false;
+    runtime->matchBinding.matchInput=device;runtime->matchBinding.matchInputSide=localSlot;runtime->matchBinding.matchInputFault=false;
     spdlog::info("Input: P{} plays with {} {} '{}'", localSlot + 1,
         device.type == input::PadKeyboard ? "keyboard" : device.type == input::PadXInput ? "xinput" : "dinput",
         device.index, device.identity.guid.empty() ? device.name : device.identity.name);
@@ -308,8 +315,8 @@ bool BindRuntimeInput(int localSlot) {
 bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     mapped=raw=0;
     if(!runtime||!runtime->attached)return false;
-    const bool valid=side==runtime->matchInputSide&&input::ReadAssignedInput(runtime->matchInput,side,mapped,raw);
-    runtime->matchInputFault=!valid;
+    const bool valid=side==runtime->matchBinding.matchInputSide&&input::ReadAssignedInput(runtime->matchBinding.matchInput,side,mapped,raw);
+    runtime->matchBinding.matchInputFault=!valid;
     // The tournament self-test plays its own fighter; nothing without SF4E_SELFTEST.
     selftest::MatchInput(side,mapped,raw);
     return valid;

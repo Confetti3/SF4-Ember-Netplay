@@ -26,11 +26,6 @@ void Afterimage::Locate(HMODULE peRoot) {
 	*(PVOID*)&mementoableMethods.RestoreFromMemento = (PVOID)(peRootOffset + 0x162100);
 }
 
-// The IMementoable subobject is at object +0x60 and the key at +0x6B10.
-Chara::GameMementoKey* Afterimage::GetKey(Afterimage* mementoable) {
-	return (GameMementoKey*)((unsigned int)mementoable - 0x60 + 0x6b10);
-}
-
 void Unit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)&publicMethods.GetActorByIndex = (PVOID)(peRootOffset + 0x165d10);

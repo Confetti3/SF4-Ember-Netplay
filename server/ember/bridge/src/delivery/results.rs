@@ -32,7 +32,7 @@ use crate::{
         ledger::{Match, load, participants, scores},
         policy,
     },
-    util::outbound_client,
+    util::Outbound,
 };
 
 /// BluMint's submit endpoint for one connection, with BluMint's API key for
@@ -41,6 +41,7 @@ use crate::{
 pub struct BluMint {
     submit_url: String,
     key: Zeroizing<String>,
+    http: Outbound,
 }
 
 impl BluMint {
@@ -62,6 +63,7 @@ impl BluMint {
         Some(Self {
             submit_url: format!("{}/tournaments/match/submit", blumint::api_base(connection)),
             key: state.integrations.api_keys.get(&connection.id)?.clone(),
+            http: state.http.clone(),
         })
     }
 
@@ -72,7 +74,7 @@ impl BluMint {
             error: error.to_owned(),
             retry_after: None,
         };
-        let Ok(client) = outbound_client().build() else {
+        let Ok(client) = self.http.client() else {
             return Err(retry("client"));
         };
         let response = client
@@ -414,6 +416,7 @@ mod tests {
                 Destination::BluMint(BluMint {
                     submit_url: String::new(),
                     key: Zeroizing::new(String::new()),
+                    http: Outbound::default(),
                 }),
             )]
             .into(),

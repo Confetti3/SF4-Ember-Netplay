@@ -210,21 +210,39 @@ namespace OverlayPrefs {
         return j;
     }
 
-    bool Load(Data& out) {
-        std::lock_guard<std::mutex> lock(cacheMutex);
+    namespace {
+        // A failed load (no "overlay" section yet, settings busy or unreadable)
+        // is remembered briefly, so a fresh install does not open settings.lock
+        // and parse settings.json on every game-thread tick until the first
+        // overlay save. It is retried after a few seconds, never held until a
+        // save, so a lock the launcher holds for a moment cannot pin defaults.
+        // Only the per-tick readers (DeviceIdentity, LoadEachTick) honour it:
+        // the one-shot loads (overlay init, controller layer start) always read
+        // the disk, so a failure at another moment never hands them defaults.
+        constexpr ULONGLONG LoadRetryMs = 3000;
+        bool loadFailed = false;
+        ULONGLONG loadFailedAt = 0;
+        // Empty: the user's settings folder. Set only by UseDirectoryForTest.
+        std::wstring directoryOverride;
+
+        // Callers hold cacheMutex.
+        bool LoadLocked(Data& out, bool perTick) {
 		// Device recreation must not reload older disk state over queued edits.
 		if (haveCached) { out = cached; return true; }
+		const ULONGLONG now = GetTickCount64();
+		if (perTick && loadFailed && now - loadFailedAt < LoadRetryMs) return false;
+		const auto failed = [&] { loadFailed = true; loadFailedAt = now; return false; };
 		nlohmann::json j;
 		std::string error;
-		netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
+		netplay::SettingsStore store(directoryOverride.empty() ? netplay::SettingsStore::DefaultDirectory() : directoryOverride);
 		if (!store.LoadOverlay(j, error)) {
 			spdlog::warn("{}", error);
-			return false;
+			return failed();
 		}
 
 		try {
 			if (!j.is_object()) {
-				return false;
+				return failed();
 			}
 
 			FromJson(j, out);
@@ -240,13 +258,42 @@ namespace OverlayPrefs {
 			Clamp(out);
 			cached = out;
 			haveCached = true;
+			loadFailed = false;
 			return true;
 		}
 		catch (...) {
 			spdlog::warn("Could not parse overlay preferences in settings.json");
-			return false;
+			return failed();
 		}
-	}
+        }
+    }
+
+    bool Load(Data& out) {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        return LoadLocked(out, false);
+    }
+
+    bool LoadEachTick(Data& out) {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        return LoadLocked(out, true);
+    }
+
+    void UseDirectoryForTest(const std::wstring& directory) {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        directoryOverride = directory;
+        cached = Data{};
+        haveCached = false;
+        loadFailed = false;
+        loadFailedAt = 0;
+    }
+
+    std::optional<gamepads::Identity> DeviceIdentity() {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        if (haveCached) return cached.deviceIdentity;
+        Data data;
+        if (!LoadLocked(data, true)) return std::nullopt;
+        return data.deviceIdentity;
+    }
 
 	void StartPersistence() {
 		if (writer) return;

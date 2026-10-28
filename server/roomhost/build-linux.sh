@@ -11,10 +11,10 @@
 # JOBS to override the compiler, its flags or the parallelism.
 #
 # The sources are the room host's own files, the session server, the Iroh room,
-# the room model and the small common pieces they use: the same files as the
-# sf4e-room-host target and the libraries it links in CMakeLists.txt, with
-# RoomHostHelperPosix.cxx and HelperClientPosix.cxx in place of the Windows
-# helper files. No game library.
+# the room model and the small common pieces they use, as listed in
+# server/roomhost/sources.txt: the files of the sf4e-room-host target and the
+# libraries it links in CMakeLists.txt, with RoomHostHelperPosix.cxx and
+# HelperClientPosix.cxx in place of the Windows helper files. No game library.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -52,37 +52,17 @@ done
 LIBS="-static-libstdc++ -static-libgcc -pthread -flto=auto -Wl,--gc-sections -s"
 FLAGS="-std=c++17 -O2 -DNDEBUG -flto=auto -ffunction-sections -fdata-sections -pthread -DSPDLOG_FMT_EXTERNAL -DFMT_HEADER_ONLY ${CXXFLAGS:-}"
 
-SOURCES="
-server/roomhost/main.cxx
-server/roomhost/RoomHost.cxx
-server/roomhost/RoomHostStatus.cxx
-server/roomhost/RoomHostHelperPosix.cxx
-src/platform/HelperClientPosix.cxx
-src/session/MatchAuthority.cxx
-src/session/sf4e__SessionServer.cxx
-src/session/sf4e__SessionServer__Handlers.cxx
-src/session/sf4e__SessionServer__Recovery.cxx
-src/session/sf4e__SessionServer__RecoveryCheckpoint.cxx
-src/session/sf4e__SessionServer__Rooms.cxx
-src/session/sf4e__SessionServer__Tournament.cxx
-src/session/sf4e__SessionProtocol.cxx
-src/session/IrohRoom.cxx
-src/session/IrohRoomAdapters.cxx
-src/session/IrohRoomCheckpoint.cxx
-src/session/IrohRoomPeers.cxx
-src/session/IrohRoomPublic.cxx
-src/session/IdentityEvents.cxx
-src/session/TournamentAnswers.cxx
-src/session/RoomModel.cxx
-src/session/RoomModelActions.cxx
-src/session/RoomModelJson.cxx
-src/session/RoomModelTournament.cxx
-src/session/RoomModelServerOwned.cxx
-src/session/RoomDigest.cxx
-src/common/FighterCatalog.cxx
-src/common/StageCatalog.cxx
-src/common/sf4e__RollbackDiagnostics.cxx
-"
+# server/roomhost/sources.txt lists the sources (one list for this script and the
+# CMake targets); the Windows-only host file is left out, and a CR from a CRLF
+# checkout is dropped.
+SOURCES="$(tr -d '\r' < "$ROOT/server/roomhost/sources.txt" | awk '
+    /^# \[[a-z_]+\]$/ { group = substr($0, 4, length($0) - 4); next }
+    /^#/ || !NF { next }
+    group != "host_windows" { print }')"
+if [ -z "$SOURCES" ]; then
+    echo "No sources listed in $ROOT/server/roomhost/sources.txt" >&2
+    exit 1
+fi
 
 OBJ="$(mktemp -d "${TMPDIR:-/tmp}/room-host-build.XXXXXX")"
 trap 'rm -rf "$OBJ"' EXIT

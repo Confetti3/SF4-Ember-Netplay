@@ -5,7 +5,7 @@
 mod common;
 
 use common::Bridge;
-use ember_bridge::{AppState, Keys, config::Config, config::Tenant};
+use ember_bridge::{config::Config, config::Tenant, testing::reconfigured};
 use serde_json::{Value, json};
 
 const PRODUCTION: &str = include_str!("../deploy/tenants.json");
@@ -26,15 +26,13 @@ const DEPLOYED: &str = r#"{ "tenants": [
 
 /// Syncs `tenants` into the bridge's database, as a restart with them would.
 async fn sync(bridge: &Bridge, tenants: Vec<Tenant>) -> bool {
-    let mut config = (*bridge.state().config).clone();
-    config.tenants = tenants;
-    config.validate().unwrap();
-    let state = AppState::new(
-        config,
-        Keys::generate(),
+    let state = reconfigured(
+        bridge.state(),
+        |config| {
+            config.tenants = tenants;
+            config.validate().unwrap();
+        },
         Default::default(),
-        bridge.state().db.clone(),
-        bridge.clock.clone(),
     );
     ember_bridge::sync_config(&state).await.is_ok()
 }

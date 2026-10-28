@@ -4,10 +4,13 @@
 //! connection's stream carries, listing, closing, and tickets.
 mod common;
 
+use std::sync::Arc;
+
 use common::{
     Bridge, Player, code,
     supervisor::{
-        BUILD, ENDPOINT, Supervisor, enable, fake_supervisor, report, report_details, secrets,
+        BUILD, ENDPOINT, Gate, Supervisor, enable, fake_supervisor, report, report_details,
+        secrets, touch,
     },
 };
 use ember_bridge::config;
@@ -469,6 +472,63 @@ async fn the_supervisors_reports_become_at_most_one_event_per_room_per_poll() {
     assert_eq!(f.room_events(&f.provider).await.len(), 5);
 }
 
+/// The room's stored sealed invitation, and the rows the bridge's database
+/// connection has changed so far.
+async fn stored(f: &Fixture, room_id: &str) -> (Vec<u8>, i64) {
+    let room_id = room_id.to_owned();
+    f.bridge
+        .state()
+        .db
+        .read(move |tx| {
+            let sealed = tx.query_row(
+                "SELECT invitation_sealed FROM rooms WHERE room_id = ?1",
+                [&room_id],
+                |row| row.get(0),
+            )?;
+            let changes = tx.query_row("SELECT total_changes()", [], |row| row.get(0))?;
+            Ok((sealed, changes))
+        })
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_poll_that_changes_nothing_writes_nothing_and_says_nothing() {
+    let f = fixture().await;
+    let room = f.open(&f.provider, &f.members[0]).await;
+    let id = room.room.room_id.clone();
+    report_details(
+        &f.fake,
+        &id,
+        json!({ "name": "Fight Night", "capacity": 4, "locked": false, "host_name": "Player 1",
+            "fighters": [3, 255] }),
+    );
+    f.reported(&id, 2, 1).await;
+    let events = f.room_events(&f.provider).await.len();
+    let (sealed, changes) = stored(&f, &id).await;
+
+    // Two identical polls: the invitation keeps its bytes, no row is written
+    // and no event is.
+    f.poll().await;
+    f.poll().await;
+    assert_eq!(stored(&f, &id).await, (sealed.clone(), changes));
+    assert_eq!(f.room_events(&f.provider).await.len(), events);
+
+    // A count changing writes the room, and still keeps the invitation.
+    f.reported(&id, 3, 1).await;
+    let (still, after) = stored(&f, &id).await;
+    assert_eq!(still, sealed);
+    assert!(after > changes);
+    assert_eq!(f.room_events(&f.provider).await.len(), events + 1);
+
+    // A new invitation is sealed again.
+    f.fake.lock().unwrap().rooms[0]["invitation"] = json!("sf4e3:another");
+    f.poll().await;
+    assert_ne!(stored(&f, &id).await.0, sealed);
+    // The room's view does not carry the invitation: no event.
+    assert_eq!(f.room_events(&f.provider).await.len(), events + 1);
+}
+
 #[tokio::test]
 async fn a_connection_lists_and_reads_only_its_own_rooms() {
     let f = fixture().await;
@@ -721,4 +781,138 @@ async fn a_rename_or_new_capacity_is_a_change_but_listing_details_are_not() {
     for key in ["host_name", "fighters", "locked", "set_format", "rotation"] {
         assert!(view["room"].get(key).is_none(), "{key}");
     }
+}
+
+/// The room's stored name, members and tables playing.
+async fn stored_counts(f: &Fixture, room_id: &str) -> (String, i64, i64) {
+    let room_id = room_id.to_owned();
+    f.bridge
+        .state()
+        .db
+        .read(move |tx| {
+            Ok(tx.query_row(
+                "SELECT name, members, tables_playing FROM rooms WHERE room_id = ?1",
+                [&room_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )?)
+        })
+        .await
+        .unwrap()
+}
+
+/// Overwrites the room's stored tables playing behind the bridge's back, so a
+/// poll that applies the room's report shows itself by putting it right.
+async fn tamper(f: &Fixture, room_id: &str) {
+    let room_id = room_id.to_owned();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE rooms SET tables_playing = 3 WHERE room_id = ?1",
+                [&room_id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_room_whose_rev_is_unchanged_is_not_applied_again() {
+    let f = fixture().await;
+    f.fake.lock().unwrap().revs = true;
+    let room = f.open(&f.provider, &f.members[0]).await;
+    let id = room.room.room_id.clone();
+    f.reported(&id, 2, 1).await;
+    assert_eq!(stored_counts(&f, &id).await.1, 2);
+
+    // The same rev: the bridge takes the room as it applied it, and writes
+    // nothing, so the edit stays.
+    tamper(&f, &id).await;
+    let (_, changes) = stored(&f, &id).await;
+    f.poll().await;
+    f.poll().await;
+    assert_eq!(stored_counts(&f, &id).await.2, 3);
+    assert_eq!(stored(&f, &id).await.1, changes);
+
+    // A new rev is applied, whatever changed.
+    touch(&f.fake, &id);
+    f.poll().await;
+    assert_eq!(stored_counts(&f, &id).await.2, 1);
+    // And a room that is no longer reported still closes.
+    f.fake.lock().unwrap().rooms.clear();
+    f.poll().await;
+    assert_eq!(f.kinds(&f.provider).await.last().unwrap(), "room.closed");
+}
+
+#[tokio::test]
+async fn a_report_without_a_usable_rev_is_applied_every_poll() {
+    let f = fixture().await;
+    let room = f.open(&f.provider, &f.members[0]).await;
+    let id = room.room.room_id.clone();
+    f.reported(&id, 2, 1).await;
+
+    // An older supervisor sends none.
+    tamper(&f, &id).await;
+    f.poll().await;
+    assert_eq!(stored_counts(&f, &id).await.2, 1);
+
+    // One that is not a number counts as none, and does not fail the report.
+    {
+        let mut fake = f.fake.lock().unwrap();
+        fake.revs = true;
+        fake.rooms[0]["rev"] = json!("not a number");
+    }
+    tamper(&f, &id).await;
+    f.poll().await;
+    assert_eq!(stored_counts(&f, &id).await.2, 1);
+
+    // A number is remembered from the poll that applied it.
+    touch(&f.fake, &id);
+    f.poll().await;
+    tamper(&f, &id).await;
+    f.poll().await;
+    assert_eq!(stored_counts(&f, &id).await.2, 3);
+    // Taking the rev away applies the room again.
+    f.fake.lock().unwrap().revs = false;
+    f.poll().await;
+    assert_eq!(stored_counts(&f, &id).await.2, 1);
+}
+
+/// The supervisor lists a room as soon as its host says `hosted`, before the
+/// bridge has stored the invitation. A poll then finds no row to write, so it
+/// must not take the room's rev as applied: the host's own name, counts and
+/// opening arrive at the next poll though the rev has not moved.
+#[tokio::test]
+async fn a_poll_in_the_create_window_does_not_remember_the_rev() {
+    let f = fixture().await;
+    let gate = Arc::new(Gate::default());
+    {
+        let mut fake = f.fake.lock().unwrap();
+        fake.revs = true;
+        fake.after_create = Some(gate.clone());
+    }
+    let creating = f.create(&f.provider, &f.members[0], "Fight Night");
+    let polling = async {
+        gate.arrived.notified().await;
+        let id = f.fake.lock().unwrap().rooms[0]["room_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        report_details(&f.fake, &id, json!({ "name": "Renamed", "capacity": 4 }));
+        report(&f.fake, &id, 1, 2, &[]);
+        // The room has no invitation stored yet: nothing matches.
+        f.poll().await;
+        assert_eq!(stored_counts(&f, &id).await, ("Fight Night".into(), 0, 0));
+        gate.release.notify_one();
+        id
+    };
+    let ((status, body), id) = tokio::join!(creating, polling);
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+
+    // The supervisor's rev has not moved since that poll.
+    f.poll().await;
+    assert_eq!(stored_counts(&f, &id).await, ("Renamed".into(), 1, 2));
+    assert_eq!(f.kinds(&f.provider).await, ["room.created", "room.opened"]);
 }

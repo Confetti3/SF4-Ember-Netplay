@@ -46,7 +46,7 @@ async fn add_learner(host: &Coordinator, id: u64) {
 
 async fn committed_revision(node: &Coordinator, revision: u64, why: &str) {
     tokio::time::timeout(Duration::from_secs(15), async {
-        while node.committed().await.revision != revision {
+        while node.store().committed().await.revision != revision {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
     })
@@ -65,19 +65,21 @@ fn ownership_decides_who_may_lead_and_how_large_the_room_is() {
 
     // A member serves its host's appends and snapshots and nobody else's,
     // and never grants a vote.
-    for method in ["append", "snapshot", "authority"] {
-        assert!(member.serves(1, method), "{method} from the host");
-        assert!(!member.serves(2, method), "{method} from another node");
+    for method in [Method::Append, Method::Snapshot, Method::Authority] {
+        assert!(member.serves(1, method), "{method:?} from the host");
+        assert!(!member.serves(2, method), "{method:?} from another node");
     }
-    assert!(!member.serves(1, "vote"));
+    assert!(!member.serves(1, Method::Vote));
     // Nothing leads, or is asked to campaign at, a host.
-    for method in ["append", "snapshot", "vote", "elect"] {
-        assert!(!Ownership::Host.serves(2, method), "{method}");
+    for method in [Method::Append, Method::Snapshot, Method::Vote, Method::Elect] {
+        assert!(!Ownership::Host.serves(2, method), "{method:?}");
     }
-    for method in ["authority", "propose", "remove"] {
-        assert!(Ownership::Host.serves(2, method), "{method}");
+    for method in [Method::Authority, Method::Propose, Method::Remove] {
+        assert!(Ownership::Host.serves(2, method), "{method:?}");
     }
-    assert!(Ownership::Private.serves(2, "vote") && Ownership::Private.serves(2, "append"));
+    assert!(
+        Ownership::Private.serves(2, Method::Vote) && Ownership::Private.serves(2, Method::Append)
+    );
 
     let only = BTreeSet::from([1]);
     assert!(Ownership::Host.permits_voters(1, &only));
@@ -96,8 +98,8 @@ async fn the_host_stays_the_only_voter_as_sixteen_learners_join() {
         let member = node(&bus, id, Ownership::Member { host: 1 }).await;
         add_learner(&host, id).await;
         nodes.push(member);
-        assert_eq!(host.applied_voter_ids().await, BTreeSet::from([1]));
-        assert_eq!(host.applied_member_ids().await.len(), nodes.len());
+        assert_eq!(host.store().applied_voters().await, BTreeSet::from([1]));
+        assert_eq!(host.store().applied_members().await.len(), nodes.len());
     }
     // Seventeen nodes: one more than a private room may hold. Every learner
     // took the membership and now takes a commit.
@@ -109,8 +111,8 @@ async fn the_host_stays_the_only_voter_as_sixteen_learners_join() {
     );
     for member in &nodes[1..] {
         committed_revision(member, 1, "a learner missed the commit").await;
-        assert_eq!(member.applied_member_ids().await.len(), 17);
-        assert_eq!(member.applied_voter_ids().await, BTreeSet::from([1]));
+        assert_eq!(member.store().applied_members().await.len(), 17);
+        assert_eq!(member.store().applied_voters().await, BTreeSet::from([1]));
         assert_eq!(member.current_leader(), Some(1));
     }
     stop(nodes).await;
@@ -138,20 +140,20 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
             }],
             leader_commit: None,
         };
-        serde_json::to_vec(&CompressedJsonWire::encode(&request).unwrap()).unwrap()
+        encode_append(&request, &CompressedCheckpoints::default()).unwrap()
     };
     let private = node(&bus, 20, Ownership::Private).await;
     let member = node(&bus, 21, Ownership::Member { host: 1 }).await;
     // The same entry, from the same leader: sixteen nodes fit everywhere,
     // seventeen only where the host is not one of the members.
-    assert!(private.dispatch(1, "append", &append(16)).await.is_ok());
-    assert!(private.dispatch(1, "append", &append(17)).await.is_err());
-    assert!(member.dispatch(1, "append", &append(17)).await.is_ok());
+    assert!(private.dispatch(1, Method::Append, &append(16)).await.is_ok());
+    assert!(private.dispatch(1, Method::Append, &append(17)).await.is_err());
+    assert!(member.dispatch(1, Method::Append, &append(17)).await.is_ok());
 
     // A snapshot's membership is bounded the same way.
     let snapshot = |nodes: u64| {
         let log_id = LogId::new(openraft::CommittedLeaderId::new(2, 1), 2);
-        serde_json::to_vec(&InstallSnapshotWire::encode(InstallSnapshotRequest {
+        encode_install_snapshot(InstallSnapshotRequest {
             vote: Vote::new_committed(2, 1),
             meta: SnapshotMeta {
                 last_log_id: Some(log_id),
@@ -161,16 +163,16 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
             offset: 0,
             data: vec![1, 2, 3],
             done: false,
-        }))
+        })
         .unwrap()
     };
     assert!(
         private
-            .dispatch(1, "snapshot", &snapshot(17))
+            .dispatch(1, Method::Snapshot, &snapshot(17))
             .await
             .is_err()
     );
-    assert!(member.dispatch(1, "snapshot", &snapshot(17)).await.is_ok());
+    assert!(member.dispatch(1, Method::Snapshot, &snapshot(17)).await.is_ok());
 
     // The largest body of each kind still fits its transport bound with the
     // seventeenth node.
@@ -183,7 +185,7 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
         .map(|id| (*id, BasicNode::new("f".repeat(128))))
         .collect::<BTreeMap<_, _>>();
     let log_id = LogId::new(openraft::CommittedLeaderId::new(high, high), high);
-    let largest = serde_json::to_vec(&InstallSnapshotWire::encode(InstallSnapshotRequest {
+    let largest = encode_install_snapshot(InstallSnapshotRequest {
         vote: Vote::new_committed(high, high),
         meta: SnapshotMeta {
             last_log_id: Some(log_id),
@@ -196,7 +198,7 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
         offset: high,
         data: vec![u8::MAX; SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW],
         done: true,
-    }))
+    })
     .unwrap();
     assert!(largest.len() <= MAX_SNAPSHOT_REQUEST, "{}", largest.len());
     let claim = serde_json::to_vec(&AuthorityClaim {
@@ -248,7 +250,7 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
             entries: vec![],
             leader_commit: None,
         };
-        serde_json::to_vec(&CompressedJsonWire::encode(&request).unwrap()).unwrap()
+        encode_append(&request, &CompressedCheckpoints::default()).unwrap()
     };
     let snapshot = |source: u64, term: u64| {
         let log_id = LogId::new(openraft::CommittedLeaderId::new(term, source), 1);
@@ -256,7 +258,7 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
             vec![BTreeSet::from([source])],
             BTreeMap::from([(source, BasicNode::new("x"))]),
         );
-        serde_json::to_vec(&InstallSnapshotWire::encode(InstallSnapshotRequest {
+        encode_install_snapshot(InstallSnapshotRequest {
             vote: Vote::new_committed(term, source),
             meta: SnapshotMeta {
                 last_log_id: Some(log_id),
@@ -266,7 +268,7 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
             offset: 0,
             data: vec![1, 2, 3],
             done: false,
-        }))
+        })
         .unwrap()
     };
     let last = control.raft.metrics().borrow().last_log_index;
@@ -277,31 +279,31 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
     // Another node claims leadership with a higher term.
     assert!(
         member
-            .dispatch(4, "append", &append(4, term + 5))
+            .dispatch(4, Method::Append, &append(4, term + 5))
             .await
             .is_err()
     );
     assert!(
         control
-            .dispatch(4, "append", &append(4, term + 5))
+            .dispatch(4, Method::Append, &append(4, term + 5))
             .await
             .is_ok()
     );
     assert!(
         member
-            .dispatch(4, "snapshot", &snapshot(4, term + 6))
+            .dispatch(4, Method::Snapshot, &snapshot(4, term + 6))
             .await
             .is_err()
     );
     assert!(
         control
-            .dispatch(4, "snapshot", &snapshot(4, term + 6))
+            .dispatch(4, Method::Snapshot, &snapshot(4, term + 6))
             .await
             .is_ok()
     );
     // Even the host's own candidacy gets no vote.
-    assert!(member.dispatch(1, "vote", &vote(term + 7)).await.is_err());
-    assert!(control.dispatch(1, "vote", &vote(term + 7)).await.is_ok());
+    assert!(member.dispatch(1, Method::Vote, &vote(term + 7)).await.is_err());
+    assert!(control.dispatch(1, Method::Vote, &vote(term + 7)).await.is_ok());
 
     // None of it moved the member: same term, same leader, still replicating.
     assert_eq!(member.current_term(), term);
@@ -342,7 +344,7 @@ async fn a_member_installs_the_snapshot_its_host_sends() {
     let member = node(&bus, 2, Ownership::Member { host: 1 }).await;
     add_learner(&host, 2).await;
     committed_revision(&member, 12, "the snapshot never reached the member").await;
-    assert_eq!(member.applied_voter_ids().await, BTreeSet::from([1]));
+    assert_eq!(member.store().applied_voters().await, BTreeSet::from([1]));
     stop(vec![host, member]).await;
 }
 
@@ -381,7 +383,7 @@ async fn a_member_never_campaigns_when_the_host_goes_silent() {
             .current_leader(1, "follower")
             .await
             .unwrap();
-        while second.applied_voter_ids().await != BTreeSet::from([1, 2]) {
+        while second.store().applied_voters().await != BTreeSet::from([1, 2]) {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
         let term = second.current_term();

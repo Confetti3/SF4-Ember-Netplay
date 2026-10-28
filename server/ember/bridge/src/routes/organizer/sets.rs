@@ -58,7 +58,6 @@ pub async fn put_sets(
     if kept == 0 {
         return Err(ApiFailure::not_found());
     }
-    state.committed();
     Ok(ok(&json!({})))
 }
 
@@ -326,7 +325,6 @@ pub async fn mark(
             Ok(true)
         })
         .await?;
-    state.committed();
     if !marked {
         return Err(ApiFailure::not_found());
     }
@@ -388,7 +386,6 @@ pub async fn adjudicate(
             )
         })
         .await?;
-    state.committed();
     let (status, body) = result;
     Ok(json(status, &body))
 }

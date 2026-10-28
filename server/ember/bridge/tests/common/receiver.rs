@@ -7,6 +7,7 @@ use std::{
 };
 
 use axum::{Router, body::Bytes, http::HeaderMap, routing::post};
+use ember_bridge::testing::polled;
 use ember_protocol::webhook::{self, Headers};
 
 pub type Delivery = (Headers, Vec<u8>);
@@ -68,15 +69,12 @@ pub async fn receiver() -> (String, Receiver) {
 
 /// The deliveries once there are at least `count`, for at most ten seconds.
 pub async fn wait_for(receiver: &Receiver, count: usize) -> Vec<Delivery> {
-    for _ in 0..200 {
-        let deliveries = receiver.received();
-        if deliveries.len() >= count {
-            return deliveries;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    panic!(
-        "expected {count} deliveries, got {}",
-        receiver.received().len()
-    );
+    let mut found = Vec::new();
+    let arrived = polled(Duration::from_secs(10), || {
+        found = receiver.received();
+        found.len() >= count
+    })
+    .await;
+    assert!(arrived, "expected {count} deliveries, got {}", found.len());
+    found
 }

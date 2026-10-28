@@ -5,6 +5,15 @@
 #include <spdlog/spdlog.h>
 
 namespace sf4e { namespace session {
+namespace {
+// What IrohRoom::Game returns, read in place: these reads run for every link
+// on every tick, and a copy of the snapshot carries two strings.
+const IrohRoom::GameSnapshot& GameOf(const IrohRoom& room, const std::string& peer) {
+	static const IrohRoom::GameSnapshot none;
+	const auto* game = room.FindGame(peer);
+	return game ? *game : none;
+}
+}
 using nlohmann::json;
 
 IrohMatchSession::IrohMatchSession(SessionClient& client, std::shared_ptr<IrohRoom> room, Clock clock)
@@ -276,7 +285,7 @@ bool IrohMatchSession::CanReplace(bool ggpoOwnsSocket) const {
 	if (!endSent_) return false;
 	if (!mappingsPrepared_) return true;
 	return room_ && std::all_of(links_.begin(), links_.end(), [&](const Link& link) {
-		const auto game = room_->Game(link.peer);
+		const auto& game = GameOf(*room_, link.peer);
 		return game.generation == generation_ && game.state == IrohRoom::GameState::Closed;
 	});
 }
@@ -397,7 +406,7 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			if (mappingsPrepared_) teardown_.DispatchHelperClose(now);
 		}
 		const bool closed = std::all_of(links_.begin(), links_.end(), [&](const Link& link) {
-			return room_->Game(link.peer).state == IrohRoom::GameState::Closed;
+			return GameOf(*room_, link.peer).state == IrohRoom::GameState::Closed;
 		});
 		// A spectator owns one inbound edge and no seat, so an unconfirmed helper
 		// close is not worth its room membership: stop waiting and return to the
@@ -437,7 +446,7 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			// Name every link's last known state and the helper's load, so a
 			// field log shows which close never arrived (F-008).
 			for (const auto& link : links_) {
-				const auto game = room_->Game(link.peer);
+				const auto& game = GameOf(*room_, link.peer);
 				spdlog::warn("Match teardown: link peer={} slot={} state={} generation={} route={} sent={} received={}",
 					link.peer.substr(0, 8), link.slot, static_cast<int>(game.state), game.generation,
 					RouteLabel(ClassifyRoute(game.route)), game.sentPackets, game.receivedPackets);
@@ -461,7 +470,7 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 	if (phase_ != Phase::Started && !deadlineSuspended_ && now > deadline_) return Fail("match_setup_timeout");
 	if (phase_ == Phase::Preparing) {
 		const bool waiting = std::all_of(links_.begin(), links_.end(), [&](const Link& link) {
-			const auto state = room_->Game(link.peer).state;
+			const auto state = GameOf(*room_, link.peer).state;
 			return link.dial || state == IrohRoom::GameState::Waiting || state == IrohRoom::GameState::Ready;
 		});
 		if (waiting) {
@@ -478,7 +487,7 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 		const bool optionalSpectators = slot_ == 0 && (phase_ == Phase::Started || spectatorsOptional_);
 		bool fighterReady = true, spectatorsReady = true;
 		for (auto link = links_.begin(); link != links_.end();) {
-			const auto state = room_->Game(link->peer).state;
+			const auto state = GameOf(*room_, link->peer).state;
 			const bool closed = state == IrohRoom::GameState::Closed || state == IrohRoom::GameState::Closing;
 			if (closed && optionalSpectators && link->slot >= 2) {
 				// Started: through the pending ends, on the next Tick's flush.
@@ -489,7 +498,7 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			if (closed) {
 				if (!fighterClosedAt_) fighterClosedAt_ = now;
 				if (now - fighterClosedAt_ < PeerCloseGraceMs) { fighterReady = false; ++link; continue; }
-                const auto failure=room_->Game(link->peer).error;
+                const auto failure=GameOf(*room_, link->peer).error;
                 return Fail(failure.empty()?"gameplay_connection_lost":failure.c_str());
             }
 			const bool up = state == IrohRoom::GameState::Ready;
@@ -511,7 +520,7 @@ bool IrohMatchSession::ReportReady(ULONGLONG now, bool spectatorsReady) {
 			if (now - fighterReadyAt_ < SpectatorGraceMs) return true;
 			// Late spectators sit this generation out.
 			for (auto link = links_.begin(); link != links_.end();) {
-				if (link->slot >= 2 && room_->Game(link->peer).state != IrohRoom::GameState::Ready) {
+				if (link->slot >= 2 && GameOf(*room_, link->peer).state != IrohRoom::GameState::Ready) {
 					if (!DropSpectatorLink(link)) return false;
 				} else ++link;
 			}
@@ -571,7 +580,7 @@ bool IrohMatchSession::StreamSourceClosed() const {
 	if (slot_ < 2 || !room_) return false;
 	return std::any_of(links_.begin(), links_.end(), [&](const Link& link) {
 		if (link.slot != 0) return false;
-		const auto game = room_->Game(link.peer);
+		const auto& game = GameOf(*room_, link.peer);
 		return game.generation != generation_ || game.state == IrohRoom::GameState::Closing ||
 			game.state == IrohRoom::GameState::Closed;
 	});
@@ -580,7 +589,7 @@ bool IrohMatchSession::StreamSourceClosed() const {
 std::uint16_t IrohMatchSession::RemotePort(const SessionProtocol::ConnectionID& member) const {
 	if (phase_ != Phase::Started && phase_ != Phase::Ending) return 0;
 	for (const auto& link : links_) if (roster_[link.slot] == member) {
-		const auto game = room_->Game(link.peer);
+		const auto& game = GameOf(*room_, link.peer);
 		return game.state == IrohRoom::GameState::Ready && game.generation == generation_ ? game.virtualPort : 0;
 	}
 	return 0;

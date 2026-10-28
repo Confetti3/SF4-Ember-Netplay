@@ -6,6 +6,7 @@
 // players' own words, so they only ever go in as text.
 (function () {
   'use strict';
+  var site = window.EmberSite;
   var REFRESH_MS = 15000;
   var FACE = 32;
   // Native fighter IDs, as src/common/FighterMetadata.inc orders them and
@@ -16,24 +17,7 @@
     'Hakan', 'Juri', 'Yun', 'Yang', 'Evil Ryu', 'Oni', 'Rolento', 'Elena', 'Poison', 'Hugo', 'Decapre'];
   var REGIONS = { use1: 'US East', usw1: 'US West', euc1: 'Europe', aps1: 'Asia Pacific' };
   var ROTATIONS = ['Winner stays', 'Loser stays', 'Both rotate'];
-  // Sidecar build IDs of the releases public rooms run, newest first. Add the
-  // new one at each release; a room on a build not listed here says
-  // "Other version".
-  var VERSIONS = [
-    ['fa57472adffd80ed65c943577b4cba204a5673640a167d5c94b83f89bb4fbd77', '1.3.1'],
-    ['ed1933800aa0099c4ebd435db3e2d6d174666121079301913df3ffa239de3c8d', '1.4.0'],
-    ['5161a3978f7cba2aabf1270f6a88143a6e5f87d8bd808010a60108a4fa7a1469', '1.4.1'],
-    ['1668cadbd970fd75b019ff6c1f4f56eb6f0712c16013b3e5c50f29aac32c0b38', '1.3.0'],
-    ['77b8c778dc1a4dc81ef0de4dbff808057534e920706eb65977a1d39f6eb2bd63', '1.3.0 Nightly'],
-    ['900d86d6dc991a71378dd626bbe0ad1c77d1006215745cca406f96e684d4546d', '1.3.0 Nightly'],
-    ['484be955acd1cbd11350b4672191306048fd32984f8c71ffc1b3953808da4884', '1.2.0'],
-    ['1b21c6a92db3e9009edfa0fe9643b67db05fc430c86819363908284b5e7502da', '1.2.0 Nightly'],
-    ['400f36a4a4353c86e8f2c294b4490f287895f9849137daa284ce822e1596b2cd', '1.1.2'],
-    ['3581000c7b42636e90b6c14dc378cad67c621f8bc82ae6f0900476323c5723d0', '1.1.1'],
-    ['d3dafb0b0a96f8a0152ac6edf76d79272ed085e618cc4dcc656018a918f56166', '1.1.0'],
-    ['1ba5ca463447b379cdd39d266942dc0f7171215dbf502454e281da4ccd86f8ea', '1.1.0-rc2'],
-    ['cc4a0d6ce968fbaa99fe7653b02b80a083d18f1423c27f4f5376a07f01adc863', '1.1.0-rc1']
-  ];
+  var VERSIONS = site.VERSIONS;
   var BRIDGE = /^brg_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
   var ROOM = /^[0-9a-f]{32}$/;
 
@@ -43,16 +27,15 @@
   var regions = document.getElementById('regions');
   var openOnly = document.getElementById('open-only');
   var refreshButton = document.getElementById('refresh');
-  var state = { rooms: null, bridge: '', listedAt: 0, region: '', failed: false };
+  var state = { rooms: null, bridge: '', listedAt: 0, skew: 0, key: null, region: '', failed: false };
+  // What the cards on screen were drawn from: the body without listed_at, and
+  // whether the "could not refresh" note was showing. A refresh that changes
+  // neither only updates the ages, so the cards, and the focus on them, stay.
+  var drawn = { key: null, failed: null };
   var timer = null;
   var loading = false;
 
-  function el(tag, className, text) {
-    var node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  }
+  var el = site.el;
   function regionLabel(code) { return REGIONS[code] || String(code || '').toUpperCase(); }
   function versionOf(build) {
     for (var i = 0; i < VERSIONS.length; i++) if (VERSIONS[i][0] === build) return { label: VERSIONS[i][1], rank: i };
@@ -60,6 +43,10 @@
   }
   function full(room) { return room.capacity > 0 && room.members >= room.capacity; }
   function joinable(room) { return !room.locked && !full(room); }
+  // Seconds on the bridge's clock now: the page's clock moved by how far it
+  // was from listed_at when the list arrived, so a wrong local clock does not
+  // change the ages.
+  function serverNow() { return Math.floor(Date.now() / 1000) + state.skew; }
   function age(seconds) {
     var minutes = Math.max(1, Math.floor(seconds / 60));
     return minutes < 60 ? minutes + ' min' : Math.floor(minutes / 60) + ' h';
@@ -83,23 +70,7 @@
   }
 
   function copy(text, done) {
-    function fallback() {
-      var area = document.createElement('textarea');
-      area.value = text;
-      area.setAttribute('readonly', '');
-      area.className = 'offscreen';
-      document.body.appendChild(area);
-      area.select();
-      var ok = false;
-      try { ok = document.execCommand('copy'); } catch (error) { ok = false; }
-      document.body.removeChild(area);
-      status.textContent = ok ? done : 'Copy failed. The room link is ' + text;
-    }
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(function () { status.textContent = done; }, fallback);
-    } else {
-      fallback();
-    }
+    site.copy(status, text, done, 'Copy failed. The room link is ' + text);
   }
 
   function card(room) {
@@ -147,8 +118,12 @@
 
     var foot = el('div', 'room-foot');
     var standing = el('div', 'room-standing');
-    var opened = state.listedAt && room.created_at ? state.listedAt - room.created_at : -1;
-    if (opened >= 0) standing.appendChild(el('span', 'room-age', 'Open for ' + age(opened)));
+    var opened = state.listedAt && room.created_at ? serverNow() - room.created_at : -1;
+    if (opened >= 0) {
+      var openFor = el('span', 'room-age', 'Open for ' + age(opened));
+      openFor.setAttribute('data-created', String(room.created_at));
+      standing.appendChild(openFor);
+    }
     if (room.tables_playing > 0) standing.appendChild(chip('In a match', 'match'));
     if (room.locked) standing.appendChild(chip('Locked', 'status'));
     else if (isFull) standing.appendChild(chip('Full', 'status'));
@@ -197,7 +172,18 @@
     }
   }
 
+  // Rewrites the "Open for" times in place from the clock.
+  function updateAges() {
+    var nodes = list.querySelectorAll('.room-age');
+    for (var i = 0; i < nodes.length; i++) {
+      var created = Number(nodes[i].getAttribute('data-created'));
+      var text = 'Open for ' + age(Math.max(0, serverNow() - created));
+      if (nodes[i].textContent !== text) nodes[i].textContent = text;
+    }
+  }
+
   function render() {
+    drawn.failed = state.failed;
     list.setAttribute('aria-busy', 'false');
     while (list.firstChild) list.removeChild(list.firstChild);
     if (!state.rooms) {
@@ -248,16 +234,27 @@
       .then(function (body) {
         var rooms = valid(body);
         if (!rooms) throw new Error('unexpected list');
+        var key = JSON.stringify(body, function (name, value) {
+          return this === body && name === 'listed_at' ? undefined : value;
+        });
+        var now = Math.floor(Date.now() / 1000);
         state.rooms = rooms;
         state.bridge = body.bridge_id;
-        state.listedAt = typeof body.listed_at === 'number' ? body.listed_at : Math.floor(Date.now() / 1000);
+        state.listedAt = typeof body.listed_at === 'number' ? body.listed_at : now;
+        state.skew = state.listedAt - now;
         state.failed = false;
+        state.key = key;
       })
       .catch(function () { state.failed = true; })
       .then(function () {
         loading = false;
         refreshButton.disabled = false;
-        render();
+        if (state.key !== drawn.key || state.failed !== drawn.failed) {
+          drawn.key = state.key;
+          render();
+        } else {
+          updateAges();
+        }
         schedule();
       });
   }

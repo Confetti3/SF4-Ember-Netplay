@@ -3,20 +3,43 @@
 //! capacity, lock, listing details) come in, and an open room it no longer
 //! reports is closed. A connection's rooms announce what changed on its
 //! stream.
-use std::{collections::BTreeSet, sync::atomic::Ordering, time::Duration};
-
-use ember_protocol::{
-    EmberId,
-    event::Kind,
-    play::MAX_INVITATION,
-    rooms::{ENDED, MAX_CAPACITY},
+use std::{
+    collections::{BTreeSet, HashMap},
+    sync::atomic::Ordering,
+    time::Duration,
 };
+
+use ember_protocol::{EmberId, event::Kind, play::MAX_INVITATION, rooms::ENDED};
 use rusqlite::{Transaction, params};
 
 use super::{
-    PENDING_SECS, announce, details::Details, load, supervisor::Reported, supervisor::Supervisor,
+    PENDING_SECS, Room, announce, details::Details, load, supervisor::Reported,
+    supervisor::Supervisor,
 };
 use crate::{AppState, Keys, config::Config, error::Result, skill};
+
+/// The supervisor's `rev` of each room the bridge has applied, by room id.
+type Revs = HashMap<String, u64>;
+
+/// The revisions the last committed poll of `state` applied.
+fn applied_revs(state: &AppState) -> Revs {
+    state
+        .rooms
+        .applied
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone()
+}
+
+/// Remembers `revs` as what `state`'s polls have applied. Called only after
+/// the write that applied them committed.
+fn remember_revs(state: &AppState, revs: Revs) {
+    *state
+        .rooms
+        .applied
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = revs;
+}
 
 /// How often the supervisor is asked which rooms are alive.
 const POLL_SECS: u64 = 5;
@@ -89,12 +112,15 @@ async fn poll_once(state: &AppState, supervisor: &Supervisor<'_>) {
     }
     let now = state.now();
     let (keys, config) = (state.keys.clone(), state.config.clone());
-    let applied = state
+    let before = applied_revs(state);
+    // A failed write changes nothing; the next poll tries again. What a
+    // committed one applied is remembered, and only then.
+    if let Ok(applied) = state
         .db
-        .write(move |tx| apply(tx, &keys, &config, &reported, &published, now))
-        .await;
-    if applied.is_ok() {
-        state.committed();
+        .write(move |tx| apply(tx, &keys, &config, &reported, &published, &before, now))
+        .await
+    {
+        remember_revs(state, applied);
     }
 }
 
@@ -118,71 +144,59 @@ async fn published_rooms(state: &AppState) -> BTreeSet<String> {
 
 /// Applies one report. `published` is what `published_rooms` returned before
 /// the report was requested; only those rooms are closed when it omits them.
+/// A room the report leaves as it was is not written at all, so a poll that
+/// changes nothing dirties no page and, writing no event, wakes nobody.
+///
+/// `seen` is the `rev` of each room as the last committed poll applied it. A
+/// room whose report carries the same `rev` is skipped whole: its fields, its
+/// games and its bans came in with that report. A report without a `rev` is
+/// always applied. The answer is what `seen` becomes once this write commits:
+/// the rooms this report carried a `rev` for and that were open and published
+/// when it was applied (so a room whose creation had not stored its
+/// invitation yet is applied again at the next poll, whatever its `rev`), and
+/// no room the report leaves out.
 fn apply(
     tx: &Transaction<'_>,
     keys: &Keys,
     config: &Config,
-    reported: &[Reported],
+    rooms: &[Reported],
     published: &BTreeSet<String>,
+    seen: &Revs,
     now: u64,
-) -> Result<()> {
+) -> Result<Revs> {
     let mut alive = BTreeSet::new();
-    for room in reported {
+    let mut applied = Revs::new();
+    for room in rooms {
         alive.insert(room.room_id.as_str());
-        let before = load(tx, &room.room_id)?;
+        if let Some(rev) = room.rev
+            && seen.get(&room.room_id) == Some(&rev)
+        {
+            applied.insert(room.room_id.clone(), rev);
+            continue;
+        }
         // A room still being created (no invitation stored yet) is left to
-        // its creator's request to finish.
-        let sealed = (room.invitation.len() <= MAX_INVITATION
-            && room.invitation.is_ascii()
-            && !room.invitation.is_empty())
-        .then(|| keys.seal(room.invitation.as_bytes()));
-        // The host's own report, each field only if it holds. Its name and
-        // capacity replace the ones the room was created with; a capacity
-        // that would not hold the members it reports is not taken. A report
-        // that is not an object leaves everything as it was. The member
-        // count stored is worked out once, here, from the capacity the room
-        // ends up with, and the fighters were judged against that same count.
-        let reported = u8::try_from(room.members).unwrap_or(u8::MAX);
-        let held = before
-            .as_ref()
-            .map_or(MAX_CAPACITY, |before| before.capacity);
-        let details = room.details.as_ref().filter(|details| details.is_object());
-        let has_details = details.is_some();
-        let details = match details {
-            Some(details) => Details::from_value(details, reported, held),
-            None => Details::absent(reported, held),
+        // its creator's request to finish, and a closed one stays closed.
+        let before = load(tx, &room.room_id)?
+            .filter(|before| before.closed_at.is_none() && before.invitation_sealed.is_some());
+        // Whether the room's row was open and published when this report was
+        // applied, which is what makes its `rev` worth remembering.
+        let mut matched = false;
+        let after = match &before {
+            Some(before) => {
+                let after = reported(before, room, keys, now);
+                if after == *before {
+                    matched = true;
+                    None
+                } else {
+                    matched = store(tx, &after)?;
+                    matched.then_some(after)
+                }
+            }
+            None => None,
         };
-        tx.execute(
-            "UPDATE rooms SET name = COALESCE(?8, name), capacity = COALESCE(?9, capacity),
-                 members = ?2, tables_playing = ?3,
-                 locked = CASE WHEN ?7 THEN COALESCE(?10, locked) ELSE locked END,
-                 host_name = CASE WHEN ?7 THEN ?11 ELSE host_name END,
-                 fighters = CASE WHEN ?7 THEN ?12 ELSE fighters END,
-                 set_format = COALESCE(?13, set_format), rotation = COALESCE(?14, rotation),
-                 own_delay = CASE WHEN ?7 THEN ?15 ELSE own_delay END,
-                 invitation_sealed = COALESCE(?4, invitation_sealed),
-                 opened_at = COALESCE(opened_at, CASE WHEN ?6 THEN ?5 END)
-             WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL",
-            params![
-                room.room_id,
-                details.members,
-                room.tables_playing.min(u32::from(u8::MAX)),
-                sealed,
-                now,
-                // The supervisor's latch, not the count this poll saw: a member who
-                // came and went between polls has already ended creator-only entry.
-                room.opened.unwrap_or(room.members >= 1),
-                has_details,
-                details.name,
-                details.capacity,
-                details.locked,
-                details.host_name,
-                details.fighters,
-                details.set_format,
-                details.rotation,
-                details.own_delay,
-            ],
-        )?;
+        if let (Some(rev), true) = (room.rev, matched) {
+            applied.insert(room.room_id.clone(), rev);
+        }
         skill::record_games(tx, &room.room_id, room.games.as_ref(), now)?;
         // Bans last for the room's life and are never evicted: the supervisor
         // reports at most `MAX_ROOM_BANS` per room, and the table keeps all.
@@ -195,9 +209,8 @@ fn apply(
                 )?;
             }
         }
-        if let (Some(before), Some(after)) = (before, load(tx, &room.room_id)?)
+        if let (Some(before), Some(after)) = (before, after)
             && after.connection_id.is_some()
-            && after.closed_at.is_none()
             && after.hosted()
         {
             // At most one event per poll: opening says the counts too. What a
@@ -251,5 +264,284 @@ fn apply(
         [cutoff],
     )?;
     tx.execute("DELETE FROM rooms WHERE closed_at <= ?1", [cutoff])?;
-    Ok(())
+    Ok(applied)
+}
+
+/// The room as one report leaves it: what the room's record would hold after
+/// the report, by the rules each field follows. The invitation is sealed again
+/// only when it is not the one stored, so an unchanged room comes out equal to
+/// `before`.
+fn reported(before: &Room, room: &Reported, keys: &Keys, now: u64) -> Room {
+    let valid = room.invitation.len() <= MAX_INVITATION
+        && room.invitation.is_ascii()
+        && !room.invitation.is_empty();
+    let unchanged = before
+        .invitation_sealed
+        .as_deref()
+        .and_then(|sealed| keys.open(sealed))
+        .is_some_and(|plain| plain.as_slice() == room.invitation.as_bytes());
+    let sealed = (valid && !unchanged).then(|| keys.seal(room.invitation.as_bytes()));
+    // The host's own report, each field only if it holds. Its name and
+    // capacity replace the ones the room was created with; a capacity that
+    // would not hold the members it reports is not taken. A report that is
+    // not an object leaves everything as it was. The member count stored is
+    // worked out once, here, from the capacity the room ends up with, and the
+    // fighters were judged against that same count.
+    let members = u8::try_from(room.members).unwrap_or(u8::MAX);
+    let details = room.details.as_ref().filter(|details| details.is_object());
+    let has_details = details.is_some();
+    let details = match details {
+        Some(details) => Details::from_value(details, members, before.capacity),
+        None => Details::absent(members, before.capacity),
+    };
+    // The supervisor's latch, not the count this poll saw: a member who came
+    // and went between polls has already ended creator-only entry.
+    let opened = room.opened.unwrap_or(room.members >= 1);
+    let report = Report {
+        details,
+        has_details,
+        sealed,
+        tables: room.tables_playing,
+        opened,
+    };
+    with_report(before, report, now)
+}
+
+/// What one report says about a room, judged.
+struct Report {
+    details: Details,
+    /// The report's `details` was an object.
+    has_details: bool,
+    /// The invitation sealed again, or `None` to keep the stored one.
+    sealed: Option<Vec<u8>>,
+    /// The tables it says are playing.
+    tables: u32,
+    /// Whether the room has ever had a member.
+    opened: bool,
+}
+
+/// `before` with `report` applied. A field the report does not say keeps its
+/// value, except the moderator's name, the fighters and the input delay mode,
+/// which a report with an object replaces even when it leaves them out; the
+/// lock changes only with such a report. The room opens once, at the first
+/// report that says it has had a member.
+fn with_report(before: &Room, report: Report, now: u64) -> Room {
+    let Report {
+        details,
+        has_details,
+        sealed,
+        tables,
+        opened,
+    } = report;
+    let mut after = before.clone();
+    after.members = details.members;
+    after.tables_playing = u8::try_from(tables.min(u32::from(u8::MAX))).unwrap_or(u8::MAX);
+    if let Some(name) = details.name {
+        after.name = name;
+    }
+    if let Some(capacity) = details.capacity {
+        after.capacity = capacity;
+    }
+    if has_details {
+        after.locked = details.locked.or(before.locked);
+        after.host_name = details.host_name;
+        after.fighters = details.fighters;
+        after.own_delay = details.own_delay;
+    }
+    after.set_format = details.set_format.or(before.set_format);
+    after.rotation = details.rotation.or(before.rotation);
+    if sealed.is_some() {
+        after.invitation_sealed = sealed;
+    }
+    after.opened_at = before.opened_at.or(opened.then_some(now));
+    after
+}
+
+/// Writes what a report changed in `room`'s record. False when the room was
+/// closed or is still being created, which a report never changes.
+fn store(tx: &Transaction<'_>, room: &Room) -> Result<bool> {
+    Ok(tx.execute(
+        "UPDATE rooms SET name = ?2, capacity = ?3, members = ?4, tables_playing = ?5, locked = ?6,
+             host_name = ?7, fighters = ?8, set_format = ?9, rotation = ?10, own_delay = ?11,
+             invitation_sealed = ?12, opened_at = ?13
+         WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL",
+        params![
+            room.room_id,
+            room.name,
+            room.capacity,
+            room.members,
+            room.tables_playing,
+            room.locked,
+            room.host_name,
+            room.fighters,
+            room.set_format,
+            room.rotation,
+            room.own_delay,
+            room.invitation_sealed,
+            room.opened_at,
+        ],
+    )? == 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    fn room() -> Room {
+        Room {
+            room_id: "room".into(),
+            name: "Fight Night".into(),
+            build_id: "build".into(),
+            capacity: 4,
+            members: 2,
+            tables_playing: 1,
+            created_at: 10,
+            host_region: Some("use1".into()),
+            creator_region: None,
+            invitation_sealed: Some(vec![1, 2, 3]),
+            creator_ember_id: "creator".into(),
+            opened_at: Some(20),
+            closed_at: None,
+            connection_id: None,
+            host_name: Some("Player 1".into()),
+            fighters: Some(vec![3, 4]),
+            locked: Some(true),
+            set_format: Some(3),
+            rotation: Some(1),
+            own_delay: true,
+        }
+    }
+
+    fn report(details: Option<Details>, tables: u32, opened: bool) -> Report {
+        let has_details = details.is_some();
+        Report {
+            details: details.unwrap_or_else(|| Details::absent(2, 4)),
+            has_details,
+            sealed: None,
+            tables,
+            opened,
+        }
+    }
+
+    #[test]
+    fn a_report_that_says_what_the_room_holds_changes_nothing() {
+        let before = room();
+        let details = Details::from_value(
+            &json!({ "name": "Fight Night", "capacity": 4, "locked": true, "host_name": "Player 1",
+                "fighters": [3, 4], "set_format": 3, "rotation": 1, "own_delay": true }),
+            2,
+            4,
+        );
+        assert_eq!(
+            with_report(&before, report(Some(details), 1, true), 99),
+            before
+        );
+        // Not an object: the counts are all it says.
+        assert_eq!(with_report(&before, report(None, 1, true), 99), before);
+    }
+
+    #[test]
+    fn an_object_replaces_the_moderator_fighters_and_delay_and_keeps_the_rest() {
+        let before = room();
+        let after = with_report(
+            &before,
+            report(Some(Details::from_value(&json!({}), 2, 4)), 1, true),
+            99,
+        );
+        assert_eq!(
+            (after.host_name, after.fighters, after.own_delay),
+            (None, None, false)
+        );
+        assert_eq!(
+            (
+                after.name,
+                after.capacity,
+                after.locked,
+                after.set_format,
+                after.rotation
+            ),
+            (
+                before.name.clone(),
+                before.capacity,
+                before.locked,
+                before.set_format,
+                before.rotation
+            )
+        );
+        // Without an object those stay as they were.
+        let after = with_report(&before, report(None, 3, true), 99);
+        assert_eq!(
+            (after.host_name.as_deref(), after.own_delay),
+            (Some("Player 1"), true)
+        );
+        assert_eq!(after.tables_playing, 3);
+    }
+
+    #[test]
+    fn the_room_opens_once_and_a_new_invitation_replaces_the_stored_one() {
+        let mut before = room();
+        before.opened_at = None;
+        assert_eq!(
+            with_report(&before, report(None, 1, false), 99).opened_at,
+            None
+        );
+        assert_eq!(
+            with_report(&before, report(None, 1, true), 99).opened_at,
+            Some(99)
+        );
+        assert_eq!(
+            with_report(&room(), report(None, 1, true), 99).opened_at,
+            Some(20)
+        );
+        let mut sealed = report(None, 1, true);
+        sealed.sealed = Some(vec![9]);
+        assert_eq!(
+            with_report(&room(), sealed, 99).invitation_sealed,
+            Some(vec![9])
+        );
+        // More tables than a byte holds are stored as the most it holds.
+        assert_eq!(
+            with_report(&room(), report(None, 300, true), 99).tables_playing,
+            u8::MAX
+        );
+    }
+
+    #[test]
+    fn the_same_invitation_is_not_sealed_again() {
+        let keys = Keys::generate();
+        let mut before = room();
+        before.invitation_sealed = Some(keys.seal(b"sf4e3:room"));
+        let same = Reported {
+            room_id: "room".into(),
+            members: 2,
+            tables_playing: 1,
+            invitation: "sf4e3:room".into(),
+            banned: Vec::new(),
+            opened: Some(true),
+            details: None,
+            games: None,
+            rev: None,
+        };
+        assert_eq!(reported(&before, &same, &keys, 99), before);
+        let new = Reported {
+            invitation: "sf4e3:other".into(),
+            ..same
+        };
+        let after = reported(&before, &new, &keys, 99);
+        assert_ne!(after.invitation_sealed, before.invitation_sealed);
+        assert_eq!(
+            keys.open(after.invitation_sealed.as_deref().unwrap())
+                .unwrap()
+                .as_slice(),
+            b"sf4e3:other"
+        );
+        // A report without a usable invitation keeps the stored one.
+        let empty = Reported {
+            invitation: String::new(),
+            ..new
+        };
+        assert_eq!(reported(&before, &empty, &keys, 99), before);
+    }
 }

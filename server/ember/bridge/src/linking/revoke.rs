@@ -9,7 +9,7 @@ use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
-    routes::matches,
+    routes::ledger,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -50,7 +50,7 @@ pub fn revoke_link(
         },
     )?;
     // Future permissions derived from the link end with it (spec 11.6).
-    matches::on_unlink(tx, ctx, tenant, connection_id, ember_id)
+    ledger::on_unlink(tx, ctx, tenant, connection_id, ember_id)
 }
 
 pub enum Unlinker<'a> {

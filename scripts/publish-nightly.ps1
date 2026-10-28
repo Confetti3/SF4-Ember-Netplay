@@ -8,12 +8,13 @@ $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 . (Join-Path $PSScriptRoot 'NightlyOperations.ps1')
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
+. (Join-Path $PSScriptRoot 'Packaging.ps1')
 $checkoutRoot = Split-Path $PSScriptRoot -Parent
 $outDirectory = Join-Path $checkoutRoot 'dist'
 $logDirectory = Join-Path $outDirectory 'nightly-logs'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
-# The build and packaging steps. The package scripts are dot-sourced, as before, and
-# report their outputs through variables; their console output stays out of the result.
+# The build and packaging steps. The packaging functions return what they made; their console
+# output stays out of the result.
 $operations = @{
     Target = { param($SourceRoot) Get-EmberBuildTarget $SourceRoot }
     GameRunning = { [bool](Get-Process -Name SSFIV -ErrorAction SilentlyContinue) }
@@ -25,13 +26,11 @@ $operations = @{
     }
     Package = {
         param($OutDir, $Label)
-        . (Join-Path $PSScriptRoot 'package-team.ps1') -OutDir $OutDir -VersionLabel $Label | Out-Host
-        [pscustomobject]@{zipPath=$PackageZipPath;folderPath=$PackageFolderPath;gitRev=$PackageGitRev}
+        New-EmberPackage -OutDir $OutDir -VersionLabel $Label
     }
     Installer = {
         param($PackageDir, $Label, $OutDir, $VisualStudio)
-        . (Join-Path $PSScriptRoot 'package-installer.ps1') -PackageDir $PackageDir -VersionLabel $Label -OutDir $OutDir -VisualStudioPath $VisualStudio | Out-Host
-        $InstallerPath
+        (New-EmberInstaller -PackageDir $PackageDir -VersionLabel $Label -OutDir $OutDir -VisualStudioPath $VisualStudio).installerPath
     }
     LinuxBuild = {
         param($Revision, $ArchivePath, $HostDirectory)

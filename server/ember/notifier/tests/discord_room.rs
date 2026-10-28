@@ -11,6 +11,7 @@ use std::{
 };
 
 use ed25519_dalek::{Signer, SigningKey};
+use ember_bridge::testing::until;
 use ember_notifier::{Config, Discord, Interactions, register_commands};
 use reqwest::Method;
 use serde_json::{Value, json};
@@ -170,15 +171,9 @@ async fn open_a_room(bridge: &Mock, discord: &Mock) -> Vec<tokio::task::JoinHand
     tasks
 }
 
-async fn until(mut done: impl FnMut() -> bool) {
-    for _ in 0..200 {
-        if done() {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-    panic!("timed out");
-}
+/// How long a test waits for something to happen. Generous: it only matters
+/// when something is wrong.
+const WAIT: Duration = Duration::from_secs(5);
 
 #[tokio::test]
 async fn a_busy_edit_is_retried_before_the_link_is_posted() {
@@ -189,7 +184,10 @@ async fn a_busy_edit_is_retried_before_the_link_is_posted() {
         let (discord, channel) =
             tracking_discord(move |attempt| if attempt == 1 { status } else { 200 }, 200).await;
         let tasks = open_a_room(&bridge, &discord).await;
-        until(|| !channel.lock().unwrap().public.is_empty()).await;
+        until("the link in the channel", WAIT, || {
+            !channel.lock().unwrap().public.is_empty()
+        })
+        .await;
         let channel = channel.lock().unwrap();
         assert_eq!(channel.private, ["Your room is open."], "{status}");
         assert_eq!(channel.public.len(), 1, "{status}");
@@ -206,7 +204,10 @@ async fn an_edit_that_keeps_failing_posts_nothing_to_the_channel() {
     let (discord, channel) = tracking_discord(|_| 503, 200).await;
     let tasks = open_a_room(&bridge, &discord).await;
     // The edit of the reply, and the try at the link in the private reply.
-    until(|| discord.requests().len() == 6).await;
+    until("six requests to Discord", WAIT, || {
+        discord.requests().len() == 6
+    })
+    .await;
     tokio::time::sleep(Duration::from_millis(300)).await;
     let channel = channel.lock().unwrap();
     assert!(discord.requests().iter().all(|r| r.method == Method::PATCH));
@@ -221,7 +222,10 @@ async fn a_followup_that_fails_leaves_the_link_in_the_private_reply() {
     let bridge = bridge(created, no_room).await;
     let (discord, channel) = tracking_discord(|_| 200, 500).await;
     let tasks = open_a_room(&bridge, &discord).await;
-    until(|| channel.lock().unwrap().private.len() == 2).await;
+    until("the link in the private reply", WAIT, || {
+        channel.lock().unwrap().private.len() == 2
+    })
+    .await;
     let channel = channel.lock().unwrap();
     assert_eq!(channel.private[0], "Your room is open.");
     assert!(
@@ -462,13 +466,12 @@ async fn other_refusals_get_a_short_plain_message() {
         .filter(|r| r.path == "/v1/rooms")
         .count();
     post(&url, now(), &body).await;
-    let replies = loop {
-        let replies = discord.requests();
-        if replies.len() == 2 {
-            break replies;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    };
+    let mut replies = Vec::new();
+    until("the second reply", WAIT, || {
+        replies = discord.requests();
+        replies.len() == 2
+    })
+    .await;
     assert!(edited(&replies[1]).contains("1 to 64 characters"));
     assert_eq!(
         bridge

@@ -888,3 +888,92 @@ async fn corrections_through_a_walkover() {
     let winner_slot = semifinal["winner_slot"].as_u64().unwrap() as usize;
     assert_eq!(semifinal["players"][winner_slot]["ember_id"], f.id(7));
 }
+
+// A tournament format or lobby rotation this bridge does not know (a newer
+// bridge wrote it before a rollback) keeps that tournament and lobby
+// unavailable, but never stops a match of their players from completing or
+// expiring: the passes over a freed player's tournaments and lobbies skip it.
+#[tokio::test]
+async fn an_unknown_format_or_rotation_does_not_stop_completion_or_expiry() {
+    let f = fixture(4).await;
+    let id = create(
+        &f,
+        "later-format",
+        json!({ "format": "single_elimination" }),
+    )
+    .await;
+    register(&f, &id, 0).await;
+    register(&f, &id, 1).await;
+    let side = f.bracket("later-side", 0, 2).await;
+    let started = start(&f, &id, None).await;
+    assert_eq!(started["sets"][0]["status"], "ready");
+    let lobby = f.create("later-hill", 1, "winner_stays").await;
+    let lobby_id = lobby["lobby_id"].as_str().unwrap().to_owned();
+    f.join(&lobby_id, 2).await;
+    f.join(&lobby_id, 3).await;
+    assert!(f.lobby(&lobby_id).await["current_match_id"].is_null());
+
+    let (tournament_id, changed_lobby) = (id.clone(), lobby_id.clone());
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            // The newer bridge's schema would allow these; this one's checks
+            // are set aside to write them.
+            tx.execute_batch("PRAGMA ignore_check_constraints = ON")?;
+            tx.execute(
+                "UPDATE tournaments SET format = 'swiss' WHERE id = ?1",
+                [tournament_id],
+            )?;
+            tx.execute(
+                "UPDATE lobbies SET rotation = 'a_later_rotation' WHERE id = ?1",
+                [changed_lobby],
+            )?;
+            Ok(tx.execute_batch("PRAGMA ignore_check_constraints = OFF")?)
+        })
+        .await
+        .unwrap();
+    // Read directly, each fails closed.
+    let (status, _) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/tournaments/{id}"))
+        .await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    let (status, _) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/lobbies/{lobby_id}"))
+        .await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+
+    // Player 0 is entered in the tournament and player 2 waits in the lobby;
+    // their match still completes.
+    let side_id = side["match_id"].as_str().unwrap().to_owned();
+    let (status, body) = f.game(&side_id, 0).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let (status, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{side_id}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{found}");
+    assert_eq!(found["state"], "completed");
+
+    // And their next match expires.
+    let next = f.bracket("later-expiry", 0, 2).await;
+    let next_id = next["match_id"].as_str().unwrap().to_owned();
+    let stale = next_id.clone();
+    f.bridge
+        .state()
+        .db
+        .write(
+            move |tx| Ok(tx.execute("UPDATE matches SET expires_at = 0 WHERE id = ?1", [stale])?),
+        )
+        .await
+        .unwrap();
+    ember_bridge::maintain(f.bridge.state()).await;
+    let (status, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{next_id}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{found}");
+    assert_eq!(found["state"], "expired");
+}

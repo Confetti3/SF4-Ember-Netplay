@@ -27,7 +27,7 @@ bool Host() { return Requested() == Test::RoomHost; }
 
 RuntimeCommand Action(room::ActionKind kind) {
 	RuntimeCommand request = Command(CommandKind::RoomAction);
-	const auto& room = Now()->room;
+	const auto& room = Now()->Room();
 	request.roomAction.kind = kind; request.roomAction.table = 0;
 	request.roomAction.roomEpoch = room.roomEpoch; request.roomAction.revision = room.revision;
 	request.roomAction.tableRevision = room.tables[0].revision;
@@ -75,7 +75,7 @@ void TickRoom() {
 	case Stage::Opening:
 		if (now->session.room == netplay::RoomState::Joined && (!Host() || !now->invitation.empty())) {
 			if (Host() && !online::WriteLine(run.inviteFile, now->invitation)) { run.Fail("room", "the invitation could not be written", Stage::Leaving); break; }
-			Say(true, "room", now->room.name);
+			Say(true, "room", now->Room().name);
 			run.Enter(Stage::Seat);
 		}
 		else if (!now->session.error.empty()) run.Fail("room", now->session.error);

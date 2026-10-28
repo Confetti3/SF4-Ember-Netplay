@@ -44,6 +44,11 @@ pub fn json<T: Serialize>(status: StatusCode, value: &T) -> Response {
     }
 }
 
+/// A JSON answer already encoded, sent as `json` sends one.
+pub fn json_bytes(status: StatusCode, body: Vec<u8>) -> Response {
+    (status, [(header::CONTENT_TYPE, "application/json")], body).into_response()
+}
+
 pub fn ok<T: Serialize>(value: &T) -> Response {
     json(StatusCode::OK, value)
 }

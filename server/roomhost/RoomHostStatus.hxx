@@ -10,11 +10,23 @@
 
 namespace sf4e { namespace roomhost {
 
-// The supervisor kills a child whose line passes 64 KiB; the host stays well
-// under it. A room holds at most room::MaximumKickedAccounts (512) bans, each
-// an Ember ID of 57 bytes, and MaximumWonGames (32) won games of two, so
-// a full line is about 36 KB plus the invitation.
+// The status line's limits, which the room host, the supervisor and the bridge
+// each enforce and which must agree (server/roomhost/README.md, "Status line
+// limits"). The supervisor kills a child whose line passes SupervisorLineBytes
+// (MAX_LINE_BYTES in server/ember-rooms/src/protocol.rs); the host ends the
+// room itself well before that, at MaximumStatusLineBytes. A room holds at most
+// room::MaximumKickedAccounts (512) bans, each an Ember ID of 57 bytes, and
+// MaximumWonGames (32) won games of two, so with an invitation of 4096 bytes
+// and the details a full line is about 43 KB.
+constexpr std::size_t SupervisorLineBytes = 128 * 1024;
 constexpr std::size_t MaximumStatusLineBytes = 60000;
+static_assert(MaximumStatusLineBytes < SupervisorLineBytes, "the host must end the room before the supervisor kills it");
+static_assert(room::MaximumKickedAccounts == 512, "MAX_ROOM_BANS in ember-rooms, ember-protocol and the helper");
+static_assert(MaximumWonGames == 32, "MAX_GAMES_BYTES in ember-rooms and the bridge allow for 32 games");
+// The supervisor passes on a details object of at most SupervisorDetailsBytes
+// and a games array of at most SupervisorGamesBytes, as written, and drops a
+// larger one (MAX_DETAILS_BYTES and MAX_GAMES_BYTES in protocol.rs).
+constexpr std::size_t SupervisorDetailsBytes = 2048, SupervisorGamesBytes = 6144;
 
 // What the bridge lists beside a room (the status line's "details" object).
 // Everything is copied from the room model, so a change re-emits the line.

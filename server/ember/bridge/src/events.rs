@@ -11,7 +11,9 @@ use ember_protocol::{
 use rusqlite::{OptionalExtension, Transaction, params};
 
 use crate::{
+    auth::{Actor, Role, Service},
     config::Config,
+    db,
     error::{ApiFailure, Result},
     util::new_id,
 };
@@ -77,6 +79,8 @@ pub fn emit(tx: &Transaction<'_>, config: &Config, now: u64, event: NewEvent<'_>
         ],
     )?;
     fan_out(tx, seq, &event, &envelope.kind, now)?;
+    // Its readers and its webhook deliveries are woken once this commits.
+    db::queued();
     Ok(seq)
 }
 
@@ -139,6 +143,38 @@ pub enum Viewer {
 }
 
 impl Viewer {
+    /// Who `actor` reads as: a player whose session may read its own
+    /// (`self:read`), or a service (`of_service`). A browser session reads
+    /// nothing here.
+    pub fn of(actor: &Actor) -> Result<Self> {
+        match actor {
+            Actor::Player(player) => {
+                if !player.scopes.iter().any(|scope| scope == "self:read") {
+                    return Err(ApiFailure::forbidden());
+                }
+                Ok(Self::Player {
+                    ember_id: player.ember_id.clone(),
+                })
+            }
+            Actor::Service(service) => Self::of_service(service),
+            Actor::Browser(_) => Err(ApiFailure::forbidden()),
+        }
+    }
+
+    /// Who `service` reads as: a provider its own connection, an organizer
+    /// its tenant.
+    pub fn of_service(service: &Service) -> Result<Self> {
+        Ok(match service.role {
+            Role::Provider => Self::Provider {
+                tenant_id: service.tenant_id.clone(),
+                connection_id: service.provider_connection()?.to_owned(),
+            },
+            Role::Organizer => Self::Organizer {
+                tenant_id: service.tenant_id.clone(),
+            },
+        })
+    }
+
     /// Whether this viewer may see what belongs to `connection_id` of
     /// `tenant_id`: the connection's own provider, or an organizer of the
     /// tenant. A player sees no connection's matches this way.

@@ -4,35 +4,37 @@
 #include "test_support.hxx"
 int main() {
     using namespace sf4e;
-    discord::PresenceInput in;
+    netplay::Snapshot sessionView;
+    room::Snapshot roomView;
+    discord::PresenceInput in(sessionView, roomView);
     CHECK(discord::Describe(in).activity=="Starting Ember");
     in.ready=true; CHECK(discord::Describe(in).activity=="In menus");
     in.offline=true; CHECK(discord::Describe(in).activity=="Playing offline");
-    in.session.room=netplay::RoomState::Joined; in.session.control=netplay::Health::Healthy;
+    sessionView.room=netplay::RoomState::Joined; sessionView.control=netplay::Health::Healthy;
     room::Member local; local.id=2; local.host=false;
-    in.room.members.push_back(local); in.room.localMember=2; in.room.capacity=16;
+    roomView.members.push_back(local); roomView.localMember=2; roomView.capacity=16;
     in.party="ember:test"; in.secret=std::string(127,'a'); in.expires=200; in.now=100;
     const auto open=discord::Describe(in);
     CHECK(open.activity=="In a room" && open.size==1 && open.capacity==16 && open.secret==in.secret);
-    in.room.members[0].status=room::MemberStatus::Playing;
+    roomView.members[0].status=room::MemberStatus::Playing;
     CHECK(discord::Describe(in).activity=="Fighting");
-    in.room.members[0].status=room::MemberStatus::Watching;
+    roomView.members[0].status=room::MemberStatus::Watching;
     CHECK(discord::Describe(in).activity=="Spectating");
-    in.room.members[0].status=room::MemberStatus::Queued;
+    roomView.members[0].status=room::MemberStatus::Queued;
     CHECK(discord::Describe(in).activity=="Queued");
-    in.room.members[0].status=room::MemberStatus::Ready;
+    roomView.members[0].status=room::MemberStatus::Ready;
     CHECK(discord::Describe(in).activity=="Ready");
-    in.room.locked=true; CHECK(discord::Describe(in).secret.empty()); in.room.locked=false;
-    in.room.capacity=1; CHECK(discord::Describe(in).secret.empty()); in.room.capacity=16;
+    roomView.locked=true; CHECK(discord::Describe(in).secret.empty()); roomView.locked=false;
+    roomView.capacity=1; CHECK(discord::Describe(in).secret.empty()); roomView.capacity=16;
     in.invites=false; CHECK(discord::Describe(in).secret.empty()); in.invites=true;
     // A room whose snapshot is bound to a tournament match is never offered to friends.
-    in.room.tournament.matchId="emt_1";
-    CHECK(in.room.tournament.Active() && discord::Describe(in).secret.empty() && discord::Describe(in).activity=="Ready");
-    in.room.tournament=room::TournamentBinding{}; CHECK(discord::Describe(in).secret==in.secret);
+    roomView.tournament.matchId="emt_1";
+    CHECK(roomView.tournament.Active() && discord::Describe(in).secret.empty() && discord::Describe(in).activity=="Ready");
+    roomView.tournament=room::TournamentBinding{}; CHECK(discord::Describe(in).secret==in.secret);
     in.show=false; CHECK(!discord::Describe(in).show && discord::Describe(in).party.empty()); in.show=true;
     in.now=200; CHECK(discord::Describe(in).secret.empty()); in.now=100;
-    in.session.control=netplay::Health::Lost; CHECK(discord::Describe(in).secret.empty());
-    in.room.localMember=0; CHECK(discord::Describe(in).party.empty());
+    sessionView.control=netplay::Health::Lost; CHECK(discord::Describe(in).secret.empty());
+    roomView.localMember=0; CHECK(discord::Describe(in).party.empty());
 
     discord::PendingInvite pending;
     CHECK(pending.Offer("ticket","party",200,1,5,false));

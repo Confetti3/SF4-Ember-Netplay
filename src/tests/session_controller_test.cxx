@@ -5,10 +5,9 @@
 #include <cstdio>
 #include <thread>
 #include <atomic>
+#include "test_support.hxx"
 
 using namespace sf4e::netplay;
-static int failures = 0;
-#define CHECK(c) do { if (!(c)) { std::printf("FAIL line %d: %s\n", __LINE__, #c); ++failures; } } while (0)
 
 static Decision CommandNow(SessionController& controller, CommandKind kind, const char* invite = "") {
     Command command;
@@ -26,19 +25,19 @@ static Decision EventNow(SessionController& controller, EventKind kind) {
 // while the match state is not None or PostMatch.
 static void TestMatchEndedFromPreparing() {
     SessionController controller;
-    CHECK(CommandNow(controller, CommandKind::HostRoom).accepted);
-    CHECK(EventNow(controller, EventKind::RoomJoined).accepted);
-    CHECK(CommandNow(controller, CommandKind::Ready).effect == Effect::SendReady);
-    CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
-    CHECK(controller.GetSnapshot().match == MatchState::Preparing);
-    CHECK(EventNow(controller, EventKind::MatchEnded).accepted);
-    CHECK(controller.GetSnapshot().match == MatchState::PostMatch);
-    CHECK(CommandNow(controller, CommandKind::Rematch).effect == Effect::SendReady);
+    EXPECT(CommandNow(controller, CommandKind::HostRoom).accepted);
+    EXPECT(EventNow(controller, EventKind::RoomJoined).accepted);
+    EXPECT(CommandNow(controller, CommandKind::Ready).effect == Effect::SendReady);
+    EXPECT(EventNow(controller, EventKind::MatchPreparing).accepted);
+    EXPECT(controller.GetSnapshot().match == MatchState::Preparing);
+    EXPECT(EventNow(controller, EventKind::MatchEnded).accepted);
+    EXPECT(controller.GetSnapshot().match == MatchState::PostMatch);
+    EXPECT(CommandNow(controller, CommandKind::Rematch).effect == Effect::SendReady);
     // From None there is still nothing to end.
     SessionController idle;
-    CHECK(CommandNow(idle, CommandKind::HostRoom).accepted);
-    CHECK(EventNow(idle, EventKind::RoomJoined).accepted);
-    CHECK(!EventNow(idle, EventKind::MatchEnded).accepted);
+    EXPECT(CommandNow(idle, CommandKind::HostRoom).accepted);
+    EXPECT(EventNow(idle, EventKind::RoomJoined).accepted);
+    EXPECT(!EventNow(idle, EventKind::MatchEnded).accepted);
 }
 
 // A match still Playing or Preparing refuses the next grant. The runtime must
@@ -46,29 +45,29 @@ static void TestMatchEndedFromPreparing() {
 // failed) before a new grant can be entered, and once it does the grant is taken.
 static void TestNextGrantNeedsTheOldMatchEnded() {
     SessionController controller;
-    CHECK(CommandNow(controller, CommandKind::HostRoom).accepted);
-    CHECK(EventNow(controller, EventKind::RoomJoined).accepted);
-    CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
-    CHECK(EventNow(controller, EventKind::GameplayReady).accepted);
-    CHECK(EventNow(controller, EventKind::MatchStarted).accepted);
-    CHECK(controller.GetSnapshot().match == MatchState::Playing);
-    CHECK(!EventNow(controller, EventKind::MatchPreparing).accepted);
-    CHECK(EventNow(controller, EventKind::MatchEnded).accepted);
-    CHECK(controller.GetSnapshot().match == MatchState::PostMatch);
-    CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
+    EXPECT(CommandNow(controller, CommandKind::HostRoom).accepted);
+    EXPECT(EventNow(controller, EventKind::RoomJoined).accepted);
+    EXPECT(EventNow(controller, EventKind::MatchPreparing).accepted);
+    EXPECT(EventNow(controller, EventKind::GameplayReady).accepted);
+    EXPECT(EventNow(controller, EventKind::MatchStarted).accepted);
+    EXPECT(controller.GetSnapshot().match == MatchState::Playing);
+    EXPECT(!EventNow(controller, EventKind::MatchPreparing).accepted);
+    EXPECT(EventNow(controller, EventKind::MatchEnded).accepted);
+    EXPECT(controller.GetSnapshot().match == MatchState::PostMatch);
+    EXPECT(EventNow(controller, EventKind::MatchPreparing).accepted);
     // The same from Preparing.
-    CHECK(!EventNow(controller, EventKind::MatchPreparing).accepted);
-    CHECK(EventNow(controller, EventKind::MatchEnded).accepted);
-    CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
+    EXPECT(!EventNow(controller, EventKind::MatchPreparing).accepted);
+    EXPECT(EventNow(controller, EventKind::MatchEnded).accepted);
+    EXPECT(EventNow(controller, EventKind::MatchPreparing).accepted);
 }
 
 static void StartMatch(SessionController& controller) {
-    CHECK(CommandNow(controller, CommandKind::Ready).effect == Effect::SendReady);
-    CHECK(!CommandNow(controller, CommandKind::Ready).accepted);
-    CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
-    CHECK(!EventNow(controller, EventKind::MatchStarted).accepted);
-    CHECK(EventNow(controller, EventKind::GameplayReady).accepted);
-    CHECK(EventNow(controller, EventKind::MatchStarted).accepted);
+    EXPECT(CommandNow(controller, CommandKind::Ready).effect == Effect::SendReady);
+    EXPECT(!CommandNow(controller, CommandKind::Ready).accepted);
+    EXPECT(EventNow(controller, EventKind::MatchPreparing).accepted);
+    EXPECT(!EventNow(controller, EventKind::MatchStarted).accepted);
+    EXPECT(EventNow(controller, EventKind::GameplayReady).accepted);
+    EXPECT(EventNow(controller, EventKind::MatchStarted).accepted);
 }
 
 // A room that is still being created or joined has no control to recover.
@@ -76,87 +75,87 @@ static void StartMatch(SessionController& controller) {
 // 15 seconds later, offer to replace a room that was never joined.
 static void TestOpeningIsNotRecovery() {
     SessionController joining;
-    CHECK(CommandNow(joining, CommandKind::JoinInvite, "sf4e3:invite").accepted);
-    CHECK(joining.ObserveCoordination(1, 1, false, 100));
-    CHECK(joining.GetSnapshot().recovery == Recovery::None);
-    CHECK(joining.GetSnapshot().control == Health::Connecting);
-    CHECK(joining.GetSnapshot().error.empty());
-    CHECK(!joining.GetSnapshot().authorityWritable);
-    CHECK(joining.ObserveCoordination(1, 1, false, 20000));
+    EXPECT(CommandNow(joining, CommandKind::JoinInvite, "sf4e3:invite").accepted);
+    EXPECT(joining.ObserveCoordination(1, 1, false, 100));
+    EXPECT(joining.GetSnapshot().recovery == Recovery::None);
+    EXPECT(joining.GetSnapshot().control == Health::Connecting);
+    EXPECT(joining.GetSnapshot().error.empty());
+    EXPECT(!joining.GetSnapshot().authorityWritable);
+    EXPECT(joining.ObserveCoordination(1, 1, false, 20000));
     joining.AdvanceRecovery(20000);
-    CHECK(joining.GetSnapshot().recovery == Recovery::None);
-    CHECK(!CommandNow(joining, CommandKind::ReplaceRoom).accepted);
+    EXPECT(joining.GetSnapshot().recovery == Recovery::None);
+    EXPECT(!CommandNow(joining, CommandKind::ReplaceRoom).accepted);
     // A long wait is named, not ended: a slow relay can still finish.
-    CHECK(joining.ObserveCoordination(1, 1, false, 100 + SessionController::OpeningStallMs - 1));
-    CHECK(!joining.GetSnapshot().openingStalled);
-    CHECK(joining.ObserveCoordination(1, 1, false, 100 + SessionController::OpeningStallMs));
-    CHECK(joining.GetSnapshot().openingStalled && joining.GetSnapshot().room == RoomState::Opening);
-    CHECK(joining.GetSnapshot().recovery == Recovery::None && joining.GetSnapshot().error.empty());
-    CHECK(!joining.ControlPlaneEstablished());
+    EXPECT(joining.ObserveCoordination(1, 1, false, 100 + SessionController::OpeningStallMs - 1));
+    EXPECT(!joining.GetSnapshot().openingStalled);
+    EXPECT(joining.ObserveCoordination(1, 1, false, 100 + SessionController::OpeningStallMs));
+    EXPECT(joining.GetSnapshot().openingStalled && joining.GetSnapshot().room == RoomState::Opening);
+    EXPECT(joining.GetSnapshot().recovery == Recovery::None && joining.GetSnapshot().error.empty());
+    EXPECT(!joining.ControlPlaneEstablished());
     // Stopping the join still works while the stream forms.
-    CHECK(CommandNow(joining, CommandKind::LeaveRoom).accepted);
+    EXPECT(CommandNow(joining, CommandKind::LeaveRoom).accepted);
 
     // Once joined, the same loss is a real outage and recovers as before.
     SessionController joined;
-    CHECK(CommandNow(joined, CommandKind::JoinInvite, "sf4e3:invite").accepted);
-    CHECK(joined.ObserveCoordination(1, 1, true, 100));
-    CHECK(EventNow(joined, EventKind::RoomJoined).accepted);
-    CHECK(joined.ObserveCoordination(1, 1, false, 1000));
-    CHECK(joined.ControlPlaneEstablished() && !joined.GetSnapshot().openingStalled);
-    CHECK(joined.GetSnapshot().recovery == Recovery::Recovering);
-    CHECK(joined.GetSnapshot().control == Health::Lost);
+    EXPECT(CommandNow(joined, CommandKind::JoinInvite, "sf4e3:invite").accepted);
+    EXPECT(joined.ObserveCoordination(1, 1, true, 100));
+    EXPECT(EventNow(joined, EventKind::RoomJoined).accepted);
+    EXPECT(joined.ObserveCoordination(1, 1, false, 1000));
+    EXPECT(joined.ControlPlaneEstablished() && !joined.GetSnapshot().openingStalled);
+    EXPECT(joined.GetSnapshot().recovery == Recovery::Recovering);
+    EXPECT(joined.GetSnapshot().control == Health::Lost);
     // The condition is a kind the interface words in the player's language, not
     // an English sentence the controller writes into `error`.
-    CHECK(joined.GetSnapshot().fault == Fault::ControlRecovering && joined.GetSnapshot().error.empty());
+    EXPECT(joined.GetSnapshot().fault == Fault::ControlRecovering && joined.GetSnapshot().error.empty());
     // Leaving during the outage leaves nothing of it for the menu to show.
-    CHECK(CommandNow(joined, CommandKind::LeaveRoom).accepted);
-    CHECK(joined.GetSnapshot().fault == Fault::None && joined.GetSnapshot().error.empty());
-    CHECK(EventNow(joined, EventKind::RoomClosed).accepted);
-    CHECK(joined.GetSnapshot().fault == Fault::None && joined.GetSnapshot().error.empty());
+    EXPECT(CommandNow(joined, CommandKind::LeaveRoom).accepted);
+    EXPECT(joined.GetSnapshot().fault == Fault::None && joined.GetSnapshot().error.empty());
+    EXPECT(EventNow(joined, EventKind::RoomClosed).accepted);
+    EXPECT(joined.GetSnapshot().fault == Fault::None && joined.GetSnapshot().error.empty());
     // A failure the room reported is the player's to read after the room closes.
     SessionController failed;
-    CHECK(CommandNow(failed, CommandKind::JoinInvite, "sf4e3:invite").accepted);
+    EXPECT(CommandNow(failed, CommandKind::JoinInvite, "sf4e3:invite").accepted);
     Event failure;
     failure.kind = EventKind::RoomFailed; failure.generation = failed.GetSnapshot().generation; failure.error = "Could not join";
-    CHECK(failed.Apply(failure).accepted);
-    CHECK(EventNow(failed, EventKind::RoomClosed).accepted);
-    CHECK(failed.GetSnapshot().error == "Could not join");
+    EXPECT(failed.Apply(failure).accepted);
+    EXPECT(EventNow(failed, EventKind::RoomClosed).accepted);
+    EXPECT(failed.GetSnapshot().error == "Could not join");
 }
 
 // A server-owned room has no replacement host: its recovery never offers one,
 // and a ReplaceRoom command is refused. Leaving still closes the room.
 static void TestServerOwnedRoomIsNeverReplaced() {
     SessionController room;
-    CHECK(CommandNow(room, CommandKind::JoinInvite, "sf4e3:invitation").accepted);
+    EXPECT(CommandNow(room, CommandKind::JoinInvite, "sf4e3:invitation").accepted);
     room.SetServerOwned(true);
-    CHECK(room.ObserveCoordination(1, 1, true, 100));
-    CHECK(EventNow(room, EventKind::RoomJoined).accepted);
-    CHECK(room.ObserveCoordination(1, 1, false, 1000));
-    CHECK(room.GetSnapshot().recovery == Recovery::Recovering && room.GetSnapshot().fault == Fault::ControlRecovering);
+    EXPECT(room.ObserveCoordination(1, 1, true, 100));
+    EXPECT(EventNow(room, EventKind::RoomJoined).accepted);
+    EXPECT(room.ObserveCoordination(1, 1, false, 1000));
+    EXPECT(room.GetSnapshot().recovery == Recovery::Recovering && room.GetSnapshot().fault == Fault::ControlRecovering);
     room.AdvanceRecovery(16000);
-    CHECK(room.GetSnapshot().recovery == Recovery::Recovering);
-    CHECK(room.ObserveCoordination(1, 1, false, 40000));
-    CHECK(room.GetSnapshot().recovery == Recovery::Recovering);
-    CHECK(!CommandNow(room, CommandKind::ReplaceRoom).accepted);
+    EXPECT(room.GetSnapshot().recovery == Recovery::Recovering);
+    EXPECT(room.ObserveCoordination(1, 1, false, 40000));
+    EXPECT(room.GetSnapshot().recovery == Recovery::Recovering);
+    EXPECT(!CommandNow(room, CommandKind::ReplaceRoom).accepted);
     // A connected stream whose checkpoint never applies offers nothing either.
-    CHECK(room.ObserveCoordination(1, 2, true, 41000));
-    CHECK(room.ObserveCoordination(1, 3, true, 42000, false));
-    CHECK(room.ObserveCoordination(1, 4, true, 80000, false));
-    CHECK(room.GetSnapshot().recovery == Recovery::None && room.GetSnapshot().fault == Fault::CatchingUp);
-    CHECK(!CommandNow(room, CommandKind::ReplaceRoom).accepted);
-    CHECK(CommandNow(room, CommandKind::LeaveRoom).effect == Effect::CloseSession);
-    CHECK(EventNow(room, EventKind::RoomClosed).accepted);
-    CHECK(!room.GetSnapshot().serverOwned && room.GetSnapshot().room == RoomState::Idle);
+    EXPECT(room.ObserveCoordination(1, 2, true, 41000));
+    EXPECT(room.ObserveCoordination(1, 3, true, 42000, false));
+    EXPECT(room.ObserveCoordination(1, 4, true, 80000, false));
+    EXPECT(room.GetSnapshot().recovery == Recovery::None && room.GetSnapshot().fault == Fault::CatchingUp);
+    EXPECT(!CommandNow(room, CommandKind::ReplaceRoom).accepted);
+    EXPECT(CommandNow(room, CommandKind::LeaveRoom).effect == Effect::CloseSession);
+    EXPECT(EventNow(room, EventKind::RoomClosed).accepted);
+    EXPECT(!room.GetSnapshot().serverOwned && room.GetSnapshot().room == RoomState::Idle);
 
     // A private room keeps its offer.
     SessionController priv;
-    CHECK(CommandNow(priv, CommandKind::JoinInvite, "sf4e3:invitation").accepted);
+    EXPECT(CommandNow(priv, CommandKind::JoinInvite, "sf4e3:invitation").accepted);
     priv.SetServerOwned(false);
-    CHECK(priv.ObserveCoordination(1, 1, true, 100));
-    CHECK(EventNow(priv, EventKind::RoomJoined).accepted);
-    CHECK(priv.ObserveCoordination(1, 1, false, 1000));
+    EXPECT(priv.ObserveCoordination(1, 1, true, 100));
+    EXPECT(EventNow(priv, EventKind::RoomJoined).accepted);
+    EXPECT(priv.ObserveCoordination(1, 1, false, 1000));
     priv.AdvanceRecovery(16000);
-    CHECK(CommandNow(priv, CommandKind::ReplaceRoom).effect == Effect::ReplaceRoom);
+    EXPECT(CommandNow(priv, CommandKind::ReplaceRoom).effect == Effect::ReplaceRoom);
 }
 
 int main() {
@@ -167,181 +166,181 @@ int main() {
     // Ordinary checkpoint delivery can trail the healthy coordination watch.
     // It pauses mutation, but must not announce a lost connection or erase Ready.
     SessionController syncing;
-    CHECK(CommandNow(syncing, CommandKind::HostRoom).accepted);
-    CHECK(syncing.ObserveCoordination(1, 1, true, 100));
-    CHECK(EventNow(syncing, EventKind::RoomJoined).accepted);
-    CHECK(CommandNow(syncing, CommandKind::Ready).accepted);
+    EXPECT(CommandNow(syncing, CommandKind::HostRoom).accepted);
+    EXPECT(syncing.ObserveCoordination(1, 1, true, 100));
+    EXPECT(EventNow(syncing, EventKind::RoomJoined).accepted);
+    EXPECT(CommandNow(syncing, CommandKind::Ready).accepted);
     // The few ticks between a commit and its checkpoint stay writable, so
     // room controls do not flicker with every commit.
-    CHECK(syncing.ObserveCoordination(1, 2, true, 200, false));
-    CHECK(syncing.GetSnapshot().authorityWritable);
-    CHECK(syncing.ObserveCoordination(1, 2, true, 449, false));
-    CHECK(syncing.GetSnapshot().authorityWritable);
-    CHECK(syncing.ObserveCoordination(1, 2, true, 450, false));
-    CHECK(syncing.GetSnapshot().control == Health::Healthy);
-    CHECK(syncing.GetSnapshot().recovery == Recovery::None);
-    CHECK(syncing.GetSnapshot().readyPending);
-    CHECK(!syncing.GetSnapshot().authorityWritable);
-    CHECK(!CommandNow(syncing, CommandKind::RoomAction).accepted);
-    CHECK(syncing.ObserveCoordination(1, 2, true, 460, true));
-    CHECK(syncing.GetSnapshot().authorityWritable && syncing.GetSnapshot().authorityStalledMs == 0);
-    CHECK(syncing.GetSnapshot().readyPending);
+    EXPECT(syncing.ObserveCoordination(1, 2, true, 200, false));
+    EXPECT(syncing.GetSnapshot().authorityWritable);
+    EXPECT(syncing.ObserveCoordination(1, 2, true, 449, false));
+    EXPECT(syncing.GetSnapshot().authorityWritable);
+    EXPECT(syncing.ObserveCoordination(1, 2, true, 450, false));
+    EXPECT(syncing.GetSnapshot().control == Health::Healthy);
+    EXPECT(syncing.GetSnapshot().recovery == Recovery::None);
+    EXPECT(syncing.GetSnapshot().readyPending);
+    EXPECT(!syncing.GetSnapshot().authorityWritable);
+    EXPECT(!CommandNow(syncing, CommandKind::RoomAction).accepted);
+    EXPECT(syncing.ObserveCoordination(1, 2, true, 460, true));
+    EXPECT(syncing.GetSnapshot().authorityWritable && syncing.GetSnapshot().authorityStalledMs == 0);
+    EXPECT(syncing.GetSnapshot().readyPending);
 
     // A completed local abort must return to the room even if the remote
     // authority vanished. Otherwise the UI remains Playing forever.
     SessionController dropped;
-    CHECK(CommandNow(dropped, CommandKind::HostRoom).accepted);
-    CHECK(dropped.ObserveCoordination(1, 1, true, 100));
-    CHECK(EventNow(dropped, EventKind::RoomJoined).accepted);
+    EXPECT(CommandNow(dropped, CommandKind::HostRoom).accepted);
+    EXPECT(dropped.ObserveCoordination(1, 1, true, 100));
+    EXPECT(EventNow(dropped, EventKind::RoomJoined).accepted);
     StartMatch(dropped);
-    CHECK(dropped.ObserveCoordination(1, 1, false, 1000));
-    CHECK(EventNow(dropped, EventKind::MatchRecovered).accepted);
-    CHECK(dropped.GetSnapshot().match == MatchState::PostMatch);
-    CHECK(dropped.GetSnapshot().control == Health::Lost);
-    CHECK(!CommandNow(dropped, CommandKind::Ready).accepted);
+    EXPECT(dropped.ObserveCoordination(1, 1, false, 1000));
+    EXPECT(EventNow(dropped, EventKind::MatchRecovered).accepted);
+    EXPECT(dropped.GetSnapshot().match == MatchState::PostMatch);
+    EXPECT(dropped.GetSnapshot().control == Health::Lost);
+    EXPECT(!CommandNow(dropped, CommandKind::Ready).accepted);
     dropped.AdvanceRecovery(16000);
-    CHECK(CommandNow(dropped, CommandKind::ReplaceRoom).accepted);
+    EXPECT(CommandNow(dropped, CommandKind::ReplaceRoom).accepted);
 
     // Coordination loss pauses room commands without closing healthy gameplay.
     // The same applied authority state must not reset the 15-second offer.
     SessionController migration;
-    CHECK(CommandNow(migration, CommandKind::HostRoom).accepted);
-    CHECK(migration.ObserveCoordination(1, 1, true, 100));
-    CHECK(EventNow(migration, EventKind::RoomJoined).accepted);
+    EXPECT(CommandNow(migration, CommandKind::HostRoom).accepted);
+    EXPECT(migration.ObserveCoordination(1, 1, true, 100));
+    EXPECT(EventNow(migration, EventKind::RoomJoined).accepted);
     StartMatch(migration);
     const auto activeGeneration = migration.GetSnapshot().generation;
-    CHECK(migration.ObserveCoordination(1, 1, false, 1000));
-    CHECK(migration.GetSnapshot().match == MatchState::Playing);
-    CHECK(migration.GetSnapshot().generation == activeGeneration);
-    CHECK(!CommandNow(migration, CommandKind::Ready).accepted);
-    CHECK(!CommandNow(migration, CommandKind::RoomAction).accepted);
-    CHECK(!CommandNow(migration, CommandKind::SetLobbySettings).accepted);
-    CHECK(!CommandNow(migration, CommandKind::ReplaceRoom).accepted);
-    CHECK(migration.ObserveCoordination(1, 1, false, 15999));
-    CHECK(migration.GetSnapshot().recovery == Recovery::Recovering);
+    EXPECT(migration.ObserveCoordination(1, 1, false, 1000));
+    EXPECT(migration.GetSnapshot().match == MatchState::Playing);
+    EXPECT(migration.GetSnapshot().generation == activeGeneration);
+    EXPECT(!CommandNow(migration, CommandKind::Ready).accepted);
+    EXPECT(!CommandNow(migration, CommandKind::RoomAction).accepted);
+    EXPECT(!CommandNow(migration, CommandKind::SetLobbySettings).accepted);
+    EXPECT(!CommandNow(migration, CommandKind::ReplaceRoom).accepted);
+    EXPECT(migration.ObserveCoordination(1, 1, false, 15999));
+    EXPECT(migration.GetSnapshot().recovery == Recovery::Recovering);
     migration.AdvanceRecovery(16000);
-    CHECK(migration.GetSnapshot().recovery == Recovery::ReplacementOffered);
-    CHECK(!CommandNow(migration, CommandKind::ReplaceRoom).accepted);
-    CHECK(EventNow(migration, EventKind::MatchEnded).effect == Effect::None);
-    CHECK(migration.GetSnapshot().match == MatchState::PostMatch);
-    CHECK(migration.ObserveCoordination(2, 2, true, 17000));
-    CHECK(migration.GetSnapshot().recovery == Recovery::None);
-    CHECK(migration.GetSnapshot().generation == activeGeneration);
-    CHECK(!migration.ObserveCoordination(1, 99, true, 18000));
-    CHECK(!CommandNow(migration, CommandKind::ReplaceRoom).accepted);
-    CHECK(CommandNow(migration, CommandKind::CheckConnection).accepted);
-    CHECK(migration.ObserveCoordination(2, 2, false, 19000));
+    EXPECT(migration.GetSnapshot().recovery == Recovery::ReplacementOffered);
+    EXPECT(!CommandNow(migration, CommandKind::ReplaceRoom).accepted);
+    EXPECT(EventNow(migration, EventKind::MatchEnded).effect == Effect::None);
+    EXPECT(migration.GetSnapshot().match == MatchState::PostMatch);
+    EXPECT(migration.ObserveCoordination(2, 2, true, 17000));
+    EXPECT(migration.GetSnapshot().recovery == Recovery::None);
+    EXPECT(migration.GetSnapshot().generation == activeGeneration);
+    EXPECT(!migration.ObserveCoordination(1, 99, true, 18000));
+    EXPECT(!CommandNow(migration, CommandKind::ReplaceRoom).accepted);
+    EXPECT(CommandNow(migration, CommandKind::CheckConnection).accepted);
+    EXPECT(migration.ObserveCoordination(2, 2, false, 19000));
     migration.AdvanceRecovery(34000);
-    CHECK(CommandNow(migration, CommandKind::ReplaceRoom).effect == Effect::ReplaceRoom);
-    CHECK(!CommandNow(migration, CommandKind::HostRoom).accepted);
-    CHECK(EventNow(migration, EventKind::RoomClosed).accepted);
-    CHECK(CommandNow(migration, CommandKind::HostRoom).accepted);
+    EXPECT(CommandNow(migration, CommandKind::ReplaceRoom).effect == Effect::ReplaceRoom);
+    EXPECT(!CommandNow(migration, CommandKind::HostRoom).accepted);
+    EXPECT(EventNow(migration, EventKind::RoomClosed).accepted);
+    EXPECT(CommandNow(migration, CommandKind::HostRoom).accepted);
 
     // Room controls stay available while one table plays. Recovering that
     // table preserves the room epoch and rejects callbacks from earlier games.
     SessionController rooms;
-    CHECK(!CommandNow(rooms, CommandKind::RoomAction).accepted);
-    CHECK(CommandNow(rooms, CommandKind::HostRoom).accepted);
-    CHECK(EventNow(rooms, EventKind::RoomJoined).accepted);
+    EXPECT(!CommandNow(rooms, CommandKind::RoomAction).accepted);
+    EXPECT(CommandNow(rooms, CommandKind::HostRoom).accepted);
+    EXPECT(EventNow(rooms, EventKind::RoomJoined).accepted);
     StartMatch(rooms);
     const auto roomGeneration = rooms.GetSnapshot().generation;
-    CHECK(CommandNow(rooms, CommandKind::RoomAction).effect == Effect::SendRoomAction);
-    CHECK(EventNow(rooms, EventKind::MatchRecovered).accepted);
-    CHECK(rooms.GetSnapshot().room == RoomState::Joined && rooms.GetSnapshot().generation == roomGeneration);
-    CHECK(!rooms.GetSnapshot().verificationAvailable && rooms.GetSnapshot().match == MatchState::PostMatch);
+    EXPECT(CommandNow(rooms, CommandKind::RoomAction).effect == Effect::SendRoomAction);
+    EXPECT(EventNow(rooms, EventKind::MatchRecovered).accepted);
+    EXPECT(rooms.GetSnapshot().room == RoomState::Joined && rooms.GetSnapshot().generation == roomGeneration);
+    EXPECT(!rooms.GetSnapshot().verificationAvailable && rooms.GetSnapshot().match == MatchState::PostMatch);
     StartMatch(rooms);
     Event obsolete{EventKind::MatchRecovered, roomGeneration, {}};
-    CHECK(!rooms.Apply(obsolete).accepted);
-    CHECK(EventNow(rooms, EventKind::ControlLost).accepted);
-    CHECK(!CommandNow(rooms, CommandKind::RoomAction).accepted);
+    EXPECT(!rooms.Apply(obsolete).accepted);
+    EXPECT(EventNow(rooms, EventKind::ControlLost).accepted);
+    EXPECT(!CommandNow(rooms, CommandKind::RoomAction).accepted);
     PlayerPreferences preferences;
-    CHECK(preferences.Valid());
-    preferences.displayName = ""; CHECK(!preferences.Valid());
-    preferences.displayName = std::string(32, 'x'); CHECK(!preferences.Valid());
-    preferences.displayName = "Name\n"; CHECK(!preferences.Valid());
+    EXPECT(preferences.Valid());
+    preferences.displayName = ""; EXPECT(!preferences.Valid());
+    preferences.displayName = std::string(32, 'x'); EXPECT(!preferences.Valid());
+    preferences.displayName = "Name\n"; EXPECT(!preferences.Valid());
     preferences.displayName = "Player";
-    preferences.inputDelay = 0; CHECK(preferences.Valid());
-    preferences.inputDelay = 1; CHECK(preferences.Valid());
-    preferences.inputDelay = -1; CHECK(!preferences.Valid());
-    preferences.inputDelay = 11; CHECK(!preferences.Valid());
-    preferences.inputDelay = sf4e::MaximumInputDelay + 1; CHECK(!preferences.Valid());
+    preferences.inputDelay = 0; EXPECT(preferences.Valid());
+    preferences.inputDelay = 1; EXPECT(preferences.Valid());
+    preferences.inputDelay = -1; EXPECT(!preferences.Valid());
+    preferences.inputDelay = 11; EXPECT(!preferences.Valid());
+    preferences.inputDelay = sf4e::MaximumInputDelay + 1; EXPECT(!preferences.Valid());
     preferences.inputDelay = sf4e::MaximumInputDelay;
-    preferences.lobby.roundCount = 99; preferences.lobby.roundTime = 9999; CHECK(preferences.Valid());
-    preferences.lobby.roundTime = 0; CHECK(!preferences.Valid());
-    preferences.lobby.roundTime = 99; preferences.lobby.roundCount = 2; CHECK(!preferences.Valid());
+    preferences.lobby.roundCount = 99; preferences.lobby.roundTime = 9999; EXPECT(preferences.Valid());
+    preferences.lobby.roundTime = 0; EXPECT(!preferences.Valid());
+    preferences.lobby.roundTime = 99; preferences.lobby.roundCount = 2; EXPECT(!preferences.Valid());
     SessionController settingsController;
-    CHECK(CommandNow(settingsController, CommandKind::SavePreferences).effect == Effect::SavePreferences);
-    CHECK(!CommandNow(settingsController, CommandKind::SetLobbySettings).accepted);
-    CHECK(CommandNow(settingsController, CommandKind::HostRoom).accepted);
-    CHECK(!CommandNow(settingsController, CommandKind::SavePreferences).accepted);
-    CHECK(!CommandNow(settingsController, CommandKind::SetLobbySettings).accepted);
-    CHECK(EventNow(settingsController, EventKind::RoomJoined).accepted);
-    CHECK(CommandNow(settingsController, CommandKind::SetLobbySettings).effect == Effect::SetLobbySettings);
-    CHECK(CommandNow(settingsController, CommandKind::Ready).accepted);
-    CHECK(!CommandNow(settingsController, CommandKind::SetLobbySettings).accepted);
-    CHECK(EventNow(settingsController, EventKind::MatchPreparing).accepted);
-    CHECK(!CommandNow(settingsController, CommandKind::SetLobbySettings).accepted);
-    CHECK(!CommandNow(settingsController, CommandKind::SavePreferences).accepted);
+    EXPECT(CommandNow(settingsController, CommandKind::SavePreferences).effect == Effect::SavePreferences);
+    EXPECT(!CommandNow(settingsController, CommandKind::SetLobbySettings).accepted);
+    EXPECT(CommandNow(settingsController, CommandKind::HostRoom).accepted);
+    EXPECT(!CommandNow(settingsController, CommandKind::SavePreferences).accepted);
+    EXPECT(!CommandNow(settingsController, CommandKind::SetLobbySettings).accepted);
+    EXPECT(EventNow(settingsController, EventKind::RoomJoined).accepted);
+    EXPECT(CommandNow(settingsController, CommandKind::SetLobbySettings).effect == Effect::SetLobbySettings);
+    EXPECT(CommandNow(settingsController, CommandKind::Ready).accepted);
+    EXPECT(!CommandNow(settingsController, CommandKind::SetLobbySettings).accepted);
+    EXPECT(EventNow(settingsController, EventKind::MatchPreparing).accepted);
+    EXPECT(!CommandNow(settingsController, CommandKind::SetLobbySettings).accepted);
+    EXPECT(!CommandNow(settingsController, CommandKind::SavePreferences).accepted);
     SessionController controller;
-    CHECK(CommandNow(controller, CommandKind::StartOffline).effect == Effect::StartOffline);
-    CHECK(!CommandNow(controller, CommandKind::JoinInvite).accepted);
-    CHECK(CommandNow(controller, CommandKind::HostRoom).effect == Effect::HostRoom);
+    EXPECT(CommandNow(controller, CommandKind::StartOffline).effect == Effect::StartOffline);
+    EXPECT(!CommandNow(controller, CommandKind::JoinInvite).accepted);
+    EXPECT(CommandNow(controller, CommandKind::HostRoom).effect == Effect::HostRoom);
     const Generation firstRoom = controller.GetSnapshot().generation;
-    CHECK(!CommandNow(controller, CommandKind::HostRoom).accepted);
-    CHECK(CommandNow(controller, CommandKind::LeaveRoom).effect == Effect::CloseSession);
-    CHECK(!EventNow(controller, EventKind::RoomJoined).accepted);
-    CHECK(!CommandNow(controller, CommandKind::StartOffline).accepted);
-    CHECK(EventNow(controller, EventKind::RoomClosed).accepted);
-    CHECK(CommandNow(controller, CommandKind::JoinInvite, "sf4e1:private-capability").effect == Effect::JoinInvite);
+    EXPECT(!CommandNow(controller, CommandKind::HostRoom).accepted);
+    EXPECT(CommandNow(controller, CommandKind::LeaveRoom).effect == Effect::CloseSession);
+    EXPECT(!EventNow(controller, EventKind::RoomJoined).accepted);
+    EXPECT(!CommandNow(controller, CommandKind::StartOffline).accepted);
+    EXPECT(EventNow(controller, EventKind::RoomClosed).accepted);
+    EXPECT(CommandNow(controller, CommandKind::JoinInvite, "sf4e1:private-capability").effect == Effect::JoinInvite);
     Event stale; stale.kind = EventKind::RoomJoined; stale.generation = firstRoom;
-    CHECK(!controller.Apply(stale).accepted);
-    CHECK(EventNow(controller, EventKind::RoomJoined).accepted);
+    EXPECT(!controller.Apply(stale).accepted);
+    EXPECT(EventNow(controller, EventKind::RoomJoined).accepted);
     StartMatch(controller);
     for (int match = 0; match < 50; ++match) {
         const Generation oldMatch = controller.GetSnapshot().generation;
-        CHECK(EventNow(controller, EventKind::MatchEnded).accepted);
-        CHECK(CommandNow(controller, CommandKind::Rematch).effect == Effect::SendReady);
-        CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
+        EXPECT(EventNow(controller, EventKind::MatchEnded).accepted);
+        EXPECT(CommandNow(controller, CommandKind::Rematch).effect == Effect::SendReady);
+        EXPECT(EventNow(controller, EventKind::MatchPreparing).accepted);
         stale.kind = EventKind::GameplayLost; stale.generation = oldMatch;
-        CHECK(!controller.Apply(stale).accepted);
-        CHECK(EventNow(controller, EventKind::GameplayReady).accepted);
-        CHECK(EventNow(controller, EventKind::MatchStarted).accepted);
+        EXPECT(!controller.Apply(stale).accepted);
+        EXPECT(EventNow(controller, EventKind::GameplayReady).accepted);
+        EXPECT(EventNow(controller, EventKind::MatchStarted).accepted);
     }
-    CHECK(controller.GetSnapshot().match == MatchState::Playing);
+    EXPECT(controller.GetSnapshot().match == MatchState::Playing);
     Event lost;
     lost.kind = EventKind::ControlLost;
     lost.generation.room = controller.GetSnapshot().generation.room;
     lost.generation.match = 0; // Worker was started before the first match.
     const Decision degraded = controller.Apply(lost);
-    CHECK(degraded.accepted && degraded.effect == Effect::None);
-    CHECK(controller.GetSnapshot().match == MatchState::Playing);
-    CHECK(!controller.GetSnapshot().verificationAvailable);
-    CHECK(!CommandNow(controller, CommandKind::Rematch).accepted);
-    CHECK(EventNow(controller, EventKind::MatchEnded).effect == Effect::FinishDegradedMatch);
-    CHECK(EventNow(controller, EventKind::RoomClosed).accepted);
-    CHECK(CommandNow(controller, CommandKind::HostRoom).accepted);
-    CHECK(EventNow(controller, EventKind::RoomJoined).accepted);
+    EXPECT(degraded.accepted && degraded.effect == Effect::None);
+    EXPECT(controller.GetSnapshot().match == MatchState::Playing);
+    EXPECT(!controller.GetSnapshot().verificationAvailable);
+    EXPECT(!CommandNow(controller, CommandKind::Rematch).accepted);
+    EXPECT(EventNow(controller, EventKind::MatchEnded).effect == Effect::FinishDegradedMatch);
+    EXPECT(EventNow(controller, EventKind::RoomClosed).accepted);
+    EXPECT(CommandNow(controller, CommandKind::HostRoom).accepted);
+    EXPECT(EventNow(controller, EventKind::RoomJoined).accepted);
     StartMatch(controller);
-    CHECK(EventNow(controller, EventKind::GameplayLost).effect == Effect::AbortMatch);
-    CHECK(controller.GetSnapshot().match == MatchState::Failed);
-    CHECK(!EventNow(controller, EventKind::GameplayReady).accepted);
+    EXPECT(EventNow(controller, EventKind::GameplayLost).effect == Effect::AbortMatch);
+    EXPECT(controller.GetSnapshot().match == MatchState::Failed);
+    EXPECT(!EventNow(controller, EventKind::GameplayReady).accepted);
     // A game cut short has no PostMatch: the closed room goes straight to
     // None, which is where Ember's menu comes back (OverlayPresentation).
-    CHECK(EventNow(controller, EventKind::RoomClosed).accepted);
-    CHECK(controller.GetSnapshot().match == MatchState::None);
-    CHECK(EventNow(controller, EventKind::HelperLost).accepted);
-    CHECK(CommandNow(controller, CommandKind::StartOffline).accepted);
+    EXPECT(EventNow(controller, EventKind::RoomClosed).accepted);
+    EXPECT(controller.GetSnapshot().match == MatchState::None);
+    EXPECT(EventNow(controller, EventKind::HelperLost).accepted);
+    EXPECT(CommandNow(controller, CommandKind::StartOffline).accepted);
 
     BoundedMailbox<int> queue(2, 8);
-    CHECK(queue.TryPush(1, 4)); CHECK(queue.TryPush(2, 4));
-    CHECK(!queue.TryPush(3, 1));
-    int value = 0; CHECK(queue.TryPop(value) && value == 1);
-    CHECK(!queue.TryPush(3, 5));
-    CHECK(queue.TryPush(3, 4));
-    CHECK(queue.TryPop(value) && value == 2); CHECK(queue.TryPop(value) && value == 3);
-    CHECK(!queue.TryPush(0, 0));
-    CHECK(queue.Rejections() == 3);
-    queue.Close(); CHECK(!queue.TryPush(4, 1)); CHECK(!queue.TryPop(value));
+    EXPECT(queue.TryPush(1, 4)); EXPECT(queue.TryPush(2, 4));
+    EXPECT(!queue.TryPush(3, 1));
+    int value = 0; EXPECT(queue.TryPop(value) && value == 1);
+    EXPECT(!queue.TryPush(3, 5));
+    EXPECT(queue.TryPush(3, 4));
+    EXPECT(queue.TryPop(value) && value == 2); EXPECT(queue.TryPop(value) && value == 3);
+    EXPECT(!queue.TryPush(0, 0));
+    EXPECT(queue.Rejections() == 3);
+    queue.Close(); EXPECT(!queue.TryPush(4, 1)); EXPECT(!queue.TryPop(value));
 
     BoundedMailbox<int> concurrent(32, 128);
     std::atomic<bool> producerDone(false);
@@ -353,10 +352,10 @@ int main() {
     });
     int expected = 0;
     while (expected < 10000) {
-        if (concurrent.TryPop(value)) { CHECK(value == expected); ++expected; }
+        if (concurrent.TryPop(value)) { EXPECT(value == expected); ++expected; }
         else { std::this_thread::yield(); }
     }
-    producer.join(); CHECK(producerDone); concurrent.Close();
+    producer.join(); EXPECT(producerDone); concurrent.Close();
     // A connected same-term stream whose checkpoint never applies locally used to
     // fence every room mutation for good: recovery None, no error, and Replace
     // room refused, so the player sat in the lobby unable to queue, ready or
@@ -364,20 +363,20 @@ int main() {
     // and recoverable.
     {
         SessionController stalled;
-        CHECK(CommandNow(stalled, CommandKind::HostRoom).accepted);
-        CHECK(stalled.ObserveCoordination(1, 1, true, 1000));
-        CHECK(EventNow(stalled, EventKind::RoomJoined).accepted);
-        CHECK(stalled.GetSnapshot().authorityWritable);
+        EXPECT(CommandNow(stalled, CommandKind::HostRoom).accepted);
+        EXPECT(stalled.ObserveCoordination(1, 1, true, 1000));
+        EXPECT(EventNow(stalled, EventKind::RoomJoined).accepted);
+        EXPECT(stalled.GetSnapshot().authorityWritable);
 
         // Ordinary lag: fenced, but no alarm and nothing to recover from.
-        CHECK(stalled.ObserveCoordination(1, 2, true, 1500, false));
-        CHECK(stalled.GetSnapshot().authorityWritable);
-        CHECK(stalled.ObserveCoordination(1, 2, true, 1750, false));
-        CHECK(!stalled.GetSnapshot().authorityWritable);
-        CHECK(stalled.GetSnapshot().control == Health::Healthy);
-        CHECK(stalled.GetSnapshot().recovery == Recovery::None);
-        CHECK(stalled.GetSnapshot().error.empty() && stalled.GetSnapshot().fault == Fault::None);
-        CHECK(!CommandNow(stalled, CommandKind::RoomAction).accepted);
+        EXPECT(stalled.ObserveCoordination(1, 2, true, 1500, false));
+        EXPECT(stalled.GetSnapshot().authorityWritable);
+        EXPECT(stalled.ObserveCoordination(1, 2, true, 1750, false));
+        EXPECT(!stalled.GetSnapshot().authorityWritable);
+        EXPECT(stalled.GetSnapshot().control == Health::Healthy);
+        EXPECT(stalled.GetSnapshot().recovery == Recovery::None);
+        EXPECT(stalled.GetSnapshot().error.empty() && stalled.GetSnapshot().fault == Fault::None);
+        EXPECT(!CommandNow(stalled, CommandKind::RoomAction).accepted);
         // H-006: the runtime can tell a fenced refusal from any other, so it
         // parks or reports it instead of dropping it silently.
         {
@@ -386,45 +385,45 @@ int main() {
             for (CommandKind kind : {CommandKind::RoomAction, CommandKind::SetLobbySettings, CommandKind::ApplyDelay,
                      CommandKind::CheckConnection, CommandKind::Ready, CommandKind::Rematch}) {
                 fenced.kind = kind;
-                CHECK(stalled.FencedOut(fenced));
+                EXPECT(stalled.FencedOut(fenced));
                 const auto decision = stalled.Execute(fenced);
-                CHECK(!decision.accepted && decision.refusal == Refusal::Fenced);
+                EXPECT(!decision.accepted && decision.refusal == Refusal::Fenced);
             }
             fenced.kind = CommandKind::LeaveRoom;
-            CHECK(!stalled.FencedOut(fenced));
+            EXPECT(!stalled.FencedOut(fenced));
             fenced.kind = CommandKind::SetLobbySettings;
             fenced.generation.match++;
-            CHECK(!stalled.FencedOut(fenced));
-            CHECK(stalled.Execute(fenced).refusal == Refusal::Rejected);
+            EXPECT(!stalled.FencedOut(fenced));
+            EXPECT(stalled.Execute(fenced).refusal == Refusal::Rejected);
         }
 
         // Catching up clears the stall without leaving residue.
-        CHECK(stalled.ObserveCoordination(1, 3, true, 2000));
-        CHECK(stalled.GetSnapshot().authorityWritable);
-        CHECK(stalled.GetSnapshot().authorityStalledMs == 0);
+        EXPECT(stalled.ObserveCoordination(1, 3, true, 2000));
+        EXPECT(stalled.GetSnapshot().authorityWritable);
+        EXPECT(stalled.GetSnapshot().authorityStalledMs == 0);
         {
             Command writable;
             writable.kind = CommandKind::SetLobbySettings;
             writable.generation = stalled.GetSnapshot().generation;
-            CHECK(!stalled.FencedOut(writable));
+            EXPECT(!stalled.FencedOut(writable));
         }
 
         // A stall that persists is named at ten seconds...
-        CHECK(stalled.ObserveCoordination(1, 4, true, 3000, false));
-        CHECK(stalled.GetSnapshot().fault == Fault::None);
-        CHECK(stalled.ObserveCoordination(1, 5, true, 12000, false));
-        CHECK(stalled.GetSnapshot().fault == Fault::None);
-        CHECK(stalled.ObserveCoordination(1, 6, true, 13000, false));
-        CHECK(stalled.GetSnapshot().fault == Fault::CatchingUp && stalled.GetSnapshot().error.empty());
-        CHECK(stalled.GetSnapshot().recovery == Recovery::None);
+        EXPECT(stalled.ObserveCoordination(1, 4, true, 3000, false));
+        EXPECT(stalled.GetSnapshot().fault == Fault::None);
+        EXPECT(stalled.ObserveCoordination(1, 5, true, 12000, false));
+        EXPECT(stalled.GetSnapshot().fault == Fault::None);
+        EXPECT(stalled.ObserveCoordination(1, 6, true, 13000, false));
+        EXPECT(stalled.GetSnapshot().fault == Fault::CatchingUp && stalled.GetSnapshot().error.empty());
+        EXPECT(stalled.GetSnapshot().recovery == Recovery::None);
 
         // ...and offers a way out at thirty, without ever claiming a disconnect.
-        CHECK(stalled.ObserveCoordination(1, 7, true, 33000, false));
-        CHECK(stalled.GetSnapshot().recovery == Recovery::ReplacementOffered);
-        CHECK(stalled.GetSnapshot().control == Health::Healthy);
-        CHECK(CommandNow(stalled, CommandKind::ReplaceRoom).accepted);
+        EXPECT(stalled.ObserveCoordination(1, 7, true, 33000, false));
+        EXPECT(stalled.GetSnapshot().recovery == Recovery::ReplacementOffered);
+        EXPECT(stalled.GetSnapshot().control == Health::Healthy);
+        EXPECT(CommandNow(stalled, CommandKind::ReplaceRoom).accepted);
     }
 
-    std::printf("SessionController: %d failure(s)\n", failures);
-    return failures ? 1 : 0;
+    std::printf("SessionController: %d failure(s)\n", TEST_FAILURES());
+    return TEST_EXIT_CODE();
 }

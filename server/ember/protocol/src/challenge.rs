@@ -8,6 +8,7 @@ use crate::{
     encoding::{OriginPolicy, b64u, check_origin, decode_b64u, is_prefixed_id},
     json::{self, MAX_SAFE_INTEGER, Value},
     sign::Domain,
+    wire_enum::wire_enum,
 };
 
 pub const VERSION: u8 = 1;
@@ -19,81 +20,37 @@ pub const SIGN_SKEW_SECS: u64 = 24 * 60 * 60;
 pub const MAX_PROOF_BODY: usize = 8 * 1024;
 const MAX_PATH: usize = 512;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Action {
-    #[serde(rename = "session.create")]
-    SessionCreate,
-    #[serde(rename = "link.claim")]
-    LinkClaim,
-    #[serde(rename = "link.cancel")]
-    LinkCancel,
-    #[serde(rename = "link.remove")]
-    LinkRemove,
-    #[serde(rename = "match.claim")]
-    MatchClaim,
-    #[serde(rename = "room.publish")]
-    RoomPublish,
-    #[serde(rename = "lease.renew")]
-    LeaseRenew,
-    #[serde(rename = "attempt.prepare")]
-    AttemptPrepare,
-    #[serde(rename = "match.watch")]
-    MatchWatch,
-    #[serde(rename = "match.unwatch")]
-    MatchUnwatch,
-    #[serde(rename = "discord.connect")]
-    DiscordConnect,
-    #[serde(rename = "discord.remove")]
-    DiscordRemove,
-    #[serde(rename = "discord.cancel")]
-    DiscordCancel,
-    /// A configured sign-in site's actions (`sites`). The proof names the
-    /// site's path, so one made for one site does nothing on another.
-    #[serde(rename = "site.connect")]
-    SiteConnect,
-    #[serde(rename = "site.remove")]
-    SiteRemove,
-    #[serde(rename = "site.cancel")]
-    SiteCancel,
-}
-
-impl Action {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::SessionCreate => "session.create",
-            Self::LinkClaim => "link.claim",
-            Self::LinkCancel => "link.cancel",
-            Self::LinkRemove => "link.remove",
-            Self::MatchClaim => "match.claim",
-            Self::RoomPublish => "room.publish",
-            Self::LeaseRenew => "lease.renew",
-            Self::AttemptPrepare => "attempt.prepare",
-            Self::MatchWatch => "match.watch",
-            Self::MatchUnwatch => "match.unwatch",
-            Self::DiscordConnect => "discord.connect",
-            Self::DiscordRemove => "discord.remove",
-            Self::DiscordCancel => "discord.cancel",
-            Self::SiteConnect => "site.connect",
-            Self::SiteRemove => "site.remove",
-            Self::SiteCancel => "site.cancel",
-        }
+wire_enum! {
+    serde
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub enum Action {
+        SessionCreate = "session.create",
+        LinkClaim = "link.claim",
+        LinkCancel = "link.cancel",
+        LinkRemove = "link.remove",
+        MatchClaim = "match.claim",
+        RoomPublish = "room.publish",
+        LeaseRenew = "lease.renew",
+        AttemptPrepare = "attempt.prepare",
+        MatchWatch = "match.watch",
+        MatchUnwatch = "match.unwatch",
+        DiscordConnect = "discord.connect",
+        DiscordRemove = "discord.remove",
+        DiscordCancel = "discord.cancel",
+        /// A configured sign-in site's actions (`sites`). The proof names the
+        /// site's path, so one made for one site does nothing on another.
+        SiteConnect = "site.connect",
+        SiteRemove = "site.remove",
+        SiteCancel = "site.cancel",
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Method {
-    #[serde(rename = "POST")]
-    Post,
-    #[serde(rename = "DELETE")]
-    Delete,
-}
-
-impl Method {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Post => "POST",
-            Self::Delete => "DELETE",
-        }
+wire_enum! {
+    serde
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub enum Method {
+        Post = "POST",
+        Delete = "DELETE",
     }
 }
 

@@ -29,13 +29,7 @@ Runtime* runtime = nullptr;
 // the entry armed for the battle request goes with it (battle::NextRequest).
 void ResetMatchEntry() {
 	sf4e::GameEvents::VsBattle::nextRequest = {};
-	runtime->matchEntered = false;
-	runtime->enteredGeneration = 0;
-	runtime->enteredTable = -1;
-	runtime->sessionlessCloseGeneration = 0;
-	runtime->spectatorStreamFailedGeneration = 0;
-	runtime->entryDeferredGeneration = 0;
-	runtime->entryDeferredSinceMs = 0;
+	runtime->entry = {};
 }
 
 // Slots 0 and 1 are the fighters; every other seat watches. False without a
@@ -48,11 +42,19 @@ bool LocalIsSpectator() {
 // The entry stays for as long as GGPO does: the session cannot take another
 // grant until GGPO has let go of its socket.
 netplay::WatchedGame WatchedGameNow() {
-	if (!Game::Battle::System::ggpo || !LocalIsSpectator() || !runtime->matchEntered) return {};
-	return {runtime->enteredTable, runtime->enteredGeneration};
+	if (!Game::Battle::System::ggpo || !LocalIsSpectator() || !runtime->entry.matchEntered) return {};
+	return {runtime->entry.enteredTable, runtime->entry.enteredGeneration};
 }
 
+// Tests only: a value here answers AtMainMenu instead of the native event
+// system, which a test process does not have. Never set in the game. While it
+// is true a test must not Publish: Publish at the main menu reads the game's
+// pads and System singleton.
+static std::optional<bool> atMainMenuForTest;
+void SetAtMainMenuForTest(std::optional<bool> value) { atMainMenuForTest = value; }
+
 bool AtMainMenu() {
+	if (atMainMenuForTest) return *atMainMenuForTest;
 	// Platform initialization precedes the native event-system singleton. The
 	// getter dereferences that singleton before it can return a root pointer.
 	if (!runtime || !runtime->ready || !runtime->eventSystemReady) return false;
@@ -99,10 +101,9 @@ void CloseRoom() {
     runtime->recovery=session::RoomRecoveryRuntime{};
     runtime->recoveryProgress=session::RecoveryProgress{};
     runtime->observedAuthorityTerm=0;
-    runtime->leaveRequested=runtime->leaveAcknowledged=false;
+    runtime->leave={};
     runtime->join=JoinKind::Private;
-    runtime->leaveActionId=runtime->leaveRetryAt=runtime->leaveDeadline=0;
-    runtime->matchInput={};runtime->matchInputSide=-1;runtime->matchInputFault=false;
+    runtime->matchBinding={};
 	runtime->match.reset();
 	runtime->readyIntent.Clear();
 	runtime->lobbyEditIntent.Clear();
@@ -111,22 +112,11 @@ void CloseRoom() {
 	runtime->chatIntent.Clear();
 	runtime->resultOutbox.Reset();
 	runtime->recoveringMatch = false;
-	runtime->matchFinishedPending = false;
-	runtime->matchFinishedGeneration = 0;
-    runtime->finishActionId=runtime->finishRetryAt=0;
-	runtime->matchFinishedAction.reset();
-	runtime->pendingAbort.reset();
-	runtime->pendingAbortDeadline = 0;
+	// A new room numbers its generations from the start again
+	// (teardown.committedEndGeneration).
+	runtime->teardown = {};
 	runtime->spectatorLockRelease.Cancel();
 	ResetMatchEntry();
-	runtime->matchEnded = false;
-	runtime->terminalAckPending = false;
-	runtime->terminalOutcomeConsumed = false;
-	runtime->terminalAckTable = 0;
-	runtime->terminalAckGeneration = 0;
-	// A new room numbers its generations from the start again.
-	runtime->committedEndGeneration = 0;
-	runtime->matchEndLog = netplay::MatchEndLog();
 	if (runtime->attached) {
 		ShutdownNetplay(true);
 		runtime->attached = false;
@@ -533,7 +523,7 @@ static void EndClosedRoom(const netplay::Snapshot& state) {
 
 static void SettleRoomState(bool helperReady) {
 	const bool helperFailed = !runtime->helper || runtime->helper->State() == platform::HelperState::Failed;
-    if(runtime->leaveRequested && runtime->attached && UserApp::netplay && !Game::Battle::System::ggpo &&
+    if(runtime->leave.leaveRequested && runtime->attached && UserApp::netplay && !Game::Battle::System::ggpo &&
         (!runtime->match || runtime->match->GetPhase()==session::IrohMatchSession::Phase::Idle)) {
         const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
         // An authority that keeps rejecting the Leave must not hold this
@@ -541,17 +531,17 @@ static void SettleRoomState(bool helperReady) {
         // locally and let the committed room time the seat out (ledger H-005).
         // The bound starts once the Leave can be sent, after GGPO and the
         // match session retired, whose own teardown deadlines cover them.
-        if(!runtime->leaveDeadline) runtime->leaveDeadline=GetTickCount64()+session::IrohRoom::LeaveTimeoutMs;
-        const bool leaveTimedOut=GetTickCount64()>=runtime->leaveDeadline;
-        if(leaveTimedOut && !runtime->leaveAcknowledged && snapshot.localMember)
+        if(!runtime->leave.leaveDeadline) runtime->leave.leaveDeadline=GetTickCount64()+session::IrohRoom::LeaveTimeoutMs;
+        const bool leaveTimedOut=GetTickCount64()>=runtime->leave.leaveDeadline;
+        if(leaveTimedOut && !runtime->leave.leaveAcknowledged && snapshot.localMember)
             spdlog::warn("Room: leave not confirmed after {} ms; leaving locally", session::IrohRoom::LeaveTimeoutMs);
-        if(runtime->leaveAcknowledged || !snapshot.localMember || !runtime->room->Coordination().writable ||
+        if(runtime->leave.leaveAcknowledged || !snapshot.localMember || !runtime->room->Coordination().writable ||
             leaveTimedOut) CloseRoom();
-        else if(GetTickCount64()>=runtime->leaveRetryAt) {
+        else if(GetTickCount64()>=runtime->leave.leaveRetryAt) {
             room::Action leave; leave.kind=room::ActionKind::Leave;
             leave.roomEpoch=snapshot.roomEpoch; leave.revision=snapshot.revision;
-            if(UserApp::netplay->client.SendRoomAction(leave,&runtime->leaveActionId)==session::SendResult::Queued)
-                runtime->leaveRetryAt=GetTickCount64()+500;
+            if(UserApp::netplay->client.SendRoomAction(leave,&runtime->leave.leaveActionId)==session::SendResult::Queued)
+                runtime->leave.leaveRetryAt=GetTickCount64()+500;
         }
     }
     if(runtime->replacementPending && runtime->attached &&
@@ -664,7 +654,7 @@ static void CallOutOfTraining() {
 	in.inTraining = training::ControlsAvailable();
 	in.atMainMenu = AtMainMenu();
 	in.autoAccept = runtime->preferences.trainingAutoReady;
-	in.canReady = GetRuntimeSnapshotShared()->canReady;
+	in.canReady = CurrentGates().canReady;
 	in.generation = training::ReadPlace().generation;
 	in.choosingFighter = FighterSelectorShown(room.roomEpoch);
 	// From the press until its seat flag commits, it fails or its budget ends

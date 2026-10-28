@@ -42,11 +42,11 @@ impl Actor {
                         .relay_urls()
                         .next()
                         .cloned()
-                        .ok_or_else(|| failed("relay_unavailable"))?;
+                        .ok_or_else(network::relay_unavailable)?;
                     host_invite(endpoint.id(), relay, build, room)
                 })
                 .await
-                .unwrap_or_else(|_| Err(failed("relay_unavailable")))
+                .unwrap_or_else(|_| Err(network::relay_unavailable()))
             })
             .await;
             Completion::Hosted(epoch, result, latency)
@@ -223,5 +223,52 @@ pub(super) fn host_invite(
             Invite::create_in_room(endpoint, relay, build, now()?, INVITE_LIFETIME, room)
         }
         None => Invite::create(endpoint, relay, build, now()?, INVITE_LIFETIME),
+    }
+}
+
+impl Actor {
+    pub(super) async fn completed_hosted(
+        &mut self,
+        epoch: u64,
+        result: io::Result<Invite>,
+        latency: Option<latency::LatencyEndpoint>,
+    ) -> io::Result<()> {
+        if epoch != self.epoch || !self.opening {
+            return Ok(());
+        }
+        self.opening = false;
+        match result {
+            Ok(invite) => {
+                let invite = match self.setup_host_recovery(invite).await {
+                    Ok(invite) => invite,
+                    Err(_) => {
+                        self.clear_room();
+                        self.error(0, "coordination_unavailable")?;
+                        return Ok(());
+                    }
+                };
+                self.room = Some(invite.room());
+                self.latency_adopt(epoch, latency);
+                let (latency, latency_relay) = self.latency_route();
+                self.emit(Event::Hosted {
+                    epoch,
+                    invitation: invite.encode()?,
+                    room: invite.room(),
+                    latency,
+                    latency_relay,
+                })?;
+                self.emit(Event::DiscordInvite {
+                    epoch,
+                    invitation: invite.encode()?,
+                    secret: invite.encode_discord()?,
+                })?;
+                self.hosted = Some(invite);
+                self.room_invite = self.hosted.clone();
+            }
+            Err(error) => {
+                self.error_because(0, "host_unavailable", network::host_failure_reason(&error))?
+            }
+        }
+        Ok(())
     }
 }

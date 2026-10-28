@@ -74,6 +74,11 @@ namespace sf4e {
 		// GetTickCount64 when the room snapshot last arrived; members' idle
 		// times count on from it.
 		std::uint64_t RoomSnapshotReceivedMs() const { return _roomSnapshotReceivedMs; }
+		// Changes with every whole replacement of the room snapshot, the only way it
+		// changes, and is never repeated by any client in this process (0 is the
+		// empty room a client starts with). Readers that keep something derived from
+		// the room rebuild it when this moves.
+		std::uint64_t RoomSnapshotSequence() const { return _roomSnapshotSequence; }
 		// Menu readiness uses live room authority, not the immutable projection
 		// retained by native gameplay while the previous match drains.
 		bool LocalSelectionLocked(int slot) const;
@@ -149,6 +154,8 @@ namespace sf4e {
 
 		// Public for testing
 		session::SendResult Send(nlohmann::json& msg, int64_t* outMessageNum);
+		// Send, logging a refused send as "Client: could not <what>!".
+		session::SendResult SendLogged(nlohmann::json& msg, const char* what, int64_t* outMessageNum = nullptr);
 
 		// Connection related data - public for testing
 		std::string _sidecarHash;
@@ -198,6 +205,9 @@ namespace sf4e {
 		std::uint64_t _stepCounter = 0;
 		room::Snapshot _roomSnapshot;
 		std::uint64_t _roomSnapshotReceivedMs = 0;
+		std::uint64_t _roomSnapshotSequence = 0;
+		// The next RoomSnapshotSequence, shared by every client in the process.
+		static std::uint64_t NextRoomSnapshotSequence();
 		std::string _roomError;
 		std::uint64_t _nextRoomActionId = 1;
 		struct RetainedRoomRetry {
@@ -261,11 +271,18 @@ namespace sf4e {
 		bool HandleDataUpdate(nlohmann::json& msg);
 		bool HandleBattleSnapshot(nlohmann::json& msg);
 		bool HandleBattleHash(nlohmann::json& msg);
+		// Step's desync verification (sf4e__SessionClient__Verification.cxx):
+		// publishes this player's aged snapshots and confirmed hashes, and
+		// compares the remote ones buffered by the two handlers above.
+		void StepBattleVerification();
 		void ProjectSelectedRoomTable();
 		void TrySendPendingJoinRequest();
 		// The admission the hello and the fallback join_req both carry.
 		SessionProtocol::SessionJoinRequest BuildJoinRequest() const;
 		void ReconcileTerminalAcks();
+		// Step's retries of the pending terminal acknowledgements, one action
+		// ID per table and generation.
+		void PumpTerminalAcks();
 		RetainedRoomRetry* RetryRecord(room::ActionKind kind);
 		session::SendResult RetryRoomLifecycleAction(room::Action action,
 			std::uint64_t actionId, room::ActionKind expectedKind);
