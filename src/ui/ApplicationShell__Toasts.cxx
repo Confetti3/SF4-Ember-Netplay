@@ -57,6 +57,9 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
  const std::size_t most=v2::Narrow(view->Size.x,s)?1:3;
  const float size=17*s,icon=28*s,pad=14*s,x=view->Pos.x+view->Size.x-side-w,button=40*s,keySize=11*s,labelSize=15*s;
  ImFont* font=HeadingFont();
+ // A dialog open over the menus takes every click and key, so the buttons
+ // wait for it to close.
+ const bool modal=ImGui::GetTopMostPopupModal()!=nullptr;
  struct Shown { Toast* t; std::string time; float timeW,wrap,h; };
  std::vector<Shown> shown;
  for(auto& t:toasts_){
@@ -68,7 +71,7 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
   // Eyebrow, text and, on the newest only, the buttons row (Toasts board).
   float h=font->CalcTextSizeA(size,FLT_MAX,e.wrap,t.text.c_str()).y;
   if(t.kind!=ToastKind::None)h+=16*s;
-  if(shown.empty()&&!t.actions.empty())h+=9*s+button;
+  if(shown.empty()&&!t.actions.empty()&&!modal)h+=9*s+button;
   e.h=(std::max)(icon,h)+24*s;
   shown.push_back(std::move(e));
  }
@@ -85,7 +88,7 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
   d->AddRectFilled(a,b,v2::PanelGround(),4*s);
   d->AddRect(a,b,c.border,4*s,0,s);
   d->AddRectFilled(a,{a.x+4*s,b.y},tone,4*s,ImDrawFlags_RoundCornersLeft);
-  if(t.id==toastFocus_)v2::Focus(d,a,b);
+  if(t.id==toastFocus_&&!modal)v2::Focus(d,a,b);
   ToneMark(d,{a.x+pad+icon*.5f,a.y+12*s+icon*.5f},8*s,t.tone,tone);
   const float left=a.x+pad+icon+10*s;float line=a.y+12*s;
   if(t.kind!=ToastKind::None){
@@ -97,7 +100,7 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
   d->AddText(ImGui::GetFont(),12*s,{b.x-pad-e.timeW,a.y+14*s},c.muted,e.time.c_str());
   // The buttons, each with its key: Select the first, Back the last. Over the
   // menus a small window over the card takes the pointer from the list under it.
-  if(&e==&shown[0]&&!t.actions.empty()){
+  if(&e==&shown[0]&&!t.actions.empty()&&!modal){
    if(!overMatch){
     ImGui::SetNextWindowPos(a);ImGui::SetNextWindowSize({w,e.h});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{0,0});
