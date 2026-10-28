@@ -492,18 +492,22 @@ private:
     // keeps the table and the opponent of the game it follows, and the
     // generation of that game: a new one at the table ends it, unless both
     // fighters chose Rematch, when it stays until that game is loading.
+    // What Back to room, Character select or no answer leaves to do once the
+    // game is over and the room takes it: leave the seat, or open fighter select.
+    enum class AfterPostMatch { None, LeaveSeat, FighterSelect } afterPostMatch_ = AfterPostMatch::None;
     struct PostMatchPrompt {
         int table = -1;
         room::MemberId opponent = 0;
         std::uint64_t generation = 0;
         double until = 0;
         bool chose = false, starting = false;
+        // Back to room or Character select over the WIN: the prompt shows the
+        // choice until the game is over, then does `after`.
+        bool left = false;
+        AfterPostMatch after = AfterPostMatch::None;
     };
     std::optional<PostMatchPrompt> postMatch_;
     bool matchResultSeen_ = false;
-    // What Back to room, Character select or no answer leaves to do once the
-    // game is over and the room takes it: leave the seat, or open fighter select.
-    enum class AfterPostMatch { None, LeaveSeat, FighterSelect } afterPostMatch_ = AfterPostMatch::None;
     // Opens, times out and ends the prompt; open is null while Ember is hidden.
     void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
     void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);

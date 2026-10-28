@@ -37,7 +37,8 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
     using namespace netplay; auto& nav = menu_.navigation;
     if (open) {
         const auto place = room::PlaceOf(snapshot, snapshot.localMember);
-        if (v.matchResult && !matchResultSeen_ && place.table >= 0 && place.table < static_cast<int>(snapshot.tables.size())) {
+        // Only over the game's WIN: the game over, the room is shown, not a new prompt.
+        if (v.matchResult && !matchResultSeen_ && Fighting(v.session.match) && place.table >= 0 && place.table < static_cast<int>(snapshot.tables.size())) {
             const auto& t = snapshot.tables[place.table];
             PostMatchPrompt prompt;
             prompt.table = place.table; prompt.generation = t.matchGeneration; prompt.until = now + PostMatchSeconds;
@@ -62,6 +63,10 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         // the WIN plays out and resends it after. A Ready the room takes back
         // later can be pressed again.
         if (p.chose && mine >= 0 && t->ready[mine]) p.chose = false;
+        if (p.left) {
+            if (!Fighting(v.session.match) || v.atMainMenu) ClosePostMatch(v, p.after, open);
+            return;
+        }
         const bool ready = mine >= 0 && (p.chose || t->ready[mine] || v.readyRequested);
         // Both chose Rematch: the room starts the next game at once, and the
         // prompt covers the room and the game's main menu until the game
@@ -107,7 +112,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const auto& t = v.room.tables[p.table];
     const int mine = SeatOf(t, v.room.localMember), theirs = SeatOf(t, p.opponent);
     const bool midSet = MidSet(t, p.generation);
-    const bool chosen = p.starting || (mine >= 0 && (p.chose || t.ready[mine] || v.readyRequested));
+    const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || t.ready[mine] || v.readyRequested));
     const bool theyChose = p.starting || (theirs >= 0 && t.ready[theirs]);
     const auto* opponent = room::FindMember(v.room, p.opponent);
     const auto* local = room::FindMember(v.room, v.room.localMember);
@@ -115,7 +120,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // Rematch needs both fighters still seated, and after a set nobody waiting for the seat.
     const char* refusal = p.starting ? nullptr : mine < 0 ? "postmatch.not_seated" : theirs < 0 ? nullptr : !midSet && !t.queue.empty() ? "postmatch.queue_waiting" : nullptr;
     const bool again = p.starting || (mine >= 0 && theirs >= 0 && !refusal);
-    std::string title = chosen && theyChose ? loc::T("postmatch.starting") : theirs < 0 ? loc::Tf("postmatch.opponent_left", name) :
+    const char* leftAs = p.after == AfterPostMatch::FighterSelect ? "postmatch.character_select" : "postmatch.back";
+    std::string title = p.left ? std::string(loc::T(leftAs)) : chosen && theyChose ? loc::T("postmatch.starting") : theirs < 0 ? loc::Tf("postmatch.opponent_left", name) :
         chosen ? loc::Tf("postmatch.waiting_for", name) : theyChose ? loc::Tf(midSet ? "postmatch.wants_next" : "postmatch.wants_rematch", name) :
         std::string(loc::T("postmatch.choose"));
     const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
@@ -123,14 +129,16 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const auto state = [](bool ready, bool seated) {
         return std::string(loc::T(!seated ? "postmatch.state.left" : ready ? "postmatch.state.ready" : "postmatch.state.choosing"));
     };
+    // This PC's row: its choice, Back to room or Character select once made.
+    const std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen, mine >= 0);
     std::vector<MenuEntry> rows;
     rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
         again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
         again && !chosen));
-    if (chosen) rows.back().value = loc::T("postmatch.state.ready");
-    rows.push_back(Row("fighter", loc::T("postmatch.character_select"), loc::T("postmatch.character_select.detail")));
-    rows.push_back(Row("back", loc::T("postmatch.back"), loc::T(midSet ? "postmatch.back.keep_seat" : "postmatch.back.leave_seat")));
-    rows.push_back(InfoRow("pm-you", local ? local->name : loc::T("room.player"), state(chosen, mine >= 0), ""));
+    if (chosen && !p.left) rows.back().value = loc::T("postmatch.state.ready");
+    rows.push_back(Row("fighter", loc::T("postmatch.character_select"), loc::T("postmatch.character_select.detail"), !p.left));
+    rows.push_back(Row("back", loc::T("postmatch.back"), loc::T(midSet ? "postmatch.back.keep_seat" : "postmatch.back.leave_seat"), !p.left));
+    rows.push_back(InfoRow("pm-you", local ? local->name : loc::T("room.player"), mineWord, ""));
     rows.push_back(InfoRow("pm-opponent", name, state(theyChose, theirs >= 0), ""));
     const bool keys = KeyboardPrompts();
     menu_.shortcutHints = {{keys ? "F" : "X", loc::T("postmatch.character_select")}};
@@ -153,7 +161,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             const float ring = 64 * s;
             const ImVec2 centre(at.x + width - ring * .5f, at.y + rowHeight + 4 * s);
             d->AddCircle(centre, 26 * s, c.button, 48, 5 * s);
-            if (!p.starting && seconds > 0) {
+            if (!p.starting && !p.left && seconds > 0) {
                 const float left = static_cast<float>((std::min)(1.0, (std::max)(0.0, (p.until - now) / PostMatchSeconds)));
                 d->PathArcTo(centre, 26 * s, -1.5707963f, -1.5707963f + 6.2831853f * left, 48);
                 d->PathStroke(seconds <= 3 ? c.danger : c.accent, 0, 5 * s);
@@ -161,15 +169,17 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
                 const ImVec2 size = HeadingFont()->CalcTextSizeA(24 * s, FLT_MAX, 0, number.c_str());
                 d->AddText(HeadingFont(), 24 * s, ImVec2(centre.x - size.x * .5f, centre.y - size.y * .5f), c.text, number.c_str());
             }
-            const struct { const room::Member* m; bool ready, seated; } players[] = {{local, chosen, mine >= 0}, {opponent, theyChose, theirs >= 0}};
+            const struct { const room::Member* m; bool ready, seated; std::string word; } players[] = {
+                {local, chosen, mine >= 0, mineWord}, {opponent, theyChose, theirs >= 0, state(theyChose, theirs >= 0)}};
             // A tag's line, as v2::Tag sets it, to centre the tag in its row.
             const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
             float y = at.y;
             for (const auto& player : players) {
                 const v2::Box r{ImVec2(at.x, y), ImVec2(at.x + width - ring - 16 * s, y + rowHeight)};
                 d->AddRectFilled(r.min, r.max, c.ink, 4 * s); d->AddRect(r.min, r.max, c.border, 4 * s, 0, s);
-                const std::string word = state(player.ready, player.seated);
-                const ImU32 tone = !player.seated ? c.danger : player.ready ? c.ready : ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
+                const std::string& word = player.word;
+                const ImU32 tone = !player.seated ? c.danger : &player == players && p.left ? c.muted :
+                    player.ready ? c.ready : ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
                 const float chip = v2::ChipWidth(word);
                 if (player.m) {
                     v2::TagView tag; tag.name = player.m->name; tag.marks = {player.m->country, player.m->badge};
@@ -201,12 +211,18 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const auto a = menu_.Draw(title.c_str(), rows, v2::On() ? "" : status.c_str(), {}, v2::On() ? 3 : 1, {}, board, 0, 70, true, Tone::Pending);
     menu_.ownsBack = false; menu_.eyebrow.clear();
     AnswerDialog(submit);
-    const auto back = [&] { ClosePostMatch(v, midSet || chosen ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open); };
+    // Over the WIN the choice stays shown until the game is over (UpdatePostMatch).
+    const auto leave = [&](AfterPostMatch after) {
+        if (p.left) return;
+        if (!netplay::Fighting(v.session.match)) { ClosePostMatch(v, after, open); return; }
+        postMatch_->left = true; postMatch_->after = after;
+    };
+    const auto back = [&] { leave(midSet || chosen ? AfterPostMatch::None : AfterPostMatch::LeaveSeat); };
     if (a.kind == MenuAction::Back) back();
-    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Fighter) ClosePostMatch(v, AfterPostMatch::FighterSelect, open);
+    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Fighter) leave(AfterPostMatch::FighterSelect);
     else if (a.kind == MenuAction::Activate) {
         if (a.id == "again" && again && !chosen) { postMatch_->chose = true; selectedTable_ = p.table; Send(netplay::CommandKind::Rematch, v, submit); }
-        else if (a.id == "fighter") ClosePostMatch(v, AfterPostMatch::FighterSelect, open);
+        else if (a.id == "fighter") leave(AfterPostMatch::FighterSelect);
         else if (a.id == "back") back();
     }
 }

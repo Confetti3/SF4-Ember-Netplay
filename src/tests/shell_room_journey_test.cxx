@@ -519,6 +519,17 @@ void PostMatchJourneys() {
  Check(!h.open&&h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==before,"No answer did not close the prompt over WIN");
  gameOver();h.Frame();
  Check(h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue,"No answer after the game did not leave the seat");
+ // Back to room over the WIN: the prompt shows that choice until the game is
+ // over, then leaves the seat. The game over, the result does not open a new prompt.
+ h.view.matchResult=false;h.Frame();win();const auto backed=h.actions.size();h.Choose("back");h.Wait(2);
+ Check(h.open&&h.shell.Navigation().Screen()=="post-match"&&row("pm-you").value==loc::T("postmatch.back")&&!row("back").enabled&&h.actions.size()==backed,
+  "Back to room over the WIN did not keep the choice shown");
+ gameOver();h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==backed+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue,
+  "Back to room did not leave the seat once the game was over");
+ h.view.matchResult=true;h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match","A result after the game was over opened the prompt over the room");
+ h.view.matchResult=false;h.Frame();
  // Inside a set: Next game, and Back keeps the seat.
  t.rules.format=room::SetFormat::Ft2;t.matchGeneration=7;t.phase=room::TablePhase::Playing;h.view.room.tables[0].queue={3};
  win();Check(row("again").label==loc::T("postmatch.next_game")&&row("again").enabled,"A set's game did not offer Next game despite the queue");
