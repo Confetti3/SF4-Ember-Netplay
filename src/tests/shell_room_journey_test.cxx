@@ -509,8 +509,11 @@ void PostMatchJourneys() {
  gameOver();
  t.ready[1]=true;t.matchGeneration=6;t.phase=room::TablePhase::Playing;h.Wait(11);
  Check(h.shell.Navigation().Screen()=="post-match"&&!row("again").enabled,"The room showed before the chosen rematch loaded");
+ // It covers the game's main menu while the next game is prepared, and ends once it plays.
  t.ready[0]=t.ready[1]=false;h.view.session.match=netplay::MatchState::Preparing;h.Frame();
- Check(h.shell.Navigation().Screen()!="post-match","The next game loading did not end the prompt");
+ Check(h.shell.Navigation().Screen()=="post-match","The prompt left the main menu showing while the next game was prepared");
+ h.view.session.match=netplay::MatchState::Playing;h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match","The next game playing did not end the prompt");
  // No answer with no set length: Ember steps aside over WIN, then leaves the seat in the room.
  h.view.matchResult=false;h.Frame();win();const auto before=h.actions.size();h.Wait(11);
  Check(!h.open&&h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==before,"No answer did not close the prompt over WIN");

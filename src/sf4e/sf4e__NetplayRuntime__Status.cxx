@@ -294,8 +294,25 @@ input::MenuContext MenuContextNow(bool atMainMenu) {
     // the game the snapshot names and the room action's dispatch reads, so
     // the menu's Stop watching and the leave it sends agree.
     const bool watchedMatch = WatchedGameNow().Active();
-    return atMainMenu ? input::MenuContext::MainMenu :
-        PostMatchPromptDue() ? input::MenuContext::MatchResult :
+    // The WIN ends and the battle closes before the main menu is back, and
+    // the game counts as running until then: the prompt stays over it. After
+    // a Rematch it also covers the main menu while the next game is prepared,
+    // until that battle is entered.
+    if (PostMatchPromptDue()) runtime->promptOverBattle = true;
+    else if (atMainMenu && runtime->promptOverBattle) {
+        // A Rematch is coming while this PC's Ready is on its way or shown, facing an opponent.
+        const auto match = runtime->controller.GetSnapshot().match;
+        bool readied = runtime->readyIntent.Active();
+        if (!readied && UserApp::netplay) {
+            const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+            const auto place = room::PlaceOf(room, room.localMember);
+            readied = place.kind == room::Place::Kind::Seat && room.tables[place.table].ready[place.seat] &&
+                room::SeatOpponent(room, static_cast<std::uint8_t>(place.table), room.localMember);
+        }
+        runtime->promptOverBattle = match == netplay::MatchState::Preparing || (match == netplay::MatchState::PostMatch && readied);
+    }
+    return runtime->promptOverBattle ? input::MenuContext::MatchResult :
+        atMainMenu ? input::MenuContext::MainMenu :
         training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
         replaystore::GetStatus().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
         practiceFight ? input::MenuContext::PracticeMatch :

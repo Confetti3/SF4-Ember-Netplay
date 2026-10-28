@@ -64,12 +64,12 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         if (p.chose && mine >= 0 && t->ready[mine]) p.chose = false;
         const bool ready = mine >= 0 && (p.chose || t->ready[mine] || v.readyRequested);
         // Both chose Rematch: the room starts the next game at once, and the
-        // prompt covers the room until the game loads. The snapshot can bring
-        // the other Ready and the new game together.
+        // prompt covers the room and the game's main menu until the game
+        // loads. The snapshot can bring the other Ready and the new game together.
         if (t && !p.starting && ready && theirs >= 0 && (t->ready[theirs] || t->matchGeneration != p.generation)) {
             p.starting = true; p.until = now + StartGraceSeconds;
         }
-        if (!t || (p.starting ? (v.session.match == MatchState::Preparing && t->matchGeneration != p.generation) || now >= p.until :
+        if (!t || (p.starting ? (v.session.match == MatchState::Playing && t->matchGeneration != p.generation) || now >= p.until :
             t->matchGeneration != p.generation)) ClosePostMatch(v, AfterPostMatch::None, open);
         // Having chosen, wait for the opponent's answer: their own timer, and the
         // WIN they still play out, end later than this one.

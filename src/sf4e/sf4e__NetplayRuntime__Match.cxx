@@ -617,6 +617,7 @@ void TickMatch() {
 				runtime->matchEntered = entry == UserApp::MatchEntry::Entered;
 				if (runtime->matchEntered) {
 					runtime->enteredGeneration = runtime->match->Generation();
+					runtime->promptOverBattle = false;
 					const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 					const auto* local = room::FindMember(room, room.localMember);
 					runtime->enteredTable = local ? local->table : -1;

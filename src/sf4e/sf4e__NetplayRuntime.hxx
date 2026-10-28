@@ -154,6 +154,11 @@ struct Runtime {
 	// the table this member was at when it entered (the game WatchedGameNow names).
 	std::uint64_t enteredGeneration = 0;
 	int enteredTable = -1;
+	// The post-match prompt opened over this battle's WIN. It stays over the
+	// battle's close and, after a Rematch, over the main menu while the next
+	// game is prepared: until the main menu is back with no Rematch coming, or
+	// the next battle is entered.
+	bool promptOverBattle = false;
 	// Set when a netplay battle closes with its GGPO session already retired:
 	// the generation that was entered. TickMatch decides what it means.
 	std::uint64_t sessionlessCloseGeneration = 0;
