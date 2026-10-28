@@ -590,7 +590,9 @@ private:
     // two strips stand in a narrow column. RoomGrips draws the grips on the edges
     // shown, after the panes, and a drag sets them again.
     static constexpr float FoldedPanelHeight = 48, FoldedColumnWidth = 280;
-    void ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat) const;
+    void ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat,v2::Box* picture=nullptr) const;
+    // The room's Small picture: a panel at the column's top, over Members.
+    bool columnPicture_ = false;
     void RoomGrips(v2::Box area);
     // Settings' picture of that layout, with the same grips.
     void DrawRoomLayoutPreview();

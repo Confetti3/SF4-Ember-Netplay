@@ -4821,6 +4821,18 @@ msgstr "{0}: хочет реванш"
 msgid "postmatch.wants_next"
 msgstr "{0}: хочет следующую игру"
 
+msgid "postmatch.king.next"
+msgstr "Следующий: {0}"
+
+msgid "postmatch.king.waiting"
+msgstr "Ожидание претендента"
+
+msgid "postmatch.king.stays"
+msgstr "Остаётся"
+
+msgid "postmatch.king.waits"
+msgstr "Ждёт следующего"
+
 msgid "postmatch.starting"
 msgstr "Следующая игра начинается"
 

@@ -4822,6 +4822,18 @@ msgstr "{0} 님이 재대전을 원합니다"
 msgid "postmatch.wants_next"
 msgstr "{0} 님이 다음 게임을 원합니다"
 
+msgid "postmatch.king.next"
+msgstr "다음: {0}"
+
+msgid "postmatch.king.waiting"
+msgstr "도전자를 기다리는 중"
+
+msgid "postmatch.king.stays"
+msgstr "자리 유지"
+
+msgid "postmatch.king.waits"
+msgstr "다음 차례 대기"
+
 msgid "postmatch.starting"
 msgstr "다음 게임 시작"
 

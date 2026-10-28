@@ -144,6 +144,23 @@ static void TestKingStreaksAndCrown() {
 	CHECK(authority.Leave(d).accepted && room.topSlot < 0 && room.cabinets[3] == 0);
 }
 
+// King of the hill with two players: the loser challenges again at once,
+// the winner's streak going on.
+static void TestKingTwoPlayers() {
+	auto authority = Arcade(KingRoom);
+	const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
+	Sit(authority, a, 0); Sit(authority, b, 8);
+	const auto& room = authority.SnapshotView();
+	Beat(authority, a);
+	CHECK(room.streaks[0] == 1 && room.streaks[8] == 0 && Paired(authority, a, b));
+	const auto& t = room.tables[TableOf(authority, a)];
+	CHECK(t.phase == TablePhase::Waiting && t.score[0] == 0 && t.score[1] == 0 && !t.deciding);
+	Beat(authority, a);
+	CHECK(room.streaks[0] == 2 && room.topSlot == 0 && Paired(authority, a, b));
+	Beat(authority, b);
+	CHECK(room.streaks[0] == 0 && room.streaks[8] == 1 && room.topSlot == 8 && Paired(authority, a, b));
+}
+
 // An Arcade room's rules are the room's: no table's can be changed.
 static void TestRulesAreTheRooms() {
 	auto authority = Arcade();
@@ -226,6 +243,7 @@ int main() {
 		TestRematchBoth();
 		TestRematchOneRepairs();
 		TestKingStreaksAndCrown();
+	TestKingTwoPlayers();
 		TestRulesAreTheRooms();
 		TestArcadeOnTheWire();
 		TestPublicArcade();

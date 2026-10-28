@@ -406,6 +406,9 @@ bool RematchInPlaceOffered(room::MatchResult result) {
     if (!table) return false;
     const auto goal = static_cast<std::uint32_t>(table->rules.format);
     const int seat = result == room::MatchResult::P1Win ? 0 : result == room::MatchResult::P2Win ? 1 : -1;
+    // King of the hill: a set with no length is one game, and a set's end is the
+    // room's to pair (the winner stays on), never a rematch.
+    if (UserApp::netplay->client.GetRoomSnapshot().arcade == room::KingRoom) return goal != 0 && (seat < 0 || table->score[seat] + 1 < goal);
     return goal == 0 || seat < 0 || table->score[seat] + 1 < goal;
 }
 

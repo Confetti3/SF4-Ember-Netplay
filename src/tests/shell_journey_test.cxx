@@ -5,7 +5,7 @@
 
 int main() {
  try {
-  ButtonPromptJourneys(); ControllerJourneys(); ButtonLayoutJourneys(); RoomJourneys(); PostMatchJourneys(); ReplayJourneys(); TrainingSettingsAndHome(); TrainingFromRoom(); PracticeRoomCreate(); DelayPolicyCreate(); DelayPolicyInRoom(); TrainingInRoom();
+  ButtonPromptJourneys(); ControllerJourneys(); ButtonLayoutJourneys(); RoomJourneys(); PostMatchJourneys(); ArcadeJourneys(); ReplayJourneys(); TrainingSettingsAndHome(); TrainingFromRoom(); PracticeRoomCreate(); DelayPolicyCreate(); DelayPolicyInRoom(); TrainingInRoom();
   KeyboardJourneys(); RightClickBack(); MemberPopout(); RoomPartsHide(); ChatJourneys(); NoticeOverDialogs(); LanguageSaveFailure(); UpdateLaunchJourneys();
   SessionReports(); RecoveryWindow(); ProblemReportJourneys(); SelectorPages(); SelectorFromHome();
   DeveloperSelectors(); TrainingJourneys(); PresentationJourneys(); AppearanceGalleries();

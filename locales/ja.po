@@ -4822,6 +4822,18 @@ msgstr "{0}が再戦を希望"
 msgid "postmatch.wants_next"
 msgstr "{0}が次の試合を希望"
 
+msgid "postmatch.king.next"
+msgstr "次: {0}"
+
+msgid "postmatch.king.waiting"
+msgstr "挑戦者を待っています"
+
+msgid "postmatch.king.stays"
+msgstr "居残り"
+
+msgid "postmatch.king.waits"
+msgstr "次を待つ"
+
 msgid "postmatch.starting"
 msgstr "次の試合を開始"
 

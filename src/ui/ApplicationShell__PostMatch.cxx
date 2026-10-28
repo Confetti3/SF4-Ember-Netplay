@@ -31,6 +31,11 @@ int SeatOf(const room::Table& t, room::MemberId member) {
 bool MidSet(const room::Table& t, std::uint64_t generation) {
     return t.rules.format != room::SetFormat::Unlimited && t.lastSet.generation != generation;
 }
+// King of the hill keeps everyone at their cabinet after a set: the winner
+// stays on, the loser waits for the next opponent (ArcadeSetEnded).
+bool KeepsSeat(const room::Snapshot& room, const room::Table& t, std::uint64_t generation) {
+    return room.arcade == room::KingRoom || MidSet(t, generation);
+}
 // A seat's Ready for the next game. The room clears the Readies that started
 // this one only when its match ends, after the WIN of a game that may go on in place.
 bool Readied(const room::Table& t, int seat, std::uint64_t generation) {
@@ -97,7 +102,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         else if (!p.starting && ready && theirs >= 0) { if (now >= p.until + StartGraceSeconds) ClosePostMatch(v, AfterPostMatch::None, open); }
         // A WIN cut short ends the game before the timer: no answer by then is no answer.
         else if (!p.starting && (now >= p.until || ready || (!Fighting(v.session.match) && v.atMainMenu)))
-            ClosePostMatch(v, ready || MidSet(*t, p.generation) ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open);
+            ClosePostMatch(v, ready || KeepsSeat(snapshot, *t, p.generation) ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open);
     }
     // What the prompt left to do waits for the game's end, in the room.
     if (!open || postMatch_ || afterPostMatch_ == AfterPostMatch::None || Fighting(v.session.match) || !v.atMainMenu) return;
@@ -128,6 +133,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const auto& t = v.room.tables[p.table];
     const int mine = SeatOf(t, v.room.localMember), theirs = SeatOf(t, p.opponent);
     const bool midSet = MidSet(t, p.generation);
+    // King of the hill after a set: nothing to choose, the room pairs the next game.
+    const bool rotates = v.room.arcade == room::KingRoom && !midSet;
     const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None));
     const bool theyChose = p.starting || Readied(t, theirs, p.generation);
     const auto* opponent = room::FindMember(v.room, p.opponent);
@@ -140,22 +147,37 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     std::string title = p.left ? std::string(loc::T(leftAs)) : chosen && theyChose ? loc::T("postmatch.starting") : theirs < 0 ? loc::Tf("postmatch.opponent_left", name) :
         chosen ? loc::Tf("postmatch.waiting_for", name) : theyChose ? loc::Tf(midSet ? "postmatch.wants_next" : "postmatch.wants_rematch", name) :
         std::string(loc::T("postmatch.choose"));
+    if (rotates && !p.left) {
+        const auto place = room::PlaceOf(v.room, v.room.localMember);
+        const auto* next = place.table >= 0 ? room::SeatOpponent(v.room, static_cast<std::uint8_t>(place.table), v.room.localMember) : nullptr;
+        if (next) NoteUserText(next->name);
+        title = next ? loc::Tf("postmatch.king.next", next->name) : std::string(loc::T("postmatch.king.waiting"));
+    }
     const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
     const std::string status = chosen ? std::string() : loc::Tf("postmatch.seconds_left", seconds);
     const auto state = [](bool ready, bool seated) {
         return std::string(loc::T(!seated ? "postmatch.state.left" : ready ? "postmatch.state.ready" : "postmatch.state.choosing"));
     };
     // This PC's row: its choice, Back to room or Character select once made.
-    const std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen, mine >= 0);
+    std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen, mine >= 0);
+    std::string theirWord = state(theyChose, theirs >= 0);
+    // The set's winner stays on and its loser waits, once the room has the result.
+    if (rotates && t.lastSet.generation == p.generation) {
+        const auto word = [&](room::MemberId m) { return std::string(loc::T(m == t.lastSet.Winner() ? "postmatch.king.stays" : "postmatch.king.waits")); };
+        if (!p.left) mineWord = word(v.room.localMember);
+        theirWord = word(p.opponent);
+    }
     std::vector<MenuEntry> rows;
-    rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
-        again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
-        again && !chosen));
-    if (chosen && !p.left) rows.back().value = loc::T("postmatch.state.ready");
+    if (!rotates) {
+        rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
+            again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
+            again && !chosen));
+        if (chosen && !p.left) rows.back().value = loc::T("postmatch.state.ready");
+    }
     rows.push_back(Row("fighter", loc::T("postmatch.character_select"), loc::T("postmatch.character_select.detail"), !p.left));
-    rows.push_back(Row("back", loc::T("postmatch.back"), loc::T(midSet ? "postmatch.back.keep_seat" : "postmatch.back.leave_seat"), !p.left));
+    rows.push_back(Row("back", loc::T("postmatch.back"), loc::T(KeepsSeat(v.room, t, p.generation) ? "postmatch.back.keep_seat" : "postmatch.back.leave_seat"), !p.left));
     rows.push_back(InfoRow("pm-you", local ? local->name : loc::T("room.player"), mineWord, ""));
-    rows.push_back(InfoRow("pm-opponent", name, state(theyChose, theirs >= 0), ""));
+    rows.push_back(InfoRow("pm-opponent", name, theirWord, ""));
     const bool keys = KeyboardPrompts();
     menu_.shortcutHints = {{keys ? "F" : "X", loc::T("postmatch.character_select")}};
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
@@ -186,7 +208,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
                 d->AddText(HeadingFont(), 24 * s, ImVec2(centre.x - size.x * .5f, centre.y - size.y * .5f), c.text, number.c_str());
             }
             const struct { const room::Member* m; bool ready, seated; std::string word; } players[] = {
-                {local, chosen, mine >= 0, mineWord}, {opponent, theyChose, theirs >= 0, state(theyChose, theirs >= 0)}};
+                {local, chosen, mine >= 0, mineWord}, {opponent, theyChose, theirs >= 0, theirWord}};
             // A tag's line, as v2::Tag sets it, to centre the tag in its row.
             const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
             float y = at.y;
@@ -237,7 +259,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         if (!netplay::Fighting(v.session.match)) { ClosePostMatch(v, after, open); return; }
         postMatch_->left = true; postMatch_->after = after;
     };
-    const auto back = [&] { leave(midSet || chosen ? AfterPostMatch::None : AfterPostMatch::LeaveSeat); };
+    const auto back = [&] { leave(KeepsSeat(v.room, t, p.generation) || chosen ? AfterPostMatch::None : AfterPostMatch::LeaveSeat); };
     if (a.kind == MenuAction::Back) back();
     else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Fighter) leave(AfterPostMatch::FighterSelect);
     else if (a.kind == MenuAction::Activate) {

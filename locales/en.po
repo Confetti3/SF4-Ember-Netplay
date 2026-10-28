@@ -4453,6 +4453,18 @@ msgstr "{0} wants a rematch"
 msgid "postmatch.wants_next"
 msgstr "{0} wants the next game"
 
+msgid "postmatch.king.next"
+msgstr "Next: {0}"
+
+msgid "postmatch.king.waiting"
+msgstr "Waiting for a challenger"
+
+msgid "postmatch.king.stays"
+msgstr "Stays on"
+
+msgid "postmatch.king.waits"
+msgstr "Waits for the next"
+
 msgid "postmatch.starting"
 msgstr "Starting the next game"
 
