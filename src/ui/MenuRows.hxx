@@ -45,7 +45,7 @@ inline constexpr OnOffRow OnOffRows[] = {
     {"hud",&netplay::PlayerPreferences::showMatchHud,false},{"ready-sound",&netplay::PlayerPreferences::readySound,false},
     {"shortcut-hint",&netplay::PlayerPreferences::showShortcutHint,false},{"class-emblems",&netplay::PlayerPreferences::classEmblems,false},
     {"match-frame-meter",&netplay::PlayerPreferences::matchFrameMeter,false},{"training-auto-ready",&netplay::PlayerPreferences::trainingAutoReady,false},
-    {"replay-save-watched",&netplay::PlayerPreferences::recordWatched,false},{"watched-picture",&netplay::PlayerPreferences::watchedPicture,false},
+    {"replay-save-watched",&netplay::PlayerPreferences::recordWatched,false},
     {"replay-share",&netplay::PlayerPreferences::shareReplays,false},
     {"presence",&netplay::PlayerPreferences::discordPresence,false},{"invites",&netplay::PlayerPreferences::discordInvites,false},
     {"share-steam",&netplay::PlayerPreferences::shareSteamProfile,false},{"send-reports",&netplay::PlayerPreferences::sendProblemReports,false},
