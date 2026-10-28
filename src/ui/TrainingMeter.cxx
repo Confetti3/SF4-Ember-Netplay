@@ -159,6 +159,7 @@ void DrawStops(ImDrawList* draw, const MeterView& meter, int side, BarWindow win
         if (index < 0 || !meter.frames[index].cells[side].afterStop) continue;
         StopLine(draw, ImVec2(origin.x + i * cell, origin.y), height, slant);
     }
+}
 // A run's length, centred over its cells where the number fits. A neutral run
 // or a single cell carries none.
 void RunLength(ImDrawList* draw, ImVec2 origin, float slant, float cell, float height, float digits, int from, int to, MeterKind kind, ImU32 colour) {

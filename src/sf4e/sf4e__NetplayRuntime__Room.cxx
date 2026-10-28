@@ -177,7 +177,7 @@ static DispatchOutcome Handle(commands::Service& command, bool helperReady, Atte
     if (command.service != platform::ServiceAction::None) {
         // In-game install is refused; opening the Launcher needs the game out of a room and a match.
         if (command.service == platform::ServiceAction::InstallUpdate ||
-            ((command.service == platform::ServiceAction::OpenUpdater || command.service == platform::ServiceAction::OpenRecovery ||
+            ((command.service == platform::ServiceAction::OpenRecovery ||
               command.service == platform::ServiceAction::UpdateNow) && !CurrentGates().canEditPreferences)) return DispatchOutcome::Dropped;
         // The launch check and the answer to its offer have their own quiet entry points.
         if (command.service == platform::ServiceAction::LaunchUpdateCheck) { runtime->services.RequestLaunchCheck(); return DispatchOutcome::Dropped; }

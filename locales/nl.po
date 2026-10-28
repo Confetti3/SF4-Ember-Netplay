@@ -790,6 +790,12 @@ msgstr "Matches waar je naar kijkt opslaan"
 msgid "replays.save_watched_detail"
 msgstr "Slaat ook wedstrijden op die je als toeschouwer bekijkt. Uit slaat alleen wedstrijden op die je zelf speelt."
 
+msgid "settings.watched_picture"
+msgstr "Bekeken spel in een hoek"
+
+msgid "settings.watched_picture_detail"
+msgstr "Met het menu van Ember open boven een spel dat je bekijkt, toont het spel klein rechtsboven over een dicht menu in plaats van gedimd erachter."
+
 msgid "replays.share"
 msgstr "Mijn replays delen"
 
@@ -3138,14 +3144,8 @@ msgstr "In wachtrij"
 msgid "room.stop_watching"
 msgstr "Stoppen met kijken"
 
-msgid "room.picture_behind"
-msgstr "Spel achter het menu"
 
-msgid "room.picture_show"
-msgstr "Spel als beeld"
 
-msgid "room.picture_swap.detail"
-msgstr "Wisselt het bekeken spel tussen een klein beeld en het gedimde spel achter het menu, voor deze sessie."
 
 msgid "room.stop_watching.detail"
 msgstr "Stopt met kijken naar deze tafel en brengt je terug naar de kamer. De spelers blijven spelen."

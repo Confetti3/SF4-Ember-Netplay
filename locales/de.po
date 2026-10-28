@@ -790,6 +790,12 @@ msgstr "Zugeschaute Matches speichern"
 msgid "replays.save_watched_detail"
 msgstr "Speichert auch Kämpfe, denen du als Zuschauer zusiehst. Aus speichert nur Kämpfe, die du selbst spielst."
 
+msgid "settings.watched_picture"
+msgstr "Zugeschautes Spiel in der Ecke"
+
+msgid "settings.watched_picture_detail"
+msgstr "Öffnest du Embers Menü über einem Spiel, dem du zuschaust, erscheint es klein oben rechts über einem deckenden Menü statt abgedunkelt dahinter."
+
 msgid "replays.share"
 msgstr "Share my replays"
 
@@ -3138,14 +3144,8 @@ msgstr "In Warteschlange"
 msgid "room.stop_watching"
 msgstr "Zuschauen beenden"
 
-msgid "room.picture_behind"
-msgstr "Spiel hinter dem Menü"
 
-msgid "room.picture_show"
-msgstr "Spiel als Bild"
 
-msgid "room.picture_swap.detail"
-msgstr "Wechselt das zugeschaute Spiel zwischen einem kleinen Bild und dem abgedunkelten Spiel hinter dem Menü, für diese Sitzung."
 
 msgid "room.stop_watching.detail"
 msgstr "Beendet das Zuschauen an diesem Tisch und bringt Sie zurück in den Raum. Die Spieler spielen weiter."

@@ -790,6 +790,12 @@ msgstr "Enregistrer les matchs regardés"
 msgid "replays.save_watched_detail"
 msgstr "Enregistre aussi les matchs que vous suivez en spectateur. Désactivé, seuls les matchs que vous jouez sont enregistrés."
 
+msgid "settings.watched_picture"
+msgstr "Partie regardée dans un coin"
+
+msgid "settings.watched_picture_detail"
+msgstr "Avec le menu d'Ember ouvert sur une partie que vous regardez, l'affiche en petit en haut à droite sur un menu opaque au lieu d'assombrie derrière."
+
 msgid "replays.share"
 msgstr "Share my replays"
 
@@ -3138,14 +3144,8 @@ msgstr "Entrer en file"
 msgid "room.stop_watching"
 msgstr "Arrêter de regarder"
 
-msgid "room.picture_behind"
-msgstr "Partie derrière le menu"
 
-msgid "room.picture_show"
-msgstr "Partie en image"
 
-msgid "room.picture_swap.detail"
-msgstr "Bascule la partie regardée entre une petite image et la partie assombrie derrière le menu, pour cette session."
 
 msgid "room.stop_watching.detail"
 msgstr "Arrête de regarder cette table et vous ramène au salon. Les combattants continuent de jouer."

@@ -790,6 +790,12 @@ msgstr "Сохранять просмотренные матчи"
 msgid "replays.save_watched_detail"
 msgstr "Также сохраняет матчи, которые вы смотрите как зритель. Если выключено, сохраняются только ваши матчи."
 
+msgid "settings.watched_picture"
+msgstr "Просматриваемая игра в углу"
+
+msgid "settings.watched_picture_detail"
+msgstr "Когда меню Ember открыто поверх игры, которую вы смотрите, показывает её маленькой в правом верхнем углу поверх непрозрачного меню, а не затемнённой за ним."
+
 msgid "replays.share"
 msgstr "Share my replays"
 
@@ -3138,14 +3144,8 @@ msgstr "В очередь"
 msgid "room.stop_watching"
 msgstr "Не смотреть"
 
-msgid "room.picture_behind"
-msgstr "Игра за меню"
 
-msgid "room.picture_show"
-msgstr "Игра картинкой"
 
-msgid "room.picture_swap.detail"
-msgstr "Переключает просматриваемую игру между маленькой картинкой и затемнённой игрой за меню на этот сеанс."
 
 msgid "room.stop_watching.detail"
 msgstr "Прекращает просмотр этой ячейки и возвращает в лобби. Бойцы продолжают играть."

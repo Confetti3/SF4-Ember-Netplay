@@ -84,17 +84,27 @@ pub fn site(file: &str, id: &str, name: &str, origin: &str) -> config::SignInSit
         env!("CARGO_MANIFEST_DIR")
     );
     let mut site: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-    let local = |url: &Value| {
-        let url = reqwest::Url::parse(url.as_str().unwrap()).unwrap();
-        json!(format!("{origin}{}", url.path()))
-    };
     site["id"] = json!(id);
     site["display_name"] = json!(name);
-    site["authorize_url"] = local(&site["authorize_url"]);
-    site["token_url"] = local(&site["token_url"]);
-    site["user"]["url"] = local(&site["user"]["url"]);
+    localize(&mut site, origin);
     site["hosts"] = json!(["127.0.0.1"]);
     serde_json::from_value(site).unwrap()
+}
+
+/// Every URL in `value` (sign-in, user, organizer) moved to `origin`, keeping
+/// its path.
+fn localize(value: &mut Value, origin: &str) {
+    match value {
+        Value::String(text) if text.starts_with("https://") => {
+            let url = reqwest::Url::parse(text).unwrap();
+            *text = format!("{origin}{}", url.path());
+        }
+        Value::Object(fields) => fields
+            .values_mut()
+            .for_each(|field| localize(field, origin)),
+        Value::Array(items) => items.iter_mut().for_each(|item| localize(item, origin)),
+        _ => {}
+    }
 }
 
 /// One HTTP/1.1 request as it was sent: its method, path, headers (names in
