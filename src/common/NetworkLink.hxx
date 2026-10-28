@@ -9,7 +9,7 @@ namespace sf4e {
 // How a player's machine reaches the internet, shown beside their name.
 // Wired and Wireless are claimed only when the adapter clearly is one;
 // Unknown covers everything else (VPN tunnels, internal virtual switches,
-// mixed or unreadable adapters, Bluetooth, mobile, Wine), so the room never
+// mixed or unreadable adapters, Bluetooth, mobile), so the room never
 // claims a link it did not see.
 enum class NetworkLink : std::uint8_t { Unknown = 0, Wired, Wireless };
 
@@ -88,8 +88,19 @@ NetworkLink ResolveNetworkLink(unsigned long index, LowerLayers lowerLayers, Des
     return link;
 }
 
+// Under Wine, which reports every host interface as Ethernet, the Linux
+// host's /sys/class/net entry for the interface: Wi-Fi has a wireless
+// directory or the wlan device type. A cable is a device with Ethernet
+// framing (type 1) and no device type, as Bluetooth and mobile links have
+// one; USB tethering has none and reads as a cable.
+inline NetworkLink LinuxInterfaceLink(bool wireless, bool device, const std::string& type, const std::string& devtype) {
+    if (wireless || devtype == "wlan") return NetworkLink::Wireless;
+    return device && type == "1" && devtype.empty() ? NetworkLink::Wired : NetworkLink::Unknown;
+}
+
 // The link carrying this machine's default route. Reads the routing table and
-// interface entries only; sends nothing. `detail`, when given, names for the
+// interface entries, and under Wine the host's /sys/class/net entry for the
+// route's interface; sends nothing. `detail`, when given, names for the
 // log what was read: the route's interface and every interface in its stack
 // (index, hardware, type, medium, adapter model), and any other hardware
 // adapter that is up, so a wrong answer can be traced to the adapter that

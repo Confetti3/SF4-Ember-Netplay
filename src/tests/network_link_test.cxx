@@ -130,6 +130,15 @@ int main() {
 	// A peer whose class is not known (an older build, or still checking) is not called open.
 	EXPECT(DiagnoseDirectPath(NatClass::Open, NatClass::Unknown) == DirectBlock::None);
 	EXPECT(DiagnoseDirectPath(NatClass::Strict, NatClass::Unknown) == DirectBlock::LocalStrict);
+	// Under Wine, a link is claimed only when the Linux interface clearly is one.
+	EXPECT(LinuxInterfaceLink(true, true, "1", "") == NetworkLink::Wireless);
+	EXPECT(LinuxInterfaceLink(false, true, "1", "wlan") == NetworkLink::Wireless);
+	EXPECT(LinuxInterfaceLink(false, true, "1", "") == NetworkLink::Wired);
+	// Bluetooth, mobile, a device with other framing, and a virtual interface.
+	EXPECT(LinuxInterfaceLink(false, true, "1", "bluetooth") == NetworkLink::Unknown);
+	EXPECT(LinuxInterfaceLink(false, true, "1", "wwan") == NetworkLink::Unknown);
+	EXPECT(LinuxInterfaceLink(false, true, "772", "") == NetworkLink::Unknown);
+	EXPECT(LinuxInterfaceLink(false, false, "1", "") == NetworkLink::Unknown);
 	// The live answer depends on the machine; it must only not fail.
 	std::string detail;
 	std::printf("This machine's link: %s\n", NetworkLinkLabel(DetectNetworkLink(&detail)));
