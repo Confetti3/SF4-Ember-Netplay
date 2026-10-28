@@ -476,6 +476,22 @@ void RoomJourneys() {
  h.view.preferences=h.actions.back().preferences;h.Frame();
  Check(h.shell.Navigation().Screen()=="profile","Retried portrait save did not return to Profile");
 }
+
+void ArcadeJourneys() {
+ using namespace sf4e;
+ {
+  // An Arcade room's Queue names a cabinet (table + seat * TableCount), not the
+  // table its pair plays at: a member paired at table 0 still moves to cabinet 1.
+  Harness a;JoinedRoom(a,14);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
+  room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
+  a.view.room.tables[0].p1=1;a.view.room.tables[0].p2=2;a.view.room.cabinets[1]=1;a.view.room.cabinets[2]=2;
+  a.Screen("room");const auto sent=a.actions.size();a.Choose("cabinet-0");
+  Check(a.actions.size()==sent+1&&a.actions.back().roomAction.kind==room::ActionKind::Queue&&a.actions.back().roomAction.table==0&&
+   a.actions.back().roomAction.seat==0,"A paired member could not move to cabinet 1");
+ }
+}
 // The post-match prompt over the WIN screen: Rematch sends the room's Ready
 // and the prompt stays until the next game starts; no answer after a game
 // with no set length leaves the seat once the game is over; inside a set it

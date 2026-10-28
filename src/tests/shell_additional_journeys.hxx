@@ -1,6 +1,7 @@
 #pragma once
 void RoomJourneys();
 void PostMatchJourneys();
+void ArcadeJourneys();
 void ButtonPromptJourneys();
 void ControllerJourneys();
 void ButtonLayoutJourneys();
